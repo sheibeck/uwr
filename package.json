@@ -6,8 +6,8 @@
   "engines": {"node": ">=20"},
   "workspaces": ["apps/*", "services/*", "packages/*"],
   "scripts": {
-  "dev:orchestrator": "tsx services/orchestrator/src/index.ts",
-  "dev:web": "pnpm --filter ./apps/web exec vite -- --host",
+    "dev:orchestrator": "tsx services/orchestrator/src/server.ts",
+    "dev:web": "pnpm --filter ./apps/web exec vite -- --host",
     "dev:spacetime": "spacetime start",
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write .",
