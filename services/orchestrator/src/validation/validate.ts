@@ -1,5 +1,5 @@
-import { ActionRequest } from '@prompt/schemas/action';
-import { NarrativeResponse } from '@prompt/schemas/response';
+import { ActionRequest } from '@prompt/schemas/action.js';
+import { NarrativeResponse } from '@prompt/schemas/response.js';
 import { z } from 'zod';
 
 export function validateActionRequest(input: unknown): ActionRequest {

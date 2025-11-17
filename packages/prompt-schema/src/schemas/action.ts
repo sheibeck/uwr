@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CharacterId, ActionEnvelope } from '@shared/index';
+import { CharacterId, ActionEnvelope } from '@shared/index.js';
 import { WorldContext } from './context.js';
 import { NPCProfile } from './npc.js';
 

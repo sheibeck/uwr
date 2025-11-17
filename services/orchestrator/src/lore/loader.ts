@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'fs';
 import { resolve } from 'path';
 import YAML from 'yaml';
-import { LoreShard } from '@prompt/schemas/lore';
+import { LoreShard } from '@prompt/schemas/lore.js';
 
 export interface LoreStore {
     shards: Map<string, LoreShard>;

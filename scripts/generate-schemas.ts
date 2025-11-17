@@ -1,8 +1,8 @@
 import { writeFileSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
-import { ActionRequest } from '@prompt/schemas/action';
-import { NarrativeResponse } from '@prompt/schemas/response';
-import { LoreShard } from '@prompt/schemas/lore';
+import { ActionRequest } from '@prompt/schemas/action.js';
+import { NarrativeResponse } from '@prompt/schemas/response.js';
+import { LoreShard } from '@prompt/schemas/lore.js';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
 const outDir = resolve(process.cwd(), 'generated', 'schemas');

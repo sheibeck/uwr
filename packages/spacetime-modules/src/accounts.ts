@@ -4,13 +4,13 @@ import { Account } from '@shared/index.js';
 import { randomUUID } from 'crypto';
 
 export async function upsertAccount(provider: string, providerUserId: string, displayName: string): Promise<Account> {
-  const now = Date.now();
-  return {
-    id: randomUUID(),
-    provider: provider as any,
-    providerUserId,
-    displayName,
-    createdAt: now,
-    updatedAt: now
-  };
+    const now = Date.now();
+    return {
+        id: randomUUID(),
+        provider: provider as any,
+        providerUserId,
+        displayName,
+        createdAt: now,
+        updatedAt: now
+    };
 }

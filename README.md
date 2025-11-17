@@ -16,7 +16,7 @@ Additional app packages (web client, orchestration services, SpaceTimeDB modules
 
 - Language: **TypeScript** across all packages (orchestrator, web app, shared schema, SpaceTimeDB module bindings).
 - Package management: **PNPM workspaces** (`apps/`, `services/`, `packages/`).
-- Formatting & lint: **Biome** (format), **ESLint** (rules), **TypeScript strict** (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `strictNullChecks`).
+- Formatting & lint: **Prettier** (format), **ESLint** (rules), **TypeScript strict** (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `strictNullChecks`).
 - Testing: **Vitest** + **happy-dom** (UI) + lightweight scenario replay harness later.
 - Validation: **Zod** for runtime schemas, auto-export JSON Schema for AI function calling guardrails.
 - SpaceTimeDB: Use its TypeScript SDK for table definitions & procedure calls; keep domain types in `packages/shared-schema`.
@@ -25,10 +25,39 @@ Additional app packages (web client, orchestration services, SpaceTimeDB modules
 
 ## Getting started
 
-1. Ensure you have Git, Node 20+, and SpaceTimeDB CLI installed.
+1. Ensure you have Git, Node 20+, and SpaceTimeDB CLI installed (Windows: visit https://spacetimedb.com/install or use the official installer; verify with `spacetime --version`).
 2. Clone or open this repo: `git clone <url> c:\projects\uwr`.
 3. Explore the specs under `docs/` to understand narrative, systems, and delivery plan.
 4. Use the roadmap to pick the next actionable milestone before writing code.
+
+### SpacetimeDB integration (accounts & sessions)
+
+Commands (PowerShell):
+
+```
+# Start local host (leave running)
+pnpm dev:spacetime
+
+# Publish module (entrypoint packages/spacetime-modules/src/index.ts)
+pnpm publish:spacetime
+
+# Generate client bindings for orchestrator
+pnpm generate:bindings
+
+# Run orchestrator (will fallback to stubs unless SPACETIME_ENABLED=true)
+SPACETIME_ENABLED=true pnpm dev:orchestrator
+```
+
+Environment variables:
+
+```
+SPACETIME_URI=ws://localhost:3000
+SPACETIME_DBNAME=quickstart-chat
+SPACETIME_TOKEN=<optional persisted token>
+SPACETIME_ENABLED=true
+```
+
+If bindings are not yet generated the orchestrator adapter will use local stubs, allowing tests to pass offline.
 
 ## Guiding principles
 

@@ -1,5 +1,5 @@
-import { NarrativeResponse } from '@prompt/schemas/response';
-import { ActionRequest } from '@prompt/schemas/action';
+import { NarrativeResponse } from '@prompt/schemas/response.js';
+import { ActionRequest } from '@prompt/schemas/action.js';
 import { randomUUID } from 'crypto';
 
 export interface DispatchResult {

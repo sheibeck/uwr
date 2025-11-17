@@ -1,5 +1,5 @@
-import { ActionRequest } from '@prompt/schemas/action';
-import { LoreShard } from '@prompt/schemas/lore';
+import { ActionRequest } from '@prompt/schemas/action.js';
+import { LoreShard } from '@prompt/schemas/lore.js';
 
 export interface PromptAssemblyOptions {
     maxLoreShards?: number;
@@ -17,9 +17,9 @@ export function buildPrompt(req: ActionRequest, lore: LoreShard[], opts: PromptA
         '=== WEATHER ===',
         `${req.context.weather.condition} intensity=${req.context.weather.intensity}`,
         '=== NPCs NEARBY ===',
-        req.nearbyNPCs.map(n => `${n.name}(${n.dispositionTowardsPlayer})`).join(', ') || 'None',
+        req.nearbyNPCs.map((n: any) => `${n.name}(${n.dispositionTowardsPlayer})`).join(', ') || 'None',
         '=== RECENT ACTION TYPES ===',
-        req.recentActions.map(a => a.type).join(', ') || 'None',
+        req.recentActions.map((a: any) => a.type).join(', ') || 'None',
         '=== LORE SHARDS ===',
         loreText || 'None',
         '=== TASK ===',

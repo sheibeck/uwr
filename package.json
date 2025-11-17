@@ -8,11 +8,14 @@
   "scripts": {
     "dev:orchestrator": "tsx services/orchestrator/src/index.ts",
     "dev:web": "vite --host",
+    "dev:spacetime": "spacetime start",
     "lint": "eslint . --ext .ts,.tsx",
-    "format": "biome format .",
-  "test": "vitest run",
+    "format": "prettier --write .",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.base.json --noEmit",
-    "generate:schemas": "tsx scripts/generate-schemas.ts"
+    "generate:schemas": "tsx scripts/generate-schemas.ts",
+    "publish:spacetime": "spacetime publish --server local --project-path packages/spacetime-modules quickstart-chat",
+    "generate:bindings": "spacetime generate --lang typescript --out-dir services/orchestrator/src/module_bindings --project-path packages/spacetime-modules"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.47.0",
@@ -31,6 +34,7 @@
   },
   "dependencies": {
     "vue": "^3.5.0",
-    "zod": "^3.23.0"
+    "zod": "^3.23.0",
+    "spacetimedb": "^1.4.0"
   }
 }
