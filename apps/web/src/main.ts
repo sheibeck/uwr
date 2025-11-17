@@ -1,7 +1,4 @@
 import { createApp } from 'vue';
-
-const App = {
-    template: '<div>Unwritten Realms Web Shell</div>'
-};
+import App from './App.vue';
 
 createApp(App).mount('#app');

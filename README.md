@@ -57,6 +57,101 @@ SPACETIME_TOKEN=<optional persisted token>
 SPACETIME_ENABLED=true
 ```
 
+## Startup (full dev environment)
+
+This section collects the exact commands and environment settings to get the full stack running locally on Windows (PowerShell). It assumes you have Node 20+, Git, pnpm and the `spacetime` CLI installed on your PATH.
+
+1) Install dependencies (from the repo root):
+
+```powershell
+pnpm install
+```
+
+2) Optional: run typecheck to catch any local issues early:
+
+```powershell
+pnpm typecheck
+```
+
+3) Start a local SpaceTimeDB host (separate terminal). This uses the `spacetime` dev server included with the SDK:
+
+```powershell
+# start a local spacetime host (leave running)
+pnpm dev:spacetime
+```
+
+4) Publish the SpaceTime module (required for real bindings). In a separate terminal run:
+
+```powershell
+pnpm publish:spacetime
+```
+
+5) Generate TypeScript client bindings for the orchestrator (this writes to services/orchestrator/src/module_bindings):
+
+```powershell
+pnpm generate:bindings
+```
+
+6) Start the orchestrator server (this exposes /api/sessionSync at port 3001 by default). Prefer a dedicated terminal for this process:
+
+```powershell
+# Optionally enable the spacetime adapter if you want real DB calls
+$env:SPACETIME_ENABLED = 'true'; $env:ORCHESTRATOR_PORT = '3001'; pnpm dev:orchestrator
+```
+
+If you prefer the default environment style instead of inline PowerShell env assignment, set the variables in your environment or use a .env loader.
+
+7) Start the web dev server (Vite). From the repo root:
+
+```powershell
+# runs the web client (Vite will proxy /api to the orchestrator at localhost:3001)
+pnpm dev:web
+```
+
+8) Open the browser to the Vite dev URL (usually http://localhost:5173). Use the web UI to sign in via the small auth form. The front-end calls `/api/sessionSync` which is proxied to the orchestrator server.
+
+Note about ports and 404s
+
+Vite's standard dev port is 5173. If you navigate to a different port (for example http://localhost:5174) and see a 404, the Vite dev server is not serving on that port. Always run `pnpm dev:web` from the repo root and check the Vite terminal output — Vite prints the local URL it is listening on (for example: "Local: http://localhost:5173/").
+
+If you need a fixed dev port in CI or automation, set it in your CI environment or add a dedicated script, but for local development we recommend relying on Vite's default behavior and checking the terminal for the actual URL.
+
+Quick troubleshooting
+- If you see TypeScript errors referencing generated bindings, re-run `pnpm generate:bindings` and then `pnpm typecheck`.
+- If the web UI cannot reach `/api`, confirm the orchestrator is running on port 3001 and that `apps/web/vite.config.ts` proxy is present. You can change `ORCHESTRATOR_PORT` and update the proxy target if needed.
+- If Spacetime client errors appear, make sure the local SpaceTime host process (step 3) is running and that `SPACETIME_ENABLED=true` is set when starting the orchestrator.
+
+Node version note
+
+If you see an error from Vite like "Vite requires Node.js version 20.19+ or 22.12+", upgrade Node. Two common options on Windows:
+
+- Install nvm-windows (https://github.com/coreybutler/nvm-windows) and run:
+
+```powershell
+nvm install 22.12.0
+nvm use 22.12.0
+```
+
+- Or download the latest Node.js installer from https://nodejs.org and run the Windows installer.
+
+Commands summary (copyable PowerShell block)
+
+```powershell
+pnpm install
+pnpm typecheck
+# in terminal A
+pnpm dev:spacetime
+# in terminal B
+pnpm publish:spacetime
+pnpm generate:bindings
+# in terminal C
+$env:SPACETIME_ENABLED = 'true'; $env:ORCHESTRATOR_PORT = '3001'; pnpm dev:orchestrator
+# in terminal D
+pnpm dev:web
+```
+
+If you'd like, I can also add a small PowerShell script or PS1 task that orchestrates these terminals for you.
+
 If bindings are not yet generated the orchestrator adapter will use local stubs, allowing tests to pass offline.
 
 ## Guiding principles
