@@ -28,11 +28,35 @@ interface DbConnectionLike {
     db: any;
 }
 
-function buildRemoteConnection(): DbConnectionLike | null {
-    // Dynamic require avoided; we only attempt if bindings exist.
+async function buildRemoteConnection(): Promise<DbConnectionLike | null> {
+    // Try to dynamically import generated bindings using file URLs. This works
+    // in ESM runtime (tsx / node --experimental-loader) and supports .ts
+    // sources when running under tsx.
     try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const bindings = require('../module_bindings/index.js');
+        const candidates = [
+            new URL('../module_bindings/index.js', import.meta.url).href,
+            new URL('../module_bindings/index.ts', import.meta.url).href,
+            new URL('../module_bindings/index', import.meta.url).href,
+        ];
+
+        let bindings: any = null;
+        for (const c of candidates) {
+            try {
+                // dynamic import
+                // eslint-disable-next-line no-console
+                const mod = await import(c);
+                bindings = mod;
+                // eslint-disable-next-line no-console
+                console.info(`Loaded module bindings from ${c}`);
+                break;
+            } catch (e) {
+                // eslint-disable-next-line no-console
+                // console.debug(`Could not import bindings ${c}:`, e?.message || e);
+            }
+        }
+
+        if (!bindings) throw new Error('module_bindings not found');
+
         const builder: ConnectionBuilder = (bindings.DbConnection as any).builder();
         const conn: DbConnectionLike = builder
             .withUri(process.env.SPACETIME_URI || 'ws://localhost:3000')
@@ -51,15 +75,20 @@ function buildRemoteConnection(): DbConnectionLike | null {
                 console.error('SpacetimeDB connection error', err);
             })
             .build();
+
+        // eslint-disable-next-line no-console
+        console.info('Built remote SpacetimeDB connection');
         return conn;
     } catch (_e) {
+        // eslint-disable-next-line no-console
+        console.info('No module bindings available; using local stubs');
         return null; // Bindings not present yet
     }
 }
 
-export function createSpaceTimeAdapter(): SpaceTimeAdapter {
+export async function createSpaceTimeAdapter(): Promise<SpaceTimeAdapter> {
     const enableRemote = process.env.SPACETIME_ENABLED === 'true';
-    const remoteConn = enableRemote ? buildRemoteConnection() : null;
+    const remoteConn = enableRemote ? await buildRemoteConnection() : null;
 
     if (!remoteConn) {
         // Fallback to stubs
@@ -67,21 +96,42 @@ export function createSpaceTimeAdapter(): SpaceTimeAdapter {
             upsertAccount: stubUpsertAccount,
             createOrUpdateSession: async (account, ttlMinutes) => stubCreateSession(account.id, ttlMinutes),
             touchSession: stubTouchSession,
-            isRemote: false
+            isRemote: false,
         };
     }
 
     // Remote implementation (optimistic; assumes reducers defined in module schema)
     return {
         async upsertAccount(provider: string, providerUserId: string, displayName: string): Promise<Account> {
-            // Expect reducer name createAccount(provider, providerUserId, displayName)
             const r = remoteConn.reducers as any;
-            if (r.createAccount) {
-                r.createAccount(provider, providerUserId, displayName);
-            } else if (r.upsertAccount) {
-                r.upsertAccount(provider, providerUserId, displayName);
-            }
-            // We rely on subscription eventually populating db.accounts.unique index; for now return stub until cache populated.
+            try {
+                // Log available reducers for easier debugging.
+                // eslint-disable-next-line no-console
+                console.info('Spacetime reducers available:', Object.keys(r || {}));
+            } catch { }
+
+            // Try common reducer name variants (snake_case and camelCase)
+            const tryReducer = (names: string[], ...args: any[]) => {
+                for (const name of names) {
+                    if (r && typeof r[name] === 'function') {
+                        try {
+                            r[name](...args);
+                            // eslint-disable-next-line no-console
+                            console.info(`Called reducer ${name}`);
+                        } catch (e) {
+                            // eslint-disable-next-line no-console
+                            console.error(`Reducer ${name} threw`, e);
+                        }
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            // Try insert/update reducer variants
+            tryReducer(['create_account', 'createAccount', 'upsert_account', 'upsertAccount'], provider, providerUserId, displayName);
+
+            // We rely on subscription eventually populating db.accounts.unique index; for now return a local representation.
             return {
                 id: provider + ':' + providerUserId,
                 provider: provider as any,
@@ -94,11 +144,27 @@ export function createSpaceTimeAdapter(): SpaceTimeAdapter {
         async createOrUpdateSession(account: Account, ttlMinutes: number): Promise<Session> {
             const token = 'session_' + account.id + '_' + Date.now();
             const r = remoteConn.reducers as any;
-            if (r.createOrUpdateSession) {
-                r.createOrUpdateSession(account.providerUserId, token, ttlMinutes);
-            } else if (r.createSession) {
-                r.createSession(account.id, token, ttlMinutes);
-            }
+
+            const tryReducer = (names: string[], ...args: any[]) => {
+                for (const name of names) {
+                    if (r && typeof r[name] === 'function') {
+                        try {
+                            r[name](...args);
+                            // eslint-disable-next-line no-console
+                            console.info(`Called reducer ${name}`);
+                        } catch (e) {
+                            // eslint-disable-next-line no-console
+                            console.error(`Reducer ${name} threw`, e);
+                        }
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            // Try various reducer names. create_or_update_session expects (provider_user_id, session_token, ttl_minutes)
+            tryReducer(['create_or_update_session', 'createOrUpdateSession', 'create_session', 'createSession'], account.providerUserId, token, ttlMinutes);
+
             return {
                 id: token,
                 accountId: account.id,
@@ -110,8 +176,24 @@ export function createSpaceTimeAdapter(): SpaceTimeAdapter {
         },
         async touchSession(session: Session): Promise<Session> {
             const r = remoteConn.reducers as any;
-            if (r.touchSession) {
-                r.touchSession(session.id);
+            try {
+                const tryNames = ['touch_session', 'touchSession'];
+                for (const n of tryNames) {
+                    if (r && typeof r[n] === 'function') {
+                        try {
+                            r[n](session.id);
+                            // eslint-disable-next-line no-console
+                            console.info(`Called reducer ${n}`);
+                        } catch (e) {
+                            // eslint-disable-next-line no-console
+                            console.error(`Reducer ${n} threw`, e);
+                        }
+                        break;
+                    }
+                }
+            } catch (e) {
+                // eslint-disable-next-line no-console
+                console.error('Error calling touch reducer', e);
             }
             return { ...session, lastSeenAt: Date.now() };
         },
