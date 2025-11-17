@@ -35,10 +35,6 @@ const Sessions = table(
 // Compose schema
 const spacetimedb = schema(Accounts, Sessions);
 
-function nowTs() {
-    return BigInt(Date.now()) * BigInt(1000); // microseconds
-}
-
 spacetimedb.reducer(
     'create_account',
     { provider: t.string(), provider_user_id: t.string(), display_name: t.string().optional() },
@@ -48,14 +44,17 @@ spacetimedb.reducer(
         if (existing) {
             throw new SenderError('Account already exists');
         }
-        ctx.db.accounts.insert({
+        // Let the table's auto-increment primary key assign `id`.
+        const newAccount = {
             id: 0n,
             provider,
             provider_user_id,
             display_name,
-            created_at: nowTs(),
-            updated_at: nowTs()
-        });
+            created_at: ctx.timestamp,
+            updated_at: ctx.timestamp
+        };
+        // insert account; keep id placeholder so auto-increment assigns value
+        ctx.db.accounts.insert(newAccount);
     }
 );
 
@@ -67,17 +66,20 @@ spacetimedb.reducer(
         if (row) {
             // Update display name & timestamp
             row.display_name = display_name;
-            row.updated_at = nowTs();
+            row.updated_at = ctx.timestamp;
             ctx.db.accounts.provider_user_id.update(row);
         } else {
-            ctx.db.accounts.insert({
+            // Let auto-increment assign id on insert.
+            const newAccount2 = {
                 id: 0n,
                 provider,
                 provider_user_id,
                 display_name,
-                created_at: nowTs(),
-                updated_at: nowTs()
-            });
+                created_at: ctx.timestamp,
+                updated_at: ctx.timestamp
+            };
+            // insert account on upsert path; use id placeholder for auto-inc
+            ctx.db.accounts.insert(newAccount2);
         }
     }
 );
@@ -91,21 +93,34 @@ spacetimedb.reducer(
             throw new SenderError('Unknown account');
         }
         const existing = ctx.db.sessions.session_token.find(session_token);
-        const expires_at = nowTs() + BigInt(ttl_minutes) * BigInt(60 * 1_000_000);
+        // Calculate expires_at by adding ttl (in minutes) to ctx.timestamp.
+        let expires_at = ctx.timestamp;
+        try {
+            const addMicros = BigInt(ttl_minutes) * BigInt(60 * 1_000_000);
+            const base = (ctx.timestamp as any).__timestamp_micros_since_unix_epoch__;
+            if (typeof base === 'bigint') {
+                expires_at = { __timestamp_micros_since_unix_epoch__: base + addMicros };
+            }
+        } catch (e) {
+            // fallback: leave expires_at as ctx.timestamp
+        }
         if (existing) {
-            existing.last_seen_at = nowTs();
+            existing.last_seen_at = ctx.timestamp;
             existing.expires_at = expires_at;
             ctx.db.sessions.session_token.update(existing);
         } else {
-            ctx.db.sessions.insert({
+            // Let auto-increment assign id on sessions insert.
+            const newSession = {
                 id: 0n,
                 account_id: account.id,
                 session_token,
-                created_at: nowTs(),
-                last_seen_at: nowTs(),
+                created_at: ctx.timestamp,
+                last_seen_at: ctx.timestamp,
                 expires_at,
-                ip_hash: undefined
-            });
+                ip_hash: null
+            };
+            // insert session; id placeholder provided for auto-increment
+            ctx.db.sessions.insert(newSession);
         }
     }
 );
@@ -118,7 +133,7 @@ spacetimedb.reducer(
         if (!existing) {
             throw new SenderError('Session not found');
         }
-        existing.last_seen_at = nowTs();
+        existing.last_seen_at = ctx.timestamp;
         ctx.db.sessions.session_token.update(existing);
     }
 );

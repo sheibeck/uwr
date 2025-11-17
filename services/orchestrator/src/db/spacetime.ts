@@ -58,6 +58,16 @@ async function buildRemoteConnection(): Promise<DbConnectionLike | null> {
         if (!bindings) throw new Error('module_bindings not found');
 
         const builder: ConnectionBuilder = (bindings.DbConnection as any).builder();
+
+        // We'll wait for onConnect or onConnectError before returning the conn
+        // so callers can safely call reducers after adapter resolves.
+        let resolveConnected: () => void;
+        let rejectConnected: (err: any) => void;
+        const connectPromise = new Promise<void>((res, rej) => {
+            resolveConnected = res;
+            rejectConnected = rej;
+        });
+
         const conn: DbConnectionLike = builder
             .withUri(process.env.SPACETIME_URI || 'ws://localhost:3000')
             .withModuleName(process.env.SPACETIME_DBNAME || 'unwritten-realms')
@@ -65,6 +75,8 @@ async function buildRemoteConnection(): Promise<DbConnectionLike | null> {
             .onConnect((_c: any, identity: any) => {
                 // eslint-disable-next-line no-console
                 console.info('Connected to SpacetimeDB', identity?.toHexString?.());
+                // resolve the connect promise
+                try { resolveConnected(); } catch { /* ignore if already resolved */ }
             })
             .onDisconnect(() => {
                 // eslint-disable-next-line no-console
@@ -73,11 +85,26 @@ async function buildRemoteConnection(): Promise<DbConnectionLike | null> {
             .onConnectError((_ctx: any, err: Error) => {
                 // eslint-disable-next-line no-console
                 console.error('SpacetimeDB connection error', err);
+                try { rejectConnected(err); } catch { /* ignore */ }
             })
             .build();
 
         // eslint-disable-next-line no-console
-        console.info('Built remote SpacetimeDB connection');
+        console.info('Built remote SpacetimeDB connection (waiting for onConnect)');
+
+        // Wait up to 5s for connection; if it doesn't connect, continue but warn.
+        try {
+            await Promise.race([
+                connectPromise,
+                new Promise((_, rej) => setTimeout(() => rej(new Error('connect timeout')), 5000))
+            ]);
+            // eslint-disable-next-line no-console
+            console.info('SpacetimeDB connection established (ready to call reducers)');
+        } catch (e) {
+            // eslint-disable-next-line no-console
+            console.warn('SpacetimeDB did not connect before timeout or errored:', (e as any)?.message || e);
+        }
+
         return conn;
     } catch (_e) {
         // eslint-disable-next-line no-console
