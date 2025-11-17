@@ -1,4 +1,5 @@
 import { z } from 'zod';
+export * from './accounts.js';
 
 export const CharacterId = z.string().uuid();
 export const ActionEnvelope = z.object({
