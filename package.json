@@ -1,0 +1,36 @@
+{
+  "name": "unwritten-realms",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "engines": {"node": ">=20"},
+  "workspaces": ["apps/*", "services/*", "packages/*"],
+  "scripts": {
+    "dev:orchestrator": "tsx services/orchestrator/src/index.ts",
+    "dev:web": "vite --host",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "biome format .",
+  "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.base.json --noEmit",
+    "generate:schemas": "tsx scripts/generate-schemas.ts"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.47.0",
+    "@typescript-eslint/parser": "^8.47.0",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "eslint": "^9.39.1",
+    "happy-dom": "^20.0.10",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "@types/node": "^20.11.0",
+    "vite": "^7.2.2",
+    "vitest": "^4.0.10",
+    "@vitest/coverage-c8": "^0.33.0",
+    "zod-to-json-schema": "^3.24.6"
+  },
+  "dependencies": {
+    "vue": "^3.5.0",
+    "zod": "^3.23.0"
+  }
+}

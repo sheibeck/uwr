@@ -1,0 +1,21 @@
+meta:
+  generatedAt: 2025-11-17T00:00:00Z
+  source: manual
+  curator: core_team
+shards:
+  - id: world_origin
+    category: WORLD
+    canonical: true
+    title: Origin of the Vale
+    body: |
+      In the first Surge, experimental spirit-tech lattices fused with root systems
+      beneath Ashen Vale. The fusion left a thin ash layer and periodic arcane pulses.
+    version: 1
+  - id: world_mana_cycles
+    category: WORLD
+    canonical: true
+    title: Mana Cycles
+    body: |
+      Ambient energy rises at dusk and peaks again pre-dawn. Ritual efficacy improves
+      during the rising half of the cycle; backlash risk rises as the cycle wanes.
+    version: 1

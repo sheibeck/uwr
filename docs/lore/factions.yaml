@@ -1,0 +1,21 @@
+meta:
+  generatedAt: 2025-11-17T00:00:00Z
+  source: manual
+  curator: core_team
+shards:
+  - id: faction_embers_watch
+    category: FACTION
+    canonical: true
+    title: Ember's Watch
+    body: |
+      A loose coalition of wardens preserving pre-Surge flora. They distrust excessive
+      spirit-tech augmentation, preferring organic graft techniques.
+    version: 1
+  - id: faction_ritual_syndicate
+    category: FACTION
+    canonical: true
+    title: Ritual Syndicate
+    body: |
+      Semi-clandestine network refining high-risk multi-channel rituals. Their sigils
+      emphasize harmonic resonance over brute force incantations.
+    version: 1

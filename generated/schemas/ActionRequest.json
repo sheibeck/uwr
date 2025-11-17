@@ -1,0 +1,300 @@
+{
+  "$ref": "#/definitions/ActionRequest",
+  "definitions": {
+    "ActionRequest": {
+      "type": "object",
+      "properties": {
+        "intent": {
+          "type": "object",
+          "properties": {
+            "actorId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "action": {
+              "type": "string",
+              "enum": [
+                "MOVE",
+                "LOOK",
+                "TALK",
+                "ATTACK",
+                "LOOT",
+                "CAST_RITUAL",
+                "CRAFT",
+                "EMOTE"
+              ]
+            },
+            "target": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Target entity id or contextual token"
+            },
+            "narrativeGoal": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 280,
+              "description": "Player described intent / command text"
+            },
+            "clientTs": {
+              "type": "number",
+              "description": "Client timestamp in ms"
+            }
+          },
+          "required": [
+            "actorId",
+            "action",
+            "target",
+            "narrativeGoal",
+            "clientTs"
+          ],
+          "additionalProperties": false
+        },
+        "context": {
+          "type": "object",
+          "properties": {
+            "region": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "dangerLevel": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10
+                },
+                "factionControl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "dangerLevel",
+                "factionControl"
+              ],
+              "additionalProperties": false
+            },
+            "timeOfDay": {
+              "type": "string",
+              "enum": [
+                "DAWN",
+                "DAY",
+                "DUSK",
+                "NIGHT"
+              ]
+            },
+            "weather": {
+              "type": "object",
+              "properties": {
+                "condition": {
+                  "type": "string",
+                  "enum": [
+                    "CLEAR",
+                    "RAIN",
+                    "STORM",
+                    "FOG",
+                    "ARCANE_SURGE"
+                  ]
+                },
+                "intensity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "condition",
+                "intensity"
+              ],
+              "additionalProperties": false
+            },
+            "activeEvents": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 10
+            },
+            "playerStatuses": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "characterId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "hpPct": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "buffs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 8
+                  },
+                  "debuffs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 8
+                  }
+                },
+                "required": [
+                  "characterId",
+                  "hpPct",
+                  "buffs",
+                  "debuffs"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 8
+            }
+          },
+          "required": [
+            "region",
+            "timeOfDay",
+            "weather",
+            "activeEvents",
+            "playerStatuses"
+          ],
+          "additionalProperties": false
+        },
+        "nearbyNPCs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "faction": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "dispositionTowardsPlayer": {
+                "type": "string",
+                "enum": [
+                  "ALLY",
+                  "NEUTRAL",
+                  "HOSTILE",
+                  "CURIOUS"
+                ]
+              },
+              "motivationSummary": {
+                "type": "string",
+                "maxLength": 140
+              },
+              "recentDialogue": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "ts": {
+                      "type": "number"
+                    },
+                    "from": {
+                      "type": "string",
+                      "enum": [
+                        "NPC",
+                        "PLAYER"
+                      ]
+                    },
+                    "text": {
+                      "type": "string",
+                      "maxLength": 300
+                    }
+                  },
+                  "required": [
+                    "ts",
+                    "from",
+                    "text"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 10
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "faction",
+              "dispositionTowardsPlayer",
+              "motivationSummary",
+              "recentDialogue"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 12
+        },
+        "recentActions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "actorId": {
+                "$ref": "#/definitions/ActionRequest/properties/intent/properties/actorId"
+              },
+              "type": {
+                "type": "string"
+              },
+              "payload": {},
+              "ts": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "id",
+              "actorId",
+              "type",
+              "ts"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 25
+        },
+        "loreShards": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "description": "Relevant lore snippet IDs fetched for grounding"
+        }
+      },
+      "required": [
+        "intent",
+        "context",
+        "nearbyNPCs",
+        "recentActions",
+        "loreShards"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

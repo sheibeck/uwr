@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "useUnknownInCatchVariables": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["packages/shared-schema/src/*"],
+      "@schema/*": ["packages/shared-schema/src/schema/*"],
+      "@spacetime/*": ["packages/spacetime-modules/src/*"],
+  "@orchestrator/*": ["services/orchestrator/src/*"],
+  "@prompt/*": ["packages/prompt-schema/src/*"]
+    }
+  }
+}

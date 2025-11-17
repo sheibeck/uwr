@@ -1,0 +1,56 @@
+{
+  "$ref": "#/definitions/LoreShard",
+  "definitions": {
+    "LoreShard": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "WORLD",
+            "FACTION",
+            "ITEM",
+            "RITUAL",
+            "HISTORY",
+            "CREATURE",
+            "STYLE"
+          ]
+        },
+        "canonical": {
+          "type": "boolean",
+          "default": true
+        },
+        "title": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string",
+          "description": "Structured markdown or plain text canonical lore snippet"
+        },
+        "lastUpdatedBy": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id",
+        "category",
+        "title",
+        "body",
+        "lastUpdatedBy",
+        "version"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

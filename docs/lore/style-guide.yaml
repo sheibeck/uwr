@@ -1,0 +1,15 @@
+style:
+  narrative_voice: |
+    Ground responses in sensory detail, restrained flourish. Prefer concrete nouns
+    and active verbs. Avoid purple prose, modern slang, and anachronistic tech terms.
+  forbidden:
+    - deus_ex_machina_resolution
+    - retcon_established_canon
+    - out_of_universe_commentary
+    - modern_pop_culture_reference
+  tone_constraints:
+    - "Maintain player agency: never negate a player's declared success without cause."
+    - "Avoid absolute world statements; prefer conditional phrasing unless canon shard backs claim."
+  formatting:
+    bullet_character: "-"
+    emphasis: "*italics* sparingly for psychic impressions"

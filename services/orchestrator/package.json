@@ -1,0 +1,12 @@
+{
+  "name": "@uwr/orchestrator",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "src/index.ts",
+  "license": "MIT",
+  "dependencies": {
+    "zod": "^3.25.76",
+    "yaml": "^2.5.0",
+    "pino": "^9.3.0"
+  }
+}
