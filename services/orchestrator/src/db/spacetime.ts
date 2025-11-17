@@ -36,7 +36,7 @@ function buildRemoteConnection(): DbConnectionLike | null {
         const builder: ConnectionBuilder = (bindings.DbConnection as any).builder();
         const conn: DbConnectionLike = builder
             .withUri(process.env.SPACETIME_URI || 'ws://localhost:3000')
-            .withModuleName(process.env.SPACETIME_DBNAME || 'quickstart-chat')
+            .withModuleName(process.env.SPACETIME_DBNAME || 'unwritten-realms')
             .withToken(process.env.SPACETIME_TOKEN || undefined)
             .onConnect((_c: any, identity: any) => {
                 // eslint-disable-next-line no-console

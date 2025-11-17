@@ -1,5 +1,5 @@
 // SpacetimeDB module schema & reducers (initial draft)
-// Publish with: spacetime publish --server local --project-path packages/spacetime-modules quickstart-chat
+// Publish with: spacetime publish --server local --project-path packages/spacetime-modules unwritten-realms
 // After publishing, generate client bindings: spacetime generate --lang typescript --out-dir services/orchestrator/src/module_bindings --project-path packages/spacetime-modules
 // IMPORTANT: This file must remain the entrypoint for publishing.
 

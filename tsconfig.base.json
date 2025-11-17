@@ -20,5 +20,8 @@
   "@orchestrator/*": ["services/orchestrator/src/*"],
   "@prompt/*": ["packages/prompt-schema/src/*"]
     }
-  }
+  },
+  "exclude": [
+    "services/orchestrator/src/module_bindings"  
+  ]
 }

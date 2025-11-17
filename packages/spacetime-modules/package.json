@@ -1,0 +1,11 @@
+{
+  "name": "@uwr/spacetime-modules",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "engines": {"node": ">=20"},
+  "dependencies": {
+    "spacetimedb": "^1.4.0"
+  }
+}

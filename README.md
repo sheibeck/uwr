@@ -52,7 +52,7 @@ Environment variables:
 
 ```
 SPACETIME_URI=ws://localhost:3000
-SPACETIME_DBNAME=quickstart-chat
+SPACETIME_DBNAME=unwritten-realms
 SPACETIME_TOKEN=<optional persisted token>
 SPACETIME_ENABLED=true
 ```
