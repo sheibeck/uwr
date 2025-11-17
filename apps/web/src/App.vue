@@ -2,78 +2,67 @@
   <div class="container">
     <h1>Unwritten Realms</h1>
     <div class="login">
-      <label>Provider</label>
-      <select v-model="provider">
-        <option value="SUPABASE">Supabase</option>
-        <option value="AUTH0">Auth0</option>
-      </select>
+      <SignInCard v-if="!isAuthenticated" @sign="onSign" />
 
-      <!-- We now always login by displayName; providerUserId is not required -->
-
-      <label>Display Name</label>
-      <input v-model="displayName" placeholder="Your display name" />
-
-      <button @click="sync">Sign In</button>
-        <pre v-if="result">{{ result }}</pre>
-
-        <!-- Success card -->
-        <div v-if="result?.ok && result.result?.account" class="card">
-          <div class="card-header">
-            <h3>{{ result.result.account.displayName }}</h3>
-            <span class="badge" v-if="result.result.isNewAccount">New</span>
-            <span class="badge returning" v-else>Welcome back</span>
-          </div>
-          <div class="card-body">
-            <div><strong>Provider:</strong> {{ result.result.account.provider }}</div>
-            <div><strong>Provider User ID:</strong> {{ result.result.account.providerUserId }}</div>
-            <div><strong>Session Expires:</strong> {{ result.result.session?.expiresAt ? new Date(result.result.session.expiresAt).toLocaleString() : '—' }}</div>
-          </div>
-          <div class="card-actions">
-            <button @click="logout">Logout</button>
-          </div>
-        </div>
+      <SignedInCard v-if="isAuthenticated && result?.ok && result.result?.account"
+        :account="result.result.account"
+        :session="result.result.session"
+        :isNew="result.result.isNewAccount"
+        @logout="logout"
+      />
     </div>
   </div>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 import { ref } from 'vue';
+import SignInCard from './components/SignInCard.vue';
+import SignedInCard from './components/SignedInCard.vue';
 
-export default {
-  setup() {
-  const provider = ref('SUPABASE');
-  const providerUserId = ref('user-123');
-  const displayName = ref('PlayerOne');
-  const result = ref(null as any);
-  const sessionToken = ref<string | null>(localStorage.getItem('sessionToken'));
-  const isAuthenticated = ref(!!sessionToken.value);
+const provider = ref('SUPABASE');
+const providerUserId = ref('user-123');
+const displayName = ref('PlayerOne');
+const result = ref(null as any);
+const sessionToken = ref<string | null>(localStorage.getItem('sessionToken'));
+const isAuthenticated = ref(!!sessionToken.value);
 
-    async function sync() {
-      const res = await fetch('/api/sessionSync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ provider: provider.value, displayName: displayName.value })
-      });
-      const data = await res.json();
-      result.value = data;
-      if (data?.ok && data.result?.session?.sessionToken) {
-        const token = data.result.session.sessionToken as string;
-        sessionToken.value = token;
-        localStorage.setItem('sessionToken', token);
+async function sync(payload: { provider: string; displayName: string }) {
+  console.debug('App: sync called with', payload);
+  const res = await fetch('/api/sessionSync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  console.debug('App: /api/sessionSync response', data);
+  result.value = data;
+  if (data?.ok && data.result?.session) {
+    // session token might be named `sessionToken` or `id` depending on backend shape
+    const token = (data.result.session.sessionToken ?? data.result.session.id) as string | undefined;
+    if (token) {
+      sessionToken.value = token;
+      localStorage.setItem('sessionToken', token);
+      isAuthenticated.value = true;
+    } else {
+      // If no token field, still consider the user authenticated if account exists
+      if (data.result.account) {
         isAuthenticated.value = true;
       }
     }
-
-    function logout() {
-      sessionToken.value = null;
-      localStorage.removeItem('sessionToken');
-      isAuthenticated.value = false;
-      result.value = null;
-    }
-
-    return { provider, providerUserId, displayName, sync, result, sessionToken, isAuthenticated, logout };
   }
-};
+}
+
+function onSign(payload: { provider: string; displayName: string }) {
+  console.debug('App: onSign got payload', payload);
+  sync(payload).catch((err) => console.error('sync failed', err));
+}
+
+function logout() {
+  sessionToken.value = null;
+  localStorage.removeItem('sessionToken');
+  isAuthenticated.value = false;
+  result.value = null;
+}
 </script>
 
 <style>
