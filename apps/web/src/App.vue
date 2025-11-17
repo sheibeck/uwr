@@ -15,8 +15,24 @@
       <input v-model="displayName" placeholder="Your display name" />
 
       <button @click="sync">Sign In</button>
+        <pre v-if="result">{{ result }}</pre>
 
-      <pre v-if="result">{{ result }}</pre>
+        <!-- Success card -->
+        <div v-if="result?.ok && result.result?.account" class="card">
+          <div class="card-header">
+            <h3>{{ result.result.account.displayName }}</h3>
+            <span class="badge" v-if="result.result.isNewAccount">New</span>
+            <span class="badge returning" v-else>Welcome back</span>
+          </div>
+          <div class="card-body">
+            <div><strong>Provider:</strong> {{ result.result.account.provider }}</div>
+            <div><strong>Provider User ID:</strong> {{ result.result.account.providerUserId }}</div>
+            <div><strong>Session Expires:</strong> {{ result.result.session?.expiresAt ? new Date(result.result.session.expiresAt).toLocaleString() : '—' }}</div>
+          </div>
+          <div class="card-actions">
+            <button @click="logout">Logout</button>
+          </div>
+        </div>
     </div>
   </div>
 </template>
@@ -26,10 +42,12 @@ import { ref } from 'vue';
 
 export default {
   setup() {
-    const provider = ref('SUPABASE');
-    const providerUserId = ref('user-123');
-    const displayName = ref('PlayerOne');
-    const result = ref(null as any);
+  const provider = ref('SUPABASE');
+  const providerUserId = ref('user-123');
+  const displayName = ref('PlayerOne');
+  const result = ref(null as any);
+  const sessionToken = ref<string | null>(localStorage.getItem('sessionToken'));
+  const isAuthenticated = ref(!!sessionToken.value);
 
     async function sync() {
       const res = await fetch('/api/sessionSync', {
@@ -37,10 +55,24 @@ export default {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider: provider.value, providerUserId: providerUserId.value, displayName: displayName.value })
       });
-      result.value = await res.json();
+      const data = await res.json();
+      result.value = data;
+      if (data?.ok && data.result?.session?.sessionToken) {
+        const token = data.result.session.sessionToken as string;
+        sessionToken.value = token;
+        localStorage.setItem('sessionToken', token);
+        isAuthenticated.value = true;
+      }
     }
 
-    return { provider, providerUserId, displayName, sync, result };
+    function logout() {
+      sessionToken.value = null;
+      localStorage.removeItem('sessionToken');
+      isAuthenticated.value = false;
+      result.value = null;
+    }
+
+    return { provider, providerUserId, displayName, sync, result, sessionToken, isAuthenticated, logout };
   }
 };
 </script>

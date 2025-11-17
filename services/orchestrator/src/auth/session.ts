@@ -14,7 +14,16 @@ const adapterPromise = createSpaceTimeAdapter();
 
 export async function syncSession(provider: typeof ProviderId._def.values[number], providerUserId: string, displayName: string): Promise<SessionSyncResult> {
     const adapter = await adapterPromise;
-    const account = await adapter.upsertAccount(provider, providerUserId, displayName);
-    const session = await adapter.createOrUpdateSession(account, 60); // 60 minute TTL
-    return { account, session, isNewAccount: true };
+    const existing = await adapter.findAccount(provider, providerUserId);
+    let isNew = false;
+    let account = existing;
+    if (!account) {
+        account = await adapter.upsertAccount(provider, providerUserId, displayName);
+        isNew = true;
+    } else {
+        // Ensure we still refresh display name
+        account = await adapter.upsertAccount(provider, providerUserId, displayName);
+    }
+    const session = await adapter.createOrUpdateSession(account!, 60); // 60 minute TTL
+    return { account: account!, session, isNewAccount: isNew };
 }
