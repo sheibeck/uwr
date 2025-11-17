@@ -13,9 +13,9 @@ app.post('/api/sessionSync', async (req: Request, res: Response) => {
     try {
         const body = req.body as Record<string, unknown> | undefined;
         const provider = (body?.provider as string) || 'SUPABASE';
-        const providerUserId = (body?.providerUserId as string) || '';
         const displayName = (body?.displayName as string) || '';
-        const result = await orchestrator.sessionSync(provider as any, providerUserId, displayName);
+        // sessionSync now resolves accounts by displayName only; providerUserId is ignored.
+        const result = await orchestrator.sessionSync(provider as any, '', displayName);
         res.json({ ok: true, result });
     } catch (err: any) {
         res.status(500).json({ ok: false, error: err?.message || String(err) });

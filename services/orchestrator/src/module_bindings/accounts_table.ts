@@ -71,7 +71,7 @@ export class AccountsTableHandle<TableName extends string> implements __TableHan
   id = {
     // Find the subscribed row whose `id` column value is equal to `col_val`,
     // if such a row is present in the client cache.
-    find: (col_val: bigint): Accounts | undefined => {
+    find: (col_val: string): Accounts | undefined => {
       for (let row of this.tableCache.iter()) {
         if (__deepEqual(row.id, col_val)) {
           return row;

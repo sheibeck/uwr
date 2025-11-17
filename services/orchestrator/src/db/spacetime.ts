@@ -7,6 +7,7 @@ import { Account, Session } from '@shared/index.js';
 export interface SpaceTimeAdapter {
     upsertAccount(provider: string, providerUserId: string, displayName: string): Promise<Account>;
     findAccount(provider: string, providerUserId: string): Promise<Account | undefined>;
+    findAccountByDisplayName(provider: string, displayName: string): Promise<Account | undefined>;
     createOrUpdateSession(account: Account, ttlMinutes: number): Promise<Session>;
     touchSession(session: Session): Promise<Session>;
     isRemote: boolean;
@@ -123,6 +124,7 @@ export async function createSpaceTimeAdapter(): Promise<SpaceTimeAdapter> {
         return {
             upsertAccount: stubUpsertAccount,
             findAccount: async (_provider: string, _providerUserId: string) => undefined,
+            findAccountByDisplayName: async (_provider: string, _displayName: string) => undefined,
             createOrUpdateSession: async (account, ttlMinutes) => stubCreateSession(account.id, ttlMinutes),
             touchSession: stubTouchSession,
             isRemote: false,
@@ -178,6 +180,21 @@ export async function createSpaceTimeAdapter(): Promise<SpaceTimeAdapter> {
                     const idx = db.accounts.providerUserId || db.accounts.provider_user_id;
                     if (idx && typeof idx.find === 'function') {
                         return idx.find(providerUserId);
+                    }
+                }
+            } catch (e) {
+                // ignore and return undefined
+            }
+            return undefined;
+        },
+        async findAccountByDisplayName(provider: string, displayName: string): Promise<Account | undefined> {
+            try {
+                const db = (remoteConn as any).db;
+                if (db && db.accounts && typeof db.accounts.iter === 'function') {
+                    for (const row of db.accounts.iter()) {
+                        try {
+                            if (row.provider === provider && row.displayName === displayName) return row as Account;
+                        } catch { /* ignore row shape issues */ }
                     }
                 }
             } catch (e) {

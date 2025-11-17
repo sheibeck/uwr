@@ -8,8 +8,7 @@
         <option value="AUTH0">Auth0</option>
       </select>
 
-      <label>Provider User ID</label>
-      <input v-model="providerUserId" placeholder="external provider user id" />
+      <!-- We now always login by displayName; providerUserId is not required -->
 
       <label>Display Name</label>
       <input v-model="displayName" placeholder="Your display name" />
@@ -53,7 +52,7 @@ export default {
       const res = await fetch('/api/sessionSync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: provider.value, providerUserId: providerUserId.value, displayName: displayName.value })
+    body: JSON.stringify({ provider: provider.value, displayName: displayName.value })
       });
       const data = await res.json();
       result.value = data;

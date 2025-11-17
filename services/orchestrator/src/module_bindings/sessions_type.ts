@@ -29,8 +29,8 @@ import {
 } from "spacetimedb";
 
 export type Sessions = {
-  id: bigint,
-  accountId: bigint,
+  id: string,
+  accountId: string,
   sessionToken: string,
   createdAt: __Timestamp,
   lastSeenAt: __Timestamp,
@@ -51,8 +51,8 @@ export const Sessions = {
     if (_cached_Sessions_type_value) return _cached_Sessions_type_value;
     _cached_Sessions_type_value = __AlgebraicTypeValue.Product({ elements: [] });
     _cached_Sessions_type_value.value.elements.push(
-      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
-      { name: "accountId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "id", algebraicType: __AlgebraicTypeValue.String },
+      { name: "accountId", algebraicType: __AlgebraicTypeValue.String },
       { name: "sessionToken", algebraicType: __AlgebraicTypeValue.String },
       { name: "createdAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
       { name: "lastSeenAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },

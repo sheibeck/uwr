@@ -29,7 +29,7 @@ import {
 } from "spacetimedb";
 
 export type Accounts = {
-  id: bigint,
+  id: string,
   provider: string,
   providerUserId: string,
   displayName: string | undefined,
@@ -50,7 +50,7 @@ export const Accounts = {
     if (_cached_Accounts_type_value) return _cached_Accounts_type_value;
     _cached_Accounts_type_value = __AlgebraicTypeValue.Product({ elements: [] });
     _cached_Accounts_type_value.value.elements.push(
-      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "id", algebraicType: __AlgebraicTypeValue.String },
       { name: "provider", algebraicType: __AlgebraicTypeValue.String },
       { name: "providerUserId", algebraicType: __AlgebraicTypeValue.String },
       { name: "displayName", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },

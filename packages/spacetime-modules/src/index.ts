@@ -5,11 +5,24 @@
 
 import { schema, table, t, SenderError } from 'spacetimedb/server';
 
+// Lightweight UUIDv4 generator to avoid depending on Node's `crypto` in the
+// module runtime environment. Not cryptographically strong, but sufficient
+// for development/local ids. Replace with a secure RNG if required.
+function uuidv4() {
+    // From https://stackoverflow.com/a/2117523
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+    });
+}
+
 // Accounts table: represents external auth provider linkage.
 const Accounts = table(
     { name: 'accounts', public: true },
     {
-        id: t.u64().primaryKey().autoInc(),
+        // Use string UUID primary keys instead of auto-incrementing u64
+        id: t.string().primaryKey(),
         provider: t.string().index('btree'),
         provider_user_id: t.string().unique(),
         display_name: t.string().optional(),
@@ -22,8 +35,9 @@ const Accounts = table(
 const Sessions = table(
     { name: 'sessions', public: true },
     {
-        id: t.u64().primaryKey().autoInc(),
-        account_id: t.u64(),
+        // Use string UUID primary keys and reference account ids as strings
+        id: t.string().primaryKey(),
+        account_id: t.string(),
         session_token: t.string().unique(),
         created_at: t.timestamp(),
         last_seen_at: t.timestamp(),
@@ -44,9 +58,9 @@ spacetimedb.reducer(
         if (existing) {
             throw new SenderError('Account already exists');
         }
-        // Let the table's auto-increment primary key assign `id`.
+        // Generate a UUID for `id`.
         const newAccount = {
-            id: 0n,
+            id: uuidv4(),
             provider,
             provider_user_id,
             display_name,
@@ -71,7 +85,7 @@ spacetimedb.reducer(
         } else {
             // Let auto-increment assign id on insert.
             const newAccount2 = {
-                id: 0n,
+                id: uuidv4(),
                 provider,
                 provider_user_id,
                 display_name,
@@ -109,9 +123,9 @@ spacetimedb.reducer(
             existing.expires_at = expires_at;
             ctx.db.sessions.session_token.update(existing);
         } else {
-            // Let auto-increment assign id on sessions insert.
+            // Generate a UUID for sessions id on insert.
             const newSession = {
-                id: 0n,
+                id: uuidv4(),
                 account_id: account.id,
                 session_token,
                 created_at: ctx.timestamp,
