@@ -50,7 +50,7 @@
 
 Priority A — ship and stabilize
 1. Add phrase-pattern boosts for combat & crafting idioms and cover them with unit tests (examples: "I charge into battle, my sword raised!", "Craft a healing potion at the alchemy workbench").
-2. Document the AJV runtime fallback behavior in `docs/` (short note explaining the dynamic-import fallback and Node resolver usage).
+2. Document the AJV runtime fallback behavior in `docs/`.
 3. Implement subscription lifecycle/eviction policy and add small integration tests against the local Spacetime host.
 4. Add structured inference telemetry: log low-confidence inputs with matched cues (verb/noun/phrase) to a dev sink for iterative tuning.
 

@@ -1,126 +1,119 @@
-export type ActionType = 'LOOK' | 'TALK' | 'MOVE' | 'USE' | 'ATTACK' | 'PICK_UP' | 'UNKNOWN'
-    | 'ACCEPT_QUEST' | 'DECLINE_QUEST' | 'DROP_ITEM' | 'EQUIP' | 'UNEQUIP' | 'TRADE' | 'OPEN' | 'CLOSE' | 'INVENTORY' | 'INSPECT'
-    | 'CRAFT' | 'GATHER' | 'MINE' | 'FISH' | 'FORAGE' | 'USE_WORKBENCH' | 'COLLECT' | 'INTERACT';
-
-
-export interface InferenceResult {
-    action?: ActionType;
-    confidence: number; // 0..1
-    method: 'rule';
-}
+// Shared types imported from ./types.ts
 
 // Synonym lists for POC. Keep these conservative but include common verb forms
 // and some noun cues (sword, spear) that indicate attack intent.
-const verbMap: Record<string, ActionType> = {
-    look: 'LOOK',
-    inspect: 'LOOK',
-    examine: 'LOOK',
-    scan: 'LOOK',
-    view: 'LOOK',
-    see: 'LOOK',
-    observe: 'LOOK',
-    watch: 'LOOK',
+import { Action, InferenceResult } from './types.js';
 
-    talk: 'TALK',
-    speak: 'TALK',
-    ask: 'TALK',
-    converse: 'TALK',
-    say: 'TALK',
-    tell: 'TALK',
+const verbMap: Record<string, Action> = {
+    look: Action.LOOK,
+    inspect: Action.LOOK,
+    examine: Action.LOOK,
+    scan: Action.LOOK,
+    view: Action.LOOK,
+    see: Action.LOOK,
+    observe: Action.LOOK,
+    watch: Action.LOOK,
 
-    go: 'MOVE',
-    move: 'MOVE',
-    walk: 'MOVE',
-    run: 'MOVE',
-    head: 'MOVE',
-    travel: 'MOVE',
-    approach: 'MOVE',
+    talk: Action.TALK,
+    speak: Action.TALK,
+    ask: Action.TALK,
+    converse: Action.TALK,
+    say: Action.TALK,
+    tell: Action.TALK,
 
-    use: 'USE',
-    activate: 'USE',
-    pull: 'USE',
-    push: 'USE',
-    operate: 'USE',
+    go: Action.MOVE,
+    move: Action.MOVE,
+    walk: Action.MOVE,
+    run: Action.MOVE,
+    head: Action.MOVE,
+    travel: Action.MOVE,
+    approach: Action.MOVE,
 
-    accept: 'ACCEPT_QUEST',
-    accepted: 'ACCEPT_QUEST',
-    decline: 'DECLINE_QUEST',
-    declined: 'DECLINE_QUEST',
-    drop: 'DROP_ITEM',
-    discard: 'DROP_ITEM',
-    equip: 'EQUIP',
-    unequip: 'UNEQUIP',
-    wear: 'EQUIP',
-    remove: 'UNEQUIP',
-    trade: 'TRADE',
-    barter: 'TRADE',
-    open: 'OPEN',
-    close: 'CLOSE',
-    inventory: 'INVENTORY',
-    inv: 'INVENTORY',
-    craft: 'CRAFT',
-    craftable: 'CRAFT',
-    craftings: 'CRAFT',
-    gather: 'GATHER',
-    gatherer: 'GATHER',
-    mine: 'MINE',
-    mining: 'MINE',
-    fish: 'FISH',
-    forage: 'FORAGE',
-    collect: 'COLLECT',
-    interact: 'INTERACT',
+    use: Action.USE,
+    activate: Action.USE,
+    pull: Action.USE,
+    push: Action.USE,
+    operate: Action.USE,
 
-    pick: 'PICK_UP',
-    take: 'PICK_UP',
-    grab: 'PICK_UP',
+    accept: Action.ACCEPT_QUEST,
+    accepted: Action.ACCEPT_QUEST,
+    decline: Action.DECLINE_QUEST,
+    declined: Action.DECLINE_QUEST,
+    drop: Action.DROP_ITEM,
+    discard: Action.DROP_ITEM,
+    equip: Action.EQUIP,
+    unequip: Action.UNEQUIP,
+    wear: Action.EQUIP,
+    remove: Action.UNEQUIP,
+    trade: Action.TRADE,
+    barter: Action.TRADE,
+    open: Action.OPEN,
+    close: Action.CLOSE,
+    inventory: Action.INVENTORY,
+    inv: Action.INVENTORY,
+    craft: Action.CRAFT,
+    craftable: Action.CRAFT,
+    craftings: Action.CRAFT,
+    gather: Action.GATHER,
+    gatherer: Action.GATHER,
+    mine: Action.MINE,
+    mining: Action.MINE,
+    fish: Action.FISH,
+    forage: Action.FORAGE,
+    collect: Action.COLLECT,
+    interact: Action.INTERACT,
 
-    attack: 'ATTACK',
-    hit: 'ATTACK',
-    strike: 'ATTACK',
-    slash: 'ATTACK',
-    stab: 'ATTACK',
-    thrust: 'ATTACK',
-    charge: 'ATTACK',
-    lunge: 'ATTACK',
-    raise: 'ATTACK'
+    pick: Action.PICK_UP,
+    take: Action.PICK_UP,
+    grab: Action.PICK_UP,
+
+    attack: Action.ATTACK,
+    hit: Action.ATTACK,
+    strike: Action.ATTACK,
+    slash: Action.ATTACK,
+    stab: Action.ATTACK,
+    thrust: Action.ATTACK,
+    charge: Action.ATTACK,
+    lunge: Action.ATTACK,
+    raise: Action.ATTACK
 };
 
-const nounMap: Record<string, ActionType> = {
-    sword: 'ATTACK',
-    blade: 'ATTACK',
-    spear: 'ATTACK',
-    dagger: 'ATTACK',
-    axe: 'ATTACK',
-    bow: 'ATTACK',
-    enemy: 'ATTACK',
-    battle: 'ATTACK'
+const nounMap: Record<string, Action> = {
+    sword: Action.ATTACK,
+    blade: Action.ATTACK,
+    spear: Action.ATTACK,
+    dagger: Action.ATTACK,
+    axe: Action.ATTACK,
+    bow: Action.ATTACK,
+    enemy: Action.ATTACK,
+    battle: Action.ATTACK
 };
 
-const resourceNouns: Record<string, ActionType> = {
-    wood: 'GATHER',
-    logs: 'GATHER',
-    ore: 'MINE',
-    iron: 'MINE',
-    coal: 'MINE',
-    fish: 'FISH',
-    berries: 'FORAGE',
-    herbs: 'FORAGE',
-    stone: 'GATHER',
-    rock: 'GATHER'
+const resourceNouns: Record<string, Action> = {
+    wood: Action.GATHER,
+    logs: Action.GATHER,
+    ore: Action.MINE,
+    iron: Action.MINE,
+    coal: Action.MINE,
+    fish: Action.FISH,
+    berries: Action.FORAGE,
+    herbs: Action.FORAGE,
+    stone: Action.GATHER,
+    rock: Action.GATHER
 };
 
-const mmoNouns: Record<string, ActionType> = {
-    quest: 'ACCEPT_QUEST',
-    mission: 'ACCEPT_QUEST',
-    task: 'ACCEPT_QUEST',
-    chest: 'OPEN',
-    door: 'OPEN',
-    shop: 'TRADE',
-    merchant: 'TRADE',
-    vendor: 'TRADE',
-    inventory: 'INVENTORY',
-    bag: 'INVENTORY',
-    backpack: 'INVENTORY'
+const mmoNouns: Record<string, Action> = {
+    quest: Action.ACCEPT_QUEST,
+    mission: Action.ACCEPT_QUEST,
+    task: Action.ACCEPT_QUEST,
+    chest: Action.OPEN,
+    door: Action.OPEN,
+    shop: Action.TRADE,
+    merchant: Action.TRADE,
+    vendor: Action.TRADE,
+    inventory: Action.INVENTORY,
+    bag: Action.INVENTORY,
+    backpack: Action.INVENTORY
 };
 
 // Simple tokenization: split on non-word chars, lowercase.
@@ -136,18 +129,23 @@ function stem(token: string): string {
     return token;
 }
 
+import phraseBoosts from './phraseBoosts.js';
+import { Action, InferenceResult } from './types.js';
+
 export function inferAction(narrativeGoal: string): InferenceResult {
     if (!narrativeGoal || typeof narrativeGoal !== 'string') return { confidence: 0, method: 'rule' };
     const tokens = tokenize(narrativeGoal);
     if (tokens.length === 0) return { confidence: 0, method: 'rule' };
 
+    const lower = narrativeGoal.toLowerCase();
+
     // Accumulate scores per action from verbs and noun cues. Earlier tokens are weighted higher.
-    const actionTypes: ActionType[] = [
-        'LOOK', 'TALK', 'MOVE', 'USE', 'ATTACK', 'PICK_UP', 'UNKNOWN',
-        'ACCEPT_QUEST', 'DECLINE_QUEST', 'DROP_ITEM', 'EQUIP', 'UNEQUIP', 'TRADE', 'OPEN', 'CLOSE', 'INVENTORY', 'INSPECT'
+    const actionTypes: Action[] = [
+        Action.LOOK, Action.TALK, Action.MOVE, Action.USE, Action.ATTACK, Action.PICK_UP, Action.UNKNOWN,
+        Action.ACCEPT_QUEST, Action.DECLINE_QUEST, Action.DROP_ITEM, Action.EQUIP, Action.UNEQUIP, Action.TRADE, Action.OPEN, Action.CLOSE, Action.INVENTORY, Action.INSPECT
     ];
 
-    const scores: Record<ActionType, number> = {} as Record<ActionType, number>;
+    const scores: Record<Action, number> = {} as Record<Action, number>;
     for (const a of actionTypes) scores[a] = 0;
 
     for (let i = 0; i < tokens.length; i++) {
@@ -157,45 +155,58 @@ export function inferAction(narrativeGoal: string): InferenceResult {
 
         // verb matches
         if (Object.prototype.hasOwnProperty.call(verbMap, t)) {
-            const a = verbMap[t as keyof typeof verbMap] as ActionType | undefined;
+            const a = verbMap[t as keyof typeof verbMap] as Action | undefined;
             if (a) {
-                const key = a as ActionType;
+                const key = a as Action;
                 scores[key] = (scores[key] ?? 0) + positionWeight * 1.0;
             }
         }
 
         // noun cues (weaker weight)
         if (Object.prototype.hasOwnProperty.call(nounMap, t)) {
-            const a = nounMap[t as keyof typeof nounMap] as ActionType | undefined;
+            const a = nounMap[t as keyof typeof nounMap] as Action | undefined;
             if (a) {
-                const key = a as ActionType;
+                const key = a as Action;
                 scores[key] = (scores[key] ?? 0) + positionWeight * 0.6;
             }
         }
 
         // MMO-specific noun cues (stronger weight)
         if (Object.prototype.hasOwnProperty.call(mmoNouns, t)) {
-            const a = mmoNouns[t as keyof typeof mmoNouns] as ActionType | undefined;
+            const a = mmoNouns[t as keyof typeof mmoNouns] as Action | undefined;
             if (a) {
-                const key = a as ActionType;
+                const key = a as Action;
                 scores[key] = (scores[key] ?? 0) + positionWeight * 0.9;
             }
         }
 
         // resource nouns (gathering/crafting cues)
         if (Object.prototype.hasOwnProperty.call(resourceNouns, t)) {
-            const a = resourceNouns[t as keyof typeof resourceNouns] as ActionType | undefined;
+            const a = resourceNouns[t as keyof typeof resourceNouns] as Action | undefined;
             if (a) {
-                const key = a as ActionType;
+                const key = a as Action;
                 scores[key] = (scores[key] ?? 0) + positionWeight * 0.85;
             }
         }
     }
 
+    // Apply data-driven phrase boosts after token scoring
+    for (const b of phraseBoosts) {
+        try {
+            const re = new RegExp(b.pattern, 'i');
+            if (re.test(narrativeGoal)) {
+                const key = b.action as Action;
+                scores[key] = (scores[key] ?? 0) + b.weight;
+            }
+        } catch (e) {
+            // ignore invalid patterns
+        }
+    }
+
     // Find best scoring action
-    let bestAction: ActionType | undefined = undefined;
+    let bestAction: Action | undefined = undefined;
     let bestScore = 0;
-    for (const k of Object.keys(scores) as ActionType[]) {
+    for (const k of Object.keys(scores) as Action[]) {
         const s = scores[k] || 0;
         if (s > bestScore) {
             bestScore = s;
