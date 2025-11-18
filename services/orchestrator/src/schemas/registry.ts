@@ -1,8 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import Ajv, { ValidateFunction } from 'ajv';
-import addFormats from 'ajv-formats';
-
+// Import AJV dynamically to avoid missing type declarations in some environments
+const AjvPkg: any = require('ajv');
+const addFormats: any = require('ajv-formats');
+type ValidateFunction = any;
+const Ajv: any = AjvPkg;
 const ajv = new Ajv({ allErrors: true, strict: false });
 addFormats(ajv);
 

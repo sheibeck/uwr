@@ -23,6 +23,14 @@ export function buildPrompt(req: ActionRequest, lore: LoreShard[], opts: PromptA
         '=== LORE SHARDS ===',
         loreText || 'None',
         '=== TASK ===',
-        'Provide narrative response and structured resolution.'
+        'Provide narrative response and structured resolution.',
+        '',
+        'Important output format rules (for orchestrator validation):',
+        ' - Return a JSON object matching the NarrativeResponse schema: { narration, diegeticMessages, resolution, loreRefsUsed, safetyFlags }',
+        ' - Inside resolution.effects each item must include { type, detail } where detail MUST be valid JSON (no pipe-delimited strings).',
+        ' - Supported detail shapes (JSON):',
+        '     1) Array of args (e.g. ["player:123", 5]) — the array will be passed as reducer args.',
+        '     2) Object { "reducer": "reducer_name", "args": [ ... ] } — explicitly target a reducer and args.',
+        ' - Prefer structured JSON to ensure safe, typed reducer invocation; DO NOT emit plain text or pipe-separated args.'
     ].join('\n');
 }

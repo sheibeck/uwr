@@ -20,7 +20,7 @@ export function extractPlaceholders(t: string): string[] {
     const out: string[] = [];
     let m: RegExpExecArray | null;
     while ((m = re.exec(t)) !== null) {
-        out.push(m[1]);
+        out.push(m[1]!);
     }
     return Array.from(new Set(out));
 }

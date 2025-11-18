@@ -13,8 +13,8 @@ function write(name: string, schema: any) {
 }
 
 (async () => {
-    // dynamically import the TS module (requires ts-node/ts-node-esm when running)
-    const schemas = await import('../src/index.ts');
+    // dynamically import the package entry (resolve to .js when running compiled or tsx)
+    const schemas = await import('../src/index.js');
 
     // Export a curated set of top-level schemas
     const mapping: Record<string, any> = {

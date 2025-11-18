@@ -3,6 +3,7 @@ import { loadLore, getLoreShards } from './lore/loader.js';
 import { validateActionRequest } from './validation/validate.js';
 import { loadGeneratedSchemas } from './schemas/registry.js';
 import { dispatch } from './dispatch/dispatch.js';
+import { enqueueInvalidResponse } from './hold/hold.js';
 import pino from 'pino';
 import { ActionRequest } from '@prompt/schemas/action.js';
 import { syncSession } from './auth/session.js';
@@ -24,9 +25,11 @@ export class Orchestrator {
         const result = dispatch(req);
         if (!result.valid) {
             this.log.warn({ errors: result.validationErrors }, 'NarrativeResponse failed JSON Schema validation');
-            // Could route to human-in-the-loop here; for now return validation state alongside response
+            // enqueue to human-in-the-loop hold queue and prevent DB dispatch
+            const holdId = enqueueInvalidResponse(req, result.response, result.validationErrors || []);
+            return { prompt, response: result.response, valid: false, validationErrors: result.validationErrors, holdId };
         }
-        return { prompt, response: result.response, valid: result.valid, validationErrors: result.validationErrors };
+        return { prompt, response: result.response, valid: true };
     }
 
     async sessionSync(provider: 'SUPABASE' | 'AUTH0', providerUserId: string, displayName: string) {

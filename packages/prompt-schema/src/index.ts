@@ -4,3 +4,4 @@ export * from './schemas/lore.js';
 export * from './schemas/npc.js';
 export * from './schemas/response.js';
 export * from './schemas/templates.js';
+export * from './templates/greet-npc.js';

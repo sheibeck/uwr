@@ -261,3 +261,125 @@ export async function createSpaceTimeAdapter(): Promise<SpaceTimeAdapter> {
         isRemote: true
     };
 }
+
+// Attempt to apply a NarrativeResponse's effects to the DB via reducers.
+export async function applyNarrativeResponse(response: any, adapter?: SpaceTimeAdapter): Promise<{ success: boolean; errors?: string[] }> {
+    const errors: string[] = [];
+    try {
+        const enableRemote = process.env.SPACETIME_ENABLED === 'true';
+        if (!enableRemote) {
+            // Log intended effects when using stubs
+            // eslint-disable-next-line no-console
+            console.info('applyNarrativeResponse (stub):', JSON.stringify(response, null, 2));
+            return { success: true };
+        }
+
+        // Try to build a remote connection (reuses existing helper)
+        const conn = await buildRemoteConnection();
+        if (!conn || !conn.reducers) {
+            return { success: false, errors: ['no remote reducers available'] };
+        }
+
+        const r = conn.reducers as any;
+        // Effects may contain reducer hints in the detail field using the format:
+        // "reducer:<reducer_name>|arg1|arg2|..."
+        // Helper: parse effect.detail which must be valid JSON.
+        // Supported shapes:
+        //  - Array: treated as args list
+        //  - Object: { reducer?: string, args?: any[] }
+        function parseEffectDetail(detail: string): { reducer?: string; args: any[] } {
+            if (!detail) return { args: [] };
+            try {
+                const parsed = JSON.parse(detail);
+                if (Array.isArray(parsed)) return { args: parsed };
+                if (typeof parsed === 'object' && parsed !== null) {
+                    const reducer = typeof (parsed as any).reducer === 'string' ? (parsed as any).reducer : undefined;
+                    const args = Array.isArray((parsed as any).args) ? (parsed as any).args : [];
+                    return { reducer, args };
+                }
+                // Primitive -> single arg
+                return { args: [parsed] };
+            } catch (e: any) {
+                // Invalid JSON -> treat as no args
+                // eslint-disable-next-line no-console
+                console.warn('effect.detail is not valid JSON, ignoring:', detail, e?.message ?? e);
+                return { args: [] };
+            }
+        }
+
+        // Mapping from effect types to likely reducer names (extendable)
+        const effectReducerCandidates: Record<string, string[]> = {
+            STAT_CHANGE: ['stat_change', 'apply_stat_change', 'update_stats', 'statChange'],
+            ITEM_GAIN: ['grant_item', 'give_item', 'add_item', 'grantItem'],
+            ITEM_LOSS: ['remove_item', 'take_item', 'removeItem'],
+            MOB_SPAWN: ['spawn_mob', 'spawnMob', 'create_mob', 'createMob'],
+            NPC_STATE: ['set_npc_state', 'update_npc_state', 'setNpcState'],
+            WORLD_EVENT: ['create_world_event', 'emit_world_event', 'trigger_world_event', 'createWorldEvent']
+        };
+
+        for (const eff of (response?.resolution?.effects || [])) {
+            const detail: string = typeof eff?.detail === 'string' ? eff.detail : '';
+            const type: string = (eff?.type ?? '').toString();
+            let called = false;
+            const reducers = r as Record<string, any>;
+
+            // 1) Try mapping by effect.type
+            const candidates = effectReducerCandidates[type] ?? [];
+            const parsedDetail = parseEffectDetail(detail);
+            const argsFromDetail = parsedDetail.args;
+            for (const cand of candidates) {
+                const candNames = [cand, cand.replace(/_([a-z])/g, (_, c) => (c || '').toUpperCase())];
+                for (const name of candNames) {
+                    if (name && typeof reducers[name] === 'function') {
+                        try {
+                            reducers[name](...argsFromDetail);
+                            // eslint-disable-next-line no-console
+                            console.info(`Called mapped reducer ${name} for effect type ${type} with args`, argsFromDetail);
+                            called = true;
+                            break;
+                        } catch (e: any) {
+                            errors.push(`mapped reducer ${name} threw: ${e?.message ?? String(e)}`);
+                        }
+                    }
+                }
+                if (called) break;
+            }
+
+            if (called) continue;
+
+            // 2) If detail included an explicit reducer field, try that
+            if (parsedDetail.reducer) {
+                const reducerName: string = parsedDetail.reducer;
+                const args = parsedDetail.args ?? [];
+                const candidateNames = [reducerName, reducerName.replace(/_([a-z])/g, (_, c) => (c || '').toUpperCase())];
+                let found = false;
+                for (const cName of candidateNames) {
+                    if (cName && typeof reducers[cName] === 'function') {
+                        try {
+                            reducers[cName](...args);
+                            // eslint-disable-next-line no-console
+                            console.info(`Called reducer ${cName} with args`, args);
+                            found = true;
+                            break;
+                        } catch (e: any) {
+                            errors.push(`reducer ${cName} threw: ${e?.message ?? String(e)}`);
+                        }
+                    }
+                }
+                if (!found) {
+                    errors.push(`reducer ${reducerName} not found on remote reducers`);
+                }
+                continue;
+            }
+
+            // 3) No mapping or explicit reducer found — log and skip
+            // eslint-disable-next-line no-console
+            console.info('No reducer mapping or explicit reducer for effect, skipping:', type, detail);
+        }
+
+        if (errors.length > 0) return { success: false, errors };
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, errors: [e?.message ?? String(e)] };
+    }
+}
