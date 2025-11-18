@@ -53,6 +53,24 @@ function checkAuth(req: http.IncomingMessage, res: http.ServerResponse) {
 
 const server = http.createServer(async (req, res) => {
     const url = req.url || '/';
+    // health endpoints are public
+    if (url === '/health') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok', time: new Date().toISOString() }));
+        return;
+    }
+    if (url === '/ready') {
+        const HOLD_DIR = path.resolve(process.cwd(), 'data', 'orchestrator', 'hold');
+        const ready = fs.existsSync(HOLD_DIR) && fs.accessSync(HOLD_DIR, fs.constants.R_OK) === undefined;
+        if (ready) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ready: true }));
+        } else {
+            res.writeHead(503, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ready: false }));
+        }
+        return;
+    }
     // protect admin UI and API endpoints
     if (url === '/' || url === '/admin' || url.startsWith('/api/holds')) {
         if (!checkAuth(req, res)) return;
