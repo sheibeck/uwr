@@ -14,7 +14,8 @@ export class Orchestrator {
 
     constructor() {
         // attempt to load generated JSON schemas for AJV validation
-        loadGeneratedSchemas();
+        // load asynchronously and log any loading errors
+        loadGeneratedSchemas().catch((e) => this.log.warn({ err: e?.message ?? e }, 'Failed to load generated schemas'));
     }
 
     processActionRequest(raw: unknown) {

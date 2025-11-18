@@ -1,0 +1,23 @@
+{
+  "narration": "You step forward, voice calm. The NPC, a gaunt trinket-seller named Miri, looks up and smiles as you greet her. She nods, revealing a hidden pouch of curious brass tokens.",
+  "diegeticMessages": [
+    "Miri: \"Hello, traveler. You look like someone who appreciates curios.\""
+  ],
+  "resolution": {
+    "action": "LOOK",
+    "success": true,
+    "summary": "NPC greeted and small item offered",
+    "effects": [
+      {
+        "type": "ITEM_GAIN",
+        "detail": { "reducer": "grant_item", "args": ["player:1111", { "itemId": "brass_token", "quantity": 1 }] }
+      },
+      {
+        "type": "NPC_STATE",
+        "detail": { "reducer": "set_npc_state", "args": ["miri:1001", { "disposition": "ALLY" }] }
+      }
+    ]
+  },
+  "loreRefsUsed": ["world_origin", "miri_trader"],
+  "safetyFlags": []
+}

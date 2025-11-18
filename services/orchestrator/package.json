@@ -11,4 +11,8 @@
     "ajv": "^8.14.0",
     "ajv-formats": "^2.1.1"
   }
+  ,
+  "scripts": {
+    "admin:serve": "tsx ./scripts/admin-server.ts"
+  }
 }

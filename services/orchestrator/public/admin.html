@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Orchestrator Hold Admin</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background: #f2f2f2; }
+    pre { background: #111; color: #0f0; padding: 10px; }
+    button { padding: 6px 10px; }
+  </style>
+</head>
+<body>
+  <h1>Orchestrator Hold Queue</h1>
+  <button id="refresh">Refresh</button>
+  <table id="holds"><thead><tr><th>ID</th><th>CreatedAt</th><th>Errors</th><th>Action</th><th>Ops</th></tr></thead><tbody></tbody></table>
+  <h2>Preview</h2>
+  <pre id="preview">Select a hold to view</pre>
+  <script>
+    async function fetchHolds() {
+      const r = await fetch('/api/holds');
+      const items = await r.json();
+      const tbody = document.querySelector('#holds tbody');
+      tbody.innerHTML = '';
+      items.forEach(it => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${it.id}</td><td>${it.createdAt}</td><td>${it.errorsCount}</td><td>${it.action}</td><td><button data-id="${it.id}" class="view">View</button> <button data-id="${it.id}" class="promote">Promote</button></td>`;
+        tbody.appendChild(tr);
+      });
+      document.querySelectorAll('.view').forEach(b => b.addEventListener('click', async (e) => {
+        const id = e.target.dataset.id;
+        const r = await fetch('/api/holds/' + encodeURIComponent(id));
+        const json = await r.json();
+        document.getElementById('preview').textContent = JSON.stringify(json, null, 2);
+      }));
+      document.querySelectorAll('.promote').forEach(b => b.addEventListener('click', async (e) => {
+        const id = e.target.dataset.id;
+        const r = await fetch('/api/holds/' + encodeURIComponent(id) + '/promote', { method: 'POST' });
+        const text = await r.text();
+        alert(text);
+        fetchHolds();
+      }));
+    }
+    document.getElementById('refresh').addEventListener('click', fetchHolds);
+    fetchHolds();
+  </script>
+</body>
+</html>

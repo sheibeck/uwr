@@ -6,7 +6,7 @@ import { applyNarrativeResponse } from '../src/db/spacetime.js';
 
 const HOLD_DIR = path.resolve(process.cwd(), 'data', 'orchestrator', 'hold');
 
-function listHeld() {
+export function listHeld() {
     if (!fs.existsSync(HOLD_DIR)) {
         console.log('No held items');
         return;
@@ -19,7 +19,7 @@ function listHeld() {
     }
 }
 
-function showHeld(id: string) {
+export function showHeld(id: string) {
     const file = path.join(HOLD_DIR, `${id}.json`);
     if (!fs.existsSync(file)) {
         console.error('Not found', id);
@@ -29,7 +29,7 @@ function showHeld(id: string) {
     console.log(raw);
 }
 
-async function promote(id: string) {
+export async function promote(id: string) {
     const file = path.join(HOLD_DIR, `${id}.json`);
     if (!fs.existsSync(file)) {
         console.error('Not found', id);
@@ -62,7 +62,7 @@ async function promote(id: string) {
 }
 
 async function main() {
-    const [,, cmd, arg] = process.argv;
+    const [, , cmd, arg] = process.argv;
     if (!cmd || cmd === 'help') {
         console.log('Usage: review-hold.ts <list|show|promote> [id]');
         return;
