@@ -46,7 +46,13 @@
 | Scope creep | Medium | Feature gates per phase, weekly roadmap reviews, MVP definitions per system |
 
 ## Next steps
-1. Initialize PNPM workspace + baseline packages.
-2. Author detailed prompt schema + lore knowledge base.
-3. Implement auth + session sync with SpaceTimeDB.
-4. Build orchestrator skeleton and connect to mock AI before hitting live models.
+## Next steps (updated)
+1. Initialize PNPM workspace + baseline packages. (done)
+2. Author detailed prompt schema + lore knowledge base. (in progress — see docs/prompt-schema-plan.md)
+3. Implement auth + session sync with SpaceTimeDB. (partial: auth/session sync implemented in orchestrator and web client; module & bindings published)
+4. Build orchestrator skeleton and connect to mock AI before hitting live models. (in progress)
+
+Status note
+- Workspace, basic packages, and Spacetime module scaffolding are in place.
+- Basic auth/session flow with SpaceTimeDB reducers, orchestrator adapter, and web UI sign-in has been implemented and tested locally.
+- Prompt schema and lore alignment is the next critical piece before building robust prompt → action flows.

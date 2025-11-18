@@ -6,5 +6,15 @@
   "license": "MIT",
   "dependencies": {
     "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "zod-to-json-schema": "^4.0.0",
+    "ts-node": "^10.9.1",
+    "ts-node-esm": "^10.9.1",
+    "typescript": "^5.5.0"
+  },
+  "scripts": {
+    "generate:json-schema": "node --loader ts-node/esm ./packages/prompt-schema/scripts/generate-json-schemas.ts",
+    "test": "vitest"
   }
 }

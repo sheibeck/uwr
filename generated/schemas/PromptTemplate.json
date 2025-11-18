@@ -1,0 +1,58 @@
+{
+  "$ref": "#/definitions/PromptTemplate",
+  "definitions": {
+    "PromptTemplate": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "semver-like version"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 3
+        },
+        "description": {
+          "type": "string"
+        },
+        "template": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Template string with placeholders like {{playerName}}"
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "maxTokens": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "safetyProfile": {
+          "type": "string",
+          "enum": [
+            "STRICT",
+            "DEFAULT",
+            "LENIENT"
+          ]
+        },
+        "outputSchemaRef": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "name",
+        "template"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

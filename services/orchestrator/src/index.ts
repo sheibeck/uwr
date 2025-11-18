@@ -1,6 +1,7 @@
 import { buildPrompt } from './prompt/builder.js';
 import { loadLore, getLoreShards } from './lore/loader.js';
 import { validateActionRequest } from './validation/validate.js';
+import { loadGeneratedSchemas } from './schemas/registry.js';
 import { dispatch } from './dispatch/dispatch.js';
 import pino from 'pino';
 import { ActionRequest } from '@prompt/schemas/action.js';
@@ -10,13 +11,22 @@ export class Orchestrator {
     private loreStore = loadLore();
     private log = pino({ name: 'orchestrator', level: process.env.LOG_LEVEL || 'info' });
 
+    constructor() {
+        // attempt to load generated JSON schemas for AJV validation
+        loadGeneratedSchemas();
+    }
+
     processActionRequest(raw: unknown) {
         const req = validateActionRequest(raw);
         const lore = getLoreShards(req.loreShards, this.loreStore);
         const prompt = buildPrompt(req, lore);
         this.log.debug({ promptLength: prompt.length }, 'Prompt built');
-        const { response } = dispatch(req);
-        return { prompt, response };
+        const result = dispatch(req);
+        if (!result.valid) {
+            this.log.warn({ errors: result.validationErrors }, 'NarrativeResponse failed JSON Schema validation');
+            // Could route to human-in-the-loop here; for now return validation state alongside response
+        }
+        return { prompt, response: result.response, valid: result.valid, validationErrors: result.validationErrors };
     }
 
     async sessionSync(provider: 'SUPABASE' | 'AUTH0', providerUserId: string, displayName: string) {
