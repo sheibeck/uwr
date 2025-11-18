@@ -8,6 +8,7 @@ import pino from 'pino';
 import { ActionRequest } from '@prompt/schemas/action.js';
 import { syncSession } from './auth/session.js';
 import inferAction from './intent/inferAction.js';
+import metrics from './metrics/metrics.js';
 
 export class Orchestrator {
     private loreStore = loadLore();
@@ -31,6 +32,11 @@ export class Orchestrator {
                 this.log.debug({ narrativeGoal, intent: rawObj.intent, inference: inf }, 'Attempted to infer action from narrativeGoal');
                 this.log.info({ inference: inf }, 'Inferred action from narrativeGoal');
                 const threshold = 0.8;
+                // record inference metrics
+                try {
+                    metrics.recordInference(narrativeGoal, inf.action ?? null, inf.confidence, !(inf.action && inf.confidence >= threshold));
+                } catch (e) { }
+
                 if (inf.action && inf.confidence >= threshold) {
                     // auto-fill high-confidence inference
                     intent.action = inf.action;
@@ -59,7 +65,12 @@ export class Orchestrator {
         const lore = getLoreShards(req.loreShards, this.loreStore);
         const prompt = buildPrompt(req, lore);
         this.log.debug({ promptLength: prompt.length }, 'Prompt built');
+        const start = Date.now();
         const result = await dispatch(req, prompt);
+        const latency = Date.now() - start;
+        try {
+            metrics.recordDispatch(!!result.valid, latency, result.validationErrors?.length);
+        } catch (e) { }
         if (!result.valid) {
             this.log.warn({ errors: result.validationErrors }, 'NarrativeResponse failed JSON Schema validation');
             // enqueue to human-in-the-loop hold queue and prevent DB dispatch

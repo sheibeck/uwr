@@ -212,6 +212,42 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
+    // Metrics endpoints
+    if (url.startsWith('/api/metrics')) {
+        if (!checkAuth(req, res)) return;
+        if (req.method === 'GET' && url === '/api/metrics') {
+            try {
+                const mod = await import('../src/metrics/metrics.js');
+                const snap = mod.readPersisted();
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(snap));
+            } catch (err) {
+                res.writeHead(500); res.end(String(err));
+            }
+            return;
+        }
+        if (req.method === 'GET' && url === '/api/metrics/summary') {
+            try {
+                const mod = await import('../src/metrics/metrics.js');
+                const snap = mod.readPersisted();
+                // small summary
+                const m = snap.metrics;
+                const summary = {
+                    totalDispatches: m.totalDispatches,
+                    validDispatches: m.validDispatches,
+                    invalidDispatches: m.invalidDispatches,
+                    totalInferences: m.totalInferences,
+                    suggestionNeeded: m.suggestionNeeded
+                };
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ summary, updatedAt: snap.updatedAt }));
+            } catch (err) {
+                res.writeHead(500); res.end(String(err));
+            }
+            return;
+        }
+    }
+
     res.writeHead(404); res.end('Not found');
 });
 

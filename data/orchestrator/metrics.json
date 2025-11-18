@@ -1,0 +1,21 @@
+{
+  "metrics": {
+    "totalDispatches": 1,
+    "validDispatches": 1,
+    "invalidDispatches": 0,
+    "dispatchLatencies": [
+      2
+    ],
+    "recentDispatches": [
+      {
+        "timestamp": "2025-11-18T23:27:04.437Z",
+        "valid": true,
+        "latencyMs": 2
+      }
+    ],
+    "totalInferences": 0,
+    "suggestionNeeded": 0,
+    "recentInferences": []
+  },
+  "updatedAt": "2025-11-18T23:27:04.439Z"
+}
