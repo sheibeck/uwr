@@ -21,6 +21,7 @@
 ## Phase 2 — Core Gameplay (Weeks 9-16)
 - Flesh out world/region/zone/character/NPC/faction tables per specs.
 - Implement travel, combat resolver (turn-based), loot tables, inventory UI.
+- Add character creation flow: account holders create one or more playable characters (name, race, class, appearance, starter inventory); wire client UI + reducers + subscriptions.
 - Add renown ledger, faction unlock logic, quest journal with branching states.
 - Introduce crafting/economy stub plus marketplace UI.
 - Build automated scenario tests that replay scripted conversations.
@@ -45,30 +46,30 @@
 | Player safety/moderation gaps | High | Content filters, reporting tools, rapid rollback mechanism |
 | Scope creep | Medium | Feature gates per phase, weekly roadmap reviews, MVP definitions per system |
 
-## Next steps (updated)
-1. Initialize PNPM workspace + baseline packages. (done)
-2. Author detailed prompt schema + lore knowledge base. (in progress — see docs/prompt-schema-plan.md)
-3. Implement auth + session sync with SpaceTimeDB. (partial: auth/session sync implemented in orchestrator and web client; module & bindings published)
-4. Build orchestrator skeleton and connect to mock AI before hitting live models. (in progress)
+## Next steps (actionable)
+
+Priority A — ship and stabilize
+1. Add phrase-pattern boosts for combat & crafting idioms and cover them with unit tests (examples: "I charge into battle, my sword raised!", "Craft a healing potion at the alchemy workbench").
+2. Document the AJV runtime fallback behavior in `docs/` (short note explaining the dynamic-import fallback and Node resolver usage).
+3. Implement subscription lifecycle/eviction policy and add small integration tests against the local Spacetime host.
+4. Add structured inference telemetry: log low-confidence inputs with matched cues (verb/noun/phrase) to a dev sink for iterative tuning.
+
+Priority B — reliability & observability
+5. Add structured logs/metrics for reducer dispatch results and inference suggestion rates; build a small dashboard or endpoint for quick inspection.
+6. Add a basic load-testing harness (orchestrator validation + dispatch) and run ramps to establish a baseline (initial target: 500 actions/min).
+7. Harden admin auth and restrict admin UI to local/dev by default.
+
+Priority C — gameplay foundations
+8. Flesh out core world tables and reducers: regions, NPCs, inventory, quests, crafting/workbench reducers (Phase 2 work).
+9. Add character creation and management: tables/reducers for `characters`, reducers for create/update/delete, client UI and targeted subscriptions so players can select and manage their avatars.
+10. Add scenario-based replay tests to validate reducers and end-to-end flows under schema changes.
 
 Status update — current (Nov 2025)
-- Prompt schema package implemented with Zod schemas and a JSON Schema generator; generated schemas are present under `generated/schemas`.
-- Orchestrator now loads generated JSON schemas at runtime and uses AJV validators (lazy runtime import) to validate model outputs before dispatch.
-- Human-in-the-loop hold queue implemented: invalid model responses are written to `data/orchestrator/hold/` and can be reviewed.
-- Admin tooling added: a CLI (`services/orchestrator/scripts/review-hold.ts`) and a small admin web UI + programmatic TypeScript admin server (`services/orchestrator/scripts/admin-server.ts`).
-- ESM/CJS consistency fixes applied; dynamic runtime imports were adjusted to avoid bundler static analysis problems.
-- Integration test added for the hold → promote flow to validate the human-in-the-loop path.
+- Prompt schema package implemented; generated JSON schemas are present under `generated/schemas`.
+- Orchestrator loads generated schemas at runtime and validates model outputs with AJV; a runtime import fallback is in place.
+- BigInt & Spacetime timestamp serialization fixed in API responses; unit tests added.
+- Human-in-the-loop hold queue implemented; admin review tools added (CLI + small admin server).
+- POC inference (`inferAction`) implemented and expanded to include MMO and crafting/gathering actions; client UI adjusted to surface suggestions inline.
+- Unit test coverage added for serialization, inference, and hold flow; local Vitest run is green.
 
-Near-term priorities
-- Replace shell-out patterns with programmatic APIs (done for admin server) and extend test coverage for promotion and reducer application.
-- Add authentication/authorization for the admin UI and restrict it to local/dev use by default.
-- Expand integration tests to cover validation failures, reducer mapping behavior, and DB reducer side-effects (mock/spies).
-- Add basic load testing for the orchestrator validation + dispatch pipeline (target baseline throughput). 
-
-Longer-term priorities
-- Flesh out core gameplay tables and reducers (Phase 2).
-- Add scenario-based replay tests and scale tests (Phase 3).
-
-Status note
-- Workspace, basic packages, and Spacetime module scaffolding are in place.
-- The focus now is on prompt schema completion, validator robustness, human-in-the-loop UX, and reducing risk in the AI→DB loop before expanding features.
+If you'd like, I can start on Priority A.1 (phrase boosts + unit tests) now — provide a short list of failing sentences you want to lock into tests (I'll start with your "I charge into battle, my sword raised!" example unless you prefer others).
