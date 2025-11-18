@@ -132,6 +132,78 @@ export async function createSpaceTimeAdapter(): Promise<SpaceTimeAdapter> {
     }
 
     // Remote implementation (optimistic; assumes reducers defined in module schema)
+
+    // Local helper: escape single quotes for simple SQL embedding in subscription queries
+    const escapeSqlLiteral = (s: string) => (s || '').replace(/'/g, "''");
+
+    // Local helper: wait for a row by polling the client cache only.
+    // Persistent subscriptions are created at adapter init; this function assumes the client cache
+    // is being maintained by those subscriptions and simply polls for the desired row.
+    const waitForRowByQuery = async (sqlQuery: string, tableAccessorName: string, matchFn: (table: any) => any | null, timeoutMs = 2000) => {
+        try {
+            const start = Date.now();
+            while (Date.now() - start < timeoutMs) {
+                try {
+                    const db = (remoteConn as any).db;
+                    if (db && db[tableAccessorName]) {
+                        const found = matchFn(db[tableAccessorName]);
+                        if (found) return found;
+                    }
+                } catch { }
+                await new Promise((r) => setTimeout(r, 100));
+            }
+            return null;
+        } catch (e) {
+            return null;
+        }
+    };
+
+    // Targeted persistent subscriptions maps (keyed by provider_user_id or session_token)
+    const accountSubscriptions: Record<string, { handle: any; applied: boolean }> = {};
+    const sessionSubscriptions: Record<string, { handle: any; applied: boolean }> = {};
+
+    const ensureAccountSubscription = (providerUserId: string) => {
+        try {
+            if (!providerUserId) return;
+            if (accountSubscriptions[providerUserId]) return;
+            const sbFactory = (remoteConn as any).subscriptionBuilder;
+            if (typeof sbFactory !== 'function') return;
+            const sql = `SELECT * FROM accounts WHERE provider_user_id = '${escapeSqlLiteral(providerUserId)}'`;
+            try {
+                const sb = sbFactory();
+                const handle = sb.onApplied((_ctx: any) => {
+                    accountSubscriptions[providerUserId] = accountSubscriptions[providerUserId] || { handle, applied: true };
+                    accountSubscriptions[providerUserId].applied = true;
+                }).onError((_errCtx: any, _err: any) => {
+                    accountSubscriptions[providerUserId] = accountSubscriptions[providerUserId] || { handle, applied: false };
+                    accountSubscriptions[providerUserId].applied = false;
+                }).subscribe([sql]);
+                accountSubscriptions[providerUserId] = { handle, applied: false };
+            } catch { /* ignore */ }
+        } catch { /* ignore */ }
+    };
+
+    const ensureSessionSubscription = (sessionToken: string) => {
+        try {
+            if (!sessionToken) return;
+            if (sessionSubscriptions[sessionToken]) return;
+            const sbFactory = (remoteConn as any).subscriptionBuilder;
+            if (typeof sbFactory !== 'function') return;
+            const sql = `SELECT * FROM sessions WHERE session_token = '${escapeSqlLiteral(sessionToken)}'`;
+            try {
+                const sb = sbFactory();
+                const handle = sb.onApplied((_ctx: any) => {
+                    sessionSubscriptions[sessionToken] = sessionSubscriptions[sessionToken] || { handle, applied: true };
+                    sessionSubscriptions[sessionToken].applied = true;
+                }).onError((_errCtx: any, _err: any) => {
+                    sessionSubscriptions[sessionToken] = sessionSubscriptions[sessionToken] || { handle, applied: false };
+                    sessionSubscriptions[sessionToken].applied = false;
+                }).subscribe([sql]);
+                sessionSubscriptions[sessionToken] = { handle, applied: false };
+            } catch { /* ignore */ }
+        } catch { /* ignore */ }
+    };
+
     return {
         async upsertAccount(provider: string, providerUserId: string, displayName: string): Promise<Account> {
             const r = remoteConn.reducers as any;
@@ -159,10 +231,40 @@ export async function createSpaceTimeAdapter(): Promise<SpaceTimeAdapter> {
                 return false;
             };
 
-            // Try insert/update reducer variants
+            // Call reducer variants (reducers are fire-and-forget in Spacetime)
             tryReducer(['create_account', 'createAccount', 'upsert_account', 'upsertAccount'], provider, providerUserId, displayName);
 
-            // We rely on subscription eventually populating db.accounts.unique index; for now return a local representation.
+            // Wait for the client cache to reflect the new/updated account using subscriptions when possible.
+            try {
+                const db = (remoteConn as any).db;
+                // Prefer direct indexed find if available
+                if (db && db.accounts) {
+                    const idx = db.accounts.provider_user_id || db.accounts.providerUserId;
+                    if (idx && typeof idx.find === 'function') {
+                        // Ensure we have a targeted persistent subscription for this provider_user_id
+                        try { ensureAccountSubscription(providerUserId); } catch { }
+                        const sql = `SELECT * FROM accounts WHERE provider_user_id = '${escapeSqlLiteral(providerUserId)}'`;
+                        const found = await waitForRowByQuery(sql, 'accounts', (table) => idx.find(providerUserId), 2000);
+                        if (found) return found as Account;
+                    }
+
+                    // Fallback: subscribe to a query and iterate to match provider/provider_user_id
+                    const sql2 = `SELECT * FROM accounts WHERE provider = '${escapeSqlLiteral(provider)}' AND provider_user_id = '${escapeSqlLiteral(providerUserId)}'`;
+                    const iterFound = await waitForRowByQuery(sql2, 'accounts', (table) => {
+                        try {
+                            for (const row of table.iter()) {
+                                if (row.provider === provider && row.provider_user_id === providerUserId) return row;
+                            }
+                        } catch { }
+                        return null;
+                    }, 2000);
+                    if (iterFound) return iterFound as Account;
+                }
+            } catch (e) {
+                // ignore and fall back to local representation
+            }
+
+            // Fall back to a local representation if remote row not available yet.
             return {
                 id: provider + ':' + providerUserId,
                 provider: provider as any,
@@ -223,9 +325,38 @@ export async function createSpaceTimeAdapter(): Promise<SpaceTimeAdapter> {
                 return false;
             };
 
-            // Try various reducer names. create_or_update_session expects (provider_user_id, session_token, ttl_minutes)
+            // Call reducer to create/update session. Reducers don't return data.
+            // create_or_update_session expects (provider_user_id, session_token, ttl_minutes)
             tryReducer(['create_or_update_session', 'createOrUpdateSession', 'create_session', 'createSession'], account.providerUserId, token, ttlMinutes);
 
+            // Wait for the session row to appear/reflect in client cache
+            try {
+                const db = (remoteConn as any).db;
+                if (db && db.sessions) {
+                    const idx = db.sessions.session_token || db.sessions.sessionToken;
+                    if (idx && typeof idx.find === 'function') {
+                        try { ensureSessionSubscription(token); } catch { }
+                        const sql = `SELECT * FROM sessions WHERE session_token = '${escapeSqlLiteral(token)}'`;
+                        const found = await waitForRowByQuery(sql, 'sessions', (table) => idx.find(token), 2000);
+                        if (found) return found as Session;
+                    }
+
+                    const sql2 = `SELECT * FROM sessions WHERE session_token = '${escapeSqlLiteral(token)}' OR id = '${escapeSqlLiteral(token)}'`;
+                    const iterFound = await waitForRowByQuery(sql2, 'sessions', (table) => {
+                        try {
+                            for (const row of table.iter()) {
+                                if (row.session_token === token) return row;
+                            }
+                        } catch { }
+                        return null;
+                    }, 2000);
+                    if (iterFound) return iterFound as Session;
+                }
+            } catch (e) {
+                // ignore and fall back
+            }
+
+            // Fallback synthetic session if remote row not yet available
             return {
                 id: token,
                 accountId: account.id,
@@ -256,6 +387,31 @@ export async function createSpaceTimeAdapter(): Promise<SpaceTimeAdapter> {
                 // eslint-disable-next-line no-console
                 console.error('Error calling touch reducer', e);
             }
+            // Try to read updated session from client cache
+            try {
+                const db = (remoteConn as any).db;
+                if (db && db.sessions) {
+                    const idx = db.sessions.session_token || db.sessions.sessionToken;
+                    if (idx && typeof idx.find === 'function') {
+                        try { ensureSessionSubscription(session.id); } catch { }
+                        const sql = `SELECT * FROM sessions WHERE session_token = '${escapeSqlLiteral(session.id)}' OR id = '${escapeSqlLiteral(session.id)}'`;
+                        const found = await waitForRowByQuery(sql, 'sessions', (table) => idx.find(session.id), 2000);
+                        if (found) return found as Session;
+                    }
+
+                    const sql2 = `SELECT * FROM sessions`;
+                    const iterFound = await waitForRowByQuery(sql2, 'sessions', (table) => {
+                        try {
+                            for (const row of table.iter()) {
+                                if (row.id === session.id || row.session_token === session.id) return row;
+                            }
+                        } catch { }
+                        return null;
+                    }, 2000);
+                    if (iterFound) return iterFound as Session;
+                }
+            } catch { }
+
             return { ...session, lastSeenAt: Date.now() };
         },
         isRemote: true
