@@ -10,21 +10,35 @@
         :isNew="result.result.isNewAccount"
         @logout="logout"
       />
+
+      <MockActionForm v-if="isAuthenticated" :actorId="(result?.result?.account?.id) ?? userAccount?.id" />
+      
+      <!-- Debug panel for troubleshooting auth/session state -->
+      <div class="debug" aria-hidden="false">
+        <h3>Debug</h3>
+        <div><strong>sessionToken:</strong> {{ sessionToken }}</div>
+        <div><strong>userAccount:</strong> {{ userAccount }}</div>
+        <div><strong>last result:</strong> <pre>{{ result }}</pre></div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import SignInCard from './components/SignInCard.vue';
 import SignedInCard from './components/SignedInCard.vue';
+import MockActionForm from './components/MockActionForm.vue';
 
 const provider = ref('SUPABASE');
 const providerUserId = ref('user-123');
 const displayName = ref('PlayerOne');
 const result = ref(null as any);
 const sessionToken = ref<string | null>(localStorage.getItem('sessionToken'));
-const isAuthenticated = ref(!!sessionToken.value);
+const userAccount = ref<any | null>(null);
+const isAuthenticated = computed(() => {
+  return !!sessionToken.value || !!userAccount.value;
+});
 
 async function sync(payload: { provider: string; displayName: string }) {
   console.debug('App: sync called with', payload);
@@ -39,29 +53,41 @@ async function sync(payload: { provider: string; displayName: string }) {
   if (data?.ok && data.result?.session) {
     // session token might be named `sessionToken` or `id` depending on backend shape
     const token = (data.result.session.sessionToken ?? data.result.session.id) as string | undefined;
-    if (token) {
-      sessionToken.value = token;
-      localStorage.setItem('sessionToken', token);
-      isAuthenticated.value = true;
-    } else {
-      // If no token field, still consider the user authenticated if account exists
-      if (data.result.account) {
-        isAuthenticated.value = true;
-      }
+      if (token) {
+        sessionToken.value = token;
+        localStorage.setItem('sessionToken', token);
+      } else {
+        // If no token field, still consider the user authenticated if account exists
+        if (data.result.account) {
+          userAccount.value = data.result.account;
+        }
     }
   }
 }
 
 function onSign(payload: { provider: string; displayName: string }) {
   console.debug('App: onSign got payload', payload);
+  // ensure providerUserId/displayName are set if provided
+  if (payload.provider) provider.value = payload.provider;
+  if (payload.displayName) displayName.value = payload.displayName;
   sync(payload).catch((err) => console.error('sync failed', err));
 }
+
+// If a session token exists in localStorage, validate it on mount so
+// the UI can hydrate `result` and `userAccount` and show SignedInCard.
+onMounted(() => {
+  if (sessionToken.value) {
+    console.debug('App: found sessionToken on mount, validating...');
+    // server expects provider/displayName; if not available, send minimal payload
+    sync({ provider: provider.value, displayName: displayName.value }).catch((err) => console.error('auto-sync failed', err));
+  }
+});
 
 function logout() {
   sessionToken.value = null;
   localStorage.removeItem('sessionToken');
-  isAuthenticated.value = false;
   result.value = null;
+  userAccount.value = null;
 }
 </script>
 

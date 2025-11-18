@@ -22,6 +22,16 @@ app.post('/api/sessionSync', async (req: Request, res: Response) => {
     }
 });
 
+app.post('/api/orchestrator/action', async (req: Request, res: Response) => {
+    try {
+        const body = req.body;
+        const result = await orchestrator.processActionRequest(body);
+        res.json(result);
+    } catch (err: any) {
+        res.status(500).json({ ok: false, error: err?.message || String(err) });
+    }
+});
+
 const port = Number(process.env.ORCHESTRATOR_PORT || 3001);
 app.listen(port, () => console.log(`Orchestrator server listening on ${port}`));
 

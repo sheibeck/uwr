@@ -45,14 +45,30 @@
 | Player safety/moderation gaps | High | Content filters, reporting tools, rapid rollback mechanism |
 | Scope creep | Medium | Feature gates per phase, weekly roadmap reviews, MVP definitions per system |
 
-## Next steps
 ## Next steps (updated)
 1. Initialize PNPM workspace + baseline packages. (done)
 2. Author detailed prompt schema + lore knowledge base. (in progress — see docs/prompt-schema-plan.md)
 3. Implement auth + session sync with SpaceTimeDB. (partial: auth/session sync implemented in orchestrator and web client; module & bindings published)
 4. Build orchestrator skeleton and connect to mock AI before hitting live models. (in progress)
 
+Status update — current (Nov 2025)
+- Prompt schema package implemented with Zod schemas and a JSON Schema generator; generated schemas are present under `generated/schemas`.
+- Orchestrator now loads generated JSON schemas at runtime and uses AJV validators (lazy runtime import) to validate model outputs before dispatch.
+- Human-in-the-loop hold queue implemented: invalid model responses are written to `data/orchestrator/hold/` and can be reviewed.
+- Admin tooling added: a CLI (`services/orchestrator/scripts/review-hold.ts`) and a small admin web UI + programmatic TypeScript admin server (`services/orchestrator/scripts/admin-server.ts`).
+- ESM/CJS consistency fixes applied; dynamic runtime imports were adjusted to avoid bundler static analysis problems.
+- Integration test added for the hold → promote flow to validate the human-in-the-loop path.
+
+Near-term priorities
+- Replace shell-out patterns with programmatic APIs (done for admin server) and extend test coverage for promotion and reducer application.
+- Add authentication/authorization for the admin UI and restrict it to local/dev use by default.
+- Expand integration tests to cover validation failures, reducer mapping behavior, and DB reducer side-effects (mock/spies).
+- Add basic load testing for the orchestrator validation + dispatch pipeline (target baseline throughput). 
+
+Longer-term priorities
+- Flesh out core gameplay tables and reducers (Phase 2).
+- Add scenario-based replay tests and scale tests (Phase 3).
+
 Status note
 - Workspace, basic packages, and Spacetime module scaffolding are in place.
-- Basic auth/session flow with SpaceTimeDB reducers, orchestrator adapter, and web UI sign-in has been implemented and tested locally.
-- Prompt schema and lore alignment is the next critical piece before building robust prompt → action flows.
+- The focus now is on prompt schema completion, validator robustness, human-in-the-loop UX, and reducing risk in the AI→DB loop before expanding features.

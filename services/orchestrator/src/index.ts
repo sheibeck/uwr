@@ -18,12 +18,12 @@ export class Orchestrator {
         loadGeneratedSchemas().catch((e) => this.log.warn({ err: e?.message ?? e }, 'Failed to load generated schemas'));
     }
 
-    processActionRequest(raw: unknown) {
+    async processActionRequest(raw: unknown) {
         const req = validateActionRequest(raw);
         const lore = getLoreShards(req.loreShards, this.loreStore);
         const prompt = buildPrompt(req, lore);
         this.log.debug({ promptLength: prompt.length }, 'Prompt built');
-        const result = dispatch(req);
+        const result = await dispatch(req, prompt);
         if (!result.valid) {
             this.log.warn({ errors: result.validationErrors }, 'NarrativeResponse failed JSON Schema validation');
             // enqueue to human-in-the-loop hold queue and prevent DB dispatch

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createOrchestrator } from './index.js';
 
 describe('Orchestrator skeleton', () => {
-    it('processes a minimal ActionRequest', () => {
+    it('processes a minimal ActionRequest', async () => {
         const orch = createOrchestrator();
         const req = {
             intent: {
@@ -23,7 +23,7 @@ describe('Orchestrator skeleton', () => {
             recentActions: [],
             loreShards: ['world_origin']
         };
-        const { prompt, response } = orch.processActionRequest(req);
+        const { prompt, response } = await orch.processActionRequest(req);
         expect(prompt).toMatch(/PLAYER INTENT/);
         expect(response.resolution.success).toBe(true);
     });
