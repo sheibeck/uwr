@@ -27,9 +27,14 @@ app.post('/api/orchestrator/action', async (req: Request, res: Response) => {
     try {
         const body = req.body;
         const result = await orchestrator.processActionRequest(body);
-        res.json(safeSerialize(result));
+        // Ensure we always return a top-level response object (with narration)
+        // so front-end rendering doesn't throw when accessing result.response.narration.
+        const payload: any = Object.assign({}, result || {}, { ok: true });
+        res.json(safeSerialize(payload));
     } catch (err: any) {
-        res.status(500).json({ ok: false, error: err?.message || String(err) });
+        const msg = err?.message || String(err);
+        const payload = { ok: false, error: msg, response: { narration: `Server error: ${msg}` } };
+        res.status(500).json(safeSerialize(payload));
     }
 });
 

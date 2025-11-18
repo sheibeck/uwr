@@ -47,8 +47,9 @@ const result = ref<any | null>(null);
 
 async function send() {
   const payload = {
-    intent: { actorId: actorId.value, action: action.value, target: null, narrativeGoal: narrativeGoal.value, clientTs: Date.now() },
-    context: { region: { id: 'r1', name: 'Ashen Vale', dangerLevel: 1, factionControl: null }, timeOfDay: 'DAY', weather: { condition: 'CLEAR', intensity: 0 }, activeEvents: [], playerStatuses: [] },
+  intent: { actorId: actorId.value, action: action.value, target: null, narrativeGoal: narrativeGoal.value, clientTs: Date.now() },
+  // Use a UUID for region.id to satisfy schema validation
+  context: { region: { id: '11111111-1111-4111-8111-111111111111', name: 'Ashen Vale', dangerLevel: 1, factionControl: null }, timeOfDay: 'DAY', weather: { condition: 'CLEAR', intensity: 0 }, activeEvents: [], playerStatuses: [] },
     nearbyNPCs: [],
     recentActions: [],
     loreShards: []
