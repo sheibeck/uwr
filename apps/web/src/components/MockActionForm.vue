@@ -1,9 +1,7 @@
 <template>
   <div class="card">
     <h3>Mock Action</h3>
-    <label>Actor ID</label>
-    <input v-model="actorId" />
-    <!-- Action is inferred from narrativeGoal; UI no longer exposes explicit action selection -->
+  <!-- Action is inferred from narrativeGoal; UI no longer exposes explicit action selection -->
     <label>Narrative goal</label>
     <input v-model="narrativeGoal" />
     <button @click="send">Send</button>
