@@ -1,10 +1,15 @@
 #!/usr/bin/env tsx
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { getValidator } from '../src/schemas/registry.js';
 import { applyNarrativeResponse } from '../src/db/spacetime.js';
 
-const HOLD_DIR = path.resolve(process.cwd(), 'data', 'orchestrator', 'hold');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Compute repo root from script location to avoid depending on process.cwd()
+const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
+const HOLD_DIR = path.join(REPO_ROOT, 'data', 'orchestrator', 'hold');
 
 export function listHeld() {
     if (!fs.existsSync(HOLD_DIR)) {
@@ -26,7 +31,7 @@ export function showHeld(id: string) {
         process.exit(2);
     }
     const raw = fs.readFileSync(file, 'utf8');
-    console.log(raw);
+    return raw;
 }
 
 export async function promote(id: string) {
@@ -61,6 +66,14 @@ export async function promote(id: string) {
     console.log('Promoted and removed hold:', id);
 }
 
+export function removeHeld(id: string) {
+    const file = path.join(HOLD_DIR, `${id}.json`);
+    if (!fs.existsSync(file)) {
+        throw new Error('Not found');
+    }
+    fs.unlinkSync(file);
+}
+
 async function main() {
     const [, , cmd, arg] = process.argv;
     if (!cmd || cmd === 'help') {
@@ -70,7 +83,9 @@ async function main() {
     if (cmd === 'list') return listHeld();
     if (cmd === 'show') {
         if (!arg) { console.error('show requires id'); process.exit(2); }
-        return showHeld(arg);
+        const out = showHeld(arg);
+        console.log(out);
+        return;
     }
     if (cmd === 'promote') {
         if (!arg) { console.error('promote requires id'); process.exit(2); }

@@ -21,11 +21,11 @@ import { listHeld, showHeld, promote } from './review-hold.js';
 const PORT = process.env.ADMIN_PORT ? Number(process.env.ADMIN_PORT) : 3005;
 // bind host: default to localhost to avoid accidental exposure
 const HOST = process.env.ADMIN_HOST || '127.0.0.1';
-const ROOT = process.cwd();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const adminHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'admin.html'), 'utf8');
+// Repo root is three levels up from scripts folder
+const ROOT = path.resolve(__dirname, '..', '..', '..');
+const adminHtml = fs.readFileSync(path.join(ROOT, 'services', 'orchestrator', 'public', 'admin.html'), 'utf8');
 
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'password';
@@ -60,7 +60,7 @@ const server = http.createServer(async (req, res) => {
         return;
     }
     if (url === '/ready') {
-        const HOLD_DIR = path.resolve(process.cwd(), 'data', 'orchestrator', 'hold');
+        const HOLD_DIR = path.join(ROOT, 'data', 'orchestrator', 'hold');
         const ready = fs.existsSync(HOLD_DIR) && fs.accessSync(HOLD_DIR, fs.constants.R_OK) === undefined;
         if (ready) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -97,12 +97,13 @@ const server = http.createServer(async (req, res) => {
 
         const promoteMatch = url.match(/^\/api\/holds\/(.+?)\/promote$/);
         const showMatch = url.match(/^\/api\/holds\/(.+?)$/);
+        const clearMatch = url.match(/^\/api\/holds\/(.+?)\/clear$/);
         if (req.method === 'GET' && showMatch) {
             const id = decodeURIComponent(showMatch[1]!);
             try {
-                const out = showHeld(id);
+                const out = showHeld(id); // returns raw JSON string
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(typeof out === 'string' ? out : JSON.stringify(out, null, 2));
+                res.end(out);
             } catch (err) {
                 res.writeHead(500); res.end(String(err));
             }
@@ -120,6 +121,21 @@ const server = http.createServer(async (req, res) => {
             }
             return;
         }
+        if (req.method === 'POST' && clearMatch) {
+            const id = decodeURIComponent(clearMatch[1]!);
+            try {
+                // use the removeHeld helper in review-hold.js
+                // import dynamically to avoid circular/early-load issues
+                const mod = await import('./review-hold.js');
+                if (typeof mod.removeHeld !== 'function') throw new Error('removeHeld not available');
+                mod.removeHeld(id);
+                res.writeHead(200, { 'Content-Type': 'text/plain' });
+                res.end('cleared');
+            } catch (err) {
+                res.writeHead(500); res.end(String(err));
+            }
+            return;
+        }
     }
 
     res.writeHead(404); res.end('Not found');
@@ -128,13 +144,19 @@ const server = http.createServer(async (req, res) => {
 function captureList() {
     // listHeld prints to stdout; replicate the logic locally to return structured data
     // by reading the hold directory directly.
-    const HOLD_DIR = path.resolve(process.cwd(), 'data', 'orchestrator', 'hold');
+    const HOLD_DIR = path.join(ROOT, 'data', 'orchestrator', 'hold');
     if (!fs.existsSync(HOLD_DIR)) return [];
     const files = fs.readdirSync(HOLD_DIR).filter(f => f.endsWith('.json'));
     return files.map(f => {
         const raw = fs.readFileSync(path.join(HOLD_DIR, f), 'utf8');
         const parsed = JSON.parse(raw);
-        return { id: parsed.id, createdAt: parsed.createdAt, errorsCount: parsed.validationErrors?.length || 0, action: parsed.request?.intent?.action };
+        return {
+            id: parsed.id,
+            createdAt: parsed.createdAt,
+            errorsCount: parsed.validationErrors?.length || 0,
+            intentAction: parsed.request?.intent?.action,
+            responseAction: parsed.response?.resolution?.action
+        };
     });
 }
 

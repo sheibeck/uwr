@@ -15,7 +15,7 @@
 <body>
   <h1>Orchestrator Hold Queue</h1>
   <button id="refresh">Refresh</button>
-  <table id="holds"><thead><tr><th>ID</th><th>CreatedAt</th><th>Errors</th><th>Action</th><th>Ops</th></tr></thead><tbody></tbody></table>
+  <table id="holds"><thead><tr><th>ID</th><th>CreatedAt</th><th>Errors</th><th>IntentAction</th><th>ResponseAction</th><th>Ops</th></tr></thead><tbody></tbody></table>
   <h2>Preview</h2>
   <pre id="preview">Select a hold to view</pre>
   <script>
@@ -26,18 +26,41 @@
       tbody.innerHTML = '';
       items.forEach(it => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${it.id}</td><td>${it.createdAt}</td><td>${it.errorsCount}</td><td>${it.action}</td><td><button data-id="${it.id}" class="view">View</button> <button data-id="${it.id}" class="promote">Promote</button></td>`;
+        tr.innerHTML = `<td>${it.id}</td><td>${it.createdAt}</td><td>${it.errorsCount}</td><td>${it.intentAction || ''}</td><td>${it.responseAction || ''}</td><td><button data-id="${it.id}" class="view">View</button> <button data-id="${it.id}" class="promote">Promote</button> <button data-id="${it.id}" class="clear">Clear</button></td>`;
         tbody.appendChild(tr);
       });
       document.querySelectorAll('.view').forEach(b => b.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
-        const r = await fetch('/api/holds/' + encodeURIComponent(id));
-        const json = await r.json();
-        document.getElementById('preview').textContent = JSON.stringify(json, null, 2);
+        try {
+          const r = await fetch('/api/holds/' + encodeURIComponent(id));
+          const text = await r.text();
+          if (!text) {
+            document.getElementById('preview').textContent = 'Error: Empty response body';
+            return;
+          }
+          let json;
+          try {
+            json = JSON.parse(text);
+          } catch (err) {
+            document.getElementById('preview').textContent = 'Error: Invalid JSON response\n' + text;
+            return;
+          }
+          document.getElementById('preview').textContent = JSON.stringify(json, null, 2);
+        } catch (err) {
+          document.getElementById('preview').textContent = 'Network error: ' + String(err);
+        }
       }));
       document.querySelectorAll('.promote').forEach(b => b.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
         const r = await fetch('/api/holds/' + encodeURIComponent(id) + '/promote', { method: 'POST' });
+        const text = await r.text();
+        alert(text);
+        fetchHolds();
+      }));
+      document.querySelectorAll('.clear').forEach(b => b.addEventListener('click', async (e) => {
+        const id = e.target.dataset.id;
+        if (!confirm('Clear hold ' + id + '? This will permanently delete the held file.')) return;
+        const r = await fetch('/api/holds/' + encodeURIComponent(id) + '/clear', { method: 'POST' });
         const text = await r.text();
         alert(text);
         fetchHolds();
