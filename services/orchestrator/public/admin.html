@@ -23,6 +23,11 @@
     <label>Show last <input id="teleLimit" type="number" value="100" style="width:80px"/> entries</label>
     <button id="loadTelemetry">Load Telemetry</button>
   </div>
+  <div style="margin-top:8px">
+    <label>Rotate/Trim: keep last <input id="rotateMax" type="number" value="2000" style="width:100px"/> lines</label>
+    <label style="margin-left:8px"><input id="rotateDo" type="checkbox"/> Rotate to archive</label>
+    <button id="doRotate">Run Rotate/Trim</button>
+  </div>
   <pre id="telemetry">No telemetry loaded</pre>
   <script>
     async function loadTelemetry() {
@@ -36,6 +41,19 @@
       }
     }
     document.getElementById('loadTelemetry').addEventListener('click', loadTelemetry);
+    document.getElementById('doRotate').addEventListener('click', async () => {
+      const max = Number(document.getElementById('rotateMax').value) || 2000;
+      const rotate = document.getElementById('rotateDo').checked;
+      try {
+        const r = await fetch('/api/telemetry/rotate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ maxLines: max, rotate }) });
+        const j = await r.json();
+        alert('Telemetry rotate result: ' + JSON.stringify(j));
+        // refresh telemetry view
+        loadTelemetry();
+      } catch (err) {
+        alert('Rotate failed: ' + String(err));
+      }
+    });
     async function fetchHolds() {
       const r = await fetch('/api/holds');
       const items = await r.json();

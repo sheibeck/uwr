@@ -164,6 +164,52 @@ const server = http.createServer(async (req, res) => {
             }
             return;
         }
+        // POST /api/telemetry/rotate -> { maxLines?: number, rotate?: boolean }
+        if (req.method === 'POST' && url === '/api/telemetry/rotate') {
+            try {
+                // read body
+                let body = '';
+                for await (const chunk of req) body += chunk;
+                const parsed = body ? JSON.parse(body) : {};
+                const maxLines = typeof parsed?.maxLines === 'number' ? parsed.maxLines : 2000;
+                const doRotate = !!parsed?.rotate;
+
+                const TELE_DIR = path.join(ROOT, 'data', 'orchestrator', 'telemetry');
+                const TELE_FILE = path.join(TELE_DIR, 'inference.jsonl');
+                if (!fs.existsSync(TELE_DIR) || !fs.existsSync(TELE_FILE)) {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, reason: 'telemetry not present' }));
+                    return;
+                }
+
+                const raw = fs.readFileSync(TELE_FILE, 'utf8');
+                const lines = raw.split(/\r?\n/).filter(Boolean);
+                if (lines.length <= maxLines) {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: true, action: 'noop', lines: lines.length }));
+                    return;
+                }
+
+                if (doRotate) {
+                    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const archive = path.join(TELE_DIR, `inference.${stamp}.jsonl`);
+                    fs.renameSync(TELE_FILE, archive);
+                    fs.writeFileSync(TELE_FILE, '', 'utf8');
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: true, action: 'rotate', archive }));
+                    return;
+                }
+
+                // trim
+                const keep = lines.slice(-maxLines);
+                fs.writeFileSync(TELE_FILE, keep.join('\n') + (keep.length ? '\n' : ''), 'utf8');
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: true, action: 'trim', kept: keep.length }));
+                return;
+            } catch (err) {
+                res.writeHead(500); res.end(String(err));
+            }
+        }
     }
 
     res.writeHead(404); res.end('Not found');
