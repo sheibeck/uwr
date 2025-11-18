@@ -1,4 +1,17 @@
 #!/usr/bin/env tsx
+/*
+    Admin server (programmatic) - basic info
+
+    Environment variables:
+        - ADMIN_USER: admin username (default: 'admin')
+        - ADMIN_PASS: admin password (default: 'password')
+        - ADMIN_PORT: port to listen on (default: 3005)
+
+    Security note:
+        - Defaults are intentionally weak for local development only.
+        - For any non-local deployment, set strong credentials and bind the
+            admin server to localhost (127.0.0.1) or protect it with a firewall/HTTP proxy.
+*/
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
@@ -6,14 +19,45 @@ import { fileURLToPath } from 'url';
 import { listHeld, showHeld, promote } from './review-hold.js';
 
 const PORT = process.env.ADMIN_PORT ? Number(process.env.ADMIN_PORT) : 3005;
+// bind host: default to localhost to avoid accidental exposure
+const HOST = process.env.ADMIN_HOST || '127.0.0.1';
 const ROOT = process.cwd();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const adminHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'admin.html'), 'utf8');
 
+const ADMIN_USER = process.env.ADMIN_USER || 'admin';
+const ADMIN_PASS = process.env.ADMIN_PASS || 'password';
+
+function unauthorized(res: http.ServerResponse) {
+    res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Admin"' });
+    res.end('Unauthorized');
+}
+
+function checkAuth(req: http.IncomingMessage, res: http.ServerResponse) {
+    const auth = req.headers['authorization'];
+    if (!auth || !auth.startsWith('Basic ')) {
+        unauthorized(res);
+        return false;
+    }
+    const b64 = auth.slice(6);
+    const buf = Buffer.from(b64, 'base64');
+    const [user, pass] = buf.toString('utf8').split(':');
+    if (user !== ADMIN_USER || pass !== ADMIN_PASS) {
+        unauthorized(res);
+        return false;
+    }
+    return true;
+}
+
 const server = http.createServer(async (req, res) => {
     const url = req.url || '/';
+    // protect admin UI and API endpoints
+    if (url === '/' || url === '/admin' || url.startsWith('/api/holds')) {
+        if (!checkAuth(req, res)) return;
+    }
+
     if (url === '/' || url === '/admin') {
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(adminHtml);
@@ -76,6 +120,6 @@ function captureList() {
     });
 }
 
-server.listen(PORT, () => {
-    console.log(`Admin server listening on http://localhost:${PORT}/admin`);
+server.listen(PORT, HOST, () => {
+    console.log(`Admin server listening on http://${HOST}:${PORT}/admin`);
 });
