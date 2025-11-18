@@ -17,3 +17,7 @@ logs/
 # Env
 .env
 .env.*
+
+# Orchestrator telemetry (dev)
+data/orchestrator/telemetry/
+data/orchestrator/telemetry/*

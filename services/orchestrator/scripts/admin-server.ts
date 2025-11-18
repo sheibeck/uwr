@@ -138,6 +138,34 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
+    // telemetry endpoints
+    if (url.startsWith('/api/telemetry')) {
+        if (!checkAuth(req, res)) return;
+        const teleMatch = url.match(/^\/api\/telemetry\/inference(?:\/(\d+))?$/);
+        if (req.method === 'GET' && teleMatch) {
+            const limit = teleMatch[1] ? Number(teleMatch[1]) : 200;
+            try {
+                const TELE_DIR = path.join(ROOT, 'data', 'orchestrator', 'telemetry');
+                const TELE_FILE = path.join(TELE_DIR, 'inference.jsonl');
+                if (!fs.existsSync(TELE_FILE)) {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify([]));
+                    return;
+                }
+                const raw = fs.readFileSync(TELE_FILE, 'utf8');
+                const lines = raw.split(/\r?\n/).filter(Boolean);
+                const tail = lines.slice(-limit).map(l => {
+                    try { return JSON.parse(l); } catch (e) { return { raw: l }; }
+                });
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(tail));
+            } catch (err) {
+                res.writeHead(500); res.end(String(err));
+            }
+            return;
+        }
+    }
+
     res.writeHead(404); res.end('Not found');
 });
 

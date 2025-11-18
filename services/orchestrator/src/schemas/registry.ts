@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
+// We'll dynamically import ajv and ajv-formats at runtime to avoid type/interop issues
 
 type ValidateFunction = any;
 
@@ -16,14 +15,26 @@ export async function loadGeneratedSchemas() {
     if (!fs.existsSync(SCHEMA_DIR)) return;
 
     if (!ajv) {
-        // Simplified: assume `ajv` and `ajv-formats` are installed and resolvable
-        ajv = new Ajv({ allErrors: true, strict: false });
+        // Dynamically import Ajv and formats to avoid static constructor/type issues.
         try {
-            addFormats(ajv);
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const AjvModule = await import('ajv');
+            const AjvCtor = (AjvModule && (AjvModule.default ?? AjvModule)) as any;
+            ajv = new AjvCtor({ allErrors: true, strict: false });
+            try {
+                const formats = await import('ajv-formats');
+                const addFormatsFn = (formats && (formats.default ?? formats)) as any;
+                addFormatsFn(ajv);
+            } catch (e) {
+                // If addFormats fails for some reason, still continue without formats
+                // eslint-disable-next-line no-console
+                console.warn('ajv-formats failed to initialize:', (e as any)?.message ?? e);
+            }
         } catch (e) {
-            // If addFormats fails for some reason, still continue without formats
             // eslint-disable-next-line no-console
-            console.warn('ajv-formats failed to initialize:', (e as any)?.message ?? e);
+            console.warn('ajv failed to initialize:', (e as any)?.message ?? e);
+            ajv = null;
+            return;
         }
     }
 

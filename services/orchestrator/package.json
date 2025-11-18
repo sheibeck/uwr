@@ -13,6 +13,7 @@
   }
   ,
   "scripts": {
-    "admin:serve": "tsx ./scripts/admin-server.ts"
+    "admin:serve": "tsx ./scripts/admin-server.ts",
+    "telemetry:rotate": "tsx ./scripts/rotate-telemetry.ts --max-lines=2000"
   }
 }

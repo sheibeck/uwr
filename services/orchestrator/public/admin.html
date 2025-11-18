@@ -18,7 +18,24 @@
   <table id="holds"><thead><tr><th>ID</th><th>CreatedAt</th><th>Errors</th><th>IntentAction</th><th>ResponseAction</th><th>Ops</th></tr></thead><tbody></tbody></table>
   <h2>Preview</h2>
   <pre id="preview">Select a hold to view</pre>
+  <h2>Inference Telemetry (dev)</h2>
+  <div>
+    <label>Show last <input id="teleLimit" type="number" value="100" style="width:80px"/> entries</label>
+    <button id="loadTelemetry">Load Telemetry</button>
+  </div>
+  <pre id="telemetry">No telemetry loaded</pre>
   <script>
+    async function loadTelemetry() {
+      const limit = Number(document.getElementById('teleLimit').value) || 100;
+      try {
+        const r = await fetch('/api/telemetry/inference/' + encodeURIComponent(String(limit)));
+        const json = await r.json();
+        document.getElementById('telemetry').textContent = JSON.stringify(json, null, 2);
+      } catch (err) {
+        document.getElementById('telemetry').textContent = 'Failed to load telemetry: ' + String(err);
+      }
+    }
+    document.getElementById('loadTelemetry').addEventListener('click', loadTelemetry);
     async function fetchHolds() {
       const r = await fetch('/api/holds');
       const items = await r.json();
@@ -68,6 +85,7 @@
     }
     document.getElementById('refresh').addEventListener('click', fetchHolds);
     fetchHolds();
+    // no auto-load of telemetry
   </script>
 </body>
 </html>

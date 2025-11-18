@@ -2,7 +2,7 @@
 
 // Synonym lists for POC. Keep these conservative but include common verb forms
 // and some noun cues (sword, spear) that indicate attack intent.
-import { Action, InferenceResult } from './types.js';
+// types already imported above
 
 const verbMap: Record<string, Action> = {
     look: Action.LOOK,
@@ -130,6 +130,33 @@ function stem(token: string): string {
 }
 
 import phraseBoosts from './phraseBoosts.js';
+// Telemetry: write low-confidence inferences to a dev sink for tuning.
+import fs from 'fs';
+import path from 'path';
+
+const TELEMETRY_DIR = path.join(process.cwd(), 'data', 'orchestrator', 'telemetry');
+const TELEMETRY_FILE = path.join(TELEMETRY_DIR, 'inference.jsonl');
+const LOW_CONF_THRESHOLD = 0.6;
+
+function ensureTelemetryDir() {
+    try {
+        fs.mkdirSync(TELEMETRY_DIR, { recursive: true });
+    } catch (e) {
+        // ignore
+    }
+}
+
+function appendTelemetry(obj: any) {
+    try {
+        ensureTelemetryDir();
+        const line = JSON.stringify(obj);
+        fs.appendFileSync(TELEMETRY_FILE, line + '\n', { encoding: 'utf8' });
+    } catch (e) {
+        // best-effort: don't let telemetry failures break inference
+        // eslint-disable-next-line no-console
+        console.error('Failed to write inference telemetry', e instanceof Error ? e.message : e);
+    }
+}
 import { Action, InferenceResult } from './types.js';
 
 export function inferAction(narrativeGoal: string): InferenceResult {
@@ -140,6 +167,10 @@ export function inferAction(narrativeGoal: string): InferenceResult {
     const lower = narrativeGoal.toLowerCase();
 
     // Accumulate scores per action from verbs and noun cues. Earlier tokens are weighted higher.
+    // For telemetry: record matched cues
+    const matchedVerbs: string[] = [];
+    const matchedNouns: string[] = [];
+    const matchedPhrases: string[] = [];
     const actionTypes: Action[] = [
         Action.LOOK, Action.TALK, Action.MOVE, Action.USE, Action.ATTACK, Action.PICK_UP, Action.UNKNOWN,
         Action.ACCEPT_QUEST, Action.DECLINE_QUEST, Action.DROP_ITEM, Action.EQUIP, Action.UNEQUIP, Action.TRADE, Action.OPEN, Action.CLOSE, Action.INVENTORY, Action.INSPECT
@@ -159,6 +190,7 @@ export function inferAction(narrativeGoal: string): InferenceResult {
             if (a) {
                 const key = a as Action;
                 scores[key] = (scores[key] ?? 0) + positionWeight * 1.0;
+                matchedVerbs.push(raw);
             }
         }
 
@@ -168,6 +200,7 @@ export function inferAction(narrativeGoal: string): InferenceResult {
             if (a) {
                 const key = a as Action;
                 scores[key] = (scores[key] ?? 0) + positionWeight * 0.6;
+                matchedNouns.push(raw);
             }
         }
 
@@ -197,6 +230,7 @@ export function inferAction(narrativeGoal: string): InferenceResult {
             if (re.test(narrativeGoal)) {
                 const key = b.action as Action;
                 scores[key] = (scores[key] ?? 0) + b.weight;
+                matchedPhrases.push(b.pattern);
             }
         } catch (e) {
             // ignore invalid patterns
@@ -214,10 +248,51 @@ export function inferAction(narrativeGoal: string): InferenceResult {
         }
     }
 
-    if (!bestAction || bestScore <= 0) return { confidence: 0, method: 'rule' };
+    if (!bestAction || bestScore <= 0) {
+        // Emit telemetry for low-confidence/no-match cases
+        try {
+            appendTelemetry({
+                timestamp: new Date().toISOString(),
+                narrativeGoal,
+                tokens,
+                matchedVerbs,
+                matchedNouns,
+                matchedPhrases,
+                scores: Object.fromEntries(Object.entries(scores)),
+                bestAction: bestAction ? String(bestAction) : null,
+                confidence: 0,
+                method: 'rule'
+            });
+        } catch (e) {
+            // ignore telemetry errors
+        }
+        return { confidence: 0, method: 'rule' };
+    }
 
     // Map raw score to a 0..1 confidence. Heuristic: saturate around 1.5
     const confidence = Math.min(1, bestScore / 1.5);
+
+    // Emit telemetry for low-confidence inferences (best-effort)
+    const LOW_CONF_THRESHOLD = 0.6;
+    try {
+        if (confidence < LOW_CONF_THRESHOLD) {
+            appendTelemetry({
+                timestamp: new Date().toISOString(),
+                narrativeGoal,
+                tokens,
+                matchedVerbs,
+                matchedNouns,
+                matchedPhrases,
+                scores: Object.fromEntries(Object.entries(scores)),
+                bestAction: bestAction as string,
+                confidence,
+                method: 'rule'
+            });
+        }
+    } catch (e) {
+        // ignore telemetry errors
+    }
+
     return { action: bestAction, confidence, method: 'rule' };
 }
 
