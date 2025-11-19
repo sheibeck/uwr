@@ -21,11 +21,24 @@ export function ensureHoldDir() {
 export function enqueueInvalidResponse(req: ActionRequest, response: NarrativeResponse, validationErrors: string[]): string {
     ensureHoldDir();
     const id = randomUUID();
+    // Defensive enrichment: if the response is missing required resolution fields, try to infer from request
+    const enrichedResponse = { ...response } as any;
+    if (!enrichedResponse.resolution) enrichedResponse.resolution = { success: false };
+    // If action missing, use the requested intent.action as a hint
+    if (!enrichedResponse.resolution.action) {
+        try {
+            const maybeAction = (req as any)?.intent?.action;
+            if (maybeAction) enrichedResponse.resolution.action = maybeAction;
+        } catch (e) { }
+    }
+    if (!enrichedResponse.resolution.summary) enrichedResponse.resolution.summary = 'Pending human review';
+    if (!Array.isArray(enrichedResponse.resolution.effects)) enrichedResponse.resolution.effects = [];
+
     const item: HeldItem = {
         id,
         createdAt: Date.now(),
         request: req,
-        response,
+        response: enrichedResponse as NarrativeResponse,
         validationErrors
     };
     const file = path.join(HOLD_DIR, `${id}.json`);

@@ -1,4 +1,4 @@
-import { NarrativeResponse } from '@prompt/schemas/response.js';
+import { NarrativeResponse, NarrativeResponse as NarrativeZod } from '@prompt/schemas/response.js';
 import { ActionRequest } from '@prompt/schemas/action.js';
 import { getValidator } from '../schemas/registry.js';
 import { createModelAdapter } from '../ai/index.js';
@@ -28,6 +28,21 @@ export async function dispatch(req: ActionRequest, prompt: string): Promise<Disp
 
     const ok = validator(response);
     if (ok) return { response: response as NarrativeResponse, valid: true };
+
+    // Attempt structured generation as a fallback when the adapter supports it
+    if ((adapter as any).generateStructured) {
+        try {
+            const gs = await (adapter as any).generateStructured(prompt, NarrativeZod);
+            if (gs.ok) {
+                const repaired = gs.value as NarrativeResponse;
+                const ok2 = validator(repaired);
+                if (ok2) return { response: repaired, valid: true };
+            }
+        } catch (e) {
+            // ignore structured generation errors and fall through to hold
+        }
+    }
+
     const errors = (validator.errors || []).map((e: { instancePath?: string; message?: string }) => `${e.instancePath ?? ''} ${e.message ?? ''}`);
     return { response: response as NarrativeResponse, valid: false, validationErrors: errors };
 }

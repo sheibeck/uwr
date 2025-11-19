@@ -21,3 +21,8 @@ logs/
 # Orchestrator telemetry (dev)
 data/orchestrator/telemetry/
 data/orchestrator/telemetry/*
+# Orchestrator hold files
+data/orchestrator/hold/
+data/orchestrator/hold/*
+# Orchestrator metrics
+data/orchestrator/metrics.json

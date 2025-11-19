@@ -49,10 +49,23 @@ export function createMockAdapter(): ModelAdapter {
         async generate(prompt: string) {
             // Return a structured NarrativeResponse-like object so callers have a stable contract
             const narration = `MOCK: ${prompt.slice(0, 400)}`;
+            // Lightweight heuristic to infer the resolved action from prompt text when possible
+            const p = prompt.toLowerCase();
+            let inferredAction: any = 'LOOK';
+            if (p.includes('talk') || p.includes('speak') || p.includes('converse')) inferredAction = 'TALK';
+            else if (p.includes('attack') || p.includes('hit') || p.includes('strike')) inferredAction = 'ATTACK';
+            else if (p.includes('move') || p.includes('go') || p.includes('walk')) inferredAction = 'MOVE';
+            else if (p.includes('loot') || p.includes('steal')) inferredAction = 'LOOT';
+
             const resp: NarrativeResponse = {
                 narration,
                 diegeticMessages: [],
-                resolution: { success: true },
+                resolution: {
+                    action: inferredAction,
+                    success: true,
+                    summary: `Mocked resolution for action ${inferredAction}`,
+                    effects: []
+                } as any,
                 loreRefsUsed: [],
                 safetyFlags: []
             };

@@ -60,7 +60,7 @@ export class CharacterWizard {
         this.conn.reducers.saveCharacterDraft(draftId, draftJson);
     }
 
-    // Finalize: validate draft using Zod, then call finalize reducer
+    // Finalize: validate draft using Zod, enrich via AI if needed, then call finalize reducer
     async finalizeDraft(draftId: string) {
         // Fetch draft from remote table via subscription/query: simple approach - read client cache via connection
         // Note: In a server environment this may require calling a view or direct DB access. We'll attempt to read via client cache.
@@ -75,12 +75,27 @@ export class CharacterWizard {
             throw new Error('Malformed draft JSON');
         }
 
-        const result = CharacterDraftSchema.safeParse(parsed);
+        let result = CharacterDraftSchema.safeParse(parsed);
         if (!result.success) {
-            throw new Error('Draft validation failed: ' + JSON.stringify(result.error.format()));
+            // Attempt to enrich using the AI structured generator if available
+            if ((this.ai as any).generateStructured) {
+                const prompt = await this.loadPrompt('finalizePrompt').catch(() => undefined);
+                const genPrompt = prompt ? `${prompt}\n
+Please fill in any missing fields of the following draft and return JSON matching the schema.` : `Please produce a complete character draft JSON matching the expected schema.`;
+                const gs = await (this.ai as any).generateStructured(genPrompt + '\n\nDraft:\n' + JSON.stringify(parsed), CharacterDraftSchema);
+                if (gs.ok) {
+                    // Merge generated fields into parsed
+                    parsed = { ...parsed, ...gs.value };
+                    result = CharacterDraftSchema.safeParse(parsed);
+                } else {
+                    throw new Error('AI structured generation failed: ' + JSON.stringify(gs.error));
+                }
+            } else {
+                throw new Error('Draft validation failed: ' + JSON.stringify(result.error.format()));
+            }
         }
 
-        // At this point, call the finalize reducer which will perform final insertion
+        // At this point validation succeeded (either originally or after AI enrichment).
         this.conn.reducers.finalizeCharacterDraft(draftId);
     }
 }
