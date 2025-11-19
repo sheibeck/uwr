@@ -11,6 +11,11 @@ export interface SpaceTimeAdapter {
     createOrUpdateSession(account: Account, ttlMinutes: number): Promise<Session>;
     touchSession(session: Session): Promise<Session>;
     isRemote: boolean;
+    // Character helpers
+    createCharacter?(name: string, description?: string | null, race?: string | null, archetype?: string | null, profession?: string | null, startingRegion?: string | null, ownerId?: string | null): Promise<any>;
+    findCharactersByOwner?(ownerId?: string | undefined): Promise<any[]>;
+    setActiveCharacter?(id: string): Promise<void>;
+    deleteCharacter?(id: string): Promise<void>;
 }
 
 // Placeholder minimal connection types until bindings are generated.
@@ -28,6 +33,8 @@ interface ConnectionBuilder {
 interface DbConnectionLike {
     reducers: Record<string, (...args: any[]) => void>;
     db: any;
+    // Optional subscription builder factory provided by generated bindings
+    subscriptionBuilder?: () => any;
 }
 
 async function buildRemoteConnection(): Promise<DbConnectionLike | null> {
@@ -109,15 +116,28 @@ async function buildRemoteConnection(): Promise<DbConnectionLike | null> {
 
         return conn;
     } catch (_e) {
-        // eslint-disable-next-line no-console
-        console.info('No module bindings available; using local stubs');
+        // Only log the missing bindings once to avoid spamming logs during dev
+        if (!(global as any).__uwr_missing_spacetime_bindings_logged) {
+            // eslint-disable-next-line no-console
+            console.debug('No module bindings available; using local stubs');
+            (global as any).__uwr_missing_spacetime_bindings_logged = true;
+        }
         return null; // Bindings not present yet
     }
 }
 
+// Exported helper for other modules to reuse the built remote connection.
+let _cachedRemoteConnPromise: Promise<DbConnectionLike | null> | null = null;
+
+export function getRemoteConnection(): Promise<DbConnectionLike | null> {
+    if (_cachedRemoteConnPromise) return _cachedRemoteConnPromise;
+    _cachedRemoteConnPromise = buildRemoteConnection();
+    return _cachedRemoteConnPromise;
+}
+
 export async function createSpaceTimeAdapter(): Promise<SpaceTimeAdapter> {
     const enableRemote = process.env.SPACETIME_ENABLED === 'true';
-    const remoteConn = enableRemote ? await buildRemoteConnection() : null;
+    const remoteConn = enableRemote ? await getRemoteConnection() : null;
 
     if (!remoteConn) {
         // Fallback to stubs
@@ -128,6 +148,13 @@ export async function createSpaceTimeAdapter(): Promise<SpaceTimeAdapter> {
             createOrUpdateSession: async (account, ttlMinutes) => stubCreateSession(account.id, ttlMinutes),
             touchSession: stubTouchSession,
             isRemote: false,
+            createCharacter: async (name: string, description?: string | null) => {
+                const fake = { id: `local-${Date.now()}`, owner_id: null, name, description };
+                return fake;
+            },
+            findCharactersByOwner: async (_ownerId?: string) => [],
+            setActiveCharacter: async (_id: string) => { /* no-op */ },
+            deleteCharacter: async (_id: string) => { /* no-op */ },
         };
     }
 
@@ -273,6 +300,84 @@ export async function createSpaceTimeAdapter(): Promise<SpaceTimeAdapter> {
                 createdAt: Date.now(),
                 updatedAt: Date.now()
             };
+        },
+        async createCharacter(name: string, description?: string | null, race?: string | null, archetype?: string | null, profession?: string | null, startingRegion?: string | null, ownerId?: string | null) {
+            try {
+                const r = (remoteConn as any).reducers as any;
+                const tryReducer = (names: string[], ...args: any[]) => {
+                    for (const name of names) {
+                        if (r && typeof r[name] === 'function') {
+                            try { r[name](...args); } catch { }
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+                tryReducer(['create_character', 'createCharacter'], name, description ?? null, race ?? null, archetype ?? null, profession ?? null, startingRegion ?? null);
+
+                // Try to find the created character in the client cache
+                try {
+                    const db = (remoteConn as any).db;
+                    if (db && db.characters && typeof db.characters.iter === 'function') {
+                        const found = await waitForRowByQuery(
+                            `SELECT * FROM characters WHERE name = '${(name || '').replace(/'/g, "''")}'`,
+                            'characters',
+                            (table: any) => {
+                                try {
+                                    for (const row of table.iter()) {
+                                        if (row.name === name && (!ownerId || row.owner_id === ownerId)) return row;
+                                    }
+                                } catch { }
+                                return null;
+                            },
+                            2000
+                        );
+                        if (found) return found;
+                    }
+                } catch { }
+            } catch { }
+            // Fallback synthesized character
+            return { id: `local-${Date.now()}`, owner_id: ownerId ?? null, name, description, race, archetype, profession, starting_region: startingRegion };
+        },
+        async findCharactersByOwner(ownerId?: string) {
+            try {
+                const db = (remoteConn as any).db;
+                const out: any[] = [];
+                if (db && db.characters && typeof db.characters.iter === 'function') {
+                    for (const row of db.characters.iter()) {
+                        try {
+                            if (!ownerId || row.owner_id === ownerId) out.push(row);
+                        } catch { }
+                    }
+                }
+                return out;
+            } catch (e) {
+                return [];
+            }
+        },
+        async setActiveCharacter(id: string) {
+            try {
+                const r = (remoteConn as any).reducers as any;
+                const names = ['set_active_character', 'setActiveCharacter', 'set_active_character_reducer'];
+                for (const n of names) {
+                    if (r && typeof r[n] === 'function') {
+                        try { r[n](id); } catch { }
+                        return;
+                    }
+                }
+            } catch { }
+        },
+        async deleteCharacter(id: string) {
+            try {
+                const r = (remoteConn as any).reducers as any;
+                const names = ['delete_character', 'deleteCharacter'];
+                for (const n of names) {
+                    if (r && typeof r[n] === 'function') {
+                        try { r[n](id); } catch { }
+                        return;
+                    }
+                }
+            } catch { }
         },
         async findAccount(provider: string, providerUserId: string): Promise<Account | undefined> {
             try {
@@ -431,7 +536,7 @@ export async function applyNarrativeResponse(response: any, adapter?: SpaceTimeA
         }
 
         // Try to build a remote connection (reuses existing helper)
-        const conn = await buildRemoteConnection();
+        const conn = await getRemoteConnection();
         if (!conn || !conn.reducers) {
             return { success: false, errors: ['no remote reducers available'] };
         }

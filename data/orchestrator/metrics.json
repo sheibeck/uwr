@@ -1,21 +1,21 @@
 {
   "metrics": {
-    "totalDispatches": 0,
-    "validDispatches": 0,
+    "totalDispatches": 1,
+    "validDispatches": 1,
     "invalidDispatches": 0,
-    "dispatchLatencies": [],
-    "recentDispatches": [],
-    "totalInferences": 1,
-    "suggestionNeeded": 1,
-    "recentInferences": [
+    "dispatchLatencies": [
+      7034
+    ],
+    "recentDispatches": [
       {
-        "timestamp": "2025-11-19T02:07:36.739Z",
-        "narrativeGoal": "Inspect the clearing",
-        "bestAction": "LOOK",
-        "confidence": 0.6666666666666666,
-        "suggestionNeeded": true
+        "timestamp": "2025-11-19T13:55:22.248Z",
+        "valid": true,
+        "latencyMs": 7034
       }
-    ]
+    ],
+    "totalInferences": 0,
+    "suggestionNeeded": 0,
+    "recentInferences": []
   },
-  "updatedAt": "2025-11-19T02:07:36.740Z"
+  "updatedAt": "2025-11-19T13:55:22.250Z"
 }

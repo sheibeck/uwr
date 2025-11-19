@@ -10,7 +10,7 @@ export interface DispatchResult {
 }
 
 export async function dispatch(req: ActionRequest, prompt: string): Promise<DispatchResult> {
-    const adapter = createModelAdapter();
+    const adapter = await createModelAdapter();
     let response: NarrativeResponse | null = null;
     try {
         const out = await adapter.sendPrompt(prompt);

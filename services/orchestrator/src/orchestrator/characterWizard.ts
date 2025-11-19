@@ -1,12 +1,12 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { CharacterDraftSchema } from '../../../../packages/prompt-schema/src/wizard/characterDraftSchema.ts';
+import { CharacterDraftSchema, ProfessionSchema } from '../../../../packages/prompt-schema/src/wizard/characterDraftSchema';
 import { DbConnection } from '../module_bindings/index.js';
 import { createModelAdapter, ModelAdapter } from '../ai/index.js';
 
 export class CharacterWizard {
     private promptsDir: string;
-    private ai: ModelAdapter;
+    private ai: Promise<ModelAdapter>;
     private conn: any;
 
     constructor(modelName: string | undefined, dbUri: string, moduleName: string) {
@@ -22,37 +22,56 @@ export class CharacterWizard {
 
     async suggestRace() {
         const prompt = await this.loadPrompt('racePrompt');
-        const out = await this.ai.sendPrompt(prompt);
+        const ai = await this.ai;
+        const out = await ai.sendPrompt(prompt);
         return out;
     }
 
     async suggestArchetype() {
         const prompt = await this.loadPrompt('archetypePrompt');
-        return this.ai.sendPrompt(prompt);
+        const ai2 = await this.ai;
+        return ai2.sendPrompt(prompt);
     }
 
     async suggestProfession(race: string, archetype: string) {
         let prompt = await this.loadPrompt('professionPrompt');
         prompt = prompt.replace('{{race}}', race).replace('{{archetype}}', archetype);
-        return this.ai.sendPrompt(prompt);
+        // Prefer structured generation if the model adapter supports it
+        const ai3 = await this.ai;
+        if ((ai3 as any).generateStructured) {
+            try {
+                const gen = await (ai3 as any).generateStructured(prompt, ProfessionSchema);
+                if (gen.ok) return { ok: true, value: gen.value };
+                return { ok: false, error: gen.error };
+            } catch (e) {
+                // fallback to plain text
+                console.warn('Structured generation failed, falling back to text:', e);
+            }
+        }
+        const ai4 = await this.ai;
+        const text = await ai4.sendPrompt(prompt);
+        return { ok: true, text };
     }
 
     async suggestRegions(race: string, professionName: string) {
         let prompt = await this.loadPrompt('regionPrompt');
         prompt = prompt.replace('{{race}}', race).replace('{{professionName}}', professionName);
-        return this.ai.sendPrompt(prompt);
+        const ai5 = await this.ai;
+        return ai5.sendPrompt(prompt);
     }
 
     async suggestDescription(inputs: string | null) {
         let prompt = await this.loadPrompt('descriptionPrompt');
         if (inputs) prompt = `${prompt}\nUser: ${inputs}`;
-        return this.ai.sendPrompt(prompt);
+        const ai6 = await this.ai;
+        return ai6.sendPrompt(prompt);
     }
 
     async suggestNames(race: string, professionName: string) {
         let prompt = await this.loadPrompt('namePrompt');
         prompt = prompt.replace('{{race}}', race).replace('{{professionName}}', professionName);
-        return this.ai.sendPrompt(prompt);
+        const ai7 = await this.ai;
+        return ai7.sendPrompt(prompt);
     }
 
     // Save a draft via generated bindings

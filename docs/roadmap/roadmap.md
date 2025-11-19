@@ -49,27 +49,18 @@
 ## Next steps (actionable)
 
 Priority A — ship and stabilize
-1. Add phrase-pattern boosts for combat & crafting idioms and cover them with unit tests (examples: "I charge into battle, my sword raised!", "Craft a healing potion at the alchemy workbench").
-2. Document the AJV runtime fallback behavior in `docs/`.
+1. Add phrase-pattern boosts for combat & crafting idioms and cover them with unit tests (examples: "I charge into battle, my sword raised!", "Craft a healing potion at the alchemy workbench"). (Complete)
+2. Document the AJV runtime fallback behavior in `docs/`. (Complete)
 3. Implement subscription lifecycle/eviction policy and add small integration tests against the local Spacetime host.
-4. Add structured inference telemetry: log low-confidence inputs with matched cues (verb/noun/phrase) to a dev sink for iterative tuning.
+4. Add structured inference telemetry: log low-confidence inputs with matched cues (verb/noun/phrase) to a dev sink for iterative tuning. (Complete)
 
 Priority B — reliability & observability
-5. Add structured logs/metrics for reducer dispatch results and inference suggestion rates; build a small dashboard or endpoint for quick inspection.
-6. Add a basic load-testing harness (orchestrator validation + dispatch) and run ramps to establish a baseline (initial target: 500 actions/min).
+5. Add structured logs/metrics for reducer dispatch results and inference suggestion rates; build a small dashboard or endpoint for quick inspection. (Complete)
+6. Add a basic load-testing harness (orchestrator validation + dispatch) and run ramps to establish a baseline (initial target: 500 actions/min). (Complete)
 7. Harden admin auth and restrict admin UI to local/dev by default.
 
 Priority C — gameplay foundations
-8. Flesh out core world tables and reducers: regions, NPCs, inventory, quests, crafting/workbench reducers (Phase 2 work).
-9. Add character creation and management: tables/reducers for `characters`, reducers for create/update/delete, client UI and targeted subscriptions so players can select and manage their avatars.
+8. Add character creation and management: tables/reducers for `characters`, reducers for create/update/delete, client UI and targeted subscriptions so players can select and manage their avatars. (In progress. Tables/reducers created. Need client ui and targeted subscriptions for managing characters)
+9. Flesh out core world tables and reducers: regions, NPCs, inventory, quests, crafting/workbench reducers (Phase 2 work).
 10. Add scenario-based replay tests to validate reducers and end-to-end flows under schema changes.
 
-Status update — current (Nov 2025)
-- Prompt schema package implemented; generated JSON schemas are present under `generated/schemas`.
-- Orchestrator loads generated schemas at runtime and validates model outputs with AJV; a runtime import fallback is in place.
-- BigInt & Spacetime timestamp serialization fixed in API responses; unit tests added.
-- Human-in-the-loop hold queue implemented; admin review tools added (CLI + small admin server).
-- POC inference (`inferAction`) implemented and expanded to include MMO and crafting/gathering actions; client UI adjusted to surface suggestions inline.
-- Unit test coverage added for serialization, inference, and hold flow; local Vitest run is green.
-
-If you'd like, I can start on Priority A.1 (phrase boosts + unit tests) now — provide a short list of failing sentences you want to lock into tests (I'll start with your "I charge into battle, my sword raised!" example unless you prefer others).

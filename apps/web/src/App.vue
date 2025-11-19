@@ -12,6 +12,7 @@
       />
 
       <MockActionForm v-if="isAuthenticated" :actorId="(result?.result?.account?.id) ?? userAccount?.id" />
+      <CharacterList v-if="isAuthenticated && ((result?.result?.account?.id) || userAccount?.id)" :ownerId="(result?.result?.account?.id) ?? userAccount?.id" />
       
       <!-- Debug panel for troubleshooting auth/session state -->
       <div class="debug" aria-hidden="false">
@@ -29,6 +30,7 @@ import { ref, computed, onMounted } from 'vue';
 import SignInCard from './components/SignInCard.vue';
 import SignedInCard from './components/SignedInCard.vue';
 import MockActionForm from './components/MockActionForm.vue';
+import CharacterList from './components/CharacterList.vue';
 
 const provider = ref('SUPABASE');
 const providerUserId = ref('user-123');

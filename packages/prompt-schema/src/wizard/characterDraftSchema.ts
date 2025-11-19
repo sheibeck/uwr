@@ -11,8 +11,15 @@ export const CharacterDraftSchema = z.object({
 
     // Profession metadata populated by AI
     professionName: z.string().optional(),
-    professionAbilities: z.array(z.string()).optional(),
-    professionBonuses: z.record(z.number()).optional(),
+    // New structured profession object
+    profession: z.object({
+        name: z.string().min(1).max(80),
+        abilities: z.array(z.object({ name: z.string().min(1).max(80), description: z.string().min(1).max(280) })).min(1).max(3),
+        bonuses: z.record(z.string(), z.number()).optional(),
+        starterWeapon: z.string().min(1).max(80).optional(),
+        armorType: z.string().min(1).max(80).optional(),
+        flavor: z.string().optional()
+    }).optional(),
 
     startingRegion: z.string().optional(),
     description: z.string().max(280).optional(),
@@ -31,3 +38,6 @@ export const CharacterDraftSchema = z.object({
 });
 
 export type CharacterDraft = z.infer<typeof CharacterDraftSchema>;
+
+// Export Profession schema for structured AI generation
+export const ProfessionSchema = CharacterDraftSchema.shape.profession as z.ZodTypeAny;
