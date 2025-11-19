@@ -12,20 +12,7 @@ export function createModelAdapter(): ModelAdapter {
         sendPrompt: async (prompt: string) => {
             const res = await adapter.generate(prompt);
             if (!res.ok) throw new Error(res.error.message);
-            // If the adapter returned a raw string (e.g. the mock adapter),
-            // coerce it into a minimal NarrativeResponse so dispatch and callers
-            // that expect an object shape work during tests and local dev.
-            const val = res.value;
-            if (typeof val === 'string') {
-                return {
-                    narration: String(val),
-                    diegeticMessages: [],
-                    resolution: { success: true },
-                    loreRefsUsed: [],
-                    safetyFlags: []
-                } as any;
-            }
-            return val;
+            return res.value;
         }
     };
 }

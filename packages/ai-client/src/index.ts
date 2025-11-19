@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import { ZodSchema } from 'zod';
+import { NarrativeResponse } from '../../shared-schema/src/narrative';
 import OpenAI from 'openai';
 
 export type AIError = {
@@ -20,7 +21,8 @@ export type GenerateOpts = {
 };
 
 export type ModelAdapter = {
-    generate: (prompt: string, opts?: GenerateOpts) => Promise<AIResponse<string>>;
+    // generate may return free-text or a structured object depending on adapter implementation
+    generate: (prompt: string, opts?: GenerateOpts) => Promise<AIResponse<NarrativeResponse | string | any>>;
     generateStructured: <T>(prompt: string, schema: ZodSchema<T>, opts?: GenerateOpts) => Promise<AIResponse<T>>;
 };
 
@@ -44,8 +46,16 @@ function extractJson(text: string): string | null {
 export function createMockAdapter(): ModelAdapter {
     return {
         async generate(prompt: string) {
-            // simple echo
-            return { ok: true, value: `MOCK: ${prompt.slice(0, 400)}` };
+            // Return a structured NarrativeResponse-like object so callers have a stable contract
+            const narration = `MOCK: ${prompt.slice(0, 400)}`;
+            const resp: NarrativeResponse = {
+                narration,
+                diegeticMessages: [],
+                resolution: { success: true },
+                loreRefsUsed: [],
+                safetyFlags: []
+            };
+            return { ok: true, value: resp as any };
         },
         async generateStructured(prompt, schema) {
             // return a parse error; caller can provide a mock via tests
@@ -82,7 +92,32 @@ export function createOpenAIAdapter(apiKey?: string): ModelAdapter {
     return {
         async generate(prompt: string, opts?: GenerateOpts) {
             try {
-                return await callOpenAI(prompt, opts);
+                const res = await callOpenAI(prompt, opts);
+                if (!res.ok) return res as any;
+                const text = res.value;
+                // If the model returned a JSON object, prefer using it as the response value.
+                const js = extractJson(String(text));
+                if (js) {
+                    try {
+                        const parsed = JSON.parse(js);
+                        // If parsed is an object that looks like our NarrativeResponse, return it.
+                        if (parsed && typeof parsed === 'object') {
+                            return { ok: true as const, value: parsed };
+                        }
+                    } catch (e) {
+                        // fall through to wrapping as narration
+                    }
+                }
+                // Fallback: wrap plain text into a structured NarrativeResponse
+                const narration = String(text);
+                const resp = {
+                    narration,
+                    diegeticMessages: [],
+                    resolution: { success: true },
+                    loreRefsUsed: [],
+                    safetyFlags: []
+                };
+                return { ok: true as const, value: resp } as AIResponse<any>;
             } catch (e: any) {
                 return { ok: false, error: { kind: 'network', message: String(e?.message ?? e) } };
             }

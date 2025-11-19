@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createMockAdapter } from '../../../packages/ai-client/dist/index.js';
 import { z } from 'zod';
+import { NarrativeResponse } from '@shared/narrative';
 
 // Minimal local schema matching the subset used by the test to avoid cross-package import issues
 export const CharacterDraftSchema = z.object({
@@ -11,11 +12,11 @@ export const CharacterDraftSchema = z.object({
 });
 
 describe('ai-client mock adapter', () => {
-    it('generate returns a MOCK: prefixed string', async () => {
+    it('generate returns a MOCK: prefixed narration field', async () => {
         const adapter = createMockAdapter();
         const res = await adapter.generate('Hello world');
         expect(res.ok).toBe(true);
-        if (res.ok) expect(res.value.startsWith('MOCK:')).toBe(true);
+        if (res.ok) expect(String((res.value as NarrativeResponse).narration).startsWith('MOCK:')).toBe(true);
     });
 
     it('generateStructured returns a parse error by default', async () => {
