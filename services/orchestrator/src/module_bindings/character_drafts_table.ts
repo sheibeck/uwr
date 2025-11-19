@@ -103,5 +103,4 @@ export class CharacterDraftsTableHandle<TableName extends string> implements __T
 
   removeOnUpdate = (cb: (ctx: EventContext, onRow: CharacterDrafts, newRow: CharacterDrafts) => void) => {
     return this.tableCache.removeOnUpdate(cb);
-  }
-}
+  }}

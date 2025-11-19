@@ -125,5 +125,4 @@ export class CharactersTableHandle<TableName extends string> implements __TableH
 
   removeOnUpdate = (cb: (ctx: EventContext, onRow: Characters, newRow: Characters) => void) => {
     return this.tableCache.removeOnUpdate(cb);
-  }
-}
+  }}

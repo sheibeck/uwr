@@ -125,5 +125,4 @@ export class AccountsTableHandle<TableName extends string> implements __TableHan
 
   removeOnUpdate = (cb: (ctx: EventContext, onRow: Accounts, newRow: Accounts) => void) => {
     return this.tableCache.removeOnUpdate(cb);
-  }
-}
+  }}

@@ -1,5 +1,5 @@
-// Import built ai-client JS (types are provided by packages/ai-client/dist/index.d.ts)
-import { createAdapter } from '@ai/index';
+// Import built ai-client JS directly so Vite/Vitest can resolve it at runtime
+import { createAdapter } from '../../../../packages/ai-client/dist/index.js';
 
 // Re-export a thin shim expected by dispatch.ts
 export type ModelAdapter = {
@@ -12,7 +12,20 @@ export function createModelAdapter(): ModelAdapter {
         sendPrompt: async (prompt: string) => {
             const res = await adapter.generate(prompt);
             if (!res.ok) throw new Error(res.error.message);
-            return res.value;
+            // If the adapter returned a raw string (e.g. the mock adapter),
+            // coerce it into a minimal NarrativeResponse so dispatch and callers
+            // that expect an object shape work during tests and local dev.
+            const val = res.value;
+            if (typeof val === 'string') {
+                return {
+                    narration: String(val),
+                    diegeticMessages: [],
+                    resolution: { success: true },
+                    loreRefsUsed: [],
+                    safetyFlags: []
+                } as any;
+            }
+            return val;
         }
     };
 }

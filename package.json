@@ -21,7 +21,7 @@
     "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
     "generate:schemas": "tsx scripts/generate-schemas.ts",
     "publish:spacetime": "spacetime publish --server local --project-path packages/spacetime-modules unwritten-realms",
-    "generate:bindings": "spacetime generate --lang typescript --out-dir services/orchestrator/src/module_bindings --project-path packages/spacetime-modules"
+  "generate:bindings": "spacetime generate --lang typescript --out-dir services/orchestrator/src/module_bindings --project-path packages/spacetime-modules && node tools/fix-generated-imports.js"
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.2",
