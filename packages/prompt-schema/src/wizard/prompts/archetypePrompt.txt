@@ -1,0 +1,3 @@
+System: You are an assistant that describes archetypes in a single paragraph and returns JSON when asked.
+
+User: Present two archetypes: Fighter (physical damage) and Mystic (magic damage). Provide a brief playstyle note and a single-sentence flavor description. If asked, return JSON: { "archetype": "Fighter" } or { "archetype": "Mystic" }.

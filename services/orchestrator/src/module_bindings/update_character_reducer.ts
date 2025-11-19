@@ -28,50 +28,43 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type Accounts = {
+import { UpdatePatch } from "./update_patch_type";
+// Mark import as potentially unused
+declare type __keep_UpdatePatch = UpdatePatch;
+
+export type UpdateCharacter = {
   id: string,
-  provider: string,
-  providerUserId: string,
-  displayName: string | undefined,
-  activeCharacterId: string | undefined,
-  createdAt: __Timestamp,
-  updatedAt: __Timestamp,
+  patch: UpdatePatch,
 };
-let _cached_Accounts_type_value: __AlgebraicTypeType | null = null;
+let _cached_UpdateCharacter_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const Accounts = {
+export const UpdateCharacter = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_Accounts_type_value) return _cached_Accounts_type_value;
-    _cached_Accounts_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_Accounts_type_value.value.elements.push(
+    if (_cached_UpdateCharacter_type_value) return _cached_UpdateCharacter_type_value;
+    _cached_UpdateCharacter_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_UpdateCharacter_type_value.value.elements.push(
       { name: "id", algebraicType: __AlgebraicTypeValue.String },
-      { name: "provider", algebraicType: __AlgebraicTypeValue.String },
-      { name: "providerUserId", algebraicType: __AlgebraicTypeValue.String },
-      { name: "displayName", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
-      { name: "activeCharacterId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
-      { name: "createdAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
-      { name: "updatedAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+      { name: "patch", algebraicType: UpdatePatch.getTypeScriptAlgebraicType() },
     );
-    return _cached_Accounts_type_value;
+    return _cached_UpdateCharacter_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: Accounts): void {
-    __AlgebraicTypeValue.serializeValue(writer, Accounts.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: UpdateCharacter): void {
+    __AlgebraicTypeValue.serializeValue(writer, UpdateCharacter.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): Accounts {
-    return __AlgebraicTypeValue.deserializeValue(reader, Accounts.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): UpdateCharacter {
+    return __AlgebraicTypeValue.deserializeValue(reader, UpdateCharacter.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default Accounts;
-
+export default UpdateCharacter;
 

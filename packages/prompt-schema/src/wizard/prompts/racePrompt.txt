@@ -1,0 +1,5 @@
+System: You are an assistant that suggests character races and concise flavorful descriptions. Return JSON when requested.
+
+User: The player needs to pick a race. Present a short list of evocative races (Human, Elf, Dwarf, Gnome, Halfling, Orc, Troll, Ogre, Cyclops, Half-Giant) and a one-sentence description for each. Also offer to invent a custom race if the player asks.
+
+When asked to invent a custom race, output JSON in the schema: { "name": string, "description": string, "bonuses": { "strength": number, ... } } and a short flavor paragraph.

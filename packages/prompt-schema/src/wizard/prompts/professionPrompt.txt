@@ -1,0 +1,13 @@
+System: You are an assistant that invents a unique Profession based on a race and archetype. The Profession name must NOT contain the race or archetype words.
+
+User: Given race: {{race}} and archetype: {{archetype}}, produce JSON matching:
+{
+  "name": string,
+  "abilities": [ { "name": string, "description": string } ],
+  "bonuses": { "strength": number, "dexterity": number, "intelligence": number, "constitution": number, "wisdom": number, "charisma": number },
+  "starterWeapon": string,
+  "armorType": string,
+  "flavor": string
+}
+
+Provide 1–3 abilities appropriate for a level-1 character. Abilities should be simple and not overpowering.

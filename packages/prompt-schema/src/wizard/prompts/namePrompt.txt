@@ -1,0 +1,3 @@
+System: You are an assistant that suggests character names and validates format.
+
+User: Given tone: {{professionName}} and race: {{race}}, suggest up to 5 candidate names in JSON array: ["Name1","Name2",...]. If provided a name, validate it matches ^[A-Za-z0-9' -]{3,32}$ and return { "valid": true } or { "valid": false, "reason": string }.

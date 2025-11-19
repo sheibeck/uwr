@@ -39,16 +39,40 @@ import { CreateOrUpdateSession } from "./create_or_update_session_reducer.ts";
 export { CreateOrUpdateSession };
 import { TouchSession } from "./touch_session_reducer.ts";
 export { TouchSession };
+import { CreateCharacter } from "./create_character_reducer.ts";
+export { CreateCharacter };
+import { UpdateCharacter } from "./update_character_reducer.ts";
+export { UpdateCharacter };
+import { DeleteCharacter } from "./delete_character_reducer.ts";
+export { DeleteCharacter };
+import { SetActiveCharacter } from "./set_active_character_reducer.ts";
+export { SetActiveCharacter };
+import { SaveCharacterDraft } from "./save_character_draft_reducer.ts";
+export { SaveCharacterDraft };
+import { DeleteCharacterDraft } from "./delete_character_draft_reducer.ts";
+export { DeleteCharacterDraft };
+import { FinalizeCharacterDraft } from "./finalize_character_draft_reducer.ts";
+export { FinalizeCharacterDraft };
 
 // Import and reexport all table handle types
 import { AccountsTableHandle } from "./accounts_table.ts";
 export { AccountsTableHandle };
+import { CharacterDraftsTableHandle } from "./character_drafts_table.ts";
+export { CharacterDraftsTableHandle };
+import { CharactersTableHandle } from "./characters_table.ts";
+export { CharactersTableHandle };
 import { SessionsTableHandle } from "./sessions_table.ts";
 export { SessionsTableHandle };
 
 // Import and reexport all types
+import { UpdatePatch } from "./update_patch_type.ts";
+export { UpdatePatch };
 import { Accounts } from "./accounts_type.ts";
 export { Accounts };
+import { CharacterDrafts } from "./character_drafts_type.ts";
+export { CharacterDrafts };
+import { Characters } from "./characters_type.ts";
+export { Characters };
 import { Sessions } from "./sessions_type.ts";
 export { Sessions };
 
@@ -61,6 +85,24 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (Accounts.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    character_drafts: {
+      tableName: "character_drafts" as const,
+      rowType: CharacterDrafts.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (CharacterDrafts.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    characters: {
+      tableName: "characters" as const,
+      rowType: Characters.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (Characters.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     sessions: {
@@ -89,6 +131,34 @@ const REMOTE_MODULE = {
     touch_session: {
       reducerName: "touch_session",
       argsType: TouchSession.getTypeScriptAlgebraicType(),
+    },
+    create_character: {
+      reducerName: "create_character",
+      argsType: CreateCharacter.getTypeScriptAlgebraicType(),
+    },
+    update_character: {
+      reducerName: "update_character",
+      argsType: UpdateCharacter.getTypeScriptAlgebraicType(),
+    },
+    delete_character: {
+      reducerName: "delete_character",
+      argsType: DeleteCharacter.getTypeScriptAlgebraicType(),
+    },
+    set_active_character: {
+      reducerName: "set_active_character",
+      argsType: SetActiveCharacter.getTypeScriptAlgebraicType(),
+    },
+    save_character_draft: {
+      reducerName: "save_character_draft",
+      argsType: SaveCharacterDraft.getTypeScriptAlgebraicType(),
+    },
+    delete_character_draft: {
+      reducerName: "delete_character_draft",
+      argsType: DeleteCharacterDraft.getTypeScriptAlgebraicType(),
+    },
+    finalize_character_draft: {
+      reducerName: "finalize_character_draft",
+      argsType: FinalizeCharacterDraft.getTypeScriptAlgebraicType(),
     },
   },
   versionInfo: {
@@ -124,6 +194,13 @@ export type Reducer = never
 | { name: "UpsertAccount", args: UpsertAccount }
 | { name: "CreateOrUpdateSession", args: CreateOrUpdateSession }
 | { name: "TouchSession", args: TouchSession }
+| { name: "CreateCharacter", args: CreateCharacter }
+| { name: "UpdateCharacter", args: UpdateCharacter }
+| { name: "DeleteCharacter", args: DeleteCharacter }
+| { name: "SetActiveCharacter", args: SetActiveCharacter }
+| { name: "SaveCharacterDraft", args: SaveCharacterDraft }
+| { name: "DeleteCharacterDraft", args: DeleteCharacterDraft }
+| { name: "FinalizeCharacterDraft", args: FinalizeCharacterDraft }
 ;
 
 export class RemoteReducers {
@@ -193,6 +270,118 @@ export class RemoteReducers {
     this.connection.offReducer("touch_session", callback);
   }
 
+  createCharacter(name: string, description: string | undefined, race: string | undefined, archetype: string | undefined, profession: string | undefined, startingRegion: string | undefined) {
+    const __args = { name, description, race, archetype, profession, startingRegion };
+    let __writer = new __BinaryWriter(1024);
+    CreateCharacter.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("create_character", __argsBuffer, this.setCallReducerFlags.createCharacterFlags);
+  }
+
+  onCreateCharacter(callback: (ctx: ReducerEventContext, name: string, description: string | undefined, race: string | undefined, archetype: string | undefined, profession: string | undefined, startingRegion: string | undefined) => void) {
+    this.connection.onReducer("create_character", callback);
+  }
+
+  removeOnCreateCharacter(callback: (ctx: ReducerEventContext, name: string, description: string | undefined, race: string | undefined, archetype: string | undefined, profession: string | undefined, startingRegion: string | undefined) => void) {
+    this.connection.offReducer("create_character", callback);
+  }
+
+  updateCharacter(id: string, patch: UpdatePatch) {
+    const __args = { id, patch };
+    let __writer = new __BinaryWriter(1024);
+    UpdateCharacter.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("update_character", __argsBuffer, this.setCallReducerFlags.updateCharacterFlags);
+  }
+
+  onUpdateCharacter(callback: (ctx: ReducerEventContext, id: string, patch: UpdatePatch) => void) {
+    this.connection.onReducer("update_character", callback);
+  }
+
+  removeOnUpdateCharacter(callback: (ctx: ReducerEventContext, id: string, patch: UpdatePatch) => void) {
+    this.connection.offReducer("update_character", callback);
+  }
+
+  deleteCharacter(id: string) {
+    const __args = { id };
+    let __writer = new __BinaryWriter(1024);
+    DeleteCharacter.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("delete_character", __argsBuffer, this.setCallReducerFlags.deleteCharacterFlags);
+  }
+
+  onDeleteCharacter(callback: (ctx: ReducerEventContext, id: string) => void) {
+    this.connection.onReducer("delete_character", callback);
+  }
+
+  removeOnDeleteCharacter(callback: (ctx: ReducerEventContext, id: string) => void) {
+    this.connection.offReducer("delete_character", callback);
+  }
+
+  setActiveCharacter(id: string) {
+    const __args = { id };
+    let __writer = new __BinaryWriter(1024);
+    SetActiveCharacter.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("set_active_character", __argsBuffer, this.setCallReducerFlags.setActiveCharacterFlags);
+  }
+
+  onSetActiveCharacter(callback: (ctx: ReducerEventContext, id: string) => void) {
+    this.connection.onReducer("set_active_character", callback);
+  }
+
+  removeOnSetActiveCharacter(callback: (ctx: ReducerEventContext, id: string) => void) {
+    this.connection.offReducer("set_active_character", callback);
+  }
+
+  saveCharacterDraft(id: string | undefined, draftJson: string) {
+    const __args = { id, draftJson };
+    let __writer = new __BinaryWriter(1024);
+    SaveCharacterDraft.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("save_character_draft", __argsBuffer, this.setCallReducerFlags.saveCharacterDraftFlags);
+  }
+
+  onSaveCharacterDraft(callback: (ctx: ReducerEventContext, id: string | undefined, draftJson: string) => void) {
+    this.connection.onReducer("save_character_draft", callback);
+  }
+
+  removeOnSaveCharacterDraft(callback: (ctx: ReducerEventContext, id: string | undefined, draftJson: string) => void) {
+    this.connection.offReducer("save_character_draft", callback);
+  }
+
+  deleteCharacterDraft(id: string) {
+    const __args = { id };
+    let __writer = new __BinaryWriter(1024);
+    DeleteCharacterDraft.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("delete_character_draft", __argsBuffer, this.setCallReducerFlags.deleteCharacterDraftFlags);
+  }
+
+  onDeleteCharacterDraft(callback: (ctx: ReducerEventContext, id: string) => void) {
+    this.connection.onReducer("delete_character_draft", callback);
+  }
+
+  removeOnDeleteCharacterDraft(callback: (ctx: ReducerEventContext, id: string) => void) {
+    this.connection.offReducer("delete_character_draft", callback);
+  }
+
+  finalizeCharacterDraft(id: string) {
+    const __args = { id };
+    let __writer = new __BinaryWriter(1024);
+    FinalizeCharacterDraft.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("finalize_character_draft", __argsBuffer, this.setCallReducerFlags.finalizeCharacterDraftFlags);
+  }
+
+  onFinalizeCharacterDraft(callback: (ctx: ReducerEventContext, id: string) => void) {
+    this.connection.onReducer("finalize_character_draft", callback);
+  }
+
+  removeOnFinalizeCharacterDraft(callback: (ctx: ReducerEventContext, id: string) => void) {
+    this.connection.offReducer("finalize_character_draft", callback);
+  }
+
 }
 
 export class SetReducerFlags {
@@ -216,6 +405,41 @@ export class SetReducerFlags {
     this.touchSessionFlags = flags;
   }
 
+  createCharacterFlags: __CallReducerFlags = 'FullUpdate';
+  createCharacter(flags: __CallReducerFlags) {
+    this.createCharacterFlags = flags;
+  }
+
+  updateCharacterFlags: __CallReducerFlags = 'FullUpdate';
+  updateCharacter(flags: __CallReducerFlags) {
+    this.updateCharacterFlags = flags;
+  }
+
+  deleteCharacterFlags: __CallReducerFlags = 'FullUpdate';
+  deleteCharacter(flags: __CallReducerFlags) {
+    this.deleteCharacterFlags = flags;
+  }
+
+  setActiveCharacterFlags: __CallReducerFlags = 'FullUpdate';
+  setActiveCharacter(flags: __CallReducerFlags) {
+    this.setActiveCharacterFlags = flags;
+  }
+
+  saveCharacterDraftFlags: __CallReducerFlags = 'FullUpdate';
+  saveCharacterDraft(flags: __CallReducerFlags) {
+    this.saveCharacterDraftFlags = flags;
+  }
+
+  deleteCharacterDraftFlags: __CallReducerFlags = 'FullUpdate';
+  deleteCharacterDraft(flags: __CallReducerFlags) {
+    this.deleteCharacterDraftFlags = flags;
+  }
+
+  finalizeCharacterDraftFlags: __CallReducerFlags = 'FullUpdate';
+  finalizeCharacterDraft(flags: __CallReducerFlags) {
+    this.finalizeCharacterDraftFlags = flags;
+  }
+
 }
 
 export class RemoteTables {
@@ -224,6 +448,16 @@ export class RemoteTables {
   get accounts(): AccountsTableHandle<'accounts'> {
     // clientCache is a private property
     return new AccountsTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Accounts>(REMOTE_MODULE.tables.accounts));
+  }
+
+  get characterDrafts(): CharacterDraftsTableHandle<'character_drafts'> {
+    // clientCache is a private property
+    return new CharacterDraftsTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<CharacterDrafts>(REMOTE_MODULE.tables.character_drafts));
+  }
+
+  get characters(): CharactersTableHandle<'characters'> {
+    // clientCache is a private property
+    return new CharactersTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Characters>(REMOTE_MODULE.tables.characters));
   }
 
   get sessions(): SessionsTableHandle<'sessions'> {

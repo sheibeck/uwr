@@ -28,50 +28,37 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type Accounts = {
+export type DeleteCharacterDraft = {
   id: string,
-  provider: string,
-  providerUserId: string,
-  displayName: string | undefined,
-  activeCharacterId: string | undefined,
-  createdAt: __Timestamp,
-  updatedAt: __Timestamp,
 };
-let _cached_Accounts_type_value: __AlgebraicTypeType | null = null;
+let _cached_DeleteCharacterDraft_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const Accounts = {
+export const DeleteCharacterDraft = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_Accounts_type_value) return _cached_Accounts_type_value;
-    _cached_Accounts_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_Accounts_type_value.value.elements.push(
+    if (_cached_DeleteCharacterDraft_type_value) return _cached_DeleteCharacterDraft_type_value;
+    _cached_DeleteCharacterDraft_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_DeleteCharacterDraft_type_value.value.elements.push(
       { name: "id", algebraicType: __AlgebraicTypeValue.String },
-      { name: "provider", algebraicType: __AlgebraicTypeValue.String },
-      { name: "providerUserId", algebraicType: __AlgebraicTypeValue.String },
-      { name: "displayName", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
-      { name: "activeCharacterId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
-      { name: "createdAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
-      { name: "updatedAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
     );
-    return _cached_Accounts_type_value;
+    return _cached_DeleteCharacterDraft_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: Accounts): void {
-    __AlgebraicTypeValue.serializeValue(writer, Accounts.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: DeleteCharacterDraft): void {
+    __AlgebraicTypeValue.serializeValue(writer, DeleteCharacterDraft.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): Accounts {
-    return __AlgebraicTypeValue.deserializeValue(reader, Accounts.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): DeleteCharacterDraft {
+    return __AlgebraicTypeValue.deserializeValue(reader, DeleteCharacterDraft.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default Accounts;
-
+export default DeleteCharacterDraft;
 
