@@ -1,5 +1,5 @@
 // SpaceTimeDB sessions module stub
-import { Session } from '@shared/index.js';
+import { Session } from '../../shared-schema/dist/index.js';
 import { randomUUID } from 'crypto';
 
 export async function createSession(accountId: string, ttlMinutes: number): Promise<Session> {

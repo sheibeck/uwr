@@ -16,7 +16,10 @@ describe('ai-client mock adapter', () => {
         const adapter = createMockAdapter();
         const res = await adapter.generate('Hello world');
         expect(res.ok).toBe(true);
-        if (res.ok) expect(String((res.value as NarrativeResponse).narration).startsWith('MOCK:')).toBe(true);
+        if (res.ok) {
+            const val = res.value as unknown as NarrativeResponse;
+            expect(String(val.narration).startsWith('MOCK:')).toBe(true);
+        }
     });
 
     it('generateStructured returns a parse error by default', async () => {

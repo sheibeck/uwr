@@ -107,6 +107,8 @@ importers:
         specifier: ^3.24.6
         version: 3.24.6(zod@3.25.76)
 
+  packages/shared-schema: {}
+
   packages/spacetime-modules:
     dependencies:
       spacetimedb:

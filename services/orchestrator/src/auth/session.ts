@@ -1,6 +1,5 @@
 import { createSpaceTimeAdapter } from '../db/spacetime.js';
-import { Account, Session } from '@shared/index.js';
-import { ProviderId } from '@shared/accounts.js';
+import { Account, Session, ProviderId } from '../../../../packages/shared-schema/dist/index.js';
 
 export interface SessionSyncResult {
     account: Account;

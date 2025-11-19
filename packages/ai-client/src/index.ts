@@ -1,6 +1,7 @@
 import fetch from 'node-fetch';
 import { ZodSchema } from 'zod';
-import { NarrativeResponse } from '../../shared-schema/src/narrative';
+import { NarrativeResponse } from '@shared/narrative';
+import { NarrativeResponse as NarrativeSchema } from '@shared/narrative';
 import OpenAI from 'openai';
 
 export type AIError = {
@@ -100,10 +101,10 @@ export function createOpenAIAdapter(apiKey?: string): ModelAdapter {
                 if (js) {
                     try {
                         const parsed = JSON.parse(js);
-                        // If parsed is an object that looks like our NarrativeResponse, return it.
-                        if (parsed && typeof parsed === 'object') {
-                            return { ok: true as const, value: parsed };
-                        }
+                        // Validate against the NarrativeResponse schema and return if valid
+                        const v = NarrativeSchema.safeParse(parsed as any);
+                        if (v.success) return { ok: true as const, value: v.data };
+                        // If it didn't validate, fall through and attempt structured fallback
                     } catch (e) {
                         // fall through to wrapping as narration
                     }
@@ -126,10 +127,10 @@ export function createOpenAIAdapter(apiKey?: string): ModelAdapter {
             const maxRetries = opts?.maxRetries ?? 2;
             let lastErr: AIError | null = null;
             for (let attempt = 0; attempt <= maxRetries; attempt++) {
-                const res = await this.generate(prompt, { ...opts, temperature: attempt === 0 ? (opts?.temperature ?? 0.0) : 0.0 });
+                // Use callOpenAI directly to avoid double-wrapping of generate()
+                const res = await callOpenAI(prompt, { ...opts, temperature: attempt === 0 ? (opts?.temperature ?? 0.0) : 0.0 });
                 if (!res.ok) {
                     lastErr = res.error;
-                    // provider/network error: backoff
                     await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
                     continue;
                 }
@@ -137,7 +138,6 @@ export function createOpenAIAdapter(apiKey?: string): ModelAdapter {
                 const js = extractJson(text);
                 if (!js) {
                     lastErr = { kind: 'parse', message: 'Could not extract JSON from model output', details: { text } };
-                    // retry with low temp and an extraction instruction
                     prompt = `${prompt}\n\nPlease extract and return only valid JSON matching the requested structure.`;
                     continue;
                 }
@@ -146,7 +146,6 @@ export function createOpenAIAdapter(apiKey?: string): ModelAdapter {
                     const parsedOk = schema.safeParse(parsed);
                     if (parsedOk.success) return { ok: true as const, value: parsedOk.data };
                     lastErr = { kind: 'validation', message: 'Zod validation failed', details: parsedOk.error.format() };
-                    // retry prompt instructing the model to match the schema
                     prompt = `${prompt}\n\nThe previous output failed validation. Please return JSON that matches the schema exactly.`;
                     continue;
                 } catch (e: any) {

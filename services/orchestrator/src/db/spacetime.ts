@@ -2,7 +2,7 @@
 // Falls back to local stubs unless SPACETIME_ENABLED=true in env.
 import { upsertAccount as stubUpsertAccount } from '@spacetime/accounts.js';
 import { createSession as stubCreateSession, touchSession as stubTouchSession } from '@spacetime/sessions.js';
-import { Account, Session } from '@shared/index.js';
+import { Account, Session } from '../../../../packages/shared-schema/src/index.ts';
 
 export interface SpaceTimeAdapter {
     upsertAccount(provider: string, providerUserId: string, displayName: string): Promise<Account>;

@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+  "module": "ES2022",
+  "moduleResolution": "bundler",
     "strict": true,
     "exactOptionalPropertyTypes": true,
     "noUncheckedIndexedAccess": true,
@@ -14,8 +14,11 @@
     "rootDir": ".",
     "baseUrl": ".",
     "paths": {
-    "@shared/*": ["packages/shared-schema/src/*"],
-    "@schema/*": ["packages/shared-schema/src/schema/*"],
+    "@shared/*": ["packages/shared-schema/dist/*.js"],
+  "@shared/narrative": ["packages/shared-schema/dist/narrative.d.ts"],
+  "@shared/accounts": ["packages/shared-schema/dist/accounts.d.ts"],
+  "@shared": ["packages/shared-schema/dist/index.d.ts", "packages/shared-schema/dist/index.js"],
+  "@schema/*": ["packages/shared-schema/src/schema/*"],
     "@spacetime/*": ["packages/spacetime-modules/src/*"],
   "@orchestrator/*": ["services/orchestrator/src/*"],
     "@prompt/*": ["packages/prompt-schema/src/*"],
