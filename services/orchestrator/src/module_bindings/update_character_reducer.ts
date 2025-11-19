@@ -28,7 +28,7 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-import { UpdatePatch } from "./update_patch_type";
+import { UpdatePatch } from "./update_patch_type.js";
 // Mark import as potentially unused
 declare type __keep_UpdatePatch = UpdatePatch;
 

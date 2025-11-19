@@ -27,8 +27,8 @@ import {
   type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
   type TableHandle as __TableHandle,
 } from "spacetimedb";
-import { CharacterDrafts } from "./character_drafts_type";
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
+import { CharacterDrafts } from "./character_drafts_type.js";
+import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from "./index.js";
 declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
 /**
@@ -103,4 +103,5 @@ export class CharacterDraftsTableHandle<TableName extends string> implements __T
 
   removeOnUpdate = (cb: (ctx: EventContext, onRow: CharacterDrafts, newRow: CharacterDrafts) => void) => {
     return this.tableCache.removeOnUpdate(cb);
-  }}
+  }
+}

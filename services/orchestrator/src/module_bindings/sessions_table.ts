@@ -27,8 +27,8 @@ import {
   type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
   type TableHandle as __TableHandle,
 } from "spacetimedb";
-import { Sessions } from "./sessions_type";
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
+import { Sessions } from "./sessions_type.js";
+import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from "./index.js";
 declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
 /**
@@ -125,4 +125,5 @@ export class SessionsTableHandle<TableName extends string> implements __TableHan
 
   removeOnUpdate = (cb: (ctx: EventContext, onRow: Sessions, newRow: Sessions) => void) => {
     return this.tableCache.removeOnUpdate(cb);
-  }}
+  }
+}

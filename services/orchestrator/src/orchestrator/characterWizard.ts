@@ -1,20 +1,16 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { CharacterDraftSchema } from '../../../packages/prompt-schema/src/wizard/characterDraftSchema.js';
+import { CharacterDraftSchema } from '../../../../packages/prompt-schema/src/wizard/characterDraftSchema.ts';
 import { DbConnection } from '../module_bindings/index.js';
-
-// aiClient should implement a simple interface: `generate(prompt: string): Promise<{ text: string, json?: any }>`
-export type AIClient = {
-    generate(prompt: string): Promise<{ text: string; json?: any }>;
-};
+import { createAdapter, ModelAdapter } from '@ai/index';
 
 export class CharacterWizard {
     private promptsDir: string;
-    private ai: AIClient;
+    private ai: ModelAdapter;
     private conn: any;
 
-    constructor(aiClient: AIClient, dbUri: string, moduleName: string) {
-        this.ai = aiClient;
+    constructor(modelName: string | undefined, dbUri: string, moduleName: string) {
+        this.ai = createAdapter(modelName ?? process.env.ORCHESTRATOR_MODEL);
         this.promptsDir = path.resolve(process.cwd(), 'packages/prompt-schema/src/wizard/prompts');
         this.conn = DbConnection.builder().withUri(dbUri).withModuleName(moduleName).build();
     }

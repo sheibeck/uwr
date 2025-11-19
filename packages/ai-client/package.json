@@ -1,0 +1,20 @@
+{
+  "name": "@uwr/ai-client",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "echo 'no tests'"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7",
+    "openai": "^4.104.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node-fetch": "^2.6.13",
+    "typescript": "^5.0.0"
+  }
+}
