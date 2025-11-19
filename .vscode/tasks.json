@@ -1,0 +1,121 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Spacetime Host",
+      "type": "shell",
+      "command": "pnpm dev:spacetime",
+      "problemMatcher": [],
+      "isBackground": true,
+      "detail": "Runs spacetime start to launch local SpacetimeDB host",
+      "group": "build"
+    },
+    {
+      "label": "Publish Spacetime Module",
+      "type": "shell",
+      "command": "pnpm publish:spacetime",
+      "problemMatcher": [],
+      "detail": "Bundles and publishes module in packages/spacetime-modules to local host",
+      "group": "build"
+    },
+    {
+      "label": "Generate Spacetime Bindings",
+      "type": "shell",
+      "command": "pnpm generate:bindings",
+      "problemMatcher": [],
+      "detail": "Generates TypeScript client bindings for orchestrator",
+      "group": "build"
+    },
+    {
+      "label": "Start Orchestrator Service",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "pnpm dev:orchestrator"
+      ],
+      "options": {
+        "env": {
+          "SPACETIME_ENABLED": "true",
+          "SPACETIME_WAIT_MS": "10000"
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "detail": "Starts orchestration service with Spacetime remote enabled",
+      "group": "build"
+    },
+    {
+      "label": "Start Web Client",
+      "type": "shell",
+      "command": "pnpm --filter @uwr/web dev",
+      "isBackground": true,
+      "problemMatcher": [],
+      "detail": "Starts Vite dev server for Vue client",
+      "group": "build"
+    },
+    {
+      "label": "Start Admin Client",
+      "type": "shell",
+      "command": "pnpm --filter @uwr/orchestrator run admin:serve",
+      "isBackground": true,
+      "problemMatcher": [],
+      "detail": "Starts admin dev server",
+      "group": "build"
+    },
+        {
+      "label": "Build AI Client",
+      "type": "shell",
+      "command": "pnpm --filter @uwr/ai-client -w build",
+      "isBackground": true,
+      "problemMatcher": [],
+      "detail": "Builds AI client package",
+      "group": "build"
+    },
+    {
+      "label": "Run Tests",
+      "type": "shell",
+      "command": "pnpm test",
+      "problemMatcher": [],
+      "detail": "Executes Vitest suite"
+    },
+    {
+      "label": "Typecheck",
+      "type": "shell",
+      "command": "pnpm typecheck",
+      "problemMatcher": [
+        "$tsc"
+      ],
+      "detail": "Runs tsc in noEmit mode"
+    },
+    {
+      "label": "Generate JSON Schemas",
+      "type": "shell",
+      "command": "pnpm generate:schemas",
+      "problemMatcher": [],
+      "detail": "Exports Zod schemas to JSON schema files"
+    },
+    {
+      "type": "typescript",
+      "tsconfig": "apps/web/tsconfig.json",
+      "problemMatcher": [
+        "$tsc"
+      ],
+      "label": "tsc: build - apps/web/tsconfig.json"
+    }
+    ,
+    {
+      "label": "Start All Dev",
+      "dependsOn": [
+        "Start Spacetime Host",
+        "Start Orchestrator Service",
+        "Start Admin Client",
+        "Start Web Client"
+      ],
+      "dependsOrder": "parallel",
+      "detail": "Launch host, orchestrator, admin and web client in separate terminals",
+      "group": "build"
+    }
+  ]
+}
