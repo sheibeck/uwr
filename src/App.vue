@@ -24,6 +24,23 @@
 
     <main :style="styles.main">
       <section :style="styles.log">
+        <div v-if="selectedCharacter" :style="styles.roster">
+          <div :style="styles.rosterTitle">
+            Who's Here ({{ charactersHere.length }})
+          </div>
+          <div v-if="charactersHere.length === 0" :style="styles.subtle">
+            Nobody else is around.
+          </div>
+          <div v-else :style="styles.rosterList">
+            <span
+              v-for="character in charactersHere"
+              :key="character.id.toString()"
+              :style="styles.rosterTag"
+            >
+              {{ character.name }}
+            </span>
+          </div>
+        </div>
         <div v-if="!selectedCharacter" :style="styles.logEmpty">
           Select or create a character to begin.
         </div>
@@ -102,6 +119,62 @@
         <div v-else-if="activePanel === 'inventory'" :style="styles.panelBody">
           <div :style="styles.panelSectionTitle">Inventory</div>
           <div :style="styles.subtle">Inventory system coming soon.</div>
+        </div>
+
+        <div v-else-if="activePanel === 'group'" :style="styles.panelBody">
+          <div :style="styles.panelSectionTitle">Group</div>
+          <div v-if="!selectedCharacter" :style="styles.subtle">
+            Select a character to manage groups.
+          </div>
+          <div v-else>
+            <div v-if="currentGroup">
+              <div :style="styles.subtle">Group: {{ currentGroup.name }}</div>
+              <div :style="styles.panelSectionTitle">Members</div>
+              <ul :style="styles.list">
+                <li v-for="member in groupMembers" :key="member.id.toString()">
+                  {{ member.name }} (Lv {{ member.level }})
+                </li>
+              </ul>
+              <button :style="styles.ghostButton" @click="leaveGroup">
+                Leave Group
+              </button>
+            </div>
+            <div v-else>
+              <div :style="styles.panelSectionTitle">Create Group</div>
+              <form @submit.prevent="createGroup" :style="styles.panelForm">
+                <input
+                  type="text"
+                  placeholder="Group name"
+                  v-model="groupName"
+                  :disabled="!conn.isActive"
+                  :style="styles.input"
+                />
+                <button
+                  type="submit"
+                  :disabled="!conn.isActive || !groupName.trim()"
+                  :style="styles.primaryButton"
+                >
+                  Create
+                </button>
+              </form>
+              <div :style="styles.panelSectionTitle">Join Group</div>
+              <div v-if="groups.length === 0" :style="styles.subtle">
+                No groups available.
+              </div>
+              <ul v-else :style="styles.list">
+                <li v-for="group in groups" :key="group.id.toString()">
+                  <span>{{ group.name }}</span>
+                  <button
+                    :style="styles.ghostButton"
+                    @click="joinGroup(group.id)"
+                    :disabled="!conn.isActive"
+                  >
+                    Join
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
 
         <div v-else-if="activePanel === 'stats'" :style="styles.panelBody">
@@ -212,6 +285,9 @@
         <button @click="togglePanel('inventory')" :style="actionStyle('inventory')">
           Inventory
         </button>
+        <button @click="togglePanel('group')" :style="actionStyle('group')">
+          Group
+        </button>
         <button @click="togglePanel('stats')" :style="actionStyle('stats')">
           Stats
         </button>
@@ -237,6 +313,7 @@ const [characters] = useTable(tables.character);
 const [locations] = useTable(tables.location);
 const [enemyTemplates] = useTable(tables.enemyTemplate);
 const [combats] = useTable(tables.combat);
+const [groups] = useTable(tables.group);
 const [worldEvents] = useTable(tables.eventWorld);
 const [locationEvents] = useTable(tables.myLocationEvents);
 const [privateEvents] = useTable(tables.myPrivateEvents);
@@ -251,13 +328,19 @@ const startCombatReducer = useReducer(reducers.startCombat);
 const attackReducer = useReducer(reducers.attack);
 const endCombatReducer = useReducer(reducers.endCombat);
 const sayReducer = useReducer(reducers.say);
+const createGroupReducer = useReducer(reducers.createGroup);
+const joinGroupReducer = useReducer(reducers.joinGroup);
+const leaveGroupReducer = useReducer(reducers.leaveGroup);
 
 const displayName = ref('');
 const newCharacter = ref({ name: '', race: '', className: '' });
 const selectedCharacterId = ref('');
 const commandText = ref('');
 const attackDamage = ref(6);
-const activePanel = ref<'none' | 'character' | 'inventory' | 'stats' | 'travel' | 'combat'>(
+const groupName = ref('');
+const activePanel = ref<
+  'none' | 'character' | 'inventory' | 'group' | 'stats' | 'travel' | 'combat'
+>(
   'none'
 );
 
@@ -282,6 +365,25 @@ const currentLocation = computed(() => {
     locations.value.find((row) => row.id === selectedCharacter.value?.locationId) ??
     null
   );
+});
+
+const charactersHere = computed(() => {
+  if (!selectedCharacter.value) return [];
+  return characters.value.filter(
+    (row) => row.locationId === selectedCharacter.value?.locationId
+  );
+});
+
+const currentGroup = computed(() => {
+  const groupId = selectedCharacter.value?.groupId;
+  if (!groupId) return null;
+  return groups.value.find((row) => row.id === groupId) ?? null;
+});
+
+const groupMembers = computed(() => {
+  const groupId = selectedCharacter.value?.groupId;
+  if (!groupId) return [];
+  return characters.value.filter((row) => row.groupId === groupId);
 });
 
 const activeCombat = computed(() => {
@@ -337,6 +439,8 @@ const panelTitle = computed(() => {
       return 'Character';
     case 'inventory':
       return 'Inventory';
+    case 'group':
+      return 'Group';
     case 'stats':
       return 'Stats';
     case 'travel':
@@ -407,6 +511,22 @@ const submitCommand = () => {
 const startCombat = (enemyId: bigint) => {
   if (!conn.isActive || !selectedCharacter.value) return;
   startCombatReducer({ characterId: selectedCharacter.value.id, enemyId });
+};
+
+const createGroup = () => {
+  if (!conn.isActive || !selectedCharacter.value || !groupName.value.trim()) return;
+  createGroupReducer({ characterId: selectedCharacter.value.id, name: groupName.value.trim() });
+  groupName.value = '';
+};
+
+const joinGroup = (groupId: bigint) => {
+  if (!conn.isActive || !selectedCharacter.value) return;
+  joinGroupReducer({ characterId: selectedCharacter.value.id, groupId });
+};
+
+const leaveGroup = () => {
+  if (!conn.isActive || !selectedCharacter.value) return;
+  leaveGroupReducer({ characterId: selectedCharacter.value.id });
 };
 
 const attack = () => {
@@ -480,6 +600,32 @@ const styles = {
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
+  },
+  roster: {
+    marginBottom: '1rem',
+    padding: '0.75rem 0.9rem',
+    borderRadius: '10px',
+    background: 'rgba(16, 20, 28, 0.65)',
+    border: '1px solid rgba(255,255,255,0.08)',
+  },
+  rosterTitle: {
+    textTransform: 'uppercase',
+    letterSpacing: '0.12em',
+    fontSize: '0.7rem',
+    marginBottom: '0.5rem',
+    color: 'rgba(230,232,239,0.6)',
+  },
+  rosterList: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.4rem',
+  },
+  rosterTag: {
+    background: 'rgba(76, 125, 240, 0.2)',
+    border: '1px solid rgba(76, 125, 240, 0.5)',
+    padding: '0.25rem 0.6rem',
+    borderRadius: '999px',
+    fontSize: '0.8rem',
   },
   logList: {
     overflowY: 'auto',
