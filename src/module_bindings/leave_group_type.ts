@@ -10,12 +10,8 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("EventLog", {
-  id: __t.u64(),
+export default __t.object("LeaveGroup", {
   characterId: __t.u64(),
-  message: __t.string(),
-  kind: __t.string(),
-  createdAt: __t.timestamp(),
 });
 
 

@@ -40,14 +40,24 @@ import OnDisconnectReducer from "./on_disconnect_reducer";
 export { OnDisconnectReducer };
 import SetDisplayNameReducer from "./set_display_name_reducer";
 export { SetDisplayNameReducer };
+import SetActiveCharacterReducer from "./set_active_character_reducer";
+export { SetActiveCharacterReducer };
 import CreateCharacterReducer from "./create_character_reducer";
 export { CreateCharacterReducer };
 import MoveCharacterReducer from "./move_character_reducer";
 export { MoveCharacterReducer };
 import SubmitCommandReducer from "./submit_command_reducer";
 export { SubmitCommandReducer };
+import SayReducer from "./say_reducer";
+export { SayReducer };
 import StartCombatReducer from "./start_combat_reducer";
 export { StartCombatReducer };
+import CreateGroupReducer from "./create_group_reducer";
+export { CreateGroupReducer };
+import JoinGroupReducer from "./join_group_reducer";
+export { JoinGroupReducer };
+import LeaveGroupReducer from "./leave_group_reducer";
+export { LeaveGroupReducer };
 import AttackReducer from "./attack_reducer";
 export { AttackReducer };
 import EndCombatReducer from "./end_combat_reducer";
@@ -64,10 +74,26 @@ import CommandRow from "./command_table";
 export { CommandRow };
 import EnemyTemplateRow from "./enemy_template_table";
 export { EnemyTemplateRow };
-import EventLogRow from "./event_log_table";
-export { EventLogRow };
+import EventGroupRow from "./event_group_table";
+export { EventGroupRow };
+import EventLocationRow from "./event_location_table";
+export { EventLocationRow };
+import EventPrivateRow from "./event_private_table";
+export { EventPrivateRow };
+import EventWorldRow from "./event_world_table";
+export { EventWorldRow };
+import GroupRow from "./group_table";
+export { GroupRow };
+import GroupMemberRow from "./group_member_table";
+export { GroupMemberRow };
 import LocationRow from "./location_table";
 export { LocationRow };
+import MyGroupEventsRow from "./my_group_events_table";
+export { MyGroupEventsRow };
+import MyLocationEventsRow from "./my_location_events_table";
+export { MyLocationEventsRow };
+import MyPrivateEventsRow from "./my_private_events_table";
+export { MyPrivateEventsRow };
 import PlayerRow from "./player_table";
 export { PlayerRow };
 import WorldStateRow from "./world_state_table";
@@ -84,24 +110,50 @@ import Command from "./command_type";
 export { Command };
 import CreateCharacter from "./create_character_type";
 export { CreateCharacter };
+import CreateGroup from "./create_group_type";
+export { CreateGroup };
 import EndCombat from "./end_combat_type";
 export { EndCombat };
 import EnemyTemplate from "./enemy_template_type";
 export { EnemyTemplate };
-import EventLog from "./event_log_type";
-export { EventLog };
+import EventGroup from "./event_group_type";
+export { EventGroup };
+import EventLocation from "./event_location_type";
+export { EventLocation };
+import EventPrivate from "./event_private_type";
+export { EventPrivate };
+import EventWorld from "./event_world_type";
+export { EventWorld };
+import Group from "./group_type";
+export { Group };
+import GroupMember from "./group_member_type";
+export { GroupMember };
 import Init from "./init_type";
 export { Init };
+import JoinGroup from "./join_group_type";
+export { JoinGroup };
+import LeaveGroup from "./leave_group_type";
+export { LeaveGroup };
 import Location from "./location_type";
 export { Location };
 import MoveCharacter from "./move_character_type";
 export { MoveCharacter };
+import MyGroupEvents from "./my_group_events_type";
+export { MyGroupEvents };
+import MyLocationEvents from "./my_location_events_type";
+export { MyLocationEvents };
+import MyPrivateEvents from "./my_private_events_type";
+export { MyPrivateEvents };
 import OnConnect from "./on_connect_type";
 export { OnConnect };
 import OnDisconnect from "./on_disconnect_type";
 export { OnDisconnect };
 import Player from "./player_type";
 export { Player };
+import Say from "./say_type";
+export { Say };
+import SetActiveCharacter from "./set_active_character_type";
+export { SetActiveCharacter };
 import SetDisplayName from "./set_display_name_type";
 export { SetDisplayName };
 import StartCombat from "./start_combat_type";
@@ -173,7 +225,38 @@ const tablesSchema = __schema(
     ],
   }, EnemyTemplateRow),
   __table({
-    name: 'event_log',
+    name: 'event_group',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'by_group', algorithm: 'btree', columns: [
+        'groupId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'event_group_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, EventGroupRow),
+  __table({
+    name: 'event_location',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_location', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'event_location_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, EventLocationRow),
+  __table({
+    name: 'event_private',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
         'characterId',
@@ -181,11 +264,53 @@ const tablesSchema = __schema(
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
+      { name: 'by_owner', algorithm: 'btree', columns: [
+        'ownerId',
+      ] },
     ],
     constraints: [
-      { name: 'event_log_id_key', constraint: 'unique', columns: ['id'] },
+      { name: 'event_private_id_key', constraint: 'unique', columns: ['id'] },
     ],
-  }, EventLogRow),
+  }, EventPrivateRow),
+  __table({
+    name: 'event_world',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'event_world_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, EventWorldRow),
+  __table({
+    name: 'group',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'group_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, GroupRow),
+  __table({
+    name: 'group_member',
+    indexes: [
+      { name: 'by_group', algorithm: 'btree', columns: [
+        'groupId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_owner', algorithm: 'btree', columns: [
+        'ownerId',
+      ] },
+    ],
+    constraints: [
+      { name: 'group_member_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, GroupMemberRow),
   __table({
     name: 'location',
     indexes: [
@@ -219,15 +344,41 @@ const tablesSchema = __schema(
       { name: 'world_state_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldStateRow),
+  __table({
+    name: 'my_group_events',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyGroupEventsRow),
+  __table({
+    name: 'my_location_events',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyLocationEventsRow),
+  __table({
+    name: 'my_private_events',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyPrivateEventsRow),
 );
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("set_display_name", SetDisplayNameReducer),
+  __reducerSchema("set_active_character", SetActiveCharacterReducer),
   __reducerSchema("create_character", CreateCharacterReducer),
   __reducerSchema("move_character", MoveCharacterReducer),
   __reducerSchema("submit_command", SubmitCommandReducer),
+  __reducerSchema("say", SayReducer),
   __reducerSchema("start_combat", StartCombatReducer),
+  __reducerSchema("create_group", CreateGroupReducer),
+  __reducerSchema("join_group", JoinGroupReducer),
+  __reducerSchema("leave_group", LeaveGroupReducer),
   __reducerSchema("attack", AttackReducer),
   __reducerSchema("end_combat", EndCombatReducer),
 );

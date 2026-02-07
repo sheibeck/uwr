@@ -15,4 +15,5 @@ export default __t.row({
   createdAt: __t.timestamp(),
   lastSeenAt: __t.timestamp(),
   displayName: __t.option(__t.string()),
+  activeCharacterId: __t.option(__t.u64()),
 });

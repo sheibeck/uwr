@@ -9,6 +9,7 @@ const DB_NAME = import.meta.env.VITE_SPACETIMEDB_DB_NAME ?? 'uwr';
 
 const onConnect = (_conn: DbConnection, identity: Identity, token: string) => {
   localStorage.setItem('auth_token', token);
+  window.__my_identity = identity;
   console.log(
     'Connected to SpacetimeDB with identity:',
     identity.toHexString()
@@ -34,3 +35,9 @@ const connectionBuilder = DbConnection.builder()
 createApp({
   render: () => h(SpacetimeDBProvider, { connectionBuilder }, () => h(App)),
 }).mount('#app');
+
+declare global {
+  interface Window {
+    __my_identity?: Identity;
+  }
+}

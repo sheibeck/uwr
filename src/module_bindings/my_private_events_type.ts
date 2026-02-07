@@ -10,12 +10,6 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("Player", {
-  id: __t.identity(),
-  createdAt: __t.timestamp(),
-  lastSeenAt: __t.timestamp(),
-  displayName: __t.option(__t.string()),
-  activeCharacterId: __t.option(__t.u64()),
-});
+export default __t.object("MyPrivateEvents", {});
 
 

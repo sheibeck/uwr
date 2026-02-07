@@ -12,17 +12,9 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
+  groupId: __t.u64(),
+  characterId: __t.u64(),
   ownerId: __t.identity(),
-  name: __t.string(),
-  race: __t.string(),
-  className: __t.string(),
-  level: __t.u64(),
-  xp: __t.u64(),
-  locationId: __t.u64(),
-  groupId: __t.option(__t.u64()),
-  hp: __t.u64(),
-  maxHp: __t.u64(),
-  mana: __t.u64(),
-  maxMana: __t.u64(),
-  createdAt: __t.timestamp(),
+  role: __t.string(),
+  joinedAt: __t.timestamp(),
 });

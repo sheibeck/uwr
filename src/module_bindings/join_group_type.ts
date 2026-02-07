@@ -10,10 +10,9 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.row({
-  id: __t.u64().primaryKey(),
+export default __t.object("JoinGroup", {
   characterId: __t.u64(),
-  message: __t.string(),
-  kind: __t.string(),
-  createdAt: __t.timestamp(),
+  groupId: __t.u64(),
 });
+
+

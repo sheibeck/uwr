@@ -27,13 +27,13 @@
         <div v-if="!selectedCharacter" :style="styles.logEmpty">
           Select or create a character to begin.
         </div>
-        <div v-else-if="filteredEvents.length === 0" :style="styles.logEmpty">
+        <div v-else-if="combinedEvents.length === 0" :style="styles.logEmpty">
           No events yet. Try a command like "look" or "travel".
         </div>
         <div v-else :style="styles.logList">
-          <div v-for="event in filteredEvents" :key="event.id.toString()" :style="styles.logItem">
+          <div v-for="event in combinedEvents" :key="`${event.scope}-${event.id}`" :style="styles.logItem">
             <span :style="styles.logTime">{{ formatTimestamp(event.createdAt) }}</span>
-            <span :style="styles.logKind">[{{ event.kind }}]</span>
+            <span :style="styles.logKind">[{{ event.scope }} {{ event.kind }}]</span>
             <span :style="styles.logText">{{ event.message }}</span>
           </div>
         </div>
@@ -79,15 +79,16 @@
           </form>
 
           <div :style="styles.panelSectionTitle">Characters</div>
-          <div v-if="characters.length === 0" :style="styles.subtle">No characters yet.</div>
+          <div v-if="myCharacters.length === 0" :style="styles.subtle">No characters yet.</div>
           <ul v-else :style="styles.list">
-            <li v-for="character in characters" :key="character.id.toString()">
+            <li v-for="character in myCharacters" :key="character.id.toString()">
               <label :style="styles.radioRow">
                 <input
                   type="radio"
                   name="character"
                   :value="character.id.toString()"
-                  v-model="selectedCharacterId"
+                  :checked="selectedCharacterId === character.id.toString()"
+                  @change="selectedCharacterId = character.id.toString()"
                 />
                 <span>
                   {{ character.name }} (Lv {{ character.level }}) —
@@ -226,7 +227,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { tables, reducers } from './module_bindings';
 import { useSpacetimeDB, useTable, useReducer } from 'spacetimedb/vue';
 
@@ -236,15 +237,20 @@ const [characters] = useTable(tables.character);
 const [locations] = useTable(tables.location);
 const [enemyTemplates] = useTable(tables.enemyTemplate);
 const [combats] = useTable(tables.combat);
-const [eventLog] = useTable(tables.eventLog);
+const [worldEvents] = useTable(tables.eventWorld);
+const [locationEvents] = useTable(tables.myLocationEvents);
+const [privateEvents] = useTable(tables.myPrivateEvents);
+const [groupEvents] = useTable(tables.myGroupEvents);
 
 const setDisplayNameReducer = useReducer(reducers.setDisplayName);
 const createCharacterReducer = useReducer(reducers.createCharacter);
+const setActiveCharacterReducer = useReducer(reducers.setActiveCharacter);
 const moveCharacterReducer = useReducer(reducers.moveCharacter);
 const submitCommandReducer = useReducer(reducers.submitCommand);
 const startCombatReducer = useReducer(reducers.startCombat);
 const attackReducer = useReducer(reducers.attack);
 const endCombatReducer = useReducer(reducers.endCombat);
+const sayReducer = useReducer(reducers.say);
 
 const displayName = ref('');
 const newCharacter = ref({ name: '', race: '', className: '' });
@@ -255,10 +261,19 @@ const activePanel = ref<'none' | 'character' | 'inventory' | 'stats' | 'travel' 
   'none'
 );
 
+const myIdentityHex = computed(() => window.__my_identity?.toHexString() ?? null);
+
+const myCharacters = computed(() => {
+  if (!myIdentityHex.value) return [];
+  return characters.value.filter(
+    (row) => row.ownerId.toHexString() === myIdentityHex.value
+  );
+});
+
 const selectedCharacter = computed(() => {
   if (!selectedCharacterId.value) return null;
   const id = BigInt(selectedCharacterId.value);
-  return characters.value.find((row) => row.id === id) ?? null;
+  return myCharacters.value.find((row) => row.id === id) ?? null;
 });
 
 const currentLocation = computed(() => {
@@ -279,12 +294,33 @@ const activeCombat = computed(() => {
   );
 });
 
-const filteredEvents = computed(() => {
-  if (!selectedCharacter.value) return [];
-  return [...eventLog.value]
-    .filter((row) => row.characterId === selectedCharacter.value?.id)
-    .sort((a, b) => (a.id > b.id ? 1 : -1))
-    .slice(-50);
+type EventItem = {
+  id: bigint;
+  createdAt: { microsSinceUnixEpoch: bigint };
+  kind: string;
+  message: string;
+  scope: string;
+};
+
+const combinedEvents = computed<EventItem[]>(() => {
+  const items: EventItem[] = [];
+  for (const row of worldEvents.value) {
+    items.push({ id: row.id, createdAt: row.createdAt, kind: row.kind, message: row.message, scope: 'world' });
+  }
+  for (const row of locationEvents.value) {
+    items.push({ id: row.id, createdAt: row.createdAt, kind: row.kind, message: row.message, scope: 'location' });
+  }
+  for (const row of privateEvents.value) {
+    items.push({ id: row.id, createdAt: row.createdAt, kind: row.kind, message: row.message, scope: 'private' });
+  }
+  for (const row of groupEvents.value) {
+    items.push({ id: row.id, createdAt: row.createdAt, kind: row.kind, message: row.message, scope: 'group' });
+  }
+  return items
+    .sort((a, b) =>
+      a.createdAt.microsSinceUnixEpoch > b.createdAt.microsSinceUnixEpoch ? 1 : -1
+    )
+    .slice(-80);
 });
 
 const isCharacterFormValid = computed(() =>
@@ -316,6 +352,15 @@ const togglePanel = (panel: typeof activePanel.value) => {
   activePanel.value = activePanel.value === panel ? 'none' : panel;
 };
 
+watch(
+  () => selectedCharacterId.value,
+  (next) => {
+    if (!next || !conn.isActive) return;
+    const id = BigInt(next);
+    setActiveCharacterReducer({ characterId: id });
+  }
+);
+
 const setDisplayName = () => {
   if (!displayName.value.trim() || !conn.isActive) return;
   setDisplayNameReducer({ name: displayName.value.trim() });
@@ -338,10 +383,24 @@ const moveTo = (locationId: bigint) => {
 
 const submitCommand = () => {
   if (!conn.isActive || !selectedCharacter.value || !commandText.value.trim()) return;
-  submitCommandReducer({
-    characterId: selectedCharacter.value.id,
-    text: commandText.value.trim(),
-  });
+  const raw = commandText.value.trim();
+  const lower = raw.toLowerCase();
+  if (lower.startsWith('/say ')) {
+    sayReducer({
+      characterId: selectedCharacter.value.id,
+      message: raw.slice(5).trim(),
+    });
+  } else if (lower.startsWith('say ')) {
+    sayReducer({
+      characterId: selectedCharacter.value.id,
+      message: raw.slice(4).trim(),
+    });
+  } else {
+    submitCommandReducer({
+      characterId: selectedCharacter.value.id,
+      text: raw,
+    });
+  }
   commandText.value = '';
 };
 

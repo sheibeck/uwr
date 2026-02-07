@@ -10,19 +10,11 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.row({
-  id: __t.u64().primaryKey(),
-  ownerId: __t.identity(),
-  name: __t.string(),
-  race: __t.string(),
-  className: __t.string(),
-  level: __t.u64(),
-  xp: __t.u64(),
-  locationId: __t.u64(),
-  groupId: __t.option(__t.u64()),
-  hp: __t.u64(),
-  maxHp: __t.u64(),
-  mana: __t.u64(),
-  maxMana: __t.u64(),
+export default __t.object("EventWorld", {
+  id: __t.u64(),
+  message: __t.string(),
+  kind: __t.string(),
   createdAt: __t.timestamp(),
 });
+
+
