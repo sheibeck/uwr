@@ -258,18 +258,21 @@ const activePanel = ref<'none' | 'character' | 'inventory' | 'stats' | 'travel' 
 const selectedCharacter = computed(() => {
   if (!selectedCharacterId.value) return null;
   const id = BigInt(selectedCharacterId.value);
-  return characters.find((row) => row.id === id) ?? null;
+  return characters.value.find((row) => row.id === id) ?? null;
 });
 
 const currentLocation = computed(() => {
   if (!selectedCharacter.value) return null;
-  return locations.find((row) => row.id === selectedCharacter.value?.locationId) ?? null;
+  return (
+    locations.value.find((row) => row.id === selectedCharacter.value?.locationId) ??
+    null
+  );
 });
 
 const activeCombat = computed(() => {
   if (!selectedCharacter.value) return null;
   return (
-    combats.find(
+    combats.value.find(
       (row) =>
         row.characterId === selectedCharacter.value?.id && row.status === 'active'
     ) ?? null
@@ -278,7 +281,7 @@ const activeCombat = computed(() => {
 
 const filteredEvents = computed(() => {
   if (!selectedCharacter.value) return [];
-  return [...eventLog]
+  return [...eventLog.value]
     .filter((row) => row.characterId === selectedCharacter.value?.id)
     .sort((a, b) => (a.id > b.id ? 1 : -1))
     .slice(-50);
