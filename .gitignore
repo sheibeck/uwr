@@ -1,0 +1,34 @@
+.DS_Store
+.env
+.env.local
+.env.*.local
+
+node_modules/
+dist/
+.vite/
+
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+*.tsbuildinfo
+
+# SpacetimeDB
+spacetimedb/target/
+spacetimedb/.spacetimedb/
+spacetimedb/*.db
+spacetimedb/*.sqlite
+spacetimedb/*.sqlite3
+spacetimedb/logs/
+spacetimedb/.env.local
+
+# IDE / tooling
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*.orig
+
