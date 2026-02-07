@@ -1,0 +1,58 @@
+<template>
+  <section :style="styles.log">
+    <div v-if="selectedCharacter" :style="styles.roster">
+      <div :style="styles.rosterTitle">
+        Who's Here ({{ charactersHere.length }})
+      </div>
+      <div v-if="charactersHere.length === 0" :style="styles.subtle">
+        Nobody else is around.
+      </div>
+      <div v-else :style="styles.rosterList">
+        <span
+          v-for="character in charactersHere"
+          :key="character.id.toString()"
+          :style="styles.rosterTag"
+        >
+          {{ character.name }}
+        </span>
+      </div>
+    </div>
+    <div v-if="!selectedCharacter" :style="styles.logEmpty">
+      Select or create a character to begin.
+    </div>
+    <div v-else-if="combinedEvents.length === 0" :style="styles.logEmpty">
+      No events yet. Try a command like "look" or "travel".
+    </div>
+    <div v-else :style="styles.logList">
+      <div
+        v-for="event in combinedEvents"
+        :key="`${event.scope}-${event.id}`"
+        :style="styles.logItem"
+      >
+        <span :style="styles.logTime">{{ formatTimestamp(event.createdAt) }}</span>
+        <span :style="styles.logKind">[{{ event.scope }} {{ event.kind }}]</span>
+        <span :style="styles.logText">{{ event.message }}</span>
+      </div>
+    </div>
+  </section>
+</template>
+
+<script setup lang="ts">
+import type { CharacterRow } from '../module_bindings';
+
+type EventItem = {
+  id: bigint;
+  createdAt: { microsSinceUnixEpoch: bigint };
+  kind: string;
+  message: string;
+  scope: string;
+};
+
+defineProps<{
+  styles: Record<string, Record<string, string | number>>;
+  selectedCharacter: CharacterRow | null;
+  charactersHere: CharacterRow[];
+  combinedEvents: EventItem[];
+  formatTimestamp: (ts: { microsSinceUnixEpoch: bigint }) => string;
+}>();
+</script>
