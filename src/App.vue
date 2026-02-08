@@ -93,12 +93,17 @@
           :conn-active="conn.isActive"
           :selected-character="selectedCharacter"
           :active-combat="activeCombat"
-          :enemy-templates="enemyTemplates"
-          :attack-damage="attackDamage"
-          @update:attackDamage="attackDamage = $event"
+          :active-enemy="activeEnemy"
+          :active-enemy-spawn="activeEnemySpawn"
+          :active-enemy-name="activeEnemyName"
+          :active-enemy-level="activeEnemyLevel"
+          :combat-roster="combatRoster"
+          :enemy-spawns="availableEnemies"
+          :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           @start="startCombat"
           @attack="attack"
-          @end="endCombat"
+          @skip="skip"
+          @flee="flee"
         />
         <TravelPanel
           v-else-if="activePanel === 'travel'"
@@ -163,7 +168,10 @@ const {
   characters,
   locations,
   enemyTemplates,
-  combats,
+  enemySpawns,
+  combatEncounters,
+  combatParticipants,
+  combatEnemies,
   groups,
   worldEvents,
   locationEvents,
@@ -217,10 +225,15 @@ const { newCharacter, isCharacterFormValid, createCharacter, hasCharacter, creat
     characters,
   });
 
-const { attackDamage, activeCombat, startCombat, attack, endCombat } = useCombat({
+const { activeCombat, activeEnemy, activeEnemySpawn, activeEnemyName, activeEnemyLevel, availableEnemies, combatRoster, startCombat, attack, skip, flee } = useCombat({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
-  combats,
+  combatEncounters,
+  combatParticipants,
+  combatEnemies,
+  enemySpawns,
+  enemyTemplates,
+  characters,
 });
 
 const {
@@ -319,3 +332,7 @@ const formatTimestamp = (ts: { microsSinceUnixEpoch: bigint }) => {
   return new Date(millis).toLocaleTimeString();
 };
 </script>
+
+
+
+

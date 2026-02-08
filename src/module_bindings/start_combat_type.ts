@@ -12,7 +12,7 @@ import {
 
 export default __t.object("StartCombat", {
   characterId: __t.u64(),
-  enemyId: __t.u64(),
+  enemySpawnId: __t.u64(),
 });
 
 

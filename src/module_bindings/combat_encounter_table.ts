@@ -10,13 +10,13 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("EnemyTemplate", {
-  id: __t.u64(),
-  name: __t.string(),
-  level: __t.u64(),
-  maxHp: __t.u64(),
-  baseDamage: __t.u64(),
-  xpReward: __t.u64(),
+export default __t.row({
+  id: __t.u64().primaryKey(),
+  locationId: __t.u64(),
+  groupId: __t.option(__t.u64()),
+  leaderCharacterId: __t.option(__t.u64()),
+  state: __t.string(),
+  roundNumber: __t.u64(),
+  roundEndsAt: __t.timestamp(),
+  createdAt: __t.timestamp(),
 });
-
-

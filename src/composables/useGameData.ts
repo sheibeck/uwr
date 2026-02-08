@@ -12,7 +12,10 @@ export const useGameData = () => {
   const [characters] = useTable(tables.character);
   const [locations] = useTable(tables.location);
   const [enemyTemplates] = useTable(tables.enemyTemplate);
-  const [combats] = useTable(tables.combat);
+  const [enemySpawns] = useTable(tables.enemySpawn);
+  const [combatEncounters] = useTable(tables.combatEncounter);
+  const [combatParticipants] = useTable(tables.combatParticipant);
+  const [combatEnemies] = useTable(tables.combatEnemy);
   const [groups] = useTable(tables.group);
   const [worldEvents] = useTable(tables.eventWorld);
   const [locationEvents] = useTable(tables.myLocationEvents);
@@ -31,7 +34,10 @@ export const useGameData = () => {
     characters,
     locations,
     enemyTemplates,
-    combats,
+    enemySpawns,
+    combatEncounters,
+    combatParticipants,
+    combatEnemies,
     groups,
     worldEvents,
     locationEvents,

@@ -12,5 +12,5 @@ import {
 
 export default {
   characterId: __t.u64(),
-  enemyId: __t.u64(),
+  enemySpawnId: __t.u64(),
 };

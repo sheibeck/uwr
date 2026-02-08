@@ -1,4 +1,5 @@
 import { schema, table, t, SenderError } from 'spacetimedb/server';
+import { ScheduleAt } from 'spacetimedb';
 
 const Player = table(
   { name: 'player', public: true },
@@ -154,27 +155,119 @@ const EnemyTemplate = table(
     name: t.string(),
     level: t.u64(),
     maxHp: t.u64(),
+    baseDamage: t.u64(),
     xpReward: t.u64(),
   }
 );
 
-const Combat = table(
+const LocationEnemyTemplate = table(
   {
-    name: 'combat',
-    public: true,
-    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+    name: 'location_enemy_template',
+    indexes: [
+      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+    ],
   },
   {
     id: t.u64().primaryKey().autoInc(),
+    locationId: t.u64(),
+    enemyTemplateId: t.u64(),
+  }
+);
+
+const EnemySpawn = table(
+  {
+    name: 'enemy_spawn',
+    indexes: [
+      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { name: 'by_state', algorithm: 'btree', columns: ['state'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    locationId: t.u64(),
+    enemyTemplateId: t.u64(),
+    name: t.string(),
+    state: t.string(),
+    lockedCombatId: t.u64().optional(),
+  }
+);
+
+const CombatEncounter = table(
+  {
+    name: 'combat_encounter',
+    indexes: [
+      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { name: 'by_group', algorithm: 'btree', columns: ['groupId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    locationId: t.u64(),
+    groupId: t.u64().optional(),
+    leaderCharacterId: t.u64().optional(),
+    state: t.string(),
+    roundNumber: t.u64(),
+    roundEndsAt: t.timestamp(),
+    createdAt: t.timestamp(),
+  }
+);
+
+const CombatParticipant = table(
+  {
+    name: 'combat_participant',
+    indexes: [
+      { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
+      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    combatId: t.u64(),
     characterId: t.u64(),
-    enemyId: t.u64(),
-    enemyName: t.string(),
-    enemyLevel: t.u64(),
-    enemyHp: t.u64(),
-    enemyMaxHp: t.u64(),
     status: t.string(),
-    startedAt: t.timestamp(),
-    updatedAt: t.timestamp(),
+    selectedAction: t.string().optional(),
+  }
+);
+
+const CombatEnemy = table(
+  {
+    name: 'combat_enemy',
+    indexes: [{ name: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    combatId: t.u64(),
+    enemyTemplateId: t.u64(),
+    currentHp: t.u64(),
+    maxHp: t.u64(),
+    attackDamage: t.u64(),
+    aggroTargetCharacterId: t.u64().optional(),
+  }
+);
+
+const AggroEntry = table(
+  {
+    name: 'aggro_entry',
+    indexes: [{ name: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    combatId: t.u64(),
+    characterId: t.u64(),
+    value: t.u64(),
+  }
+);
+
+const CombatRoundTick = table(
+  {
+    name: 'combat_round_tick',
+    scheduled: 'resolve_round',
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    combatId: t.u64(),
+    roundNumber: t.u64(),
   }
 );
 
@@ -273,7 +366,13 @@ export const spacetimedb = schema(
   GroupMember,
   GroupInvite,
   EnemyTemplate,
-  Combat,
+  LocationEnemyTemplate,
+  EnemySpawn,
+  CombatEncounter,
+  CombatParticipant,
+  CombatEnemy,
+  AggroEntry,
+  CombatRoundTick,
   Command,
   EventWorld,
   EventLocation,
@@ -300,6 +399,14 @@ function requireCharacterOwnedBy(ctx: any, characterId: bigint) {
     throw new SenderError('Not your character');
   }
   return character;
+}
+
+function activeCombatIdForCharacter(ctx: any, characterId: bigint): bigint | null {
+  for (const participant of ctx.db.combatParticipant.by_character.filter(characterId)) {
+    const combat = ctx.db.combatEncounter.id.find(participant.combatId);
+    if (combat && combat.state === 'active') return combat.id;
+  }
+  return null;
 }
 
 function appendWorldEvent(ctx: any, kind: string, message: string) {
@@ -379,6 +486,92 @@ function findCharacterByName(ctx: any, name: string) {
     }
   }
   return found;
+}
+
+function scheduleRound(ctx: any, combatId: bigint, roundNumber: bigint) {
+  const nextAt = ctx.timestamp.microsSinceUnixEpoch + 10_000_000n;
+  ctx.db.combatRoundTick.insert({
+    scheduledId: 0n,
+    scheduledAt: ScheduleAt.time(nextAt),
+    combatId,
+    roundNumber,
+  });
+}
+
+function ensureLocationEnemyTemplates(ctx: any) {
+  for (const location of ctx.db.location.iter()) {
+    let hasAny = false;
+    for (const _row of ctx.db.locationEnemyTemplate.by_location.filter(location.id)) {
+      hasAny = true;
+      break;
+    }
+    if (hasAny) continue;
+    for (const template of ctx.db.enemyTemplate.iter()) {
+      ctx.db.locationEnemyTemplate.insert({
+        id: 0n,
+        locationId: location.id,
+        enemyTemplateId: template.id,
+      });
+    }
+  }
+}
+
+function spawnEnemy(ctx: any, locationId: bigint): typeof EnemySpawn.rowType {
+  const templates = [...ctx.db.locationEnemyTemplate.by_location.filter(locationId)];
+  if (templates.length === 0) throw new SenderError('No enemy templates for location');
+
+  let count = 0;
+  for (const _row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    count += 1;
+  }
+  const templateRef = templates[count % templates.length];
+  const template = ctx.db.enemyTemplate.id.find(templateRef.enemyTemplateId);
+  if (!template) throw new SenderError('Enemy template missing');
+
+  const spawn = ctx.db.enemySpawn.insert({
+    id: 0n,
+    locationId,
+    enemyTemplateId: template.id,
+    name: template.name,
+    state: 'available',
+    lockedCombatId: undefined,
+  });
+
+  ctx.db.enemySpawn.id.update({
+    ...spawn,
+    name: `${template.name} #${spawn.id}`,
+  });
+  return ctx.db.enemySpawn.id.find(spawn.id)!;
+}
+
+function ensureAvailableSpawn(ctx: any, locationId: bigint): typeof EnemySpawn.rowType {
+  for (const spawn of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    if (spawn.state === 'available') return spawn;
+  }
+  return spawnEnemy(ctx, locationId);
+}
+
+function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
+  const activeGroupKeys = new Set<string>();
+  for (const player of ctx.db.player.iter()) {
+    if (!player.activeCharacterId) continue;
+    const character = ctx.db.character.id.find(player.activeCharacterId);
+    if (!character || character.locationId !== locationId) continue;
+    if (character.groupId) {
+      activeGroupKeys.add(`g:${character.groupId.toString()}`);
+    } else {
+      activeGroupKeys.add(`solo:${character.id.toString()}`);
+    }
+  }
+  const needed = activeGroupKeys.size;
+  let count = 0;
+  for (const _row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    count += 1;
+  }
+  while (count < needed) {
+    spawnEnemy(ctx, locationId);
+    count += 1;
+  }
 }
 
 spacetimedb.view(
@@ -492,8 +685,36 @@ spacetimedb.init((ctx) => {
   }
 
   if (!tableHasRows(ctx.db.enemyTemplate.iter())) {
-    ctx.db.enemyTemplate.insert({ id: 0n, name: 'Bog Rat', level: 1n, maxHp: 18n, xpReward: 12n });
-    ctx.db.enemyTemplate.insert({ id: 0n, name: 'Ember Wisp', level: 2n, maxHp: 26n, xpReward: 20n });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Bog Rat',
+      level: 1n,
+      maxHp: 18n,
+      baseDamage: 4n,
+      xpReward: 12n,
+    });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Ember Wisp',
+      level: 2n,
+      maxHp: 26n,
+      baseDamage: 6n,
+      xpReward: 20n,
+    });
+  }
+
+  ensureLocationEnemyTemplates(ctx);
+
+  const desired = 3;
+  for (const location of ctx.db.location.iter()) {
+    let count = 0;
+    for (const _row of ctx.db.enemySpawn.by_location.filter(location.id)) {
+      count += 1;
+    }
+    while (count < desired) {
+      spawnEnemy(ctx, location.id);
+      count += 1;
+    }
   }
 });
 
@@ -779,6 +1000,7 @@ spacetimedb.reducer('set_active_character', { characterId: t.u64() }, (ctx, { ch
     `${character.name} steps into the area.`,
     character.id
   );
+  ensureSpawnsForLocation(ctx, character.locationId);
 });
 
 spacetimedb.reducer(
@@ -837,6 +1059,7 @@ spacetimedb.reducer('move_character', { characterId: t.u64(), locationId: t.u64(
     );
     appendLocationEvent(ctx, originLocationId, 'move', `${row.name} departs.`, row.id);
     appendLocationEvent(ctx, location.id, 'move', `${row.name} arrives.`, row.id);
+    ensureSpawnsForLocation(ctx, location.id);
   };
 
   if (character.groupId) {
@@ -941,39 +1164,111 @@ spacetimedb.reducer(
   }
 );
 
-spacetimedb.reducer('start_combat', { characterId: t.u64(), enemyId: t.u64() }, (ctx, args) => {
+spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64() }, (ctx, args) => {
   const character = requireCharacterOwnedBy(ctx, args.characterId);
-  const enemy = ctx.db.enemyTemplate.id.find(args.enemyId);
-  if (!enemy) throw new SenderError('Enemy not found');
+  const locationId = character.locationId;
 
-  for (const row of ctx.db.combat.by_character.filter(character.id)) {
-    if (row.status === 'active') throw new SenderError('Combat already active');
+  // Must be leader if in group
+  let groupId: bigint | null = character.groupId ?? null;
+  if (groupId) {
+    const group = ctx.db.group.id.find(groupId);
+    if (!group) throw new SenderError('Group not found');
+    if (group.leaderCharacterId !== character.id) {
+      throw new SenderError('Only the group leader can start combat');
+    }
   }
 
-  ctx.db.combat.insert({
+  const spawn = ctx.db.enemySpawn.id.find(args.enemySpawnId);
+  const spawnToUse =
+    spawn && spawn.locationId === locationId && spawn.state === 'available'
+      ? spawn
+      : ensureAvailableSpawn(ctx, locationId);
+
+  const template = ctx.db.enemyTemplate.id.find(spawnToUse.enemyTemplateId);
+  if (!template) throw new SenderError('Enemy template missing');
+
+  // Determine participants
+  const participants: typeof Character.rowType[] = [];
+  if (groupId) {
+    for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+      const memberChar = ctx.db.character.id.find(member.characterId);
+      if (memberChar && memberChar.locationId === locationId) {
+        participants.push(memberChar);
+      }
+    }
+  } else {
+    participants.push(character);
+  }
+  if (participants.length === 0) throw new SenderError('No participants available');
+  for (const p of participants) {
+    if (activeCombatIdForCharacter(ctx, p.id)) {
+      throw new SenderError(`${p.name} is already in combat`);
+    }
+  }
+
+  // Scale enemy
+  let totalLevel = 0n;
+  for (const p of participants) totalLevel += p.level;
+  const avgLevel = totalLevel / BigInt(participants.length);
+  const maxHp =
+    template.maxHp + BigInt(participants.length - 1) * 12n + avgLevel * 6n;
+  const attackDamage =
+    template.baseDamage + BigInt(participants.length - 1) * 3n + avgLevel * 2n;
+
+  const combat = ctx.db.combatEncounter.insert({
     id: 0n,
-    characterId: character.id,
-    enemyId: enemy.id,
-    enemyName: enemy.name,
-    enemyLevel: enemy.level,
-    enemyHp: enemy.maxHp,
-    enemyMaxHp: enemy.maxHp,
-    status: 'active',
-    startedAt: ctx.timestamp,
-    updatedAt: ctx.timestamp,
+    locationId,
+    groupId: groupId ?? undefined,
+    leaderCharacterId: groupId ? character.id : undefined,
+    state: 'active',
+    roundNumber: 1n,
+    roundEndsAt: ctx.timestamp,
+    createdAt: ctx.timestamp,
   });
 
-  appendPrivateEvent(ctx, character.id, requirePlayerUserId(ctx), 'combat', `A ${enemy.name} approaches!`);
+  ctx.db.enemySpawn.id.update({
+    ...spawnToUse,
+    state: 'engaged',
+    lockedCombatId: combat.id,
+  });
 
-  if (character.groupId) {
-    appendGroupEvent(
+  ctx.db.combatEnemy.insert({
+    id: 0n,
+    combatId: combat.id,
+    enemyTemplateId: template.id,
+    currentHp: maxHp,
+    maxHp,
+    attackDamage,
+    aggroTargetCharacterId: undefined,
+  });
+
+  for (const p of participants) {
+    ctx.db.combatParticipant.insert({
+      id: 0n,
+      combatId: combat.id,
+      characterId: p.id,
+      status: 'active',
+      selectedAction: undefined,
+    });
+    ctx.db.aggroEntry.insert({
+      id: 0n,
+      combatId: combat.id,
+      characterId: p.id,
+      value: 0n,
+    });
+  }
+
+  for (const p of participants) {
+    appendPrivateEvent(
       ctx,
-      character.groupId,
-      character.id,
+      p.id,
+      p.ownerUserId,
       'combat',
-      `${character.name} engages ${enemy.name}.`
+      `Combat begins against ${spawnToUse.name}.`
     );
   }
+
+  scheduleRound(ctx, combat.id, 1n);
 });
 
 spacetimedb.reducer('create_group', { characterId: t.u64(), name: t.string() }, (ctx, args) => {
@@ -1303,84 +1598,177 @@ spacetimedb.reducer(
     }
   }
 );
-spacetimedb.reducer('attack', { combatId: t.u64(), damage: t.u64() }, (ctx, args) => {
-  const combat = ctx.db.combat.id.find(args.combatId);
-  if (!combat) throw new SenderError('Combat not found');
-  const character = requireCharacterOwnedBy(ctx, combat.characterId);
+spacetimedb.reducer(
+  'choose_action',
+  { characterId: t.u64(), combatId: t.u64(), action: t.string() },
+  (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const combat = ctx.db.combatEncounter.id.find(args.combatId);
+    if (!combat || combat.state !== 'active') throw new SenderError('Combat not active');
 
-  if (combat.status !== 'active') throw new SenderError('Combat is not active');
-  const newHp = combat.enemyHp > args.damage ? combat.enemyHp - args.damage : 0n;
-  ctx.db.combat.id.update({ ...combat, enemyHp: newHp, updatedAt: ctx.timestamp });
-
-  appendPrivateEvent(ctx, character.id, requirePlayerUserId(ctx), 'combat', `You strike for ${args.damage} damage.`);
-
-  if (newHp === 0n) {
-    const enemy = ctx.db.enemyTemplate.id.find(combat.enemyId);
-    const reward = enemy ? enemy.xpReward : 0n;
-
-    const totalXp = character.xp + reward;
-    const nextLevelXp = character.level * 100n;
-    let newLevel = character.level;
-    let newMaxHp = character.maxHp;
-    let newMaxMana = character.maxMana;
-    let newHp = character.hp;
-    let newMana = character.mana;
-    if (totalXp >= nextLevelXp) {
-      newLevel = character.level + 1n;
-      newMaxHp = character.maxHp + 5n;
-      newMaxMana = character.maxMana + 3n;
-      newHp = newMaxHp;
-      newMana = newMaxMana;
-      appendPrivateEvent(ctx, character.id, requirePlayerUserId(ctx), 'system', `You reached level ${newLevel}!`);
+    for (const participant of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
+      if (participant.characterId !== character.id) continue;
+      if (participant.status !== 'active') return;
+      const action = args.action.toLowerCase();
+      if (action === 'flee') {
+        ctx.db.combatParticipant.id.update({
+          ...participant,
+          status: 'fled',
+          selectedAction: 'flee',
+        });
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'combat',
+          'You attempt to flee.'
+        );
+        return;
+      }
+      if (action === 'attack' || action === 'skip') {
+        ctx.db.combatParticipant.id.update({
+          ...participant,
+          selectedAction: action,
+        });
+        return;
+      }
     }
+  }
+);
 
-    ctx.db.character.id.update({
-      ...character,
-      xp: totalXp,
-      level: newLevel,
-      maxHp: newMaxHp,
-      maxMana: newMaxMana,
-      hp: newHp,
-      mana: newMana,
-    });
+spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { arg }) => {
+  const combat = ctx.db.combatEncounter.id.find(arg.combatId);
+  if (!combat || combat.state !== 'active') return;
+  if (combat.roundNumber !== arg.roundNumber) return;
 
-    ctx.db.combat.id.update({ ...combat, status: 'won', enemyHp: 0n, updatedAt: ctx.timestamp });
-    appendPrivateEvent(
-      ctx,
-      character.id,
-      requirePlayerUserId(ctx),
-      'combat',
-      `You defeated ${combat.enemyName}! +${reward} XP.`
-    );
+  const enemy = [...ctx.db.combatEnemy.by_combat.filter(combat.id)][0];
+  if (!enemy) return;
 
-    if (character.groupId) {
-      appendGroupEvent(
+  const participants = [...ctx.db.combatParticipant.by_combat.filter(combat.id)];
+  const activeParticipants = participants.filter((p) => p.status === 'active');
+
+  for (const participant of activeParticipants) {
+    const action = participant.selectedAction ?? 'skip';
+    const character = ctx.db.character.id.find(participant.characterId);
+    if (!character) continue;
+
+    if (action === 'attack') {
+      const damage = 5n + character.level;
+      const nextHp = enemy.currentHp > damage ? enemy.currentHp - damage : 0n;
+      ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
+
+      for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+        if (entry.characterId === character.id) {
+          ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + damage });
+          break;
+        }
+      }
+      appendPrivateEvent(
         ctx,
-        character.groupId,
         character.id,
+        character.ownerUserId,
         'combat',
-        `${character.name} defeated ${combat.enemyName}.`
+        `You strike for ${damage} damage.`
+      );
+    } else if (action === 'skip') {
+      for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+        if (entry.characterId === character.id) {
+          const reduced = (entry.value * 7n) / 10n;
+          ctx.db.aggroEntry.id.update({ ...entry, value: reduced });
+          break;
+        }
+      }
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'combat',
+        'You hold your action.'
       );
     }
+
+    ctx.db.combatParticipant.id.update({ ...participant, selectedAction: undefined });
   }
-});
 
-spacetimedb.reducer('end_combat', { combatId: t.u64(), reason: t.string() }, (ctx, args) => {
-  const combat = ctx.db.combat.id.find(args.combatId);
-  if (!combat) throw new SenderError('Combat not found');
-  const character = requireCharacterOwnedBy(ctx, combat.characterId);
-
-  if (combat.status !== 'active') return;
-  ctx.db.combat.id.update({ ...combat, status: 'ended', updatedAt: ctx.timestamp });
-  appendPrivateEvent(ctx, character.id, requirePlayerUserId(ctx), 'combat', `Combat ended: ${args.reason}`);
-
-  if (character.groupId) {
-    appendGroupEvent(
-      ctx,
-      character.groupId,
-      character.id,
-      'combat',
-      `${character.name} ended combat (${args.reason}).`
+  const updatedEnemy = ctx.db.combatEnemy.id.find(enemy.id)!;
+  if (updatedEnemy.currentHp === 0n) {
+    const spawn = [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
+      (s) => s.lockedCombatId === combat.id
     );
+    if (spawn) {
+      ctx.db.enemySpawn.id.delete(spawn.id);
+      spawnEnemy(ctx, spawn.locationId);
+    }
+    for (const p of participants) {
+      const character = ctx.db.character.id.find(p.characterId);
+      if (character && p.status === 'dead') {
+        ctx.db.character.id.update({ ...character, hp: character.maxHp });
+      }
+    }
+    ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
+    return;
   }
+
+  // Enemy attacks highest aggro
+  const activeIds = new Set(activeParticipants.map((p) => p.characterId));
+  let topAggro: typeof AggroEntry.rowType | null = null;
+  for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+    if (!activeIds.has(entry.characterId)) continue;
+    if (!topAggro || entry.value > topAggro.value) topAggro = entry;
+  }
+  if (topAggro) {
+    const targetCharacter = ctx.db.character.id.find(topAggro.characterId);
+    if (targetCharacter && targetCharacter.hp > 0n) {
+      const damage = updatedEnemy.attackDamage;
+      const nextHp =
+        targetCharacter.hp > damage ? targetCharacter.hp - damage : 0n;
+      ctx.db.character.id.update({ ...targetCharacter, hp: nextHp });
+      if (nextHp === 0n) {
+        for (const p of participants) {
+          if (p.characterId === targetCharacter.id) {
+            ctx.db.combatParticipant.id.update({ ...p, status: 'dead' });
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  let stillActive = false;
+  for (const p of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
+    if (p.status === 'active') {
+      stillActive = true;
+      break;
+    }
+  }
+  if (!stillActive) {
+    const spawn = [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
+      (s) => s.lockedCombatId === combat.id
+    );
+    if (spawn) {
+      ctx.db.enemySpawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
+    }
+    for (const p of participants) {
+      const character = ctx.db.character.id.find(p.characterId);
+      if (character && p.status === 'dead') {
+        ctx.db.character.id.update({ ...character, hp: character.maxHp });
+      }
+    }
+    ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
+    return;
+  }
+
+  const nextRound = combat.roundNumber + 1n;
+  ctx.db.combatEncounter.id.update({
+    ...combat,
+    roundNumber: nextRound,
+    roundEndsAt: ctx.timestamp,
+  });
+  scheduleRound(ctx, combat.id, nextRound);
 });
+
+
+
+
+
+

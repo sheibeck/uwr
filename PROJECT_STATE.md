@@ -39,6 +39,14 @@ Last updated: 2026-02-08
   - Mutual friends + friend requests.
   - Friends panel shows incoming and outgoing requests.
   - `/friend` sends request; duplicates show message.
+- **Combat (MVP):**
+  - Location-based enemy spawns; one enemy per group/solo.
+  - Leader-only engages for groups; solo engages for self.
+  - Round-based actions: `attack`, `skip`, `flee`.
+  - 10s round timer; default action is `skip`.
+  - Aggro from damage only; `skip` reduces aggro.
+  - Dead characters are removed from combat and respawn when combat ends.
+  - Enemy respawns after death; new spawns created as new groups/solos arrive.
 - **UI:**
   - Main log window, command input with `/` autocomplete and keyboard navigation.
   - Action bar with panels (Character, Inventory, Friends, Group, Stats, Travel, Combat).
@@ -50,6 +58,9 @@ Last updated: 2026-02-08
 - Character: `ownerUserId`, `groupId`, stats, location.
 - Group/GroupMember/GroupInvite.
 - Friend/FriendRequest.
+- Combat:
+  - `enemy_template`, `location_enemy_template`, `enemy_spawn`.
+  - `combat_encounter`, `combat_participant`, `combat_enemy`, `aggro_entry`, `combat_round_tick`.
 - Events: `event_world`, `event_location`, `event_private`, `event_group`.
 - Views: `my_player`, `my_private_events`, `my_group_events`, `my_location_events`,
   `my_friend_requests`, `my_friends`, `my_group_invites`, `my_group_members`.

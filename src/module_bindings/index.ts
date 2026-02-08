@@ -86,20 +86,30 @@ import AcceptGroupInviteReducer from "./accept_group_invite_reducer";
 export { AcceptGroupInviteReducer };
 import RejectGroupInviteReducer from "./reject_group_invite_reducer";
 export { RejectGroupInviteReducer };
-import AttackReducer from "./attack_reducer";
-export { AttackReducer };
-import EndCombatReducer from "./end_combat_reducer";
-export { EndCombatReducer };
+import ChooseActionReducer from "./choose_action_reducer";
+export { ChooseActionReducer };
+import ResolveRoundReducer from "./resolve_round_reducer";
+export { ResolveRoundReducer };
 
 // Import and reexport all procedure arg types
 
 // Import and reexport all table handle types
+import AggroEntryRow from "./aggro_entry_table";
+export { AggroEntryRow };
 import CharacterRow from "./character_table";
 export { CharacterRow };
-import CombatRow from "./combat_table";
-export { CombatRow };
+import CombatEncounterRow from "./combat_encounter_table";
+export { CombatEncounterRow };
+import CombatEnemyRow from "./combat_enemy_table";
+export { CombatEnemyRow };
+import CombatParticipantRow from "./combat_participant_table";
+export { CombatParticipantRow };
+import CombatRoundTickRow from "./combat_round_tick_table";
+export { CombatRoundTickRow };
 import CommandRow from "./command_table";
 export { CommandRow };
+import EnemySpawnRow from "./enemy_spawn_table";
+export { EnemySpawnRow };
 import EnemyTemplateRow from "./enemy_template_table";
 export { EnemyTemplateRow };
 import EventGroupRow from "./event_group_table";
@@ -122,6 +132,8 @@ import GroupMemberRow from "./group_member_table";
 export { GroupMemberRow };
 import LocationRow from "./location_table";
 export { LocationRow };
+import LocationEnemyTemplateRow from "./location_enemy_template_table";
+export { LocationEnemyTemplateRow };
 import MyFriendRequestsRow from "./my_friend_requests_table";
 export { MyFriendRequestsRow };
 import MyFriendsRow from "./my_friends_table";
@@ -150,20 +162,28 @@ import AcceptFriendRequest from "./accept_friend_request_type";
 export { AcceptFriendRequest };
 import AcceptGroupInvite from "./accept_group_invite_type";
 export { AcceptGroupInvite };
-import Attack from "./attack_type";
-export { Attack };
+import AggroEntry from "./aggro_entry_type";
+export { AggroEntry };
 import Character from "./character_type";
 export { Character };
-import Combat from "./combat_type";
-export { Combat };
+import ChooseAction from "./choose_action_type";
+export { ChooseAction };
+import CombatEncounter from "./combat_encounter_type";
+export { CombatEncounter };
+import CombatEnemy from "./combat_enemy_type";
+export { CombatEnemy };
+import CombatParticipant from "./combat_participant_type";
+export { CombatParticipant };
+import CombatRoundTick from "./combat_round_tick_type";
+export { CombatRoundTick };
 import Command from "./command_type";
 export { Command };
 import CreateCharacter from "./create_character_type";
 export { CreateCharacter };
 import CreateGroup from "./create_group_type";
 export { CreateGroup };
-import EndCombat from "./end_combat_type";
-export { EndCombat };
+import EnemySpawn from "./enemy_spawn_type";
+export { EnemySpawn };
 import EnemyTemplate from "./enemy_template_type";
 export { EnemyTemplate };
 import EventGroup from "./event_group_type";
@@ -196,6 +216,8 @@ import LeaveGroup from "./leave_group_type";
 export { LeaveGroup };
 import Location from "./location_type";
 export { Location };
+import LocationEnemyTemplate from "./location_enemy_template_type";
+export { LocationEnemyTemplate };
 import LoginEmail from "./login_email_type";
 export { LoginEmail };
 import Logout from "./logout_type";
@@ -232,6 +254,8 @@ import RejectGroupInvite from "./reject_group_invite_type";
 export { RejectGroupInvite };
 import RemoveFriend from "./remove_friend_type";
 export { RemoveFriend };
+import ResolveRound from "./resolve_round_type";
+export { ResolveRound };
 import Say from "./say_type";
 export { Say };
 import SendFriendRequest from "./send_friend_request_type";
@@ -258,6 +282,20 @@ export { WorldState };
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema(
   __table({
+    name: 'aggro_entry',
+    indexes: [
+      { name: 'by_combat', algorithm: 'btree', columns: [
+        'combatId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'aggro_entry_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AggroEntryRow),
+  __table({
     name: 'character',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -275,19 +313,64 @@ const tablesSchema = __schema(
     ],
   }, CharacterRow),
   __table({
-    name: 'combat',
+    name: 'combat_encounter',
     indexes: [
-      { name: 'by_character', algorithm: 'btree', columns: [
-        'characterId',
+      { name: 'by_group', algorithm: 'btree', columns: [
+        'groupId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_location', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_encounter_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CombatEncounterRow),
+  __table({
+    name: 'combat_enemy',
+    indexes: [
+      { name: 'by_combat', algorithm: 'btree', columns: [
+        'combatId',
       ] },
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
     ],
     constraints: [
-      { name: 'combat_id_key', constraint: 'unique', columns: ['id'] },
+      { name: 'combat_enemy_id_key', constraint: 'unique', columns: ['id'] },
     ],
-  }, CombatRow),
+  }, CombatEnemyRow),
+  __table({
+    name: 'combat_participant',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'by_combat', algorithm: 'btree', columns: [
+        'combatId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_participant_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CombatParticipantRow),
+  __table({
+    name: 'combat_round_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_round_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, CombatRoundTickRow),
   __table({
     name: 'command',
     indexes: [
@@ -305,6 +388,23 @@ const tablesSchema = __schema(
       { name: 'command_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CommandRow),
+  __table({
+    name: 'enemy_spawn',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_location', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+      { name: 'by_state', algorithm: 'btree', columns: [
+        'state',
+      ] },
+    ],
+    constraints: [
+      { name: 'enemy_spawn_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, EnemySpawnRow),
   __table({
     name: 'enemy_template',
     indexes: [
@@ -463,6 +563,20 @@ const tablesSchema = __schema(
     ],
   }, LocationRow),
   __table({
+    name: 'location_enemy_template',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_location', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'location_enemy_template_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, LocationEnemyTemplateRow),
+  __table({
     name: 'player',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -582,8 +696,8 @@ const reducersSchema = __reducers(
   __reducerSchema("invite_to_group", InviteToGroupReducer),
   __reducerSchema("accept_group_invite", AcceptGroupInviteReducer),
   __reducerSchema("reject_group_invite", RejectGroupInviteReducer),
-  __reducerSchema("attack", AttackReducer),
-  __reducerSchema("end_combat", EndCombatReducer),
+  __reducerSchema("choose_action", ChooseActionReducer),
+  __reducerSchema("resolve_round", ResolveRoundReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

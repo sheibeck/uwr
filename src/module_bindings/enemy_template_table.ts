@@ -15,5 +15,6 @@ export default __t.row({
   name: __t.string(),
   level: __t.u64(),
   maxHp: __t.u64(),
+  baseDamage: __t.u64(),
   xpReward: __t.u64(),
 });

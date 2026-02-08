@@ -7,41 +7,48 @@
     <div v-else>
       <div v-if="activeCombat">
         <div :style="styles.subtle">
-          Fighting {{ activeCombat.enemyName }} (Lv {{ activeCombat.enemyLevel }})
+          Fighting {{ activeEnemyName }} (Lv {{ activeEnemyLevel }})
         </div>
-        <div :style="styles.subtle">
-          Enemy HP: {{ activeCombat.enemyHp }} / {{ activeCombat.enemyMaxHp }}
+        <div v-if="activeEnemy" :style="styles.subtle">
+          Enemy HP: {{ activeEnemy.currentHp }} / {{ activeEnemy.maxHp }}
         </div>
-        <form @submit.prevent="$emit('attack')" :style="styles.panelFormInline">
-          <input
-            type="number"
-            min="1"
-            :value="attackDamage"
-            :disabled="!connActive"
-            :style="styles.smallInput"
-            @input="onDamageInput"
-          />
-          <button type="submit" :disabled="!connActive" :style="styles.primaryButton">
+        <div :style="styles.panelSectionTitle">Combatants</div>
+        <ul :style="styles.list">
+          <li v-for="member in combatRoster" :key="member.id.toString()">
+            <strong>{{ member.name }}</strong>
+            <span :style="styles.subtle">
+              (Lv {{ member.level }}) · HP {{ member.hp }} / {{ member.maxHp }} ·
+              {{ formatStatus(member.status) }}
+              <span v-if="member.isYou">(You)</span>
+            </span>
+          </li>
+        </ul>
+        <div :style="styles.panelFormInline">
+          <button type="button" :disabled="!connActive" :style="styles.primaryButton" @click="$emit('attack')">
             Attack
           </button>
-          <button
-            type="button"
-            :disabled="!connActive"
-            @click="$emit('end')"
-            :style="styles.ghostButton"
-          >
+          <button type="button" :disabled="!connActive" :style="styles.ghostButton" @click="$emit('skip')">
+            Skip
+          </button>
+          <button type="button" :disabled="!connActive" :style="styles.ghostButton" @click="$emit('flee')">
             Flee
           </button>
-        </form>
+        </div>
       </div>
       <div v-else>
         <div :style="styles.subtle">Choose an enemy to engage.</div>
+        <div v-if="!canEngage" :style="styles.subtle">
+          Only the group leader can engage enemies.
+        </div>
+        <div v-if="enemySpawns.length === 0" :style="styles.subtle">
+          No enemies are available right now.
+        </div>
         <div :style="styles.buttonWrap">
           <button
-            v-for="enemy in enemyTemplates"
+            v-for="enemy in enemySpawns"
             :key="enemy.id.toString()"
             @click="$emit('start', enemy.id)"
-            :disabled="!connActive"
+            :disabled="!connActive || !canEngage"
             :style="styles.ghostButton"
           >
             {{ enemy.name }} (Lv {{ enemy.level }})
@@ -53,26 +60,59 @@
 </template>
 
 <script setup lang="ts">
-import type { CharacterRow, CombatRow, EnemyTemplateRow } from '../module_bindings';
+import type {
+  CharacterRow,
+  CombatEncounterRow,
+  CombatEnemyRow,
+} from '../module_bindings';
 
-const props = defineProps<{
+type EnemySummary = {
+  id: bigint;
+  name: string;
+  level: bigint;
+};
+
+type CombatRosterEntry = {
+  id: bigint;
+  name: string;
+  level: bigint;
+  hp: bigint;
+  maxHp: bigint;
+  status: string;
+  isYou: boolean;
+};
+
+defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
   selectedCharacter: CharacterRow | null;
-  activeCombat: CombatRow | null;
-  enemyTemplates: EnemyTemplateRow[];
-  attackDamage: number;
+  activeCombat: CombatEncounterRow | null;
+  activeEnemy: CombatEnemyRow | null;
+  activeEnemyName: string;
+  activeEnemyLevel: bigint;
+  activeEnemySpawn: { id: bigint } | null;
+  combatRoster: CombatRosterEntry[];
+  enemySpawns: EnemySummary[];
+  canEngage: boolean;
 }>();
 
-const emit = defineEmits<{
+defineEmits<{
   (e: 'start', enemyId: bigint): void;
   (e: 'attack'): void;
-  (e: 'end'): void;
-  (e: 'update:attackDamage', value: number): void;
+  (e: 'skip'): void;
+  (e: 'flee'): void;
 }>();
 
-const onDamageInput = (event: Event) => {
-  const value = Number((event.target as HTMLInputElement).value);
-  emit('update:attackDamage', value);
+const formatStatus = (status: string) => {
+  switch (status) {
+    case 'active':
+      return 'Active';
+    case 'fled':
+      return 'Fled';
+    case 'dead':
+      return 'Dead';
+    default:
+      return status;
+  }
 };
 </script>
