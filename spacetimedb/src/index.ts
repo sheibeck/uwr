@@ -1075,7 +1075,31 @@ spacetimedb.reducer(
     const target = findCharacterByName(ctx, targetName);
     if (!target) throw new SenderError('Target not found');
     if (target.id === inviter.id) throw new SenderError('Cannot invite yourself');
-    if (target.groupId) throw new SenderError('Target already in a group');
+    if (inviter.groupId) {
+      const group = ctx.db.group.id.find(inviter.groupId);
+      if (!group) throw new SenderError('Group not found');
+      if (group.leaderCharacterId !== inviter.id) {
+        appendPrivateEvent(
+          ctx,
+          inviter.id,
+          inviter.ownerUserId,
+          'group',
+          'Only the group leader can invite new members.'
+        );
+        return;
+      }
+    }
+
+    if (target.groupId) {
+      appendPrivateEvent(
+        ctx,
+        inviter.id,
+        inviter.ownerUserId,
+        'group',
+        `${target.name} is already in a group.`
+      );
+      return;
+    }
 
     let groupId = inviter.groupId;
     if (!groupId) {
@@ -1100,9 +1124,14 @@ spacetimedb.reducer(
     }
 
     for (const invite of ctx.db.groupInvite.by_to_character.filter(target.id)) {
-      if (invite.groupId === groupId) {
-        throw new SenderError('Invite already pending');
-      }
+      appendPrivateEvent(
+        ctx,
+        inviter.id,
+        inviter.ownerUserId,
+        'group',
+        `${target.name} already has a pending invite.`
+      );
+      return;
     }
 
     ctx.db.groupInvite.insert({
