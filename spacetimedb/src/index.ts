@@ -1,5 +1,5 @@
 import { schema, table, t, SenderError } from 'spacetimedb/server';
-import { ScheduleAt } from 'spacetimedb';
+import { ScheduleAt, Timestamp } from 'spacetimedb';
 
 const Player = table(
   { name: 'player', public: true },
@@ -500,6 +500,13 @@ function scheduleRound(ctx: any, combatId: bigint, roundNumber: bigint) {
     combatId,
     roundNumber,
   });
+  const combat = ctx.db.combatEncounter.id.find(combatId);
+  if (combat) {
+    ctx.db.combatEncounter.id.update({
+      ...combat,
+      roundEndsAt: new Timestamp(nextAt),
+    });
+  }
 }
 
 function ensureLocationEnemyTemplates(ctx: any) {
@@ -1226,7 +1233,7 @@ spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64(
     leaderCharacterId: groupId ? character.id : undefined,
     state: 'active',
     roundNumber: 1n,
-    roundEndsAt: ctx.timestamp,
+    roundEndsAt: new Timestamp(ctx.timestamp.microsSinceUnixEpoch + 10_000_000n),
     createdAt: ctx.timestamp,
   });
 
@@ -1766,7 +1773,6 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
   ctx.db.combatEncounter.id.update({
     ...combat,
     roundNumber: nextRound,
-    roundEndsAt: ctx.timestamp,
   });
   scheduleRound(ctx, combat.id, nextRound);
 });

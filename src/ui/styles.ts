@@ -203,6 +203,11 @@ export const styles = {
     letterSpacing: '0.1em',
     color: 'rgba(230,232,239,0.7)',
   },
+  combatTimer: {
+    fontFamily: '"Source Code Pro", "Consolas", monospace',
+    fontSize: '0.85rem',
+    color: 'rgba(230,232,239,0.75)',
+  },
   panelForm: {
     display: 'grid',
     gap: '0.5rem',
@@ -263,6 +268,15 @@ export const styles = {
     border: 'none',
     color: '#0b0f16',
     padding: '0.5rem 0.9rem',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 600,
+  },
+  actionButtonSelected: {
+    background: '#4c7df0',
+    border: '1px solid #4c7df0',
+    color: '#0b0f16',
+    padding: '0.4rem 0.8rem',
     borderRadius: '8px',
     cursor: 'pointer',
     fontWeight: 600,

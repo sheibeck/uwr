@@ -1,4 +1,4 @@
-import { computed, type Ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch, type Ref } from 'vue';
 import {
   reducers,
   type CharacterRow,
@@ -37,6 +37,31 @@ type UseCombatArgs = {
   characters: Ref<CharacterRow[]>;
 };
 
+const timestampToMicros = (timestamp: any) => {
+  if (!timestamp) return 0;
+  if (typeof timestamp === 'bigint') return Number(timestamp);
+  if (typeof timestamp === 'number') return timestamp;
+  if (typeof timestamp === 'string') return Date.parse(timestamp) * 1000;
+  if (typeof timestamp === 'object') {
+    if ('__timestamp_micros_since_unix_epoch__' in timestamp) {
+      return Number(
+        (timestamp as { __timestamp_micros_since_unix_epoch__: bigint })
+          .__timestamp_micros_since_unix_epoch__
+      );
+    }
+    if ('microsSinceUnixEpoch' in timestamp) {
+      return Number((timestamp as { microsSinceUnixEpoch: bigint }).microsSinceUnixEpoch);
+    }
+    if ('millisSinceUnixEpoch' in timestamp) {
+      return Number((timestamp as { millisSinceUnixEpoch: bigint }).millisSinceUnixEpoch) * 1000;
+    }
+    if ('secsSinceUnixEpoch' in timestamp) {
+      return Number((timestamp as { secsSinceUnixEpoch: bigint }).secsSinceUnixEpoch) * 1_000_000;
+    }
+  }
+  return 0;
+};
+
 export const useCombat = ({
   connActive,
   selectedCharacter,
@@ -49,29 +74,72 @@ export const useCombat = ({
 }: UseCombatArgs) => {
   const startCombatReducer = useReducer(reducers.startCombat);
   const chooseActionReducer = useReducer(reducers.chooseAction);
+  const selectedAction = ref<'attack' | 'skip' | 'flee' | null>(null);
+  const nowMicros = ref(Date.now() * 1000);
+  let timer: number | undefined;
 
   const activeCombat = computed(() => {
     if (!selectedCharacter.value) return null;
+    const selectedId = selectedCharacter.value.id.toString();
     const participant = combatParticipants.value.find(
-      (row) => row.characterId === selectedCharacter.value?.id
+      (row) => row.characterId.toString() === selectedId
     );
     if (!participant) return null;
-    const combat = combatEncounters.value.find((row) => row.id === participant.combatId);
+    const combat = combatEncounters.value.find(
+      (row) => row.id.toString() === participant.combatId.toString()
+    );
     if (!combat || combat.state !== 'active') return null;
     return combat;
+  });
+
+  watch(
+    () => activeCombat.value?.roundNumber,
+    (next, prev) => {
+      if (next !== prev) {
+        selectedAction.value = null;
+      }
+    }
+  );
+
+  watch(
+    () => activeCombat.value,
+    (combat) => {
+      if (!combat) {
+        selectedAction.value = null;
+        if (timer) {
+          clearInterval(timer);
+          timer = undefined;
+        }
+        return;
+      }
+      if (!timer) {
+        timer = window.setInterval(() => {
+          nowMicros.value = Date.now() * 1000;
+        }, 250);
+      }
+    },
+    { immediate: true }
+  );
+
+  onBeforeUnmount(() => {
+    if (timer) clearInterval(timer);
   });
 
   const activeEnemy = computed(() => {
     if (!activeCombat.value) return null;
     return (
-      combatEnemies.value.find((row) => row.combatId === activeCombat.value?.id) ?? null
+      combatEnemies.value.find(
+        (row) => row.combatId.toString() === activeCombat.value?.id.toString()
+      ) ?? null
     );
   });
 
   const activeEnemySpawn = computed(() => {
     if (!activeCombat.value) return null;
     return (
-      enemySpawns.value.find((row) => row.lockedCombatId === activeCombat.value?.id) ?? null
+      enemySpawns.value.find(
+        (row) => row.lockedCombatId?.toString() === activeCombat.value?.id.toString()
+      ) ?? null
     );
   });
 
@@ -90,16 +158,24 @@ export const useCombat = ({
 
   const activeEnemyLevel = computed(() => activeEnemyTemplate.value?.level ?? 1n);
 
+  const roundEndsInSeconds = computed(() => {
+    if (!activeCombat.value) return 0;
+    const targetMicros = timestampToMicros(activeCombat.value.roundEndsAt);
+    const remaining = Math.ceil((targetMicros - nowMicros.value) / 1_000_000);
+    return remaining > 0 ? remaining : 0;
+  });
+
   const availableEnemies = computed<EnemySummary[]>(() => {
     if (!selectedCharacter.value) return [];
     return enemySpawns.value
       .filter(
         (row) =>
-          row.locationId === selectedCharacter.value?.locationId && row.state === 'available'
+          row.locationId.toString() === selectedCharacter.value?.locationId.toString() &&
+          row.state === 'available'
       )
       .map((spawn) => {
         const template = enemyTemplates.value.find(
-          (row) => row.id === spawn.enemyTemplateId
+          (row) => row.id.toString() === spawn.enemyTemplateId.toString()
         );
         return {
           id: spawn.id,
@@ -112,10 +188,12 @@ export const useCombat = ({
   const combatRoster = computed<CombatRosterEntry[]>(() => {
     if (!activeCombat.value) return [];
     const roster = combatParticipants.value.filter(
-      (row) => row.combatId === activeCombat.value?.id
+      (row) => row.combatId.toString() === activeCombat.value?.id.toString()
     );
     return roster.map((participant) => {
-      const character = characters.value.find((row) => row.id === participant.characterId);
+      const character = characters.value.find(
+        (row) => row.id.toString() === participant.characterId.toString()
+      );
       return {
         id: participant.characterId,
         name: character?.name ?? 'Unknown',
@@ -140,7 +218,24 @@ export const useCombat = ({
       combatId: activeCombat.value.id,
       action,
     });
+    selectedAction.value = action;
   };
+
+  const debugInfo = computed(() => {
+    const selectedId = selectedCharacter.value?.id.toString() ?? 'none';
+    const participant = combatParticipants.value.find(
+      (row) => row.characterId.toString() === selectedId
+    );
+    const participantCombatId = participant?.combatId?.toString() ?? 'none';
+    return {
+      selectedId,
+      participantCombatId,
+      participants: combatParticipants.value.length,
+      encounters: combatEncounters.value.length,
+      enemies: combatEnemies.value.length,
+      spawns: enemySpawns.value.length,
+    };
+  });
 
   const attack = () => chooseAction('attack');
   const flee = () => chooseAction('flee');
@@ -154,6 +249,9 @@ export const useCombat = ({
     activeEnemySpawn,
     availableEnemies,
     combatRoster,
+    roundEndsInSeconds,
+    selectedAction,
+    debugInfo,
     startCombat,
     attack,
     flee,

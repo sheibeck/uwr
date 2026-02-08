@@ -12,6 +12,10 @@
         <div v-if="activeEnemy" :style="styles.subtle">
           Enemy HP: {{ activeEnemy.currentHp }} / {{ activeEnemy.maxHp }}
         </div>
+        <div :style="styles.combatTimer">Round ends in {{ roundEndsInSeconds }}s</div>
+        <div :style="styles.subtle">
+          {{ selectedAction ? `Action selected: ${selectedAction}` : 'Awaiting your action.' }}
+        </div>
         <div :style="styles.panelSectionTitle">Combatants</div>
         <ul :style="styles.list">
           <li v-for="member in combatRoster" :key="member.id.toString()">
@@ -24,19 +28,37 @@
           </li>
         </ul>
         <div :style="styles.panelFormInline">
-          <button type="button" :disabled="!connActive" :style="styles.primaryButton" @click="$emit('attack')">
+          <button
+            type="button"
+            :disabled="!connActive"
+            :style="selectedAction === 'attack' ? styles.actionButtonSelected : styles.ghostButton"
+            @click="$emit('attack')"
+          >
             Attack
           </button>
-          <button type="button" :disabled="!connActive" :style="styles.ghostButton" @click="$emit('skip')">
+          <button
+            type="button"
+            :disabled="!connActive"
+            :style="selectedAction === 'skip' ? styles.actionButtonSelected : styles.ghostButton"
+            @click="$emit('skip')"
+          >
             Skip
           </button>
-          <button type="button" :disabled="!connActive" :style="styles.ghostButton" @click="$emit('flee')">
+          <button
+            type="button"
+            :disabled="!connActive"
+            :style="selectedAction === 'flee' ? styles.actionButtonSelected : styles.ghostButton"
+            @click="$emit('flee')"
+          >
             Flee
           </button>
         </div>
       </div>
       <div v-else>
         <div :style="styles.subtle">Choose an enemy to engage.</div>
+        <div :style="styles.subtle">
+          Debug: sel={{ debugInfo.selectedId }} combat={{ debugInfo.participantCombatId }} | p={{ debugInfo.participants }} e={{ debugInfo.encounters }} enemies={{ debugInfo.enemies }} spawns={{ debugInfo.spawns }}
+        </div>
         <div v-if="!canEngage" :style="styles.subtle">
           Only the group leader can engage enemies.
         </div>
@@ -84,6 +106,14 @@ type CombatRosterEntry = {
 
 defineProps<{
   styles: Record<string, Record<string, string | number>>;
+  debugInfo: {
+    selectedId: string;
+    participantCombatId: string;
+    participants: number;
+    encounters: number;
+    enemies: number;
+    spawns: number;
+  };
   connActive: boolean;
   selectedCharacter: CharacterRow | null;
   activeCombat: CombatEncounterRow | null;
@@ -92,6 +122,8 @@ defineProps<{
   activeEnemyLevel: bigint;
   activeEnemySpawn: { id: bigint } | null;
   combatRoster: CombatRosterEntry[];
+  roundEndsInSeconds: number;
+  selectedAction: 'attack' | 'skip' | 'flee' | null;
   enemySpawns: EnemySummary[];
   canEngage: boolean;
 }>();

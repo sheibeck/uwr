@@ -98,6 +98,9 @@
           :active-enemy-name="activeEnemyName"
           :active-enemy-level="activeEnemyLevel"
           :combat-roster="combatRoster"
+          :debug-info="debugInfo"
+          :round-ends-in-seconds="roundEndsInSeconds"
+          :selected-action="selectedAction"
           :enemy-spawns="availableEnemies"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           @start="startCombat"
@@ -225,7 +228,22 @@ const { newCharacter, isCharacterFormValid, createCharacter, hasCharacter, creat
     characters,
   });
 
-const { activeCombat, activeEnemy, activeEnemySpawn, activeEnemyName, activeEnemyLevel, availableEnemies, combatRoster, startCombat, attack, skip, flee } = useCombat({
+const {
+  activeCombat,
+  activeEnemy,
+  activeEnemySpawn,
+  activeEnemyName,
+  activeEnemyLevel,
+  availableEnemies,
+  combatRoster,
+  debugInfo,
+  roundEndsInSeconds,
+  selectedAction,
+  startCombat,
+  attack,
+  skip,
+  flee,
+} = useCombat({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
   combatEncounters,
@@ -332,6 +350,13 @@ const formatTimestamp = (ts: { microsSinceUnixEpoch: bigint }) => {
   return new Date(millis).toLocaleTimeString();
 };
 </script>
+
+
+
+
+
+
+
 
 
 
