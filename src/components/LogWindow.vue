@@ -31,7 +31,14 @@
       >
         <span :style="styles.logTime">{{ formatTimestamp(event.createdAt) }}</span>
         <span :style="styles.logKind">[{{ event.scope }} {{ event.kind }}]</span>
-        <span :style="styles.logText">{{ event.message }}</span>
+        <span
+          :style="[
+            styles.logText,
+            event.kind === 'whisper' ? styles.logWhisper : {}
+          ]"
+        >
+          {{ event.message }}
+        </span>
       </div>
     </div>
   </section>

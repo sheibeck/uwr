@@ -62,6 +62,8 @@ import SubmitCommandReducer from "./submit_command_reducer";
 export { SubmitCommandReducer };
 import SayReducer from "./say_reducer";
 export { SayReducer };
+import WhisperReducer from "./whisper_reducer";
+export { WhisperReducer };
 import StartCombatReducer from "./start_combat_reducer";
 export { StartCombatReducer };
 import CreateGroupReducer from "./create_group_reducer";
@@ -208,6 +210,8 @@ import SubmitCommand from "./submit_command_type";
 export { SubmitCommand };
 import User from "./user_type";
 export { User };
+import Whisper from "./whisper_type";
+export { Whisper };
 import WorldState from "./world_state_type";
 export { WorldState };
 
@@ -495,6 +499,7 @@ const reducersSchema = __reducers(
   __reducerSchema("move_character", MoveCharacterReducer),
   __reducerSchema("submit_command", SubmitCommandReducer),
   __reducerSchema("say", SayReducer),
+  __reducerSchema("whisper", WhisperReducer),
   __reducerSchema("start_combat", StartCombatReducer),
   __reducerSchema("create_group", CreateGroupReducer),
   __reducerSchema("join_group", JoinGroupReducer),

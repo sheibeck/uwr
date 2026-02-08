@@ -145,6 +145,9 @@ export const styles = {
   logText: {
     flex: 1,
   },
+  logWhisper: {
+    color: '#c792ff',
+  },
   logEmpty: {
     color: 'rgba(230,232,239,0.6)',
     fontStyle: 'italic',

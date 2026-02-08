@@ -741,15 +741,50 @@ spacetimedb.reducer('say', { characterId: t.u64(), message: t.string() }, (ctx, 
   const trimmed = args.message.trim();
   if (!trimmed) throw new SenderError('Message is empty');
 
-  appendPrivateEvent(ctx, character.id, requirePlayerUserId(ctx), 'say', `You say: "${trimmed}"`);
   appendLocationEvent(
     ctx,
     character.locationId,
     'say',
-    `${character.name} says: "${trimmed}"`,
-    character.id
+    `${character.name} says, "${trimmed}"`
   );
 });
+
+spacetimedb.reducer(
+  'whisper',
+  { characterId: t.u64(), targetName: t.string(), message: t.string() },
+  (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const targetName = args.targetName.trim();
+    const message = args.message.trim();
+    if (!targetName) throw new SenderError('Target required');
+    if (!message) throw new SenderError('Message is empty');
+
+    let target: typeof Character.rowType | null = null;
+    for (const row of ctx.db.character.iter()) {
+      if (row.name.toLowerCase() === targetName.toLowerCase()) {
+        if (target) throw new SenderError('Multiple characters share that name');
+        target = row;
+      }
+    }
+    if (!target) throw new SenderError('Target not found');
+
+    const senderUserId = requirePlayerUserId(ctx);
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      senderUserId,
+      'whisper',
+      `You whisper to ${target.name}: "${message}"`
+    );
+    appendPrivateEvent(
+      ctx,
+      target.id,
+      target.ownerUserId,
+      'whisper',
+      `${character.name} whispers: "${message}"`
+    );
+  }
+);
 
 spacetimedb.reducer('start_combat', { characterId: t.u64(), enemyId: t.u64() }, (ctx, args) => {
   const character = requireCharacterOwnedBy(ctx, args.characterId);
