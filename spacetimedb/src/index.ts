@@ -186,6 +186,21 @@ const ItemInstance = table(
   }
 );
 
+const HotbarSlot = table(
+  {
+    name: 'hotbar_slot',
+    public: true,
+    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    slot: t.u8(),
+    abilityKey: t.string(),
+    assignedAt: t.timestamp(),
+  }
+);
+
 const Group = table(
   { name: 'group', public: true },
   {
@@ -486,6 +501,7 @@ export const spacetimedb = schema(
   Region,
   Location,
   LocationConnection,
+  HotbarSlot,
   Character,
   ItemTemplate,
   ItemInstance,
@@ -1955,6 +1971,54 @@ spacetimedb.reducer(
         return;
       }
     }
+  }
+);
+
+spacetimedb.reducer(
+  'set_hotbar_slot',
+  { characterId: t.u64(), slot: t.u8(), abilityKey: t.string() },
+  (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (args.slot < 1 || args.slot > 10) throw new SenderError('Invalid hotbar slot');
+    const existing = [...ctx.db.hotbarSlot.by_character.filter(character.id)].find(
+      (row) => row.slot === args.slot
+    );
+    if (existing) {
+      if (!args.abilityKey) {
+        ctx.db.hotbarSlot.id.delete(existing.id);
+        return;
+      }
+      ctx.db.hotbarSlot.id.update({
+        ...existing,
+        abilityKey: args.abilityKey.trim(),
+        assignedAt: ctx.timestamp,
+      });
+      return;
+    }
+    if (!args.abilityKey) return;
+    ctx.db.hotbarSlot.insert({
+      id: 0n,
+      characterId: character.id,
+      slot: args.slot,
+      abilityKey: args.abilityKey.trim(),
+      assignedAt: ctx.timestamp,
+    });
+  }
+);
+
+spacetimedb.reducer(
+  'use_ability',
+  { characterId: t.u64(), abilityKey: t.string() },
+  (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const abilityName = args.abilityKey.trim() || 'Ability';
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'ability',
+      `You use ${abilityName}.`
+    );
   }
 );
 

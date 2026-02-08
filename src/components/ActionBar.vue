@@ -16,6 +16,13 @@
         Inventory
       </button>
       <button
+        @click="emit('toggle', 'hotbar')"
+        :style="actionStyle('hotbar')"
+        :disabled="isLocked('hotbar')"
+      >
+        Hotbar
+      </button>
+      <button
         @click="emit('toggle', 'stats')"
         :style="actionStyle('stats')"
         :disabled="isLocked('stats')"
@@ -55,7 +62,16 @@
 </template>
 
 <script setup lang="ts">
-type PanelKey = 'none' | 'character' | 'inventory' | 'friends' | 'group' | 'stats' | 'travel' | 'combat';
+type PanelKey =
+  | 'none'
+  | 'character'
+  | 'inventory'
+  | 'hotbar'
+  | 'friends'
+  | 'group'
+  | 'stats'
+  | 'travel'
+  | 'combat';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;

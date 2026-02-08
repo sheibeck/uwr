@@ -66,6 +66,10 @@ import EquipItemReducer from "./equip_item_reducer";
 export { EquipItemReducer };
 import UnequipItemReducer from "./unequip_item_reducer";
 export { UnequipItemReducer };
+import SetHotbarSlotReducer from "./set_hotbar_slot_reducer";
+export { SetHotbarSlotReducer };
+import UseAbilityReducer from "./use_ability_reducer";
+export { UseAbilityReducer };
 import MoveCharacterReducer from "./move_character_reducer";
 export { MoveCharacterReducer };
 import SubmitCommandReducer from "./submit_command_reducer";
@@ -146,6 +150,8 @@ import GroupMemberRow from "./group_member_table";
 export { GroupMemberRow };
 import HealthRegenTickRow from "./health_regen_tick_table";
 export { HealthRegenTickRow };
+import HotbarSlotRow from "./hotbar_slot_table";
+export { HotbarSlotRow };
 import ItemInstanceRow from "./item_instance_table";
 export { ItemInstanceRow };
 import ItemTemplateRow from "./item_template_table";
@@ -242,6 +248,8 @@ import GroupMember from "./group_member_type";
 export { GroupMember };
 import HealthRegenTick from "./health_regen_tick_type";
 export { HealthRegenTick };
+import HotbarSlot from "./hotbar_slot_type";
+export { HotbarSlot };
 import Init from "./init_type";
 export { Init };
 import InviteToGroup from "./invite_to_group_type";
@@ -318,12 +326,16 @@ import SetDisplayName from "./set_display_name_type";
 export { SetDisplayName };
 import SetFollowLeader from "./set_follow_leader_type";
 export { SetFollowLeader };
+import SetHotbarSlot from "./set_hotbar_slot_type";
+export { SetHotbarSlot };
 import StartCombat from "./start_combat_type";
 export { StartCombat };
 import SubmitCommand from "./submit_command_type";
 export { SubmitCommand };
 import UnequipItem from "./unequip_item_type";
 export { UnequipItem };
+import UseAbility from "./use_ability_type";
+export { UseAbility };
 import User from "./user_type";
 export { User };
 import Whisper from "./whisper_type";
@@ -632,6 +644,20 @@ const tablesSchema = __schema(
     ],
   }, HealthRegenTickRow),
   __table({
+    name: 'hotbar_slot',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'hotbar_slot_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, HotbarSlotRow),
+  __table({
     name: 'item_instance',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -826,6 +852,8 @@ const reducersSchema = __reducers(
   __reducerSchema("grant_item", GrantItemReducer),
   __reducerSchema("equip_item", EquipItemReducer),
   __reducerSchema("unequip_item", UnequipItemReducer),
+  __reducerSchema("set_hotbar_slot", SetHotbarSlotReducer),
+  __reducerSchema("use_ability", UseAbilityReducer),
   __reducerSchema("move_character", MoveCharacterReducer),
   __reducerSchema("submit_command", SubmitCommandReducer),
   __reducerSchema("say", SayReducer),

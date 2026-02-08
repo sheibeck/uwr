@@ -2,7 +2,15 @@ import { computed, ref, watch, type Ref } from 'vue';
 import { reducers, type CharacterRow, type GroupRow, type LocationRow } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 
-export type PanelKey = 'none' | 'character' | 'inventory' | 'group' | 'stats' | 'travel' | 'combat';
+export type PanelKey =
+  | 'none'
+  | 'character'
+  | 'inventory'
+  | 'hotbar'
+  | 'group'
+  | 'stats'
+  | 'travel'
+  | 'combat';
 
 type UseCharactersArgs = {
   connActive: Ref<boolean>;

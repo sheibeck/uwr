@@ -64,13 +64,16 @@
             :active-result="activeResult"
             :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
             :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
-            :can-act="canActInCombat"
-            @start="startCombat"
-            @attack="attack"
-            @skip="skip"
-            @flee="flee"
-            @dismiss-results="dismissResults"
-          />
+          :can-act="canActInCombat"
+          :hotbar="hotbarAssignments"
+          :can-use-ability="canActInCombat"
+          @start="startCombat"
+          @attack="attack"
+          @skip="skip"
+          @flee="flee"
+          @use-ability="useAbility"
+          @dismiss-results="dismissResults"
+        />
         </PanelShell>
       </div>
       <PanelShell
@@ -109,6 +112,14 @@
           @show-tooltip="showTooltip"
           @move-tooltip="moveTooltip"
           @hide-tooltip="hideTooltip"
+        />
+        <HotbarPanel
+          v-else-if="activePanel === 'hotbar'"
+          :styles="styles"
+          :selected-character="selectedCharacter"
+          :available-abilities="availableAbilities"
+          :hotbar="hotbarAssignments"
+          @set-hotbar="setHotbarSlot"
         />
         <FriendsPanel
           v-else-if="activePanel === 'friends'"
@@ -167,10 +178,13 @@
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           :can-act="canActInCombat"
+          :hotbar="hotbarAssignments"
+          :can-use-ability="canActInCombat"
           @start="startCombat"
           @attack="attack"
           @skip="skip"
           @flee="flee"
+          @use-ability="useAbility"
           @dismiss-results="dismissResults"
         />
         <TravelPanel
@@ -235,6 +249,7 @@ import InventoryPanel from './components/InventoryPanel.vue';
 import GroupPanel from './components/GroupPanel.vue';
 import FriendsPanel from './components/FriendsPanel.vue';
 import StatsPanel from './components/StatsPanel.vue';
+import HotbarPanel from './components/HotbarPanel.vue';
 import CombatPanel from './components/CombatPanel.vue';
 import TravelPanel from './components/TravelPanel.vue';
 import CommandBar from './components/CommandBar.vue';
@@ -251,6 +266,7 @@ import { usePlayer } from './composables/usePlayer';
 import { useAuth } from './composables/useAuth';
 import { useFriends } from './composables/useFriends';
 import { useInventory } from './composables/useInventory';
+import { useHotbar } from './composables/useHotbar';
 
 const {
   conn,
@@ -278,6 +294,7 @@ const {
   friendRequests,
   groupInvites,
   groupMembers: groupMemberRows,
+  hotbarSlots,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
@@ -422,8 +439,22 @@ const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipI
     itemTemplates,
   });
 
+const { hotbarAssignments, availableAbilities, setHotbarSlot, useAbility } = useHotbar({
+  connActive: computed(() => conn.isActive),
+  selectedCharacter,
+  hotbarSlots,
+});
+
 const activePanel = ref<
-  'none' | 'character' | 'inventory' | 'friends' | 'group' | 'stats' | 'travel' | 'combat'
+  | 'none'
+  | 'character'
+  | 'inventory'
+  | 'hotbar'
+  | 'friends'
+  | 'group'
+  | 'stats'
+  | 'travel'
+  | 'combat'
 >('none');
 
 const canActInCombat = computed(() => {
@@ -465,6 +496,8 @@ const panelTitle = computed(() => {
       return 'Character';
     case 'inventory':
       return 'Inventory';
+    case 'hotbar':
+      return 'Hotbar';
     case 'friends':
       return 'Friends';
     case 'group':

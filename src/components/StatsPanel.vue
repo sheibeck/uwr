@@ -52,12 +52,12 @@
           <div>{{ formatPercent(selectedCharacter.critRanged) }}</div>
           <div>Crit (Divine)</div>
           <div>{{ formatPercent(selectedCharacter.critDivine) }}</div>
-        <div>Crit (Arcane)</div>
-        <div>{{ formatPercent(selectedCharacter.critArcane) }}</div>
-        <div>Armor Class</div>
-        <div>{{ selectedCharacter.armorClass }}</div>
-        <div>Perception</div>
-        <div>{{ formatScalar(selectedCharacter.perception) }}</div>
+          <div>Crit (Arcane)</div>
+          <div>{{ formatPercent(selectedCharacter.critArcane) }}</div>
+          <div>Armor Class</div>
+          <div>{{ selectedCharacter.armorClass }}</div>
+          <div>Perception</div>
+          <div>{{ formatScalar(selectedCharacter.perception) }}</div>
           <div>Search</div>
           <div>{{ formatScalar(selectedCharacter.search) }}</div>
           <div>CC Power</div>

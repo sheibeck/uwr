@@ -62,6 +62,103 @@ Last updated: 2026-02-08
   - Action bar is locked during combat/results (only Group/Combat buttons active).
   - Travel panel shows only connected locations with con-color difficulty indicators.
   - Combat enemy list and active enemy header are con-colored.
+  - Hotbar system: 10 slots per character, assignable in Stats panel; assigned abilities show in combat.
+
+## Ability Plan (MVP, Lv1–Lv5)
+- Rules:
+  - Combat abilities at levels 1, 3, 5.
+  - Non-combat abilities at levels 2, 4 (usable in or out of combat).
+  - Spells use Mana; techniques use Stamina.
+- **Bard**
+  - Lv1: Discordant Note (Mana) — 6 dmg + Weaken (-2 enemy dmg) for 2 rounds.
+  - Lv2: Song of Ease (Mana) — Party regen +1 HP/round for 3 rounds.
+  - Lv3: Echoed Chord (Mana) — 8 dmg +1 per ally.
+  - Lv4: Harmony (Mana) — Party +2 attack for 3 rounds.
+  - Lv5: Crushing Crescendo (Mana) — 12 dmg, +4 if target debuffed.
+- **Enchanter**
+  - Lv1: Mind Lash (Mana) — 5 dmg + DOT 2 for 2 rounds.
+  - Lv2: Clarity (Mana) — Restore 5 mana to target ally.
+  - Lv3: Slow (Mana) — Enemy damage -3 for 2 rounds.
+  - Lv4: Clarity II (Mana) — Restore 8 mana to target ally.
+  - Lv5: Charm Fray (Mana) — 10 dmg, enemy damage -3 for 3 rounds.
+- **Cleric**
+  - Lv1: Minor Heal (Mana) — Heal ally for 8.
+  - Lv2: Blessing (Mana) — Target ally +5 max HP for 5 mins.
+  - Lv3: Smite (Mana) — 9 holy damage.
+  - Lv4: Sanctuary (Mana) — Party +2 AC for 3 rounds.
+  - Lv5: Heal (Mana) — Heal ally for 15.
+- **Warrior**
+  - Lv1: Slam (Stamina) — 7 dmg + taunt (aggro +10).
+  - Lv2: Shout (Stamina) — Party +2 attack for 3 rounds.
+  - Lv3: Cleave (Stamina) — 10 dmg.
+  - Lv4: Rally (Stamina) — Party +2 AC for 3 rounds.
+  - Lv5: Crushing Blow (Stamina) — 14 dmg.
+- **Rogue**
+  - Lv1: Backstab (Stamina) — 9 dmg if enemy has aggro on another ally.
+  - Lv2: Smoke Step (Stamina) — Reduce your aggro by 50%.
+  - Lv3: Bleed (Stamina) — 6 dmg + DOT 3 for 2 rounds.
+  - Lv4: Evasion (Stamina) — +10 dodge for 3 rounds.
+  - Lv5: Shadow Strike (Stamina) — 12 dmg, +4 if target debuffed.
+- **Paladin**
+  - Lv1: Holy Strike (Mana) — 8 dmg.
+  - Lv2: Prayer (Mana) — Party +5 max HP for 5 mins.
+  - Lv3: Shield of Faith (Mana) — +4 AC for 3 rounds.
+  - Lv4: Devotion (Mana) — Party +2 damage for 3 rounds.
+  - Lv5: Radiant Smite (Mana) — 13 dmg.
+- **Ranger**
+  - Lv1: Aimed Shot (Stamina) — 8 dmg.
+  - Lv2: Track (Mana) — Reveal nearest higher-level enemy in location.
+  - Lv3: Rapid Shot (Stamina) — 6 dmg twice.
+  - Lv4: Nature’s Balm (Mana) — Heal self for 8.
+  - Lv5: Piercing Arrow (Stamina) — 12 dmg, ignores 2 AC.
+- **Necromancer**
+  - Lv1: Shadow Bolt (Mana) — 7 dmg.
+  - Lv2: Siphon Vitality (Mana) — Regen 1 HP/round for 3 rounds.
+  - Lv3: Wither (Mana) — 6 dmg + DOT 3 for 2 rounds.
+  - Lv4: Bone Ward (Mana) — +3 AC for 3 rounds.
+  - Lv5: Grave Surge (Mana) — 12 dmg.
+- **Spellblade**
+  - Lv1: Arcane Slash (Mana) — 8 dmg.
+  - Lv2: Focus (Stamina) — +2 attack for 3 rounds.
+  - Lv3: Runic Strike (Mana) — 10 dmg, +2 if target debuffed.
+  - Lv4: Ward (Mana) — +3 AC for 3 rounds.
+  - Lv5: Spellstorm (Mana) — 14 dmg.
+- **Shaman**
+  - Lv1: Spirit Bolt (Mana) — 7 dmg.
+  - Lv2: Totem of Vigor (Mana) — Party +1 HP/round for 3 rounds.
+  - Lv3: Hex (Mana) — 6 dmg, enemy damage -2 for 3 rounds.
+  - Lv4: Ancestral Ward (Mana) — +2 AC for 3 rounds.
+  - Lv5: Stormcall (Mana) — 12 dmg.
+- **Beastmaster**
+  - Lv1: Call Companion (Stamina) — Summon a beast strike for 8 dmg.
+  - Lv2: Pack Bond (Stamina) — Party +2 attack for 3 rounds.
+  - Lv3: Beast Fang (Stamina) — Summoned beast rends for 10 dmg.
+  - Lv4: Wild Howl (Stamina) — Party +2 damage for 3 rounds.
+  - Lv5: Alpha Assault (Stamina) — Beast charges for 14 dmg.
+- **Monk**
+  - Lv1: Kick (Stamina) — 7 dmg, enemy skips next attack.
+  - Lv2: Meditation (Stamina) — Regen 2 HP/round for 3 rounds.
+  - Lv3: Palm Strike (Stamina) — 10 dmg.
+  - Lv4: Inner Focus (Stamina) — +2 dodge for 3 rounds.
+  - Lv5: Tiger Flurry (Stamina) — 6 dmg twice.
+- **Druid**
+  - Lv1: Thorn Lash (Mana) — 6 dmg.
+  - Lv2: Regrowth (Mana) — Heal ally for 6.
+  - Lv3: Bramble (Mana) — 7 dmg + DOT 2 for 2 rounds.
+  - Lv4: Nature’s Gift (Mana) — Party +2 damage for 3 rounds.
+  - Lv5: Wild Surge (Mana) — 12 dmg.
+- **Reaver**
+  - Lv1: Dark Cut (Mana) — 8 dmg.
+  - Lv2: Blood Pact (Stamina) — +4 max HP for 5 mins.
+  - Lv3: Soul Rend (Mana) — 10 dmg, +2 if target debuffed.
+  - Lv4: Dread Aura (Mana) — Enemy damage -2 for 3 rounds.
+  - Lv5: Oblivion (Mana) — 14 dmg.
+- **Summoner**
+  - Lv1: Arcane Bolt (Mana) — 7 dmg.
+  - Lv2: Familiar (Mana) — +1 mana/round for 3 rounds.
+  - Lv3: Conjured Spike (Mana) — 9 dmg.
+  - Lv4: Empower (Mana) — Party +2 damage for 3 rounds.
+  - Lv5: Spectral Lance (Mana) — 13 dmg.
 
 ## Tables / Views (Server)
 - Player: `userId`, `activeCharacterId`, `sessionStartedAt`, etc.
