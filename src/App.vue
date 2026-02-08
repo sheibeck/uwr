@@ -374,14 +374,3 @@ const formatTimestamp = (ts: { microsSinceUnixEpoch: bigint }) => {
   return new Date(millis).toLocaleTimeString();
 };
 </script>
-
-
-
-
-
-
-
-
-
-
-
