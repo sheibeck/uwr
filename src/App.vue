@@ -122,7 +122,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { styles } from './ui/styles';
 import AppHeader from './components/AppHeader.vue';
 import LogWindow from './components/LogWindow.vue';
@@ -271,6 +271,19 @@ const panelTitle = computed(() => {
 const togglePanel = (panel: typeof activePanel.value) => {
   activePanel.value = activePanel.value === panel ? 'none' : panel;
 };
+
+watch(
+  () => isLoggedIn.value,
+  (loggedIn) => {
+    if (loggedIn) {
+      activePanel.value = 'character';
+      selectedCharacterId.value = '';
+    } else {
+      selectedCharacterId.value = '';
+      activePanel.value = 'none';
+    }
+  }
+);
 
 const formatTimestamp = (ts: { microsSinceUnixEpoch: bigint }) => {
   const millis = Number(ts.microsSinceUnixEpoch / 1000n);
