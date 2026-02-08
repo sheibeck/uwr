@@ -53,6 +53,27 @@
       </button>
     </div>
     <div v-else>
+      <div v-if="selectedCharacter" :style="styles.panelSectionTitle">Your Status</div>
+      <div v-if="selectedCharacter" :style="styles.subtle">
+        {{ selectedCharacter.name }} (Lv {{ selectedCharacter.level }}) -
+        {{ selectedCharacter.className }}
+      </div>
+      <div v-if="selectedCharacter" :style="styles.hpBar">
+        <div
+          :style="{ ...styles.hpFill, width: `${percent(selectedCharacter.hp, selectedCharacter.maxHp)}%` }"
+        ></div>
+      </div>
+      <div v-if="selectedCharacter" :style="styles.hpBar">
+        <div
+          :style="{ ...styles.manaFill, width: `${percent(selectedCharacter.mana, selectedCharacter.maxMana)}%` }"
+        ></div>
+      </div>
+      <div v-if="selectedCharacter" :style="styles.hpBar">
+        <div
+          :style="{ ...styles.staminaFill, width: `${percent(selectedCharacter.stamina, selectedCharacter.maxStamina)}%` }"
+        ></div>
+      </div>
+
       <div v-if="inviteSummaries.length === 0" :style="styles.subtle">
         You are not currently in a group.
         <div :style="styles.subtle">

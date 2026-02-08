@@ -124,8 +124,15 @@ const onKeydown = (event: KeyboardEvent) => {
   }
 
   if (event.key === 'Enter' && highlighted.value) {
-    event.preventDefault();
-    selectCommand(highlighted.value);
+    const trimmed = props.commandText.trim();
+    const hasArgs = trimmed.includes(' ') && trimmed.length > highlighted.value.length;
+    if (!hasArgs && trimmed !== highlighted.value && trimmed !== '/') {
+      return;
+    }
+    if (!hasArgs && (trimmed === highlighted.value || trimmed === '/')) {
+      event.preventDefault();
+      selectCommand(highlighted.value);
+    }
   }
 
   if (event.key === 'Escape') {
