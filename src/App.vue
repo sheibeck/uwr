@@ -41,7 +41,10 @@
           :selected-character-id="selectedCharacterId"
           @update:newCharacter="newCharacter = $event"
           @create="createCharacter"
-          @select="selectedCharacterId = $event"
+          @select="
+            selectedCharacterId = $event;
+            activePanel = 'none';
+          "
         />
         <InventoryPanel v-else-if="activePanel === 'inventory'" :styles="styles" />
         <FriendsPanel
@@ -66,12 +69,10 @@
           :selected-character="selectedCharacter"
           :current-group="currentGroup"
           :group-members="groupMembers"
-          :groups="groups"
-          :group-name="groupName"
-          @update:groupName="groupName = $event"
-          @create="createGroup"
-          @join="joinGroup"
+          :invite-summaries="inviteSummaries"
           @leave="leaveGroup"
+          @accept="acceptInvite"
+          @reject="rejectInvite"
         />
         <StatsPanel
           v-else-if="activePanel === 'stats'"
@@ -115,6 +116,7 @@
       <ActionBar
         :styles="styles"
         :active-panel="activePanel"
+        :has-active-character="Boolean(selectedCharacter)"
         @toggle="togglePanel"
       />
     </footer>
@@ -164,6 +166,7 @@ const {
   users,
   friends,
   friendRequests,
+  groupInvites,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
@@ -215,9 +218,12 @@ const { attackDamage, activeCombat, startCombat, attack, endCombat } = useCombat
   combats,
 });
 
-const { groupName, createGroup, joinGroup, leaveGroup } = useGroups({
+const { leaveGroup, inviteSummaries, acceptInvite, rejectInvite } = useGroups({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
+  groups,
+  groupInvites,
+  characters,
 });
 
 const {

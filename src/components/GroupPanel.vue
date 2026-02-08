@@ -2,54 +2,46 @@
   <div>
     <div :style="styles.panelSectionTitle">Group</div>
     <div v-if="!selectedCharacter" :style="styles.subtle">
-      Select a character to manage groups.
+      Select a character to view group details.
+    </div>
+    <div v-else-if="currentGroup">
+      <div :style="styles.subtle">Group: {{ currentGroup.name }}</div>
+      <div :style="styles.panelSectionTitle">Members</div>
+      <ul :style="styles.list">
+        <li v-for="member in groupMembers" :key="member.id.toString()">
+          {{ member.name }} (Lv {{ member.level }}) - {{ member.className }}
+        </li>
+      </ul>
+      <button :style="styles.ghostButton" @click="$emit('leave')">
+        Leave Group
+      </button>
     </div>
     <div v-else>
-      <div v-if="currentGroup">
-        <div :style="styles.subtle">Group: {{ currentGroup.name }}</div>
-        <div :style="styles.panelSectionTitle">Members</div>
-        <ul :style="styles.list">
-          <li v-for="member in groupMembers" :key="member.id.toString()">
-            {{ member.name }} (Lv {{ member.level }})
-          </li>
-        </ul>
-        <button :style="styles.ghostButton" @click="$emit('leave')">
-          Leave Group
-        </button>
+      <div v-if="inviteSummaries.length === 0" :style="styles.subtle">
+        You are not currently in a group.
+        <div :style="styles.subtle">
+          Invite someone with <code>/invite &lt;character&gt;</code> in the command bar.
+        </div>
       </div>
       <div v-else>
-        <div :style="styles.panelSectionTitle">Create Group</div>
-        <form @submit.prevent="$emit('create')" :style="styles.panelForm">
-          <input
-            type="text"
-            placeholder="Group name"
-            :value="groupName"
-            :disabled="!connActive"
-            :style="styles.input"
-            @input="onGroupNameInput"
-          />
-          <button
-            type="submit"
-            :disabled="!connActive || !groupName.trim()"
-            :style="styles.primaryButton"
-          >
-            Create
-          </button>
-        </form>
-        <div :style="styles.panelSectionTitle">Join Group</div>
-        <div v-if="groups.length === 0" :style="styles.subtle">
-          No groups available.
-        </div>
-        <ul v-else :style="styles.list">
-          <li v-for="group in groups" :key="group.id.toString()">
-            <span>{{ group.name }}</span>
-            <button
-              :style="styles.ghostButton"
-              @click="$emit('join', group.id)"
-              :disabled="!connActive"
-            >
-              Join
-            </button>
+        <div :style="styles.panelSectionTitle">Pending Invites</div>
+        <ul :style="styles.list">
+          <li v-for="summary in inviteSummaries" :key="summary.invite.id.toString()">
+            <span>{{ summary.fromName }} invited you to {{ summary.groupName }}</span>
+            <div :style="styles.buttonWrap">
+              <button
+                :style="styles.primaryButton"
+                @click="$emit('accept', summary.fromName)"
+              >
+                Accept
+              </button>
+              <button
+                :style="styles.ghostButton"
+                @click="$emit('reject', summary.fromName)"
+              >
+                Decline
+              </button>
+            </div>
           </li>
         </ul>
       </div>
@@ -60,25 +52,18 @@
 <script setup lang="ts">
 import type { CharacterRow, GroupRow } from '../module_bindings';
 
-const props = defineProps<{
+defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
   selectedCharacter: CharacterRow | null;
   currentGroup: GroupRow | null;
   groupMembers: CharacterRow[];
-  groups: GroupRow[];
-  groupName: string;
+  inviteSummaries: { invite: { id: bigint }; fromName: string; groupName: string }[];
 }>();
 
-const emit = defineEmits<{
-  (e: 'create'): void;
-  (e: 'join', groupId: bigint): void;
+defineEmits<{
   (e: 'leave'): void;
-  (e: 'update:groupName', value: string): void;
+  (e: 'accept', fromName: string): void;
+  (e: 'reject', fromName: string): void;
 }>();
-
-const onGroupNameInput = (event: Event) => {
-  const value = (event.target as HTMLInputElement).value;
-  emit('update:groupName', value);
-};
 </script>

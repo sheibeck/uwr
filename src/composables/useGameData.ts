@@ -8,6 +8,7 @@ export const useGameData = () => {
   const [users] = useTable(tables.user);
   const [friendRequests] = useTable(tables.myFriendRequests);
   const [friends] = useTable(tables.myFriends);
+  const [groupInvites] = useTable(tables.myGroupInvites);
   const [characters] = useTable(tables.character);
   const [locations] = useTable(tables.location);
   const [enemyTemplates] = useTable(tables.enemyTemplate);
@@ -25,6 +26,7 @@ export const useGameData = () => {
     users,
     friendRequests,
     friends,
+    groupInvites,
     characters,
     locations,
     enemyTemplates,

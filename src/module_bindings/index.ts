@@ -72,6 +72,12 @@ import JoinGroupReducer from "./join_group_reducer";
 export { JoinGroupReducer };
 import LeaveGroupReducer from "./leave_group_reducer";
 export { LeaveGroupReducer };
+import InviteToGroupReducer from "./invite_to_group_reducer";
+export { InviteToGroupReducer };
+import AcceptGroupInviteReducer from "./accept_group_invite_reducer";
+export { AcceptGroupInviteReducer };
+import RejectGroupInviteReducer from "./reject_group_invite_reducer";
+export { RejectGroupInviteReducer };
 import AttackReducer from "./attack_reducer";
 export { AttackReducer };
 import EndCombatReducer from "./end_combat_reducer";
@@ -102,6 +108,8 @@ import FriendRequestRow from "./friend_request_table";
 export { FriendRequestRow };
 import GroupRow from "./group_table";
 export { GroupRow };
+import GroupInviteRow from "./group_invite_table";
+export { GroupInviteRow };
 import GroupMemberRow from "./group_member_table";
 export { GroupMemberRow };
 import LocationRow from "./location_table";
@@ -112,6 +120,8 @@ import MyFriendsRow from "./my_friends_table";
 export { MyFriendsRow };
 import MyGroupEventsRow from "./my_group_events_table";
 export { MyGroupEventsRow };
+import MyGroupInvitesRow from "./my_group_invites_table";
+export { MyGroupInvitesRow };
 import MyLocationEventsRow from "./my_location_events_table";
 export { MyLocationEventsRow };
 import MyPlayerRow from "./my_player_table";
@@ -128,6 +138,8 @@ export { WorldStateRow };
 // Import and reexport all types
 import AcceptFriendRequest from "./accept_friend_request_type";
 export { AcceptFriendRequest };
+import AcceptGroupInvite from "./accept_group_invite_type";
+export { AcceptGroupInvite };
 import Attack from "./attack_type";
 export { Attack };
 import Character from "./character_type";
@@ -158,10 +170,14 @@ import FriendRequest from "./friend_request_type";
 export { FriendRequest };
 import Group from "./group_type";
 export { Group };
+import GroupInvite from "./group_invite_type";
+export { GroupInvite };
 import GroupMember from "./group_member_type";
 export { GroupMember };
 import Init from "./init_type";
 export { Init };
+import InviteToGroup from "./invite_to_group_type";
+export { InviteToGroup };
 import JoinGroup from "./join_group_type";
 export { JoinGroup };
 import LeaveGroup from "./leave_group_type";
@@ -180,6 +196,8 @@ import MyFriends from "./my_friends_type";
 export { MyFriends };
 import MyGroupEvents from "./my_group_events_type";
 export { MyGroupEvents };
+import MyGroupInvites from "./my_group_invites_type";
+export { MyGroupInvites };
 import MyLocationEvents from "./my_location_events_type";
 export { MyLocationEvents };
 import MyPlayer from "./my_player_type";
@@ -194,6 +212,8 @@ import Player from "./player_type";
 export { Player };
 import RejectFriendRequest from "./reject_friend_request_type";
 export { RejectFriendRequest };
+import RejectGroupInvite from "./reject_group_invite_type";
+export { RejectGroupInvite };
 import RemoveFriend from "./remove_friend_type";
 export { RemoveFriend };
 import Say from "./say_type";
@@ -378,6 +398,23 @@ const tablesSchema = __schema(
     ],
   }, GroupRow),
   __table({
+    name: 'group_invite',
+    indexes: [
+      { name: 'by_group', algorithm: 'btree', columns: [
+        'groupId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_to_character', algorithm: 'btree', columns: [
+        'toCharacterId',
+      ] },
+    ],
+    constraints: [
+      { name: 'group_invite_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, GroupInviteRow),
+  __table({
     name: 'group_member',
     indexes: [
       { name: 'by_group', algorithm: 'btree', columns: [
@@ -463,6 +500,13 @@ const tablesSchema = __schema(
     ],
   }, MyGroupEventsRow),
   __table({
+    name: 'my_group_invites',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyGroupInvitesRow),
+  __table({
     name: 'my_location_events',
     indexes: [
     ],
@@ -504,6 +548,9 @@ const reducersSchema = __reducers(
   __reducerSchema("create_group", CreateGroupReducer),
   __reducerSchema("join_group", JoinGroupReducer),
   __reducerSchema("leave_group", LeaveGroupReducer),
+  __reducerSchema("invite_to_group", InviteToGroupReducer),
+  __reducerSchema("accept_group_invite", AcceptGroupInviteReducer),
+  __reducerSchema("reject_group_invite", RejectGroupInviteReducer),
   __reducerSchema("attack", AttackReducer),
   __reducerSchema("end_combat", EndCombatReducer),
 );
