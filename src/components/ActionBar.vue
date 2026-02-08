@@ -16,6 +16,13 @@
         Inventory
       </button>
       <button
+        @click="emit('toggle', 'stats')"
+        :style="actionStyle('stats')"
+        :disabled="isLocked('stats')"
+      >
+        Stats
+      </button>
+      <button
         @click="emit('toggle', 'friends')"
         :style="actionStyle('friends')"
         :disabled="isLocked('friends')"
@@ -30,11 +37,11 @@
         Group
       </button>
       <button
-        @click="emit('toggle', 'stats')"
-        :style="actionStyle('stats')"
-        :disabled="isLocked('stats')"
+        @click="emit('toggle', 'combat')"
+        :style="actionStyle('combat')"
+        :disabled="isLocked('combat')"
       >
-        Stats
+        Combat
       </button>
       <button
         @click="emit('toggle', 'travel')"
@@ -42,13 +49,6 @@
         :disabled="isLocked('travel')"
       >
         Travel
-      </button>
-      <button
-        @click="emit('toggle', 'combat')"
-        :style="actionStyle('combat')"
-        :disabled="isLocked('combat')"
-      >
-        Combat
       </button>
     </template>
   </div>

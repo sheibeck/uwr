@@ -94,7 +94,18 @@
             activePanel = 'none';
           "
         />
-        <InventoryPanel v-else-if="activePanel === 'inventory'" :styles="styles" />
+        <InventoryPanel
+          v-else-if="activePanel === 'inventory'"
+          :styles="styles"
+          :conn-active="conn.isActive"
+          :selected-character="selectedCharacter"
+          :equipped-slots="equippedSlots"
+          :inventory-items="inventoryItems"
+          :inventory-count="inventoryCount"
+          :max-inventory-slots="maxInventorySlots"
+          @equip="equipItem"
+          @unequip="unequipItem"
+        />
         <FriendsPanel
           v-else-if="activePanel === 'friends'"
           :styles="styles"
@@ -133,7 +144,6 @@
           v-else-if="activePanel === 'stats'"
           :styles="styles"
           :selected-character="selectedCharacter"
-          :equipped-items="equippedItems"
         />
         <CombatPanel
           v-else-if="activePanel === 'combat'"
@@ -216,6 +226,7 @@ import { useMovement } from './composables/useMovement';
 import { usePlayer } from './composables/usePlayer';
 import { useAuth } from './composables/useAuth';
 import { useFriends } from './composables/useFriends';
+import { useInventory } from './composables/useInventory';
 
 const {
   conn,
@@ -365,26 +376,13 @@ const { moveTo } = useMovement({
   selectedCharacter,
 });
 
-const equippedItems = computed(() => {
-  if (!selectedCharacter.value) return [];
-  return itemInstances.value
-    .filter(
-      (instance) =>
-        instance.ownerCharacterId.toString() === selectedCharacter.value?.id.toString() &&
-        instance.equippedSlot
-    )
-    .map((instance) => {
-      const template = itemTemplates.value.find(
-        (row) => row.id.toString() === instance.templateId.toString()
-      );
-      return {
-        slot: instance.equippedSlot ?? 'unknown',
-        name: template?.name ?? 'Unknown',
-        rarity: template?.rarity ?? 'Common',
-      };
-    })
-    .sort((a, b) => a.slot.localeCompare(b.slot));
-});
+const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipItem, unequipItem } =
+  useInventory({
+    connActive: computed(() => conn.isActive),
+    selectedCharacter,
+    itemInstances,
+    itemTemplates,
+  });
 
 const activePanel = ref<
   'none' | 'character' | 'inventory' | 'friends' | 'group' | 'stats' | 'travel' | 'combat'

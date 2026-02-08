@@ -221,6 +221,23 @@ export const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '1rem',
+    flex: 1,
+    minHeight: 0,
+    overflow: 'auto',
+  },
+  accordion: {
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '10px',
+    padding: '0.6rem 0.8rem',
+    background: 'rgba(16, 20, 28, 0.65)',
+  },
+  accordionSummary: {
+    cursor: 'pointer',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    fontSize: '0.75rem',
+    color: 'rgba(230,232,239,0.75)',
   },
   panelSectionTitle: {
     fontSize: '0.85rem',
