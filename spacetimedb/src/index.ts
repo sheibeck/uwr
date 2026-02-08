@@ -98,9 +98,59 @@ const Character = table(
     maxHp: t.u64(),
     mana: t.u64(),
     maxMana: t.u64(),
+    str: t.u64(),
+    dex: t.u64(),
+    cha: t.u64(),
+    wis: t.u64(),
+    int: t.u64(),
+    hitChance: t.u64(),
+    dodgeChance: t.u64(),
+    parryChance: t.u64(),
+    critMelee: t.u64(),
+    critRanged: t.u64(),
+    critDivine: t.u64(),
+    critArcane: t.u64(),
+    perception: t.u64(),
+    search: t.u64(),
+    ccPower: t.u64(),
+    vendorBuyMod: t.u64(),
+    vendorSellMod: t.u64(),
     createdAt: t.timestamp(),
     stamina: t.u64().default(0n),
     maxStamina: t.u64().default(0n),
+  }
+);
+
+const ItemTemplate = table(
+  { name: 'item_template', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    name: t.string(),
+    slot: t.string(),
+    rarity: t.string(),
+    requiredLevel: t.u64(),
+    allowedClasses: t.string(),
+    strBonus: t.u64(),
+    dexBonus: t.u64(),
+    chaBonus: t.u64(),
+    wisBonus: t.u64(),
+    intBonus: t.u64(),
+    hpBonus: t.u64(),
+    manaBonus: t.u64(),
+  }
+);
+
+const ItemInstance = table(
+  {
+    name: 'item_instance',
+    public: true,
+    indexes: [{ name: 'by_owner', algorithm: 'btree', columns: ['ownerCharacterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    templateId: t.u64(),
+    ownerCharacterId: t.u64(),
+    equippedSlot: t.string().optional(),
   }
 );
 
@@ -398,6 +448,8 @@ export const spacetimedb = schema(
   WorldState,
   Location,
   Character,
+  ItemTemplate,
+  ItemInstance,
   Group,
   GroupMember,
   GroupInvite,
@@ -505,6 +557,184 @@ function appendGroupEvent(
     message,
     createdAt: ctx.timestamp,
   });
+}
+
+type StatKey = 'str' | 'dex' | 'cha' | 'wis' | 'int';
+
+const CLASS_CONFIG: Record<string, { primary: StatKey; secondary?: StatKey }> = {
+  bard: { primary: 'cha', secondary: 'int' },
+  enchanter: { primary: 'cha' },
+  cleric: { primary: 'wis' },
+  warrior: { primary: 'str' },
+  rogue: { primary: 'dex' },
+  paladin: { primary: 'wis' },
+  ranger: { primary: 'dex', secondary: 'wis' },
+  necromancer: { primary: 'int' },
+  spellblade: { primary: 'int', secondary: 'str' },
+  shaman: { primary: 'wis' },
+  beastmaster: { primary: 'str', secondary: 'dex' },
+  monk: { primary: 'dex', secondary: 'str' },
+  druid: { primary: 'wis' },
+  reaver: { primary: 'str', secondary: 'int' },
+  summoner: { primary: 'int' },
+};
+
+const BASE_STAT = 8n;
+const PRIMARY_BONUS = 4n;
+const SECONDARY_BONUS = 2n;
+const PRIMARY_GROWTH = 3n;
+const SECONDARY_GROWTH = 2n;
+const OTHER_GROWTH = 1n;
+
+const BASE_HP = 30n;
+const BASE_MANA = 10n;
+
+const EQUIPMENT_SLOTS = new Set([
+  'head',
+  'chest',
+  'wrists',
+  'hands',
+  'belt',
+  'legs',
+  'boots',
+  'earrings',
+  'neck',
+  'cloak',
+  'mainHand',
+  'offHand',
+]);
+
+function normalizeClassName(className: string) {
+  return className.trim().toLowerCase();
+}
+
+function getClassConfig(className: string) {
+  return CLASS_CONFIG[normalizeClassName(className)] ?? { primary: 'str' };
+}
+
+function computeBaseStats(className: string, level: bigint) {
+  const config = getClassConfig(className);
+  const levelsToApply = level > 1n ? level - 1n : 0n;
+  const base = {
+    str: BASE_STAT,
+    dex: BASE_STAT,
+    cha: BASE_STAT,
+    wis: BASE_STAT,
+    int: BASE_STAT,
+  };
+  base[config.primary] += PRIMARY_BONUS;
+  if (config.secondary) base[config.secondary] += SECONDARY_BONUS;
+
+  const applyGrowth = (key: StatKey) => {
+    let growth = OTHER_GROWTH;
+    if (key === config.primary) growth = PRIMARY_GROWTH;
+    else if (config.secondary && key === config.secondary) growth = SECONDARY_GROWTH;
+    return base[key] + growth * levelsToApply;
+  };
+
+  return {
+    str: applyGrowth('str'),
+    dex: applyGrowth('dex'),
+    cha: applyGrowth('cha'),
+    wis: applyGrowth('wis'),
+    int: applyGrowth('int'),
+  };
+}
+
+function manaStatForClass(className: string, stats: Record<StatKey, bigint>) {
+  const config = getClassConfig(className);
+  if (!config.secondary) return stats[config.primary];
+  return (stats[config.primary] * 70n + stats[config.secondary] * 30n) / 100n;
+}
+
+function getEquippedBonuses(ctx: any, characterId: bigint) {
+  const bonuses = {
+    str: 0n,
+    dex: 0n,
+    cha: 0n,
+    wis: 0n,
+    int: 0n,
+    hpBonus: 0n,
+    manaBonus: 0n,
+  };
+  for (const instance of ctx.db.itemInstance.by_owner.filter(characterId)) {
+    if (!instance.equippedSlot) continue;
+    const template = ctx.db.itemTemplate.id.find(instance.templateId);
+    if (!template) continue;
+    bonuses.str += template.strBonus;
+    bonuses.dex += template.dexBonus;
+    bonuses.cha += template.chaBonus;
+    bonuses.wis += template.wisBonus;
+    bonuses.int += template.intBonus;
+    bonuses.hpBonus += template.hpBonus;
+    bonuses.manaBonus += template.manaBonus;
+  }
+  return bonuses;
+}
+
+function recomputeCharacterDerived(ctx: any, character: typeof Character.rowType) {
+  const gear = getEquippedBonuses(ctx, character.id);
+  const totalStats = {
+    str: character.str + gear.str,
+    dex: character.dex + gear.dex,
+    cha: character.cha + gear.cha,
+    wis: character.wis + gear.wis,
+    int: character.int + gear.int,
+  };
+
+  const manaStat = manaStatForClass(character.className, totalStats);
+  const maxHp = BASE_HP + totalStats.str * 10n + gear.hpBonus;
+  const maxMana = BASE_MANA + manaStat * 6n + gear.manaBonus;
+
+  const hitChance = totalStats.dex * 15n;
+  const dodgeChance = totalStats.dex * 12n;
+  const parryChance = totalStats.dex * 10n;
+  const critMelee = totalStats.dex * 12n;
+  const critRanged = totalStats.dex * 12n;
+  const critDivine = totalStats.wis * 12n;
+  const critArcane = totalStats.int * 12n;
+  const perception = totalStats.wis * 25n;
+  const search = totalStats.int * 25n;
+  const ccPower = totalStats.cha * 15n;
+  const vendorBuyMod = totalStats.cha * 10n;
+  const vendorSellMod = totalStats.cha * 8n;
+
+  const updated = {
+    ...character,
+    maxHp,
+    maxMana,
+    hitChance,
+    dodgeChance,
+    parryChance,
+    critMelee,
+    critRanged,
+    critDivine,
+    critArcane,
+    perception,
+    search,
+    ccPower,
+    vendorBuyMod,
+    vendorSellMod,
+  };
+
+  const clampedHp = character.hp > maxHp ? maxHp : character.hp;
+  const clampedMana = character.mana > maxMana ? maxMana : character.mana;
+  ctx.db.character.id.update({
+    ...updated,
+    hp: clampedHp,
+    mana: clampedMana,
+  });
+}
+
+function isClassAllowed(allowedClasses: string, className: string) {
+  if (!allowedClasses || allowedClasses.trim().length === 0) return true;
+  const normalized = normalizeClassName(className);
+  const allowed = allowedClasses
+    .split(',')
+    .map((entry) => normalizeClassName(entry))
+    .filter((entry) => entry.length > 0);
+  if (allowed.includes('any')) return true;
+  return allowed.includes(normalized);
 }
 
 function friendUserIds(ctx: any, userId: bigint): bigint[] {
@@ -1086,6 +1316,10 @@ spacetimedb.reducer(
     const world = ctx.db.worldState.id.find(1n);
     if (!world) throw new SenderError('World not initialized');
 
+    const baseStats = computeBaseStats(className, 1n);
+    const manaStat = manaStatForClass(className, baseStats);
+    const maxHp = BASE_HP + baseStats.str * 10n;
+    const maxMana = BASE_MANA + manaStat * 6n;
     const character = ctx.db.character.insert({
       id: 0n,
       ownerUserId: userId,
@@ -1095,16 +1329,126 @@ spacetimedb.reducer(
       level: 1n,
       xp: 0n,
       locationId: world.startingLocationId,
-      hp: 30n,
-      maxHp: 30n,
-      mana: 10n,
-      maxMana: 10n,
+      hp: maxHp,
+      maxHp,
+      mana: maxMana,
+      maxMana,
+      str: baseStats.str,
+      dex: baseStats.dex,
+      cha: baseStats.cha,
+      wis: baseStats.wis,
+      int: baseStats.int,
+      hitChance: baseStats.dex * 15n,
+      dodgeChance: baseStats.dex * 12n,
+      parryChance: baseStats.dex * 10n,
+      critMelee: baseStats.dex * 12n,
+      critRanged: baseStats.dex * 12n,
+      critDivine: baseStats.wis * 12n,
+      critArcane: baseStats.int * 12n,
+      perception: baseStats.wis * 25n,
+      search: baseStats.int * 25n,
+      ccPower: baseStats.cha * 15n,
+      vendorBuyMod: baseStats.cha * 10n,
+      vendorSellMod: baseStats.cha * 8n,
       stamina: 20n,
       maxStamina: 20n,
       createdAt: ctx.timestamp,
     });
 
     appendPrivateEvent(ctx, character.id, userId, 'system', `${character.name} enters the world.`);
+  }
+);
+
+spacetimedb.reducer(
+  'create_item_template',
+  {
+    name: t.string(),
+    slot: t.string(),
+    rarity: t.string(),
+    requiredLevel: t.u64(),
+    allowedClasses: t.string(),
+    strBonus: t.u64(),
+    dexBonus: t.u64(),
+    chaBonus: t.u64(),
+    wisBonus: t.u64(),
+    intBonus: t.u64(),
+    hpBonus: t.u64(),
+    manaBonus: t.u64(),
+  },
+  (ctx, args) => {
+    const slot = args.slot.trim();
+    if (!EQUIPMENT_SLOTS.has(slot)) throw new SenderError('Invalid slot');
+    ctx.db.itemTemplate.insert({
+      id: 0n,
+      name: args.name.trim(),
+      slot,
+      rarity: args.rarity.trim(),
+      requiredLevel: args.requiredLevel,
+      allowedClasses: args.allowedClasses.trim(),
+      strBonus: args.strBonus,
+      dexBonus: args.dexBonus,
+      chaBonus: args.chaBonus,
+      wisBonus: args.wisBonus,
+      intBonus: args.intBonus,
+      hpBonus: args.hpBonus,
+      manaBonus: args.manaBonus,
+    });
+  }
+);
+
+spacetimedb.reducer('grant_item', { characterId: t.u64(), templateId: t.u64() }, (ctx, args) => {
+  const character = requireCharacterOwnedBy(ctx, args.characterId);
+  const template = ctx.db.itemTemplate.id.find(args.templateId);
+  if (!template) throw new SenderError('Item template not found');
+  ctx.db.itemInstance.insert({
+    id: 0n,
+    templateId: template.id,
+    ownerCharacterId: character.id,
+    equippedSlot: undefined,
+  });
+});
+
+spacetimedb.reducer(
+  'equip_item',
+  { characterId: t.u64(), itemInstanceId: t.u64() },
+  (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
+    if (!instance) throw new SenderError('Item not found');
+    if (instance.ownerCharacterId !== character.id) {
+      throw new SenderError('Item does not belong to you');
+    }
+    const template = ctx.db.itemTemplate.id.find(instance.templateId);
+    if (!template) throw new SenderError('Item template missing');
+    if (character.level < template.requiredLevel) throw new SenderError('Level too low');
+    if (!isClassAllowed(template.allowedClasses, character.className)) {
+      throw new SenderError('Class cannot use this item');
+    }
+    if (!EQUIPMENT_SLOTS.has(template.slot)) throw new SenderError('Invalid slot');
+
+    for (const other of ctx.db.itemInstance.by_owner.filter(character.id)) {
+      if (other.equippedSlot === template.slot) {
+        ctx.db.itemInstance.id.update({ ...other, equippedSlot: undefined });
+      }
+    }
+    ctx.db.itemInstance.id.update({ ...instance, equippedSlot: template.slot });
+    recomputeCharacterDerived(ctx, character);
+  }
+);
+
+spacetimedb.reducer(
+  'unequip_item',
+  { characterId: t.u64(), slot: t.string() },
+  (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const slot = args.slot.trim();
+    for (const instance of ctx.db.itemInstance.by_owner.filter(character.id)) {
+      if (instance.equippedSlot === slot) {
+        ctx.db.itemInstance.id.update({ ...instance, equippedSlot: undefined });
+        recomputeCharacterDerived(ctx, character);
+        return;
+      }
+    }
   }
 );
 

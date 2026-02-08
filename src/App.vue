@@ -133,6 +133,7 @@
           v-else-if="activePanel === 'stats'"
           :styles="styles"
           :selected-character="selectedCharacter"
+          :equipped-items="equippedItems"
         />
         <CombatPanel
           v-else-if="activePanel === 'combat'"
@@ -219,6 +220,8 @@ import { useFriends } from './composables/useFriends';
 const {
   conn,
   characters,
+  itemTemplates,
+  itemInstances,
   locations,
   enemyTemplates,
   enemySpawns,
@@ -360,6 +363,27 @@ const {
 const { moveTo } = useMovement({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
+});
+
+const equippedItems = computed(() => {
+  if (!selectedCharacter.value) return [];
+  return itemInstances.value
+    .filter(
+      (instance) =>
+        instance.ownerCharacterId.toString() === selectedCharacter.value?.id.toString() &&
+        instance.equippedSlot
+    )
+    .map((instance) => {
+      const template = itemTemplates.value.find(
+        (row) => row.id.toString() === instance.templateId.toString()
+      );
+      return {
+        slot: instance.equippedSlot ?? 'unknown',
+        name: template?.name ?? 'Unknown',
+        rarity: template?.rarity ?? 'Common',
+      };
+    })
+    .sort((a, b) => a.slot.localeCompare(b.slot));
 });
 
 const activePanel = ref<

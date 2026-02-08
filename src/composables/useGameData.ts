@@ -10,6 +10,8 @@ export const useGameData = () => {
   const [friends] = useTable(tables.myFriends);
   const [groupInvites] = useTable(tables.myGroupInvites);
   const [characters] = useTable(tables.character);
+  const [itemTemplates] = useTable(tables.itemTemplate);
+  const [itemInstances] = useTable(tables.itemInstance);
   const [locations] = useTable(tables.location);
   const [enemyTemplates] = useTable(tables.enemyTemplate);
   const [enemySpawns] = useTable(tables.enemySpawn);
@@ -33,6 +35,8 @@ export const useGameData = () => {
     friends,
     groupInvites,
     characters,
+    itemTemplates,
+    itemInstances,
     locations,
     enemyTemplates,
     enemySpawns,

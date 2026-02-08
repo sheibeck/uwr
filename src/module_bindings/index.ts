@@ -58,6 +58,14 @@ import SetActiveCharacterReducer from "./set_active_character_reducer";
 export { SetActiveCharacterReducer };
 import CreateCharacterReducer from "./create_character_reducer";
 export { CreateCharacterReducer };
+import CreateItemTemplateReducer from "./create_item_template_reducer";
+export { CreateItemTemplateReducer };
+import GrantItemReducer from "./grant_item_reducer";
+export { GrantItemReducer };
+import EquipItemReducer from "./equip_item_reducer";
+export { EquipItemReducer };
+import UnequipItemReducer from "./unequip_item_reducer";
+export { UnequipItemReducer };
 import MoveCharacterReducer from "./move_character_reducer";
 export { MoveCharacterReducer };
 import SubmitCommandReducer from "./submit_command_reducer";
@@ -138,6 +146,10 @@ import GroupMemberRow from "./group_member_table";
 export { GroupMemberRow };
 import HealthRegenTickRow from "./health_regen_tick_table";
 export { HealthRegenTickRow };
+import ItemInstanceRow from "./item_instance_table";
+export { ItemInstanceRow };
+import ItemTemplateRow from "./item_template_table";
+export { ItemTemplateRow };
 import LocationRow from "./location_table";
 export { LocationRow };
 import LocationEnemyTemplateRow from "./location_enemy_template_table";
@@ -194,12 +206,16 @@ import CreateCharacter from "./create_character_type";
 export { CreateCharacter };
 import CreateGroup from "./create_group_type";
 export { CreateGroup };
+import CreateItemTemplate from "./create_item_template_type";
+export { CreateItemTemplate };
 import DismissCombatResults from "./dismiss_combat_results_type";
 export { DismissCombatResults };
 import EnemySpawn from "./enemy_spawn_type";
 export { EnemySpawn };
 import EnemyTemplate from "./enemy_template_type";
 export { EnemyTemplate };
+import EquipItem from "./equip_item_type";
+export { EquipItem };
 import EventGroup from "./event_group_type";
 export { EventGroup };
 import EventLocation from "./event_location_type";
@@ -212,6 +228,8 @@ import Friend from "./friend_type";
 export { Friend };
 import FriendRequest from "./friend_request_type";
 export { FriendRequest };
+import GrantItem from "./grant_item_type";
+export { GrantItem };
 import Group from "./group_type";
 export { Group };
 import GroupInvite from "./group_invite_type";
@@ -224,6 +242,10 @@ import Init from "./init_type";
 export { Init };
 import InviteToGroup from "./invite_to_group_type";
 export { InviteToGroup };
+import ItemInstance from "./item_instance_type";
+export { ItemInstance };
+import ItemTemplate from "./item_template_type";
+export { ItemTemplate };
 import JoinGroup from "./join_group_type";
 export { JoinGroup };
 import KickGroupMember from "./kick_group_member_type";
@@ -292,6 +314,8 @@ import StartCombat from "./start_combat_type";
 export { StartCombat };
 import SubmitCommand from "./submit_command_type";
 export { SubmitCommand };
+import UnequipItem from "./unequip_item_type";
+export { UnequipItem };
 import User from "./user_type";
 export { User };
 import Whisper from "./whisper_type";
@@ -600,6 +624,31 @@ const tablesSchema = __schema(
     ],
   }, HealthRegenTickRow),
   __table({
+    name: 'item_instance',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_owner', algorithm: 'btree', columns: [
+        'ownerCharacterId',
+      ] },
+    ],
+    constraints: [
+      { name: 'item_instance_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ItemInstanceRow),
+  __table({
+    name: 'item_template',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'item_template_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ItemTemplateRow),
+  __table({
     name: 'location',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -737,6 +786,10 @@ const reducersSchema = __reducers(
   __reducerSchema("logout", LogoutReducer),
   __reducerSchema("set_active_character", SetActiveCharacterReducer),
   __reducerSchema("create_character", CreateCharacterReducer),
+  __reducerSchema("create_item_template", CreateItemTemplateReducer),
+  __reducerSchema("grant_item", GrantItemReducer),
+  __reducerSchema("equip_item", EquipItemReducer),
+  __reducerSchema("unequip_item", UnequipItemReducer),
   __reducerSchema("move_character", MoveCharacterReducer),
   __reducerSchema("submit_command", SubmitCommandReducer),
   __reducerSchema("say", SayReducer),
