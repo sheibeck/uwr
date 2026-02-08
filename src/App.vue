@@ -57,6 +57,7 @@
             :active-enemy-spawn="activeEnemySpawn"
             :active-enemy-name="activeEnemyName"
             :active-enemy-level="activeEnemyLevel"
+            :active-enemy-con-class="activeEnemyConClass"
             :round-ends-in-seconds="roundEndsInSeconds"
             :selected-action="selectedAction"
             :enemy-spawns="availableEnemies"
@@ -158,6 +159,7 @@
           :active-enemy-spawn="activeEnemySpawn"
           :active-enemy-name="activeEnemyName"
           :active-enemy-level="activeEnemyLevel"
+          :active-enemy-con-class="activeEnemyConClass"
           :round-ends-in-seconds="roundEndsInSeconds"
           :selected-action="selectedAction"
           :enemy-spawns="availableEnemies"
@@ -176,7 +178,8 @@
           :styles="styles"
           :conn-active="conn.isActive"
           :selected-character="selectedCharacter"
-          :locations="locations"
+          :locations="connectedLocations"
+          :regions="regions"
           @move="moveTo"
         />
       </PanelShell>
@@ -252,6 +255,8 @@ import { useInventory } from './composables/useInventory';
 const {
   conn,
   characters,
+  regions,
+  locationConnections,
   itemTemplates,
   itemInstances,
   locations,
@@ -325,6 +330,7 @@ const {
   activeEnemySpawn,
   activeEnemyName,
   activeEnemyLevel,
+  activeEnemyConClass,
   availableEnemies,
   combatRoster,
   activeResult,
@@ -395,6 +401,17 @@ const {
 const { moveTo } = useMovement({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
+});
+
+const connectedLocations = computed(() => {
+  if (!selectedCharacter.value) return [];
+  const currentId = selectedCharacter.value.locationId.toString();
+  const connectedIds = new Set(
+    locationConnections.value
+      .filter((row) => row.fromLocationId.toString() === currentId)
+      .map((row) => row.toLocationId.toString())
+  );
+  return locations.value.filter((loc) => connectedIds.has(loc.id.toString()));
 });
 
 const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipItem, unequipItem } =

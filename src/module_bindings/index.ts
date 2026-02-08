@@ -152,6 +152,8 @@ import ItemTemplateRow from "./item_template_table";
 export { ItemTemplateRow };
 import LocationRow from "./location_table";
 export { LocationRow };
+import LocationConnectionRow from "./location_connection_table";
+export { LocationConnectionRow };
 import LocationEnemyTemplateRow from "./location_enemy_template_table";
 export { LocationEnemyTemplateRow };
 import MyCombatResultsRow from "./my_combat_results_table";
@@ -256,6 +258,8 @@ import LeaveGroup from "./leave_group_type";
 export { LeaveGroup };
 import Location from "./location_type";
 export { Location };
+import LocationConnection from "./location_connection_type";
+export { LocationConnection };
 import LocationEnemyTemplate from "./location_enemy_template_type";
 export { LocationEnemyTemplate };
 import LoginEmail from "./login_email_type";
@@ -663,6 +667,23 @@ const tablesSchema = __schema(
       { name: 'location_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, LocationRow),
+  __table({
+    name: 'location_connection',
+    indexes: [
+      { name: 'by_from', algorithm: 'btree', columns: [
+        'fromLocationId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_to', algorithm: 'btree', columns: [
+        'toLocationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'location_connection_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, LocationConnectionRow),
   __table({
     name: 'location_enemy_template',
     indexes: [

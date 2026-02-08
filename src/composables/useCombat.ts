@@ -15,6 +15,7 @@ type EnemySummary = {
   id: bigint;
   name: string;
   level: bigint;
+  conClass: string;
 };
 
 type CombatRosterEntry = {
@@ -184,6 +185,17 @@ export const useCombat = ({
   });
 
   const activeEnemyLevel = computed(() => activeEnemyTemplate.value?.level ?? 1n);
+  const activeEnemyConClass = computed(() => {
+    if (!selectedCharacter.value || !activeEnemyTemplate.value) return 'conWhite';
+    const diff = Number(activeEnemyTemplate.value.level - selectedCharacter.value.level);
+    if (diff <= -5) return 'conGray';
+    if (diff <= -2) return 'conLightGreen';
+    if (diff === -1) return 'conBlue';
+    if (diff === 0) return 'conWhite';
+    if (diff === 1) return 'conYellow';
+    if (diff === 2) return 'conOrange';
+    return 'conRed';
+  });
 
   const roundEndsInSeconds = computed(() => {
     if (!activeCombat.value) return 0;
@@ -204,10 +216,21 @@ export const useCombat = ({
         const template = enemyTemplates.value.find(
           (row) => row.id.toString() === spawn.enemyTemplateId.toString()
         );
+        const level = template?.level ?? 1n;
+        const diff = Number(level - selectedCharacter.value!.level);
+        let conClass = 'conWhite';
+        if (diff <= -5) conClass = 'conGray';
+        else if (diff <= -2) conClass = 'conLightGreen';
+        else if (diff === -1) conClass = 'conBlue';
+        else if (diff === 0) conClass = 'conWhite';
+        else if (diff === 1) conClass = 'conYellow';
+        else if (diff === 2) conClass = 'conOrange';
+        else conClass = 'conRed';
         return {
           id: spawn.id,
           name: spawn.name,
-          level: template?.level ?? 1n,
+          level,
+          conClass,
         };
       });
   });
@@ -287,6 +310,7 @@ export const useCombat = ({
     activeEnemy,
     activeEnemyName,
     activeEnemyLevel,
+    activeEnemyConClass,
     activeEnemySpawn,
     availableEnemies,
     combatRoster,

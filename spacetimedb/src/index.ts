@@ -86,6 +86,22 @@ const Location = table(
   }
 );
 
+const LocationConnection = table(
+  {
+    name: 'location_connection',
+    public: true,
+    indexes: [
+      { name: 'by_from', algorithm: 'btree', columns: ['fromLocationId'] },
+      { name: 'by_to', algorithm: 'btree', columns: ['toLocationId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    fromLocationId: t.u64(),
+    toLocationId: t.u64(),
+  }
+);
+
 const Character = table(
   {
     name: 'character',
@@ -469,6 +485,7 @@ export const spacetimedb = schema(
   WorldState,
   Region,
   Location,
+  LocationConnection,
   Character,
   ItemTemplate,
   ItemInstance,
@@ -1060,6 +1077,18 @@ function computeLocationTargetLevel(ctx: any, locationId: bigint, baseLevel: big
   return result > 1n ? result : 1n;
 }
 
+function connectLocations(ctx: any, fromId: bigint, toId: bigint) {
+  ctx.db.locationConnection.insert({ id: 0n, fromLocationId: fromId, toLocationId: toId });
+  ctx.db.locationConnection.insert({ id: 0n, fromLocationId: toId, toLocationId: fromId });
+}
+
+function areLocationsConnected(ctx: any, fromId: bigint, toId: bigint) {
+  for (const row of ctx.db.locationConnection.by_from.filter(fromId)) {
+    if (row.toLocationId === toId) return true;
+  }
+  return false;
+}
+
 function friendUserIds(ctx: any, userId: bigint): bigint[] {
   const ids: bigint[] = [];
   for (const row of ctx.db.friend.by_user.filter(userId)) {
@@ -1333,7 +1362,7 @@ spacetimedb.init((ctx) => {
       levelOffset: 0n,
       isSafe: true,
     });
-    ctx.db.location.insert({
+    const ashen = ctx.db.location.insert({
       id: 0n,
       name: 'Ashen Road',
       description: 'A cracked highway flanked by dead trees and drifting embers.',
@@ -1342,7 +1371,7 @@ spacetimedb.init((ctx) => {
       levelOffset: 1n,
       isSafe: false,
     });
-    ctx.db.location.insert({
+    const fogroot = ctx.db.location.insert({
       id: 0n,
       name: 'Fogroot Crossing',
       description: 'Twisted roots and slick stones mark a shadowy crossing.',
@@ -1351,7 +1380,7 @@ spacetimedb.init((ctx) => {
       levelOffset: 2n,
       isSafe: false,
     });
-    ctx.db.location.insert({
+    const gate = ctx.db.location.insert({
       id: 0n,
       name: 'Embermarch Gate',
       description: 'A scorched pass leading toward harsher lands.',
@@ -1360,7 +1389,7 @@ spacetimedb.init((ctx) => {
       levelOffset: 3n,
       isSafe: false,
     });
-    ctx.db.location.insert({
+    const cinder = ctx.db.location.insert({
       id: 0n,
       name: 'Cinderwatch',
       description: 'Ash dunes and ember winds test the brave.',
@@ -1371,6 +1400,11 @@ spacetimedb.init((ctx) => {
     });
 
     ctx.db.worldState.insert({ id: 1n, startingLocationId: town.id });
+
+    connectLocations(ctx, town.id, ashen.id);
+    connectLocations(ctx, ashen.id, fogroot.id);
+    connectLocations(ctx, fogroot.id, gate.id);
+    connectLocations(ctx, gate.id, cinder.id);
   }
 
   if (!tableHasRows(ctx.db.enemyTemplate.iter())) {
@@ -1929,6 +1963,9 @@ spacetimedb.reducer('move_character', { characterId: t.u64(), locationId: t.u64(
   const location = ctx.db.location.id.find(args.locationId);
   if (!location) throw new SenderError('Location not found');
   if (character.locationId === location.id) return;
+  if (!areLocationsConnected(ctx, character.locationId, location.id)) {
+    throw new SenderError('Location not connected');
+  }
 
   const originLocationId = character.locationId;
   const userId = requirePlayerUserId(ctx);

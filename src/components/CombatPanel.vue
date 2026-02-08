@@ -7,7 +7,10 @@
     <div v-else>
       <div v-if="activeCombat">
         <div :style="styles.subtle">
-          Fighting {{ activeEnemyName }} (Lv {{ activeEnemyLevel }})
+          Fighting
+          <span :style="styles[activeEnemyConClass] ?? {}">
+            {{ activeEnemyName }} (Lv {{ activeEnemyLevel }})
+          </span>
         </div>
         <div v-if="activeEnemy" :style="styles.subtle">
           Enemy HP: {{ activeEnemy.currentHp }} / {{ activeEnemy.maxHp }}
@@ -75,7 +78,9 @@
             :disabled="!connActive || !canEngage"
             :style="styles.ghostButton"
           >
-            {{ enemy.name }} (Lv {{ enemy.level }})
+            <span :style="styles[enemy.conClass] ?? {}">
+              {{ enemy.name }} (Lv {{ enemy.level }})
+            </span>
           </button>
         </div>
       </div>
@@ -105,6 +110,7 @@ defineProps<{
   activeEnemy: CombatEnemyRow | null;
   activeEnemyName: string;
   activeEnemyLevel: bigint;
+  activeEnemyConClass: string;
   activeEnemySpawn: { id: bigint } | null;
   roundEndsInSeconds: number;
   selectedAction: 'attack' | 'skip' | 'flee' | null;

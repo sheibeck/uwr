@@ -457,4 +457,36 @@ export const styles = {
   tooltipLine: {
     color: 'rgba(230,232,239,0.8)',
   },
+  conGray: {
+    color: '#6b7280',
+  },
+  conGreen: {
+    color: '#7cf29a',
+  },
+  conLightGreen: {
+    color: '#b6f7c4',
+  },
+  conBlue: {
+    color: '#8bd3ff',
+  },
+  conWhite: {
+    color: '#f8fafc',
+  },
+  conYellow: {
+    color: '#f6d365',
+  },
+  conOrange: {
+    color: '#f59e0b',
+  },
+  conRed: {
+    color: '#f87171',
+  },
+  regionBadge: {
+    padding: '0.15rem 0.4rem',
+    borderRadius: '999px',
+    border: '1px solid rgba(255,255,255,0.2)',
+    fontSize: '0.7rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+  },
 } as const;
