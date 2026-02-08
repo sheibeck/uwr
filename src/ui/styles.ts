@@ -205,8 +205,22 @@ export const styles = {
   },
   combatTimer: {
     fontFamily: '"Source Code Pro", "Consolas", monospace',
-    fontSize: '0.85rem',
-    color: 'rgba(230,232,239,0.75)',
+    fontSize: '1rem',
+    color: '#f6d365',
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+  },
+  hpBar: {
+    height: '8px',
+    borderRadius: '999px',
+    background: 'rgba(255,255,255,0.1)',
+    overflow: 'hidden',
+    marginTop: '0.25rem',
+  },
+  hpFill: {
+    height: '100%',
+    background: 'linear-gradient(90deg, #6bdc8c 0%, #38b2ac 100%)',
   },
   panelForm: {
     display: 'grid',

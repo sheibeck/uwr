@@ -88,6 +88,8 @@ import RejectGroupInviteReducer from "./reject_group_invite_reducer";
 export { RejectGroupInviteReducer };
 import ChooseActionReducer from "./choose_action_reducer";
 export { ChooseActionReducer };
+import DismissCombatResultsReducer from "./dismiss_combat_results_reducer";
+export { DismissCombatResultsReducer };
 import ResolveRoundReducer from "./resolve_round_reducer";
 export { ResolveRoundReducer };
 
@@ -104,6 +106,8 @@ import CombatEnemyRow from "./combat_enemy_table";
 export { CombatEnemyRow };
 import CombatParticipantRow from "./combat_participant_table";
 export { CombatParticipantRow };
+import CombatResultRow from "./combat_result_table";
+export { CombatResultRow };
 import CombatRoundTickRow from "./combat_round_tick_table";
 export { CombatRoundTickRow };
 import CommandRow from "./command_table";
@@ -134,6 +138,8 @@ import LocationRow from "./location_table";
 export { LocationRow };
 import LocationEnemyTemplateRow from "./location_enemy_template_table";
 export { LocationEnemyTemplateRow };
+import MyCombatResultsRow from "./my_combat_results_table";
+export { MyCombatResultsRow };
 import MyFriendRequestsRow from "./my_friend_requests_table";
 export { MyFriendRequestsRow };
 import MyFriendsRow from "./my_friends_table";
@@ -174,6 +180,8 @@ import CombatEnemy from "./combat_enemy_type";
 export { CombatEnemy };
 import CombatParticipant from "./combat_participant_type";
 export { CombatParticipant };
+import CombatResult from "./combat_result_type";
+export { CombatResult };
 import CombatRoundTick from "./combat_round_tick_type";
 export { CombatRoundTick };
 import Command from "./command_type";
@@ -182,6 +190,8 @@ import CreateCharacter from "./create_character_type";
 export { CreateCharacter };
 import CreateGroup from "./create_group_type";
 export { CreateGroup };
+import DismissCombatResults from "./dismiss_combat_results_type";
+export { DismissCombatResults };
 import EnemySpawn from "./enemy_spawn_type";
 export { EnemySpawn };
 import EnemyTemplate from "./enemy_template_type";
@@ -224,6 +234,8 @@ import Logout from "./logout_type";
 export { Logout };
 import MoveCharacter from "./move_character_type";
 export { MoveCharacter };
+import MyCombatResults from "./my_combat_results_type";
+export { MyCombatResults };
 import MyFriendRequests from "./my_friend_requests_type";
 export { MyFriendRequests };
 import MyFriends from "./my_friends_type";
@@ -360,6 +372,23 @@ const tablesSchema = __schema(
       { name: 'combat_participant_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatParticipantRow),
+  __table({
+    name: 'combat_result',
+    indexes: [
+      { name: 'by_group', algorithm: 'btree', columns: [
+        'groupId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_owner_user', algorithm: 'btree', columns: [
+        'ownerUserId',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_result_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CombatResultRow),
   __table({
     name: 'combat_round_tick',
     indexes: [
@@ -613,6 +642,13 @@ const tablesSchema = __schema(
     ],
   }, WorldStateRow),
   __table({
+    name: 'my_combat_results',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyCombatResultsRow),
+  __table({
     name: 'my_friend_requests',
     indexes: [
     ],
@@ -697,6 +733,7 @@ const reducersSchema = __reducers(
   __reducerSchema("accept_group_invite", AcceptGroupInviteReducer),
   __reducerSchema("reject_group_invite", RejectGroupInviteReducer),
   __reducerSchema("choose_action", ChooseActionReducer),
+  __reducerSchema("dismiss_combat_results", DismissCombatResultsReducer),
   __reducerSchema("resolve_round", ResolveRoundReducer),
 );
 

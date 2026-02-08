@@ -249,6 +249,25 @@ const CombatEnemy = table(
   }
 );
 
+const CombatResult = table(
+  {
+    name: 'combat_result',
+    indexes: [
+      { name: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
+      { name: 'by_group', algorithm: 'btree', columns: ['groupId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    ownerUserId: t.u64(),
+    characterId: t.u64(),
+    groupId: t.u64().optional(),
+    combatId: t.u64(),
+    summary: t.string(),
+    createdAt: t.timestamp(),
+  }
+);
+
 const AggroEntry = table(
   {
     name: 'aggro_entry',
@@ -377,6 +396,7 @@ export const spacetimedb = schema(
   CombatEnemy,
   AggroEntry,
   CombatRoundTick,
+  CombatResult,
   Command,
   EventWorld,
   EventLocation,
@@ -657,6 +677,16 @@ spacetimedb.view(
     const player = ctx.db.player.id.find(ctx.sender);
     if (!player || player.userId == null) return [];
     return [...ctx.db.groupMember.by_owner_user.filter(player.userId)];
+  }
+);
+
+spacetimedb.view(
+  { name: 'my_combat_results', public: true },
+  t.array(CombatResult.rowType),
+  (ctx) => {
+    const player = ctx.db.player.id.find(ctx.sender);
+    if (!player || player.userId == null) return [];
+    return [...ctx.db.combatResult.by_owner_user.filter(player.userId)];
   }
 );
 
@@ -1647,6 +1677,25 @@ spacetimedb.reducer(
   }
 );
 
+spacetimedb.reducer('dismiss_combat_results', { characterId: t.u64() }, (ctx, args) => {
+  const character = requireCharacterOwnedBy(ctx, args.characterId);
+  const groupId = character.groupId;
+  if (groupId) {
+    const group = ctx.db.group.id.find(groupId);
+    if (!group) throw new SenderError('Group not found');
+    if (group.leaderCharacterId !== character.id) {
+      throw new SenderError('Only the leader can dismiss results');
+    }
+    for (const row of ctx.db.combatResult.by_group.filter(groupId)) {
+      ctx.db.combatResult.id.delete(row.id);
+    }
+    return;
+  }
+  for (const row of ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)) {
+    ctx.db.combatResult.id.delete(row.id);
+  }
+});
+
 spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { arg }) => {
   const combat = ctx.db.combatEncounter.id.find(arg.combatId);
   if (!combat || combat.state !== 'active') return;
@@ -1703,12 +1752,29 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
 
   const updatedEnemy = ctx.db.combatEnemy.id.find(enemy.id)!;
   if (updatedEnemy.currentHp === 0n) {
+    const enemyName =
+      [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
+        (s) => s.lockedCombatId === combat.id
+      )?.name ?? 'enemy';
     const spawn = [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
       (s) => s.lockedCombatId === combat.id
     );
     if (spawn) {
       ctx.db.enemySpawn.id.delete(spawn.id);
       spawnEnemy(ctx, spawn.locationId);
+    }
+    for (const p of participants) {
+      const character = ctx.db.character.id.find(p.characterId);
+      if (!character) continue;
+      ctx.db.combatResult.insert({
+        id: 0n,
+        ownerUserId: character.ownerUserId,
+        characterId: character.id,
+        groupId: combat.groupId,
+        combatId: combat.id,
+        summary: `Victory against ${enemyName} in ${combat.roundNumber} rounds.`,
+        createdAt: ctx.timestamp,
+      });
     }
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);
@@ -1753,11 +1819,28 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
     }
   }
   if (!stillActive) {
+    const enemyName =
+      [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
+        (s) => s.lockedCombatId === combat.id
+      )?.name ?? 'enemy';
     const spawn = [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
       (s) => s.lockedCombatId === combat.id
     );
     if (spawn) {
       ctx.db.enemySpawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
+    }
+    for (const p of participants) {
+      const character = ctx.db.character.id.find(p.characterId);
+      if (!character) continue;
+      ctx.db.combatResult.insert({
+        id: 0n,
+        ownerUserId: character.ownerUserId,
+        characterId: character.id,
+        groupId: combat.groupId,
+        combatId: combat.id,
+        summary: `Defeat against ${enemyName} after ${combat.roundNumber} rounds.`,
+        createdAt: ctx.timestamp,
+      });
     }
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);

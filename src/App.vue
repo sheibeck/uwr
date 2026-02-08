@@ -98,15 +98,17 @@
           :active-enemy-name="activeEnemyName"
           :active-enemy-level="activeEnemyLevel"
           :combat-roster="combatRoster"
-          :debug-info="debugInfo"
           :round-ends-in-seconds="roundEndsInSeconds"
           :selected-action="selectedAction"
           :enemy-spawns="availableEnemies"
+          :active-result="activeResult"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+          :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           @start="startCombat"
           @attack="attack"
           @skip="skip"
           @flee="flee"
+          @dismiss-results="dismissResults"
         />
         <TravelPanel
           v-else-if="activePanel === 'travel'"
@@ -175,6 +177,7 @@ const {
   combatEncounters,
   combatParticipants,
   combatEnemies,
+  combatResults,
   groups,
   worldEvents,
   locationEvents,
@@ -236,19 +239,21 @@ const {
   activeEnemyLevel,
   availableEnemies,
   combatRoster,
-  debugInfo,
+  activeResult,
   roundEndsInSeconds,
   selectedAction,
   startCombat,
   attack,
   skip,
   flee,
+  dismissResults,
 } = useCombat({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
   combatEncounters,
   combatParticipants,
   combatEnemies,
+  combatResults,
   enemySpawns,
   enemyTemplates,
   characters,

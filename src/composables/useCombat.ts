@@ -5,6 +5,7 @@ import {
   type CombatEncounterRow,
   type CombatParticipantRow,
   type CombatEnemyRow,
+  type CombatResultRow,
   type EnemySpawnRow,
   type EnemyTemplateRow,
 } from '../module_bindings';
@@ -32,6 +33,7 @@ type UseCombatArgs = {
   combatEncounters: Ref<CombatEncounterRow[]>;
   combatParticipants: Ref<CombatParticipantRow[]>;
   combatEnemies: Ref<CombatEnemyRow[]>;
+  combatResults: Ref<CombatResultRow[]>;
   enemySpawns: Ref<EnemySpawnRow[]>;
   enemyTemplates: Ref<EnemyTemplateRow[]>;
   characters: Ref<CharacterRow[]>;
@@ -68,12 +70,14 @@ export const useCombat = ({
   combatEncounters,
   combatParticipants,
   combatEnemies,
+  combatResults,
   enemySpawns,
   enemyTemplates,
   characters,
 }: UseCombatArgs) => {
   const startCombatReducer = useReducer(reducers.startCombat);
   const chooseActionReducer = useReducer(reducers.chooseAction);
+  const dismissResultsReducer = useReducer(reducers.dismissCombatResults);
   const selectedAction = ref<'attack' | 'skip' | 'flee' | null>(null);
   const nowMicros = ref(Date.now() * 1000);
   let timer: number | undefined;
@@ -90,6 +94,20 @@ export const useCombat = ({
     );
     if (!combat || combat.state !== 'active') return null;
     return combat;
+  });
+
+  const activeResult = computed(() => {
+    if (!selectedCharacter.value || activeCombat.value) return null;
+    const selectedId = selectedCharacter.value.id.toString();
+    const results = combatResults.value.filter(
+      (row) => row.characterId.toString() === selectedId
+    );
+    if (results.length === 0) return null;
+    return results.reduce((latest, current) => {
+      const latestAt = timestampToMicros(latest.createdAt);
+      const currentAt = timestampToMicros(current.createdAt);
+      return currentAt > latestAt ? current : latest;
+    });
   });
 
   watch(
@@ -146,7 +164,9 @@ export const useCombat = ({
   const activeEnemyTemplate = computed(() => {
     if (!activeEnemy.value) return null;
     return (
-      enemyTemplates.value.find((row) => row.id === activeEnemy.value?.enemyTemplateId) ?? null
+      enemyTemplates.value.find(
+        (row) => row.id.toString() === activeEnemy.value?.enemyTemplateId.toString()
+      ) ?? null
     );
   });
 
@@ -221,28 +241,17 @@ export const useCombat = ({
     selectedAction.value = action;
   };
 
-  const debugInfo = computed(() => {
-    const selectedId = selectedCharacter.value?.id.toString() ?? 'none';
-    const participant = combatParticipants.value.find(
-      (row) => row.characterId.toString() === selectedId
-    );
-    const participantCombatId = participant?.combatId?.toString() ?? 'none';
-    return {
-      selectedId,
-      participantCombatId,
-      participants: combatParticipants.value.length,
-      encounters: combatEncounters.value.length,
-      enemies: combatEnemies.value.length,
-      spawns: enemySpawns.value.length,
-    };
-  });
-
   const attack = () => chooseAction('attack');
   const flee = () => chooseAction('flee');
   const skip = () => chooseAction('skip');
+  const dismissResults = () => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    dismissResultsReducer({ characterId: selectedCharacter.value.id });
+  };
 
   return {
     activeCombat,
+    activeResult,
     activeEnemy,
     activeEnemyName,
     activeEnemyLevel,
@@ -251,10 +260,10 @@ export const useCombat = ({
     combatRoster,
     roundEndsInSeconds,
     selectedAction,
-    debugInfo,
     startCombat,
     attack,
     flee,
     skip,
+    dismissResults,
   };
 };

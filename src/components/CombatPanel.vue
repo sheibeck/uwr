@@ -25,6 +25,9 @@
               {{ formatStatus(member.status) }}
               <span v-if="member.isYou">(You)</span>
             </span>
+            <div :style="styles.hpBar">
+              <div :style="{ ...styles.hpFill, width: `${hpPercent(member)}%` }"></div>
+            </div>
           </li>
         </ul>
         <div :style="styles.panelFormInline">
@@ -54,11 +57,23 @@
           </button>
         </div>
       </div>
+      <div v-else-if="activeResult">
+        <div :style="styles.panelSectionTitle">Combat Results</div>
+        <div :style="styles.subtle">{{ activeResult.summary }}</div>
+        <div :style="styles.panelFormInline">
+          <button
+            v-if="canDismissResults"
+            type="button"
+            :style="styles.primaryButton"
+            @click="$emit('dismiss-results')"
+          >
+            Dismiss
+          </button>
+          <span v-else :style="styles.subtle">Waiting for the leader to dismiss.</span>
+        </div>
+      </div>
       <div v-else>
         <div :style="styles.subtle">Choose an enemy to engage.</div>
-        <div :style="styles.subtle">
-          Debug: sel={{ debugInfo.selectedId }} combat={{ debugInfo.participantCombatId }} | p={{ debugInfo.participants }} e={{ debugInfo.encounters }} enemies={{ debugInfo.enemies }} spawns={{ debugInfo.spawns }}
-        </div>
         <div v-if="!canEngage" :style="styles.subtle">
           Only the group leader can engage enemies.
         </div>
@@ -86,6 +101,7 @@ import type {
   CharacterRow,
   CombatEncounterRow,
   CombatEnemyRow,
+  CombatResultRow,
 } from '../module_bindings';
 
 type EnemySummary = {
@@ -106,14 +122,6 @@ type CombatRosterEntry = {
 
 defineProps<{
   styles: Record<string, Record<string, string | number>>;
-  debugInfo: {
-    selectedId: string;
-    participantCombatId: string;
-    participants: number;
-    encounters: number;
-    enemies: number;
-    spawns: number;
-  };
   connActive: boolean;
   selectedCharacter: CharacterRow | null;
   activeCombat: CombatEncounterRow | null;
@@ -125,7 +133,9 @@ defineProps<{
   roundEndsInSeconds: number;
   selectedAction: 'attack' | 'skip' | 'flee' | null;
   enemySpawns: EnemySummary[];
+  activeResult: CombatResultRow | null;
   canEngage: boolean;
+  canDismissResults: boolean;
 }>();
 
 defineEmits<{
@@ -133,6 +143,7 @@ defineEmits<{
   (e: 'attack'): void;
   (e: 'skip'): void;
   (e: 'flee'): void;
+  (e: 'dismiss-results'): void;
 }>();
 
 const formatStatus = (status: string) => {
@@ -146,5 +157,11 @@ const formatStatus = (status: string) => {
     default:
       return status;
   }
+};
+
+const hpPercent = (member: CombatRosterEntry) => {
+  if (!member.maxHp) return 0;
+  const percent = (Number(member.hp) / Number(member.maxHp)) * 100;
+  return Math.max(0, Math.min(100, Math.round(percent)));
 };
 </script>

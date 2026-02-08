@@ -16,6 +16,7 @@ export const useGameData = () => {
   const [combatEncounters] = useTable(tables.combatEncounter);
   const [combatParticipants] = useTable(tables.combatParticipant);
   const [combatEnemies] = useTable(tables.combatEnemy);
+  const [combatResults] = useTable(tables.myCombatResults);
   const [groups] = useTable(tables.group);
   const [worldEvents] = useTable(tables.eventWorld);
   const [locationEvents] = useTable(tables.myLocationEvents);
@@ -38,6 +39,7 @@ export const useGameData = () => {
     combatEncounters,
     combatParticipants,
     combatEnemies,
+    combatResults,
     groups,
     worldEvents,
     locationEvents,
