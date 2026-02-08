@@ -46,8 +46,8 @@ Last updated: 2026-02-08
   - Round-based actions: `attack`, `skip`, `flee`.
   - 10s round timer; default action is `skip`.
   - Aggro from damage only; `skip` reduces aggro.
-- Combat auto-opens for all group members.
-- Dead characters cannot act; combat ends if all active participants are dead.
+  - Combat auto-opens for all group members.
+  - Dead characters cannot act; combat ends if all active participants are dead.
   - Dead characters revive at half HP after combat ends.
   - Enemy respawns after death; new spawns created as new groups/solos arrive.
   - Combat results screen shown after combat; leader dismisses to return to enemy list.
@@ -55,11 +55,13 @@ Last updated: 2026-02-08
   - Global health regen: +1 HP per 3s (skipped while in combat; any active combat participation blocks regen).
 - **UI:**
   - Main log window, command input with `/` autocomplete and keyboard navigation.
-- Action bar with panels (Character, Inventory, Friends, Group, Stats, Travel, Combat).
-- Group button always visible; other buttons only if character selected.
-- Combat/Group panels show HP bars; combat shows timer and action selection state.
-- During combat/results: Group panel overlays the log window; Combat panel stays on the right.
-- Action bar is locked during combat/results (only Group/Combat buttons active).
+  - Action bar with panels (Character, Inventory, Friends, Group, Stats, Travel, Combat).
+  - Group button always visible; other buttons only if character selected.
+  - Combat/Group panels show HP bars; combat shows timer and action selection state.
+  - During combat/results: Group panel overlays the log window; Combat panel stays on the right.
+  - Action bar is locked during combat/results (only Group/Combat buttons active).
+  - Travel panel shows only connected locations with con-color difficulty indicators.
+  - Combat enemy list and active enemy header are con-colored.
 
 ## Tables / Views (Server)
 - Player: `userId`, `activeCharacterId`, `sessionStartedAt`, etc.
@@ -96,6 +98,8 @@ Last updated: 2026-02-08
 - Group invite alerts invitee via private event.
 - Friend request success/failure messages emitted via private events.
 - **Stamina/Mana migration pending:** schema changes require publishing with `--delete-data`.
+- **Region/Location migration pending:** schema changes require publishing with `--delete-data`.
+- **Item/Enemy schema expansion pending:** schema changes require publishing with `--delete-data`.
 
 ## Required Commands
 - Publish local module: `spacetime publish uwr --project-path spacetimedb --server local`
