@@ -16,5 +16,6 @@ export default __t.row({
   characterId: __t.u64(),
   ownerUserId: __t.u64(),
   role: __t.string(),
+  followLeader: __t.bool(),
   joinedAt: __t.timestamp(),
 });

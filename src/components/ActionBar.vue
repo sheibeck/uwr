@@ -1,25 +1,25 @@
 <template>
   <div :style="styles.actionBar">
-    <button @click="$emit('toggle', 'character')" :style="actionStyle('character')">
+    <button @click="emit('toggle', 'character')" :style="actionStyle('character')">
       Character
     </button>
     <template v-if="hasActiveCharacter">
-      <button @click="$emit('toggle', 'inventory')" :style="actionStyle('inventory')">
+      <button @click="emit('toggle', 'inventory')" :style="actionStyle('inventory')">
         Inventory
       </button>
-      <button @click="$emit('toggle', 'friends')" :style="actionStyle('friends')">
+      <button @click="emit('toggle', 'friends')" :style="actionStyle('friends')">
         Friends
       </button>
-      <button @click="$emit('toggle', 'group')" :style="actionStyle('group')">
+      <button @click="emit('toggle', 'group')" :style="actionStyle('group')">
         Group
       </button>
-      <button @click="$emit('toggle', 'stats')" :style="actionStyle('stats')">
+      <button @click="emit('toggle', 'stats')" :style="actionStyle('stats')">
         Stats
       </button>
-      <button @click="$emit('toggle', 'travel')" :style="actionStyle('travel')">
+      <button @click="emit('toggle', 'travel')" :style="actionStyle('travel')">
         Travel
       </button>
-      <button @click="$emit('toggle', 'combat')" :style="actionStyle('combat')">
+      <button @click="emit('toggle', 'combat')" :style="actionStyle('combat')">
         Combat
       </button>
     </template>
@@ -35,7 +35,7 @@ const props = defineProps<{
   hasActiveCharacter: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'toggle', panel: PanelKey): void;
 }>();
 

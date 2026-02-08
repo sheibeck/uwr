@@ -72,6 +72,12 @@ import JoinGroupReducer from "./join_group_reducer";
 export { JoinGroupReducer };
 import LeaveGroupReducer from "./leave_group_reducer";
 export { LeaveGroupReducer };
+import SetFollowLeaderReducer from "./set_follow_leader_reducer";
+export { SetFollowLeaderReducer };
+import PromoteGroupLeaderReducer from "./promote_group_leader_reducer";
+export { PromoteGroupLeaderReducer };
+import KickGroupMemberReducer from "./kick_group_member_reducer";
+export { KickGroupMemberReducer };
 import InviteToGroupReducer from "./invite_to_group_reducer";
 export { InviteToGroupReducer };
 import AcceptGroupInviteReducer from "./accept_group_invite_reducer";
@@ -122,6 +128,8 @@ import MyGroupEventsRow from "./my_group_events_table";
 export { MyGroupEventsRow };
 import MyGroupInvitesRow from "./my_group_invites_table";
 export { MyGroupInvitesRow };
+import MyGroupMembersRow from "./my_group_members_table";
+export { MyGroupMembersRow };
 import MyLocationEventsRow from "./my_location_events_table";
 export { MyLocationEventsRow };
 import MyPlayerRow from "./my_player_table";
@@ -180,6 +188,8 @@ import InviteToGroup from "./invite_to_group_type";
 export { InviteToGroup };
 import JoinGroup from "./join_group_type";
 export { JoinGroup };
+import KickGroupMember from "./kick_group_member_type";
+export { KickGroupMember };
 import LeaveGroup from "./leave_group_type";
 export { LeaveGroup };
 import Location from "./location_type";
@@ -198,6 +208,8 @@ import MyGroupEvents from "./my_group_events_type";
 export { MyGroupEvents };
 import MyGroupInvites from "./my_group_invites_type";
 export { MyGroupInvites };
+import MyGroupMembers from "./my_group_members_type";
+export { MyGroupMembers };
 import MyLocationEvents from "./my_location_events_type";
 export { MyLocationEvents };
 import MyPlayer from "./my_player_type";
@@ -210,6 +222,8 @@ import OnDisconnect from "./on_disconnect_type";
 export { OnDisconnect };
 import Player from "./player_type";
 export { Player };
+import PromoteGroupLeader from "./promote_group_leader_type";
+export { PromoteGroupLeader };
 import RejectFriendRequest from "./reject_friend_request_type";
 export { RejectFriendRequest };
 import RejectGroupInvite from "./reject_group_invite_type";
@@ -224,6 +238,8 @@ import SetActiveCharacter from "./set_active_character_type";
 export { SetActiveCharacter };
 import SetDisplayName from "./set_display_name_type";
 export { SetDisplayName };
+import SetFollowLeader from "./set_follow_leader_type";
+export { SetFollowLeader };
 import StartCombat from "./start_combat_type";
 export { StartCombat };
 import SubmitCommand from "./submit_command_type";
@@ -507,6 +523,13 @@ const tablesSchema = __schema(
     ],
   }, MyGroupInvitesRow),
   __table({
+    name: 'my_group_members',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyGroupMembersRow),
+  __table({
     name: 'my_location_events',
     indexes: [
     ],
@@ -548,6 +571,9 @@ const reducersSchema = __reducers(
   __reducerSchema("create_group", CreateGroupReducer),
   __reducerSchema("join_group", JoinGroupReducer),
   __reducerSchema("leave_group", LeaveGroupReducer),
+  __reducerSchema("set_follow_leader", SetFollowLeaderReducer),
+  __reducerSchema("promote_group_leader", PromoteGroupLeaderReducer),
+  __reducerSchema("kick_group_member", KickGroupMemberReducer),
   __reducerSchema("invite_to_group", InviteToGroupReducer),
   __reducerSchema("accept_group_invite", AcceptGroupInviteReducer),
   __reducerSchema("reject_group_invite", RejectGroupInviteReducer),

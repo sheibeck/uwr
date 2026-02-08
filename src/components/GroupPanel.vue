@@ -9,9 +9,34 @@
       <div :style="styles.panelSectionTitle">Members</div>
       <ul :style="styles.list">
         <li v-for="member in groupMembers" :key="member.id.toString()">
-          {{ member.name }} (Lv {{ member.level }}) - {{ member.className }}
+          <span>
+            {{ member.name }} (Lv {{ member.level }}) - {{ member.className }}
+            <span v-if="member.id === leaderId" :style="styles.subtle">· Leader</span>
+          </span>
+          <div v-if="isLeader && member.id !== leaderId" :style="styles.buttonWrap">
+            <button
+              :style="styles.ghostButton"
+              @click="$emit('kick', member.name)"
+            >
+              Kick
+            </button>
+            <button
+              :style="styles.primaryButton"
+              @click="$emit('promote', member.name)"
+            >
+              Promote
+            </button>
+          </div>
         </li>
       </ul>
+      <label v-if="!isLeader" :style="styles.checkboxRow">
+        <input
+          type="checkbox"
+          :checked="followLeader"
+          @change="$emit('toggle-follow', !followLeader)"
+        />
+        <span>Follow leader movement</span>
+      </label>
       <button :style="styles.ghostButton" @click="$emit('leave')">
         Leave Group
       </button>
@@ -59,11 +84,17 @@ defineProps<{
   currentGroup: GroupRow | null;
   groupMembers: CharacterRow[];
   inviteSummaries: { invite: { id: bigint }; fromName: string; groupName: string }[];
+  leaderId: bigint | null;
+  isLeader: boolean;
+  followLeader: boolean;
 }>();
 
 defineEmits<{
   (e: 'leave'): void;
   (e: 'accept', fromName: string): void;
   (e: 'reject', fromName: string): void;
+  (e: 'kick', targetName: string): void;
+  (e: 'promote', targetName: string): void;
+  (e: 'toggle-follow', follow: boolean): void;
 }>();
 </script>

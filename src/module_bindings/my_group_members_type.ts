@@ -10,14 +10,6 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("GroupMember", {
-  id: __t.u64(),
-  groupId: __t.u64(),
-  characterId: __t.u64(),
-  ownerUserId: __t.u64(),
-  role: __t.string(),
-  followLeader: __t.bool(),
-  joinedAt: __t.timestamp(),
-});
+export default __t.object("MyGroupMembers", {});
 
 

@@ -227,6 +227,13 @@ export const styles = {
     gap: '0.5rem',
     alignItems: 'center',
   },
+  checkboxRow: {
+    display: 'flex',
+    gap: '0.5rem',
+    alignItems: 'center',
+    fontSize: '0.85rem',
+    color: 'rgba(230,232,239,0.75)',
+  },
   statsGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',

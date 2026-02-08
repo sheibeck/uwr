@@ -68,11 +68,17 @@
           :conn-active="conn.isActive"
           :selected-character="selectedCharacter"
           :current-group="currentGroup"
-          :group-members="groupMembers"
+          :group-members="groupCharacterMembers"
           :invite-summaries="inviteSummaries"
+          :leader-id="leaderId"
+          :is-leader="isLeader"
+          :follow-leader="followLeader"
           @leave="leaveGroup"
           @accept="acceptInvite"
           @reject="rejectInvite"
+          @kick="kickMember"
+          @promote="promoteLeader"
+          @toggle-follow="setFollowLeader"
         />
         <StatsPanel
           v-else-if="activePanel === 'stats'"
@@ -167,6 +173,7 @@ const {
   friends,
   friendRequests,
   groupInvites,
+  groupMembers: groupMemberRows,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
@@ -183,7 +190,7 @@ const {
   currentLocation,
   charactersHere,
   currentGroup,
-  groupMembers,
+  groupMembers: groupCharacterMembers,
 } = useCharacters({
   connActive: computed(() => conn.isActive),
   characters,
@@ -218,12 +225,24 @@ const { attackDamage, activeCombat, startCombat, attack, endCombat } = useCombat
   combats,
 });
 
-const { leaveGroup, inviteSummaries, acceptInvite, rejectInvite } = useGroups({
+const {
+  leaveGroup,
+  inviteSummaries,
+  acceptInvite,
+  rejectInvite,
+  leaderId,
+  isLeader,
+  kickMember,
+  promoteLeader,
+  followLeader,
+  setFollowLeader,
+} = useGroups({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
   groups,
   groupInvites,
   characters,
+  groupMembers: groupMemberRows,
 });
 
 const {

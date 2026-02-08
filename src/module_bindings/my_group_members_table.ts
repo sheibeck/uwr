@@ -10,7 +10,7 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("GroupMember", {
+export default __t.row({
   id: __t.u64(),
   groupId: __t.u64(),
   characterId: __t.u64(),
@@ -19,5 +19,3 @@ export default __t.object("GroupMember", {
   followLeader: __t.bool(),
   joinedAt: __t.timestamp(),
 });
-
-

@@ -14,13 +14,29 @@ export const useCommands = ({ connActive, selectedCharacter }: UseCommandsArgs) 
   const inviteReducer = useReducer(reducers.inviteToGroup);
   const acceptInviteReducer = useReducer(reducers.acceptGroupInvite);
   const rejectInviteReducer = useReducer(reducers.rejectGroupInvite);
+  const promoteReducer = useReducer(reducers.promoteGroupLeader);
+  const kickReducer = useReducer(reducers.kickGroupMember);
   const commandText = ref('');
 
   const submitCommand = () => {
     if (!connActive.value || !selectedCharacter.value || !commandText.value.trim()) return;
     const raw = commandText.value.trim();
     const lower = raw.toLowerCase();
-    if (lower.startsWith('/invite ')) {
+    if (lower.startsWith('/promote ')) {
+      const targetName = raw.slice(9).trim();
+      if (!targetName) return;
+      promoteReducer({
+        characterId: selectedCharacter.value.id,
+        targetName,
+      });
+    } else if (lower.startsWith('/kick ')) {
+      const targetName = raw.slice(6).trim();
+      if (!targetName) return;
+      kickReducer({
+        characterId: selectedCharacter.value.id,
+        targetName,
+      });
+    } else if (lower.startsWith('/invite ')) {
       const targetName = raw.slice(8).trim();
       if (!targetName) return;
       inviteReducer({
