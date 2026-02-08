@@ -71,7 +71,7 @@
           @attack="attack"
           @skip="skip"
           @flee="flee"
-          @use-ability="useAbility"
+          @use-ability="chooseAbility"
           @dismiss-results="dismissResults"
         />
         </PanelShell>
@@ -184,7 +184,7 @@
           @attack="attack"
           @skip="skip"
           @flee="flee"
-          @use-ability="useAbility"
+          @use-ability="chooseAbility"
           @dismiss-results="dismissResults"
         />
         <TravelPanel
@@ -357,6 +357,7 @@ const {
   attack,
   skip,
   flee,
+  chooseAbility,
   dismissResults,
 } = useCombat({
   connActive: computed(() => conn.isActive),

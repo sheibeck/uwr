@@ -10,8 +10,12 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default {
+export default __t.object("CharacterEffect", {
+  id: __t.u64(),
   characterId: __t.u64(),
-  abilityKey: __t.string(),
-  targetCharacterId: __t.option(__t.u64()),
-};
+  effectType: __t.string(),
+  magnitude: __t.i64(),
+  roundsRemaining: __t.u64(),
+});
+
+

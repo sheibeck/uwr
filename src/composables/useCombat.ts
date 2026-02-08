@@ -286,7 +286,7 @@ export const useCombat = ({
     startCombatReducer({ characterId: selectedCharacter.value.id, enemySpawnId });
   };
 
-  const chooseAction = (action: 'attack' | 'flee' | 'skip') => {
+  const chooseAction = (action: string) => {
     if (!connActive.value || !activeCombat.value || !selectedCharacter.value) return;
     chooseActionReducer({
       characterId: selectedCharacter.value.id,
@@ -299,6 +299,7 @@ export const useCombat = ({
   const attack = () => chooseAction('attack');
   const flee = () => chooseAction('flee');
   const skip = () => chooseAction('skip');
+  const chooseAbility = (abilityKey: string) => chooseAction(`ability:${abilityKey}`);
   const dismissResults = () => {
     if (!connActive.value || !selectedCharacter.value) return;
     dismissResultsReducer({ characterId: selectedCharacter.value.id });
@@ -320,6 +321,7 @@ export const useCombat = ({
     attack,
     flee,
     skip,
+    chooseAbility,
     dismissResults,
   };
 };

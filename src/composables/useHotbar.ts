@@ -49,10 +49,9 @@ export const useHotbar = ({ connActive, selectedCharacter, hotbarSlots }: UseHot
 
   const useAbility = (abilityKey: string) => {
     if (!connActive.value || !selectedCharacter.value || !abilityKey) return;
-    const ability = availableAbilities.value.find((item) => item.key === abilityKey);
     useAbilityReducer({
       characterId: selectedCharacter.value.id,
-      abilityKey: ability?.name ?? abilityKey,
+      abilityKey,
     });
   };
 

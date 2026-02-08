@@ -353,6 +353,34 @@ const CombatEnemy = table(
   }
 );
 
+const CharacterEffect = table(
+  {
+    name: 'character_effect',
+    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    effectType: t.string(),
+    magnitude: t.i64(),
+    roundsRemaining: t.u64(),
+  }
+);
+
+const CombatEnemyEffect = table(
+  {
+    name: 'combat_enemy_effect',
+    indexes: [{ name: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    combatId: t.u64(),
+    effectType: t.string(),
+    magnitude: t.i64(),
+    roundsRemaining: t.u64(),
+  }
+);
+
 const CombatResult = table(
   {
     name: 'combat_result',
@@ -514,6 +542,8 @@ export const spacetimedb = schema(
   CombatEncounter,
   CombatParticipant,
   CombatEnemy,
+  CharacterEffect,
+  CombatEnemyEffect,
   AggroEntry,
   CombatRoundTick,
   HealthRegenTick,
@@ -811,6 +841,193 @@ function getEquippedWeaponStats(ctx: any, characterId: bigint) {
   return { baseDamage: 0n, dps: 0n };
 }
 
+const SHAMAN_ABILITIES = {
+  shaman_spirit_bolt: { name: 'Spirit Bolt', level: 1n, power: 2n },
+  shaman_totem_of_vigor: { name: 'Totem of Vigor', level: 2n, power: 2n },
+  shaman_hex: { name: 'Hex', level: 3n, power: 4n },
+  shaman_ancestral_ward: { name: 'Ancestral Ward', level: 4n, power: 3n },
+  shaman_stormcall: { name: 'Stormcall', level: 5n, power: 6n },
+} as const;
+
+function abilityManaCost(level: bigint, power: bigint) {
+  return 4n + level * 2n + power;
+}
+
+function abilityDamageFromWeapon(
+  weaponDamage: bigint,
+  percent: bigint,
+  bonus: bigint
+) {
+  const scaled = (weaponDamage * percent) / 100n + bonus;
+  return scaled > weaponDamage ? scaled : weaponDamage + bonus;
+}
+
+function sumCharacterEffect(ctx: any, characterId: bigint, effectType: string) {
+  let total = 0n;
+  for (const effect of ctx.db.characterEffect.by_character.filter(characterId)) {
+    if (effect.effectType === effectType) total += BigInt(effect.magnitude);
+  }
+  return total;
+}
+
+function sumEnemyEffect(ctx: any, combatId: bigint, effectType: string) {
+  let total = 0n;
+  for (const effect of ctx.db.combatEnemyEffect.by_combat.filter(combatId)) {
+    if (effect.effectType === effectType) total += BigInt(effect.magnitude);
+  }
+  return total;
+}
+
+function executeAbility(
+  ctx: any,
+  character: typeof Character.rowType,
+  abilityKey: string,
+  targetCharacterId?: bigint
+) {
+  const normalizedClass = normalizeClassName(character.className);
+  if (normalizedClass !== 'shaman') {
+    throw new SenderError('Ability not available');
+  }
+
+  const ability = SHAMAN_ABILITIES[abilityKey as keyof typeof SHAMAN_ABILITIES];
+  if (!ability) throw new SenderError('Unknown ability');
+
+  if (character.level < ability.level) throw new SenderError('Ability not unlocked');
+
+  const manaCost = abilityManaCost(ability.level, ability.power);
+  if (character.mana < manaCost) throw new SenderError('Not enough mana');
+
+  const resolvedTargetId = targetCharacterId ?? character.id;
+  let targetCharacter: typeof Character.rowType | null = null;
+  if (resolvedTargetId) {
+    targetCharacter = ctx.db.character.id.find(resolvedTargetId);
+    if (!targetCharacter) throw new SenderError('Target not found');
+    if (character.groupId) {
+      if (targetCharacter.groupId !== character.groupId) {
+        throw new SenderError('Target not in your group');
+      }
+    } else if (targetCharacter.id !== character.id) {
+      throw new SenderError('Target must be yourself');
+    }
+  }
+
+  ctx.db.character.id.update({ ...character, mana: character.mana - manaCost });
+
+  const combatId = activeCombatIdForCharacter(ctx, character.id);
+  const combat = combatId ? ctx.db.combatEncounter.id.find(combatId) : null;
+  const enemy =
+    combatId && combat
+      ? [...ctx.db.combatEnemy.by_combat.filter(combatId)][0]
+      : null;
+
+  if (abilityKey === 'shaman_spirit_bolt') {
+    if (!enemy || !combatId) throw new SenderError('No enemy in combat');
+    const weapon = getEquippedWeaponStats(ctx, character.id);
+    const weaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
+    const damage = abilityDamageFromWeapon(weaponDamage, 125n, 2n);
+    const reduced = applyArmorMitigation(damage, enemy.armorClass);
+    const nextHp = enemy.currentHp > reduced ? enemy.currentHp - reduced : 0n;
+    ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
+    for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+      if (entry.characterId === character.id) {
+        ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + reduced });
+        break;
+      }
+    }
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', `Spirit Bolt hits for ${reduced}.`);
+    return;
+  }
+
+  if (abilityKey === 'shaman_totem_of_vigor') {
+    if (!targetCharacter) throw new SenderError('Target required');
+    ctx.db.characterEffect.insert({
+      id: 0n,
+      characterId: targetCharacter.id,
+      effectType: 'regen',
+      magnitude: 5n,
+      roundsRemaining: 3n,
+    });
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'ability',
+      `Totem of Vigor empowers ${targetCharacter.name}.`
+    );
+    return;
+  }
+
+  if (abilityKey === 'shaman_hex') {
+    if (!enemy || !combatId) throw new SenderError('No enemy in combat');
+    const weapon = getEquippedWeaponStats(ctx, character.id);
+    const weaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
+    const damage = abilityDamageFromWeapon(weaponDamage, 115n, 1n);
+    const reduced = applyArmorMitigation(damage, enemy.armorClass);
+    const nextHp = enemy.currentHp > reduced ? enemy.currentHp - reduced : 0n;
+    ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
+    ctx.db.combatEnemyEffect.insert({
+      id: 0n,
+      combatId,
+      effectType: 'damage_down',
+      magnitude: -2n,
+      roundsRemaining: 3n,
+    });
+    for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+      if (entry.characterId === character.id) {
+        ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + reduced });
+        break;
+      }
+    }
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', `Hex afflicts the enemy.`);
+    return;
+  }
+
+  if (abilityKey === 'shaman_ancestral_ward') {
+    if (!targetCharacter) throw new SenderError('Target required');
+    ctx.db.characterEffect.insert({
+      id: 0n,
+      characterId: targetCharacter.id,
+      effectType: 'ac_bonus',
+      magnitude: 2n,
+      roundsRemaining: 3n,
+    });
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'ability',
+      `Ancestral Ward shields ${targetCharacter.name}.`
+    );
+    return;
+  }
+
+  if (abilityKey === 'shaman_stormcall') {
+    if (!enemy || !combatId) throw new SenderError('No enemy in combat');
+    const weapon = getEquippedWeaponStats(ctx, character.id);
+    const weaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
+    const damage = abilityDamageFromWeapon(weaponDamage, 160n, 4n);
+    const reduced = applyArmorMitigation(damage, enemy.armorClass);
+    const nextHp = enemy.currentHp > reduced ? enemy.currentHp - reduced : 0n;
+    ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
+    for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+      if (entry.characterId === character.id) {
+        ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + reduced });
+        break;
+      }
+    }
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', `Stormcall strikes for ${reduced}.`);
+    return;
+  }
+
+  appendPrivateEvent(
+    ctx,
+    character.id,
+    character.ownerUserId,
+    'ability',
+    `You use ${ability.name}.`
+  );
+}
+
 function baseArmorForClass(className: string) {
   const normalized = normalizeClassName(className);
   const allowed = CLASS_ARMOR[normalized] ?? ['cloth'];
@@ -839,7 +1056,10 @@ function recomputeCharacterDerived(ctx: any, character: typeof Character.rowType
   const critRanged = totalStats.dex * 12n;
   const critDivine = totalStats.wis * 12n;
   const critArcane = totalStats.int * 12n;
-  const armorClass = baseArmorForClass(character.className) + gear.armorClassBonus;
+  const armorClass =
+    baseArmorForClass(character.className) +
+    gear.armorClassBonus +
+    sumCharacterEffect(ctx, character.id, 'ac_bonus');
   const perception = totalStats.wis * 25n;
   const search = totalStats.int * 25n;
   const ccPower = totalStats.cha * 15n;
@@ -2008,17 +2228,12 @@ spacetimedb.reducer(
 
 spacetimedb.reducer(
   'use_ability',
-  { characterId: t.u64(), abilityKey: t.string() },
+  { characterId: t.u64(), abilityKey: t.string(), targetCharacterId: t.u64().optional() },
   (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const abilityName = args.abilityKey.trim() || 'Ability';
-    appendPrivateEvent(
-      ctx,
-      character.id,
-      character.ownerUserId,
-      'ability',
-      `You use ${abilityName}.`
-    );
+    const abilityKey = args.abilityKey.trim();
+    if (!abilityKey) throw new SenderError('Ability required');
+    executeAbility(ctx, character, abilityKey, args.targetCharacterId);
   }
 );
 
@@ -2609,7 +2824,7 @@ spacetimedb.reducer(
         );
         return;
       }
-      if (action === 'attack' || action === 'skip') {
+      if (action === 'attack' || action === 'skip' || action.startsWith('ability:')) {
         ctx.db.combatParticipant.id.update({
           ...participant,
           selectedAction: action,
@@ -2672,6 +2887,16 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
   const activeParticipants = refreshedParticipants.filter((p) => p.status === 'active');
 
   for (const participant of activeParticipants) {
+    const character = ctx.db.character.id.find(participant.characterId);
+    if (!character) continue;
+    const regen = sumCharacterEffect(ctx, character.id, 'regen');
+    if (regen > 0n && character.hp > 0n) {
+      const nextHp = character.hp + regen > character.maxHp ? character.maxHp : character.hp + regen;
+      ctx.db.character.id.update({ ...character, hp: nextHp });
+    }
+  }
+
+  for (const participant of activeParticipants) {
     const action = participant.selectedAction ?? 'skip';
     const character = ctx.db.character.id.find(participant.characterId);
     if (!character) continue;
@@ -2711,9 +2936,35 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
         'combat',
         'You hold your action.'
       );
+    } else if (action.startsWith('ability:')) {
+      const abilityKey = action.replace('ability:', '');
+      executeAbility(ctx, character, abilityKey);
     }
 
     ctx.db.combatParticipant.id.update({ ...participant, selectedAction: undefined });
+  }
+
+  const participantIds = new Set(activeParticipants.map((p) => p.characterId));
+  for (const effect of ctx.db.characterEffect.iter()) {
+    if (!participantIds.has(effect.characterId)) continue;
+    if (effect.roundsRemaining === 0n) {
+      ctx.db.characterEffect.id.delete(effect.id);
+    } else {
+      ctx.db.characterEffect.id.update({
+        ...effect,
+        roundsRemaining: effect.roundsRemaining - 1n,
+      });
+    }
+  }
+  for (const effect of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
+    if (effect.roundsRemaining === 0n) {
+      ctx.db.combatEnemyEffect.id.delete(effect.id);
+    } else {
+      ctx.db.combatEnemyEffect.id.update({
+        ...effect,
+        roundsRemaining: effect.roundsRemaining - 1n,
+      });
+    }
   }
 
   const updatedEnemy = ctx.db.combatEnemy.id.find(enemy.id)!;
@@ -2749,15 +3000,21 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
         ctx.db.character.id.update({ ...character, hp: halfHp > 0n ? halfHp : 1n });
       }
     }
-    for (const row of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
-      ctx.db.combatParticipant.id.delete(row.id);
-    }
-    for (const row of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
-      ctx.db.aggroEntry.id.delete(row.id);
-    }
-    for (const row of ctx.db.combatEnemy.by_combat.filter(combat.id)) {
-      ctx.db.combatEnemy.id.delete(row.id);
-    }
+  for (const row of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
+    ctx.db.combatParticipant.id.delete(row.id);
+  }
+  for (const row of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+    ctx.db.aggroEntry.id.delete(row.id);
+  }
+  for (const row of ctx.db.combatEnemy.by_combat.filter(combat.id)) {
+    ctx.db.combatEnemy.id.delete(row.id);
+  }
+  for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
+    ctx.db.combatEnemyEffect.id.delete(row.id);
+  }
+  for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
+    ctx.db.combatEnemyEffect.id.delete(row.id);
+  }
     ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
     return;
   }
@@ -2777,8 +3034,12 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
       const levelDiff =
         enemyLevel > targetCharacter.level ? enemyLevel - targetCharacter.level : 0n;
       const damageMultiplier = 100n + levelDiff * 20n;
-      const damage = (updatedEnemy.attackDamage * damageMultiplier) / 100n;
-      const reducedDamage = applyArmorMitigation(damage, targetCharacter.armorClass);
+      const debuff = sumEnemyEffect(ctx, combat.id, 'damage_down');
+      const baseDamage = updatedEnemy.attackDamage + debuff;
+      const scaledDamage = (baseDamage * damageMultiplier) / 100n;
+      const effectiveArmor =
+        targetCharacter.armorClass + sumCharacterEffect(ctx, targetCharacter.id, 'ac_bonus');
+      const reducedDamage = applyArmorMitigation(scaledDamage, effectiveArmor);
       const nextHp =
         targetCharacter.hp > reducedDamage ? targetCharacter.hp - reducedDamage : 0n;
       ctx.db.character.id.update({ ...targetCharacter, hp: nextHp });

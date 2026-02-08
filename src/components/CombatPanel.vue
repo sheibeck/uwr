@@ -17,7 +17,7 @@
         </div>
         <div :style="styles.combatTimer">Round ends in {{ roundEndsInSeconds }}s</div>
         <div :style="styles.subtle">
-          {{ selectedAction ? `Action selected: ${selectedAction}` : 'Awaiting your action.' }}
+          {{ selectedActionLabel }}
         </div>
         <div :style="styles.panelFormInline">
           <button
@@ -101,6 +101,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type {
   CharacterRow,
   CombatEncounterRow,
@@ -114,7 +115,7 @@ type EnemySummary = {
   level: bigint;
 };
 
-defineProps<{
+const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
   selectedCharacter: CharacterRow | null;
@@ -143,4 +144,14 @@ defineEmits<{
   (e: 'use-ability', abilityKey: string): void;
   (e: 'dismiss-results'): void;
 }>();
+
+const selectedActionLabel = computed(() => {
+  if (!props.selectedAction) return 'Awaiting your action.';
+  if (props.selectedAction.startsWith('ability:')) {
+    const key = props.selectedAction.replace('ability:', '');
+    const ability = props.hotbar.find((slot) => slot.abilityKey === key);
+    return `Action selected: ${ability?.name ?? key}`;
+  }
+  return `Action selected: ${props.selectedAction}`;
+});
 </script>

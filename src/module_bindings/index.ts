@@ -114,10 +114,14 @@ import AggroEntryRow from "./aggro_entry_table";
 export { AggroEntryRow };
 import CharacterRow from "./character_table";
 export { CharacterRow };
+import CharacterEffectRow from "./character_effect_table";
+export { CharacterEffectRow };
 import CombatEncounterRow from "./combat_encounter_table";
 export { CombatEncounterRow };
 import CombatEnemyRow from "./combat_enemy_table";
 export { CombatEnemyRow };
+import CombatEnemyEffectRow from "./combat_enemy_effect_table";
+export { CombatEnemyEffectRow };
 import CombatParticipantRow from "./combat_participant_table";
 export { CombatParticipantRow };
 import CombatResultRow from "./combat_result_table";
@@ -198,12 +202,16 @@ import AggroEntry from "./aggro_entry_type";
 export { AggroEntry };
 import Character from "./character_type";
 export { Character };
+import CharacterEffect from "./character_effect_type";
+export { CharacterEffect };
 import ChooseAction from "./choose_action_type";
 export { ChooseAction };
 import CombatEncounter from "./combat_encounter_type";
 export { CombatEncounter };
 import CombatEnemy from "./combat_enemy_type";
 export { CombatEnemy };
+import CombatEnemyEffect from "./combat_enemy_effect_type";
+export { CombatEnemyEffect };
 import CombatParticipant from "./combat_participant_type";
 export { CombatParticipant };
 import CombatResult from "./combat_result_type";
@@ -377,6 +385,20 @@ const tablesSchema = __schema(
     ],
   }, CharacterRow),
   __table({
+    name: 'character_effect',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'character_effect_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CharacterEffectRow),
+  __table({
     name: 'combat_encounter',
     indexes: [
       { name: 'by_group', algorithm: 'btree', columns: [
@@ -407,6 +429,20 @@ const tablesSchema = __schema(
       { name: 'combat_enemy_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatEnemyRow),
+  __table({
+    name: 'combat_enemy_effect',
+    indexes: [
+      { name: 'by_combat', algorithm: 'btree', columns: [
+        'combatId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_enemy_effect_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CombatEnemyEffectRow),
   __table({
     name: 'combat_participant',
     indexes: [

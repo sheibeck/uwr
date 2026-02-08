@@ -13,6 +13,7 @@ import {
 export default __t.object("UseAbility", {
   characterId: __t.u64(),
   abilityKey: __t.string(),
+  targetCharacterId: __t.option(__t.u64()),
 });
 
 
