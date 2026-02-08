@@ -15,5 +15,7 @@ export default __t.row({
   name: __t.string(),
   description: __t.string(),
   zone: __t.string(),
+  regionId: __t.u64(),
+  levelOffset: __t.i64(),
   isSafe: __t.bool(),
 });

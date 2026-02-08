@@ -10,14 +10,10 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("Location", {
+export default __t.object("Region", {
   id: __t.u64(),
   name: __t.string(),
-  description: __t.string(),
-  zone: __t.string(),
-  regionId: __t.u64(),
-  levelOffset: __t.i64(),
-  isSafe: __t.bool(),
+  dangerMultiplier: __t.u64(),
 });
 
 

@@ -64,6 +64,15 @@ const WorldState = table(
   }
 );
 
+const Region = table(
+  { name: 'region', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    name: t.string(),
+    dangerMultiplier: t.u64(),
+  }
+);
+
 const Location = table(
   { name: 'location', public: true },
   {
@@ -71,6 +80,8 @@ const Location = table(
     name: t.string(),
     description: t.string(),
     zone: t.string(),
+    regionId: t.u64(),
+    levelOffset: t.i64(),
     isSafe: t.bool(),
   }
 );
@@ -456,6 +467,7 @@ export const spacetimedb = schema(
   FriendRequest,
   Friend,
   WorldState,
+  Region,
   Location,
   Character,
   ItemTemplate,
@@ -596,7 +608,7 @@ const PRIMARY_GROWTH = 3n;
 const SECONDARY_GROWTH = 2n;
 const OTHER_GROWTH = 1n;
 
-const BASE_HP = 30n;
+const BASE_HP = 20n;
 const BASE_MANA = 10n;
 
 const EQUIPMENT_SLOTS = new Set([
@@ -636,10 +648,10 @@ const CLASS_ARMOR: Record<string, string[]> = {
 };
 
 const BASE_ARMOR_CLASS: Record<string, bigint> = {
-  cloth: 6n,
-  leather: 10n,
-  chain: 14n,
-  plate: 18n,
+  cloth: 2n,
+  leather: 4n,
+  chain: 6n,
+  plate: 8n,
 };
 
 const STARTER_ARMOR: Record<
@@ -647,24 +659,24 @@ const STARTER_ARMOR: Record<
   { chest: { name: string; ac: bigint }; legs: { name: string; ac: bigint }; boots: { name: string; ac: bigint } }
 > = {
   cloth: {
-    chest: { name: 'Apprentice Robe', ac: 6n },
-    legs: { name: 'Apprentice Trousers', ac: 4n },
-    boots: { name: 'Apprentice Boots', ac: 2n },
+    chest: { name: 'Apprentice Robe', ac: 3n },
+    legs: { name: 'Apprentice Trousers', ac: 2n },
+    boots: { name: 'Apprentice Boots', ac: 1n },
   },
   leather: {
-    chest: { name: 'Scout Jerkin', ac: 8n },
-    legs: { name: 'Scout Pants', ac: 6n },
-    boots: { name: 'Scout Boots', ac: 3n },
+    chest: { name: 'Scout Jerkin', ac: 4n },
+    legs: { name: 'Scout Pants', ac: 3n },
+    boots: { name: 'Scout Boots', ac: 2n },
   },
   chain: {
-    chest: { name: 'Warden Hauberk', ac: 10n },
-    legs: { name: 'Warden Greaves', ac: 8n },
-    boots: { name: 'Warden Boots', ac: 4n },
+    chest: { name: 'Warden Hauberk', ac: 5n },
+    legs: { name: 'Warden Greaves', ac: 4n },
+    boots: { name: 'Warden Boots', ac: 3n },
   },
   plate: {
-    chest: { name: 'Vanguard Cuirass', ac: 12n },
-    legs: { name: 'Vanguard Greaves', ac: 10n },
-    boots: { name: 'Vanguard Boots', ac: 5n },
+    chest: { name: 'Vanguard Cuirass', ac: 6n },
+    legs: { name: 'Vanguard Greaves', ac: 5n },
+    boots: { name: 'Vanguard Boots', ac: 4n },
   },
 };
 
@@ -784,7 +796,7 @@ function recomputeCharacterDerived(ctx: any, character: typeof Character.rowType
   };
 
   const manaStat = manaStatForClass(character.className, totalStats);
-  const maxHp = BASE_HP + totalStats.str * 10n + gear.hpBonus;
+  const maxHp = BASE_HP + totalStats.str * 5n + gear.hpBonus;
   const maxMana = BASE_MANA + manaStat * 6n + gear.manaBonus;
 
   const hitChance = totalStats.dex * 15n;
@@ -952,8 +964,8 @@ function ensureStarterItemTemplates(ctx: any) {
       hpBonus: 0n,
       manaBonus: 0n,
       armorClassBonus: 0n,
-      weaponBaseDamage: 6n,
-      weaponDps: 8n,
+      weaponBaseDamage: 4n,
+      weaponDps: 6n,
     });
   }
 }
@@ -994,10 +1006,10 @@ const ENEMY_ROLE_CONFIG: Record<
   string,
   { hpPerLevel: bigint; damagePerLevel: bigint; baseHp: bigint; baseDamage: bigint }
 > = {
-  tank: { hpPerLevel: 26n, damagePerLevel: 4n, baseHp: 20n, baseDamage: 2n },
-  healer: { hpPerLevel: 18n, damagePerLevel: 4n, baseHp: 16n, baseDamage: 2n },
-  dps: { hpPerLevel: 20n, damagePerLevel: 6n, baseHp: 14n, baseDamage: 3n },
-  support: { hpPerLevel: 16n, damagePerLevel: 5n, baseHp: 12n, baseDamage: 2n },
+  tank: { hpPerLevel: 26n, damagePerLevel: 5n, baseHp: 20n, baseDamage: 4n },
+  healer: { hpPerLevel: 18n, damagePerLevel: 4n, baseHp: 16n, baseDamage: 3n },
+  dps: { hpPerLevel: 20n, damagePerLevel: 6n, baseHp: 14n, baseDamage: 4n },
+  support: { hpPerLevel: 16n, damagePerLevel: 4n, baseHp: 12n, baseDamage: 3n },
 };
 
 function getEnemyRole(role: string) {
@@ -1007,6 +1019,12 @@ function getEnemyRole(role: string) {
 
 function scaleByPercent(value: bigint, percent: bigint) {
   return (value * percent) / 100n;
+}
+
+function applyArmorMitigation(damage: bigint, armorClass: bigint) {
+  const scaledArmor = armorClass * 5n;
+  const mitigated = (damage * 100n) / (100n + scaledArmor);
+  return mitigated > 0n ? mitigated : 1n;
 }
 
 function computeEnemyStats(
@@ -1023,22 +1041,23 @@ function computeEnemyStats(
   const baseDamage = role.baseDamage + role.damagePerLevel * effectiveLevel;
   const baseArmorClass = template.armorClass + effectiveLevel;
 
-  let hpMultiplier = 100n;
-  let damageMultiplier = 100n;
-  if (groupSize >= 4) {
-    hpMultiplier = 240n;
-    damageMultiplier = 145n;
-  } else if (groupSize >= 2) {
-    hpMultiplier = 160n;
-    damageMultiplier = 125n;
-  }
-
   return {
-    maxHp: scaleByPercent(baseHp, hpMultiplier),
-    attackDamage: scaleByPercent(baseDamage, damageMultiplier),
+    maxHp: baseHp,
+    attackDamage: baseDamage,
     armorClass: baseArmorClass,
     avgLevel,
   };
+}
+
+function computeLocationTargetLevel(ctx: any, locationId: bigint, baseLevel: bigint) {
+  const location = ctx.db.location.id.find(locationId);
+  if (!location) return baseLevel;
+  const region = ctx.db.region.id.find(location.regionId);
+  const multiplier = region?.dangerMultiplier ?? 100n;
+  const scaled = (baseLevel * multiplier) / 100n;
+  const offset = location.levelOffset ?? 0n;
+  const result = scaled + offset;
+  return result > 1n ? result : 1n;
 }
 
 function friendUserIds(ctx: any, userId: bigint): bigint[] {
@@ -1095,39 +1114,68 @@ function ensureLocationEnemyTemplates(ctx: any) {
   }
 }
 
-function spawnEnemy(ctx: any, locationId: bigint): typeof EnemySpawn.rowType {
+function spawnEnemy(ctx: any, locationId: bigint, targetLevel: bigint = 1n): typeof EnemySpawn.rowType {
   const templates = [...ctx.db.locationEnemyTemplate.by_location.filter(locationId)];
   if (templates.length === 0) throw new SenderError('No enemy templates for location');
 
-  let count = 0;
-  for (const _row of ctx.db.enemySpawn.by_location.filter(locationId)) {
-    count += 1;
+  const candidates = templates
+    .map((ref) => ctx.db.enemyTemplate.id.find(ref.enemyTemplateId))
+    .filter(Boolean) as (typeof EnemyTemplate.rowType)[];
+  if (candidates.length === 0) throw new SenderError('Enemy template missing');
+
+  const adjustedTarget = computeLocationTargetLevel(ctx, locationId, targetLevel);
+  let best = candidates[0];
+  let bestDiff = best.level > adjustedTarget ? best.level - adjustedTarget : adjustedTarget - best.level;
+  for (const candidate of candidates) {
+    const diff =
+      candidate.level > adjustedTarget
+        ? candidate.level - adjustedTarget
+        : adjustedTarget - candidate.level;
+    if (diff < bestDiff) {
+      best = candidate;
+      bestDiff = diff;
+    }
   }
-  const templateRef = templates[count % templates.length];
-  const template = ctx.db.enemyTemplate.id.find(templateRef.enemyTemplateId);
-  if (!template) throw new SenderError('Enemy template missing');
 
   const spawn = ctx.db.enemySpawn.insert({
     id: 0n,
     locationId,
-    enemyTemplateId: template.id,
-    name: template.name,
+    enemyTemplateId: best.id,
+    name: best.name,
     state: 'available',
     lockedCombatId: undefined,
   });
 
   ctx.db.enemySpawn.id.update({
     ...spawn,
-    name: `${template.name} #${spawn.id}`,
+    name: `${best.name} #${spawn.id}`,
   });
   return ctx.db.enemySpawn.id.find(spawn.id)!;
 }
 
-function ensureAvailableSpawn(ctx: any, locationId: bigint): typeof EnemySpawn.rowType {
+function ensureAvailableSpawn(
+  ctx: any,
+  locationId: bigint,
+  targetLevel: bigint = 1n
+): typeof EnemySpawn.rowType {
+  let best: typeof EnemySpawn.rowType | null = null;
+  let bestDiff: bigint | null = null;
+  const adjustedTarget = computeLocationTargetLevel(ctx, locationId, targetLevel);
   for (const spawn of ctx.db.enemySpawn.by_location.filter(locationId)) {
-    if (spawn.state === 'available') return spawn;
+    if (spawn.state !== 'available') continue;
+    const template = ctx.db.enemyTemplate.id.find(spawn.enemyTemplateId);
+    if (!template) continue;
+    const diff =
+      template.level > adjustedTarget
+        ? template.level - adjustedTarget
+        : adjustedTarget - template.level;
+    if (!best || bestDiff === null || diff < bestDiff) {
+      best = spawn;
+      bestDiff = diff;
+    }
   }
-  return spawnEnemy(ctx, locationId);
+  if (best && bestDiff !== null && bestDiff <= 1n) return best;
+  return spawnEnemy(ctx, locationId, targetLevel);
 }
 
 function ensureHealthRegenScheduled(ctx: any) {
@@ -1157,7 +1205,7 @@ function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
     if (row.state === 'available') available += 1;
   }
   while (available < needed) {
-    spawnEnemy(ctx, locationId);
+    spawnEnemy(ctx, locationId, 1n);
     available += 1;
   }
 }
@@ -1265,11 +1313,24 @@ spacetimedb.view(
 
 spacetimedb.init((ctx) => {
   if (!tableHasRows(ctx.db.location.iter())) {
+    const starter = ctx.db.region.insert({
+      id: 0n,
+      name: 'Hollowmere Vale',
+      dangerMultiplier: 100n,
+    });
+    const border = ctx.db.region.insert({
+      id: 0n,
+      name: 'Embermarch Fringe',
+      dangerMultiplier: 160n,
+    });
+
     const town = ctx.db.location.insert({
       id: 0n,
       name: 'Hollowmere',
       description: 'A misty river town with lantern-lit docks and a quiet market square.',
       zone: 'Starter',
+      regionId: starter.id,
+      levelOffset: 0n,
       isSafe: true,
     });
     ctx.db.location.insert({
@@ -1277,8 +1338,38 @@ spacetimedb.init((ctx) => {
       name: 'Ashen Road',
       description: 'A cracked highway flanked by dead trees and drifting embers.',
       zone: 'Starter',
+      regionId: starter.id,
+      levelOffset: 1n,
       isSafe: false,
     });
+    ctx.db.location.insert({
+      id: 0n,
+      name: 'Fogroot Crossing',
+      description: 'Twisted roots and slick stones mark a shadowy crossing.',
+      zone: 'Starter',
+      regionId: starter.id,
+      levelOffset: 2n,
+      isSafe: false,
+    });
+    ctx.db.location.insert({
+      id: 0n,
+      name: 'Embermarch Gate',
+      description: 'A scorched pass leading toward harsher lands.',
+      zone: 'Border',
+      regionId: border.id,
+      levelOffset: 3n,
+      isSafe: false,
+    });
+    ctx.db.location.insert({
+      id: 0n,
+      name: 'Cinderwatch',
+      description: 'Ash dunes and ember winds test the brave.',
+      zone: 'Border',
+      regionId: border.id,
+      levelOffset: 5n,
+      isSafe: false,
+    });
+
     ctx.db.worldState.insert({ id: 1n, startingLocationId: town.id });
   }
 
@@ -1289,7 +1380,7 @@ spacetimedb.init((ctx) => {
       role: 'tank',
       roleDetail: 'melee',
       abilityProfile: 'thick hide, taunt',
-      armorClass: 18n,
+      armorClass: 12n,
       level: 1n,
       maxHp: 26n,
       baseDamage: 4n,
@@ -1301,7 +1392,7 @@ spacetimedb.init((ctx) => {
       role: 'dps',
       roleDetail: 'magic',
       abilityProfile: 'fire bolts, ignite',
-      armorClass: 10n,
+      armorClass: 8n,
       level: 2n,
       maxHp: 28n,
       baseDamage: 6n,
@@ -1313,7 +1404,7 @@ spacetimedb.init((ctx) => {
       role: 'dps',
       roleDetail: 'ranged',
       abilityProfile: 'rapid shot, bleed',
-      armorClass: 12n,
+      armorClass: 8n,
       level: 2n,
       maxHp: 24n,
       baseDamage: 7n,
@@ -1325,7 +1416,7 @@ spacetimedb.init((ctx) => {
       role: 'dps',
       roleDetail: 'melee',
       abilityProfile: 'pounce, shred',
-      armorClass: 12n,
+      armorClass: 9n,
       level: 3n,
       maxHp: 30n,
       baseDamage: 8n,
@@ -1337,7 +1428,7 @@ spacetimedb.init((ctx) => {
       role: 'healer',
       roleDetail: 'support',
       abilityProfile: 'mend, cleanse',
-      armorClass: 11n,
+      armorClass: 9n,
       level: 2n,
       maxHp: 22n,
       baseDamage: 4n,
@@ -1349,7 +1440,7 @@ spacetimedb.init((ctx) => {
       role: 'support',
       roleDetail: 'control',
       abilityProfile: 'weaken, slow, snare',
-      armorClass: 11n,
+      armorClass: 9n,
       level: 3n,
       maxHp: 26n,
       baseDamage: 5n,
@@ -1368,7 +1459,7 @@ spacetimedb.init((ctx) => {
       count += 1;
     }
     while (count < desired) {
-      spawnEnemy(ctx, location.id);
+      spawnEnemy(ctx, location.id, 1n);
       count += 1;
     }
   }
@@ -1680,7 +1771,7 @@ spacetimedb.reducer(
 
     const baseStats = computeBaseStats(className, 1n);
     const manaStat = manaStatForClass(className, baseStats);
-    const maxHp = BASE_HP + baseStats.str * 10n;
+    const maxHp = BASE_HP + baseStats.str * 5n;
     const maxMana = BASE_MANA + manaStat * 6n;
     const armorClass = baseArmorForClass(className);
     const character = ctx.db.character.insert({
@@ -1972,15 +2063,6 @@ spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64(
     }
   }
 
-  const spawn = ctx.db.enemySpawn.id.find(args.enemySpawnId);
-  const spawnToUse =
-    spawn && spawn.locationId === locationId && spawn.state === 'available'
-      ? spawn
-      : ensureAvailableSpawn(ctx, locationId);
-
-  const template = ctx.db.enemyTemplate.id.find(spawnToUse.enemyTemplateId);
-  if (!template) throw new SenderError('Enemy template missing');
-
   // Determine participants
   const participants: typeof Character.rowType[] = [];
   if (groupId) {
@@ -1999,6 +2081,18 @@ spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64(
       throw new SenderError(`${p.name} is already in combat`);
     }
   }
+
+  const spawn = ctx.db.enemySpawn.id.find(args.enemySpawnId);
+  let desiredLevel = character.level;
+  if (participants.length >= 4) desiredLevel = desiredLevel + 2n;
+  else if (participants.length >= 2) desiredLevel = desiredLevel + 1n;
+  const spawnToUse =
+    spawn && spawn.locationId === locationId && spawn.state === 'available'
+      ? spawn
+      : ensureAvailableSpawn(ctx, locationId, desiredLevel);
+
+  const template = ctx.db.enemyTemplate.id.find(spawnToUse.enemyTemplateId);
+  if (!template) throw new SenderError('Enemy template missing');
 
   // Scale enemy
     const { maxHp, attackDamage, armorClass } = computeEnemyStats(template, participants);
@@ -2484,8 +2578,7 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
     if (action === 'attack') {
       const weapon = getEquippedWeaponStats(ctx, character.id);
       const damage = 5n + character.level + weapon.baseDamage + (weapon.dps / 2n);
-      const reducedDamage =
-        damage > (enemy.armorClass / 2n) ? damage - (enemy.armorClass / 2n) : 1n;
+      const reducedDamage = applyArmorMitigation(damage, enemy.armorClass);
       const nextHp = enemy.currentHp > reducedDamage ? enemy.currentHp - reducedDamage : 0n;
       ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
 
@@ -2533,7 +2626,7 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
     );
     if (spawn) {
       ctx.db.enemySpawn.id.delete(spawn.id);
-      spawnEnemy(ctx, spawn.locationId);
+      spawnEnemy(ctx, spawn.locationId, 1n);
     }
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);
@@ -2578,11 +2671,13 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
   if (topAggro) {
     const targetCharacter = ctx.db.character.id.find(topAggro.characterId);
     if (targetCharacter && targetCharacter.hp > 0n) {
-      const damage = updatedEnemy.attackDamage;
-      const reducedDamage =
-        damage > (targetCharacter.armorClass / 2n)
-          ? damage - (targetCharacter.armorClass / 2n)
-          : 1n;
+      const template = ctx.db.enemyTemplate.id.find(updatedEnemy.enemyTemplateId);
+      const enemyLevel = template?.level ?? 1n;
+      const levelDiff =
+        enemyLevel > targetCharacter.level ? enemyLevel - targetCharacter.level : 0n;
+      const damageMultiplier = 100n + levelDiff * 20n;
+      const damage = (updatedEnemy.attackDamage * damageMultiplier) / 100n;
+      const reducedDamage = applyArmorMitigation(damage, targetCharacter.armorClass);
       const nextHp =
         targetCharacter.hp > reducedDamage ? targetCharacter.hp - reducedDamage : 0n;
       ctx.db.character.id.update({ ...targetCharacter, hp: nextHp });

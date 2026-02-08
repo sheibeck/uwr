@@ -174,6 +174,8 @@ import MyPrivateEventsRow from "./my_private_events_table";
 export { MyPrivateEventsRow };
 import PlayerRow from "./player_table";
 export { PlayerRow };
+import RegionRow from "./region_table";
+export { RegionRow };
 import UserRow from "./user_table";
 export { UserRow };
 import WorldStateRow from "./world_state_table";
@@ -290,6 +292,8 @@ import PromoteGroupLeader from "./promote_group_leader_type";
 export { PromoteGroupLeader };
 import RegenHealth from "./regen_health_type";
 export { RegenHealth };
+import Region from "./region_type";
+export { Region };
 import RejectFriendRequest from "./reject_friend_request_type";
 export { RejectFriendRequest };
 import RejectGroupInvite from "./reject_group_invite_type";
@@ -684,6 +688,17 @@ const tablesSchema = __schema(
       { name: 'player_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, PlayerRow),
+  __table({
+    name: 'region',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'region_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RegionRow),
   __table({
     name: 'user',
     indexes: [
