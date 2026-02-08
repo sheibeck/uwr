@@ -35,6 +35,7 @@ Last updated: 2026-02-08
   - Follow leader toggle (default ON); hidden for leaders.
   - Group disband when last member leaves; leader auto-promoted when leader leaves.
   - Pending invite UI in Group panel.
+  - Group and combat member lists show the current player first.
 - **Friends:**
   - Mutual friends + friend requests.
   - Friends panel shows incoming and outgoing requests.
@@ -45,12 +46,18 @@ Last updated: 2026-02-08
   - Round-based actions: `attack`, `skip`, `flee`.
   - 10s round timer; default action is `skip`.
   - Aggro from damage only; `skip` reduces aggro.
-  - Dead characters are removed from combat and respawn when combat ends.
+  - Combat auto-opens for all group members.
+  - Dead characters cannot act; combat ends if all active participants are dead.
+  - Dead characters revive at half HP after combat ends.
   - Enemy respawns after death; new spawns created as new groups/solos arrive.
+  - Combat results screen shown after combat; leader dismisses to return to enemy list.
+- **Regen:**
+  - Global health regen: +1 HP per 3s (skipped while in combat).
 - **UI:**
   - Main log window, command input with `/` autocomplete and keyboard navigation.
   - Action bar with panels (Character, Inventory, Friends, Group, Stats, Travel, Combat).
   - Group button always visible; other buttons only if character selected.
+  - Combat/Group panels show HP bars; combat shows timer and action selection state.
 
 ## Tables / Views (Server)
 - Player: `userId`, `activeCharacterId`, `sessionStartedAt`, etc.
@@ -61,12 +68,13 @@ Last updated: 2026-02-08
 - Combat:
   - `enemy_template`, `location_enemy_template`, `enemy_spawn`.
   - `combat_encounter`, `combat_participant`, `combat_enemy`, `aggro_entry`, `combat_round_tick`.
+  - `combat_result`, `health_regen_tick`.
 - Events: `event_world`, `event_location`, `event_private`, `event_group`.
 - Views: `my_player`, `my_private_events`, `my_group_events`, `my_location_events`,
-  `my_friend_requests`, `my_friends`, `my_group_invites`, `my_group_members`.
+  `my_friend_requests`, `my_friends`, `my_group_invites`, `my_group_members`, `my_combat_results`.
 
 ## Client Structure
-- Composables: 
+- Composables:
   - `useGameData`, `usePlayer`, `useAuth`, `useCharacters`, `useEvents`,
   - `useCharacterCreation`, `useCommands`, `useCombat`, `useGroups`, `useMovement`, `useFriends`.
 - Components:
@@ -77,6 +85,7 @@ Last updated: 2026-02-08
 ## Styling
 - Dark theme, inline styles in `src/ui/styles.ts`.
 - Whisper text purple; command text gold; presence muted gray; private slightly distinct.
+- HP bars (green), mana bars (blue), stamina bars (yellow) in combat/group panels.
 
 ## Known Behaviors / Notes
 - Character names are globally unique (case-insensitive).
@@ -84,9 +93,11 @@ Last updated: 2026-02-08
 - Command autocomplete appears when input starts with `/`, supports keyboard navigation.
 - Group invite alerts invitee via private event.
 - Friend request success/failure messages emitted via private events.
+- **Stamina/Mana migration pending:** schema changes require publishing with `--delete-data`.
 
 ## Required Commands
 - Publish local module: `spacetime publish uwr --project-path spacetimedb --server local`
+- Publish with data deletion (for stamina/mana schema): `spacetime publish uwr --project-path spacetimedb --server local --delete-data`
 - Generate bindings: `spacetime generate --lang typescript --out-dir src/module_bindings --project-path spacetimedb`
 - Start local server: `spacetime start`
 - Dev server: `npm run dev`
