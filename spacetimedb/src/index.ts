@@ -110,6 +110,7 @@ const Character = table(
     critRanged: t.u64(),
     critDivine: t.u64(),
     critArcane: t.u64(),
+    armorClass: t.u64(),
     perception: t.u64(),
     search: t.u64(),
     ccPower: t.u64(),
@@ -127,6 +128,7 @@ const ItemTemplate = table(
     id: t.u64().primaryKey().autoInc(),
     name: t.string(),
     slot: t.string(),
+    armorType: t.string(),
     rarity: t.string(),
     requiredLevel: t.u64(),
     allowedClasses: t.string(),
@@ -137,6 +139,7 @@ const ItemTemplate = table(
     intBonus: t.u64(),
     hpBonus: t.u64(),
     manaBonus: t.u64(),
+    armorClassBonus: t.u64(),
   }
 );
 
@@ -205,6 +208,10 @@ const EnemyTemplate = table(
   {
     id: t.u64().primaryKey().autoInc(),
     name: t.string(),
+    role: t.string(),
+    roleDetail: t.string(),
+    abilityProfile: t.string(),
+    armorClass: t.u64(),
     level: t.u64(),
     maxHp: t.u64(),
     baseDamage: t.u64(),
@@ -297,6 +304,7 @@ const CombatEnemy = table(
     currentHp: t.u64(),
     maxHp: t.u64(),
     attackDamage: t.u64(),
+    armorClass: t.u64(),
     aggroTargetCharacterId: t.u64().optional(),
   }
 );
@@ -604,6 +612,34 @@ const EQUIPMENT_SLOTS = new Set([
   'offHand',
 ]);
 
+const ARMOR_TYPES = ['cloth', 'leather', 'chain', 'plate'] as const;
+const ARMOR_TYPES_WITH_NONE = ['none', ...ARMOR_TYPES] as const;
+
+const CLASS_ARMOR: Record<string, string[]> = {
+  bard: ['cloth'],
+  enchanter: ['cloth'],
+  cleric: ['cloth'],
+  druid: ['cloth'],
+  necromancer: ['cloth'],
+  summoner: ['cloth'],
+  rogue: ['leather', 'cloth'],
+  monk: ['leather', 'cloth'],
+  spellblade: ['leather', 'cloth'],
+  reaver: ['leather', 'cloth'],
+  beastmaster: ['leather', 'cloth'],
+  ranger: ['chain', 'leather', 'cloth'],
+  shaman: ['chain', 'leather', 'cloth'],
+  warrior: ['plate', 'chain', 'leather', 'cloth'],
+  paladin: ['plate', 'chain', 'leather', 'cloth'],
+};
+
+const BASE_ARMOR_CLASS: Record<string, bigint> = {
+  cloth: 6n,
+  leather: 10n,
+  chain: 14n,
+  plate: 18n,
+};
+
 function normalizeClassName(className: string) {
   return className.trim().toLowerCase();
 }
@@ -656,6 +692,7 @@ function getEquippedBonuses(ctx: any, characterId: bigint) {
     int: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
+    armorClassBonus: 0n,
   };
   for (const instance of ctx.db.itemInstance.by_owner.filter(characterId)) {
     if (!instance.equippedSlot) continue;
@@ -668,8 +705,16 @@ function getEquippedBonuses(ctx: any, characterId: bigint) {
     bonuses.int += template.intBonus;
     bonuses.hpBonus += template.hpBonus;
     bonuses.manaBonus += template.manaBonus;
+    bonuses.armorClassBonus += template.armorClassBonus;
   }
   return bonuses;
+}
+
+function baseArmorForClass(className: string) {
+  const normalized = normalizeClassName(className);
+  const allowed = CLASS_ARMOR[normalized] ?? ['cloth'];
+  const best = allowed[0] ?? 'cloth';
+  return BASE_ARMOR_CLASS[best] ?? BASE_ARMOR_CLASS.cloth;
 }
 
 function recomputeCharacterDerived(ctx: any, character: typeof Character.rowType) {
@@ -693,6 +738,7 @@ function recomputeCharacterDerived(ctx: any, character: typeof Character.rowType
   const critRanged = totalStats.dex * 12n;
   const critDivine = totalStats.wis * 12n;
   const critArcane = totalStats.int * 12n;
+  const armorClass = baseArmorForClass(character.className) + gear.armorClassBonus;
   const perception = totalStats.wis * 25n;
   const search = totalStats.int * 25n;
   const ccPower = totalStats.cha * 15n;
@@ -710,6 +756,7 @@ function recomputeCharacterDerived(ctx: any, character: typeof Character.rowType
     critRanged,
     critDivine,
     critArcane,
+    armorClass,
     perception,
     search,
     ccPower,
@@ -735,6 +782,68 @@ function isClassAllowed(allowedClasses: string, className: string) {
     .filter((entry) => entry.length > 0);
   if (allowed.includes('any')) return true;
   return allowed.includes(normalized);
+}
+
+function normalizeArmorType(armorType: string) {
+  return armorType.trim().toLowerCase();
+}
+
+function isArmorAllowedForClass(armorType: string, className: string) {
+  const normalizedArmor = normalizeArmorType(armorType);
+  if (normalizedArmor === 'none' || normalizedArmor.length === 0) return true;
+  const allowed = CLASS_ARMOR[normalizeClassName(className)] ?? ['cloth'];
+  return allowed.includes(normalizedArmor);
+}
+
+const ENEMY_ROLE_CONFIG: Record<
+  string,
+  { hpPerLevel: bigint; damagePerLevel: bigint; baseHp: bigint; baseDamage: bigint }
+> = {
+  tank: { hpPerLevel: 26n, damagePerLevel: 4n, baseHp: 20n, baseDamage: 2n },
+  healer: { hpPerLevel: 18n, damagePerLevel: 4n, baseHp: 16n, baseDamage: 2n },
+  dps: { hpPerLevel: 20n, damagePerLevel: 6n, baseHp: 14n, baseDamage: 3n },
+  support: { hpPerLevel: 16n, damagePerLevel: 5n, baseHp: 12n, baseDamage: 2n },
+};
+
+function getEnemyRole(role: string) {
+  const key = role.trim().toLowerCase();
+  return ENEMY_ROLE_CONFIG[key] ?? ENEMY_ROLE_CONFIG.dps;
+}
+
+function scaleByPercent(value: bigint, percent: bigint) {
+  return (value * percent) / 100n;
+}
+
+function computeEnemyStats(
+  template: typeof EnemyTemplate.rowType,
+  participants: typeof Character.rowType[]
+) {
+  const role = getEnemyRole(template.role);
+  const groupSize = participants.length;
+  let totalLevel = 0n;
+  for (const p of participants) totalLevel += p.level;
+  const avgLevel = totalLevel / BigInt(groupSize);
+  const effectiveLevel = template.level > avgLevel ? template.level : avgLevel;
+  const baseHp = role.baseHp + role.hpPerLevel * effectiveLevel;
+  const baseDamage = role.baseDamage + role.damagePerLevel * effectiveLevel;
+  const baseArmorClass = template.armorClass + effectiveLevel;
+
+  let hpMultiplier = 100n;
+  let damageMultiplier = 100n;
+  if (groupSize >= 4) {
+    hpMultiplier = 240n;
+    damageMultiplier = 145n;
+  } else if (groupSize >= 2) {
+    hpMultiplier = 160n;
+    damageMultiplier = 125n;
+  }
+
+  return {
+    maxHp: scaleByPercent(baseHp, hpMultiplier),
+    attackDamage: scaleByPercent(baseDamage, damageMultiplier),
+    armorClass: baseArmorClass,
+    avgLevel,
+  };
 }
 
 function friendUserIds(ctx: any, userId: bigint): bigint[] {
@@ -982,18 +1091,74 @@ spacetimedb.init((ctx) => {
     ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Bog Rat',
+      role: 'tank',
+      roleDetail: 'melee',
+      abilityProfile: 'thick hide, taunt',
+      armorClass: 18n,
       level: 1n,
-      maxHp: 18n,
+      maxHp: 26n,
       baseDamage: 4n,
       xpReward: 12n,
     });
     ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Ember Wisp',
+      role: 'dps',
+      roleDetail: 'magic',
+      abilityProfile: 'fire bolts, ignite',
+      armorClass: 10n,
       level: 2n,
-      maxHp: 26n,
+      maxHp: 28n,
       baseDamage: 6n,
       xpReward: 20n,
+    });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Bandit Archer',
+      role: 'dps',
+      roleDetail: 'ranged',
+      abilityProfile: 'rapid shot, bleed',
+      armorClass: 12n,
+      level: 2n,
+      maxHp: 24n,
+      baseDamage: 7n,
+      xpReward: 18n,
+    });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Blight Stalker',
+      role: 'dps',
+      roleDetail: 'melee',
+      abilityProfile: 'pounce, shred',
+      armorClass: 12n,
+      level: 3n,
+      maxHp: 30n,
+      baseDamage: 8n,
+      xpReward: 24n,
+    });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Grave Acolyte',
+      role: 'healer',
+      roleDetail: 'support',
+      abilityProfile: 'mend, cleanse',
+      armorClass: 11n,
+      level: 2n,
+      maxHp: 22n,
+      baseDamage: 4n,
+      xpReward: 18n,
+    });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Hexbinder',
+      role: 'support',
+      roleDetail: 'control',
+      abilityProfile: 'weaken, slow, snare',
+      armorClass: 11n,
+      level: 3n,
+      maxHp: 26n,
+      baseDamage: 5n,
+      xpReward: 22n,
     });
   }
 
@@ -1320,6 +1485,7 @@ spacetimedb.reducer(
     const manaStat = manaStatForClass(className, baseStats);
     const maxHp = BASE_HP + baseStats.str * 10n;
     const maxMana = BASE_MANA + manaStat * 6n;
+    const armorClass = baseArmorForClass(className);
     const character = ctx.db.character.insert({
       id: 0n,
       ownerUserId: userId,
@@ -1345,6 +1511,7 @@ spacetimedb.reducer(
       critRanged: baseStats.dex * 12n,
       critDivine: baseStats.wis * 12n,
       critArcane: baseStats.int * 12n,
+      armorClass,
       perception: baseStats.wis * 25n,
       search: baseStats.int * 25n,
       ccPower: baseStats.cha * 15n,
@@ -1364,6 +1531,7 @@ spacetimedb.reducer(
   {
     name: t.string(),
     slot: t.string(),
+    armorType: t.string(),
     rarity: t.string(),
     requiredLevel: t.u64(),
     allowedClasses: t.string(),
@@ -1374,14 +1542,20 @@ spacetimedb.reducer(
     intBonus: t.u64(),
     hpBonus: t.u64(),
     manaBonus: t.u64(),
+    armorClassBonus: t.u64(),
   },
   (ctx, args) => {
     const slot = args.slot.trim();
     if (!EQUIPMENT_SLOTS.has(slot)) throw new SenderError('Invalid slot');
+    const armorType = normalizeArmorType(args.armorType);
+    if (!ARMOR_TYPES_WITH_NONE.includes(armorType as (typeof ARMOR_TYPES_WITH_NONE)[number])) {
+      throw new SenderError('Invalid armor type');
+    }
     ctx.db.itemTemplate.insert({
       id: 0n,
       name: args.name.trim(),
       slot,
+      armorType,
       rarity: args.rarity.trim(),
       requiredLevel: args.requiredLevel,
       allowedClasses: args.allowedClasses.trim(),
@@ -1392,6 +1566,7 @@ spacetimedb.reducer(
       intBonus: args.intBonus,
       hpBonus: args.hpBonus,
       manaBonus: args.manaBonus,
+      armorClassBonus: args.armorClassBonus,
     });
   }
 );
@@ -1423,6 +1598,9 @@ spacetimedb.reducer(
     if (character.level < template.requiredLevel) throw new SenderError('Level too low');
     if (!isClassAllowed(template.allowedClasses, character.className)) {
       throw new SenderError('Class cannot use this item');
+    }
+    if (!isArmorAllowedForClass(template.armorType, character.className)) {
+      throw new SenderError('Armor type not allowed for this class');
     }
     if (!EQUIPMENT_SLOTS.has(template.slot)) throw new SenderError('Invalid slot');
 
@@ -1620,13 +1798,7 @@ spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64(
   }
 
   // Scale enemy
-  let totalLevel = 0n;
-  for (const p of participants) totalLevel += p.level;
-  const avgLevel = totalLevel / BigInt(participants.length);
-  const maxHp =
-    template.maxHp + BigInt(participants.length - 1) * 12n + avgLevel * 6n;
-  const attackDamage =
-    template.baseDamage + BigInt(participants.length - 1) * 3n + avgLevel * 2n;
+    const { maxHp, attackDamage, armorClass } = computeEnemyStats(template, participants);
 
   const combat = ctx.db.combatEncounter.insert({
     id: 0n,
@@ -1645,15 +1817,16 @@ spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64(
     lockedCombatId: combat.id,
   });
 
-  ctx.db.combatEnemy.insert({
-    id: 0n,
-    combatId: combat.id,
-    enemyTemplateId: template.id,
-    currentHp: maxHp,
-    maxHp,
-    attackDamage,
-    aggroTargetCharacterId: undefined,
-  });
+    ctx.db.combatEnemy.insert({
+      id: 0n,
+      combatId: combat.id,
+      enemyTemplateId: template.id,
+      currentHp: maxHp,
+      maxHp,
+      attackDamage,
+      armorClass,
+      aggroTargetCharacterId: undefined,
+    });
 
   for (const p of participants) {
     ctx.db.combatParticipant.insert({
@@ -2107,12 +2280,14 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
 
     if (action === 'attack') {
       const damage = 5n + character.level;
-      const nextHp = enemy.currentHp > damage ? enemy.currentHp - damage : 0n;
+      const reducedDamage =
+        damage > (enemy.armorClass / 2n) ? damage - (enemy.armorClass / 2n) : 1n;
+      const nextHp = enemy.currentHp > reducedDamage ? enemy.currentHp - reducedDamage : 0n;
       ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
 
       for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
         if (entry.characterId === character.id) {
-          ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + damage });
+          ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + reducedDamage });
           break;
         }
       }
@@ -2121,7 +2296,7 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
         character.id,
         character.ownerUserId,
         'combat',
-        `You strike for ${damage} damage.`
+        `You strike for ${reducedDamage} damage.`
       );
     } else if (action === 'skip') {
       for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
@@ -2200,8 +2375,12 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
     const targetCharacter = ctx.db.character.id.find(topAggro.characterId);
     if (targetCharacter && targetCharacter.hp > 0n) {
       const damage = updatedEnemy.attackDamage;
+      const reducedDamage =
+        damage > (targetCharacter.armorClass / 2n)
+          ? damage - (targetCharacter.armorClass / 2n)
+          : 1n;
       const nextHp =
-        targetCharacter.hp > damage ? targetCharacter.hp - damage : 0n;
+        targetCharacter.hp > reducedDamage ? targetCharacter.hp - reducedDamage : 0n;
       ctx.db.character.id.update({ ...targetCharacter, hp: nextHp });
       if (nextHp === 0n) {
         for (const p of participants) {

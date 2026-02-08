@@ -17,5 +17,6 @@ export default __t.row({
   currentHp: __t.u64(),
   maxHp: __t.u64(),
   attackDamage: __t.u64(),
+  armorClass: __t.u64(),
   aggroTargetCharacterId: __t.option(__t.u64()),
 });

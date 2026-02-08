@@ -14,6 +14,7 @@ export default __t.object("ItemTemplate", {
   id: __t.u64(),
   name: __t.string(),
   slot: __t.string(),
+  armorType: __t.string(),
   rarity: __t.string(),
   requiredLevel: __t.u64(),
   allowedClasses: __t.string(),
@@ -24,6 +25,7 @@ export default __t.object("ItemTemplate", {
   intBonus: __t.u64(),
   hpBonus: __t.u64(),
   manaBonus: __t.u64(),
+  armorClassBonus: __t.u64(),
 });
 
 

@@ -36,6 +36,7 @@ export default __t.object("Character", {
   critRanged: __t.u64(),
   critDivine: __t.u64(),
   critArcane: __t.u64(),
+  armorClass: __t.u64(),
   perception: __t.u64(),
   search: __t.u64(),
   ccPower: __t.u64(),

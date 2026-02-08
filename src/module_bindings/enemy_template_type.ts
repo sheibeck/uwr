@@ -13,6 +13,10 @@ import {
 export default __t.object("EnemyTemplate", {
   id: __t.u64(),
   name: __t.string(),
+  role: __t.string(),
+  roleDetail: __t.string(),
+  abilityProfile: __t.string(),
+  armorClass: __t.u64(),
   level: __t.u64(),
   maxHp: __t.u64(),
   baseDamage: __t.u64(),

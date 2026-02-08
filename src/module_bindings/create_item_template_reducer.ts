@@ -13,6 +13,7 @@ import {
 export default {
   name: __t.string(),
   slot: __t.string(),
+  armorType: __t.string(),
   rarity: __t.string(),
   requiredLevel: __t.u64(),
   allowedClasses: __t.string(),
@@ -23,4 +24,5 @@ export default {
   intBonus: __t.u64(),
   hpBonus: __t.u64(),
   manaBonus: __t.u64(),
+  armorClassBonus: __t.u64(),
 };
