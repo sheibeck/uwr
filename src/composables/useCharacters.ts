@@ -38,7 +38,9 @@ export const useCharacters = ({ connActive, characters, locations, groups, userI
   const charactersHere = computed(() => {
     if (!selectedCharacter.value) return [];
     return characters.value.filter(
-      (row) => row.locationId === selectedCharacter.value?.locationId
+      (row) =>
+        row.locationId === selectedCharacter.value?.locationId &&
+        row.id !== selectedCharacter.value?.id
     );
   });
 

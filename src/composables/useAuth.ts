@@ -31,7 +31,6 @@ export const useAuth = ({ connActive, player }: UseAuthArgs) => {
   const logout = () => {
     if (!connActive.value) return;
     authError.value = '';
-    authMessage.value = 'Logging out...';
     try {
       logoutReducer();
     } catch (err) {
