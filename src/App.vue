@@ -15,13 +15,19 @@
       @logout="logout"
     />
 
-    <main :style="[styles.main, showRightPanel ? {} : styles.mainWide]">
-      <div :style="styles.logOverlay">
-        <LogWindow
-          :styles="styles"
-          :selected-character="selectedCharacter"
-          :characters-here="charactersHere"
-          :combined-events="combinedEvents"
+  <main :style="[styles.main, showRightPanel ? {} : styles.mainWide]">
+    <div :style="styles.logOverlay">
+      <div v-if="onboardingHint" :style="styles.onboardingHint">
+        <div>{{ onboardingHint }}</div>
+        <button type="button" :style="styles.onboardingDismiss" @click="dismissOnboarding">
+          Dismiss tour
+        </button>
+      </div>
+      <LogWindow
+        :styles="styles"
+        :selected-character="selectedCharacter"
+        :characters-here="charactersHere"
+        :combined-events="combinedEvents"
           :format-timestamp="formatTimestamp"
           :location-name="currentLocation?.name ?? 'Unknown'"
         />
@@ -93,6 +99,7 @@
           :selected-character-id="selectedCharacterId"
           @update:newCharacter="newCharacter = $event"
           @create="createCharacter"
+          @delete="deleteCharacter"
           @select="
             selectedCharacterId = $event;
             activePanel = 'none';
@@ -209,13 +216,15 @@
         @submit="submitCommand"
       />
 
-      <ActionBar
-        :styles="styles"
-        :active-panel="activePanel"
-        :has-active-character="Boolean(selectedCharacter)"
-        :combat-locked="combatLocked"
-        @toggle="togglePanel"
-      />
+    <ActionBar
+      :styles="styles"
+      :active-panel="activePanel"
+      :has-active-character="Boolean(selectedCharacter)"
+      :combat-locked="combatLocked"
+      :highlight-inventory="highlightInventory"
+      :highlight-hotbar="highlightHotbar"
+      @toggle="togglePanel"
+    />
     </footer>
     <div
       v-if="tooltip.visible"
@@ -312,6 +321,7 @@ const {
   charactersHere,
   currentGroup,
   groupMembers: groupCharacterMembers,
+  deleteCharacter,
 } = useCharacters({
   connActive: computed(() => conn.isActive),
   characters,
@@ -333,13 +343,44 @@ const { combinedEvents } = useEvents({
   sessionStartedAt,
 });
 
-const { newCharacter, isCharacterFormValid, createCharacter, hasCharacter, createError } =
-  useCharacterCreation({
+const {
+  newCharacter,
+  isCharacterFormValid,
+  createCharacter,
+  hasCharacter,
+  createError,
+  creationToken,
+} = useCharacterCreation({
     connActive: computed(() => conn.isActive),
     selectedCharacter,
     userId,
     characters,
   });
+
+const onboardingStep = ref<'inventory' | 'hotbar' | null>(null);
+const onboardingHint = computed(() => {
+  if (onboardingStep.value === 'inventory') {
+    return 'New character created! Open Inventory to equip your starter gear.';
+  }
+  if (onboardingStep.value === 'hotbar') {
+    return 'Next, open Hotbar to assign your abilities.';
+  }
+  return '';
+});
+const highlightInventory = computed(() => onboardingStep.value === 'inventory');
+const highlightHotbar = computed(() => onboardingStep.value === 'hotbar');
+const dismissOnboarding = () => {
+  onboardingStep.value = null;
+};
+
+watch(
+  () => creationToken.value,
+  (token, prev) => {
+    if (token && token !== prev) {
+      onboardingStep.value = 'inventory';
+    }
+  }
+);
 
 const {
   activeCombat,
@@ -457,6 +498,17 @@ const activePanel = ref<
   | 'travel'
   | 'combat'
 >('none');
+
+watch(
+  () => activePanel.value,
+  (panel) => {
+    if (onboardingStep.value === 'inventory' && panel === 'inventory') {
+      onboardingStep.value = 'hotbar';
+    } else if (onboardingStep.value === 'hotbar' && panel === 'hotbar') {
+      onboardingStep.value = null;
+    }
+  }
+);
 
 const canActInCombat = computed(() => {
   if (!selectedCharacter.value || !activeCombat.value) return false;

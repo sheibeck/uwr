@@ -2086,6 +2086,121 @@ spacetimedb.reducer(
   }
 );
 
+spacetimedb.reducer('delete_character', { characterId: t.u64() }, (ctx, args) => {
+  const character = requireCharacterOwnedBy(ctx, args.characterId);
+  const characterId = character.id;
+
+  for (const player of ctx.db.player.iter()) {
+    if (player.activeCharacterId === characterId) {
+      ctx.db.player.id.update({ ...player, activeCharacterId: undefined });
+    }
+  }
+
+  if (character.groupId) {
+    const groupId = character.groupId;
+    const group = ctx.db.group.id.find(groupId);
+    const wasLeader = group?.leaderCharacterId === characterId;
+
+    for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+      if (member.characterId === characterId) {
+        ctx.db.groupMember.id.delete(member.id);
+        break;
+      }
+    }
+
+    appendGroupEvent(
+      ctx,
+      groupId,
+      characterId,
+      'group',
+      `${character.name} was removed from the group.`
+    );
+
+    let newLeaderMember: typeof GroupMember.rowType | null = null;
+    for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+      if (!newLeaderMember) newLeaderMember = member;
+    }
+
+    if (!newLeaderMember) {
+      for (const invite of ctx.db.groupInvite.by_group.filter(groupId)) {
+        ctx.db.groupInvite.id.delete(invite.id);
+      }
+      ctx.db.group.id.delete(groupId);
+    } else if (group && wasLeader) {
+      const newLeaderCharacter = ctx.db.character.id.find(newLeaderMember.characterId);
+      if (newLeaderCharacter) {
+        ctx.db.group.id.update({ ...group, leaderCharacterId: newLeaderCharacter.id });
+        ctx.db.groupMember.id.update({ ...newLeaderMember, role: 'leader' });
+        appendGroupEvent(
+          ctx,
+          groupId,
+          newLeaderCharacter.id,
+          'group',
+          `${newLeaderCharacter.name} is now the group leader.`
+        );
+      }
+    }
+  }
+
+  for (const invite of ctx.db.groupInvite.iter()) {
+    if (invite.fromCharacterId === characterId || invite.toCharacterId === characterId) {
+      ctx.db.groupInvite.id.delete(invite.id);
+    }
+  }
+
+  for (const row of ctx.db.eventGroup.by_character.filter(characterId)) {
+    ctx.db.eventGroup.id.delete(row.id);
+  }
+  for (const row of ctx.db.eventPrivate.by_character.filter(characterId)) {
+    ctx.db.eventPrivate.id.delete(row.id);
+  }
+  for (const row of ctx.db.command.by_character.filter(characterId)) {
+    ctx.db.command.id.delete(row.id);
+  }
+  for (const row of ctx.db.hotbarSlot.by_character.filter(characterId)) {
+    ctx.db.hotbarSlot.id.delete(row.id);
+  }
+  for (const row of ctx.db.characterEffect.by_character.filter(characterId)) {
+    ctx.db.characterEffect.id.delete(row.id);
+  }
+  for (const row of ctx.db.itemInstance.by_owner.filter(characterId)) {
+    ctx.db.itemInstance.id.delete(row.id);
+  }
+
+  const combatIds = new Set<bigint>();
+  for (const participant of ctx.db.combatParticipant.by_character.filter(characterId)) {
+    combatIds.add(participant.combatId);
+    ctx.db.combatParticipant.id.delete(participant.id);
+  }
+
+  for (const combatId of combatIds) {
+    for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+      if (entry.characterId === characterId) {
+        ctx.db.aggroEntry.id.delete(entry.id);
+      }
+    }
+    const combat = ctx.db.combatEncounter.id.find(combatId);
+    if (combat && combat.leaderCharacterId === characterId) {
+      let replacement: typeof CombatParticipant.rowType | null = null;
+      for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
+        if (!replacement) replacement = participant;
+      }
+      ctx.db.combatEncounter.id.update({
+        ...combat,
+        leaderCharacterId: replacement ? replacement.characterId : undefined,
+      });
+    }
+  }
+
+  for (const row of ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)) {
+    if (row.characterId === characterId) {
+      ctx.db.combatResult.id.delete(row.id);
+    }
+  }
+
+  ctx.db.character.id.delete(characterId);
+});
+
 spacetimedb.reducer(
   'create_item_template',
   {

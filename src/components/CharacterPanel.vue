@@ -49,19 +49,28 @@
     <div v-if="myCharacters.length === 0" :style="styles.subtle">No characters yet.</div>
     <ul v-else :style="styles.list">
       <li v-for="character in myCharacters" :key="character.id.toString()">
-        <label :style="styles.radioRow">
-          <input
-            type="radio"
-            name="character"
-            :value="character.id.toString()"
-            :checked="selectedCharacterId === character.id.toString()"
-            @change="$emit('select', character.id.toString())"
-          />
-          <span>
-            {{ character.name }} (Lv {{ character.level }}) -
-            {{ character.race }} {{ character.className }}
-          </span>
-        </label>
+        <div :style="styles.listRow">
+          <label :style="styles.radioRow">
+            <input
+              type="radio"
+              name="character"
+              :value="character.id.toString()"
+              :checked="selectedCharacterId === character.id.toString()"
+              @change="$emit('select', character.id.toString())"
+            />
+            <span>
+              {{ character.name }} (Lv {{ character.level }}) -
+              {{ character.race }} {{ character.className }}
+            </span>
+          </label>
+          <button
+            type="button"
+            :style="styles.dangerButton"
+            @click="confirmDelete(character)"
+          >
+            Delete
+          </button>
+        </div>
       </li>
     </ul>
   </div>
@@ -85,6 +94,7 @@ const emit = defineEmits<{
   (e: 'update:newCharacter', value: { name: string; race: string; className: string }): void;
   (e: 'create'): void;
   (e: 'select', value: string): void;
+  (e: 'delete', value: string): void;
 }>();
 
 const onNameInput = (event: Event) => {
@@ -95,6 +105,12 @@ const onNameInput = (event: Event) => {
 const onRaceInput = (event: Event) => {
   const value = (event.target as HTMLInputElement).value;
   emit('update:newCharacter', { ...props.newCharacter, race: value });
+};
+
+const confirmDelete = (character: CharacterRow) => {
+  const ok = window.confirm(`Delete ${character.name}? This cannot be undone.`);
+  if (!ok) return;
+  emit('delete', character.id.toString());
 };
 
 const CLASS_OPTIONS = [

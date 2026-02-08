@@ -16,9 +16,11 @@ export const useCharacterCreation = ({
   userId,
   characters,
 }: UseCharacterCreationArgs) => {
+  const MAX_CHARACTER_SLOTS = 3;
   const createCharacterReducer = useReducer(reducers.createCharacter);
   const newCharacter = ref({ name: '', race: '', className: '' });
   const createError = ref('');
+  const creationToken = ref(0);
 
   const isCharacterFormValid = computed(() =>
     Boolean(
@@ -31,6 +33,11 @@ export const useCharacterCreation = ({
   const createCharacter = () => {
     if (!connActive.value || userId.value == null || !isCharacterFormValid.value) return;
     createError.value = '';
+    const ownedCount = characters.value.filter((row) => row.ownerUserId === userId.value).length;
+    if (ownedCount >= MAX_CHARACTER_SLOTS) {
+      createError.value = `You can only have ${MAX_CHARACTER_SLOTS} characters for now.`;
+      return;
+    }
     const desired = newCharacter.value.name.trim().toLowerCase();
     if (characters.value.some((row) => row.name.toLowerCase() === desired)) {
       createError.value = 'That name is already taken.';
@@ -44,6 +51,7 @@ export const useCharacterCreation = ({
         className: newCharacter.value.className.trim(),
       });
       newCharacter.value = { name: '', race: '', className: '' };
+      creationToken.value = Date.now();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to create character';
       createError.value = message;
@@ -57,5 +65,6 @@ export const useCharacterCreation = ({
     createCharacter,
     hasCharacter: computed(() => Boolean(selectedCharacter.value)),
     createError,
+    creationToken,
   };
 };

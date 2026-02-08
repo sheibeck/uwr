@@ -78,17 +78,25 @@ const props = defineProps<{
   activePanel: PanelKey;
   hasActiveCharacter: boolean;
   combatLocked: boolean;
+  highlightInventory: boolean;
+  highlightHotbar: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: 'toggle', panel: PanelKey): void;
 }>();
 
-const actionStyle = (panel: PanelKey) => ({
-  ...props.styles.actionButton,
-  ...(props.activePanel === panel ? props.styles.actionButtonActive : {}),
-  ...(isLocked(panel) ? { opacity: 0.45, cursor: 'not-allowed' } : {}),
-});
+const actionStyle = (panel: PanelKey) => {
+  const highlight =
+    (panel === 'inventory' && props.highlightInventory) ||
+    (panel === 'hotbar' && props.highlightHotbar);
+  return {
+    ...props.styles.actionButton,
+    ...(props.activePanel === panel ? props.styles.actionButtonActive : {}),
+    ...(highlight ? props.styles.actionButtonAttention : {}),
+    ...(isLocked(panel) ? { opacity: 0.45, cursor: 'not-allowed' } : {}),
+  };
+};
 
 const isLocked = (panel: PanelKey) => {
   if (!props.combatLocked) return false;

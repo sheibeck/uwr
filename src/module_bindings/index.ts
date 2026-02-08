@@ -58,6 +58,8 @@ import SetActiveCharacterReducer from "./set_active_character_reducer";
 export { SetActiveCharacterReducer };
 import CreateCharacterReducer from "./create_character_reducer";
 export { CreateCharacterReducer };
+import DeleteCharacterReducer from "./delete_character_reducer";
+export { DeleteCharacterReducer };
 import CreateItemTemplateReducer from "./create_item_template_reducer";
 export { CreateItemTemplateReducer };
 import GrantItemReducer from "./grant_item_reducer";
@@ -226,6 +228,8 @@ import CreateGroup from "./create_group_type";
 export { CreateGroup };
 import CreateItemTemplate from "./create_item_template_type";
 export { CreateItemTemplate };
+import DeleteCharacter from "./delete_character_type";
+export { DeleteCharacter };
 import DismissCombatResults from "./dismiss_combat_results_type";
 export { DismissCombatResults };
 import EnemySpawn from "./enemy_spawn_type";
@@ -884,6 +888,7 @@ const reducersSchema = __reducers(
   __reducerSchema("logout", LogoutReducer),
   __reducerSchema("set_active_character", SetActiveCharacterReducer),
   __reducerSchema("create_character", CreateCharacterReducer),
+  __reducerSchema("delete_character", DeleteCharacterReducer),
   __reducerSchema("create_item_template", CreateItemTemplateReducer),
   __reducerSchema("grant_item", GrantItemReducer),
   __reducerSchema("equip_item", EquipItemReducer),

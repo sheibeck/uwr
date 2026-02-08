@@ -22,12 +22,25 @@ type UseCharactersArgs = {
 
 export const useCharacters = ({ connActive, characters, locations, groups, userId }: UseCharactersArgs) => {
   const setActiveCharacterReducer = useReducer(reducers.setActiveCharacter);
+  const deleteCharacterReducer = useReducer(reducers.deleteCharacter);
   const selectedCharacterId = ref('');
 
   const myCharacters = computed(() => {
     if (userId.value == null) return [];
     return characters.value.filter((row) => row.ownerUserId === userId.value);
   });
+
+  watch(
+    () => myCharacters.value.map((row) => row.id.toString()).join(','),
+    (next, prev) => {
+      if (!next || next === prev) return;
+      if (selectedCharacterId.value) return;
+      const latest = myCharacters.value.at(-1);
+      if (latest) {
+        selectedCharacterId.value = latest.id.toString();
+      }
+    }
+  );
 
   const selectedCharacter = computed(() => {
     if (!selectedCharacterId.value) return null;
@@ -73,6 +86,14 @@ export const useCharacters = ({ connActive, characters, locations, groups, userI
     }
   );
 
+  const deleteCharacter = (characterId: string) => {
+    if (!connActive.value) return;
+    deleteCharacterReducer({ characterId: BigInt(characterId) });
+    if (selectedCharacterId.value === characterId) {
+      selectedCharacterId.value = '';
+    }
+  };
+
   return {
     selectedCharacterId,
     myCharacters,
@@ -81,5 +102,6 @@ export const useCharacters = ({ connActive, characters, locations, groups, userI
     charactersHere,
     currentGroup,
     groupMembers,
+    deleteCharacter,
   };
 };
