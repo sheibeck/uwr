@@ -177,6 +177,7 @@ const LocationEnemyTemplate = table(
 const EnemySpawn = table(
   {
     name: 'enemy_spawn',
+    public: true,
     indexes: [
       { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
       { name: 'by_state', algorithm: 'btree', columns: ['state'] },
@@ -195,6 +196,7 @@ const EnemySpawn = table(
 const CombatEncounter = table(
   {
     name: 'combat_encounter',
+    public: true,
     indexes: [
       { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
       { name: 'by_group', algorithm: 'btree', columns: ['groupId'] },
@@ -215,6 +217,7 @@ const CombatEncounter = table(
 const CombatParticipant = table(
   {
     name: 'combat_participant',
+    public: true,
     indexes: [
       { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
       { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
@@ -232,6 +235,7 @@ const CombatParticipant = table(
 const CombatEnemy = table(
   {
     name: 'combat_enemy',
+    public: true,
     indexes: [{ name: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
   },
   {
@@ -564,13 +568,13 @@ function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
     }
   }
   const needed = activeGroupKeys.size;
-  let count = 0;
-  for (const _row of ctx.db.enemySpawn.by_location.filter(locationId)) {
-    count += 1;
+  let available = 0;
+  for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    if (row.state === 'available') available += 1;
   }
-  while (count < needed) {
+  while (available < needed) {
     spawnEnemy(ctx, locationId);
-    count += 1;
+    available += 1;
   }
 }
 
@@ -1766,6 +1770,7 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
   });
   scheduleRound(ctx, combat.id, nextRound);
 });
+
 
 
 
