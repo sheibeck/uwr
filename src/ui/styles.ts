@@ -16,6 +16,41 @@ export const styles = {
   headerRight: {
     textAlign: 'right',
   },
+  authRow: {
+    marginTop: '0.6rem',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: '0.5rem',
+  },
+  authForm: {
+    display: 'flex',
+    gap: '0.5rem',
+  },
+  authLoggedIn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.6rem',
+  },
+  authEmail: {
+    color: 'rgba(230,232,239,0.8)',
+    fontSize: '0.8rem',
+  },
+  authInput: {
+    background: '#0b0f16',
+    border: '1px solid rgba(255,255,255,0.2)',
+    color: '#e6e8ef',
+    padding: '0.35rem 0.6rem',
+    borderRadius: '8px',
+  },
+  authMessage: {
+    color: 'rgba(124, 242, 154, 0.85)',
+    fontSize: '0.75rem',
+  },
+  authError: {
+    color: 'rgba(255, 125, 125, 0.85)',
+    fontSize: '0.75rem',
+  },
   title: {
     fontSize: '1.75rem',
     letterSpacing: '0.04em',
@@ -122,7 +157,6 @@ export const styles = {
     minHeight: '320px',
     display: 'flex',
     flexDirection: 'column',
-    minHeight: 0,
   },
   panelHeader: {
     display: 'flex',

@@ -16,6 +16,7 @@ export default __t.object("Player", {
   lastSeenAt: __t.timestamp(),
   displayName: __t.option(__t.string()),
   activeCharacterId: __t.option(__t.u64()),
+  userId: __t.option(__t.u64()),
 });
 
 

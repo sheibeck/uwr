@@ -5,6 +5,14 @@
       :conn-active="conn.isActive"
       :selected-character="selectedCharacter"
       :current-location="currentLocation"
+      :email="email"
+      :is-logged-in="isLoggedIn"
+      :logged-in-email="userEmail"
+      :auth-message="authMessage"
+      :auth-error="authError"
+      @update:email="email = $event"
+      @login="login"
+      @logout="logout"
     />
 
     <main :style="[styles.main, activePanel === 'none' ? styles.mainWide : {}]">
@@ -119,6 +127,8 @@ import { useCommands } from './composables/useCommands';
 import { useCombat } from './composables/useCombat';
 import { useGroups } from './composables/useGroups';
 import { useMovement } from './composables/useMovement';
+import { usePlayer } from './composables/usePlayer';
+import { useAuth } from './composables/useAuth';
 
 const {
   conn,
@@ -131,7 +141,17 @@ const {
   locationEvents,
   privateEvents,
   groupEvents,
+  players,
+  myPlayer,
+  users,
 } = useGameData();
+
+const { player, userId, userEmail } = usePlayer({ myPlayer, users });
+
+const { email, isLoggedIn, login, logout, authMessage, authError } = useAuth({
+  connActive: computed(() => conn.isActive),
+  player,
+});
 
 const {
   selectedCharacterId,
@@ -146,6 +166,7 @@ const {
   characters,
   locations,
   groups,
+  userId,
 });
 
 const { combinedEvents } = useEvents({
@@ -159,6 +180,7 @@ const { newCharacter, isCharacterFormValid, createCharacter, hasCharacter } =
   useCharacterCreation({
     connActive: computed(() => conn.isActive),
     selectedCharacter,
+    userId,
   });
 
 const { commandText, submitCommand } = useCommands({

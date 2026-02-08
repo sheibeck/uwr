@@ -8,6 +8,20 @@ const Player = table(
     lastSeenAt: t.timestamp(),
     displayName: t.string().optional(),
     activeCharacterId: t.u64().optional(),
+    userId: t.u64().optional(),
+  }
+);
+
+const User = table(
+  {
+    name: 'user',
+    public: true,
+    indexes: [{ name: 'by_email', algorithm: 'btree', columns: ['email'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    email: t.string(),
+    createdAt: t.timestamp(),
   }
 );
 
@@ -35,13 +49,13 @@ const Character = table(
     name: 'character',
     public: true,
     indexes: [
-      { name: 'by_owner', algorithm: 'btree', columns: ['ownerId'] },
+      { name: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
       { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
     ],
   },
   {
     id: t.u64().primaryKey().autoInc(),
-    ownerId: t.identity(),
+    ownerUserId: t.u64(),
     name: t.string(),
     race: t.string(),
     className: t.string(),
@@ -71,7 +85,7 @@ const GroupMember = table(
   {
     name: 'group_member',
     indexes: [
-      { name: 'by_owner', algorithm: 'btree', columns: ['ownerId'] },
+      { name: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
       { name: 'by_group', algorithm: 'btree', columns: ['groupId'] },
     ],
   },
@@ -79,7 +93,7 @@ const GroupMember = table(
     id: t.u64().primaryKey().autoInc(),
     groupId: t.u64(),
     characterId: t.u64(),
-    ownerId: t.identity(),
+    ownerUserId: t.u64(),
     role: t.string(),
     joinedAt: t.timestamp(),
   }
@@ -121,13 +135,13 @@ const Command = table(
     name: 'command',
     public: true,
     indexes: [
-      { name: 'by_owner', algorithm: 'btree', columns: ['ownerId'] },
+      { name: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
       { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
   },
   {
     id: t.u64().primaryKey().autoInc(),
-    ownerId: t.identity(),
+    ownerUserId: t.u64(),
     characterId: t.u64(),
     text: t.string(),
     status: t.string(),
@@ -167,13 +181,13 @@ const EventPrivate = table(
   {
     name: 'event_private',
     indexes: [
-      { name: 'by_owner', algorithm: 'btree', columns: ['ownerId'] },
+      { name: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
       { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
   },
   {
     id: t.u64().primaryKey().autoInc(),
-    ownerId: t.identity(),
+    ownerUserId: t.u64(),
     characterId: t.u64(),
     message: t.string(),
     kind: t.string(),
@@ -201,6 +215,7 @@ const EventGroup = table(
 
 export const spacetimedb = schema(
   Player,
+  User,
   WorldState,
   Location,
   Character,
@@ -220,10 +235,17 @@ function tableHasRows<T>(iter: IterableIterator<T>): boolean {
   return false;
 }
 
+function requirePlayerUserId(ctx: any): bigint {
+  const player = ctx.db.player.id.find(ctx.sender);
+  if (!player || player.userId == null) throw new SenderError('Login required');
+  return player.userId;
+}
+
 function requireCharacterOwnedBy(ctx: any, characterId: bigint) {
   const character = ctx.db.character.id.find(characterId);
   if (!character) throw new SenderError('Character not found');
-  if (character.ownerId.toHexString() !== ctx.sender.toHexString()) {
+  const userId = requirePlayerUserId(ctx);
+  if (character.ownerUserId !== userId) {
     throw new SenderError('Not your character');
   }
   return character;
@@ -258,13 +280,13 @@ function appendLocationEvent(
 function appendPrivateEvent(
   ctx: any,
   characterId: bigint,
-  ownerId: any,
+  ownerUserId: bigint,
   kind: string,
   message: string
 ) {
   ctx.db.eventPrivate.insert({
     id: 0n,
-    ownerId,
+    ownerUserId,
     characterId,
     kind,
     message,
@@ -293,16 +315,25 @@ spacetimedb.view(
   { name: 'my_private_events', public: true },
   t.array(EventPrivate.rowType),
   (ctx) => {
-    return [...ctx.db.eventPrivate.by_owner.filter(ctx.sender)];
+    const player = ctx.db.player.id.find(ctx.sender);
+    if (!player || player.userId == null) return [];
+    return [...ctx.db.eventPrivate.by_owner_user.filter(player.userId)];
   }
 );
+
+spacetimedb.view({ name: 'my_player', public: true }, t.array(Player.rowType), (ctx) => {
+  const player = ctx.db.player.id.find(ctx.sender);
+  return player ? [player] : [];
+});
 
 spacetimedb.view(
   { name: 'my_group_events', public: true },
   t.array(EventGroup.rowType),
   (ctx) => {
     const events: typeof EventGroup.rowType[] = [];
-    for (const member of ctx.db.groupMember.by_owner.filter(ctx.sender)) {
+    const player = ctx.db.player.id.find(ctx.sender);
+    if (!player || player.userId == null) return events;
+    for (const member of ctx.db.groupMember.by_owner_user.filter(player.userId)) {
       for (const event of ctx.db.eventGroup.by_group.filter(member.groupId)) {
         events.push(event);
       }
@@ -361,20 +392,24 @@ spacetimedb.clientConnected((ctx) => {
       lastSeenAt: ctx.timestamp,
       displayName: undefined,
       activeCharacterId: undefined,
+      userId: undefined,
     });
   } else {
     ctx.db.player.id.update({ ...existing, lastSeenAt: ctx.timestamp });
   }
 
-  for (const character of ctx.db.character.by_owner.filter(ctx.sender)) {
-    appendPrivateEvent(ctx, character.id, ctx.sender, 'presence', 'You are online.');
-    appendLocationEvent(
-      ctx,
-      character.locationId,
-      'presence',
-      `${character.name} is online.`,
-      character.id
-    );
+  const player = ctx.db.player.id.find(ctx.sender);
+  if (player && player.userId != null) {
+    for (const character of ctx.db.character.by_owner_user.filter(player.userId)) {
+      appendPrivateEvent(ctx, character.id, player.userId, 'presence', 'You are online.');
+      appendLocationEvent(
+        ctx,
+        character.locationId,
+        'presence',
+        `${character.name} is online.`,
+        character.id
+      );
+    }
   }
 });
 
@@ -387,15 +422,17 @@ spacetimedb.clientDisconnected((_ctx) => {
     ctx.db.player.id.update({ ...player, lastSeenAt: ctx.timestamp });
   }
 
-  for (const character of ctx.db.character.by_owner.filter(ctx.sender)) {
-    appendPrivateEvent(ctx, character.id, ctx.sender, 'presence', 'You went offline.');
-    appendLocationEvent(
-      ctx,
-      character.locationId,
-      'presence',
-      `${character.name} went offline.`,
-      character.id
-    );
+  if (player && player.userId != null) {
+    for (const character of ctx.db.character.by_owner_user.filter(player.userId)) {
+      appendPrivateEvent(ctx, character.id, player.userId, 'presence', 'You went offline.');
+      appendLocationEvent(
+        ctx,
+        character.locationId,
+        'presence',
+        `${character.name} went offline.`,
+        character.id
+      );
+    }
   }
 });
 
@@ -405,6 +442,39 @@ spacetimedb.reducer('set_display_name', { name: t.string() }, (ctx, { name }) =>
   const trimmed = name.trim();
   if (trimmed.length < 2) throw new SenderError('Display name too short');
   ctx.db.player.id.update({ ...player, displayName: trimmed, lastSeenAt: ctx.timestamp });
+});
+
+spacetimedb.reducer('login_email', { email: t.string() }, (ctx, { email }) => {
+  const player = ctx.db.player.id.find(ctx.sender);
+  if (!player) throw new SenderError('Player not found');
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed || !trimmed.includes('@')) throw new SenderError('Invalid email');
+
+  const existing = [...ctx.db.user.by_email.filter(trimmed)][0];
+  const user =
+    existing ??
+    ctx.db.user.insert({
+      id: 0n,
+      email: trimmed,
+      createdAt: ctx.timestamp,
+    });
+
+  ctx.db.player.id.update({
+    ...player,
+    userId: user.id,
+    lastSeenAt: ctx.timestamp,
+  });
+});
+
+spacetimedb.reducer('logout', (ctx) => {
+  const player = ctx.db.player.id.find(ctx.sender);
+  if (!player) return;
+  ctx.db.player.id.update({
+    ...player,
+    userId: undefined,
+    activeCharacterId: undefined,
+    lastSeenAt: ctx.timestamp,
+  });
 });
 
 spacetimedb.reducer('set_active_character', { characterId: t.u64() }, (ctx, { characterId }) => {
@@ -420,7 +490,8 @@ spacetimedb.reducer(
   (ctx, { name, race, className }) => {
     const trimmed = name.trim();
     if (trimmed.length < 2) throw new SenderError('Name too short');
-    for (const row of ctx.db.character.by_owner.filter(ctx.sender)) {
+    const userId = requirePlayerUserId(ctx);
+    for (const row of ctx.db.character.by_owner_user.filter(userId)) {
       if (row.name.toLowerCase() === trimmed.toLowerCase()) {
         throw new SenderError('Character name already exists');
       }
@@ -431,7 +502,7 @@ spacetimedb.reducer(
 
     const character = ctx.db.character.insert({
       id: 0n,
-      ownerId: ctx.sender,
+      ownerUserId: userId,
       name: trimmed,
       race: race.trim(),
       className: className.trim(),
@@ -445,7 +516,7 @@ spacetimedb.reducer(
       createdAt: ctx.timestamp,
     });
 
-    appendPrivateEvent(ctx, character.id, ctx.sender, 'system', `${character.name} enters the world.`);
+    appendPrivateEvent(ctx, character.id, userId, 'system', `${character.name} enters the world.`);
     appendLocationEvent(
       ctx,
       character.locationId,
@@ -467,7 +538,7 @@ spacetimedb.reducer('move_character', { characterId: t.u64(), locationId: t.u64(
   appendPrivateEvent(
     ctx,
     character.id,
-    ctx.sender,
+    requirePlayerUserId(ctx),
     'move',
     `You travel to ${location.name}. ${location.description}`
   );
@@ -483,14 +554,14 @@ spacetimedb.reducer('submit_command', { characterId: t.u64(), text: t.string() }
 
   ctx.db.command.insert({
     id: 0n,
-    ownerId: ctx.sender,
+    ownerUserId: requirePlayerUserId(ctx),
     characterId: character.id,
     text: trimmed,
     status: 'pending',
     createdAt: ctx.timestamp,
   });
 
-  appendPrivateEvent(ctx, character.id, ctx.sender, 'command', `> ${trimmed}`);
+  appendPrivateEvent(ctx, character.id, requirePlayerUserId(ctx), 'command', `> ${trimmed}`);
 });
 
 spacetimedb.reducer('say', { characterId: t.u64(), message: t.string() }, (ctx, args) => {
@@ -498,7 +569,7 @@ spacetimedb.reducer('say', { characterId: t.u64(), message: t.string() }, (ctx, 
   const trimmed = args.message.trim();
   if (!trimmed) throw new SenderError('Message is empty');
 
-  appendPrivateEvent(ctx, character.id, ctx.sender, 'say', `You say: "${trimmed}"`);
+  appendPrivateEvent(ctx, character.id, requirePlayerUserId(ctx), 'say', `You say: "${trimmed}"`);
   appendLocationEvent(
     ctx,
     character.locationId,
@@ -530,7 +601,7 @@ spacetimedb.reducer('start_combat', { characterId: t.u64(), enemyId: t.u64() }, 
     updatedAt: ctx.timestamp,
   });
 
-  appendPrivateEvent(ctx, character.id, ctx.sender, 'combat', `A ${enemy.name} approaches!`);
+  appendPrivateEvent(ctx, character.id, requirePlayerUserId(ctx), 'combat', `A ${enemy.name} approaches!`);
 
   if (character.groupId) {
     appendGroupEvent(
@@ -560,7 +631,7 @@ spacetimedb.reducer('create_group', { characterId: t.u64(), name: t.string() }, 
     id: 0n,
     groupId: group.id,
     characterId: character.id,
-    ownerId: ctx.sender,
+    ownerUserId: requirePlayerUserId(ctx),
     role: 'leader',
     joinedAt: ctx.timestamp,
   });
@@ -579,7 +650,7 @@ spacetimedb.reducer('join_group', { characterId: t.u64(), groupId: t.u64() }, (c
     id: 0n,
     groupId: group.id,
     characterId: character.id,
-    ownerId: ctx.sender,
+    ownerUserId: requirePlayerUserId(ctx),
     role: 'member',
     joinedAt: ctx.timestamp,
   });
@@ -613,7 +684,7 @@ spacetimedb.reducer('attack', { combatId: t.u64(), damage: t.u64() }, (ctx, args
   const newHp = combat.enemyHp > args.damage ? combat.enemyHp - args.damage : 0n;
   ctx.db.combat.id.update({ ...combat, enemyHp: newHp, updatedAt: ctx.timestamp });
 
-  appendPrivateEvent(ctx, character.id, ctx.sender, 'combat', `You strike for ${args.damage} damage.`);
+  appendPrivateEvent(ctx, character.id, requirePlayerUserId(ctx), 'combat', `You strike for ${args.damage} damage.`);
 
   if (newHp === 0n) {
     const enemy = ctx.db.enemyTemplate.id.find(combat.enemyId);
@@ -632,7 +703,7 @@ spacetimedb.reducer('attack', { combatId: t.u64(), damage: t.u64() }, (ctx, args
       newMaxMana = character.maxMana + 3n;
       newHp = newMaxHp;
       newMana = newMaxMana;
-      appendPrivateEvent(ctx, character.id, ctx.sender, 'system', `You reached level ${newLevel}!`);
+      appendPrivateEvent(ctx, character.id, requirePlayerUserId(ctx), 'system', `You reached level ${newLevel}!`);
     }
 
     ctx.db.character.id.update({
@@ -649,7 +720,7 @@ spacetimedb.reducer('attack', { combatId: t.u64(), damage: t.u64() }, (ctx, args
     appendPrivateEvent(
       ctx,
       character.id,
-      ctx.sender,
+      requirePlayerUserId(ctx),
       'combat',
       `You defeated ${combat.enemyName}! +${reward} XP.`
     );
@@ -673,7 +744,7 @@ spacetimedb.reducer('end_combat', { combatId: t.u64(), reason: t.string() }, (ct
 
   if (combat.status !== 'active') return;
   ctx.db.combat.id.update({ ...combat, status: 'ended', updatedAt: ctx.timestamp });
-  appendPrivateEvent(ctx, character.id, ctx.sender, 'combat', `Combat ended: ${args.reason}`);
+  appendPrivateEvent(ctx, character.id, requirePlayerUserId(ctx), 'combat', `Combat ended: ${args.reason}`);
 
   if (character.groupId) {
     appendGroupEvent(

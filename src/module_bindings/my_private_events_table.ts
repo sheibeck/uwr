@@ -12,7 +12,7 @@ import {
 
 export default __t.row({
   id: __t.u64(),
-  ownerId: __t.identity(),
+  ownerUserId: __t.u64(),
   characterId: __t.u64(),
   message: __t.string(),
   kind: __t.string(),

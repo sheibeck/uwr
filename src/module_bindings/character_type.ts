@@ -12,7 +12,7 @@ import {
 
 export default __t.object("Character", {
   id: __t.u64(),
-  ownerId: __t.identity(),
+  ownerUserId: __t.u64(),
   name: __t.string(),
   race: __t.string(),
   className: __t.string(),

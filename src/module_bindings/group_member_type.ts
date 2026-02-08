@@ -14,7 +14,7 @@ export default __t.object("GroupMember", {
   id: __t.u64(),
   groupId: __t.u64(),
   characterId: __t.u64(),
-  ownerId: __t.identity(),
+  ownerUserId: __t.u64(),
   role: __t.string(),
   joinedAt: __t.timestamp(),
 });

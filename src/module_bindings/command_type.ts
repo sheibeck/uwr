@@ -12,7 +12,7 @@ import {
 
 export default __t.object("Command", {
   id: __t.u64(),
-  ownerId: __t.identity(),
+  ownerUserId: __t.u64(),
   characterId: __t.u64(),
   text: __t.string(),
   status: __t.string(),

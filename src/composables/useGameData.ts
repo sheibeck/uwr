@@ -3,6 +3,9 @@ import { tables } from '../module_bindings';
 
 export const useGameData = () => {
   const conn = useSpacetimeDB();
+  const [players] = useTable(tables.player);
+  const [myPlayer] = useTable(tables.myPlayer);
+  const [users] = useTable(tables.user);
   const [characters] = useTable(tables.character);
   const [locations] = useTable(tables.location);
   const [enemyTemplates] = useTable(tables.enemyTemplate);
@@ -15,6 +18,9 @@ export const useGameData = () => {
 
   return {
     conn,
+    players,
+    myPlayer,
+    users,
     characters,
     locations,
     enemyTemplates,

@@ -40,6 +40,10 @@ import OnDisconnectReducer from "./on_disconnect_reducer";
 export { OnDisconnectReducer };
 import SetDisplayNameReducer from "./set_display_name_reducer";
 export { SetDisplayNameReducer };
+import LoginEmailReducer from "./login_email_reducer";
+export { LoginEmailReducer };
+import LogoutReducer from "./logout_reducer";
+export { LogoutReducer };
 import SetActiveCharacterReducer from "./set_active_character_reducer";
 export { SetActiveCharacterReducer };
 import CreateCharacterReducer from "./create_character_reducer";
@@ -92,10 +96,14 @@ import MyGroupEventsRow from "./my_group_events_table";
 export { MyGroupEventsRow };
 import MyLocationEventsRow from "./my_location_events_table";
 export { MyLocationEventsRow };
+import MyPlayerRow from "./my_player_table";
+export { MyPlayerRow };
 import MyPrivateEventsRow from "./my_private_events_table";
 export { MyPrivateEventsRow };
 import PlayerRow from "./player_table";
 export { PlayerRow };
+import UserRow from "./user_table";
+export { UserRow };
 import WorldStateRow from "./world_state_table";
 export { WorldStateRow };
 
@@ -136,12 +144,18 @@ import LeaveGroup from "./leave_group_type";
 export { LeaveGroup };
 import Location from "./location_type";
 export { Location };
+import LoginEmail from "./login_email_type";
+export { LoginEmail };
+import Logout from "./logout_type";
+export { Logout };
 import MoveCharacter from "./move_character_type";
 export { MoveCharacter };
 import MyGroupEvents from "./my_group_events_type";
 export { MyGroupEvents };
 import MyLocationEvents from "./my_location_events_type";
 export { MyLocationEvents };
+import MyPlayer from "./my_player_type";
+export { MyPlayer };
 import MyPrivateEvents from "./my_private_events_type";
 export { MyPrivateEvents };
 import OnConnect from "./on_connect_type";
@@ -160,6 +174,8 @@ import StartCombat from "./start_combat_type";
 export { StartCombat };
 import SubmitCommand from "./submit_command_type";
 export { SubmitCommand };
+import User from "./user_type";
+export { User };
 import WorldState from "./world_state_type";
 export { WorldState };
 
@@ -174,8 +190,8 @@ const tablesSchema = __schema(
       { name: 'by_location', algorithm: 'btree', columns: [
         'locationId',
       ] },
-      { name: 'by_owner', algorithm: 'btree', columns: [
-        'ownerId',
+      { name: 'by_owner_user', algorithm: 'btree', columns: [
+        'ownerUserId',
       ] },
     ],
     constraints: [
@@ -205,8 +221,8 @@ const tablesSchema = __schema(
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
-      { name: 'by_owner', algorithm: 'btree', columns: [
-        'ownerId',
+      { name: 'by_owner_user', algorithm: 'btree', columns: [
+        'ownerUserId',
       ] },
     ],
     constraints: [
@@ -264,8 +280,8 @@ const tablesSchema = __schema(
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
-      { name: 'by_owner', algorithm: 'btree', columns: [
-        'ownerId',
+      { name: 'by_owner_user', algorithm: 'btree', columns: [
+        'ownerUserId',
       ] },
     ],
     constraints: [
@@ -303,8 +319,8 @@ const tablesSchema = __schema(
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
-      { name: 'by_owner', algorithm: 'btree', columns: [
-        'ownerId',
+      { name: 'by_owner_user', algorithm: 'btree', columns: [
+        'ownerUserId',
       ] },
     ],
     constraints: [
@@ -334,6 +350,20 @@ const tablesSchema = __schema(
     ],
   }, PlayerRow),
   __table({
+    name: 'user',
+    indexes: [
+      { name: 'by_email', algorithm: 'btree', columns: [
+        'email',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'user_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, UserRow),
+  __table({
     name: 'world_state',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -359,6 +389,13 @@ const tablesSchema = __schema(
     ],
   }, MyLocationEventsRow),
   __table({
+    name: 'my_player',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyPlayerRow),
+  __table({
     name: 'my_private_events',
     indexes: [
     ],
@@ -370,6 +407,8 @@ const tablesSchema = __schema(
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("set_display_name", SetDisplayNameReducer),
+  __reducerSchema("login_email", LoginEmailReducer),
+  __reducerSchema("logout", LogoutReducer),
   __reducerSchema("set_active_character", SetActiveCharacterReducer),
   __reducerSchema("create_character", CreateCharacterReducer),
   __reducerSchema("move_character", MoveCharacterReducer),

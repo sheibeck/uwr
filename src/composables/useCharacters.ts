@@ -9,19 +9,16 @@ type UseCharactersArgs = {
   characters: Ref<CharacterRow[]>;
   locations: Ref<LocationRow[]>;
   groups: Ref<GroupRow[]>;
+  userId: Ref<bigint | null>;
 };
 
-export const useCharacters = ({ connActive, characters, locations, groups }: UseCharactersArgs) => {
+export const useCharacters = ({ connActive, characters, locations, groups, userId }: UseCharactersArgs) => {
   const setActiveCharacterReducer = useReducer(reducers.setActiveCharacter);
   const selectedCharacterId = ref('');
 
-  const myIdentityHex = computed(() => window.__my_identity?.toHexString() ?? null);
-
   const myCharacters = computed(() => {
-    if (!myIdentityHex.value) return [];
-    return characters.value.filter(
-      (row) => row.ownerId.toHexString() === myIdentityHex.value
-    );
+    if (userId.value == null) return [];
+    return characters.value.filter((row) => row.ownerUserId === userId.value);
   });
 
   const selectedCharacter = computed(() => {

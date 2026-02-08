@@ -12,9 +12,6 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  ownerUserId: __t.u64(),
-  characterId: __t.u64(),
-  text: __t.string(),
-  status: __t.string(),
+  email: __t.string(),
   createdAt: __t.timestamp(),
 });

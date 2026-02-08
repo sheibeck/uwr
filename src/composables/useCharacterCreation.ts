@@ -6,9 +6,14 @@ import type { CharacterRow } from '../module_bindings';
 type UseCharacterCreationArgs = {
   connActive: Ref<boolean>;
   selectedCharacter: Ref<CharacterRow | null>;
+  userId: Ref<bigint | null>;
 };
 
-export const useCharacterCreation = ({ connActive, selectedCharacter }: UseCharacterCreationArgs) => {
+export const useCharacterCreation = ({
+  connActive,
+  selectedCharacter,
+  userId,
+}: UseCharacterCreationArgs) => {
   const createCharacterReducer = useReducer(reducers.createCharacter);
   const newCharacter = ref({ name: '', race: '', className: '' });
 
@@ -21,7 +26,7 @@ export const useCharacterCreation = ({ connActive, selectedCharacter }: UseChara
   );
 
   const createCharacter = () => {
-    if (!connActive.value || !isCharacterFormValid.value) return;
+    if (!connActive.value || userId.value == null || !isCharacterFormValid.value) return;
     createCharacterReducer({
       name: newCharacter.value.name.trim(),
       race: newCharacter.value.race.trim(),

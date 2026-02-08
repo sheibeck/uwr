@@ -10,11 +10,6 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.row({
-  id: __t.u64().primaryKey(),
-  ownerUserId: __t.u64(),
-  characterId: __t.u64(),
-  text: __t.string(),
-  status: __t.string(),
-  createdAt: __t.timestamp(),
-});
+export default __t.object("MyPlayer", {});
+
+
