@@ -16,28 +16,6 @@
         <div :style="styles.subtle">
           {{ selectedAction ? `Action selected: ${selectedAction}` : 'Awaiting your action.' }}
         </div>
-        <div :style="styles.panelSectionTitle">Combatants</div>
-        <ul :style="styles.list">
-          <li v-for="member in sortedRoster" :key="member.id.toString()">
-            <strong>{{ member.name }}</strong>
-            <span :style="styles.subtle">
-              (Lv {{ member.level }}) · HP {{ member.hp }} / {{ member.maxHp }} ·
-              {{ formatStatus(member.status) }}
-              <span v-if="member.isYou">(You)</span>
-            </span>
-            <div :style="styles.hpBar">
-              <div :style="{ ...styles.hpFill, width: `${hpPercent(member.hp, member.maxHp)}%` }"></div>
-            </div>
-            <div :style="styles.hpBar">
-              <div :style="{ ...styles.manaFill, width: `${hpPercent(member.mana, member.maxMana)}%` }"></div>
-            </div>
-            <div :style="styles.hpBar">
-              <div
-                :style="{ ...styles.staminaFill, width: `${hpPercent(member.stamina, member.maxStamina)}%` }"
-              ></div>
-            </div>
-          </li>
-        </ul>
         <div :style="styles.panelFormInline">
           <button
             type="button"
@@ -106,7 +84,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
 import type {
   CharacterRow,
   CombatEncounterRow,
@@ -120,20 +97,6 @@ type EnemySummary = {
   level: bigint;
 };
 
-type CombatRosterEntry = {
-  id: bigint;
-  name: string;
-  level: bigint;
-  hp: bigint;
-  maxHp: bigint;
-  mana: bigint;
-  maxMana: bigint;
-  stamina: bigint;
-  maxStamina: bigint;
-  status: string;
-  isYou: boolean;
-};
-
 defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
@@ -143,7 +106,6 @@ defineProps<{
   activeEnemyName: string;
   activeEnemyLevel: bigint;
   activeEnemySpawn: { id: bigint } | null;
-  combatRoster: CombatRosterEntry[];
   roundEndsInSeconds: number;
   selectedAction: 'attack' | 'skip' | 'flee' | null;
   enemySpawns: EnemySummary[];
@@ -160,29 +122,4 @@ defineEmits<{
   (e: 'flee'): void;
   (e: 'dismiss-results'): void;
 }>();
-
-const formatStatus = (status: string) => {
-  switch (status) {
-    case 'active':
-      return 'Active';
-    case 'fled':
-      return 'Fled';
-    case 'dead':
-      return 'Dead';
-    default:
-      return status;
-  }
-};
-
-const hpPercent = (current: bigint, max: bigint) => {
-  if (!max) return 0;
-  const percent = (Number(current) / Number(max)) * 100;
-  return Math.max(0, Math.min(100, Math.round(percent)));
-};
-
-const sortedRoster = computed(() => {
-  const mine = combatRoster.filter((member) => member.isYou);
-  const others = combatRoster.filter((member) => !member.isYou);
-  return [...mine, ...others];
-});
 </script>

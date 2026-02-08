@@ -596,6 +596,15 @@ function ensureAvailableSpawn(ctx: any, locationId: bigint): typeof EnemySpawn.r
   return spawnEnemy(ctx, locationId);
 }
 
+function ensureHealthRegenScheduled(ctx: any) {
+  if (!tableHasRows(ctx.db.healthRegenTick.iter())) {
+    ctx.db.healthRegenTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 3_000_000n),
+    });
+  }
+}
+
 function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
   const activeGroupKeys = new Set<string>();
   for (const player of ctx.db.player.iter()) {
@@ -772,11 +781,7 @@ spacetimedb.init((ctx) => {
     }
   }
 
-  // Start global health regeneration tick (every 3 seconds)
-  ctx.db.healthRegenTick.insert({
-    scheduledId: 0n,
-    scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 3_000_000n),
-  });
+  ensureHealthRegenScheduled(ctx);
 });
 
 spacetimedb.clientConnected((ctx) => {
@@ -793,6 +798,7 @@ spacetimedb.clientConnected((ctx) => {
   } else {
     ctx.db.player.id.update({ ...existing, lastSeenAt: ctx.timestamp });
   }
+  ensureHealthRegenScheduled(ctx);
 });
 
 spacetimedb.clientDisconnected((_ctx) => {

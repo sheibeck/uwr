@@ -13,12 +13,15 @@
             {{ member.name }} (Lv {{ member.level }}) - {{ member.className }}
             <span v-if="member.id === leaderId" :style="styles.subtle">· Leader</span>
           </span>
+          <div :style="styles.subtle">HP {{ member.hp }} / {{ member.maxHp }}</div>
           <div :style="styles.hpBar">
             <div :style="{ ...styles.hpFill, width: `${percent(member.hp, member.maxHp)}%` }"></div>
           </div>
+          <div :style="styles.subtle">Mana {{ member.mana }} / {{ member.maxMana }}</div>
           <div :style="styles.hpBar">
             <div :style="{ ...styles.manaFill, width: `${percent(member.mana, member.maxMana)}%` }"></div>
           </div>
+          <div :style="styles.subtle">Stamina {{ member.stamina }} / {{ member.maxStamina }}</div>
           <div :style="styles.hpBar">
             <div
               :style="{ ...styles.staminaFill, width: `${percent(member.stamina, member.maxStamina)}%` }"
@@ -58,15 +61,24 @@
         {{ selectedCharacter.name }} (Lv {{ selectedCharacter.level }}) -
         {{ selectedCharacter.className }}
       </div>
+      <div v-if="selectedCharacter" :style="styles.subtle">
+        HP {{ selectedCharacter.hp }} / {{ selectedCharacter.maxHp }}
+      </div>
       <div v-if="selectedCharacter" :style="styles.hpBar">
         <div
           :style="{ ...styles.hpFill, width: `${percent(selectedCharacter.hp, selectedCharacter.maxHp)}%` }"
         ></div>
       </div>
+      <div v-if="selectedCharacter" :style="styles.subtle">
+        Mana {{ selectedCharacter.mana }} / {{ selectedCharacter.maxMana }}
+      </div>
       <div v-if="selectedCharacter" :style="styles.hpBar">
         <div
           :style="{ ...styles.manaFill, width: `${percent(selectedCharacter.mana, selectedCharacter.maxMana)}%` }"
         ></div>
+      </div>
+      <div v-if="selectedCharacter" :style="styles.subtle">
+        Stamina {{ selectedCharacter.stamina }} / {{ selectedCharacter.maxStamina }}
       </div>
       <div v-if="selectedCharacter" :style="styles.hpBar">
         <div

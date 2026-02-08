@@ -95,6 +95,25 @@ export const styles = {
     height: '100%',
     minHeight: 0,
   },
+  logOverlay: {
+    position: 'relative',
+    height: '100%',
+    minHeight: 0,
+  },
+  logOverlayPanel: {
+    position: 'absolute',
+    top: '1rem',
+    right: '1rem',
+    width: 'min(320px, 90%)',
+    maxHeight: 'calc(100% - 2rem)',
+    overflow: 'auto',
+    background: '#141821',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '14px',
+    padding: '1rem',
+    boxShadow: '0 12px 30px rgba(0,0,0,0.45)',
+    zIndex: 5,
+  },
   roster: {
     marginBottom: '1rem',
     padding: '0.75rem 0.9rem',
@@ -173,6 +192,12 @@ export const styles = {
     minHeight: '320px',
     display: 'flex',
     flexDirection: 'column',
+  },
+  panelStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
+    minHeight: 0,
   },
   panelHeader: {
     display: 'flex',

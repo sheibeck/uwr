@@ -15,18 +15,65 @@
       @logout="logout"
     />
 
-    <main :style="[styles.main, activePanel === 'none' ? styles.mainWide : {}]">
-      <LogWindow
-        :styles="styles"
-        :selected-character="selectedCharacter"
-        :characters-here="charactersHere"
-        :combined-events="combinedEvents"
-        :format-timestamp="formatTimestamp"
-        :location-name="currentLocation?.name ?? 'Unknown'"
-      />
+    <main :style="[styles.main, showRightPanel ? {} : styles.mainWide]">
+      <div :style="styles.logOverlay">
+        <LogWindow
+          :styles="styles"
+          :selected-character="selectedCharacter"
+          :characters-here="charactersHere"
+          :combined-events="combinedEvents"
+          :format-timestamp="formatTimestamp"
+          :location-name="currentLocation?.name ?? 'Unknown'"
+        />
+        <div v-if="showCombatStack" :style="styles.logOverlayPanel">
+          <GroupPanel
+            :styles="styles"
+            :conn-active="conn.isActive"
+            :selected-character="selectedCharacter"
+            :current-group="currentGroup"
+            :group-members="groupCharacterMembers"
+            :invite-summaries="inviteSummaries"
+            :leader-id="leaderId"
+            :is-leader="isLeader"
+            :follow-leader="followLeader"
+            @leave="leaveGroup"
+            @accept="acceptInvite"
+            @reject="rejectInvite"
+            @kick="kickMember"
+            @promote="promoteLeader"
+            @toggle-follow="setFollowLeader"
+          />
+        </div>
+      </div>
 
+      <div v-if="showCombatStack">
+        <PanelShell :styles="styles" title="Combat" @close="activePanel = 'none'">
+          <CombatPanel
+            :styles="styles"
+            :conn-active="conn.isActive"
+            :selected-character="selectedCharacter"
+            :active-combat="activeCombat"
+            :active-enemy="activeEnemy"
+            :active-enemy-spawn="activeEnemySpawn"
+            :active-enemy-name="activeEnemyName"
+            :active-enemy-level="activeEnemyLevel"
+            :round-ends-in-seconds="roundEndsInSeconds"
+            :selected-action="selectedAction"
+            :enemy-spawns="availableEnemies"
+            :active-result="activeResult"
+            :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+            :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+            :can-act="canActInCombat"
+            @start="startCombat"
+            @attack="attack"
+            @skip="skip"
+            @flee="flee"
+            @dismiss-results="dismissResults"
+          />
+        </PanelShell>
+      </div>
       <PanelShell
-        v-if="activePanel !== 'none'"
+        v-else-if="activePanel !== 'none'"
         :styles="styles"
         :title="panelTitle"
         @close="activePanel = 'none'"
@@ -97,7 +144,6 @@
           :active-enemy-spawn="activeEnemySpawn"
           :active-enemy-name="activeEnemyName"
           :active-enemy-level="activeEnemyLevel"
-          :combat-roster="combatRoster"
           :round-ends-in-seconds="roundEndsInSeconds"
           :selected-action="selectedAction"
           :enemy-spawns="availableEnemies"
@@ -136,6 +182,7 @@
         :styles="styles"
         :active-panel="activePanel"
         :has-active-character="Boolean(selectedCharacter)"
+        :combat-locked="combatLocked"
         @toggle="togglePanel"
       />
     </footer>
@@ -216,6 +263,11 @@ const {
   userId,
 });
 
+const fallbackCombatRoster = computed(() => {
+  if (currentGroup.value) return groupCharacterMembers.value;
+  return selectedCharacter.value ? [selectedCharacter.value] : [];
+});
+
 const { combinedEvents } = useEvents({
   worldEvents,
   locationEvents,
@@ -255,6 +307,7 @@ const {
   combatParticipants,
   combatEnemies,
   combatResults,
+  fallbackRoster: fallbackCombatRoster,
   enemySpawns,
   enemyTemplates,
   characters,
@@ -321,6 +374,10 @@ const canActInCombat = computed(() => {
   );
   return participant?.status === 'active';
 });
+
+const combatLocked = computed(() => Boolean(activeCombat.value || activeResult.value));
+const showCombatStack = computed(() => combatLocked.value);
+const showRightPanel = computed(() => showCombatStack.value || activePanel.value !== 'none');
 
 const panelTitle = computed(() => {
   switch (activePanel.value) {

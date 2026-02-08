@@ -38,6 +38,7 @@ type UseCombatArgs = {
   combatParticipants: Ref<CombatParticipantRow[]>;
   combatEnemies: Ref<CombatEnemyRow[]>;
   combatResults: Ref<CombatResultRow[]>;
+  fallbackRoster: Ref<CharacterRow[]>;
   enemySpawns: Ref<EnemySpawnRow[]>;
   enemyTemplates: Ref<EnemyTemplateRow[]>;
   characters: Ref<CharacterRow[]>;
@@ -75,6 +76,7 @@ export const useCombat = ({
   combatParticipants,
   combatEnemies,
   combatResults,
+  fallbackRoster,
   enemySpawns,
   enemyTemplates,
   characters,
@@ -215,6 +217,27 @@ export const useCombat = ({
     const roster = combatParticipants.value.filter(
       (row) => row.combatId.toString() === activeCombat.value?.id.toString()
     );
+    if (roster.length === 0) {
+      const fallback =
+        fallbackRoster.value.length > 0
+          ? fallbackRoster.value
+          : selectedCharacter.value
+            ? [selectedCharacter.value]
+            : [];
+      return fallback.map((character) => ({
+        id: character.id,
+        name: character.name,
+        level: character.level,
+        hp: character.hp,
+        maxHp: character.maxHp,
+        mana: character.mana,
+        maxMana: character.maxMana ?? 1n,
+        stamina: character.stamina ?? 0n,
+        maxStamina: character.maxStamina ?? 1n,
+        status: character.hp === 0n ? 'dead' : 'active',
+        isYou: character.id.toString() === selectedCharacter.value?.id.toString(),
+      }));
+    }
     return roster.map((participant) => {
       const character = characters.value.find(
         (row) => row.id.toString() === participant.characterId.toString()
@@ -226,9 +249,9 @@ export const useCombat = ({
         hp: character?.hp ?? 0n,
         maxHp: character?.maxHp ?? 0n,
         mana: character?.mana ?? 0n,
-        maxMana: character?.maxMana ?? 0n,
+        maxMana: character?.maxMana ?? 1n,
         stamina: character?.stamina ?? 0n,
-        maxStamina: character?.maxStamina ?? 0n,
+        maxStamina: character?.maxStamina ?? 1n,
         status: participant.status,
         isYou: participant.characterId === selectedCharacter.value?.id,
       };
