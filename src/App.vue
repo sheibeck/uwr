@@ -105,6 +105,9 @@
           :max-inventory-slots="maxInventorySlots"
           @equip="equipItem"
           @unequip="unequipItem"
+          @show-tooltip="showTooltip"
+          @move-tooltip="moveTooltip"
+          @hide-tooltip="hideTooltip"
         />
         <FriendsPanel
           v-else-if="activePanel === 'friends'"
@@ -197,6 +200,24 @@
         @toggle="togglePanel"
       />
     </footer>
+    <div
+      v-if="tooltip.visible"
+      :style="{
+        ...styles.tooltip,
+        left: `${tooltip.x}px`,
+        top: `${tooltip.y}px`,
+      }"
+    >
+      <div :style="styles.tooltipTitle">{{ tooltip.item?.name ?? 'Item' }}</div>
+      <div v-if="tooltip.item?.description" :style="styles.tooltipLine">
+        {{ tooltip.item.description }}
+      </div>
+      <div v-if="tooltip.item?.stats?.length" :style="styles.tooltipLine">
+        <div v-for="stat in tooltip.item.stats" :key="stat.label">
+          {{ stat.label }}: {{ stat.value }}
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -400,6 +421,26 @@ const canActInCombat = computed(() => {
 const combatLocked = computed(() => Boolean(activeCombat.value || activeResult.value));
 const showCombatStack = computed(() => combatLocked.value);
 const showRightPanel = computed(() => showCombatStack.value || activePanel.value !== 'none');
+
+const tooltip = ref<{ visible: boolean; x: number; y: number; item: any | null }>({
+  visible: false,
+  x: 0,
+  y: 0,
+  item: null,
+});
+
+const showTooltip = (payload: { item: any; x: number; y: number }) => {
+  tooltip.value = { visible: true, x: payload.x + 12, y: payload.y + 12, item: payload.item };
+};
+
+const moveTooltip = (payload: { x: number; y: number }) => {
+  if (!tooltip.value.visible) return;
+  tooltip.value = { ...tooltip.value, x: payload.x + 12, y: payload.y + 12 };
+};
+
+const hideTooltip = () => {
+  tooltip.value = { visible: false, x: 0, y: 0, item: null };
+};
 
 const panelTitle = computed(() => {
   switch (activePanel.value) {

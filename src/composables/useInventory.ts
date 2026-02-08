@@ -26,18 +26,25 @@ const EQUIPMENT_SLOTS = [
 
 type InventoryItem = {
   id: bigint;
+  instanceId: bigint;
   name: string;
   slot: string;
+  armorType: string;
   rarity: string;
   requiredLevel: bigint;
   allowedClasses: string;
+  stats: { label: string; value: string }[];
+  description: string;
 };
 
 type EquippedSlot = {
   slot: string;
   name: string;
+  armorType: string;
   rarity: string;
   itemInstanceId: bigint | null;
+  stats: { label: string; value: string }[];
+  description: string;
 };
 
 export const useInventory = ({
@@ -64,13 +71,33 @@ export const useInventory = ({
         const template = itemTemplates.value.find(
           (row) => row.id.toString() === instance.templateId.toString()
         );
+        const description =
+          [template?.rarity, template?.armorType, template?.slot]
+            .filter((value) => value && value.length > 0)
+            .join(' • ') ?? '';
+        const stats = [
+          template?.armorClassBonus ? { label: 'Armor Class', value: `+${template.armorClassBonus}` } : null,
+          template?.weaponBaseDamage ? { label: 'Weapon Damage', value: `${template.weaponBaseDamage}` } : null,
+          template?.weaponDps ? { label: 'Weapon DPS', value: `${template.weaponDps}` } : null,
+          template?.strBonus ? { label: 'STR', value: `+${template.strBonus}` } : null,
+          template?.dexBonus ? { label: 'DEX', value: `+${template.dexBonus}` } : null,
+          template?.chaBonus ? { label: 'CHA', value: `+${template.chaBonus}` } : null,
+          template?.wisBonus ? { label: 'WIS', value: `+${template.wisBonus}` } : null,
+          template?.intBonus ? { label: 'INT', value: `+${template.intBonus}` } : null,
+          template?.hpBonus ? { label: 'HP', value: `+${template.hpBonus}` } : null,
+          template?.manaBonus ? { label: 'Mana', value: `+${template.manaBonus}` } : null,
+        ].filter(Boolean) as { label: string; value: string }[];
         return {
           id: instance.id,
+          instanceId: instance.id,
           name: template?.name ?? 'Unknown',
           slot: template?.slot ?? 'unknown',
+          armorType: template?.armorType ?? 'none',
           rarity: template?.rarity ?? 'Common',
           requiredLevel: template?.requiredLevel ?? 1n,
           allowedClasses: template?.allowedClasses ?? 'any',
+          stats,
+          description,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -82,11 +109,30 @@ export const useInventory = ({
       const template = instance
         ? itemTemplates.value.find((row) => row.id.toString() === instance.templateId.toString())
         : null;
+      const description =
+        [template?.rarity, template?.armorType, template?.slot]
+          .filter((value) => value && value.length > 0)
+          .join(' • ') ?? '';
+      const stats = [
+        template?.armorClassBonus ? { label: 'Armor Class', value: `+${template.armorClassBonus}` } : null,
+        template?.weaponBaseDamage ? { label: 'Weapon Damage', value: `${template.weaponBaseDamage}` } : null,
+        template?.weaponDps ? { label: 'Weapon DPS', value: `${template.weaponDps}` } : null,
+        template?.strBonus ? { label: 'STR', value: `+${template.strBonus}` } : null,
+        template?.dexBonus ? { label: 'DEX', value: `+${template.dexBonus}` } : null,
+        template?.chaBonus ? { label: 'CHA', value: `+${template.chaBonus}` } : null,
+        template?.wisBonus ? { label: 'WIS', value: `+${template.wisBonus}` } : null,
+        template?.intBonus ? { label: 'INT', value: `+${template.intBonus}` } : null,
+        template?.hpBonus ? { label: 'HP', value: `+${template.hpBonus}` } : null,
+        template?.manaBonus ? { label: 'Mana', value: `+${template.manaBonus}` } : null,
+      ].filter(Boolean) as { label: string; value: string }[];
       return {
         slot,
         name: template?.name ?? 'Empty',
+        armorType: template?.armorType ?? 'none',
         rarity: template?.rarity ?? 'Common',
         itemInstanceId: instance?.id ?? null,
+        stats,
+        description,
       };
     })
   );

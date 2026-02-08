@@ -437,4 +437,24 @@ export const styles = {
     color: '#0b0f16',
     border: '1px solid #4c7df0',
   },
+  tooltip: {
+    position: 'fixed',
+    background: 'rgba(20,24,33,0.95)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    borderRadius: '10px',
+    padding: '0.6rem 0.8rem',
+    color: '#e6e8ef',
+    fontSize: '0.8rem',
+    zIndex: 1000,
+    pointerEvents: 'none',
+    maxWidth: '240px',
+    boxShadow: '0 10px 24px rgba(0,0,0,0.4)',
+  },
+  tooltipTitle: {
+    fontWeight: 600,
+    marginBottom: '0.35rem',
+  },
+  tooltipLine: {
+    color: 'rgba(230,232,239,0.8)',
+  },
 } as const;

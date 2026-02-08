@@ -25,6 +25,8 @@ export default __t.object("CreateItemTemplate", {
   hpBonus: __t.u64(),
   manaBonus: __t.u64(),
   armorClassBonus: __t.u64(),
+  weaponBaseDamage: __t.u64(),
+  weaponDps: __t.u64(),
 });
 
 
