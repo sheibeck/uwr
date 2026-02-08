@@ -51,7 +51,11 @@
             :key="slot.slot"
             type="button"
             :disabled="!connActive || !canUseAbility || !slot.abilityKey"
-            :style="styles.ghostButton"
+            :style="
+              selectedAction === `ability:${slot.abilityKey}`
+                ? styles.actionButtonSelected
+                : styles.ghostButton
+            "
             @click="$emit('use-ability', slot.abilityKey)"
           >
             {{ slot.slot }}: {{ slot.name }}
@@ -126,7 +130,7 @@ const props = defineProps<{
   activeEnemyConClass: string;
   activeEnemySpawn: { id: bigint } | null;
   roundEndsInSeconds: number;
-  selectedAction: 'attack' | 'skip' | 'flee' | null;
+  selectedAction: string | null;
   enemySpawns: EnemySummary[];
   activeResult: CombatResultRow | null;
   canEngage: boolean;

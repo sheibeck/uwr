@@ -2854,16 +2854,47 @@ spacetimedb.reducer('dismiss_combat_results', { characterId: t.u64() }, (ctx, ar
   }
 });
 
+const HP_REGEN_OUT = 1n;
+const MANA_REGEN_OUT = 1n;
+const STAMINA_REGEN_OUT = 1n;
+const HP_REGEN_IN = 1n;
+const MANA_REGEN_IN = 1n;
+const STAMINA_REGEN_IN = 1n;
+const REGEN_TICK_MICROS = 3_000_000n;
+
 spacetimedb.reducer('regen_health', { arg: HealthRegenTick.rowType }, (ctx) => {
+  const tickIndex = ctx.timestamp.microsSinceUnixEpoch / REGEN_TICK_MICROS;
+  const halfTick = tickIndex % 2n === 0n;
+
   for (const character of ctx.db.character.iter()) {
-    if (activeCombatIdForCharacter(ctx, character.id)) continue;
     if (character.hp === 0n) continue;
-    if (character.hp >= character.maxHp) continue;
-    ctx.db.character.id.update({ ...character, hp: character.hp + 1n });
+
+    const inCombat = !!activeCombatIdForCharacter(ctx, character.id);
+    if (inCombat && !halfTick) continue;
+
+    const hpRegen = inCombat ? HP_REGEN_IN : HP_REGEN_OUT;
+    const manaRegen = inCombat ? MANA_REGEN_IN : MANA_REGEN_OUT;
+    const staminaRegen = inCombat ? STAMINA_REGEN_IN : STAMINA_REGEN_OUT;
+
+    const nextHp =
+      character.hp >= character.maxHp ? character.hp : character.hp + hpRegen;
+    const nextMana =
+      character.mana >= character.maxMana ? character.mana : character.mana + manaRegen;
+    const nextStamina =
+      character.stamina >= character.maxStamina
+        ? character.stamina
+        : character.stamina + staminaRegen;
+
+    ctx.db.character.id.update({
+      ...character,
+      hp: nextHp > character.maxHp ? character.maxHp : nextHp,
+      mana: nextMana > character.maxMana ? character.maxMana : nextMana,
+      stamina: nextStamina > character.maxStamina ? character.maxStamina : nextStamina,
+    });
   }
   ctx.db.healthRegenTick.insert({
     scheduledId: 0n,
-    scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 3_000_000n),
+    scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + REGEN_TICK_MICROS),
   });
 });
 
@@ -2996,8 +3027,15 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);
       if (character && p.status === 'dead') {
-        const halfHp = character.maxHp / 2n;
-        ctx.db.character.id.update({ ...character, hp: halfHp > 0n ? halfHp : 1n });
+        const quarterHp = character.maxHp / 4n;
+        const quarterMana = character.maxMana / 4n;
+        const quarterStamina = character.maxStamina / 4n;
+        ctx.db.character.id.update({
+          ...character,
+          hp: quarterHp > 0n ? quarterHp : 1n,
+          mana: quarterMana > 0n ? quarterMana : 1n,
+          stamina: quarterStamina > 0n ? quarterStamina : 1n,
+        });
       }
     }
   for (const row of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
@@ -3090,8 +3128,15 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);
       if (character && p.status === 'dead') {
-        const halfHp = character.maxHp / 2n;
-        ctx.db.character.id.update({ ...character, hp: halfHp > 0n ? halfHp : 1n });
+        const quarterHp = character.maxHp / 4n;
+        const quarterMana = character.maxMana / 4n;
+        const quarterStamina = character.maxStamina / 4n;
+        ctx.db.character.id.update({
+          ...character,
+          hp: quarterHp > 0n ? quarterHp : 1n,
+          mana: quarterMana > 0n ? quarterMana : 1n,
+          stamina: quarterStamina > 0n ? quarterStamina : 1n,
+        });
       }
     }
     for (const row of ctx.db.combatParticipant.by_combat.filter(combat.id)) {

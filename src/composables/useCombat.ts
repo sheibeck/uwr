@@ -85,7 +85,7 @@ export const useCombat = ({
   const startCombatReducer = useReducer(reducers.startCombat);
   const chooseActionReducer = useReducer(reducers.chooseAction);
   const dismissResultsReducer = useReducer(reducers.dismissCombatResults);
-  const selectedAction = ref<'attack' | 'skip' | 'flee' | null>(null);
+  const selectedAction = ref<string | null>(null);
   const nowMicros = ref(Date.now() * 1000);
   let timer: number | undefined;
 
