@@ -80,8 +80,6 @@ import SayReducer from "./say_reducer";
 export { SayReducer };
 import WhisperReducer from "./whisper_reducer";
 export { WhisperReducer };
-import StartCombatReducer from "./start_combat_reducer";
-export { StartCombatReducer };
 import CreateGroupReducer from "./create_group_reducer";
 export { CreateGroupReducer };
 import JoinGroupReducer from "./join_group_reducer";
@@ -100,6 +98,8 @@ import AcceptGroupInviteReducer from "./accept_group_invite_reducer";
 export { AcceptGroupInviteReducer };
 import RejectGroupInviteReducer from "./reject_group_invite_reducer";
 export { RejectGroupInviteReducer };
+import StartCombatReducer from "./start_combat_reducer";
+export { StartCombatReducer };
 import ChooseActionReducer from "./choose_action_reducer";
 export { ChooseActionReducer };
 import DismissCombatResultsReducer from "./dismiss_combat_results_reducer";
@@ -899,7 +899,6 @@ const reducersSchema = __reducers(
   __reducerSchema("submit_command", SubmitCommandReducer),
   __reducerSchema("say", SayReducer),
   __reducerSchema("whisper", WhisperReducer),
-  __reducerSchema("start_combat", StartCombatReducer),
   __reducerSchema("create_group", CreateGroupReducer),
   __reducerSchema("join_group", JoinGroupReducer),
   __reducerSchema("leave_group", LeaveGroupReducer),
@@ -909,6 +908,7 @@ const reducersSchema = __reducers(
   __reducerSchema("invite_to_group", InviteToGroupReducer),
   __reducerSchema("accept_group_invite", AcceptGroupInviteReducer),
   __reducerSchema("reject_group_invite", RejectGroupInviteReducer),
+  __reducerSchema("start_combat", StartCombatReducer),
   __reducerSchema("choose_action", ChooseActionReducer),
   __reducerSchema("dismiss_combat_results", DismissCombatResultsReducer),
   __reducerSchema("regen_health", RegenHealthReducer),

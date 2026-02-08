@@ -9,7 +9,7 @@ Last updated: 2026-02-08
 - Event streams are segmented: world, location, private, group.
 
 ## Architecture
-- Server: `C:\projects\uwr\spacetimedb\src\index.ts`
+- Server: `C:\projects\uwr\spacetimedb\src\index.ts` (schema + helpers) and `C:\projects\uwr\spacetimedb\src\reducers\` (feature reducers).
 - Client: Vue 3 app with composables and UI components.
 - Bindings: generated via `spacetime generate` into `C:\projects\uwr\src\module_bindings`.
 - Styles: inline style objects in `src/ui/styles.ts`.
@@ -51,8 +51,13 @@ Last updated: 2026-02-08
   - Dead characters revive at half HP after combat ends.
   - Enemy respawns after death; new spawns created as new groups/solos arrive.
   - Combat results screen shown after combat; leader dismisses to return to enemy list.
+- **Characters:**
+  - Max 3 character slots per account (MVP).
+  - Character deletion with confirmation + full cleanup.
 - **Regen:**
-  - Global health regen: +1 HP per 3s (skipped while in combat; any active combat participation blocks regen).
+  - HP/Mana/Stamina regen every 3s.
+  - Out of combat: full rate. In combat: half rate (every other tick).
+  - No regen while dead; revive after combat at 1/4 of max HP/Mana/Stamina.
 - **UI:**
   - Main log window, command input with `/` autocomplete and keyboard navigation.
   - Action bar with panels (Character, Inventory, Friends, Group, Stats, Travel, Combat).
@@ -62,7 +67,8 @@ Last updated: 2026-02-08
   - Action bar is locked during combat/results (only Group/Combat buttons active).
   - Travel panel shows only connected locations with con-color difficulty indicators.
   - Combat enemy list and active enemy header are con-colored.
-  - Hotbar system: 10 slots per character, assignable in Stats panel; assigned abilities show in combat.
+  - Hotbar system: 10 slots per character, assignable in Hotbar panel; assigned abilities show in combat.
+  - New-character tour highlights Inventory then Hotbar, with dismiss option.
 
 ## Ability Plan (MVP, Lv1–Lv5)
 - Rules:
