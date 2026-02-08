@@ -37,6 +37,7 @@
           :conn-active="conn.isActive"
           :new-character="newCharacter"
           :is-character-form-valid="isCharacterFormValid"
+          :create-error="createError"
           :my-characters="myCharacters"
           :selected-character-id="selectedCharacterId"
           @update:newCharacter="newCharacter = $event"
@@ -54,6 +55,7 @@
           :is-logged-in="isLoggedIn"
           :friend-email="friendEmail"
           :incoming-requests="incomingRequests"
+          :outgoing-requests="outgoingRequests"
           :friends="myFriends"
           :email-by-user-id="emailByUserId"
           @update:friendEmail="friendEmail = $event"
@@ -207,17 +209,13 @@ const { combinedEvents } = useEvents({
   sessionStartedAt,
 });
 
-const { newCharacter, isCharacterFormValid, createCharacter, hasCharacter } =
+const { newCharacter, isCharacterFormValid, createCharacter, hasCharacter, createError } =
   useCharacterCreation({
     connActive: computed(() => conn.isActive),
     selectedCharacter,
     userId,
+    characters,
   });
-
-const { commandText, submitCommand } = useCommands({
-  connActive: computed(() => conn.isActive),
-  selectedCharacter,
-});
 
 const { attackDamage, activeCombat, startCombat, attack, endCombat } = useCombat({
   connActive: computed(() => conn.isActive),
@@ -243,6 +241,12 @@ const {
   groupInvites,
   characters,
   groupMembers: groupMemberRows,
+});
+
+const { commandText, submitCommand } = useCommands({
+  connActive: computed(() => conn.isActive),
+  selectedCharacter,
+  inviteSummaries,
 });
 
 const {

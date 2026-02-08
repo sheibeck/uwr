@@ -1,13 +1,33 @@
 <template>
   <form @submit.prevent="$emit('submit')" :style="styles.commandBar">
-    <input
-      type="text"
-      placeholder="Type a command..."
-      :value="commandText"
-      :disabled="!connActive || !hasCharacter"
-      :style="styles.commandInput"
-      @input="onCommandInput"
-    />
+    <div :style="styles.commandWrapper">
+      <input
+        type="text"
+        placeholder="Type a command..."
+        :value="commandText"
+        :disabled="!connActive || !hasCharacter"
+        :style="styles.commandInput"
+        @input="onCommandInput"
+        @focus="showSuggestions = true"
+        @blur="onBlur"
+        @keydown="onKeydown"
+      />
+      <div v-if="shouldShowSuggestions" :style="styles.commandSuggestions">
+        <button
+          v-for="cmd in filteredCommands"
+          :key="cmd.value"
+          type="button"
+          :style="[
+            styles.commandSuggestionItem,
+            cmd.value === highlighted ? styles.commandSuggestionItemActive : {}
+          ]"
+          @mousedown.prevent="selectCommand(cmd.value)"
+        >
+          <span>{{ cmd.value }}</span>
+          <span :style="styles.commandSuggestionHint">{{ cmd.hint }}</span>
+        </button>
+      </div>
+    </div>
     <button
       type="submit"
       :disabled="!connActive || !hasCharacter || !commandText.trim()"
@@ -19,6 +39,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from 'vue';
+
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
@@ -31,8 +53,83 @@ const emit = defineEmits<{
   (e: 'update:commandText', value: string): void;
 }>();
 
+const showSuggestions = ref(false);
+const highlighted = ref<string | null>(null);
+
+  const commands = [
+    { value: '/look', hint: 'Describe current location' },
+    { value: '/say', hint: 'Talk to everyone nearby' },
+    { value: '/w', hint: 'Whisper to a character' },
+    { value: '/invite', hint: 'Invite to group' },
+    { value: '/friend', hint: 'Send friend request' },
+    { value: '/accept', hint: 'Accept group invite' },
+    { value: '/decline', hint: 'Decline group invite' },
+    { value: '/kick', hint: 'Kick group member' },
+    { value: '/promote', hint: 'Promote group leader' },
+    { value: '/leave', hint: 'Leave current group' },
+  ];
+
+const shouldShowSuggestions = computed(() => {
+  return (
+    props.commandText.trim().startsWith('/') &&
+    filteredCommands.value.length > 0
+  );
+});
+
+const filteredCommands = computed(() => {
+  const query = props.commandText.trim().toLowerCase();
+  if (!query.startsWith('/')) return [];
+  return commands.filter((cmd) => cmd.value.startsWith(query));
+});
+
 const onCommandInput = (event: Event) => {
   const value = (event.target as HTMLInputElement).value;
   emit('update:commandText', value);
+  if (!value.trim().startsWith('/')) {
+    highlighted.value = null;
+    return;
+  }
+  if (!highlighted.value && filteredCommands.value.length) {
+    highlighted.value = filteredCommands.value[0].value;
+  }
+};
+
+const selectCommand = (value: string) => {
+  emit('update:commandText', `${value} `);
+  highlighted.value = null;
+};
+
+const onBlur = () => {
+  window.setTimeout(() => {
+    highlighted.value = null;
+  }, 100);
+};
+
+const onKeydown = (event: KeyboardEvent) => {
+  if (!shouldShowSuggestions.value) return;
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    if (!filteredCommands.value.length) return;
+    const values = filteredCommands.value.map((cmd) => cmd.value);
+    const currentIndex = highlighted.value
+      ? values.indexOf(highlighted.value)
+      : -1;
+    if (event.key === 'ArrowDown') {
+      const nextIndex = (currentIndex + 1) % values.length;
+      highlighted.value = values[nextIndex];
+    } else {
+      const prevIndex = (currentIndex - 1 + values.length) % values.length;
+      highlighted.value = values[prevIndex];
+    }
+  }
+
+  if (event.key === 'Enter' && highlighted.value) {
+    event.preventDefault();
+    selectCommand(highlighted.value);
+  }
+
+  if (event.key === 'Escape') {
+    highlighted.value = null;
+  }
 };
 </script>

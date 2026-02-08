@@ -51,6 +51,10 @@ export const styles = {
     color: 'rgba(255, 125, 125, 0.85)',
     fontSize: '0.75rem',
   },
+  errorText: {
+    color: 'rgba(255, 125, 125, 0.85)',
+    fontSize: '0.8rem',
+  },
   title: {
     fontSize: '1.75rem',
     letterSpacing: '0.04em',
@@ -144,6 +148,15 @@ export const styles = {
   },
   logText: {
     flex: 1,
+  },
+  logPrivate: {
+    color: 'rgba(230, 232, 239, 0.85)',
+  },
+  logPresence: {
+    color: 'rgba(230, 232, 239, 0.55)',
+  },
+  logCommand: {
+    color: '#e0b565',
   },
   logWhisper: {
     color: '#c792ff',
@@ -271,15 +284,59 @@ export const styles = {
     display: 'flex',
     gap: '0.75rem',
     marginBottom: '0.75rem',
+    width: '100%',
+    alignItems: 'stretch',
+  },
+  commandWrapper: {
+    position: 'relative',
+    flex: 1,
+    minWidth: 0,
   },
   commandInput: {
-    flex: 1,
+    width: '100%',
     background: '#0b0f16',
     border: '1px solid rgba(255,255,255,0.2)',
     color: '#e6e8ef',
     padding: '0.7rem 0.8rem',
     borderRadius: '10px',
     fontFamily: '"Source Code Pro", "Consolas", monospace',
+    boxSizing: 'border-box',
+  },
+  commandSuggestions: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 'calc(100% + 0.5rem)',
+    background: 'rgba(9, 12, 18, 0.98)',
+    border: '1px solid rgba(255,255,255,0.15)',
+    borderRadius: '10px',
+    padding: '0.4rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.2rem',
+    zIndex: 20,
+  },
+  commandSuggestionItem: {
+    background: 'transparent',
+    border: '1px solid transparent',
+    color: '#e6e8ef',
+    textAlign: 'left',
+    padding: '0.4rem 0.6rem',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '0.75rem',
+    fontFamily: '"Source Code Pro", "Consolas", monospace',
+    fontSize: '0.85rem',
+  },
+  commandSuggestionItemActive: {
+    background: 'rgba(76, 125, 240, 0.2)',
+    border: '1px solid rgba(76, 125, 240, 0.5)',
+  },
+  commandSuggestionHint: {
+    color: 'rgba(230,232,239,0.55)',
+    fontSize: '0.75rem',
   },
   actionBar: {
     display: 'flex',

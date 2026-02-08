@@ -42,6 +42,17 @@
         </li>
       </ul>
 
+      <div :style="styles.panelSectionTitle">Sent Requests</div>
+      <div v-if="outgoingRequests.length === 0" :style="styles.subtle">
+        No pending sent requests.
+      </div>
+      <ul v-else :style="styles.list">
+        <li v-for="req in outgoingRequests" :key="req.id.toString()">
+          <span>{{ emailByUserId(req.toUserId) }}</span>
+          <span :style="styles.subtle">Pending</span>
+        </li>
+      </ul>
+
       <div :style="styles.panelSectionTitle">Friends</div>
       <div v-if="friends.length === 0" :style="styles.subtle">
         No friends yet.
@@ -67,6 +78,7 @@ const props = defineProps<{
   isLoggedIn: boolean;
   friendEmail: string;
   incomingRequests: FriendRequestRow[];
+  outgoingRequests: FriendRequestRow[];
   friends: FriendRow[];
   emailByUserId: (id: bigint) => string;
 }>();

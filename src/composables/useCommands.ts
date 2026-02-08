@@ -5,9 +5,10 @@ import { useReducer } from 'spacetimedb/vue';
 type UseCommandsArgs = {
   connActive: Ref<boolean>;
   selectedCharacter: Ref<CharacterRow | null>;
+  inviteSummaries?: Ref<{ fromName: string }[]>;
 };
 
-export const useCommands = ({ connActive, selectedCharacter }: UseCommandsArgs) => {
+export const useCommands = ({ connActive, selectedCharacter, inviteSummaries }: UseCommandsArgs) => {
   const submitCommandReducer = useReducer(reducers.submitCommand);
   const sayReducer = useReducer(reducers.say);
   const whisperReducer = useReducer(reducers.whisper);
@@ -16,13 +17,24 @@ export const useCommands = ({ connActive, selectedCharacter }: UseCommandsArgs) 
   const rejectInviteReducer = useReducer(reducers.rejectGroupInvite);
   const promoteReducer = useReducer(reducers.promoteGroupLeader);
   const kickReducer = useReducer(reducers.kickGroupMember);
+  const leaveReducer = useReducer(reducers.leaveGroup);
+  const friendReducer = useReducer(reducers.sendFriendRequestToCharacter);
   const commandText = ref('');
 
   const submitCommand = () => {
     if (!connActive.value || !selectedCharacter.value || !commandText.value.trim()) return;
     const raw = commandText.value.trim();
     const lower = raw.toLowerCase();
-    if (lower.startsWith('/promote ')) {
+    if (lower.startsWith('/friend ')) {
+      const targetName = raw.slice(8).trim();
+      if (!targetName) return;
+      friendReducer({
+        characterId: selectedCharacter.value.id,
+        targetName,
+      });
+    } else if (lower === '/leave') {
+      leaveReducer({ characterId: selectedCharacter.value.id });
+    } else if (lower.startsWith('/promote ')) {
       const targetName = raw.slice(9).trim();
       if (!targetName) return;
       promoteReducer({
@@ -43,15 +55,21 @@ export const useCommands = ({ connActive, selectedCharacter }: UseCommandsArgs) 
         characterId: selectedCharacter.value.id,
         targetName,
       });
-    } else if (lower.startsWith('/accept ')) {
-      const fromName = raw.slice(8).trim();
+    } else if (lower.startsWith('/accept')) {
+      let fromName = raw.slice(7).trim();
+      if (!fromName && inviteSummaries?.value?.length === 1) {
+        fromName = inviteSummaries.value[0].fromName;
+      }
       if (!fromName) return;
       acceptInviteReducer({
         characterId: selectedCharacter.value.id,
         fromName,
       });
-    } else if (lower.startsWith('/decline ')) {
-      const fromName = raw.slice(9).trim();
+    } else if (lower.startsWith('/decline')) {
+      let fromName = raw.slice(8).trim();
+      if (!fromName && inviteSummaries?.value?.length === 1) {
+        fromName = inviteSummaries.value[0].fromName;
+      }
       if (!fromName) return;
       rejectInviteReducer({
         characterId: selectedCharacter.value.id,

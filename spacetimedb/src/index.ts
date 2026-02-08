@@ -570,6 +570,68 @@ spacetimedb.reducer('send_friend_request', { email: t.string() }, (ctx, { email 
   });
 });
 
+spacetimedb.reducer(
+  'send_friend_request_to_character',
+  { characterId: t.u64(), targetName: t.string() },
+  (ctx, args) => {
+    const requester = requireCharacterOwnedBy(ctx, args.characterId);
+    const targetName = args.targetName.trim();
+    if (!targetName) throw new SenderError('Target required');
+    const target = findCharacterByName(ctx, targetName);
+    if (!target) throw new SenderError('Target not found');
+    if (target.ownerUserId === requester.ownerUserId) {
+      throw new SenderError('Cannot friend yourself');
+    }
+
+    for (const row of ctx.db.friend.by_user.filter(requester.ownerUserId)) {
+      if (row.friendUserId === target.ownerUserId) {
+        appendPrivateEvent(
+          ctx,
+          requester.id,
+          requester.ownerUserId,
+          'friend',
+          `You are already friends with ${target.name}.`
+        );
+        return;
+      }
+    }
+    for (const row of ctx.db.friendRequest.by_from.filter(requester.ownerUserId)) {
+      if (row.toUserId === target.ownerUserId) {
+        appendPrivateEvent(
+          ctx,
+          requester.id,
+          requester.ownerUserId,
+          'friend',
+          `You already sent a friend request to ${target.name}.`
+        );
+        return;
+      }
+    }
+
+    ctx.db.friendRequest.insert({
+      id: 0n,
+      fromUserId: requester.ownerUserId,
+      toUserId: target.ownerUserId,
+      createdAt: ctx.timestamp,
+    });
+
+    appendPrivateEvent(
+      ctx,
+      requester.id,
+      requester.ownerUserId,
+      'friend',
+      `You sent a friend request to ${target.name}.`
+    );
+    appendPrivateEvent(
+      ctx,
+      target.id,
+      target.ownerUserId,
+      'friend',
+      `${requester.name} sent you a friend request.`
+    );
+  }
+);
+
 spacetimedb.reducer('accept_friend_request', { fromUserId: t.u64() }, (ctx, { fromUserId }) => {
   const userId = requirePlayerUserId(ctx);
   let requestId: bigint | null = null;
@@ -726,7 +788,7 @@ spacetimedb.reducer(
     const trimmed = name.trim();
     if (trimmed.length < 2) throw new SenderError('Name too short');
     const userId = requirePlayerUserId(ctx);
-    for (const row of ctx.db.character.by_owner_user.filter(userId)) {
+    for (const row of ctx.db.character.iter()) {
       if (row.name.toLowerCase() === trimmed.toLowerCase()) {
         throw new SenderError('Character name already exists');
       }
@@ -802,6 +864,20 @@ spacetimedb.reducer('submit_command', { characterId: t.u64(), text: t.string() }
   const character = requireCharacterOwnedBy(ctx, args.characterId);
   const trimmed = args.text.trim();
   if (!trimmed) throw new SenderError('Command is empty');
+
+  if (trimmed.toLowerCase() === '/look' || trimmed.toLowerCase() === 'look') {
+    const location = ctx.db.location.id.find(character.locationId);
+    if (location) {
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        requirePlayerUserId(ctx),
+        'look',
+        `${location.name}: ${location.description}`
+      );
+    }
+    return;
+  }
 
   ctx.db.command.insert({
     id: 0n,
@@ -951,6 +1027,7 @@ spacetimedb.reducer('leave_group', { characterId: t.u64() }, (ctx, args) => {
   const character = requireCharacterOwnedBy(ctx, args.characterId);
   if (!character.groupId) throw new SenderError('Character not in a group');
   const groupId = character.groupId;
+  const group = ctx.db.group.id.find(groupId);
 
   for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
     if (member.characterId === character.id) {
@@ -962,16 +1039,32 @@ spacetimedb.reducer('leave_group', { characterId: t.u64() }, (ctx, args) => {
   ctx.db.character.id.update({ ...character, groupId: undefined });
   appendGroupEvent(ctx, groupId, character.id, 'group', `${character.name} left the group.`);
 
-  let remaining = 0;
-  for (const _row of ctx.db.groupMember.by_group.filter(groupId)) {
-    remaining += 1;
-    break;
+  let newLeaderMember: typeof GroupMember.rowType | null = null;
+  for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+    if (!newLeaderMember) newLeaderMember = member;
   }
-  if (remaining === 0) {
+
+  if (!newLeaderMember) {
     for (const invite of ctx.db.groupInvite.by_group.filter(groupId)) {
       ctx.db.groupInvite.id.delete(invite.id);
     }
     ctx.db.group.id.delete(groupId);
+    return;
+  }
+
+  if (group && group.leaderCharacterId === character.id) {
+    const newLeaderCharacter = ctx.db.character.id.find(newLeaderMember.characterId);
+    if (newLeaderCharacter) {
+      ctx.db.group.id.update({ ...group, leaderCharacterId: newLeaderCharacter.id });
+      ctx.db.groupMember.id.update({ ...newLeaderMember, role: 'leader' });
+      appendGroupEvent(
+        ctx,
+        groupId,
+        newLeaderCharacter.id,
+        'group',
+        `${newLeaderCharacter.name} is now the group leader.`
+      );
+    }
   }
 });
 

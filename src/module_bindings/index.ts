@@ -42,6 +42,8 @@ import SetDisplayNameReducer from "./set_display_name_reducer";
 export { SetDisplayNameReducer };
 import SendFriendRequestReducer from "./send_friend_request_reducer";
 export { SendFriendRequestReducer };
+import SendFriendRequestToCharacterReducer from "./send_friend_request_to_character_reducer";
+export { SendFriendRequestToCharacterReducer };
 import AcceptFriendRequestReducer from "./accept_friend_request_reducer";
 export { AcceptFriendRequestReducer };
 import RejectFriendRequestReducer from "./reject_friend_request_reducer";
@@ -234,6 +236,8 @@ import Say from "./say_type";
 export { Say };
 import SendFriendRequest from "./send_friend_request_type";
 export { SendFriendRequest };
+import SendFriendRequestToCharacter from "./send_friend_request_to_character_type";
+export { SendFriendRequestToCharacter };
 import SetActiveCharacter from "./set_active_character_type";
 export { SetActiveCharacter };
 import SetDisplayName from "./set_display_name_type";
@@ -556,6 +560,7 @@ const tablesSchema = __schema(
 const reducersSchema = __reducers(
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("send_friend_request", SendFriendRequestReducer),
+  __reducerSchema("send_friend_request_to_character", SendFriendRequestToCharacterReducer),
   __reducerSchema("accept_friend_request", AcceptFriendRequestReducer),
   __reducerSchema("reject_friend_request", RejectFriendRequestReducer),
   __reducerSchema("remove_friend", RemoveFriendReducer),

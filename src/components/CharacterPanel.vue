@@ -10,6 +10,7 @@
         :style="styles.input"
         @input="onNameInput"
       />
+      <div v-if="createError" :style="styles.errorText">{{ createError }}</div>
       <input
         type="text"
         placeholder="Race"
@@ -65,6 +66,7 @@ const props = defineProps<{
   connActive: boolean;
   newCharacter: { name: string; race: string; className: string };
   isCharacterFormValid: boolean;
+  createError: string;
   myCharacters: CharacterRow[];
   selectedCharacterId: string;
 }>();
