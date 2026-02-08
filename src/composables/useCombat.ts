@@ -23,6 +23,10 @@ type CombatRosterEntry = {
   level: bigint;
   hp: bigint;
   maxHp: bigint;
+  mana: bigint;
+  maxMana: bigint;
+  stamina: bigint;
+  maxStamina: bigint;
   status: string;
   isYou: boolean;
 };
@@ -85,15 +89,16 @@ export const useCombat = ({
   const activeCombat = computed(() => {
     if (!selectedCharacter.value) return null;
     const selectedId = selectedCharacter.value.id.toString();
-    const participant = combatParticipants.value.find(
-      (row) => row.characterId.toString() === selectedId
-    );
-    if (!participant) return null;
-    const combat = combatEncounters.value.find(
-      (row) => row.id.toString() === participant.combatId.toString()
-    );
-    if (!combat || combat.state !== 'active') return null;
-    return combat;
+    const activeEncounters = combatEncounters.value.filter((row) => row.state === 'active');
+    for (const combat of activeEncounters) {
+      const match = combatParticipants.value.find(
+        (row) =>
+          row.characterId.toString() === selectedId &&
+          row.combatId.toString() === combat.id.toString()
+      );
+      if (match) return combat;
+    }
+    return null;
   });
 
   const activeResult = computed(() => {
@@ -220,6 +225,10 @@ export const useCombat = ({
         level: character?.level ?? 1n,
         hp: character?.hp ?? 0n,
         maxHp: character?.maxHp ?? 0n,
+        mana: character?.mana ?? 0n,
+        maxMana: character?.maxMana ?? 0n,
+        stamina: character?.stamina ?? 0n,
+        maxStamina: character?.maxStamina ?? 0n,
         status: participant.status,
         isYou: participant.characterId === selectedCharacter.value?.id,
       };

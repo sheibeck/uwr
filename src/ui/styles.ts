@@ -222,6 +222,14 @@ export const styles = {
     height: '100%',
     background: 'linear-gradient(90deg, #6bdc8c 0%, #38b2ac 100%)',
   },
+  manaFill: {
+    height: '100%',
+    background: 'linear-gradient(90deg, #5da0ff 0%, #3b6ea5 100%)',
+  },
+  staminaFill: {
+    height: '100%',
+    background: 'linear-gradient(90deg, #f6d365 0%, #fda085 100%)',
+  },
   panelForm: {
     display: 'grid',
     gap: '0.5rem',

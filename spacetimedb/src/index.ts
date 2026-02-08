@@ -99,6 +99,8 @@ const Character = table(
     mana: t.u64(),
     maxMana: t.u64(),
     createdAt: t.timestamp(),
+    stamina: t.u64().default(0n),
+    maxStamina: t.u64().default(0n),
   }
 );
 
@@ -294,6 +296,17 @@ const CombatRoundTick = table(
   }
 );
 
+const HealthRegenTick = table(
+  {
+    name: 'health_regen_tick',
+    scheduled: 'regen_health',
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+  }
+);
+
 const Command = table(
   {
     name: 'command',
@@ -396,6 +409,7 @@ export const spacetimedb = schema(
   CombatEnemy,
   AggroEntry,
   CombatRoundTick,
+  HealthRegenTick,
   CombatResult,
   Command,
   EventWorld,
@@ -757,6 +771,12 @@ spacetimedb.init((ctx) => {
       count += 1;
     }
   }
+
+  // Start global health regeneration tick (every 3 seconds)
+  ctx.db.healthRegenTick.insert({
+    scheduledId: 0n,
+    scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 3_000_000n),
+  });
 });
 
 spacetimedb.clientConnected((ctx) => {
@@ -1073,6 +1093,8 @@ spacetimedb.reducer(
       maxHp: 30n,
       mana: 10n,
       maxMana: 10n,
+      stamina: 20n,
+      maxStamina: 20n,
       createdAt: ctx.timestamp,
     });
 
@@ -1696,6 +1718,19 @@ spacetimedb.reducer('dismiss_combat_results', { characterId: t.u64() }, (ctx, ar
   }
 });
 
+spacetimedb.reducer('regen_health', { arg: HealthRegenTick.rowType }, (ctx) => {
+  for (const character of ctx.db.character.iter()) {
+    if (activeCombatIdForCharacter(ctx, character.id)) continue;
+    if (character.hp === 0n) continue;
+    if (character.hp >= character.maxHp) continue;
+    ctx.db.character.id.update({ ...character, hp: character.hp + 1n });
+  }
+  ctx.db.healthRegenTick.insert({
+    scheduledId: 0n,
+    scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 3_000_000n),
+  });
+});
+
 spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { arg }) => {
   const combat = ctx.db.combatEncounter.id.find(arg.combatId);
   if (!combat || combat.state !== 'active') return;
@@ -1705,7 +1740,15 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
   if (!enemy) return;
 
   const participants = [...ctx.db.combatParticipant.by_combat.filter(combat.id)];
-  const activeParticipants = participants.filter((p) => p.status === 'active');
+  for (const p of participants) {
+    if (p.status !== 'active') continue;
+    const character = ctx.db.character.id.find(p.characterId);
+    if (character && character.hp === 0n) {
+      ctx.db.combatParticipant.id.update({ ...p, status: 'dead' });
+    }
+  }
+  const refreshedParticipants = [...ctx.db.combatParticipant.by_combat.filter(combat.id)];
+  const activeParticipants = refreshedParticipants.filter((p) => p.status === 'active');
 
   for (const participant of activeParticipants) {
     const action = participant.selectedAction ?? 'skip';
@@ -1779,8 +1822,18 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);
       if (character && p.status === 'dead') {
-        ctx.db.character.id.update({ ...character, hp: character.maxHp });
+        const halfHp = character.maxHp / 2n;
+        ctx.db.character.id.update({ ...character, hp: halfHp > 0n ? halfHp : 1n });
       }
+    }
+    for (const row of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
+      ctx.db.combatParticipant.id.delete(row.id);
+    }
+    for (const row of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+      ctx.db.aggroEntry.id.delete(row.id);
+    }
+    for (const row of ctx.db.combatEnemy.by_combat.filter(combat.id)) {
+      ctx.db.combatEnemy.id.delete(row.id);
     }
     ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
     return;
@@ -1813,7 +1866,9 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
 
   let stillActive = false;
   for (const p of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
-    if (p.status === 'active') {
+    if (p.status !== 'active') continue;
+    const character = ctx.db.character.id.find(p.characterId);
+    if (character && character.hp > 0n) {
       stillActive = true;
       break;
     }
@@ -1845,8 +1900,18 @@ spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { a
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);
       if (character && p.status === 'dead') {
-        ctx.db.character.id.update({ ...character, hp: character.maxHp });
+        const halfHp = character.maxHp / 2n;
+        ctx.db.character.id.update({ ...character, hp: halfHp > 0n ? halfHp : 1n });
       }
+    }
+    for (const row of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
+      ctx.db.combatParticipant.id.delete(row.id);
+    }
+    for (const row of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+      ctx.db.aggroEntry.id.delete(row.id);
+    }
+    for (const row of ctx.db.combatEnemy.by_combat.filter(combat.id)) {
+      ctx.db.combatEnemy.id.delete(row.id);
     }
     ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
     return;

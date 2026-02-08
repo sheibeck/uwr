@@ -90,6 +90,8 @@ import ChooseActionReducer from "./choose_action_reducer";
 export { ChooseActionReducer };
 import DismissCombatResultsReducer from "./dismiss_combat_results_reducer";
 export { DismissCombatResultsReducer };
+import RegenHealthReducer from "./regen_health_reducer";
+export { RegenHealthReducer };
 import ResolveRoundReducer from "./resolve_round_reducer";
 export { ResolveRoundReducer };
 
@@ -134,6 +136,8 @@ import GroupInviteRow from "./group_invite_table";
 export { GroupInviteRow };
 import GroupMemberRow from "./group_member_table";
 export { GroupMemberRow };
+import HealthRegenTickRow from "./health_regen_tick_table";
+export { HealthRegenTickRow };
 import LocationRow from "./location_table";
 export { LocationRow };
 import LocationEnemyTemplateRow from "./location_enemy_template_table";
@@ -214,6 +218,8 @@ import GroupInvite from "./group_invite_type";
 export { GroupInvite };
 import GroupMember from "./group_member_type";
 export { GroupMember };
+import HealthRegenTick from "./health_regen_tick_type";
+export { HealthRegenTick };
 import Init from "./init_type";
 export { Init };
 import InviteToGroup from "./invite_to_group_type";
@@ -260,6 +266,8 @@ import Player from "./player_type";
 export { Player };
 import PromoteGroupLeader from "./promote_group_leader_type";
 export { PromoteGroupLeader };
+import RegenHealth from "./regen_health_type";
+export { RegenHealth };
 import RejectFriendRequest from "./reject_friend_request_type";
 export { RejectFriendRequest };
 import RejectGroupInvite from "./reject_group_invite_type";
@@ -581,6 +589,17 @@ const tablesSchema = __schema(
     ],
   }, GroupMemberRow),
   __table({
+    name: 'health_regen_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'health_regen_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, HealthRegenTickRow),
+  __table({
     name: 'location',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -734,6 +753,7 @@ const reducersSchema = __reducers(
   __reducerSchema("reject_group_invite", RejectGroupInviteReducer),
   __reducerSchema("choose_action", ChooseActionReducer),
   __reducerSchema("dismiss_combat_results", DismissCombatResultsReducer),
+  __reducerSchema("regen_health", RegenHealthReducer),
   __reducerSchema("resolve_round", ResolveRoundReducer),
 );
 

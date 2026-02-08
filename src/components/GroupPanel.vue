@@ -8,11 +8,22 @@
       <div :style="styles.subtle">Group: {{ currentGroup.name }}</div>
       <div :style="styles.panelSectionTitle">Members</div>
       <ul :style="styles.list">
-        <li v-for="member in groupMembers" :key="member.id.toString()">
+        <li v-for="member in sortedMembers" :key="member.id.toString()">
           <span>
             {{ member.name }} (Lv {{ member.level }}) - {{ member.className }}
-            <span v-if="member.id === leaderId" :style="styles.subtle">Â· Leader</span>
+            <span v-if="member.id === leaderId" :style="styles.subtle">· Leader</span>
           </span>
+          <div :style="styles.hpBar">
+            <div :style="{ ...styles.hpFill, width: `${percent(member.hp, member.maxHp)}%` }"></div>
+          </div>
+          <div :style="styles.hpBar">
+            <div :style="{ ...styles.manaFill, width: `${percent(member.mana, member.maxMana)}%` }"></div>
+          </div>
+          <div :style="styles.hpBar">
+            <div
+              :style="{ ...styles.staminaFill, width: `${percent(member.stamina, member.maxStamina)}%` }"
+            ></div>
+          </div>
           <div v-if="isLeader && member.id !== leaderId" :style="styles.buttonWrap">
             <button
               :style="styles.ghostButton"
@@ -75,9 +86,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { CharacterRow, GroupRow } from '../module_bindings';
 
-defineProps<{
+const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
   selectedCharacter: CharacterRow | null;
@@ -97,4 +109,18 @@ defineEmits<{
   (e: 'promote', targetName: string): void;
   (e: 'toggle-follow', follow: boolean): void;
 }>();
+
+const percent = (current: bigint, max: bigint) => {
+  if (!max) return 0;
+  const value = (Number(current) / Number(max)) * 100;
+  return Math.max(0, Math.min(100, Math.round(value)));
+};
+
+const sortedMembers = computed(() => {
+  if (!props.selectedCharacter) return props.groupMembers;
+  const selectedId = props.selectedCharacter.id.toString();
+  const mine = props.groupMembers.filter((member) => member.id.toString() === selectedId);
+  const others = props.groupMembers.filter((member) => member.id.toString() !== selectedId);
+  return [...mine, ...others];
+});
 </script>

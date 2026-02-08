@@ -25,6 +25,8 @@ export default __t.object("Character", {
   mana: __t.u64(),
   maxMana: __t.u64(),
   createdAt: __t.timestamp(),
+  stamina: __t.u64(),
+  maxStamina: __t.u64(),
 });
 
 

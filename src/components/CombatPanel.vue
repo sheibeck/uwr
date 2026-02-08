@@ -18,7 +18,7 @@
         </div>
         <div :style="styles.panelSectionTitle">Combatants</div>
         <ul :style="styles.list">
-          <li v-for="member in combatRoster" :key="member.id.toString()">
+          <li v-for="member in sortedRoster" :key="member.id.toString()">
             <strong>{{ member.name }}</strong>
             <span :style="styles.subtle">
               (Lv {{ member.level }}) · HP {{ member.hp }} / {{ member.maxHp }} ·
@@ -26,14 +26,22 @@
               <span v-if="member.isYou">(You)</span>
             </span>
             <div :style="styles.hpBar">
-              <div :style="{ ...styles.hpFill, width: `${hpPercent(member)}%` }"></div>
+              <div :style="{ ...styles.hpFill, width: `${hpPercent(member.hp, member.maxHp)}%` }"></div>
+            </div>
+            <div :style="styles.hpBar">
+              <div :style="{ ...styles.manaFill, width: `${hpPercent(member.mana, member.maxMana)}%` }"></div>
+            </div>
+            <div :style="styles.hpBar">
+              <div
+                :style="{ ...styles.staminaFill, width: `${hpPercent(member.stamina, member.maxStamina)}%` }"
+              ></div>
             </div>
           </li>
         </ul>
         <div :style="styles.panelFormInline">
           <button
             type="button"
-            :disabled="!connActive"
+            :disabled="!connActive || !canAct"
             :style="selectedAction === 'attack' ? styles.actionButtonSelected : styles.ghostButton"
             @click="$emit('attack')"
           >
@@ -41,7 +49,7 @@
           </button>
           <button
             type="button"
-            :disabled="!connActive"
+            :disabled="!connActive || !canAct"
             :style="selectedAction === 'skip' ? styles.actionButtonSelected : styles.ghostButton"
             @click="$emit('skip')"
           >
@@ -49,13 +57,14 @@
           </button>
           <button
             type="button"
-            :disabled="!connActive"
+            :disabled="!connActive || !canAct"
             :style="selectedAction === 'flee' ? styles.actionButtonSelected : styles.ghostButton"
             @click="$emit('flee')"
           >
             Flee
           </button>
         </div>
+        <div v-if="!canAct" :style="styles.subtle">You are down and cannot act.</div>
       </div>
       <div v-else-if="activeResult">
         <div :style="styles.panelSectionTitle">Combat Results</div>
@@ -97,6 +106,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type {
   CharacterRow,
   CombatEncounterRow,
@@ -116,6 +126,10 @@ type CombatRosterEntry = {
   level: bigint;
   hp: bigint;
   maxHp: bigint;
+  mana: bigint;
+  maxMana: bigint;
+  stamina: bigint;
+  maxStamina: bigint;
   status: string;
   isYou: boolean;
 };
@@ -136,6 +150,7 @@ defineProps<{
   activeResult: CombatResultRow | null;
   canEngage: boolean;
   canDismissResults: boolean;
+  canAct: boolean;
 }>();
 
 defineEmits<{
@@ -159,9 +174,15 @@ const formatStatus = (status: string) => {
   }
 };
 
-const hpPercent = (member: CombatRosterEntry) => {
-  if (!member.maxHp) return 0;
-  const percent = (Number(member.hp) / Number(member.maxHp)) * 100;
+const hpPercent = (current: bigint, max: bigint) => {
+  if (!max) return 0;
+  const percent = (Number(current) / Number(max)) * 100;
   return Math.max(0, Math.min(100, Math.round(percent)));
 };
+
+const sortedRoster = computed(() => {
+  const mine = combatRoster.filter((member) => member.isYou);
+  const others = combatRoster.filter((member) => !member.isYou);
+  return [...mine, ...others];
+});
 </script>

@@ -104,6 +104,7 @@
           :active-result="activeResult"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+          :can-act="canActInCombat"
           @start="startCombat"
           @attack="attack"
           @skip="skip"
@@ -312,6 +313,15 @@ const activePanel = ref<
   'none' | 'character' | 'inventory' | 'friends' | 'group' | 'stats' | 'travel' | 'combat'
 >('none');
 
+const canActInCombat = computed(() => {
+  if (!selectedCharacter.value || !activeCombat.value) return false;
+  if (selectedCharacter.value.hp === 0n) return false;
+  const participant = combatRoster.value.find(
+    (row) => row.id.toString() === selectedCharacter.value?.id.toString()
+  );
+  return participant?.status === 'active';
+});
+
 const panelTitle = computed(() => {
   switch (activePanel.value) {
     case 'character':
@@ -346,6 +356,15 @@ watch(
     } else {
       selectedCharacterId.value = '';
       activePanel.value = 'none';
+    }
+  }
+);
+
+watch(
+  () => activeCombat.value?.id,
+  (combatId) => {
+    if (combatId) {
+      activePanel.value = 'combat';
     }
   }
 );
