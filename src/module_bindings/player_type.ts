@@ -17,6 +17,7 @@ export default __t.object("Player", {
   displayName: __t.option(__t.string()),
   activeCharacterId: __t.option(__t.u64()),
   userId: __t.option(__t.u64()),
+  sessionStartedAt: __t.option(__t.timestamp()),
 });
 
 

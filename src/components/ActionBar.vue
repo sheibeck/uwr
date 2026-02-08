@@ -6,6 +6,9 @@
     <button @click="$emit('toggle', 'inventory')" :style="actionStyle('inventory')">
       Inventory
     </button>
+    <button @click="$emit('toggle', 'friends')" :style="actionStyle('friends')">
+      Friends
+    </button>
     <button @click="$emit('toggle', 'group')" :style="actionStyle('group')">
       Group
     </button>
@@ -22,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-type PanelKey = 'none' | 'character' | 'inventory' | 'group' | 'stats' | 'travel' | 'combat';
+type PanelKey = 'none' | 'character' | 'inventory' | 'friends' | 'group' | 'stats' | 'travel' | 'combat';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;

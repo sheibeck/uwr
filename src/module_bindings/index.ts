@@ -40,6 +40,14 @@ import OnDisconnectReducer from "./on_disconnect_reducer";
 export { OnDisconnectReducer };
 import SetDisplayNameReducer from "./set_display_name_reducer";
 export { SetDisplayNameReducer };
+import SendFriendRequestReducer from "./send_friend_request_reducer";
+export { SendFriendRequestReducer };
+import AcceptFriendRequestReducer from "./accept_friend_request_reducer";
+export { AcceptFriendRequestReducer };
+import RejectFriendRequestReducer from "./reject_friend_request_reducer";
+export { RejectFriendRequestReducer };
+import RemoveFriendReducer from "./remove_friend_reducer";
+export { RemoveFriendReducer };
 import LoginEmailReducer from "./login_email_reducer";
 export { LoginEmailReducer };
 import LogoutReducer from "./logout_reducer";
@@ -86,12 +94,20 @@ import EventPrivateRow from "./event_private_table";
 export { EventPrivateRow };
 import EventWorldRow from "./event_world_table";
 export { EventWorldRow };
+import FriendRow from "./friend_table";
+export { FriendRow };
+import FriendRequestRow from "./friend_request_table";
+export { FriendRequestRow };
 import GroupRow from "./group_table";
 export { GroupRow };
 import GroupMemberRow from "./group_member_table";
 export { GroupMemberRow };
 import LocationRow from "./location_table";
 export { LocationRow };
+import MyFriendRequestsRow from "./my_friend_requests_table";
+export { MyFriendRequestsRow };
+import MyFriendsRow from "./my_friends_table";
+export { MyFriendsRow };
 import MyGroupEventsRow from "./my_group_events_table";
 export { MyGroupEventsRow };
 import MyLocationEventsRow from "./my_location_events_table";
@@ -108,6 +124,8 @@ import WorldStateRow from "./world_state_table";
 export { WorldStateRow };
 
 // Import and reexport all types
+import AcceptFriendRequest from "./accept_friend_request_type";
+export { AcceptFriendRequest };
 import Attack from "./attack_type";
 export { Attack };
 import Character from "./character_type";
@@ -132,6 +150,10 @@ import EventPrivate from "./event_private_type";
 export { EventPrivate };
 import EventWorld from "./event_world_type";
 export { EventWorld };
+import Friend from "./friend_type";
+export { Friend };
+import FriendRequest from "./friend_request_type";
+export { FriendRequest };
 import Group from "./group_type";
 export { Group };
 import GroupMember from "./group_member_type";
@@ -150,6 +172,10 @@ import Logout from "./logout_type";
 export { Logout };
 import MoveCharacter from "./move_character_type";
 export { MoveCharacter };
+import MyFriendRequests from "./my_friend_requests_type";
+export { MyFriendRequests };
+import MyFriends from "./my_friends_type";
+export { MyFriends };
 import MyGroupEvents from "./my_group_events_type";
 export { MyGroupEvents };
 import MyLocationEvents from "./my_location_events_type";
@@ -164,8 +190,14 @@ import OnDisconnect from "./on_disconnect_type";
 export { OnDisconnect };
 import Player from "./player_type";
 export { Player };
+import RejectFriendRequest from "./reject_friend_request_type";
+export { RejectFriendRequest };
+import RemoveFriend from "./remove_friend_type";
+export { RemoveFriend };
 import Say from "./say_type";
 export { Say };
+import SendFriendRequest from "./send_friend_request_type";
+export { SendFriendRequest };
 import SetActiveCharacter from "./set_active_character_type";
 export { SetActiveCharacter };
 import SetDisplayName from "./set_display_name_type";
@@ -300,6 +332,37 @@ const tablesSchema = __schema(
     ],
   }, EventWorldRow),
   __table({
+    name: 'friend',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_user', algorithm: 'btree', columns: [
+        'userId',
+      ] },
+    ],
+    constraints: [
+      { name: 'friend_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FriendRow),
+  __table({
+    name: 'friend_request',
+    indexes: [
+      { name: 'by_from', algorithm: 'btree', columns: [
+        'fromUserId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_to', algorithm: 'btree', columns: [
+        'toUserId',
+      ] },
+    ],
+    constraints: [
+      { name: 'friend_request_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FriendRequestRow),
+  __table({
     name: 'group',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -375,6 +438,20 @@ const tablesSchema = __schema(
     ],
   }, WorldStateRow),
   __table({
+    name: 'my_friend_requests',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyFriendRequestsRow),
+  __table({
+    name: 'my_friends',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyFriendsRow),
+  __table({
     name: 'my_group_events',
     indexes: [
     ],
@@ -407,6 +484,10 @@ const tablesSchema = __schema(
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("set_display_name", SetDisplayNameReducer),
+  __reducerSchema("send_friend_request", SendFriendRequestReducer),
+  __reducerSchema("accept_friend_request", AcceptFriendRequestReducer),
+  __reducerSchema("reject_friend_request", RejectFriendRequestReducer),
+  __reducerSchema("remove_friend", RemoveFriendReducer),
   __reducerSchema("login_email", LoginEmailReducer),
   __reducerSchema("logout", LogoutReducer),
   __reducerSchema("set_active_character", SetActiveCharacterReducer),

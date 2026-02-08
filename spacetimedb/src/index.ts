@@ -9,6 +9,7 @@ const Player = table(
     displayName: t.string().optional(),
     activeCharacterId: t.u64().optional(),
     userId: t.u64().optional(),
+    sessionStartedAt: t.timestamp().optional(),
   }
 );
 
@@ -21,6 +22,35 @@ const User = table(
   {
     id: t.u64().primaryKey().autoInc(),
     email: t.string(),
+    createdAt: t.timestamp(),
+  }
+);
+
+const FriendRequest = table(
+  {
+    name: 'friend_request',
+    indexes: [
+      { name: 'by_from', algorithm: 'btree', columns: ['fromUserId'] },
+      { name: 'by_to', algorithm: 'btree', columns: ['toUserId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    fromUserId: t.u64(),
+    toUserId: t.u64(),
+    createdAt: t.timestamp(),
+  }
+);
+
+const Friend = table(
+  {
+    name: 'friend',
+    indexes: [{ name: 'by_user', algorithm: 'btree', columns: ['userId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    userId: t.u64(),
+    friendUserId: t.u64(),
     createdAt: t.timestamp(),
   }
 );
@@ -216,6 +246,8 @@ const EventGroup = table(
 export const spacetimedb = schema(
   Player,
   User,
+  FriendRequest,
+  Friend,
   WorldState,
   Location,
   Character,
@@ -311,6 +343,14 @@ function appendGroupEvent(
   });
 }
 
+function friendUserIds(ctx: any, userId: bigint): bigint[] {
+  const ids: bigint[] = [];
+  for (const row of ctx.db.friend.by_user.filter(userId)) {
+    ids.push(row.friendUserId);
+  }
+  return ids;
+}
+
 spacetimedb.view(
   { name: 'my_private_events', public: true },
   t.array(EventPrivate.rowType),
@@ -324,6 +364,24 @@ spacetimedb.view(
 spacetimedb.view({ name: 'my_player', public: true }, t.array(Player.rowType), (ctx) => {
   const player = ctx.db.player.id.find(ctx.sender);
   return player ? [player] : [];
+});
+
+spacetimedb.view(
+  { name: 'my_friend_requests', public: true },
+  t.array(FriendRequest.rowType),
+  (ctx) => {
+    const player = ctx.db.player.id.find(ctx.sender);
+    if (!player || player.userId == null) return [];
+    const incoming = [...ctx.db.friendRequest.by_to.filter(player.userId)];
+    const outgoing = [...ctx.db.friendRequest.by_from.filter(player.userId)];
+    return [...incoming, ...outgoing];
+  }
+);
+
+spacetimedb.view({ name: 'my_friends', public: true }, t.array(Friend.rowType), (ctx) => {
+  const player = ctx.db.player.id.find(ctx.sender);
+  if (!player || player.userId == null) return [];
+  return [...ctx.db.friend.by_user.filter(player.userId)];
 });
 
 spacetimedb.view(
@@ -397,20 +455,6 @@ spacetimedb.clientConnected((ctx) => {
   } else {
     ctx.db.player.id.update({ ...existing, lastSeenAt: ctx.timestamp });
   }
-
-  const player = ctx.db.player.id.find(ctx.sender);
-  if (player && player.userId != null) {
-    for (const character of ctx.db.character.by_owner_user.filter(player.userId)) {
-      appendPrivateEvent(ctx, character.id, player.userId, 'presence', 'You are online.');
-      appendLocationEvent(
-        ctx,
-        character.locationId,
-        'presence',
-        `${character.name} is online.`,
-        character.id
-      );
-    }
-  }
 });
 
 spacetimedb.clientDisconnected((_ctx) => {
@@ -422,16 +466,19 @@ spacetimedb.clientDisconnected((_ctx) => {
     ctx.db.player.id.update({ ...player, lastSeenAt: ctx.timestamp });
   }
 
-  if (player && player.userId != null) {
-    for (const character of ctx.db.character.by_owner_user.filter(player.userId)) {
-      appendPrivateEvent(ctx, character.id, player.userId, 'presence', 'You went offline.');
-      appendLocationEvent(
-        ctx,
-        character.locationId,
-        'presence',
-        `${character.name} went offline.`,
-        character.id
-      );
+  if (player && player.userId != null && player.activeCharacterId != null) {
+    const character = ctx.db.character.id.find(player.activeCharacterId);
+    if (character) {
+      const friends = friendUserIds(ctx, player.userId);
+      for (const friendId of friends) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          friendId,
+          'presence',
+          `${character.name} went offline.`
+        );
+      }
     }
   }
 });
@@ -442,6 +489,82 @@ spacetimedb.reducer('set_display_name', { name: t.string() }, (ctx, { name }) =>
   const trimmed = name.trim();
   if (trimmed.length < 2) throw new SenderError('Display name too short');
   ctx.db.player.id.update({ ...player, displayName: trimmed, lastSeenAt: ctx.timestamp });
+});
+
+spacetimedb.reducer('send_friend_request', { email: t.string() }, (ctx, { email }) => {
+  const userId = requirePlayerUserId(ctx);
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed || !trimmed.includes('@')) throw new SenderError('Invalid email');
+  const target = [...ctx.db.user.by_email.filter(trimmed)][0];
+  if (!target) throw new SenderError('User not found');
+  if (target.id === userId) throw new SenderError('Cannot friend yourself');
+
+  for (const row of ctx.db.friend.by_user.filter(userId)) {
+    if (row.friendUserId === target.id) return;
+  }
+  for (const row of ctx.db.friendRequest.by_from.filter(userId)) {
+    if (row.toUserId === target.id) return;
+  }
+
+  ctx.db.friendRequest.insert({
+    id: 0n,
+    fromUserId: userId,
+    toUserId: target.id,
+    createdAt: ctx.timestamp,
+  });
+});
+
+spacetimedb.reducer('accept_friend_request', { fromUserId: t.u64() }, (ctx, { fromUserId }) => {
+  const userId = requirePlayerUserId(ctx);
+  let requestId: bigint | null = null;
+  for (const row of ctx.db.friendRequest.by_to.filter(userId)) {
+    if (row.fromUserId === fromUserId) {
+      requestId = row.id;
+      break;
+    }
+  }
+  if (requestId == null) throw new SenderError('Friend request not found');
+
+  ctx.db.friendRequest.id.delete(requestId);
+
+  ctx.db.friend.insert({
+    id: 0n,
+    userId,
+    friendUserId: fromUserId,
+    createdAt: ctx.timestamp,
+  });
+  ctx.db.friend.insert({
+    id: 0n,
+    userId: fromUserId,
+    friendUserId: userId,
+    createdAt: ctx.timestamp,
+  });
+});
+
+spacetimedb.reducer('reject_friend_request', { fromUserId: t.u64() }, (ctx, { fromUserId }) => {
+  const userId = requirePlayerUserId(ctx);
+  for (const row of ctx.db.friendRequest.by_to.filter(userId)) {
+    if (row.fromUserId === fromUserId) {
+      ctx.db.friendRequest.id.delete(row.id);
+      return;
+    }
+  }
+});
+
+spacetimedb.reducer('remove_friend', { friendUserId: t.u64() }, (ctx, { friendUserId }) => {
+  const userId = requirePlayerUserId(ctx);
+  for (const row of ctx.db.friend.by_user.filter(userId)) {
+    if (row.friendUserId === friendUserId) {
+      ctx.db.friend.id.delete(row.id);
+      break;
+    }
+  }
+  for (const row of ctx.db.friend.by_user.filter(friendUserId)) {
+    if (row.friendUserId === userId) {
+      ctx.db.friend.id.delete(row.id);
+      break;
+    }
+  }
 });
 
 spacetimedb.reducer('login_email', { email: t.string() }, (ctx, { email }) => {
@@ -462,6 +585,7 @@ spacetimedb.reducer('login_email', { email: t.string() }, (ctx, { email }) => {
   ctx.db.player.id.update({
     ...player,
     userId: user.id,
+    sessionStartedAt: ctx.timestamp,
     lastSeenAt: ctx.timestamp,
   });
 });
@@ -469,10 +593,26 @@ spacetimedb.reducer('login_email', { email: t.string() }, (ctx, { email }) => {
 spacetimedb.reducer('logout', (ctx) => {
   const player = ctx.db.player.id.find(ctx.sender);
   if (!player) return;
+  if (player.userId != null && player.activeCharacterId != null) {
+    const character = ctx.db.character.id.find(player.activeCharacterId);
+    if (character) {
+      const friends = friendUserIds(ctx, player.userId);
+      for (const friendId of friends) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          friendId,
+          'presence',
+          `${character.name} went offline.`
+        );
+      }
+    }
+  }
   ctx.db.player.id.update({
     ...player,
     userId: undefined,
     activeCharacterId: undefined,
+    sessionStartedAt: undefined,
     lastSeenAt: ctx.timestamp,
   });
 });
@@ -481,7 +621,46 @@ spacetimedb.reducer('set_active_character', { characterId: t.u64() }, (ctx, { ch
   const player = ctx.db.player.id.find(ctx.sender);
   if (!player) throw new SenderError('Player not found');
   const character = requireCharacterOwnedBy(ctx, characterId);
+  const previousActiveId = player.activeCharacterId;
+  if (previousActiveId && previousActiveId !== character.id) {
+    const previous = ctx.db.character.id.find(previousActiveId);
+    if (previous) {
+      const userId = requirePlayerUserId(ctx);
+      const friends = friendUserIds(ctx, userId);
+      for (const friendId of friends) {
+        appendPrivateEvent(
+          ctx,
+          previous.id,
+          friendId,
+          'presence',
+          `${previous.name} went offline.`
+        );
+      }
+    }
+  }
+
   ctx.db.player.id.update({ ...player, activeCharacterId: character.id });
+
+  const userId = requirePlayerUserId(ctx);
+  appendPrivateEvent(ctx, character.id, userId, 'presence', 'You are online.');
+  const friends = friendUserIds(ctx, userId);
+  for (const friendId of friends) {
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      friendId,
+      'presence',
+      `${character.name} is online.`
+    );
+  }
+
+  appendLocationEvent(
+    ctx,
+    character.locationId,
+    'system',
+    `${character.name} steps into the area.`,
+    character.id
+  );
 });
 
 spacetimedb.reducer(
@@ -517,13 +696,6 @@ spacetimedb.reducer(
     });
 
     appendPrivateEvent(ctx, character.id, userId, 'system', `${character.name} enters the world.`);
-    appendLocationEvent(
-      ctx,
-      character.locationId,
-      'system',
-      `${character.name} steps into the area.`,
-      character.id
-    );
   }
 );
 

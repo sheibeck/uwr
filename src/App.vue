@@ -22,6 +22,7 @@
         :characters-here="charactersHere"
         :combined-events="combinedEvents"
         :format-timestamp="formatTimestamp"
+        :location-name="currentLocation?.name ?? 'Unknown'"
       />
 
       <PanelShell
@@ -43,6 +44,21 @@
           @select="selectedCharacterId = $event"
         />
         <InventoryPanel v-else-if="activePanel === 'inventory'" :styles="styles" />
+        <FriendsPanel
+          v-else-if="activePanel === 'friends'"
+          :styles="styles"
+          :conn-active="conn.isActive"
+          :is-logged-in="isLoggedIn"
+          :friend-email="friendEmail"
+          :incoming-requests="incomingRequests"
+          :friends="myFriends"
+          :email-by-user-id="emailByUserId"
+          @update:friendEmail="friendEmail = $event"
+          @send-request="sendRequest"
+          @accept="acceptRequest"
+          @reject="rejectRequest"
+          @remove="removeFriend"
+        />
         <GroupPanel
           v-else-if="activePanel === 'group'"
           :styles="styles"
@@ -114,6 +130,7 @@ import PanelShell from './components/PanelShell.vue';
 import CharacterPanel from './components/CharacterPanel.vue';
 import InventoryPanel from './components/InventoryPanel.vue';
 import GroupPanel from './components/GroupPanel.vue';
+import FriendsPanel from './components/FriendsPanel.vue';
 import StatsPanel from './components/StatsPanel.vue';
 import CombatPanel from './components/CombatPanel.vue';
 import TravelPanel from './components/TravelPanel.vue';
@@ -129,6 +146,7 @@ import { useGroups } from './composables/useGroups';
 import { useMovement } from './composables/useMovement';
 import { usePlayer } from './composables/usePlayer';
 import { useAuth } from './composables/useAuth';
+import { useFriends } from './composables/useFriends';
 
 const {
   conn,
@@ -144,9 +162,11 @@ const {
   players,
   myPlayer,
   users,
+  friends,
+  friendRequests,
 } = useGameData();
 
-const { player, userId, userEmail } = usePlayer({ myPlayer, users });
+const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
 
 const { email, isLoggedIn, login, logout, authMessage, authError } = useAuth({
   connActive: computed(() => conn.isActive),
@@ -174,6 +194,7 @@ const { combinedEvents } = useEvents({
   locationEvents,
   privateEvents,
   groupEvents,
+  sessionStartedAt,
 });
 
 const { newCharacter, isCharacterFormValid, createCharacter, hasCharacter } =
@@ -199,13 +220,31 @@ const { groupName, createGroup, joinGroup, leaveGroup } = useGroups({
   selectedCharacter,
 });
 
+const {
+  friendEmail,
+  incomingRequests,
+  outgoingRequests,
+  myFriends,
+  emailByUserId,
+  sendRequest,
+  acceptRequest,
+  rejectRequest,
+  removeFriend,
+} = useFriends({
+  connActive: computed(() => conn.isActive),
+  userId,
+  friends,
+  friendRequests,
+  users,
+});
+
 const { moveTo } = useMovement({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
 });
 
 const activePanel = ref<
-  'none' | 'character' | 'inventory' | 'group' | 'stats' | 'travel' | 'combat'
+  'none' | 'character' | 'inventory' | 'friends' | 'group' | 'stats' | 'travel' | 'combat'
 >('none');
 
 const panelTitle = computed(() => {
@@ -214,6 +253,8 @@ const panelTitle = computed(() => {
       return 'Character';
     case 'inventory':
       return 'Inventory';
+    case 'friends':
+      return 'Friends';
     case 'group':
       return 'Group';
     case 'stats':

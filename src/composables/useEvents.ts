@@ -19,6 +19,7 @@ type UseEventsArgs = {
   locationEvents: Ref<EventLocationRow[]>;
   privateEvents: Ref<EventPrivateRow[]>;
   groupEvents: Ref<EventGroupRow[]>;
+  sessionStartedAt: Ref<{ microsSinceUnixEpoch: bigint } | null>;
 };
 
 export const useEvents = ({
@@ -26,10 +27,15 @@ export const useEvents = ({
   locationEvents,
   privateEvents,
   groupEvents,
+  sessionStartedAt,
 }: UseEventsArgs) => {
   const combinedEvents = computed<EventItem[]>(() => {
     const items: EventItem[] = [];
+    const sessionMicros = sessionStartedAt.value?.microsSinceUnixEpoch ?? null;
+    const isInSession = (micros: bigint) => sessionMicros == null || micros >= sessionMicros;
+
     for (const row of worldEvents.value) {
+      if (!isInSession(row.createdAt.microsSinceUnixEpoch)) continue;
       items.push({
         id: row.id,
         createdAt: row.createdAt,
@@ -39,6 +45,7 @@ export const useEvents = ({
       });
     }
     for (const row of locationEvents.value) {
+      if (!isInSession(row.createdAt.microsSinceUnixEpoch)) continue;
       items.push({
         id: row.id,
         createdAt: row.createdAt,
@@ -48,6 +55,7 @@ export const useEvents = ({
       });
     }
     for (const row of privateEvents.value) {
+      if (!isInSession(row.createdAt.microsSinceUnixEpoch)) continue;
       items.push({
         id: row.id,
         createdAt: row.createdAt,
@@ -57,6 +65,7 @@ export const useEvents = ({
       });
     }
     for (const row of groupEvents.value) {
+      if (!isInSession(row.createdAt.microsSinceUnixEpoch)) continue;
       items.push({
         id: row.id,
         createdAt: row.createdAt,

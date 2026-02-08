@@ -2,7 +2,7 @@
   <section :style="styles.log">
     <div v-if="selectedCharacter" :style="styles.roster">
       <div :style="styles.rosterTitle">
-        Who's Here ({{ charactersHere.length }})
+        Who's Here @ {{ locationName }} ({{ charactersHere.length }})
       </div>
       <div v-if="charactersHere.length === 0" :style="styles.subtle">
         Nobody else is around.
@@ -55,6 +55,7 @@ const props = defineProps<{
   charactersHere: CharacterRow[];
   combinedEvents: EventItem[];
   formatTimestamp: (ts: { microsSinceUnixEpoch: bigint }) => string;
+  locationName: string;
 }>();
 
 const logListEl = ref<HTMLElement | null>(null);

@@ -10,12 +10,8 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.row({
-  id: __t.identity().primaryKey(),
-  createdAt: __t.timestamp(),
-  lastSeenAt: __t.timestamp(),
-  displayName: __t.option(__t.string()),
-  activeCharacterId: __t.option(__t.u64()),
-  userId: __t.option(__t.u64()),
-  sessionStartedAt: __t.option(__t.timestamp()),
+export default __t.object("RejectFriendRequest", {
+  fromUserId: __t.u64(),
 });
+
+
