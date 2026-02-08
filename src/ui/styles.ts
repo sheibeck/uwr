@@ -1,6 +1,6 @@
 export const styles = {
   shell: {
-    minHeight: '100vh',
+    height: '100vh',
     display: 'flex',
     flexDirection: 'column',
     background: 'linear-gradient(135deg, #0b0c10 0%, #141821 40%, #0d1117 100%)',
@@ -39,6 +39,11 @@ export const styles = {
     gridTemplateColumns: '1fr minmax(260px, 320px)',
     gap: '1.5rem',
     padding: '1.5rem 2rem',
+    minHeight: 0,
+    overflow: 'hidden',
+  },
+  mainWide: {
+    gridTemplateColumns: '1fr',
   },
   log: {
     background: 'rgba(12, 15, 22, 0.75)',
@@ -48,6 +53,8 @@ export const styles = {
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
+    height: '100%',
+    minHeight: 0,
   },
   roster: {
     marginBottom: '1rem',
@@ -80,7 +87,7 @@ export const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '0.6rem',
-    maxHeight: 'calc(100vh - 320px)',
+    flex: 1,
     paddingRight: '0.5rem',
   },
   logItem: {
@@ -115,6 +122,7 @@ export const styles = {
     minHeight: '320px',
     display: 'flex',
     flexDirection: 'column',
+    minHeight: 0,
   },
   panelHeader: {
     display: 'flex',

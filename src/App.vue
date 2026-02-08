@@ -7,7 +7,7 @@
       :current-location="currentLocation"
     />
 
-    <main :style="styles.main">
+    <main :style="[styles.main, activePanel === 'none' ? styles.mainWide : {}]">
       <LogWindow
         :styles="styles"
         :selected-character="selectedCharacter"

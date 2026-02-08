@@ -23,7 +23,7 @@
     <div v-else-if="combinedEvents.length === 0" :style="styles.logEmpty">
       No events yet. Try a command like "look" or "travel".
     </div>
-    <div v-else :style="styles.logList">
+    <div v-else :style="styles.logList" ref="logListEl">
       <div
         v-for="event in combinedEvents"
         :key="`${event.scope}-${event.id}`"
@@ -38,6 +38,7 @@
 </template>
 
 <script setup lang="ts">
+import { nextTick, ref, watch } from 'vue';
 import type { CharacterRow } from '../module_bindings';
 
 type EventItem = {
@@ -48,11 +49,29 @@ type EventItem = {
   scope: string;
 };
 
-defineProps<{
+const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   selectedCharacter: CharacterRow | null;
   charactersHere: CharacterRow[];
   combinedEvents: EventItem[];
   formatTimestamp: (ts: { microsSinceUnixEpoch: bigint }) => string;
 }>();
+
+const logListEl = ref<HTMLElement | null>(null);
+
+const scrollToBottom = async () => {
+  await nextTick();
+  const el = logListEl.value;
+  if (el) {
+    el.scrollTop = el.scrollHeight;
+  }
+};
+
+watch(
+  () => props.combinedEvents,
+  () => {
+    void scrollToBottom();
+  },
+  { deep: true, immediate: true }
+);
 </script>
