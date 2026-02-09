@@ -58,7 +58,6 @@
           "
           :style="[
             styles.hotbarSlot,
-            selectedAction === `ability:${slot.abilityKey}` ? styles.hotbarSlotActive : {},
             slot.abilityKey === castingState?.castingAbilityKey ? styles.hotbarSlotActive : {},
             hotbarPulseKey === slot.abilityKey ? styles.hotbarSlotActive : {},
             !slot.abilityKey ? styles.hotbarSlotEmpty : {},
@@ -222,7 +221,7 @@
     <div
       :style="{
         ...styles.floatingPanel,
-        ...styles.floatingPanelCompact,
+        ...styles.floatingPanelWide,
         left: `${travelPanelPos.x}px`,
         top: `${travelPanelPos.y}px`,
       }"
@@ -529,35 +528,44 @@ const getAudioContext = () => {
   return audioCtxRef.value;
 };
 
-const playTone = (frequency: number, durationMs: number, startAt: number) => {
+const playTone = (
+  frequency: number,
+  durationMs: number,
+  startAt: number,
+  envelope: { start: number; end: number }
+) => {
   const ctx = getAudioContext();
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.type = 'sine';
   osc.frequency.value = frequency;
-  gain.gain.value = 0.12;
+  const now = ctx.currentTime;
+  gain.gain.setValueAtTime(envelope.start, now + startAt);
+  gain.gain.exponentialRampToValueAtTime(
+    Math.max(0.0001, envelope.end),
+    now + startAt + durationMs / 1000
+  );
   osc.connect(gain);
   gain.connect(ctx.destination);
-  const now = ctx.currentTime;
   osc.start(now + startAt);
   osc.stop(now + startAt + durationMs / 1000);
 };
 
 const playVictorySound = () => {
-  playTone(440, 180, 0);
-  playTone(554, 180, 0.2);
-  playTone(659, 220, 0.4);
+  playTone(392, 160, 0, { start: 0.18, end: 0.03 });
+  playTone(494, 160, 0.18, { start: 0.18, end: 0.03 });
+  playTone(587, 520, 0.36, { start: 0.2, end: 0.008 });
 };
 
 const playDefeatSound = () => {
-  playTone(330, 220, 0);
-  playTone(262, 240, 0.25);
-  playTone(196, 260, 0.55);
+  playTone(330, 220, 0, { start: 0.12, end: 0.02 });
+  playTone(262, 240, 0.25, { start: 0.12, end: 0.02 });
+  playTone(196, 260, 0.55, { start: 0.12, end: 0.02 });
 };
 
 const playLevelUpSound = () => {
-  playTone(587, 180, 0);
-  playTone(784, 220, 0.18);
+  playTone(880, 900, 0, { start: 0.16, end: 0.005 });
+  playTone(1100, 700, 0.08, { start: 0.12, end: 0.004 });
 };
 
 watch(

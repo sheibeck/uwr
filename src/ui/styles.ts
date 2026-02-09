@@ -175,6 +175,9 @@ export const styles = {
   floatingPanelCompact: {
     width: 'min(260px, 90vw)',
   },
+  floatingPanelWide: {
+    width: 'min(300px, 90vw)',
+  },
   hotbarDock: {
     padding: '0.6rem',
     border: '1px solid rgba(255,255,255,0.12)',

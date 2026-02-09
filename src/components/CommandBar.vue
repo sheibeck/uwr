@@ -132,9 +132,14 @@ const onKeydown = (event: KeyboardEvent) => {
     if (!hasArgs && trimmed !== highlighted.value && trimmed !== '/') {
       return;
     }
-    if (!hasArgs && (trimmed === highlighted.value || trimmed === '/')) {
+    if (!hasArgs && trimmed === '/') {
       event.preventDefault();
       selectCommand(highlighted.value);
+      return;
+    }
+    if (!hasArgs && trimmed === highlighted.value) {
+      highlighted.value = null;
+      return;
     }
   }
 

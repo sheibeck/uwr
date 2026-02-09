@@ -201,16 +201,27 @@ export const registerCombatReducers = (deps: any) => {
 
   spacetimedb.reducer('end_combat', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const combatId = activeCombatIdForCharacter(ctx, character.id);
+    let combatId = activeCombatIdForCharacter(ctx, character.id);
+    if (!combatId) {
+      const fallback = [...ctx.db.combatParticipant.by_character.filter(character.id)][0];
+      combatId = fallback?.combatId ?? null;
+    }
     if (!combatId) throw new SenderError('No active combat');
     const combat = ctx.db.combatEncounter.id.find(combatId);
-    if (!combat || combat.state !== 'active') throw new SenderError('Combat not active');
+    if (!combat) throw new SenderError('Combat not active');
 
-    if (combat.groupId) {
+    if (combat.groupId && combat.state === 'active') {
       const group = ctx.db.group.id.find(combat.groupId);
       if (!group) throw new SenderError('Group not found');
       if (group.leaderCharacterId !== character.id) {
-        throw new SenderError('Only the group leader can end combat');
+        let hasTick = false;
+        for (const tick of ctx.db.combatRoundTick.iter()) {
+          if (tick.combatId === combat.id) {
+            hasTick = true;
+            break;
+          }
+        }
+        if (hasTick) throw new SenderError('Only the group leader can end combat');
       }
     }
 
@@ -243,7 +254,8 @@ export const registerCombatReducers = (deps: any) => {
       ctx.db.enemySpawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
     }
 
-    for (const row of ctx.db.combatRoundTick.by_combat.filter(combat.id)) {
+    for (const row of ctx.db.combatRoundTick.iter()) {
+      if (row.combatId !== combat.id) continue;
       ctx.db.combatRoundTick.id.delete(row.scheduledId);
     }
     for (const row of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
@@ -301,6 +313,21 @@ export const registerCombatReducers = (deps: any) => {
         mana: nextMana > character.maxMana ? character.maxMana : nextMana,
         stamina: nextStamina > character.maxStamina ? character.maxStamina : nextStamina,
       });
+    }
+
+    // Watchdog: ensure active combats always have a scheduled tick.
+    for (const combat of ctx.db.combatEncounter.iter()) {
+      if (combat.state !== 'active') continue;
+      let hasTick = false;
+      for (const tick of ctx.db.combatRoundTick.iter()) {
+        if (tick.combatId === combat.id) {
+          hasTick = true;
+          break;
+        }
+      }
+      if (!hasTick) {
+        scheduleRound(ctx, combat.id, combat.roundNumber);
+      }
     }
 
     ctx.db.healthRegenTick.insert({
@@ -524,10 +551,33 @@ export const registerCombatReducers = (deps: any) => {
   spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { arg }) => {
     const combat = ctx.db.combatEncounter.id.find(arg.combatId);
     if (!combat || combat.state !== 'active') return;
-    if (combat.roundNumber !== arg.roundNumber) return;
+    if (combat.roundNumber !== arg.roundNumber) {
+      ctx.db.combatEncounter.id.update({ ...combat, roundNumber: arg.roundNumber });
+    }
 
     const enemy = [...ctx.db.combatEnemy.by_combat.filter(combat.id)][0];
-    if (!enemy) return;
+    if (!enemy) {
+      const spawn = [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
+        (s) => s.lockedCombatId === combat.id
+      );
+      if (spawn) {
+        ctx.db.enemySpawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
+      }
+      for (const row of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
+        ctx.db.combatParticipant.id.delete(row.id);
+      }
+      for (const row of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+        ctx.db.aggroEntry.id.delete(row.id);
+      }
+      for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
+        ctx.db.combatEnemyEffect.id.delete(row.id);
+      }
+      for (const row of ctx.db.combatEnemyCast.by_combat.filter(combat.id)) {
+        ctx.db.combatEnemyCast.id.delete(row.id);
+      }
+      ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
+      return;
+    }
 
     const participants = [...ctx.db.combatParticipant.by_combat.filter(combat.id)];
     for (const p of participants) {
@@ -924,6 +974,11 @@ export const registerCombatReducers = (deps: any) => {
             ...enemySnapshot,
             nextAutoAttackAt: nowMicros + 3_000_000n,
           });
+        } else {
+          ctx.db.combatEnemy.id.update({
+            ...enemySnapshot,
+            nextAutoAttackAt: nowMicros + 1_000_000n,
+          });
         }
       }
     }
@@ -938,6 +993,10 @@ export const registerCombatReducers = (deps: any) => {
       }
     }
     if (!stillActive) {
+      const enemyName =
+        [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
+          (s) => s.lockedCombatId === combat.id
+        )?.name ?? 'enemy';
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (character && character.hp === 0n && p.status !== 'dead') {
@@ -951,10 +1010,6 @@ export const registerCombatReducers = (deps: any) => {
           );
         }
       }
-      const enemyName =
-        [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
-          (s) => s.lockedCombatId === combat.id
-        )?.name ?? 'enemy';
       const spawn = [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
         (s) => s.lockedCombatId === combat.id
       );

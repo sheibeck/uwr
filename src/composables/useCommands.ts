@@ -35,7 +35,12 @@ export const useCommands = ({ connActive, selectedCharacter, inviteSummaries }: 
         characterId: selectedCharacter.value.id,
         targetName,
       });
-    } else if (lower === '/endcombat') {
+    } else if (
+      lower === '/endcombat' ||
+      lower.startsWith('/endcombat ') ||
+      lower === '/end' ||
+      lower === '/endc'
+    ) {
       endCombatReducer({ characterId: selectedCharacter.value.id });
     } else if (lower === '/leave') {
       leaveReducer({ characterId: selectedCharacter.value.id });
