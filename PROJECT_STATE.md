@@ -46,7 +46,7 @@ Last updated: 2026-02-09
   - **Realtime loop**: `combat_loop` reducer runs every 1s via `combat_loop_tick`.
   - Combat loop timing: `COMBAT_LOOP_INTERVAL_MICROS = 1_000_000` (1s).
   - Combat cleanup now guards loop tick handles defensively to avoid missing-table crashes after schema changes.
-  - Auto-attacks every 3s using equipped weapon; auto-attacks pause while casting.
+- Auto-attacks every 5s using equipped weapon; auto-attacks pause while casting.
   - Abilities execute immediately or after cast time; auto-attacks pause while casting.
   - Casting is unified server-side via `character_cast` + `cast_tick` (200ms).
   - Aggro from damage only.
@@ -216,6 +216,12 @@ Last updated: 2026-02-09
   - Lv3: Conjured Spike (Mana) — 9 dmg.
   - Lv4: Empower (Mana) — Party +2 damage for 3 rounds.
   - Lv5: Spectral Lance (Mana) — 13 dmg.
+- **Wizard**
+  - Lv1: Magic Missile (Mana) — 7 dmg.
+  - Lv2: Arcane Intellect (Mana) — +4 mana regen for 3 ticks.
+  - Lv3: Frost Shard (Mana) — 7 dmg, enemy damage -2 for 2 rounds.
+  - Lv4: Mana Shield (Mana) — +3 AC for 3 rounds.
+  - Lv5: Lightning Surge (Mana) — 15 dmg.
 
 ## Tables / Views (Server)
 - Player: `userId`, `activeCharacterId`, `sessionStartedAt`, etc.
