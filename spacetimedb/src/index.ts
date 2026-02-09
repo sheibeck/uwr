@@ -2593,6 +2593,12 @@ spacetimedb.init((ctx) => {
       dangerMultiplier: 160n,
       regionType: 'outdoor',
     });
+    const embermarchDepths = ctx.db.region.insert({
+      id: 0n,
+      name: 'Embermarch Depths',
+      dangerMultiplier: 200n,
+      regionType: 'dungeon',
+    });
 
     const town = ctx.db.location.insert({
       id: 0n,
@@ -2654,6 +2660,36 @@ spacetimedb.init((ctx) => {
       isSafe: false,
       terrainType: 'plains',
     });
+    const ashvault = ctx.db.location.insert({
+      id: 0n,
+      name: 'Ashvault Entrance',
+      description: 'Blackened stone stairs descend into a sulfur-lit vault.',
+      zone: 'Dungeon',
+      regionId: embermarchDepths.id,
+      levelOffset: 2n,
+      isSafe: false,
+      terrainType: 'dungeon',
+    });
+    const sootveil = ctx.db.location.insert({
+      id: 0n,
+      name: 'Sootveil Hall',
+      description: 'Echoing halls where soot clings to every surface.',
+      zone: 'Dungeon',
+      regionId: embermarchDepths.id,
+      levelOffset: 3n,
+      isSafe: false,
+      terrainType: 'dungeon',
+    });
+    const furnace = ctx.db.location.insert({
+      id: 0n,
+      name: 'Furnace Crypt',
+      description: 'A heat-soaked crypt of iron coffins and smoldering braziers.',
+      zone: 'Dungeon',
+      regionId: embermarchDepths.id,
+      levelOffset: 4n,
+      isSafe: false,
+      terrainType: 'dungeon',
+    });
 
     ctx.db.worldState.insert({
       id: 1n,
@@ -2667,6 +2703,9 @@ spacetimedb.init((ctx) => {
     connectLocations(ctx, fogroot.id, bramble.id);
     connectLocations(ctx, fogroot.id, gate.id);
     connectLocations(ctx, gate.id, cinder.id);
+    connectLocations(ctx, gate.id, ashvault.id);
+    connectLocations(ctx, ashvault.id, sootveil.id);
+    connectLocations(ctx, sootveil.id, furnace.id);
   }
 
   if (!tableHasRows(ctx.db.enemyTemplate.iter())) {
@@ -2837,6 +2876,62 @@ spacetimedb.init((ctx) => {
       maxHp: 30n,
       baseDamage: 6n,
       xpReward: 30n,
+    });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Vault Sentinel',
+      role: 'tank',
+      roleDetail: 'melee',
+      abilityProfile: 'iron guard, shield bash',
+      terrainTypes: 'dungeon',
+      timeOfDay: 'any',
+      armorClass: 14n,
+      level: 4n,
+      maxHp: 42n,
+      baseDamage: 7n,
+      xpReward: 34n,
+    });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Sootbound Mystic',
+      role: 'support',
+      roleDetail: 'magic',
+      abilityProfile: 'cinder hex, ember veil',
+      terrainTypes: 'dungeon',
+      timeOfDay: 'any',
+      armorClass: 10n,
+      level: 5n,
+      maxHp: 36n,
+      baseDamage: 8n,
+      xpReward: 38n,
+    });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Ember Priest',
+      role: 'healer',
+      roleDetail: 'support',
+      abilityProfile: 'ashen mend, warding flame',
+      terrainTypes: 'dungeon',
+      timeOfDay: 'any',
+      armorClass: 11n,
+      level: 5n,
+      maxHp: 38n,
+      baseDamage: 6n,
+      xpReward: 36n,
+    });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Ashforged Revenant',
+      role: 'dps',
+      roleDetail: 'melee',
+      abilityProfile: 'searing cleave, molten strike',
+      terrainTypes: 'dungeon',
+      timeOfDay: 'any',
+      armorClass: 12n,
+      level: 6n,
+      maxHp: 48n,
+      baseDamage: 10n,
+      xpReward: 44n,
     });
     if (!tableHasRows(ctx.db.enemyAbility.iter())) {
       ctx.db.enemyAbility.insert({
