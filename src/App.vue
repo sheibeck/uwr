@@ -242,43 +242,72 @@
           :title="timeTooltip"
         />
       </div>
-      <div :style="styles.floatingPanelBody">
-        <TravelPanel
-          :styles="styles"
-          :conn-active="conn.isActive"
-          :selected-character="selectedCharacter"
-          :locations="connectedLocations"
-          :regions="regions"
-          @move="moveTo"
-        />
-        <div :style="{ ...styles.panelSectionTitle, marginTop: '0.8rem', marginBottom: '0.4rem' }">
-          Inhabitants
-        </div>
-        <CombatPanel
-          :styles="styles"
-          :conn-active="conn.isActive"
-          :selected-character="selectedCharacter"
-          :characters-here="charactersHere"
-          :active-combat="activeCombat"
-          :active-enemy="activeEnemy"
-          :active-enemy-spawn="activeEnemySpawn"
-          :active-enemy-name="activeEnemyName"
-          :active-enemy-level="activeEnemyLevel"
-          :active-enemy-con-class="activeEnemyConClass"
-          :active-enemy-effects="activeEnemyEffects"
-          :enemy-target-name="activeEnemyTargetName"
-          :enemy-action-text="activeEnemyActionText"
-          :enemy-cast-progress="activeEnemyCastProgress"
-          :enemy-cast-label="activeEnemyCastLabel"
-          :enemy-spawns="availableEnemies"
-          :active-result="activeResult"
-          :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
-          :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
-          :can-act="canActInCombat"
-          @start="startCombat"
-          @flee="flee"
-          @dismiss-results="dismissResults"
-        />
+      <div :style="activeCombat || activeResult ? styles.floatingPanelBodyCombat : styles.floatingPanelBody">
+        <template v-if="activeCombat || activeResult">
+          <CombatPanel
+            :styles="styles"
+            :conn-active="conn.isActive"
+            :selected-character="selectedCharacter"
+            :characters-here="charactersHere"
+            :active-combat="activeCombat"
+            :active-enemy="activeEnemy"
+            :active-enemy-spawn="activeEnemySpawn"
+            :active-enemy-name="activeEnemyName"
+            :active-enemy-level="activeEnemyLevel"
+            :active-enemy-con-class="activeEnemyConClass"
+            :active-enemy-effects="activeEnemyEffects"
+            :enemy-target-name="activeEnemyTargetName"
+            :enemy-action-text="activeEnemyActionText"
+            :enemy-cast-progress="activeEnemyCastProgress"
+            :enemy-cast-label="activeEnemyCastLabel"
+            :enemy-spawns="availableEnemies"
+            :active-result="activeResult"
+            :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+            :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+            :can-act="canActInCombat"
+            @start="startCombat"
+            @flee="flee"
+            @dismiss-results="dismissResults"
+          />
+        </template>
+        <template v-else>
+          <details :style="styles.accordion" open>
+            <summary :style="styles.accordionSummary">Travel</summary>
+            <TravelPanel
+              :styles="styles"
+              :conn-active="conn.isActive"
+              :selected-character="selectedCharacter"
+              :locations="connectedLocations"
+              :regions="regions"
+              @move="moveTo"
+            />
+          </details>
+          <CombatPanel
+            :styles="styles"
+            :conn-active="conn.isActive"
+            :selected-character="selectedCharacter"
+            :characters-here="charactersHere"
+            :active-combat="activeCombat"
+            :active-enemy="activeEnemy"
+            :active-enemy-spawn="activeEnemySpawn"
+            :active-enemy-name="activeEnemyName"
+            :active-enemy-level="activeEnemyLevel"
+            :active-enemy-con-class="activeEnemyConClass"
+            :active-enemy-effects="activeEnemyEffects"
+            :enemy-target-name="activeEnemyTargetName"
+            :enemy-action-text="activeEnemyActionText"
+            :enemy-cast-progress="activeEnemyCastProgress"
+            :enemy-cast-label="activeEnemyCastLabel"
+            :enemy-spawns="availableEnemies"
+            :active-result="activeResult"
+            :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+            :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+            :can-act="canActInCombat"
+            @start="startCombat"
+            @flee="flee"
+            @dismiss-results="dismissResults"
+          />
+        </template>
       </div>
     </div>
 

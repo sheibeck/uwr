@@ -118,6 +118,7 @@ Last updated: 2026-02-09
   - Characters list moved from log to this panel.
   - Enemies section handles combat actions; enemy list is con-colored.
   - Active enemy shows HP bar, target, status, and effect badges (red = debuff, blue = buff).
+  - During combat or result screens, the Location panel shows only the combat UI (full-height), hiding Travel/Characters/NPCs until dismiss.
 - **Travel Mini-map:**
   - Shows current region in header, connected locations with arrows, region names, and target level con colors.
   - Region header now includes `L#` with con color, plus region/location type line in italics.

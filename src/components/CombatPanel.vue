@@ -4,40 +4,44 @@
         Select a character to view inhabitants.
       </div>
       <div v-else>
-        <details :style="styles.accordion" open>
-          <summary :style="styles.accordionSummary">Characters ({{ charactersHere.length }})</summary>
-          <div :style="styles.roster">
-            <div v-if="charactersHere.length === 0" :style="styles.subtle">
-              Nobody else is around.
+        <div v-if="activeResult">
+          <div :style="{ ...styles.resultCard, minHeight: '200px' }">
+            <div :style="styles.resultHeading">{{ resultOutcome(activeResult.summary) }}</div>
+            <div :style="styles.resultSummary">{{ stripFallen(activeResult.summary) }}</div>
+            <div v-if="fallenList(activeResult.summary).length" :style="styles.resultRow">
+              <span :style="styles.resultLabel">Fallen</span>
+              <div :style="styles.resultList">
+                <span
+                  v-for="name in fallenList(activeResult.summary)"
+                  :key="name"
+                  :style="styles.resultTag"
+                >
+                  {{ name }}
+                </span>
+              </div>
             </div>
-            <div v-else :style="styles.rosterList">
-              <span
-                v-for="character in charactersHere"
-                :key="character.id.toString()"
-                :style="styles.rosterTag"
+            <div :style="styles.panelFormInline">
+              <button
+                v-if="canDismissResults"
+                type="button"
+                :style="styles.primaryButton"
+                @click="$emit('dismiss-results')"
               >
-                {{ character.name }}
+                Dismiss
+              </button>
+              <span v-else :style="styles.subtle">Waiting for the leader to dismiss.</span>
+            </div>
+          </div>
+        </div>
+        <details v-else :style="activeCombat ? styles.accordionCombat : styles.accordion" open>
+          <summary :style="styles.accordionSummary">Enemies</summary>
+          <div v-if="activeCombat" :style="styles.combatBlock">
+            <div :style="styles.combatRow">
+              <span :style="styles.combatLabel">Fighting</span>
+              <span :style="[styles.combatValue, styles[activeEnemyConClass] ?? {}]">
+                {{ activeEnemyName }} (Lv {{ activeEnemyLevel }})
               </span>
             </div>
-          </div>
-        </details>
-
-        <details :style="styles.accordion">
-          <summary :style="styles.accordionSummary">NPCs</summary>
-          <div :style="styles.roster">
-            <div :style="styles.subtle">No NPCs here yet.</div>
-          </div>
-        </details>
-
-<details :style="activeCombat ? styles.accordionCombat : styles.accordion" open>
-  <summary :style="styles.accordionSummary">Enemies</summary>
-  <div v-if="activeCombat" :style="styles.combatBlock">
-    <div :style="styles.combatRow">
-      <span :style="styles.combatLabel">Fighting</span>
-      <span :style="[styles.combatValue, styles[activeEnemyConClass] ?? {}]">
-        {{ activeEnemyName }} (Lv {{ activeEnemyLevel }})
-      </span>
-    </div>
     <div v-if="activeEnemy" :style="styles.combatRow">
       <span :style="styles.combatLabel">Enemy HP</span>
       <span :style="styles.combatValue">
@@ -90,35 +94,6 @@
     </div>
     <div v-if="!canAct" :style="styles.subtle">You are down and cannot act.</div>
   </div>
-  <div v-else-if="activeResult">
-    <div :style="styles.resultCard">
-      <div :style="styles.resultHeading">{{ resultOutcome(activeResult.summary) }}</div>
-      <div :style="styles.resultSummary">{{ stripFallen(activeResult.summary) }}</div>
-      <div v-if="fallenList(activeResult.summary).length" :style="styles.resultRow">
-        <span :style="styles.resultLabel">Fallen</span>
-        <div :style="styles.resultList">
-          <span
-            v-for="name in fallenList(activeResult.summary)"
-            :key="name"
-            :style="styles.resultTag"
-          >
-            {{ name }}
-          </span>
-        </div>
-      </div>
-    </div>
-    <div :style="styles.panelFormInline">
-      <button
-        v-if="canDismissResults"
-        type="button"
-        :style="styles.primaryButton"
-        @click="$emit('dismiss-results')"
-      >
-        Dismiss
-      </button>
-      <span v-else :style="styles.subtle">Waiting for the leader to dismiss.</span>
-    </div>
-  </div>
   <div v-else>
     <div :style="styles.subtle">Choose an enemy to engage.</div>
     <div v-if="!canEngage" :style="styles.subtle">
@@ -142,6 +117,32 @@
     </div>
   </div>
         </details>
+        <template v-if="!activeCombat && !activeResult">
+          <details :style="styles.accordion" open>
+            <summary :style="styles.accordionSummary">Characters ({{ charactersHere.length }})</summary>
+            <div :style="styles.roster">
+              <div v-if="charactersHere.length === 0" :style="styles.subtle">
+                Nobody else is around.
+              </div>
+              <div v-else :style="styles.rosterList">
+                <span
+                  v-for="character in charactersHere"
+                  :key="character.id.toString()"
+                  :style="styles.rosterTag"
+                >
+                  {{ character.name }}
+                </span>
+              </div>
+            </div>
+          </details>
+
+          <details :style="styles.accordion">
+            <summary :style="styles.accordionSummary">NPCs</summary>
+            <div :style="styles.roster">
+              <div :style="styles.subtle">No NPCs here yet.</div>
+            </div>
+          </details>
+        </template>
       </div>
     </div>
 </template>

@@ -299,6 +299,13 @@ export const styles = {
     padding: '0.9rem',
     overflow: 'auto',
   },
+  floatingPanelBodyCombat: {
+    padding: '0.9rem',
+    overflow: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+  },
   miniMap: {
     marginTop: '0.2rem',
     display: 'flex',
