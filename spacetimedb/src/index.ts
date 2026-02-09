@@ -807,6 +807,19 @@ const PARRY_CLASSES = new Set([
   'beastmaster',
   'spellblade',
 ]);
+const MANA_CLASSES = new Set([
+  'bard',
+  'enchanter',
+  'cleric',
+  'paladin',
+  'ranger',
+  'necromancer',
+  'spellblade',
+  'shaman',
+  'druid',
+  'reaver',
+  'summoner',
+]);
 
 const CLASS_ARMOR: Record<string, string[]> = {
   bard: ['cloth'],
@@ -915,6 +928,7 @@ function computeBaseStats(className: string, level: bigint) {
 }
 
 function manaStatForClass(className: string, stats: Record<StatKey, bigint>) {
+  if (!usesMana(className)) return 0n;
   const config = getClassConfig(className);
   if (!config.secondary) return stats[config.primary];
   return (stats[config.primary] * 70n + stats[config.secondary] * 30n) / 100n;
@@ -957,9 +971,11 @@ function getEquippedWeaponStats(ctx: any, characterId: bigint) {
   return { baseDamage: 0n, dps: 0n };
 }
 
-const SHAMAN_ABILITIES = {
+const ABILITIES = {
   shaman_spirit_bolt: {
     name: 'Spirit Bolt',
+    className: 'shaman',
+    resource: 'mana',
     level: 1n,
     power: 2n,
     cooldownSeconds: 0n,
@@ -967,6 +983,8 @@ const SHAMAN_ABILITIES = {
   },
   shaman_totem_of_vigor: {
     name: 'Totem of Vigor',
+    className: 'shaman',
+    resource: 'mana',
     level: 2n,
     power: 2n,
     cooldownSeconds: 0n,
@@ -974,6 +992,8 @@ const SHAMAN_ABILITIES = {
   },
   shaman_hex: {
     name: 'Hex',
+    className: 'shaman',
+    resource: 'mana',
     level: 3n,
     power: 4n,
     cooldownSeconds: 0n,
@@ -981,6 +1001,8 @@ const SHAMAN_ABILITIES = {
   },
   shaman_ancestral_ward: {
     name: 'Ancestral Ward',
+    className: 'shaman',
+    resource: 'mana',
     level: 4n,
     power: 3n,
     cooldownSeconds: 0n,
@@ -988,14 +1010,25 @@ const SHAMAN_ABILITIES = {
   },
   shaman_stormcall: {
     name: 'Stormcall',
+    className: 'shaman',
+    resource: 'mana',
     level: 5n,
     power: 6n,
     cooldownSeconds: 0n,
     castSeconds: 2n,
   },
+  warrior_slam: {
+    name: 'Slam',
+    className: 'warrior',
+    resource: 'stamina',
+    level: 1n,
+    power: 3n,
+    cooldownSeconds: 3n,
+    castSeconds: 0n,
+  },
 } as const;
 
-function abilityManaCost(level: bigint, power: bigint) {
+function abilityResourceCost(level: bigint, power: bigint) {
   return 4n + level * 2n + power;
 }
 
@@ -1014,9 +1047,13 @@ function canParry(className: string) {
   return PARRY_CLASSES.has(normalizeClassName(className));
 }
 
+function usesMana(className: string) {
+  return MANA_CLASSES.has(normalizeClassName(className));
+}
+
 const GLOBAL_COOLDOWN_MICROS = 1_000_000n;
 function abilityCooldownMicros(abilityKey: string) {
-  const ability = SHAMAN_ABILITIES[abilityKey as keyof typeof SHAMAN_ABILITIES];
+  const ability = ABILITIES[abilityKey as keyof typeof ABILITIES];
   if (!ability) return GLOBAL_COOLDOWN_MICROS;
   const castMicros = ability.castSeconds ? ability.castSeconds * 1_000_000n : 0n;
   if (castMicros > 0n) return castMicros;
@@ -1025,7 +1062,7 @@ function abilityCooldownMicros(abilityKey: string) {
 }
 
 function abilityCastMicros(abilityKey: string) {
-  const ability = SHAMAN_ABILITIES[abilityKey as keyof typeof SHAMAN_ABILITIES];
+  const ability = ABILITIES[abilityKey as keyof typeof ABILITIES];
   if (ability?.castSeconds) return ability.castSeconds * 1_000_000n;
   return 0n;
 }
@@ -1083,17 +1120,23 @@ function executeAbility(
   targetCharacterId?: bigint
 ) {
   const normalizedClass = normalizeClassName(character.className);
-  if (normalizedClass !== 'shaman') {
+  const ability = ABILITIES[abilityKey as keyof typeof ABILITIES];
+  if (!ability) throw new SenderError('Unknown ability');
+  if (ability.className !== normalizedClass) {
     throw new SenderError('Ability not available');
   }
 
-  const ability = SHAMAN_ABILITIES[abilityKey as keyof typeof SHAMAN_ABILITIES];
-  if (!ability) throw new SenderError('Unknown ability');
-
   if (character.level < ability.level) throw new SenderError('Ability not unlocked');
 
-  const manaCost = abilityManaCost(ability.level, ability.power);
-  if (character.mana < manaCost) throw new SenderError('Not enough mana');
+  const resourceCost =
+    ability.resource === 'stamina'
+      ? 3n
+      : abilityResourceCost(ability.level, ability.power);
+  if (ability.resource === 'mana') {
+    if (character.mana < resourceCost) throw new SenderError('Not enough mana');
+  } else if (ability.resource === 'stamina') {
+    if (character.stamina < resourceCost) throw new SenderError('Not enough stamina');
+  }
 
   const resolvedTargetId = targetCharacterId ?? character.id;
   let targetCharacter: typeof Character.rowType | null = null;
@@ -1109,7 +1152,11 @@ function executeAbility(
     }
   }
 
-  ctx.db.character.id.update({ ...character, mana: character.mana - manaCost });
+  if (ability.resource === 'mana') {
+    ctx.db.character.id.update({ ...character, mana: character.mana - resourceCost });
+  } else if (ability.resource === 'stamina') {
+    ctx.db.character.id.update({ ...character, stamina: character.stamina - resourceCost });
+  }
 
   const combatId = activeCombatIdForCharacter(ctx, character.id);
   const combat = combatId ? ctx.db.combatEncounter.id.find(combatId) : null;
@@ -1117,6 +1164,8 @@ function executeAbility(
     combatId && combat
       ? [...ctx.db.combatEnemy.by_combat.filter(combatId)][0]
       : null;
+  const enemyTemplate = enemy ? ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId) : null;
+  const enemyName = enemyTemplate?.name ?? 'enemy';
 
   if (abilityKey === 'shaman_spirit_bolt') {
     if (!enemy || !combatId) throw new SenderError('No enemy in combat');
@@ -1137,7 +1186,31 @@ function executeAbility(
       character.id,
       character.ownerUserId,
       'damage',
-      `Your Spirit Bolt hits ${enemy.name ?? 'enemy'} for ${reduced} damage.`
+      `Your Spirit Bolt hits ${enemyName} for ${reduced} damage.`
+    );
+    return;
+  }
+
+  if (abilityKey === 'warrior_slam') {
+    if (!enemy || !combatId) throw new SenderError('No enemy in combat');
+    const weapon = getEquippedWeaponStats(ctx, character.id);
+    const weaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
+    const damage = abilityDamageFromWeapon(weaponDamage, 140n, 3n);
+    const reduced = applyArmorMitigation(damage, enemy.armorClass);
+    const nextHp = enemy.currentHp > reduced ? enemy.currentHp - reduced : 0n;
+    ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
+    for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+      if (entry.characterId === character.id) {
+        ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + reduced + 10n });
+        break;
+      }
+    }
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'damage',
+      `Your Slam hits ${enemyName} for ${reduced} damage.`
     );
     return;
   }
@@ -1189,7 +1262,7 @@ function executeAbility(
       character.id,
       character.ownerUserId,
       'damage',
-      `Your Hex hits ${enemy.name ?? 'enemy'} for ${reduced} damage.`
+      `Your Hex hits ${enemyName} for ${reduced} damage.`
     );
     return;
   }
@@ -1233,7 +1306,7 @@ function executeAbility(
       character.id,
       character.ownerUserId,
       'damage',
-      `Your Stormcall strikes ${enemy.name ?? 'enemy'} for ${reduced} damage.`
+      `Your Stormcall strikes ${enemyName} for ${reduced} damage.`
     );
     return;
   }
@@ -1266,7 +1339,9 @@ function recomputeCharacterDerived(ctx: any, character: typeof Character.rowType
 
   const manaStat = manaStatForClass(character.className, totalStats);
   const maxHp = BASE_HP + totalStats.str * 5n + gear.hpBonus;
-  const maxMana = BASE_MANA + manaStat * 6n + gear.manaBonus;
+  const maxMana = usesMana(character.className)
+    ? BASE_MANA + manaStat * 6n + gear.manaBonus
+    : 0n;
 
   const hitChance = totalStats.dex * 15n;
   const dodgeChance = totalStats.dex * 12n;
@@ -1305,7 +1380,7 @@ function recomputeCharacterDerived(ctx: any, character: typeof Character.rowType
   };
 
   const clampedHp = character.hp > maxHp ? maxHp : character.hp;
-  const clampedMana = character.mana > maxMana ? maxMana : character.mana;
+  const clampedMana = maxMana === 0n ? 0n : character.mana > maxMana ? maxMana : character.mana;
   ctx.db.character.id.update({
     ...updated,
     hp: clampedHp,
@@ -2200,6 +2275,7 @@ const reducerDeps = {
   rollAttackOutcome,
   hasShieldEquipped,
   canParry,
+  usesMana,
 };
 
 registerReducers(reducerDeps);

@@ -14,8 +14,10 @@
           <div>{{ selectedCharacter.xp }}</div>
           <div>HP</div>
           <div>{{ selectedCharacter.hp }} / {{ selectedCharacter.maxHp }}</div>
-          <div>Mana</div>
-          <div>{{ selectedCharacter.mana }} / {{ selectedCharacter.maxMana }}</div>
+          <template v-if="selectedCharacter.maxMana > 0">
+            <div>Mana</div>
+            <div>{{ selectedCharacter.mana }} / {{ selectedCharacter.maxMana }}</div>
+          </template>
           <div>Stamina</div>
           <div>{{ selectedCharacter.stamina }} / {{ selectedCharacter.maxStamina }}</div>
         </div>

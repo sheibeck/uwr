@@ -426,12 +426,13 @@ export const registerCombatReducers = (deps: any) => {
           }
         }
       } catch (error) {
+        const message = String(error).replace(/^SenderError:\s*/i, '');
         appendPrivateEvent(
           ctx,
           character.id,
           character.ownerUserId,
           'ability',
-          `Ability failed: ${error}`
+          `Ability failed: ${message}`
         );
       }
       ctx.db.characterCast.id.delete(cast.id);

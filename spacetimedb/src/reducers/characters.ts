@@ -14,6 +14,7 @@ export const registerCharacterReducers = (deps: any) => {
     ensureSpawnsForLocation,
     computeBaseStats,
     manaStatForClass,
+    usesMana,
     baseArmorForClass,
     BASE_HP,
     BASE_MANA,
@@ -86,7 +87,7 @@ export const registerCharacterReducers = (deps: any) => {
       const baseStats = computeBaseStats(className, 1n);
       const manaStat = manaStatForClass(className, baseStats);
       const maxHp = BASE_HP + baseStats.str * 5n;
-      const maxMana = BASE_MANA + manaStat * 6n;
+      const maxMana = usesMana(className) ? BASE_MANA + manaStat * 6n : 0n;
       const armorClass = baseArmorForClass(className);
       const character = ctx.db.character.insert({
         id: 0n,

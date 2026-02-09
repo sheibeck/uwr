@@ -57,6 +57,7 @@ Last updated: 2026-02-09
 - **Characters:**
   - Max 3 character slots per account (MVP).
   - Character deletion with confirmation + full cleanup.
+  - Non-mana classes now have `maxMana = 0` and UI hides mana bars.
 - **Regen:**
   - HP/Mana/Stamina regen every 3s.
   - Out of combat: full rate. In combat: half rate (every other tick).

@@ -244,9 +244,17 @@ export const registerItemReducers = (deps: any) => {
             });
           }
         }
-        const targetName = args.targetCharacterId
+        const combatId = activeCombatIdForCharacter(ctx, character.id);
+        let targetName = args.targetCharacterId
           ? ctx.db.character.id.find(args.targetCharacterId)?.name ?? 'your target'
           : 'yourself';
+        if (combatId) {
+          const enemy = [...ctx.db.combatEnemy.by_combat.filter(combatId)][0];
+          if (enemy) {
+            const template = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+            targetName = template?.name ?? 'enemy';
+          }
+        }
         appendPrivateEvent(
           ctx,
           character.id,
@@ -255,12 +263,13 @@ export const registerItemReducers = (deps: any) => {
           `You use ${abilityKey.replace(/_/g, ' ')} on ${targetName}.`
         );
       } catch (error) {
+        const message = String(error).replace(/^SenderError:\s*/i, '');
         appendPrivateEvent(
           ctx,
           character.id,
           character.ownerUserId,
           'ability',
-          `Ability failed: ${error}`
+          `Ability failed: ${message}`
         );
       }
     }

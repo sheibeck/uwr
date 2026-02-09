@@ -25,10 +25,12 @@
           <div :style="styles.hpBar">
             <div :style="{ ...styles.hpFill, width: `${percent(member.hp, member.maxHp)}%` }"></div>
           </div>
-          <div :style="styles.subtle">Mana {{ member.mana }} / {{ member.maxMana }}</div>
-          <div :style="styles.hpBar">
-            <div :style="{ ...styles.manaFill, width: `${percent(member.mana, member.maxMana)}%` }"></div>
-          </div>
+          <template v-if="member.maxMana > 0">
+            <div :style="styles.subtle">Mana {{ member.mana }} / {{ member.maxMana }}</div>
+            <div :style="styles.hpBar">
+              <div :style="{ ...styles.manaFill, width: `${percent(member.mana, member.maxMana)}%` }"></div>
+            </div>
+          </template>
           <div :style="styles.subtle">Stamina {{ member.stamina }} / {{ member.maxStamina }}</div>
           <div :style="styles.hpBar">
             <div
@@ -93,14 +95,16 @@
           :style="{ ...styles.hpFill, width: `${percent(selectedCharacter.hp, selectedCharacter.maxHp)}%` }"
         ></div>
       </div>
-      <div v-if="selectedCharacter" :style="styles.subtle">
-        Mana {{ selectedCharacter.mana }} / {{ selectedCharacter.maxMana }}
-      </div>
-      <div v-if="selectedCharacter" :style="styles.hpBar">
-        <div
-          :style="{ ...styles.manaFill, width: `${percent(selectedCharacter.mana, selectedCharacter.maxMana)}%` }"
-        ></div>
-      </div>
+      <template v-if="selectedCharacter && selectedCharacter.maxMana > 0">
+        <div :style="styles.subtle">
+          Mana {{ selectedCharacter.mana }} / {{ selectedCharacter.maxMana }}
+        </div>
+        <div :style="styles.hpBar">
+          <div
+            :style="{ ...styles.manaFill, width: `${percent(selectedCharacter.mana, selectedCharacter.maxMana)}%` }"
+          ></div>
+        </div>
+      </template>
       <div v-if="selectedCharacter" :style="styles.subtle">
         Stamina {{ selectedCharacter.stamina }} / {{ selectedCharacter.maxStamina }}
       </div>
