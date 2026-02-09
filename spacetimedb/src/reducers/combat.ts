@@ -63,9 +63,12 @@ export const registerCombatReducers = (deps: any) => {
   };
 
   const clearCombatArtifacts = (ctx: any, combatId: bigint) => {
-    for (const row of ctx.db.combatLoopTick.iter()) {
-      if (row.combatId !== combatId) continue;
-      ctx.db.combatLoopTick.id.delete(row.scheduledId);
+    const loopTable = ctx.db.combatLoopTick;
+    if (loopTable && loopTable.iter && loopTable.id && loopTable.id.delete) {
+      for (const row of loopTable.iter()) {
+        if (row.combatId !== combatId) continue;
+        loopTable.id.delete(row.scheduledId);
+      }
     }
     for (const row of ctx.db.combatParticipant.by_combat.filter(combatId)) {
       ctx.db.combatParticipant.id.delete(row.id);

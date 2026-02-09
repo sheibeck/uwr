@@ -45,6 +45,7 @@ Last updated: 2026-02-09
   - Leader-only engages for groups; solo engages for self.
   - **Realtime loop**: `combat_loop` reducer runs every 1s via `combat_loop_tick`.
   - Combat loop timing: `COMBAT_LOOP_INTERVAL_MICROS = 1_000_000` (1s).
+  - Combat cleanup now guards loop tick handles defensively to avoid missing-table crashes after schema changes.
   - Auto-attacks every 3s using equipped weapon; auto-attacks pause while casting.
   - Abilities execute immediately or after cast time; auto-attacks pause while casting.
   - Casting is unified server-side via `character_cast` + `cast_tick` (200ms).
