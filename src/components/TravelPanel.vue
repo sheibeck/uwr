@@ -1,36 +1,32 @@
 <template>
   <div>
-    <div :style="styles.panelSectionTitle">Travel</div>
     <div v-if="!selectedCharacter" :style="styles.subtle">
       Select a character to travel.
     </div>
     <div v-else>
-      <div :style="styles.subtle">
-        Connected locations are sorted from safer to more dangerous.
-      </div>
-      <div :style="styles.list">
+      <div :style="styles.miniMap">
         <div
-          v-for="entry in sortedLocations"
+          v-for="entry in mappedConnections"
           :key="entry.location.id.toString()"
-          :style="styles.roster"
+          :style="styles.miniMapRow"
         >
-          <div :style="styles.rosterTitle">
-            <span :style="entry.conStyle">{{ entry.location.name }}</span>
+          <span :style="[styles.miniMapArrow, entry.conStyle]">{{ entry.arrow }}</span>
+          <div :style="styles.miniMapBody">
+            <div :style="styles.miniMapTitle">
+              <span :style="entry.conStyle">{{ entry.location.name }}</span>
+            </div>
+            <div :style="styles.miniMapMeta">
+              <span :style="[styles.regionBadge, entry.regionStyle]">{{ entry.regionName }}</span>
+              <span :style="entry.conStyle">L{{ entry.targetLevel }}</span>
+            </div>
           </div>
-          <div :style="styles.subtle">{{ entry.location.description }}</div>
-          <div :style="styles.panelFormInline">
-            <span :style="[styles.regionBadge, entry.regionStyle]">{{ entry.regionName }}</span>
-            <span :style="entry.conStyle">Target L{{ entry.targetLevel }}</span>
-          </div>
-          <div :style="styles.buttonWrap">
-            <button
-              @click="$emit('move', entry.location.id)"
-              :disabled="!connActive || entry.location.id === selectedCharacter.locationId"
-              :style="styles.ghostButton"
-            >
-              Travel
-            </button>
-          </div>
+          <button
+            @click="$emit('move', entry.location.id)"
+            :disabled="!connActive || entry.location.id === selectedCharacter.locationId"
+            :style="styles.ghostButton"
+          >
+            Go
+          </button>
         </div>
       </div>
     </div>
@@ -91,4 +87,13 @@ const sortedLocations = computed(() => {
     })
     .sort((a, b) => a.targetLevel - b.targetLevel);
 });
+
+const directionArrows = ['↑', '→', '↓', '←', '↗', '↘', '↙', '↖'];
+
+const mappedConnections = computed(() =>
+  sortedLocations.value.map((entry, index) => ({
+    ...entry,
+    arrow: directionArrows[index % directionArrows.length],
+  }))
+);
 </script>

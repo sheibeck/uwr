@@ -1,6 +1,6 @@
-<template>
+﻿<template>
   <div>
-    <div :style="styles.panelSectionTitle">Group</div>
+    <div :style="styles.panelSectionTitle"></div>
     <div v-if="!selectedCharacter" :style="styles.subtle">
       Select a character to view group details.
     </div>
@@ -8,10 +8,10 @@
       <div :style="styles.subtle">Group: {{ currentGroup.name }}</div>
       <div :style="styles.panelSectionTitle">Members</div>
       <ul :style="styles.list">
-        <li v-for="member in sortedMembers" :key="member.id.toString()">
+        <li v-for="member in sortedMembers" :key="member.id.toString()" :style="styles.memberCard">
           <span>
             {{ member.name }} (Lv {{ member.level }}) - {{ member.className }}
-            <span v-if="member.id === leaderId" :style="styles.subtle">� Leader</span>
+            <span v-if="member.id === leaderId" :style="styles.subtle">· Leader</span>
           </span>
           <div :style="styles.subtle">HP {{ member.hp }} / {{ member.maxHp }}</div>
           <div :style="styles.hpBar">
@@ -56,7 +56,7 @@
       </button>
     </div>
     <div v-else>
-      <div v-if="selectedCharacter" :style="styles.panelSectionTitle">Your Status</div>
+      <div v-if="selectedCharacter" :style="styles.panelSectionTitle"></div>
       <div v-if="selectedCharacter" :style="styles.subtle">
         {{ selectedCharacter.name }} (Lv {{ selectedCharacter.level }}) -
         {{ selectedCharacter.className }}
@@ -157,3 +157,4 @@ const sortedMembers = computed(() => {
   return [...mine, ...others];
 });
 </script>
+

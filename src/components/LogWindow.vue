@@ -1,22 +1,5 @@
 <template>
   <section :style="styles.log">
-    <div v-if="selectedCharacter" :style="styles.roster">
-      <div :style="styles.rosterTitle">
-        Who's Here @ {{ locationName }} ({{ charactersHere.length }})
-      </div>
-      <div v-if="charactersHere.length === 0" :style="styles.subtle">
-        Nobody else is around.
-      </div>
-      <div v-else :style="styles.rosterList">
-        <span
-          v-for="character in charactersHere"
-          :key="character.id.toString()"
-          :style="styles.rosterTag"
-        >
-          {{ character.name }}
-        </span>
-      </div>
-    </div>
     <div v-if="!selectedCharacter" :style="styles.logEmpty">
       Select or create a character to begin.
     </div>
@@ -62,10 +45,8 @@ type EventItem = {
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   selectedCharacter: CharacterRow | null;
-  charactersHere: CharacterRow[];
   combinedEvents: EventItem[];
   formatTimestamp: (ts: { microsSinceUnixEpoch: bigint }) => string;
-  locationName: string;
 }>();
 
 const logListEl = ref<HTMLElement | null>(null);

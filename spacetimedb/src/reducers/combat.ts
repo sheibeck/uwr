@@ -146,7 +146,7 @@ export const registerCombatReducers = (deps: any) => {
             character.id,
             character.ownerUserId,
             'combat',
-            'You attempt to flee.'
+            'You are attempting to flee.'
           );
           return;
         }

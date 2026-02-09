@@ -16,7 +16,8 @@
     />
 
   <main :style="[styles.main, showRightPanel ? {} : styles.mainWide]">
-    <div :style="styles.logOverlay">
+    <div :style="styles.logStage">
+      <div :style="styles.logOverlay">
       <div v-if="onboardingHint" :style="styles.onboardingHint">
         <div>{{ onboardingHint }}</div>
         <button type="button" :style="styles.onboardingDismiss" @click="dismissOnboarding">
@@ -26,68 +27,27 @@
       <LogWindow
         :styles="styles"
         :selected-character="selectedCharacter"
-        :characters-here="charactersHere"
         :combined-events="combinedEvents"
-          :format-timestamp="formatTimestamp"
-          :location-name="currentLocation?.name ?? 'Unknown'"
-        />
-        <div v-if="showCombatStack" :style="styles.logOverlayPanel">
-          <GroupPanel
-            :styles="styles"
-            :conn-active="conn.isActive"
-            :selected-character="selectedCharacter"
-            :current-group="currentGroup"
-            :group-members="groupCharacterMembers"
-            :invite-summaries="inviteSummaries"
-            :leader-id="leaderId"
-            :is-leader="isLeader"
-            :follow-leader="followLeader"
-            @leave="leaveGroup"
-            @accept="acceptInvite"
-            @reject="rejectInvite"
-            @kick="kickMember"
-            @promote="promoteLeader"
-            @toggle-follow="setFollowLeader"
-          />
-        </div>
+        :format-timestamp="formatTimestamp"
+      />
       </div>
+    </div>
 
-      <div v-if="showCombatStack">
-        <PanelShell :styles="styles" title="Combat" @close="activePanel = 'none'">
-          <CombatPanel
-            :styles="styles"
-            :conn-active="conn.isActive"
-            :selected-character="selectedCharacter"
-            :active-combat="activeCombat"
-            :active-enemy="activeEnemy"
-            :active-enemy-spawn="activeEnemySpawn"
-            :active-enemy-name="activeEnemyName"
-            :active-enemy-level="activeEnemyLevel"
-            :active-enemy-con-class="activeEnemyConClass"
-            :round-ends-in-seconds="roundEndsInSeconds"
-            :selected-action="selectedAction"
-            :enemy-spawns="availableEnemies"
-            :active-result="activeResult"
-            :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
-            :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
-          :can-act="canActInCombat"
-          :hotbar="hotbarAssignments"
-          :can-use-ability="canActInCombat"
-          @start="startCombat"
-          @attack="attack"
-          @skip="skip"
-          @flee="flee"
-          @use-ability="chooseAbility"
-          @dismiss-results="dismissResults"
-        />
-        </PanelShell>
-      </div>
-      <PanelShell
-        v-else-if="activePanel !== 'none'"
-        :styles="styles"
-        :title="panelTitle"
-        @close="activePanel = 'none'"
-      >
+    <div
+      v-if="activePanel !== 'none'"
+      :style="{
+        ...styles.floatingPanel,
+        left: `${panelPos.x}px`,
+        top: `${panelPos.y}px`,
+      }"
+    >
+        <div :style="styles.floatingPanelHeader" @mousedown="startPanelDrag">
+          <div>{{ panelTitle }}</div>
+          <button type="button" :style="styles.panelClose" @click="activePanel = 'none'">
+            ×
+          </button>
+        </div>
+        <div :style="styles.floatingPanelBody">
         <CharacterPanel
           v-if="activePanel === 'character'"
           :styles="styles"
@@ -194,8 +154,21 @@
           @use-ability="chooseAbility"
           @dismiss-results="dismissResults"
         />
+        </div>
+    </div>
+
+    <div
+      :style="{
+        ...styles.floatingPanel,
+        left: `${travelPanelPos.x}px`,
+        top: `${travelPanelPos.y}px`,
+      }"
+    >
+      <div :style="styles.floatingPanelHeader" @mousedown="startTravelDrag">
+        {{ currentRegionName }} · {{ currentLocation?.name ?? 'Unknown' }}
+      </div>
+      <div :style="styles.floatingPanelBody">
         <TravelPanel
-          v-else-if="activePanel === 'travel'"
           :styles="styles"
           :conn-active="conn.isActive"
           :selected-character="selectedCharacter"
@@ -203,8 +176,72 @@
           :regions="regions"
           @move="moveTo"
         />
-      </PanelShell>
-    </main>
+        <div :style="styles.panelSectionTitle">Inhabitants</div>
+        <CombatPanel
+          :styles="styles"
+          :conn-active="conn.isActive"
+          :selected-character="selectedCharacter"
+          :characters-here="charactersHere"
+          :active-combat="activeCombat"
+          :active-enemy="activeEnemy"
+          :active-enemy-spawn="activeEnemySpawn"
+          :active-enemy-name="activeEnemyName"
+          :active-enemy-level="activeEnemyLevel"
+          :active-enemy-con-class="activeEnemyConClass"
+          :round-ends-in-seconds="roundEndsInSeconds"
+          :selected-action="selectedAction"
+          :enemy-spawns="availableEnemies"
+          :active-result="activeResult"
+          :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+          :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+          :can-act="canActInCombat"
+          :hotbar="hotbarAssignments"
+          :can-use-ability="canActInCombat"
+          @start="startCombat"
+          @attack="attack"
+          @skip="skip"
+          @flee="flee"
+          @use-ability="chooseAbility"
+          @dismiss-results="dismissResults"
+        />
+      </div>
+    </div>
+
+    <div
+      :style="{
+        ...styles.floatingPanel,
+        ...styles.floatingPanelCompact,
+        left: `${groupPanelPos.x}px`,
+        top: `${groupPanelPos.y}px`,
+      }"
+    >
+      <div
+        :style="styles.floatingPanelHeader"
+        @mousedown="startGroupDrag"
+      >
+        Group
+      </div>
+      <div :style="styles.floatingPanelBody">
+        <GroupPanel
+          :styles="styles"
+          :conn-active="conn.isActive"
+          :selected-character="selectedCharacter"
+          :current-group="currentGroup"
+          :group-members="groupCharacterMembers"
+          :invite-summaries="inviteSummaries"
+          :leader-id="leaderId"
+          :is-leader="isLeader"
+          :follow-leader="followLeader"
+          @leave="leaveGroup"
+          @accept="acceptInvite"
+          @reject="rejectInvite"
+          @kick="kickMember"
+          @promote="promoteLeader"
+          @toggle-follow="setFollowLeader"
+        />
+      </div>
+    </div>
+  </main>
 
     <footer :style="styles.footer">
       <CommandBar
@@ -248,11 +285,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { styles } from './ui/styles';
 import AppHeader from './components/AppHeader.vue';
 import LogWindow from './components/LogWindow.vue';
-import PanelShell from './components/PanelShell.vue';
 import CharacterPanel from './components/CharacterPanel.vue';
 import InventoryPanel from './components/InventoryPanel.vue';
 import GroupPanel from './components/GroupPanel.vue';
@@ -473,6 +509,14 @@ const connectedLocations = computed(() => {
   return locations.value.filter((loc) => connectedIds.has(loc.id.toString()));
 });
 
+const currentRegionName = computed(() => {
+  if (!currentLocation.value) return 'Unknown Region';
+  const region = regions.value.find(
+    (row) => row.id.toString() === currentLocation.value?.regionId.toString()
+  );
+  return region?.name ?? 'Unknown Region';
+});
+
 const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipItem, unequipItem } =
   useInventory({
     connActive: computed(() => conn.isActive),
@@ -521,7 +565,7 @@ const canActInCombat = computed(() => {
 
 const combatLocked = computed(() => Boolean(activeCombat.value || activeResult.value));
 const showCombatStack = computed(() => combatLocked.value);
-const showRightPanel = computed(() => showCombatStack.value || activePanel.value !== 'none');
+const showRightPanel = computed(() => false);
 
 const tooltip = ref<{ visible: boolean; x: number; y: number; item: any | null }>({
   visible: false,
@@ -529,6 +573,130 @@ const tooltip = ref<{ visible: boolean; x: number; y: number; item: any | null }
   y: 0,
   item: null,
 });
+
+const groupPanelPos = ref({ x: 40, y: 140 });
+const panelPos = ref({ x: 980, y: 140 });
+const travelPanelPos = ref({ x: 1040, y: 110 });
+
+const groupDrag = ref<{ active: boolean; offsetX: number; offsetY: number }>({
+  active: false,
+  offsetX: 0,
+  offsetY: 0,
+});
+const panelDrag = ref<{ active: boolean; offsetX: number; offsetY: number }>({
+  active: false,
+  offsetX: 0,
+  offsetY: 0,
+});
+const travelDrag = ref<{ active: boolean; offsetX: number; offsetY: number }>({
+  active: false,
+  offsetX: 0,
+  offsetY: 0,
+});
+const startGroupDrag = (event: MouseEvent) => {
+  groupDrag.value = {
+    active: true,
+    offsetX: event.clientX - groupPanelPos.value.x,
+    offsetY: event.clientY - groupPanelPos.value.y,
+  };
+};
+const startPanelDrag = (event: MouseEvent) => {
+  panelDrag.value = {
+    active: true,
+    offsetX: event.clientX - panelPos.value.x,
+    offsetY: event.clientY - panelPos.value.y,
+  };
+};
+const startTravelDrag = (event: MouseEvent) => {
+  travelDrag.value = {
+    active: true,
+    offsetX: event.clientX - travelPanelPos.value.x,
+    offsetY: event.clientY - travelPanelPos.value.y,
+  };
+};
+
+const onGroupDrag = (event: MouseEvent) => {
+  if (!groupDrag.value.active) return;
+  groupPanelPos.value = {
+    x: Math.max(16, event.clientX - groupDrag.value.offsetX),
+    y: Math.max(16, event.clientY - groupDrag.value.offsetY),
+  };
+};
+const onPanelDrag = (event: MouseEvent) => {
+  if (!panelDrag.value.active) return;
+  panelPos.value = {
+    x: Math.max(16, event.clientX - panelDrag.value.offsetX),
+    y: Math.max(16, event.clientY - panelDrag.value.offsetY),
+  };
+};
+const onTravelDrag = (event: MouseEvent) => {
+  if (!travelDrag.value.active) return;
+  travelPanelPos.value = {
+    x: Math.max(16, event.clientX - travelDrag.value.offsetX),
+    y: Math.max(16, event.clientY - travelDrag.value.offsetY),
+  };
+};
+
+const stopGroupDrag = () => {
+  if (!groupDrag.value.active) return;
+  groupDrag.value.active = false;
+};
+const stopPanelDrag = () => {
+  if (!panelDrag.value.active) return;
+  panelDrag.value.active = false;
+};
+const stopTravelDrag = () => {
+  if (!travelDrag.value.active) return;
+  travelDrag.value.active = false;
+};
+
+onMounted(() => {
+  const saved = window.localStorage.getItem('uwr.windowPositions');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved) as {
+        group?: { x: number; y: number };
+        panel?: { x: number; y: number };
+        travel?: { x: number; y: number };
+      };
+      if (parsed.group) groupPanelPos.value = parsed.group;
+      if (parsed.panel) panelPos.value = parsed.panel;
+      if (parsed.travel) travelPanelPos.value = parsed.travel;
+    } catch {
+      // ignore invalid storage
+    }
+  }
+  window.addEventListener('mousemove', onGroupDrag);
+  window.addEventListener('mousemove', onPanelDrag);
+  window.addEventListener('mousemove', onTravelDrag);
+  window.addEventListener('mouseup', stopGroupDrag);
+  window.addEventListener('mouseup', stopPanelDrag);
+  window.addEventListener('mouseup', stopTravelDrag);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('mousemove', onGroupDrag);
+  window.removeEventListener('mousemove', onPanelDrag);
+  window.removeEventListener('mousemove', onTravelDrag);
+  window.removeEventListener('mouseup', stopGroupDrag);
+  window.removeEventListener('mouseup', stopPanelDrag);
+  window.removeEventListener('mouseup', stopTravelDrag);
+});
+
+watch(
+  [groupPanelPos, panelPos, travelPanelPos],
+  () => {
+    window.localStorage.setItem(
+      'uwr.windowPositions',
+      JSON.stringify({
+        group: groupPanelPos.value,
+        panel: panelPos.value,
+        travel: travelPanelPos.value,
+      })
+    );
+  },
+  { deep: true }
+);
 
 const showTooltip = (payload: { item: any; x: number; y: number }) => {
   tooltip.value = { visible: true, x: payload.x + 12, y: payload.y + 12, item: payload.item };
@@ -546,7 +714,7 @@ const hideTooltip = () => {
 const panelTitle = computed(() => {
   switch (activePanel.value) {
     case 'character':
-      return 'Character';
+      return 'Characters';
     case 'inventory':
       return 'Inventory';
     case 'hotbar':
@@ -571,23 +739,20 @@ const togglePanel = (panel: typeof activePanel.value) => {
 };
 
 watch(
-  () => isLoggedIn.value,
-  (loggedIn) => {
-    if (loggedIn) {
-      activePanel.value = 'character';
-      selectedCharacterId.value = '';
-    } else {
+  [() => isLoggedIn.value, () => player.value?.activeCharacterId],
+  ([loggedIn, activeId]) => {
+    if (!loggedIn) {
       selectedCharacterId.value = '';
       activePanel.value = 'none';
+      return;
     }
-  }
-);
-
-watch(
-  () => activeCombat.value?.id,
-  (combatId) => {
-    if (combatId) {
-      activePanel.value = 'combat';
+    if (activeId && !selectedCharacterId.value) {
+      selectedCharacterId.value = activeId.toString();
+      activePanel.value = 'none';
+      return;
+    }
+    if (!activeId) {
+      activePanel.value = 'character';
     }
   }
 );

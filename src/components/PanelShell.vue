@@ -1,10 +1,10 @@
 <template>
-  <aside :style="styles.panel">
-    <div :style="styles.panelHeader">
+  <aside :style="styles.floatingPanel">
+    <div :style="styles.floatingPanelHeader">
       <div>{{ title }}</div>
       <button @click="$emit('close')" :style="styles.panelClose">Close</button>
     </div>
-    <div :style="styles.panelBody">
+    <div :style="styles.floatingPanelBody">
       <slot />
     </div>
   </aside>

@@ -5,7 +5,7 @@
       :style="actionStyle('character')"
       :disabled="isLocked('character')"
     >
-      Character
+      Characters
     </button>
     <template v-if="hasActiveCharacter">
       <button
@@ -35,20 +35,6 @@
         :disabled="isLocked('friends')"
       >
         Friends
-      </button>
-      <button
-        @click="emit('toggle', 'group')"
-        :style="actionStyle('group')"
-        :disabled="isLocked('group')"
-      >
-        Group
-      </button>
-      <button
-        @click="emit('toggle', 'combat')"
-        :style="actionStyle('combat')"
-        :disabled="isLocked('combat')"
-      >
-        Combat
       </button>
       <button
         @click="emit('toggle', 'travel')"
