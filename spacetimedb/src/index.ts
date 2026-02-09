@@ -93,6 +93,7 @@ const Region = table(
     id: t.u64().primaryKey().autoInc(),
     name: t.string(),
     dangerMultiplier: t.u64(),
+    regionType: t.string(),
   }
 );
 
@@ -2584,11 +2585,13 @@ spacetimedb.init((ctx) => {
       id: 0n,
       name: 'Hollowmere Vale',
       dangerMultiplier: 100n,
+      regionType: 'outdoor',
     });
     const border = ctx.db.region.insert({
       id: 0n,
       name: 'Embermarch Fringe',
       dangerMultiplier: 160n,
+      regionType: 'outdoor',
     });
 
     const town = ctx.db.location.insert({

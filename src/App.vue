@@ -230,8 +230,12 @@
     >
       <div :style="styles.floatingPanelHeader" @mousedown="startTravelDrag">
         <div :style="styles.panelHeaderStack">
-          <div :style="styles.panelHeaderLocation">{{ currentLocation?.name ?? 'Unknown' }}</div>
-          <div :style="styles.panelHeaderRegion">{{ currentRegionName }}</div>
+        <div :style="styles.panelHeaderLocation">{{ currentLocationName }}</div>
+        <div :style="styles.panelHeaderRegion">
+          <span :style="currentRegionConStyle">{{ currentRegionName }}</span>
+          <span :style="currentRegionConStyle"> L{{ currentRegionLevel }}</span>
+        </div>
+        <div :style="styles.panelHeaderTypes">{{ currentTypeLine }}</div>
         </div>
         <div
           :style="[styles.timeIndicator, isNight ? styles.timeIndicatorNight : null]"
@@ -735,6 +739,53 @@ const currentRegionName = computed(() => {
     (row) => row.id.toString() === currentLocation.value?.regionId.toString()
   );
   return region?.name ?? 'Unknown Region';
+});
+
+const currentLocationName = computed(() => {
+  if (!currentLocation.value) return 'Unknown';
+  return currentLocation.value.name ?? 'Unknown';
+});
+
+const conStyleForDiff = (diff: number) => {
+  if (diff <= -5) return styles.conGray;
+  if (diff <= -3) return styles.conLightGreen;
+  if (diff <= -1) return styles.conBlue;
+  if (diff === 0) return styles.conWhite;
+  if (diff <= 2) return styles.conYellow;
+  if (diff <= 4) return styles.conOrange;
+  return styles.conRed;
+};
+
+const currentRegionLevel = computed(() => {
+  if (!currentLocation.value) return 1;
+  const region = regions.value.find(
+    (row) => row.id.toString() === currentLocation.value?.regionId.toString()
+  );
+  if (!region) return 1;
+  const multiplier = Number(region.dangerMultiplier ?? 100n);
+  const scaled = Math.floor((1 * multiplier) / 100);
+  const offset = Number(currentLocation.value.levelOffset ?? 0n);
+  return Math.max(1, scaled + offset);
+});
+
+const currentRegionConStyle = computed(() => {
+  if (!selectedCharacter.value) return styles.conWhite;
+  const diff = currentRegionLevel.value - Number(selectedCharacter.value.level);
+  return conStyleForDiff(diff);
+});
+
+const currentTypeLine = computed(() => {
+  if (!currentLocation.value) return 'Unknown Region · Unknown Location';
+  const region = regions.value.find(
+    (row) => row.id.toString() === currentLocation.value?.regionId.toString()
+  );
+  const regionType = region?.regionType
+    ? `${region.regionType[0].toUpperCase()}${region.regionType.slice(1)}`
+    : 'Unknown';
+  const locationType = currentLocation.value.terrainType
+    ? `${currentLocation.value.terrainType[0].toUpperCase()}${currentLocation.value.terrainType.slice(1)}`
+    : 'Unknown';
+  return `${regionType} · ${locationType}`;
 });
 
 const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipItem, unequipItem } =

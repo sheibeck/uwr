@@ -271,6 +271,11 @@ export const styles = {
     fontSize: '0.78rem',
     color: 'rgba(230,232,239,0.7)',
   },
+  panelHeaderTypes: {
+    fontSize: '0.76rem',
+    color: 'rgba(230,232,239,0.6)',
+    fontStyle: 'italic',
+  },
   panelHeaderLocation: {
     fontSize: '1.05rem',
     color: '#f1f2f6',

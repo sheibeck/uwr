@@ -67,6 +67,10 @@ Last updated: 2026-02-09
   - HP/Mana/Stamina regen every 8s.
   - Out of combat: full rate. In combat: half rate (every other tick).
   - No regen while dead; revive after combat at 1/4 of max HP/Mana/Stamina.
+- **Regions/Locations:**
+  - Regions now include `regionType` (`outdoor`, `indoor`, `dungeon`) for future buffs/events.
+  - Current regions are `outdoor`.
+  - Abilities can later scale up/down based on `regionType`, `terrainType`, or day/night state.
 
 ## XP Curve (MVP)
 - Level cap: 10
@@ -116,6 +120,7 @@ Last updated: 2026-02-09
   - Active enemy shows HP bar, target, status, and effect badges (red = debuff, blue = buff).
 - **Travel Mini-map:**
   - Shows current region in header, connected locations with arrows, region names, and target level con colors.
+  - Region header now includes `L#` with con color, plus region/location type line in italics.
 - **Hotbar:**
   - Configuration via Hotbar panel; combat-use via vertical dock.
   - Hotbar shows cast fill + cooldown counters; highlights while casting.

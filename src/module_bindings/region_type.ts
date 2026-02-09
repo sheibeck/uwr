@@ -14,6 +14,7 @@ export default __t.object("Region", {
   id: __t.u64(),
   name: __t.string(),
   dangerMultiplier: __t.u64(),
+  regionType: __t.string(),
 });
 
 
