@@ -31,7 +31,7 @@ export const registerCombatReducers = (deps: any) => {
     enemyAbilityCooldownMicros,
   } = deps;
 
-  const AUTO_ATTACK_INTERVAL = 3_000_000n;
+  const AUTO_ATTACK_INTERVAL = 5_000_000n;
   const RETRY_ATTACK_INTERVAL = 1_000_000n;
 
   const clearCharacterEffectsOnDeath = (ctx: any, character: any) => {
