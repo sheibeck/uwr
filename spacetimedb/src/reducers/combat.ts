@@ -688,6 +688,11 @@ export const registerCombatReducers = (deps: any) => {
       const groupBonus = BigInt(Math.min(20, Math.max(0, (participants.length - 1) * 5)));
       const bonusMultiplier = 100n + groupBonus;
       const adjustedBase = (baseXp * bonusMultiplier) / 100n;
+      const fallenNames = participants
+        .filter((p) => p.status === 'dead')
+        .map((p) => ctx.db.character.id.find(p.characterId)?.name)
+        .filter((name): name is string => Boolean(name));
+      const fallenSuffix = fallenNames.length > 0 ? ` Fallen: ${fallenNames.join(', ')}.` : '';
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
@@ -697,7 +702,7 @@ export const registerCombatReducers = (deps: any) => {
           characterId: character.id,
           groupId: combat.groupId,
           combatId: combat.id,
-          summary: `Victory against ${enemyName} in ${combat.roundNumber} rounds.`,
+          summary: `Victory against ${enemyName} in ${combat.roundNumber} rounds.${fallenSuffix}`,
           createdAt: ctx.timestamp,
         });
 
@@ -752,7 +757,6 @@ export const registerCombatReducers = (deps: any) => {
         const character = ctx.db.character.id.find(p.characterId);
         if (character && character.hp === 0n) {
           const loss = deps.applyDeathXpPenalty(ctx, character);
-          if (loss > 0n) {
           appendPrivateEvent(
             ctx,
             character.id,
@@ -760,7 +764,6 @@ export const registerCombatReducers = (deps: any) => {
             'reward',
             `You lose ${loss} XP from the defeat.`
           );
-          }
           const quarterHp = character.maxHp / 4n;
           const quarterMana = character.maxMana / 4n;
           const quarterStamina = character.maxStamina / 4n;
@@ -906,6 +909,13 @@ export const registerCombatReducers = (deps: any) => {
                   }
                   ctx.db.characterEffect.id.delete(effect.id);
                 }
+                appendPrivateEvent(
+                  ctx,
+                  targetCharacter.id,
+                  targetCharacter.ownerUserId,
+                  'combat',
+                  `You have died. Killed by ${enemyName}.`
+                );
                 break;
               }
             }
@@ -932,6 +942,13 @@ export const registerCombatReducers = (deps: any) => {
         const character = ctx.db.character.id.find(p.characterId);
         if (character && character.hp === 0n && p.status !== 'dead') {
           ctx.db.combatParticipant.id.update({ ...p, status: 'dead' });
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'combat',
+            `You have died. Killed by ${enemyName}.`
+          );
         }
       }
       const enemyName =
@@ -944,6 +961,14 @@ export const registerCombatReducers = (deps: any) => {
       if (spawn) {
         ctx.db.enemySpawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
       }
+      const fallenNames = participants
+        .filter((p) => {
+          const character = ctx.db.character.id.find(p.characterId);
+          return character ? character.hp === 0n : false;
+        })
+        .map((p) => ctx.db.character.id.find(p.characterId)?.name)
+        .filter((name): name is string => Boolean(name));
+      const fallenSuffix = fallenNames.length > 0 ? ` Fallen: ${fallenNames.join(', ')}.` : '';
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
@@ -953,7 +978,7 @@ export const registerCombatReducers = (deps: any) => {
           characterId: character.id,
           groupId: combat.groupId,
           combatId: combat.id,
-          summary: `Defeat against ${enemyName} after ${combat.roundNumber} rounds.`,
+          summary: `Defeat against ${enemyName} after ${combat.roundNumber} rounds.${fallenSuffix}`,
           createdAt: ctx.timestamp,
         });
       }
@@ -961,15 +986,13 @@ export const registerCombatReducers = (deps: any) => {
         const character = ctx.db.character.id.find(p.characterId);
         if (character && character.hp === 0n) {
           const loss = deps.applyDeathXpPenalty(ctx, character);
-          if (loss > 0n) {
-            appendPrivateEvent(
-              ctx,
-              character.id,
-              character.ownerUserId,
-              'combat',
-              `You lose ${loss} XP from the defeat.`
-            );
-          }
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'reward',
+            `You lose ${loss} XP from the defeat.`
+          );
           const quarterHp = character.maxHp / 4n;
           const quarterMana = character.maxMana / 4n;
           const quarterStamina = character.maxStamina / 4n;

@@ -82,8 +82,22 @@
     <div v-if="!canAct" :style="styles.subtle">You are down and cannot act.</div>
   </div>
   <div v-else-if="activeResult">
-    <div :style="styles.panelSectionTitle">Combat Results</div>
-    <div :style="styles.subtle">{{ activeResult.summary }}</div>
+    <div :style="styles.resultCard">
+      <div :style="styles.resultHeading">{{ resultOutcome(activeResult.summary) }}</div>
+      <div :style="styles.resultSummary">{{ stripFallen(activeResult.summary) }}</div>
+      <div v-if="fallenList(activeResult.summary).length" :style="styles.resultRow">
+        <span :style="styles.resultLabel">Fallen</span>
+        <div :style="styles.resultList">
+          <span
+            v-for="name in fallenList(activeResult.summary)"
+            :key="name"
+            :style="styles.resultTag"
+          >
+            {{ name }}
+          </span>
+        </div>
+      </div>
+    </div>
     <div :style="styles.panelFormInline">
       <button
         v-if="canDismissResults"
@@ -161,6 +175,24 @@ const props = defineProps<{
 const percent = (value: bigint, max: bigint) => {
   if (!max || max === 0n) return 0;
   return Math.max(0, Math.min(100, (Number(value) / Number(max)) * 100));
+};
+
+const fallenList = (summary: string) => {
+  const match = summary.match(/Fallen:\s*([^.]*)/i);
+  if (!match) return [] as string[];
+  return match[1]
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean);
+};
+
+const stripFallen = (summary: string) => summary.replace(/\s*Fallen:.*$/i, '').trim();
+
+const resultOutcome = (summary: string) => {
+  const lowered = summary.toLowerCase();
+  if (lowered.startsWith('victory')) return 'Victory';
+  if (lowered.startsWith('defeat')) return 'Defeat';
+  return 'Combat Results';
 };
 
 defineEmits<{
