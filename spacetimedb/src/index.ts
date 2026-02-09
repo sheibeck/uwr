@@ -1213,14 +1213,16 @@ function executeAbility(
 
   const partyMembers = partyMembersInLocation(ctx, character);
   const applyHeal = (target: typeof Character.rowType, amount: bigint, source: string) => {
-    const nextHp = target.hp + amount > target.maxHp ? target.maxHp : target.hp + amount;
-    ctx.db.character.id.update({ ...target, hp: nextHp });
+    const current = ctx.db.character.id.find(target.id);
+    if (!current) return;
+    const nextHp = current.hp + amount > current.maxHp ? current.maxHp : current.hp + amount;
+    ctx.db.character.id.update({ ...current, hp: nextHp });
     appendPrivateEvent(
       ctx,
-      target.id,
-      target.ownerUserId,
+      current.id,
+      current.ownerUserId,
       'heal',
-      `${source} restores ${amount} health to ${target.name}.`
+      `${source} restores ${amount} health to ${current.name}.`
     );
   };
   const applyPartyEffect = (
