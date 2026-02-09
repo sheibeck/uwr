@@ -59,13 +59,13 @@ export const abilities: Ability[] = [
   { key: 'ranger_natures_balm', name: "Nature's Balm", className: 'Ranger', level: 4, kind: 'utility', resource: 'mana', description: 'Draw on nature to mend your wounds.', castSeconds: 0 },
   { key: 'ranger_piercing_arrow', name: 'Piercing Arrow', className: 'Ranger', level: 5, kind: 'combat', resource: 'stamina', description: 'An arrow that punches through armor.', castSeconds: 1 },
 
-  { key: 'necromancer_shadow_bolt', name: 'Shadow Bolt', className: 'Necromancer', level: 1, kind: 'combat', resource: 'mana', description: 'Hurl a bolt of shadow energy.', castSeconds: 1 },
+  { key: 'necromancer_shadow_bolt', name: 'Plague Spark', className: 'Necromancer', level: 1, kind: 'combat', resource: 'mana', description: 'Blight the target with a lingering plague and siphon a spark of life.', castSeconds: 1 },
   { key: 'necromancer_siphon_vitality', name: 'Siphon Vitality', className: 'Necromancer', level: 2, kind: 'utility', resource: 'mana', description: 'Leech vitality to sustain yourself.', castSeconds: 0 },
   { key: 'necromancer_wither', name: 'Wither', className: 'Necromancer', level: 3, kind: 'combat', resource: 'mana', description: 'Blight the enemy with a withering curse.', castSeconds: 1 },
   { key: 'necromancer_bone_ward', name: 'Bone Ward', className: 'Necromancer', level: 4, kind: 'utility', resource: 'mana', description: 'A protective ward of bone and shadow.', castSeconds: 0 },
   { key: 'necromancer_grave_surge', name: 'Grave Surge', className: 'Necromancer', level: 5, kind: 'combat', resource: 'mana', description: 'Unleash grave energy against the foe.', castSeconds: 2 },
 
-  { key: 'spellblade_arcane_slash', name: 'Arcane Slash', className: 'Spellblade', level: 1, kind: 'combat', resource: 'mana', description: 'A blade strike infused with arcane power.', castSeconds: 0 },
+  { key: 'spellblade_arcane_slash', name: 'Arcane Slash', className: 'Spellblade', level: 1, kind: 'combat', resource: 'mana', description: 'An arcane strike that shreds enemy armor briefly.', castSeconds: 0, cooldownSeconds: 3 },
   { key: 'spellblade_focus', name: 'Focus', className: 'Spellblade', level: 2, kind: 'utility', resource: 'stamina', description: 'Focus to improve your offense briefly.', castSeconds: 0 },
   { key: 'spellblade_runic_strike', name: 'Runic Strike', className: 'Spellblade', level: 3, kind: 'combat', resource: 'mana', description: 'A runic strike that punishes weakened foes.', castSeconds: 1 },
   { key: 'spellblade_ward', name: 'Ward', className: 'Spellblade', level: 4, kind: 'utility', resource: 'mana', description: 'Conjure a ward to increase defenses.', castSeconds: 0 },
@@ -101,7 +101,7 @@ export const abilities: Ability[] = [
   { key: 'reaver_dread_aura', name: 'Dread Aura', className: 'Reaver', level: 4, kind: 'utility', resource: 'mana', description: 'An aura that weakens enemy offense.', castSeconds: 0 },
   { key: 'reaver_oblivion', name: 'Oblivion', className: 'Reaver', level: 5, kind: 'combat', resource: 'mana', description: 'Annihilating strike from the void.', castSeconds: 2 },
 
-  { key: 'summoner_arcane_bolt', name: 'Arcane Bolt', className: 'Summoner', level: 1, kind: 'combat', resource: 'mana', description: 'Arcane bolt of summoned power.', castSeconds: 1 },
+  { key: 'summoner_arcane_bolt', name: 'Familiar Strike', className: 'Summoner', level: 1, kind: 'combat', resource: 'mana', description: 'Your familiar lashes out and steadies your focus.', castSeconds: 0, cooldownSeconds: 6 },
   { key: 'summoner_familiar', name: 'Familiar', className: 'Summoner', level: 2, kind: 'utility', resource: 'mana', description: 'A familiar that feeds your mana.', castSeconds: 0 },
   { key: 'summoner_conjured_spike', name: 'Conjured Spike', className: 'Summoner', level: 3, kind: 'combat', resource: 'mana', description: 'A conjured spike that impales the foe.', castSeconds: 1 },
   { key: 'summoner_empower', name: 'Empower', className: 'Summoner', level: 4, kind: 'utility', resource: 'mana', description: 'Empower the party’s attacks briefly.', castSeconds: 0 },

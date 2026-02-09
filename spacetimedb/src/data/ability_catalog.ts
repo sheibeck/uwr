@@ -145,6 +145,15 @@ export const ABILITIES = {
     cooldownSeconds: 0n,
     castSeconds: 1n,
   },
+  wizard_magic_missile: {
+    name: 'Magic Missile',
+    className: 'wizard',
+    resource: 'mana',
+    level: 1n,
+    power: 4n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
   cleric_blessing: {
     name: 'Blessing',
     className: 'cleric',
@@ -362,11 +371,11 @@ export const ABILITIES = {
     castSeconds: 0n,
   },
   necromancer_shadow_bolt: {
-    name: 'Shadow Bolt',
+    name: 'Plague Spark',
     className: 'necromancer',
     resource: 'mana',
     level: 1n,
-    power: 3n,
+    power: 2n,
     cooldownSeconds: 0n,
     castSeconds: 1n,
   },
@@ -412,7 +421,7 @@ export const ABILITIES = {
     resource: 'mana',
     level: 1n,
     power: 3n,
-    cooldownSeconds: 0n,
+    cooldownSeconds: 3n,
     castSeconds: 0n,
   },
   spellblade_focus: {
@@ -677,12 +686,12 @@ export const ABILITIES = {
     castSeconds: 1n,
   },
   summoner_arcane_bolt: {
-    name: 'Arcane Bolt',
+    name: 'Familiar Strike',
     className: 'summoner',
     resource: 'mana',
     level: 1n,
     power: 2n,
-    cooldownSeconds: 0n,
+    cooldownSeconds: 6n,
     castSeconds: 0n,
   },
   summoner_familiar: {

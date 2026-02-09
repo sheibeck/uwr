@@ -1113,6 +1113,11 @@ function executeAbility(
     if (!enemy || !combatId) throw new SenderError('No enemy in combat');
     const hits = options?.hits ?? 1n;
     let armor = enemy.armorClass;
+    const armorDebuff = sumEnemyEffect(ctx, combatId, 'armor_down');
+    if (armorDebuff !== 0n) {
+      armor = armor + armorDebuff;
+      if (armor < 0n) armor = 0n;
+    }
     if (options?.ignoreArmor) {
       armor = armor > options.ignoreArmor ? armor - options.ignoreArmor : 0n;
     }
@@ -1357,7 +1362,7 @@ function executeAbility(
       applyHeal(targetCharacter, 15n, 'Heal');
       return;
     case 'wizard_magic_missile':
-      applyDamage(125n, 2n);
+      applyDamage(145n, 3n);
       return;
     case 'wizard_arcane_intellect':
       if (!targetCharacter) throw new SenderError('Target required');
@@ -1499,7 +1504,8 @@ function executeAbility(
       applyDamage(150n, 4n, { ignoreArmor: 5n });
       return;
     case 'necromancer_shadow_bolt':
-      applyDamage(125n, 2n);
+      applyDamage(110n, 1n, { dot: { magnitude: 3n, rounds: 2n, source: 'Plague Spark' } });
+      applyHeal(character, 2n, 'Plague Spark');
       return;
     case 'necromancer_siphon_vitality': {
       const healAmount = 8n;
@@ -1523,7 +1529,9 @@ function executeAbility(
       applyDamage(170n, 6n);
       return;
     case 'spellblade_arcane_slash':
-      applyDamage(135n, 2n);
+      applyDamage(125n, 2n, {
+        debuff: { type: 'armor_down', magnitude: -2n, rounds: 2n, source: 'Arcane Slash' },
+      });
       return;
     case 'spellblade_focus':
       addCharacterEffect(ctx, character.id, 'damage_up', 3n, 3n, 'Focus');
@@ -1659,7 +1667,15 @@ function executeAbility(
       applyDamage(175n, 6n);
       return;
     case 'summoner_arcane_bolt':
-      applyDamage(125n, 2n);
+      applyDamage(110n, 1n);
+      addCharacterEffect(ctx, character.id, 'mana_regen', 2n, 2n, 'Familiar Strike');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Familiar Strike steadies your focus.'
+      );
       return;
     case 'summoner_familiar':
       addCharacterEffect(ctx, character.id, 'mana_regen', 4n, 3n, 'Familiar');

@@ -476,6 +476,32 @@ export const registerCombatReducers = (deps: any) => {
         ctx.db.characterEffect.id.delete(effect.id);
         continue;
       }
+      const source = effect.sourceAbility ?? 'a lingering effect';
+      if (effect.effectType === 'mana_regen') {
+        const nextMana =
+          owner.mana + effect.magnitude > owner.maxMana ? owner.maxMana : owner.mana + effect.magnitude;
+        ctx.db.character.id.update({ ...owner, mana: nextMana });
+        appendPrivateEvent(
+          ctx,
+          owner.id,
+          owner.ownerUserId,
+          'ability',
+          `You recover ${effect.magnitude} mana from ${source}.`
+        );
+      } else if (effect.effectType === 'stamina_regen') {
+        const nextStamina =
+          owner.stamina + effect.magnitude > owner.maxStamina
+            ? owner.maxStamina
+            : owner.stamina + effect.magnitude;
+        ctx.db.character.id.update({ ...owner, stamina: nextStamina });
+        appendPrivateEvent(
+          ctx,
+          owner.id,
+          owner.ownerUserId,
+          'ability',
+          `You recover ${effect.magnitude} stamina from ${source}.`
+        );
+      }
       const remaining = effect.roundsRemaining - 1n;
       if (remaining === 0n) {
         if (effect.effectType === 'hp_bonus') {
@@ -515,12 +541,7 @@ export const registerCombatReducers = (deps: any) => {
         continue;
       }
       if (owner.hp === 0n) continue;
-      if (
-        effect.effectType !== 'regen' &&
-        effect.effectType !== 'dot' &&
-        effect.effectType !== 'mana_regen' &&
-        effect.effectType !== 'stamina_regen'
-      )
+      if (effect.effectType !== 'regen' && effect.effectType !== 'dot')
         continue;
       if (effect.roundsRemaining === 0n) {
         ctx.db.characterEffect.id.delete(effect.id);
@@ -546,30 +567,6 @@ export const registerCombatReducers = (deps: any) => {
           owner.ownerUserId,
           'damage',
           `You take ${effect.magnitude} damage from ${source}.`
-        );
-      } else if (effect.effectType === 'mana_regen') {
-        const nextMana =
-          owner.mana + effect.magnitude > owner.maxMana ? owner.maxMana : owner.mana + effect.magnitude;
-        ctx.db.character.id.update({ ...owner, mana: nextMana });
-        appendPrivateEvent(
-          ctx,
-          owner.id,
-          owner.ownerUserId,
-          'ability',
-          `You recover ${effect.magnitude} mana from ${source}.`
-        );
-      } else if (effect.effectType === 'stamina_regen') {
-        const nextStamina =
-          owner.stamina + effect.magnitude > owner.maxStamina
-            ? owner.maxStamina
-            : owner.stamina + effect.magnitude;
-        ctx.db.character.id.update({ ...owner, stamina: nextStamina });
-        appendPrivateEvent(
-          ctx,
-          owner.id,
-          owner.ownerUserId,
-          'ability',
-          `You recover ${effect.magnitude} stamina from ${source}.`
         );
       }
       const remaining = effect.roundsRemaining - 1n;
@@ -851,7 +848,8 @@ export const registerCombatReducers = (deps: any) => {
       const { finalDamage, nextHp } = resolveAttack(ctx, {
         seed: outcomeSeed,
         baseDamage: damage,
-        targetArmor: currentEnemy.armorClass,
+        targetArmor:
+          currentEnemy.armorClass + sumEnemyEffect(ctx, combat.id, 'armor_down'),
         canBlock: hasShieldEquipped(ctx, character.id),
         canParry: canParry(character.className),
         canDodge: true,
