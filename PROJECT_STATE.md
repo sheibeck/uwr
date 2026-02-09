@@ -126,7 +126,7 @@ Last updated: 2026-02-09
   - Combat abilities at levels 1, 3, 5.
   - Non-combat abilities at levels 2, 4 (usable in or out of combat).
   - Spells use Mana; techniques use Stamina.
-- Note: L1 ability keys now match their updated names (e.g., `rogue_shadow_cut`, `ranger_marked_shot`).
+- Note: L1 ability keys now match their updated names (e.g., `rogue_shadow_cut`, `ranger_marked_shot`). These keys are stored in DB tables (hotbar slots, casts, cooldowns), so future renames require a migration strategy once data wipes are no longer acceptable.
 - **Bard**
   - Lv1: Discordant Note (Mana) — Party +1 damage for 2 ticks.
   - Lv2: Song of Ease (Mana) — Party regen +1 HP/round for 3 rounds.
