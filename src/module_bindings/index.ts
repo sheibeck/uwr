@@ -104,8 +104,8 @@ import RejectGroupInviteReducer from "./reject_group_invite_reducer";
 export { RejectGroupInviteReducer };
 import StartCombatReducer from "./start_combat_reducer";
 export { StartCombatReducer };
-import ChooseActionReducer from "./choose_action_reducer";
-export { ChooseActionReducer };
+import FleeCombatReducer from "./flee_combat_reducer";
+export { FleeCombatReducer };
 import DismissCombatResultsReducer from "./dismiss_combat_results_reducer";
 export { DismissCombatResultsReducer };
 import EndCombatReducer from "./end_combat_reducer";
@@ -118,8 +118,8 @@ import TickHotReducer from "./tick_hot_reducer";
 export { TickHotReducer };
 import TickCastsReducer from "./tick_casts_reducer";
 export { TickCastsReducer };
-import ResolveRoundReducer from "./resolve_round_reducer";
-export { ResolveRoundReducer };
+import CombatLoopReducer from "./combat_loop_reducer";
+export { CombatLoopReducer };
 
 // Import and reexport all procedure arg types
 
@@ -144,12 +144,12 @@ import CombatEnemyCastRow from "./combat_enemy_cast_table";
 export { CombatEnemyCastRow };
 import CombatEnemyEffectRow from "./combat_enemy_effect_table";
 export { CombatEnemyEffectRow };
+import CombatLoopTickRow from "./combat_loop_tick_table";
+export { CombatLoopTickRow };
 import CombatParticipantRow from "./combat_participant_table";
 export { CombatParticipantRow };
 import CombatResultRow from "./combat_result_table";
 export { CombatResultRow };
-import CombatRoundTickRow from "./combat_round_tick_table";
-export { CombatRoundTickRow };
 import CommandRow from "./command_table";
 export { CommandRow };
 import EffectTickRow from "./effect_tick_table";
@@ -240,8 +240,6 @@ import CharacterCast from "./character_cast_type";
 export { CharacterCast };
 import CharacterEffect from "./character_effect_type";
 export { CharacterEffect };
-import ChooseAction from "./choose_action_type";
-export { ChooseAction };
 import CombatEncounter from "./combat_encounter_type";
 export { CombatEncounter };
 import CombatEnemy from "./combat_enemy_type";
@@ -252,12 +250,14 @@ import CombatEnemyCooldown from "./combat_enemy_cooldown_type";
 export { CombatEnemyCooldown };
 import CombatEnemyEffect from "./combat_enemy_effect_type";
 export { CombatEnemyEffect };
+import CombatLoop from "./combat_loop_type";
+export { CombatLoop };
+import CombatLoopTick from "./combat_loop_tick_type";
+export { CombatLoopTick };
 import CombatParticipant from "./combat_participant_type";
 export { CombatParticipant };
 import CombatResult from "./combat_result_type";
 export { CombatResult };
-import CombatRoundTick from "./combat_round_tick_type";
-export { CombatRoundTick };
 import Command from "./command_type";
 export { Command };
 import CreateCharacter from "./create_character_type";
@@ -290,6 +290,8 @@ import EventPrivate from "./event_private_type";
 export { EventPrivate };
 import EventWorld from "./event_world_type";
 export { EventWorld };
+import FleeCombat from "./flee_combat_type";
+export { FleeCombat };
 import Friend from "./friend_type";
 export { Friend };
 import FriendRequest from "./friend_request_type";
@@ -376,8 +378,6 @@ import RejectGroupInvite from "./reject_group_invite_type";
 export { RejectGroupInvite };
 import RemoveFriend from "./remove_friend_type";
 export { RemoveFriend };
-import ResolveRound from "./resolve_round_type";
-export { ResolveRound };
 import Say from "./say_type";
 export { Say };
 import SendFriendRequest from "./send_friend_request_type";
@@ -559,6 +559,17 @@ const tablesSchema = __schema(
     ],
   }, CombatEnemyEffectRow),
   __table({
+    name: 'combat_loop_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_loop_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, CombatLoopTickRow),
+  __table({
     name: 'combat_participant',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -592,17 +603,6 @@ const tablesSchema = __schema(
       { name: 'combat_result_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatResultRow),
-  __table({
-    name: 'combat_round_tick',
-    indexes: [
-      { name: 'scheduledId', algorithm: 'btree', columns: [
-        'scheduledId',
-      ] },
-    ],
-    constraints: [
-      { name: 'combat_round_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
-    ],
-  }, CombatRoundTickRow),
   __table({
     name: 'command',
     indexes: [
@@ -1065,14 +1065,14 @@ const reducersSchema = __reducers(
   __reducerSchema("accept_group_invite", AcceptGroupInviteReducer),
   __reducerSchema("reject_group_invite", RejectGroupInviteReducer),
   __reducerSchema("start_combat", StartCombatReducer),
-  __reducerSchema("choose_action", ChooseActionReducer),
+  __reducerSchema("flee_combat", FleeCombatReducer),
   __reducerSchema("dismiss_combat_results", DismissCombatResultsReducer),
   __reducerSchema("end_combat", EndCombatReducer),
   __reducerSchema("regen_health", RegenHealthReducer),
   __reducerSchema("tick_effects", TickEffectsReducer),
   __reducerSchema("tick_hot", TickHotReducer),
   __reducerSchema("tick_casts", TickCastsReducer),
-  __reducerSchema("resolve_round", ResolveRoundReducer),
+  __reducerSchema("combat_loop", CombatLoopReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

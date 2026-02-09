@@ -43,7 +43,9 @@ Last updated: 2026-02-09
 - **Combat (MVP):**
   - Location-based enemy spawns; one enemy per group/solo.
   - Leader-only engages for groups; solo engages for self.
-  - Auto-attacks every 3s using equipped weapon; combat tick runs every 1s.
+  - **Realtime loop**: `combat_loop` reducer runs every 1s via `combat_loop_tick`.
+  - Combat loop timing: `COMBAT_LOOP_INTERVAL_MICROS = 1_000_000` (1s).
+  - Auto-attacks every 3s using equipped weapon; auto-attacks pause while casting.
   - Abilities execute immediately or after cast time; auto-attacks pause while casting.
   - Casting is unified server-side via `character_cast` + `cast_tick` (200ms).
   - Aggro from damage only.
@@ -61,7 +63,7 @@ Last updated: 2026-02-09
   - Character deletion with confirmation + full cleanup.
   - Non-mana classes now have `maxMana = 0` and UI hides mana bars.
 - **Regen:**
-  - HP/Mana/Stamina regen every 3s.
+  - HP/Mana/Stamina regen every 8s.
   - Out of combat: full rate. In combat: half rate (every other tick).
   - No regen while dead; revive after combat at 1/4 of max HP/Mana/Stamina.
 
@@ -222,10 +224,10 @@ Last updated: 2026-02-09
 - Friend/FriendRequest.
 - Combat:
   - `enemy_template`, `location_enemy_template`, `enemy_spawn`.
-  - `combat_encounter`, `combat_participant`, `combat_enemy`, `aggro_entry`, `combat_round_tick`.
+  - `combat_encounter`, `combat_participant`, `combat_enemy`, `aggro_entry`, `combat_loop_tick`.
   - `character_cast`, `cast_tick`, `ability_cooldown`.
   - `combat_result`, `health_regen_tick`, `effect_tick`, `hot_tick`.
-  - `enemy_ability`, `combat_enemy_cast` (future enemy abilities; public for UI status).
+  - `enemy_ability`, `combat_enemy_cast`, `combat_enemy_cooldown` (enemy abilities with cast/cooldown; public for UI status).
 - Events: `event_world`, `event_location`, `event_private`, `event_group`.
 - Views: `my_player`, `my_private_events`, `my_group_events`, `my_location_events`,
   `my_friend_requests`, `my_friends`, `my_group_invites`, `my_group_members`, `my_combat_results`.

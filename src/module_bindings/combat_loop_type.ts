@@ -9,12 +9,13 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import CombatLoopTick from "./combat_loop_tick_type";
 
-export default __t.object("CombatRoundTick", {
-  scheduledId: __t.u64(),
-  scheduledAt: __t.scheduleAt(),
-  combatId: __t.u64(),
-  roundNumber: __t.u64(),
+
+export default __t.object("CombatLoop", {
+  get arg() {
+    return CombatLoopTick;
+  },
 });
 
 

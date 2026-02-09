@@ -94,7 +94,7 @@ export const useCombat = ({
   characters,
 }: UseCombatArgs) => {
   const startCombatReducer = useReducer(reducers.startCombat);
-  const chooseActionReducer = useReducer(reducers.chooseAction);
+  const fleeCombatReducer = useReducer(reducers.fleeCombat);
   const dismissResultsReducer = useReducer(reducers.dismissCombatResults);
 
   const activeCombat = computed(() => {
@@ -321,10 +321,8 @@ export const useCombat = ({
 
   const flee = () => {
     if (!connActive.value || !activeCombat.value || !selectedCharacter.value) return;
-    chooseActionReducer({
+    fleeCombatReducer({
       characterId: selectedCharacter.value.id,
-      combatId: activeCombat.value.id,
-      action: 'flee',
     });
   };
   const dismissResults = () => {

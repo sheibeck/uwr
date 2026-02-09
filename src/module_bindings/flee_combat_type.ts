@@ -9,13 +9,9 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
-import CombatRoundTick from "./combat_round_tick_type";
 
-
-export default __t.object("ResolveRound", {
-  get arg() {
-    return CombatRoundTick;
-  },
+export default __t.object("FleeCombat", {
+  characterId: __t.u64(),
 });
 
 

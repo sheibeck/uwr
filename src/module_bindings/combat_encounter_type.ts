@@ -16,8 +16,6 @@ export default __t.object("CombatEncounter", {
   groupId: __t.option(__t.u64()),
   leaderCharacterId: __t.option(__t.u64()),
   state: __t.string(),
-  roundNumber: __t.u64(),
-  roundEndsAt: __t.timestamp(),
   createdAt: __t.timestamp(),
 });
 

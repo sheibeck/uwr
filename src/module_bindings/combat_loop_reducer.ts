@@ -10,10 +10,10 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-import CombatRoundTick from "./combat_round_tick_type";
+import CombatLoopTick from "./combat_loop_tick_type";
 
 export default {
   get arg() {
-    return CombatRoundTick;
+    return CombatLoopTick;
   },
 };

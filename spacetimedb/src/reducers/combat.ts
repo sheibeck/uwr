@@ -4,8 +4,7 @@ export const registerCombatReducers = (deps: any) => {
     t,
     SenderError,
     ScheduleAt,
-    Timestamp,
-    CombatRoundTick,
+    CombatLoopTick,
     HealthRegenTick,
     EffectTick,
     HotTick,
@@ -15,7 +14,7 @@ export const registerCombatReducers = (deps: any) => {
     activeCombatIdForCharacter,
     ensureAvailableSpawn,
     computeEnemyStats,
-    scheduleRound,
+    scheduleCombatTick,
     sumCharacterEffect,
     sumEnemyEffect,
     applyArmorMitigation,
@@ -31,6 +30,121 @@ export const registerCombatReducers = (deps: any) => {
     enemyAbilityCastMicros,
     enemyAbilityCooldownMicros,
   } = deps;
+
+  const AUTO_ATTACK_INTERVAL = 3_000_000n;
+  const RETRY_ATTACK_INTERVAL = 1_000_000n;
+
+  const clearCharacterEffectsOnDeath = (ctx: any, character: any) => {
+    for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
+      if (effect.effectType === 'hp_bonus') {
+        const nextMax = character.maxHp > effect.magnitude ? character.maxHp - effect.magnitude : 0n;
+        const nextHp = character.hp > nextMax ? nextMax : character.hp;
+        ctx.db.character.id.update({ ...character, maxHp: nextMax, hp: nextHp });
+      }
+      ctx.db.characterEffect.id.delete(effect.id);
+    }
+  };
+
+  const markParticipantDead = (
+    ctx: any,
+    participant: any,
+    character: any,
+    enemyName: string
+  ) => {
+    ctx.db.combatParticipant.id.update({ ...participant, status: 'dead' });
+    clearCharacterEffectsOnDeath(ctx, character);
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'combat',
+      `You have died. Killed by ${enemyName}.`
+    );
+  };
+
+  const clearCombatArtifacts = (ctx: any, combatId: bigint) => {
+    for (const row of ctx.db.combatLoopTick.iter()) {
+      if (row.combatId !== combatId) continue;
+      ctx.db.combatLoopTick.id.delete(row.scheduledId);
+    }
+    for (const row of ctx.db.combatParticipant.by_combat.filter(combatId)) {
+      ctx.db.combatParticipant.id.delete(row.id);
+    }
+    for (const row of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+      ctx.db.aggroEntry.id.delete(row.id);
+    }
+    for (const row of ctx.db.combatEnemy.by_combat.filter(combatId)) {
+      ctx.db.combatEnemy.id.delete(row.id);
+    }
+    for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combatId)) {
+      ctx.db.combatEnemyEffect.id.delete(row.id);
+    }
+    for (const row of ctx.db.combatEnemyCast.by_combat.filter(combatId)) {
+      ctx.db.combatEnemyCast.id.delete(row.id);
+    }
+    if (ctx.db.combatEnemyCooldown) {
+      for (const row of ctx.db.combatEnemyCooldown.by_combat.filter(combatId)) {
+        ctx.db.combatEnemyCooldown.id.delete(row.id);
+      }
+    }
+  };
+
+  const resolveAttack = (
+    ctx: any,
+    {
+      seed,
+      baseDamage,
+      targetArmor,
+      canBlock,
+      canParry,
+      canDodge,
+      currentHp,
+      logTargetId,
+      logOwnerId,
+      messages,
+      applyHp,
+    }: {
+      seed: bigint;
+      baseDamage: bigint;
+      targetArmor: bigint;
+      canBlock: boolean;
+      canParry: boolean;
+      canDodge: boolean;
+      currentHp: bigint;
+      logTargetId: bigint;
+      logOwnerId: bigint;
+      messages: {
+        dodge: string | ((damage: bigint) => string);
+        miss: string | ((damage: bigint) => string);
+        parry: string | ((damage: bigint) => string);
+        block: string | ((damage: bigint) => string);
+        hit: string | ((damage: bigint) => string);
+      };
+      applyHp: (nextHp: bigint) => void;
+    }
+  ) => {
+    const reducedDamage = applyArmorMitigation(baseDamage, targetArmor);
+    const outcome = rollAttackOutcome(seed, { canBlock, canParry, canDodge });
+    let finalDamage = (reducedDamage * outcome.multiplier) / 100n;
+    if (finalDamage < 0n) finalDamage = 0n;
+    const nextHp = currentHp > finalDamage ? currentHp - finalDamage : 0n;
+    applyHp(nextHp);
+
+    const template =
+      outcome.outcome === 'dodge'
+        ? messages.dodge
+        : outcome.outcome === 'miss'
+          ? messages.miss
+          : outcome.outcome === 'parry'
+            ? messages.parry
+            : outcome.outcome === 'block'
+              ? messages.block
+              : messages.hit;
+    const message = typeof template === 'function' ? template(finalDamage) : template;
+    const type = outcome.outcome === 'hit' ? 'damage' : 'avoid';
+    appendPrivateEvent(ctx, logTargetId, logOwnerId, type, message);
+    return { outcome: outcome.outcome, finalDamage, nextHp };
+  };
 
   spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
@@ -93,8 +207,6 @@ export const registerCombatReducers = (deps: any) => {
       groupId: groupId ?? undefined,
       leaderCharacterId: groupId ? character.id : undefined,
       state: 'active',
-      roundNumber: 1n,
-      roundEndsAt: new Timestamp(ctx.timestamp.microsSinceUnixEpoch + 10_000_000n),
       createdAt: ctx.timestamp,
     });
 
@@ -113,7 +225,7 @@ export const registerCombatReducers = (deps: any) => {
       attackDamage,
       armorClass,
       aggroTargetCharacterId: undefined,
-      nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + 3_000_000n,
+      nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
     });
 
     for (const p of participants) {
@@ -122,8 +234,7 @@ export const registerCombatReducers = (deps: any) => {
         combatId: combat.id,
         characterId: p.id,
         status: 'active',
-        selectedAction: undefined,
-        nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + 3_000_000n,
+        nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
       });
       ctx.db.aggroEntry.insert({
         id: 0n,
@@ -143,46 +254,33 @@ export const registerCombatReducers = (deps: any) => {
       );
     }
 
-    scheduleRound(ctx, combat.id, 1n);
+    scheduleCombatTick(ctx, combat.id);
   });
 
-  spacetimedb.reducer(
-    'choose_action',
-    { characterId: t.u64(), combatId: t.u64(), action: t.string() },
-    (ctx, args) => {
-      const character = requireCharacterOwnedBy(ctx, args.characterId);
-      const combat = ctx.db.combatEncounter.id.find(args.combatId);
-      if (!combat || combat.state !== 'active') throw new SenderError('Combat not active');
+  spacetimedb.reducer('flee_combat', { characterId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const combatId = activeCombatIdForCharacter(ctx, character.id);
+    if (!combatId) throw new SenderError('Combat not active');
+    const combat = ctx.db.combatEncounter.id.find(combatId);
+    if (!combat || combat.state !== 'active') throw new SenderError('Combat not active');
 
-      for (const participant of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
-        if (participant.characterId !== character.id) continue;
-        if (participant.status !== 'active') return;
-        const action = args.action.toLowerCase();
-        if (action === 'flee') {
-          ctx.db.combatParticipant.id.update({
-            ...participant,
-            status: 'fled',
-            selectedAction: 'flee',
-          });
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'combat',
-            'You are attempting to flee.'
-          );
-          return;
-        }
-        if (action === 'attack' || action === 'skip' || action.startsWith('ability:')) {
-          ctx.db.combatParticipant.id.update({
-            ...participant,
-            selectedAction: action,
-          });
-          return;
-        }
-      }
+    for (const participant of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
+      if (participant.characterId !== character.id) continue;
+      if (participant.status !== 'active') return;
+      ctx.db.combatParticipant.id.update({
+        ...participant,
+        status: 'fled',
+      });
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'combat',
+        'You are attempting to flee.'
+      );
+      return;
     }
-  );
+  });
 
   spacetimedb.reducer('dismiss_combat_results', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
@@ -218,14 +316,7 @@ export const registerCombatReducers = (deps: any) => {
       const group = ctx.db.group.id.find(combat.groupId);
       if (!group) throw new SenderError('Group not found');
       if (group.leaderCharacterId !== character.id) {
-        let hasTick = false;
-        for (const tick of ctx.db.combatRoundTick.iter()) {
-          if (tick.combatId === combat.id) {
-            hasTick = true;
-            break;
-          }
-        }
-        if (hasTick) throw new SenderError('Only the group leader can end combat');
+        throw new SenderError('Only the group leader can end combat');
       }
     }
 
@@ -258,23 +349,7 @@ export const registerCombatReducers = (deps: any) => {
       ctx.db.enemySpawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
     }
 
-    for (const row of ctx.db.combatRoundTick.iter()) {
-      if (row.combatId !== combat.id) continue;
-      ctx.db.combatRoundTick.id.delete(row.scheduledId);
-    }
-    for (const row of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
-      ctx.db.combatParticipant.id.delete(row.id);
-    }
-    for (const row of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
-      ctx.db.aggroEntry.id.delete(row.id);
-    }
-    for (const row of ctx.db.combatEnemy.by_combat.filter(combat.id)) {
-      ctx.db.combatEnemy.id.delete(row.id);
-    }
-    for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
-      ctx.db.combatEnemyEffect.id.delete(row.id);
-    }
-
+    clearCombatArtifacts(ctx, combat.id);
     ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
   });
 
@@ -295,7 +370,7 @@ export const registerCombatReducers = (deps: any) => {
     for (const character of ctx.db.character.iter()) {
       if (character.hp === 0n) continue;
 
-      const inCombat = !!activeCombatIdForCharacter(ctx, character.id);
+    const inCombat = !!activeCombatIdForCharacter(ctx, character.id);
       if (inCombat && !halfTick) continue;
 
       const hpRegen = inCombat ? HP_REGEN_IN : HP_REGEN_OUT;
@@ -323,14 +398,14 @@ export const registerCombatReducers = (deps: any) => {
     for (const combat of ctx.db.combatEncounter.iter()) {
       if (combat.state !== 'active') continue;
       let hasTick = false;
-      for (const tick of ctx.db.combatRoundTick.iter()) {
+      for (const tick of ctx.db.combatLoopTick.iter()) {
         if (tick.combatId === combat.id) {
           hasTick = true;
           break;
         }
       }
       if (!hasTick) {
-        scheduleRound(ctx, combat.id, combat.roundNumber);
+        scheduleCombatTick(ctx, combat.id);
       }
     }
 
@@ -552,12 +627,9 @@ export const registerCombatReducers = (deps: any) => {
     });
   });
 
-  spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { arg }) => {
+  spacetimedb.reducer('combat_loop', { arg: CombatLoopTick.rowType }, (ctx, { arg }) => {
     const combat = ctx.db.combatEncounter.id.find(arg.combatId);
     if (!combat || combat.state !== 'active') return;
-    if (combat.roundNumber !== arg.roundNumber) {
-      ctx.db.combatEncounter.id.update({ ...combat, roundNumber: arg.roundNumber });
-    }
 
     const enemy = [...ctx.db.combatEnemy.by_combat.filter(combat.id)][0];
     if (!enemy) {
@@ -567,23 +639,7 @@ export const registerCombatReducers = (deps: any) => {
       if (spawn) {
         ctx.db.enemySpawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
       }
-      for (const row of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
-        ctx.db.combatParticipant.id.delete(row.id);
-      }
-      for (const row of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
-        ctx.db.aggroEntry.id.delete(row.id);
-      }
-    for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
-      ctx.db.combatEnemyEffect.id.delete(row.id);
-    }
-    for (const row of ctx.db.combatEnemyCast.by_combat.filter(combat.id)) {
-      ctx.db.combatEnemyCast.id.delete(row.id);
-    }
-    if (ctx.db.combatEnemyCooldown) {
-      for (const row of ctx.db.combatEnemyCooldown.by_combat.filter(combat.id)) {
-        ctx.db.combatEnemyCooldown.id.delete(row.id);
-      }
-    }
+      clearCombatArtifacts(ctx, combat.id);
       ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
       return;
     }
@@ -594,14 +650,7 @@ export const registerCombatReducers = (deps: any) => {
       const character = ctx.db.character.id.find(p.characterId);
       if (character && character.hp === 0n) {
         ctx.db.combatParticipant.id.update({ ...p, status: 'dead' });
-        for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
-          if (effect.effectType === 'hp_bonus') {
-            const nextMax = character.maxHp > effect.magnitude ? character.maxHp - effect.magnitude : 0n;
-            const nextHp = character.hp > nextMax ? nextMax : character.hp;
-            ctx.db.character.id.update({ ...character, maxHp: nextMax, hp: nextHp });
-          }
-          ctx.db.characterEffect.id.delete(effect.id);
-        }
+        clearCharacterEffectsOnDeath(ctx, character);
       }
     }
     const refreshedParticipants = [...ctx.db.combatParticipant.by_combat.filter(combat.id)];
@@ -724,18 +773,28 @@ export const registerCombatReducers = (deps: any) => {
       if (!currentEnemy || currentEnemy.currentHp === 0n) continue;
       const weapon = deps.getEquippedWeaponStats(ctx, character.id);
       const damage = 5n + character.level + weapon.baseDamage + (weapon.dps / 2n);
-      const reducedDamage = applyArmorMitigation(damage, currentEnemy.armorClass);
       const outcomeSeed = nowMicros + character.id + currentEnemy.id;
-      const outcome = rollAttackOutcome(outcomeSeed, {
+      const { finalDamage, nextHp } = resolveAttack(ctx, {
+        seed: outcomeSeed,
+        baseDamage: damage,
+        targetArmor: currentEnemy.armorClass,
         canBlock: hasShieldEquipped(ctx, character.id),
         canParry: canParry(character.className),
         canDodge: true,
+        currentHp: currentEnemy.currentHp,
+        logTargetId: character.id,
+        logOwnerId: character.ownerUserId,
+        messages: {
+          dodge: `${enemyName} dodges your auto-attack.`,
+          miss: `You miss ${enemyName} with auto-attack.`,
+          parry: `${enemyName} parries your auto-attack.`,
+          block: (damage) => `${enemyName} blocks your auto-attack for ${damage}.`,
+          hit: (damage) => `You hit ${enemyName} with auto-attack for ${damage}.`,
+        },
+        applyHp: (updatedHp) => {
+          ctx.db.combatEnemy.id.update({ ...currentEnemy, currentHp: updatedHp });
+        },
       });
-      let finalDamage = (reducedDamage * outcome.multiplier) / 100n;
-      if (finalDamage < 0n) finalDamage = 0n;
-      const nextHp =
-        currentEnemy.currentHp > finalDamage ? currentEnemy.currentHp - finalDamage : 0n;
-      ctx.db.combatEnemy.id.update({ ...currentEnemy, currentHp: nextHp });
 
       if (finalDamage > 0n) {
         for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
@@ -746,51 +805,9 @@ export const registerCombatReducers = (deps: any) => {
         }
       }
 
-      if (outcome.outcome === 'dodge') {
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'avoid',
-          `${enemyName} dodges your auto-attack.`
-        );
-      } else if (outcome.outcome === 'miss') {
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'avoid',
-          `You miss ${enemyName} with auto-attack.`
-        );
-      } else if (outcome.outcome === 'parry') {
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'avoid',
-          `${enemyName} parries your auto-attack.`
-        );
-      } else if (outcome.outcome === 'block') {
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'avoid',
-          `${enemyName} blocks your auto-attack for ${finalDamage}.`
-        );
-      } else {
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'damage',
-          `You hit ${enemyName} with auto-attack for ${finalDamage}.`
-        );
-      }
-
       ctx.db.combatParticipant.id.update({
         ...participant,
-        nextAutoAttackAt: nowMicros + 3_000_000n,
+        nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
       });
     }
 
@@ -831,7 +848,7 @@ export const registerCombatReducers = (deps: any) => {
           characterId: character.id,
           groupId: combat.groupId,
           combatId: combat.id,
-          summary: `Victory against ${enemyName} in ${combat.roundNumber} rounds.${fallenSuffix}`,
+          summary: `Victory against ${enemyName}.${fallenSuffix}`,
           createdAt: ctx.timestamp,
         });
 
@@ -904,40 +921,7 @@ export const registerCombatReducers = (deps: any) => {
           });
         }
       }
-      for (const row of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
-        ctx.db.combatParticipant.id.delete(row.id);
-      }
-      for (const row of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
-        ctx.db.aggroEntry.id.delete(row.id);
-      }
-      for (const row of ctx.db.combatEnemy.by_combat.filter(combat.id)) {
-        ctx.db.combatEnemy.id.delete(row.id);
-      }
-      for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
-        ctx.db.combatEnemyEffect.id.delete(row.id);
-      }
-      for (const row of ctx.db.combatEnemyCast.by_combat.filter(combat.id)) {
-        ctx.db.combatEnemyCast.id.delete(row.id);
-      }
-      if (ctx.db.combatEnemyCooldown) {
-        for (const row of ctx.db.combatEnemyCooldown.by_combat.filter(combat.id)) {
-          ctx.db.combatEnemyCooldown.id.delete(row.id);
-        }
-        for (const row of ctx.db.combatEnemyCooldown.by_combat.filter(combat.id)) {
-          ctx.db.combatEnemyCooldown.id.delete(row.id);
-        }
-      }
-      for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
-        ctx.db.combatEnemyEffect.id.delete(row.id);
-      }
-      for (const row of ctx.db.combatEnemyCast.by_combat.filter(combat.id)) {
-        ctx.db.combatEnemyCast.id.delete(row.id);
-      }
-      if (ctx.db.combatEnemyCooldown) {
-        for (const row of ctx.db.combatEnemyCooldown.by_combat.filter(combat.id)) {
-          ctx.db.combatEnemyCooldown.id.delete(row.id);
-        }
-      }
+      clearCombatArtifacts(ctx, combat.id);
       ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
       return;
     }
@@ -958,7 +942,7 @@ export const registerCombatReducers = (deps: any) => {
         ctx.db.combatEnemyEffect.id.delete(skipEffect.id);
         ctx.db.combatEnemy.id.update({
           ...enemySnapshot,
-          nextAutoAttackAt: nowMicros + 3_000_000n,
+          nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
         });
         for (const participant of activeParticipants) {
           const character = ctx.db.character.id.find(participant.characterId);
@@ -983,93 +967,44 @@ export const registerCombatReducers = (deps: any) => {
           const scaledDamage = (baseDamage * damageMultiplier) / 100n;
           const effectiveArmor =
             targetCharacter.armorClass + sumCharacterEffect(ctx, targetCharacter.id, 'ac_bonus');
-          const reducedDamage = applyArmorMitigation(scaledDamage, effectiveArmor);
           const outcomeSeed = nowMicros + enemySnapshot.id + targetCharacter.id;
-          const outcome = rollAttackOutcome(outcomeSeed, {
+          const { nextHp } = resolveAttack(ctx, {
+            seed: outcomeSeed,
+            baseDamage: scaledDamage,
+            targetArmor: effectiveArmor,
             canBlock: hasShieldEquipped(ctx, targetCharacter.id),
             canParry: canParry(targetCharacter.className),
             canDodge: true,
+            currentHp: targetCharacter.hp,
+            logTargetId: targetCharacter.id,
+            logOwnerId: targetCharacter.ownerUserId,
+            messages: {
+              dodge: `You dodge ${enemyName}'s auto-attack.`,
+              miss: `${enemyName} misses you with auto-attack.`,
+              parry: `You parry ${enemyName}'s auto-attack.`,
+              block: (damage) => `You block ${enemyName}'s auto-attack for ${damage}.`,
+              hit: (damage) => `${enemyName} hits you with auto-attack for ${damage}.`,
+            },
+            applyHp: (updatedHp) => {
+              ctx.db.character.id.update({ ...targetCharacter, hp: updatedHp });
+            },
           });
-          let finalDamage = (reducedDamage * outcome.multiplier) / 100n;
-          if (finalDamage < 0n) finalDamage = 0n;
-          const nextHp =
-            targetCharacter.hp > finalDamage ? targetCharacter.hp - finalDamage : 0n;
-          ctx.db.character.id.update({ ...targetCharacter, hp: nextHp });
-          if (outcome.outcome === 'dodge') {
-            appendPrivateEvent(
-              ctx,
-              targetCharacter.id,
-              targetCharacter.ownerUserId,
-              'avoid',
-              `You dodge ${enemyName}'s auto-attack.`
-            );
-          } else if (outcome.outcome === 'miss') {
-            appendPrivateEvent(
-              ctx,
-              targetCharacter.id,
-              targetCharacter.ownerUserId,
-              'avoid',
-              `${enemyName} misses you with auto-attack.`
-            );
-          } else if (outcome.outcome === 'parry') {
-            appendPrivateEvent(
-              ctx,
-              targetCharacter.id,
-              targetCharacter.ownerUserId,
-              'avoid',
-              `You parry ${enemyName}'s auto-attack.`
-            );
-          } else if (outcome.outcome === 'block') {
-            appendPrivateEvent(
-              ctx,
-              targetCharacter.id,
-              targetCharacter.ownerUserId,
-              'avoid',
-              `You block ${enemyName}'s auto-attack for ${finalDamage}.`
-            );
-          } else {
-            appendPrivateEvent(
-              ctx,
-              targetCharacter.id,
-              targetCharacter.ownerUserId,
-              'damage',
-              `${enemyName} hits you with auto-attack for ${finalDamage}.`
-            );
-          }
           if (nextHp === 0n) {
             for (const p of participants) {
               if (p.characterId === targetCharacter.id) {
-                ctx.db.combatParticipant.id.update({ ...p, status: 'dead' });
-                for (const effect of ctx.db.characterEffect.by_character.filter(targetCharacter.id)) {
-                  if (effect.effectType === 'hp_bonus') {
-                    const nextMax =
-                      targetCharacter.maxHp > effect.magnitude
-                        ? targetCharacter.maxHp - effect.magnitude
-                        : 0n;
-                    const nextHp = targetCharacter.hp > nextMax ? nextMax : targetCharacter.hp;
-                    ctx.db.character.id.update({ ...targetCharacter, maxHp: nextMax, hp: nextHp });
-                  }
-                  ctx.db.characterEffect.id.delete(effect.id);
-                }
-                appendPrivateEvent(
-                  ctx,
-                  targetCharacter.id,
-                  targetCharacter.ownerUserId,
-                  'combat',
-                  `You have died. Killed by ${enemyName}.`
-                );
+                markParticipantDead(ctx, p, targetCharacter, enemyName);
                 break;
               }
             }
           }
           ctx.db.combatEnemy.id.update({
             ...enemySnapshot,
-            nextAutoAttackAt: nowMicros + 3_000_000n,
+            nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
           });
         } else {
           ctx.db.combatEnemy.id.update({
             ...enemySnapshot,
-            nextAutoAttackAt: nowMicros + 1_000_000n,
+            nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL,
           });
         }
       }
@@ -1092,14 +1027,7 @@ export const registerCombatReducers = (deps: any) => {
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (character && character.hp === 0n && p.status !== 'dead') {
-          ctx.db.combatParticipant.id.update({ ...p, status: 'dead' });
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'combat',
-            `You have died. Killed by ${enemyName}.`
-          );
+          markParticipantDead(ctx, p, character, enemyName);
         }
       }
       const spawn = [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
@@ -1125,7 +1053,7 @@ export const registerCombatReducers = (deps: any) => {
           characterId: character.id,
           groupId: combat.groupId,
           combatId: combat.id,
-          summary: `Defeat against ${enemyName} after ${combat.roundNumber} rounds.${fallenSuffix}`,
+          summary: `Defeat against ${enemyName}.${fallenSuffix}`,
           createdAt: ctx.timestamp,
         });
       }
@@ -1151,27 +1079,11 @@ export const registerCombatReducers = (deps: any) => {
           });
         }
       }
-      for (const row of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
-        ctx.db.combatParticipant.id.delete(row.id);
-      }
-      for (const row of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
-        ctx.db.aggroEntry.id.delete(row.id);
-      }
-      for (const row of ctx.db.combatEnemy.by_combat.filter(combat.id)) {
-        ctx.db.combatEnemy.id.delete(row.id);
-      }
-      for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
-        ctx.db.combatEnemyEffect.id.delete(row.id);
-      }
+      clearCombatArtifacts(ctx, combat.id);
       ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
       return;
     }
 
-    const nextRound = combat.roundNumber + 1n;
-    ctx.db.combatEncounter.id.update({
-      ...combat,
-      roundNumber: nextRound,
-    });
-    scheduleRound(ctx, combat.id, nextRound);
+    scheduleCombatTick(ctx, combat.id);
   });
 };

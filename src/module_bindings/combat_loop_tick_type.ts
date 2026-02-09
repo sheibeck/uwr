@@ -10,10 +10,10 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("ChooseAction", {
-  characterId: __t.u64(),
+export default __t.object("CombatLoopTick", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
   combatId: __t.u64(),
-  action: __t.string(),
 });
 
 

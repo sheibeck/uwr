@@ -389,8 +389,6 @@ const CombatEncounter = table(
     groupId: t.u64().optional(),
     leaderCharacterId: t.u64().optional(),
     state: t.string(),
-    roundNumber: t.u64(),
-    roundEndsAt: t.timestamp(),
     createdAt: t.timestamp(),
   }
 );
@@ -409,7 +407,6 @@ const CombatParticipant = table(
     combatId: t.u64(),
     characterId: t.u64(),
     status: t.string(),
-    selectedAction: t.string().optional(),
     nextAutoAttackAt: t.u64(),
   }
 );
@@ -496,16 +493,15 @@ const AggroEntry = table(
   }
 );
 
-const CombatRoundTick = table(
+const CombatLoopTick = table(
   {
-    name: 'combat_round_tick',
-    scheduled: 'resolve_round',
+    name: 'combat_loop_tick',
+    scheduled: 'combat_loop',
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
     scheduledAt: t.scheduleAt(),
     combatId: t.u64(),
-    roundNumber: t.u64(),
   }
 );
 
@@ -665,7 +661,7 @@ export const spacetimedb = schema(
   CharacterEffect,
   CombatEnemyEffect,
   AggroEntry,
-  CombatRoundTick,
+  CombatLoopTick,
   HealthRegenTick,
   EffectTick,
   HotTick,
@@ -2568,6 +2564,7 @@ function executeEnemyAbility(
   }
 }
 
+const COMBAT_LOOP_INTERVAL_MICROS = 1_000_000n;
 const MAX_LEVEL = 10n;
 const XP_TOTAL_BY_LEVEL = [
   0n, // L1
@@ -2903,21 +2900,13 @@ function findCharacterByName(ctx: any, name: string) {
   return found;
 }
 
-function scheduleRound(ctx: any, combatId: bigint, roundNumber: bigint) {
-  const nextAt = ctx.timestamp.microsSinceUnixEpoch + 1_000_000n;
-  ctx.db.combatRoundTick.insert({
+function scheduleCombatTick(ctx: any, combatId: bigint) {
+  const nextAt = ctx.timestamp.microsSinceUnixEpoch + COMBAT_LOOP_INTERVAL_MICROS;
+  ctx.db.combatLoopTick.insert({
     scheduledId: 0n,
     scheduledAt: ScheduleAt.time(nextAt),
     combatId,
-    roundNumber,
   });
-  const combat = ctx.db.combatEncounter.id.find(combatId);
-  if (combat) {
-    ctx.db.combatEncounter.id.update({
-      ...combat,
-      roundEndsAt: new Timestamp(nextAt),
-    });
-  }
 }
 
 function ensureLocationEnemyTemplates(ctx: any) {
@@ -3419,7 +3408,7 @@ const reducerDeps = {
   GroupMember,
   GroupInvite,
   CombatParticipant,
-  CombatRoundTick,
+  CombatLoopTick,
   HealthRegenTick,
   EffectTick,
   HotTick,
@@ -3439,7 +3428,7 @@ const reducerDeps = {
   ensureAvailableSpawn,
   computeEnemyStats,
   activeCombatIdForCharacter,
-  scheduleRound,
+  scheduleCombatTick,
   recomputeCharacterDerived,
   executeAbility,
   executeEnemyAbility,

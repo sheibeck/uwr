@@ -15,6 +15,5 @@ export default __t.row({
   combatId: __t.u64(),
   characterId: __t.u64(),
   status: __t.string(),
-  selectedAction: __t.option(__t.string()),
   nextAutoAttackAt: __t.u64(),
 });
