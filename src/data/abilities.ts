@@ -11,19 +11,19 @@ export type Ability = {
 };
 
 export const abilities: Ability[] = [
-  { key: 'bard_discordant_note', name: 'Discordant Note', className: 'Bard', level: 1, kind: 'combat', resource: 'mana', description: 'Strike with a dissonant note to weaken the target.', castSeconds: 0 },
+  { key: 'bard_discordant_note', name: 'Discordant Note', className: 'Bard', level: 1, kind: 'combat', resource: 'mana', description: 'A quick note that sharpens the partyâ€™s edge.', castSeconds: 0, cooldownSeconds: 6 },
   { key: 'bard_song_of_ease', name: 'Song of Ease', className: 'Bard', level: 2, kind: 'utility', resource: 'mana', description: 'A soothing song that restores party endurance over time.', castSeconds: 0 },
   { key: 'bard_echoed_chord', name: 'Echoed Chord', className: 'Bard', level: 3, kind: 'combat', resource: 'mana', description: 'A resonant strike that grows stronger with allies nearby.', castSeconds: 0 },
   { key: 'bard_harmony', name: 'Harmony', className: 'Bard', level: 4, kind: 'utility', resource: 'mana', description: 'Bolster the party with a brief surge of coordination.', castSeconds: 0 },
   { key: 'bard_crushing_crescendo', name: 'Crushing Crescendo', className: 'Bard', level: 5, kind: 'combat', resource: 'mana', description: 'A powerful crescendo that punishes weakened foes.', castSeconds: 0 },
 
-  { key: 'enchanter_mind_lash', name: 'Mind Lash', className: 'Enchanter', level: 1, kind: 'combat', resource: 'mana', description: 'Psychic lash that deals damage over time.', castSeconds: 1 },
+  { key: 'enchanter_mind_lash', name: 'Mind Fray', className: 'Enchanter', level: 1, kind: 'combat', resource: 'mana', description: 'Mind‑rending magic that weakens and lingers.', castSeconds: 1, cooldownSeconds: 6 },
   { key: 'enchanter_clarity', name: 'Clarity', className: 'Enchanter', level: 2, kind: 'utility', resource: 'mana', description: 'Restore mana to a party member.', castSeconds: 0 },
   { key: 'enchanter_slow', name: 'Slow', className: 'Enchanter', level: 3, kind: 'combat', resource: 'mana', description: 'Reduce the enemy’s attack power for a short duration.', castSeconds: 1 },
   { key: 'enchanter_clarity_ii', name: 'Clarity II', className: 'Enchanter', level: 4, kind: 'utility', resource: 'mana', description: 'Restore more mana to a party member.', castSeconds: 0 },
   { key: 'enchanter_charm_fray', name: 'Charm Fray', className: 'Enchanter', level: 5, kind: 'combat', resource: 'mana', description: 'Damage and weaken the enemy’s offense.', castSeconds: 1 },
 
-  { key: 'cleric_minor_heal', name: 'Minor Heal', className: 'Cleric', level: 1, kind: 'combat', resource: 'mana', description: 'Restore health to a single ally.', castSeconds: 1 },
+  { key: 'cleric_minor_heal', name: 'Mend', className: 'Cleric', level: 1, kind: 'combat', resource: 'mana', description: 'Restore health to a single ally.', castSeconds: 1 },
   { key: 'cleric_blessing', name: 'Blessing', className: 'Cleric', level: 2, kind: 'utility', resource: 'mana', description: 'Increase an ally’s maximum health.', castSeconds: 0 },
   { key: 'cleric_smite', name: 'Smite', className: 'Cleric', level: 3, kind: 'combat', resource: 'mana', description: 'Holy strike that damages an enemy.', castSeconds: 1 },
   { key: 'cleric_sanctuary', name: 'Sanctuary', className: 'Cleric', level: 4, kind: 'utility', resource: 'mana', description: 'Briefly fortify the party’s defenses.', castSeconds: 0 },
@@ -47,7 +47,7 @@ export const abilities: Ability[] = [
   { key: 'rogue_evasion', name: 'Evasion', className: 'Rogue', level: 4, kind: 'utility', resource: 'stamina', description: 'Briefly increase your chance to avoid attacks.', castSeconds: 0 },
   { key: 'rogue_shadow_strike', name: 'Shadow Strike', className: 'Rogue', level: 5, kind: 'combat', resource: 'stamina', description: 'A deadly strike empowered by debuffs.', castSeconds: 0 },
 
-  { key: 'paladin_holy_strike', name: 'Holy Strike', className: 'Paladin', level: 1, kind: 'combat', resource: 'mana', description: 'Smite the enemy with holy power.', castSeconds: 0 },
+  { key: 'paladin_holy_strike', name: 'Holy Strike', className: 'Paladin', level: 1, kind: 'combat', resource: 'mana', description: 'Smite the enemy and steady your guard.', castSeconds: 0, cooldownSeconds: 4 },
   { key: 'paladin_prayer', name: 'Prayer', className: 'Paladin', level: 2, kind: 'utility', resource: 'mana', description: 'Bless the party with greater vitality.', castSeconds: 0 },
   { key: 'paladin_shield_of_faith', name: 'Shield of Faith', className: 'Paladin', level: 3, kind: 'combat', resource: 'mana', description: 'Raise a protective ward of faith.', castSeconds: 1 },
   { key: 'paladin_devotion', name: 'Devotion', className: 'Paladin', level: 4, kind: 'utility', resource: 'mana', description: 'Inspire allies to strike harder.', castSeconds: 0 },
@@ -71,7 +71,7 @@ export const abilities: Ability[] = [
   { key: 'spellblade_ward', name: 'Ward', className: 'Spellblade', level: 4, kind: 'utility', resource: 'mana', description: 'Conjure a ward to increase defenses.', castSeconds: 0 },
   { key: 'spellblade_spellstorm', name: 'Spellstorm', className: 'Spellblade', level: 5, kind: 'combat', resource: 'mana', description: 'Unleash a storm of arcane strikes.', castSeconds: 2 },
 
-  { key: 'shaman_spirit_bolt', name: 'Spirit Bolt', className: 'Shaman', level: 1, kind: 'combat', resource: 'mana', description: 'Hurl a bolt of spirit energy at the enemy.', castSeconds: 2, cooldownSeconds: 0 },
+  { key: 'shaman_spirit_bolt', name: 'Spirit Mender', className: 'Shaman', level: 1, kind: 'combat', resource: 'mana', description: 'Heal an ally and grant a brief regeneration.', castSeconds: 1, cooldownSeconds: 6 },
   { key: 'shaman_totem_of_vigor', name: 'Totem of Vigor', className: 'Shaman', level: 2, kind: 'utility', resource: 'mana', description: 'Empower a party member with rapid healing.', castSeconds: 2, cooldownSeconds: 0 },
   { key: 'shaman_hex', name: 'Hex', className: 'Shaman', level: 3, kind: 'combat', resource: 'mana', description: 'Hex the enemy to reduce their damage.', castSeconds: 1, cooldownSeconds: 0 },
   { key: 'shaman_ancestral_ward', name: 'Ancestral Ward', className: 'Shaman', level: 4, kind: 'utility', resource: 'mana', description: 'Ward an ally with ancestral protection.', castSeconds: 0, cooldownSeconds: 0 },
@@ -89,7 +89,7 @@ export const abilities: Ability[] = [
   { key: 'monk_inner_focus', name: 'Inner Focus', className: 'Monk', level: 4, kind: 'utility', resource: 'stamina', description: 'Heighten your defenses for a short time.', castSeconds: 0 },
   { key: 'monk_tiger_flurry', name: 'Tiger Flurry', className: 'Monk', level: 5, kind: 'combat', resource: 'stamina', description: 'A flurry of rapid strikes.', castSeconds: 0 },
 
-  { key: 'druid_thorn_lash', name: 'Thorn Lash', className: 'Druid', level: 1, kind: 'combat', resource: 'mana', description: 'Whip the enemy with thorned vines.', castSeconds: 0 },
+  { key: 'druid_thorn_lash', name: 'Thorn Lash', className: 'Druid', level: 1, kind: 'combat', resource: 'mana', description: 'Vines lash the enemy and soothe you slightly.', castSeconds: 1, cooldownSeconds: 6 },
   { key: 'druid_regrowth', name: 'Regrowth', className: 'Druid', level: 2, kind: 'utility', resource: 'mana', description: 'Restore health to an ally.', castSeconds: 1 },
   { key: 'druid_bramble', name: 'Bramble', className: 'Druid', level: 3, kind: 'combat', resource: 'mana', description: 'Entangling brambles damage over time.', castSeconds: 1 },
   { key: 'druid_natures_gift', name: "Nature's Gift", className: 'Druid', level: 4, kind: 'utility', resource: 'mana', description: 'Bless the party with a natural boon.', castSeconds: 0 },

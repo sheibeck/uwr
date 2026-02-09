@@ -1219,7 +1219,16 @@ function executeAbility(
 
   switch (abilityKey) {
     case 'shaman_spirit_bolt':
-      applyDamage(125n, 2n);
+      if (!targetCharacter) throw new SenderError('Target required');
+      applyHeal(targetCharacter, 6n, 'Spirit Mender');
+      addCharacterEffect(ctx, targetCharacter.id, 'regen', 3n, 2n, 'Spirit Mender');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        `Spirit Mender soothes ${targetCharacter.name}.`
+      );
       return;
     case 'shaman_totem_of_vigor':
       if (!targetCharacter) throw new SenderError('Target required');
@@ -1281,9 +1290,14 @@ function executeAbility(
       applyDamage(175n, 5n, { threatBonus: 5n });
       return;
     case 'bard_discordant_note':
-      applyDamage(120n, 1n, {
-        debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Discordant Note' },
-      });
+      applyPartyEffect('damage_up', 1n, 2n, 'Discordant Note');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Discordant Note sharpens the party.'
+      );
       return;
     case 'bard_song_of_ease':
       applyPartyEffect('stamina_regen', 3n, 3n, 'Song of Ease');
@@ -1317,7 +1331,10 @@ function executeAbility(
       return;
     }
     case 'enchanter_mind_lash':
-      applyDamage(115n, 1n, { dot: { magnitude: 3n, rounds: 2n, source: 'Mind Lash' } });
+      applyDamage(105n, 1n, {
+        dot: { magnitude: 2n, rounds: 2n, source: 'Mind Fray' },
+        debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Mind Fray' },
+      });
       return;
     case 'enchanter_clarity':
       if (!targetCharacter) throw new SenderError('Target required');
@@ -1353,7 +1370,7 @@ function executeAbility(
       return;
     case 'cleric_minor_heal':
       if (!targetCharacter) throw new SenderError('Target required');
-      applyHeal(targetCharacter, 8n, 'Minor Heal');
+      applyHeal(targetCharacter, 10n, 'Mend');
       return;
     case 'cleric_blessing':
       if (!targetCharacter) throw new SenderError('Target required');
@@ -1459,7 +1476,15 @@ function executeAbility(
       return;
     }
     case 'paladin_holy_strike':
-      applyDamage(130n, 2n);
+      applyDamage(120n, 1n);
+      addCharacterEffect(ctx, character.id, 'ac_bonus', 2n, 2n, 'Holy Strike');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Holy Strike steadies your guard.'
+      );
       return;
     case 'paladin_prayer':
       applyPartyHpBonus(10n, 3n, 'Prayer');
@@ -1642,7 +1667,8 @@ function executeAbility(
       applyDamage(85n, 1n, { hits: 3n });
       return;
     case 'druid_thorn_lash':
-      applyDamage(125n, 2n);
+      applyDamage(110n, 1n, { dot: { magnitude: 2n, rounds: 2n, source: 'Thorn Lash' } });
+      applyHeal(character, 3n, 'Thorn Lash');
       return;
     case 'druid_regrowth':
       if (!targetCharacter) throw new SenderError('Target required');

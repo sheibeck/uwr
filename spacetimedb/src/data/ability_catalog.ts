@@ -2,13 +2,13 @@ export const GLOBAL_COOLDOWN_MICROS = 1_000_000n;
 
 export const ABILITIES = {
   shaman_spirit_bolt: {
-    name: 'Spirit Bolt',
+    name: 'Spirit Mender',
     className: 'shaman',
     resource: 'mana',
     level: 1n,
     power: 2n,
-    cooldownSeconds: 0n,
-    castSeconds: 2n,
+    cooldownSeconds: 6n,
+    castSeconds: 1n,
   },
   shaman_totem_of_vigor: {
     name: 'Totem of Vigor',
@@ -92,12 +92,12 @@ export const ABILITIES = {
     castSeconds: 0n,
   },
   enchanter_mind_lash: {
-    name: 'Mind Lash',
+    name: 'Mind Fray',
     className: 'enchanter',
     resource: 'mana',
     level: 1n,
     power: 2n,
-    cooldownSeconds: 0n,
+    cooldownSeconds: 6n,
     castSeconds: 1n,
   },
   enchanter_clarity: {
@@ -137,7 +137,7 @@ export const ABILITIES = {
     castSeconds: 1n,
   },
   cleric_minor_heal: {
-    name: 'Minor Heal',
+    name: 'Mend',
     className: 'cleric',
     resource: 'mana',
     level: 1n,
@@ -285,8 +285,8 @@ export const ABILITIES = {
     className: 'paladin',
     resource: 'mana',
     level: 1n,
-    power: 4n,
-    cooldownSeconds: 3n,
+    power: 3n,
+    cooldownSeconds: 4n,
     castSeconds: 0n,
   },
   paladin_prayer: {
@@ -466,7 +466,7 @@ export const ABILITIES = {
     resource: 'mana',
     level: 1n,
     power: 2n,
-    cooldownSeconds: 0n,
+    cooldownSeconds: 6n,
     castSeconds: 0n,
   },
   bard_song_of_ease: {
@@ -601,8 +601,8 @@ export const ABILITIES = {
     resource: 'mana',
     level: 1n,
     power: 2n,
-    cooldownSeconds: 0n,
-    castSeconds: 0n,
+    cooldownSeconds: 6n,
+    castSeconds: 1n,
   },
   druid_regrowth: {
     name: 'Regrowth',
