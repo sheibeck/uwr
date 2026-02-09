@@ -53,6 +53,7 @@ Last updated: 2026-02-09
   - Enemy respawns after death; new spawns created as new groups/solos arrive.
   - Combat results screen shown after combat; leader dismisses to return to enemy list.
   - XP on victory with level-up support (cap 10). XP split among non-dead participants.
+  - Movement is blocked while in combat (cannot travel during combat).
   - Effect durations are driven only by effect tick loops (HoT/DoT at 3s, others at 10s) and do not decrement on combat ticks.
 - **Characters:**
   - Max 3 character slots per account (MVP).

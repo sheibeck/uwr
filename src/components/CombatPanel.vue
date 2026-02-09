@@ -55,7 +55,6 @@
     <div v-if="enemyTargetName" :style="styles.combatRow">
       <span :style="styles.combatLabel">Targeting</span>
       <span :style="styles.combatValue">{{ enemyTargetName }}</span>
-      <span :style="styles.subtle">(auto-attack)</span>
     </div>
     <div :style="styles.combatRow">
       <span :style="styles.combatLabel">Status</span>

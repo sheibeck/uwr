@@ -5,6 +5,7 @@ export const registerMovementReducers = (deps: any) => {
     SenderError,
     requireCharacterOwnedBy,
     areLocationsConnected,
+    activeCombatIdForCharacter,
     appendPrivateEvent,
     appendLocationEvent,
     ensureSpawnsForLocation,
@@ -15,6 +16,9 @@ export const registerMovementReducers = (deps: any) => {
     const location = ctx.db.location.id.find(args.locationId);
     if (!location) throw new SenderError('Location not found');
     if (character.locationId === location.id) return;
+    if (activeCombatIdForCharacter(ctx, character.id)) {
+      throw new SenderError('Cannot travel while in combat');
+    }
     if (!areLocationsConnected(ctx, character.locationId, location.id)) {
       throw new SenderError('Location not connected');
     }
