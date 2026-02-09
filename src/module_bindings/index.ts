@@ -248,6 +248,8 @@ import CombatEnemy from "./combat_enemy_type";
 export { CombatEnemy };
 import CombatEnemyCast from "./combat_enemy_cast_type";
 export { CombatEnemyCast };
+import CombatEnemyCooldown from "./combat_enemy_cooldown_type";
+export { CombatEnemyCooldown };
 import CombatEnemyEffect from "./combat_enemy_effect_type";
 export { CombatEnemyEffect };
 import CombatParticipant from "./combat_participant_type";

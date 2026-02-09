@@ -525,6 +525,28 @@ export const styles = {
     overflow: 'hidden',
     marginTop: '0.25rem',
   },
+  enemyCastBar: {
+    position: 'relative',
+    height: '10px',
+    borderRadius: '999px',
+    background: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+    marginTop: '0.35rem',
+  },
+  enemyCastFill: {
+    height: '100%',
+    background: 'linear-gradient(90deg, rgba(120,200,255,0.6), rgba(80,140,255,0.9))',
+    transition: 'width 0.15s linear',
+  },
+  enemyCastLabel: {
+    position: 'absolute',
+    top: '-1.1rem',
+    right: 0,
+    fontSize: '0.6rem',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: 'rgba(190, 210, 255, 0.85)',
+  },
   hpFill: {
     height: '100%',
     background: 'linear-gradient(90deg, #6bdc8c 0%, #38b2ac 100%)',

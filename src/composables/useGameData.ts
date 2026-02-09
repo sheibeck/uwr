@@ -17,6 +17,7 @@ export const useGameData = () => {
   const [hotbarSlots] = useTable(tables.hotbarSlot);
   const [locations] = useTable(tables.location);
   const [enemyTemplates] = useTable(tables.enemyTemplate);
+  const [enemyAbilities] = useTable(tables.enemyAbility);
   const [enemySpawns] = useTable(tables.enemySpawn);
   const [combatEncounters] = useTable(tables.combatEncounter);
   const [combatParticipants] = useTable(tables.combatParticipant);
@@ -51,6 +52,7 @@ export const useGameData = () => {
     hotbarSlots,
     locations,
     enemyTemplates,
+    enemyAbilities,
     enemySpawns,
     combatEncounters,
     combatParticipants,

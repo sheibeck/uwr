@@ -52,6 +52,15 @@
         }"
       ></div>
     </div>
+    <div v-if="enemyCastProgress > 0" :style="styles.enemyCastBar">
+      <div
+        :style="{
+          ...styles.enemyCastFill,
+          width: `${Math.round(enemyCastProgress * 100)}%`,
+        }"
+      ></div>
+      <div :style="styles.enemyCastLabel">{{ enemyCastLabel }}</div>
+    </div>
     <div v-if="activeEnemyEffects.length > 0" :style="styles.effectRow">
       <span
         v-for="effect in activeEnemyEffects"
@@ -170,6 +179,8 @@ const props = defineProps<{
   canAct: boolean;
   enemyTargetName: string;
   enemyActionText: string;
+  enemyCastProgress: number;
+  enemyCastLabel: string;
 }>();
 
 const percent = (value: bigint, max: bigint) => {

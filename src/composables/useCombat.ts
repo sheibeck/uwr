@@ -10,6 +10,7 @@ import {
   type EnemySpawnRow,
   type EnemyTemplateRow,
   type CombatEnemyEffectRow,
+  type EnemyAbilityRow,
 } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 
@@ -42,10 +43,12 @@ type UseCombatArgs = {
   combatEnemies: Ref<CombatEnemyRow[]>;
   combatEnemyEffects: Ref<CombatEnemyEffectRow[]>;
   combatEnemyCasts: Ref<CombatEnemyCastRow[]>;
+  enemyAbilities: Ref<EnemyAbilityRow[]>;
   combatResults: Ref<CombatResultRow[]>;
   fallbackRoster: Ref<CharacterRow[]>;
   enemySpawns: Ref<EnemySpawnRow[]>;
   enemyTemplates: Ref<EnemyTemplateRow[]>;
+  nowMicros: Ref<number>;
   characters: Ref<CharacterRow[]>;
 };
 
@@ -82,10 +85,12 @@ export const useCombat = ({
   combatEnemies,
   combatEnemyEffects,
   combatEnemyCasts,
+  enemyAbilities,
   combatResults,
   fallbackRoster,
   enemySpawns,
   enemyTemplates,
+  nowMicros,
   characters,
 }: UseCombatArgs) => {
   const startCombatReducer = useReducer(reducers.startCombat);
@@ -202,6 +207,35 @@ export const useCombat = ({
     return 'Auto-attacking';
   });
 
+  const activeEnemyCast = computed(() => {
+    if (!activeCombat.value) return null;
+    return (
+      combatEnemyCasts.value.find(
+        (row) => row.combatId.toString() === activeCombat.value?.id.toString()
+      ) ?? null
+    );
+  });
+
+  const activeEnemyCastProgress = computed(() => {
+    if (!activeEnemyCast.value) return 0;
+    const ability = enemyAbilities.value.find(
+      (row) => row.abilityKey === activeEnemyCast.value?.abilityKey
+    );
+    const duration = ability?.castSeconds ? Number(ability.castSeconds) * 1_000_000 : 0;
+    if (!duration) return 0;
+    const remaining = Number(activeEnemyCast.value.endsAtMicros) - nowMicros.value;
+    const clamped = Math.max(0, Math.min(duration, duration - remaining));
+    return clamped / duration;
+  });
+
+  const activeEnemyCastLabel = computed(() => {
+    if (!activeEnemyCast.value) return '';
+    const ability = enemyAbilities.value.find(
+      (row) => row.abilityKey === activeEnemyCast.value?.abilityKey
+    );
+    return ability?.name ?? activeEnemyCast.value.abilityKey.replace(/_/g, ' ');
+  });
+
 
   const availableEnemies = computed<EnemySummary[]>(() => {
     if (!selectedCharacter.value) return [];
@@ -307,6 +341,8 @@ export const useCombat = ({
     activeEnemyConClass,
     activeEnemyEffects,
     activeEnemyActionText,
+    activeEnemyCastProgress,
+    activeEnemyCastLabel,
     activeEnemySpawn,
     availableEnemies,
     combatRoster,

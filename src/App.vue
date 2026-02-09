@@ -204,15 +204,17 @@
           :active-enemy-level="activeEnemyLevel"
           :active-enemy-con-class="activeEnemyConClass"
           :active-enemy-effects="activeEnemyEffects"
-           :enemy-target-name="activeEnemyTargetName"
-           :enemy-action-text="activeEnemyActionText"
-           :enemy-spawns="availableEnemies"
-           :active-result="activeResult"
-           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
-           :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
-           :can-act="canActInCombat"
-           @start="startCombat"
-           @flee="flee"
+          :enemy-target-name="activeEnemyTargetName"
+          :enemy-action-text="activeEnemyActionText"
+          :enemy-cast-progress="activeEnemyCastProgress"
+          :enemy-cast-label="activeEnemyCastLabel"
+          :enemy-spawns="availableEnemies"
+          :active-result="activeResult"
+          :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+          :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+          :can-act="canActInCombat"
+          @start="startCombat"
+          @flee="flee"
            @dismiss-results="dismissResults"
         />
         </div>
@@ -255,6 +257,8 @@
           :active-enemy-effects="activeEnemyEffects"
           :enemy-target-name="activeEnemyTargetName"
           :enemy-action-text="activeEnemyActionText"
+          :enemy-cast-progress="activeEnemyCastProgress"
+          :enemy-cast-label="activeEnemyCastLabel"
           :enemy-spawns="availableEnemies"
           :active-result="activeResult"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
@@ -385,6 +389,7 @@ const {
   itemInstances,
   locations,
   enemyTemplates,
+  enemyAbilities,
   enemySpawns,
   combatEncounters,
   combatParticipants,
@@ -487,6 +492,9 @@ watch(
   }
 );
 
+const nowMicros = ref(Date.now() * 1000);
+let uiTimer: number | undefined;
+
 const {
   activeCombat,
   activeEnemy,
@@ -496,6 +504,8 @@ const {
   activeEnemyConClass,
   activeEnemyEffects,
   activeEnemyActionText,
+  activeEnemyCastProgress,
+  activeEnemyCastLabel,
   availableEnemies,
   combatRoster,
   activeResult,
@@ -514,6 +524,8 @@ const {
   fallbackRoster: fallbackCombatRoster,
   enemySpawns,
   enemyTemplates,
+  enemyAbilities,
+  nowMicros,
   characters,
 });
 
@@ -715,9 +727,6 @@ const { hotbarAssignments, availableAbilities, abilityLookup, setHotbarSlot, use
   selectedCharacter,
   hotbarSlots,
 });
-
-const nowMicros = ref(Date.now() * 1000);
-let uiTimer: number | undefined;
 
 const cooldownByAbility = computed(() => {
   if (!selectedCharacter.value) return new Map<string, bigint>();

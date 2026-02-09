@@ -311,6 +311,20 @@ const EnemyAbility = table(
   }
 );
 
+const CombatEnemyCooldown = table(
+  {
+    name: 'combat_enemy_cooldown',
+    public: true,
+    indexes: [{ name: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    combatId: t.u64(),
+    abilityKey: t.string(),
+    readyAtMicros: t.u64(),
+  }
+);
+
 const LocationEnemyTemplate = table(
   {
     name: 'location_enemy_template',
@@ -1652,6 +1666,17 @@ const ABILITIES = {
   },
 } as const;
 
+const ENEMY_ABILITIES = {
+  poison_bite: {
+    name: 'Poison Bite',
+    castSeconds: 3n,
+    cooldownSeconds: 20n,
+    kind: 'dot',
+    magnitude: 2n,
+    rounds: 3n,
+  },
+} as const;
+
 function abilityResourceCost(level: bigint, power: bigint) {
   return 4n + level * 2n + power;
 }
@@ -1688,6 +1713,18 @@ function abilityCooldownMicros(abilityKey: string) {
 function abilityCastMicros(abilityKey: string) {
   const ability = ABILITIES[abilityKey as keyof typeof ABILITIES];
   if (ability?.castSeconds) return ability.castSeconds * 1_000_000n;
+  return 0n;
+}
+
+function enemyAbilityCastMicros(abilityKey: string) {
+  const ability = ENEMY_ABILITIES[abilityKey as keyof typeof ENEMY_ABILITIES];
+  if (ability?.castSeconds) return ability.castSeconds * 1_000_000n;
+  return 0n;
+}
+
+function enemyAbilityCooldownMicros(abilityKey: string) {
+  const ability = ENEMY_ABILITIES[abilityKey as keyof typeof ENEMY_ABILITIES];
+  if (ability?.cooldownSeconds) return ability.cooldownSeconds * 1_000_000n;
   return 0n;
 }
 
@@ -2501,6 +2538,36 @@ function recomputeCharacterDerived(ctx: any, character: typeof Character.rowType
   });
 }
 
+function executeEnemyAbility(
+  ctx: any,
+  combatId: bigint,
+  enemyId: bigint,
+  abilityKey: string,
+  targetCharacterId?: bigint
+) {
+  const ability = ENEMY_ABILITIES[abilityKey as keyof typeof ENEMY_ABILITIES];
+  if (!ability) return;
+  const enemy = ctx.db.combatEnemy.id.find(enemyId);
+  if (!enemy) return;
+  const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+  const enemyName = enemyTemplate?.name ?? 'Enemy';
+  const targetId = targetCharacterId ?? getTopAggroId(ctx, combatId);
+  if (!targetId) return;
+  const target = ctx.db.character.id.find(targetId);
+  if (!target) return;
+
+  if (ability.kind === 'dot') {
+    addCharacterEffect(ctx, target.id, 'dot', ability.magnitude, ability.rounds, ability.name);
+    appendPrivateEvent(
+      ctx,
+      target.id,
+      target.ownerUserId,
+      'damage',
+      `${enemyName} uses ${ability.name} on you.`
+    );
+  }
+}
+
 const MAX_LEVEL = 10n;
 const XP_TOTAL_BY_LEVEL = [
   0n, // L1
@@ -3188,7 +3255,7 @@ spacetimedb.init((ctx) => {
   }
 
   if (!tableHasRows(ctx.db.enemyTemplate.iter())) {
-    ctx.db.enemyTemplate.insert({
+    const bogRat = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Bog Rat',
       role: 'tank',
@@ -3260,6 +3327,18 @@ spacetimedb.init((ctx) => {
       baseDamage: 5n,
       xpReward: 22n,
     });
+    if (!tableHasRows(ctx.db.enemyAbility.iter())) {
+      ctx.db.enemyAbility.insert({
+        id: 0n,
+        enemyTemplateId: bogRat.id,
+        abilityKey: 'poison_bite',
+        name: 'Poison Bite',
+        kind: 'dot',
+        castSeconds: 3n,
+        cooldownSeconds: 20n,
+        targetRule: 'aggro',
+      });
+    }
   }
 
   ensureStarterItemTemplates(ctx);
@@ -3346,6 +3425,7 @@ const reducerDeps = {
   HotTick,
   CastTick,
   EnemyAbility,
+  CombatEnemyCooldown,
   CombatEnemyCast,
   AggroEntry,
   requirePlayerUserId,
@@ -3362,6 +3442,7 @@ const reducerDeps = {
   scheduleRound,
   recomputeCharacterDerived,
   executeAbility,
+  executeEnemyAbility,
   isClassAllowed,
   isArmorAllowedForClass,
   normalizeArmorType,
@@ -3374,6 +3455,8 @@ const reducerDeps = {
   BASE_MANA,
   abilityCooldownMicros,
   abilityCastMicros,
+  enemyAbilityCastMicros,
+  enemyAbilityCooldownMicros,
   grantStarterItems,
   areLocationsConnected,
   sumCharacterEffect,

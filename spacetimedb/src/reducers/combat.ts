@@ -21,11 +21,15 @@ export const registerCombatReducers = (deps: any) => {
     applyArmorMitigation,
     abilityCooldownMicros,
     executeAbility,
+    executeEnemyAbility,
     rollAttackOutcome,
     EnemyAbility,
     CombatEnemyCast,
+    CombatEnemyCooldown,
     hasShieldEquipped,
     canParry,
+    enemyAbilityCastMicros,
+    enemyAbilityCooldownMicros,
   } = deps;
 
   spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64() }, (ctx, args) => {
@@ -569,12 +573,17 @@ export const registerCombatReducers = (deps: any) => {
       for (const row of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
         ctx.db.aggroEntry.id.delete(row.id);
       }
-      for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
-        ctx.db.combatEnemyEffect.id.delete(row.id);
+    for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
+      ctx.db.combatEnemyEffect.id.delete(row.id);
+    }
+    for (const row of ctx.db.combatEnemyCast.by_combat.filter(combat.id)) {
+      ctx.db.combatEnemyCast.id.delete(row.id);
+    }
+    if (ctx.db.combatEnemyCooldown) {
+      for (const row of ctx.db.combatEnemyCooldown.by_combat.filter(combat.id)) {
+        ctx.db.combatEnemyCooldown.id.delete(row.id);
       }
-      for (const row of ctx.db.combatEnemyCast.by_combat.filter(combat.id)) {
-        ctx.db.combatEnemyCast.id.delete(row.id);
-      }
+    }
       ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
       return;
     }
@@ -610,25 +619,95 @@ export const registerCombatReducers = (deps: any) => {
     const enemyAbilities = enemyTemplate
       ? [...ctx.db.enemyAbility.by_template.filter(enemyTemplate.id)]
       : [];
-    if (enemyAbilities.length > 0) {
-      const existingCast = [...ctx.db.combatEnemyCast.by_combat.filter(combat.id)].find(
-        (row) => row.enemyId === enemy.id
+    const existingCast = [...ctx.db.combatEnemyCast.by_combat.filter(combat.id)].find(
+      (row) => row.enemyId === enemy.id
+    );
+    if (existingCast && existingCast.endsAtMicros <= nowMicros) {
+      executeEnemyAbility(
+        ctx,
+        combat.id,
+        enemy.id,
+        existingCast.abilityKey,
+        existingCast.targetCharacterId
       );
-      if (!existingCast) {
-        // Deterministic target: highest aggro if available, otherwise first active.
-        const targetEntry = [...ctx.db.aggroEntry.by_combat.filter(combat.id)]
-          .filter((entry) => activeParticipants.some((p) => p.characterId === entry.characterId))
-          .sort((a, b) => (a.value > b.value ? -1 : a.value < b.value ? 1 : 0))[0];
-        const targetId = targetEntry?.characterId ?? activeParticipants[0]?.characterId;
-        const chosen = enemyAbilities[0];
-        ctx.db.combatEnemyCast.insert({
-          id: 0n,
-          combatId: combat.id,
-          enemyId: enemy.id,
-          abilityKey: chosen.abilityKey,
-          endsAtMicros: nowMicros + chosen.castSeconds * 1_000_000n,
-          targetCharacterId: targetId,
-        });
+      ctx.db.combatEnemyCast.id.delete(existingCast.id);
+    }
+    if (enemyAbilities.length > 0 && !existingCast) {
+      const chosen = enemyAbilities[0];
+      const cooldownTable = ctx.db.combatEnemyCooldown;
+      if (!cooldownTable) {
+        // cooldown table missing; skip casting to avoid spam
+      } else {
+        const cooldown = [...cooldownTable.by_combat.filter(combat.id)].find(
+          (row) => row.abilityKey === chosen.abilityKey
+        );
+        if (cooldown && cooldown.readyAtMicros > nowMicros) {
+          // cooldown active
+        } else {
+          if (cooldown && cooldown.readyAtMicros <= nowMicros) {
+            for (const row of cooldownTable.by_combat.filter(combat.id)) {
+              if (row.abilityKey === chosen.abilityKey) {
+                cooldownTable.id.delete(row.id);
+              }
+            }
+          }
+          const castMicros =
+            enemyAbilityCastMicros(chosen.abilityKey) ||
+            (chosen.castSeconds ?? 0n) * 1_000_000n;
+          const cooldownMicros =
+            enemyAbilityCooldownMicros(chosen.abilityKey) ||
+            (chosen.cooldownSeconds ?? 0n) * 1_000_000n;
+          const level = Number(enemyTemplate?.level ?? 1n);
+          const chance = Math.min(80, 25 + level * 10);
+          const roll = Number((nowMicros + enemy.id + combat.id) % 100n);
+          if (roll >= chance) {
+            // AI chose not to cast this tick.
+          } else {
+            const targetEntry = [...ctx.db.aggroEntry.by_combat.filter(combat.id)]
+              .filter((entry) => activeParticipants.some((p) => p.characterId === entry.characterId))
+              .sort((a, b) => (a.value > b.value ? -1 : a.value < b.value ? 1 : 0))[0];
+            const lowestHp = activeParticipants
+              .map((p) => ctx.db.character.id.find(p.characterId))
+              .filter((c) => Boolean(c))
+              .sort((a, b) => (a.hp > b.hp ? 1 : a.hp < b.hp ? -1 : 0))[0];
+            const strategicTarget =
+              (enemyTemplate?.level ?? 1n) >= 3n ? lowestHp?.id : undefined;
+            const targetId =
+              strategicTarget ?? targetEntry?.characterId ?? activeParticipants[0]?.characterId;
+            if (targetId) {
+              const alreadyPoisoned = [...ctx.db.characterEffect.by_character.filter(targetId)].some(
+                (effect) => effect.effectType === 'dot' && effect.sourceAbility === chosen.name
+              );
+              if (!alreadyPoisoned) {
+                ctx.db.combatEnemyCast.insert({
+                  id: 0n,
+                  combatId: combat.id,
+                  enemyId: enemy.id,
+                  abilityKey: chosen.abilityKey,
+                  endsAtMicros: nowMicros + castMicros,
+                  targetCharacterId: targetId,
+                });
+                ctx.db.combatEnemy.id.update({
+                  ...enemy,
+                  nextAutoAttackAt: nowMicros + castMicros,
+                });
+                if (cooldownMicros > 0n) {
+                  for (const row of cooldownTable.by_combat.filter(combat.id)) {
+                    if (row.abilityKey === chosen.abilityKey) {
+                      cooldownTable.id.delete(row.id);
+                    }
+                  }
+                  cooldownTable.insert({
+                    id: 0n,
+                    combatId: combat.id,
+                    abilityKey: chosen.abilityKey,
+                    readyAtMicros: nowMicros + castMicros + cooldownMicros,
+                  });
+                }
+              }
+            }
+          }
+        }
       }
     }
 
@@ -840,11 +919,24 @@ export const registerCombatReducers = (deps: any) => {
       for (const row of ctx.db.combatEnemyCast.by_combat.filter(combat.id)) {
         ctx.db.combatEnemyCast.id.delete(row.id);
       }
+      if (ctx.db.combatEnemyCooldown) {
+        for (const row of ctx.db.combatEnemyCooldown.by_combat.filter(combat.id)) {
+          ctx.db.combatEnemyCooldown.id.delete(row.id);
+        }
+        for (const row of ctx.db.combatEnemyCooldown.by_combat.filter(combat.id)) {
+          ctx.db.combatEnemyCooldown.id.delete(row.id);
+        }
+      }
       for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
         ctx.db.combatEnemyEffect.id.delete(row.id);
       }
       for (const row of ctx.db.combatEnemyCast.by_combat.filter(combat.id)) {
         ctx.db.combatEnemyCast.id.delete(row.id);
+      }
+      if (ctx.db.combatEnemyCooldown) {
+        for (const row of ctx.db.combatEnemyCooldown.by_combat.filter(combat.id)) {
+          ctx.db.combatEnemyCooldown.id.delete(row.id);
+        }
       }
       ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
       return;
