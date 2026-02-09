@@ -180,13 +180,13 @@ export const registerCombatReducers = (deps: any) => {
     }
   });
 
-  const HP_REGEN_OUT = 1n;
-  const MANA_REGEN_OUT = 1n;
-  const STAMINA_REGEN_OUT = 1n;
+  const HP_REGEN_OUT = 3n;
+  const MANA_REGEN_OUT = 3n;
+  const STAMINA_REGEN_OUT = 3n;
   const HP_REGEN_IN = 1n;
   const MANA_REGEN_IN = 1n;
   const STAMINA_REGEN_IN = 1n;
-  const REGEN_TICK_MICROS = 3_000_000n;
+  const REGEN_TICK_MICROS = 8_000_000n;
 
   spacetimedb.reducer('regen_health', { arg: HealthRegenTick.rowType }, (ctx) => {
     const tickIndex = ctx.timestamp.microsSinceUnixEpoch / REGEN_TICK_MICROS;
