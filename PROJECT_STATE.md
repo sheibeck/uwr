@@ -53,6 +53,7 @@ Last updated: 2026-02-09
   - Enemy respawns after death; new spawns created as new groups/solos arrive.
   - Combat results screen shown after combat; leader dismisses to return to enemy list.
   - XP on victory with level-up support (cap 10). XP split among non-dead participants.
+  - Effect durations are driven only by effect tick loops (HoT/DoT at 3s, others at 10s) and do not decrement on combat ticks.
 - **Characters:**
   - Max 3 character slots per account (MVP).
   - Character deletion with confirmation + full cleanup.
@@ -220,6 +221,7 @@ Last updated: 2026-02-09
   - `combat_encounter`, `combat_participant`, `combat_enemy`, `aggro_entry`, `combat_round_tick`.
   - `character_cast`, `cast_tick`, `ability_cooldown`.
   - `combat_result`, `health_regen_tick`, `effect_tick`, `hot_tick`.
+  - `enemy_ability`, `combat_enemy_cast` (future enemy abilities).
 - Events: `event_world`, `event_location`, `event_private`, `event_group`.
 - Views: `my_player`, `my_private_events`, `my_group_events`, `my_location_events`,
   `my_friend_requests`, `my_friends`, `my_group_invites`, `my_group_members`, `my_combat_results`.
