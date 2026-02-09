@@ -1867,6 +1867,8 @@ function executeEnemyAbility(
   abilityKey: string,
   targetCharacterId?: bigint
 ) {
+  const combat = ctx.db.combatEncounter.id.find(combatId);
+  if (!combat || combat.state !== 'active') return;
   const ability = ENEMY_ABILITIES[abilityKey as keyof typeof ENEMY_ABILITIES];
   if (!ability) return;
   const enemy = ctx.db.combatEnemy.id.find(enemyId);

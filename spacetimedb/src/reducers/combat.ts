@@ -75,8 +75,15 @@ export const registerCombatReducers = (deps: any) => {
         loopTable.id.delete(row.scheduledId);
       }
     }
+    const participantIds: bigint[] = [];
     for (const row of ctx.db.combatParticipant.by_combat.filter(combatId)) {
+      participantIds.push(row.characterId);
       ctx.db.combatParticipant.id.delete(row.id);
+    }
+    for (const characterId of participantIds) {
+      for (const cast of ctx.db.characterCast.by_character.filter(characterId)) {
+        ctx.db.characterCast.id.delete(cast.id);
+      }
     }
     for (const row of ctx.db.aggroEntry.by_combat.filter(combatId)) {
       ctx.db.aggroEntry.id.delete(row.id);
@@ -934,7 +941,35 @@ export const registerCombatReducers = (deps: any) => {
           summary: `Victory against ${enemyName}.${fallenSuffix}`,
           createdAt: ctx.timestamp,
         });
+      }
+      for (const p of participants) {
+        const character = ctx.db.character.id.find(p.characterId);
+        if (character && character.hp === 0n) {
+          const loss = deps.applyDeathXpPenalty(ctx, character);
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'reward',
+            `You lose ${loss} XP from the defeat.`
+          );
+          const quarterHp = character.maxHp / 4n;
+          const quarterMana = character.maxMana / 4n;
+          const quarterStamina = character.maxStamina / 4n;
+          ctx.db.character.id.update({
+            ...character,
+            hp: quarterHp > 0n ? quarterHp : 1n,
+            mana: quarterMana > 0n ? quarterMana : 1n,
+            stamina: quarterStamina > 0n ? quarterStamina : 1n,
+          });
+        }
+      }
+      clearCombatArtifacts(ctx, combat.id);
+      ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
 
+      for (const p of participants) {
+        const character = ctx.db.character.id.find(p.characterId);
+        if (!character) continue;
         if (p.status === 'dead') {
           const reward = deps.awardCombatXp(
             ctx,
@@ -982,30 +1017,6 @@ export const registerCombatReducers = (deps: any) => {
           );
         }
       }
-      for (const p of participants) {
-        const character = ctx.db.character.id.find(p.characterId);
-        if (character && character.hp === 0n) {
-          const loss = deps.applyDeathXpPenalty(ctx, character);
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'reward',
-            `You lose ${loss} XP from the defeat.`
-          );
-          const quarterHp = character.maxHp / 4n;
-          const quarterMana = character.maxMana / 4n;
-          const quarterStamina = character.maxStamina / 4n;
-          ctx.db.character.id.update({
-            ...character,
-            hp: quarterHp > 0n ? quarterHp : 1n,
-            mana: quarterMana > 0n ? quarterMana : 1n,
-            stamina: quarterStamina > 0n ? quarterStamina : 1n,
-          });
-        }
-      }
-      clearCombatArtifacts(ctx, combat.id);
-      ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
       return;
     }
 
@@ -1140,6 +1151,8 @@ export const registerCombatReducers = (deps: any) => {
           createdAt: ctx.timestamp,
         });
       }
+      clearCombatArtifacts(ctx, combat.id);
+      ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (character && character.hp === 0n) {
@@ -1162,8 +1175,6 @@ export const registerCombatReducers = (deps: any) => {
           });
         }
       }
-      clearCombatArtifacts(ctx, combat.id);
-      ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
       return;
     }
 
