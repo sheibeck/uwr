@@ -19,6 +19,7 @@ export default __t.row({
   level: __t.u64(),
   xp: __t.u64(),
   locationId: __t.u64(),
+  boundLocationId: __t.u64(),
   groupId: __t.option(__t.u64()),
   hp: __t.u64(),
   maxHp: __t.u64(),

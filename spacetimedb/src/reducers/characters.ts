@@ -83,6 +83,10 @@ export const registerCharacterReducers = (deps: any) => {
 
       const world = ctx.db.worldState.id.find(1n);
       if (!world) throw new SenderError('World not initialized');
+      const bindLocation =
+        [...ctx.db.location.iter()].find((location) => location.bindStone) ??
+        ctx.db.location.id.find(world.startingLocationId);
+      if (!bindLocation) throw new SenderError('Bind location not initialized');
 
       const baseStats = computeBaseStats(className, 1n);
       const manaStat = manaStatForClass(className, baseStats);
@@ -97,7 +101,8 @@ export const registerCharacterReducers = (deps: any) => {
         className: className.trim(),
         level: 1n,
         xp: 0n,
-        locationId: world.startingLocationId,
+        locationId: bindLocation.id,
+        boundLocationId: bindLocation.id,
         hp: maxHp,
         maxHp,
         mana: maxMana,
@@ -130,6 +135,22 @@ export const registerCharacterReducers = (deps: any) => {
       appendPrivateEvent(ctx, character.id, userId, 'system', `${character.name} enters the world.`);
     }
   );
+
+  spacetimedb.reducer('bind_location', { characterId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const location = ctx.db.location.id.find(character.locationId);
+    if (!location || !location.bindStone) {
+      throw new SenderError('No bindstone here');
+    }
+    ctx.db.character.id.update({ ...character, boundLocationId: location.id });
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'system',
+      `You are now bound to ${location.name}.`
+    );
+  });
 
   spacetimedb.reducer('delete_character', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);

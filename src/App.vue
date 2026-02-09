@@ -191,6 +191,8 @@
           v-else-if="activePanel === 'stats'"
           :styles="styles"
           :selected-character="selectedCharacter"
+          :locations="locations"
+          :regions="regions"
         />
         <CombatPanel
           v-else-if="activePanel === 'combat'"
@@ -230,7 +232,15 @@
     >
       <div :style="styles.floatingPanelHeader" @mousedown="startTravelDrag">
         <div :style="styles.panelHeaderStack">
-        <div :style="styles.panelHeaderLocation">{{ currentLocationName }}</div>
+        <div :style="styles.panelHeaderLocationRow">
+          <div :style="styles.panelHeaderLocation">{{ currentLocationName }}</div>
+          <div
+            v-if="currentLocation?.bindStone"
+            :style="styles.bindStoneIcon"
+            title="Bind here"
+            @click="bindLocation"
+          ></div>
+        </div>
         <div :style="styles.panelHeaderRegion">
           <span :style="currentRegionConStyle">{{ currentRegionName }}</span>
           <span :style="currentRegionConStyle"> L{{ currentRegionLevel }}</span>
@@ -473,6 +483,7 @@ const {
   currentGroup,
   groupMembers: groupCharacterMembers,
   deleteCharacter,
+  bindLocation,
 } = useCharacters({
   connActive: computed(() => conn.isActive),
   characters,

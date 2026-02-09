@@ -23,6 +23,7 @@ type UseCharactersArgs = {
 export const useCharacters = ({ connActive, characters, locations, groups, userId }: UseCharactersArgs) => {
   const setActiveCharacterReducer = useReducer(reducers.setActiveCharacter);
   const deleteCharacterReducer = useReducer(reducers.deleteCharacter);
+  const bindLocationReducer = useReducer(reducers.bindLocation);
   const selectedCharacterId = ref('');
 
   const myCharacters = computed(() => {
@@ -94,6 +95,11 @@ export const useCharacters = ({ connActive, characters, locations, groups, userI
     }
   };
 
+  const bindLocation = () => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    bindLocationReducer({ characterId: selectedCharacter.value.id });
+  };
+
   return {
     selectedCharacterId,
     myCharacters,
@@ -103,5 +109,6 @@ export const useCharacters = ({ connActive, characters, locations, groups, userI
     currentGroup,
     groupMembers,
     deleteCharacter,
+    bindLocation,
   };
 };

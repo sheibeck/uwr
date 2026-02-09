@@ -12,6 +12,8 @@
           <div>{{ selectedCharacter.level }}</div>
           <div>XP</div>
           <div>{{ selectedCharacter.xp }}</div>
+          <div>Bound</div>
+          <div>{{ boundLocationName }}<span v-if="boundRegionName">, {{ boundRegionName }}</span></div>
           <div>HP</div>
           <div>{{ selectedCharacter.hp }} / {{ selectedCharacter.maxHp }}</div>
           <template v-if="selectedCharacter.maxMana > 0">
@@ -75,14 +77,35 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import type { CharacterRow } from '../module_bindings';
+  <script setup lang="ts">
+  import { computed } from 'vue';
+  import type { CharacterRow, LocationRow, RegionRow } from '../module_bindings';
 
-defineProps<{
-  styles: Record<string, Record<string, string | number>>;
-  selectedCharacter: CharacterRow | null;
-}>();
+  const props = defineProps<{
+    styles: Record<string, Record<string, string | number>>;
+    selectedCharacter: CharacterRow | null;
+    locations: LocationRow[];
+    regions: RegionRow[];
+  }>();
 
-const formatPercent = (value: bigint) => `${(Number(value) / 100).toFixed(2)}%`;
-const formatScalar = (value: bigint) => Number(value).toString();
-</script>
+  const boundLocationName = computed(() => {
+    if (!props.selectedCharacter) return 'Unknown';
+    const match = props.locations.find(
+      (row) => row.id.toString() === props.selectedCharacter?.boundLocationId?.toString()
+    );
+    return match?.name ?? 'Unknown';
+  });
+
+  const boundRegionName = computed(() => {
+    if (!props.selectedCharacter) return '';
+    const match = props.locations.find(
+      (row) => row.id.toString() === props.selectedCharacter?.boundLocationId?.toString()
+    );
+    if (!match) return '';
+    const region = props.regions.find((row) => row.id.toString() === match.regionId.toString());
+    return region?.name ?? '';
+  });
+
+  const formatPercent = (value: bigint) => `${(Number(value) / 100).toFixed(2)}%`;
+  const formatScalar = (value: bigint) => Number(value).toString();
+  </script>

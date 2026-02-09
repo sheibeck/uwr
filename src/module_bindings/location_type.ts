@@ -19,6 +19,7 @@ export default __t.object("Location", {
   levelOffset: __t.i64(),
   isSafe: __t.bool(),
   terrainType: __t.string(),
+  bindStone: __t.bool(),
 });
 
 

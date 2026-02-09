@@ -60,6 +60,8 @@ import SetActiveCharacterReducer from "./set_active_character_reducer";
 export { SetActiveCharacterReducer };
 import CreateCharacterReducer from "./create_character_reducer";
 export { CreateCharacterReducer };
+import BindLocationReducer from "./bind_location_reducer";
+export { BindLocationReducer };
 import DeleteCharacterReducer from "./delete_character_reducer";
 export { DeleteCharacterReducer };
 import CreateItemTemplateReducer from "./create_item_template_reducer";
@@ -238,6 +240,8 @@ import AcceptGroupInvite from "./accept_group_invite_type";
 export { AcceptGroupInvite };
 import AggroEntry from "./aggro_entry_type";
 export { AggroEntry };
+import BindLocation from "./bind_location_type";
+export { BindLocation };
 import CastTick from "./cast_tick_type";
 export { CastTick };
 import Character from "./character_type";
@@ -1078,6 +1082,7 @@ const reducersSchema = __reducers(
   __reducerSchema("logout", LogoutReducer),
   __reducerSchema("set_active_character", SetActiveCharacterReducer),
   __reducerSchema("create_character", CreateCharacterReducer),
+  __reducerSchema("bind_location", BindLocationReducer),
   __reducerSchema("delete_character", DeleteCharacterReducer),
   __reducerSchema("create_item_template", CreateItemTemplateReducer),
   __reducerSchema("grant_item", GrantItemReducer),

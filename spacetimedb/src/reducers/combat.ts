@@ -953,14 +953,13 @@ export const registerCombatReducers = (deps: any) => {
             'reward',
             `You lose ${loss} XP from the defeat.`
           );
-          const quarterHp = character.maxHp / 4n;
-          const quarterMana = character.maxMana / 4n;
-          const quarterStamina = character.maxStamina / 4n;
+          const nextLocationId = character.boundLocationId ?? character.locationId;
           ctx.db.character.id.update({
             ...character,
-            hp: quarterHp > 0n ? quarterHp : 1n,
-            mana: quarterMana > 0n ? quarterMana : 1n,
-            stamina: quarterStamina > 0n ? quarterStamina : 1n,
+            locationId: nextLocationId,
+            hp: 1n,
+            mana: character.maxMana > 0n ? 1n : 0n,
+            stamina: character.maxStamina > 0n ? 1n : 0n,
           });
         }
       }
@@ -1164,14 +1163,13 @@ export const registerCombatReducers = (deps: any) => {
             'reward',
             `You lose ${loss} XP from the defeat.`
           );
-          const quarterHp = character.maxHp / 4n;
-          const quarterMana = character.maxMana / 4n;
-          const quarterStamina = character.maxStamina / 4n;
+          const nextLocationId = character.boundLocationId ?? character.locationId;
           ctx.db.character.id.update({
             ...character,
-            hp: quarterHp > 0n ? quarterHp : 1n,
-            mana: quarterMana > 0n ? quarterMana : 1n,
-            stamina: quarterStamina > 0n ? quarterStamina : 1n,
+            locationId: nextLocationId,
+            hp: 1n,
+            mana: character.maxMana > 0n ? 1n : 0n,
+            stamina: character.maxStamina > 0n ? 1n : 0n,
           });
         }
       }

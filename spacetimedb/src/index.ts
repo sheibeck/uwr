@@ -108,6 +108,7 @@ const Location = table(
     levelOffset: t.i64(),
     isSafe: t.bool(),
     terrainType: t.string(),
+    bindStone: t.bool(),
   }
 );
 
@@ -145,6 +146,7 @@ const Character = table(
     level: t.u64(),
     xp: t.u64(),
     locationId: t.u64(),
+    boundLocationId: t.u64(),
     groupId: t.u64().optional(),
     hp: t.u64(),
     maxHp: t.u64(),
@@ -2623,6 +2625,7 @@ spacetimedb.init((ctx) => {
       levelOffset: 0n,
       isSafe: true,
       terrainType: 'town',
+      bindStone: false,
     });
     const ashen = ctx.db.location.insert({
       id: 0n,
@@ -2633,6 +2636,7 @@ spacetimedb.init((ctx) => {
       levelOffset: 1n,
       isSafe: false,
       terrainType: 'plains',
+      bindStone: true,
     });
     const fogroot = ctx.db.location.insert({
       id: 0n,
@@ -2643,6 +2647,7 @@ spacetimedb.init((ctx) => {
       levelOffset: 2n,
       isSafe: false,
       terrainType: 'swamp',
+      bindStone: false,
     });
     const bramble = ctx.db.location.insert({
       id: 0n,
@@ -2653,6 +2658,7 @@ spacetimedb.init((ctx) => {
       levelOffset: 2n,
       isSafe: false,
       terrainType: 'woods',
+      bindStone: false,
     });
     const gate = ctx.db.location.insert({
       id: 0n,
@@ -2663,6 +2669,7 @@ spacetimedb.init((ctx) => {
       levelOffset: 3n,
       isSafe: false,
       terrainType: 'mountains',
+      bindStone: false,
     });
     const cinder = ctx.db.location.insert({
       id: 0n,
@@ -2673,6 +2680,7 @@ spacetimedb.init((ctx) => {
       levelOffset: 5n,
       isSafe: false,
       terrainType: 'plains',
+      bindStone: false,
     });
     const ashvault = ctx.db.location.insert({
       id: 0n,
@@ -2683,6 +2691,7 @@ spacetimedb.init((ctx) => {
       levelOffset: 2n,
       isSafe: false,
       terrainType: 'dungeon',
+      bindStone: false,
     });
     const sootveil = ctx.db.location.insert({
       id: 0n,
@@ -2693,6 +2702,7 @@ spacetimedb.init((ctx) => {
       levelOffset: 3n,
       isSafe: false,
       terrainType: 'dungeon',
+      bindStone: false,
     });
     const furnace = ctx.db.location.insert({
       id: 0n,
@@ -2703,6 +2713,7 @@ spacetimedb.init((ctx) => {
       levelOffset: 4n,
       isSafe: false,
       terrainType: 'dungeon',
+      bindStone: false,
     });
 
     ctx.db.worldState.insert({

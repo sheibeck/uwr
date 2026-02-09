@@ -280,6 +280,11 @@ export const styles = {
     fontSize: '1.05rem',
     color: '#f1f2f6',
   },
+  panelHeaderLocationRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+  },
   timeIndicator: {
     display: 'inline-flex',
     alignItems: 'center',
@@ -294,6 +299,15 @@ export const styles = {
   timeIndicatorNight: {
     background: 'radial-gradient(circle at 35% 35%, rgba(255,255,255,0.85), rgba(230, 233, 240, 0.95))',
     boxShadow: '0 0 10px rgba(220, 230, 255, 0.55)',
+  },
+  bindStoneIcon: {
+    width: '12px',
+    height: '12px',
+    borderRadius: '50%',
+    background: 'radial-gradient(circle at 40% 40%, #b9f1ff, #2f7bff)',
+    boxShadow: '0 0 10px rgba(95, 170, 255, 0.9)',
+    border: '1px solid rgba(140, 210, 255, 0.8)',
+    cursor: 'pointer',
   },
   floatingPanelBody: {
     padding: '0.9rem',
