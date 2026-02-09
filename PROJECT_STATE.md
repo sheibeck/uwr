@@ -63,6 +63,7 @@ Last updated: 2026-02-09
   - Max 3 character slots per account (MVP).
   - Character deletion with confirmation + full cleanup.
   - Non-mana classes now have `maxMana = 0` and UI hides mana bars.
+  - Characters have `boundLocationId` and respawn there on death (1 HP + 1 mana/stamina if applicable).
 - **Regen:**
   - HP/Mana/Stamina regen every 8s.
   - Out of combat: full rate. In combat: half rate (every other tick).
@@ -119,6 +120,7 @@ Last updated: 2026-02-09
   - Enemies section handles combat actions; enemy list is con-colored.
   - Active enemy shows HP bar, target, status, and effect badges (red = debuff, blue = buff).
   - During combat or result screens, the Location panel shows only the combat UI (full-height), hiding Travel/Characters/NPCs until dismiss.
+  - Location header shows bindstone icon for bindable locations; click to bind.
 - **Travel Mini-map:**
   - Shows current region in header, connected locations with arrows, region names, and target level con colors.
   - Region header now includes `L#` with con color, plus region/location type line in italics.
