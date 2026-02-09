@@ -112,6 +112,8 @@ import EndCombatReducer from "./end_combat_reducer";
 export { EndCombatReducer };
 import RegenHealthReducer from "./regen_health_reducer";
 export { RegenHealthReducer };
+import TickEffectsReducer from "./tick_effects_reducer";
+export { TickEffectsReducer };
 import ResolveRoundReducer from "./resolve_round_reducer";
 export { ResolveRoundReducer };
 
@@ -138,6 +140,8 @@ import CombatRoundTickRow from "./combat_round_tick_table";
 export { CombatRoundTickRow };
 import CommandRow from "./command_table";
 export { CommandRow };
+import EffectTickRow from "./effect_tick_table";
+export { EffectTickRow };
 import EnemySpawnRow from "./enemy_spawn_table";
 export { EnemySpawnRow };
 import EnemyTemplateRow from "./enemy_template_table";
@@ -174,6 +178,8 @@ import LocationConnectionRow from "./location_connection_table";
 export { LocationConnectionRow };
 import LocationEnemyTemplateRow from "./location_enemy_template_table";
 export { LocationEnemyTemplateRow };
+import MyCharacterEffectsRow from "./my_character_effects_table";
+export { MyCharacterEffectsRow };
 import MyCombatResultsRow from "./my_combat_results_table";
 export { MyCombatResultsRow };
 import MyFriendRequestsRow from "./my_friend_requests_table";
@@ -238,6 +244,8 @@ import DeleteCharacter from "./delete_character_type";
 export { DeleteCharacter };
 import DismissCombatResults from "./dismiss_combat_results_type";
 export { DismissCombatResults };
+import EffectTick from "./effect_tick_type";
+export { EffectTick };
 import EndCombat from "./end_combat_type";
 export { EndCombat };
 import EnemySpawn from "./enemy_spawn_type";
@@ -300,6 +308,8 @@ import Logout from "./logout_type";
 export { Logout };
 import MoveCharacter from "./move_character_type";
 export { MoveCharacter };
+import MyCharacterEffects from "./my_character_effects_type";
+export { MyCharacterEffects };
 import MyCombatResults from "./my_combat_results_type";
 export { MyCombatResults };
 import MyFriendRequests from "./my_friend_requests_type";
@@ -356,6 +366,8 @@ import StartCombat from "./start_combat_type";
 export { StartCombat };
 import SubmitCommand from "./submit_command_type";
 export { SubmitCommand };
+import TickEffects from "./tick_effects_type";
+export { TickEffects };
 import UnequipItem from "./unequip_item_type";
 export { UnequipItem };
 import UseAbility from "./use_ability_type";
@@ -521,6 +533,17 @@ const tablesSchema = __schema(
       { name: 'command_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CommandRow),
+  __table({
+    name: 'effect_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'effect_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, EffectTickRow),
   __table({
     name: 'enemy_spawn',
     indexes: [
@@ -824,6 +847,13 @@ const tablesSchema = __schema(
     ],
   }, WorldStateRow),
   __table({
+    name: 'my_character_effects',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyCharacterEffectsRow),
+  __table({
     name: 'my_combat_results',
     indexes: [
     ],
@@ -927,6 +957,7 @@ const reducersSchema = __reducers(
   __reducerSchema("dismiss_combat_results", DismissCombatResultsReducer),
   __reducerSchema("end_combat", EndCombatReducer),
   __reducerSchema("regen_health", RegenHealthReducer),
+  __reducerSchema("tick_effects", TickEffectsReducer),
   __reducerSchema("resolve_round", ResolveRoundReducer),
 );
 

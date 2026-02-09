@@ -7,8 +7,16 @@
     <div v-else-if="currentGroup">
       <div :style="styles.subtle">Group: {{ currentGroup.name }}</div>
       <div :style="styles.panelSectionTitle">Members</div>
-      <ul :style="styles.list">
-        <li v-for="member in sortedMembers" :key="member.id.toString()" :style="styles.memberCard">
+        <ul :style="styles.list">
+          <li
+            v-for="member in sortedMembers"
+            :key="member.id.toString()"
+            :style="[
+              styles.memberCard,
+              selectedTargetId === member.id ? styles.memberCardTargeted : {},
+            ]"
+            @click="$emit('target', member.id)"
+          >
           <span>
             {{ member.name }} (Lv {{ member.level }}) - {{ member.className }}
             <span v-if="member.id === leaderId" :style="styles.subtle">· Leader</span>
@@ -27,16 +35,25 @@
               :style="{ ...styles.staminaFill, width: `${percent(member.stamina, member.maxStamina)}%` }"
             ></div>
           </div>
+          <div v-if="effectsFor(member.id).length" :style="styles.effectRow">
+            <span
+              v-for="effect in effectsFor(member.id)"
+              :key="effect.id.toString()"
+              :style="styles.effectBadge"
+            >
+              {{ effect.effectType }}
+            </span>
+          </div>
           <div v-if="isLeader && member.id !== leaderId" :style="styles.buttonWrap">
             <button
               :style="styles.ghostButton"
-              @click="$emit('kick', member.name)"
+              @click.stop="$emit('kick', member.name)"
             >
               Kick
             </button>
             <button
               :style="styles.primaryButton"
-              @click="$emit('promote', member.name)"
+              @click.stop="$emit('promote', member.name)"
             >
               Promote
             </button>
@@ -57,7 +74,14 @@
     </div>
     <div v-else>
       <div v-if="selectedCharacter" :style="styles.panelSectionTitle"></div>
-      <div v-if="selectedCharacter" :style="styles.subtle">
+      <div
+        v-if="selectedCharacter"
+        :style="[
+          styles.subtle,
+          selectedTargetId === selectedCharacter.id ? styles.memberCardTargeted : {},
+        ]"
+        @click="$emit('target', selectedCharacter.id)"
+      >
         {{ selectedCharacter.name }} (Lv {{ selectedCharacter.level }}) -
         {{ selectedCharacter.className }}
       </div>
@@ -84,6 +108,15 @@
         <div
           :style="{ ...styles.staminaFill, width: `${percent(selectedCharacter.stamina, selectedCharacter.maxStamina)}%` }"
         ></div>
+      </div>
+      <div v-if="selectedCharacter && effectsFor(selectedCharacter.id).length" :style="styles.effectRow">
+        <span
+          v-for="effect in effectsFor(selectedCharacter.id)"
+          :key="effect.id.toString()"
+          :style="styles.effectBadge"
+        >
+          {{ effect.effectType }}
+        </span>
       </div>
 
       <div v-if="inviteSummaries.length === 0" :style="styles.subtle">
@@ -127,11 +160,13 @@ const props = defineProps<{
   connActive: boolean;
   selectedCharacter: CharacterRow | null;
   currentGroup: GroupRow | null;
-  groupMembers: CharacterRow[];
+   groupMembers: CharacterRow[];
+   characterEffects: { id: bigint; characterId: bigint; effectType: string; magnitude: bigint; roundsRemaining: bigint }[];
   inviteSummaries: { invite: { id: bigint }; fromName: string; groupName: string }[];
   leaderId: bigint | null;
   isLeader: boolean;
   followLeader: boolean;
+  selectedTargetId: bigint | null;
 }>();
 
 defineEmits<{
@@ -141,6 +176,7 @@ defineEmits<{
   (e: 'kick', targetName: string): void;
   (e: 'promote', targetName: string): void;
   (e: 'toggle-follow', follow: boolean): void;
+  (e: 'target', characterId: bigint): void;
 }>();
 
 const percent = (current: bigint, max: bigint) => {
@@ -156,5 +192,8 @@ const sortedMembers = computed(() => {
   const others = props.groupMembers.filter((member) => member.id.toString() !== selectedId);
   return [...mine, ...others];
 });
+
+const effectsFor = (characterId: bigint) =>
+  props.characterEffects.filter((effect) => effect.characterId === characterId);
 </script>
 

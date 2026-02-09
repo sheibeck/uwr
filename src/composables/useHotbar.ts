@@ -55,11 +55,12 @@ export const useHotbar = ({ connActive, selectedCharacter, hotbarSlots }: UseHot
     });
   };
 
-  const useAbility = (abilityKey: string) => {
+  const useAbility = (abilityKey: string, targetCharacterId?: bigint) => {
     if (!connActive.value || !selectedCharacter.value || !abilityKey) return;
     useAbilityReducer({
       characterId: selectedCharacter.value.id,
       abilityKey,
+      targetCharacterId,
     });
   };
 

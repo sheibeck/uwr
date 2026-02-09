@@ -7,6 +7,7 @@ export const registerCombatReducers = (deps: any) => {
     Timestamp,
     CombatRoundTick,
     HealthRegenTick,
+    EffectTick,
     requireCharacterOwnedBy,
     appendPrivateEvent,
     activeCombatIdForCharacter,
@@ -250,6 +251,7 @@ export const registerCombatReducers = (deps: any) => {
   const MANA_REGEN_IN = 1n;
   const STAMINA_REGEN_IN = 1n;
   const REGEN_TICK_MICROS = 8_000_000n;
+  const EFFECT_TICK_MICROS = 10_000_000n;
 
   spacetimedb.reducer('regen_health', { arg: HealthRegenTick.rowType }, (ctx) => {
     const tickIndex = ctx.timestamp.microsSinceUnixEpoch / REGEN_TICK_MICROS;
@@ -281,9 +283,33 @@ export const registerCombatReducers = (deps: any) => {
         stamina: nextStamina > character.maxStamina ? character.maxStamina : nextStamina,
       });
     }
+
     ctx.db.healthRegenTick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + REGEN_TICK_MICROS),
+    });
+  });
+
+  spacetimedb.reducer('tick_effects', { arg: deps.EffectTick.rowType }, (ctx) => {
+    for (const effect of ctx.db.characterEffect.iter()) {
+      const owner = ctx.db.character.id.find(effect.characterId);
+      if (!owner) {
+        ctx.db.characterEffect.id.delete(effect.id);
+        continue;
+      }
+      if (effect.roundsRemaining === 0n) {
+        ctx.db.characterEffect.id.delete(effect.id);
+        continue;
+      }
+      ctx.db.characterEffect.id.update({
+        ...effect,
+        roundsRemaining: effect.roundsRemaining - 1n,
+      });
+    }
+
+    ctx.db.effectTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + EFFECT_TICK_MICROS),
     });
   });
 

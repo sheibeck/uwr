@@ -49,13 +49,17 @@
           v-for="slot in hotbarDisplay"
           :key="slot.slot"
           type="button"
-          :disabled="!conn.isActive || !canActInCombat || !slot.abilityKey"
+          :disabled="!conn.isActive || !slot.abilityKey || (activeCombat && !canActInCombat && slot.kind !== 'utility')"
           :style="[
             styles.hotbarSlot,
             selectedAction === `ability:${slot.abilityKey}` ? styles.hotbarSlotActive : {},
+            hotbarPulseKey === slot.abilityKey ? styles.hotbarSlotActive : {},
             !slot.abilityKey ? styles.hotbarSlotEmpty : {},
           ]"
-          @click="slot.abilityKey && chooseAbility(slot.abilityKey)"
+          @click="
+            slot.abilityKey &&
+            (canActInCombat ? chooseAbility(slot.abilityKey) : tryUseAbility(slot))
+          "
           @mouseenter="
             slot.abilityKey &&
             showTooltip({
@@ -272,16 +276,19 @@
           :selected-character="selectedCharacter"
           :current-group="currentGroup"
           :group-members="groupCharacterMembers"
+          :character-effects="characterEffects"
           :invite-summaries="inviteSummaries"
           :leader-id="leaderId"
           :is-leader="isLeader"
           :follow-leader="followLeader"
+          :selected-target-id="defensiveTargetId"
           @leave="leaveGroup"
           @accept="acceptInvite"
           @reject="rejectInvite"
           @kick="kickMember"
           @promote="promoteLeader"
           @toggle-follow="setFollowLeader"
+          @target="setDefensiveTarget"
         />
       </div>
     </div>
@@ -372,6 +379,7 @@ const {
   combatEnemies,
   combatResults,
   groups,
+  characterEffects,
   worldEvents,
   locationEvents,
   privateEvents,
@@ -610,6 +618,40 @@ const hotbarTooltipItem = (slot: any) => {
     ],
   };
 };
+
+const defensiveTargetId = ref<bigint | null>(null);
+const hotbarPulseKey = ref<string | null>(null);
+const setDefensiveTarget = (characterId: bigint) => {
+  defensiveTargetId.value = characterId;
+};
+
+watch(
+  () => selectedCharacter.value?.id,
+  (id) => {
+    if (id) defensiveTargetId.value = id;
+  },
+  { immediate: true }
+);
+
+const tryUseAbility = (slot: any) => {
+  if (!selectedCharacter.value || !slot?.abilityKey) return;
+  if (slot.kind !== 'utility') return;
+  const targetId = defensiveTargetId.value ?? selectedCharacter.value.id;
+  hotbarPulseKey.value = slot.abilityKey;
+  window.setTimeout(() => {
+    if (hotbarPulseKey.value === slot.abilityKey) hotbarPulseKey.value = null;
+  }, 800);
+  useAbility(slot.abilityKey, targetId);
+};
+
+const offensiveTargetEnemyId = ref<bigint | null>(null);
+watch(
+  () => activeEnemy.value?.id,
+  (id) => {
+    if (id != null) offensiveTargetEnemyId.value = id;
+  },
+  { immediate: true }
+);
 
 const activePanel = ref<
   | 'none'

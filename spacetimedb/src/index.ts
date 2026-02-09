@@ -438,6 +438,17 @@ const HealthRegenTick = table(
   }
 );
 
+const EffectTick = table(
+  {
+    name: 'effect_tick',
+    scheduled: 'tick_effects',
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+  }
+);
+
 const Command = table(
   {
     name: 'command',
@@ -548,6 +559,7 @@ export const spacetimedb = schema(
   AggroEntry,
   CombatRoundTick,
   HealthRegenTick,
+  EffectTick,
   CombatResult,
   Command,
   EventWorld,
@@ -1542,6 +1554,15 @@ function ensureHealthRegenScheduled(ctx: any) {
   }
 }
 
+function ensureEffectTickScheduled(ctx: any) {
+  if (!tableHasRows(ctx.db.effectTick.iter())) {
+    ctx.db.effectTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 10_000_000n),
+    });
+  }
+}
+
 function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
   const activeGroupKeys = new Set<string>();
   for (const player of ctx.db.player.iter()) {
@@ -1637,6 +1658,31 @@ spacetimedb.view(
     const player = ctx.db.player.id.find(ctx.sender);
     if (!player || player.userId == null) return [];
     return [...ctx.db.groupMember.by_owner_user.filter(player.userId)];
+  }
+);
+
+spacetimedb.view(
+  { name: 'my_character_effects', public: true },
+  t.array(CharacterEffect.rowType),
+  (ctx) => {
+    const player = ctx.db.player.id.find(ctx.sender);
+    if (!player || !player.activeCharacterId) return [];
+    const character = ctx.db.character.id.find(player.activeCharacterId);
+    if (!character) return [];
+
+    const ids = new Set<bigint>();
+    ids.add(character.id);
+    if (character.groupId) {
+      for (const member of ctx.db.groupMember.by_group.filter(character.groupId)) {
+        ids.add(member.characterId);
+      }
+    }
+
+    const effects: typeof CharacterEffect.rowType[] = [];
+    for (const effect of ctx.db.characterEffect.iter()) {
+      if (ids.has(effect.characterId)) effects.push(effect);
+    }
+    return effects;
   }
 );
 
@@ -1825,6 +1871,7 @@ spacetimedb.init((ctx) => {
   }
 
   ensureHealthRegenScheduled(ctx);
+  ensureEffectTickScheduled(ctx);
 });
 
 spacetimedb.clientConnected((ctx) => {
@@ -1842,6 +1889,7 @@ spacetimedb.clientConnected((ctx) => {
     ctx.db.player.id.update({ ...existing, lastSeenAt: ctx.timestamp });
   }
   ensureHealthRegenScheduled(ctx);
+  ensureEffectTickScheduled(ctx);
 });
 
 spacetimedb.clientDisconnected((_ctx) => {
@@ -1882,6 +1930,7 @@ const reducerDeps = {
   CombatParticipant,
   CombatRoundTick,
   HealthRegenTick,
+  EffectTick,
   AggroEntry,
   requirePlayerUserId,
   requireCharacterOwnedBy,

@@ -11,6 +11,7 @@ export const registerItemReducers = (deps: any) => {
     isArmorAllowedForClass,
     recomputeCharacterDerived,
     executeAbility,
+    appendPrivateEvent,
   } = deps;
 
   spacetimedb.reducer(
@@ -160,7 +161,27 @@ export const registerItemReducers = (deps: any) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       const abilityKey = args.abilityKey.trim();
       if (!abilityKey) throw new SenderError('Ability required');
-      executeAbility(ctx, character, abilityKey, args.targetCharacterId);
+      try {
+        executeAbility(ctx, character, abilityKey, args.targetCharacterId);
+        const targetName = args.targetCharacterId
+          ? ctx.db.character.id.find(args.targetCharacterId)?.name ?? 'your target'
+          : 'yourself';
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          `You use ${abilityKey.replace(/_/g, ' ')} on ${targetName}.`
+        );
+      } catch (error) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          `Ability failed: ${error}`
+        );
+      }
     }
   );
 };

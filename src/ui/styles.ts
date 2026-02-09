@@ -475,6 +475,28 @@ export const styles = {
     borderRadius: '10px',
     padding: '0.5rem 0.6rem',
     background: 'rgba(8,10,15,0.6)',
+    cursor: 'pointer',
+  },
+  memberCardTargeted: {
+    border: '1px solid rgba(120, 200, 255, 0.9)',
+    boxShadow: '0 0 0 1px rgba(120, 200, 255, 0.45)',
+    background: 'rgba(45, 90, 140, 0.2)',
+  },
+  effectRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.35rem',
+    marginTop: '0.3rem',
+  },
+  effectBadge: {
+    padding: '0.15rem 0.45rem',
+    borderRadius: '999px',
+    background: 'rgba(88, 142, 230, 0.2)',
+    border: '1px solid rgba(88, 142, 230, 0.45)',
+    fontSize: '0.65rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    color: 'rgba(210, 225, 255, 0.9)',
   },
   radioRow: {
     display: 'flex',
