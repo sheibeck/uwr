@@ -21,6 +21,11 @@ export const registerCombatReducers = (deps: any) => {
     applyArmorMitigation,
     abilityCooldownMicros,
     executeAbility,
+    rollAttackOutcome,
+    EnemyAbility,
+    CombatEnemyCast,
+    hasShieldEquipped,
+    canParry,
   } = deps;
 
   spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64() }, (ctx, args) => {
@@ -335,14 +340,29 @@ export const registerCombatReducers = (deps: any) => {
         continue;
       }
       if (owner.hp === 0n) continue;
+      const source = effect.sourceAbility ?? 'a lingering effect';
       if (effect.effectType === 'regen') {
         const nextHp = owner.hp + effect.magnitude > owner.maxHp ? owner.maxHp : owner.hp + effect.magnitude;
         ctx.db.character.id.update({ ...owner, hp: nextHp });
+        appendPrivateEvent(
+          ctx,
+          owner.id,
+          owner.ownerUserId,
+          'heal',
+          `You are healed for ${effect.magnitude} by ${source}.`
+        );
         continue;
       }
       if (effect.effectType === 'dot') {
         const nextHp = owner.hp > effect.magnitude ? owner.hp - effect.magnitude : 0n;
         ctx.db.character.id.update({ ...owner, hp: nextHp });
+        appendPrivateEvent(
+          ctx,
+          owner.id,
+          owner.ownerUserId,
+          'damage',
+          `You take ${effect.magnitude} damage from ${source}.`
+        );
       }
     }
 
@@ -420,6 +440,39 @@ export const registerCombatReducers = (deps: any) => {
     const activeParticipants = refreshedParticipants.filter((p) => p.status === 'active');
 
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
+    const spawnName =
+      [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
+        (s) => s.lockedCombatId === combat.id
+      )?.name ?? 'enemy';
+    const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+    const enemyName = enemyTemplate?.name ?? spawnName;
+
+    // Enemy special abilities (future-facing). No abilities are defined yet.
+    const enemyAbilities = enemyTemplate
+      ? [...ctx.db.enemyAbility.by_template.filter(enemyTemplate.id)]
+      : [];
+    if (enemyAbilities.length > 0) {
+      const existingCast = [...ctx.db.combatEnemyCast.by_combat.filter(combat.id)].find(
+        (row) => row.enemyId === enemy.id
+      );
+      if (!existingCast) {
+        // Deterministic target: highest aggro if available, otherwise first active.
+        const targetEntry = [...ctx.db.aggroEntry.by_combat.filter(combat.id)]
+          .filter((entry) => activeParticipants.some((p) => p.characterId === entry.characterId))
+          .sort((a, b) => (a.value > b.value ? -1 : a.value < b.value ? 1 : 0))[0];
+        const targetId = targetEntry?.characterId ?? activeParticipants[0]?.characterId;
+        const chosen = enemyAbilities[0];
+        ctx.db.combatEnemyCast.insert({
+          id: 0n,
+          combatId: combat.id,
+          enemyId: enemy.id,
+          abilityKey: chosen.abilityKey,
+          endsAtMicros: nowMicros + chosen.castSeconds * 1_000_000n,
+          targetCharacterId: targetId,
+        });
+      }
+    }
+
     for (const participant of activeParticipants) {
       const character = ctx.db.character.id.find(participant.characterId);
       if (!character) continue;
@@ -434,15 +487,67 @@ export const registerCombatReducers = (deps: any) => {
       const weapon = deps.getEquippedWeaponStats(ctx, character.id);
       const damage = 5n + character.level + weapon.baseDamage + (weapon.dps / 2n);
       const reducedDamage = applyArmorMitigation(damage, currentEnemy.armorClass);
+      const outcomeSeed = nowMicros + character.id + currentEnemy.id;
+      const outcome = rollAttackOutcome(outcomeSeed, {
+        canBlock: hasShieldEquipped(ctx, character.id),
+        canParry: canParry(character.className),
+        canDodge: true,
+      });
+      let finalDamage = (reducedDamage * outcome.multiplier) / 100n;
+      if (finalDamage < 0n) finalDamage = 0n;
       const nextHp =
-        currentEnemy.currentHp > reducedDamage ? currentEnemy.currentHp - reducedDamage : 0n;
+        currentEnemy.currentHp > finalDamage ? currentEnemy.currentHp - finalDamage : 0n;
       ctx.db.combatEnemy.id.update({ ...currentEnemy, currentHp: nextHp });
 
-      for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
-        if (entry.characterId === character.id) {
-          ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + reducedDamage });
-          break;
+      if (finalDamage > 0n) {
+        for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+          if (entry.characterId === character.id) {
+            ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + finalDamage });
+            break;
+          }
         }
+      }
+
+      if (outcome.outcome === 'dodge') {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'avoid',
+          `${enemyName} dodges your auto-attack.`
+        );
+      } else if (outcome.outcome === 'miss') {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'avoid',
+          `You miss ${enemyName} with auto-attack.`
+        );
+      } else if (outcome.outcome === 'parry') {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'avoid',
+          `${enemyName} parries your auto-attack.`
+        );
+      } else if (outcome.outcome === 'block') {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'avoid',
+          `${enemyName} blocks your auto-attack for ${finalDamage}.`
+        );
+      } else {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'damage',
+          `You hit ${enemyName} with auto-attack for ${finalDamage}.`
+        );
       }
 
       ctx.db.combatParticipant.id.update({
@@ -475,7 +580,6 @@ export const registerCombatReducers = (deps: any) => {
     }
 
     const updatedEnemy = ctx.db.combatEnemy.id.find(enemy.id)!;
-    const enemyTemplate = ctx.db.enemyTemplate.id.find(updatedEnemy.enemyTemplateId);
     const enemyLevel = enemyTemplate?.level ?? 1n;
     const baseXp =
       enemyTemplate?.xpReward && enemyTemplate.xpReward > 0n
@@ -523,7 +627,7 @@ export const registerCombatReducers = (deps: any) => {
               ctx,
               character.id,
               character.ownerUserId,
-              'combat',
+              'reward',
               `You gain ${reward.xpGained} XP (reduced for defeat).`
             );
           }
@@ -544,7 +648,7 @@ export const registerCombatReducers = (deps: any) => {
             ctx,
             character.id,
             character.ownerUserId,
-            'combat',
+            'reward',
             `You gain ${reward.xpGained} XP.`
           );
         }
@@ -563,13 +667,13 @@ export const registerCombatReducers = (deps: any) => {
         if (character && character.hp === 0n) {
           const loss = deps.applyDeathXpPenalty(ctx, character);
           if (loss > 0n) {
-            appendPrivateEvent(
-              ctx,
-              character.id,
-              character.ownerUserId,
-              'combat',
-              `You lose ${loss} XP from the defeat.`
-            );
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'reward',
+            `You lose ${loss} XP from the defeat.`
+          );
           }
           const quarterHp = character.maxHp / 4n;
           const quarterMana = character.maxMana / 4n;
@@ -594,8 +698,14 @@ export const registerCombatReducers = (deps: any) => {
       for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
         ctx.db.combatEnemyEffect.id.delete(row.id);
       }
+      for (const row of ctx.db.combatEnemyCast.by_combat.filter(combat.id)) {
+        ctx.db.combatEnemyCast.id.delete(row.id);
+      }
       for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
         ctx.db.combatEnemyEffect.id.delete(row.id);
+      }
+      for (const row of ctx.db.combatEnemyCast.by_combat.filter(combat.id)) {
+        ctx.db.combatEnemyCast.id.delete(row.id);
       }
       ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
       return;
@@ -612,8 +722,7 @@ export const registerCombatReducers = (deps: any) => {
     if (topAggro && enemySnapshot && enemySnapshot.nextAutoAttackAt <= nowMicros) {
       const targetCharacter = ctx.db.character.id.find(topAggro.characterId);
       if (targetCharacter && targetCharacter.hp > 0n) {
-        const template = ctx.db.enemyTemplate.id.find(enemySnapshot.enemyTemplateId);
-        const enemyLevel = template?.level ?? 1n;
+        const enemyLevel = enemyTemplate?.level ?? 1n;
         const levelDiff =
           enemyLevel > targetCharacter.level ? enemyLevel - targetCharacter.level : 0n;
         const damageMultiplier = 100n + levelDiff * 20n;
@@ -623,9 +732,58 @@ export const registerCombatReducers = (deps: any) => {
         const effectiveArmor =
           targetCharacter.armorClass + sumCharacterEffect(ctx, targetCharacter.id, 'ac_bonus');
         const reducedDamage = applyArmorMitigation(scaledDamage, effectiveArmor);
+        const outcomeSeed = nowMicros + enemySnapshot.id + targetCharacter.id;
+        const outcome = rollAttackOutcome(outcomeSeed, {
+          canBlock: hasShieldEquipped(ctx, targetCharacter.id),
+          canParry: canParry(targetCharacter.className),
+          canDodge: true,
+        });
+        let finalDamage = (reducedDamage * outcome.multiplier) / 100n;
+        if (finalDamage < 0n) finalDamage = 0n;
         const nextHp =
-          targetCharacter.hp > reducedDamage ? targetCharacter.hp - reducedDamage : 0n;
+          targetCharacter.hp > finalDamage ? targetCharacter.hp - finalDamage : 0n;
         ctx.db.character.id.update({ ...targetCharacter, hp: nextHp });
+        if (outcome.outcome === 'dodge') {
+          appendPrivateEvent(
+            ctx,
+            targetCharacter.id,
+            targetCharacter.ownerUserId,
+            'avoid',
+            `You dodge ${enemyName}'s auto-attack.`
+          );
+        } else if (outcome.outcome === 'miss') {
+          appendPrivateEvent(
+            ctx,
+            targetCharacter.id,
+            targetCharacter.ownerUserId,
+            'avoid',
+            `${enemyName} misses you with auto-attack.`
+          );
+        } else if (outcome.outcome === 'parry') {
+          appendPrivateEvent(
+            ctx,
+            targetCharacter.id,
+            targetCharacter.ownerUserId,
+            'avoid',
+            `You parry ${enemyName}'s auto-attack.`
+          );
+        } else if (outcome.outcome === 'block') {
+          appendPrivateEvent(
+            ctx,
+            targetCharacter.id,
+            targetCharacter.ownerUserId,
+            'avoid',
+            `You block ${enemyName}'s auto-attack for ${finalDamage}.`
+          );
+        } else {
+          appendPrivateEvent(
+            ctx,
+            targetCharacter.id,
+            targetCharacter.ownerUserId,
+            'damage',
+            `${enemyName} hits you with auto-attack for ${finalDamage}.`
+          );
+        }
         if (nextHp === 0n) {
           for (const p of participants) {
             if (p.characterId === targetCharacter.id) {

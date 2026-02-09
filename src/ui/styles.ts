@@ -370,6 +370,18 @@ export const styles = {
   logWhisper: {
     color: '#c792ff',
   },
+  logDamage: {
+    color: '#ff6b6b',
+  },
+  logHeal: {
+    color: '#7ee081',
+  },
+  logReward: {
+    color: '#f6c453',
+  },
+  logAvoid: {
+    color: 'rgba(230, 232, 239, 0.55)',
+  },
   logEmpty: {
     color: 'rgba(230,232,239,0.6)',
     fontStyle: 'italic',

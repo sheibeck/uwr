@@ -161,7 +161,14 @@ const props = defineProps<{
   selectedCharacter: CharacterRow | null;
   currentGroup: GroupRow | null;
    groupMembers: CharacterRow[];
-   characterEffects: { id: bigint; characterId: bigint; effectType: string; magnitude: bigint; roundsRemaining: bigint }[];
+  characterEffects: {
+    id: bigint;
+    characterId: bigint;
+    effectType: string;
+    magnitude: bigint;
+    roundsRemaining: bigint;
+    sourceAbility?: string;
+  }[];
   inviteSummaries: { invite: { id: bigint }; fromName: string; groupName: string }[];
   leaderId: bigint | null;
   isLeader: boolean;
@@ -200,7 +207,9 @@ const effectLabel = (effect: {
   effectType: string;
   magnitude: bigint;
   roundsRemaining: bigint;
+  sourceAbility?: string;
 }) => {
+  if (effect.sourceAbility) return effect.sourceAbility;
   switch (effect.effectType) {
     case 'regen':
       return 'Totem of Vigor';

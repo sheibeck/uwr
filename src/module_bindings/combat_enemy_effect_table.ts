@@ -16,4 +16,5 @@ export default __t.row({
   effectType: __t.string(),
   magnitude: __t.i64(),
   roundsRemaining: __t.u64(),
+  sourceAbility: __t.option(__t.string()),
 });

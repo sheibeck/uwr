@@ -11,10 +11,12 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  id: __t.u64(),
-  characterId: __t.u64(),
-  effectType: __t.string(),
-  magnitude: __t.i64(),
-  roundsRemaining: __t.u64(),
-  sourceAbility: __t.option(__t.string()),
+  id: __t.u64().primaryKey(),
+  enemyTemplateId: __t.u64(),
+  abilityKey: __t.string(),
+  name: __t.string(),
+  kind: __t.string(),
+  castSeconds: __t.u64(),
+  cooldownSeconds: __t.u64(),
+  targetRule: __t.string(),
 });

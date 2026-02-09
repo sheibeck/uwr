@@ -292,6 +292,24 @@ const EnemyTemplate = table(
   }
 );
 
+const EnemyAbility = table(
+  {
+    name: 'enemy_ability',
+    public: true,
+    indexes: [{ name: 'by_template', algorithm: 'btree', columns: ['enemyTemplateId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    enemyTemplateId: t.u64(),
+    abilityKey: t.string(),
+    name: t.string(),
+    kind: t.string(),
+    castSeconds: t.u64(),
+    cooldownSeconds: t.u64(),
+    targetRule: t.string(),
+  }
+);
+
 const LocationEnemyTemplate = table(
   {
     name: 'location_enemy_template',
@@ -322,6 +340,21 @@ const EnemySpawn = table(
     name: t.string(),
     state: t.string(),
     lockedCombatId: t.u64().optional(),
+  }
+);
+
+const CombatEnemyCast = table(
+  {
+    name: 'combat_enemy_cast',
+    indexes: [{ name: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    combatId: t.u64(),
+    enemyId: t.u64(),
+    abilityKey: t.string(),
+    endsAtMicros: t.u64(),
+    targetCharacterId: t.u64().optional(),
   }
 );
 
@@ -395,6 +428,7 @@ const CharacterEffect = table(
     effectType: t.string(),
     magnitude: t.i64(),
     roundsRemaining: t.u64(),
+    sourceAbility: t.string().optional(),
   }
 );
 
@@ -409,6 +443,7 @@ const CombatEnemyEffect = table(
     effectType: t.string(),
     magnitude: t.i64(),
     roundsRemaining: t.u64(),
+    sourceAbility: t.string().optional(),
   }
 );
 
@@ -603,11 +638,13 @@ export const spacetimedb = schema(
   GroupMember,
   GroupInvite,
   EnemyTemplate,
+  EnemyAbility,
   LocationEnemyTemplate,
   EnemySpawn,
   CombatEncounter,
   CombatParticipant,
   CombatEnemy,
+  CombatEnemyCast,
   CharacterEffect,
   CombatEnemyEffect,
   AggroEntry,
@@ -760,6 +797,16 @@ const EQUIPMENT_SLOTS = new Set([
 
 const ARMOR_TYPES = ['cloth', 'leather', 'chain', 'plate'] as const;
 const ARMOR_TYPES_WITH_NONE = ['none', ...ARMOR_TYPES] as const;
+const PARRY_CLASSES = new Set([
+  'warrior',
+  'paladin',
+  'reaver',
+  'rogue',
+  'ranger',
+  'monk',
+  'beastmaster',
+  'spellblade',
+]);
 
 const CLASS_ARMOR: Record<string, string[]> = {
   bard: ['cloth'],
@@ -952,6 +999,21 @@ function abilityManaCost(level: bigint, power: bigint) {
   return 4n + level * 2n + power;
 }
 
+function hasShieldEquipped(ctx: any, characterId: bigint) {
+  for (const instance of ctx.db.itemInstance.by_owner.filter(characterId)) {
+    if (instance.equippedSlot !== 'offHand') continue;
+    const template = ctx.db.itemTemplate.id.find(instance.templateId);
+    if (!template) continue;
+    const name = template.name.toLowerCase();
+    if (name.includes('shield') || template.armorType === 'shield') return true;
+  }
+  return false;
+}
+
+function canParry(className: string) {
+  return PARRY_CLASSES.has(normalizeClassName(className));
+}
+
 const GLOBAL_COOLDOWN_MICROS = 1_000_000n;
 function abilityCooldownMicros(abilityKey: string) {
   const ability = SHAMAN_ABILITIES[abilityKey as keyof typeof SHAMAN_ABILITIES];
@@ -966,6 +1028,27 @@ function abilityCastMicros(abilityKey: string) {
   const ability = SHAMAN_ABILITIES[abilityKey as keyof typeof SHAMAN_ABILITIES];
   if (ability?.castSeconds) return ability.castSeconds * 1_000_000n;
   return 0n;
+}
+
+function rollAttackOutcome(
+  seed: bigint,
+  opts: { canBlock: boolean; canParry: boolean; canDodge: boolean }
+) {
+  const roll = seed % 100n;
+  let cursor = 0n;
+  if (opts.canDodge) {
+    cursor += 5n;
+    if (roll < cursor) return { outcome: 'dodge', multiplier: 0n };
+  }
+  if (opts.canParry) {
+    cursor += 5n;
+    if (roll < cursor) return { outcome: 'parry', multiplier: 0n };
+  }
+  if (opts.canBlock) {
+    cursor += 5n;
+    if (roll < cursor) return { outcome: 'block', multiplier: 50n };
+  }
+  return { outcome: 'hit', multiplier: 100n };
 }
 
 function abilityDamageFromWeapon(
@@ -1049,7 +1132,13 @@ function executeAbility(
         break;
       }
     }
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', `Spirit Bolt hits for ${reduced}.`);
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'damage',
+      `Your Spirit Bolt hits ${enemy.name ?? 'enemy'} for ${reduced} damage.`
+    );
     return;
   }
 
@@ -1061,6 +1150,7 @@ function executeAbility(
       effectType: 'regen',
       magnitude: 10n,
       roundsRemaining: 1n,
+      sourceAbility: 'Totem of Vigor',
     });
     appendPrivateEvent(
       ctx,
@@ -1086,6 +1176,7 @@ function executeAbility(
       effectType: 'damage_down',
       magnitude: -2n,
       roundsRemaining: 3n,
+      sourceAbility: 'Hex',
     });
     for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
       if (entry.characterId === character.id) {
@@ -1093,7 +1184,13 @@ function executeAbility(
         break;
       }
     }
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', `Hex afflicts the enemy.`);
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'damage',
+      `Your Hex hits ${enemy.name ?? 'enemy'} for ${reduced} damage.`
+    );
     return;
   }
 
@@ -1105,6 +1202,7 @@ function executeAbility(
       effectType: 'ac_bonus',
       magnitude: 2n,
       roundsRemaining: 3n,
+      sourceAbility: 'Ancestral Ward',
     });
     appendPrivateEvent(
       ctx,
@@ -1130,7 +1228,13 @@ function executeAbility(
         break;
       }
     }
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', `Stormcall strikes for ${reduced}.`);
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'damage',
+      `Your Stormcall strikes ${enemy.name ?? 'enemy'} for ${reduced} damage.`
+    );
     return;
   }
 
@@ -2053,6 +2157,8 @@ const reducerDeps = {
   EffectTick,
   HotTick,
   CastTick,
+  EnemyAbility,
+  CombatEnemyCast,
   AggroEntry,
   requirePlayerUserId,
   requireCharacterOwnedBy,
@@ -2091,6 +2197,9 @@ const reducerDeps = {
   xpRequiredForLevel,
   MAX_LEVEL,
   applyDeathXpPenalty,
+  rollAttackOutcome,
+  hasShieldEquipped,
+  canParry,
 };
 
 registerReducers(reducerDeps);

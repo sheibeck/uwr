@@ -22,6 +22,10 @@
             event.scope === 'private' ? styles.logPrivate : {},
             event.kind === 'presence' ? styles.logPresence : {},
             event.kind === 'command' ? styles.logCommand : {},
+            event.kind === 'damage' ? styles.logDamage : {},
+            event.kind === 'heal' ? styles.logHeal : {},
+            event.kind === 'reward' ? styles.logReward : {},
+            event.kind === 'avoid' ? styles.logAvoid : {},
             event.scope === 'group' ? styles.logGroup : {},
           ]"
         >

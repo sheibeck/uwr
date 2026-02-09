@@ -140,6 +140,8 @@ import CombatEncounterRow from "./combat_encounter_table";
 export { CombatEncounterRow };
 import CombatEnemyRow from "./combat_enemy_table";
 export { CombatEnemyRow };
+import CombatEnemyCastRow from "./combat_enemy_cast_table";
+export { CombatEnemyCastRow };
 import CombatEnemyEffectRow from "./combat_enemy_effect_table";
 export { CombatEnemyEffectRow };
 import CombatParticipantRow from "./combat_participant_table";
@@ -152,6 +154,8 @@ import CommandRow from "./command_table";
 export { CommandRow };
 import EffectTickRow from "./effect_tick_table";
 export { EffectTickRow };
+import EnemyAbilityRow from "./enemy_ability_table";
+export { EnemyAbilityRow };
 import EnemySpawnRow from "./enemy_spawn_table";
 export { EnemySpawnRow };
 import EnemyTemplateRow from "./enemy_template_table";
@@ -242,6 +246,8 @@ import CombatEncounter from "./combat_encounter_type";
 export { CombatEncounter };
 import CombatEnemy from "./combat_enemy_type";
 export { CombatEnemy };
+import CombatEnemyCast from "./combat_enemy_cast_type";
+export { CombatEnemyCast };
 import CombatEnemyEffect from "./combat_enemy_effect_type";
 export { CombatEnemyEffect };
 import CombatParticipant from "./combat_participant_type";
@@ -266,6 +272,8 @@ import EffectTick from "./effect_tick_type";
 export { EffectTick };
 import EndCombat from "./end_combat_type";
 export { EndCombat };
+import EnemyAbility from "./enemy_ability_type";
+export { EnemyAbility };
 import EnemySpawn from "./enemy_spawn_type";
 export { EnemySpawn };
 import EnemyTemplate from "./enemy_template_type";
@@ -521,6 +529,20 @@ const tablesSchema = __schema(
     ],
   }, CombatEnemyRow),
   __table({
+    name: 'combat_enemy_cast',
+    indexes: [
+      { name: 'by_combat', algorithm: 'btree', columns: [
+        'combatId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_enemy_cast_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CombatEnemyCastRow),
+  __table({
     name: 'combat_enemy_effect',
     indexes: [
       { name: 'by_combat', algorithm: 'btree', columns: [
@@ -607,6 +629,20 @@ const tablesSchema = __schema(
       { name: 'effect_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
     ],
   }, EffectTickRow),
+  __table({
+    name: 'enemy_ability',
+    indexes: [
+      { name: 'by_template', algorithm: 'btree', columns: [
+        'enemyTemplateId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'enemy_ability_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, EnemyAbilityRow),
   __table({
     name: 'enemy_spawn',
     indexes: [
