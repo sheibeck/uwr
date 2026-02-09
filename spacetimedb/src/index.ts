@@ -205,6 +205,7 @@ const HotbarSlot = table(
 const AbilityCooldown = table(
   {
     name: 'ability_cooldown',
+    public: true,
     indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {

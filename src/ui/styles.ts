@@ -220,6 +220,13 @@ export const styles = {
     transformOrigin: 'left center',
     zIndex: 0,
   },
+  hotbarCooldownFill: {
+    position: 'absolute',
+    inset: 0,
+    background: 'linear-gradient(90deg, rgba(246, 196, 83, 0.18), rgba(246, 196, 83, 0.45))',
+    transformOrigin: 'right center',
+    zIndex: 0,
+  },
   hotbarSlotEmpty: {
     opacity: 0.4,
     cursor: 'not-allowed',
@@ -482,6 +489,31 @@ export const styles = {
     display: 'flex',
     gap: '0.5rem',
     alignItems: 'center',
+  },
+  combatBlock: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.4rem',
+    padding: '0.5rem 0.6rem',
+    borderRadius: '10px',
+    border: '1px solid rgba(255,255,255,0.12)',
+    background: 'rgba(10, 12, 18, 0.6)',
+  },
+  combatRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.45rem',
+    flexWrap: 'wrap',
+  },
+  combatLabel: {
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    fontSize: '0.7rem',
+    color: 'rgba(230,232,239,0.6)',
+  },
+  combatValue: {
+    fontWeight: 600,
+    color: '#e6e8ef',
   },
   input: {
     background: '#0b0f16',

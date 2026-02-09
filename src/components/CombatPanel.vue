@@ -31,25 +31,45 @@
 
 <details :style="styles.accordion" open>
   <summary :style="styles.accordionSummary">Enemies</summary>
-  <div v-if="activeCombat">
-    <div :style="styles.subtle">
-      Fighting
-      <span :style="styles[activeEnemyConClass] ?? {}">
+  <div v-if="activeCombat" :style="styles.combatBlock">
+    <div :style="styles.combatRow">
+      <span :style="styles.combatLabel">Fighting</span>
+      <span :style="[styles.combatValue, styles[activeEnemyConClass] ?? {}]">
         {{ activeEnemyName }} (Lv {{ activeEnemyLevel }})
       </span>
     </div>
-  <div v-if="activeEnemy" :style="styles.subtle">
-    Enemy HP: {{ activeEnemy.currentHp }} / {{ activeEnemy.maxHp }}
-  </div>
-  <div :style="styles.subtle">Auto-attacking...</div>
-  <div v-if="isCasting" :style="styles.subtle">
-    Casting {{ castingAbilityName }}...
-  </div>
-  <div :style="styles.panelFormInline">
-    <button
-      type="button"
-      :disabled="!connActive || !canAct"
-      :style="styles.ghostButton"
+    <div v-if="activeEnemy" :style="styles.combatRow">
+      <span :style="styles.combatLabel">Enemy HP</span>
+      <span :style="styles.combatValue">
+        {{ activeEnemy.currentHp }} / {{ activeEnemy.maxHp }}
+      </span>
+    </div>
+    <div v-if="activeEnemy" :style="styles.hpBar">
+      <div
+        :style="{
+          ...styles.hpFill,
+          width: `${percent(activeEnemy.currentHp, activeEnemy.maxHp)}%`,
+        }"
+      ></div>
+    </div>
+    <div v-if="enemyTargetName" :style="styles.combatRow">
+      <span :style="styles.combatLabel">Targeting</span>
+      <span :style="styles.combatValue">{{ enemyTargetName }}</span>
+      <span :style="styles.subtle">(auto-attack)</span>
+    </div>
+    <div :style="styles.combatRow">
+      <span :style="styles.combatLabel">Status</span>
+      <span :style="styles.combatValue">Auto-attacking</span>
+    </div>
+    <div v-if="isCasting" :style="styles.combatRow">
+      <span :style="styles.combatLabel">Casting</span>
+      <span :style="styles.combatValue">{{ castingAbilityName }}</span>
+    </div>
+    <div :style="styles.panelFormInline">
+      <button
+        type="button"
+        :disabled="!connActive || !canAct"
+        :style="styles.ghostButton"
         @click="$emit('flee')"
       >
         Flee
@@ -131,7 +151,13 @@ const props = defineProps<{
   canAct: boolean;
   isCasting: boolean;
   castingAbilityName: string;
+  enemyTargetName: string;
 }>();
+
+const percent = (value: bigint, max: bigint) => {
+  if (!max || max === 0n) return 0;
+  return Math.max(0, Math.min(100, (Number(value) / Number(max)) * 100));
+};
 
 defineEmits<{
   (e: 'start', enemyId: bigint): void;

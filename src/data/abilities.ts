@@ -28,7 +28,7 @@ export const abilities: Ability[] = [
   { key: 'cleric_sanctuary', name: 'Sanctuary', className: 'Cleric', level: 4, kind: 'utility', resource: 'mana', description: 'Briefly fortify the party’s defenses.', castSeconds: 0 },
   { key: 'cleric_heal', name: 'Heal', className: 'Cleric', level: 5, kind: 'combat', resource: 'mana', description: 'A strong single-target heal.', castSeconds: 2 },
 
-  { key: 'warrior_slam', name: 'Slam', className: 'Warrior', level: 1, kind: 'combat', resource: 'stamina', description: 'A heavy strike that draws attention.', castSeconds: 0 },
+  { key: 'warrior_slam', name: 'Slam', className: 'Warrior', level: 1, kind: 'combat', resource: 'stamina', description: 'A heavy strike that draws attention.', castSeconds: 0, cooldownSeconds: 3 },
   { key: 'warrior_shout', name: 'Shout', className: 'Warrior', level: 2, kind: 'utility', resource: 'stamina', description: 'Rally the party with a battle shout.', castSeconds: 0 },
   { key: 'warrior_cleave', name: 'Cleave', className: 'Warrior', level: 3, kind: 'combat', resource: 'stamina', description: 'A powerful cleaving blow.', castSeconds: 0 },
   { key: 'warrior_rally', name: 'Rally', className: 'Warrior', level: 4, kind: 'utility', resource: 'stamina', description: 'Bolster party defenses for a few rounds.', castSeconds: 0 },
@@ -64,11 +64,11 @@ export const abilities: Ability[] = [
   { key: 'spellblade_ward', name: 'Ward', className: 'Spellblade', level: 4, kind: 'utility', resource: 'mana', description: 'Conjure a ward to increase defenses.', castSeconds: 0 },
   { key: 'spellblade_spellstorm', name: 'Spellstorm', className: 'Spellblade', level: 5, kind: 'combat', resource: 'mana', description: 'Unleash a storm of arcane strikes.', castSeconds: 2 },
 
-  { key: 'shaman_spirit_bolt', name: 'Spirit Bolt', className: 'Shaman', level: 1, kind: 'combat', resource: 'mana', description: 'Hurl a bolt of spirit energy at the enemy.', castSeconds: 2 },
-  { key: 'shaman_totem_of_vigor', name: 'Totem of Vigor', className: 'Shaman', level: 2, kind: 'utility', resource: 'mana', description: 'Empower a party member with rapid healing.', castSeconds: 2 },
-  { key: 'shaman_hex', name: 'Hex', className: 'Shaman', level: 3, kind: 'combat', resource: 'mana', description: 'Hex the enemy to reduce their damage.', castSeconds: 1 },
-  { key: 'shaman_ancestral_ward', name: 'Ancestral Ward', className: 'Shaman', level: 4, kind: 'utility', resource: 'mana', description: 'Ward an ally with ancestral protection.', castSeconds: 0 },
-  { key: 'shaman_stormcall', name: 'Stormcall', className: 'Shaman', level: 5, kind: 'combat', resource: 'mana', description: 'Call down a storm to strike the target.', castSeconds: 2 },
+  { key: 'shaman_spirit_bolt', name: 'Spirit Bolt', className: 'Shaman', level: 1, kind: 'combat', resource: 'mana', description: 'Hurl a bolt of spirit energy at the enemy.', castSeconds: 2, cooldownSeconds: 0 },
+  { key: 'shaman_totem_of_vigor', name: 'Totem of Vigor', className: 'Shaman', level: 2, kind: 'utility', resource: 'mana', description: 'Empower a party member with rapid healing.', castSeconds: 2, cooldownSeconds: 0 },
+  { key: 'shaman_hex', name: 'Hex', className: 'Shaman', level: 3, kind: 'combat', resource: 'mana', description: 'Hex the enemy to reduce their damage.', castSeconds: 1, cooldownSeconds: 0 },
+  { key: 'shaman_ancestral_ward', name: 'Ancestral Ward', className: 'Shaman', level: 4, kind: 'utility', resource: 'mana', description: 'Ward an ally with ancestral protection.', castSeconds: 0, cooldownSeconds: 0 },
+  { key: 'shaman_stormcall', name: 'Stormcall', className: 'Shaman', level: 5, kind: 'combat', resource: 'mana', description: 'Call down a storm to strike the target.', castSeconds: 2, cooldownSeconds: 0 },
 
   { key: 'beastmaster_call_companion', name: 'Call Companion', className: 'Beastmaster', level: 1, kind: 'combat', resource: 'stamina', description: 'Command a companion beast to strike.', castSeconds: 0 },
   { key: 'beastmaster_pack_bond', name: 'Pack Bond', className: 'Beastmaster', level: 2, kind: 'utility', resource: 'stamina', description: 'Strengthen allies with the pack’s ferocity.', castSeconds: 0 },

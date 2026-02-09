@@ -83,6 +83,13 @@
               width: `${Math.round(castProgress * 100)}%`,
             }"
           ></div>
+          <div
+            v-if="slot.cooldownRemaining > 0"
+            :style="{
+              ...styles.hotbarCooldownFill,
+              width: `${Math.round((slot.cooldownRemaining / slot.cooldownSeconds) * 100)}%`,
+            }"
+          ></div>
           <span v-if="slot.cooldownRemaining > 0" :style="styles.hotbarCooldown">
             {{ slot.cooldownRemaining }}
           </span>
@@ -197,6 +204,7 @@
           :active-enemy-name="activeEnemyName"
           :active-enemy-level="activeEnemyLevel"
           :active-enemy-con-class="activeEnemyConClass"
+          :enemy-target-name="activeEnemyTargetName"
           :enemy-spawns="availableEnemies"
           :active-result="activeResult"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
@@ -245,6 +253,7 @@
           :active-enemy-name="activeEnemyName"
           :active-enemy-level="activeEnemyLevel"
           :active-enemy-con-class="activeEnemyConClass"
+          :enemy-target-name="activeEnemyTargetName"
           :enemy-spawns="availableEnemies"
           :active-result="activeResult"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
@@ -381,6 +390,7 @@ const {
   combatEncounters,
   combatParticipants,
   combatEnemies,
+  aggroEntries,
   combatResults,
   groups,
   characterEffects,
@@ -562,6 +572,35 @@ const connectedLocations = computed(() => {
   return locations.value.filter((loc) => connectedIds.has(loc.id.toString()));
 });
 
+const activeEnemyTargetName = computed(() => {
+  if (!activeCombat.value) return '';
+  const combatId = activeCombat.value.id.toString();
+  const activeIds = new Set(
+    combatParticipants.value
+      .filter((row) => row.combatId.toString() === combatId && row.status === 'active')
+      .map((row) => row.characterId.toString())
+  );
+  if (!activeIds.size) return '';
+  let topEntry: (typeof aggroEntries.value)[number] | null = null;
+  for (const entry of aggroEntries.value) {
+    if (entry.combatId.toString() !== combatId) continue;
+    if (!activeIds.has(entry.characterId.toString())) continue;
+    if (!topEntry || entry.value > topEntry.value) topEntry = entry;
+  }
+  if (topEntry) {
+    const target = characters.value.find(
+      (row) => row.id.toString() === topEntry!.characterId.toString()
+    );
+    return target?.name ?? '';
+  }
+  const fallback = combatParticipants.value.find(
+    (row) => row.combatId.toString() === combatId && row.status === 'active'
+  );
+  if (!fallback) return '';
+  const target = characters.value.find((row) => row.id.toString() === fallback.characterId.toString());
+  return target?.name ?? '';
+});
+
 const currentRegionName = computed(() => {
   if (!currentLocation.value) return 'Unknown Region';
   const region = regions.value.find(
@@ -622,6 +661,13 @@ const hotbarDisplay = computed(() => {
       resource: ability?.resource ?? '',
       kind: ability?.kind ?? '',
       level: ability?.level ?? 0,
+      cooldownSeconds: (() => {
+        const raw =
+          ability?.castSeconds && ability.castSeconds > 0
+            ? ability.castSeconds
+            : ability?.cooldownSeconds ?? 1;
+        return raw > 0 ? raw : 1;
+      })(),
       cooldownRemaining,
     };
   });
