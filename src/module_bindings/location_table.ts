@@ -18,4 +18,5 @@ export default __t.row({
   regionId: __t.u64(),
   levelOffset: __t.i64(),
   isSafe: __t.bool(),
+  terrainType: __t.string(),
 });

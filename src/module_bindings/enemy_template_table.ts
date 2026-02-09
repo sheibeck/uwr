@@ -16,6 +16,7 @@ export default __t.row({
   role: __t.string(),
   roleDetail: __t.string(),
   abilityProfile: __t.string(),
+  terrainTypes: __t.string(),
   armorClass: __t.u64(),
   level: __t.u64(),
   maxHp: __t.u64(),

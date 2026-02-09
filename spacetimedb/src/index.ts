@@ -104,6 +104,7 @@ const Location = table(
     regionId: t.u64(),
     levelOffset: t.i64(),
     isSafe: t.bool(),
+    terrainType: t.string(),
   }
 );
 
@@ -305,6 +306,7 @@ const EnemyTemplate = table(
     role: t.string(),
     roleDetail: t.string(),
     abilityProfile: t.string(),
+    terrainTypes: t.string(),
     armorClass: t.u64(),
     level: t.u64(),
     maxHp: t.u64(),
@@ -2177,7 +2179,15 @@ function ensureLocationEnemyTemplates(ctx: any) {
       break;
     }
     if (hasAny) continue;
+    const locationTerrain = (location.terrainType ?? '').trim().toLowerCase();
     for (const template of ctx.db.enemyTemplate.iter()) {
+      const allowed = (template.terrainTypes ?? '')
+        .split(',')
+        .map((entry) => entry.trim().toLowerCase())
+        .filter((entry) => entry.length > 0);
+      if (allowed.length > 0 && locationTerrain && !allowed.includes(locationTerrain)) {
+        continue;
+      }
       ctx.db.locationEnemyTemplate.insert({
         id: 0n,
         locationId: location.id,
@@ -2187,7 +2197,12 @@ function ensureLocationEnemyTemplates(ctx: any) {
   }
 }
 
-function spawnEnemy(ctx: any, locationId: bigint, targetLevel: bigint = 1n): typeof EnemySpawn.rowType {
+function spawnEnemy(
+  ctx: any,
+  locationId: bigint,
+  targetLevel: bigint = 1n,
+  avoidTemplateIds: bigint[] = []
+): typeof EnemySpawn.rowType {
   const templates = [...ctx.db.locationEnemyTemplate.by_location.filter(locationId)];
   if (templates.length === 0) throw new SenderError('No enemy templates for location');
 
@@ -2197,31 +2212,53 @@ function spawnEnemy(ctx: any, locationId: bigint, targetLevel: bigint = 1n): typ
   if (candidates.length === 0) throw new SenderError('Enemy template missing');
 
   const adjustedTarget = computeLocationTargetLevel(ctx, locationId, targetLevel);
-  let best = candidates[0];
-  let bestDiff = best.level > adjustedTarget ? best.level - adjustedTarget : adjustedTarget - best.level;
-  for (const candidate of candidates) {
-    const diff =
-      candidate.level > adjustedTarget
-        ? candidate.level - adjustedTarget
-        : adjustedTarget - candidate.level;
-    if (diff < bestDiff) {
-      best = candidate;
-      bestDiff = diff;
+  const minLevel = adjustedTarget > 1n ? adjustedTarget - 1n : 1n;
+  const maxLevel = adjustedTarget + 1n;
+  const filteredByLevel = candidates.filter(
+    (candidate) => candidate.level >= minLevel && candidate.level <= maxLevel
+  );
+  const viable = filteredByLevel.length > 0 ? filteredByLevel : candidates;
+  const avoidSet = new Set(avoidTemplateIds.map((id) => id.toString()));
+  const nonAvoid = viable.filter((candidate) => !avoidSet.has(candidate.id.toString()));
+  const pool = nonAvoid.length > 0 ? nonAvoid : viable;
+
+  const diffFor = (candidate: typeof EnemyTemplate.rowType) =>
+    candidate.level > adjustedTarget
+      ? candidate.level - adjustedTarget
+      : adjustedTarget - candidate.level;
+  const weighted: { candidate: typeof EnemyTemplate.rowType; weight: bigint }[] = [];
+  let totalWeight = 0n;
+  for (const candidate of pool) {
+    const diff = diffFor(candidate);
+    const weight = 4n - (diff > 3n ? 3n : diff);
+    const finalWeight = weight > 0n ? weight : 1n;
+    weighted.push({ candidate, weight: finalWeight });
+    totalWeight += finalWeight;
+  }
+  const seed =
+    ctx.timestamp.microsSinceUnixEpoch + locationId + BigInt(pool.length) + BigInt(totalWeight);
+  let roll = totalWeight > 0n ? seed % totalWeight : 0n;
+  let chosen = weighted[0]?.candidate ?? pool[0];
+  for (const entry of weighted) {
+    if (roll < entry.weight) {
+      chosen = entry.candidate;
+      break;
     }
+    roll -= entry.weight;
   }
 
   const spawn = ctx.db.enemySpawn.insert({
     id: 0n,
     locationId,
-    enemyTemplateId: best.id,
-    name: best.name,
+    enemyTemplateId: chosen.id,
+    name: chosen.name,
     state: 'available',
     lockedCombatId: undefined,
   });
 
   ctx.db.enemySpawn.id.update({
     ...spawn,
-    name: `${best.name} #${spawn.id}`,
+    name: `${chosen.name} #${spawn.id}`,
   });
   return ctx.db.enemySpawn.id.find(spawn.id)!;
 }
@@ -2305,7 +2342,12 @@ function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
     if (row.state === 'available') available += 1;
   }
   while (available < needed) {
-    spawnEnemy(ctx, locationId, 1n);
+    const availableTemplates: bigint[] = [];
+    for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+      if (row.state !== 'available') continue;
+      availableTemplates.push(row.enemyTemplateId);
+    }
+    spawnEnemy(ctx, locationId, 1n, availableTemplates);
     available += 1;
   }
 }
@@ -2457,6 +2499,7 @@ spacetimedb.init((ctx) => {
       regionId: starter.id,
       levelOffset: 0n,
       isSafe: true,
+      terrainType: 'town',
     });
     const ashen = ctx.db.location.insert({
       id: 0n,
@@ -2466,6 +2509,7 @@ spacetimedb.init((ctx) => {
       regionId: starter.id,
       levelOffset: 1n,
       isSafe: false,
+      terrainType: 'plains',
     });
     const fogroot = ctx.db.location.insert({
       id: 0n,
@@ -2475,6 +2519,17 @@ spacetimedb.init((ctx) => {
       regionId: starter.id,
       levelOffset: 2n,
       isSafe: false,
+      terrainType: 'swamp',
+    });
+    const bramble = ctx.db.location.insert({
+      id: 0n,
+      name: 'Bramble Hollow',
+      description: 'A dense thicket where tangled branches muffle the light.',
+      zone: 'Starter',
+      regionId: starter.id,
+      levelOffset: 2n,
+      isSafe: false,
+      terrainType: 'woods',
     });
     const gate = ctx.db.location.insert({
       id: 0n,
@@ -2484,6 +2539,7 @@ spacetimedb.init((ctx) => {
       regionId: border.id,
       levelOffset: 3n,
       isSafe: false,
+      terrainType: 'mountains',
     });
     const cinder = ctx.db.location.insert({
       id: 0n,
@@ -2493,12 +2549,14 @@ spacetimedb.init((ctx) => {
       regionId: border.id,
       levelOffset: 5n,
       isSafe: false,
+      terrainType: 'plains',
     });
 
     ctx.db.worldState.insert({ id: 1n, startingLocationId: town.id });
 
     connectLocations(ctx, town.id, ashen.id);
     connectLocations(ctx, ashen.id, fogroot.id);
+    connectLocations(ctx, fogroot.id, bramble.id);
     connectLocations(ctx, fogroot.id, gate.id);
     connectLocations(ctx, gate.id, cinder.id);
   }
@@ -2510,6 +2568,7 @@ spacetimedb.init((ctx) => {
       role: 'tank',
       roleDetail: 'melee',
       abilityProfile: 'thick hide, taunt',
+      terrainTypes: 'swamp',
       armorClass: 12n,
       level: 1n,
       maxHp: 26n,
@@ -2522,6 +2581,7 @@ spacetimedb.init((ctx) => {
       role: 'dps',
       roleDetail: 'magic',
       abilityProfile: 'fire bolts, ignite',
+      terrainTypes: 'plains,mountains',
       armorClass: 8n,
       level: 2n,
       maxHp: 28n,
@@ -2534,6 +2594,7 @@ spacetimedb.init((ctx) => {
       role: 'dps',
       roleDetail: 'ranged',
       abilityProfile: 'rapid shot, bleed',
+      terrainTypes: 'plains,woods',
       armorClass: 8n,
       level: 2n,
       maxHp: 24n,
@@ -2546,6 +2607,7 @@ spacetimedb.init((ctx) => {
       role: 'dps',
       roleDetail: 'melee',
       abilityProfile: 'pounce, shred',
+      terrainTypes: 'woods,swamp',
       armorClass: 9n,
       level: 3n,
       maxHp: 30n,
@@ -2558,6 +2620,7 @@ spacetimedb.init((ctx) => {
       role: 'healer',
       roleDetail: 'support',
       abilityProfile: 'mend, cleanse',
+      terrainTypes: 'town,city',
       armorClass: 9n,
       level: 2n,
       maxHp: 22n,
@@ -2570,11 +2633,90 @@ spacetimedb.init((ctx) => {
       role: 'support',
       roleDetail: 'control',
       abilityProfile: 'weaken, slow, snare',
+      terrainTypes: 'woods,swamp',
       armorClass: 9n,
       level: 3n,
       maxHp: 26n,
       baseDamage: 5n,
       xpReward: 22n,
+    });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Thicket Wolf',
+      role: 'dps',
+      roleDetail: 'melee',
+      abilityProfile: 'pack bite, lunge',
+      terrainTypes: 'woods,plains',
+      armorClass: 9n,
+      level: 1n,
+      maxHp: 22n,
+      baseDamage: 4n,
+      xpReward: 12n,
+    });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Marsh Croaker',
+      role: 'dps',
+      roleDetail: 'melee',
+      abilityProfile: 'tongue lash, croak',
+      terrainTypes: 'swamp',
+      armorClass: 8n,
+      level: 1n,
+      maxHp: 20n,
+      baseDamage: 3n,
+      xpReward: 10n,
+    });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Grave Skirmisher',
+      role: 'dps',
+      roleDetail: 'melee',
+      abilityProfile: 'rusty slash, feint',
+      terrainTypes: 'town,city',
+      armorClass: 9n,
+      level: 2n,
+      maxHp: 26n,
+      baseDamage: 6n,
+      xpReward: 18n,
+    });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Cinder Sentinel',
+      role: 'tank',
+      roleDetail: 'melee',
+      abilityProfile: 'stone wall, slam',
+      terrainTypes: 'mountains,plains',
+      armorClass: 13n,
+      level: 3n,
+      maxHp: 36n,
+      baseDamage: 6n,
+      xpReward: 26n,
+    });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Emberling',
+      role: 'support',
+      roleDetail: 'magic',
+      abilityProfile: 'ember spark, kindle',
+      terrainTypes: 'mountains,plains',
+      armorClass: 7n,
+      level: 1n,
+      maxHp: 18n,
+      baseDamage: 4n,
+      xpReward: 12n,
+    });
+    ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Frostbone Acolyte',
+      role: 'healer',
+      roleDetail: 'support',
+      abilityProfile: 'ice mend, ward',
+      terrainTypes: 'mountains,city',
+      armorClass: 9n,
+      level: 4n,
+      maxHp: 30n,
+      baseDamage: 6n,
+      xpReward: 30n,
     });
     if (!tableHasRows(ctx.db.enemyAbility.iter())) {
       ctx.db.enemyAbility.insert({
@@ -2601,7 +2743,11 @@ spacetimedb.init((ctx) => {
       count += 1;
     }
     while (count < desired) {
-      spawnEnemy(ctx, location.id, 1n);
+      const existingTemplates: bigint[] = [];
+      for (const row of ctx.db.enemySpawn.by_location.filter(location.id)) {
+        existingTemplates.push(row.enemyTemplateId);
+      }
+      spawnEnemy(ctx, location.id, 1n, existingTemplates);
       count += 1;
     }
   }
