@@ -1,7 +1,7 @@
 export const GLOBAL_COOLDOWN_MICROS = 1_000_000n;
 
 export const ABILITIES = {
-  shaman_spirit_bolt: {
+  shaman_spirit_mender: {
     name: 'Spirit Mender',
     className: 'shaman',
     resource: 'mana',
@@ -91,7 +91,7 @@ export const ABILITIES = {
     cooldownSeconds: 8n,
     castSeconds: 0n,
   },
-  enchanter_mind_lash: {
+  enchanter_mind_fray: {
     name: 'Mind Fray',
     className: 'enchanter',
     resource: 'mana',
@@ -136,7 +136,7 @@ export const ABILITIES = {
     cooldownSeconds: 10n,
     castSeconds: 1n,
   },
-  cleric_minor_heal: {
+  cleric_mend: {
     name: 'Mend',
     className: 'cleric',
     resource: 'mana',
@@ -190,15 +190,6 @@ export const ABILITIES = {
     cooldownSeconds: 3n,
     castSeconds: 1n,
   },
-  wizard_magic_missile: {
-    name: 'Magic Missile',
-    className: 'wizard',
-    resource: 'mana',
-    level: 1n,
-    power: 3n,
-    cooldownSeconds: 0n,
-    castSeconds: 1n,
-  },
   wizard_arcane_intellect: {
     name: 'Arcane Intellect',
     className: 'wizard',
@@ -235,7 +226,7 @@ export const ABILITIES = {
     cooldownSeconds: 6n,
     castSeconds: 2n,
   },
-  rogue_backstab: {
+  rogue_shadow_cut: {
     name: 'Shadow Cut',
     className: 'rogue',
     resource: 'stamina',
@@ -325,7 +316,7 @@ export const ABILITIES = {
     cooldownSeconds: 6n,
     castSeconds: 1n,
   },
-  ranger_aimed_shot: {
+  ranger_marked_shot: {
     name: 'Marked Shot',
     className: 'ranger',
     resource: 'stamina',
@@ -370,7 +361,7 @@ export const ABILITIES = {
     cooldownSeconds: 6n,
     castSeconds: 0n,
   },
-  necromancer_shadow_bolt: {
+  necromancer_plague_spark: {
     name: 'Plague Spark',
     className: 'necromancer',
     resource: 'mana',
@@ -505,7 +496,7 @@ export const ABILITIES = {
     cooldownSeconds: 8n,
     castSeconds: 0n,
   },
-  beastmaster_call_companion: {
+  beastmaster_pack_rush: {
     name: 'Pack Rush',
     className: 'beastmaster',
     resource: 'stamina',
@@ -550,7 +541,7 @@ export const ABILITIES = {
     cooldownSeconds: 8n,
     castSeconds: 0n,
   },
-  monk_kick: {
+  monk_crippling_kick: {
     name: 'Crippling Kick',
     className: 'monk',
     resource: 'stamina',
@@ -640,7 +631,7 @@ export const ABILITIES = {
     cooldownSeconds: 8n,
     castSeconds: 1n,
   },
-  reaver_dark_cut: {
+  reaver_blood_rend: {
     name: 'Blood Rend',
     className: 'reaver',
     resource: 'mana',
@@ -685,7 +676,7 @@ export const ABILITIES = {
     cooldownSeconds: 8n,
     castSeconds: 1n,
   },
-  summoner_arcane_bolt: {
+  summoner_familiar_strike: {
     name: 'Familiar Strike',
     className: 'summoner',
     resource: 'mana',
@@ -745,3 +736,4 @@ export const ENEMY_ABILITIES = {
     aiRandomness: 15,
   },
 };
+

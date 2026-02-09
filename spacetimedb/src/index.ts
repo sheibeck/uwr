@@ -1222,7 +1222,7 @@ function executeAbility(
   };
 
   switch (abilityKey) {
-    case 'shaman_spirit_bolt':
+    case 'shaman_spirit_mender':
       if (!targetCharacter) throw new SenderError('Target required');
       applyHeal(targetCharacter, 6n, 'Spirit Mender');
       addCharacterEffect(ctx, targetCharacter.id, 'regen', 3n, 2n, 'Spirit Mender');
@@ -1337,7 +1337,7 @@ function executeAbility(
       applyDamage(165n, bonus);
       return;
     }
-    case 'enchanter_mind_lash':
+    case 'enchanter_mind_fray':
       applyDamage(105n, 1n, {
         dot: { magnitude: 2n, rounds: 2n, source: 'Mind Fray' },
         debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Mind Fray' },
@@ -1375,7 +1375,7 @@ function executeAbility(
         debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Charm Fray' },
       });
       return;
-    case 'cleric_minor_heal':
+    case 'cleric_mend':
       if (!targetCharacter) throw new SenderError('Target required');
       applyHeal(targetCharacter, 10n, 'Mend');
       return;
@@ -1440,7 +1440,7 @@ function executeAbility(
     case 'wizard_lightning_surge':
       applyDamage(170n, 5n);
       return;
-    case 'rogue_backstab':
+    case 'rogue_shadow_cut':
       applyDamage(150n, 4n, { dot: { magnitude: 2n, rounds: 2n, source: 'Shadow Cut' } });
       return;
     case 'rogue_smoke_step': {
@@ -1527,7 +1527,7 @@ function executeAbility(
     case 'paladin_radiant_smite':
       applyDamage(160n, 4n, { dot: { magnitude: 2n, rounds: 2n, source: 'Radiant Smite' } });
       return;
-    case 'ranger_aimed_shot':
+    case 'ranger_marked_shot':
       applyDamage(135n, 2n, {
         debuff: { type: 'damage_taken', magnitude: 1n, rounds: 2n, source: 'Marked Shot' },
       });
@@ -1559,7 +1559,7 @@ function executeAbility(
     case 'ranger_piercing_arrow':
       applyDamage(150n, 4n, { ignoreArmor: 5n });
       return;
-    case 'necromancer_shadow_bolt':
+    case 'necromancer_plague_spark':
       applyDamage(110n, 1n, { dot: { magnitude: 3n, rounds: 2n, source: 'Plague Spark' } });
       applyHeal(character, 2n, 'Plague Spark');
       return;
@@ -1617,7 +1617,7 @@ function executeAbility(
     case 'spellblade_spellstorm':
       applyDamage(85n, 1n, { hits: 3n });
       return;
-    case 'beastmaster_call_companion':
+    case 'beastmaster_pack_rush':
       applyDamage(120n, 2n, { hits: 2n });
       return;
     case 'beastmaster_pack_bond':
@@ -1646,7 +1646,7 @@ function executeAbility(
     case 'beastmaster_alpha_assault':
       applyDamage(170n, 5n);
       return;
-    case 'monk_kick':
+    case 'monk_crippling_kick':
       applyDamage(120n, 1n, {
         debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Crippling Kick' },
       });
@@ -1701,7 +1701,7 @@ function executeAbility(
     case 'druid_wild_surge':
       applyDamage(165n, 5n);
       return;
-    case 'reaver_dark_cut':
+    case 'reaver_blood_rend':
       {
         const dealt = applyDamage(160n, 3n);
         if (dealt > 0n) {
@@ -1731,7 +1731,7 @@ function executeAbility(
     case 'reaver_oblivion':
       applyDamage(175n, 6n);
       return;
-    case 'summoner_arcane_bolt':
+    case 'summoner_familiar_strike':
       applyDamage(110n, 1n);
       addCharacterEffect(ctx, character.id, 'mana_regen', 2n, 2n, 'Familiar Strike');
       appendPrivateEvent(
@@ -2724,6 +2724,7 @@ const reducerDeps = {
 };
 
 registerReducers(reducerDeps);
+
 
 
 
