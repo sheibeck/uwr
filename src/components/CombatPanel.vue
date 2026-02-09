@@ -67,11 +67,7 @@
     </div>
     <div :style="styles.combatRow">
       <span :style="styles.combatLabel">Status</span>
-      <span :style="styles.combatValue">Auto-attacking</span>
-    </div>
-    <div v-if="isCasting" :style="styles.combatRow">
-      <span :style="styles.combatLabel">Casting</span>
-      <span :style="styles.combatValue">{{ castingAbilityName }}</span>
+      <span :style="styles.combatValue">{{ enemyActionText }}</span>
     </div>
     <div :style="styles.panelFormInline">
       <button
@@ -158,9 +154,8 @@ const props = defineProps<{
   canEngage: boolean;
   canDismissResults: boolean;
   canAct: boolean;
-  isCasting: boolean;
-  castingAbilityName: string;
   enemyTargetName: string;
+  enemyActionText: string;
 }>();
 
 const percent = (value: bigint, max: bigint) => {

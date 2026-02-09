@@ -347,6 +347,7 @@ const EnemySpawn = table(
 const CombatEnemyCast = table(
   {
     name: 'combat_enemy_cast',
+    public: true,
     indexes: [{ name: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
   },
   {

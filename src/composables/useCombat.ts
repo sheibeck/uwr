@@ -5,6 +5,7 @@ import {
   type CombatEncounterRow,
   type CombatParticipantRow,
   type CombatEnemyRow,
+  type CombatEnemyCastRow,
   type CombatResultRow,
   type EnemySpawnRow,
   type EnemyTemplateRow,
@@ -40,6 +41,7 @@ type UseCombatArgs = {
   combatParticipants: Ref<CombatParticipantRow[]>;
   combatEnemies: Ref<CombatEnemyRow[]>;
   combatEnemyEffects: Ref<CombatEnemyEffectRow[]>;
+  combatEnemyCasts: Ref<CombatEnemyCastRow[]>;
   combatResults: Ref<CombatResultRow[]>;
   fallbackRoster: Ref<CharacterRow[]>;
   enemySpawns: Ref<EnemySpawnRow[]>;
@@ -79,6 +81,7 @@ export const useCombat = ({
   combatParticipants,
   combatEnemies,
   combatEnemyEffects,
+  combatEnemyCasts,
   combatResults,
   fallbackRoster,
   enemySpawns,
@@ -186,6 +189,19 @@ export const useCombat = ({
       });
   });
 
+  const activeEnemyActionText = computed(() => {
+    if (!activeCombat.value) return 'Idle';
+    const combatId = activeCombat.value.id.toString();
+    const cast = combatEnemyCasts.value.find((row) => row.combatId.toString() === combatId);
+    if (cast) {
+      const pretty = cast.abilityKey
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (match) => match.toUpperCase());
+      return `Casting ${pretty}`;
+    }
+    return 'Auto-attacking';
+  });
+
 
   const availableEnemies = computed<EnemySummary[]>(() => {
     if (!selectedCharacter.value) return [];
@@ -290,6 +306,7 @@ export const useCombat = ({
     activeEnemyLevel,
     activeEnemyConClass,
     activeEnemyEffects,
+    activeEnemyActionText,
     activeEnemySpawn,
     availableEnemies,
     combatRoster,

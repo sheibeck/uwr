@@ -205,17 +205,16 @@
           :active-enemy-level="activeEnemyLevel"
           :active-enemy-con-class="activeEnemyConClass"
           :active-enemy-effects="activeEnemyEffects"
-          :enemy-target-name="activeEnemyTargetName"
-          :enemy-spawns="availableEnemies"
-          :active-result="activeResult"
-          :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
-          :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
-          :can-act="canActInCombat"
-          :is-casting="isCasting"
-          :casting-ability-name="castingAbilityName"
-          @start="startCombat"
-          @flee="flee"
-          @dismiss-results="dismissResults"
+           :enemy-target-name="activeEnemyTargetName"
+           :enemy-action-text="activeEnemyActionText"
+           :enemy-spawns="availableEnemies"
+           :active-result="activeResult"
+           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+           :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+           :can-act="canActInCombat"
+           @start="startCombat"
+           @flee="flee"
+           @dismiss-results="dismissResults"
         />
         </div>
     </div>
@@ -256,13 +255,12 @@
           :active-enemy-con-class="activeEnemyConClass"
           :active-enemy-effects="activeEnemyEffects"
           :enemy-target-name="activeEnemyTargetName"
+          :enemy-action-text="activeEnemyActionText"
           :enemy-spawns="availableEnemies"
           :active-result="activeResult"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           :can-act="canActInCombat"
-          :is-casting="isCasting"
-          :casting-ability-name="castingAbilityName"
           @start="startCombat"
           @flee="flee"
           @dismiss-results="dismissResults"
@@ -393,6 +391,7 @@ const {
   combatParticipants,
   combatEnemies,
   combatEnemyEffects,
+  combatEnemyCasts,
   aggroEntries,
   combatResults,
   groups,
@@ -497,6 +496,7 @@ const {
   activeEnemyLevel,
   activeEnemyConClass,
   activeEnemyEffects,
+  activeEnemyActionText,
   availableEnemies,
   combatRoster,
   activeResult,
@@ -510,6 +510,7 @@ const {
   combatParticipants,
   combatEnemies,
   combatEnemyEffects,
+  combatEnemyCasts,
   combatResults,
   fallbackRoster: fallbackCombatRoster,
   enemySpawns,

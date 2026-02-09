@@ -55,6 +55,7 @@ Last updated: 2026-02-09
   - XP on victory with level-up support (cap 10). XP split among non-dead participants.
   - Movement is blocked while in combat (cannot travel during combat).
   - Effect durations are driven only by effect tick loops (HoT/DoT at 3s, others at 10s) and do not decrement on combat ticks.
+  - Enemy DoTs tick and log damage every 3s.
 - **Characters:**
   - Max 3 character slots per account (MVP).
   - Character deletion with confirmation + full cleanup.
@@ -109,6 +110,7 @@ Last updated: 2026-02-09
   - Accordion sections: Characters, NPCs, Enemies.
   - Characters list moved from log to this panel.
   - Enemies section handles combat actions; enemy list is con-colored.
+  - Active enemy shows HP bar, target, status, and effect badges (red = debuff, blue = buff).
 - **Travel Mini-map:**
   - Shows current region in header, connected locations with arrows, region names, and target level con colors.
 - **Hotbar:**
@@ -223,7 +225,7 @@ Last updated: 2026-02-09
   - `combat_encounter`, `combat_participant`, `combat_enemy`, `aggro_entry`, `combat_round_tick`.
   - `character_cast`, `cast_tick`, `ability_cooldown`.
   - `combat_result`, `health_regen_tick`, `effect_tick`, `hot_tick`.
-  - `enemy_ability`, `combat_enemy_cast` (future enemy abilities).
+  - `enemy_ability`, `combat_enemy_cast` (future enemy abilities; public for UI status).
 - Events: `event_world`, `event_location`, `event_private`, `event_group`.
 - Views: `my_player`, `my_private_events`, `my_group_events`, `my_location_events`,
   `my_friend_requests`, `my_friends`, `my_group_invites`, `my_group_members`, `my_combat_results`.
