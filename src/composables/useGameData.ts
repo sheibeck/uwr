@@ -35,6 +35,7 @@ export const useGameData = () => {
   const [privateEvents] = useTable(tables.myPrivateEvents);
   const [groupEvents] = useTable(tables.myGroupEvents);
   const [groupMembers] = useTable(tables.myGroupMembers);
+  const [worldState] = useTable(tables.worldState);
 
   return {
     conn,
@@ -70,5 +71,6 @@ export const useGameData = () => {
     privateEvents,
     groupEvents,
     groupMembers,
+    worldState,
   };
 };

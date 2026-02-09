@@ -82,6 +82,8 @@ const WorldState = table(
   {
     id: t.u64().primaryKey(),
     startingLocationId: t.u64(),
+    isNight: t.bool(),
+    nextTransitionAtMicros: t.u64(),
   }
 );
 
@@ -307,6 +309,7 @@ const EnemyTemplate = table(
     roleDetail: t.string(),
     abilityProfile: t.string(),
     terrainTypes: t.string(),
+    timeOfDay: t.string(),
     armorClass: t.u64(),
     level: t.u64(),
     maxHp: t.u64(),
@@ -571,6 +574,17 @@ const CastTick = table(
   }
 );
 
+const DayNightTick = table(
+  {
+    name: 'day_night_tick',
+    scheduled: 'tick_day_night',
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+  }
+);
+
 const Command = table(
   {
     name: 'command',
@@ -689,6 +703,7 @@ export const spacetimedb = schema(
   EffectTick,
   HotTick,
   CastTick,
+  DayNightTick,
   CombatResult,
   Command,
   EventWorld,
@@ -1873,6 +1888,9 @@ function executeEnemyAbility(
 }
 
 const COMBAT_LOOP_INTERVAL_MICROS = 1_000_000n;
+const DAY_DURATION_MICROS = 1_200_000_000n;
+const NIGHT_DURATION_MICROS = 600_000_000n;
+const DEFAULT_LOCATION_SPAWNS = 3;
 function awardCombatXp(
   ctx: any,
   character: typeof Character.rowType,
@@ -2131,6 +2149,15 @@ function computeLocationTargetLevel(ctx: any, locationId: bigint, baseLevel: big
   return result > 1n ? result : 1n;
 }
 
+function getWorldState(ctx: any) {
+  return ctx.db.worldState.id.find(1n);
+}
+
+function isNightTime(ctx: any) {
+  const world = getWorldState(ctx);
+  return world?.isNight ?? false;
+}
+
 function connectLocations(ctx: any, fromId: bigint, toId: bigint) {
   ctx.db.locationConnection.insert({ id: 0n, fromLocationId: fromId, toLocationId: toId });
   ctx.db.locationConnection.insert({ id: 0n, fromLocationId: toId, toLocationId: fromId });
@@ -2206,9 +2233,16 @@ function spawnEnemy(
   const templates = [...ctx.db.locationEnemyTemplate.by_location.filter(locationId)];
   if (templates.length === 0) throw new SenderError('No enemy templates for location');
 
-  const candidates = templates
+  const timePref = isNightTime(ctx) ? 'night' : 'day';
+  const allCandidates = templates
     .map((ref) => ctx.db.enemyTemplate.id.find(ref.enemyTemplateId))
     .filter(Boolean) as (typeof EnemyTemplate.rowType)[];
+  const timeFiltered = allCandidates.filter((template) => {
+    const pref = (template.timeOfDay ?? '').trim().toLowerCase();
+    if (!pref || pref === 'any') return true;
+    return pref === timePref;
+  });
+  const candidates = timeFiltered.length > 0 ? timeFiltered : allCandidates;
   if (candidates.length === 0) throw new SenderError('Enemy template missing');
 
   const adjustedTarget = computeLocationTargetLevel(ctx, locationId, targetLevel);
@@ -2324,6 +2358,18 @@ function ensureCastTickScheduled(ctx: any) {
   }
 }
 
+function ensureDayNightTickScheduled(ctx: any) {
+  if (!tableHasRows(ctx.db.dayNightTick.iter())) {
+    const world = getWorldState(ctx);
+    const nextAt =
+      world?.nextTransitionAtMicros ?? ctx.timestamp.microsSinceUnixEpoch + DAY_DURATION_MICROS;
+    ctx.db.dayNightTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(nextAt),
+    });
+  }
+}
+
 function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
   const activeGroupKeys = new Set<string>();
   for (const player of ctx.db.player.iter()) {
@@ -2351,6 +2397,60 @@ function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
     available += 1;
   }
 }
+
+function respawnLocationSpawns(ctx: any, locationId: bigint, desired: number) {
+  for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    if (row.state === 'available') {
+      ctx.db.enemySpawn.id.delete(row.id);
+    }
+  }
+  let count = 0;
+  for (const _row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    count += 1;
+  }
+  while (count < desired) {
+    const existingTemplates: bigint[] = [];
+    for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+      existingTemplates.push(row.enemyTemplateId);
+    }
+    spawnEnemy(ctx, locationId, 1n, existingTemplates);
+    count += 1;
+  }
+}
+
+spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
+  const world = getWorldState(ctx);
+  if (!world) return;
+  const now = ctx.timestamp.microsSinceUnixEpoch;
+  if (world.nextTransitionAtMicros > now) {
+    ctx.db.dayNightTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(world.nextTransitionAtMicros),
+    });
+    return;
+  }
+  const nextIsNight = !world.isNight;
+  const nextDuration = nextIsNight ? NIGHT_DURATION_MICROS : DAY_DURATION_MICROS;
+  const nextTransition = now + nextDuration;
+  ctx.db.worldState.id.update({
+    ...world,
+    isNight: nextIsNight,
+    nextTransitionAtMicros: nextTransition,
+  });
+  const message = nextIsNight ? 'Night falls over the realm.' : 'Dawn breaks over the realm.';
+  ctx.db.eventWorld.insert({
+    id: 0n,
+    message,
+    createdAt: ctx.timestamp,
+  });
+  for (const location of ctx.db.location.iter()) {
+    respawnLocationSpawns(ctx, location.id, DEFAULT_LOCATION_SPAWNS);
+  }
+  ctx.db.dayNightTick.insert({
+    scheduledId: 0n,
+    scheduledAt: ScheduleAt.time(nextTransition),
+  });
+});
 
 spacetimedb.view(
   { name: 'my_private_events', public: true },
@@ -2552,7 +2652,12 @@ spacetimedb.init((ctx) => {
       terrainType: 'plains',
     });
 
-    ctx.db.worldState.insert({ id: 1n, startingLocationId: town.id });
+    ctx.db.worldState.insert({
+      id: 1n,
+      startingLocationId: town.id,
+      isNight: false,
+      nextTransitionAtMicros: ctx.timestamp.microsSinceUnixEpoch + DAY_DURATION_MICROS,
+    });
 
     connectLocations(ctx, town.id, ashen.id);
     connectLocations(ctx, ashen.id, fogroot.id);
@@ -2569,6 +2674,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'thick hide, taunt',
       terrainTypes: 'swamp',
+      timeOfDay: 'any',
       armorClass: 12n,
       level: 1n,
       maxHp: 26n,
@@ -2582,6 +2688,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'magic',
       abilityProfile: 'fire bolts, ignite',
       terrainTypes: 'plains,mountains',
+      timeOfDay: 'night',
       armorClass: 8n,
       level: 2n,
       maxHp: 28n,
@@ -2595,6 +2702,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'ranged',
       abilityProfile: 'rapid shot, bleed',
       terrainTypes: 'plains,woods',
+      timeOfDay: 'day',
       armorClass: 8n,
       level: 2n,
       maxHp: 24n,
@@ -2608,6 +2716,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'pounce, shred',
       terrainTypes: 'woods,swamp',
+      timeOfDay: 'night',
       armorClass: 9n,
       level: 3n,
       maxHp: 30n,
@@ -2621,6 +2730,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'support',
       abilityProfile: 'mend, cleanse',
       terrainTypes: 'town,city',
+      timeOfDay: 'night',
       armorClass: 9n,
       level: 2n,
       maxHp: 22n,
@@ -2634,6 +2744,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'control',
       abilityProfile: 'weaken, slow, snare',
       terrainTypes: 'woods,swamp',
+      timeOfDay: 'night',
       armorClass: 9n,
       level: 3n,
       maxHp: 26n,
@@ -2647,6 +2758,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'pack bite, lunge',
       terrainTypes: 'woods,plains',
+      timeOfDay: 'day',
       armorClass: 9n,
       level: 1n,
       maxHp: 22n,
@@ -2660,6 +2772,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'tongue lash, croak',
       terrainTypes: 'swamp',
+      timeOfDay: 'day',
       armorClass: 8n,
       level: 1n,
       maxHp: 20n,
@@ -2673,6 +2786,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'rusty slash, feint',
       terrainTypes: 'town,city',
+      timeOfDay: 'day',
       armorClass: 9n,
       level: 2n,
       maxHp: 26n,
@@ -2686,6 +2800,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'stone wall, slam',
       terrainTypes: 'mountains,plains',
+      timeOfDay: 'day',
       armorClass: 13n,
       level: 3n,
       maxHp: 36n,
@@ -2699,6 +2814,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'magic',
       abilityProfile: 'ember spark, kindle',
       terrainTypes: 'mountains,plains',
+      timeOfDay: 'day',
       armorClass: 7n,
       level: 1n,
       maxHp: 18n,
@@ -2712,6 +2828,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'support',
       abilityProfile: 'ice mend, ward',
       terrainTypes: 'mountains,city',
+      timeOfDay: 'night',
       armorClass: 9n,
       level: 4n,
       maxHp: 30n,
@@ -2736,7 +2853,7 @@ spacetimedb.init((ctx) => {
 
   ensureLocationEnemyTemplates(ctx);
 
-  const desired = 3;
+  const desired = DEFAULT_LOCATION_SPAWNS;
   for (const location of ctx.db.location.iter()) {
     let count = 0;
     for (const _row of ctx.db.enemySpawn.by_location.filter(location.id)) {
@@ -2756,6 +2873,7 @@ spacetimedb.init((ctx) => {
   ensureEffectTickScheduled(ctx);
   ensureHotTickScheduled(ctx);
   ensureCastTickScheduled(ctx);
+  ensureDayNightTickScheduled(ctx);
 });
 
 spacetimedb.clientConnected((ctx) => {
@@ -2776,6 +2894,7 @@ spacetimedb.clientConnected((ctx) => {
   ensureEffectTickScheduled(ctx);
   ensureHotTickScheduled(ctx);
   ensureCastTickScheduled(ctx);
+  ensureDayNightTickScheduled(ctx);
 });
 
 spacetimedb.clientDisconnected((_ctx) => {
@@ -2819,6 +2938,7 @@ const reducerDeps = {
   EffectTick,
   HotTick,
   CastTick,
+  DayNightTick,
   EnemyAbility,
   CombatEnemyCooldown,
   CombatEnemyCast,

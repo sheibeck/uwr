@@ -34,6 +34,8 @@ import {
 } from "spacetimedb";
 
 // Import and reexport all reducer arg types
+import TickDayNightReducer from "./tick_day_night_reducer";
+export { TickDayNightReducer };
 import OnConnectReducer from "./on_connect_reducer";
 export { OnConnectReducer };
 import OnDisconnectReducer from "./on_disconnect_reducer";
@@ -154,6 +156,8 @@ import CombatResultRow from "./combat_result_table";
 export { CombatResultRow };
 import CommandRow from "./command_table";
 export { CommandRow };
+import DayNightTickRow from "./day_night_tick_table";
+export { DayNightTickRow };
 import EffectTickRow from "./effect_tick_table";
 export { EffectTickRow };
 import EnemyAbilityRow from "./enemy_ability_table";
@@ -268,6 +272,8 @@ import CreateGroup from "./create_group_type";
 export { CreateGroup };
 import CreateItemTemplate from "./create_item_template_type";
 export { CreateItemTemplate };
+import DayNightTick from "./day_night_tick_type";
+export { DayNightTick };
 import DeleteCharacter from "./delete_character_type";
 export { DeleteCharacter };
 import DismissCombatResults from "./dismiss_combat_results_type";
@@ -400,6 +406,8 @@ import SubmitCommand from "./submit_command_type";
 export { SubmitCommand };
 import TickCasts from "./tick_casts_type";
 export { TickCasts };
+import TickDayNight from "./tick_day_night_type";
+export { TickDayNight };
 import TickEffects from "./tick_effects_type";
 export { TickEffects };
 import TickHot from "./tick_hot_type";
@@ -636,6 +644,17 @@ const tablesSchema = __schema(
       { name: 'command_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CommandRow),
+  __table({
+    name: 'day_night_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'day_night_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, DayNightTickRow),
   __table({
     name: 'effect_tick',
     indexes: [
@@ -1048,6 +1067,7 @@ const tablesSchema = __schema(
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("tick_day_night", TickDayNightReducer),
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("send_friend_request", SendFriendRequestReducer),
   __reducerSchema("send_friend_request_to_character", SendFriendRequestToCharacterReducer),

@@ -13,6 +13,8 @@ import {
 export default __t.object("WorldState", {
   id: __t.u64(),
   startingLocationId: __t.u64(),
+  isNight: __t.bool(),
+  nextTransitionAtMicros: __t.u64(),
 });
 
 

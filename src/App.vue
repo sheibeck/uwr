@@ -229,7 +229,14 @@
       }"
     >
       <div :style="styles.floatingPanelHeader" @mousedown="startTravelDrag">
-        {{ currentRegionName }} · {{ currentLocation?.name ?? 'Unknown' }}
+        <div :style="styles.panelHeaderStack">
+          <div :style="styles.panelHeaderLocation">{{ currentLocation?.name ?? 'Unknown' }}</div>
+          <div :style="styles.panelHeaderRegion">{{ currentRegionName }}</div>
+        </div>
+        <div
+          :style="[styles.timeIndicator, isNight ? styles.timeIndicatorNight : null]"
+          :title="timeTooltip"
+        />
       </div>
       <div :style="styles.floatingPanelBody">
         <TravelPanel
@@ -414,6 +421,7 @@ const {
   hotbarSlots,
   abilityCooldowns,
   characterCasts,
+  worldState,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
@@ -495,6 +503,20 @@ watch(
 
 const nowMicros = ref(Date.now() * 1000);
 let uiTimer: number | undefined;
+
+const worldStateRow = computed(() => worldState.value[0] ?? null);
+const isNight = computed(() => worldStateRow.value?.isNight ?? false);
+const timeIconLabel = computed(() => (isNight.value ? 'Moon' : 'Sun'));
+const timeTooltip = computed(() => {
+  const nextAt = worldStateRow.value?.nextTransitionAtMicros ?? 0n;
+  const remainingMicros = Number(nextAt) - nowMicros.value;
+  const remainingSeconds = Math.max(0, Math.floor(remainingMicros / 1_000_000));
+  const minutes = Math.floor(remainingSeconds / 60)
+    .toString()
+    .padStart(2, '0');
+  const seconds = (remainingSeconds % 60).toString().padStart(2, '0');
+  return `${isNight.value ? 'Nighttime' : 'Daytime'} · ${minutes}:${seconds} remaining`;
+});
 
 const {
   activeCombat,
@@ -1170,3 +1192,4 @@ const formatTimestamp = (ts: { microsSinceUnixEpoch: bigint }) => {
   }
 }
 </style>
+

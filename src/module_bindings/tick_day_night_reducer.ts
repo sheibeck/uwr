@@ -10,9 +10,10 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.row({
-  id: __t.u64().primaryKey(),
-  startingLocationId: __t.u64(),
-  isNight: __t.bool(),
-  nextTransitionAtMicros: __t.u64(),
-});
+import DayNightTick from "./day_night_tick_type";
+
+export default {
+  get arg() {
+    return DayNightTick;
+  },
+};
