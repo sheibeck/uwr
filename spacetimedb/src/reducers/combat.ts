@@ -320,13 +320,25 @@ export const registerCombatReducers = (deps: any) => {
         continue;
       }
       if (effect.roundsRemaining === 0n) {
+        if (effect.effectType === 'hp_bonus') {
+          const nextMax = owner.maxHp > effect.magnitude ? owner.maxHp - effect.magnitude : 0n;
+          const nextHp = owner.hp > nextMax ? nextMax : owner.hp;
+          ctx.db.character.id.update({ ...owner, maxHp: nextMax, hp: nextHp });
+        }
         ctx.db.characterEffect.id.delete(effect.id);
         continue;
       }
-      ctx.db.characterEffect.id.update({
-        ...effect,
-        roundsRemaining: effect.roundsRemaining - 1n,
-      });
+      const remaining = effect.roundsRemaining - 1n;
+      if (remaining === 0n) {
+        if (effect.effectType === 'hp_bonus') {
+          const nextMax = owner.maxHp > effect.magnitude ? owner.maxHp - effect.magnitude : 0n;
+          const nextHp = owner.hp > nextMax ? nextMax : owner.hp;
+          ctx.db.character.id.update({ ...owner, maxHp: nextMax, hp: nextHp });
+        }
+        ctx.db.characterEffect.id.delete(effect.id);
+      } else {
+        ctx.db.characterEffect.id.update({ ...effect, roundsRemaining: remaining });
+      }
     }
 
     for (const effect of ctx.db.combatEnemyEffect.iter()) {
@@ -354,7 +366,13 @@ export const registerCombatReducers = (deps: any) => {
         continue;
       }
       if (owner.hp === 0n) continue;
-      if (effect.effectType !== 'regen' && effect.effectType !== 'dot') continue;
+      if (
+        effect.effectType !== 'regen' &&
+        effect.effectType !== 'dot' &&
+        effect.effectType !== 'mana_regen' &&
+        effect.effectType !== 'stamina_regen'
+      )
+        continue;
       if (effect.roundsRemaining === 0n) {
         ctx.db.characterEffect.id.delete(effect.id);
         continue;
@@ -379,6 +397,30 @@ export const registerCombatReducers = (deps: any) => {
           owner.ownerUserId,
           'damage',
           `You take ${effect.magnitude} damage from ${source}.`
+        );
+      } else if (effect.effectType === 'mana_regen') {
+        const nextMana =
+          owner.mana + effect.magnitude > owner.maxMana ? owner.maxMana : owner.mana + effect.magnitude;
+        ctx.db.character.id.update({ ...owner, mana: nextMana });
+        appendPrivateEvent(
+          ctx,
+          owner.id,
+          owner.ownerUserId,
+          'ability',
+          `You recover ${effect.magnitude} mana from ${source}.`
+        );
+      } else if (effect.effectType === 'stamina_regen') {
+        const nextStamina =
+          owner.stamina + effect.magnitude > owner.maxStamina
+            ? owner.maxStamina
+            : owner.stamina + effect.magnitude;
+        ctx.db.character.id.update({ ...owner, stamina: nextStamina });
+        appendPrivateEvent(
+          ctx,
+          owner.id,
+          owner.ownerUserId,
+          'ability',
+          `You recover ${effect.magnitude} stamina from ${source}.`
         );
       }
       const remaining = effect.roundsRemaining - 1n;
@@ -459,6 +501,11 @@ export const registerCombatReducers = (deps: any) => {
       if (character && character.hp === 0n) {
         ctx.db.combatParticipant.id.update({ ...p, status: 'dead' });
         for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
+          if (effect.effectType === 'hp_bonus') {
+            const nextMax = character.maxHp > effect.magnitude ? character.maxHp - effect.magnitude : 0n;
+            const nextHp = character.hp > nextMax ? nextMax : character.hp;
+            ctx.db.character.id.update({ ...character, maxHp: nextMax, hp: nextHp });
+          }
           ctx.db.characterEffect.id.delete(effect.id);
         }
       }
@@ -724,86 +771,116 @@ export const registerCombatReducers = (deps: any) => {
     }
     const enemySnapshot = ctx.db.combatEnemy.id.find(enemy.id);
     if (topAggro && enemySnapshot && enemySnapshot.nextAutoAttackAt <= nowMicros) {
-      const targetCharacter = ctx.db.character.id.find(topAggro.characterId);
-      if (targetCharacter && targetCharacter.hp > 0n) {
-        const enemyLevel = enemyTemplate?.level ?? 1n;
-        const levelDiff =
-          enemyLevel > targetCharacter.level ? enemyLevel - targetCharacter.level : 0n;
-        const damageMultiplier = 100n + levelDiff * 20n;
-        const debuff = sumEnemyEffect(ctx, combat.id, 'damage_down');
-        const baseDamage = enemySnapshot.attackDamage + debuff;
-        const scaledDamage = (baseDamage * damageMultiplier) / 100n;
-        const effectiveArmor =
-          targetCharacter.armorClass + sumCharacterEffect(ctx, targetCharacter.id, 'ac_bonus');
-        const reducedDamage = applyArmorMitigation(scaledDamage, effectiveArmor);
-        const outcomeSeed = nowMicros + enemySnapshot.id + targetCharacter.id;
-        const outcome = rollAttackOutcome(outcomeSeed, {
-          canBlock: hasShieldEquipped(ctx, targetCharacter.id),
-          canParry: canParry(targetCharacter.className),
-          canDodge: true,
+      const skipEffect = [...ctx.db.combatEnemyEffect.by_combat.filter(combat.id)].find(
+        (effect) => effect.effectType === 'skip'
+      );
+      if (skipEffect) {
+        ctx.db.combatEnemyEffect.id.delete(skipEffect.id);
+        ctx.db.combatEnemy.id.update({
+          ...enemySnapshot,
+          nextAutoAttackAt: nowMicros + 3_000_000n,
         });
-        let finalDamage = (reducedDamage * outcome.multiplier) / 100n;
-        if (finalDamage < 0n) finalDamage = 0n;
-        const nextHp =
-          targetCharacter.hp > finalDamage ? targetCharacter.hp - finalDamage : 0n;
-        ctx.db.character.id.update({ ...targetCharacter, hp: nextHp });
-        if (outcome.outcome === 'dodge') {
+        for (const participant of activeParticipants) {
+          const character = ctx.db.character.id.find(participant.characterId);
+          if (!character) continue;
           appendPrivateEvent(
             ctx,
-            targetCharacter.id,
-            targetCharacter.ownerUserId,
-            'avoid',
-            `You dodge ${enemyName}'s auto-attack.`
-          );
-        } else if (outcome.outcome === 'miss') {
-          appendPrivateEvent(
-            ctx,
-            targetCharacter.id,
-            targetCharacter.ownerUserId,
-            'avoid',
-            `${enemyName} misses you with auto-attack.`
-          );
-        } else if (outcome.outcome === 'parry') {
-          appendPrivateEvent(
-            ctx,
-            targetCharacter.id,
-            targetCharacter.ownerUserId,
-            'avoid',
-            `You parry ${enemyName}'s auto-attack.`
-          );
-        } else if (outcome.outcome === 'block') {
-          appendPrivateEvent(
-            ctx,
-            targetCharacter.id,
-            targetCharacter.ownerUserId,
-            'avoid',
-            `You block ${enemyName}'s auto-attack for ${finalDamage}.`
-          );
-        } else {
-          appendPrivateEvent(
-            ctx,
-            targetCharacter.id,
-            targetCharacter.ownerUserId,
-            'damage',
-            `${enemyName} hits you with auto-attack for ${finalDamage}.`
+            character.id,
+            character.ownerUserId,
+            'combat',
+            `${enemyName} is staggered and misses a turn.`
           );
         }
-        if (nextHp === 0n) {
-          for (const p of participants) {
-            if (p.characterId === targetCharacter.id) {
-              ctx.db.combatParticipant.id.update({ ...p, status: 'dead' });
-              for (const effect of ctx.db.characterEffect.by_character.filter(targetCharacter.id)) {
-                ctx.db.characterEffect.id.delete(effect.id);
+      } else {
+        const targetCharacter = ctx.db.character.id.find(topAggro.characterId);
+        if (targetCharacter && targetCharacter.hp > 0n) {
+          const enemyLevel = enemyTemplate?.level ?? 1n;
+          const levelDiff =
+            enemyLevel > targetCharacter.level ? enemyLevel - targetCharacter.level : 0n;
+          const damageMultiplier = 100n + levelDiff * 20n;
+          const debuff = sumEnemyEffect(ctx, combat.id, 'damage_down');
+          const baseDamage = enemySnapshot.attackDamage + debuff;
+          const scaledDamage = (baseDamage * damageMultiplier) / 100n;
+          const effectiveArmor =
+            targetCharacter.armorClass + sumCharacterEffect(ctx, targetCharacter.id, 'ac_bonus');
+          const reducedDamage = applyArmorMitigation(scaledDamage, effectiveArmor);
+          const outcomeSeed = nowMicros + enemySnapshot.id + targetCharacter.id;
+          const outcome = rollAttackOutcome(outcomeSeed, {
+            canBlock: hasShieldEquipped(ctx, targetCharacter.id),
+            canParry: canParry(targetCharacter.className),
+            canDodge: true,
+          });
+          let finalDamage = (reducedDamage * outcome.multiplier) / 100n;
+          if (finalDamage < 0n) finalDamage = 0n;
+          const nextHp =
+            targetCharacter.hp > finalDamage ? targetCharacter.hp - finalDamage : 0n;
+          ctx.db.character.id.update({ ...targetCharacter, hp: nextHp });
+          if (outcome.outcome === 'dodge') {
+            appendPrivateEvent(
+              ctx,
+              targetCharacter.id,
+              targetCharacter.ownerUserId,
+              'avoid',
+              `You dodge ${enemyName}'s auto-attack.`
+            );
+          } else if (outcome.outcome === 'miss') {
+            appendPrivateEvent(
+              ctx,
+              targetCharacter.id,
+              targetCharacter.ownerUserId,
+              'avoid',
+              `${enemyName} misses you with auto-attack.`
+            );
+          } else if (outcome.outcome === 'parry') {
+            appendPrivateEvent(
+              ctx,
+              targetCharacter.id,
+              targetCharacter.ownerUserId,
+              'avoid',
+              `You parry ${enemyName}'s auto-attack.`
+            );
+          } else if (outcome.outcome === 'block') {
+            appendPrivateEvent(
+              ctx,
+              targetCharacter.id,
+              targetCharacter.ownerUserId,
+              'avoid',
+              `You block ${enemyName}'s auto-attack for ${finalDamage}.`
+            );
+          } else {
+            appendPrivateEvent(
+              ctx,
+              targetCharacter.id,
+              targetCharacter.ownerUserId,
+              'damage',
+              `${enemyName} hits you with auto-attack for ${finalDamage}.`
+            );
+          }
+          if (nextHp === 0n) {
+            for (const p of participants) {
+              if (p.characterId === targetCharacter.id) {
+                ctx.db.combatParticipant.id.update({ ...p, status: 'dead' });
+                for (const effect of ctx.db.characterEffect.by_character.filter(targetCharacter.id)) {
+                  if (effect.effectType === 'hp_bonus') {
+                    const nextMax =
+                      targetCharacter.maxHp > effect.magnitude
+                        ? targetCharacter.maxHp - effect.magnitude
+                        : 0n;
+                    const nextHp = targetCharacter.hp > nextMax ? nextMax : targetCharacter.hp;
+                    ctx.db.character.id.update({ ...targetCharacter, maxHp: nextMax, hp: nextHp });
+                  }
+                  ctx.db.characterEffect.id.delete(effect.id);
+                }
+                break;
               }
-              break;
             }
           }
+          ctx.db.combatEnemy.id.update({
+            ...enemySnapshot,
+            nextAutoAttackAt: nowMicros + 3_000_000n,
+          });
         }
       }
-      ctx.db.combatEnemy.id.update({
-        ...enemySnapshot,
-        nextAutoAttackAt: nowMicros + 3_000_000n,
-      });
     }
 
     let stillActive = false;

@@ -1027,6 +1027,627 @@ const ABILITIES = {
     cooldownSeconds: 3n,
     castSeconds: 0n,
   },
+  warrior_shout: {
+    name: 'Shout',
+    className: 'warrior',
+    resource: 'stamina',
+    level: 2n,
+    power: 3n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  warrior_cleave: {
+    name: 'Cleave',
+    className: 'warrior',
+    resource: 'stamina',
+    level: 3n,
+    power: 4n,
+    cooldownSeconds: 5n,
+    castSeconds: 0n,
+  },
+  warrior_rally: {
+    name: 'Rally',
+    className: 'warrior',
+    resource: 'stamina',
+    level: 4n,
+    power: 5n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  warrior_crushing_blow: {
+    name: 'Crushing Blow',
+    className: 'warrior',
+    resource: 'stamina',
+    level: 5n,
+    power: 6n,
+    cooldownSeconds: 7n,
+    castSeconds: 0n,
+  },
+  bard_discordant_note: {
+    name: 'Discordant Note',
+    className: 'bard',
+    resource: 'mana',
+    level: 1n,
+    power: 2n,
+    cooldownSeconds: 3n,
+    castSeconds: 0n,
+  },
+  bard_song_of_ease: {
+    name: 'Song of Ease',
+    className: 'bard',
+    resource: 'mana',
+    level: 2n,
+    power: 3n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  bard_echoed_chord: {
+    name: 'Echoed Chord',
+    className: 'bard',
+    resource: 'mana',
+    level: 3n,
+    power: 4n,
+    cooldownSeconds: 5n,
+    castSeconds: 0n,
+  },
+  bard_harmony: {
+    name: 'Harmony',
+    className: 'bard',
+    resource: 'mana',
+    level: 4n,
+    power: 5n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  bard_crushing_crescendo: {
+    name: 'Crushing Crescendo',
+    className: 'bard',
+    resource: 'mana',
+    level: 5n,
+    power: 6n,
+    cooldownSeconds: 7n,
+    castSeconds: 0n,
+  },
+  enchanter_mind_lash: {
+    name: 'Mind Lash',
+    className: 'enchanter',
+    resource: 'mana',
+    level: 1n,
+    power: 2n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  enchanter_clarity: {
+    name: 'Clarity',
+    className: 'enchanter',
+    resource: 'mana',
+    level: 2n,
+    power: 3n,
+    cooldownSeconds: 8n,
+    castSeconds: 0n,
+  },
+  enchanter_slow: {
+    name: 'Slow',
+    className: 'enchanter',
+    resource: 'mana',
+    level: 3n,
+    power: 4n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  enchanter_clarity_ii: {
+    name: 'Clarity II',
+    className: 'enchanter',
+    resource: 'mana',
+    level: 4n,
+    power: 5n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  enchanter_charm_fray: {
+    name: 'Charm Fray',
+    className: 'enchanter',
+    resource: 'mana',
+    level: 5n,
+    power: 6n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  cleric_minor_heal: {
+    name: 'Minor Heal',
+    className: 'cleric',
+    resource: 'mana',
+    level: 1n,
+    power: 2n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  cleric_blessing: {
+    name: 'Blessing',
+    className: 'cleric',
+    resource: 'mana',
+    level: 2n,
+    power: 3n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  cleric_smite: {
+    name: 'Smite',
+    className: 'cleric',
+    resource: 'mana',
+    level: 3n,
+    power: 4n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  cleric_sanctuary: {
+    name: 'Sanctuary',
+    className: 'cleric',
+    resource: 'mana',
+    level: 4n,
+    power: 5n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  cleric_heal: {
+    name: 'Heal',
+    className: 'cleric',
+    resource: 'mana',
+    level: 5n,
+    power: 6n,
+    cooldownSeconds: 0n,
+    castSeconds: 2n,
+  },
+  rogue_backstab: {
+    name: 'Backstab',
+    className: 'rogue',
+    resource: 'stamina',
+    level: 1n,
+    power: 3n,
+    cooldownSeconds: 3n,
+    castSeconds: 0n,
+  },
+  rogue_smoke_step: {
+    name: 'Smoke Step',
+    className: 'rogue',
+    resource: 'stamina',
+    level: 2n,
+    power: 3n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  rogue_bleed: {
+    name: 'Bleed',
+    className: 'rogue',
+    resource: 'stamina',
+    level: 3n,
+    power: 4n,
+    cooldownSeconds: 5n,
+    castSeconds: 0n,
+  },
+  rogue_evasion: {
+    name: 'Evasion',
+    className: 'rogue',
+    resource: 'stamina',
+    level: 4n,
+    power: 5n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  rogue_shadow_strike: {
+    name: 'Shadow Strike',
+    className: 'rogue',
+    resource: 'stamina',
+    level: 5n,
+    power: 6n,
+    cooldownSeconds: 7n,
+    castSeconds: 0n,
+  },
+  paladin_holy_strike: {
+    name: 'Holy Strike',
+    className: 'paladin',
+    resource: 'mana',
+    level: 1n,
+    power: 2n,
+    cooldownSeconds: 3n,
+    castSeconds: 0n,
+  },
+  paladin_prayer: {
+    name: 'Prayer',
+    className: 'paladin',
+    resource: 'mana',
+    level: 2n,
+    power: 3n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  paladin_shield_of_faith: {
+    name: 'Shield of Faith',
+    className: 'paladin',
+    resource: 'mana',
+    level: 3n,
+    power: 4n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  paladin_devotion: {
+    name: 'Devotion',
+    className: 'paladin',
+    resource: 'mana',
+    level: 4n,
+    power: 5n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  paladin_radiant_smite: {
+    name: 'Radiant Smite',
+    className: 'paladin',
+    resource: 'mana',
+    level: 5n,
+    power: 6n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  ranger_aimed_shot: {
+    name: 'Aimed Shot',
+    className: 'ranger',
+    resource: 'stamina',
+    level: 1n,
+    power: 3n,
+    cooldownSeconds: 3n,
+    castSeconds: 0n,
+  },
+  ranger_track: {
+    name: 'Track',
+    className: 'ranger',
+    resource: 'mana',
+    level: 2n,
+    power: 3n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  ranger_rapid_shot: {
+    name: 'Rapid Shot',
+    className: 'ranger',
+    resource: 'stamina',
+    level: 3n,
+    power: 4n,
+    cooldownSeconds: 5n,
+    castSeconds: 0n,
+  },
+  ranger_natures_balm: {
+    name: "Nature's Balm",
+    className: 'ranger',
+    resource: 'mana',
+    level: 4n,
+    power: 5n,
+    cooldownSeconds: 8n,
+    castSeconds: 0n,
+  },
+  ranger_piercing_arrow: {
+    name: 'Piercing Arrow',
+    className: 'ranger',
+    resource: 'stamina',
+    level: 5n,
+    power: 6n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  necromancer_shadow_bolt: {
+    name: 'Shadow Bolt',
+    className: 'necromancer',
+    resource: 'mana',
+    level: 1n,
+    power: 2n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  necromancer_siphon_vitality: {
+    name: 'Siphon Vitality',
+    className: 'necromancer',
+    resource: 'mana',
+    level: 2n,
+    power: 3n,
+    cooldownSeconds: 8n,
+    castSeconds: 0n,
+  },
+  necromancer_wither: {
+    name: 'Wither',
+    className: 'necromancer',
+    resource: 'mana',
+    level: 3n,
+    power: 4n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  necromancer_bone_ward: {
+    name: 'Bone Ward',
+    className: 'necromancer',
+    resource: 'mana',
+    level: 4n,
+    power: 5n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  necromancer_grave_surge: {
+    name: 'Grave Surge',
+    className: 'necromancer',
+    resource: 'mana',
+    level: 5n,
+    power: 6n,
+    cooldownSeconds: 0n,
+    castSeconds: 2n,
+  },
+  spellblade_arcane_slash: {
+    name: 'Arcane Slash',
+    className: 'spellblade',
+    resource: 'mana',
+    level: 1n,
+    power: 2n,
+    cooldownSeconds: 3n,
+    castSeconds: 0n,
+  },
+  spellblade_focus: {
+    name: 'Focus',
+    className: 'spellblade',
+    resource: 'stamina',
+    level: 2n,
+    power: 3n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  spellblade_runic_strike: {
+    name: 'Runic Strike',
+    className: 'spellblade',
+    resource: 'mana',
+    level: 3n,
+    power: 4n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  spellblade_ward: {
+    name: 'Ward',
+    className: 'spellblade',
+    resource: 'mana',
+    level: 4n,
+    power: 5n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  spellblade_spellstorm: {
+    name: 'Spellstorm',
+    className: 'spellblade',
+    resource: 'mana',
+    level: 5n,
+    power: 6n,
+    cooldownSeconds: 0n,
+    castSeconds: 2n,
+  },
+  beastmaster_call_companion: {
+    name: 'Call Companion',
+    className: 'beastmaster',
+    resource: 'stamina',
+    level: 1n,
+    power: 3n,
+    cooldownSeconds: 3n,
+    castSeconds: 0n,
+  },
+  beastmaster_pack_bond: {
+    name: 'Pack Bond',
+    className: 'beastmaster',
+    resource: 'stamina',
+    level: 2n,
+    power: 3n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  beastmaster_beast_fang: {
+    name: 'Beast Fang',
+    className: 'beastmaster',
+    resource: 'stamina',
+    level: 3n,
+    power: 4n,
+    cooldownSeconds: 5n,
+    castSeconds: 0n,
+  },
+  beastmaster_wild_howl: {
+    name: 'Wild Howl',
+    className: 'beastmaster',
+    resource: 'stamina',
+    level: 4n,
+    power: 5n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  beastmaster_alpha_assault: {
+    name: 'Alpha Assault',
+    className: 'beastmaster',
+    resource: 'stamina',
+    level: 5n,
+    power: 6n,
+    cooldownSeconds: 7n,
+    castSeconds: 0n,
+  },
+  monk_kick: {
+    name: 'Kick',
+    className: 'monk',
+    resource: 'stamina',
+    level: 1n,
+    power: 3n,
+    cooldownSeconds: 3n,
+    castSeconds: 0n,
+  },
+  monk_meditation: {
+    name: 'Meditation',
+    className: 'monk',
+    resource: 'stamina',
+    level: 2n,
+    power: 3n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  monk_palm_strike: {
+    name: 'Palm Strike',
+    className: 'monk',
+    resource: 'stamina',
+    level: 3n,
+    power: 4n,
+    cooldownSeconds: 5n,
+    castSeconds: 0n,
+  },
+  monk_inner_focus: {
+    name: 'Inner Focus',
+    className: 'monk',
+    resource: 'stamina',
+    level: 4n,
+    power: 5n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  monk_tiger_flurry: {
+    name: 'Tiger Flurry',
+    className: 'monk',
+    resource: 'stamina',
+    level: 5n,
+    power: 6n,
+    cooldownSeconds: 7n,
+    castSeconds: 0n,
+  },
+  druid_thorn_lash: {
+    name: 'Thorn Lash',
+    className: 'druid',
+    resource: 'mana',
+    level: 1n,
+    power: 2n,
+    cooldownSeconds: 3n,
+    castSeconds: 0n,
+  },
+  druid_regrowth: {
+    name: 'Regrowth',
+    className: 'druid',
+    resource: 'mana',
+    level: 2n,
+    power: 3n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  druid_bramble: {
+    name: 'Bramble',
+    className: 'druid',
+    resource: 'mana',
+    level: 3n,
+    power: 4n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  druid_natures_gift: {
+    name: "Nature's Gift",
+    className: 'druid',
+    resource: 'mana',
+    level: 4n,
+    power: 5n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  druid_wild_surge: {
+    name: 'Wild Surge',
+    className: 'druid',
+    resource: 'mana',
+    level: 5n,
+    power: 6n,
+    cooldownSeconds: 0n,
+    castSeconds: 2n,
+  },
+  reaver_dark_cut: {
+    name: 'Dark Cut',
+    className: 'reaver',
+    resource: 'mana',
+    level: 1n,
+    power: 2n,
+    cooldownSeconds: 3n,
+    castSeconds: 0n,
+  },
+  reaver_blood_pact: {
+    name: 'Blood Pact',
+    className: 'reaver',
+    resource: 'stamina',
+    level: 2n,
+    power: 3n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  reaver_soul_rend: {
+    name: 'Soul Rend',
+    className: 'reaver',
+    resource: 'mana',
+    level: 3n,
+    power: 4n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  reaver_dread_aura: {
+    name: 'Dread Aura',
+    className: 'reaver',
+    resource: 'mana',
+    level: 4n,
+    power: 5n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  reaver_oblivion: {
+    name: 'Oblivion',
+    className: 'reaver',
+    resource: 'mana',
+    level: 5n,
+    power: 6n,
+    cooldownSeconds: 0n,
+    castSeconds: 2n,
+  },
+  summoner_arcane_bolt: {
+    name: 'Arcane Bolt',
+    className: 'summoner',
+    resource: 'mana',
+    level: 1n,
+    power: 2n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  summoner_familiar: {
+    name: 'Familiar',
+    className: 'summoner',
+    resource: 'mana',
+    level: 2n,
+    power: 3n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  summoner_conjured_spike: {
+    name: 'Conjured Spike',
+    className: 'summoner',
+    resource: 'mana',
+    level: 3n,
+    power: 4n,
+    cooldownSeconds: 0n,
+    castSeconds: 1n,
+  },
+  summoner_empower: {
+    name: 'Empower',
+    className: 'summoner',
+    resource: 'mana',
+    level: 4n,
+    power: 5n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  summoner_spectral_lance: {
+    name: 'Spectral Lance',
+    className: 'summoner',
+    resource: 'mana',
+    level: 5n,
+    power: 6n,
+    cooldownSeconds: 0n,
+    castSeconds: 2n,
+  },
 } as const;
 
 function abilityResourceCost(level: bigint, power: bigint) {
@@ -1098,6 +1719,78 @@ function abilityDamageFromWeapon(
   return scaled > weaponDamage ? scaled : weaponDamage + bonus;
 }
 
+function partyMembersInLocation(ctx: any, character: typeof Character.rowType) {
+  if (!character.groupId) return [character];
+  const members: typeof Character.rowType[] = [];
+  for (const member of ctx.db.groupMember.by_group.filter(character.groupId)) {
+    const memberChar = ctx.db.character.id.find(member.characterId);
+    if (memberChar && memberChar.locationId === character.locationId) {
+      members.push(memberChar);
+    }
+  }
+  if (!members.find((row) => row.id === character.id)) members.unshift(character);
+  return members;
+}
+
+function addCharacterEffect(
+  ctx: any,
+  characterId: bigint,
+  effectType: string,
+  magnitude: bigint,
+  roundsRemaining: bigint,
+  sourceAbility: string
+) {
+  ctx.db.characterEffect.insert({
+    id: 0n,
+    characterId,
+    effectType,
+    magnitude,
+    roundsRemaining,
+    sourceAbility,
+  });
+}
+
+function addEnemyEffect(
+  ctx: any,
+  combatId: bigint,
+  effectType: string,
+  magnitude: bigint,
+  roundsRemaining: bigint,
+  sourceAbility: string
+) {
+  ctx.db.combatEnemyEffect.insert({
+    id: 0n,
+    combatId,
+    effectType,
+    magnitude,
+    roundsRemaining,
+    sourceAbility,
+  });
+}
+
+function applyHpBonus(
+  ctx: any,
+  character: typeof Character.rowType,
+  amount: bigint,
+  roundsRemaining: bigint,
+  sourceAbility: string
+) {
+  ctx.db.character.id.update({
+    ...character,
+    maxHp: character.maxHp + amount,
+    hp: character.hp + amount,
+  });
+  addCharacterEffect(ctx, character.id, 'hp_bonus', amount, roundsRemaining, sourceAbility);
+}
+
+function getTopAggroId(ctx: any, combatId: bigint) {
+  let top: typeof AggroEntry.rowType | null = null;
+  for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+    if (!top || entry.value > top.value) top = entry;
+  }
+  return top?.characterId ?? null;
+}
+
 function sumCharacterEffect(ctx: any, characterId: bigint, effectType: string) {
   let total = 0n;
   for (const effect of ctx.db.characterEffect.by_character.filter(characterId)) {
@@ -1167,158 +1860,575 @@ function executeAbility(
       : null;
   const enemyTemplate = enemy ? ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId) : null;
   const enemyName = enemyTemplate?.name ?? 'enemy';
+  const weapon = getEquippedWeaponStats(ctx, character.id);
+  const baseWeaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
+  const damageUp = sumCharacterEffect(ctx, character.id, 'damage_up');
 
-  if (abilityKey === 'shaman_spirit_bolt') {
+  const applyDamage = (
+    percent: bigint,
+    bonus: bigint,
+    options?: {
+      hits?: bigint;
+      ignoreArmor?: bigint;
+      threatBonus?: bigint;
+      debuff?: { type: string; magnitude: bigint; rounds: bigint; source: string };
+      dot?: { magnitude: bigint; rounds: bigint; source: string };
+      message?: string;
+    }
+  ) => {
     if (!enemy || !combatId) throw new SenderError('No enemy in combat');
-    const weapon = getEquippedWeaponStats(ctx, character.id);
-    const weaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
-    const damage = abilityDamageFromWeapon(weaponDamage, 125n, 2n);
-    const reduced = applyArmorMitigation(damage, enemy.armorClass);
-    const nextHp = enemy.currentHp > reduced ? enemy.currentHp - reduced : 0n;
+    const hits = options?.hits ?? 1n;
+    let armor = enemy.armorClass;
+    if (options?.ignoreArmor) {
+      armor = armor > options.ignoreArmor ? armor - options.ignoreArmor : 0n;
+    }
+    let totalDamage = 0n;
+    for (let i = 0n; i < hits; i += 1n) {
+      const raw = abilityDamageFromWeapon(baseWeaponDamage, percent, bonus) + damageUp;
+      const reduced = applyArmorMitigation(raw, armor);
+      totalDamage += reduced;
+    }
+    const nextHp = enemy.currentHp > totalDamage ? enemy.currentHp - totalDamage : 0n;
     ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
     for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
       if (entry.characterId === character.id) {
-        ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + reduced });
+        ctx.db.aggroEntry.id.update({
+          ...entry,
+          value: entry.value + totalDamage + (options?.threatBonus ?? 0n),
+        });
         break;
       }
+    }
+    if (options?.debuff) {
+      addEnemyEffect(
+        ctx,
+        combatId,
+        options.debuff.type,
+        options.debuff.magnitude,
+        options.debuff.rounds,
+        options.debuff.source
+      );
+    }
+    if (options?.dot) {
+      addEnemyEffect(
+        ctx,
+        combatId,
+        'dot',
+        options.dot.magnitude,
+        options.dot.rounds,
+        options.dot.source
+      );
     }
     appendPrivateEvent(
       ctx,
       character.id,
       character.ownerUserId,
       'damage',
-      `Your Spirit Bolt hits ${enemyName} for ${reduced} damage.`
+      options?.message ?? `Your ${ability.name} hits ${enemyName} for ${totalDamage} damage.`
     );
-    return;
-  }
+  };
 
-  if (abilityKey === 'warrior_slam') {
-    if (!enemy || !combatId) throw new SenderError('No enemy in combat');
-    const weapon = getEquippedWeaponStats(ctx, character.id);
-    const weaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
-    const damage = abilityDamageFromWeapon(weaponDamage, 140n, 3n);
-    const reduced = applyArmorMitigation(damage, enemy.armorClass);
-    const nextHp = enemy.currentHp > reduced ? enemy.currentHp - reduced : 0n;
-    ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
-    for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
-      if (entry.characterId === character.id) {
-        ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + reduced + 10n });
-        break;
-      }
+  const partyMembers = partyMembersInLocation(ctx, character);
+  const applyHeal = (target: typeof Character.rowType, amount: bigint, source: string) => {
+    const nextHp = target.hp + amount > target.maxHp ? target.maxHp : target.hp + amount;
+    ctx.db.character.id.update({ ...target, hp: nextHp });
+    appendPrivateEvent(
+      ctx,
+      target.id,
+      target.ownerUserId,
+      'heal',
+      `${source} restores ${amount} health to ${target.name}.`
+    );
+  };
+  const applyPartyEffect = (
+    effectType: string,
+    magnitude: bigint,
+    rounds: bigint,
+    source: string
+  ) => {
+    for (const member of partyMembers) {
+      addCharacterEffect(ctx, member.id, effectType, magnitude, rounds, source);
     }
-    appendPrivateEvent(
-      ctx,
-      character.id,
-      character.ownerUserId,
-      'damage',
-      `Your Slam hits ${enemyName} for ${reduced} damage.`
-    );
-    return;
-  }
-
-  if (abilityKey === 'shaman_totem_of_vigor') {
-    if (!targetCharacter) throw new SenderError('Target required');
-    ctx.db.characterEffect.insert({
-      id: 0n,
-      characterId: targetCharacter.id,
-      effectType: 'regen',
-      magnitude: 10n,
-      roundsRemaining: 3n,
-      sourceAbility: 'Totem of Vigor',
-    });
-    appendPrivateEvent(
-      ctx,
-      character.id,
-      character.ownerUserId,
-      'ability',
-      `Totem of Vigor empowers ${targetCharacter.name}.`
-    );
-    return;
-  }
-
-  if (abilityKey === 'shaman_hex') {
-    if (!enemy || !combatId) throw new SenderError('No enemy in combat');
-    const weapon = getEquippedWeaponStats(ctx, character.id);
-    const weaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
-    const damage = abilityDamageFromWeapon(weaponDamage, 115n, 1n);
-    const reduced = applyArmorMitigation(damage, enemy.armorClass);
-    const nextHp = enemy.currentHp > reduced ? enemy.currentHp - reduced : 0n;
-    ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
-    ctx.db.combatEnemyEffect.insert({
-      id: 0n,
-      combatId,
-      effectType: 'damage_down',
-      magnitude: -2n,
-      roundsRemaining: 3n,
-      sourceAbility: 'Hex',
-    });
-    for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
-      if (entry.characterId === character.id) {
-        ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + reduced });
-        break;
-      }
+  };
+  const applyPartyHpBonus = (amount: bigint, rounds: bigint, source: string) => {
+    for (const member of partyMembers) {
+      applyHpBonus(ctx, member, amount, rounds, source);
     }
-    appendPrivateEvent(
-      ctx,
-      character.id,
-      character.ownerUserId,
-      'damage',
-      `Your Hex hits ${enemyName} for ${reduced} damage.`
-    );
-    return;
-  }
+  };
 
-  if (abilityKey === 'shaman_ancestral_ward') {
-    if (!targetCharacter) throw new SenderError('Target required');
-    ctx.db.characterEffect.insert({
-      id: 0n,
-      characterId: targetCharacter.id,
-      effectType: 'ac_bonus',
-      magnitude: 2n,
-      roundsRemaining: 3n,
-      sourceAbility: 'Ancestral Ward',
-    });
-    appendPrivateEvent(
-      ctx,
-      character.id,
-      character.ownerUserId,
-      'ability',
-      `Ancestral Ward shields ${targetCharacter.name}.`
-    );
-    return;
-  }
-
-  if (abilityKey === 'shaman_stormcall') {
-    if (!enemy || !combatId) throw new SenderError('No enemy in combat');
-    const weapon = getEquippedWeaponStats(ctx, character.id);
-    const weaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
-    const damage = abilityDamageFromWeapon(weaponDamage, 160n, 4n);
-    const reduced = applyArmorMitigation(damage, enemy.armorClass);
-    const nextHp = enemy.currentHp > reduced ? enemy.currentHp - reduced : 0n;
-    ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
-    for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
-      if (entry.characterId === character.id) {
-        ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + reduced });
-        break;
-      }
+  switch (abilityKey) {
+    case 'shaman_spirit_bolt':
+      applyDamage(125n, 2n);
+      return;
+    case 'shaman_totem_of_vigor':
+      if (!targetCharacter) throw new SenderError('Target required');
+      addCharacterEffect(ctx, targetCharacter.id, 'regen', 10n, 3n, 'Totem of Vigor');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        `Totem of Vigor empowers ${targetCharacter.name}.`
+      );
+      return;
+    case 'shaman_hex':
+      applyDamage(115n, 1n, {
+        debuff: { type: 'damage_down', magnitude: -2n, rounds: 3n, source: 'Hex' },
+      });
+      return;
+    case 'shaman_ancestral_ward':
+      if (!targetCharacter) throw new SenderError('Target required');
+      addCharacterEffect(ctx, targetCharacter.id, 'ac_bonus', 2n, 3n, 'Ancestral Ward');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        `Ancestral Ward shields ${targetCharacter.name}.`
+      );
+      return;
+    case 'shaman_stormcall':
+      applyDamage(160n, 4n);
+      return;
+    case 'warrior_slam':
+      applyDamage(140n, 3n, { threatBonus: 10n });
+      return;
+    case 'warrior_shout':
+      applyPartyEffect('damage_up', 2n, 3n, 'Shout');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Your Shout rallies the party.'
+      );
+      return;
+    case 'warrior_cleave':
+      applyDamage(150n, 4n);
+      return;
+    case 'warrior_rally':
+      applyPartyEffect('ac_bonus', 3n, 3n, 'Rally');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Your Rally fortifies the party.'
+      );
+      return;
+    case 'warrior_crushing_blow':
+      applyDamage(175n, 5n, { threatBonus: 5n });
+      return;
+    case 'bard_discordant_note':
+      applyDamage(120n, 1n, {
+        debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Discordant Note' },
+      });
+      return;
+    case 'bard_song_of_ease':
+      applyPartyEffect('stamina_regen', 3n, 3n, 'Song of Ease');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Song of Ease restores the party.'
+      );
+      return;
+    case 'bard_echoed_chord': {
+      const allyBonus = BigInt(partyMembers.length - 1) > 0n ? BigInt(partyMembers.length - 1) : 0n;
+      applyDamage(135n, 2n + allyBonus);
+      return;
     }
-    appendPrivateEvent(
-      ctx,
-      character.id,
-      character.ownerUserId,
-      'damage',
-      `Your Stormcall strikes ${enemyName} for ${reduced} damage.`
-    );
-    return;
+    case 'bard_harmony':
+      applyPartyEffect('damage_up', 2n, 3n, 'Harmony');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Harmony steadies the party.'
+      );
+      return;
+    case 'bard_crushing_crescendo': {
+      let bonus = 5n;
+      if (enemy && enemy.currentHp * 2n <= enemy.maxHp) bonus += 3n;
+      applyDamage(165n, bonus);
+      return;
+    }
+    case 'enchanter_mind_lash':
+      applyDamage(115n, 1n, { dot: { magnitude: 3n, rounds: 2n, source: 'Mind Lash' } });
+      return;
+    case 'enchanter_clarity':
+      if (!targetCharacter) throw new SenderError('Target required');
+      addCharacterEffect(ctx, targetCharacter.id, 'mana_regen', 4n, 3n, 'Clarity');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        `Clarity restores ${targetCharacter.name}'s mana.`
+      );
+      return;
+    case 'enchanter_slow':
+      applyDamage(110n, 1n, {
+        debuff: { type: 'damage_down', magnitude: -3n, rounds: 2n, source: 'Slow' },
+      });
+      return;
+    case 'enchanter_clarity_ii':
+      if (!targetCharacter) throw new SenderError('Target required');
+      addCharacterEffect(ctx, targetCharacter.id, 'mana_regen', 6n, 3n, 'Clarity II');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        `Clarity II restores ${targetCharacter.name}'s mana.`
+      );
+      return;
+    case 'enchanter_charm_fray':
+      applyDamage(140n, 3n, {
+        debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Charm Fray' },
+      });
+      return;
+    case 'cleric_minor_heal':
+      if (!targetCharacter) throw new SenderError('Target required');
+      applyHeal(targetCharacter, 8n, 'Minor Heal');
+      return;
+    case 'cleric_blessing':
+      if (!targetCharacter) throw new SenderError('Target required');
+      applyHpBonus(ctx, targetCharacter, 10n, 3n, 'Blessing');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        `Blessing fortifies ${targetCharacter.name}.`
+      );
+      return;
+    case 'cleric_smite':
+      applyDamage(130n, 2n);
+      return;
+    case 'cleric_sanctuary':
+      applyPartyEffect('ac_bonus', 3n, 3n, 'Sanctuary');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Sanctuary shelters the party.'
+      );
+      return;
+    case 'cleric_heal':
+      if (!targetCharacter) throw new SenderError('Target required');
+      applyHeal(targetCharacter, 15n, 'Heal');
+      return;
+    case 'rogue_backstab':
+      applyDamage(150n, 4n);
+      return;
+    case 'rogue_smoke_step': {
+      const combatIdLocal = combatId;
+      if (combatIdLocal) {
+        for (const entry of ctx.db.aggroEntry.by_combat.filter(combatIdLocal)) {
+          if (entry.characterId === character.id) {
+            const reduced = entry.value > 10n ? entry.value - 10n : 0n;
+            ctx.db.aggroEntry.id.update({ ...entry, value: reduced });
+            break;
+          }
+        }
+      }
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Smoke Step lowers your threat.'
+      );
+      return;
+    }
+    case 'rogue_bleed':
+      applyDamage(110n, 2n, { dot: { magnitude: 3n, rounds: 2n, source: 'Bleed' } });
+      return;
+    case 'rogue_evasion':
+      addCharacterEffect(ctx, character.id, 'ac_bonus', 3n, 2n, 'Evasion');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Evasion heightens your defenses.'
+      );
+      return;
+    case 'rogue_shadow_strike': {
+      const dotAmount = sumEnemyEffect(ctx, combatId ?? 0n, 'dot');
+      const bonus = dotAmount > 0n ? 6n : 4n;
+      applyDamage(165n, bonus);
+      return;
+    }
+    case 'paladin_holy_strike':
+      applyDamage(130n, 2n);
+      return;
+    case 'paladin_prayer':
+      applyPartyHpBonus(10n, 3n, 'Prayer');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Prayer blesses the party.'
+      );
+      return;
+    case 'paladin_shield_of_faith':
+      if (!targetCharacter) throw new SenderError('Target required');
+      addCharacterEffect(ctx, targetCharacter.id, 'ac_bonus', 3n, 3n, 'Shield of Faith');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        `Shield of Faith protects ${targetCharacter.name}.`
+      );
+      return;
+    case 'paladin_devotion':
+      applyPartyEffect('damage_up', 3n, 3n, 'Devotion');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Devotion inspires the party.'
+      );
+      return;
+    case 'paladin_radiant_smite':
+      applyDamage(160n, 4n, { dot: { magnitude: 2n, rounds: 2n, source: 'Radiant Smite' } });
+      return;
+    case 'ranger_aimed_shot':
+      applyDamage(135n, 3n);
+      return;
+    case 'ranger_track':
+      applyPartyEffect('damage_up', 1n, 3n, 'Track');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Track reveals a weakness in nearby foes.'
+      );
+      return;
+    case 'ranger_rapid_shot':
+      applyDamage(90n, 1n, { hits: 2n });
+      return;
+    case 'ranger_natures_balm':
+      if (!targetCharacter) throw new SenderError('Target required');
+      addCharacterEffect(ctx, targetCharacter.id, 'regen', 4n, 3n, "Nature's Balm");
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        `Nature's Balm mends ${targetCharacter.name}.`
+      );
+      return;
+    case 'ranger_piercing_arrow':
+      applyDamage(150n, 4n, { ignoreArmor: 5n });
+      return;
+    case 'necromancer_shadow_bolt':
+      applyDamage(125n, 2n);
+      return;
+    case 'necromancer_siphon_vitality': {
+      const healAmount = 8n;
+      applyHeal(character, healAmount, 'Siphon Vitality');
+      return;
+    }
+    case 'necromancer_wither':
+      applyDamage(120n, 2n, { dot: { magnitude: 3n, rounds: 2n, source: 'Wither' } });
+      return;
+    case 'necromancer_bone_ward':
+      addCharacterEffect(ctx, character.id, 'ac_bonus', 3n, 3n, 'Bone Ward');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Bone Ward hardens your defenses.'
+      );
+      return;
+    case 'necromancer_grave_surge':
+      applyDamage(170n, 6n);
+      return;
+    case 'spellblade_arcane_slash':
+      applyDamage(135n, 2n);
+      return;
+    case 'spellblade_focus':
+      addCharacterEffect(ctx, character.id, 'damage_up', 3n, 3n, 'Focus');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Focus sharpens your offense.'
+      );
+      return;
+    case 'spellblade_runic_strike':
+      applyDamage(150n, 3n, {
+        debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Runic Strike' },
+      });
+      return;
+    case 'spellblade_ward':
+      addCharacterEffect(ctx, character.id, 'ac_bonus', 3n, 3n, 'Ward');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Ward surrounds you in arcane protection.'
+      );
+      return;
+    case 'spellblade_spellstorm':
+      applyDamage(85n, 1n, { hits: 3n });
+      return;
+    case 'beastmaster_call_companion':
+      applyDamage(130n, 2n);
+      return;
+    case 'beastmaster_pack_bond':
+      applyPartyEffect('damage_up', 2n, 3n, 'Pack Bond');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Pack Bond empowers the party.'
+      );
+      return;
+    case 'beastmaster_beast_fang':
+      applyDamage(145n, 3n, { dot: { magnitude: 2n, rounds: 2n, source: 'Beast Fang' } });
+      return;
+    case 'beastmaster_wild_howl':
+      applyPartyEffect('damage_up', 3n, 3n, 'Wild Howl');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Wild Howl emboldens the party.'
+      );
+      return;
+    case 'beastmaster_alpha_assault':
+      applyDamage(170n, 5n);
+      return;
+    case 'monk_kick':
+      applyDamage(125n, 2n, { debuff: { type: 'skip', magnitude: 1n, rounds: 1n, source: 'Kick' } });
+      return;
+    case 'monk_meditation':
+      addCharacterEffect(ctx, character.id, 'regen', 4n, 3n, 'Meditation');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Meditation steadies your breathing.'
+      );
+      return;
+    case 'monk_palm_strike':
+      applyDamage(145n, 3n);
+      return;
+    case 'monk_inner_focus':
+      addCharacterEffect(ctx, character.id, 'ac_bonus', 3n, 3n, 'Inner Focus');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Inner Focus hardens your guard.'
+      );
+      return;
+    case 'monk_tiger_flurry':
+      applyDamage(85n, 1n, { hits: 3n });
+      return;
+    case 'druid_thorn_lash':
+      applyDamage(125n, 2n);
+      return;
+    case 'druid_regrowth':
+      if (!targetCharacter) throw new SenderError('Target required');
+      applyHeal(targetCharacter, 10n, 'Regrowth');
+      return;
+    case 'druid_bramble':
+      applyDamage(110n, 2n, { dot: { magnitude: 3n, rounds: 2n, source: 'Bramble' } });
+      return;
+    case 'druid_natures_gift':
+      applyPartyHpBonus(8n, 3n, "Nature's Gift");
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        "Nature's Gift blesses the party."
+      );
+      return;
+    case 'druid_wild_surge':
+      applyDamage(165n, 5n);
+      return;
+    case 'reaver_dark_cut':
+      applyDamage(135n, 2n);
+      return;
+    case 'reaver_blood_pact':
+      addCharacterEffect(ctx, character.id, 'damage_up', 3n, 3n, 'Blood Pact');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Blood Pact fuels your offense.'
+      );
+      return;
+    case 'reaver_soul_rend':
+      applyDamage(150n, 3n, { dot: { magnitude: 3n, rounds: 2n, source: 'Soul Rend' } });
+      return;
+    case 'reaver_dread_aura':
+      applyDamage(110n, 1n, {
+        debuff: { type: 'damage_down', magnitude: -3n, rounds: 2n, source: 'Dread Aura' },
+      });
+      return;
+    case 'reaver_oblivion':
+      applyDamage(175n, 6n);
+      return;
+    case 'summoner_arcane_bolt':
+      applyDamage(125n, 2n);
+      return;
+    case 'summoner_familiar':
+      addCharacterEffect(ctx, character.id, 'mana_regen', 4n, 3n, 'Familiar');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Familiar restores your mana.'
+      );
+      return;
+    case 'summoner_conjured_spike':
+      applyDamage(145n, 3n);
+      return;
+    case 'summoner_empower':
+      applyPartyEffect('damage_up', 2n, 3n, 'Empower');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Empower strengthens the party.'
+      );
+      return;
+    case 'summoner_spectral_lance':
+      applyDamage(170n, 5n);
+      return;
+    default:
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        `You use ${ability.name}.`
+      );
   }
-
-  appendPrivateEvent(
-    ctx,
-    character.id,
-    character.ownerUserId,
-    'ability',
-    `You use ${ability.name}.`
-  );
 }
 
 function baseArmorForClass(className: string) {

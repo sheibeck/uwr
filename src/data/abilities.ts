@@ -7,6 +7,7 @@ export type Ability = {
   resource: 'mana' | 'stamina';
   description: string;
   castSeconds: number;
+  cooldownSeconds?: number;
 };
 
 export const abilities: Ability[] = [
