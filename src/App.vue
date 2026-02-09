@@ -463,6 +463,7 @@ const {
 } = useCharacterCreation({
     connActive: computed(() => conn.isActive),
     selectedCharacter,
+    selectedCharacterId,
     userId,
     characters,
   });

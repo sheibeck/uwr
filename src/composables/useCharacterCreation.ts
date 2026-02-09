@@ -1,4 +1,4 @@
-import { computed, ref, type Ref } from 'vue';
+import { computed, ref, watch, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 import type { CharacterRow } from '../module_bindings';
@@ -6,6 +6,7 @@ import type { CharacterRow } from '../module_bindings';
 type UseCharacterCreationArgs = {
   connActive: Ref<boolean>;
   selectedCharacter: Ref<CharacterRow | null>;
+  selectedCharacterId: Ref<string>;
   userId: Ref<bigint | null>;
   characters: Ref<CharacterRow[]>;
 };
@@ -13,6 +14,7 @@ type UseCharacterCreationArgs = {
 export const useCharacterCreation = ({
   connActive,
   selectedCharacter,
+  selectedCharacterId,
   userId,
   characters,
 }: UseCharacterCreationArgs) => {
@@ -21,6 +23,7 @@ export const useCharacterCreation = ({
   const newCharacter = ref({ name: '', race: '', className: '' });
   const createError = ref('');
   const creationToken = ref(0);
+  const pendingSelectName = ref('');
 
   const isCharacterFormValid = computed(() =>
     Boolean(
@@ -45,6 +48,7 @@ export const useCharacterCreation = ({
       return;
     }
     try {
+      pendingSelectName.value = newCharacter.value.name.trim();
       createCharacterReducer({
         name: newCharacter.value.name.trim(),
         race: newCharacter.value.race.trim(),
@@ -58,6 +62,17 @@ export const useCharacterCreation = ({
       newCharacter.value = { ...newCharacter.value, name: '' };
     }
   };
+
+  watch(
+    () => characters.value.map((row) => row.name).join(','),
+    () => {
+      if (!pendingSelectName.value) return;
+      const match = characters.value.find((row) => row.name === pendingSelectName.value);
+      if (!match) return;
+      selectedCharacterId.value = match.id.toString();
+      pendingSelectName.value = '';
+    }
+  );
 
   return {
     newCharacter,
