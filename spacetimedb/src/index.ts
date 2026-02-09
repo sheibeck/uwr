@@ -974,6 +974,17 @@ function addCharacterEffect(
   roundsRemaining: bigint,
   sourceAbility: string
 ) {
+  const existing = [...ctx.db.characterEffect.by_character.filter(characterId)].find(
+    (effect) => effect.effectType === effectType && effect.sourceAbility === sourceAbility
+  );
+  if (existing) {
+    ctx.db.characterEffect.id.update({
+      ...existing,
+      magnitude,
+      roundsRemaining,
+    });
+    return;
+  }
   ctx.db.characterEffect.insert({
     id: 0n,
     characterId,
@@ -992,6 +1003,17 @@ function addEnemyEffect(
   roundsRemaining: bigint,
   sourceAbility: string
 ) {
+  const existing = [...ctx.db.combatEnemyEffect.by_combat.filter(combatId)].find(
+    (effect) => effect.effectType === effectType && effect.sourceAbility === sourceAbility
+  );
+  if (existing) {
+    ctx.db.combatEnemyEffect.id.update({
+      ...existing,
+      magnitude,
+      roundsRemaining,
+    });
+    return;
+  }
   ctx.db.combatEnemyEffect.insert({
     id: 0n,
     combatId,
