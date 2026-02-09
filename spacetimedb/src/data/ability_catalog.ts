@@ -52,7 +52,7 @@ export const ABILITIES = {
     resource: 'stamina',
     level: 1n,
     power: 3n,
-    cooldownSeconds: 3n,
+    cooldownSeconds: 6n,
     castSeconds: 0n,
   },
   warrior_shout: {
@@ -236,7 +236,7 @@ export const ABILITIES = {
     castSeconds: 2n,
   },
   rogue_backstab: {
-    name: 'Backstab',
+    name: 'Shadow Cut',
     className: 'rogue',
     resource: 'stamina',
     level: 1n,
@@ -326,12 +326,12 @@ export const ABILITIES = {
     castSeconds: 1n,
   },
   ranger_aimed_shot: {
-    name: 'Aimed Shot',
+    name: 'Marked Shot',
     className: 'ranger',
     resource: 'stamina',
     level: 1n,
     power: 3n,
-    cooldownSeconds: 2n,
+    cooldownSeconds: 6n,
     castSeconds: 0n,
   },
   ranger_track: {
@@ -506,12 +506,12 @@ export const ABILITIES = {
     castSeconds: 0n,
   },
   beastmaster_call_companion: {
-    name: 'Call Companion',
+    name: 'Pack Rush',
     className: 'beastmaster',
     resource: 'stamina',
     level: 1n,
     power: 4n,
-    cooldownSeconds: 6n,
+    cooldownSeconds: 8n,
     castSeconds: 0n,
   },
   beastmaster_pack_bond: {
@@ -551,12 +551,12 @@ export const ABILITIES = {
     castSeconds: 0n,
   },
   monk_kick: {
-    name: 'Kick',
+    name: 'Crippling Kick',
     className: 'monk',
     resource: 'stamina',
     level: 1n,
     power: 3n,
-    cooldownSeconds: 4n,
+    cooldownSeconds: 5n,
     castSeconds: 0n,
   },
   monk_meditation: {
@@ -641,12 +641,12 @@ export const ABILITIES = {
     castSeconds: 1n,
   },
   reaver_dark_cut: {
-    name: 'Dark Cut',
+    name: 'Blood Rend',
     className: 'reaver',
     resource: 'mana',
     level: 1n,
     power: 3n,
-    cooldownSeconds: 0n,
+    cooldownSeconds: 6n,
     castSeconds: 0n,
   },
   reaver_blood_pact: {

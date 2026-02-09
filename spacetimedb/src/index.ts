@@ -1145,7 +1145,10 @@ function executeAbility(
     }
     let totalDamage = 0n;
     for (let i = 0n; i < hits; i += 1n) {
-      const raw = abilityDamageFromWeapon(baseWeaponDamage, percent, bonus) + damageUp;
+      const raw =
+        abilityDamageFromWeapon(baseWeaponDamage, percent, bonus) +
+        damageUp +
+        sumEnemyEffect(ctx, combatId, 'damage_taken');
       const reduced = applyArmorMitigation(raw, armor);
       totalDamage += reduced;
     }
@@ -1187,6 +1190,7 @@ function executeAbility(
       'damage',
       options?.message ?? `Your ${ability.name} hits ${enemyName} for ${totalDamage} damage.`
     );
+    return totalDamage;
   };
 
   const partyMembers = partyMembersInLocation(ctx, character);
@@ -1261,7 +1265,10 @@ function executeAbility(
       applyDamage(160n, 4n);
       return;
     case 'warrior_slam':
-      applyDamage(140n, 3n, { threatBonus: 10n });
+      applyDamage(140n, 3n, {
+        threatBonus: 10n,
+        debuff: { type: 'skip', magnitude: 1n, rounds: 1n, source: 'Slam' },
+      });
       return;
     case 'warrior_shout':
       applyPartyEffect('damage_up', 2n, 3n, 'Shout');
@@ -1434,7 +1441,7 @@ function executeAbility(
       applyDamage(170n, 5n);
       return;
     case 'rogue_backstab':
-      applyDamage(150n, 4n);
+      applyDamage(150n, 4n, { dot: { magnitude: 2n, rounds: 2n, source: 'Shadow Cut' } });
       return;
     case 'rogue_smoke_step': {
       const combatIdLocal = combatId;
@@ -1521,7 +1528,9 @@ function executeAbility(
       applyDamage(160n, 4n, { dot: { magnitude: 2n, rounds: 2n, source: 'Radiant Smite' } });
       return;
     case 'ranger_aimed_shot':
-      applyDamage(135n, 3n);
+      applyDamage(135n, 2n, {
+        debuff: { type: 'damage_taken', magnitude: 1n, rounds: 2n, source: 'Marked Shot' },
+      });
       return;
     case 'ranger_track':
       applyPartyEffect('damage_up', 1n, 3n, 'Track');
@@ -1609,7 +1618,7 @@ function executeAbility(
       applyDamage(85n, 1n, { hits: 3n });
       return;
     case 'beastmaster_call_companion':
-      applyDamage(130n, 2n);
+      applyDamage(120n, 2n, { hits: 2n });
       return;
     case 'beastmaster_pack_bond':
       applyPartyEffect('damage_up', 2n, 3n, 'Pack Bond');
@@ -1638,7 +1647,9 @@ function executeAbility(
       applyDamage(170n, 5n);
       return;
     case 'monk_kick':
-      applyDamage(125n, 2n, { debuff: { type: 'skip', magnitude: 1n, rounds: 1n, source: 'Kick' } });
+      applyDamage(120n, 1n, {
+        debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Crippling Kick' },
+      });
       return;
     case 'monk_meditation':
       addCharacterEffect(ctx, character.id, 'regen', 4n, 3n, 'Meditation');
@@ -1691,7 +1702,13 @@ function executeAbility(
       applyDamage(165n, 5n);
       return;
     case 'reaver_dark_cut':
-      applyDamage(135n, 2n);
+      {
+        const dealt = applyDamage(160n, 3n);
+        if (dealt > 0n) {
+          const leech = (dealt * 30n) / 100n;
+          applyHeal(character, leech > 0n ? leech : 1n, 'Blood Rend');
+        }
+      }
       return;
     case 'reaver_blood_pact':
       addCharacterEffect(ctx, character.id, 'damage_up', 3n, 3n, 'Blood Pact');

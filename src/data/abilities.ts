@@ -35,13 +35,13 @@ export const abilities: Ability[] = [
   { key: 'wizard_mana_shield', name: 'Mana Shield', className: 'Wizard', level: 4, kind: 'utility', resource: 'mana', description: 'A protective arcane barrier for an ally.', castSeconds: 0 },
   { key: 'wizard_lightning_surge', name: 'Lightning Surge', className: 'Wizard', level: 5, kind: 'combat', resource: 'mana', description: 'A violent surge of lightning.', castSeconds: 2 },
 
-  { key: 'warrior_slam', name: 'Slam', className: 'Warrior', level: 1, kind: 'combat', resource: 'stamina', description: 'A heavy strike that draws attention.', castSeconds: 0, cooldownSeconds: 3 },
+  { key: 'warrior_slam', name: 'Slam', className: 'Warrior', level: 1, kind: 'combat', resource: 'stamina', description: 'A crushing blow that staggers the enemy.', castSeconds: 0, cooldownSeconds: 6 },
   { key: 'warrior_shout', name: 'Shout', className: 'Warrior', level: 2, kind: 'utility', resource: 'stamina', description: 'Rally the party with a battle shout.', castSeconds: 0 },
   { key: 'warrior_cleave', name: 'Cleave', className: 'Warrior', level: 3, kind: 'combat', resource: 'stamina', description: 'A powerful cleaving blow.', castSeconds: 0 },
   { key: 'warrior_rally', name: 'Rally', className: 'Warrior', level: 4, kind: 'utility', resource: 'stamina', description: 'Bolster party defenses for a few rounds.', castSeconds: 0 },
   { key: 'warrior_crushing_blow', name: 'Crushing Blow', className: 'Warrior', level: 5, kind: 'combat', resource: 'stamina', description: 'A brutal finishing strike.', castSeconds: 0 },
 
-  { key: 'rogue_backstab', name: 'Backstab', className: 'Rogue', level: 1, kind: 'combat', resource: 'stamina', description: 'Strike from the shadows for extra damage.', castSeconds: 0 },
+  { key: 'rogue_backstab', name: 'Shadow Cut', className: 'Rogue', level: 1, kind: 'combat', resource: 'stamina', description: 'A precise strike that leaves a bleeding wound.', castSeconds: 0, cooldownSeconds: 4 },
   { key: 'rogue_smoke_step', name: 'Smoke Step', className: 'Rogue', level: 2, kind: 'utility', resource: 'stamina', description: 'Slip away to reduce your threat.', castSeconds: 0 },
   { key: 'rogue_bleed', name: 'Bleed', className: 'Rogue', level: 3, kind: 'combat', resource: 'stamina', description: 'Wound the enemy to cause lingering pain.', castSeconds: 0 },
   { key: 'rogue_evasion', name: 'Evasion', className: 'Rogue', level: 4, kind: 'utility', resource: 'stamina', description: 'Briefly increase your chance to avoid attacks.', castSeconds: 0 },
@@ -53,7 +53,7 @@ export const abilities: Ability[] = [
   { key: 'paladin_devotion', name: 'Devotion', className: 'Paladin', level: 4, kind: 'utility', resource: 'mana', description: 'Inspire allies to strike harder.', castSeconds: 0 },
   { key: 'paladin_radiant_smite', name: 'Radiant Smite', className: 'Paladin', level: 5, kind: 'combat', resource: 'mana', description: 'A radiant strike that burns the target.', castSeconds: 1 },
 
-  { key: 'ranger_aimed_shot', name: 'Aimed Shot', className: 'Ranger', level: 1, kind: 'combat', resource: 'stamina', description: 'A precise shot for solid damage.', castSeconds: 0 },
+  { key: 'ranger_aimed_shot', name: 'Marked Shot', className: 'Ranger', level: 1, kind: 'combat', resource: 'stamina', description: 'Tag the foe to take extra damage briefly.', castSeconds: 0, cooldownSeconds: 6 },
   { key: 'ranger_track', name: 'Track', className: 'Ranger', level: 2, kind: 'utility', resource: 'mana', description: 'Sense stronger foes in the area.', castSeconds: 0 },
   { key: 'ranger_rapid_shot', name: 'Rapid Shot', className: 'Ranger', level: 3, kind: 'combat', resource: 'stamina', description: 'Fire a quick volley of arrows.', castSeconds: 0 },
   { key: 'ranger_natures_balm', name: "Nature's Balm", className: 'Ranger', level: 4, kind: 'utility', resource: 'mana', description: 'Draw on nature to mend your wounds.', castSeconds: 0 },
@@ -77,13 +77,13 @@ export const abilities: Ability[] = [
   { key: 'shaman_ancestral_ward', name: 'Ancestral Ward', className: 'Shaman', level: 4, kind: 'utility', resource: 'mana', description: 'Ward an ally with ancestral protection.', castSeconds: 0, cooldownSeconds: 0 },
   { key: 'shaman_stormcall', name: 'Stormcall', className: 'Shaman', level: 5, kind: 'combat', resource: 'mana', description: 'Call down a storm to strike the target.', castSeconds: 2, cooldownSeconds: 0 },
 
-  { key: 'beastmaster_call_companion', name: 'Call Companion', className: 'Beastmaster', level: 1, kind: 'combat', resource: 'stamina', description: 'Command a companion beast to strike.', castSeconds: 0 },
+  { key: 'beastmaster_call_companion', name: 'Pack Rush', className: 'Beastmaster', level: 1, kind: 'combat', resource: 'stamina', description: 'Your pack surges in with a flurry of strikes.', castSeconds: 0, cooldownSeconds: 8 },
   { key: 'beastmaster_pack_bond', name: 'Pack Bond', className: 'Beastmaster', level: 2, kind: 'utility', resource: 'stamina', description: 'Strengthen allies with the pack’s ferocity.', castSeconds: 0 },
   { key: 'beastmaster_beast_fang', name: 'Beast Fang', className: 'Beastmaster', level: 3, kind: 'combat', resource: 'stamina', description: 'Your beast rends the target viciously.', castSeconds: 0 },
   { key: 'beastmaster_wild_howl', name: 'Wild Howl', className: 'Beastmaster', level: 4, kind: 'utility', resource: 'stamina', description: 'A primal howl that emboldens the party.', castSeconds: 0 },
   { key: 'beastmaster_alpha_assault', name: 'Alpha Assault', className: 'Beastmaster', level: 5, kind: 'combat', resource: 'stamina', description: 'Command an alpha strike from your beast.', castSeconds: 0 },
 
-  { key: 'monk_kick', name: 'Kick', className: 'Monk', level: 1, kind: 'combat', resource: 'stamina', description: 'A swift kick to disrupt the enemy.', castSeconds: 0 },
+  { key: 'monk_kick', name: 'Crippling Kick', className: 'Monk', level: 1, kind: 'combat', resource: 'stamina', description: 'A sharp kick that weakens enemy offense.', castSeconds: 0, cooldownSeconds: 5 },
   { key: 'monk_meditation', name: 'Meditation', className: 'Monk', level: 2, kind: 'utility', resource: 'stamina', description: 'Calm yourself to recover more quickly.', castSeconds: 0 },
   { key: 'monk_palm_strike', name: 'Palm Strike', className: 'Monk', level: 3, kind: 'combat', resource: 'stamina', description: 'A focused palm strike.', castSeconds: 0 },
   { key: 'monk_inner_focus', name: 'Inner Focus', className: 'Monk', level: 4, kind: 'utility', resource: 'stamina', description: 'Heighten your defenses for a short time.', castSeconds: 0 },
@@ -95,7 +95,7 @@ export const abilities: Ability[] = [
   { key: 'druid_natures_gift', name: "Nature's Gift", className: 'Druid', level: 4, kind: 'utility', resource: 'mana', description: 'Bless the party with a natural boon.', castSeconds: 0 },
   { key: 'druid_wild_surge', name: 'Wild Surge', className: 'Druid', level: 5, kind: 'combat', resource: 'mana', description: 'Unleash a burst of wild energy.', castSeconds: 2 },
 
-  { key: 'reaver_dark_cut', name: 'Dark Cut', className: 'Reaver', level: 1, kind: 'combat', resource: 'mana', description: 'A darkly empowered melee strike.', castSeconds: 0 },
+  { key: 'reaver_dark_cut', name: 'Blood Rend', className: 'Reaver', level: 1, kind: 'combat', resource: 'mana', description: 'A brutal strike that siphons vitality.', castSeconds: 0, cooldownSeconds: 6 },
   { key: 'reaver_blood_pact', name: 'Blood Pact', className: 'Reaver', level: 2, kind: 'utility', resource: 'stamina', description: 'Sacrificial pact to bolster endurance.', castSeconds: 0 },
   { key: 'reaver_soul_rend', name: 'Soul Rend', className: 'Reaver', level: 3, kind: 'combat', resource: 'mana', description: 'Rend the soul of your enemy.', castSeconds: 1 },
   { key: 'reaver_dread_aura', name: 'Dread Aura', className: 'Reaver', level: 4, kind: 'utility', resource: 'mana', description: 'An aura that weakens enemy offense.', castSeconds: 0 },

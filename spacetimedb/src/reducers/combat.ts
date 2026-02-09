@@ -589,7 +589,9 @@ export const registerCombatReducers = (deps: any) => {
       if (!enemy) continue;
       const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
       const enemyName = enemyTemplate?.name ?? 'enemy';
-      const nextHp = enemy.currentHp > effect.magnitude ? enemy.currentHp - effect.magnitude : 0n;
+      const bonus = sumEnemyEffect(ctx, effect.combatId, 'damage_taken');
+      const total = effect.magnitude + bonus;
+      const nextHp = enemy.currentHp > total ? enemy.currentHp - total : 0n;
       ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
       const source = effect.sourceAbility ?? 'a lingering effect';
       for (const participant of ctx.db.combatParticipant.by_combat.filter(effect.combatId)) {
@@ -600,7 +602,7 @@ export const registerCombatReducers = (deps: any) => {
           character.id,
           character.ownerUserId,
           'damage',
-          `${source} deals ${effect.magnitude} damage to ${enemyName}.`
+          `${source} deals ${total} damage to ${enemyName}.`
         );
       }
       const remaining = effect.roundsRemaining - 1n;
@@ -843,13 +845,17 @@ export const registerCombatReducers = (deps: any) => {
       const currentEnemy = ctx.db.combatEnemy.id.find(enemy.id);
       if (!currentEnemy || currentEnemy.currentHp === 0n) continue;
       const weapon = deps.getEquippedWeaponStats(ctx, character.id);
-      const damage = 5n + character.level + weapon.baseDamage + (weapon.dps / 2n);
+      const damage =
+        5n +
+        character.level +
+        weapon.baseDamage +
+        (weapon.dps / 2n) +
+        sumEnemyEffect(ctx, combat.id, 'damage_taken');
       const outcomeSeed = nowMicros + character.id + currentEnemy.id;
       const { finalDamage, nextHp } = resolveAttack(ctx, {
         seed: outcomeSeed,
         baseDamage: damage,
-        targetArmor:
-          currentEnemy.armorClass + sumEnemyEffect(ctx, combat.id, 'armor_down'),
+        targetArmor: currentEnemy.armorClass + sumEnemyEffect(ctx, combat.id, 'armor_down'),
         canBlock: hasShieldEquipped(ctx, character.id),
         canParry: canParry(character.className),
         canDodge: true,
