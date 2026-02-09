@@ -11,13 +11,6 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  id: __t.u64().primaryKey(),
-  combatId: __t.u64(),
-  characterId: __t.u64(),
-  status: __t.string(),
-  selectedAction: __t.option(__t.string()),
-  nextAutoAttackAt: __t.u64(),
-  castingAbilityKey: __t.option(__t.string()),
-  castEndsAt: __t.option(__t.u64()),
-  castTargetCharacterId: __t.option(__t.u64()),
+  scheduledId: __t.u64().primaryKey(),
+  scheduledAt: __t.scheduleAt(),
 });

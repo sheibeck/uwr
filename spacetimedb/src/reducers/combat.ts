@@ -8,6 +8,7 @@ export const registerCombatReducers = (deps: any) => {
     CombatRoundTick,
     HealthRegenTick,
     EffectTick,
+    HotTick,
     requireCharacterOwnedBy,
     appendPrivateEvent,
     activeCombatIdForCharacter,
@@ -17,6 +18,7 @@ export const registerCombatReducers = (deps: any) => {
     sumCharacterEffect,
     sumEnemyEffect,
     applyArmorMitigation,
+    abilityCooldownMicros,
   } = deps;
 
   spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64() }, (ctx, args) => {
@@ -91,6 +93,7 @@ export const registerCombatReducers = (deps: any) => {
       attackDamage,
       armorClass,
       aggroTargetCharacterId: undefined,
+      nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + 3_000_000n,
     });
 
     for (const p of participants) {
@@ -100,6 +103,10 @@ export const registerCombatReducers = (deps: any) => {
         characterId: p.id,
         status: 'active',
         selectedAction: undefined,
+        nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + 3_000_000n,
+        castingAbilityKey: undefined,
+        castEndsAt: undefined,
+        castTargetCharacterId: undefined,
       });
       ctx.db.aggroEntry.insert({
         id: 0n,
@@ -250,6 +257,7 @@ export const registerCombatReducers = (deps: any) => {
   const STAMINA_REGEN_IN = 1n;
   const REGEN_TICK_MICROS = 8_000_000n;
   const EFFECT_TICK_MICROS = 10_000_000n;
+  const HOT_TICK_MICROS = 3_000_000n;
 
   spacetimedb.reducer('regen_health', { arg: HealthRegenTick.rowType }, (ctx) => {
     const tickIndex = ctx.timestamp.microsSinceUnixEpoch / REGEN_TICK_MICROS;
@@ -311,6 +319,31 @@ export const registerCombatReducers = (deps: any) => {
     });
   });
 
+  spacetimedb.reducer('tick_hot', { arg: deps.HotTick.rowType }, (ctx) => {
+    for (const effect of ctx.db.characterEffect.iter()) {
+      const owner = ctx.db.character.id.find(effect.characterId);
+      if (!owner) {
+        ctx.db.characterEffect.id.delete(effect.id);
+        continue;
+      }
+      if (owner.hp === 0n) continue;
+      if (effect.effectType === 'regen') {
+        const nextHp = owner.hp + effect.magnitude > owner.maxHp ? owner.maxHp : owner.hp + effect.magnitude;
+        ctx.db.character.id.update({ ...owner, hp: nextHp });
+        continue;
+      }
+      if (effect.effectType === 'dot') {
+        const nextHp = owner.hp > effect.magnitude ? owner.hp - effect.magnitude : 0n;
+        ctx.db.character.id.update({ ...owner, hp: nextHp });
+      }
+    }
+
+    ctx.db.hotTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + HOT_TICK_MICROS),
+    });
+  });
+
   spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { arg }) => {
     const combat = ctx.db.combatEncounter.id.find(arg.combatId);
     if (!combat || combat.state !== 'active') return;
@@ -330,72 +363,84 @@ export const registerCombatReducers = (deps: any) => {
     const refreshedParticipants = [...ctx.db.combatParticipant.by_combat.filter(combat.id)];
     const activeParticipants = refreshedParticipants.filter((p) => p.status === 'active');
 
+    const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     for (const participant of activeParticipants) {
+      if (!participant.castingAbilityKey || !participant.castEndsAt) continue;
+      if (participant.castEndsAt > nowMicros) continue;
       const character = ctx.db.character.id.find(participant.characterId);
       if (!character) continue;
-      const regen = sumCharacterEffect(ctx, character.id, 'regen');
-      if (regen > 0n && character.hp > 0n) {
-        const nextHp = character.hp + regen > character.maxHp ? character.maxHp : character.hp + regen;
-        ctx.db.character.id.update({ ...character, hp: nextHp });
+      try {
+        deps.executeAbility(
+          ctx,
+          character,
+          participant.castingAbilityKey,
+          participant.castTargetCharacterId
+        );
+        const cooldown = abilityCooldownMicros(participant.castingAbilityKey);
+        const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(character.id)].find(
+          (row) => row.abilityKey === participant.castingAbilityKey
+        );
+        if (cooldown > 0n) {
+          if (existingCooldown) {
+            ctx.db.abilityCooldown.id.update({
+              ...existingCooldown,
+              readyAtMicros: nowMicros + cooldown,
+            });
+          } else {
+            ctx.db.abilityCooldown.insert({
+              id: 0n,
+              characterId: character.id,
+              abilityKey: participant.castingAbilityKey,
+              readyAtMicros: nowMicros + cooldown,
+            });
+          }
+        }
+      } catch (error) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          `Ability failed: ${error}`
+        );
       }
+      ctx.db.combatParticipant.id.update({
+        ...participant,
+        castingAbilityKey: undefined,
+        castEndsAt: undefined,
+        castTargetCharacterId: undefined,
+        nextAutoAttackAt: nowMicros + 3_000_000n,
+      });
     }
 
     for (const participant of activeParticipants) {
-      const action = participant.selectedAction ?? 'skip';
       const character = ctx.db.character.id.find(participant.characterId);
       if (!character) continue;
+      if (participant.castingAbilityKey && participant.castEndsAt && participant.castEndsAt > nowMicros) {
+        continue;
+      }
+      if (participant.nextAutoAttackAt > nowMicros) continue;
 
-      if (action === 'attack') {
-        const weapon = deps.getEquippedWeaponStats(ctx, character.id);
-        const damage = 5n + character.level + weapon.baseDamage + (weapon.dps / 2n);
-        const reducedDamage = applyArmorMitigation(damage, enemy.armorClass);
-        const nextHp = enemy.currentHp > reducedDamage ? enemy.currentHp - reducedDamage : 0n;
-        ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
+      const currentEnemy = ctx.db.combatEnemy.id.find(enemy.id);
+      if (!currentEnemy || currentEnemy.currentHp === 0n) continue;
+      const weapon = deps.getEquippedWeaponStats(ctx, character.id);
+      const damage = 5n + character.level + weapon.baseDamage + (weapon.dps / 2n);
+      const reducedDamage = applyArmorMitigation(damage, currentEnemy.armorClass);
+      const nextHp =
+        currentEnemy.currentHp > reducedDamage ? currentEnemy.currentHp - reducedDamage : 0n;
+      ctx.db.combatEnemy.id.update({ ...currentEnemy, currentHp: nextHp });
 
-        for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
-          if (entry.characterId === character.id) {
-            ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + reducedDamage });
-            break;
-          }
-        }
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'combat',
-          `You strike for ${reducedDamage} damage.`
-        );
-      } else if (action === 'skip') {
-        for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
-          if (entry.characterId === character.id) {
-            const reduced = (entry.value * 7n) / 10n;
-            ctx.db.aggroEntry.id.update({ ...entry, value: reduced });
-            break;
-          }
-        }
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'combat',
-          'You hold your action.'
-        );
-      } else if (action.startsWith('ability:')) {
-        const abilityKey = action.replace('ability:', '');
-        try {
-          deps.executeAbility(ctx, character, abilityKey);
-        } catch (error) {
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'combat',
-            `Ability failed: ${error}`
-          );
+      for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+        if (entry.characterId === character.id) {
+          ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + reducedDamage });
+          break;
         }
       }
 
-      ctx.db.combatParticipant.id.update({ ...participant, selectedAction: undefined });
+      ctx.db.combatParticipant.id.update({
+        ...participant,
+        nextAutoAttackAt: nowMicros + 3_000_000n,
+      });
     }
 
     const participantIds = new Set(activeParticipants.map((p) => p.characterId));
@@ -555,16 +600,17 @@ export const registerCombatReducers = (deps: any) => {
       if (!activeIds.has(entry.characterId)) continue;
       if (!topAggro || entry.value > topAggro.value) topAggro = entry;
     }
-    if (topAggro) {
+    const enemySnapshot = ctx.db.combatEnemy.id.find(enemy.id);
+    if (topAggro && enemySnapshot && enemySnapshot.nextAutoAttackAt <= nowMicros) {
       const targetCharacter = ctx.db.character.id.find(topAggro.characterId);
       if (targetCharacter && targetCharacter.hp > 0n) {
-        const template = ctx.db.enemyTemplate.id.find(updatedEnemy.enemyTemplateId);
+        const template = ctx.db.enemyTemplate.id.find(enemySnapshot.enemyTemplateId);
         const enemyLevel = template?.level ?? 1n;
         const levelDiff =
           enemyLevel > targetCharacter.level ? enemyLevel - targetCharacter.level : 0n;
         const damageMultiplier = 100n + levelDiff * 20n;
         const debuff = sumEnemyEffect(ctx, combat.id, 'damage_down');
-        const baseDamage = updatedEnemy.attackDamage + debuff;
+        const baseDamage = enemySnapshot.attackDamage + debuff;
         const scaledDamage = (baseDamage * damageMultiplier) / 100n;
         const effectiveArmor =
           targetCharacter.armorClass + sumCharacterEffect(ctx, targetCharacter.id, 'ac_bonus');
@@ -581,6 +627,10 @@ export const registerCombatReducers = (deps: any) => {
           }
         }
       }
+      ctx.db.combatEnemy.id.update({
+        ...enemySnapshot,
+        nextAutoAttackAt: nowMicros + 3_000_000n,
+      });
     }
 
     let stillActive = false;

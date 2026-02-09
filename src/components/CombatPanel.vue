@@ -38,34 +38,18 @@
         {{ activeEnemyName }} (Lv {{ activeEnemyLevel }})
       </span>
     </div>
-    <div v-if="activeEnemy" :style="styles.subtle">
-      Enemy HP: {{ activeEnemy.currentHp }} / {{ activeEnemy.maxHp }}
-    </div>
-    <div :style="styles.combatTimer">Round ends in {{ roundEndsInSeconds }}s</div>
-    <div :style="styles.subtle">
-      {{ selectedActionLabel }}
-    </div>
-    <div :style="styles.panelFormInline">
-      <button
-        type="button"
-        :disabled="!connActive || !canAct"
-        :style="selectedAction === 'attack' ? styles.actionButtonSelected : styles.ghostButton"
-        @click="$emit('attack')"
-      >
-        Attack
-      </button>
-      <button
-        type="button"
-        :disabled="!connActive || !canAct"
-        :style="selectedAction === 'skip' ? styles.actionButtonSelected : styles.ghostButton"
-        @click="$emit('skip')"
-      >
-        Skip
-      </button>
-      <button
-        type="button"
-        :disabled="!connActive || !canAct"
-        :style="selectedAction === 'flee' ? styles.actionButtonSelected : styles.ghostButton"
+  <div v-if="activeEnemy" :style="styles.subtle">
+    Enemy HP: {{ activeEnemy.currentHp }} / {{ activeEnemy.maxHp }}
+  </div>
+  <div :style="styles.subtle">Auto-attacking...</div>
+  <div v-if="isCasting" :style="styles.subtle">
+    Casting {{ castingAbilityName }}...
+  </div>
+  <div :style="styles.panelFormInline">
+    <button
+      type="button"
+      :disabled="!connActive || !canAct"
+      :style="styles.ghostButton"
         @click="$emit('flee')"
       >
         Flee
@@ -116,7 +100,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
 import type {
   CharacterRow,
   CombatEncounterRow,
@@ -141,34 +124,18 @@ const props = defineProps<{
   activeEnemyLevel: bigint;
   activeEnemyConClass: string;
   activeEnemySpawn: { id: bigint } | null;
-  roundEndsInSeconds: number;
-  selectedAction: string | null;
   enemySpawns: EnemySummary[];
   activeResult: CombatResultRow | null;
   canEngage: boolean;
   canDismissResults: boolean;
   canAct: boolean;
-  hotbar: { slot: number; abilityKey: string; name: string }[];
-  canUseAbility: boolean;
+  isCasting: boolean;
+  castingAbilityName: string;
 }>();
 
 defineEmits<{
   (e: 'start', enemyId: bigint): void;
-  (e: 'attack'): void;
-  (e: 'skip'): void;
   (e: 'flee'): void;
-  (e: 'use-ability', abilityKey: string): void;
   (e: 'dismiss-results'): void;
 }>();
-
-const selectedActionLabel = computed(() => {
-  if (!props.selectedAction) return 'Awaiting your action.';
-  if (props.selectedAction.startsWith('ability:')) {
-    const key = props.selectedAction.replace('ability:', '');
-    const ability = props.hotbar.find((slot) => slot.abilityKey === key);
-    return `Action selected: ${ability?.name ?? key}`;
-  }
-  return `Action selected: ${props.selectedAction}`;
-});
-
 </script>

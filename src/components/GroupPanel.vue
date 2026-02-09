@@ -41,7 +41,7 @@
               :key="effect.id.toString()"
               :style="styles.effectBadge"
             >
-              {{ effect.effectType }}
+              {{ effectLabel(effect) }} ({{ effectDurationLabel(effect) }})
             </span>
           </div>
           <div v-if="isLeader && member.id !== leaderId" :style="styles.buttonWrap">
@@ -115,7 +115,7 @@
           :key="effect.id.toString()"
           :style="styles.effectBadge"
         >
-          {{ effect.effectType }}
+          {{ effectLabel(effect) }} ({{ effectDurationLabel(effect) }})
         </span>
       </div>
 
@@ -195,5 +195,25 @@ const sortedMembers = computed(() => {
 
 const effectsFor = (characterId: bigint) =>
   props.characterEffects.filter((effect) => effect.characterId === characterId);
+
+const effectLabel = (effect: {
+  effectType: string;
+  magnitude: bigint;
+  roundsRemaining: bigint;
+}) => {
+  switch (effect.effectType) {
+    case 'regen':
+      return 'Totem of Vigor';
+    case 'ac_bonus':
+      return 'Ancestral Ward';
+    default:
+      return effect.effectType.replace(/_/g, ' ');
+  }
+};
+
+const effectDurationLabel = (effect: { roundsRemaining: bigint }) => {
+  const seconds = Number(effect.roundsRemaining) * 10;
+  return `${seconds}s`;
+};
 </script>
 

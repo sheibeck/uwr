@@ -12,6 +12,9 @@ export const registerItemReducers = (deps: any) => {
     recomputeCharacterDerived,
     executeAbility,
     appendPrivateEvent,
+    abilityCooldownMicros,
+    abilityCastMicros,
+    activeCombatIdForCharacter,
   } = deps;
 
   spacetimedb.reducer(
@@ -161,8 +164,58 @@ export const registerItemReducers = (deps: any) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       const abilityKey = args.abilityKey.trim();
       if (!abilityKey) throw new SenderError('Ability required');
+      const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
+      const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(character.id)].find(
+        (row) => row.abilityKey === abilityKey
+      );
+      if (existingCooldown && existingCooldown.readyAtMicros > nowMicros) {
+        throw new SenderError('Ability is on cooldown');
+      }
+      const castMicros = abilityCastMicros(abilityKey);
+      const combatId = activeCombatIdForCharacter(ctx, character.id);
+      if (castMicros > 0n && combatId) {
+        const participant = [...ctx.db.combatParticipant.by_combat.filter(combatId)].find(
+          (row) => row.characterId === character.id
+        );
+        if (!participant || participant.status !== 'active') {
+          throw new SenderError('Cannot cast right now');
+        }
+        if (participant.castingAbilityKey) {
+          throw new SenderError('Already casting');
+        }
+        ctx.db.combatParticipant.id.update({
+          ...participant,
+          castingAbilityKey: abilityKey,
+          castEndsAt: nowMicros + castMicros,
+          castTargetCharacterId: args.targetCharacterId,
+        });
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          `Casting ${abilityKey.replace(/_/g, ' ')}...`
+        );
+        return;
+      }
       try {
         executeAbility(ctx, character, abilityKey, args.targetCharacterId);
+        const cooldown = abilityCooldownMicros(abilityKey);
+        if (cooldown > 0n) {
+          if (existingCooldown) {
+            ctx.db.abilityCooldown.id.update({
+              ...existingCooldown,
+              readyAtMicros: nowMicros + cooldown,
+            });
+          } else {
+            ctx.db.abilityCooldown.insert({
+              id: 0n,
+              characterId: character.id,
+              abilityKey,
+              readyAtMicros: nowMicros + cooldown,
+            });
+          }
+        }
         const targetName = args.targetCharacterId
           ? ctx.db.character.id.find(args.targetCharacterId)?.name ?? 'your target'
           : 'yourself';

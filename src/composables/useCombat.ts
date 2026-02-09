@@ -1,4 +1,4 @@
-import { computed, onBeforeUnmount, ref, watch, type Ref } from 'vue';
+import { computed, type Ref } from 'vue';
 import {
   reducers,
   type CharacterRow,
@@ -85,9 +85,6 @@ export const useCombat = ({
   const startCombatReducer = useReducer(reducers.startCombat);
   const chooseActionReducer = useReducer(reducers.chooseAction);
   const dismissResultsReducer = useReducer(reducers.dismissCombatResults);
-  const selectedAction = ref<string | null>(null);
-  const nowMicros = ref(Date.now() * 1000);
-  let timer: number | undefined;
 
   const activeCombat = computed(() => {
     if (!selectedCharacter.value) return null;
@@ -118,38 +115,6 @@ export const useCombat = ({
     });
   });
 
-  watch(
-    () => activeCombat.value?.roundNumber,
-    (next, prev) => {
-      if (next !== prev) {
-        selectedAction.value = null;
-      }
-    }
-  );
-
-  watch(
-    () => activeCombat.value,
-    (combat) => {
-      if (!combat) {
-        selectedAction.value = null;
-        if (timer) {
-          clearInterval(timer);
-          timer = undefined;
-        }
-        return;
-      }
-      if (!timer) {
-        timer = window.setInterval(() => {
-          nowMicros.value = Date.now() * 1000;
-        }, 250);
-      }
-    },
-    { immediate: true }
-  );
-
-  onBeforeUnmount(() => {
-    if (timer) clearInterval(timer);
-  });
 
   const activeEnemy = computed(() => {
     if (!activeCombat.value) return null;
@@ -197,12 +162,6 @@ export const useCombat = ({
     return 'conRed';
   });
 
-  const roundEndsInSeconds = computed(() => {
-    if (!activeCombat.value) return 0;
-    const targetMicros = timestampToMicros(activeCombat.value.roundEndsAt);
-    const remaining = Math.ceil((targetMicros - nowMicros.value) / 1_000_000);
-    return remaining > 0 ? remaining : 0;
-  });
 
   const availableEnemies = computed<EnemySummary[]>(() => {
     if (!selectedCharacter.value) return [];
@@ -286,20 +245,14 @@ export const useCombat = ({
     startCombatReducer({ characterId: selectedCharacter.value.id, enemySpawnId });
   };
 
-  const chooseAction = (action: string) => {
+  const flee = () => {
     if (!connActive.value || !activeCombat.value || !selectedCharacter.value) return;
     chooseActionReducer({
       characterId: selectedCharacter.value.id,
       combatId: activeCombat.value.id,
-      action,
+      action: 'flee',
     });
-    selectedAction.value = action;
   };
-
-  const attack = () => chooseAction('attack');
-  const flee = () => chooseAction('flee');
-  const skip = () => chooseAction('skip');
-  const chooseAbility = (abilityKey: string) => chooseAction(`ability:${abilityKey}`);
   const dismissResults = () => {
     if (!connActive.value || !selectedCharacter.value) return;
     dismissResultsReducer({ characterId: selectedCharacter.value.id });
@@ -315,13 +268,8 @@ export const useCombat = ({
     activeEnemySpawn,
     availableEnemies,
     combatRoster,
-    roundEndsInSeconds,
-    selectedAction,
     startCombat,
-    attack,
     flee,
-    skip,
-    chooseAbility,
     dismissResults,
   };
 };

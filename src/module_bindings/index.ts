@@ -114,12 +114,16 @@ import RegenHealthReducer from "./regen_health_reducer";
 export { RegenHealthReducer };
 import TickEffectsReducer from "./tick_effects_reducer";
 export { TickEffectsReducer };
+import TickHotReducer from "./tick_hot_reducer";
+export { TickHotReducer };
 import ResolveRoundReducer from "./resolve_round_reducer";
 export { ResolveRoundReducer };
 
 // Import and reexport all procedure arg types
 
 // Import and reexport all table handle types
+import AbilityCooldownRow from "./ability_cooldown_table";
+export { AbilityCooldownRow };
 import AggroEntryRow from "./aggro_entry_table";
 export { AggroEntryRow };
 import CharacterRow from "./character_table";
@@ -166,6 +170,8 @@ import GroupMemberRow from "./group_member_table";
 export { GroupMemberRow };
 import HealthRegenTickRow from "./health_regen_tick_table";
 export { HealthRegenTickRow };
+import HotTickRow from "./hot_tick_table";
+export { HotTickRow };
 import HotbarSlotRow from "./hotbar_slot_table";
 export { HotbarSlotRow };
 import ItemInstanceRow from "./item_instance_table";
@@ -208,6 +214,8 @@ import WorldStateRow from "./world_state_table";
 export { WorldStateRow };
 
 // Import and reexport all types
+import AbilityCooldown from "./ability_cooldown_type";
+export { AbilityCooldown };
 import AcceptFriendRequest from "./accept_friend_request_type";
 export { AcceptFriendRequest };
 import AcceptGroupInvite from "./accept_group_invite_type";
@@ -278,6 +286,8 @@ import GroupMessage from "./group_message_type";
 export { GroupMessage };
 import HealthRegenTick from "./health_regen_tick_type";
 export { HealthRegenTick };
+import HotTick from "./hot_tick_type";
+export { HotTick };
 import HotbarSlot from "./hotbar_slot_type";
 export { HotbarSlot };
 import Init from "./init_type";
@@ -368,6 +378,8 @@ import SubmitCommand from "./submit_command_type";
 export { SubmitCommand };
 import TickEffects from "./tick_effects_type";
 export { TickEffects };
+import TickHot from "./tick_hot_type";
+export { TickHot };
 import UnequipItem from "./unequip_item_type";
 export { UnequipItem };
 import UseAbility from "./use_ability_type";
@@ -381,6 +393,20 @@ export { WorldState };
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema(
+  __table({
+    name: 'ability_cooldown',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'ability_cooldown_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AbilityCooldownRow),
   __table({
     name: 'aggro_entry',
     indexes: [
@@ -719,6 +745,17 @@ const tablesSchema = __schema(
     ],
   }, HealthRegenTickRow),
   __table({
+    name: 'hot_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'hot_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, HotTickRow),
+  __table({
     name: 'hotbar_slot',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -958,6 +995,7 @@ const reducersSchema = __reducers(
   __reducerSchema("end_combat", EndCombatReducer),
   __reducerSchema("regen_health", RegenHealthReducer),
   __reducerSchema("tick_effects", TickEffectsReducer),
+  __reducerSchema("tick_hot", TickHotReducer),
   __reducerSchema("resolve_round", ResolveRoundReducer),
 );
 

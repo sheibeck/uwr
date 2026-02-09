@@ -19,6 +19,7 @@ export default __t.object("CombatEnemy", {
   attackDamage: __t.u64(),
   armorClass: __t.u64(),
   aggroTargetCharacterId: __t.option(__t.u64()),
+  nextAutoAttackAt: __t.u64(),
 });
 
 

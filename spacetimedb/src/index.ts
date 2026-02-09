@@ -202,6 +202,19 @@ const HotbarSlot = table(
   }
 );
 
+const AbilityCooldown = table(
+  {
+    name: 'ability_cooldown',
+    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    abilityKey: t.string(),
+    readyAtMicros: t.u64(),
+  }
+);
+
 const Group = table(
   { name: 'group', public: true },
   {
@@ -333,6 +346,10 @@ const CombatParticipant = table(
     characterId: t.u64(),
     status: t.string(),
     selectedAction: t.string().optional(),
+    nextAutoAttackAt: t.u64(),
+    castingAbilityKey: t.string().optional(),
+    castEndsAt: t.u64().optional(),
+    castTargetCharacterId: t.u64().optional(),
   }
 );
 
@@ -351,6 +368,7 @@ const CombatEnemy = table(
     attackDamage: t.u64(),
     armorClass: t.u64(),
     aggroTargetCharacterId: t.u64().optional(),
+    nextAutoAttackAt: t.u64(),
   }
 );
 
@@ -442,6 +460,17 @@ const EffectTick = table(
   {
     name: 'effect_tick',
     scheduled: 'tick_effects',
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+  }
+);
+
+const HotTick = table(
+  {
+    name: 'hot_tick',
+    scheduled: 'tick_hot',
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
@@ -542,6 +571,7 @@ export const spacetimedb = schema(
   Location,
   LocationConnection,
   HotbarSlot,
+  AbilityCooldown,
   Character,
   ItemTemplate,
   ItemInstance,
@@ -560,6 +590,7 @@ export const spacetimedb = schema(
   CombatRoundTick,
   HealthRegenTick,
   EffectTick,
+  HotTick,
   CombatResult,
   Command,
   EventWorld,
@@ -855,15 +886,57 @@ function getEquippedWeaponStats(ctx: any, characterId: bigint) {
 }
 
 const SHAMAN_ABILITIES = {
-  shaman_spirit_bolt: { name: 'Spirit Bolt', level: 1n, power: 2n },
-  shaman_totem_of_vigor: { name: 'Totem of Vigor', level: 2n, power: 2n },
-  shaman_hex: { name: 'Hex', level: 3n, power: 4n },
-  shaman_ancestral_ward: { name: 'Ancestral Ward', level: 4n, power: 3n },
-  shaman_stormcall: { name: 'Stormcall', level: 5n, power: 6n },
+  shaman_spirit_bolt: {
+    name: 'Spirit Bolt',
+    level: 1n,
+    power: 2n,
+    cooldownSeconds: 6n,
+    castSeconds: 2n,
+  },
+  shaman_totem_of_vigor: {
+    name: 'Totem of Vigor',
+    level: 2n,
+    power: 2n,
+    cooldownSeconds: 10n,
+    castSeconds: 0n,
+  },
+  shaman_hex: {
+    name: 'Hex',
+    level: 3n,
+    power: 4n,
+    cooldownSeconds: 10n,
+    castSeconds: 1n,
+  },
+  shaman_ancestral_ward: {
+    name: 'Ancestral Ward',
+    level: 4n,
+    power: 3n,
+    cooldownSeconds: 12n,
+    castSeconds: 0n,
+  },
+  shaman_stormcall: {
+    name: 'Stormcall',
+    level: 5n,
+    power: 6n,
+    cooldownSeconds: 15n,
+    castSeconds: 2n,
+  },
 } as const;
 
 function abilityManaCost(level: bigint, power: bigint) {
   return 4n + level * 2n + power;
+}
+
+function abilityCooldownMicros(abilityKey: string) {
+  const ability = SHAMAN_ABILITIES[abilityKey as keyof typeof SHAMAN_ABILITIES];
+  if (ability?.cooldownSeconds) return ability.cooldownSeconds * 1_000_000n;
+  return 6_000_000n;
+}
+
+function abilityCastMicros(abilityKey: string) {
+  const ability = SHAMAN_ABILITIES[abilityKey as keyof typeof SHAMAN_ABILITIES];
+  if (ability?.castSeconds) return ability.castSeconds * 1_000_000n;
+  return 0n;
 }
 
 function abilityDamageFromWeapon(
@@ -957,8 +1030,8 @@ function executeAbility(
       id: 0n,
       characterId: targetCharacter.id,
       effectType: 'regen',
-      magnitude: 5n,
-      roundsRemaining: 3n,
+      magnitude: 10n,
+      roundsRemaining: 1n,
     });
     appendPrivateEvent(
       ctx,
@@ -1443,7 +1516,7 @@ function findCharacterByName(ctx: any, name: string) {
 }
 
 function scheduleRound(ctx: any, combatId: bigint, roundNumber: bigint) {
-  const nextAt = ctx.timestamp.microsSinceUnixEpoch + 10_000_000n;
+  const nextAt = ctx.timestamp.microsSinceUnixEpoch + 1_000_000n;
   ctx.db.combatRoundTick.insert({
     scheduledId: 0n,
     scheduledAt: ScheduleAt.time(nextAt),
@@ -1555,6 +1628,15 @@ function ensureEffectTickScheduled(ctx: any) {
     ctx.db.effectTick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 10_000_000n),
+    });
+  }
+}
+
+function ensureHotTickScheduled(ctx: any) {
+  if (!tableHasRows(ctx.db.hotTick.iter())) {
+    ctx.db.hotTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 3_000_000n),
     });
   }
 }
@@ -1868,6 +1950,7 @@ spacetimedb.init((ctx) => {
 
   ensureHealthRegenScheduled(ctx);
   ensureEffectTickScheduled(ctx);
+  ensureHotTickScheduled(ctx);
 });
 
 spacetimedb.clientConnected((ctx) => {
@@ -1886,6 +1969,7 @@ spacetimedb.clientConnected((ctx) => {
   }
   ensureHealthRegenScheduled(ctx);
   ensureEffectTickScheduled(ctx);
+  ensureHotTickScheduled(ctx);
 });
 
 spacetimedb.clientDisconnected((_ctx) => {
@@ -1927,6 +2011,7 @@ const reducerDeps = {
   CombatRoundTick,
   HealthRegenTick,
   EffectTick,
+  HotTick,
   AggroEntry,
   requirePlayerUserId,
   requireCharacterOwnedBy,
@@ -1952,6 +2037,8 @@ const reducerDeps = {
   baseArmorForClass,
   BASE_HP,
   BASE_MANA,
+  abilityCooldownMicros,
+  abilityCastMicros,
   grantStarterItems,
   areLocationsConnected,
   sumCharacterEffect,

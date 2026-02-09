@@ -49,17 +49,19 @@
           v-for="slot in hotbarDisplay"
           :key="slot.slot"
           type="button"
-          :disabled="!conn.isActive || !slot.abilityKey || (activeCombat && !canActInCombat && slot.kind !== 'utility')"
+          :disabled="
+            !conn.isActive ||
+            !slot.abilityKey ||
+            isCasting ||
+            (activeCombat && !canActInCombat && slot.kind !== 'utility')
+          "
           :style="[
             styles.hotbarSlot,
             selectedAction === `ability:${slot.abilityKey}` ? styles.hotbarSlotActive : {},
             hotbarPulseKey === slot.abilityKey ? styles.hotbarSlotActive : {},
             !slot.abilityKey ? styles.hotbarSlotEmpty : {},
           ]"
-          @click="
-            slot.abilityKey &&
-            (canActInCombat ? chooseAbility(slot.abilityKey) : tryUseAbility(slot))
-          "
+          @click="slot.abilityKey && onHotbarClick(slot)"
           @mouseenter="
             slot.abilityKey &&
             showTooltip({
@@ -72,8 +74,15 @@
           @mousemove="slot.abilityKey && moveTooltip({ x: $event.clientX, y: $event.clientY })"
           @mouseleave="slot.abilityKey && hideTooltip()"
         >
-          <span>{{ slot.slot }}</span>
-          <span>{{ slot.name }}</span>
+          <div
+            v-if="isCasting && slot.abilityKey === castingState?.castingAbilityKey"
+            :style="{
+              ...styles.hotbarCastFill,
+              width: `${Math.round(castProgress * 100)}%`,
+            }"
+          ></div>
+          <span :style="styles.hotbarSlotText">{{ slot.slot }}</span>
+          <span :style="styles.hotbarSlotText">{{ slot.name }}</span>
         </button>
       </div>
     </div>
@@ -183,20 +192,15 @@
           :active-enemy-name="activeEnemyName"
           :active-enemy-level="activeEnemyLevel"
           :active-enemy-con-class="activeEnemyConClass"
-          :round-ends-in-seconds="roundEndsInSeconds"
-          :selected-action="selectedAction"
           :enemy-spawns="availableEnemies"
           :active-result="activeResult"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           :can-act="canActInCombat"
-          :hotbar="hotbarAssignments"
-          :can-use-ability="canActInCombat"
+          :is-casting="isCasting"
+          :casting-ability-name="castingAbilityName"
           @start="startCombat"
-          @attack="attack"
-          @skip="skip"
           @flee="flee"
-          @use-ability="chooseAbility"
           @dismiss-results="dismissResults"
         />
         </div>
@@ -236,20 +240,15 @@
           :active-enemy-name="activeEnemyName"
           :active-enemy-level="activeEnemyLevel"
           :active-enemy-con-class="activeEnemyConClass"
-          :round-ends-in-seconds="roundEndsInSeconds"
-          :selected-action="selectedAction"
           :enemy-spawns="availableEnemies"
           :active-result="activeResult"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           :can-act="canActInCombat"
-          :hotbar="hotbarAssignments"
-          :can-use-ability="canActInCombat"
+          :is-casting="isCasting"
+          :casting-ability-name="castingAbilityName"
           @start="startCombat"
-          @attack="attack"
-          @skip="skip"
           @flee="flee"
-          @use-ability="chooseAbility"
           @dismiss-results="dismissResults"
         />
       </div>
@@ -480,13 +479,8 @@ const {
   availableEnemies,
   combatRoster,
   activeResult,
-  roundEndsInSeconds,
-  selectedAction,
   startCombat,
-  attack,
-  skip,
   flee,
-  chooseAbility,
   dismissResults,
 } = useCombat({
   connActive: computed(() => conn.isActive),
@@ -644,6 +638,23 @@ const tryUseAbility = (slot: any) => {
   useAbility(slot.abilityKey, targetId);
 };
 
+const onHotbarClick = (slot: any) => {
+  if (!selectedCharacter.value || !slot?.abilityKey) return;
+  hotbarPulseKey.value = slot.abilityKey;
+  window.setTimeout(() => {
+    if (hotbarPulseKey.value === slot.abilityKey) hotbarPulseKey.value = null;
+  }, 800);
+
+  if (activeCombat.value) {
+    const targetId =
+      slot.kind === 'utility' ? defensiveTargetId.value ?? selectedCharacter.value.id : undefined;
+    useAbility(slot.abilityKey, targetId);
+    return;
+  }
+
+  tryUseAbility(slot);
+};
+
 const offensiveTargetEnemyId = ref<bigint | null>(null);
 watch(
   () => activeEnemy.value?.id,
@@ -688,6 +699,55 @@ const canActInCombat = computed(() => {
 const combatLocked = computed(() => Boolean(activeCombat.value || activeResult.value));
 const showCombatStack = computed(() => combatLocked.value);
 const showRightPanel = computed(() => false);
+
+const castingState = computed(() => {
+  if (!activeCombat.value || !selectedCharacter.value) return null;
+  return combatParticipants.value.find(
+    (row) =>
+      row.combatId.toString() === activeCombat.value?.id.toString() &&
+      row.characterId.toString() === selectedCharacter.value?.id.toString()
+  ) ?? null;
+});
+const isCasting = computed(() => Boolean(castingState.value?.castingAbilityKey));
+const castingAbilityName = computed(() => {
+  const key = castingState.value?.castingAbilityKey;
+  if (!key) return '';
+  const ability = abilityLookup.value.get(key);
+  return ability?.name ?? key;
+});
+const nowMicros = ref(Date.now() * 1000);
+let castTimer: number | undefined;
+watch(
+  () => isCasting.value,
+  (casting) => {
+    if (!casting) {
+      if (castTimer) {
+        clearInterval(castTimer);
+        castTimer = undefined;
+      }
+      return;
+    }
+    if (!castTimer) {
+      castTimer = window.setInterval(() => {
+        nowMicros.value = Date.now() * 1000;
+      }, 100);
+    }
+  },
+  { immediate: true }
+);
+onBeforeUnmount(() => {
+  if (castTimer) clearInterval(castTimer);
+});
+
+const castProgress = computed(() => {
+  if (!isCasting.value || !castingState.value?.castEndsAt) return 0;
+  const ability = abilityLookup.value.get(castingState.value.castingAbilityKey ?? '');
+  const duration = ability?.castSeconds ? ability.castSeconds * 1_000_000 : 0;
+  if (!duration) return 1;
+  const remaining = Number(castingState.value.castEndsAt) - nowMicros.value;
+  const clamped = Math.max(0, Math.min(duration, duration - remaining));
+  return clamped / duration;
+});
 
 const tooltip = ref<{
   visible: boolean;

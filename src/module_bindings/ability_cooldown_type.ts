@@ -10,16 +10,11 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("CombatParticipant", {
+export default __t.object("AbilityCooldown", {
   id: __t.u64(),
-  combatId: __t.u64(),
   characterId: __t.u64(),
-  status: __t.string(),
-  selectedAction: __t.option(__t.string()),
-  nextAutoAttackAt: __t.u64(),
-  castingAbilityKey: __t.option(__t.string()),
-  castEndsAt: __t.option(__t.u64()),
-  castTargetCharacterId: __t.option(__t.u64()),
+  abilityKey: __t.string(),
+  readyAtMicros: __t.u64(),
 });
 
 

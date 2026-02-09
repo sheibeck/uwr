@@ -19,4 +19,5 @@ export default __t.row({
   attackDamage: __t.u64(),
   armorClass: __t.u64(),
   aggroTargetCharacterId: __t.option(__t.u64()),
+  nextAutoAttackAt: __t.u64(),
 });

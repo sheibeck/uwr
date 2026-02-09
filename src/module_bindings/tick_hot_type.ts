@@ -9,17 +9,13 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import HotTick from "./hot_tick_type";
 
-export default __t.object("CombatParticipant", {
-  id: __t.u64(),
-  combatId: __t.u64(),
-  characterId: __t.u64(),
-  status: __t.string(),
-  selectedAction: __t.option(__t.string()),
-  nextAutoAttackAt: __t.u64(),
-  castingAbilityKey: __t.option(__t.string()),
-  castEndsAt: __t.option(__t.u64()),
-  castTargetCharacterId: __t.option(__t.u64()),
+
+export default __t.object("TickHot", {
+  get arg() {
+    return HotTick;
+  },
 });
 
 
