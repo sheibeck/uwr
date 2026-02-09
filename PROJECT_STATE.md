@@ -58,17 +58,28 @@ Last updated: 2026-02-08
   - HP/Mana/Stamina regen every 3s.
   - Out of combat: full rate. In combat: half rate (every other tick).
   - No regen while dead; revive after combat at 1/4 of max HP/Mana/Stamina.
-- **UI:**
-  - Main log window, command input with `/` autocomplete and keyboard navigation.
-  - Action bar with panels (Character, Inventory, Friends, Group, Stats, Travel, Combat).
-  - Group button always visible; other buttons only if character selected.
-  - Combat/Group panels show HP bars; combat shows timer and action selection state.
-  - During combat/results: Group panel overlays the log window; Combat panel stays on the right.
-  - Action bar is locked during combat/results (only Group/Combat buttons active).
-  - Travel panel shows only connected locations with con-color difficulty indicators.
-  - Combat enemy list and active enemy header are con-colored.
-  - Hotbar system: 10 slots per character, assignable in Hotbar panel; assigned abilities show in combat.
-  - New-character tour highlights Inventory then Hotbar, with dismiss option.
+## UI State (Current)
+- **Layout:**
+  - Centered log window; floating windows around it.
+  - Floating windows are draggable and persist positions in localStorage.
+  - Group panel is always visible (floating, compact width).
+  - Region/Locations + Inhabitants are combined into one floating panel on the right.
+  - Action bar panels open as floating windows (closable with X).
+  - Travel and Combat buttons removed from action bar.
+  - Hotbar is a vertical, draggable floating dock left of the log; always visible with 10 slots.
+- **Log:**
+  - Command input with `/` autocomplete and keyboard navigation.
+  - Session-only logs (filter by `player.sessionStartedAt`).
+- **Inhabitants Panel:**
+  - Accordion sections: Characters, NPCs, Enemies.
+  - Characters list moved from log to this panel.
+  - Enemies section handles combat actions; enemy list is con-colored.
+- **Travel Mini-map:**
+  - Shows current region in header, connected locations with arrows, region names, and target level con colors.
+- **Hotbar:**
+  - Configuration via Hotbar panel; combat-use via vertical dock.
+  - Hotbar selections highlight when chosen for a combat round.
+  - Empty slots shown.
 
 ## Ability Plan (MVP, Lv1–Lv5)
 - Rules:
