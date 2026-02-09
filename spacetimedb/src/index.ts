@@ -218,6 +218,7 @@ const AbilityCooldown = table(
 const CharacterCast = table(
   {
     name: 'character_cast',
+    public: true,
     indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
@@ -914,35 +915,35 @@ const SHAMAN_ABILITIES = {
     name: 'Spirit Bolt',
     level: 1n,
     power: 2n,
-    cooldownSeconds: 6n,
+    cooldownSeconds: 0n,
     castSeconds: 2n,
   },
   shaman_totem_of_vigor: {
     name: 'Totem of Vigor',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 10n,
+    cooldownSeconds: 0n,
     castSeconds: 2n,
   },
   shaman_hex: {
     name: 'Hex',
     level: 3n,
     power: 4n,
-    cooldownSeconds: 10n,
+    cooldownSeconds: 0n,
     castSeconds: 1n,
   },
   shaman_ancestral_ward: {
     name: 'Ancestral Ward',
     level: 4n,
     power: 3n,
-    cooldownSeconds: 12n,
+    cooldownSeconds: 0n,
     castSeconds: 0n,
   },
   shaman_stormcall: {
     name: 'Stormcall',
     level: 5n,
     power: 6n,
-    cooldownSeconds: 15n,
+    cooldownSeconds: 0n,
     castSeconds: 2n,
   },
 } as const;
@@ -951,10 +952,14 @@ function abilityManaCost(level: bigint, power: bigint) {
   return 4n + level * 2n + power;
 }
 
+const GLOBAL_COOLDOWN_MICROS = 1_000_000n;
 function abilityCooldownMicros(abilityKey: string) {
   const ability = SHAMAN_ABILITIES[abilityKey as keyof typeof SHAMAN_ABILITIES];
-  if (ability?.cooldownSeconds) return ability.cooldownSeconds * 1_000_000n;
-  return 6_000_000n;
+  if (!ability) return GLOBAL_COOLDOWN_MICROS;
+  const castMicros = ability.castSeconds ? ability.castSeconds * 1_000_000n : 0n;
+  if (castMicros > 0n) return castMicros;
+  const specific = ability.cooldownSeconds ? ability.cooldownSeconds * 1_000_000n : 0n;
+  return specific > GLOBAL_COOLDOWN_MICROS ? specific : GLOBAL_COOLDOWN_MICROS;
 }
 
 function abilityCastMicros(abilityKey: string) {
