@@ -686,5 +686,8 @@ export const ENEMY_ABILITIES = {
     kind: 'dot',
     magnitude: 2n,
     rounds: 3n,
+    aiChance: 50,
+    aiWeight: 70,
+    aiRandomness: 15,
   },
 };

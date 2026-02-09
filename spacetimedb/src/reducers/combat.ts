@@ -1,3 +1,5 @@
+import { ENEMY_ABILITIES } from '../data/ability_catalog';
+
 export const registerCombatReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -33,6 +35,9 @@ export const registerCombatReducers = (deps: any) => {
 
   const AUTO_ATTACK_INTERVAL = 5_000_000n;
   const RETRY_ATTACK_INTERVAL = 1_000_000n;
+  const DEFAULT_AI_CHANCE = 50;
+  const DEFAULT_AI_WEIGHT = 50;
+  const DEFAULT_AI_RANDOMNESS = 15;
 
   const clearCharacterEffectsOnDeath = (ctx: any, character: any) => {
     for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
@@ -147,6 +152,40 @@ export const registerCombatReducers = (deps: any) => {
     const type = outcome.outcome === 'hit' ? 'damage' : 'avoid';
     appendPrivateEvent(ctx, logTargetId, logOwnerId, type, message);
     return { outcome: outcome.outcome, finalDamage, nextHp };
+  };
+
+  const hashString = (value: string) => {
+    let hash = 0;
+    for (let i = 0; i < value.length; i += 1) {
+      hash = (hash * 31 + value.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash);
+  };
+
+  const pickEnemyTarget = (
+    rule: string | undefined,
+    activeParticipants: typeof deps.CombatParticipant.rowType[],
+    ctx: any,
+    combatId: bigint
+  ) => {
+    if (activeParticipants.length === 0) return undefined;
+    const normalized = (rule ?? 'aggro').toLowerCase();
+    if (normalized === 'lowest_hp') {
+      const lowest = activeParticipants
+        .map((p) => ctx.db.character.id.find(p.characterId))
+        .filter((c) => Boolean(c))
+        .sort((a, b) => (a.hp > b.hp ? 1 : a.hp < b.hp ? -1 : 0))[0];
+      return lowest?.id;
+    }
+    if (normalized === 'random') {
+      const idx = Number((ctx.timestamp.microsSinceUnixEpoch % BigInt(activeParticipants.length)));
+      return activeParticipants[idx]?.characterId;
+    }
+    if (normalized === 'self') return undefined;
+    const targetEntry = [...ctx.db.aggroEntry.by_combat.filter(combatId)]
+      .filter((entry) => activeParticipants.some((p) => p.characterId === entry.characterId))
+      .sort((a, b) => (a.value > b.value ? -1 : a.value < b.value ? 1 : 0))[0];
+    return targetEntry?.characterId ?? activeParticipants[0]?.characterId;
   };
 
   spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64() }, (ctx, args) => {
@@ -707,66 +746,89 @@ export const registerCombatReducers = (deps: any) => {
       ctx.db.combatEnemyCast.id.delete(existingCast.id);
     }
     if (enemyAbilities.length > 0 && !existingCast) {
-      const chosen = enemyAbilities[0];
       const cooldownTable = ctx.db.combatEnemyCooldown;
       if (!cooldownTable) {
         // cooldown table missing; skip casting to avoid spam
       } else {
-        const cooldown = [...cooldownTable.by_combat.filter(combat.id)].find(
-          (row) => row.abilityKey === chosen.abilityKey
-        );
-        if (cooldown && cooldown.readyAtMicros > nowMicros) {
-          // cooldown active
-        } else {
+        type Candidate = {
+          ability: typeof deps.EnemyAbility.rowType;
+          targetId: bigint;
+          score: number;
+          castMicros: bigint;
+          cooldownMicros: bigint;
+          chance: number;
+        };
+        const candidates: Candidate[] = [];
+
+        for (const ability of enemyAbilities) {
+          const cooldown = [...cooldownTable.by_combat.filter(combat.id)].find(
+            (row) => row.abilityKey === ability.abilityKey
+          );
+          if (cooldown && cooldown.readyAtMicros > nowMicros) continue;
           if (cooldown && cooldown.readyAtMicros <= nowMicros) {
             for (const row of cooldownTable.by_combat.filter(combat.id)) {
-              if (row.abilityKey === chosen.abilityKey) {
+              if (row.abilityKey === ability.abilityKey) {
                 cooldownTable.id.delete(row.id);
               }
             }
           }
+
+          const targetId = pickEnemyTarget(ability.targetRule, activeParticipants, ctx, combat.id);
+          if (!targetId) continue;
+
+          const meta = ENEMY_ABILITIES[ability.abilityKey as keyof typeof ENEMY_ABILITIES];
           const castMicros =
-            enemyAbilityCastMicros(chosen.abilityKey) ||
-            (chosen.castSeconds ?? 0n) * 1_000_000n;
+            enemyAbilityCastMicros(ability.abilityKey) ||
+            (ability.castSeconds ?? 0n) * 1_000_000n;
           const cooldownMicros =
-            enemyAbilityCooldownMicros(chosen.abilityKey) ||
-            (chosen.cooldownSeconds ?? 0n) * 1_000_000n;
-          const level = Number(enemyTemplate?.level ?? 1n);
-          const chance = Math.min(80, 25 + level * 10);
-          const roll = Number((nowMicros + enemy.id + combat.id) % 100n);
-          if (roll >= chance) {
-            // AI chose not to cast this tick.
-          } else {
-            const targetEntry = [...ctx.db.aggroEntry.by_combat.filter(combat.id)]
-              .filter((entry) => activeParticipants.some((p) => p.characterId === entry.characterId))
-              .sort((a, b) => (a.value > b.value ? -1 : a.value < b.value ? 1 : 0))[0];
-            const lowestHp = activeParticipants
-              .map((p) => ctx.db.character.id.find(p.characterId))
-              .filter((c) => Boolean(c))
-              .sort((a, b) => (a.hp > b.hp ? 1 : a.hp < b.hp ? -1 : 0))[0];
-            const strategicTarget =
-              (enemyTemplate?.level ?? 1n) >= 3n ? lowestHp?.id : undefined;
-            const targetId =
-              strategicTarget ?? targetEntry?.characterId ?? activeParticipants[0]?.characterId;
-            if (targetId) {
-              const alreadyPoisoned = [...ctx.db.characterEffect.by_character.filter(targetId)].some(
-                (effect) => effect.effectType === 'dot' && effect.sourceAbility === chosen.name
-              );
-              if (!alreadyPoisoned) {
-                ctx.db.combatEnemyCast.insert({
-                  id: 0n,
-                  combatId: combat.id,
-                  enemyId: enemy.id,
-                  abilityKey: chosen.abilityKey,
-                  endsAtMicros: nowMicros + castMicros,
-                  targetCharacterId: targetId,
-                });
-                ctx.db.combatEnemy.id.update({
-                  ...enemy,
-                  nextAutoAttackAt: nowMicros + castMicros,
-                });
-              }
-            }
+            enemyAbilityCooldownMicros(ability.abilityKey) ||
+            (ability.cooldownSeconds ?? 0n) * 1_000_000n;
+
+          if (ability.kind === 'dot') {
+            const alreadyApplied = [...ctx.db.characterEffect.by_character.filter(targetId)].some(
+              (effect) => effect.effectType === 'dot' && effect.sourceAbility === ability.name
+            );
+            if (alreadyApplied) continue;
+          }
+
+          const baseWeight = meta?.aiWeight ?? DEFAULT_AI_WEIGHT;
+          const baseChance = meta?.aiChance ?? DEFAULT_AI_CHANCE;
+          const randomness = meta?.aiRandomness ?? DEFAULT_AI_RANDOMNESS;
+          let score = baseWeight;
+          if (ability.kind === 'dot') score += 30;
+          if (ability.targetRule === 'lowest_hp') score += 20;
+          if (ability.targetRule === 'aggro') score += 10;
+
+          const hash = hashString(`${ability.abilityKey}:${combat.id}:${enemy.id}`);
+          const jitter = (hash % (randomness * 2)) - randomness;
+          score += jitter;
+          candidates.push({
+            ability,
+            targetId,
+            score,
+            castMicros,
+            cooldownMicros,
+            chance: baseChance,
+          });
+        }
+
+        if (candidates.length > 0) {
+          const chosen = candidates.sort((a, b) => b.score - a.score)[0];
+          const roll =
+            Number((nowMicros + enemy.id + combat.id + BigInt(hashString(chosen.ability.abilityKey))) % 100n);
+          if (roll < chosen.chance) {
+            ctx.db.combatEnemyCast.insert({
+              id: 0n,
+              combatId: combat.id,
+              enemyId: enemy.id,
+              abilityKey: chosen.ability.abilityKey,
+              endsAtMicros: nowMicros + chosen.castMicros,
+              targetCharacterId: chosen.targetId,
+            });
+            ctx.db.combatEnemy.id.update({
+              ...enemy,
+              nextAutoAttackAt: nowMicros + chosen.castMicros,
+            });
           }
         }
       }
