@@ -316,11 +316,25 @@ export const registerCombatReducers = (deps: any) => {
         ctx.db.characterEffect.id.delete(effect.id);
         continue;
       }
+      if (effect.effectType === 'regen' || effect.effectType === 'dot') {
+        continue;
+      }
       if (effect.roundsRemaining === 0n) {
         ctx.db.characterEffect.id.delete(effect.id);
         continue;
       }
       ctx.db.characterEffect.id.update({
+        ...effect,
+        roundsRemaining: effect.roundsRemaining - 1n,
+      });
+    }
+
+    for (const effect of ctx.db.combatEnemyEffect.iter()) {
+      if (effect.roundsRemaining === 0n) {
+        ctx.db.combatEnemyEffect.id.delete(effect.id);
+        continue;
+      }
+      ctx.db.combatEnemyEffect.id.update({
         ...effect,
         roundsRemaining: effect.roundsRemaining - 1n,
       });
@@ -340,6 +354,11 @@ export const registerCombatReducers = (deps: any) => {
         continue;
       }
       if (owner.hp === 0n) continue;
+      if (effect.effectType !== 'regen' && effect.effectType !== 'dot') continue;
+      if (effect.roundsRemaining === 0n) {
+        ctx.db.characterEffect.id.delete(effect.id);
+        continue;
+      }
       const source = effect.sourceAbility ?? 'a lingering effect';
       if (effect.effectType === 'regen') {
         const nextHp = owner.hp + effect.magnitude > owner.maxHp ? owner.maxHp : owner.hp + effect.magnitude;
@@ -351,9 +370,7 @@ export const registerCombatReducers = (deps: any) => {
           'heal',
           `You are healed for ${effect.magnitude} by ${source}.`
         );
-        continue;
-      }
-      if (effect.effectType === 'dot') {
+      } else if (effect.effectType === 'dot') {
         const nextHp = owner.hp > effect.magnitude ? owner.hp - effect.magnitude : 0n;
         ctx.db.character.id.update({ ...owner, hp: nextHp });
         appendPrivateEvent(
@@ -363,6 +380,12 @@ export const registerCombatReducers = (deps: any) => {
           'damage',
           `You take ${effect.magnitude} damage from ${source}.`
         );
+      }
+      const remaining = effect.roundsRemaining - 1n;
+      if (remaining === 0n) {
+        ctx.db.characterEffect.id.delete(effect.id);
+      } else {
+        ctx.db.characterEffect.id.update({ ...effect, roundsRemaining: remaining });
       }
     }
 
@@ -434,6 +457,9 @@ export const registerCombatReducers = (deps: any) => {
       const character = ctx.db.character.id.find(p.characterId);
       if (character && character.hp === 0n) {
         ctx.db.combatParticipant.id.update({ ...p, status: 'dead' });
+        for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
+          ctx.db.characterEffect.id.delete(effect.id);
+        }
       }
     }
     const refreshedParticipants = [...ctx.db.combatParticipant.by_combat.filter(combat.id)];
@@ -554,29 +580,6 @@ export const registerCombatReducers = (deps: any) => {
         ...participant,
         nextAutoAttackAt: nowMicros + 3_000_000n,
       });
-    }
-
-    const participantIds = new Set(activeParticipants.map((p) => p.characterId));
-    for (const effect of ctx.db.characterEffect.iter()) {
-      if (!participantIds.has(effect.characterId)) continue;
-      if (effect.roundsRemaining === 0n) {
-        ctx.db.characterEffect.id.delete(effect.id);
-      } else {
-        ctx.db.characterEffect.id.update({
-          ...effect,
-          roundsRemaining: effect.roundsRemaining - 1n,
-        });
-      }
-    }
-    for (const effect of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
-      if (effect.roundsRemaining === 0n) {
-        ctx.db.combatEnemyEffect.id.delete(effect.id);
-      } else {
-        ctx.db.combatEnemyEffect.id.update({
-          ...effect,
-          roundsRemaining: effect.roundsRemaining - 1n,
-        });
-      }
     }
 
     const updatedEnemy = ctx.db.combatEnemy.id.find(enemy.id)!;
@@ -788,6 +791,9 @@ export const registerCombatReducers = (deps: any) => {
           for (const p of participants) {
             if (p.characterId === targetCharacter.id) {
               ctx.db.combatParticipant.id.update({ ...p, status: 'dead' });
+              for (const effect of ctx.db.characterEffect.by_character.filter(targetCharacter.id)) {
+                ctx.db.characterEffect.id.delete(effect.id);
+              }
               break;
             }
           }

@@ -220,8 +220,9 @@ const effectLabel = (effect: {
   }
 };
 
-const effectDurationLabel = (effect: { roundsRemaining: bigint }) => {
-  const seconds = Number(effect.roundsRemaining) * 10;
+const effectDurationLabel = (effect: { roundsRemaining: bigint; effectType: string }) => {
+  const tickSeconds = effect.effectType === 'regen' || effect.effectType === 'dot' ? 3 : 10;
+  const seconds = Number(effect.roundsRemaining) * tickSeconds;
   return `${seconds}s`;
 };
 </script>

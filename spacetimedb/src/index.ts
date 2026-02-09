@@ -1149,7 +1149,7 @@ function executeAbility(
       characterId: targetCharacter.id,
       effectType: 'regen',
       magnitude: 10n,
-      roundsRemaining: 1n,
+      roundsRemaining: 3n,
       sourceAbility: 'Totem of Vigor',
     });
     appendPrivateEvent(
