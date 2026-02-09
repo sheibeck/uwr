@@ -116,6 +116,8 @@ import TickEffectsReducer from "./tick_effects_reducer";
 export { TickEffectsReducer };
 import TickHotReducer from "./tick_hot_reducer";
 export { TickHotReducer };
+import TickCastsReducer from "./tick_casts_reducer";
+export { TickCastsReducer };
 import ResolveRoundReducer from "./resolve_round_reducer";
 export { ResolveRoundReducer };
 
@@ -126,8 +128,12 @@ import AbilityCooldownRow from "./ability_cooldown_table";
 export { AbilityCooldownRow };
 import AggroEntryRow from "./aggro_entry_table";
 export { AggroEntryRow };
+import CastTickRow from "./cast_tick_table";
+export { CastTickRow };
 import CharacterRow from "./character_table";
 export { CharacterRow };
+import CharacterCastRow from "./character_cast_table";
+export { CharacterCastRow };
 import CharacterEffectRow from "./character_effect_table";
 export { CharacterEffectRow };
 import CombatEncounterRow from "./combat_encounter_table";
@@ -222,8 +228,12 @@ import AcceptGroupInvite from "./accept_group_invite_type";
 export { AcceptGroupInvite };
 import AggroEntry from "./aggro_entry_type";
 export { AggroEntry };
+import CastTick from "./cast_tick_type";
+export { CastTick };
 import Character from "./character_type";
 export { Character };
+import CharacterCast from "./character_cast_type";
+export { CharacterCast };
 import CharacterEffect from "./character_effect_type";
 export { CharacterEffect };
 import ChooseAction from "./choose_action_type";
@@ -376,6 +386,8 @@ import StartCombat from "./start_combat_type";
 export { StartCombat };
 import SubmitCommand from "./submit_command_type";
 export { SubmitCommand };
+import TickCasts from "./tick_casts_type";
+export { TickCasts };
 import TickEffects from "./tick_effects_type";
 export { TickEffects };
 import TickHot from "./tick_hot_type";
@@ -422,6 +434,17 @@ const tablesSchema = __schema(
     ],
   }, AggroEntryRow),
   __table({
+    name: 'cast_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'cast_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, CastTickRow),
+  __table({
     name: 'character',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -438,6 +461,20 @@ const tablesSchema = __schema(
       { name: 'character_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CharacterRow),
+  __table({
+    name: 'character_cast',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'character_cast_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CharacterCastRow),
   __table({
     name: 'character_effect',
     indexes: [
@@ -996,6 +1033,7 @@ const reducersSchema = __reducers(
   __reducerSchema("regen_health", RegenHealthReducer),
   __reducerSchema("tick_effects", TickEffectsReducer),
   __reducerSchema("tick_hot", TickHotReducer),
+  __reducerSchema("tick_casts", TickCastsReducer),
   __reducerSchema("resolve_round", ResolveRoundReducer),
 );
 

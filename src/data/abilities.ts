@@ -65,7 +65,7 @@ export const abilities: Ability[] = [
   { key: 'spellblade_spellstorm', name: 'Spellstorm', className: 'Spellblade', level: 5, kind: 'combat', resource: 'mana', description: 'Unleash a storm of arcane strikes.', castSeconds: 2 },
 
   { key: 'shaman_spirit_bolt', name: 'Spirit Bolt', className: 'Shaman', level: 1, kind: 'combat', resource: 'mana', description: 'Hurl a bolt of spirit energy at the enemy.', castSeconds: 2 },
-  { key: 'shaman_totem_of_vigor', name: 'Totem of Vigor', className: 'Shaman', level: 2, kind: 'utility', resource: 'mana', description: 'Empower a party member with rapid healing.', castSeconds: 0 },
+  { key: 'shaman_totem_of_vigor', name: 'Totem of Vigor', className: 'Shaman', level: 2, kind: 'utility', resource: 'mana', description: 'Empower a party member with rapid healing.', castSeconds: 2 },
   { key: 'shaman_hex', name: 'Hex', className: 'Shaman', level: 3, kind: 'combat', resource: 'mana', description: 'Hex the enemy to reduce their damage.', castSeconds: 1 },
   { key: 'shaman_ancestral_ward', name: 'Ancestral Ward', className: 'Shaman', level: 4, kind: 'utility', resource: 'mana', description: 'Ward an ally with ancestral protection.', castSeconds: 0 },
   { key: 'shaman_stormcall', name: 'Stormcall', className: 'Shaman', level: 5, kind: 'combat', resource: 'mana', description: 'Call down a storm to strike the target.', castSeconds: 2 },

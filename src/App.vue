@@ -53,11 +53,13 @@
             !conn.isActive ||
             !slot.abilityKey ||
             isCasting ||
+            slot.cooldownRemaining > 0 ||
             (activeCombat && !canActInCombat && slot.kind !== 'utility')
           "
           :style="[
             styles.hotbarSlot,
             selectedAction === `ability:${slot.abilityKey}` ? styles.hotbarSlotActive : {},
+            slot.abilityKey === castingState?.castingAbilityKey ? styles.hotbarSlotActive : {},
             hotbarPulseKey === slot.abilityKey ? styles.hotbarSlotActive : {},
             !slot.abilityKey ? styles.hotbarSlotEmpty : {},
           ]"
@@ -75,12 +77,15 @@
           @mouseleave="slot.abilityKey && hideTooltip()"
         >
           <div
-            v-if="isCasting && slot.abilityKey === castingState?.castingAbilityKey"
+            v-if="isCasting && slot.abilityKey === activeCastKey"
             :style="{
               ...styles.hotbarCastFill,
               width: `${Math.round(castProgress * 100)}%`,
             }"
           ></div>
+          <span v-if="slot.cooldownRemaining > 0" :style="styles.hotbarCooldown">
+            {{ slot.cooldownRemaining }}
+          </span>
           <span :style="styles.hotbarSlotText">{{ slot.slot }}</span>
           <span :style="styles.hotbarSlotText">{{ slot.name }}</span>
         </button>
@@ -391,6 +396,8 @@ const {
   groupInvites,
   groupMembers: groupMemberRows,
   hotbarSlots,
+  abilityCooldowns,
+  characterCasts,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
@@ -577,6 +584,19 @@ const { hotbarAssignments, availableAbilities, abilityLookup, setHotbarSlot, use
   hotbarSlots,
 });
 
+const nowMicros = ref(Date.now() * 1000);
+let uiTimer: number | undefined;
+
+const cooldownByAbility = computed(() => {
+  if (!selectedCharacter.value) return new Map<string, bigint>();
+  const map = new Map<string, bigint>();
+  for (const row of abilityCooldowns.value) {
+    if (row.characterId.toString() !== selectedCharacter.value.id.toString()) continue;
+    map.set(row.abilityKey, row.readyAtMicros);
+  }
+  return map;
+});
+
 const hotbarDisplay = computed(() => {
   const slots = new Map(hotbarAssignments.value.map((slot) => [slot.slot, slot]));
   return Array.from({ length: 10 }, (_, index) => {
@@ -590,12 +610,19 @@ const hotbarDisplay = computed(() => {
     const ability = assignment.abilityKey
       ? abilityLookup.value.get(assignment.abilityKey)
       : undefined;
+    const readyAt = assignment.abilityKey
+      ? cooldownByAbility.value.get(assignment.abilityKey)
+      : undefined;
+    const remainingMicros = readyAt ? Number(readyAt) - nowMicros.value : 0;
+    const cooldownRemaining =
+      remainingMicros > 0 ? Math.ceil(remainingMicros / 1_000_000) : 0;
     return {
       ...assignment,
       description: ability?.description ?? (assignment.abilityKey ? 'Ability not defined yet.' : ''),
       resource: ability?.resource ?? '',
       kind: ability?.kind ?? '',
       level: ability?.level ?? 0,
+      cooldownRemaining,
     };
   });
 });
@@ -640,6 +667,7 @@ const tryUseAbility = (slot: any) => {
 
 const onHotbarClick = (slot: any) => {
   if (!selectedCharacter.value || !slot?.abilityKey) return;
+  if (isCasting.value) return;
   hotbarPulseKey.value = slot.abilityKey;
   window.setTimeout(() => {
     if (hotbarPulseKey.value === slot.abilityKey) hotbarPulseKey.value = null;
@@ -701,50 +729,29 @@ const showCombatStack = computed(() => combatLocked.value);
 const showRightPanel = computed(() => false);
 
 const castingState = computed(() => {
-  if (!activeCombat.value || !selectedCharacter.value) return null;
-  return combatParticipants.value.find(
-    (row) =>
-      row.combatId.toString() === activeCombat.value?.id.toString() &&
-      row.characterId.toString() === selectedCharacter.value?.id.toString()
+  if (!selectedCharacter.value) return null;
+  return characterCasts.value.find(
+    (row) => row.characterId.toString() === selectedCharacter.value?.id.toString()
   ) ?? null;
 });
-const isCasting = computed(() => Boolean(castingState.value?.castingAbilityKey));
+
+const activeCastKey = computed(() => castingState.value?.abilityKey ?? '');
+const activeCastEndsAt = computed(() =>
+  castingState.value?.endsAtMicros ? Number(castingState.value.endsAtMicros) : 0
+);
+const isCasting = computed(() => Boolean(activeCastKey.value));
 const castingAbilityName = computed(() => {
-  const key = castingState.value?.castingAbilityKey;
+  const key = activeCastKey.value;
   if (!key) return '';
   const ability = abilityLookup.value.get(key);
   return ability?.name ?? key;
 });
-const nowMicros = ref(Date.now() * 1000);
-let castTimer: number | undefined;
-watch(
-  () => isCasting.value,
-  (casting) => {
-    if (!casting) {
-      if (castTimer) {
-        clearInterval(castTimer);
-        castTimer = undefined;
-      }
-      return;
-    }
-    if (!castTimer) {
-      castTimer = window.setInterval(() => {
-        nowMicros.value = Date.now() * 1000;
-      }, 100);
-    }
-  },
-  { immediate: true }
-);
-onBeforeUnmount(() => {
-  if (castTimer) clearInterval(castTimer);
-});
-
 const castProgress = computed(() => {
-  if (!isCasting.value || !castingState.value?.castEndsAt) return 0;
-  const ability = abilityLookup.value.get(castingState.value.castingAbilityKey ?? '');
+  if (!isCasting.value || !activeCastEndsAt.value) return 0;
+  const ability = abilityLookup.value.get(activeCastKey.value ?? '');
   const duration = ability?.castSeconds ? ability.castSeconds * 1_000_000 : 0;
   if (!duration) return 1;
-  const remaining = Number(castingState.value.castEndsAt) - nowMicros.value;
+  const remaining = activeCastEndsAt.value - nowMicros.value;
   const clamped = Math.max(0, Math.min(duration, duration - remaining));
   return clamped / duration;
 });
@@ -889,6 +896,9 @@ onMounted(() => {
   window.addEventListener('mouseup', stopPanelDrag);
   window.addEventListener('mouseup', stopTravelDrag);
   window.addEventListener('mouseup', stopHotbarDrag);
+  uiTimer = window.setInterval(() => {
+    nowMicros.value = Date.now() * 1000;
+  }, 200);
 });
 
 onBeforeUnmount(() => {
@@ -900,6 +910,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('mouseup', stopPanelDrag);
   window.removeEventListener('mouseup', stopTravelDrag);
   window.removeEventListener('mouseup', stopHotbarDrag);
+  if (uiTimer) clearInterval(uiTimer);
 });
 
 watch(

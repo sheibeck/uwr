@@ -9,6 +9,7 @@ export const registerCombatReducers = (deps: any) => {
     HealthRegenTick,
     EffectTick,
     HotTick,
+    CastTick,
     requireCharacterOwnedBy,
     appendPrivateEvent,
     activeCombatIdForCharacter,
@@ -19,6 +20,7 @@ export const registerCombatReducers = (deps: any) => {
     sumEnemyEffect,
     applyArmorMitigation,
     abilityCooldownMicros,
+    executeAbility,
   } = deps;
 
   spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64() }, (ctx, args) => {
@@ -37,15 +39,24 @@ export const registerCombatReducers = (deps: any) => {
 
     // Determine participants
     const participants: typeof deps.Character.rowType[] = [];
+    const participantIds = new Set<string>();
     if (groupId) {
       for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
         const memberChar = ctx.db.character.id.find(member.characterId);
         if (memberChar && memberChar.locationId === locationId) {
-          participants.push(memberChar);
+          const key = memberChar.id.toString();
+          if (!participantIds.has(key)) {
+            participants.push(memberChar);
+            participantIds.add(key);
+          }
         }
       }
     } else {
-      participants.push(character);
+      const key = character.id.toString();
+      if (!participantIds.has(key)) {
+        participants.push(character);
+        participantIds.add(key);
+      }
     }
     if (participants.length === 0) throw new SenderError('No participants available');
     for (const p of participants) {
@@ -104,9 +115,6 @@ export const registerCombatReducers = (deps: any) => {
         status: 'active',
         selectedAction: undefined,
         nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + 3_000_000n,
-        castingAbilityKey: undefined,
-        castEndsAt: undefined,
-        castTargetCharacterId: undefined,
       });
       ctx.db.aggroEntry.insert({
         id: 0n,
@@ -344,6 +352,54 @@ export const registerCombatReducers = (deps: any) => {
     });
   });
 
+  spacetimedb.reducer('tick_casts', { arg: deps.CastTick.rowType }, (ctx) => {
+    const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
+    for (const cast of ctx.db.characterCast.iter()) {
+      if (cast.endsAtMicros > nowMicros) continue;
+      const character = ctx.db.character.id.find(cast.characterId);
+      if (!character) {
+        ctx.db.characterCast.id.delete(cast.id);
+        continue;
+      }
+      try {
+        deps.executeAbility(ctx, character, cast.abilityKey, cast.targetCharacterId);
+        const cooldown = abilityCooldownMicros(cast.abilityKey);
+        const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(character.id)].find(
+          (row) => row.abilityKey === cast.abilityKey
+        );
+        if (cooldown > 0n) {
+          if (existingCooldown) {
+            ctx.db.abilityCooldown.id.update({
+              ...existingCooldown,
+              readyAtMicros: nowMicros + cooldown,
+            });
+          } else {
+            ctx.db.abilityCooldown.insert({
+              id: 0n,
+              characterId: character.id,
+              abilityKey: cast.abilityKey,
+              readyAtMicros: nowMicros + cooldown,
+            });
+          }
+        }
+      } catch (error) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          `Ability failed: ${error}`
+        );
+      }
+      ctx.db.characterCast.id.delete(cast.id);
+    }
+
+    ctx.db.castTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 200_000n),
+    });
+  });
+
   spacetimedb.reducer('resolve_round', { arg: CombatRoundTick.rowType }, (ctx, { arg }) => {
     const combat = ctx.db.combatEncounter.id.find(arg.combatId);
     if (!combat || combat.state !== 'active') return;
@@ -365,60 +421,12 @@ export const registerCombatReducers = (deps: any) => {
 
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     for (const participant of activeParticipants) {
-      if (!participant.castingAbilityKey || !participant.castEndsAt) continue;
-      if (participant.castEndsAt > nowMicros) continue;
       const character = ctx.db.character.id.find(participant.characterId);
       if (!character) continue;
-      try {
-        deps.executeAbility(
-          ctx,
-          character,
-          participant.castingAbilityKey,
-          participant.castTargetCharacterId
-        );
-        const cooldown = abilityCooldownMicros(participant.castingAbilityKey);
-        const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(character.id)].find(
-          (row) => row.abilityKey === participant.castingAbilityKey
-        );
-        if (cooldown > 0n) {
-          if (existingCooldown) {
-            ctx.db.abilityCooldown.id.update({
-              ...existingCooldown,
-              readyAtMicros: nowMicros + cooldown,
-            });
-          } else {
-            ctx.db.abilityCooldown.insert({
-              id: 0n,
-              characterId: character.id,
-              abilityKey: participant.castingAbilityKey,
-              readyAtMicros: nowMicros + cooldown,
-            });
-          }
-        }
-      } catch (error) {
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'ability',
-          `Ability failed: ${error}`
-        );
-      }
-      ctx.db.combatParticipant.id.update({
-        ...participant,
-        castingAbilityKey: undefined,
-        castEndsAt: undefined,
-        castTargetCharacterId: undefined,
-        nextAutoAttackAt: nowMicros + 3_000_000n,
-      });
-    }
-
-    for (const participant of activeParticipants) {
-      const character = ctx.db.character.id.find(participant.characterId);
-      if (!character) continue;
-      if (participant.castingAbilityKey && participant.castEndsAt && participant.castEndsAt > nowMicros) {
-        continue;
-      }
+      const activeCast = [...ctx.db.characterCast.by_character.filter(character.id)].find(
+        (row) => row.endsAtMicros > nowMicros
+      );
+      if (activeCast) continue;
       if (participant.nextAutoAttackAt > nowMicros) continue;
 
       const currentEnemy = ctx.db.combatEnemy.id.find(enemy.id);

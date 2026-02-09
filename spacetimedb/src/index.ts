@@ -215,6 +215,20 @@ const AbilityCooldown = table(
   }
 );
 
+const CharacterCast = table(
+  {
+    name: 'character_cast',
+    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    abilityKey: t.string(),
+    targetCharacterId: t.u64().optional(),
+    endsAtMicros: t.u64(),
+  }
+);
+
 const Group = table(
   { name: 'group', public: true },
   {
@@ -347,9 +361,6 @@ const CombatParticipant = table(
     status: t.string(),
     selectedAction: t.string().optional(),
     nextAutoAttackAt: t.u64(),
-    castingAbilityKey: t.string().optional(),
-    castEndsAt: t.u64().optional(),
-    castTargetCharacterId: t.u64().optional(),
   }
 );
 
@@ -478,6 +489,17 @@ const HotTick = table(
   }
 );
 
+const CastTick = table(
+  {
+    name: 'cast_tick',
+    scheduled: 'tick_casts',
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+  }
+);
+
 const Command = table(
   {
     name: 'command',
@@ -572,6 +594,7 @@ export const spacetimedb = schema(
   LocationConnection,
   HotbarSlot,
   AbilityCooldown,
+  CharacterCast,
   Character,
   ItemTemplate,
   ItemInstance,
@@ -591,6 +614,7 @@ export const spacetimedb = schema(
   HealthRegenTick,
   EffectTick,
   HotTick,
+  CastTick,
   CombatResult,
   Command,
   EventWorld,
@@ -898,7 +922,7 @@ const SHAMAN_ABILITIES = {
     level: 2n,
     power: 2n,
     cooldownSeconds: 10n,
-    castSeconds: 0n,
+    castSeconds: 2n,
   },
   shaman_hex: {
     name: 'Hex',
@@ -1641,6 +1665,15 @@ function ensureHotTickScheduled(ctx: any) {
   }
 }
 
+function ensureCastTickScheduled(ctx: any) {
+  if (!tableHasRows(ctx.db.castTick.iter())) {
+    ctx.db.castTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 200_000n),
+    });
+  }
+}
+
 function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
   const activeGroupKeys = new Set<string>();
   for (const player of ctx.db.player.iter()) {
@@ -1951,6 +1984,7 @@ spacetimedb.init((ctx) => {
   ensureHealthRegenScheduled(ctx);
   ensureEffectTickScheduled(ctx);
   ensureHotTickScheduled(ctx);
+  ensureCastTickScheduled(ctx);
 });
 
 spacetimedb.clientConnected((ctx) => {
@@ -1970,6 +2004,7 @@ spacetimedb.clientConnected((ctx) => {
   ensureHealthRegenScheduled(ctx);
   ensureEffectTickScheduled(ctx);
   ensureHotTickScheduled(ctx);
+  ensureCastTickScheduled(ctx);
 });
 
 spacetimedb.clientDisconnected((_ctx) => {
@@ -2012,6 +2047,7 @@ const reducerDeps = {
   HealthRegenTick,
   EffectTick,
   HotTick,
+  CastTick,
   AggroEntry,
   requirePlayerUserId,
   requireCharacterOwnedBy,

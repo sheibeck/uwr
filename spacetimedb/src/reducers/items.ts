@@ -169,25 +169,53 @@ export const registerItemReducers = (deps: any) => {
         (row) => row.abilityKey === abilityKey
       );
       if (existingCooldown && existingCooldown.readyAtMicros > nowMicros) {
-        throw new SenderError('Ability is on cooldown');
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          'Ability is on cooldown.'
+        );
+        return;
       }
       const castMicros = abilityCastMicros(abilityKey);
       const combatId = activeCombatIdForCharacter(ctx, character.id);
-      if (castMicros > 0n && combatId) {
+      if (combatId) {
         const participant = [...ctx.db.combatParticipant.by_combat.filter(combatId)].find(
           (row) => row.characterId === character.id
         );
         if (!participant || participant.status !== 'active') {
-          throw new SenderError('Cannot cast right now');
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'ability',
+            'Cannot cast right now.'
+          );
+          return;
         }
-        if (participant.castingAbilityKey) {
-          throw new SenderError('Already casting');
+      }
+      if (castMicros > 0n) {
+        const existingCast = [...ctx.db.characterCast.by_character.filter(character.id)][0];
+        if (existingCast && existingCast.endsAtMicros > nowMicros) {
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'ability',
+            'Already casting.'
+          );
+          return;
         }
-        ctx.db.combatParticipant.id.update({
-          ...participant,
-          castingAbilityKey: abilityKey,
-          castEndsAt: nowMicros + castMicros,
-          castTargetCharacterId: args.targetCharacterId,
+        if (existingCast) {
+          ctx.db.characterCast.id.delete(existingCast.id);
+        }
+        ctx.db.characterCast.insert({
+          id: 0n,
+          characterId: character.id,
+          abilityKey,
+          targetCharacterId: args.targetCharacterId,
+          endsAtMicros: nowMicros + castMicros,
         });
         appendPrivateEvent(
           ctx,

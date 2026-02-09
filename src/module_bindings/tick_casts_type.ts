@@ -9,12 +9,13 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import CastTick from "./cast_tick_type";
 
-export default __t.row({
-  id: __t.u64().primaryKey(),
-  combatId: __t.u64(),
-  characterId: __t.u64(),
-  status: __t.string(),
-  selectedAction: __t.option(__t.string()),
-  nextAutoAttackAt: __t.u64(),
+
+export default __t.object("TickCasts", {
+  get arg() {
+    return CastTick;
+  },
 });
+
+

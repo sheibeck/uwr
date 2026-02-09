@@ -43,12 +43,13 @@ Last updated: 2026-02-09
 - **Combat (MVP):**
   - Location-based enemy spawns; one enemy per group/solo.
   - Leader-only engages for groups; solo engages for self.
-  - Round-based actions: `attack`, `skip`, `flee`.
-  - 10s round timer; default action is `skip`.
-  - Aggro from damage only; `skip` reduces aggro.
+  - Auto-attacks every 3s using equipped weapon; combat tick runs every 1s.
+  - Abilities execute immediately or after cast time; auto-attacks pause while casting.
+  - Casting is unified server-side via `character_cast` + `cast_tick` (200ms).
+  - Aggro from damage only.
   - Combat auto-opens for all group members.
   - Dead characters cannot act; combat ends if all active participants are dead.
-  - Dead characters revive at half HP after combat ends.
+  - Dead characters revive at 1/4 HP/Mana/Stamina after combat ends.
   - Enemy respawns after death; new spawns created as new groups/solos arrive.
   - Combat results screen shown after combat; leader dismisses to return to enemy list.
   - XP on victory with level-up support (cap 10). XP split among non-dead participants.
@@ -109,7 +110,7 @@ Last updated: 2026-02-09
   - Shows current region in header, connected locations with arrows, region names, and target level con colors.
 - **Hotbar:**
   - Configuration via Hotbar panel; combat-use via vertical dock.
-  - Hotbar selections highlight when chosen for a combat round.
+  - Hotbar shows cast fill + cooldown counters; highlights while casting.
   - Empty slots shown.
 
 ## Ability Plan (MVP, Lv1–Lv5)
@@ -217,7 +218,8 @@ Last updated: 2026-02-09
 - Combat:
   - `enemy_template`, `location_enemy_template`, `enemy_spawn`.
   - `combat_encounter`, `combat_participant`, `combat_enemy`, `aggro_entry`, `combat_round_tick`.
-  - `combat_result`, `health_regen_tick`.
+  - `character_cast`, `cast_tick`, `ability_cooldown`.
+  - `combat_result`, `health_regen_tick`, `effect_tick`, `hot_tick`.
 - Events: `event_world`, `event_location`, `event_private`, `event_group`.
 - Views: `my_player`, `my_private_events`, `my_group_events`, `my_location_events`,
   `my_friend_requests`, `my_friends`, `my_group_invites`, `my_group_members`, `my_combat_results`.

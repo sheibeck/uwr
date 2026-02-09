@@ -234,6 +234,15 @@ export const styles = {
     zIndex: 1,
     color: 'inherit',
   },
+  hotbarCooldown: {
+    position: 'absolute',
+    top: '6px',
+    right: '8px',
+    fontSize: '0.7rem',
+    color: '#9fb2ff',
+    zIndex: 2,
+    textShadow: '0 1px 2px rgba(0,0,0,0.6)',
+  },
   floatingPanelHeader: {
     padding: '0.5rem 0.8rem',
     borderBottom: '1px solid rgba(255,255,255,0.08)',
