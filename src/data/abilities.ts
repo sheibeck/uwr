@@ -23,11 +23,11 @@ export const abilities: Ability[] = [
   { key: 'enchanter_clarity_ii', name: 'Clarity II', className: 'Enchanter', level: 4, kind: 'utility', resource: 'mana', description: 'Restore more mana to a party member.', castSeconds: 0 },
   { key: 'enchanter_charm_fray', name: 'Charm Fray', className: 'Enchanter', level: 5, kind: 'combat', resource: 'mana', description: 'Damage and weaken the enemy’s offense.', castSeconds: 1 },
 
-  { key: 'cleric_mend', name: 'Mend', className: 'Cleric', level: 1, kind: 'combat', resource: 'mana', description: 'Restore health to a single ally.', castSeconds: 1 },
+  { key: 'cleric_mend', name: 'Mend', className: 'Cleric', level: 1, kind: 'utility', resource: 'mana', description: 'Restore health to a single ally.', castSeconds: 1 },
   { key: 'cleric_blessing', name: 'Blessing', className: 'Cleric', level: 2, kind: 'utility', resource: 'mana', description: 'Increase an ally’s maximum health.', castSeconds: 0 },
   { key: 'cleric_smite', name: 'Smite', className: 'Cleric', level: 3, kind: 'combat', resource: 'mana', description: 'Holy strike that damages an enemy.', castSeconds: 1 },
   { key: 'cleric_sanctuary', name: 'Sanctuary', className: 'Cleric', level: 4, kind: 'utility', resource: 'mana', description: 'Briefly fortify the party’s defenses.', castSeconds: 0 },
-  { key: 'cleric_heal', name: 'Heal', className: 'Cleric', level: 5, kind: 'combat', resource: 'mana', description: 'A strong single-target heal.', castSeconds: 2 },
+  { key: 'cleric_heal', name: 'Heal', className: 'Cleric', level: 5, kind: 'utility', resource: 'mana', description: 'A strong single-target heal.', castSeconds: 2 },
 
   { key: 'wizard_magic_missile', name: 'Magic Missile', className: 'Wizard', level: 1, kind: 'combat', resource: 'mana', description: 'A focused bolt of arcane force.', castSeconds: 1 },
   { key: 'wizard_arcane_intellect', name: 'Arcane Intellect', className: 'Wizard', level: 2, kind: 'utility', resource: 'mana', description: 'Raise a targetâ€™s mana regeneration.', castSeconds: 0 },
@@ -71,7 +71,7 @@ export const abilities: Ability[] = [
   { key: 'spellblade_ward', name: 'Ward', className: 'Spellblade', level: 4, kind: 'utility', resource: 'mana', description: 'Conjure a ward to increase defenses.', castSeconds: 0 },
   { key: 'spellblade_spellstorm', name: 'Spellstorm', className: 'Spellblade', level: 5, kind: 'combat', resource: 'mana', description: 'Unleash a storm of arcane strikes.', castSeconds: 2 },
 
-  { key: 'shaman_spirit_mender', name: 'Spirit Mender', className: 'Shaman', level: 1, kind: 'combat', resource: 'mana', description: 'Heal an ally and grant a brief regeneration.', castSeconds: 1, cooldownSeconds: 6 },
+  { key: 'shaman_spirit_mender', name: 'Spirit Mender', className: 'Shaman', level: 1, kind: 'utility', resource: 'mana', description: 'Heal an ally and grant a brief regeneration.', castSeconds: 1, cooldownSeconds: 6 },
   { key: 'shaman_totem_of_vigor', name: 'Totem of Vigor', className: 'Shaman', level: 2, kind: 'utility', resource: 'mana', description: 'Empower a party member with rapid healing.', castSeconds: 2, cooldownSeconds: 0 },
   { key: 'shaman_hex', name: 'Hex', className: 'Shaman', level: 3, kind: 'combat', resource: 'mana', description: 'Hex the enemy to reduce their damage.', castSeconds: 1, cooldownSeconds: 0 },
   { key: 'shaman_ancestral_ward', name: 'Ancestral Ward', className: 'Shaman', level: 4, kind: 'utility', resource: 'mana', description: 'Ward an ally with ancestral protection.', castSeconds: 0, cooldownSeconds: 0 },
