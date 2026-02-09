@@ -53,9 +53,7 @@ export const registerCombatReducers = (deps: any) => {
     }
 
     const spawn = ctx.db.enemySpawn.id.find(args.enemySpawnId);
-    let desiredLevel = character.level;
-    if (participants.length >= 4) desiredLevel = desiredLevel + 2n;
-    else if (participants.length >= 2) desiredLevel = desiredLevel + 1n;
+    let desiredLevel = 1n;
     const spawnToUse =
       spawn && spawn.locationId === locationId && spawn.state === 'available'
         ? spawn

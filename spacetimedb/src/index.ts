@@ -1387,11 +1387,7 @@ function computeEnemyStats(
   participants: typeof Character.rowType[]
 ) {
   const role = getEnemyRole(template.role);
-  const groupSize = participants.length;
-  let totalLevel = 0n;
-  for (const p of participants) totalLevel += p.level;
-  const avgLevel = totalLevel / BigInt(groupSize);
-  const effectiveLevel = template.level > avgLevel ? template.level : avgLevel;
+  const effectiveLevel = template.level;
   const baseHp = role.baseHp + role.hpPerLevel * effectiveLevel;
   const baseDamage = role.baseDamage + role.damagePerLevel * effectiveLevel;
   const baseArmorClass = template.armorClass + effectiveLevel;
@@ -1400,7 +1396,7 @@ function computeEnemyStats(
     maxHp: baseHp,
     attackDamage: baseDamage,
     armorClass: baseArmorClass,
-    avgLevel,
+    avgLevel: effectiveLevel,
   };
 }
 
