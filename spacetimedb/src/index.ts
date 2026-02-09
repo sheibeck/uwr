@@ -841,6 +841,7 @@ const STARTER_WEAPONS: Record<string, { name: string; slot: string }> = {
   enchanter: { name: 'Training Staff', slot: 'mainHand' },
   necromancer: { name: 'Training Staff', slot: 'mainHand' },
   summoner: { name: 'Training Staff', slot: 'mainHand' },
+  wizard: { name: 'Training Staff', slot: 'mainHand' },
 };
 
 function getEquippedBonuses(ctx: any, characterId: bigint) {
@@ -1354,6 +1355,39 @@ function executeAbility(
     case 'cleric_heal':
       if (!targetCharacter) throw new SenderError('Target required');
       applyHeal(targetCharacter, 15n, 'Heal');
+      return;
+    case 'wizard_magic_missile':
+      applyDamage(125n, 2n);
+      return;
+    case 'wizard_arcane_intellect':
+      if (!targetCharacter) throw new SenderError('Target required');
+      addCharacterEffect(ctx, targetCharacter.id, 'mana_regen', 4n, 3n, 'Arcane Intellect');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        `Arcane Intellect bolsters ${targetCharacter.name}.`
+      );
+      return;
+    case 'wizard_frost_shard':
+      applyDamage(120n, 2n, {
+        debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Frost Shard' },
+      });
+      return;
+    case 'wizard_mana_shield':
+      if (!targetCharacter) throw new SenderError('Target required');
+      addCharacterEffect(ctx, targetCharacter.id, 'ac_bonus', 3n, 3n, 'Mana Shield');
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        `Mana Shield protects ${targetCharacter.name}.`
+      );
+      return;
+    case 'wizard_lightning_surge':
+      applyDamage(170n, 5n);
       return;
     case 'rogue_backstab':
       applyDamage(150n, 4n);
@@ -1896,7 +1930,7 @@ function ensureStarterItemTemplates(ctx: any) {
     'Training Mace': { name: 'Training Mace', allowed: 'paladin,cleric' },
     'Training Staff': {
       name: 'Training Staff',
-      allowed: 'enchanter,necromancer,summoner,druid,shaman,monk',
+      allowed: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard',
     },
     'Training Bow': { name: 'Training Bow', allowed: 'ranger' },
     'Training Dagger': { name: 'Training Dagger', allowed: 'rogue' },

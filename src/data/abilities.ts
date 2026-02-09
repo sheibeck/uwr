@@ -29,6 +29,12 @@ export const abilities: Ability[] = [
   { key: 'cleric_sanctuary', name: 'Sanctuary', className: 'Cleric', level: 4, kind: 'utility', resource: 'mana', description: 'Briefly fortify the party’s defenses.', castSeconds: 0 },
   { key: 'cleric_heal', name: 'Heal', className: 'Cleric', level: 5, kind: 'combat', resource: 'mana', description: 'A strong single-target heal.', castSeconds: 2 },
 
+  { key: 'wizard_magic_missile', name: 'Magic Missile', className: 'Wizard', level: 1, kind: 'combat', resource: 'mana', description: 'A focused bolt of arcane force.', castSeconds: 1 },
+  { key: 'wizard_arcane_intellect', name: 'Arcane Intellect', className: 'Wizard', level: 2, kind: 'utility', resource: 'mana', description: 'Raise a targetâ€™s mana regeneration.', castSeconds: 0 },
+  { key: 'wizard_frost_shard', name: 'Frost Shard', className: 'Wizard', level: 3, kind: 'combat', resource: 'mana', description: 'Chilled magic that weakens enemy offense.', castSeconds: 1 },
+  { key: 'wizard_mana_shield', name: 'Mana Shield', className: 'Wizard', level: 4, kind: 'utility', resource: 'mana', description: 'A protective arcane barrier for an ally.', castSeconds: 0 },
+  { key: 'wizard_lightning_surge', name: 'Lightning Surge', className: 'Wizard', level: 5, kind: 'combat', resource: 'mana', description: 'A violent surge of lightning.', castSeconds: 2 },
+
   { key: 'warrior_slam', name: 'Slam', className: 'Warrior', level: 1, kind: 'combat', resource: 'stamina', description: 'A heavy strike that draws attention.', castSeconds: 0, cooldownSeconds: 3 },
   { key: 'warrior_shout', name: 'Shout', className: 'Warrior', level: 2, kind: 'utility', resource: 'stamina', description: 'Rally the party with a battle shout.', castSeconds: 0 },
   { key: 'warrior_cleave', name: 'Cleave', className: 'Warrior', level: 3, kind: 'combat', resource: 'stamina', description: 'A powerful cleaving blow.', castSeconds: 0 },

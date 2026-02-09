@@ -219,6 +219,13 @@ const CLASS_OPTIONS = [
     abilities: 'Taunt, heavy strikes, durability',
     description: 'Frontline fighters built to absorb punishment.',
   },
+  {
+    name: 'Wizard',
+    role: 'Caster â€¢ Damage',
+    stats: 'Intelligence',
+    abilities: 'Arcane bolts, mana shields, lightning surges',
+    description: 'Arcane scholars who unleash devastating spells.',
+  },
 ];
 
 const selectedClass = computed(() =>
