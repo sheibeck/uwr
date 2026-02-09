@@ -678,6 +678,7 @@ export const spacetimedb = schema(
   CombatParticipant,
   CombatEnemy,
   CombatEnemyCast,
+  CombatEnemyCooldown,
   CharacterEffect,
   CombatEnemyEffect,
   AggroEntry,

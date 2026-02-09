@@ -142,6 +142,8 @@ import CombatEnemyRow from "./combat_enemy_table";
 export { CombatEnemyRow };
 import CombatEnemyCastRow from "./combat_enemy_cast_table";
 export { CombatEnemyCastRow };
+import CombatEnemyCooldownRow from "./combat_enemy_cooldown_table";
+export { CombatEnemyCooldownRow };
 import CombatEnemyEffectRow from "./combat_enemy_effect_table";
 export { CombatEnemyEffectRow };
 import CombatLoopTickRow from "./combat_loop_tick_table";
@@ -544,6 +546,20 @@ const tablesSchema = __schema(
       { name: 'combat_enemy_cast_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatEnemyCastRow),
+  __table({
+    name: 'combat_enemy_cooldown',
+    indexes: [
+      { name: 'by_combat', algorithm: 'btree', columns: [
+        'combatId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_enemy_cooldown_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CombatEnemyCooldownRow),
   __table({
     name: 'combat_enemy_effect',
     indexes: [
