@@ -56,6 +56,17 @@
             !slot.abilityKey ? styles.hotbarSlotEmpty : {},
           ]"
           @click="slot.abilityKey && chooseAbility(slot.abilityKey)"
+          @mouseenter="
+            slot.abilityKey &&
+            showTooltip({
+              item: hotbarTooltipItem(slot),
+              x: $event.currentTarget?.getBoundingClientRect().right ?? $event.clientX,
+              y: $event.currentTarget?.getBoundingClientRect().top ?? $event.clientY,
+              anchor: 'right',
+            })
+          "
+          @mousemove="slot.abilityKey && moveTooltip({ x: $event.clientX, y: $event.clientY })"
+          @mouseleave="slot.abilityKey && hideTooltip()"
         >
           <span>{{ slot.slot }}</span>
           <span>{{ slot.name }}</span>
@@ -558,7 +569,7 @@ const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipI
     itemTemplates,
   });
 
-const { hotbarAssignments, availableAbilities, setHotbarSlot, useAbility } = useHotbar({
+const { hotbarAssignments, availableAbilities, abilityLookup, setHotbarSlot, useAbility } = useHotbar({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
   hotbarSlots,
@@ -568,15 +579,37 @@ const hotbarDisplay = computed(() => {
   const slots = new Map(hotbarAssignments.value.map((slot) => [slot.slot, slot]));
   return Array.from({ length: 10 }, (_, index) => {
     const slotIndex = index + 1;
-    return (
+    const assignment =
       slots.get(slotIndex) ?? {
         slot: slotIndex,
         abilityKey: '',
         name: 'Empty',
-      }
-    );
+      };
+    const ability = assignment.abilityKey
+      ? abilityLookup.value.get(assignment.abilityKey)
+      : undefined;
+    return {
+      ...assignment,
+      description: ability?.description ?? (assignment.abilityKey ? 'Ability not defined yet.' : ''),
+      resource: ability?.resource ?? '',
+      kind: ability?.kind ?? '',
+      level: ability?.level ?? 0,
+    };
   });
 });
+
+const hotbarTooltipItem = (slot: any) => {
+  if (!slot?.abilityKey) return null;
+  return {
+    name: slot.name || slot.abilityKey,
+    description: slot.description,
+    stats: [
+      { label: 'Level', value: slot.level || '-' },
+      { label: 'Type', value: slot.kind || '-' },
+      { label: 'Resource', value: slot.resource || '-' },
+    ],
+  };
+};
 
 const activePanel = ref<
   | 'none'
@@ -614,11 +647,18 @@ const combatLocked = computed(() => Boolean(activeCombat.value || activeResult.v
 const showCombatStack = computed(() => combatLocked.value);
 const showRightPanel = computed(() => false);
 
-const tooltip = ref<{ visible: boolean; x: number; y: number; item: any | null }>({
+const tooltip = ref<{
+  visible: boolean;
+  x: number;
+  y: number;
+  item: any | null;
+  anchor: 'cursor' | 'right';
+}>({
   visible: false,
   x: 0,
   y: 0,
   item: null,
+  anchor: 'cursor',
 });
 
 const groupPanelPos = ref({ x: 40, y: 140 });
@@ -776,17 +816,31 @@ watch(
   { deep: true }
 );
 
-const showTooltip = (payload: { item: any; x: number; y: number }) => {
-  tooltip.value = { visible: true, x: payload.x + 12, y: payload.y + 12, item: payload.item };
+const showTooltip = (payload: {
+  item: any;
+  x: number;
+  y: number;
+  anchor?: 'cursor' | 'right';
+}) => {
+  const anchor = payload.anchor ?? 'cursor';
+  const offsetX = 12;
+  const offsetY = anchor === 'right' ? 0 : 12;
+  tooltip.value = {
+    visible: true,
+    x: payload.x + offsetX,
+    y: payload.y + offsetY,
+    item: payload.item,
+    anchor,
+  };
 };
 
 const moveTooltip = (payload: { x: number; y: number }) => {
-  if (!tooltip.value.visible) return;
+  if (!tooltip.value.visible || tooltip.value.anchor === 'right') return;
   tooltip.value = { ...tooltip.value, x: payload.x + 12, y: payload.y + 12 };
 };
 
 const hideTooltip = () => {
-  tooltip.value = { visible: false, x: 0, y: 0, item: null };
+  tooltip.value = { visible: false, x: 0, y: 0, item: null, anchor: 'cursor' };
 };
 
 const panelTitle = computed(() => {

@@ -60,6 +60,8 @@ const highlighted = ref<string | null>(null);
     { value: '/look', hint: 'Describe current location' },
     { value: '/say', hint: 'Talk to everyone nearby' },
     { value: '/w', hint: 'Whisper to a character' },
+    { value: '/group', hint: 'Message your group' },
+    { value: '/level', hint: 'Set your level (testing)' },
     { value: '/invite', hint: 'Invite to group' },
     { value: '/friend', hint: 'Send friend request' },
     { value: '/accept', hint: 'Accept group invite' },
@@ -67,6 +69,7 @@ const highlighted = ref<string | null>(null);
     { value: '/kick', hint: 'Kick group member' },
     { value: '/promote', hint: 'Promote group leader' },
     { value: '/leave', hint: 'Leave current group' },
+    { value: '/endcombat', hint: 'Force end current combat (leader)' },
   ];
 
 const shouldShowSuggestions = computed(() => {

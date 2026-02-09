@@ -11,6 +11,7 @@ type UseCommandsArgs = {
 export const useCommands = ({ connActive, selectedCharacter, inviteSummaries }: UseCommandsArgs) => {
   const submitCommandReducer = useReducer(reducers.submitCommand);
   const sayReducer = useReducer(reducers.say);
+  const groupMessageReducer = useReducer(reducers.groupMessage);
   const whisperReducer = useReducer(reducers.whisper);
   const inviteReducer = useReducer(reducers.inviteToGroup);
   const acceptInviteReducer = useReducer(reducers.acceptGroupInvite);
@@ -18,7 +19,9 @@ export const useCommands = ({ connActive, selectedCharacter, inviteSummaries }: 
   const promoteReducer = useReducer(reducers.promoteGroupLeader);
   const kickReducer = useReducer(reducers.kickGroupMember);
   const leaveReducer = useReducer(reducers.leaveGroup);
+  const endCombatReducer = useReducer(reducers.endCombat);
   const friendReducer = useReducer(reducers.sendFriendRequestToCharacter);
+  const levelReducer = useReducer(reducers.levelCharacter);
   const commandText = ref('');
 
   const submitCommand = () => {
@@ -32,6 +35,8 @@ export const useCommands = ({ connActive, selectedCharacter, inviteSummaries }: 
         characterId: selectedCharacter.value.id,
         targetName,
       });
+    } else if (lower === '/endcombat') {
+      endCombatReducer({ characterId: selectedCharacter.value.id });
     } else if (lower === '/leave') {
       leaveReducer({ characterId: selectedCharacter.value.id });
     } else if (lower.startsWith('/promote ')) {
@@ -102,6 +107,18 @@ export const useCommands = ({ connActive, selectedCharacter, inviteSummaries }: 
       sayReducer({
         characterId: selectedCharacter.value.id,
         message: raw.slice(4).trim(),
+      });
+    } else if (lower.startsWith('/group ')) {
+      groupMessageReducer({
+        characterId: selectedCharacter.value.id,
+        message: raw.slice(7).trim(),
+      });
+    } else if (lower.startsWith('/level ')) {
+      const value = Number(raw.slice(7).trim());
+      if (!Number.isFinite(value) || value < 1) return;
+      levelReducer({
+        characterId: selectedCharacter.value.id,
+        level: BigInt(Math.floor(value)),
       });
     } else {
       submitCommandReducer({

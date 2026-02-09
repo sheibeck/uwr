@@ -340,6 +340,9 @@ export const styles = {
   logCommand: {
     color: '#e0b565',
   },
+  logGroup: {
+    color: '#8bd3ff',
+  },
   logWhisper: {
     color: '#c792ff',
   },

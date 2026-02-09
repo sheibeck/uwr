@@ -1,7 +1,7 @@
 import { computed, type Ref } from 'vue';
 import { reducers, type CharacterRow, type HotbarSlotRow } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
-import { abilitiesByClass } from '../data/abilities';
+import { abilities, abilitiesByClass } from '../data/abilities';
 
 type UseHotbarArgs = {
   connActive: Ref<boolean>;
@@ -19,6 +19,14 @@ export const useHotbar = ({ connActive, selectedCharacter, hotbarSlots }: UseHot
       selectedCharacter.value.className,
       Number(selectedCharacter.value.level)
     );
+  });
+
+  const abilityLookup = computed(() => {
+    const map = new Map<string, (typeof abilities)[number]>();
+    for (const ability of abilities) {
+      map.set(ability.key, ability);
+    }
+    return map;
   });
 
   const hotbarAssignments = computed(() => {
@@ -55,5 +63,5 @@ export const useHotbar = ({ connActive, selectedCharacter, hotbarSlots }: UseHot
     });
   };
 
-  return { hotbarAssignments, availableAbilities, setHotbarSlot, useAbility };
+  return { hotbarAssignments, availableAbilities, abilityLookup, setHotbarSlot, useAbility };
 };

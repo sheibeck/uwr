@@ -14,7 +14,7 @@
         :style="styles.logItem"
       >
         <span :style="styles.logTime">{{ formatTimestamp(event.createdAt) }}</span>
-        <span :style="styles.logKind">[{{ event.scope }} {{ event.kind }}]</span>
+        <span :style="styles.logKind">{{ event.scope === 'group' ? '[Group]' : `[${event.scope} ${event.kind}]` }}</span>
         <span
           :style="[
             styles.logText,
@@ -22,6 +22,7 @@
             event.scope === 'private' ? styles.logPrivate : {},
             event.kind === 'presence' ? styles.logPresence : {},
             event.kind === 'command' ? styles.logCommand : {},
+            event.scope === 'group' ? styles.logGroup : {},
           ]"
         >
           {{ event.message }}

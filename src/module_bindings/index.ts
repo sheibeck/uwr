@@ -78,6 +78,10 @@ import SubmitCommandReducer from "./submit_command_reducer";
 export { SubmitCommandReducer };
 import SayReducer from "./say_reducer";
 export { SayReducer };
+import GroupMessageReducer from "./group_message_reducer";
+export { GroupMessageReducer };
+import LevelCharacterReducer from "./level_character_reducer";
+export { LevelCharacterReducer };
 import WhisperReducer from "./whisper_reducer";
 export { WhisperReducer };
 import CreateGroupReducer from "./create_group_reducer";
@@ -104,6 +108,8 @@ import ChooseActionReducer from "./choose_action_reducer";
 export { ChooseActionReducer };
 import DismissCombatResultsReducer from "./dismiss_combat_results_reducer";
 export { DismissCombatResultsReducer };
+import EndCombatReducer from "./end_combat_reducer";
+export { EndCombatReducer };
 import RegenHealthReducer from "./regen_health_reducer";
 export { RegenHealthReducer };
 import ResolveRoundReducer from "./resolve_round_reducer";
@@ -232,6 +238,8 @@ import DeleteCharacter from "./delete_character_type";
 export { DeleteCharacter };
 import DismissCombatResults from "./dismiss_combat_results_type";
 export { DismissCombatResults };
+import EndCombat from "./end_combat_type";
+export { EndCombat };
 import EnemySpawn from "./enemy_spawn_type";
 export { EnemySpawn };
 import EnemyTemplate from "./enemy_template_type";
@@ -258,6 +266,8 @@ import GroupInvite from "./group_invite_type";
 export { GroupInvite };
 import GroupMember from "./group_member_type";
 export { GroupMember };
+import GroupMessage from "./group_message_type";
+export { GroupMessage };
 import HealthRegenTick from "./health_regen_tick_type";
 export { HealthRegenTick };
 import HotbarSlot from "./hotbar_slot_type";
@@ -276,6 +286,8 @@ import KickGroupMember from "./kick_group_member_type";
 export { KickGroupMember };
 import LeaveGroup from "./leave_group_type";
 export { LeaveGroup };
+import LevelCharacter from "./level_character_type";
+export { LevelCharacter };
 import Location from "./location_type";
 export { Location };
 import LocationConnection from "./location_connection_type";
@@ -898,6 +910,8 @@ const reducersSchema = __reducers(
   __reducerSchema("move_character", MoveCharacterReducer),
   __reducerSchema("submit_command", SubmitCommandReducer),
   __reducerSchema("say", SayReducer),
+  __reducerSchema("group_message", GroupMessageReducer),
+  __reducerSchema("level_character", LevelCharacterReducer),
   __reducerSchema("whisper", WhisperReducer),
   __reducerSchema("create_group", CreateGroupReducer),
   __reducerSchema("join_group", JoinGroupReducer),
@@ -911,6 +925,7 @@ const reducersSchema = __reducers(
   __reducerSchema("start_combat", StartCombatReducer),
   __reducerSchema("choose_action", ChooseActionReducer),
   __reducerSchema("dismiss_combat_results", DismissCombatResultsReducer),
+  __reducerSchema("end_combat", EndCombatReducer),
   __reducerSchema("regen_health", RegenHealthReducer),
   __reducerSchema("resolve_round", ResolveRoundReducer),
 );

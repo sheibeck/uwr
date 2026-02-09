@@ -180,6 +180,69 @@ export const registerCombatReducers = (deps: any) => {
     }
   });
 
+  spacetimedb.reducer('end_combat', { characterId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const combatId = activeCombatIdForCharacter(ctx, character.id);
+    if (!combatId) throw new SenderError('No active combat');
+    const combat = ctx.db.combatEncounter.id.find(combatId);
+    if (!combat || combat.state !== 'active') throw new SenderError('Combat not active');
+
+    if (combat.groupId) {
+      const group = ctx.db.group.id.find(combat.groupId);
+      if (!group) throw new SenderError('Group not found');
+      if (group.leaderCharacterId !== character.id) {
+        throw new SenderError('Only the group leader can end combat');
+      }
+    }
+
+    const participants = [...ctx.db.combatParticipant.by_combat.filter(combat.id)];
+    for (const p of participants) {
+      const participantChar = ctx.db.character.id.find(p.characterId);
+      if (!participantChar) continue;
+      appendPrivateEvent(
+        ctx,
+        participantChar.id,
+        participantChar.ownerUserId,
+        'combat',
+        'Combat was ended by the leader.'
+      );
+      ctx.db.combatResult.insert({
+        id: 0n,
+        ownerUserId: participantChar.ownerUserId,
+        characterId: participantChar.id,
+        groupId: combat.groupId,
+        combatId: combat.id,
+        summary: 'Combat ended by leader.',
+        createdAt: ctx.timestamp,
+      });
+    }
+
+    const spawn = [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
+      (s) => s.lockedCombatId === combat.id
+    );
+    if (spawn) {
+      ctx.db.enemySpawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
+    }
+
+    for (const row of ctx.db.combatRoundTick.by_combat.filter(combat.id)) {
+      ctx.db.combatRoundTick.id.delete(row.scheduledId);
+    }
+    for (const row of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
+      ctx.db.combatParticipant.id.delete(row.id);
+    }
+    for (const row of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+      ctx.db.aggroEntry.id.delete(row.id);
+    }
+    for (const row of ctx.db.combatEnemy.by_combat.filter(combat.id)) {
+      ctx.db.combatEnemy.id.delete(row.id);
+    }
+    for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
+      ctx.db.combatEnemyEffect.id.delete(row.id);
+    }
+
+    ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
+  });
+
   const HP_REGEN_OUT = 3n;
   const MANA_REGEN_OUT = 3n;
   const STAMINA_REGEN_OUT = 3n;
@@ -295,7 +358,17 @@ export const registerCombatReducers = (deps: any) => {
         );
       } else if (action.startsWith('ability:')) {
         const abilityKey = action.replace('ability:', '');
-        deps.executeAbility(ctx, character, abilityKey);
+        try {
+          deps.executeAbility(ctx, character, abilityKey);
+        } catch (error) {
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'combat',
+            `Ability failed: ${error}`
+          );
+        }
       }
 
       ctx.db.combatParticipant.id.update({ ...participant, selectedAction: undefined });
@@ -410,7 +483,7 @@ export const registerCombatReducers = (deps: any) => {
       }
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
-        if (character && p.status === 'dead') {
+        if (character && character.hp === 0n) {
           const loss = deps.applyDeathXpPenalty(ctx, character);
           if (loss > 0n) {
             appendPrivateEvent(
@@ -496,6 +569,12 @@ export const registerCombatReducers = (deps: any) => {
       }
     }
     if (!stillActive) {
+      for (const p of participants) {
+        const character = ctx.db.character.id.find(p.characterId);
+        if (character && character.hp === 0n && p.status !== 'dead') {
+          ctx.db.combatParticipant.id.update({ ...p, status: 'dead' });
+        }
+      }
       const enemyName =
         [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
           (s) => s.lockedCombatId === combat.id
@@ -521,7 +600,7 @@ export const registerCombatReducers = (deps: any) => {
       }
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
-        if (character && p.status === 'dead') {
+        if (character && character.hp === 0n) {
           const loss = deps.applyDeathXpPenalty(ctx, character);
           if (loss > 0n) {
             appendPrivateEvent(
@@ -551,6 +630,9 @@ export const registerCombatReducers = (deps: any) => {
       }
       for (const row of ctx.db.combatEnemy.by_combat.filter(combat.id)) {
         ctx.db.combatEnemy.id.delete(row.id);
+      }
+      for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combat.id)) {
+        ctx.db.combatEnemyEffect.id.delete(row.id);
       }
       ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
       return;
