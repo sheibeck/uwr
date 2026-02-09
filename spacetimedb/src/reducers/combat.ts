@@ -682,6 +682,28 @@ export const registerCombatReducers = (deps: any) => {
         existingCast.abilityKey,
         existingCast.targetCharacterId
       );
+      const cooldownTable = ctx.db.combatEnemyCooldown;
+      if (cooldownTable) {
+        const abilityRow = enemyAbilities.find(
+          (row) => row.abilityKey === existingCast.abilityKey
+        );
+        const cooldownMicros =
+          enemyAbilityCooldownMicros(existingCast.abilityKey) ||
+          (abilityRow?.cooldownSeconds ?? 0n) * 1_000_000n;
+        if (cooldownMicros > 0n) {
+          for (const row of cooldownTable.by_combat.filter(combat.id)) {
+            if (row.abilityKey === existingCast.abilityKey) {
+              cooldownTable.id.delete(row.id);
+            }
+          }
+          cooldownTable.insert({
+            id: 0n,
+            combatId: combat.id,
+            abilityKey: existingCast.abilityKey,
+            readyAtMicros: nowMicros + cooldownMicros,
+          });
+        }
+      }
       ctx.db.combatEnemyCast.id.delete(existingCast.id);
     }
     if (enemyAbilities.length > 0 && !existingCast) {
@@ -743,19 +765,6 @@ export const registerCombatReducers = (deps: any) => {
                   ...enemy,
                   nextAutoAttackAt: nowMicros + castMicros,
                 });
-                if (cooldownMicros > 0n) {
-                  for (const row of cooldownTable.by_combat.filter(combat.id)) {
-                    if (row.abilityKey === chosen.abilityKey) {
-                      cooldownTable.id.delete(row.id);
-                    }
-                  }
-                  cooldownTable.insert({
-                    id: 0n,
-                    combatId: combat.id,
-                    abilityKey: chosen.abilityKey,
-                    readyAtMicros: nowMicros + castMicros + cooldownMicros,
-                  });
-                }
               }
             }
           }
