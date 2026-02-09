@@ -1885,6 +1885,16 @@ function executeEnemyAbility(
       'damage',
       `${enemyName} uses ${ability.name} on you.`
     );
+  } else if (ability.kind === 'debuff') {
+    const effectType = (ability as any).effectType ?? 'ac_bonus';
+    addCharacterEffect(ctx, target.id, effectType, ability.magnitude, ability.rounds, ability.name);
+    appendPrivateEvent(
+      ctx,
+      target.id,
+      target.ownerUserId,
+      'ability',
+      `${enemyName} afflicts you with ${ability.name}.`
+    );
   }
 }
 
@@ -2723,7 +2733,7 @@ spacetimedb.init((ctx) => {
       baseDamage: 4n,
       xpReward: 12n,
     });
-    ctx.db.enemyTemplate.insert({
+    const emberWisp = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Ember Wisp',
       role: 'dps',
@@ -2737,7 +2747,7 @@ spacetimedb.init((ctx) => {
       baseDamage: 6n,
       xpReward: 20n,
     });
-    ctx.db.enemyTemplate.insert({
+    const banditArcher = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Bandit Archer',
       role: 'dps',
@@ -2751,7 +2761,7 @@ spacetimedb.init((ctx) => {
       baseDamage: 7n,
       xpReward: 18n,
     });
-    ctx.db.enemyTemplate.insert({
+    const blightStalker = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Blight Stalker',
       role: 'dps',
@@ -2765,7 +2775,7 @@ spacetimedb.init((ctx) => {
       baseDamage: 8n,
       xpReward: 24n,
     });
-    ctx.db.enemyTemplate.insert({
+    const graveAcolyte = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Grave Acolyte',
       role: 'healer',
@@ -2779,7 +2789,7 @@ spacetimedb.init((ctx) => {
       baseDamage: 4n,
       xpReward: 18n,
     });
-    ctx.db.enemyTemplate.insert({
+    const hexbinder = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Hexbinder',
       role: 'support',
@@ -2793,7 +2803,7 @@ spacetimedb.init((ctx) => {
       baseDamage: 5n,
       xpReward: 22n,
     });
-    ctx.db.enemyTemplate.insert({
+    const thicketWolf = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Thicket Wolf',
       role: 'dps',
@@ -2807,7 +2817,7 @@ spacetimedb.init((ctx) => {
       baseDamage: 4n,
       xpReward: 12n,
     });
-    ctx.db.enemyTemplate.insert({
+    const marshCroaker = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Marsh Croaker',
       role: 'dps',
@@ -2821,7 +2831,91 @@ spacetimedb.init((ctx) => {
       baseDamage: 3n,
       xpReward: 10n,
     });
-    ctx.db.enemyTemplate.insert({
+    const dustHare = ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Dust Hare',
+      role: 'dps',
+      roleDetail: 'melee',
+      abilityProfile: 'dart, nip',
+      terrainTypes: 'plains',
+      timeOfDay: 'day',
+      armorClass: 7n,
+      level: 1n,
+      maxHp: 18n,
+      baseDamage: 3n,
+      xpReward: 10n,
+    });
+    const ashJackal = ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Ash Jackal',
+      role: 'dps',
+      roleDetail: 'melee',
+      abilityProfile: 'snap, pack feint',
+      terrainTypes: 'plains',
+      timeOfDay: 'any',
+      armorClass: 8n,
+      level: 2n,
+      maxHp: 24n,
+      baseDamage: 6n,
+      xpReward: 18n,
+    });
+    const thornSprite = ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Thorn Sprite',
+      role: 'support',
+      roleDetail: 'magic',
+      abilityProfile: 'sting, wither pollen',
+      terrainTypes: 'woods',
+      timeOfDay: 'night',
+      armorClass: 8n,
+      level: 2n,
+      maxHp: 20n,
+      baseDamage: 4n,
+      xpReward: 16n,
+    });
+    const gloomStag = ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Gloom Stag',
+      role: 'tank',
+      roleDetail: 'melee',
+      abilityProfile: 'gore, bulwark',
+      terrainTypes: 'woods',
+      timeOfDay: 'any',
+      armorClass: 12n,
+      level: 3n,
+      maxHp: 34n,
+      baseDamage: 7n,
+      xpReward: 24n,
+    });
+    const mireLeech = ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Mire Leech',
+      role: 'dps',
+      roleDetail: 'melee',
+      abilityProfile: 'drain, latch',
+      terrainTypes: 'swamp',
+      timeOfDay: 'any',
+      armorClass: 9n,
+      level: 2n,
+      maxHp: 26n,
+      baseDamage: 6n,
+      xpReward: 18n,
+    });
+    const fenWitch = ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Fen Witch',
+      role: 'support',
+      roleDetail: 'magic',
+      abilityProfile: 'curse, mire ward',
+      terrainTypes: 'swamp',
+      timeOfDay: 'night',
+      armorClass: 9n,
+      level: 3n,
+      maxHp: 28n,
+      baseDamage: 6n,
+      xpReward: 22n,
+    });
+    const graveSkirmisher = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Grave Skirmisher',
       role: 'dps',
@@ -2835,7 +2929,7 @@ spacetimedb.init((ctx) => {
       baseDamage: 6n,
       xpReward: 18n,
     });
-    ctx.db.enemyTemplate.insert({
+    const cinderSentinel = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Cinder Sentinel',
       role: 'tank',
@@ -2849,7 +2943,7 @@ spacetimedb.init((ctx) => {
       baseDamage: 6n,
       xpReward: 26n,
     });
-    ctx.db.enemyTemplate.insert({
+    const emberling = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Emberling',
       role: 'support',
@@ -2863,7 +2957,7 @@ spacetimedb.init((ctx) => {
       baseDamage: 4n,
       xpReward: 12n,
     });
-    ctx.db.enemyTemplate.insert({
+    const frostboneAcolyte = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Frostbone Acolyte',
       role: 'healer',
@@ -2877,7 +2971,77 @@ spacetimedb.init((ctx) => {
       baseDamage: 6n,
       xpReward: 30n,
     });
-    ctx.db.enemyTemplate.insert({
+    const ridgeSkirmisher = ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Ridge Skirmisher',
+      role: 'dps',
+      roleDetail: 'melee',
+      abilityProfile: 'rock slash, feint',
+      terrainTypes: 'mountains',
+      timeOfDay: 'day',
+      armorClass: 10n,
+      level: 3n,
+      maxHp: 28n,
+      baseDamage: 7n,
+      xpReward: 24n,
+    });
+    const emberhawk = ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Emberhawk',
+      role: 'dps',
+      roleDetail: 'ranged',
+      abilityProfile: 'burning dive',
+      terrainTypes: 'mountains,plains',
+      timeOfDay: 'day',
+      armorClass: 9n,
+      level: 4n,
+      maxHp: 26n,
+      baseDamage: 8n,
+      xpReward: 30n,
+    });
+    const basaltBrute = ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Basalt Brute',
+      role: 'tank',
+      roleDetail: 'melee',
+      abilityProfile: 'stone slam, brace',
+      terrainTypes: 'mountains',
+      timeOfDay: 'any',
+      armorClass: 14n,
+      level: 4n,
+      maxHp: 40n,
+      baseDamage: 7n,
+      xpReward: 32n,
+    });
+    const graveServant = ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Grave Servant',
+      role: 'tank',
+      roleDetail: 'melee',
+      abilityProfile: 'shield crush, watchful',
+      terrainTypes: 'town,city',
+      timeOfDay: 'night',
+      armorClass: 12n,
+      level: 3n,
+      maxHp: 34n,
+      baseDamage: 6n,
+      xpReward: 24n,
+    });
+    const alleyShade = ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Alley Shade',
+      role: 'dps',
+      roleDetail: 'melee',
+      abilityProfile: 'shadow cut, vanish',
+      terrainTypes: 'town,city',
+      timeOfDay: 'night',
+      armorClass: 10n,
+      level: 4n,
+      maxHp: 28n,
+      baseDamage: 9n,
+      xpReward: 30n,
+    });
+    const vaultSentinel = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Vault Sentinel',
       role: 'tank',
@@ -2891,7 +3055,7 @@ spacetimedb.init((ctx) => {
       baseDamage: 7n,
       xpReward: 34n,
     });
-    ctx.db.enemyTemplate.insert({
+    const sootboundMystic = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Sootbound Mystic',
       role: 'support',
@@ -2905,7 +3069,7 @@ spacetimedb.init((ctx) => {
       baseDamage: 8n,
       xpReward: 38n,
     });
-    ctx.db.enemyTemplate.insert({
+    const emberPriest = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Ember Priest',
       role: 'healer',
@@ -2919,7 +3083,7 @@ spacetimedb.init((ctx) => {
       baseDamage: 6n,
       xpReward: 36n,
     });
-    ctx.db.enemyTemplate.insert({
+    const ashforgedRevenant = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Ashforged Revenant',
       role: 'dps',
@@ -2934,16 +3098,53 @@ spacetimedb.init((ctx) => {
       xpReward: 44n,
     });
     if (!tableHasRows(ctx.db.enemyAbility.iter())) {
-      ctx.db.enemyAbility.insert({
-        id: 0n,
-        enemyTemplateId: bogRat.id,
-        abilityKey: 'poison_bite',
-        name: 'Poison Bite',
-        kind: 'dot',
-        castSeconds: 3n,
-        cooldownSeconds: 20n,
-        targetRule: 'aggro',
-      });
+      const addEnemyAbility = (
+        templateId: bigint,
+        abilityKey: string,
+        name: string,
+        kind: string,
+        castSeconds: bigint,
+        cooldownSeconds: bigint,
+        targetRule: string
+      ) => {
+        ctx.db.enemyAbility.insert({
+          id: 0n,
+          enemyTemplateId: templateId,
+          abilityKey,
+          name,
+          kind,
+          castSeconds,
+          cooldownSeconds,
+          targetRule,
+        });
+      };
+      addEnemyAbility(bogRat.id, 'poison_bite', 'Poison Bite', 'dot', 3n, 20n, 'aggro');
+      addEnemyAbility(emberWisp.id, 'ember_burn', 'Ember Burn', 'dot', 2n, 18n, 'aggro');
+      addEnemyAbility(banditArcher.id, 'bleeding_shot', 'Bleeding Shot', 'dot', 1n, 15n, 'aggro');
+      addEnemyAbility(blightStalker.id, 'shadow_rend', 'Shadow Rend', 'dot', 2n, 18n, 'aggro');
+      addEnemyAbility(graveAcolyte.id, 'sapping_chant', 'Sapping Chant', 'debuff', 2n, 20n, 'aggro');
+      addEnemyAbility(hexbinder.id, 'withering_hex', 'Withering Hex', 'debuff', 2n, 20n, 'aggro');
+      addEnemyAbility(thicketWolf.id, 'rending_bite', 'Rending Bite', 'dot', 1n, 12n, 'aggro');
+      addEnemyAbility(marshCroaker.id, 'bog_slime', 'Bog Slime', 'dot', 1n, 12n, 'aggro');
+      addEnemyAbility(dustHare.id, 'quick_nip', 'Quick Nip', 'dot', 1n, 10n, 'aggro');
+      addEnemyAbility(ashJackal.id, 'scorching_snap', 'Scorching Snap', 'dot', 1n, 14n, 'aggro');
+      addEnemyAbility(thornSprite.id, 'thorn_venom', 'Thorn Venom', 'dot', 2n, 16n, 'aggro');
+      addEnemyAbility(gloomStag.id, 'crushing_gore', 'Crushing Gore', 'debuff', 2n, 18n, 'aggro');
+      addEnemyAbility(mireLeech.id, 'blood_drain', 'Blood Drain', 'dot', 2n, 18n, 'aggro');
+      addEnemyAbility(fenWitch.id, 'mire_curse', 'Mire Curse', 'debuff', 2n, 20n, 'aggro');
+      addEnemyAbility(graveSkirmisher.id, 'rusty_bleed', 'Rusty Bleed', 'dot', 1n, 12n, 'aggro');
+      addEnemyAbility(cinderSentinel.id, 'ember_slam', 'Ember Slam', 'debuff', 2n, 20n, 'aggro');
+      addEnemyAbility(emberling.id, 'ember_spark', 'Ember Spark', 'dot', 1n, 12n, 'aggro');
+      addEnemyAbility(frostboneAcolyte.id, 'chill_touch', 'Chill Touch', 'debuff', 2n, 18n, 'aggro');
+      addEnemyAbility(ridgeSkirmisher.id, 'stone_cleave', 'Stone Cleave', 'dot', 1n, 14n, 'aggro');
+      addEnemyAbility(emberhawk.id, 'searing_talon', 'Searing Talon', 'dot', 2n, 18n, 'aggro');
+      addEnemyAbility(basaltBrute.id, 'quake_stomp', 'Quake Stomp', 'debuff', 2n, 22n, 'aggro');
+      addEnemyAbility(graveServant.id, 'grave_shield_break', 'Grave Shield Break', 'debuff', 2n, 18n, 'aggro');
+      addEnemyAbility(alleyShade.id, 'shadow_bleed', 'Shadow Bleed', 'dot', 2n, 18n, 'aggro');
+      addEnemyAbility(vaultSentinel.id, 'vault_crush', 'Vault Crush', 'debuff', 2n, 20n, 'aggro');
+      addEnemyAbility(sootboundMystic.id, 'soot_hex', 'Soot Hex', 'debuff', 2n, 18n, 'aggro');
+      addEnemyAbility(emberPriest.id, 'cinder_blight', 'Cinder Blight', 'dot', 2n, 16n, 'aggro');
+      addEnemyAbility(ashforgedRevenant.id, 'molten_bleed', 'Molten Bleed', 'dot', 3n, 20n, 'aggro');
     }
   }
 

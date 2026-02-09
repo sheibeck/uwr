@@ -788,6 +788,11 @@ export const registerCombatReducers = (deps: any) => {
               (effect) => effect.effectType === 'dot' && effect.sourceAbility === ability.name
             );
             if (alreadyApplied) continue;
+          } else if (ability.kind === 'debuff') {
+            const alreadyApplied = [...ctx.db.characterEffect.by_character.filter(targetId)].some(
+              (effect) => effect.sourceAbility === ability.name
+            );
+            if (alreadyApplied) continue;
           }
 
           const baseWeight = meta?.aiWeight ?? DEFAULT_AI_WEIGHT;
