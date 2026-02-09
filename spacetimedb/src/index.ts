@@ -436,6 +436,7 @@ const CharacterEffect = table(
 const CombatEnemyEffect = table(
   {
     name: 'combat_enemy_effect',
+    public: true,
     indexes: [{ name: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
   },
   {

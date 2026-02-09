@@ -8,6 +8,7 @@ import {
   type CombatResultRow,
   type EnemySpawnRow,
   type EnemyTemplateRow,
+  type CombatEnemyEffectRow,
 } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 
@@ -38,6 +39,7 @@ type UseCombatArgs = {
   combatEncounters: Ref<CombatEncounterRow[]>;
   combatParticipants: Ref<CombatParticipantRow[]>;
   combatEnemies: Ref<CombatEnemyRow[]>;
+  combatEnemyEffects: Ref<CombatEnemyEffectRow[]>;
   combatResults: Ref<CombatResultRow[]>;
   fallbackRoster: Ref<CharacterRow[]>;
   enemySpawns: Ref<EnemySpawnRow[]>;
@@ -76,6 +78,7 @@ export const useCombat = ({
   combatEncounters,
   combatParticipants,
   combatEnemies,
+  combatEnemyEffects,
   combatResults,
   fallbackRoster,
   enemySpawns,
@@ -160,6 +163,27 @@ export const useCombat = ({
     if (diff === 1) return 'conYellow';
     if (diff === 2) return 'conOrange';
     return 'conRed';
+  });
+
+  const activeEnemyEffects = computed(() => {
+    if (!activeCombat.value) return [];
+    const combatId = activeCombat.value.id.toString();
+    const negativeTypes = new Set(['damage_down', 'dot', 'skip', 'slow', 'weaken']);
+    return combatEnemyEffects.value
+      .filter((row) => row.combatId.toString() === combatId)
+      .map((effect) => {
+        const type = effect.effectType;
+        const isHot = type === 'dot';
+        const seconds = Number(effect.roundsRemaining) * (isHot ? 3 : 10);
+        const label = effect.sourceAbility ?? type.replace(/_/g, ' ');
+        const isNegative = negativeTypes.has(type) || effect.magnitude < 0n;
+        return {
+          id: effect.id,
+          label,
+          seconds,
+          isNegative,
+        };
+      });
   });
 
 
@@ -265,6 +289,7 @@ export const useCombat = ({
     activeEnemyName,
     activeEnemyLevel,
     activeEnemyConClass,
+    activeEnemyEffects,
     activeEnemySpawn,
     availableEnemies,
     combatRoster,

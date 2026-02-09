@@ -21,6 +21,7 @@ export const useGameData = () => {
   const [combatEncounters] = useTable(tables.combatEncounter);
   const [combatParticipants] = useTable(tables.combatParticipant);
   const [combatEnemies] = useTable(tables.combatEnemy);
+  const [combatEnemyEffects] = useTable(tables.combatEnemyEffect);
   const [aggroEntries] = useTable(tables.aggroEntry);
   const [combatResults] = useTable(tables.myCombatResults);
   const [groups] = useTable(tables.group);
@@ -53,6 +54,7 @@ export const useGameData = () => {
     combatEncounters,
     combatParticipants,
     combatEnemies,
+    combatEnemyEffects,
     aggroEntries,
     combatResults,
     groups,

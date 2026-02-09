@@ -204,6 +204,7 @@
           :active-enemy-name="activeEnemyName"
           :active-enemy-level="activeEnemyLevel"
           :active-enemy-con-class="activeEnemyConClass"
+          :active-enemy-effects="activeEnemyEffects"
           :enemy-target-name="activeEnemyTargetName"
           :enemy-spawns="availableEnemies"
           :active-result="activeResult"
@@ -253,6 +254,7 @@
           :active-enemy-name="activeEnemyName"
           :active-enemy-level="activeEnemyLevel"
           :active-enemy-con-class="activeEnemyConClass"
+          :active-enemy-effects="activeEnemyEffects"
           :enemy-target-name="activeEnemyTargetName"
           :enemy-spawns="availableEnemies"
           :active-result="activeResult"
@@ -390,6 +392,7 @@ const {
   combatEncounters,
   combatParticipants,
   combatEnemies,
+  combatEnemyEffects,
   aggroEntries,
   combatResults,
   groups,
@@ -493,6 +496,7 @@ const {
   activeEnemyName,
   activeEnemyLevel,
   activeEnemyConClass,
+  activeEnemyEffects,
   availableEnemies,
   combatRoster,
   activeResult,
@@ -505,6 +509,7 @@ const {
   combatEncounters,
   combatParticipants,
   combatEnemies,
+  combatEnemyEffects,
   combatResults,
   fallbackRoster: fallbackCombatRoster,
   enemySpawns,

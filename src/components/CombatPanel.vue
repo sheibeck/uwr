@@ -52,6 +52,15 @@
         }"
       ></div>
     </div>
+    <div v-if="activeEnemyEffects.length > 0" :style="styles.effectRow">
+      <span
+        v-for="effect in activeEnemyEffects"
+        :key="effect.id.toString()"
+        :style="effect.isNegative ? styles.effectBadgeNegative : styles.effectBadgePositive"
+      >
+        {{ effect.label }} {{ effect.seconds }}s
+      </span>
+    </div>
     <div v-if="enemyTargetName" :style="styles.combatRow">
       <span :style="styles.combatLabel">Targeting</span>
       <span :style="styles.combatValue">{{ enemyTargetName }}</span>
@@ -142,6 +151,7 @@ const props = defineProps<{
   activeEnemyName: string;
   activeEnemyLevel: bigint;
   activeEnemyConClass: string;
+  activeEnemyEffects: { id: bigint; label: string; seconds: number; isNegative: boolean }[];
   activeEnemySpawn: { id: bigint } | null;
   enemySpawns: EnemySummary[];
   activeResult: CombatResultRow | null;

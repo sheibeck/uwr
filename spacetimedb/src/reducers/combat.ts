@@ -342,6 +342,7 @@ export const registerCombatReducers = (deps: any) => {
     }
 
     for (const effect of ctx.db.combatEnemyEffect.iter()) {
+      if (effect.effectType === 'dot') continue;
       if (effect.roundsRemaining === 0n) {
         ctx.db.combatEnemyEffect.id.delete(effect.id);
         continue;
@@ -428,6 +429,40 @@ export const registerCombatReducers = (deps: any) => {
         ctx.db.characterEffect.id.delete(effect.id);
       } else {
         ctx.db.characterEffect.id.update({ ...effect, roundsRemaining: remaining });
+      }
+    }
+
+    for (const effect of ctx.db.combatEnemyEffect.iter()) {
+      if (effect.effectType !== 'dot') continue;
+      if (effect.roundsRemaining === 0n) {
+        ctx.db.combatEnemyEffect.id.delete(effect.id);
+        continue;
+      }
+      const combat = ctx.db.combatEncounter.id.find(effect.combatId);
+      if (!combat || combat.state !== 'active') continue;
+      const enemy = [...ctx.db.combatEnemy.by_combat.filter(effect.combatId)][0];
+      if (!enemy) continue;
+      const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+      const enemyName = enemyTemplate?.name ?? 'enemy';
+      const nextHp = enemy.currentHp > effect.magnitude ? enemy.currentHp - effect.magnitude : 0n;
+      ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
+      const source = effect.sourceAbility ?? 'a lingering effect';
+      for (const participant of ctx.db.combatParticipant.by_combat.filter(effect.combatId)) {
+        const character = ctx.db.character.id.find(participant.characterId);
+        if (!character) continue;
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'damage',
+          `${source} deals ${effect.magnitude} damage to ${enemyName}.`
+        );
+      }
+      const remaining = effect.roundsRemaining - 1n;
+      if (remaining === 0n) {
+        ctx.db.combatEnemyEffect.id.delete(effect.id);
+      } else {
+        ctx.db.combatEnemyEffect.id.update({ ...effect, roundsRemaining: remaining });
       }
     }
 
