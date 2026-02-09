@@ -137,7 +137,7 @@ export const styles = {
     overflow: 'auto',
   },
   miniMap: {
-    marginTop: '0.6rem',
+    marginTop: '0.2rem',
     display: 'flex',
     flexDirection: 'column',
     gap: '0.5rem',
@@ -168,7 +168,7 @@ export const styles = {
     display: 'flex',
     gap: '0.4rem',
     alignItems: 'center',
-    fontSize: '0.8rem',
+    fontSize: '0.72rem',
     color: 'rgba(230,232,239,0.7)',
   },
   accordionHeader: {

@@ -16,7 +16,7 @@
               <span :style="entry.conStyle">{{ entry.location.name }}</span>
             </div>
             <div :style="styles.miniMapMeta">
-              <span :style="[styles.regionBadge, entry.regionStyle]">{{ entry.regionName }}</span>
+              <span :style="entry.regionStyle">{{ entry.regionName }}</span>
               <span :style="entry.conStyle">L{{ entry.targetLevel }}</span>
             </div>
           </div>

@@ -160,6 +160,7 @@
     <div
       :style="{
         ...styles.floatingPanel,
+        ...styles.floatingPanelCompact,
         left: `${travelPanelPos.x}px`,
         top: `${travelPanelPos.y}px`,
       }"
@@ -176,7 +177,9 @@
           :regions="regions"
           @move="moveTo"
         />
-        <div :style="styles.panelSectionTitle">Inhabitants</div>
+        <div :style="{ ...styles.panelSectionTitle, marginTop: '0.8rem', marginBottom: '0.4rem' }">
+          Inhabitants
+        </div>
         <CombatPanel
           :styles="styles"
           :conn-active="conn.isActive"
