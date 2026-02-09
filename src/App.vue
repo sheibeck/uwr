@@ -16,7 +16,7 @@
     />
 
   <main :style="[styles.main, showRightPanel ? {} : styles.mainWide]">
-    <div :style="[styles.logStage, styles.logStageInset]">
+    <div :style="styles.logStage">
       <div :style="styles.logStack">
         <div :style="styles.logOverlay">
           <div v-if="onboardingHint" :style="styles.onboardingHint">

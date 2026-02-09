@@ -10,14 +10,56 @@ export const styles = {
   header: {
     display: 'flex',
     justifyContent: 'space-between',
-    padding: '1.5rem 2rem',
+    padding: '0.8rem 1.4rem',
     borderBottom: '1px solid rgba(255,255,255,0.08)',
+    gap: '1rem',
+    alignItems: 'center',
+  },
+  headerLeft: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.2rem',
+  },
+  headerCenter: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '0.25rem',
+    textAlign: 'center',
   },
   headerRight: {
     textAlign: 'right',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: '0.25rem',
+  },
+  xpRow: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.25rem',
+    alignItems: 'center',
+  },
+  xpBar: {
+    width: '220px',
+    height: '8px',
+    borderRadius: '999px',
+    background: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
+    border: '1px solid rgba(255,255,255,0.08)',
+  },
+  xpFill: {
+    height: '100%',
+    background: 'linear-gradient(90deg, rgba(248,201,74,0.9), rgba(255,157,64,0.95))',
+  },
+  xpText: {
+    fontSize: '0.72rem',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+    color: 'rgba(255,255,255,0.7)',
   },
   authRow: {
-    marginTop: '0.6rem',
     display: 'flex',
     justifyContent: 'flex-end',
     alignItems: 'center',
@@ -93,9 +135,6 @@ export const styles = {
     flexDirection: 'column',
     height: '100%',
   },
-  logStageInset: {
-    paddingBottom: '7.5rem',
-  },
   logStack: {
     flex: 1,
     minHeight: 0,
@@ -118,6 +157,8 @@ export const styles = {
     height: '100%',
     flex: 1,
     minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column',
   },
   floatingPanel: {
     position: 'absolute',
@@ -267,6 +308,7 @@ export const styles = {
     flexDirection: 'column',
     gap: '0.6rem',
     flex: 1,
+    minHeight: 0,
     paddingRight: '0.5rem',
   },
   logItem: {

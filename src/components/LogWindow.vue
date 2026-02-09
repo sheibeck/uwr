@@ -1,13 +1,14 @@
 <template>
   <section :style="styles.log">
-    <div v-if="!selectedCharacter" :style="styles.logEmpty">
-      Select or create a character to begin.
-    </div>
-    <div v-else-if="combinedEvents.length === 0" :style="styles.logEmpty">
-      No events yet. Try a command like "look" or "travel".
-    </div>
-    <div v-else :style="styles.logList" ref="logListEl">
+    <div :style="styles.logList" ref="logListEl">
+      <div v-if="!selectedCharacter" :style="styles.logEmpty">
+        Select or create a character to begin.
+      </div>
+      <div v-else-if="combinedEvents.length === 0" :style="styles.logEmpty">
+        No events yet. Try a command like "look" or "travel".
+      </div>
       <div
+        v-else
         v-for="event in combinedEvents"
         :key="`${event.scope}-${event.id}`"
         :style="styles.logItem"
