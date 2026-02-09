@@ -1,6 +1,6 @@
 # Project State (Unwritten Realms)
 
-Last updated: 2026-02-08
+Last updated: 2026-02-09
 
 ## Overview
 - Text-based MMORPG using SpacetimeDB (TypeScript server) + Vue 3 client.
@@ -51,6 +51,7 @@ Last updated: 2026-02-08
   - Dead characters revive at half HP after combat ends.
   - Enemy respawns after death; new spawns created as new groups/solos arrive.
   - Combat results screen shown after combat; leader dismisses to return to enemy list.
+  - XP on victory with level-up support (cap 10). XP split among non-dead participants.
 - **Characters:**
   - Max 3 character slots per account (MVP).
   - Character deletion with confirmation + full cleanup.
@@ -58,6 +59,36 @@ Last updated: 2026-02-08
   - HP/Mana/Stamina regen every 3s.
   - Out of combat: full rate. In combat: half rate (every other tick).
   - No regen while dead; revive after combat at 1/4 of max HP/Mana/Stamina.
+
+## XP Curve (MVP)
+- Level cap: 10
+- Total XP required:
+  - L2: 100
+  - L3: 260
+  - L4: 480
+  - L5: 760
+  - L6: 1100
+  - L7: 1500
+  - L8: 1960
+  - L9: 2480
+  - L10: 3060
+- Base XP per kill: `enemyLevel * 20`
+- Level diff modifier:
+  - diff <= -5: 0%
+  - -4: 10%
+  - -3: 25%
+  - -2: 50%
+  - -1: 80%
+  - 0: 100%
+  - +1: 120%
+  - +2: 140%
+  - +3: 160%
+  - +4: 180%
+  - diff >= +5: 200%
+- Group bonus: +5% per additional member (max +20%) before split.
+- Dead participants receive 50% XP.
+- Death penalty (level > 5): lose 5% of current level progress, never lose a level.
+- Level-up applies class stat growth and unlocks new class abilities.
 ## UI State (Current)
 - **Layout:**
   - Centered log window; floating windows around it.
@@ -226,3 +257,4 @@ Last updated: 2026-02-08
 - Upgrade auth to email verification (magic link / OTP).
 - Optional: add outgoing invite list in group UI.
 - Optional: add friend request notifications in UI beyond log.
+

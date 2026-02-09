@@ -1095,6 +1095,95 @@ function recomputeCharacterDerived(ctx: any, character: typeof Character.rowType
   });
 }
 
+const MAX_LEVEL = 10n;
+const XP_TOTAL_BY_LEVEL = [
+  0n, // L1
+  100n, // L2
+  260n, // L3
+  480n, // L4
+  760n, // L5
+  1100n, // L6
+  1500n, // L7
+  1960n, // L8
+  2480n, // L9
+  3060n, // L10
+];
+
+function xpRequiredForLevel(level: bigint) {
+  if (level <= 1n) return 0n;
+  const idx = Number(level - 1n);
+  if (idx <= 0) return 0n;
+  return XP_TOTAL_BY_LEVEL[Math.min(idx, XP_TOTAL_BY_LEVEL.length - 1)];
+}
+
+function xpModifierForDiff(diff: number) {
+  if (diff <= -5) return 0n;
+  if (diff === -4) return 10n;
+  if (diff === -3) return 25n;
+  if (diff === -2) return 50n;
+  if (diff === -1) return 80n;
+  if (diff === 0) return 100n;
+  if (diff === 1) return 120n;
+  if (diff === 2) return 140n;
+  if (diff === 3) return 160n;
+  if (diff === 4) return 180n;
+  return 200n;
+}
+
+function awardCombatXp(
+  ctx: any,
+  character: typeof Character.rowType,
+  enemyLevel: bigint,
+  baseXp: bigint
+) {
+  if (character.level >= MAX_LEVEL) return { xpGained: 0n, leveledUp: false };
+  const diff = Number(enemyLevel - character.level);
+  const mod = xpModifierForDiff(diff);
+  if (mod === 0n) return { xpGained: 0n, leveledUp: false };
+
+  const gained = (baseXp * mod) / 100n;
+  if (gained <= 0n) return { xpGained: 0n, leveledUp: false };
+
+  const newXp = character.xp + gained;
+  let newLevel = character.level;
+  while (newLevel < MAX_LEVEL && newXp >= xpRequiredForLevel(newLevel + 1n)) {
+    newLevel += 1n;
+  }
+
+  if (newLevel === character.level) {
+    ctx.db.character.id.update({ ...character, xp: newXp });
+    return { xpGained: gained, leveledUp: false };
+  }
+
+  const newBase = computeBaseStats(character.className, newLevel);
+  const updated = {
+    ...character,
+    level: newLevel,
+    xp: newXp,
+    str: newBase.str,
+    dex: newBase.dex,
+    cha: newBase.cha,
+    wis: newBase.wis,
+    int: newBase.int,
+  };
+  ctx.db.character.id.update(updated);
+  recomputeCharacterDerived(ctx, updated);
+  return { xpGained: gained, leveledUp: true, newLevel };
+}
+
+function applyDeathXpPenalty(ctx: any, character: typeof Character.rowType) {
+  if (character.level <= 5n) return 0n;
+  const currentLevelFloor = xpRequiredForLevel(character.level);
+  if (character.xp <= currentLevelFloor) return 0n;
+  const progress = character.xp - currentLevelFloor;
+  const loss = (progress * 5n) / 100n;
+  if (loss <= 0n) return 0n;
+  const nextXp = character.xp - loss;
+  const clamped = nextXp < currentLevelFloor ? currentLevelFloor : nextXp;
+  ctx.db.character.id.update({ ...character, xp: clamped });
+  return loss;
+}
+
 function isClassAllowed(allowedClasses: string, className: string) {
   if (!allowedClasses || allowedClasses.trim().length === 0) return true;
   const normalized = normalizeClassName(className);
@@ -1825,6 +1914,10 @@ const reducerDeps = {
   applyArmorMitigation,
   spawnEnemy,
   getEquippedWeaponStats,
+  awardCombatXp,
+  xpRequiredForLevel,
+  MAX_LEVEL,
+  applyDeathXpPenalty,
 };
 
 registerReducers(reducerDeps);

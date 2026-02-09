@@ -325,6 +325,12 @@ export const registerCombatReducers = (deps: any) => {
     }
 
     const updatedEnemy = ctx.db.combatEnemy.id.find(enemy.id)!;
+    const enemyTemplate = ctx.db.enemyTemplate.id.find(updatedEnemy.enemyTemplateId);
+    const enemyLevel = enemyTemplate?.level ?? 1n;
+    const baseXp =
+      enemyTemplate?.xpReward && enemyTemplate.xpReward > 0n
+        ? enemyTemplate.xpReward
+        : enemyLevel * 20n;
     if (updatedEnemy.currentHp === 0n) {
       const enemyName =
         [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
@@ -337,6 +343,11 @@ export const registerCombatReducers = (deps: any) => {
         ctx.db.enemySpawn.id.delete(spawn.id);
         deps.spawnEnemy(ctx, spawn.locationId, 1n);
       }
+      const eligible = participants.filter((p) => p.status !== 'dead');
+      const splitCount = eligible.length > 0 ? BigInt(eligible.length) : 1n;
+      const groupBonus = BigInt(Math.min(20, Math.max(0, (participants.length - 1) * 5)));
+      const bonusMultiplier = 100n + groupBonus;
+      const adjustedBase = (baseXp * bonusMultiplier) / 100n;
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
@@ -349,10 +360,67 @@ export const registerCombatReducers = (deps: any) => {
           summary: `Victory against ${enemyName} in ${combat.roundNumber} rounds.`,
           createdAt: ctx.timestamp,
         });
+
+        if (p.status === 'dead') {
+          const reward = deps.awardCombatXp(
+            ctx,
+            character,
+            enemyLevel,
+            (adjustedBase / splitCount) / 2n
+          );
+          if (reward.xpGained > 0n) {
+            appendPrivateEvent(
+              ctx,
+              character.id,
+              character.ownerUserId,
+              'combat',
+              `You gain ${reward.xpGained} XP (reduced for defeat).`
+            );
+          }
+          if (reward.leveledUp) {
+            appendPrivateEvent(
+              ctx,
+              character.id,
+              character.ownerUserId,
+              'system',
+              `You reached level ${reward.newLevel}.`
+            );
+          }
+          continue;
+        }
+        const reward = deps.awardCombatXp(ctx, character, enemyLevel, adjustedBase / splitCount);
+        if (reward.xpGained > 0n) {
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'combat',
+            `You gain ${reward.xpGained} XP.`
+          );
+        }
+        if (reward.leveledUp) {
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'system',
+            `You reached level ${reward.newLevel}.`
+          );
+        }
       }
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (character && p.status === 'dead') {
+          const loss = deps.applyDeathXpPenalty(ctx, character);
+          if (loss > 0n) {
+            appendPrivateEvent(
+              ctx,
+              character.id,
+              character.ownerUserId,
+              'combat',
+              `You lose ${loss} XP from the defeat.`
+            );
+          }
           const quarterHp = character.maxHp / 4n;
           const quarterMana = character.maxMana / 4n;
           const quarterStamina = character.maxStamina / 4n;
@@ -454,6 +522,16 @@ export const registerCombatReducers = (deps: any) => {
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (character && p.status === 'dead') {
+          const loss = deps.applyDeathXpPenalty(ctx, character);
+          if (loss > 0n) {
+            appendPrivateEvent(
+              ctx,
+              character.id,
+              character.ownerUserId,
+              'combat',
+              `You lose ${loss} XP from the defeat.`
+            );
+          }
           const quarterHp = character.maxHp / 4n;
           const quarterMana = character.maxMana / 4n;
           const quarterStamina = character.maxStamina / 4n;
