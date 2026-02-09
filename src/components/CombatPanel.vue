@@ -71,22 +71,6 @@
         Flee
       </button>
     </div>
-    <div v-if="hotbar.length > 0" :style="styles.buttonWrap">
-      <button
-        v-for="slot in hotbar"
-        :key="slot.slot"
-        type="button"
-        :disabled="!connActive || !canUseAbility || !slot.abilityKey"
-        :style="
-          selectedAction === `ability:${slot.abilityKey}`
-            ? styles.actionButtonSelected
-            : styles.ghostButton
-        "
-        @click="$emit('use-ability', slot.abilityKey)"
-      >
-        {{ slot.slot }}: {{ slot.name }}
-      </button>
-    </div>
     <div v-if="!canAct" :style="styles.subtle">You are down and cannot act.</div>
   </div>
   <div v-else-if="activeResult">

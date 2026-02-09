@@ -91,6 +91,16 @@ export const styles = {
     minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
+    height: '100%',
+  },
+  logStageInset: {
+    paddingBottom: '7.5rem',
+  },
+  logStack: {
+    flex: 1,
+    minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column',
   },
   log: {
     background: 'rgba(12, 15, 22, 0.75)',
@@ -100,12 +110,13 @@ export const styles = {
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    height: '100%',
+    flex: 1,
     minHeight: 0,
   },
   logOverlay: {
     position: 'relative',
     height: '100%',
+    flex: 1,
     minHeight: 0,
   },
   floatingPanel: {
@@ -122,6 +133,50 @@ export const styles = {
   },
   floatingPanelCompact: {
     width: 'min(260px, 90vw)',
+  },
+  hotbarDock: {
+    padding: '0.6rem',
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: '12px',
+    background: 'rgba(10, 12, 18, 0.9)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.45rem',
+    flexShrink: 0,
+  },
+  hotbarFloating: {
+    position: 'absolute',
+    width: '120px',
+    zIndex: 4,
+  },
+  hotbarHandle: {
+    textAlign: 'center',
+    fontSize: '0.75rem',
+    color: 'rgba(230,232,239,0.7)',
+    marginBottom: '0.35rem',
+    cursor: 'move',
+    userSelect: 'none',
+  },
+  hotbarSlot: {
+    border: '1px solid rgba(255,255,255,0.18)',
+    borderRadius: '10px',
+    padding: '0.4rem 0.55rem',
+    background: 'rgba(12, 15, 22, 0.7)',
+    color: '#e6e8ef',
+    fontSize: '0.85rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.35rem',
+    cursor: 'pointer',
+  },
+  hotbarSlotEmpty: {
+    opacity: 0.4,
+    cursor: 'not-allowed',
+  },
+  hotbarSlotActive: {
+    border: '1px solid #f6c453',
+    boxShadow: '0 0 0 2px rgba(246, 196, 83, 0.25)',
+    color: '#f6c453',
   },
   floatingPanelHeader: {
     padding: '0.5rem 0.8rem',

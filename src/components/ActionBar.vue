@@ -36,13 +36,6 @@
       >
         Friends
       </button>
-      <button
-        @click="emit('toggle', 'travel')"
-        :style="actionStyle('travel')"
-        :disabled="isLocked('travel')"
-      >
-        Travel
-      </button>
     </template>
   </div>
 </template>

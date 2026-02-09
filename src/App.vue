@@ -16,20 +16,50 @@
     />
 
   <main :style="[styles.main, showRightPanel ? {} : styles.mainWide]">
-    <div :style="styles.logStage">
-      <div :style="styles.logOverlay">
-      <div v-if="onboardingHint" :style="styles.onboardingHint">
-        <div>{{ onboardingHint }}</div>
-        <button type="button" :style="styles.onboardingDismiss" @click="dismissOnboarding">
-          Dismiss tour
-        </button>
+    <div :style="[styles.logStage, styles.logStageInset]">
+      <div :style="styles.logStack">
+        <div :style="styles.logOverlay">
+          <div v-if="onboardingHint" :style="styles.onboardingHint">
+            <div>{{ onboardingHint }}</div>
+            <button type="button" :style="styles.onboardingDismiss" @click="dismissOnboarding">
+              Dismiss tour
+            </button>
+          </div>
+          <LogWindow
+            :styles="styles"
+            :selected-character="selectedCharacter"
+            :combined-events="combinedEvents"
+            :format-timestamp="formatTimestamp"
+          />
+        </div>
       </div>
-      <LogWindow
-        :styles="styles"
-        :selected-character="selectedCharacter"
-        :combined-events="combinedEvents"
-        :format-timestamp="formatTimestamp"
-      />
+    </div>
+
+    <div
+      v-if="selectedCharacter"
+      :style="{
+        ...styles.hotbarFloating,
+        left: `${hotbarPos.x}px`,
+        top: `${hotbarPos.y}px`,
+      }"
+    >
+      <div :style="styles.hotbarHandle" @mousedown="startHotbarDrag">Hotbar</div>
+      <div :style="styles.hotbarDock">
+        <button
+          v-for="slot in hotbarDisplay"
+          :key="slot.slot"
+          type="button"
+          :disabled="!conn.isActive || !canActInCombat || !slot.abilityKey"
+          :style="[
+            styles.hotbarSlot,
+            selectedAction === `ability:${slot.abilityKey}` ? styles.hotbarSlotActive : {},
+            !slot.abilityKey ? styles.hotbarSlotEmpty : {},
+          ]"
+          @click="slot.abilityKey && chooseAbility(slot.abilityKey)"
+        >
+          <span>{{ slot.slot }}</span>
+          <span>{{ slot.name }}</span>
+        </button>
       </div>
     </div>
 
@@ -534,6 +564,20 @@ const { hotbarAssignments, availableAbilities, setHotbarSlot, useAbility } = use
   hotbarSlots,
 });
 
+const hotbarDisplay = computed(() => {
+  const slots = new Map(hotbarAssignments.value.map((slot) => [slot.slot, slot]));
+  return Array.from({ length: 10 }, (_, index) => {
+    const slotIndex = index + 1;
+    return (
+      slots.get(slotIndex) ?? {
+        slot: slotIndex,
+        abilityKey: '',
+        name: 'Empty',
+      }
+    );
+  });
+});
+
 const activePanel = ref<
   | 'none'
   | 'character'
@@ -580,6 +624,7 @@ const tooltip = ref<{ visible: boolean; x: number; y: number; item: any | null }
 const groupPanelPos = ref({ x: 40, y: 140 });
 const panelPos = ref({ x: 980, y: 140 });
 const travelPanelPos = ref({ x: 1040, y: 110 });
+const hotbarPos = ref({ x: 120, y: 260 });
 
 const groupDrag = ref<{ active: boolean; offsetX: number; offsetY: number }>({
   active: false,
@@ -592,6 +637,11 @@ const panelDrag = ref<{ active: boolean; offsetX: number; offsetY: number }>({
   offsetY: 0,
 });
 const travelDrag = ref<{ active: boolean; offsetX: number; offsetY: number }>({
+  active: false,
+  offsetX: 0,
+  offsetY: 0,
+});
+const hotbarDrag = ref<{ active: boolean; offsetX: number; offsetY: number }>({
   active: false,
   offsetX: 0,
   offsetY: 0,
@@ -617,6 +667,13 @@ const startTravelDrag = (event: MouseEvent) => {
     offsetY: event.clientY - travelPanelPos.value.y,
   };
 };
+const startHotbarDrag = (event: MouseEvent) => {
+  hotbarDrag.value = {
+    active: true,
+    offsetX: event.clientX - hotbarPos.value.x,
+    offsetY: event.clientY - hotbarPos.value.y,
+  };
+};
 
 const onGroupDrag = (event: MouseEvent) => {
   if (!groupDrag.value.active) return;
@@ -639,6 +696,13 @@ const onTravelDrag = (event: MouseEvent) => {
     y: Math.max(16, event.clientY - travelDrag.value.offsetY),
   };
 };
+const onHotbarDrag = (event: MouseEvent) => {
+  if (!hotbarDrag.value.active) return;
+  hotbarPos.value = {
+    x: Math.max(16, event.clientX - hotbarDrag.value.offsetX),
+    y: Math.max(16, event.clientY - hotbarDrag.value.offsetY),
+  };
+};
 
 const stopGroupDrag = () => {
   if (!groupDrag.value.active) return;
@@ -652,6 +716,10 @@ const stopTravelDrag = () => {
   if (!travelDrag.value.active) return;
   travelDrag.value.active = false;
 };
+const stopHotbarDrag = () => {
+  if (!hotbarDrag.value.active) return;
+  hotbarDrag.value.active = false;
+};
 
 onMounted(() => {
   const saved = window.localStorage.getItem('uwr.windowPositions');
@@ -661,10 +729,12 @@ onMounted(() => {
         group?: { x: number; y: number };
         panel?: { x: number; y: number };
         travel?: { x: number; y: number };
+        hotbar?: { x: number; y: number };
       };
       if (parsed.group) groupPanelPos.value = parsed.group;
       if (parsed.panel) panelPos.value = parsed.panel;
       if (parsed.travel) travelPanelPos.value = parsed.travel;
+      if (parsed.hotbar) hotbarPos.value = parsed.hotbar;
     } catch {
       // ignore invalid storage
     }
@@ -672,22 +742,26 @@ onMounted(() => {
   window.addEventListener('mousemove', onGroupDrag);
   window.addEventListener('mousemove', onPanelDrag);
   window.addEventListener('mousemove', onTravelDrag);
+  window.addEventListener('mousemove', onHotbarDrag);
   window.addEventListener('mouseup', stopGroupDrag);
   window.addEventListener('mouseup', stopPanelDrag);
   window.addEventListener('mouseup', stopTravelDrag);
+  window.addEventListener('mouseup', stopHotbarDrag);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('mousemove', onGroupDrag);
   window.removeEventListener('mousemove', onPanelDrag);
   window.removeEventListener('mousemove', onTravelDrag);
+  window.removeEventListener('mousemove', onHotbarDrag);
   window.removeEventListener('mouseup', stopGroupDrag);
   window.removeEventListener('mouseup', stopPanelDrag);
   window.removeEventListener('mouseup', stopTravelDrag);
+  window.removeEventListener('mouseup', stopHotbarDrag);
 });
 
 watch(
-  [groupPanelPos, panelPos, travelPanelPos],
+  [groupPanelPos, panelPos, travelPanelPos, hotbarPos],
   () => {
     window.localStorage.setItem(
       'uwr.windowPositions',
@@ -695,6 +769,7 @@ watch(
         group: groupPanelPos.value,
         panel: panelPos.value,
         travel: travelPanelPos.value,
+        hotbar: hotbarPos.value,
       })
     );
   },
