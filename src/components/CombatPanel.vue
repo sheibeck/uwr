@@ -29,7 +29,7 @@
           </div>
         </details>
 
-<details :style="styles.accordion" open>
+<details :style="activeCombat ? styles.accordionCombat : styles.accordion" open>
   <summary :style="styles.accordionSummary">Enemies</summary>
   <div v-if="activeCombat" :style="styles.combatBlock">
     <div :style="styles.combatRow">

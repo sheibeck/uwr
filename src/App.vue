@@ -518,6 +518,85 @@ const {
   characters,
 });
 
+const lastResultId = ref<string | null>(null);
+const lastLevelUpEventId = ref<string | null>(null);
+const audioCtxRef = ref<AudioContext | null>(null);
+
+const getAudioContext = () => {
+  if (!audioCtxRef.value) {
+    audioCtxRef.value = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+  return audioCtxRef.value;
+};
+
+const playTone = (frequency: number, durationMs: number, startAt: number) => {
+  const ctx = getAudioContext();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = frequency;
+  gain.gain.value = 0.12;
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  const now = ctx.currentTime;
+  osc.start(now + startAt);
+  osc.stop(now + startAt + durationMs / 1000);
+};
+
+const playVictorySound = () => {
+  playTone(440, 180, 0);
+  playTone(554, 180, 0.2);
+  playTone(659, 220, 0.4);
+};
+
+const playDefeatSound = () => {
+  playTone(330, 220, 0);
+  playTone(262, 240, 0.25);
+  playTone(196, 260, 0.55);
+};
+
+const playLevelUpSound = () => {
+  playTone(587, 180, 0);
+  playTone(784, 220, 0.18);
+};
+
+watch(
+  () => activeResult.value,
+  (result) => {
+    if (!result) return;
+    const id = result.id.toString();
+    if (lastResultId.value === id) return;
+    lastResultId.value = id;
+    const summary = result.summary.toLowerCase();
+    if (summary.startsWith('victory')) {
+      playVictorySound();
+    } else if (summary.startsWith('defeat')) {
+      playDefeatSound();
+    }
+  }
+);
+
+watch(
+  () => combinedEvents.value,
+  (events) => {
+    if (!events || events.length === 0) return;
+    const last = events[events.length - 1];
+    const id = last.id.toString();
+    if (lastLevelUpEventId.value === id) return;
+    if (last.kind === 'system' && /you reached level/i.test(last.message)) {
+      lastLevelUpEventId.value = id;
+      playLevelUpSound();
+    }
+  },
+  { deep: true }
+);
+
+onBeforeUnmount(() => {
+  if (audioCtxRef.value) {
+    audioCtxRef.value.close();
+  }
+});
+
 const {
   leaveGroup,
   inviteSummaries,
@@ -1059,3 +1138,17 @@ const formatTimestamp = (ts: { microsSinceUnixEpoch: bigint }) => {
   return new Date(millis).toLocaleTimeString();
 };
 </script>
+
+<style>
+@keyframes combatPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 80, 80, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 80, 80, 0.18);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 80, 80, 0.35);
+  }
+}
+</style>

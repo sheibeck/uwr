@@ -440,6 +440,13 @@ export const styles = {
     padding: '0.6rem 0.8rem',
     background: 'rgba(16, 20, 28, 0.65)',
   },
+  accordionCombat: {
+    border: '1px solid rgba(255, 90, 90, 0.7)',
+    borderRadius: '10px',
+    padding: '0.6rem 0.8rem',
+    background: 'rgba(32, 14, 18, 0.7)',
+    animation: 'combatPulse 1.4s ease-in-out infinite',
+  },
   accordionSummary: {
     cursor: 'pointer',
     fontWeight: 600,
