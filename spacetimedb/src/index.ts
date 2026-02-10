@@ -4383,6 +4383,59 @@ spacetimedb.init((ctx) => {
       xpReward: 32n,
     });
     addRoleTemplate(basaltBrute, 'basalt_brute', 'Basalt Brute', 'tank', 'melee', 'stone slam, brace');
+
+    const ashenRam = ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Ashen Ram',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
+      terrainTypes: 'mountains',
+      creatureType: 'beast',
+      timeOfDay: 'day',
+      socialGroup: 'beast',
+      socialRadius: 2n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 2n,
+      armorClass: 12n,
+      level: 4n,
+      maxHp: 34n,
+      baseDamage: 8n,
+      xpReward: 32n,
+    });
+    addRoleTemplate(ashenRam, 'ashen_ram', 'Ashen Ram', 'tank', 'melee', 'ram charge, shove');
+    addRoleTemplate(ashenRam, 'ashen_ram_runner', 'Ashen Ram Runner', 'dps', 'melee', 'charging gore');
+
+    const sootboundSentry = ctx.db.enemyTemplate.insert({
+      id: 0n,
+      name: 'Sootbound Sentry',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
+      terrainTypes: 'mountains',
+      creatureType: 'construct',
+      timeOfDay: 'any',
+      socialGroup: 'construct',
+      socialRadius: 2n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 2n,
+      armorClass: 14n,
+      level: 5n,
+      maxHp: 42n,
+      baseDamage: 9n,
+      xpReward: 38n,
+    });
+    addRoleTemplate(sootboundSentry, 'sootbound_sentry', 'Sootbound Sentry', 'tank', 'melee', 'iron guard');
+    addRoleTemplate(
+      sootboundSentry,
+      'sootbound_sentry_watcher',
+      'Sootbound Watcher',
+      'support',
+      'magic',
+      'alarm pulse'
+    );
     addRoleTemplate(basaltBrute, 'basalt_brute_crusher', 'Basalt Brute Crusher', 'dps', 'melee', 'crusher slam, cleave');
 
     const graveServant = ctx.db.enemyTemplate.insert({
