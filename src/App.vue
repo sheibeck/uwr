@@ -197,6 +197,7 @@
           v-else-if="activePanel === 'stats'"
           :styles="styles"
           :selected-character="selectedCharacter"
+          :stat-bonuses="equippedStatBonuses"
           :locations="locations"
           :regions="regions"
         />
@@ -255,6 +256,7 @@
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           :can-act="canActInCombat"
+          :accordion-state="accordionState"
           @start="startCombat"
           @flee="flee"
           @dismiss-results="dismissResults"
@@ -264,6 +266,7 @@
           @hide-tooltip="hideTooltip"
           @hail="hailNpc"
           @open-vendor="openVendor"
+          @accordion-toggle="updateAccordionState"
         />
         </div>
     </div>
@@ -322,6 +325,7 @@
             :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
             :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
             :can-act="canActInCombat"
+            :accordion-state="accordionState"
             @start="startCombat"
             @flee="flee"
             @dismiss-results="dismissResults"
@@ -331,15 +335,20 @@
             @hide-tooltip="hideTooltip"
             @hail="hailNpc"
             @open-vendor="openVendor"
+            @accordion-toggle="updateAccordionState"
           />
         </template>
         <template v-else>
-          <details :style="styles.accordion" open>
-            <summary :style="styles.accordionSummary">Travel</summary>
-            <TravelPanel
-              :styles="styles"
-              :conn-active="conn.isActive"
-              :selected-character="selectedCharacter"
+        <details
+          :style="styles.accordion"
+          :open="accordionState.travel"
+          @toggle="onTravelAccordionToggle"
+        >
+          <summary :style="styles.accordionSummary">Travel</summary>
+          <TravelPanel
+            :styles="styles"
+            :conn-active="conn.isActive"
+            :selected-character="selectedCharacter"
               :locations="connectedLocations"
               :regions="regions"
               @move="moveTo"
@@ -368,6 +377,7 @@
             :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
             :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
             :can-act="canActInCombat"
+            :accordion-state="accordionState"
             @start="startCombat"
             @flee="flee"
             @dismiss-results="dismissResults"
@@ -376,6 +386,7 @@
             @move-tooltip="moveTooltip"
             @hide-tooltip="hideTooltip"
             @hail="hailNpc"
+            @accordion-toggle="updateAccordionState"
           />
         </template>
       </div>
@@ -462,7 +473,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useReducer } from 'spacetimedb/vue';
 import { styles } from './ui/styles';
 import AppHeader from './components/AppHeader.vue';
@@ -1032,6 +1043,27 @@ const cooldownByAbility = computed(() => {
   return map;
 });
 
+const equippedStatBonuses = computed(() => {
+  if (!selectedCharacter.value) {
+    return { str: 0n, dex: 0n, cha: 0n, wis: 0n, int: 0n };
+  }
+  const bonus = { str: 0n, dex: 0n, cha: 0n, wis: 0n, int: 0n };
+  for (const instance of itemInstances.value) {
+    if (instance.ownerCharacterId.toString() !== selectedCharacter.value.id.toString()) continue;
+    if (!instance.equippedSlot) continue;
+    const template = itemTemplates.value.find(
+      (row) => row.id.toString() === instance.templateId.toString()
+    );
+    if (!template) continue;
+    bonus.str += template.strBonus ?? 0n;
+    bonus.dex += template.dexBonus ?? 0n;
+    bonus.cha += template.chaBonus ?? 0n;
+    bonus.wis += template.wisBonus ?? 0n;
+    bonus.int += template.intBonus ?? 0n;
+  }
+  return bonus;
+});
+
 const hotbarDisplay = computed(() => {
   const slots = new Map(hotbarAssignments.value.map((slot) => [slot.slot, slot]));
   return Array.from({ length: 10 }, (_, index) => {
@@ -1149,6 +1181,47 @@ const activePanel = ref<
   | 'combat'
 >('none');
 
+type AccordionKey = 'travel' | 'enemies' | 'characters' | 'npcs';
+
+const accordionState = reactive<Record<AccordionKey, boolean>>({
+  travel: true,
+  enemies: true,
+  characters: true,
+  npcs: true,
+});
+
+const loadAccordionState = () => {
+  if (typeof window === 'undefined') return;
+  const raw = window.localStorage.getItem('accordionState');
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw) as Partial<Record<AccordionKey, boolean>>;
+    (Object.keys(accordionState) as AccordionKey[]).forEach((key) => {
+      if (typeof parsed[key] === 'boolean') {
+        accordionState[key] = parsed[key] as boolean;
+      }
+    });
+  } catch {
+    // ignore malformed state
+  }
+};
+
+const persistAccordionState = () => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem('accordionState', JSON.stringify(accordionState));
+};
+
+const updateAccordionState = (payload: { key: AccordionKey; open: boolean }) => {
+  accordionState[payload.key] = payload.open;
+  persistAccordionState();
+};
+
+const onTravelAccordionToggle = (event: Event) => {
+  const target = event.target as HTMLDetailsElement | null;
+  if (!target) return;
+  updateAccordionState({ key: 'travel', open: target.open });
+};
+
 watch(
   () => activePanel.value,
   (panel) => {
@@ -1159,6 +1232,10 @@ watch(
     }
   }
 );
+
+onMounted(() => {
+  loadAccordionState();
+});
 
 const canActInCombat = computed(() => {
   if (!selectedCharacter.value || !activeCombat.value) return false;

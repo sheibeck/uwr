@@ -29,15 +29,30 @@
         <summary :style="styles.accordionSummary">Base Stats</summary>
         <div :style="styles.statsGrid">
           <div>Strength</div>
-          <div>{{ selectedCharacter.str }}</div>
+          <div>
+            {{ totalStr }}
+            <span :style="styles.subtleSmall" title="Base Strength">({{ baseStr }})</span>
+          </div>
           <div>Dexterity</div>
-          <div>{{ selectedCharacter.dex }}</div>
+          <div>
+            {{ totalDex }}
+            <span :style="styles.subtleSmall" title="Base Dexterity">({{ baseDex }})</span>
+          </div>
           <div>Charisma</div>
-          <div>{{ selectedCharacter.cha }}</div>
+          <div>
+            {{ totalCha }}
+            <span :style="styles.subtleSmall" title="Base Charisma">({{ baseCha }})</span>
+          </div>
           <div>Wisdom</div>
-          <div>{{ selectedCharacter.wis }}</div>
+          <div>
+            {{ totalWis }}
+            <span :style="styles.subtleSmall" title="Base Wisdom">({{ baseWis }})</span>
+          </div>
           <div>Intelligence</div>
-          <div>{{ selectedCharacter.int }}</div>
+          <div>
+            {{ totalInt }}
+            <span :style="styles.subtleSmall" title="Base Intelligence">({{ baseInt }})</span>
+          </div>
         </div>
       </details>
 
@@ -84,6 +99,7 @@
   const props = defineProps<{
     styles: Record<string, Record<string, string | number>>;
     selectedCharacter: CharacterRow | null;
+    statBonuses: { str: bigint; dex: bigint; cha: bigint; wis: bigint; int: bigint };
     locations: LocationRow[];
     regions: RegionRow[];
   }>();
@@ -105,6 +121,18 @@
     const region = props.regions.find((row) => row.id.toString() === match.regionId.toString());
     return region?.name ?? '';
   });
+
+  const baseStr = computed(() => Number(props.selectedCharacter?.str ?? 0n));
+  const baseDex = computed(() => Number(props.selectedCharacter?.dex ?? 0n));
+  const baseCha = computed(() => Number(props.selectedCharacter?.cha ?? 0n));
+  const baseWis = computed(() => Number(props.selectedCharacter?.wis ?? 0n));
+  const baseInt = computed(() => Number(props.selectedCharacter?.int ?? 0n));
+
+  const totalStr = computed(() => baseStr.value + Number(props.statBonuses?.str ?? 0n));
+  const totalDex = computed(() => baseDex.value + Number(props.statBonuses?.dex ?? 0n));
+  const totalCha = computed(() => baseCha.value + Number(props.statBonuses?.cha ?? 0n));
+  const totalWis = computed(() => baseWis.value + Number(props.statBonuses?.wis ?? 0n));
+  const totalInt = computed(() => baseInt.value + Number(props.statBonuses?.int ?? 0n));
 
   const formatPercent = (value: bigint) => `${(Number(value) / 100).toFixed(2)}%`;
   const formatScalar = (value: bigint) => Number(value).toString();

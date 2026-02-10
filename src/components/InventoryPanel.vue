@@ -18,7 +18,9 @@
               @mouseleave="$emit('hide-tooltip')"
             >
               <div :style="styles.equipmentSlotLabel">{{ formatSlot(slot.slot) }}</div>
-              <div :style="styles.equipmentSlotName">{{ slot.name }}</div>
+              <div :style="[styles.equipmentSlotName, rarityStyle(slot.rarity)]">
+                {{ slot.name }}
+              </div>
               <span v-if="slot.name !== 'Empty'" :style="styles.subtle">
                 ({{ slot.rarity }})
               </span>
@@ -53,7 +55,8 @@
               @mousemove="$emit('move-tooltip', { x: $event.clientX, y: $event.clientY })"
               @mouseleave="$emit('hide-tooltip')"
             >
-              {{ item.name }} ({{ item.rarity }}) - {{ item.slot }}
+              <span :style="rarityStyle(item.rarity)">{{ item.name }}</span>
+              ({{ item.rarity }}) - {{ item.slot }}
             </div>
             <div :style="styles.subtle">
               Level {{ item.requiredLevel }} • Allowed: {{ item.allowedClasses || 'any' }}
@@ -75,7 +78,7 @@
 <script setup lang="ts">
 import type { CharacterRow } from '../module_bindings';
 
-defineProps<{
+const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
   selectedCharacter: CharacterRow | null;
@@ -114,6 +117,18 @@ const formatSlot = (slot: string) =>
   slot
     .replace(/([A-Z])/g, ' $1')
     .replace(/^./, (char) => char.toUpperCase());
+
+const rarityStyle = (rarity: string) => {
+  const key = (rarity ?? 'common').toLowerCase();
+  const map: Record<string, string> = {
+    common: 'rarityCommon',
+    uncommon: 'rarityUncommon',
+    rare: 'rarityRare',
+    epic: 'rarityEpic',
+    legendary: 'rarityLegendary',
+  };
+  return (props.styles as any)[map[key] ?? 'rarityCommon'] ?? {};
+};
 
 defineEmits<{
   (e: 'equip', itemInstanceId: bigint): void;

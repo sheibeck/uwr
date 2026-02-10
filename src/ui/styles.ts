@@ -1043,6 +1043,21 @@ export const styles = {
   conRed: {
     color: '#f87171',
   },
+  rarityCommon: {
+    color: '#ffffff',
+  },
+  rarityUncommon: {
+    color: '#22c55e',
+  },
+  rarityRare: {
+    color: '#3b82f6',
+  },
+  rarityEpic: {
+    color: '#facc15',
+  },
+  rarityLegendary: {
+    color: '#f97316',
+  },
   regionBadge: {
     padding: '0.15rem 0.4rem',
     borderRadius: '999px',

@@ -14,7 +14,10 @@
                 @mousemove="$emit('move-tooltip', { x: $event.clientX, y: $event.clientY })"
                 @mouseleave="$emit('hide-tooltip')"
               >
-                <div>{{ item.name }} ({{ item.rarity }})</div>
+                <div>
+                  <span :style="rarityStyle(item.rarity)">{{ item.name }}</span>
+                  ({{ item.rarity }})
+                </div>
                 <div :style="styles.subtleSmall">
                   {{ item.slot }} • Tier {{ item.tier }}
                 </div>
@@ -58,7 +61,10 @@
                 @mousemove="$emit('move-tooltip', { x: $event.clientX, y: $event.clientY })"
                 @mouseleave="$emit('hide-tooltip')"
               >
-                <div>{{ item.name }} ({{ item.rarity }})</div>
+                <div>
+                  <span :style="rarityStyle(item.rarity)">{{ item.name }}</span>
+                  ({{ item.rarity }})
+                </div>
                 <div :style="styles.subtleSmall">
                   {{ item.slot }} • Value {{ item.vendorValue }}
                 </div>
@@ -81,7 +87,7 @@
 <script setup lang="ts">
 import type { CharacterRow, NpcRow } from '../module_bindings';
 
-defineProps<{
+const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   selectedCharacter: CharacterRow | null;
   vendor: NpcRow | null;
@@ -113,6 +119,18 @@ defineProps<{
     equipable: boolean;
   }[];
 }>();
+
+const rarityStyle = (rarity: string) => {
+  const key = (rarity ?? 'common').toLowerCase();
+  const map: Record<string, string> = {
+    common: 'rarityCommon',
+    uncommon: 'rarityUncommon',
+    rare: 'rarityRare',
+    epic: 'rarityEpic',
+    legendary: 'rarityLegendary',
+  };
+  return (props.styles as any)[map[key] ?? 'rarityCommon'] ?? {};
+};
 
 defineEmits<{
   (e: 'buy', itemTemplateId: bigint): void;
