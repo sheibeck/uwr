@@ -115,6 +115,8 @@ Last updated: 2026-02-10
   - Chance scales with region danger; for testing, the base chance is set to 100% in `spacetimedb/src/reducers/items.ts`.
 - **Virtual solo group:** server helpers treat solo characters as a group of one for combat/pull/gather participant selection.
   - Implemented via `getGroupParticipants` and `isGroupLeaderOrSolo` in `spacetimedb/src/index.ts`.
+- **Enemy respawn timer:** defeated enemy spawns now respawn after 5 minutes (configurable).
+  - `ENEMY_RESPAWN_MICROS` in `spacetimedb/src/reducers/combat.ts`.
 
 ## XP Curve (MVP)
 - Level cap: 10
