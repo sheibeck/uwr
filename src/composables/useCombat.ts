@@ -504,12 +504,26 @@ export const useCombat = ({
   };
   const dismissResults = () => {
     if (!connActive.value || !selectedCharacter.value) return;
+    if (activeLoot.value.length > 0) {
+      const confirmDismiss = window.confirm(
+        'You have unclaimed loot. Dismissing will forfeit these items. Continue?'
+      );
+      if (!confirmDismiss) return;
+    }
     dismissResultsReducer({ characterId: selectedCharacter.value.id });
   };
 
   const takeLoot = (lootId: bigint) => {
     if (!connActive.value || !selectedCharacter.value) return;
     takeLootReducer({ characterId: selectedCharacter.value.id, lootId });
+  };
+
+  const setCombatTarget = (enemyId: bigint | null) => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    setCombatTargetReducer({
+      characterId: selectedCharacter.value.id,
+      enemyId: enemyId ?? undefined,
+    });
   };
 
   return {
@@ -536,10 +550,3 @@ export const useCombat = ({
     takeLoot,
   };
 };
-  const setCombatTarget = (enemyId: bigint | null) => {
-    if (!connActive.value || !selectedCharacter.value) return;
-    setCombatTargetReducer({
-      characterId: selectedCharacter.value.id,
-      enemyId: enemyId ?? undefined,
-    });
-  };

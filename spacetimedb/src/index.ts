@@ -2876,7 +2876,7 @@ function spawnEnemy(
 
   ctx.db.enemySpawn.id.update({
     ...spawn,
-    name: `${chosen.name} #${spawn.id}`,
+    name: `${chosen.name}`,
   });
   return ctx.db.enemySpawn.id.find(spawn.id)!;
 }

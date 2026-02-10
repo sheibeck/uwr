@@ -740,13 +740,14 @@ export const registerCombatReducers = (deps: any) => {
 
     const combat = createCombatForSpawn(ctx, character, spawn, participants, pull.groupId ?? null);
 
-    let reason = 'No nearby allies responded.';
-    if (overlapPressure > 0) {
-      reason = 'Social allies were within overlapping radius.';
-    }
+    const reasons: string[] = [];
     if (awarenessAlert) {
-      reason = 'The area is on alert.';
+      reasons.push('The area is on alert.');
     }
+    if (PULL_ALLOW_EXTERNAL_ADDS && overlapPressure > 0) {
+      reasons.push(`Other ${template.name} are nearby and may answer the call.`);
+    }
+    const reasonSuffix = reasons.length > 0 ? ` ${reasons.join(' ')}` : '';
 
     const reserveAdds = (count: number) => {
       if (count <= 0) return [] as { spawn: any; roleTemplateId?: bigint }[];
@@ -802,7 +803,7 @@ export const registerCombatReducers = (deps: any) => {
           'system',
           `Your ${pull.pullType} pull succeeds. Pulled 1 of ${initialGroupCount} ${spawn.name}. ${reserved.length} add(s) arrive in ${Number(
             delayMicros / 1_000_000n
-          )}s. Remaining in group: ${remainingGroup}. ${reason}`
+          )}s. Remaining in group: ${remainingGroup}.${reasonSuffix}`
         );
       }
     } else if (outcome === 'failure' && addCount > 0) {
@@ -817,7 +818,7 @@ export const registerCombatReducers = (deps: any) => {
           p.id,
           p.ownerUserId,
           'system',
-          `Pull failed. Pulled 1 of ${initialGroupCount} ${spawn.name} and ${reserved.length} add(s) immediately aggro! Remaining in group: ${remainingGroup}. ${reason}`
+          `Pull failed. Pulled 1 of ${initialGroupCount} ${spawn.name} and ${reserved.length} add(s) immediately aggro! Remaining in group: ${remainingGroup}.${reasonSuffix}`
         );
       }
     } else {
@@ -828,7 +829,7 @@ export const registerCombatReducers = (deps: any) => {
           p.id,
           p.ownerUserId,
           'system',
-          `Pull succeeded. Pulled 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}. ${reason}`
+          `Pull succeeded. Pulled 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`
         );
       }
     }
@@ -870,13 +871,27 @@ export const registerCombatReducers = (deps: any) => {
       if (group.leaderCharacterId !== character.id) {
         throw new SenderError('Only the leader can dismiss results');
       }
+      const combatIds = new Set<bigint>();
       for (const row of ctx.db.combatResult.by_group.filter(groupId)) {
+        combatIds.add(row.combatId);
         ctx.db.combatResult.id.delete(row.id);
+      }
+      for (const combatId of combatIds) {
+        for (const loot of ctx.db.combatLoot.by_combat.filter(combatId)) {
+          ctx.db.combatLoot.id.delete(loot.id);
+        }
       }
       return;
     }
+    const combatIds = new Set<bigint>();
     for (const row of ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)) {
+      combatIds.add(row.combatId);
       ctx.db.combatResult.id.delete(row.id);
+    }
+    for (const combatId of combatIds) {
+      for (const loot of ctx.db.combatLoot.by_combat.filter(combatId)) {
+        ctx.db.combatLoot.id.delete(loot.id);
+      }
     }
   });
 

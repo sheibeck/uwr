@@ -1,11 +1,11 @@
 <template>
     <div>
       <div v-if="!selectedCharacter" :style="styles.subtle">
-        Select a character to view inhabitants.
+        Select a character to view location.
       </div>
       <div v-else>
         <div v-if="activeResult">
-          <div :style="{ ...styles.resultCard, minHeight: '200px' }">
+          <div :style="{ ...styles.resultCard, minHeight: '200px', display: 'flex', flexDirection: 'column' }">
             <div :style="styles.resultHeading">{{ resultOutcome(activeResult.summary) }}</div>
             <div :style="styles.resultSummary">{{ stripFallen(activeResult.summary) }}</div>
             <div v-if="fallenList(activeResult.summary).length" :style="styles.resultRow">
@@ -20,19 +20,7 @@
                 </span>
               </div>
             </div>
-            <div :style="styles.panelFormInline">
-              <button
-                v-if="canDismissResults"
-                type="button"
-                :style="styles.primaryButton"
-                @click="$emit('dismiss-results')"
-              >
-                Dismiss
-              </button>
-              <span v-else :style="styles.subtle">Waiting for the leader to dismiss.</span>
-            </div>
             <div v-if="activeLoot.length > 0" :style="styles.resultRow">
-              <span :style="styles.resultLabel">Loot</span>
               <div :style="styles.resultList">
                 <div
                   v-for="item in activeLoot"
@@ -64,6 +52,17 @@
                   </button>
                 </div>
               </div>
+            </div>
+            <div :style="{ ...styles.panelFormInline, marginTop: 'auto' }">
+              <button
+                v-if="canDismissResults"
+                type="button"
+                :style="styles.primaryButton"
+                @click="$emit('dismiss-results')"
+              >
+                Dismiss
+              </button>
+              <span v-else :style="styles.subtle">Waiting for the leader to dismiss.</span>
             </div>
           </div>
         </div>
@@ -99,9 +98,9 @@
                   @click="$emit('select-enemy', enemy.id)"
                 >
                   <div :style="styles.combatRow">
-                    <span :style="[styles.combatValue, styles[enemy.conClass] ?? {}]">
-                      {{ enemy.name }} (Lv {{ enemy.level }})
-                    </span>
+                      <span :style="[styles.combatValue, styles[enemy.conClass] ?? {}]">
+                        {{ enemy.name }} (L{{ enemy.level }})
+                      </span>
                     <span
                       v-if="enemy.isTarget"
                       :style="styles.targetBadge"
@@ -128,7 +127,9 @@
                         width: `${Math.round(enemy.castProgress * 100)}%`,
                       }"
                     ></div>
-                    <div :style="styles.enemyCastLabel">{{ enemy.castLabel }}</div>
+                  </div>
+                  <div v-if="enemy.castProgress > 0" :style="styles.subtle">
+                    {{ enemy.castLabel }}
                   </div>
                   <div v-if="enemy.effects.length > 0" :style="styles.effectRow">
                     <span
@@ -170,19 +171,23 @@
       <div
         v-for="enemy in enemySpawns"
         :key="enemy.id.toString()"
-        :style="styles.rosterRow"
+        :style="styles.enemyGroupRow"
       >
         <span
           :style="styles[enemy.conClass] ?? {}"
           :title="enemy.memberNames.length > 0 ? enemy.memberNames.join(', ') : enemy.name"
         >
-          {{ enemy.name }} (Lv {{ enemy.level }}) x{{ enemy.groupCount }}
+          {{ enemy.name }} (L{{ enemy.level }}
+          <span v-if="enemy.groupCount > 1n" :style="styles.groupCountTag"
+            >x{{ enemy.groupCount }}</span
+          >)
         </span>
         <div :style="styles.panelFormInline">
           <button
             type="button"
             :disabled="!connActive || !canEngage"
             :style="styles.ghostButton"
+            title="Take your time to isolate the target. Safer, quieter pull with a better chance to avoid adds."
             @click="$emit('pull', { enemyId: enemy.id, pullType: 'careful' })"
           >
             Careful Pull
@@ -191,6 +196,7 @@
             type="button"
             :disabled="!connActive || !canEngage"
             :style="styles.ghostButton"
+            title="Step in boldly to test reactions. Faster but more likely to bring extra enemies."
             @click="$emit('pull', { enemyId: enemy.id, pullType: 'body' })"
           >
             Body Pull
