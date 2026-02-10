@@ -507,6 +507,10 @@ export const registerCombatReducers = (deps: any) => {
 
   spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
+    if (activeGather) {
+      throw new SenderError('Cannot start combat while gathering');
+    }
     const locationId = character.locationId;
 
     // Must be leader if in group
@@ -562,6 +566,10 @@ export const registerCombatReducers = (deps: any) => {
     { characterId: t.u64(), enemySpawnId: t.u64(), pullType: t.string() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
+      if (activeGather) {
+        throw new SenderError('Cannot pull while gathering');
+      }
       if (activeCombatIdForCharacter(ctx, character.id)) {
         throw new SenderError('Already in combat');
       }

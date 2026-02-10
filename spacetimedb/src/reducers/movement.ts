@@ -19,6 +19,10 @@ export const registerMovementReducers = (deps: any) => {
     if (activeCombatIdForCharacter(ctx, character.id)) {
       throw new SenderError('Cannot travel while in combat');
     }
+    const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
+    if (activeGather) {
+      throw new SenderError('Cannot travel while gathering');
+    }
     if (!areLocationsConnected(ctx, character.locationId, location.id)) {
       throw new SenderError('Location not connected');
     }
