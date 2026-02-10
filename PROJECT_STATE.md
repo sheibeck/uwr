@@ -49,7 +49,11 @@ Last updated: 2026-02-10
     - `false` (current): adds only come from the pulled spawn group.
     - `true`: allows adds from nearby same-social-group spawns within the location.
   - **Social aggro:** enemies have `socialGroup`, `socialRadius`, `awareness`.
-  - **Grouped enemies:** each spawn has `groupCount` (rolled from template `groupMin/groupMax`).
+- **Grouped enemies:** each spawn has `groupCount` (rolled from template `groupMin/groupMax`).
+- **Group size bias by region danger:** spawn group size is weighted by region danger using:
+  - `GROUP_SIZE_DANGER_BASE = 100` (starter baseline),
+  - `GROUP_SIZE_BIAS_RANGE = 200` (danger points to reach max bias),
+  - `GROUP_SIZE_BIAS_MAX = 0.8` (max weight toward larger groups).
   - **Enemy role variants:** base enemy types can have multiple role templates (e.g., Bandit -> Archer/Ruffian).
     - Role variants determine display name + role stats; group makeup is rolled on spawn.
     - Pulling a group randomly selects one member; remaining members stay in the group.

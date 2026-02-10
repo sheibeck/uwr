@@ -2259,6 +2259,9 @@ const COMBAT_LOOP_INTERVAL_MICROS = 1_000_000n;
 const DAY_DURATION_MICROS = 1_200_000_000n;
 const NIGHT_DURATION_MICROS = 600_000_000n;
 const DEFAULT_LOCATION_SPAWNS = 3;
+const GROUP_SIZE_DANGER_BASE = 100n;
+const GROUP_SIZE_BIAS_RANGE = 200n;
+const GROUP_SIZE_BIAS_MAX = 0.8;
 function awardCombatXp(
   ctx: any,
   character: typeof Character.rowType,
@@ -2857,9 +2860,38 @@ function spawnEnemy(
 
   const minGroup = chosen.groupMin && chosen.groupMin > 0n ? chosen.groupMin : 1n;
   const maxGroup = chosen.groupMax && chosen.groupMax > 0n ? chosen.groupMax : minGroup;
-  const groupRange = maxGroup > minGroup ? maxGroup - minGroup + 1n : 1n;
   const groupSeed = seed + chosen.id * 11n;
-  const groupCount = minGroup + (groupSeed % groupRange);
+  let groupCount = minGroup;
+  if (maxGroup > minGroup) {
+    const location = ctx.db.location.id.find(locationId);
+    const region = location ? ctx.db.region.id.find(location.regionId) : undefined;
+    const danger = region?.dangerMultiplier ?? GROUP_SIZE_DANGER_BASE;
+    const delta = danger > GROUP_SIZE_DANGER_BASE ? danger - GROUP_SIZE_DANGER_BASE : 0n;
+    const rawBias =
+      Number(delta) / Math.max(1, Number(GROUP_SIZE_BIAS_RANGE));
+    const bias = Math.max(0, Math.min(GROUP_SIZE_BIAS_MAX, rawBias));
+    const biasScaled = Math.round(bias * 1000);
+    const invBias = 1000 - biasScaled;
+    const sizeCount = Number(maxGroup - minGroup + 1n);
+    let totalWeight = 0;
+    const weights: number[] = [];
+    for (let i = 0; i < sizeCount; i += 1) {
+      const lowWeight = sizeCount - i;
+      const highWeight = i + 1;
+      const weight = invBias * lowWeight + biasScaled * highWeight;
+      weights.push(weight);
+      totalWeight += weight;
+    }
+    let roll = groupSeed % BigInt(totalWeight);
+    for (let i = 0; i < weights.length; i += 1) {
+      const weight = BigInt(weights[i]);
+      if (roll < weight) {
+        groupCount = minGroup + BigInt(i);
+        break;
+      }
+      roll -= weight;
+    }
+  }
 
   const spawn = ctx.db.enemySpawn.insert({
     id: 0n,
