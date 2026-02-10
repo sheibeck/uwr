@@ -518,18 +518,8 @@ export const registerItemReducers = (deps: any) => {
       });
       return;
     }
-    const seed = ctx.timestamp.microsSinceUnixEpoch + node.id;
-    const minQty = 2n;
-    const maxQty = 6n;
-    const qtyRange = maxQty - minQty + 1n;
-    const quantity = minQty + (seed % qtyRange);
-    ctx.db.resourceNode.id.update({
-      ...node,
-      state: 'available',
-      quantity,
-      lockedByCharacterId: undefined,
-      respawnAtMicros: undefined,
-    });
+    ctx.db.resourceNode.id.delete(node.id);
+    deps.spawnResourceNode(ctx, location.id);
   });
 
   spacetimedb.reducer('research_recipes', { characterId: t.u64() }, (ctx, args) => {

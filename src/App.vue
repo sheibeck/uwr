@@ -1050,7 +1050,7 @@ const resourceNodesHere = computed(() => {
   const now = nowMicros.value;
   return resourceNodes.value
     .filter((node) => node.locationId.toString() === currentLocation.value?.id.toString())
-    .filter((node) => node.state !== 'hidden')
+    .filter((node) => node.state === 'available' || node.state === 'harvesting')
     .map((node) => {
       const isGathering = gather?.nodeId?.toString() === node.id.toString();
       const castMicros = 8_000_000;
