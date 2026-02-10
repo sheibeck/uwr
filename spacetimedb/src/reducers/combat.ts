@@ -668,17 +668,17 @@ export const registerCombatReducers = (deps: any) => {
     const targetGroup = (template.socialGroup || template.creatureType || '').trim().toLowerCase();
     const candidates = PULL_ALLOW_EXTERNAL_ADDS
       ? [...ctx.db.enemySpawn.by_location.filter(pull.locationId)]
-          .filter((row) => row.id !== spawn.id && row.state === 'available')
-          .map((row) => ({
-            spawn: row,
-            template: ctx.db.enemyTemplate.id.find(row.enemyTemplateId),
-          }))
-          .filter(
-            (row) =>
-              row.template &&
-              (row.template.socialGroup || row.template.creatureType || '').trim().toLowerCase() ===
-                targetGroup
-          )
+        .filter((row) => row.id !== spawn.id && row.state === 'available')
+        .map((row) => ({
+          spawn: row,
+          template: ctx.db.enemyTemplate.id.find(row.enemyTemplateId),
+        }))
+        .filter(
+          (row) =>
+            row.template &&
+            (row.template.socialGroup || row.template.creatureType || '').trim().toLowerCase() ===
+            targetGroup
+        )
       : [];
 
     const targetRadius = Number(template.socialRadius ?? 0n);
@@ -801,7 +801,7 @@ export const registerCombatReducers = (deps: any) => {
           p.id,
           p.ownerUserId,
           'system',
-          `Your ${pull.pullType} pull succeeds. Pulled 1 of ${initialGroupCount} ${spawn.name}. ${reserved.length} add(s) arrive in ${Number(
+          `Your ${pull.pullType} pull draws attention. You isolate 1 of ${initialGroupCount} ${spawn.name}, but ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} will arrive in ${Number(
             delayMicros / 1_000_000n
           )}s. Remaining in group: ${remainingGroup}.${reasonSuffix}`
         );
@@ -818,7 +818,7 @@ export const registerCombatReducers = (deps: any) => {
           p.id,
           p.ownerUserId,
           'system',
-          `Pull failed. Pulled 1 of ${initialGroupCount} ${spawn.name} and ${reserved.length} add(s) immediately aggro! Remaining in group: ${remainingGroup}.${reasonSuffix}`
+          `Your ${pull.pullType} pull is noticed. You bring 1 of ${initialGroupCount} ${spawn.name} — and ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately. Remaining in group: ${remainingGroup}.${reasonSuffix}`
         );
       }
     } else {
@@ -829,7 +829,7 @@ export const registerCombatReducers = (deps: any) => {
           p.id,
           p.ownerUserId,
           'system',
-          `Pull succeeded. Pulled 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`
+          `Your ${pull.pullType} pull is clean. You draw 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`
         );
       }
     }
@@ -964,7 +964,7 @@ export const registerCombatReducers = (deps: any) => {
     for (const character of ctx.db.character.iter()) {
       if (character.hp === 0n) continue;
 
-    const inCombat = !!activeCombatIdForCharacter(ctx, character.id);
+      const inCombat = !!activeCombatIdForCharacter(ctx, character.id);
       if (inCombat && !halfTick) continue;
 
       const hpRegen = inCombat ? HP_REGEN_IN : HP_REGEN_OUT;
@@ -1433,7 +1433,7 @@ export const registerCombatReducers = (deps: any) => {
                 enemy.id +
                 combat.id +
                 BigInt(hashString(chosen.ability.abilityKey))) %
-                100n
+              100n
             );
             if (roll < chosen.chance) {
               ctx.db.combatEnemyCast.insert({
@@ -1548,7 +1548,7 @@ export const registerCombatReducers = (deps: any) => {
       const avgLevel =
         enemyTemplates.length > 0
           ? enemyTemplates.reduce((sum, template) => sum + template.level, 0n) /
-            BigInt(enemyTemplates.length)
+          BigInt(enemyTemplates.length)
           : 1n;
       const primaryName = enemies[0]?.displayName ?? enemyTemplates[0]?.name ?? enemyName;
 
@@ -1604,10 +1604,10 @@ export const registerCombatReducers = (deps: any) => {
           const lootTable = template ? findLootTable(ctx, template) : null;
           const goldReward = lootTable
             ? rollGold(
-                ctx.timestamp.microsSinceUnixEpoch + character.id * 3n + template.id,
-                lootTable.goldMin,
-                lootTable.goldMax
-              ) + template.level
+              ctx.timestamp.microsSinceUnixEpoch + character.id * 3n + template.id,
+              lootTable.goldMin,
+              lootTable.goldMax
+            ) + template.level
             : template.level;
           if (goldReward > 0n) {
             ctx.db.character.id.update({
@@ -1645,6 +1645,8 @@ export const registerCombatReducers = (deps: any) => {
             `You lose ${loss} XP from the defeat.`
           );
           const nextLocationId = character.boundLocationId ?? character.locationId;
+          const respawnLocation =
+            ctx.db.location.id.find(nextLocationId)?.name ?? 'your bind point';
           ctx.db.character.id.update({
             ...character,
             locationId: nextLocationId,
@@ -1652,6 +1654,13 @@ export const registerCombatReducers = (deps: any) => {
             mana: character.maxMana > 0n ? 1n : 0n,
             stamina: character.maxStamina > 0n ? 1n : 0n,
           });
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'combat',
+            `You awaken at ${respawnLocation}, shaken but alive.`
+          );
         }
       }
       clearCombatArtifacts(ctx, combat.id);
@@ -1886,6 +1895,8 @@ export const registerCombatReducers = (deps: any) => {
             `You lose ${loss} XP from the defeat.`
           );
           const nextLocationId = character.boundLocationId ?? character.locationId;
+          const respawnLocation =
+            ctx.db.location.id.find(nextLocationId)?.name ?? 'your bind point';
           ctx.db.character.id.update({
             ...character,
             locationId: nextLocationId,
@@ -1893,6 +1904,13 @@ export const registerCombatReducers = (deps: any) => {
             mana: character.maxMana > 0n ? 1n : 0n,
             stamina: character.maxStamina > 0n ? 1n : 0n,
           });
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'combat',
+            `You awaken at ${respawnLocation}, shaken but alive.`
+          );
         }
       }
       return;

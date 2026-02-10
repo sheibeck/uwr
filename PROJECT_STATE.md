@@ -54,6 +54,7 @@ Last updated: 2026-02-10
     - Role variants determine display name + role stats; group makeup is rolled on spawn.
     - Pulling a group randomly selects one member; remaining members stay in the group.
     - UI hover on enemy spawn shows the rolled group composition.
+    - Enemy spawn labels now show `Name (L# x#)` with the `x#` suppressed for solo spawns.
   - Pulling a grouped enemy removes 1 from the group; remaining members stay in the spawn.
   - Adds can come from remaining members or nearby same-group spawns.
   - Combat supports multiple enemies simultaneously.

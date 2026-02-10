@@ -414,6 +414,7 @@ export const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '0.35rem',
+    width: '100%',
   },
   targetBadge: {
     marginLeft: '0.5rem',

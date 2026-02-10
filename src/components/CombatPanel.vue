@@ -177,9 +177,9 @@
           :style="styles[enemy.conClass] ?? {}"
           :title="enemy.memberNames.length > 0 ? enemy.memberNames.join(', ') : enemy.name"
         >
-          {{ enemy.name }} (L{{ enemy.level }}
-          <span v-if="enemy.groupCount > 1n" :style="styles.groupCountTag"
-            >x{{ enemy.groupCount }}</span
+          {{ enemy.name }} (L{{ enemy.level
+          }}<span v-if="enemy.groupCount > 1n" :style="styles.groupCountTag"
+            > x{{ enemy.groupCount }}</span
           >)
         </span>
         <div :style="styles.panelFormInline">
