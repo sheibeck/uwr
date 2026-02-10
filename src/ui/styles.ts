@@ -565,6 +565,26 @@ export const styles = {
     flex: 1,
     minWidth: 0,
   },
+  inventoryHeaderRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '0.6rem',
+  },
+  goldRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.35rem',
+    fontSize: '0.85rem',
+    color: '#f7d97f',
+  },
+  goldDot: {
+    width: '0.55rem',
+    height: '0.55rem',
+    borderRadius: '50%',
+    background: 'radial-gradient(circle at 30% 30%, #fff2b0, #f2c94c 55%, #c89b2b)',
+    boxShadow: '0 0 8px rgba(255, 214, 102, 0.8)',
+  },
   filterList: {
     display: 'flex',
     flexDirection: 'column',

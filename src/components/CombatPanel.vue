@@ -55,7 +55,10 @@
                   <button
                     type="button"
                     :style="styles.ghostButton"
-                    @click="$emit('take-loot', item.id)"
+                    @click="
+                      $emit('hide-tooltip');
+                      $emit('take-loot', item.id);
+                    "
                   >
                     Take
                   </button>

@@ -35,7 +35,13 @@
       </div>
 
       <div :style="styles.inventoryColumnWide">
-        <div :style="styles.panelSectionTitle">Backpack</div>
+        <div :style="styles.inventoryHeaderRow">
+          <div :style="styles.panelSectionTitle">Backpack</div>
+          <div v-if="selectedCharacter" :style="styles.goldRow">
+            <span :style="styles.goldDot"></span>
+            {{ selectedCharacter.gold }}
+          </div>
+        </div>
         <div :style="styles.subtle">
           Slots: {{ inventoryCount }} / {{ maxInventorySlots }}
         </div>

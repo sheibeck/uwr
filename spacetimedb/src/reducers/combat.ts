@@ -260,17 +260,13 @@ export const registerCombatReducers = (deps: any) => {
 
     const level = enemyTemplate.level ?? 1n;
     const gearBoost = BigInt(Math.min(25, Number(level) * 2));
-    const junkChance = lootTable.junkChance;
     const gearChance = lootTable.gearChance + gearBoost;
 
     const lootTemplates: any[] = [];
-    const rollJunk = rollPercent(seedBase + 3n);
-    if (rollJunk < Number(junkChance)) {
-      const pick = pickWeightedEntry(junkEntries, seedBase + 11n);
-      if (pick) {
-        const template = ctx.db.itemTemplate.id.find(pick.itemTemplateId);
-        if (template) lootTemplates.push(template);
-      }
+    const pick = pickWeightedEntry(junkEntries, seedBase + 11n);
+    if (pick) {
+      const template = ctx.db.itemTemplate.id.find(pick.itemTemplateId);
+      if (template) lootTemplates.push(template);
     }
 
     const rollGear = rollPercent(seedBase + 19n);
