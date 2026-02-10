@@ -4,7 +4,7 @@
     <div v-else-if="!vendor" :style="styles.subtle">Select a vendor to trade.</div>
     <div v-else :style="styles.panelSplit">
       <div :style="styles.inventoryColumnWide">
-        <div :style="styles.panelSectionTitle">Inventory</div>
+        <div :style="styles.panelSectionTitle">{{ vendor.name }}</div>
         <div v-if="vendorItems.length === 0" :style="styles.subtle">No items for sale.</div>
         <ul v-else :style="styles.list">
           <li v-for="item in vendorItems" :key="item.id.toString()">
