@@ -209,6 +209,58 @@
         <template v-if="!activeCombat && !activeResult">
           <details
             :style="styles.accordion"
+            :open="accordionState.resources"
+            @toggle="
+              $emit('accordion-toggle', {
+                key: 'resources',
+                open: ($event.target as HTMLDetailsElement).open,
+              })
+            "
+          >
+            <summary :style="styles.accordionSummary">Resources</summary>
+            <div :style="styles.roster">
+              <div v-if="resourceNodes.length === 0" :style="styles.subtle">
+                No resources are visible here.
+              </div>
+              <div v-else :style="styles.rosterList">
+                <div
+                  v-for="node in resourceNodes"
+                  :key="node.id.toString()"
+                  :style="styles.enemyGroupRow"
+                >
+                  <div :style="styles.combatRow">
+                    <span :style="styles.combatValue">{{ node.name }}</span>
+                    <span :style="styles.subtle">x{{ node.quantity }}</span>
+                  </div>
+                  <div v-if="node.state === 'depleted'" :style="styles.subtleSmall">
+                    Respawns in {{ node.respawnSeconds ?? 0 }}s
+                  </div>
+                  <div v-else-if="node.state === 'harvesting'" :style="styles.subtleSmall">
+                    Gathering...
+                  </div>
+                  <div :style="styles.panelFormInline">
+                    <button
+                      type="button"
+                      :disabled="!connActive || node.state !== 'available'"
+                      :style="{ ...styles.ghostButton, position: 'relative', overflow: 'hidden' }"
+                      @click="$emit('gather-resource', node.id)"
+                    >
+                      Gather
+                      <div
+                        v-if="node.progress > 0"
+                        :style="{
+                          ...styles.hotbarCastFill,
+                          width: `${Math.round(node.progress * 100)}%`,
+                        }"
+                      ></div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </details>
+          <details
+            :style="styles.accordion"
             :open="accordionState.characters"
             @toggle="
               $emit('accordion-toggle', {
@@ -318,12 +370,23 @@ const props = defineProps<{
   }[];
   activeEnemySpawn: { id: bigint } | null;
   enemySpawns: EnemySummary[];
+  resourceNodes: {
+    id: bigint;
+    name: string;
+    quantity: bigint;
+    state: string;
+    timeOfDay: string;
+    isGathering: boolean;
+    progress: number;
+    respawnSeconds: number | null;
+  }[];
   activeResult: CombatResultRow | null;
   canEngage: boolean;
   canDismissResults: boolean;
   canAct: boolean;
   accordionState: {
     enemies: boolean;
+    resources: boolean;
     characters: boolean;
     npcs: boolean;
   };
@@ -371,10 +434,11 @@ defineEmits<{
   (e: 'dismiss-results'): void;
   (e: 'hail', npcName: string): void;
   (e: 'take-loot', lootId: bigint): void;
+  (e: 'gather-resource', nodeId: bigint): void;
   (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
   (e: 'move-tooltip', value: { x: number; y: number }): void;
   (e: 'hide-tooltip'): void;
   (e: 'open-vendor', npcId: bigint): void;
-  (e: 'accordion-toggle', value: { key: 'enemies' | 'characters' | 'npcs'; open: boolean }): void;
+  (e: 'accordion-toggle', value: { key: 'enemies' | 'resources' | 'characters' | 'npcs'; open: boolean }): void;
 }>();
 </script>

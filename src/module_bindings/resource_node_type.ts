@@ -10,8 +10,16 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("GatherResources", {
-  characterId: __t.u64(),
+export default __t.object("ResourceNode", {
+  id: __t.u64(),
+  locationId: __t.u64(),
+  itemTemplateId: __t.u64(),
+  name: __t.string(),
+  timeOfDay: __t.string(),
+  quantity: __t.u64(),
+  state: __t.string(),
+  lockedByCharacterId: __t.option(__t.u64()),
+  respawnAtMicros: __t.option(__t.u64()),
 });
 
 

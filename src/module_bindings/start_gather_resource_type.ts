@@ -10,6 +10,9 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default {
+export default __t.object("StartGatherResource", {
   characterId: __t.u64(),
-};
+  nodeId: __t.u64(),
+});
+
+

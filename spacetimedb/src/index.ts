@@ -337,6 +337,63 @@ const ItemCooldown = table(
   }
 );
 
+const ResourceNode = table(
+  {
+    name: 'resource_node',
+    public: true,
+    indexes: [{ name: 'by_location', algorithm: 'btree', columns: ['locationId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    locationId: t.u64(),
+    itemTemplateId: t.u64(),
+    name: t.string(),
+    timeOfDay: t.string(),
+    quantity: t.u64(),
+    state: t.string(),
+    lockedByCharacterId: t.u64().optional(),
+    respawnAtMicros: t.u64().optional(),
+  }
+);
+
+const ResourceGather = table(
+  {
+    name: 'resource_gather',
+    public: true,
+    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    nodeId: t.u64(),
+    endsAtMicros: t.u64(),
+  }
+);
+
+const ResourceGatherTick = table(
+  {
+    name: 'resource_gather_tick',
+    scheduled: 'finish_gather',
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    gatherId: t.u64(),
+  }
+);
+
+const ResourceRespawnTick = table(
+  {
+    name: 'resource_respawn_tick',
+    scheduled: 'respawn_resource',
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    nodeId: t.u64(),
+  }
+);
+
 const CombatLoot = table(
   {
     name: 'combat_loot',
@@ -999,6 +1056,10 @@ export const spacetimedb = schema(
   RecipeTemplate,
   RecipeDiscovered,
   ItemCooldown,
+  ResourceNode,
+  ResourceGather,
+  ResourceGatherTick,
+  ResourceRespawnTick,
   CombatLoot,
   Group,
   GroupMember,
@@ -2307,6 +2368,9 @@ const COMBAT_LOOP_INTERVAL_MICROS = 1_000_000n;
 const DAY_DURATION_MICROS = 1_200_000_000n;
 const NIGHT_DURATION_MICROS = 600_000_000n;
 const DEFAULT_LOCATION_SPAWNS = 3;
+const RESOURCE_NODES_PER_LOCATION = 3;
+const RESOURCE_GATHER_CAST_MICROS = 8_000_000n;
+const RESOURCE_RESPAWN_MICROS = 10n * 60n * 1_000_000n;
 const GROUP_SIZE_DANGER_BASE = 100n;
 const GROUP_SIZE_BIAS_RANGE = 200n;
 const GROUP_SIZE_BIAS_MAX = 0.8;
@@ -2442,27 +2506,40 @@ function removeItemFromInventory(
   if (remaining > 0n) throw new SenderError('Not enough materials');
 }
 
-function getGatherableResourceTemplates(ctx: any, terrainType: string) {
-  const pools: Record<string, { name: string; weight: bigint }[]> = {
+function getGatherableResourceTemplates(ctx: any, terrainType: string, timePref?: string) {
+  const pools: Record<
+    string,
+    { name: string; weight: bigint; timeOfDay: string }[]
+  > = {
     mountains: [
-      { name: 'Copper Ore', weight: 3n },
-      { name: 'Stone', weight: 5n },
+      { name: 'Copper Ore', weight: 3n, timeOfDay: 'any' },
+      { name: 'Stone', weight: 5n, timeOfDay: 'any' },
     ],
     woods: [
-      { name: 'Wood', weight: 5n },
-      { name: 'Resin', weight: 3n },
+      { name: 'Wood', weight: 5n, timeOfDay: 'any' },
+      { name: 'Resin', weight: 3n, timeOfDay: 'night' },
     ],
     plains: [
-      { name: 'Flax', weight: 4n },
-      { name: 'Herbs', weight: 3n },
+      { name: 'Flax', weight: 4n, timeOfDay: 'day' },
+      { name: 'Herbs', weight: 3n, timeOfDay: 'any' },
     ],
   };
   const key = (terrainType ?? '').trim().toLowerCase();
   const entries = pools[key] ?? pools.plains;
-  const resolved = entries
+  const pref = (timePref ?? '').trim().toLowerCase();
+  const filtered =
+    pref && pref !== 'any'
+      ? entries.filter(
+          (entry) => entry.timeOfDay === 'any' || entry.timeOfDay === pref
+        )
+      : entries;
+  const pool = filtered.length > 0 ? filtered : entries;
+  const resolved = pool
     .map((entry) => {
       const template = findItemTemplateByName(ctx, entry.name);
-      return template ? { template, weight: entry.weight } : null;
+      return template
+        ? { template, weight: entry.weight, timeOfDay: entry.timeOfDay }
+        : null;
     })
     .filter(Boolean) as { template: typeof ItemTemplate.rowType; weight: bigint }[];
   return resolved;
@@ -2730,6 +2807,65 @@ function ensureRecipeTemplates(ctx: any) {
     req2TemplateId: herbs.id,
     req2Count: 1n,
   });
+}
+
+function spawnResourceNode(ctx: any, locationId: bigint): typeof ResourceNode.rowType {
+  const location = ctx.db.location.id.find(locationId);
+  if (!location) throw new SenderError('Location not found');
+  const timePref = isNightTime(ctx) ? 'night' : 'day';
+  const pool = getGatherableResourceTemplates(ctx, location.terrainType ?? 'plains', timePref);
+  if (pool.length === 0) throw new SenderError('No resource templates for location');
+  const totalWeight = pool.reduce((sum, entry) => sum + entry.weight, 0n);
+  let roll = (ctx.timestamp.microsSinceUnixEpoch + locationId) % totalWeight;
+  let chosen = pool[0];
+  for (const entry of pool) {
+    if (roll < entry.weight) {
+      chosen = entry;
+      break;
+    }
+    roll -= entry.weight;
+  }
+  const quantitySeed = ctx.timestamp.microsSinceUnixEpoch + chosen.template.id + locationId;
+  const minQty = 2n;
+  const maxQty = 6n;
+  const qtyRange = maxQty - minQty + 1n;
+  const quantity = minQty + (quantitySeed % qtyRange);
+  return ctx.db.resourceNode.insert({
+    id: 0n,
+    locationId,
+    itemTemplateId: chosen.template.id,
+    name: chosen.template.name,
+    timeOfDay: chosen.timeOfDay ?? 'any',
+    quantity,
+    state: 'available',
+    lockedByCharacterId: undefined,
+    respawnAtMicros: undefined,
+  });
+}
+
+function ensureResourceNodesForLocation(ctx: any, locationId: bigint) {
+  let count = 0;
+  for (const _row of ctx.db.resourceNode.by_location.filter(locationId)) {
+    count += 1;
+  }
+  while (count < RESOURCE_NODES_PER_LOCATION) {
+    spawnResourceNode(ctx, locationId);
+    count += 1;
+  }
+}
+
+function respawnResourceNodesForLocation(ctx: any, locationId: bigint) {
+  for (const row of ctx.db.resourceNode.by_location.filter(locationId)) {
+    ctx.db.resourceNode.id.delete(row.id);
+  }
+  let count = 0;
+  for (const _row of ctx.db.resourceNode.by_location.filter(locationId)) {
+    count += 1;
+  }
+  while (count < RESOURCE_NODES_PER_LOCATION) {
+    spawnResourceNode(ctx, locationId);
+    count += 1;
+  }
 }
 
 function grantStarterItems(ctx: any, character: typeof Character.rowType) {
@@ -3281,6 +3417,7 @@ spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
   appendWorldEvent(ctx, 'world', message);
   for (const location of ctx.db.location.iter()) {
     respawnLocationSpawns(ctx, location.id, DEFAULT_LOCATION_SPAWNS);
+    respawnResourceNodesForLocation(ctx, location.id);
   }
   ctx.db.dayNightTick.insert({
     scheduledId: 0n,
@@ -4291,6 +4428,9 @@ spacetimedb.init((ctx) => {
   ensureLootTables(ctx);
 
   ensureLocationEnemyTemplates(ctx);
+  for (const location of ctx.db.location.iter()) {
+    ensureResourceNodesForLocation(ctx, location.id);
+  }
 
   const desired = DEFAULT_LOCATION_SPAWNS;
   for (const location of ctx.db.location.iter()) {
@@ -4380,6 +4520,8 @@ const reducerDeps = {
   HotTick,
   CastTick,
   DayNightTick,
+  ResourceGatherTick,
+  ResourceRespawnTick,
   EnemyAbility,
   CombatEnemyCooldown,
   CombatEnemyCast,
@@ -4426,6 +4568,9 @@ const reducerDeps = {
   removeItemFromInventory,
   getItemCount,
   getGatherableResourceTemplates,
+  spawnResourceNode,
+  ensureResourceNodesForLocation,
+  respawnResourceNodesForLocation,
   awardCombatXp,
   xpRequiredForLevel,
   MAX_LEVEL,

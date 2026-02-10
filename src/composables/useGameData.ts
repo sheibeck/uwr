@@ -17,6 +17,8 @@ export const useGameData = () => {
   const [recipeTemplates] = useTable(tables.recipeTemplate);
   const [recipeDiscovered] = useTable(tables.recipeDiscovered);
   const [itemCooldowns] = useTable(tables.itemCooldown);
+  const [resourceNodes] = useTable(tables.resourceNode);
+  const [resourceGathers] = useTable(tables.resourceGather);
   const [hotbarSlots] = useTable(tables.hotbarSlot);
   const [locations] = useTable(tables.location);
   const [npcs] = useTable(tables.npc);
@@ -64,6 +66,8 @@ export const useGameData = () => {
     recipeTemplates,
     recipeDiscovered,
     itemCooldowns,
+    resourceNodes,
+    resourceGathers,
     hotbarSlots,
     locations,
     npcs,

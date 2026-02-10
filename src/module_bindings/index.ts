@@ -84,8 +84,12 @@ import SetHotbarSlotReducer from "./set_hotbar_slot_reducer";
 export { SetHotbarSlotReducer };
 import UseAbilityReducer from "./use_ability_reducer";
 export { UseAbilityReducer };
-import GatherResourcesReducer from "./gather_resources_reducer";
-export { GatherResourcesReducer };
+import StartGatherResourceReducer from "./start_gather_resource_reducer";
+export { StartGatherResourceReducer };
+import FinishGatherReducer from "./finish_gather_reducer";
+export { FinishGatherReducer };
+import RespawnResourceReducer from "./respawn_resource_reducer";
+export { RespawnResourceReducer };
 import ResearchRecipesReducer from "./research_recipes_reducer";
 export { ResearchRecipesReducer };
 import CraftRecipeReducer from "./craft_recipe_reducer";
@@ -286,6 +290,14 @@ import RecipeTemplateRow from "./recipe_template_table";
 export { RecipeTemplateRow };
 import RegionRow from "./region_table";
 export { RegionRow };
+import ResourceGatherRow from "./resource_gather_table";
+export { ResourceGatherRow };
+import ResourceGatherTickRow from "./resource_gather_tick_table";
+export { ResourceGatherTickRow };
+import ResourceNodeRow from "./resource_node_table";
+export { ResourceNodeRow };
+import ResourceRespawnTickRow from "./resource_respawn_tick_table";
+export { ResourceRespawnTickRow };
 import UserRow from "./user_table";
 export { UserRow };
 import VendorInventoryRow from "./vendor_inventory_table";
@@ -376,14 +388,14 @@ import EventPrivate from "./event_private_type";
 export { EventPrivate };
 import EventWorld from "./event_world_type";
 export { EventWorld };
+import FinishGather from "./finish_gather_type";
+export { FinishGather };
 import FleeCombat from "./flee_combat_type";
 export { FleeCombat };
 import Friend from "./friend_type";
 export { Friend };
 import FriendRequest from "./friend_request_type";
 export { FriendRequest };
-import GatherResources from "./gather_resources_type";
-export { GatherResources };
 import GrantItem from "./grant_item_type";
 export { GrantItem };
 import Group from "./group_type";
@@ -500,6 +512,16 @@ import ResearchRecipes from "./research_recipes_type";
 export { ResearchRecipes };
 import ResolvePull from "./resolve_pull_type";
 export { ResolvePull };
+import ResourceGather from "./resource_gather_type";
+export { ResourceGather };
+import ResourceGatherTick from "./resource_gather_tick_type";
+export { ResourceGatherTick };
+import ResourceNode from "./resource_node_type";
+export { ResourceNode };
+import ResourceRespawnTick from "./resource_respawn_tick_type";
+export { ResourceRespawnTick };
+import RespawnResource from "./respawn_resource_type";
+export { RespawnResource };
 import Say from "./say_type";
 export { Say };
 import SellAllJunk from "./sell_all_junk_type";
@@ -522,6 +544,8 @@ import SetHotbarSlot from "./set_hotbar_slot_type";
 export { SetHotbarSlot };
 import StartCombat from "./start_combat_type";
 export { StartCombat };
+import StartGatherResource from "./start_gather_resource_type";
+export { StartGatherResource };
 import StartPull from "./start_pull_type";
 export { StartPull };
 import SubmitCommand from "./submit_command_type";
@@ -1342,6 +1366,56 @@ const tablesSchema = __schema(
     ],
   }, RegionRow),
   __table({
+    name: 'resource_gather',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'resource_gather_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ResourceGatherRow),
+  __table({
+    name: 'resource_gather_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'resource_gather_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, ResourceGatherTickRow),
+  __table({
+    name: 'resource_node',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_location', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'resource_node_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ResourceNodeRow),
+  __table({
+    name: 'resource_respawn_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'resource_respawn_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, ResourceRespawnTickRow),
+  __table({
     name: 'user',
     indexes: [
       { name: 'by_email', algorithm: 'btree', columns: [
@@ -1498,7 +1572,9 @@ const reducersSchema = __reducers(
   __reducerSchema("unequip_item", UnequipItemReducer),
   __reducerSchema("set_hotbar_slot", SetHotbarSlotReducer),
   __reducerSchema("use_ability", UseAbilityReducer),
-  __reducerSchema("gather_resources", GatherResourcesReducer),
+  __reducerSchema("start_gather_resource", StartGatherResourceReducer),
+  __reducerSchema("finish_gather", FinishGatherReducer),
+  __reducerSchema("respawn_resource", RespawnResourceReducer),
   __reducerSchema("research_recipes", ResearchRecipesReducer),
   __reducerSchema("craft_recipe", CraftRecipeReducer),
   __reducerSchema("use_item", UseItemReducer),

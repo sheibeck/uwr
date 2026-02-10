@@ -6,7 +6,6 @@
     </div>
     <div v-else>
       <div :style="styles.rowGap">
-        <button :style="styles.primaryButton" @click="$emit('gather')">Gather</button>
         <button :style="styles.ghostButton" @click="$emit('research')">Research Recipes</button>
       </div>
       <div v-if="recipes.length === 0" :style="styles.subtle">No recipes discovered.</div>
@@ -51,7 +50,6 @@ defineProps<{
 }>();
 
 defineEmits<{
-  (e: 'gather'): void;
   (e: 'research'): void;
   (e: 'craft', recipeId: bigint): void;
 }>();

@@ -19,7 +19,6 @@ export const useCrafting = ({
   recipeTemplates,
   recipeDiscovered,
 }: UseCraftingArgs) => {
-  const gatherReducer = useReducer(reducers.gatherResources);
   const researchReducer = useReducer(reducers.researchRecipes);
   const craftReducer = useReducer(reducers.craftRecipe);
 
@@ -77,11 +76,6 @@ export const useCrafting = ({
       .sort((a, b) => a.name.localeCompare(b.name))
   );
 
-  const gather = () => {
-    if (!connActive.value || !selectedCharacter.value) return;
-    gatherReducer({ characterId: selectedCharacter.value.id });
-  };
-
   const research = () => {
     if (!connActive.value || !selectedCharacter.value) return;
     researchReducer({ characterId: selectedCharacter.value.id });
@@ -94,7 +88,6 @@ export const useCrafting = ({
 
   return {
     recipes,
-    gather,
     research,
     craft,
   };

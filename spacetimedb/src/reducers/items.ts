@@ -3,6 +3,7 @@ export const registerItemReducers = (deps: any) => {
     spacetimedb,
     t,
     SenderError,
+    ScheduleAt,
     EQUIPMENT_SLOTS,
     ARMOR_TYPES_WITH_NONE,
     normalizeArmorType,
@@ -18,6 +19,8 @@ export const registerItemReducers = (deps: any) => {
     addItemToInventory,
     removeItemFromInventory,
     getItemCount,
+    ResourceGatherTick,
+    ResourceRespawnTick,
   } = deps;
 
   spacetimedb.reducer(
@@ -407,43 +410,126 @@ export const registerItemReducers = (deps: any) => {
   const BANDAGE_COOLDOWN_MICROS = 10_000_000n;
   const BANDAGE_TICK_COUNT = 3n;
   const BANDAGE_TICK_HEAL = 5n;
+  const RESOURCE_GATHER_CAST_MICROS = 8_000_000n;
+  const RESOURCE_RESPAWN_MICROS = 10n * 60n * 1_000_000n;
 
   // Demo flow: gather_resources -> research_recipes -> craft_recipe -> use_item (Bandage).
-  spacetimedb.reducer('gather_resources', { characterId: t.u64() }, (ctx, args) => {
-    const character = requireCharacterOwnedBy(ctx, args.characterId);
-    if (activeCombatIdForCharacter(ctx, character.id)) {
-      throw new SenderError('Cannot gather during combat');
-    }
-    const location = ctx.db.location.id.find(character.locationId);
-    if (!location) throw new SenderError('Location not found');
-    const pool = deps.getGatherableResourceTemplates(ctx, location.terrainType ?? 'plains');
-    if (pool.length === 0) throw new SenderError('No gatherable resources here');
-    const totalWeight = pool.reduce((sum: bigint, entry: any) => sum + entry.weight, 0n);
-    const gathered = new Map<string, bigint>();
-    for (let i = 0n; i < 14n; i += 1n) {
-      let roll = (ctx.timestamp.microsSinceUnixEpoch + character.id + i) % totalWeight;
-      let chosen = pool[0];
-      for (const entry of pool) {
-        if (roll < entry.weight) {
-          chosen = entry;
-          break;
-        }
-        roll -= entry.weight;
+  spacetimedb.reducer(
+    'start_gather_resource',
+    { characterId: t.u64(), nodeId: t.u64() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (activeCombatIdForCharacter(ctx, character.id)) {
+        throw new SenderError('Cannot gather during combat');
       }
-      addItemToInventory(ctx, character.id, chosen.template.id, 1n);
-      const current = gathered.get(chosen.template.name) ?? 0n;
-      gathered.set(chosen.template.name, current + 1n);
+      const node = ctx.db.resourceNode.id.find(args.nodeId);
+      if (!node) throw new SenderError('Resource not found');
+      if (node.locationId !== character.locationId) {
+        throw new SenderError('Resource is not here');
+      }
+      if (node.state !== 'available') {
+        throw new SenderError('Resource is not available');
+      }
+      for (const gather of ctx.db.resourceGather.by_character.filter(character.id)) {
+        throw new SenderError('Already gathering');
+      }
+      const endsAt = ctx.timestamp.microsSinceUnixEpoch + RESOURCE_GATHER_CAST_MICROS;
+      ctx.db.resourceNode.id.update({
+        ...node,
+        state: 'harvesting',
+        lockedByCharacterId: character.id,
+      });
+      const gather = ctx.db.resourceGather.insert({
+        id: 0n,
+        characterId: character.id,
+        nodeId: node.id,
+        endsAtMicros: endsAt,
+      });
+      ctx.db.resourceGatherTick.insert({
+        scheduledId: 0n,
+        scheduledAt: ScheduleAt.time(endsAt),
+        gatherId: gather.id,
+      });
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'system',
+        `You begin gathering ${node.name}.`
+      );
     }
-    const summary = [...gathered.entries()]
-      .map(([name, count]) => `${name} x${count}`)
-      .join(', ');
-    appendPrivateEvent(
-      ctx,
-      character.id,
-      character.ownerUserId,
-      'reward',
-      `You gather: ${summary}.`
-    );
+  );
+
+  spacetimedb.reducer(
+    'finish_gather',
+    { arg: ResourceGatherTick.rowType },
+    (ctx, { arg }) => {
+      const gather = ctx.db.resourceGather.id.find(arg.gatherId);
+      if (!gather) return;
+    if (!gather) return;
+    const character = ctx.db.character.id.find(gather.characterId);
+    const node = ctx.db.resourceNode.id.find(gather.nodeId);
+      ctx.db.resourceGather.id.delete(gather.id);
+      if (!character || !node) return;
+      if (node.lockedByCharacterId?.toString() !== character.id.toString()) {
+        ctx.db.resourceNode.id.update({ ...node, state: 'available', lockedByCharacterId: undefined });
+        return;
+      }
+      if (character.locationId !== node.locationId || activeCombatIdForCharacter(ctx, character.id)) {
+        ctx.db.resourceNode.id.update({ ...node, state: 'available', lockedByCharacterId: undefined });
+        return;
+      }
+      addItemToInventory(ctx, character.id, node.itemTemplateId, node.quantity);
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'reward',
+        `You gather ${node.name} x${node.quantity}.`
+      );
+      const respawnAt = ctx.timestamp.microsSinceUnixEpoch + RESOURCE_RESPAWN_MICROS;
+      ctx.db.resourceNode.id.update({
+        ...node,
+        state: 'depleted',
+        lockedByCharacterId: undefined,
+        respawnAtMicros: respawnAt,
+      });
+      ctx.db.resourceRespawnTick.insert({
+        scheduledId: 0n,
+        scheduledAt: ScheduleAt.time(respawnAt),
+        nodeId: node.id,
+      });
+    }
+  );
+
+  spacetimedb.reducer('respawn_resource', { arg: ResourceRespawnTick.rowType }, (ctx, { arg }) => {
+    const node = ctx.db.resourceNode.id.find(arg.nodeId);
+    if (!node) return;
+    const location = ctx.db.location.id.find(node.locationId);
+    if (!location) return;
+    const world = ctx.db.worldState.id.find(1n);
+    const timePref = world?.isNight ? 'night' : 'day';
+    const nodePref = (node.timeOfDay ?? 'any').toLowerCase();
+    if (nodePref !== 'any' && nodePref !== timePref) {
+      ctx.db.resourceNode.id.update({
+        ...node,
+        state: 'hidden',
+        respawnAtMicros: world?.nextTransitionAtMicros,
+      });
+      return;
+    }
+    const seed = ctx.timestamp.microsSinceUnixEpoch + node.id;
+    const minQty = 2n;
+    const maxQty = 6n;
+    const qtyRange = maxQty - minQty + 1n;
+    const quantity = minQty + (seed % qtyRange);
+    ctx.db.resourceNode.id.update({
+      ...node,
+      state: 'available',
+      quantity,
+      lockedByCharacterId: undefined,
+      respawnAtMicros: undefined,
+    });
   });
 
   spacetimedb.reducer('research_recipes', { characterId: t.u64() }, (ctx, args) => {

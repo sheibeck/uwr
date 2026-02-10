@@ -208,7 +208,6 @@
           :styles="styles"
           :selected-character="selectedCharacter"
           :recipes="craftingRecipes"
-          @gather="gatherResources"
           @research="researchRecipes"
           @craft="craftRecipe"
         />
@@ -255,6 +254,7 @@
           :active-loot="activeLoot"
           :combat-enemies="combatEnemiesList"
           :enemy-spawns="availableEnemies"
+          :resource-nodes="resourceNodesHere"
           :active-result="activeResult"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
@@ -265,6 +265,7 @@
           @flee="flee"
           @dismiss-results="dismissResults"
           @take-loot="takeLoot"
+          @gather-resource="startGather"
           @show-tooltip="showTooltip"
           @move-tooltip="moveTooltip"
           @hide-tooltip="hideTooltip"
@@ -317,6 +318,7 @@
             :active-loot="activeLoot"
             :combat-enemies="combatEnemiesList"
             :enemy-spawns="availableEnemies"
+            :resource-nodes="resourceNodesHere"
             :active-result="activeResult"
             :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
             :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
@@ -327,6 +329,7 @@
             @flee="flee"
             @dismiss-results="dismissResults"
             @take-loot="takeLoot"
+            @gather-resource="startGather"
             @show-tooltip="showTooltip"
             @move-tooltip="moveTooltip"
             @hide-tooltip="hideTooltip"
@@ -362,6 +365,7 @@
             :active-loot="activeLoot"
             :combat-enemies="combatEnemiesList"
             :enemy-spawns="availableEnemies"
+            :resource-nodes="resourceNodesHere"
             :active-result="activeResult"
             :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
             :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
@@ -372,6 +376,7 @@
             @flee="flee"
             @dismiss-results="dismissResults"
             @take-loot="takeLoot"
+            @gather-resource="startGather"
             @show-tooltip="showTooltip"
             @move-tooltip="moveTooltip"
             @hide-tooltip="hideTooltip"
@@ -544,6 +549,8 @@ const {
   abilityCooldowns,
   characterCasts,
   worldState,
+  resourceNodes,
+  resourceGathers,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
@@ -1019,15 +1026,61 @@ const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipI
     itemTemplates,
   });
 
-const { recipes: craftingRecipes, gather: gatherResources, research: researchRecipes, craft: craftRecipe } =
-  useCrafting({
-    connActive: computed(() => conn.isActive),
-    selectedCharacter,
-    itemInstances,
-    itemTemplates,
-    recipeTemplates,
-    recipeDiscovered,
-  });
+const startGatherReducer = useReducer(reducers.startGatherResource);
+
+const { recipes: craftingRecipes, research: researchRecipes, craft: craftRecipe } = useCrafting({
+  connActive: computed(() => conn.isActive),
+  selectedCharacter,
+  itemInstances,
+  itemTemplates,
+  recipeTemplates,
+  recipeDiscovered,
+});
+
+const activeResourceGather = computed(() => {
+  if (!selectedCharacter.value) return null;
+  return resourceGathers.value.find(
+    (row) => row.characterId.toString() === selectedCharacter.value?.id.toString()
+  );
+});
+
+const resourceNodesHere = computed(() => {
+  if (!currentLocation.value) return [];
+  const gather = activeResourceGather.value;
+  const now = nowMicros.value;
+  return resourceNodes.value
+    .filter((node) => node.locationId.toString() === currentLocation.value?.id.toString())
+    .filter((node) => node.state !== 'hidden')
+    .map((node) => {
+      const isGathering = gather?.nodeId?.toString() === node.id.toString();
+      const castMicros = 8_000_000;
+      const endsAt = isGathering ? Number(gather?.endsAtMicros ?? 0n) : 0;
+      const startAt = endsAt - castMicros;
+      const progress =
+        isGathering && castMicros > 0
+          ? Math.max(0, Math.min(1, (now - startAt) / castMicros))
+          : 0;
+      const respawnSeconds =
+        node.respawnAtMicros != null
+          ? Math.max(0, Math.ceil((Number(node.respawnAtMicros) - now) / 1_000_000))
+          : null;
+      return {
+        id: node.id,
+        name: node.name,
+        quantity: node.quantity,
+        state: node.state,
+        timeOfDay: node.timeOfDay,
+        isGathering,
+        progress,
+        respawnSeconds,
+      };
+    });
+});
+
+const startGather = (nodeId: bigint) => {
+  if (!selectedCharacter.value || !conn.isActive) return;
+  startGatherReducer({ characterId: selectedCharacter.value.id, nodeId });
+};
 
 const buyReducer = useReducer(reducers.buyItem);
 const sellReducer = useReducer(reducers.sellItem);
@@ -1188,11 +1241,12 @@ const activePanel = ref<
   | 'combat'
 >('none');
 
-type AccordionKey = 'travel' | 'enemies' | 'characters' | 'npcs';
+type AccordionKey = 'travel' | 'enemies' | 'resources' | 'characters' | 'npcs';
 
 const accordionState = reactive<Record<AccordionKey, boolean>>({
   travel: true,
   enemies: true,
+  resources: true,
   characters: true,
   npcs: true,
 });
