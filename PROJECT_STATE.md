@@ -294,4 +294,5 @@ Last updated: 2026-02-09
 - Upgrade auth to email verification (magic link / OTP).
 - Optional: add outgoing invite list in group UI.
 - Optional: add friend request notifications in UI beyond log.
+- TODO: Apply buff/debuff effects to combat calculations beyond AC (e.g., stats, hit/dodge/crit, damage).
 

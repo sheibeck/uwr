@@ -102,7 +102,7 @@
       v-if="activePanel !== 'none'"
       :style="{
         ...styles.floatingPanel,
-        ...(activePanel === 'dialog' ||
+        ...(activePanel === 'journal' ||
         activePanel === 'inventory' ||
         activePanel === 'vendor' ||
         activePanel === 'quests'
@@ -202,7 +202,7 @@
           :regions="regions"
         />
         <NpcDialogPanel
-          v-else-if="activePanel === 'dialog'"
+          v-else-if="activePanel === 'journal'"
           :styles="styles"
           :npc-dialogs="npcDialogs"
           :npcs="npcs"
@@ -1174,7 +1174,7 @@ const activePanel = ref<
   | 'friends'
   | 'group'
   | 'stats'
-  | 'dialog'
+  | 'journal'
   | 'quests'
   | 'vendor'
   | 'travel'
@@ -1492,8 +1492,8 @@ const panelTitle = computed(() => {
       return 'Group';
     case 'stats':
       return 'Stats';
-    case 'dialog':
-      return 'Dialog';
+    case 'journal':
+      return 'Journal';
     case 'quests':
       return 'Quests';
     case 'vendor':

@@ -30,11 +30,11 @@
         Stats
       </button>
       <button
-        @click="emit('toggle', 'dialog')"
-        :style="actionStyle('dialog')"
-        :disabled="isLocked('dialog')"
+        @click="emit('toggle', 'journal')"
+        :style="actionStyle('journal')"
+        :disabled="isLocked('journal')"
       >
-        Dialog
+        Journal
       </button>
       <button
         @click="emit('toggle', 'quests')"
@@ -63,7 +63,7 @@ type PanelKey =
   | 'friends'
   | 'group'
   | 'stats'
-  | 'dialog'
+  | 'journal'
   | 'quests'
   | 'travel'
   | 'combat';

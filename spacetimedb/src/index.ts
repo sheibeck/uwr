@@ -941,6 +941,14 @@ function appendPrivateEvent(
 }
 
 function appendNpcDialog(ctx: any, characterId: bigint, npcId: bigint, text: string) {
+  const cutoff = ctx.timestamp.microsSinceUnixEpoch - 60_000_000n;
+  for (const row of ctx.db.npcDialog.by_character.filter(characterId)) {
+    if (row.npcId !== npcId) continue;
+    if (row.text !== text) continue;
+    if (row.createdAt.microsSinceUnixEpoch >= cutoff) {
+      return;
+    }
+  }
   ctx.db.npcDialog.insert({
     id: 0n,
     characterId,
