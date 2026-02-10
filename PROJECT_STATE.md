@@ -279,6 +279,7 @@ Last updated: 2026-02-09
 - Command autocomplete appears when input starts with `/`, supports keyboard navigation.
 - Group invite alerts invitee via private event.
 - Friend request success/failure messages emitted via private events.
+- Event tables (`event_world`, `event_location`, `event_private`, `event_group`) are trimmed on write to last 200 per scope and anything older than 1 hour.
 - **Stamina/Mana migration pending:** schema changes require publishing with `--delete-data`.
 - **Region/Location migration pending:** schema changes require publishing with `--delete-data`.
 - **Item/Enemy schema expansion pending:** schema changes require publishing with `--delete-data`.

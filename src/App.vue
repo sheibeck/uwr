@@ -556,12 +556,12 @@ const { email, isLoggedIn, login, logout, authMessage, authError } = useAuth({
   player,
 });
 
-const {
-  selectedCharacterId,
-  myCharacters,
-  selectedCharacter,
-  currentLocation,
-  charactersHere,
+  const {
+    selectedCharacterId,
+    myCharacters,
+    selectedCharacter,
+    currentLocation,
+    charactersHere,
   currentGroup,
   groupMembers: groupCharacterMembers,
   deleteCharacter,
@@ -571,6 +571,7 @@ const {
   characters,
   locations,
   groups,
+  players,
   userId,
 });
 

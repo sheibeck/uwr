@@ -1,5 +1,5 @@
 import { computed, ref, watch, type Ref } from 'vue';
-import { reducers, type CharacterRow, type GroupRow, type LocationRow } from '../module_bindings';
+import { reducers, type CharacterRow, type GroupRow, type LocationRow, type PlayerRow } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 
 export type PanelKey =
@@ -17,10 +17,11 @@ type UseCharactersArgs = {
   characters: Ref<CharacterRow[]>;
   locations: Ref<LocationRow[]>;
   groups: Ref<GroupRow[]>;
+  players: Ref<PlayerRow[]>;
   userId: Ref<bigint | null>;
 };
 
-export const useCharacters = ({ connActive, characters, locations, groups, userId }: UseCharactersArgs) => {
+export const useCharacters = ({ connActive, characters, locations, groups, players, userId }: UseCharactersArgs) => {
   const setActiveCharacterReducer = useReducer(reducers.setActiveCharacter);
   const deleteCharacterReducer = useReducer(reducers.deleteCharacter);
   const bindLocationReducer = useReducer(reducers.bindLocation);
@@ -57,12 +58,23 @@ export const useCharacters = ({ connActive, characters, locations, groups, userI
     );
   });
 
+  const activeCharacterIds = computed(() => {
+    const ids = new Set<string>();
+    for (const row of players.value) {
+      if (row.activeCharacterId != null) {
+        ids.add(row.activeCharacterId.toString());
+      }
+    }
+    return ids;
+  });
+
   const charactersHere = computed(() => {
     if (!selectedCharacter.value) return [];
     return characters.value.filter(
       (row) =>
         row.locationId === selectedCharacter.value?.locationId &&
-        row.id !== selectedCharacter.value?.id
+        row.id !== selectedCharacter.value?.id &&
+        activeCharacterIds.value.has(row.id.toString())
     );
   });
 
