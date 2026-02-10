@@ -47,6 +47,10 @@ Last updated: 2026-02-10
   - Pull outcomes: success / partial (delayed adds) / failure (immediate adds) with log feedback + reasons.
   - **Social aggro:** enemies have `socialGroup`, `socialRadius`, `awareness`.
   - **Grouped enemies:** each spawn has `groupCount` (rolled from template `groupMin/groupMax`).
+  - **Enemy role variants:** base enemy types can have multiple role templates (e.g., Bandit -> Archer/Ruffian).
+    - Role variants determine display name + role stats; group makeup is rolled on spawn.
+    - Pulling a group randomly selects one member; remaining members stay in the group.
+    - UI hover on enemy spawn shows the rolled group composition.
   - Pulling a grouped enemy removes 1 from the group; remaining members stay in the spawn.
   - Adds can come from remaining members or nearby same-group spawns.
   - Combat supports multiple enemies simultaneously.
@@ -257,7 +261,7 @@ Last updated: 2026-02-10
 - NPC: `npc`, `npc_dialog`.
 - Quests: `quest_template`, `quest_instance`.
 - Combat:
-  - `enemy_template`, `location_enemy_template`, `enemy_spawn`.
+  - `enemy_template`, `enemy_role_template`, `location_enemy_template`, `enemy_spawn`, `enemy_spawn_member`.
   - `combat_encounter`, `combat_participant`, `combat_enemy`, `aggro_entry`, `combat_loop_tick`.
   - `character_cast`, `cast_tick`, `ability_cooldown`.
   - `combat_result`, `health_regen_tick`, `effect_tick`, `hot_tick`.

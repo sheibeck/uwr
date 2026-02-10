@@ -10,6 +10,8 @@ import {
   type CombatLootRow,
   type EnemySpawnRow,
   type EnemyTemplateRow,
+  type EnemyRoleTemplateRow,
+  type EnemySpawnMemberRow,
   type CombatEnemyEffectRow,
   type EnemyAbilityRow,
   type ItemTemplateRow,
@@ -22,6 +24,7 @@ type EnemySummary = {
   level: bigint;
   conClass: string;
   groupCount: bigint;
+  memberNames: string[];
 };
 
 type CombatRosterEntry = {
@@ -53,6 +56,8 @@ type UseCombatArgs = {
   fallbackRoster: Ref<CharacterRow[]>;
   enemySpawns: Ref<EnemySpawnRow[]>;
   enemyTemplates: Ref<EnemyTemplateRow[]>;
+  enemyRoleTemplates: Ref<EnemyRoleTemplateRow[]>;
+  enemySpawnMembers: Ref<EnemySpawnMemberRow[]>;
   nowMicros: Ref<number>;
   characters: Ref<CharacterRow[]>;
 };
@@ -97,6 +102,8 @@ export const useCombat = ({
   fallbackRoster,
   enemySpawns,
   enemyTemplates,
+  enemyRoleTemplates,
+  enemySpawnMembers,
   nowMicros,
   characters,
 }: UseCombatArgs) => {
@@ -214,6 +221,7 @@ export const useCombat = ({
   });
 
   const activeEnemyName = computed(() => {
+    if (activeEnemy.value?.displayName) return activeEnemy.value.displayName;
     if (activeEnemySpawn.value?.name) return activeEnemySpawn.value.name;
     if (activeEnemyTemplate.value?.name) return activeEnemyTemplate.value.name;
     return 'Enemy';
@@ -314,6 +322,17 @@ export const useCombat = ({
         const template = enemyTemplates.value.find(
           (row) => row.id.toString() === spawn.enemyTemplateId.toString()
         );
+        const members = enemySpawnMembers.value.filter(
+          (row) => row.spawnId.toString() === spawn.id.toString()
+        );
+        const memberNames = members
+          .map((member) => {
+            const role = enemyRoleTemplates.value.find(
+              (row) => row.id.toString() === member.roleTemplateId.toString()
+            );
+            return role?.displayName ?? template?.name ?? 'Enemy';
+          })
+          .filter((name) => name.length > 0);
         const level = template?.level ?? 1n;
         const diff = Number(level - selectedCharacter.value!.level);
         let conClass = 'conWhite';
@@ -330,6 +349,7 @@ export const useCombat = ({
           level,
           conClass,
           groupCount: spawn.groupCount ?? 1n,
+          memberNames,
         };
       });
   });
@@ -344,7 +364,7 @@ export const useCombat = ({
       const template = enemyTemplates.value.find(
         (row) => row.id.toString() === enemy.enemyTemplateId.toString()
       );
-      const name = template?.name ?? 'Enemy';
+      const name = enemy.displayName ?? template?.name ?? 'Enemy';
       const level = template?.level ?? 1n;
       const diff = selectedCharacter.value
         ? Number(level - selectedCharacter.value.level)

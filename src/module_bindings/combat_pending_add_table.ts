@@ -14,6 +14,7 @@ export default __t.row({
   id: __t.u64().primaryKey(),
   combatId: __t.u64(),
   enemyTemplateId: __t.u64(),
+  enemyRoleTemplateId: __t.option(__t.u64()),
   spawnId: __t.option(__t.u64()),
   arriveAtMicros: __t.u64(),
 });

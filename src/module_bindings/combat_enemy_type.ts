@@ -15,6 +15,8 @@ export default __t.object("CombatEnemy", {
   combatId: __t.u64(),
   spawnId: __t.u64(),
   enemyTemplateId: __t.u64(),
+  enemyRoleTemplateId: __t.option(__t.u64()),
+  displayName: __t.string(),
   currentHp: __t.u64(),
   maxHp: __t.u64(),
   attackDamage: __t.u64(),

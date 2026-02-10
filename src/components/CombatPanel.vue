@@ -172,7 +172,10 @@
         :key="enemy.id.toString()"
         :style="styles.rosterRow"
       >
-        <span :style="styles[enemy.conClass] ?? {}">
+        <span
+          :style="styles[enemy.conClass] ?? {}"
+          :title="enemy.memberNames.length > 0 ? enemy.memberNames.join(', ') : enemy.name"
+        >
           {{ enemy.name }} (Lv {{ enemy.level }}) x{{ enemy.groupCount }}
         </span>
         <div :style="styles.panelFormInline">
@@ -275,6 +278,8 @@ type EnemySummary = {
   name: string;
   level: bigint;
   groupCount: bigint;
+  memberNames: string[];
+  conClass: string;
 };
 
 const props = defineProps<{

@@ -127,22 +127,75 @@ export const registerCombatReducers = (deps: any) => {
     });
   };
 
+  const refreshSpawnGroupCount = (ctx: any, spawnId: bigint) => {
+    let count = 0n;
+    for (const _row of ctx.db.enemySpawnMember.by_spawn.filter(spawnId)) {
+      count += 1n;
+    }
+    const spawn = ctx.db.enemySpawn.id.find(spawnId);
+    if (spawn) {
+      ctx.db.enemySpawn.id.update({ ...spawn, groupCount: count });
+    }
+    return count;
+  };
+
+  const pickRoleTemplate = (ctx: any, templateId: bigint, seed: bigint) => {
+    const roles = [...ctx.db.enemyRoleTemplate.by_template.filter(templateId)];
+    if (roles.length === 0) return null;
+    const index = Number(seed % BigInt(roles.length));
+    return roles[index];
+  };
+
+  const takeSpawnMember = (ctx: any, spawnId: bigint) => {
+    const members = [...ctx.db.enemySpawnMember.by_spawn.filter(spawnId)];
+    if (members.length === 0) return null;
+    const index = Number(
+      (ctx.timestamp.microsSinceUnixEpoch + spawnId) % BigInt(members.length)
+    );
+    const member = members[index];
+    if (!member) return null;
+    ctx.db.enemySpawnMember.id.delete(member.id);
+    refreshSpawnGroupCount(ctx, spawnId);
+    return member;
+  };
+
   const addEnemyToCombat = (
     ctx: any,
     combat: any,
     spawnToUse: any,
     participants: any[],
-    consumeSpawnCount: boolean = true
+    consumeSpawnCount: boolean = true,
+    roleTemplateId?: bigint
   ) => {
     const template = ctx.db.enemyTemplate.id.find(spawnToUse.enemyTemplateId);
     if (!template) throw new SenderError('Enemy template missing');
 
-    const { maxHp, attackDamage, armorClass } = computeEnemyStats(template, participants);
+    let roleTemplate = roleTemplateId
+      ? ctx.db.enemyRoleTemplate.id.find(roleTemplateId)
+      : null;
+    if (!roleTemplate && consumeSpawnCount) {
+      const member = takeSpawnMember(ctx, spawnToUse.id);
+      if (member) {
+        roleTemplate = ctx.db.enemyRoleTemplate.id.find(member.roleTemplateId);
+      }
+    }
+    if (!roleTemplate) {
+      roleTemplate = pickRoleTemplate(
+        ctx,
+        template.id,
+        ctx.timestamp.microsSinceUnixEpoch + spawnToUse.id
+      );
+    }
+
+    const { maxHp, attackDamage, armorClass } = computeEnemyStats(template, roleTemplate, participants);
+    const displayName = roleTemplate?.displayName ?? template.name;
     const combatEnemy = ctx.db.combatEnemy.insert({
       id: 0n,
       combatId: combat.id,
       spawnId: spawnToUse.id,
       enemyTemplateId: template.id,
+      enemyRoleTemplateId: roleTemplate?.id,
+      displayName,
       currentHp: maxHp,
       maxHp,
       attackDamage,
@@ -166,13 +219,14 @@ export const registerCombatReducers = (deps: any) => {
     }
 
     if (consumeSpawnCount) {
-      const nextCount = spawnToUse.groupCount > 0n ? spawnToUse.groupCount - 1n : 0n;
-      ctx.db.enemySpawn.id.update({
-        ...spawnToUse,
-        state: 'engaged',
-        lockedCombatId: combat.id,
-        groupCount: nextCount,
-      });
+      const refreshed = ctx.db.enemySpawn.id.find(spawnToUse.id);
+      if (refreshed) {
+        ctx.db.enemySpawn.id.update({
+          ...refreshed,
+          state: 'engaged',
+          lockedCombatId: combat.id,
+        });
+      }
     } else {
       ctx.db.enemySpawn.id.update({
         ...spawnToUse,
@@ -692,17 +746,17 @@ export const registerCombatReducers = (deps: any) => {
     }
 
     const reserveAdds = (count: number) => {
-      if (count <= 0) return [] as { spawn: any }[];
-      const reserved: { spawn: any }[] = [];
+      if (count <= 0) return [] as { spawn: any; roleTemplateId?: bigint }[];
+      const reserved: { spawn: any; roleTemplateId?: bigint }[] = [];
       const updatedPullSpawn = ctx.db.enemySpawn.id.find(spawn.id);
       const availableFromGroup = updatedPullSpawn ? Number(updatedPullSpawn.groupCount) : 0;
       const groupTake = Math.min(count, availableFromGroup);
       if (groupTake > 0 && updatedPullSpawn) {
-        ctx.db.enemySpawn.id.update({
-          ...updatedPullSpawn,
-          groupCount: updatedPullSpawn.groupCount - BigInt(groupTake),
-        });
-        for (let i = 0; i < groupTake; i += 1) reserved.push({ spawn: updatedPullSpawn });
+        for (let i = 0; i < groupTake; i += 1) {
+          const member = takeSpawnMember(ctx, updatedPullSpawn.id);
+          if (!member) break;
+          reserved.push({ spawn: updatedPullSpawn, roleTemplateId: member.roleTemplateId });
+        }
       }
       let remaining = count - groupTake;
       for (const candidate of candidates) {
@@ -710,13 +764,14 @@ export const registerCombatReducers = (deps: any) => {
         if (!candidate.spawn) continue;
         const candidateSpawn = ctx.db.enemySpawn.id.find(candidate.spawn.id);
         if (!candidateSpawn || candidateSpawn.groupCount === 0n) continue;
+        const member = takeSpawnMember(ctx, candidateSpawn.id);
+        if (!member) continue;
         ctx.db.enemySpawn.id.update({
           ...candidateSpawn,
           state: 'engaged',
           lockedCombatId: combat.id,
-          groupCount: candidateSpawn.groupCount - 1n,
         });
-        reserved.push({ spawn: candidateSpawn });
+        reserved.push({ spawn: candidateSpawn, roleTemplateId: member.roleTemplateId });
         remaining -= 1;
       }
       return reserved;
@@ -731,6 +786,7 @@ export const registerCombatReducers = (deps: any) => {
           id: 0n,
           combatId: combat.id,
           enemyTemplateId: add.spawn.enemyTemplateId,
+          enemyRoleTemplateId: add.roleTemplateId,
           spawnId: add.spawn.id,
           arriveAtMicros: ctx.timestamp.microsSinceUnixEpoch + delayMicros,
         });
@@ -750,7 +806,7 @@ export const registerCombatReducers = (deps: any) => {
       const reserved = reserveAdds(addCount);
       const remainingGroup = ctx.db.enemySpawn.id.find(spawn.id)?.groupCount ?? 0n;
       for (const add of reserved) {
-        addEnemyToCombat(ctx, combat, add.spawn, participants, false);
+        addEnemyToCombat(ctx, combat, add.spawn, participants, false, add.roleTemplateId);
       }
       for (const p of participants) {
         appendPrivateEvent(
@@ -1074,7 +1130,7 @@ export const registerCombatReducers = (deps: any) => {
         continue;
       }
       const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
-      const enemyName = enemyTemplate?.name ?? 'enemy';
+      const enemyName = enemy.displayName ?? enemyTemplate?.name ?? 'enemy';
       const bonus = sumEnemyEffect(ctx, effect.combatId, 'damage_taken', enemy.id);
       const total = effect.magnitude + bonus;
       const nextHp = enemy.currentHp > total ? enemy.currentHp - total : 0n;
@@ -1201,13 +1257,20 @@ export const registerCombatReducers = (deps: any) => {
     const enemyTemplate = enemies[0]
       ? ctx.db.enemyTemplate.id.find(enemies[0].enemyTemplateId)
       : null;
-    const enemyName = enemyTemplate?.name ?? spawnName;
+    const enemyName = enemies[0]?.displayName ?? enemyTemplate?.name ?? spawnName;
 
     for (const pending of ctx.db.combatPendingAdd.by_combat.filter(combat.id)) {
       if (pending.arriveAtMicros > nowMicros) continue;
       const spawnRow = pending.spawnId ? ctx.db.enemySpawn.id.find(pending.spawnId) : null;
       if (spawnRow) {
-        addEnemyToCombat(ctx, combat, spawnRow, participants, false);
+        addEnemyToCombat(
+          ctx,
+          combat,
+          spawnRow,
+          participants,
+          false,
+          pending.enemyRoleTemplateId ?? undefined
+        );
       }
       ctx.db.combatPendingAdd.id.delete(pending.id);
       for (const p of activeParticipants) {
@@ -1393,7 +1456,7 @@ export const registerCombatReducers = (deps: any) => {
         null;
       if (!currentEnemy || currentEnemy.currentHp === 0n) continue;
       const enemyTemplate = ctx.db.enemyTemplate.id.find(currentEnemy.enemyTemplateId);
-      const targetName = enemyTemplate?.name ?? 'enemy';
+      const targetName = currentEnemy.displayName ?? enemyTemplate?.name ?? 'enemy';
       const weapon = deps.getEquippedWeaponStats(ctx, character.id);
       const damage =
         5n +
@@ -1469,7 +1532,7 @@ export const registerCombatReducers = (deps: any) => {
           ? enemyTemplates.reduce((sum, template) => sum + template.level, 0n) /
             BigInt(enemyTemplates.length)
           : 1n;
-      const primaryName = enemyTemplates[0]?.name ?? enemyName;
+      const primaryName = enemies[0]?.displayName ?? enemyTemplates[0]?.name ?? enemyName;
 
       for (const enemyRow of enemies) {
         const spawn = ctx.db.enemySpawn.id.find(enemyRow.spawnId);
@@ -1477,6 +1540,9 @@ export const registerCombatReducers = (deps: any) => {
         if (spawn.groupCount > 0n) {
           ctx.db.enemySpawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
         } else {
+          for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawn.id)) {
+            ctx.db.enemySpawnMember.id.delete(member.id);
+          }
           ctx.db.enemySpawn.id.delete(spawn.id);
           deps.spawnEnemy(ctx, spawn.locationId, 1n);
         }
@@ -1637,7 +1703,7 @@ export const registerCombatReducers = (deps: any) => {
       }
       const enemySnapshot = ctx.db.combatEnemy.id.find(enemy.id);
       const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
-      const name = enemyTemplate?.name ?? enemyName;
+      const name = enemySnapshot?.displayName ?? enemyTemplate?.name ?? enemyName;
       if (topAggro && enemySnapshot && enemySnapshot.nextAutoAttackAt <= nowMicros) {
         const skipEffect = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find(
           (effect) => effect.effectType === 'skip'
@@ -1728,9 +1794,11 @@ export const registerCombatReducers = (deps: any) => {
     }
     if (!stillActive) {
       const enemyName =
+        enemies[0]?.displayName ??
         [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
           (s) => s.lockedCombatId === combat.id
-        )?.name ?? 'enemy';
+        )?.name ??
+        'enemy';
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (character && character.hp === 0n && p.status !== 'dead') {
@@ -1741,7 +1809,29 @@ export const registerCombatReducers = (deps: any) => {
         (s) => s.lockedCombatId === combat.id
       );
       if (spawn) {
-        ctx.db.enemySpawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
+        for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawn.id)) {
+          ctx.db.enemySpawnMember.id.delete(member.id);
+        }
+        let count = 0n;
+        for (const enemyRow of enemies) {
+          if (enemyRow.spawnId !== spawn.id) continue;
+          if (enemyRow.currentHp === 0n) continue;
+          if (enemyRow.enemyRoleTemplateId) {
+            ctx.db.enemySpawnMember.insert({
+              id: 0n,
+              spawnId: spawn.id,
+              enemyTemplateId: enemyRow.enemyTemplateId,
+              roleTemplateId: enemyRow.enemyRoleTemplateId,
+            });
+            count += 1n;
+          }
+        }
+        ctx.db.enemySpawn.id.update({
+          ...spawn,
+          state: 'available',
+          lockedCombatId: undefined,
+          groupCount: count,
+        });
       }
       const fallenNames = participants
         .filter((p) => {

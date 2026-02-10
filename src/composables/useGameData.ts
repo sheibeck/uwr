@@ -19,8 +19,10 @@ export const useGameData = () => {
   const [npcs] = useTable(tables.npc);
   const [vendorInventory] = useTable(tables.vendorInventory);
   const [enemyTemplates] = useTable(tables.enemyTemplate);
+  const [enemyRoleTemplates] = useTable(tables.enemyRoleTemplate);
   const [enemyAbilities] = useTable(tables.enemyAbility);
   const [enemySpawns] = useTable(tables.enemySpawn);
+  const [enemySpawnMembers] = useTable(tables.enemySpawnMember);
   const [combatEncounters] = useTable(tables.combatEncounter);
   const [combatParticipants] = useTable(tables.combatParticipant);
   const [combatEnemies] = useTable(tables.combatEnemy);
@@ -61,8 +63,10 @@ export const useGameData = () => {
     npcs,
     vendorInventory,
     enemyTemplates,
+    enemyRoleTemplates,
     enemyAbilities,
     enemySpawns,
+    enemySpawnMembers,
     combatEncounters,
     combatParticipants,
     combatEnemies,

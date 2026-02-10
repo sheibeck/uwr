@@ -425,6 +425,23 @@ const EnemyTemplate = table(
   }
 );
 
+const EnemyRoleTemplate = table(
+  {
+    name: 'enemy_role_template',
+    public: true,
+    indexes: [{ name: 'by_template', algorithm: 'btree', columns: ['enemyTemplateId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    enemyTemplateId: t.u64(),
+    roleKey: t.string(),
+    displayName: t.string(),
+    role: t.string(),
+    roleDetail: t.string(),
+    abilityProfile: t.string(),
+  }
+);
+
 const EnemyAbility = table(
   {
     name: 'enemy_ability',
@@ -542,6 +559,20 @@ const EnemySpawn = table(
   }
 );
 
+const EnemySpawnMember = table(
+  {
+    name: 'enemy_spawn_member',
+    public: true,
+    indexes: [{ name: 'by_spawn', algorithm: 'btree', columns: ['spawnId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    spawnId: t.u64(),
+    enemyTemplateId: t.u64(),
+    roleTemplateId: t.u64(),
+  }
+);
+
 const PullState = table(
   {
     name: 'pull_state',
@@ -650,6 +681,8 @@ const CombatEnemy = table(
     combatId: t.u64(),
     spawnId: t.u64(),
     enemyTemplateId: t.u64(),
+    enemyRoleTemplateId: t.u64().optional(),
+    displayName: t.string(),
     currentHp: t.u64(),
     maxHp: t.u64(),
     attackDamage: t.u64(),
@@ -707,6 +740,7 @@ const CombatPendingAdd = table(
     id: t.u64().primaryKey().autoInc(),
     combatId: t.u64(),
     enemyTemplateId: t.u64(),
+    enemyRoleTemplateId: t.u64().optional(),
     spawnId: t.u64().optional(),
     arriveAtMicros: t.u64(),
   }
@@ -922,12 +956,14 @@ export const spacetimedb = schema(
   GroupMember,
   GroupInvite,
   EnemyTemplate,
+  EnemyRoleTemplate,
   EnemyAbility,
   VendorInventory,
   LootTable,
   LootTableEntry,
   LocationEnemyTemplate,
   EnemySpawn,
+  EnemySpawnMember,
   PullState,
   PullTick,
   CombatEncounter,
@@ -1448,7 +1484,7 @@ function executeAbility(
     enemies[0] ??
     null;
   const enemyTemplate = enemy ? ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId) : null;
-  const enemyName = enemyTemplate?.name ?? 'enemy';
+  const enemyName = enemy?.displayName ?? enemyTemplate?.name ?? 'enemy';
   const weapon = getEquippedWeaponStats(ctx, character.id);
   const baseWeaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
   const damageUp = sumCharacterEffect(ctx, character.id, 'damage_up');
@@ -2191,7 +2227,7 @@ function executeEnemyAbility(
   const enemy = ctx.db.combatEnemy.id.find(enemyId);
   if (!enemy) return;
   const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
-  const enemyName = enemyTemplate?.name ?? 'Enemy';
+  const enemyName = enemy.displayName ?? enemyTemplate?.name ?? 'Enemy';
   const targetId = targetCharacterId ?? getTopAggroId(ctx, combatId, enemy.id);
   if (!targetId) return;
   const target = ctx.db.character.id.find(targetId);
@@ -2531,9 +2567,11 @@ function applyArmorMitigation(damage: bigint, armorClass: bigint) {
 
 function computeEnemyStats(
   template: typeof EnemyTemplate.rowType,
+  roleTemplate: typeof EnemyRoleTemplate.rowType | null,
   participants: typeof Character.rowType[]
 ) {
-  const role = getEnemyRole(template.role);
+  const roleKey = roleTemplate?.role ?? template.role;
+  const role = getEnemyRole(roleKey);
   const effectiveLevel = template.level;
   const baseHp = role.baseHp + role.hpPerLevel * effectiveLevel;
   const baseDamage = role.baseDamage + role.damagePerLevel * effectiveLevel;
@@ -2713,6 +2751,53 @@ function ensureLocationEnemyTemplates(ctx: any) {
   }
 }
 
+function getEnemyRoleTemplates(ctx: any, templateId: bigint) {
+  return [...ctx.db.enemyRoleTemplate.by_template.filter(templateId)];
+}
+
+function pickRoleTemplate(
+  ctx: any,
+  templateId: bigint,
+  seed: bigint
+): typeof EnemyRoleTemplate.rowType | null {
+  const roles = getEnemyRoleTemplates(ctx, templateId);
+  if (roles.length === 0) return null;
+  const index = Number(seed % BigInt(roles.length));
+  return roles[index];
+}
+
+function seedSpawnMembers(
+  ctx: any,
+  spawnId: bigint,
+  templateId: bigint,
+  count: bigint,
+  seed: bigint
+) {
+  const total = Number(count);
+  for (let i = 0; i < total; i += 1) {
+    const role = pickRoleTemplate(ctx, templateId, seed + BigInt(i) * 7n);
+    if (!role) continue;
+    ctx.db.enemySpawnMember.insert({
+      id: 0n,
+      spawnId,
+      enemyTemplateId: templateId,
+      roleTemplateId: role.id,
+    });
+  }
+}
+
+function refreshSpawnGroupCount(ctx: any, spawnId: bigint) {
+  let count = 0n;
+  for (const _row of ctx.db.enemySpawnMember.by_spawn.filter(spawnId)) {
+    count += 1n;
+  }
+  const spawn = ctx.db.enemySpawn.id.find(spawnId);
+  if (spawn) {
+    ctx.db.enemySpawn.id.update({ ...spawn, groupCount: count });
+  }
+  return count;
+}
+
 function spawnEnemy(
   ctx: any,
   locationId: bigint,
@@ -2785,6 +2870,9 @@ function spawnEnemy(
     lockedCombatId: undefined,
     groupCount,
   });
+
+  seedSpawnMembers(ctx, spawn.id, chosen.id, groupCount, groupSeed);
+  refreshSpawnGroupCount(ctx, spawn.id);
 
   ctx.db.enemySpawn.id.update({
     ...spawn,
@@ -2898,6 +2986,9 @@ function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
 function respawnLocationSpawns(ctx: any, locationId: bigint, desired: number) {
   for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
     if (row.state === 'available') {
+      for (const member of ctx.db.enemySpawnMember.by_spawn.filter(row.id)) {
+        ctx.db.enemySpawnMember.id.delete(member.id);
+      }
       ctx.db.enemySpawn.id.delete(row.id);
     }
   }
@@ -3102,12 +3193,31 @@ spacetimedb.init((ctx) => {
   }
 
   if (!tableHasRows(ctx.db.enemyTemplate.iter())) {
+    const addRoleTemplate = (
+      template: typeof EnemyTemplate.rowType,
+      roleKey: string,
+      displayName: string,
+      role: string,
+      roleDetail: string,
+      abilityProfile: string
+    ) => {
+      ctx.db.enemyRoleTemplate.insert({
+        id: 0n,
+        enemyTemplateId: template.id,
+        roleKey,
+        displayName,
+        role,
+        roleDetail,
+        abilityProfile,
+      });
+    };
+
     const bogRat = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Bog Rat',
-      role: 'tank',
-      roleDetail: 'melee',
-      abilityProfile: 'thick hide, taunt',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'swamp',
       creatureType: 'animal',
       timeOfDay: 'any',
@@ -3122,12 +3232,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 4n,
       xpReward: 12n,
     });
+    addRoleTemplate(bogRat, 'bog_rat', 'Bog Rat', 'tank', 'melee', 'thick hide, taunt');
+
     const emberWisp = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Ember Wisp',
-      role: 'dps',
-      roleDetail: 'magic',
-      abilityProfile: 'fire bolts, ignite',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'plains,mountains',
       creatureType: 'spirit',
       timeOfDay: 'night',
@@ -3142,12 +3254,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 6n,
       xpReward: 20n,
     });
-    const banditArcher = ctx.db.enemyTemplate.insert({
+    addRoleTemplate(emberWisp, 'ember_wisp', 'Ember Wisp', 'dps', 'magic', 'fire bolts, ignite');
+
+    const bandit = ctx.db.enemyTemplate.insert({
       id: 0n,
-      name: 'Bandit Archer',
-      role: 'dps',
-      roleDetail: 'ranged',
-      abilityProfile: 'rapid shot, bleed',
+      name: 'Bandit',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'plains,woods',
       creatureType: 'humanoid',
       timeOfDay: 'day',
@@ -3162,12 +3276,15 @@ spacetimedb.init((ctx) => {
       baseDamage: 7n,
       xpReward: 18n,
     });
+    addRoleTemplate(bandit, 'bandit_archer', 'Bandit Archer', 'dps', 'ranged', 'rapid shot, bleed');
+    addRoleTemplate(bandit, 'bandit_ruffian', 'Bandit Ruffian', 'tank', 'melee', 'shield bash, taunt');
+
     const blightStalker = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Blight Stalker',
-      role: 'dps',
-      roleDetail: 'melee',
-      abilityProfile: 'pounce, shred',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'woods,swamp',
       creatureType: 'beast',
       timeOfDay: 'night',
@@ -3182,12 +3299,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 8n,
       xpReward: 24n,
     });
+    addRoleTemplate(blightStalker, 'blight_stalker', 'Blight Stalker', 'dps', 'melee', 'pounce, shred');
+
     const graveAcolyte = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Grave Acolyte',
-      role: 'healer',
-      roleDetail: 'support',
-      abilityProfile: 'mend, cleanse',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'town,city',
       creatureType: 'undead',
       timeOfDay: 'night',
@@ -3202,12 +3321,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 4n,
       xpReward: 18n,
     });
+    addRoleTemplate(graveAcolyte, 'grave_acolyte', 'Grave Acolyte', 'healer', 'support', 'mend, cleanse');
+
     const hexbinder = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Hexbinder',
-      role: 'support',
-      roleDetail: 'control',
-      abilityProfile: 'weaken, slow, snare',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'woods,swamp',
       creatureType: 'humanoid',
       timeOfDay: 'night',
@@ -3222,12 +3343,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 5n,
       xpReward: 22n,
     });
+    addRoleTemplate(hexbinder, 'hexbinder', 'Hexbinder', 'support', 'control', 'weaken, slow, snare');
+
     const thicketWolf = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Thicket Wolf',
-      role: 'dps',
-      roleDetail: 'melee',
-      abilityProfile: 'pack bite, lunge',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'woods,plains',
       creatureType: 'animal',
       timeOfDay: 'day',
@@ -3242,12 +3365,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 4n,
       xpReward: 12n,
     });
+    addRoleTemplate(thicketWolf, 'thicket_wolf', 'Thicket Wolf', 'dps', 'melee', 'pack bite, lunge');
+
     const marshCroaker = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Marsh Croaker',
-      role: 'dps',
-      roleDetail: 'melee',
-      abilityProfile: 'tongue lash, croak',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'swamp',
       creatureType: 'animal',
       timeOfDay: 'day',
@@ -3262,12 +3387,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 3n,
       xpReward: 10n,
     });
+    addRoleTemplate(marshCroaker, 'marsh_croaker', 'Marsh Croaker', 'dps', 'melee', 'tongue lash, croak');
+
     const dustHare = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Dust Hare',
-      role: 'dps',
-      roleDetail: 'melee',
-      abilityProfile: 'dart, nip',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'plains',
       creatureType: 'animal',
       timeOfDay: 'day',
@@ -3282,12 +3409,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 3n,
       xpReward: 10n,
     });
+    addRoleTemplate(dustHare, 'dust_hare', 'Dust Hare', 'dps', 'melee', 'dart, nip');
+
     const ashJackal = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Ash Jackal',
-      role: 'dps',
-      roleDetail: 'melee',
-      abilityProfile: 'snap, pack feint',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'plains',
       creatureType: 'beast',
       timeOfDay: 'any',
@@ -3302,12 +3431,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 6n,
       xpReward: 18n,
     });
+    addRoleTemplate(ashJackal, 'ash_jackal', 'Ash Jackal', 'dps', 'melee', 'snap, pack feint');
+
     const thornSprite = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Thorn Sprite',
-      role: 'support',
-      roleDetail: 'magic',
-      abilityProfile: 'sting, wither pollen',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'woods',
       creatureType: 'spirit',
       timeOfDay: 'night',
@@ -3322,12 +3453,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 4n,
       xpReward: 16n,
     });
+    addRoleTemplate(thornSprite, 'thorn_sprite', 'Thorn Sprite', 'support', 'magic', 'sting, wither pollen');
+
     const gloomStag = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Gloom Stag',
-      role: 'tank',
-      roleDetail: 'melee',
-      abilityProfile: 'gore, bulwark',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'woods',
       creatureType: 'beast',
       timeOfDay: 'any',
@@ -3342,12 +3475,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 7n,
       xpReward: 24n,
     });
+    addRoleTemplate(gloomStag, 'gloom_stag', 'Gloom Stag', 'tank', 'melee', 'gore, bulwark');
+
     const mireLeech = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Mire Leech',
-      role: 'dps',
-      roleDetail: 'melee',
-      abilityProfile: 'drain, latch',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'swamp',
       creatureType: 'beast',
       timeOfDay: 'any',
@@ -3362,12 +3497,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 6n,
       xpReward: 18n,
     });
+    addRoleTemplate(mireLeech, 'mire_leech', 'Mire Leech', 'dps', 'melee', 'drain, latch');
+
     const fenWitch = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Fen Witch',
-      role: 'support',
-      roleDetail: 'magic',
-      abilityProfile: 'curse, mire ward',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'swamp',
       creatureType: 'humanoid',
       timeOfDay: 'night',
@@ -3382,12 +3519,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 6n,
       xpReward: 22n,
     });
+    addRoleTemplate(fenWitch, 'fen_witch', 'Fen Witch', 'support', 'magic', 'curse, mire ward');
+
     const graveSkirmisher = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Grave Skirmisher',
-      role: 'dps',
-      roleDetail: 'melee',
-      abilityProfile: 'rusty slash, feint',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'town,city',
       creatureType: 'undead',
       timeOfDay: 'day',
@@ -3402,12 +3541,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 6n,
       xpReward: 18n,
     });
+    addRoleTemplate(graveSkirmisher, 'grave_skirmisher', 'Grave Skirmisher', 'dps', 'melee', 'rusty slash, feint');
+
     const cinderSentinel = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Cinder Sentinel',
-      role: 'tank',
-      roleDetail: 'melee',
-      abilityProfile: 'stone wall, slam',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'mountains,plains',
       creatureType: 'construct',
       timeOfDay: 'day',
@@ -3422,12 +3563,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 6n,
       xpReward: 26n,
     });
+    addRoleTemplate(cinderSentinel, 'cinder_sentinel', 'Cinder Sentinel', 'tank', 'melee', 'stone wall, slam');
+
     const emberling = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Emberling',
-      role: 'support',
-      roleDetail: 'magic',
-      abilityProfile: 'ember spark, kindle',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'mountains,plains',
       creatureType: 'spirit',
       timeOfDay: 'day',
@@ -3442,12 +3585,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 4n,
       xpReward: 12n,
     });
+    addRoleTemplate(emberling, 'emberling', 'Emberling', 'support', 'magic', 'ember spark, kindle');
+
     const frostboneAcolyte = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Frostbone Acolyte',
-      role: 'healer',
-      roleDetail: 'support',
-      abilityProfile: 'ice mend, ward',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'mountains,city',
       creatureType: 'undead',
       timeOfDay: 'night',
@@ -3462,12 +3607,21 @@ spacetimedb.init((ctx) => {
       baseDamage: 6n,
       xpReward: 30n,
     });
+    addRoleTemplate(
+      frostboneAcolyte,
+      'frostbone_acolyte',
+      'Frostbone Acolyte',
+      'healer',
+      'support',
+      'ice mend, ward'
+    );
+
     const ridgeSkirmisher = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Ridge Skirmisher',
-      role: 'dps',
-      roleDetail: 'melee',
-      abilityProfile: 'rock slash, feint',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'mountains',
       creatureType: 'humanoid',
       timeOfDay: 'day',
@@ -3482,12 +3636,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 7n,
       xpReward: 24n,
     });
+    addRoleTemplate(ridgeSkirmisher, 'ridge_skirmisher', 'Ridge Skirmisher', 'dps', 'melee', 'rock slash, feint');
+
     const emberhawk = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Emberhawk',
-      role: 'dps',
-      roleDetail: 'ranged',
-      abilityProfile: 'burning dive',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'mountains,plains',
       creatureType: 'beast',
       timeOfDay: 'day',
@@ -3502,12 +3658,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 8n,
       xpReward: 30n,
     });
+    addRoleTemplate(emberhawk, 'emberhawk', 'Emberhawk', 'dps', 'ranged', 'burning dive');
+
     const basaltBrute = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Basalt Brute',
-      role: 'tank',
-      roleDetail: 'melee',
-      abilityProfile: 'stone slam, brace',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'mountains',
       creatureType: 'construct',
       timeOfDay: 'any',
@@ -3522,12 +3680,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 7n,
       xpReward: 32n,
     });
+    addRoleTemplate(basaltBrute, 'basalt_brute', 'Basalt Brute', 'tank', 'melee', 'stone slam, brace');
+
     const graveServant = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Grave Servant',
-      role: 'tank',
-      roleDetail: 'melee',
-      abilityProfile: 'shield crush, watchful',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'town,city',
       creatureType: 'undead',
       timeOfDay: 'night',
@@ -3542,12 +3702,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 6n,
       xpReward: 24n,
     });
+    addRoleTemplate(graveServant, 'grave_servant', 'Grave Servant', 'tank', 'melee', 'shield crush, watchful');
+
     const alleyShade = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Alley Shade',
-      role: 'dps',
-      roleDetail: 'melee',
-      abilityProfile: 'shadow cut, vanish',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'town,city',
       creatureType: 'undead',
       timeOfDay: 'night',
@@ -3562,12 +3724,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 9n,
       xpReward: 30n,
     });
+    addRoleTemplate(alleyShade, 'alley_shade', 'Alley Shade', 'dps', 'melee', 'shadow cut, vanish');
+
     const vaultSentinel = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Vault Sentinel',
-      role: 'tank',
-      roleDetail: 'melee',
-      abilityProfile: 'iron guard, shield bash',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'dungeon',
       creatureType: 'construct',
       timeOfDay: 'any',
@@ -3582,12 +3746,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 7n,
       xpReward: 34n,
     });
+    addRoleTemplate(vaultSentinel, 'vault_sentinel', 'Vault Sentinel', 'tank', 'melee', 'iron guard, shield bash');
+
     const sootboundMystic = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Sootbound Mystic',
-      role: 'support',
-      roleDetail: 'magic',
-      abilityProfile: 'cinder hex, ember veil',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'dungeon',
       creatureType: 'humanoid',
       timeOfDay: 'any',
@@ -3602,12 +3768,21 @@ spacetimedb.init((ctx) => {
       baseDamage: 8n,
       xpReward: 38n,
     });
+    addRoleTemplate(
+      sootboundMystic,
+      'sootbound_mystic',
+      'Sootbound Mystic',
+      'support',
+      'magic',
+      'cinder hex, ember veil'
+    );
+
     const emberPriest = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Ember Priest',
-      role: 'healer',
-      roleDetail: 'support',
-      abilityProfile: 'ashen mend, warding flame',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'dungeon',
       creatureType: 'humanoid',
       timeOfDay: 'any',
@@ -3622,12 +3797,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 6n,
       xpReward: 36n,
     });
+    addRoleTemplate(emberPriest, 'ember_priest', 'Ember Priest', 'healer', 'support', 'ashen mend, warding flame');
+
     const ashforgedRevenant = ctx.db.enemyTemplate.insert({
       id: 0n,
       name: 'Ashforged Revenant',
-      role: 'dps',
-      roleDetail: 'melee',
-      abilityProfile: 'searing cleave, molten strike',
+      role: 'base',
+      roleDetail: 'base',
+      abilityProfile: '',
       terrainTypes: 'dungeon',
       creatureType: 'undead',
       timeOfDay: 'any',
@@ -3642,6 +3819,14 @@ spacetimedb.init((ctx) => {
       baseDamage: 10n,
       xpReward: 44n,
     });
+    addRoleTemplate(
+      ashforgedRevenant,
+      'ashforged_revenant',
+      'Ashforged Revenant',
+      'dps',
+      'melee',
+      'searing cleave, molten strike'
+    );
     if (!tableHasRows(ctx.db.enemyAbility.iter())) {
       const addEnemyAbility = (
         templateId: bigint,
@@ -3665,7 +3850,7 @@ spacetimedb.init((ctx) => {
       };
       addEnemyAbility(bogRat.id, 'poison_bite', 'Poison Bite', 'dot', 3n, 20n, 'aggro');
       addEnemyAbility(emberWisp.id, 'ember_burn', 'Ember Burn', 'dot', 2n, 18n, 'aggro');
-      addEnemyAbility(banditArcher.id, 'bleeding_shot', 'Bleeding Shot', 'dot', 1n, 15n, 'aggro');
+      addEnemyAbility(bandit.id, 'bleeding_shot', 'Bleeding Shot', 'dot', 1n, 15n, 'aggro');
       addEnemyAbility(blightStalker.id, 'shadow_rend', 'Shadow Rend', 'dot', 2n, 18n, 'aggro');
       addEnemyAbility(graveAcolyte.id, 'sapping_chant', 'Sapping Chant', 'debuff', 2n, 20n, 'aggro');
       addEnemyAbility(hexbinder.id, 'withering_hex', 'Withering Hex', 'debuff', 2n, 20n, 'aggro');
@@ -3690,6 +3875,21 @@ spacetimedb.init((ctx) => {
       addEnemyAbility(sootboundMystic.id, 'soot_hex', 'Soot Hex', 'debuff', 2n, 18n, 'aggro');
       addEnemyAbility(emberPriest.id, 'cinder_blight', 'Cinder Blight', 'dot', 2n, 16n, 'aggro');
       addEnemyAbility(ashforgedRevenant.id, 'molten_bleed', 'Molten Bleed', 'dot', 3n, 20n, 'aggro');
+    }
+  }
+
+  if (!tableHasRows(ctx.db.enemyRoleTemplate.iter())) {
+    for (const template of ctx.db.enemyTemplate.iter()) {
+      const roleKey = template.name.toLowerCase().replace(/\s+/g, '_');
+      ctx.db.enemyRoleTemplate.insert({
+        id: 0n,
+        enemyTemplateId: template.id,
+        roleKey,
+        displayName: template.name,
+        role: template.role ?? 'dps',
+        roleDetail: template.roleDetail ?? 'melee',
+        abilityProfile: template.abilityProfile ?? '',
+      });
     }
   }
 

@@ -10,13 +10,11 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("CombatPendingAdd", {
+export default __t.object("EnemySpawnMember", {
   id: __t.u64(),
-  combatId: __t.u64(),
+  spawnId: __t.u64(),
   enemyTemplateId: __t.u64(),
-  enemyRoleTemplateId: __t.option(__t.u64()),
-  spawnId: __t.option(__t.u64()),
-  arriveAtMicros: __t.u64(),
+  roleTemplateId: __t.u64(),
 });
 
 

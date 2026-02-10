@@ -184,8 +184,12 @@ import EffectTickRow from "./effect_tick_table";
 export { EffectTickRow };
 import EnemyAbilityRow from "./enemy_ability_table";
 export { EnemyAbilityRow };
+import EnemyRoleTemplateRow from "./enemy_role_template_table";
+export { EnemyRoleTemplateRow };
 import EnemySpawnRow from "./enemy_spawn_table";
 export { EnemySpawnRow };
+import EnemySpawnMemberRow from "./enemy_spawn_member_table";
+export { EnemySpawnMemberRow };
 import EnemyTemplateRow from "./enemy_template_table";
 export { EnemyTemplateRow };
 import EventGroupRow from "./event_group_table";
@@ -338,8 +342,12 @@ import EndCombat from "./end_combat_type";
 export { EndCombat };
 import EnemyAbility from "./enemy_ability_type";
 export { EnemyAbility };
+import EnemyRoleTemplate from "./enemy_role_template_type";
+export { EnemyRoleTemplate };
 import EnemySpawn from "./enemy_spawn_type";
 export { EnemySpawn };
+import EnemySpawnMember from "./enemy_spawn_member_type";
+export { EnemySpawnMember };
 import EnemyTemplate from "./enemy_template_type";
 export { EnemyTemplate };
 import EquipItem from "./equip_item_type";
@@ -819,6 +827,20 @@ const tablesSchema = __schema(
     ],
   }, EnemyAbilityRow),
   __table({
+    name: 'enemy_role_template',
+    indexes: [
+      { name: 'by_template', algorithm: 'btree', columns: [
+        'enemyTemplateId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'enemy_role_template_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, EnemyRoleTemplateRow),
+  __table({
     name: 'enemy_spawn',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -835,6 +857,20 @@ const tablesSchema = __schema(
       { name: 'enemy_spawn_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EnemySpawnRow),
+  __table({
+    name: 'enemy_spawn_member',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_spawn', algorithm: 'btree', columns: [
+        'spawnId',
+      ] },
+    ],
+    constraints: [
+      { name: 'enemy_spawn_member_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, EnemySpawnMemberRow),
   __table({
     name: 'enemy_template',
     indexes: [
