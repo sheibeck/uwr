@@ -1,5 +1,178 @@
 import { ENEMY_ABILITIES } from '../data/ability_catalog';
 
+const AUTO_ATTACK_INTERVAL = 5_000_000n;
+const RETRY_ATTACK_INTERVAL = 1_000_000n;
+const DEFAULT_AI_CHANCE = 50;
+const DEFAULT_AI_WEIGHT = 50;
+const DEFAULT_AI_RANDOMNESS = 15;
+const PULL_DELAY_CAREFUL = 2_000_000n;
+const PULL_DELAY_BODY = 1_000_000n;
+const PULL_ADD_DELAY_ROUNDS = 2n;
+const PULL_ALLOW_EXTERNAL_ADDS = false;
+
+const refreshSpawnGroupCount = (ctx: any, spawnId: bigint) => {
+  const spawn = ctx.db.enemySpawn.id.find(spawnId);
+  if (!spawn) return;
+  const remaining = [...ctx.db.enemySpawnMember.by_spawn.filter(spawnId)].length;
+  ctx.db.enemySpawn.id.update({
+    ...spawn,
+    groupCount: BigInt(remaining),
+    state: remaining > 0 ? spawn.state : 'depleted',
+  });
+};
+
+const pickRoleTemplate = (ctx: any, templateId: bigint, seed: bigint) => {
+  const options = [...ctx.db.enemyRoleTemplate.by_template.filter(templateId)];
+  if (options.length === 0) return null;
+  const index = Number(seed % BigInt(options.length));
+  return options[index] ?? options[0];
+};
+
+const takeSpawnMember = (ctx: any, spawnId: bigint) => {
+  const members = [...ctx.db.enemySpawnMember.by_spawn.filter(spawnId)];
+  if (members.length === 0) return null;
+  const index = Number(
+    (ctx.timestamp.microsSinceUnixEpoch + spawnId) % BigInt(members.length)
+  );
+  const member = members[index];
+  if (!member) return null;
+  ctx.db.enemySpawnMember.id.delete(member.id);
+  refreshSpawnGroupCount(ctx, spawnId);
+  return member;
+};
+
+const addEnemyToCombat = (
+  deps: any,
+  ctx: any,
+  combat: any,
+  spawnToUse: any,
+  participants: any[],
+  consumeSpawnCount: boolean = true,
+  roleTemplateId?: bigint
+) => {
+  const { SenderError, computeEnemyStats } = deps;
+  const template = ctx.db.enemyTemplate.id.find(spawnToUse.enemyTemplateId);
+  if (!template) throw new SenderError('Enemy template missing');
+
+  let roleTemplate = roleTemplateId
+    ? ctx.db.enemyRoleTemplate.id.find(roleTemplateId)
+    : null;
+  if (!roleTemplate && consumeSpawnCount) {
+    const member = takeSpawnMember(ctx, spawnToUse.id);
+    if (member) {
+      roleTemplate = ctx.db.enemyRoleTemplate.id.find(member.roleTemplateId);
+    }
+  }
+  if (!roleTemplate) {
+    roleTemplate = pickRoleTemplate(
+      ctx,
+      template.id,
+      ctx.timestamp.microsSinceUnixEpoch + spawnToUse.id
+    );
+  }
+
+  const { maxHp, attackDamage, armorClass } = computeEnemyStats(
+    template,
+    roleTemplate,
+    participants
+  );
+  const displayName = roleTemplate?.displayName ?? template.name;
+  const combatEnemy = ctx.db.combatEnemy.insert({
+    id: 0n,
+    combatId: combat.id,
+    spawnId: spawnToUse.id,
+    enemyTemplateId: template.id,
+    enemyRoleTemplateId: roleTemplate?.id,
+    displayName,
+    currentHp: maxHp,
+    maxHp,
+    attackDamage,
+    armorClass,
+    aggroTargetCharacterId: undefined,
+    nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
+  });
+
+  for (const p of participants) {
+    ctx.db.aggroEntry.insert({
+      id: 0n,
+      combatId: combat.id,
+      enemyId: combatEnemy.id,
+      characterId: p.id,
+      value: 0n,
+    });
+    const current = ctx.db.character.id.find(p.id);
+    if (current && !current.combatTargetEnemyId) {
+      ctx.db.character.id.update({ ...current, combatTargetEnemyId: combatEnemy.id });
+    }
+  }
+
+  if (consumeSpawnCount) {
+    const refreshed = ctx.db.enemySpawn.id.find(spawnToUse.id);
+    if (refreshed) {
+      ctx.db.enemySpawn.id.update({
+        ...refreshed,
+        state: 'engaged',
+        lockedCombatId: combat.id,
+      });
+    }
+  } else {
+    ctx.db.enemySpawn.id.update({
+      ...spawnToUse,
+      state: 'engaged',
+      lockedCombatId: combat.id,
+    });
+  }
+
+  return combatEnemy;
+};
+
+export const startCombatForSpawn = (
+  deps: any,
+  ctx: any,
+  leader: any,
+  spawnToUse: any,
+  participants: any[],
+  groupId: bigint | null
+) => {
+  const { appendPrivateEvent, scheduleCombatTick } = deps;
+  const combat = ctx.db.combatEncounter.insert({
+    id: 0n,
+    locationId: leader.locationId,
+    groupId: groupId ?? undefined,
+    leaderCharacterId: groupId ? leader.id : undefined,
+    state: 'active',
+    addCount: 0n,
+    pendingAddCount: 0n,
+    pendingAddAtMicros: undefined,
+    createdAt: ctx.timestamp,
+  });
+
+  addEnemyToCombat(deps, ctx, combat, spawnToUse, participants);
+
+  for (const p of participants) {
+    ctx.db.combatParticipant.insert({
+      id: 0n,
+      combatId: combat.id,
+      characterId: p.id,
+      status: 'active',
+      nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
+    });
+  }
+
+  for (const p of participants) {
+    appendPrivateEvent(
+      ctx,
+      p.id,
+      p.ownerUserId,
+      'combat',
+      `Combat begins against ${spawnToUse.name}.`
+    );
+  }
+
+  scheduleCombatTick(ctx, combat.id);
+  return combat;
+};
+
 export const registerCombatReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -35,16 +208,6 @@ export const registerCombatReducers = (deps: any) => {
     PullState,
     PullTick,
   } = deps;
-
-  const AUTO_ATTACK_INTERVAL = 5_000_000n;
-  const RETRY_ATTACK_INTERVAL = 1_000_000n;
-  const DEFAULT_AI_CHANCE = 50;
-  const DEFAULT_AI_WEIGHT = 50;
-  const DEFAULT_AI_RANDOMNESS = 15;
-  const PULL_DELAY_CAREFUL = 2_000_000n;
-  const PULL_DELAY_BODY = 1_000_000n;
-  const PULL_ADD_DELAY_ROUNDS = 2n;
-  const PULL_ALLOW_EXTERNAL_ADDS = false;
 
   const clearCharacterEffectsOnDeath = (ctx: any, character: any) => {
     for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
@@ -128,162 +291,6 @@ export const registerCombatReducers = (deps: any) => {
       scheduledAt: ScheduleAt.time(resolveAtMicros),
       pullId,
     });
-  };
-
-  const refreshSpawnGroupCount = (ctx: any, spawnId: bigint) => {
-    let count = 0n;
-    for (const _row of ctx.db.enemySpawnMember.by_spawn.filter(spawnId)) {
-      count += 1n;
-    }
-    const spawn = ctx.db.enemySpawn.id.find(spawnId);
-    if (spawn) {
-      ctx.db.enemySpawn.id.update({ ...spawn, groupCount: count });
-    }
-    return count;
-  };
-
-  const pickRoleTemplate = (ctx: any, templateId: bigint, seed: bigint) => {
-    const roles = [...ctx.db.enemyRoleTemplate.by_template.filter(templateId)];
-    if (roles.length === 0) return null;
-    const index = Number(seed % BigInt(roles.length));
-    return roles[index];
-  };
-
-  const takeSpawnMember = (ctx: any, spawnId: bigint) => {
-    const members = [...ctx.db.enemySpawnMember.by_spawn.filter(spawnId)];
-    if (members.length === 0) return null;
-    const index = Number(
-      (ctx.timestamp.microsSinceUnixEpoch + spawnId) % BigInt(members.length)
-    );
-    const member = members[index];
-    if (!member) return null;
-    ctx.db.enemySpawnMember.id.delete(member.id);
-    refreshSpawnGroupCount(ctx, spawnId);
-    return member;
-  };
-
-  const addEnemyToCombat = (
-    ctx: any,
-    combat: any,
-    spawnToUse: any,
-    participants: any[],
-    consumeSpawnCount: boolean = true,
-    roleTemplateId?: bigint
-  ) => {
-    const template = ctx.db.enemyTemplate.id.find(spawnToUse.enemyTemplateId);
-    if (!template) throw new SenderError('Enemy template missing');
-
-    let roleTemplate = roleTemplateId
-      ? ctx.db.enemyRoleTemplate.id.find(roleTemplateId)
-      : null;
-    if (!roleTemplate && consumeSpawnCount) {
-      const member = takeSpawnMember(ctx, spawnToUse.id);
-      if (member) {
-        roleTemplate = ctx.db.enemyRoleTemplate.id.find(member.roleTemplateId);
-      }
-    }
-    if (!roleTemplate) {
-      roleTemplate = pickRoleTemplate(
-        ctx,
-        template.id,
-        ctx.timestamp.microsSinceUnixEpoch + spawnToUse.id
-      );
-    }
-
-    const { maxHp, attackDamage, armorClass } = computeEnemyStats(template, roleTemplate, participants);
-    const displayName = roleTemplate?.displayName ?? template.name;
-    const combatEnemy = ctx.db.combatEnemy.insert({
-      id: 0n,
-      combatId: combat.id,
-      spawnId: spawnToUse.id,
-      enemyTemplateId: template.id,
-      enemyRoleTemplateId: roleTemplate?.id,
-      displayName,
-      currentHp: maxHp,
-      maxHp,
-      attackDamage,
-      armorClass,
-      aggroTargetCharacterId: undefined,
-      nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
-    });
-
-    for (const p of participants) {
-      ctx.db.aggroEntry.insert({
-        id: 0n,
-        combatId: combat.id,
-        enemyId: combatEnemy.id,
-        characterId: p.id,
-        value: 0n,
-      });
-      const current = ctx.db.character.id.find(p.id);
-      if (current && !current.combatTargetEnemyId) {
-        ctx.db.character.id.update({ ...current, combatTargetEnemyId: combatEnemy.id });
-      }
-    }
-
-    if (consumeSpawnCount) {
-      const refreshed = ctx.db.enemySpawn.id.find(spawnToUse.id);
-      if (refreshed) {
-        ctx.db.enemySpawn.id.update({
-          ...refreshed,
-          state: 'engaged',
-          lockedCombatId: combat.id,
-        });
-      }
-    } else {
-      ctx.db.enemySpawn.id.update({
-        ...spawnToUse,
-        state: 'engaged',
-        lockedCombatId: combat.id,
-      });
-    }
-
-    return combatEnemy;
-  };
-
-  const createCombatForSpawn = (
-    ctx: any,
-    leader: any,
-    spawnToUse: any,
-    participants: any[],
-    groupId: bigint | null
-  ) => {
-    const combat = ctx.db.combatEncounter.insert({
-      id: 0n,
-      locationId: leader.locationId,
-      groupId: groupId ?? undefined,
-      leaderCharacterId: groupId ? leader.id : undefined,
-      state: 'active',
-      addCount: 0n,
-      pendingAddCount: 0n,
-      pendingAddAtMicros: undefined,
-      createdAt: ctx.timestamp,
-    });
-
-    addEnemyToCombat(ctx, combat, spawnToUse, participants);
-
-    for (const p of participants) {
-      ctx.db.combatParticipant.insert({
-        id: 0n,
-        combatId: combat.id,
-        characterId: p.id,
-        status: 'active',
-        nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
-      });
-    }
-
-    for (const p of participants) {
-      appendPrivateEvent(
-        ctx,
-        p.id,
-        p.ownerUserId,
-        'combat',
-        `Combat begins against ${spawnToUse.name}.`
-      );
-    }
-
-    scheduleCombatTick(ctx, combat.id);
-    return combat;
   };
 
   const updateQuestProgressForKill = (
@@ -558,7 +565,7 @@ export const registerCombatReducers = (deps: any) => {
         ? spawn
         : ensureAvailableSpawn(ctx, locationId, desiredLevel);
 
-    createCombatForSpawn(ctx, character, spawnToUse, participants, groupId);
+    startCombatForSpawn(deps, ctx, character, spawnToUse, participants, groupId);
   });
 
   spacetimedb.reducer(
@@ -748,7 +755,14 @@ export const registerCombatReducers = (deps: any) => {
       return;
     }
 
-    const combat = createCombatForSpawn(ctx, character, spawn, participants, pull.groupId ?? null);
+    const combat = startCombatForSpawn(
+      deps,
+      ctx,
+      character,
+      spawn,
+      participants,
+      pull.groupId ?? null
+    );
 
     const reasons: string[] = [];
     if (awarenessAlert) {
@@ -820,7 +834,15 @@ export const registerCombatReducers = (deps: any) => {
       const reserved = reserveAdds(addCount);
       const remainingGroup = ctx.db.enemySpawn.id.find(spawn.id)?.groupCount ?? 0n;
       for (const add of reserved) {
-        addEnemyToCombat(ctx, combat, add.spawn, participants, false, add.roleTemplateId);
+        addEnemyToCombat(
+          deps,
+          ctx,
+          combat,
+          add.spawn,
+          participants,
+          false,
+          add.roleTemplateId
+        );
       }
       for (const p of participants) {
         appendPrivateEvent(
@@ -1292,6 +1314,7 @@ export const registerCombatReducers = (deps: any) => {
       const spawnRow = pending.spawnId ? ctx.db.enemySpawn.id.find(pending.spawnId) : null;
       if (spawnRow) {
         addEnemyToCombat(
+          deps,
           ctx,
           combat,
           spawnRow,

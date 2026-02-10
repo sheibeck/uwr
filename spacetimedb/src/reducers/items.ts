@@ -19,9 +19,14 @@ export const registerItemReducers = (deps: any) => {
     addItemToInventory,
     removeItemFromInventory,
     getItemCount,
+    startCombatForSpawn,
     ResourceGatherTick,
     ResourceRespawnTick,
   } = deps;
+
+  const GATHER_AGGRO_BASE_CHANCE = 5;
+  const GATHER_AGGRO_PER_DANGER_STEP = 5;
+  const GATHER_AGGRO_MAX_CHANCE = 45;
 
   spacetimedb.reducer(
     'create_item_template',
@@ -430,10 +435,62 @@ export const registerItemReducers = (deps: any) => {
       if (node.state !== 'available') {
         throw new SenderError('Resource is not available');
       }
-      for (const gather of ctx.db.resourceGather.by_character.filter(character.id)) {
-        throw new SenderError('Already gathering');
-      }
-      const endsAt = ctx.timestamp.microsSinceUnixEpoch + RESOURCE_GATHER_CAST_MICROS;
+        for (const gather of ctx.db.resourceGather.by_character.filter(character.id)) {
+          throw new SenderError('Already gathering');
+        }
+
+        const location = ctx.db.location.id.find(character.locationId);
+        const region = location ? ctx.db.region.id.find(location.regionId) : null;
+        if (location && !location.isSafe) {
+          const availableSpawns = [
+            ...ctx.db.enemySpawn.by_location.filter(character.locationId),
+          ].filter((row) => row.state === 'available' && row.groupCount > 0n);
+          if (availableSpawns.length > 0) {
+            const danger = Number(region?.dangerMultiplier ?? 100n);
+            const dangerSteps = Math.max(0, Math.floor((danger - 100) / 100));
+            const aggroChance = Math.min(
+              GATHER_AGGRO_MAX_CHANCE,
+              GATHER_AGGRO_BASE_CHANCE + dangerSteps * GATHER_AGGRO_PER_DANGER_STEP
+            );
+            const roll = Number(
+              (ctx.timestamp.microsSinceUnixEpoch + character.id) % 100n
+            );
+            if (roll < aggroChance) {
+              const spawnIndex = Number(
+                (ctx.timestamp.microsSinceUnixEpoch + node.id) %
+                  BigInt(availableSpawns.length)
+              );
+              const spawnToUse = availableSpawns[spawnIndex] ?? availableSpawns[0];
+              const participants: any[] = [];
+              const participantIds = new Set<string>();
+              if (character.groupId) {
+                for (const member of ctx.db.groupMember.by_group.filter(character.groupId)) {
+                  const memberChar = ctx.db.character.id.find(member.characterId);
+                  if (memberChar && memberChar.locationId === character.locationId) {
+                    const key = memberChar.id.toString();
+                    if (!participantIds.has(key)) {
+                      participants.push(memberChar);
+                      participantIds.add(key);
+                    }
+                  }
+                }
+              } else {
+                participants.push(character);
+              }
+              appendPrivateEvent(
+                ctx,
+                character.id,
+                character.ownerUserId,
+                'system',
+                `As you reach for ${node.name}, ${spawnToUse.name} notices you and attacks!`
+              );
+              startCombatForSpawn(ctx, character, spawnToUse, participants, character.groupId ?? null);
+              return;
+            }
+          }
+        }
+
+        const endsAt = ctx.timestamp.microsSinceUnixEpoch + RESOURCE_GATHER_CAST_MICROS;
       ctx.db.resourceNode.id.update({
         ...node,
         state: 'harvesting',

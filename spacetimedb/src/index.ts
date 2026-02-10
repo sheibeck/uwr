@@ -1,6 +1,7 @@
 import { schema, table, t, SenderError } from 'spacetimedb/server';
 import { ScheduleAt, Timestamp } from 'spacetimedb';
 import { registerReducers } from './reducers';
+import { startCombatForSpawn } from './reducers/combat';
 import { registerViews } from './views';
 import {
   ARMOR_TYPES_WITH_NONE,
@@ -4808,6 +4809,14 @@ const reducerDeps = {
   canParry,
   usesMana,
 };
+
+reducerDeps.startCombatForSpawn = (
+  ctx: any,
+  leader: any,
+  spawnToUse: any,
+  participants: any[],
+  groupId: bigint | null
+) => startCombatForSpawn(reducerDeps, ctx, leader, spawnToUse, participants, groupId);
 
 registerReducers(reducerDeps);
 
