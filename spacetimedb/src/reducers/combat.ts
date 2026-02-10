@@ -63,6 +63,8 @@ export const registerCombatReducers = (deps: any) => {
     character: any,
     enemyName: string
   ) => {
+    const current = ctx.db.combatParticipant.id.find(participant.id);
+    if (!current || current.status === 'dead') return;
     ctx.db.combatParticipant.id.update({ ...participant, status: 'dead' });
     clearCharacterEffectsOnDeath(ctx, character);
     appendPrivateEvent(
@@ -1828,8 +1830,10 @@ export const registerCombatReducers = (deps: any) => {
         'enemy';
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
-        if (character && character.hp === 0n && p.status !== 'dead') {
-          markParticipantDead(ctx, p, character, enemyName);
+        const currentParticipant = ctx.db.combatParticipant.id.find(p.id);
+        if (!currentParticipant) continue;
+        if (character && character.hp === 0n && currentParticipant.status !== 'dead') {
+          markParticipantDead(ctx, currentParticipant, character, enemyName);
         }
       }
       const spawn = [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
