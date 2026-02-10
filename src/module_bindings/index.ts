@@ -138,6 +138,8 @@ import ResolvePullReducer from "./resolve_pull_reducer";
 export { ResolvePullReducer };
 import FleeCombatReducer from "./flee_combat_reducer";
 export { FleeCombatReducer };
+import RespawnEnemyReducer from "./respawn_enemy_reducer";
+export { RespawnEnemyReducer };
 import DismissCombatResultsReducer from "./dismiss_combat_results_reducer";
 export { DismissCombatResultsReducer };
 import EndCombatReducer from "./end_combat_reducer";
@@ -196,6 +198,8 @@ import EffectTickRow from "./effect_tick_table";
 export { EffectTickRow };
 import EnemyAbilityRow from "./enemy_ability_table";
 export { EnemyAbilityRow };
+import EnemyRespawnTickRow from "./enemy_respawn_tick_table";
+export { EnemyRespawnTickRow };
 import EnemyRoleTemplateRow from "./enemy_role_template_table";
 export { EnemyRoleTemplateRow };
 import EnemySpawnRow from "./enemy_spawn_table";
@@ -370,6 +374,8 @@ import EndCombat from "./end_combat_type";
 export { EndCombat };
 import EnemyAbility from "./enemy_ability_type";
 export { EnemyAbility };
+import EnemyRespawnTick from "./enemy_respawn_tick_type";
+export { EnemyRespawnTick };
 import EnemyRoleTemplate from "./enemy_role_template_type";
 export { EnemyRoleTemplate };
 import EnemySpawn from "./enemy_spawn_type";
@@ -520,6 +526,8 @@ import ResourceNode from "./resource_node_type";
 export { ResourceNode };
 import ResourceRespawnTick from "./resource_respawn_tick_type";
 export { ResourceRespawnTick };
+import RespawnEnemy from "./respawn_enemy_type";
+export { RespawnEnemy };
 import RespawnResource from "./respawn_resource_type";
 export { RespawnResource };
 import Say from "./say_type";
@@ -878,6 +886,17 @@ const tablesSchema = __schema(
       { name: 'enemy_ability_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EnemyAbilityRow),
+  __table({
+    name: 'enemy_respawn_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'enemy_respawn_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, EnemyRespawnTickRow),
   __table({
     name: 'enemy_role_template',
     indexes: [
@@ -1599,6 +1618,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_combat_target", SetCombatTargetReducer),
   __reducerSchema("resolve_pull", ResolvePullReducer),
   __reducerSchema("flee_combat", FleeCombatReducer),
+  __reducerSchema("respawn_enemy", RespawnEnemyReducer),
   __reducerSchema("dismiss_combat_results", DismissCombatResultsReducer),
   __reducerSchema("end_combat", EndCombatReducer),
   __reducerSchema("regen_health", RegenHealthReducer),
