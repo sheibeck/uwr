@@ -13,6 +13,7 @@ import {
 export default __t.object("AggroEntry", {
   id: __t.u64(),
   combatId: __t.u64(),
+  enemyId: __t.u64(),
   characterId: __t.u64(),
   value: __t.u64(),
 });

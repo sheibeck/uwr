@@ -371,7 +371,11 @@ export const registerItemReducers = (deps: any) => {
           ? ctx.db.character.id.find(args.targetCharacterId)?.name ?? 'your target'
           : 'yourself';
         if (combatId) {
-          const enemy = [...ctx.db.combatEnemy.by_combat.filter(combatId)][0];
+          const enemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
+          const preferred = character.combatTargetEnemyId
+            ? enemies.find((row) => row.id === character.combatTargetEnemyId)
+            : null;
+          const enemy = preferred ?? enemies.find((row) => row.currentHp > 0n) ?? enemies[0];
           if (enemy) {
             const template = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
             targetName = template?.name ?? 'enemy';

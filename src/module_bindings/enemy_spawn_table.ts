@@ -17,4 +17,5 @@ export default __t.row({
   name: __t.string(),
   state: __t.string(),
   lockedCombatId: __t.option(__t.u64()),
+  groupCount: __t.u64(),
 });

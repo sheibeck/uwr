@@ -248,6 +248,7 @@ const Character = table(
     createdAt: t.timestamp(),
     stamina: t.u64().default(0n),
     maxStamina: t.u64().default(0n),
+    combatTargetEnemyId: t.u64().optional(),
   }
 );
 
@@ -411,6 +412,11 @@ const EnemyTemplate = table(
     terrainTypes: t.string(),
     creatureType: t.string(),
     timeOfDay: t.string(),
+    socialGroup: t.string(),
+    socialRadius: t.u64(),
+    awareness: t.string(),
+    groupMin: t.u64(),
+    groupMax: t.u64(),
     armorClass: t.u64(),
     level: t.u64(),
     maxHp: t.u64(),
@@ -441,11 +447,15 @@ const CombatEnemyCooldown = table(
   {
     name: 'combat_enemy_cooldown',
     public: true,
-    indexes: [{ name: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
+    indexes: [
+      { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
+      { name: 'by_enemy', algorithm: 'btree', columns: ['enemyId'] },
+    ],
   },
   {
     id: t.u64().primaryKey().autoInc(),
     combatId: t.u64(),
+    enemyId: t.u64(),
     abilityKey: t.string(),
     readyAtMicros: t.u64(),
   }
@@ -528,8 +538,50 @@ const EnemySpawn = table(
     name: t.string(),
     state: t.string(),
     lockedCombatId: t.u64().optional(),
+    groupCount: t.u64(),
   }
 );
+
+const PullState = table(
+  {
+    name: 'pull_state',
+    public: true,
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { name: 'by_group', algorithm: 'btree', columns: ['groupId'] },
+      { name: 'by_state', algorithm: 'btree', columns: ['state'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    groupId: t.u64().optional(),
+    locationId: t.u64(),
+    enemySpawnId: t.u64(),
+    pullType: t.string(),
+    state: t.string(),
+    outcome: t.string().optional(),
+    delayedAdds: t.u64().optional(),
+    delayedAddsAtMicros: t.u64().optional(),
+    createdAt: t.timestamp(),
+  }
+);
+
+const PullTick = table(
+  {
+    name: 'pull_tick',
+    scheduled: 'resolve_pull',
+    public: true,
+    indexes: [{ name: 'by_pull', algorithm: 'btree', columns: ['pullId'] }],
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    pullId: t.u64(),
+  }
+);
+
 
 const CombatEnemyCast = table(
   {
@@ -562,6 +614,9 @@ const CombatEncounter = table(
     groupId: t.u64().optional(),
     leaderCharacterId: t.u64().optional(),
     state: t.string(),
+    addCount: t.u64(),
+    pendingAddCount: t.u64(),
+    pendingAddAtMicros: t.u64().optional(),
     createdAt: t.timestamp(),
   }
 );
@@ -593,6 +648,7 @@ const CombatEnemy = table(
   {
     id: t.u64().primaryKey().autoInc(),
     combatId: t.u64(),
+    spawnId: t.u64(),
     enemyTemplateId: t.u64(),
     currentHp: t.u64(),
     maxHp: t.u64(),
@@ -622,15 +678,37 @@ const CombatEnemyEffect = table(
   {
     name: 'combat_enemy_effect',
     public: true,
-    indexes: [{ name: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
+    indexes: [
+      { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
+      { name: 'by_enemy', algorithm: 'btree', columns: ['enemyId'] },
+    ],
   },
   {
     id: t.u64().primaryKey().autoInc(),
     combatId: t.u64(),
+    enemyId: t.u64(),
     effectType: t.string(),
     magnitude: t.i64(),
     roundsRemaining: t.u64(),
     sourceAbility: t.string().optional(),
+  }
+);
+
+const CombatPendingAdd = table(
+  {
+    name: 'combat_pending_add',
+    public: true,
+    indexes: [
+      { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
+      { name: 'by_ready', algorithm: 'btree', columns: ['arriveAtMicros'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    combatId: t.u64(),
+    enemyTemplateId: t.u64(),
+    spawnId: t.u64().optional(),
+    arriveAtMicros: t.u64(),
   }
 );
 
@@ -656,11 +734,15 @@ const CombatResult = table(
 const AggroEntry = table(
   {
     name: 'aggro_entry',
-    indexes: [{ name: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
+    indexes: [
+      { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
+      { name: 'by_enemy', algorithm: 'btree', columns: ['enemyId'] },
+    ],
   },
   {
     id: t.u64().primaryKey().autoInc(),
     combatId: t.u64(),
+    enemyId: t.u64(),
     characterId: t.u64(),
     value: t.u64(),
   }
@@ -846,6 +928,8 @@ export const spacetimedb = schema(
   LootTableEntry,
   LocationEnemyTemplate,
   EnemySpawn,
+  PullState,
+  PullTick,
   CombatEncounter,
   CombatParticipant,
   CombatEnemy,
@@ -853,6 +937,7 @@ export const spacetimedb = schema(
   CombatEnemyCooldown,
   CharacterEffect,
   CombatEnemyEffect,
+  CombatPendingAdd,
   AggroEntry,
   CombatLoopTick,
   HealthRegenTick,
@@ -1234,13 +1319,17 @@ function addCharacterEffect(
 function addEnemyEffect(
   ctx: any,
   combatId: bigint,
+  enemyId: bigint,
   effectType: string,
   magnitude: bigint,
   roundsRemaining: bigint,
   sourceAbility: string
 ) {
   const existing = [...ctx.db.combatEnemyEffect.by_combat.filter(combatId)].find(
-    (effect) => effect.effectType === effectType && effect.sourceAbility === sourceAbility
+    (effect) =>
+      effect.enemyId === enemyId &&
+      effect.effectType === effectType &&
+      effect.sourceAbility === sourceAbility
   );
   if (existing) {
     ctx.db.combatEnemyEffect.id.update({
@@ -1253,6 +1342,7 @@ function addEnemyEffect(
   ctx.db.combatEnemyEffect.insert({
     id: 0n,
     combatId,
+    enemyId,
     effectType,
     magnitude,
     roundsRemaining,
@@ -1275,9 +1365,10 @@ function applyHpBonus(
   addCharacterEffect(ctx, character.id, 'hp_bonus', amount, roundsRemaining, sourceAbility);
 }
 
-function getTopAggroId(ctx: any, combatId: bigint) {
+function getTopAggroId(ctx: any, combatId: bigint, enemyId?: bigint) {
   let top: typeof AggroEntry.rowType | null = null;
   for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+    if (enemyId && entry.enemyId !== enemyId) continue;
     if (!top || entry.value > top.value) top = entry;
   }
   return top?.characterId ?? null;
@@ -1291,9 +1382,10 @@ function sumCharacterEffect(ctx: any, characterId: bigint, effectType: string) {
   return total;
 }
 
-function sumEnemyEffect(ctx: any, combatId: bigint, effectType: string) {
+function sumEnemyEffect(ctx: any, combatId: bigint, effectType: string, enemyId?: bigint) {
   let total = 0n;
   for (const effect of ctx.db.combatEnemyEffect.by_combat.filter(combatId)) {
+    if (enemyId && effect.enemyId !== enemyId) continue;
     if (effect.effectType === effectType) total += BigInt(effect.magnitude);
   }
   return total;
@@ -1346,10 +1438,15 @@ function executeAbility(
 
   const combatId = activeCombatIdForCharacter(ctx, character.id);
   const combat = combatId ? ctx.db.combatEncounter.id.find(combatId) : null;
+  const enemies = combatId ? [...ctx.db.combatEnemy.by_combat.filter(combatId)] : [];
+  const preferredEnemy = character.combatTargetEnemyId
+    ? enemies.find((row) => row.id === character.combatTargetEnemyId)
+    : null;
   const enemy =
-    combatId && combat
-      ? [...ctx.db.combatEnemy.by_combat.filter(combatId)][0]
-      : null;
+    preferredEnemy ??
+    enemies.find((row) => row.currentHp > 0n) ??
+    enemies[0] ??
+    null;
   const enemyTemplate = enemy ? ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId) : null;
   const enemyName = enemyTemplate?.name ?? 'enemy';
   const weapon = getEquippedWeaponStats(ctx, character.id);
@@ -1371,7 +1468,7 @@ function executeAbility(
     if (!enemy || !combatId) throw new SenderError('No enemy in combat');
     const hits = options?.hits ?? 1n;
     let armor = enemy.armorClass;
-    const armorDebuff = sumEnemyEffect(ctx, combatId, 'armor_down');
+    const armorDebuff = sumEnemyEffect(ctx, combatId, 'armor_down', enemy.id);
     if (armorDebuff !== 0n) {
       armor = armor + armorDebuff;
       if (armor < 0n) armor = 0n;
@@ -1384,25 +1481,26 @@ function executeAbility(
       const raw =
         abilityDamageFromWeapon(baseWeaponDamage, percent, bonus) +
         damageUp +
-        sumEnemyEffect(ctx, combatId, 'damage_taken');
+        sumEnemyEffect(ctx, combatId, 'damage_taken', enemy.id);
       const reduced = applyArmorMitigation(raw, armor);
       totalDamage += reduced;
     }
     const nextHp = enemy.currentHp > totalDamage ? enemy.currentHp - totalDamage : 0n;
     ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
-    for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
-      if (entry.characterId === character.id) {
-        ctx.db.aggroEntry.id.update({
-          ...entry,
-          value: entry.value + totalDamage + (options?.threatBonus ?? 0n),
-        });
-        break;
+        for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+          if (entry.characterId === character.id && entry.enemyId === enemy.id) {
+            ctx.db.aggroEntry.id.update({
+              ...entry,
+              value: entry.value + totalDamage + (options?.threatBonus ?? 0n),
+            });
+            break;
       }
     }
     if (options?.debuff) {
       addEnemyEffect(
         ctx,
         combatId,
+        enemy.id,
         options.debuff.type,
         options.debuff.magnitude,
         options.debuff.rounds,
@@ -1413,6 +1511,7 @@ function executeAbility(
       addEnemyEffect(
         ctx,
         combatId,
+        enemy.id,
         'dot',
         options.dot.magnitude,
         options.dot.rounds,
@@ -1715,7 +1814,7 @@ function executeAbility(
       );
       return;
     case 'rogue_shadow_strike': {
-      const dotAmount = sumEnemyEffect(ctx, combatId ?? 0n, 'dot');
+      const dotAmount = enemy ? sumEnemyEffect(ctx, combatId ?? 0n, 'dot', enemy.id) : 0n;
       const bonus = dotAmount > 0n ? 6n : 4n;
       applyDamage(165n, bonus);
       return;
@@ -2093,7 +2192,7 @@ function executeEnemyAbility(
   if (!enemy) return;
   const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
   const enemyName = enemyTemplate?.name ?? 'Enemy';
-  const targetId = targetCharacterId ?? getTopAggroId(ctx, combatId);
+  const targetId = targetCharacterId ?? getTopAggroId(ctx, combatId, enemy.id);
   if (!targetId) return;
   const target = ctx.db.character.id.find(targetId);
   if (!target) return;
@@ -2671,6 +2770,12 @@ function spawnEnemy(
     roll -= entry.weight;
   }
 
+  const minGroup = chosen.groupMin && chosen.groupMin > 0n ? chosen.groupMin : 1n;
+  const maxGroup = chosen.groupMax && chosen.groupMax > 0n ? chosen.groupMax : minGroup;
+  const groupRange = maxGroup > minGroup ? maxGroup - minGroup + 1n : 1n;
+  const groupSeed = seed + chosen.id * 11n;
+  const groupCount = minGroup + (groupSeed % groupRange);
+
   const spawn = ctx.db.enemySpawn.insert({
     id: 0n,
     locationId,
@@ -2678,6 +2783,7 @@ function spawnEnemy(
     name: chosen.name,
     state: 'available',
     lockedCombatId: undefined,
+    groupCount,
   });
 
   ctx.db.enemySpawn.id.update({
@@ -2697,6 +2803,7 @@ function ensureAvailableSpawn(
   const adjustedTarget = computeLocationTargetLevel(ctx, locationId, targetLevel);
   for (const spawn of ctx.db.enemySpawn.by_location.filter(locationId)) {
     if (spawn.state !== 'available') continue;
+    if (spawn.groupCount === 0n) continue;
     const template = ctx.db.enemyTemplate.id.find(spawn.enemyTemplateId);
     if (!template) continue;
     const diff =
@@ -3004,6 +3111,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'swamp',
       creatureType: 'animal',
       timeOfDay: 'any',
+      socialGroup: 'animal',
+      socialRadius: 2n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 12n,
       level: 1n,
       maxHp: 26n,
@@ -3019,6 +3131,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'plains,mountains',
       creatureType: 'spirit',
       timeOfDay: 'night',
+      socialGroup: 'spirit',
+      socialRadius: 1n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 8n,
       level: 2n,
       maxHp: 28n,
@@ -3034,6 +3151,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'plains,woods',
       creatureType: 'humanoid',
       timeOfDay: 'day',
+      socialGroup: 'humanoid',
+      socialRadius: 3n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 2n,
       armorClass: 8n,
       level: 2n,
       maxHp: 24n,
@@ -3049,6 +3171,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'woods,swamp',
       creatureType: 'beast',
       timeOfDay: 'night',
+      socialGroup: 'beast',
+      socialRadius: 2n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 9n,
       level: 3n,
       maxHp: 30n,
@@ -3064,6 +3191,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'town,city',
       creatureType: 'undead',
       timeOfDay: 'night',
+      socialGroup: 'undead',
+      socialRadius: 3n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 9n,
       level: 2n,
       maxHp: 22n,
@@ -3079,6 +3211,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'woods,swamp',
       creatureType: 'humanoid',
       timeOfDay: 'night',
+      socialGroup: 'humanoid',
+      socialRadius: 3n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 9n,
       level: 3n,
       maxHp: 26n,
@@ -3094,6 +3231,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'woods,plains',
       creatureType: 'animal',
       timeOfDay: 'day',
+      socialGroup: 'animal',
+      socialRadius: 2n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 9n,
       level: 1n,
       maxHp: 22n,
@@ -3109,6 +3251,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'swamp',
       creatureType: 'animal',
       timeOfDay: 'day',
+      socialGroup: 'animal',
+      socialRadius: 2n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 8n,
       level: 1n,
       maxHp: 20n,
@@ -3124,6 +3271,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'plains',
       creatureType: 'animal',
       timeOfDay: 'day',
+      socialGroup: 'animal',
+      socialRadius: 2n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 7n,
       level: 1n,
       maxHp: 18n,
@@ -3139,6 +3291,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'plains',
       creatureType: 'beast',
       timeOfDay: 'any',
+      socialGroup: 'beast',
+      socialRadius: 2n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 8n,
       level: 2n,
       maxHp: 24n,
@@ -3154,6 +3311,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'woods',
       creatureType: 'spirit',
       timeOfDay: 'night',
+      socialGroup: 'spirit',
+      socialRadius: 1n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 8n,
       level: 2n,
       maxHp: 20n,
@@ -3169,6 +3331,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'woods',
       creatureType: 'beast',
       timeOfDay: 'any',
+      socialGroup: 'beast',
+      socialRadius: 2n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 12n,
       level: 3n,
       maxHp: 34n,
@@ -3184,6 +3351,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'swamp',
       creatureType: 'beast',
       timeOfDay: 'any',
+      socialGroup: 'beast',
+      socialRadius: 2n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 9n,
       level: 2n,
       maxHp: 26n,
@@ -3199,6 +3371,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'swamp',
       creatureType: 'humanoid',
       timeOfDay: 'night',
+      socialGroup: 'humanoid',
+      socialRadius: 3n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 9n,
       level: 3n,
       maxHp: 28n,
@@ -3214,6 +3391,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'town,city',
       creatureType: 'undead',
       timeOfDay: 'day',
+      socialGroup: 'undead',
+      socialRadius: 3n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 9n,
       level: 2n,
       maxHp: 26n,
@@ -3229,6 +3411,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'mountains,plains',
       creatureType: 'construct',
       timeOfDay: 'day',
+      socialGroup: 'construct',
+      socialRadius: 1n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 13n,
       level: 3n,
       maxHp: 36n,
@@ -3244,6 +3431,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'mountains,plains',
       creatureType: 'spirit',
       timeOfDay: 'day',
+      socialGroup: 'spirit',
+      socialRadius: 1n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 7n,
       level: 1n,
       maxHp: 18n,
@@ -3259,6 +3451,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'mountains,city',
       creatureType: 'undead',
       timeOfDay: 'night',
+      socialGroup: 'undead',
+      socialRadius: 3n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 9n,
       level: 4n,
       maxHp: 30n,
@@ -3274,6 +3471,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'mountains',
       creatureType: 'humanoid',
       timeOfDay: 'day',
+      socialGroup: 'humanoid',
+      socialRadius: 3n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 10n,
       level: 3n,
       maxHp: 28n,
@@ -3289,6 +3491,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'mountains,plains',
       creatureType: 'beast',
       timeOfDay: 'day',
+      socialGroup: 'beast',
+      socialRadius: 2n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 9n,
       level: 4n,
       maxHp: 26n,
@@ -3304,6 +3511,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'mountains',
       creatureType: 'construct',
       timeOfDay: 'any',
+      socialGroup: 'construct',
+      socialRadius: 1n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 14n,
       level: 4n,
       maxHp: 40n,
@@ -3319,6 +3531,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'town,city',
       creatureType: 'undead',
       timeOfDay: 'night',
+      socialGroup: 'undead',
+      socialRadius: 3n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 12n,
       level: 3n,
       maxHp: 34n,
@@ -3334,6 +3551,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'town,city',
       creatureType: 'undead',
       timeOfDay: 'night',
+      socialGroup: 'undead',
+      socialRadius: 3n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 10n,
       level: 4n,
       maxHp: 28n,
@@ -3349,6 +3571,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'dungeon',
       creatureType: 'construct',
       timeOfDay: 'any',
+      socialGroup: 'construct',
+      socialRadius: 1n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 14n,
       level: 4n,
       maxHp: 42n,
@@ -3364,6 +3591,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'dungeon',
       creatureType: 'humanoid',
       timeOfDay: 'any',
+      socialGroup: 'humanoid',
+      socialRadius: 3n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 10n,
       level: 5n,
       maxHp: 36n,
@@ -3379,6 +3611,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'dungeon',
       creatureType: 'humanoid',
       timeOfDay: 'any',
+      socialGroup: 'humanoid',
+      socialRadius: 3n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 11n,
       level: 5n,
       maxHp: 38n,
@@ -3394,6 +3631,11 @@ spacetimedb.init((ctx) => {
       terrainTypes: 'dungeon',
       creatureType: 'undead',
       timeOfDay: 'any',
+      socialGroup: 'undead',
+      socialRadius: 3n,
+      awareness: 'idle',
+      groupMin: 1n,
+      groupMax: 1n,
       armorClass: 12n,
       level: 6n,
       maxHp: 48n,
@@ -3598,6 +3840,8 @@ const reducerDeps = {
   GroupInvite,
   CombatParticipant,
   CombatLoopTick,
+  PullState,
+  PullTick,
   HealthRegenTick,
   EffectTick,
   HotTick,
@@ -3606,6 +3850,7 @@ const reducerDeps = {
   EnemyAbility,
   CombatEnemyCooldown,
   CombatEnemyCast,
+  CombatPendingAdd,
   AggroEntry,
   requirePlayerUserId,
   requireCharacterOwnedBy,
@@ -3655,6 +3900,13 @@ const reducerDeps = {
 };
 
 registerReducers(reducerDeps);
+
+
+
+
+
+
+
 
 
 

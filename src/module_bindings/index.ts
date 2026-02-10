@@ -118,6 +118,12 @@ import RejectGroupInviteReducer from "./reject_group_invite_reducer";
 export { RejectGroupInviteReducer };
 import StartCombatReducer from "./start_combat_reducer";
 export { StartCombatReducer };
+import StartPullReducer from "./start_pull_reducer";
+export { StartPullReducer };
+import SetCombatTargetReducer from "./set_combat_target_reducer";
+export { SetCombatTargetReducer };
+import ResolvePullReducer from "./resolve_pull_reducer";
+export { ResolvePullReducer };
 import FleeCombatReducer from "./flee_combat_reducer";
 export { FleeCombatReducer };
 import DismissCombatResultsReducer from "./dismiss_combat_results_reducer";
@@ -166,6 +172,8 @@ import CombatLootRow from "./combat_loot_table";
 export { CombatLootRow };
 import CombatParticipantRow from "./combat_participant_table";
 export { CombatParticipantRow };
+import CombatPendingAddRow from "./combat_pending_add_table";
+export { CombatPendingAddRow };
 import CombatResultRow from "./combat_result_table";
 export { CombatResultRow };
 import CommandRow from "./command_table";
@@ -250,6 +258,10 @@ import NpcDialogRow from "./npc_dialog_table";
 export { NpcDialogRow };
 import PlayerRow from "./player_table";
 export { PlayerRow };
+import PullStateRow from "./pull_state_table";
+export { PullStateRow };
+import PullTickRow from "./pull_tick_table";
+export { PullTickRow };
 import QuestInstanceRow from "./quest_instance_table";
 export { QuestInstanceRow };
 import QuestTemplateRow from "./quest_template_table";
@@ -302,6 +314,8 @@ import CombatLoot from "./combat_loot_type";
 export { CombatLoot };
 import CombatParticipant from "./combat_participant_type";
 export { CombatParticipant };
+import CombatPendingAdd from "./combat_pending_add_type";
+export { CombatPendingAdd };
 import CombatResult from "./combat_result_type";
 export { CombatResult };
 import Command from "./command_type";
@@ -432,6 +446,10 @@ import Player from "./player_type";
 export { Player };
 import PromoteGroupLeader from "./promote_group_leader_type";
 export { PromoteGroupLeader };
+import PullState from "./pull_state_type";
+export { PullState };
+import PullTick from "./pull_tick_type";
+export { PullTick };
 import QuestInstance from "./quest_instance_type";
 export { QuestInstance };
 import QuestTemplate from "./quest_template_type";
@@ -446,6 +464,8 @@ import RejectGroupInvite from "./reject_group_invite_type";
 export { RejectGroupInvite };
 import RemoveFriend from "./remove_friend_type";
 export { RemoveFriend };
+import ResolvePull from "./resolve_pull_type";
+export { ResolvePull };
 import Say from "./say_type";
 export { Say };
 import SellAllJunk from "./sell_all_junk_type";
@@ -458,6 +478,8 @@ import SendFriendRequestToCharacter from "./send_friend_request_to_character_typ
 export { SendFriendRequestToCharacter };
 import SetActiveCharacter from "./set_active_character_type";
 export { SetActiveCharacter };
+import SetCombatTarget from "./set_combat_target_type";
+export { SetCombatTarget };
 import SetDisplayName from "./set_display_name_type";
 export { SetDisplayName };
 import SetFollowLeader from "./set_follow_leader_type";
@@ -466,6 +488,8 @@ import SetHotbarSlot from "./set_hotbar_slot_type";
 export { SetHotbarSlot };
 import StartCombat from "./start_combat_type";
 export { StartCombat };
+import StartPull from "./start_pull_type";
+export { StartPull };
 import SubmitCommand from "./submit_command_type";
 export { SubmitCommand };
 import TakeLoot from "./take_loot_type";
@@ -512,6 +536,9 @@ const tablesSchema = __schema(
     indexes: [
       { name: 'by_combat', algorithm: 'btree', columns: [
         'combatId',
+      ] },
+      { name: 'by_enemy', algorithm: 'btree', columns: [
+        'enemyId',
       ] },
       { name: 'id', algorithm: 'btree', columns: [
         'id',
@@ -628,6 +655,9 @@ const tablesSchema = __schema(
       { name: 'by_combat', algorithm: 'btree', columns: [
         'combatId',
       ] },
+      { name: 'by_enemy', algorithm: 'btree', columns: [
+        'enemyId',
+      ] },
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
@@ -641,6 +671,9 @@ const tablesSchema = __schema(
     indexes: [
       { name: 'by_combat', algorithm: 'btree', columns: [
         'combatId',
+      ] },
+      { name: 'by_enemy', algorithm: 'btree', columns: [
+        'enemyId',
       ] },
       { name: 'id', algorithm: 'btree', columns: [
         'id',
@@ -698,6 +731,23 @@ const tablesSchema = __schema(
       { name: 'combat_participant_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatParticipantRow),
+  __table({
+    name: 'combat_pending_add',
+    indexes: [
+      { name: 'by_ready', algorithm: 'btree', columns: [
+        'arriveAtMicros',
+      ] },
+      { name: 'by_combat', algorithm: 'btree', columns: [
+        'combatId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_pending_add_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CombatPendingAddRow),
   __table({
     name: 'combat_result',
     indexes: [
@@ -1107,6 +1157,43 @@ const tablesSchema = __schema(
     ],
   }, PlayerRow),
   __table({
+    name: 'pull_state',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'by_group', algorithm: 'btree', columns: [
+        'groupId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_location', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+      { name: 'by_state', algorithm: 'btree', columns: [
+        'state',
+      ] },
+    ],
+    constraints: [
+      { name: 'pull_state_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, PullStateRow),
+  __table({
+    name: 'pull_tick',
+    indexes: [
+      { name: 'by_pull', algorithm: 'btree', columns: [
+        'pullId',
+      ] },
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'pull_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, PullTickRow),
+  __table({
     name: 'quest_instance',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1325,6 +1412,9 @@ const reducersSchema = __reducers(
   __reducerSchema("accept_group_invite", AcceptGroupInviteReducer),
   __reducerSchema("reject_group_invite", RejectGroupInviteReducer),
   __reducerSchema("start_combat", StartCombatReducer),
+  __reducerSchema("start_pull", StartPullReducer),
+  __reducerSchema("set_combat_target", SetCombatTargetReducer),
+  __reducerSchema("resolve_pull", ResolvePullReducer),
   __reducerSchema("flee_combat", FleeCombatReducer),
   __reducerSchema("dismiss_combat_results", DismissCombatResultsReducer),
   __reducerSchema("end_combat", EndCombatReducer),

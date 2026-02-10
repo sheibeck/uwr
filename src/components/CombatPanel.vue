@@ -82,64 +82,78 @@
           <div v-if="activeCombat" :style="styles.combatBlock">
             <div :style="styles.combatRow">
               <span :style="styles.combatLabel">Fighting</span>
-              <span :style="[styles.combatValue, styles[activeEnemyConClass] ?? {}]">
-                {{ activeEnemyName }} (Lv {{ activeEnemyLevel }})
-              </span>
+              <span :style="styles.combatValue">Enemies engaged</span>
             </div>
-    <div v-if="activeEnemy" :style="styles.combatRow">
-      <span :style="styles.combatLabel">Enemy HP</span>
-      <span :style="styles.combatValue">
-        {{ activeEnemy.currentHp }} / {{ activeEnemy.maxHp }}
-      </span>
-    </div>
-    <div v-if="activeEnemy" :style="styles.hpBar">
-      <div
-        :style="{
-          ...styles.hpFill,
-          width: `${percent(activeEnemy.currentHp, activeEnemy.maxHp)}%`,
-        }"
-      ></div>
-    </div>
-    <div v-if="enemyCastProgress > 0" :style="styles.enemyCastBar">
-      <div
-        :style="{
-          ...styles.enemyCastFill,
-          width: `${Math.round(enemyCastProgress * 100)}%`,
-        }"
-      ></div>
-      <div :style="styles.enemyCastLabel">{{ enemyCastLabel }}</div>
-    </div>
-    <div v-if="activeEnemyEffects.length > 0" :style="styles.effectRow">
-      <span
-        v-for="effect in activeEnemyEffects"
-        :key="effect.id.toString()"
-        :style="effect.isNegative ? styles.effectBadgeNegative : styles.effectBadgePositive"
-      >
-        {{ effect.label }} {{ effect.seconds }}s
-      </span>
-    </div>
-    <div v-if="enemyTargetName" :style="styles.combatRow">
-      <span :style="styles.combatLabel">Targeting</span>
-      <span :style="styles.combatValue">{{ enemyTargetName }}</span>
-    </div>
-    <div :style="styles.combatRow">
-      <span :style="styles.combatLabel">Status</span>
-      <span :style="styles.combatValue">{{ enemyActionText }}</span>
-    </div>
-    <div :style="styles.panelFormInline">
-      <button
-        type="button"
-        :disabled="!connActive || !canAct"
-        :style="styles.ghostButton"
-        @click="$emit('flee')"
-      >
-        Flee
-      </button>
-    </div>
-    <div v-if="!canAct" :style="styles.subtle">You are down and cannot act.</div>
-  </div>
+            <div :style="styles.roster">
+              <div v-if="combatEnemies.length === 0" :style="styles.subtle">
+                No enemies are present.
+              </div>
+              <div v-else :style="styles.rosterList">
+                <div
+                  v-for="enemy in combatEnemies"
+                  :key="enemy.id.toString()"
+                  :style="{
+                    ...styles.rosterClickable,
+                    ...(enemy.isTarget ? styles.rosterTagActive : {}),
+                  }"
+                  @click="$emit('select-enemy', enemy.id)"
+                >
+                  <div :style="styles.combatRow">
+                    <span :style="[styles.combatValue, styles[enemy.conClass] ?? {}]">
+                      {{ enemy.name }} (Lv {{ enemy.level }})
+                    </span>
+                  </div>
+                  <div :style="styles.combatRow">
+                    <span :style="styles.combatLabel">HP</span>
+                    <span :style="styles.combatValue">{{ enemy.hp }} / {{ enemy.maxHp }}</span>
+                  </div>
+                  <div :style="styles.hpBar">
+                    <div
+                      :style="{
+                        ...styles.hpFill,
+                        width: `${percent(enemy.hp, enemy.maxHp)}%`,
+                      }"
+                    ></div>
+                  </div>
+                  <div v-if="enemy.castProgress > 0" :style="styles.enemyCastBar">
+                    <div
+                      :style="{
+                        ...styles.enemyCastFill,
+                        width: `${Math.round(enemy.castProgress * 100)}%`,
+                      }"
+                    ></div>
+                    <div :style="styles.enemyCastLabel">{{ enemy.castLabel }}</div>
+                  </div>
+                  <div v-if="enemy.effects.length > 0" :style="styles.effectRow">
+                    <span
+                      v-for="effect in enemy.effects"
+                      :key="effect.id.toString()"
+                      :style="effect.isNegative ? styles.effectBadgeNegative : styles.effectBadgePositive"
+                    >
+                      {{ effect.label }} {{ effect.seconds }}s
+                    </span>
+                  </div>
+                  <div v-if="enemy.targetName" :style="styles.combatRow">
+                    <span :style="styles.combatLabel">Targeting</span>
+                    <span :style="styles.combatValue">{{ enemy.targetName }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div :style="styles.panelFormInline">
+              <button
+                type="button"
+                :disabled="!connActive || !canAct"
+                :style="styles.ghostButton"
+                @click="$emit('flee')"
+              >
+                Flee
+              </button>
+            </div>
+            <div v-if="!canAct" :style="styles.subtle">You are down and cannot act.</div>
+          </div>
   <div v-else>
-    <div :style="styles.subtle">Choose an enemy to engage.</div>
+    <div :style="styles.subtle">Choose an enemy to pull.</div>
     <div v-if="!canEngage" :style="styles.subtle">
       Only the group leader can engage enemies.
     </div>
@@ -147,17 +161,33 @@
       No enemies are available right now.
     </div>
     <div :style="styles.buttonWrap">
-      <button
+      <div
         v-for="enemy in enemySpawns"
         :key="enemy.id.toString()"
-        @click="$emit('start', enemy.id)"
-        :disabled="!connActive || !canEngage"
-        :style="styles.ghostButton"
+        :style="styles.rosterRow"
       >
         <span :style="styles[enemy.conClass] ?? {}">
-          {{ enemy.name }} (Lv {{ enemy.level }})
+          {{ enemy.name }} (Lv {{ enemy.level }}) x{{ enemy.groupCount }}
         </span>
-      </button>
+        <div :style="styles.panelFormInline">
+          <button
+            type="button"
+            :disabled="!connActive || !canEngage"
+            :style="styles.ghostButton"
+            @click="$emit('pull', { enemyId: enemy.id, pullType: 'careful' })"
+          >
+            Careful Pull
+          </button>
+          <button
+            type="button"
+            :disabled="!connActive || !canEngage"
+            :style="styles.ghostButton"
+            @click="$emit('pull', { enemyId: enemy.id, pullType: 'body' })"
+          >
+            Body Pull
+          </button>
+        </div>
+      </div>
     </div>
   </div>
         </details>
@@ -238,6 +268,7 @@ type EnemySummary = {
   id: bigint;
   name: string;
   level: bigint;
+  groupCount: bigint;
 };
 
 const props = defineProps<{
@@ -247,11 +278,19 @@ const props = defineProps<{
   charactersHere: CharacterRow[];
   npcsHere: NpcRow[];
   activeCombat: CombatEncounterRow | null;
-  activeEnemy: CombatEnemyRow | null;
-  activeEnemyName: string;
-  activeEnemyLevel: bigint;
-  activeEnemyConClass: string;
-  activeEnemyEffects: { id: bigint; label: string; seconds: number; isNegative: boolean }[];
+  combatEnemies: {
+    id: bigint;
+    name: string;
+    level: bigint;
+    hp: bigint;
+    maxHp: bigint;
+    conClass: string;
+    isTarget: boolean;
+    effects: { id: bigint; label: string; seconds: number; isNegative: boolean }[];
+    castProgress: number;
+    castLabel: string;
+    targetName: string | null;
+  }[];
   activeLoot: {
     id: bigint;
     name: string;
@@ -266,10 +305,6 @@ const props = defineProps<{
   canEngage: boolean;
   canDismissResults: boolean;
   canAct: boolean;
-  enemyTargetName: string;
-  enemyActionText: string;
-  enemyCastProgress: number;
-  enemyCastLabel: string;
   accordionState: {
     enemies: boolean;
     characters: boolean;
@@ -313,8 +348,9 @@ const resultOutcome = (summary: string) => {
 };
 
 defineEmits<{
-  (e: 'start', enemyId: bigint): void;
+  (e: 'pull', value: { enemyId: bigint; pullType: 'careful' | 'body' }): void;
   (e: 'flee'): void;
+  (e: 'select-enemy', enemyId: bigint): void;
   (e: 'dismiss-results'): void;
   (e: 'hail', npcName: string): void;
   (e: 'take-loot', lootId: bigint): void;

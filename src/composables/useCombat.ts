@@ -21,6 +21,7 @@ type EnemySummary = {
   name: string;
   level: bigint;
   conClass: string;
+  groupCount: bigint;
 };
 
 type CombatRosterEntry = {
@@ -100,6 +101,8 @@ export const useCombat = ({
   characters,
 }: UseCombatArgs) => {
   const startCombatReducer = useReducer(reducers.startCombat);
+  const startPullReducer = useReducer(reducers.startPull);
+  const setCombatTargetReducer = useReducer(reducers.setCombatTarget);
   const fleeCombatReducer = useReducer(reducers.fleeCombat);
   const dismissResultsReducer = useReducer(reducers.dismissCombatResults);
   const takeLootReducer = useReducer(reducers.takeLoot);
@@ -183,18 +186,20 @@ export const useCombat = ({
 
   const activeEnemy = computed(() => {
     if (!activeCombat.value) return null;
-    return (
-      combatEnemies.value.find(
-        (row) => row.combatId.toString() === activeCombat.value?.id.toString()
-      ) ?? null
+    const combatId = activeCombat.value.id.toString();
+    const enemies = combatEnemies.value.filter(
+      (row) => row.combatId.toString() === combatId
     );
+    const targetId = selectedCharacter.value?.combatTargetEnemyId?.toString();
+    const targeted = targetId ? enemies.find((row) => row.id.toString() === targetId) : null;
+    return targeted ?? enemies.find((row) => row.currentHp > 0n) ?? enemies[0] ?? null;
   });
 
   const activeEnemySpawn = computed(() => {
-    if (!activeCombat.value) return null;
+    if (!activeCombat.value || !activeEnemy.value) return null;
     return (
       enemySpawns.value.find(
-        (row) => row.lockedCombatId?.toString() === activeCombat.value?.id.toString()
+        (row) => row.id.toString() === activeEnemy.value?.spawnId?.toString()
       ) ?? null
     );
   });
@@ -228,11 +233,15 @@ export const useCombat = ({
   });
 
   const activeEnemyEffects = computed(() => {
-    if (!activeCombat.value) return [];
+    if (!activeCombat.value || !activeEnemy.value) return [];
     const combatId = activeCombat.value.id.toString();
+    const enemyId = activeEnemy.value.id.toString();
     const negativeTypes = new Set(['damage_down', 'dot', 'skip', 'slow', 'weaken']);
     return combatEnemyEffects.value
-      .filter((row) => row.combatId.toString() === combatId)
+      .filter(
+        (row) =>
+          row.combatId.toString() === combatId && row.enemyId.toString() === enemyId
+      )
       .map((effect) => {
         const type = effect.effectType;
         const isHot = type === 'dot';
@@ -265,7 +274,9 @@ export const useCombat = ({
     if (!activeCombat.value) return null;
     return (
       combatEnemyCasts.value.find(
-        (row) => row.combatId.toString() === activeCombat.value?.id.toString()
+        (row) =>
+          row.combatId.toString() === activeCombat.value?.id.toString() &&
+          row.enemyId.toString() === activeEnemy.value?.id.toString()
       ) ?? null
     );
   });
@@ -318,8 +329,95 @@ export const useCombat = ({
           name: spawn.name,
           level,
           conClass,
+          groupCount: spawn.groupCount ?? 1n,
         };
       });
+  });
+
+  const combatEnemiesList = computed(() => {
+    if (!activeCombat.value) return [];
+    const combatId = activeCombat.value.id.toString();
+    const enemies = combatEnemies.value.filter(
+      (row) => row.combatId.toString() === combatId
+    );
+    return enemies.map((enemy) => {
+      const template = enemyTemplates.value.find(
+        (row) => row.id.toString() === enemy.enemyTemplateId.toString()
+      );
+      const name = template?.name ?? 'Enemy';
+      const level = template?.level ?? 1n;
+      const diff = selectedCharacter.value
+        ? Number(level - selectedCharacter.value.level)
+        : 0;
+      let conClass = 'conWhite';
+      if (diff <= -5) conClass = 'conGray';
+      else if (diff <= -2) conClass = 'conLightGreen';
+      else if (diff === -1) conClass = 'conBlue';
+      else if (diff === 0) conClass = 'conWhite';
+      else if (diff === 1) conClass = 'conYellow';
+      else if (diff === 2) conClass = 'conOrange';
+      else conClass = 'conRed';
+      const effects = combatEnemyEffects.value
+        .filter(
+          (row) =>
+            row.combatId.toString() === combatId &&
+            row.enemyId.toString() === enemy.id.toString()
+        )
+        .map((effect) => {
+          const type = effect.effectType;
+          const isHot = type === 'dot';
+          const seconds = Number(effect.roundsRemaining) * (isHot ? 3 : 10);
+          const label = effect.sourceAbility ?? type.replace(/_/g, ' ');
+          const isNegative =
+            new Set(['damage_down', 'dot', 'skip', 'slow', 'weaken']).has(type) ||
+            effect.magnitude < 0n;
+          return {
+            id: effect.id,
+            label,
+            seconds,
+            isNegative,
+          };
+        });
+      const cast = combatEnemyCasts.value.find(
+        (row) =>
+          row.combatId.toString() === combatId &&
+          row.enemyId.toString() === enemy.id.toString()
+      );
+      const ability = cast
+        ? enemyAbilities.value.find((row) => row.abilityKey === cast.abilityKey)
+        : null;
+      const castDuration = ability?.castSeconds ? Number(ability.castSeconds) * 1_000_000 : 0;
+      const castProgress =
+        cast && castDuration
+          ? Math.max(
+              0,
+              Math.min(
+                1,
+                (castDuration - (Number(cast.endsAtMicros) - nowMicros.value)) /
+                  castDuration
+              )
+            )
+          : 0;
+      const targetName =
+        enemy.aggroTargetCharacterId
+          ? characters.value.find(
+              (row) => row.id.toString() === enemy.aggroTargetCharacterId?.toString()
+            )?.name ?? null
+          : null;
+      return {
+        id: enemy.id,
+        name,
+        level,
+        hp: enemy.currentHp,
+        maxHp: enemy.maxHp,
+        conClass,
+        isTarget: enemy.id.toString() === selectedCharacter.value?.combatTargetEnemyId?.toString(),
+        effects,
+        castLabel: ability?.name ?? '',
+        castProgress,
+        targetName,
+      };
+    });
   });
 
   const combatRoster = computed<CombatRosterEntry[]>(() => {
@@ -373,6 +471,11 @@ export const useCombat = ({
     startCombatReducer({ characterId: selectedCharacter.value.id, enemySpawnId });
   };
 
+  const startPull = (enemySpawnId: bigint, pullType: 'careful' | 'body') => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    startPullReducer({ characterId: selectedCharacter.value.id, enemySpawnId, pullType });
+  };
+
   const flee = () => {
     if (!connActive.value || !activeCombat.value || !selectedCharacter.value) return;
     fleeCombatReducer({
@@ -403,10 +506,20 @@ export const useCombat = ({
     activeEnemyCastLabel,
     activeEnemySpawn,
     availableEnemies,
+    combatEnemiesList,
     combatRoster,
     startCombat,
+    startPull,
+    setCombatTarget,
     flee,
     dismissResults,
     takeLoot,
   };
 };
+  const setCombatTarget = (enemyId: bigint | null) => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    setCombatTargetReducer({
+      characterId: selectedCharacter.value.id,
+      enemyId: enemyId ?? undefined,
+    });
+  };

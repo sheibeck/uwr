@@ -240,24 +240,17 @@
           :characters-here="charactersHere"
           :npcs-here="npcsHere"
           :active-combat="activeCombat"
-          :active-enemy="activeEnemy"
           :active-enemy-spawn="activeEnemySpawn"
-          :active-enemy-name="activeEnemyName"
-          :active-enemy-level="activeEnemyLevel"
-          :active-enemy-con-class="activeEnemyConClass"
-          :active-enemy-effects="activeEnemyEffects"
           :active-loot="activeLoot"
-          :enemy-target-name="activeEnemyTargetName"
-          :enemy-action-text="activeEnemyActionText"
-          :enemy-cast-progress="activeEnemyCastProgress"
-          :enemy-cast-label="activeEnemyCastLabel"
+          :combat-enemies="combatEnemiesList"
           :enemy-spawns="availableEnemies"
           :active-result="activeResult"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
           :can-act="canActInCombat"
           :accordion-state="accordionState"
-          @start="startCombat"
+          @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
+          @select-enemy="setCombatTarget"
           @flee="flee"
           @dismiss-results="dismissResults"
           @take-loot="takeLoot"
@@ -309,24 +302,17 @@
             :characters-here="charactersHere"
             :npcs-here="npcsHere"
             :active-combat="activeCombat"
-            :active-enemy="activeEnemy"
             :active-enemy-spawn="activeEnemySpawn"
-            :active-enemy-name="activeEnemyName"
-            :active-enemy-level="activeEnemyLevel"
-            :active-enemy-con-class="activeEnemyConClass"
-            :active-enemy-effects="activeEnemyEffects"
             :active-loot="activeLoot"
-            :enemy-target-name="activeEnemyTargetName"
-            :enemy-action-text="activeEnemyActionText"
-            :enemy-cast-progress="activeEnemyCastProgress"
-            :enemy-cast-label="activeEnemyCastLabel"
+            :combat-enemies="combatEnemiesList"
             :enemy-spawns="availableEnemies"
             :active-result="activeResult"
             :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
             :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
             :can-act="canActInCombat"
             :accordion-state="accordionState"
-            @start="startCombat"
+            @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
+            @select-enemy="setCombatTarget"
             @flee="flee"
             @dismiss-results="dismissResults"
             @take-loot="takeLoot"
@@ -361,24 +347,17 @@
             :characters-here="charactersHere"
             :npcs-here="npcsHere"
             :active-combat="activeCombat"
-            :active-enemy="activeEnemy"
             :active-enemy-spawn="activeEnemySpawn"
-            :active-enemy-name="activeEnemyName"
-            :active-enemy-level="activeEnemyLevel"
-            :active-enemy-con-class="activeEnemyConClass"
-            :active-enemy-effects="activeEnemyEffects"
             :active-loot="activeLoot"
-            :enemy-target-name="activeEnemyTargetName"
-            :enemy-action-text="activeEnemyActionText"
-            :enemy-cast-progress="activeEnemyCastProgress"
-            :enemy-cast-label="activeEnemyCastLabel"
+            :combat-enemies="combatEnemiesList"
             :enemy-spawns="availableEnemies"
             :active-result="activeResult"
             :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
             :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
             :can-act="canActInCombat"
             :accordion-state="accordionState"
-            @start="startCombat"
+            @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
+            @select-enemy="setCombatTarget"
             @flee="flee"
             @dismiss-results="dismissResults"
             @take-loot="takeLoot"
@@ -706,18 +685,14 @@ const {
   activeCombat,
   activeEnemy,
   activeEnemySpawn,
-  activeEnemyName,
-  activeEnemyLevel,
-  activeEnemyConClass,
-  activeEnemyEffects,
-  activeEnemyActionText,
-  activeEnemyCastProgress,
-  activeEnemyCastLabel,
+  combatEnemiesList,
   availableEnemies,
   combatRoster,
   activeResult,
   activeLoot,
   startCombat,
+  startPull,
+  setCombatTarget,
   flee,
   dismissResults,
   takeLoot,

@@ -16,5 +16,8 @@ export default __t.row({
   groupId: __t.option(__t.u64()),
   leaderCharacterId: __t.option(__t.u64()),
   state: __t.string(),
+  addCount: __t.u64(),
+  pendingAddCount: __t.u64(),
+  pendingAddAtMicros: __t.option(__t.u64()),
   createdAt: __t.timestamp(),
 });

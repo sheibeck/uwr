@@ -47,6 +47,7 @@ export default __t.object("Character", {
   createdAt: __t.timestamp(),
   stamina: __t.u64(),
   maxStamina: __t.u64(),
+  combatTargetEnemyId: __t.option(__t.u64()),
 });
 
 

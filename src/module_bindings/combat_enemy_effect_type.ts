@@ -13,6 +13,7 @@ import {
 export default __t.object("CombatEnemyEffect", {
   id: __t.u64(),
   combatId: __t.u64(),
+  enemyId: __t.u64(),
   effectType: __t.string(),
   magnitude: __t.i64(),
   roundsRemaining: __t.u64(),

@@ -27,10 +27,13 @@ export const registerCombatReducers = (deps: any) => {
     EnemyAbility,
     CombatEnemyCast,
     CombatEnemyCooldown,
+    CombatPendingAdd,
     hasShieldEquipped,
     canParry,
     enemyAbilityCastMicros,
     enemyAbilityCooldownMicros,
+    PullState,
+    PullTick,
   } = deps;
 
   const AUTO_ATTACK_INTERVAL = 5_000_000n;
@@ -38,6 +41,9 @@ export const registerCombatReducers = (deps: any) => {
   const DEFAULT_AI_CHANCE = 50;
   const DEFAULT_AI_WEIGHT = 50;
   const DEFAULT_AI_RANDOMNESS = 15;
+  const PULL_DELAY_CAREFUL = 2_000_000n;
+  const PULL_DELAY_BODY = 1_000_000n;
+  const PULL_ADD_DELAY_ROUNDS = 2n;
 
   const clearCharacterEffectsOnDeath = (ctx: any, character: any) => {
     for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
@@ -81,6 +87,10 @@ export const registerCombatReducers = (deps: any) => {
       ctx.db.combatParticipant.id.delete(row.id);
     }
     for (const characterId of participantIds) {
+      const character = ctx.db.character.id.find(characterId);
+      if (character && character.combatTargetEnemyId) {
+        ctx.db.character.id.update({ ...character, combatTargetEnemyId: undefined });
+      }
       for (const cast of ctx.db.characterCast.by_character.filter(characterId)) {
         ctx.db.characterCast.id.delete(cast.id);
       }
@@ -94,6 +104,11 @@ export const registerCombatReducers = (deps: any) => {
     for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combatId)) {
       ctx.db.combatEnemyEffect.id.delete(row.id);
     }
+    if (ctx.db.combatPendingAdd) {
+      for (const row of ctx.db.combatPendingAdd.by_combat.filter(combatId)) {
+        ctx.db.combatPendingAdd.id.delete(row.id);
+      }
+    }
     for (const row of ctx.db.combatEnemyCast.by_combat.filter(combatId)) {
       ctx.db.combatEnemyCast.id.delete(row.id);
     }
@@ -102,6 +117,112 @@ export const registerCombatReducers = (deps: any) => {
         ctx.db.combatEnemyCooldown.id.delete(row.id);
       }
     }
+  };
+
+  const schedulePullResolve = (ctx: any, pullId: bigint, resolveAtMicros: bigint) => {
+    ctx.db.pullTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(resolveAtMicros),
+      pullId,
+    });
+  };
+
+  const addEnemyToCombat = (
+    ctx: any,
+    combat: any,
+    spawnToUse: any,
+    participants: any[],
+    consumeSpawnCount: boolean = true
+  ) => {
+    const template = ctx.db.enemyTemplate.id.find(spawnToUse.enemyTemplateId);
+    if (!template) throw new SenderError('Enemy template missing');
+
+    const { maxHp, attackDamage, armorClass } = computeEnemyStats(template, participants);
+    const combatEnemy = ctx.db.combatEnemy.insert({
+      id: 0n,
+      combatId: combat.id,
+      spawnId: spawnToUse.id,
+      enemyTemplateId: template.id,
+      currentHp: maxHp,
+      maxHp,
+      attackDamage,
+      armorClass,
+      aggroTargetCharacterId: undefined,
+      nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
+    });
+
+    for (const p of participants) {
+      ctx.db.aggroEntry.insert({
+        id: 0n,
+        combatId: combat.id,
+        enemyId: combatEnemy.id,
+        characterId: p.id,
+        value: 0n,
+      });
+    }
+
+    if (consumeSpawnCount) {
+      const nextCount = spawnToUse.groupCount > 0n ? spawnToUse.groupCount - 1n : 0n;
+      ctx.db.enemySpawn.id.update({
+        ...spawnToUse,
+        state: 'engaged',
+        lockedCombatId: combat.id,
+        groupCount: nextCount,
+      });
+    } else {
+      ctx.db.enemySpawn.id.update({
+        ...spawnToUse,
+        state: 'engaged',
+        lockedCombatId: combat.id,
+      });
+    }
+
+    return combatEnemy;
+  };
+
+  const createCombatForSpawn = (
+    ctx: any,
+    leader: any,
+    spawnToUse: any,
+    participants: any[],
+    groupId: bigint | null
+  ) => {
+    const combat = ctx.db.combatEncounter.insert({
+      id: 0n,
+      locationId: leader.locationId,
+      groupId: groupId ?? undefined,
+      leaderCharacterId: groupId ? leader.id : undefined,
+      state: 'active',
+      addCount: 0n,
+      pendingAddCount: 0n,
+      pendingAddAtMicros: undefined,
+      createdAt: ctx.timestamp,
+    });
+
+    addEnemyToCombat(ctx, combat, spawnToUse, participants);
+
+    for (const p of participants) {
+      ctx.db.combatParticipant.insert({
+        id: 0n,
+        combatId: combat.id,
+        characterId: p.id,
+        status: 'active',
+        nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
+      });
+    }
+
+    for (const p of participants) {
+      appendPrivateEvent(
+        ctx,
+        p.id,
+        p.ownerUserId,
+        'combat',
+        `Combat begins against ${spawnToUse.name}.`
+      );
+    }
+
+    scheduleCombatTick(ctx, combat.id);
+    return combat;
   };
 
   const updateQuestProgressForKill = (
@@ -299,7 +420,8 @@ export const registerCombatReducers = (deps: any) => {
     rule: string | undefined,
     activeParticipants: typeof deps.CombatParticipant.rowType[],
     ctx: any,
-    combatId: bigint
+    combatId: bigint,
+    enemyId: bigint
   ) => {
     if (activeParticipants.length === 0) return undefined;
     const normalized = (rule ?? 'aggro').toLowerCase();
@@ -316,6 +438,7 @@ export const registerCombatReducers = (deps: any) => {
     }
     if (normalized === 'self') return undefined;
     const targetEntry = [...ctx.db.aggroEntry.by_combat.filter(combatId)]
+      .filter((entry) => entry.enemyId === enemyId)
       .filter((entry) => activeParticipants.some((p) => p.characterId === entry.characterId))
       .sort((a, b) => (a.value > b.value ? -1 : a.value < b.value ? 1 : 0))[0];
     return targetEntry?.characterId ?? activeParticipants[0]?.characterId;
@@ -370,66 +493,281 @@ export const registerCombatReducers = (deps: any) => {
         ? spawn
         : ensureAvailableSpawn(ctx, locationId, desiredLevel);
 
-    const template = ctx.db.enemyTemplate.id.find(spawnToUse.enemyTemplateId);
-    if (!template) throw new SenderError('Enemy template missing');
+    createCombatForSpawn(ctx, character, spawnToUse, participants, groupId);
+  });
 
-    // Scale enemy
-    const { maxHp, attackDamage, armorClass } = computeEnemyStats(template, participants);
+  spacetimedb.reducer(
+    'start_pull',
+    { characterId: t.u64(), enemySpawnId: t.u64(), pullType: t.string() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (activeCombatIdForCharacter(ctx, character.id)) {
+        throw new SenderError('Already in combat');
+      }
+      const locationId = character.locationId;
+      const pullType = args.pullType.trim().toLowerCase();
+      if (pullType !== 'careful' && pullType !== 'body') {
+        throw new SenderError('Invalid pull type');
+      }
 
-    const combat = ctx.db.combatEncounter.insert({
-      id: 0n,
-      locationId,
-      groupId: groupId ?? undefined,
-      leaderCharacterId: groupId ? character.id : undefined,
-      state: 'active',
-      createdAt: ctx.timestamp,
-    });
+      let groupId: bigint | null = character.groupId ?? null;
+      if (groupId) {
+        const group = ctx.db.group.id.find(groupId);
+        if (!group) throw new SenderError('Group not found');
+        if (group.leaderCharacterId !== character.id) {
+          throw new SenderError('Only the group leader can pull');
+        }
+      }
 
-    ctx.db.enemySpawn.id.update({
-      ...spawnToUse,
-      state: 'engaged',
-      lockedCombatId: combat.id,
-    });
+      for (const pull of ctx.db.pullState.by_character.filter(character.id)) {
+        if (pull.state === 'pending') {
+          throw new SenderError('Pull already in progress');
+        }
+      }
 
-    ctx.db.combatEnemy.insert({
-      id: 0n,
-      combatId: combat.id,
-      enemyTemplateId: template.id,
-      currentHp: maxHp,
-      maxHp,
-      attackDamage,
-      armorClass,
-      aggroTargetCharacterId: undefined,
-      nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
-    });
+      const spawn = ctx.db.enemySpawn.id.find(args.enemySpawnId);
+      if (!spawn || spawn.locationId !== locationId || spawn.state !== 'available') {
+        throw new SenderError('Enemy is not available to pull');
+      }
 
-    for (const p of participants) {
-      ctx.db.combatParticipant.insert({
+      ctx.db.enemySpawn.id.update({ ...spawn, state: 'pulling' });
+
+      const delayMicros = pullType === 'careful' ? PULL_DELAY_CAREFUL : PULL_DELAY_BODY;
+      const resolveAt = ctx.timestamp.microsSinceUnixEpoch + delayMicros;
+      const pull = ctx.db.pullState.insert({
         id: 0n,
-        combatId: combat.id,
-        characterId: p.id,
-        status: 'active',
-        nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
+        characterId: character.id,
+        groupId: groupId ?? undefined,
+        locationId,
+        enemySpawnId: spawn.id,
+        pullType,
+        state: 'pending',
+        outcome: undefined,
+        delayedAdds: undefined,
+        delayedAddsAtMicros: undefined,
+        createdAt: ctx.timestamp,
       });
-      ctx.db.aggroEntry.insert({
-        id: 0n,
-        combatId: combat.id,
-        characterId: p.id,
-        value: 0n,
-      });
-    }
+      schedulePullResolve(ctx, pull.id, resolveAt);
 
-    for (const p of participants) {
       appendPrivateEvent(
         ctx,
-        p.id,
-        p.ownerUserId,
-        'combat',
-        `Combat begins against ${spawnToUse.name}.`
+        character.id,
+        character.ownerUserId,
+        'system',
+        `You begin a ${pullType === 'careful' ? 'Careful Pull' : 'Body Pull'} on ${spawn.name}.`
       );
     }
+  );
 
-    scheduleCombatTick(ctx, combat.id);
+  spacetimedb.reducer(
+    'set_combat_target',
+    { characterId: t.u64(), enemyId: t.u64().optional() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const combatId = activeCombatIdForCharacter(ctx, character.id);
+      if (!combatId) throw new SenderError('Not in combat');
+      if (args.enemyId) {
+        const enemy = ctx.db.combatEnemy.id.find(args.enemyId);
+        if (!enemy || enemy.combatId !== combatId) {
+          throw new SenderError('Enemy not in combat');
+        }
+        ctx.db.character.id.update({ ...character, combatTargetEnemyId: enemy.id });
+      } else {
+        ctx.db.character.id.update({ ...character, combatTargetEnemyId: undefined });
+      }
+    }
+  );
+
+  spacetimedb.reducer('resolve_pull', { arg: PullTick.rowType }, (ctx, { arg }) => {
+    const pull = ctx.db.pullState.id.find(arg.pullId);
+    if (!pull || pull.state !== 'pending') return;
+
+    const character = ctx.db.character.id.find(pull.characterId);
+    const spawn = ctx.db.enemySpawn.id.find(pull.enemySpawnId);
+    if (!character || !spawn || spawn.locationId !== pull.locationId) {
+      if (spawn && spawn.state === 'pulling') {
+        ctx.db.enemySpawn.id.update({ ...spawn, state: 'available' });
+      }
+      ctx.db.pullState.id.delete(pull.id);
+      return;
+    }
+    if (activeCombatIdForCharacter(ctx, character.id)) {
+      if (spawn.state === 'pulling') {
+        ctx.db.enemySpawn.id.update({ ...spawn, state: 'available' });
+      }
+      ctx.db.pullState.id.delete(pull.id);
+      return;
+    }
+
+    const template = ctx.db.enemyTemplate.id.find(spawn.enemyTemplateId);
+    if (!template) {
+      ctx.db.enemySpawn.id.update({ ...spawn, state: 'available' });
+      ctx.db.pullState.id.delete(pull.id);
+      return;
+    }
+
+    const targetGroup = (template.socialGroup || template.creatureType || '').trim().toLowerCase();
+    const candidates = [...ctx.db.enemySpawn.by_location.filter(pull.locationId)]
+      .filter((row) => row.id !== spawn.id && row.state === 'available')
+      .map((row) => ({
+        spawn: row,
+        template: ctx.db.enemyTemplate.id.find(row.enemyTemplateId),
+      }))
+      .filter(
+        (row) =>
+          row.template &&
+          (row.template.socialGroup || row.template.creatureType || '').trim().toLowerCase() ===
+            targetGroup
+      );
+
+    const targetRadius = Number(template.socialRadius ?? 0n);
+    const overlapPressure = targetRadius + candidates.length;
+    let success = pull.pullType === 'careful' ? 80 : 40;
+    let partial = pull.pullType === 'careful' ? 15 : 30;
+    let fail = 100 - success - partial;
+    const pressurePenalty = Math.min(30, overlapPressure * 5);
+    success -= pressurePenalty;
+    fail += pressurePenalty;
+    const awarenessAlert =
+      template.awareness?.toLowerCase() === 'alert' ||
+      candidates.some((row) => row.template?.awareness?.toLowerCase() === 'alert');
+    if (awarenessAlert) {
+      success = Math.max(5, success - 10);
+      fail = Math.min(95, fail + 10);
+    }
+    partial = Math.max(5, 100 - success - fail);
+
+    const roll =
+      Number(
+        (ctx.timestamp.microsSinceUnixEpoch + spawn.id + character.id) % 100n
+      );
+    let outcome: 'success' | 'partial' | 'failure' = 'success';
+    if (roll < success) {
+      outcome = 'success';
+    } else if (roll < success + partial) {
+      outcome = 'partial';
+    } else {
+      outcome = 'failure';
+    }
+
+    const initialGroupCount = spawn.groupCount > 0n ? Number(spawn.groupCount) : 1;
+    const groupAddsAvailable = Math.max(0, initialGroupCount - 1);
+    const maxAdds = groupAddsAvailable + candidates.length;
+    const addCount = maxAdds > 0 ? Math.min(maxAdds, Math.max(1, targetRadius || 1)) : 0;
+
+    const participants: typeof deps.Character.rowType[] = [];
+    const participantIds = new Set<string>();
+    if (pull.groupId) {
+      for (const member of ctx.db.groupMember.by_group.filter(pull.groupId)) {
+        const memberChar = ctx.db.character.id.find(member.characterId);
+        if (memberChar && memberChar.locationId === pull.locationId) {
+          const key = memberChar.id.toString();
+          if (!participantIds.has(key)) {
+            participants.push(memberChar);
+            participantIds.add(key);
+          }
+        }
+      }
+    } else {
+      participants.push(character);
+    }
+    if (participants.length === 0) {
+      ctx.db.enemySpawn.id.update({ ...spawn, state: 'available' });
+      ctx.db.pullState.id.delete(pull.id);
+      return;
+    }
+
+    const combat = createCombatForSpawn(ctx, character, spawn, participants, pull.groupId ?? null);
+
+    let reason = 'No nearby allies responded.';
+    if (overlapPressure > 0) {
+      reason = 'Social allies were within overlapping radius.';
+    }
+    if (awarenessAlert) {
+      reason = 'The area is on alert.';
+    }
+
+    const reserveAdds = (count: number) => {
+      if (count <= 0) return [] as { spawn: any }[];
+      const reserved: { spawn: any }[] = [];
+      const updatedPullSpawn = ctx.db.enemySpawn.id.find(spawn.id);
+      const availableFromGroup = updatedPullSpawn ? Number(updatedPullSpawn.groupCount) : 0;
+      const groupTake = Math.min(count, availableFromGroup);
+      if (groupTake > 0 && updatedPullSpawn) {
+        ctx.db.enemySpawn.id.update({
+          ...updatedPullSpawn,
+          groupCount: updatedPullSpawn.groupCount - BigInt(groupTake),
+        });
+        for (let i = 0; i < groupTake; i += 1) reserved.push({ spawn: updatedPullSpawn });
+      }
+      let remaining = count - groupTake;
+      for (const candidate of candidates) {
+        if (remaining <= 0) break;
+        if (!candidate.spawn) continue;
+        const candidateSpawn = ctx.db.enemySpawn.id.find(candidate.spawn.id);
+        if (!candidateSpawn || candidateSpawn.groupCount === 0n) continue;
+        ctx.db.enemySpawn.id.update({
+          ...candidateSpawn,
+          state: 'engaged',
+          lockedCombatId: combat.id,
+          groupCount: candidateSpawn.groupCount - 1n,
+        });
+        reserved.push({ spawn: candidateSpawn });
+        remaining -= 1;
+      }
+      return reserved;
+    };
+
+    if (outcome === 'partial' && addCount > 0) {
+      const delayMicros = AUTO_ATTACK_INTERVAL * PULL_ADD_DELAY_ROUNDS;
+      const reserved = reserveAdds(addCount);
+      for (const add of reserved) {
+        ctx.db.combatPendingAdd.insert({
+          id: 0n,
+          combatId: combat.id,
+          enemyTemplateId: add.spawn.enemyTemplateId,
+          spawnId: add.spawn.id,
+          arriveAtMicros: ctx.timestamp.microsSinceUnixEpoch + delayMicros,
+        });
+      }
+      for (const p of participants) {
+        appendPrivateEvent(
+          ctx,
+          p.id,
+          p.ownerUserId,
+          'system',
+          `Your ${pull.pullType} pull succeeds, but ${reserved.length} add(s) will arrive in ${Number(
+            delayMicros / 1_000_000n
+          )}s. ${reason}`
+        );
+      }
+    } else if (outcome === 'failure' && addCount > 0) {
+      const reserved = reserveAdds(addCount);
+      for (const add of reserved) {
+        addEnemyToCombat(ctx, combat, add.spawn, participants, false);
+      }
+      for (const p of participants) {
+        appendPrivateEvent(
+          ctx,
+          p.id,
+          p.ownerUserId,
+          'system',
+          `Pull failed. ${reserved.length} add(s) immediately aggro! ${reason}`
+        );
+      }
+    } else {
+      for (const p of participants) {
+        appendPrivateEvent(
+          ctx,
+          p.id,
+          p.ownerUserId,
+          'system',
+          `Pull succeeded. ${reason}`
+        );
+      }
+    }
+
+    ctx.db.pullState.id.delete(pull.id);
   });
 
   spacetimedb.reducer('flee_combat', { characterId: t.u64() }, (ctx, args) => {
@@ -650,6 +988,11 @@ export const registerCombatReducers = (deps: any) => {
 
     for (const effect of ctx.db.combatEnemyEffect.iter()) {
       if (effect.effectType === 'dot') continue;
+      const enemy = ctx.db.combatEnemy.id.find(effect.enemyId);
+      if (!enemy) {
+        ctx.db.combatEnemyEffect.id.delete(effect.id);
+        continue;
+      }
       if (effect.roundsRemaining === 0n) {
         ctx.db.combatEnemyEffect.id.delete(effect.id);
         continue;
@@ -718,11 +1061,14 @@ export const registerCombatReducers = (deps: any) => {
       }
       const combat = ctx.db.combatEncounter.id.find(effect.combatId);
       if (!combat || combat.state !== 'active') continue;
-      const enemy = [...ctx.db.combatEnemy.by_combat.filter(effect.combatId)][0];
-      if (!enemy) continue;
+      const enemy = ctx.db.combatEnemy.id.find(effect.enemyId);
+      if (!enemy) {
+        ctx.db.combatEnemyEffect.id.delete(effect.id);
+        continue;
+      }
       const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
       const enemyName = enemyTemplate?.name ?? 'enemy';
-      const bonus = sumEnemyEffect(ctx, effect.combatId, 'damage_taken');
+      const bonus = sumEnemyEffect(ctx, effect.combatId, 'damage_taken', enemy.id);
       const total = effect.magnitude + bonus;
       const nextHp = enemy.currentHp > total ? enemy.currentHp - total : 0n;
       ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
@@ -805,13 +1151,23 @@ export const registerCombatReducers = (deps: any) => {
     const combat = ctx.db.combatEncounter.id.find(arg.combatId);
     if (!combat || combat.state !== 'active') return;
 
-    const enemy = [...ctx.db.combatEnemy.by_combat.filter(combat.id)][0];
-    if (!enemy) {
-      const spawn = [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
-        (s) => s.lockedCombatId === combat.id
-      );
-      if (spawn) {
-        ctx.db.enemySpawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
+    const enemies = [...ctx.db.combatEnemy.by_combat.filter(combat.id)];
+    if (enemies.length === 0) {
+      const survivorsBySpawn = new Map<bigint, number>();
+      for (const enemyRow of ctx.db.combatEnemy.by_combat.filter(combat.id)) {
+        if (enemyRow.currentHp === 0n) continue;
+        const count = survivorsBySpawn.get(enemyRow.spawnId) ?? 0;
+        survivorsBySpawn.set(enemyRow.spawnId, count + 1);
+      }
+      for (const [spawnId, count] of survivorsBySpawn.entries()) {
+        const spawn = ctx.db.enemySpawn.id.find(spawnId);
+        if (!spawn) continue;
+        ctx.db.enemySpawn.id.update({
+          ...spawn,
+          state: 'available',
+          lockedCombatId: undefined,
+          groupCount: spawn.groupCount + BigInt(count),
+        });
       }
       clearCombatArtifacts(ctx, combat.id);
       ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
@@ -835,137 +1191,177 @@ export const registerCombatReducers = (deps: any) => {
       [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
         (s) => s.lockedCombatId === combat.id
       )?.name ?? 'enemy';
-    const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+    const enemyTemplate = enemies[0]
+      ? ctx.db.enemyTemplate.id.find(enemies[0].enemyTemplateId)
+      : null;
     const enemyName = enemyTemplate?.name ?? spawnName;
 
-    // Enemy special abilities (future-facing). No abilities are defined yet.
-    const enemyAbilities = enemyTemplate
-      ? [...ctx.db.enemyAbility.by_template.filter(enemyTemplate.id)]
-      : [];
-    const existingCast = [...ctx.db.combatEnemyCast.by_combat.filter(combat.id)].find(
-      (row) => row.enemyId === enemy.id
-    );
-    if (existingCast && existingCast.endsAtMicros <= nowMicros) {
-      executeEnemyAbility(
-        ctx,
-        combat.id,
-        enemy.id,
-        existingCast.abilityKey,
-        existingCast.targetCharacterId
-      );
-      const cooldownTable = ctx.db.combatEnemyCooldown;
-      if (cooldownTable) {
-        const abilityRow = enemyAbilities.find(
-          (row) => row.abilityKey === existingCast.abilityKey
-        );
-        const cooldownMicros =
-          enemyAbilityCooldownMicros(existingCast.abilityKey) ||
-          (abilityRow?.cooldownSeconds ?? 0n) * 1_000_000n;
-        if (cooldownMicros > 0n) {
-          for (const row of cooldownTable.by_combat.filter(combat.id)) {
-            if (row.abilityKey === existingCast.abilityKey) {
-              cooldownTable.id.delete(row.id);
-            }
-          }
-          cooldownTable.insert({
-            id: 0n,
-            combatId: combat.id,
-            abilityKey: existingCast.abilityKey,
-            readyAtMicros: nowMicros + cooldownMicros,
-          });
-        }
+    for (const pending of ctx.db.combatPendingAdd.by_combat.filter(combat.id)) {
+      if (pending.arriveAtMicros > nowMicros) continue;
+      const spawnRow = pending.spawnId ? ctx.db.enemySpawn.id.find(pending.spawnId) : null;
+      if (spawnRow) {
+        addEnemyToCombat(ctx, combat, spawnRow, participants, false);
       }
-      ctx.db.combatEnemyCast.id.delete(existingCast.id);
+      ctx.db.combatPendingAdd.id.delete(pending.id);
+      for (const p of activeParticipants) {
+        const character = ctx.db.character.id.find(p.characterId);
+        if (!character) continue;
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'combat',
+          `A social add arrives to assist ${enemyName}.`
+        );
+      }
     }
-    if (enemyAbilities.length > 0 && !existingCast) {
-      const cooldownTable = ctx.db.combatEnemyCooldown;
-      if (!cooldownTable) {
-        // cooldown table missing; skip casting to avoid spam
-      } else {
-        type Candidate = {
-          ability: typeof deps.EnemyAbility.rowType;
-          targetId: bigint;
-          score: number;
-          castMicros: bigint;
-          cooldownMicros: bigint;
-          chance: number;
-        };
-        const candidates: Candidate[] = [];
 
-        for (const ability of enemyAbilities) {
-          const cooldown = [...cooldownTable.by_combat.filter(combat.id)].find(
-            (row) => row.abilityKey === ability.abilityKey
+    // Enemy special abilities (future-facing). No abilities are defined yet.
+    for (const enemy of enemies) {
+      if (enemy.currentHp === 0n) continue;
+      if (enemy.currentHp === 0n) continue;
+      const template = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+      const enemyAbilities = template
+        ? [...ctx.db.enemyAbility.by_template.filter(template.id)]
+        : [];
+      const existingCast = [...ctx.db.combatEnemyCast.by_combat.filter(combat.id)].find(
+        (row) => row.enemyId === enemy.id
+      );
+      if (existingCast && existingCast.endsAtMicros <= nowMicros) {
+        executeEnemyAbility(
+          ctx,
+          combat.id,
+          enemy.id,
+          existingCast.abilityKey,
+          existingCast.targetCharacterId
+        );
+        const cooldownTable = ctx.db.combatEnemyCooldown;
+        if (cooldownTable) {
+          const abilityRow = enemyAbilities.find(
+            (row) => row.abilityKey === existingCast.abilityKey
           );
-          if (cooldown && cooldown.readyAtMicros > nowMicros) continue;
-          if (cooldown && cooldown.readyAtMicros <= nowMicros) {
-            for (const row of cooldownTable.by_combat.filter(combat.id)) {
-              if (row.abilityKey === ability.abilityKey) {
+          const cooldownMicros =
+            enemyAbilityCooldownMicros(existingCast.abilityKey) ||
+            (abilityRow?.cooldownSeconds ?? 0n) * 1_000_000n;
+          if (cooldownMicros > 0n) {
+            for (const row of cooldownTable.by_enemy.filter(enemy.id)) {
+              if (row.abilityKey === existingCast.abilityKey) {
                 cooldownTable.id.delete(row.id);
               }
             }
-          }
-
-          const targetId = pickEnemyTarget(ability.targetRule, activeParticipants, ctx, combat.id);
-          if (!targetId) continue;
-
-          const meta = ENEMY_ABILITIES[ability.abilityKey as keyof typeof ENEMY_ABILITIES];
-          const castMicros =
-            enemyAbilityCastMicros(ability.abilityKey) ||
-            (ability.castSeconds ?? 0n) * 1_000_000n;
-          const cooldownMicros =
-            enemyAbilityCooldownMicros(ability.abilityKey) ||
-            (ability.cooldownSeconds ?? 0n) * 1_000_000n;
-
-          if (ability.kind === 'dot') {
-            const alreadyApplied = [...ctx.db.characterEffect.by_character.filter(targetId)].some(
-              (effect) => effect.effectType === 'dot' && effect.sourceAbility === ability.name
-            );
-            if (alreadyApplied) continue;
-          } else if (ability.kind === 'debuff') {
-            const alreadyApplied = [...ctx.db.characterEffect.by_character.filter(targetId)].some(
-              (effect) => effect.sourceAbility === ability.name
-            );
-            if (alreadyApplied) continue;
-          }
-
-          const baseWeight = meta?.aiWeight ?? DEFAULT_AI_WEIGHT;
-          const baseChance = meta?.aiChance ?? DEFAULT_AI_CHANCE;
-          const randomness = meta?.aiRandomness ?? DEFAULT_AI_RANDOMNESS;
-          let score = baseWeight;
-          if (ability.kind === 'dot') score += 30;
-          if (ability.targetRule === 'lowest_hp') score += 20;
-          if (ability.targetRule === 'aggro') score += 10;
-
-          const hash = hashString(`${ability.abilityKey}:${combat.id}:${enemy.id}`);
-          const jitter = (hash % (randomness * 2)) - randomness;
-          score += jitter;
-          candidates.push({
-            ability,
-            targetId,
-            score,
-            castMicros,
-            cooldownMicros,
-            chance: baseChance,
-          });
-        }
-
-        if (candidates.length > 0) {
-          const chosen = candidates.sort((a, b) => b.score - a.score)[0];
-          const roll =
-            Number((nowMicros + enemy.id + combat.id + BigInt(hashString(chosen.ability.abilityKey))) % 100n);
-          if (roll < chosen.chance) {
-            ctx.db.combatEnemyCast.insert({
+            cooldownTable.insert({
               id: 0n,
               combatId: combat.id,
               enemyId: enemy.id,
-              abilityKey: chosen.ability.abilityKey,
-              endsAtMicros: nowMicros + chosen.castMicros,
-              targetCharacterId: chosen.targetId,
+              abilityKey: existingCast.abilityKey,
+              readyAtMicros: nowMicros + cooldownMicros,
             });
-            ctx.db.combatEnemy.id.update({
-              ...enemy,
-              nextAutoAttackAt: nowMicros + chosen.castMicros,
+          }
+        }
+        ctx.db.combatEnemyCast.id.delete(existingCast.id);
+      }
+      if (enemyAbilities.length > 0 && !existingCast) {
+        const cooldownTable = ctx.db.combatEnemyCooldown;
+        if (!cooldownTable) {
+          // cooldown table missing; skip casting to avoid spam
+        } else {
+          type Candidate = {
+            ability: typeof deps.EnemyAbility.rowType;
+            targetId: bigint;
+            score: number;
+            castMicros: bigint;
+            cooldownMicros: bigint;
+            chance: number;
+          };
+          const candidates: Candidate[] = [];
+
+          for (const ability of enemyAbilities) {
+            const cooldown = [...cooldownTable.by_enemy.filter(enemy.id)].find(
+              (row) => row.abilityKey === ability.abilityKey
+            );
+            if (cooldown && cooldown.readyAtMicros > nowMicros) continue;
+            if (cooldown && cooldown.readyAtMicros <= nowMicros) {
+              for (const row of cooldownTable.by_enemy.filter(enemy.id)) {
+                if (row.abilityKey === ability.abilityKey) {
+                  cooldownTable.id.delete(row.id);
+                }
+              }
+            }
+
+            const targetId = pickEnemyTarget(
+              ability.targetRule,
+              activeParticipants,
+              ctx,
+              combat.id,
+              enemy.id
+            );
+            if (!targetId) continue;
+
+            const meta = ENEMY_ABILITIES[ability.abilityKey as keyof typeof ENEMY_ABILITIES];
+            const castMicros =
+              enemyAbilityCastMicros(ability.abilityKey) ||
+              (ability.castSeconds ?? 0n) * 1_000_000n;
+            const cooldownMicros =
+              enemyAbilityCooldownMicros(ability.abilityKey) ||
+              (ability.cooldownSeconds ?? 0n) * 1_000_000n;
+
+            if (ability.kind === 'dot') {
+              const alreadyApplied = [...ctx.db.characterEffect.by_character.filter(targetId)].some(
+                (effect) => effect.effectType === 'dot' && effect.sourceAbility === ability.name
+              );
+              if (alreadyApplied) continue;
+            } else if (ability.kind === 'debuff') {
+              const alreadyApplied = [...ctx.db.characterEffect.by_character.filter(targetId)].some(
+                (effect) => effect.sourceAbility === ability.name
+              );
+              if (alreadyApplied) continue;
+            }
+
+            const baseWeight = meta?.aiWeight ?? DEFAULT_AI_WEIGHT;
+            const baseChance = meta?.aiChance ?? DEFAULT_AI_CHANCE;
+            const randomness = meta?.aiRandomness ?? DEFAULT_AI_RANDOMNESS;
+            let score = baseWeight;
+            if (ability.kind === 'dot') score += 30;
+            if (ability.targetRule === 'lowest_hp') score += 20;
+            if (ability.targetRule === 'aggro') score += 10;
+
+            const hash = hashString(`${ability.abilityKey}:${combat.id}:${enemy.id}`);
+            const jitter = (hash % (randomness * 2)) - randomness;
+            score += jitter;
+            candidates.push({
+              ability,
+              targetId,
+              score,
+              castMicros,
+              cooldownMicros,
+              chance: baseChance,
             });
+          }
+
+          if (candidates.length > 0) {
+            const chosen = candidates.sort((a, b) => b.score - a.score)[0];
+            const roll = Number(
+              (nowMicros +
+                enemy.id +
+                combat.id +
+                BigInt(hashString(chosen.ability.abilityKey))) %
+                100n
+            );
+            if (roll < chosen.chance) {
+              ctx.db.combatEnemyCast.insert({
+                id: 0n,
+                combatId: combat.id,
+                enemyId: enemy.id,
+                abilityKey: chosen.ability.abilityKey,
+                endsAtMicros: nowMicros + chosen.castMicros,
+                targetCharacterId: chosen.targetId,
+              });
+              ctx.db.combatEnemy.id.update({
+                ...enemy,
+                nextAutoAttackAt: nowMicros + chosen.castMicros,
+                aggroTargetCharacterId: chosen.targetId,
+              });
+            }
           }
         }
       }
@@ -980,20 +1376,29 @@ export const registerCombatReducers = (deps: any) => {
       if (activeCast) continue;
       if (participant.nextAutoAttackAt > nowMicros) continue;
 
-      const currentEnemy = ctx.db.combatEnemy.id.find(enemy.id);
+      const preferredEnemy = character.combatTargetEnemyId
+        ? enemies.find((row) => row.id === character.combatTargetEnemyId)
+        : null;
+      const currentEnemy =
+        preferredEnemy ??
+        enemies.find((row) => row.currentHp > 0n) ??
+        enemies[0] ??
+        null;
       if (!currentEnemy || currentEnemy.currentHp === 0n) continue;
+      const enemyTemplate = ctx.db.enemyTemplate.id.find(currentEnemy.enemyTemplateId);
+      const targetName = enemyTemplate?.name ?? 'enemy';
       const weapon = deps.getEquippedWeaponStats(ctx, character.id);
       const damage =
         5n +
         character.level +
         weapon.baseDamage +
         (weapon.dps / 2n) +
-        sumEnemyEffect(ctx, combat.id, 'damage_taken');
+        sumEnemyEffect(ctx, combat.id, 'damage_taken', currentEnemy.id);
       const outcomeSeed = nowMicros + character.id + currentEnemy.id;
       const { finalDamage, nextHp } = resolveAttack(ctx, {
         seed: outcomeSeed,
         baseDamage: damage,
-        targetArmor: currentEnemy.armorClass + sumEnemyEffect(ctx, combat.id, 'armor_down'),
+        targetArmor: currentEnemy.armorClass + sumEnemyEffect(ctx, combat.id, 'armor_down', currentEnemy.id),
         canBlock: hasShieldEquipped(ctx, character.id),
         canParry: canParry(character.className),
         canDodge: true,
@@ -1001,11 +1406,11 @@ export const registerCombatReducers = (deps: any) => {
         logTargetId: character.id,
         logOwnerId: character.ownerUserId,
         messages: {
-          dodge: `${enemyName} dodges your auto-attack.`,
-          miss: `You miss ${enemyName} with auto-attack.`,
-          parry: `${enemyName} parries your auto-attack.`,
-          block: (damage) => `${enemyName} blocks your auto-attack for ${damage}.`,
-          hit: (damage) => `You hit ${enemyName} with auto-attack for ${damage}.`,
+          dodge: `${targetName} dodges your auto-attack.`,
+          miss: `You miss ${targetName} with auto-attack.`,
+          parry: `${targetName} parries your auto-attack.`,
+          block: (damage) => `${targetName} blocks your auto-attack for ${damage}.`,
+          hit: (damage) => `You hit ${targetName} with auto-attack for ${damage}.`,
         },
         applyHp: (updatedHp) => {
           ctx.db.combatEnemy.id.update({ ...currentEnemy, currentHp: updatedHp });
@@ -1014,7 +1419,7 @@ export const registerCombatReducers = (deps: any) => {
 
       if (finalDamage > 0n) {
         for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
-          if (entry.characterId === character.id) {
+          if (entry.characterId === character.id && entry.enemyId === currentEnemy.id) {
             ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + finalDamage });
             break;
           }
@@ -1027,75 +1432,105 @@ export const registerCombatReducers = (deps: any) => {
       });
     }
 
-    const updatedEnemy = ctx.db.combatEnemy.id.find(enemy.id)!;
-    const enemyLevel = enemyTemplate?.level ?? 1n;
-    const baseXp =
-      enemyTemplate?.xpReward && enemyTemplate.xpReward > 0n
-        ? enemyTemplate.xpReward
-        : enemyLevel * 20n;
-    if (updatedEnemy.currentHp === 0n) {
-      const enemyName =
-        [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
-          (s) => s.lockedCombatId === combat.id
-        )?.name ?? 'enemy';
-      const spawn = [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
-        (s) => s.lockedCombatId === combat.id
-      );
-      if (spawn) {
-        ctx.db.enemySpawn.id.delete(spawn.id);
-        deps.spawnEnemy(ctx, spawn.locationId, 1n);
+    const livingEnemies = enemies
+      .map((row) => ctx.db.combatEnemy.id.find(row.id))
+      .filter((row): row is typeof deps.CombatEnemy.rowType => Boolean(row) && row.currentHp > 0n);
+    const aliveEnemyIds = new Set(livingEnemies.map((row) => row.id));
+    for (const p of participants) {
+      const character = ctx.db.character.id.find(p.characterId);
+      if (!character) continue;
+      if (character.combatTargetEnemyId && !aliveEnemyIds.has(character.combatTargetEnemyId)) {
+        const nextTarget = livingEnemies[0]?.id;
+        ctx.db.character.id.update({
+          ...character,
+          combatTargetEnemyId: nextTarget ?? undefined,
+        });
+      }
+    }
+
+    if (livingEnemies.length === 0) {
+      const enemyTemplates = enemies
+        .map((row) => ctx.db.enemyTemplate.id.find(row.enemyTemplateId))
+        .filter((row): row is typeof deps.EnemyTemplate.rowType => Boolean(row));
+      const totalBaseXp = enemyTemplates.reduce((sum, template) => {
+        const base =
+          template.xpReward && template.xpReward > 0n ? template.xpReward : template.level * 20n;
+        return sum + base;
+      }, 0n);
+      const avgLevel =
+        enemyTemplates.length > 0
+          ? enemyTemplates.reduce((sum, template) => sum + template.level, 0n) /
+            BigInt(enemyTemplates.length)
+          : 1n;
+      const primaryName = enemyTemplates[0]?.name ?? enemyName;
+
+      for (const enemyRow of enemies) {
+        const spawn = ctx.db.enemySpawn.id.find(enemyRow.spawnId);
+        if (!spawn) continue;
+        if (spawn.groupCount > 0n) {
+          ctx.db.enemySpawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
+        } else {
+          ctx.db.enemySpawn.id.delete(spawn.id);
+          deps.spawnEnemy(ctx, spawn.locationId, 1n);
+        }
       }
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
-        updateQuestProgressForKill(ctx, character, updatedEnemy.enemyTemplateId);
+        for (const template of enemyTemplates) {
+          updateQuestProgressForKill(ctx, character, template.id);
+        }
       }
       const eligible = participants.filter((p) => p.status !== 'dead');
       const splitCount = eligible.length > 0 ? BigInt(eligible.length) : 1n;
       const groupBonus = BigInt(Math.min(20, Math.max(0, (participants.length - 1) * 5)));
       const bonusMultiplier = 100n + groupBonus;
-      const adjustedBase = (baseXp * bonusMultiplier) / 100n;
+      const adjustedBase = (totalBaseXp * bonusMultiplier) / 100n;
       const fallenNames = participants
         .filter((p) => p.status === 'dead')
         .map((p) => ctx.db.character.id.find(p.characterId)?.name)
         .filter((name): name is string => Boolean(name));
       const fallenSuffix = fallenNames.length > 0 ? ` Fallen: ${fallenNames.join(', ')}.` : '';
+      const summaryName =
+        enemies.length > 1 ? `${primaryName} and allies` : primaryName;
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
-        const lootTemplates = enemyTemplate
-          ? generateLootTemplates(ctx, enemyTemplate, ctx.timestamp.microsSinceUnixEpoch + character.id)
-          : [];
-        for (const template of lootTemplates) {
-          ctx.db.combatLoot.insert({
-            id: 0n,
-            combatId: combat.id,
-            ownerUserId: character.ownerUserId,
-            characterId: character.id,
-            itemTemplateId: template.id,
-            createdAt: ctx.timestamp,
-          });
-        }
-        const lootTable = enemyTemplate ? findLootTable(ctx, enemyTemplate) : null;
-        const goldReward = lootTable
-          ? rollGold(
-              ctx.timestamp.microsSinceUnixEpoch + character.id * 3n,
-              lootTable.goldMin,
-              lootTable.goldMax
-            ) + enemyLevel
-          : enemyLevel;
-        if (goldReward > 0n) {
-          ctx.db.character.id.update({
-            ...character,
-            gold: (character.gold ?? 0n) + goldReward,
-          });
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'reward',
-            `You gain ${goldReward} gold.`
-          );
+        for (const template of enemyTemplates) {
+          const lootTemplates = template
+            ? generateLootTemplates(ctx, template, ctx.timestamp.microsSinceUnixEpoch + character.id)
+            : [];
+          for (const lootTemplate of lootTemplates) {
+            ctx.db.combatLoot.insert({
+              id: 0n,
+              combatId: combat.id,
+              ownerUserId: character.ownerUserId,
+              characterId: character.id,
+              itemTemplateId: lootTemplate.id,
+              createdAt: ctx.timestamp,
+            });
+          }
+          const lootTable = template ? findLootTable(ctx, template) : null;
+          const goldReward = lootTable
+            ? rollGold(
+                ctx.timestamp.microsSinceUnixEpoch + character.id * 3n + template.id,
+                lootTable.goldMin,
+                lootTable.goldMax
+              ) + template.level
+            : template.level;
+          if (goldReward > 0n) {
+            ctx.db.character.id.update({
+              ...character,
+              gold: (character.gold ?? 0n) + goldReward,
+            });
+            appendPrivateEvent(
+              ctx,
+              character.id,
+              character.ownerUserId,
+              'reward',
+              `You gain ${goldReward} gold.`
+            );
+          }
         }
         ctx.db.combatResult.insert({
           id: 0n,
@@ -1103,7 +1538,7 @@ export const registerCombatReducers = (deps: any) => {
           characterId: character.id,
           groupId: combat.groupId,
           combatId: combat.id,
-          summary: `Victory against ${enemyName}.${fallenSuffix}`,
+          summary: `Victory against ${summaryName}.${fallenSuffix}`,
           createdAt: ctx.timestamp,
         });
       }
@@ -1138,7 +1573,7 @@ export const registerCombatReducers = (deps: any) => {
           const reward = deps.awardCombatXp(
             ctx,
             character,
-            enemyLevel,
+            avgLevel,
             (adjustedBase / splitCount) / 2n
           );
           if (reward.xpGained > 0n) {
@@ -1161,7 +1596,7 @@ export const registerCombatReducers = (deps: any) => {
           }
           continue;
         }
-        const reward = deps.awardCombatXp(ctx, character, enemyLevel, adjustedBase / splitCount);
+        const reward = deps.awardCombatXp(ctx, character, avgLevel, adjustedBase / splitCount);
         if (reward.xpGained > 0n) {
           appendPrivateEvent(
             ctx,
@@ -1186,84 +1621,91 @@ export const registerCombatReducers = (deps: any) => {
 
     // Enemy attacks highest aggro
     const activeIds = new Set(activeParticipants.map((p) => p.characterId));
-    let topAggro: typeof deps.AggroEntry.rowType | null = null;
-    for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
-      if (!activeIds.has(entry.characterId)) continue;
-      if (!topAggro || entry.value > topAggro.value) topAggro = entry;
-    }
-    const enemySnapshot = ctx.db.combatEnemy.id.find(enemy.id);
-    if (topAggro && enemySnapshot && enemySnapshot.nextAutoAttackAt <= nowMicros) {
-      const skipEffect = [...ctx.db.combatEnemyEffect.by_combat.filter(combat.id)].find(
-        (effect) => effect.effectType === 'skip'
-      );
-      if (skipEffect) {
-        ctx.db.combatEnemyEffect.id.delete(skipEffect.id);
-        ctx.db.combatEnemy.id.update({
-          ...enemySnapshot,
-          nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
-        });
-        for (const participant of activeParticipants) {
-          const character = ctx.db.character.id.find(participant.characterId);
-          if (!character) continue;
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'combat',
-            `${enemyName} is staggered and misses a turn.`
-          );
-        }
-      } else {
-        const targetCharacter = ctx.db.character.id.find(topAggro.characterId);
-        if (targetCharacter && targetCharacter.hp > 0n) {
-          const enemyLevel = enemyTemplate?.level ?? 1n;
-          const levelDiff =
-            enemyLevel > targetCharacter.level ? enemyLevel - targetCharacter.level : 0n;
-          const damageMultiplier = 100n + levelDiff * 20n;
-          const debuff = sumEnemyEffect(ctx, combat.id, 'damage_down');
-          const baseDamage = enemySnapshot.attackDamage + debuff;
-          const scaledDamage = (baseDamage * damageMultiplier) / 100n;
-          const effectiveArmor =
-            targetCharacter.armorClass + sumCharacterEffect(ctx, targetCharacter.id, 'ac_bonus');
-          const outcomeSeed = nowMicros + enemySnapshot.id + targetCharacter.id;
-          const { nextHp } = resolveAttack(ctx, {
-            seed: outcomeSeed,
-            baseDamage: scaledDamage,
-            targetArmor: effectiveArmor,
-            canBlock: hasShieldEquipped(ctx, targetCharacter.id),
-            canParry: canParry(targetCharacter.className),
-            canDodge: true,
-            currentHp: targetCharacter.hp,
-            logTargetId: targetCharacter.id,
-            logOwnerId: targetCharacter.ownerUserId,
-            messages: {
-              dodge: `You dodge ${enemyName}'s auto-attack.`,
-              miss: `${enemyName} misses you with auto-attack.`,
-              parry: `You parry ${enemyName}'s auto-attack.`,
-              block: (damage) => `You block ${enemyName}'s auto-attack for ${damage}.`,
-              hit: (damage) => `${enemyName} hits you with auto-attack for ${damage}.`,
-            },
-            applyHp: (updatedHp) => {
-              ctx.db.character.id.update({ ...targetCharacter, hp: updatedHp });
-            },
-          });
-          if (nextHp === 0n) {
-            for (const p of participants) {
-              if (p.characterId === targetCharacter.id) {
-                markParticipantDead(ctx, p, targetCharacter, enemyName);
-                break;
-              }
-            }
-          }
+    for (const enemy of enemies) {
+      let topAggro: typeof deps.AggroEntry.rowType | null = null;
+      for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+        if (entry.enemyId !== enemy.id) continue;
+        if (!activeIds.has(entry.characterId)) continue;
+        if (!topAggro || entry.value > topAggro.value) topAggro = entry;
+      }
+      const enemySnapshot = ctx.db.combatEnemy.id.find(enemy.id);
+      const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+      const name = enemyTemplate?.name ?? enemyName;
+      if (topAggro && enemySnapshot && enemySnapshot.nextAutoAttackAt <= nowMicros) {
+        const skipEffect = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find(
+          (effect) => effect.effectType === 'skip'
+        );
+        if (skipEffect) {
+          ctx.db.combatEnemyEffect.id.delete(skipEffect.id);
           ctx.db.combatEnemy.id.update({
             ...enemySnapshot,
             nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
           });
+          for (const participant of activeParticipants) {
+            const character = ctx.db.character.id.find(participant.characterId);
+            if (!character) continue;
+            appendPrivateEvent(
+              ctx,
+              character.id,
+              character.ownerUserId,
+              'combat',
+              `${name} is staggered and misses a turn.`
+            );
+          }
         } else {
-          ctx.db.combatEnemy.id.update({
-            ...enemySnapshot,
-            nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL,
-          });
+          const targetCharacter = ctx.db.character.id.find(topAggro.characterId);
+          if (targetCharacter && targetCharacter.hp > 0n) {
+            const enemyLevel = enemyTemplate?.level ?? 1n;
+            const levelDiff =
+              enemyLevel > targetCharacter.level ? enemyLevel - targetCharacter.level : 0n;
+            const damageMultiplier = 100n + levelDiff * 20n;
+            const debuff = sumEnemyEffect(ctx, combat.id, 'damage_down', enemy.id);
+            const baseDamage = enemySnapshot.attackDamage + debuff;
+            const scaledDamage = (baseDamage * damageMultiplier) / 100n;
+            const effectiveArmor =
+              targetCharacter.armorClass + sumCharacterEffect(ctx, targetCharacter.id, 'ac_bonus');
+            const outcomeSeed = nowMicros + enemySnapshot.id + targetCharacter.id;
+            const { nextHp } = resolveAttack(ctx, {
+              seed: outcomeSeed,
+              baseDamage: scaledDamage,
+              targetArmor: effectiveArmor,
+              canBlock: hasShieldEquipped(ctx, targetCharacter.id),
+              canParry: canParry(targetCharacter.className),
+              canDodge: true,
+              currentHp: targetCharacter.hp,
+              logTargetId: targetCharacter.id,
+              logOwnerId: targetCharacter.ownerUserId,
+              messages: {
+                dodge: `You dodge ${name}'s auto-attack.`,
+                miss: `${name} misses you with auto-attack.`,
+                parry: `You parry ${name}'s auto-attack.`,
+                block: (damage) => `You block ${name}'s auto-attack for ${damage}.`,
+                hit: (damage) => `${name} hits you with auto-attack for ${damage}.`,
+              },
+              applyHp: (updatedHp) => {
+                ctx.db.character.id.update({ ...targetCharacter, hp: updatedHp });
+              },
+            });
+            if (nextHp === 0n) {
+              for (const p of participants) {
+                if (p.characterId === targetCharacter.id) {
+                  markParticipantDead(ctx, p, targetCharacter, name);
+                  break;
+                }
+              }
+            }
+            ctx.db.combatEnemy.id.update({
+              ...enemySnapshot,
+              nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
+              aggroTargetCharacterId: targetCharacter.id,
+            });
+          } else {
+            ctx.db.combatEnemy.id.update({
+              ...enemySnapshot,
+              nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL,
+              aggroTargetCharacterId: undefined,
+            });
+          }
         }
       }
     }

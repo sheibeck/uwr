@@ -10,14 +10,16 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("EnemySpawn", {
-  id: __t.u64(),
+export default __t.row({
+  id: __t.u64().primaryKey(),
+  characterId: __t.u64(),
+  groupId: __t.option(__t.u64()),
   locationId: __t.u64(),
-  enemyTemplateId: __t.u64(),
-  name: __t.string(),
+  enemySpawnId: __t.u64(),
+  pullType: __t.string(),
   state: __t.string(),
-  lockedCombatId: __t.option(__t.u64()),
-  groupCount: __t.u64(),
+  outcome: __t.option(__t.string()),
+  delayedAdds: __t.option(__t.u64()),
+  delayedAddsAtMicros: __t.option(__t.u64()),
+  createdAt: __t.timestamp(),
 });
-
-

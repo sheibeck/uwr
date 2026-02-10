@@ -13,6 +13,7 @@ import {
 export default __t.object("CombatEnemy", {
   id: __t.u64(),
   combatId: __t.u64(),
+  spawnId: __t.u64(),
   enemyTemplateId: __t.u64(),
   currentHp: __t.u64(),
   maxHp: __t.u64(),

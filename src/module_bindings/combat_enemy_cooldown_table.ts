@@ -13,6 +13,7 @@ import {
 export default __t.row({
   id: __t.u64().primaryKey(),
   combatId: __t.u64(),
+  enemyId: __t.u64(),
   abilityKey: __t.string(),
   readyAtMicros: __t.u64(),
 });
