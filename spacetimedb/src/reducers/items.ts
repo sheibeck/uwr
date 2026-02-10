@@ -418,6 +418,8 @@ export const registerItemReducers = (deps: any) => {
   const BANDAGE_TICK_HEAL = 5n;
   const RESOURCE_GATHER_CAST_MICROS = 8_000_000n;
   const RESOURCE_RESPAWN_MICROS = 10n * 60n * 1_000_000n;
+  const RESOURCE_GATHER_MIN_QTY = 2n;
+  const RESOURCE_GATHER_MAX_QTY = 6n;
 
   // Demo flow: gather_resources -> research_recipes -> craft_recipe -> use_item (Bandage).
   spacetimedb.reducer(
@@ -526,13 +528,17 @@ export const registerItemReducers = (deps: any) => {
         ctx.db.resourceNode.id.update({ ...node, state: 'available', lockedByCharacterId: undefined });
         return;
       }
-      addItemToInventory(ctx, character.id, node.itemTemplateId, node.quantity);
+      const qtyRange = RESOURCE_GATHER_MAX_QTY - RESOURCE_GATHER_MIN_QTY + 1n;
+      const quantity =
+        RESOURCE_GATHER_MIN_QTY +
+        ((ctx.timestamp.microsSinceUnixEpoch + node.id) % qtyRange);
+      addItemToInventory(ctx, character.id, node.itemTemplateId, quantity);
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'reward',
-        `You gather ${node.name} x${node.quantity}.`
+        `You gather ${node.name} x${quantity}.`
       );
       const respawnAt = ctx.timestamp.microsSinceUnixEpoch + RESOURCE_RESPAWN_MICROS;
       ctx.db.resourceNode.id.update({

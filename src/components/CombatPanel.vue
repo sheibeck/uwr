@@ -225,7 +225,6 @@
                 >
                   <div :style="styles.combatRow">
                     <span :style="styles.combatValue">{{ node.name }}</span>
-                    <span :style="styles.subtle">x{{ node.quantity }}</span>
                   </div>
                   <div v-if="node.state === 'depleted'" :style="styles.subtleSmall">
                     Respawns in {{ node.respawnSeconds ?? 0 }}s
