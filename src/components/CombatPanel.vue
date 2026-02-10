@@ -102,6 +102,12 @@
                     <span :style="[styles.combatValue, styles[enemy.conClass] ?? {}]">
                       {{ enemy.name }} (Lv {{ enemy.level }})
                     </span>
+                    <span
+                      v-if="enemy.isTarget"
+                      :style="styles.targetBadge"
+                    >
+                      Target
+                    </span>
                   </div>
                   <div :style="styles.combatRow">
                     <span :style="styles.combatLabel">HP</span>

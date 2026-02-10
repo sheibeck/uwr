@@ -159,6 +159,10 @@ export const registerCombatReducers = (deps: any) => {
         characterId: p.id,
         value: 0n,
       });
+      const current = ctx.db.character.id.find(p.id);
+      if (current && !current.combatTargetEnemyId) {
+        ctx.db.character.id.update({ ...current, combatTargetEnemyId: combatEnemy.id });
+      }
     }
 
     if (consumeSpawnCount) {
@@ -554,7 +558,7 @@ export const registerCombatReducers = (deps: any) => {
         character.id,
         character.ownerUserId,
         'system',
-        `You begin a ${pullType === 'careful' ? 'Careful Pull' : 'Body Pull'} on ${spawn.name}.`
+        `You begin a ${pullType === 'careful' ? 'Careful Pull' : 'Body Pull'} on ${spawn.name} (group size ${spawn.groupCount}).`
       );
     }
   );
@@ -721,6 +725,7 @@ export const registerCombatReducers = (deps: any) => {
     if (outcome === 'partial' && addCount > 0) {
       const delayMicros = AUTO_ATTACK_INTERVAL * PULL_ADD_DELAY_ROUNDS;
       const reserved = reserveAdds(addCount);
+      const remainingGroup = ctx.db.enemySpawn.id.find(spawn.id)?.groupCount ?? 0n;
       for (const add of reserved) {
         ctx.db.combatPendingAdd.insert({
           id: 0n,
@@ -736,13 +741,14 @@ export const registerCombatReducers = (deps: any) => {
           p.id,
           p.ownerUserId,
           'system',
-          `Your ${pull.pullType} pull succeeds, but ${reserved.length} add(s) will arrive in ${Number(
+          `Your ${pull.pullType} pull succeeds. Pulled 1 of ${initialGroupCount} ${spawn.name}. ${reserved.length} add(s) arrive in ${Number(
             delayMicros / 1_000_000n
-          )}s. ${reason}`
+          )}s. Remaining in group: ${remainingGroup}. ${reason}`
         );
       }
     } else if (outcome === 'failure' && addCount > 0) {
       const reserved = reserveAdds(addCount);
+      const remainingGroup = ctx.db.enemySpawn.id.find(spawn.id)?.groupCount ?? 0n;
       for (const add of reserved) {
         addEnemyToCombat(ctx, combat, add.spawn, participants, false);
       }
@@ -752,17 +758,18 @@ export const registerCombatReducers = (deps: any) => {
           p.id,
           p.ownerUserId,
           'system',
-          `Pull failed. ${reserved.length} add(s) immediately aggro! ${reason}`
+          `Pull failed. Pulled 1 of ${initialGroupCount} ${spawn.name} and ${reserved.length} add(s) immediately aggro! Remaining in group: ${remainingGroup}. ${reason}`
         );
       }
     } else {
+      const remainingGroup = ctx.db.enemySpawn.id.find(spawn.id)?.groupCount ?? 0n;
       for (const p of participants) {
         appendPrivateEvent(
           ctx,
           p.id,
           p.ownerUserId,
           'system',
-          `Pull succeeded. ${reason}`
+          `Pull succeeded. Pulled 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}. ${reason}`
         );
       }
     }

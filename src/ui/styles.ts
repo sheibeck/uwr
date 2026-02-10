@@ -406,6 +406,17 @@ export const styles = {
     flexDirection: 'column',
     gap: '0.2rem',
   },
+  targetBadge: {
+    marginLeft: '0.5rem',
+    padding: '0.15rem 0.45rem',
+    borderRadius: '999px',
+    fontSize: '0.6rem',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    background: 'rgba(255, 210, 90, 0.25)',
+    border: '1px solid rgba(255, 210, 90, 0.7)',
+    color: '#f8e6a0',
+  },
   subtleSmall: {
     fontSize: '0.72rem',
     color: 'rgba(230,232,239,0.55)',

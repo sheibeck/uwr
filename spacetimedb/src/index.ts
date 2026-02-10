@@ -3115,7 +3115,7 @@ spacetimedb.init((ctx) => {
       socialRadius: 2n,
       awareness: 'idle',
       groupMin: 1n,
-      groupMax: 1n,
+      groupMax: 2n,
       armorClass: 12n,
       level: 1n,
       maxHp: 26n,
@@ -3135,7 +3135,7 @@ spacetimedb.init((ctx) => {
       socialRadius: 1n,
       awareness: 'idle',
       groupMin: 1n,
-      groupMax: 1n,
+      groupMax: 3n,
       armorClass: 8n,
       level: 2n,
       maxHp: 28n,
@@ -3155,7 +3155,7 @@ spacetimedb.init((ctx) => {
       socialRadius: 3n,
       awareness: 'idle',
       groupMin: 1n,
-      groupMax: 2n,
+      groupMax: 3n,
       armorClass: 8n,
       level: 2n,
       maxHp: 24n,
@@ -3175,7 +3175,7 @@ spacetimedb.init((ctx) => {
       socialRadius: 2n,
       awareness: 'idle',
       groupMin: 1n,
-      groupMax: 1n,
+      groupMax: 4n,
       armorClass: 9n,
       level: 3n,
       maxHp: 30n,
@@ -3900,6 +3900,8 @@ const reducerDeps = {
 };
 
 registerReducers(reducerDeps);
+
+
 
 
 
