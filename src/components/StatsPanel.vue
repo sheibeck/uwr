@@ -1,93 +1,89 @@
 <template>
   <div>
-    <div :style="styles.panelSectionTitle">Stats</div>
     <div v-if="!selectedCharacter" :style="styles.subtle">
       Select a character to view stats.
     </div>
-    <div v-else>
-      <details :style="styles.accordion" open>
-        <summary :style="styles.accordionSummary">Core</summary>
+    <div v-else :style="styles.statsColumns">
+      <div :style="styles.statsColumn">
+        <div :style="styles.panelSectionTitle">Core</div>
         <div :style="styles.statsGrid">
           <div>Level</div>
           <div>{{ selectedCharacter.level }}</div>
-          <div>XP</div>
-          <div>{{ selectedCharacter.xp }}</div>
-          <div>Bound</div>
-          <div>{{ boundLocationName }}<span v-if="boundRegionName">, {{ boundRegionName }}</span></div>
-          <div>HP</div>
-          <div>{{ selectedCharacter.hp }} / {{ selectedCharacter.maxHp }}</div>
-          <template v-if="selectedCharacter.maxMana > 0">
-            <div>Mana</div>
-            <div>{{ selectedCharacter.mana }} / {{ selectedCharacter.maxMana }}</div>
-          </template>
+            <div>XP</div>
+            <div>{{ selectedCharacter.xp }}</div>
+            <div>Bound</div>
+            <div>{{ boundLocationName }}<span v-if="boundRegionName">, {{ boundRegionName }}</span></div>
+            <div>HP</div>
+            <div>{{ selectedCharacter.hp }} / {{ selectedCharacter.maxHp }}</div>
+            <template v-if="selectedCharacter.maxMana > 0">
+              <div>Mana</div>
+              <div>{{ selectedCharacter.mana }} / {{ selectedCharacter.maxMana }}</div>
+            </template>
           <div>Stamina</div>
           <div>{{ selectedCharacter.stamina }} / {{ selectedCharacter.maxStamina }}</div>
         </div>
-      </details>
 
-      <details :style="styles.accordion" open>
-        <summary :style="styles.accordionSummary">Base Stats</summary>
+        <div :style="styles.panelSectionTitle">Base Stats</div>
         <div :style="styles.statsGrid">
           <div>Strength</div>
           <div>
             {{ totalStr }}
-            <span :style="styles.subtleSmall" title="Base Strength">({{ baseStr }})</span>
-          </div>
-          <div>Dexterity</div>
-          <div>
-            {{ totalDex }}
-            <span :style="styles.subtleSmall" title="Base Dexterity">({{ baseDex }})</span>
-          </div>
-          <div>Charisma</div>
-          <div>
-            {{ totalCha }}
-            <span :style="styles.subtleSmall" title="Base Charisma">({{ baseCha }})</span>
-          </div>
-          <div>Wisdom</div>
-          <div>
-            {{ totalWis }}
-            <span :style="styles.subtleSmall" title="Base Wisdom">({{ baseWis }})</span>
-          </div>
+              <span :style="styles.subtleSmall" title="Base Strength">({{ baseStr }})</span>
+            </div>
+            <div>Dexterity</div>
+            <div>
+              {{ totalDex }}
+              <span :style="styles.subtleSmall" title="Base Dexterity">({{ baseDex }})</span>
+            </div>
+            <div>Charisma</div>
+            <div>
+              {{ totalCha }}
+              <span :style="styles.subtleSmall" title="Base Charisma">({{ baseCha }})</span>
+            </div>
+            <div>Wisdom</div>
+            <div>
+              {{ totalWis }}
+              <span :style="styles.subtleSmall" title="Base Wisdom">({{ baseWis }})</span>
+            </div>
           <div>Intelligence</div>
           <div>
             {{ totalInt }}
             <span :style="styles.subtleSmall" title="Base Intelligence">({{ baseInt }})</span>
           </div>
         </div>
-      </details>
+      </div>
 
-      <details :style="styles.accordion" open>
-        <summary :style="styles.accordionSummary">Derived</summary>
+      <div :style="styles.statsColumn">
+        <div :style="styles.panelSectionTitle">Derived</div>
         <div :style="styles.statsGrid">
           <div>Hit</div>
           <div>{{ formatPercent(selectedCharacter.hitChance) }}</div>
-          <div>Dodge</div>
-          <div>{{ formatPercent(selectedCharacter.dodgeChance) }}</div>
-          <div>Parry</div>
-          <div>{{ formatPercent(selectedCharacter.parryChance) }}</div>
-          <div>Crit (Melee)</div>
-          <div>{{ formatPercent(selectedCharacter.critMelee) }}</div>
-          <div>Crit (Ranged)</div>
-          <div>{{ formatPercent(selectedCharacter.critRanged) }}</div>
-          <div>Crit (Divine)</div>
-          <div>{{ formatPercent(selectedCharacter.critDivine) }}</div>
-          <div>Crit (Arcane)</div>
-          <div>{{ formatPercent(selectedCharacter.critArcane) }}</div>
-          <div>Armor Class</div>
-          <div>{{ selectedCharacter.armorClass }}</div>
-          <div>Perception</div>
-          <div>{{ formatScalar(selectedCharacter.perception) }}</div>
-          <div>Search</div>
-          <div>{{ formatScalar(selectedCharacter.search) }}</div>
-          <div>CC Power</div>
-          <div>{{ formatPercent(selectedCharacter.ccPower) }}</div>
-          <div>Vendor Buy</div>
-          <div>-{{ formatPercent(selectedCharacter.vendorBuyMod) }}</div>
+            <div>Dodge</div>
+            <div>{{ formatPercent(selectedCharacter.dodgeChance) }}</div>
+            <div>Parry</div>
+            <div>{{ formatPercent(selectedCharacter.parryChance) }}</div>
+            <div>Crit (Melee)</div>
+            <div>{{ formatPercent(selectedCharacter.critMelee) }}</div>
+            <div>Crit (Ranged)</div>
+            <div>{{ formatPercent(selectedCharacter.critRanged) }}</div>
+            <div>Crit (Divine)</div>
+            <div>{{ formatPercent(selectedCharacter.critDivine) }}</div>
+            <div>Crit (Arcane)</div>
+            <div>{{ formatPercent(selectedCharacter.critArcane) }}</div>
+            <div>Armor Class</div>
+            <div>{{ selectedCharacter.armorClass }}</div>
+            <div>Perception</div>
+            <div>{{ formatScalar(selectedCharacter.perception) }}</div>
+            <div>Search</div>
+            <div>{{ formatScalar(selectedCharacter.search) }}</div>
+            <div>CC Power</div>
+            <div>{{ formatPercent(selectedCharacter.ccPower) }}</div>
+            <div>Vendor Buy</div>
+            <div>-{{ formatPercent(selectedCharacter.vendorBuyMod) }}</div>
           <div>Vendor Sell</div>
           <div>+{{ formatPercent(selectedCharacter.vendorSellMod) }}</div>
         </div>
-      </details>
-
+      </div>
     </div>
   </div>
 </template>

@@ -285,6 +285,17 @@ export const styles = {
     alignItems: 'center',
     gap: '0.4rem',
   },
+  statsColumns: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+    gap: '1rem',
+    alignItems: 'start',
+  },
+  statsColumn: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.8rem',
+  },
   timeIndicator: {
     display: 'inline-flex',
     alignItems: 'center',

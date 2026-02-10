@@ -106,7 +106,8 @@
         activePanel === 'inventory' ||
         activePanel === 'vendor' ||
         activePanel === 'quests' ||
-        activePanel === 'crafting'
+        activePanel === 'crafting' ||
+        activePanel === 'stats'
           ? styles.floatingPanelWide
           : {}),
         left: `${panelPos.x}px`,
