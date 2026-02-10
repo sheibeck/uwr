@@ -1201,9 +1201,14 @@ const resourceNodesHere = computed(() => {
     .filter((node) => node.locationId.toString() === currentLocation.value?.id.toString())
     .filter((node) => node.state === 'available' || node.state === 'harvesting')
     .map((node) => {
-      const isGathering = gather?.nodeId?.toString() === node.id.toString();
+      const local = localGather.value?.nodeId?.toString() === node.id.toString();
+      const isGathering = local || gather?.nodeId?.toString() === node.id.toString();
       const castMicros = 8_000_000;
-      const endsAt = isGathering ? Number(gather?.endsAtMicros ?? 0n) : 0;
+      const endsAt = local
+        ? localGather.value!.startMicros + castMicros
+        : isGathering
+          ? Number(gather?.endsAtMicros ?? 0n)
+          : 0;
       const startAt = endsAt - castMicros;
       const progress =
         isGathering && castMicros > 0
@@ -1228,6 +1233,11 @@ const resourceNodesHere = computed(() => {
 
 const startGather = (nodeId: bigint) => {
   if (!selectedCharacter.value || !conn.isActive) return;
+  localGather.value = {
+    nodeId,
+    startMicros: nowMicros.value,
+    durationMicros: 8_000_000,
+  };
   startGatherReducer({ characterId: selectedCharacter.value.id, nodeId });
 };
 
@@ -1288,7 +1298,12 @@ const hotbarDisplay = computed(() => {
     const readyAt = assignment.abilityKey
       ? cooldownByAbility.value.get(assignment.abilityKey)
       : undefined;
-    const remainingMicros = readyAt ? Number(readyAt) - nowMicros.value : 0;
+    const localReadyAt = assignment.abilityKey
+      ? localCooldowns.value.get(assignment.abilityKey) ?? 0
+      : 0;
+    const serverRemaining = readyAt ? Number(readyAt) - nowMicros.value : 0;
+    const localRemaining = localReadyAt ? localReadyAt - nowMicros.value : 0;
+    const remainingMicros = Math.max(serverRemaining, localRemaining, 0);
     const cooldownRemaining =
       remainingMicros > 0 ? Math.ceil(remainingMicros / 1_000_000) : 0;
     return {
@@ -1328,17 +1343,24 @@ const setDefensiveTarget = (characterId: bigint) => {
   defensiveTargetId.value = characterId;
 };
 
-watch(
-  () => selectedCharacter.value?.id,
-  (id) => {
-    if (id) defensiveTargetId.value = id;
-  },
-  { immediate: true }
-);
 
 const tryUseAbility = (slot: any) => {
   if (!selectedCharacter.value || !slot?.abilityKey) return;
   if (slot.kind !== 'utility') return;
+  const ability = abilityLookup.value.get(slot.abilityKey);
+  if (ability?.castSeconds && ability.castSeconds > 0) {
+    localCast.value = {
+      abilityKey: slot.abilityKey,
+      startMicros: nowMicros.value,
+      durationMicros: ability.castSeconds * 1_000_000,
+    };
+  }
+  if (slot.cooldownSeconds && slot.cooldownSeconds > 0) {
+    localCooldowns.value.set(
+      slot.abilityKey,
+      nowMicros.value + Math.round(slot.cooldownSeconds * 1_000_000)
+    );
+  }
   const targetId = defensiveTargetId.value ?? selectedCharacter.value.id;
   hotbarPulseKey.value = slot.abilityKey;
   window.setTimeout(() => {
@@ -1350,6 +1372,20 @@ const tryUseAbility = (slot: any) => {
 const onHotbarClick = (slot: any) => {
   if (!selectedCharacter.value || !slot?.abilityKey) return;
   if (isCasting.value) return;
+  const ability = abilityLookup.value.get(slot.abilityKey);
+  if (ability?.castSeconds && ability.castSeconds > 0) {
+    localCast.value = {
+      abilityKey: slot.abilityKey,
+      startMicros: nowMicros.value,
+      durationMicros: ability.castSeconds * 1_000_000,
+    };
+  }
+  if (slot.cooldownSeconds && slot.cooldownSeconds > 0) {
+    localCooldowns.value.set(
+      slot.abilityKey,
+      nowMicros.value + Math.round(slot.cooldownSeconds * 1_000_000)
+    );
+  }
   hotbarPulseKey.value = slot.abilityKey;
   window.setTimeout(() => {
     if (hotbarPulseKey.value === slot.abilityKey) hotbarPulseKey.value = null;
@@ -1462,14 +1498,24 @@ const combatLocked = computed(() => Boolean(activeCombat.value || activeResult.v
 const showCombatStack = computed(() => combatLocked.value);
 const showRightPanel = computed(() => false);
 
+const localCast = ref<{ abilityKey: string; startMicros: number; durationMicros: number } | null>(
+  null
+);
+const localCooldowns = ref(new Map<string, number>());
+const localGather = ref<{ nodeId: bigint; startMicros: number; durationMicros: number } | null>(
+  null
+);
+
 const castingState = computed(() => {
   if (!selectedCharacter.value) return null;
-  return characterCasts.value.find(
-    (row) => row.characterId.toString() === selectedCharacter.value?.id.toString()
-  ) ?? null;
+  return (
+    characterCasts.value.find(
+      (row) => row.characterId.toString() === selectedCharacter.value?.id.toString()
+    ) ?? null
+  );
 });
 
-const activeCastKey = computed(() => castingState.value?.abilityKey ?? '');
+const activeCastKey = computed(() => localCast.value?.abilityKey ?? castingState.value?.abilityKey ?? '');
 const activeCastEndsAt = computed(() =>
   castingState.value?.endsAtMicros ? Number(castingState.value.endsAtMicros) : 0
 );
@@ -1481,7 +1527,15 @@ const castingAbilityName = computed(() => {
   return ability?.name ?? key;
 });
 const castProgress = computed(() => {
-  if (!isCasting.value || !activeCastEndsAt.value) return 0;
+  if (!isCasting.value) return 0;
+  if (localCast.value) {
+    const elapsed = nowMicros.value - localCast.value.startMicros;
+    const duration = localCast.value.durationMicros;
+    if (!duration) return 1;
+    const clamped = Math.max(0, Math.min(duration, elapsed));
+    return clamped / duration;
+  }
+  if (!activeCastEndsAt.value) return 0;
   const ability = abilityLookup.value.get(activeCastKey.value ?? '');
   const duration = ability?.castSeconds ? ability.castSeconds * 1_000_000 : 0;
   if (!duration) return 1;
@@ -1489,6 +1543,34 @@ const castProgress = computed(() => {
   const clamped = Math.max(0, Math.min(duration, duration - remaining));
   return clamped / duration;
 });
+
+watch(
+  () => selectedCharacter.value?.id,
+  (id) => {
+    if (id) defensiveTargetId.value = id;
+    localCast.value = null;
+    localGather.value = null;
+  },
+  { immediate: true }
+);
+
+watch(
+  () => nowMicros.value,
+  (now) => {
+    if (localCast.value && now - localCast.value.startMicros >= localCast.value.durationMicros) {
+      localCast.value = null;
+    }
+    if (localGather.value && now - localGather.value.startMicros >= localGather.value.durationMicros) {
+      localGather.value = null;
+    }
+    if (localCooldowns.value.size === 0) return;
+    for (const [key, readyAt] of localCooldowns.value.entries()) {
+      if (now >= readyAt) {
+        localCooldowns.value.delete(key);
+      }
+    }
+  }
+);
 
 const tooltip = ref<{
   visible: boolean;
