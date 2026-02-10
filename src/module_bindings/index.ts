@@ -84,6 +84,14 @@ import SetHotbarSlotReducer from "./set_hotbar_slot_reducer";
 export { SetHotbarSlotReducer };
 import UseAbilityReducer from "./use_ability_reducer";
 export { UseAbilityReducer };
+import GatherResourcesReducer from "./gather_resources_reducer";
+export { GatherResourcesReducer };
+import ResearchRecipesReducer from "./research_recipes_reducer";
+export { ResearchRecipesReducer };
+import CraftRecipeReducer from "./craft_recipe_reducer";
+export { CraftRecipeReducer };
+import UseItemReducer from "./use_item_reducer";
+export { UseItemReducer };
 import MoveCharacterReducer from "./move_character_reducer";
 export { MoveCharacterReducer };
 import SubmitCommandReducer from "./submit_command_reducer";
@@ -216,6 +224,8 @@ import HotTickRow from "./hot_tick_table";
 export { HotTickRow };
 import HotbarSlotRow from "./hotbar_slot_table";
 export { HotbarSlotRow };
+import ItemCooldownRow from "./item_cooldown_table";
+export { ItemCooldownRow };
 import ItemInstanceRow from "./item_instance_table";
 export { ItemInstanceRow };
 import ItemTemplateRow from "./item_template_table";
@@ -270,6 +280,10 @@ import QuestInstanceRow from "./quest_instance_table";
 export { QuestInstanceRow };
 import QuestTemplateRow from "./quest_template_table";
 export { QuestTemplateRow };
+import RecipeDiscoveredRow from "./recipe_discovered_table";
+export { RecipeDiscoveredRow };
+import RecipeTemplateRow from "./recipe_template_table";
+export { RecipeTemplateRow };
 import RegionRow from "./region_table";
 export { RegionRow };
 import UserRow from "./user_table";
@@ -324,6 +338,8 @@ import CombatResult from "./combat_result_type";
 export { CombatResult };
 import Command from "./command_type";
 export { Command };
+import CraftRecipe from "./craft_recipe_type";
+export { CraftRecipe };
 import CreateCharacter from "./create_character_type";
 export { CreateCharacter };
 import CreateGroup from "./create_group_type";
@@ -366,6 +382,8 @@ import Friend from "./friend_type";
 export { Friend };
 import FriendRequest from "./friend_request_type";
 export { FriendRequest };
+import GatherResources from "./gather_resources_type";
+export { GatherResources };
 import GrantItem from "./grant_item_type";
 export { GrantItem };
 import Group from "./group_type";
@@ -388,6 +406,8 @@ import Init from "./init_type";
 export { Init };
 import InviteToGroup from "./invite_to_group_type";
 export { InviteToGroup };
+import ItemCooldown from "./item_cooldown_type";
+export { ItemCooldown };
 import ItemInstance from "./item_instance_type";
 export { ItemInstance };
 import ItemTemplate from "./item_template_type";
@@ -462,6 +482,10 @@ import QuestInstance from "./quest_instance_type";
 export { QuestInstance };
 import QuestTemplate from "./quest_template_type";
 export { QuestTemplate };
+import RecipeDiscovered from "./recipe_discovered_type";
+export { RecipeDiscovered };
+import RecipeTemplate from "./recipe_template_type";
+export { RecipeTemplate };
 import RegenHealth from "./regen_health_type";
 export { RegenHealth };
 import Region from "./region_type";
@@ -472,6 +496,8 @@ import RejectGroupInvite from "./reject_group_invite_type";
 export { RejectGroupInvite };
 import RemoveFriend from "./remove_friend_type";
 export { RemoveFriend };
+import ResearchRecipes from "./research_recipes_type";
+export { ResearchRecipes };
 import ResolvePull from "./resolve_pull_type";
 export { ResolvePull };
 import Say from "./say_type";
@@ -514,6 +540,8 @@ import UnequipItem from "./unequip_item_type";
 export { UnequipItem };
 import UseAbility from "./use_ability_type";
 export { UseAbility };
+import UseItem from "./use_item_type";
+export { UseItem };
 import User from "./user_type";
 export { User };
 import VendorInventory from "./vendor_inventory_type";
@@ -1054,6 +1082,20 @@ const tablesSchema = __schema(
     ],
   }, HotbarSlotRow),
   __table({
+    name: 'item_cooldown',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'item_cooldown_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ItemCooldownRow),
+  __table({
     name: 'item_instance',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1264,6 +1306,31 @@ const tablesSchema = __schema(
     ],
   }, QuestTemplateRow),
   __table({
+    name: 'recipe_discovered',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'recipe_discovered_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RecipeDiscoveredRow),
+  __table({
+    name: 'recipe_template',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'recipe_template_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RecipeTemplateRow),
+  __table({
     name: 'region',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1431,6 +1498,10 @@ const reducersSchema = __reducers(
   __reducerSchema("unequip_item", UnequipItemReducer),
   __reducerSchema("set_hotbar_slot", SetHotbarSlotReducer),
   __reducerSchema("use_ability", UseAbilityReducer),
+  __reducerSchema("gather_resources", GatherResourcesReducer),
+  __reducerSchema("research_recipes", ResearchRecipesReducer),
+  __reducerSchema("craft_recipe", CraftRecipeReducer),
+  __reducerSchema("use_item", UseItemReducer),
   __reducerSchema("move_character", MoveCharacterReducer),
   __reducerSchema("submit_command", SubmitCommandReducer),
   __reducerSchema("say", SayReducer),

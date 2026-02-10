@@ -30,4 +30,5 @@ export default {
   armorClassBonus: __t.u64(),
   weaponBaseDamage: __t.u64(),
   weaponDps: __t.u64(),
+  stackable: __t.bool(),
 };

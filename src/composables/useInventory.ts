@@ -39,6 +39,9 @@ type InventoryItem = {
   stats: { label: string; value: string }[];
   description: string;
   equipable: boolean;
+  usable: boolean;
+  quantity: bigint;
+  stackable: boolean;
 };
 
 type EquippedSlot = {
@@ -62,6 +65,7 @@ export const useInventory = ({
 }: UseInventoryArgs) => {
   const equipReducer = useReducer(reducers.equipItem);
   const unequipReducer = useReducer(reducers.unequipItem);
+  const useItemReducer = useReducer(reducers.useItem);
 
   const ownedInstances = computed(() => {
     if (!selectedCharacter.value) return [];
@@ -104,6 +108,8 @@ export const useInventory = ({
           vendorValue ? { label: 'Value', value: `${vendorValue} gold` } : null,
         ].filter(Boolean) as { label: string; value: string }[];
         const slot = template?.slot ?? 'unknown';
+        const stackable = template?.stackable ?? false;
+        const quantity = instance.quantity ?? 1n;
         const normalizedClass = selectedCharacter.value?.className?.toLowerCase() ?? '';
         const allowedClasses = (template?.allowedClasses ?? '')
           .split(',')
@@ -118,6 +124,9 @@ export const useInventory = ({
           !isJunk &&
           (!selectedCharacter.value || selectedCharacter.value.level >= (template?.requiredLevel ?? 1n)) &&
           classAllowed;
+        const usable =
+          (template?.slot ?? '').toLowerCase() === 'consumable' &&
+          (template?.name ?? '').toLowerCase() === 'bandage';
         return {
           id: instance.id,
           instanceId: instance.id,
@@ -133,6 +142,9 @@ export const useInventory = ({
           stats,
           description,
           equipable,
+          usable,
+          quantity,
+          stackable,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -194,6 +206,11 @@ export const useInventory = ({
     unequipReducer({ characterId: selectedCharacter.value.id, slot });
   };
 
+  const useItem = (itemInstanceId: bigint) => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    useItemReducer({ characterId: selectedCharacter.value.id, itemInstanceId });
+  };
+
   const inventoryCount = computed(() => inventoryItems.value.length);
 
   return {
@@ -203,5 +220,6 @@ export const useInventory = ({
     maxInventorySlots: 20,
     equipItem,
     unequipItem,
+    useItem,
   };
 };

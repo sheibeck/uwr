@@ -12,8 +12,7 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  templateId: __t.u64(),
-  ownerCharacterId: __t.u64(),
-  equippedSlot: __t.option(__t.string()),
-  quantity: __t.u64(),
+  characterId: __t.u64(),
+  recipeTemplateId: __t.u64(),
+  discoveredAt: __t.timestamp(),
 });

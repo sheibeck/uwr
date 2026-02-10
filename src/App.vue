@@ -105,7 +105,8 @@
         ...(activePanel === 'journal' ||
         activePanel === 'inventory' ||
         activePanel === 'vendor' ||
-        activePanel === 'quests'
+        activePanel === 'quests' ||
+        activePanel === 'crafting'
           ? styles.floatingPanelWide
           : {}),
         left: `${panelPos.x}px`,
@@ -147,6 +148,7 @@
           :max-inventory-slots="maxInventorySlots"
           @equip="equipItem"
           @unequip="unequipItem"
+          @use-item="useItem"
           @show-tooltip="showTooltip"
           @move-tooltip="moveTooltip"
           @hide-tooltip="hideTooltip"
@@ -200,6 +202,15 @@
           :stat-bonuses="equippedStatBonuses"
           :locations="locations"
           :regions="regions"
+        />
+        <CraftingPanel
+          v-else-if="activePanel === 'crafting'"
+          :styles="styles"
+          :selected-character="selectedCharacter"
+          :recipes="craftingRecipes"
+          @gather="gatherResources"
+          @research="researchRecipes"
+          @craft="craftRecipe"
         />
         <NpcDialogPanel
           v-else-if="activePanel === 'journal'"
@@ -462,6 +473,7 @@ import InventoryPanel from './components/InventoryPanel.vue';
 import GroupPanel from './components/GroupPanel.vue';
 import FriendsPanel from './components/FriendsPanel.vue';
 import StatsPanel from './components/StatsPanel.vue';
+import CraftingPanel from './components/CraftingPanel.vue';
 import HotbarPanel from './components/HotbarPanel.vue';
 import CombatPanel from './components/CombatPanel.vue';
 import TravelPanel from './components/TravelPanel.vue';
@@ -483,6 +495,7 @@ import { useAuth } from './composables/useAuth';
 import { useFriends } from './composables/useFriends';
 import { reducers } from './module_bindings';
 import { useInventory } from './composables/useInventory';
+import { useCrafting } from './composables/useCrafting';
 import { useHotbar } from './composables/useHotbar';
 
 const {
@@ -492,6 +505,9 @@ const {
   locationConnections,
   itemTemplates,
   itemInstances,
+  recipeTemplates,
+  recipeDiscovered,
+  itemCooldowns,
   locations,
   npcs,
   vendorInventory,
@@ -995,12 +1011,22 @@ const currentTypeLine = computed(() => {
   return `${regionType} · ${locationType}`;
 });
 
-const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipItem, unequipItem } =
+const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipItem, unequipItem, useItem } =
   useInventory({
     connActive: computed(() => conn.isActive),
     selectedCharacter,
     itemInstances,
     itemTemplates,
+  });
+
+const { recipes: craftingRecipes, gather: gatherResources, research: researchRecipes, craft: craftRecipe } =
+  useCrafting({
+    connActive: computed(() => conn.isActive),
+    selectedCharacter,
+    itemInstances,
+    itemTemplates,
+    recipeTemplates,
+    recipeDiscovered,
   });
 
 const buyReducer = useReducer(reducers.buyItem);
@@ -1154,6 +1180,7 @@ const activePanel = ref<
   | 'friends'
   | 'group'
   | 'stats'
+  | 'crafting'
   | 'journal'
   | 'quests'
   | 'vendor'
@@ -1472,6 +1499,8 @@ const panelTitle = computed(() => {
       return 'Group';
     case 'stats':
       return 'Stats';
+    case 'crafting':
+      return 'Crafting';
     case 'journal':
       return 'Journal';
     case 'quests':

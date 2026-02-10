@@ -811,6 +811,38 @@ export const styles = {
     flexDirection: 'column',
     gap: '0.4rem',
   },
+  rowGap: {
+    display: 'flex',
+    gap: '0.5rem',
+    marginBottom: '0.75rem',
+    flexWrap: 'wrap',
+  },
+  recipeCard: {
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: '10px',
+    padding: '0.75rem',
+    background: 'rgba(10,10,12,0.7)',
+  },
+  recipeHeader: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.25rem',
+    marginBottom: '0.5rem',
+  },
+  recipeName: {
+    fontWeight: 600,
+    letterSpacing: '0.02em',
+  },
+  recipeRequirements: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.25rem',
+    marginBottom: '0.6rem',
+  },
+  disabledButton: {
+    opacity: 0.55,
+    cursor: 'not-allowed',
+  },
   memberCard: {
     border: '1px solid rgba(255,255,255,0.12)',
     borderRadius: '10px',

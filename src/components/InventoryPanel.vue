@@ -56,11 +56,21 @@
               @mouseleave="$emit('hide-tooltip')"
             >
               <span :style="rarityStyle(item.rarity)">{{ item.name }}</span>
+              <span v-if="item.stackable && item.quantity > 1n" :style="styles.subtle">
+                x{{ item.quantity }}
+              </span>
               ({{ item.rarity }}) - {{ item.slot }}
             </div>
             <div :style="styles.subtle">
               Level {{ item.requiredLevel }} • Allowed: {{ item.allowedClasses || 'any' }}
             </div>
+            <button
+              v-if="item.usable"
+              :style="styles.primaryButton"
+              @click="$emit('use-item', item.id)"
+            >
+              Use
+            </button>
             <button
               v-if="item.equipable"
               :style="styles.primaryButton"
@@ -108,6 +118,9 @@ const props = defineProps<{
     stats: { label: string; value: string }[];
     description: string;
     equipable: boolean;
+    usable: boolean;
+    quantity: bigint;
+    stackable: boolean;
   }[];
   inventoryCount: number;
   maxInventorySlots: number;
@@ -133,8 +146,10 @@ const rarityStyle = (rarity: string) => {
 defineEmits<{
   (e: 'equip', itemInstanceId: bigint): void;
   (e: 'unequip', slot: string): void;
+  (e: 'use-item', itemInstanceId: bigint): void;
   (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
   (e: 'move-tooltip', value: { x: number; y: number }): void;
   (e: 'hide-tooltip'): void;
 }>();
 </script>
+

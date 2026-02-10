@@ -12,8 +12,12 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  templateId: __t.u64(),
-  ownerCharacterId: __t.u64(),
-  equippedSlot: __t.option(__t.string()),
-  quantity: __t.u64(),
+  key: __t.string(),
+  name: __t.string(),
+  outputTemplateId: __t.u64(),
+  outputCount: __t.u64(),
+  req1TemplateId: __t.u64(),
+  req1Count: __t.u64(),
+  req2TemplateId: __t.u64(),
+  req2Count: __t.u64(),
 });

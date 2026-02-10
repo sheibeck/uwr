@@ -15,6 +15,9 @@ export const registerItemReducers = (deps: any) => {
     abilityCooldownMicros,
     abilityCastMicros,
     activeCombatIdForCharacter,
+    addItemToInventory,
+    removeItemFromInventory,
+    getItemCount,
   } = deps;
 
   spacetimedb.reducer(
@@ -39,10 +42,13 @@ export const registerItemReducers = (deps: any) => {
       armorClassBonus: t.u64(),
       weaponBaseDamage: t.u64(),
       weaponDps: t.u64(),
+      stackable: t.bool(),
     },
     (ctx, args) => {
       const slot = args.slot.trim();
-      if (!EQUIPMENT_SLOTS.has(slot) && slot !== 'junk') throw new SenderError('Invalid slot');
+      if (!EQUIPMENT_SLOTS.has(slot) && !['junk', 'resource', 'consumable'].includes(slot)) {
+        throw new SenderError('Invalid slot');
+      }
       const armorType = normalizeArmorType(args.armorType);
       if (!ARMOR_TYPES_WITH_NONE.includes(armorType as (typeof ARMOR_TYPES_WITH_NONE)[number])) {
         throw new SenderError('Invalid armor type');
@@ -68,6 +74,7 @@ export const registerItemReducers = (deps: any) => {
         armorClassBonus: args.armorClassBonus,
         weaponBaseDamage: args.weaponBaseDamage,
         weaponDps: args.weaponDps,
+        stackable: args.stackable,
       });
     }
   );
@@ -76,12 +83,7 @@ export const registerItemReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const template = ctx.db.itemTemplate.id.find(args.templateId);
     if (!template) throw new SenderError('Item template not found');
-    ctx.db.itemInstance.insert({
-      id: 0n,
-      templateId: template.id,
-      ownerCharacterId: character.id,
-      equippedSlot: undefined,
-    });
+    addItemToInventory(ctx, character.id, template.id, 1n);
   });
 
   spacetimedb.reducer(
@@ -97,18 +99,18 @@ export const registerItemReducers = (deps: any) => {
       const template = ctx.db.itemTemplate.id.find(args.itemTemplateId);
       if (!template) throw new SenderError('Item template missing');
       const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].length;
-      if (itemCount >= 20) throw new SenderError('Backpack is full');
+      const hasStack =
+        template.stackable &&
+        [...ctx.db.itemInstance.by_owner.filter(character.id)].some(
+          (row) => row.templateId === template.id && !row.equippedSlot
+        );
+      if (!hasStack && itemCount >= 20) throw new SenderError('Backpack is full');
       if ((character.gold ?? 0n) < vendorItem.price) throw new SenderError('Not enough gold');
       ctx.db.character.id.update({
         ...character,
         gold: (character.gold ?? 0n) - vendorItem.price,
       });
-      ctx.db.itemInstance.insert({
-        id: 0n,
-        templateId: template.id,
-        ownerCharacterId: character.id,
-        equippedSlot: undefined,
-      });
+      addItemToInventory(ctx, character.id, template.id, 1n);
       appendPrivateEvent(
         ctx,
         character.id,
@@ -132,7 +134,7 @@ export const registerItemReducers = (deps: any) => {
       if (instance.equippedSlot) throw new SenderError('Unequip item first');
       const template = ctx.db.itemTemplate.id.find(instance.templateId);
       if (!template) throw new SenderError('Item template missing');
-      const value = template.vendorValue ?? 0n;
+      const value = (template.vendorValue ?? 0n) * (instance.quantity ?? 1n);
       ctx.db.itemInstance.id.delete(instance.id);
       ctx.db.character.id.update({
         ...character,
@@ -155,7 +157,7 @@ export const registerItemReducers = (deps: any) => {
       if (instance.equippedSlot) continue;
       const template = ctx.db.itemTemplate.id.find(instance.templateId);
       if (!template || !template.isJunk) continue;
-      total += template.vendorValue ?? 0n;
+      total += (template.vendorValue ?? 0n) * (instance.quantity ?? 1n);
       ctx.db.itemInstance.id.delete(instance.id);
     }
     if (total > 0n) {
@@ -181,15 +183,15 @@ export const registerItemReducers = (deps: any) => {
       throw new SenderError('Loot does not belong to you');
     }
     const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].length;
-    if (itemCount >= 20) throw new SenderError('Backpack is full');
     const template = ctx.db.itemTemplate.id.find(loot.itemTemplateId);
     if (!template) throw new SenderError('Item template missing');
-    ctx.db.itemInstance.insert({
-      id: 0n,
-      templateId: template.id,
-      ownerCharacterId: character.id,
-      equippedSlot: undefined,
-    });
+    const hasStack =
+      template.stackable &&
+      [...ctx.db.itemInstance.by_owner.filter(character.id)].some(
+        (row) => row.templateId === template.id && !row.equippedSlot
+      );
+    if (!hasStack && itemCount >= 20) throw new SenderError('Backpack is full');
+    addItemToInventory(ctx, character.id, template.id, 1n);
     ctx.db.combatLoot.id.delete(loot.id);
     appendPrivateEvent(
       ctx,
@@ -212,6 +214,7 @@ export const registerItemReducers = (deps: any) => {
       }
       const template = ctx.db.itemTemplate.id.find(instance.templateId);
       if (!template) throw new SenderError('Item template missing');
+      if (template.stackable) throw new SenderError('Cannot equip this item');
       if (character.level < template.requiredLevel) throw new SenderError('Level too low');
       if (!isClassAllowed(template.allowedClasses, character.className)) {
         throw new SenderError('Class cannot use this item');
@@ -400,4 +403,189 @@ export const registerItemReducers = (deps: any) => {
       }
     }
   );
+
+  const BANDAGE_COOLDOWN_MICROS = 10_000_000n;
+  const BANDAGE_TICK_COUNT = 3n;
+  const BANDAGE_TICK_HEAL = 5n;
+
+  // Demo flow: gather_resources -> research_recipes -> craft_recipe -> use_item (Bandage).
+  spacetimedb.reducer('gather_resources', { characterId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (activeCombatIdForCharacter(ctx, character.id)) {
+      throw new SenderError('Cannot gather during combat');
+    }
+    const location = ctx.db.location.id.find(character.locationId);
+    if (!location) throw new SenderError('Location not found');
+    const pool = deps.getGatherableResourceTemplates(ctx, location.terrainType ?? 'plains');
+    if (pool.length === 0) throw new SenderError('No gatherable resources here');
+    const totalWeight = pool.reduce((sum: bigint, entry: any) => sum + entry.weight, 0n);
+    const gathered = new Map<string, bigint>();
+    for (let i = 0n; i < 14n; i += 1n) {
+      let roll = (ctx.timestamp.microsSinceUnixEpoch + character.id + i) % totalWeight;
+      let chosen = pool[0];
+      for (const entry of pool) {
+        if (roll < entry.weight) {
+          chosen = entry;
+          break;
+        }
+        roll -= entry.weight;
+      }
+      addItemToInventory(ctx, character.id, chosen.template.id, 1n);
+      const current = gathered.get(chosen.template.name) ?? 0n;
+      gathered.set(chosen.template.name, current + 1n);
+    }
+    const summary = [...gathered.entries()]
+      .map(([name, count]) => `${name} x${count}`)
+      .join(', ');
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'reward',
+      `You gather: ${summary}.`
+    );
+  });
+
+  spacetimedb.reducer('research_recipes', { characterId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const discovered = new Set(
+      [...ctx.db.recipeDiscovered.by_character.filter(character.id)].map((row) =>
+        row.recipeTemplateId.toString()
+      )
+    );
+    let found = 0;
+    for (const recipe of ctx.db.recipeTemplate.iter()) {
+      if (discovered.has(recipe.id.toString())) continue;
+      const req1Count = getItemCount(ctx, character.id, recipe.req1TemplateId);
+      const req2Count = getItemCount(ctx, character.id, recipe.req2TemplateId);
+      if (req1Count >= recipe.req1Count && req2Count >= recipe.req2Count) {
+        ctx.db.recipeDiscovered.insert({
+          id: 0n,
+          characterId: character.id,
+          recipeTemplateId: recipe.id,
+          discoveredAt: ctx.timestamp,
+        });
+        const req1 = ctx.db.itemTemplate.id.find(recipe.req1TemplateId);
+        const req2 = ctx.db.itemTemplate.id.find(recipe.req2TemplateId);
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'system',
+          `You discover ${recipe.name} because you have ${req1?.name ?? 'materials'} and ${req2?.name ?? 'materials'}.`
+        );
+        found += 1;
+      }
+    }
+    if (found === 0) {
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'system',
+        'You discover nothing new.'
+      );
+    }
+  });
+
+  spacetimedb.reducer(
+    'craft_recipe',
+    { characterId: t.u64(), recipeTemplateId: t.u64() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const recipe = ctx.db.recipeTemplate.id.find(args.recipeTemplateId);
+      if (!recipe) throw new SenderError('Recipe not found');
+      const discovered = [...ctx.db.recipeDiscovered.by_character.filter(character.id)].find(
+        (row) => row.recipeTemplateId === recipe.id
+      );
+      if (!discovered) throw new SenderError('Recipe not discovered');
+      const req1Count = getItemCount(ctx, character.id, recipe.req1TemplateId);
+      const req2Count = getItemCount(ctx, character.id, recipe.req2TemplateId);
+      if (req1Count < recipe.req1Count || req2Count < recipe.req2Count) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'system',
+          'Missing materials to craft this recipe.'
+        );
+        return;
+      }
+      removeItemFromInventory(ctx, character.id, recipe.req1TemplateId, recipe.req1Count);
+      removeItemFromInventory(ctx, character.id, recipe.req2TemplateId, recipe.req2Count);
+      addItemToInventory(ctx, character.id, recipe.outputTemplateId, recipe.outputCount);
+      const output = ctx.db.itemTemplate.id.find(recipe.outputTemplateId);
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'reward',
+        `You craft ${output?.name ?? recipe.name}.`
+      );
+    }
+  );
+
+  spacetimedb.reducer('use_item', { characterId: t.u64(), itemInstanceId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
+    if (!instance) throw new SenderError('Item not found');
+    if (instance.ownerCharacterId !== character.id) {
+      throw new SenderError('Item does not belong to you');
+    }
+    const template = ctx.db.itemTemplate.id.find(instance.templateId);
+    if (!template) throw new SenderError('Item template missing');
+    if (activeCombatIdForCharacter(ctx, character.id)) {
+      throw new SenderError('Cannot use this during combat');
+    }
+    const itemKey = template.name.toLowerCase().replace(/\s+/g, '_');
+    if (itemKey !== 'bandage') throw new SenderError('Item cannot be used');
+    const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
+    const existingCooldown = [...ctx.db.itemCooldown.by_character.filter(character.id)].find(
+      (row) => row.itemKey === itemKey
+    );
+    if (existingCooldown && existingCooldown.readyAtMicros > nowMicros) {
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', 'Bandage is on cooldown.');
+      return;
+    }
+    const currentQty = instance.quantity ?? 1n;
+    if (currentQty > 1n) {
+      ctx.db.itemInstance.id.update({ ...instance, quantity: currentQty - 1n });
+    } else {
+      ctx.db.itemInstance.id.delete(instance.id);
+    }
+    const existingEffect = [...ctx.db.characterEffect.by_character.filter(character.id)].find(
+      (effect) => effect.effectType === 'regen' && effect.sourceAbility === 'Bandage'
+    );
+    if (existingEffect) {
+      ctx.db.characterEffect.id.delete(existingEffect.id);
+    }
+    ctx.db.characterEffect.insert({
+      id: 0n,
+      characterId: character.id,
+      effectType: 'regen',
+      magnitude: BANDAGE_TICK_HEAL,
+      roundsRemaining: BANDAGE_TICK_COUNT,
+      sourceAbility: 'Bandage',
+    });
+    if (existingCooldown) {
+      ctx.db.itemCooldown.id.update({
+        ...existingCooldown,
+        readyAtMicros: nowMicros + BANDAGE_COOLDOWN_MICROS,
+      });
+    } else {
+      ctx.db.itemCooldown.insert({
+        id: 0n,
+        characterId: character.id,
+        itemKey,
+        readyAtMicros: nowMicros + BANDAGE_COOLDOWN_MICROS,
+      });
+    }
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'heal',
+      'You apply a bandage and begin to recover.'
+    );
+  });
 };

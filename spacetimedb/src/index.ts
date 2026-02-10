@@ -275,6 +275,7 @@ const ItemTemplate = table(
     armorClassBonus: t.u64(),
     weaponBaseDamage: t.u64(),
     weaponDps: t.u64(),
+    stackable: t.bool(),
   }
 );
 
@@ -289,6 +290,50 @@ const ItemInstance = table(
     templateId: t.u64(),
     ownerCharacterId: t.u64(),
     equippedSlot: t.string().optional(),
+    quantity: t.u64(),
+  }
+);
+
+const RecipeTemplate = table(
+  { name: 'recipe_template', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    key: t.string(),
+    name: t.string(),
+    outputTemplateId: t.u64(),
+    outputCount: t.u64(),
+    req1TemplateId: t.u64(),
+    req1Count: t.u64(),
+    req2TemplateId: t.u64(),
+    req2Count: t.u64(),
+  }
+);
+
+const RecipeDiscovered = table(
+  {
+    name: 'recipe_discovered',
+    public: true,
+    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    recipeTemplateId: t.u64(),
+    discoveredAt: t.timestamp(),
+  }
+);
+
+const ItemCooldown = table(
+  {
+    name: 'item_cooldown',
+    public: true,
+    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    itemKey: t.string(),
+    readyAtMicros: t.u64(),
   }
 );
 
@@ -951,6 +996,9 @@ export const spacetimedb = schema(
   Character,
   ItemTemplate,
   ItemInstance,
+  RecipeTemplate,
+  RecipeDiscovered,
+  ItemCooldown,
   CombatLoot,
   Group,
   GroupMember,
@@ -2334,6 +2382,92 @@ function findItemTemplateByName(ctx: any, name: string) {
   return null;
 }
 
+function getItemCount(ctx: any, characterId: bigint, templateId: bigint): bigint {
+  let count = 0n;
+  for (const instance of ctx.db.itemInstance.by_owner.filter(characterId)) {
+    if (instance.templateId !== templateId || instance.equippedSlot) continue;
+    count += instance.quantity ?? 1n;
+  }
+  return count;
+}
+
+function addItemToInventory(
+  ctx: any,
+  characterId: bigint,
+  templateId: bigint,
+  quantity: bigint
+): void {
+  const template = ctx.db.itemTemplate.id.find(templateId);
+  if (!template) throw new SenderError('Item template missing');
+  const stackable = template.stackable ?? false;
+  if (stackable) {
+    const existing = [...ctx.db.itemInstance.by_owner.filter(characterId)].find(
+      (row) => row.templateId === templateId && !row.equippedSlot
+    );
+    if (existing) {
+      ctx.db.itemInstance.id.update({
+        ...existing,
+        quantity: (existing.quantity ?? 1n) + quantity,
+      });
+      return;
+    }
+  }
+  ctx.db.itemInstance.insert({
+    id: 0n,
+    templateId,
+    ownerCharacterId: characterId,
+    equippedSlot: undefined,
+    quantity,
+  });
+}
+
+function removeItemFromInventory(
+  ctx: any,
+  characterId: bigint,
+  templateId: bigint,
+  quantity: bigint
+): void {
+  let remaining = quantity;
+  for (const instance of ctx.db.itemInstance.by_owner.filter(characterId)) {
+    if (instance.templateId !== templateId || instance.equippedSlot) continue;
+    const current = instance.quantity ?? 1n;
+    if (current > remaining) {
+      ctx.db.itemInstance.id.update({ ...instance, quantity: current - remaining });
+      return;
+    }
+    remaining -= current;
+    ctx.db.itemInstance.id.delete(instance.id);
+    if (remaining === 0n) return;
+  }
+  if (remaining > 0n) throw new SenderError('Not enough materials');
+}
+
+function getGatherableResourceTemplates(ctx: any, terrainType: string) {
+  const pools: Record<string, { name: string; weight: bigint }[]> = {
+    mountains: [
+      { name: 'Copper Ore', weight: 3n },
+      { name: 'Stone', weight: 5n },
+    ],
+    woods: [
+      { name: 'Wood', weight: 5n },
+      { name: 'Resin', weight: 3n },
+    ],
+    plains: [
+      { name: 'Flax', weight: 4n },
+      { name: 'Herbs', weight: 3n },
+    ],
+  };
+  const key = (terrainType ?? '').trim().toLowerCase();
+  const entries = pools[key] ?? pools.plains;
+  const resolved = entries
+    .map((entry) => {
+      const template = findItemTemplateByName(ctx, entry.name);
+      return template ? { template, weight: entry.weight } : null;
+    })
+    .filter(Boolean) as { template: typeof ItemTemplate.rowType; weight: bigint }[];
+  return resolved;
+}
+
 function ensureStarterItemTemplates(ctx: any) {
   if (tableHasRows(ctx.db.itemTemplate.iter())) return;
 
@@ -2359,6 +2493,7 @@ function ensureStarterItemTemplates(ctx: any) {
       armorClassBonus: pieces.chest.ac,
       weaponBaseDamage: 0n,
       weaponDps: 0n,
+      stackable: false,
     });
     ctx.db.itemTemplate.insert({
       id: 0n,
@@ -2381,6 +2516,7 @@ function ensureStarterItemTemplates(ctx: any) {
       armorClassBonus: pieces.legs.ac,
       weaponBaseDamage: 0n,
       weaponDps: 0n,
+      stackable: false,
     });
     ctx.db.itemTemplate.insert({
       id: 0n,
@@ -2403,6 +2539,7 @@ function ensureStarterItemTemplates(ctx: any) {
       armorClassBonus: pieces.boots.ac,
       weaponBaseDamage: 0n,
       weaponDps: 0n,
+      stackable: false,
     });
   }
 
@@ -2442,6 +2579,7 @@ function ensureStarterItemTemplates(ctx: any) {
       armorClassBonus: 0n,
       weaponBaseDamage: 4n,
       weaponDps: 6n,
+      stackable: false,
     });
   }
 
@@ -2475,6 +2613,7 @@ function ensureStarterItemTemplates(ctx: any) {
       armorClassBonus: 0n,
       weaponBaseDamage: 0n,
       weaponDps: 0n,
+      stackable: false,
     });
   }
 
@@ -2507,8 +2646,90 @@ function ensureStarterItemTemplates(ctx: any) {
       armorClassBonus: 0n,
       weaponBaseDamage: 0n,
       weaponDps: 0n,
+      stackable: false,
     });
   }
+}
+
+function ensureResourceItemTemplates(ctx: any) {
+  const resources = [
+    { name: 'Flax', slot: 'resource', vendorValue: 1n },
+    { name: 'Herbs', slot: 'resource', vendorValue: 1n },
+    { name: 'Wood', slot: 'resource', vendorValue: 1n },
+    { name: 'Resin', slot: 'resource', vendorValue: 1n },
+    { name: 'Copper Ore', slot: 'resource', vendorValue: 2n },
+    { name: 'Stone', slot: 'resource', vendorValue: 1n },
+  ];
+  for (const resource of resources) {
+    if (findItemTemplateByName(ctx, resource.name)) continue;
+    ctx.db.itemTemplate.insert({
+      id: 0n,
+      name: resource.name,
+      slot: resource.slot,
+      armorType: 'none',
+      rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: resource.vendorValue,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      strBonus: 0n,
+      dexBonus: 0n,
+      chaBonus: 0n,
+      wisBonus: 0n,
+      intBonus: 0n,
+      hpBonus: 0n,
+      manaBonus: 0n,
+      armorClassBonus: 0n,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
+      stackable: true,
+    });
+  }
+  if (!findItemTemplateByName(ctx, 'Bandage')) {
+    ctx.db.itemTemplate.insert({
+      id: 0n,
+      name: 'Bandage',
+      slot: 'consumable',
+      armorType: 'none',
+      rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 2n,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      strBonus: 0n,
+      dexBonus: 0n,
+      chaBonus: 0n,
+      wisBonus: 0n,
+      intBonus: 0n,
+      hpBonus: 0n,
+      manaBonus: 0n,
+      armorClassBonus: 0n,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
+      stackable: true,
+    });
+  }
+}
+
+function ensureRecipeTemplates(ctx: any) {
+  if (tableHasRows(ctx.db.recipeTemplate.iter())) return;
+  const flax = findItemTemplateByName(ctx, 'Flax');
+  const herbs = findItemTemplateByName(ctx, 'Herbs');
+  const bandage = findItemTemplateByName(ctx, 'Bandage');
+  if (!flax || !herbs || !bandage) return;
+  ctx.db.recipeTemplate.insert({
+    id: 0n,
+    key: 'bandage',
+    name: 'Bandages',
+    outputTemplateId: bandage.id,
+    outputCount: 1n,
+    req1TemplateId: flax.id,
+    req1Count: 1n,
+    req2TemplateId: herbs.id,
+    req2Count: 1n,
+  });
 }
 
 function grantStarterItems(ctx: any, character: typeof Character.rowType) {
@@ -2524,22 +2745,12 @@ function grantStarterItems(ctx: any, character: typeof Character.rowType) {
   for (const name of armorNames) {
     const template = findItemTemplateByName(ctx, name);
     if (!template) continue;
-    ctx.db.itemInstance.insert({
-      id: 0n,
-      templateId: template.id,
-      ownerCharacterId: character.id,
-      equippedSlot: undefined,
-    });
+    addItemToInventory(ctx, character.id, template.id, 1n);
   }
 
   const weaponTemplate = findItemTemplateByName(ctx, weapon.name);
   if (weaponTemplate) {
-    ctx.db.itemInstance.insert({
-      id: 0n,
-      templateId: weaponTemplate.id,
-      ownerCharacterId: character.id,
-      equippedSlot: undefined,
-    });
+    addItemToInventory(ctx, character.id, weaponTemplate.id, 1n);
   }
 }
 
@@ -2620,6 +2831,15 @@ function ensureLootTables(ctx: any) {
         lootTableId: table.id,
         itemTemplateId: item.id,
         weight: 10n,
+      });
+    }
+    const resourceTemplates = getGatherableResourceTemplates(ctx, terrainType);
+    for (const entry of resourceTemplates) {
+      ctx.db.lootTableEntry.insert({
+        id: 0n,
+        lootTableId: table.id,
+        itemTemplateId: entry.template.id,
+        weight: 6n,
       });
     }
     for (const item of gearTemplates) {
@@ -4065,6 +4285,8 @@ spacetimedb.init((ctx) => {
   }
 
   ensureStarterItemTemplates(ctx);
+  ensureResourceItemTemplates(ctx);
+  ensureRecipeTemplates(ctx);
   ensureVendorInventory(ctx);
   ensureLootTables(ctx);
 
@@ -4200,6 +4422,10 @@ const reducerDeps = {
   applyArmorMitigation,
   spawnEnemy,
   getEquippedWeaponStats,
+  addItemToInventory,
+  removeItemFromInventory,
+  getItemCount,
+  getGatherableResourceTemplates,
   awardCombatXp,
   xpRequiredForLevel,
   MAX_LEVEL,

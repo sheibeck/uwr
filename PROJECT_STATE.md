@@ -96,7 +96,18 @@ Last updated: 2026-02-10
 - **Regions/Locations:**
   - Regions now include `regionType` (`outdoor`, `indoor`, `dungeon`) for future buffs/events.
   - Current regions are `outdoor`.
-  - Abilities can later scale up/down based on `regionType`, `terrainType`, or day/night state.
+- Abilities can later scale up/down based on `regionType`, `terrainType`, or day/night state.
+- **Gathering + Crafting (MVP):**
+  - Gather action collects 14 resources per use, based on location terrain (weighted).
+    - Mountains: Copper Ore, Stone
+    - Woods: Wood, Resin
+    - Plains: Flax, Herbs
+  - Resources and consumables are stackable inventory items (`item_template.stackable`, `item_instance.quantity`).
+  - Crafting flow: Gather → Research Recipes (discover if materials present) → Craft.
+  - Recipes are per-character (`recipe_discovered`), and only discovered recipes show in Crafting UI.
+  - Bandage recipe: Flax + Herbs → Bandage (stackable).
+  - Bandage use: out of combat only, 10s cooldown (`item_cooldown`), heals over time (3 ticks) and consumes 1.
+  - Loot tables can include resource items (hooked into `ensureLootTables`).
 
 ## XP Curve (MVP)
 - Level cap: 10

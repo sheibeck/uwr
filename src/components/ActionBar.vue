@@ -30,6 +30,13 @@
         Stats
       </button>
       <button
+        @click="emit('toggle', 'crafting')"
+        :style="actionStyle('crafting')"
+        :disabled="isLocked('crafting')"
+      >
+        Crafting
+      </button>
+      <button
         @click="emit('toggle', 'journal')"
         :style="actionStyle('journal')"
         :disabled="isLocked('journal')"
@@ -63,6 +70,7 @@ type PanelKey =
   | 'friends'
   | 'group'
   | 'stats'
+  | 'crafting'
   | 'journal'
   | 'quests'
   | 'travel'

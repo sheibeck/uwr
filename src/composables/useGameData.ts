@@ -14,6 +14,9 @@ export const useGameData = () => {
   const [locationConnections] = useTable(tables.locationConnection);
   const [itemTemplates] = useTable(tables.itemTemplate);
   const [itemInstances] = useTable(tables.itemInstance);
+  const [recipeTemplates] = useTable(tables.recipeTemplate);
+  const [recipeDiscovered] = useTable(tables.recipeDiscovered);
+  const [itemCooldowns] = useTable(tables.itemCooldown);
   const [hotbarSlots] = useTable(tables.hotbarSlot);
   const [locations] = useTable(tables.location);
   const [npcs] = useTable(tables.npc);
@@ -58,6 +61,9 @@ export const useGameData = () => {
     locationConnections,
     itemTemplates,
     itemInstances,
+    recipeTemplates,
+    recipeDiscovered,
+    itemCooldowns,
     hotbarSlots,
     locations,
     npcs,

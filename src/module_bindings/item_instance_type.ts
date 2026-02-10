@@ -15,6 +15,7 @@ export default __t.object("ItemInstance", {
   templateId: __t.u64(),
   ownerCharacterId: __t.u64(),
   equippedSlot: __t.option(__t.string()),
+  quantity: __t.u64(),
 });
 
 
