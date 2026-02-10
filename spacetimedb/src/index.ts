@@ -2517,19 +2517,41 @@ function getGatherableResourceTemplates(ctx: any, terrainType: string, timePref?
       { name: 'Copper Ore', weight: 3n, timeOfDay: 'any' },
       { name: 'Stone', weight: 5n, timeOfDay: 'any' },
       { name: 'Sand', weight: 3n, timeOfDay: 'day' },
+      { name: 'Clear Water', weight: 2n, timeOfDay: 'any' },
     ],
     woods: [
       { name: 'Wood', weight: 5n, timeOfDay: 'any' },
       { name: 'Resin', weight: 3n, timeOfDay: 'night' },
       { name: 'Dry Grass', weight: 3n, timeOfDay: 'day' },
       { name: 'Bitter Herbs', weight: 2n, timeOfDay: 'night' },
+      { name: 'Clear Water', weight: 2n, timeOfDay: 'any' },
     ],
     plains: [
       { name: 'Flax', weight: 4n, timeOfDay: 'day' },
       { name: 'Herbs', weight: 3n, timeOfDay: 'any' },
-      { name: 'Raw Meat', weight: 3n, timeOfDay: 'any' },
       { name: 'Clear Water', weight: 2n, timeOfDay: 'day' },
       { name: 'Salt', weight: 2n, timeOfDay: 'any' },
+    ],
+    swamp: [
+      { name: 'Peat', weight: 4n, timeOfDay: 'any' },
+      { name: 'Mushrooms', weight: 3n, timeOfDay: 'night' },
+      { name: 'Murky Water', weight: 3n, timeOfDay: 'any' },
+      { name: 'Bitter Herbs', weight: 2n, timeOfDay: 'night' },
+    ],
+    dungeon: [
+      { name: 'Iron Shard', weight: 3n, timeOfDay: 'any' },
+      { name: 'Ancient Dust', weight: 3n, timeOfDay: 'any' },
+      { name: 'Stone', weight: 2n, timeOfDay: 'any' },
+    ],
+    town: [
+      { name: 'Scrap Cloth', weight: 3n, timeOfDay: 'any' },
+      { name: 'Lamp Oil', weight: 2n, timeOfDay: 'any' },
+      { name: 'Clear Water', weight: 2n, timeOfDay: 'any' },
+    ],
+    city: [
+      { name: 'Scrap Cloth', weight: 3n, timeOfDay: 'any' },
+      { name: 'Lamp Oil', weight: 2n, timeOfDay: 'any' },
+      { name: 'Clear Water', weight: 2n, timeOfDay: 'any' },
     ],
   };
   const key = (terrainType ?? '').trim().toLowerCase();
@@ -2744,11 +2766,19 @@ function ensureResourceItemTemplates(ctx: any) {
     { name: 'Resin', slot: 'resource', vendorValue: 1n },
     { name: 'Copper Ore', slot: 'resource', vendorValue: 2n },
     { name: 'Stone', slot: 'resource', vendorValue: 1n },
-        { name: 'Salt', slot: 'resource', vendorValue: 1n },
+    { name: 'Raw Meat', slot: 'resource', vendorValue: 1n },
+    { name: 'Salt', slot: 'resource', vendorValue: 1n },
     { name: 'Clear Water', slot: 'resource', vendorValue: 1n },
     { name: 'Sand', slot: 'resource', vendorValue: 1n },
     { name: 'Dry Grass', slot: 'resource', vendorValue: 1n },
     { name: 'Bitter Herbs', slot: 'resource', vendorValue: 1n },
+    { name: 'Peat', slot: 'resource', vendorValue: 1n },
+    { name: 'Mushrooms', slot: 'resource', vendorValue: 1n },
+    { name: 'Murky Water', slot: 'resource', vendorValue: 1n },
+    { name: 'Iron Shard', slot: 'resource', vendorValue: 2n },
+    { name: 'Ancient Dust', slot: 'resource', vendorValue: 2n },
+    { name: 'Scrap Cloth', slot: 'resource', vendorValue: 1n },
+    { name: 'Lamp Oil', slot: 'resource', vendorValue: 1n },
   ];
   for (const resource of resources) {
     if (findItemTemplateByName(ctx, resource.name)) continue;
@@ -3164,6 +3194,17 @@ function ensureLootTables(ctx: any) {
         itemTemplateId: entry.template.id,
         weight: 6n,
       });
+    }
+    if (creatureType === 'animal') {
+      const rawMeat = findItemTemplateByName(ctx, 'Raw Meat');
+      if (rawMeat) {
+        ctx.db.lootTableEntry.insert({
+          id: 0n,
+          lootTableId: table.id,
+          itemTemplateId: rawMeat.id,
+          weight: 20n,
+        });
+      }
     }
     for (const item of gearTemplates) {
       ctx.db.lootTableEntry.insert({
@@ -4769,6 +4810,7 @@ const reducerDeps = {
 };
 
 registerReducers(reducerDeps);
+
 
 
 
