@@ -879,6 +879,10 @@ const sellAllJunk = () => {
 const hailNpcReducer = useReducer(reducers.hailNpc);
 const hailNpc = (npcName: string) => {
   if (!selectedCharacter.value) return;
+  const npc = npcsHere.value.find((row) => row.name === npcName);
+  if (npc?.npcType === 'vendor') {
+    openVendor(npc.id);
+  }
   hailNpcReducer({ characterId: selectedCharacter.value.id, npcName });
 };
 
@@ -1416,7 +1420,7 @@ const panelTitle = computed(() => {
     case 'quests':
       return 'Quests';
     case 'vendor':
-      return 'Vendor';
+      return activeVendor.value?.name ?? 'Vendor';
     case 'travel':
       return 'Travel';
     case 'combat':
