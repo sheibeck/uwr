@@ -1,6 +1,7 @@
 import { schema, table, t, SenderError } from 'spacetimedb/server';
 import { ScheduleAt, Timestamp } from 'spacetimedb';
 import { registerReducers } from './reducers';
+import { registerViews } from './views';
 import {
   ARMOR_TYPES_WITH_NONE,
   BASE_HP,
@@ -2788,152 +2789,22 @@ spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
   });
 });
 
-spacetimedb.view(
-  { name: 'my_private_events', public: true },
-  t.array(EventPrivate.rowType),
-  (ctx) => {
-    const player = ctx.db.player.id.find(ctx.sender);
-    if (!player || player.userId == null) return [];
-    return [...ctx.db.eventPrivate.by_owner_user.filter(player.userId)];
-  }
-);
-
-spacetimedb.view({ name: 'my_player', public: true }, t.array(Player.rowType), (ctx) => {
-  const player = ctx.db.player.id.find(ctx.sender);
-  return player ? [player] : [];
-});
-
-spacetimedb.view(
-  { name: 'my_friend_requests', public: true },
-  t.array(FriendRequest.rowType),
-  (ctx) => {
-    const player = ctx.db.player.id.find(ctx.sender);
-    if (!player || player.userId == null) return [];
-    const incoming = [...ctx.db.friendRequest.by_to.filter(player.userId)];
-    const outgoing = [...ctx.db.friendRequest.by_from.filter(player.userId)];
-    return [...incoming, ...outgoing];
-  }
-);
-
-spacetimedb.view({ name: 'my_friends', public: true }, t.array(Friend.rowType), (ctx) => {
-  const player = ctx.db.player.id.find(ctx.sender);
-  if (!player || player.userId == null) return [];
-  return [...ctx.db.friend.by_user.filter(player.userId)];
-});
-
-spacetimedb.view(
-  { name: 'my_group_invites', public: true },
-  t.array(GroupInvite.rowType),
-  (ctx) => {
-    const player = ctx.db.player.id.find(ctx.sender);
-    if (!player || player.userId == null) return [];
-    const invites: typeof GroupInvite.rowType[] = [];
-    for (const character of ctx.db.character.by_owner_user.filter(player.userId)) {
-      for (const invite of ctx.db.groupInvite.by_to_character.filter(character.id)) {
-        invites.push(invite);
-      }
-    }
-    return invites;
-  }
-);
-
-spacetimedb.view(
-  { name: 'my_group_events', public: true },
-  t.array(EventGroup.rowType),
-  (ctx) => {
-    const events: typeof EventGroup.rowType[] = [];
-    const player = ctx.db.player.id.find(ctx.sender);
-    if (!player || player.userId == null) return events;
-    for (const member of ctx.db.groupMember.by_owner_user.filter(player.userId)) {
-      for (const event of ctx.db.eventGroup.by_group.filter(member.groupId)) {
-        events.push(event);
-      }
-    }
-    return events;
-  }
-);
-
-spacetimedb.view(
-  { name: 'my_group_members', public: true },
-  t.array(GroupMember.rowType),
-  (ctx) => {
-    const player = ctx.db.player.id.find(ctx.sender);
-    if (!player || player.userId == null) return [];
-    return [...ctx.db.groupMember.by_owner_user.filter(player.userId)];
-  }
-);
-
-spacetimedb.view(
-  { name: 'my_character_effects', public: true },
-  t.array(CharacterEffect.rowType),
-  (ctx) => {
-    const player = ctx.db.player.id.find(ctx.sender);
-    if (!player || !player.activeCharacterId) return [];
-    const character = ctx.db.character.id.find(player.activeCharacterId);
-    if (!character) return [];
-
-    const ids = new Set<bigint>();
-    ids.add(character.id);
-    if (character.groupId) {
-      for (const member of ctx.db.groupMember.by_group.filter(character.groupId)) {
-        ids.add(member.characterId);
-      }
-    }
-
-    const effects: typeof CharacterEffect.rowType[] = [];
-    for (const effect of ctx.db.characterEffect.iter()) {
-      if (ids.has(effect.characterId)) effects.push(effect);
-    }
-    return effects;
-  }
-);
-
-spacetimedb.view(
-  { name: 'my_combat_results', public: true },
-  t.array(CombatResult.rowType),
-  (ctx) => {
-    const player = ctx.db.player.id.find(ctx.sender);
-    if (!player || player.userId == null) return [];
-    return [...ctx.db.combatResult.by_owner_user.filter(player.userId)];
-  }
-);
-
-spacetimedb.view(
-  { name: 'my_combat_loot', public: true },
-  t.array(CombatLoot.rowType),
-  (ctx) => {
-    const player = ctx.db.player.id.find(ctx.sender);
-    if (!player || player.userId == null || !player.activeCharacterId) return [];
-    return [...ctx.db.combatLoot.by_character.filter(player.activeCharacterId)];
-  }
-);
-
-spacetimedb.view(
-  { name: 'my_location_events', public: true },
-  t.array(EventLocation.rowType),
-  (ctx) => {
-    const player = ctx.db.player.id.find(ctx.sender);
-    if (!player?.activeCharacterId) return [];
-    const character = ctx.db.character.id.find(player.activeCharacterId);
-    if (!character) return [];
-    const events = [...ctx.db.eventLocation.by_location.filter(character.locationId)];
-    return events.filter(
-      (event) =>
-        !event.excludeCharacterId || event.excludeCharacterId !== character.id
-    );
-  }
-);
-
-spacetimedb.view({ name: 'my_npc_dialog', public: true }, t.array(NpcDialog.rowType), (ctx) => {
-  const player = ctx.db.player.id.find(ctx.sender);
-  if (!player?.activeCharacterId) return [];
-  return [...ctx.db.npcDialog.by_character.filter(player.activeCharacterId)];
-});
-
-spacetimedb.view({ name: 'my_quests', public: true }, t.array(QuestInstance.rowType), (ctx) => {
-  const player = ctx.db.player.id.find(ctx.sender);
-  if (!player?.activeCharacterId) return [];
-  return [...ctx.db.questInstance.by_character.filter(player.activeCharacterId)];
+registerViews({
+  spacetimedb,
+  t,
+  Player,
+  FriendRequest,
+  Friend,
+  GroupInvite,
+  EventGroup,
+  GroupMember,
+  CharacterEffect,
+  CombatResult,
+  CombatLoot,
+  EventLocation,
+  EventPrivate,
+  NpcDialog,
+  QuestInstance,
 });
 
 spacetimedb.init((ctx) => {
