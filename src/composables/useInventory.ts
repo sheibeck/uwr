@@ -124,9 +124,21 @@ export const useInventory = ({
           !isJunk &&
           (!selectedCharacter.value || selectedCharacter.value.level >= (template?.requiredLevel ?? 1n)) &&
           classAllowed;
+        const itemKey = (template?.name ?? '').toLowerCase().replace(/\s+/g, '_');
+        const usableKeys = new Set([
+          'bandage',
+          'basic_poultice',
+          'travelers_tea',
+          'simple_rations',
+          'torch',
+          'whetstone',
+          'kindling_bundle',
+          'rough_rope',
+          'charcoal',
+          'crude_poison',
+        ]);
         const usable =
-          (template?.slot ?? '').toLowerCase() === 'consumable' &&
-          (template?.name ?? '').toLowerCase() === 'bandage';
+          (template?.slot ?? '').toLowerCase() === 'consumable' && usableKeys.has(itemKey);
         return {
           id: instance.id,
           instanceId: instance.id,

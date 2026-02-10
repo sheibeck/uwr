@@ -413,7 +413,7 @@ export const registerItemReducers = (deps: any) => {
     }
   );
 
-  const BANDAGE_COOLDOWN_MICROS = 10_000_000n;
+  const CONSUMABLE_COOLDOWN_MICROS = 10_000_000n;
   const BANDAGE_TICK_COUNT = 3n;
   const BANDAGE_TICK_HEAL = 5n;
   const RESOURCE_GATHER_CAST_MICROS = 8_000_000n;
@@ -738,7 +738,7 @@ export const registerItemReducers = (deps: any) => {
         roundsRemaining: BANDAGE_TICK_COUNT,
         sourceAbility: 'Bandage',
       });
-      setCooldown(BANDAGE_COOLDOWN_MICROS);
+      setCooldown(CONSUMABLE_COOLDOWN_MICROS);
       appendPrivateEvent(
         ctx,
         character.id,
@@ -762,7 +762,7 @@ export const registerItemReducers = (deps: any) => {
         roundsRemaining: 3n,
         sourceAbility: 'Basic Poultice',
       });
-      setCooldown(BANDAGE_COOLDOWN_MICROS);
+      setCooldown(CONSUMABLE_COOLDOWN_MICROS);
       appendPrivateEvent(
         ctx,
         character.id,
@@ -786,7 +786,7 @@ export const registerItemReducers = (deps: any) => {
         roundsRemaining: 3n,
         sourceAbility: 'Travelers Tea',
       });
-      setCooldown(BANDAGE_COOLDOWN_MICROS);
+      setCooldown(CONSUMABLE_COOLDOWN_MICROS);
       appendPrivateEvent(
         ctx,
         character.id,
@@ -802,7 +802,7 @@ export const registerItemReducers = (deps: any) => {
       character.id,
       character.ownerUserId,
       'system',
-      'Nothing happens. (Effect not implemented yet.)'
+      `You use ${template.name}, but nothing happens.`
     );
   });
 };
