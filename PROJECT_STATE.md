@@ -110,7 +110,11 @@ Last updated: 2026-02-10
   - Recipes are per-character (`recipe_discovered`), and only discovered recipes show in Crafting UI.
   - Bandage recipe: Flax + Herbs → Bandage (stackable).
   - Bandage use: out of combat only, 10s cooldown (`item_cooldown`), heals over time (3 ticks) and consumes 1.
-  - Loot tables can include resource items (hooked into `ensureLootTables`).
+- Loot tables can include resource items (hooked into `ensureLootTables`).
+- **Gathering aggro risk:** each gather attempt rolls an aggro chance if enemies are present in the location.
+  - Chance scales with region danger; for testing, the base chance is set to 100% in `spacetimedb/src/reducers/items.ts`.
+- **Virtual solo group:** server helpers treat solo characters as a group of one for combat/pull/gather participant selection.
+  - Implemented via `getGroupParticipants` and `isGroupLeaderOrSolo` in `spacetimedb/src/index.ts`.
 
 ## XP Curve (MVP)
 - Level cap: 10
