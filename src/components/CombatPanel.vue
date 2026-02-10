@@ -274,7 +274,8 @@
                 <span
                   v-for="character in charactersHere"
                   :key="character.id.toString()"
-                  :style="styles.rosterTag"
+                  :style="styles.rosterClickable"
+                  @click="$emit('character-action', character.id)"
                 >
                   {{ character.name }}
                 </span>
@@ -436,5 +437,6 @@ defineEmits<{
   (e: 'hide-tooltip'): void;
   (e: 'open-vendor', npcId: bigint): void;
   (e: 'accordion-toggle', value: { key: 'enemies' | 'resources' | 'characters' | 'npcs'; open: boolean }): void;
+  (e: 'character-action', characterId: bigint): void;
 }>();
 </script>

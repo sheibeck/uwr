@@ -107,7 +107,8 @@
         activePanel === 'vendor' ||
         activePanel === 'quests' ||
         activePanel === 'crafting' ||
-        activePanel === 'stats'
+        activePanel === 'stats' ||
+        activePanel === 'trade'
           ? styles.floatingPanelWide
           : {}),
         left: `${panelPos.x}px`,
@@ -116,7 +117,7 @@
     >
         <div :style="styles.floatingPanelHeader" @mousedown="startPanelDrag">
           <div>{{ panelTitle }}</div>
-          <button type="button" :style="styles.panelClose" @click="activePanel = 'none'">
+          <button type="button" :style="styles.panelClose" @click="closePanel">
             ×
           </button>
         </div>
@@ -147,9 +148,11 @@
           :inventory-items="inventoryItems"
           :inventory-count="inventoryCount"
           :max-inventory-slots="maxInventorySlots"
+          :combat-locked="combatLocked"
           @equip="equipItem"
           @unequip="unequipItem"
           @use-item="useItem"
+          @delete-item="deleteItem"
           @show-tooltip="showTooltip"
           @move-tooltip="moveTooltip"
           @hide-tooltip="hideTooltip"
@@ -213,6 +216,30 @@
           @research="researchRecipes"
           @craft="craftRecipe"
         />
+        <CharacterActionsPanel
+          v-else-if="activePanel === 'characterActions'"
+          :styles="styles"
+          :target="actionTargetCharacter"
+          :is-friend="actionTargetIsFriend"
+          @invite="inviteToGroup"
+          @friend="sendFriendRequest"
+          @trade="startTrade"
+          @message="sendWhisperTo"
+        />
+        <TradePanel
+          v-else-if="activePanel === 'trade'"
+          :styles="styles"
+          :trade="activeTrade"
+          :inventory="tradeInventory"
+          :my-offer="myOffer"
+          :other-offer="otherOffer"
+          :my-offer-locked="myOfferLocked"
+          :other-offer-locked="otherOfferLocked"
+          @add-item="addTradeItem"
+          @remove-item="removeTradeItem"
+          @offer="offerTrade"
+          @cancel="cancelTrade"
+        />
         <NpcDialogPanel
           v-else-if="activePanel === 'journal'"
           :styles="styles"
@@ -274,6 +301,7 @@
           @hail="hailNpc"
           @open-vendor="openVendor"
           @accordion-toggle="updateAccordionState"
+            @character-action="openCharacterActions"
         />
         </div>
     </div>
@@ -343,6 +371,7 @@
             @hail="hailNpc"
             @open-vendor="openVendor"
             @accordion-toggle="updateAccordionState"
+            @character-action="openCharacterActions"
           />
         </template>
         <template v-else>
@@ -389,6 +418,7 @@
             @hide-tooltip="hideTooltip"
             @hail="hailNpc"
             @accordion-toggle="updateAccordionState"
+            @character-action="openCharacterActions"
           />
         </template>
       </div>
@@ -489,6 +519,8 @@ import CraftingPanel from './components/CraftingPanel.vue';
 import HotbarPanel from './components/HotbarPanel.vue';
 import CombatPanel from './components/CombatPanel.vue';
 import TravelPanel from './components/TravelPanel.vue';
+import CharacterActionsPanel from './components/CharacterActionsPanel.vue';
+import TradePanel from './components/TradePanel.vue';
 import CommandBar from './components/CommandBar.vue';
 import ActionBar from './components/ActionBar.vue';
 import NpcDialogPanel from './components/NpcDialogPanel.vue';
@@ -509,6 +541,7 @@ import { reducers } from './module_bindings';
 import { useInventory } from './composables/useInventory';
 import { useCrafting } from './composables/useCrafting';
 import { useHotbar } from './composables/useHotbar';
+import { useTrade } from './composables/useTrade';
 
 const {
   conn,
@@ -558,6 +591,8 @@ const {
   worldState,
   resourceNodes,
   resourceGathers,
+  tradeSessions,
+  tradeItems,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
@@ -870,6 +905,32 @@ const { commandText, submitCommand } = useCommands({
   },
 });
 
+const openCharacterActions = (characterId: bigint) => {
+  actionTargetCharacterId.value = characterId;
+  activePanel.value = 'characterActions';
+};
+
+const inviteToGroup = (targetName: string) => {
+  if (!selectedCharacter.value || !conn.isActive) return;
+  inviteToGroupReducer({ characterId: selectedCharacter.value.id, targetName });
+};
+
+const sendFriendRequest = (targetName: string) => {
+  if (!selectedCharacter.value || !conn.isActive) return;
+  friendRequestReducer({ characterId: selectedCharacter.value.id, targetName });
+};
+
+const sendWhisperTo = (targetName: string) => {
+  commandText.value = `/w ${targetName} `;
+};
+
+const closePanel = () => {
+  if (activePanel.value === 'trade') {
+    cancelTrade();
+  }
+  activePanel.value = 'none';
+};
+
 const openVendor = (npcId: bigint) => {
   activePanel.value = 'vendor';
   activeVendorId.value = npcId;
@@ -1033,7 +1094,16 @@ const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipI
     itemTemplates,
   });
 
+const deleteItem = (itemInstanceId: bigint) => {
+  if (!selectedCharacter.value || !conn.isActive) return;
+  if (!window.confirm('Delete this item? This cannot be undone.')) return;
+  deleteItemReducer({ characterId: selectedCharacter.value.id, itemInstanceId });
+};
+
 const startGatherReducer = useReducer(reducers.startGatherResource);
+const deleteItemReducer = useReducer(reducers.deleteItem);
+const inviteToGroupReducer = useReducer(reducers.inviteToGroup);
+const friendRequestReducer = useReducer(reducers.sendFriendRequestToCharacter);
 
 const { recipes: craftingRecipes, research: researchRecipes, craft: craftRecipe } = useCrafting({
   connActive: computed(() => conn.isActive),
@@ -1043,6 +1113,60 @@ const { recipes: craftingRecipes, research: researchRecipes, craft: craftRecipe 
   recipeTemplates,
   recipeDiscovered,
 });
+
+const actionTargetCharacterId = ref<bigint | null>(null);
+const actionTargetCharacter = computed(() => {
+  if (!actionTargetCharacterId.value) return null;
+  return characters.value.find(
+    (row) => row.id.toString() === actionTargetCharacterId.value?.toString()
+  ) ?? null;
+});
+const actionTargetIsFriend = computed(() => {
+  if (!actionTargetCharacter.value) return false;
+  return friends.value.some(
+    (row) => row.friendUserId === actionTargetCharacter.value?.ownerUserId
+  );
+});
+
+const tradeOtherCharacter = computed(() => {
+  if (!otherCharacterId.value) return null;
+  return characters.value.find(
+    (row) => row.id.toString() === otherCharacterId.value?.toString()
+  ) ?? null;
+});
+
+const {
+  activeTrade,
+  otherCharacterId,
+  myItems: tradeInventory,
+  myOffer,
+  otherOffer,
+  myOfferLocked,
+  otherOfferLocked,
+  startTrade,
+  addItem: addTradeItem,
+  removeItem: removeTradeItem,
+  offerTrade,
+  cancelTrade,
+} = useTrade({
+  connActive: computed(() => conn.isActive),
+  selectedCharacter,
+  itemInstances,
+  itemTemplates,
+  tradeSessions,
+  tradeItems,
+});
+
+watch(
+  () => activeTrade.value,
+  (trade) => {
+    if (trade) {
+      activePanel.value = 'trade';
+    } else if (activePanel.value === 'trade') {
+      activePanel.value = 'none';
+    }
+  }
+);
 
 const currentLocationCraftingAvailable = computed(
   () => currentLocation.value?.craftingAvailable ?? false
@@ -1248,6 +1372,8 @@ const activePanel = ref<
   | 'journal'
   | 'quests'
   | 'vendor'
+  | 'characterActions'
+  | 'trade'
   | 'travel'
   | 'combat'
 >('none');
@@ -1572,6 +1698,10 @@ const panelTitle = computed(() => {
       return 'Quests';
     case 'vendor':
       return activeVendor.value?.name ?? 'Vendor';
+    case 'characterActions':
+      return 'Actions';
+    case 'trade':
+      return 'Trade';
     case 'travel':
       return 'Travel';
     case 'combat':

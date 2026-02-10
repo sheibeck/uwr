@@ -27,7 +27,8 @@
             </div>
             <button
               v-if="slot.itemInstanceId"
-              :style="styles.ghostButton"
+              :style="[styles.ghostButton, combatLocked ? styles.disabledButton : {}]"
+              :disabled="combatLocked"
               @click="$emit('unequip', slot.slot)"
             >
               Unequip
@@ -73,10 +74,17 @@
             </button>
             <button
               v-if="item.equipable"
-              :style="styles.primaryButton"
+              :style="[styles.primaryButton, combatLocked ? styles.disabledButton : {}]"
+              :disabled="combatLocked"
               @click="$emit('equip', item.id)"
             >
               Equip
+            </button>
+            <button
+              :style="styles.ghostButton"
+              @click="$emit('delete-item', item.id)"
+            >
+              Delete
             </button>
           </li>
         </ul>
@@ -124,6 +132,7 @@ const props = defineProps<{
   }[];
   inventoryCount: number;
   maxInventorySlots: number;
+  combatLocked: boolean;
 }>();
 
 const formatSlot = (slot: string) =>
@@ -147,6 +156,7 @@ defineEmits<{
   (e: 'equip', itemInstanceId: bigint): void;
   (e: 'unequip', slot: string): void;
   (e: 'use-item', itemInstanceId: bigint): void;
+  (e: 'delete-item', itemInstanceId: bigint): void;
   (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
   (e: 'move-tooltip', value: { x: number; y: number }): void;
   (e: 'hide-tooltip'): void;

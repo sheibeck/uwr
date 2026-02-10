@@ -410,6 +410,44 @@ const EnemyRespawnTick = table(
   }
 );
 
+const TradeSession = table(
+  {
+    name: 'trade_session',
+    public: true,
+    indexes: [
+      { name: 'by_from', algorithm: 'btree', columns: ['fromCharacterId'] },
+      { name: 'by_to', algorithm: 'btree', columns: ['toCharacterId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    fromCharacterId: t.u64(),
+    toCharacterId: t.u64(),
+    state: t.string(),
+    fromAccepted: t.bool(),
+    toAccepted: t.bool(),
+    createdAt: t.timestamp(),
+  }
+);
+
+const TradeItem = table(
+  {
+    name: 'trade_item',
+    public: true,
+    indexes: [
+      { name: 'by_trade', algorithm: 'btree', columns: ['tradeId'] },
+      { name: 'by_character', algorithm: 'btree', columns: ['fromCharacterId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    tradeId: t.u64(),
+    fromCharacterId: t.u64(),
+    itemInstanceId: t.u64(),
+    quantity: t.u64(),
+  }
+);
+
 const CombatLoot = table(
   {
     name: 'combat_loot',
@@ -1076,6 +1114,8 @@ export const spacetimedb = schema(
   ResourceGather,
   ResourceGatherTick,
   ResourceRespawnTick,
+  TradeSession,
+  TradeItem,
   EnemyRespawnTick,
   CombatLoot,
   Group,
@@ -2522,6 +2562,25 @@ function addItemToInventory(
     equippedSlot: undefined,
     quantity,
   });
+}
+
+const MAX_INVENTORY_SLOTS = 20;
+
+function getInventorySlotCount(ctx: any, characterId: bigint) {
+  return [...ctx.db.itemInstance.by_owner.filter(characterId)].filter((row) => !row.equippedSlot)
+    .length;
+}
+
+function hasInventorySpace(ctx: any, characterId: bigint, templateId: bigint) {
+  const template = ctx.db.itemTemplate.id.find(templateId);
+  if (!template) return false;
+  if (template.stackable) {
+    const existing = [...ctx.db.itemInstance.by_owner.filter(characterId)].find(
+      (row) => row.templateId === templateId && !row.equippedSlot
+    );
+    if (existing) return true;
+  }
+  return getInventorySlotCount(ctx, characterId) < MAX_INVENTORY_SLOTS;
 }
 
 function removeItemFromInventory(
@@ -4848,6 +4907,8 @@ const reducerDeps = {
   ResourceGatherTick,
   ResourceRespawnTick,
   EnemyRespawnTick,
+  TradeSession,
+  TradeItem,
   EnemyAbility,
   CombatEnemyCooldown,
   CombatEnemyCast,
@@ -4906,6 +4967,8 @@ const reducerDeps = {
   canParry,
   getGroupParticipants,
   isGroupLeaderOrSolo,
+  getInventorySlotCount,
+  hasInventorySpace,
   usesMana,
 };
 

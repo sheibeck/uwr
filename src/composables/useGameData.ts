@@ -49,6 +49,8 @@ export const useGameData = () => {
   const [questTemplates] = useTable(tables.questTemplate);
   const [questInstances] = useTable(tables.myQuests);
   const [worldState] = useTable(tables.worldState);
+  const [tradeSessions] = useTable(tables.tradeSession);
+  const [tradeItems] = useTable(tables.tradeItem);
 
   return {
     conn,
@@ -98,5 +100,7 @@ export const useGameData = () => {
     questTemplates,
     questInstances,
     worldState,
+    tradeSessions,
+    tradeItems,
   };
 };

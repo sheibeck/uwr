@@ -797,6 +797,17 @@ export const styles = {
     gap: '0.5rem',
     alignItems: 'center',
   },
+  tradeGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    gap: '0.75rem',
+  },
+  tradeRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '0.5rem',
+  },
   combatBlock: {
     display: 'flex',
     flexDirection: 'column',

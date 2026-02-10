@@ -80,6 +80,8 @@ import EquipItemReducer from "./equip_item_reducer";
 export { EquipItemReducer };
 import UnequipItemReducer from "./unequip_item_reducer";
 export { UnequipItemReducer };
+import DeleteItemReducer from "./delete_item_reducer";
+export { DeleteItemReducer };
 import SetHotbarSlotReducer from "./set_hotbar_slot_reducer";
 export { SetHotbarSlotReducer };
 import UseAbilityReducer from "./use_ability_reducer";
@@ -96,6 +98,16 @@ import CraftRecipeReducer from "./craft_recipe_reducer";
 export { CraftRecipeReducer };
 import UseItemReducer from "./use_item_reducer";
 export { UseItemReducer };
+import StartTradeReducer from "./start_trade_reducer";
+export { StartTradeReducer };
+import AddTradeItemReducer from "./add_trade_item_reducer";
+export { AddTradeItemReducer };
+import RemoveTradeItemReducer from "./remove_trade_item_reducer";
+export { RemoveTradeItemReducer };
+import OfferTradeReducer from "./offer_trade_reducer";
+export { OfferTradeReducer };
+import CancelTradeReducer from "./cancel_trade_reducer";
+export { CancelTradeReducer };
 import MoveCharacterReducer from "./move_character_reducer";
 export { MoveCharacterReducer };
 import SubmitCommandReducer from "./submit_command_reducer";
@@ -302,6 +314,10 @@ import ResourceNodeRow from "./resource_node_table";
 export { ResourceNodeRow };
 import ResourceRespawnTickRow from "./resource_respawn_tick_table";
 export { ResourceRespawnTickRow };
+import TradeItemRow from "./trade_item_table";
+export { TradeItemRow };
+import TradeSessionRow from "./trade_session_table";
+export { TradeSessionRow };
 import UserRow from "./user_table";
 export { UserRow };
 import VendorInventoryRow from "./vendor_inventory_table";
@@ -316,12 +332,16 @@ import AcceptFriendRequest from "./accept_friend_request_type";
 export { AcceptFriendRequest };
 import AcceptGroupInvite from "./accept_group_invite_type";
 export { AcceptGroupInvite };
+import AddTradeItem from "./add_trade_item_type";
+export { AddTradeItem };
 import AggroEntry from "./aggro_entry_type";
 export { AggroEntry };
 import BindLocation from "./bind_location_type";
 export { BindLocation };
 import BuyItem from "./buy_item_type";
 export { BuyItem };
+import CancelTrade from "./cancel_trade_type";
+export { CancelTrade };
 import CastTick from "./cast_tick_type";
 export { CastTick };
 import Character from "./character_type";
@@ -366,6 +386,8 @@ import DayNightTick from "./day_night_tick_type";
 export { DayNightTick };
 import DeleteCharacter from "./delete_character_type";
 export { DeleteCharacter };
+import DeleteItem from "./delete_item_type";
+export { DeleteItem };
 import DismissCombatResults from "./dismiss_combat_results_type";
 export { DismissCombatResults };
 import EffectTick from "./effect_tick_type";
@@ -484,6 +506,8 @@ import Npc from "./npc_type";
 export { Npc };
 import NpcDialog from "./npc_dialog_type";
 export { NpcDialog };
+import OfferTrade from "./offer_trade_type";
+export { OfferTrade };
 import OnConnect from "./on_connect_type";
 export { OnConnect };
 import OnDisconnect from "./on_disconnect_type";
@@ -514,6 +538,8 @@ import RejectGroupInvite from "./reject_group_invite_type";
 export { RejectGroupInvite };
 import RemoveFriend from "./remove_friend_type";
 export { RemoveFriend };
+import RemoveTradeItem from "./remove_trade_item_type";
+export { RemoveTradeItem };
 import ResearchRecipes from "./research_recipes_type";
 export { ResearchRecipes };
 import ResolvePull from "./resolve_pull_type";
@@ -556,6 +582,8 @@ import StartGatherResource from "./start_gather_resource_type";
 export { StartGatherResource };
 import StartPull from "./start_pull_type";
 export { StartPull };
+import StartTrade from "./start_trade_type";
+export { StartTrade };
 import SubmitCommand from "./submit_command_type";
 export { SubmitCommand };
 import TakeLoot from "./take_loot_type";
@@ -568,6 +596,10 @@ import TickEffects from "./tick_effects_type";
 export { TickEffects };
 import TickHot from "./tick_hot_type";
 export { TickHot };
+import TradeItem from "./trade_item_type";
+export { TradeItem };
+import TradeSession from "./trade_session_type";
+export { TradeSession };
 import UnequipItem from "./unequip_item_type";
 export { UnequipItem };
 import UseAbility from "./use_ability_type";
@@ -1435,6 +1467,40 @@ const tablesSchema = __schema(
     ],
   }, ResourceRespawnTickRow),
   __table({
+    name: 'trade_item',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'fromCharacterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_trade', algorithm: 'btree', columns: [
+        'tradeId',
+      ] },
+    ],
+    constraints: [
+      { name: 'trade_item_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, TradeItemRow),
+  __table({
+    name: 'trade_session',
+    indexes: [
+      { name: 'by_from', algorithm: 'btree', columns: [
+        'fromCharacterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_to', algorithm: 'btree', columns: [
+        'toCharacterId',
+      ] },
+    ],
+    constraints: [
+      { name: 'trade_session_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, TradeSessionRow),
+  __table({
     name: 'user',
     indexes: [
       { name: 'by_email', algorithm: 'btree', columns: [
@@ -1589,6 +1655,7 @@ const reducersSchema = __reducers(
   __reducerSchema("take_loot", TakeLootReducer),
   __reducerSchema("equip_item", EquipItemReducer),
   __reducerSchema("unequip_item", UnequipItemReducer),
+  __reducerSchema("delete_item", DeleteItemReducer),
   __reducerSchema("set_hotbar_slot", SetHotbarSlotReducer),
   __reducerSchema("use_ability", UseAbilityReducer),
   __reducerSchema("start_gather_resource", StartGatherResourceReducer),
@@ -1597,6 +1664,11 @@ const reducersSchema = __reducers(
   __reducerSchema("research_recipes", ResearchRecipesReducer),
   __reducerSchema("craft_recipe", CraftRecipeReducer),
   __reducerSchema("use_item", UseItemReducer),
+  __reducerSchema("start_trade", StartTradeReducer),
+  __reducerSchema("add_trade_item", AddTradeItemReducer),
+  __reducerSchema("remove_trade_item", RemoveTradeItemReducer),
+  __reducerSchema("offer_trade", OfferTradeReducer),
+  __reducerSchema("cancel_trade", CancelTradeReducer),
   __reducerSchema("move_character", MoveCharacterReducer),
   __reducerSchema("submit_command", SubmitCommandReducer),
   __reducerSchema("say", SayReducer),

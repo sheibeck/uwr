@@ -21,10 +21,16 @@ export const registerItemReducers = (deps: any) => {
     getItemCount,
     startCombatForSpawn,
     getGroupParticipants,
+    getInventorySlotCount,
+    hasInventorySpace,
     ResourceGatherTick,
     ResourceRespawnTick,
+    TradeSession,
+    TradeItem,
   } = deps;
 
+  // Gathering aggro tuning (percent chance).
+  // Base chance applies at dangerMultiplier 100. Each +100 danger adds per-step.
   const GATHER_AGGRO_BASE_CHANCE = 20;
   const GATHER_AGGRO_PER_DANGER_STEP = 5;
   const GATHER_AGGRO_MAX_CHANCE = 45;
@@ -216,6 +222,9 @@ export const registerItemReducers = (deps: any) => {
     { characterId: t.u64(), itemInstanceId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (activeCombatIdForCharacter(ctx, character.id)) {
+        throw new SenderError('Cannot change equipment during combat');
+      }
       const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
       if (!instance) throw new SenderError('Item not found');
       if (instance.ownerCharacterId !== character.id) {
@@ -248,6 +257,9 @@ export const registerItemReducers = (deps: any) => {
     { characterId: t.u64(), slot: t.string() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (activeCombatIdForCharacter(ctx, character.id)) {
+        throw new SenderError('Cannot change equipment during combat');
+      }
       const slot = args.slot.trim();
       for (const instance of ctx.db.itemInstance.by_owner.filter(character.id)) {
         if (instance.equippedSlot === slot) {
@@ -258,6 +270,24 @@ export const registerItemReducers = (deps: any) => {
       }
     }
   );
+
+  spacetimedb.reducer('delete_item', { characterId: t.u64(), itemInstanceId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
+    if (!instance) throw new SenderError('Item not found');
+    if (instance.ownerCharacterId !== character.id) {
+      throw new SenderError('Item does not belong to you');
+    }
+    if (instance.equippedSlot) throw new SenderError('Cannot delete equipped items');
+    ctx.db.itemInstance.id.delete(instance.id);
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'system',
+      'You discard the item.'
+    );
+  });
 
   spacetimedb.reducer(
     'set_hotbar_slot',
@@ -832,5 +862,273 @@ export const registerItemReducers = (deps: any) => {
       'system',
       `You use ${template.name}, but nothing happens.`
     );
+  });
+
+  const findActiveTrade = (ctx: any, characterId: bigint) => {
+    for (const trade of ctx.db.tradeSession.iter()) {
+      if (trade.state !== 'open') continue;
+      if (trade.fromCharacterId === characterId || trade.toCharacterId === characterId) {
+        return trade;
+      }
+    }
+    return null;
+  };
+
+  const inventoryHasSpaceForItems = (ctx: any, characterId: bigint, items: any[]) => {
+    let requiredSlots = 0;
+    const existingStacks = new Set<string>();
+    for (const instance of ctx.db.itemInstance.by_owner.filter(characterId)) {
+      if (instance.equippedSlot) continue;
+      const template = ctx.db.itemTemplate.id.find(instance.templateId);
+      if (template?.stackable) {
+        existingStacks.add(template.id.toString());
+      }
+    }
+    const incomingStacked = new Set<string>();
+    for (const item of items) {
+      const template = ctx.db.itemTemplate.id.find(item.templateId);
+      if (!template) return false;
+      if (template.stackable) {
+        const key = template.id.toString();
+        if (existingStacks.has(key) || incomingStacked.has(key)) continue;
+        incomingStacked.add(key);
+        requiredSlots += 1;
+      } else {
+        requiredSlots += 1;
+      }
+    }
+    return getInventorySlotCount(ctx, characterId) + requiredSlots <= 20;
+  };
+
+  const finalizeTrade = (ctx: any, trade: any) => {
+    const fromItems = [...ctx.db.tradeItem.by_trade.filter(trade.id)].filter(
+      (row) => row.fromCharacterId === trade.fromCharacterId
+    );
+    const toItems = [...ctx.db.tradeItem.by_trade.filter(trade.id)].filter(
+      (row) => row.fromCharacterId === trade.toCharacterId
+    );
+
+    const fromPayload = fromItems
+      .map((row) => ctx.db.itemInstance.id.find(row.itemInstanceId))
+      .filter(Boolean);
+    const toPayload = toItems
+      .map((row) => ctx.db.itemInstance.id.find(row.itemInstanceId))
+      .filter(Boolean);
+
+    if (
+      !inventoryHasSpaceForItems(ctx, trade.toCharacterId, fromPayload) ||
+      !inventoryHasSpaceForItems(ctx, trade.fromCharacterId, toPayload)
+    ) {
+      const fromChar = ctx.db.character.id.find(trade.fromCharacterId);
+      const toChar = ctx.db.character.id.find(trade.toCharacterId);
+      if (fromChar) {
+        appendPrivateEvent(
+          ctx,
+          fromChar.id,
+          fromChar.ownerUserId,
+          'system',
+          'Trade failed: not enough inventory space.'
+        );
+      }
+      if (toChar) {
+        appendPrivateEvent(
+          ctx,
+          toChar.id,
+          toChar.ownerUserId,
+          'system',
+          'Trade failed: not enough inventory space.'
+        );
+      }
+      ctx.db.tradeSession.id.update({ ...trade, fromAccepted: false, toAccepted: false });
+      return;
+    }
+
+    const transferItem = (instance: any, receiverId: bigint) => {
+      const template = ctx.db.itemTemplate.id.find(instance.templateId);
+      if (!template) return;
+      if (template.stackable) {
+        const existing = [...ctx.db.itemInstance.by_owner.filter(receiverId)].find(
+          (row) => row.templateId === template.id && !row.equippedSlot
+        );
+        if (existing) {
+          ctx.db.itemInstance.id.update({
+            ...existing,
+            quantity: (existing.quantity ?? 1n) + (instance.quantity ?? 1n),
+          });
+          ctx.db.itemInstance.id.delete(instance.id);
+          return;
+        }
+      }
+      ctx.db.itemInstance.id.update({
+        ...instance,
+        ownerCharacterId: receiverId,
+        equippedSlot: undefined,
+      });
+    };
+
+    for (const instance of fromPayload) {
+      if (instance.equippedSlot) continue;
+      transferItem(instance, trade.toCharacterId);
+    }
+    for (const instance of toPayload) {
+      if (instance.equippedSlot) continue;
+      transferItem(instance, trade.fromCharacterId);
+    }
+
+    for (const row of ctx.db.tradeItem.by_trade.filter(trade.id)) {
+      ctx.db.tradeItem.id.delete(row.id);
+    }
+    ctx.db.tradeSession.id.delete(trade.id);
+
+    const fromChar = ctx.db.character.id.find(trade.fromCharacterId);
+    const toChar = ctx.db.character.id.find(trade.toCharacterId);
+    if (fromChar) {
+      appendPrivateEvent(
+        ctx,
+        fromChar.id,
+        fromChar.ownerUserId,
+        'system',
+        'Trade completed.'
+      );
+    }
+    if (toChar) {
+      appendPrivateEvent(
+        ctx,
+        toChar.id,
+        toChar.ownerUserId,
+        'system',
+        'Trade completed.'
+      );
+    }
+  };
+
+  spacetimedb.reducer(
+    'start_trade',
+    { characterId: t.u64(), targetName: t.string() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const target = deps.findCharacterByName(ctx, args.targetName.trim());
+      if (!target) throw new SenderError('Target not found');
+      if (target.id === character.id) throw new SenderError('Cannot trade with yourself');
+      if (target.locationId !== character.locationId) {
+        throw new SenderError('Target is not here');
+      }
+      const existing = findActiveTrade(ctx, character.id);
+      if (existing) throw new SenderError('Trade already in progress');
+      const targetExisting = findActiveTrade(ctx, target.id);
+      if (targetExisting) throw new SenderError('Target is already trading');
+      const trade = ctx.db.tradeSession.insert({
+        id: 0n,
+        fromCharacterId: character.id,
+        toCharacterId: target.id,
+        state: 'open',
+        fromAccepted: false,
+        toAccepted: false,
+        createdAt: ctx.timestamp,
+      });
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'system',
+        `You start a trade with ${target.name}.`
+      );
+      appendPrivateEvent(
+        ctx,
+        target.id,
+        target.ownerUserId,
+        'system',
+        `${character.name} wants to trade with you.`
+      );
+      return trade;
+    }
+  );
+
+  spacetimedb.reducer(
+    'add_trade_item',
+    { characterId: t.u64(), itemInstanceId: t.u64() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const trade = findActiveTrade(ctx, character.id);
+      if (!trade) throw new SenderError('No active trade');
+      const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
+      if (!instance) throw new SenderError('Item not found');
+      if (instance.ownerCharacterId !== character.id) {
+        throw new SenderError('Item does not belong to you');
+      }
+      if (instance.equippedSlot) throw new SenderError('Cannot trade equipped items');
+      for (const row of ctx.db.tradeItem.by_trade.filter(trade.id)) {
+        if (row.itemInstanceId === instance.id) return;
+      }
+      ctx.db.tradeItem.insert({
+        id: 0n,
+        tradeId: trade.id,
+        fromCharacterId: character.id,
+        itemInstanceId: instance.id,
+        quantity: instance.quantity ?? 1n,
+      });
+      ctx.db.tradeSession.id.update({ ...trade, fromAccepted: false, toAccepted: false });
+    }
+  );
+
+  spacetimedb.reducer(
+    'remove_trade_item',
+    { characterId: t.u64(), itemInstanceId: t.u64() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const trade = findActiveTrade(ctx, character.id);
+      if (!trade) throw new SenderError('No active trade');
+      for (const row of ctx.db.tradeItem.by_trade.filter(trade.id)) {
+        if (row.itemInstanceId === args.itemInstanceId) {
+          ctx.db.tradeItem.id.delete(row.id);
+          ctx.db.tradeSession.id.update({ ...trade, fromAccepted: false, toAccepted: false });
+          return;
+        }
+      }
+    }
+  );
+
+  spacetimedb.reducer('offer_trade', { characterId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const trade = findActiveTrade(ctx, character.id);
+    if (!trade) throw new SenderError('No active trade');
+    if (trade.fromCharacterId === character.id) {
+      ctx.db.tradeSession.id.update({ ...trade, fromAccepted: true });
+    } else {
+      ctx.db.tradeSession.id.update({ ...trade, toAccepted: true });
+    }
+    const updated = ctx.db.tradeSession.id.find(trade.id);
+    if (updated && updated.fromAccepted && updated.toAccepted) {
+      finalizeTrade(ctx, updated);
+    }
+  });
+
+  spacetimedb.reducer('cancel_trade', { characterId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const trade = findActiveTrade(ctx, character.id);
+    if (!trade) return;
+    for (const row of ctx.db.tradeItem.by_trade.filter(trade.id)) {
+      ctx.db.tradeItem.id.delete(row.id);
+    }
+    ctx.db.tradeSession.id.delete(trade.id);
+    const otherId =
+      trade.fromCharacterId === character.id ? trade.toCharacterId : trade.fromCharacterId;
+    const other = ctx.db.character.id.find(otherId);
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'system',
+      'Trade cancelled.'
+    );
+    if (other) {
+      appendPrivateEvent(
+        ctx,
+        other.id,
+        other.ownerUserId,
+        'system',
+        'Trade cancelled.'
+      );
+    }
   });
 };
