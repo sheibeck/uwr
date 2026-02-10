@@ -873,6 +873,39 @@ function tableHasRows<T>(iter: IterableIterator<T>): boolean {
   return false;
 }
 
+const EVENT_TRIM_MAX = 200;
+const EVENT_TRIM_AGE_MICROS = 3_600_000_000n; // 1 hour
+
+const trimEventRows = <T extends { id: bigint; createdAt: { microsSinceUnixEpoch: bigint } }>(
+  rows: T[],
+  deleteFn: (id: bigint) => void,
+  nowMicros: bigint
+) => {
+  const cutoff = nowMicros - EVENT_TRIM_AGE_MICROS;
+
+  if (rows.length <= EVENT_TRIM_MAX) {
+    for (const row of rows) {
+      if (row.createdAt.microsSinceUnixEpoch < cutoff) {
+        deleteFn(row.id);
+      }
+    }
+    return;
+  }
+
+  const sorted = [...rows].sort((a, b) => {
+    const diff = a.createdAt.microsSinceUnixEpoch - b.createdAt.microsSinceUnixEpoch;
+    return diff < 0n ? -1 : diff > 0n ? 1 : 0;
+  });
+
+  const excess = sorted.length - EVENT_TRIM_MAX;
+  for (let i = 0; i < sorted.length; i += 1) {
+    const row = sorted[i];
+    if (i < excess || row.createdAt.microsSinceUnixEpoch < cutoff) {
+      deleteFn(row.id);
+    }
+  }
+};
+
 function requirePlayerUserId(ctx: any): bigint {
   const player = ctx.db.player.id.find(ctx.sender);
   if (!player || player.userId == null) throw new SenderError('Login required');
@@ -898,12 +931,15 @@ function activeCombatIdForCharacter(ctx: any, characterId: bigint): bigint | nul
 }
 
 function appendWorldEvent(ctx: any, kind: string, message: string) {
-  ctx.db.eventWorld.insert({
+  const row = ctx.db.eventWorld.insert({
     id: 0n,
     kind,
     message,
     createdAt: ctx.timestamp,
   });
+  const rows = [...ctx.db.eventWorld.iter()];
+  trimEventRows(rows, (id) => ctx.db.eventWorld.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
+  return row;
 }
 
 function appendLocationEvent(
@@ -913,7 +949,7 @@ function appendLocationEvent(
   message: string,
   excludeCharacterId?: bigint
 ) {
-  ctx.db.eventLocation.insert({
+  const row = ctx.db.eventLocation.insert({
     id: 0n,
     locationId,
     kind,
@@ -921,6 +957,9 @@ function appendLocationEvent(
     excludeCharacterId,
     createdAt: ctx.timestamp,
   });
+  const rows = [...ctx.db.eventLocation.by_location.filter(locationId)];
+  trimEventRows(rows, (id) => ctx.db.eventLocation.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
+  return row;
 }
 
 function appendPrivateEvent(
@@ -930,7 +969,7 @@ function appendPrivateEvent(
   kind: string,
   message: string
 ) {
-  ctx.db.eventPrivate.insert({
+  const row = ctx.db.eventPrivate.insert({
     id: 0n,
     ownerUserId,
     characterId,
@@ -938,6 +977,9 @@ function appendPrivateEvent(
     message,
     createdAt: ctx.timestamp,
   });
+  const rows = [...ctx.db.eventPrivate.by_owner_user.filter(ownerUserId)];
+  trimEventRows(rows, (id) => ctx.db.eventPrivate.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
+  return row;
 }
 
 function appendNpcDialog(ctx: any, characterId: bigint, npcId: bigint, text: string) {
@@ -965,7 +1007,7 @@ function appendGroupEvent(
   kind: string,
   message: string
 ) {
-  ctx.db.eventGroup.insert({
+  const row = ctx.db.eventGroup.insert({
     id: 0n,
     groupId,
     characterId,
@@ -973,6 +1015,9 @@ function appendGroupEvent(
     message,
     createdAt: ctx.timestamp,
   });
+  const rows = [...ctx.db.eventGroup.by_group.filter(groupId)];
+  trimEventRows(rows, (id) => ctx.db.eventGroup.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
+  return row;
 }
 
 const EQUIPMENT_SLOTS = new Set([
@@ -2783,11 +2828,7 @@ spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
     nextTransitionAtMicros: nextTransition,
   });
   const message = nextIsNight ? 'Night falls over the realm.' : 'Dawn breaks over the realm.';
-  ctx.db.eventWorld.insert({
-    id: 0n,
-    message,
-    createdAt: ctx.timestamp,
-  });
+  appendWorldEvent(ctx, 'world', message);
   for (const location of ctx.db.location.iter()) {
     respawnLocationSpawns(ctx, location.id, DEFAULT_LOCATION_SPAWNS);
   }
