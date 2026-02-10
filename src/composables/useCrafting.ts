@@ -52,24 +52,39 @@ export const useCrafting = ({
         const output = itemTemplates.value.find((row) => row.id.toString() === recipe.outputTemplateId.toString());
         const req1Count = countForTemplate(recipe.req1TemplateId);
         const req2Count = countForTemplate(recipe.req2TemplateId);
-        const canCraft = req1Count >= recipe.req1Count && req2Count >= recipe.req2Count;
+        const req3Count =
+          recipe.req3TemplateId != null ? countForTemplate(recipe.req3TemplateId) : 0n;
+        const meetsReq3 =
+          recipe.req3TemplateId == null || req3Count >= (recipe.req3Count ?? 0n);
+        const canCraft = req1Count >= recipe.req1Count && req2Count >= recipe.req2Count && meetsReq3;
+        const requirements = [
+          {
+            name: req1?.name ?? 'Unknown',
+            required: recipe.req1Count,
+            available: req1Count,
+          },
+          {
+            name: req2?.name ?? 'Unknown',
+            required: recipe.req2Count,
+            available: req2Count,
+          },
+        ];
+        if (recipe.req3TemplateId != null) {
+          const req3 = itemTemplates.value.find(
+            (row) => row.id.toString() === recipe.req3TemplateId?.toString()
+          );
+          requirements.push({
+            name: req3?.name ?? 'Unknown',
+            required: recipe.req3Count ?? 0n,
+            available: req3Count,
+          });
+        }
         return {
           id: recipe.id,
           name: recipe.name,
           outputName: output?.name ?? 'Unknown',
           outputCount: recipe.outputCount,
-          requirements: [
-            {
-              name: req1?.name ?? 'Unknown',
-              required: recipe.req1Count,
-              available: req1Count,
-            },
-            {
-              name: req2?.name ?? 'Unknown',
-              required: recipe.req2Count,
-              available: req2Count,
-            },
-          ],
+          requirements,
           canCraft,
         };
       })

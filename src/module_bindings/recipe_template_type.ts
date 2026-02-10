@@ -20,6 +20,8 @@ export default __t.object("RecipeTemplate", {
   req1Count: __t.u64(),
   req2TemplateId: __t.u64(),
   req2Count: __t.u64(),
+  req3TemplateId: __t.option(__t.u64()),
+  req3Count: __t.option(__t.u64()),
 });
 
 

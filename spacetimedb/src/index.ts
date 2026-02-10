@@ -306,6 +306,8 @@ const RecipeTemplate = table(
     req1Count: t.u64(),
     req2TemplateId: t.u64(),
     req2Count: t.u64(),
+    req3TemplateId: t.u64().optional(),
+    req3Count: t.u64().optional(),
   }
 );
 
@@ -2514,14 +2516,20 @@ function getGatherableResourceTemplates(ctx: any, terrainType: string, timePref?
     mountains: [
       { name: 'Copper Ore', weight: 3n, timeOfDay: 'any' },
       { name: 'Stone', weight: 5n, timeOfDay: 'any' },
+      { name: 'Sand', weight: 3n, timeOfDay: 'day' },
     ],
     woods: [
       { name: 'Wood', weight: 5n, timeOfDay: 'any' },
       { name: 'Resin', weight: 3n, timeOfDay: 'night' },
+      { name: 'Dry Grass', weight: 3n, timeOfDay: 'day' },
+      { name: 'Bitter Herbs', weight: 2n, timeOfDay: 'night' },
     ],
     plains: [
       { name: 'Flax', weight: 4n, timeOfDay: 'day' },
       { name: 'Herbs', weight: 3n, timeOfDay: 'any' },
+      { name: 'Raw Meat', weight: 3n, timeOfDay: 'any' },
+      { name: 'Clear Water', weight: 2n, timeOfDay: 'day' },
+      { name: 'Salt', weight: 2n, timeOfDay: 'any' },
     ],
   };
   const key = (terrainType ?? '').trim().toLowerCase();
@@ -2736,6 +2744,11 @@ function ensureResourceItemTemplates(ctx: any) {
     { name: 'Resin', slot: 'resource', vendorValue: 1n },
     { name: 'Copper Ore', slot: 'resource', vendorValue: 2n },
     { name: 'Stone', slot: 'resource', vendorValue: 1n },
+        { name: 'Salt', slot: 'resource', vendorValue: 1n },
+    { name: 'Clear Water', slot: 'resource', vendorValue: 1n },
+    { name: 'Sand', slot: 'resource', vendorValue: 1n },
+    { name: 'Dry Grass', slot: 'resource', vendorValue: 1n },
+    { name: 'Bitter Herbs', slot: 'resource', vendorValue: 1n },
   ];
   for (const resource of resources) {
     if (findItemTemplateByName(ctx, resource.name)) continue;
@@ -2788,6 +2801,43 @@ function ensureResourceItemTemplates(ctx: any) {
       stackable: true,
     });
   }
+  const craftItems = [
+    { name: 'Simple Rations', slot: 'consumable', vendorValue: 2n },
+    { name: 'Torch', slot: 'utility', vendorValue: 2n },
+    { name: 'Basic Poultice', slot: 'consumable', vendorValue: 2n },
+    { name: 'Travelers Tea', slot: 'consumable', vendorValue: 2n },
+    { name: 'Whetstone', slot: 'utility', vendorValue: 2n },
+    { name: 'Kindling Bundle', slot: 'utility', vendorValue: 1n },
+    { name: 'Rough Rope', slot: 'utility', vendorValue: 2n },
+    { name: 'Charcoal', slot: 'resource', vendorValue: 1n },
+    { name: 'Crude Poison', slot: 'consumable', vendorValue: 3n },
+  ];
+  for (const item of craftItems) {
+    if (findItemTemplateByName(ctx, item.name)) continue;
+    ctx.db.itemTemplate.insert({
+      id: 0n,
+      name: item.name,
+      slot: item.slot,
+      armorType: 'none',
+      rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: item.vendorValue,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      strBonus: 0n,
+      dexBonus: 0n,
+      chaBonus: 0n,
+      wisBonus: 0n,
+      intBonus: 0n,
+      hpBonus: 0n,
+      manaBonus: 0n,
+      armorClassBonus: 0n,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
+      stackable: true,
+    });
+  }
 }
 
 function ensureRecipeTemplates(ctx: any) {
@@ -2795,16 +2845,153 @@ function ensureRecipeTemplates(ctx: any) {
   const flax = findItemTemplateByName(ctx, 'Flax');
   const herbs = findItemTemplateByName(ctx, 'Herbs');
   const bandage = findItemTemplateByName(ctx, 'Bandage');
-  if (!flax || !herbs || !bandage) return;
-  ctx.db.recipeTemplate.insert({
-    id: 0n,
+  const rawMeat = findItemTemplateByName(ctx, 'Raw Meat');
+  const salt = findItemTemplateByName(ctx, 'Salt');
+  const simpleRations = findItemTemplateByName(ctx, 'Simple Rations');
+  const wood = findItemTemplateByName(ctx, 'Wood');
+  const resin = findItemTemplateByName(ctx, 'Resin');
+  const torch = findItemTemplateByName(ctx, 'Torch');
+  const clearWater = findItemTemplateByName(ctx, 'Clear Water');
+  const basicPoultice = findItemTemplateByName(ctx, 'Basic Poultice');
+  const travelersTea = findItemTemplateByName(ctx, 'Travelers Tea');
+  const stone = findItemTemplateByName(ctx, 'Stone');
+  const sand = findItemTemplateByName(ctx, 'Sand');
+  const whetstone = findItemTemplateByName(ctx, 'Whetstone');
+  const dryGrass = findItemTemplateByName(ctx, 'Dry Grass');
+  const kindling = findItemTemplateByName(ctx, 'Kindling Bundle');
+  const roughRope = findItemTemplateByName(ctx, 'Rough Rope');
+  const charcoal = findItemTemplateByName(ctx, 'Charcoal');
+  const bitterHerbs = findItemTemplateByName(ctx, 'Bitter Herbs');
+  const crudePoison = findItemTemplateByName(ctx, 'Crude Poison');
+
+  const addRecipe = (args: {
+    key: string;
+    name: string;
+    output: typeof ItemTemplate.rowType | null;
+    outputCount: bigint;
+    req1: typeof ItemTemplate.rowType | null;
+    req1Count: bigint;
+    req2: typeof ItemTemplate.rowType | null;
+    req2Count: bigint;
+    req3?: typeof ItemTemplate.rowType | null;
+    req3Count?: bigint;
+  }) => {
+    if (!args.output || !args.req1 || !args.req2) return;
+    ctx.db.recipeTemplate.insert({
+      id: 0n,
+      key: args.key,
+      name: args.name,
+      outputTemplateId: args.output.id,
+      outputCount: args.outputCount,
+      req1TemplateId: args.req1.id,
+      req1Count: args.req1Count,
+      req2TemplateId: args.req2.id,
+      req2Count: args.req2Count,
+      req3TemplateId: args.req3?.id,
+      req3Count: args.req3Count,
+    });
+  };
+
+  addRecipe({
     key: 'bandage',
     name: 'Bandages',
-    outputTemplateId: bandage.id,
+    output: bandage,
     outputCount: 1n,
-    req1TemplateId: flax.id,
+    req1: flax,
     req1Count: 1n,
-    req2TemplateId: herbs.id,
+    req2: herbs,
+    req2Count: 1n,
+  });
+  addRecipe({
+    key: 'simple_rations',
+    name: 'Simple Rations',
+    output: simpleRations,
+    outputCount: 1n,
+    req1: rawMeat,
+    req1Count: 1n,
+    req2: salt,
+    req2Count: 1n,
+  });
+  addRecipe({
+    key: 'torch',
+    name: 'Torch',
+    output: torch,
+    outputCount: 1n,
+    req1: wood,
+    req1Count: 1n,
+    req2: resin,
+    req2Count: 1n,
+  });
+  addRecipe({
+    key: 'basic_poultice',
+    name: 'Basic Poultice',
+    output: basicPoultice,
+    outputCount: 1n,
+    req1: herbs,
+    req1Count: 1n,
+    req2: flax,
+    req2Count: 1n,
+    req3: clearWater,
+    req3Count: 1n,
+  });
+  addRecipe({
+    key: 'travelers_tea',
+    name: 'Travelers Tea',
+    output: travelersTea,
+    outputCount: 1n,
+    req1: herbs,
+    req1Count: 1n,
+    req2: clearWater,
+    req2Count: 1n,
+  });
+  addRecipe({
+    key: 'whetstone',
+    name: 'Whetstone',
+    output: whetstone,
+    outputCount: 1n,
+    req1: stone,
+    req1Count: 1n,
+    req2: sand,
+    req2Count: 1n,
+  });
+  addRecipe({
+    key: 'kindling_bundle',
+    name: 'Kindling Bundle',
+    output: kindling,
+    outputCount: 1n,
+    req1: wood,
+    req1Count: 1n,
+    req2: dryGrass,
+    req2Count: 1n,
+  });
+  addRecipe({
+    key: 'rough_rope',
+    name: 'Rough Rope',
+    output: roughRope,
+    outputCount: 1n,
+    req1: flax,
+    req1Count: 1n,
+    req2: resin,
+    req2Count: 1n,
+  });
+  addRecipe({
+    key: 'charcoal',
+    name: 'Charcoal',
+    output: charcoal,
+    outputCount: 1n,
+    req1: wood,
+    req1Count: 1n,
+    req2: stone,
+    req2Count: 1n,
+  });
+  addRecipe({
+    key: 'crude_poison',
+    name: 'Crude Poison',
+    output: crudePoison,
+    outputCount: 1n,
+    req1: bitterHerbs,
+    req1Count: 1n,
+    req2: resin,
     req2Count: 1n,
   });
 }
@@ -4582,6 +4769,7 @@ const reducerDeps = {
 };
 
 registerReducers(reducerDeps);
+
 
 
 

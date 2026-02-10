@@ -534,7 +534,12 @@ export const registerItemReducers = (deps: any) => {
       if (discovered.has(recipe.id.toString())) continue;
       const req1Count = getItemCount(ctx, character.id, recipe.req1TemplateId);
       const req2Count = getItemCount(ctx, character.id, recipe.req2TemplateId);
-      if (req1Count >= recipe.req1Count && req2Count >= recipe.req2Count) {
+      const req3Count =
+        recipe.req3TemplateId != null
+          ? getItemCount(ctx, character.id, recipe.req3TemplateId)
+          : 0n;
+      const meetsReq3 = recipe.req3TemplateId == null || req3Count >= (recipe.req3Count ?? 0n);
+      if (req1Count >= recipe.req1Count && req2Count >= recipe.req2Count && meetsReq3) {
         ctx.db.recipeDiscovered.insert({
           id: 0n,
           characterId: character.id,
@@ -543,12 +548,15 @@ export const registerItemReducers = (deps: any) => {
         });
         const req1 = ctx.db.itemTemplate.id.find(recipe.req1TemplateId);
         const req2 = ctx.db.itemTemplate.id.find(recipe.req2TemplateId);
+        const req3 = recipe.req3TemplateId
+          ? ctx.db.itemTemplate.id.find(recipe.req3TemplateId)
+          : null;
         appendPrivateEvent(
           ctx,
           character.id,
           character.ownerUserId,
           'system',
-          `You discover ${recipe.name} because you have ${req1?.name ?? 'materials'} and ${req2?.name ?? 'materials'}.`
+          `You discover ${recipe.name} because you have ${req1?.name ?? 'materials'} and ${req2?.name ?? 'materials'}${req3 ? ` and ${req3.name}` : ''}.`
         );
         found += 1;
       }
@@ -577,7 +585,15 @@ export const registerItemReducers = (deps: any) => {
       if (!discovered) throw new SenderError('Recipe not discovered');
       const req1Count = getItemCount(ctx, character.id, recipe.req1TemplateId);
       const req2Count = getItemCount(ctx, character.id, recipe.req2TemplateId);
-      if (req1Count < recipe.req1Count || req2Count < recipe.req2Count) {
+      const req3Count =
+        recipe.req3TemplateId != null
+          ? getItemCount(ctx, character.id, recipe.req3TemplateId)
+          : 0n;
+      if (
+        req1Count < recipe.req1Count ||
+        req2Count < recipe.req2Count ||
+        (recipe.req3TemplateId != null && req3Count < (recipe.req3Count ?? 0n))
+      ) {
         appendPrivateEvent(
           ctx,
           character.id,
@@ -589,6 +605,9 @@ export const registerItemReducers = (deps: any) => {
       }
       removeItemFromInventory(ctx, character.id, recipe.req1TemplateId, recipe.req1Count);
       removeItemFromInventory(ctx, character.id, recipe.req2TemplateId, recipe.req2Count);
+      if (recipe.req3TemplateId != null && recipe.req3Count != null) {
+        removeItemFromInventory(ctx, character.id, recipe.req3TemplateId, recipe.req3Count);
+      }
       addItemToInventory(ctx, character.id, recipe.outputTemplateId, recipe.outputCount);
       const output = ctx.db.itemTemplate.id.find(recipe.outputTemplateId);
       appendPrivateEvent(
@@ -614,13 +633,25 @@ export const registerItemReducers = (deps: any) => {
       throw new SenderError('Cannot use this during combat');
     }
     const itemKey = template.name.toLowerCase().replace(/\s+/g, '_');
-    if (itemKey !== 'bandage') throw new SenderError('Item cannot be used');
+    const handledKeys = new Set([
+      'bandage',
+      'basic_poultice',
+      'travelers_tea',
+      'simple_rations',
+      'torch',
+      'whetstone',
+      'kindling_bundle',
+      'rough_rope',
+      'charcoal',
+      'crude_poison',
+    ]);
+    if (!handledKeys.has(itemKey)) throw new SenderError('Item cannot be used');
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     const existingCooldown = [...ctx.db.itemCooldown.by_character.filter(character.id)].find(
       (row) => row.itemKey === itemKey
     );
     if (existingCooldown && existingCooldown.readyAtMicros > nowMicros) {
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', 'Bandage is on cooldown.');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', 'Item is on cooldown.');
       return;
     }
     const currentQty = instance.quantity ?? 1n;
@@ -629,39 +660,102 @@ export const registerItemReducers = (deps: any) => {
     } else {
       ctx.db.itemInstance.id.delete(instance.id);
     }
-    const existingEffect = [...ctx.db.characterEffect.by_character.filter(character.id)].find(
-      (effect) => effect.effectType === 'regen' && effect.sourceAbility === 'Bandage'
-    );
-    if (existingEffect) {
-      ctx.db.characterEffect.id.delete(existingEffect.id);
-    }
-    ctx.db.characterEffect.insert({
-      id: 0n,
-      characterId: character.id,
-      effectType: 'regen',
-      magnitude: BANDAGE_TICK_HEAL,
-      roundsRemaining: BANDAGE_TICK_COUNT,
-      sourceAbility: 'Bandage',
-    });
-    if (existingCooldown) {
-      ctx.db.itemCooldown.id.update({
-        ...existingCooldown,
-        readyAtMicros: nowMicros + BANDAGE_COOLDOWN_MICROS,
-      });
-    } else {
-      ctx.db.itemCooldown.insert({
+    const setCooldown = (micros: bigint) => {
+      if (existingCooldown) {
+        ctx.db.itemCooldown.id.update({
+          ...existingCooldown,
+          readyAtMicros: nowMicros + micros,
+        });
+      } else {
+        ctx.db.itemCooldown.insert({
+          id: 0n,
+          characterId: character.id,
+          itemKey,
+          readyAtMicros: nowMicros + micros,
+        });
+      }
+    };
+
+    if (itemKey === 'bandage') {
+      const existingEffect = [...ctx.db.characterEffect.by_character.filter(character.id)].find(
+        (effect) => effect.effectType === 'regen' && effect.sourceAbility === 'Bandage'
+      );
+      if (existingEffect) {
+        ctx.db.characterEffect.id.delete(existingEffect.id);
+      }
+      ctx.db.characterEffect.insert({
         id: 0n,
         characterId: character.id,
-        itemKey,
-        readyAtMicros: nowMicros + BANDAGE_COOLDOWN_MICROS,
+        effectType: 'regen',
+        magnitude: BANDAGE_TICK_HEAL,
+        roundsRemaining: BANDAGE_TICK_COUNT,
+        sourceAbility: 'Bandage',
       });
+      setCooldown(BANDAGE_COOLDOWN_MICROS);
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'heal',
+        'You apply a bandage and begin to recover.'
+      );
+      return;
     }
+
+    if (itemKey === 'basic_poultice') {
+      const existingEffect = [...ctx.db.characterEffect.by_character.filter(character.id)].find(
+        (effect) => effect.effectType === 'stamina_regen' && effect.sourceAbility === 'Basic Poultice'
+      );
+      if (existingEffect) ctx.db.characterEffect.id.delete(existingEffect.id);
+      ctx.db.characterEffect.insert({
+        id: 0n,
+        characterId: character.id,
+        effectType: 'stamina_regen',
+        magnitude: 4n,
+        roundsRemaining: 3n,
+        sourceAbility: 'Basic Poultice',
+      });
+      setCooldown(BANDAGE_COOLDOWN_MICROS);
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'heal',
+        'You apply a basic poultice and steady your stamina.'
+      );
+      return;
+    }
+
+    if (itemKey === 'travelers_tea') {
+      const existingEffect = [...ctx.db.characterEffect.by_character.filter(character.id)].find(
+        (effect) => effect.effectType === 'mana_regen' && effect.sourceAbility === 'Travelers Tea'
+      );
+      if (existingEffect) ctx.db.characterEffect.id.delete(existingEffect.id);
+      ctx.db.characterEffect.insert({
+        id: 0n,
+        characterId: character.id,
+        effectType: 'mana_regen',
+        magnitude: 4n,
+        roundsRemaining: 3n,
+        sourceAbility: 'Travelers Tea',
+      });
+      setCooldown(BANDAGE_COOLDOWN_MICROS);
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'heal',
+        'You sip travelers tea and feel your focus return.'
+      );
+      return;
+    }
+
     appendPrivateEvent(
       ctx,
       character.id,
       character.ownerUserId,
-      'heal',
-      'You apply a bandage and begin to recover.'
+      'system',
+      'Nothing happens. (Effect not implemented yet.)'
     );
   });
 };

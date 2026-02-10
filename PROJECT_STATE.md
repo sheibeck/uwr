@@ -98,10 +98,13 @@ Last updated: 2026-02-10
   - Current regions are `outdoor`.
 - Abilities can later scale up/down based on `regionType`, `terrainType`, or day/night state.
 - **Gathering + Crafting (MVP):**
-  - Gather action collects 14 resources per use, based on location terrain (weighted).
-    - Mountains: Copper Ore, Stone
-    - Woods: Wood, Resin
-    - Plains: Flax, Herbs
+  - **Resource nodes** spawn per location (day/night aware) and appear in a Resources accordion in the Location panel.
+    - Nodes require an **8s gather cast**, then disappear and **respawn after 10 minutes**.
+    - Respawn rolls a fresh node from the location’s resource pool.
+    - Pools (weighted):
+      - Mountains: Copper Ore, Stone
+      - Woods: Wood, Resin
+      - Plains: Flax, Herbs
   - Resources and consumables are stackable inventory items (`item_template.stackable`, `item_instance.quantity`).
   - Crafting flow: Gather → Research Recipes (discover if materials present) → Craft.
   - Recipes are per-character (`recipe_discovered`), and only discovered recipes show in Crafting UI.
