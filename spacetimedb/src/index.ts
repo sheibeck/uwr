@@ -1765,6 +1765,15 @@ function executeAbility(
       'heal',
       `${source} restores ${amount} health to ${current.name}.`
     );
+    if (current.id !== character.id) {
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'heal',
+        `${source} restores ${amount} health to ${current.name}.`
+      );
+    }
   };
   const applyPartyEffect = (
     effectType: string,
