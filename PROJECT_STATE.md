@@ -45,6 +45,9 @@ Last updated: 2026-02-10
   - Location-based enemy spawns; one enemy per group/solo.
   - **Pull phase added:** Careful Pull vs Body Pull (pre-combat, explicit).
   - Pull outcomes: success / partial (delayed adds) / failure (immediate adds) with log feedback + reasons.
+  - Pull add behavior is controlled by `PULL_ALLOW_EXTERNAL_ADDS` in `spacetimedb/src/reducers/combat.ts`.
+    - `false` (current): adds only come from the pulled spawn group.
+    - `true`: allows adds from nearby same-social-group spawns within the location.
   - **Social aggro:** enemies have `socialGroup`, `socialRadius`, `awareness`.
   - **Grouped enemies:** each spawn has `groupCount` (rolled from template `groupMin/groupMax`).
   - **Enemy role variants:** base enemy types can have multiple role templates (e.g., Bandit -> Archer/Ruffian).

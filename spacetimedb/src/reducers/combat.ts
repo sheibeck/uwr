@@ -44,6 +44,7 @@ export const registerCombatReducers = (deps: any) => {
   const PULL_DELAY_CAREFUL = 2_000_000n;
   const PULL_DELAY_BODY = 1_000_000n;
   const PULL_ADD_DELAY_ROUNDS = 2n;
+  const PULL_ALLOW_EXTERNAL_ADDS = false;
 
   const clearCharacterEffectsOnDeath = (ctx: any, character: any) => {
     for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
@@ -665,18 +666,20 @@ export const registerCombatReducers = (deps: any) => {
     }
 
     const targetGroup = (template.socialGroup || template.creatureType || '').trim().toLowerCase();
-    const candidates = [...ctx.db.enemySpawn.by_location.filter(pull.locationId)]
-      .filter((row) => row.id !== spawn.id && row.state === 'available')
-      .map((row) => ({
-        spawn: row,
-        template: ctx.db.enemyTemplate.id.find(row.enemyTemplateId),
-      }))
-      .filter(
-        (row) =>
-          row.template &&
-          (row.template.socialGroup || row.template.creatureType || '').trim().toLowerCase() ===
-            targetGroup
-      );
+    const candidates = PULL_ALLOW_EXTERNAL_ADDS
+      ? [...ctx.db.enemySpawn.by_location.filter(pull.locationId)]
+          .filter((row) => row.id !== spawn.id && row.state === 'available')
+          .map((row) => ({
+            spawn: row,
+            template: ctx.db.enemyTemplate.id.find(row.enemyTemplateId),
+          }))
+          .filter(
+            (row) =>
+              row.template &&
+              (row.template.socialGroup || row.template.creatureType || '').trim().toLowerCase() ===
+                targetGroup
+          )
+      : [];
 
     const targetRadius = Number(template.socialRadius ?? 0n);
     const overlapPressure = targetRadius + candidates.length;
