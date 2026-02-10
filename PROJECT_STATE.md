@@ -1,6 +1,6 @@
 # Project State (Unwritten Realms)
 
-Last updated: 2026-02-09
+Last updated: 2026-02-10
 
 ## Overview
 - Text-based MMORPG using SpacetimeDB (TypeScript server) + Vue 3 client.
@@ -43,6 +43,13 @@ Last updated: 2026-02-09
   - `/friend` sends request; duplicates show message.
 - **Combat (MVP):**
   - Location-based enemy spawns; one enemy per group/solo.
+  - **Pull phase added:** Careful Pull vs Body Pull (pre-combat, explicit).
+  - Pull outcomes: success / partial (delayed adds) / failure (immediate adds) with log feedback + reasons.
+  - **Social aggro:** enemies have `socialGroup`, `socialRadius`, `awareness`.
+  - **Grouped enemies:** each spawn has `groupCount` (rolled from template `groupMin/groupMax`).
+  - Pulling a grouped enemy removes 1 from the group; remaining members stay in the spawn.
+  - Adds can come from remaining members or nearby same-group spawns.
+  - Combat supports multiple enemies simultaneously.
   - Leader-only engages for groups; solo engages for self.
   - **Realtime loop**: `combat_loop` reducer runs every 1s via `combat_loop_tick`.
   - Combat loop timing: `COMBAT_LOOP_INTERVAL_MICROS = 1_000_000` (1s).
@@ -124,7 +131,8 @@ Last updated: 2026-02-09
   - Accordion sections: Characters, NPCs, Enemies.
   - Characters list moved from log to this panel.
   - Enemies section handles combat actions; enemy list is con-colored.
-  - Active enemy shows HP bar, target, status, and effect badges (red = debuff, blue = buff).
+  - In combat, **all active enemies** show HP bars, cast bars, effect badges, and targeting.
+  - Clicking an enemy sets your combat target; target badge shown on selected enemy.
   - During combat or result screens, the Location panel shows only the combat UI (full-height), hiding Travel/Characters/NPCs until dismiss.
   - Location header shows bindstone icon for bindable locations; click to bind.
 - **Journal Panel:**
@@ -254,6 +262,8 @@ Last updated: 2026-02-09
   - `character_cast`, `cast_tick`, `ability_cooldown`.
   - `combat_result`, `health_regen_tick`, `effect_tick`, `hot_tick`.
   - `enemy_ability`, `combat_enemy_cast`, `combat_enemy_cooldown` (enemy abilities with cast/cooldown; public for UI status).
+  - `pull_state`, `pull_tick` (pre-combat pull resolution).
+  - `combat_pending_add` (delayed adds).
 - Events: `event_world`, `event_location`, `event_private`, `event_group`.
 - Views: `my_player`, `my_private_events`, `my_group_events`, `my_location_events`,
   `my_friend_requests`, `my_friends`, `my_group_invites`, `my_group_members`, `my_combat_results`,
