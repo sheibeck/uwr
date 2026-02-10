@@ -108,10 +108,6 @@
                       Target
                     </span>
                   </div>
-                  <div :style="styles.combatRow">
-                    <span :style="styles.combatLabel">HP</span>
-                    <span :style="styles.combatValue">{{ enemy.hp }} / {{ enemy.maxHp }}</span>
-                  </div>
                   <div :style="styles.hpBar">
                     <div
                       :style="{
@@ -119,17 +115,7 @@
                         width: `${percent(enemy.hp, enemy.maxHp)}%`,
                       }"
                     ></div>
-                  </div>
-                  <div v-if="enemy.castProgress > 0" :style="styles.enemyCastBar">
-                    <div
-                      :style="{
-                        ...styles.enemyCastFill,
-                        width: `${Math.round(enemy.castProgress * 100)}%`,
-                      }"
-                    ></div>
-                  </div>
-                  <div v-if="enemy.castProgress > 0" :style="styles.subtle">
-                    {{ enemy.castLabel }}
+                    <span :style="styles.barText">{{ enemy.hp }} / {{ enemy.maxHp }}</span>
                   </div>
                   <div v-if="enemy.effects.length > 0" :style="styles.effectRow">
                     <span
@@ -143,6 +129,15 @@
                   <div v-if="enemy.targetName" :style="styles.combatRow">
                     <span :style="styles.combatLabel">Targeting</span>
                     <span :style="styles.combatValue">{{ enemy.targetName }}</span>
+                  </div>
+                  <div v-if="enemy.castProgress > 0" :style="styles.enemyCastBar">
+                    <div
+                      :style="{
+                        ...styles.enemyCastFill,
+                        width: `${Math.round(enemy.castProgress * 100)}%`,
+                      }"
+                    ></div>
+                    <span v-if="enemy.castLabel" :style="styles.barText">{{ enemy.castLabel }}</span>
                   </div>
                 </div>
               </div>
@@ -235,17 +230,19 @@
                   <div v-if="node.state === 'depleted'" :style="styles.subtleSmall">
                     Respawns in {{ node.respawnSeconds ?? 0 }}s
                   </div>
-                  <div v-else-if="node.state === 'harvesting'" :style="styles.subtleSmall">
-                    Gathering...
-                  </div>
                   <div :style="styles.panelFormInline">
                     <button
                       type="button"
                       :disabled="!connActive || node.state !== 'available'"
-                      :style="{ ...styles.ghostButton, position: 'relative', overflow: 'hidden' }"
+                      :style="{
+                        ...styles.ghostButton,
+                        position: 'relative',
+                        overflow: 'hidden',
+                        width: '100%',
+                      }"
                       @click="$emit('gather-resource', node.id)"
                     >
-                      Gather
+                      {{ node.state === 'harvesting' ? 'Gathering...' : 'Gather' }}
                       <div
                         v-if="node.progress > 0"
                         :style="{
