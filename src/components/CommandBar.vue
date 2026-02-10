@@ -60,6 +60,7 @@ const highlighted = ref<string | null>(null);
     { value: '/look', hint: 'Describe current location' },
     { value: '/say', hint: 'Talk to everyone nearby' },
     { value: '/w', hint: 'Whisper to a character' },
+    { value: '/hail', hint: 'Greet an NPC' },
     { value: '/group', hint: 'Message your group' },
     { value: '/level', hint: 'Set your level (testing)' },
     { value: '/invite', hint: 'Invite to group' },

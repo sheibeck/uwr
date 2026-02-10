@@ -82,6 +82,8 @@ import SubmitCommandReducer from "./submit_command_reducer";
 export { SubmitCommandReducer };
 import SayReducer from "./say_reducer";
 export { SayReducer };
+import HailNpcReducer from "./hail_npc_reducer";
+export { HailNpcReducer };
 import GroupMessageReducer from "./group_message_reducer";
 export { GroupMessageReducer };
 import LevelCharacterReducer from "./level_character_reducer";
@@ -218,12 +220,24 @@ import MyGroupMembersRow from "./my_group_members_table";
 export { MyGroupMembersRow };
 import MyLocationEventsRow from "./my_location_events_table";
 export { MyLocationEventsRow };
+import MyNpcDialogRow from "./my_npc_dialog_table";
+export { MyNpcDialogRow };
 import MyPlayerRow from "./my_player_table";
 export { MyPlayerRow };
 import MyPrivateEventsRow from "./my_private_events_table";
 export { MyPrivateEventsRow };
+import MyQuestsRow from "./my_quests_table";
+export { MyQuestsRow };
+import NpcRow from "./npc_table";
+export { NpcRow };
+import NpcDialogRow from "./npc_dialog_table";
+export { NpcDialogRow };
 import PlayerRow from "./player_table";
 export { PlayerRow };
+import QuestInstanceRow from "./quest_instance_table";
+export { QuestInstanceRow };
+import QuestTemplateRow from "./quest_template_table";
+export { QuestTemplateRow };
 import RegionRow from "./region_table";
 export { RegionRow };
 import UserRow from "./user_table";
@@ -318,6 +332,8 @@ import GroupMember from "./group_member_type";
 export { GroupMember };
 import GroupMessage from "./group_message_type";
 export { GroupMessage };
+import HailNpc from "./hail_npc_type";
+export { HailNpc };
 import HealthRegenTick from "./health_regen_tick_type";
 export { HealthRegenTick };
 import HotTick from "./hot_tick_type";
@@ -368,10 +384,18 @@ import MyGroupMembers from "./my_group_members_type";
 export { MyGroupMembers };
 import MyLocationEvents from "./my_location_events_type";
 export { MyLocationEvents };
+import MyNpcDialog from "./my_npc_dialog_type";
+export { MyNpcDialog };
 import MyPlayer from "./my_player_type";
 export { MyPlayer };
 import MyPrivateEvents from "./my_private_events_type";
 export { MyPrivateEvents };
+import MyQuests from "./my_quests_type";
+export { MyQuests };
+import Npc from "./npc_type";
+export { Npc };
+import NpcDialog from "./npc_dialog_type";
+export { NpcDialog };
 import OnConnect from "./on_connect_type";
 export { OnConnect };
 import OnDisconnect from "./on_disconnect_type";
@@ -380,6 +404,10 @@ import Player from "./player_type";
 export { Player };
 import PromoteGroupLeader from "./promote_group_leader_type";
 export { PromoteGroupLeader };
+import QuestInstance from "./quest_instance_type";
+export { QuestInstance };
+import QuestTemplate from "./quest_template_type";
+export { QuestTemplate };
 import RegenHealth from "./regen_health_type";
 export { RegenHealth };
 import Region from "./region_type";
@@ -951,6 +979,37 @@ const tablesSchema = __schema(
     ],
   }, LocationEnemyTemplateRow),
   __table({
+    name: 'npc',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_location', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'npc_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, NpcRow),
+  __table({
+    name: 'npc_dialog',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_npc', algorithm: 'btree', columns: [
+        'npcId',
+      ] },
+    ],
+    constraints: [
+      { name: 'npc_dialog_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, NpcDialogRow),
+  __table({
     name: 'player',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -961,6 +1020,40 @@ const tablesSchema = __schema(
       { name: 'player_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, PlayerRow),
+  __table({
+    name: 'quest_instance',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_template', algorithm: 'btree', columns: [
+        'questTemplateId',
+      ] },
+    ],
+    constraints: [
+      { name: 'quest_instance_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, QuestInstanceRow),
+  __table({
+    name: 'quest_template',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_npc', algorithm: 'btree', columns: [
+        'npcId',
+      ] },
+      { name: 'by_enemy', algorithm: 'btree', columns: [
+        'targetEnemyTemplateId',
+      ] },
+    ],
+    constraints: [
+      { name: 'quest_template_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, QuestTemplateRow),
   __table({
     name: 'region',
     indexes: [
@@ -1054,6 +1147,13 @@ const tablesSchema = __schema(
     ],
   }, MyLocationEventsRow),
   __table({
+    name: 'my_npc_dialog',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyNpcDialogRow),
+  __table({
     name: 'my_player',
     indexes: [
     ],
@@ -1067,6 +1167,13 @@ const tablesSchema = __schema(
     constraints: [
     ],
   }, MyPrivateEventsRow),
+  __table({
+    name: 'my_quests',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyQuestsRow),
 );
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
@@ -1093,6 +1200,7 @@ const reducersSchema = __reducers(
   __reducerSchema("move_character", MoveCharacterReducer),
   __reducerSchema("submit_command", SubmitCommandReducer),
   __reducerSchema("say", SayReducer),
+  __reducerSchema("hail_npc", HailNpcReducer),
   __reducerSchema("group_message", GroupMessageReducer),
   __reducerSchema("level_character", LevelCharacterReducer),
   __reducerSchema("whisper", WhisperReducer),

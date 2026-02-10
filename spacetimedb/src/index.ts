@@ -128,6 +128,78 @@ const LocationConnection = table(
   }
 );
 
+const Npc = table(
+  {
+    name: 'npc',
+    public: true,
+    indexes: [{ name: 'by_location', algorithm: 'btree', columns: ['locationId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    name: t.string(),
+    locationId: t.u64(),
+    description: t.string(),
+    greeting: t.string(),
+  }
+);
+
+const NpcDialog = table(
+  {
+    name: 'npc_dialog',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { name: 'by_npc', algorithm: 'btree', columns: ['npcId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    npcId: t.u64(),
+    text: t.string(),
+    createdAt: t.timestamp(),
+  }
+);
+
+const QuestTemplate = table(
+  {
+    name: 'quest_template',
+    public: true,
+    indexes: [
+      { name: 'by_npc', algorithm: 'btree', columns: ['npcId'] },
+      { name: 'by_enemy', algorithm: 'btree', columns: ['targetEnemyTemplateId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    name: t.string(),
+    npcId: t.u64(),
+    targetEnemyTemplateId: t.u64(),
+    requiredCount: t.u64(),
+    minLevel: t.u64(),
+    maxLevel: t.u64(),
+    rewardXp: t.u64(),
+  }
+);
+
+const QuestInstance = table(
+  {
+    name: 'quest_instance',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { name: 'by_template', algorithm: 'btree', columns: ['questTemplateId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    questTemplateId: t.u64(),
+    progress: t.u64(),
+    completed: t.bool(),
+    acceptedAt: t.timestamp(),
+    completedAt: t.timestamp().optional(),
+  }
+);
+
 const Character = table(
   {
     name: 'character',
@@ -680,6 +752,10 @@ export const spacetimedb = schema(
   Region,
   Location,
   LocationConnection,
+  Npc,
+  NpcDialog,
+  QuestTemplate,
+  QuestInstance,
   HotbarSlot,
   AbilityCooldown,
   CharacterCast,
@@ -783,6 +859,16 @@ function appendPrivateEvent(
     characterId,
     kind,
     message,
+    createdAt: ctx.timestamp,
+  });
+}
+
+function appendNpcDialog(ctx: any, characterId: bigint, npcId: bigint, text: string) {
+  ctx.db.npcDialog.insert({
+    id: 0n,
+    characterId,
+    npcId,
+    text,
     createdAt: ctx.timestamp,
   });
 }
@@ -2206,6 +2292,13 @@ function findCharacterByName(ctx: any, name: string) {
   return found;
 }
 
+function findEnemyTemplateByName(ctx: any, name: string) {
+  for (const row of ctx.db.enemyTemplate.iter()) {
+    if (row.name.toLowerCase() === name.toLowerCase()) return row;
+  }
+  return null;
+}
+
 function scheduleCombatTick(ctx: any, combatId: bigint) {
   const nextAt = ctx.timestamp.microsSinceUnixEpoch + COMBAT_LOOP_INTERVAL_MICROS;
   ctx.db.combatLoopTick.insert({
@@ -2594,6 +2687,18 @@ spacetimedb.view(
     );
   }
 );
+
+spacetimedb.view({ name: 'my_npc_dialog', public: true }, t.array(NpcDialog.rowType), (ctx) => {
+  const player = ctx.db.player.id.find(ctx.sender);
+  if (!player?.activeCharacterId) return [];
+  return [...ctx.db.npcDialog.by_character.filter(player.activeCharacterId)];
+});
+
+spacetimedb.view({ name: 'my_quests', public: true }, t.array(QuestInstance.rowType), (ctx) => {
+  const player = ctx.db.player.id.find(ctx.sender);
+  if (!player?.activeCharacterId) return [];
+  return [...ctx.db.questInstance.by_character.filter(player.activeCharacterId)];
+});
 
 spacetimedb.init((ctx) => {
   if (!tableHasRows(ctx.db.location.iter())) {
@@ -3163,6 +3268,63 @@ spacetimedb.init((ctx) => {
     }
   }
 
+  if (!tableHasRows(ctx.db.npc.iter())) {
+    const hollowmere = [...ctx.db.location.iter()].find((row) => row.name === 'Hollowmere');
+    if (hollowmere) {
+      ctx.db.npc.insert({
+        id: 0n,
+        name: 'Marla the Guide',
+        locationId: hollowmere.id,
+        description: 'A veteran scout who knows every trail between the river and the emberlands.',
+        greeting: 'Welcome, traveler. The road is cruel, but I can help you find your footing.',
+      });
+      ctx.db.npc.insert({
+        id: 0n,
+        name: 'Elder Soren',
+        locationId: hollowmere.id,
+        description: 'A stoic town elder with a gaze that weighs every word.',
+        greeting: 'Hollowmere watches over its own. Keep your blade sharp and your wits sharper.',
+      });
+      ctx.db.npc.insert({
+        id: 0n,
+        name: 'Quartermaster Jyn',
+        locationId: hollowmere.id,
+        description: 'A brisk quartermaster tallying supplies near the lantern-lit market.',
+        greeting: 'Supplies are tight. If you can help keep the roads safe, the town will remember.',
+      });
+    }
+  }
+
+  if (!tableHasRows(ctx.db.questTemplate.iter())) {
+    const marla = [...ctx.db.npc.iter()].find((row) => row.name === 'Marla the Guide');
+    const bogRat = findEnemyTemplateByName(ctx, 'Bog Rat');
+    const thicketWolf = findEnemyTemplateByName(ctx, 'Thicket Wolf');
+    if (marla && bogRat) {
+      ctx.db.questTemplate.insert({
+        id: 0n,
+        name: 'Bog Rat Cleanup',
+        npcId: marla.id,
+        targetEnemyTemplateId: bogRat.id,
+        requiredCount: 3n,
+        minLevel: 1n,
+        maxLevel: 3n,
+        rewardXp: 40n,
+      });
+    }
+    if (marla && thicketWolf) {
+      ctx.db.questTemplate.insert({
+        id: 0n,
+        name: 'Thicket Wolf Cull',
+        npcId: marla.id,
+        targetEnemyTemplateId: thicketWolf.id,
+        requiredCount: 4n,
+        minLevel: 2n,
+        maxLevel: 5n,
+        rewardXp: 60n,
+      });
+    }
+  }
+
   ensureStarterItemTemplates(ctx);
 
   ensureLocationEnemyTemplates(ctx);
@@ -3262,6 +3424,7 @@ const reducerDeps = {
   findCharacterByName,
   friendUserIds,
   appendPrivateEvent,
+  appendNpcDialog,
   appendGroupEvent,
   appendLocationEvent,
   ensureSpawnsForLocation,

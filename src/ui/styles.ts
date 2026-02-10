@@ -176,7 +176,7 @@ export const styles = {
     width: 'min(260px, 90vw)',
   },
   floatingPanelWide: {
-    width: 'min(300px, 90vw)',
+    width: 'min(720px, 92vw)',
   },
   hotbarDock: {
     padding: '0.6rem',
@@ -390,6 +390,26 @@ export const styles = {
     borderRadius: '999px',
     fontSize: '0.8rem',
   },
+  rosterTagActive: {
+    background: 'rgba(255, 210, 90, 0.2)',
+    border: '1px solid rgba(255, 210, 90, 0.7)',
+    color: '#f7d97f',
+  },
+  rosterClickable: {
+    background: 'rgba(76, 125, 240, 0.14)',
+    border: '1px solid rgba(76, 125, 240, 0.35)',
+    padding: '0.45rem 0.6rem',
+    borderRadius: '10px',
+    fontSize: '0.8rem',
+    cursor: 'pointer',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.2rem',
+  },
+  subtleSmall: {
+    fontSize: '0.72rem',
+    color: 'rgba(230,232,239,0.55)',
+  },
   logList: {
     overflowY: 'auto',
     display: 'flex',
@@ -490,6 +510,40 @@ export const styles = {
     flex: 1,
     minHeight: 0,
     overflow: 'auto',
+  },
+  panelSplit: {
+    display: 'flex',
+    gap: '0.9rem',
+    alignItems: 'stretch',
+    minHeight: 0,
+  },
+  panelColumn: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.7rem',
+    minHeight: 0,
+  },
+  panelColumnNarrow: {
+    width: '25%',
+  },
+  panelColumnWide: {
+    flex: 1,
+    minWidth: 0,
+  },
+  filterList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.35rem',
+  },
+  filterItem: {
+    padding: '0.35rem 0.4rem',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    color: 'rgba(230,232,239,0.7)',
+  },
+  filterItemActive: {
+    background: 'rgba(255, 210, 90, 0.18)',
+    color: '#f7d97f',
   },
   accordion: {
     border: '1px solid rgba(255,255,255,0.08)',

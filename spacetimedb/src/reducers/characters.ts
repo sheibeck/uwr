@@ -223,6 +223,12 @@ export const registerCharacterReducers = (deps: any) => {
     for (const row of ctx.db.command.by_character.filter(characterId)) {
       ctx.db.command.id.delete(row.id);
     }
+    for (const row of ctx.db.npcDialog.by_character.filter(characterId)) {
+      ctx.db.npcDialog.id.delete(row.id);
+    }
+    for (const row of ctx.db.questInstance.by_character.filter(characterId)) {
+      ctx.db.questInstance.id.delete(row.id);
+    }
     for (const row of ctx.db.hotbarSlot.by_character.filter(characterId)) {
       ctx.db.hotbarSlot.id.delete(row.id);
     }

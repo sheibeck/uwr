@@ -139,7 +139,18 @@
           <details :style="styles.accordion">
             <summary :style="styles.accordionSummary">NPCs</summary>
             <div :style="styles.roster">
-              <div :style="styles.subtle">No NPCs here yet.</div>
+              <div v-if="npcsHere.length === 0" :style="styles.subtle">No NPCs here yet.</div>
+              <div v-else :style="styles.rosterList">
+                <div
+                  v-for="npc in npcsHere"
+                  :key="npc.id.toString()"
+                  :style="styles.rosterClickable"
+                  @click="$emit('hail', npc.name)"
+                >
+                  <div>{{ npc.name }}</div>
+                  <div v-if="npc.description" :style="styles.subtleSmall">{{ npc.description }}</div>
+                </div>
+              </div>
             </div>
           </details>
         </template>
@@ -153,6 +164,7 @@ import type {
   CombatEncounterRow,
   CombatEnemyRow,
   CombatResultRow,
+  NpcRow,
 } from '../module_bindings';
 
 type EnemySummary = {
@@ -166,6 +178,7 @@ const props = defineProps<{
   connActive: boolean;
   selectedCharacter: CharacterRow | null;
   charactersHere: CharacterRow[];
+  npcsHere: NpcRow[];
   activeCombat: CombatEncounterRow | null;
   activeEnemy: CombatEnemyRow | null;
   activeEnemyName: string;
@@ -211,5 +224,6 @@ defineEmits<{
   (e: 'start', enemyId: bigint): void;
   (e: 'flee'): void;
   (e: 'dismiss-results'): void;
+  (e: 'hail', npcName: string): void;
 }>();
 </script>

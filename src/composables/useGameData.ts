@@ -16,6 +16,7 @@ export const useGameData = () => {
   const [itemInstances] = useTable(tables.itemInstance);
   const [hotbarSlots] = useTable(tables.hotbarSlot);
   const [locations] = useTable(tables.location);
+  const [npcs] = useTable(tables.npc);
   const [enemyTemplates] = useTable(tables.enemyTemplate);
   const [enemyAbilities] = useTable(tables.enemyAbility);
   const [enemySpawns] = useTable(tables.enemySpawn);
@@ -35,6 +36,9 @@ export const useGameData = () => {
   const [privateEvents] = useTable(tables.myPrivateEvents);
   const [groupEvents] = useTable(tables.myGroupEvents);
   const [groupMembers] = useTable(tables.myGroupMembers);
+  const [npcDialogs] = useTable(tables.myNpcDialog);
+  const [questTemplates] = useTable(tables.questTemplate);
+  const [questInstances] = useTable(tables.myQuests);
   const [worldState] = useTable(tables.worldState);
 
   return {
@@ -52,6 +56,7 @@ export const useGameData = () => {
     itemInstances,
     hotbarSlots,
     locations,
+    npcs,
     enemyTemplates,
     enemyAbilities,
     enemySpawns,
@@ -71,6 +76,9 @@ export const useGameData = () => {
     privateEvents,
     groupEvents,
     groupMembers,
+    npcDialogs,
+    questTemplates,
+    questInstances,
     worldState,
   };
 };

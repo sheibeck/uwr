@@ -13,6 +13,7 @@ export const useCommands = ({ connActive, selectedCharacter, inviteSummaries }: 
   const sayReducer = useReducer(reducers.say);
   const groupMessageReducer = useReducer(reducers.groupMessage);
   const whisperReducer = useReducer(reducers.whisper);
+  const hailReducer = useReducer(reducers.hailNpc);
   const inviteReducer = useReducer(reducers.inviteToGroup);
   const acceptInviteReducer = useReducer(reducers.acceptGroupInvite);
   const rejectInviteReducer = useReducer(reducers.rejectGroupInvite);
@@ -107,6 +108,13 @@ export const useCommands = ({ connActive, selectedCharacter, inviteSummaries }: 
       sayReducer({
         characterId: selectedCharacter.value.id,
         message: raw.slice(5).trim(),
+      });
+    } else if (lower.startsWith('/hail ')) {
+      const npcName = raw.slice(6).trim();
+      if (!npcName) return;
+      hailReducer({
+        characterId: selectedCharacter.value.id,
+        npcName,
       });
     } else if (lower.startsWith('say ')) {
       sayReducer({

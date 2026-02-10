@@ -104,6 +104,48 @@ export const registerCombatReducers = (deps: any) => {
     }
   };
 
+  const updateQuestProgressForKill = (
+    ctx: any,
+    character: any,
+    enemyTemplateId: bigint
+  ) => {
+    for (const quest of ctx.db.questInstance.by_character.filter(character.id)) {
+      if (quest.completed) continue;
+      const template = ctx.db.questTemplate.id.find(quest.questTemplateId);
+      if (!template) continue;
+      if (template.targetEnemyTemplateId !== enemyTemplateId) continue;
+      const nextProgress =
+        quest.progress + 1n > template.requiredCount
+          ? template.requiredCount
+          : quest.progress + 1n;
+      const isComplete = nextProgress >= template.requiredCount;
+      ctx.db.questInstance.id.update({
+        ...quest,
+        progress: nextProgress,
+        completed: isComplete,
+        completedAt: isComplete ? ctx.timestamp : quest.completedAt,
+      });
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'quest',
+        `Quest progress: ${template.name} (${nextProgress}/${template.requiredCount}).`
+      );
+      if (isComplete) {
+        const npc = ctx.db.npc.id.find(template.npcId);
+        const giver = npc ? npc.name : 'the quest giver';
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'quest',
+          `Quest complete: ${template.name}. Return to ${giver}.`
+        );
+      }
+    }
+  };
+
   const resolveAttack = (
     ctx: any,
     {
@@ -918,6 +960,11 @@ export const registerCombatReducers = (deps: any) => {
       if (spawn) {
         ctx.db.enemySpawn.id.delete(spawn.id);
         deps.spawnEnemy(ctx, spawn.locationId, 1n);
+      }
+      for (const p of participants) {
+        const character = ctx.db.character.id.find(p.characterId);
+        if (!character) continue;
+        updateQuestProgressForKill(ctx, character, updatedEnemy.enemyTemplateId);
       }
       const eligible = participants.filter((p) => p.status !== 'dead');
       const splitCount = eligible.length > 0 ? BigInt(eligible.length) : 1n;

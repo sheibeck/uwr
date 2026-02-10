@@ -25,6 +25,7 @@ Last updated: 2026-02-09
   - `/look`: private location description.
   - `/say`: location chat.
   - `/w` / `/whisper`: private whisper (purple).
+  - `/hail <npc>` or `Hail, <NPC Name>`: speak to an NPC in your current location.
   - `/invite`, `/accept`, `/decline` for groups.
   - `/kick`, `/promote`, `/leave`.
   - `/friend <character>` sends friend request.
@@ -64,6 +65,11 @@ Last updated: 2026-02-09
   - Character deletion with confirmation + full cleanup.
   - Non-mana classes now have `maxMana = 0` and UI hides mana bars.
   - Characters have `boundLocationId` and respawn there on death (1 HP + 1 mana/stamina if applicable).
+- **Questing (MVP):**
+  - NPCs live in towns/cities and show up in the NPC accordion.
+  - Hail/click to receive NPC dialog lines stored in a dedicated NPC dialog log.
+  - NPCs can offer kill quests within level range; quest progress tracks per character.
+  - Journal panel shows NPC dialog history and quest progress.
 - **Regen:**
   - HP/Mana/Stamina regen every 8s.
   - Out of combat: full rate. In combat: half rate (every other tick).
@@ -121,6 +127,8 @@ Last updated: 2026-02-09
   - Active enemy shows HP bar, target, status, and effect badges (red = debuff, blue = buff).
   - During combat or result screens, the Location panel shows only the combat UI (full-height), hiding Travel/Characters/NPCs until dismiss.
   - Location header shows bindstone icon for bindable locations; click to bind.
+- **Journal Panel:**
+  - NPC dialog history and quest tracking (giver, location, progress).
 - **Travel Mini-map:**
   - Shows current region in header, connected locations with arrows, region names, and target level con colors.
   - Region header now includes `L#` with con color, plus region/location type line in italics.
@@ -238,6 +246,8 @@ Last updated: 2026-02-09
 - Character: `ownerUserId`, `groupId`, stats, location.
 - Group/GroupMember/GroupInvite.
 - Friend/FriendRequest.
+- NPC: `npc`, `npc_dialog`.
+- Quests: `quest_template`, `quest_instance`.
 - Combat:
   - `enemy_template`, `location_enemy_template`, `enemy_spawn`.
   - `combat_encounter`, `combat_participant`, `combat_enemy`, `aggro_entry`, `combat_loop_tick`.
@@ -246,7 +256,8 @@ Last updated: 2026-02-09
   - `enemy_ability`, `combat_enemy_cast`, `combat_enemy_cooldown` (enemy abilities with cast/cooldown; public for UI status).
 - Events: `event_world`, `event_location`, `event_private`, `event_group`.
 - Views: `my_player`, `my_private_events`, `my_group_events`, `my_location_events`,
-  `my_friend_requests`, `my_friends`, `my_group_invites`, `my_group_members`, `my_combat_results`.
+  `my_friend_requests`, `my_friends`, `my_group_invites`, `my_group_members`, `my_combat_results`,
+  `my_npc_dialog`, `my_quests`.
 
 ## Client Structure
 - Composables:

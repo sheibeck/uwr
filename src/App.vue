@@ -102,6 +102,7 @@
       v-if="activePanel !== 'none'"
       :style="{
         ...styles.floatingPanel,
+        ...(activePanel === 'dialog' ? styles.floatingPanelWide : {}),
         left: `${panelPos.x}px`,
         top: `${panelPos.y}px`,
       }"
@@ -194,11 +195,30 @@
           :locations="locations"
           :regions="regions"
         />
+        <NpcDialogPanel
+          v-else-if="activePanel === 'dialog'"
+          :styles="styles"
+          :npc-dialogs="npcDialogs"
+          :npcs="npcs"
+          :locations="locations"
+          :regions="regions"
+        />
+        <QuestPanel
+          v-else-if="activePanel === 'quests'"
+          :styles="styles"
+          :quest-instances="questInstances"
+          :quest-templates="questTemplates"
+          :npcs="npcs"
+          :locations="locations"
+          :regions="regions"
+        />
         <CombatPanel
           v-else-if="activePanel === 'combat'"
           :styles="styles"
           :conn-active="conn.isActive"
           :selected-character="selectedCharacter"
+          :characters-here="charactersHere"
+          :npcs-here="npcsHere"
           :active-combat="activeCombat"
           :active-enemy="activeEnemy"
           :active-enemy-spawn="activeEnemySpawn"
@@ -217,7 +237,8 @@
           :can-act="canActInCombat"
           @start="startCombat"
           @flee="flee"
-           @dismiss-results="dismissResults"
+          @dismiss-results="dismissResults"
+          @hail="hailNpc"
         />
         </div>
     </div>
@@ -225,7 +246,6 @@
     <div
       :style="{
         ...styles.floatingPanel,
-        ...styles.floatingPanelWide,
         left: `${travelPanelPos.x}px`,
         top: `${travelPanelPos.y}px`,
       }"
@@ -259,6 +279,7 @@
             :conn-active="conn.isActive"
             :selected-character="selectedCharacter"
             :characters-here="charactersHere"
+            :npcs-here="npcsHere"
             :active-combat="activeCombat"
             :active-enemy="activeEnemy"
             :active-enemy-spawn="activeEnemySpawn"
@@ -278,6 +299,7 @@
             @start="startCombat"
             @flee="flee"
             @dismiss-results="dismissResults"
+            @hail="hailNpc"
           />
         </template>
         <template v-else>
@@ -297,6 +319,7 @@
             :conn-active="conn.isActive"
             :selected-character="selectedCharacter"
             :characters-here="charactersHere"
+            :npcs-here="npcsHere"
             :active-combat="activeCombat"
             :active-enemy="activeEnemy"
             :active-enemy-spawn="activeEnemySpawn"
@@ -316,6 +339,7 @@
             @start="startCombat"
             @flee="flee"
             @dismiss-results="dismissResults"
+            @hail="hailNpc"
           />
         </template>
       </div>
@@ -403,6 +427,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useReducer } from 'spacetimedb/vue';
 import { styles } from './ui/styles';
 import AppHeader from './components/AppHeader.vue';
 import LogWindow from './components/LogWindow.vue';
@@ -416,6 +441,8 @@ import CombatPanel from './components/CombatPanel.vue';
 import TravelPanel from './components/TravelPanel.vue';
 import CommandBar from './components/CommandBar.vue';
 import ActionBar from './components/ActionBar.vue';
+import NpcDialogPanel from './components/NpcDialogPanel.vue';
+import QuestPanel from './components/QuestPanel.vue';
 import { useGameData } from './composables/useGameData';
 import { useCharacters } from './composables/useCharacters';
 import { useEvents } from './composables/useEvents';
@@ -427,6 +454,7 @@ import { useMovement } from './composables/useMovement';
 import { usePlayer } from './composables/usePlayer';
 import { useAuth } from './composables/useAuth';
 import { useFriends } from './composables/useFriends';
+import { reducers } from './module_bindings';
 import { useInventory } from './composables/useInventory';
 import { useHotbar } from './composables/useHotbar';
 
@@ -438,6 +466,7 @@ const {
   itemTemplates,
   itemInstances,
   locations,
+  npcs,
   enemyTemplates,
   enemyAbilities,
   enemySpawns,
@@ -461,6 +490,9 @@ const {
   friendRequests,
   groupInvites,
   groupMembers: groupMemberRows,
+  npcDialogs,
+  questTemplates,
+  questInstances,
   hotbarSlots,
   abilityCooldowns,
   characterCasts,
@@ -490,6 +522,12 @@ const {
   locations,
   groups,
   userId,
+});
+
+const npcsHere = computed(() => {
+  if (!currentLocation.value) return [];
+  const locationId = currentLocation.value.id.toString();
+  return npcs.value.filter((npc) => npc.locationId.toString() === locationId);
 });
 
 const fallbackCombatRoster = computed(() => {
@@ -709,6 +747,12 @@ const { commandText, submitCommand } = useCommands({
   selectedCharacter,
   inviteSummaries,
 });
+
+const hailNpcReducer = useReducer(reducers.hailNpc);
+const hailNpc = (npcName: string) => {
+  if (!selectedCharacter.value) return;
+  hailNpcReducer({ characterId: selectedCharacter.value.id, npcName });
+};
 
 const {
   friendEmail,
@@ -962,6 +1006,8 @@ const activePanel = ref<
   | 'friends'
   | 'group'
   | 'stats'
+  | 'dialog'
+  | 'quests'
   | 'travel'
   | 'combat'
 >('none');
@@ -1232,6 +1278,10 @@ const panelTitle = computed(() => {
       return 'Group';
     case 'stats':
       return 'Stats';
+    case 'dialog':
+      return 'Dialog';
+    case 'quests':
+      return 'Quests';
     case 'travel':
       return 'Travel';
     case 'combat':

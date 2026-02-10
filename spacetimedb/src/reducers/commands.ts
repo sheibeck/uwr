@@ -6,6 +6,7 @@ export const registerCommandReducers = (deps: any) => {
     requireCharacterOwnedBy,
     requirePlayerUserId,
     appendPrivateEvent,
+    appendNpcDialog,
     appendLocationEvent,
     appendGroupEvent,
     computeBaseStats,
@@ -13,6 +14,62 @@ export const registerCommandReducers = (deps: any) => {
     xpRequiredForLevel,
     MAX_LEVEL,
   } = deps;
+
+  const hailNpc = (ctx: any, character: any, npcName: string) => {
+    const targetName = npcName.trim();
+    if (!targetName) throw new SenderError('NPC name required');
+    let npc: any | null = null;
+    for (const row of ctx.db.npc.by_location.filter(character.locationId)) {
+      if (row.name.toLowerCase() === targetName.toLowerCase()) {
+        npc = row;
+        break;
+      }
+    }
+    if (!npc) throw new SenderError('No such NPC here');
+    const greeting = `${npc.name} says, "${npc.greeting}"`;
+    appendNpcDialog(ctx, character.id, npc.id, greeting);
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', greeting);
+
+    const quests = [...ctx.db.questTemplate.by_npc.filter(npc.id)].filter(
+      (quest) => character.level >= quest.minLevel && character.level <= quest.maxLevel
+    );
+    if (quests.length === 0) return;
+
+    const existing = [...ctx.db.questInstance.by_character.filter(character.id)];
+    for (const quest of quests) {
+      const active = existing.find((row) => row.questTemplateId === quest.id);
+      if (active) {
+        if (!active.completed) {
+          const progress = `${active.progress}/${quest.requiredCount}`;
+          const reminder = `${npc.name} says, "You are still working on ${quest.name} (${progress})."`;
+          appendNpcDialog(ctx, character.id, npc.id, reminder);
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', reminder);
+        }
+        continue;
+      }
+      const enemy = ctx.db.enemyTemplate.id.find(quest.targetEnemyTemplateId);
+      const targetNameText = enemy ? enemy.name : 'creatures';
+      const terrainHint = enemy?.terrainTypes
+        ? enemy.terrainTypes.split(',')[0]?.trim()
+        : '';
+      const habitat = terrainHint
+        ? ` You can usually find them in ${terrainHint} areas.`
+        : '';
+      ctx.db.questInstance.insert({
+        id: 0n,
+        characterId: character.id,
+        questTemplateId: quest.id,
+        progress: 0n,
+        completed: false,
+        acceptedAt: ctx.timestamp,
+        completedAt: undefined,
+      });
+      const offer = `${npc.name} offers you "${quest.name}". Objective: Slay ${quest.requiredCount} ${targetNameText}(s).${habitat}`;
+      appendNpcDialog(ctx, character.id, npc.id, offer);
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', offer);
+      return;
+    }
+  };
 
   spacetimedb.reducer('submit_command', { characterId: t.u64(), text: t.string() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
@@ -30,6 +87,12 @@ export const registerCommandReducers = (deps: any) => {
           `${location.name}: ${location.description}`
         );
       }
+      return;
+    }
+
+    const hailMatch = trimmed.match(/^hail[,\s]+(.+)$/i);
+    if (hailMatch) {
+      hailNpc(ctx, character, hailMatch[1]);
       return;
     }
 
@@ -51,6 +114,11 @@ export const registerCommandReducers = (deps: any) => {
     if (!trimmed) throw new SenderError('Message is empty');
 
     appendLocationEvent(ctx, character.locationId, 'say', `${character.name} says, "${trimmed}"`);
+  });
+
+  spacetimedb.reducer('hail_npc', { characterId: t.u64(), npcName: t.string() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    hailNpc(ctx, character, args.npcName);
   });
 
   spacetimedb.reducer('group_message', { characterId: t.u64(), message: t.string() }, (ctx, args) => {
