@@ -201,6 +201,8 @@ export const registerCombatReducers = (deps: any) => {
     CombatEnemyCast,
     CombatEnemyCooldown,
     CombatPendingAdd,
+    getGroupParticipants,
+    isGroupLeaderOrSolo,
     hasShieldEquipped,
     canParry,
     enemyAbilityCastMicros,
@@ -522,35 +524,16 @@ export const registerCombatReducers = (deps: any) => {
 
     // Must be leader if in group
     let groupId: bigint | null = character.groupId ?? null;
-    if (groupId) {
-      const group = ctx.db.group.id.find(groupId);
-      if (!group) throw new SenderError('Group not found');
-      if (group.leaderCharacterId !== character.id) {
-        throw new SenderError('Only the group leader can start combat');
-      }
+    if (groupId && !isGroupLeaderOrSolo(ctx, character)) {
+      throw new SenderError('Only the group leader can start combat');
     }
 
-    // Determine participants
-    const participants: typeof deps.Character.rowType[] = [];
-    const participantIds = new Set<string>();
-    if (groupId) {
-      for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
-        const memberChar = ctx.db.character.id.find(member.characterId);
-        if (memberChar && memberChar.locationId === locationId) {
-          const key = memberChar.id.toString();
-          if (!participantIds.has(key)) {
-            participants.push(memberChar);
-            participantIds.add(key);
-          }
-        }
-      }
-    } else {
-      const key = character.id.toString();
-      if (!participantIds.has(key)) {
-        participants.push(character);
-        participantIds.add(key);
-      }
-    }
+    // Determine participants (virtual solo group)
+    const participants: typeof deps.Character.rowType[] = getGroupParticipants(
+      ctx,
+      character,
+      true
+    );
     if (participants.length === 0) throw new SenderError('No participants available');
     for (const p of participants) {
       if (activeCombatIdForCharacter(ctx, p.id)) {
@@ -587,12 +570,8 @@ export const registerCombatReducers = (deps: any) => {
       }
 
       let groupId: bigint | null = character.groupId ?? null;
-      if (groupId) {
-        const group = ctx.db.group.id.find(groupId);
-        if (!group) throw new SenderError('Group not found');
-        if (group.leaderCharacterId !== character.id) {
-          throw new SenderError('Only the group leader can pull');
-        }
+      if (groupId && !isGroupLeaderOrSolo(ctx, character)) {
+        throw new SenderError('Only the group leader can pull');
       }
 
       for (const pull of ctx.db.pullState.by_character.filter(character.id)) {
@@ -733,22 +712,11 @@ export const registerCombatReducers = (deps: any) => {
     const maxAdds = groupAddsAvailable + candidates.length;
     const addCount = maxAdds > 0 ? Math.min(maxAdds, Math.max(1, targetRadius || 1)) : 0;
 
-    const participants: typeof deps.Character.rowType[] = [];
-    const participantIds = new Set<string>();
-    if (pull.groupId) {
-      for (const member of ctx.db.groupMember.by_group.filter(pull.groupId)) {
-        const memberChar = ctx.db.character.id.find(member.characterId);
-        if (memberChar && memberChar.locationId === pull.locationId) {
-          const key = memberChar.id.toString();
-          if (!participantIds.has(key)) {
-            participants.push(memberChar);
-            participantIds.add(key);
-          }
-        }
-      }
-    } else {
-      participants.push(character);
-    }
+    const participants: typeof deps.Character.rowType[] = getGroupParticipants(
+      ctx,
+      character,
+      true
+    );
     if (participants.length === 0) {
       ctx.db.enemySpawn.id.update({ ...spawn, state: 'available' });
       ctx.db.pullState.id.delete(pull.id);

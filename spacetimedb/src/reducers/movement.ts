@@ -9,6 +9,7 @@ export const registerMovementReducers = (deps: any) => {
     appendPrivateEvent,
     appendLocationEvent,
     ensureSpawnsForLocation,
+    isGroupLeaderOrSolo,
   } = deps;
 
   spacetimedb.reducer('move_character', { characterId: t.u64(), locationId: t.u64() }, (ctx, args) => {
@@ -43,22 +44,24 @@ export const registerMovementReducers = (deps: any) => {
       ensureSpawnsForLocation(ctx, location.id);
     };
 
-    if (character.groupId) {
-      const group = ctx.db.group.id.find(character.groupId);
-      if (group && group.leaderCharacterId === character.id) {
-        for (const member of ctx.db.groupMember.by_group.filter(group.id)) {
-          if (!member.followLeader) continue;
-          const memberCharacter = ctx.db.character.id.find(member.characterId);
-          if (
-            memberCharacter &&
-            memberCharacter.locationId === originLocationId &&
-            memberCharacter.locationId !== location.id
-          ) {
-            moveOne(memberCharacter);
-          }
+    if (!character.groupId || !isGroupLeaderOrSolo(ctx, character)) {
+      moveOne(character);
+      return;
+    }
+    const group = ctx.db.group.id.find(character.groupId);
+    if (group && group.leaderCharacterId === character.id) {
+      for (const member of ctx.db.groupMember.by_group.filter(group.id)) {
+        if (!member.followLeader) continue;
+        const memberCharacter = ctx.db.character.id.find(member.characterId);
+        if (
+          memberCharacter &&
+          memberCharacter.locationId === originLocationId &&
+          memberCharacter.locationId !== location.id
+        ) {
+          moveOne(memberCharacter);
         }
-        return;
       }
+      return;
     }
 
     moveOne(character);

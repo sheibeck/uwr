@@ -20,6 +20,7 @@ export const registerItemReducers = (deps: any) => {
     removeItemFromInventory,
     getItemCount,
     startCombatForSpawn,
+    getGroupParticipants,
     ResourceGatherTick,
     ResourceRespawnTick,
   } = deps;
@@ -465,25 +466,10 @@ export const registerItemReducers = (deps: any) => {
               BigInt(availableSpawns.length)
             );
             const spawnToUse = availableSpawns[spawnIndex] ?? availableSpawns[0];
-            const participants: any[] = [];
-            const participantIds = new Set<string>();
-            if (character.groupId) {
-              for (const member of ctx.db.groupMember.by_group.filter(character.groupId)) {
-                const memberChar = ctx.db.character.id.find(member.characterId);
-                if (memberChar && memberChar.locationId === character.locationId) {
-                  const key = memberChar.id.toString();
-                  if (!participantIds.has(key)) {
-                    participants.push(memberChar);
-                    participantIds.add(key);
-                  }
-                }
-              }
-            } else {
-              participants.push(character);
-            }
-            appendPrivateEvent(
-              ctx,
-              character.id,
+              const participants = getGroupParticipants(ctx, character, true);
+              appendPrivateEvent(
+                ctx,
+                character.id,
               character.ownerUserId,
               'system',
               `As you reach for ${node.name}, ${spawnToUse.name} notices you and attacks!`

@@ -1365,6 +1365,28 @@ function hasShieldEquipped(ctx: any, characterId: bigint) {
   return false;
 }
 
+function getGroupParticipants(ctx: any, character: any, sameLocation: boolean = true) {
+  if (!character.groupId) return [character];
+  const participants: any[] = [];
+  const seen = new Set<string>();
+  for (const member of ctx.db.groupMember.by_group.filter(character.groupId)) {
+    const memberChar = ctx.db.character.id.find(member.characterId);
+    if (!memberChar) continue;
+    if (sameLocation && memberChar.locationId !== character.locationId) continue;
+    const key = memberChar.id.toString();
+    if (seen.has(key)) continue;
+    participants.push(memberChar);
+    seen.add(key);
+  }
+  return participants.length > 0 ? participants : [character];
+}
+
+function isGroupLeaderOrSolo(ctx: any, character: any) {
+  if (!character.groupId) return true;
+  const group = ctx.db.group.id.find(character.groupId);
+  return !!group && group.leaderCharacterId === character.id;
+}
+
 function abilityCooldownMicros(abilityKey: string) {
   const ability = ABILITIES[abilityKey as keyof typeof ABILITIES];
   if (!ability) return GLOBAL_COOLDOWN_MICROS;
@@ -4807,6 +4829,8 @@ const reducerDeps = {
   rollAttackOutcome,
   hasShieldEquipped,
   canParry,
+  getGroupParticipants,
+  isGroupLeaderOrSolo,
   usesMana,
 };
 
