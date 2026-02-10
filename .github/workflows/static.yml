@@ -28,22 +28,26 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
       - name: Install dependencies
         run: npm ci
 
-      # Optional: show TS errors but never block
       - name: Typecheck (non-blocking)
         continue-on-error: true
         run: npm run typecheck
-        # safe even if script doesn't exist
-        if: ${{ hashFiles('package.json') != '' }}
 
-      # This ALWAYS emits dist/
       - name: Build (vite)
         run: npx vite build
 
       - name: Verify dist output
-        run: ls -la dist
+        run: |
+          ls -la dist
+          test -f dist/index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
