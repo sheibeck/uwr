@@ -5,12 +5,10 @@
       :conn-active="conn.isActive"
       :selected-character="selectedCharacter"
       :current-location="currentLocation"
-      :email="email"
       :is-logged-in="isLoggedIn"
       :logged-in-email="userEmail"
       :auth-message="authMessage"
       :auth-error="authError"
-      @update:email="email = $event"
       @login="login"
       @logout="logout"
     />
@@ -602,7 +600,7 @@ const {
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
 
-const { email, isLoggedIn, login, logout, authMessage, authError } = useAuth({
+const { isLoggedIn, login, logout, authMessage, authError } = useAuth({
   connActive: computed(() => conn.isActive),
   player,
 });

@@ -1,6 +1,12 @@
 import { computed, ref, watch, type Ref } from 'vue';
 import { reducers, type PlayerRow } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
+import {
+  beginSpacetimeAuthLogin,
+  clearAuthSession,
+  getStoredEmail,
+  getStoredIdToken,
+} from '../auth/spacetimeAuth';
 
 type UseAuthArgs = {
   connActive: Ref<boolean>;
@@ -11,17 +17,17 @@ export const useAuth = ({ connActive, player }: UseAuthArgs) => {
   const loginEmailReducer = useReducer(reducers.loginEmail);
   const logoutReducer = useReducer(reducers.logout);
 
-  const email = ref('');
-  const isLoggedIn = computed(() => player.value?.userId != null);
+  const authEmail = ref(getStoredEmail() ?? '');
+  const isLoggedIn = computed(() => Boolean(getStoredIdToken()) && player.value?.userId != null);
   const authMessage = ref('');
   const authError = ref('');
 
   const login = () => {
-    if (!connActive.value || !email.value.trim()) return;
+    if (!connActive.value) return;
     authError.value = '';
-    authMessage.value = 'Logging in...';
     try {
-      loginEmailReducer({ email: email.value.trim() });
+      authMessage.value = 'Redirecting to SpacetimeAuth...';
+      void beginSpacetimeAuthLogin();
     } catch (err) {
       authMessage.value = '';
       authError.value = err instanceof Error ? err.message : 'Login failed';
@@ -29,21 +35,38 @@ export const useAuth = ({ connActive, player }: UseAuthArgs) => {
   };
 
   const logout = () => {
-    if (!connActive.value) return;
     authError.value = '';
     try {
-      logoutReducer();
+      if (connActive.value) logoutReducer();
+      clearAuthSession();
+      authMessage.value = '';
+      window.location.reload();
     } catch (err) {
       authMessage.value = '';
       authError.value = err instanceof Error ? err.message : 'Logout failed';
     }
   };
 
-  watch(isLoggedIn, (next) => {
-    if (next) {
-      authMessage.value = '';
-    }
-  });
+  watch(
+    [() => connActive.value, () => player.value?.userId, () => authEmail.value],
+    ([active, userId, email]) => {
+      if (!active) return;
+      if (userId != null) {
+        authMessage.value = '';
+        return;
+      }
+      if (email) {
+        authMessage.value = 'Logging in...';
+        try {
+          loginEmailReducer({ email });
+        } catch (err) {
+          authMessage.value = '';
+          authError.value = err instanceof Error ? err.message : 'Login failed';
+        }
+      }
+    },
+    { immediate: true }
+  );
 
-  return { email, isLoggedIn, login, logout, authMessage, authError };
+  return { email: authEmail, isLoggedIn, login, logout, authMessage, authError };
 };
