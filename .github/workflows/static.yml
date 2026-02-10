@@ -36,8 +36,8 @@ jobs:
      - name: Inject env.local
         run: |
           cat <<'EOF' > .env.local
-          VITE_API_URL=${{ secrets.VITE_API_URL }}
-          VITE_KEY=${{ secrets.VITE_KEY }}
+          VITE_API_URL=${{ secrets.VITE_SPACETIMEDB_DB_NAME }}
+          VITE_KEY=${{ secrets.VITE_SPACETIMEDB_HOST }}
           EOF
       - name: Install dependencies
           run: npm install
