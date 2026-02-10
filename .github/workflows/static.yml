@@ -29,6 +29,12 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
       - name: Inject env.local
         run: |
           cat <<'EOF' > .env.local
@@ -41,8 +47,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
+      # IMPORTANT: run Vite directly, do NOT run tsc
+      - name: Build (vite)
+        run: npx vite build --base=/uwr/
+
+      - name: Verify dist output
+        run: |
+          test -d dist
+          test -f dist/index.html
+          ls -la dist
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
