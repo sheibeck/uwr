@@ -16,6 +16,7 @@
               selectedTargetId === member.id ? styles.memberCardTargeted : {},
             ]"
             @click="$emit('target', member.id)"
+            @contextmenu.prevent="$emit('character-action', member.id)"
           >
           <span>
             {{ member.name }} (Lv {{ member.level }}) - {{ member.className }}
@@ -45,20 +46,6 @@
             >
               {{ effectLabel(effect) }} ({{ effectDurationLabel(effect) }})
             </span>
-          </div>
-          <div v-if="isLeader && member.id !== leaderId" :style="styles.buttonWrap">
-            <button
-              :style="styles.ghostButton"
-              @click.stop="$emit('kick', member.name)"
-            >
-              Kick
-            </button>
-            <button
-              :style="styles.primaryButton"
-              @click.stop="$emit('promote', member.name)"
-            >
-              Promote
-            </button>
           </div>
         </li>
       </ul>
@@ -184,9 +171,9 @@ defineEmits<{
   (e: 'accept', fromName: string): void;
   (e: 'reject', fromName: string): void;
   (e: 'kick', targetName: string): void;
-  (e: 'promote', targetName: string): void;
   (e: 'toggle-follow', follow: boolean): void;
   (e: 'target', characterId: bigint): void;
+  (e: 'character-action', characterId: bigint): void;
 }>();
 
 const percent = (current: bigint, max: bigint) => {

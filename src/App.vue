@@ -196,8 +196,8 @@
           @accept="acceptInvite"
           @reject="rejectInvite"
           @kick="kickMember"
-          @promote="promoteLeader"
           @toggle-follow="setFollowLeader"
+          @character-action="openCharacterActions"
         />
         <StatsPanel
           v-else-if="activePanel === 'stats'"
@@ -221,8 +221,13 @@
           :styles="styles"
           :target="actionTargetCharacter"
           :is-friend="actionTargetIsFriend"
+          :is-in-group="actionTargetInGroup"
+          :is-leader="isLeader"
+          :target-is-leader="actionTargetIsLeader"
           @invite="inviteToGroup"
+          @kick="kickMember"
           @friend="sendFriendRequest"
+          @promote="promoteLeader"
           @trade="startTrade"
           @message="sendWhisperTo"
         />
@@ -455,9 +460,9 @@
           @accept="acceptInvite"
           @reject="rejectInvite"
           @kick="kickMember"
-          @promote="promoteLeader"
           @toggle-follow="setFollowLeader"
           @target="setDefensiveTarget"
+          @character-action="openCharacterActions"
         />
       </div>
     </div>
@@ -1127,6 +1132,17 @@ const actionTargetIsFriend = computed(() => {
     (row) => row.friendUserId === actionTargetCharacter.value?.ownerUserId
   );
 });
+const actionTargetInGroup = computed(() => {
+  if (!actionTargetCharacter.value) return false;
+  if (!currentGroup.value) return false;
+  return groupCharacterMembers.value.some(
+    (row) => row.id.toString() === actionTargetCharacter.value?.id.toString()
+  );
+});
+const actionTargetIsLeader = computed(() => {
+  if (!actionTargetCharacter.value || !leaderId.value) return false;
+  return actionTargetCharacter.value.id.toString() === leaderId.value.toString();
+});
 
 const tradeOtherCharacter = computed(() => {
   if (!otherCharacterId.value) return null;
@@ -1699,7 +1715,8 @@ const panelTitle = computed(() => {
     case 'vendor':
       return activeVendor.value?.name ?? 'Vendor';
     case 'characterActions':
-      return 'Actions';
+      if (!actionTargetCharacter.value) return 'Actions';
+      return `${actionTargetCharacter.value.name} · ${actionTargetCharacter.value.className} Lv ${actionTargetCharacter.value.level}`;
     case 'trade':
       return 'Trade';
     case 'travel':
