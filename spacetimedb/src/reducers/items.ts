@@ -571,6 +571,17 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer('research_recipes', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const location = ctx.db.location.id.find(character.locationId);
+    if (!location?.craftingAvailable) {
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'system',
+        'Crafting is only available at locations with crafting stations.'
+      );
+      return;
+    }
     const discovered = new Set(
       [...ctx.db.recipeDiscovered.by_character.filter(character.id)].map((row) =>
         row.recipeTemplateId.toString()
@@ -624,6 +635,17 @@ export const registerItemReducers = (deps: any) => {
     { characterId: t.u64(), recipeTemplateId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const location = ctx.db.location.id.find(character.locationId);
+      if (!location?.craftingAvailable) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'system',
+          'Crafting is only available at locations with crafting stations.'
+        );
+        return;
+      }
       const recipe = ctx.db.recipeTemplate.id.find(args.recipeTemplateId);
       if (!recipe) throw new SenderError('Recipe not found');
       const discovered = [...ctx.db.recipeDiscovered.by_character.filter(character.id)].find(

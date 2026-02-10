@@ -20,6 +20,7 @@ export default __t.object("Location", {
   isSafe: __t.bool(),
   terrainType: __t.string(),
   bindStone: __t.bool(),
+  craftingAvailable: __t.bool(),
 });
 
 

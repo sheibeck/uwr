@@ -309,6 +309,15 @@ export const styles = {
     border: '1px solid rgba(140, 210, 255, 0.8)',
     cursor: 'pointer',
   },
+  craftingIcon: {
+    width: '12px',
+    height: '12px',
+    borderRadius: '2px',
+    transform: 'rotate(45deg)',
+    background: 'linear-gradient(135deg, #ffd66b, #f4a62a)',
+    boxShadow: '0 0 8px rgba(255, 200, 90, 0.8)',
+    border: '1px solid rgba(255, 210, 140, 0.85)',
+  },
   floatingPanelBody: {
     padding: '0.9rem',
     overflow: 'auto',

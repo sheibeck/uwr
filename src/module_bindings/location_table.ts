@@ -20,4 +20,5 @@ export default __t.row({
   isSafe: __t.bool(),
   terrainType: __t.string(),
   bindStone: __t.bool(),
+  craftingAvailable: __t.bool(),
 });

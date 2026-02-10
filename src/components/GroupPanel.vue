@@ -124,9 +124,8 @@
       </div>
 
       <div v-if="inviteSummaries.length === 0" :style="styles.subtle">
-        You are not currently in a group.
         <div :style="styles.subtle">
-          Invite someone with <code>/invite &lt;character&gt;</code> in the command bar.
+          Type <code>/invite &lt;character&gt;</code> to invite someone to your group.
         </div>
       </div>
       <div v-else>

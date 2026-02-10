@@ -207,6 +207,7 @@
           v-else-if="activePanel === 'crafting'"
           :styles="styles"
           :selected-character="selectedCharacter"
+          :crafting-available="currentLocationCraftingAvailable"
           :recipes="craftingRecipes"
           @research="researchRecipes"
           @craft="craftRecipe"
@@ -292,6 +293,11 @@
             :style="styles.bindStoneIcon"
             title="Bind here"
             @click="bindLocation"
+          ></div>
+          <div
+            v-if="currentLocation?.craftingAvailable"
+            :style="styles.craftingIcon"
+            title="Crafting stations available"
           ></div>
         </div>
         <div :style="styles.panelHeaderRegion">
@@ -1036,6 +1042,10 @@ const { recipes: craftingRecipes, research: researchRecipes, craft: craftRecipe 
   recipeTemplates,
   recipeDiscovered,
 });
+
+const currentLocationCraftingAvailable = computed(
+  () => currentLocation.value?.craftingAvailable ?? false
+);
 
 const activeResourceGather = computed(() => {
   if (!selectedCharacter.value) return null;

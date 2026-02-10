@@ -111,6 +111,7 @@ const Location = table(
     isSafe: t.bool(),
     terrainType: t.string(),
     bindStone: t.bool(),
+    craftingAvailable: t.bool(),
   }
 );
 
@@ -3738,6 +3739,7 @@ spacetimedb.init((ctx) => {
       isSafe: true,
       terrainType: 'town',
       bindStone: false,
+      craftingAvailable: true,
     });
     const ashen = ctx.db.location.insert({
       id: 0n,
@@ -3749,6 +3751,7 @@ spacetimedb.init((ctx) => {
       isSafe: false,
       terrainType: 'plains',
       bindStone: true,
+      craftingAvailable: false,
     });
     const fogroot = ctx.db.location.insert({
       id: 0n,
@@ -3760,6 +3763,7 @@ spacetimedb.init((ctx) => {
       isSafe: false,
       terrainType: 'swamp',
       bindStone: false,
+      craftingAvailable: false,
     });
     const bramble = ctx.db.location.insert({
       id: 0n,
@@ -3771,6 +3775,7 @@ spacetimedb.init((ctx) => {
       isSafe: false,
       terrainType: 'woods',
       bindStone: false,
+      craftingAvailable: false,
     });
     const gate = ctx.db.location.insert({
       id: 0n,
@@ -3782,6 +3787,7 @@ spacetimedb.init((ctx) => {
       isSafe: false,
       terrainType: 'mountains',
       bindStone: false,
+      craftingAvailable: false,
     });
     const cinder = ctx.db.location.insert({
       id: 0n,
@@ -3793,6 +3799,7 @@ spacetimedb.init((ctx) => {
       isSafe: false,
       terrainType: 'plains',
       bindStone: false,
+      craftingAvailable: false,
     });
     const ashvault = ctx.db.location.insert({
       id: 0n,
@@ -3804,6 +3811,7 @@ spacetimedb.init((ctx) => {
       isSafe: false,
       terrainType: 'dungeon',
       bindStone: false,
+      craftingAvailable: false,
     });
     const sootveil = ctx.db.location.insert({
       id: 0n,

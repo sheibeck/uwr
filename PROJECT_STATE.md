@@ -107,6 +107,7 @@ Last updated: 2026-02-10
       - Plains: Flax, Herbs
   - Resources and consumables are stackable inventory items (`item_template.stackable`, `item_instance.quantity`).
   - Crafting flow: Gather → Research Recipes (discover if materials present) → Craft.
+  - Crafting is only available at locations with `craftingAvailable = true` (currently Hollowmere). Location header shows a crafting icon when available.
   - Recipes are per-character (`recipe_discovered`), and only discovered recipes show in Crafting UI.
   - Bandage recipe: Flax + Herbs → Bandage (stackable).
 - Bandage use: out of combat only, 10s cooldown (`item_cooldown`), heals over time (3 ticks) and consumes 1.

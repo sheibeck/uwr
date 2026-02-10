@@ -7,6 +7,9 @@
     <div v-else>
       <div :style="styles.rowGap">
         <button :style="styles.ghostButton" @click="$emit('research')">Research Recipes</button>
+        <div v-if="!craftingAvailable" :style="styles.subtle">
+          Crafting is only available at locations with crafting stations.
+        </div>
       </div>
       <div v-if="recipes.length === 0" :style="styles.subtle">No recipes discovered.</div>
       <ul v-else :style="styles.list">
@@ -22,7 +25,7 @@
           </div>
           <button
             :style="[styles.primaryButton, !recipe.canCraft ? styles.disabledButton : {}]"
-            :disabled="!recipe.canCraft"
+            :disabled="!recipe.canCraft || !craftingAvailable"
             @click="$emit('craft', recipe.id)"
           >
             Craft
@@ -39,6 +42,7 @@ import type { CharacterRow } from '../module_bindings';
 defineProps<{
   styles: Record<string, Record<string, string | number>>;
   selectedCharacter: CharacterRow | null;
+  craftingAvailable: boolean;
   recipes: {
     id: bigint;
     name: string;
