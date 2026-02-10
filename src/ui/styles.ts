@@ -802,6 +802,16 @@ export const styles = {
     gridTemplateColumns: 'minmax(0, 1fr)',
     gap: '0.75rem',
   },
+  tradeSection: {
+    padding: '0.5rem 0.6rem',
+    borderRadius: '10px',
+    border: '1px solid rgba(255,255,255,0.08)',
+    background: 'rgba(9, 11, 16, 0.7)',
+  },
+  tradeSectionLocked: {
+    border: '1px solid rgba(116, 238, 160, 0.8)',
+    boxShadow: '0 0 12px rgba(116, 238, 160, 0.25)',
+  },
   tradeRow: {
     display: 'flex',
     alignItems: 'center',

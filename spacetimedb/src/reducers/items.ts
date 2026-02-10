@@ -1040,9 +1040,8 @@ export const registerItemReducers = (deps: any) => {
         'system',
         `${character.name} wants to trade with you.`
       );
-      return trade;
-    }
-  );
+      }
+    );
 
   spacetimedb.reducer(
     'add_trade_item',

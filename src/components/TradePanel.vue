@@ -3,7 +3,7 @@
     <div :style="styles.panelSectionTitle">Trade</div>
     <div v-if="!trade" :style="styles.subtle">No active trade.</div>
     <div v-else :style="styles.tradeGrid">
-      <div>
+      <div :style="[styles.tradeSection, myOfferLocked ? styles.tradeSectionLocked : {}]">
         <div :style="styles.subtle">Your Offer</div>
         <div v-if="myOffer.length === 0" :style="styles.subtleSmall">No items offered.</div>
         <ul v-else :style="styles.list">
@@ -14,7 +14,7 @@
         </ul>
         <div v-if="myOfferLocked" :style="styles.subtleSmall">You have offered.</div>
       </div>
-      <div>
+      <div :style="[styles.tradeSection, otherOfferLocked ? styles.tradeSectionLocked : {}]">
         <div :style="styles.subtle">Their Offer</div>
         <div v-if="otherOffer.length === 0" :style="styles.subtleSmall">No items offered.</div>
         <ul v-else :style="styles.list">
@@ -24,7 +24,7 @@
         </ul>
         <div v-if="otherOfferLocked" :style="styles.subtleSmall">They have offered.</div>
       </div>
-      <div>
+      <div :style="styles.tradeSection">
         <div :style="styles.subtle">Your Inventory</div>
         <div v-if="inventory.length === 0" :style="styles.subtleSmall">No items to trade.</div>
         <ul v-else :style="styles.list">
