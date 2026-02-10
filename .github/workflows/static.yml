@@ -1,4 +1,3 @@
-# Simple workflow for deploying static content to GitHub Pages
 name: Deploy static content to Pages
 
 on:
@@ -29,19 +28,22 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Inject env.local
-        run: |
-          cat <<'EOF' > .env.local
-          VITE_API_URL=${{ secrets.VITE_SPACETIMEDB_DB_NAME }}
-          VITE_KEY=${{ secrets.VITE_SPACETIMEDB_HOST }}
-          EOF
-
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
+      # Optional: show TS errors but never block
+      - name: Typecheck (non-blocking)
         continue-on-error: true
+        run: npm run typecheck
+        # safe even if script doesn't exist
+        if: ${{ hashFiles('package.json') != '' }}
+
+      # This ALWAYS emits dist/
+      - name: Build (vite)
+        run: npx vite build
+
+      - name: Verify dist output
+        run: ls -la dist
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

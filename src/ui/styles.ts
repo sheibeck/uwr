@@ -207,7 +207,6 @@ export const styles = {
     padding: '0.4rem 0.55rem',
     background: 'rgba(12, 15, 22, 0.7)',
     color: '#e7e8ec',
-    color: '#e6e8ef',
     fontSize: '0.85rem',
     display: 'flex',
     alignItems: 'center',
