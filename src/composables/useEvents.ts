@@ -75,9 +75,12 @@ export const useEvents = ({
       });
     }
     return items
-      .sort((a, b) =>
-        a.createdAt.microsSinceUnixEpoch > b.createdAt.microsSinceUnixEpoch ? 1 : -1
-      )
+      .sort((a, b) => {
+        if (a.createdAt.microsSinceUnixEpoch === b.createdAt.microsSinceUnixEpoch) {
+          return a.id > b.id ? 1 : -1;
+        }
+        return a.createdAt.microsSinceUnixEpoch > b.createdAt.microsSinceUnixEpoch ? 1 : -1;
+      })
       .slice(-80);
   });
 
