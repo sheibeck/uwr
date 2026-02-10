@@ -9,6 +9,7 @@ const PULL_DELAY_CAREFUL = 2_000_000n;
 const PULL_DELAY_BODY = 1_000_000n;
 const PULL_ADD_DELAY_ROUNDS = 2n;
 const PULL_ALLOW_EXTERNAL_ADDS = false;
+const ENEMY_RESPAWN_MICROS = 5n * 60n * 1_000_000n;
 
 const refreshSpawnGroupCount = (ctx: any, spawnId: bigint) => {
   const spawn = ctx.db.enemySpawn.id.find(spawnId);
@@ -205,6 +206,7 @@ export const registerCombatReducers = (deps: any) => {
     isGroupLeaderOrSolo,
     hasShieldEquipped,
     canParry,
+    EnemyRespawnTick,
     enemyAbilityCastMicros,
     enemyAbilityCooldownMicros,
     PullState,
@@ -860,6 +862,10 @@ export const registerCombatReducers = (deps: any) => {
       );
       return;
     }
+  });
+
+  spacetimedb.reducer('respawn_enemy', { arg: EnemyRespawnTick.rowType }, (ctx, { arg }) => {
+    deps.spawnEnemy(ctx, arg.locationId, 1n);
   });
 
   spacetimedb.reducer('dismiss_combat_results', { characterId: t.u64() }, (ctx, args) => {
@@ -1563,7 +1569,12 @@ export const registerCombatReducers = (deps: any) => {
             ctx.db.enemySpawnMember.id.delete(member.id);
           }
           ctx.db.enemySpawn.id.delete(spawn.id);
-          deps.spawnEnemy(ctx, spawn.locationId, 1n);
+          const respawnAt = ctx.timestamp.microsSinceUnixEpoch + ENEMY_RESPAWN_MICROS;
+          ctx.db.enemyRespawnTick.insert({
+            scheduledId: 0n,
+            scheduledAt: ScheduleAt.time(respawnAt),
+            locationId: spawn.locationId,
+          });
         }
       }
       for (const p of participants) {

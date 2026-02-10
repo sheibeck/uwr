@@ -397,6 +397,18 @@ const ResourceRespawnTick = table(
   }
 );
 
+const EnemyRespawnTick = table(
+  {
+    name: 'enemy_respawn_tick',
+    scheduled: 'respawn_enemy',
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    locationId: t.u64(),
+  }
+);
+
 const CombatLoot = table(
   {
     name: 'combat_loot',
@@ -1063,6 +1075,7 @@ export const spacetimedb = schema(
   ResourceGather,
   ResourceGatherTick,
   ResourceRespawnTick,
+  EnemyRespawnTick,
   CombatLoot,
   Group,
   GroupMember,
@@ -4773,6 +4786,7 @@ const reducerDeps = {
   DayNightTick,
   ResourceGatherTick,
   ResourceRespawnTick,
+  EnemyRespawnTick,
   EnemyAbility,
   CombatEnemyCooldown,
   CombatEnemyCast,
