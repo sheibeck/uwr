@@ -9,7 +9,8 @@ Last updated: 2026-02-09
 - Event streams are segmented: world, location, private, group.
 
 ## Architecture
-- Server: `C:\projects\uwr\spacetimedb\src\index.ts` (schema + helpers) and `C:\projects\uwr\spacetimedb\src\reducers\` (feature reducers).
+- Server: `C:\projects\uwr\spacetimedb\src\index.ts` (schema + core helpers) and `C:\projects\uwr\spacetimedb\src\reducers\` (feature reducers).
+- Bootstrapping/seed modules: `C:\projects\uwr\spacetimedb\src\bootstrap\` for world, enemies, loot, vendors, NPCs, quests, items, and shared utils.
 - Client: Vue 3 app with composables and UI components.
 - Bindings: generated via `spacetime generate` into `C:\projects\uwr\src\module_bindings`.
 - Styles: inline style objects in `src/ui/styles.ts`.
@@ -255,6 +256,9 @@ Last updated: 2026-02-09
   - `combat_result`, `health_regen_tick`, `effect_tick`, `hot_tick`.
   - `enemy_ability`, `combat_enemy_cast`, `combat_enemy_cooldown` (enemy abilities with cast/cooldown; public for UI status).
 - Events: `event_world`, `event_location`, `event_private`, `event_group`.
+- Loot/Vendors:
+  - `loot_table`, `loot_table_entry`, `combat_loot` (view `my_combat_loot`).
+  - `vendor_inventory` (public; by vendor).
 - Views: `my_player`, `my_private_events`, `my_group_events`, `my_location_events`,
   `my_friend_requests`, `my_friends`, `my_group_invites`, `my_group_members`, `my_combat_results`,
   `my_npc_dialog`, `my_quests`.
