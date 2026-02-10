@@ -102,7 +102,7 @@
       v-if="activePanel !== 'none'"
       :style="{
         ...styles.floatingPanel,
-        ...(activePanel === 'dialog' ? styles.floatingPanelWide : {}),
+        ...(activePanel === 'dialog' || activePanel === 'inventory' ? styles.floatingPanelWide : {}),
         left: `${panelPos.x}px`,
         top: `${panelPos.y}px`,
       }"

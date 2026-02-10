@@ -176,7 +176,7 @@ export const styles = {
     width: 'min(260px, 90vw)',
   },
   floatingPanelWide: {
-    width: 'min(720px, 92vw)',
+    width: 'min(820px, 92vw)',
   },
   hotbarDock: {
     padding: '0.6rem',
@@ -527,6 +527,41 @@ export const styles = {
     width: '25%',
   },
   panelColumnWide: {
+    flex: 1,
+    minWidth: 0,
+  },
+  inventoryColumn: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.6rem',
+    minHeight: 0,
+    width: '45%',
+  },
+  equipmentGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '0.5rem',
+  },
+  equipmentSlotCard: {
+    padding: '0.4rem 0.5rem',
+    borderRadius: '10px',
+    border: '1px solid rgba(255,255,255,0.12)',
+    background: 'rgba(16, 20, 28, 0.7)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.2rem',
+  },
+  equipmentSlotLabel: {
+    fontSize: '0.75rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    color: 'rgba(230,232,239,0.6)',
+  },
+  equipmentSlotName: {
+    fontSize: '0.85rem',
+    color: '#f1f2f6',
+  },
+  inventoryColumnWide: {
     flex: 1,
     minWidth: 0,
   },

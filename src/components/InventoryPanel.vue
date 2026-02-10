@@ -4,17 +4,21 @@
     <div v-if="!selectedCharacter" :style="styles.subtle">
       Select a character to manage inventory.
     </div>
-    <div v-else>
-      <details :style="styles.accordion" open>
-        <summary :style="styles.accordionSummary">Equipment Slots</summary>
-        <ul :style="styles.list">
-          <li v-for="slot in equippedSlots" :key="slot.slot">
+    <div v-else :style="styles.panelSplit">
+      <div :style="styles.inventoryColumn">
+        <div :style="styles.equipmentGrid">
+          <div
+            v-for="slot in equippedSlots"
+            :key="slot.slot"
+            :style="styles.equipmentSlotCard"
+          >
             <div
               @mouseenter="$emit('show-tooltip', { item: slot, x: $event.clientX, y: $event.clientY })"
               @mousemove="$emit('move-tooltip', { x: $event.clientX, y: $event.clientY })"
               @mouseleave="$emit('hide-tooltip')"
             >
-              {{ slot.slot }}: {{ slot.name }}
+              <div :style="styles.equipmentSlotLabel">{{ formatSlot(slot.slot) }}</div>
+              <div :style="styles.equipmentSlotName">{{ slot.name }}</div>
               <span v-if="slot.name !== 'Empty'" :style="styles.subtle">
                 ({{ slot.rarity }})
               </span>
@@ -26,12 +30,12 @@
             >
               Unequip
             </button>
-          </li>
-        </ul>
-      </details>
+          </div>
+        </div>
+      </div>
 
-      <details :style="styles.accordion" open>
-        <summary :style="styles.accordionSummary">Inventory Items</summary>
+      <div :style="styles.inventoryColumnWide">
+        <div :style="styles.panelSectionTitle">Backpack</div>
         <div :style="styles.subtle">
           Slots: {{ inventoryCount }} / {{ maxInventorySlots }}
         </div>
@@ -56,7 +60,7 @@
             </button>
           </li>
         </ul>
-      </details>
+      </div>
     </div>
   </div>
 </template>
@@ -91,6 +95,11 @@ defineProps<{
   inventoryCount: number;
   maxInventorySlots: number;
 }>();
+
+const formatSlot = (slot: string) =>
+  slot
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (char) => char.toUpperCase());
 
 defineEmits<{
   (e: 'equip', itemInstanceId: bigint): void;
