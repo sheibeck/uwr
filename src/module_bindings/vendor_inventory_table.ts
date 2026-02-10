@@ -12,9 +12,7 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  name: __t.string(),
-  npcType: __t.string(),
-  locationId: __t.u64(),
-  description: __t.string(),
-  greeting: __t.string(),
+  npcId: __t.u64(),
+  itemTemplateId: __t.u64(),
+  price: __t.u64(),
 });

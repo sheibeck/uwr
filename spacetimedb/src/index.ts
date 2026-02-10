@@ -137,6 +137,7 @@ const Npc = table(
   {
     id: t.u64().primaryKey().autoInc(),
     name: t.string(),
+    npcType: t.string(),
     locationId: t.u64(),
     description: t.string(),
     greeting: t.string(),
@@ -446,6 +447,20 @@ const CombatEnemyCooldown = table(
     combatId: t.u64(),
     abilityKey: t.string(),
     readyAtMicros: t.u64(),
+  }
+);
+
+const VendorInventory = table(
+  {
+    name: 'vendor_inventory',
+    public: true,
+    indexes: [{ name: 'by_vendor', algorithm: 'btree', columns: ['npcId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    npcId: t.u64(),
+    itemTemplateId: t.u64(),
+    price: t.u64(),
   }
 );
 
@@ -825,6 +840,7 @@ export const spacetimedb = schema(
   GroupInvite,
   EnemyTemplate,
   EnemyAbility,
+  VendorInventory,
   LootTable,
   LootTableEntry,
   LocationEnemyTemplate,
@@ -2433,6 +2449,24 @@ function ensureLootTables(ctx: any) {
   }
 }
 
+function ensureVendorInventory(ctx: any) {
+  if (tableHasRows(ctx.db.vendorInventory.iter())) return;
+  const vendor = [...ctx.db.npc.iter()].find((row) => row.npcType === 'vendor');
+  if (!vendor) return;
+  const templates = [...ctx.db.itemTemplate.iter()].filter(
+    (row) => !row.isJunk && row.tier <= 1n
+  );
+  for (const template of templates) {
+    const price = template.vendorValue > 0n ? template.vendorValue * 6n : 10n;
+    ctx.db.vendorInventory.insert({
+      id: 0n,
+      npcId: vendor.id,
+      itemTemplateId: template.id,
+      price,
+    });
+  }
+}
+
 function computeLocationTargetLevel(ctx: any, locationId: bigint, baseLevel: bigint) {
   const location = ctx.db.location.id.find(locationId);
   if (!location) return baseLevel;
@@ -3503,6 +3537,7 @@ spacetimedb.init((ctx) => {
       ctx.db.npc.insert({
         id: 0n,
         name: 'Marla the Guide',
+        npcType: 'quest',
         locationId: hollowmere.id,
         description: 'A veteran scout who knows every trail between the river and the emberlands.',
         greeting: 'Welcome, traveler. The road is cruel, but I can help you find your footing.',
@@ -3510,6 +3545,7 @@ spacetimedb.init((ctx) => {
       ctx.db.npc.insert({
         id: 0n,
         name: 'Elder Soren',
+        npcType: 'lore',
         locationId: hollowmere.id,
         description: 'A stoic town elder with a gaze that weighs every word.',
         greeting: 'Hollowmere watches over its own. Keep your blade sharp and your wits sharper.',
@@ -3517,6 +3553,7 @@ spacetimedb.init((ctx) => {
       ctx.db.npc.insert({
         id: 0n,
         name: 'Quartermaster Jyn',
+        npcType: 'vendor',
         locationId: hollowmere.id,
         description: 'A brisk quartermaster tallying supplies near the lantern-lit market.',
         greeting: 'Supplies are tight. If you can help keep the roads safe, the town will remember.',
@@ -3555,6 +3592,7 @@ spacetimedb.init((ctx) => {
   }
 
   ensureStarterItemTemplates(ctx);
+  ensureVendorInventory(ctx);
   ensureLootTables(ctx);
 
   ensureLocationEnemyTemplates(ctx);

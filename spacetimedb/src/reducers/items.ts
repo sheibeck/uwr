@@ -84,6 +84,95 @@ export const registerItemReducers = (deps: any) => {
     });
   });
 
+  spacetimedb.reducer(
+    'buy_item',
+    { characterId: t.u64(), npcId: t.u64(), itemTemplateId: t.u64() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const vendorItem = ctx.db.vendorInventory
+        .by_vendor
+        .filter(args.npcId)
+        .find((row) => row.itemTemplateId === args.itemTemplateId);
+      if (!vendorItem) throw new SenderError('Item not sold by this vendor');
+      const template = ctx.db.itemTemplate.id.find(args.itemTemplateId);
+      if (!template) throw new SenderError('Item template missing');
+      const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].length;
+      if (itemCount >= 20) throw new SenderError('Backpack is full');
+      if ((character.gold ?? 0n) < vendorItem.price) throw new SenderError('Not enough gold');
+      ctx.db.character.id.update({
+        ...character,
+        gold: (character.gold ?? 0n) - vendorItem.price,
+      });
+      ctx.db.itemInstance.insert({
+        id: 0n,
+        templateId: template.id,
+        ownerCharacterId: character.id,
+        equippedSlot: undefined,
+      });
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'reward',
+        `You buy ${template.name} for ${vendorItem.price} gold.`
+      );
+    }
+  );
+
+  spacetimedb.reducer(
+    'sell_item',
+    { characterId: t.u64(), itemInstanceId: t.u64() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
+      if (!instance) throw new SenderError('Item not found');
+      if (instance.ownerCharacterId !== character.id) {
+        throw new SenderError('Item does not belong to you');
+      }
+      if (instance.equippedSlot) throw new SenderError('Unequip item first');
+      const template = ctx.db.itemTemplate.id.find(instance.templateId);
+      if (!template) throw new SenderError('Item template missing');
+      const value = template.vendorValue ?? 0n;
+      ctx.db.itemInstance.id.delete(instance.id);
+      ctx.db.character.id.update({
+        ...character,
+        gold: (character.gold ?? 0n) + value,
+      });
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'reward',
+        `You sell ${template.name} for ${value} gold.`
+      );
+    }
+  );
+
+  spacetimedb.reducer('sell_all_junk', { characterId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    let total = 0n;
+    for (const instance of ctx.db.itemInstance.by_owner.filter(character.id)) {
+      if (instance.equippedSlot) continue;
+      const template = ctx.db.itemTemplate.id.find(instance.templateId);
+      if (!template || !template.isJunk) continue;
+      total += template.vendorValue ?? 0n;
+      ctx.db.itemInstance.id.delete(instance.id);
+    }
+    if (total > 0n) {
+      ctx.db.character.id.update({
+        ...character,
+        gold: (character.gold ?? 0n) + total,
+      });
+    }
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'reward',
+      `You sell all junk for ${total} gold.`
+    );
+  });
+
   spacetimedb.reducer('take_loot', { characterId: t.u64(), lootId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const loot = ctx.db.combatLoot.id.find(args.lootId);

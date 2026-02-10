@@ -68,6 +68,12 @@ import CreateItemTemplateReducer from "./create_item_template_reducer";
 export { CreateItemTemplateReducer };
 import GrantItemReducer from "./grant_item_reducer";
 export { GrantItemReducer };
+import BuyItemReducer from "./buy_item_reducer";
+export { BuyItemReducer };
+import SellItemReducer from "./sell_item_reducer";
+export { SellItemReducer };
+import SellAllJunkReducer from "./sell_all_junk_reducer";
+export { SellAllJunkReducer };
 import TakeLootReducer from "./take_loot_reducer";
 export { TakeLootReducer };
 import EquipItemReducer from "./equip_item_reducer";
@@ -252,6 +258,8 @@ import RegionRow from "./region_table";
 export { RegionRow };
 import UserRow from "./user_table";
 export { UserRow };
+import VendorInventoryRow from "./vendor_inventory_table";
+export { VendorInventoryRow };
 import WorldStateRow from "./world_state_table";
 export { WorldStateRow };
 
@@ -266,6 +274,8 @@ import AggroEntry from "./aggro_entry_type";
 export { AggroEntry };
 import BindLocation from "./bind_location_type";
 export { BindLocation };
+import BuyItem from "./buy_item_type";
+export { BuyItem };
 import CastTick from "./cast_tick_type";
 export { CastTick };
 import Character from "./character_type";
@@ -438,6 +448,10 @@ import RemoveFriend from "./remove_friend_type";
 export { RemoveFriend };
 import Say from "./say_type";
 export { Say };
+import SellAllJunk from "./sell_all_junk_type";
+export { SellAllJunk };
+import SellItem from "./sell_item_type";
+export { SellItem };
 import SendFriendRequest from "./send_friend_request_type";
 export { SendFriendRequest };
 import SendFriendRequestToCharacter from "./send_friend_request_to_character_type";
@@ -470,6 +484,8 @@ import UseAbility from "./use_ability_type";
 export { UseAbility };
 import User from "./user_type";
 export { User };
+import VendorInventory from "./vendor_inventory_type";
+export { VendorInventory };
 import Whisper from "./whisper_type";
 export { Whisper };
 import WorldState from "./world_state_type";
@@ -1150,6 +1166,20 @@ const tablesSchema = __schema(
     ],
   }, UserRow),
   __table({
+    name: 'vendor_inventory',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_vendor', algorithm: 'btree', columns: [
+        'npcId',
+      ] },
+    ],
+    constraints: [
+      { name: 'vendor_inventory_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, VendorInventoryRow),
+  __table({
     name: 'world_state',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1270,6 +1300,9 @@ const reducersSchema = __reducers(
   __reducerSchema("delete_character", DeleteCharacterReducer),
   __reducerSchema("create_item_template", CreateItemTemplateReducer),
   __reducerSchema("grant_item", GrantItemReducer),
+  __reducerSchema("buy_item", BuyItemReducer),
+  __reducerSchema("sell_item", SellItemReducer),
+  __reducerSchema("sell_all_junk", SellAllJunkReducer),
   __reducerSchema("take_loot", TakeLootReducer),
   __reducerSchema("equip_item", EquipItemReducer),
   __reducerSchema("unequip_item", UnequipItemReducer),

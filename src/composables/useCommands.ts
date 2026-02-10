@@ -1,14 +1,22 @@
 import { ref, type Ref } from 'vue';
-import { reducers, type CharacterRow } from '../module_bindings';
+import { reducers, type CharacterRow, type NpcRow } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 
 type UseCommandsArgs = {
   connActive: Ref<boolean>;
   selectedCharacter: Ref<CharacterRow | null>;
   inviteSummaries?: Ref<{ fromName: string }[]>;
+  npcsHere?: Ref<NpcRow[]>;
+  onNpcHail?: (npc: NpcRow) => void;
 };
 
-export const useCommands = ({ connActive, selectedCharacter, inviteSummaries }: UseCommandsArgs) => {
+export const useCommands = ({
+  connActive,
+  selectedCharacter,
+  inviteSummaries,
+  npcsHere,
+  onNpcHail,
+}: UseCommandsArgs) => {
   const submitCommandReducer = useReducer(reducers.submitCommand);
   const sayReducer = useReducer(reducers.say);
   const groupMessageReducer = useReducer(reducers.groupMessage);
@@ -112,6 +120,12 @@ export const useCommands = ({ connActive, selectedCharacter, inviteSummaries }: 
     } else if (lower.startsWith('/hail ')) {
       const npcName = raw.slice(6).trim();
       if (!npcName) return;
+      const npc = npcsHere?.value?.find(
+        (row) => row.name.toLowerCase() === npcName.toLowerCase()
+      );
+      if (npc && onNpcHail) {
+        onNpcHail(npc);
+      }
       hailReducer({
         characterId: selectedCharacter.value.id,
         npcName,

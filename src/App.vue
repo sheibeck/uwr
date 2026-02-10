@@ -102,7 +102,12 @@
       v-if="activePanel !== 'none'"
       :style="{
         ...styles.floatingPanel,
-        ...(activePanel === 'dialog' || activePanel === 'inventory' ? styles.floatingPanelWide : {}),
+        ...(activePanel === 'dialog' ||
+        activePanel === 'inventory' ||
+        activePanel === 'vendor' ||
+        activePanel === 'quests'
+          ? styles.floatingPanelWide
+          : {}),
         left: `${panelPos.x}px`,
         top: `${panelPos.y}px`,
       }"
@@ -203,6 +208,20 @@
           :locations="locations"
           :regions="regions"
         />
+        <VendorPanel
+          v-else-if="activePanel === 'vendor'"
+          :styles="styles"
+          :selected-character="selectedCharacter"
+          :vendor="activeVendor"
+          :vendor-items="vendorItems"
+          :inventory-items="inventoryItems"
+          @buy="buyItem"
+          @sell="sellItem"
+          @sell-all-junk="sellAllJunk"
+          @show-tooltip="showTooltip"
+          @move-tooltip="moveTooltip"
+          @hide-tooltip="hideTooltip"
+        />
         <QuestPanel
           v-else-if="activePanel === 'quests'"
           :styles="styles"
@@ -244,6 +263,7 @@
           @move-tooltip="moveTooltip"
           @hide-tooltip="hideTooltip"
           @hail="hailNpc"
+          @open-vendor="openVendor"
         />
         </div>
     </div>
@@ -310,6 +330,7 @@
             @move-tooltip="moveTooltip"
             @hide-tooltip="hideTooltip"
             @hail="hailNpc"
+            @open-vendor="openVendor"
           />
         </template>
         <template v-else>
@@ -458,6 +479,7 @@ import CommandBar from './components/CommandBar.vue';
 import ActionBar from './components/ActionBar.vue';
 import NpcDialogPanel from './components/NpcDialogPanel.vue';
 import QuestPanel from './components/QuestPanel.vue';
+import VendorPanel from './components/VendorPanel.vue';
 import { useGameData } from './composables/useGameData';
 import { useCharacters } from './composables/useCharacters';
 import { useEvents } from './composables/useEvents';
@@ -482,6 +504,7 @@ const {
   itemInstances,
   locations,
   npcs,
+  vendorInventory,
   enemyTemplates,
   enemyAbilities,
   enemySpawns,
@@ -544,6 +567,57 @@ const npcsHere = computed(() => {
   if (!currentLocation.value) return [];
   const locationId = currentLocation.value.id.toString();
   return npcs.value.filter((npc) => npc.locationId.toString() === locationId);
+});
+
+const activeVendorId = ref<bigint | null>(null);
+const activeVendor = computed(() => {
+  if (!activeVendorId.value) return null;
+  return npcs.value.find((npc) => npc.id.toString() === activeVendorId.value?.toString()) ?? null;
+});
+const vendorItems = computed(() => {
+  if (!activeVendorId.value) return [];
+  return vendorInventory.value
+    .filter((row) => row.npcId.toString() === activeVendorId.value?.toString())
+    .map((row) => {
+      const template = itemTemplates.value.find(
+        (item) => item.id.toString() === row.itemTemplateId.toString()
+      );
+      const description =
+        [
+          template?.rarity,
+          template?.armorType,
+          template?.slot,
+          template?.tier ? `Tier ${template.tier}` : null,
+        ]
+          .filter((value) => value && value.length > 0)
+          .join(' • ') ?? '';
+      const stats = [
+        template?.armorClassBonus ? { label: 'Armor Class', value: `+${template.armorClassBonus}` } : null,
+        template?.weaponBaseDamage ? { label: 'Weapon Damage', value: `${template.weaponBaseDamage}` } : null,
+        template?.weaponDps ? { label: 'Weapon DPS', value: `${template.weaponDps}` } : null,
+        template?.strBonus ? { label: 'STR', value: `+${template.strBonus}` } : null,
+        template?.dexBonus ? { label: 'DEX', value: `+${template.dexBonus}` } : null,
+        template?.chaBonus ? { label: 'CHA', value: `+${template.chaBonus}` } : null,
+        template?.wisBonus ? { label: 'WIS', value: `+${template.wisBonus}` } : null,
+        template?.intBonus ? { label: 'INT', value: `+${template.intBonus}` } : null,
+        template?.hpBonus ? { label: 'HP', value: `+${template.hpBonus}` } : null,
+        template?.manaBonus ? { label: 'Mana', value: `+${template.manaBonus}` } : null,
+        row.price ? { label: 'Price', value: `${row.price} gold` } : null,
+      ].filter(Boolean) as { label: string; value: string }[];
+      return {
+        id: row.id,
+        templateId: row.itemTemplateId,
+        price: row.price,
+        name: template?.name ?? 'Unknown',
+        rarity: template?.rarity ?? 'Common',
+        tier: template?.tier ?? 1n,
+        slot: template?.slot ?? 'misc',
+        armorType: template?.armorType ?? 'none',
+        description,
+        stats,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 });
 
 const fallbackCombatRoster = computed(() => {
@@ -766,7 +840,41 @@ const { commandText, submitCommand } = useCommands({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
   inviteSummaries,
+  npcsHere,
+  onNpcHail: (npc) => {
+    if (npc.npcType === 'vendor') {
+      activePanel.value = 'vendor';
+      activeVendorId.value = npc.id;
+    }
+  },
 });
+
+const openVendor = (npcId: bigint) => {
+  activePanel.value = 'vendor';
+  activeVendorId.value = npcId;
+};
+
+const buyItem = (itemTemplateId: bigint) => {
+  if (!conn.isActive || !selectedCharacter.value || !activeVendorId.value) return;
+  buyReducer({
+    characterId: selectedCharacter.value.id,
+    npcId: activeVendorId.value,
+    itemTemplateId,
+  });
+};
+
+const sellItem = (itemInstanceId: bigint) => {
+  if (!conn.isActive || !selectedCharacter.value) return;
+  sellReducer({
+    characterId: selectedCharacter.value.id,
+    itemInstanceId,
+  });
+};
+
+const sellAllJunk = () => {
+  if (!conn.isActive || !selectedCharacter.value) return;
+  sellAllReducer({ characterId: selectedCharacter.value.id });
+};
 
 const hailNpcReducer = useReducer(reducers.hailNpc);
 const hailNpc = (npcName: string) => {
@@ -900,6 +1008,10 @@ const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipI
     itemTemplates,
   });
 
+const buyReducer = useReducer(reducers.buyItem);
+const sellReducer = useReducer(reducers.sellItem);
+const sellAllReducer = useReducer(reducers.sellAllJunk);
+
 const { hotbarAssignments, availableAbilities, abilityLookup, setHotbarSlot, useAbility } = useHotbar({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
@@ -1028,6 +1140,7 @@ const activePanel = ref<
   | 'stats'
   | 'dialog'
   | 'quests'
+  | 'vendor'
   | 'travel'
   | 'combat'
 >('none');
@@ -1302,6 +1415,8 @@ const panelTitle = computed(() => {
       return 'Dialog';
     case 'quests':
       return 'Quests';
+    case 'vendor':
+      return 'Vendor';
     case 'travel':
       return 'Travel';
     case 'combat':

@@ -179,7 +179,12 @@
                   v-for="npc in npcsHere"
                   :key="npc.id.toString()"
                   :style="styles.rosterClickable"
-                  @click="$emit('hail', npc.name)"
+                  @click="
+                    $emit('hail', npc.name);
+                    if (npc.npcType === 'vendor') {
+                      $emit('open-vendor', npc.id);
+                    }
+                  "
                 >
                   <div>{{ npc.name }}</div>
                   <div v-if="npc.description" :style="styles.subtleSmall">{{ npc.description }}</div>
@@ -271,5 +276,6 @@ defineEmits<{
   (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
   (e: 'move-tooltip', value: { x: number; y: number }): void;
   (e: 'hide-tooltip'): void;
+  (e: 'open-vendor', npcId: bigint): void;
 }>();
 </script>
