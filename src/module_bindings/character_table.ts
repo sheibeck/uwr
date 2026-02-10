@@ -18,6 +18,7 @@ export default __t.row({
   className: __t.string(),
   level: __t.u64(),
   xp: __t.u64(),
+  gold: __t.u64(),
   locationId: __t.u64(),
   boundLocationId: __t.u64(),
   groupId: __t.option(__t.u64()),

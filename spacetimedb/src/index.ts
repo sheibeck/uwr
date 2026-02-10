@@ -217,6 +217,7 @@ const Character = table(
     className: t.string(),
     level: t.u64(),
     xp: t.u64(),
+    gold: t.u64(),
     locationId: t.u64(),
     boundLocationId: t.u64(),
     groupId: t.u64().optional(),
@@ -256,6 +257,9 @@ const ItemTemplate = table(
     slot: t.string(),
     armorType: t.string(),
     rarity: t.string(),
+    tier: t.u64(),
+    isJunk: t.bool(),
+    vendorValue: t.u64(),
     requiredLevel: t.u64(),
     allowedClasses: t.string(),
     strBonus: t.u64(),
@@ -282,6 +286,25 @@ const ItemInstance = table(
     templateId: t.u64(),
     ownerCharacterId: t.u64(),
     equippedSlot: t.string().optional(),
+  }
+);
+
+const CombatLoot = table(
+  {
+    name: 'combat_loot',
+    indexes: [
+      { name: 'by_owner', algorithm: 'btree', columns: ['ownerUserId'] },
+      { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
+      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    combatId: t.u64(),
+    ownerUserId: t.u64(),
+    characterId: t.u64(),
+    itemTemplateId: t.u64(),
+    createdAt: t.timestamp(),
   }
 );
 
@@ -384,6 +407,7 @@ const EnemyTemplate = table(
     roleDetail: t.string(),
     abilityProfile: t.string(),
     terrainTypes: t.string(),
+    creatureType: t.string(),
     timeOfDay: t.string(),
     armorClass: t.u64(),
     level: t.u64(),
@@ -422,6 +446,39 @@ const CombatEnemyCooldown = table(
     combatId: t.u64(),
     abilityKey: t.string(),
     readyAtMicros: t.u64(),
+  }
+);
+
+const LootTable = table(
+  {
+    name: 'loot_table',
+    public: true,
+    indexes: [
+      { name: 'by_key', algorithm: 'btree', columns: ['terrainType', 'creatureType', 'tier'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    terrainType: t.string(),
+    creatureType: t.string(),
+    tier: t.u64(),
+    junkChance: t.u64(),
+    gearChance: t.u64(),
+    goldMin: t.u64(),
+    goldMax: t.u64(),
+  }
+);
+
+const LootTableEntry = table(
+  {
+    name: 'loot_table_entry',
+    indexes: [{ name: 'by_table', algorithm: 'btree', columns: ['lootTableId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    lootTableId: t.u64(),
+    itemTemplateId: t.u64(),
+    weight: t.u64(),
   }
 );
 
@@ -762,11 +819,14 @@ export const spacetimedb = schema(
   Character,
   ItemTemplate,
   ItemInstance,
+  CombatLoot,
   Group,
   GroupMember,
   GroupInvite,
   EnemyTemplate,
   EnemyAbility,
+  LootTable,
+  LootTableEntry,
   LocationEnemyTemplate,
   EnemySpawn,
   CombatEncounter,
@@ -2076,6 +2136,9 @@ function ensureStarterItemTemplates(ctx: any) {
       slot: 'chest',
       armorType,
       rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 2n,
       requiredLevel: 1n,
       allowedClasses: 'any',
       strBonus: 0n,
@@ -2095,6 +2158,9 @@ function ensureStarterItemTemplates(ctx: any) {
       slot: 'legs',
       armorType,
       rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 2n,
       requiredLevel: 1n,
       allowedClasses: 'any',
       strBonus: 0n,
@@ -2114,6 +2180,9 @@ function ensureStarterItemTemplates(ctx: any) {
       slot: 'boots',
       armorType,
       rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 2n,
       requiredLevel: 1n,
       allowedClasses: 'any',
       strBonus: 0n,
@@ -2150,6 +2219,9 @@ function ensureStarterItemTemplates(ctx: any) {
       slot: 'mainHand',
       armorType: 'none',
       rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 3n,
       requiredLevel: 1n,
       allowedClasses: weapon.allowed,
       strBonus: 0n,
@@ -2162,6 +2234,71 @@ function ensureStarterItemTemplates(ctx: any) {
       armorClassBonus: 0n,
       weaponBaseDamage: 4n,
       weaponDps: 6n,
+    });
+  }
+
+  const accessoryTemplates = [
+    { name: 'Rough Band', slot: 'earrings', rarity: 'common', stat: { dexBonus: 1n } },
+    { name: 'Worn Cloak', slot: 'cloak', rarity: 'common', stat: { hpBonus: 3n } },
+    { name: 'Traveler Necklace', slot: 'neck', rarity: 'common', stat: { wisBonus: 1n } },
+    { name: 'Glimmer Ring', slot: 'earrings', rarity: 'uncommon', stat: { intBonus: 1n } },
+    { name: 'Shaded Cloak', slot: 'cloak', rarity: 'uncommon', stat: { dexBonus: 1n } },
+  ];
+
+  for (const template of accessoryTemplates) {
+    ctx.db.itemTemplate.insert({
+      id: 0n,
+      name: template.name,
+      slot: template.slot,
+      armorType: 'none',
+      rarity: template.rarity,
+      tier: 1n,
+      isJunk: false,
+      vendorValue: template.rarity === 'uncommon' ? 8n : 5n,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      strBonus: template.stat.strBonus ?? 0n,
+      dexBonus: template.stat.dexBonus ?? 0n,
+      chaBonus: template.stat.chaBonus ?? 0n,
+      wisBonus: template.stat.wisBonus ?? 0n,
+      intBonus: template.stat.intBonus ?? 0n,
+      hpBonus: template.stat.hpBonus ?? 0n,
+      manaBonus: template.stat.manaBonus ?? 0n,
+      armorClassBonus: 0n,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
+    });
+  }
+
+  const junkTemplates = [
+    { name: 'Rat Tail', vendorValue: 1n },
+    { name: 'Torn Pelt', vendorValue: 2n },
+    { name: 'Cracked Fang', vendorValue: 1n },
+    { name: 'Ashen Bone', vendorValue: 2n },
+  ];
+
+  for (const junk of junkTemplates) {
+    ctx.db.itemTemplate.insert({
+      id: 0n,
+      name: junk.name,
+      slot: 'junk',
+      armorType: 'none',
+      rarity: 'common',
+      tier: 1n,
+      isJunk: true,
+      vendorValue: junk.vendorValue,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      strBonus: 0n,
+      dexBonus: 0n,
+      chaBonus: 0n,
+      wisBonus: 0n,
+      intBonus: 0n,
+      hpBonus: 0n,
+      manaBonus: 0n,
+      armorClassBonus: 0n,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
     });
   }
 }
@@ -2239,6 +2376,61 @@ function computeEnemyStats(
     armorClass: baseArmorClass,
     avgLevel: effectiveLevel,
   };
+}
+
+function ensureLootTables(ctx: any) {
+  if (tableHasRows(ctx.db.lootTable.iter())) return;
+
+  const junkTemplates = [...ctx.db.itemTemplate.iter()].filter((row) => row.isJunk);
+  const gearTemplates = [...ctx.db.itemTemplate.iter()].filter(
+    (row) => !row.isJunk && row.tier <= 1n && row.requiredLevel <= 9n
+  );
+
+  const addTable = (
+    terrainType: string,
+    creatureType: string,
+    junkChance: bigint,
+    gearChance: bigint,
+    goldMin: bigint,
+    goldMax: bigint
+  ) => {
+    const table = ctx.db.lootTable.insert({
+      id: 0n,
+      terrainType,
+      creatureType,
+      tier: 1n,
+      junkChance,
+      gearChance,
+      goldMin,
+      goldMax,
+    });
+    for (const item of junkTemplates) {
+      ctx.db.lootTableEntry.insert({
+        id: 0n,
+        lootTableId: table.id,
+        itemTemplateId: item.id,
+        weight: 10n,
+      });
+    }
+    for (const item of gearTemplates) {
+      ctx.db.lootTableEntry.insert({
+        id: 0n,
+        lootTableId: table.id,
+        itemTemplateId: item.id,
+        weight: item.rarity === 'uncommon' ? 3n : 6n,
+      });
+    }
+  };
+
+  const terrains = ['plains', 'woods', 'swamp', 'mountains', 'town', 'city', 'dungeon'];
+  for (const terrain of terrains) {
+    addTable(terrain, 'animal', 75n, 10n, 0n, 2n);
+    addTable(terrain, 'beast', 65n, 15n, 0n, 3n);
+    addTable(terrain, 'humanoid', 40n, 25n, 2n, 6n);
+    addTable(terrain, 'undead', 55n, 20n, 1n, 4n);
+    addTable(terrain, 'spirit', 50n, 20n, 1n, 4n);
+    addTable(terrain, 'construct', 60n, 20n, 1n, 4n);
+  }
 }
 
 function computeLocationTargetLevel(ctx: any, locationId: bigint, baseLevel: bigint) {
@@ -2673,6 +2865,16 @@ spacetimedb.view(
 );
 
 spacetimedb.view(
+  { name: 'my_combat_loot', public: true },
+  t.array(CombatLoot.rowType),
+  (ctx) => {
+    const player = ctx.db.player.id.find(ctx.sender);
+    if (!player || player.userId == null || !player.activeCharacterId) return [];
+    return [...ctx.db.combatLoot.by_character.filter(player.activeCharacterId)];
+  }
+);
+
+spacetimedb.view(
   { name: 'my_location_events', public: true },
   t.array(EventLocation.rowType),
   (ctx) => {
@@ -2846,6 +3048,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'thick hide, taunt',
       terrainTypes: 'swamp',
+      creatureType: 'animal',
       timeOfDay: 'any',
       armorClass: 12n,
       level: 1n,
@@ -2860,6 +3063,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'magic',
       abilityProfile: 'fire bolts, ignite',
       terrainTypes: 'plains,mountains',
+      creatureType: 'spirit',
       timeOfDay: 'night',
       armorClass: 8n,
       level: 2n,
@@ -2874,6 +3078,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'ranged',
       abilityProfile: 'rapid shot, bleed',
       terrainTypes: 'plains,woods',
+      creatureType: 'humanoid',
       timeOfDay: 'day',
       armorClass: 8n,
       level: 2n,
@@ -2888,6 +3093,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'pounce, shred',
       terrainTypes: 'woods,swamp',
+      creatureType: 'beast',
       timeOfDay: 'night',
       armorClass: 9n,
       level: 3n,
@@ -2902,6 +3108,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'support',
       abilityProfile: 'mend, cleanse',
       terrainTypes: 'town,city',
+      creatureType: 'undead',
       timeOfDay: 'night',
       armorClass: 9n,
       level: 2n,
@@ -2916,6 +3123,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'control',
       abilityProfile: 'weaken, slow, snare',
       terrainTypes: 'woods,swamp',
+      creatureType: 'humanoid',
       timeOfDay: 'night',
       armorClass: 9n,
       level: 3n,
@@ -2930,6 +3138,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'pack bite, lunge',
       terrainTypes: 'woods,plains',
+      creatureType: 'animal',
       timeOfDay: 'day',
       armorClass: 9n,
       level: 1n,
@@ -2944,6 +3153,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'tongue lash, croak',
       terrainTypes: 'swamp',
+      creatureType: 'animal',
       timeOfDay: 'day',
       armorClass: 8n,
       level: 1n,
@@ -2958,6 +3168,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'dart, nip',
       terrainTypes: 'plains',
+      creatureType: 'animal',
       timeOfDay: 'day',
       armorClass: 7n,
       level: 1n,
@@ -2972,6 +3183,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'snap, pack feint',
       terrainTypes: 'plains',
+      creatureType: 'beast',
       timeOfDay: 'any',
       armorClass: 8n,
       level: 2n,
@@ -2986,6 +3198,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'magic',
       abilityProfile: 'sting, wither pollen',
       terrainTypes: 'woods',
+      creatureType: 'spirit',
       timeOfDay: 'night',
       armorClass: 8n,
       level: 2n,
@@ -3000,6 +3213,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'gore, bulwark',
       terrainTypes: 'woods',
+      creatureType: 'beast',
       timeOfDay: 'any',
       armorClass: 12n,
       level: 3n,
@@ -3014,6 +3228,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'drain, latch',
       terrainTypes: 'swamp',
+      creatureType: 'beast',
       timeOfDay: 'any',
       armorClass: 9n,
       level: 2n,
@@ -3028,6 +3243,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'magic',
       abilityProfile: 'curse, mire ward',
       terrainTypes: 'swamp',
+      creatureType: 'humanoid',
       timeOfDay: 'night',
       armorClass: 9n,
       level: 3n,
@@ -3042,6 +3258,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'rusty slash, feint',
       terrainTypes: 'town,city',
+      creatureType: 'undead',
       timeOfDay: 'day',
       armorClass: 9n,
       level: 2n,
@@ -3056,6 +3273,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'stone wall, slam',
       terrainTypes: 'mountains,plains',
+      creatureType: 'construct',
       timeOfDay: 'day',
       armorClass: 13n,
       level: 3n,
@@ -3070,6 +3288,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'magic',
       abilityProfile: 'ember spark, kindle',
       terrainTypes: 'mountains,plains',
+      creatureType: 'spirit',
       timeOfDay: 'day',
       armorClass: 7n,
       level: 1n,
@@ -3084,6 +3303,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'support',
       abilityProfile: 'ice mend, ward',
       terrainTypes: 'mountains,city',
+      creatureType: 'undead',
       timeOfDay: 'night',
       armorClass: 9n,
       level: 4n,
@@ -3098,6 +3318,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'rock slash, feint',
       terrainTypes: 'mountains',
+      creatureType: 'humanoid',
       timeOfDay: 'day',
       armorClass: 10n,
       level: 3n,
@@ -3112,6 +3333,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'ranged',
       abilityProfile: 'burning dive',
       terrainTypes: 'mountains,plains',
+      creatureType: 'beast',
       timeOfDay: 'day',
       armorClass: 9n,
       level: 4n,
@@ -3126,6 +3348,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'stone slam, brace',
       terrainTypes: 'mountains',
+      creatureType: 'construct',
       timeOfDay: 'any',
       armorClass: 14n,
       level: 4n,
@@ -3140,6 +3363,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'shield crush, watchful',
       terrainTypes: 'town,city',
+      creatureType: 'undead',
       timeOfDay: 'night',
       armorClass: 12n,
       level: 3n,
@@ -3154,6 +3378,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'shadow cut, vanish',
       terrainTypes: 'town,city',
+      creatureType: 'undead',
       timeOfDay: 'night',
       armorClass: 10n,
       level: 4n,
@@ -3168,6 +3393,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'iron guard, shield bash',
       terrainTypes: 'dungeon',
+      creatureType: 'construct',
       timeOfDay: 'any',
       armorClass: 14n,
       level: 4n,
@@ -3182,6 +3408,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'magic',
       abilityProfile: 'cinder hex, ember veil',
       terrainTypes: 'dungeon',
+      creatureType: 'humanoid',
       timeOfDay: 'any',
       armorClass: 10n,
       level: 5n,
@@ -3196,6 +3423,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'support',
       abilityProfile: 'ashen mend, warding flame',
       terrainTypes: 'dungeon',
+      creatureType: 'humanoid',
       timeOfDay: 'any',
       armorClass: 11n,
       level: 5n,
@@ -3210,6 +3438,7 @@ spacetimedb.init((ctx) => {
       roleDetail: 'melee',
       abilityProfile: 'searing cleave, molten strike',
       terrainTypes: 'dungeon',
+      creatureType: 'undead',
       timeOfDay: 'any',
       armorClass: 12n,
       level: 6n,
@@ -3326,6 +3555,7 @@ spacetimedb.init((ctx) => {
   }
 
   ensureStarterItemTemplates(ctx);
+  ensureLootTables(ctx);
 
   ensureLocationEnemyTemplates(ctx);
 

@@ -53,6 +53,7 @@
               Level {{ item.requiredLevel }} • Allowed: {{ item.allowedClasses || 'any' }}
             </div>
             <button
+              v-if="item.equipable"
               :style="styles.primaryButton"
               @click="$emit('equip', item.id)"
             >
@@ -77,6 +78,9 @@ defineProps<{
     name: string;
     armorType: string;
     rarity: string;
+    tier: bigint;
+    isJunk: boolean;
+    vendorValue: bigint;
     itemInstanceId: bigint | null;
     stats: { label: string; value: string }[];
     description: string;
@@ -87,10 +91,14 @@ defineProps<{
     slot: string;
     armorType: string;
     rarity: string;
+    tier: bigint;
+    isJunk: boolean;
+    vendorValue: bigint;
     requiredLevel: bigint;
     allowedClasses: string;
     stats: { label: string; value: string }[];
     description: string;
+    equipable: boolean;
   }[];
   inventoryCount: number;
   maxInventorySlots: number;

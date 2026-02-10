@@ -226,6 +226,7 @@
           :active-enemy-level="activeEnemyLevel"
           :active-enemy-con-class="activeEnemyConClass"
           :active-enemy-effects="activeEnemyEffects"
+          :active-loot="activeLoot"
           :enemy-target-name="activeEnemyTargetName"
           :enemy-action-text="activeEnemyActionText"
           :enemy-cast-progress="activeEnemyCastProgress"
@@ -238,6 +239,10 @@
           @start="startCombat"
           @flee="flee"
           @dismiss-results="dismissResults"
+          @take-loot="takeLoot"
+          @show-tooltip="showTooltip"
+          @move-tooltip="moveTooltip"
+          @hide-tooltip="hideTooltip"
           @hail="hailNpc"
         />
         </div>
@@ -287,6 +292,7 @@
             :active-enemy-level="activeEnemyLevel"
             :active-enemy-con-class="activeEnemyConClass"
             :active-enemy-effects="activeEnemyEffects"
+            :active-loot="activeLoot"
             :enemy-target-name="activeEnemyTargetName"
             :enemy-action-text="activeEnemyActionText"
             :enemy-cast-progress="activeEnemyCastProgress"
@@ -299,6 +305,10 @@
             @start="startCombat"
             @flee="flee"
             @dismiss-results="dismissResults"
+            @take-loot="takeLoot"
+            @show-tooltip="showTooltip"
+            @move-tooltip="moveTooltip"
+            @hide-tooltip="hideTooltip"
             @hail="hailNpc"
           />
         </template>
@@ -327,6 +337,7 @@
             :active-enemy-level="activeEnemyLevel"
             :active-enemy-con-class="activeEnemyConClass"
             :active-enemy-effects="activeEnemyEffects"
+            :active-loot="activeLoot"
             :enemy-target-name="activeEnemyTargetName"
             :enemy-action-text="activeEnemyActionText"
             :enemy-cast-progress="activeEnemyCastProgress"
@@ -339,6 +350,10 @@
             @start="startCombat"
             @flee="flee"
             @dismiss-results="dismissResults"
+            @take-loot="takeLoot"
+            @show-tooltip="showTooltip"
+            @move-tooltip="moveTooltip"
+            @hide-tooltip="hideTooltip"
             @hail="hailNpc"
           />
         </template>
@@ -477,6 +492,7 @@ const {
   combatEnemyCasts,
   aggroEntries,
   combatResults,
+  combatLoot,
   groups,
   characterEffects,
   worldEvents,
@@ -614,9 +630,11 @@ const {
   availableEnemies,
   combatRoster,
   activeResult,
+  activeLoot,
   startCombat,
   flee,
   dismissResults,
+  takeLoot,
 } = useCombat({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
@@ -625,6 +643,8 @@ const {
   combatEnemies,
   combatEnemyEffects,
   combatEnemyCasts,
+  combatLoot,
+  itemTemplates,
   combatResults,
   fallbackRoster: fallbackCombatRoster,
   enemySpawns,

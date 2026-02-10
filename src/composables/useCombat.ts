@@ -7,10 +7,12 @@ import {
   type CombatEnemyRow,
   type CombatEnemyCastRow,
   type CombatResultRow,
+  type CombatLootRow,
   type EnemySpawnRow,
   type EnemyTemplateRow,
   type CombatEnemyEffectRow,
   type EnemyAbilityRow,
+  type ItemTemplateRow,
 } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 
@@ -45,6 +47,8 @@ type UseCombatArgs = {
   combatEnemyCasts: Ref<CombatEnemyCastRow[]>;
   enemyAbilities: Ref<EnemyAbilityRow[]>;
   combatResults: Ref<CombatResultRow[]>;
+  combatLoot: Ref<CombatLootRow[]>;
+  itemTemplates: Ref<ItemTemplateRow[]>;
   fallbackRoster: Ref<CharacterRow[]>;
   enemySpawns: Ref<EnemySpawnRow[]>;
   enemyTemplates: Ref<EnemyTemplateRow[]>;
@@ -87,6 +91,8 @@ export const useCombat = ({
   combatEnemyCasts,
   enemyAbilities,
   combatResults,
+  combatLoot,
+  itemTemplates,
   fallbackRoster,
   enemySpawns,
   enemyTemplates,
@@ -96,6 +102,7 @@ export const useCombat = ({
   const startCombatReducer = useReducer(reducers.startCombat);
   const fleeCombatReducer = useReducer(reducers.fleeCombat);
   const dismissResultsReducer = useReducer(reducers.dismissCombatResults);
+  const takeLootReducer = useReducer(reducers.takeLoot);
 
   const activeCombat = computed(() => {
     if (!selectedCharacter.value) return null;
@@ -124,6 +131,53 @@ export const useCombat = ({
       const currentAt = timestampToMicros(current.createdAt);
       return currentAt > latestAt ? current : latest;
     });
+  });
+
+  const activeLoot = computed(() => {
+    if (!activeResult.value || !selectedCharacter.value) return [];
+    const combatId = activeResult.value.combatId.toString();
+    const characterId = selectedCharacter.value.id.toString();
+    return combatLoot.value
+      .filter(
+        (row) =>
+          row.combatId.toString() === combatId &&
+          row.characterId.toString() === characterId
+      )
+      .map((row) => {
+        const template = itemTemplates.value.find(
+          (item) => item.id.toString() === row.itemTemplateId.toString()
+        );
+        const description =
+          [
+            template?.rarity,
+            template?.armorType,
+            template?.slot,
+            template?.tier ? `Tier ${template.tier}` : null,
+          ]
+            .filter((value) => value && value.length > 0)
+            .join(' • ') ?? '';
+        const stats = [
+          template?.armorClassBonus ? { label: 'Armor Class', value: `+${template.armorClassBonus}` } : null,
+          template?.weaponBaseDamage ? { label: 'Weapon Damage', value: `${template.weaponBaseDamage}` } : null,
+          template?.weaponDps ? { label: 'Weapon DPS', value: `${template.weaponDps}` } : null,
+          template?.strBonus ? { label: 'STR', value: `+${template.strBonus}` } : null,
+          template?.dexBonus ? { label: 'DEX', value: `+${template.dexBonus}` } : null,
+          template?.chaBonus ? { label: 'CHA', value: `+${template.chaBonus}` } : null,
+          template?.wisBonus ? { label: 'WIS', value: `+${template.wisBonus}` } : null,
+          template?.intBonus ? { label: 'INT', value: `+${template.intBonus}` } : null,
+          template?.hpBonus ? { label: 'HP', value: `+${template.hpBonus}` } : null,
+          template?.manaBonus ? { label: 'Mana', value: `+${template.manaBonus}` } : null,
+          template?.vendorValue ? { label: 'Value', value: `${template.vendorValue} gold` } : null,
+        ].filter(Boolean) as { label: string; value: string }[];
+        return {
+          id: row.id,
+          name: template?.name ?? 'Unknown',
+          rarity: template?.rarity ?? 'Common',
+          tier: template?.tier ?? 1n,
+          description,
+          stats,
+        };
+      });
   });
 
 
@@ -330,9 +384,15 @@ export const useCombat = ({
     dismissResultsReducer({ characterId: selectedCharacter.value.id });
   };
 
+  const takeLoot = (lootId: bigint) => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    takeLootReducer({ characterId: selectedCharacter.value.id, lootId });
+  };
+
   return {
     activeCombat,
     activeResult,
+    activeLoot,
     activeEnemy,
     activeEnemyName,
     activeEnemyLevel,
@@ -347,5 +407,6 @@ export const useCombat = ({
     startCombat,
     flee,
     dismissResults,
+    takeLoot,
   };
 };

@@ -10,20 +10,13 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("EnemyTemplate", {
-  id: __t.u64(),
-  name: __t.string(),
-  role: __t.string(),
-  roleDetail: __t.string(),
-  abilityProfile: __t.string(),
-  terrainTypes: __t.string(),
+export default __t.row({
+  id: __t.u64().primaryKey(),
+  terrainType: __t.string(),
   creatureType: __t.string(),
-  timeOfDay: __t.string(),
-  armorClass: __t.u64(),
-  level: __t.u64(),
-  maxHp: __t.u64(),
-  baseDamage: __t.u64(),
-  xpReward: __t.u64(),
+  tier: __t.u64(),
+  junkChance: __t.u64(),
+  gearChance: __t.u64(),
+  goldMin: __t.u64(),
+  goldMax: __t.u64(),
 });
-
-

@@ -31,10 +31,14 @@ type InventoryItem = {
   slot: string;
   armorType: string;
   rarity: string;
+  tier: bigint;
+  isJunk: boolean;
+  vendorValue: bigint;
   requiredLevel: bigint;
   allowedClasses: string;
   stats: { label: string; value: string }[];
   description: string;
+  equipable: boolean;
 };
 
 type EquippedSlot = {
@@ -42,6 +46,9 @@ type EquippedSlot = {
   name: string;
   armorType: string;
   rarity: string;
+  tier: bigint;
+  isJunk: boolean;
+  vendorValue: bigint;
   itemInstanceId: bigint | null;
   stats: { label: string; value: string }[];
   description: string;
@@ -71,8 +78,16 @@ export const useInventory = ({
         const template = itemTemplates.value.find(
           (row) => row.id.toString() === instance.templateId.toString()
         );
+        const tier = template?.tier ?? 1n;
+        const isJunk = template?.isJunk ?? false;
+        const vendorValue = template?.vendorValue ?? 0n;
         const description =
-          [template?.rarity, template?.armorType, template?.slot]
+          [
+            template?.rarity,
+            template?.armorType,
+            template?.slot,
+            template?.tier ? `Tier ${template.tier}` : null,
+          ]
             .filter((value) => value && value.length > 0)
             .join(' • ') ?? '';
         const stats = [
@@ -86,18 +101,38 @@ export const useInventory = ({
           template?.intBonus ? { label: 'INT', value: `+${template.intBonus}` } : null,
           template?.hpBonus ? { label: 'HP', value: `+${template.hpBonus}` } : null,
           template?.manaBonus ? { label: 'Mana', value: `+${template.manaBonus}` } : null,
+          vendorValue ? { label: 'Value', value: `${vendorValue} gold` } : null,
         ].filter(Boolean) as { label: string; value: string }[];
+        const slot = template?.slot ?? 'unknown';
+        const normalizedClass = selectedCharacter.value?.className?.toLowerCase() ?? '';
+        const allowedClasses = (template?.allowedClasses ?? '')
+          .split(',')
+          .map((entry) => entry.trim().toLowerCase())
+          .filter(Boolean);
+        const classAllowed =
+          allowedClasses.length === 0 ||
+          allowedClasses.includes('any') ||
+          allowedClasses.includes(normalizedClass);
+        const equipable =
+          EQUIPMENT_SLOTS.includes(slot as (typeof EQUIPMENT_SLOTS)[number]) &&
+          !isJunk &&
+          (!selectedCharacter.value || selectedCharacter.value.level >= (template?.requiredLevel ?? 1n)) &&
+          classAllowed;
         return {
           id: instance.id,
           instanceId: instance.id,
           name: template?.name ?? 'Unknown',
-          slot: template?.slot ?? 'unknown',
+          slot,
           armorType: template?.armorType ?? 'none',
           rarity: template?.rarity ?? 'Common',
+          tier,
+          isJunk,
+          vendorValue,
           requiredLevel: template?.requiredLevel ?? 1n,
           allowedClasses: template?.allowedClasses ?? 'any',
           stats,
           description,
+          equipable,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -109,8 +144,16 @@ export const useInventory = ({
       const template = instance
         ? itemTemplates.value.find((row) => row.id.toString() === instance.templateId.toString())
         : null;
+      const tier = template?.tier ?? 1n;
+      const isJunk = template?.isJunk ?? false;
+      const vendorValue = template?.vendorValue ?? 0n;
       const description =
-        [template?.rarity, template?.armorType, template?.slot]
+        [
+          template?.rarity,
+          template?.armorType,
+          template?.slot,
+          template?.tier ? `Tier ${template.tier}` : null,
+        ]
           .filter((value) => value && value.length > 0)
           .join(' • ') ?? '';
       const stats = [
@@ -124,12 +167,16 @@ export const useInventory = ({
         template?.intBonus ? { label: 'INT', value: `+${template.intBonus}` } : null,
         template?.hpBonus ? { label: 'HP', value: `+${template.hpBonus}` } : null,
         template?.manaBonus ? { label: 'Mana', value: `+${template.manaBonus}` } : null,
+        vendorValue ? { label: 'Value', value: `${vendorValue} gold` } : null,
       ].filter(Boolean) as { label: string; value: string }[];
       return {
         slot,
         name: template?.name ?? 'Empty',
         armorType: template?.armorType ?? 'none',
         rarity: template?.rarity ?? 'Common',
+        tier,
+        isJunk,
+        vendorValue,
         itemInstanceId: instance?.id ?? null,
         stats,
         description,

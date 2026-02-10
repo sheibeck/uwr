@@ -68,6 +68,8 @@ import CreateItemTemplateReducer from "./create_item_template_reducer";
 export { CreateItemTemplateReducer };
 import GrantItemReducer from "./grant_item_reducer";
 export { GrantItemReducer };
+import TakeLootReducer from "./take_loot_reducer";
+export { TakeLootReducer };
 import EquipItemReducer from "./equip_item_reducer";
 export { EquipItemReducer };
 import UnequipItemReducer from "./unequip_item_reducer";
@@ -154,6 +156,8 @@ import CombatEnemyEffectRow from "./combat_enemy_effect_table";
 export { CombatEnemyEffectRow };
 import CombatLoopTickRow from "./combat_loop_tick_table";
 export { CombatLoopTickRow };
+import CombatLootRow from "./combat_loot_table";
+export { CombatLootRow };
 import CombatParticipantRow from "./combat_participant_table";
 export { CombatParticipantRow };
 import CombatResultRow from "./combat_result_table";
@@ -204,8 +208,14 @@ import LocationConnectionRow from "./location_connection_table";
 export { LocationConnectionRow };
 import LocationEnemyTemplateRow from "./location_enemy_template_table";
 export { LocationEnemyTemplateRow };
+import LootTableRow from "./loot_table_table";
+export { LootTableRow };
+import LootTableEntryRow from "./loot_table_entry_table";
+export { LootTableEntryRow };
 import MyCharacterEffectsRow from "./my_character_effects_table";
 export { MyCharacterEffectsRow };
+import MyCombatLootRow from "./my_combat_loot_table";
+export { MyCombatLootRow };
 import MyCombatResultsRow from "./my_combat_results_table";
 export { MyCombatResultsRow };
 import MyFriendRequestsRow from "./my_friend_requests_table";
@@ -278,6 +288,8 @@ import CombatLoop from "./combat_loop_type";
 export { CombatLoop };
 import CombatLoopTick from "./combat_loop_tick_type";
 export { CombatLoopTick };
+import CombatLoot from "./combat_loot_type";
+export { CombatLoot };
 import CombatParticipant from "./combat_participant_type";
 export { CombatParticipant };
 import CombatResult from "./combat_result_type";
@@ -366,10 +378,16 @@ import LoginEmail from "./login_email_type";
 export { LoginEmail };
 import Logout from "./logout_type";
 export { Logout };
+import LootTable from "./loot_table_type";
+export { LootTable };
+import LootTableEntry from "./loot_table_entry_type";
+export { LootTableEntry };
 import MoveCharacter from "./move_character_type";
 export { MoveCharacter };
 import MyCharacterEffects from "./my_character_effects_type";
 export { MyCharacterEffects };
+import MyCombatLoot from "./my_combat_loot_type";
+export { MyCombatLoot };
 import MyCombatResults from "./my_combat_results_type";
 export { MyCombatResults };
 import MyFriendRequests from "./my_friend_requests_type";
@@ -436,6 +454,8 @@ import StartCombat from "./start_combat_type";
 export { StartCombat };
 import SubmitCommand from "./submit_command_type";
 export { SubmitCommand };
+import TakeLoot from "./take_loot_type";
+export { TakeLoot };
 import TickCasts from "./tick_casts_type";
 export { TickCasts };
 import TickDayNight from "./tick_day_night_type";
@@ -625,6 +645,26 @@ const tablesSchema = __schema(
       { name: 'combat_loop_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
     ],
   }, CombatLoopTickRow),
+  __table({
+    name: 'combat_loot',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'by_combat', algorithm: 'btree', columns: [
+        'combatId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_owner', algorithm: 'btree', columns: [
+        'ownerUserId',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_loot_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CombatLootRow),
   __table({
     name: 'combat_participant',
     indexes: [
@@ -979,6 +1019,36 @@ const tablesSchema = __schema(
     ],
   }, LocationEnemyTemplateRow),
   __table({
+    name: 'loot_table',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_key', algorithm: 'btree', columns: [
+        'terrainType',
+        'creatureType',
+        'tier',
+      ] },
+    ],
+    constraints: [
+      { name: 'loot_table_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, LootTableRow),
+  __table({
+    name: 'loot_table_entry',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_table', algorithm: 'btree', columns: [
+        'lootTableId',
+      ] },
+    ],
+    constraints: [
+      { name: 'loot_table_entry_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, LootTableEntryRow),
+  __table({
     name: 'npc',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1098,6 +1168,13 @@ const tablesSchema = __schema(
     ],
   }, MyCharacterEffectsRow),
   __table({
+    name: 'my_combat_loot',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyCombatLootRow),
+  __table({
     name: 'my_combat_results',
     indexes: [
     ],
@@ -1193,6 +1270,7 @@ const reducersSchema = __reducers(
   __reducerSchema("delete_character", DeleteCharacterReducer),
   __reducerSchema("create_item_template", CreateItemTemplateReducer),
   __reducerSchema("grant_item", GrantItemReducer),
+  __reducerSchema("take_loot", TakeLootReducer),
   __reducerSchema("equip_item", EquipItemReducer),
   __reducerSchema("unequip_item", UnequipItemReducer),
   __reducerSchema("set_hotbar_slot", SetHotbarSlotReducer),

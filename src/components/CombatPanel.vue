@@ -31,6 +31,37 @@
               </button>
               <span v-else :style="styles.subtle">Waiting for the leader to dismiss.</span>
             </div>
+            <div v-if="activeLoot.length > 0" :style="styles.resultRow">
+              <span :style="styles.resultLabel">Loot</span>
+              <div :style="styles.resultList">
+                <div
+                  v-for="item in activeLoot"
+                  :key="item.id.toString()"
+                  :style="styles.rosterClickable"
+                  @mouseenter="
+                    $emit('show-tooltip', {
+                      item,
+                      x: $event.clientX,
+                      y: $event.clientY,
+                    })
+                  "
+                  @mousemove="$emit('move-tooltip', { x: $event.clientX, y: $event.clientY })"
+                  @mouseleave="$emit('hide-tooltip')"
+                >
+                  <div>{{ item.name }}</div>
+                  <div :style="styles.subtleSmall">
+                    {{ item.rarity }} · Tier {{ item.tier }}
+                  </div>
+                  <button
+                    type="button"
+                    :style="styles.ghostButton"
+                    @click="$emit('take-loot', item.id)"
+                  >
+                    Take
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <details v-else :style="activeCombat ? styles.accordionCombat : styles.accordion" open>
@@ -185,6 +216,14 @@ const props = defineProps<{
   activeEnemyLevel: bigint;
   activeEnemyConClass: string;
   activeEnemyEffects: { id: bigint; label: string; seconds: number; isNegative: boolean }[];
+  activeLoot: {
+    id: bigint;
+    name: string;
+    rarity: string;
+    tier: bigint;
+    description: string;
+    stats: { label: string; value: string }[];
+  }[];
   activeEnemySpawn: { id: bigint } | null;
   enemySpawns: EnemySummary[];
   activeResult: CombatResultRow | null;
@@ -225,5 +264,9 @@ defineEmits<{
   (e: 'flee'): void;
   (e: 'dismiss-results'): void;
   (e: 'hail', npcName: string): void;
+  (e: 'take-loot', lootId: bigint): void;
+  (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
+  (e: 'move-tooltip', value: { x: number; y: number }): void;
+  (e: 'hide-tooltip'): void;
 }>();
 </script>

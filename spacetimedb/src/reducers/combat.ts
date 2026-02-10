@@ -203,6 +203,94 @@ export const registerCombatReducers = (deps: any) => {
     return { outcome: outcome.outcome, finalDamage, nextHp };
   };
 
+  const pickTemplate = (templates: any[], seed: bigint) => {
+    if (templates.length === 0) return null;
+    const index = Number(seed % BigInt(templates.length));
+    return templates[index] ?? null;
+  };
+
+  const findLootTable = (ctx: any, enemyTemplate: any) => {
+    const terrain = enemyTemplate.terrainTypes?.split(',')[0]?.trim() ?? 'plains';
+    const creatureType = enemyTemplate.creatureType ?? 'beast';
+    let best: any | null = null;
+    for (const row of ctx.db.lootTable.iter()) {
+      if (row.tier !== 1n) continue;
+      if (row.terrainType !== terrain) continue;
+      if (row.creatureType !== creatureType) continue;
+      best = row;
+      break;
+    }
+    if (best) return best;
+    for (const row of ctx.db.lootTable.iter()) {
+      if (row.tier !== 1n) continue;
+      if (row.terrainType !== 'plains') continue;
+      if (row.creatureType !== creatureType) continue;
+      return row;
+    }
+    return null;
+  };
+
+  const rollPercent = (seed: bigint) => Number(seed % 100n);
+
+  const pickWeightedEntry = (entries: any[], seed: bigint) => {
+    if (entries.length === 0) return null;
+    let total = 0n;
+    for (const entry of entries) total += entry.weight;
+    if (total <= 0n) return null;
+    let roll = seed % total;
+    for (const entry of entries) {
+      if (roll < entry.weight) return entry;
+      roll -= entry.weight;
+    }
+    return entries[0];
+  };
+
+  const generateLootTemplates = (ctx: any, enemyTemplate: any, seedBase: bigint) => {
+    const lootTable = findLootTable(ctx, enemyTemplate);
+    if (!lootTable) return [];
+    const entries = [...ctx.db.lootTableEntry.by_table.filter(lootTable.id)];
+    const junkEntries = entries.filter((entry) => {
+      const template = ctx.db.itemTemplate.id.find(entry.itemTemplateId);
+      return template?.isJunk;
+    });
+    const gearEntries = entries.filter((entry) => {
+      const template = ctx.db.itemTemplate.id.find(entry.itemTemplateId);
+      return template && !template.isJunk && template.requiredLevel <= (enemyTemplate.level ?? 1n) + 1n;
+    });
+
+    const level = enemyTemplate.level ?? 1n;
+    const gearBoost = BigInt(Math.min(25, Number(level) * 2));
+    const junkChance = lootTable.junkChance;
+    const gearChance = lootTable.gearChance + gearBoost;
+
+    const lootTemplates: any[] = [];
+    const rollJunk = rollPercent(seedBase + 3n);
+    if (rollJunk < Number(junkChance)) {
+      const pick = pickWeightedEntry(junkEntries, seedBase + 11n);
+      if (pick) {
+        const template = ctx.db.itemTemplate.id.find(pick.itemTemplateId);
+        if (template) lootTemplates.push(template);
+      }
+    }
+
+    const rollGear = rollPercent(seedBase + 19n);
+    if (rollGear < Number(gearChance)) {
+      const pick = pickWeightedEntry(gearEntries, seedBase + 23n);
+      if (pick) {
+        const template = ctx.db.itemTemplate.id.find(pick.itemTemplateId);
+        if (template) lootTemplates.push(template);
+      }
+    }
+
+    return lootTemplates;
+  };
+
+  const rollGold = (seed: bigint, min: bigint, max: bigint) => {
+    if (max <= min) return min;
+    const range = max - min + 1n;
+    return min + (seed % range);
+  };
+
   const hashString = (value: string) => {
     let hash = 0;
     for (let i = 0; i < value.length; i += 1) {
@@ -979,6 +1067,40 @@ export const registerCombatReducers = (deps: any) => {
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
+        const lootTemplates = enemyTemplate
+          ? generateLootTemplates(ctx, enemyTemplate, ctx.timestamp.microsSinceUnixEpoch + character.id)
+          : [];
+        for (const template of lootTemplates) {
+          ctx.db.combatLoot.insert({
+            id: 0n,
+            combatId: combat.id,
+            ownerUserId: character.ownerUserId,
+            characterId: character.id,
+            itemTemplateId: template.id,
+            createdAt: ctx.timestamp,
+          });
+        }
+        const lootTable = enemyTemplate ? findLootTable(ctx, enemyTemplate) : null;
+        const goldReward = lootTable
+          ? rollGold(
+              ctx.timestamp.microsSinceUnixEpoch + character.id * 3n,
+              lootTable.goldMin,
+              lootTable.goldMax
+            ) + enemyLevel
+          : enemyLevel;
+        if (goldReward > 0n) {
+          ctx.db.character.id.update({
+            ...character,
+            gold: (character.gold ?? 0n) + goldReward,
+          });
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'reward',
+            `You gain ${goldReward} gold.`
+          );
+        }
         ctx.db.combatResult.insert({
           id: 0n,
           ownerUserId: character.ownerUserId,

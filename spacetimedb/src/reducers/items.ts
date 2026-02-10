@@ -24,6 +24,9 @@ export const registerItemReducers = (deps: any) => {
       slot: t.string(),
       armorType: t.string(),
       rarity: t.string(),
+      tier: t.u64(),
+      isJunk: t.bool(),
+      vendorValue: t.u64(),
       requiredLevel: t.u64(),
       allowedClasses: t.string(),
       strBonus: t.u64(),
@@ -39,7 +42,7 @@ export const registerItemReducers = (deps: any) => {
     },
     (ctx, args) => {
       const slot = args.slot.trim();
-      if (!EQUIPMENT_SLOTS.has(slot)) throw new SenderError('Invalid slot');
+      if (!EQUIPMENT_SLOTS.has(slot) && slot !== 'junk') throw new SenderError('Invalid slot');
       const armorType = normalizeArmorType(args.armorType);
       if (!ARMOR_TYPES_WITH_NONE.includes(armorType as (typeof ARMOR_TYPES_WITH_NONE)[number])) {
         throw new SenderError('Invalid armor type');
@@ -50,6 +53,9 @@ export const registerItemReducers = (deps: any) => {
         slot,
         armorType,
         rarity: args.rarity.trim(),
+        tier: args.tier,
+        isJunk: args.isJunk,
+        vendorValue: args.vendorValue,
         requiredLevel: args.requiredLevel,
         allowedClasses: args.allowedClasses.trim(),
         strBonus: args.strBonus,
@@ -76,6 +82,33 @@ export const registerItemReducers = (deps: any) => {
       ownerCharacterId: character.id,
       equippedSlot: undefined,
     });
+  });
+
+  spacetimedb.reducer('take_loot', { characterId: t.u64(), lootId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const loot = ctx.db.combatLoot.id.find(args.lootId);
+    if (!loot) throw new SenderError('Loot not found');
+    if (loot.characterId !== character.id || loot.ownerUserId !== character.ownerUserId) {
+      throw new SenderError('Loot does not belong to you');
+    }
+    const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].length;
+    if (itemCount >= 20) throw new SenderError('Backpack is full');
+    const template = ctx.db.itemTemplate.id.find(loot.itemTemplateId);
+    if (!template) throw new SenderError('Item template missing');
+    ctx.db.itemInstance.insert({
+      id: 0n,
+      templateId: template.id,
+      ownerCharacterId: character.id,
+      equippedSlot: undefined,
+    });
+    ctx.db.combatLoot.id.delete(loot.id);
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'reward',
+      `You take ${template.name}.`
+    );
   });
 
   spacetimedb.reducer(

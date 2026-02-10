@@ -10,20 +10,11 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("EnemyTemplate", {
+export default __t.object("LootTableEntry", {
   id: __t.u64(),
-  name: __t.string(),
-  role: __t.string(),
-  roleDetail: __t.string(),
-  abilityProfile: __t.string(),
-  terrainTypes: __t.string(),
-  creatureType: __t.string(),
-  timeOfDay: __t.string(),
-  armorClass: __t.u64(),
-  level: __t.u64(),
-  maxHp: __t.u64(),
-  baseDamage: __t.u64(),
-  xpReward: __t.u64(),
+  lootTableId: __t.u64(),
+  itemTemplateId: __t.u64(),
+  weight: __t.u64(),
 });
 
 

@@ -176,7 +176,7 @@ export const styles = {
     width: 'min(260px, 90vw)',
   },
   floatingPanelWide: {
-    width: 'min(820px, 92vw)',
+    width: 'min(720px, 92vw)',
   },
   hotbarDock: {
     padding: '0.6rem',

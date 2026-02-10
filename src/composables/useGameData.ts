@@ -27,6 +27,7 @@ export const useGameData = () => {
   const [combatEnemyCasts] = useTable(tables.combatEnemyCast);
   const [aggroEntries] = useTable(tables.aggroEntry);
   const [combatResults] = useTable(tables.myCombatResults);
+  const [combatLoot] = useTable(tables.myCombatLoot);
   const [groups] = useTable(tables.group);
   const [characterEffects] = useTable(tables.myCharacterEffects);
   const [characterCasts] = useTable(tables.characterCast);
@@ -67,6 +68,7 @@ export const useGameData = () => {
     combatEnemyCasts,
     aggroEntries,
     combatResults,
+    combatLoot,
     groups,
     characterEffects,
     characterCasts,

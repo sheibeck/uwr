@@ -101,6 +101,7 @@ export const registerCharacterReducers = (deps: any) => {
         className: className.trim(),
         level: 1n,
         xp: 0n,
+        gold: 0n,
         locationId: bindLocation.id,
         boundLocationId: bindLocation.id,
         hp: maxHp,
