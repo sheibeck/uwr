@@ -43,6 +43,7 @@ export const useCharacters = ({
   const setActiveCharacterReducer = useReducer(reducers.setActiveCharacter);
   const deleteCharacterReducer = useReducer(reducers.deleteCharacter);
   const bindLocationReducer = useReducer(reducers.bindLocation);
+  const respawnCharacterReducer = useReducer(reducers.respawnCharacter);
   const selectedCharacterId = ref('');
 
   const myCharacters = computed(() => {
@@ -150,6 +151,11 @@ export const useCharacters = ({
     bindLocationReducer({ characterId: selectedCharacter.value.id });
   };
 
+  const respawnCharacter = () => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    respawnCharacterReducer({ characterId: selectedCharacter.value.id });
+  };
+
   return {
     selectedCharacterId,
     myCharacters,
@@ -160,5 +166,6 @@ export const useCharacters = ({
     groupMembers,
     deleteCharacter,
     bindLocation,
+    respawnCharacter,
   };
 };

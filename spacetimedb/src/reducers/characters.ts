@@ -21,6 +21,7 @@ export const registerCharacterReducers = (deps: any) => {
     ScheduleAt,
     CharacterLogoutTick,
     grantStarterItems,
+    activeCombatIdForCharacter,
   } = deps;
   const CHARACTER_SWITCH_LOGOUT_DELAY = 30_000_000n;
 
@@ -272,6 +273,42 @@ export const registerCharacterReducers = (deps: any) => {
     }
 
     ctx.db.character.id.delete(characterId);
+  });
+
+  spacetimedb.reducer('respawn_character', { characterId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (character.hp > 0n) return;
+    if (activeCombatIdForCharacter(ctx, character.id)) {
+      throw new SenderError('Cannot respawn during combat');
+    }
+    for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
+      ctx.db.characterEffect.id.delete(effect.id);
+    }
+    const nextLocationId = character.boundLocationId ?? character.locationId;
+    const respawnLocation = ctx.db.location.id.find(nextLocationId)?.name ?? 'your bind point';
+    ctx.db.character.id.update({
+      ...character,
+      locationId: nextLocationId,
+      hp: 1n,
+      mana: character.maxMana > 0n ? 1n : 0n,
+      stamina: character.maxStamina > 0n ? 1n : 0n,
+    });
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'combat',
+      `You awaken at ${respawnLocation}, shaken but alive.`
+    );
+    if (character.groupId) {
+      appendGroupEvent(
+        ctx,
+        character.groupId,
+        character.id,
+        'combat',
+        `You awaken at ${respawnLocation}, shaken but alive.`
+      );
+    }
   });
 
   spacetimedb.reducer(

@@ -1065,9 +1065,15 @@ export const registerCombatReducers = (deps: any) => {
     const halfTick = tickIndex % 2n === 0n;
 
     for (const character of ctx.db.character.iter()) {
-      if (character.hp === 0n) continue;
-
       const inCombat = !!activeCombatIdForCharacter(ctx, character.id);
+      if (character.hp === 0n) {
+        if (!inCombat) {
+          for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
+            ctx.db.characterEffect.id.delete(effect.id);
+          }
+        }
+        continue;
+      }
       if (inCombat && !halfTick) continue;
 
       const hpRegen = inCombat ? HP_REGEN_IN : HP_REGEN_OUT;
@@ -1878,30 +1884,6 @@ export const registerCombatReducers = (deps: any) => {
             'reward',
             `You lose ${loss} XP from the defeat.`
           );
-          const nextLocationId = character.boundLocationId ?? character.locationId;
-          const respawnLocation =
-            ctx.db.location.id.find(nextLocationId)?.name ?? 'your bind point';
-          ctx.db.character.id.update({
-            ...character,
-            locationId: nextLocationId,
-            hp: 1n,
-            mana: character.maxMana > 0n ? 1n : 0n,
-            stamina: character.maxStamina > 0n ? 1n : 0n,
-          });
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'combat',
-            `You awaken at ${respawnLocation}, shaken but alive.`
-          );
-          logGroupEvent(
-            ctx,
-            combat.id,
-            character.id,
-            'combat',
-            `You awaken at ${respawnLocation}, shaken but alive.`
-          );
         }
       }
       clearCombatArtifacts(ctx, combat.id);
@@ -2177,23 +2159,6 @@ export const registerCombatReducers = (deps: any) => {
             character.ownerUserId,
             'reward',
             `You lose ${loss} XP from the defeat.`
-          );
-          const nextLocationId = character.boundLocationId ?? character.locationId;
-          const respawnLocation =
-            ctx.db.location.id.find(nextLocationId)?.name ?? 'your bind point';
-          ctx.db.character.id.update({
-            ...character,
-            locationId: nextLocationId,
-            hp: 1n,
-            mana: character.maxMana > 0n ? 1n : 0n,
-            stamina: character.maxStamina > 0n ? 1n : 0n,
-          });
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'combat',
-            `You awaken at ${respawnLocation}, shaken but alive.`
           );
         }
       }

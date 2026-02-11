@@ -8,16 +8,16 @@
       <div :style="styles.subtle">Group: {{ currentGroup.name }}</div>
       <div :style="styles.panelSectionTitle">Members</div>
         <ul :style="styles.list">
-          <li
-            v-for="member in sortedMembers"
-            :key="member.id.toString()"
-            :style="[
-              styles.memberCard,
-              selectedTargetId === member.id ? styles.memberCardTargeted : {},
-            ]"
-            @click="$emit('target', member.id)"
-            @contextmenu.prevent="$emit('character-action', member.id)"
-          >
+        <li
+          v-for="member in sortedMembers"
+          :key="member.id.toString()"
+          :style="[
+            styles.memberCard,
+            selectedTargetId === member.id ? styles.memberCardTargeted : {},
+          ]"
+          @click="$emit('target', member.id)"
+          @contextmenu.prevent="$emit('character-action', member.id)"
+        >
           <span>
             {{ member.name }} (Lv {{ member.level }}) - {{ member.className }}
             <span v-if="member.id === leaderId" :style="styles.subtle">· Leader</span>
@@ -47,18 +47,12 @@
               {{ effectLabel(effect) }} ({{ effectDurationLabel(effect) }})
             </span>
           </div>
-        </li>
-      </ul>
-      <div v-if="sortedPets.length" :style="styles.panelSectionTitle">Pets</div>
-      <ul v-if="sortedPets.length" :style="styles.list">
-        <li v-for="pet in sortedPets" :key="pet.id.toString()" :style="styles.petCard">
-          <span>
-            {{ pet.name }}
-            <span :style="styles.subtle">· {{ pet.ownerName }}</span>
-          </span>
-          <div :style="styles.hpBar">
-            <div :style="{ ...styles.hpFill, width: `${percent(pet.currentHp, pet.maxHp)}%` }"></div>
-            <span :style="styles.barText">{{ pet.currentHp }} / {{ pet.maxHp }}</span>
+          <div v-for="pet in petsFor(member.id)" :key="pet.id.toString()" :style="styles.petCard">
+            <span>{{ pet.name }}</span>
+            <div :style="styles.hpBar">
+              <div :style="{ ...styles.hpFill, width: `${percent(pet.currentHp, pet.maxHp)}%` }"></div>
+              <span :style="styles.barText">{{ pet.currentHp }} / {{ pet.maxHp }}</span>
+            </div>
           </div>
         </li>
       </ul>
@@ -122,20 +116,13 @@
           {{ effectLabel(effect) }} ({{ effectDurationLabel(effect) }})
         </span>
       </div>
-
-      <div v-if="sortedPets.length" :style="styles.panelSectionTitle">Pets</div>
-      <ul v-if="sortedPets.length" :style="styles.list">
-        <li v-for="pet in sortedPets" :key="pet.id.toString()" :style="styles.petCard">
-          <span>
-            {{ pet.name }}
-            <span :style="styles.subtle">· {{ pet.ownerName }}</span>
-          </span>
-          <div :style="styles.hpBar">
-            <div :style="{ ...styles.hpFill, width: `${percent(pet.currentHp, pet.maxHp)}%` }"></div>
-            <span :style="styles.barText">{{ pet.currentHp }} / {{ pet.maxHp }}</span>
-          </div>
-        </li>
-      </ul>
+      <div v-for="pet in petsFor(selectedCharacter.id)" :key="pet.id.toString()" :style="styles.petCard">
+        <span>{{ pet.name }}</span>
+        <div :style="styles.hpBar">
+          <div :style="{ ...styles.hpFill, width: `${percent(pet.currentHp, pet.maxHp)}%` }"></div>
+          <span :style="styles.barText">{{ pet.currentHp }} / {{ pet.maxHp }}</span>
+        </div>
+      </div>
 
       <div v-if="inviteSummaries.length === 0" :style="styles.subtle">
         <div :style="styles.subtle">
@@ -226,22 +213,8 @@ const sortedMembers = computed(() => {
   return [...mine, ...others];
 });
 
-const sortedPets = computed(() => {
-  if (!props.selectedCharacter) return [];
-  const ownerById = new Map<string, string>();
-  for (const member of props.groupMembers) {
-    ownerById.set(member.id.toString(), member.name);
-  }
-  ownerById.set(props.selectedCharacter.id.toString(), props.selectedCharacter.name);
-  const pets = props.combatPets.map((pet) => ({
-    ...pet,
-    ownerName: ownerById.get(pet.ownerCharacterId.toString()) ?? 'Companion',
-  }));
-  const selectedId = props.selectedCharacter.id.toString();
-  const mine = pets.filter((pet) => pet.ownerCharacterId.toString() === selectedId);
-  const others = pets.filter((pet) => pet.ownerCharacterId.toString() !== selectedId);
-  return [...mine, ...others];
-});
+const petsFor = (characterId: bigint) =>
+  props.combatPets.filter((pet) => pet.ownerCharacterId === characterId);
 
 const effectsFor = (characterId: bigint) =>
   props.characterEffects.filter((effect) => effect.characterId === characterId);

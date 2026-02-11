@@ -478,6 +478,14 @@
     </div>
   </main>
 
+  <div v-if="showDeathModal" :style="styles.deathOverlay">
+    <div :style="styles.deathModal">
+      <div :style="styles.deathTitle">You have died.</div>
+      <pre :style="styles.deathArt">{{ tombstoneArt }}</pre>
+      <button :style="styles.primaryButton" @click="respawnCharacter">Respawn</button>
+    </div>
+  </div>
+
     <footer :style="styles.footer">
       <CommandBar
         :styles="styles"
@@ -633,6 +641,7 @@ const {
   groupMembers: groupCharacterMembers,
   deleteCharacter,
   bindLocation,
+  respawnCharacter,
 } = useCharacters({
   connActive: computed(() => conn.isActive),
   characters,
@@ -826,6 +835,16 @@ const {
   nowMicros,
   characters,
 });
+
+const showDeathModal = computed(() => {
+  return Boolean(selectedCharacter.value && selectedCharacter.value.hp === 0n && !activeCombat.value);
+});
+const tombstoneArt = `  _____
+ /     \\
+|  RIP |
+|_____|
+  | |  
+  | |  `;
 
 const combatPetsForGroup = computed(() => {
   if (!activeCombat.value) return [];

@@ -66,6 +66,8 @@ import BindLocationReducer from "./bind_location_reducer";
 export { BindLocationReducer };
 import DeleteCharacterReducer from "./delete_character_reducer";
 export { DeleteCharacterReducer };
+import RespawnCharacterReducer from "./respawn_character_reducer";
+export { RespawnCharacterReducer };
 import CharacterLogoutReducer from "./character_logout_reducer";
 export { CharacterLogoutReducer };
 import CreateItemTemplateReducer from "./create_item_template_reducer";
@@ -574,6 +576,8 @@ import ResourceNode from "./resource_node_type";
 export { ResourceNode };
 import ResourceRespawnTick from "./resource_respawn_tick_type";
 export { ResourceRespawnTick };
+import RespawnCharacter from "./respawn_character_type";
+export { RespawnCharacter };
 import RespawnEnemy from "./respawn_enemy_type";
 export { RespawnEnemy };
 import RespawnResource from "./respawn_resource_type";
@@ -1711,6 +1715,7 @@ const reducersSchema = __reducers(
   __reducerSchema("create_character", CreateCharacterReducer),
   __reducerSchema("bind_location", BindLocationReducer),
   __reducerSchema("delete_character", DeleteCharacterReducer),
+  __reducerSchema("respawn_character", RespawnCharacterReducer),
   __reducerSchema("character_logout", CharacterLogoutReducer),
   __reducerSchema("create_item_template", CreateItemTemplateReducer),
   __reducerSchema("grant_item", GrantItemReducer),
