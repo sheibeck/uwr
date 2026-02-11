@@ -1005,6 +1005,32 @@ const DayNightTick = table(
   }
 );
 
+const DisconnectLogoutTick = table(
+  {
+    name: 'disconnect_logout_tick',
+    scheduled: 'disconnect_logout',
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    playerId: t.identity(),
+    disconnectAtMicros: t.u64(),
+  }
+);
+
+const CharacterLogoutTick = table(
+  {
+    name: 'character_logout_tick',
+    scheduled: 'character_logout',
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    characterId: t.u64(),
+    ownerUserId: t.u64(),
+  }
+);
+
 const Command = table(
   {
     name: 'command',
@@ -1147,6 +1173,8 @@ export const spacetimedb = schema(
   HotTick,
   CastTick,
   DayNightTick,
+  DisconnectLogoutTick,
+  CharacterLogoutTick,
   CombatResult,
   Command,
   EventWorld,
@@ -4878,20 +4906,14 @@ spacetimedb.clientDisconnected((_ctx) => {
     ctx.db.player.id.update({ ...player, lastSeenAt: ctx.timestamp });
   }
 
-  if (player && player.userId != null && player.activeCharacterId != null) {
-    const character = ctx.db.character.id.find(player.activeCharacterId);
-    if (character) {
-      const friends = friendUserIds(ctx, player.userId);
-      for (const friendId of friends) {
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          friendId,
-          'presence',
-          `${character.name} went offline.`
-        );
-      }
-    }
+  if (player) {
+    const disconnectAtMicros = ctx.timestamp.microsSinceUnixEpoch;
+    ctx.db.disconnectLogoutTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(disconnectAtMicros + 30_000_000n),
+      playerId: player.id,
+      disconnectAtMicros,
+    });
   }
 });
 
@@ -4913,6 +4935,8 @@ const reducerDeps = {
   HotTick,
   CastTick,
   DayNightTick,
+  DisconnectLogoutTick,
+  CharacterLogoutTick,
   ResourceGatherTick,
   ResourceRespawnTick,
   EnemyRespawnTick,

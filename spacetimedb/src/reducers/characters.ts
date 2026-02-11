@@ -18,8 +18,11 @@ export const registerCharacterReducers = (deps: any) => {
     baseArmorForClass,
     BASE_HP,
     BASE_MANA,
+    ScheduleAt,
+    CharacterLogoutTick,
     grantStarterItems,
   } = deps;
+  const CHARACTER_SWITCH_LOGOUT_DELAY = 30_000_000n;
 
   spacetimedb.reducer('set_active_character', { characterId: t.u64() }, (ctx, { characterId }) => {
     const player = ctx.db.player.id.find(ctx.sender);
@@ -29,17 +32,14 @@ export const registerCharacterReducers = (deps: any) => {
     if (previousActiveId && previousActiveId !== character.id) {
       const previous = ctx.db.character.id.find(previousActiveId);
       if (previous) {
-        const userId = requirePlayerUserId(ctx);
-        const friends = friendUserIds(ctx, userId);
-        for (const friendId of friends) {
-          appendPrivateEvent(
-            ctx,
-            previous.id,
-            friendId,
-            'presence',
-            `${previous.name} went offline.`
-          );
-        }
+        ctx.db.characterLogoutTick.insert({
+          scheduledId: 0n,
+          scheduledAt: ScheduleAt.time(
+            ctx.timestamp.microsSinceUnixEpoch + CHARACTER_SWITCH_LOGOUT_DELAY
+          ),
+          characterId: previous.id,
+          ownerUserId: previous.ownerUserId,
+        });
       }
     }
 
@@ -273,4 +273,28 @@ export const registerCharacterReducers = (deps: any) => {
 
     ctx.db.character.id.delete(characterId);
   });
+
+  spacetimedb.reducer(
+    'character_logout',
+    { arg: CharacterLogoutTick.rowType },
+    (ctx, { arg }) => {
+      const character = ctx.db.character.id.find(arg.characterId);
+      if (!character) return;
+      for (const player of ctx.db.player.iter()) {
+        if (player.activeCharacterId === character.id) {
+          return;
+        }
+      }
+      const friends = friendUserIds(ctx, arg.ownerUserId);
+      for (const friendId of friends) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          friendId,
+          'presence',
+          `${character.name} went offline.`
+        );
+      }
+    }
+  );
 };

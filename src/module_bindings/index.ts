@@ -56,6 +56,8 @@ import LoginEmailReducer from "./login_email_reducer";
 export { LoginEmailReducer };
 import LogoutReducer from "./logout_reducer";
 export { LogoutReducer };
+import DisconnectLogoutReducer from "./disconnect_logout_reducer";
+export { DisconnectLogoutReducer };
 import SetActiveCharacterReducer from "./set_active_character_reducer";
 export { SetActiveCharacterReducer };
 import CreateCharacterReducer from "./create_character_reducer";
@@ -64,6 +66,8 @@ import BindLocationReducer from "./bind_location_reducer";
 export { BindLocationReducer };
 import DeleteCharacterReducer from "./delete_character_reducer";
 export { DeleteCharacterReducer };
+import CharacterLogoutReducer from "./character_logout_reducer";
+export { CharacterLogoutReducer };
 import CreateItemTemplateReducer from "./create_item_template_reducer";
 export { CreateItemTemplateReducer };
 import GrantItemReducer from "./grant_item_reducer";
@@ -182,6 +186,8 @@ import CharacterCastRow from "./character_cast_table";
 export { CharacterCastRow };
 import CharacterEffectRow from "./character_effect_table";
 export { CharacterEffectRow };
+import CharacterLogoutTickRow from "./character_logout_tick_table";
+export { CharacterLogoutTickRow };
 import CombatEncounterRow from "./combat_encounter_table";
 export { CombatEncounterRow };
 import CombatEnemyRow from "./combat_enemy_table";
@@ -206,6 +212,8 @@ import CommandRow from "./command_table";
 export { CommandRow };
 import DayNightTickRow from "./day_night_tick_table";
 export { DayNightTickRow };
+import DisconnectLogoutTickRow from "./disconnect_logout_tick_table";
+export { DisconnectLogoutTickRow };
 import EffectTickRow from "./effect_tick_table";
 export { EffectTickRow };
 import EnemyAbilityRow from "./enemy_ability_table";
@@ -350,6 +358,10 @@ import CharacterCast from "./character_cast_type";
 export { CharacterCast };
 import CharacterEffect from "./character_effect_type";
 export { CharacterEffect };
+import CharacterLogout from "./character_logout_type";
+export { CharacterLogout };
+import CharacterLogoutTick from "./character_logout_tick_type";
+export { CharacterLogoutTick };
 import CombatEncounter from "./combat_encounter_type";
 export { CombatEncounter };
 import CombatEnemy from "./combat_enemy_type";
@@ -388,6 +400,10 @@ import DeleteCharacter from "./delete_character_type";
 export { DeleteCharacter };
 import DeleteItem from "./delete_item_type";
 export { DeleteItem };
+import DisconnectLogout from "./disconnect_logout_type";
+export { DisconnectLogout };
+import DisconnectLogoutTick from "./disconnect_logout_tick_type";
+export { DisconnectLogoutTick };
 import DismissCombatResults from "./dismiss_combat_results_type";
 export { DismissCombatResults };
 import EffectTick from "./effect_tick_type";
@@ -705,6 +721,17 @@ const tablesSchema = __schema(
     ],
   }, CharacterEffectRow),
   __table({
+    name: 'character_logout_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'character_logout_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, CharacterLogoutTickRow),
+  __table({
     name: 'combat_encounter',
     indexes: [
       { name: 'by_group', algorithm: 'btree', columns: [
@@ -893,6 +920,17 @@ const tablesSchema = __schema(
       { name: 'day_night_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
     ],
   }, DayNightTickRow),
+  __table({
+    name: 'disconnect_logout_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'disconnect_logout_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, DisconnectLogoutTickRow),
   __table({
     name: 'effect_tick',
     indexes: [
@@ -1643,10 +1681,12 @@ const reducersSchema = __reducers(
   __reducerSchema("remove_friend", RemoveFriendReducer),
   __reducerSchema("login_email", LoginEmailReducer),
   __reducerSchema("logout", LogoutReducer),
+  __reducerSchema("disconnect_logout", DisconnectLogoutReducer),
   __reducerSchema("set_active_character", SetActiveCharacterReducer),
   __reducerSchema("create_character", CreateCharacterReducer),
   __reducerSchema("bind_location", BindLocationReducer),
   __reducerSchema("delete_character", DeleteCharacterReducer),
+  __reducerSchema("character_logout", CharacterLogoutReducer),
   __reducerSchema("create_item_template", CreateItemTemplateReducer),
   __reducerSchema("grant_item", GrantItemReducer),
   __reducerSchema("buy_item", BuyItemReducer),
