@@ -22,6 +22,7 @@ export const registerItemReducers = (deps: any) => {
     getItemCount,
     logPrivateAndGroup,
     startCombatForSpawn,
+    effectiveGroupId,
     getGroupParticipants,
     getInventorySlotCount,
     ResourceGatherTick,
@@ -211,22 +212,13 @@ export const registerItemReducers = (deps: any) => {
     if (!hasStack && itemCount >= 20) return failItem(ctx, character, 'Backpack is full');
     addItemToInventory(ctx, character.id, template.id, 1n);
     ctx.db.combatLoot.id.delete(loot.id);
-    appendPrivateEvent(
+    logPrivateAndGroup(
       ctx,
-      character.id,
-      character.ownerUserId,
+      character,
       'reward',
-      `You take ${template.name}.`
+      `You take ${template.name}.`,
+      `${character.name} takes ${template.name}.`
     );
-    if (character.groupId) {
-      appendGroupEvent(
-        ctx,
-        character.groupId,
-        character.id,
-        'reward',
-        `${character.name} takes ${template.name}.`
-      );
-    }
   });
 
   spacetimedb.reducer(
@@ -534,7 +526,13 @@ export const registerItemReducers = (deps: any) => {
               'system',
               `As you reach for ${node.name}, ${spawnToUse.name} notices you and attacks!`
             );
-            startCombatForSpawn(ctx, character, spawnToUse, participants, character.groupId ?? null);
+            startCombatForSpawn(
+              ctx,
+              character,
+              spawnToUse,
+              participants,
+              effectiveGroupId(character)
+            );
             return;
           }
         }

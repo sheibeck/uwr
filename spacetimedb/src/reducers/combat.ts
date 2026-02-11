@@ -253,6 +253,7 @@ export const registerCombatReducers = (deps: any) => {
     CombatEnemyCooldown,
     CombatPendingAdd,
     getGroupOrSoloParticipants,
+    effectiveGroupId,
     requirePullerOrLog,
     hasShieldEquipped,
     canParry,
@@ -998,7 +999,7 @@ export const registerCombatReducers = (deps: any) => {
 
   spacetimedb.reducer('dismiss_combat_results', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const groupId = character.groupId;
+    const groupId = effectiveGroupId(character);
     if (groupId) {
       const group = ctx.db.group.id.find(groupId);
       if (!group) return failCombat(ctx, character, 'Group not found');

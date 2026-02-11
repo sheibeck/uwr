@@ -1,7 +1,12 @@
 import { schema, table, t, SenderError } from 'spacetimedb/server';
 import { ScheduleAt, Timestamp } from 'spacetimedb';
 import { registerReducers } from './reducers';
-import { getGroupOrSoloParticipants, requirePullerOrLog } from './helpers/group';
+import {
+  effectiveGroupId,
+  effectiveGroupKey,
+  getGroupOrSoloParticipants,
+  requirePullerOrLog,
+} from './helpers/group';
 import { startCombatForSpawn } from './reducers/combat';
 import { registerViews } from './views';
 import {
@@ -1365,8 +1370,9 @@ function logPrivateAndGroup(
   groupMessage?: string
 ) {
   appendPrivateEvent(ctx, character.id, character.ownerUserId, kind, privateMessage);
-  if (!character.groupId) return;
-  appendGroupEvent(ctx, character.groupId, character.id, kind, groupMessage ?? privateMessage);
+  const groupId = effectiveGroupId(character);
+  if (!groupId) return;
+  appendGroupEvent(ctx, groupId, character.id, kind, groupMessage ?? privateMessage);
 }
 
 // Backwards-compatible alias while reducers migrate.
@@ -1535,10 +1541,11 @@ function hasShieldEquipped(ctx: any, characterId: bigint) {
 }
 
 function getGroupParticipants(ctx: any, character: any, sameLocation: boolean = true) {
-  if (!character.groupId) return [character];
+  const groupId = effectiveGroupId(character);
+  if (!groupId) return [character];
   const participants: any[] = [];
   const seen = new Set<string>();
-  for (const member of ctx.db.groupMember.by_group.filter(character.groupId)) {
+  for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
     const memberChar = ctx.db.character.id.find(member.characterId);
     if (!memberChar) continue;
     if (sameLocation && memberChar.locationId !== character.locationId) continue;
@@ -1551,8 +1558,9 @@ function getGroupParticipants(ctx: any, character: any, sameLocation: boolean = 
 }
 
 function isGroupLeaderOrSolo(ctx: any, character: any) {
-  if (!character.groupId) return true;
-  const group = ctx.db.group.id.find(character.groupId);
+  const groupId = effectiveGroupId(character);
+  if (!groupId) return true;
+  const group = ctx.db.group.id.find(groupId);
   return !!group && group.leaderCharacterId === character.id;
 }
 
@@ -1612,9 +1620,10 @@ function abilityDamageFromWeapon(
 }
 
 function partyMembersInLocation(ctx: any, character: typeof Character.rowType) {
-  if (!character.groupId) return [character];
+  const groupId = effectiveGroupId(character);
+  if (!groupId) return [character];
   const members: typeof Character.rowType[] = [];
-  for (const member of ctx.db.groupMember.by_group.filter(character.groupId)) {
+  for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
     const memberChar = ctx.db.character.id.find(member.characterId);
     if (memberChar && memberChar.locationId === character.locationId) {
       members.push(memberChar);
@@ -1767,12 +1776,13 @@ function executeAbility(
   }
 
   const resolvedTargetId = targetCharacterId ?? character.id;
+  const actorGroupId = effectiveGroupId(character);
   let targetCharacter: typeof Character.rowType | null = null;
   if (resolvedTargetId) {
     targetCharacter = ctx.db.character.id.find(resolvedTargetId);
     if (!targetCharacter) throw new SenderError('Target not found');
-    if (character.groupId) {
-      if (targetCharacter.groupId !== character.groupId) {
+    if (actorGroupId) {
+      if (effectiveGroupId(targetCharacter) !== actorGroupId) {
         throw new SenderError('Target not in your group');
       }
     } else if (targetCharacter.id !== character.id) {
@@ -1844,10 +1854,10 @@ function executeAbility(
       'ability',
       `You have summoned ${petDescription}.`
     );
-    if (character.groupId) {
+    if (actorGroupId) {
       appendGroupEvent(
         ctx,
-        character.groupId,
+        actorGroupId,
         character.id,
         'ability',
         `${character.name} has summoned ${petDescription}.`
@@ -1856,8 +1866,8 @@ function executeAbility(
   };
 
   const logGroup = (kind: string, message: string) => {
-    if (!character.groupId) return;
-    appendGroupEvent(ctx, character.groupId, character.id, kind, message);
+    if (!actorGroupId) return;
+    appendGroupEvent(ctx, actorGroupId, character.id, kind, message);
   };
   const applyDamage = (
     percent: bigint,
@@ -4068,11 +4078,7 @@ function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
     if (!player.activeCharacterId) continue;
     const character = ctx.db.character.id.find(player.activeCharacterId);
     if (!character || character.locationId !== locationId) continue;
-    if (character.groupId) {
-      activeGroupKeys.add(`g:${character.groupId.toString()}`);
-    } else {
-      activeGroupKeys.add(`solo:${character.id.toString()}`);
-    }
+    activeGroupKeys.add(effectiveGroupKey(character));
   }
   const needed = activeGroupKeys.size;
   let available = 0;
@@ -5364,6 +5370,8 @@ const reducerDeps = {
   canParry,
   getGroupParticipants,
   isGroupLeaderOrSolo,
+  effectiveGroupId,
+  effectiveGroupKey,
   getGroupOrSoloParticipants,
   requirePullerOrLog,
   getInventorySlotCount,

@@ -10,6 +10,7 @@ export const registerMovementReducers = (deps: any) => {
     appendLocationEvent,
     ensureSpawnsForLocation,
     isGroupLeaderOrSolo,
+    effectiveGroupId,
   } = deps;
 
   const fail = (ctx: any, character: any, message: string) => {
@@ -49,11 +50,12 @@ export const registerMovementReducers = (deps: any) => {
       ensureSpawnsForLocation(ctx, location.id);
     };
 
-    if (!character.groupId || !isGroupLeaderOrSolo(ctx, character)) {
+    const groupId = effectiveGroupId(character);
+    if (!groupId || !isGroupLeaderOrSolo(ctx, character)) {
       moveOne(character);
       return;
     }
-    const group = ctx.db.group.id.find(character.groupId);
+    const group = ctx.db.group.id.find(groupId);
     if (group && group.leaderCharacterId === character.id) {
       for (const member of ctx.db.groupMember.by_group.filter(group.id)) {
         if (!member.followLeader) continue;

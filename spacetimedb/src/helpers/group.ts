@@ -1,8 +1,14 @@
+export const effectiveGroupId = (character: any): bigint | null => character.groupId ?? null;
+
+export const effectiveGroupKey = (character: any) =>
+  character.groupId ? `group:${character.groupId.toString()}` : `solo:${character.id.toString()}`;
+
 export const getGroupOrSoloParticipants = (ctx: any, character: any) => {
-  if (!character.groupId) return [character];
+  const groupId = effectiveGroupId(character);
+  if (!groupId) return [character];
   const participants: typeof character[] = [character];
   const seen = new Set([character.id.toString()]);
-  for (const member of ctx.db.groupMember.by_group.filter(character.groupId)) {
+  for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
     if (seen.has(member.characterId.toString())) continue;
     const row = ctx.db.character.id.find(member.characterId);
     if (!row) continue;
@@ -18,16 +24,17 @@ export const requirePullerOrLog = (
   fail: (ctx: any, character: any, message: string, kind?: string) => void,
   message = 'Only the group puller can start combat.'
 ) => {
-  if (!character.groupId) return { ok: true, groupId: null, group: null } as const;
-  const group = ctx.db.group.id.find(character.groupId);
+  const groupId = effectiveGroupId(character);
+  if (!groupId) return { ok: true, groupId: null, group: null } as const;
+  const group = ctx.db.group.id.find(groupId);
   if (!group) {
     fail(ctx, character, 'Group not found', 'combat');
-    return { ok: false, groupId: character.groupId, group: null } as const;
+    return { ok: false, groupId, group: null } as const;
   }
   const pullerId = group.pullerCharacterId ?? group.leaderCharacterId;
   if (pullerId !== character.id) {
     fail(ctx, character, message, 'combat');
-    return { ok: false, groupId: character.groupId, group } as const;
+    return { ok: false, groupId, group } as const;
   }
-  return { ok: true, groupId: character.groupId, group } as const;
+  return { ok: true, groupId, group } as const;
 };

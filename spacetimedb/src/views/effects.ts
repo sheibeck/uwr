@@ -1,4 +1,5 @@
 import type { ViewDeps } from './types';
+import { effectiveGroupId } from '../helpers/group';
 
 export const registerEffectViews = ({ spacetimedb, t, CharacterEffect }: ViewDeps) => {
   spacetimedb.view(
@@ -12,8 +13,9 @@ export const registerEffectViews = ({ spacetimedb, t, CharacterEffect }: ViewDep
 
       const ids = new Set<bigint>();
       ids.add(character.id);
-      if (character.groupId) {
-        for (const member of ctx.db.groupMember.by_group.filter(character.groupId)) {
+      const groupId = effectiveGroupId(character);
+      if (groupId) {
+        for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
           ids.add(member.characterId);
         }
       }
