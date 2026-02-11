@@ -12,20 +12,25 @@ export const registerMovementReducers = (deps: any) => {
     isGroupLeaderOrSolo,
   } = deps;
 
+  const fail = (ctx: any, character: any, message: string) => {
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', message);
+    return;
+  };
+
   spacetimedb.reducer('move_character', { characterId: t.u64(), locationId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const location = ctx.db.location.id.find(args.locationId);
-    if (!location) throw new SenderError('Location not found');
+    if (!location) return fail(ctx, character, 'Location not found');
     if (character.locationId === location.id) return;
     if (activeCombatIdForCharacter(ctx, character.id)) {
-      throw new SenderError('Cannot travel while in combat');
+      return fail(ctx, character, 'Cannot travel while in combat');
     }
     const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
     if (activeGather) {
-      throw new SenderError('Cannot travel while gathering');
+      return fail(ctx, character, 'Cannot travel while gathering');
     }
     if (!areLocationsConnected(ctx, character.locationId, location.id)) {
-      throw new SenderError('Location not connected');
+      return fail(ctx, character, 'Location not connected');
     }
 
     const originLocationId = character.locationId;

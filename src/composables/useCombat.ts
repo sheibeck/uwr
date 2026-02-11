@@ -144,9 +144,13 @@ export const useCombat = ({
   const activeResult = computed(() => {
     if (!selectedCharacter.value || activeCombat.value) return null;
     const selectedId = selectedCharacter.value.id.toString();
-    const results = combatResults.value.filter(
-      (row) => row.characterId.toString() === selectedId
-    );
+    const results = combatResults.value.filter((row) => {
+      if (row.characterId.toString() !== selectedId) return false;
+      if (row.groupId && selectedCharacter.value?.groupId) {
+        return row.groupId.toString() === selectedCharacter.value.groupId.toString();
+      }
+      return !row.groupId;
+    });
     if (results.length === 0) return null;
     return results.reduce((latest, current) => {
       const latestAt = timestampToMicros(latest.createdAt);
