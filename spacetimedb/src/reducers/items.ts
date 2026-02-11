@@ -28,12 +28,11 @@ export const registerItemReducers = (deps: any) => {
     ResourceRespawnTick,
     TradeSession,
     TradeItem,
+    fail,
   } = deps;
 
-  const fail = (ctx: any, character: any, message: string) => {
-    deps.appendSystemMessage(ctx, character, message);
-    return;
-  };
+  const failItem = (ctx: any, character: any, message: string) =>
+    failItem(ctx, character, message, 'system');
 
   // Gathering aggro tuning (percent chance).
   // Base chance applies at dangerMultiplier 100. Each +100 danger adds per-step.
@@ -103,7 +102,7 @@ export const registerItemReducers = (deps: any) => {
   spacetimedb.reducer('grant_item', { characterId: t.u64(), templateId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const template = ctx.db.itemTemplate.id.find(args.templateId);
-    if (!template) return fail(ctx, character, 'Item template not found');
+    if (!template) return failItem(ctx, character, 'Item template not found');
     addItemToInventory(ctx, character.id, template.id, 1n);
   });
 
@@ -116,17 +115,17 @@ export const registerItemReducers = (deps: any) => {
         .by_vendor
         .filter(args.npcId)
         .find((row) => row.itemTemplateId === args.itemTemplateId);
-      if (!vendorItem) return fail(ctx, character, 'Item not sold by this vendor');
+      if (!vendorItem) return failItem(ctx, character, 'Item not sold by this vendor');
       const template = ctx.db.itemTemplate.id.find(args.itemTemplateId);
-      if (!template) return fail(ctx, character, 'Item template missing');
+      if (!template) return failItem(ctx, character, 'Item template missing');
       const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].length;
       const hasStack =
         template.stackable &&
         [...ctx.db.itemInstance.by_owner.filter(character.id)].some(
           (row) => row.templateId === template.id && !row.equippedSlot
         );
-      if (!hasStack && itemCount >= 20) return fail(ctx, character, 'Backpack is full');
-      if ((character.gold ?? 0n) < vendorItem.price) return fail(ctx, character, 'Not enough gold');
+      if (!hasStack && itemCount >= 20) return failItem(ctx, character, 'Backpack is full');
+      if ((character.gold ?? 0n) < vendorItem.price) return failItem(ctx, character, 'Not enough gold');
       ctx.db.character.id.update({
         ...character,
         gold: (character.gold ?? 0n) - vendorItem.price,
@@ -148,13 +147,13 @@ export const registerItemReducers = (deps: any) => {
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
-      if (!instance) return fail(ctx, character, 'Item not found');
+      if (!instance) return failItem(ctx, character, 'Item not found');
       if (instance.ownerCharacterId !== character.id) {
-        return fail(ctx, character, 'Item does not belong to you');
+        return failItem(ctx, character, 'Item does not belong to you');
       }
-      if (instance.equippedSlot) return fail(ctx, character, 'Unequip item first');
+      if (instance.equippedSlot) return failItem(ctx, character, 'Unequip item first');
       const template = ctx.db.itemTemplate.id.find(instance.templateId);
-      if (!template) return fail(ctx, character, 'Item template missing');
+      if (!template) return failItem(ctx, character, 'Item template missing');
       const value = (template.vendorValue ?? 0n) * (instance.quantity ?? 1n);
       ctx.db.itemInstance.id.delete(instance.id);
       ctx.db.character.id.update({
@@ -199,19 +198,19 @@ export const registerItemReducers = (deps: any) => {
   spacetimedb.reducer('take_loot', { characterId: t.u64(), lootId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const loot = ctx.db.combatLoot.id.find(args.lootId);
-    if (!loot) return fail(ctx, character, 'Loot not found');
+    if (!loot) return failItem(ctx, character, 'Loot not found');
     if (loot.characterId !== character.id || loot.ownerUserId !== character.ownerUserId) {
-      return fail(ctx, character, 'Loot does not belong to you');
+      return failItem(ctx, character, 'Loot does not belong to you');
     }
     const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].length;
     const template = ctx.db.itemTemplate.id.find(loot.itemTemplateId);
-    if (!template) return fail(ctx, character, 'Item template missing');
+    if (!template) return failItem(ctx, character, 'Item template missing');
     const hasStack =
       template.stackable &&
       [...ctx.db.itemInstance.by_owner.filter(character.id)].some(
         (row) => row.templateId === template.id && !row.equippedSlot
       );
-    if (!hasStack && itemCount >= 20) return fail(ctx, character, 'Backpack is full');
+    if (!hasStack && itemCount >= 20) return failItem(ctx, character, 'Backpack is full');
     addItemToInventory(ctx, character.id, template.id, 1n);
     ctx.db.combatLoot.id.delete(loot.id);
     appendPrivateEvent(
@@ -238,24 +237,24 @@ export const registerItemReducers = (deps: any) => {
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       if (activeCombatIdForCharacter(ctx, character.id)) {
-        return fail(ctx, character, 'Cannot change equipment during combat');
+        return failItem(ctx, character, 'Cannot change equipment during combat');
       }
       const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
-      if (!instance) return fail(ctx, character, 'Item not found');
+      if (!instance) return failItem(ctx, character, 'Item not found');
       if (instance.ownerCharacterId !== character.id) {
-        return fail(ctx, character, 'Item does not belong to you');
+        return failItem(ctx, character, 'Item does not belong to you');
       }
       const template = ctx.db.itemTemplate.id.find(instance.templateId);
-      if (!template) return fail(ctx, character, 'Item template missing');
-      if (template.stackable) return fail(ctx, character, 'Cannot equip this item');
-      if (character.level < template.requiredLevel) return fail(ctx, character, 'Level too low');
+      if (!template) return failItem(ctx, character, 'Item template missing');
+      if (template.stackable) return failItem(ctx, character, 'Cannot equip this item');
+      if (character.level < template.requiredLevel) return failItem(ctx, character, 'Level too low');
       if (!isClassAllowed(template.allowedClasses, character.className)) {
-        return fail(ctx, character, 'Class cannot use this item');
+        return failItem(ctx, character, 'Class cannot use this item');
       }
       if (!isArmorAllowedForClass(template.armorType, character.className)) {
-        return fail(ctx, character, 'Armor type not allowed for this class');
+        return failItem(ctx, character, 'Armor type not allowed for this class');
       }
-      if (!EQUIPMENT_SLOTS.has(template.slot)) return fail(ctx, character, 'Invalid slot');
+      if (!EQUIPMENT_SLOTS.has(template.slot)) return failItem(ctx, character, 'Invalid slot');
 
       for (const other of ctx.db.itemInstance.by_owner.filter(character.id)) {
         if (other.equippedSlot === template.slot) {
@@ -273,7 +272,7 @@ export const registerItemReducers = (deps: any) => {
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       if (activeCombatIdForCharacter(ctx, character.id)) {
-        return fail(ctx, character, 'Cannot change equipment during combat');
+        return failItem(ctx, character, 'Cannot change equipment during combat');
       }
       const slot = args.slot.trim();
       for (const instance of ctx.db.itemInstance.by_owner.filter(character.id)) {
@@ -289,11 +288,11 @@ export const registerItemReducers = (deps: any) => {
   spacetimedb.reducer('delete_item', { characterId: t.u64(), itemInstanceId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
-    if (!instance) return fail(ctx, character, 'Item not found');
+    if (!instance) return failItem(ctx, character, 'Item not found');
     if (instance.ownerCharacterId !== character.id) {
-      return fail(ctx, character, 'Item does not belong to you');
+      return failItem(ctx, character, 'Item does not belong to you');
     }
-    if (instance.equippedSlot) return fail(ctx, character, 'Cannot delete equipped items');
+    if (instance.equippedSlot) return failItem(ctx, character, 'Cannot delete equipped items');
     ctx.db.itemInstance.id.delete(instance.id);
     appendPrivateEvent(
       ctx,
@@ -309,7 +308,7 @@ export const registerItemReducers = (deps: any) => {
     { characterId: t.u64(), slot: t.u8(), abilityKey: t.string() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
-      if (args.slot < 1 || args.slot > 10) return fail(ctx, character, 'Invalid hotbar slot');
+      if (args.slot < 1 || args.slot > 10) return failItem(ctx, character, 'Invalid hotbar slot');
       const existing = [...ctx.db.hotbarSlot.by_character.filter(character.id)].find(
         (row) => row.slot === args.slot
       );
@@ -342,7 +341,7 @@ export const registerItemReducers = (deps: any) => {
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       const abilityKey = args.abilityKey.trim();
-      if (!abilityKey) throw new SenderError('Ability required');
+      if (!abilityKey) return failItem(ctx, character, 'Ability required');
       const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
       const petSummons = new Set([
         'shaman_spirit_wolf',
@@ -489,18 +488,18 @@ export const registerItemReducers = (deps: any) => {
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       if (activeCombatIdForCharacter(ctx, character.id)) {
-        return fail(ctx, character, 'Cannot gather during combat');
+        return failItem(ctx, character, 'Cannot gather during combat');
       }
       const node = ctx.db.resourceNode.id.find(args.nodeId);
-      if (!node) return fail(ctx, character, 'Resource not found');
+      if (!node) return failItem(ctx, character, 'Resource not found');
       if (node.locationId !== character.locationId) {
-        return fail(ctx, character, 'Resource is not here');
+        return failItem(ctx, character, 'Resource is not here');
       }
       if (node.state !== 'available') {
-        return fail(ctx, character, 'Resource is not available');
+        return failItem(ctx, character, 'Resource is not available');
       }
       for (const gather of ctx.db.resourceGather.by_character.filter(character.id)) {
-        return fail(ctx, character, 'Already gathering');
+        return failItem(ctx, character, 'Already gathering');
       }
 
       const location = ctx.db.location.id.find(character.locationId);
@@ -732,11 +731,11 @@ export const registerItemReducers = (deps: any) => {
         return;
       }
       const recipe = ctx.db.recipeTemplate.id.find(args.recipeTemplateId);
-      if (!recipe) return fail(ctx, character, 'Recipe not found');
+      if (!recipe) return failItem(ctx, character, 'Recipe not found');
       const discovered = [...ctx.db.recipeDiscovered.by_character.filter(character.id)].find(
         (row) => row.recipeTemplateId === recipe.id
       );
-      if (!discovered) return fail(ctx, character, 'Recipe not discovered');
+      if (!discovered) return failItem(ctx, character, 'Recipe not discovered');
       const req1Count = getItemCount(ctx, character.id, recipe.req1TemplateId);
       const req2Count = getItemCount(ctx, character.id, recipe.req2TemplateId);
       const req3Count =
@@ -777,14 +776,14 @@ export const registerItemReducers = (deps: any) => {
   spacetimedb.reducer('use_item', { characterId: t.u64(), itemInstanceId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
-    if (!instance) return fail(ctx, character, 'Item not found');
+    if (!instance) return failItem(ctx, character, 'Item not found');
     if (instance.ownerCharacterId !== character.id) {
-      return fail(ctx, character, 'Item does not belong to you');
+      return failItem(ctx, character, 'Item does not belong to you');
     }
     const template = ctx.db.itemTemplate.id.find(instance.templateId);
-    if (!template) return fail(ctx, character, 'Item template missing');
+    if (!template) return failItem(ctx, character, 'Item template missing');
     if (activeCombatIdForCharacter(ctx, character.id)) {
-      return fail(ctx, character, 'Cannot use this during combat');
+      return failItem(ctx, character, 'Cannot use this during combat');
     }
     const itemKey = template.name.toLowerCase().replace(/\s+/g, '_');
     const handledKeys = new Set([
@@ -799,7 +798,7 @@ export const registerItemReducers = (deps: any) => {
       'charcoal',
       'crude_poison',
     ]);
-    if (!handledKeys.has(itemKey)) return fail(ctx, character, 'Item cannot be used');
+    if (!handledKeys.has(itemKey)) return failItem(ctx, character, 'Item cannot be used');
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     const existingCooldown = [...ctx.db.itemCooldown.by_character.filter(character.id)].find(
       (row) => row.itemKey === itemKey
@@ -1057,15 +1056,15 @@ export const registerItemReducers = (deps: any) => {
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       const target = deps.findCharacterByName(ctx, args.targetName.trim());
-      if (!target) return fail(ctx, character, 'Target not found');
-      if (target.id === character.id) return fail(ctx, character, 'Cannot trade with yourself');
+      if (!target) return failItem(ctx, character, 'Target not found');
+      if (target.id === character.id) return failItem(ctx, character, 'Cannot trade with yourself');
       if (target.locationId !== character.locationId) {
-        return fail(ctx, character, 'Target is not here');
+        return failItem(ctx, character, 'Target is not here');
       }
       const existing = findActiveTrade(ctx, character.id);
-      if (existing) return fail(ctx, character, 'Trade already in progress');
+      if (existing) return failItem(ctx, character, 'Trade already in progress');
       const targetExisting = findActiveTrade(ctx, target.id);
-      if (targetExisting) return fail(ctx, character, 'Target is already trading');
+      if (targetExisting) return failItem(ctx, character, 'Target is already trading');
       const trade = ctx.db.tradeSession.insert({
         id: 0n,
         fromCharacterId: character.id,
@@ -1098,13 +1097,13 @@ export const registerItemReducers = (deps: any) => {
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       const trade = findActiveTrade(ctx, character.id);
-      if (!trade) return fail(ctx, character, 'No active trade');
+      if (!trade) return failItem(ctx, character, 'No active trade');
       const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
-      if (!instance) return fail(ctx, character, 'Item not found');
+      if (!instance) return failItem(ctx, character, 'Item not found');
       if (instance.ownerCharacterId !== character.id) {
-        return fail(ctx, character, 'Item does not belong to you');
+        return failItem(ctx, character, 'Item does not belong to you');
       }
-      if (instance.equippedSlot) return fail(ctx, character, 'Cannot trade equipped items');
+      if (instance.equippedSlot) return failItem(ctx, character, 'Cannot trade equipped items');
       for (const row of ctx.db.tradeItem.by_trade.filter(trade.id)) {
         if (row.itemInstanceId === instance.id) return;
       }
@@ -1125,7 +1124,7 @@ export const registerItemReducers = (deps: any) => {
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       const trade = findActiveTrade(ctx, character.id);
-      if (!trade) return fail(ctx, character, 'No active trade');
+      if (!trade) return failItem(ctx, character, 'No active trade');
       for (const row of ctx.db.tradeItem.by_trade.filter(trade.id)) {
         if (row.itemInstanceId === args.itemInstanceId) {
           ctx.db.tradeItem.id.delete(row.id);
@@ -1139,7 +1138,7 @@ export const registerItemReducers = (deps: any) => {
   spacetimedb.reducer('offer_trade', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const trade = findActiveTrade(ctx, character.id);
-    if (!trade) return fail(ctx, character, 'No active trade');
+    if (!trade) return failItem(ctx, character, 'No active trade');
     if (trade.fromCharacterId === character.id) {
       ctx.db.tradeSession.id.update({ ...trade, fromAccepted: true });
     } else {
@@ -1180,3 +1179,4 @@ export const registerItemReducers = (deps: any) => {
     }
   });
 };
+

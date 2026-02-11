@@ -1356,6 +1356,10 @@ function appendSystemMessage(ctx: any, character: any, message: string) {
   appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', message);
 }
 
+function fail(ctx: any, character: any, message: string, kind = 'system') {
+  appendPrivateEvent(ctx, character.id, character.ownerUserId, kind, message);
+}
+
 function appendNpcDialog(ctx: any, characterId: bigint, npcId: bigint, text: string) {
   const cutoff = ctx.timestamp.microsSinceUnixEpoch - 60_000_000n;
   for (const row of ctx.db.npcDialog.by_character.filter(characterId)) {
@@ -5284,6 +5288,7 @@ const reducerDeps = {
   friendUserIds,
   appendPrivateEvent,
   appendSystemMessage,
+  fail,
   appendNpcDialog,
   appendGroupEvent,
   appendLocationEvent,

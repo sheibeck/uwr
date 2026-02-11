@@ -228,7 +228,6 @@ export const registerCombatReducers = (deps: any) => {
   const {
     spacetimedb,
     t,
-    SenderError,
     ScheduleAt,
     CombatLoopTick,
     HealthRegenTick,
@@ -262,7 +261,10 @@ export const registerCombatReducers = (deps: any) => {
     enemyAbilityCooldownMicros,
     PullState,
     PullTick,
+    fail,
   } = deps;
+  const failCombat = (ctx: any, character: any, message: string) =>
+    fail(ctx, character, message, 'combat');
 
   const logGroupEvent = (
     ctx: any,
@@ -626,7 +628,7 @@ export const registerCombatReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
     if (activeGather) {
-      throw new SenderError('Cannot start combat while gathering');
+      return failCombat(ctx, character, 'Cannot start combat while gathering');
     }
     const locationId = character.locationId;
 
@@ -653,10 +655,10 @@ export const registerCombatReducers = (deps: any) => {
       character,
       true
     );
-    if (participants.length === 0) throw new SenderError('No participants available');
+    if (participants.length === 0) return failCombat(ctx, character, 'No participants available');
     for (const p of participants) {
       if (activeCombatIdForCharacter(ctx, p.id)) {
-        throw new SenderError(`${p.name} is already in combat`);
+        return failCombat(ctx, character, `${p.name} is already in combat`);
       }
     }
 
@@ -675,13 +677,13 @@ export const registerCombatReducers = (deps: any) => {
     { characterId: t.u64(), enemyTemplateId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
-      const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
-      if (activeGather) {
-        throw new SenderError('Cannot start combat while gathering');
-      }
-      if (activeCombatIdForCharacter(ctx, character.id)) {
-        throw new SenderError('Already in combat');
-      }
+    const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
+    if (activeGather) {
+      return failCombat(ctx, character, 'Cannot start combat while gathering');
+    }
+    if (activeCombatIdForCharacter(ctx, character.id)) {
+      return failCombat(ctx, character, 'Already in combat');
+    }
       const locationId = character.locationId;
       let groupId: bigint | null = character.groupId ?? null;
       if (groupId) {
@@ -699,10 +701,10 @@ export const registerCombatReducers = (deps: any) => {
         }
       }
       const participants: typeof deps.Character.rowType[] = getGroupParticipants(ctx, character, true);
-      if (participants.length === 0) throw new SenderError('No participants available');
+      if (participants.length === 0) return failCombat(ctx, character, 'No participants available');
       for (const p of participants) {
         if (activeCombatIdForCharacter(ctx, p.id)) {
-          throw new SenderError(`${p.name} is already in combat`);
+          return failCombat(ctx, character, `${p.name} is already in combat`);
         }
       }
       const spawn = deps.spawnEnemyWithTemplate(ctx, locationId, args.enemyTemplateId);
@@ -717,15 +719,15 @@ export const registerCombatReducers = (deps: any) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
       if (activeGather) {
-        throw new SenderError('Cannot pull while gathering');
+        return failCombat(ctx, character, 'Cannot pull while gathering');
       }
       if (activeCombatIdForCharacter(ctx, character.id)) {
-        throw new SenderError('Already in combat');
+        return failCombat(ctx, character, 'Already in combat');
       }
       const locationId = character.locationId;
       const pullType = args.pullType.trim().toLowerCase();
       if (pullType !== 'careful' && pullType !== 'body') {
-        throw new SenderError('Invalid pull type');
+        return failCombat(ctx, character, 'Invalid pull type');
       }
 
       let groupId: bigint | null = character.groupId ?? null;
@@ -746,13 +748,13 @@ export const registerCombatReducers = (deps: any) => {
 
       for (const pull of ctx.db.pullState.by_character.filter(character.id)) {
         if (pull.state === 'pending') {
-          throw new SenderError('Pull already in progress');
+          return failCombat(ctx, character, 'Pull already in progress');
         }
       }
 
       const spawn = ctx.db.enemySpawn.id.find(args.enemySpawnId);
       if (!spawn || spawn.locationId !== locationId || spawn.state !== 'available') {
-        throw new SenderError('Enemy is not available to pull');
+        return failCombat(ctx, character, 'Enemy is not available to pull');
       }
 
       ctx.db.enemySpawn.id.update({ ...spawn, state: 'pulling' });
@@ -799,11 +801,11 @@ export const registerCombatReducers = (deps: any) => {
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       const combatId = activeCombatIdForCharacter(ctx, character.id);
-      if (!combatId) throw new SenderError('Not in combat');
+      if (!combatId) return failCombat(ctx, character, 'Not in combat');
       if (args.enemyId) {
         const enemy = ctx.db.combatEnemy.id.find(args.enemyId);
         if (!enemy || enemy.combatId !== combatId) {
-          throw new SenderError('Enemy not in combat');
+          return failCombat(ctx, character, 'Enemy not in combat');
         }
         ctx.db.character.id.update({ ...character, combatTargetEnemyId: enemy.id });
       } else {
@@ -1058,9 +1060,9 @@ export const registerCombatReducers = (deps: any) => {
   spacetimedb.reducer('flee_combat', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const combatId = activeCombatIdForCharacter(ctx, character.id);
-    if (!combatId) throw new SenderError('Combat not active');
+    if (!combatId) return failCombat(ctx, character, 'Combat not active');
     const combat = ctx.db.combatEncounter.id.find(combatId);
-    if (!combat || combat.state !== 'active') throw new SenderError('Combat not active');
+    if (!combat || combat.state !== 'active') return failCombat(ctx, character, 'Combat not active');
 
     for (const participant of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
       if (participant.characterId !== character.id) continue;
@@ -1089,9 +1091,9 @@ export const registerCombatReducers = (deps: any) => {
     const groupId = character.groupId;
     if (groupId) {
       const group = ctx.db.group.id.find(groupId);
-      if (!group) throw new SenderError('Group not found');
+      if (!group) return failCombat(ctx, character, 'Group not found');
       if (group.leaderCharacterId !== character.id) {
-        throw new SenderError('Only the leader can dismiss results');
+        return failCombat(ctx, character, 'Only the leader can dismiss results');
       }
       const combatIds = new Set<bigint>();
       for (const row of ctx.db.combatResult.by_group.filter(groupId)) {
@@ -1124,15 +1126,15 @@ export const registerCombatReducers = (deps: any) => {
       const fallback = [...ctx.db.combatParticipant.by_character.filter(character.id)][0];
       combatId = fallback?.combatId ?? null;
     }
-    if (!combatId) throw new SenderError('No active combat');
+    if (!combatId) return failCombat(ctx, character, 'No active combat');
     const combat = ctx.db.combatEncounter.id.find(combatId);
-    if (!combat) throw new SenderError('Combat not active');
+    if (!combat) return failCombat(ctx, character, 'Combat not active');
 
     if (combat.groupId && combat.state === 'active') {
       const group = ctx.db.group.id.find(combat.groupId);
-      if (!group) throw new SenderError('Group not found');
+      if (!group) return failCombat(ctx, character, 'Group not found');
       if (group.leaderCharacterId !== character.id) {
-        throw new SenderError('Only the group leader can end combat');
+        return failCombat(ctx, character, 'Only the group leader can end combat');
       }
     }
 

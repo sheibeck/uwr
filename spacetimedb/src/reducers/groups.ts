@@ -2,7 +2,6 @@ export const registerGroupReducers = (deps: any) => {
   const {
     spacetimedb,
     t,
-    SenderError,
     GroupMember,
     GroupInvite,
     requireCharacterOwnedBy,
@@ -10,13 +9,16 @@ export const registerGroupReducers = (deps: any) => {
     findCharacterByName,
     appendGroupEvent,
     appendPrivateEvent,
+    fail,
   } = deps;
+  const failGroup = (ctx: any, character: any, message: string) =>
+    fail(ctx, character, message, 'group');
 
   spacetimedb.reducer('create_group', { characterId: t.u64(), name: t.string() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    if (character.groupId) throw new SenderError('Character already in a group');
+    if (character.groupId) return failGroup(ctx, character, 'Character already in a group');
     const trimmed = args.name.trim();
-    if (trimmed.length < 2) throw new SenderError('Group name too short');
+    if (trimmed.length < 2) return failGroup(ctx, character, 'Group name too short');
 
     const group = ctx.db.group.insert({
       id: 0n,
@@ -42,9 +44,9 @@ export const registerGroupReducers = (deps: any) => {
 
   spacetimedb.reducer('join_group', { characterId: t.u64(), groupId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    if (character.groupId) throw new SenderError('Character already in a group');
+    if (character.groupId) return failGroup(ctx, character, 'Character already in a group');
     const group = ctx.db.group.id.find(args.groupId);
-    if (!group) throw new SenderError('Group not found');
+    if (!group) return failGroup(ctx, character, 'Group not found');
 
     ctx.db.groupMember.insert({
       id: 0n,
@@ -62,7 +64,7 @@ export const registerGroupReducers = (deps: any) => {
 
   spacetimedb.reducer('leave_group', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    if (!character.groupId) throw new SenderError('Character not in a group');
+    if (!character.groupId) return failGroup(ctx, character, 'Character not in a group');
     const groupId = character.groupId;
     const group = ctx.db.group.id.find(groupId);
 
@@ -120,14 +122,14 @@ export const registerGroupReducers = (deps: any) => {
     { characterId: t.u64(), follow: t.bool() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
-      if (!character.groupId) throw new SenderError('Not in a group');
+      if (!character.groupId) return failGroup(ctx, character, 'Not in a group');
       for (const member of ctx.db.groupMember.by_group.filter(character.groupId)) {
         if (member.characterId === character.id) {
           ctx.db.groupMember.id.update({ ...member, followLeader: args.follow });
           return;
         }
       }
-      throw new SenderError('Group membership not found');
+      return failGroup(ctx, character, 'Group membership not found');
     }
   );
 
@@ -136,14 +138,14 @@ export const registerGroupReducers = (deps: any) => {
     { characterId: t.u64(), targetName: t.string() },
     (ctx, args) => {
       const leader = requireCharacterOwnedBy(ctx, args.characterId);
-      if (!leader.groupId) throw new SenderError('Not in a group');
+      if (!leader.groupId) return failGroup(ctx, leader, 'Not in a group');
       const group = ctx.db.group.id.find(leader.groupId);
-      if (!group) throw new SenderError('Group not found');
-      if (group.leaderCharacterId !== leader.id) throw new SenderError('Only leader can promote');
+      if (!group) return failGroup(ctx, leader, 'Group not found');
+      if (group.leaderCharacterId !== leader.id) return failGroup(ctx, leader, 'Only leader can promote');
 
       const target = findCharacterByName(ctx, args.targetName.trim());
-      if (!target) throw new SenderError('Target not found');
-      if (target.groupId !== leader.groupId) throw new SenderError('Target not in your group');
+      if (!target) return failGroup(ctx, leader, 'Target not found');
+      if (target.groupId !== leader.groupId) return failGroup(ctx, leader, 'Target not in your group');
 
       ctx.db.group.id.update({
         ...group,
@@ -169,14 +171,14 @@ export const registerGroupReducers = (deps: any) => {
     { characterId: t.u64(), targetName: t.string() },
     (ctx, args) => {
       const leader = requireCharacterOwnedBy(ctx, args.characterId);
-      if (!leader.groupId) throw new SenderError('Not in a group');
+      if (!leader.groupId) return failGroup(ctx, leader, 'Not in a group');
       const group = ctx.db.group.id.find(leader.groupId);
-      if (!group) throw new SenderError('Group not found');
-      if (group.leaderCharacterId !== leader.id) throw new SenderError('Only leader can assign puller');
+      if (!group) return failGroup(ctx, leader, 'Group not found');
+      if (group.leaderCharacterId !== leader.id) return failGroup(ctx, leader, 'Only leader can assign puller');
 
       const target = findCharacterByName(ctx, args.targetName.trim());
-      if (!target) throw new SenderError('Target not found');
-      if (target.groupId !== leader.groupId) throw new SenderError('Target not in your group');
+      if (!target) return failGroup(ctx, leader, 'Target not found');
+      if (target.groupId !== leader.groupId) return failGroup(ctx, leader, 'Target not in your group');
 
       ctx.db.group.id.update({ ...group, pullerCharacterId: target.id });
       appendGroupEvent(ctx, group.id, target.id, 'group', `${target.name} is now the group puller.`);
@@ -188,15 +190,15 @@ export const registerGroupReducers = (deps: any) => {
     { characterId: t.u64(), targetName: t.string() },
     (ctx, args) => {
       const leader = requireCharacterOwnedBy(ctx, args.characterId);
-      if (!leader.groupId) throw new SenderError('Not in a group');
+      if (!leader.groupId) return failGroup(ctx, leader, 'Not in a group');
       const group = ctx.db.group.id.find(leader.groupId);
-      if (!group) throw new SenderError('Group not found');
-      if (group.leaderCharacterId !== leader.id) throw new SenderError('Only leader can kick');
+      if (!group) return failGroup(ctx, leader, 'Group not found');
+      if (group.leaderCharacterId !== leader.id) return failGroup(ctx, leader, 'Only leader can kick');
 
       const target = findCharacterByName(ctx, args.targetName.trim());
-      if (!target) throw new SenderError('Target not found');
-      if (target.groupId !== leader.groupId) throw new SenderError('Target not in your group');
-      if (target.id === leader.id) throw new SenderError('Leader cannot kick themselves');
+      if (!target) return failGroup(ctx, leader, 'Target not found');
+      if (target.groupId !== leader.groupId) return failGroup(ctx, leader, 'Target not in your group');
+      if (target.id === leader.id) return failGroup(ctx, leader, 'Leader cannot kick themselves');
 
       for (const member of ctx.db.groupMember.by_group.filter(group.id)) {
         if (member.characterId === target.id) {
@@ -239,13 +241,13 @@ export const registerGroupReducers = (deps: any) => {
     (ctx, args) => {
       const inviter = requireCharacterOwnedBy(ctx, args.characterId);
       const targetName = args.targetName.trim();
-      if (!targetName) throw new SenderError('Target required');
+      if (!targetName) return failGroup(ctx, inviter, 'Target required');
       const target = findCharacterByName(ctx, targetName);
-      if (!target) throw new SenderError('Target not found');
-      if (target.id === inviter.id) throw new SenderError('Cannot invite yourself');
+      if (!target) return failGroup(ctx, inviter, 'Target not found');
+      if (target.id === inviter.id) return failGroup(ctx, inviter, 'Cannot invite yourself');
       if (inviter.groupId) {
         const group = ctx.db.group.id.find(inviter.groupId);
-        if (!group) throw new SenderError('Group not found');
+        if (!group) return failGroup(ctx, inviter, 'Group not found');
         if (group.leaderCharacterId !== inviter.id) {
           appendPrivateEvent(
             ctx,
@@ -326,9 +328,9 @@ export const registerGroupReducers = (deps: any) => {
     { characterId: t.u64(), fromName: t.string() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
-      if (character.groupId) throw new SenderError('Character already in a group');
+      if (character.groupId) return failGroup(ctx, character, 'Character already in a group');
       const from = findCharacterByName(ctx, args.fromName.trim());
-      if (!from) throw new SenderError('Inviter not found');
+      if (!from) return failGroup(ctx, character, 'Inviter not found');
 
       let inviteRow: typeof GroupInvite.rowType | null = null;
       for (const invite of ctx.db.groupInvite.by_to_character.filter(character.id)) {
@@ -337,10 +339,10 @@ export const registerGroupReducers = (deps: any) => {
           break;
         }
       }
-      if (!inviteRow) throw new SenderError('Invite not found');
+      if (!inviteRow) return failGroup(ctx, character, 'Invite not found');
 
       const group = ctx.db.group.id.find(inviteRow.groupId);
-      if (!group) throw new SenderError('Group not found');
+      if (!group) return failGroup(ctx, character, 'Group not found');
 
       ctx.db.groupInvite.id.delete(inviteRow.id);
       ctx.db.groupMember.insert({
@@ -363,7 +365,7 @@ export const registerGroupReducers = (deps: any) => {
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       const from = findCharacterByName(ctx, args.fromName.trim());
-      if (!from) throw new SenderError('Inviter not found');
+      if (!from) return failGroup(ctx, character, 'Inviter not found');
       for (const invite of ctx.db.groupInvite.by_to_character.filter(character.id)) {
         if (invite.fromCharacterId === from.id) {
           ctx.db.groupInvite.id.delete(invite.id);

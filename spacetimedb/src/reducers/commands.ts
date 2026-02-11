@@ -2,13 +2,13 @@ export const registerCommandReducers = (deps: any) => {
   const {
     spacetimedb,
     t,
-    SenderError,
     requireCharacterOwnedBy,
     requirePlayerUserId,
     appendPrivateEvent,
     appendNpcDialog,
     appendLocationEvent,
     appendGroupEvent,
+    fail,
     computeBaseStats,
     recomputeCharacterDerived,
     xpRequiredForLevel,
@@ -17,7 +17,7 @@ export const registerCommandReducers = (deps: any) => {
 
   const hailNpc = (ctx: any, character: any, npcName: string) => {
     const targetName = npcName.trim();
-    if (!targetName) throw new SenderError('NPC name required');
+    if (!targetName) return fail(ctx, character, 'NPC name required');
     let npc: any | null = null;
     for (const row of ctx.db.npc.by_location.filter(character.locationId)) {
       if (row.name.toLowerCase() === targetName.toLowerCase()) {
@@ -25,7 +25,7 @@ export const registerCommandReducers = (deps: any) => {
         break;
       }
     }
-    if (!npc) throw new SenderError('No such NPC here');
+    if (!npc) return fail(ctx, character, 'No such NPC here');
     const greeting = `${npc.name} says, "${npc.greeting}"`;
     appendNpcDialog(ctx, character.id, npc.id, greeting);
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', greeting);
@@ -74,7 +74,7 @@ export const registerCommandReducers = (deps: any) => {
   spacetimedb.reducer('submit_command', { characterId: t.u64(), text: t.string() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const trimmed = args.text.trim();
-    if (!trimmed) throw new SenderError('Command is empty');
+    if (!trimmed) return fail(ctx, character, 'Command is empty');
 
     if (trimmed.toLowerCase() === '/look' || trimmed.toLowerCase() === 'look') {
       const location = ctx.db.location.id.find(character.locationId);
@@ -111,7 +111,7 @@ export const registerCommandReducers = (deps: any) => {
   spacetimedb.reducer('say', { characterId: t.u64(), message: t.string() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const trimmed = args.message.trim();
-    if (!trimmed) throw new SenderError('Message is empty');
+    if (!trimmed) return fail(ctx, character, 'Message is empty');
 
     appendLocationEvent(ctx, character.locationId, 'say', `${character.name} says, "${trimmed}"`);
   });
@@ -124,8 +124,8 @@ export const registerCommandReducers = (deps: any) => {
   spacetimedb.reducer('group_message', { characterId: t.u64(), message: t.string() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const trimmed = args.message.trim();
-    if (!trimmed) throw new SenderError('Message is empty');
-    if (!character.groupId) throw new SenderError('You are not in a group');
+    if (!trimmed) return fail(ctx, character, 'Message is empty', 'group');
+    if (!character.groupId) return fail(ctx, character, 'You are not in a group', 'group');
     appendGroupEvent(ctx, character.groupId, character.id, 'group', `${character.name}: ${trimmed}`);
   });
 
@@ -133,10 +133,10 @@ export const registerCommandReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const target = args.level;
     if (target < 1n || target > MAX_LEVEL) {
-      throw new SenderError(`Level must be between 1 and ${MAX_LEVEL.toString()}`);
+      return fail(ctx, character, `Level must be between 1 and ${MAX_LEVEL.toString()}`);
     }
     if (target < character.level) {
-      throw new SenderError('Leveling down is not supported');
+      return fail(ctx, character, 'Leveling down is not supported');
     }
     if (target === character.level) {
       appendPrivateEvent(
@@ -178,20 +178,20 @@ export const registerCommandReducers = (deps: any) => {
     'whisper',
     { characterId: t.u64(), targetName: t.string(), message: t.string() },
     (ctx, args) => {
-      const character = requireCharacterOwnedBy(ctx, args.characterId);
-      const targetName = args.targetName.trim();
-      const message = args.message.trim();
-      if (!targetName) throw new SenderError('Target required');
-      if (!message) throw new SenderError('Message is empty');
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const targetName = args.targetName.trim();
+    const message = args.message.trim();
+    if (!targetName) return fail(ctx, character, 'Target required', 'whisper');
+    if (!message) return fail(ctx, character, 'Message is empty', 'whisper');
 
       let target: typeof deps.Character.rowType | null = null;
       for (const row of ctx.db.character.iter()) {
         if (row.name.toLowerCase() === targetName.toLowerCase()) {
-          if (target) throw new SenderError('Multiple characters share that name');
+          if (target) return fail(ctx, character, 'Multiple characters share that name', 'whisper');
           target = row;
         }
       }
-      if (!target) throw new SenderError('Target not found');
+      if (!target) return fail(ctx, character, 'Target not found', 'whisper');
 
       const senderUserId = requirePlayerUserId(ctx);
       appendPrivateEvent(
