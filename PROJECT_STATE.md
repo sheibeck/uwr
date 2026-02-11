@@ -13,6 +13,7 @@ Last updated: 2026-02-11
 - Client: Vue 3 app with composables and UI components.
 - Bindings: generated via `spacetime generate` into `C:\projects\uwr\src\module_bindings`.
 - Styles: inline style objects in `src/ui/styles.ts`.
+- Ability execution uses a unified dispatcher (`executeAbilityAction`) for `character`, `enemy`, and `pet` actors.
 
 ## Key Features Implemented
 - **Auth (MVP):** SpacetimeAuth (OIDC) + JWT.
@@ -73,7 +74,6 @@ Last updated: 2026-02-11
   - Aggro from damage only.
   - Combat auto-opens for all group members.
   - Dead characters cannot act; combat ends if all active participants are dead.
-  - Dead characters revive at 1/4 HP/Mana/Stamina after combat ends.
   - Enemy respawns after death; new spawns created as new groups/solos arrive.
   - Combat results screen shown after combat; leader dismisses to return to enemy list.
   - Victory panel auto-dismisses when all loot is collected (leader only).
@@ -88,9 +88,11 @@ Last updated: 2026-02-11
   - Pets appear under their owner in the Group panel with HP bars; target and aggro are per-enemy.
   - Pets auto-attack only; per-pet abilities supported (e.g., taunt/bleed) with cooldowns.
   - Summoner Earth pet uses taunt ability (10s CD) instead of auto top-aggro.
+  - Pet level and auto-attack stats scale from summoner level, with per-pet tuning profiles.
 - **Characters:**
   - Max 3 character slots per account (MVP).
   - Character deletion with confirmation + full cleanup.
+  - Active character cannot be switched while in combat (UI + server guard).
   - Non-mana classes now have `maxMana = 0` and UI hides mana bars.
   - Characters have `boundLocationId` and respawn there on death (1 HP + 1 mana/stamina if applicable).
   - Death shows a modal; respawn happens only when the player clicks Respawn.
@@ -102,7 +104,7 @@ Last updated: 2026-02-11
 - **Regen:**
   - HP/Mana/Stamina regen every 8s.
   - Out of combat: full rate. In combat: half rate (every other tick).
-  - No regen while dead; revive after combat at 1/4 of max HP/Mana/Stamina.
+- No regen while dead.
 - **Regions/Locations:**
   - Regions now include `regionType` (`outdoor`, `indoor`, `dungeon`) for future buffs/events.
   - Current regions are `outdoor`.

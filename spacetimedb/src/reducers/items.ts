@@ -11,7 +11,7 @@ export const registerItemReducers = (deps: any) => {
     isClassAllowed,
     isArmorAllowedForClass,
     recomputeCharacterDerived,
-    executeAbility,
+    executeAbilityAction,
     appendPrivateEvent,
     appendGroupEvent,
     abilityCooldownMicros,
@@ -411,7 +411,12 @@ export const registerItemReducers = (deps: any) => {
         return;
       }
       try {
-        executeAbility(ctx, character, abilityKey, args.targetCharacterId);
+        executeAbilityAction(ctx, {
+          actorType: 'character',
+          actorId: character.id,
+          abilityKey,
+          targetCharacterId: args.targetCharacterId,
+        });
         const cooldown = abilityCooldownMicros(abilityKey);
         if (cooldown > 0n) {
           if (existingCooldown) {
