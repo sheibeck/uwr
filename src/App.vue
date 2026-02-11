@@ -302,7 +302,7 @@
           :resource-nodes="resourceNodesHere"
           :active-result="activeResult"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
-          :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+          :can-dismiss-results="canDismissResults"
           :can-act="canActInCombat"
           :accordion-state="accordionState"
           @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
@@ -372,7 +372,7 @@
             :resource-nodes="resourceNodesHere"
             :active-result="activeResult"
             :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
-            :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+            :can-dismiss-results="canDismissResults"
             :can-act="canActInCombat"
             :accordion-state="accordionState"
             @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
@@ -420,7 +420,7 @@
             :resource-nodes="resourceNodesHere"
             :active-result="activeResult"
             :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
-            :can-dismiss-results="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+            :can-dismiss-results="canDismissResults"
             :can-act="canActInCombat"
             :accordion-state="accordionState"
             @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
@@ -812,6 +812,8 @@ const {
   combatRoster,
   activeResult,
   activeLoot,
+  hasAnyLootForResult,
+  hasOtherLootForResult,
   startCombat,
   startPull,
   startTrackedCombat,
@@ -858,6 +860,7 @@ const combatPetsForGroup = computed(() => {
 
 const lastResultId = ref<string | null>(null);
 const lastLevelUpEventId = ref<string | null>(null);
+const lastAutoDismissCombatId = ref<string | null>(null);
 const audioCtxRef = ref<AudioContext | null>(null);
 
 const getAudioContext = () => {
@@ -923,6 +926,7 @@ watch(
   }
 );
 
+
 watch(
   () => combinedEvents.value,
   (events) => {
@@ -963,6 +967,24 @@ const {
   characters,
   groupMembers: groupMemberRows,
 });
+
+const canDismissResults = computed(
+  () => Boolean(selectedCharacter.value && (!selectedCharacter.value.groupId || isLeader.value))
+);
+
+watch(
+  () => [activeResult.value, hasAnyLootForResult.value, canDismissResults.value] as const,
+  ([result, anyLoot, canDismiss]) => {
+    if (!result || !canDismiss) return;
+    if (anyLoot) return;
+    const summary = result.summary?.toLowerCase() ?? '';
+    if (!summary.startsWith('victory')) return;
+    const id = result.id.toString();
+    if (lastAutoDismissCombatId.value === id) return;
+    lastAutoDismissCombatId.value = id;
+    dismissResults();
+  }
+);
 
 const { commandText, submitCommand } = useCommands({
   connActive: computed(() => conn.isActive),

@@ -152,13 +152,27 @@ const addEnemyToCombat = (
         lockedCombatId: combat.id,
       });
     }
-  } else {
-    ctx.db.enemySpawn.id.update({
-      ...spawnToUse,
-      state: 'engaged',
-      lockedCombatId: combat.id,
-    });
-  }
+    } else {
+      const remainingGroup = ctx.db.enemySpawn.id.find(spawn.id)?.groupCount ?? 0n;
+      for (const p of participants) {
+        appendPrivateEvent(
+          ctx,
+          p.id,
+          p.ownerUserId,
+          'system',
+          `Your ${pull.pullType} pull is clean. You draw 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`
+        );
+      }
+      if (pull.groupId) {
+        appendGroupEvent(
+          ctx,
+          pull.groupId,
+          pull.characterId,
+          'system',
+          `${character.name}'s pull is clean.`
+        );
+      }
+    }
 
   return combatEnemy;
 };
@@ -734,6 +748,15 @@ export const registerCombatReducers = (deps: any) => {
         'system',
         `You begin a ${pullType === 'careful' ? 'Careful Pull' : 'Body Pull'} on ${spawn.name} (group size ${spawn.groupCount}).`
       );
+      if (groupId) {
+        appendGroupEvent(
+          ctx,
+          groupId,
+          character.id,
+          'system',
+          `${character.name} begins a ${pullType === 'careful' ? 'Careful Pull' : 'Body Pull'} on ${spawn.name}.`
+        );
+      }
     }
   );
 
@@ -932,6 +955,17 @@ export const registerCombatReducers = (deps: any) => {
           )}s. Remaining in group: ${remainingGroup}.${reasonSuffix}`
         );
       }
+      if (pull.groupId) {
+        appendGroupEvent(
+          ctx,
+          pull.groupId,
+          pull.characterId,
+          'system',
+          `${character.name}'s pull draws attention. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} will arrive in ${Number(
+            delayMicros / 1_000_000n
+          )}s.`
+        );
+      }
     } else if (outcome === 'failure' && addCount > 0) {
       const reserved = reserveAdds(addCount);
       const remainingGroup = ctx.db.enemySpawn.id.find(spawn.id)?.groupCount ?? 0n;
@@ -952,7 +986,16 @@ export const registerCombatReducers = (deps: any) => {
           p.id,
           p.ownerUserId,
           'system',
-          `Your ${pull.pullType} pull is noticed. You bring 1 of ${initialGroupCount} ${spawn.name} — and ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately. Remaining in group: ${remainingGroup}.${reasonSuffix}`
+          `Your ${pull.pullType} pull is noticed. You bring 1 of ${initialGroupCount} ${spawn.name} ??? and ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately. Remaining in group: ${remainingGroup}.${reasonSuffix}`
+        );
+      }
+      if (pull.groupId) {
+        appendGroupEvent(
+          ctx,
+          pull.groupId,
+          pull.characterId,
+          'system',
+          `${character.name}'s pull is noticed. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately.`
         );
       }
     } else {
@@ -963,8 +1006,6 @@ export const registerCombatReducers = (deps: any) => {
           p.id,
           p.ownerUserId,
           'system',
-          `Your ${pull.pullType} pull is clean. You draw 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`
-        );
       }
     }
 

@@ -215,6 +215,15 @@ export const registerItemReducers = (deps: any) => {
       'reward',
       `You take ${template.name}.`
     );
+    if (character.groupId) {
+      appendGroupEvent(
+        ctx,
+        character.groupId,
+        character.id,
+        'reward',
+        `${character.name} takes ${template.name}.`
+      );
+    }
   });
 
   spacetimedb.reducer(
@@ -536,6 +545,15 @@ export const registerItemReducers = (deps: any) => {
         'system',
         `You begin gathering ${node.name}.`
       );
+      if (character.groupId) {
+        appendGroupEvent(
+          ctx,
+          character.groupId,
+          character.id,
+          'system',
+          `${character.name} begins gathering ${node.name}.`
+        );
+      }
     }
   );
 
@@ -570,6 +588,15 @@ export const registerItemReducers = (deps: any) => {
         'reward',
         `You gather ${node.name} x${quantity}.`
       );
+      if (character.groupId) {
+        appendGroupEvent(
+          ctx,
+          character.groupId,
+          character.id,
+          'reward',
+          `${character.name} gathers ${node.name} x${quantity}.`
+        );
+      }
       const respawnAt = ctx.timestamp.microsSinceUnixEpoch + RESOURCE_RESPAWN_MICROS;
       ctx.db.resourceNode.id.update({
         ...node,

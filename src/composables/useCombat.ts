@@ -202,6 +202,20 @@ export const useCombat = ({
       });
   });
 
+  const lootForResult = computed(() => {
+    if (!activeResult.value) return [];
+    const combatId = activeResult.value.combatId.toString();
+    return combatLoot.value.filter((row) => row.combatId.toString() === combatId);
+  });
+
+  const hasAnyLootForResult = computed(() => lootForResult.value.length > 0);
+
+  const hasOtherLootForResult = computed(() => {
+    if (!selectedCharacter.value || !selectedCharacter.value.groupId) return false;
+    const selectedId = selectedCharacter.value.id.toString();
+    return lootForResult.value.some((row) => row.characterId.toString() !== selectedId);
+  });
+
 
   const activeEnemy = computed(() => {
     if (!activeCombat.value) return null;
@@ -552,7 +566,12 @@ export const useCombat = ({
   };
   const dismissResults = () => {
     if (!connActive.value || !selectedCharacter.value) return;
-    if (activeLoot.value.length > 0) {
+    if (hasOtherLootForResult.value) {
+      const confirmDismiss = window.confirm(
+        'Other group members still have unclaimed loot. Dismissing will forfeit all remaining loot. Continue?'
+      );
+      if (!confirmDismiss) return;
+    } else if (activeLoot.value.length > 0) {
       const confirmDismiss = window.confirm(
         'You have unclaimed loot. Dismissing will forfeit these items. Continue?'
       );
@@ -578,6 +597,9 @@ export const useCombat = ({
     activeCombat,
     activeResult,
     activeLoot,
+    lootForResult,
+    hasAnyLootForResult,
+    hasOtherLootForResult,
     activeEnemy,
     activeEnemyName,
     activeEnemyLevel,
