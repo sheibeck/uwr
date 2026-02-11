@@ -1838,6 +1838,7 @@ function executeAbility(
       debuff?: { type: string; magnitude: bigint; rounds: bigint; source: string };
       dot?: { magnitude: bigint; rounds: bigint; source: string };
       message?: string;
+      perHitMessage?: (damage: bigint, hitIndex: bigint, totalHits: bigint) => string;
     }
   ) => {
     if (!enemy || !combatId) throw new SenderError('No enemy in combat');
@@ -1852,12 +1853,14 @@ function executeAbility(
       armor = armor > options.ignoreArmor ? armor - options.ignoreArmor : 0n;
     }
     let totalDamage = 0n;
+    const hitDamages: bigint[] = [];
     for (let i = 0n; i < hits; i += 1n) {
       const raw =
         abilityDamageFromWeapon(baseWeaponDamage, percent, bonus) +
         damageUp +
         sumEnemyEffect(ctx, combatId, 'damage_taken', enemy.id);
       const reduced = applyArmorMitigation(raw, armor);
+      hitDamages.push(reduced);
       totalDamage += reduced;
     }
     const nextHp = enemy.currentHp > totalDamage ? enemy.currentHp - totalDamage : 0n;
@@ -1893,10 +1896,19 @@ function executeAbility(
         options.dot.source
       );
     }
-    const damageMessage =
-      options?.message ?? `Your ${ability.name} hits ${enemyName} for ${totalDamage} damage.`;
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage', damageMessage);
-    logGroup('damage', damageMessage);
+    if (options?.perHitMessage) {
+      for (let i = 0; i < hitDamages.length; i += 1) {
+        const hitIndex = BigInt(i + 1);
+        const message = options.perHitMessage(hitDamages[i], hitIndex, hits);
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage', message);
+        logGroup('damage', message);
+      }
+    } else {
+      const damageMessage =
+        options?.message ?? `Your ${ability.name} hits ${enemyName} for ${totalDamage} damage.`;
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage', damageMessage);
+      logGroup('damage', damageMessage);
+    }
     return totalDamage;
   };
 
@@ -2386,7 +2398,11 @@ function executeAbility(
       applyDamage(85n, 1n, { hits: 3n });
       return;
     case 'beastmaster_pack_rush':
-      applyDamage(120n, 2n, { hits: 2n });
+      applyDamage(80n, 0n, {
+        hits: 2n,
+        perHitMessage: (damage, hitIndex, totalHits) =>
+          `Your ${ability.name} hits ${enemyName} for ${damage} damage. (${hitIndex}/${totalHits})`,
+      });
       return;
     case 'beastmaster_call_beast':
       summonPet(
