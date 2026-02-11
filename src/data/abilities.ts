@@ -54,7 +54,7 @@ export const abilities: Ability[] = [
   { key: 'paladin_radiant_smite', name: 'Radiant Smite', className: 'Paladin', level: 5, kind: 'combat', resource: 'mana', description: 'A radiant strike that burns the target.', castSeconds: 1 },
 
   { key: 'ranger_marked_shot', name: 'Marked Shot', className: 'Ranger', level: 1, kind: 'combat', resource: 'stamina', description: 'Tag the foe to take extra damage briefly.', castSeconds: 0, cooldownSeconds: 6 },
-  { key: 'ranger_track', name: 'Track', className: 'Ranger', level: 2, kind: 'utility', resource: 'mana', description: 'Reveal local creatures and choose one to engage.', castSeconds: 0, cooldownSeconds: 60 },
+  { key: 'ranger_track', name: 'Track', className: 'Ranger', level: 2, kind: 'utility', resource: 'mana', description: 'Reveal local creatures and choose one to engage.', castSeconds: 0, cooldownSeconds: 600 },
   { key: 'ranger_rapid_shot', name: 'Rapid Shot', className: 'Ranger', level: 3, kind: 'combat', resource: 'stamina', description: 'Fire a quick volley of arrows.', castSeconds: 0 },
   { key: 'ranger_natures_balm', name: "Nature's Balm", className: 'Ranger', level: 4, kind: 'utility', resource: 'mana', description: 'Draw on nature to mend your wounds.', castSeconds: 0 },
   { key: 'ranger_piercing_arrow', name: 'Piercing Arrow', className: 'Ranger', level: 5, kind: 'combat', resource: 'stamina', description: 'An arrow that punches through armor.', castSeconds: 1 },
@@ -113,4 +113,5 @@ export const abilitiesByClass = (className: string, level: number) =>
     (ability) =>
       ability.className.toLowerCase() === className.toLowerCase() && ability.level <= level
   );
+
 

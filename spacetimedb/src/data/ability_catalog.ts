@@ -331,7 +331,7 @@ export const ABILITIES = {
     resource: 'mana',
     level: 2n,
     power: 1n,
-    cooldownSeconds: 12n,
+    cooldownSeconds: 600n,
     castSeconds: 0n,
   },
   ranger_rapid_shot: {
