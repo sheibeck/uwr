@@ -10,14 +10,14 @@ export const ABILITIES = {
     cooldownSeconds: 6n,
     castSeconds: 1n,
   },
-  shaman_totem_of_vigor: {
-    name: 'Totem of Vigor',
+  shaman_spirit_wolf: {
+    name: 'Spirit Wolf',
     className: 'shaman',
     resource: 'mana',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 0n,
-    castSeconds: 2n,
+    cooldownSeconds: 60n,
+    castSeconds: 0n,
   },
   shaman_hex: {
     name: 'Hex',
@@ -55,13 +55,13 @@ export const ABILITIES = {
     cooldownSeconds: 6n,
     castSeconds: 0n,
   },
-  warrior_shout: {
-    name: 'Shout',
+  warrior_intimidating_presence: {
+    name: 'Intimidating Presence',
     className: 'warrior',
     resource: 'stamina',
     level: 2n,
-    power: 3n,
-    cooldownSeconds: 10n,
+    power: 2n,
+    cooldownSeconds: 20n,
     castSeconds: 0n,
   },
   warrior_cleave: {
@@ -100,13 +100,13 @@ export const ABILITIES = {
     cooldownSeconds: 6n,
     castSeconds: 1n,
   },
-  enchanter_clarity: {
-    name: 'Clarity',
+  enchanter_veil_of_calm: {
+    name: 'Veil of Calm',
     className: 'enchanter',
     resource: 'mana',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 6n,
+    cooldownSeconds: 90n,
     castSeconds: 0n,
   },
   enchanter_slow: {
@@ -154,13 +154,13 @@ export const ABILITIES = {
     cooldownSeconds: 0n,
     castSeconds: 1n,
   },
-  cleric_blessing: {
-    name: 'Blessing',
+  cleric_sanctify: {
+    name: 'Sanctify',
     className: 'cleric',
     resource: 'mana',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 12n,
+    cooldownSeconds: 30n,
     castSeconds: 0n,
   },
   cleric_smite: {
@@ -190,13 +190,13 @@ export const ABILITIES = {
     cooldownSeconds: 3n,
     castSeconds: 1n,
   },
-  wizard_arcane_intellect: {
-    name: 'Arcane Intellect',
+  wizard_arcane_reservoir: {
+    name: 'Arcane Reservoir',
     className: 'wizard',
     resource: 'mana',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 8n,
+    cooldownSeconds: 300n,
     castSeconds: 0n,
   },
   wizard_frost_shard: {
@@ -235,13 +235,13 @@ export const ABILITIES = {
     cooldownSeconds: 4n,
     castSeconds: 0n,
   },
-  rogue_smoke_step: {
-    name: 'Smoke Step',
+  rogue_pickpocket: {
+    name: 'Pickpocket',
     className: 'rogue',
     resource: 'stamina',
     level: 2n,
-    power: 2n,
-    cooldownSeconds: 10n,
+    power: 1n,
+    cooldownSeconds: 120n,
     castSeconds: 0n,
   },
   rogue_bleed: {
@@ -280,13 +280,13 @@ export const ABILITIES = {
     cooldownSeconds: 4n,
     castSeconds: 0n,
   },
-  paladin_prayer: {
-    name: 'Prayer',
+  paladin_lay_on_hands: {
+    name: 'Lay on Hands',
     className: 'paladin',
     resource: 'mana',
     level: 2n,
-    power: 2n,
-    cooldownSeconds: 12n,
+    power: 3n,
+    cooldownSeconds: 600n,
     castSeconds: 0n,
   },
   paladin_shield_of_faith: {
@@ -370,13 +370,13 @@ export const ABILITIES = {
     cooldownSeconds: 0n,
     castSeconds: 1n,
   },
-  necromancer_siphon_vitality: {
-    name: 'Siphon Vitality',
+  necromancer_bone_servant: {
+    name: 'Bone Servant',
     className: 'necromancer',
     resource: 'mana',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 10n,
+    cooldownSeconds: 60n,
     castSeconds: 0n,
   },
   necromancer_wither: {
@@ -415,13 +415,13 @@ export const ABILITIES = {
     cooldownSeconds: 3n,
     castSeconds: 0n,
   },
-  spellblade_focus: {
-    name: 'Focus',
+  spellblade_rune_ward: {
+    name: 'Rune Ward',
     className: 'spellblade',
-    resource: 'stamina',
+    resource: 'mana',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 10n,
+    cooldownSeconds: 60n,
     castSeconds: 0n,
   },
   spellblade_runic_strike: {
@@ -460,13 +460,13 @@ export const ABILITIES = {
     cooldownSeconds: 6n,
     castSeconds: 0n,
   },
-  bard_song_of_ease: {
-    name: 'Song of Ease',
+  bard_ballad_of_resolve: {
+    name: 'Ballad of Resolve',
     className: 'bard',
     resource: 'mana',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 10n,
+    cooldownSeconds: 600n,
     castSeconds: 0n,
   },
   bard_echoed_chord: {
@@ -505,13 +505,13 @@ export const ABILITIES = {
     cooldownSeconds: 8n,
     castSeconds: 0n,
   },
-  beastmaster_pack_bond: {
-    name: 'Pack Bond',
+  beastmaster_call_beast: {
+    name: 'Call Beast',
     className: 'beastmaster',
     resource: 'stamina',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 10n,
+    cooldownSeconds: 60n,
     castSeconds: 0n,
   },
   beastmaster_beast_fang: {
@@ -550,13 +550,13 @@ export const ABILITIES = {
     cooldownSeconds: 5n,
     castSeconds: 0n,
   },
-  monk_meditation: {
-    name: 'Meditation',
+  monk_centering: {
+    name: 'Centering',
     className: 'monk',
     resource: 'stamina',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 10n,
+    cooldownSeconds: 60n,
     castSeconds: 0n,
   },
   monk_palm_strike: {
@@ -595,13 +595,13 @@ export const ABILITIES = {
     cooldownSeconds: 6n,
     castSeconds: 1n,
   },
-  druid_regrowth: {
-    name: 'Regrowth',
+  druid_natures_mark: {
+    name: "Nature's Mark",
     className: 'druid',
     resource: 'mana',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 8n,
+    cooldownSeconds: 120n,
     castSeconds: 0n,
   },
   druid_bramble: {
@@ -685,13 +685,13 @@ export const ABILITIES = {
     cooldownSeconds: 6n,
     castSeconds: 0n,
   },
-  summoner_familiar: {
-    name: 'Familiar',
+  summoner_arcane_familiar: {
+    name: 'Arcane Familiar',
     className: 'summoner',
     resource: 'mana',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 10n,
+    cooldownSeconds: 60n,
     castSeconds: 0n,
   },
   summoner_conjured_spike: {

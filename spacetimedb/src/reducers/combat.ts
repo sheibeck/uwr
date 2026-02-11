@@ -353,6 +353,7 @@ export const registerCombatReducers = (deps: any) => {
       logOwnerId,
       messages,
       applyHp,
+      targetCharacterId,
     }: {
       seed: bigint;
       baseDamage: bigint;
@@ -371,12 +372,30 @@ export const registerCombatReducers = (deps: any) => {
         hit: string | ((damage: bigint) => string);
       };
       applyHp: (nextHp: bigint) => void;
+      targetCharacterId?: bigint;
     }
   ) => {
     const reducedDamage = applyArmorMitigation(baseDamage, targetArmor);
     const outcome = rollAttackOutcome(seed, { canBlock, canParry, canDodge });
     let finalDamage = (reducedDamage * outcome.multiplier) / 100n;
     if (finalDamage < 0n) finalDamage = 0n;
+    if (outcome.outcome === 'hit' && targetCharacterId) {
+      const shield = [...ctx.db.characterEffect.by_character.filter(targetCharacterId)].find(
+        (effect) => effect.effectType === 'damage_shield'
+      );
+      if (shield) {
+        const absorbed = shield.magnitude >= finalDamage ? finalDamage : shield.magnitude;
+        finalDamage -= absorbed;
+        ctx.db.characterEffect.id.delete(shield.id);
+        appendPrivateEvent(
+          ctx,
+          targetCharacterId,
+          logOwnerId,
+          'ability',
+          `${shield.sourceAbility ?? 'A ward'} absorbs ${absorbed} damage.`
+        );
+      }
+    }
     const nextHp = currentHp > finalDamage ? currentHp - finalDamage : 0n;
     applyHp(nextHp);
 
@@ -554,6 +573,35 @@ export const registerCombatReducers = (deps: any) => {
   });
 
   spacetimedb.reducer(
+    'start_tracked_combat',
+    { characterId: t.u64(), enemyTemplateId: t.u64() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
+      if (activeGather) {
+        throw new SenderError('Cannot start combat while gathering');
+      }
+      if (activeCombatIdForCharacter(ctx, character.id)) {
+        throw new SenderError('Already in combat');
+      }
+      const locationId = character.locationId;
+      let groupId: bigint | null = character.groupId ?? null;
+      if (groupId && !isGroupLeaderOrSolo(ctx, character)) {
+        throw new SenderError('Only the group leader can start combat');
+      }
+      const participants: typeof deps.Character.rowType[] = getGroupParticipants(ctx, character, true);
+      if (participants.length === 0) throw new SenderError('No participants available');
+      for (const p of participants) {
+        if (activeCombatIdForCharacter(ctx, p.id)) {
+          throw new SenderError(`${p.name} is already in combat`);
+        }
+      }
+      const spawn = deps.spawnEnemyWithTemplate(ctx, locationId, args.enemyTemplateId);
+      startCombatForSpawn(deps, ctx, character, spawn, participants, groupId);
+    }
+  );
+
+  spacetimedb.reducer(
     'start_pull',
     { characterId: t.u64(), enemySpawnId: t.u64(), pullType: t.string() },
     (ctx, args) => {
@@ -687,6 +735,14 @@ export const registerCombatReducers = (deps: any) => {
     const pressurePenalty = Math.min(30, overlapPressure * 5);
     success -= pressurePenalty;
     fail += pressurePenalty;
+    const veil = deps.sumCharacterEffect(ctx, character.id, 'pull_veil');
+    if (veil > 0n) {
+      success = Math.min(95, success + 15);
+      fail = Math.max(5, fail - 15);
+      for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
+        if (effect.effectType === 'pull_veil') ctx.db.characterEffect.id.delete(effect.id);
+      }
+    }
     const awarenessAlert =
       template.awareness?.toLowerCase() === 'alert' ||
       candidates.some((row) => row.template?.awareness?.toLowerCase() === 'alert');
@@ -737,6 +793,9 @@ export const registerCombatReducers = (deps: any) => {
     const reasons: string[] = [];
     if (awarenessAlert) {
       reasons.push('The area is on alert.');
+    }
+    if (veil > 0n) {
+      reasons.push('A veil of calm muffles your pull.');
     }
     if (PULL_ALLOW_EXTERNAL_ADDS && overlapPressure > 0) {
       reasons.push(`Other ${template.name} are nearby and may answer the call.`);
@@ -1031,6 +1090,15 @@ export const registerCombatReducers = (deps: any) => {
           const nextHp = owner.hp > nextMax ? nextMax : owner.hp;
           ctx.db.character.id.update({ ...owner, maxHp: nextMax, hp: nextHp });
         }
+        if (
+          effect.effectType === 'str_bonus' ||
+          effect.effectType === 'dex_bonus' ||
+          effect.effectType === 'cha_bonus' ||
+          effect.effectType === 'wis_bonus' ||
+          effect.effectType === 'int_bonus'
+        ) {
+          deps.recomputeCharacterDerived(ctx, owner);
+        }
         ctx.db.characterEffect.id.delete(effect.id);
         continue;
       }
@@ -1066,6 +1134,15 @@ export const registerCombatReducers = (deps: any) => {
           const nextMax = owner.maxHp > effect.magnitude ? owner.maxHp - effect.magnitude : 0n;
           const nextHp = owner.hp > nextMax ? nextMax : owner.hp;
           ctx.db.character.id.update({ ...owner, maxHp: nextMax, hp: nextHp });
+        }
+        if (
+          effect.effectType === 'str_bonus' ||
+          effect.effectType === 'dex_bonus' ||
+          effect.effectType === 'cha_bonus' ||
+          effect.effectType === 'wis_bonus' ||
+          effect.effectType === 'int_bonus'
+        ) {
+          deps.recomputeCharacterDerived(ctx, owner);
         }
         ctx.db.characterEffect.id.delete(effect.id);
       } else {
@@ -1797,6 +1874,7 @@ export const registerCombatReducers = (deps: any) => {
               applyHp: (updatedHp) => {
                 ctx.db.character.id.update({ ...targetCharacter, hp: updatedHp });
               },
+              targetCharacterId: targetCharacter.id,
             });
             if (nextHp === 0n) {
               for (const p of participants) {

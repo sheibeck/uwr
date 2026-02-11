@@ -117,6 +117,7 @@ export const useCombat = ({
   >();
   const startCombatReducer = useReducer(reducers.startCombat);
   const startPullReducer = useReducer(reducers.startPull);
+  const startTrackedCombatReducer = useReducer(reducers.startTrackedCombat);
   const setCombatTargetReducer = useReducer(reducers.setCombatTarget);
   const fleeCombatReducer = useReducer(reducers.fleeCombat);
   const dismissResultsReducer = useReducer(reducers.dismissCombatResults);
@@ -526,6 +527,11 @@ export const useCombat = ({
     startPullReducer({ characterId: selectedCharacter.value.id, enemySpawnId, pullType });
   };
 
+  const startTrackedCombat = (enemyTemplateId: bigint) => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    startTrackedCombatReducer({ characterId: selectedCharacter.value.id, enemyTemplateId });
+  };
+
   const flee = () => {
     if (!connActive.value || !activeCombat.value || !selectedCharacter.value) return;
     fleeCombatReducer({
@@ -574,6 +580,7 @@ export const useCombat = ({
     combatRoster,
     startCombat,
     startPull,
+    startTrackedCombat,
     setCombatTarget,
     flee,
     dismissResults,

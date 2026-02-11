@@ -1660,9 +1660,21 @@ function executeAbility(
 
   if (character.level < ability.level) throw new SenderError('Ability not unlocked');
 
+  let staminaFree = false;
+  if (ability.resource === 'stamina') {
+    const free = [...ctx.db.characterEffect.by_character.filter(character.id)].find(
+      (effect) => effect.effectType === 'stamina_free'
+    );
+    if (free) {
+      staminaFree = true;
+      ctx.db.characterEffect.id.delete(free.id);
+    }
+  }
   const resourceCost =
     ability.resource === 'stamina'
-      ? 3n
+      ? staminaFree
+        ? 0n
+        : 3n
       : abilityResourceCost(ability.level, ability.power);
   if (ability.resource === 'mana') {
     if (character.mana < resourceCost) throw new SenderError('Not enough mana');
@@ -1805,6 +1817,28 @@ function executeAbility(
       );
     }
   };
+  const applyMana = (target: typeof Character.rowType, amount: bigint, source: string) => {
+    const current = ctx.db.character.id.find(target.id);
+    if (!current || current.maxMana === 0n) return;
+    const nextMana = current.mana + amount > current.maxMana ? current.maxMana : current.mana + amount;
+    ctx.db.character.id.update({ ...current, mana: nextMana });
+    appendPrivateEvent(
+      ctx,
+      current.id,
+      current.ownerUserId,
+      'ability',
+      `${source} restores ${amount} mana to ${current.name}.`
+    );
+    if (current.id !== character.id) {
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        `${source} restores ${amount} mana to ${current.name}.`
+      );
+    }
+  };
   const applyPartyEffect = (
     effectType: string,
     magnitude: bigint,
@@ -1834,15 +1868,13 @@ function executeAbility(
         `Spirit Mender soothes ${targetCharacter.name}.`
       );
       return;
-    case 'shaman_totem_of_vigor':
-      if (!targetCharacter) throw new SenderError('Target required');
-      addCharacterEffect(ctx, targetCharacter.id, 'regen', 10n, 3n, 'Totem of Vigor');
+    case 'shaman_spirit_wolf':
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'ability',
-        `Totem of Vigor empowers ${targetCharacter.name}.`
+        'Spirit Wolf stirs, but the pet system is not yet implemented.'
       );
       return;
     case 'shaman_hex':
@@ -1870,14 +1902,15 @@ function executeAbility(
         debuff: { type: 'skip', magnitude: 1n, rounds: 1n, source: 'Slam' },
       });
       return;
-    case 'warrior_shout':
-      applyPartyEffect('damage_up', 2n, 3n, 'Shout');
+    case 'warrior_intimidating_presence':
+      if (!enemy || !combatId) throw new SenderError('No enemy target');
+      addEnemyEffect(ctx, combatId, enemy.id, 'damage_down', -3n, 3n, 'Intimidating Presence');
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'ability',
-        'Your Shout rallies the party.'
+        `You intimidate ${enemyName}, sapping its strength.`
       );
       return;
     case 'warrior_cleave':
@@ -1906,14 +1939,17 @@ function executeAbility(
         'Discordant Note sharpens the party.'
       );
       return;
-    case 'bard_song_of_ease':
-      applyPartyEffect('stamina_regen', 3n, 3n, 'Song of Ease');
+    case 'bard_ballad_of_resolve':
+      for (const member of partyMembers) {
+        addCharacterEffect(ctx, member.id, 'str_bonus', 1n, 60n, 'Ballad of Resolve');
+        recomputeCharacterDerived(ctx, member);
+      }
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'ability',
-        'Song of Ease restores the party.'
+        'Ballad of Resolve strengthens the party.'
       );
       return;
     case 'bard_echoed_chord': {
@@ -1943,15 +1979,14 @@ function executeAbility(
         debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Mind Fray' },
       });
       return;
-    case 'enchanter_clarity':
-      if (!targetCharacter) throw new SenderError('Target required');
-      addCharacterEffect(ctx, targetCharacter.id, 'mana_regen', 4n, 3n, 'Clarity');
+    case 'enchanter_veil_of_calm':
+      addCharacterEffect(ctx, character.id, 'pull_veil', 1n, 12n, 'Veil of Calm');
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'ability',
-        `Clarity restores ${targetCharacter.name}'s mana.`
+        'Veil of Calm settles your presence for the next pull.'
       );
       return;
     case 'enchanter_slow':
@@ -1979,17 +2014,32 @@ function executeAbility(
       if (!targetCharacter) throw new SenderError('Target required');
       applyHeal(targetCharacter, 10n, 'Mend');
       return;
-    case 'cleric_blessing':
+    case 'cleric_sanctify': {
       if (!targetCharacter) throw new SenderError('Target required');
-      applyHpBonus(ctx, targetCharacter, 10n, 3n, 'Blessing');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        `Blessing fortifies ${targetCharacter.name}.`
+      const effects = [...ctx.db.characterEffect.by_character.filter(targetCharacter.id)];
+      const negative = effects.find(
+        (effect) => effect.effectType === 'dot' || effect.magnitude < 0n
       );
+      if (negative) {
+        ctx.db.characterEffect.id.delete(negative.id);
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          `Sanctify cleanses ${targetCharacter.name}.`
+        );
+      } else {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          `${targetCharacter.name} has no harmful effects to cleanse.`
+        );
+      }
       return;
+    }
     case 'cleric_smite':
       applyDamage(130n, 2n);
       return;
@@ -2010,17 +2060,14 @@ function executeAbility(
     case 'wizard_magic_missile':
       applyDamage(145n, 3n);
       return;
-    case 'wizard_arcane_intellect':
-      if (!targetCharacter) throw new SenderError('Target required');
-      addCharacterEffect(ctx, targetCharacter.id, 'mana_regen', 4n, 3n, 'Arcane Intellect');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        `Arcane Intellect bolsters ${targetCharacter.name}.`
-      );
+    case 'wizard_arcane_reservoir': {
+      const amount =
+        character.maxMana > 0n ? (character.maxMana / 4n > 10n ? character.maxMana / 4n : 10n) : 0n;
+      if (amount > 0n) {
+        applyMana(character, amount, 'Arcane Reservoir');
+      }
       return;
+    }
     case 'wizard_frost_shard':
       applyDamage(120n, 2n, {
         debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Frost Shard' },
@@ -2043,23 +2090,51 @@ function executeAbility(
     case 'rogue_shadow_cut':
       applyDamage(150n, 4n, { dot: { magnitude: 2n, rounds: 2n, source: 'Shadow Cut' } });
       return;
-    case 'rogue_smoke_step': {
-      const combatIdLocal = combatId;
-      if (combatIdLocal) {
-        for (const entry of ctx.db.aggroEntry.by_combat.filter(combatIdLocal)) {
-          if (entry.characterId === character.id) {
-            const reduced = entry.value > 10n ? entry.value - 10n : 0n;
-            ctx.db.aggroEntry.id.update({ ...entry, value: reduced });
-            break;
-          }
-        }
+    case 'rogue_pickpocket': {
+      const seed = ctx.timestamp.microsSinceUnixEpoch + character.id;
+      const roll = Number(seed % 100n);
+      const targetLabel = enemy ? enemyName : 'your mark';
+      if (roll < 60) {
+        const gold = 2n + (seed % 5n);
+        ctx.db.character.id.update({ ...character, gold: (character.gold ?? 0n) + gold });
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          `You pickpocket ${gold} gold from ${targetLabel}.`
+        );
+        return;
       }
+      const junk = [...ctx.db.itemTemplate.iter()].filter((row) => row.isJunk);
+      if (junk.length === 0) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          'You find nothing of value.'
+        );
+        return;
+      }
+      const template = junk[Number(seed % BigInt(junk.length))];
+      if (!hasInventorySpace(ctx, character.id, template.id)) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          'Your pack is full.'
+        );
+        return;
+      }
+      addItemToInventory(ctx, character.id, template.id, 1n);
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'ability',
-        'Smoke Step lowers your threat.'
+        `You lift a ${template.name} from ${targetLabel}.`
       );
       return;
     }
@@ -2093,16 +2168,19 @@ function executeAbility(
         'Holy Strike steadies your guard.'
       );
       return;
-    case 'paladin_prayer':
-      applyPartyHpBonus(10n, 3n, 'Prayer');
+    case 'paladin_lay_on_hands': {
+      const target = targetCharacter ?? character;
+      const missing = target.maxHp > target.hp ? target.maxHp - target.hp : 0n;
+      if (missing > 0n) applyHeal(target, missing, 'Lay on Hands');
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'ability',
-        'Prayer blesses the party.'
+        `Lay on Hands restores ${target.name}.`
       );
       return;
+    }
     case 'paladin_shield_of_faith':
       if (!targetCharacter) throw new SenderError('Target required');
       addCharacterEffect(ctx, targetCharacter.id, 'ac_bonus', 3n, 3n, 'Shield of Faith');
@@ -2133,13 +2211,12 @@ function executeAbility(
       });
       return;
     case 'ranger_track':
-      applyPartyEffect('damage_up', 1n, 3n, 'Track');
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'ability',
-        'Track reveals a weakness in nearby foes.'
+        'You study the tracks in the area.'
       );
       return;
     case 'ranger_rapid_shot':
@@ -2163,11 +2240,15 @@ function executeAbility(
       applyDamage(110n, 1n, { dot: { magnitude: 3n, rounds: 2n, source: 'Plague Spark' } });
       applyHeal(character, 2n, 'Plague Spark');
       return;
-    case 'necromancer_siphon_vitality': {
-      const healAmount = 8n;
-      applyHeal(character, healAmount, 'Siphon Vitality');
+    case 'necromancer_bone_servant':
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Bone Servant answers, but the pet system is not yet implemented.'
+      );
       return;
-    }
     case 'necromancer_wither':
       applyDamage(120n, 2n, { dot: { magnitude: 3n, rounds: 2n, source: 'Wither' } });
       return;
@@ -2189,14 +2270,14 @@ function executeAbility(
         debuff: { type: 'armor_down', magnitude: -2n, rounds: 2n, source: 'Arcane Slash' },
       });
       return;
-    case 'spellblade_focus':
-      addCharacterEffect(ctx, character.id, 'damage_up', 3n, 3n, 'Focus');
+    case 'spellblade_rune_ward':
+      addCharacterEffect(ctx, character.id, 'damage_shield', 10n, 6n, 'Rune Ward');
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'ability',
-        'Focus sharpens your offense.'
+        'Rune Ward wraps you in protective sigils.'
       );
       return;
     case 'spellblade_runic_strike':
@@ -2220,14 +2301,13 @@ function executeAbility(
     case 'beastmaster_pack_rush':
       applyDamage(120n, 2n, { hits: 2n });
       return;
-    case 'beastmaster_pack_bond':
-      applyPartyEffect('damage_up', 2n, 3n, 'Pack Bond');
+    case 'beastmaster_call_beast':
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'ability',
-        'Pack Bond empowers the party.'
+        'Call Beast resonates, but the pet system is not yet implemented.'
       );
       return;
     case 'beastmaster_beast_fang':
@@ -2251,14 +2331,14 @@ function executeAbility(
         debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Crippling Kick' },
       });
       return;
-    case 'monk_meditation':
-      addCharacterEffect(ctx, character.id, 'regen', 4n, 3n, 'Meditation');
+    case 'monk_centering':
+      addCharacterEffect(ctx, character.id, 'stamina_free', 1n, 2n, 'Centering');
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'ability',
-        'Meditation steadies your breathing.'
+        'You center yourself for a cost-free strike.'
       );
       return;
     case 'monk_palm_strike':
@@ -2281,10 +2361,46 @@ function executeAbility(
       applyDamage(110n, 1n, { dot: { magnitude: 2n, rounds: 2n, source: 'Thorn Lash' } });
       applyHeal(character, 3n, 'Thorn Lash');
       return;
-    case 'druid_regrowth':
-      if (!targetCharacter) throw new SenderError('Target required');
-      applyHeal(targetCharacter, 10n, 'Regrowth');
+    case 'druid_natures_mark': {
+      if (activeCombatIdForCharacter(ctx, character.id)) {
+        throw new SenderError('Cannot use while in combat');
+      }
+      const location = ctx.db.location.id.find(character.locationId);
+      if (!location) throw new SenderError('Location not found');
+      const pool = getGatherableResourceTemplates(ctx, location.terrainType ?? 'plains');
+      if (pool.length === 0) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          'Nature yields nothing here.'
+        );
+        return;
+      }
+      const seed = ctx.timestamp.microsSinceUnixEpoch + character.id;
+      const template = pool[Number(seed % BigInt(pool.length))];
+      const quantity = 1n + (seed % 4n);
+      if (!hasInventorySpace(ctx, character.id, template.id)) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          'Your pack is full.'
+        );
+        return;
+      }
+      addItemToInventory(ctx, character.id, template.id, quantity);
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        `Nature's Mark yields ${quantity} ${template.name}.`
+      );
       return;
+    }
     case 'druid_bramble':
       applyDamage(110n, 2n, { dot: { magnitude: 3n, rounds: 2n, source: 'Bramble' } });
       return;
@@ -2342,14 +2458,13 @@ function executeAbility(
         'Familiar Strike steadies your focus.'
       );
       return;
-    case 'summoner_familiar':
-      addCharacterEffect(ctx, character.id, 'mana_regen', 4n, 3n, 'Familiar');
+    case 'summoner_arcane_familiar':
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'ability',
-        'Familiar restores your mana.'
+        'Arcane Familiar manifests, but the pet system is not yet implemented.'
       );
       return;
     case 'summoner_conjured_spike':
@@ -2381,12 +2496,19 @@ function executeAbility(
 
 function recomputeCharacterDerived(ctx: any, character: typeof Character.rowType) {
   const gear = getEquippedBonuses(ctx, character.id);
+  const effectStats = {
+    str: sumCharacterEffect(ctx, character.id, 'str_bonus'),
+    dex: sumCharacterEffect(ctx, character.id, 'dex_bonus'),
+    cha: sumCharacterEffect(ctx, character.id, 'cha_bonus'),
+    wis: sumCharacterEffect(ctx, character.id, 'wis_bonus'),
+    int: sumCharacterEffect(ctx, character.id, 'int_bonus'),
+  };
   const totalStats = {
-    str: character.str + gear.str,
-    dex: character.dex + gear.dex,
-    cha: character.cha + gear.cha,
-    wis: character.wis + gear.wis,
-    int: character.int + gear.int,
+    str: character.str + gear.str + effectStats.str,
+    dex: character.dex + gear.dex + effectStats.dex,
+    cha: character.cha + gear.cha + effectStats.cha,
+    wis: character.wis + gear.wis + effectStats.wis,
+    int: character.int + gear.int + effectStats.int,
   };
 
   const manaStat = manaStatForClass(character.className, totalStats);
@@ -3629,6 +3751,75 @@ function spawnEnemy(
     ...spawn,
     name: `${chosen.name}`,
   });
+  return ctx.db.enemySpawn.id.find(spawn.id)!;
+}
+
+function spawnEnemyWithTemplate(
+  ctx: any,
+  locationId: bigint,
+  templateId: bigint
+): typeof EnemySpawn.rowType {
+  const template = ctx.db.enemyTemplate.id.find(templateId);
+  if (!template) throw new SenderError('Enemy template not found');
+  let allowedHere = false;
+  for (const row of ctx.db.locationEnemyTemplate.by_location.filter(locationId)) {
+    if (row.enemyTemplateId === templateId) {
+      allowedHere = true;
+      break;
+    }
+  }
+  if (!allowedHere) throw new SenderError('That creature cannot be tracked here');
+  const timePref = isNightTime(ctx) ? 'night' : 'day';
+  const pref = (template.timeOfDay ?? '').trim().toLowerCase();
+  if (pref && pref !== 'any' && pref !== timePref) {
+    throw new SenderError('That creature is not active right now');
+  }
+  const seed = ctx.timestamp.microsSinceUnixEpoch + locationId + template.id;
+  const minGroup = template.groupMin && template.groupMin > 0n ? template.groupMin : 1n;
+  const maxGroup = template.groupMax && template.groupMax > 0n ? template.groupMax : minGroup;
+  const groupSeed = seed + template.id * 11n;
+  let groupCount = minGroup;
+  if (maxGroup > minGroup) {
+    const location = ctx.db.location.id.find(locationId);
+    const region = location ? ctx.db.region.id.find(location.regionId) : undefined;
+    const danger = region?.dangerMultiplier ?? GROUP_SIZE_DANGER_BASE;
+    const delta = danger > GROUP_SIZE_DANGER_BASE ? danger - GROUP_SIZE_DANGER_BASE : 0n;
+    const rawBias = Number(delta) / Math.max(1, Number(GROUP_SIZE_BIAS_RANGE));
+    const bias = Math.max(0, Math.min(GROUP_SIZE_BIAS_MAX, rawBias));
+    const biasScaled = Math.round(bias * 1000);
+    const invBias = 1000 - biasScaled;
+    const sizeCount = Number(maxGroup - minGroup + 1n);
+    let totalWeight = 0;
+    const weights: number[] = [];
+    for (let i = 0; i < sizeCount; i += 1) {
+      const lowWeight = sizeCount - i;
+      const highWeight = i + 1;
+      const weight = invBias * lowWeight + biasScaled * highWeight;
+      weights.push(weight);
+      totalWeight += weight;
+    }
+    let roll = groupSeed % BigInt(totalWeight);
+    for (let i = 0; i < weights.length; i += 1) {
+      const weight = BigInt(weights[i]);
+      if (roll < weight) {
+        groupCount = minGroup + BigInt(i);
+        break;
+      }
+      roll -= weight;
+    }
+  }
+  const spawn = ctx.db.enemySpawn.insert({
+    id: 0n,
+    locationId,
+    enemyTemplateId: template.id,
+    name: template.name,
+    state: 'available',
+    lockedCombatId: undefined,
+    groupCount,
+  });
+  seedSpawnMembers(ctx, spawn.id, template.id, groupCount, groupSeed);
+  refreshSpawnGroupCount(ctx, spawn.id);
+  ctx.db.enemySpawn.id.update({ ...spawn, name: `${template.name}` });
   return ctx.db.enemySpawn.id.find(spawn.id)!;
 }
 
@@ -4985,6 +5176,7 @@ const reducerDeps = {
   sumEnemyEffect,
   applyArmorMitigation,
   spawnEnemy,
+  spawnEnemyWithTemplate,
   getEquippedWeaponStats,
   addItemToInventory,
   removeItemFromInventory,

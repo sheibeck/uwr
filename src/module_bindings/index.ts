@@ -146,6 +146,8 @@ import RejectGroupInviteReducer from "./reject_group_invite_reducer";
 export { RejectGroupInviteReducer };
 import StartCombatReducer from "./start_combat_reducer";
 export { StartCombatReducer };
+import StartTrackedCombatReducer from "./start_tracked_combat_reducer";
+export { StartTrackedCombatReducer };
 import StartPullReducer from "./start_pull_reducer";
 export { StartPullReducer };
 import SetCombatTargetReducer from "./set_combat_target_reducer";
@@ -598,6 +600,8 @@ import StartGatherResource from "./start_gather_resource_type";
 export { StartGatherResource };
 import StartPull from "./start_pull_type";
 export { StartPull };
+import StartTrackedCombat from "./start_tracked_combat_type";
+export { StartTrackedCombat };
 import StartTrade from "./start_trade_type";
 export { StartTrade };
 import SubmitCommand from "./submit_command_type";
@@ -1726,6 +1730,7 @@ const reducersSchema = __reducers(
   __reducerSchema("accept_group_invite", AcceptGroupInviteReducer),
   __reducerSchema("reject_group_invite", RejectGroupInviteReducer),
   __reducerSchema("start_combat", StartCombatReducer),
+  __reducerSchema("start_tracked_combat", StartTrackedCombatReducer),
   __reducerSchema("start_pull", StartPullReducer),
   __reducerSchema("set_combat_target", SetCombatTargetReducer),
   __reducerSchema("resolve_pull", ResolvePullReducer),

@@ -274,6 +274,12 @@
           :locations="locations"
           :regions="regions"
         />
+        <TrackPanel
+          v-else-if="activePanel === 'track'"
+          :styles="styles"
+          :options="trackOptions"
+          @select="selectTrackedTarget"
+        />
         <CombatPanel
           v-else-if="activePanel === 'combat'"
           :styles="styles"
@@ -530,6 +536,7 @@ import ActionBar from './components/ActionBar.vue';
 import NpcDialogPanel from './components/NpcDialogPanel.vue';
 import QuestPanel from './components/QuestPanel.vue';
 import VendorPanel from './components/VendorPanel.vue';
+import TrackPanel from './components/TrackPanel.vue';
 import { useGameData } from './composables/useGameData';
 import { useCharacters } from './composables/useCharacters';
 import { useEvents } from './composables/useEvents';
@@ -755,6 +762,28 @@ const timeTooltip = computed(() => {
   return `${isNight.value ? 'Nighttime' : 'Daytime'} · ${minutes}:${seconds} remaining`;
 });
 
+const trackOptions = computed(() => {
+  if (!currentLocation.value) return [];
+  const terrain = (currentLocation.value.terrainType ?? '').trim().toLowerCase();
+  if (!terrain) return [];
+  return enemyTemplates.value
+    .filter((template) => {
+      const allowed = (template.terrainTypes ?? '')
+        .split(',')
+        .map((entry) => entry.trim().toLowerCase())
+        .filter((entry) => entry.length > 0);
+      if (allowed.length === 0) return true;
+      return allowed.includes(terrain);
+    })
+    .filter((template) => {
+      const pref = (template.timeOfDay ?? '').trim().toLowerCase();
+      if (!pref || pref === 'any') return true;
+      return isNight.value ? pref === 'night' : pref === 'day';
+    })
+    .sort((a, b) => (a.name > b.name ? 1 : a.name < b.name ? -1 : 0));
+});
+
+
 const {
   activeCombat,
   activeEnemy,
@@ -766,6 +795,7 @@ const {
   activeLoot,
   startCombat,
   startPull,
+  startTrackedCombat,
   setCombatTarget,
   flee,
   dismissResults,
@@ -1373,9 +1403,25 @@ const tryUseAbility = (slot: any) => {
   useAbility(slot.abilityKey, targetId);
 };
 
+const selectTrackedTarget = (templateId: bigint) => {
+  if (!selectedCharacter.value) return;
+  const trackSlot = hotbarDisplay.value.find((slot) => slot.abilityKey === 'ranger_track');
+  if (trackSlot) {
+    tryUseAbility(trackSlot);
+  } else {
+    useAbility('ranger_track', selectedCharacter.value.id);
+  }
+  startTrackedCombat(templateId);
+  activePanel.value = 'none';
+};
+
 const onHotbarClick = (slot: any) => {
   if (!selectedCharacter.value || !slot?.abilityKey) return;
   if (isCasting.value) return;
+  if (slot.abilityKey === 'ranger_track') {
+    activePanel.value = 'track';
+    return;
+  }
   const ability = abilityLookup.value.get(slot.abilityKey);
   if (ability?.castSeconds && ability.castSeconds > 0) {
     localCast.value = {
@@ -1428,6 +1474,7 @@ const activePanel = ref<
   | 'vendor'
   | 'characterActions'
   | 'trade'
+  | 'track'
   | 'travel'
   | 'combat'
 >('none');
@@ -1803,6 +1850,8 @@ const panelTitle = computed(() => {
       return `${actionTargetCharacter.value.name} · ${actionTargetCharacter.value.className} Lv ${actionTargetCharacter.value.level}`;
     case 'trade':
       return 'Trade';
+    case 'track':
+      return 'Track';
     case 'travel':
       return 'Travel';
     case 'combat':

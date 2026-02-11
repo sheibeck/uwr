@@ -345,4 +345,35 @@ Last updated: 2026-02-11
 - Optional: add outgoing invite list in group UI.
 - Optional: add friend request notifications in UI beyond log.
 - TODO: Apply buff/debuff effects to combat calculations beyond AC (e.g., stats, hit/dodge/crit, damage).
+- TODO: Add more ability hooks for pull phase manipulation (social radius reduction, awareness changes, add delay).
+- TODO: Add status effect source tracking for caster‑side HoT/DoT tick logs (currently only target logs).
+- TODO: Add ability hooks for auto‑attack speed (haste/slow) and cast speed (future).
+
+## Ability Levers (Current + Planned)
+**Current systems you can influence with abilities**
+- **Combat damage output:** base weapon damage, ability damage multiplier/bonus, multi‑hit, armor ignore, and damage‑taken debuffs via `damage_taken`.
+- **Armor/mitigation:** `armorClass` plus `armor_down` enemy effects and `ac_bonus` character effects.
+- **Threat/aggro:** `aggroEntry` value increases on damage; abilities can add `threatBonus` or reduce aggro (e.g., Smoke Step).
+- **Healing:** direct heals, HoT effects (`regen`) on characters.
+- **DoT/HoT cadence:** DoT and HoT tick every 3s via `hot_tick`; other effects tick at 10s via `effect_tick`.
+- **Enemy output:** `damage_down` debuff reduces enemy damage; `slow` and `skip` effects can reduce/skip enemy actions.
+- **Group buffs:** `applyPartyEffect` for damage_up, ac_bonus, stamina_regen, mana_regen.
+- **Resource costs:** mana/stamina costs via `abilityResourceCost` and stamina fixed cost (3).
+- **Casting:** cast time via `character_cast` + `cast_tick`; auto‑attack pauses while casting.
+- **Cooldowns:** per‑ability cooldowns via `ability_cooldown`.
+- **Pull phase:** Careful vs Body Pull; partial success causes delayed adds; failure causes immediate adds.
+- **Social aggro:** `socialGroup`, `socialRadius`, `awareness` drive add behavior on pulls.
+- **Group mechanics:** leader‑only engage, group follow leader toggle, delayed logout (30s) prevents combat escape.
+- **Gathering risk:** aggro chance on gather scales with region danger.
+
+**Mechanisms not yet implemented but useful for abilities**
+- **Pull modifiers:** temporary reductions to `socialRadius`, `socialGroup` aggro chance, or add delay for a specific pull.
+- **Targeted crowd control:** mez/charm/fear/stun as combat effects that disable enemy actions (requires effect handling in combat loop).
+- **Haste/slow:** auto‑attack interval adjustment per character and per enemy.
+- **Cast speed modifiers:** change cast durations (per ability or global).
+- **Damage shields/reflects:** react to incoming damage by returning a percent.
+- **Healing threat:** add aggro from heals to healer (currently only damage affects aggro).
+- **Resource regen modifiers:** buff/debuff to HP/Mana/Stamina regen rates.
+- **Dispel/cleanse:** remove active buffs/debuffs from target.
+- **Absorb shields:** temporary HP buffer that is consumed before real HP.
 
