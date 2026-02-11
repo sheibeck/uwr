@@ -5,9 +5,7 @@
       Select a character to view group details.
     </div>
     <div v-else-if="currentGroup">
-      <div :style="styles.subtle">Group: {{ currentGroup.name }}</div>
-      <div :style="styles.panelSectionTitle">Members</div>
-        <ul :style="styles.list">
+      <ul :style="styles.list">
         <li
           v-for="member in sortedMembers"
           :key="member.id.toString()"

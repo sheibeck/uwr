@@ -180,8 +180,8 @@
         <div :style="styles.panelFormInline">
           <button
             type="button"
-            :disabled="!connActive || !canEngage"
-            :style="styles.ghostButton"
+            :style="[styles.ghostButton, !canEngage ? styles.disabledButton : {}]"
+            :aria-disabled="!connActive"
             title="Take your time to isolate the target. Safer, quieter pull with a better chance to avoid adds."
             @click="$emit('pull', { enemyId: enemy.id, pullType: 'careful' })"
           >
@@ -189,8 +189,8 @@
           </button>
           <button
             type="button"
-            :disabled="!connActive || !canEngage"
-            :style="styles.ghostButton"
+            :style="[styles.ghostButton, !canEngage ? styles.disabledButton : {}]"
+            :aria-disabled="!connActive"
             title="Step in boldly to test reactions. Faster but more likely to bring extra enemies."
             @click="$emit('pull', { enemyId: enemy.id, pullType: 'body' })"
           >

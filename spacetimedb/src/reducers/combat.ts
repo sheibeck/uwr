@@ -708,7 +708,14 @@ export const registerCombatReducers = (deps: any) => {
 
       let groupId: bigint | null = character.groupId ?? null;
       if (groupId && !isGroupLeaderOrSolo(ctx, character)) {
-        throw new SenderError('Only the group leader can pull');
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'system',
+          'Only the group leader can pull.'
+        );
+        return;
       }
 
       for (const pull of ctx.db.pullState.by_character.filter(character.id)) {

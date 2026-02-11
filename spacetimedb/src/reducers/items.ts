@@ -31,7 +31,7 @@ export const registerItemReducers = (deps: any) => {
   } = deps;
 
   const fail = (ctx: any, character: any, message: string) => {
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', message);
+    deps.appendSystemMessage(ctx, character, message);
     return;
   };
 
