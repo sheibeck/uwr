@@ -148,7 +148,7 @@
           :inventory-items="inventoryItems"
           :inventory-count="inventoryCount"
           :max-inventory-slots="maxInventorySlots"
-          :combat-locked="combatLocked"
+          :combat-locked="lockInventoryEdits"
           @equip="equipItem"
           @unequip="unequipItem"
           @use-item="useItem"
@@ -163,7 +163,7 @@
           :selected-character="selectedCharacter"
           :available-abilities="availableAbilities"
           :hotbar="hotbarAssignments"
-          :combat-locked="combatLocked"
+          :combat-locked="lockHotbarEdits"
           @set-hotbar="setHotbarSlot"
         />
         <FriendsPanel
@@ -219,9 +219,10 @@
           :styles="styles"
           :selected-character="selectedCharacter"
           :crafting-available="currentLocationCraftingAvailable"
+          :combat-locked="lockCrafting"
           :recipes="craftingRecipes"
-          @research="researchRecipes"
-          @craft="craftRecipe"
+          @research="onResearchRecipes"
+          @craft="onCraftRecipe"
         />
         <CharacterActionsPanel
           v-else-if="activePanel === 'characterActions'"
@@ -507,7 +508,7 @@
       :styles="styles"
       :active-panel="activePanel"
       :has-active-character="Boolean(selectedCharacter)"
-      :combat-locked="combatLocked"
+          :combat-locked="lockHotbarEdits"
       :highlight-inventory="highlightInventory"
       :highlight-hotbar="highlightHotbar"
       @toggle="togglePanel"
@@ -573,6 +574,7 @@ import { useInventory } from './composables/useInventory';
 import { useCrafting } from './composables/useCrafting';
 import { useHotbar } from './composables/useHotbar';
 import { useTrade } from './composables/useTrade';
+import { useCombatLock } from './composables/useCombatLock';
 
 const {
   conn,
@@ -847,13 +849,17 @@ const {
   characters,
 });
 
-const canActInCombat = computed(() => {
-  if (!selectedCharacter.value || !activeCombat.value) return false;
-  if (selectedCharacter.value.hp === 0n) return false;
-  const participant = combatRoster.value.find(
-    (row) => row.id.toString() === selectedCharacter.value?.id.toString()
-  );
-  return participant?.status === 'active';
+const {
+  canActInCombat,
+  combatLocked,
+  lockInventoryEdits,
+  lockHotbarEdits,
+  lockCrafting,
+} = useCombatLock({
+  selectedCharacter,
+  activeCombat,
+  activeResult,
+  combatRoster,
 });
 
 const showDeathModal = computed(() => {
@@ -1223,6 +1229,16 @@ const { recipes: craftingRecipes, research: researchRecipes, craft: craftRecipe 
   recipeDiscovered,
 });
 
+const onResearchRecipes = () => {
+  if (lockCrafting.value) return;
+  researchRecipes();
+};
+
+const onCraftRecipe = (recipeId: bigint) => {
+  if (lockCrafting.value) return;
+  craftRecipe(recipeId);
+};
+
 const actionTargetCharacterId = ref<bigint | null>(null);
 const actionTargetCharacter = computed(() => {
   if (!actionTargetCharacterId.value) return null;
@@ -1499,7 +1515,6 @@ onMounted(() => {
   loadAccordionState();
 });
 
-const combatLocked = computed(() => Boolean(activeCombat.value || activeResult.value));
 const showCombatStack = computed(() => combatLocked.value);
 const showRightPanel = computed(() => false);
 

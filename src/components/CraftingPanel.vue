@@ -6,7 +6,16 @@
     </div>
     <div v-else>
       <div :style="styles.rowGap">
-        <button :style="styles.ghostButton" @click="$emit('research')">Research Recipes</button>
+        <button
+          :style="[styles.ghostButton, combatLocked ? styles.disabledButton : {}]"
+          :disabled="combatLocked"
+          @click="$emit('research')"
+        >
+          Research Recipes
+        </button>
+        <div v-if="combatLocked" :style="styles.subtle">
+          Crafting and research are disabled during combat.
+        </div>
         <div v-if="!craftingAvailable" :style="styles.subtle">
           Crafting is only available at locations with crafting stations.
         </div>
@@ -25,7 +34,7 @@
           </div>
           <button
             :style="[styles.primaryButton, !recipe.canCraft ? styles.disabledButton : {}]"
-            :disabled="!recipe.canCraft || !craftingAvailable"
+            :disabled="!recipe.canCraft || !craftingAvailable || combatLocked"
             @click="$emit('craft', recipe.id)"
           >
             Craft
@@ -37,12 +46,11 @@
 </template>
 
 <script setup lang="ts">
-import type { CharacterRow } from '../module_bindings';
-
 defineProps<{
   styles: Record<string, Record<string, string | number>>;
-  selectedCharacter: CharacterRow | null;
+  selectedCharacter: { id: bigint } | null;
   craftingAvailable: boolean;
+  combatLocked: boolean;
   recipes: {
     id: bigint;
     name: string;
