@@ -7,6 +7,7 @@ export const registerItemReducers = (deps: any) => {
     EQUIPMENT_SLOTS,
     ARMOR_TYPES_WITH_NONE,
     normalizeArmorType,
+    requirePlayerUserId,
     requireCharacterOwnedBy,
     isClassAllowed,
     isArmorAllowedForClass,
@@ -27,6 +28,17 @@ export const registerItemReducers = (deps: any) => {
     getInventorySlotCount,
     ResourceGatherTick,
     ResourceRespawnTick,
+    ensureStarterItemTemplates,
+    ensureResourceItemTemplates,
+    ensureLootTables,
+    ensureVendorInventory,
+    ensureAbilityTemplates,
+    ensureRecipeTemplates,
+    ensureNpcs,
+    ensureQuestTemplates,
+    ensureEnemyAbilities,
+    ensureWorldLayout,
+    ensureLocationEnemyTemplates,
     fail,
   } = deps;
 
@@ -1159,6 +1171,59 @@ export const registerItemReducers = (deps: any) => {
         'Trade cancelled.'
       );
     }
+  });
+
+  spacetimedb.reducer('sync_equipment_tables', (ctx) => {
+    requirePlayerUserId(ctx);
+    ensureStarterItemTemplates(ctx);
+    ensureVendorInventory(ctx);
+  });
+
+  spacetimedb.reducer('sync_loot_tables', (ctx) => {
+    requirePlayerUserId(ctx);
+    ensureLootTables(ctx);
+  });
+
+  spacetimedb.reducer('sync_enemy_content', (ctx) => {
+    requirePlayerUserId(ctx);
+    ensureEnemyAbilities(ctx);
+    ensureLocationEnemyTemplates(ctx);
+  });
+
+  spacetimedb.reducer('sync_world_layout', (ctx) => {
+    requirePlayerUserId(ctx);
+    ensureWorldLayout(ctx);
+  });
+
+  spacetimedb.reducer('sync_ability_templates', (ctx) => {
+    requirePlayerUserId(ctx);
+    ensureAbilityTemplates(ctx);
+  });
+
+  spacetimedb.reducer('sync_recipe_templates', (ctx) => {
+    requirePlayerUserId(ctx);
+    ensureRecipeTemplates(ctx);
+  });
+
+  spacetimedb.reducer('sync_npc_quest_content', (ctx) => {
+    requirePlayerUserId(ctx);
+    ensureNpcs(ctx);
+    ensureQuestTemplates(ctx);
+  });
+
+  spacetimedb.reducer('sync_all_content', (ctx) => {
+    requirePlayerUserId(ctx);
+    ensureWorldLayout(ctx);
+    ensureStarterItemTemplates(ctx);
+    ensureResourceItemTemplates(ctx);
+    ensureAbilityTemplates(ctx);
+    ensureRecipeTemplates(ctx);
+    ensureNpcs(ctx);
+    ensureQuestTemplates(ctx);
+    ensureEnemyAbilities(ctx);
+    ensureLocationEnemyTemplates(ctx);
+    ensureLootTables(ctx);
+    ensureVendorInventory(ctx);
   });
 };
 

@@ -3108,11 +3108,24 @@ function getGatherableResourceTemplates(ctx: any, terrainType: string, timePref?
 }
 
 function ensureStarterItemTemplates(ctx: any) {
-  if (tableHasRows(ctx.db.itemTemplate.iter())) return;
+  const upsertItemTemplateByName = (row: any) => {
+    const existing = findItemTemplateByName(ctx, row.name);
+    if (existing) {
+      ctx.db.itemTemplate.id.update({
+        ...existing,
+        ...row,
+        id: existing.id,
+      });
+      return existing;
+    }
+    return ctx.db.itemTemplate.insert({
+      id: 0n,
+      ...row,
+    });
+  };
 
   for (const [armorType, pieces] of Object.entries(STARTER_ARMOR)) {
-    ctx.db.itemTemplate.insert({
-      id: 0n,
+    upsertItemTemplateByName({
       name: pieces.chest.name,
       slot: 'chest',
       armorType,
@@ -3134,8 +3147,7 @@ function ensureStarterItemTemplates(ctx: any) {
       weaponDps: 0n,
       stackable: false,
     });
-    ctx.db.itemTemplate.insert({
-      id: 0n,
+    upsertItemTemplateByName({
       name: pieces.legs.name,
       slot: 'legs',
       armorType,
@@ -3157,8 +3169,7 @@ function ensureStarterItemTemplates(ctx: any) {
       weaponDps: 0n,
       stackable: false,
     });
-    ctx.db.itemTemplate.insert({
-      id: 0n,
+    upsertItemTemplateByName({
       name: pieces.boots.name,
       slot: 'boots',
       armorType,
@@ -3197,8 +3208,7 @@ function ensureStarterItemTemplates(ctx: any) {
   };
 
   for (const weapon of Object.values(weaponTemplates)) {
-    ctx.db.itemTemplate.insert({
-      id: 0n,
+    upsertItemTemplateByName({
       name: weapon.name,
       slot: 'mainHand',
       armorType: 'none',
@@ -3231,8 +3241,7 @@ function ensureStarterItemTemplates(ctx: any) {
   ];
 
   for (const template of accessoryTemplates) {
-    ctx.db.itemTemplate.insert({
-      id: 0n,
+    upsertItemTemplateByName({
       name: template.name,
       slot: template.slot,
       armorType: 'none',
@@ -3264,8 +3273,7 @@ function ensureStarterItemTemplates(ctx: any) {
   ];
 
   for (const junk of junkTemplates) {
-    ctx.db.itemTemplate.insert({
-      id: 0n,
+    upsertItemTemplateByName({
       name: junk.name,
       slot: 'junk',
       armorType: 'none',
@@ -3403,7 +3411,6 @@ function ensureResourceItemTemplates(ctx: any) {
 }
 
 function ensureRecipeTemplates(ctx: any) {
-  if (tableHasRows(ctx.db.recipeTemplate.iter())) return;
   const flax = findItemTemplateByName(ctx, 'Flax');
   const herbs = findItemTemplateByName(ctx, 'Herbs');
   const bandage = findItemTemplateByName(ctx, 'Bandage');
@@ -3439,6 +3446,23 @@ function ensureRecipeTemplates(ctx: any) {
     req3Count?: bigint;
   }) => {
     if (!args.output || !args.req1 || !args.req2) return;
+    const existing = [...ctx.db.recipeTemplate.iter()].find((row) => row.key === args.key);
+    if (existing) {
+      ctx.db.recipeTemplate.id.update({
+        ...existing,
+        key: args.key,
+        name: args.name,
+        outputTemplateId: args.output.id,
+        outputCount: args.outputCount,
+        req1TemplateId: args.req1.id,
+        req1Count: args.req1Count,
+        req2TemplateId: args.req2.id,
+        req2Count: args.req2Count,
+        req3TemplateId: args.req3?.id,
+        req3Count: args.req3Count,
+      });
+      return;
+    }
     ctx.db.recipeTemplate.insert({
       id: 0n,
       key: args.key,
@@ -3559,7 +3583,6 @@ function ensureRecipeTemplates(ctx: any) {
 }
 
 function ensureAbilityTemplates(ctx: any) {
-  if (tableHasRows(ctx.db.abilityTemplate.iter())) return;
   const utilityKeys = new Set([
     'ranger_track',
     'druid_natures_mark',
@@ -3579,6 +3602,22 @@ function ensureAbilityTemplates(ctx: any) {
       cooldownSeconds: bigint;
       description?: string;
     };
+    const existing = [...ctx.db.abilityTemplate.iter()].find((row) => row.key === key);
+    if (existing) {
+      ctx.db.abilityTemplate.id.update({
+        ...existing,
+        key,
+        name: entry.name,
+        className: entry.className,
+        level: entry.level,
+        resource: entry.resource,
+        castSeconds: entry.castSeconds,
+        cooldownSeconds: entry.cooldownSeconds,
+        kind: utilityKeys.has(key) ? 'utility' : 'combat',
+        description: entry.description ?? entry.name,
+      });
+      continue;
+    }
     ctx.db.abilityTemplate.insert({
       id: 0n,
       key,
@@ -3721,14 +3760,35 @@ function computeEnemyStats(
 }
 
 function ensureLootTables(ctx: any) {
-  if (tableHasRows(ctx.db.lootTable.iter())) return;
-
   const junkTemplates = [...ctx.db.itemTemplate.iter()].filter((row) => row.isJunk);
   const gearTemplates = [...ctx.db.itemTemplate.iter()].filter(
     (row) => !row.isJunk && row.tier <= 1n && row.requiredLevel <= 9n
   );
-
-  const addTable = (
+  const findLootTable = (terrainType: string, creatureType: string, tier: bigint) =>
+    [...ctx.db.lootTable.iter()].find(
+      (row) =>
+        row.terrainType === terrainType &&
+        row.creatureType === creatureType &&
+        row.tier === tier
+    );
+  const upsertLootEntry = (lootTableId: bigint, itemTemplateId: bigint, weight: bigint) => {
+    const existing = [...ctx.db.lootTableEntry.by_table.filter(lootTableId)].find(
+      (row) => row.itemTemplateId === itemTemplateId
+    );
+    if (existing) {
+      if (existing.weight !== weight) {
+        ctx.db.lootTableEntry.id.update({ ...existing, weight });
+      }
+      return;
+    }
+    ctx.db.lootTableEntry.insert({
+      id: 0n,
+      lootTableId,
+      itemTemplateId,
+      weight,
+    });
+  };
+  const addOrSyncTable = (
     terrainType: string,
     creatureType: string,
     junkChance: bigint,
@@ -3736,80 +3796,84 @@ function ensureLootTables(ctx: any) {
     goldMin: bigint,
     goldMax: bigint
   ) => {
-    const table = ctx.db.lootTable.insert({
-      id: 0n,
-      terrainType,
-      creatureType,
-      tier: 1n,
-      junkChance,
-      gearChance,
-      goldMin,
-      goldMax,
-    });
-    for (const item of junkTemplates) {
-      ctx.db.lootTableEntry.insert({
-        id: 0n,
-        lootTableId: table.id,
-        itemTemplateId: item.id,
-        weight: 10n,
+    const existing = findLootTable(terrainType, creatureType, 1n);
+    let tableId: bigint;
+    if (existing) {
+      ctx.db.lootTable.id.update({
+        ...existing,
+        junkChance,
+        gearChance,
+        goldMin,
+        goldMax,
       });
+      tableId = existing.id;
+    } else {
+      const inserted = ctx.db.lootTable.insert({
+        id: 0n,
+        terrainType,
+        creatureType,
+        tier: 1n,
+        junkChance,
+        gearChance,
+        goldMin,
+        goldMax,
+      });
+      tableId = inserted.id;
+    }
+    for (const item of junkTemplates) {
+      upsertLootEntry(tableId, item.id, 10n);
     }
     const resourceTemplates = getGatherableResourceTemplates(ctx, terrainType);
     for (const entry of resourceTemplates) {
-      ctx.db.lootTableEntry.insert({
-        id: 0n,
-        lootTableId: table.id,
-        itemTemplateId: entry.template.id,
-        weight: 6n,
-      });
+      upsertLootEntry(tableId, entry.template.id, 6n);
     }
-    if (creatureType === 'animal') {
+    if (creatureType === 'animal' || creatureType === 'beast') {
       const rawMeat = findItemTemplateByName(ctx, 'Raw Meat');
       if (rawMeat) {
-        ctx.db.lootTableEntry.insert({
-          id: 0n,
-          lootTableId: table.id,
-          itemTemplateId: rawMeat.id,
-          weight: 20n,
-        });
+        upsertLootEntry(tableId, rawMeat.id, 20n);
       }
     }
     for (const item of gearTemplates) {
-      ctx.db.lootTableEntry.insert({
-        id: 0n,
-        lootTableId: table.id,
-        itemTemplateId: item.id,
-        weight: item.rarity === 'uncommon' ? 3n : 6n,
-      });
+      upsertLootEntry(tableId, item.id, item.rarity === 'uncommon' ? 3n : 6n);
     }
   };
-
   const terrains = ['plains', 'woods', 'swamp', 'mountains', 'town', 'city', 'dungeon'];
   for (const terrain of terrains) {
-    addTable(terrain, 'animal', 75n, 10n, 0n, 2n);
-    addTable(terrain, 'beast', 65n, 15n, 0n, 3n);
-    addTable(terrain, 'humanoid', 40n, 25n, 2n, 6n);
-    addTable(terrain, 'undead', 55n, 20n, 1n, 4n);
-    addTable(terrain, 'spirit', 50n, 20n, 1n, 4n);
-    addTable(terrain, 'construct', 60n, 20n, 1n, 4n);
+    addOrSyncTable(terrain, 'animal', 75n, 10n, 0n, 2n);
+    addOrSyncTable(terrain, 'beast', 65n, 15n, 0n, 3n);
+    addOrSyncTable(terrain, 'humanoid', 40n, 25n, 2n, 6n);
+    addOrSyncTable(terrain, 'undead', 55n, 20n, 1n, 4n);
+    addOrSyncTable(terrain, 'spirit', 50n, 20n, 1n, 4n);
+    addOrSyncTable(terrain, 'construct', 60n, 20n, 1n, 4n);
   }
 }
 
 function ensureVendorInventory(ctx: any) {
-  if (tableHasRows(ctx.db.vendorInventory.iter())) return;
   const vendor = [...ctx.db.npc.iter()].find((row) => row.npcType === 'vendor');
   if (!vendor) return;
   const templates = [...ctx.db.itemTemplate.iter()].filter(
     (row) => !row.isJunk && row.tier <= 1n
   );
-  for (const template of templates) {
-    const price = template.vendorValue > 0n ? template.vendorValue * 6n : 10n;
+  const upsertVendorItem = (itemTemplateId: bigint, price: bigint) => {
+    const existing = [...ctx.db.vendorInventory.by_vendor.filter(vendor.id)].find(
+      (row) => row.itemTemplateId === itemTemplateId
+    );
+    if (existing) {
+      if (existing.price !== price) {
+        ctx.db.vendorInventory.id.update({ ...existing, price });
+      }
+      return;
+    }
     ctx.db.vendorInventory.insert({
       id: 0n,
       npcId: vendor.id,
-      itemTemplateId: template.id,
+      itemTemplateId,
       price,
     });
+  };
+  for (const template of templates) {
+    const price = template.vendorValue > 0n ? template.vendorValue * 6n : 10n;
+    upsertVendorItem(template.id, price);
   }
 }
 
@@ -3882,12 +3946,10 @@ function scheduleCombatTick(ctx: any, combatId: bigint) {
 
 function ensureLocationEnemyTemplates(ctx: any) {
   for (const location of ctx.db.location.iter()) {
-    let hasAny = false;
-    for (const _row of ctx.db.locationEnemyTemplate.by_location.filter(location.id)) {
-      hasAny = true;
-      break;
+    const existing = new Set<string>();
+    for (const row of ctx.db.locationEnemyTemplate.by_location.filter(location.id)) {
+      existing.add(row.enemyTemplateId.toString());
     }
-    if (hasAny) continue;
     const locationTerrain = (location.terrainType ?? '').trim().toLowerCase();
     for (const template of ctx.db.enemyTemplate.iter()) {
       const allowed = (template.terrainTypes ?? '')
@@ -3897,6 +3959,7 @@ function ensureLocationEnemyTemplates(ctx: any) {
       if (allowed.length > 0 && locationTerrain && !allowed.includes(locationTerrain)) {
         continue;
       }
+      if (existing.has(template.id.toString())) continue;
       ctx.db.locationEnemyTemplate.insert({
         id: 0n,
         locationId: location.id,
@@ -4304,153 +4367,418 @@ registerViews({
   QuestInstance,
 });
 
-spacetimedb.init((ctx) => {
-  if (!tableHasRows(ctx.db.location.iter())) {
-    const starter = ctx.db.region.insert({
+function ensureNpcs(ctx: any) {
+  const upsertNpcByName = (args: {
+    name: string;
+    npcType: string;
+    locationName: string;
+    description: string;
+    greeting: string;
+  }) => {
+    const location = [...ctx.db.location.iter()].find((row) => row.name === args.locationName);
+    if (!location) return;
+    const existing = [...ctx.db.npc.iter()].find((row) => row.name === args.name);
+    if (existing) {
+      ctx.db.npc.id.update({
+        ...existing,
+        name: args.name,
+        npcType: args.npcType,
+        locationId: location.id,
+        description: args.description,
+        greeting: args.greeting,
+      });
+      return;
+    }
+    ctx.db.npc.insert({
       id: 0n,
-      name: 'Hollowmere Vale',
-      dangerMultiplier: 100n,
-      regionType: 'outdoor',
+      name: args.name,
+      npcType: args.npcType,
+      locationId: location.id,
+      description: args.description,
+      greeting: args.greeting,
     });
-    const border = ctx.db.region.insert({
-      id: 0n,
-      name: 'Embermarch Fringe',
-      dangerMultiplier: 160n,
-      regionType: 'outdoor',
-    });
-    const embermarchDepths = ctx.db.region.insert({
-      id: 0n,
-      name: 'Embermarch Depths',
-      dangerMultiplier: 200n,
-      regionType: 'dungeon',
-    });
+  };
 
-    const town = ctx.db.location.insert({
-      id: 0n,
-      name: 'Hollowmere',
-      description: 'A misty river town with lantern-lit docks and a quiet market square.',
-      zone: 'Starter',
-      regionId: starter.id,
-      levelOffset: 0n,
-      isSafe: true,
-      terrainType: 'town',
-      bindStone: false,
-      craftingAvailable: true,
-    });
-    const ashen = ctx.db.location.insert({
-      id: 0n,
-      name: 'Ashen Road',
-      description: 'A cracked highway flanked by dead trees and drifting embers.',
-      zone: 'Starter',
-      regionId: starter.id,
-      levelOffset: 1n,
-      isSafe: false,
-      terrainType: 'plains',
-      bindStone: true,
-      craftingAvailable: false,
-    });
-    const fogroot = ctx.db.location.insert({
-      id: 0n,
-      name: 'Fogroot Crossing',
-      description: 'Twisted roots and slick stones mark a shadowy crossing.',
-      zone: 'Starter',
-      regionId: starter.id,
-      levelOffset: 2n,
-      isSafe: false,
-      terrainType: 'swamp',
-      bindStone: false,
-      craftingAvailable: false,
-    });
-    const bramble = ctx.db.location.insert({
-      id: 0n,
-      name: 'Bramble Hollow',
-      description: 'A dense thicket where tangled branches muffle the light.',
-      zone: 'Starter',
-      regionId: starter.id,
-      levelOffset: 2n,
-      isSafe: false,
-      terrainType: 'woods',
-      bindStone: false,
-      craftingAvailable: false,
-    });
-    const gate = ctx.db.location.insert({
-      id: 0n,
-      name: 'Embermarch Gate',
-      description: 'A scorched pass leading toward harsher lands.',
-      zone: 'Border',
-      regionId: border.id,
-      levelOffset: 3n,
-      isSafe: false,
-      terrainType: 'mountains',
-      bindStone: false,
-      craftingAvailable: false,
-    });
-    const cinder = ctx.db.location.insert({
-      id: 0n,
-      name: 'Cinderwatch',
-      description: 'Ash dunes and ember winds test the brave.',
-      zone: 'Border',
-      regionId: border.id,
-      levelOffset: 5n,
-      isSafe: false,
-      terrainType: 'plains',
-      bindStone: false,
-      craftingAvailable: false,
-    });
-    const ashvault = ctx.db.location.insert({
-      id: 0n,
-      name: 'Ashvault Entrance',
-      description: 'Blackened stone stairs descend into a sulfur-lit vault.',
-      zone: 'Dungeon',
-      regionId: embermarchDepths.id,
-      levelOffset: 2n,
-      isSafe: false,
-      terrainType: 'dungeon',
-      bindStone: false,
-      craftingAvailable: false,
-    });
-    const sootveil = ctx.db.location.insert({
-      id: 0n,
-      name: 'Sootveil Hall',
-      description: 'Echoing halls where soot clings to every surface.',
-      zone: 'Dungeon',
-      regionId: embermarchDepths.id,
-      levelOffset: 3n,
-      isSafe: false,
-      terrainType: 'dungeon',
-      bindStone: false,
-    });
-    const furnace = ctx.db.location.insert({
-      id: 0n,
-      name: 'Furnace Crypt',
-      description: 'A heat-soaked crypt of iron coffins and smoldering braziers.',
-      zone: 'Dungeon',
-      regionId: embermarchDepths.id,
-      levelOffset: 4n,
-      isSafe: false,
-      terrainType: 'dungeon',
-      bindStone: false,
-    });
+  upsertNpcByName({
+    name: 'Marla the Guide',
+    npcType: 'quest',
+    locationName: 'Hollowmere',
+    description: 'A veteran scout who knows every trail between the river and the emberlands.',
+    greeting: 'Welcome, traveler. The road is cruel, but I can help you find your footing.',
+  });
+  upsertNpcByName({
+    name: 'Elder Soren',
+    npcType: 'lore',
+    locationName: 'Hollowmere',
+    description: 'A stoic town elder with a gaze that weighs every word.',
+    greeting: 'Hollowmere watches over its own. Keep your blade sharp and your wits sharper.',
+  });
+  upsertNpcByName({
+    name: 'Quartermaster Jyn',
+    npcType: 'vendor',
+    locationName: 'Hollowmere',
+    description: 'A brisk quartermaster tallying supplies near the lantern-lit market.',
+    greeting: 'Supplies are tight. If you can help keep the roads safe, the town will remember.',
+  });
+}
 
+function ensureQuestTemplates(ctx: any) {
+  const upsertQuestByName = (args: {
+    name: string;
+    npcName: string;
+    enemyName: string;
+    requiredCount: bigint;
+    minLevel: bigint;
+    maxLevel: bigint;
+    rewardXp: bigint;
+  }) => {
+    const npc = [...ctx.db.npc.iter()].find((row) => row.name === args.npcName);
+    const enemy = findEnemyTemplateByName(ctx, args.enemyName);
+    if (!npc || !enemy) return;
+    const existing = [...ctx.db.questTemplate.iter()].find((row) => row.name === args.name);
+    if (existing) {
+      ctx.db.questTemplate.id.update({
+        ...existing,
+        name: args.name,
+        npcId: npc.id,
+        targetEnemyTemplateId: enemy.id,
+        requiredCount: args.requiredCount,
+        minLevel: args.minLevel,
+        maxLevel: args.maxLevel,
+        rewardXp: args.rewardXp,
+      });
+      return;
+    }
+    ctx.db.questTemplate.insert({
+      id: 0n,
+      name: args.name,
+      npcId: npc.id,
+      targetEnemyTemplateId: enemy.id,
+      requiredCount: args.requiredCount,
+      minLevel: args.minLevel,
+      maxLevel: args.maxLevel,
+      rewardXp: args.rewardXp,
+    });
+  };
+
+  upsertQuestByName({
+    name: 'Bog Rat Cleanup',
+    npcName: 'Marla the Guide',
+    enemyName: 'Bog Rat',
+    requiredCount: 3n,
+    minLevel: 1n,
+    maxLevel: 3n,
+    rewardXp: 40n,
+  });
+  upsertQuestByName({
+    name: 'Thicket Wolf Cull',
+    npcName: 'Marla the Guide',
+    enemyName: 'Thicket Wolf',
+    requiredCount: 4n,
+    minLevel: 2n,
+    maxLevel: 5n,
+    rewardXp: 60n,
+  });
+}
+
+function ensureEnemyAbilities(ctx: any) {
+  const upsertEnemyAbility = (
+    templateName: string,
+    abilityKey: string,
+    name: string,
+    kind: string,
+    castSeconds: bigint,
+    cooldownSeconds: bigint,
+    targetRule: string
+  ) => {
+    const template = findEnemyTemplateByName(ctx, templateName);
+    if (!template) return;
+    const existing = [...ctx.db.enemyAbility.by_template.filter(template.id)].find(
+      (row) => row.abilityKey === abilityKey
+    );
+    if (existing) {
+      ctx.db.enemyAbility.id.update({
+        ...existing,
+        enemyTemplateId: template.id,
+        abilityKey,
+        name,
+        kind,
+        castSeconds,
+        cooldownSeconds,
+        targetRule,
+      });
+      return;
+    }
+    ctx.db.enemyAbility.insert({
+      id: 0n,
+      enemyTemplateId: template.id,
+      abilityKey,
+      name,
+      kind,
+      castSeconds,
+      cooldownSeconds,
+      targetRule,
+    });
+  };
+
+  upsertEnemyAbility('Bog Rat', 'poison_bite', 'Poison Bite', 'dot', 3n, 20n, 'aggro');
+  upsertEnemyAbility('Ember Wisp', 'ember_burn', 'Ember Burn', 'dot', 2n, 18n, 'aggro');
+  upsertEnemyAbility('Bandit', 'bleeding_shot', 'Bleeding Shot', 'dot', 1n, 15n, 'aggro');
+  upsertEnemyAbility('Blight Stalker', 'shadow_rend', 'Shadow Rend', 'dot', 2n, 18n, 'aggro');
+  upsertEnemyAbility('Grave Acolyte', 'sapping_chant', 'Sapping Chant', 'debuff', 2n, 20n, 'aggro');
+  upsertEnemyAbility('Hexbinder', 'withering_hex', 'Withering Hex', 'debuff', 2n, 20n, 'aggro');
+  upsertEnemyAbility('Thicket Wolf', 'rending_bite', 'Rending Bite', 'dot', 1n, 12n, 'aggro');
+  upsertEnemyAbility('Marsh Croaker', 'bog_slime', 'Bog Slime', 'dot', 1n, 12n, 'aggro');
+  upsertEnemyAbility('Dust Hare', 'quick_nip', 'Quick Nip', 'dot', 1n, 10n, 'aggro');
+  upsertEnemyAbility('Ash Jackal', 'scorching_snap', 'Scorching Snap', 'dot', 1n, 14n, 'aggro');
+  upsertEnemyAbility('Thorn Sprite', 'thorn_venom', 'Thorn Venom', 'dot', 2n, 16n, 'aggro');
+  upsertEnemyAbility('Gloom Stag', 'crushing_gore', 'Crushing Gore', 'debuff', 2n, 18n, 'aggro');
+  upsertEnemyAbility('Mire Leech', 'blood_drain', 'Blood Drain', 'dot', 2n, 18n, 'aggro');
+  upsertEnemyAbility('Fen Witch', 'mire_curse', 'Mire Curse', 'debuff', 2n, 20n, 'aggro');
+  upsertEnemyAbility('Grave Skirmisher', 'rusty_bleed', 'Rusty Bleed', 'dot', 1n, 12n, 'aggro');
+  upsertEnemyAbility('Cinder Sentinel', 'ember_slam', 'Ember Slam', 'debuff', 2n, 20n, 'aggro');
+  upsertEnemyAbility('Emberling', 'ember_spark', 'Ember Spark', 'dot', 1n, 12n, 'aggro');
+  upsertEnemyAbility('Frostbone Acolyte', 'chill_touch', 'Chill Touch', 'debuff', 2n, 18n, 'aggro');
+  upsertEnemyAbility('Ridge Skirmisher', 'stone_cleave', 'Stone Cleave', 'dot', 1n, 14n, 'aggro');
+  upsertEnemyAbility('Emberhawk', 'searing_talon', 'Searing Talon', 'dot', 2n, 18n, 'aggro');
+  upsertEnemyAbility('Basalt Brute', 'quake_stomp', 'Quake Stomp', 'debuff', 2n, 22n, 'aggro');
+  upsertEnemyAbility('Grave Servant', 'grave_shield_break', 'Grave Shield Break', 'debuff', 2n, 18n, 'aggro');
+  upsertEnemyAbility('Alley Shade', 'shadow_bleed', 'Shadow Bleed', 'dot', 2n, 18n, 'aggro');
+  upsertEnemyAbility('Vault Sentinel', 'vault_crush', 'Vault Crush', 'debuff', 2n, 20n, 'aggro');
+  upsertEnemyAbility('Sootbound Mystic', 'soot_hex', 'Soot Hex', 'debuff', 2n, 18n, 'aggro');
+  upsertEnemyAbility('Ember Priest', 'cinder_blight', 'Cinder Blight', 'dot', 2n, 16n, 'aggro');
+  upsertEnemyAbility('Ashforged Revenant', 'molten_bleed', 'Molten Bleed', 'dot', 3n, 20n, 'aggro');
+}
+
+function ensureWorldLayout(ctx: any) {
+  const upsertRegionByName = (args: {
+    name: string;
+    dangerMultiplier: bigint;
+    regionType: string;
+  }) => {
+    const existing = [...ctx.db.region.iter()].find((row) => row.name === args.name);
+    if (existing) {
+      ctx.db.region.id.update({
+        ...existing,
+        name: args.name,
+        dangerMultiplier: args.dangerMultiplier,
+        regionType: args.regionType,
+      });
+      return ctx.db.region.id.find(existing.id) ?? { ...existing, ...args, id: existing.id };
+    }
+    return ctx.db.region.insert({
+      id: 0n,
+      name: args.name,
+      dangerMultiplier: args.dangerMultiplier,
+      regionType: args.regionType,
+    });
+  };
+  const upsertLocationByName = (args: {
+    name: string;
+    description: string;
+    zone: string;
+    regionId: bigint;
+    levelOffset: bigint;
+    isSafe: boolean;
+    terrainType: string;
+    bindStone: boolean;
+    craftingAvailable: boolean;
+  }) => {
+    const existing = [...ctx.db.location.iter()].find((row) => row.name === args.name);
+    if (existing) {
+      ctx.db.location.id.update({
+        ...existing,
+        name: args.name,
+        description: args.description,
+        zone: args.zone,
+        regionId: args.regionId,
+        levelOffset: args.levelOffset,
+        isSafe: args.isSafe,
+        terrainType: args.terrainType,
+        bindStone: args.bindStone,
+        craftingAvailable: args.craftingAvailable,
+      });
+      return ctx.db.location.id.find(existing.id) ?? { ...existing, ...args, id: existing.id };
+    }
+    return ctx.db.location.insert({
+      id: 0n,
+      name: args.name,
+      description: args.description,
+      zone: args.zone,
+      regionId: args.regionId,
+      levelOffset: args.levelOffset,
+      isSafe: args.isSafe,
+      terrainType: args.terrainType,
+      bindStone: args.bindStone,
+      craftingAvailable: args.craftingAvailable,
+    });
+  };
+  const connectIfMissing = (fromId: bigint, toId: bigint) => {
+    if (!areLocationsConnected(ctx, fromId, toId)) {
+      connectLocations(ctx, fromId, toId);
+    }
+  };
+
+  const starter = upsertRegionByName({
+    name: 'Hollowmere Vale',
+    dangerMultiplier: 100n,
+    regionType: 'outdoor',
+  });
+  const border = upsertRegionByName({
+    name: 'Embermarch Fringe',
+    dangerMultiplier: 160n,
+    regionType: 'outdoor',
+  });
+  const embermarchDepths = upsertRegionByName({
+    name: 'Embermarch Depths',
+    dangerMultiplier: 200n,
+    regionType: 'dungeon',
+  });
+
+  const town = upsertLocationByName({
+    name: 'Hollowmere',
+    description: 'A misty river town with lantern-lit docks and a quiet market square.',
+    zone: 'Starter',
+    regionId: starter.id,
+    levelOffset: 0n,
+    isSafe: true,
+    terrainType: 'town',
+    bindStone: false,
+    craftingAvailable: true,
+  });
+  const ashen = upsertLocationByName({
+    name: 'Ashen Road',
+    description: 'A cracked highway flanked by dead trees and drifting embers.',
+    zone: 'Starter',
+    regionId: starter.id,
+    levelOffset: 1n,
+    isSafe: false,
+    terrainType: 'plains',
+    bindStone: true,
+    craftingAvailable: false,
+  });
+  const fogroot = upsertLocationByName({
+    name: 'Fogroot Crossing',
+    description: 'Twisted roots and slick stones mark a shadowy crossing.',
+    zone: 'Starter',
+    regionId: starter.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'swamp',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const bramble = upsertLocationByName({
+    name: 'Bramble Hollow',
+    description: 'A dense thicket where tangled branches muffle the light.',
+    zone: 'Starter',
+    regionId: starter.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'woods',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const gate = upsertLocationByName({
+    name: 'Embermarch Gate',
+    description: 'A scorched pass leading toward harsher lands.',
+    zone: 'Border',
+    regionId: border.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'mountains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const cinder = upsertLocationByName({
+    name: 'Cinderwatch',
+    description: 'Ash dunes and ember winds test the brave.',
+    zone: 'Border',
+    regionId: border.id,
+    levelOffset: 5n,
+    isSafe: false,
+    terrainType: 'plains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const ashvault = upsertLocationByName({
+    name: 'Ashvault Entrance',
+    description: 'Blackened stone stairs descend into a sulfur-lit vault.',
+    zone: 'Dungeon',
+    regionId: embermarchDepths.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const sootveil = upsertLocationByName({
+    name: 'Sootveil Hall',
+    description: 'Echoing halls where soot clings to every surface.',
+    zone: 'Dungeon',
+    regionId: embermarchDepths.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const furnace = upsertLocationByName({
+    name: 'Furnace Crypt',
+    description: 'A heat-soaked crypt of iron coffins and smoldering braziers.',
+    zone: 'Dungeon',
+    regionId: embermarchDepths.id,
+    levelOffset: 4n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+
+  const world = getWorldState(ctx);
+  if (world) {
+    ctx.db.worldState.id.update({
+      ...world,
+      startingLocationId: town.id,
+    });
+  } else {
     ctx.db.worldState.insert({
       id: 1n,
       startingLocationId: town.id,
       isNight: false,
       nextTransitionAtMicros: ctx.timestamp.microsSinceUnixEpoch + DAY_DURATION_MICROS,
     });
-
-    connectLocations(ctx, town.id, ashen.id);
-    connectLocations(ctx, ashen.id, fogroot.id);
-    connectLocations(ctx, fogroot.id, bramble.id);
-    connectLocations(ctx, fogroot.id, gate.id);
-    connectLocations(ctx, gate.id, cinder.id);
-    connectLocations(ctx, gate.id, ashvault.id);
-    connectLocations(ctx, ashvault.id, sootveil.id);
-    connectLocations(ctx, sootveil.id, furnace.id);
   }
 
-  if (!tableHasRows(ctx.db.enemyTemplate.iter())) {
-    const addRoleTemplate = (
+  connectIfMissing(town.id, ashen.id);
+  connectIfMissing(ashen.id, fogroot.id);
+  connectIfMissing(fogroot.id, bramble.id);
+  connectIfMissing(fogroot.id, gate.id);
+  connectIfMissing(gate.id, cinder.id);
+  connectIfMissing(gate.id, ashvault.id);
+  connectIfMissing(ashvault.id, sootveil.id);
+  connectIfMissing(sootveil.id, furnace.id);
+}
+
+spacetimedb.init((ctx) => {
+  ensureWorldLayout(ctx);
+
+  const addEnemyTemplate = (row: any) => {
+    const existing = findEnemyTemplateByName(ctx, row.name);
+    if (existing) {
+      ctx.db.enemyTemplate.id.update({
+        ...existing,
+        ...row,
+        id: existing.id,
+      });
+      return ctx.db.enemyTemplate.id.find(existing.id) ?? { ...existing, ...row, id: existing.id };
+    }
+    return ctx.db.enemyTemplate.insert({
+      id: 0n,
+      ...row,
+    });
+  };
+  const addRoleTemplate = (
       template: typeof EnemyTemplate.rowType,
       roleKey: string,
       displayName: string,
@@ -4458,6 +4786,21 @@ spacetimedb.init((ctx) => {
       roleDetail: string,
       abilityProfile: string
     ) => {
+      const existing = [...ctx.db.enemyRoleTemplate.by_template.filter(template.id)].find(
+        (row) => row.roleKey === roleKey
+      );
+      if (existing) {
+        ctx.db.enemyRoleTemplate.id.update({
+          ...existing,
+          enemyTemplateId: template.id,
+          roleKey,
+          displayName,
+          role,
+          roleDetail,
+          abilityProfile,
+        });
+        return;
+      }
       ctx.db.enemyRoleTemplate.insert({
         id: 0n,
         enemyTemplateId: template.id,
@@ -4469,8 +4812,7 @@ spacetimedb.init((ctx) => {
       });
     };
 
-    const bogRat = ctx.db.enemyTemplate.insert({
-      id: 0n,
+    const bogRat = addEnemyTemplate({
       name: 'Bog Rat',
       role: 'base',
       roleDetail: 'base',
@@ -4484,17 +4826,16 @@ spacetimedb.init((ctx) => {
       groupMin: 1n,
       groupMax: 2n,
       armorClass: 12n,
-      level: 1n,
-      maxHp: 26n,
-      baseDamage: 4n,
-      xpReward: 12n,
+      level: 2n,
+      maxHp: 32n,
+      baseDamage: 5n,
+      xpReward: 18n,
     });
     addRoleTemplate(bogRat, 'bog_rat', 'Bog Rat', 'tank', 'melee', 'thick hide, taunt');
     addRoleTemplate(bogRat, 'bog_rat_brute', 'Bog Rat Brute', 'tank', 'melee', 'thick hide, taunt');
     addRoleTemplate(bogRat, 'bog_rat_scavenger', 'Bog Rat Scavenger', 'dps', 'melee', 'gnaw, dart');
 
-    const emberWisp = ctx.db.enemyTemplate.insert({
-      id: 0n,
+    const emberWisp = addEnemyTemplate({
       name: 'Ember Wisp',
       role: 'base',
       roleDetail: 'base',
@@ -4517,8 +4858,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(emberWisp, 'ember_wisp_flare', 'Ember Wisp Flare', 'dps', 'magic', 'flare, ignite');
     addRoleTemplate(emberWisp, 'ember_wisp_spark', 'Ember Wisp Spark', 'support', 'magic', 'spark, veil');
 
-    const bandit = ctx.db.enemyTemplate.insert({
-      id: 0n,
+    const bandit = addEnemyTemplate({
       name: 'Bandit',
       role: 'base',
       roleDetail: 'base',
@@ -4541,8 +4881,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(bandit, 'bandit_ruffian', 'Bandit Ruffian', 'tank', 'melee', 'shield bash, taunt');
     addRoleTemplate(bandit, 'bandit_cutthroat', 'Bandit Cutthroat', 'dps', 'melee', 'quick slash, feint');
 
-    const blightStalker = ctx.db.enemyTemplate.insert({
-      id: 0n,
+    const blightStalker = addEnemyTemplate({
       name: 'Blight Stalker',
       role: 'base',
       roleDetail: 'base',
@@ -4565,7 +4904,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(blightStalker, 'blight_stalker_brute', 'Blight Stalker Brute', 'tank', 'melee', 'maul, snarl');
     addRoleTemplate(blightStalker, 'blight_stalker_prowler', 'Blight Stalker Prowler', 'dps', 'melee', 'ambush, shred');
 
-    const graveAcolyte = ctx.db.enemyTemplate.insert({
+    const graveAcolyte = addEnemyTemplate({
       id: 0n,
       name: 'Grave Acolyte',
       role: 'base',
@@ -4589,7 +4928,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(graveAcolyte, 'grave_ritualist', 'Grave Ritualist', 'support', 'control', 'curse, drain');
     addRoleTemplate(graveAcolyte, 'grave_zealot', 'Grave Zealot', 'dps', 'melee', 'slash, frenzy');
 
-    const hexbinder = ctx.db.enemyTemplate.insert({
+    const hexbinder = addEnemyTemplate({
       id: 0n,
       name: 'Hexbinder',
       role: 'base',
@@ -4613,7 +4952,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(hexbinder, 'hexbinder_stalker', 'Hexbinder Stalker', 'dps', 'melee', 'hex strike, feint');
     addRoleTemplate(hexbinder, 'hexbinder_warder', 'Hexbinder Warder', 'tank', 'melee', 'ward, taunt');
 
-    const thicketWolf = ctx.db.enemyTemplate.insert({
+    const thicketWolf = addEnemyTemplate({
       id: 0n,
       name: 'Thicket Wolf',
       role: 'base',
@@ -4637,7 +4976,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(thicketWolf, 'thicket_wolf_alpha', 'Thicket Wolf Alpha', 'tank', 'melee', 'alpha bite, howl');
     addRoleTemplate(thicketWolf, 'thicket_wolf_prowler', 'Thicket Wolf Prowler', 'dps', 'melee', 'lunge, rake');
 
-    const marshCroaker = ctx.db.enemyTemplate.insert({
+    const marshCroaker = addEnemyTemplate({
       id: 0n,
       name: 'Marsh Croaker',
       role: 'base',
@@ -4660,7 +4999,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(marshCroaker, 'marsh_croaker', 'Marsh Croaker', 'dps', 'melee', 'tongue lash, croak');
     addRoleTemplate(marshCroaker, 'marsh_croaker_bully', 'Marsh Croaker Bully', 'tank', 'melee', 'slam, croak');
 
-    const dustHare = ctx.db.enemyTemplate.insert({
+    const dustHare = addEnemyTemplate({
       id: 0n,
       name: 'Dust Hare',
       role: 'base',
@@ -4684,7 +5023,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(dustHare, 'dust_hare_skitter', 'Dust Hare Skitter', 'dps', 'melee', 'skitter, nip');
     addRoleTemplate(dustHare, 'dust_hare_scout', 'Dust Hare Scout', 'support', 'melee', 'distract, dart');
 
-    const ashJackal = ctx.db.enemyTemplate.insert({
+    const ashJackal = addEnemyTemplate({
       id: 0n,
       name: 'Ash Jackal',
       role: 'base',
@@ -4707,7 +5046,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(ashJackal, 'ash_jackal', 'Ash Jackal', 'dps', 'melee', 'snap, pack feint');
     addRoleTemplate(ashJackal, 'ash_jackal_alpha', 'Ash Jackal Alpha', 'tank', 'melee', 'alpha snap, snarl');
 
-    const thornSprite = ctx.db.enemyTemplate.insert({
+    const thornSprite = addEnemyTemplate({
       id: 0n,
       name: 'Thorn Sprite',
       role: 'base',
@@ -4730,7 +5069,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(thornSprite, 'thorn_sprite', 'Thorn Sprite', 'support', 'magic', 'sting, wither pollen');
     addRoleTemplate(thornSprite, 'thorn_sprite_stinger', 'Thorn Sprite Stinger', 'dps', 'magic', 'sting, dart');
 
-    const gloomStag = ctx.db.enemyTemplate.insert({
+    const gloomStag = addEnemyTemplate({
       id: 0n,
       name: 'Gloom Stag',
       role: 'base',
@@ -4753,7 +5092,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(gloomStag, 'gloom_stag', 'Gloom Stag', 'tank', 'melee', 'gore, bulwark');
     addRoleTemplate(gloomStag, 'gloom_stag_charger', 'Gloom Stag Charger', 'dps', 'melee', 'charge, gore');
 
-    const mireLeech = ctx.db.enemyTemplate.insert({
+    const mireLeech = addEnemyTemplate({
       id: 0n,
       name: 'Mire Leech',
       role: 'base',
@@ -4776,7 +5115,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(mireLeech, 'mire_leech', 'Mire Leech', 'dps', 'melee', 'drain, latch');
     addRoleTemplate(mireLeech, 'mire_leech_bulwark', 'Mire Leech Bulwark', 'tank', 'melee', 'latch, bulwark');
 
-    const fenWitch = ctx.db.enemyTemplate.insert({
+    const fenWitch = addEnemyTemplate({
       id: 0n,
       name: 'Fen Witch',
       role: 'base',
@@ -4799,7 +5138,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(fenWitch, 'fen_witch', 'Fen Witch', 'support', 'magic', 'curse, mire ward');
     addRoleTemplate(fenWitch, 'fen_witch_hexer', 'Fen Witch Hexer', 'dps', 'magic', 'hex, sting');
 
-    const graveSkirmisher = ctx.db.enemyTemplate.insert({
+    const graveSkirmisher = addEnemyTemplate({
       id: 0n,
       name: 'Grave Skirmisher',
       role: 'base',
@@ -4822,7 +5161,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(graveSkirmisher, 'grave_skirmisher', 'Grave Skirmisher', 'dps', 'melee', 'rusty slash, feint');
     addRoleTemplate(graveSkirmisher, 'grave_skirmisher_guard', 'Grave Skirmisher Guard', 'tank', 'melee', 'guard, slam');
 
-    const cinderSentinel = ctx.db.enemyTemplate.insert({
+    const cinderSentinel = addEnemyTemplate({
       id: 0n,
       name: 'Cinder Sentinel',
       role: 'base',
@@ -4845,7 +5184,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(cinderSentinel, 'cinder_sentinel', 'Cinder Sentinel', 'tank', 'melee', 'stone wall, slam');
     addRoleTemplate(cinderSentinel, 'cinder_sentinel_breaker', 'Cinder Sentinel Breaker', 'dps', 'melee', 'breaker slam, cleave');
 
-    const emberling = ctx.db.enemyTemplate.insert({
+    const emberling = addEnemyTemplate({
       id: 0n,
       name: 'Emberling',
       role: 'base',
@@ -4868,7 +5207,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(emberling, 'emberling', 'Emberling', 'support', 'magic', 'ember spark, kindle');
     addRoleTemplate(emberling, 'emberling_spark', 'Emberling Spark', 'dps', 'magic', 'spark, ignite');
 
-    const frostboneAcolyte = ctx.db.enemyTemplate.insert({
+    const frostboneAcolyte = addEnemyTemplate({
       id: 0n,
       name: 'Frostbone Acolyte',
       role: 'base',
@@ -4913,7 +5252,7 @@ spacetimedb.init((ctx) => {
       'ice strike, frenzy'
     );
 
-    const ridgeSkirmisher = ctx.db.enemyTemplate.insert({
+    const ridgeSkirmisher = addEnemyTemplate({
       id: 0n,
       name: 'Ridge Skirmisher',
       role: 'base',
@@ -4943,7 +5282,7 @@ spacetimedb.init((ctx) => {
       'guard, slam'
     );
 
-    const emberhawk = ctx.db.enemyTemplate.insert({
+    const emberhawk = addEnemyTemplate({
       id: 0n,
       name: 'Emberhawk',
       role: 'base',
@@ -4966,7 +5305,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(emberhawk, 'emberhawk', 'Emberhawk', 'dps', 'ranged', 'burning dive');
     addRoleTemplate(emberhawk, 'emberhawk_screecher', 'Emberhawk Screecher', 'support', 'ranged', 'screech, dive');
 
-    const basaltBrute = ctx.db.enemyTemplate.insert({
+    const basaltBrute = addEnemyTemplate({
       id: 0n,
       name: 'Basalt Brute',
       role: 'base',
@@ -4988,7 +5327,7 @@ spacetimedb.init((ctx) => {
     });
     addRoleTemplate(basaltBrute, 'basalt_brute', 'Basalt Brute', 'tank', 'melee', 'stone slam, brace');
 
-    const ashenRam = ctx.db.enemyTemplate.insert({
+    const ashenRam = addEnemyTemplate({
       id: 0n,
       name: 'Ashen Ram',
       role: 'base',
@@ -5011,7 +5350,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(ashenRam, 'ashen_ram', 'Ashen Ram', 'tank', 'melee', 'ram charge, shove');
     addRoleTemplate(ashenRam, 'ashen_ram_runner', 'Ashen Ram Runner', 'dps', 'melee', 'charging gore');
 
-    const sootboundSentry = ctx.db.enemyTemplate.insert({
+    const sootboundSentry = addEnemyTemplate({
       id: 0n,
       name: 'Sootbound Sentry',
       role: 'base',
@@ -5042,7 +5381,7 @@ spacetimedb.init((ctx) => {
     );
     addRoleTemplate(basaltBrute, 'basalt_brute_crusher', 'Basalt Brute Crusher', 'dps', 'melee', 'crusher slam, cleave');
 
-    const graveServant = ctx.db.enemyTemplate.insert({
+    const graveServant = addEnemyTemplate({
       id: 0n,
       name: 'Grave Servant',
       role: 'base',
@@ -5065,7 +5404,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(graveServant, 'grave_servant', 'Grave Servant', 'tank', 'melee', 'shield crush, watchful');
     addRoleTemplate(graveServant, 'grave_servant_reaver', 'Grave Servant Reaver', 'dps', 'melee', 'reaver slash, feint');
 
-    const alleyShade = ctx.db.enemyTemplate.insert({
+    const alleyShade = addEnemyTemplate({
       id: 0n,
       name: 'Alley Shade',
       role: 'base',
@@ -5089,7 +5428,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(alleyShade, 'alley_shade_stalker', 'Alley Shade Stalker', 'dps', 'melee', 'stalk, strike');
     addRoleTemplate(alleyShade, 'alley_shade_warden', 'Alley Shade Warden', 'tank', 'melee', 'ward, counter');
 
-    const vaultSentinel = ctx.db.enemyTemplate.insert({
+    const vaultSentinel = addEnemyTemplate({
       id: 0n,
       name: 'Vault Sentinel',
       role: 'base',
@@ -5112,7 +5451,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(vaultSentinel, 'vault_sentinel', 'Vault Sentinel', 'tank', 'melee', 'iron guard, shield bash');
     addRoleTemplate(vaultSentinel, 'vault_sentinel_crusher', 'Vault Sentinel Crusher', 'dps', 'melee', 'crusher bash, cleave');
 
-    const sootboundMystic = ctx.db.enemyTemplate.insert({
+    const sootboundMystic = addEnemyTemplate({
       id: 0n,
       name: 'Sootbound Mystic',
       role: 'base',
@@ -5157,7 +5496,7 @@ spacetimedb.init((ctx) => {
       'flay, hex'
     );
 
-    const emberPriest = ctx.db.enemyTemplate.insert({
+    const emberPriest = addEnemyTemplate({
       id: 0n,
       name: 'Ember Priest',
       role: 'base',
@@ -5180,7 +5519,7 @@ spacetimedb.init((ctx) => {
     addRoleTemplate(emberPriest, 'ember_priest', 'Ember Priest', 'healer', 'support', 'ashen mend, warding flame');
     addRoleTemplate(emberPriest, 'ember_priest_zealot', 'Ember Priest Zealot', 'dps', 'magic', 'zeal, flame');
 
-    const ashforgedRevenant = ctx.db.enemyTemplate.insert({
+    const ashforgedRevenant = addEnemyTemplate({
       id: 0n,
       name: 'Ashforged Revenant',
       role: 'base',
@@ -5216,131 +5555,10 @@ spacetimedb.init((ctx) => {
       'melee',
       'bulwark, cleave'
     );
-    if (!tableHasRows(ctx.db.enemyAbility.iter())) {
-      const addEnemyAbility = (
-        templateId: bigint,
-        abilityKey: string,
-        name: string,
-        kind: string,
-        castSeconds: bigint,
-        cooldownSeconds: bigint,
-        targetRule: string
-      ) => {
-        ctx.db.enemyAbility.insert({
-          id: 0n,
-          enemyTemplateId: templateId,
-          abilityKey,
-          name,
-          kind,
-          castSeconds,
-          cooldownSeconds,
-          targetRule,
-        });
-      };
-      addEnemyAbility(bogRat.id, 'poison_bite', 'Poison Bite', 'dot', 3n, 20n, 'aggro');
-      addEnemyAbility(emberWisp.id, 'ember_burn', 'Ember Burn', 'dot', 2n, 18n, 'aggro');
-      addEnemyAbility(bandit.id, 'bleeding_shot', 'Bleeding Shot', 'dot', 1n, 15n, 'aggro');
-      addEnemyAbility(blightStalker.id, 'shadow_rend', 'Shadow Rend', 'dot', 2n, 18n, 'aggro');
-      addEnemyAbility(graveAcolyte.id, 'sapping_chant', 'Sapping Chant', 'debuff', 2n, 20n, 'aggro');
-      addEnemyAbility(hexbinder.id, 'withering_hex', 'Withering Hex', 'debuff', 2n, 20n, 'aggro');
-      addEnemyAbility(thicketWolf.id, 'rending_bite', 'Rending Bite', 'dot', 1n, 12n, 'aggro');
-      addEnemyAbility(marshCroaker.id, 'bog_slime', 'Bog Slime', 'dot', 1n, 12n, 'aggro');
-      addEnemyAbility(dustHare.id, 'quick_nip', 'Quick Nip', 'dot', 1n, 10n, 'aggro');
-      addEnemyAbility(ashJackal.id, 'scorching_snap', 'Scorching Snap', 'dot', 1n, 14n, 'aggro');
-      addEnemyAbility(thornSprite.id, 'thorn_venom', 'Thorn Venom', 'dot', 2n, 16n, 'aggro');
-      addEnemyAbility(gloomStag.id, 'crushing_gore', 'Crushing Gore', 'debuff', 2n, 18n, 'aggro');
-      addEnemyAbility(mireLeech.id, 'blood_drain', 'Blood Drain', 'dot', 2n, 18n, 'aggro');
-      addEnemyAbility(fenWitch.id, 'mire_curse', 'Mire Curse', 'debuff', 2n, 20n, 'aggro');
-      addEnemyAbility(graveSkirmisher.id, 'rusty_bleed', 'Rusty Bleed', 'dot', 1n, 12n, 'aggro');
-      addEnemyAbility(cinderSentinel.id, 'ember_slam', 'Ember Slam', 'debuff', 2n, 20n, 'aggro');
-      addEnemyAbility(emberling.id, 'ember_spark', 'Ember Spark', 'dot', 1n, 12n, 'aggro');
-      addEnemyAbility(frostboneAcolyte.id, 'chill_touch', 'Chill Touch', 'debuff', 2n, 18n, 'aggro');
-      addEnemyAbility(ridgeSkirmisher.id, 'stone_cleave', 'Stone Cleave', 'dot', 1n, 14n, 'aggro');
-      addEnemyAbility(emberhawk.id, 'searing_talon', 'Searing Talon', 'dot', 2n, 18n, 'aggro');
-      addEnemyAbility(basaltBrute.id, 'quake_stomp', 'Quake Stomp', 'debuff', 2n, 22n, 'aggro');
-      addEnemyAbility(graveServant.id, 'grave_shield_break', 'Grave Shield Break', 'debuff', 2n, 18n, 'aggro');
-      addEnemyAbility(alleyShade.id, 'shadow_bleed', 'Shadow Bleed', 'dot', 2n, 18n, 'aggro');
-      addEnemyAbility(vaultSentinel.id, 'vault_crush', 'Vault Crush', 'debuff', 2n, 20n, 'aggro');
-      addEnemyAbility(sootboundMystic.id, 'soot_hex', 'Soot Hex', 'debuff', 2n, 18n, 'aggro');
-      addEnemyAbility(emberPriest.id, 'cinder_blight', 'Cinder Blight', 'dot', 2n, 16n, 'aggro');
-      addEnemyAbility(ashforgedRevenant.id, 'molten_bleed', 'Molten Bleed', 'dot', 3n, 20n, 'aggro');
-    }
-  }
+  ensureEnemyAbilities(ctx);
 
-  if (!tableHasRows(ctx.db.enemyRoleTemplate.iter())) {
-    for (const template of ctx.db.enemyTemplate.iter()) {
-      const roleKey = template.name.toLowerCase().replace(/\s+/g, '_');
-      ctx.db.enemyRoleTemplate.insert({
-        id: 0n,
-        enemyTemplateId: template.id,
-        roleKey,
-        displayName: template.name,
-        role: template.role ?? 'dps',
-        roleDetail: template.roleDetail ?? 'melee',
-        abilityProfile: template.abilityProfile ?? '',
-      });
-    }
-  }
-
-  if (!tableHasRows(ctx.db.npc.iter())) {
-    const hollowmere = [...ctx.db.location.iter()].find((row) => row.name === 'Hollowmere');
-    if (hollowmere) {
-      ctx.db.npc.insert({
-        id: 0n,
-        name: 'Marla the Guide',
-        npcType: 'quest',
-        locationId: hollowmere.id,
-        description: 'A veteran scout who knows every trail between the river and the emberlands.',
-        greeting: 'Welcome, traveler. The road is cruel, but I can help you find your footing.',
-      });
-      ctx.db.npc.insert({
-        id: 0n,
-        name: 'Elder Soren',
-        npcType: 'lore',
-        locationId: hollowmere.id,
-        description: 'A stoic town elder with a gaze that weighs every word.',
-        greeting: 'Hollowmere watches over its own. Keep your blade sharp and your wits sharper.',
-      });
-      ctx.db.npc.insert({
-        id: 0n,
-        name: 'Quartermaster Jyn',
-        npcType: 'vendor',
-        locationId: hollowmere.id,
-        description: 'A brisk quartermaster tallying supplies near the lantern-lit market.',
-        greeting: 'Supplies are tight. If you can help keep the roads safe, the town will remember.',
-      });
-    }
-  }
-
-  if (!tableHasRows(ctx.db.questTemplate.iter())) {
-    const marla = [...ctx.db.npc.iter()].find((row) => row.name === 'Marla the Guide');
-    const bogRat = findEnemyTemplateByName(ctx, 'Bog Rat');
-    const thicketWolf = findEnemyTemplateByName(ctx, 'Thicket Wolf');
-    if (marla && bogRat) {
-      ctx.db.questTemplate.insert({
-        id: 0n,
-        name: 'Bog Rat Cleanup',
-        npcId: marla.id,
-        targetEnemyTemplateId: bogRat.id,
-        requiredCount: 3n,
-        minLevel: 1n,
-        maxLevel: 3n,
-        rewardXp: 40n,
-      });
-    }
-    if (marla && thicketWolf) {
-      ctx.db.questTemplate.insert({
-        id: 0n,
-        name: 'Thicket Wolf Cull',
-        npcId: marla.id,
-        targetEnemyTemplateId: thicketWolf.id,
-        requiredCount: 4n,
-        minLevel: 2n,
-        maxLevel: 5n,
-        rewardXp: 60n,
-      });
-    }
-  }
+  ensureNpcs(ctx);
+  ensureQuestTemplates(ctx);
 
   ensureStarterItemTemplates(ctx);
   ensureAbilityTemplates(ctx);
@@ -5493,6 +5711,17 @@ const reducerDeps = {
   removeItemFromInventory,
   getItemCount,
   getGatherableResourceTemplates,
+  ensureStarterItemTemplates,
+  ensureResourceItemTemplates,
+  ensureLootTables,
+  ensureVendorInventory,
+  ensureAbilityTemplates,
+  ensureRecipeTemplates,
+  ensureNpcs,
+  ensureQuestTemplates,
+  ensureEnemyAbilities,
+  ensureWorldLayout,
+  ensureLocationEnemyTemplates,
   spawnResourceNode,
   ensureResourceNodesForLocation,
   respawnResourceNodesForLocation,
@@ -5523,6 +5752,7 @@ reducerDeps.startCombatForSpawn = (
 ) => startCombatForSpawn(reducerDeps, ctx, leader, spawnToUse, participants, groupId);
 
 registerReducers(reducerDeps);
+
 
 
 

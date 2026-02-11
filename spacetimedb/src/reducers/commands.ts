@@ -13,6 +13,17 @@ export const registerCommandReducers = (deps: any) => {
     recomputeCharacterDerived,
     xpRequiredForLevel,
     MAX_LEVEL,
+    ensureWorldLayout,
+    ensureStarterItemTemplates,
+    ensureResourceItemTemplates,
+    ensureAbilityTemplates,
+    ensureRecipeTemplates,
+    ensureNpcs,
+    ensureQuestTemplates,
+    ensureEnemyAbilities,
+    ensureLocationEnemyTemplates,
+    ensureLootTables,
+    ensureVendorInventory,
   } = deps;
 
   const hailNpc = (ctx: any, character: any, npcName: string) => {
@@ -87,6 +98,29 @@ export const registerCommandReducers = (deps: any) => {
           `${location.name}: ${location.description}`
         );
       }
+      return;
+    }
+
+    if (trimmed.toLowerCase() === '/synccontent') {
+      const userId = requirePlayerUserId(ctx);
+      ensureWorldLayout(ctx);
+      ensureStarterItemTemplates(ctx);
+      ensureResourceItemTemplates(ctx);
+      ensureAbilityTemplates(ctx);
+      ensureRecipeTemplates(ctx);
+      ensureNpcs(ctx);
+      ensureQuestTemplates(ctx);
+      ensureEnemyAbilities(ctx);
+      ensureLocationEnemyTemplates(ctx);
+      ensureLootTables(ctx);
+      ensureVendorInventory(ctx);
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        userId,
+        'system',
+        'Content sync completed.'
+      );
       return;
     }
 

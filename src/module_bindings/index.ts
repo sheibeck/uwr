@@ -114,6 +114,22 @@ import OfferTradeReducer from "./offer_trade_reducer";
 export { OfferTradeReducer };
 import CancelTradeReducer from "./cancel_trade_reducer";
 export { CancelTradeReducer };
+import SyncEquipmentTablesReducer from "./sync_equipment_tables_reducer";
+export { SyncEquipmentTablesReducer };
+import SyncLootTablesReducer from "./sync_loot_tables_reducer";
+export { SyncLootTablesReducer };
+import SyncEnemyContentReducer from "./sync_enemy_content_reducer";
+export { SyncEnemyContentReducer };
+import SyncWorldLayoutReducer from "./sync_world_layout_reducer";
+export { SyncWorldLayoutReducer };
+import SyncAbilityTemplatesReducer from "./sync_ability_templates_reducer";
+export { SyncAbilityTemplatesReducer };
+import SyncRecipeTemplatesReducer from "./sync_recipe_templates_reducer";
+export { SyncRecipeTemplatesReducer };
+import SyncNpcQuestContentReducer from "./sync_npc_quest_content_reducer";
+export { SyncNpcQuestContentReducer };
+import SyncAllContentReducer from "./sync_all_content_reducer";
+export { SyncAllContentReducer };
 import MoveCharacterReducer from "./move_character_reducer";
 export { MoveCharacterReducer };
 import SubmitCommandReducer from "./submit_command_reducer";
@@ -622,6 +638,22 @@ import StartTrade from "./start_trade_type";
 export { StartTrade };
 import SubmitCommand from "./submit_command_type";
 export { SubmitCommand };
+import SyncAbilityTemplates from "./sync_ability_templates_type";
+export { SyncAbilityTemplates };
+import SyncAllContent from "./sync_all_content_type";
+export { SyncAllContent };
+import SyncEnemyContent from "./sync_enemy_content_type";
+export { SyncEnemyContent };
+import SyncEquipmentTables from "./sync_equipment_tables_type";
+export { SyncEquipmentTables };
+import SyncLootTables from "./sync_loot_tables_type";
+export { SyncLootTables };
+import SyncNpcQuestContent from "./sync_npc_quest_content_type";
+export { SyncNpcQuestContent };
+import SyncRecipeTemplates from "./sync_recipe_templates_type";
+export { SyncRecipeTemplates };
+import SyncWorldLayout from "./sync_world_layout_type";
+export { SyncWorldLayout };
 import TakeLoot from "./take_loot_type";
 export { TakeLoot };
 import TickCasts from "./tick_casts_type";
@@ -1764,6 +1796,14 @@ const reducersSchema = __reducers(
   __reducerSchema("remove_trade_item", RemoveTradeItemReducer),
   __reducerSchema("offer_trade", OfferTradeReducer),
   __reducerSchema("cancel_trade", CancelTradeReducer),
+  __reducerSchema("sync_equipment_tables", SyncEquipmentTablesReducer),
+  __reducerSchema("sync_loot_tables", SyncLootTablesReducer),
+  __reducerSchema("sync_enemy_content", SyncEnemyContentReducer),
+  __reducerSchema("sync_world_layout", SyncWorldLayoutReducer),
+  __reducerSchema("sync_ability_templates", SyncAbilityTemplatesReducer),
+  __reducerSchema("sync_recipe_templates", SyncRecipeTemplatesReducer),
+  __reducerSchema("sync_npc_quest_content", SyncNpcQuestContentReducer),
+  __reducerSchema("sync_all_content", SyncAllContentReducer),
   __reducerSchema("move_character", MoveCharacterReducer),
   __reducerSchema("submit_command", SubmitCommandReducer),
   __reducerSchema("say", SayReducer),
