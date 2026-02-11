@@ -152,27 +152,7 @@ const addEnemyToCombat = (
         lockedCombatId: combat.id,
       });
     }
-    } else {
-      const remainingGroup = ctx.db.enemySpawn.id.find(spawn.id)?.groupCount ?? 0n;
-      for (const p of participants) {
-        appendPrivateEvent(
-          ctx,
-          p.id,
-          p.ownerUserId,
-          'system',
-          `Your ${pull.pullType} pull is clean. You draw 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`
-        );
-      }
-      if (pull.groupId) {
-        appendGroupEvent(
-          ctx,
-          pull.groupId,
-          pull.characterId,
-          'system',
-          `${character.name}'s pull is clean.`
-        );
-      }
-    }
+  }
 
   return combatEnemy;
 };

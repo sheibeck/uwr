@@ -893,6 +893,7 @@ const CombatPet = table(
     combatId: t.u64(),
     ownerCharacterId: t.u64(),
     name: t.string(),
+    level: t.u64(),
     currentHp: t.u64(),
     maxHp: t.u64(),
     attackDamage: t.u64(),
@@ -1818,7 +1819,14 @@ function executeAbility(
     petLabel: string,
     petDescription: string,
     namePool: string[],
-    ability?: { key: string; cooldownSeconds: bigint }
+    ability?: { key: string; cooldownSeconds: bigint },
+    stats?: {
+      hpBase?: bigint;
+      hpPerLevel?: bigint;
+      damageBase?: bigint;
+      damagePerLevel?: bigint;
+      weaponScalePercent?: bigint;
+    }
   ) => {
     if (!combatId || !combat || combat.state !== 'active') {
       throw new SenderError('Pets can only be summoned in combat');
@@ -1832,14 +1840,25 @@ function executeAbility(
     const pickIndex = Number((nowMicros + character.id * 7n) % BigInt(namePool.length));
     const petName = namePool[pickIndex] ?? 'Echo';
     const displayName = `${petName} (${petLabel})`;
+    // Pets inherit caster level so their baseline scales with the encounter tier.
+    const petLevel = character.level > 0n ? character.level : 1n;
+    const hpBase = stats?.hpBase ?? 16n;
+    const hpPerLevel = stats?.hpPerLevel ?? 5n;
+    const damageBase = stats?.damageBase ?? 3n;
+    const damagePerLevel = stats?.damagePerLevel ?? 2n;
+    const weaponScalePercent = stats?.weaponScalePercent ?? 50n;
+    const weaponProxy = (weapon.baseDamage * weaponScalePercent) / 100n;
+    const petMaxHp = hpBase + petLevel * hpPerLevel;
+    const petAttackDamage = damageBase + petLevel * damagePerLevel + weaponProxy;
     const pet = ctx.db.combatPet.insert({
       id: 0n,
       combatId,
       ownerCharacterId: character.id,
       name: displayName,
-      currentHp: 20n,
-      maxHp: 20n,
-      attackDamage: 3n,
+      level: petLevel,
+      currentHp: petMaxHp,
+      maxHp: petMaxHp,
+      attackDamage: petAttackDamage,
       abilityKey: ability?.key,
       abilityCooldownSeconds: ability?.cooldownSeconds,
       // Allow pets to attempt their ability immediately on summon.
@@ -2009,13 +2028,13 @@ function executeAbility(
       return;
     case 'shaman_spirit_wolf':
       summonPet('Spirit Wolf', 'a spirit wolf', [
-        'Mistfang',
-        'Ghostpaw',
-        'Duskhowl',
-        'Frostpad',
-        'Silent',
-      ]);
-      return;
+          'Mistfang',
+          'Ghostpaw',
+          'Duskhowl',
+          'Frostpad',
+          'Silent',
+        ], undefined, { damageBase: 4n, damagePerLevel: 2n, weaponScalePercent: 45n });
+        return;
     case 'shaman_hex':
       applyDamage(115n, 1n, {
         debuff: { type: 'damage_down', magnitude: -2n, rounds: 3n, source: 'Hex' },
@@ -2382,13 +2401,13 @@ function executeAbility(
       return;
     case 'necromancer_bone_servant':
       summonPet('Skeleton', 'a skeleton', [
-        'Rattle',
-        'Grin',
-        'Shard',
-        'Grave',
-        'Morrow',
-      ]);
-      return;
+          'Rattle',
+          'Grin',
+          'Shard',
+          'Grave',
+          'Morrow',
+        ], undefined, { damageBase: 4n, damagePerLevel: 2n, weaponScalePercent: 45n });
+        return;
     case 'necromancer_wither':
       applyDamage(120n, 2n, { dot: { magnitude: 3n, rounds: 2n, source: 'Wither' } });
       return;
@@ -2447,12 +2466,13 @@ function executeAbility(
       return;
     case 'beastmaster_call_beast':
       summonPet(
-        'Beast',
-        'a wild beast',
-        ['Brindle', 'Moss', 'Cinder', 'Tawny', 'Thorn'],
-        { key: 'pet_bleed', cooldownSeconds: 10n }
-      );
-      return;
+          'Beast',
+          'a wild beast',
+          ['Brindle', 'Moss', 'Cinder', 'Tawny', 'Thorn'],
+          { key: 'pet_bleed', cooldownSeconds: 10n },
+          { damageBase: 3n, damagePerLevel: 1n, weaponScalePercent: 35n }
+        );
+        return;
     case 'beastmaster_beast_fang':
       applyDamage(145n, 3n, { dot: { magnitude: 2n, rounds: 2n, source: 'Beast Fang' } });
       return;
@@ -2603,12 +2623,13 @@ function executeAbility(
       return;
     case 'summoner_earth_familiar':
       summonPet(
-        'Familiar',
-        'an earth familiar',
-        ['Cipher', 'Glim', 'Vex', 'Aster', 'Sigil'],
-        { key: 'pet_taunt', cooldownSeconds: 10n }
-      );
-      return;
+          'Familiar',
+          'an earth familiar',
+          ['Cipher', 'Glim', 'Vex', 'Aster', 'Sigil'],
+          { key: 'pet_taunt', cooldownSeconds: 10n },
+          { hpBase: 22n, hpPerLevel: 6n, damageBase: 2n, damagePerLevel: 1n, weaponScalePercent: 30n }
+        );
+        return;
     case 'summoner_conjured_spike':
       applyDamage(145n, 3n);
       return;

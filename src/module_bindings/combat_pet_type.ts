@@ -15,6 +15,7 @@ export default __t.object("CombatPet", {
   combatId: __t.u64(),
   ownerCharacterId: __t.u64(),
   name: __t.string(),
+  level: __t.u64(),
   currentHp: __t.u64(),
   maxHp: __t.u64(),
   attackDamage: __t.u64(),
