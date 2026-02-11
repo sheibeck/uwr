@@ -18,6 +18,11 @@ import {
   type ItemTemplateRow,
 } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
+import {
+  effectIsNegative,
+  effectLabel,
+  effectRemainingSeconds,
+} from '../ui/effectTimers';
 
 type EnemySummary = {
   id: bigint;
@@ -274,18 +279,15 @@ export const useCombat = ({
     if (!activeCombat.value || !activeEnemy.value) return [];
     const combatId = activeCombat.value.id.toString();
     const enemyId = activeEnemy.value.id.toString();
-    const negativeTypes = new Set(['damage_down', 'dot', 'skip', 'slow', 'weaken']);
     return combatEnemyEffects.value
       .filter(
         (row) =>
           row.combatId.toString() === combatId && row.enemyId.toString() === enemyId
       )
       .map((effect) => {
-        const type = effect.effectType;
-        const isHot = type === 'dot';
-        const seconds = Number(effect.roundsRemaining) * (isHot ? 3 : 10);
-        const label = effect.sourceAbility ?? type.replace(/_/g, ' ');
-        const isNegative = negativeTypes.has(type) || effect.magnitude < 0n;
+        const seconds = effectRemainingSeconds(effect, nowMicros.value, effectTimers);
+        const label = effectLabel(effect);
+        const isNegative = effectIsNegative(effect);
         return {
           id: effect.id,
           label,
@@ -409,34 +411,17 @@ export const useCombat = ({
       else conClass = 'conRed';
        const effects = combatEnemyEffects.value
          .filter(
-          (row) =>
-            row.combatId.toString() === combatId &&
-            row.enemyId.toString() === enemy.id.toString()
-        )
+           (row) =>
+             row.combatId.toString() === combatId &&
+             row.enemyId.toString() === enemy.id.toString()
+         )
          .map((effect) => {
-           const type = effect.effectType;
-           const isHot = type === 'dot';
-           const tickSeconds = isHot ? 3 : 10;
-           const key = effect.id.toString();
-           const totalSeconds = Number(effect.roundsRemaining) * tickSeconds;
-           const existing = effectTimers.get(key);
-           if (!existing || existing.rounds !== effect.roundsRemaining || existing.tickSeconds !== tickSeconds) {
-             effectTimers.set(key, {
-               seenAtMicros: nowMicros.value,
-               rounds: effect.roundsRemaining,
-               tickSeconds,
-             });
-           }
-           const entry = effectTimers.get(key);
-           const elapsedSeconds = entry ? (nowMicros.value - entry.seenAtMicros) / 1_000_000 : 0;
-           const seconds = Math.max(0, Math.ceil(totalSeconds - elapsedSeconds));
-           const label = effect.sourceAbility ?? type.replace(/_/g, ' ');
-           const isNegative =
-             new Set(['damage_down', 'dot', 'skip', 'slow', 'weaken']).has(type) ||
-             effect.magnitude < 0n;
-          return {
-            id: effect.id,
-            label,
+           const seconds = effectRemainingSeconds(effect, nowMicros.value, effectTimers);
+           const label = effectLabel(effect);
+           const isNegative = effectIsNegative(effect);
+           return {
+             id: effect.id,
+             label,
             seconds,
             isNegative,
           };

@@ -43,7 +43,7 @@
               :key="effect.id.toString()"
               :style="styles.effectBadge"
             >
-              {{ effectLabel(effect) }} ({{ effectDurationLabel(effect) }})
+              {{ effectLabelForDisplay(effect) }} ({{ effectDurationLabel(effect) }})
             </span>
           </div>
           <div v-for="pet in petsFor(member.id)" :key="pet.id.toString()" :style="styles.petCard">
@@ -124,7 +124,7 @@
           :key="effect.id.toString()"
           :style="styles.effectBadge"
         >
-          {{ effectLabel(effect) }} ({{ effectDurationLabel(effect) }})
+          {{ effectLabelForDisplay(effect) }} ({{ effectDurationLabel(effect) }})
         </span>
       </div>
       <div v-for="pet in petsFor(selectedCharacter.id)" :key="pet.id.toString()" :style="styles.petCard">
@@ -169,6 +169,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { CharacterRow, GroupRow } from '../module_bindings';
+import { effectLabel, effectRemainingSeconds } from '../ui/effectTimers';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
@@ -238,40 +239,18 @@ const petsFor = (characterId: bigint) =>
 const effectsFor = (characterId: bigint) =>
   props.characterEffects.filter((effect) => effect.characterId === characterId);
 
-const effectLabel = (effect: {
-  effectType: string;
-  magnitude: bigint;
-  roundsRemaining: bigint;
-  sourceAbility?: string;
-}) => {
-  if (effect.sourceAbility) return effect.sourceAbility;
-  switch (effect.effectType) {
-    case 'regen':
-      return 'Totem of Vigor';
-    case 'ac_bonus':
-      return 'Ancestral Ward';
-    default:
-      return effect.effectType.replace(/_/g, ' ');
-  }
-};
-
 const effectTimers = new Map<
   string,
   { seenAtMicros: number; rounds: bigint; tickSeconds: number }
 >();
 
 const effectDurationLabel = (effect: { id: bigint; roundsRemaining: bigint; effectType: string }) => {
-  const tickSeconds = effect.effectType === 'regen' || effect.effectType === 'dot' ? 3 : 10;
-  const totalSeconds = Number(effect.roundsRemaining) * tickSeconds;
-  const key = effect.id.toString();
   const now = props.nowMicros ?? Date.now() * 1000;
-  const existing = effectTimers.get(key);
-  if (!existing || existing.rounds !== effect.roundsRemaining || existing.tickSeconds !== tickSeconds) {
-    effectTimers.set(key, { seenAtMicros: now, rounds: effect.roundsRemaining, tickSeconds });
-  }
-  const entry = effectTimers.get(key);
-  const elapsedSeconds = entry ? (now - entry.seenAtMicros) / 1_000_000 : 0;
-  const remaining = Math.max(0, Math.ceil(totalSeconds - elapsedSeconds));
-  return `${remaining}s`;
+  return `${effectRemainingSeconds(effect, now, effectTimers)}s`;
 };
+
+const effectLabelForDisplay = (effect: {
+  effectType: string;
+  sourceAbility?: string;
+}) => effectLabel(effect);
 </script>
