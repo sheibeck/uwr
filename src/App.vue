@@ -1441,7 +1441,6 @@ const setDefensiveTarget = (characterId: bigint) => {
 
 const tryUseAbility = (slot: any) => {
   if (!selectedCharacter.value || !slot?.abilityKey) return;
-  if (slot.kind !== 'utility') return;
   const ability = abilityLookup.value.get(slot.abilityKey);
   const castDurationMicros = ability?.castSeconds
     ? Math.round(Number(ability.castSeconds) * 1_000_000)

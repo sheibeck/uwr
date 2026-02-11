@@ -344,6 +344,12 @@ export const registerItemReducers = (deps: any) => {
       const abilityKey = args.abilityKey.trim();
       if (!abilityKey) throw new SenderError('Ability required');
       const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
+      const petSummons = new Set([
+        'shaman_spirit_wolf',
+        'necromancer_bone_servant',
+        'beastmaster_call_beast',
+        'summoner_earth_familiar',
+      ]);
       const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(character.id)].find(
         (row) => row.abilityKey === abilityKey
       );
@@ -359,6 +365,16 @@ export const registerItemReducers = (deps: any) => {
       }
       const castMicros = abilityCastMicros(abilityKey);
       const combatId = activeCombatIdForCharacter(ctx, character.id);
+      if (!combatId && petSummons.has(abilityKey)) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          'Pets can only be summoned in combat.'
+        );
+        return;
+      }
       if (combatId) {
         const participant = [...ctx.db.combatParticipant.by_combat.filter(combatId)].find(
           (row) => row.characterId === character.id

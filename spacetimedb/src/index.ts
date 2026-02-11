@@ -1531,8 +1531,6 @@ function isGroupLeaderOrSolo(ctx: any, character: any) {
 function abilityCooldownMicros(abilityKey: string) {
   const ability = ABILITIES[abilityKey as keyof typeof ABILITIES];
   if (!ability) return GLOBAL_COOLDOWN_MICROS;
-  const castMicros = ability.castSeconds ? ability.castSeconds * 1_000_000n : 0n;
-  if (castMicros > 0n) return castMicros;
   const specific = ability.cooldownSeconds ? ability.cooldownSeconds * 1_000_000n : 0n;
   return specific > GLOBAL_COOLDOWN_MICROS ? specific : GLOBAL_COOLDOWN_MICROS;
 }
