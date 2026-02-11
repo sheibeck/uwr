@@ -102,6 +102,10 @@ const actionStyle = (panel: PanelKey) => {
 };
 
 const isLocked = (panel: PanelKey) => {
+  // Character switching is blocked while the current character is in combat.
+  if (panel === 'character' && props.hasActiveCharacter && props.combatLocked) {
+    return true;
+  }
   return false;
 };
 </script>

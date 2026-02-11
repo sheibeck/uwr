@@ -12,40 +12,6 @@ const PULL_ADD_DELAY_ROUNDS = 2n;
 const PULL_ALLOW_EXTERNAL_ADDS = false;
 const ENEMY_RESPAWN_MICROS = 5n * 60n * 1_000_000n;
 
-const upsertEnemyEffect = (
-  ctx: any,
-  combatId: bigint,
-  enemyId: bigint,
-  effectType: string,
-  magnitude: bigint,
-  roundsRemaining: bigint,
-  sourceAbility: string
-) => {
-  const existing = [...ctx.db.combatEnemyEffect.by_combat.filter(combatId)].find(
-    (effect) =>
-      effect.enemyId === enemyId &&
-      effect.effectType === effectType &&
-      effect.sourceAbility === sourceAbility
-  );
-  if (existing) {
-    ctx.db.combatEnemyEffect.id.update({
-      ...existing,
-      magnitude,
-      roundsRemaining,
-    });
-    return;
-  }
-  ctx.db.combatEnemyEffect.insert({
-    id: 0n,
-    combatId,
-    enemyId,
-    effectType,
-    magnitude,
-    roundsRemaining,
-    sourceAbility,
-  });
-};
-
 const refreshSpawnGroupCount = (ctx: any, spawnId: bigint) => {
   const spawn = ctx.db.enemySpawn.id.find(spawnId);
   if (!spawn) return;
@@ -225,8 +191,7 @@ export const registerCombatReducers = (deps: any) => {
     sumEnemyEffect,
     applyArmorMitigation,
     abilityCooldownMicros,
-    executeAbility,
-    executeEnemyAbility,
+    executeAbilityAction,
     rollAttackOutcome,
     EnemyAbility,
     CombatEnemyCast,
@@ -1346,7 +1311,12 @@ export const registerCombatReducers = (deps: any) => {
         continue;
       }
       try {
-        deps.executeAbility(ctx, character, cast.abilityKey, cast.targetCharacterId);
+        deps.executeAbilityAction(ctx, {
+          actorType: 'character',
+          actorId: character.id,
+          abilityKey: cast.abilityKey,
+          targetCharacterId: cast.targetCharacterId,
+        });
         const cooldown = abilityCooldownMicros(cast.abilityKey);
         const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(character.id)].find(
           (row) => row.abilityKey === cast.abilityKey
@@ -1474,13 +1444,13 @@ export const registerCombatReducers = (deps: any) => {
         (row) => row.enemyId === enemy.id
       );
       if (existingCast && existingCast.endsAtMicros <= nowMicros) {
-        executeEnemyAbility(
-          ctx,
-          combat.id,
-          enemy.id,
-          existingCast.abilityKey,
-          existingCast.targetCharacterId
-        );
+        executeAbilityAction(ctx, {
+          actorType: 'enemy',
+          actorId: enemy.id,
+          combatId: combat.id,
+          abilityKey: existingCast.abilityKey,
+          targetCharacterId: existingCast.targetCharacterId,
+        });
         const cooldownTable = ctx.db.combatEnemyCooldown;
         if (cooldownTable) {
           const abilityRow = enemyAbilities.find(
@@ -1713,80 +1683,17 @@ export const registerCombatReducers = (deps: any) => {
       }
       let nextAbilityAt = pet.nextAbilityAt;
       if (pet.abilityKey && pet.nextAbilityAt && pet.nextAbilityAt <= nowMicros) {
-        if (pet.abilityKey === 'pet_taunt') {
-          let maxAggro = 0n;
-          let petEntry: typeof deps.AggroEntry.rowType | null = null;
-          for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
-            if (entry.enemyId !== target.id) continue;
-            if (entry.value > maxAggro) maxAggro = entry.value;
-            if (entry.petId && entry.petId === pet.id) {
-              petEntry = entry;
-            }
-          }
-          const newValue = maxAggro + 5n;
-          if (petEntry) {
-            ctx.db.aggroEntry.id.update({ ...petEntry, value: newValue });
-          } else {
-            ctx.db.aggroEntry.insert({
-              id: 0n,
-              combatId: combat.id,
-              enemyId: target.id,
-              characterId: owner.id,
-              petId: pet.id,
-              value: newValue,
-            });
-          }
-          appendPrivateEvent(
-            ctx,
-            owner.id,
-            owner.ownerUserId,
-            'ability',
-            `${pet.name} taunts ${target.displayName ?? 'the enemy'}.`
-          );
-          if (owner.groupId) {
-            appendGroupEvent(
-              ctx,
-              owner.groupId,
-              owner.id,
-              'ability',
-              `${pet.name} taunts ${target.displayName ?? 'the enemy'}.`
-            );
-          }
-          ctx.db.combatEnemy.id.update({
-            ...target,
-            aggroTargetPetId: pet.id,
-            aggroTargetCharacterId: owner.id,
-          });
+        const used = executeAbilityAction(ctx, {
+          actorType: 'pet',
+          actorId: pet.id,
+          combatId: combat.id,
+          abilityKey: pet.abilityKey,
+          targetEnemyId: target.id,
+        });
+        if (used) {
+          const cooldownMicros = (pet.abilityCooldownSeconds ?? 10n) * 1_000_000n;
+          nextAbilityAt = nowMicros + cooldownMicros;
         }
-        if (pet.abilityKey === 'pet_bleed') {
-          upsertEnemyEffect(
-            ctx,
-            combat.id,
-            target.id,
-            'dot',
-            2n,
-            3n,
-            'Pet Bleed'
-          );
-          appendPrivateEvent(
-            ctx,
-            owner.id,
-            owner.ownerUserId,
-            'ability',
-            `${pet.name} rends ${target.displayName ?? 'the enemy'}.`
-          );
-          if (owner.groupId) {
-            appendGroupEvent(
-              ctx,
-              owner.groupId,
-              owner.id,
-              'ability',
-              `${pet.name} rends ${target.displayName ?? 'the enemy'}.`
-            );
-          }
-        }
-        const cooldownMicros = (pet.abilityCooldownSeconds ?? 10n) * 1_000_000n;
-        nextAbilityAt = nowMicros + cooldownMicros;
       }
       const targetName = target.displayName ?? 'enemy';
       const { finalDamage } = resolveAttack(ctx, {

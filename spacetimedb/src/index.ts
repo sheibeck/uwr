@@ -2763,6 +2763,121 @@ function executeEnemyAbility(
   }
 }
 
+function executePetAbility(
+  ctx: any,
+  combatId: bigint,
+  petId: bigint,
+  abilityKey: string,
+  targetEnemyId?: bigint
+) {
+  const combat = ctx.db.combatEncounter.id.find(combatId);
+  if (!combat || combat.state !== 'active') return false;
+  const pet = ctx.db.combatPet.id.find(petId);
+  if (!pet) return false;
+  const owner = ctx.db.character.id.find(pet.ownerCharacterId);
+  if (!owner || owner.hp === 0n) return false;
+  const target =
+    (targetEnemyId ? ctx.db.combatEnemy.id.find(targetEnemyId) : null) ??
+    (pet.targetEnemyId ? ctx.db.combatEnemy.id.find(pet.targetEnemyId) : null);
+  if (!target || target.currentHp === 0n) return false;
+
+  const actorGroupId = effectiveGroupId(owner);
+  if (abilityKey === 'pet_taunt') {
+    let maxAggro = 0n;
+    let petEntry: typeof AggroEntry.rowType | null = null;
+    for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+      if (entry.enemyId !== target.id) continue;
+      if (entry.value > maxAggro) maxAggro = entry.value;
+      if (entry.petId && entry.petId === pet.id) petEntry = entry;
+    }
+    const newValue = maxAggro + 5n;
+    if (petEntry) {
+      ctx.db.aggroEntry.id.update({ ...petEntry, value: newValue });
+    } else {
+      ctx.db.aggroEntry.insert({
+        id: 0n,
+        combatId,
+        enemyId: target.id,
+        characterId: owner.id,
+        petId: pet.id,
+        value: newValue,
+      });
+    }
+    const message = `${pet.name} taunts ${target.displayName ?? 'the enemy'}.`;
+    appendPrivateEvent(ctx, owner.id, owner.ownerUserId, 'ability', message);
+    if (actorGroupId) {
+      appendGroupEvent(ctx, actorGroupId, owner.id, 'ability', message);
+    }
+    ctx.db.combatEnemy.id.update({
+      ...target,
+      aggroTargetPetId: pet.id,
+      aggroTargetCharacterId: owner.id,
+    });
+    return true;
+  }
+
+  if (abilityKey === 'pet_bleed') {
+    addEnemyEffect(ctx, combatId, target.id, 'dot', 2n, 3n, 'Pet Bleed');
+    const message = `${pet.name} rends ${target.displayName ?? 'the enemy'}.`;
+    appendPrivateEvent(ctx, owner.id, owner.ownerUserId, 'ability', message);
+    if (actorGroupId) {
+      appendGroupEvent(ctx, actorGroupId, owner.id, 'ability', message);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+function executeAbilityAction(
+  ctx: any,
+  args:
+    | {
+        actorType: 'character';
+        actorId: bigint;
+        abilityKey: string;
+        targetCharacterId?: bigint;
+      }
+    | {
+        actorType: 'enemy';
+        actorId: bigint;
+        combatId: bigint;
+        abilityKey: string;
+        targetCharacterId?: bigint;
+      }
+    | {
+        actorType: 'pet';
+        actorId: bigint;
+        combatId: bigint;
+        abilityKey: string;
+        targetEnemyId?: bigint;
+      }
+) {
+  if (args.actorType === 'character') {
+    const character = ctx.db.character.id.find(args.actorId);
+    if (!character) return false;
+    executeAbility(ctx, character, args.abilityKey, args.targetCharacterId);
+    return true;
+  }
+  if (args.actorType === 'enemy') {
+    executeEnemyAbility(
+      ctx,
+      args.combatId,
+      args.actorId,
+      args.abilityKey,
+      args.targetCharacterId
+    );
+    return true;
+  }
+  return executePetAbility(
+    ctx,
+    args.combatId,
+    args.actorId,
+    args.abilityKey,
+    args.targetEnemyId
+  );
+}
+
 const COMBAT_LOOP_INTERVAL_MICROS = 1_000_000n;
 const AUTO_ATTACK_INTERVAL = 5_000_000n;
 const DAY_DURATION_MICROS = 1_200_000_000n;
@@ -5353,6 +5468,8 @@ const reducerDeps = {
   recomputeCharacterDerived,
   executeAbility,
   executeEnemyAbility,
+  executePetAbility,
+  executeAbilityAction,
   isClassAllowed,
   isArmorAllowedForClass,
   normalizeArmorType,

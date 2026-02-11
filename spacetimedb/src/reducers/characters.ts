@@ -30,6 +30,32 @@ export const registerCharacterReducers = (deps: any) => {
     if (!player) throw new SenderError('Player not found');
     const character = requireCharacterOwnedBy(ctx, characterId);
     const previousActiveId = player.activeCharacterId;
+    if (previousActiveId) {
+      const activeCombat = activeCombatIdForCharacter(ctx, previousActiveId);
+      if (activeCombat) {
+        const activeCharacter = ctx.db.character.id.find(previousActiveId);
+        if (activeCharacter) {
+          appendPrivateEvent(
+            ctx,
+            activeCharacter.id,
+            activeCharacter.ownerUserId,
+            'system',
+            'You cannot switch characters during combat.'
+          );
+        }
+        return;
+      }
+    }
+    if (activeCombatIdForCharacter(ctx, character.id)) {
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'system',
+        'You cannot switch into a character that is currently in combat.'
+      );
+      return;
+    }
     if (previousActiveId && previousActiveId !== character.id) {
       const previous = ctx.db.character.id.find(previousActiveId);
         if (previous) {
