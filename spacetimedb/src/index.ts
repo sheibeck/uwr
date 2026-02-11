@@ -889,6 +889,9 @@ const CombatPet = table(
     currentHp: t.u64(),
     maxHp: t.u64(),
     attackDamage: t.u64(),
+    abilityKey: t.string().optional(),
+    nextAbilityAt: t.u64().optional(),
+    abilityCooldownSeconds: t.u64().optional(),
     targetEnemyId: t.u64().optional(),
     nextAutoAttackAt: t.u64(),
   }
@@ -1774,7 +1777,7 @@ function executeAbility(
     petLabel: string,
     petDescription: string,
     namePool: string[],
-    taunt: boolean = false
+    ability?: { key: string; cooldownSeconds: bigint }
   ) => {
     if (!combatId || !combat || combat.state !== 'active') {
       throw new SenderError('Pets can only be summoned in combat');
@@ -1796,33 +1799,13 @@ function executeAbility(
       currentHp: 20n,
       maxHp: 20n,
       attackDamage: 3n,
+      abilityKey: ability?.key,
+      abilityCooldownSeconds: ability?.cooldownSeconds,
+      // Allow pets to attempt their ability immediately on summon.
+      nextAbilityAt: ability ? nowMicros : undefined,
       targetEnemyId: enemy.id,
       nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
     });
-    if (taunt) {
-      if (enemy && enemy.currentHp > 0n) {
-        let top = 0n;
-        let petEntry: typeof AggroEntry.rowType | null = null;
-        for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
-          if (entry.enemyId !== enemy.id) continue;
-          if (entry.value > top) top = entry.value;
-          if (entry.petId && entry.petId === pet.id) petEntry = entry;
-        }
-        const nextValue = top + 25n;
-        if (petEntry) {
-          ctx.db.aggroEntry.id.update({ ...petEntry, value: nextValue });
-        } else {
-          ctx.db.aggroEntry.insert({
-            id: 0n,
-            combatId,
-            enemyId: enemy.id,
-            characterId: character.id,
-            petId: pet.id,
-            value: nextValue,
-          });
-        }
-      }
-    }
     appendPrivateEvent(
       ctx,
       character.id,
@@ -2406,13 +2389,12 @@ function executeAbility(
       applyDamage(120n, 2n, { hits: 2n });
       return;
     case 'beastmaster_call_beast':
-      summonPet('Beast', 'a wild beast', [
-        'Brindle',
-        'Moss',
-        'Cinder',
-        'Tawny',
-        'Thorn',
-      ]);
+      summonPet(
+        'Beast',
+        'a wild beast',
+        ['Brindle', 'Moss', 'Cinder', 'Tawny', 'Thorn'],
+        { key: 'pet_bleed', cooldownSeconds: 10n }
+      );
       return;
     case 'beastmaster_beast_fang':
       applyDamage(145n, 3n, { dot: { magnitude: 2n, rounds: 2n, source: 'Beast Fang' } });
@@ -2563,13 +2545,12 @@ function executeAbility(
       );
       return;
     case 'summoner_earth_familiar':
-      summonPet('Familiar', 'an earth familiar', [
-        'Cipher',
-        'Glim',
-        'Vex',
-        'Aster',
-        'Sigil',
-      ], true);
+      summonPet(
+        'Familiar',
+        'an earth familiar',
+        ['Cipher', 'Glim', 'Vex', 'Aster', 'Sigil'],
+        { key: 'pet_taunt', cooldownSeconds: 10n }
+      );
       return;
     case 'summoner_conjured_spike':
       applyDamage(145n, 3n);

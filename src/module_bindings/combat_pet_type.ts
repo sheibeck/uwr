@@ -18,6 +18,9 @@ export default __t.object("CombatPet", {
   currentHp: __t.u64(),
   maxHp: __t.u64(),
   attackDamage: __t.u64(),
+  abilityKey: __t.option(__t.string()),
+  nextAbilityAt: __t.option(__t.u64()),
+  abilityCooldownSeconds: __t.option(__t.u64()),
   targetEnemyId: __t.option(__t.u64()),
   nextAutoAttackAt: __t.u64(),
 });

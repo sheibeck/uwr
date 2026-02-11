@@ -12,6 +12,40 @@ const PULL_ADD_DELAY_ROUNDS = 2n;
 const PULL_ALLOW_EXTERNAL_ADDS = false;
 const ENEMY_RESPAWN_MICROS = 5n * 60n * 1_000_000n;
 
+const upsertEnemyEffect = (
+  ctx: any,
+  combatId: bigint,
+  enemyId: bigint,
+  effectType: string,
+  magnitude: bigint,
+  roundsRemaining: bigint,
+  sourceAbility: string
+) => {
+  const existing = [...ctx.db.combatEnemyEffect.by_combat.filter(combatId)].find(
+    (effect) =>
+      effect.enemyId === enemyId &&
+      effect.effectType === effectType &&
+      effect.sourceAbility === sourceAbility
+  );
+  if (existing) {
+    ctx.db.combatEnemyEffect.id.update({
+      ...existing,
+      magnitude,
+      roundsRemaining,
+    });
+    return;
+  }
+  ctx.db.combatEnemyEffect.insert({
+    id: 0n,
+    combatId,
+    enemyId,
+    effectType,
+    magnitude,
+    roundsRemaining,
+    sourceAbility,
+  });
+};
+
 const refreshSpawnGroupCount = (ctx: any, spawnId: bigint) => {
   const spawn = ctx.db.enemySpawn.id.find(spawnId);
   if (!spawn) return;
@@ -1700,6 +1734,83 @@ export const registerCombatReducers = (deps: any) => {
         });
         continue;
       }
+      let nextAbilityAt = pet.nextAbilityAt;
+      if (pet.abilityKey && pet.nextAbilityAt && pet.nextAbilityAt <= nowMicros) {
+        if (pet.abilityKey === 'pet_taunt') {
+          let maxAggro = 0n;
+          let petEntry: typeof deps.AggroEntry.rowType | null = null;
+          for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+            if (entry.enemyId !== target.id) continue;
+            if (entry.value > maxAggro) maxAggro = entry.value;
+            if (entry.petId && entry.petId === pet.id) {
+              petEntry = entry;
+            }
+          }
+          const newValue = maxAggro + 5n;
+          if (petEntry) {
+            ctx.db.aggroEntry.id.update({ ...petEntry, value: newValue });
+          } else {
+            ctx.db.aggroEntry.insert({
+              id: 0n,
+              combatId: combat.id,
+              enemyId: target.id,
+              characterId: owner.id,
+              petId: pet.id,
+              value: newValue,
+            });
+          }
+          appendPrivateEvent(
+            ctx,
+            owner.id,
+            owner.ownerUserId,
+            'ability',
+            `${pet.name} taunts ${target.displayName ?? 'the enemy'}.`
+          );
+          if (owner.groupId) {
+            appendGroupEvent(
+              ctx,
+              owner.groupId,
+              owner.id,
+              'ability',
+              `${pet.name} taunts ${target.displayName ?? 'the enemy'}.`
+            );
+          }
+          ctx.db.combatEnemy.id.update({
+            ...target,
+            aggroTargetPetId: pet.id,
+            aggroTargetCharacterId: owner.id,
+          });
+        }
+        if (pet.abilityKey === 'pet_bleed') {
+          upsertEnemyEffect(
+            ctx,
+            combat.id,
+            target.id,
+            'dot',
+            2n,
+            3n,
+            'Pet Bleed'
+          );
+          appendPrivateEvent(
+            ctx,
+            owner.id,
+            owner.ownerUserId,
+            'ability',
+            `${pet.name} rends ${target.displayName ?? 'the enemy'}.`
+          );
+          if (owner.groupId) {
+            appendGroupEvent(
+              ctx,
+              owner.groupId,
+              owner.id,
+              'ability',
+              `${pet.name} rends ${target.displayName ?? 'the enemy'}.`
+            );
+          }
+        }
+        const cooldownMicros = (pet.abilityCooldownSeconds ?? 10n) * 1_000_000n;
+        nextAbilityAt = nowMicros + cooldownMicros;
+      }
       const targetName = target.displayName ?? 'enemy';
       const { finalDamage } = resolveAttack(ctx, {
         seed: nowMicros + pet.id + target.id,
@@ -1749,6 +1860,7 @@ export const registerCombatReducers = (deps: any) => {
       ctx.db.combatPet.id.update({
         ...pet,
         nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
+        nextAbilityAt,
         targetEnemyId: target.id,
       });
     }
