@@ -847,6 +847,15 @@ const {
   characters,
 });
 
+const canActInCombat = computed(() => {
+  if (!selectedCharacter.value || !activeCombat.value) return false;
+  if (selectedCharacter.value.hp === 0n) return false;
+  const participant = combatRoster.value.find(
+    (row) => row.id.toString() === selectedCharacter.value?.id.toString()
+  );
+  return participant?.status === 'active';
+});
+
 const showDeathModal = computed(() => {
   return Boolean(selectedCharacter.value && selectedCharacter.value.hp === 0n && !activeCombat.value);
 });
@@ -1342,21 +1351,38 @@ const buyReducer = useReducer(reducers.buyItem);
 const sellReducer = useReducer(reducers.sellItem);
 const sellAllReducer = useReducer(reducers.sellAllJunk);
 
-const { hotbarAssignments, availableAbilities, abilityLookup, setHotbarSlot, useAbility } = useHotbar({
+const defensiveTargetId = ref<bigint | null>(null);
+const setDefensiveTarget = (characterId: bigint) => {
+  defensiveTargetId.value = characterId;
+};
+
+const {
+  hotbarAssignments,
+  availableAbilities,
+  hotbarDisplay,
+  hotbarTooltipItem,
+  setHotbarSlot,
+  useAbility,
+  onHotbarClick,
+  hotbarPulseKey,
+  castingState,
+  activeCastKey,
+  isCasting,
+  castProgress,
+} = useHotbar({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
   hotbarSlots,
   abilityTemplates,
-});
-
-const cooldownByAbility = computed(() => {
-  if (!selectedCharacter.value) return new Map<string, bigint>();
-  const map = new Map<string, bigint>();
-  for (const row of abilityCooldowns.value) {
-    if (row.characterId.toString() !== selectedCharacter.value.id.toString()) continue;
-    map.set(row.abilityKey, row.readyAtMicros);
-  }
-  return map;
+  abilityCooldowns,
+  characterCasts,
+  nowMicros,
+  activeCombat,
+  canActInCombat,
+  defensiveTargetId,
+  onTrackRequested: () => {
+    activePanel.value = 'track';
+  },
 });
 
 const equippedStatBonuses = computed(() => {
@@ -1380,143 +1406,12 @@ const equippedStatBonuses = computed(() => {
   return bonus;
 });
 
-const hotbarDisplay = computed(() => {
-  const slots = new Map(hotbarAssignments.value.map((slot) => [slot.slot, slot]));
-  return Array.from({ length: 10 }, (_, index) => {
-    const slotIndex = index + 1;
-    const assignment =
-      slots.get(slotIndex) ?? {
-        slot: slotIndex,
-        abilityKey: '',
-        name: 'Empty',
-      };
-    const ability = assignment.abilityKey
-      ? abilityLookup.value.get(assignment.abilityKey)
-      : undefined;
-    const readyAt = assignment.abilityKey
-      ? cooldownByAbility.value.get(assignment.abilityKey)
-      : undefined;
-    const localReadyAt = assignment.abilityKey
-      ? localCooldowns.value.get(assignment.abilityKey) ?? 0
-      : 0;
-    const serverRemaining = readyAt ? Number(readyAt) - nowMicros.value : 0;
-    const localRemaining = localReadyAt ? localReadyAt - nowMicros.value : 0;
-    const remainingMicros = Math.max(serverRemaining, localRemaining, 0);
-    const cooldownRemaining =
-      remainingMicros > 0 ? Math.ceil(remainingMicros / 1_000_000) : 0;
-    return {
-      ...assignment,
-      description: ability?.description ?? (assignment.abilityKey ? 'Ability not defined yet.' : ''),
-      resource: ability?.resource ?? '',
-      kind: ability?.kind ?? '',
-      level: ability?.level ?? 0,
-      cooldownSeconds: (() => {
-    const raw = ability?.cooldownSeconds ?? 0;
-    return raw > 0 ? raw : 0;
-  })(),
-  cooldownRemaining,
-    };
-  });
-});
-
-const hotbarTooltipItem = (slot: any) => {
-  if (!slot?.abilityKey) return null;
-  return {
-    name: slot.name || slot.abilityKey,
-    description: slot.description,
-    stats: [
-      { label: 'Level', value: slot.level || '-' },
-      { label: 'Type', value: slot.kind || '-' },
-      { label: 'Resource', value: slot.resource || '-' },
-    ],
-  };
-};
-
-const defensiveTargetId = ref<bigint | null>(null);
-const hotbarPulseKey = ref<string | null>(null);
-const setDefensiveTarget = (characterId: bigint) => {
-  defensiveTargetId.value = characterId;
-};
-
-
-const tryUseAbility = (slot: any) => {
-  if (!selectedCharacter.value || !slot?.abilityKey) return;
-  const ability = abilityLookup.value.get(slot.abilityKey);
-  const castDurationMicros = ability?.castSeconds
-    ? Math.round(Number(ability.castSeconds) * 1_000_000)
-    : 0;
-  if (ability?.castSeconds && ability.castSeconds > 0) {
-    localCast.value = {
-      abilityKey: slot.abilityKey,
-      startMicros: nowMicros.value,
-      durationMicros: castDurationMicros,
-    };
-  }
-  const cooldownSeconds = ability?.cooldownSeconds ?? 0;
-  if (cooldownSeconds > 0) {
-    localCooldowns.value.set(
-      slot.abilityKey,
-      nowMicros.value + castDurationMicros + Math.round(Number(cooldownSeconds) * 1_000_000)
-    );
-  }
-  const targetId = defensiveTargetId.value ?? selectedCharacter.value.id;
-  hotbarPulseKey.value = slot.abilityKey;
-  window.setTimeout(() => {
-    if (hotbarPulseKey.value === slot.abilityKey) hotbarPulseKey.value = null;
-  }, 800);
-  useAbility(slot.abilityKey, targetId);
-};
 
 const selectTrackedTarget = (templateId: bigint) => {
   if (!selectedCharacter.value) return;
-  const trackSlot = hotbarDisplay.value.find((slot) => slot.abilityKey === 'ranger_track');
-  if (trackSlot) {
-    tryUseAbility(trackSlot);
-  } else {
-    useAbility('ranger_track', selectedCharacter.value.id);
-  }
+  useAbility('ranger_track', selectedCharacter.value.id);
   startTrackedCombat(templateId);
   activePanel.value = 'none';
-};
-
-const onHotbarClick = (slot: any) => {
-  if (!selectedCharacter.value || !slot?.abilityKey) return;
-  if (isCasting.value) return;
-  if (slot.abilityKey === 'ranger_track') {
-    activePanel.value = 'track';
-    return;
-  }
-  const ability = abilityLookup.value.get(slot.abilityKey);
-  const castDurationMicros = ability?.castSeconds
-    ? Math.round(Number(ability.castSeconds) * 1_000_000)
-    : 0;
-  const cooldownSeconds = ability?.cooldownSeconds ?? 0;
-  if (ability?.castSeconds && ability.castSeconds > 0) {
-    localCast.value = {
-      abilityKey: slot.abilityKey,
-      startMicros: nowMicros.value,
-      durationMicros: castDurationMicros,
-    };
-  }
-  if (cooldownSeconds > 0) {
-    localCooldowns.value.set(
-      slot.abilityKey,
-      nowMicros.value + castDurationMicros + Math.round(Number(cooldownSeconds) * 1_000_000)
-    );
-  }
-  hotbarPulseKey.value = slot.abilityKey;
-  window.setTimeout(() => {
-    if (hotbarPulseKey.value === slot.abilityKey) hotbarPulseKey.value = null;
-  }, 800);
-
-  if (activeCombat.value) {
-    const targetId =
-      slot.kind === 'utility' ? defensiveTargetId.value ?? selectedCharacter.value.id : undefined;
-    useAbility(slot.abilityKey, targetId);
-    return;
-  }
-
-  tryUseAbility(slot);
 };
 
 const offensiveTargetEnemyId = ref<bigint | null>(null);
@@ -1604,70 +1499,18 @@ onMounted(() => {
   loadAccordionState();
 });
 
-const canActInCombat = computed(() => {
-  if (!selectedCharacter.value || !activeCombat.value) return false;
-  if (selectedCharacter.value.hp === 0n) return false;
-  const participant = combatRoster.value.find(
-    (row) => row.id.toString() === selectedCharacter.value?.id.toString()
-  );
-  return participant?.status === 'active';
-});
-
 const combatLocked = computed(() => Boolean(activeCombat.value || activeResult.value));
 const showCombatStack = computed(() => combatLocked.value);
 const showRightPanel = computed(() => false);
 
-const localCast = ref<{ abilityKey: string; startMicros: number; durationMicros: number } | null>(
-  null
-);
-const localCooldowns = ref(new Map<string, number>());
 const localGather = ref<{ nodeId: bigint; startMicros: number; durationMicros: number } | null>(
   null
 );
-
-const castingState = computed(() => {
-  if (!selectedCharacter.value) return null;
-  return (
-    characterCasts.value.find(
-      (row) => row.characterId.toString() === selectedCharacter.value?.id.toString()
-    ) ?? null
-  );
-});
-
-const activeCastKey = computed(() => localCast.value?.abilityKey ?? castingState.value?.abilityKey ?? '');
-const activeCastEndsAt = computed(() =>
-  castingState.value?.endsAtMicros ? Number(castingState.value.endsAtMicros) : 0
-);
-const isCasting = computed(() => Boolean(activeCastKey.value));
-const castingAbilityName = computed(() => {
-  const key = activeCastKey.value;
-  if (!key) return '';
-  const ability = abilityLookup.value.get(key);
-  return ability?.name ?? key;
-});
-const castProgress = computed(() => {
-  if (!isCasting.value) return 0;
-  if (localCast.value) {
-    const elapsed = nowMicros.value - localCast.value.startMicros;
-    const duration = localCast.value.durationMicros;
-    if (!duration) return 1;
-    const clamped = Math.max(0, Math.min(duration, elapsed));
-    return clamped / duration;
-  }
-  if (!activeCastEndsAt.value) return 0;
-  const ability = abilityLookup.value.get(activeCastKey.value ?? '');
-  const duration = ability?.castSeconds ? Number(ability.castSeconds) * 1_000_000 : 0;
-  if (!duration) return 1;
-  const remaining = activeCastEndsAt.value - nowMicros.value;
-  const clamped = Math.max(0, Math.min(duration, duration - remaining));
-  return clamped / duration;
-});
 
 watch(
   () => selectedCharacter.value?.id,
   (id) => {
     if (id) defensiveTargetId.value = id;
-    localCast.value = null;
     localGather.value = null;
   },
   { immediate: true }
@@ -1676,17 +1519,8 @@ watch(
 watch(
   () => nowMicros.value,
   (now) => {
-    if (localCast.value && now - localCast.value.startMicros >= localCast.value.durationMicros) {
-      localCast.value = null;
-    }
     if (localGather.value && now - localGather.value.startMicros >= localGather.value.durationMicros) {
       localGather.value = null;
-    }
-    if (localCooldowns.value.size === 0) return;
-    for (const [key, readyAt] of localCooldowns.value.entries()) {
-      if (now >= readyAt) {
-        localCooldowns.value.delete(key);
-      }
     }
   }
 );
