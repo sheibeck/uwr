@@ -163,6 +163,7 @@
           :selected-character="selectedCharacter"
           :available-abilities="availableAbilities"
           :hotbar="hotbarAssignments"
+          :combat-locked="combatLocked"
           @set-hotbar="setHotbarSlot"
         />
         <FriendsPanel

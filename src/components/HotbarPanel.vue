@@ -6,7 +6,10 @@
     </div>
     <div v-else>
       <div :style="styles.subtle">
-        Assign abilities to slots 1–10 for quick combat access.
+        Assign abilities to slots 1-10 for quick combat access.
+      </div>
+      <div v-if="combatLocked" :style="styles.subtle">
+        Hotbar changes are disabled during combat.
       </div>
       <div v-if="hotbar.length === 0" :style="styles.subtle">
         No hotbar slots available.
@@ -17,6 +20,7 @@
           <select
             :style="styles.input"
             :value="slot.abilityKey"
+            :disabled="combatLocked"
             @change="onHotbarChange(slot.slot, $event)"
           >
             <option value="">Empty</option>
@@ -42,6 +46,7 @@ const props = defineProps<{
   selectedCharacter: CharacterRow | null;
   availableAbilities: { key: string; name: string }[];
   hotbar: { slot: number; abilityKey: string; name: string }[];
+  combatLocked: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -49,6 +54,7 @@ const emit = defineEmits<{
 }>();
 
 const onHotbarChange = (slot: number, event: Event) => {
+  if (props.combatLocked) return;
   const value = (event.target as HTMLSelectElement).value;
   emit('set-hotbar', slot, value);
 };

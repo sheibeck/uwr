@@ -102,7 +102,6 @@ const actionStyle = (panel: PanelKey) => {
 };
 
 const isLocked = (panel: PanelKey) => {
-  if (!props.combatLocked) return false;
-  return panel !== 'combat' && panel !== 'group';
+  return false;
 };
 </script>
