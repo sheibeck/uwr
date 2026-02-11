@@ -23,16 +23,13 @@ export const registerItemReducers = (deps: any) => {
     startCombatForSpawn,
     getGroupParticipants,
     getInventorySlotCount,
-    hasInventorySpace,
     ResourceGatherTick,
     ResourceRespawnTick,
-    TradeSession,
-    TradeItem,
     fail,
   } = deps;
 
   const failItem = (ctx: any, character: any, message: string) =>
-    failItem(ctx, character, message, 'system');
+    fail(ctx, character, message, 'system');
 
   // Gathering aggro tuning (percent chance).
   // Base chance applies at dangerMultiplier 100. Each +100 danger adds per-step.

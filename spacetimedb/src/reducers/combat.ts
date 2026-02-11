@@ -252,8 +252,8 @@ export const registerCombatReducers = (deps: any) => {
     CombatEnemyCast,
     CombatEnemyCooldown,
     CombatPendingAdd,
-    getGroupParticipants,
-    isGroupLeaderOrSolo,
+    getGroupOrSoloParticipants,
+    requirePullerOrLog,
     hasShieldEquipped,
     canParry,
     EnemyRespawnTick,
@@ -632,29 +632,12 @@ export const registerCombatReducers = (deps: any) => {
     }
     const locationId = character.locationId;
 
-      // Must be puller (or solo) if in group
-      let groupId: bigint | null = character.groupId ?? null;
-      if (groupId) {
-        const group = ctx.db.group.id.find(groupId);
-        const pullerId = group?.pullerCharacterId ?? group?.leaderCharacterId;
-        if (!group || pullerId !== character.id) {
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'system',
-            'Only the group puller can start combat.'
-          );
-          return;
-        }
-      }
+      const pullerCheck = requirePullerOrLog(ctx, character, fail, 'Only the group puller can start combat.');
+      if (!pullerCheck.ok) return;
+      let groupId: bigint | null = pullerCheck.groupId;
 
     // Determine participants (virtual solo group)
-    const participants: typeof deps.Character.rowType[] = getGroupParticipants(
-      ctx,
-      character,
-      true
-    );
+      const participants: typeof deps.Character.rowType[] = getGroupOrSoloParticipants(ctx, character);
     if (participants.length === 0) return failCombat(ctx, character, 'No participants available');
     for (const p of participants) {
       if (activeCombatIdForCharacter(ctx, p.id)) {
@@ -685,22 +668,10 @@ export const registerCombatReducers = (deps: any) => {
       return failCombat(ctx, character, 'Already in combat');
     }
       const locationId = character.locationId;
-      let groupId: bigint | null = character.groupId ?? null;
-      if (groupId) {
-        const group = ctx.db.group.id.find(groupId);
-        const pullerId = group?.pullerCharacterId ?? group?.leaderCharacterId;
-        if (!group || pullerId !== character.id) {
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'system',
-            'Only the group puller can start combat.'
-          );
-          return;
-        }
-      }
-      const participants: typeof deps.Character.rowType[] = getGroupParticipants(ctx, character, true);
+      const pullerCheck = requirePullerOrLog(ctx, character, fail, 'Only the group puller can start combat.');
+      if (!pullerCheck.ok) return;
+      let groupId: bigint | null = pullerCheck.groupId;
+      const participants: typeof deps.Character.rowType[] = getGroupOrSoloParticipants(ctx, character);
       if (participants.length === 0) return failCombat(ctx, character, 'No participants available');
       for (const p of participants) {
         if (activeCombatIdForCharacter(ctx, p.id)) {
@@ -730,21 +701,9 @@ export const registerCombatReducers = (deps: any) => {
         return failCombat(ctx, character, 'Invalid pull type');
       }
 
-      let groupId: bigint | null = character.groupId ?? null;
-      if (groupId) {
-        const group = ctx.db.group.id.find(groupId);
-        const pullerId = group?.pullerCharacterId ?? group?.leaderCharacterId;
-        if (!group || pullerId !== character.id) {
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'system',
-            'Only the group puller can pull.'
-          );
-          return;
-        }
-      }
+      const pullerCheck = requirePullerOrLog(ctx, character, fail, 'Only the group puller can pull.');
+      if (!pullerCheck.ok) return;
+      let groupId: bigint | null = pullerCheck.groupId;
 
       for (const pull of ctx.db.pullState.by_character.filter(character.id)) {
         if (pull.state === 'pending') {
@@ -901,11 +860,7 @@ export const registerCombatReducers = (deps: any) => {
     const maxAdds = groupAddsAvailable + candidates.length;
     const addCount = maxAdds > 0 ? Math.min(maxAdds, Math.max(1, targetRadius || 1)) : 0;
 
-    const participants: typeof deps.Character.rowType[] = getGroupParticipants(
-      ctx,
-      character,
-      true
-    );
+    const participants: typeof deps.Character.rowType[] = getGroupOrSoloParticipants(ctx, character);
     if (participants.length === 0) {
       ctx.db.enemySpawn.id.update({ ...spawn, state: 'available' });
       ctx.db.pullState.id.delete(pull.id);

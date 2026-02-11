@@ -1,6 +1,7 @@
 import { schema, table, t, SenderError } from 'spacetimedb/server';
 import { ScheduleAt, Timestamp } from 'spacetimedb';
 import { registerReducers } from './reducers';
+import { getGroupOrSoloParticipants, requirePullerOrLog } from './helpers/group';
 import { startCombatForSpawn } from './reducers/combat';
 import { registerViews } from './views';
 import {
@@ -5338,6 +5339,8 @@ const reducerDeps = {
   canParry,
   getGroupParticipants,
   isGroupLeaderOrSolo,
+  getGroupOrSoloParticipants,
+  requirePullerOrLog,
   getInventorySlotCount,
   hasInventorySpace,
   usesMana,
