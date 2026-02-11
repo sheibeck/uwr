@@ -13,6 +13,7 @@ export const registerItemReducers = (deps: any) => {
     recomputeCharacterDerived,
     executeAbility,
     appendPrivateEvent,
+    appendGroupEvent,
     abilityCooldownMicros,
     abilityCastMicros,
     activeCombatIdForCharacter,

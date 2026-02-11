@@ -986,7 +986,7 @@ export const registerCombatReducers = (deps: any) => {
           p.id,
           p.ownerUserId,
           'system',
-          `Your ${pull.pullType} pull is noticed. You bring 1 of ${initialGroupCount} ${spawn.name} ??? and ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately. Remaining in group: ${remainingGroup}.${reasonSuffix}`
+          `Your ${pull.pullType} pull is noticed. You bring 1 of ${initialGroupCount} ${spawn.name} — and ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately. Remaining in group: ${remainingGroup}.${reasonSuffix}`
         );
       }
       if (pull.groupId) {
@@ -1006,9 +1006,19 @@ export const registerCombatReducers = (deps: any) => {
           p.id,
           p.ownerUserId,
           'system',
+          `Your ${pull.pullType} pull is clean. You draw 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`
+        );
+      }
+      if (pull.groupId) {
+        appendGroupEvent(
+          ctx,
+          pull.groupId,
+          pull.characterId,
+          'system',
+          `${character.name}'s pull is clean.`
+        );
       }
     }
-
     ctx.db.pullState.id.delete(pull.id);
   });
 
@@ -2398,3 +2408,4 @@ export const registerCombatReducers = (deps: any) => {
     scheduleCombatTick(ctx, combat.id);
   });
 };
+
