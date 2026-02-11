@@ -84,7 +84,9 @@
             v-if="slot.cooldownRemaining > 0"
             :style="{
               ...styles.hotbarCooldownFill,
-              width: `${Math.round((slot.cooldownRemaining / slot.cooldownSeconds) * 100)}%`,
+              width: `${Math.round(
+                (slot.cooldownRemaining / Math.max(1, Number(slot.cooldownSeconds))) * 100
+              )}%`,
             }"
           ></div>
           <span v-if="slot.cooldownRemaining > 0" :style="styles.hotbarCooldown">
@@ -1424,7 +1426,7 @@ const tryUseAbility = (slot: any) => {
   if (slot.cooldownSeconds && slot.cooldownSeconds > 0) {
     localCooldowns.value.set(
       slot.abilityKey,
-      nowMicros.value + Math.round(slot.cooldownSeconds * 1_000_000)
+      nowMicros.value + Math.round(Number(slot.cooldownSeconds) * 1_000_000)
     );
   }
   const targetId = defensiveTargetId.value ?? selectedCharacter.value.id;
@@ -1465,7 +1467,7 @@ const onHotbarClick = (slot: any) => {
   if (slot.cooldownSeconds && slot.cooldownSeconds > 0) {
     localCooldowns.value.set(
       slot.abilityKey,
-      nowMicros.value + Math.round(slot.cooldownSeconds * 1_000_000)
+      nowMicros.value + Math.round(Number(slot.cooldownSeconds) * 1_000_000)
     );
   }
   hotbarPulseKey.value = slot.abilityKey;

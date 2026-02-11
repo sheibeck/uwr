@@ -1778,8 +1778,8 @@ function executeAbility(
       }
     }
     const pickIndex = Number((nowMicros + character.id * 7n) % BigInt(namePool.length));
-    const suffix = namePool[pickIndex] ?? 'Echo';
-    const displayName = `${petLabel} ${suffix}`;
+    const petName = namePool[pickIndex] ?? 'Echo';
+    const displayName = `${petName} (${petLabel})`;
     ctx.db.combatPet.insert({
       id: 0n,
       combatId,
