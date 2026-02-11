@@ -18,8 +18,8 @@
         <span
           :style="[
             styles.logText,
-            event.kind === 'whisper' ? styles.logWhisper : {},
             event.scope === 'private' ? styles.logPrivate : {},
+            event.kind === 'whisper' ? styles.logWhisper : {},
             event.kind === 'presence' ? styles.logPresence : {},
             event.kind === 'command' ? styles.logCommand : {},
             event.kind === 'damage' ? styles.logDamage : {},
