@@ -1411,13 +1411,10 @@ const hotbarDisplay = computed(() => {
       kind: ability?.kind ?? '',
       level: ability?.level ?? 0,
       cooldownSeconds: (() => {
-        const raw =
-          ability?.castSeconds && ability.castSeconds > 0
-            ? ability.castSeconds
-            : ability?.cooldownSeconds ?? 1;
-        return raw > 0 ? raw : 1;
-      })(),
-      cooldownRemaining,
+    const raw = ability?.cooldownSeconds ?? 0;
+    return raw > 0 ? raw : 0;
+  })(),
+  cooldownRemaining,
     };
   });
 });
@@ -1446,17 +1443,21 @@ const tryUseAbility = (slot: any) => {
   if (!selectedCharacter.value || !slot?.abilityKey) return;
   if (slot.kind !== 'utility') return;
   const ability = abilityLookup.value.get(slot.abilityKey);
+  const castDurationMicros = ability?.castSeconds
+    ? Math.round(Number(ability.castSeconds) * 1_000_000)
+    : 0;
   if (ability?.castSeconds && ability.castSeconds > 0) {
     localCast.value = {
       abilityKey: slot.abilityKey,
       startMicros: nowMicros.value,
-      durationMicros: Number(ability.castSeconds) * 1_000_000,
+      durationMicros: castDurationMicros,
     };
   }
-  if (slot.cooldownSeconds && slot.cooldownSeconds > 0) {
+  const cooldownSeconds = ability?.cooldownSeconds ?? 0;
+  if (cooldownSeconds > 0) {
     localCooldowns.value.set(
       slot.abilityKey,
-      nowMicros.value + Math.round(Number(slot.cooldownSeconds) * 1_000_000)
+      nowMicros.value + castDurationMicros + Math.round(Number(cooldownSeconds) * 1_000_000)
     );
   }
   const targetId = defensiveTargetId.value ?? selectedCharacter.value.id;
@@ -1487,17 +1488,21 @@ const onHotbarClick = (slot: any) => {
     return;
   }
   const ability = abilityLookup.value.get(slot.abilityKey);
+  const castDurationMicros = ability?.castSeconds
+    ? Math.round(Number(ability.castSeconds) * 1_000_000)
+    : 0;
+  const cooldownSeconds = ability?.cooldownSeconds ?? 0;
   if (ability?.castSeconds && ability.castSeconds > 0) {
     localCast.value = {
       abilityKey: slot.abilityKey,
       startMicros: nowMicros.value,
-      durationMicros: Number(ability.castSeconds) * 1_000_000,
+      durationMicros: castDurationMicros,
     };
   }
-  if (slot.cooldownSeconds && slot.cooldownSeconds > 0) {
+  if (cooldownSeconds > 0) {
     localCooldowns.value.set(
       slot.abilityKey,
-      nowMicros.value + Math.round(Number(slot.cooldownSeconds) * 1_000_000)
+      nowMicros.value + castDurationMicros + Math.round(Number(cooldownSeconds) * 1_000_000)
     );
   }
   hotbarPulseKey.value = slot.abilityKey;
