@@ -101,7 +101,7 @@ export const abilities: Ability[] = [
   { key: 'reaver_dread_aura', name: 'Dread Aura', className: 'Reaver', level: 4, kind: 'utility', resource: 'mana', description: 'An aura that weakens enemy offense.', castSeconds: 0 },
   { key: 'reaver_oblivion', name: 'Oblivion', className: 'Reaver', level: 5, kind: 'combat', resource: 'mana', description: 'Annihilating strike from the void.', castSeconds: 2 },
 
-  { key: 'summoner_familiar_strike', name: 'Familiar Strike', className: 'Summoner', level: 1, kind: 'combat', resource: 'mana', description: 'Your familiar lashes out and steadies your focus.', castSeconds: 0, cooldownSeconds: 6 },
+  { key: 'summoner_conjure_vessel', name: 'Conjure Vessel', className: 'Summoner', level: 1, kind: 'combat', resource: 'mana', description: 'Conjure a vessel that strikes your enemy and captures some of their essence.', castSeconds: 0, cooldownSeconds: 6 },
   { key: 'summoner_arcane_familiar', name: 'Arcane Familiar', className: 'Summoner', level: 2, kind: 'utility', resource: 'mana', description: 'Summon an arcane familiar to fight beside you.', castSeconds: 3, cooldownSeconds: 10 },
   { key: 'summoner_conjured_spike', name: 'Conjured Spike', className: 'Summoner', level: 3, kind: 'combat', resource: 'mana', description: 'A conjured spike that impales the foe.', castSeconds: 1 },
   { key: 'summoner_empower', name: 'Empower', className: 'Summoner', level: 4, kind: 'utility', resource: 'mana', description: 'Empower the party’s attacks briefly.', castSeconds: 0 },

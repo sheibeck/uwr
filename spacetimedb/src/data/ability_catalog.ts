@@ -676,8 +676,8 @@ export const ABILITIES = {
     cooldownSeconds: 8n,
     castSeconds: 1n,
   },
-  summoner_familiar_strike: {
-    name: 'Familiar Strike',
+  summoner_conjure_vessel: {
+    name: 'Conjure Vessel',
     className: 'summoner',
     resource: 'mana',
     level: 1n,

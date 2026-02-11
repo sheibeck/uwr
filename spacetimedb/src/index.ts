@@ -1823,13 +1823,13 @@ function executeAbility(
     }
     const nextHp = enemy.currentHp > totalDamage ? enemy.currentHp - totalDamage : 0n;
     ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
-        for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
-          if (entry.characterId === character.id && entry.enemyId === enemy.id) {
-            ctx.db.aggroEntry.id.update({
-              ...entry,
-              value: entry.value + totalDamage + (options?.threatBonus ?? 0n),
-            });
-            break;
+    for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+      if (entry.characterId === character.id && entry.enemyId === enemy.id) {
+        ctx.db.aggroEntry.id.update({
+          ...entry,
+          value: entry.value + totalDamage + (options?.threatBonus ?? 0n),
+        });
+        break;
       }
     }
     if (options?.debuff) {
@@ -1977,13 +1977,14 @@ function executeAbility(
       applyDamage(175n, 5n, { threatBonus: 5n });
       return;
     case 'bard_discordant_note':
+      applyDamage(110n, 1n);
       applyPartyEffect('damage_up', 1n, 2n, 'Discordant Note');
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'ability',
-        'Discordant Note sharpens the party.'
+        'Discordant Note that deals damage and sharpens the party.'
       );
       return;
     case 'bard_ballad_of_resolve':
@@ -2494,7 +2495,7 @@ function executeAbility(
     case 'reaver_oblivion':
       applyDamage(175n, 6n);
       return;
-    case 'summoner_familiar_strike':
+    case 'summoner_conjure_vessel':
       applyDamage(110n, 1n);
       addCharacterEffect(ctx, character.id, 'mana_regen', 2n, 2n, 'Familiar Strike');
       appendPrivateEvent(
@@ -2502,7 +2503,7 @@ function executeAbility(
         character.id,
         character.ownerUserId,
         'ability',
-        'Familiar Strike steadies your focus.'
+        'Conjure a vessel that strikes your enemy and captures some of their essence.'
       );
       return;
     case 'summoner_arcane_familiar':
@@ -2861,8 +2862,8 @@ function getGatherableResourceTemplates(ctx: any, terrainType: string, timePref?
   const filtered =
     pref && pref !== 'any'
       ? entries.filter(
-          (entry) => entry.timeOfDay === 'any' || entry.timeOfDay === pref
-        )
+        (entry) => entry.timeOfDay === 'any' || entry.timeOfDay === pref
+      )
       : entries;
   const pool = filtered.length > 0 ? filtered : entries;
   const resolved = pool
