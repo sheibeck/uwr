@@ -15,6 +15,7 @@ export default __t.object("AggroEntry", {
   combatId: __t.u64(),
   enemyId: __t.u64(),
   characterId: __t.u64(),
+  petId: __t.option(__t.u64()),
   value: __t.u64(),
 });
 

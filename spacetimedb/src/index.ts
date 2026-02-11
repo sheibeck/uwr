@@ -867,6 +867,7 @@ const CombatEnemy = table(
     attackDamage: t.u64(),
     armorClass: t.u64(),
     aggroTargetCharacterId: t.u64().optional(),
+    aggroTargetPetId: t.u64().optional(),
     nextAutoAttackAt: t.u64(),
   }
 );
@@ -979,6 +980,7 @@ const AggroEntry = table(
     combatId: t.u64(),
     enemyId: t.u64(),
     characterId: t.u64(),
+    petId: t.u64().optional(),
     value: t.u64(),
   }
 );
@@ -1670,6 +1672,7 @@ function getTopAggroId(ctx: any, combatId: bigint, enemyId?: bigint) {
   let top: typeof AggroEntry.rowType | null = null;
   for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
     if (enemyId && entry.enemyId !== enemyId) continue;
+    if (entry.petId) continue;
     if (!top || entry.value > top.value) top = entry;
   }
   return top?.characterId ?? null;
@@ -1767,7 +1770,12 @@ function executeAbility(
   const damageUp = sumCharacterEffect(ctx, character.id, 'damage_up');
   const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
 
-  const summonPet = (petLabel: string, petDescription: string, namePool: string[]) => {
+  const summonPet = (
+    petLabel: string,
+    petDescription: string,
+    namePool: string[],
+    taunt: boolean = false
+  ) => {
     if (!combatId || !combat || combat.state !== 'active') {
       throw new SenderError('Pets can only be summoned in combat');
     }
@@ -1780,7 +1788,7 @@ function executeAbility(
     const pickIndex = Number((nowMicros + character.id * 7n) % BigInt(namePool.length));
     const petName = namePool[pickIndex] ?? 'Echo';
     const displayName = `${petName} (${petLabel})`;
-    ctx.db.combatPet.insert({
+    const pet = ctx.db.combatPet.insert({
       id: 0n,
       combatId,
       ownerCharacterId: character.id,
@@ -1791,6 +1799,30 @@ function executeAbility(
       targetEnemyId: enemy.id,
       nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
     });
+    if (taunt) {
+      if (enemy && enemy.currentHp > 0n) {
+        let top = 0n;
+        let petEntry: typeof AggroEntry.rowType | null = null;
+        for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+          if (entry.enemyId !== enemy.id) continue;
+          if (entry.value > top) top = entry.value;
+          if (entry.petId && entry.petId === pet.id) petEntry = entry;
+        }
+        const nextValue = top + 25n;
+        if (petEntry) {
+          ctx.db.aggroEntry.id.update({ ...petEntry, value: nextValue });
+        } else {
+          ctx.db.aggroEntry.insert({
+            id: 0n,
+            combatId,
+            enemyId: enemy.id,
+            characterId: character.id,
+            petId: pet.id,
+            value: nextValue,
+          });
+        }
+      }
+    }
     appendPrivateEvent(
       ctx,
       character.id,
@@ -2537,7 +2569,7 @@ function executeAbility(
         'Vex',
         'Aster',
         'Sigil',
-      ]);
+      ], true);
       return;
     case 'summoner_conjured_spike':
       applyDamage(145n, 3n);

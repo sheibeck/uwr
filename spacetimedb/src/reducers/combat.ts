@@ -94,14 +94,15 @@ const addEnemyToCombat = (
     nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
   });
 
-  for (const p of participants) {
-    ctx.db.aggroEntry.insert({
-      id: 0n,
-      combatId: combat.id,
-      enemyId: combatEnemy.id,
-      characterId: p.id,
-      value: 0n,
-    });
+    for (const p of participants) {
+      ctx.db.aggroEntry.insert({
+        id: 0n,
+        combatId: combat.id,
+        enemyId: combatEnemy.id,
+        characterId: p.id,
+        petId: undefined,
+        value: 0n,
+      });
     const current = ctx.db.character.id.find(p.id);
     if (current && !current.combatTargetEnemyId) {
       ctx.db.character.id.update({ ...current, combatTargetEnemyId: combatEnemy.id });
@@ -1724,11 +1725,25 @@ export const registerCombatReducers = (deps: any) => {
         groupActorId: owner.id,
       });
       if (finalDamage > 0n) {
+        let petEntry: typeof deps.AggroEntry.rowType | null = null;
         for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
-          if (entry.characterId === owner.id && entry.enemyId === target.id) {
-            ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + finalDamage });
+          if (entry.enemyId !== target.id) continue;
+          if (entry.petId && entry.petId === pet.id) {
+            petEntry = entry;
             break;
           }
+        }
+        if (petEntry) {
+          ctx.db.aggroEntry.id.update({ ...petEntry, value: petEntry.value + finalDamage });
+        } else {
+          ctx.db.aggroEntry.insert({
+            id: 0n,
+            combatId: combat.id,
+            enemyId: target.id,
+            characterId: owner.id,
+            petId: pet.id,
+            value: finalDamage,
+          });
         }
       }
       ctx.db.combatPet.id.update({
@@ -1974,10 +1989,23 @@ export const registerCombatReducers = (deps: any) => {
     const activeIds = new Set(activeParticipants.map((p) => p.characterId));
     for (const enemy of enemies) {
       let topAggro: typeof deps.AggroEntry.rowType | null = null;
+      let topPet: typeof deps.CombatPet.rowType | null = null;
       for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
         if (entry.enemyId !== enemy.id) continue;
+        if (entry.petId) {
+          const pet = ctx.db.combatPet.id.find(entry.petId);
+          if (!pet || pet.currentHp === 0n) continue;
+          if (!topAggro || entry.value > topAggro.value) {
+            topAggro = entry;
+            topPet = pet;
+          }
+          continue;
+        }
         if (!activeIds.has(entry.characterId)) continue;
-        if (!topAggro || entry.value > topAggro.value) topAggro = entry;
+        if (!topAggro || entry.value > topAggro.value) {
+          topAggro = entry;
+          topPet = null;
+        }
       }
       const enemySnapshot = ctx.db.combatEnemy.id.find(enemy.id);
       const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
@@ -2012,6 +2040,53 @@ export const registerCombatReducers = (deps: any) => {
               'combat',
               `${name} is staggered and misses a turn.`
             );
+          }
+        } else if (topPet) {
+          const owner = ctx.db.character.id.find(topAggro.characterId);
+          if (!owner) {
+            ctx.db.combatEnemy.id.update({
+              ...enemySnapshot,
+              nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL,
+              aggroTargetCharacterId: undefined,
+            });
+          } else {
+          const targetName = topPet.name;
+          const outcomeSeed = nowMicros + enemySnapshot.id + topPet.id;
+          const { nextHp } = resolveAttack(ctx, {
+            seed: outcomeSeed,
+            baseDamage: enemySnapshot.attackDamage,
+            targetArmor: 0n,
+            canBlock: false,
+            canParry: false,
+            canDodge: true,
+            currentHp: topPet.currentHp,
+            logTargetId: owner.id,
+            logOwnerId: owner.ownerUserId,
+            messages: {
+              dodge: `${targetName} dodges ${name}'s attack.`,
+              miss: `${name} misses ${targetName}.`,
+              parry: `${name} is deflected by ${targetName}.`,
+              block: (damage) => `${targetName} blocks ${name}'s attack for ${damage}.`,
+              hit: (damage) => `${name} hits ${targetName} for ${damage}.`,
+            },
+            applyHp: (updatedHp) => {
+              ctx.db.combatPet.id.update({ ...topPet, currentHp: updatedHp });
+            },
+          });
+          if (nextHp === 0n) {
+            ctx.db.combatPet.id.delete(topPet.id);
+            for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+              if (entry.petId && entry.petId === topPet.id) {
+                ctx.db.aggroEntry.id.delete(entry.id);
+              }
+            }
+          }
+          ctx.db.combatEnemy.id.update({
+            ...enemySnapshot,
+            nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
+            aggroTargetCharacterId: topAggro.characterId,
+            aggroTargetPetId: topPet.id,
+          });
           }
         } else {
           const targetCharacter = ctx.db.character.id.find(topAggro.characterId);
@@ -2062,12 +2137,14 @@ export const registerCombatReducers = (deps: any) => {
               ...enemySnapshot,
               nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
               aggroTargetCharacterId: targetCharacter.id,
+              aggroTargetPetId: undefined,
             });
           } else {
             ctx.db.combatEnemy.id.update({
               ...enemySnapshot,
               nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL,
               aggroTargetCharacterId: undefined,
+              aggroTargetPetId: undefined,
             });
           }
         }

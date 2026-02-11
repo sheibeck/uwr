@@ -5,6 +5,7 @@ import {
   type CombatEncounterRow,
   type CombatParticipantRow,
   type CombatEnemyRow,
+  type CombatPetRow,
   type CombatEnemyCastRow,
   type CombatResultRow,
   type CombatLootRow,
@@ -47,6 +48,7 @@ type UseCombatArgs = {
   combatEncounters: Ref<CombatEncounterRow[]>;
   combatParticipants: Ref<CombatParticipantRow[]>;
   combatEnemies: Ref<CombatEnemyRow[]>;
+  combatPets: Ref<CombatPetRow[]>;
   combatEnemyEffects: Ref<CombatEnemyEffectRow[]>;
   combatEnemyCasts: Ref<CombatEnemyCastRow[]>;
   enemyAbilities: Ref<EnemyAbilityRow[]>;
@@ -93,6 +95,7 @@ export const useCombat = ({
   combatEncounters,
   combatParticipants,
   combatEnemies,
+  combatPets,
   combatEnemyEffects,
   combatEnemyCasts,
   enemyAbilities,
@@ -449,12 +452,21 @@ export const useCombat = ({
         const clamped = Math.max(0, Math.min(entry.durationMicros, elapsed));
         return clamped / entry.durationMicros;
       })();
-      const targetName =
-        enemy.aggroTargetCharacterId
-          ? characters.value.find(
-              (row) => row.id.toString() === enemy.aggroTargetCharacterId?.toString()
+      const targetName = (() => {
+        if (enemy.aggroTargetPetId) {
+          return (
+            combatPets.value.find(
+              (row) => row.id.toString() === enemy.aggroTargetPetId?.toString()
             )?.name ?? null
-          : null;
+          );
+        }
+        if (!enemy.aggroTargetCharacterId) return null;
+        return (
+          characters.value.find(
+            (row) => row.id.toString() === enemy.aggroTargetCharacterId?.toString()
+          )?.name ?? null
+        );
+      })();
       return {
         id: enemy.id,
         name,

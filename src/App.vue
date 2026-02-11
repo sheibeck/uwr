@@ -824,6 +824,7 @@ const {
   combatEncounters,
   combatParticipants,
   combatEnemies,
+  combatPets,
   combatEnemyEffects,
   combatEnemyCasts,
   combatLoot,
