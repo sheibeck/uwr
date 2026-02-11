@@ -32,6 +32,7 @@ Last updated: 2026-02-11
 - **Groups:**
   - Invite-only; auto-create group on invite.
   - Leader can invite, kick, promote.
+  - Leader can assign a **puller** (defaults to leader); only puller can pull/engage.
   - Leader movement pulls members who opted into follow and are in same location.
   - Follow leader toggle (default ON); hidden for leaders.
   - Group disband when last member leaves; leader auto-promoted when leader leaves.
@@ -62,7 +63,7 @@ Last updated: 2026-02-11
   - Pulling a grouped enemy removes 1 from the group; remaining members stay in the spawn.
   - Adds can come from remaining members or nearby same-group spawns.
   - Combat supports multiple enemies simultaneously.
-  - Leader-only engages for groups; solo engages for self.
+  - Puller-only engages for groups (defaults to leader); solo engages for self.
   - **Realtime loop**: `combat_loop` reducer runs every 1s via `combat_loop_tick`.
   - Combat loop timing: `COMBAT_LOOP_INTERVAL_MICROS = 1_000_000` (1s).
   - Combat cleanup now guards loop tick handles defensively to avoid missing-table crashes after schema changes.
@@ -75,15 +76,24 @@ Last updated: 2026-02-11
   - Dead characters revive at 1/4 HP/Mana/Stamina after combat ends.
   - Enemy respawns after death; new spawns created as new groups/solos arrive.
   - Combat results screen shown after combat; leader dismisses to return to enemy list.
+  - Victory panel auto-dismisses when all loot is collected (leader only).
+  - Leader is prompted before dismissing if other group members still have unclaimed loot.
   - XP on victory with level-up support (cap 10). XP split among non-dead participants.
   - Movement is blocked while in combat (cannot travel during combat).
   - Effect durations are driven only by effect tick loops (HoT/DoT at 3s, others at 10s) and do not decrement on combat ticks.
   - Enemy DoTs tick and log damage every 3s.
+- **Pets (MVP):**
+  - Classes with pet summons: Beastmaster, Shaman, Summoner, Necromancer.
+  - Summons only in combat; pets despawn when combat ends.
+  - Pets appear under their owner in the Group panel with HP bars; target and aggro are per-enemy.
+  - Pets auto-attack only; per-pet abilities supported (e.g., taunt/bleed) with cooldowns.
+  - Summoner Earth pet uses taunt ability (10s CD) instead of auto top-aggro.
 - **Characters:**
   - Max 3 character slots per account (MVP).
   - Character deletion with confirmation + full cleanup.
   - Non-mana classes now have `maxMana = 0` and UI hides mana bars.
   - Characters have `boundLocationId` and respawn there on death (1 HP + 1 mana/stamina if applicable).
+  - Death shows a modal; respawn happens only when the player clicks Respawn.
 - **Questing (MVP):**
   - NPCs live in towns/cities and show up in the NPC accordion.
   - Hail/click to receive NPC dialog lines stored in a dedicated NPC dialog log.
@@ -347,7 +357,8 @@ Last updated: 2026-02-11
 - TODO: Apply buff/debuff effects to combat calculations beyond AC (e.g., stats, hit/dodge/crit, damage).
 - TODO: Add more ability hooks for pull phase manipulation (social radius reduction, awareness changes, add delay).
 - TODO: Add status effect source tracking for caster‑side HoT/DoT tick logs (currently only target logs).
-- TODO: Add ability hooks for auto‑attack speed (haste/slow) and cast speed (future).
+- TODO: Add ability hooks for auto-attack speed (haste/slow) and cast speed (future).
+- TODO: Prefer player-facing log messages over `SenderError` in reducers (ongoing sweep).
 
 ## Ability Levers (Current + Planned)
 **Current systems you can influence with abilities**
@@ -363,7 +374,7 @@ Last updated: 2026-02-11
 - **Cooldowns:** per‑ability cooldowns via `ability_cooldown`.
 - **Pull phase:** Careful vs Body Pull; partial success causes delayed adds; failure causes immediate adds.
 - **Social aggro:** `socialGroup`, `socialRadius`, `awareness` drive add behavior on pulls.
-- **Group mechanics:** leader‑only engage, group follow leader toggle, delayed logout (30s) prevents combat escape.
+- **Group mechanics:** puller-only engage, group follow leader toggle, delayed logout (30s) prevents combat escape.
 - **Gathering risk:** aggro chance on gather scales with region danger.
 
 **Mechanisms not yet implemented but useful for abilities**
@@ -376,4 +387,6 @@ Last updated: 2026-02-11
 - **Resource regen modifiers:** buff/debuff to HP/Mana/Stamina regen rates.
 - **Dispel/cleanse:** remove active buffs/debuffs from target.
 - **Absorb shields:** temporary HP buffer that is consumed before real HP.
+
+
 
