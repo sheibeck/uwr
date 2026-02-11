@@ -1719,6 +1719,10 @@ function executeAbility(
   const baseWeaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
   const damageUp = sumCharacterEffect(ctx, character.id, 'damage_up');
 
+  const logGroup = (kind: string, message: string) => {
+    if (!character.groupId) return;
+    appendGroupEvent(ctx, character.groupId, character.id, kind, message);
+  };
   const applyDamage = (
     percent: bigint,
     bonus: bigint,
@@ -1784,13 +1788,10 @@ function executeAbility(
         options.dot.source
       );
     }
-    appendPrivateEvent(
-      ctx,
-      character.id,
-      character.ownerUserId,
-      'damage',
-      options?.message ?? `Your ${ability.name} hits ${enemyName} for ${totalDamage} damage.`
-    );
+    const damageMessage =
+      options?.message ?? `Your ${ability.name} hits ${enemyName} for ${totalDamage} damage.`;
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage', damageMessage);
+    logGroup('damage', damageMessage);
     return totalDamage;
   };
 
@@ -1800,44 +1801,24 @@ function executeAbility(
     if (!current) return;
     const nextHp = current.hp + amount > current.maxHp ? current.maxHp : current.hp + amount;
     ctx.db.character.id.update({ ...current, hp: nextHp });
-    appendPrivateEvent(
-      ctx,
-      current.id,
-      current.ownerUserId,
-      'heal',
-      `${source} restores ${amount} health to ${current.name}.`
-    );
+    const message = `${source} restores ${amount} health to ${current.name}.`;
+    appendPrivateEvent(ctx, current.id, current.ownerUserId, 'heal', message);
     if (current.id !== character.id) {
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'heal',
-        `${source} restores ${amount} health to ${current.name}.`
-      );
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'heal', message);
     }
+    logGroup('heal', message);
   };
   const applyMana = (target: typeof Character.rowType, amount: bigint, source: string) => {
     const current = ctx.db.character.id.find(target.id);
     if (!current || current.maxMana === 0n) return;
     const nextMana = current.mana + amount > current.maxMana ? current.maxMana : current.mana + amount;
     ctx.db.character.id.update({ ...current, mana: nextMana });
-    appendPrivateEvent(
-      ctx,
-      current.id,
-      current.ownerUserId,
-      'ability',
-      `${source} restores ${amount} mana to ${current.name}.`
-    );
+    const message = `${source} restores ${amount} mana to ${current.name}.`;
+    appendPrivateEvent(ctx, current.id, current.ownerUserId, 'ability', message);
     if (current.id !== character.id) {
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        `${source} restores ${amount} mana to ${current.name}.`
-      );
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', message);
     }
+    logGroup('ability', message);
   };
   const applyPartyEffect = (
     effectType: string,
@@ -2584,23 +2565,19 @@ function executeEnemyAbility(
 
   if (ability.kind === 'dot') {
     addCharacterEffect(ctx, target.id, 'dot', ability.magnitude, ability.rounds, ability.name);
-    appendPrivateEvent(
-      ctx,
-      target.id,
-      target.ownerUserId,
-      'damage',
-      `${enemyName} uses ${ability.name} on you.`
-    );
+    const message = `${enemyName} uses ${ability.name} on you.`;
+    appendPrivateEvent(ctx, target.id, target.ownerUserId, 'damage', message);
+    if (target.groupId) {
+      appendGroupEvent(ctx, target.groupId, target.id, 'damage', message);
+    }
   } else if (ability.kind === 'debuff') {
     const effectType = (ability as any).effectType ?? 'ac_bonus';
     addCharacterEffect(ctx, target.id, effectType, ability.magnitude, ability.rounds, ability.name);
-    appendPrivateEvent(
-      ctx,
-      target.id,
-      target.ownerUserId,
-      'ability',
-      `${enemyName} afflicts you with ${ability.name}.`
-    );
+    const message = `${enemyName} afflicts you with ${ability.name}.`;
+    appendPrivateEvent(ctx, target.id, target.ownerUserId, 'ability', message);
+    if (target.groupId) {
+      appendGroupEvent(ctx, target.groupId, target.id, 'ability', message);
+    }
   }
 }
 

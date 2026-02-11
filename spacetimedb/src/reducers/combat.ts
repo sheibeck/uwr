@@ -187,6 +187,7 @@ export const registerCombatReducers = (deps: any) => {
     CastTick,
     requireCharacterOwnedBy,
     appendPrivateEvent,
+    appendGroupEvent,
     activeCombatIdForCharacter,
     ensureAvailableSpawn,
     computeEnemyStats,
@@ -212,6 +213,18 @@ export const registerCombatReducers = (deps: any) => {
     PullState,
     PullTick,
   } = deps;
+
+  const logGroupEvent = (
+    ctx: any,
+    combatId: bigint,
+    characterId: bigint,
+    kind: string,
+    message: string
+  ) => {
+    const combat = ctx.db.combatEncounter.id.find(combatId);
+    if (!combat?.groupId) return;
+    appendGroupEvent(ctx, combat.groupId, characterId, kind, message);
+  };
 
   const clearCharacterEffectsOnDeath = (ctx: any, character: any) => {
     for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
@@ -241,6 +254,15 @@ export const registerCombatReducers = (deps: any) => {
       'combat',
       `You have died. Killed by ${enemyName}.`
     );
+    if (character.groupId) {
+      appendGroupEvent(
+        ctx,
+        character.groupId,
+        character.id,
+        'combat',
+        `You have died. Killed by ${enemyName}.`
+      );
+    }
   };
 
   const clearCombatArtifacts = (ctx: any, combatId: bigint) => {
@@ -354,6 +376,8 @@ export const registerCombatReducers = (deps: any) => {
       messages,
       applyHp,
       targetCharacterId,
+      groupId,
+      groupActorId,
     }: {
       seed: bigint;
       baseDamage: bigint;
@@ -373,6 +397,8 @@ export const registerCombatReducers = (deps: any) => {
       };
       applyHp: (nextHp: bigint) => void;
       targetCharacterId?: bigint;
+      groupId?: bigint;
+      groupActorId?: bigint;
     }
   ) => {
     const reducedDamage = applyArmorMitigation(baseDamage, targetArmor);
@@ -412,6 +438,9 @@ export const registerCombatReducers = (deps: any) => {
     const message = typeof template === 'function' ? template(finalDamage) : template;
     const type = outcome.outcome === 'hit' ? 'damage' : 'avoid';
     appendPrivateEvent(ctx, logTargetId, logOwnerId, type, message);
+    if (groupId && groupActorId) {
+      appendGroupEvent(ctx, groupId, groupActorId, type, message);
+    }
     return { outcome: outcome.outcome, finalDamage, nextHp };
   };
 
@@ -1198,6 +1227,15 @@ export const registerCombatReducers = (deps: any) => {
           'heal',
           `You are healed for ${effect.magnitude} by ${source}.`
         );
+        if (owner.groupId) {
+          appendGroupEvent(
+            ctx,
+            owner.groupId,
+            owner.id,
+            'heal',
+            `${owner.name} is healed for ${effect.magnitude} by ${source}.`
+          );
+        }
       } else if (effect.effectType === 'dot') {
         const nextHp = owner.hp > effect.magnitude ? owner.hp - effect.magnitude : 0n;
         ctx.db.character.id.update({ ...owner, hp: nextHp });
@@ -1208,6 +1246,15 @@ export const registerCombatReducers = (deps: any) => {
           'damage',
           `You take ${effect.magnitude} damage from ${source}.`
         );
+        if (owner.groupId) {
+          appendGroupEvent(
+            ctx,
+            owner.groupId,
+            owner.id,
+            'damage',
+            `${owner.name} takes ${effect.magnitude} damage from ${source}.`
+          );
+        }
       }
       const remaining = effect.roundsRemaining - 1n;
       if (remaining === 0n) {
@@ -1587,6 +1634,8 @@ export const registerCombatReducers = (deps: any) => {
         applyHp: (updatedHp) => {
           ctx.db.combatEnemy.id.update({ ...currentEnemy, currentHp: updatedHp });
         },
+        groupId: combat.groupId,
+        groupActorId: character.id,
       });
 
       if (finalDamage > 0n) {
@@ -1710,6 +1759,13 @@ export const registerCombatReducers = (deps: any) => {
               'reward',
               `You gain ${goldReward} gold.`
             );
+            logGroupEvent(
+              ctx,
+              combat.id,
+              character.id,
+              'reward',
+              `You gain ${goldReward} gold.`
+            );
           }
         }
         ctx.db.combatResult.insert({
@@ -1733,6 +1789,13 @@ export const registerCombatReducers = (deps: any) => {
             'reward',
             `You lose ${loss} XP from the defeat.`
           );
+          logGroupEvent(
+            ctx,
+            combat.id,
+            character.id,
+            'reward',
+            `You lose ${loss} XP from the defeat.`
+          );
           const nextLocationId = character.boundLocationId ?? character.locationId;
           const respawnLocation =
             ctx.db.location.id.find(nextLocationId)?.name ?? 'your bind point';
@@ -1747,6 +1810,13 @@ export const registerCombatReducers = (deps: any) => {
             ctx,
             character.id,
             character.ownerUserId,
+            'combat',
+            `You awaken at ${respawnLocation}, shaken but alive.`
+          );
+          logGroupEvent(
+            ctx,
+            combat.id,
+            character.id,
             'combat',
             `You awaken at ${respawnLocation}, shaken but alive.`
           );
@@ -1773,12 +1843,26 @@ export const registerCombatReducers = (deps: any) => {
               'reward',
               `You gain ${reward.xpGained} XP (reduced for defeat).`
             );
+            logGroupEvent(
+              ctx,
+              combat.id,
+              character.id,
+              'reward',
+              `You gain ${reward.xpGained} XP (reduced for defeat).`
+            );
           }
           if (reward.leveledUp) {
             appendPrivateEvent(
               ctx,
               character.id,
               character.ownerUserId,
+              'system',
+              `You reached level ${reward.newLevel}.`
+            );
+            logGroupEvent(
+              ctx,
+              combat.id,
+              character.id,
               'system',
               `You reached level ${reward.newLevel}.`
             );
@@ -1794,12 +1878,26 @@ export const registerCombatReducers = (deps: any) => {
             'reward',
             `You gain ${reward.xpGained} XP.`
           );
+          logGroupEvent(
+            ctx,
+            combat.id,
+            character.id,
+            'reward',
+            `You gain ${reward.xpGained} XP.`
+          );
         }
         if (reward.leveledUp) {
           appendPrivateEvent(
             ctx,
             character.id,
             character.ownerUserId,
+            'system',
+            `You reached level ${reward.newLevel}.`
+          );
+          logGroupEvent(
+            ctx,
+            combat.id,
+            character.id,
             'system',
             `You reached level ${reward.newLevel}.`
           );
@@ -1830,6 +1928,16 @@ export const registerCombatReducers = (deps: any) => {
             ...enemySnapshot,
             nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
           });
+          const firstActive = activeParticipants[0]?.characterId;
+          if (firstActive) {
+            logGroupEvent(
+              ctx,
+              combat.id,
+              firstActive,
+              'combat',
+              `${name} is staggered and misses a turn.`
+            );
+          }
           for (const participant of activeParticipants) {
             const character = ctx.db.character.id.find(participant.characterId);
             if (!character) continue;
@@ -1875,6 +1983,8 @@ export const registerCombatReducers = (deps: any) => {
                 ctx.db.character.id.update({ ...targetCharacter, hp: updatedHp });
               },
               targetCharacterId: targetCharacter.id,
+              groupId: combat.groupId,
+              groupActorId: targetCharacter.id,
             });
             if (nextHp === 0n) {
               for (const p of participants) {
