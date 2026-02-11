@@ -186,10 +186,14 @@
           :selected-character="selectedCharacter"
           :current-group="currentGroup"
           :group-members="groupCharacterMembers"
+          :character-effects="characterEffects"
+          :combat-pets="combatPetsForGroup"
           :invite-summaries="inviteSummaries"
           :leader-id="leaderId"
           :is-leader="isLeader"
           :follow-leader="followLeader"
+          :selected-target-id="defensiveTargetId"
+          :now-micros="nowMicros"
           @leave="leaveGroup"
           @accept="acceptInvite"
           @reject="rejectInvite"
@@ -455,6 +459,7 @@
           :current-group="currentGroup"
           :group-members="groupCharacterMembers"
           :character-effects="characterEffects"
+          :combat-pets="combatPetsForGroup"
           :invite-summaries="inviteSummaries"
           :leader-id="leaderId"
           :is-leader="isLeader"
@@ -575,6 +580,7 @@ const {
   combatEncounters,
   combatParticipants,
   combatEnemies,
+  combatPets,
   combatEnemyEffects,
   combatEnemyCasts,
   aggroEntries,
@@ -819,6 +825,12 @@ const {
   enemyAbilities,
   nowMicros,
   characters,
+});
+
+const combatPetsForGroup = computed(() => {
+  if (!activeCombat.value) return [];
+  const combatId = activeCombat.value.id.toString();
+  return combatPets.value.filter((pet) => pet.combatId.toString() === combatId);
 });
 
 const lastResultId = ref<string | null>(null);

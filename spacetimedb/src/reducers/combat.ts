@@ -2,6 +2,7 @@ import { ENEMY_ABILITIES } from '../data/ability_catalog';
 
 const AUTO_ATTACK_INTERVAL = 5_000_000n;
 const RETRY_ATTACK_INTERVAL = 1_000_000n;
+const PET_BASE_DAMAGE = 3n;
 const DEFAULT_AI_CHANCE = 50;
 const DEFAULT_AI_WEIGHT = 50;
 const DEFAULT_AI_RANDOMNESS = 15;
@@ -263,6 +264,11 @@ export const registerCombatReducers = (deps: any) => {
         `You have died. Killed by ${enemyName}.`
       );
     }
+    for (const pet of ctx.db.combatPet.by_combat.filter(participant.combatId)) {
+      if (pet.ownerCharacterId === character.id) {
+        ctx.db.combatPet.id.delete(pet.id);
+      }
+    }
   };
 
   const clearCombatArtifacts = (ctx: any, combatId: bigint) => {
@@ -277,6 +283,9 @@ export const registerCombatReducers = (deps: any) => {
     for (const row of ctx.db.combatParticipant.by_combat.filter(combatId)) {
       participantIds.push(row.characterId);
       ctx.db.combatParticipant.id.delete(row.id);
+    }
+    for (const pet of ctx.db.combatPet.by_combat.filter(combatId)) {
+      ctx.db.combatPet.id.delete(pet.id);
     }
     for (const characterId of participantIds) {
       const character = ctx.db.character.id.find(characterId);
@@ -1657,6 +1666,71 @@ export const registerCombatReducers = (deps: any) => {
       .map((row) => ctx.db.combatEnemy.id.find(row.id))
       .filter((row): row is typeof deps.CombatEnemy.rowType => Boolean(row) && row.currentHp > 0n);
     const aliveEnemyIds = new Set(livingEnemies.map((row) => row.id));
+
+    const pets = [...ctx.db.combatPet.by_combat.filter(combat.id)];
+    for (const pet of pets) {
+      if (pet.nextAutoAttackAt > nowMicros) continue;
+      const owner = ctx.db.character.id.find(pet.ownerCharacterId);
+      if (!owner || owner.hp === 0n) {
+        ctx.db.combatPet.id.delete(pet.id);
+        continue;
+      }
+      let target = pet.targetEnemyId ? ctx.db.combatEnemy.id.find(pet.targetEnemyId) : null;
+      if (!target || target.currentHp === 0n) {
+        const preferred = owner.combatTargetEnemyId
+          ? ctx.db.combatEnemy.id.find(owner.combatTargetEnemyId)
+          : null;
+        target = preferred ?? livingEnemies[0] ?? null;
+        ctx.db.combatPet.id.update({
+          ...pet,
+          targetEnemyId: target?.id,
+        });
+      }
+      if (!target) {
+        ctx.db.combatPet.id.update({
+          ...pet,
+          nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL,
+        });
+        continue;
+      }
+      const targetName = target.displayName ?? 'enemy';
+      const { finalDamage } = resolveAttack(ctx, {
+        seed: nowMicros + pet.id + target.id,
+        baseDamage: pet.attackDamage ?? PET_BASE_DAMAGE,
+        targetArmor: target.armorClass,
+        canBlock: false,
+        canParry: false,
+        canDodge: true,
+        currentHp: target.currentHp,
+        logTargetId: owner.id,
+        logOwnerId: owner.ownerUserId,
+        messages: {
+          dodge: `${targetName} dodges ${pet.name}'s attack.`,
+          miss: `${pet.name} misses ${targetName}.`,
+          parry: `${targetName} parries ${pet.name}'s attack.`,
+          block: (damage) => `${targetName} blocks ${pet.name}'s attack for ${damage}.`,
+          hit: (damage) => `${pet.name} hits ${targetName} for ${damage}.`,
+        },
+        applyHp: (updatedHp) => {
+          ctx.db.combatEnemy.id.update({ ...target, currentHp: updatedHp });
+        },
+        groupId: combat.groupId,
+        groupActorId: owner.id,
+      });
+      if (finalDamage > 0n) {
+        for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+          if (entry.characterId === owner.id && entry.enemyId === target.id) {
+            ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + finalDamage });
+            break;
+          }
+        }
+      }
+      ctx.db.combatPet.id.update({
+        ...pet,
+        nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
+        targetEnemyId: target.id,
+      });
+    }
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);
       if (!character) continue;
@@ -1670,6 +1744,14 @@ export const registerCombatReducers = (deps: any) => {
     }
 
     if (livingEnemies.length === 0) {
+      for (const p of participants) {
+        const character = ctx.db.character.id.find(p.characterId);
+        const currentParticipant = ctx.db.combatParticipant.id.find(p.id);
+        if (!character || !currentParticipant) continue;
+        if (character.hp === 0n && currentParticipant.status !== 'dead') {
+          markParticipantDead(ctx, currentParticipant, character, enemyName);
+        }
+      }
       const enemyTemplates = enemies
         .map((row) => ctx.db.enemyTemplate.id.find(row.enemyTemplateId))
         .filter((row): row is typeof deps.EnemyTemplate.rowType => Boolean(row));

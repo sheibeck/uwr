@@ -208,6 +208,8 @@ import CombatParticipantRow from "./combat_participant_table";
 export { CombatParticipantRow };
 import CombatPendingAddRow from "./combat_pending_add_table";
 export { CombatPendingAddRow };
+import CombatPetRow from "./combat_pet_table";
+export { CombatPetRow };
 import CombatResultRow from "./combat_result_table";
 export { CombatResultRow };
 import CommandRow from "./command_table";
@@ -384,6 +386,8 @@ import CombatParticipant from "./combat_participant_type";
 export { CombatParticipant };
 import CombatPendingAdd from "./combat_pending_add_type";
 export { CombatPendingAdd };
+import CombatPet from "./combat_pet_type";
+export { CombatPet };
 import CombatResult from "./combat_result_type";
 export { CombatResult };
 import Command from "./command_type";
@@ -879,6 +883,23 @@ const tablesSchema = __schema(
       { name: 'combat_pending_add_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatPendingAddRow),
+  __table({
+    name: 'combat_pet',
+    indexes: [
+      { name: 'by_combat', algorithm: 'btree', columns: [
+        'combatId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_owner', algorithm: 'btree', columns: [
+        'ownerCharacterId',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_pet_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CombatPetRow),
   __table({
     name: 'combat_result',
     indexes: [

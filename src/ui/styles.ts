@@ -946,6 +946,12 @@ export const styles = {
     background: 'rgba(8,10,15,0.6)',
     cursor: 'pointer',
   },
+  petCard: {
+    border: '1px solid rgba(130, 190, 255, 0.25)',
+    borderRadius: '10px',
+    padding: '0.45rem 0.6rem',
+    background: 'rgba(18, 28, 45, 0.55)',
+  },
   memberCardTargeted: {
     border: '1px solid rgba(120, 200, 255, 0.9)',
     boxShadow: '0 0 0 1px rgba(120, 200, 255, 0.45)',

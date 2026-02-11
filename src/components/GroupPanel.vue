@@ -49,6 +49,19 @@
           </div>
         </li>
       </ul>
+      <div v-if="sortedPets.length" :style="styles.panelSectionTitle">Pets</div>
+      <ul v-if="sortedPets.length" :style="styles.list">
+        <li v-for="pet in sortedPets" :key="pet.id.toString()" :style="styles.petCard">
+          <span>
+            {{ pet.name }}
+            <span :style="styles.subtle">· {{ pet.ownerName }}</span>
+          </span>
+          <div :style="styles.hpBar">
+            <div :style="{ ...styles.hpFill, width: `${percent(pet.currentHp, pet.maxHp)}%` }"></div>
+            <span :style="styles.barText">{{ pet.currentHp }} / {{ pet.maxHp }}</span>
+          </div>
+        </li>
+      </ul>
       <label v-if="!isLeader" :style="styles.checkboxRow">
         <input
           type="checkbox"
@@ -110,6 +123,20 @@
         </span>
       </div>
 
+      <div v-if="sortedPets.length" :style="styles.panelSectionTitle">Pets</div>
+      <ul v-if="sortedPets.length" :style="styles.list">
+        <li v-for="pet in sortedPets" :key="pet.id.toString()" :style="styles.petCard">
+          <span>
+            {{ pet.name }}
+            <span :style="styles.subtle">· {{ pet.ownerName }}</span>
+          </span>
+          <div :style="styles.hpBar">
+            <div :style="{ ...styles.hpFill, width: `${percent(pet.currentHp, pet.maxHp)}%` }"></div>
+            <span :style="styles.barText">{{ pet.currentHp }} / {{ pet.maxHp }}</span>
+          </div>
+        </li>
+      </ul>
+
       <div v-if="inviteSummaries.length === 0" :style="styles.subtle">
         <div :style="styles.subtle">
           Type <code>/invite &lt;character&gt;</code> to invite someone to your group.
@@ -165,6 +192,14 @@ const props = defineProps<{
   followLeader: boolean;
   selectedTargetId: bigint | null;
   nowMicros?: number;
+  combatPets: {
+    id: bigint;
+    combatId: bigint;
+    ownerCharacterId: bigint;
+    name: string;
+    currentHp: bigint;
+    maxHp: bigint;
+  }[];
 }>();
 
 defineEmits<{
@@ -188,6 +223,23 @@ const sortedMembers = computed(() => {
   const selectedId = props.selectedCharacter.id.toString();
   const mine = props.groupMembers.filter((member) => member.id.toString() === selectedId);
   const others = props.groupMembers.filter((member) => member.id.toString() !== selectedId);
+  return [...mine, ...others];
+});
+
+const sortedPets = computed(() => {
+  if (!props.selectedCharacter) return [];
+  const ownerById = new Map<string, string>();
+  for (const member of props.groupMembers) {
+    ownerById.set(member.id.toString(), member.name);
+  }
+  ownerById.set(props.selectedCharacter.id.toString(), props.selectedCharacter.name);
+  const pets = props.combatPets.map((pet) => ({
+    ...pet,
+    ownerName: ownerById.get(pet.ownerCharacterId.toString()) ?? 'Companion',
+  }));
+  const selectedId = props.selectedCharacter.id.toString();
+  const mine = pets.filter((pet) => pet.ownerCharacterId.toString() === selectedId);
+  const others = pets.filter((pet) => pet.ownerCharacterId.toString() !== selectedId);
   return [...mine, ...others];
 });
 

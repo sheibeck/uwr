@@ -60,7 +60,7 @@ export const abilities: Ability[] = [
   { key: 'ranger_piercing_arrow', name: 'Piercing Arrow', className: 'Ranger', level: 5, kind: 'combat', resource: 'stamina', description: 'An arrow that punches through armor.', castSeconds: 1 },
 
   { key: 'necromancer_plague_spark', name: 'Plague Spark', className: 'Necromancer', level: 1, kind: 'combat', resource: 'mana', description: 'Blight the target with a lingering plague and siphon a spark of life.', castSeconds: 1 },
-  { key: 'necromancer_bone_servant', name: 'Bone Servant', className: 'Necromancer', level: 2, kind: 'utility', resource: 'mana', description: 'Summon a bone servant (pet system pending).', castSeconds: 0, cooldownSeconds: 60 },
+  { key: 'necromancer_bone_servant', name: 'Bone Servant', className: 'Necromancer', level: 2, kind: 'utility', resource: 'mana', description: 'Summon a bone servant to fight beside you.', castSeconds: 3, cooldownSeconds: 10 },
   { key: 'necromancer_wither', name: 'Wither', className: 'Necromancer', level: 3, kind: 'combat', resource: 'mana', description: 'Blight the enemy with a withering curse.', castSeconds: 1 },
   { key: 'necromancer_bone_ward', name: 'Bone Ward', className: 'Necromancer', level: 4, kind: 'utility', resource: 'mana', description: 'A protective ward of bone and shadow.', castSeconds: 0 },
   { key: 'necromancer_grave_surge', name: 'Grave Surge', className: 'Necromancer', level: 5, kind: 'combat', resource: 'mana', description: 'Unleash grave energy against the foe.', castSeconds: 2 },
@@ -72,13 +72,13 @@ export const abilities: Ability[] = [
   { key: 'spellblade_spellstorm', name: 'Spellstorm', className: 'Spellblade', level: 5, kind: 'combat', resource: 'mana', description: 'Unleash a storm of arcane strikes.', castSeconds: 2 },
 
   { key: 'shaman_spirit_mender', name: 'Spirit Mender', className: 'Shaman', level: 1, kind: 'utility', resource: 'mana', description: 'Heal an ally and grant a brief regeneration.', castSeconds: 1, cooldownSeconds: 6 },
-  { key: 'shaman_spirit_wolf', name: 'Spirit Wolf', className: 'Shaman', level: 2, kind: 'utility', resource: 'mana', description: 'Summon a spirit wolf (pet system pending).', castSeconds: 0, cooldownSeconds: 60 },
+  { key: 'shaman_spirit_wolf', name: 'Spirit Wolf', className: 'Shaman', level: 2, kind: 'utility', resource: 'mana', description: 'Summon a spirit wolf to fight beside you.', castSeconds: 3, cooldownSeconds: 10 },
   { key: 'shaman_hex', name: 'Hex', className: 'Shaman', level: 3, kind: 'combat', resource: 'mana', description: 'Hex the enemy to reduce their damage.', castSeconds: 1, cooldownSeconds: 0 },
   { key: 'shaman_ancestral_ward', name: 'Ancestral Ward', className: 'Shaman', level: 4, kind: 'utility', resource: 'mana', description: 'Ward an ally with ancestral protection.', castSeconds: 0, cooldownSeconds: 0 },
   { key: 'shaman_stormcall', name: 'Stormcall', className: 'Shaman', level: 5, kind: 'combat', resource: 'mana', description: 'Call down a storm to strike the target.', castSeconds: 2, cooldownSeconds: 0 },
 
   { key: 'beastmaster_pack_rush', name: 'Pack Rush', className: 'Beastmaster', level: 1, kind: 'combat', resource: 'stamina', description: 'Your pack surges in with a flurry of strikes.', castSeconds: 0, cooldownSeconds: 8 },
-  { key: 'beastmaster_call_beast', name: 'Call Beast', className: 'Beastmaster', level: 2, kind: 'utility', resource: 'stamina', description: 'Call a beast ally (pet system pending).', castSeconds: 0, cooldownSeconds: 60 },
+  { key: 'beastmaster_call_beast', name: 'Call Beast', className: 'Beastmaster', level: 2, kind: 'utility', resource: 'stamina', description: 'Call a beast ally to fight beside you.', castSeconds: 3, cooldownSeconds: 10 },
   { key: 'beastmaster_beast_fang', name: 'Beast Fang', className: 'Beastmaster', level: 3, kind: 'combat', resource: 'stamina', description: 'Your beast rends the target viciously.', castSeconds: 0 },
   { key: 'beastmaster_wild_howl', name: 'Wild Howl', className: 'Beastmaster', level: 4, kind: 'utility', resource: 'stamina', description: 'A primal howl that emboldens the party.', castSeconds: 0 },
   { key: 'beastmaster_alpha_assault', name: 'Alpha Assault', className: 'Beastmaster', level: 5, kind: 'combat', resource: 'stamina', description: 'Command an alpha strike from your beast.', castSeconds: 0 },
@@ -102,7 +102,7 @@ export const abilities: Ability[] = [
   { key: 'reaver_oblivion', name: 'Oblivion', className: 'Reaver', level: 5, kind: 'combat', resource: 'mana', description: 'Annihilating strike from the void.', castSeconds: 2 },
 
   { key: 'summoner_familiar_strike', name: 'Familiar Strike', className: 'Summoner', level: 1, kind: 'combat', resource: 'mana', description: 'Your familiar lashes out and steadies your focus.', castSeconds: 0, cooldownSeconds: 6 },
-  { key: 'summoner_arcane_familiar', name: 'Arcane Familiar', className: 'Summoner', level: 2, kind: 'utility', resource: 'mana', description: 'Summon an arcane familiar (pet system pending).', castSeconds: 0, cooldownSeconds: 60 },
+  { key: 'summoner_arcane_familiar', name: 'Arcane Familiar', className: 'Summoner', level: 2, kind: 'utility', resource: 'mana', description: 'Summon an arcane familiar to fight beside you.', castSeconds: 3, cooldownSeconds: 10 },
   { key: 'summoner_conjured_spike', name: 'Conjured Spike', className: 'Summoner', level: 3, kind: 'combat', resource: 'mana', description: 'A conjured spike that impales the foe.', castSeconds: 1 },
   { key: 'summoner_empower', name: 'Empower', className: 'Summoner', level: 4, kind: 'utility', resource: 'mana', description: 'Empower the party’s attacks briefly.', castSeconds: 0 },
   { key: 'summoner_spectral_lance', name: 'Spectral Lance', className: 'Summoner', level: 5, kind: 'combat', resource: 'mana', description: 'A spectral lance of raw magic.', castSeconds: 2 },

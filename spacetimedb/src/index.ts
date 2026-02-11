@@ -848,6 +848,28 @@ const CombatEnemy = table(
   }
 );
 
+const CombatPet = table(
+  {
+    name: 'combat_pet',
+    public: true,
+    indexes: [
+      { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
+      { name: 'by_owner', algorithm: 'btree', columns: ['ownerCharacterId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    combatId: t.u64(),
+    ownerCharacterId: t.u64(),
+    name: t.string(),
+    currentHp: t.u64(),
+    maxHp: t.u64(),
+    attackDamage: t.u64(),
+    targetEnemyId: t.u64().optional(),
+    nextAutoAttackAt: t.u64(),
+  }
+);
+
 const CharacterEffect = table(
   {
     name: 'character_effect',
@@ -1163,6 +1185,7 @@ export const spacetimedb = schema(
   CombatEncounter,
   CombatParticipant,
   CombatEnemy,
+  CombatPet,
   CombatEnemyCast,
   CombatEnemyCooldown,
   CharacterEffect,
@@ -1718,6 +1741,49 @@ function executeAbility(
   const weapon = getEquippedWeaponStats(ctx, character.id);
   const baseWeaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
   const damageUp = sumCharacterEffect(ctx, character.id, 'damage_up');
+  const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
+
+  const summonPet = (petLabel: string, petDescription: string, namePool: string[]) => {
+    if (!combatId || !combat || combat.state !== 'active') {
+      throw new SenderError('Pets can only be summoned in combat');
+    }
+    if (!enemy) throw new SenderError('No enemy in combat');
+    for (const existing of ctx.db.combatPet.by_combat.filter(combatId)) {
+      if (existing.ownerCharacterId === character.id) {
+        ctx.db.combatPet.id.delete(existing.id);
+      }
+    }
+    const pickIndex = Number((nowMicros + character.id * 7n) % BigInt(namePool.length));
+    const suffix = namePool[pickIndex] ?? 'Echo';
+    const displayName = `${petLabel} ${suffix}`;
+    ctx.db.combatPet.insert({
+      id: 0n,
+      combatId,
+      ownerCharacterId: character.id,
+      name: displayName,
+      currentHp: 20n,
+      maxHp: 20n,
+      attackDamage: 3n,
+      targetEnemyId: enemy.id,
+      nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
+    });
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'ability',
+      `You have summoned ${petDescription}.`
+    );
+    if (character.groupId) {
+      appendGroupEvent(
+        ctx,
+        character.groupId,
+        character.id,
+        'ability',
+        `${character.name} has summoned ${petDescription}.`
+      );
+    }
+  };
 
   const logGroup = (kind: string, message: string) => {
     if (!character.groupId) return;
@@ -1850,13 +1916,13 @@ function executeAbility(
       );
       return;
     case 'shaman_spirit_wolf':
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Spirit Wolf stirs, but the pet system is not yet implemented.'
-      );
+      summonPet('Spirit Wolf', 'a spirit wolf', [
+        'Mistfang',
+        'Ghostpaw',
+        'Duskhowl',
+        'Frostpad',
+        'Silent',
+      ]);
       return;
     case 'shaman_hex':
       applyDamage(115n, 1n, {
@@ -2222,13 +2288,13 @@ function executeAbility(
       applyHeal(character, 2n, 'Plague Spark');
       return;
     case 'necromancer_bone_servant':
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Bone Servant answers, but the pet system is not yet implemented.'
-      );
+      summonPet('Skeleton', 'a skeleton', [
+        'Rattle',
+        'Grin',
+        'Shard',
+        'Grave',
+        'Morrow',
+      ]);
       return;
     case 'necromancer_wither':
       applyDamage(120n, 2n, { dot: { magnitude: 3n, rounds: 2n, source: 'Wither' } });
@@ -2283,13 +2349,13 @@ function executeAbility(
       applyDamage(120n, 2n, { hits: 2n });
       return;
     case 'beastmaster_call_beast':
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Call Beast resonates, but the pet system is not yet implemented.'
-      );
+      summonPet('Beast', 'a wild beast', [
+        'Brindle',
+        'Moss',
+        'Cinder',
+        'Tawny',
+        'Thorn',
+      ]);
       return;
     case 'beastmaster_beast_fang':
       applyDamage(145n, 3n, { dot: { magnitude: 2n, rounds: 2n, source: 'Beast Fang' } });
@@ -2440,13 +2506,13 @@ function executeAbility(
       );
       return;
     case 'summoner_arcane_familiar':
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Arcane Familiar manifests, but the pet system is not yet implemented.'
-      );
+      summonPet('Familiar', 'an arcane familiar', [
+        'Cipher',
+        'Glim',
+        'Vex',
+        'Aster',
+        'Sigil',
+      ]);
       return;
     case 'summoner_conjured_spike':
       applyDamage(145n, 3n);
@@ -2582,6 +2648,7 @@ function executeEnemyAbility(
 }
 
 const COMBAT_LOOP_INTERVAL_MICROS = 1_000_000n;
+const AUTO_ATTACK_INTERVAL = 5_000_000n;
 const DAY_DURATION_MICROS = 1_200_000_000n;
 const NIGHT_DURATION_MICROS = 600_000_000n;
 const DEFAULT_LOCATION_SPAWNS = 3;

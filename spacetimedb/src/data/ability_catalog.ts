@@ -16,8 +16,8 @@ export const ABILITIES = {
     resource: 'mana',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 60n,
-    castSeconds: 0n,
+    cooldownSeconds: 10n,
+    castSeconds: 3n,
   },
   shaman_hex: {
     name: 'Hex',
@@ -376,8 +376,8 @@ export const ABILITIES = {
     resource: 'mana',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 60n,
-    castSeconds: 0n,
+    cooldownSeconds: 10n,
+    castSeconds: 3n,
   },
   necromancer_wither: {
     name: 'Wither',
@@ -511,8 +511,8 @@ export const ABILITIES = {
     resource: 'stamina',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 60n,
-    castSeconds: 0n,
+    cooldownSeconds: 10n,
+    castSeconds: 3n,
   },
   beastmaster_beast_fang: {
     name: 'Beast Fang',
@@ -691,8 +691,8 @@ export const ABILITIES = {
     resource: 'mana',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 60n,
-    castSeconds: 0n,
+    cooldownSeconds: 10n,
+    castSeconds: 3n,
   },
   summoner_conjured_spike: {
     name: 'Conjured Spike',
