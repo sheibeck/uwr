@@ -482,6 +482,29 @@ const HotbarSlot = table(
   }
 );
 
+const AbilityTemplate = table(
+  {
+    name: 'ability_template',
+    public: true,
+    indexes: [
+      { name: 'by_key', algorithm: 'btree', columns: ['key'] },
+      { name: 'by_class', algorithm: 'btree', columns: ['className'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    key: t.string(),
+    name: t.string(),
+    className: t.string(),
+    level: t.u64(),
+    resource: t.string(),
+    castSeconds: t.u64(),
+    cooldownSeconds: t.u64(),
+    kind: t.string(),
+    description: t.string(),
+  }
+);
+
 const AbilityCooldown = table(
   {
     name: 'ability_cooldown',
@@ -1152,6 +1175,7 @@ export const spacetimedb = schema(
   QuestTemplate,
   QuestInstance,
   HotbarSlot,
+  AbilityTemplate,
   AbilityCooldown,
   CharacterCast,
   Character,
@@ -2506,8 +2530,8 @@ function executeAbility(
         'Conjure a vessel that strikes your enemy and captures some of their essence.'
       );
       return;
-    case 'summoner_arcane_familiar':
-      summonPet('Familiar', 'an arcane familiar', [
+    case 'summoner_earth_familiar':
+      summonPet('Familiar', 'an earth familiar', [
         'Cipher',
         'Glim',
         'Vex',
@@ -3326,6 +3350,42 @@ function ensureRecipeTemplates(ctx: any) {
     req2: resin,
     req2Count: 1n,
   });
+}
+
+function ensureAbilityTemplates(ctx: any) {
+  if (tableHasRows(ctx.db.abilityTemplate.iter())) return;
+  const utilityKeys = new Set([
+    'ranger_track',
+    'druid_natures_mark',
+    'cleric_sanctify',
+    'wizard_arcane_reservoir',
+    'paladin_lay_on_hands',
+    'enchanter_veil_of_calm',
+    'bard_ballad_of_resolve',
+  ]);
+  for (const [key, ability] of Object.entries(ABILITIES)) {
+    const entry = ability as {
+      name: string;
+      className: string;
+      resource: string;
+      level: bigint;
+      castSeconds: bigint;
+      cooldownSeconds: bigint;
+      description?: string;
+    };
+    ctx.db.abilityTemplate.insert({
+      id: 0n,
+      key,
+      name: entry.name,
+      className: entry.className,
+      level: entry.level,
+      resource: entry.resource,
+      castSeconds: entry.castSeconds,
+      cooldownSeconds: entry.cooldownSeconds,
+      kind: utilityKeys.has(key) ? 'utility' : 'combat',
+      description: entry.description ?? entry.name,
+    });
+  }
 }
 
 function spawnResourceNode(ctx: any, locationId: bigint): typeof ResourceNode.rowType {
@@ -5081,6 +5141,7 @@ spacetimedb.init((ctx) => {
   }
 
   ensureStarterItemTemplates(ctx);
+  ensureAbilityTemplates(ctx);
   ensureResourceItemTemplates(ctx);
   ensureRecipeTemplates(ctx);
   ensureVendorInventory(ctx);

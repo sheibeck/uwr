@@ -20,6 +20,7 @@ export const useGameData = () => {
   const [resourceNodes] = useTable(tables.resourceNode);
   const [resourceGathers] = useTable(tables.resourceGather);
   const [hotbarSlots] = useTable(tables.hotbarSlot);
+  const [abilityTemplates] = useTable(tables.abilityTemplate);
   const [locations] = useTable(tables.location);
   const [npcs] = useTable(tables.npc);
   const [vendorInventory] = useTable(tables.vendorInventory);
@@ -73,6 +74,7 @@ export const useGameData = () => {
     resourceNodes,
     resourceGathers,
     hotbarSlots,
+    abilityTemplates,
     locations,
     npcs,
     vendorInventory,

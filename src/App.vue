@@ -611,6 +611,7 @@ const {
   questTemplates,
   questInstances,
   hotbarSlots,
+  abilityTemplates,
   abilityCooldowns,
   characterCasts,
   worldState,
@@ -839,12 +840,11 @@ const {
 const showDeathModal = computed(() => {
   return Boolean(selectedCharacter.value && selectedCharacter.value.hp === 0n && !activeCombat.value);
 });
-const tombstoneArt = `  _____
- /     \\
-|  RIP |
-|_____|
-  | |  
-  | |  `;
+const tombstoneArt = ` _____
+ /     \\\\
+ |  RIP ||
+ |      ||
+ |______||`;
 
 const combatPetsForGroup = computed(() => {
   if (!activeCombat.value) return [];
@@ -1314,6 +1314,7 @@ const { hotbarAssignments, availableAbilities, abilityLookup, setHotbarSlot, use
   connActive: computed(() => conn.isActive),
   selectedCharacter,
   hotbarSlots,
+  abilityTemplates,
 });
 
 const cooldownByAbility = computed(() => {
@@ -1417,7 +1418,7 @@ const tryUseAbility = (slot: any) => {
     localCast.value = {
       abilityKey: slot.abilityKey,
       startMicros: nowMicros.value,
-      durationMicros: ability.castSeconds * 1_000_000,
+      durationMicros: Number(ability.castSeconds) * 1_000_000,
     };
   }
   if (slot.cooldownSeconds && slot.cooldownSeconds > 0) {
@@ -1458,7 +1459,7 @@ const onHotbarClick = (slot: any) => {
     localCast.value = {
       abilityKey: slot.abilityKey,
       startMicros: nowMicros.value,
-      durationMicros: ability.castSeconds * 1_000_000,
+      durationMicros: Number(ability.castSeconds) * 1_000_000,
     };
   }
   if (slot.cooldownSeconds && slot.cooldownSeconds > 0) {
@@ -1619,7 +1620,7 @@ const castProgress = computed(() => {
   }
   if (!activeCastEndsAt.value) return 0;
   const ability = abilityLookup.value.get(activeCastKey.value ?? '');
-  const duration = ability?.castSeconds ? ability.castSeconds * 1_000_000 : 0;
+  const duration = ability?.castSeconds ? Number(ability.castSeconds) * 1_000_000 : 0;
   if (!duration) return 1;
   const remaining = activeCastEndsAt.value - nowMicros.value;
   const clamped = Math.max(0, Math.min(duration, duration - remaining));

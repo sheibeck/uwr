@@ -1,29 +1,41 @@
 import { computed, type Ref } from 'vue';
-import { reducers, type CharacterRow, type HotbarSlotRow } from '../module_bindings';
+import {
+  reducers,
+  type AbilityTemplateRow,
+  type CharacterRow,
+  type HotbarSlotRow,
+} from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
-import { abilities, abilitiesByClass } from '../data/abilities';
 
 type UseHotbarArgs = {
   connActive: Ref<boolean>;
   selectedCharacter: Ref<CharacterRow | null>;
   hotbarSlots: Ref<HotbarSlotRow[]>;
+  abilityTemplates: Ref<AbilityTemplateRow[]>;
 };
 
-export const useHotbar = ({ connActive, selectedCharacter, hotbarSlots }: UseHotbarArgs) => {
+export const useHotbar = ({
+  connActive,
+  selectedCharacter,
+  hotbarSlots,
+  abilityTemplates,
+}: UseHotbarArgs) => {
   const setHotbarReducer = useReducer(reducers.setHotbarSlot);
   const useAbilityReducer = useReducer(reducers.useAbility);
 
   const availableAbilities = computed(() => {
     if (!selectedCharacter.value) return [];
-    return abilitiesByClass(
-      selectedCharacter.value.className,
-      Number(selectedCharacter.value.level)
+    const className = selectedCharacter.value.className.toLowerCase();
+    const level = Number(selectedCharacter.value.level);
+    return abilityTemplates.value.filter(
+      (ability) =>
+        ability.className.toLowerCase() === className && Number(ability.level) <= level
     );
   });
 
   const abilityLookup = computed(() => {
-    const map = new Map<string, (typeof abilities)[number]>();
-    for (const ability of abilities) {
+    const map = new Map<string, AbilityTemplateRow>();
+    for (const ability of abilityTemplates.value) {
       map.set(ability.key, ability);
     }
     return map;

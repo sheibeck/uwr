@@ -685,8 +685,8 @@ export const ABILITIES = {
     cooldownSeconds: 6n,
     castSeconds: 0n,
   },
-  summoner_arcane_familiar: {
-    name: 'Arcane Familiar',
+  summoner_earth_familiar: {
+    name: 'Earth Familiar',
     className: 'summoner',
     resource: 'mana',
     level: 2n,

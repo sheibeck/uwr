@@ -180,6 +180,8 @@ export { CombatLoopReducer };
 // Import and reexport all table handle types
 import AbilityCooldownRow from "./ability_cooldown_table";
 export { AbilityCooldownRow };
+import AbilityTemplateRow from "./ability_template_table";
+export { AbilityTemplateRow };
 import AggroEntryRow from "./aggro_entry_table";
 export { AggroEntryRow };
 import CastTickRow from "./cast_tick_table";
@@ -342,6 +344,8 @@ export { WorldStateRow };
 // Import and reexport all types
 import AbilityCooldown from "./ability_cooldown_type";
 export { AbilityCooldown };
+import AbilityTemplate from "./ability_template_type";
+export { AbilityTemplate };
 import AcceptFriendRequest from "./accept_friend_request_type";
 export { AcceptFriendRequest };
 import AcceptGroupInvite from "./accept_group_invite_type";
@@ -659,6 +663,23 @@ const tablesSchema = __schema(
       { name: 'ability_cooldown_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, AbilityCooldownRow),
+  __table({
+    name: 'ability_template',
+    indexes: [
+      { name: 'by_class', algorithm: 'btree', columns: [
+        'className',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_key', algorithm: 'btree', columns: [
+        'key',
+      ] },
+    ],
+    constraints: [
+      { name: 'ability_template_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AbilityTemplateRow),
   __table({
     name: 'aggro_entry',
     indexes: [
