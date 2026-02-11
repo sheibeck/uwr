@@ -31,16 +31,16 @@ export const registerCharacterReducers = (deps: any) => {
     const previousActiveId = player.activeCharacterId;
     if (previousActiveId && previousActiveId !== character.id) {
       const previous = ctx.db.character.id.find(previousActiveId);
-      if (previous) {
+        if (previous) {
+        const logoutAtMicros = ctx.timestamp.microsSinceUnixEpoch + CHARACTER_SWITCH_LOGOUT_DELAY;
         ctx.db.characterLogoutTick.insert({
           scheduledId: 0n,
-          scheduledAt: ScheduleAt.time(
-            ctx.timestamp.microsSinceUnixEpoch + CHARACTER_SWITCH_LOGOUT_DELAY
-          ),
+          scheduledAt: ScheduleAt.time(logoutAtMicros),
           characterId: previous.id,
           ownerUserId: previous.ownerUserId,
+          logoutAtMicros,
         });
-      }
+        }
     }
 
     ctx.db.player.id.update({ ...player, activeCharacterId: character.id });

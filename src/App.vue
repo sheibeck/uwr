@@ -595,6 +595,7 @@ const {
   worldState,
   resourceNodes,
   resourceGathers,
+  characterLogoutTicks,
   tradeSessions,
   tradeItems,
 } = useGameData();
@@ -606,12 +607,15 @@ const { isLoggedIn, login, logout, authMessage, authError } = useAuth({
   player,
 });
 
-  const {
-    selectedCharacterId,
-    myCharacters,
-    selectedCharacter,
-    currentLocation,
-    charactersHere,
+const nowMicros = ref(Date.now() * 1000);
+let uiTimer: number | undefined;
+
+const {
+  selectedCharacterId,
+  myCharacters,
+  selectedCharacter,
+  currentLocation,
+  charactersHere,
   currentGroup,
   groupMembers: groupCharacterMembers,
   deleteCharacter,
@@ -623,6 +627,8 @@ const { isLoggedIn, login, logout, authMessage, authError } = useAuth({
   groups,
   players,
   userId,
+  characterLogoutTicks,
+  nowMicros,
 });
 
 const npcsHere = computed(() => {
@@ -734,9 +740,6 @@ watch(
     }
   }
 );
-
-const nowMicros = ref(Date.now() * 1000);
-let uiTimer: number | undefined;
 
 const worldStateRow = computed(() => worldState.value[0] ?? null);
 const isNight = computed(() => worldStateRow.value?.isNight ?? false);

@@ -272,12 +272,19 @@
               </div>
               <div v-else :style="styles.rosterList">
                 <span
-                  v-for="character in charactersHere"
-                  :key="character.id.toString()"
+                  v-for="entry in charactersHere"
+                  :key="entry.character.id.toString()"
                   :style="styles.rosterClickable"
-                  @click="$emit('character-action', character.id)"
+                  @click="$emit('character-action', entry.character.id)"
                 >
-                  {{ character.name }}
+                  <span :style="styles.rosterNameRow">
+                    {{ entry.character.name }}
+                    <span
+                      v-if="entry.disconnected"
+                      :style="styles.disconnectedDot"
+                      title="Disconnected"
+                    ></span>
+                  </span>
                 </span>
               </div>
             </div>
@@ -341,7 +348,7 @@ const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
   selectedCharacter: CharacterRow | null;
-  charactersHere: CharacterRow[];
+  charactersHere: { character: CharacterRow; disconnected: boolean }[];
   npcsHere: NpcRow[];
   activeCombat: CombatEncounterRow | null;
   combatEnemies: {

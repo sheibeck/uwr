@@ -15,4 +15,5 @@ export default __t.row({
   scheduledAt: __t.scheduleAt(),
   characterId: __t.u64(),
   ownerUserId: __t.u64(),
+  logoutAtMicros: __t.u64(),
 });

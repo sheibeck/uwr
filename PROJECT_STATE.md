@@ -1,6 +1,6 @@
 # Project State (Unwritten Realms)
 
-Last updated: 2026-02-10
+Last updated: 2026-02-11
 
 ## Overview
 - Text-based MMORPG using SpacetimeDB (TypeScript server) + Vue 3 client.
@@ -15,9 +15,9 @@ Last updated: 2026-02-10
 - Styles: inline style objects in `src/ui/styles.ts`.
 
 ## Key Features Implemented
-- **Auth (MVP):** Email login without verification.
-  - Reducers: `login_email`, `logout`.
-  - Player has `userId` (u64) + `sessionStartedAt`.
+- **Auth (MVP):** SpacetimeAuth (OIDC) + JWT.
+  - Client uses SpacetimeAuth PKCE flow and stores `id_token` locally; connection uses `withToken(id_token)`.
+  - Server still uses `login_email` reducer to map JWT email to `userId`.
   - UI shows logged-in email and logout.
 - **Session-only logs:** Client filters events by `player.sessionStartedAt`.
 - **Presence:** Only friends see online/offline; only when a character becomes active.
@@ -114,11 +114,15 @@ Last updated: 2026-02-10
   - Shared consumable cooldown is currently `CONSUMABLE_COOLDOWN_MICROS` in `spacetimedb/src/reducers/items.ts`.
 - Loot tables can include resource items (hooked into `ensureLootTables`).
 - **Gathering aggro risk:** each gather attempt rolls an aggro chance if enemies are present in the location.
-  - Chance scales with region danger; for testing, the base chance is set to 100% in `spacetimedb/src/reducers/items.ts`.
+  - Chance scales with region danger; current base chance is 20% in `spacetimedb/src/reducers/items.ts`.
 - **Virtual solo group:** server helpers treat solo characters as a group of one for combat/pull/gather participant selection.
   - Implemented via `getGroupParticipants` and `isGroupLeaderOrSolo` in `spacetimedb/src/index.ts`.
 - **Enemy respawn timer:** defeated enemy spawns now respawn after 5 minutes (configurable).
   - `ENEMY_RESPAWN_MICROS` in `spacetimedb/src/reducers/combat.ts`.
+- **Delayed logout:** disconnects and explicit logout schedule a 30s delayed logout (prevents escape).
+  - `disconnect_logout_tick` + `disconnect_logout` reducer.
+  - Character switches also schedule a 30s delayed presence logout via `character_logout_tick`.
+  - Characters who are pending logout stay visible in the Characters list with a red dot.
 
 ## XP Curve (MVP)
 - Level cap: 10
@@ -178,6 +182,7 @@ Last updated: 2026-02-10
   - Configuration via Hotbar panel; combat-use via vertical dock.
   - Hotbar shows cast fill + cooldown counters; highlights while casting.
   - Empty slots shown.
+- **Client-side prediction:** cast bars, cooldowns, gather progress, and effect/buff countdowns are locally predicted for smoother UI on Maincloud.
 
 ## Ability Plan (MVP, Lv1–Lv5)
 - Rules:

@@ -38,6 +38,7 @@ export const useGameData = () => {
   const [combatLoot] = useTable(tables.myCombatLoot);
   const [groups] = useTable(tables.group);
   const [characterEffects] = useTable(tables.myCharacterEffects);
+  const [characterLogoutTicks] = useTable(tables.characterLogoutTick);
   const [characterCasts] = useTable(tables.characterCast);
   const [abilityCooldowns] = useTable(tables.abilityCooldown);
   const [worldEvents] = useTable(tables.eventWorld);
@@ -89,6 +90,7 @@ export const useGameData = () => {
     combatLoot,
     groups,
     characterEffects,
+    characterLogoutTicks,
     characterCasts,
     abilityCooldowns,
     worldEvents,

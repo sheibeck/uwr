@@ -1021,6 +1021,7 @@ const DisconnectLogoutTick = table(
 const CharacterLogoutTick = table(
   {
     name: 'character_logout_tick',
+    public: true,
     scheduled: 'character_logout',
   },
   {
@@ -1028,6 +1029,7 @@ const CharacterLogoutTick = table(
     scheduledAt: t.scheduleAt(),
     characterId: t.u64(),
     ownerUserId: t.u64(),
+    logoutAtMicros: t.u64(),
   }
 );
 

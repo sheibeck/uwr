@@ -425,6 +425,19 @@ export const styles = {
     flexDirection: 'column',
     gap: '0.2rem',
   },
+  rosterNameRow: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+  },
+  disconnectedDot: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '999px',
+    background: '#ff4b4b',
+    boxShadow: '0 0 8px rgba(255, 75, 75, 0.9)',
+    display: 'inline-block',
+  },
   enemyGroupRow: {
     border: '1px solid rgba(255,255,255,0.12)',
     borderRadius: '10px',
