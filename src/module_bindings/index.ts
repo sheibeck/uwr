@@ -138,6 +138,8 @@ import SetFollowLeaderReducer from "./set_follow_leader_reducer";
 export { SetFollowLeaderReducer };
 import PromoteGroupLeaderReducer from "./promote_group_leader_reducer";
 export { PromoteGroupLeaderReducer };
+import SetGroupPullerReducer from "./set_group_puller_reducer";
+export { SetGroupPullerReducer };
 import KickGroupMemberReducer from "./kick_group_member_reducer";
 export { KickGroupMemberReducer };
 import InviteToGroupReducer from "./invite_to_group_reducer";
@@ -604,6 +606,8 @@ import SetDisplayName from "./set_display_name_type";
 export { SetDisplayName };
 import SetFollowLeader from "./set_follow_leader_type";
 export { SetFollowLeader };
+import SetGroupPuller from "./set_group_puller_type";
+export { SetGroupPuller };
 import SetHotbarSlot from "./set_hotbar_slot_type";
 export { SetHotbarSlot };
 import StartCombat from "./start_combat_type";
@@ -1772,6 +1776,7 @@ const reducersSchema = __reducers(
   __reducerSchema("leave_group", LeaveGroupReducer),
   __reducerSchema("set_follow_leader", SetFollowLeaderReducer),
   __reducerSchema("promote_group_leader", PromoteGroupLeaderReducer),
+  __reducerSchema("set_group_puller", SetGroupPullerReducer),
   __reducerSchema("kick_group_member", KickGroupMemberReducer),
   __reducerSchema("invite_to_group", InviteToGroupReducer),
   __reducerSchema("accept_group_invite", AcceptGroupInviteReducer),

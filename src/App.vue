@@ -193,6 +193,7 @@
           :combat-pets="combatPetsForGroup"
           :invite-summaries="inviteSummaries"
           :leader-id="leaderId"
+          :puller-id="pullerId"
           :is-leader="isLeader"
           :follow-leader="followLeader"
           :selected-target-id="defensiveTargetId"
@@ -201,6 +202,7 @@
           @accept="acceptInvite"
           @reject="rejectInvite"
           @kick="kickMember"
+          @set-puller="setPuller"
           @toggle-follow="setFollowLeader"
           @character-action="openCharacterActions"
         />
@@ -301,7 +303,7 @@
           :enemy-spawns="availableEnemies"
           :resource-nodes="resourceNodesHere"
           :active-result="activeResult"
-          :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+          :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || pullerId === selectedCharacter.id)"
           :can-dismiss-results="canDismissResults"
           :can-act="canActInCombat"
           :accordion-state="accordionState"
@@ -371,7 +373,7 @@
             :enemy-spawns="availableEnemies"
             :resource-nodes="resourceNodesHere"
             :active-result="activeResult"
-            :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+            :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || pullerId === selectedCharacter.id)"
             :can-dismiss-results="canDismissResults"
             :can-act="canActInCombat"
             :accordion-state="accordionState"
@@ -419,7 +421,7 @@
             :enemy-spawns="availableEnemies"
             :resource-nodes="resourceNodesHere"
             :active-result="activeResult"
-            :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || isLeader)"
+            :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || pullerId === selectedCharacter.id)"
             :can-dismiss-results="canDismissResults"
             :can-act="canActInCombat"
             :accordion-state="accordionState"
@@ -465,6 +467,7 @@
           :combat-pets="combatPetsForGroup"
           :invite-summaries="inviteSummaries"
           :leader-id="leaderId"
+          :puller-id="pullerId"
           :is-leader="isLeader"
           :follow-leader="followLeader"
           :selected-target-id="defensiveTargetId"
@@ -473,6 +476,7 @@
           @accept="acceptInvite"
           @reject="rejectInvite"
           @kick="kickMember"
+          @set-puller="setPuller"
           @toggle-follow="setFollowLeader"
           @target="setDefensiveTarget"
           @character-action="openCharacterActions"
@@ -954,9 +958,11 @@ const {
   acceptInvite,
   rejectInvite,
   leaderId,
+  pullerId,
   isLeader,
   kickMember,
   promoteLeader,
+  setPuller,
   followLeader,
   setFollowLeader,
 } = useGroups({

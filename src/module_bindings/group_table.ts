@@ -14,5 +14,6 @@ export default __t.row({
   id: __t.u64().primaryKey(),
   name: __t.string(),
   leaderCharacterId: __t.u64(),
+  pullerCharacterId: __t.option(__t.u64()),
   createdAt: __t.timestamp(),
 });

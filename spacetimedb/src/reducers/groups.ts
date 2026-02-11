@@ -22,6 +22,7 @@ export const registerGroupReducers = (deps: any) => {
       id: 0n,
       name: trimmed,
       leaderCharacterId: character.id,
+      pullerCharacterId: character.id,
       createdAt: ctx.timestamp,
     });
 
@@ -91,7 +92,12 @@ export const registerGroupReducers = (deps: any) => {
     if (group && group.leaderCharacterId === character.id) {
       const newLeaderCharacter = ctx.db.character.id.find(newLeaderMember.characterId);
       if (newLeaderCharacter) {
-        ctx.db.group.id.update({ ...group, leaderCharacterId: newLeaderCharacter.id });
+        ctx.db.group.id.update({
+          ...group,
+          leaderCharacterId: newLeaderCharacter.id,
+          pullerCharacterId:
+            group.pullerCharacterId === character.id ? newLeaderCharacter.id : group.pullerCharacterId,
+        });
         ctx.db.groupMember.id.update({ ...newLeaderMember, role: 'leader' });
         appendGroupEvent(
           ctx,
@@ -100,6 +106,11 @@ export const registerGroupReducers = (deps: any) => {
           'group',
           `${newLeaderCharacter.name} is now the group leader.`
         );
+      }
+    } else if (group && group.pullerCharacterId === character.id) {
+      const leaderCharacter = ctx.db.character.id.find(group.leaderCharacterId);
+      if (leaderCharacter) {
+        ctx.db.group.id.update({ ...group, pullerCharacterId: leaderCharacter.id });
       }
     }
   });
@@ -134,7 +145,12 @@ export const registerGroupReducers = (deps: any) => {
       if (!target) throw new SenderError('Target not found');
       if (target.groupId !== leader.groupId) throw new SenderError('Target not in your group');
 
-      ctx.db.group.id.update({ ...group, leaderCharacterId: target.id });
+      ctx.db.group.id.update({
+        ...group,
+        leaderCharacterId: target.id,
+        pullerCharacterId:
+          group.pullerCharacterId === leader.id ? target.id : group.pullerCharacterId,
+      });
 
       for (const member of ctx.db.groupMember.by_group.filter(group.id)) {
         if (member.characterId === leader.id) {
@@ -145,6 +161,25 @@ export const registerGroupReducers = (deps: any) => {
       }
 
       appendGroupEvent(ctx, group.id, target.id, 'group', `${target.name} is now the group leader.`);
+    }
+  );
+
+  spacetimedb.reducer(
+    'set_group_puller',
+    { characterId: t.u64(), targetName: t.string() },
+    (ctx, args) => {
+      const leader = requireCharacterOwnedBy(ctx, args.characterId);
+      if (!leader.groupId) throw new SenderError('Not in a group');
+      const group = ctx.db.group.id.find(leader.groupId);
+      if (!group) throw new SenderError('Group not found');
+      if (group.leaderCharacterId !== leader.id) throw new SenderError('Only leader can assign puller');
+
+      const target = findCharacterByName(ctx, args.targetName.trim());
+      if (!target) throw new SenderError('Target not found');
+      if (target.groupId !== leader.groupId) throw new SenderError('Target not in your group');
+
+      ctx.db.group.id.update({ ...group, pullerCharacterId: target.id });
+      appendGroupEvent(ctx, group.id, target.id, 'group', `${target.name} is now the group puller.`);
     }
   );
 
@@ -179,6 +214,10 @@ export const registerGroupReducers = (deps: any) => {
         'group',
         `You were removed from ${group.name}.`
       );
+
+      if (group.pullerCharacterId === target.id) {
+        ctx.db.group.id.update({ ...group, pullerCharacterId: group.leaderCharacterId });
+      }
 
       let remaining = 0;
       for (const _row of ctx.db.groupMember.by_group.filter(group.id)) {
@@ -236,6 +275,7 @@ export const registerGroupReducers = (deps: any) => {
           id: 0n,
           name: `${inviter.name}'s group`,
           leaderCharacterId: inviter.id,
+          pullerCharacterId: inviter.id,
           createdAt: ctx.timestamp,
         });
         ctx.db.groupMember.insert({

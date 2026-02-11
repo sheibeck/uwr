@@ -707,15 +707,19 @@ export const registerCombatReducers = (deps: any) => {
       }
 
       let groupId: bigint | null = character.groupId ?? null;
-      if (groupId && !isGroupLeaderOrSolo(ctx, character)) {
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'system',
-          'Only the group leader can pull.'
-        );
-        return;
+      if (groupId) {
+        const group = ctx.db.group.id.find(groupId);
+        const pullerId = group?.pullerCharacterId ?? group?.leaderCharacterId;
+        if (!group || pullerId !== character.id) {
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'system',
+            'Only the group puller can pull.'
+          );
+          return;
+        }
       }
 
       for (const pull of ctx.db.pullState.by_character.filter(character.id)) {

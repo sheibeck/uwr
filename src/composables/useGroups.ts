@@ -31,6 +31,7 @@ export const useGroups = ({
   const promoteReducer = useReducer(reducers.promoteGroupLeader);
   const kickReducer = useReducer(reducers.kickGroupMember);
   const followReducer = useReducer(reducers.setFollowLeader);
+  const pullerReducer = useReducer(reducers.setGroupPuller);
 
   const leaveGroup = () => {
     if (!connActive.value || !selectedCharacter.value) return;
@@ -62,6 +63,13 @@ export const useGroups = ({
     const groupId = selectedCharacter.value?.groupId;
     if (!groupId) return null;
     return groups.value.find((row) => row.id === groupId)?.leaderCharacterId ?? null;
+  });
+
+  const pullerId = computed(() => {
+    const groupId = selectedCharacter.value?.groupId;
+    if (!groupId) return null;
+    const group = groups.value.find((row) => row.id === groupId);
+    return group?.pullerCharacterId ?? group?.leaderCharacterId ?? null;
   });
 
   const isLeader = computed(() => {
@@ -99,6 +107,11 @@ export const useGroups = ({
     promoteReducer({ characterId: selectedCharacter.value.id, targetName });
   };
 
+  const setPuller = (targetName: string) => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    pullerReducer({ characterId: selectedCharacter.value.id, targetName });
+  };
+
   const setFollowLeader = (follow: boolean) => {
     if (!connActive.value || !selectedCharacter.value) return;
     followReducer({ characterId: selectedCharacter.value.id, follow });
@@ -110,9 +123,11 @@ export const useGroups = ({
     acceptInvite,
     rejectInvite,
     leaderId,
+    pullerId,
     isLeader,
     kickMember,
     promoteLeader,
+    setPuller,
     followLeader,
     setFollowLeader,
   };

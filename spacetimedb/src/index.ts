@@ -540,6 +540,7 @@ const Group = table(
     id: t.u64().primaryKey().autoInc(),
     name: t.string(),
     leaderCharacterId: t.u64(),
+    pullerCharacterId: t.u64().optional(),
     createdAt: t.timestamp(),
   }
 );

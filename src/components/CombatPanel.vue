@@ -157,7 +157,7 @@
   <div v-else>
     <div :style="styles.subtle">Choose an enemy to pull.</div>
     <div v-if="!canEngage" :style="styles.subtle">
-      Only the group leader can engage enemies.
+      Only the group puller can engage enemies.
     </div>
     <div v-if="enemySpawns.length === 0" :style="styles.subtle">
       No enemies are available right now.

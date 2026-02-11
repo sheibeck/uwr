@@ -10,12 +10,7 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("Group", {
-  id: __t.u64(),
-  name: __t.string(),
-  leaderCharacterId: __t.u64(),
-  pullerCharacterId: __t.option(__t.u64()),
-  createdAt: __t.timestamp(),
-});
-
-
+export default {
+  characterId: __t.u64(),
+  targetName: __t.string(),
+};

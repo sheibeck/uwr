@@ -19,6 +19,7 @@
           <span>
             {{ member.name }} (Lv {{ member.level }}) - {{ member.className }}
             <span v-if="member.id === leaderId" :style="styles.subtle">· Leader</span>
+            <span v-if="member.id === pullerId" :style="styles.subtle">· Puller</span>
           </span>
           <div :style="styles.hpBar">
             <div :style="{ ...styles.hpFill, width: `${percent(member.hp, member.maxHp)}%` }"></div>
@@ -54,6 +55,18 @@
           </div>
         </li>
       </ul>
+      <div v-if="isLeader" :style="styles.checkboxRow">
+        <span :style="styles.subtle">Puller</span>
+        <select
+          :style="styles.input"
+          :value="pullerName"
+          @change="$emit('set-puller', ($event.target as HTMLSelectElement).value)"
+        >
+          <option v-for="member in sortedMembers" :key="member.id.toString()" :value="member.name">
+            {{ member.name }}
+          </option>
+        </select>
+      </div>
       <label v-if="!isLeader" :style="styles.checkboxRow">
         <input
           type="checkbox"
@@ -173,6 +186,7 @@ const props = defineProps<{
   }[];
   inviteSummaries: { invite: { id: bigint }; fromName: string; groupName: string }[];
   leaderId: bigint | null;
+  pullerId: bigint | null;
   isLeader: boolean;
   followLeader: boolean;
   selectedTargetId: bigint | null;
@@ -195,6 +209,7 @@ defineEmits<{
   (e: 'toggle-follow', follow: boolean): void;
   (e: 'target', characterId: bigint): void;
   (e: 'character-action', characterId: bigint): void;
+  (e: 'set-puller', targetName: string): void;
 }>();
 
 const percent = (current: bigint, max: bigint) => {
@@ -209,6 +224,12 @@ const sortedMembers = computed(() => {
   const mine = props.groupMembers.filter((member) => member.id.toString() === selectedId);
   const others = props.groupMembers.filter((member) => member.id.toString() !== selectedId);
   return [...mine, ...others];
+});
+
+const pullerName = computed(() => {
+  if (!props.pullerId) return props.selectedCharacter?.name ?? '';
+  const puller = props.groupMembers.find((member) => member.id === props.pullerId);
+  return puller?.name ?? props.selectedCharacter?.name ?? '';
 });
 
 const petsFor = (characterId: bigint) =>
