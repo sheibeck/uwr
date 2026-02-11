@@ -1357,6 +1357,29 @@ function appendSystemMessage(ctx: any, character: any, message: string) {
   appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', message);
 }
 
+function logPrivateAndGroup(
+  ctx: any,
+  character: any,
+  kind: string,
+  privateMessage: string,
+  groupMessage?: string
+) {
+  appendPrivateEvent(ctx, character.id, character.ownerUserId, kind, privateMessage);
+  if (!character.groupId) return;
+  appendGroupEvent(ctx, character.groupId, character.id, kind, groupMessage ?? privateMessage);
+}
+
+// Backwards-compatible alias while reducers migrate.
+function appendPrivateAndGroupEvent(
+  ctx: any,
+  character: any,
+  kind: string,
+  message: string,
+  groupMessage?: string
+) {
+  logPrivateAndGroup(ctx, character, kind, message, groupMessage);
+}
+
 function fail(ctx: any, character: any, message: string, kind = 'system') {
   appendPrivateEvent(ctx, character.id, character.ownerUserId, kind, message);
 }
@@ -5292,6 +5315,8 @@ const reducerDeps = {
   fail,
   appendNpcDialog,
   appendGroupEvent,
+  logPrivateAndGroup,
+  appendPrivateAndGroupEvent,
   appendLocationEvent,
   ensureSpawnsForLocation,
   ensureAvailableSpawn,

@@ -20,6 +20,7 @@ export const registerItemReducers = (deps: any) => {
     addItemToInventory,
     removeItemFromInventory,
     getItemCount,
+    logPrivateAndGroup,
     startCombatForSpawn,
     getGroupParticipants,
     getInventorySlotCount,
@@ -556,22 +557,12 @@ export const registerItemReducers = (deps: any) => {
         scheduledAt: ScheduleAt.time(endsAt),
         gatherId: gather.id,
       });
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'system',
-        `You begin gathering ${node.name}.`
-      );
-      if (character.groupId) {
-        appendGroupEvent(
-          ctx,
-          character.groupId,
-          character.id,
-          'system',
-          `${character.name} begins gathering ${node.name}.`
-        );
-      }
+    logPrivateAndGroup(
+      ctx,
+      character,
+      'system',
+      `You begin gathering ${node.name}.`
+    );
     }
   );
 
@@ -599,22 +590,13 @@ export const registerItemReducers = (deps: any) => {
         RESOURCE_GATHER_MIN_QTY +
         ((ctx.timestamp.microsSinceUnixEpoch + node.id) % qtyRange);
       addItemToInventory(ctx, character.id, node.itemTemplateId, quantity);
-      appendPrivateEvent(
+      logPrivateAndGroup(
         ctx,
-        character.id,
-        character.ownerUserId,
+        character,
         'reward',
-        `You gather ${node.name} x${quantity}.`
+        `You gather ${node.name} x${quantity}.`,
+        `${character.name} gathers ${node.name} x${quantity}.`
       );
-      if (character.groupId) {
-        appendGroupEvent(
-          ctx,
-          character.groupId,
-          character.id,
-          'reward',
-          `${character.name} gathers ${node.name} x${quantity}.`
-        );
-      }
       const respawnAt = ctx.timestamp.microsSinceUnixEpoch + RESOURCE_RESPAWN_MICROS;
       ctx.db.resourceNode.id.update({
         ...node,

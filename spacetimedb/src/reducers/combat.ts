@@ -261,6 +261,7 @@ export const registerCombatReducers = (deps: any) => {
     enemyAbilityCooldownMicros,
     PullState,
     PullTick,
+    logPrivateAndGroup,
     fail,
   } = deps;
   const failCombat = (ctx: any, character: any, message: string) =>
@@ -299,22 +300,12 @@ export const registerCombatReducers = (deps: any) => {
     if (!current || current.status === 'dead') return;
     ctx.db.combatParticipant.id.update({ ...participant, status: 'dead' });
     clearCharacterEffectsOnDeath(ctx, character);
-    appendPrivateEvent(
+    logPrivateAndGroup(
       ctx,
-      character.id,
-      character.ownerUserId,
+      character,
       'combat',
       `You have died. Killed by ${enemyName}.`
     );
-    if (character.groupId) {
-      appendGroupEvent(
-        ctx,
-        character.groupId,
-        character.id,
-        'combat',
-        `You have died. Killed by ${enemyName}.`
-      );
-    }
     for (const pet of ctx.db.combatPet.by_combat.filter(participant.combatId)) {
       if (pet.ownerCharacterId === character.id) {
         ctx.db.combatPet.id.delete(pet.id);
@@ -735,22 +726,13 @@ export const registerCombatReducers = (deps: any) => {
       });
       schedulePullResolve(ctx, pull.id, resolveAt);
 
-      appendPrivateEvent(
+      logPrivateAndGroup(
         ctx,
-        character.id,
-        character.ownerUserId,
+        character,
         'system',
-        `You begin a ${pullType === 'careful' ? 'Careful Pull' : 'Body Pull'} on ${spawn.name} (group size ${spawn.groupCount}).`
+        `You begin a ${pullType === 'careful' ? 'Careful Pull' : 'Body Pull'} on ${spawn.name} (group size ${spawn.groupCount}).`,
+        `${character.name} begins a ${pullType === 'careful' ? 'Careful Pull' : 'Body Pull'} on ${spawn.name}.`
       );
-      if (groupId) {
-        appendGroupEvent(
-          ctx,
-          groupId,
-          character.id,
-          'system',
-          `${character.name} begins a ${pullType === 'careful' ? 'Careful Pull' : 'Body Pull'} on ${spawn.name}.`
-        );
-      }
     }
   );
 
@@ -935,22 +917,13 @@ export const registerCombatReducers = (deps: any) => {
         });
       }
       for (const p of participants) {
-        appendPrivateEvent(
+        logPrivateAndGroup(
           ctx,
-          p.id,
-          p.ownerUserId,
+          p,
           'system',
           `Your ${pull.pullType} pull draws attention. You isolate 1 of ${initialGroupCount} ${spawn.name}, but ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} will arrive in ${Number(
             delayMicros / 1_000_000n
-          )}s. Remaining in group: ${remainingGroup}.${reasonSuffix}`
-        );
-      }
-      if (pull.groupId) {
-        appendGroupEvent(
-          ctx,
-          pull.groupId,
-          pull.characterId,
-          'system',
+          )}s. Remaining in group: ${remainingGroup}.${reasonSuffix}`,
           `${character.name}'s pull draws attention. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} will arrive in ${Number(
             delayMicros / 1_000_000n
           )}s.`
@@ -971,40 +944,22 @@ export const registerCombatReducers = (deps: any) => {
         );
       }
       for (const p of participants) {
-        appendPrivateEvent(
+        logPrivateAndGroup(
           ctx,
-          p.id,
-          p.ownerUserId,
+          p,
           'system',
-          `Your ${pull.pullType} pull is noticed. You bring 1 of ${initialGroupCount} ${spawn.name} — and ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately. Remaining in group: ${remainingGroup}.${reasonSuffix}`
-        );
-      }
-      if (pull.groupId) {
-        appendGroupEvent(
-          ctx,
-          pull.groupId,
-          pull.characterId,
-          'system',
+          `Your ${pull.pullType} pull is noticed. You bring 1 of ${initialGroupCount} ${spawn.name} and ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately. Remaining in group: ${remainingGroup}.${reasonSuffix}`,
           `${character.name}'s pull is noticed. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately.`
         );
       }
     } else {
       const remainingGroup = ctx.db.enemySpawn.id.find(spawn.id)?.groupCount ?? 0n;
       for (const p of participants) {
-        appendPrivateEvent(
+        logPrivateAndGroup(
           ctx,
-          p.id,
-          p.ownerUserId,
+          p,
           'system',
-          `Your ${pull.pullType} pull is clean. You draw 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`
-        );
-      }
-      if (pull.groupId) {
-        appendGroupEvent(
-          ctx,
-          pull.groupId,
-          pull.characterId,
-          'system',
+          `Your ${pull.pullType} pull is clean. You draw 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`,
           `${character.name}'s pull is clean.`
         );
       }
