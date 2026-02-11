@@ -164,6 +164,7 @@ const props = defineProps<{
   isLeader: boolean;
   followLeader: boolean;
   selectedTargetId: bigint | null;
+  nowMicros?: number;
 }>();
 
 defineEmits<{
@@ -210,9 +211,23 @@ const effectLabel = (effect: {
   }
 };
 
-const effectDurationLabel = (effect: { roundsRemaining: bigint; effectType: string }) => {
+const effectTimers = new Map<
+  string,
+  { seenAtMicros: number; rounds: bigint; tickSeconds: number }
+>();
+
+const effectDurationLabel = (effect: { id: bigint; roundsRemaining: bigint; effectType: string }) => {
   const tickSeconds = effect.effectType === 'regen' || effect.effectType === 'dot' ? 3 : 10;
-  const seconds = Number(effect.roundsRemaining) * tickSeconds;
-  return `${seconds}s`;
+  const totalSeconds = Number(effect.roundsRemaining) * tickSeconds;
+  const key = effect.id.toString();
+  const now = props.nowMicros ?? Date.now() * 1000;
+  const existing = effectTimers.get(key);
+  if (!existing || existing.rounds !== effect.roundsRemaining || existing.tickSeconds !== tickSeconds) {
+    effectTimers.set(key, { seenAtMicros: now, rounds: effect.roundsRemaining, tickSeconds });
+  }
+  const entry = effectTimers.get(key);
+  const elapsedSeconds = entry ? (now - entry.seenAtMicros) / 1_000_000 : 0;
+  const remaining = Math.max(0, Math.ceil(totalSeconds - elapsedSeconds));
+  return `${remaining}s`;
 };
 </script>

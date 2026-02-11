@@ -454,6 +454,7 @@
           :is-leader="isLeader"
           :follow-leader="followLeader"
           :selected-target-id="defensiveTargetId"
+          :now-micros="nowMicros"
           @leave="leaveGroup"
           @accept="acceptInvite"
           @reject="rejectInvite"

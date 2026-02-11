@@ -107,6 +107,14 @@ export const useCombat = ({
   nowMicros,
   characters,
 }: UseCombatArgs) => {
+  const effectTimers = new Map<
+    string,
+    { seenAtMicros: number; rounds: bigint; tickSeconds: number }
+  >();
+  const enemyCastTimers = new Map<
+    string,
+    { startMicros: number; durationMicros: number; endsAtMicros: number }
+  >();
   const startCombatReducer = useReducer(reducers.startCombat);
   const startPullReducer = useReducer(reducers.startPull);
   const setCombatTargetReducer = useReducer(reducers.setCombatTarget);
@@ -377,20 +385,33 @@ export const useCombat = ({
       else if (diff === 1) conClass = 'conYellow';
       else if (diff === 2) conClass = 'conOrange';
       else conClass = 'conRed';
-      const effects = combatEnemyEffects.value
-        .filter(
+       const effects = combatEnemyEffects.value
+         .filter(
           (row) =>
             row.combatId.toString() === combatId &&
             row.enemyId.toString() === enemy.id.toString()
         )
-        .map((effect) => {
-          const type = effect.effectType;
-          const isHot = type === 'dot';
-          const seconds = Number(effect.roundsRemaining) * (isHot ? 3 : 10);
-          const label = effect.sourceAbility ?? type.replace(/_/g, ' ');
-          const isNegative =
-            new Set(['damage_down', 'dot', 'skip', 'slow', 'weaken']).has(type) ||
-            effect.magnitude < 0n;
+         .map((effect) => {
+           const type = effect.effectType;
+           const isHot = type === 'dot';
+           const tickSeconds = isHot ? 3 : 10;
+           const key = effect.id.toString();
+           const totalSeconds = Number(effect.roundsRemaining) * tickSeconds;
+           const existing = effectTimers.get(key);
+           if (!existing || existing.rounds !== effect.roundsRemaining || existing.tickSeconds !== tickSeconds) {
+             effectTimers.set(key, {
+               seenAtMicros: nowMicros.value,
+               rounds: effect.roundsRemaining,
+               tickSeconds,
+             });
+           }
+           const entry = effectTimers.get(key);
+           const elapsedSeconds = entry ? (nowMicros.value - entry.seenAtMicros) / 1_000_000 : 0;
+           const seconds = Math.max(0, Math.ceil(totalSeconds - elapsedSeconds));
+           const label = effect.sourceAbility ?? type.replace(/_/g, ' ');
+           const isNegative =
+             new Set(['damage_down', 'dot', 'skip', 'slow', 'weaken']).has(type) ||
+             effect.magnitude < 0n;
           return {
             id: effect.id,
             label,
@@ -407,17 +428,26 @@ export const useCombat = ({
         ? enemyAbilities.value.find((row) => row.abilityKey === cast.abilityKey)
         : null;
       const castDuration = ability?.castSeconds ? Number(ability.castSeconds) * 1_000_000 : 0;
-      const castProgress =
-        cast && castDuration
-          ? Math.max(
-              0,
-              Math.min(
-                1,
-                (castDuration - (Number(cast.endsAtMicros) - nowMicros.value)) /
-                  castDuration
-              )
-            )
-          : 0;
+      const castProgress = (() => {
+        if (!cast || !castDuration) return 0;
+        const endsAt = Number(cast.endsAtMicros);
+        const key = `${cast.combatId.toString()}:${cast.enemyId.toString()}:${cast.abilityKey}`;
+        const remaining = Math.max(0, endsAt - nowMicros.value);
+        const startFromRemaining = nowMicros.value - Math.max(0, castDuration - remaining);
+        const existing = enemyCastTimers.get(key);
+        if (!existing || existing.endsAtMicros !== endsAt) {
+          enemyCastTimers.set(key, {
+            startMicros: startFromRemaining,
+            durationMicros: castDuration,
+            endsAtMicros: endsAt,
+          });
+        }
+        const entry = enemyCastTimers.get(key);
+        if (!entry) return 0;
+        const elapsed = nowMicros.value - entry.startMicros;
+        const clamped = Math.max(0, Math.min(entry.durationMicros, elapsed));
+        return clamped / entry.durationMicros;
+      })();
       const targetName =
         enemy.aggroTargetCharacterId
           ? characters.value.find(
