@@ -20,10 +20,13 @@ export const registerCommandReducers = (deps: any) => {
     ensureRecipeTemplates,
     ensureNpcs,
     ensureQuestTemplates,
+    ensureEnemyTemplatesAndRoles,
     ensureEnemyAbilities,
     ensureLocationEnemyTemplates,
+    ensureLocationRuntimeBootstrap,
     ensureLootTables,
     ensureVendorInventory,
+    syncAllContent,
   } = deps;
 
   const hailNpc = (ctx: any, character: any, npcName: string) => {
@@ -103,17 +106,7 @@ export const registerCommandReducers = (deps: any) => {
 
     if (trimmed.toLowerCase() === '/synccontent') {
       const userId = requirePlayerUserId(ctx);
-      ensureWorldLayout(ctx);
-      ensureStarterItemTemplates(ctx);
-      ensureResourceItemTemplates(ctx);
-      ensureAbilityTemplates(ctx);
-      ensureRecipeTemplates(ctx);
-      ensureNpcs(ctx);
-      ensureQuestTemplates(ctx);
-      ensureEnemyAbilities(ctx);
-      ensureLocationEnemyTemplates(ctx);
-      ensureLootTables(ctx);
-      ensureVendorInventory(ctx);
+      syncAllContent(ctx);
       appendPrivateEvent(
         ctx,
         character.id,

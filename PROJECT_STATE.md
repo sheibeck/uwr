@@ -341,6 +341,9 @@ Last updated: 2026-02-11
 - Group invite alerts invitee via private event.
 - Friend request success/failure messages emitted via private events.
 - Event tables (`event_world`, `event_location`, `event_private`, `event_group`) are trimmed on write to last 200 per scope and anything older than 1 hour.
+- Content sync is centralized through `syncAllContent(ctx)` and reused by both module init and the `/synccontent` command.
+- `syncAllContent(ctx)` currently covers: world layout (regions/locations/connections), starter/resource item templates, ability templates, recipe templates, NPCs, quest templates, enemy templates/roles, enemy abilities, location-enemy mappings, location runtime bootstrap (enemy/resource runtime rows for newly added locations), loot tables, and vendor inventory.
+- Init avoids duplicate ensure passes and now calls `syncAllContent(ctx)` as the single content bootstrap path.
 - **Stamina/Mana migration pending:** schema changes require publishing with `--delete-data`.
 - **Region/Location migration pending:** schema changes require publishing with `--delete-data`.
 - **Item/Enemy schema expansion pending:** schema changes require publishing with `--delete-data`.
@@ -349,6 +352,7 @@ Last updated: 2026-02-11
 - Publish local module: `spacetime publish uwr --project-path spacetimedb --server local`
 - Publish with data deletion (for stamina/mana schema): `spacetime publish uwr --project-path spacetimedb --server local --delete-data`
 - Generate bindings: `spacetime generate --lang typescript --out-dir src/module_bindings --project-path spacetimedb`
+- Sync content in-game: `/synccontent`
 - Start local server: `spacetime start`
 - Dev server: `npm run dev`
 

@@ -4295,6 +4295,40 @@ function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
   }
 }
 
+function ensureLocationRuntimeBootstrap(ctx: any) {
+  for (const location of ctx.db.location.iter()) {
+    ensureResourceNodesForLocation(ctx, location.id);
+    let count = 0;
+    for (const _row of ctx.db.enemySpawn.by_location.filter(location.id)) {
+      count += 1;
+    }
+    while (count < DEFAULT_LOCATION_SPAWNS) {
+      const existingTemplates: bigint[] = [];
+      for (const row of ctx.db.enemySpawn.by_location.filter(location.id)) {
+        existingTemplates.push(row.enemyTemplateId);
+      }
+      spawnEnemy(ctx, location.id, 1n, existingTemplates);
+      count += 1;
+    }
+  }
+}
+
+function syncAllContent(ctx: any) {
+  ensureWorldLayout(ctx);
+  ensureStarterItemTemplates(ctx);
+  ensureResourceItemTemplates(ctx);
+  ensureAbilityTemplates(ctx);
+  ensureRecipeTemplates(ctx);
+  ensureNpcs(ctx);
+  ensureQuestTemplates(ctx);
+  ensureEnemyTemplatesAndRoles(ctx);
+  ensureEnemyAbilities(ctx);
+  ensureLocationEnemyTemplates(ctx);
+  ensureLocationRuntimeBootstrap(ctx);
+  ensureLootTables(ctx);
+  ensureVendorInventory(ctx);
+}
+
 function respawnLocationSpawns(ctx: any, locationId: bigint, desired: number) {
   for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
     if (row.state === 'available') {
@@ -4760,9 +4794,7 @@ function ensureWorldLayout(ctx: any) {
   connectIfMissing(sootveil.id, furnace.id);
 }
 
-spacetimedb.init((ctx) => {
-  ensureWorldLayout(ctx);
-
+function ensureEnemyTemplatesAndRoles(ctx: any) {
   const addEnemyTemplate = (row: any) => {
     const existing = findEnemyTemplateByName(ctx, row.name);
     if (existing) {
@@ -5555,38 +5587,10 @@ spacetimedb.init((ctx) => {
       'melee',
       'bulwark, cleave'
     );
-  ensureEnemyAbilities(ctx);
+}
 
-  ensureNpcs(ctx);
-  ensureQuestTemplates(ctx);
-
-  ensureStarterItemTemplates(ctx);
-  ensureAbilityTemplates(ctx);
-  ensureResourceItemTemplates(ctx);
-  ensureRecipeTemplates(ctx);
-  ensureVendorInventory(ctx);
-  ensureLootTables(ctx);
-
-  ensureLocationEnemyTemplates(ctx);
-  for (const location of ctx.db.location.iter()) {
-    ensureResourceNodesForLocation(ctx, location.id);
-  }
-
-  const desired = DEFAULT_LOCATION_SPAWNS;
-  for (const location of ctx.db.location.iter()) {
-    let count = 0;
-    for (const _row of ctx.db.enemySpawn.by_location.filter(location.id)) {
-      count += 1;
-    }
-    while (count < desired) {
-      const existingTemplates: bigint[] = [];
-      for (const row of ctx.db.enemySpawn.by_location.filter(location.id)) {
-        existingTemplates.push(row.enemyTemplateId);
-      }
-      spawnEnemy(ctx, location.id, 1n, existingTemplates);
-      count += 1;
-    }
-  }
+spacetimedb.init((ctx) => {
+  syncAllContent(ctx);
 
   ensureHealthRegenScheduled(ctx);
   ensureEffectTickScheduled(ctx);
@@ -5719,9 +5723,12 @@ const reducerDeps = {
   ensureRecipeTemplates,
   ensureNpcs,
   ensureQuestTemplates,
+  ensureEnemyTemplatesAndRoles,
   ensureEnemyAbilities,
   ensureWorldLayout,
   ensureLocationEnemyTemplates,
+  ensureLocationRuntimeBootstrap,
+  syncAllContent,
   spawnResourceNode,
   ensureResourceNodesForLocation,
   respawnResourceNodesForLocation,

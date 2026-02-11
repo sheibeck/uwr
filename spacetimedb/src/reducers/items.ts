@@ -36,9 +36,12 @@ export const registerItemReducers = (deps: any) => {
     ensureRecipeTemplates,
     ensureNpcs,
     ensureQuestTemplates,
+    ensureEnemyTemplatesAndRoles,
     ensureEnemyAbilities,
     ensureWorldLayout,
     ensureLocationEnemyTemplates,
+    ensureLocationRuntimeBootstrap,
+    syncAllContent,
     fail,
   } = deps;
 
@@ -1186,6 +1189,7 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer('sync_enemy_content', (ctx) => {
     requirePlayerUserId(ctx);
+    ensureEnemyTemplatesAndRoles(ctx);
     ensureEnemyAbilities(ctx);
     ensureLocationEnemyTemplates(ctx);
   });
@@ -1193,6 +1197,7 @@ export const registerItemReducers = (deps: any) => {
   spacetimedb.reducer('sync_world_layout', (ctx) => {
     requirePlayerUserId(ctx);
     ensureWorldLayout(ctx);
+    ensureLocationRuntimeBootstrap(ctx);
   });
 
   spacetimedb.reducer('sync_ability_templates', (ctx) => {
@@ -1213,17 +1218,7 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer('sync_all_content', (ctx) => {
     requirePlayerUserId(ctx);
-    ensureWorldLayout(ctx);
-    ensureStarterItemTemplates(ctx);
-    ensureResourceItemTemplates(ctx);
-    ensureAbilityTemplates(ctx);
-    ensureRecipeTemplates(ctx);
-    ensureNpcs(ctx);
-    ensureQuestTemplates(ctx);
-    ensureEnemyAbilities(ctx);
-    ensureLocationEnemyTemplates(ctx);
-    ensureLootTables(ctx);
-    ensureVendorInventory(ctx);
+    syncAllContent(ctx);
   });
 };
 
