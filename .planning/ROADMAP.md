@@ -10,7 +10,7 @@
 
 | Phase | Name | Requirements | Dependencies | Status |
 |-------|------|-------------|--------------|--------|
-| 1 | Races | REQ-001–005 | None | Planned |
+| 1 | Races | REQ-001–005 | None | Complete (2026-02-11) |
 | 2 | Hunger | REQ-010–015 | Phase 1 (race stat integration) | Pending |
 | 3 | Renown Foundation | REQ-020–026 | None | Pending |
 | 4 | LLM Architecture | REQ-040–047, REQ-080–084 | Phase 3 (first consumer) | Pending |
