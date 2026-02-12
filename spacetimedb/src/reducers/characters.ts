@@ -187,6 +187,16 @@ export const registerCharacterReducers = (deps: any) => {
         wellFedBuffMagnitude: 0n,
       });
 
+      // Initialize FactionStanding for all factions at 0
+      for (const faction of ctx.db.faction.iter()) {
+        ctx.db.factionStanding.insert({
+          id: 0n,
+          characterId: character.id,
+          factionId: faction.id,
+          standing: 0n,
+        });
+      }
+
       appendPrivateEvent(ctx, character.id, userId, 'system', `${character.name} enters the world.`);
     }
   );
@@ -292,6 +302,9 @@ export const registerCharacterReducers = (deps: any) => {
     }
     for (const row of ctx.db.hunger.characterId.filter(characterId)) {
       ctx.db.hunger.id.delete(row.id);
+    }
+    for (const row of ctx.db.factionStanding.by_character.filter(characterId)) {
+      ctx.db.factionStanding.id.delete(row.id);
     }
     for (const row of ctx.db.itemInstance.by_owner.filter(characterId)) {
       ctx.db.itemInstance.id.delete(row.id);

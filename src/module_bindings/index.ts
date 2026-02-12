@@ -312,6 +312,8 @@ import MyCombatLootRow from "./my_combat_loot_table";
 export { MyCombatLootRow };
 import MyCombatResultsRow from "./my_combat_results_table";
 export { MyCombatResultsRow };
+import MyFactionStandingsRow from "./my_faction_standings_table";
+export { MyFactionStandingsRow };
 import MyFriendRequestsRow from "./my_friend_requests_table";
 export { MyFriendRequestsRow };
 import MyFriendsRow from "./my_friends_table";
@@ -556,6 +558,8 @@ import MyCombatLoot from "./my_combat_loot_type";
 export { MyCombatLoot };
 import MyCombatResults from "./my_combat_results_type";
 export { MyCombatResults };
+import MyFactionStandings from "./my_faction_standings_type";
+export { MyFactionStandings };
 import MyFriendRequests from "./my_friend_requests_type";
 export { MyFriendRequests };
 import MyFriends from "./my_friends_type";
@@ -1777,6 +1781,13 @@ const tablesSchema = __schema(
     constraints: [
     ],
   }, MyCombatResultsRow),
+  __table({
+    name: 'my_faction_standings',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyFactionStandingsRow),
   __table({
     name: 'my_friend_requests',
     indexes: [

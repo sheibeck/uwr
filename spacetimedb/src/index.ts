@@ -4630,6 +4630,8 @@ registerViews({
   NpcDialog,
   QuestInstance,
   Hunger,
+  Faction,
+  FactionStanding,
 });
 
 function ensureNpcs(ctx: any) {

@@ -2,6 +2,7 @@ import type { ViewDeps } from './types';
 import { registerCombatViews } from './combat';
 import { registerEffectViews } from './effects';
 import { registerEventViews } from './events';
+import { registerFactionViews } from './faction';
 import { registerFriendViews } from './friends';
 import { registerGroupViews } from './groups';
 import { registerHungerViews } from './hunger';
@@ -19,4 +20,5 @@ export const registerViews = (deps: ViewDeps) => {
   registerNpcViews(deps);
   registerQuestViews(deps);
   registerHungerViews(deps);
+  registerFactionViews(deps);
 };

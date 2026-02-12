@@ -15,4 +15,6 @@ export type ViewDeps = {
   NpcDialog: any;
   QuestInstance: any;
   Hunger: any;
+  Faction: any;
+  FactionStanding: any;
 };

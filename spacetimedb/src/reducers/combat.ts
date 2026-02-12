@@ -209,6 +209,7 @@ export const registerCombatReducers = (deps: any) => {
     PullTick,
     logPrivateAndGroup,
     fail,
+    grantFactionStandingForKill,
   } = deps;
   const failCombat = (ctx: any, character: any, message: string) =>
     fail(ctx, character, message, 'combat');
@@ -1813,6 +1814,7 @@ export const registerCombatReducers = (deps: any) => {
         if (!character) continue;
         for (const template of enemyTemplates) {
           updateQuestProgressForKill(ctx, character, template.id);
+          grantFactionStandingForKill(ctx, character, template.id);
         }
       }
       const eligible = participants.filter((p) => p.status !== 'dead');
