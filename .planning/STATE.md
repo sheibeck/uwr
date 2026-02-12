@@ -1,21 +1,18 @@
 # Project State
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
-**Last updated:** 2026-02-11
-**Status:** Planning complete — ready for Phase 1 execution
+**Last updated:** 2026-02-12
+**Status:** Phase 1 in progress — Plan 01 (backend) complete, Plan 02 (frontend) next
 
 ---
 
 ## Current Position
 
-Planning complete. All planning artifacts created:
-- PROJECT.md ✅
-- config.json ✅
-- research/ (STACK, FEATURES, ARCHITECTURE, PITFALLS, SUMMARY) ✅
-- REQUIREMENTS.md (40 v1 requirements, 8 categories) ✅
-- ROADMAP.md (8 phases, success criteria, dependency graph) ✅
+Phase 1 (Races) execution started. Plan 01 complete.
 
-**Next action:** Plan Phase 1 (Races) using `/gsd:plan-phase`
+**Current phase:** 01-races
+**Current plan:** 02 of 02
+**Next action:** Execute Plan 02 (Race selection frontend UI)
 
 ---
 
@@ -23,7 +20,7 @@ Planning complete. All planning artifacts created:
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 1 | Races | Pending |
+| 1 | Races | In Progress (1/2 plans done) |
 | 2 | Hunger | Pending |
 | 3 | Renown Foundation | Pending |
 | 4 | LLM Architecture | Pending |
@@ -42,9 +39,27 @@ Planning complete. All planning artifacts created:
 4. No faction standing decay — WoW model confirmed
 5. Config table (private) for Anthropic API key storage — no native env var support in SpacetimeDB 1.12
 6. Phase 1 + Phase 3 can execute in parallel; Phase 4 (LLM) requires Phase 3 first consumer
+7. Human availableClasses is '' (empty string) not 'all' — isClassAllowed returns true for empty string (01-01)
+8. Racial bonuses baked into baseStats at character creation, not stored as separate layer (01-01)
+9. Character row stores race as display name string, not raceId — snapshot is self-contained (01-01)
+
+---
+
+## Performance Metrics
+
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+| 01-races | 01 | 4min | 3 | 8 |
 
 ---
 
 ## Blocked / Risks
 
 None currently. Key risk to watch: SpacetimeDB procedures are beta — API may change on upgrade.
+
+---
+
+## Last Session
+
+**Stopped at:** Completed 01-races 01-01-PLAN.md (Race backend: table, seed data, character reducer)
+**Timestamp:** 2026-02-12T01:43:08Z
