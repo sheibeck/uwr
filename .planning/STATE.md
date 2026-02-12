@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-12
-**Status:** Phase 1 complete — ready to begin Phase 2 (Hunger) or Phase 3 (Renown Foundation)
+**Status:** Phase 2 Plan 1 complete — hunger backend published; ready for Phase 2 Plan 2 (hunger frontend) or Phase 3
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Both plans executed and human-verified.
+Phase 1 (Races) complete. Phase 2 Plan 1 (Hunger Backend) complete.
 
-**Current phase:** 02-hunger (or 03-renown — can run in parallel)
-**Current plan:** 01 of TBD
-**Next action:** Begin Phase 2 (Hunger) or Phase 3 (Renown Foundation)
+**Current phase:** 02-hunger
+**Current plan:** 02 of TBD (Plan 01 done)
+**Next action:** Begin Phase 2 Plan 2 (Hunger frontend) or Phase 3 (Renown Foundation) in parallel
 
 ---
 
@@ -21,7 +21,7 @@ Phase 1 (Races) complete. Both plans executed and human-verified.
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Races | Complete (2/2 plans done) |
-| 2 | Hunger | Pending |
+| 2 | Hunger | In Progress (1/2 plans done) |
 | 3 | Renown Foundation | Pending |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
@@ -44,6 +44,9 @@ Phase 1 (Races) complete. Both plans executed and human-verified.
 9. Character row stores race as display name string, not raceId — snapshot is self-contained (01-01)
 10. filteredClassOptions returns null (not empty array) for "all classes allowed" — null is explicit "show everything" signal in CharacterPanel (01-02)
 11. Class-clear on race switch runs in onRaceChange using races prop directly, not waiting for Vue recompute — avoids one-tick invalid state window (01-02)
+12. Well Fed buff stored on Hunger row (not CharacterEffect) for direct O(1) combat lookup (02-01)
+13. mana_regen/stamina_regen Well Fed buffs are display-only TODOs — Character table regen paths not yet wired for decay tick context (02-01)
+14. Simple Rations stays as slot=consumable; 4 new Well Fed foods use slot=food to distinguish buff foods from utility consumables (02-01)
 
 ---
 
@@ -53,6 +56,7 @@ Phase 1 (Races) complete. Both plans executed and human-verified.
 |-------|------|----------|-------|-------|
 | 01-races | 01 | 4min | 3 | 8 |
 | 01-races | 02 | ~15min | 3 | 4 |
+| 02-hunger | 01 | ~35min | 2 | 11 |
 
 ---
 
@@ -64,5 +68,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed 01-races 01-02-PLAN.md (Race selection frontend: picker, class filtering, stat bonuses)
-**Timestamp:** 2026-02-12T02:00:00Z
+**Stopped at:** Completed 02-hunger 02-01-PLAN.md (Hunger system backend: Hunger table, food templates, combat integration, published)
+**Timestamp:** 2026-02-12T04:05:00Z
