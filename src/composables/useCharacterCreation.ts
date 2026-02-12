@@ -20,7 +20,7 @@ export const useCharacterCreation = ({
 }: UseCharacterCreationArgs) => {
   const MAX_CHARACTER_SLOTS = 3;
   const createCharacterReducer = useReducer(reducers.createCharacter);
-  const newCharacter = ref({ name: '', race: '', className: '' });
+  const newCharacter = ref({ name: '', raceId: 0n as bigint, className: '' });
   const createError = ref('');
   const creationToken = ref(0);
   const pendingSelectName = ref('');
@@ -28,7 +28,7 @@ export const useCharacterCreation = ({
   const isCharacterFormValid = computed(() =>
     Boolean(
       newCharacter.value.name.trim() &&
-        newCharacter.value.race.trim() &&
+        newCharacter.value.raceId > 0n &&
         newCharacter.value.className.trim()
     )
   );
@@ -51,10 +51,10 @@ export const useCharacterCreation = ({
       pendingSelectName.value = newCharacter.value.name.trim();
       createCharacterReducer({
         name: newCharacter.value.name.trim(),
-        race: newCharacter.value.race.trim(),
+        raceId: newCharacter.value.raceId,
         className: newCharacter.value.className.trim(),
       });
-      newCharacter.value = { name: '', race: '', className: '' };
+      newCharacter.value = { name: '', raceId: 0n, className: '' };
       creationToken.value = Date.now();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to create character';

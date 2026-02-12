@@ -10,8 +10,17 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default {
+export default __t.object("Race", {
+  id: __t.u64(),
   name: __t.string(),
-  raceId: __t.u64(),
-  className: __t.string(),
-};
+  description: __t.string(),
+  availableClasses: __t.string(),
+  strBonus: __t.u64(),
+  dexBonus: __t.u64(),
+  chaBonus: __t.u64(),
+  wisBonus: __t.u64(),
+  intBonus: __t.u64(),
+  unlocked: __t.bool(),
+});
+
+

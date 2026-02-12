@@ -334,6 +334,8 @@ import QuestInstanceRow from "./quest_instance_table";
 export { QuestInstanceRow };
 import QuestTemplateRow from "./quest_template_table";
 export { QuestTemplateRow };
+import RaceRow from "./race_table";
+export { RaceRow };
 import RecipeDiscoveredRow from "./recipe_discovered_table";
 export { RecipeDiscoveredRow };
 import RecipeTemplateRow from "./recipe_template_table";
@@ -570,6 +572,8 @@ import QuestInstance from "./quest_instance_type";
 export { QuestInstance };
 import QuestTemplate from "./quest_template_type";
 export { QuestTemplate };
+import Race from "./race_type";
+export { Race };
 import RecipeDiscovered from "./recipe_discovered_type";
 export { RecipeDiscovered };
 import RecipeTemplate from "./recipe_template_type";
@@ -1504,6 +1508,17 @@ const tablesSchema = __schema(
       { name: 'quest_template_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, QuestTemplateRow),
+  __table({
+    name: 'race',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'race_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RaceRow),
   __table({
     name: 'recipe_discovered',
     indexes: [

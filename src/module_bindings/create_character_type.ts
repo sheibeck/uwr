@@ -12,7 +12,7 @@ import {
 
 export default __t.object("CreateCharacter", {
   name: __t.string(),
-  race: __t.string(),
+  raceId: __t.u64(),
   className: __t.string(),
 });
 
