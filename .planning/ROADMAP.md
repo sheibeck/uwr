@@ -124,12 +124,25 @@ Plans:
 
 **Goal:** Balance combat between melee and caster classes. Address damage scaling, stat contribution, and class viability.
 **Depends on:** Phase 3
-**Plans:** 3 plans
+**Status:** Complete (2026-02-12)
+**Plans:** 5 plans (3 planned + 2 gap closure)
 
 Plans:
-- [ ] 3.1-01-PLAN.md — Backend foundation: combat_scaling.ts helpers, ABILITY_STAT_SCALING mapping, damageType tags, ItemTemplate schema extensions (weaponType, magicResistanceBonus), armor curve tuning
-- [ ] 3.1-02-PLAN.md — Combat integration: STR auto-attack scaling, DEX crit strikes, ability stat scaling (hybrid formula), WIS healing power, magic/physical damage routing, publish and regenerate bindings
-- [ ] 3.1-03-PLAN.md — Human verification: test combat balance across warrior, rogue, wizard, cleric classes
+- [x] 3.1-01-PLAN.md — Backend foundation: combat_scaling.ts helpers, ABILITY_STAT_SCALING mapping, damageType tags, ItemTemplate schema extensions (weaponType, magicResistanceBonus), armor curve tuning
+- [x] 3.1-02-PLAN.md — Combat integration: STR auto-attack scaling, DEX crit strikes, ability stat scaling (hybrid formula), WIS healing power, magic/physical damage routing, publish and regenerate bindings
+- [x] 3.1-03-PLAN.md — Human verification: test combat balance across warrior, rogue, wizard, cleric classes
+- [x] 3.1-04-PLAN.md — Gap closure: Fix ability damage double-dipping (remove weaponComponent for power-based abilities)
+- [x] 3.1-05-PLAN.md — Gap closure: Tune scaling constants (stat scaling 2n→1n, power multiplier 10n→5n)
+
+**Success Criteria:**
+- [x] STR increases auto-attack damage (~1.5% per point, multiplicative)
+- [x] DEX provides crit chance (0.1% per point, 50% cap) with weapon-type multipliers (fast 1.5x, medium 2.0x, slow 2.5x)
+- [x] Ability damage uses hybrid formula: (base + stat_scaling) * ability_multiplier
+- [x] WIS scales healing for healing classes (2% per point)
+- [x] Magic damage bypasses armor, physical uses tuned armor curve (K=1)
+- [x] Stats contribute ~30-40% of ability damage (gear remains dominant)
+- [x] Level 1 abilities deal 2-3x auto-attack damage (balanced, not overwhelming)
+- [x] Critical strikes appear in combat log with appropriate messages
 
 ---
 

@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-12
-**Status:** Phase 3 complete — renown backend + frontend both shipped and human-verified
+**Status:** Phase 3.1 complete — combat balance system shipped with stat scaling, crits, and tuned formulas
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete — backend (03-01) and frontend (03-02) both done and human-verified.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete — STR auto-attacks, DEX crits, ability stat scaling, WIS healing, magic/physical damage routing all implemented and human-verified after 2 gap closure cycles.
 
-**Current phase:** 3.1-combat-balance
-**Current plan:** 06 (pending - if exists)
-**Next action:** Check for 3.1-06-PLAN.md or mark phase complete
+**Current phase:** None (ready for next phase)
+**Current plan:** None
+**Next action:** Plan Phase 4 (LLM Architecture)
 
 ---
 
@@ -23,7 +23,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 1 | Races | Complete (2/2 plans done) |
 | 2 | Hunger | Complete (2/2 plans done, human-verified) |
 | 3 | Renown Foundation | Complete (2/2 plans done, human-verified) |
-| 3.1 | Combat Balance | In Progress (3/? plans done) |
+| 3.1 | Combat Balance | Complete (5/5 plans done: 2 impl + 1 verify + 2 gaps, human-verified) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
 | 6 | World Events | Pending |
@@ -88,7 +88,6 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 3.1-combat-balance | 05 | 2min | 1 | 2 |
 
 ---
-| Phase 3.1-combat-balance P05 | 2 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
