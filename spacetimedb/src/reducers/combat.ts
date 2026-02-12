@@ -1900,7 +1900,7 @@ export const registerCombatReducers = (deps: any) => {
               combat.id,
               character.id,
               'reward',
-              `You gain ${goldReward} gold.`
+              `${character.name} gained ${goldReward} gold.`
             );
           }
         }
@@ -1930,7 +1930,7 @@ export const registerCombatReducers = (deps: any) => {
             combat.id,
             character.id,
             'reward',
-            `You lose ${loss} XP from the defeat.`
+            `${character.name} lost ${loss} XP from the defeat.`
           );
         }
       }
@@ -1960,7 +1960,7 @@ export const registerCombatReducers = (deps: any) => {
               combat.id,
               character.id,
               'reward',
-              `You gain ${reward.xpGained} XP (reduced for defeat).`
+              `${character.name} gained ${reward.xpGained} XP (reduced for defeat).`
             );
           }
           if (reward.leveledUp) {
@@ -1976,7 +1976,7 @@ export const registerCombatReducers = (deps: any) => {
               combat.id,
               character.id,
               'system',
-              `You reached level ${reward.newLevel}.`
+              `${character.name} reached level ${reward.newLevel}.`
             );
           }
           continue;
@@ -1995,7 +1995,7 @@ export const registerCombatReducers = (deps: any) => {
             combat.id,
             character.id,
             'reward',
-            `You gain ${reward.xpGained} XP.`
+            `${character.name} gained ${reward.xpGained} XP.`
           );
         }
         if (reward.leveledUp) {
@@ -2011,7 +2011,7 @@ export const registerCombatReducers = (deps: any) => {
             combat.id,
             character.id,
             'system',
-            `You reached level ${reward.newLevel}.`
+            `${character.name} reached level ${reward.newLevel}.`
           );
         }
       }
