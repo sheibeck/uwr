@@ -300,21 +300,14 @@
           />
         </template>
         <template v-else>
-        <details
-          :style="styles.accordion"
-          :open="accordionState.travel"
-          @toggle="onTravelAccordionToggle"
-        >
-          <summary :style="styles.accordionSummary">Travel</summary>
-          <TravelPanel
-            :styles="styles"
-            :conn-active="conn.isActive"
-            :selected-character="selectedCharacter"
-            :locations="connectedLocations"
-            :regions="regions"
-            @move="moveTo"
-          />
-        </details>
+        <TravelPanel
+          :styles="styles"
+          :conn-active="conn.isActive"
+          :selected-character="selectedCharacter"
+          :locations="connectedLocations"
+          :regions="regions"
+          @move="moveTo"
+        />
         <LocationGrid
           :styles="styles"
           :conn-active="conn.isActive"
@@ -1409,10 +1402,9 @@ const {
   log: { x: 40, y: 400, w: 500, h: 300 },
 });
 
-type AccordionKey = 'travel' | 'enemies';
+type AccordionKey = 'enemies';
 
 const accordionState = reactive<Record<AccordionKey, boolean>>({
-  travel: true,
   enemies: true,
 });
 
@@ -1440,12 +1432,6 @@ const persistAccordionState = () => {
 const updateAccordionState = (payload: { key: AccordionKey; open: boolean }) => {
   accordionState[payload.key] = payload.open;
   persistAccordionState();
-};
-
-const onTravelAccordionToggle = (event: Event) => {
-  const target = event.target as HTMLDetailsElement | null;
-  if (!target) return;
-  updateAccordionState({ key: 'travel', open: target.open });
 };
 
 watch(
