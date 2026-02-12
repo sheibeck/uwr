@@ -112,10 +112,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 19 | Add smart auto-scroll to LogWindow - scroll to bottom only when user is at bottom, pause when scrolled up, show "New messages" button | 2026-02-12 | 6530580 | [19-add-smart-auto-scroll-to-logwindow-scrol](./quick/19-add-smart-auto-scroll-to-logwindow-scrol/) |
 | 20 | Align floating hotbar ability activation with standard panel structure - use floatingPanel/floatingPanelHeader/floatingPanelBody pattern | 2026-02-12 | 2abcad3 | [20-align-floating-hotbar-ability-activation](./quick/20-align-floating-hotbar-ability-activation/) |
 | 22 | UI consistency pass - align all action panels with panelBody wrappers and card-style layouts | 2026-02-12 | 050cef4 | [22-ui-consistency-pass-align-all-action-pan](./quick/22-ui-consistency-pass-align-all-action-pan/) |
+| 23 | Redesign inventory panel - grid-based bag with right-click context menus | 2026-02-12 | 50652d8 | [23-redesign-inventory-panel-grid-based-bag-](./quick/23-redesign-inventory-panel-grid-based-bag-/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick task 22: UI consistency pass - align all action panels
+**Stopped at:** Completed quick task 23: Redesign inventory panel — grid-based bag
 **Timestamp:** 2026-02-12T17:58:46Z
