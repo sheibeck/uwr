@@ -55,6 +55,7 @@ export const useGameData = () => {
   const [tradeSessions] = useTable(tables.tradeSession);
   const [tradeItems] = useTable(tables.tradeItem);
   const [races] = useTable(tables.race);
+  const [myHunger] = useTable(tables.myHunger);
 
   return {
     conn,
@@ -110,5 +111,6 @@ export const useGameData = () => {
     tradeSessions,
     tradeItems,
     races,
+    myHunger,
   };
 };

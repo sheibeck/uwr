@@ -40,6 +40,7 @@ type InventoryItem = {
   description: string;
   equipable: boolean;
   usable: boolean;
+  eatable: boolean;
   quantity: bigint;
   stackable: boolean;
 };
@@ -139,6 +140,7 @@ export const useInventory = ({
         ]);
         const usable =
           (template?.slot ?? '').toLowerCase() === 'consumable' && usableKeys.has(itemKey);
+        const eatable = (template?.slot ?? '').toLowerCase() === 'food';
         return {
           id: instance.id,
           instanceId: instance.id,
@@ -155,6 +157,7 @@ export const useInventory = ({
           description,
           equipable,
           usable,
+          eatable,
           quantity,
           stackable,
         };
