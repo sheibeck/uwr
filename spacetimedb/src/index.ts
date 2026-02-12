@@ -30,6 +30,7 @@ import {
 } from './data/ability_catalog';
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from './data/xp';
 import { RACE_DATA, ensureRaces } from './data/races';
+import { FACTION_DATA, ensureFactions } from './data/faction_data';
 
 const Player = table(
   { name: 'player', public: true },
@@ -285,6 +286,9 @@ const ItemTemplate = table(
     weaponBaseDamage: t.u64(),
     weaponDps: t.u64(),
     stackable: t.bool(),
+    wellFedDurationMicros: t.u64(),
+    wellFedBuffType: t.string(),
+    wellFedBuffMagnitude: t.u64(),
   }
 );
 
@@ -609,6 +613,7 @@ const EnemyTemplate = table(
     maxHp: t.u64(),
     baseDamage: t.u64(),
     xpReward: t.u64(),
+    factionId: t.u64().optional(),
   }
 );
 
@@ -1020,6 +1025,11 @@ const HealthRegenTick = table(
   }
 );
 
+const HungerDecayTick = table(
+  { name: 'hunger_decay_tick', scheduled: 'decay_hunger' },
+  { scheduledId: t.u64().primaryKey().autoInc(), scheduledAt: t.scheduleAt() }
+);
+
 const EffectTick = table(
   {
     name: 'effect_tick',
@@ -1191,6 +1201,46 @@ const Race = table(
   }
 );
 
+const Hunger = table(
+  {
+    name: 'hunger',
+    indexes: [{ name: 'characterId', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    currentHunger: t.u64(),
+    wellFedUntil: t.timestamp(),
+    wellFedBuffType: t.string(),
+    wellFedBuffMagnitude: t.u64(),
+  }
+);
+
+const Faction = table(
+  { name: 'faction', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    name: t.string(),
+    description: t.string(),
+    rivalFactionId: t.u64().optional(),
+  }
+);
+
+const FactionStanding = table(
+  {
+    name: 'faction_standing',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    factionId: t.u64(),
+    standing: t.i64(),
+  }
+);
+
 export const spacetimedb = schema(
   Player,
   User,
@@ -1260,7 +1310,11 @@ export const spacetimedb = schema(
   EventWorld,
   EventLocation,
   EventPrivate,
-  EventGroup
+  EventGroup,
+  Hunger,
+  HungerDecayTick,
+  Faction,
+  FactionStanding
 );
 
 function tableHasRows<T>(iter: IterableIterator<T>): boolean {
@@ -1832,6 +1886,14 @@ function executeAbility(
   const baseWeaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
   const damageUp = sumCharacterEffect(ctx, character.id, 'damage_up');
   const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
+  const abilityHungerRow = [...ctx.db.hunger.characterId.filter(character.id)][0] ?? null;
+  const abilityIsWellFed = abilityHungerRow &&
+    abilityHungerRow.wellFedUntil.microsSinceUnixEpoch > nowMicros;
+  const wellFedAbilityBonus = abilityIsWellFed &&
+    (abilityHungerRow.wellFedBuffType === 'str' || abilityHungerRow.wellFedBuffType === 'dex')
+    ? abilityHungerRow.wellFedBuffMagnitude
+    : 0n;
+  const totalDamageUp = damageUp + wellFedAbilityBonus;
 
   const summonPet = (
     petLabel: string,
@@ -1935,7 +1997,7 @@ function executeAbility(
     for (let i = 0n; i < hits; i += 1n) {
       const raw =
         abilityDamageFromWeapon(baseWeaponDamage, percent, bonus) +
-        damageUp +
+        totalDamageUp +
         sumEnemyEffect(ctx, combatId, 'damage_taken', enemy.id);
       const reduced = applyArmorMitigation(raw, armor);
       hitDamages.push(reduced);
@@ -3075,12 +3137,15 @@ function getGatherableResourceTemplates(ctx: any, terrainType: string, timePref?
       { name: 'Dry Grass', weight: 3n, timeOfDay: 'day' },
       { name: 'Bitter Herbs', weight: 2n, timeOfDay: 'night' },
       { name: 'Clear Water', weight: 2n, timeOfDay: 'any' },
+      { name: 'Wild Berries', weight: 3n, timeOfDay: 'any' },
     ],
     plains: [
       { name: 'Flax', weight: 4n, timeOfDay: 'day' },
       { name: 'Herbs', weight: 3n, timeOfDay: 'any' },
       { name: 'Clear Water', weight: 2n, timeOfDay: 'day' },
       { name: 'Salt', weight: 2n, timeOfDay: 'any' },
+      { name: 'Wild Berries', weight: 2n, timeOfDay: 'day' },
+      { name: 'Root Vegetable', weight: 3n, timeOfDay: 'any' },
     ],
     swamp: [
       { name: 'Peat', weight: 4n, timeOfDay: 'any' },
@@ -3127,18 +3192,24 @@ function getGatherableResourceTemplates(ctx: any, terrainType: string, timePref?
 
 function ensureStarterItemTemplates(ctx: any) {
   const upsertItemTemplateByName = (row: any) => {
-    const existing = findItemTemplateByName(ctx, row.name);
+    const fullRow = {
+      wellFedDurationMicros: 0n,
+      wellFedBuffType: '',
+      wellFedBuffMagnitude: 0n,
+      ...row,
+    };
+    const existing = findItemTemplateByName(ctx, fullRow.name);
     if (existing) {
       ctx.db.itemTemplate.id.update({
         ...existing,
-        ...row,
+        ...fullRow,
         id: existing.id,
       });
       return existing;
     }
     return ctx.db.itemTemplate.insert({
       id: 0n,
-      ...row,
+      ...fullRow,
     });
   };
 
@@ -3337,6 +3408,8 @@ function ensureResourceItemTemplates(ctx: any) {
     { name: 'Ancient Dust', slot: 'resource', vendorValue: 2n },
     { name: 'Scrap Cloth', slot: 'resource', vendorValue: 1n },
     { name: 'Lamp Oil', slot: 'resource', vendorValue: 1n },
+    { name: 'Wild Berries', slot: 'resource', vendorValue: 1n },
+    { name: 'Root Vegetable', slot: 'resource', vendorValue: 1n },
   ];
   for (const resource of resources) {
     if (findItemTemplateByName(ctx, resource.name)) continue;
@@ -3362,6 +3435,9 @@ function ensureResourceItemTemplates(ctx: any) {
       weaponBaseDamage: 0n,
       weaponDps: 0n,
       stackable: true,
+      wellFedDurationMicros: 0n,
+      wellFedBuffType: '',
+      wellFedBuffMagnitude: 0n,
     });
   }
   if (!findItemTemplateByName(ctx, 'Bandage')) {
@@ -3387,6 +3463,9 @@ function ensureResourceItemTemplates(ctx: any) {
       weaponBaseDamage: 0n,
       weaponDps: 0n,
       stackable: true,
+      wellFedDurationMicros: 0n,
+      wellFedBuffType: '',
+      wellFedBuffMagnitude: 0n,
     });
   }
   const craftItems = [
@@ -3424,6 +3503,77 @@ function ensureResourceItemTemplates(ctx: any) {
       weaponBaseDamage: 0n,
       weaponDps: 0n,
       stackable: true,
+      wellFedDurationMicros: 0n,
+      wellFedBuffType: '',
+      wellFedBuffMagnitude: 0n,
+    });
+  }
+}
+
+function ensureFoodItemTemplates(ctx: any) {
+  const foodItems = [
+    {
+      name: 'Herb Broth',
+      wellFedDurationMicros: 2_700_000_000n,
+      wellFedBuffType: 'mana_regen',
+      wellFedBuffMagnitude: 4n,
+    },
+    {
+      name: 'Roasted Roots',
+      wellFedDurationMicros: 2_700_000_000n,
+      wellFedBuffType: 'str',
+      wellFedBuffMagnitude: 2n,
+    },
+    {
+      name: "Traveler's Stew",
+      wellFedDurationMicros: 2_700_000_000n,
+      wellFedBuffType: 'stamina_regen',
+      wellFedBuffMagnitude: 4n,
+    },
+    {
+      name: "Forager's Salad",
+      wellFedDurationMicros: 2_700_000_000n,
+      wellFedBuffType: 'dex',
+      wellFedBuffMagnitude: 2n,
+    },
+  ];
+
+  for (const food of foodItems) {
+    const existing = findItemTemplateByName(ctx, food.name);
+    if (existing) {
+      ctx.db.itemTemplate.id.update({
+        ...existing,
+        wellFedDurationMicros: food.wellFedDurationMicros,
+        wellFedBuffType: food.wellFedBuffType,
+        wellFedBuffMagnitude: food.wellFedBuffMagnitude,
+      });
+      continue;
+    }
+    ctx.db.itemTemplate.insert({
+      id: 0n,
+      name: food.name,
+      slot: 'food',
+      armorType: 'none',
+      rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 3n,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      strBonus: 0n,
+      dexBonus: 0n,
+      chaBonus: 0n,
+      wisBonus: 0n,
+      intBonus: 0n,
+      hpBonus: 0n,
+      manaBonus: 0n,
+      armorClassBonus: 0n,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
+      stackable: true,
+      wellFedDurationMicros: food.wellFedDurationMicros,
+      wellFedBuffType: food.wellFedBuffType,
+      wellFedBuffMagnitude: food.wellFedBuffMagnitude,
     });
   }
 }
@@ -3596,6 +3746,54 @@ function ensureRecipeTemplates(ctx: any) {
     req1: bitterHerbs,
     req1Count: 1n,
     req2: resin,
+    req2Count: 1n,
+  });
+
+  const wildBerries = findItemTemplateByName(ctx, 'Wild Berries');
+  const rootVegetable = findItemTemplateByName(ctx, 'Root Vegetable');
+  const herbBroth = findItemTemplateByName(ctx, 'Herb Broth');
+  const roastedRoots = findItemTemplateByName(ctx, 'Roasted Roots');
+  const travelerStew = findItemTemplateByName(ctx, "Traveler's Stew");
+  const foragerSalad = findItemTemplateByName(ctx, "Forager's Salad");
+
+  addRecipe({
+    key: 'herb_broth',
+    name: 'Herb Broth',
+    output: herbBroth,
+    outputCount: 1n,
+    req1: wildBerries,
+    req1Count: 2n,
+    req2: clearWater,
+    req2Count: 1n,
+  });
+  addRecipe({
+    key: 'roasted_roots',
+    name: 'Roasted Roots',
+    output: roastedRoots,
+    outputCount: 1n,
+    req1: rootVegetable,
+    req1Count: 2n,
+    req2: salt,
+    req2Count: 1n,
+  });
+  addRecipe({
+    key: 'travelers_stew',
+    name: "Traveler's Stew",
+    output: travelerStew,
+    outputCount: 1n,
+    req1: rootVegetable,
+    req1Count: 1n,
+    req2: rawMeat,
+    req2Count: 1n,
+  });
+  addRecipe({
+    key: 'foragers_salad',
+    name: "Forager's Salad",
+    output: foragerSalad,
+    outputCount: 1n,
+    req1: wildBerries,
+    req1Count: 1n,
+    req2: herbs,
     req2Count: 1n,
   });
 }
@@ -4250,6 +4448,17 @@ function ensureHealthRegenScheduled(ctx: any) {
   }
 }
 
+const HUNGER_DECAY_INTERVAL_MICROS = 300_000_000n; // 5 minutes
+
+function ensureHungerDecayScheduled(ctx: any) {
+  if (!tableHasRows(ctx.db.hungerDecayTick.iter())) {
+    ctx.db.hungerDecayTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + HUNGER_DECAY_INTERVAL_MICROS),
+    });
+  }
+}
+
 function ensureEffectTickScheduled(ctx: any) {
   if (!tableHasRows(ctx.db.effectTick.iter())) {
     ctx.db.effectTick.insert({
@@ -4333,9 +4542,11 @@ function ensureLocationRuntimeBootstrap(ctx: any) {
 
 function syncAllContent(ctx: any) {
   ensureRaces(ctx);
+  ensureFactions(ctx);
   ensureWorldLayout(ctx);
   ensureStarterItemTemplates(ctx);
   ensureResourceItemTemplates(ctx);
+  ensureFoodItemTemplates(ctx);
   ensureAbilityTemplates(ctx);
   ensureRecipeTemplates(ctx);
   ensureNpcs(ctx);
@@ -4418,6 +4629,7 @@ registerViews({
   EventPrivate,
   NpcDialog,
   QuestInstance,
+  Hunger,
 });
 
 function ensureNpcs(ctx: any) {
@@ -4863,6 +5075,14 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       });
     };
 
+  const factionIdByName = (name: string): bigint | undefined =>
+    ([...ctx.db.faction.iter()] as any[]).find((r: any) => r.name === name)?.id;
+
+  const fIronCompact = factionIdByName('Iron Compact');
+  const fVerdantCircle = factionIdByName('Verdant Circle');
+  const fAshenOrder = factionIdByName('Ashen Order');
+  const fFreeBlades = factionIdByName('Free Blades');
+
     const bogRat = addEnemyTemplate({
       name: 'Bog Rat',
       role: 'base',
@@ -4881,6 +5101,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 32n,
       baseDamage: 5n,
       xpReward: 18n,
+      factionId: fVerdantCircle,
     });
     addRoleTemplate(bogRat, 'bog_rat', 'Bog Rat', 'tank', 'melee', 'thick hide, taunt');
     addRoleTemplate(bogRat, 'bog_rat_brute', 'Bog Rat Brute', 'tank', 'melee', 'thick hide, taunt');
@@ -4904,6 +5125,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 28n,
       baseDamage: 6n,
       xpReward: 20n,
+      factionId: fVerdantCircle,
     });
     addRoleTemplate(emberWisp, 'ember_wisp', 'Ember Wisp', 'dps', 'magic', 'fire bolts, ignite');
     addRoleTemplate(emberWisp, 'ember_wisp_flare', 'Ember Wisp Flare', 'dps', 'magic', 'flare, ignite');
@@ -4927,6 +5149,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 24n,
       baseDamage: 7n,
       xpReward: 18n,
+      factionId: fFreeBlades,
     });
     addRoleTemplate(bandit, 'bandit_archer', 'Bandit Archer', 'dps', 'ranged', 'rapid shot, bleed');
     addRoleTemplate(bandit, 'bandit_ruffian', 'Bandit Ruffian', 'tank', 'melee', 'shield bash, taunt');
@@ -4950,6 +5173,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 30n,
       baseDamage: 8n,
       xpReward: 24n,
+      factionId: fVerdantCircle,
     });
     addRoleTemplate(blightStalker, 'blight_stalker', 'Blight Stalker', 'dps', 'melee', 'pounce, shred');
     addRoleTemplate(blightStalker, 'blight_stalker_brute', 'Blight Stalker Brute', 'tank', 'melee', 'maul, snarl');
@@ -4974,6 +5198,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 22n,
       baseDamage: 4n,
       xpReward: 18n,
+      factionId: fAshenOrder,
     });
     addRoleTemplate(graveAcolyte, 'grave_acolyte', 'Grave Acolyte', 'healer', 'support', 'mend, cleanse');
     addRoleTemplate(graveAcolyte, 'grave_ritualist', 'Grave Ritualist', 'support', 'control', 'curse, drain');
@@ -4998,6 +5223,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 26n,
       baseDamage: 5n,
       xpReward: 22n,
+      factionId: fAshenOrder,
     });
     addRoleTemplate(hexbinder, 'hexbinder', 'Hexbinder', 'support', 'control', 'weaken, slow, snare');
     addRoleTemplate(hexbinder, 'hexbinder_stalker', 'Hexbinder Stalker', 'dps', 'melee', 'hex strike, feint');
@@ -5022,6 +5248,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 22n,
       baseDamage: 4n,
       xpReward: 12n,
+      factionId: fVerdantCircle,
     });
     addRoleTemplate(thicketWolf, 'thicket_wolf', 'Thicket Wolf', 'dps', 'melee', 'pack bite, lunge');
     addRoleTemplate(thicketWolf, 'thicket_wolf_alpha', 'Thicket Wolf Alpha', 'tank', 'melee', 'alpha bite, howl');
@@ -5046,6 +5273,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 20n,
       baseDamage: 3n,
       xpReward: 10n,
+      factionId: fVerdantCircle,
     });
     addRoleTemplate(marshCroaker, 'marsh_croaker', 'Marsh Croaker', 'dps', 'melee', 'tongue lash, croak');
     addRoleTemplate(marshCroaker, 'marsh_croaker_bully', 'Marsh Croaker Bully', 'tank', 'melee', 'slam, croak');
@@ -5069,6 +5297,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 18n,
       baseDamage: 3n,
       xpReward: 10n,
+      factionId: fVerdantCircle,
     });
     addRoleTemplate(dustHare, 'dust_hare', 'Dust Hare', 'dps', 'melee', 'dart, nip');
     addRoleTemplate(dustHare, 'dust_hare_skitter', 'Dust Hare Skitter', 'dps', 'melee', 'skitter, nip');
@@ -5093,6 +5322,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 24n,
       baseDamage: 6n,
       xpReward: 18n,
+      factionId: fVerdantCircle,
     });
     addRoleTemplate(ashJackal, 'ash_jackal', 'Ash Jackal', 'dps', 'melee', 'snap, pack feint');
     addRoleTemplate(ashJackal, 'ash_jackal_alpha', 'Ash Jackal Alpha', 'tank', 'melee', 'alpha snap, snarl');
@@ -5116,6 +5346,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 20n,
       baseDamage: 4n,
       xpReward: 16n,
+      factionId: fVerdantCircle,
     });
     addRoleTemplate(thornSprite, 'thorn_sprite', 'Thorn Sprite', 'support', 'magic', 'sting, wither pollen');
     addRoleTemplate(thornSprite, 'thorn_sprite_stinger', 'Thorn Sprite Stinger', 'dps', 'magic', 'sting, dart');
@@ -5139,6 +5370,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 34n,
       baseDamage: 7n,
       xpReward: 24n,
+      factionId: fVerdantCircle,
     });
     addRoleTemplate(gloomStag, 'gloom_stag', 'Gloom Stag', 'tank', 'melee', 'gore, bulwark');
     addRoleTemplate(gloomStag, 'gloom_stag_charger', 'Gloom Stag Charger', 'dps', 'melee', 'charge, gore');
@@ -5162,6 +5394,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 26n,
       baseDamage: 6n,
       xpReward: 18n,
+      factionId: fVerdantCircle,
     });
     addRoleTemplate(mireLeech, 'mire_leech', 'Mire Leech', 'dps', 'melee', 'drain, latch');
     addRoleTemplate(mireLeech, 'mire_leech_bulwark', 'Mire Leech Bulwark', 'tank', 'melee', 'latch, bulwark');
@@ -5185,6 +5418,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 28n,
       baseDamage: 6n,
       xpReward: 22n,
+      factionId: fAshenOrder,
     });
     addRoleTemplate(fenWitch, 'fen_witch', 'Fen Witch', 'support', 'magic', 'curse, mire ward');
     addRoleTemplate(fenWitch, 'fen_witch_hexer', 'Fen Witch Hexer', 'dps', 'magic', 'hex, sting');
@@ -5208,6 +5442,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 26n,
       baseDamage: 6n,
       xpReward: 18n,
+      factionId: fAshenOrder,
     });
     addRoleTemplate(graveSkirmisher, 'grave_skirmisher', 'Grave Skirmisher', 'dps', 'melee', 'rusty slash, feint');
     addRoleTemplate(graveSkirmisher, 'grave_skirmisher_guard', 'Grave Skirmisher Guard', 'tank', 'melee', 'guard, slam');
@@ -5231,6 +5466,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 36n,
       baseDamage: 6n,
       xpReward: 26n,
+      factionId: fIronCompact,
     });
     addRoleTemplate(cinderSentinel, 'cinder_sentinel', 'Cinder Sentinel', 'tank', 'melee', 'stone wall, slam');
     addRoleTemplate(cinderSentinel, 'cinder_sentinel_breaker', 'Cinder Sentinel Breaker', 'dps', 'melee', 'breaker slam, cleave');
@@ -5254,6 +5490,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 18n,
       baseDamage: 4n,
       xpReward: 12n,
+      factionId: fVerdantCircle,
     });
     addRoleTemplate(emberling, 'emberling', 'Emberling', 'support', 'magic', 'ember spark, kindle');
     addRoleTemplate(emberling, 'emberling_spark', 'Emberling Spark', 'dps', 'magic', 'spark, ignite');
@@ -5277,6 +5514,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 30n,
       baseDamage: 6n,
       xpReward: 30n,
+      factionId: fAshenOrder,
     });
     addRoleTemplate(
       frostboneAcolyte,
@@ -5322,6 +5560,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 28n,
       baseDamage: 7n,
       xpReward: 24n,
+      factionId: fFreeBlades,
     });
     addRoleTemplate(ridgeSkirmisher, 'ridge_skirmisher', 'Ridge Skirmisher', 'dps', 'melee', 'rock slash, feint');
     addRoleTemplate(
@@ -5352,6 +5591,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 26n,
       baseDamage: 8n,
       xpReward: 30n,
+      factionId: fVerdantCircle,
     });
     addRoleTemplate(emberhawk, 'emberhawk', 'Emberhawk', 'dps', 'ranged', 'burning dive');
     addRoleTemplate(emberhawk, 'emberhawk_screecher', 'Emberhawk Screecher', 'support', 'ranged', 'screech, dive');
@@ -5375,6 +5615,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 40n,
       baseDamage: 7n,
       xpReward: 32n,
+      factionId: fIronCompact,
     });
     addRoleTemplate(basaltBrute, 'basalt_brute', 'Basalt Brute', 'tank', 'melee', 'stone slam, brace');
 
@@ -5397,6 +5638,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 34n,
       baseDamage: 8n,
       xpReward: 32n,
+      factionId: fVerdantCircle,
     });
     addRoleTemplate(ashenRam, 'ashen_ram', 'Ashen Ram', 'tank', 'melee', 'ram charge, shove');
     addRoleTemplate(ashenRam, 'ashen_ram_runner', 'Ashen Ram Runner', 'dps', 'melee', 'charging gore');
@@ -5420,6 +5662,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 42n,
       baseDamage: 9n,
       xpReward: 38n,
+      factionId: fIronCompact,
     });
     addRoleTemplate(sootboundSentry, 'sootbound_sentry', 'Sootbound Sentry', 'tank', 'melee', 'iron guard');
     addRoleTemplate(
@@ -5451,6 +5694,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 34n,
       baseDamage: 6n,
       xpReward: 24n,
+      factionId: fAshenOrder,
     });
     addRoleTemplate(graveServant, 'grave_servant', 'Grave Servant', 'tank', 'melee', 'shield crush, watchful');
     addRoleTemplate(graveServant, 'grave_servant_reaver', 'Grave Servant Reaver', 'dps', 'melee', 'reaver slash, feint');
@@ -5474,6 +5718,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 28n,
       baseDamage: 9n,
       xpReward: 30n,
+      factionId: fAshenOrder,
     });
     addRoleTemplate(alleyShade, 'alley_shade', 'Alley Shade', 'dps', 'melee', 'shadow cut, vanish');
     addRoleTemplate(alleyShade, 'alley_shade_stalker', 'Alley Shade Stalker', 'dps', 'melee', 'stalk, strike');
@@ -5498,6 +5743,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 42n,
       baseDamage: 7n,
       xpReward: 34n,
+      factionId: fIronCompact,
     });
     addRoleTemplate(vaultSentinel, 'vault_sentinel', 'Vault Sentinel', 'tank', 'melee', 'iron guard, shield bash');
     addRoleTemplate(vaultSentinel, 'vault_sentinel_crusher', 'Vault Sentinel Crusher', 'dps', 'melee', 'crusher bash, cleave');
@@ -5521,6 +5767,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 36n,
       baseDamage: 8n,
       xpReward: 38n,
+      factionId: fAshenOrder,
     });
     addRoleTemplate(
       sootboundMystic,
@@ -5566,6 +5813,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 38n,
       baseDamage: 6n,
       xpReward: 36n,
+      factionId: fAshenOrder,
     });
     addRoleTemplate(emberPriest, 'ember_priest', 'Ember Priest', 'healer', 'support', 'ashen mend, warding flame');
     addRoleTemplate(emberPriest, 'ember_priest_zealot', 'Ember Priest Zealot', 'dps', 'magic', 'zeal, flame');
@@ -5589,6 +5837,7 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
       maxHp: 48n,
       baseDamage: 10n,
       xpReward: 44n,
+      factionId: fAshenOrder,
     });
     addRoleTemplate(
       ashforgedRevenant,
@@ -5616,6 +5865,7 @@ spacetimedb.init((ctx) => {
   ensureHotTickScheduled(ctx);
   ensureCastTickScheduled(ctx);
   ensureDayNightTickScheduled(ctx);
+  ensureHungerDecayScheduled(ctx);
 });
 
 spacetimedb.clientConnected((ctx) => {
@@ -5637,6 +5887,7 @@ spacetimedb.clientConnected((ctx) => {
   ensureHotTickScheduled(ctx);
   ensureCastTickScheduled(ctx);
   ensureDayNightTickScheduled(ctx);
+  ensureHungerDecayScheduled(ctx);
 });
 
 spacetimedb.clientDisconnected((_ctx) => {
@@ -5659,6 +5910,30 @@ spacetimedb.clientDisconnected((_ctx) => {
   }
 });
 
+const STANDING_PER_KILL = 10n;
+const RIVAL_STANDING_PENALTY = 5n;
+
+function mutateStanding(ctx: any, characterId: bigint, factionId: bigint, delta: bigint) {
+  const rows = [...ctx.db.factionStanding.by_character.filter(characterId)];
+  const existing = rows.find((row: any) => row.factionId === factionId);
+  if (existing) {
+    ctx.db.factionStanding.id.update({ ...existing, standing: existing.standing + delta });
+  } else {
+    ctx.db.factionStanding.insert({ id: 0n, characterId, factionId, standing: delta });
+  }
+}
+
+function grantFactionStandingForKill(ctx: any, character: any, enemyTemplateId: bigint) {
+  const template = ctx.db.enemyTemplate.id.find(enemyTemplateId);
+  if (!template?.factionId) return;
+  const faction = ctx.db.faction.id.find(template.factionId);
+  if (!faction) return;
+  mutateStanding(ctx, character.id, faction.id, STANDING_PER_KILL);
+  if (faction.rivalFactionId) {
+    mutateStanding(ctx, character.id, faction.rivalFactionId, -RIVAL_STANDING_PENALTY);
+  }
+}
+
 const reducerDeps = {
   spacetimedb,
   t,
@@ -5666,6 +5941,9 @@ const reducerDeps = {
   ScheduleAt,
   Timestamp,
   Character,
+  Hunger,
+  HungerDecayTick,
+  HUNGER_DECAY_INTERVAL_MICROS,
   GroupMember,
   GroupInvite,
   CombatParticipant,
@@ -5737,6 +6015,8 @@ const reducerDeps = {
   getGatherableResourceTemplates,
   ensureStarterItemTemplates,
   ensureResourceItemTemplates,
+  ensureFoodItemTemplates,
+  ensureHungerDecayScheduled,
   ensureLootTables,
   ensureVendorInventory,
   ensureAbilityTemplates,
@@ -5768,6 +6048,9 @@ const reducerDeps = {
   getInventorySlotCount,
   hasInventorySpace,
   usesMana,
+  Faction,
+  FactionStanding,
+  grantFactionStandingForKill,
 };
 
 reducerDeps.startCombatForSpawn = (

@@ -29,4 +29,5 @@ export default __t.row({
   maxHp: __t.u64(),
   baseDamage: __t.u64(),
   xpReward: __t.u64(),
+  factionId: __t.option(__t.u64()),
 });

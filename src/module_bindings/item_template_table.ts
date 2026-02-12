@@ -32,4 +32,7 @@ export default __t.row({
   weaponBaseDamage: __t.u64(),
   weaponDps: __t.u64(),
   stackable: __t.bool(),
+  wellFedDurationMicros: __t.u64(),
+  wellFedBuffType: __t.string(),
+  wellFedBuffMagnitude: __t.u64(),
 });

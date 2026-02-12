@@ -109,6 +109,9 @@ export const registerItemReducers = (deps: any) => {
         weaponBaseDamage: args.weaponBaseDamage,
         weaponDps: args.weaponDps,
         stackable: args.stackable,
+        wellFedDurationMicros: 0n,
+        wellFedBuffType: '',
+        wellFedBuffMagnitude: 0n,
       });
     }
   );
@@ -872,6 +875,32 @@ export const registerItemReducers = (deps: any) => {
         character.ownerUserId,
         'heal',
         'You apply a basic poultice and steady your stamina.'
+      );
+      return;
+    }
+
+    if (itemKey === 'simple_rations') {
+      const existingEffect = [...ctx.db.characterEffect.by_character.filter(character.id)].find(
+        (effect) => effect.effectType === 'regen' && effect.sourceAbility === 'Simple Rations'
+      );
+      if (existingEffect) {
+        ctx.db.characterEffect.id.delete(existingEffect.id);
+      }
+      ctx.db.characterEffect.insert({
+        id: 0n,
+        characterId: character.id,
+        effectType: 'regen',
+        magnitude: 1n,
+        roundsRemaining: 10n,
+        sourceAbility: 'Simple Rations',
+      });
+      setCooldown(CONSUMABLE_COOLDOWN_MICROS);
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'heal',
+        'You eat the simple rations and feel a little better.'
       );
       return;
     }

@@ -192,6 +192,10 @@ import TickCastsReducer from "./tick_casts_reducer";
 export { TickCastsReducer };
 import CombatLoopReducer from "./combat_loop_reducer";
 export { CombatLoopReducer };
+import DecayHungerReducer from "./decay_hunger_reducer";
+export { DecayHungerReducer };
+import EatFoodReducer from "./eat_food_reducer";
+export { EatFoodReducer };
 
 // Import and reexport all procedure arg types
 
@@ -262,6 +266,10 @@ import EventPrivateRow from "./event_private_table";
 export { EventPrivateRow };
 import EventWorldRow from "./event_world_table";
 export { EventWorldRow };
+import FactionRow from "./faction_table";
+export { FactionRow };
+import FactionStandingRow from "./faction_standing_table";
+export { FactionStandingRow };
 import FriendRow from "./friend_table";
 export { FriendRow };
 import FriendRequestRow from "./friend_request_table";
@@ -278,6 +286,10 @@ import HotTickRow from "./hot_tick_table";
 export { HotTickRow };
 import HotbarSlotRow from "./hotbar_slot_table";
 export { HotbarSlotRow };
+import HungerRow from "./hunger_table";
+export { HungerRow };
+import HungerDecayTickRow from "./hunger_decay_tick_table";
+export { HungerDecayTickRow };
 import ItemCooldownRow from "./item_cooldown_table";
 export { ItemCooldownRow };
 import ItemInstanceRow from "./item_instance_table";
@@ -310,6 +322,8 @@ import MyGroupInvitesRow from "./my_group_invites_table";
 export { MyGroupInvitesRow };
 import MyGroupMembersRow from "./my_group_members_table";
 export { MyGroupMembersRow };
+import MyHungerRow from "./my_hunger_table";
+export { MyHungerRow };
 import MyLocationEventsRow from "./my_location_events_table";
 export { MyLocationEventsRow };
 import MyNpcDialogRow from "./my_npc_dialog_table";
@@ -428,6 +442,8 @@ import CreateItemTemplate from "./create_item_template_type";
 export { CreateItemTemplate };
 import DayNightTick from "./day_night_tick_type";
 export { DayNightTick };
+import DecayHunger from "./decay_hunger_type";
+export { DecayHunger };
 import DeleteCharacter from "./delete_character_type";
 export { DeleteCharacter };
 import DeleteItem from "./delete_item_type";
@@ -438,6 +454,8 @@ import DisconnectLogoutTick from "./disconnect_logout_tick_type";
 export { DisconnectLogoutTick };
 import DismissCombatResults from "./dismiss_combat_results_type";
 export { DismissCombatResults };
+import EatFood from "./eat_food_type";
+export { EatFood };
 import EffectTick from "./effect_tick_type";
 export { EffectTick };
 import EndCombat from "./end_combat_type";
@@ -464,6 +482,10 @@ import EventPrivate from "./event_private_type";
 export { EventPrivate };
 import EventWorld from "./event_world_type";
 export { EventWorld };
+import Faction from "./faction_type";
+export { Faction };
+import FactionStanding from "./faction_standing_type";
+export { FactionStanding };
 import FinishGather from "./finish_gather_type";
 export { FinishGather };
 import FleeCombat from "./flee_combat_type";
@@ -490,6 +512,10 @@ import HotTick from "./hot_tick_type";
 export { HotTick };
 import HotbarSlot from "./hotbar_slot_type";
 export { HotbarSlot };
+import Hunger from "./hunger_type";
+export { Hunger };
+import HungerDecayTick from "./hunger_decay_tick_type";
+export { HungerDecayTick };
 import Init from "./init_type";
 export { Init };
 import InviteToGroup from "./invite_to_group_type";
@@ -540,6 +566,8 @@ import MyGroupInvites from "./my_group_invites_type";
 export { MyGroupInvites };
 import MyGroupMembers from "./my_group_members_type";
 export { MyGroupMembers };
+import MyHunger from "./my_hunger_type";
+export { MyHunger };
 import MyLocationEvents from "./my_location_events_type";
 export { MyLocationEvents };
 import MyNpcDialog from "./my_npc_dialog_type";
@@ -1173,6 +1201,31 @@ const tablesSchema = __schema(
     ],
   }, EventWorldRow),
   __table({
+    name: 'faction',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'faction_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FactionRow),
+  __table({
+    name: 'faction_standing',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'faction_standing_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FactionStandingRow),
+  __table({
     name: 'friend',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1284,6 +1337,31 @@ const tablesSchema = __schema(
       { name: 'hotbar_slot_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, HotbarSlotRow),
+  __table({
+    name: 'hunger',
+    indexes: [
+      { name: 'characterId', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'hunger_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, HungerRow),
+  __table({
+    name: 'hunger_decay_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'hunger_decay_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, HungerDecayTickRow),
   __table({
     name: 'item_cooldown',
     indexes: [
@@ -1735,6 +1813,13 @@ const tablesSchema = __schema(
     ],
   }, MyGroupMembersRow),
   __table({
+    name: 'my_hunger',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyHungerRow),
+  __table({
     name: 'my_location_events',
     indexes: [
     ],
@@ -1850,6 +1935,8 @@ const reducersSchema = __reducers(
   __reducerSchema("tick_hot", TickHotReducer),
   __reducerSchema("tick_casts", TickCastsReducer),
   __reducerSchema("combat_loop", CombatLoopReducer),
+  __reducerSchema("decay_hunger", DecayHungerReducer),
+  __reducerSchema("eat_food", EatFoodReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

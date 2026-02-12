@@ -14,4 +14,5 @@ export type ViewDeps = {
   EventPrivate: any;
   NpcDialog: any;
   QuestInstance: any;
+  Hunger: any;
 };

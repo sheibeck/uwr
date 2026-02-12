@@ -178,6 +178,15 @@ export const registerCharacterReducers = (deps: any) => {
 
       grantStarterItems(ctx, character);
 
+      ctx.db.hunger.insert({
+        id: 0n,
+        characterId: character.id,
+        currentHunger: 100n,
+        wellFedUntil: ctx.timestamp,
+        wellFedBuffType: '',
+        wellFedBuffMagnitude: 0n,
+      });
+
       appendPrivateEvent(ctx, character.id, userId, 'system', `${character.name} enters the world.`);
     }
   );
@@ -280,6 +289,9 @@ export const registerCharacterReducers = (deps: any) => {
     }
     for (const row of ctx.db.characterEffect.by_character.filter(characterId)) {
       ctx.db.characterEffect.id.delete(row.id);
+    }
+    for (const row of ctx.db.hunger.characterId.filter(characterId)) {
+      ctx.db.hunger.id.delete(row.id);
     }
     for (const row of ctx.db.itemInstance.by_owner.filter(characterId)) {
       ctx.db.itemInstance.id.delete(row.id);
