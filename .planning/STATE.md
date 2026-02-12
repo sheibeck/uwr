@@ -57,6 +57,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 21. Enemy faction assignments: constructs/sentinels=Iron Compact, animals/nature spirits=Verdant Circle, undead/dark humanoids=Ashen Order, humanoid outlaws=Free Blades (03-01)
 22. FACTION_RANKS defined client-side as constant array with numeric min/max thresholds — no backend lookup needed (03-02)
 23. Standing BigInt converted via Number() before rank threshold comparison; getProgress clamps to 100% for Exalted (Infinity-safe) (03-02)
+24. Combat state restrictions data-driven via AbilityTemplate.combatState field — eliminates hardcoded ability key lists on client/server (quick-6)
 
 ---
 
@@ -95,10 +96,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 3 | Fix group log messages to show character names instead of "You" | 2026-02-12 | a2ece2f | [3-fix-group-log-messages-to-show-character](./quick/3-fix-group-log-messages-to-show-character/) |
 | 4 | Fix equipment type restrictions - add armor proficiency check and tooltip class/armor info | 2026-02-12 | aa50ee2 | [4-equipment-of-any-type-is-currently-usabl](./quick/4-equipment-of-any-type-is-currently-usabl/) |
 | 5 | Fix Nature's Mark cooldown - prevent false cooldown display when clicked in combat | 2026-02-12 | 8a11c55 | [5-fix-nature-s-mark-cooldown-prevent-coold](./quick/5-fix-nature-s-mark-cooldown-prevent-coold/) |
+| 6 | Refactor cooldown guards & generalize combat state - eliminate hardcoded ability key lists with data-driven combatState field | 2026-02-12 | e53aca4 | [6-refactor-cooldown-guards-generalize-comb](./quick/6-refactor-cooldown-guards-generalize-comb/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** 2026-02-12 - Completed quick task 5: Fix Nature's Mark cooldown - prevent false cooldown display when clicked in combat
-**Timestamp:** 2026-02-12T14:28:48Z
+**Stopped at:** 2026-02-12 - Completed quick task 6: Refactor cooldown guards & generalize combat state
+**Timestamp:** 2026-02-12T14:41:29Z
