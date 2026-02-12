@@ -132,10 +132,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 33 | Remove legacy auto-dismiss loot system - fix race condition preventing loot from displaying, enable per-character loot management | 2026-02-12 | a8aec03 | [33-remove-legacy-auto-dismiss-loot-system-a](./quick/33-remove-legacy-auto-dismiss-loot-system-a/) |
 | 34 | Add ASCII art splash screen for unauthenticated users - full-screen UNWRITTEN REALMS title with dungeon entrance and login button | 2026-02-12 | 13e32d5 | [34-add-ascii-art-splash-screen-for-unauthen](./quick/34-add-ascii-art-splash-screen-for-unauthen/) |
 | 36 | Fix login/logout transition flashing - eliminate splash re-render and black screen flash with three-state rendering and reactive logout | 2026-02-12 | 425156c | [36-fix-login-logout-transition-flashing-eli](./quick/36-fix-login-logout-transition-flashing-eli/) |
+| 37 | Fix panel z-index stacking - sync topZ counter after loading panel states to ensure clicked panels always come to front | 2026-02-12 | 92cfb1e | [37-fix-panel-z-index-stacking-ensure-clicke](./quick/37-fix-panel-z-index-stacking-ensure-clicke/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed 3.1-01-PLAN.md
-**Timestamp:** 2026-02-12T20:43:33Z
+**Stopped at:** Completed quick-37
+**Timestamp:** 2026-02-12T21:16:36Z
