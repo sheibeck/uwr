@@ -67,6 +67,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 31. Weapon-type-specific crit multipliers: fast weapons (daggers/rapiers/staffs) 1.5x, medium (swords/bows/maces) 2.0x, slow (axes) 2.5x (3.1-02)
 32. WIS healing scaling only applies to classes with wis as primary or secondary stat — prevents non-healers from benefiting (3.1-02)
 33. Scheduled reducer per-user data must use public tables, not private tables + views — views don't re-evaluate reliably for scheduled reducer inserts (quick-35)
+34. All abilities with power > 0n use ONLY hybrid formula (no weaponComponent) — fixes double-dipping bug that caused 5-6x damage (3.1-04)
 
 ---
 
@@ -82,6 +83,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 03-renown-foundation | 02 | ~10min | 2 | 4 |
 | 3.1-combat-balance | 01 | 7min | 2 | 5 |
 | 3.1-combat-balance | 02 | 8min | 2 | 5 |
+| 3.1-combat-balance | 04 | 5min | 1 | 1 |
 
 ---
 
@@ -144,5 +146,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed quick-35 (Deep analysis and fix of combat loot system)
+**Stopped at:** Completed 3.1-combat-balance-04-PLAN.md
 **Timestamp:** 2026-02-12T21:27:01Z
