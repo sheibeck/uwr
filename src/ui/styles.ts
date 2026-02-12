@@ -1250,6 +1250,7 @@ export const styles = {
     zIndex: 1000,
     pointerEvents: 'none',
     maxWidth: '240px',
+    overflowWrap: 'break-word',
     boxShadow: '0 10px 24px rgba(0,0,0,0.4)',
   },
   tooltipTitle: {
