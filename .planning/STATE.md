@@ -110,10 +110,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 17 | Fix context menu handlers - add data-context-menu attribute to prevent race condition where menu closed before click events fired | 2026-02-12 | 6c67d7f | [17-fix-context-menu-handlers-wire-up-enemy-](./quick/17-fix-context-menu-handlers-wire-up-enemy-/) |
 | 18 | Align hotbar panel styling with other floating panels - remove redundant title, add panelBody wrapper, use card-style slot rows | 2026-02-12 | 992b0bc | [18-align-hotbar-panel-styling-with-other-fl](./quick/18-align-hotbar-panel-styling-with-other-fl/) |
 | 19 | Add smart auto-scroll to LogWindow - scroll to bottom only when user is at bottom, pause when scrolled up, show "New messages" button | 2026-02-12 | 6530580 | [19-add-smart-auto-scroll-to-logwindow-scrol](./quick/19-add-smart-auto-scroll-to-logwindow-scrol/) |
+| 20 | Align floating hotbar ability activation with standard panel structure - use floatingPanel/floatingPanelHeader/floatingPanelBody pattern | 2026-02-12 | 2abcad3 | [20-align-floating-hotbar-ability-activation](./quick/20-align-floating-hotbar-ability-activation/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick task 19: Add smart auto-scroll to LogWindow
-**Timestamp:** 2026-02-12T17:47:22Z
+**Stopped at:** Completed quick task 20: Align floating hotbar ability activation with standard panel structure
+**Timestamp:** 2026-02-12T18:06:00Z
