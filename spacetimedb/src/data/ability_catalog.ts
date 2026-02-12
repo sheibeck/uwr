@@ -1,5 +1,7 @@
 export const GLOBAL_COOLDOWN_MICROS = 1_000_000n;
 
+export type DamageType = 'physical' | 'magic' | 'none';
+
 export const ABILITIES = {
   shaman_spirit_mender: {
     name: 'Spirit Mender',
@@ -9,6 +11,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 6n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   shaman_spirit_wolf: {
     name: 'Spirit Wolf',
@@ -18,6 +21,7 @@ export const ABILITIES = {
     power: 4n,
     cooldownSeconds: 20n,
     castSeconds: 3n,
+    damageType: 'none' as DamageType,
   },
   shaman_hex: {
     name: 'Hex',
@@ -27,6 +31,7 @@ export const ABILITIES = {
     power: 4n,
     cooldownSeconds: 0n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   shaman_ancestral_ward: {
     name: 'Ancestral Ward',
@@ -36,6 +41,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 0n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   shaman_stormcall: {
     name: 'Stormcall',
@@ -45,6 +51,7 @@ export const ABILITIES = {
     power: 6n,
     cooldownSeconds: 0n,
     castSeconds: 2n,
+    damageType: 'magic' as DamageType,
   },
   warrior_slam: {
     name: 'Slam',
@@ -54,6 +61,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   warrior_intimidating_presence: {
     name: 'Intimidating Presence',
@@ -63,6 +71,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 20n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   warrior_cleave: {
     name: 'Cleave',
@@ -72,6 +81,7 @@ export const ABILITIES = {
     power: 5n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   warrior_rally: {
     name: 'Rally',
@@ -81,6 +91,7 @@ export const ABILITIES = {
     power: 4n,
     cooldownSeconds: 12n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   warrior_crushing_blow: {
     name: 'Crushing Blow',
@@ -90,6 +101,7 @@ export const ABILITIES = {
     power: 7n,
     cooldownSeconds: 8n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   enchanter_mind_fray: {
     name: 'Mind Fray',
@@ -99,6 +111,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 6n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   enchanter_veil_of_calm: {
     name: 'Veil of Calm',
@@ -108,6 +121,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 90n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   enchanter_slow: {
     name: 'Slow',
@@ -117,6 +131,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 8n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   enchanter_clarity_ii: {
     name: 'Clarity II',
@@ -126,6 +141,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 8n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   enchanter_charm_fray: {
     name: 'Charm Fray',
@@ -135,6 +151,7 @@ export const ABILITIES = {
     power: 5n,
     cooldownSeconds: 10n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   cleric_mend: {
     name: 'Mend',
@@ -144,6 +161,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 0n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   wizard_magic_missile: {
     name: 'Magic Missile',
@@ -153,6 +171,7 @@ export const ABILITIES = {
     power: 4n,
     cooldownSeconds: 0n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   cleric_sanctify: {
     name: 'Sanctify',
@@ -162,6 +181,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 30n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   cleric_smite: {
     name: 'Smite',
@@ -171,6 +191,7 @@ export const ABILITIES = {
     power: 5n,
     cooldownSeconds: 4n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   cleric_sanctuary: {
     name: 'Sanctuary',
@@ -180,6 +201,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 10n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   cleric_heal: {
     name: 'Heal',
@@ -189,6 +211,7 @@ export const ABILITIES = {
     power: 6n,
     cooldownSeconds: 3n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   wizard_arcane_reservoir: {
     name: 'Arcane Reservoir',
@@ -198,6 +221,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 300n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   wizard_frost_shard: {
     name: 'Frost Shard',
@@ -207,6 +231,7 @@ export const ABILITIES = {
     power: 4n,
     cooldownSeconds: 6n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   wizard_mana_shield: {
     name: 'Mana Shield',
@@ -216,6 +241,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 10n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   wizard_lightning_surge: {
     name: 'Lightning Surge',
@@ -225,6 +251,7 @@ export const ABILITIES = {
     power: 6n,
     cooldownSeconds: 6n,
     castSeconds: 2n,
+    damageType: 'magic' as DamageType,
   },
   rogue_shadow_cut: {
     name: 'Shadow Cut',
@@ -234,6 +261,7 @@ export const ABILITIES = {
     power: 4n,
     cooldownSeconds: 4n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   rogue_pickpocket: {
     name: 'Pickpocket',
@@ -243,6 +271,7 @@ export const ABILITIES = {
     power: 1n,
     cooldownSeconds: 120n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   rogue_bleed: {
     name: 'Bleed',
@@ -252,6 +281,7 @@ export const ABILITIES = {
     power: 4n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   rogue_evasion: {
     name: 'Evasion',
@@ -261,6 +291,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 10n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   rogue_shadow_strike: {
     name: 'Shadow Strike',
@@ -270,6 +301,7 @@ export const ABILITIES = {
     power: 6n,
     cooldownSeconds: 8n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   paladin_holy_strike: {
     name: 'Holy Strike',
@@ -279,6 +311,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 4n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   paladin_lay_on_hands: {
     name: 'Lay on Hands',
@@ -288,6 +321,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 600n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   paladin_shield_of_faith: {
     name: 'Shield of Faith',
@@ -297,6 +331,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 10n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   paladin_devotion: {
     name: 'Devotion',
@@ -306,6 +341,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 12n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   paladin_radiant_smite: {
     name: 'Radiant Smite',
@@ -315,6 +351,7 @@ export const ABILITIES = {
     power: 6n,
     cooldownSeconds: 6n,
     castSeconds: 1n,
+    damageType: 'physical' as DamageType,
   },
   ranger_marked_shot: {
     name: 'Marked Shot',
@@ -324,6 +361,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'magic' as DamageType,
   },
   ranger_track: {
     name: 'Track',
@@ -333,6 +371,7 @@ export const ABILITIES = {
     power: 1n,
     cooldownSeconds: 600n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   ranger_rapid_shot: {
     name: 'Rapid Shot',
@@ -342,6 +381,7 @@ export const ABILITIES = {
     power: 4n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'magic' as DamageType,
   },
   ranger_natures_balm: {
     name: "Nature's Balm",
@@ -351,6 +391,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 8n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   ranger_piercing_arrow: {
     name: 'Piercing Arrow',
@@ -360,6 +401,7 @@ export const ABILITIES = {
     power: 6n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'magic' as DamageType,
   },
   necromancer_plague_spark: {
     name: 'Plague Spark',
@@ -369,6 +411,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 0n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   necromancer_bone_servant: {
     name: 'Bone Servant',
@@ -378,6 +421,7 @@ export const ABILITIES = {
     power: 4n,
     cooldownSeconds: 20n,
     castSeconds: 3n,
+    damageType: 'none' as DamageType,
   },
   necromancer_wither: {
     name: 'Wither',
@@ -387,6 +431,7 @@ export const ABILITIES = {
     power: 4n,
     cooldownSeconds: 6n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   necromancer_bone_ward: {
     name: 'Bone Ward',
@@ -396,6 +441,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 10n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   necromancer_grave_surge: {
     name: 'Grave Surge',
@@ -405,6 +451,7 @@ export const ABILITIES = {
     power: 6n,
     cooldownSeconds: 6n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   spellblade_arcane_slash: {
     name: 'Arcane Slash',
@@ -414,6 +461,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 3n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   spellblade_rune_ward: {
     name: 'Rune Ward',
@@ -423,6 +471,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 60n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   spellblade_runic_strike: {
     name: 'Runic Strike',
@@ -432,6 +481,7 @@ export const ABILITIES = {
     power: 4n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   spellblade_ward: {
     name: 'Ward',
@@ -441,6 +491,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 10n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   spellblade_spellstorm: {
     name: 'Spellstorm',
@@ -450,6 +501,7 @@ export const ABILITIES = {
     power: 6n,
     cooldownSeconds: 6n,
     castSeconds: 1n,
+    damageType: 'physical' as DamageType,
   },
   bard_discordant_note: {
     name: 'Discordant Note',
@@ -459,6 +511,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'magic' as DamageType,
   },
   bard_ballad_of_resolve: {
     name: 'Ballad of Resolve',
@@ -468,6 +521,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 600n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   bard_echoed_chord: {
     name: 'Echoed Chord',
@@ -477,6 +531,7 @@ export const ABILITIES = {
     power: 4n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'magic' as DamageType,
   },
   bard_harmony: {
     name: 'Harmony',
@@ -486,6 +541,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 12n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   bard_crushing_crescendo: {
     name: 'Crushing Crescendo',
@@ -495,6 +551,7 @@ export const ABILITIES = {
     power: 6n,
     cooldownSeconds: 8n,
     castSeconds: 0n,
+    damageType: 'magic' as DamageType,
   },
   beastmaster_pack_rush: {
     name: 'Pack Rush',
@@ -504,6 +561,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 8n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   beastmaster_call_beast: {
     name: 'Call Beast',
@@ -513,6 +571,7 @@ export const ABILITIES = {
     power: 1n,
     cooldownSeconds: 20n,
     castSeconds: 3n,
+    damageType: 'none' as DamageType,
   },
   beastmaster_beast_fang: {
     name: 'Beast Fang',
@@ -522,6 +581,7 @@ export const ABILITIES = {
     power: 5n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   beastmaster_wild_howl: {
     name: 'Wild Howl',
@@ -531,6 +591,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 12n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   beastmaster_alpha_assault: {
     name: 'Alpha Assault',
@@ -540,6 +601,7 @@ export const ABILITIES = {
     power: 7n,
     cooldownSeconds: 8n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   monk_crippling_kick: {
     name: 'Crippling Kick',
@@ -549,6 +611,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 5n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   monk_centering: {
     name: 'Centering',
@@ -558,6 +621,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 60n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   monk_palm_strike: {
     name: 'Palm Strike',
@@ -567,6 +631,7 @@ export const ABILITIES = {
     power: 5n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   monk_inner_focus: {
     name: 'Inner Focus',
@@ -576,6 +641,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 10n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   monk_tiger_flurry: {
     name: 'Tiger Flurry',
@@ -585,6 +651,7 @@ export const ABILITIES = {
     power: 5n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   druid_thorn_lash: {
     name: 'Thorn Lash',
@@ -594,6 +661,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 3n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   druid_natures_mark: {
     name: "Nature's Mark",
@@ -603,6 +671,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 120n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   druid_bramble: {
     name: 'Bramble',
@@ -612,6 +681,7 @@ export const ABILITIES = {
     power: 4n,
     cooldownSeconds: 6n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   druid_natures_gift: {
     name: "Nature's Gift",
@@ -621,6 +691,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 12n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   druid_wild_surge: {
     name: 'Wild Surge',
@@ -630,6 +701,7 @@ export const ABILITIES = {
     power: 6n,
     cooldownSeconds: 8n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
   reaver_blood_rend: {
     name: 'Blood Rend',
@@ -639,6 +711,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   reaver_blood_pact: {
     name: 'Blood Pact',
@@ -648,6 +721,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 12n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   reaver_soul_rend: {
     name: 'Soul Rend',
@@ -657,6 +731,7 @@ export const ABILITIES = {
     power: 5n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'physical' as DamageType,
   },
   reaver_dread_aura: {
     name: 'Dread Aura',
@@ -666,6 +741,7 @@ export const ABILITIES = {
     power: 3n,
     cooldownSeconds: 10n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   reaver_oblivion: {
     name: 'Oblivion',
@@ -675,6 +751,7 @@ export const ABILITIES = {
     power: 7n,
     cooldownSeconds: 8n,
     castSeconds: 1n,
+    damageType: 'physical' as DamageType,
   },
   summoner_conjure_vessel: {
     name: 'Conjure Vessel',
@@ -684,6 +761,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'magic' as DamageType,
   },
   summoner_earth_familiar: {
     name: 'Earth Familiar',
@@ -693,6 +771,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 20n,
     castSeconds: 3n,
+    damageType: 'none' as DamageType,
   },
   summoner_conjured_spike: {
     name: 'Conjured Spike',
@@ -702,6 +781,7 @@ export const ABILITIES = {
     power: 4n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
+    damageType: 'magic' as DamageType,
   },
   summoner_empower: {
     name: 'Empower',
@@ -711,6 +791,7 @@ export const ABILITIES = {
     power: 2n,
     cooldownSeconds: 12n,
     castSeconds: 0n,
+    damageType: 'none' as DamageType,
   },
   summoner_spectral_lance: {
     name: 'Spectral Lance',
@@ -720,6 +801,7 @@ export const ABILITIES = {
     power: 6n,
     cooldownSeconds: 6n,
     castSeconds: 1n,
+    damageType: 'magic' as DamageType,
   },
 };
 

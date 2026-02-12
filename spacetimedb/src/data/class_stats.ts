@@ -155,3 +155,6 @@ export function isArmorAllowedForClass(className: string, armorType: string) {
   const allowed = CLASS_ARMOR[normalized] ?? ['cloth'];
   return allowed.includes(normalizeArmorType(armorType));
 }
+
+// Re-export ABILITY_STAT_SCALING from combat_scaling for convenience
+export { ABILITY_STAT_SCALING } from './combat_scaling.js';
