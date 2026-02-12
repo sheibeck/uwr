@@ -1014,6 +1014,9 @@ watch(
   () => [activeResult.value, hasAnyLootForResult.value, canDismissResults.value] as const,
   ([result, anyLoot, canDismiss]) => {
     if (!result || !canDismiss) return;
+    // In groups, this client only sees `myCombatLoot`; server handles authoritative
+    // auto-dismiss when combat-wide loot is actually empty.
+    if (selectedCharacter.value?.groupId) return;
     if (anyLoot) return;
     const summary = result.summary?.toLowerCase() ?? '';
     if (!summary.startsWith('victory')) return;
