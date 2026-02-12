@@ -39,9 +39,15 @@ export const useCrafting = ({
     return count;
   };
 
-  const discoveredRecipeIds = computed(() =>
-    new Set(recipeDiscovered.value.map((row) => row.recipeTemplateId.toString()))
-  );
+  const discoveredRecipeIds = computed(() => {
+    const charId = selectedCharacter.value?.id;
+    if (!charId) return new Set<string>();
+    return new Set(
+      recipeDiscovered.value
+        .filter((row) => row.characterId.toString() === charId.toString())
+        .map((row) => row.recipeTemplateId.toString())
+    );
+  });
 
   const recipes = computed(() =>
     recipeTemplates.value
