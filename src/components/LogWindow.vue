@@ -23,6 +23,7 @@
           :style="[
             styles.logText,
             event.scope === 'private' ? styles.logPrivate : {},
+            event.scope === 'group' ? styles.logGroup : {},
             event.kind === 'whisper' ? styles.logWhisper : {},
             event.kind === 'presence' ? styles.logPresence : {},
             event.kind === 'command' ? styles.logCommand : {},
@@ -32,7 +33,6 @@
             event.kind === 'avoid' ? styles.logAvoid : {},
             event.kind === 'faction' ? styles.logFaction : {},
             event.kind === 'blocked' ? styles.logBlocked : {},
-            event.scope === 'group' ? styles.logGroup : {},
           ]"
         >
           {{ event.message }}
