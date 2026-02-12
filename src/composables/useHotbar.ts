@@ -128,11 +128,28 @@ export const useHotbar = ({
         : 0;
       const serverRemaining = readyAt ? Number(readyAt) - nowMicros.value : 0;
       const localRemaining = localReadyAt ? localReadyAt - nowMicros.value : 0;
-      const remainingMicros = Math.max(serverRemaining, localRemaining, 0);
-      const cooldownRemaining = remainingMicros > 0 ? Math.ceil(remainingMicros / 1_000_000) : 0;
+      const isLocallyCastingThisAbility = Boolean(
+        localCast.value &&
+          assignment.abilityKey &&
+          localCast.value.abilityKey === assignment.abilityKey &&
+          nowMicros.value < localCast.value.startMicros + localCast.value.durationMicros
+      );
+      // Cooldown should not appear to start until cast completes.
+      const effectiveLocalRemaining = isLocallyCastingThisAbility ? 0 : localRemaining;
+      const remainingMicros = Math.max(serverRemaining, effectiveLocalRemaining, 0);
+      const cooldownRemainingRaw = remainingMicros > 0 ? Math.ceil(remainingMicros / 1_000_000) : 0;
+      const configuredCooldownSeconds = ability?.cooldownSeconds
+        ? Number(ability.cooldownSeconds)
+        : 0;
+      const cooldownRemaining =
+        configuredCooldownSeconds > 0
+          ? Math.min(cooldownRemainingRaw, configuredCooldownSeconds)
+          : cooldownRemainingRaw;
+      const resolvedDescription =
+        ability?.description?.trim() || (assignment.abilityKey ? `${assignment.name} ability.` : '');
       return {
         ...assignment,
-        description: ability?.description ?? (assignment.abilityKey ? 'Ability not defined yet.' : ''),
+        description: resolvedDescription,
         resource: ability?.resource ?? '',
         kind: ability?.kind ?? '',
         level: ability?.level ?? 0n,
@@ -199,9 +216,11 @@ export const useHotbar = ({
 
   const hotbarTooltipItem = (slot: HotbarDisplaySlot) => {
     if (!slot?.abilityKey) return null;
+    const liveAbility = abilityLookup.value.get(slot.abilityKey);
+    const description = liveAbility?.description?.trim() || slot.description || `${slot.name} ability.`;
     return {
       name: slot.name || slot.abilityKey,
-      description: slot.description,
+      description,
       stats: [
         { label: 'Level', value: slot.level || '-' },
         { label: 'Type', value: slot.kind || '-' },

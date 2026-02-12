@@ -592,7 +592,7 @@ export const ABILITIES = {
     resource: 'mana',
     level: 1n,
     power: 2n,
-    cooldownSeconds: 6n,
+    cooldownSeconds: 3n,
     castSeconds: 1n,
   },
   druid_natures_mark: {
