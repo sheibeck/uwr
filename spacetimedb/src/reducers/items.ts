@@ -361,12 +361,6 @@ export const registerItemReducers = (deps: any) => {
       const abilityKey = args.abilityKey.trim();
       if (!abilityKey) return failItem(ctx, character, 'Ability required');
       const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
-      const petSummons = new Set([
-        'shaman_spirit_wolf',
-        'necromancer_bone_servant',
-        'beastmaster_call_beast',
-        'summoner_earth_familiar',
-      ]);
       const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(character.id)].find(
         (row) => row.abilityKey === abilityKey
       );
@@ -380,15 +374,27 @@ export const registerItemReducers = (deps: any) => {
         );
         return;
       }
+      const abilityRow = [...ctx.db.abilityTemplate.by_key.filter(abilityKey)][0];
+      const combatState = abilityRow?.combatState ?? 'any';
       const castMicros = abilityCastMicros(abilityKey);
       const combatId = activeCombatIdForCharacter(ctx, character.id);
-      if (!combatId && petSummons.has(abilityKey)) {
+      if (combatState === 'combat_only' && !combatId) {
         appendPrivateEvent(
           ctx,
           character.id,
           character.ownerUserId,
           'ability',
-          'Pets can only be summoned in combat.'
+          'This ability can only be used in combat.'
+        );
+        return;
+      }
+      if (combatState === 'out_of_combat_only' && combatId) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          'This ability cannot be used in combat.'
         );
         return;
       }

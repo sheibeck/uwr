@@ -512,6 +512,7 @@ const AbilityTemplate = table(
     castSeconds: t.u64(),
     cooldownSeconds: t.u64(),
     kind: t.string(),
+    combatState: t.string(),
     description: t.string(),
   }
 );
@@ -3924,6 +3925,19 @@ function ensureAbilityTemplates(ctx: any) {
     'enchanter_veil_of_calm',
     'bard_ballad_of_resolve',
   ]);
+  const combatOnlyKeys = new Set([
+    'shaman_spirit_wolf',
+    'necromancer_bone_servant',
+    'beastmaster_call_beast',
+    'summoner_earth_familiar',
+  ]);
+  const outOfCombatOnlyKeys = new Set([
+    'druid_natures_mark',
+  ]);
+  const combatStateFor = (key: string) =>
+    combatOnlyKeys.has(key) ? 'combat_only' :
+    outOfCombatOnlyKeys.has(key) ? 'out_of_combat_only' :
+    'any';
   for (const [key, ability] of Object.entries(ABILITIES)) {
     const entry = ability as {
       name: string;
@@ -3946,6 +3960,7 @@ function ensureAbilityTemplates(ctx: any) {
         castSeconds: entry.castSeconds,
         cooldownSeconds: entry.cooldownSeconds,
         kind: utilityKeys.has(key) ? 'utility' : 'combat',
+        combatState: combatStateFor(key),
         description: resolveDescription(key, entry),
       });
       seenByKey.set(key, {
@@ -3958,6 +3973,7 @@ function ensureAbilityTemplates(ctx: any) {
         castSeconds: entry.castSeconds,
         cooldownSeconds: entry.cooldownSeconds,
         kind: utilityKeys.has(key) ? 'utility' : 'combat',
+        combatState: combatStateFor(key),
         description: resolveDescription(key, entry),
       });
       continue;
@@ -3972,6 +3988,7 @@ function ensureAbilityTemplates(ctx: any) {
       castSeconds: entry.castSeconds,
       cooldownSeconds: entry.cooldownSeconds,
       kind: utilityKeys.has(key) ? 'utility' : 'combat',
+      combatState: combatStateFor(key),
       description: resolveDescription(key, entry),
     });
     seenByKey.set(key, inserted);

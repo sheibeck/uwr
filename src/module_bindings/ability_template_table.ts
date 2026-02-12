@@ -20,5 +20,6 @@ export default __t.row({
   castSeconds: __t.u64(),
   cooldownSeconds: __t.u64(),
   kind: __t.string(),
+  combatState: __t.string(),
   description: __t.string(),
 });
