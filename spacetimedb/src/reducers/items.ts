@@ -322,6 +322,40 @@ export const registerItemReducers = (deps: any) => {
     );
   });
 
+  spacetimedb.reducer('split_stack', { characterId: t.u64(), itemInstanceId: t.u64(), quantity: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
+    if (!instance) return failItem(ctx, character, 'Item not found');
+    if (instance.ownerCharacterId !== character.id) {
+      return failItem(ctx, character, 'Item does not belong to you');
+    }
+    if (instance.equippedSlot) return failItem(ctx, character, 'Cannot split equipped items');
+    const template = ctx.db.itemTemplate.id.find(instance.templateId);
+    if (!template) return failItem(ctx, character, 'Item template missing');
+    if (!template.stackable) return failItem(ctx, character, 'This item cannot be split.');
+    if (instance.quantity <= 1n || args.quantity <= 0n || args.quantity >= instance.quantity) {
+      return failItem(ctx, character, 'Invalid split quantity.');
+    }
+    if (getInventorySlotCount(ctx, character.id) >= 20) {
+      return failItem(ctx, character, 'Not enough room to split this stack.');
+    }
+    ctx.db.itemInstance.id.update({ ...instance, quantity: instance.quantity - args.quantity });
+    ctx.db.itemInstance.insert({
+      id: 0n,
+      templateId: instance.templateId,
+      ownerCharacterId: character.id,
+      equippedSlot: undefined,
+      quantity: args.quantity,
+    });
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'system',
+      `You split off ${args.quantity} ${template.name}.`
+    );
+  });
+
   spacetimedb.reducer(
     'set_hotbar_slot',
     { characterId: t.u64(), slot: t.u8(), abilityKey: t.string() },
