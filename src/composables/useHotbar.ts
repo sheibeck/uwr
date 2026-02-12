@@ -136,7 +136,12 @@ export const useHotbar = ({
       );
       // Cooldown should not appear to start until cast completes.
       const effectiveLocalRemaining = isLocallyCastingThisAbility ? 0 : localRemaining;
-      const remainingMicros = Math.max(serverRemaining, effectiveLocalRemaining, 0);
+      // Prefer client-predicted cooldown while active to avoid server/client clock skew
+      // causing frozen countdowns in production.
+      const remainingMicros =
+        effectiveLocalRemaining > 0
+          ? effectiveLocalRemaining
+          : Math.max(serverRemaining, 0);
       const cooldownRemainingRaw = remainingMicros > 0 ? Math.ceil(remainingMicros / 1_000_000) : 0;
       const configuredCooldownSeconds = ability?.cooldownSeconds
         ? Number(ability.cooldownSeconds)
