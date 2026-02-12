@@ -42,17 +42,6 @@ const toMicros = (seconds: bigint | undefined) => {
 
 const COOLDOWN_SKEW_SUPPRESS_MICROS = 10_000_000;
 
-const PET_SUMMON_KEYS = new Set([
-  'shaman_spirit_wolf',
-  'necromancer_bone_servant',
-  'beastmaster_call_beast',
-  'summoner_earth_familiar',
-]);
-
-const OUT_OF_COMBAT_ONLY_KEYS = new Set([
-  'druid_natures_mark',
-]);
-
 export const useHotbar = ({
   connActive,
   selectedCharacter,
@@ -286,10 +275,11 @@ export const useHotbar = ({
       return;
     }
     if (activeCombat.value && !canActInCombat.value && slot.kind !== 'utility') return;
-    // Pet summons require active combat — skip prediction + reducer call to prevent false cooldown
-    if (!activeCombat.value && PET_SUMMON_KEYS.has(slot.abilityKey)) return;
-    // Out-of-combat-only abilities cannot be used in combat — skip prediction + reducer call
-    if (activeCombat.value && OUT_OF_COMBAT_ONLY_KEYS.has(slot.abilityKey)) return;
+    // Use combatState from ability template to determine if ability can be used
+    const ability = abilityLookup.value.get(slot.abilityKey);
+    const combatState = ability?.combatState ?? 'any';
+    if (combatState === 'combat_only' && !activeCombat.value) return;
+    if (combatState === 'out_of_combat_only' && activeCombat.value) return;
     runPrediction(slot.abilityKey);
 
     const targetId =
