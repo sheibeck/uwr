@@ -439,12 +439,16 @@ export const registerItemReducers = (deps: any) => {
         return;
       }
       try {
-        executeAbilityAction(ctx, {
+        const executed = executeAbilityAction(ctx, {
           actorType: 'character',
           actorId: character.id,
           abilityKey,
           targetCharacterId: args.targetCharacterId,
         });
+        if (!executed) {
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', 'Ability had no effect.');
+          return;
+        }
         const cooldown = abilityCooldownMicros(abilityKey);
         if (cooldown > 0n) {
           if (existingCooldown) {

@@ -1329,6 +1329,17 @@ export const registerCombatReducers = (deps: any) => {
         ctx.db.characterCast.id.delete(cast.id);
         continue;
       }
+      // Check combat state before executing ability
+      const castCombatId = activeCombatIdForCharacter(ctx, character.id);
+      if (castCombatId) {
+        const participant = [...ctx.db.combatParticipant.by_combat.filter(castCombatId)].find(
+          (row) => row.characterId === character.id
+        );
+        if (participant && participant.status !== 'active') {
+          ctx.db.characterCast.id.delete(cast.id);
+          continue;
+        }
+      }
       try {
         deps.executeAbilityAction(ctx, {
           actorType: 'character',
