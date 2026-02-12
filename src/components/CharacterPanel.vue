@@ -11,14 +11,34 @@
         @input="onNameInput"
       />
       <div v-if="createError" :style="styles.errorText">{{ createError }}</div>
-      <input
-        type="text"
-        placeholder="Race"
-        :value="newCharacter.race"
+      <select
+        :value="newCharacter.raceId"
         :disabled="!connActive"
         :style="styles.input"
-        @input="onRaceInput"
-      />
+        @change="onRaceChange"
+      >
+        <option value="">Select Race</option>
+        <option
+          v-for="race in unlockedRaces"
+          :key="race.id.toString()"
+          :value="race.id.toString()"
+        >
+          {{ race.name }}
+        </option>
+      </select>
+      <div v-if="selectedRaceRow" :style="styles.roster">
+        <div>{{ selectedRaceRow.description }}</div>
+        <div :style="styles.subtle">
+          <span v-if="selectedRaceRow.strBonus > 0n">STR +{{ selectedRaceRow.strBonus }} </span>
+          <span v-if="selectedRaceRow.dexBonus > 0n">DEX +{{ selectedRaceRow.dexBonus }} </span>
+          <span v-if="selectedRaceRow.chaBonus > 0n">CHA +{{ selectedRaceRow.chaBonus }} </span>
+          <span v-if="selectedRaceRow.wisBonus > 0n">WIS +{{ selectedRaceRow.wisBonus }} </span>
+          <span v-if="selectedRaceRow.intBonus > 0n">INT +{{ selectedRaceRow.intBonus }} </span>
+        </div>
+        <div v-if="selectedRaceRow.availableClasses && selectedRaceRow.availableClasses.trim() !== ''" :style="styles.subtle">
+          Classes: {{ selectedRaceRow.availableClasses }}
+        </div>
+      </div>
       <select
         :value="newCharacter.className"
         :disabled="!connActive"
@@ -26,7 +46,7 @@
         @change="onClassChange"
       >
         <option value="">Select Class</option>
-        <option v-for="option in CLASS_OPTIONS" :key="option.name" :value="option.name">
+        <option v-for="option in displayedClassOptions" :key="option.name" :value="option.name">
           {{ option.name }}
         </option>
       </select>
@@ -83,15 +103,18 @@ import type { CharacterRow } from '../module_bindings';
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
-  newCharacter: { name: string; race: string; className: string };
+  newCharacter: { name: string; raceId: string; className: string };
   isCharacterFormValid: boolean;
   createError: string;
   myCharacters: CharacterRow[];
   selectedCharacterId: string;
+  races: any[];
+  selectedRaceRow: any | null;
+  filteredClassOptions: string[] | null;
 }>();
 
 const emit = defineEmits<{
-  (e: 'update:newCharacter', value: { name: string; race: string; className: string }): void;
+  (e: 'update:newCharacter', value: { name: string; raceId: string; className: string }): void;
   (e: 'create'): void;
   (e: 'select', value: string): void;
   (e: 'delete', value: string): void;
@@ -102,9 +125,23 @@ const onNameInput = (event: Event) => {
   emit('update:newCharacter', { ...props.newCharacter, name: value });
 };
 
-const onRaceInput = (event: Event) => {
-  const value = (event.target as HTMLInputElement).value;
-  emit('update:newCharacter', { ...props.newCharacter, race: value });
+const onRaceChange = (event: Event) => {
+  const value = (event.target as HTMLSelectElement).value;
+  const updated = { ...props.newCharacter, raceId: value };
+  // If the currently selected class is no longer valid for the new race, clear it
+  if (updated.className && props.filteredClassOptions) {
+    const newRace = props.races.find((r: any) => r.id.toString() === value);
+    if (newRace) {
+      const allowed = newRace.availableClasses;
+      if (allowed && allowed.trim() !== '') {
+        const list = allowed.split(',').map((c: string) => c.trim().toLowerCase());
+        if (!list.includes(updated.className.toLowerCase())) {
+          updated.className = '';
+        }
+      }
+    }
+  }
+  emit('update:newCharacter', updated);
 };
 
 const confirmDelete = (character: CharacterRow) => {
@@ -227,6 +264,17 @@ const CLASS_OPTIONS = [
     description: 'Arcane scholars who unleash devastating spells.',
   },
 ];
+
+const unlockedRaces = computed(() =>
+  props.races.filter((r: any) => r.unlocked)
+);
+
+const displayedClassOptions = computed(() => {
+  if (!props.filteredClassOptions) return CLASS_OPTIONS; // null = all allowed
+  return CLASS_OPTIONS.filter((opt) =>
+    props.filteredClassOptions!.includes(opt.name.toLowerCase())
+  );
+});
 
 const selectedClass = computed(() =>
   CLASS_OPTIONS.find((option) => option.name === props.newCharacter.className)

@@ -131,6 +131,9 @@
           :create-error="createError"
           :my-characters="myCharacters"
           :selected-character-id="selectedCharacterId"
+          :races="races"
+          :selected-race-row="selectedRaceRow"
+          :filtered-class-options="filteredClassOptions"
           @update:newCharacter="newCharacter = $event"
           @create="createCharacter"
           @delete="deleteCharacter"
@@ -629,6 +632,7 @@ const {
   characterLogoutTicks,
   tradeSessions,
   tradeItems,
+  races,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
@@ -740,12 +744,15 @@ const {
   hasCharacter,
   createError,
   creationToken,
+  selectedRaceRow,
+  filteredClassOptions,
 } = useCharacterCreation({
     connActive: computed(() => conn.isActive),
     selectedCharacter,
     selectedCharacterId,
     userId,
     characters,
+    races,
   });
 
 const onboardingStep = ref<'inventory' | 'hotbar' | null>(null);
