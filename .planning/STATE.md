@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-12
-**Status:** Phase 2 Plan 2 Tasks 1-2 complete — hunger frontend built; awaiting human verification at checkpoint (Task 3)
+**Status:** Phase 3 Plan 1 complete — faction standing backend published; Phase 2 Plan 2 checkpoint pending human verify
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 Plan 1 (Hunger Backend) complete. Phase 2 Plan 2 Tasks 1-2 complete, paused at Task 3 checkpoint.
+Phase 1 (Races) complete. Phase 2 Plan 1 done. Phase 2 Plan 2 paused at Task 3 human-verify checkpoint. Phase 3 Plan 1 (Renown Foundation Backend) complete.
 
-**Current phase:** 02-hunger
-**Current plan:** 02 of 02 (Plans 01 and 02 in progress)
-**Next action:** Human verification of hunger system (Task 3 checkpoint) — then Phase 2 complete, Phase 3 ready
+**Current phase:** 03-renown-foundation
+**Current plan:** 01 complete; Phase 2 Plan 2 Task 3 checkpoint also pending
+**Next action:** Human verify Phase 2 Plan 2 (hunger UI checkpoint), then continue Phase 3 Plan 2 (Renown UI)
 
 ---
 
@@ -21,8 +21,8 @@ Phase 1 (Races) complete. Phase 2 Plan 1 (Hunger Backend) complete. Phase 2 Plan
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Races | Complete (2/2 plans done) |
-| 2 | Hunger | In Progress (plan 02 tasks 1-2 done, task 3 is human-verify checkpoint) |
-| 3 | Renown Foundation | Pending |
+| 2 | Hunger | Checkpoint pending (plan 02 task 3 human-verify) |
+| 3 | Renown Foundation | In Progress (1/1 backend plans done) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
 | 6 | World Events | Pending |
@@ -49,6 +49,11 @@ Phase 1 (Races) complete. Phase 2 Plan 1 (Hunger Backend) complete. Phase 2 Plan
 14. Simple Rations stays as slot=consumable; 4 new Well Fed foods use slot=food to distinguish buff foods from utility consumables (02-01)
 15. HungerBar rendered below StatsPanel in wrapper div — simpler than separate panel toggle, no new panel type needed (02-02)
 16. eatable = slot === 'food' (lowercase compare) cleanly distinguishes Well Fed buff foods from consumable-slot utility items in InventoryPanel (02-02)
+17. Kill-based standing only in Phase 3; quest-completion and tribute standing deferred to future phases (03-01)
+18. Single-column by_character index on FactionStanding only — multi-column indexes broken in SpacetimeDB (03-01)
+19. Standing per kill: +10 to enemy's faction, -5 to rival faction (03-01)
+20. FactionStanding rows initialized eagerly at character creation (4 rows for 4 factions at standing=0) (03-01)
+21. Enemy faction assignments: constructs/sentinels=Iron Compact, animals/nature spirits=Verdant Circle, undead/dark humanoids=Ashen Order, humanoid outlaws=Free Blades (03-01)
 
 ---
 
@@ -60,6 +65,7 @@ Phase 1 (Races) complete. Phase 2 Plan 1 (Hunger Backend) complete. Phase 2 Plan
 | 01-races | 02 | ~15min | 3 | 4 |
 | 02-hunger | 01 | ~35min | 2 | 11 |
 | 02-hunger | 02 | ~15min | 2 | 5 |
+| 03-renown-foundation | 01 | 14min | 2 | 10 |
 
 ---
 
@@ -71,5 +77,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Paused at 02-hunger 02-02-PLAN.md Task 3 checkpoint (human-verify)
-**Timestamp:** 2026-02-12T03:55:00Z
+**Stopped at:** Completed 03-renown-foundation 03-01-PLAN.md (Faction standing system backend: Faction/FactionStanding tables, 4 factions seeded, combat kill integration, my_faction_standings view, module published)
+**Timestamp:** 2026-02-12T03:51:00Z
