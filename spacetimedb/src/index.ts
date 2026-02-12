@@ -2190,7 +2190,7 @@ function executeAbility(
         ], undefined, { damageBase: 4n, damagePerLevel: 2n, weaponScalePercent: 45n });
         return;
     case 'shaman_hex':
-      applyDamage(115n, 1n, {
+      applyDamage(0n, 0n, {
         debuff: { type: 'damage_down', magnitude: -2n, rounds: 3n, source: 'Hex' },
       });
       return;
@@ -2206,10 +2206,10 @@ function executeAbility(
       );
       return;
     case 'shaman_stormcall':
-      applyDamage(160n, 4n);
+      applyDamage(0n, 0n);
       return;
     case 'warrior_slam':
-      applyDamage(140n, 3n, {
+      applyDamage(0n, 0n, {
         threatBonus: 10n,
         debuff: { type: 'skip', magnitude: 1n, rounds: 1n, source: 'Slam' },
       });
@@ -2226,7 +2226,7 @@ function executeAbility(
       );
       return;
     case 'warrior_cleave':
-      applyDamage(150n, 4n);
+      applyDamage(0n, 0n);
       return;
     case 'warrior_rally':
       applyPartyEffect('ac_bonus', 3n, 3n, 'Rally');
@@ -2239,10 +2239,10 @@ function executeAbility(
       );
       return;
     case 'warrior_crushing_blow':
-      applyDamage(175n, 5n, { threatBonus: 5n });
+      applyDamage(0n, 0n, { threatBonus: 5n });
       return;
     case 'bard_discordant_note':
-      applyDamage(110n, 1n);
+      applyDamage(0n, 0n);
       applyPartyEffect('damage_up', 1n, 2n, 'Discordant Note');
       appendPrivateEvent(
         ctx,
@@ -2267,7 +2267,7 @@ function executeAbility(
       return;
     case 'bard_echoed_chord': {
       const allyBonus = BigInt(partyMembers.length - 1) > 0n ? BigInt(partyMembers.length - 1) : 0n;
-      applyDamage(135n, 2n + allyBonus);
+      applyDamage(0n, 0n);
       return;
     }
     case 'bard_harmony':
@@ -2283,11 +2283,11 @@ function executeAbility(
     case 'bard_crushing_crescendo': {
       let bonus = 5n;
       if (enemy && enemy.currentHp * 2n <= enemy.maxHp) bonus += 3n;
-      applyDamage(165n, bonus);
+      applyDamage(0n, 0n);
       return;
     }
     case 'enchanter_mind_fray':
-      applyDamage(105n, 1n, {
+      applyDamage(0n, 0n, {
         dot: { magnitude: 2n, rounds: 2n, source: 'Mind Fray' },
         debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Mind Fray' },
       });
@@ -2303,7 +2303,7 @@ function executeAbility(
       );
       return;
     case 'enchanter_slow':
-      applyDamage(110n, 1n, {
+      applyDamage(0n, 0n, {
         debuff: { type: 'damage_down', magnitude: -3n, rounds: 2n, source: 'Slow' },
       });
       return;
@@ -2319,7 +2319,7 @@ function executeAbility(
       );
       return;
     case 'enchanter_charm_fray':
-      applyDamage(140n, 3n, {
+      applyDamage(0n, 0n, {
         debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Charm Fray' },
       });
       return;
@@ -2354,7 +2354,7 @@ function executeAbility(
       return;
     }
     case 'cleric_smite':
-      applyDamage(130n, 2n);
+      applyDamage(0n, 0n);
       return;
     case 'cleric_sanctuary':
       applyPartyEffect('ac_bonus', 3n, 3n, 'Sanctuary');
@@ -2371,7 +2371,7 @@ function executeAbility(
       applyHeal(targetCharacter, 15n, 'Heal');
       return;
     case 'wizard_magic_missile':
-      applyDamage(145n, 3n);
+      applyDamage(0n, 0n);
       return;
     case 'wizard_arcane_reservoir': {
       const amount =
@@ -2382,7 +2382,7 @@ function executeAbility(
       return;
     }
     case 'wizard_frost_shard':
-      applyDamage(120n, 2n, {
+      applyDamage(0n, 0n, {
         debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Frost Shard' },
       });
       return;
@@ -2398,10 +2398,10 @@ function executeAbility(
       );
       return;
     case 'wizard_lightning_surge':
-      applyDamage(170n, 5n);
+      applyDamage(0n, 0n);
       return;
     case 'rogue_shadow_cut':
-      applyDamage(150n, 4n, { dot: { magnitude: 2n, rounds: 2n, source: 'Shadow Cut' } });
+      applyDamage(0n, 0n, { dot: { magnitude: 2n, rounds: 2n, source: 'Shadow Cut' } });
       return;
     case 'rogue_pickpocket': {
       const seed = ctx.timestamp.microsSinceUnixEpoch + character.id;
@@ -2452,7 +2452,7 @@ function executeAbility(
       return;
     }
     case 'rogue_bleed':
-      applyDamage(110n, 2n, { dot: { magnitude: 3n, rounds: 2n, source: 'Bleed' } });
+      applyDamage(0n, 0n, { dot: { magnitude: 3n, rounds: 2n, source: 'Bleed' } });
       return;
     case 'rogue_evasion':
       addCharacterEffect(ctx, character.id, 'ac_bonus', 3n, 2n, 'Evasion');
@@ -2467,11 +2467,11 @@ function executeAbility(
     case 'rogue_shadow_strike': {
       const dotAmount = enemy ? sumEnemyEffect(ctx, combatId ?? 0n, 'dot', enemy.id) : 0n;
       const bonus = dotAmount > 0n ? 6n : 4n;
-      applyDamage(165n, bonus);
+      applyDamage(0n, 0n);
       return;
     }
     case 'paladin_holy_strike':
-      applyDamage(120n, 1n);
+      applyDamage(0n, 0n);
       addCharacterEffect(ctx, character.id, 'ac_bonus', 2n, 2n, 'Holy Strike');
       appendPrivateEvent(
         ctx,
@@ -2516,10 +2516,10 @@ function executeAbility(
       );
       return;
     case 'paladin_radiant_smite':
-      applyDamage(160n, 4n, { dot: { magnitude: 2n, rounds: 2n, source: 'Radiant Smite' } });
+      applyDamage(0n, 0n, { dot: { magnitude: 2n, rounds: 2n, source: 'Radiant Smite' } });
       return;
     case 'ranger_marked_shot':
-      applyDamage(135n, 2n, {
+      applyDamage(0n, 0n, {
         debuff: { type: 'damage_taken', magnitude: 1n, rounds: 2n, source: 'Marked Shot' },
       });
       return;
@@ -2533,7 +2533,7 @@ function executeAbility(
       );
       return;
     case 'ranger_rapid_shot':
-      applyDamage(90n, 1n, { hits: 2n });
+      applyDamage(0n, 0n, { hits: 2n });
       return;
     case 'ranger_natures_balm':
       if (!targetCharacter) throw new SenderError('Target required');
@@ -2547,10 +2547,10 @@ function executeAbility(
       );
       return;
     case 'ranger_piercing_arrow':
-      applyDamage(150n, 4n, { ignoreArmor: 5n });
+      applyDamage(0n, 0n, { ignoreArmor: 5n });
       return;
     case 'necromancer_plague_spark':
-      applyDamage(110n, 1n, { dot: { magnitude: 3n, rounds: 2n, source: 'Plague Spark' } });
+      applyDamage(0n, 0n, { dot: { magnitude: 3n, rounds: 2n, source: 'Plague Spark' } });
       applyHeal(character, 2n, 'Plague Spark');
       return;
     case 'necromancer_bone_servant':
@@ -2563,7 +2563,7 @@ function executeAbility(
         ], undefined, { damageBase: 4n, damagePerLevel: 2n, weaponScalePercent: 45n });
         return;
     case 'necromancer_wither':
-      applyDamage(120n, 2n, { dot: { magnitude: 3n, rounds: 2n, source: 'Wither' } });
+      applyDamage(0n, 0n, { dot: { magnitude: 3n, rounds: 2n, source: 'Wither' } });
       return;
     case 'necromancer_bone_ward':
       addCharacterEffect(ctx, character.id, 'ac_bonus', 3n, 3n, 'Bone Ward');
@@ -2576,10 +2576,10 @@ function executeAbility(
       );
       return;
     case 'necromancer_grave_surge':
-      applyDamage(170n, 6n);
+      applyDamage(0n, 0n);
       return;
     case 'spellblade_arcane_slash':
-      applyDamage(125n, 2n, {
+      applyDamage(0n, 0n, {
         debuff: { type: 'armor_down', magnitude: -2n, rounds: 2n, source: 'Arcane Slash' },
       });
       return;
@@ -2594,7 +2594,7 @@ function executeAbility(
       );
       return;
     case 'spellblade_runic_strike':
-      applyDamage(150n, 3n, {
+      applyDamage(0n, 0n, {
         debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Runic Strike' },
       });
       return;
@@ -2609,10 +2609,10 @@ function executeAbility(
       );
       return;
     case 'spellblade_spellstorm':
-      applyDamage(85n, 1n, { hits: 3n });
+      applyDamage(0n, 0n, { hits: 3n });
       return;
     case 'beastmaster_pack_rush':
-      applyDamage(80n, 0n, {
+      applyDamage(0n, 0n, {
         hits: 2n,
         perHitMessage: (damage, hitIndex, totalHits) =>
           `Your ${ability.name} hits ${enemyName} for ${damage} damage. (${hitIndex}/${totalHits})`,
@@ -2628,7 +2628,7 @@ function executeAbility(
         );
         return;
     case 'beastmaster_beast_fang':
-      applyDamage(145n, 3n, { dot: { magnitude: 2n, rounds: 2n, source: 'Beast Fang' } });
+      applyDamage(0n, 0n, { dot: { magnitude: 2n, rounds: 2n, source: 'Beast Fang' } });
       return;
     case 'beastmaster_wild_howl':
       applyPartyEffect('damage_up', 3n, 3n, 'Wild Howl');
@@ -2641,10 +2641,10 @@ function executeAbility(
       );
       return;
     case 'beastmaster_alpha_assault':
-      applyDamage(170n, 5n);
+      applyDamage(0n, 0n);
       return;
     case 'monk_crippling_kick':
-      applyDamage(120n, 1n, {
+      applyDamage(0n, 0n, {
         debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Crippling Kick' },
       });
       return;
@@ -2659,7 +2659,7 @@ function executeAbility(
       );
       return;
     case 'monk_palm_strike':
-      applyDamage(145n, 3n);
+      applyDamage(0n, 0n);
       return;
     case 'monk_inner_focus':
       addCharacterEffect(ctx, character.id, 'ac_bonus', 3n, 3n, 'Inner Focus');
@@ -2672,10 +2672,10 @@ function executeAbility(
       );
       return;
     case 'monk_tiger_flurry':
-      applyDamage(85n, 1n, { hits: 3n });
+      applyDamage(0n, 0n, { hits: 3n });
       return;
     case 'druid_thorn_lash':
-      applyDamage(110n, 1n, { dot: { magnitude: 2n, rounds: 2n, source: 'Thorn Lash' } });
+      applyDamage(0n, 0n, { dot: { magnitude: 2n, rounds: 2n, source: 'Thorn Lash' } });
       applyHeal(character, 3n, 'Thorn Lash');
       return;
     case 'druid_natures_mark': {
@@ -2730,7 +2730,7 @@ function executeAbility(
       return;
     }
     case 'druid_bramble':
-      applyDamage(110n, 2n, { dot: { magnitude: 3n, rounds: 2n, source: 'Bramble' } });
+      applyDamage(0n, 0n, { dot: { magnitude: 3n, rounds: 2n, source: 'Bramble' } });
       return;
     case 'druid_natures_gift':
       applyPartyHpBonus(8n, 3n, "Nature's Gift");
@@ -2743,11 +2743,11 @@ function executeAbility(
       );
       return;
     case 'druid_wild_surge':
-      applyDamage(165n, 5n);
+      applyDamage(0n, 0n);
       return;
     case 'reaver_blood_rend':
       {
-        const dealt = applyDamage(160n, 3n);
+        const dealt = applyDamage(0n, 0n);
         if (dealt > 0n) {
           const leech = (dealt * 30n) / 100n;
           applyHeal(character, leech > 0n ? leech : 1n, 'Blood Rend');
@@ -2765,18 +2765,18 @@ function executeAbility(
       );
       return;
     case 'reaver_soul_rend':
-      applyDamage(150n, 3n, { dot: { magnitude: 3n, rounds: 2n, source: 'Soul Rend' } });
+      applyDamage(0n, 0n, { dot: { magnitude: 3n, rounds: 2n, source: 'Soul Rend' } });
       return;
     case 'reaver_dread_aura':
-      applyDamage(110n, 1n, {
+      applyDamage(0n, 0n, {
         debuff: { type: 'damage_down', magnitude: -3n, rounds: 2n, source: 'Dread Aura' },
       });
       return;
     case 'reaver_oblivion':
-      applyDamage(175n, 6n);
+      applyDamage(0n, 0n);
       return;
     case 'summoner_conjure_vessel':
-      applyDamage(110n, 1n);
+      applyDamage(0n, 0n);
       addCharacterEffect(ctx, character.id, 'mana_regen', 2n, 2n, 'Familiar Strike');
       appendPrivateEvent(
         ctx,
@@ -2796,7 +2796,7 @@ function executeAbility(
         );
         return;
     case 'summoner_conjured_spike':
-      applyDamage(145n, 3n);
+      applyDamage(0n, 0n);
       return;
     case 'summoner_empower':
       applyPartyEffect('damage_up', 2n, 3n, 'Empower');
@@ -2809,7 +2809,7 @@ function executeAbility(
       );
       return;
     case 'summoner_spectral_lance':
-      applyDamage(170n, 5n);
+      applyDamage(0n, 0n);
       return;
     default:
       appendPrivateEvent(
