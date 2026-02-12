@@ -114,10 +114,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 22 | UI consistency pass - align all action panels with panelBody wrappers and card-style layouts | 2026-02-12 | 050cef4 | [22-ui-consistency-pass-align-all-action-pan](./quick/22-ui-consistency-pass-align-all-action-pan/) |
 | 23 | Redesign inventory panel - grid-based bag with right-click context menus | 2026-02-12 | 50652d8 | [23-redesign-inventory-panel-grid-based-bag-](./quick/23-redesign-inventory-panel-grid-based-bag-/) |
 | 24 | Add server-side persistence for UI panel layout | 2026-02-12 | ae45e00 | [24-add-server-side-persistence-for-ui-panel](./quick/24-add-server-side-persistence-for-ui-panel/) |
+| 25 | Add visual progress indicators for resource gathering and enemy pulling - multiplayer visibility with amber pull bars and blue gather bars | 2026-02-12 | cc828c3 | [25-add-visual-progress-indicators-for-resou](./quick/25-add-visual-progress-indicators-for-resou/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick task 24: Server-side persistence for UI panel layout
-**Timestamp:** 2026-02-12T19:30:48Z
+**Stopped at:** Completed quick task 25: Visual progress indicators for resource gathering and enemy pulling
+**Timestamp:** 2026-02-12T18:31:00Z
