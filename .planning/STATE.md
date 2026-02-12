@@ -11,8 +11,8 @@
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete — backend (03-01) and frontend (03-02) both done and human-verified.
 
 **Current phase:** 3.1-combat-balance
-**Current plan:** 03 (pending - if exists)
-**Next action:** Check for 3.1-03-PLAN.md or mark phase complete
+**Current plan:** 06 (pending - if exists)
+**Next action:** Check for 3.1-06-PLAN.md or mark phase complete
 
 ---
 
@@ -23,7 +23,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 1 | Races | Complete (2/2 plans done) |
 | 2 | Hunger | Complete (2/2 plans done, human-verified) |
 | 3 | Renown Foundation | Complete (2/2 plans done, human-verified) |
-| 3.1 | Combat Balance | In Progress (2/? plans done) |
+| 3.1 | Combat Balance | In Progress (3/? plans done) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
 | 6 | World Events | Pending |
@@ -68,6 +68,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 32. WIS healing scaling only applies to classes with wis as primary or secondary stat — prevents non-healers from benefiting (3.1-02)
 33. Scheduled reducer per-user data must use public tables, not private tables + views — views don't re-evaluate reliably for scheduled reducer inserts (quick-35)
 34. All abilities with power > 0n use ONLY hybrid formula (no weaponComponent) — fixes double-dipping bug that caused 5-6x damage (3.1-04)
+35. Ability scaling constants tuned: ABILITY_STAT_SCALING_PER_POINT reduced from 2n to 1n, power base multiplier reduced from 10n to 5n — brings abilities to 15-25 damage range, stats contribute ~30-40% (3.1-05)
 
 ---
 
@@ -84,8 +85,10 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 3.1-combat-balance | 01 | 7min | 2 | 5 |
 | 3.1-combat-balance | 02 | 8min | 2 | 5 |
 | 3.1-combat-balance | 04 | 5min | 1 | 1 |
+| 3.1-combat-balance | 05 | 2min | 1 | 2 |
 
 ---
+| Phase 3.1-combat-balance P05 | 2 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -146,5 +149,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed 3.1-combat-balance-04-PLAN.md
-**Timestamp:** 2026-02-12T21:27:01Z
+**Stopped at:** Completed 3.1-combat-balance-05-PLAN.md
+**Timestamp:** 2026-02-12T21:54:47Z
