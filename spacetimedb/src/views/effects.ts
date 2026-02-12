@@ -21,8 +21,10 @@ export const registerEffectViews = ({ spacetimedb, t, CharacterEffect }: ViewDep
       }
 
       const effects: typeof CharacterEffect.rowType[] = [];
-      for (const effect of ctx.db.characterEffect.iter()) {
-        if (ids.has(effect.characterId)) effects.push(effect);
+      for (const characterId of ids) {
+        for (const effect of ctx.db.characterEffect.by_character.filter(characterId)) {
+          effects.push(effect);
+        }
       }
       return effects;
     }
