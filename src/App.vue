@@ -555,6 +555,15 @@
       <div v-if="tooltip.item?.armorType && tooltip.item.armorType !== 'none'" :style="styles.tooltipLine">
         Armor: {{ tooltip.item.armorType.charAt(0).toUpperCase() + tooltip.item.armorType.slice(1) }}
       </div>
+      <div v-if="tooltip.item?.enemyMembers?.length" :style="styles.tooltipLine">
+        <div :style="{ fontWeight: 500, marginBottom: '0.2rem' }">Members:</div>
+        <div v-for="(member, idx) in tooltip.item.enemyMembers" :key="idx">
+          {{ member }}
+        </div>
+      </div>
+      <div v-if="tooltip.item?.factionName" :style="styles.tooltipLine">
+        Faction: {{ tooltip.item.factionName }}
+      </div>
     </div>
   </div>
 </template>

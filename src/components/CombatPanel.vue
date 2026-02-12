@@ -167,10 +167,22 @@
         v-for="enemy in enemySpawns"
         :key="enemy.id.toString()"
         :style="styles.enemyGroupRow"
+        @mouseenter="$emit('show-tooltip', {
+          item: {
+            name: enemy.name,
+            enemyMembers: enemy.memberNames,
+            factionName: enemy.factionName,
+            level: enemy.level,
+            groupCount: enemy.groupCount,
+          },
+          x: $event.clientX,
+          y: $event.clientY,
+        })"
+        @mousemove="$emit('move-tooltip', { x: $event.clientX, y: $event.clientY })"
+        @mouseleave="$emit('hide-tooltip')"
       >
         <span
           :style="styles[enemy.conClass] ?? {}"
-          :title="enemy.memberNames.length > 0 ? enemy.memberNames.join(', ') : enemy.name"
         >
           {{ enemy.name }} (L{{ enemy.level
           }}<span v-if="enemy.groupCount > 1n" :style="styles.groupCountTag"
@@ -342,6 +354,7 @@ type EnemySummary = {
   groupCount: bigint;
   memberNames: string[];
   conClass: string;
+  factionName: string;
 };
 
 const props = defineProps<{
