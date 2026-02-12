@@ -120,14 +120,16 @@ Plans:
 
 ---
 
-### Phase 3.1: Faction Hits (INSERTED)
+### Phase 3.1: Combat Balance (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
+**Goal:** Balance combat between melee and caster classes. Address damage scaling, stat contribution, and class viability.
 **Depends on:** Phase 3
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 3.1 to break down)
+- [ ] 3.1-01-PLAN.md — Backend foundation: combat_scaling.ts helpers, ABILITY_STAT_SCALING mapping, damageType tags, ItemTemplate schema extensions (weaponType, magicResistanceBonus), armor curve tuning
+- [ ] 3.1-02-PLAN.md — Combat integration: STR auto-attack scaling, DEX crit strikes, ability stat scaling (hybrid formula), WIS healing power, magic/physical damage routing, publish and regenerate bindings
+- [ ] 3.1-03-PLAN.md — Human verification: test combat balance across warrior, rogue, wizard, cleric classes
 
 ---
 
@@ -308,12 +310,12 @@ Phase 1 (Races) ─────────────────────�
 Phase 3 (Renown) ──────────────────────────────────┐   │
 Phase 4 (LLM Architecture) ──────────────────┐     │   │
                                               │     │   │
-Phase 2 (Hunger) ← Phase 1                   │     │   │
-Phase 5 (Quests) ← Phase 3, Phase 4          │     │   │
-Phase 6 (World Events) ← Phase 4 ─────────── │ ────┘   │
+Phase 2 (Hunger) <- Phase 1                   │     │   │
+Phase 5 (Quests) <- Phase 3, Phase 4          │     │   │
+Phase 6 (World Events) <- Phase 4 ─────────── │ ────┘   │
                                     (race unlock) ───────┘
-Phase 7 (Tone) ← Phase 4, 5, 6
-Phase 8 (Content Data) ← Phase 1, 2, 3
+Phase 7 (Tone) <- Phase 4, 5, 6
+Phase 8 (Content Data) <- Phase 1, 2, 3
 ```
 
 Phases 1, 3, and 4 can run in parallel. Phases 2, 5, 6 start once their dependencies complete. Phases 7 and 8 run last.
@@ -324,11 +326,11 @@ Phases 1, 3, and 4 can run in parallel. Phases 2, 5, 6 start once their dependen
 
 The milestone is complete when:
 
-1. **Races**: Players can select from ≥4 races at character creation; race restricts classes; racial bonuses apply in combat
+1. **Races**: Players can select from >=4 races at character creation; race restricts classes; racial bonuses apply in combat
 2. **Hunger**: Hunger decays over time; eating food grants Well Fed buff; buff improves combat stats; no starvation penalty exists
 3. **Renown**: Completing faction actions increases standing; rank thresholds unlock quests and rewards; standing persists permanently
 4. **Quests**: Players can accept and complete renown-gated quests; quest text is LLM-generated in Shadeslinger tone
 5. **World Events**: Admin (or threshold) fires a world event; LLM generates consequence text; all players see it; race unlock event works end-to-end
 6. **LLM Integration**: All generation uses Shadeslinger tone; fallback content exists; circuit breaker works; no game state depends on LLM success
-7. **Content**: ≥3 gear sets, ≥10 resources, ≥5 NPCs, ≥8 enemies, food crafting recipes defined
+7. **Content**: >=3 gear sets, >=10 resources, >=5 NPCs, >=8 enemies, food crafting recipes defined
 8. **Tone**: All LLM-generated and LLM-fallback text passes human Shadeslinger tone review
