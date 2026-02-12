@@ -13,7 +13,7 @@
 | 1 | Races | REQ-001–005 | None | Complete (2026-02-11) |
 | 2 | Hunger | REQ-010–015 | Phase 1 (race stat integration) | Planned |
 | 3 | Renown Foundation | REQ-020–026 | None | Planned |
-| 4 | LLM Architecture | REQ-040–047, REQ-080–084 | Phase 3 (first consumer) | Pending |
+| 4 | LLM Architecture | REQ-040–047, REQ-080–084 | Phase 3 (first consumer) | Planned |
 | 5 | Quest System | REQ-060–066 | Phase 3 (renown gating), Phase 4 (LLM text) | Pending |
 | 6 | World Events | REQ-030–035 | Phase 1 (race unlock), Phase 4 (LLM text) | Pending |
 | 7 | Narrative Tone Rollout | REQ-080–084 (applied) | Phase 4 (LLM pipeline running) | Pending |
@@ -21,7 +21,7 @@
 
 ---
 
-## Phase 1: Races
+### Phase 1: Races
 
 **Goal:** Players can select a race at character creation. Race restricts available classes and grants stat bonuses.
 
@@ -57,7 +57,7 @@ Plans:
 
 ---
 
-## Phase 2: Hunger
+### Phase 2: Hunger
 
 **Goal:** Characters have a hunger track. Eating food grants Well Fed buff that improves combat performance. No penalties for low hunger.
 
@@ -87,7 +87,7 @@ Plans:
 
 ---
 
-## Phase 3: Renown Foundation
+### Phase 3: Renown Foundation
 
 **Goal:** Each character tracks standing with each faction. Actions grant or reduce standing. Rank tiers are computed and displayed.
 
@@ -120,11 +120,29 @@ Plans:
 
 ---
 
-## Phase 4: LLM Architecture
+### Phase 3.1: Faction Hits (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Depends on:** Phase 3
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 3.1 to break down)
+
+---
+
+### Phase 4: LLM Architecture
 
 **Goal:** Working LLM content pipeline: procedure calls Anthropic API, writes to content tables, handles failures gracefully. No content consumers yet — this is the plumbing phase.
 
 **Requirements:** REQ-040, REQ-041, REQ-042, REQ-043, REQ-044, REQ-045, REQ-046, REQ-047, REQ-080, REQ-081, REQ-082, REQ-083, REQ-084
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Backend foundation: LlmConfig, GeneratedQuestText, GeneratedEventText, LlmCircuit tables + SHADESLINGER_SYSTEM_PROMPT and FALLBACK_CONTENT constants + set_llm_config and reset_llm_circuit reducers
+- [ ] 04-02-PLAN.md — Procedure implementation: generate_content procedure with Anthropic API call, circuit breaker, fallback writing + publish and regenerate bindings
+- [ ] 04-03-PLAN.md — Client integration: useLlmContent composable, GeneratedTextBlock component, useGameData subscriptions + human verification of end-to-end pipeline
 
 **Scope:**
 - `LlmConfig` table (private): api_key, default_model, circuit state
@@ -153,7 +171,7 @@ Plans:
 
 ---
 
-## Phase 5: Quest System
+### Phase 5: Quest System
 
 **Goal:** Renown-gated quests available per faction. Players accept quests, complete objectives, earn rewards. Quest text is LLM-generated.
 
@@ -192,7 +210,7 @@ Plans:
 
 ---
 
-## Phase 6: World Events
+### Phase 6: World Events
 
 **Goal:** Server-wide events fire (admin-triggered or threshold-triggered), generate LLM consequence text, appear in the world event log, and can unlock races.
 
@@ -227,7 +245,7 @@ Plans:
 
 ---
 
-## Phase 7: Narrative Tone Rollout
+### Phase 7: Narrative Tone Rollout
 
 **Goal:** LLM-generated Shadeslinger tone applied consistently across all generated content. All existing hardcoded strings reviewed for tone consistency.
 
@@ -251,7 +269,7 @@ Plans:
 
 ---
 
-## Phase 8: Content Data Expansion
+### Phase 8: Content Data Expansion
 
 **Goal:** Game world feels populated. Enough gear, resources, NPCs, and enemies to support meaningful progression through the new systems.
 
