@@ -1,7 +1,7 @@
 import { computed, ref, watch, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
-import type { CharacterRow } from '../module_bindings';
+import type { CharacterRow, RaceRow } from '../module_bindings';
 
 type UseCharacterCreationArgs = {
   connActive: Ref<boolean>;
@@ -9,6 +9,7 @@ type UseCharacterCreationArgs = {
   selectedCharacterId: Ref<string>;
   userId: Ref<bigint | null>;
   characters: Ref<CharacterRow[]>;
+  races: Ref<RaceRow[]>;
 };
 
 export const useCharacterCreation = ({
@@ -17,10 +18,11 @@ export const useCharacterCreation = ({
   selectedCharacterId,
   userId,
   characters,
+  races,
 }: UseCharacterCreationArgs) => {
   const MAX_CHARACTER_SLOTS = 3;
   const createCharacterReducer = useReducer(reducers.createCharacter);
-  const newCharacter = ref({ name: '', raceId: 0n as bigint, className: '' });
+  const newCharacter = ref({ name: '', raceId: '', className: '' });
   const createError = ref('');
   const creationToken = ref(0);
   const pendingSelectName = ref('');
@@ -28,10 +30,27 @@ export const useCharacterCreation = ({
   const isCharacterFormValid = computed(() =>
     Boolean(
       newCharacter.value.name.trim() &&
-        newCharacter.value.raceId > 0n &&
+        newCharacter.value.raceId &&
         newCharacter.value.className.trim()
     )
   );
+
+  const selectedRaceRow = computed(() => {
+    if (!newCharacter.value.raceId) return null;
+    const id = BigInt(newCharacter.value.raceId);
+    return races.value.find((r) => r.id === id) ?? null;
+  });
+
+  const filteredClassOptions = computed(() => {
+    const race = selectedRaceRow.value;
+    if (!race) return [];
+    const allowed = race.availableClasses;
+    if (!allowed || allowed.trim() === '') {
+      return null; // null means all classes allowed (Human race uses empty string)
+    }
+    const list = allowed.split(',').map((c: string) => c.trim().toLowerCase()).filter(Boolean);
+    return list;
+  });
 
   const createCharacter = () => {
     if (!connActive.value || userId.value == null || !isCharacterFormValid.value) return;
@@ -51,10 +70,10 @@ export const useCharacterCreation = ({
       pendingSelectName.value = newCharacter.value.name.trim();
       createCharacterReducer({
         name: newCharacter.value.name.trim(),
-        raceId: newCharacter.value.raceId,
+        raceId: BigInt(newCharacter.value.raceId),
         className: newCharacter.value.className.trim(),
       });
-      newCharacter.value = { name: '', raceId: 0n, className: '' };
+      newCharacter.value = { name: '', raceId: '', className: '' };
       creationToken.value = Date.now();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to create character';
@@ -81,5 +100,7 @@ export const useCharacterCreation = ({
     hasCharacter: computed(() => Boolean(selectedCharacter.value)),
     createError,
     creationToken,
+    selectedRaceRow,
+    filteredClassOptions,
   };
 };
