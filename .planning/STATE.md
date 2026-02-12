@@ -107,10 +107,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 14 | Update vendor seeding to use random subset selection - vendors stock ~13-15 tier-appropriate items instead of all 50+ items | 2026-02-12 | 859b4b2 | [14-update-vendor-seeding-to-use-random-sele](./quick/14-update-vendor-seeding-to-use-random-sele/) |
 | 15 | Fix panel visibility bug - add missing closing div on Character Panel to allow independent panel rendering | 2026-02-12 | fc63cf6 | [15-fix-panel-visibility-bug-panels-incorrec](./quick/15-fix-panel-visibility-bug-panels-incorrec/) |
 | 16 | Refactor location panel with flexible grid layout and context menus - replace button-heavy accordions with grid tiles and right-click menus | 2026-02-12 | 682e364 | [16-refactor-location-panel-flexible-grid-la](./quick/16-refactor-location-panel-flexible-grid-la/) |
+| 17 | Fix context menu handlers - add data-context-menu attribute to prevent race condition where menu closed before click events fired | 2026-02-12 | 6c67d7f | [17-fix-context-menu-handlers-wire-up-enemy-](./quick/17-fix-context-menu-handlers-wire-up-enemy-/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick task 16: Refactor location panel grid layout with context menus
-**Timestamp:** 2026-02-12T17:08:13Z
+**Stopped at:** Completed quick task 17: Fix context menu handlers wire-up
+**Timestamp:** 2026-02-12T17:37:41Z
