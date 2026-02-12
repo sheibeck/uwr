@@ -1,22 +1,24 @@
 import { computed, type Ref } from 'vue';
+import type { Infer } from 'spacetimedb';
 import {
   reducers,
-  type CharacterRow,
-  type CombatEncounterRow,
-  type CombatParticipantRow,
-  type CombatEnemyRow,
-  type CombatPetRow,
-  type CombatEnemyCastRow,
-  type CombatResultRow,
-  type CombatLootRow,
-  type EnemySpawnRow,
-  type EnemyTemplateRow,
-  type EnemyRoleTemplateRow,
-  type EnemySpawnMemberRow,
-  type CombatEnemyEffectRow,
-  type EnemyAbilityRow,
-  type ItemTemplateRow,
-  type FactionRow,
+  CharacterRow,
+  CombatEncounterRow,
+  CombatParticipantRow,
+  CombatEnemyRow,
+  CombatPetRow,
+  CombatEnemyCastRow,
+  CombatResultRow,
+  CombatLootRow,
+  EnemySpawnRow,
+  EnemyTemplateRow,
+  EnemyRoleTemplateRow,
+  EnemySpawnMemberRow,
+  CombatEnemyEffectRow,
+  EnemyAbilityRow,
+  ItemTemplateRow,
+  FactionRow,
+  PullStateRow,
 } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 import {
@@ -33,6 +35,9 @@ type EnemySummary = {
   groupCount: bigint;
   memberNames: string[];
   factionName: string;
+  isPulling: boolean;
+  pullProgress: number;
+  pullType: string | null;
 };
 
 type CombatRosterEntry = {
@@ -51,25 +56,26 @@ type CombatRosterEntry = {
 
 type UseCombatArgs = {
   connActive: Ref<boolean>;
-  selectedCharacter: Ref<CharacterRow | null>;
-  combatEncounters: Ref<CombatEncounterRow[]>;
-  combatParticipants: Ref<CombatParticipantRow[]>;
-  combatEnemies: Ref<CombatEnemyRow[]>;
-  combatPets: Ref<CombatPetRow[]>;
-  combatEnemyEffects: Ref<CombatEnemyEffectRow[]>;
-  combatEnemyCasts: Ref<CombatEnemyCastRow[]>;
-  enemyAbilities: Ref<EnemyAbilityRow[]>;
-  combatResults: Ref<CombatResultRow[]>;
-  combatLoot: Ref<CombatLootRow[]>;
-  itemTemplates: Ref<ItemTemplateRow[]>;
-  fallbackRoster: Ref<CharacterRow[]>;
-  enemySpawns: Ref<EnemySpawnRow[]>;
-  enemyTemplates: Ref<EnemyTemplateRow[]>;
-  enemyRoleTemplates: Ref<EnemyRoleTemplateRow[]>;
-  enemySpawnMembers: Ref<EnemySpawnMemberRow[]>;
+  selectedCharacter: Ref<Infer<typeof CharacterRow> | null>;
+  combatEncounters: Ref<Infer<typeof CombatEncounterRow>[]>;
+  combatParticipants: Ref<Infer<typeof CombatParticipantRow>[]>;
+  combatEnemies: Ref<Infer<typeof CombatEnemyRow>[]>;
+  combatPets: Ref<Infer<typeof CombatPetRow>[]>;
+  combatEnemyEffects: Ref<Infer<typeof CombatEnemyEffectRow>[]>;
+  combatEnemyCasts: Ref<Infer<typeof CombatEnemyCastRow>[]>;
+  enemyAbilities: Ref<Infer<typeof EnemyAbilityRow>[]>;
+  combatResults: Ref<Infer<typeof CombatResultRow>[]>;
+  combatLoot: Ref<Infer<typeof CombatLootRow>[]>;
+  itemTemplates: Ref<Infer<typeof ItemTemplateRow>[]>;
+  fallbackRoster: Ref<Infer<typeof CharacterRow>[]>;
+  enemySpawns: Ref<Infer<typeof EnemySpawnRow>[]>;
+  enemyTemplates: Ref<Infer<typeof EnemyTemplateRow>[]>;
+  enemyRoleTemplates: Ref<Infer<typeof EnemyRoleTemplateRow>[]>;
+  enemySpawnMembers: Ref<Infer<typeof EnemySpawnMemberRow>[]>;
+  pullStates: Ref<Infer<typeof PullStateRow>[]>;
   nowMicros: Ref<number>;
-  characters: Ref<CharacterRow[]>;
-  factions: Ref<FactionRow[]>;
+  characters: Ref<Infer<typeof CharacterRow>[]>;
+  factions: Ref<Infer<typeof FactionRow>[]>;
 };
 
 const timestampToMicros = (timestamp: any) => {
@@ -115,6 +121,7 @@ export const useCombat = ({
   enemyTemplates,
   enemyRoleTemplates,
   enemySpawnMembers,
+  pullStates,
   nowMicros,
   characters,
   factions,
@@ -354,7 +361,7 @@ export const useCombat = ({
       .filter(
         (row) =>
           row.locationId.toString() === selectedCharacter.value?.locationId.toString() &&
-          row.state === 'available'
+          (row.state === 'available' || row.state === 'pulling')
       )
       .map((spawn) => {
         const template = enemyTemplates.value.find(
@@ -384,6 +391,22 @@ export const useCombat = ({
         const factionName = template?.factionId
           ? factions.value.find(f => f.id.toString() === template.factionId!.toString())?.name ?? ''
           : '';
+
+        // Find matching pull state
+        const pull = pullStates.value.find(
+          (p) => p.enemySpawnId.toString() === spawn.id.toString() && p.state === 'pending'
+        );
+        const isPulling = spawn.state === 'pulling';
+        let pullProgress = 0;
+        let pullType: string | null = null;
+
+        if (isPulling && pull) {
+          pullType = pull.pullType;
+          const pullDurationMicros = pull.pullType === 'careful' ? 2_000_000 : 1_000_000;
+          const pullStartMicros = timestampToMicros(pull.createdAt);
+          pullProgress = Math.max(0, Math.min(1, (nowMicros.value - pullStartMicros) / pullDurationMicros));
+        }
+
         return {
           id: spawn.id,
           name: spawn.name,
@@ -392,6 +415,9 @@ export const useCombat = ({
           groupCount: spawn.groupCount ?? 1n,
           memberNames,
           factionName,
+          isPulling,
+          pullProgress,
+          pullType,
         };
       });
   });

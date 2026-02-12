@@ -33,6 +33,25 @@
           <span v-if="enemy.groupCount > 1n" :style="{ fontSize: '0.7rem', opacity: 0.8 }">
             x{{ enemy.groupCount }}
           </span>
+          <div
+            v-if="enemy.isPulling && enemy.pullProgress > 0"
+            :style="{
+              width: '100%',
+              height: '3px',
+              background: 'rgba(217, 159, 52, 0.3)',
+              borderRadius: '2px',
+              overflow: 'hidden',
+              marginTop: '0.2rem',
+            }"
+          >
+            <div
+              :style="{
+                width: `${Math.round(enemy.pullProgress * 100)}%`,
+                height: '100%',
+                background: 'rgba(217, 159, 52, 0.8)',
+              }"
+            ></div>
+          </div>
         </div>
       </div>
     </div>
@@ -137,6 +156,9 @@ type EnemySummary = {
   memberNames: string[];
   conClass: string;
   factionName: string;
+  isPulling: boolean;
+  pullProgress: number;
+  pullType: string | null;
 };
 
 const props = defineProps<{
@@ -197,12 +219,12 @@ const openEnemyContextMenu = (event: MouseEvent, enemy: EnemySummary) => {
   const items: Array<{ label: string; disabled?: boolean; action: () => void }> = [
     {
       label: 'Careful Pull',
-      disabled: !props.canEngage,
+      disabled: !props.canEngage || enemy.isPulling,
       action: () => emit('pull', { enemyId: enemy.id, pullType: 'careful' }),
     },
     {
       label: 'Body Pull',
-      disabled: !props.canEngage,
+      disabled: !props.canEngage || enemy.isPulling,
       action: () => emit('pull', { enemyId: enemy.id, pullType: 'body' }),
     },
   ];

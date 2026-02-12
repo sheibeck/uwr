@@ -538,7 +538,6 @@ const {
   factions,
   factionStandings,
   panelLayouts,
-  pullStates,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
