@@ -1,12 +1,20 @@
 <template>
+  <!-- State 1: Unauthenticated — show splash -->
   <SplashScreen
-    v-if="!isLoggedIn"
+    v-if="!isLoggedIn && !isPendingLogin"
     :styles="styles"
     :conn-active="conn.isActive"
     :auth-message="authMessage"
     :auth-error="authError"
     @login="login"
   />
+
+  <!-- State 2: Authenticated but waiting for data — show loading -->
+  <div v-else-if="isPendingLogin" :style="styles.loadingOverlay">
+    <div :style="styles.loadingText">Entering the realm...</div>
+  </div>
+
+  <!-- State 3: Fully loaded — show game -->
   <div v-else :style="styles.shell">
     <AppHeader
       :styles="styles"
@@ -551,7 +559,7 @@ const {
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
 
-const { isLoggedIn, login, logout, authMessage, authError } = useAuth({
+const { isLoggedIn, isPendingLogin, login, logout, authMessage, authError } = useAuth({
   connActive: computed(() => conn.isActive),
   player,
 });
@@ -1578,6 +1586,15 @@ const formatTimestamp = (ts: { microsSinceUnixEpoch: bigint }) => {
   }
   100% {
     box-shadow: 0 0 0 0 rgba(255, 80, 80, 0.35);
+  }
+}
+
+@keyframes loadingPulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
   }
 }
 </style>

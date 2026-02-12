@@ -1522,4 +1522,23 @@ export const styles = {
     textTransform: 'uppercase',
     transition: 'border-color 0.2s, color 0.2s',
   },
+  loadingOverlay: {
+    position: 'fixed',
+    inset: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    background: 'linear-gradient(135deg, #0b0c10 0%, #141821 40%, #0d1117 100%)',
+    color: '#e6e8ef',
+    fontFamily: '"PT Serif", "Georgia", serif',
+    zIndex: 9999,
+  },
+  loadingText: {
+    fontSize: '1.1rem',
+    letterSpacing: '0.12em',
+    color: 'rgba(248, 201, 74, 0.7)',
+    textTransform: 'uppercase',
+    animation: 'loadingPulse 2s ease-in-out infinite',
+  },
 } as const;
