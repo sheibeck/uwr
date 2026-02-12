@@ -151,6 +151,7 @@
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('character', $event, { right: true })" />
       <div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('character', $event, { bottom: true })" />
       <div :style="styles.resizeHandle" @mousedown.stop="startResize('character', $event, { right: true, bottom: true })" />
+    </div>
 
     <!-- Inventory Panel (wide) -->
     <div v-if="panels.inventory && panels.inventory.open" data-panel-id="inventory" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('inventory').value || {}) }" @mousedown="bringToFront('inventory')">
@@ -235,7 +236,6 @@
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('track', $event)"><div>Track</div><button type="button" :style="styles.panelClose" @click="closePanelById('track')">×</button></div>
       <div :style="styles.floatingPanelBody"><TrackPanel :styles="styles" :options="trackOptions" @select="selectTrackedTarget" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('track', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('track', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('track', $event, { right: true, bottom: true })" />
-    </div>
     </div>
 
     <div
