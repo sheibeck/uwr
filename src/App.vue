@@ -166,7 +166,76 @@
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('hotbarPanel', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('hotbarPanel', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('hotbarPanel', $event, { right: true, bottom: true })" />
     </div>
 
-    <!-- Other panels to be added following same pattern -->
+
+    <!-- Friends Panel -->
+    <div v-if="panels.friends && panels.friends.open" data-panel-id="friends" :style="{ ...styles.floatingPanel, ...(panelStyle('friends').value || {}) }" @mousedown="bringToFront('friends')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('friends', $event)"><div>Friends</div><button type="button" :style="styles.panelClose" @click="closePanelById('friends')">×</button></div>
+      <div :style="styles.floatingPanelBody"><FriendsPanel :styles="styles" :conn-active="conn.isActive" :is-logged-in="isLoggedIn" :friend-email="friendEmail" :incoming-requests="incomingRequests" :outgoing-requests="outgoingRequests" :friends="myFriends" :email-by-user-id="emailByUserId" @update:friendEmail="friendEmail = $event" @send-request="sendRequest" @accept="acceptRequest" @reject="rejectRequest" @remove="removeFriend" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('friends', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('friends', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('friends', $event, { right: true, bottom: true })" />
+    </div>
+
+    <!-- Stats Panel (wide) -->
+    <div v-if="panels.stats && panels.stats.open" data-panel-id="stats" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('stats').value || {}) }" @mousedown="bringToFront('stats')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('stats', $event)"><div>Stats</div><button type="button" :style="styles.panelClose" @click="closePanelById('stats')">×</button></div>
+      <div :style="styles.floatingPanelBody"><StatsPanel :styles="styles" :selected-character="selectedCharacter" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" /><HungerBar v-if="selectedCharacter" :hunger="activeHunger" :styles="styles" :style="{ marginTop: '1rem' }" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('stats', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('stats', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('stats', $event, { right: true, bottom: true })" />
+    </div>
+
+    <!-- Crafting Panel (wide) -->
+    <div v-if="panels.crafting && panels.crafting.open" data-panel-id="crafting" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('crafting').value || {}) }" @mousedown="bringToFront('crafting')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('crafting', $event)"><div>Crafting</div><button type="button" :style="styles.panelClose" @click="closePanelById('crafting')">×</button></div>
+      <div :style="styles.floatingPanelBody"><CraftingPanel :styles="styles" :selected-character="selectedCharacter" :crafting-available="currentLocationCraftingAvailable" :combat-locked="lockCrafting" :recipes="craftingRecipes" @research="onResearchRecipes" @craft="onCraftRecipe" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('crafting', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('crafting', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('crafting', $event, { right: true, bottom: true })" />
+    </div>
+
+    <!-- Journal Panel (wide) -->
+    <div v-if="panels.journal && panels.journal.open" data-panel-id="journal" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('journal').value || {}) }" @mousedown="bringToFront('journal')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('journal', $event)"><div>Journal</div><button type="button" :style="styles.panelClose" @click="closePanelById('journal')">×</button></div>
+      <div :style="styles.floatingPanelBody"><NpcDialogPanel :styles="styles" :npc-dialogs="npcDialogs" :npcs="npcs" :locations="locations" :regions="regions" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('journal', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('journal', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('journal', $event, { right: true, bottom: true })" />
+    </div>
+
+    <!-- Quests Panel (wide) -->
+    <div v-if="panels.quests && panels.quests.open" data-panel-id="quests" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('quests').value || {}) }" @mousedown="bringToFront('quests')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('quests', $event)"><div>Quests</div><button type="button" :style="styles.panelClose" @click="closePanelById('quests')">×</button></div>
+      <div :style="styles.floatingPanelBody"><QuestPanel :styles="styles" :quest-instances="questInstances" :quest-templates="questTemplates" :npcs="npcs" :locations="locations" :regions="regions" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('quests', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('quests', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('quests', $event, { right: true, bottom: true })" />
+    </div>
+
+    <!-- Renown Panel -->
+    <div v-if="panels.renown && panels.renown.open" data-panel-id="renown" :style="{ ...styles.floatingPanel, ...(panelStyle('renown').value || {}) }" @mousedown="bringToFront('renown')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('renown', $event)"><div>Renown</div><button type="button" :style="styles.panelClose" @click="closePanelById('renown')">×</button></div>
+      <div :style="styles.floatingPanelBody"><RenownPanel :styles="styles" :factions="factions" :faction-standings="factionStandings" :selected-character="selectedCharacter" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('renown', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('renown', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('renown', $event, { right: true, bottom: true })" />
+    </div>
+
+    <!-- Vendor Panel (wide) -->
+    <div v-if="panels.vendor && panels.vendor.open" data-panel-id="vendor" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('vendor').value || {}) }" @mousedown="bringToFront('vendor')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('vendor', $event)"><div>{{ activeVendor?.name ?? 'Vendor' }}</div><button type="button" :style="styles.panelClose" @click="closePanelById('vendor')">×</button></div>
+      <div :style="styles.floatingPanelBody"><VendorPanel :styles="styles" :selected-character="selectedCharacter" :vendor="activeVendor" :vendor-items="vendorItems" :inventory-items="inventoryItems" @buy="buyItem" @sell="sellItem" @sell-all-junk="sellAllJunk" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('vendor', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('vendor', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('vendor', $event, { right: true, bottom: true })" />
+    </div>
+
+    <!-- Character Actions Panel -->
+    <div v-if="panels.characterActions && panels.characterActions.open" data-panel-id="characterActions" :style="{ ...styles.floatingPanel, ...(panelStyle('characterActions').value || {}) }" @mousedown="bringToFront('characterActions')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('characterActions', $event)"><div>{{ actionTargetCharacter ? `${actionTargetCharacter.name} · ${actionTargetCharacter.className} Lv ${actionTargetCharacter.level}` : 'Actions' }}</div><button type="button" :style="styles.panelClose" @click="closePanelById('characterActions')">×</button></div>
+      <div :style="styles.floatingPanelBody"><CharacterActionsPanel :styles="styles" :target="actionTargetCharacter" :is-friend="actionTargetIsFriend" :is-in-group="actionTargetInGroup" :is-leader="isLeader" :target-is-leader="actionTargetIsLeader" @invite="inviteToGroup" @kick="kickMember" @friend="sendFriendRequest" @promote="promoteLeader" @trade="startTrade" @message="sendWhisperTo" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('characterActions', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('characterActions', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('characterActions', $event, { right: true, bottom: true })" />
+    </div>
+
+    <!-- Trade Panel (wide) -->
+    <div v-if="panels.trade && panels.trade.open" data-panel-id="trade" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('trade').value || {}) }" @mousedown="bringToFront('trade')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('trade', $event)"><div>Trade</div><button type="button" :style="styles.panelClose" @click="closePanel('trade')">×</button></div>
+      <div :style="styles.floatingPanelBody"><TradePanel :styles="styles" :trade="activeTrade" :inventory="tradeInventory" :my-offer="myOffer" :other-offer="otherOffer" :my-offer-locked="myOfferLocked" :other-offer-locked="otherOfferLocked" @add-item="addTradeItem" @remove-item="removeTradeItem" @offer="offerTrade" @cancel="cancelTrade" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('trade', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('trade', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('trade', $event, { right: true, bottom: true })" />
+    </div>
+
+    <!-- Track Panel -->
+    <div v-if="panels.track && panels.track.open" data-panel-id="track" :style="{ ...styles.floatingPanel, ...(panelStyle('track').value || {}) }" @mousedown="bringToFront('track')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('track', $event)"><div>Track</div><button type="button" :style="styles.panelClose" @click="closePanelById('track')">×</button></div>
+      <div :style="styles.floatingPanelBody"><TrackPanel :styles="styles" :options="trackOptions" @select="selectTrackedTarget" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('track', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('track', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('track', $event, { right: true, bottom: true })" />
+    </div>
     </div>
 
     <div
