@@ -17,4 +17,5 @@ export type ViewDeps = {
   Hunger: any;
   Faction: any;
   FactionStanding: any;
+  UiPanelLayout: any;
 };

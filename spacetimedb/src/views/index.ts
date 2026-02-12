@@ -9,6 +9,7 @@ import { registerHungerViews } from './hunger';
 import { registerNpcViews } from './npc';
 import { registerPlayerViews } from './player';
 import { registerQuestViews } from './quests';
+import { registerUiViews } from './ui';
 
 export const registerViews = (deps: ViewDeps) => {
   registerPlayerViews(deps);
@@ -21,4 +22,5 @@ export const registerViews = (deps: ViewDeps) => {
   registerQuestViews(deps);
   registerHungerViews(deps);
   registerFactionViews(deps);
+  registerUiViews(deps);
 };

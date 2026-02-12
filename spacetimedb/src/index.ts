@@ -1242,6 +1242,19 @@ const FactionStanding = table(
   }
 );
 
+const UiPanelLayout = table(
+  {
+    name: 'ui_panel_layout',
+    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    panelStatesJson: t.string(),
+    updatedAt: t.timestamp(),
+  }
+);
+
 export const spacetimedb = schema(
   Player,
   User,
@@ -4852,6 +4865,7 @@ registerViews({
   Hunger,
   Faction,
   FactionStanding,
+  UiPanelLayout,
 });
 
 function ensureNpcs(ctx: any) {
@@ -6278,6 +6292,7 @@ const reducerDeps = {
   Faction,
   FactionStanding,
   grantFactionStandingForKill,
+  UiPanelLayout,
 };
 
 reducerDeps.startCombatForSpawn = (
