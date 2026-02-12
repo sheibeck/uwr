@@ -1,6 +1,12 @@
 <template>
   <div :style="styles.actionBar">
     <button
+      @click="emit('toggle', 'log')"
+      :style="actionStyle('log')"
+    >
+      Log
+    </button>
+    <button
       @click="emit('toggle', 'character')"
       :style="actionStyle('character')"
       :disabled="isLocked('character')"
@@ -75,6 +81,7 @@ type PanelKey =
   | 'hotbar'
   | 'friends'
   | 'group'
+  | 'log'
   | 'stats'
   | 'crafting'
   | 'journal'
