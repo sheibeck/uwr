@@ -2,6 +2,7 @@
   <Teleport to="body">
     <div
       v-if="visible"
+      data-context-menu
       :style="{
         ...styles.contextMenu,
         left: `${clampedX}px`,
