@@ -122,10 +122,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 29 | Refactor loot system - replace combat summary modal with dedicated floating loot panel and log messages for Victory/Defeat | 2026-02-12 | d746ff3 | [29-refactor-loot-system-replace-combat-summ](./quick/29-refactor-loot-system-replace-combat-summ/) |
 | 30 | Add inventory stack splitting with context menu controls - right-click Split option for stackable items | 2026-02-12 | 51489c9 | [30-add-inventory-stack-splitting-with-conte](./quick/30-add-inventory-stack-splitting-with-conte/) |
 | 31 | Fix loot panel and victory messages - correct addLocalEvent call syntax and gate auto-dismiss on pending loot to prevent loot deletion | 2026-02-12 | ae56c5d | [31-fix-loot-panel-and-victory-messages-loot](./quick/31-fix-loot-panel-and-victory-messages-loot/) |
+| 32 | Add inventory organize button with alphabetization - consolidate stacks server-side and sort by rarity then alphabetically | 2026-02-12 | 255a8dc | [32-add-inventory-organize-button-alphabetiz](./quick/32-add-inventory-organize-button-alphabetiz/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick task 31: Fix loot panel and victory messages
-**Timestamp:** 2026-02-12T20:19:25Z
+**Stopped at:** Completed quick task 32: Add inventory organize button with alphabetization
+**Timestamp:** 2026-02-12T20:24:18Z
