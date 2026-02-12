@@ -94,6 +94,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 ### Roadmap Evolution
 - Phase 3.1 inserted after Phase 3: Combat Balance (URGENT)
 - 2026-02-12: Phase 3.1 renamed from "Faction Hits" to "Combat Balance" before planning
+- Phase 3.1.1 inserted after Phase 3.1: Combat balance part 2 (URGENT)
 
 ---
 
@@ -147,10 +148,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 39 | Fix players list to show only active and recently disconnected characters - restore active + pending-logout filter to exclude fully offline players | 2026-02-12 | cb87cff | [39-fix-players-list-to-show-only-active-and](./quick/39-fix-players-list-to-show-only-active-and/) |
 | 40 | Fix log message sorting and coloring - group combat messages show proper red/green/gold colors, same-timestamp events grouped by scope | 2026-02-12 | 3f0cdcb | [40-fix-log-message-sorting-and-coloring-in-](./quick/40-fix-log-message-sorting-and-coloring-in-/) |
 | 41 | Fix group panel buffs/debuffs display - enemy-applied effects now visible using index lookups instead of broken .iter() in view | 2026-02-12 | da9a615 | [41-fix-group-panel-buffs-debuffs-display-en](./quick/41-fix-group-panel-buffs-debuffs-display-en/) |
+| 42 | Fix out-of-combat buffs not showing in group panel - made CharacterEffect table public with client-side filtering to bypass unreliable view reactivity | 2026-02-12 | 8b46cf7 | [42-fix-out-of-combat-buffs-not-showing-in-g](./quick/42-fix-out-of-combat-buffs-not-showing-in-g/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed Quick Task 41 - fix group panel buffs/debuffs display
-**Timestamp:** 2026-02-12T23:12:40Z
+**Stopped at:** Completed Quick Task 42 - fix out-of-combat buffs not showing in group panel
+**Timestamp:** 2026-02-12T23:46:09Z
