@@ -40,6 +40,8 @@ const toMicros = (seconds: bigint | undefined) => {
   return Math.round(Number(seconds) * 1_000_000);
 };
 
+const COOLDOWN_SKEW_SUPPRESS_MICROS = 10_000_000;
+
 export const useHotbar = ({
   connActive,
   selectedCharacter,
@@ -60,6 +62,7 @@ export const useHotbar = ({
     null
   );
   const localCooldowns = ref(new Map<string, number>());
+  const predictedCooldownReadyAt = ref(new Map<string, number>());
   const hotbarPulseKey = ref<string | null>(null);
 
   const availableAbilities = computed(() => {
@@ -123,10 +126,18 @@ export const useHotbar = ({
       const readyAt = assignment.abilityKey
         ? cooldownByAbility.value.get(assignment.abilityKey)
         : undefined;
+      const serverReadyAt = readyAt ? Number(readyAt) : 0;
       const localReadyAt = assignment.abilityKey
         ? localCooldowns.value.get(assignment.abilityKey) ?? 0
         : 0;
-      const serverRemaining = readyAt ? Number(readyAt) - nowMicros.value : 0;
+      const predictedReadyAt = assignment.abilityKey
+        ? predictedCooldownReadyAt.value.get(assignment.abilityKey) ?? 0
+        : 0;
+      const suppressServerAsDuplicate =
+        predictedReadyAt > 0 &&
+        serverReadyAt > predictedReadyAt &&
+        serverReadyAt - predictedReadyAt <= COOLDOWN_SKEW_SUPPRESS_MICROS;
+      const serverRemaining = suppressServerAsDuplicate ? 0 : serverReadyAt - nowMicros.value;
       const localRemaining = localReadyAt ? localReadyAt - nowMicros.value : 0;
       const isLocallyCastingThisAbility = Boolean(
         localCast.value &&
@@ -246,7 +257,9 @@ export const useHotbar = ({
     }
     const cooldownMicros = toMicros(ability?.cooldownSeconds);
     if (cooldownMicros > 0) {
-      localCooldowns.value.set(abilityKey, nowMicros.value + castDurationMicros + cooldownMicros);
+      const readyAt = nowMicros.value + castDurationMicros + cooldownMicros;
+      localCooldowns.value.set(abilityKey, readyAt);
+      predictedCooldownReadyAt.value.set(abilityKey, readyAt);
     }
     hotbarPulseKey.value = abilityKey;
     window.setTimeout(() => {
@@ -274,6 +287,7 @@ export const useHotbar = ({
     () => {
       localCast.value = null;
       localCooldowns.value.clear();
+      predictedCooldownReadyAt.value.clear();
       hotbarPulseKey.value = null;
     }
   );
@@ -288,6 +302,11 @@ export const useHotbar = ({
       for (const [key, readyAt] of localCooldowns.value.entries()) {
         if (now >= readyAt) {
           localCooldowns.value.delete(key);
+        }
+      }
+      for (const [key, readyAt] of predictedCooldownReadyAt.value.entries()) {
+        if (now >= readyAt + COOLDOWN_SKEW_SUPPRESS_MICROS) {
+          predictedCooldownReadyAt.value.delete(key);
         }
       }
     }
