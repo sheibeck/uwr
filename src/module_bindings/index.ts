@@ -88,6 +88,10 @@ import UnequipItemReducer from "./unequip_item_reducer";
 export { UnequipItemReducer };
 import DeleteItemReducer from "./delete_item_reducer";
 export { DeleteItemReducer };
+import SplitStackReducer from "./split_stack_reducer";
+export { SplitStackReducer };
+import ConsolidateStacksReducer from "./consolidate_stacks_reducer";
+export { ConsolidateStacksReducer };
 import SetHotbarSlotReducer from "./set_hotbar_slot_reducer";
 export { SetHotbarSlotReducer };
 import UseAbilityReducer from "./use_ability_reducer";
@@ -438,6 +442,8 @@ import CombatResult from "./combat_result_type";
 export { CombatResult };
 import Command from "./command_type";
 export { Command };
+import ConsolidateStacks from "./consolidate_stacks_type";
+export { ConsolidateStacks };
 import CraftRecipe from "./craft_recipe_type";
 export { CraftRecipe };
 import CreateCharacter from "./create_character_type";
@@ -670,6 +676,8 @@ import SetGroupPuller from "./set_group_puller_type";
 export { SetGroupPuller };
 import SetHotbarSlot from "./set_hotbar_slot_type";
 export { SetHotbarSlot };
+import SplitStack from "./split_stack_type";
+export { SplitStack };
 import StartCombat from "./start_combat_type";
 export { StartCombat };
 import StartGatherResource from "./start_gather_resource_type";
@@ -1911,6 +1919,8 @@ const reducersSchema = __reducers(
   __reducerSchema("equip_item", EquipItemReducer),
   __reducerSchema("unequip_item", UnequipItemReducer),
   __reducerSchema("delete_item", DeleteItemReducer),
+  __reducerSchema("split_stack", SplitStackReducer),
+  __reducerSchema("consolidate_stacks", ConsolidateStacksReducer),
   __reducerSchema("set_hotbar_slot", SetHotbarSlotReducer),
   __reducerSchema("use_ability", UseAbilityReducer),
   __reducerSchema("start_gather_resource", StartGatherResourceReducer),
