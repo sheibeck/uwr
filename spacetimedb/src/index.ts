@@ -283,8 +283,10 @@ const ItemTemplate = table(
     hpBonus: t.u64(),
     manaBonus: t.u64(),
     armorClassBonus: t.u64(),
+    magicResistanceBonus: t.u64(),
     weaponBaseDamage: t.u64(),
     weaponDps: t.u64(),
+    weaponType: t.string(),
     stackable: t.bool(),
     wellFedDurationMicros: t.u64(),
     wellFedBuffType: t.string(),
@@ -1607,9 +1609,14 @@ function getEquippedWeaponStats(ctx: any, characterId: bigint) {
     if (instance.equippedSlot !== 'mainHand') continue;
     const template = ctx.db.itemTemplate.id.find(instance.templateId);
     if (!template) continue;
-    return { baseDamage: template.weaponBaseDamage, dps: template.weaponDps };
+    return {
+      baseDamage: template.weaponBaseDamage,
+      dps: template.weaponDps,
+      name: template.name,
+      weaponType: template.weaponType,
+    };
   }
-  return { baseDamage: 0n, dps: 0n };
+  return { baseDamage: 0n, dps: 0n, name: '', weaponType: '' };
 }
 
 function abilityResourceCost(level: bigint, power: bigint) {
@@ -3221,6 +3228,8 @@ function ensureStarterItemTemplates(ctx: any) {
       wellFedDurationMicros: 0n,
       wellFedBuffType: '',
       wellFedBuffMagnitude: 0n,
+      weaponType: '',
+      magicResistanceBonus: 0n,
       ...row,
     };
     const existing = findItemTemplateByName(ctx, fullRow.name);
@@ -3314,18 +3323,19 @@ function ensureStarterItemTemplates(ctx: any) {
     });
   }
 
-  const weaponTemplates: Record<string, { name: string; allowed: string }> = {
-    'Training Sword': { name: 'Training Sword', allowed: 'warrior' },
-    'Training Mace': { name: 'Training Mace', allowed: 'paladin,cleric' },
+  const weaponTemplates: Record<string, { name: string; allowed: string; weaponType: string }> = {
+    'Training Sword': { name: 'Training Sword', allowed: 'warrior', weaponType: 'sword' },
+    'Training Mace': { name: 'Training Mace', allowed: 'paladin,cleric', weaponType: 'mace' },
     'Training Staff': {
       name: 'Training Staff',
       allowed: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard',
+      weaponType: 'staff',
     },
-    'Training Bow': { name: 'Training Bow', allowed: 'ranger' },
-    'Training Dagger': { name: 'Training Dagger', allowed: 'rogue' },
-    'Training Axe': { name: 'Training Axe', allowed: 'beastmaster' },
-    'Training Blade': { name: 'Training Blade', allowed: 'spellblade,reaver' },
-    'Training Rapier': { name: 'Training Rapier', allowed: 'bard' },
+    'Training Bow': { name: 'Training Bow', allowed: 'ranger', weaponType: 'bow' },
+    'Training Dagger': { name: 'Training Dagger', allowed: 'rogue', weaponType: 'dagger' },
+    'Training Axe': { name: 'Training Axe', allowed: 'beastmaster', weaponType: 'axe' },
+    'Training Blade': { name: 'Training Blade', allowed: 'spellblade,reaver', weaponType: 'blade' },
+    'Training Rapier': { name: 'Training Rapier', allowed: 'bard', weaponType: 'rapier' },
   };
 
   for (const weapon of Object.values(weaponTemplates)) {
@@ -3347,8 +3357,10 @@ function ensureStarterItemTemplates(ctx: any) {
       hpBonus: 0n,
       manaBonus: 0n,
       armorClassBonus: 0n,
+      magicResistanceBonus: 0n,
       weaponBaseDamage: 4n,
       weaponDps: 6n,
+      weaponType: weapon.weaponType,
       stackable: false,
     });
   }
@@ -3464,8 +3476,10 @@ function ensureResourceItemTemplates(ctx: any) {
       hpBonus: 0n,
       manaBonus: 0n,
       armorClassBonus: 0n,
+      magicResistanceBonus: 0n,
       weaponBaseDamage: 0n,
       weaponDps: 0n,
+      weaponType: '',
       stackable: true,
       wellFedDurationMicros: 0n,
       wellFedBuffType: '',
@@ -3492,8 +3506,10 @@ function ensureResourceItemTemplates(ctx: any) {
       hpBonus: 0n,
       manaBonus: 0n,
       armorClassBonus: 0n,
+      magicResistanceBonus: 0n,
       weaponBaseDamage: 0n,
       weaponDps: 0n,
+      weaponType: '',
       stackable: true,
       wellFedDurationMicros: 0n,
       wellFedBuffType: '',
@@ -3532,8 +3548,10 @@ function ensureResourceItemTemplates(ctx: any) {
       hpBonus: 0n,
       manaBonus: 0n,
       armorClassBonus: 0n,
+      magicResistanceBonus: 0n,
       weaponBaseDamage: 0n,
       weaponDps: 0n,
+      weaponType: '',
       stackable: true,
       wellFedDurationMicros: 0n,
       wellFedBuffType: '',
@@ -3600,8 +3618,10 @@ function ensureFoodItemTemplates(ctx: any) {
       hpBonus: 0n,
       manaBonus: 0n,
       armorClassBonus: 0n,
+      magicResistanceBonus: 0n,
       weaponBaseDamage: 0n,
       weaponDps: 0n,
+      weaponType: '',
       stackable: true,
       wellFedDurationMicros: food.wellFedDurationMicros,
       wellFedBuffType: food.wellFedBuffType,
@@ -4115,9 +4135,13 @@ function scaleByPercent(value: bigint, percent: bigint) {
   return (value * percent) / 100n;
 }
 
+/**
+ * Apply armor mitigation to physical damage
+ * Tuned curve: 50 armor = ~33% reduction, 100 armor = ~50% reduction
+ * Formula: damage * 100 / (100 + armorClass)
+ */
 function applyArmorMitigation(damage: bigint, armorClass: bigint) {
-  const scaledArmor = armorClass * 5n;
-  const mitigated = (damage * 100n) / (100n + scaledArmor);
+  const mitigated = (damage * 100n) / (100n + armorClass);
   return mitigated > 0n ? mitigated : 1n;
 }
 
