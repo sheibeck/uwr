@@ -58,6 +58,10 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 22. FACTION_RANKS defined client-side as constant array with numeric min/max thresholds — no backend lookup needed (03-02)
 23. Standing BigInt converted via Number() before rank threshold comparison; getProgress clamps to 100% for Exalted (Infinity-safe) (03-02)
 24. Combat state restrictions data-driven via AbilityTemplate.combatState field — eliminates hardcoded ability key lists on client/server (quick-6)
+25. Victory/defeat sounds trigger from combinedEvents (persistent log) not activeResult (ephemeral row) for reliability (quick-33)
+26. Server auto-deletes CombatResult rows for no-loot victories and all defeats — already logged as events, no need for lingering rows (quick-33)
+27. Each group member independently manages own loot — no leader-gating on dismiss_combat_results (quick-33)
+28. take_loot cleanup scoped to character's own remaining loot using by_character index, not global combat loot (quick-33)
 
 ---
 
@@ -123,10 +127,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 30 | Add inventory stack splitting with context menu controls - right-click Split option for stackable items | 2026-02-12 | 51489c9 | [30-add-inventory-stack-splitting-with-conte](./quick/30-add-inventory-stack-splitting-with-conte/) |
 | 31 | Fix loot panel and victory messages - correct addLocalEvent call syntax and gate auto-dismiss on pending loot to prevent loot deletion | 2026-02-12 | ae56c5d | [31-fix-loot-panel-and-victory-messages-loot](./quick/31-fix-loot-panel-and-victory-messages-loot/) |
 | 32 | Add inventory organize button with alphabetization - consolidate stacks server-side and sort by rarity then alphabetically | 2026-02-12 | 255a8dc | [32-add-inventory-organize-button-alphabetiz](./quick/32-add-inventory-organize-button-alphabetiz/) |
+| 33 | Remove legacy auto-dismiss loot system - fix race condition preventing loot from displaying, enable per-character loot management | 2026-02-12 | a8aec03 | [33-remove-legacy-auto-dismiss-loot-system-a](./quick/33-remove-legacy-auto-dismiss-loot-system-a/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick task 32: Add inventory organize button with alphabetization
-**Timestamp:** 2026-02-12T20:24:18Z
+**Stopped at:** Completed quick task 33: Remove legacy auto-dismiss loot system
+**Timestamp:** 2026-02-12T20:34:20Z
