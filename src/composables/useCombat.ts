@@ -227,8 +227,15 @@ export const useCombat = ({
   const pendingLoot = computed(() => {
     if (!selectedCharacter.value) return [];
     const characterId = selectedCharacter.value.id.toString();
-    return combatLoot.value
-      .filter((row) => row.characterId.toString() === characterId)
+    const allLoot = combatLoot.value;
+    const filtered = allLoot.filter((row) => row.characterId.toString() === characterId);
+
+    // Diagnostic logging
+    if (allLoot.length > 0 || filtered.length > 0) {
+      console.log('[LOOT DEBUG] combatLoot rows:', allLoot.length, 'filtered for char:', filtered.length, 'characterId:', characterId);
+    }
+
+    return filtered
       .slice(0, 10)  // Cap at 10 items
       .map((row) => {
         const template = itemTemplates.value.find(

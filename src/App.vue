@@ -899,6 +899,7 @@ watch(
 watch(
   () => pendingLoot.value.length,
   (count, prevCount) => {
+    console.log('[LOOT DEBUG] pendingLoot changed:', prevCount, '->', count);
     if (count > 0 && (prevCount === 0 || prevCount === undefined)) {
       openPanel('loot');
     }

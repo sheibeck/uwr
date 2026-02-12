@@ -31,7 +31,14 @@ import {
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from './data/xp';
 import { RACE_DATA, ensureRaces } from './data/races';
 import { ensureFactions } from './data/faction_data';
-import { calculateCritChance, getCritMultiplier } from './data/combat_scaling';
+import {
+  calculateCritChance,
+  getCritMultiplier,
+  getAbilityStatScaling,
+  getAbilityMultiplier,
+  calculateHealingPower,
+  applyMagicResistMitigation,
+} from './data/combat_scaling';
 
 const Player = table(
   { name: 'player', public: true },
@@ -2031,14 +2038,40 @@ function executeAbility(
     if (options?.ignoreArmor) {
       armor = armor > options.ignoreArmor ? armor - options.ignoreArmor : 0n;
     }
+    // Get ability info for stat scaling
+    const abilityEntry = ABILITIES[abilityKey as keyof typeof ABILITIES];
+    const statScaling = getAbilityStatScaling(
+      { str: character.str, dex: character.dex, cha: character.cha, wis: character.wis, int: character.int },
+      abilityKey,
+      character.className
+    );
+    const abilityMultiplier = abilityEntry
+      ? getAbilityMultiplier(abilityEntry.castSeconds, abilityEntry.cooldownSeconds)
+      : 100n;
+
+    // Hybrid formula: (base + stat_scaling) * ability_multiplier / 100
+    const abilityBaseDamage = abilityEntry ? abilityEntry.power * 10n : 0n;
+    const scaledAbilityDamage = ((abilityBaseDamage + statScaling) * abilityMultiplier) / 100n;
+
+    // Weapon component (for weapon abilities that use percent > 0)
+    const weaponComponent = percent > 0n ? abilityDamageFromWeapon(baseWeaponDamage, percent, bonus) : 0n;
+
     let totalDamage = 0n;
     const hitDamages: bigint[] = [];
     for (let i = 0n; i < hits; i += 1n) {
-      const raw =
-        abilityDamageFromWeapon(baseWeaponDamage, percent, bonus) +
-        totalDamageUp +
-        sumEnemyEffect(ctx, combatId, 'damage_taken', enemy.id);
-      const reduced = applyArmorMitigation(raw, armor);
+      // Total raw damage
+      const raw = weaponComponent + scaledAbilityDamage + totalDamageUp + sumEnemyEffect(ctx, combatId, 'damage_taken', enemy.id);
+
+      // Route mitigation by damage type
+      const dmgType = abilityEntry?.damageType ?? 'physical';
+      let reduced: bigint;
+      if (dmgType === 'magic') {
+        // Magic damage bypasses armor entirely (makes magic impactful)
+        reduced = raw > 0n ? raw : 1n;
+      } else {
+        // Physical damage uses armor mitigation
+        reduced = applyArmorMitigation(raw, armor);
+      }
       hitDamages.push(reduced);
       totalDamage += reduced;
     }
@@ -2095,9 +2128,11 @@ function executeAbility(
   const applyHeal = (target: typeof Character.rowType, amount: bigint, source: string) => {
     const current = ctx.db.character.id.find(target.id);
     if (!current) return;
-    const nextHp = current.hp + amount > current.maxHp ? current.maxHp : current.hp + amount;
+    // Apply WIS scaling to healing output (uses the CASTER's WIS, not target's)
+    const scaledAmount = calculateHealingPower(amount, character.wis, character.className);
+    const nextHp = current.hp + scaledAmount > current.maxHp ? current.maxHp : current.hp + scaledAmount;
     ctx.db.character.id.update({ ...current, hp: nextHp });
-    const message = `${source} restores ${amount} health to ${current.name}.`;
+    const message = `${source} restores ${scaledAmount} health to ${current.name}.`;
     appendPrivateEvent(ctx, current.id, current.ownerUserId, 'heal', message);
     if (current.id !== character.id) {
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'heal', message);
