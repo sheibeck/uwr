@@ -18,7 +18,9 @@ export const useAuth = ({ connActive, player }: UseAuthArgs) => {
   const logoutReducer = useReducer(reducers.logout);
 
   const authEmail = ref(getStoredEmail() ?? '');
-  const isLoggedIn = computed(() => Boolean(getStoredIdToken()) && player.value?.userId != null);
+  const tokenCleared = ref(false);
+  const isPendingLogin = ref(Boolean(getStoredIdToken()) && player.value?.userId == null);
+  const isLoggedIn = computed(() => !tokenCleared.value && Boolean(getStoredIdToken()) && player.value?.userId != null);
   const authMessage = ref('');
   const authError = ref('');
 
@@ -39,8 +41,8 @@ export const useAuth = ({ connActive, player }: UseAuthArgs) => {
     try {
       if (connActive.value) logoutReducer();
       clearAuthSession();
+      tokenCleared.value = true;
       authMessage.value = '';
-      window.location.reload();
     } catch (err) {
       authMessage.value = '';
       authError.value = err instanceof Error ? err.message : 'Logout failed';
@@ -52,6 +54,7 @@ export const useAuth = ({ connActive, player }: UseAuthArgs) => {
     ([active, userId, email]) => {
       if (!active) return;
       if (userId != null) {
+        isPendingLogin.value = false;
         authMessage.value = '';
         return;
       }
@@ -68,5 +71,5 @@ export const useAuth = ({ connActive, player }: UseAuthArgs) => {
     { immediate: true }
   );
 
-  return { email: authEmail, isLoggedIn, login, logout, authMessage, authError };
+  return { email: authEmail, isLoggedIn, isPendingLogin, login, logout, authMessage, authError };
 };
