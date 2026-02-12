@@ -267,9 +267,10 @@ export const registerItemReducers = (deps: any) => {
       if (template.stackable) return failItem(ctx, character, 'Cannot equip this item');
       if (character.level < template.requiredLevel) return failItem(ctx, character, 'Level too low');
       if (!isClassAllowed(template.allowedClasses, character.className)) {
-        return failItem(ctx, character, 'Class cannot use this item');
+        const isWeaponSlot = template.slot === 'mainHand' || template.slot === 'offHand';
+        return failItem(ctx, character, isWeaponSlot ? 'Weapon type not allowed for this class' : 'Class cannot use this item');
       }
-      if (!isArmorAllowedForClass(character.className, template.armorType)) {
+      if (template.armorType !== 'none' && !isArmorAllowedForClass(character.className, template.armorType)) {
         return failItem(ctx, character, 'Armor type not allowed for this class');
       }
       if (!EQUIPMENT_SLOTS.has(template.slot)) return failItem(ctx, character, 'Invalid slot');
