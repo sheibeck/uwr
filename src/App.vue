@@ -1235,19 +1235,19 @@ const activeResourceGather = computed(() => {
 
 const resourceNodesHere = computed(() => {
   if (!currentLocation.value) return [];
-  const gather = activeResourceGather.value;
   const now = nowMicros.value;
   return resourceNodes.value
     .filter((node) => node.locationId.toString() === currentLocation.value?.id.toString())
     .filter((node) => node.state === 'available' || node.state === 'harvesting')
     .map((node) => {
       const local = localGather.value?.nodeId?.toString() === node.id.toString();
-      const isGathering = local || gather?.nodeId?.toString() === node.id.toString();
+      const anyGather = resourceGathers.value.find(g => g.nodeId.toString() === node.id.toString());
+      const isGathering = local || !!anyGather;
       const castMicros = 8_000_000;
       const endsAt = local
         ? localGather.value!.startMicros + castMicros
-        : isGathering
-          ? Number(gather?.endsAtMicros ?? 0n)
+        : anyGather
+          ? Number(anyGather.endsAtMicros)
           : 0;
       const startAt = endsAt - castMicros;
       const progress =
