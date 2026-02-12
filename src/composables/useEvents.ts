@@ -105,12 +105,16 @@ export const useEvents = ({
     for (const event of localEvents.value) {
       items.push(event);
     }
+    // Scope ordering: world first, then location, private, group, client last
+    const scopeOrder: Record<string, number> = { world: 0, location: 1, private: 2, group: 3, client: 4 };
     return items
       .sort((a, b) => {
-        if (a.createdAt.microsSinceUnixEpoch === b.createdAt.microsSinceUnixEpoch) {
-          return a.id > b.id ? 1 : -1;
+        if (a.createdAt.microsSinceUnixEpoch !== b.createdAt.microsSinceUnixEpoch) {
+          return a.createdAt.microsSinceUnixEpoch > b.createdAt.microsSinceUnixEpoch ? 1 : -1;
         }
-        return a.createdAt.microsSinceUnixEpoch > b.createdAt.microsSinceUnixEpoch ? 1 : -1;
+        const scopeDiff = (scopeOrder[a.scope] ?? 9) - (scopeOrder[b.scope] ?? 9);
+        if (scopeDiff !== 0) return scopeDiff;
+        return a.id > b.id ? 1 : -1;
       })
       .slice(-80);
   });
