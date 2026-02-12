@@ -100,10 +100,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 7 | Fix armor class restrictions - correct swapped armor proficiency check arguments and update armor seed data to show proper class restrictions in tooltips | 2026-02-12 | f5d9476 | [7-we-ve-added-tooltips-to-show-class-restr](./quick/7-we-ve-added-tooltips-to-show-class-restr/) |
 | 8 | Add log entries for faction standing gains - show lavender-colored messages when gaining/losing standing with factions | 2026-02-12 | f6aeed2 | [8-add-log-entries-for-faction-standing-gai](./quick/8-add-log-entries-for-faction-standing-gai/) |
 | 9 | Fix equipment validation to allow class-permitted weapons - skip armor proficiency check for armorType='none' items (weapons, accessories) | 2026-02-12 | fefce50 | [9-fix-equipment-validation-allow-class-per](./quick/9-fix-equipment-validation-allow-class-per/) |
+| 10 | Add user feedback for blocked abilities - client-side local event system with terracotta-colored messages when abilities blocked by combat state | 2026-02-12 | 0ac90bb | [10-add-user-feedback-for-blocked-abilities-](./quick/10-add-user-feedback-for-blocked-abilities-/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** 2026-02-12 - Completed quick task 9: Fix equipment validation to allow class-permitted weapons
-**Timestamp:** 2026-02-12T14:55:15Z
+**Stopped at:** 2026-02-12 - Completed quick task 10: Add user feedback for blocked abilities
+**Timestamp:** 2026-02-12T15:11:32Z
