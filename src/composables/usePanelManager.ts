@@ -58,6 +58,15 @@ export function usePanelManager(
     };
   }
 
+  // Sync topZ to the highest zIndex among all panels
+  const syncTopZ = () => {
+    let max = 10;
+    for (const state of Object.values(panels)) {
+      if (state.zIndex > max) max = state.zIndex;
+    }
+    topZ.value = max;
+  };
+
   // Load from localStorage
   const loadFromStorage = () => {
     try {
@@ -106,6 +115,9 @@ export function usePanelManager(
     } catch (e) {
       console.warn('Failed to load panel states from localStorage:', e);
     }
+
+    // Sync topZ after loading to ensure it's >= all loaded zIndex values
+    syncTopZ();
   };
 
   // Save to localStorage (debounced)
@@ -195,6 +207,7 @@ export function usePanelManager(
   // Bring panel to front
   const bringToFront = (id: string) => {
     if (!panels[id]) return;
+    if (panels[id].zIndex === topZ.value) return; // Already on top
     topZ.value += 1;
     panels[id].zIndex = topZ.value;
   };
@@ -372,6 +385,8 @@ export function usePanelManager(
           console.warn('Failed to parse server panel layout:', e);
         } finally {
           loadingFromServer.value = false;
+          // Sync topZ after server restore completes
+          syncTopZ();
         }
       },
       { immediate: true }
