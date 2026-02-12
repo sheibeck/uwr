@@ -73,6 +73,13 @@
               Use
             </button>
             <button
+              v-if="item.eatable"
+              :style="styles.primaryButton"
+              @click="$emit('eat-food', item.id)"
+            >
+              Eat
+            </button>
+            <button
               v-if="item.equipable"
               :style="[styles.primaryButton, combatLocked ? styles.disabledButton : {}]"
               :disabled="combatLocked"
@@ -127,6 +134,7 @@ const props = defineProps<{
     description: string;
     equipable: boolean;
     usable: boolean;
+    eatable: boolean;
     quantity: bigint;
     stackable: boolean;
   }[];
@@ -156,6 +164,7 @@ defineEmits<{
   (e: 'equip', itemInstanceId: bigint): void;
   (e: 'unequip', slot: string): void;
   (e: 'use-item', itemInstanceId: bigint): void;
+  (e: 'eat-food', itemInstanceId: bigint): void;
   (e: 'delete-item', itemInstanceId: bigint): void;
   (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
   (e: 'move-tooltip', value: { x: number; y: number }): void;

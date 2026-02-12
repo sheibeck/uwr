@@ -155,6 +155,7 @@
           @equip="equipItem"
           @unequip="unequipItem"
           @use-item="useItem"
+          @eat-food="eatFood"
           @delete-item="deleteItem"
           @show-tooltip="showTooltip"
           @move-tooltip="moveTooltip"
@@ -209,14 +210,21 @@
           @toggle-follow="setFollowLeader"
           @character-action="openCharacterActions"
         />
-        <StatsPanel
-          v-else-if="activePanel === 'stats'"
-          :styles="styles"
-          :selected-character="selectedCharacter"
-          :stat-bonuses="equippedStatBonuses"
-          :locations="locations"
-          :regions="regions"
-        />
+        <div v-else-if="activePanel === 'stats'">
+          <StatsPanel
+            :styles="styles"
+            :selected-character="selectedCharacter"
+            :stat-bonuses="equippedStatBonuses"
+            :locations="locations"
+            :regions="regions"
+          />
+          <HungerBar
+            v-if="selectedCharacter"
+            :hunger="activeHunger"
+            :styles="styles"
+            :style="{ marginTop: '1rem' }"
+          />
+        </div>
         <CraftingPanel
           v-else-if="activePanel === 'crafting'"
           :styles="styles"
@@ -561,6 +569,7 @@ import NpcDialogPanel from './components/NpcDialogPanel.vue';
 import QuestPanel from './components/QuestPanel.vue';
 import VendorPanel from './components/VendorPanel.vue';
 import TrackPanel from './components/TrackPanel.vue';
+import HungerBar from './components/HungerBar.vue';
 import { useGameData } from './composables/useGameData';
 import { useCharacters } from './composables/useCharacters';
 import { useEvents } from './composables/useEvents';
@@ -633,6 +642,7 @@ const {
   tradeSessions,
   tradeItems,
   races,
+  myHunger,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
@@ -1407,6 +1417,19 @@ const {
     activePanel.value = 'track';
   },
 });
+
+const activeHunger = computed(() => {
+  if (!selectedCharacter.value || !myHunger.value.length) return null;
+  return myHunger.value.find(
+    (h: any) => h.characterId.toString() === selectedCharacter.value?.id.toString()
+  ) ?? null;
+});
+
+const eatFoodReducer = useReducer(reducers.eatFood);
+const eatFood = (itemInstanceId: bigint) => {
+  if (!conn.isActive || !selectedCharacter.value) return;
+  eatFoodReducer({ characterId: selectedCharacter.value.id, itemInstanceId });
+};
 
 const equippedStatBonuses = computed(() => {
   if (!selectedCharacter.value) {
