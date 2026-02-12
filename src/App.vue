@@ -549,6 +549,12 @@
           {{ stat.label }}: {{ stat.value }}
         </div>
       </div>
+      <div v-if="tooltip.item?.allowedClasses && tooltip.item.allowedClasses !== 'any'" :style="styles.tooltipLine">
+        Classes: {{ tooltip.item.allowedClasses }}
+      </div>
+      <div v-if="tooltip.item?.armorType && tooltip.item.armorType !== 'none'" :style="styles.tooltipLine">
+        Armor: {{ tooltip.item.armorType.charAt(0).toUpperCase() + tooltip.item.armorType.slice(1) }}
+      </div>
     </div>
   </div>
 </template>
