@@ -224,6 +224,51 @@ export const useCombat = ({
       });
   });
 
+  const pendingLoot = computed(() => {
+    if (!selectedCharacter.value) return [];
+    const characterId = selectedCharacter.value.id.toString();
+    return combatLoot.value
+      .filter((row) => row.characterId.toString() === characterId)
+      .slice(0, 10)  // Cap at 10 items
+      .map((row) => {
+        const template = itemTemplates.value.find(
+          (item) => item.id.toString() === row.itemTemplateId.toString()
+        );
+        const description =
+          [
+            template?.rarity,
+            template?.armorType,
+            template?.slot,
+            template?.tier ? `Tier ${template.tier}` : null,
+          ]
+            .filter((value) => value && value.length > 0)
+            .join(' • ') ?? '';
+        const stats = [
+          template?.armorClassBonus ? { label: 'Armor Class', value: `+${template.armorClassBonus}` } : null,
+          template?.weaponBaseDamage ? { label: 'Weapon Damage', value: `${template.weaponBaseDamage}` } : null,
+          template?.weaponDps ? { label: 'Weapon DPS', value: `${template.weaponDps}` } : null,
+          template?.strBonus ? { label: 'STR', value: `+${template.strBonus}` } : null,
+          template?.dexBonus ? { label: 'DEX', value: `+${template.dexBonus}` } : null,
+          template?.chaBonus ? { label: 'CHA', value: `+${template.chaBonus}` } : null,
+          template?.wisBonus ? { label: 'WIS', value: `+${template.wisBonus}` } : null,
+          template?.intBonus ? { label: 'INT', value: `+${template.intBonus}` } : null,
+          template?.hpBonus ? { label: 'HP', value: `+${template.hpBonus}` } : null,
+          template?.manaBonus ? { label: 'Mana', value: `+${template.manaBonus}` } : null,
+          template?.vendorValue ? { label: 'Value', value: `${template.vendorValue} gold` } : null,
+        ].filter(Boolean) as { label: string; value: string }[];
+        return {
+          id: row.id,
+          name: template?.name ?? 'Unknown',
+          rarity: template?.rarity ?? 'Common',
+          tier: template?.tier ?? 1n,
+          allowedClasses: template?.allowedClasses ?? 'any',
+          armorType: template?.armorType ?? 'none',
+          description,
+          stats,
+        };
+      });
+  });
+
   const lootForResult = computed(() => {
     if (!activeResult.value) return [];
     const combatId = activeResult.value.combatId.toString();
@@ -636,6 +681,7 @@ export const useCombat = ({
     activeCombat,
     activeResult,
     activeLoot,
+    pendingLoot,
     lootForResult,
     hasAnyLootForResult,
     hasOtherLootForResult,
