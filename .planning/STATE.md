@@ -118,10 +118,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 26 | Fix tooltip text wrapping - add overflowWrap CSS property to ensure long content wraps within 240px maxWidth boundary | 2026-02-12 | 9c649a2 | [26-fix-tooltip-text-wrapping-wrap-class-lis](./quick/26-fix-tooltip-text-wrapping-wrap-class-lis/) |
 | 27 | Add log button to action bar to reopen closed log panel - log toggle button in action bar | 2026-02-12 | c0ab274 | [27-add-log-button-to-action-bar-to-reopen-c](./quick/27-add-log-button-to-action-bar-to-reopen-c/) |
 | 28 | Fix missing combat summary window - remove auto-dismiss watcher that hid solo victory results with no loot | 2026-02-12 | 7032a86 | [28-fix-missing-combat-summary-window-after-](./quick/28-fix-missing-combat-summary-window-after-/) |
+| 29 | Refactor loot system - replace combat summary modal with dedicated floating loot panel and log messages for Victory/Defeat | 2026-02-12 | d746ff3 | [29-refactor-loot-system-replace-combat-summ](./quick/29-refactor-loot-system-replace-combat-summ/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick task 28: Fix missing combat summary window
-**Timestamp:** 2026-02-12T19:50:10Z
+**Stopped at:** Completed quick task 29: Refactor loot system to replace combat summary modal
+**Timestamp:** 2026-02-12T20:10:00Z
