@@ -237,6 +237,16 @@ export const registerItemReducers = (deps: any) => {
       `You take ${template.name}.`,
       `${character.name} takes ${template.name}.`
     );
+
+    // Auto-dismiss results for everyone once all loot in this combat is claimed.
+    const remainingLoot = [...ctx.db.combatLoot.by_combat.filter(loot.combatId)];
+    if (remainingLoot.length === 0) {
+      for (const result of ctx.db.combatResult.iter()) {
+        if (result.combatId === loot.combatId) {
+          ctx.db.combatResult.id.delete(result.id);
+        }
+      }
+    }
   });
 
   spacetimedb.reducer(
@@ -1250,4 +1260,3 @@ export const registerItemReducers = (deps: any) => {
     syncAllContent(ctx);
   });
 };
-
