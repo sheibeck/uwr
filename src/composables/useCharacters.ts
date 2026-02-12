@@ -100,10 +100,13 @@ export const useCharacters = ({
 
   const charactersHere = computed(() => {
     if (!selectedCharacter.value) return [];
+    const activeIds = activeCharacterIds.value;
+    const pendingIds = pendingLogoutIds.value;
     return characters.value.filter(
       (row) =>
         row.locationId === selectedCharacter.value?.locationId &&
-        row.id !== selectedCharacter.value?.id
+        row.id !== selectedCharacter.value?.id &&
+        (activeIds.has(row.id.toString()) || pendingIds.has(row.id.toString()))
     );
   });
 
