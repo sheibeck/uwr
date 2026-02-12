@@ -11,7 +11,7 @@
 | Phase | Name | Requirements | Dependencies | Status |
 |-------|------|-------------|--------------|--------|
 | 1 | Races | REQ-001–005 | None | Complete (2026-02-11) |
-| 2 | Hunger | REQ-010–015 | Phase 1 (race stat integration) | Pending |
+| 2 | Hunger | REQ-010–015 | Phase 1 (race stat integration) | Planned |
 | 3 | Renown Foundation | REQ-020–026 | None | Pending |
 | 4 | LLM Architecture | REQ-040–047, REQ-080–084 | Phase 3 (first consumer) | Pending |
 | 5 | Quest System | REQ-060–066 | Phase 3 (renown gating), Phase 4 (LLM text) | Pending |
@@ -30,8 +30,8 @@
 **Plans:** 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Backend: Race table, RACE_DATA seeding, create_character reducer with raceId validation and racial stat bonuses, publish and regenerate bindings
-- [ ] 01-02-PLAN.md — Frontend: Race picker dropdown in CharacterPanel, class filtering by race, updated reducer call with raceId, human verification
+- [x] 01-01-PLAN.md — Backend: Race table, RACE_DATA seeding, create_character reducer with raceId validation and racial stat bonuses, publish and regenerate bindings
+- [x] 01-02-PLAN.md — Frontend: Race picker dropdown in CharacterPanel, class filtering by race, updated reducer call with raceId, human verification
 
 **Scope:**
 - `Race` table in `spacetimedb/src/index.ts` with `unlocked: bool` field
@@ -48,12 +48,12 @@ Plans:
 - Wyldfang (agile/nature classes)
 
 **Success Criteria:**
-- [ ] Race table seeded with 4 unlocked races
-- [ ] Character creation shows race picker with stats/restrictions
-- [ ] Selecting a race updates the class dropdown to valid classes only
-- [ ] Creating a character with a race stores `raceId` on the Character row
-- [ ] Racial stat bonuses appear in character stats view
-- [ ] Attempting to create an invalid race-class combo is rejected by the backend
+- [x] Race table seeded with 4 unlocked races
+- [x] Character creation shows race picker with stats/restrictions
+- [x] Selecting a race updates the class dropdown to valid classes only
+- [x] Creating a character with a race stores `raceId` on the Character row
+- [x] Racial stat bonuses appear in character stats view
+- [x] Attempting to create an invalid race-class combo is rejected by the backend
 
 ---
 
@@ -62,6 +62,12 @@ Plans:
 **Goal:** Characters have a hunger track. Eating food grants Well Fed buff that improves combat performance. No penalties for low hunger.
 
 **Requirements:** REQ-010, REQ-011, REQ-012, REQ-013, REQ-014, REQ-015
+
+**Plans:** 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Backend: Hunger table, HungerDecayTick, ItemTemplate extension, food seeding, eat_food/decay_hunger reducers, Well Fed combat integration, my_hunger view, publish and regenerate bindings
+- [ ] 02-02-PLAN.md — Frontend: HungerBar component, myHunger subscription, Eat button on food items, App.vue wiring, human verification
 
 **Scope:**
 - `Hunger` table: `{ characterId, currentHunger, wellFedUntil }`
