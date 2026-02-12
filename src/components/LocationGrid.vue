@@ -5,7 +5,6 @@
       v-if="
         enemySpawns.length === 0 &&
         resourceNodes.length === 0 &&
-        charactersHere.length === 0 &&
         npcsHere.length === 0
       "
       :style="styles.subtle"
@@ -91,9 +90,12 @@
     </div>
 
     <!-- Characters -->
-    <div v-if="charactersHere.length > 0">
-      <div :style="styles.gridSectionLabel">CHARACTERS ({{ charactersHere.length }})</div>
-      <div :style="styles.gridWrap">
+    <div>
+      <div :style="styles.gridSectionLabel">PLAYERS ({{ charactersHere.length }})</div>
+      <div v-if="charactersHere.length === 0" :style="{ fontSize: '0.75rem', opacity: 0.4, padding: '0.2rem 0' }">
+        No other adventurers here.
+      </div>
+      <div v-else :style="styles.gridWrap">
         <div
           v-for="entry in charactersHere"
           :key="entry.character.id.toString()"
