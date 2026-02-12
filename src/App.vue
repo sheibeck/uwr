@@ -497,6 +497,7 @@ const {
   enemyAbilities,
   enemySpawns,
   enemySpawnMembers,
+  pullStates,
   combatEncounters,
   combatParticipants,
   combatEnemies,
@@ -536,6 +537,8 @@ const {
   myHunger,
   factions,
   factionStandings,
+  panelLayouts,
+  pullStates,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
@@ -755,6 +758,7 @@ const {
   enemyTemplates,
   enemyRoleTemplates,
   enemySpawnMembers,
+  pullStates,
   enemyAbilities,
   nowMicros,
   characters,
@@ -1330,6 +1334,8 @@ const eatFood = (itemInstanceId: bigint) => {
   eatFoodReducer({ characterId: selectedCharacter.value.id, itemInstanceId });
 };
 
+const savePanelLayoutReducer = useReducer(reducers.savePanelLayout);
+
 const equippedStatBonuses = computed(() => {
   if (!selectedCharacter.value) {
     return { str: 0n, dex: 0n, cha: 0n, wis: 0n, int: 0n };
@@ -1400,6 +1406,10 @@ const {
   track: { x: 600, y: 200 },
   combat: { x: 600, y: 140 },
   log: { x: 40, y: 400, w: 500, h: 300 },
+}, {
+  serverPanelLayouts: panelLayouts,
+  selectedCharacterId,
+  savePanelLayout: savePanelLayoutReducer,
 });
 
 type AccordionKey = 'enemies';

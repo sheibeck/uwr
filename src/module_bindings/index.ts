@@ -196,6 +196,8 @@ import DecayHungerReducer from "./decay_hunger_reducer";
 export { DecayHungerReducer };
 import EatFoodReducer from "./eat_food_reducer";
 export { EatFoodReducer };
+import SavePanelLayoutReducer from "./save_panel_layout_reducer";
+export { SavePanelLayoutReducer };
 
 // Import and reexport all procedure arg types
 
@@ -330,6 +332,8 @@ import MyLocationEventsRow from "./my_location_events_table";
 export { MyLocationEventsRow };
 import MyNpcDialogRow from "./my_npc_dialog_table";
 export { MyNpcDialogRow };
+import MyPanelLayoutRow from "./my_panel_layout_table";
+export { MyPanelLayoutRow };
 import MyPlayerRow from "./my_player_table";
 export { MyPlayerRow };
 import MyPrivateEventsRow from "./my_private_events_table";
@@ -576,6 +580,8 @@ import MyLocationEvents from "./my_location_events_type";
 export { MyLocationEvents };
 import MyNpcDialog from "./my_npc_dialog_type";
 export { MyNpcDialog };
+import MyPanelLayout from "./my_panel_layout_type";
+export { MyPanelLayout };
 import MyPlayer from "./my_player_type";
 export { MyPlayer };
 import MyPrivateEvents from "./my_private_events_type";
@@ -640,6 +646,8 @@ import RespawnEnemy from "./respawn_enemy_type";
 export { RespawnEnemy };
 import RespawnResource from "./respawn_resource_type";
 export { RespawnResource };
+import SavePanelLayout from "./save_panel_layout_type";
+export { SavePanelLayout };
 import Say from "./say_type";
 export { Say };
 import SellAllJunk from "./sell_all_junk_type";
@@ -704,6 +712,8 @@ import TradeItem from "./trade_item_type";
 export { TradeItem };
 import TradeSession from "./trade_session_type";
 export { TradeSession };
+import UiPanelLayout from "./ui_panel_layout_type";
+export { UiPanelLayout };
 import UnequipItem from "./unequip_item_type";
 export { UnequipItem };
 import UseAbility from "./use_ability_type";
@@ -1845,6 +1855,13 @@ const tablesSchema = __schema(
     ],
   }, MyNpcDialogRow),
   __table({
+    name: 'my_panel_layout',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyPanelLayoutRow),
+  __table({
     name: 'my_player',
     indexes: [
     ],
@@ -1948,6 +1965,7 @@ const reducersSchema = __reducers(
   __reducerSchema("combat_loop", CombatLoopReducer),
   __reducerSchema("decay_hunger", DecayHungerReducer),
   __reducerSchema("eat_food", EatFoodReducer),
+  __reducerSchema("save_panel_layout", SavePanelLayoutReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

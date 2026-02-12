@@ -1,4 +1,4 @@
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch, Ref } from 'vue';
 
 export interface PanelState {
   open: boolean;
@@ -31,8 +31,15 @@ interface ResizeState {
   };
 }
 
+interface ServerSyncOptions {
+  serverPanelLayouts: Ref<any[]>;
+  selectedCharacterId: Ref<bigint | undefined>;
+  savePanelLayout: (args: { characterId: bigint; panelStatesJson: string }) => void;
+}
+
 export function usePanelManager(
-  defaults: Record<string, { x: number; y: number; w?: number; h?: number }>
+  defaults: Record<string, { x: number; y: number; w?: number; h?: number }>,
+  serverSync?: ServerSyncOptions
 ) {
   const panels = reactive<Record<string, PanelState>>({});
   const dragState = ref<DragState | null>(null);
@@ -103,6 +110,28 @@ export function usePanelManager(
 
   // Save to localStorage (debounced)
   let saveTimer: number | undefined;
+  let serverSaveTimer: number | undefined;
+  const loadingFromServer = ref(false);
+
+  const saveToServer = () => {
+    if (!serverSync) return;
+    clearTimeout(serverSaveTimer);
+    serverSaveTimer = window.setTimeout(() => {
+      const charId = serverSync.selectedCharacterId.value;
+      if (!charId) return;
+      try {
+        const data: Record<string, any> = {};
+        for (const [id, state] of Object.entries(panels)) {
+          // Save all fields except zIndex (local-only)
+          data[id] = { open: state.open, x: state.x, y: state.y, w: state.w, h: state.h };
+        }
+        serverSync.savePanelLayout({ characterId: charId, panelStatesJson: JSON.stringify(data) });
+      } catch (e) {
+        console.warn('Failed to save panel layout to server:', e);
+      }
+    }, 2000);
+  };
+
   const saveToStorage = () => {
     clearTimeout(saveTimer);
     saveTimer = window.setTimeout(() => {
@@ -112,17 +141,21 @@ export function usePanelManager(
           data[id] = { ...state };
         }
         localStorage.setItem('uwr.panelStates', JSON.stringify(data));
+        // Also save to server after localStorage save
+        saveToServer();
       } catch (e) {
         console.warn('Failed to save panel states to localStorage:', e);
       }
     }, 300);
   };
 
-  // Watch panels for changes
+  // Watch panels for changes (skip if loading from server)
   watch(
     () => JSON.stringify(panels),
     () => {
-      saveToStorage();
+      if (!loadingFromServer.value) {
+        saveToStorage();
+      }
     }
   );
 
@@ -306,6 +339,44 @@ export function usePanelManager(
       return style;
     });
   };
+
+  // Load from server when character changes
+  if (serverSync) {
+    watch(
+      [() => serverSync.serverPanelLayouts.value, () => serverSync.selectedCharacterId.value],
+      ([layouts, charId]) => {
+        if (!charId || !layouts || layouts.length === 0) return;
+        // Find the layout row for the active character
+        const row = layouts.find((r: any) => r.characterId === charId);
+        if (!row?.panelStatesJson) return;
+        try {
+          loadingFromServer.value = true;
+          const parsed = JSON.parse(row.panelStatesJson);
+          for (const [id, state] of Object.entries(parsed)) {
+            if (panels[id] && typeof state === 'object' && state !== null) {
+              const s = state as any;
+              // Only apply position/size/visibility, keep zIndex local
+              if (typeof s.x === 'number') panels[id].x = s.x;
+              if (typeof s.y === 'number') panels[id].y = s.y;
+              if (typeof s.w === 'number') panels[id].w = s.w;
+              if (typeof s.h === 'number') panels[id].h = s.h;
+              if (typeof s.open === 'boolean') panels[id].open = s.open;
+            }
+          }
+          // Always ensure fixed panels start open
+          if (panels.group) panels.group.open = true;
+          if (panels.travel) panels.travel.open = true;
+          if (panels.hotbar) panels.hotbar.open = true;
+          if (panels.log) panels.log.open = true;
+        } catch (e) {
+          console.warn('Failed to parse server panel layout:', e);
+        } finally {
+          loadingFromServer.value = false;
+        }
+      },
+      { immediate: true }
+    );
+  }
 
   // Load initial state
   loadFromStorage();

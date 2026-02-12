@@ -29,6 +29,7 @@ export const useGameData = () => {
   const [enemyAbilities] = useTable(tables.enemyAbility);
   const [enemySpawns] = useTable(tables.enemySpawn);
   const [enemySpawnMembers] = useTable(tables.enemySpawnMember);
+  const [pullStates] = useTable(tables.pullState);
   const [combatEncounters] = useTable(tables.combatEncounter);
   const [combatParticipants] = useTable(tables.combatParticipant);
   const [combatEnemies] = useTable(tables.combatEnemy);
@@ -58,6 +59,7 @@ export const useGameData = () => {
   const [myHunger] = useTable(tables.myHunger);
   const [factions] = useTable(tables.faction);
   const [factionStandings] = useTable(tables.myFactionStandings);
+  const [panelLayouts] = useTable(tables.myPanelLayout);
 
   return {
     conn,
@@ -87,6 +89,7 @@ export const useGameData = () => {
     enemyAbilities,
     enemySpawns,
     enemySpawnMembers,
+    pullStates,
     combatEncounters,
     combatParticipants,
     combatEnemies,
@@ -116,5 +119,6 @@ export const useGameData = () => {
     myHunger,
     factions,
     factionStandings,
+    panelLayouts,
   };
 };
