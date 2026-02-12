@@ -64,6 +64,12 @@
         Renown
       </button>
       <button
+        @click="emit('toggle', 'loot')"
+        :style="actionStyle('loot')"
+      >
+        Loot
+      </button>
+      <button
         @click="emit('toggle', 'friends')"
         :style="actionStyle('friends')"
         :disabled="isLocked('friends')"
@@ -87,6 +93,7 @@ type PanelKey =
   | 'journal'
   | 'quests'
   | 'renown'
+  | 'loot'
   | 'travel'
   | 'combat';
 

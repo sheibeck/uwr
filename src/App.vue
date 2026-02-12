@@ -214,6 +214,13 @@
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('renown', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('renown', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('renown', $event, { right: true, bottom: true })" />
     </div>
 
+    <!-- Loot Panel -->
+    <div v-if="panels.loot && panels.loot.open" data-panel-id="loot" :style="{ ...styles.floatingPanel, ...(panelStyle('loot').value || {}) }" @mousedown="bringToFront('loot')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('loot', $event)"><div>Loot</div><button type="button" :style="styles.panelClose" @click="closePanelById('loot')">×</button></div>
+      <div :style="styles.floatingPanelBody"><LootPanel :styles="styles" :conn-active="conn.isActive" :loot-items="pendingLoot" @take-loot="takeLoot" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('loot', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('loot', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('loot', $event, { right: true, bottom: true })" />
+    </div>
+
     <!-- Vendor Panel (wide) -->
     <div v-if="panels.vendor && panels.vendor.open" data-panel-id="vendor" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('vendor').value || {}) }" @mousedown="bringToFront('vendor')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('vendor', $event)"><div>{{ activeVendor?.name ?? 'Vendor' }}</div><button type="button" :style="styles.panelClose" @click="closePanelById('vendor')">×</button></div>
@@ -276,26 +283,18 @@
           :title="timeTooltip"
         />
       </div>
-      <div :style="activeCombat || activeResult ? styles.floatingPanelBodyCombat : styles.floatingPanelBody">
-        <template v-if="activeCombat || activeResult">
+      <div :style="activeCombat ? styles.floatingPanelBodyCombat : styles.floatingPanelBody">
+        <template v-if="activeCombat">
           <CombatPanel
             :styles="styles"
             :conn-active="conn.isActive"
             :selected-character="selectedCharacter"
             :active-combat="activeCombat"
-            :active-loot="activeLoot"
             :combat-enemies="combatEnemiesList"
-            :active-result="activeResult"
-            :can-dismiss-results="canDismissResults"
             :can-act="canActInCombat"
             :accordion-state="accordionState"
             @select-enemy="setCombatTarget"
             @flee="flee"
-            @dismiss-results="dismissResults"
-            @take-loot="takeLoot"
-            @show-tooltip="showTooltip"
-            @move-tooltip="moveTooltip"
-            @hide-tooltip="hideTooltip"
             @accordion-toggle="updateAccordionState"
           />
         </template>
@@ -450,6 +449,7 @@ import HotbarPanel from './components/HotbarPanel.vue';
 import CombatPanel from './components/CombatPanel.vue';
 import TravelPanel from './components/TravelPanel.vue';
 import LocationGrid from './components/LocationGrid.vue';
+import LootPanel from './components/LootPanel.vue';
 import CharacterActionsPanel from './components/CharacterActionsPanel.vue';
 import TradePanel from './components/TradePanel.vue';
 import CommandBar from './components/CommandBar.vue';
@@ -731,6 +731,7 @@ const {
   combatRoster,
   activeResult,
   activeLoot,
+  pendingLoot,
   hasOtherLootForResult,
   startCombat,
   startPull,
@@ -772,7 +773,6 @@ const {
 } = useCombatLock({
   selectedCharacter,
   activeCombat,
-  activeResult,
   combatRoster,
 });
 
@@ -874,6 +874,54 @@ watch(
   { deep: true }
 );
 
+// Track which result IDs we've already processed (to avoid re-posting to log)
+const processedResultIds = ref<Set<string>>(new Set());
+
+watch(
+  () => activeResult.value,
+  (result) => {
+    if (!result) return;
+    const id = result.id.toString();
+    if (processedResultIds.value.has(id)) return;
+    processedResultIds.value.add(id);
+
+    // Post Victory/Defeat to the event log
+    const summary = result.summary ?? '';
+    const outcome = summary.toLowerCase().startsWith('victory') ? 'Victory' :
+                    summary.toLowerCase().startsWith('defeat') ? 'Defeat' : 'Combat Ended';
+    // Strip the "Victory! " or "Defeat! " prefix if present, use the rest as detail
+    const detail = summary.replace(/^(victory|defeat)[!.:]*\s*/i, '').trim();
+    const logMessage = detail ? `${outcome}! ${detail}` : `${outcome}!`;
+    addLocalEvent({ kind: 'combat', message: logMessage });
+
+    // Auto-dismiss results after a short delay to let loot data arrive
+    setTimeout(() => {
+      dismissResults();
+    }, 500);
+  }
+);
+
+// Keep processedResultIds from growing unbounded
+watch(
+  () => processedResultIds.value.size,
+  (size) => {
+    if (size > 50) {
+      const entries = [...processedResultIds.value];
+      processedResultIds.value = new Set(entries.slice(-20));
+    }
+  }
+);
+
+// Auto-open loot panel when pendingLoot goes from empty to non-empty
+watch(
+  () => pendingLoot.value.length,
+  (count, prevCount) => {
+    if (count > 0 && (prevCount === 0 || prevCount === undefined)) {
+      openPanel('loot');
+    }
+  }
+);
+
 onBeforeUnmount(() => {
   if (audioCtxRef.value) {
     audioCtxRef.value.close();
@@ -901,10 +949,6 @@ const {
   characters,
   groupMembers: groupMemberRows,
 });
-
-const canDismissResults = computed(
-  () => Boolean(selectedCharacter.value && (!selectedCharacter.value.groupId || isLeader.value))
-);
 
 const { commandText, submitCommand } = useCommands({
   connActive: computed(() => conn.isActive),
@@ -1380,6 +1424,7 @@ const {
   journal: { x: 600, y: 140 },
   quests: { x: 600, y: 140 },
   renown: { x: 600, y: 140 },
+  loot: { x: 600, y: 200 },
   vendor: { x: 600, y: 140 },
   characterActions: { x: 600, y: 200 },
   trade: { x: 600, y: 140 },

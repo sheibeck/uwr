@@ -8,14 +8,12 @@ type CombatRosterLike = {
 type UseCombatLockArgs = {
   selectedCharacter: Ref<{ id: bigint; hp: bigint } | null>;
   activeCombat: Ref<unknown | null>;
-  activeResult: Ref<unknown | null>;
   combatRoster: Ref<CombatRosterLike[]>;
 };
 
 export const useCombatLock = ({
   selectedCharacter,
   activeCombat,
-  activeResult,
   combatRoster,
 }: UseCombatLockArgs) => {
   const inCombat = computed(() => Boolean(activeCombat.value));
@@ -29,7 +27,7 @@ export const useCombatLock = ({
     return participant?.status === 'active';
   });
 
-  const combatLocked = computed(() => Boolean(activeCombat.value || activeResult.value));
+  const combatLocked = computed(() => Boolean(activeCombat.value));
   const lockInventoryEdits = computed(() => combatLocked.value);
   const lockHotbarEdits = computed(() => combatLocked.value);
   const lockCrafting = computed(() => inCombat.value);
