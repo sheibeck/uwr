@@ -144,10 +144,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 37 | Fix panel z-index stacking - sync topZ counter after loading panel states to ensure clicked panels always come to front | 2026-02-12 | 92cfb1e | [37-fix-panel-z-index-stacking-ensure-clicke](./quick/37-fix-panel-z-index-stacking-ensure-clicke/) |
 | 35 | Deep analysis and fix of combat loot system - made combat_loot public table with diagnostic logging to bypass view layer and fix loot display | 2026-02-12 | 5dd2f26 | [35-deep-analysis-and-fix-of-combat-loot-sys](./quick/35-deep-analysis-and-fix-of-combat-loot-sys/) |
 | 38 | Fix location panel missing players list - always-visible PLAYERS section showing all characters at location including user's own non-selected characters | 2026-02-12 | 688b552 | [38-fix-location-panel-missing-players-list-](./quick/38-fix-location-panel-missing-players-list-/) |
+| 39 | Fix players list to show only active and recently disconnected characters - restore active + pending-logout filter to exclude fully offline players | 2026-02-12 | cb87cff | [39-fix-players-list-to-show-only-active-and](./quick/39-fix-players-list-to-show-only-active-and/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick-38-01-PLAN.md
-**Timestamp:** 2026-02-12T22:27:34Z
+**Stopped at:** Completed Quick Task 39 - restore active + pending-logout filter
+**Timestamp:** 2026-02-12T23:00:00Z
