@@ -11,8 +11,8 @@
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete — backend (03-01) and frontend (03-02) both done and human-verified.
 
 **Current phase:** 3.1-combat-balance
-**Current plan:** 02 (pending)
-**Next action:** Execute 3.1-02-PLAN.md
+**Current plan:** 03 (pending - if exists)
+**Next action:** Check for 3.1-03-PLAN.md or mark phase complete
 
 ---
 
@@ -23,7 +23,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 1 | Races | Complete (2/2 plans done) |
 | 2 | Hunger | Complete (2/2 plans done, human-verified) |
 | 3 | Renown Foundation | Complete (2/2 plans done, human-verified) |
-| 3.1 | Combat Balance | In Progress (1/? plans done) |
+| 3.1 | Combat Balance | In Progress (2/? plans done) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
 | 6 | World Events | Pending |
@@ -63,6 +63,9 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 27. Each group member independently manages own loot — no leader-gating on dismiss_combat_results (quick-33)
 28. take_loot cleanup scoped to character's own remaining loot using by_character index, not global combat loot (quick-33)
 29. Combat scaling uses K=1 armor formula (~33% at 50 armor), STR 1.5%/point, crit 5% base + 0.1%/DEX (50% cap), hybrid abilities sum STR+INT at 1n/point (3.1-01)
+30. Magic damage bypasses armor entirely for impactful caster DPS; physical damage uses tuned armor curve (3.1-02)
+31. Weapon-type-specific crit multipliers: fast weapons (daggers/rapiers/staffs) 1.5x, medium (swords/bows/maces) 2.0x, slow (axes) 2.5x (3.1-02)
+32. WIS healing scaling only applies to classes with wis as primary or secondary stat — prevents non-healers from benefiting (3.1-02)
 
 ---
 
@@ -77,6 +80,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 03-renown-foundation | 01 | 14min | 2 | 10 |
 | 03-renown-foundation | 02 | ~10min | 2 | 4 |
 | 3.1-combat-balance | 01 | 7min | 2 | 5 |
+| 3.1-combat-balance | 02 | 8min | 2 | 5 |
 
 ---
 
@@ -138,5 +142,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed quick-37
-**Timestamp:** 2026-02-12T21:16:36Z
+**Stopped at:** Completed 3.1-02-PLAN.md
+**Timestamp:** 2026-02-12T21:16:16Z
