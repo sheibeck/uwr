@@ -10,7 +10,7 @@
 
 | Phase | Name | Requirements | Dependencies | Status |
 |-------|------|-------------|--------------|--------|
-| 1 | Races | REQ-001–005 | None | Pending |
+| 1 | Races | REQ-001–005 | None | Planned |
 | 2 | Hunger | REQ-010–015 | Phase 1 (race stat integration) | Pending |
 | 3 | Renown Foundation | REQ-020–026 | None | Pending |
 | 4 | LLM Architecture | REQ-040–047, REQ-080–084 | Phase 3 (first consumer) | Pending |
@@ -26,6 +26,12 @@
 **Goal:** Players can select a race at character creation. Race restricts available classes and grants stat bonuses.
 
 **Requirements:** REQ-001, REQ-002, REQ-003, REQ-004, REQ-005
+
+**Plans:** 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Backend: Race table, RACE_DATA seeding, create_character reducer with raceId validation and racial stat bonuses, publish and regenerate bindings
+- [ ] 01-02-PLAN.md — Frontend: Race picker dropdown in CharacterPanel, class filtering by race, updated reducer call with raceId, human verification
 
 **Scope:**
 - `Race` table in `spacetimedb/src/index.ts` with `unlocked: bool` field
