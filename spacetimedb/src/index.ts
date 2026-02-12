@@ -29,6 +29,7 @@ import {
   GLOBAL_COOLDOWN_MICROS,
 } from './data/ability_catalog';
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from './data/xp';
+import { RACE_DATA, ensureRaces } from './data/races';
 
 const Player = table(
   { name: 'player', public: true },
@@ -1174,6 +1175,22 @@ const EventGroup = table(
   }
 );
 
+const Race = table(
+  { name: 'race', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    name: t.string(),
+    description: t.string(),
+    availableClasses: t.string(),
+    strBonus: t.u64(),
+    dexBonus: t.u64(),
+    chaBonus: t.u64(),
+    wisBonus: t.u64(),
+    intBonus: t.u64(),
+    unlocked: t.bool(),
+  }
+);
+
 export const spacetimedb = schema(
   Player,
   User,
@@ -1192,6 +1209,7 @@ export const spacetimedb = schema(
   AbilityCooldown,
   CharacterCast,
   Character,
+  Race,
   ItemTemplate,
   ItemInstance,
   RecipeTemplate,
@@ -4314,6 +4332,7 @@ function ensureLocationRuntimeBootstrap(ctx: any) {
 }
 
 function syncAllContent(ctx: any) {
+  ensureRaces(ctx);
   ensureWorldLayout(ctx);
   ensureStarterItemTemplates(ctx);
   ensureResourceItemTemplates(ctx);
@@ -5690,6 +5709,7 @@ const reducerDeps = {
   recomputeCharacterDerived,
   executeAbilityAction,
   isClassAllowed,
+  RACE_DATA,
   isArmorAllowedForClass,
   normalizeArmorType,
   EQUIPMENT_SLOTS,
