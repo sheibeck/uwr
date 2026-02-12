@@ -12,7 +12,7 @@
 |-------|------|-------------|--------------|--------|
 | 1 | Races | REQ-001–005 | None | Complete (2026-02-11) |
 | 2 | Hunger | REQ-010–015 | Phase 1 (race stat integration) | Planned |
-| 3 | Renown Foundation | REQ-020–026 | None | Pending |
+| 3 | Renown Foundation | REQ-020–026 | None | Planned |
 | 4 | LLM Architecture | REQ-040–047, REQ-080–084 | Phase 3 (first consumer) | Pending |
 | 5 | Quest System | REQ-060–066 | Phase 3 (renown gating), Phase 4 (LLM text) | Pending |
 | 6 | World Events | REQ-030–035 | Phase 1 (race unlock), Phase 4 (LLM text) | Pending |
@@ -92,6 +92,12 @@ Plans:
 **Goal:** Each character tracks standing with each faction. Actions grant or reduce standing. Rank tiers are computed and displayed.
 
 **Requirements:** REQ-020, REQ-021, REQ-022, REQ-023, REQ-024, REQ-025, REQ-026
+
+**Plans:** 2 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Backend: Faction + FactionStanding tables, faction seeding, EnemyTemplate factionId, standing mutation helpers, combat hook, my_faction_standings view, publish and regenerate bindings
+- [ ] 03-02-PLAN.md — Frontend: RenownPanel component with FACTION_RANKS, ActionBar wiring, App.vue panel routing, useGameData subscriptions, human verification
 
 **Scope:**
 - `Faction` table seeded with 4 factions (Iron Compact, Verdant Circle, Ashen Order, Free Blades)
