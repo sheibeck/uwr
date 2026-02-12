@@ -146,10 +146,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 38 | Fix location panel missing players list - always-visible PLAYERS section showing all characters at location including user's own non-selected characters | 2026-02-12 | 688b552 | [38-fix-location-panel-missing-players-list-](./quick/38-fix-location-panel-missing-players-list-/) |
 | 39 | Fix players list to show only active and recently disconnected characters - restore active + pending-logout filter to exclude fully offline players | 2026-02-12 | cb87cff | [39-fix-players-list-to-show-only-active-and](./quick/39-fix-players-list-to-show-only-active-and/) |
 | 40 | Fix log message sorting and coloring - group combat messages show proper red/green/gold colors, same-timestamp events grouped by scope | 2026-02-12 | 3f0cdcb | [40-fix-log-message-sorting-and-coloring-in-](./quick/40-fix-log-message-sorting-and-coloring-in-/) |
+| 41 | Fix group panel buffs/debuffs display - enemy-applied effects now visible using index lookups instead of broken .iter() in view | 2026-02-12 | da9a615 | [41-fix-group-panel-buffs-debuffs-display-en](./quick/41-fix-group-panel-buffs-debuffs-display-en/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed Quick Task 40 - fix log message sorting and coloring
-**Timestamp:** 2026-02-12T23:10:07Z
+**Stopped at:** Completed Quick Task 41 - fix group panel buffs/debuffs display
+**Timestamp:** 2026-02-12T23:12:40Z
