@@ -2050,7 +2050,7 @@ function executeAbility(
       : 100n;
 
     // Hybrid formula: (base + stat_scaling) * ability_multiplier / 100
-    const abilityBaseDamage = abilityEntry ? abilityEntry.power * 10n : 0n;
+    const abilityBaseDamage = abilityEntry ? abilityEntry.power * 5n : 0n;
     const scaledAbilityDamage = ((abilityBaseDamage + statScaling) * abilityMultiplier) / 100n;
 
     // Weapon component (for weapon abilities that use percent > 0)

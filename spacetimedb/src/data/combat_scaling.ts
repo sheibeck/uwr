@@ -32,7 +32,7 @@ export const STR_SCALING_PER_1000 = 15n;
  * Flat stat contribution per point for abilities
  * Used in ability hybrid formula
  */
-export const ABILITY_STAT_SCALING_PER_POINT = 2n;
+export const ABILITY_STAT_SCALING_PER_POINT = 1n;
 
 /**
  * Base crit chance (5% on 1000 scale)
