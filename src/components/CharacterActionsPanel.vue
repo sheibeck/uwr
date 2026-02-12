@@ -1,8 +1,8 @@
 <template>
-  <div>
+  <div :style="styles.panelBody">
     <div v-if="!target" :style="styles.subtle">Select a character.</div>
     <div v-else>
-      <div :style="styles.panelForm">
+      <div :style="{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }">
         <button :style="styles.ghostButton" @click="$emit('trade', target.name)">
           Trade
         </button>

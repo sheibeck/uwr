@@ -1,6 +1,5 @@
 <template>
-  <div>
-    <div :style="styles.panelSectionTitle">Inventory</div>
+  <div :style="styles.panelBody">
     <div v-if="!selectedCharacter" :style="styles.subtle">
       Select a character to manage inventory.
     </div>

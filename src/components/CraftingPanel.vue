@@ -1,6 +1,5 @@
 <template>
-  <div>
-    <div :style="styles.panelSectionTitle">Crafting</div>
+  <div :style="styles.panelBody">
     <div v-if="!selectedCharacter" :style="styles.subtle">
       Select a character to craft.
     </div>
