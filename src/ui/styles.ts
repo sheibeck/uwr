@@ -179,28 +179,8 @@ export const styles = {
   floatingPanelWide: {
     width: 'min(720px, 92vw)',
   },
-  hotbarDock: {
-    padding: '0.6rem',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: '12px',
-    background: 'rgba(10, 12, 18, 0.9)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.45rem',
-    flexShrink: 0,
-  },
-  hotbarFloating: {
-    position: 'absolute',
-    width: '120px',
-    zIndex: 4,
-  },
-  hotbarHandle: {
-    textAlign: 'center',
-    fontSize: '0.75rem',
-    color: 'rgba(230,232,239,0.7)',
-    marginBottom: '0.35rem',
-    cursor: 'move',
-    userSelect: 'none',
+  floatingPanelHotbar: {
+    width: '160px',
   },
   hotbarSlot: {
     border: '1px solid rgba(255,255,255,0.18)',
@@ -332,6 +312,9 @@ export const styles = {
   floatingPanelBody: {
     padding: '0.9rem',
     overflow: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.45rem',
   },
   floatingPanelBodyCombat: {
     padding: '0.9rem',

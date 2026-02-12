@@ -52,14 +52,18 @@
 
     <div
       v-if="selectedCharacter"
+      data-panel-id="hotbar"
       :style="{
-        ...styles.hotbarFloating,
+        ...styles.floatingPanel,
+        ...styles.floatingPanelHotbar,
         ...panelStyle('hotbar').value,
       }"
       @mousedown="bringToFront('hotbar')"
     >
-      <div :style="styles.hotbarHandle" @mousedown="startDrag('hotbar', $event)">Hotbar</div>
-      <div :style="styles.hotbarDock">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('hotbar', $event)">
+        Hotbar
+      </div>
+      <div :style="styles.floatingPanelBody">
         <button
           v-for="slot in hotbarDisplay"
           :key="slot.slot"
