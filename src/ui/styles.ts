@@ -151,6 +151,7 @@ export const styles = {
     flexDirection: 'column',
     flex: 1,
     minHeight: 0,
+    position: 'relative',
   },
   logOverlay: {
     position: 'relative',
@@ -539,6 +540,22 @@ export const styles = {
   logEmpty: {
     color: 'rgba(230,232,239,0.6)',
     fontStyle: 'italic',
+  },
+  logJumpBtn: {
+    position: 'absolute',
+    bottom: '0.75rem',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'rgba(30, 35, 50, 0.92)',
+    border: '1px solid rgba(255,255,255,0.15)',
+    borderRadius: '16px',
+    padding: '0.3rem 1rem',
+    color: 'rgba(230,232,239,0.85)',
+    fontSize: '0.78rem',
+    cursor: 'pointer',
+    zIndex: 10,
+    fontFamily: '"Source Code Pro", "Consolas", monospace',
+    transition: 'opacity 0.2s',
   },
   panel: {
     background: 'rgba(20,24,33,0.85)',

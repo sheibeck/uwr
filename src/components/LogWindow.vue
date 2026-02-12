@@ -1,6 +1,6 @@
 <template>
   <section :style="styles.log">
-    <div :style="styles.logList" ref="logListEl">
+    <div :style="styles.logList" ref="logListEl" @scroll="checkIfAtBottom">
       <div v-if="!selectedCharacter" :style="styles.logEmpty">
         Select or create a character to begin.
       </div>
@@ -39,6 +39,13 @@
         </span>
       </div>
     </div>
+    <button
+      v-if="!isAtBottom && combinedEvents.length > 0"
+      :style="styles.logJumpBtn"
+      @click="jumpToBottom"
+    >
+      ↓ New messages
+    </button>
   </section>
 </template>
 
@@ -62,6 +69,16 @@ const props = defineProps<{
 }>();
 
 const logListEl = ref<HTMLElement | null>(null);
+const isAtBottom = ref(true);
+
+const checkIfAtBottom = () => {
+  const el = logListEl.value;
+  if (!el) return;
+
+  const threshold = 30;
+  const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
+  isAtBottom.value = atBottom;
+};
 
 const scrollToBottom = async () => {
   await nextTick();
@@ -71,10 +88,17 @@ const scrollToBottom = async () => {
   }
 };
 
+const jumpToBottom = () => {
+  isAtBottom.value = true;
+  void scrollToBottom();
+};
+
 watch(
   () => props.combinedEvents,
   () => {
-    void scrollToBottom();
+    if (isAtBottom.value) {
+      void scrollToBottom();
+    }
   },
   { deep: true, immediate: true }
 );
