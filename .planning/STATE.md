@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-12
-**Status:** Phase 2 complete (hunger system verified end-to-end); Phase 3 Plan 1 done; ready for Phase 3 Plan 2 (Renown UI)
+**Status:** Phase 3 complete — renown backend + frontend both shipped and human-verified
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete — all plans done and human-verified. Phase 3 Plan 1 (Renown Foundation Backend) complete.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete — backend (03-01) and frontend (03-02) both done and human-verified.
 
-**Current phase:** 03-renown-foundation
-**Current plan:** 02 (Renown UI — not yet started)
-**Next action:** Continue Phase 3 Plan 2 (Renown UI — faction standing display)
+**Current phase:** 04-llm-architecture
+**Current plan:** 01 (pending)
+**Next action:** Begin Phase 4 LLM Architecture
 
 ---
 
@@ -22,7 +22,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete — all plans done and human
 |-------|------|--------|
 | 1 | Races | Complete (2/2 plans done) |
 | 2 | Hunger | Complete (2/2 plans done, human-verified) |
-| 3 | Renown Foundation | In Progress (1/1 backend plans done) |
+| 3 | Renown Foundation | Complete (2/2 plans done, human-verified) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
 | 6 | World Events | Pending |
@@ -54,6 +54,8 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete — all plans done and human
 19. Standing per kill: +10 to enemy's faction, -5 to rival faction (03-01)
 20. FactionStanding rows initialized eagerly at character creation (4 rows for 4 factions at standing=0) (03-01)
 21. Enemy faction assignments: constructs/sentinels=Iron Compact, animals/nature spirits=Verdant Circle, undead/dark humanoids=Ashen Order, humanoid outlaws=Free Blades (03-01)
+22. FACTION_RANKS defined client-side as constant array with numeric min/max thresholds — no backend lookup needed (03-02)
+23. Standing BigInt converted via Number() before rank threshold comparison; getProgress clamps to 100% for Exalted (Infinity-safe) (03-02)
 
 ---
 
@@ -66,6 +68,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete — all plans done and human
 | 02-hunger | 01 | ~35min | 2 | 11 |
 | 02-hunger | 02 | ~15min | 2 | 5 |
 | 03-renown-foundation | 01 | 14min | 2 | 10 |
+| 03-renown-foundation | 02 | ~10min | 2 | 4 |
 
 ---
 
@@ -77,5 +80,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed 02-hunger 02-02-PLAN.md (Hunger frontend: HungerBar component, Eat button on food items, eat_food reducer wiring — human-verified end-to-end)
-**Timestamp:** 2026-02-12
+**Stopped at:** Completed 03-renown-foundation 03-02-PLAN.md (Renown frontend: RenownPanel with FACTION_RANKS, rank computation, progress bars, ActionBar wiring — human-verified end-to-end)
+**Timestamp:** 2026-02-12T05:52:34Z
