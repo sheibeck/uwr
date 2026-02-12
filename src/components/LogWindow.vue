@@ -26,6 +26,7 @@
             event.kind === 'heal' ? styles.logHeal : {},
             event.kind === 'reward' ? styles.logReward : {},
             event.kind === 'avoid' ? styles.logAvoid : {},
+            event.kind === 'faction' ? styles.logFaction : {},
             event.scope === 'group' ? styles.logGroup : {},
           ]"
         >

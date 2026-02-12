@@ -530,6 +530,9 @@ export const styles = {
   logAvoid: {
     color: 'rgba(230, 232, 239, 0.55)',
   },
+  logFaction: {
+    color: '#b8a9e8',
+  },
   logEmpty: {
     color: 'rgba(230,232,239,0.6)',
     fontStyle: 'italic',
