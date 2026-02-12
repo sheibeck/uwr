@@ -205,6 +205,8 @@ export const useCombat = ({
           name: template?.name ?? 'Unknown',
           rarity: template?.rarity ?? 'Common',
           tier: template?.tier ?? 1n,
+          allowedClasses: template?.allowedClasses ?? 'any',
+          armorType: template?.armorType ?? 'none',
           description,
           stats,
         };

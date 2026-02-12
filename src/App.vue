@@ -743,6 +743,7 @@ const vendorItems = computed(() => {
         tier: template?.tier ?? 1n,
         slot: template?.slot ?? 'misc',
         armorType: template?.armorType ?? 'none',
+        allowedClasses: template?.allowedClasses ?? 'any',
         description,
         stats,
       };

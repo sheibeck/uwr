@@ -100,6 +100,7 @@ const props = defineProps<{
     tier: bigint;
     slot: string;
     armorType: string;
+    allowedClasses: string;
     description: string;
     stats: { label: string; value: string }[];
   }[];
