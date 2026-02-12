@@ -39,6 +39,13 @@
       <div :style="styles.inventoryColumnWide">
         <div :style="styles.inventoryHeaderRow">
           <div :style="styles.panelSectionTitle">Backpack</div>
+          <button
+            :style="[styles.ghostButton, combatLocked ? styles.disabledButton : {}]"
+            :disabled="combatLocked"
+            @click="$emit('organize')"
+          >
+            Organize
+          </button>
           <div v-if="selectedCharacter" :style="styles.goldRow">
             <span :style="styles.goldDot"></span>
             {{ selectedCharacter.gold }}
@@ -150,6 +157,7 @@ const emit = defineEmits<{
   (e: 'eat-food', itemInstanceId: bigint): void;
   (e: 'delete-item', itemInstanceId: bigint): void;
   (e: 'split-stack', itemInstanceId: bigint, quantity: bigint): void;
+  (e: 'organize'): void;
   (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
   (e: 'move-tooltip', value: { x: number; y: number }): void;
   (e: 'hide-tooltip'): void;
