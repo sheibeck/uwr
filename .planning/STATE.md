@@ -103,11 +103,12 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 10 | Add user feedback for blocked abilities - client-side local event system with terracotta-colored messages when abilities blocked by combat state | 2026-02-12 | 0ac90bb | [10-add-user-feedback-for-blocked-abilities-](./quick/10-add-user-feedback-for-blocked-abilities-/) |
 | 11 | Add enemy popover tooltip showing individual member names and faction affiliation | 2026-02-12 | 9b94ece | [11-add-enemy-popover-tooltip-showing-indivi](./quick/11-add-enemy-popover-tooltip-showing-indivi/) |
 | 12 | Fix recipe research to scope unlocks per-character - filter discoveredRecipeIds by selected character | 2026-02-12 | ca786dd | [12-fix-recipe-research-to-unlock-only-for-r](./quick/12-fix-recipe-research-to-unlock-only-for-r/) |
+| 13 | Refactor UI panels to allow multiple panels - multi-panel system with independent positioning, resizing, and persistence | 2026-02-12 | d6a6d26 | [13-refactor-ui-panels-allow-multiple-panels](./quick/13-refactor-ui-panels-allow-multiple-panels/) |
 | 14 | Update vendor seeding to use random subset selection - vendors stock ~13-15 tier-appropriate items instead of all 50+ items | 2026-02-12 | 859b4b2 | [14-update-vendor-seeding-to-use-random-sele](./quick/14-update-vendor-seeding-to-use-random-sele/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick task 14: Update vendor seeding to use random subset selection
-**Timestamp:** 2026-02-12T17:11:02Z
+**Stopped at:** Completed quick task 13: Refactor UI panels to allow multiple panels
+**Timestamp:** 2026-02-12T16:44:19Z
