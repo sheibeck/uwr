@@ -731,7 +731,6 @@ const {
   combatRoster,
   activeResult,
   activeLoot,
-  hasAnyLootForResult,
   hasOtherLootForResult,
   startCombat,
   startPull,
@@ -794,7 +793,6 @@ const combatPetsForGroup = computed(() => {
 
 const lastResultId = ref<string | null>(null);
 const lastLevelUpEventId = ref<string | null>(null);
-const lastAutoDismissCombatId = ref<string | null>(null);
 const audioCtxRef = ref<AudioContext | null>(null);
 
 const getAudioContext = () => {
@@ -906,23 +904,6 @@ const {
 
 const canDismissResults = computed(
   () => Boolean(selectedCharacter.value && (!selectedCharacter.value.groupId || isLeader.value))
-);
-
-watch(
-  () => [activeResult.value, hasAnyLootForResult.value, canDismissResults.value] as const,
-  ([result, anyLoot, canDismiss]) => {
-    if (!result || !canDismiss) return;
-    // In groups, this client only sees `myCombatLoot`; server handles authoritative
-    // auto-dismiss when combat-wide loot is actually empty.
-    if (selectedCharacter.value?.groupId) return;
-    if (anyLoot) return;
-    const summary = result.summary?.toLowerCase() ?? '';
-    if (!summary.startsWith('victory')) return;
-    const id = result.id.toString();
-    if (lastAutoDismissCombatId.value === id) return;
-    lastAutoDismissCombatId.value = id;
-    dismissResults();
-  }
 );
 
 const { commandText, submitCommand } = useCommands({
