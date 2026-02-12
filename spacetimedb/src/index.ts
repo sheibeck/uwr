@@ -30,7 +30,7 @@ import {
 } from './data/ability_catalog';
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from './data/xp';
 import { RACE_DATA, ensureRaces } from './data/races';
-import { FACTION_DATA, ensureFactions } from './data/faction_data';
+import { ensureFactions } from './data/faction_data';
 
 const Player = table(
   { name: 'player', public: true },
