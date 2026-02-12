@@ -66,6 +66,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 30. Magic damage bypasses armor entirely for impactful caster DPS; physical damage uses tuned armor curve (3.1-02)
 31. Weapon-type-specific crit multipliers: fast weapons (daggers/rapiers/staffs) 1.5x, medium (swords/bows/maces) 2.0x, slow (axes) 2.5x (3.1-02)
 32. WIS healing scaling only applies to classes with wis as primary or secondary stat — prevents non-healers from benefiting (3.1-02)
+33. Scheduled reducer per-user data must use public tables, not private tables + views — views don't re-evaluate reliably for scheduled reducer inserts (quick-35)
 
 ---
 
@@ -137,10 +138,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 34 | Add ASCII art splash screen for unauthenticated users - full-screen UNWRITTEN REALMS title with dungeon entrance and login button | 2026-02-12 | 13e32d5 | [34-add-ascii-art-splash-screen-for-unauthen](./quick/34-add-ascii-art-splash-screen-for-unauthen/) |
 | 36 | Fix login/logout transition flashing - eliminate splash re-render and black screen flash with three-state rendering and reactive logout | 2026-02-12 | 425156c | [36-fix-login-logout-transition-flashing-eli](./quick/36-fix-login-logout-transition-flashing-eli/) |
 | 37 | Fix panel z-index stacking - sync topZ counter after loading panel states to ensure clicked panels always come to front | 2026-02-12 | 92cfb1e | [37-fix-panel-z-index-stacking-ensure-clicke](./quick/37-fix-panel-z-index-stacking-ensure-clicke/) |
+| 35 | Deep analysis and fix of combat loot system - made combat_loot public table with diagnostic logging to bypass view layer and fix loot display | 2026-02-12 | 5dd2f26 | [35-deep-analysis-and-fix-of-combat-loot-sys](./quick/35-deep-analysis-and-fix-of-combat-loot-sys/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed 3.1-02-PLAN.md
-**Timestamp:** 2026-02-12T21:16:16Z
+**Stopped at:** Completed quick-35 (Deep analysis and fix of combat loot system)
+**Timestamp:** 2026-02-12T21:27:01Z
