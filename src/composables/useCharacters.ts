@@ -100,12 +100,10 @@ export const useCharacters = ({
 
   const charactersHere = computed(() => {
     if (!selectedCharacter.value) return [];
-    const pendingIds = pendingLogoutIds.value;
     return characters.value.filter(
       (row) =>
         row.locationId === selectedCharacter.value?.locationId &&
-        row.id !== selectedCharacter.value?.id &&
-        (activeCharacterIds.value.has(row.id.toString()) || pendingIds.has(row.id.toString()))
+        row.id !== selectedCharacter.value?.id
     );
   });
 
@@ -113,7 +111,7 @@ export const useCharacters = ({
     const pendingIds = pendingLogoutIds.value;
     return charactersHere.value.map((character) => ({
       character,
-      disconnected: pendingIds.has(character.id.toString()),
+      disconnected: !activeCharacterIds.value.has(character.id.toString()) && !pendingIds.has(character.id.toString()),
     }));
   });
 
