@@ -98,10 +98,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 5 | Fix Nature's Mark cooldown - prevent false cooldown display when clicked in combat | 2026-02-12 | 8a11c55 | [5-fix-nature-s-mark-cooldown-prevent-coold](./quick/5-fix-nature-s-mark-cooldown-prevent-coold/) |
 | 6 | Refactor cooldown guards & generalize combat state - eliminate hardcoded ability key lists with data-driven combatState field | 2026-02-12 | e53aca4 | [6-refactor-cooldown-guards-generalize-comb](./quick/6-refactor-cooldown-guards-generalize-comb/) |
 | 7 | Fix armor class restrictions - correct swapped armor proficiency check arguments and update armor seed data to show proper class restrictions in tooltips | 2026-02-12 | f5d9476 | [7-we-ve-added-tooltips-to-show-class-restr](./quick/7-we-ve-added-tooltips-to-show-class-restr/) |
+| 8 | Add log entries for faction standing gains - show lavender-colored messages when gaining/losing standing with factions | 2026-02-12 | f6aeed2 | [8-add-log-entries-for-faction-standing-gai](./quick/8-add-log-entries-for-faction-standing-gai/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** 2026-02-12 - Completed quick task 7: Fix armor class restrictions and tooltips
-**Timestamp:** 2026-02-12T16:18:12Z
+**Stopped at:** 2026-02-12 - Completed quick task 8: Add log entries for faction standing gains
+**Timestamp:** 2026-02-12T14:48:16Z
