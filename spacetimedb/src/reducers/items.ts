@@ -356,6 +356,39 @@ export const registerItemReducers = (deps: any) => {
     );
   });
 
+  spacetimedb.reducer('consolidate_stacks', { characterId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    // Group all unequipped stackable instances by templateId
+    const stacks = new Map<string, any[]>();
+    for (const instance of ctx.db.itemInstance.by_owner.filter(character.id)) {
+      if (instance.equippedSlot) continue;
+      const template = ctx.db.itemTemplate.id.find(instance.templateId);
+      if (!template || !template.stackable) continue;
+      const key = instance.templateId.toString();
+      if (!stacks.has(key)) stacks.set(key, []);
+      stacks.get(key)!.push(instance);
+    }
+    let merged = 0;
+    for (const [, instances] of stacks) {
+      if (instances.length <= 1) continue;
+      // Sum all quantities into the first instance, delete the rest
+      let totalQty = 0n;
+      for (const inst of instances) {
+        totalQty += inst.quantity ?? 1n;
+      }
+      ctx.db.itemInstance.id.update({ ...instances[0], quantity: totalQty });
+      for (let i = 1; i < instances.length; i++) {
+        ctx.db.itemInstance.id.delete(instances[i].id);
+        merged++;
+      }
+    }
+    if (merged > 0) {
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', `Inventory organized: ${merged} stack(s) consolidated.`);
+    } else {
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', 'Inventory organized.');
+    }
+  });
+
   spacetimedb.reducer(
     'set_hotbar_slot',
     { characterId: t.u64(), slot: t.u8(), abilityKey: t.string() },

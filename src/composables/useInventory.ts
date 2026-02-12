@@ -90,6 +90,7 @@ export const useInventory = ({
   const unequipReducer = useReducer(reducers.unequipItem);
   const useItemReducer = useReducer(reducers.useItem);
   const splitStackReducer = useReducer(reducers.splitStack);
+  const consolidateStacksReducer = useReducer(reducers.consolidateStacks);
 
   const ownedInstances = computed(() => {
     if (!selectedCharacter.value) return [];
@@ -190,7 +191,19 @@ export const useInventory = ({
           stackable,
         };
       })
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .sort((a, b) => {
+        const rarityOrder: Record<string, number> = {
+          legendary: 0,
+          epic: 1,
+          rare: 2,
+          uncommon: 3,
+          common: 4,
+        };
+        const ra = rarityOrder[(a.rarity ?? 'common').toLowerCase()] ?? 5;
+        const rb = rarityOrder[(b.rarity ?? 'common').toLowerCase()] ?? 5;
+        if (ra !== rb) return ra - rb;
+        return a.name.localeCompare(b.name);
+      })
   );
 
   const equippedSlots = computed<EquippedSlot[]>(() =>
@@ -260,6 +273,11 @@ export const useInventory = ({
     splitStackReducer({ characterId: selectedCharacter.value.id, itemInstanceId, quantity });
   };
 
+  const organizeInventory = () => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    consolidateStacksReducer({ characterId: selectedCharacter.value.id });
+  };
+
   const inventoryCount = computed(() => inventoryItems.value.length);
 
   return {
@@ -271,5 +289,6 @@ export const useInventory = ({
     unequipItem,
     useItem,
     splitStack,
+    organizeInventory,
   };
 };
