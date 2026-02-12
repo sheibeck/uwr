@@ -94,10 +94,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 2 | Fix pet summon cooldown - prevent false cooldown display when pet summons clicked outside combat | 2026-02-12 | a524111 | [2-fix-pet-summon-cooldown-prevent-cooldown](./quick/2-fix-pet-summon-cooldown-prevent-cooldown/) |
 | 3 | Fix group log messages to show character names instead of "You" | 2026-02-12 | a2ece2f | [3-fix-group-log-messages-to-show-character](./quick/3-fix-group-log-messages-to-show-character/) |
 | 4 | Fix equipment type restrictions - add armor proficiency check and tooltip class/armor info | 2026-02-12 | aa50ee2 | [4-equipment-of-any-type-is-currently-usabl](./quick/4-equipment-of-any-type-is-currently-usabl/) |
+| 5 | Fix Nature's Mark cooldown - prevent false cooldown display when clicked in combat | 2026-02-12 | 8a11c55 | [5-fix-nature-s-mark-cooldown-prevent-coold](./quick/5-fix-nature-s-mark-cooldown-prevent-coold/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** 2026-02-12 - Completed quick task 4: Fix equipment type restrictions - add armor proficiency check and tooltip class/armor info
-**Timestamp:** 2026-02-12T14:25:58Z
+**Stopped at:** 2026-02-12 - Completed quick task 5: Fix Nature's Mark cooldown - prevent false cooldown display when clicked in combat
+**Timestamp:** 2026-02-12T14:28:48Z
