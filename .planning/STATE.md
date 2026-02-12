@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-12
-**Status:** Phase 3 Plan 1 complete — faction standing backend published; Phase 2 Plan 2 checkpoint pending human verify
+**Status:** Phase 2 complete (hunger system verified end-to-end); Phase 3 Plan 1 done; ready for Phase 3 Plan 2 (Renown UI)
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 Plan 1 done. Phase 2 Plan 2 paused at Task 3 human-verify checkpoint. Phase 3 Plan 1 (Renown Foundation Backend) complete.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete — all plans done and human-verified. Phase 3 Plan 1 (Renown Foundation Backend) complete.
 
 **Current phase:** 03-renown-foundation
-**Current plan:** 01 complete; Phase 2 Plan 2 Task 3 checkpoint also pending
-**Next action:** Human verify Phase 2 Plan 2 (hunger UI checkpoint), then continue Phase 3 Plan 2 (Renown UI)
+**Current plan:** 02 (Renown UI — not yet started)
+**Next action:** Continue Phase 3 Plan 2 (Renown UI — faction standing display)
 
 ---
 
@@ -21,7 +21,7 @@ Phase 1 (Races) complete. Phase 2 Plan 1 done. Phase 2 Plan 2 paused at Task 3 h
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Races | Complete (2/2 plans done) |
-| 2 | Hunger | Checkpoint pending (plan 02 task 3 human-verify) |
+| 2 | Hunger | Complete (2/2 plans done, human-verified) |
 | 3 | Renown Foundation | In Progress (1/1 backend plans done) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
@@ -77,5 +77,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed 03-renown-foundation 03-01-PLAN.md (Faction standing system backend: Faction/FactionStanding tables, 4 factions seeded, combat kill integration, my_faction_standings view, module published)
-**Timestamp:** 2026-02-12T03:51:00Z
+**Stopped at:** Completed 02-hunger 02-02-PLAN.md (Hunger frontend: HungerBar component, Eat button on food items, eat_food reducer wiring — human-verified end-to-end)
+**Timestamp:** 2026-02-12
