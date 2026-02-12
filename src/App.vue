@@ -295,6 +295,13 @@
           :locations="locations"
           :regions="regions"
         />
+        <RenownPanel
+          v-else-if="activePanel === 'renown'"
+          :styles="styles"
+          :factions="factions"
+          :faction-standings="factionStandings"
+          :selected-character="selectedCharacter"
+        />
         <TrackPanel
           v-else-if="activePanel === 'track'"
           :styles="styles"
@@ -570,6 +577,7 @@ import QuestPanel from './components/QuestPanel.vue';
 import VendorPanel from './components/VendorPanel.vue';
 import TrackPanel from './components/TrackPanel.vue';
 import HungerBar from './components/HungerBar.vue';
+import RenownPanel from './components/RenownPanel.vue';
 import { useGameData } from './composables/useGameData';
 import { useCharacters } from './composables/useCharacters';
 import { useEvents } from './composables/useEvents';
@@ -643,6 +651,8 @@ const {
   tradeItems,
   races,
   myHunger,
+  factions,
+  factionStandings,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
@@ -1483,6 +1493,7 @@ const activePanel = ref<
   | 'crafting'
   | 'journal'
   | 'quests'
+  | 'renown'
   | 'vendor'
   | 'characterActions'
   | 'trade'
@@ -1793,6 +1804,8 @@ const panelTitle = computed(() => {
       return 'Journal';
     case 'quests':
       return 'Quests';
+    case 'renown':
+      return 'Renown';
     case 'vendor':
       return activeVendor.value?.name ?? 'Vendor';
     case 'characterActions':

@@ -51,6 +51,13 @@
         Quests
       </button>
       <button
+        @click="emit('toggle', 'renown')"
+        :style="actionStyle('renown')"
+        :disabled="isLocked('renown')"
+      >
+        Renown
+      </button>
+      <button
         @click="emit('toggle', 'friends')"
         :style="actionStyle('friends')"
         :disabled="isLocked('friends')"
@@ -73,6 +80,7 @@ type PanelKey =
   | 'crafting'
   | 'journal'
   | 'quests'
+  | 'renown'
   | 'travel'
   | 'combat';
 
