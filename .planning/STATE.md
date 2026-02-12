@@ -99,10 +99,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 6 | Refactor cooldown guards & generalize combat state - eliminate hardcoded ability key lists with data-driven combatState field | 2026-02-12 | e53aca4 | [6-refactor-cooldown-guards-generalize-comb](./quick/6-refactor-cooldown-guards-generalize-comb/) |
 | 7 | Fix armor class restrictions - correct swapped armor proficiency check arguments and update armor seed data to show proper class restrictions in tooltips | 2026-02-12 | f5d9476 | [7-we-ve-added-tooltips-to-show-class-restr](./quick/7-we-ve-added-tooltips-to-show-class-restr/) |
 | 8 | Add log entries for faction standing gains - show lavender-colored messages when gaining/losing standing with factions | 2026-02-12 | f6aeed2 | [8-add-log-entries-for-faction-standing-gai](./quick/8-add-log-entries-for-faction-standing-gai/) |
+| 9 | Fix equipment validation to allow class-permitted weapons - skip armor proficiency check for armorType='none' items (weapons, accessories) | 2026-02-12 | fefce50 | [9-fix-equipment-validation-allow-class-per](./quick/9-fix-equipment-validation-allow-class-per/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** 2026-02-12 - Completed quick task 8: Add log entries for faction standing gains
-**Timestamp:** 2026-02-12T14:48:16Z
+**Stopped at:** 2026-02-12 - Completed quick task 9: Fix equipment validation to allow class-permitted weapons
+**Timestamp:** 2026-02-12T14:55:15Z
