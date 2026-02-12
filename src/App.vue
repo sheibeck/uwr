@@ -14,34 +14,51 @@
     />
 
   <main :style="[styles.main, showRightPanel ? {} : styles.mainWide]">
-    <div :style="styles.logStage">
-      <div :style="styles.logStack">
-        <div :style="styles.logOverlay">
-          <div v-if="onboardingHint" :style="styles.onboardingHint">
-            <div>{{ onboardingHint }}</div>
-            <button type="button" :style="styles.onboardingDismiss" @click="dismissOnboarding">
-              Dismiss tour
-            </button>
-          </div>
-          <LogWindow
-            :styles="styles"
-            :selected-character="selectedCharacter"
-            :combined-events="combinedEvents"
-            :format-timestamp="formatTimestamp"
-          />
-        </div>
+    <!-- Onboarding hint -->
+    <div v-if="onboardingHint" :style="styles.onboardingHint">
+      <div>{{ onboardingHint }}</div>
+      <button type="button" :style="styles.onboardingDismiss" @click="dismissOnboarding">
+        Dismiss tour
+      </button>
+    </div>
+
+    <!-- Log Panel (floating) -->
+    <div
+      v-if="panels.log.open"
+      data-panel-id="log"
+      :style="{
+        ...styles.floatingPanel,
+        ...styles.floatingPanelWide,
+        ...panelStyle('log').value,
+      }"
+      @mousedown="bringToFront('log')"
+    >
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('log', $event)">
+        <div>Log</div>
+        <button type="button" :style="styles.panelClose" @click="closePanelById('log')">×</button>
       </div>
+      <div :style="{ ...styles.floatingPanelBody, flex: 1, minHeight: 0, overflow: 'auto' }">
+        <LogWindow
+          :styles="styles"
+          :selected-character="selectedCharacter"
+          :combined-events="combinedEvents"
+          :format-timestamp="formatTimestamp"
+        />
+      </div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('log', $event, { right: true })" />
+      <div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('log', $event, { bottom: true })" />
+      <div :style="styles.resizeHandle" @mousedown.stop="startResize('log', $event, { right: true, bottom: true })" />
     </div>
 
     <div
       v-if="selectedCharacter"
       :style="{
         ...styles.hotbarFloating,
-        left: `${hotbarPos.x}px`,
-        top: `${hotbarPos.y}px`,
+        ...panelStyle('hotbar').value,
       }"
+      @mousedown="bringToFront('hotbar')"
     >
-      <div :style="styles.hotbarHandle" @mousedown="startHotbarDrag">Hotbar</div>
+      <div :style="styles.hotbarHandle" @mousedown="startDrag('hotbar', $event)">Hotbar</div>
       <div :style="styles.hotbarDock">
         <button
           v-for="slot in hotbarDisplay"
@@ -98,32 +115,23 @@
       </div>
     </div>
 
+
+    <!-- Character Panel -->
     <div
-      v-if="activePanel !== 'none'"
+      v-if="panels.character && panels.character.open"
+      data-panel-id="character"
       :style="{
         ...styles.floatingPanel,
-        ...(activePanel === 'journal' ||
-        activePanel === 'inventory' ||
-        activePanel === 'vendor' ||
-        activePanel === 'quests' ||
-        activePanel === 'crafting' ||
-        activePanel === 'stats' ||
-        activePanel === 'trade'
-          ? styles.floatingPanelWide
-          : {}),
-        left: `${panelPos.x}px`,
-        top: `${panelPos.y}px`,
+        ...(panelStyle('character').value || {}),
       }"
+      @mousedown="bringToFront('character')"
     >
-        <div :style="styles.floatingPanelHeader" @mousedown="startPanelDrag">
-          <div>{{ panelTitle }}</div>
-          <button type="button" :style="styles.panelClose" @click="closePanel">
-            ×
-          </button>
-        </div>
-        <div :style="styles.floatingPanelBody">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('character', $event)">
+        <div>Characters</div>
+        <button type="button" :style="styles.panelClose" @click="closePanelById('character')">×</button>
+      </div>
+      <div :style="styles.floatingPanelBody">
         <CharacterPanel
-          v-if="activePanel === 'character'"
           :styles="styles"
           :conn-active="conn.isActive"
           :new-character="newCharacter"
@@ -137,220 +145,38 @@
           @update:newCharacter="newCharacter = $event"
           @create="createCharacter"
           @delete="deleteCharacter"
-          @select="
-            selectedCharacterId = $event;
-            activePanel = 'none';
-          "
+          @select="selectedCharacterId = $event; closePanelById('character')"
         />
-        <InventoryPanel
-          v-else-if="activePanel === 'inventory'"
-          :styles="styles"
-          :conn-active="conn.isActive"
-          :selected-character="selectedCharacter"
-          :equipped-slots="equippedSlots"
-          :inventory-items="inventoryItems"
-          :inventory-count="inventoryCount"
-          :max-inventory-slots="maxInventorySlots"
-          :combat-locked="lockInventoryEdits"
-          @equip="equipItem"
-          @unequip="unequipItem"
-          @use-item="useItem"
-          @eat-food="eatFood"
-          @delete-item="deleteItem"
-          @show-tooltip="showTooltip"
-          @move-tooltip="moveTooltip"
-          @hide-tooltip="hideTooltip"
-        />
-        <HotbarPanel
-          v-else-if="activePanel === 'hotbar'"
-          :styles="styles"
-          :selected-character="selectedCharacter"
-          :available-abilities="availableAbilities"
-          :hotbar="hotbarAssignments"
-          :combat-locked="lockHotbarEdits"
-          @set-hotbar="setHotbarSlot"
-        />
-        <FriendsPanel
-          v-else-if="activePanel === 'friends'"
-          :styles="styles"
-          :conn-active="conn.isActive"
-          :is-logged-in="isLoggedIn"
-          :friend-email="friendEmail"
-          :incoming-requests="incomingRequests"
-          :outgoing-requests="outgoingRequests"
-          :friends="myFriends"
-          :email-by-user-id="emailByUserId"
-          @update:friendEmail="friendEmail = $event"
-          @send-request="sendRequest"
-          @accept="acceptRequest"
-          @reject="rejectRequest"
-          @remove="removeFriend"
-        />
-        <GroupPanel
-          v-else-if="activePanel === 'group'"
-          :styles="styles"
-          :conn-active="conn.isActive"
-          :selected-character="selectedCharacter"
-          :current-group="currentGroup"
-          :group-members="groupCharacterMembers"
-          :character-effects="characterEffects"
-          :combat-pets="combatPetsForGroup"
-          :invite-summaries="inviteSummaries"
-          :leader-id="leaderId"
-          :puller-id="pullerId"
-          :is-leader="isLeader"
-          :follow-leader="followLeader"
-          :selected-target-id="defensiveTargetId"
-          :now-micros="nowMicros"
-          @leave="leaveGroup"
-          @accept="acceptInvite"
-          @reject="rejectInvite"
-          @kick="kickMember"
-          @set-puller="setPuller"
-          @toggle-follow="setFollowLeader"
-          @character-action="openCharacterActions"
-        />
-        <div v-else-if="activePanel === 'stats'">
-          <StatsPanel
-            :styles="styles"
-            :selected-character="selectedCharacter"
-            :stat-bonuses="equippedStatBonuses"
-            :locations="locations"
-            :regions="regions"
-          />
-          <HungerBar
-            v-if="selectedCharacter"
-            :hunger="activeHunger"
-            :styles="styles"
-            :style="{ marginTop: '1rem' }"
-          />
-        </div>
-        <CraftingPanel
-          v-else-if="activePanel === 'crafting'"
-          :styles="styles"
-          :selected-character="selectedCharacter"
-          :crafting-available="currentLocationCraftingAvailable"
-          :combat-locked="lockCrafting"
-          :recipes="craftingRecipes"
-          @research="onResearchRecipes"
-          @craft="onCraftRecipe"
-        />
-        <CharacterActionsPanel
-          v-else-if="activePanel === 'characterActions'"
-          :styles="styles"
-          :target="actionTargetCharacter"
-          :is-friend="actionTargetIsFriend"
-          :is-in-group="actionTargetInGroup"
-          :is-leader="isLeader"
-          :target-is-leader="actionTargetIsLeader"
-          @invite="inviteToGroup"
-          @kick="kickMember"
-          @friend="sendFriendRequest"
-          @promote="promoteLeader"
-          @trade="startTrade"
-          @message="sendWhisperTo"
-        />
-        <TradePanel
-          v-else-if="activePanel === 'trade'"
-          :styles="styles"
-          :trade="activeTrade"
-          :inventory="tradeInventory"
-          :my-offer="myOffer"
-          :other-offer="otherOffer"
-          :my-offer-locked="myOfferLocked"
-          :other-offer-locked="otherOfferLocked"
-          @add-item="addTradeItem"
-          @remove-item="removeTradeItem"
-          @offer="offerTrade"
-          @cancel="cancelTrade"
-        />
-        <NpcDialogPanel
-          v-else-if="activePanel === 'journal'"
-          :styles="styles"
-          :npc-dialogs="npcDialogs"
-          :npcs="npcs"
-          :locations="locations"
-          :regions="regions"
-        />
-        <VendorPanel
-          v-else-if="activePanel === 'vendor'"
-          :styles="styles"
-          :selected-character="selectedCharacter"
-          :vendor="activeVendor"
-          :vendor-items="vendorItems"
-          :inventory-items="inventoryItems"
-          @buy="buyItem"
-          @sell="sellItem"
-          @sell-all-junk="sellAllJunk"
-          @show-tooltip="showTooltip"
-          @move-tooltip="moveTooltip"
-          @hide-tooltip="hideTooltip"
-        />
-        <QuestPanel
-          v-else-if="activePanel === 'quests'"
-          :styles="styles"
-          :quest-instances="questInstances"
-          :quest-templates="questTemplates"
-          :npcs="npcs"
-          :locations="locations"
-          :regions="regions"
-        />
-        <RenownPanel
-          v-else-if="activePanel === 'renown'"
-          :styles="styles"
-          :factions="factions"
-          :faction-standings="factionStandings"
-          :selected-character="selectedCharacter"
-        />
-        <TrackPanel
-          v-else-if="activePanel === 'track'"
-          :styles="styles"
-          :options="trackOptions"
-          @select="selectTrackedTarget"
-        />
-        <CombatPanel
-          v-else-if="activePanel === 'combat'"
-          :styles="styles"
-          :conn-active="conn.isActive"
-          :selected-character="selectedCharacter"
-          :characters-here="charactersHere"
-          :npcs-here="npcsHere"
-          :active-combat="activeCombat"
-          :active-enemy-spawn="activeEnemySpawn"
-          :active-loot="activeLoot"
-          :combat-enemies="combatEnemiesList"
-          :enemy-spawns="availableEnemies"
-          :resource-nodes="resourceNodesHere"
-          :active-result="activeResult"
-          :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || pullerId === selectedCharacter.id)"
-          :can-dismiss-results="canDismissResults"
-          :can-act="canActInCombat"
-          :accordion-state="accordionState"
-          @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
-          @select-enemy="setCombatTarget"
-          @flee="flee"
-          @dismiss-results="dismissResults"
-          @take-loot="takeLoot"
-          @gather-resource="startGather"
-          @show-tooltip="showTooltip"
-          @move-tooltip="moveTooltip"
-          @hide-tooltip="hideTooltip"
-          @hail="hailNpc"
-          @open-vendor="openVendor"
-          @accordion-toggle="updateAccordionState"
-            @character-action="openCharacterActions"
-        />
-        </div>
+      </div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('character', $event, { right: true })" />
+      <div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('character', $event, { bottom: true })" />
+      <div :style="styles.resizeHandle" @mousedown.stop="startResize('character', $event, { right: true, bottom: true })" />
+
+    <!-- Inventory Panel (wide) -->
+    <div v-if="panels.inventory && panels.inventory.open" data-panel-id="inventory" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('inventory').value || {}) }" @mousedown="bringToFront('inventory')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('inventory', $event)"><div>Inventory</div><button type="button" :style="styles.panelClose" @click="closePanelById('inventory')">×</button></div>
+      <div :style="styles.floatingPanelBody"><InventoryPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('inventory', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('inventory', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('inventory', $event, { right: true, bottom: true })" />
+    </div>
+
+    <!-- Hotbar Panel -->
+    <div v-if="panels.hotbarPanel && panels.hotbarPanel.open" data-panel-id="hotbarPanel" :style="{ ...styles.floatingPanel, ...(panelStyle('hotbarPanel').value || {}) }" @mousedown="bringToFront('hotbarPanel')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('hotbarPanel', $event)"><div>Hotbar</div><button type="button" :style="styles.panelClose" @click="closePanelById('hotbarPanel')">×</button></div>
+      <div :style="styles.floatingPanelBody"><HotbarPanel :styles="styles" :selected-character="selectedCharacter" :available-abilities="availableAbilities" :hotbar="hotbarAssignments" :combat-locked="lockHotbarEdits" @set-hotbar="setHotbarSlot" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('hotbarPanel', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('hotbarPanel', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('hotbarPanel', $event, { right: true, bottom: true })" />
+    </div>
+
+    <!-- Other panels to be added following same pattern -->
     </div>
 
     <div
       :style="{
         ...styles.floatingPanel,
-        left: `${travelPanelPos.x}px`,
-        top: `${travelPanelPos.y}px`,
+        ...panelStyle('travel').value,
       }"
+      @mousedown="bringToFront('travel')"
     >
-      <div :style="styles.floatingPanelHeader" @mousedown="startTravelDrag">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('travel', $event)">
         <div :style="styles.panelHeaderStack">
         <div :style="styles.panelHeaderLocationRow">
           <div :style="styles.panelHeaderLocation">{{ currentLocationName }}</div>
@@ -465,13 +291,13 @@
       :style="{
         ...styles.floatingPanel,
         ...styles.floatingPanelCompact,
-        left: `${groupPanelPos.x}px`,
-        top: `${groupPanelPos.y}px`,
+        ...panelStyle('group').value,
       }"
+      @mousedown="bringToFront('group')"
     >
       <div
         :style="styles.floatingPanelHeader"
-        @mousedown="startGroupDrag"
+        @mousedown="startDrag('group', $event)"
       >
         Group
       </div>
@@ -524,9 +350,9 @@
 
     <ActionBar
       :styles="styles"
-      :active-panel="activePanel"
+      :open-panels="openPanels"
       :has-active-character="Boolean(selectedCharacter)"
-          :combat-locked="lockHotbarEdits"
+      :combat-locked="lockHotbarEdits"
       :highlight-inventory="highlightInventory"
       :highlight-hotbar="highlightHotbar"
       @toggle="togglePanel"
@@ -610,6 +436,7 @@ import { useCrafting } from './composables/useCrafting';
 import { useHotbar } from './composables/useHotbar';
 import { useTrade } from './composables/useTrade';
 import { useCombatLock } from './composables/useCombatLock';
+import { usePanelManager } from './composables/usePanelManager';
 
 const {
   conn,
@@ -1061,7 +888,7 @@ const { commandText, submitCommand } = useCommands({
   npcsHere,
   onNpcHail: (npc) => {
     if (npc.npcType === 'vendor') {
-      activePanel.value = 'vendor';
+      openPanel('vendor');
       activeVendorId.value = npc.id;
     }
   },
@@ -1069,7 +896,7 @@ const { commandText, submitCommand } = useCommands({
 
 const openCharacterActions = (characterId: bigint) => {
   actionTargetCharacterId.value = characterId;
-  activePanel.value = 'characterActions';
+  openPanel('characterActions');
 };
 
 const inviteToGroup = (targetName: string) => {
@@ -1086,15 +913,15 @@ const sendWhisperTo = (targetName: string) => {
   commandText.value = `/w ${targetName} `;
 };
 
-const closePanel = () => {
-  if (activePanel.value === 'trade') {
+const closePanel = (panelId: string) => {
+  if (panelId === 'trade') {
     cancelTrade();
   }
-  activePanel.value = 'none';
+  closePanelById(panelId);
 };
 
 const openVendor = (npcId: bigint) => {
-  activePanel.value = 'vendor';
+  openPanel('vendor');
   activeVendorId.value = npcId;
 };
 
@@ -1344,9 +1171,9 @@ watch(
   () => activeTrade.value,
   (trade) => {
     if (trade) {
-      activePanel.value = 'trade';
-    } else if (activePanel.value === 'trade') {
-      activePanel.value = 'none';
+      openPanel('trade');
+    } else {
+      closePanelById('trade');
     }
   }
 );
@@ -1444,7 +1271,7 @@ const {
   canActInCombat,
   defensiveTargetId,
   onTrackRequested: () => {
-    activePanel.value = 'track';
+    openPanel('track');
   },
   addLocalEvent,
 });
@@ -1488,7 +1315,7 @@ const selectTrackedTarget = (templateId: bigint) => {
   if (!selectedCharacter.value) return;
   useAbility('ranger_track', selectedCharacter.value.id);
   startTrackedCombat(templateId);
-  activePanel.value = 'none';
+  closePanelById('track');
 };
 
 const offensiveTargetEnemyId = ref<bigint | null>(null);
@@ -1500,25 +1327,39 @@ watch(
   { immediate: true }
 );
 
-const activePanel = ref<
-  | 'none'
-  | 'character'
-  | 'inventory'
-  | 'hotbar'
-  | 'friends'
-  | 'group'
-  | 'stats'
-  | 'crafting'
-  | 'journal'
-  | 'quests'
-  | 'renown'
-  | 'vendor'
-  | 'characterActions'
-  | 'trade'
-  | 'track'
-  | 'travel'
-  | 'combat'
->('none');
+// Initialize panel manager with default positions
+const {
+  panels,
+  openPanels,
+  togglePanel,
+  openPanel,
+  closePanel: closePanelById,
+  bringToFront,
+  startDrag,
+  startResize,
+  onMouseMove: onPanelMouseMove,
+  onMouseUp: onPanelMouseUp,
+  panelStyle,
+} = usePanelManager({
+  group: { x: 40, y: 140 },
+  travel: { x: 1040, y: 110 },
+  hotbar: { x: 120, y: 260 },
+  character: { x: 980, y: 140 },
+  inventory: { x: 600, y: 140 },
+  hotbarPanel: { x: 700, y: 140 },
+  friends: { x: 500, y: 140 },
+  stats: { x: 600, y: 140 },
+  crafting: { x: 600, y: 140 },
+  journal: { x: 600, y: 140 },
+  quests: { x: 600, y: 140 },
+  renown: { x: 600, y: 140 },
+  vendor: { x: 600, y: 140 },
+  characterActions: { x: 600, y: 200 },
+  trade: { x: 600, y: 140 },
+  track: { x: 600, y: 200 },
+  combat: { x: 600, y: 140 },
+  log: { x: 40, y: 400, w: 500, h: 300 },
+});
 
 type AccordionKey = 'travel' | 'enemies' | 'resources' | 'characters' | 'npcs';
 
@@ -1563,11 +1404,11 @@ const onTravelAccordionToggle = (event: Event) => {
 };
 
 watch(
-  () => activePanel.value,
-  (panel) => {
-    if (onboardingStep.value === 'inventory' && panel === 'inventory') {
+  () => [...openPanels.value],
+  (panels) => {
+    if (onboardingStep.value === 'inventory' && panels.includes('inventory')) {
       onboardingStep.value = 'hotbar';
-    } else if (onboardingStep.value === 'hotbar' && panel === 'hotbar') {
+    } else if (onboardingStep.value === 'hotbar' && panels.includes('hotbarPanel')) {
       onboardingStep.value = null;
     }
   }
@@ -1575,6 +1416,17 @@ watch(
 
 onMounted(() => {
   loadAccordionState();
+  window.addEventListener('mousemove', onPanelMouseMove);
+  window.addEventListener('mouseup', onPanelMouseUp);
+  uiTimer = window.setInterval(() => {
+    nowMicros.value = Date.now() * 1000;
+  }, 200);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('mousemove', onPanelMouseMove);
+  window.removeEventListener('mouseup', onPanelMouseUp);
+  if (uiTimer) clearInterval(uiTimer);
 });
 
 const showCombatStack = computed(() => combatLocked.value);
@@ -1616,164 +1468,6 @@ const tooltip = ref<{
   anchor: 'cursor',
 });
 
-const groupPanelPos = ref({ x: 40, y: 140 });
-const panelPos = ref({ x: 980, y: 140 });
-const travelPanelPos = ref({ x: 1040, y: 110 });
-const hotbarPos = ref({ x: 120, y: 260 });
-
-const groupDrag = ref<{ active: boolean; offsetX: number; offsetY: number }>({
-  active: false,
-  offsetX: 0,
-  offsetY: 0,
-});
-const panelDrag = ref<{ active: boolean; offsetX: number; offsetY: number }>({
-  active: false,
-  offsetX: 0,
-  offsetY: 0,
-});
-const travelDrag = ref<{ active: boolean; offsetX: number; offsetY: number }>({
-  active: false,
-  offsetX: 0,
-  offsetY: 0,
-});
-const hotbarDrag = ref<{ active: boolean; offsetX: number; offsetY: number }>({
-  active: false,
-  offsetX: 0,
-  offsetY: 0,
-});
-const startGroupDrag = (event: MouseEvent) => {
-  groupDrag.value = {
-    active: true,
-    offsetX: event.clientX - groupPanelPos.value.x,
-    offsetY: event.clientY - groupPanelPos.value.y,
-  };
-};
-const startPanelDrag = (event: MouseEvent) => {
-  panelDrag.value = {
-    active: true,
-    offsetX: event.clientX - panelPos.value.x,
-    offsetY: event.clientY - panelPos.value.y,
-  };
-};
-const startTravelDrag = (event: MouseEvent) => {
-  travelDrag.value = {
-    active: true,
-    offsetX: event.clientX - travelPanelPos.value.x,
-    offsetY: event.clientY - travelPanelPos.value.y,
-  };
-};
-const startHotbarDrag = (event: MouseEvent) => {
-  hotbarDrag.value = {
-    active: true,
-    offsetX: event.clientX - hotbarPos.value.x,
-    offsetY: event.clientY - hotbarPos.value.y,
-  };
-};
-
-const onGroupDrag = (event: MouseEvent) => {
-  if (!groupDrag.value.active) return;
-  groupPanelPos.value = {
-    x: Math.max(16, event.clientX - groupDrag.value.offsetX),
-    y: Math.max(16, event.clientY - groupDrag.value.offsetY),
-  };
-};
-const onPanelDrag = (event: MouseEvent) => {
-  if (!panelDrag.value.active) return;
-  panelPos.value = {
-    x: Math.max(16, event.clientX - panelDrag.value.offsetX),
-    y: Math.max(16, event.clientY - panelDrag.value.offsetY),
-  };
-};
-const onTravelDrag = (event: MouseEvent) => {
-  if (!travelDrag.value.active) return;
-  travelPanelPos.value = {
-    x: Math.max(16, event.clientX - travelDrag.value.offsetX),
-    y: Math.max(16, event.clientY - travelDrag.value.offsetY),
-  };
-};
-const onHotbarDrag = (event: MouseEvent) => {
-  if (!hotbarDrag.value.active) return;
-  hotbarPos.value = {
-    x: Math.max(16, event.clientX - hotbarDrag.value.offsetX),
-    y: Math.max(16, event.clientY - hotbarDrag.value.offsetY),
-  };
-};
-
-const stopGroupDrag = () => {
-  if (!groupDrag.value.active) return;
-  groupDrag.value.active = false;
-};
-const stopPanelDrag = () => {
-  if (!panelDrag.value.active) return;
-  panelDrag.value.active = false;
-};
-const stopTravelDrag = () => {
-  if (!travelDrag.value.active) return;
-  travelDrag.value.active = false;
-};
-const stopHotbarDrag = () => {
-  if (!hotbarDrag.value.active) return;
-  hotbarDrag.value.active = false;
-};
-
-onMounted(() => {
-  const saved = window.localStorage.getItem('uwr.windowPositions');
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved) as {
-        group?: { x: number; y: number };
-        panel?: { x: number; y: number };
-        travel?: { x: number; y: number };
-        hotbar?: { x: number; y: number };
-      };
-      if (parsed.group) groupPanelPos.value = parsed.group;
-      if (parsed.panel) panelPos.value = parsed.panel;
-      if (parsed.travel) travelPanelPos.value = parsed.travel;
-      if (parsed.hotbar) hotbarPos.value = parsed.hotbar;
-    } catch {
-      // ignore invalid storage
-    }
-  }
-  window.addEventListener('mousemove', onGroupDrag);
-  window.addEventListener('mousemove', onPanelDrag);
-  window.addEventListener('mousemove', onTravelDrag);
-  window.addEventListener('mousemove', onHotbarDrag);
-  window.addEventListener('mouseup', stopGroupDrag);
-  window.addEventListener('mouseup', stopPanelDrag);
-  window.addEventListener('mouseup', stopTravelDrag);
-  window.addEventListener('mouseup', stopHotbarDrag);
-  uiTimer = window.setInterval(() => {
-    nowMicros.value = Date.now() * 1000;
-  }, 200);
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener('mousemove', onGroupDrag);
-  window.removeEventListener('mousemove', onPanelDrag);
-  window.removeEventListener('mousemove', onTravelDrag);
-  window.removeEventListener('mousemove', onHotbarDrag);
-  window.removeEventListener('mouseup', stopGroupDrag);
-  window.removeEventListener('mouseup', stopPanelDrag);
-  window.removeEventListener('mouseup', stopTravelDrag);
-  window.removeEventListener('mouseup', stopHotbarDrag);
-  if (uiTimer) clearInterval(uiTimer);
-});
-
-watch(
-  [groupPanelPos, panelPos, travelPanelPos, hotbarPos],
-  () => {
-    window.localStorage.setItem(
-      'uwr.windowPositions',
-      JSON.stringify({
-        group: groupPanelPos.value,
-        panel: panelPos.value,
-        travel: travelPanelPos.value,
-        hotbar: hotbarPos.value,
-      })
-    );
-  },
-  { deep: true }
-);
 
 const showTooltip = (payload: {
   item: any;
@@ -1802,65 +1496,27 @@ const hideTooltip = () => {
   tooltip.value = { visible: false, x: 0, y: 0, item: null, anchor: 'cursor' };
 };
 
-const panelTitle = computed(() => {
-  switch (activePanel.value) {
-    case 'character':
-      return 'Characters';
-    case 'inventory':
-      return 'Inventory';
-    case 'hotbar':
-      return 'Hotbar';
-    case 'friends':
-      return 'Friends';
-    case 'group':
-      return 'Group';
-    case 'stats':
-      return 'Stats';
-    case 'crafting':
-      return 'Crafting';
-    case 'journal':
-      return 'Journal';
-    case 'quests':
-      return 'Quests';
-    case 'renown':
-      return 'Renown';
-    case 'vendor':
-      return activeVendor.value?.name ?? 'Vendor';
-    case 'characterActions':
-      if (!actionTargetCharacter.value) return 'Actions';
-      return `${actionTargetCharacter.value.name} · ${actionTargetCharacter.value.className} Lv ${actionTargetCharacter.value.level}`;
-    case 'trade':
-      return 'Trade';
-    case 'track':
-      return 'Track';
-    case 'travel':
-      return 'Travel';
-    case 'combat':
-      return 'Combat';
-    default:
-      return '';
-  }
-});
+// panelTitle no longer needed - each panel has its own title in the template
 
-const togglePanel = (panel: typeof activePanel.value) => {
-  activePanel.value = activePanel.value === panel ? 'none' : panel;
-};
+// togglePanel now comes from usePanelManager
 
 watch(
   [() => isLoggedIn.value, () => player.value?.activeCharacterId],
   ([loggedIn, activeId]) => {
     if (!loggedIn) {
       selectedCharacterId.value = '';
-      activePanel.value = 'none';
+      // Close all panels
+      for (const id of openPanels.value) {
+        closePanelById(id);
+      }
       return;
     }
     if (activeId && !selectedCharacterId.value) {
       selectedCharacterId.value = activeId.toString();
-      activePanel.value = 'none';
       return;
     }
     if (!activeId) {
-      activePanel.value = 'character';
+      openPanel('character');
     }
   }
 );

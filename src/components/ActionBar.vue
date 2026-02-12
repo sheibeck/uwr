@@ -16,9 +16,9 @@
         Inventory
       </button>
       <button
-        @click="emit('toggle', 'hotbar')"
-        :style="actionStyle('hotbar')"
-        :disabled="isLocked('hotbar')"
+        @click="emit('toggle', 'hotbarPanel')"
+        :style="actionStyle('hotbarPanel')"
+        :disabled="isLocked('hotbarPanel')"
       >
         Hotbar
       </button>
@@ -70,7 +70,6 @@
 
 <script setup lang="ts">
 type PanelKey =
-  | 'none'
   | 'character'
   | 'inventory'
   | 'hotbar'
@@ -86,7 +85,7 @@ type PanelKey =
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
-  activePanel: PanelKey;
+  openPanels: Set<string>;
   hasActiveCharacter: boolean;
   combatLocked: boolean;
   highlightInventory: boolean;
@@ -94,22 +93,22 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: 'toggle', panel: PanelKey): void;
+  (e: 'toggle', panel: string): void;
 }>();
 
-const actionStyle = (panel: PanelKey) => {
+const actionStyle = (panel: string) => {
   const highlight =
     (panel === 'inventory' && props.highlightInventory) ||
-    (panel === 'hotbar' && props.highlightHotbar);
+    (panel === 'hotbarPanel' && props.highlightHotbar);
   return {
     ...props.styles.actionButton,
-    ...(props.activePanel === panel ? props.styles.actionButtonActive : {}),
+    ...(props.openPanels.has(panel) ? props.styles.actionButtonActive : {}),
     ...(highlight ? props.styles.actionButtonAttention : {}),
     ...(isLocked(panel) ? { opacity: 0.45, cursor: 'not-allowed' } : {}),
   };
 };
 
-const isLocked = (panel: PanelKey) => {
+const isLocked = (panel: string) => {
   // Character switching is blocked while the current character is in combat.
   if (panel === 'character' && props.hasActiveCharacter && props.combatLocked) {
     return true;
