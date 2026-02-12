@@ -149,6 +149,7 @@ const emit = defineEmits<{
   (e: 'use-item', itemInstanceId: bigint): void;
   (e: 'eat-food', itemInstanceId: bigint): void;
   (e: 'delete-item', itemInstanceId: bigint): void;
+  (e: 'split-stack', itemInstanceId: bigint, quantity: bigint): void;
   (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
   (e: 'move-tooltip', value: { x: number; y: number }): void;
   (e: 'hide-tooltip'): void;
@@ -184,6 +185,19 @@ const openItemContextMenu = (event: MouseEvent, item: typeof props.inventoryItem
   }
   if (item.eatable) {
     items.push({ label: 'Eat', action: () => emit('eat-food', item.id) });
+  }
+  if (item.stackable && item.quantity > 1n) {
+    items.push({
+      label: 'Split',
+      action: () => {
+        const max = Number(item.quantity) - 1;
+        const input = window.prompt(`Split how many? (1-${max})`, String(Math.floor(max / 2) || 1));
+        if (input === null) return;
+        const qty = parseInt(input, 10);
+        if (isNaN(qty) || qty < 1 || qty > max) return;
+        emit('split-stack', item.id, BigInt(qty));
+      },
+    });
   }
   items.push({ label: 'Delete', action: () => emit('delete-item', item.id) });
   contextMenu.value = {

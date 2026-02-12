@@ -160,7 +160,7 @@
     <!-- Inventory Panel (wide) -->
     <div v-if="panels.inventory && panels.inventory.open" data-panel-id="inventory" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('inventory').value || {}) }" @mousedown="bringToFront('inventory')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('inventory', $event)"><div>Inventory</div><button type="button" :style="styles.panelClose" @click="closePanelById('inventory')">×</button></div>
-      <div :style="styles.floatingPanelBody"><InventoryPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
+      <div :style="styles.floatingPanelBody"><InventoryPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('inventory', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('inventory', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('inventory', $event, { right: true, bottom: true })" />
     </div>
 
@@ -1144,7 +1144,7 @@ const currentTypeLine = computed(() => {
   return `${regionType} · ${locationType}`;
 });
 
-const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipItem, unequipItem, useItem } =
+const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipItem, unequipItem, useItem, splitStack } =
   useInventory({
     connActive: computed(() => conn.isActive),
     selectedCharacter,

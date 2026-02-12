@@ -89,6 +89,7 @@ export const useInventory = ({
   const equipReducer = useReducer(reducers.equipItem);
   const unequipReducer = useReducer(reducers.unequipItem);
   const useItemReducer = useReducer(reducers.useItem);
+  const splitStackReducer = useReducer(reducers.splitStack);
 
   const ownedInstances = computed(() => {
     if (!selectedCharacter.value) return [];
@@ -254,6 +255,11 @@ export const useInventory = ({
     useItemReducer({ characterId: selectedCharacter.value.id, itemInstanceId });
   };
 
+  const splitStack = (itemInstanceId: bigint, quantity: bigint) => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    splitStackReducer({ characterId: selectedCharacter.value.id, itemInstanceId, quantity });
+  };
+
   const inventoryCount = computed(() => inventoryItems.value.length);
 
   return {
@@ -264,5 +270,6 @@ export const useInventory = ({
     equipItem,
     unequipItem,
     useItem,
+    splitStack,
   };
 };
