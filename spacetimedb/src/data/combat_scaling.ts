@@ -213,9 +213,9 @@ export function calculateCritChance(characterDex: bigint): bigint {
  * Get crit multiplier for weapon type
  * Returns multiplier (150n = 1.5x, 200n = 2.0x, 250n = 2.5x)
  */
-export function getCritMultiplier(weaponName: string): bigint {
-  const weaponType = inferWeaponType(weaponName);
-  return WEAPON_CRIT_MULTIPLIERS[weaponType] ?? 200n;
+export function getCritMultiplier(weaponName: string, weaponType?: string): bigint {
+  const type = weaponType && weaponType !== '' ? weaponType : inferWeaponType(weaponName);
+  return WEAPON_CRIT_MULTIPLIERS[type] ?? 200n;
 }
 
 /**

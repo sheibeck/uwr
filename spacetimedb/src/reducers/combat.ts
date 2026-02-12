@@ -1,4 +1,5 @@
 import { ENEMY_ABILITIES } from '../data/ability_catalog';
+import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier } from '../data/combat_scaling';
 
 const AUTO_ATTACK_INTERVAL = 5_000_000n;
 const RETRY_ATTACK_INTERVAL = 1_000_000n;
@@ -376,6 +377,9 @@ export const registerCombatReducers = (deps: any) => {
       targetCharacterId,
       groupId,
       groupActorId,
+      characterDex,
+      weaponName,
+      weaponType,
     }: {
       seed: bigint;
       baseDamage: bigint;
@@ -392,15 +396,19 @@ export const registerCombatReducers = (deps: any) => {
         parry: string | ((damage: bigint) => string);
         block: string | ((damage: bigint) => string);
         hit: string | ((damage: bigint) => string);
+        crit?: string | ((damage: bigint) => string);
       };
       applyHp: (nextHp: bigint) => void;
       targetCharacterId?: bigint;
       groupId?: bigint;
       groupActorId?: bigint;
+      characterDex?: bigint;
+      weaponName?: string;
+      weaponType?: string;
     }
   ) => {
     const reducedDamage = applyArmorMitigation(baseDamage, targetArmor);
-    const outcome = rollAttackOutcome(seed, { canBlock, canParry, canDodge });
+    const outcome = rollAttackOutcome(seed, { canBlock, canParry, canDodge, characterDex, weaponName, weaponType });
     let finalDamage = (reducedDamage * outcome.multiplier) / 100n;
     if (finalDamage < 0n) finalDamage = 0n;
     if (outcome.outcome === 'hit' && targetCharacterId) {
@@ -432,9 +440,11 @@ export const registerCombatReducers = (deps: any) => {
             ? messages.parry
             : outcome.outcome === 'block'
               ? messages.block
-              : messages.hit;
+              : outcome.outcome === 'crit'
+                ? (messages.crit ?? messages.hit)
+                : messages.hit;
     const message = typeof template === 'function' ? template(finalDamage) : template;
-    const type = outcome.outcome === 'hit' ? 'damage' : 'avoid';
+    const type = outcome.outcome === 'hit' || outcome.outcome === 'crit' ? 'damage' : 'avoid';
     appendPrivateEvent(ctx, logTargetId, logOwnerId, type, message);
     if (groupId && groupActorId) {
       appendGroupEvent(ctx, groupId, groupActorId, type, message);
@@ -1626,12 +1636,9 @@ export const registerCombatReducers = (deps: any) => {
       const wellFedDmgBonus = isWellFed && (hungerRow.wellFedBuffType === 'str' || hungerRow.wellFedBuffType === 'dex')
         ? hungerRow.wellFedBuffMagnitude
         : 0n;
-      const baseDamage =
-        5n +
-        character.level +
-        weapon.baseDamage +
-        (weapon.dps / 2n) +
-        sumEnemyEffect(ctx, combat.id, 'damage_taken', currentEnemy.id);
+      const rawWeaponDamage = 5n + character.level + weapon.baseDamage + (weapon.dps / 2n);
+      const statScaledDamage = calculateStatScaledAutoAttack(rawWeaponDamage, character.str);
+      const baseDamage = statScaledDamage + sumEnemyEffect(ctx, combat.id, 'damage_taken', currentEnemy.id);
       const damage = baseDamage + wellFedDmgBonus;
       const outcomeSeed = nowMicros + character.id + currentEnemy.id;
       const { finalDamage, nextHp } = resolveAttack(ctx, {
@@ -1650,12 +1657,16 @@ export const registerCombatReducers = (deps: any) => {
           parry: `${targetName} parries your auto-attack.`,
           block: (damage) => `${targetName} blocks your auto-attack for ${damage}.`,
           hit: (damage) => `You hit ${targetName} with auto-attack for ${damage}.`,
+          crit: (damage) => `Critical hit! You hit ${targetName} for ${damage} damage.`,
         },
         applyHp: (updatedHp) => {
           ctx.db.combatEnemy.id.update({ ...currentEnemy, currentHp: updatedHp });
         },
         groupId: combat.groupId,
         groupActorId: character.id,
+        characterDex: character.dex,
+        weaponName: weapon.name,
+        weaponType: weapon.weaponType,
       });
 
       if (finalDamage > 0n) {
@@ -1862,6 +1873,16 @@ export const registerCombatReducers = (deps: any) => {
               createdAt: ctx.timestamp,
             });
           }
+          // Diagnostic: log loot generation results
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'reward',
+            lootTemplates.length > 0
+              ? `Loot generated: ${lootTemplates.map(t => t.name).join(', ')}`
+              : `No loot dropped from ${template?.name ?? 'enemy'}.`
+          );
           const lootTable = template ? findLootTable(ctx, template) : null;
           const goldReward = lootTable
             ? rollGold(

@@ -31,6 +31,7 @@ import {
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from './data/xp';
 import { RACE_DATA, ensureRaces } from './data/races';
 import { ensureFactions } from './data/faction_data';
+import { calculateCritChance, getCritMultiplier } from './data/combat_scaling';
 
 const Player = table(
   { name: 'player', public: true },
@@ -464,6 +465,7 @@ const TradeItem = table(
 const CombatLoot = table(
   {
     name: 'combat_loot',
+    public: true,
     indexes: [
       { name: 'by_owner', algorithm: 'btree', columns: ['ownerUserId'] },
       { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
@@ -1685,21 +1687,37 @@ function enemyAbilityCooldownMicros(abilityKey: string) {
 
 function rollAttackOutcome(
   seed: bigint,
-  opts: { canBlock: boolean; canParry: boolean; canDodge: boolean }
+  opts: {
+    canBlock: boolean;
+    canParry: boolean;
+    canDodge: boolean;
+    characterDex?: bigint;
+    weaponName?: string;
+    weaponType?: string;
+  }
 ) {
-  const roll = seed % 100n;
+  const roll = seed % 1000n;
   let cursor = 0n;
   if (opts.canDodge) {
-    cursor += 5n;
+    cursor += 50n;
     if (roll < cursor) return { outcome: 'dodge', multiplier: 0n };
   }
   if (opts.canParry) {
-    cursor += 5n;
+    cursor += 50n;
     if (roll < cursor) return { outcome: 'parry', multiplier: 0n };
   }
   if (opts.canBlock) {
-    cursor += 5n;
+    cursor += 50n;
     if (roll < cursor) return { outcome: 'block', multiplier: 50n };
+  }
+  // Critical strike check
+  if (opts.characterDex !== undefined) {
+    const critChance = calculateCritChance(opts.characterDex);
+    if (roll < cursor + critChance) {
+      const weaponType = opts.weaponType || '';
+      const multiplier = getCritMultiplier(opts.weaponName ?? '', weaponType);
+      return { outcome: 'crit', multiplier };
+    }
   }
   return { outcome: 'hit', multiplier: 100n };
 }
