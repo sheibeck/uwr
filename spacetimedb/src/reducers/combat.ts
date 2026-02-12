@@ -950,33 +950,20 @@ export const registerCombatReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const groupId = effectiveGroupId(character);
     if (groupId) {
-      const group = ctx.db.group.id.find(groupId);
-      if (!group) return failCombat(ctx, character, 'Group not found');
-      if (group.leaderCharacterId !== character.id) {
-        return failCombat(ctx, character, 'Only the leader can dismiss results');
-      }
+      // Each character dismisses only their own result and loot
+      const myResults = [...ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)]
+        .filter(r => r.groupId && r.groupId === groupId);
       const combatIds = new Set<bigint>();
-      for (const row of ctx.db.combatResult.by_group.filter(groupId)) {
+      for (const row of myResults) {
         combatIds.add(row.combatId);
-      }
-      if (!args.force) {
-        for (const combatId of combatIds) {
-          const hasLoot = [...ctx.db.combatLoot.by_combat.filter(combatId)].length > 0;
-          if (hasLoot) {
-            return failCombat(
-              ctx,
-              character,
-              'Group members still have unclaimed loot. Confirm dismiss to forfeit remaining loot.'
-            );
-          }
-        }
-      }
-      for (const row of ctx.db.combatResult.by_group.filter(groupId)) {
         ctx.db.combatResult.id.delete(row.id);
       }
+      // Delete only this character's loot
       for (const combatId of combatIds) {
-        for (const loot of ctx.db.combatLoot.by_combat.filter(combatId)) {
-          ctx.db.combatLoot.id.delete(loot.id);
+        for (const loot of ctx.db.combatLoot.by_character.filter(character.id)) {
+          if (loot.combatId === combatId) {
+            ctx.db.combatLoot.id.delete(loot.id);
+          }
         }
       }
       return;
@@ -1904,7 +1891,7 @@ export const registerCombatReducers = (deps: any) => {
             );
           }
         }
-        ctx.db.combatResult.insert({
+        const resultRow = ctx.db.combatResult.insert({
           id: 0n,
           ownerUserId: character.ownerUserId,
           characterId: character.id,
@@ -1913,6 +1900,12 @@ export const registerCombatReducers = (deps: any) => {
           summary: `Victory against ${summaryName}.${fallenSuffix}`,
           createdAt: ctx.timestamp,
         });
+        // Auto-clean result if no loot was generated for this character
+        const charLoot = [...ctx.db.combatLoot.by_character.filter(character.id)]
+          .filter(row => row.combatId === combat.id);
+        if (charLoot.length === 0) {
+          ctx.db.combatResult.id.delete(resultRow.id);
+        }
       }
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
@@ -2247,7 +2240,7 @@ export const registerCombatReducers = (deps: any) => {
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
-        ctx.db.combatResult.insert({
+        const defeatResult = ctx.db.combatResult.insert({
           id: 0n,
           ownerUserId: character.ownerUserId,
           characterId: character.id,
@@ -2256,6 +2249,8 @@ export const registerCombatReducers = (deps: any) => {
           summary: `Defeat against ${enemyName}.${fallenSuffix}`,
           createdAt: ctx.timestamp,
         });
+        // Defeats never have loot, delete immediately (server-side events already logged)
+        ctx.db.combatResult.id.delete(defeatResult.id);
       }
       clearCombatArtifacts(ctx, combat.id);
       ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });

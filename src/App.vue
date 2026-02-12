@@ -738,7 +738,6 @@ const {
   startTrackedCombat,
   setCombatTarget,
   flee,
-  dismissResults,
   takeLoot,
 } = useCombat({
   connActive: computed(() => conn.isActive),
@@ -843,19 +842,23 @@ const playLevelUpSound = () => {
 };
 
 watch(
-  () => activeResult.value,
-  (result) => {
-    if (!result) return;
-    const id = result.id.toString();
+  () => combinedEvents.value,
+  (events) => {
+    if (!events || events.length === 0) return;
+    const last = events[events.length - 1];
+    const id = `sound-${last.id}`;
     if (lastResultId.value === id) return;
-    lastResultId.value = id;
-    const summary = result.summary.toLowerCase();
-    if (summary.startsWith('victory')) {
+    if (last.kind !== 'combat') return;
+    const msg = (last.message ?? '').toLowerCase();
+    if (msg.startsWith('victory')) {
+      lastResultId.value = id;
       playVictorySound();
-    } else if (summary.startsWith('defeat')) {
+    } else if (msg.startsWith('defeat')) {
+      lastResultId.value = id;
       playDefeatSound();
     }
-  }
+  },
+  { deep: true }
 );
 
 
@@ -874,46 +877,6 @@ watch(
   { deep: true }
 );
 
-// Track which result IDs we've already processed (to avoid re-posting to log)
-const processedResultIds = ref<Set<string>>(new Set());
-
-watch(
-  () => activeResult.value,
-  (result) => {
-    if (!result) return;
-    const id = result.id.toString();
-    if (processedResultIds.value.has(id)) return;
-    processedResultIds.value.add(id);
-
-    // Post Victory/Defeat to the event log
-    const summary = result.summary ?? '';
-    const outcome = summary.toLowerCase().startsWith('victory') ? 'Victory' :
-                    summary.toLowerCase().startsWith('defeat') ? 'Defeat' : 'Combat Ended';
-    // Strip the "Victory! " or "Defeat! " prefix if present, use the rest as detail
-    const detail = summary.replace(/^(victory|defeat)[!.:]*\s*/i, '').trim();
-    const logMessage = detail ? `${outcome}! ${detail}` : `${outcome}!`;
-    addLocalEvent('combat', logMessage);
-
-    // Only auto-dismiss if no loot dropped for this character.
-    // When loot exists, player dismisses after claiming items.
-    if (pendingLoot.value.length === 0) {
-      setTimeout(() => {
-        dismissResults();
-      }, 500);
-    }
-  }
-);
-
-// Keep processedResultIds from growing unbounded
-watch(
-  () => processedResultIds.value.size,
-  (size) => {
-    if (size > 50) {
-      const entries = [...processedResultIds.value];
-      processedResultIds.value = new Set(entries.slice(-20));
-    }
-  }
-);
 
 // Auto-open loot panel when pendingLoot goes from empty to non-empty
 watch(

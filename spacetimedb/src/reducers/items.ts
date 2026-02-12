@@ -238,10 +238,12 @@ export const registerItemReducers = (deps: any) => {
       `${character.name} takes ${template.name}.`
     );
 
-    // Auto-dismiss results for everyone once all loot in this combat is claimed.
-    const remainingLoot = [...ctx.db.combatLoot.by_combat.filter(loot.combatId)];
-    if (remainingLoot.length === 0) {
-      for (const result of ctx.db.combatResult.iter()) {
+    // Check if this character has any remaining loot for this combat
+    const myRemainingLoot = [...ctx.db.combatLoot.by_character.filter(character.id)]
+      .filter(row => row.combatId === loot.combatId);
+    if (myRemainingLoot.length === 0) {
+      // Delete only this character's result for this combat
+      for (const result of ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)) {
         if (result.combatId === loot.combatId) {
           ctx.db.combatResult.id.delete(result.id);
         }
