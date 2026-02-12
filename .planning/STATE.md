@@ -10,9 +10,9 @@
 
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete — backend (03-01) and frontend (03-02) both done and human-verified.
 
-**Current phase:** 04-llm-architecture
+**Current phase:** 3.1-faction-hits
 **Current plan:** 01 (pending)
-**Next action:** Begin Phase 4 LLM Architecture
+**Next action:** Plan Phase 3.1 Faction Hits
 
 ---
 
@@ -23,6 +23,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 1 | Races | Complete (2/2 plans done) |
 | 2 | Hunger | Complete (2/2 plans done, human-verified) |
 | 3 | Renown Foundation | Complete (2/2 plans done, human-verified) |
+| 3.1 | Faction Hits | Pending (INSERTED) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
 | 6 | World Events | Pending |
@@ -72,13 +73,28 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 
 ---
 
+## Accumulated Context
+
+### Roadmap Evolution
+- Phase 3.1 inserted after Phase 3: Faction Hits (URGENT)
+
+---
+
 ## Blocked / Risks
 
 None currently. Key risk to watch: SpacetimeDB procedures are beta — API may change on upgrade.
 
 ---
 
+## Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 1 | Fix ability cooldown trigger - only apply cooldown when ability actually executes, not when denied due to combat state | 2026-02-12 | 6a57726 | [1-fix-ability-cooldown-trigger-only-apply-](./quick/1-fix-ability-cooldown-trigger-only-apply-/) |
+
+---
+
 ## Last Session
 
-**Stopped at:** Completed 03-renown-foundation 03-02-PLAN.md (Renown frontend: RenownPanel with FACTION_RANKS, rank computation, progress bars, ActionBar wiring — human-verified end-to-end)
-**Timestamp:** 2026-02-12T05:52:34Z
+**Stopped at:** 2026-02-12 - Completed quick task 1: Fix ability cooldown trigger - only apply cooldown when ability actually executes, not when denied due to combat state
+**Timestamp:** 2026-02-12T13:54:03Z
