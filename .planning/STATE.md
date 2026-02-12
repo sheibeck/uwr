@@ -145,10 +145,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 35 | Deep analysis and fix of combat loot system - made combat_loot public table with diagnostic logging to bypass view layer and fix loot display | 2026-02-12 | 5dd2f26 | [35-deep-analysis-and-fix-of-combat-loot-sys](./quick/35-deep-analysis-and-fix-of-combat-loot-sys/) |
 | 38 | Fix location panel missing players list - always-visible PLAYERS section showing all characters at location including user's own non-selected characters | 2026-02-12 | 688b552 | [38-fix-location-panel-missing-players-list-](./quick/38-fix-location-panel-missing-players-list-/) |
 | 39 | Fix players list to show only active and recently disconnected characters - restore active + pending-logout filter to exclude fully offline players | 2026-02-12 | cb87cff | [39-fix-players-list-to-show-only-active-and](./quick/39-fix-players-list-to-show-only-active-and/) |
+| 40 | Fix log message sorting and coloring - group combat messages show proper red/green/gold colors, same-timestamp events grouped by scope | 2026-02-12 | 3f0cdcb | [40-fix-log-message-sorting-and-coloring-in-](./quick/40-fix-log-message-sorting-and-coloring-in-/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed Quick Task 39 - restore active + pending-logout filter
-**Timestamp:** 2026-02-12T23:00:00Z
+**Stopped at:** Completed Quick Task 40 - fix log message sorting and coloring
+**Timestamp:** 2026-02-12T23:10:07Z
