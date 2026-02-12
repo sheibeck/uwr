@@ -1,5 +1,13 @@
 <template>
-  <div :style="styles.shell">
+  <SplashScreen
+    v-if="!isLoggedIn"
+    :styles="styles"
+    :conn-active="conn.isActive"
+    :auth-message="authMessage"
+    :auth-error="authError"
+    @login="login"
+  />
+  <div v-else :style="styles.shell">
     <AppHeader
       :styles="styles"
       :conn-active="conn.isActive"
@@ -437,6 +445,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useReducer } from 'spacetimedb/vue';
 import { styles } from './ui/styles';
+import SplashScreen from './components/SplashScreen.vue';
 import AppHeader from './components/AppHeader.vue';
 import LogWindow from './components/LogWindow.vue';
 import CharacterPanel from './components/CharacterPanel.vue';
