@@ -16,6 +16,7 @@ import {
   type CombatEnemyEffectRow,
   type EnemyAbilityRow,
   type ItemTemplateRow,
+  type FactionRow,
 } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 import {
@@ -31,6 +32,7 @@ type EnemySummary = {
   conClass: string;
   groupCount: bigint;
   memberNames: string[];
+  factionName: string;
 };
 
 type CombatRosterEntry = {
@@ -67,6 +69,7 @@ type UseCombatArgs = {
   enemySpawnMembers: Ref<EnemySpawnMemberRow[]>;
   nowMicros: Ref<number>;
   characters: Ref<CharacterRow[]>;
+  factions: Ref<FactionRow[]>;
 };
 
 const timestampToMicros = (timestamp: any) => {
@@ -114,6 +117,7 @@ export const useCombat = ({
   enemySpawnMembers,
   nowMicros,
   characters,
+  factions,
 }: UseCombatArgs) => {
   const effectTimers = new Map<
     string,
@@ -377,6 +381,9 @@ export const useCombat = ({
         else if (diff === 1) conClass = 'conYellow';
         else if (diff === 2) conClass = 'conOrange';
         else conClass = 'conRed';
+        const factionName = template?.factionId
+          ? factions.value.find(f => f.id.toString() === template.factionId!.toString())?.name ?? ''
+          : '';
         return {
           id: spawn.id,
           name: spawn.name,
@@ -384,6 +391,7 @@ export const useCombat = ({
           conClass,
           groupCount: spawn.groupCount ?? 1n,
           memberNames,
+          factionName,
         };
       });
   });

@@ -881,6 +881,7 @@ const {
   enemyAbilities,
   nowMicros,
   characters,
+  factions,
 });
 
 const {
