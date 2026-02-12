@@ -36,7 +36,7 @@
           <span v-if="selectedRaceRow.intBonus > 0n">INT +{{ selectedRaceRow.intBonus }} </span>
         </div>
         <div v-if="selectedRaceRow.availableClasses && selectedRaceRow.availableClasses.trim() !== ''" :style="styles.subtle">
-          Classes: {{ selectedRaceRow.availableClasses }}
+          Classes: {{ formatAvailableClasses(selectedRaceRow.availableClasses) }}
         </div>
       </div>
       <select
@@ -279,6 +279,13 @@ const displayedClassOptions = computed(() => {
 const selectedClass = computed(() =>
   CLASS_OPTIONS.find((option) => option.name === props.newCharacter.className)
 );
+
+const formatAvailableClasses = (classes: string) =>
+  classes.split(',')
+    .map((c) => c.trim())
+    .filter(Boolean)
+    .map((c) => c.charAt(0).toUpperCase() + c.slice(1))
+    .join(', ');
 
 const onClassChange = (event: Event) => {
   const value = (event.target as HTMLSelectElement).value;
