@@ -40,7 +40,7 @@ export const useGameData = () => {
   const [combatResults] = useTable(tables.myCombatResults);
   const [combatLoot] = useTable(tables.combatLoot);
   const [groups] = useTable(tables.group);
-  const [characterEffects] = useTable(tables.myCharacterEffects);
+  const [characterEffects] = useTable(tables.characterEffect);
   const [characterLogoutTicks] = useTable(tables.characterLogoutTick);
   const [characterCasts] = useTable(tables.characterCast);
   const [abilityCooldowns] = useTable(tables.abilityCooldown);

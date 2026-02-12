@@ -926,6 +926,7 @@ const CombatPet = table(
 const CharacterEffect = table(
   {
     name: 'character_effect',
+    public: true,
     indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {

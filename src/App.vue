@@ -363,7 +363,7 @@
           :selected-character="selectedCharacter"
           :current-group="currentGroup"
           :group-members="groupCharacterMembers"
-          :character-effects="characterEffects"
+          :character-effects="relevantEffects"
           :combat-pets="combatPetsForGroup"
           :invite-summaries="inviteSummaries"
           :leader-id="leaderId"
@@ -805,6 +805,18 @@ const combatPetsForGroup = computed(() => {
   if (!activeCombat.value) return [];
   const combatId = activeCombat.value.id.toString();
   return combatPets.value.filter((pet) => pet.combatId.toString() === combatId);
+});
+
+const relevantEffects = computed(() => {
+  if (!selectedCharacter.value) return [];
+  const memberIds = new Set<string>();
+  memberIds.add(selectedCharacter.value.id.toString());
+  for (const member of groupCharacterMembers.value) {
+    memberIds.add(member.id.toString());
+  }
+  return characterEffects.value.filter(
+    (effect: any) => memberIds.has(effect.characterId.toString())
+  );
 });
 
 const lastResultId = ref<string | null>(null);
