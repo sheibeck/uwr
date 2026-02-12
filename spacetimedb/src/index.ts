@@ -3225,6 +3225,13 @@ function ensureStarterItemTemplates(ctx: any) {
     });
   };
 
+  const ARMOR_ALLOWED_CLASSES: Record<string, string> = {
+    plate: 'warrior,paladin',
+    chain: 'warrior,paladin,ranger,shaman',
+    leather: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster',
+    cloth: 'any',
+  };
+
   for (const [armorType, pieces] of Object.entries(STARTER_ARMOR)) {
     upsertItemTemplateByName({
       name: pieces.chest.name,
@@ -3235,7 +3242,7 @@ function ensureStarterItemTemplates(ctx: any) {
       isJunk: false,
       vendorValue: 2n,
       requiredLevel: 1n,
-      allowedClasses: 'any',
+      allowedClasses: ARMOR_ALLOWED_CLASSES[armorType] ?? 'any',
       strBonus: 0n,
       dexBonus: 0n,
       chaBonus: 0n,
@@ -3257,7 +3264,7 @@ function ensureStarterItemTemplates(ctx: any) {
       isJunk: false,
       vendorValue: 2n,
       requiredLevel: 1n,
-      allowedClasses: 'any',
+      allowedClasses: ARMOR_ALLOWED_CLASSES[armorType] ?? 'any',
       strBonus: 0n,
       dexBonus: 0n,
       chaBonus: 0n,
@@ -3279,7 +3286,7 @@ function ensureStarterItemTemplates(ctx: any) {
       isJunk: false,
       vendorValue: 2n,
       requiredLevel: 1n,
-      allowedClasses: 'any',
+      allowedClasses: ARMOR_ALLOWED_CLASSES[armorType] ?? 'any',
       strBonus: 0n,
       dexBonus: 0n,
       chaBonus: 0n,
