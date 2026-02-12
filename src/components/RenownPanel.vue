@@ -6,18 +6,18 @@
       <div
         v-for="row in factionRows"
         :key="row.factionId.toString()"
-        :style="{ marginBottom: '16px' }"
+        :style="styles.resultCard"
       >
-        <div :style="{ fontWeight: 600, marginBottom: '2px' }">{{ row.factionName }}</div>
+        <div :style="styles.recipeName">{{ row.factionName }}</div>
         <div :style="styles.subtleSmall">{{ row.description }}</div>
-        <div :style="{ marginTop: '4px', color: row.rank.color }">
+        <div :style="{ color: row.rank.color, fontWeight: 600, fontSize: '0.85rem' }">
           {{ row.rank.name }} ({{ row.standing }})
         </div>
-        <div :style="{ margin: '4px 0', background: '#333', borderRadius: '3px', height: '6px', overflow: 'hidden' }">
+        <div :style="{ background: 'rgba(255,255,255,0.1)', borderRadius: '999px', height: '6px', overflow: 'hidden' }">
           <div
             :style="{
-              height: '6px',
-              borderRadius: '3px',
+              height: '100%',
+              borderRadius: '999px',
               background: row.rank.color,
               width: `${row.progress}%`,
               transition: 'width 0.3s ease',
