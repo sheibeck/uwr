@@ -1,11 +1,10 @@
 <template>
-  <div>
-    <div :style="styles.panelSectionTitle">Hotbar</div>
+  <div :style="styles.panelBody">
     <div v-if="!selectedCharacter" :style="styles.subtle">
       Select a character to manage hotbar.
     </div>
     <div v-else>
-      <div :style="styles.subtle">
+      <div :style="styles.subtleSmall">
         Assign abilities to slots 1-10 for quick combat access.
       </div>
       <div v-if="combatLocked" :style="styles.subtle">
@@ -14,11 +13,31 @@
       <div v-if="hotbar.length === 0" :style="styles.subtle">
         No hotbar slots available.
       </div>
-      <div v-else :style="styles.list">
-        <div v-for="slot in hotbar" :key="slot.slot" :style="styles.panelFormInline">
-          <div :style="styles.subtle">#{{ slot.slot }}</div>
+      <div v-else :style="{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }">
+        <div
+          v-for="slot in hotbar"
+          :key="slot.slot"
+          :style="{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.35rem 0.5rem',
+            background: 'rgba(255,255,255,0.03)',
+            borderRadius: '8px',
+            border: '1px solid rgba(255,255,255,0.06)'
+          }"
+        >
+          <span :style="{
+            fontWeight: 600,
+            fontSize: '0.75rem',
+            color: 'rgba(230,232,239,0.5)',
+            minWidth: '1.5rem',
+            textAlign: 'center'
+          }">
+            {{ slot.slot }}
+          </span>
           <select
-            :style="styles.input"
+            :style="{ ...styles.input, flex: 1 }"
             :value="slot.abilityKey"
             :disabled="combatLocked"
             @change="onHotbarChange(slot.slot, $event)"
