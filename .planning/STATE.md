@@ -121,10 +121,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 28 | Fix missing combat summary window - remove auto-dismiss watcher that hid solo victory results with no loot | 2026-02-12 | 7032a86 | [28-fix-missing-combat-summary-window-after-](./quick/28-fix-missing-combat-summary-window-after-/) |
 | 29 | Refactor loot system - replace combat summary modal with dedicated floating loot panel and log messages for Victory/Defeat | 2026-02-12 | d746ff3 | [29-refactor-loot-system-replace-combat-summ](./quick/29-refactor-loot-system-replace-combat-summ/) |
 | 30 | Add inventory stack splitting with context menu controls - right-click Split option for stackable items | 2026-02-12 | 51489c9 | [30-add-inventory-stack-splitting-with-conte](./quick/30-add-inventory-stack-splitting-with-conte/) |
+| 31 | Fix loot panel and victory messages - correct addLocalEvent call syntax and gate auto-dismiss on pending loot to prevent loot deletion | 2026-02-12 | ae56c5d | [31-fix-loot-panel-and-victory-messages-loot](./quick/31-fix-loot-panel-and-victory-messages-loot/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick task 30: Add inventory stack splitting with context menu controls
-**Timestamp:** 2026-02-12T20:10:00Z
+**Stopped at:** Completed quick task 31: Fix loot panel and victory messages
+**Timestamp:** 2026-02-12T20:19:25Z
