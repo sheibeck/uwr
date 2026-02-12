@@ -4,26 +4,22 @@
       Select a character to travel.
     </div>
     <div v-else>
-      <div :style="styles.miniMap">
+      <div :style="styles.gridSectionLabel">TRAVEL</div>
+      <div :style="styles.gridWrap">
         <div
-          v-for="entry in mappedConnections"
+          v-for="entry in sortedLocations"
           :key="entry.location.id.toString()"
-          :style="styles.miniMapRow"
+          :style="styles.gridTileTravel"
         >
-          <span :style="[styles.miniMapArrow, entry.conStyle]">{{ entry.arrow }}</span>
-          <div :style="styles.miniMapBody">
-            <div :style="styles.miniMapTitle">
-              <span :style="entry.conStyle">{{ entry.location.name }}</span>
-            </div>
-            <div :style="styles.miniMapMeta">
-              <span :style="entry.regionStyle">{{ entry.regionName }}</span>
-              <span :style="entry.conStyle">L{{ entry.targetLevel }}</span>
-            </div>
+          <div style="display: flex; align-items: baseline; gap: 0.4rem; min-width: 0;">
+            <span :style="entry.conStyle">{{ entry.location.name }}</span>
+            <span :style="{ fontSize: '0.65rem', opacity: 0.6 }">{{ entry.regionName }}</span>
+            <span :style="[{ fontSize: '0.65rem' }, entry.conStyle]">L{{ entry.targetLevel }}</span>
           </div>
           <button
+            :style="styles.gridTileGoButton"
             @click="$emit('move', entry.location.id)"
             :disabled="!connActive || entry.location.id === selectedCharacter.locationId"
-            :style="styles.ghostButton"
           >
             Go
           </button>
@@ -87,13 +83,4 @@ const sortedLocations = computed(() => {
     })
     .sort((a, b) => a.targetLevel - b.targetLevel);
 });
-
-const directionArrows = ['↑', '→', '↓', '←', '↗', '↘', '↙', '↖'];
-
-const mappedConnections = computed(() =>
-  sortedLocations.value.map((entry, index) => ({
-    ...entry,
-    arrow: directionArrows[index % directionArrows.length],
-  }))
-);
 </script>
