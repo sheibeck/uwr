@@ -154,186 +154,7 @@
             </div>
             <div v-if="!canAct" :style="styles.subtle">You are down and cannot act.</div>
           </div>
-  <div v-else>
-    <div :style="styles.subtle">Choose an enemy to pull.</div>
-    <div v-if="!canEngage" :style="styles.subtle">
-      Only the group puller can engage enemies.
-    </div>
-    <div v-if="enemySpawns.length === 0" :style="styles.subtle">
-      No enemies are available right now.
-    </div>
-    <div :style="styles.buttonWrap">
-      <div
-        v-for="enemy in enemySpawns"
-        :key="enemy.id.toString()"
-        :style="styles.enemyGroupRow"
-        @mouseenter="$emit('show-tooltip', {
-          item: {
-            name: enemy.name,
-            enemyMembers: enemy.memberNames,
-            factionName: enemy.factionName,
-            level: enemy.level,
-            groupCount: enemy.groupCount,
-          },
-          x: $event.clientX,
-          y: $event.clientY,
-        })"
-        @mousemove="$emit('move-tooltip', { x: $event.clientX, y: $event.clientY })"
-        @mouseleave="$emit('hide-tooltip')"
-      >
-        <span
-          :style="styles[enemy.conClass] ?? {}"
-        >
-          {{ enemy.name }} (L{{ enemy.level
-          }}<span v-if="enemy.groupCount > 1n" :style="styles.groupCountTag"
-            > x{{ enemy.groupCount }}</span
-          >)
-        </span>
-        <div :style="styles.panelFormInline">
-          <button
-            type="button"
-            :style="[styles.ghostButton, !canEngage ? styles.disabledButton : {}]"
-            :aria-disabled="!connActive"
-            title="Take your time to isolate the target. Safer, quieter pull with a better chance to avoid adds."
-            @click="$emit('pull', { enemyId: enemy.id, pullType: 'careful' })"
-          >
-            Careful Pull
-          </button>
-          <button
-            type="button"
-            :style="[styles.ghostButton, !canEngage ? styles.disabledButton : {}]"
-            :aria-disabled="!connActive"
-            title="Step in boldly to test reactions. Faster but more likely to bring extra enemies."
-            @click="$emit('pull', { enemyId: enemy.id, pullType: 'body' })"
-          >
-            Body Pull
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
         </details>
-        <template v-if="!activeCombat && !activeResult">
-          <details
-            :style="styles.accordion"
-            :open="accordionState.resources"
-            @toggle="
-              $emit('accordion-toggle', {
-                key: 'resources',
-                open: ($event.target as HTMLDetailsElement).open,
-              })
-            "
-          >
-            <summary :style="styles.accordionSummary">Resources</summary>
-            <div :style="styles.roster">
-              <div v-if="resourceNodes.length === 0" :style="styles.subtle">
-                No resources are visible here.
-              </div>
-              <div v-else :style="styles.rosterList">
-                <div
-                  v-for="node in resourceNodes"
-                  :key="node.id.toString()"
-                  :style="styles.enemyGroupRow"
-                >
-                  <div :style="styles.combatRow">
-                    <span :style="styles.combatValue">{{ node.name }}</span>
-                  </div>
-                  <div v-if="node.state === 'depleted'" :style="styles.subtleSmall">
-                    Respawns in {{ node.respawnSeconds ?? 0 }}s
-                  </div>
-                  <div :style="styles.panelFormInline">
-                    <button
-                      type="button"
-                      :disabled="!connActive || node.state !== 'available'"
-                      :style="{
-                        ...styles.ghostButton,
-                        position: 'relative',
-                        overflow: 'hidden',
-                        width: '100%',
-                      }"
-                      @click="$emit('gather-resource', node.id)"
-                    >
-                      {{ node.state === 'harvesting' ? 'Gathering...' : 'Gather' }}
-                      <div
-                        v-if="node.progress > 0"
-                        :style="{
-                          ...styles.hotbarCastFill,
-                          width: `${Math.round(node.progress * 100)}%`,
-                        }"
-                      ></div>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </details>
-          <details
-            :style="styles.accordion"
-            :open="accordionState.characters"
-            @toggle="
-              $emit('accordion-toggle', {
-                key: 'characters',
-                open: ($event.target as HTMLDetailsElement).open,
-              })
-            "
-          >
-            <summary :style="styles.accordionSummary">Characters ({{ charactersHere.length }})</summary>
-            <div :style="styles.roster">
-              <div v-if="charactersHere.length === 0" :style="styles.subtle">
-                Nobody else is around.
-              </div>
-              <div v-else :style="styles.rosterList">
-                <span
-                  v-for="entry in charactersHere"
-                  :key="entry.character.id.toString()"
-                  :style="styles.rosterClickable"
-                  @click="$emit('character-action', entry.character.id)"
-                >
-                  <span :style="styles.rosterNameRow">
-                    {{ entry.character.name }}
-                    <span
-                      v-if="entry.disconnected"
-                      :style="styles.disconnectedDot"
-                      title="Disconnected"
-                    ></span>
-                  </span>
-                </span>
-              </div>
-            </div>
-          </details>
-
-          <details
-            :style="styles.accordion"
-            :open="accordionState.npcs"
-            @toggle="
-              $emit('accordion-toggle', {
-                key: 'npcs',
-                open: ($event.target as HTMLDetailsElement).open,
-              })
-            "
-          >
-            <summary :style="styles.accordionSummary">NPCs</summary>
-            <div :style="styles.roster">
-              <div v-if="npcsHere.length === 0" :style="styles.subtle">No NPCs here yet.</div>
-              <div v-else :style="styles.rosterList">
-                <div
-                  v-for="npc in npcsHere"
-                  :key="npc.id.toString()"
-                  :style="styles.rosterClickable"
-                  @click="
-                    $emit('hail', npc.name);
-                    if (npc.npcType === 'vendor') {
-                      $emit('open-vendor', npc.id);
-                    }
-                  "
-                >
-                  <div>{{ npc.name }}</div>
-                  <div v-if="npc.description" :style="styles.subtleSmall">{{ npc.description }}</div>
-                </div>
-              </div>
-            </div>
-          </details>
-        </template>
       </div>
     </div>
 </template>
@@ -342,27 +163,13 @@
 import type {
   CharacterRow,
   CombatEncounterRow,
-  CombatEnemyRow,
   CombatResultRow,
-  NpcRow,
 } from '../module_bindings';
-
-type EnemySummary = {
-  id: bigint;
-  name: string;
-  level: bigint;
-  groupCount: bigint;
-  memberNames: string[];
-  conClass: string;
-  factionName: string;
-};
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
   selectedCharacter: CharacterRow | null;
-  charactersHere: { character: CharacterRow; disconnected: boolean }[];
-  npcsHere: NpcRow[];
   activeCombat: CombatEncounterRow | null;
   combatEnemies: {
     id: bigint;
@@ -385,27 +192,11 @@ const props = defineProps<{
     description: string;
     stats: { label: string; value: string }[];
   }[];
-  activeEnemySpawn: { id: bigint } | null;
-  enemySpawns: EnemySummary[];
-  resourceNodes: {
-    id: bigint;
-    name: string;
-    quantity: bigint;
-    state: string;
-    timeOfDay: string;
-    isGathering: boolean;
-    progress: number;
-    respawnSeconds: number | null;
-  }[];
   activeResult: CombatResultRow | null;
-  canEngage: boolean;
   canDismissResults: boolean;
   canAct: boolean;
   accordionState: {
     enemies: boolean;
-    resources: boolean;
-    characters: boolean;
-    npcs: boolean;
   };
 }>();
 
@@ -445,18 +236,13 @@ const resultOutcome = (summary: string) => {
 };
 
 defineEmits<{
-  (e: 'pull', value: { enemyId: bigint; pullType: 'careful' | 'body' }): void;
   (e: 'flee'): void;
   (e: 'select-enemy', enemyId: bigint): void;
   (e: 'dismiss-results'): void;
-  (e: 'hail', npcName: string): void;
   (e: 'take-loot', lootId: bigint): void;
-  (e: 'gather-resource', nodeId: bigint): void;
   (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
   (e: 'move-tooltip', value: { x: number; y: number }): void;
   (e: 'hide-tooltip'): void;
-  (e: 'open-vendor', npcId: bigint): void;
-  (e: 'accordion-toggle', value: { key: 'enemies' | 'resources' | 'characters' | 'npcs'; open: boolean }): void;
-  (e: 'character-action', characterId: bigint): void;
+  (e: 'accordion-toggle', value: { key: 'enemies'; open: boolean }): void;
 }>();
 </script>

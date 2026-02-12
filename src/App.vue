@@ -278,32 +278,21 @@
             :styles="styles"
             :conn-active="conn.isActive"
             :selected-character="selectedCharacter"
-            :characters-here="charactersHere"
-            :npcs-here="npcsHere"
             :active-combat="activeCombat"
-            :active-enemy-spawn="activeEnemySpawn"
             :active-loot="activeLoot"
             :combat-enemies="combatEnemiesList"
-            :enemy-spawns="availableEnemies"
-            :resource-nodes="resourceNodesHere"
             :active-result="activeResult"
-            :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || pullerId === selectedCharacter.id)"
             :can-dismiss-results="canDismissResults"
             :can-act="canActInCombat"
             :accordion-state="accordionState"
-            @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
             @select-enemy="setCombatTarget"
             @flee="flee"
             @dismiss-results="dismissResults"
             @take-loot="takeLoot"
-            @gather-resource="startGather"
             @show-tooltip="showTooltip"
             @move-tooltip="moveTooltip"
             @hide-tooltip="hideTooltip"
-            @hail="hailNpc"
-            @open-vendor="openVendor"
             @accordion-toggle="updateAccordionState"
-            @character-action="openCharacterActions"
           />
         </template>
         <template v-else>
@@ -317,41 +306,26 @@
             :styles="styles"
             :conn-active="conn.isActive"
             :selected-character="selectedCharacter"
-              :locations="connectedLocations"
-              :regions="regions"
-              @move="moveTo"
-            />
-          </details>
-          <CombatPanel
-            :styles="styles"
-            :conn-active="conn.isActive"
-            :selected-character="selectedCharacter"
-            :characters-here="charactersHere"
-            :npcs-here="npcsHere"
-            :active-combat="activeCombat"
-            :active-enemy-spawn="activeEnemySpawn"
-            :active-loot="activeLoot"
-            :combat-enemies="combatEnemiesList"
-            :enemy-spawns="availableEnemies"
-            :resource-nodes="resourceNodesHere"
-            :active-result="activeResult"
-            :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || pullerId === selectedCharacter.id)"
-            :can-dismiss-results="canDismissResults"
-            :can-act="canActInCombat"
-            :accordion-state="accordionState"
-            @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
-            @select-enemy="setCombatTarget"
-            @flee="flee"
-            @dismiss-results="dismissResults"
-            @take-loot="takeLoot"
-            @gather-resource="startGather"
-            @show-tooltip="showTooltip"
-            @move-tooltip="moveTooltip"
-            @hide-tooltip="hideTooltip"
-            @hail="hailNpc"
-            @accordion-toggle="updateAccordionState"
-            @character-action="openCharacterActions"
+            :locations="connectedLocations"
+            :regions="regions"
+            @move="moveTo"
           />
+        </details>
+        <LocationGrid
+          :styles="styles"
+          :conn-active="conn.isActive"
+          :selected-character="selectedCharacter"
+          :characters-here="charactersHere"
+          :npcs-here="npcsHere"
+          :enemy-spawns="availableEnemies"
+          :resource-nodes="resourceNodesHere"
+          :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || pullerId === selectedCharacter.id)"
+          @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
+          @gather-resource="startGather"
+          @hail="hailNpc"
+          @open-vendor="openVendor"
+          @character-action="openCharacterActions"
+        />
         </template>
       </div>
     </div>
@@ -478,6 +452,7 @@ import CraftingPanel from './components/CraftingPanel.vue';
 import HotbarPanel from './components/HotbarPanel.vue';
 import CombatPanel from './components/CombatPanel.vue';
 import TravelPanel from './components/TravelPanel.vue';
+import LocationGrid from './components/LocationGrid.vue';
 import CharacterActionsPanel from './components/CharacterActionsPanel.vue';
 import TradePanel from './components/TradePanel.vue';
 import CommandBar from './components/CommandBar.vue';
@@ -1430,14 +1405,11 @@ const {
   log: { x: 40, y: 400, w: 500, h: 300 },
 });
 
-type AccordionKey = 'travel' | 'enemies' | 'resources' | 'characters' | 'npcs';
+type AccordionKey = 'travel' | 'enemies';
 
 const accordionState = reactive<Record<AccordionKey, boolean>>({
   travel: true,
   enemies: true,
-  resources: true,
-  characters: true,
-  npcs: true,
 });
 
 const loadAccordionState = () => {
