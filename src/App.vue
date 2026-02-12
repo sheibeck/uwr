@@ -892,12 +892,15 @@ watch(
     // Strip the "Victory! " or "Defeat! " prefix if present, use the rest as detail
     const detail = summary.replace(/^(victory|defeat)[!.:]*\s*/i, '').trim();
     const logMessage = detail ? `${outcome}! ${detail}` : `${outcome}!`;
-    addLocalEvent({ kind: 'combat', message: logMessage });
+    addLocalEvent('combat', logMessage);
 
-    // Auto-dismiss results after a short delay to let loot data arrive
-    setTimeout(() => {
-      dismissResults();
-    }, 500);
+    // Only auto-dismiss if no loot dropped for this character.
+    // When loot exists, player dismisses after claiming items.
+    if (pendingLoot.value.length === 0) {
+      setTimeout(() => {
+        dismissResults();
+      }, 500);
+    }
   }
 );
 
