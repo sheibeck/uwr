@@ -91,11 +91,12 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | Fix ability cooldown trigger - only apply cooldown when ability actually executes, not when denied due to combat state | 2026-02-12 | 6a57726 | [1-fix-ability-cooldown-trigger-only-apply-](./quick/1-fix-ability-cooldown-trigger-only-apply-/) |
+| 2 | Fix pet summon cooldown - prevent false cooldown display when pet summons clicked outside combat | 2026-02-12 | a524111 | [2-fix-pet-summon-cooldown-prevent-cooldown](./quick/2-fix-pet-summon-cooldown-prevent-cooldown/) |
 | 3 | Fix group log messages to show character names instead of "You" | 2026-02-12 | a2ece2f | [3-fix-group-log-messages-to-show-character](./quick/3-fix-group-log-messages-to-show-character/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** 2026-02-12 - Completed quick task 3: Fix group log messages to show character names instead of "You"
-**Timestamp:** 2026-02-12T14:02:11Z
+**Stopped at:** 2026-02-12 - Completed quick task 2: Fix pet summon cooldown - prevent false cooldown display when pet summons clicked outside combat
+**Timestamp:** 2026-02-12T14:15:48Z
