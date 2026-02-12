@@ -22,6 +22,7 @@ export const registerCharacterReducers = (deps: any) => {
     CharacterLogoutTick,
     grantStarterItems,
     activeCombatIdForCharacter,
+    isClassAllowed,
   } = deps;
   const CHARACTER_SWITCH_LOGOUT_DELAY = 30_000_000n;
 
@@ -97,8 +98,8 @@ export const registerCharacterReducers = (deps: any) => {
 
   spacetimedb.reducer(
     'create_character',
-    { name: t.string(), race: t.string(), className: t.string() },
-    (ctx, { name, race, className }) => {
+    { name: t.string(), raceId: t.u64(), className: t.string() },
+    (ctx, { name, raceId, className }) => {
       const trimmed = name.trim();
       if (trimmed.length < 2) throw new SenderError('Name too short');
       const userId = requirePlayerUserId(ctx);
@@ -108,6 +109,16 @@ export const registerCharacterReducers = (deps: any) => {
         }
       }
 
+      // Race validation
+      const raceRow = ctx.db.race.id.find(raceId);
+      if (!raceRow) throw new SenderError('Invalid race');
+      if (!raceRow.unlocked) throw new SenderError('Race not yet unlocked');
+
+      // Class restriction check — reuses isClassAllowed from index.ts
+      if (!isClassAllowed(raceRow.availableClasses, className)) {
+        throw new SenderError(`${className} is not available for ${raceRow.name}`);
+      }
+
       const world = ctx.db.worldState.id.find(1n);
       if (!world) throw new SenderError('World not initialized');
       const bindLocation =
@@ -115,7 +126,14 @@ export const registerCharacterReducers = (deps: any) => {
         ctx.db.location.id.find(world.startingLocationId);
       if (!bindLocation) throw new SenderError('Bind location not initialized');
 
-      const baseStats = computeBaseStats(className, 1n);
+      const classStats = computeBaseStats(className, 1n);
+      const baseStats = {
+        str: classStats.str + raceRow.strBonus,
+        dex: classStats.dex + raceRow.dexBonus,
+        cha: classStats.cha + raceRow.chaBonus,
+        wis: classStats.wis + raceRow.wisBonus,
+        int: classStats.int + raceRow.intBonus,
+      };
       const manaStat = manaStatForClass(className, baseStats);
       const maxHp = BASE_HP + baseStats.str * 5n;
       const maxMana = usesMana(className) ? BASE_MANA + manaStat * 6n : 0n;
@@ -124,7 +142,7 @@ export const registerCharacterReducers = (deps: any) => {
         id: 0n,
         ownerUserId: userId,
         name: trimmed,
-        race: race.trim(),
+        race: raceRow.name,
         className: className.trim(),
         level: 1n,
         xp: 0n,
