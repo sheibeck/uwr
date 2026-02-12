@@ -1,4 +1,4 @@
-import { computed, type Ref } from 'vue';
+import { computed, ref, watch, type Ref } from 'vue';
 import type {
   EventWorldRow,
   EventLocationRow,
@@ -29,6 +29,33 @@ export const useEvents = ({
   groupEvents,
   sessionStartedAt,
 }: UseEventsArgs) => {
+  const localEvents = ref<EventItem[]>([]);
+  let localEventIdCounter = 9000000000n;
+
+  const addLocalEvent = (kind: string, message: string) => {
+    const id = localEventIdCounter++;
+    const createdAt = { microsSinceUnixEpoch: BigInt(Date.now() * 1000) };
+    localEvents.value.push({
+      id,
+      createdAt,
+      kind,
+      message,
+      scope: 'client',
+    });
+  };
+
+  // Trim local events older than 2 minutes to prevent unbounded growth
+  watch(
+    () => localEvents.value.length,
+    () => {
+      const nowMicros = BigInt(Date.now() * 1000);
+      const twoMinutesAgo = nowMicros - 120_000_000n;
+      localEvents.value = localEvents.value.filter(
+        (event) => event.createdAt.microsSinceUnixEpoch >= twoMinutesAgo
+      );
+    }
+  );
+
   const combinedEvents = computed<EventItem[]>(() => {
     const items: EventItem[] = [];
     const sessionMicros = sessionStartedAt.value?.microsSinceUnixEpoch ?? null;
@@ -74,6 +101,10 @@ export const useEvents = ({
         scope: 'group',
       });
     }
+    // Add local events - they skip the isInSession filter as they are always current
+    for (const event of localEvents.value) {
+      items.push(event);
+    }
     return items
       .sort((a, b) => {
         if (a.createdAt.microsSinceUnixEpoch === b.createdAt.microsSinceUnixEpoch) {
@@ -84,5 +115,5 @@ export const useEvents = ({
       .slice(-80);
   });
 
-  return { combinedEvents };
+  return { combinedEvents, addLocalEvent };
 };

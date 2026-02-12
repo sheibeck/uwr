@@ -33,6 +33,7 @@ type UseHotbarArgs = {
   canActInCombat: Ref<boolean>;
   defensiveTargetId: Ref<bigint | null>;
   onTrackRequested?: () => void;
+  addLocalEvent?: (kind: string, message: string) => void;
 };
 
 const toMicros = (seconds: bigint | undefined) => {
@@ -54,6 +55,7 @@ export const useHotbar = ({
   canActInCombat,
   defensiveTargetId,
   onTrackRequested,
+  addLocalEvent,
 }: UseHotbarArgs) => {
   const setHotbarReducer = useReducer(reducers.setHotbarSlot);
   const useAbilityReducer = useReducer(reducers.useAbility);
@@ -274,12 +276,21 @@ export const useHotbar = ({
       onTrackRequested?.();
       return;
     }
-    if (activeCombat.value && !canActInCombat.value && slot.kind !== 'utility') return;
+    if (activeCombat.value && !canActInCombat.value && slot.kind !== 'utility') {
+      addLocalEvent?.('blocked', `Cannot act yet — waiting for combat turn.`);
+      return;
+    }
     // Use combatState from ability template to determine if ability can be used
     const ability = abilityLookup.value.get(slot.abilityKey);
     const combatState = ability?.combatState ?? 'any';
-    if (combatState === 'combat_only' && !activeCombat.value) return;
-    if (combatState === 'out_of_combat_only' && activeCombat.value) return;
+    if (combatState === 'combat_only' && !activeCombat.value) {
+      addLocalEvent?.('blocked', `${ability?.name ?? slot.name} can only be used in combat.`);
+      return;
+    }
+    if (combatState === 'out_of_combat_only' && activeCombat.value) {
+      addLocalEvent?.('blocked', `${ability?.name ?? slot.name} cannot be used during combat.`);
+      return;
+    }
     runPrediction(slot.abilityKey);
 
     const targetId =

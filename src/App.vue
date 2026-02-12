@@ -756,7 +756,7 @@ const fallbackCombatRoster = computed(() => {
   return selectedCharacter.value ? [selectedCharacter.value] : [];
 });
 
-const { combinedEvents } = useEvents({
+const { combinedEvents, addLocalEvent } = useEvents({
   worldEvents,
   locationEvents,
   privateEvents,
@@ -1436,6 +1436,7 @@ const {
   onTrackRequested: () => {
     activePanel.value = 'track';
   },
+  addLocalEvent,
 });
 
 const activeHunger = computed(() => {

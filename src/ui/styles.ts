@@ -533,6 +533,9 @@ export const styles = {
   logFaction: {
     color: '#b8a9e8',
   },
+  logBlocked: {
+    color: '#e07a5f',
+  },
   logEmpty: {
     color: 'rgba(230,232,239,0.6)',
     fontStyle: 'italic',
