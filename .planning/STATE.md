@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-12
-**Status:** Phase 2 Plan 1 complete — hunger backend published; ready for Phase 2 Plan 2 (hunger frontend) or Phase 3
+**Status:** Phase 2 Plan 2 Tasks 1-2 complete — hunger frontend built; awaiting human verification at checkpoint (Task 3)
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 Plan 1 (Hunger Backend) complete.
+Phase 1 (Races) complete. Phase 2 Plan 1 (Hunger Backend) complete. Phase 2 Plan 2 Tasks 1-2 complete, paused at Task 3 checkpoint.
 
 **Current phase:** 02-hunger
-**Current plan:** 02 of TBD (Plan 01 done)
-**Next action:** Begin Phase 2 Plan 2 (Hunger frontend) or Phase 3 (Renown Foundation) in parallel
+**Current plan:** 02 of 02 (Plans 01 and 02 in progress)
+**Next action:** Human verification of hunger system (Task 3 checkpoint) — then Phase 2 complete, Phase 3 ready
 
 ---
 
@@ -21,7 +21,7 @@ Phase 1 (Races) complete. Phase 2 Plan 1 (Hunger Backend) complete.
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Races | Complete (2/2 plans done) |
-| 2 | Hunger | In Progress (1/2 plans done) |
+| 2 | Hunger | In Progress (plan 02 tasks 1-2 done, task 3 is human-verify checkpoint) |
 | 3 | Renown Foundation | Pending |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
@@ -47,6 +47,8 @@ Phase 1 (Races) complete. Phase 2 Plan 1 (Hunger Backend) complete.
 12. Well Fed buff stored on Hunger row (not CharacterEffect) for direct O(1) combat lookup (02-01)
 13. mana_regen/stamina_regen Well Fed buffs are display-only TODOs — Character table regen paths not yet wired for decay tick context (02-01)
 14. Simple Rations stays as slot=consumable; 4 new Well Fed foods use slot=food to distinguish buff foods from utility consumables (02-01)
+15. HungerBar rendered below StatsPanel in wrapper div — simpler than separate panel toggle, no new panel type needed (02-02)
+16. eatable = slot === 'food' (lowercase compare) cleanly distinguishes Well Fed buff foods from consumable-slot utility items in InventoryPanel (02-02)
 
 ---
 
@@ -57,6 +59,7 @@ Phase 1 (Races) complete. Phase 2 Plan 1 (Hunger Backend) complete.
 | 01-races | 01 | 4min | 3 | 8 |
 | 01-races | 02 | ~15min | 3 | 4 |
 | 02-hunger | 01 | ~35min | 2 | 11 |
+| 02-hunger | 02 | ~15min | 2 | 5 |
 
 ---
 
@@ -68,5 +71,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed 02-hunger 02-01-PLAN.md (Hunger system backend: Hunger table, food templates, combat integration, published)
-**Timestamp:** 2026-02-12T04:05:00Z
+**Stopped at:** Paused at 02-hunger 02-02-PLAN.md Task 3 checkpoint (human-verify)
+**Timestamp:** 2026-02-12T03:55:00Z
