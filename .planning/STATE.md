@@ -129,10 +129,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 32 | Add inventory organize button with alphabetization - consolidate stacks server-side and sort by rarity then alphabetically | 2026-02-12 | 255a8dc | [32-add-inventory-organize-button-alphabetiz](./quick/32-add-inventory-organize-button-alphabetiz/) |
 | 33 | Remove legacy auto-dismiss loot system - fix race condition preventing loot from displaying, enable per-character loot management | 2026-02-12 | a8aec03 | [33-remove-legacy-auto-dismiss-loot-system-a](./quick/33-remove-legacy-auto-dismiss-loot-system-a/) |
 | 34 | Add ASCII art splash screen for unauthenticated users - full-screen UNWRITTEN REALMS title with dungeon entrance and login button | 2026-02-12 | 13e32d5 | [34-add-ascii-art-splash-screen-for-unauthen](./quick/34-add-ascii-art-splash-screen-for-unauthen/) |
+| 36 | Fix login/logout transition flashing - eliminate splash re-render and black screen flash with three-state rendering and reactive logout | 2026-02-12 | 425156c | [36-fix-login-logout-transition-flashing-eli](./quick/36-fix-login-logout-transition-flashing-eli/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick task 34: Add ASCII art splash screen for unauthenticated users
-**Timestamp:** 2026-02-12T20:39:29Z
+**Stopped at:** Completed quick task 36: Fix login/logout transition flashing
+**Timestamp:** 2026-02-12T20:43:33Z
