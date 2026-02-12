@@ -47,60 +47,44 @@
         <div :style="styles.subtle">
           Slots: {{ inventoryCount }} / {{ maxInventorySlots }}
         </div>
-        <div v-if="inventoryItems.length === 0" :style="styles.subtle">No items.</div>
-        <ul v-else :style="styles.list">
-          <li v-for="item in inventoryItems" :key="item.id.toString()">
-            <div
-              @mouseenter="$emit('show-tooltip', { item, x: $event.clientX, y: $event.clientY })"
-              @mousemove="$emit('move-tooltip', { x: $event.clientX, y: $event.clientY })"
-              @mouseleave="$emit('hide-tooltip')"
-            >
-              <span :style="rarityStyle(item.rarity)">{{ item.name }}</span>
-              <span v-if="item.stackable && item.quantity > 1n" :style="styles.subtle">
-                x{{ item.quantity }}
+        <div :style="styles.bagGrid">
+          <div
+            v-for="(slot, idx) in bagSlots"
+            :key="idx"
+            :style="slot ? { ...styles.bagSlot, ...styles.bagSlotFilled } : styles.bagSlot"
+            @contextmenu.prevent="slot && openItemContextMenu($event, slot)"
+            @mouseenter="slot && $emit('show-tooltip', { item: slot, x: $event.clientX, y: $event.clientY })"
+            @mousemove="slot && $emit('move-tooltip', { x: $event.clientX, y: $event.clientY })"
+            @mouseleave="slot && $emit('hide-tooltip')"
+          >
+            <template v-if="slot">
+              <div :style="styles.bagSlotSlotLabel">{{ slot.slot }}</div>
+              <div :style="[styles.bagSlotName, rarityStyle(slot.rarity)]">{{ slot.name }}</div>
+              <span v-if="slot.stackable && slot.quantity > 1n" :style="styles.bagSlotQuantity">
+                x{{ slot.quantity }}
               </span>
-              ({{ item.rarity }}) - {{ item.slot }}
-            </div>
-            <div :style="styles.subtle">
-              Level {{ item.requiredLevel }} • Allowed: {{ item.allowedClasses || 'any' }}
-            </div>
-            <button
-              v-if="item.usable"
-              :style="styles.primaryButton"
-              @click="$emit('use-item', item.id)"
-            >
-              Use
-            </button>
-            <button
-              v-if="item.eatable"
-              :style="styles.primaryButton"
-              @click="$emit('eat-food', item.id)"
-            >
-              Eat
-            </button>
-            <button
-              v-if="item.equipable"
-              :style="[styles.primaryButton, combatLocked ? styles.disabledButton : {}]"
-              :disabled="combatLocked"
-              @click="$emit('equip', item.id)"
-            >
-              Equip
-            </button>
-            <button
-              :style="styles.ghostButton"
-              @click="$emit('delete-item', item.id)"
-            >
-              Delete
-            </button>
-          </li>
-        </ul>
+            </template>
+          </div>
+        </div>
       </div>
     </div>
+    <ContextMenu
+      :visible="contextMenu.visible"
+      :x="contextMenu.x"
+      :y="contextMenu.y"
+      :title="contextMenu.title"
+      :subtitle="contextMenu.subtitle"
+      :items="contextMenu.items"
+      :styles="styles"
+      @close="closeContextMenu"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue';
 import type { CharacterRow } from '../module_bindings';
+import ContextMenu from './ContextMenu.vue';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
@@ -159,7 +143,7 @@ const rarityStyle = (rarity: string) => {
   return (props.styles as any)[map[key] ?? 'rarityCommon'] ?? {};
 };
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'equip', itemInstanceId: bigint): void;
   (e: 'unequip', slot: string): void;
   (e: 'use-item', itemInstanceId: bigint): void;
@@ -169,5 +153,58 @@ defineEmits<{
   (e: 'move-tooltip', value: { x: number; y: number }): void;
   (e: 'hide-tooltip'): void;
 }>();
+
+const contextMenu = ref<{
+  visible: boolean;
+  x: number;
+  y: number;
+  title: string;
+  subtitle: string;
+  items: Array<{ label: string; disabled?: boolean; action: () => void }>;
+}>({
+  visible: false,
+  x: 0,
+  y: 0,
+  title: '',
+  subtitle: '',
+  items: [],
+});
+
+const closeContextMenu = () => {
+  contextMenu.value.visible = false;
+};
+
+const openItemContextMenu = (event: MouseEvent, item: typeof props.inventoryItems[0]) => {
+  const items: Array<{ label: string; disabled?: boolean; action: () => void }> = [];
+  if (item.equipable) {
+    items.push({ label: 'Equip', disabled: props.combatLocked, action: () => emit('equip', item.id) });
+  }
+  if (item.usable) {
+    items.push({ label: 'Use', action: () => emit('use-item', item.id) });
+  }
+  if (item.eatable) {
+    items.push({ label: 'Eat', action: () => emit('eat-food', item.id) });
+  }
+  items.push({ label: 'Delete', action: () => emit('delete-item', item.id) });
+  contextMenu.value = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    title: item.name,
+    subtitle: `${item.rarity} ${item.slot}`,
+    items,
+  };
+};
+
+const bagSlots = computed(() => {
+  const slots: Array<typeof props.inventoryItems[0] | null> = [];
+  for (const item of props.inventoryItems) {
+    slots.push(item);
+  }
+  while (slots.length < props.maxInventorySlots) {
+    slots.push(null);
+  }
+  return slots;
+});
 </script>
 
