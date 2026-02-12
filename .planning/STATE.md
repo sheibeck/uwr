@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-12
-**Status:** Phase 1 in progress — Plan 01 (backend) complete, Plan 02 (frontend) next
+**Status:** Phase 1 complete — ready to begin Phase 2 (Hunger) or Phase 3 (Renown Foundation)
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) execution started. Plan 01 complete.
+Phase 1 (Races) complete. Both plans executed and human-verified.
 
-**Current phase:** 01-races
-**Current plan:** 02 of 02
-**Next action:** Execute Plan 02 (Race selection frontend UI)
+**Current phase:** 02-hunger (or 03-renown — can run in parallel)
+**Current plan:** 01 of TBD
+**Next action:** Begin Phase 2 (Hunger) or Phase 3 (Renown Foundation)
 
 ---
 
@@ -20,7 +20,7 @@ Phase 1 (Races) execution started. Plan 01 complete.
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 1 | Races | In Progress (1/2 plans done) |
+| 1 | Races | Complete (2/2 plans done) |
 | 2 | Hunger | Pending |
 | 3 | Renown Foundation | Pending |
 | 4 | LLM Architecture | Pending |
@@ -42,6 +42,8 @@ Phase 1 (Races) execution started. Plan 01 complete.
 7. Human availableClasses is '' (empty string) not 'all' — isClassAllowed returns true for empty string (01-01)
 8. Racial bonuses baked into baseStats at character creation, not stored as separate layer (01-01)
 9. Character row stores race as display name string, not raceId — snapshot is self-contained (01-01)
+10. filteredClassOptions returns null (not empty array) for "all classes allowed" — null is explicit "show everything" signal in CharacterPanel (01-02)
+11. Class-clear on race switch runs in onRaceChange using races prop directly, not waiting for Vue recompute — avoids one-tick invalid state window (01-02)
 
 ---
 
@@ -50,6 +52,7 @@ Phase 1 (Races) execution started. Plan 01 complete.
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 01-races | 01 | 4min | 3 | 8 |
+| 01-races | 02 | ~15min | 3 | 4 |
 
 ---
 
@@ -61,5 +64,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed 01-races 01-01-PLAN.md (Race backend: table, seed data, character reducer)
-**Timestamp:** 2026-02-12T01:43:08Z
+**Stopped at:** Completed 01-races 01-02-PLAN.md (Race selection frontend: picker, class filtering, stat bonuses)
+**Timestamp:** 2026-02-12T02:00:00Z
