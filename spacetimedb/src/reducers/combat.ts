@@ -943,7 +943,10 @@ export const registerCombatReducers = (deps: any) => {
     deps.spawnEnemy(ctx, arg.locationId, 1n);
   });
 
-  spacetimedb.reducer('dismiss_combat_results', { characterId: t.u64() }, (ctx, args) => {
+  spacetimedb.reducer(
+    'dismiss_combat_results',
+    { characterId: t.u64(), force: t.bool().optional() },
+    (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const groupId = effectiveGroupId(character);
     if (groupId) {
@@ -955,6 +958,20 @@ export const registerCombatReducers = (deps: any) => {
       const combatIds = new Set<bigint>();
       for (const row of ctx.db.combatResult.by_group.filter(groupId)) {
         combatIds.add(row.combatId);
+      }
+      if (!args.force) {
+        for (const combatId of combatIds) {
+          const hasLoot = [...ctx.db.combatLoot.by_combat.filter(combatId)].length > 0;
+          if (hasLoot) {
+            return failCombat(
+              ctx,
+              character,
+              'Group members still have unclaimed loot. Confirm dismiss to forfeit remaining loot.'
+            );
+          }
+        }
+      }
+      for (const row of ctx.db.combatResult.by_group.filter(groupId)) {
         ctx.db.combatResult.id.delete(row.id);
       }
       for (const combatId of combatIds) {
@@ -974,7 +991,8 @@ export const registerCombatReducers = (deps: any) => {
         ctx.db.combatLoot.id.delete(loot.id);
       }
     }
-  });
+    }
+  );
 
   spacetimedb.reducer('end_combat', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);

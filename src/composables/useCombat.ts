@@ -555,18 +555,32 @@ export const useCombat = ({
   };
   const dismissResults = () => {
     if (!connActive.value || !selectedCharacter.value) return;
+    const inGroup = Boolean(selectedCharacter.value.groupId);
     if (hasOtherLootForResult.value) {
       const confirmDismiss = window.confirm(
         'Other group members still have unclaimed loot. Dismissing will forfeit all remaining loot. Continue?'
       );
       if (!confirmDismiss) return;
-    } else if (activeLoot.value.length > 0) {
+      dismissResultsReducer({ characterId: selectedCharacter.value.id, force: true });
+      return;
+    }
+    if (activeLoot.value.length > 0) {
       const confirmDismiss = window.confirm(
         'You have unclaimed loot. Dismissing will forfeit these items. Continue?'
       );
       if (!confirmDismiss) return;
+      dismissResultsReducer({ characterId: selectedCharacter.value.id, force: true });
+      return;
     }
-    dismissResultsReducer({ characterId: selectedCharacter.value.id });
+    if (inGroup) {
+      const confirmDismiss = window.confirm(
+        'This may forfeit unclaimed group loot. Dismiss combat results anyway?'
+      );
+      if (!confirmDismiss) return;
+      dismissResultsReducer({ characterId: selectedCharacter.value.id, force: true });
+      return;
+    }
+    dismissResultsReducer({ characterId: selectedCharacter.value.id, force: false });
   };
 
   const takeLoot = (lootId: bigint) => {

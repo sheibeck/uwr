@@ -12,6 +12,7 @@ import {
 
 export default __t.object("DismissCombatResults", {
   characterId: __t.u64(),
+  force: __t.option(__t.bool()),
 });
 
 
