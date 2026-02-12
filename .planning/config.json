@@ -1,0 +1,29 @@
+{
+  "workflow": {
+    "mode": "yolo",
+    "depth": "standard",
+    "parallel_execution": true,
+    "auto_commit": true
+  },
+  "agents": {
+    "research_enabled": true,
+    "plan_check_enabled": true,
+    "verifier_enabled": true
+  },
+  "models": {
+    "profile": "balanced",
+    "researcher": "sonnet",
+    "planner": "sonnet",
+    "executor": "sonnet",
+    "verifier": "sonnet"
+  },
+  "git": {
+    "enabled": true,
+    "commit_docs": true,
+    "branch_per_phase": false
+  },
+  "project": {
+    "type": "brownfield",
+    "milestone": "RPG Milestone — Progression Systems & LLM Content Engine"
+  }
+}
