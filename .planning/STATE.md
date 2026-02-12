@@ -10,9 +10,9 @@
 
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete — backend (03-01) and frontend (03-02) both done and human-verified.
 
-**Current phase:** 3.1-faction-hits
+**Current phase:** 3.1-combat-balance
 **Current plan:** 01 (pending)
-**Next action:** Plan Phase 3.1 Faction Hits
+**Next action:** Plan Phase 3.1 Combat Balance
 
 ---
 
@@ -23,7 +23,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 1 | Races | Complete (2/2 plans done) |
 | 2 | Hunger | Complete (2/2 plans done, human-verified) |
 | 3 | Renown Foundation | Complete (2/2 plans done, human-verified) |
-| 3.1 | Faction Hits | Pending (INSERTED) |
+| 3.1 | Combat Balance | Pending (INSERTED) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
 | 6 | World Events | Pending |
@@ -77,7 +77,8 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 ## Accumulated Context
 
 ### Roadmap Evolution
-- Phase 3.1 inserted after Phase 3: Faction Hits (URGENT)
+- Phase 3.1 inserted after Phase 3: Combat Balance (URGENT)
+- 2026-02-12: Phase 3.1 renamed from "Faction Hits" to "Combat Balance" before planning
 
 ---
 
@@ -119,10 +120,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 27 | Add log button to action bar to reopen closed log panel - log toggle button in action bar | 2026-02-12 | c0ab274 | [27-add-log-button-to-action-bar-to-reopen-c](./quick/27-add-log-button-to-action-bar-to-reopen-c/) |
 | 28 | Fix missing combat summary window - remove auto-dismiss watcher that hid solo victory results with no loot | 2026-02-12 | 7032a86 | [28-fix-missing-combat-summary-window-after-](./quick/28-fix-missing-combat-summary-window-after-/) |
 | 29 | Refactor loot system - replace combat summary modal with dedicated floating loot panel and log messages for Victory/Defeat | 2026-02-12 | d746ff3 | [29-refactor-loot-system-replace-combat-summ](./quick/29-refactor-loot-system-replace-combat-summ/) |
+| 30 | Add inventory stack splitting with context menu controls - right-click Split option for stackable items | 2026-02-12 | 51489c9 | [30-add-inventory-stack-splitting-with-conte](./quick/30-add-inventory-stack-splitting-with-conte/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick task 29: Refactor loot system to replace combat summary modal
+**Stopped at:** Completed quick task 30: Add inventory stack splitting with context menu controls
 **Timestamp:** 2026-02-12T20:10:00Z
