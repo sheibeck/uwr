@@ -24,6 +24,27 @@ const EQUIPMENT_SLOTS = [
   'offHand',
 ] as const;
 
+// Client-side copy of CLASS_ARMOR from spacetimedb/src/data/class_stats.ts
+// Defines which armor types each class can wear
+const CLASS_ARMOR: Record<string, string[]> = {
+  bard: ['cloth'],
+  enchanter: ['cloth'],
+  cleric: ['cloth'],
+  wizard: ['cloth'],
+  druid: ['cloth'],
+  necromancer: ['cloth'],
+  summoner: ['cloth'],
+  rogue: ['leather', 'cloth'],
+  monk: ['leather', 'cloth'],
+  spellblade: ['leather', 'cloth'],
+  reaver: ['leather', 'cloth'],
+  beastmaster: ['leather', 'cloth'],
+  ranger: ['chain', 'leather', 'cloth'],
+  shaman: ['chain', 'leather', 'cloth'],
+  warrior: ['plate', 'chain', 'leather', 'cloth'],
+  paladin: ['plate', 'chain', 'leather', 'cloth'],
+};
+
 type InventoryItem = {
   id: bigint;
   instanceId: bigint;
@@ -54,6 +75,7 @@ type EquippedSlot = {
   isJunk: boolean;
   vendorValue: bigint;
   itemInstanceId: bigint | null;
+  allowedClasses: string;
   stats: { label: string; value: string }[];
   description: string;
 };
@@ -120,11 +142,16 @@ export const useInventory = ({
           allowedClasses.length === 0 ||
           allowedClasses.includes('any') ||
           allowedClasses.includes(normalizedClass);
+        const armorAllowed =
+          !template?.armorType ||
+          template.armorType === 'none' ||
+          (CLASS_ARMOR[normalizedClass] ?? ['cloth']).includes(template.armorType.toLowerCase());
         const equipable =
           EQUIPMENT_SLOTS.includes(slot as (typeof EQUIPMENT_SLOTS)[number]) &&
           !isJunk &&
           (!selectedCharacter.value || selectedCharacter.value.level >= (template?.requiredLevel ?? 1n)) &&
-          classAllowed;
+          classAllowed &&
+          armorAllowed;
         const itemKey = (template?.name ?? '').toLowerCase().replace(/\s+/g, '_');
         const usableKeys = new Set([
           'bandage',
@@ -205,6 +232,7 @@ export const useInventory = ({
         isJunk,
         vendorValue,
         itemInstanceId: instance?.id ?? null,
+        allowedClasses: template?.allowedClasses ?? 'any',
         stats,
         description,
       };
