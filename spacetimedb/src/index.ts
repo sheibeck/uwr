@@ -4218,31 +4218,98 @@ function ensureLootTables(ctx: any) {
 }
 
 function ensureVendorInventory(ctx: any) {
-  const vendor = [...ctx.db.npc.iter()].find((row) => row.npcType === 'vendor');
-  if (!vendor) return;
-  const templates = [...ctx.db.itemTemplate.iter()].filter(
-    (row) => !row.isJunk && row.tier <= 1n
-  );
-  const upsertVendorItem = (itemTemplateId: bigint, price: bigint) => {
-    const existing = [...ctx.db.vendorInventory.by_vendor.filter(vendor.id)].find(
-      (row) => row.itemTemplateId === itemTemplateId
-    );
-    if (existing) {
-      if (existing.price !== price) {
-        ctx.db.vendorInventory.id.update({ ...existing, price });
-      }
-      return;
+  // Helper function for deterministic random selection
+  function pickN(items: any[], n: number, seed: bigint): any[] {
+    const selected: any[] = [];
+    const pool = [...items];
+    for (let i = 0; i < Math.min(n, pool.length); i++) {
+      const idx = Number((seed + BigInt(i * 7)) % BigInt(pool.length));
+      selected.push(pool.splice(idx, 1)[0]);
     }
-    ctx.db.vendorInventory.insert({
-      id: 0n,
-      npcId: vendor.id,
-      itemTemplateId,
-      price,
-    });
-  };
-  for (const template of templates) {
-    const price = template.vendorValue > 0n ? template.vendorValue * 6n : 10n;
-    upsertVendorItem(template.id, price);
+    return selected;
+  }
+
+  // Iterate ALL vendor NPCs
+  const vendors = [...ctx.db.npc.iter()].filter((row) => row.npcType === 'vendor');
+
+  for (const vendor of vendors) {
+    // Determine vendor tier from its region
+    const location = ctx.db.location.id.find(vendor.locationId);
+    if (!location) continue;
+
+    const region = ctx.db.region.id.find(location.regionId);
+    if (!region) continue;
+
+    const tierRaw = Math.floor(Number(region.dangerMultiplier) / 100);
+    const vendorTier = Math.max(1, tierRaw);
+
+    // Filter eligible items: not junk, not resources, tier <= vendor tier
+    const allEligible = [...ctx.db.itemTemplate.iter()].filter(
+      (row) => !row.isJunk && row.slot !== 'resource' && row.tier <= BigInt(vendorTier)
+    );
+
+    // Group items by category
+    const armor = allEligible.filter((item) =>
+      item.slot === 'chest' || item.slot === 'legs' || item.slot === 'boots'
+    );
+    const weapons = allEligible.filter((item) =>
+      item.slot === 'mainHand' || item.slot === 'offHand'
+    );
+    const accessories = allEligible.filter((item) =>
+      item.slot === 'earrings' || item.slot === 'cloak' || item.slot === 'neck'
+    );
+    const consumables = allEligible.filter((item) =>
+      item.slot === 'consumable' || item.slot === 'food' || item.slot === 'utility'
+    );
+
+    // Select random subset from each category using vendor.id as seed
+    const selectedArmor = pickN(armor, 4, vendor.id);
+    const selectedWeapons = pickN(weapons, 3, vendor.id);
+    const selectedAccessories = pickN(accessories, 2, vendor.id);
+    const selectedConsumables = consumables; // Keep all consumables
+
+    // Combine all selected items
+    const selectedItems = [
+      ...selectedArmor,
+      ...selectedWeapons,
+      ...selectedAccessories,
+      ...selectedConsumables
+    ];
+
+    // Upsert selected items
+    const upsertVendorItem = (itemTemplateId: bigint, price: bigint) => {
+      const existing = [...ctx.db.vendorInventory.by_vendor.filter(vendor.id)].find(
+        (row) => row.itemTemplateId === itemTemplateId
+      );
+      if (existing) {
+        if (existing.price !== price) {
+          ctx.db.vendorInventory.id.update({ ...existing, price });
+        }
+        return;
+      }
+      ctx.db.vendorInventory.insert({
+        id: 0n,
+        npcId: vendor.id,
+        itemTemplateId,
+        price,
+      });
+    };
+
+    // Track selected item IDs
+    const selectedItemIds = new Set<bigint>();
+    for (const template of selectedItems) {
+      const price = template.vendorValue > 0n ? template.vendorValue * 6n : 10n;
+      upsertVendorItem(template.id, price);
+      selectedItemIds.add(template.id);
+    }
+
+    // Remove stale vendor items
+    const existingInventory = [...ctx.db.vendorInventory.by_vendor.filter(vendor.id)];
+    for (const inventoryRow of existingInventory) {
+      if (!selectedItemIds.has(inventoryRow.itemTemplateId)) {
+        ctx.db.vendorInventory.id.delete(inventoryRow.id);
+      }
+    }
   }
 }
 
