@@ -541,6 +541,17 @@ const AbilityTemplate = table(
     kind: t.string(),
     combatState: t.string(),
     description: t.string(),
+    power: t.u64().optional(),
+    damageType: t.string().optional(),
+    statScaling: t.string().optional(),
+    dotPowerSplit: t.f64().optional(),
+    dotDuration: t.u64().optional(),
+    hotPowerSplit: t.f64().optional(),
+    hotDuration: t.u64().optional(),
+    debuffType: t.string().optional(),
+    debuffMagnitude: t.i64().optional(),
+    debuffDuration: t.u64().optional(),
+    aoeTargets: t.string().optional(),
   }
 );
 
