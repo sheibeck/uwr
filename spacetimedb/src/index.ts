@@ -1340,7 +1340,8 @@ export const spacetimedb = schema(
   Hunger,
   HungerDecayTick,
   Faction,
-  FactionStanding
+  FactionStanding,
+  UiPanelLayout
 );
 
 function tableHasRows<T>(iter: IterableIterator<T>): boolean {
