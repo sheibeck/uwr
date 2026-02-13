@@ -411,7 +411,7 @@ export const ABILITIES = {
     resource: 'mana',
     level: 2n,
     power: 1n,
-    cooldownSeconds: 600n,
+    cooldownSeconds: 120n,
     castSeconds: 0n,
     damageType: 'none' as DamageType,
   },
