@@ -62,6 +62,15 @@ export const HEALING_WIS_SCALING_PER_1000 = 20n;
 export const MAGIC_RESIST_SCALING = 3n;
 
 /**
+ * Global damage reduction percentage (on 100n scale)
+ * Applied to ALL damage after armor/resist mitigation
+ * 85n = 85% of damage dealt (15% reduction)
+ * Easy lever to tune overall combat duration
+ * Set to 100n to disable (100% = no reduction)
+ */
+export const GLOBAL_DAMAGE_MULTIPLIER = 85n;
+
+/**
  * DoT/HoT stat scaling reduction factor (50% of direct damage scaling)
  * Prevents double-dipping: DoTs tick multiple times, so per-tick scaling is halved
  * User decision: DoTs use reduced scaling rate compared to direct damage
@@ -95,6 +104,15 @@ export const ENEMY_BASE_POWER = 10n;
  * Level 1 = 15, Level 5 = 35, Level 10 = 60
  */
 export const ENEMY_LEVEL_POWER_SCALING = 5n;
+
+/** Tank threat multiplier (150n = 1.5x on 100n scale) */
+export const TANK_THREAT_MULTIPLIER = 150n;
+
+/** Healer threat multiplier (50n = 0.5x on 100n scale) */
+export const HEALER_THREAT_MULTIPLIER = 50n;
+
+/** Healing threat as percentage of healing done (50n = 50% on 100n scale) */
+export const HEALING_THREAT_PERCENT = 50n;
 
 // ============================================================================
 // ABILITY STAT SCALING MAPPING
@@ -311,10 +329,12 @@ export function calculateHealingPower(baseHealing: bigint, casterWis: bigint, cl
 /**
  * Apply magic resistance mitigation
  * Formula: (damage * 100n) / (100n + magicResist * MAGIC_RESIST_SCALING)
+ * Then apply global damage multiplier
  * Returns max(mitigated, 1n)
  * Magic resist is rarer but more powerful per point than armor (per user decision)
  */
 export function applyMagicResistMitigation(damage: bigint, magicResist: bigint): bigint {
-  const mitigated = (damage * 100n) / (100n + magicResist * MAGIC_RESIST_SCALING);
-  return mitigated > 0n ? mitigated : 1n;
+  const resistReduced = (damage * 100n) / (100n + magicResist * MAGIC_RESIST_SCALING);
+  const globalReduced = (resistReduced * GLOBAL_DAMAGE_MULTIPLIER) / 100n;
+  return globalReduced > 0n ? globalReduced : 1n;
 }

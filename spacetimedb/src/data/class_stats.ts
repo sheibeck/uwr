@@ -26,7 +26,8 @@ export const PRIMARY_GROWTH = 3n;
 export const SECONDARY_GROWTH = 2n;
 export const OTHER_GROWTH = 1n;
 
-export const BASE_HP = 20n;
+export const BASE_HP = 50n;
+export const HP_STR_MULTIPLIER = 8n;
 export const BASE_MANA = 10n;
 
 export const ARMOR_TYPES = ['cloth', 'leather', 'chain', 'plate'] as const;
@@ -56,6 +57,17 @@ export const MANA_CLASSES = new Set([
   'druid',
   'reaver',
   'summoner',
+]);
+
+export const TANK_CLASSES = new Set([
+  'warrior',
+  'paladin',
+]);
+
+export const HEALER_CLASSES = new Set([
+  'cleric',
+  'druid',
+  'shaman',
 ]);
 
 export const CLASS_ARMOR: Record<string, string[]> = {
