@@ -198,10 +198,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 62 | Investigate circular dependency between combat_scaling.ts and class_stats.ts - identified unused re-export as root cause (zero consumers, trivial fix) | 2026-02-13 | 81bc014 | [62-investigate-circular-dependency-between-](./quick/62-investigate-circular-dependency-between-/) |
 | 63 | Allow druids to wear leather armor - added leather to CLASS_ARMOR proficiency and ARMOR_ALLOWED_CLASSES seed data | 2026-02-13 | 2c5a19f | [63-druid-s-should-be-able-to-wear-leather-a](./quick/63-druid-s-should-be-able-to-wear-leather-a/) |
 | 64 | Fix circular dependency between combat_scaling.ts and class_stats.ts - removed unused re-export and unused import to eliminate build warning | 2026-02-13 | 2700046 | [64-fix-circular-dependency-between-combat-s](./quick/64-fix-circular-dependency-between-combat-s/) |
+| 65 | Increase healing values for level 1-2 abilities - doubled flat healing values (~2x) to match HP pool increase from quick-56 | 2026-02-13 | a21d2ae | [65-increase-healing-values-for-level-1-2-ab](./quick/65-increase-healing-values-for-level-1-2-ab/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick-64-01-PLAN.md
-**Timestamp:** 2026-02-13T13:37:34Z
+**Stopped at:** Completed quick-65-01-PLAN.md
+**Timestamp:** 2026-02-13T13:54:00Z
