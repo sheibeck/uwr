@@ -219,14 +219,14 @@
     <!-- Quests Panel (wide) -->
     <div v-if="panels.quests && panels.quests.open" data-panel-id="quests" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('quests').value || {}) }" @mousedown="bringToFront('quests')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('quests', $event)"><div>Quests</div><button type="button" :style="styles.panelClose" @click="closePanelById('quests')">×</button></div>
-      <div :style="styles.floatingPanelBody"><QuestPanel :styles="styles" :quest-instances="questInstances" :quest-templates="questTemplates" :npcs="npcs" :locations="locations" :regions="regions" /></div>
+      <div :style="styles.floatingPanelBody"><QuestPanel :styles="styles" :quest-instances="characterQuests" :quest-templates="questTemplates" :npcs="npcs" :locations="locations" :regions="regions" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('quests', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('quests', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('quests', $event, { right: true, bottom: true })" />
     </div>
 
     <!-- Renown Panel -->
     <div v-if="panels.renown && panels.renown.open" data-panel-id="renown" :style="{ ...styles.floatingPanel, ...(panelStyle('renown').value || {}) }" @mousedown="bringToFront('renown')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('renown', $event)"><div>Renown</div><button type="button" :style="styles.panelClose" @click="closePanelById('renown')">×</button></div>
-      <div :style="styles.floatingPanelBody"><RenownPanel :styles="styles" :factions="factions" :faction-standings="factionStandings" :selected-character="selectedCharacter" /></div>
+      <div :style="styles.floatingPanelBody"><RenownPanel :styles="styles" :factions="factions" :faction-standings="characterFactionStandings" :selected-character="selectedCharacter" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('renown', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('renown', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('renown', $event, { right: true, bottom: true })" />
     </div>
 
@@ -654,9 +654,9 @@ const fallbackCombatRoster = computed(() => {
 
 const { combinedEvents, addLocalEvent } = useEvents({
   worldEvents,
-  locationEvents,
-  privateEvents,
-  groupEvents,
+  locationEvents: userLocationEvents,
+  privateEvents: userPrivateEvents,
+  groupEvents: userGroupEvents,
   sessionStartedAt,
 });
 
@@ -767,7 +767,7 @@ const {
   combatEnemyCasts,
   combatLoot,
   itemTemplates,
-  combatResults,
+  combatResults: userCombatResults,
   fallbackRoster: fallbackCombatRoster,
   enemySpawns,
   enemyTemplates,
@@ -823,6 +823,75 @@ const characterNpcDialogs = computed(() => {
   if (!selectedCharacter.value) return [];
   return npcDialogs.value.filter(
     (entry: any) => entry.characterId.toString() === selectedCharacter.value!.id.toString()
+  );
+});
+
+// Filter group members to current user's groups only
+const userGroupMembers = computed(() => {
+  if (userId.value == null) return [];
+  return groupMemberRows.value.filter(
+    (row: any) => row.ownerUserId === userId.value
+  );
+});
+
+// Filter combat results to current user
+const userCombatResults = computed(() => {
+  if (userId.value == null) return [];
+  return combatResults.value.filter(
+    (row: any) => row.ownerUserId === userId.value
+  );
+});
+
+// Filter private events to current user
+const userPrivateEvents = computed(() => {
+  if (userId.value == null) return [];
+  return privateEvents.value.filter(
+    (row: any) => row.ownerUserId === userId.value
+  );
+});
+
+// Filter location events to current character's location
+const userLocationEvents = computed(() => {
+  if (!selectedCharacter.value) return [];
+  const locId = selectedCharacter.value.locationId;
+  return locationEvents.value.filter(
+    (row: any) => row.locationId === locId &&
+      (!row.excludeCharacterId || row.excludeCharacterId !== selectedCharacter.value!.id)
+  );
+});
+
+// Filter group events to current user's groups
+const userGroupEvents = computed(() => {
+  if (userId.value == null) return [];
+  const myGroupIds = new Set(
+    userGroupMembers.value.map((m: any) => m.groupId.toString())
+  );
+  return groupEvents.value.filter(
+    (row: any) => myGroupIds.has(row.groupId.toString())
+  );
+});
+
+// Filter quest instances to current character
+const characterQuests = computed(() => {
+  if (!selectedCharacter.value) return [];
+  return questInstances.value.filter(
+    (row: any) => row.characterId.toString() === selectedCharacter.value!.id.toString()
+  );
+});
+
+// Filter faction standings to current character
+const characterFactionStandings = computed(() => {
+  if (!selectedCharacter.value) return [];
+  return factionStandings.value.filter(
+    (row: any) => row.characterId.toString() === selectedCharacter.value!.id.toString()
+  );
+});
+
+// Filter panel layouts to current character
+const characterPanelLayouts = computed(() => {
+  if (!selectedCharacter.value) return [];
+  return panelLayouts.value.filter(
+    (row: any) => row.characterId.toString() === selectedCharacter.value!.id.toString()
   );
 });
 
@@ -950,7 +1019,7 @@ const {
   groups,
   groupInvites,
   characters,
-  groupMembers: groupMemberRows,
+  groupMembers: userGroupMembers,
 });
 
 const { commandText, submitCommand } = useCommands({
@@ -1435,7 +1504,7 @@ const {
   combat: { x: 600, y: 140 },
   log: { x: 40, y: 400, w: 500, h: 300 },
 }, {
-  serverPanelLayouts: panelLayouts,
+  serverPanelLayouts: characterPanelLayouts,
   selectedCharacterId,
   savePanelLayout: savePanelLayoutReducer,
 });
