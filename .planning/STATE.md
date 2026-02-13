@@ -194,10 +194,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 61 | Fix window position blinking race condition - local-authority dirty tracking prevents server sync from overwriting panel moves during debounced save pipeline | 2026-02-13 | df901cc | [61-fix-window-position-blinking-race-condit](./quick/61-fix-window-position-blinking-race-condit/) |
 | 62 | Investigate circular dependency between combat_scaling.ts and class_stats.ts - identified unused re-export as root cause (zero consumers, trivial fix) | 2026-02-13 | 81bc014 | [62-investigate-circular-dependency-between-](./quick/62-investigate-circular-dependency-between-/) |
 | 63 | Allow druids to wear leather armor - added leather to CLASS_ARMOR proficiency and ARMOR_ALLOWED_CLASSES seed data | 2026-02-13 | 2c5a19f | [63-druid-s-should-be-able-to-wear-leather-a](./quick/63-druid-s-should-be-able-to-wear-leather-a/) |
+| 64 | Fix circular dependency between combat_scaling.ts and class_stats.ts - removed unused re-export and unused import to eliminate build warning | 2026-02-13 | 2700046 | [64-fix-circular-dependency-between-combat-s](./quick/64-fix-circular-dependency-between-combat-s/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick-63-01-PLAN.md
-**Timestamp:** 2026-02-13T06:01:31Z
+**Stopped at:** Completed quick-64-01-PLAN.md
+**Timestamp:** 2026-02-13T13:37:34Z
