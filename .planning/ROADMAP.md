@@ -198,6 +198,17 @@ Plans:
 
 ---
 
+### Phase 03.1.3: Enemy AI and aggro management (INSERTED)
+
+**Goal:** Role-based threat multipliers for tank/healer/DPS trinity, combat-state-aware enemy AI scoring (healers heal dying allies, buffers buff early), dead-character aggro cleanup, and leashing mechanics to prevent kiting exploits.
+**Depends on:** Phase 03.1.2
+**Status:** Planned
+**Plans:** 2 plans
+
+Plans:
+- [ ] 03.1.3-01-PLAN.md — Threat multipliers: TANK_CLASSES/HEALER_CLASSES role sets, threat constants (tank 1.5x, healer 0.5x), healing threat generation (50% split across enemies), dead character aggro cleanup
+- [ ] 03.1.3-02-PLAN.md — AI scoring and leashing: Combat-state-aware AI bonuses (heal priority <30% HP, buff early, debuff tank), leash mechanics (enemies evade and reset when all players leave)
+
 ### Phase 4: LLM Architecture
 
 **Goal:** Working LLM content pipeline: procedure calls Anthropic API, writes to content tables, handles failures gracefully. No content consumers yet — this is the plumbing phase.
