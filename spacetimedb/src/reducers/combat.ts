@@ -1,5 +1,7 @@
 import { ENEMY_ABILITIES } from '../data/ability_catalog';
 import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier } from '../data/combat_scaling';
+import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
+import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, HEALING_THREAT_PERCENT } from '../data/combat_scaling';
 
 const AUTO_ATTACK_INTERVAL = 5_000_000n;
 const RETRY_ATTACK_INTERVAL = 1_000_000n;
@@ -1443,6 +1445,12 @@ export const registerCombatReducers = (deps: any) => {
       if (character && character.hp === 0n) {
         ctx.db.combatParticipant.id.update({ ...p, status: 'dead' });
         clearCharacterEffectsOnDeath(ctx, character);
+        // Clean up aggro entries for dead characters so enemies retarget
+        for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+          if (entry.characterId === character.id && !entry.petId) {
+            ctx.db.aggroEntry.id.delete(entry.id);
+          }
+        }
       }
     }
     const refreshedParticipants = [...ctx.db.combatParticipant.by_combat.filter(combat.id)];
@@ -1705,9 +1713,13 @@ export const registerCombatReducers = (deps: any) => {
       });
 
       if (finalDamage > 0n) {
+        const className = character.className?.toLowerCase() ?? '';
+        const threatMult = TANK_CLASSES.has(className) ? TANK_THREAT_MULTIPLIER
+          : HEALER_CLASSES.has(className) ? HEALER_THREAT_MULTIPLIER : 100n;
+        const threat = (finalDamage * threatMult) / 100n;
         for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
           if (entry.characterId === character.id && entry.enemyId === currentEnemy.id) {
-            ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + finalDamage });
+            ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + threat });
             break;
           }
         }

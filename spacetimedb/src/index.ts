@@ -12,6 +12,7 @@ import { registerViews } from './views';
 import {
   ARMOR_TYPES_WITH_NONE,
   BASE_HP,
+  HP_STR_MULTIPLIER,
   BASE_MANA,
   CLASS_ARMOR,
   baseArmorForClass,
@@ -22,6 +23,8 @@ import {
   normalizeArmorType,
   normalizeClassName,
   usesMana,
+  TANK_CLASSES,
+  HEALER_CLASSES,
 } from './data/class_stats';
 import {
   ABILITIES,
@@ -43,6 +46,10 @@ import {
   DEBUFF_POWER_COST_PERCENT,
   ENEMY_BASE_POWER,
   ENEMY_LEVEL_POWER_SCALING,
+  GLOBAL_DAMAGE_MULTIPLIER,
+  TANK_THREAT_MULTIPLIER,
+  HEALER_THREAT_MULTIPLIER,
+  HEALING_THREAT_PERCENT,
 } from './data/combat_scaling';
 
 const Player = table(
@@ -2139,9 +2146,13 @@ function executeAbility(
         // Update aggro for this target
         for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
           if (entry.characterId === character.id && entry.enemyId === targetEnemy.id) {
+            const className = character.className?.toLowerCase() ?? '';
+            const threatMult = TANK_CLASSES.has(className) ? TANK_THREAT_MULTIPLIER
+              : HEALER_CLASSES.has(className) ? HEALER_THREAT_MULTIPLIER : 100n;
+            const threat = (mitigatedDamage * threatMult) / 100n;
             ctx.db.aggroEntry.id.update({
               ...entry,
-              value: entry.value + mitigatedDamage,
+              value: entry.value + threat,
             });
             break;
           }
@@ -2208,9 +2219,13 @@ function executeAbility(
     ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
     for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
       if (entry.characterId === character.id && entry.enemyId === enemy.id) {
+        const className = character.className?.toLowerCase() ?? '';
+        const threatMult = TANK_CLASSES.has(className) ? TANK_THREAT_MULTIPLIER
+          : HEALER_CLASSES.has(className) ? HEALER_THREAT_MULTIPLIER : 100n;
+        const threat = (totalDamage * threatMult) / 100n + (options?.threatBonus ?? 0n);
         ctx.db.aggroEntry.id.update({
           ...entry,
-          value: entry.value + totalDamage + (options?.threatBonus ?? 0n),
+          value: entry.value + threat,
         });
         break;
       }
@@ -2318,6 +2333,28 @@ function executeAbility(
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'heal', message);
     }
     logGroup('heal', message);
+
+    // Healing generates threat: 50% of healing done, split across all enemies
+    if (combatId) {
+      const healingThreat = (scaledAmount * HEALING_THREAT_PERCENT) / 100n;
+      if (healingThreat > 0n) {
+        const enemiesInCombat = [...ctx.db.combatEnemy.by_combat.filter(combatId)]
+          .filter((e: any) => e.currentHp > 0n);
+        if (enemiesInCombat.length > 0) {
+          const threatPerEnemy = healingThreat / BigInt(enemiesInCombat.length);
+          if (threatPerEnemy > 0n) {
+            for (const en of enemiesInCombat) {
+              for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+                if (entry.characterId === character.id && entry.enemyId === en.id) {
+                  ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + threatPerEnemy });
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   };
   const applyMana = (target: typeof Character.rowType, amount: bigint, source: string) => {
     const current = ctx.db.character.id.find(target.id);
@@ -3020,7 +3057,7 @@ function recomputeCharacterDerived(ctx: any, character: typeof Character.rowType
   };
 
   const manaStat = manaStatForClass(character.className, totalStats);
-  const maxHp = BASE_HP + totalStats.str * 5n + gear.hpBonus;
+  const maxHp = BASE_HP + totalStats.str * HP_STR_MULTIPLIER + gear.hpBonus;
   const maxMana = usesMana(character.className)
     ? BASE_MANA + manaStat * 6n + gear.manaBonus
     : 0n;
@@ -4520,10 +4557,10 @@ const ENEMY_ROLE_CONFIG: Record<
   string,
   { hpPerLevel: bigint; damagePerLevel: bigint; baseHp: bigint; baseDamage: bigint }
 > = {
-  tank: { hpPerLevel: 26n, damagePerLevel: 5n, baseHp: 20n, baseDamage: 4n },
-  healer: { hpPerLevel: 18n, damagePerLevel: 4n, baseHp: 16n, baseDamage: 3n },
-  dps: { hpPerLevel: 20n, damagePerLevel: 6n, baseHp: 14n, baseDamage: 4n },
-  support: { hpPerLevel: 16n, damagePerLevel: 4n, baseHp: 12n, baseDamage: 3n },
+  tank: { hpPerLevel: 40n, damagePerLevel: 5n, baseHp: 40n, baseDamage: 4n },
+  healer: { hpPerLevel: 30n, damagePerLevel: 4n, baseHp: 30n, baseDamage: 3n },
+  dps: { hpPerLevel: 35n, damagePerLevel: 6n, baseHp: 28n, baseDamage: 4n },
+  support: { hpPerLevel: 25n, damagePerLevel: 4n, baseHp: 24n, baseDamage: 3n },
 };
 
 function getEnemyRole(role: string) {
@@ -4539,10 +4576,12 @@ function scaleByPercent(value: bigint, percent: bigint) {
  * Apply armor mitigation to physical damage
  * Tuned curve: 50 armor = ~33% reduction, 100 armor = ~50% reduction
  * Formula: damage * 100 / (100 + armorClass)
+ * Then apply global damage multiplier
  */
 function applyArmorMitigation(damage: bigint, armorClass: bigint) {
-  const mitigated = (damage * 100n) / (100n + armorClass);
-  return mitigated > 0n ? mitigated : 1n;
+  const armorReduced = (damage * 100n) / (100n + armorClass);
+  const globalReduced = (armorReduced * GLOBAL_DAMAGE_MULTIPLIER) / 100n;
+  return globalReduced > 0n ? globalReduced : 1n;
 }
 
 function computeEnemyStats(
@@ -6685,6 +6724,7 @@ const reducerDeps = {
   manaStatForClass,
   baseArmorForClass,
   BASE_HP,
+  HP_STR_MULTIPLIER,
   BASE_MANA,
   abilityCooldownMicros,
   abilityCastMicros,
