@@ -11,21 +11,23 @@
         @input="onNameInput"
       />
       <div v-if="createError" :style="styles.errorText">{{ createError }}</div>
-      <select
-        :value="newCharacter.raceId"
-        :disabled="!connActive"
-        :style="styles.input"
-        @change="onRaceChange"
-      >
-        <option value="">Select Race</option>
-        <option
+
+      <!-- Race tiles -->
+      <div :style="styles.gridWrap">
+        <div
           v-for="race in unlockedRaces"
           :key="race.id.toString()"
-          :value="race.id.toString()"
+          :style="{
+            ...styles.raceTile,
+            ...(newCharacter.raceId === race.id.toString() ? styles.raceTileSelected : {})
+          }"
+          @click="onRaceTileClick(race.id.toString())"
         >
           {{ race.name }}
-        </option>
-      </select>
+        </div>
+      </div>
+
+      <!-- Race info panel -->
       <div v-if="selectedRaceRow" :style="styles.roster">
         <div>{{ selectedRaceRow.description }}</div>
         <div :style="styles.subtle">
@@ -39,23 +41,30 @@
           Classes: {{ formatAvailableClasses(selectedRaceRow.availableClasses) }}
         </div>
       </div>
-      <select
-        :value="newCharacter.className"
-        :disabled="!connActive"
-        :style="styles.input"
-        @change="onClassChange"
-      >
-        <option value="">Select Class</option>
-        <option v-for="option in displayedClassOptions" :key="option.name" :value="option.name">
+
+      <!-- Class tiles -->
+      <div :style="styles.gridWrap">
+        <div
+          v-for="option in displayedClassOptions"
+          :key="option.name"
+          :style="{
+            ...styles.classTile,
+            ...(newCharacter.className === option.name ? styles.classTileSelected : {})
+          }"
+          @click="onClassTileClick(option.name)"
+        >
           {{ option.name }}
-        </option>
-      </select>
+        </div>
+      </div>
+
+      <!-- Class info panel -->
       <div v-if="selectedClass" :style="styles.roster">
         <div :style="styles.rosterTitle">{{ selectedClass.role }}</div>
         <div>{{ selectedClass.description }}</div>
         <div :style="styles.subtle">Primary stats: {{ selectedClass.stats }}</div>
         <div :style="styles.subtle">Abilities: {{ selectedClass.abilities }}</div>
       </div>
+
       <button
         type="submit"
         :disabled="!connActive || !isCharacterFormValid"
@@ -67,32 +76,34 @@
 
     <div :style="styles.panelSectionTitle">Characters</div>
     <div v-if="myCharacters.length === 0" :style="styles.subtle">No characters yet.</div>
-    <ul v-else :style="styles.list">
-      <li v-for="character in myCharacters" :key="character.id.toString()">
-        <div :style="styles.listRow">
-          <label :style="styles.radioRow">
-            <input
-              type="radio"
-              name="character"
-              :value="character.id.toString()"
-              :checked="selectedCharacterId === character.id.toString()"
-              @change="$emit('select', character.id.toString())"
-            />
-            <span>
-              {{ character.name }} (Lv {{ character.level }}) -
-              {{ character.race }} {{ character.className }}
-            </span>
-          </label>
-          <button
-            type="button"
-            :style="styles.dangerButton"
-            @click="confirmDelete(character)"
-          >
-            Delete
-          </button>
+    <div v-else :style="styles.list">
+      <div
+        v-for="character in myCharacters"
+        :key="character.id.toString()"
+        :style="{
+          ...styles.charCard,
+          ...(selectedCharacterId === character.id.toString() ? styles.charCardSelected : {})
+        }"
+        @click="$emit('select', character.id.toString())"
+      >
+        <div :style="styles.charCardInfo">
+          <div :style="styles.charCardName">{{ character.name }}</div>
+          <div :style="styles.charCardMeta">
+            <span :style="styles.charCardLevel">Lv {{ character.level }}</span>
+            {{ character.race }} {{ character.className }}
+          </div>
         </div>
-      </li>
-    </ul>
+        <button
+          type="button"
+          :style="styles.charCardDelete"
+          @click.stop="confirmDelete(character)"
+          @mouseenter="(e) => e.target.style.color = 'rgba(255,110,110,0.9)'"
+          @mouseleave="(e) => e.target.style.color = 'rgba(255,110,110,0.5)'"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -125,12 +136,11 @@ const onNameInput = (event: Event) => {
   emit('update:newCharacter', { ...props.newCharacter, name: value });
 };
 
-const onRaceChange = (event: Event) => {
-  const value = (event.target as HTMLSelectElement).value;
-  const updated = { ...props.newCharacter, raceId: value };
+const onRaceTileClick = (raceId: string) => {
+  const updated = { ...props.newCharacter, raceId };
   // If the currently selected class is no longer valid for the new race, clear it
   if (updated.className && props.filteredClassOptions) {
-    const newRace = props.races.find((r: any) => r.id.toString() === value);
+    const newRace = props.races.find((r: any) => r.id.toString() === raceId);
     if (newRace) {
       const allowed = newRace.availableClasses;
       if (allowed && allowed.trim() !== '') {
@@ -142,6 +152,10 @@ const onRaceChange = (event: Event) => {
     }
   }
   emit('update:newCharacter', updated);
+};
+
+const onClassTileClick = (className: string) => {
+  emit('update:newCharacter', { ...props.newCharacter, className });
 };
 
 const confirmDelete = (character: CharacterRow) => {
@@ -258,7 +272,7 @@ const CLASS_OPTIONS = [
   },
   {
     name: 'Wizard',
-    role: 'Caster â€¢ Damage',
+    role: 'Caster • Damage',
     stats: 'Intelligence',
     abilities: 'Arcane bolts, mana shields, lightning surges',
     description: 'Arcane scholars who unleash devastating spells.',
@@ -286,9 +300,4 @@ const formatAvailableClasses = (classes: string) =>
     .filter(Boolean)
     .map((c) => c.charAt(0).toUpperCase() + c.slice(1))
     .join(', ');
-
-const onClassChange = (event: Event) => {
-  const value = (event.target as HTMLSelectElement).value;
-  emit('update:newCharacter', { ...props.newCharacter, className: value });
-};
 </script>
