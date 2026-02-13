@@ -29,7 +29,7 @@
           <span :style="styles[enemy.conClass] ?? {}">
             {{ enemy.name }} (L{{ enemy.level }})
           </span>
-          <span v-if="enemy.groupCount > 1n" :style="{ fontSize: '0.7rem', opacity: 0.8 }">
+          <span v-if="enemy.groupCount > 1n" :style="{ fontSize: '0.78rem', opacity: 0.8 }">
             x{{ enemy.groupCount }}
           </span>
           <div
@@ -92,7 +92,7 @@
     <!-- Characters -->
     <div>
       <div :style="styles.gridSectionLabel">PLAYERS ({{ charactersHere.length }})</div>
-      <div v-if="charactersHere.length === 0" :style="{ fontSize: '0.75rem', opacity: 0.4, padding: '0.2rem 0' }">
+      <div v-if="charactersHere.length === 0" :style="{ fontSize: '0.85rem', opacity: 0.4, padding: '0.2rem 0' }">
         No other adventurers here.
       </div>
       <div v-else :style="styles.gridWrap">
@@ -124,7 +124,7 @@
           @contextmenu.prevent="openNpcContextMenu($event, npc)"
         >
           <div>{{ npc.name }}</div>
-          <div v-if="npc.description" :style="{ fontSize: '0.65rem', opacity: 0.6, marginTop: '0.1rem' }">
+          <div v-if="npc.description" :style="{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.1rem' }">
             {{ npc.description }}
           </div>
         </div>
