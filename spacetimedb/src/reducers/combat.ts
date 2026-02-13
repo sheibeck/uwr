@@ -1457,6 +1457,66 @@ export const registerCombatReducers = (deps: any) => {
     const activeParticipants = refreshedParticipants.filter((p) => p.status === 'active');
 
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
+
+    // Leash check: if no active participants remain in combat, enemies evade and reset
+    if (activeParticipants.length === 0) {
+      // Reset all enemies to full HP
+      for (const enemyRow of enemies) {
+        const tmpl = ctx.db.enemyTemplate.id.find(enemyRow.enemyTemplateId);
+        if (tmpl) {
+          ctx.db.combatEnemy.id.update({ ...enemyRow, currentHp: tmpl.maxHp });
+        }
+      }
+
+      // Return enemies to spawn
+      const spawnIds = new Set(enemies.map((e: any) => e.spawnId));
+      for (const spawnId of spawnIds) {
+        const spawn = ctx.db.enemySpawn.id.find(spawnId);
+        if (spawn) {
+          // Reconstruct spawn members from surviving enemies
+          for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawnId)) {
+            ctx.db.enemySpawnMember.id.delete(member.id);
+          }
+          let count = 0n;
+          for (const enemyRow of enemies) {
+            if (enemyRow.spawnId !== spawnId) continue;
+            if (enemyRow.enemyRoleTemplateId) {
+              ctx.db.enemySpawnMember.insert({
+                id: 0n,
+                spawnId: spawnId,
+                enemyTemplateId: enemyRow.enemyTemplateId,
+                roleTemplateId: enemyRow.enemyRoleTemplateId,
+              });
+              count += 1n;
+            }
+          }
+          ctx.db.enemySpawn.id.update({
+            ...spawn,
+            state: 'available',
+            lockedCombatId: undefined,
+            groupCount: count > 0n ? count : spawn.groupCount,
+          });
+        }
+      }
+
+      // Log evade message to all participants (even dead ones)
+      for (const p of participants) {
+        const character = ctx.db.character.id.find(p.characterId);
+        if (!character) continue;
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'combat',
+          `The enemies lose interest and return to their posts.`
+        );
+      }
+
+      // Clean up combat
+      clearCombatArtifacts(ctx, combat.id);
+      ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
+      return;
+    }
     const spawnName =
       [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
         (s) => s.lockedCombatId === combat.id
