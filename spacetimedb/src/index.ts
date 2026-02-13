@@ -2387,8 +2387,8 @@ function executeAbility(
   switch (abilityKey) {
     case 'shaman_spirit_mender':
       if (!targetCharacter) throw new SenderError('Target required');
-      applyHeal(targetCharacter, 6n, 'Spirit Mender');
-      addCharacterEffect(ctx, targetCharacter.id, 'regen', 3n, 2n, 'Spirit Mender');
+      applyHeal(targetCharacter, 12n, 'Spirit Mender');
+      addCharacterEffect(ctx, targetCharacter.id, 'regen', 5n, 2n, 'Spirit Mender');
       appendPrivateEvent(
         ctx,
         character.id,
@@ -2542,7 +2542,7 @@ function executeAbility(
       return;
     case 'cleric_mend':
       if (!targetCharacter) throw new SenderError('Target required');
-      applyHeal(targetCharacter, 10n, 'Mend');
+      applyHeal(targetCharacter, 18n, 'Mend');
       return;
     case 'cleric_sanctify': {
       if (!targetCharacter) throw new SenderError('Target required');
@@ -2791,7 +2791,7 @@ function executeAbility(
       return;
     case 'ranger_natures_balm':
       if (!targetCharacter) throw new SenderError('Target required');
-      addCharacterEffect(ctx, targetCharacter.id, 'regen', 4n, 3n, "Nature's Balm");
+      addCharacterEffect(ctx, targetCharacter.id, 'regen', 7n, 3n, "Nature's Balm");
       appendPrivateEvent(
         ctx,
         character.id,
@@ -2805,7 +2805,7 @@ function executeAbility(
       return;
     case 'necromancer_plague_spark':
       applyDamage(0n, 0n, { dot: { magnitude: 3n, rounds: 2n, source: 'Plague Spark' } });
-      applyHeal(character, 2n, 'Plague Spark');
+      applyHeal(character, 4n, 'Plague Spark');
       return;
     case 'necromancer_bone_servant':
       summonPet('Skeleton', 'a skeleton', [
@@ -2930,7 +2930,7 @@ function executeAbility(
       return;
     case 'druid_thorn_lash':
       applyDamage(0n, 0n, { dot: { magnitude: 2n, rounds: 2n, source: 'Thorn Lash' } });
-      applyHeal(character, 3n, 'Thorn Lash');
+      applyHeal(character, 6n, 'Thorn Lash');
       return;
     case 'druid_natures_mark': {
       if (activeCombatIdForCharacter(ctx, character.id)) {
@@ -2992,7 +2992,7 @@ function executeAbility(
       applyDamage(0n, 0n, { dot: { magnitude: 3n, rounds: 2n, source: 'Bramble' } });
       return;
     case 'druid_natures_gift':
-      applyPartyHpBonus(8n, 3n, "Nature's Gift");
+      applyPartyHpBonus(15n, 3n, "Nature's Gift");
       appendPrivateEvent(
         ctx,
         character.id,
