@@ -209,10 +209,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 64 | Fix circular dependency between combat_scaling.ts and class_stats.ts - removed unused re-export and unused import to eliminate build warning | 2026-02-13 | 2700046 | [64-fix-circular-dependency-between-combat-s](./quick/64-fix-circular-dependency-between-combat-s/) |
 | 65 | Increase healing values for level 1-2 abilities - doubled flat healing values (~2x) to match HP pool increase from quick-56 | 2026-02-13 | a21d2ae | [65-increase-healing-values-for-level-1-2-ab](./quick/65-increase-healing-values-for-level-1-2-ab/) |
 | 66 | Make log panel open by default for new players - added optional open field to panel defaults, log panel now visible on first login | 2026-02-13 | acfe35c | [66-make-log-panel-open-by-default-for-new-p](./quick/66-make-log-panel-open-by-default-for-new-p/) |
+| 67 | Restore ability descriptions to AbilityTooltip - added meaningful descriptions to all 80 player abilities and fixed resolveDescription bug in seeding path | 2026-02-13 | bd26e4e | [67-restore-ability-descriptions-to-abilityt](./quick/67-restore-ability-descriptions-to-abilityt/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed 04-02-PLAN.md (Phase 04 complete)
+**Stopped at:** Completed quick-67-PLAN.md
 **Timestamp:** 2026-02-13T22:09:23Z
