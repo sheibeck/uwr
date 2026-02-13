@@ -380,6 +380,7 @@ export const registerCombatReducers = (deps: any) => {
       characterDex,
       weaponName,
       weaponType,
+      groupMessages,
     }: {
       seed: bigint;
       baseDamage: bigint;
@@ -405,6 +406,14 @@ export const registerCombatReducers = (deps: any) => {
       characterDex?: bigint;
       weaponName?: string;
       weaponType?: string;
+      groupMessages?: {
+        dodge: string | ((damage: bigint) => string);
+        miss: string | ((damage: bigint) => string);
+        parry: string | ((damage: bigint) => string);
+        block: string | ((damage: bigint) => string);
+        hit: string | ((damage: bigint) => string);
+        crit?: string | ((damage: bigint) => string);
+      };
     }
   ) => {
     const reducedDamage = applyArmorMitigation(baseDamage, targetArmor);
@@ -446,9 +455,23 @@ export const registerCombatReducers = (deps: any) => {
     const message = typeof template === 'function' ? template(finalDamage) : template;
     const type = outcome.outcome === 'hit' || outcome.outcome === 'crit' ? 'damage' : 'avoid';
     appendPrivateEvent(ctx, logTargetId, logOwnerId, type, message);
-    if (groupId && groupActorId) {
-      appendGroupEvent(ctx, groupId, groupActorId, type, message);
+    if (groupId && groupActorId && groupMessages) {
+      const groupTemplate =
+        outcome.outcome === 'dodge'
+          ? groupMessages.dodge
+          : outcome.outcome === 'miss'
+            ? groupMessages.miss
+            : outcome.outcome === 'parry'
+              ? groupMessages.parry
+              : outcome.outcome === 'block'
+                ? groupMessages.block
+                : outcome.outcome === 'crit'
+                  ? (groupMessages.crit ?? groupMessages.hit)
+                  : groupMessages.hit;
+      const groupMessage = typeof groupTemplate === 'function' ? groupTemplate(finalDamage) : groupTemplate;
+      appendGroupEvent(ctx, groupId, groupActorId, type, groupMessage);
     }
+
     return { outcome: outcome.outcome, finalDamage, nextHp };
   };
 
@@ -900,25 +923,33 @@ export const registerCombatReducers = (deps: any) => {
           add.roleTemplateId
         );
       }
+      // Send private message to each participant
       for (const p of participants) {
-        logPrivateAndGroup(
-          ctx,
-          p,
-          'system',
-          `Your ${pull.pullType} pull is noticed. You bring 1 of ${initialGroupCount} ${spawn.name} and ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately. Remaining in group: ${remainingGroup}.${reasonSuffix}`,
-          `${character.name}'s pull is noticed. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately.`
-        );
+        const pChar = ctx.db.character.id.find(p.characterId);
+        if (!pChar) continue;
+        const privateMsg = pChar.id === character.id
+          ? `Your ${pull.pullType} pull is noticed. You bring 1 of ${initialGroupCount} ${spawn.name} and ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately. Remaining in group: ${remainingGroup}.${reasonSuffix}`
+          : `${character.name}'s ${pull.pullType} pull is noticed. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately. Remaining in group: ${remainingGroup}.${reasonSuffix}`;
+        appendPrivateEvent(ctx, pChar.id, pChar.ownerUserId, 'system', privateMsg);
+      }
+      // Send group message once
+      if (combat.groupId) {
+        appendGroupEvent(ctx, combat.groupId, character.id, 'system', `${character.name}'s pull is noticed. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately.`);
       }
     } else {
       const remainingGroup = ctx.db.enemySpawn.id.find(spawn.id)?.groupCount ?? 0n;
+      // Send private message to each participant
       for (const p of participants) {
-        logPrivateAndGroup(
-          ctx,
-          p,
-          'system',
-          `Your ${pull.pullType} pull is clean. You draw 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`,
-          `${character.name}'s pull is clean.`
-        );
+        const pChar = ctx.db.character.id.find(p.characterId);
+        if (!pChar) continue;
+        const privateMsg = pChar.id === character.id
+          ? `Your ${pull.pullType} pull is clean. You draw 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`
+          : `${character.name}'s pull is clean. You draw 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`;
+        appendPrivateEvent(ctx, pChar.id, pChar.ownerUserId, 'system', privateMsg);
+      }
+      // Send group message once
+      if (combat.groupId) {
+        appendGroupEvent(ctx, combat.groupId, character.id, 'system', `${character.name}'s pull is clean.`);
       }
     }
     ctx.db.pullState.id.delete(pull.id);
@@ -1667,6 +1698,14 @@ export const registerCombatReducers = (deps: any) => {
         characterDex: character.dex,
         weaponName: weapon.name,
         weaponType: weapon.weaponType,
+        groupMessages: {
+          dodge: `${targetName} dodges ${character.name}'s auto-attack.`,
+          miss: `${character.name} misses ${targetName} with auto-attack.`,
+          parry: `${targetName} parries ${character.name}'s auto-attack.`,
+          block: (damage) => `${targetName} blocks ${character.name}'s auto-attack for ${damage}.`,
+          hit: (damage) => `${character.name} hits ${targetName} with auto-attack for ${damage}.`,
+          crit: (damage) => `Critical hit! ${character.name} hits ${targetName} for ${damage} damage.`,
+        },
       });
 
       if (finalDamage > 0n) {
@@ -2171,6 +2210,13 @@ export const registerCombatReducers = (deps: any) => {
               targetCharacterId: targetCharacter.id,
               groupId: combat.groupId,
               groupActorId: targetCharacter.id,
+              groupMessages: {
+                dodge: `${targetCharacter.name} dodges ${name}'s auto-attack.`,
+                miss: `${name} misses ${targetCharacter.name} with auto-attack.`,
+                parry: `${targetCharacter.name} parries ${name}'s auto-attack.`,
+                block: (damage) => `${targetCharacter.name} blocks ${name}'s auto-attack for ${damage}.`,
+                hit: (damage) => `${name} hits ${targetCharacter.name} with auto-attack for ${damage}.`,
+              },
             });
             if (nextHp === 0n) {
               for (const p of participants) {

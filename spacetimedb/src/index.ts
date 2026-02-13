@@ -6249,12 +6249,24 @@ function grantFactionStandingForKill(ctx: any, character: any, enemyTemplateId: 
   const faction = ctx.db.faction.id.find(template.factionId);
   if (!faction) return;
   mutateStanding(ctx, character.id, faction.id, STANDING_PER_KILL);
-  logPrivateAndGroup(ctx, character, 'faction', `You gained ${STANDING_PER_KILL} standing with ${faction.name}.`);
+  logPrivateAndGroup(
+    ctx,
+    character,
+    'faction',
+    `You gained ${STANDING_PER_KILL} standing with ${faction.name}.`,
+    `${character.name} gained ${STANDING_PER_KILL} standing with ${faction.name}.`
+  );
   if (faction.rivalFactionId) {
     mutateStanding(ctx, character.id, faction.rivalFactionId, -RIVAL_STANDING_PENALTY);
     const rivalFaction = ctx.db.faction.id.find(faction.rivalFactionId);
     if (rivalFaction) {
-      logPrivateAndGroup(ctx, character, 'faction', `You lost ${RIVAL_STANDING_PENALTY} standing with ${rivalFaction.name}.`);
+      logPrivateAndGroup(
+        ctx,
+        character,
+        'faction',
+        `You lost ${RIVAL_STANDING_PENALTY} standing with ${rivalFaction.name}.`,
+        `${character.name} lost ${RIVAL_STANDING_PENALTY} standing with ${rivalFaction.name}.`
+      );
     }
   }
 }
