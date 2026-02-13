@@ -1,18 +1,18 @@
 # Project State
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
-**Last updated:** 2026-02-12
-**Status:** Phase 3.1.1 planned — DoT/HoT/debuff/AoE balance with power budget split approach
+**Last updated:** 2026-02-13
+**Status:** Phase 3.1.1 in progress — DoT/HoT/debuff/AoE balance with power budget split approach
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) planned — DoT/HoT/debuff/AoE balance extends stat scaling system with power budget splits, reduced periodic scaling, and AoE enumeration.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) in progress — DoT/HoT/debuff/AoE balance extends stat scaling system with power budget splits, reduced periodic scaling, and AoE enumeration.
 
 **Current phase:** 3.1.1 (Combat Balance Part 2)
-**Current plan:** None (ready to execute)
-**Next action:** Execute Phase 3.1.1 (/gsd:execute-phase 3.1.1)
+**Current plan:** 01 complete (1/3 plans done)
+**Next action:** Execute Phase 3.1.1 Plan 02 (/gsd:execute-phase 3.1.1)
 
 ---
 
@@ -24,7 +24,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 2 | Hunger | Complete (2/2 plans done, human-verified) |
 | 3 | Renown Foundation | Complete (2/2 plans done, human-verified) |
 | 3.1 | Combat Balance | Complete (5/5 plans done: 2 impl + 1 verify + 2 gaps, human-verified) |
-| 3.1.1 | Combat Balance Part 2 | Planned (3/3 plans created, ready to execute) |
+| 3.1.1 | Combat Balance Part 2 | In Progress (1/3 plans done: metadata foundation complete) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
 | 6 | World Events | Pending |
@@ -71,6 +71,8 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 34. All abilities with power > 0n use ONLY hybrid formula (no weaponComponent) — fixes double-dipping bug that caused 5-6x damage (3.1-04)
 35. Ability scaling constants tuned: ABILITY_STAT_SCALING_PER_POINT reduced from 2n to 1n, power base multiplier reduced from 10n to 5n — brings abilities to 15-25 damage range, stats contribute ~30-40% (3.1-05)
 36. All per-user tables except Player converted to public with client-side filtering — SpacetimeDB views have unreliable reactivity; only myPlayer view remains (identity-based filtering) (quick-46)
+37. DoT/HoT use 50% scaling rate modifier to prevent double-dipping on multi-tick periodic effects (3.1.1-01)
+38. AoE abilities deal 65% damage per target (tunable 60-70% range); debuffs cost 25% of ability power budget (3.1.1-01)
 
 ---
 
@@ -88,6 +90,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 3.1-combat-balance | 02 | 8min | 2 | 5 |
 | 3.1-combat-balance | 04 | 5min | 1 | 1 |
 | 3.1-combat-balance | 05 | 2min | 1 | 2 |
+| 03.1.1-combat-balance-part-2 | 01 | 3min | 3 | 2 |
 
 ---
 
@@ -162,5 +165,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed Quick Task 46 - proactively fix remaining SpacetimeDB view issues
-**Timestamp:** 2026-02-13T01:11:00Z
+**Stopped at:** Completed 03.1.1-01-PLAN.md
+**Timestamp:** 2026-02-13T01:28:00Z
