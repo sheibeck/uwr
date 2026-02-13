@@ -135,22 +135,21 @@ export const useHotbar = ({
       const predictedReadyAt = assignment.abilityKey
         ? predictedCooldownReadyAt.value.get(assignment.abilityKey) ?? 0
         : 0;
-      const suppressServerAsDuplicate =
-        predictedReadyAt > 0 &&
-        serverReadyAt > predictedReadyAt &&
-        serverReadyAt - predictedReadyAt <= COOLDOWN_SKEW_SUPPRESS_MICROS;
-      const serverRemaining = suppressServerAsDuplicate ? 0 : serverReadyAt - nowMicros.value;
+
+      // If we made a local prediction for this ability, trust it over the server
+      // until the prediction entry is fully cleaned up (10s after expiry).
+      // This prevents the "cooldown refills" visual glitch from server latency.
+      const hasPrediction = predictedReadyAt > 0;
+      const serverRemaining = hasPrediction ? 0 : Math.max(serverReadyAt - nowMicros.value, 0);
       const localRemaining = localReadyAt ? localReadyAt - nowMicros.value : 0;
+
       const isLocallyCastingThisAbility = Boolean(
         localCast.value &&
           assignment.abilityKey &&
           localCast.value.abilityKey === assignment.abilityKey &&
           nowMicros.value < localCast.value.startMicros + localCast.value.durationMicros
       );
-      // Cooldown should not appear to start until cast completes.
       const effectiveLocalRemaining = isLocallyCastingThisAbility ? 0 : localRemaining;
-      // Prefer client-predicted cooldown while active to avoid server/client clock skew
-      // causing frozen countdowns in production.
       const remainingMicros =
         effectiveLocalRemaining > 0
           ? effectiveLocalRemaining
@@ -159,10 +158,11 @@ export const useHotbar = ({
       const configuredCooldownSeconds = ability?.cooldownSeconds
         ? Number(ability.cooldownSeconds)
         : 0;
+      const GCD_SECONDS = 1;
       const cooldownRemaining =
         configuredCooldownSeconds > 0
           ? Math.min(cooldownRemainingRaw, configuredCooldownSeconds)
-          : cooldownRemainingRaw;
+          : Math.min(cooldownRemainingRaw, GCD_SECONDS);
       const resolvedDescription =
         ability?.description?.trim() || (assignment.abilityKey ? `${assignment.name} ability.` : '');
       return {
