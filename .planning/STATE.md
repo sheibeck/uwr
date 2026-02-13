@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-13
-**Status:** Phase 3.1.3 in progress — Enemy AI and aggro management: role-based threat system implemented (plan 01 complete)
+**Status:** Phase 3.1.3 in progress — Enemy AI and aggro management: combat-state-aware AI and leashing implemented (plan 02 complete)
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) in progress — role-based threat multipliers implemented (tanks 1.5x, healers 0.5x + healing threat).
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) in progress — role-based threat multipliers (tanks 1.5x, healers 0.5x + healing threat) and combat-state-aware AI scoring (healers prioritize low-HP allies, buffers buff early, enemies leash when all players flee).
 
 **Current phase:** 3.1.3 (Enemy AI and Aggro Management)
-**Current plan:** 01 complete (1/? plans done)
-**Next action:** Continue Phase 3.1.3 with enemy AI targeting and taunt mechanics
+**Current plan:** 02 complete (2/? plans done)
+**Next action:** Continue Phase 3.1.3 or await user direction
 
 ---
 
@@ -26,7 +26,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 3.1 | Combat Balance | Complete (5/5 plans done: 2 impl + 1 verify + 2 gaps, human-verified) |
 | 3.1.1 | Combat Balance Part 2 | Complete (3/3 plans done: metadata, implementation, verification all approved) |
 | 3.1.2 | Combat Balance for Enemies | Complete (3/3 plans done: metadata, implementation, verification all approved) |
-| 3.1.3 | Enemy AI and Aggro Management | In Progress (1/? plans done: role-based threat) |
+| 3.1.3 | Enemy AI and Aggro Management | In Progress (2/? plans done: role-based threat, AI scoring + leashing) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
 | 6 | World Events | Pending |
@@ -106,6 +106,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 03.1.2-combat-balance-for-enemies | 02 | 5min | 2 | 1 |
 | 03.1.2-combat-balance-for-enemies | 03 | 2min | 1 | 0 |
 | 03.1.3-enemy-ai-and-aggro-management | 01 | 3min | 2 | 4 |
+| Phase 03.1.3-enemy-ai-and-aggro-management P02 | 4min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
