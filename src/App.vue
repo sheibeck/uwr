@@ -652,6 +652,47 @@ const fallbackCombatRoster = computed(() => {
   return selectedCharacter.value ? [selectedCharacter.value] : [];
 });
 
+// Client-side filtering for public tables (replaces unreliable views)
+const userGroupMembers = computed(() => {
+  if (userId.value == null) return [];
+  return groupMemberRows.value.filter(
+    (row: any) => row.ownerUserId === userId.value
+  );
+});
+
+const userCombatResults = computed(() => {
+  if (userId.value == null) return [];
+  return combatResults.value.filter(
+    (row: any) => row.ownerUserId === userId.value
+  );
+});
+
+const userPrivateEvents = computed(() => {
+  if (userId.value == null) return [];
+  return privateEvents.value.filter(
+    (row: any) => row.ownerUserId === userId.value
+  );
+});
+
+const userLocationEvents = computed(() => {
+  if (!selectedCharacter.value) return [];
+  const locId = selectedCharacter.value.locationId;
+  return locationEvents.value.filter(
+    (row: any) => row.locationId === locId &&
+      (!row.excludeCharacterId || row.excludeCharacterId !== selectedCharacter.value!.id)
+  );
+});
+
+const userGroupEvents = computed(() => {
+  if (userId.value == null) return [];
+  const myGroupIds = new Set(
+    userGroupMembers.value.map((m: any) => m.groupId.toString())
+  );
+  return groupEvents.value.filter(
+    (row: any) => myGroupIds.has(row.groupId.toString())
+  );
+});
+
 const { combinedEvents, addLocalEvent } = useEvents({
   worldEvents,
   locationEvents: userLocationEvents,
@@ -823,51 +864,6 @@ const characterNpcDialogs = computed(() => {
   if (!selectedCharacter.value) return [];
   return npcDialogs.value.filter(
     (entry: any) => entry.characterId.toString() === selectedCharacter.value!.id.toString()
-  );
-});
-
-// Filter group members to current user's groups only
-const userGroupMembers = computed(() => {
-  if (userId.value == null) return [];
-  return groupMemberRows.value.filter(
-    (row: any) => row.ownerUserId === userId.value
-  );
-});
-
-// Filter combat results to current user
-const userCombatResults = computed(() => {
-  if (userId.value == null) return [];
-  return combatResults.value.filter(
-    (row: any) => row.ownerUserId === userId.value
-  );
-});
-
-// Filter private events to current user
-const userPrivateEvents = computed(() => {
-  if (userId.value == null) return [];
-  return privateEvents.value.filter(
-    (row: any) => row.ownerUserId === userId.value
-  );
-});
-
-// Filter location events to current character's location
-const userLocationEvents = computed(() => {
-  if (!selectedCharacter.value) return [];
-  const locId = selectedCharacter.value.locationId;
-  return locationEvents.value.filter(
-    (row: any) => row.locationId === locId &&
-      (!row.excludeCharacterId || row.excludeCharacterId !== selectedCharacter.value!.id)
-  );
-});
-
-// Filter group events to current user's groups
-const userGroupEvents = computed(() => {
-  if (userId.value == null) return [];
-  const myGroupIds = new Set(
-    userGroupMembers.value.map((m: any) => m.groupId.toString())
-  );
-  return groupEvents.value.filter(
-    (row: any) => myGroupIds.has(row.groupId.toString())
   );
 });
 
