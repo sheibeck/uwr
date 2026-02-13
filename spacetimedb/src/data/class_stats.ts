@@ -75,7 +75,7 @@ export const CLASS_ARMOR: Record<string, string[]> = {
   enchanter: ['cloth'],
   cleric: ['plate', 'chain', 'leather', 'cloth'],
   wizard: ['cloth'],
-  druid: ['cloth'],
+  druid: ['leather', 'cloth'],
   necromancer: ['cloth'],
   summoner: ['cloth'],
   rogue: ['leather', 'cloth'],

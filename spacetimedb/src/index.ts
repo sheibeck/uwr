@@ -3729,7 +3729,7 @@ function ensureStarterItemTemplates(ctx: any) {
   const ARMOR_ALLOWED_CLASSES: Record<string, string> = {
     plate: 'warrior,paladin,bard,cleric',
     chain: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver',
-    leather: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster',
+    leather: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid',
     cloth: 'any',
   };
 
