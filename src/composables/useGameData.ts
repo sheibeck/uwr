@@ -6,9 +6,9 @@ export const useGameData = () => {
   const [players] = useTable(tables.player);
   const [myPlayer] = useTable(tables.myPlayer);
   const [users] = useTable(tables.user);
-  const [friendRequests] = useTable(tables.myFriendRequests);
-  const [friends] = useTable(tables.myFriends);
-  const [groupInvites] = useTable(tables.myGroupInvites);
+  const [friendRequests] = useTable(tables.friendRequest);
+  const [friends] = useTable(tables.friend);
+  const [groupInvites] = useTable(tables.groupInvite);
   const [characters] = useTable(tables.character);
   const [regions] = useTable(tables.region);
   const [locationConnections] = useTable(tables.locationConnection);
@@ -37,7 +37,7 @@ export const useGameData = () => {
   const [combatEnemyEffects] = useTable(tables.combatEnemyEffect);
   const [combatEnemyCasts] = useTable(tables.combatEnemyCast);
   const [aggroEntries] = useTable(tables.aggroEntry);
-  const [combatResults] = useTable(tables.myCombatResults);
+  const [combatResults] = useTable(tables.combatResult);
   const [combatLoot] = useTable(tables.combatLoot);
   const [groups] = useTable(tables.group);
   const [characterEffects] = useTable(tables.characterEffect);
@@ -45,21 +45,21 @@ export const useGameData = () => {
   const [characterCasts] = useTable(tables.characterCast);
   const [abilityCooldowns] = useTable(tables.abilityCooldown);
   const [worldEvents] = useTable(tables.eventWorld);
-  const [locationEvents] = useTable(tables.myLocationEvents);
-  const [privateEvents] = useTable(tables.myPrivateEvents);
-  const [groupEvents] = useTable(tables.myGroupEvents);
-  const [groupMembers] = useTable(tables.myGroupMembers);
+  const [locationEvents] = useTable(tables.eventLocation);
+  const [privateEvents] = useTable(tables.eventPrivate);
+  const [groupEvents] = useTable(tables.eventGroup);
+  const [groupMembers] = useTable(tables.groupMember);
   const [npcDialogs] = useTable(tables.npcDialog);
   const [questTemplates] = useTable(tables.questTemplate);
-  const [questInstances] = useTable(tables.myQuests);
+  const [questInstances] = useTable(tables.questInstance);
   const [worldState] = useTable(tables.worldState);
   const [tradeSessions] = useTable(tables.tradeSession);
   const [tradeItems] = useTable(tables.tradeItem);
   const [races] = useTable(tables.race);
-  const [myHunger] = useTable(tables.myHunger);
+  const [myHunger] = useTable(tables.hunger);
   const [factions] = useTable(tables.faction);
-  const [factionStandings] = useTable(tables.myFactionStandings);
-  const [panelLayouts] = useTable(tables.myPanelLayout);
+  const [factionStandings] = useTable(tables.factionStanding);
+  const [panelLayouts] = useTable(tables.uiPanelLayout);
 
   return {
     conn,

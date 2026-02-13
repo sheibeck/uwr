@@ -69,6 +69,7 @@ const User = table(
 const FriendRequest = table(
   {
     name: 'friend_request',
+    public: true,
     indexes: [
       { name: 'by_from', algorithm: 'btree', columns: ['fromUserId'] },
       { name: 'by_to', algorithm: 'btree', columns: ['toUserId'] },
@@ -85,6 +86,7 @@ const FriendRequest = table(
 const Friend = table(
   {
     name: 'friend',
+    public: true,
     indexes: [{ name: 'by_user', algorithm: 'btree', columns: ['userId'] }],
   },
   {
@@ -205,6 +207,7 @@ const QuestTemplate = table(
 const QuestInstance = table(
   {
     name: 'quest_instance',
+    public: true,
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
       { name: 'by_template', algorithm: 'btree', columns: ['questTemplateId'] },
@@ -572,6 +575,7 @@ const Group = table(
 const GroupMember = table(
   {
     name: 'group_member',
+    public: true,
     indexes: [
       { name: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
       { name: 'by_group', algorithm: 'btree', columns: ['groupId'] },
@@ -591,6 +595,7 @@ const GroupMember = table(
 const GroupInvite = table(
   {
     name: 'group_invite',
+    public: true,
     indexes: [
       { name: 'by_to_character', algorithm: 'btree', columns: ['toCharacterId'] },
       { name: 'by_group', algorithm: 'btree', columns: ['groupId'] },
@@ -982,6 +987,7 @@ const CombatPendingAdd = table(
 const CombatResult = table(
   {
     name: 'combat_result',
+    public: true,
     indexes: [
       { name: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
       { name: 'by_group', algorithm: 'btree', columns: ['groupId'] },
@@ -1151,6 +1157,7 @@ const EventWorld = table(
 const EventLocation = table(
   {
     name: 'event_location',
+    public: true,
     indexes: [{ name: 'by_location', algorithm: 'btree', columns: ['locationId'] }],
   },
   {
@@ -1166,6 +1173,7 @@ const EventLocation = table(
 const EventPrivate = table(
   {
     name: 'event_private',
+    public: true,
     indexes: [
       { name: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
       { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
@@ -1184,6 +1192,7 @@ const EventPrivate = table(
 const EventGroup = table(
   {
     name: 'event_group',
+    public: true,
     indexes: [
       { name: 'by_group', algorithm: 'btree', columns: ['groupId'] },
       { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
@@ -1218,6 +1227,7 @@ const Race = table(
 const Hunger = table(
   {
     name: 'hunger',
+    public: true,
     indexes: [{ name: 'characterId', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
@@ -1243,6 +1253,7 @@ const Faction = table(
 const FactionStanding = table(
   {
     name: 'faction_standing',
+    public: true,
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
@@ -1258,6 +1269,7 @@ const FactionStanding = table(
 const UiPanelLayout = table(
   {
     name: 'ui_panel_layout',
+    public: true,
     indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
