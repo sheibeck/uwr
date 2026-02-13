@@ -287,6 +287,12 @@ export const registerCombatReducers = (deps: any) => {
       for (const cast of ctx.db.characterCast.by_character.filter(characterId)) {
         ctx.db.characterCast.id.delete(cast.id);
       }
+      // Remove expired cooldown rows to prevent stale data
+      for (const cd of ctx.db.abilityCooldown.by_character.filter(characterId)) {
+        if (cd.readyAtMicros <= ctx.timestamp.microsSinceUnixEpoch) {
+          ctx.db.abilityCooldown.id.delete(cd.id);
+        }
+      }
     }
     for (const row of ctx.db.aggroEntry.by_combat.filter(combatId)) {
       ctx.db.aggroEntry.id.delete(row.id);
@@ -1117,6 +1123,15 @@ export const registerCombatReducers = (deps: any) => {
         mana: nextMana > character.maxMana ? character.maxMana : nextMana,
         stamina: nextStamina > character.maxStamina ? character.maxStamina : nextStamina,
       });
+
+      // Clean up expired cooldown rows for out-of-combat characters
+      if (!inCombat) {
+        for (const cd of ctx.db.abilityCooldown.by_character.filter(character.id)) {
+          if (cd.readyAtMicros <= ctx.timestamp.microsSinceUnixEpoch) {
+            ctx.db.abilityCooldown.id.delete(cd.id);
+          }
+        }
+      }
     }
 
     // Watchdog: ensure active combats always have a scheduled tick.
