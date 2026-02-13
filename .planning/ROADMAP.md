@@ -396,6 +396,15 @@ Phase 8 (Content Data) <- Phase 1, 2, 3
 
 Phases 1, 3, and 4 can run in parallel. Phases 2, 5, 6 start once their dependencies complete. Phases 7 and 8 run last.
 
+### Phase 9: Config Table Architecture - Consolidate ability and armor configuration into database tables
+
+**Goal:** [To be planned]
+**Depends on:** Phase 8
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 9 to break down)
+
 ---
 
 ## Milestone Success Criteria

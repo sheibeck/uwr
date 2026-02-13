@@ -119,6 +119,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 - 2026-02-12: Phase 3.1.1 planned — DoT/HoT/debuff/AoE balance with power budget approach, 3 plans created
 - Phase 3.1.2 inserted after Phase 3.1.1: Combat balance for Enemies (URGENT)
 - Phase 03.1.3 inserted after Phase 03.1.2: Enemy AI and aggro management (URGENT)
+- Phase 9 added: Config Table Architecture - Consolidate ability and armor configuration into database tables (Technical Debt Reduction)
 
 ---
 
