@@ -61,6 +61,27 @@ export const HEALING_WIS_SCALING_PER_1000 = 20n;
  */
 export const MAGIC_RESIST_SCALING = 3n;
 
+/**
+ * DoT/HoT stat scaling reduction factor (50% of direct damage scaling)
+ * Prevents double-dipping: DoTs tick multiple times, so per-tick scaling is halved
+ * User decision: DoTs use reduced scaling rate compared to direct damage
+ */
+export const DOT_SCALING_RATE_MODIFIER = 50n;  // 50% on 100n scale
+
+/**
+ * AoE damage multiplier per target (65% of single-target damage)
+ * User decision: AoE abilities deal 60-70% damage per target
+ * Starting point: 65%, tune via playtesting if needed
+ */
+export const AOE_DAMAGE_MULTIPLIER = 65n;  // 65% on 100n scale
+
+/**
+ * Debuff power cost percentage (25% of ability power budget)
+ * User decision: Abilities with debuffs deal reduced damage proportionally
+ * All debuff types cost the same power budget
+ */
+export const DEBUFF_POWER_COST_PERCENT = 25n;  // 25% on 100n scale
+
 // ============================================================================
 // ABILITY STAT SCALING MAPPING
 // ============================================================================
