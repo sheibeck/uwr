@@ -146,6 +146,33 @@ Plans:
 
 ---
 
+### Phase 03.1.1: Combat Balance Part 2 (INSERTED)
+
+**Goal:** Balance DoT (damage over time), HoT (heal over time), and debuff/buff effects within the stat scaling system established in Phase 3.1. Extends the combat balance foundation to cover periodic effects, utility abilities, and multi-target scenarios.
+**Depends on:** Phase 3.1
+**Plans:** 3 plans
+
+Plans:
+- [ ] 03.1.1-01-PLAN.md — Ability catalog extension & constants: Add DoT/HoT/debuff/AoE metadata fields to ability_catalog.ts, add DOT_SCALING_RATE_MODIFIER/AOE_DAMAGE_MULTIPLIER/DEBUFF_POWER_COST_PERCENT to combat_scaling.ts, annotate abilities with metadata
+- [ ] 03.1.1-02-PLAN.md — Power budget split implementation: Modify executeAbilityAction in index.ts to split power between direct and periodic effects, apply reduced stat scaling to DoT/HoT, enumerate AoE targets with per-target damage reduction, human verification
+- [ ] 03.1.1-03-PLAN.md — Comprehensive verification: Test all DoT/HoT/debuff/AoE scenarios, verify power budget splits, verify effect stacking and refresh, human acceptance testing
+
+**Success Criteria:**
+- [ ] Shadow Cut (power=4, STR-based) with 60/40 split deals ~15 direct damage, creates DoT for ~10 total damage over 3 ticks
+- [ ] DoT damage scales with same stat as direct damage (STR for Shadow Cut)
+- [ ] DoT uses reduced scaling rate (50% of direct damage stat scaling)
+- [ ] Recasting Shadow Cut on same target refreshes DoT duration, doesn't stack damage
+- [ ] Two different DoT abilities (Shadow Cut + Plague Spark) stack and both deal damage
+- [ ] Group heal (power=3, WIS-based) with 50/50 split heals ~10 direct, creates HoT for ~10 total over 3 ticks
+- [ ] HoT healing scales with WIS using reduced scaling rate
+- [ ] Abilities with debuffs deal reduced damage proportional to debuff power cost
+- [ ] AoE abilities deal 60-70% damage per target compared to single-target
+- [ ] AoE abilities hit all enemies in combat with no target cap
+- [ ] Debuffs have fixed magnitude and duration regardless of caster stats
+- [ ] DoTs and HoTs tick every 3 seconds via tick_hot scheduled reducer
+
+---
+
 ### Phase 4: LLM Architecture
 
 **Goal:** Working LLM content pipeline: procedure calls Anthropic API, writes to content tables, handles failures gracefully. No content consumers yet — this is the plumbing phase.
