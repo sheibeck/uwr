@@ -142,6 +142,7 @@
       data-panel-id="character"
       :style="{
         ...styles.floatingPanel,
+        ...styles.floatingPanelWide,
         ...(panelStyle('character').value || {}),
       }"
       @mousedown="bringToFront('character')"

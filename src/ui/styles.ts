@@ -1622,4 +1622,17 @@ export const styles = {
     border: '1px solid rgba(255, 210, 90, 0.6)',
     color: '#f7d97f',
   },
+  charPanelColumns: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '1rem',
+    height: '100%',
+  },
+  charPanelColumn: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.45rem',
+    minHeight: 0,
+    overflow: 'auto',
+  },
 } as const;
