@@ -132,6 +132,28 @@ import {
   friendUserIds,
   findCharacterByName,
 } from './helpers/character';
+import {
+  DAY_DURATION_MICROS,
+  NIGHT_DURATION_MICROS,
+  DEFAULT_LOCATION_SPAWNS,
+  RESOURCE_NODES_PER_LOCATION,
+  RESOURCE_GATHER_CAST_MICROS,
+  RESOURCE_RESPAWN_MICROS,
+  computeLocationTargetLevel,
+  getWorldState,
+  isNightTime,
+  connectLocations,
+  areLocationsConnected,
+  findEnemyTemplateByName,
+  getGatherableResourceTemplates,
+  spawnResourceNode,
+  ensureResourceNodesForLocation,
+  respawnResourceNodesForLocation,
+  getEnemyRoleTemplates,
+  pickRoleTemplate,
+  seedSpawnMembers,
+  refreshSpawnGroupCount,
+} from './helpers/location';
 import { startCombatForSpawn } from './reducers/combat';
 import { registerViews } from './views';
 import {
@@ -1891,12 +1913,6 @@ function executeAbilityAction(
 
 const COMBAT_LOOP_INTERVAL_MICROS = 1_000_000n;
 const AUTO_ATTACK_INTERVAL = 5_000_000n;
-const DAY_DURATION_MICROS = 1_200_000_000n;
-const NIGHT_DURATION_MICROS = 600_000_000n;
-const DEFAULT_LOCATION_SPAWNS = 3;
-const RESOURCE_NODES_PER_LOCATION = 3;
-const RESOURCE_GATHER_CAST_MICROS = 8_000_000n;
-const RESOURCE_RESPAWN_MICROS = 10n * 60n * 1_000_000n;
 const GROUP_SIZE_DANGER_BASE = 100n;
 const GROUP_SIZE_BIAS_RANGE = 200n;
 const GROUP_SIZE_BIAS_MAX = 0.8;
@@ -1955,75 +1971,6 @@ function applyDeathXpPenalty(ctx: any, character: typeof Character.rowType) {
 }
 
 
-function getGatherableResourceTemplates(ctx: any, terrainType: string, timePref?: string) {
-  const pools: Record<
-    string,
-    { name: string; weight: bigint; timeOfDay: string }[]
-  > = {
-    mountains: [
-      { name: 'Copper Ore', weight: 3n, timeOfDay: 'any' },
-      { name: 'Stone', weight: 5n, timeOfDay: 'any' },
-      { name: 'Sand', weight: 3n, timeOfDay: 'day' },
-      { name: 'Clear Water', weight: 2n, timeOfDay: 'any' },
-    ],
-    woods: [
-      { name: 'Wood', weight: 5n, timeOfDay: 'any' },
-      { name: 'Resin', weight: 3n, timeOfDay: 'night' },
-      { name: 'Dry Grass', weight: 3n, timeOfDay: 'day' },
-      { name: 'Bitter Herbs', weight: 2n, timeOfDay: 'night' },
-      { name: 'Clear Water', weight: 2n, timeOfDay: 'any' },
-      { name: 'Wild Berries', weight: 3n, timeOfDay: 'any' },
-    ],
-    plains: [
-      { name: 'Flax', weight: 4n, timeOfDay: 'day' },
-      { name: 'Herbs', weight: 3n, timeOfDay: 'any' },
-      { name: 'Clear Water', weight: 2n, timeOfDay: 'day' },
-      { name: 'Salt', weight: 2n, timeOfDay: 'any' },
-      { name: 'Wild Berries', weight: 2n, timeOfDay: 'day' },
-      { name: 'Root Vegetable', weight: 3n, timeOfDay: 'any' },
-    ],
-    swamp: [
-      { name: 'Peat', weight: 4n, timeOfDay: 'any' },
-      { name: 'Mushrooms', weight: 3n, timeOfDay: 'night' },
-      { name: 'Murky Water', weight: 3n, timeOfDay: 'any' },
-      { name: 'Bitter Herbs', weight: 2n, timeOfDay: 'night' },
-    ],
-    dungeon: [
-      { name: 'Iron Shard', weight: 3n, timeOfDay: 'any' },
-      { name: 'Ancient Dust', weight: 3n, timeOfDay: 'any' },
-      { name: 'Stone', weight: 2n, timeOfDay: 'any' },
-    ],
-    town: [
-      { name: 'Scrap Cloth', weight: 3n, timeOfDay: 'any' },
-      { name: 'Lamp Oil', weight: 2n, timeOfDay: 'any' },
-      { name: 'Clear Water', weight: 2n, timeOfDay: 'any' },
-    ],
-    city: [
-      { name: 'Scrap Cloth', weight: 3n, timeOfDay: 'any' },
-      { name: 'Lamp Oil', weight: 2n, timeOfDay: 'any' },
-      { name: 'Clear Water', weight: 2n, timeOfDay: 'any' },
-    ],
-  };
-  const key = (terrainType ?? '').trim().toLowerCase();
-  const entries = pools[key] ?? pools.plains;
-  const pref = (timePref ?? '').trim().toLowerCase();
-  const filtered =
-    pref && pref !== 'any'
-      ? entries.filter(
-        (entry) => entry.timeOfDay === 'any' || entry.timeOfDay === pref
-      )
-      : entries;
-  const pool = filtered.length > 0 ? filtered : entries;
-  const resolved = pool
-    .map((entry) => {
-      const template = findItemTemplateByName(ctx, entry.name);
-      return template
-        ? { template, weight: entry.weight, timeOfDay: entry.timeOfDay }
-        : null;
-    })
-    .filter(Boolean) as { template: typeof ItemTemplate.rowType; weight: bigint }[];
-  return resolved;
-}
 
 function ensureStarterItemTemplates(ctx: any) {
   const upsertItemTemplateByName = (row: any) => {
@@ -2795,66 +2742,6 @@ function ensureAbilityTemplates(ctx: any) {
   }
 }
 
-function spawnResourceNode(ctx: any, locationId: bigint): typeof ResourceNode.rowType {
-  const location = ctx.db.location.id.find(locationId);
-  if (!location) throw new SenderError('Location not found');
-  const timePref = isNightTime(ctx) ? 'night' : 'day';
-  const pool = getGatherableResourceTemplates(ctx, location.terrainType ?? 'plains', timePref);
-  if (pool.length === 0) throw new SenderError('No resource templates for location');
-  const totalWeight = pool.reduce((sum, entry) => sum + entry.weight, 0n);
-  let roll = (ctx.timestamp.microsSinceUnixEpoch + locationId) % totalWeight;
-  let chosen = pool[0];
-  for (const entry of pool) {
-    if (roll < entry.weight) {
-      chosen = entry;
-      break;
-    }
-    roll -= entry.weight;
-  }
-  const quantitySeed = ctx.timestamp.microsSinceUnixEpoch + chosen.template.id + locationId;
-  const minQty = 2n;
-  const maxQty = 6n;
-  const qtyRange = maxQty - minQty + 1n;
-  const quantity = minQty + (quantitySeed % qtyRange);
-  return ctx.db.resourceNode.insert({
-    id: 0n,
-    locationId,
-    itemTemplateId: chosen.template.id,
-    name: chosen.template.name,
-    timeOfDay: chosen.timeOfDay ?? 'any',
-    quantity,
-    state: 'available',
-    lockedByCharacterId: undefined,
-    respawnAtMicros: undefined,
-  });
-}
-
-function ensureResourceNodesForLocation(ctx: any, locationId: bigint) {
-  let count = 0;
-  for (const _row of ctx.db.resourceNode.by_location.filter(locationId)) {
-    count += 1;
-  }
-  while (count < RESOURCE_NODES_PER_LOCATION) {
-    spawnResourceNode(ctx, locationId);
-    count += 1;
-  }
-}
-
-function respawnResourceNodesForLocation(ctx: any, locationId: bigint) {
-  for (const row of ctx.db.resourceNode.by_location.filter(locationId)) {
-    ctx.db.resourceNode.id.delete(row.id);
-  }
-  let count = 0;
-  for (const _row of ctx.db.resourceNode.by_location.filter(locationId)) {
-    count += 1;
-  }
-  while (count < RESOURCE_NODES_PER_LOCATION) {
-    spawnResourceNode(ctx, locationId);
-    count += 1;
-  }
-}
-
-
 const ENEMY_ROLE_CONFIG: Record<
   string,
   { hpPerLevel: bigint; damagePerLevel: bigint; baseHp: bigint; baseDamage: bigint }
@@ -3091,44 +2978,6 @@ function ensureVendorInventory(ctx: any) {
   }
 }
 
-function computeLocationTargetLevel(ctx: any, locationId: bigint, baseLevel: bigint) {
-  const location = ctx.db.location.id.find(locationId);
-  if (!location) return baseLevel;
-  const region = ctx.db.region.id.find(location.regionId);
-  const multiplier = region?.dangerMultiplier ?? 100n;
-  const scaled = (baseLevel * multiplier) / 100n;
-  const offset = location.levelOffset ?? 0n;
-  const result = scaled + offset;
-  return result > 1n ? result : 1n;
-}
-
-function getWorldState(ctx: any) {
-  return ctx.db.worldState.id.find(1n);
-}
-
-function isNightTime(ctx: any) {
-  const world = getWorldState(ctx);
-  return world?.isNight ?? false;
-}
-
-function connectLocations(ctx: any, fromId: bigint, toId: bigint) {
-  ctx.db.locationConnection.insert({ id: 0n, fromLocationId: fromId, toLocationId: toId });
-  ctx.db.locationConnection.insert({ id: 0n, fromLocationId: toId, toLocationId: fromId });
-}
-
-function areLocationsConnected(ctx: any, fromId: bigint, toId: bigint) {
-  for (const row of ctx.db.locationConnection.by_from.filter(fromId)) {
-    if (row.toLocationId === toId) return true;
-  }
-  return false;
-}
-
-function findEnemyTemplateByName(ctx: any, name: string) {
-  for (const row of ctx.db.enemyTemplate.iter()) {
-    if (row.name.toLowerCase() === name.toLowerCase()) return row;
-  }
-  return null;
-}
 
 function scheduleCombatTick(ctx: any, combatId: bigint) {
   const nextAt = ctx.timestamp.microsSinceUnixEpoch + COMBAT_LOOP_INTERVAL_MICROS;
@@ -3162,53 +3011,6 @@ function ensureLocationEnemyTemplates(ctx: any) {
       });
     }
   }
-}
-
-function getEnemyRoleTemplates(ctx: any, templateId: bigint) {
-  return [...ctx.db.enemyRoleTemplate.by_template.filter(templateId)];
-}
-
-function pickRoleTemplate(
-  ctx: any,
-  templateId: bigint,
-  seed: bigint
-): typeof EnemyRoleTemplate.rowType | null {
-  const roles = getEnemyRoleTemplates(ctx, templateId);
-  if (roles.length === 0) return null;
-  const index = Number(seed % BigInt(roles.length));
-  return roles[index];
-}
-
-function seedSpawnMembers(
-  ctx: any,
-  spawnId: bigint,
-  templateId: bigint,
-  count: bigint,
-  seed: bigint
-) {
-  const total = Number(count);
-  for (let i = 0; i < total; i += 1) {
-    const role = pickRoleTemplate(ctx, templateId, seed + BigInt(i) * 7n);
-    if (!role) continue;
-    ctx.db.enemySpawnMember.insert({
-      id: 0n,
-      spawnId,
-      enemyTemplateId: templateId,
-      roleTemplateId: role.id,
-    });
-  }
-}
-
-function refreshSpawnGroupCount(ctx: any, spawnId: bigint) {
-  let count = 0n;
-  for (const _row of ctx.db.enemySpawnMember.by_spawn.filter(spawnId)) {
-    count += 1n;
-  }
-  const spawn = ctx.db.enemySpawn.id.find(spawnId);
-  if (spawn) {
-    ctx.db.enemySpawn.id.update({ ...spawn, groupCount: count });
-  }
-  return count;
 }
 
 function spawnEnemy(
