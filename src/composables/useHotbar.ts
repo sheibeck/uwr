@@ -328,6 +328,33 @@ export const useHotbar = ({
     }
   );
 
+  // Clear optimistic cooldowns if server doesn't confirm them (ability failed)
+  // Check every 500ms to give server time to respond
+  let lastClearCheck = 0;
+  watch(
+    () => [abilityCooldowns.value, nowMicros.value, selectedCharacter.value?.id] as const,
+    ([serverCooldowns, now, charId]) => {
+      if (!charId || localCooldowns.value.size === 0) return;
+      if (now - lastClearCheck < 500_000) return; // Check every 500ms
+      lastClearCheck = now;
+
+      const serverCooldownKeys = new Set(
+        serverCooldowns
+          .filter(cd => cd.characterId === charId && cd.readyAtMicros > now)
+          .map(cd => cd.abilityKey)
+      );
+
+      // Clear local cooldowns that don't exist on server (ability failed)
+      for (const [key, readyAt] of localCooldowns.value.entries()) {
+        if (readyAt > now && !serverCooldownKeys.has(key)) {
+          // Local shows cooldown active, but server doesn't - ability failed
+          localCooldowns.value.delete(key);
+          predictedCooldownReadyAt.value.delete(key);
+        }
+      }
+    }
+  );
+
   return {
     hotbarAssignments,
     availableAbilities,
