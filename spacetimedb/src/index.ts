@@ -41,6 +41,8 @@ import {
   DOT_SCALING_RATE_MODIFIER,
   AOE_DAMAGE_MULTIPLIER,
   DEBUFF_POWER_COST_PERCENT,
+  ENEMY_BASE_POWER,
+  ENEMY_LEVEL_POWER_SCALING,
 } from './data/combat_scaling';
 
 const Player = table(
@@ -3068,6 +3070,28 @@ function recomputeCharacterDerived(ctx: any, character: typeof Character.rowType
   });
 }
 
+function applyEnemyAbilityDamage(
+  ctx: any,
+  target: any,
+  rawDamage: bigint,
+  damageType: string,
+  enemyName: string,
+  abilityName: string
+): bigint {
+  let finalDamage = rawDamage;
+  if (damageType === 'physical') {
+    const effectiveArmor = target.armorClass + sumCharacterEffect(ctx, target.id, 'ac_bonus');
+    finalDamage = applyArmorMitigation(rawDamage, effectiveArmor > 0n ? effectiveArmor : 0n);
+  } else if (damageType === 'magic') {
+    const magicResist = sumCharacterEffect(ctx, target.id, 'magic_resist');
+    finalDamage = applyMagicResistMitigation(rawDamage, magicResist);
+  }
+  if (finalDamage < 1n) finalDamage = 1n;
+  const nextHp = target.hp > finalDamage ? target.hp - finalDamage : 0n;
+  ctx.db.character.id.update({ ...target, hp: nextHp });
+  return finalDamage;
+}
+
 function executeEnemyAbility(
   ctx: any,
   combatId: bigint,
@@ -3088,22 +3112,165 @@ function executeEnemyAbility(
   const target = ctx.db.character.id.find(targetId);
   if (!target) return;
 
+  // Calculate power for this enemy ability
+  const enemyLevel = enemyTemplate?.level ?? 1n;
+  const abilityPower = (ability as any).power ?? 3n;
+  const enemyPower = ENEMY_BASE_POWER + (enemyLevel * ENEMY_LEVEL_POWER_SCALING);
+  const totalPower = enemyPower + abilityPower * 5n; // Scale ability power like player system
+
   if (ability.kind === 'dot') {
-    addCharacterEffect(ctx, target.id, 'dot', ability.magnitude, ability.rounds, ability.name);
-    const privateMessage = `${enemyName} uses ${ability.name} on you.`;
-    const groupMessage = `${enemyName} uses ${ability.name} on ${target.name}.`;
+    const damageType = (ability as any).damageType ?? 'physical';
+    const dotPowerSplit = (ability as any).dotPowerSplit ?? 0.5;
+
+    // Direct damage portion
+    const directFraction = 1.0 - dotPowerSplit;
+    const directDamage = (totalPower * BigInt(Math.floor(directFraction * 100))) / 100n;
+
+    // DoT portion
+    const dotFraction = dotPowerSplit;
+    const dotTotalDamage = (totalPower * BigInt(Math.floor(dotFraction * 100))) / 100n;
+    const dotPerTick = ability.rounds > 0n ? dotTotalDamage / ability.rounds : dotTotalDamage;
+
+    // Apply direct damage with armor/magic resist routing
+    let actualDamage = 0n;
+    if (directDamage > 0n) {
+      actualDamage = applyEnemyAbilityDamage(ctx, target, directDamage, damageType, enemyName, ability.name);
+    }
+
+    // Apply DoT via existing CharacterEffect system (tick_hot reducer handles it)
+    if (dotPerTick > 0n) {
+      addCharacterEffect(ctx, target.id, 'dot', dotPerTick, ability.rounds, ability.name);
+    }
+
+    // Log messages
+    const dmgMsg = actualDamage > 0n ? ` for ${actualDamage}` : '';
+    const privateMessage = `${enemyName} uses ${ability.name} on you${dmgMsg}.`;
+    const groupMessage = `${enemyName} uses ${ability.name} on ${target.name}${dmgMsg}.`;
     appendPrivateEvent(ctx, target.id, target.ownerUserId, 'damage', privateMessage);
     if (target.groupId) {
       appendGroupEvent(ctx, target.groupId, target.id, 'damage', groupMessage);
     }
   } else if (ability.kind === 'debuff') {
+    const damageType = (ability as any).damageType ?? 'physical';
+    const debuffPowerCost = (ability as any).debuffPowerCost ?? 0.25;
+
+    // Direct damage reduced by debuff cost
+    const damageFraction = 1.0 - debuffPowerCost;
+    const directDamage = (totalPower * BigInt(Math.floor(damageFraction * 100))) / 100n;
+
+    // Apply direct damage with damage type routing
+    let actualDamage = 0n;
+    if (directDamage > 0n) {
+      actualDamage = applyEnemyAbilityDamage(ctx, target, directDamage, damageType, enemyName, ability.name);
+    }
+
+    // Apply debuff effect (fixed magnitude from metadata, not scaled)
     const effectType = (ability as any).effectType ?? 'ac_bonus';
     addCharacterEffect(ctx, target.id, effectType, ability.magnitude, ability.rounds, ability.name);
-    const privateMessage = `${enemyName} afflicts you with ${ability.name}.`;
-    const groupMessage = `${enemyName} afflicts ${target.name} with ${ability.name}.`;
+
+    // Log messages
+    const dmgMsg = actualDamage > 0n ? ` for ${actualDamage} and` : '';
+    const privateMessage = `${enemyName} uses ${ability.name}${dmgMsg} afflicts you.`;
+    const groupMessage = `${enemyName} uses ${ability.name}${dmgMsg} afflicts ${target.name}.`;
     appendPrivateEvent(ctx, target.id, target.ownerUserId, 'ability', privateMessage);
     if (target.groupId) {
       appendGroupEvent(ctx, target.groupId, target.id, 'ability', groupMessage);
+    }
+  } else if (ability.kind === 'heal') {
+    const allies = [...ctx.db.combatEnemy.by_combat.filter(combatId)]
+      .filter((e: any) => e.currentHp > 0n);
+    if (allies.length === 0) return;
+
+    // Find lowest HP ally
+    let healTarget = allies[0];
+    for (const ally of allies) {
+      if (ally.currentHp < healTarget.currentHp) healTarget = ally;
+    }
+
+    const healPowerSplit = (ability as any).healPowerSplit ?? 1.0;
+    const directHeal = (totalPower * BigInt(Math.floor(healPowerSplit * 100))) / 100n;
+
+    // Cap at maxHp
+    const healTargetTemplate = ctx.db.enemyTemplate.id.find(healTarget.enemyTemplateId);
+    const maxHp = healTargetTemplate?.maxHp ?? 100n;
+    const nextHp = healTarget.currentHp + directHeal > maxHp ? maxHp : healTarget.currentHp + directHeal;
+    ctx.db.combatEnemy.id.update({ ...healTarget, currentHp: nextHp });
+
+    // Apply HoT if split specified
+    const hotDuration = (ability as any).hotDuration;
+    if (hotDuration && healPowerSplit < 1.0) {
+      const hotFraction = 1.0 - healPowerSplit;
+      const hotTotal = (totalPower * BigInt(Math.floor(hotFraction * 100))) / 100n;
+      const hotPerTick = hotDuration > 0n ? hotTotal / hotDuration : hotTotal;
+      if (hotPerTick > 0n) {
+        addEnemyEffect(ctx, combatId, healTarget.id, 'regen', hotPerTick, hotDuration, ability.name);
+      }
+    }
+
+    // Log heal event to all active participants
+    const healTargetName = healTarget.displayName ?? healTargetTemplate?.name ?? 'an ally';
+    for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
+      if (participant.status !== 'active') continue;
+      const pc = ctx.db.character.id.find(participant.characterId);
+      if (!pc) continue;
+      appendPrivateEvent(ctx, pc.id, pc.ownerUserId, 'combat',
+        `${enemyName} heals ${healTargetName} for ${directHeal}.`);
+    }
+    const firstActive = [...ctx.db.combatParticipant.by_combat.filter(combatId)]
+      .find((p: any) => p.status === 'active');
+    if (firstActive) {
+      const pc = ctx.db.character.id.find(firstActive.characterId);
+      if (pc?.groupId) {
+        appendGroupEvent(ctx, pc.groupId, pc.id, 'combat',
+          `${enemyName} heals ${healTargetName} for ${directHeal}.`);
+      }
+    }
+  } else if (ability.kind === 'aoe_damage') {
+    const damageType = (ability as any).damageType ?? 'magic';
+    const perTargetDamage = (totalPower * AOE_DAMAGE_MULTIPLIER) / 100n;
+
+    // Hit all active participants
+    for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
+      if (participant.status !== 'active') continue;
+      const pc = ctx.db.character.id.find(participant.characterId);
+      if (!pc || pc.hp === 0n) continue;
+
+      const actualDamage = applyEnemyAbilityDamage(ctx, pc, perTargetDamage, damageType, enemyName, ability.name);
+
+      appendPrivateEvent(ctx, pc.id, pc.ownerUserId, 'damage',
+        `${enemyName} hits you with ${ability.name} for ${actualDamage}.`);
+      if (pc.groupId) {
+        appendGroupEvent(ctx, pc.groupId, pc.id, 'damage',
+          `${enemyName} hits ${pc.name} with ${ability.name} for ${actualDamage}.`);
+      }
+    }
+  } else if (ability.kind === 'buff') {
+    const effectType = (ability as any).effectType ?? 'damage_bonus';
+    const magnitude = ability.magnitude ?? 3n;
+    const rounds = ability.rounds ?? 3n;
+
+    // Buff all living enemy allies
+    for (const ally of ctx.db.combatEnemy.by_combat.filter(combatId)) {
+      if (ally.currentHp <= 0n) continue;
+      addEnemyEffect(ctx, combatId, ally.id, effectType, magnitude, rounds, ability.name);
+    }
+
+    // Log buff event
+    for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
+      if (participant.status !== 'active') continue;
+      const pc = ctx.db.character.id.find(participant.characterId);
+      if (!pc) continue;
+      appendPrivateEvent(ctx, pc.id, pc.ownerUserId, 'combat',
+        `${enemyName} rallies allies with ${ability.name}!`);
+    }
+    const firstActive = [...ctx.db.combatParticipant.by_combat.filter(combatId)]
+      .find((p: any) => p.status === 'active');
+    if (firstActive) {
+      const pc = ctx.db.character.id.find(firstActive.characterId);
+      if (pc?.groupId) {
+        appendGroupEvent(ctx, pc.groupId, pc.id, 'combat',
+          `${enemyName} rallies allies with ${ability.name}!`);
+      }
     }
   }
 }
