@@ -207,7 +207,17 @@ const openItemContextMenu = (event: MouseEvent, item: typeof props.inventoryItem
       },
     });
   }
-  items.push({ label: 'Delete', action: () => emit('delete-item', item.id) });
+  items.push({
+    label: 'Delete',
+    action: () => {
+      const desc = item.stackable && item.quantity > 1n
+        ? `${item.name} x${item.quantity}`
+        : item.name;
+      if (window.confirm(`Delete ${desc}? This cannot be undone.`)) {
+        emit('delete-item', item.id);
+      }
+    },
+  });
   contextMenu.value = {
     visible: true,
     x: event.clientX,
