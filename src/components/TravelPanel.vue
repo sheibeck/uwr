@@ -4,17 +4,22 @@
       Select a character to travel.
     </div>
     <div v-else>
-      <div :style="styles.gridSectionLabel">TRAVEL</div>
+      <div :style="[styles.gridSectionLabel, { marginTop: 0 }]">TRAVEL</div>
       <div :style="styles.gridWrap">
         <div
-          v-for="entry in sortedLocations"
+          v-for="(entry, index) in sortedLocations"
           :key="entry.location.id.toString()"
           :style="styles.gridTileTravel"
         >
-          <div style="display: flex; align-items: baseline; gap: 0.4rem; min-width: 0;">
-            <span :style="entry.conStyle">{{ entry.location.name }}</span>
-            <span :style="{ fontSize: '0.65rem', opacity: 0.6 }">{{ entry.regionName }}</span>
-            <span :style="[{ fontSize: '0.65rem' }, entry.conStyle]">L{{ entry.targetLevel }}</span>
+          <div style="display: flex; align-items: flex-start; gap: 0.4rem; min-width: 0; flex: 1;">
+            <span :style="[entry.conStyle, { fontSize: '1rem' }]">{{ directionArrows[index % directionArrows.length] }}</span>
+            <div style="display: flex; flex-direction: column; min-width: 0;">
+              <div style="display: flex; align-items: baseline; gap: 0.35rem;">
+                <span :style="[entry.conStyle, { fontSize: '0.95rem' }]">{{ entry.location.name }}</span>
+                <span :style="[{ fontSize: '0.75rem' }, entry.conStyle]">L{{ entry.targetLevel }}</span>
+              </div>
+              <span :style="{ fontSize: '0.75rem', opacity: 0.5 }">{{ entry.regionName }}</span>
+            </div>
           </div>
           <button
             :style="styles.gridTileGoButton"
@@ -64,6 +69,8 @@ const targetLevelForLocation = (location: LocationRow, level: number, regions: R
   const scaled = Math.floor((level * multiplier) / 100);
   return Math.max(1, scaled + offset);
 };
+
+const directionArrows = ['\u2191', '\u2192', '\u2193', '\u2190', '\u2197', '\u2198', '\u2199', '\u2196'];
 
 const sortedLocations = computed(() => {
   if (!props.selectedCharacter) return [];
