@@ -12,7 +12,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 
 **Current phase:** 3.1.3 (Enemy AI and Aggro Management)
 **Current plan:** All complete (2/2 plans done)
-**Next action:** Move to Phase 4 (LLM Architecture) or address user feedback
+**Next action:** Move to Phase 4 (Config Table Architecture) or Phase 5 (LLM Architecture)
 
 ---
 
@@ -27,11 +27,12 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 3.1.1 | Combat Balance Part 2 | Complete (3/3 plans done: metadata, implementation, verification all approved) |
 | 3.1.2 | Combat Balance for Enemies | Complete (3/3 plans done: metadata, implementation, verification all approved) |
 | 3.1.3 | Enemy AI and Aggro Management | Complete (2/2 plans done: role-based threat, AI scoring + leashing) |
-| 4 | LLM Architecture | Pending |
-| 5 | Quest System | Pending |
-| 6 | World Events | Pending |
-| 7 | Narrative Tone Rollout | Pending |
-| 8 | Content Data Expansion | Pending |
+| 4 | Config Table Architecture | Pending |
+| 5 | LLM Architecture | Pending |
+| 6 | Quest System | Pending |
+| 7 | World Events | Pending |
+| 8 | Narrative Tone Rollout | Pending |
+| 9 | Content Data Expansion | Pending |
 
 ---
 
@@ -120,6 +121,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 - Phase 3.1.2 inserted after Phase 3.1.1: Combat balance for Enemies (URGENT)
 - Phase 03.1.3 inserted after Phase 03.1.2: Enemy AI and aggro management (URGENT)
 - Phase 9 added: Config Table Architecture - Consolidate ability and armor configuration into database tables (Technical Debt Reduction)
+- 2026-02-13: Phase 9 moved to Phase 4, existing Phases 4-8 renumbered to 5-9 (Config Tables before LLM for cleaner architecture)
 
 ---
 

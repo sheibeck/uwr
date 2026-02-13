@@ -13,11 +13,12 @@
 | 1 | Races | REQ-001–005 | None | Complete (2026-02-11) |
 | 2 | Hunger | REQ-010–015 | Phase 1 (race stat integration) | Planned |
 | 3 | Renown Foundation | REQ-020–026 | None | Planned |
-| 4 | LLM Architecture | REQ-040–047, REQ-080–084 | Phase 3 (first consumer) | Planned |
-| 5 | Quest System | REQ-060–066 | Phase 3 (renown gating), Phase 4 (LLM text) | Pending |
-| 6 | World Events | REQ-030–035 | Phase 1 (race unlock), Phase 4 (LLM text) | Pending |
-| 7 | Narrative Tone Rollout | REQ-080–084 (applied) | Phase 4 (LLM pipeline running) | Pending |
-| 8 | Content Data Expansion | REQ-090–094 | Phases 1–3 (systems to populate) | Pending |
+| 4 | Config Table Architecture | None | Phase 3 (combat balance complete) | Pending |
+| 5 | LLM Architecture | REQ-040–047, REQ-080–084 | Phase 3 (first consumer) | Planned |
+| 6 | Quest System | REQ-060–066 | Phase 3 (renown gating), Phase 5 (LLM text) | Pending |
+| 7 | World Events | REQ-030–035 | Phase 1 (race unlock), Phase 5 (LLM text) | Pending |
+| 8 | Narrative Tone Rollout | REQ-080–084 (applied) | Phase 5 (LLM pipeline running) | Pending |
+| 9 | Content Data Expansion | REQ-090–094 | Phases 1–3 (systems to populate) | Pending |
 
 ---
 
@@ -209,7 +210,41 @@ Plans:
 - [x] 03.1.3-01-PLAN.md — Threat multipliers: TANK_CLASSES/HEALER_CLASSES role sets, threat constants (tank 1.5x, healer 0.5x), healing threat generation (50% split across enemies), dead character aggro cleanup
 - [x] 03.1.3-02-PLAN.md — AI scoring and leashing: Combat-state-aware AI bonuses (heal priority <30% HP, buff early, debuff tank), leash mechanics (enemies evade and reset when all players leave)
 
-### Phase 4: LLM Architecture
+### Phase 4: Config Table Architecture
+
+**Goal:** Consolidate ability and armor configuration into database tables, eliminating hardcoded constants and data fragmentation. Single source of truth for game balance data.
+
+**Dependencies:** Phase 3 (combat balance complete)
+
+**Plans:** 0 plans
+
+**Scope:**
+- Create `AbilityConfig` table with all ability metadata (name, description, power, cooldown, stat scaling, DoT/HoT/debuff parameters)
+- Migrate `ABILITIES` constant → `AbilityConfig` table via seeding
+- Eliminate `legacyDescriptions` hardcoded fallback (80+ descriptions)
+- Eliminate `ABILITY_STAT_SCALING` duplication - merge into `AbilityConfig`
+- Update `executeAbility` to read from database instead of ABILITIES constant
+- Optional: Create `ArmorProficiency` config table for CLASS_ARMOR data
+- Regenerate client bindings to expose ability data to UI
+
+**Benefits:**
+- Single source of truth for all ability data
+- Eliminates technical debt from fragmented configuration
+- Makes ability data client-readable from database
+- Prepares for future admin UI and dynamic tuning
+- Enables level-dependent ability power in future
+
+**Success Criteria:**
+- [ ] `AbilityConfig` table created with all ability metadata
+- [ ] `legacyDescriptions` removed from index.ts
+- [ ] `ABILITY_STAT_SCALING` removed from combat_scaling.ts
+- [ ] All abilities work correctly reading from database
+- [ ] Client can read ability power/cooldown/description from table
+- [ ] No hardcoded ability constants remain except `executeAbility` switch cases
+
+---
+
+### Phase 5: LLM Architecture
 
 **Goal:** Working LLM content pipeline: procedure calls Anthropic API, writes to content tables, handles failures gracefully. No content consumers yet — this is the plumbing phase.
 
@@ -249,13 +284,13 @@ Plans:
 
 ---
 
-### Phase 5: Quest System
+### Phase 6: Quest System
 
 **Goal:** Renown-gated quests available per faction. Players accept quests, complete objectives, earn rewards. Quest text is LLM-generated.
 
 **Requirements:** REQ-060, REQ-061, REQ-062, REQ-063, REQ-064, REQ-065, REQ-066
 
-**Dependencies:** Phase 3 (FactionStanding for gating), Phase 4 (LLM text generation)
+**Dependencies:** Phase 3 (FactionStanding for gating), Phase 5 (LLM text generation)
 
 **Scope:**
 - `Quest` table seeded with ≥8 quests (2 per faction, gated at Neutral and Friendly rank)
@@ -288,13 +323,13 @@ Plans:
 
 ---
 
-### Phase 6: World Events
+### Phase 7: World Events
 
 **Goal:** Server-wide events fire (admin-triggered or threshold-triggered), generate LLM consequence text, appear in the world event log, and can unlock races.
 
 **Requirements:** REQ-030, REQ-031, REQ-032, REQ-033, REQ-034, REQ-035
 
-**Dependencies:** Phase 1 (race unlock target), Phase 4 (LLM generation)
+**Dependencies:** Phase 1 (race unlock target), Phase 5 (LLM generation)
 
 **Scope:**
 - `WorldEvent` table: event type, target, status, firedAt
@@ -323,13 +358,13 @@ Plans:
 
 ---
 
-### Phase 7: Narrative Tone Rollout
+### Phase 8: Narrative Tone Rollout
 
 **Goal:** LLM-generated Shadeslinger tone applied consistently across all generated content. All existing hardcoded strings reviewed for tone consistency.
 
 **Requirements:** REQ-080, REQ-081, REQ-082, REQ-083, REQ-084
 
-**Dependencies:** Phase 4 (LLM pipeline), Phases 5-6 (content consumers)
+**Dependencies:** Phase 5 (LLM pipeline), Phases 6-7 (content consumers)
 
 **Scope:**
 - Finalize `SHADESLINGER_SYSTEM_PROMPT` with tested examples
@@ -347,7 +382,7 @@ Plans:
 
 ---
 
-### Phase 8: Content Data Expansion
+### Phase 9: Content Data Expansion
 
 **Goal:** Game world feels populated. Enough gear, resources, NPCs, and enemies to support meaningful progression through the new systems.
 
@@ -384,26 +419,18 @@ Plans:
 ```
 Phase 1 (Races) ──────────────────────────────────────┐
 Phase 3 (Renown) ──────────────────────────────────┐   │
-Phase 4 (LLM Architecture) ──────────────────┐     │   │
-                                              │     │   │
-Phase 2 (Hunger) <- Phase 1                   │     │   │
-Phase 5 (Quests) <- Phase 3, Phase 4          │     │   │
-Phase 6 (World Events) <- Phase 4 ─────────── │ ────┘   │
-                                    (race unlock) ───────┘
-Phase 7 (Tone) <- Phase 4, 5, 6
-Phase 8 (Content Data) <- Phase 1, 2, 3
+Phase 4 (Config Tables) <- Phase 3                 │   │
+Phase 5 (LLM Architecture) <- Phase 3        ──┐   │   │
+                                              │   │   │
+Phase 2 (Hunger) <- Phase 1                   │   │   │
+Phase 6 (Quests) <- Phase 3, Phase 5          │   │   │
+Phase 7 (World Events) <- Phase 5 ─────────── │ ──┘   │
+                                    (race unlock) ──────┘
+Phase 8 (Tone) <- Phase 5, 6, 7
+Phase 9 (Content Data) <- Phase 1, 2, 3
 ```
 
-Phases 1, 3, and 4 can run in parallel. Phases 2, 5, 6 start once their dependencies complete. Phases 7 and 8 run last.
-
-### Phase 9: Config Table Architecture - Consolidate ability and armor configuration into database tables
-
-**Goal:** [To be planned]
-**Depends on:** Phase 8
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (run /gsd:plan-phase 9 to break down)
+Phases 1, 3, 4, and 5 can run in parallel (4 and 5 both require 3 complete). Phases 2, 6, 7 start once their dependencies complete. Phases 8 and 9 run last.
 
 ---
 
