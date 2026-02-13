@@ -224,3 +224,15 @@ grep "tables.my" src/composables/useGameData.ts
 grep -E "userGroupMembers|userCombatResults|characterQuests|characterFactionStandings|characterPanelLayouts" src/App.vue | wc -l
 # Result: Multiple references confirming all filtering in place
 ```
+
+---
+
+## Follow-up Fix (2026-02-13)
+
+**Issue:** Circular dependency error `ReferenceError: Cannot access 'userLocationEvents' before initialization`
+
+**Cause:** The 5 filtering computed properties (`userGroupMembers`, `userCombatResults`, `userPrivateEvents`, `userLocationEvents`, `userGroupEvents`) were defined at lines 870-913 but used in `useEvents` call at line 657.
+
+**Fix:** Moved all 5 computed properties to be defined before the `useEvents` call (commit 1f21877).
+
+**Impact:** App now loads without initialization errors. Computed properties are defined in correct dependency order.
