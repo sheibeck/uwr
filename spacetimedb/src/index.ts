@@ -2102,6 +2102,87 @@ function executeAbility(
     // Weapon component (for weapon abilities that use percent > 0)
     const weaponComponent = percent > 0n ? abilityDamageFromWeapon(baseWeaponDamage, percent, bonus) : 0n;
 
+    // AoE target enumeration and damage reduction
+    if (abilityEntry?.aoeTargets === 'all_enemies') {
+      const aoeMultiplier = Number(AOE_DAMAGE_MULTIPLIER) / 100;  // 65% = 0.65
+      const enemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
+
+      for (const targetEnemy of enemies) {
+        if (targetEnemy.currentHp === 0n) continue;  // Skip dead enemies
+
+        // Apply AoE damage reduction to final direct damage
+        const aoeDamage = (finalDirectDamage * BigInt(Math.floor(aoeMultiplier * 100))) / 100n;
+
+        // Get target's armor for mitigation
+        let targetArmor = targetEnemy.armorClass;
+        const armorDebuff = sumEnemyEffect(ctx, combatId, 'armor_down', targetEnemy.id);
+        if (armorDebuff !== 0n) {
+          targetArmor = targetArmor + armorDebuff;
+          if (targetArmor < 0n) targetArmor = 0n;
+        }
+
+        // Route mitigation by damage type
+        const dmgType = abilityEntry?.damageType ?? 'physical';
+        let mitigatedDamage: bigint;
+        if (dmgType === 'magic') {
+          mitigatedDamage = aoeDamage > 0n ? aoeDamage : 1n;
+        } else {
+          mitigatedDamage = applyArmorMitigation(aoeDamage, targetArmor);
+        }
+
+        // Apply damage to target
+        const nextHp = targetEnemy.currentHp > mitigatedDamage ? targetEnemy.currentHp - mitigatedDamage : 0n;
+        ctx.db.combatEnemy.id.update({ ...targetEnemy, currentHp: nextHp });
+
+        // Update aggro for this target
+        for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+          if (entry.characterId === character.id && entry.enemyId === targetEnemy.id) {
+            ctx.db.aggroEntry.id.update({
+              ...entry,
+              value: entry.value + mitigatedDamage,
+            });
+            break;
+          }
+        }
+
+        // Apply DoT to all AoE targets (DoT not further reduced per user decision: "Single tax")
+        if (dotDamagePerTick > 0n && dotDuration > 0n && abilityEntry?.name) {
+          addEnemyEffect(
+            ctx,
+            combatId,
+            targetEnemy.id,
+            'dot',
+            dotDamagePerTick,
+            dotDuration,
+            abilityEntry.name
+          );
+        }
+
+        // Log damage for each target
+        const targetEnemyTemplate = ctx.db.enemyTemplate.id.find(targetEnemy.enemyTemplateId);
+        const targetName = targetEnemy.displayName ?? targetEnemyTemplate?.name ?? 'enemy';
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'damage',
+          `Your ${abilityEntry.name} hits ${targetName} for ${mitigatedDamage} damage.`
+        );
+        if (actorGroupId) {
+          appendGroupEvent(
+            ctx,
+            actorGroupId,
+            character.id,
+            'damage',
+            `${character.name}'s ${abilityEntry.name} hits ${targetName} for ${mitigatedDamage} damage.`
+          );
+        }
+      }
+
+      // AoE abilities skip single-target damage application (already processed all targets above)
+      return 0n;  // Return early from applyDamage function
+    }
+
     let totalDamage = 0n;
     const hitDamages: bigint[] = [];
     for (let i = 0n; i < hits; i += 1n) {
