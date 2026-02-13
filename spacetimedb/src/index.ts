@@ -1706,15 +1706,17 @@ function isGroupLeaderOrSolo(ctx: any, character: any) {
   return !!group && group.leaderCharacterId === character.id;
 }
 
-function abilityCooldownMicros(abilityKey: string) {
-  const ability = ABILITIES[abilityKey as keyof typeof ABILITIES];
+function abilityCooldownMicros(ctx: any, abilityKey: string) {
+  const rows = [...ctx.db.abilityTemplate.by_key.filter(abilityKey)];
+  const ability = rows[0];
   if (!ability) return GLOBAL_COOLDOWN_MICROS;
   const specific = ability.cooldownSeconds ? ability.cooldownSeconds * 1_000_000n : 0n;
   return specific > GLOBAL_COOLDOWN_MICROS ? specific : GLOBAL_COOLDOWN_MICROS;
 }
 
-function abilityCastMicros(abilityKey: string) {
-  const ability = ABILITIES[abilityKey as keyof typeof ABILITIES];
+function abilityCastMicros(ctx: any, abilityKey: string) {
+  const rows = [...ctx.db.abilityTemplate.by_key.filter(abilityKey)];
+  const ability = rows[0];
   if (ability?.castSeconds) return ability.castSeconds * 1_000_000n;
   return 0n;
 }

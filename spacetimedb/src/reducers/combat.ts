@@ -1388,7 +1388,7 @@ export const registerCombatReducers = (deps: any) => {
           abilityKey: cast.abilityKey,
           targetCharacterId: cast.targetCharacterId,
         });
-        const cooldown = abilityCooldownMicros(cast.abilityKey);
+        const cooldown = abilityCooldownMicros(ctx, cast.abilityKey);
         const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(character.id)].find(
           (row) => row.abilityKey === cast.abilityKey
         );

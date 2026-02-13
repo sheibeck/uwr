@@ -448,7 +448,7 @@ export const registerItemReducers = (deps: any) => {
       }
       const abilityRow = [...ctx.db.abilityTemplate.by_key.filter(abilityKey)][0];
       const combatState = abilityRow?.combatState ?? 'any';
-      const castMicros = abilityCastMicros(abilityKey);
+      const castMicros = abilityCastMicros(ctx, abilityKey);
       const combatId = activeCombatIdForCharacter(ctx, character.id);
       if (combatState === 'combat_only' && !combatId) {
         appendPrivateEvent(
@@ -527,7 +527,7 @@ export const registerItemReducers = (deps: any) => {
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', 'Ability had no effect.');
           return;
         }
-        const cooldown = abilityCooldownMicros(abilityKey);
+        const cooldown = abilityCooldownMicros(ctx, abilityKey);
         if (cooldown > 0n) {
           if (existingCooldown) {
             ctx.db.abilityCooldown.id.update({
