@@ -1,107 +1,113 @@
 <template>
-  <div>
-    <div :style="styles.panelSectionTitle">Create Character</div>
-    <form @submit.prevent="$emit('create')" :style="styles.panelForm">
-      <input
-        type="text"
-        placeholder="Name"
-        :value="newCharacter.name"
-        :disabled="!connActive"
-        :style="styles.input"
-        @input="onNameInput"
-      />
-      <div v-if="createError" :style="styles.errorText">{{ createError }}</div>
+  <div :style="styles.charPanelColumns">
+    <!-- Left column: Character Creator -->
+    <div :style="styles.charPanelColumn">
+      <div :style="styles.panelSectionTitle">Create Character</div>
+      <form @submit.prevent="$emit('create')" :style="styles.panelForm">
+        <input
+          type="text"
+          placeholder="Name"
+          :value="newCharacter.name"
+          :disabled="!connActive"
+          :style="styles.input"
+          @input="onNameInput"
+        />
+        <div v-if="createError" :style="styles.errorText">{{ createError }}</div>
 
-      <!-- Race tiles -->
-      <div :style="styles.gridWrap">
-        <div
-          v-for="race in unlockedRaces"
-          :key="race.id.toString()"
-          :style="{
-            ...styles.raceTile,
-            ...(newCharacter.raceId === race.id.toString() ? styles.raceTileSelected : {})
-          }"
-          @click="onRaceTileClick(race.id.toString())"
-        >
-          {{ race.name }}
-        </div>
-      </div>
-
-      <!-- Race info panel -->
-      <div v-if="selectedRaceRow" :style="styles.roster">
-        <div>{{ selectedRaceRow.description }}</div>
-        <div :style="styles.subtle">
-          <span v-if="selectedRaceRow.strBonus > 0n">STR +{{ selectedRaceRow.strBonus }} </span>
-          <span v-if="selectedRaceRow.dexBonus > 0n">DEX +{{ selectedRaceRow.dexBonus }} </span>
-          <span v-if="selectedRaceRow.chaBonus > 0n">CHA +{{ selectedRaceRow.chaBonus }} </span>
-          <span v-if="selectedRaceRow.wisBonus > 0n">WIS +{{ selectedRaceRow.wisBonus }} </span>
-          <span v-if="selectedRaceRow.intBonus > 0n">INT +{{ selectedRaceRow.intBonus }} </span>
-        </div>
-        <div v-if="selectedRaceRow.availableClasses && selectedRaceRow.availableClasses.trim() !== ''" :style="styles.subtle">
-          Classes: {{ formatAvailableClasses(selectedRaceRow.availableClasses) }}
-        </div>
-      </div>
-
-      <!-- Class tiles -->
-      <div :style="styles.gridWrap">
-        <div
-          v-for="option in displayedClassOptions"
-          :key="option.name"
-          :style="{
-            ...styles.classTile,
-            ...(newCharacter.className === option.name ? styles.classTileSelected : {})
-          }"
-          @click="onClassTileClick(option.name)"
-        >
-          {{ option.name }}
-        </div>
-      </div>
-
-      <!-- Class info panel -->
-      <div v-if="selectedClass" :style="styles.roster">
-        <div :style="styles.rosterTitle">{{ selectedClass.role }}</div>
-        <div>{{ selectedClass.description }}</div>
-        <div :style="styles.subtle">Primary stats: {{ selectedClass.stats }}</div>
-        <div :style="styles.subtle">Abilities: {{ selectedClass.abilities }}</div>
-      </div>
-
-      <button
-        type="submit"
-        :disabled="!connActive || !isCharacterFormValid"
-        :style="styles.primaryButton"
-      >
-        Create
-      </button>
-    </form>
-
-    <div :style="styles.panelSectionTitle">Characters</div>
-    <div v-if="myCharacters.length === 0" :style="styles.subtle">No characters yet.</div>
-    <div v-else :style="styles.list">
-      <div
-        v-for="character in myCharacters"
-        :key="character.id.toString()"
-        :style="{
-          ...styles.charCard,
-          ...(selectedCharacterId === character.id.toString() ? styles.charCardSelected : {})
-        }"
-        @click="$emit('select', character.id.toString())"
-      >
-        <div :style="styles.charCardInfo">
-          <div :style="styles.charCardName">{{ character.name }}</div>
-          <div :style="styles.charCardMeta">
-            <span :style="styles.charCardLevel">Lv {{ character.level }}</span>
-            {{ character.race }} {{ character.className }}
+        <!-- Race tiles -->
+        <div :style="styles.gridWrap">
+          <div
+            v-for="race in unlockedRaces"
+            :key="race.id.toString()"
+            :style="{
+              ...styles.raceTile,
+              ...(newCharacter.raceId === race.id.toString() ? styles.raceTileSelected : {})
+            }"
+            @click="onRaceTileClick(race.id.toString())"
+          >
+            {{ race.name }}
           </div>
         </div>
+
+        <!-- Race info panel -->
+        <div v-if="selectedRaceRow" :style="styles.roster">
+          <div>{{ selectedRaceRow.description }}</div>
+          <div :style="styles.subtle">
+            <span v-if="selectedRaceRow.strBonus > 0n">STR +{{ selectedRaceRow.strBonus }} </span>
+            <span v-if="selectedRaceRow.dexBonus > 0n">DEX +{{ selectedRaceRow.dexBonus }} </span>
+            <span v-if="selectedRaceRow.chaBonus > 0n">CHA +{{ selectedRaceRow.chaBonus }} </span>
+            <span v-if="selectedRaceRow.wisBonus > 0n">WIS +{{ selectedRaceRow.wisBonus }} </span>
+            <span v-if="selectedRaceRow.intBonus > 0n">INT +{{ selectedRaceRow.intBonus }} </span>
+          </div>
+          <div v-if="selectedRaceRow.availableClasses && selectedRaceRow.availableClasses.trim() !== ''" :style="styles.subtle">
+            Classes: {{ formatAvailableClasses(selectedRaceRow.availableClasses) }}
+          </div>
+        </div>
+
+        <!-- Class tiles -->
+        <div :style="styles.gridWrap">
+          <div
+            v-for="option in displayedClassOptions"
+            :key="option.name"
+            :style="{
+              ...styles.classTile,
+              ...(newCharacter.className === option.name ? styles.classTileSelected : {})
+            }"
+            @click="onClassTileClick(option.name)"
+          >
+            {{ option.name }}
+          </div>
+        </div>
+
+        <!-- Class info panel -->
+        <div v-if="selectedClass" :style="styles.roster">
+          <div :style="styles.rosterTitle">{{ selectedClass.role }}</div>
+          <div>{{ selectedClass.description }}</div>
+          <div :style="styles.subtle">Primary stats: {{ selectedClass.stats }}</div>
+          <div :style="styles.subtle">Abilities: {{ selectedClass.abilities }}</div>
+        </div>
+
         <button
-          type="button"
-          :style="styles.charCardDelete"
-          @click.stop="confirmDelete(character)"
-          @mouseenter="(e) => e.target.style.color = 'rgba(255,110,110,0.9)'"
-          @mouseleave="(e) => e.target.style.color = 'rgba(255,110,110,0.5)'"
+          type="submit"
+          :disabled="!connActive || !isCharacterFormValid"
+          :style="styles.primaryButton"
         >
-          ✕
+          Create
         </button>
+      </form>
+    </div>
+
+    <!-- Right column: Characters List -->
+    <div :style="styles.charPanelColumn">
+      <div :style="styles.panelSectionTitle">Characters</div>
+      <div v-if="myCharacters.length === 0" :style="styles.subtle">No characters yet.</div>
+      <div v-else :style="styles.list">
+        <div
+          v-for="character in myCharacters"
+          :key="character.id.toString()"
+          :style="{
+            ...styles.charCard,
+            ...(selectedCharacterId === character.id.toString() ? styles.charCardSelected : {})
+          }"
+          @click="$emit('select', character.id.toString())"
+        >
+          <div :style="styles.charCardInfo">
+            <div :style="styles.charCardName">{{ character.name }}</div>
+            <div :style="styles.charCardMeta">
+              <span :style="styles.charCardLevel">Lv {{ character.level }}</span>
+              {{ character.race }} {{ character.className }}
+            </div>
+          </div>
+          <button
+            type="button"
+            :style="styles.charCardDelete"
+            @click.stop="confirmDelete(character)"
+            @mouseenter="(e) => e.target.style.color = 'rgba(255,110,110,0.9)'"
+            @mouseleave="(e) => e.target.style.color = 'rgba(255,110,110,0.5)'"
+          >
+            ✕
+          </button>
+        </div>
       </div>
     </div>
   </div>
