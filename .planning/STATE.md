@@ -187,10 +187,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 54 | Make Characters panel 2-column layout - creator on left, character list on right for improved usability without scrolling | 2026-02-13 | ae2ea5c | [54-make-characters-panel-2-columns-creator-](./quick/54-make-characters-panel-2-columns-creator-/) |
 | 55 | Fix production bugs - cooldown timers and pull bars - server clock offset mechanism to fix clock skew between maincloud server and client browsers | 2026-02-13 | 7c81f86 | [55-fix-production-bugs-cooldown-timers-not-](./quick/55-fix-production-bugs-cooldown-timers-not-/) |
 | 56 | Address combat duration - increase HP pools and add global damage reduction - roughly double combat duration from 2-3 rounds to 4-6+ rounds | 2026-02-13 | 2df7a36 | [56-address-combat-duration-explore-hp-pools](./quick/56-address-combat-duration-explore-hp-pools/) |
+| 57 | Fix ability cooldowns - Magic Missile 30s bug and Thorn Lash refill - server-side expired cooldown cleanup and client prediction trust with GCD clamp | 2026-02-13 | 5a6bb87 | [57-fix-ability-cooldowns-magic-missile-30s-](./quick/57-fix-ability-cooldowns-magic-missile-30s-/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed 03.1.3-02-PLAN.md (Phase 03.1.3 plan 02 — combat-state-aware AI and leashing)
-**Timestamp:** 2026-02-13T05:18:00Z
+**Stopped at:** Completed quick task 57 — fix ability cooldowns (Magic Missile 30s bug, Thorn Lash refill)
+**Timestamp:** 2026-02-13T05:33:00Z
