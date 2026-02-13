@@ -50,7 +50,8 @@ import {
   TANK_THREAT_MULTIPLIER,
   HEALER_THREAT_MULTIPLIER,
   HEALING_THREAT_PERCENT,
-} from './data/combat_scaling';
+  ABILITY_STAT_SCALING,
+} from './data/combat_scaling.js';
 
 const Player = table(
   { name: 'player', public: true },
@@ -4477,6 +4478,16 @@ function ensureAbilityTemplates(ctx: any) {
       castSeconds: bigint;
       cooldownSeconds: bigint;
       description?: string;
+      power: bigint;
+      damageType: string;
+      dotPowerSplit?: number;
+      dotDuration?: bigint;
+      hotPowerSplit?: number;
+      hotDuration?: bigint;
+      debuffType?: string;
+      debuffMagnitude?: bigint;
+      debuffDuration?: bigint;
+      aoeTargets?: string;
     };
     const existing = seenByKey.get(key);
     if (existing) {
@@ -4492,6 +4503,17 @@ function ensureAbilityTemplates(ctx: any) {
         kind: utilityKeys.has(key) ? 'utility' : 'combat',
         combatState: combatStateFor(key),
         description: resolveDescription(key, entry),
+        power: entry.power ?? undefined,
+        damageType: entry.damageType ?? undefined,
+        statScaling: ABILITY_STAT_SCALING[key] ?? undefined,
+        dotPowerSplit: entry.dotPowerSplit ?? undefined,
+        dotDuration: entry.dotDuration ?? undefined,
+        hotPowerSplit: entry.hotPowerSplit ?? undefined,
+        hotDuration: entry.hotDuration ?? undefined,
+        debuffType: entry.debuffType ?? undefined,
+        debuffMagnitude: entry.debuffMagnitude ?? undefined,
+        debuffDuration: entry.debuffDuration ?? undefined,
+        aoeTargets: entry.aoeTargets ?? undefined,
       });
       seenByKey.set(key, {
         ...existing,
@@ -4505,6 +4527,17 @@ function ensureAbilityTemplates(ctx: any) {
         kind: utilityKeys.has(key) ? 'utility' : 'combat',
         combatState: combatStateFor(key),
         description: resolveDescription(key, entry),
+        power: entry.power ?? undefined,
+        damageType: entry.damageType ?? undefined,
+        statScaling: ABILITY_STAT_SCALING[key] ?? undefined,
+        dotPowerSplit: entry.dotPowerSplit ?? undefined,
+        dotDuration: entry.dotDuration ?? undefined,
+        hotPowerSplit: entry.hotPowerSplit ?? undefined,
+        hotDuration: entry.hotDuration ?? undefined,
+        debuffType: entry.debuffType ?? undefined,
+        debuffMagnitude: entry.debuffMagnitude ?? undefined,
+        debuffDuration: entry.debuffDuration ?? undefined,
+        aoeTargets: entry.aoeTargets ?? undefined,
       });
       continue;
     }
@@ -4520,6 +4553,17 @@ function ensureAbilityTemplates(ctx: any) {
       kind: utilityKeys.has(key) ? 'utility' : 'combat',
       combatState: combatStateFor(key),
       description: resolveDescription(key, entry),
+      power: entry.power ?? undefined,
+      damageType: entry.damageType ?? undefined,
+      statScaling: ABILITY_STAT_SCALING[key] ?? undefined,
+      dotPowerSplit: entry.dotPowerSplit ?? undefined,
+      dotDuration: entry.dotDuration ?? undefined,
+      hotPowerSplit: entry.hotPowerSplit ?? undefined,
+      hotDuration: entry.hotDuration ?? undefined,
+      debuffType: entry.debuffType ?? undefined,
+      debuffMagnitude: entry.debuffMagnitude ?? undefined,
+      debuffDuration: entry.debuffDuration ?? undefined,
+      aoeTargets: entry.aoeTargets ?? undefined,
     });
     seenByKey.set(key, inserted);
   }
