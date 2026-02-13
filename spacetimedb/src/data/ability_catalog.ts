@@ -2,6 +2,34 @@ export const GLOBAL_COOLDOWN_MICROS = 1_000_000n;
 
 export type DamageType = 'physical' | 'magic' | 'none';
 
+// Ability entries use this shape (extended with DoT/HoT/debuff/AoE metadata)
+export interface AbilityMetadata {
+  name: string;
+  className: string;
+  resource: string;
+  level: bigint;
+  power: bigint;
+  cooldownSeconds: bigint;
+  castSeconds: bigint;
+  damageType: DamageType;
+
+  // DoT metadata (damage over time)
+  dotPowerSplit?: number;        // 0-1, fraction of power allocated to DoT total damage
+  dotDuration?: bigint;          // Duration in ticks (1 tick = 3 seconds)
+
+  // HoT metadata (heal over time)
+  hotPowerSplit?: number;        // 0-1, fraction of power allocated to HoT total healing
+  hotDuration?: bigint;          // Duration in ticks
+
+  // Debuff metadata
+  debuffType?: string;           // 'ac_bonus' | 'damage_down' | 'armor_down' | 'slow'
+  debuffMagnitude?: bigint;      // Fixed magnitude value (stat-independent per user decision)
+  debuffDuration?: bigint;       // Duration in ticks
+
+  // AoE metadata
+  aoeTargets?: 'all_enemies' | 'all_allies' | 'all_party';  // Target type
+}
+
 export const ABILITIES = {
   shaman_spirit_mender: {
     name: 'Spirit Mender',
@@ -12,6 +40,8 @@ export const ABILITIES = {
     cooldownSeconds: 6n,
     castSeconds: 1n,
     damageType: 'magic' as DamageType,
+    hotPowerSplit: 0.5,
+    hotDuration: 2n,
   },
   shaman_spirit_wolf: {
     name: 'Spirit Wolf',
@@ -32,6 +62,9 @@ export const ABILITIES = {
     cooldownSeconds: 0n,
     castSeconds: 1n,
     damageType: 'magic' as DamageType,
+    debuffType: 'ac_bonus',
+    debuffMagnitude: -2n,
+    debuffDuration: 3n,
   },
   shaman_ancestral_ward: {
     name: 'Ancestral Ward',
@@ -82,6 +115,7 @@ export const ABILITIES = {
     cooldownSeconds: 6n,
     castSeconds: 0n,
     damageType: 'physical' as DamageType,
+    aoeTargets: 'all_enemies',
   },
   warrior_rally: {
     name: 'Rally',
@@ -132,6 +166,9 @@ export const ABILITIES = {
     cooldownSeconds: 8n,
     castSeconds: 1n,
     damageType: 'magic' as DamageType,
+    debuffType: 'slow',
+    debuffMagnitude: -3n,
+    debuffDuration: 3n,
   },
   enchanter_clarity_ii: {
     name: 'Clarity II',
@@ -262,6 +299,8 @@ export const ABILITIES = {
     cooldownSeconds: 4n,
     castSeconds: 0n,
     damageType: 'physical' as DamageType,
+    dotPowerSplit: 0.4,
+    dotDuration: 2n,
   },
   rogue_pickpocket: {
     name: 'Pickpocket',
@@ -282,6 +321,8 @@ export const ABILITIES = {
     cooldownSeconds: 6n,
     castSeconds: 0n,
     damageType: 'physical' as DamageType,
+    dotPowerSplit: 0.6,
+    dotDuration: 3n,
   },
   rogue_evasion: {
     name: 'Evasion',
@@ -342,6 +383,7 @@ export const ABILITIES = {
     cooldownSeconds: 12n,
     castSeconds: 0n,
     damageType: 'none' as DamageType,
+    aoeTargets: 'all_party',
   },
   paladin_radiant_smite: {
     name: 'Radiant Smite',
@@ -412,6 +454,8 @@ export const ABILITIES = {
     cooldownSeconds: 0n,
     castSeconds: 1n,
     damageType: 'magic' as DamageType,
+    dotPowerSplit: 0.5,
+    dotDuration: 3n,
   },
   necromancer_bone_servant: {
     name: 'Bone Servant',
@@ -692,6 +736,8 @@ export const ABILITIES = {
     cooldownSeconds: 12n,
     castSeconds: 0n,
     damageType: 'none' as DamageType,
+    hotPowerSplit: 0.6,
+    hotDuration: 3n,
   },
   druid_wild_surge: {
     name: 'Wild Surge',
