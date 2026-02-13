@@ -527,22 +527,6 @@ export const registerItemReducers = (deps: any) => {
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', 'Ability had no effect.');
           return;
         }
-        const cooldown = abilityCooldownMicros(ctx, abilityKey);
-        if (cooldown > 0n) {
-          if (existingCooldown) {
-            ctx.db.abilityCooldown.id.update({
-              ...existingCooldown,
-              readyAtMicros: nowMicros + cooldown,
-            });
-          } else {
-            ctx.db.abilityCooldown.insert({
-              id: 0n,
-              characterId: character.id,
-              abilityKey,
-              readyAtMicros: nowMicros + cooldown,
-            });
-          }
-        }
         const combatId = activeCombatIdForCharacter(ctx, character.id);
         let targetName = args.targetCharacterId
           ? ctx.db.character.id.find(args.targetCharacterId)?.name ?? 'your target'
@@ -565,6 +549,23 @@ export const registerItemReducers = (deps: any) => {
           'ability',
           `You use ${abilityKey.replace(/_/g, ' ')} on ${targetName}.`
         );
+        // Apply cooldown only after ability completes successfully
+        const cooldown = abilityCooldownMicros(ctx, abilityKey);
+        if (cooldown > 0n) {
+          if (existingCooldown) {
+            ctx.db.abilityCooldown.id.update({
+              ...existingCooldown,
+              readyAtMicros: nowMicros + cooldown,
+            });
+          } else {
+            ctx.db.abilityCooldown.insert({
+              id: 0n,
+              characterId: character.id,
+              abilityKey,
+              readyAtMicros: nowMicros + cooldown,
+            });
+          }
+        }
       } catch (error) {
         const message = String(error).replace(/^SenderError:\s*/i, '');
         appendPrivateEvent(
