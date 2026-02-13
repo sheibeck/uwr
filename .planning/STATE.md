@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-13
-**Status:** Phase 3.1.1 in progress — DoT/HoT/debuff/AoE balance with power budget split approach
+**Status:** Phase 3.1.2 in progress — Combat balance for enemies with power scaling and ability metadata
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete — DoT/HoT/debuff/AoE balance with power budget splits (50% periodic scaling), AoE enumeration (65% per target), and debuff power cost (25%) all verified functional.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete — DoT/HoT/debuff/AoE balance with power budget splits (50% periodic scaling), AoE enumeration (65% per target), and debuff power cost (25%) all verified functional. Phase 3.1.2 Plan 01 complete — enemy power scaling constants and ability metadata foundation.
 
-**Current phase:** 3.1.1 (Combat Balance Part 2)
-**Current plan:** 03 complete (3/3 plans done)
-**Next action:** Execute Phase 4 LLM Architecture (/gsd:plan 4)
+**Current phase:** 3.1.2 (Combat Balance for Enemies)
+**Current plan:** 01 complete (1/? plans done)
+**Next action:** Continue Phase 3.1.2 or move to Phase 4 LLM Architecture
 
 ---
 
@@ -25,6 +25,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 3 | Renown Foundation | Complete (2/2 plans done, human-verified) |
 | 3.1 | Combat Balance | Complete (5/5 plans done: 2 impl + 1 verify + 2 gaps, human-verified) |
 | 3.1.1 | Combat Balance Part 2 | Complete (3/3 plans done: metadata, implementation, verification all approved) |
+| 3.1.2 | Combat Balance for Enemies | In Progress (1/? plans done: enemy metadata foundation complete) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
 | 6 | World Events | Pending |
@@ -73,6 +74,10 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 36. All per-user tables except Player converted to public with client-side filtering — SpacetimeDB views have unreliable reactivity; only myPlayer view remains (identity-based filtering) (quick-46)
 37. DoT/HoT use 50% scaling rate modifier to prevent double-dipping on multi-tick periodic effects (3.1.1-01)
 38. AoE abilities deal 65% damage per target (tunable 60-70% range); debuffs cost 25% of ability power budget (3.1.1-01)
+39. Enemy ability power scales by level only (no stats): ENEMY_BASE_POWER (10n) + enemyLevel * ENEMY_LEVEL_POWER_SCALING (5n) (3.1.2-01)
+40. Enemy DoT/debuff abilities use same power budget split as players: 50% dotPowerSplit, 25% debuffPowerCost (3.1.2-01)
+41. Enemy AoE abilities have no DoT component (direct damage only) — AoE cannot apply DoTs per user decision (3.1.2-01)
+42. Enemy damage type routing: physical (poison/venom/bite/gore/bleed/stone/bog) vs magic (ember/fire/shadow/hex/curse/searing) routes through armor vs magic resist (3.1.2-01)
 
 ---
 
@@ -93,6 +98,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 03.1.1-combat-balance-part-2 | 01 | 3min | 2 | 2 |
 | 03.1.1-combat-balance-part-2 | 02 | 3min | 4 | 2 |
 | 03.1.1-combat-balance-part-2 | 03 | 2min | 1 | 1 |
+| 03.1.2-combat-balance-for-enemies | 01 | 4min | 2 | 2 |
 
 ---
 
@@ -176,5 +182,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed quick-55 (Fix production bugs - cooldown timers and pull bars)
-**Timestamp:** 2026-02-13T02:47:21Z
+**Stopped at:** Completed 03.1.2-01-PLAN.md (Enemy power scaling and ability metadata foundation)
+**Timestamp:** 2026-02-13T04:11:05Z
