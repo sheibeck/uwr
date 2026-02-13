@@ -152,10 +152,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 43 | Add auto-stacking for loot items (junk) - changed junk item templates to stackable: true for automatic stack merging when looting | 2026-02-13 | c108744 | [43-add-auto-stacking-for-loot-items-junk-it](./quick/43-add-auto-stacking-for-loot-items-junk-it/) |
 | 44 | Fix NPC dialog not appearing in Journal panel - made NpcDialog public table with client-side character filtering to bypass unreliable view reactivity | 2026-02-13 | 1effc28 | [44-fix-npc-dialog-not-appearing-in-journal-](./quick/44-fix-npc-dialog-not-appearing-in-journal-/) |
 | 45 | Add confirmation dialog before deleting inventory items - prevent accidental deletion with browser confirm dialog showing item name and quantity | 2026-02-13 | f703460 | [45-in-the-inventory-panel-when-we-bring-up-](./quick/45-in-the-inventory-panel-when-we-bring-up-/) |
+| 47 | Persist open/closed state of windows - log panel and all toggleable panels respect saved state across reloads and character switches | 2026-02-13 | 6e3185b | [47-we-save-the-locations-of-our-windows-on-](./quick/47-we-save-the-locations-of-our-windows-on-/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed Quick Task 45 - add confirmation dialog before deleting inventory items
-**Timestamp:** 2026-02-13T00:56:00Z
+**Stopped at:** Completed Quick Task 47 - persist open/closed state of windows
+**Timestamp:** 2026-02-13T01:10:00Z
