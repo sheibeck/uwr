@@ -4468,7 +4468,7 @@ function ensureAbilityTemplates(ctx: any) {
       cooldownSeconds: entry.cooldownSeconds,
       kind: utilityKeys.has(key) ? 'utility' : 'combat',
       combatState: combatStateFor(key),
-      description: resolveDescription(key, entry),
+      description: resolveDescription(entry),
       power: entry.power ?? undefined,
       damageType: entry.damageType ?? undefined,
       statScaling: ABILITY_STAT_SCALING[key] ?? undefined,
