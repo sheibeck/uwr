@@ -233,7 +233,7 @@ const openEnemyContextMenu = (event: MouseEvent, enemy: EnemySummary) => {
       action: () => emit('pull', { enemyId: enemy.id, pullType: 'careful' }),
     },
     {
-      label: 'Body Pull',
+      label: 'Aggressive Pull',
       disabled: !props.canEngage || enemy.isPulling,
       action: () => emit('pull', { enemyId: enemy.id, pullType: 'body' }),
     },
