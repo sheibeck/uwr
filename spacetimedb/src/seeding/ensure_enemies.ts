@@ -1,0 +1,1382 @@
+import { SenderError } from 'spacetimedb/server';
+
+export function ensureLootTables(ctx: any) {
+  const junkTemplates = [...ctx.db.itemTemplate.iter()].filter((row) => row.isJunk);
+  const gearTemplates = [...ctx.db.itemTemplate.iter()].filter(
+    (row) => !row.isJunk && row.tier <= 1n && row.requiredLevel <= 9n
+  );
+  const findLootTable = (terrainType: string, creatureType: string, tier: bigint) =>
+    [...ctx.db.lootTable.iter()].find(
+      (row) =>
+        row.terrainType === terrainType &&
+        row.creatureType === creatureType &&
+        row.tier === tier
+    );
+  const upsertLootEntry = (lootTableId: bigint, itemTemplateId: bigint, weight: bigint) => {
+    const existing = [...ctx.db.lootTableEntry.by_table.filter(lootTableId)].find(
+      (row) => row.itemTemplateId === itemTemplateId
+    );
+    if (existing) {
+      if (existing.weight !== weight) {
+        ctx.db.lootTableEntry.id.update({ ...existing, weight });
+      }
+      return;
+    }
+    ctx.db.lootTableEntry.insert({
+      id: 0n,
+      lootTableId,
+      itemTemplateId,
+      weight,
+    });
+  };
+  const addOrSyncTable = (
+    terrainType: string,
+    creatureType: string,
+    junkChance: bigint,
+    gearChance: bigint,
+    goldMin: bigint,
+    goldMax: bigint
+  ) => {
+    const existing = findLootTable(terrainType, creatureType, 1n);
+    let tableId: bigint;
+    if (existing) {
+      ctx.db.lootTable.id.update({
+        ...existing,
+        junkChance,
+        gearChance,
+        goldMin,
+        goldMax,
+      });
+      tableId = existing.id;
+    } else {
+      const inserted = ctx.db.lootTable.insert({
+        id: 0n,
+        terrainType,
+        creatureType,
+        tier: 1n,
+        junkChance,
+        gearChance,
+        goldMin,
+        goldMax,
+      });
+      tableId = inserted.id;
+    }
+    for (const item of junkTemplates) {
+      upsertLootEntry(tableId, item.id, 10n);
+    }
+    const resourceTemplates = getGatherableResourceTemplates(ctx, terrainType);
+    for (const entry of resourceTemplates) {
+      upsertLootEntry(tableId, entry.template.id, 6n);
+    }
+    if (creatureType === 'animal' || creatureType === 'beast') {
+      const rawMeat = findItemTemplateByName(ctx, 'Raw Meat');
+      if (rawMeat) {
+        upsertLootEntry(tableId, rawMeat.id, 20n);
+      }
+    }
+    for (const item of gearTemplates) {
+      upsertLootEntry(tableId, item.id, item.rarity === 'uncommon' ? 3n : 6n);
+    }
+  };
+  const terrains = ['plains', 'woods', 'swamp', 'mountains', 'town', 'city', 'dungeon'];
+  for (const terrain of terrains) {
+    addOrSyncTable(terrain, 'animal', 75n, 10n, 0n, 2n);
+    addOrSyncTable(terrain, 'beast', 65n, 15n, 0n, 3n);
+    addOrSyncTable(terrain, 'humanoid', 40n, 25n, 2n, 6n);
+    addOrSyncTable(terrain, 'undead', 55n, 20n, 1n, 4n);
+    addOrSyncTable(terrain, 'spirit', 50n, 20n, 1n, 4n);
+    addOrSyncTable(terrain, 'construct', 60n, 20n, 1n, 4n);
+  }
+}
+
+export function ensureVendorInventory(ctx: any) {
+  // Helper function for deterministic random selection
+  function pickN(items: any[], n: number, seed: bigint): any[] {
+    const selected: any[] = [];
+    const pool = [...items];
+    for (let i = 0; i < Math.min(n, pool.length); i++) {
+      const idx = Number((seed + BigInt(i * 7)) % BigInt(pool.length));
+      selected.push(pool.splice(idx, 1)[0]);
+    }
+    return selected;
+  }
+
+  // Iterate ALL vendor NPCs
+  const vendors = [...ctx.db.npc.iter()].filter((row) => row.npcType === 'vendor');
+
+  for (const vendor of vendors) {
+    // Determine vendor tier from its region
+    const location = ctx.db.location.id.find(vendor.locationId);
+    if (!location) continue;
+
+    const region = ctx.db.region.id.find(location.regionId);
+    if (!region) continue;
+
+    const tierRaw = Math.floor(Number(region.dangerMultiplier) / 100);
+    const vendorTier = Math.max(1, tierRaw);
+
+    // Filter eligible items: not junk, not resources, tier <= vendor tier
+    const allEligible = [...ctx.db.itemTemplate.iter()].filter(
+      (row) => !row.isJunk && row.slot !== 'resource' && row.tier <= BigInt(vendorTier)
+    );
+
+    // Group items by category
+    const armor = allEligible.filter((item) =>
+      item.slot === 'chest' || item.slot === 'legs' || item.slot === 'boots'
+    );
+    const weapons = allEligible.filter((item) =>
+      item.slot === 'mainHand' || item.slot === 'offHand'
+    );
+    const accessories = allEligible.filter((item) =>
+      item.slot === 'earrings' || item.slot === 'cloak' || item.slot === 'neck'
+    );
+    const consumables = allEligible.filter((item) =>
+      item.slot === 'consumable' || item.slot === 'food' || item.slot === 'utility'
+    );
+
+    // Select random subset from each category using vendor.id as seed
+    const selectedArmor = pickN(armor, 4, vendor.id);
+    const selectedWeapons = pickN(weapons, 3, vendor.id);
+    const selectedAccessories = pickN(accessories, 2, vendor.id);
+    const selectedConsumables = consumables; // Keep all consumables
+
+    // Combine all selected items
+    const selectedItems = [
+      ...selectedArmor,
+      ...selectedWeapons,
+      ...selectedAccessories,
+      ...selectedConsumables
+    ];
+
+    // Upsert selected items
+    const upsertVendorItem = (itemTemplateId: bigint, price: bigint) => {
+      const existing = [...ctx.db.vendorInventory.by_vendor.filter(vendor.id)].find(
+        (row) => row.itemTemplateId === itemTemplateId
+      );
+      if (existing) {
+        if (existing.price !== price) {
+          ctx.db.vendorInventory.id.update({ ...existing, price });
+        }
+        return;
+      }
+      ctx.db.vendorInventory.insert({
+        id: 0n,
+        npcId: vendor.id,
+        itemTemplateId,
+        price,
+      });
+    };
+
+    // Track selected item IDs
+    const selectedItemIds = new Set<bigint>();
+    for (const template of selectedItems) {
+      const price = template.vendorValue > 0n ? template.vendorValue * 6n : 10n;
+      upsertVendorItem(template.id, price);
+      selectedItemIds.add(template.id);
+    }
+
+    // Remove stale vendor items
+    const existingInventory = [...ctx.db.vendorInventory.by_vendor.filter(vendor.id)];
+    for (const inventoryRow of existingInventory) {
+      if (!selectedItemIds.has(inventoryRow.itemTemplateId)) {
+        ctx.db.vendorInventory.id.delete(inventoryRow.id);
+      }
+    }
+  }
+}
+
+
+
+export function ensureLocationEnemyTemplates(ctx: any) {
+  for (const location of ctx.db.location.iter()) {
+    const existing = new Set<string>();
+    for (const row of ctx.db.locationEnemyTemplate.by_location.filter(location.id)) {
+      existing.add(row.enemyTemplateId.toString());
+    }
+    const locationTerrain = (location.terrainType ?? '').trim().toLowerCase();
+    for (const template of ctx.db.enemyTemplate.iter()) {
+      const allowed = (template.terrainTypes ?? '')
+        .split(',')
+        .map((entry) => entry.trim().toLowerCase())
+        .filter((entry) => entry.length > 0);
+      if (allowed.length > 0 && locationTerrain && !allowed.includes(locationTerrain)) {
+        continue;
+      }
+      if (existing.has(template.id.toString())) continue;
+      ctx.db.locationEnemyTemplate.insert({
+        id: 0n,
+        locationId: location.id,
+        enemyTemplateId: template.id,
+      });
+    }
+  }
+}
+
+export function spawnEnemy(
+  ctx: any,
+  locationId: bigint,
+  targetLevel: bigint = 1n,
+  avoidTemplateIds: bigint[] = []
+): typeof EnemySpawn.rowType {
+  const templates = [...ctx.db.locationEnemyTemplate.by_location.filter(locationId)];
+  if (templates.length === 0) throw new SenderError('No enemy templates for location');
+
+  const timePref = isNightTime(ctx) ? 'night' : 'day';
+  const allCandidates = templates
+    .map((ref) => ctx.db.enemyTemplate.id.find(ref.enemyTemplateId))
+    .filter(Boolean) as (typeof EnemyTemplate.rowType)[];
+  const timeFiltered = allCandidates.filter((template) => {
+    const pref = (template.timeOfDay ?? '').trim().toLowerCase();
+    if (!pref || pref === 'any') return true;
+    return pref === timePref;
+  });
+  const candidates = timeFiltered.length > 0 ? timeFiltered : allCandidates;
+  if (candidates.length === 0) throw new SenderError('Enemy template missing');
+
+  const adjustedTarget = computeLocationTargetLevel(ctx, locationId, targetLevel);
+  const minLevel = adjustedTarget > 1n ? adjustedTarget - 1n : 1n;
+  const maxLevel = adjustedTarget + 1n;
+  const filteredByLevel = candidates.filter(
+    (candidate) => candidate.level >= minLevel && candidate.level <= maxLevel
+  );
+  const viable = filteredByLevel.length > 0 ? filteredByLevel : candidates;
+  const avoidSet = new Set(avoidTemplateIds.map((id) => id.toString()));
+  const nonAvoid = viable.filter((candidate) => !avoidSet.has(candidate.id.toString()));
+  const pool = nonAvoid.length > 0 ? nonAvoid : viable;
+
+  const diffFor = (candidate: typeof EnemyTemplate.rowType) =>
+    candidate.level > adjustedTarget
+      ? candidate.level - adjustedTarget
+      : adjustedTarget - candidate.level;
+  const weighted: { candidate: typeof EnemyTemplate.rowType; weight: bigint }[] = [];
+  let totalWeight = 0n;
+  for (const candidate of pool) {
+    const diff = diffFor(candidate);
+    const weight = 4n - (diff > 3n ? 3n : diff);
+    const finalWeight = weight > 0n ? weight : 1n;
+    weighted.push({ candidate, weight: finalWeight });
+    totalWeight += finalWeight;
+  }
+  const seed =
+    ctx.timestamp.microsSinceUnixEpoch + locationId + BigInt(pool.length) + BigInt(totalWeight);
+  let roll = totalWeight > 0n ? seed % totalWeight : 0n;
+  let chosen = weighted[0]?.candidate ?? pool[0];
+  for (const entry of weighted) {
+    if (roll < entry.weight) {
+      chosen = entry.candidate;
+      break;
+    }
+    roll -= entry.weight;
+  }
+
+  const minGroup = chosen.groupMin && chosen.groupMin > 0n ? chosen.groupMin : 1n;
+  const maxGroup = chosen.groupMax && chosen.groupMax > 0n ? chosen.groupMax : minGroup;
+  const groupSeed = seed + chosen.id * 11n;
+  let groupCount = minGroup;
+  if (maxGroup > minGroup) {
+    const location = ctx.db.location.id.find(locationId);
+    const region = location ? ctx.db.region.id.find(location.regionId) : undefined;
+    const danger = region?.dangerMultiplier ?? GROUP_SIZE_DANGER_BASE;
+    const delta = danger > GROUP_SIZE_DANGER_BASE ? danger - GROUP_SIZE_DANGER_BASE : 0n;
+    const rawBias =
+      Number(delta) / Math.max(1, Number(GROUP_SIZE_BIAS_RANGE));
+    const bias = Math.max(0, Math.min(GROUP_SIZE_BIAS_MAX, rawBias));
+    const biasScaled = Math.round(bias * 1000);
+    const invBias = 1000 - biasScaled;
+    const sizeCount = Number(maxGroup - minGroup + 1n);
+    let totalWeight = 0;
+    const weights: number[] = [];
+    for (let i = 0; i < sizeCount; i += 1) {
+      const lowWeight = sizeCount - i;
+      const highWeight = i + 1;
+      const weight = invBias * lowWeight + biasScaled * highWeight;
+      weights.push(weight);
+      totalWeight += weight;
+    }
+    let roll = groupSeed % BigInt(totalWeight);
+    for (let i = 0; i < weights.length; i += 1) {
+      const weight = BigInt(weights[i]);
+      if (roll < weight) {
+        groupCount = minGroup + BigInt(i);
+        break;
+      }
+      roll -= weight;
+    }
+  }
+
+  const spawn = ctx.db.enemySpawn.insert({
+    id: 0n,
+    locationId,
+    enemyTemplateId: chosen.id,
+    name: chosen.name,
+    state: 'available',
+    lockedCombatId: undefined,
+    groupCount,
+  });
+
+  seedSpawnMembers(ctx, spawn.id, chosen.id, groupCount, groupSeed);
+  refreshSpawnGroupCount(ctx, spawn.id);
+
+  ctx.db.enemySpawn.id.update({
+    ...spawn,
+    name: `${chosen.name}`,
+  });
+  return ctx.db.enemySpawn.id.find(spawn.id)!;
+}
+
+export function spawnEnemyWithTemplate(
+  ctx: any,
+  locationId: bigint,
+  templateId: bigint
+): typeof EnemySpawn.rowType {
+  const template = ctx.db.enemyTemplate.id.find(templateId);
+  if (!template) throw new SenderError('Enemy template not found');
+  let allowedHere = false;
+  for (const row of ctx.db.locationEnemyTemplate.by_location.filter(locationId)) {
+    if (row.enemyTemplateId === templateId) {
+      allowedHere = true;
+      break;
+    }
+  }
+  if (!allowedHere) throw new SenderError('That creature cannot be tracked here');
+  const timePref = isNightTime(ctx) ? 'night' : 'day';
+  const pref = (template.timeOfDay ?? '').trim().toLowerCase();
+  if (pref && pref !== 'any' && pref !== timePref) {
+    throw new SenderError('That creature is not active right now');
+  }
+  const seed = ctx.timestamp.microsSinceUnixEpoch + locationId + template.id;
+  const minGroup = template.groupMin && template.groupMin > 0n ? template.groupMin : 1n;
+  const maxGroup = template.groupMax && template.groupMax > 0n ? template.groupMax : minGroup;
+  const groupSeed = seed + template.id * 11n;
+  let groupCount = minGroup;
+  if (maxGroup > minGroup) {
+    const location = ctx.db.location.id.find(locationId);
+    const region = location ? ctx.db.region.id.find(location.regionId) : undefined;
+    const danger = region?.dangerMultiplier ?? GROUP_SIZE_DANGER_BASE;
+    const delta = danger > GROUP_SIZE_DANGER_BASE ? danger - GROUP_SIZE_DANGER_BASE : 0n;
+    const rawBias = Number(delta) / Math.max(1, Number(GROUP_SIZE_BIAS_RANGE));
+    const bias = Math.max(0, Math.min(GROUP_SIZE_BIAS_MAX, rawBias));
+    const biasScaled = Math.round(bias * 1000);
+    const invBias = 1000 - biasScaled;
+    const sizeCount = Number(maxGroup - minGroup + 1n);
+    let totalWeight = 0;
+    const weights: number[] = [];
+    for (let i = 0; i < sizeCount; i += 1) {
+      const lowWeight = sizeCount - i;
+      const highWeight = i + 1;
+      const weight = invBias * lowWeight + biasScaled * highWeight;
+      weights.push(weight);
+      totalWeight += weight;
+    }
+    let roll = groupSeed % BigInt(totalWeight);
+    for (let i = 0; i < weights.length; i += 1) {
+      const weight = BigInt(weights[i]);
+      if (roll < weight) {
+        groupCount = minGroup + BigInt(i);
+        break;
+      }
+      roll -= weight;
+    }
+  }
+  const spawn = ctx.db.enemySpawn.insert({
+    id: 0n,
+    locationId,
+    enemyTemplateId: template.id,
+    name: template.name,
+    state: 'available',
+    lockedCombatId: undefined,
+    groupCount,
+  });
+  seedSpawnMembers(ctx, spawn.id, template.id, groupCount, groupSeed);
+  refreshSpawnGroupCount(ctx, spawn.id);
+  ctx.db.enemySpawn.id.update({ ...spawn, name: `${template.name}` });
+  return ctx.db.enemySpawn.id.find(spawn.id)!;
+}
+
+export function ensureAvailableSpawn(
+  ctx: any,
+  locationId: bigint,
+  targetLevel: bigint = 1n
+): typeof EnemySpawn.rowType {
+  let best: typeof EnemySpawn.rowType | null = null;
+  let bestDiff: bigint | null = null;
+  const adjustedTarget = computeLocationTargetLevel(ctx, locationId, targetLevel);
+  for (const spawn of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    if (spawn.state !== 'available') continue;
+    if (spawn.groupCount === 0n) continue;
+    const template = ctx.db.enemyTemplate.id.find(spawn.enemyTemplateId);
+    if (!template) continue;
+    const diff =
+      template.level > adjustedTarget
+        ? template.level - adjustedTarget
+        : adjustedTarget - template.level;
+    if (!best || bestDiff === null || diff < bestDiff) {
+      best = spawn;
+      bestDiff = diff;
+    }
+  }
+  if (best && bestDiff !== null && bestDiff <= 1n) return best;
+  return spawnEnemy(ctx, locationId, targetLevel);
+}
+
+export function ensureEnemyTemplatesAndRoles(ctx: any) {
+  const addEnemyTemplate = (row: any) => {
+    const existing = findEnemyTemplateByName(ctx, row.name);
+    if (existing) {
+      ctx.db.enemyTemplate.id.update({
+        ...existing,
+        ...row,
+        id: existing.id,
+      });
+      return ctx.db.enemyTemplate.id.find(existing.id) ?? { ...existing, ...row, id: existing.id };
+    }
+    return ctx.db.enemyTemplate.insert({
+      id: 0n,
+      ...row,
+    });
+  };
+  const addRoleTemplate = (
+    template: typeof EnemyTemplate.rowType,
+    roleKey: string,
+    displayName: string,
+    role: string,
+    roleDetail: string,
+    abilityProfile: string
+  ) => {
+    const existing = [...ctx.db.enemyRoleTemplate.by_template.filter(template.id)].find(
+      (row) => row.roleKey === roleKey
+    );
+    if (existing) {
+      ctx.db.enemyRoleTemplate.id.update({
+        ...existing,
+        enemyTemplateId: template.id,
+        roleKey,
+        displayName,
+        role,
+        roleDetail,
+        abilityProfile,
+      });
+      return;
+    }
+    ctx.db.enemyRoleTemplate.insert({
+      id: 0n,
+      enemyTemplateId: template.id,
+      roleKey,
+      displayName,
+      role,
+      roleDetail,
+      abilityProfile,
+    });
+  };
+
+  const factionIdByName = (name: string): bigint | undefined =>
+    ([...ctx.db.faction.iter()] as any[]).find((r: any) => r.name === name)?.id;
+
+  const fIronCompact = factionIdByName('Iron Compact');
+  const fVerdantCircle = factionIdByName('Verdant Circle');
+  const fAshenOrder = factionIdByName('Ashen Order');
+  const fFreeBlades = factionIdByName('Free Blades');
+
+  const bogRat = addEnemyTemplate({
+    name: 'Bog Rat',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'swamp',
+    creatureType: 'animal',
+    timeOfDay: 'any',
+    socialGroup: 'animal',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 12n,
+    level: 2n,
+    maxHp: 32n,
+    baseDamage: 5n,
+    xpReward: 18n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(bogRat, 'bog_rat', 'Bog Rat', 'tank', 'melee', 'thick hide, taunt');
+  addRoleTemplate(bogRat, 'bog_rat_brute', 'Bog Rat Brute', 'tank', 'melee', 'thick hide, taunt');
+  addRoleTemplate(bogRat, 'bog_rat_scavenger', 'Bog Rat Scavenger', 'dps', 'melee', 'gnaw, dart');
+
+  const emberWisp = addEnemyTemplate({
+    name: 'Ember Wisp',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'plains,mountains',
+    creatureType: 'spirit',
+    timeOfDay: 'night',
+    socialGroup: 'spirit',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 8n,
+    level: 2n,
+    maxHp: 28n,
+    baseDamage: 6n,
+    xpReward: 20n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(emberWisp, 'ember_wisp', 'Ember Wisp', 'dps', 'magic', 'fire bolts, ignite');
+  addRoleTemplate(emberWisp, 'ember_wisp_flare', 'Ember Wisp Flare', 'dps', 'magic', 'flare, ignite');
+  addRoleTemplate(emberWisp, 'ember_wisp_spark', 'Ember Wisp Spark', 'support', 'magic', 'spark, veil');
+
+  const bandit = addEnemyTemplate({
+    name: 'Bandit',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'plains,woods',
+    creatureType: 'humanoid',
+    timeOfDay: 'day',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 8n,
+    level: 2n,
+    maxHp: 24n,
+    baseDamage: 7n,
+    xpReward: 18n,
+    factionId: fFreeBlades,
+  });
+  addRoleTemplate(bandit, 'bandit_archer', 'Bandit Archer', 'dps', 'ranged', 'rapid shot, bleed');
+  addRoleTemplate(bandit, 'bandit_ruffian', 'Bandit Ruffian', 'tank', 'melee', 'shield bash, taunt');
+  addRoleTemplate(bandit, 'bandit_cutthroat', 'Bandit Cutthroat', 'dps', 'melee', 'quick slash, feint');
+
+  const blightStalker = addEnemyTemplate({
+    name: 'Blight Stalker',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods,swamp',
+    creatureType: 'beast',
+    timeOfDay: 'night',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 4n,
+    armorClass: 9n,
+    level: 3n,
+    maxHp: 30n,
+    baseDamage: 8n,
+    xpReward: 24n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(blightStalker, 'blight_stalker', 'Blight Stalker', 'dps', 'melee', 'pounce, shred');
+  addRoleTemplate(blightStalker, 'blight_stalker_brute', 'Blight Stalker Brute', 'tank', 'melee', 'maul, snarl');
+  addRoleTemplate(blightStalker, 'blight_stalker_prowler', 'Blight Stalker Prowler', 'dps', 'melee', 'ambush, shred');
+
+  const graveAcolyte = addEnemyTemplate({
+    id: 0n,
+    name: 'Grave Acolyte',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'town,city',
+    creatureType: 'undead',
+    timeOfDay: 'night',
+    socialGroup: 'undead',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 9n,
+    level: 2n,
+    maxHp: 22n,
+    baseDamage: 4n,
+    xpReward: 18n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(graveAcolyte, 'grave_acolyte', 'Grave Acolyte', 'healer', 'support', 'mend, cleanse');
+  addRoleTemplate(graveAcolyte, 'grave_ritualist', 'Grave Ritualist', 'support', 'control', 'curse, drain');
+  addRoleTemplate(graveAcolyte, 'grave_zealot', 'Grave Zealot', 'dps', 'melee', 'slash, frenzy');
+
+  const hexbinder = addEnemyTemplate({
+    id: 0n,
+    name: 'Hexbinder',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods,swamp',
+    creatureType: 'humanoid',
+    timeOfDay: 'night',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 9n,
+    level: 3n,
+    maxHp: 26n,
+    baseDamage: 5n,
+    xpReward: 22n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(hexbinder, 'hexbinder', 'Hexbinder', 'support', 'control', 'weaken, slow, snare');
+  addRoleTemplate(hexbinder, 'hexbinder_stalker', 'Hexbinder Stalker', 'dps', 'melee', 'hex strike, feint');
+  addRoleTemplate(hexbinder, 'hexbinder_warder', 'Hexbinder Warder', 'tank', 'melee', 'ward, taunt');
+
+  const thicketWolf = addEnemyTemplate({
+    id: 0n,
+    name: 'Thicket Wolf',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods,plains',
+    creatureType: 'animal',
+    timeOfDay: 'day',
+    socialGroup: 'animal',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 9n,
+    level: 1n,
+    maxHp: 22n,
+    baseDamage: 4n,
+    xpReward: 12n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(thicketWolf, 'thicket_wolf', 'Thicket Wolf', 'dps', 'melee', 'pack bite, lunge');
+  addRoleTemplate(thicketWolf, 'thicket_wolf_alpha', 'Thicket Wolf Alpha', 'tank', 'melee', 'alpha bite, howl');
+  addRoleTemplate(thicketWolf, 'thicket_wolf_prowler', 'Thicket Wolf Prowler', 'dps', 'melee', 'lunge, rake');
+
+  const marshCroaker = addEnemyTemplate({
+    id: 0n,
+    name: 'Marsh Croaker',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'swamp',
+    creatureType: 'animal',
+    timeOfDay: 'day',
+    socialGroup: 'animal',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 8n,
+    level: 1n,
+    maxHp: 20n,
+    baseDamage: 3n,
+    xpReward: 10n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(marshCroaker, 'marsh_croaker', 'Marsh Croaker', 'dps', 'melee', 'tongue lash, croak');
+  addRoleTemplate(marshCroaker, 'marsh_croaker_bully', 'Marsh Croaker Bully', 'tank', 'melee', 'slam, croak');
+
+  const dustHare = addEnemyTemplate({
+    id: 0n,
+    name: 'Dust Hare',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'plains',
+    creatureType: 'animal',
+    timeOfDay: 'day',
+    socialGroup: 'animal',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 7n,
+    level: 1n,
+    maxHp: 18n,
+    baseDamage: 3n,
+    xpReward: 10n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(dustHare, 'dust_hare', 'Dust Hare', 'dps', 'melee', 'dart, nip');
+  addRoleTemplate(dustHare, 'dust_hare_skitter', 'Dust Hare Skitter', 'dps', 'melee', 'skitter, nip');
+  addRoleTemplate(dustHare, 'dust_hare_scout', 'Dust Hare Scout', 'support', 'melee', 'distract, dart');
+
+  const ashJackal = addEnemyTemplate({
+    id: 0n,
+    name: 'Ash Jackal',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'plains',
+    creatureType: 'beast',
+    timeOfDay: 'any',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 8n,
+    level: 2n,
+    maxHp: 24n,
+    baseDamage: 6n,
+    xpReward: 18n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(ashJackal, 'ash_jackal', 'Ash Jackal', 'dps', 'melee', 'snap, pack feint');
+  addRoleTemplate(ashJackal, 'ash_jackal_alpha', 'Ash Jackal Alpha', 'tank', 'melee', 'alpha snap, snarl');
+
+  const thornSprite = addEnemyTemplate({
+    id: 0n,
+    name: 'Thorn Sprite',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods',
+    creatureType: 'spirit',
+    timeOfDay: 'night',
+    socialGroup: 'spirit',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 8n,
+    level: 2n,
+    maxHp: 20n,
+    baseDamage: 4n,
+    xpReward: 16n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(thornSprite, 'thorn_sprite', 'Thorn Sprite', 'support', 'magic', 'sting, wither pollen');
+  addRoleTemplate(thornSprite, 'thorn_sprite_stinger', 'Thorn Sprite Stinger', 'dps', 'magic', 'sting, dart');
+
+  const gloomStag = addEnemyTemplate({
+    id: 0n,
+    name: 'Gloom Stag',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods',
+    creatureType: 'beast',
+    timeOfDay: 'any',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 12n,
+    level: 3n,
+    maxHp: 34n,
+    baseDamage: 7n,
+    xpReward: 24n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(gloomStag, 'gloom_stag', 'Gloom Stag', 'tank', 'melee', 'gore, bulwark');
+  addRoleTemplate(gloomStag, 'gloom_stag_charger', 'Gloom Stag Charger', 'dps', 'melee', 'charge, gore');
+
+  const mireLeech = addEnemyTemplate({
+    id: 0n,
+    name: 'Mire Leech',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'swamp',
+    creatureType: 'beast',
+    timeOfDay: 'any',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 9n,
+    level: 2n,
+    maxHp: 26n,
+    baseDamage: 6n,
+    xpReward: 18n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(mireLeech, 'mire_leech', 'Mire Leech', 'dps', 'melee', 'drain, latch');
+  addRoleTemplate(mireLeech, 'mire_leech_bulwark', 'Mire Leech Bulwark', 'tank', 'melee', 'latch, bulwark');
+
+  const fenWitch = addEnemyTemplate({
+    id: 0n,
+    name: 'Fen Witch',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'swamp',
+    creatureType: 'humanoid',
+    timeOfDay: 'night',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 9n,
+    level: 3n,
+    maxHp: 28n,
+    baseDamage: 6n,
+    xpReward: 22n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(fenWitch, 'fen_witch', 'Fen Witch', 'support', 'magic', 'curse, mire ward');
+  addRoleTemplate(fenWitch, 'fen_witch_hexer', 'Fen Witch Hexer', 'dps', 'magic', 'hex, sting');
+
+  const graveSkirmisher = addEnemyTemplate({
+    id: 0n,
+    name: 'Grave Skirmisher',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'town,city',
+    creatureType: 'undead',
+    timeOfDay: 'day',
+    socialGroup: 'undead',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 9n,
+    level: 2n,
+    maxHp: 26n,
+    baseDamage: 6n,
+    xpReward: 18n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(graveSkirmisher, 'grave_skirmisher', 'Grave Skirmisher', 'dps', 'melee', 'rusty slash, feint');
+  addRoleTemplate(graveSkirmisher, 'grave_skirmisher_guard', 'Grave Skirmisher Guard', 'tank', 'melee', 'guard, slam');
+
+  const cinderSentinel = addEnemyTemplate({
+    id: 0n,
+    name: 'Cinder Sentinel',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains,plains',
+    creatureType: 'construct',
+    timeOfDay: 'day',
+    socialGroup: 'construct',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 13n,
+    level: 3n,
+    maxHp: 36n,
+    baseDamage: 6n,
+    xpReward: 26n,
+    factionId: fIronCompact,
+  });
+  addRoleTemplate(cinderSentinel, 'cinder_sentinel', 'Cinder Sentinel', 'tank', 'melee', 'stone wall, slam');
+  addRoleTemplate(cinderSentinel, 'cinder_sentinel_breaker', 'Cinder Sentinel Breaker', 'dps', 'melee', 'breaker slam, cleave');
+
+  const emberling = addEnemyTemplate({
+    id: 0n,
+    name: 'Emberling',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains,plains',
+    creatureType: 'spirit',
+    timeOfDay: 'day',
+    socialGroup: 'spirit',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 7n,
+    level: 1n,
+    maxHp: 18n,
+    baseDamage: 4n,
+    xpReward: 12n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(emberling, 'emberling', 'Emberling', 'support', 'magic', 'ember spark, kindle');
+  addRoleTemplate(emberling, 'emberling_spark', 'Emberling Spark', 'dps', 'magic', 'spark, ignite');
+
+  const frostboneAcolyte = addEnemyTemplate({
+    id: 0n,
+    name: 'Frostbone Acolyte',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains,city',
+    creatureType: 'undead',
+    timeOfDay: 'night',
+    socialGroup: 'undead',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 9n,
+    level: 4n,
+    maxHp: 30n,
+    baseDamage: 6n,
+    xpReward: 30n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(
+    frostboneAcolyte,
+    'frostbone_acolyte',
+    'Frostbone Acolyte',
+    'healer',
+    'support',
+    'ice mend, ward'
+  );
+  addRoleTemplate(
+    frostboneAcolyte,
+    'frostbone_binder',
+    'Frostbone Binder',
+    'support',
+    'control',
+    'chill bind, ward'
+  );
+  addRoleTemplate(
+    frostboneAcolyte,
+    'frostbone_zealot',
+    'Frostbone Zealot',
+    'dps',
+    'melee',
+    'ice strike, frenzy'
+  );
+
+  const ridgeSkirmisher = addEnemyTemplate({
+    id: 0n,
+    name: 'Ridge Skirmisher',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains',
+    creatureType: 'humanoid',
+    timeOfDay: 'day',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 10n,
+    level: 3n,
+    maxHp: 28n,
+    baseDamage: 7n,
+    xpReward: 24n,
+    factionId: fFreeBlades,
+  });
+  addRoleTemplate(ridgeSkirmisher, 'ridge_skirmisher', 'Ridge Skirmisher', 'dps', 'melee', 'rock slash, feint');
+  addRoleTemplate(
+    ridgeSkirmisher,
+    'ridge_skirmisher_guard',
+    'Ridge Skirmisher Guard',
+    'tank',
+    'melee',
+    'guard, slam'
+  );
+
+  const emberhawk = addEnemyTemplate({
+    id: 0n,
+    name: 'Emberhawk',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains,plains',
+    creatureType: 'beast',
+    timeOfDay: 'day',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 9n,
+    level: 4n,
+    maxHp: 26n,
+    baseDamage: 8n,
+    xpReward: 30n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(emberhawk, 'emberhawk', 'Emberhawk', 'dps', 'ranged', 'burning dive');
+  addRoleTemplate(emberhawk, 'emberhawk_screecher', 'Emberhawk Screecher', 'support', 'ranged', 'screech, dive');
+
+  const basaltBrute = addEnemyTemplate({
+    id: 0n,
+    name: 'Basalt Brute',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains',
+    creatureType: 'construct',
+    timeOfDay: 'any',
+    socialGroup: 'construct',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 14n,
+    level: 4n,
+    maxHp: 40n,
+    baseDamage: 7n,
+    xpReward: 32n,
+    factionId: fIronCompact,
+  });
+  addRoleTemplate(basaltBrute, 'basalt_brute', 'Basalt Brute', 'tank', 'melee', 'stone slam, brace');
+
+  const ashenRam = addEnemyTemplate({
+    id: 0n,
+    name: 'Ashen Ram',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains',
+    creatureType: 'beast',
+    timeOfDay: 'day',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 12n,
+    level: 4n,
+    maxHp: 34n,
+    baseDamage: 8n,
+    xpReward: 32n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(ashenRam, 'ashen_ram', 'Ashen Ram', 'tank', 'melee', 'ram charge, shove');
+  addRoleTemplate(ashenRam, 'ashen_ram_runner', 'Ashen Ram Runner', 'dps', 'melee', 'charging gore');
+
+  const sootboundSentry = addEnemyTemplate({
+    id: 0n,
+    name: 'Sootbound Sentry',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains',
+    creatureType: 'construct',
+    timeOfDay: 'any',
+    socialGroup: 'construct',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 14n,
+    level: 5n,
+    maxHp: 42n,
+    baseDamage: 9n,
+    xpReward: 38n,
+    factionId: fIronCompact,
+  });
+  addRoleTemplate(sootboundSentry, 'sootbound_sentry', 'Sootbound Sentry', 'tank', 'melee', 'iron guard');
+  addRoleTemplate(
+    sootboundSentry,
+    'sootbound_sentry_watcher',
+    'Sootbound Watcher',
+    'support',
+    'magic',
+    'alarm pulse'
+  );
+  addRoleTemplate(basaltBrute, 'basalt_brute_crusher', 'Basalt Brute Crusher', 'dps', 'melee', 'crusher slam, cleave');
+
+  const graveServant = addEnemyTemplate({
+    id: 0n,
+    name: 'Grave Servant',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'town,city',
+    creatureType: 'undead',
+    timeOfDay: 'night',
+    socialGroup: 'undead',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 12n,
+    level: 3n,
+    maxHp: 34n,
+    baseDamage: 6n,
+    xpReward: 24n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(graveServant, 'grave_servant', 'Grave Servant', 'tank', 'melee', 'shield crush, watchful');
+  addRoleTemplate(graveServant, 'grave_servant_reaver', 'Grave Servant Reaver', 'dps', 'melee', 'reaver slash, feint');
+
+  const alleyShade = addEnemyTemplate({
+    id: 0n,
+    name: 'Alley Shade',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'town,city',
+    creatureType: 'undead',
+    timeOfDay: 'night',
+    socialGroup: 'undead',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 10n,
+    level: 4n,
+    maxHp: 28n,
+    baseDamage: 9n,
+    xpReward: 30n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(alleyShade, 'alley_shade', 'Alley Shade', 'dps', 'melee', 'shadow cut, vanish');
+  addRoleTemplate(alleyShade, 'alley_shade_stalker', 'Alley Shade Stalker', 'dps', 'melee', 'stalk, strike');
+  addRoleTemplate(alleyShade, 'alley_shade_warden', 'Alley Shade Warden', 'tank', 'melee', 'ward, counter');
+
+  const vaultSentinel = addEnemyTemplate({
+    id: 0n,
+    name: 'Vault Sentinel',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'dungeon',
+    creatureType: 'construct',
+    timeOfDay: 'any',
+    socialGroup: 'construct',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 14n,
+    level: 4n,
+    maxHp: 42n,
+    baseDamage: 7n,
+    xpReward: 34n,
+    factionId: fIronCompact,
+  });
+  addRoleTemplate(vaultSentinel, 'vault_sentinel', 'Vault Sentinel', 'tank', 'melee', 'iron guard, shield bash');
+  addRoleTemplate(vaultSentinel, 'vault_sentinel_crusher', 'Vault Sentinel Crusher', 'dps', 'melee', 'crusher bash, cleave');
+
+  const sootboundMystic = addEnemyTemplate({
+    id: 0n,
+    name: 'Sootbound Mystic',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'dungeon',
+    creatureType: 'humanoid',
+    timeOfDay: 'any',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 10n,
+    level: 5n,
+    maxHp: 36n,
+    baseDamage: 8n,
+    xpReward: 38n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(
+    sootboundMystic,
+    'sootbound_mystic',
+    'Sootbound Mystic',
+    'support',
+    'magic',
+    'cinder hex, ember veil'
+  );
+  addRoleTemplate(
+    sootboundMystic,
+    'sootbound_seer',
+    'Sootbound Seer',
+    'support',
+    'magic',
+    'seer veil, ward'
+  );
+  addRoleTemplate(
+    sootboundMystic,
+    'sootbound_flayer',
+    'Sootbound Flayer',
+    'dps',
+    'magic',
+    'flay, hex'
+  );
+
+  const emberPriest = addEnemyTemplate({
+    id: 0n,
+    name: 'Ember Priest',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'dungeon',
+    creatureType: 'humanoid',
+    timeOfDay: 'any',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 11n,
+    level: 5n,
+    maxHp: 38n,
+    baseDamage: 6n,
+    xpReward: 36n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(emberPriest, 'ember_priest', 'Ember Priest', 'healer', 'support', 'ashen mend, warding flame');
+  addRoleTemplate(emberPriest, 'ember_priest_zealot', 'Ember Priest Zealot', 'dps', 'magic', 'zeal, flame');
+
+  const ashforgedRevenant = addEnemyTemplate({
+    id: 0n,
+    name: 'Ashforged Revenant',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'dungeon',
+    creatureType: 'undead',
+    timeOfDay: 'any',
+    socialGroup: 'undead',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 12n,
+    level: 6n,
+    maxHp: 48n,
+    baseDamage: 10n,
+    xpReward: 44n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(
+    ashforgedRevenant,
+    'ashforged_revenant',
+    'Ashforged Revenant',
+    'dps',
+    'melee',
+    'searing cleave, molten strike'
+  );
+  addRoleTemplate(
+    ashforgedRevenant,
+    'ashforged_bulwark',
+    'Ashforged Bulwark',
+    'tank',
+    'melee',
+    'bulwark, cleave'
+  );
+}
+
+spacetimedb.init((ctx) => {
+  syncAllContent(ctx);
+
+  ensureHealthRegenScheduled(ctx);
+  ensureEffectTickScheduled(ctx);
+  ensureHotTickScheduled(ctx);
+  ensureCastTickScheduled(ctx);
+  ensureDayNightTickScheduled(ctx);
+  ensureHungerDecayScheduled(ctx);
+});
+
+spacetimedb.clientConnected((ctx) => {
+  const existing = ctx.db.player.id.find(ctx.sender);
+  if (!existing) {
+    ctx.db.player.insert({
+      id: ctx.sender,
+      createdAt: ctx.timestamp,
+      lastSeenAt: ctx.timestamp,
+      displayName: undefined,
+      activeCharacterId: undefined,
+      userId: undefined,
+    });
+  } else {
+    ctx.db.player.id.update({ ...existing, lastSeenAt: ctx.timestamp });
+  }
+  ensureHealthRegenScheduled(ctx);
+  ensureEffectTickScheduled(ctx);
+  ensureHotTickScheduled(ctx);
+  ensureCastTickScheduled(ctx);
+  ensureDayNightTickScheduled(ctx);
+  ensureHungerDecayScheduled(ctx);
+});
+
+spacetimedb.clientDisconnected((_ctx) => {
+  // Presence events are written here so others see logout.
+  // Note: _ctx.sender is still available in disconnect.
+  const ctx = _ctx as any;
+  const player = ctx.db.player.id.find(ctx.sender);
+  if (player) {
+    ctx.db.player.id.update({ ...player, lastSeenAt: ctx.timestamp });
+  }
+
+  if (player) {
+    const disconnectAtMicros = ctx.timestamp.microsSinceUnixEpoch;
+    ctx.db.disconnectLogoutTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(disconnectAtMicros + 30_000_000n),
+      playerId: player.id,
+      disconnectAtMicros,
+    });
+  }
+});
+
+
+const reducerDeps = {
+  spacetimedb,
+  t,
+  SenderError,
+  ScheduleAt,
+  Timestamp,
+  Character,
+  Hunger,
+  HungerDecayTick,
+  HUNGER_DECAY_INTERVAL_MICROS,
+  GroupMember,
+  GroupInvite,
+  CombatParticipant,
+  CombatLoopTick,
+  PullState,
+  PullTick,
+  HealthRegenTick,
+  EffectTick,
+  HotTick,
+  CastTick,
+  DayNightTick,
+  DisconnectLogoutTick,
+  CharacterLogoutTick,
+  ResourceGatherTick,
+  ResourceRespawnTick,
+  EnemyRespawnTick,
+  TradeSession,
+  TradeItem,
+  EnemyAbility,
+  CombatEnemyCooldown,
+  CombatEnemyCast,
+  CombatPendingAdd,
+  AggroEntry,
+  requirePlayerUserId,
+  requireCharacterOwnedBy,
+  findCharacterByName,
+  friendUserIds,
+  appendPrivateEvent,
+  appendSystemMessage,
+  fail,
+  appendNpcDialog,
+  appendGroupEvent,
+  logPrivateAndGroup,
+  appendPrivateAndGroupEvent,
+  appendLocationEvent,
+  ensureSpawnsForLocation,
+  ensureAvailableSpawn,
+  computeEnemyStats,
+  activeCombatIdForCharacter,
+  scheduleCombatTick,
+  recomputeCharacterDerived,
+  executeAbilityAction,
+  isClassAllowed,
+  RACE_DATA,
+  isArmorAllowedForClass,
+  normalizeArmorType,
+  EQUIPMENT_SLOTS,
+  ARMOR_TYPES_WITH_NONE,
+  computeBaseStats,
+  manaStatForClass,
+  baseArmorForClass,
+  BASE_HP,
+  HP_STR_MULTIPLIER,
+  BASE_MANA,
+  abilityCooldownMicros,
+  abilityCastMicros,
+  enemyAbilityCastMicros,
+  enemyAbilityCooldownMicros,
+  grantStarterItems,
+  areLocationsConnected,
+  sumCharacterEffect,
+  sumEnemyEffect,
+  applyArmorMitigation,
+  spawnEnemy,
+  spawnEnemyWithTemplate,
