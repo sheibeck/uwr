@@ -103,6 +103,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 - 2026-02-12: Phase 3.1 renamed from "Faction Hits" to "Combat Balance" before planning
 - Phase 3.1.1 inserted after Phase 3.1: Combat balance part 2 (URGENT)
 - 2026-02-12: Phase 3.1.1 planned — DoT/HoT/debuff/AoE balance with power budget approach, 3 plans created
+- Phase 3.1.2 inserted after Phase 3.1.1: Combat balance for Enemies (URGENT)
 
 ---
 
@@ -169,10 +170,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 52 | Remove 3-character limit - deleted MAX_CHARACTER_SLOTS cap to allow unlimited character creation | 2026-02-13 | 4d462c7 | [52-remove-the-3-character-maximum-limit](./quick/52-remove-the-3-character-maximum-limit/) |
 | 53 | Move resource gathering bar underneath resource name - progress bars render below tile text for improved visibility with short names | 2026-02-13 | c111fb3 | [53-move-resource-gathering-bar-underneath-r](./quick/53-move-resource-gathering-bar-underneath-r/) |
 | 54 | Make Characters panel 2-column layout - creator on left, character list on right for improved usability without scrolling | 2026-02-13 | ae2ea5c | [54-make-characters-panel-2-columns-creator-](./quick/54-make-characters-panel-2-columns-creator-/) |
+| 55 | Fix production bugs - cooldown timers and pull bars - server clock offset mechanism to fix clock skew between maincloud server and client browsers | 2026-02-13 | 7c81f86 | [55-fix-production-bugs-cooldown-timers-not-](./quick/55-fix-production-bugs-cooldown-timers-not-/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick-54 (Make Characters panel 2-column layout)
-**Timestamp:** 2026-02-13T02:21:14Z
+**Stopped at:** Completed quick-55 (Fix production bugs - cooldown timers and pull bars)
+**Timestamp:** 2026-02-13T02:47:21Z
