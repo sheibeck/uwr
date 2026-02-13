@@ -210,10 +210,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 65 | Increase healing values for level 1-2 abilities - doubled flat healing values (~2x) to match HP pool increase from quick-56 | 2026-02-13 | a21d2ae | [65-increase-healing-values-for-level-1-2-ab](./quick/65-increase-healing-values-for-level-1-2-ab/) |
 | 66 | Make log panel open by default for new players - added optional open field to panel defaults, log panel now visible on first login | 2026-02-13 | acfe35c | [66-make-log-panel-open-by-default-for-new-p](./quick/66-make-log-panel-open-by-default-for-new-p/) |
 | 67 | Restore ability descriptions to AbilityTooltip - added meaningful descriptions to all 80 player abilities and fixed resolveDescription bug in seeding path | 2026-02-13 | bd26e4e | [67-restore-ability-descriptions-to-abilityt](./quick/67-restore-ability-descriptions-to-abilityt/) |
+| 68 | Split ability catalog by class - refactored monolithic ability_catalog.ts (1400 lines) into 17 per-class files with thin re-export hub for improved organization | 2026-02-13 | 810c155 | [68-split-ability-catalog-by-class-create-se](./quick/68-split-ability-catalog-by-class-create-se/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick-67-PLAN.md
-**Timestamp:** 2026-02-13T22:09:23Z
+**Stopped at:** Completed quick-68-PLAN.md
+**Timestamp:** 2026-02-13T22:48:22Z
