@@ -1599,9 +1599,65 @@ export const registerCombatReducers = (deps: any) => {
             const baseChance = meta?.aiChance ?? DEFAULT_AI_CHANCE;
             const randomness = meta?.aiRandomness ?? DEFAULT_AI_RANDOMNESS;
             let score = baseWeight;
+
+            // --- Static bonuses (existing) ---
             if (ability.kind === 'dot') score += 30;
             if (ability.targetRule === 'lowest_hp') score += 20;
             if (ability.targetRule === 'aggro') score += 10;
+
+            // --- Dynamic combat-state bonuses (new) ---
+
+            // Heal priority: when ANY living ally is below 30% HP, heal abilities get massive priority
+            if (ability.kind === 'heal') {
+              const allies = [...ctx.db.combatEnemy.by_combat.filter(combat.id)]
+                .filter((e: any) => e.currentHp > 0n && e.id !== enemy.id);
+              const lowestAlly = allies.reduce((low: any, e: any) => {
+                const tmpl = ctx.db.enemyTemplate.id.find(e.enemyTemplateId);
+                const maxHp = tmpl?.maxHp ?? 100n;
+                const hpPercent = (e.currentHp * 100n) / maxHp;
+                const lowTmpl = low ? ctx.db.enemyTemplate.id.find(low.enemyTemplateId) : null;
+                const lowMaxHp = lowTmpl?.maxHp ?? 100n;
+                const lowPercent = low ? (low.currentHp * 100n) / lowMaxHp : 100n;
+                return hpPercent < lowPercent ? e : low;
+              }, null as any);
+              if (lowestAlly) {
+                const tmpl = ctx.db.enemyTemplate.id.find(lowestAlly.enemyTemplateId);
+                const maxHp = tmpl?.maxHp ?? 100n;
+                const hpPercent = Number((lowestAlly.currentHp * 100n) / maxHp);
+                if (hpPercent < 30) {
+                  score += 100;  // Healing becomes top priority when ally below 30% HP
+                } else if (hpPercent < 60) {
+                  score += 40;   // Moderate heal priority when ally below 60% HP
+                }
+              }
+              // Also boost heal priority for self when caster is low HP
+              const selfTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+              const selfMaxHp = selfTemplate?.maxHp ?? 100n;
+              const selfHpPercent = Number((enemy.currentHp * 100n) / selfMaxHp);
+              if (selfHpPercent < 30) {
+                score += 80;  // Self-preservation bonus
+              }
+            }
+
+            // Buff priority: buff abilities score higher in early combat (first 10 seconds = 10,000,000 microseconds)
+            if (ability.kind === 'buff') {
+              const combatAge = nowMicros - combat.createdAt.microsSinceUnixEpoch;
+              if (combatAge < 10_000_000n) {
+                score += 50;  // Strong buff priority in opening seconds
+              } else if (combatAge < 30_000_000n) {
+                score += 20;  // Moderate buff priority in first 30 seconds
+              }
+            }
+
+            // Debuff targeting: debuff abilities prefer the highest-threat player (to slow down the tank)
+            if (ability.kind === 'debuff') {
+              const highestThreatEntry = [...ctx.db.aggroEntry.by_combat.filter(combat.id)]
+                .filter((e: any) => e.enemyId === enemy.id && !e.petId)
+                .sort((a: any, b: any) => a.value > b.value ? -1 : a.value < b.value ? 1 : 0)[0];
+              if (highestThreatEntry && highestThreatEntry.characterId === targetId) {
+                score += 25;  // Bonus for debuffing the highest-threat target
+              }
+            }
 
             const hash = hashString(`${ability.abilityKey}:${combat.id}:${enemy.id}`);
             const jitter = (hash % (randomness * 2)) - randomness;
