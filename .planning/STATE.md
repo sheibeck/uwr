@@ -192,10 +192,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 59 | Increase global health regen rate to match HP pool increase - scaled regen constants (HP 2x, mana/stamina ~67%) to restore pre-quick-56 recovery times | 2026-02-13 | 40db382 | [59-increase-global-health-regen-rate-to-mat](./quick/59-increase-global-health-regen-rate-to-mat/) |
 | 60 | Fix druid Nature's Mark level 2 ability - re-read character from database after mana deduction to ensure fresh locationId for resource gathering | 2026-02-13 | 9c301c6 | [60-fix-druid-nature-s-mark-level-2-ability-](./quick/60-fix-druid-nature-s-mark-level-2-ability-/) |
 | 61 | Fix window position blinking race condition - local-authority dirty tracking prevents server sync from overwriting panel moves during debounced save pipeline | 2026-02-13 | df901cc | [61-fix-window-position-blinking-race-condit](./quick/61-fix-window-position-blinking-race-condit/) |
+| 62 | Investigate circular dependency between combat_scaling.ts and class_stats.ts - identified unused re-export as root cause (zero consumers, trivial fix) | 2026-02-13 | 81bc014 | [62-investigate-circular-dependency-between-](./quick/62-investigate-circular-dependency-between-/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick task 60 — fix druid Nature's Mark resource gathering
-**Timestamp:** 2026-02-13T05:57:42Z
+**Stopped at:** Completed quick task 62 — circular dependency investigation
+**Timestamp:** 2026-02-13T06:01:31Z
