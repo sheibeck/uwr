@@ -216,7 +216,11 @@ Plans:
 
 **Dependencies:** Phase 3 (combat balance complete)
 
-**Plans:** 0 plans
+**Plans:** 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md -- Extend AbilityTemplate table with metadata columns and enhance seeding to populate from ABILITIES + ABILITY_STAT_SCALING
+- [ ] 04-02-PLAN.md -- Migrate consumers to database lookups, remove legacy constants, regenerate bindings, publish
 
 **Scope:**
 - Create `AbilityConfig` table with all ability metadata (name, description, power, cooldown, stat scaling, DoT/HoT/debuff parameters)
