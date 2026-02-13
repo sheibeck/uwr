@@ -1,0 +1,158 @@
+import { SenderError } from 'spacetimedb/server';
+import { Character } from '../schema/tables';
+import {
+  BASE_HP,
+  HP_STR_MULTIPLIER,
+  BASE_MANA,
+  baseArmorForClass,
+  manaStatForClass,
+  usesMana,
+  normalizeClassName,
+} from '../data/class_stats';
+import { getEquippedBonuses } from './items';
+import { effectiveGroupId } from './group';
+
+export function getGroupParticipants(ctx: any, character: any, sameLocation: boolean = true) {
+  const groupId = effectiveGroupId(character);
+  if (!groupId) return [character];
+  const participants: any[] = [];
+  const seen = new Set<string>();
+  for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+    const memberChar = ctx.db.character.id.find(member.characterId);
+    if (!memberChar) continue;
+    if (sameLocation && memberChar.locationId !== character.locationId) continue;
+    const key = memberChar.id.toString();
+    if (seen.has(key)) continue;
+    participants.push(memberChar);
+    seen.add(key);
+  }
+  return participants.length > 0 ? participants : [character];
+}
+
+export function isGroupLeaderOrSolo(ctx: any, character: any) {
+  const groupId = effectiveGroupId(character);
+  if (!groupId) return true;
+  const group = ctx.db.group.id.find(groupId);
+  return !!group && group.leaderCharacterId === character.id;
+}
+
+export function partyMembersInLocation(ctx: any, character: any) {
+  const groupId = effectiveGroupId(character);
+  if (!groupId) return [character];
+  const members: any[] = [];
+  for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+    const memberChar = ctx.db.character.id.find(member.characterId);
+    if (memberChar && memberChar.locationId === character.locationId) {
+      members.push(memberChar);
+    }
+  }
+  if (!members.find((row) => row.id === character.id)) members.unshift(character);
+  return members;
+}
+
+export function recomputeCharacterDerived(ctx: any, character: any) {
+  const gear = getEquippedBonuses(ctx, character.id);
+
+  // Import sumCharacterEffect from combat - need to handle circular dependency
+  // For now, we'll compute effect stats inline
+  let strEffect = 0n, dexEffect = 0n, chaEffect = 0n, wisEffect = 0n, intEffect = 0n;
+  for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
+    if (effect.effectType === 'str_bonus') strEffect += BigInt(effect.magnitude);
+    if (effect.effectType === 'dex_bonus') dexEffect += BigInt(effect.magnitude);
+    if (effect.effectType === 'cha_bonus') chaEffect += BigInt(effect.magnitude);
+    if (effect.effectType === 'wis_bonus') wisEffect += BigInt(effect.magnitude);
+    if (effect.effectType === 'int_bonus') intEffect += BigInt(effect.magnitude);
+  }
+
+  const totalStats = {
+    str: character.str + gear.str + strEffect,
+    dex: character.dex + gear.dex + dexEffect,
+    cha: character.cha + gear.cha + chaEffect,
+    wis: character.wis + gear.wis + wisEffect,
+    int: character.int + gear.int + intEffect,
+  };
+
+  const manaStat = manaStatForClass(character.className, totalStats);
+  const maxHp = BASE_HP + totalStats.str * HP_STR_MULTIPLIER + gear.hpBonus;
+  const maxMana = usesMana(character.className)
+    ? BASE_MANA + manaStat * 6n + gear.manaBonus
+    : 0n;
+
+  const hitChance = totalStats.dex * 15n;
+  const dodgeChance = totalStats.dex * 12n;
+  const parryChance = totalStats.dex * 10n;
+  const critMelee = totalStats.dex * 12n;
+  const critRanged = totalStats.dex * 12n;
+  const critDivine = totalStats.wis * 12n;
+  const critArcane = totalStats.int * 12n;
+
+  // Compute AC bonus inline to avoid circular dependency with combat helper
+  let acBonus = 0n;
+  for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
+    if (effect.effectType === 'ac_bonus') acBonus += BigInt(effect.magnitude);
+  }
+
+  const armorClass = baseArmorForClass(character.className) + gear.armorClassBonus + acBonus;
+  const perception = totalStats.wis * 25n;
+  const search = totalStats.int * 25n;
+  const ccPower = totalStats.cha * 15n;
+  const vendorBuyMod = totalStats.cha * 10n;
+  const vendorSellMod = totalStats.cha * 8n;
+
+  const updated = {
+    ...character,
+    maxHp,
+    maxMana,
+    hitChance,
+    dodgeChance,
+    parryChance,
+    critMelee,
+    critRanged,
+    critDivine,
+    critArcane,
+    armorClass,
+    perception,
+    search,
+    ccPower,
+    vendorBuyMod,
+    vendorSellMod,
+  };
+
+  const clampedHp = character.hp > maxHp ? maxHp : character.hp;
+  const clampedMana = maxMana === 0n ? 0n : character.mana > maxMana ? maxMana : character.mana;
+  ctx.db.character.id.update({
+    ...updated,
+    hp: clampedHp,
+    mana: clampedMana,
+  });
+}
+
+export function isClassAllowed(allowedClasses: string, className: string) {
+  if (!allowedClasses || allowedClasses.trim().length === 0) return true;
+  const normalized = normalizeClassName(className);
+  const allowed = allowedClasses
+    .split(',')
+    .map((entry) => normalizeClassName(entry))
+    .filter((entry) => entry.length > 0);
+  if (allowed.includes('any')) return true;
+  return allowed.includes(normalized);
+}
+
+export function friendUserIds(ctx: any, userId: bigint): bigint[] {
+  const ids: bigint[] = [];
+  for (const row of ctx.db.friend.by_user.filter(userId)) {
+    ids.push(row.friendUserId);
+  }
+  return ids;
+}
+
+export function findCharacterByName(ctx: any, name: string) {
+  let found: any | null = null;
+  for (const row of ctx.db.character.iter()) {
+    if (row.name.toLowerCase() === name.toLowerCase()) {
+      if (found) throw new SenderError('Multiple characters share that name');
+      found = row;
+    }
+  }
+  return found;
+}

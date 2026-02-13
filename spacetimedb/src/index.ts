@@ -123,6 +123,15 @@ import {
   removeItemFromInventory,
   grantStarterItems,
 } from './helpers/items';
+import {
+  getGroupParticipants,
+  isGroupLeaderOrSolo,
+  partyMembersInLocation,
+  recomputeCharacterDerived,
+  isClassAllowed,
+  friendUserIds,
+  findCharacterByName,
+} from './helpers/character';
 import { startCombatForSpawn } from './reducers/combat';
 import { registerViews } from './views';
 import {
@@ -183,30 +192,6 @@ function hasShieldEquipped(ctx: any, characterId: bigint) {
     if (name.includes('shield') || template.armorType === 'shield') return true;
   }
   return false;
-}
-
-function getGroupParticipants(ctx: any, character: any, sameLocation: boolean = true) {
-  const groupId = effectiveGroupId(character);
-  if (!groupId) return [character];
-  const participants: any[] = [];
-  const seen = new Set<string>();
-  for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
-    const memberChar = ctx.db.character.id.find(member.characterId);
-    if (!memberChar) continue;
-    if (sameLocation && memberChar.locationId !== character.locationId) continue;
-    const key = memberChar.id.toString();
-    if (seen.has(key)) continue;
-    participants.push(memberChar);
-    seen.add(key);
-  }
-  return participants.length > 0 ? participants : [character];
-}
-
-function isGroupLeaderOrSolo(ctx: any, character: any) {
-  const groupId = effectiveGroupId(character);
-  if (!groupId) return true;
-  const group = ctx.db.group.id.find(groupId);
-  return !!group && group.leaderCharacterId === character.id;
 }
 
 function abilityCooldownMicros(ctx: any, abilityKey: string) {
@@ -280,20 +265,6 @@ function abilityDamageFromWeapon(
 ) {
   const scaled = (weaponDamage * percent) / 100n + bonus;
   return scaled > weaponDamage ? scaled : weaponDamage + bonus;
-}
-
-function partyMembersInLocation(ctx: any, character: typeof Character.rowType) {
-  const groupId = effectiveGroupId(character);
-  if (!groupId) return [character];
-  const members: typeof Character.rowType[] = [];
-  for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
-    const memberChar = ctx.db.character.id.find(member.characterId);
-    if (memberChar && memberChar.locationId === character.locationId) {
-      members.push(memberChar);
-    }
-  }
-  if (!members.find((row) => row.id === character.id)) members.unshift(character);
-  return members;
 }
 
 function addCharacterEffect(
@@ -1598,74 +1569,6 @@ function executeAbility(
   }
 }
 
-function recomputeCharacterDerived(ctx: any, character: typeof Character.rowType) {
-  const gear = getEquippedBonuses(ctx, character.id);
-  const effectStats = {
-    str: sumCharacterEffect(ctx, character.id, 'str_bonus'),
-    dex: sumCharacterEffect(ctx, character.id, 'dex_bonus'),
-    cha: sumCharacterEffect(ctx, character.id, 'cha_bonus'),
-    wis: sumCharacterEffect(ctx, character.id, 'wis_bonus'),
-    int: sumCharacterEffect(ctx, character.id, 'int_bonus'),
-  };
-  const totalStats = {
-    str: character.str + gear.str + effectStats.str,
-    dex: character.dex + gear.dex + effectStats.dex,
-    cha: character.cha + gear.cha + effectStats.cha,
-    wis: character.wis + gear.wis + effectStats.wis,
-    int: character.int + gear.int + effectStats.int,
-  };
-
-  const manaStat = manaStatForClass(character.className, totalStats);
-  const maxHp = BASE_HP + totalStats.str * HP_STR_MULTIPLIER + gear.hpBonus;
-  const maxMana = usesMana(character.className)
-    ? BASE_MANA + manaStat * 6n + gear.manaBonus
-    : 0n;
-
-  const hitChance = totalStats.dex * 15n;
-  const dodgeChance = totalStats.dex * 12n;
-  const parryChance = totalStats.dex * 10n;
-  const critMelee = totalStats.dex * 12n;
-  const critRanged = totalStats.dex * 12n;
-  const critDivine = totalStats.wis * 12n;
-  const critArcane = totalStats.int * 12n;
-  const armorClass =
-    baseArmorForClass(character.className) +
-    gear.armorClassBonus +
-    sumCharacterEffect(ctx, character.id, 'ac_bonus');
-  const perception = totalStats.wis * 25n;
-  const search = totalStats.int * 25n;
-  const ccPower = totalStats.cha * 15n;
-  const vendorBuyMod = totalStats.cha * 10n;
-  const vendorSellMod = totalStats.cha * 8n;
-
-  const updated = {
-    ...character,
-    maxHp,
-    maxMana,
-    hitChance,
-    dodgeChance,
-    parryChance,
-    critMelee,
-    critRanged,
-    critDivine,
-    critArcane,
-    armorClass,
-    perception,
-    search,
-    ccPower,
-    vendorBuyMod,
-    vendorSellMod,
-  };
-
-  const clampedHp = character.hp > maxHp ? maxHp : character.hp;
-  const clampedMana = maxMana === 0n ? 0n : character.mana > maxMana ? maxMana : character.mana;
-  ctx.db.character.id.update({
-    ...updated,
-    hp: clampedHp,
-    mana: clampedMana,
-  });
-}
-
 function applyEnemyAbilityDamage(
   ctx: any,
   target: any,
@@ -2049,17 +1952,6 @@ function applyDeathXpPenalty(ctx: any, character: typeof Character.rowType) {
   const clamped = nextXp < currentLevelFloor ? currentLevelFloor : nextXp;
   ctx.db.character.id.update({ ...character, xp: clamped });
   return loss;
-}
-
-function isClassAllowed(allowedClasses: string, className: string) {
-  if (!allowedClasses || allowedClasses.trim().length === 0) return true;
-  const normalized = normalizeClassName(className);
-  const allowed = allowedClasses
-    .split(',')
-    .map((entry) => normalizeClassName(entry))
-    .filter((entry) => entry.length > 0);
-  if (allowed.includes('any')) return true;
-  return allowed.includes(normalized);
 }
 
 
@@ -3229,25 +3121,6 @@ function areLocationsConnected(ctx: any, fromId: bigint, toId: bigint) {
     if (row.toLocationId === toId) return true;
   }
   return false;
-}
-
-function friendUserIds(ctx: any, userId: bigint): bigint[] {
-  const ids: bigint[] = [];
-  for (const row of ctx.db.friend.by_user.filter(userId)) {
-    ids.push(row.friendUserId);
-  }
-  return ids;
-}
-
-function findCharacterByName(ctx: any, name: string) {
-  let found: typeof Character.rowType | null = null;
-  for (const row of ctx.db.character.iter()) {
-    if (row.name.toLowerCase() === name.toLowerCase()) {
-      if (found) throw new SenderError('Multiple characters share that name');
-      found = row;
-    }
-  }
-  return found;
 }
 
 function findEnemyTemplateByName(ctx: any, name: string) {
