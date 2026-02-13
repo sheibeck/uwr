@@ -22,16 +22,20 @@
           :style="{
             ...styles.gridTile,
             ...(selectedEnemyId?.toString() === enemy.id.toString() ? styles.gridTileSelected : {}),
+            flexDirection: 'column',
+            alignItems: 'flex-start',
           }"
           @click="toggleSelectEnemy(enemy.id)"
           @contextmenu.prevent="openEnemyContextMenu($event, enemy)"
         >
-          <span :style="styles[enemy.conClass] ?? {}">
-            {{ enemy.name }} (L{{ enemy.level }})
-          </span>
-          <span v-if="enemy.groupCount > 1n" :style="{ fontSize: '0.78rem', opacity: 0.8 }">
-            x{{ enemy.groupCount }}
-          </span>
+          <div :style="{ display: 'flex', alignItems: 'center', gap: '0.3rem' }">
+            <span :style="styles[enemy.conClass] ?? {}">
+              {{ enemy.name }} (L{{ enemy.level }})
+            </span>
+            <span v-if="enemy.groupCount > 1n" :style="{ fontSize: '0.78rem', opacity: 0.8 }">
+              x{{ enemy.groupCount }}
+            </span>
+          </div>
           <div
             v-if="enemy.isPulling && enemy.pullProgress > 0"
             :style="{
@@ -62,7 +66,11 @@
         <div
           v-for="node in resourceNodes"
           :key="node.id.toString()"
-          :style="node.state === 'depleted' ? styles.gridTileDepleted : styles.gridTile"
+          :style="{
+            ...(node.state === 'depleted' ? styles.gridTileDepleted : styles.gridTile),
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+          }"
           @contextmenu.prevent="openResourceContextMenu($event, node)"
         >
           <span>{{ node.name }}</span>
