@@ -149,10 +149,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 40 | Fix log message sorting and coloring - group combat messages show proper red/green/gold colors, same-timestamp events grouped by scope | 2026-02-12 | 3f0cdcb | [40-fix-log-message-sorting-and-coloring-in-](./quick/40-fix-log-message-sorting-and-coloring-in-/) |
 | 41 | Fix group panel buffs/debuffs display - enemy-applied effects now visible using index lookups instead of broken .iter() in view | 2026-02-12 | da9a615 | [41-fix-group-panel-buffs-debuffs-display-en](./quick/41-fix-group-panel-buffs-debuffs-display-en/) |
 | 42 | Fix out-of-combat buffs not showing in group panel - made CharacterEffect table public with client-side filtering to bypass unreliable view reactivity | 2026-02-12 | 8b46cf7 | [42-fix-out-of-combat-buffs-not-showing-in-g](./quick/42-fix-out-of-combat-buffs-not-showing-in-g/) |
+| 43 | Add auto-stacking for loot items (junk) - changed junk item templates to stackable: true for automatic stack merging when looting | 2026-02-13 | c108744 | [43-add-auto-stacking-for-loot-items-junk-it](./quick/43-add-auto-stacking-for-loot-items-junk-it/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed Quick Task 42 - fix out-of-combat buffs not showing in group panel
+**Stopped at:** Completed Quick Task 43 - add auto-stacking for loot items (junk)
 **Timestamp:** 2026-02-12T23:46:09Z
