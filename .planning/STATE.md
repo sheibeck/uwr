@@ -81,7 +81,9 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 42. Enemy damage type routing: physical (poison/venom/bite/gore/bleed/stone/bog) vs magic (ember/fire/shadow/hex/curse/searing) routes through armor vs magic resist (3.1.2-01)
 43. Enemy combat balance verified functional with all 6 ability kinds — user noted combat duration concern (battles too short) for potential future survivability tuning pass (3.1.2-03)
 44. Tank threat multiplier 1.5x (conservative start), healer 0.5x, healing generates 50% threat split across enemies — role-based threat system for tank/healer/DPS trinity (3.1.3-01)
-45. Combat duration tuned via centralized constants: BASE_HP (50n), HP_STR_MULTIPLIER (8n), GLOBAL_DAMAGE_MULTIPLIER (85n = 15% reduction), enemy HP ~80% increase — roughly doubles combat length (quick-56)
+45. Enemy AI scoring is combat-state-aware: healers +100 score when ally <30% HP, buffers +50 in first 10s, debuffers +25 vs highest threat — dynamic priority system (3.1.3-02)
+46. Enemies leash (evade to full HP) when all players flee combat — prevents kiting exploit, spawn resets to 'available' state (3.1.3-02)
+47. Combat duration tuned via centralized constants: BASE_HP (50n), HP_STR_MULTIPLIER (8n), GLOBAL_DAMAGE_MULTIPLIER (85n = 15% reduction), enemy HP ~80% increase — roughly doubles combat length (quick-56)
 
 ---
 
@@ -106,7 +108,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 03.1.2-combat-balance-for-enemies | 02 | 5min | 2 | 1 |
 | 03.1.2-combat-balance-for-enemies | 03 | 2min | 1 | 0 |
 | 03.1.3-enemy-ai-and-aggro-management | 01 | 3min | 2 | 4 |
-| Phase 03.1.3-enemy-ai-and-aggro-management P02 | 4min | 2 tasks | 1 files |
+| 03.1.3-enemy-ai-and-aggro-management | 02 | 4min | 2 | 1 |
 
 ## Accumulated Context
 
@@ -190,5 +192,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed quick-56 (Combat duration improvements - HP pools and global damage reduction)
-**Timestamp:** 2026-02-13T05:15:00Z
+**Stopped at:** Completed 03.1.3-02-PLAN.md (Phase 03.1.3 plan 02 — combat-state-aware AI and leashing)
+**Timestamp:** 2026-02-13T05:18:00Z
