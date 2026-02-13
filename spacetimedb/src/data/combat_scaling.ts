@@ -1,4 +1,4 @@
-import { CLASS_CONFIG, getClassConfig, type StatKey } from './class_stats.js';
+import { getClassConfig, type StatKey } from './class_stats.js';
 import { ABILITIES } from './ability_catalog.js';
 
 // ============================================================================
