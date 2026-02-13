@@ -45,6 +45,15 @@ export function usePanelManager(
   const dragState = ref<DragState | null>(null);
   const resizeState = ref<ResizeState | null>(null);
   const topZ = ref(10);
+  const dirtyUntil = ref(0); // Timestamp until which local state has authority over server sync
+
+  // Dirty window covers: 300ms localStorage + 2000ms server + ~500ms round-trip
+  const DIRTY_WINDOW = 3000;
+
+  // Mark local state as dirty to prevent server overwrite during save pipeline
+  const markDirty = () => {
+    dirtyUntil.value = Date.now() + DIRTY_WINDOW;
+  };
 
   // Initialize panels from defaults
   for (const [id, def] of Object.entries(defaults)) {
@@ -190,6 +199,7 @@ export function usePanelManager(
     if (panels[id].open) {
       bringToFront(id);
     }
+    markDirty();
   };
 
   // Open panel and bring to front
@@ -197,12 +207,14 @@ export function usePanelManager(
     if (!panels[id]) return;
     panels[id].open = true;
     bringToFront(id);
+    markDirty();
   };
 
   // Close panel
   const closePanel = (id: string) => {
     if (!panels[id]) return;
     panels[id].open = false;
+    markDirty();
   };
 
   // Bring panel to front
@@ -282,6 +294,7 @@ export function usePanelManager(
 
       panel.x = newX;
       panel.y = newY;
+      markDirty();
     } else if (resizeState.value) {
       const { panelId, startX, startY, startW, startH, startPosX, startPosY, edges } =
         resizeState.value;
@@ -321,6 +334,7 @@ export function usePanelManager(
       panel.h = newH;
       panel.x = newX;
       panel.y = newY;
+      markDirty();
     }
   };
 
@@ -360,6 +374,8 @@ export function usePanelManager(
       [() => serverSync.serverPanelLayouts.value, () => serverSync.selectedCharacterId.value],
       ([layouts, charId]) => {
         if (!charId || !layouts || layouts.length === 0) return;
+        // Skip server sync if local state is dirty (user made recent changes)
+        if (dirtyUntil.value > Date.now()) return;
         // Convert charId to bigint for comparison (it's stored as a string in useCharacters)
         const charIdBigInt = typeof charId === 'string' ? BigInt(charId) : charId;
         // Find the layout row for the active character
