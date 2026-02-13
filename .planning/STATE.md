@@ -69,6 +69,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 33. Scheduled reducer per-user data must use public tables, not private tables + views — views don't re-evaluate reliably for scheduled reducer inserts (quick-35)
 34. All abilities with power > 0n use ONLY hybrid formula (no weaponComponent) — fixes double-dipping bug that caused 5-6x damage (3.1-04)
 35. Ability scaling constants tuned: ABILITY_STAT_SCALING_PER_POINT reduced from 2n to 1n, power base multiplier reduced from 10n to 5n — brings abilities to 15-25 damage range, stats contribute ~30-40% (3.1-05)
+36. All per-user tables except Player converted to public with client-side filtering — SpacetimeDB views have unreliable reactivity; only myPlayer view remains (identity-based filtering) (quick-46)
 
 ---
 
@@ -152,11 +153,12 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 43 | Add auto-stacking for loot items (junk) - changed junk item templates to stackable: true for automatic stack merging when looting | 2026-02-13 | c108744 | [43-add-auto-stacking-for-loot-items-junk-it](./quick/43-add-auto-stacking-for-loot-items-junk-it/) |
 | 44 | Fix NPC dialog not appearing in Journal panel - made NpcDialog public table with client-side character filtering to bypass unreliable view reactivity | 2026-02-13 | 1effc28 | [44-fix-npc-dialog-not-appearing-in-journal-](./quick/44-fix-npc-dialog-not-appearing-in-journal-/) |
 | 45 | Add confirmation dialog before deleting inventory items - prevent accidental deletion with browser confirm dialog showing item name and quantity | 2026-02-13 | f703460 | [45-in-the-inventory-panel-when-we-bring-up-](./quick/45-in-the-inventory-panel-when-we-bring-up-/) |
+| 46 | Proactively fix remaining SpacetimeDB view issues - converted 12 private tables to public with client-side filtering to eliminate unreliable view subscriptions | 2026-02-13 | 42da4b9 | [46-proactively-fix-remaining-spacetimedb-vi](./quick/46-proactively-fix-remaining-spacetimedb-vi/) |
 | 47 | Persist open/closed state of windows - log panel and all toggleable panels respect saved state across reloads and character switches | 2026-02-13 | 6e3185b | [47-we-save-the-locations-of-our-windows-on-](./quick/47-we-save-the-locations-of-our-windows-on-/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed Quick Task 47 - persist open/closed state of windows
-**Timestamp:** 2026-02-13T01:10:00Z
+**Stopped at:** Completed Quick Task 46 - proactively fix remaining SpacetimeDB view issues
+**Timestamp:** 2026-02-13T01:11:00Z
