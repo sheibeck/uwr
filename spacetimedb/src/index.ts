@@ -5473,6 +5473,18 @@ function ensureEnemyAbilities(ctx: any) {
   upsertEnemyAbility('Sootbound Mystic', 'soot_hex', 'Soot Hex', 'debuff', 2n, 18n, 'aggro');
   upsertEnemyAbility('Ember Priest', 'cinder_blight', 'Cinder Blight', 'dot', 2n, 16n, 'aggro');
   upsertEnemyAbility('Ashforged Revenant', 'molten_bleed', 'Molten Bleed', 'dot', 3n, 20n, 'aggro');
+
+  // Heal abilities
+  upsertEnemyAbility('Fen Witch', 'shaman_heal', 'Shaman Heal', 'heal', 2n, 15n, 'lowest_hp');
+  upsertEnemyAbility('Grave Acolyte', 'dark_mend', 'Dark Mend', 'heal', 3n, 20n, 'lowest_hp');
+
+  // AoE abilities
+  upsertEnemyAbility('Cinder Sentinel', 'flame_burst', 'Flame Burst', 'aoe_damage', 2n, 20n, 'all_players');
+  upsertEnemyAbility('Basalt Brute', 'quake_wave', 'Quake Wave', 'aoe_damage', 3n, 25n, 'all_players');
+
+  // Buff abilities
+  upsertEnemyAbility('Hexbinder', 'warchief_rally', 'Warchief Rally', 'buff', 2n, 30n, 'all_allies');
+  upsertEnemyAbility('Sootbound Mystic', 'bolster_defenses', 'Bolster Defenses', 'buff', 2n, 25n, 'all_allies');
 }
 
 function ensureWorldLayout(ctx: any) {
