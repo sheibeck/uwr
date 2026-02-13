@@ -5,6 +5,7 @@ export type DamageType = 'physical' | 'magic' | 'none';
 // Ability entries use this shape (extended with DoT/HoT/debuff/AoE metadata)
 export interface AbilityMetadata {
   name: string;
+  description: string;
   className: string;
   resource: string;
   level: bigint;
@@ -33,6 +34,7 @@ export interface AbilityMetadata {
 export const ABILITIES = {
   shaman_spirit_mender: {
     name: 'Spirit Mender',
+    description: 'Channels spirit energy to heal an ally over time.',
     className: 'shaman',
     resource: 'mana',
     level: 1n,
@@ -45,6 +47,7 @@ export const ABILITIES = {
   },
   shaman_spirit_wolf: {
     name: 'Spirit Wolf',
+    description: 'Summons a spirit wolf companion to fight alongside you.',
     className: 'shaman',
     resource: 'mana',
     level: 2n,
@@ -55,6 +58,7 @@ export const ABILITIES = {
   },
   shaman_hex: {
     name: 'Hex',
+    description: 'Hexes the target with shadow magic, reducing their armor class.',
     className: 'shaman',
     resource: 'mana',
     level: 3n,
@@ -68,6 +72,7 @@ export const ABILITIES = {
   },
   shaman_ancestral_ward: {
     name: 'Ancestral Ward',
+    description: 'Calls upon ancestral spirits to shield an ally from harm.',
     className: 'shaman',
     resource: 'mana',
     level: 4n,
@@ -78,6 +83,7 @@ export const ABILITIES = {
   },
   shaman_stormcall: {
     name: 'Stormcall',
+    description: 'Summons a bolt of lightning to strike a single target.',
     className: 'shaman',
     resource: 'mana',
     level: 5n,
@@ -88,6 +94,7 @@ export const ABILITIES = {
   },
   warrior_slam: {
     name: 'Slam',
+    description: 'Slams the target with a powerful blow, dealing physical damage.',
     className: 'warrior',
     resource: 'stamina',
     level: 1n,
@@ -98,6 +105,7 @@ export const ABILITIES = {
   },
   warrior_intimidating_presence: {
     name: 'Intimidating Presence',
+    description: 'Intimidates enemies with a fierce roar, drawing their attention to you.',
     className: 'warrior',
     resource: 'stamina',
     level: 2n,
@@ -108,6 +116,7 @@ export const ABILITIES = {
   },
   warrior_cleave: {
     name: 'Cleave',
+    description: 'Sweeps your weapon in a wide arc, striking all nearby enemies.',
     className: 'warrior',
     resource: 'stamina',
     level: 3n,
@@ -119,6 +128,7 @@ export const ABILITIES = {
   },
   warrior_rally: {
     name: 'Rally',
+    description: 'Rallies your party with an inspiring shout, boosting their morale.',
     className: 'warrior',
     resource: 'stamina',
     level: 4n,
@@ -129,6 +139,7 @@ export const ABILITIES = {
   },
   warrior_crushing_blow: {
     name: 'Crushing Blow',
+    description: 'Delivers a devastating crushing strike to a single target.',
     className: 'warrior',
     resource: 'stamina',
     level: 5n,
@@ -139,6 +150,7 @@ export const ABILITIES = {
   },
   enchanter_mind_fray: {
     name: 'Mind Fray',
+    description: 'Assaults the target with psychic energy, dealing magic damage.',
     className: 'enchanter',
     resource: 'mana',
     level: 1n,
@@ -149,6 +161,7 @@ export const ABILITIES = {
   },
   enchanter_veil_of_calm: {
     name: 'Veil of Calm',
+    description: 'Cloaks an ally in soothing magic, suppressing enemy aggression toward them.',
     className: 'enchanter',
     resource: 'mana',
     level: 2n,
@@ -159,6 +172,7 @@ export const ABILITIES = {
   },
   enchanter_slow: {
     name: 'Slow',
+    description: 'Weaves time magic around the target, slowing their movements.',
     className: 'enchanter',
     resource: 'mana',
     level: 3n,
@@ -172,6 +186,7 @@ export const ABILITIES = {
   },
   enchanter_clarity_ii: {
     name: 'Clarity II',
+    description: 'Enhances an ally with mental clarity, hastening their mana regeneration.',
     className: 'enchanter',
     resource: 'mana',
     level: 4n,
@@ -182,6 +197,7 @@ export const ABILITIES = {
   },
   enchanter_charm_fray: {
     name: 'Charm Fray',
+    description: 'Weaves enchanting magic to damage and beguile the target.',
     className: 'enchanter',
     resource: 'mana',
     level: 5n,
@@ -192,6 +208,7 @@ export const ABILITIES = {
   },
   cleric_mend: {
     name: 'Mend',
+    description: 'Channels divine light to restore an ally\'s health.',
     className: 'cleric',
     resource: 'mana',
     level: 1n,
@@ -202,6 +219,7 @@ export const ABILITIES = {
   },
   wizard_magic_missile: {
     name: 'Magic Missile',
+    description: 'Launches unerring bolts of arcane force at a single target.',
     className: 'wizard',
     resource: 'mana',
     level: 1n,
@@ -212,6 +230,7 @@ export const ABILITIES = {
   },
   cleric_sanctify: {
     name: 'Sanctify',
+    description: 'Blesses an ally with divine protection, shielding them from harm.',
     className: 'cleric',
     resource: 'mana',
     level: 2n,
@@ -222,6 +241,7 @@ export const ABILITIES = {
   },
   cleric_smite: {
     name: 'Smite',
+    description: 'Calls down righteous judgment to deal magic damage to a single target.',
     className: 'cleric',
     resource: 'mana',
     level: 3n,
@@ -232,6 +252,7 @@ export const ABILITIES = {
   },
   cleric_sanctuary: {
     name: 'Sanctuary',
+    description: 'Creates a sacred sanctuary that shields an ally from harm.',
     className: 'cleric',
     resource: 'mana',
     level: 4n,
@@ -242,6 +263,7 @@ export const ABILITIES = {
   },
   cleric_heal: {
     name: 'Heal',
+    description: 'Invokes powerful divine magic to greatly restore an ally\'s health.',
     className: 'cleric',
     resource: 'mana',
     level: 5n,
@@ -252,6 +274,7 @@ export const ABILITIES = {
   },
   wizard_arcane_reservoir: {
     name: 'Arcane Reservoir',
+    description: 'Taps into deep arcane reserves, rapidly restoring mana over time.',
     className: 'wizard',
     resource: 'mana',
     level: 2n,
@@ -262,6 +285,7 @@ export const ABILITIES = {
   },
   wizard_frost_shard: {
     name: 'Frost Shard',
+    description: 'Hurls a jagged shard of ice at the target, dealing magic damage.',
     className: 'wizard',
     resource: 'mana',
     level: 3n,
@@ -272,6 +296,7 @@ export const ABILITIES = {
   },
   wizard_mana_shield: {
     name: 'Mana Shield',
+    description: 'Wraps yourself in protective arcane energy, absorbing incoming damage.',
     className: 'wizard',
     resource: 'mana',
     level: 4n,
@@ -282,6 +307,7 @@ export const ABILITIES = {
   },
   wizard_lightning_surge: {
     name: 'Lightning Surge',
+    description: 'Unleashes a surge of crackling lightning to strike a single target.',
     className: 'wizard',
     resource: 'mana',
     level: 5n,
@@ -292,6 +318,7 @@ export const ABILITIES = {
   },
   rogue_shadow_cut: {
     name: 'Shadow Cut',
+    description: 'Slashes the target with shadow-infused blade, dealing physical damage with lingering bleed.',
     className: 'rogue',
     resource: 'stamina',
     level: 1n,
@@ -304,6 +331,7 @@ export const ABILITIES = {
   },
   rogue_pickpocket: {
     name: 'Pickpocket',
+    description: 'Stealthily pilfers items from the target with nimble fingers.',
     className: 'rogue',
     resource: 'stamina',
     level: 2n,
@@ -314,6 +342,7 @@ export const ABILITIES = {
   },
   rogue_bleed: {
     name: 'Bleed',
+    description: 'Cuts a vital artery, causing the target to bleed profusely over time.',
     className: 'rogue',
     resource: 'stamina',
     level: 3n,
@@ -326,6 +355,7 @@ export const ABILITIES = {
   },
   rogue_evasion: {
     name: 'Evasion',
+    description: 'Heightens reflexes, greatly increasing your chance to dodge attacks.',
     className: 'rogue',
     resource: 'stamina',
     level: 4n,
@@ -336,6 +366,7 @@ export const ABILITIES = {
   },
   rogue_shadow_strike: {
     name: 'Shadow Strike',
+    description: 'Strikes from the shadows with deadly precision, dealing heavy physical damage.',
     className: 'rogue',
     resource: 'stamina',
     level: 5n,
@@ -346,6 +377,7 @@ export const ABILITIES = {
   },
   paladin_holy_strike: {
     name: 'Holy Strike',
+    description: 'Strikes with holy-infused weapon, dealing physical damage to a single target.',
     className: 'paladin',
     resource: 'mana',
     level: 1n,
@@ -356,6 +388,7 @@ export const ABILITIES = {
   },
   paladin_lay_on_hands: {
     name: 'Lay on Hands',
+    description: 'Channels divine power through touch to fully heal a critically wounded ally.',
     className: 'paladin',
     resource: 'mana',
     level: 2n,
@@ -366,6 +399,7 @@ export const ABILITIES = {
   },
   paladin_shield_of_faith: {
     name: 'Shield of Faith',
+    description: 'Surrounds an ally with a radiant shield, reducing incoming damage.',
     className: 'paladin',
     resource: 'mana',
     level: 3n,
@@ -376,6 +410,7 @@ export const ABILITIES = {
   },
   paladin_devotion: {
     name: 'Devotion',
+    description: 'Inspires your entire party with divine resolve, boosting their defenses.',
     className: 'paladin',
     resource: 'mana',
     level: 4n,
@@ -387,6 +422,7 @@ export const ABILITIES = {
   },
   paladin_radiant_smite: {
     name: 'Radiant Smite',
+    description: 'Smites the target with radiant holy power, dealing heavy physical damage.',
     className: 'paladin',
     resource: 'mana',
     level: 5n,
@@ -397,6 +433,7 @@ export const ABILITIES = {
   },
   ranger_marked_shot: {
     name: 'Marked Shot',
+    description: 'Fires a marked arrow that reveals the target and deals magic damage.',
     className: 'ranger',
     resource: 'stamina',
     level: 1n,
@@ -407,6 +444,7 @@ export const ABILITIES = {
   },
   ranger_track: {
     name: 'Track',
+    description: 'Reveals nearby enemy names and levels, helping you scout safely.',
     className: 'ranger',
     resource: 'mana',
     level: 2n,
@@ -417,6 +455,7 @@ export const ABILITIES = {
   },
   ranger_rapid_shot: {
     name: 'Rapid Shot',
+    description: 'Fires multiple arrows in rapid succession at a single target.',
     className: 'ranger',
     resource: 'stamina',
     level: 3n,
@@ -427,6 +466,7 @@ export const ABILITIES = {
   },
   ranger_natures_balm: {
     name: "Nature's Balm",
+    description: 'Applies soothing natural herbs to heal an ally instantly.',
     className: 'ranger',
     resource: 'mana',
     level: 4n,
@@ -437,6 +477,7 @@ export const ABILITIES = {
   },
   ranger_piercing_arrow: {
     name: 'Piercing Arrow',
+    description: 'Shoots a powerful arrow that pierces through armor, dealing magic damage.',
     className: 'ranger',
     resource: 'stamina',
     level: 5n,
@@ -447,6 +488,7 @@ export const ABILITIES = {
   },
   necromancer_plague_spark: {
     name: 'Plague Spark',
+    description: 'Inflicts the target with festering plague damage over time.',
     className: 'necromancer',
     resource: 'mana',
     level: 1n,
@@ -459,6 +501,7 @@ export const ABILITIES = {
   },
   necromancer_bone_servant: {
     name: 'Bone Servant',
+    description: 'Summons a reanimated bone servant to fight alongside you.',
     className: 'necromancer',
     resource: 'mana',
     level: 2n,
@@ -469,6 +512,7 @@ export const ABILITIES = {
   },
   necromancer_wither: {
     name: 'Wither',
+    description: 'Drains life force from the target, dealing magic damage.',
     className: 'necromancer',
     resource: 'mana',
     level: 3n,
@@ -479,6 +523,7 @@ export const ABILITIES = {
   },
   necromancer_bone_ward: {
     name: 'Bone Ward',
+    description: 'Summons protective bone shards that shield an ally from harm.',
     className: 'necromancer',
     resource: 'mana',
     level: 4n,
@@ -489,6 +534,7 @@ export const ABILITIES = {
   },
   necromancer_grave_surge: {
     name: 'Grave Surge',
+    description: 'Unleashes a surge of dark necrotic energy at a single target.',
     className: 'necromancer',
     resource: 'mana',
     level: 5n,
@@ -499,6 +545,7 @@ export const ABILITIES = {
   },
   spellblade_arcane_slash: {
     name: 'Arcane Slash',
+    description: 'Slashes with arcane-infused blade, dealing physical damage to a single target.',
     className: 'spellblade',
     resource: 'mana',
     level: 1n,
@@ -509,6 +556,7 @@ export const ABILITIES = {
   },
   spellblade_rune_ward: {
     name: 'Rune Ward',
+    description: 'Inscribes protective runes that absorb incoming damage.',
     className: 'spellblade',
     resource: 'mana',
     level: 2n,
@@ -519,6 +567,7 @@ export const ABILITIES = {
   },
   spellblade_runic_strike: {
     name: 'Runic Strike',
+    description: 'Strikes with rune-empowered weapon, dealing enhanced physical damage.',
     className: 'spellblade',
     resource: 'mana',
     level: 3n,
@@ -529,6 +578,7 @@ export const ABILITIES = {
   },
   spellblade_ward: {
     name: 'Ward',
+    description: 'Creates a magical barrier that shields an ally from incoming attacks.',
     className: 'spellblade',
     resource: 'mana',
     level: 4n,
@@ -539,6 +589,7 @@ export const ABILITIES = {
   },
   spellblade_spellstorm: {
     name: 'Spellstorm',
+    description: 'Unleashes a storm of blade and spell, dealing heavy physical damage.',
     className: 'spellblade',
     resource: 'mana',
     level: 5n,
@@ -549,6 +600,7 @@ export const ABILITIES = {
   },
   bard_discordant_note: {
     name: 'Discordant Note',
+    description: 'Strikes a harsh discordant note that damages the target with sonic energy.',
     className: 'bard',
     resource: 'mana',
     level: 1n,
@@ -559,6 +611,7 @@ export const ABILITIES = {
   },
   bard_ballad_of_resolve: {
     name: 'Ballad of Resolve',
+    description: 'Plays an inspiring ballad that bolsters your party\'s fighting spirit.',
     className: 'bard',
     resource: 'mana',
     level: 2n,
@@ -569,6 +622,7 @@ export const ABILITIES = {
   },
   bard_echoed_chord: {
     name: 'Echoed Chord',
+    description: 'Resonates a powerful echoing chord that damages a single target.',
     className: 'bard',
     resource: 'mana',
     level: 3n,
@@ -579,6 +633,7 @@ export const ABILITIES = {
   },
   bard_harmony: {
     name: 'Harmony',
+    description: 'Weaves harmonious music that soothes and heals your allies.',
     className: 'bard',
     resource: 'mana',
     level: 4n,
@@ -589,6 +644,7 @@ export const ABILITIES = {
   },
   bard_crushing_crescendo: {
     name: 'Crushing Crescendo',
+    description: 'Builds to a thunderous crescendo that crushes a target with sonic force.',
     className: 'bard',
     resource: 'mana',
     level: 5n,
@@ -599,6 +655,7 @@ export const ABILITIES = {
   },
   beastmaster_pack_rush: {
     name: 'Pack Rush',
+    description: 'Commands your beast companion to rush and strike the target.',
     className: 'beastmaster',
     resource: 'stamina',
     level: 1n,
@@ -609,6 +666,7 @@ export const ABILITIES = {
   },
   beastmaster_call_beast: {
     name: 'Call Beast',
+    description: 'Summons a loyal beast companion to fight alongside you.',
     className: 'beastmaster',
     resource: 'stamina',
     level: 2n,
@@ -619,6 +677,7 @@ export const ABILITIES = {
   },
   beastmaster_beast_fang: {
     name: 'Beast Fang',
+    description: 'Commands your companion to savage the target with its fangs.',
     className: 'beastmaster',
     resource: 'stamina',
     level: 3n,
@@ -629,6 +688,7 @@ export const ABILITIES = {
   },
   beastmaster_wild_howl: {
     name: 'Wild Howl',
+    description: 'Unleashes a primal howl that empowers your beast companion.',
     className: 'beastmaster',
     resource: 'stamina',
     level: 4n,
@@ -639,6 +699,7 @@ export const ABILITIES = {
   },
   beastmaster_alpha_assault: {
     name: 'Alpha Assault',
+    description: 'Leads a ferocious coordinated assault with your beast companion.',
     className: 'beastmaster',
     resource: 'stamina',
     level: 5n,
@@ -649,6 +710,7 @@ export const ABILITIES = {
   },
   monk_crippling_kick: {
     name: 'Crippling Kick',
+    description: 'Delivers a precise kick that cripples the target and deals physical damage.',
     className: 'monk',
     resource: 'stamina',
     level: 1n,
@@ -659,6 +721,7 @@ export const ABILITIES = {
   },
   monk_centering: {
     name: 'Centering',
+    description: 'Centers your focus and calms your mind, restoring inner balance.',
     className: 'monk',
     resource: 'stamina',
     level: 2n,
@@ -669,6 +732,7 @@ export const ABILITIES = {
   },
   monk_palm_strike: {
     name: 'Palm Strike',
+    description: 'Strikes with an open palm infused with chi, dealing physical damage.',
     className: 'monk',
     resource: 'stamina',
     level: 3n,
@@ -679,6 +743,7 @@ export const ABILITIES = {
   },
   monk_inner_focus: {
     name: 'Inner Focus',
+    description: 'Sharpens your mind with inner focus, enhancing your combat abilities.',
     className: 'monk',
     resource: 'stamina',
     level: 4n,
@@ -689,6 +754,7 @@ export const ABILITIES = {
   },
   monk_tiger_flurry: {
     name: 'Tiger Flurry',
+    description: 'Unleashes a lightning-fast flurry of strikes like a pouncing tiger.',
     className: 'monk',
     resource: 'stamina',
     level: 5n,
@@ -699,6 +765,7 @@ export const ABILITIES = {
   },
   druid_thorn_lash: {
     name: 'Thorn Lash',
+    description: 'Lashes the target with thorny vines, dealing magic damage.',
     className: 'druid',
     resource: 'mana',
     level: 1n,
@@ -709,6 +776,7 @@ export const ABILITIES = {
   },
   druid_natures_mark: {
     name: "Nature's Mark",
+    description: 'Marks your location with nature\'s blessing, revealing nearby resource nodes.',
     className: 'druid',
     resource: 'mana',
     level: 2n,
@@ -719,6 +787,7 @@ export const ABILITIES = {
   },
   druid_bramble: {
     name: 'Bramble',
+    description: 'Summons razor-sharp brambles that entangle and damage a single target.',
     className: 'druid',
     resource: 'mana',
     level: 3n,
@@ -729,6 +798,7 @@ export const ABILITIES = {
   },
   druid_natures_gift: {
     name: "Nature's Gift",
+    description: 'Bestows nature\'s healing gift upon an ally, restoring health over time.',
     className: 'druid',
     resource: 'mana',
     level: 4n,
@@ -741,6 +811,7 @@ export const ABILITIES = {
   },
   druid_wild_surge: {
     name: 'Wild Surge',
+    description: 'Channels primal nature energy in a wild surge to damage a single target.',
     className: 'druid',
     resource: 'mana',
     level: 5n,
@@ -751,6 +822,7 @@ export const ABILITIES = {
   },
   reaver_blood_rend: {
     name: 'Blood Rend',
+    description: 'Rends flesh with dark power, dealing physical damage and spilling blood.',
     className: 'reaver',
     resource: 'mana',
     level: 1n,
@@ -761,6 +833,7 @@ export const ABILITIES = {
   },
   reaver_blood_pact: {
     name: 'Blood Pact',
+    description: 'Forms a blood pact that empowers you at the cost of vitality.',
     className: 'reaver',
     resource: 'stamina',
     level: 2n,
@@ -771,6 +844,7 @@ export const ABILITIES = {
   },
   reaver_soul_rend: {
     name: 'Soul Rend',
+    description: 'Tears at the target\'s soul, dealing devastating physical damage.',
     className: 'reaver',
     resource: 'mana',
     level: 3n,
@@ -781,6 +855,7 @@ export const ABILITIES = {
   },
   reaver_dread_aura: {
     name: 'Dread Aura',
+    description: 'Emanates an aura of dread that weakens nearby enemies.',
     className: 'reaver',
     resource: 'mana',
     level: 4n,
@@ -791,6 +866,7 @@ export const ABILITIES = {
   },
   reaver_oblivion: {
     name: 'Oblivion',
+    description: 'Strikes with the force of oblivion, dealing catastrophic physical damage.',
     className: 'reaver',
     resource: 'mana',
     level: 5n,
@@ -801,6 +877,7 @@ export const ABILITIES = {
   },
   summoner_conjure_vessel: {
     name: 'Conjure Vessel',
+    description: 'Conjures a vessel of raw magical energy to strike the target.',
     className: 'summoner',
     resource: 'mana',
     level: 1n,
@@ -811,6 +888,7 @@ export const ABILITIES = {
   },
   summoner_earth_familiar: {
     name: 'Earth Familiar',
+    description: 'Summons an earth familiar companion to fight alongside you.',
     className: 'summoner',
     resource: 'mana',
     level: 2n,
@@ -821,6 +899,7 @@ export const ABILITIES = {
   },
   summoner_conjured_spike: {
     name: 'Conjured Spike',
+    description: 'Materializes a spike of conjured energy to impale a single target.',
     className: 'summoner',
     resource: 'mana',
     level: 3n,
@@ -831,6 +910,7 @@ export const ABILITIES = {
   },
   summoner_empower: {
     name: 'Empower',
+    description: 'Empowers your summoned companion, enhancing its combat abilities.',
     className: 'summoner',
     resource: 'mana',
     level: 4n,
@@ -841,6 +921,7 @@ export const ABILITIES = {
   },
   summoner_spectral_lance: {
     name: 'Spectral Lance',
+    description: 'Hurls a spectral lance of pure energy at a single target.',
     className: 'summoner',
     resource: 'mana',
     level: 5n,
