@@ -17,6 +17,7 @@ export const registerCharacterReducers = (deps: any) => {
     usesMana,
     baseArmorForClass,
     BASE_HP,
+    HP_STR_MULTIPLIER,
     BASE_MANA,
     ScheduleAt,
     CharacterLogoutTick,
@@ -135,7 +136,7 @@ export const registerCharacterReducers = (deps: any) => {
         int: classStats.int + raceRow.intBonus,
       };
       const manaStat = manaStatForClass(className, baseStats);
-      const maxHp = BASE_HP + baseStats.str * 5n;
+      const maxHp = BASE_HP + baseStats.str * HP_STR_MULTIPLIER;
       const maxMana = usesMana(className) ? BASE_MANA + manaStat * 6n : 0n;
       const armorClass = baseArmorForClass(className);
       const character = ctx.db.character.insert({
