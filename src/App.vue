@@ -1157,7 +1157,7 @@ const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipI
 
 const deleteItem = (itemInstanceId: bigint) => {
   if (!selectedCharacter.value || !conn.isActive) return;
-  if (!window.confirm('Delete this item? This cannot be undone.')) return;
+  // Confirmation already handled in InventoryPanel context menu
   deleteItemReducer({ characterId: selectedCharacter.value.id, itemInstanceId });
 };
 
