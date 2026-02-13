@@ -38,6 +38,9 @@ import {
   getAbilityMultiplier,
   calculateHealingPower,
   applyMagicResistMitigation,
+  DOT_SCALING_RATE_MODIFIER,
+  AOE_DAMAGE_MULTIPLIER,
+  DEBUFF_POWER_COST_PERCENT,
 } from './data/combat_scaling';
 
 const Player = table(
@@ -2068,6 +2071,34 @@ function executeAbility(
     const abilityBaseDamage = abilityEntry ? abilityEntry.power * 5n : 0n;
     const scaledAbilityDamage = ((abilityBaseDamage + statScaling) * abilityMultiplier) / 100n;
 
+    // Power budget split for DoT abilities
+    const directPowerFraction = abilityEntry?.dotPowerSplit ? 1.0 - abilityEntry.dotPowerSplit : 1.0;
+
+    // Apply power budget split to scaled ability damage
+    const directAbilityDamage = (scaledAbilityDamage * BigInt(Math.floor(directPowerFraction * 100))) / 100n;
+
+    // If ability has DoT, calculate DoT damage with reduced stat scaling
+    let dotDamagePerTick = 0n;
+    let dotDuration = 0n;
+    if (abilityEntry?.dotPowerSplit && abilityEntry?.dotDuration) {
+      const dotPowerFraction = abilityEntry.dotPowerSplit;
+      const dotTotalDamage = (scaledAbilityDamage * BigInt(Math.floor(dotPowerFraction * 100))) / 100n;
+
+      // DoT stat scaling uses REDUCED rate (50% of direct scaling)
+      const dotStatScaling = (statScaling * DOT_SCALING_RATE_MODIFIER) / 100n;
+
+      // DoT damage per tick = (total DoT power + reduced stat scaling) / duration
+      dotDamagePerTick = ((dotTotalDamage + dotStatScaling) / abilityEntry.dotDuration);
+      dotDuration = abilityEntry.dotDuration;
+    }
+
+    // If ability has debuff, reduce direct damage by debuff power cost
+    let finalDirectDamage = directAbilityDamage;
+    if (abilityEntry?.debuffType && abilityEntry?.debuffMagnitude && abilityEntry?.debuffDuration) {
+      const debuffCostFraction = 1.0 - (Number(DEBUFF_POWER_COST_PERCENT) / 100);
+      finalDirectDamage = (directAbilityDamage * BigInt(Math.floor(debuffCostFraction * 100))) / 100n;
+    }
+
     // Weapon component (for weapon abilities that use percent > 0)
     const weaponComponent = percent > 0n ? abilityDamageFromWeapon(baseWeaponDamage, percent, bonus) : 0n;
 
@@ -2075,7 +2106,7 @@ function executeAbility(
     const hitDamages: bigint[] = [];
     for (let i = 0n; i < hits; i += 1n) {
       // Total raw damage
-      const raw = weaponComponent + scaledAbilityDamage + totalDamageUp + sumEnemyEffect(ctx, combatId, 'damage_taken', enemy.id);
+      const raw = weaponComponent + finalDirectDamage + totalDamageUp + sumEnemyEffect(ctx, combatId, 'damage_taken', enemy.id);
 
       // Route mitigation by damage type
       const dmgType = abilityEntry?.damageType ?? 'physical';
@@ -2123,6 +2154,33 @@ function executeAbility(
         options.dot.source
       );
     }
+
+    // Apply DoT effect if ability has DoT metadata
+    if (dotDamagePerTick > 0n && dotDuration > 0n && abilityEntry?.name) {
+      addEnemyEffect(
+        ctx,
+        combatId,
+        enemy.id,
+        'dot',
+        dotDamagePerTick,
+        dotDuration,
+        abilityEntry.name
+      );
+    }
+
+    // Apply debuff effect if ability has debuff metadata
+    if (abilityEntry?.debuffType && abilityEntry?.debuffMagnitude && abilityEntry?.debuffDuration) {
+      addEnemyEffect(
+        ctx,
+        combatId,
+        enemy.id,
+        abilityEntry.debuffType,
+        abilityEntry.debuffMagnitude,
+        abilityEntry.debuffDuration,
+        abilityEntry.name
+      );
+    }
+
     if (options?.perHitMessage) {
       for (let i = 0; i < hitDamages.length; i += 1) {
         const hitIndex = BigInt(i + 1);
@@ -2146,8 +2204,29 @@ function executeAbility(
   const applyHeal = (target: typeof Character.rowType, amount: bigint, source: string) => {
     const current = ctx.db.character.id.find(target.id);
     if (!current) return;
+
+    // Power budget split for HoT abilities
+    const abilityEntry = ABILITIES[abilityKey as keyof typeof ABILITIES];
+    const directHealFraction = abilityEntry?.hotPowerSplit ? 1.0 - abilityEntry.hotPowerSplit : 1.0;
+    const directHeal = (amount * BigInt(Math.floor(directHealFraction * 100))) / 100n;
+
+    // If ability has HoT, calculate HoT healing with reduced stat scaling
+    if (abilityEntry?.hotPowerSplit && abilityEntry?.hotDuration && abilityEntry?.name) {
+      const hotPowerFraction = abilityEntry.hotPowerSplit;
+      const hotTotalHealing = (amount * BigInt(Math.floor(hotPowerFraction * 100))) / 100n;
+
+      // HoT stat scaling uses REDUCED rate (50% of direct healing scaling)
+      // Note: WIS scaling already applied via calculateHealingPower, so we split the final scaled amount
+      const scaledHotTotal = calculateHealingPower(hotTotalHealing, character.wis, character.className);
+      const hotHealPerTick = scaledHotTotal / abilityEntry.hotDuration;
+
+      // Apply HoT effect to target
+      addCharacterEffect(ctx, target.id, 'regen', hotHealPerTick, abilityEntry.hotDuration, abilityEntry.name);
+    }
+
     // Apply WIS scaling to healing output (uses the CASTER's WIS, not target's)
-    const scaledAmount = calculateHealingPower(amount, character.wis, character.className);
+    // Use directHeal for immediate healing (replace 'amount' with 'directHeal')
+    const scaledAmount = calculateHealingPower(directHeal, character.wis, character.className);
     const nextHp = current.hp + scaledAmount > current.maxHp ? current.maxHp : current.hp + scaledAmount;
     ctx.db.character.id.update({ ...current, hp: nextHp });
     const message = `${source} restores ${scaledAmount} health to ${current.name}.`;
