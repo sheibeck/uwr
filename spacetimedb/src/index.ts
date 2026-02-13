@@ -2936,48 +2936,53 @@ function executeAbility(
       if (activeCombatIdForCharacter(ctx, character.id)) {
         throw new SenderError('Cannot use while in combat');
       }
-      const location = ctx.db.location.id.find(character.locationId);
+      // Re-read character from database to ensure fresh data after mana deduction
+      const freshChar = ctx.db.character.id.find(character.id);
+      if (!freshChar) {
+        throw new SenderError('Character not found');
+      }
+      const location = ctx.db.location.id.find(freshChar.locationId);
       if (!location) throw new SenderError('Location not found');
       const pool = getGatherableResourceTemplates(ctx, location.terrainType ?? 'plains');
       if (pool.length === 0) {
         appendPrivateEvent(
           ctx,
-          character.id,
-          character.ownerUserId,
+          freshChar.id,
+          freshChar.ownerUserId,
           'ability',
           'Nature yields nothing here.'
         );
         return;
       }
-      const seed = ctx.timestamp.microsSinceUnixEpoch + character.id;
+      const seed = ctx.timestamp.microsSinceUnixEpoch + freshChar.id;
       const picked = pool[Number(seed % BigInt(pool.length))];
       const template = picked?.template;
       if (!template) {
         appendPrivateEvent(
           ctx,
-          character.id,
-          character.ownerUserId,
+          freshChar.id,
+          freshChar.ownerUserId,
           'ability',
           'Nature yields nothing here.'
         );
         return;
       }
       const quantity = 1n + (seed % 4n);
-      if (!hasInventorySpace(ctx, character.id, template.id)) {
+      if (!hasInventorySpace(ctx, freshChar.id, template.id)) {
         appendPrivateEvent(
           ctx,
-          character.id,
-          character.ownerUserId,
+          freshChar.id,
+          freshChar.ownerUserId,
           'ability',
           'Your pack is full.'
         );
         return;
       }
-      addItemToInventory(ctx, character.id, template.id, quantity);
+      addItemToInventory(ctx, freshChar.id, template.id, quantity);
       appendPrivateEvent(
         ctx,
-        character.id,
-        character.ownerUserId,
+        freshChar.id,
+        freshChar.ownerUserId,
         'ability',
         `Nature's Mark yields ${quantity} ${template.name}.`
       );
