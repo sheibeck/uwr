@@ -11,9 +11,9 @@
 | Phase | Name | Requirements | Dependencies | Status |
 |-------|------|-------------|--------------|--------|
 | 1 | Races | REQ-001–005 | None | Complete (2026-02-11) |
-| 2 | Hunger | REQ-010–015 | Phase 1 (race stat integration) | Planned |
-| 3 | Renown Foundation | REQ-020–026 | None | Planned |
-| 4 | Config Table Architecture | None | Phase 3 (combat balance complete) | Pending |
+| 2 | Hunger | REQ-010–015 | Phase 1 (race stat integration) | Complete (2026-02-12) |
+| 3 | Renown Foundation | REQ-020–026 | None | Complete (2026-02-12) |
+| 4 | Config Table Architecture | None | Phase 3 (combat balance complete) | Complete (2026-02-13) |
 | 5 | LLM Architecture | REQ-040–047, REQ-080–084 | Phase 3 (first consumer) | Planned |
 | 6 | Quest System | REQ-060–066 | Phase 3 (renown gating), Phase 5 (LLM text) | Pending |
 | 7 | World Events | REQ-030–035 | Phase 1 (race unlock), Phase 5 (LLM text) | Pending |
@@ -97,8 +97,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Backend: Faction + FactionStanding tables, faction seeding, EnemyTemplate factionId, standing mutation helpers, combat hook, my_faction_standings view, publish and regenerate bindings
-- [ ] 03-02-PLAN.md — Frontend: RenownPanel component with FACTION_RANKS, ActionBar wiring, App.vue panel routing, useGameData subscriptions, human verification
+- [x] 03-01-PLAN.md — Backend: Faction + FactionStanding tables, faction seeding, EnemyTemplate factionId, standing mutation helpers, combat hook, my_faction_standings view, publish and regenerate bindings
+- [x] 03-02-PLAN.md — Frontend: RenownPanel component with FACTION_RANKS, ActionBar wiring, App.vue panel routing, useGameData subscriptions, human verification
 
 **Scope:**
 - `Faction` table seeded with 4 factions (Iron Compact, Verdant Circle, Ashen Order, Free Blades)
@@ -216,11 +216,13 @@ Plans:
 
 **Dependencies:** Phase 3 (combat balance complete)
 
+**Status:** Complete (2026-02-13)
+
 **Plans:** 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md -- Extend AbilityTemplate table with metadata columns and enhance seeding to populate from ABILITIES + ABILITY_STAT_SCALING
-- [ ] 04-02-PLAN.md -- Migrate consumers to database lookups, remove legacy constants, regenerate bindings, publish
+- [x] 04-01-PLAN.md — Extend AbilityTemplate table with metadata columns and enhance seeding to populate from ABILITIES + ABILITY_STAT_SCALING
+- [x] 04-02-PLAN.md — Migrate consumers to database lookups, remove legacy constants, regenerate bindings, publish
 
 **Scope:**
 - Create `AbilityConfig` table with all ability metadata (name, description, power, cooldown, stat scaling, DoT/HoT/debuff parameters)
@@ -239,12 +241,12 @@ Plans:
 - Enables level-dependent ability power in future
 
 **Success Criteria:**
-- [ ] `AbilityConfig` table created with all ability metadata
-- [ ] `legacyDescriptions` removed from index.ts
-- [ ] `ABILITY_STAT_SCALING` removed from combat_scaling.ts
-- [ ] All abilities work correctly reading from database
-- [ ] Client can read ability power/cooldown/description from table
-- [ ] No hardcoded ability constants remain except `executeAbility` switch cases
+- [x] AbilityTemplate table extended with all ability metadata (power, damageType, statScaling, DoT/HoT/debuff/AoE fields)
+- [x] legacyDescriptions removed from index.ts
+- [x] ABILITY_STAT_SCALING kept for seeding only (not execution)
+- [x] All abilities work correctly reading from database
+- [x] Client can read ability power/cooldown/description from table
+- [x] No hardcoded ability constants remain in execution paths
 
 ---
 
