@@ -2113,15 +2113,18 @@ function executeAbility(
     if (options?.perHitMessage) {
       for (let i = 0; i < hitDamages.length; i += 1) {
         const hitIndex = BigInt(i + 1);
-        const message = options.perHitMessage(hitDamages[i], hitIndex, hits);
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage', message);
-        logGroup('damage', message);
+        const privateMessage = options.perHitMessage(hitDamages[i], hitIndex, hits);
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage', privateMessage);
+        // For group, replace "Your" with character name (simple text replacement for per-hit messages)
+        const groupMessage = privateMessage.replace(/^Your /, `${character.name}'s `).replace(/ your /, ` ${character.name}'s `);
+        logGroup('damage', groupMessage);
       }
     } else {
-      const damageMessage =
+      const privateMessage =
         options?.message ?? `Your ${ability.name} hits ${enemyName} for ${totalDamage} damage.`;
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage', damageMessage);
-      logGroup('damage', damageMessage);
+      const groupMessage = `${character.name}'s ${ability.name} hits ${enemyName} for ${totalDamage} damage.`;
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage', privateMessage);
+      logGroup('damage', groupMessage);
     }
     return totalDamage;
   };
@@ -2914,18 +2917,20 @@ function executeEnemyAbility(
 
   if (ability.kind === 'dot') {
     addCharacterEffect(ctx, target.id, 'dot', ability.magnitude, ability.rounds, ability.name);
-    const message = `${enemyName} uses ${ability.name} on you.`;
-    appendPrivateEvent(ctx, target.id, target.ownerUserId, 'damage', message);
+    const privateMessage = `${enemyName} uses ${ability.name} on you.`;
+    const groupMessage = `${enemyName} uses ${ability.name} on ${target.name}.`;
+    appendPrivateEvent(ctx, target.id, target.ownerUserId, 'damage', privateMessage);
     if (target.groupId) {
-      appendGroupEvent(ctx, target.groupId, target.id, 'damage', message);
+      appendGroupEvent(ctx, target.groupId, target.id, 'damage', groupMessage);
     }
   } else if (ability.kind === 'debuff') {
     const effectType = (ability as any).effectType ?? 'ac_bonus';
     addCharacterEffect(ctx, target.id, effectType, ability.magnitude, ability.rounds, ability.name);
-    const message = `${enemyName} afflicts you with ${ability.name}.`;
-    appendPrivateEvent(ctx, target.id, target.ownerUserId, 'ability', message);
+    const privateMessage = `${enemyName} afflicts you with ${ability.name}.`;
+    const groupMessage = `${enemyName} afflicts ${target.name} with ${ability.name}.`;
+    appendPrivateEvent(ctx, target.id, target.ownerUserId, 'ability', privateMessage);
     if (target.groupId) {
-      appendGroupEvent(ctx, target.groupId, target.id, 'ability', message);
+      appendGroupEvent(ctx, target.groupId, target.id, 'ability', groupMessage);
     }
   }
 }
@@ -3481,7 +3486,7 @@ function ensureStarterItemTemplates(ctx: any) {
       armorClassBonus: 0n,
       weaponBaseDamage: 0n,
       weaponDps: 0n,
-      stackable: false,
+      stackable: true,
     });
   }
 }
