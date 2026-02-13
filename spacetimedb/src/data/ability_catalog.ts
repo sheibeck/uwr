@@ -776,7 +776,7 @@ export const ABILITIES = {
   },
   druid_natures_mark: {
     name: "Nature's Mark",
-    description: 'Marks your location with nature\'s blessing, revealing nearby resource nodes.',
+    description: 'Channels nature\'s power to instantly gather resources from your current location.',
     className: 'druid',
     resource: 'mana',
     level: 2n,
