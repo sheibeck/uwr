@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-12
-**Status:** Phase 3.1 complete — combat balance system shipped with stat scaling, crits, and tuned formulas
+**Status:** Phase 3.1.1 planned — DoT/HoT/debuff/AoE balance with power budget split approach
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete — STR auto-attacks, DEX crits, ability stat scaling, WIS healing, magic/physical damage routing all implemented and human-verified after 2 gap closure cycles.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) planned — DoT/HoT/debuff/AoE balance extends stat scaling system with power budget splits, reduced periodic scaling, and AoE enumeration.
 
-**Current phase:** None (ready for next phase)
-**Current plan:** None
-**Next action:** Plan Phase 4 (LLM Architecture)
+**Current phase:** 3.1.1 (Combat Balance Part 2)
+**Current plan:** None (ready to execute)
+**Next action:** Execute Phase 3.1.1 (/gsd:execute-phase 3.1.1)
 
 ---
 
@@ -24,6 +24,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 2 | Hunger | Complete (2/2 plans done, human-verified) |
 | 3 | Renown Foundation | Complete (2/2 plans done, human-verified) |
 | 3.1 | Combat Balance | Complete (5/5 plans done: 2 impl + 1 verify + 2 gaps, human-verified) |
+| 3.1.1 | Combat Balance Part 2 | Planned (3/3 plans created, ready to execute) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
 | 6 | World Events | Pending |
@@ -96,6 +97,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 - Phase 3.1 inserted after Phase 3: Combat Balance (URGENT)
 - 2026-02-12: Phase 3.1 renamed from "Faction Hits" to "Combat Balance" before planning
 - Phase 3.1.1 inserted after Phase 3.1: Combat balance part 2 (URGENT)
+- 2026-02-12: Phase 3.1.1 planned — DoT/HoT/debuff/AoE balance with power budget approach, 3 plans created
 
 ---
 
