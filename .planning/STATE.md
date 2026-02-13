@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-13
-**Status:** Phase 3.1.3 complete — Enemy AI and aggro management with role-based threat multipliers, combat-state-aware AI, and leashing mechanics
+**Status:** Phase 04 in progress — Config Table Architecture: AbilityTemplate table extended with metadata columns
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete — role-based threat multipliers (tanks 1.5x, healers 0.5x + healing threat), combat-state-aware AI scoring (healers prioritize low-HP allies <30% HP, buffers buff early, debuffers target tanks), leashing mechanics (enemies evade and reset when all players leave), and dead character aggro cleanup.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) in progress — AbilityTemplate table extended with 11 optional metadata columns (power, damageType, statScaling, DoT/HoT/debuff/AoE) and seeding enhanced to populate from ABILITIES constant.
 
-**Current phase:** 3.1.3 (Enemy AI and Aggro Management)
-**Current plan:** All complete (2/2 plans done)
-**Next action:** Move to Phase 4 (Config Table Architecture) or Phase 5 (LLM Architecture)
+**Current phase:** 04 (Config Table Architecture)
+**Current plan:** 1/2 plans done (04-01 complete, 04-02 pending)
+**Next action:** Execute 04-02-PLAN.md (migrate consumers to read from database)
 
 ---
 
@@ -27,7 +27,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 3.1.1 | Combat Balance Part 2 | Complete (3/3 plans done: metadata, implementation, verification all approved) |
 | 3.1.2 | Combat Balance for Enemies | Complete (3/3 plans done: metadata, implementation, verification all approved) |
 | 3.1.3 | Enemy AI and Aggro Management | Complete (2/2 plans done: role-based threat, AI scoring + leashing) |
-| 4 | Config Table Architecture | Pending |
+| 4 | Config Table Architecture | In Progress (1/2 plans done: AbilityTemplate extension complete) |
 | 5 | LLM Architecture | Pending |
 | 6 | Quest System | Pending |
 | 7 | World Events | Pending |
@@ -85,6 +85,9 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 45. Enemy AI scoring is combat-state-aware: healers +100 score when ally <30% HP, buffers +50 in first 10s, debuffers +25 vs highest threat — dynamic priority system (3.1.3-02)
 46. Enemies leash (evade to full HP) when all players flee combat — prevents kiting exploit, spawn resets to 'available' state (3.1.3-02)
 47. Combat duration tuned via centralized constants: BASE_HP (50n), HP_STR_MULTIPLIER (8n), GLOBAL_DAMAGE_MULTIPLIER (85n = 15% reduction), enemy HP ~80% increase — roughly doubles combat length (quick-56)
+48. AbilityTemplate table extended with 11 optional metadata columns at end for automatic SpacetimeDB migration — power, damageType, statScaling, DoT/HoT/debuff/AoE fields (04-01)
+49. statScaling populated from ABILITY_STAT_SCALING mapping (combat_scaling.ts), not from ABILITIES constant — separate data source for stat scaling lookups (04-01)
+50. Ability descriptions preserved via resolveDescription helper: ABILITIES.description with legacyDescriptions fallback — ensures no description data loss during metadata migration (04-01)
 
 ---
 
@@ -110,6 +113,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 03.1.2-combat-balance-for-enemies | 03 | 2min | 1 | 0 |
 | 03.1.3-enemy-ai-and-aggro-management | 01 | 3min | 2 | 4 |
 | 03.1.3-enemy-ai-and-aggro-management | 02 | 4min | 2 | 1 |
+| 04-config-table-architecture | 01 | 3min | 2 | 1 |
 
 ## Accumulated Context
 
@@ -205,5 +209,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed quick-66-01-PLAN.md
+**Stopped at:** Completed 04-01-PLAN.md
 **Timestamp:** 2026-02-13T14:00:00Z
