@@ -1078,12 +1078,12 @@ export const registerCombatReducers = (deps: any) => {
     ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
   });
 
-  const HP_REGEN_OUT = 3n;
-  const MANA_REGEN_OUT = 3n;
-  const STAMINA_REGEN_OUT = 3n;
-  const HP_REGEN_IN = 1n;
-  const MANA_REGEN_IN = 1n;
-  const STAMINA_REGEN_IN = 1n;
+  const HP_REGEN_OUT = 6n;
+  const MANA_REGEN_OUT = 5n;
+  const STAMINA_REGEN_OUT = 5n;
+  const HP_REGEN_IN = 2n;
+  const MANA_REGEN_IN = 2n;
+  const STAMINA_REGEN_IN = 2n;
   const REGEN_TICK_MICROS = 8_000_000n;
   const EFFECT_TICK_MICROS = 10_000_000n;
   const HOT_TICK_MICROS = 3_000_000n;
