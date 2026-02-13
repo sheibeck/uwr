@@ -2740,15 +2740,52 @@ function executeAbility(
         debuff: { type: 'damage_taken', magnitude: 1n, rounds: 2n, source: 'Marked Shot' },
       });
       return;
-    case 'ranger_track':
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'You study the tracks in the area.'
-      );
+    case 'ranger_track': {
+      // Get all enemy spawns at the character's location
+      const spawns = [...ctx.db.enemySpawn.by_location.filter(character.locationId)];
+
+      if (spawns.length === 0) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          'You find no tracks worth following.'
+        );
+        return;
+      }
+
+      // Reveal information about each enemy spawn
+      let trackedCount = 0;
+      for (const spawn of spawns) {
+        const template = ctx.db.enemyTemplate.id.find(spawn.enemyTemplateId);
+        if (!template) continue;
+
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          `Tracks reveal: ${template.name} (Level ${template.level})`
+        );
+        trackedCount += 1;
+      }
+
+      if (trackedCount === 0) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'ability',
+          'You find no tracks worth following.'
+        );
+      } else {
+        // Add tracking buff effect (cosmetic indicator that ability worked)
+        addCharacterEffect(ctx, character.id, 'tracking', 1n, 6n, 'Track');
+      }
+
       return;
+    }
     case 'ranger_rapid_shot':
       applyDamage(0n, 0n, { hits: 2n });
       return;
