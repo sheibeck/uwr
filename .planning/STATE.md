@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-13
-**Status:** Phase 3.1.2 in progress — Combat balance for enemies with power scaling and ability metadata
+**Status:** Phase 3.1.2 complete — Enemy combat balance system with power scaling, DoT/debuff budgets, healing, AoE, and buff abilities all verified functional
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete — DoT/HoT/debuff/AoE balance with power budget splits (50% periodic scaling), AoE enumeration (65% per target), and debuff power cost (25%) all verified functional. Phase 3.1.2 Plans 01-02 complete — enemy power scaling constants, ability metadata foundation, and full executeEnemyAbility implementation with all 6 ability kinds (dot, debuff, heal, aoe_damage, buff).
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete — enemy power scaling, ability metadata, executeEnemyAbility with all 6 ability kinds, and human verification all approved.
 
 **Current phase:** 3.1.2 (Combat Balance for Enemies)
-**Current plan:** 02 complete (2/? plans done)
-**Next action:** Continue Phase 3.1.2 or move to Phase 4 LLM Architecture
+**Current plan:** 03 complete (3/3 plans done)
+**Next action:** Move to Phase 4 (LLM Architecture) or address combat duration feedback
 
 ---
 
@@ -25,7 +25,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 3 | Renown Foundation | Complete (2/2 plans done, human-verified) |
 | 3.1 | Combat Balance | Complete (5/5 plans done: 2 impl + 1 verify + 2 gaps, human-verified) |
 | 3.1.1 | Combat Balance Part 2 | Complete (3/3 plans done: metadata, implementation, verification all approved) |
-| 3.1.2 | Combat Balance for Enemies | In Progress (2/? plans done: enemy metadata + executeEnemyAbility implementation complete) |
+| 3.1.2 | Combat Balance for Enemies | Complete (3/3 plans done: metadata, implementation, verification all approved) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
 | 6 | World Events | Pending |
@@ -78,6 +78,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 40. Enemy DoT/debuff abilities use same power budget split as players: 50% dotPowerSplit, 25% debuffPowerCost (3.1.2-01)
 41. Enemy AoE abilities have no DoT component (direct damage only) — AoE cannot apply DoTs per user decision (3.1.2-01)
 42. Enemy damage type routing: physical (poison/venom/bite/gore/bleed/stone/bog) vs magic (ember/fire/shadow/hex/curse/searing) routes through armor vs magic resist (3.1.2-01)
+43. Enemy combat balance verified functional with all 6 ability kinds — user noted combat duration concern (battles too short) for potential future survivability tuning pass (3.1.2-03)
 
 ---
 
@@ -100,6 +101,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 03.1.1-combat-balance-part-2 | 03 | 2min | 1 | 1 |
 | 03.1.2-combat-balance-for-enemies | 01 | 4min | 2 | 2 |
 | 03.1.2-combat-balance-for-enemies | 02 | 5min | 2 | 1 |
+| 03.1.2-combat-balance-for-enemies | 03 | 2min | 1 | 0 |
 
 ---
 
@@ -111,6 +113,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 - Phase 3.1.1 inserted after Phase 3.1: Combat balance part 2 (URGENT)
 - 2026-02-12: Phase 3.1.1 planned — DoT/HoT/debuff/AoE balance with power budget approach, 3 plans created
 - Phase 3.1.2 inserted after Phase 3.1.1: Combat balance for Enemies (URGENT)
+- Phase 03.1.3 inserted after Phase 03.1.2: Enemy AI and aggro management (URGENT)
 
 ---
 
@@ -183,5 +186,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed 03.1.2-02-PLAN.md (Enemy ability execution with level-scaled power and all ability kinds)
-**Timestamp:** 2026-02-13T04:20:51Z
+**Stopped at:** Completed 03.1.2-03-PLAN.md (Phase 03.1.2 complete — enemy combat balance verified)
+**Timestamp:** 2026-02-13T04:26:00Z
