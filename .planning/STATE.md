@@ -167,10 +167,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 50 | Move region name below location name in Travel panel - two-line layout with directional arrows, larger fonts (0.88→0.95rem), and zero TRAVEL label margin | 2026-02-13 | 3cd521f | [50-move-region-name-below-location-name-in-](./quick/50-move-region-name-below-location-name-in-/) |
 | 51 | Make travel tiles always fill full width - added width: '100%' to gridTileTravel for consistent tile sizing | 2026-02-13 | 7f8fddc | [51-make-travel-buttons-always-fill-the-widt](./quick/51-make-travel-buttons-always-fill-the-widt/) |
 | 52 | Remove 3-character limit - deleted MAX_CHARACTER_SLOTS cap to allow unlimited character creation | 2026-02-13 | 4d462c7 | [52-remove-the-3-character-maximum-limit](./quick/52-remove-the-3-character-maximum-limit/) |
+| 53 | Move resource gathering bar underneath resource name - progress bars render below tile text for improved visibility with short names | 2026-02-13 | c111fb3 | [53-move-resource-gathering-bar-underneath-r](./quick/53-move-resource-gathering-bar-underneath-r/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed Phase 3.1.1 Plan 03 (DoT/HoT/debuff/AoE verification)
-**Timestamp:** 2026-02-13T02:12:15Z
+**Stopped at:** Completed quick-53 (Move resource gathering bar underneath resource name)
+**Timestamp:** 2026-02-13T02:12:34Z
