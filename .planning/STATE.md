@@ -11,8 +11,8 @@
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) in progress — DoT/HoT/debuff/AoE balance extends stat scaling system with power budget splits, reduced periodic scaling, and AoE enumeration.
 
 **Current phase:** 3.1.1 (Combat Balance Part 2)
-**Current plan:** 01 complete (1/3 plans done)
-**Next action:** Execute Phase 3.1.1 Plan 02 (/gsd:execute-phase 3.1.1)
+**Current plan:** 02 complete (2/3 plans done)
+**Next action:** Execute Phase 3.1.1 Plan 03 (/gsd:execute-phase 3.1.1)
 
 ---
 
@@ -24,7 +24,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 2 | Hunger | Complete (2/2 plans done, human-verified) |
 | 3 | Renown Foundation | Complete (2/2 plans done, human-verified) |
 | 3.1 | Combat Balance | Complete (5/5 plans done: 2 impl + 1 verify + 2 gaps, human-verified) |
-| 3.1.1 | Combat Balance Part 2 | In Progress (1/3 plans done: metadata foundation complete) |
+| 3.1.1 | Combat Balance Part 2 | In Progress (2/3 plans done: metadata foundation complete, DoT/HoT/AoE implementation complete) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
 | 6 | World Events | Pending |
@@ -90,7 +90,8 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 3.1-combat-balance | 02 | 8min | 2 | 5 |
 | 3.1-combat-balance | 04 | 5min | 1 | 1 |
 | 3.1-combat-balance | 05 | 2min | 1 | 2 |
-| 03.1.1-combat-balance-part-2 | 01 | 3min | 3 | 2 |
+| 03.1.1-combat-balance-part-2 | 01 | 3min | 2 | 2 |
+| 03.1.1-combat-balance-part-2 | 02 | 3min | 4 | 2 |
 
 ---
 
@@ -169,5 +170,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed quick-51 (Travel tiles full-width)
-**Timestamp:** 2026-02-13T01:57:22Z
+**Stopped at:** Completed Phase 3.1.1 Plan 02 (DoT/HoT/AoE balance implementation)
+**Timestamp:** 2026-02-13T02:04:07Z
