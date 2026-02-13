@@ -273,15 +273,16 @@ export function getCritMultiplier(weaponName: string, weaponType?: string): bigi
 
 /**
  * Get ability stat scaling contribution
- * Uses ABILITY_STAT_SCALING mapping to determine which stat(s) to use
+ * Uses statScalingOverride parameter or falls back to ABILITY_STAT_SCALING mapping
  * Returns flat stat contribution based on ability type
  */
 export function getAbilityStatScaling(
   characterStats: { str: bigint; dex: bigint; cha: bigint; wis: bigint; int: bigint },
   abilityKey: string,
-  className: string
+  className: string,
+  statScalingOverride?: string
 ): bigint {
-  const scalingType = ABILITY_STAT_SCALING[abilityKey];
+  const scalingType = statScalingOverride ?? ABILITY_STAT_SCALING[abilityKey];
 
   if (!scalingType || scalingType === 'none') {
     return 0n;
