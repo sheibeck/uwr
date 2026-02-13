@@ -566,6 +566,7 @@ const { isLoggedIn, isPendingLogin, login, logout, authMessage, authError } = us
 });
 
 const nowMicros = ref(Date.now() * 1000);
+const serverClockOffset = ref(0);
 let uiTimer: number | undefined;
 
 const {
@@ -589,6 +590,22 @@ const {
   characterLogoutTicks,
   nowMicros,
 });
+
+// Compute server clock offset from player.lastSeenAt to fix production clock skew
+watch(
+  () => player.value?.lastSeenAt,
+  (lastSeenAt) => {
+    if (!lastSeenAt || !('microsSinceUnixEpoch' in lastSeenAt)) return;
+    const serverMicros = Number(lastSeenAt.microsSinceUnixEpoch);
+    const clientMicros = Date.now() * 1000;
+    // Only update if the timestamp is recent (within last 30 seconds) to avoid stale data
+    const age = Math.abs(clientMicros - serverMicros);
+    if (age < 30_000_000) {
+      serverClockOffset.value = serverMicros - clientMicros;
+    }
+  },
+  { immediate: true }
+);
 
 const npcsHere = computed(() => {
   if (!currentLocation.value) return [];
@@ -1554,7 +1571,7 @@ onMounted(() => {
   window.addEventListener('mousemove', onPanelMouseMove);
   window.addEventListener('mouseup', onPanelMouseUp);
   uiTimer = window.setInterval(() => {
-    nowMicros.value = Date.now() * 1000;
+    nowMicros.value = Date.now() * 1000 + serverClockOffset.value;
   }, 200);
 });
 
