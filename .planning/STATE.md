@@ -163,10 +163,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 48 | Character Panel UI overhaul - card-based character selection with tile-based race/class selection replacing radio buttons and dropdowns | 2026-02-13 | e18e6e6 | [48-can-we-do-a-ui-overhaul-of-the-character](./quick/48-can-we-do-a-ui-overhaul-of-the-character/) |
 | 49 | Increase Location panel font sizes - bumped all text by ~0.1rem (0.65→0.75, 0.78→0.88) for improved readability while maintaining visual hierarchy | 2026-02-13 | 3e4f765 | [49-the-font-size-in-the-location-panel-with](./quick/49-the-font-size-in-the-location-panel-with/) |
 | 50 | Move region name below location name in Travel panel - two-line layout with directional arrows, larger fonts (0.88→0.95rem), and zero TRAVEL label margin | 2026-02-13 | 3cd521f | [50-move-region-name-below-location-name-in-](./quick/50-move-region-name-below-location-name-in-/) |
+| 51 | Make travel tiles always fill full width - added width: '100%' to gridTileTravel for consistent tile sizing | 2026-02-13 | 7f8fddc | [51-make-travel-buttons-always-fill-the-widt](./quick/51-make-travel-buttons-always-fill-the-widt/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick-50 (Travel panel two-line layout)
-**Timestamp:** 2026-02-13T01:51:37Z
+**Stopped at:** Completed quick-51 (Travel tiles full-width)
+**Timestamp:** 2026-02-13T01:57:22Z
