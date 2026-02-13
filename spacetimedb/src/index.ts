@@ -2360,13 +2360,13 @@ function executeAbility(
       return;
     case 'shaman_spirit_wolf':
       summonPet('Spirit Wolf', 'a spirit wolf', [
-          'Mistfang',
-          'Ghostpaw',
-          'Duskhowl',
-          'Frostpad',
-          'Silent',
-        ], undefined, { damageBase: 4n, damagePerLevel: 2n, weaponScalePercent: 45n });
-        return;
+        'Mistfang',
+        'Ghostpaw',
+        'Duskhowl',
+        'Frostpad',
+        'Silent',
+      ], undefined, { damageBase: 4n, damagePerLevel: 2n, weaponScalePercent: 45n });
+      return;
     case 'shaman_hex':
       applyDamage(0n, 0n, {
         debuff: { type: 'damage_down', magnitude: -2n, rounds: 3n, source: 'Hex' },
@@ -2733,13 +2733,13 @@ function executeAbility(
       return;
     case 'necromancer_bone_servant':
       summonPet('Skeleton', 'a skeleton', [
-          'Rattle',
-          'Grin',
-          'Shard',
-          'Grave',
-          'Morrow',
-        ], undefined, { damageBase: 4n, damagePerLevel: 2n, weaponScalePercent: 45n });
-        return;
+        'Rattle',
+        'Grin',
+        'Shard',
+        'Grave',
+        'Morrow',
+      ], undefined, { damageBase: 4n, damagePerLevel: 2n, weaponScalePercent: 45n });
+      return;
     case 'necromancer_wither':
       applyDamage(0n, 0n, { dot: { magnitude: 3n, rounds: 2n, source: 'Wither' } });
       return;
@@ -2798,13 +2798,13 @@ function executeAbility(
       return;
     case 'beastmaster_call_beast':
       summonPet(
-          'Beast',
-          'a wild beast',
-          ['Brindle', 'Moss', 'Cinder', 'Tawny', 'Thorn'],
-          { key: 'pet_bleed', cooldownSeconds: 10n },
-          { damageBase: 3n, damagePerLevel: 1n, weaponScalePercent: 35n }
-        );
-        return;
+        'Beast',
+        'a wild beast',
+        ['Brindle', 'Moss', 'Cinder', 'Tawny', 'Thorn'],
+        { key: 'pet_bleed', cooldownSeconds: 10n },
+        { damageBase: 3n, damagePerLevel: 1n, weaponScalePercent: 35n }
+      );
+      return;
     case 'beastmaster_beast_fang':
       applyDamage(0n, 0n, { dot: { magnitude: 2n, rounds: 2n, source: 'Beast Fang' } });
       return;
@@ -2966,13 +2966,13 @@ function executeAbility(
       return;
     case 'summoner_earth_familiar':
       summonPet(
-          'Familiar',
-          'an earth familiar',
-          ['Cipher', 'Glim', 'Vex', 'Aster', 'Sigil'],
-          { key: 'pet_taunt', cooldownSeconds: 10n },
-          { hpBase: 22n, hpPerLevel: 6n, damageBase: 2n, damagePerLevel: 1n, weaponScalePercent: 30n }
-        );
-        return;
+        'Familiar',
+        'an earth familiar',
+        ['Cipher', 'Glim', 'Vex', 'Aster', 'Sigil'],
+        { key: 'pet_taunt', cooldownSeconds: 10n },
+        { hpBase: 22n, hpPerLevel: 6n, damageBase: 2n, damagePerLevel: 1n, weaponScalePercent: 30n }
+      );
+      return;
     case 'summoner_conjured_spike':
       applyDamage(0n, 0n);
       return;
@@ -3178,25 +3178,25 @@ function executeAbilityAction(
   ctx: any,
   args:
     | {
-        actorType: 'character';
-        actorId: bigint;
-        abilityKey: string;
-        targetCharacterId?: bigint;
-      }
+      actorType: 'character';
+      actorId: bigint;
+      abilityKey: string;
+      targetCharacterId?: bigint;
+    }
     | {
-        actorType: 'enemy';
-        actorId: bigint;
-        combatId: bigint;
-        abilityKey: string;
-        targetCharacterId?: bigint;
-      }
+      actorType: 'enemy';
+      actorId: bigint;
+      combatId: bigint;
+      abilityKey: string;
+      targetCharacterId?: bigint;
+    }
     | {
-        actorType: 'pet';
-        actorId: bigint;
-        combatId: bigint;
-        abilityKey: string;
-        targetEnemyId?: bigint;
-      }
+      actorType: 'pet';
+      actorId: bigint;
+      combatId: bigint;
+      abilityKey: string;
+      targetEnemyId?: bigint;
+    }
 ) {
   if (args.actorType === 'character') {
     const character = ctx.db.character.id.find(args.actorId);
@@ -3481,8 +3481,8 @@ function ensureStarterItemTemplates(ctx: any) {
   };
 
   const ARMOR_ALLOWED_CLASSES: Record<string, string> = {
-    plate: 'warrior,paladin',
-    chain: 'warrior,paladin,ranger,shaman',
+    plate: 'warrior,paladin,bard,cleric',
+    chain: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver',
     leather: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster',
     cloth: 'any',
   };
@@ -4209,8 +4209,8 @@ function ensureAbilityTemplates(ctx: any) {
   ]);
   const combatStateFor = (key: string) =>
     combatOnlyKeys.has(key) ? 'combat_only' :
-    outOfCombatOnlyKeys.has(key) ? 'out_of_combat_only' :
-    'any';
+      outOfCombatOnlyKeys.has(key) ? 'out_of_combat_only' :
+        'any';
   for (const [key, ability] of Object.entries(ABILITIES)) {
     const entry = ability as {
       name: string;
@@ -5535,30 +5535,19 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
     });
   };
   const addRoleTemplate = (
-      template: typeof EnemyTemplate.rowType,
-      roleKey: string,
-      displayName: string,
-      role: string,
-      roleDetail: string,
-      abilityProfile: string
-    ) => {
-      const existing = [...ctx.db.enemyRoleTemplate.by_template.filter(template.id)].find(
-        (row) => row.roleKey === roleKey
-      );
-      if (existing) {
-        ctx.db.enemyRoleTemplate.id.update({
-          ...existing,
-          enemyTemplateId: template.id,
-          roleKey,
-          displayName,
-          role,
-          roleDetail,
-          abilityProfile,
-        });
-        return;
-      }
-      ctx.db.enemyRoleTemplate.insert({
-        id: 0n,
+    template: typeof EnemyTemplate.rowType,
+    roleKey: string,
+    displayName: string,
+    role: string,
+    roleDetail: string,
+    abilityProfile: string
+  ) => {
+    const existing = [...ctx.db.enemyRoleTemplate.by_template.filter(template.id)].find(
+      (row) => row.roleKey === roleKey
+    );
+    if (existing) {
+      ctx.db.enemyRoleTemplate.id.update({
+        ...existing,
         enemyTemplateId: template.id,
         roleKey,
         displayName,
@@ -5566,7 +5555,18 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
         roleDetail,
         abilityProfile,
       });
-    };
+      return;
+    }
+    ctx.db.enemyRoleTemplate.insert({
+      id: 0n,
+      enemyTemplateId: template.id,
+      roleKey,
+      displayName,
+      role,
+      roleDetail,
+      abilityProfile,
+    });
+  };
 
   const factionIdByName = (name: string): bigint | undefined =>
     ([...ctx.db.faction.iter()] as any[]).find((r: any) => r.name === name)?.id;
@@ -5576,778 +5576,778 @@ function ensureEnemyTemplatesAndRoles(ctx: any) {
   const fAshenOrder = factionIdByName('Ashen Order');
   const fFreeBlades = factionIdByName('Free Blades');
 
-    const bogRat = addEnemyTemplate({
-      name: 'Bog Rat',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'swamp',
-      creatureType: 'animal',
-      timeOfDay: 'any',
-      socialGroup: 'animal',
-      socialRadius: 2n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 12n,
-      level: 2n,
-      maxHp: 32n,
-      baseDamage: 5n,
-      xpReward: 18n,
-      factionId: fVerdantCircle,
-    });
-    addRoleTemplate(bogRat, 'bog_rat', 'Bog Rat', 'tank', 'melee', 'thick hide, taunt');
-    addRoleTemplate(bogRat, 'bog_rat_brute', 'Bog Rat Brute', 'tank', 'melee', 'thick hide, taunt');
-    addRoleTemplate(bogRat, 'bog_rat_scavenger', 'Bog Rat Scavenger', 'dps', 'melee', 'gnaw, dart');
+  const bogRat = addEnemyTemplate({
+    name: 'Bog Rat',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'swamp',
+    creatureType: 'animal',
+    timeOfDay: 'any',
+    socialGroup: 'animal',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 12n,
+    level: 2n,
+    maxHp: 32n,
+    baseDamage: 5n,
+    xpReward: 18n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(bogRat, 'bog_rat', 'Bog Rat', 'tank', 'melee', 'thick hide, taunt');
+  addRoleTemplate(bogRat, 'bog_rat_brute', 'Bog Rat Brute', 'tank', 'melee', 'thick hide, taunt');
+  addRoleTemplate(bogRat, 'bog_rat_scavenger', 'Bog Rat Scavenger', 'dps', 'melee', 'gnaw, dart');
 
-    const emberWisp = addEnemyTemplate({
-      name: 'Ember Wisp',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'plains,mountains',
-      creatureType: 'spirit',
-      timeOfDay: 'night',
-      socialGroup: 'spirit',
-      socialRadius: 1n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 3n,
-      armorClass: 8n,
-      level: 2n,
-      maxHp: 28n,
-      baseDamage: 6n,
-      xpReward: 20n,
-      factionId: fVerdantCircle,
-    });
-    addRoleTemplate(emberWisp, 'ember_wisp', 'Ember Wisp', 'dps', 'magic', 'fire bolts, ignite');
-    addRoleTemplate(emberWisp, 'ember_wisp_flare', 'Ember Wisp Flare', 'dps', 'magic', 'flare, ignite');
-    addRoleTemplate(emberWisp, 'ember_wisp_spark', 'Ember Wisp Spark', 'support', 'magic', 'spark, veil');
+  const emberWisp = addEnemyTemplate({
+    name: 'Ember Wisp',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'plains,mountains',
+    creatureType: 'spirit',
+    timeOfDay: 'night',
+    socialGroup: 'spirit',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 8n,
+    level: 2n,
+    maxHp: 28n,
+    baseDamage: 6n,
+    xpReward: 20n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(emberWisp, 'ember_wisp', 'Ember Wisp', 'dps', 'magic', 'fire bolts, ignite');
+  addRoleTemplate(emberWisp, 'ember_wisp_flare', 'Ember Wisp Flare', 'dps', 'magic', 'flare, ignite');
+  addRoleTemplate(emberWisp, 'ember_wisp_spark', 'Ember Wisp Spark', 'support', 'magic', 'spark, veil');
 
-    const bandit = addEnemyTemplate({
-      name: 'Bandit',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'plains,woods',
-      creatureType: 'humanoid',
-      timeOfDay: 'day',
-      socialGroup: 'humanoid',
-      socialRadius: 3n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 3n,
-      armorClass: 8n,
-      level: 2n,
-      maxHp: 24n,
-      baseDamage: 7n,
-      xpReward: 18n,
-      factionId: fFreeBlades,
-    });
-    addRoleTemplate(bandit, 'bandit_archer', 'Bandit Archer', 'dps', 'ranged', 'rapid shot, bleed');
-    addRoleTemplate(bandit, 'bandit_ruffian', 'Bandit Ruffian', 'tank', 'melee', 'shield bash, taunt');
-    addRoleTemplate(bandit, 'bandit_cutthroat', 'Bandit Cutthroat', 'dps', 'melee', 'quick slash, feint');
+  const bandit = addEnemyTemplate({
+    name: 'Bandit',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'plains,woods',
+    creatureType: 'humanoid',
+    timeOfDay: 'day',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 8n,
+    level: 2n,
+    maxHp: 24n,
+    baseDamage: 7n,
+    xpReward: 18n,
+    factionId: fFreeBlades,
+  });
+  addRoleTemplate(bandit, 'bandit_archer', 'Bandit Archer', 'dps', 'ranged', 'rapid shot, bleed');
+  addRoleTemplate(bandit, 'bandit_ruffian', 'Bandit Ruffian', 'tank', 'melee', 'shield bash, taunt');
+  addRoleTemplate(bandit, 'bandit_cutthroat', 'Bandit Cutthroat', 'dps', 'melee', 'quick slash, feint');
 
-    const blightStalker = addEnemyTemplate({
-      name: 'Blight Stalker',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'woods,swamp',
-      creatureType: 'beast',
-      timeOfDay: 'night',
-      socialGroup: 'beast',
-      socialRadius: 2n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 4n,
-      armorClass: 9n,
-      level: 3n,
-      maxHp: 30n,
-      baseDamage: 8n,
-      xpReward: 24n,
-      factionId: fVerdantCircle,
-    });
-    addRoleTemplate(blightStalker, 'blight_stalker', 'Blight Stalker', 'dps', 'melee', 'pounce, shred');
-    addRoleTemplate(blightStalker, 'blight_stalker_brute', 'Blight Stalker Brute', 'tank', 'melee', 'maul, snarl');
-    addRoleTemplate(blightStalker, 'blight_stalker_prowler', 'Blight Stalker Prowler', 'dps', 'melee', 'ambush, shred');
+  const blightStalker = addEnemyTemplate({
+    name: 'Blight Stalker',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods,swamp',
+    creatureType: 'beast',
+    timeOfDay: 'night',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 4n,
+    armorClass: 9n,
+    level: 3n,
+    maxHp: 30n,
+    baseDamage: 8n,
+    xpReward: 24n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(blightStalker, 'blight_stalker', 'Blight Stalker', 'dps', 'melee', 'pounce, shred');
+  addRoleTemplate(blightStalker, 'blight_stalker_brute', 'Blight Stalker Brute', 'tank', 'melee', 'maul, snarl');
+  addRoleTemplate(blightStalker, 'blight_stalker_prowler', 'Blight Stalker Prowler', 'dps', 'melee', 'ambush, shred');
 
-    const graveAcolyte = addEnemyTemplate({
-      id: 0n,
-      name: 'Grave Acolyte',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'town,city',
-      creatureType: 'undead',
-      timeOfDay: 'night',
-      socialGroup: 'undead',
-      socialRadius: 3n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 9n,
-      level: 2n,
-      maxHp: 22n,
-      baseDamage: 4n,
-      xpReward: 18n,
-      factionId: fAshenOrder,
-    });
-    addRoleTemplate(graveAcolyte, 'grave_acolyte', 'Grave Acolyte', 'healer', 'support', 'mend, cleanse');
-    addRoleTemplate(graveAcolyte, 'grave_ritualist', 'Grave Ritualist', 'support', 'control', 'curse, drain');
-    addRoleTemplate(graveAcolyte, 'grave_zealot', 'Grave Zealot', 'dps', 'melee', 'slash, frenzy');
+  const graveAcolyte = addEnemyTemplate({
+    id: 0n,
+    name: 'Grave Acolyte',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'town,city',
+    creatureType: 'undead',
+    timeOfDay: 'night',
+    socialGroup: 'undead',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 9n,
+    level: 2n,
+    maxHp: 22n,
+    baseDamage: 4n,
+    xpReward: 18n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(graveAcolyte, 'grave_acolyte', 'Grave Acolyte', 'healer', 'support', 'mend, cleanse');
+  addRoleTemplate(graveAcolyte, 'grave_ritualist', 'Grave Ritualist', 'support', 'control', 'curse, drain');
+  addRoleTemplate(graveAcolyte, 'grave_zealot', 'Grave Zealot', 'dps', 'melee', 'slash, frenzy');
 
-    const hexbinder = addEnemyTemplate({
-      id: 0n,
-      name: 'Hexbinder',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'woods,swamp',
-      creatureType: 'humanoid',
-      timeOfDay: 'night',
-      socialGroup: 'humanoid',
-      socialRadius: 3n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 9n,
-      level: 3n,
-      maxHp: 26n,
-      baseDamage: 5n,
-      xpReward: 22n,
-      factionId: fAshenOrder,
-    });
-    addRoleTemplate(hexbinder, 'hexbinder', 'Hexbinder', 'support', 'control', 'weaken, slow, snare');
-    addRoleTemplate(hexbinder, 'hexbinder_stalker', 'Hexbinder Stalker', 'dps', 'melee', 'hex strike, feint');
-    addRoleTemplate(hexbinder, 'hexbinder_warder', 'Hexbinder Warder', 'tank', 'melee', 'ward, taunt');
+  const hexbinder = addEnemyTemplate({
+    id: 0n,
+    name: 'Hexbinder',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods,swamp',
+    creatureType: 'humanoid',
+    timeOfDay: 'night',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 9n,
+    level: 3n,
+    maxHp: 26n,
+    baseDamage: 5n,
+    xpReward: 22n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(hexbinder, 'hexbinder', 'Hexbinder', 'support', 'control', 'weaken, slow, snare');
+  addRoleTemplate(hexbinder, 'hexbinder_stalker', 'Hexbinder Stalker', 'dps', 'melee', 'hex strike, feint');
+  addRoleTemplate(hexbinder, 'hexbinder_warder', 'Hexbinder Warder', 'tank', 'melee', 'ward, taunt');
 
-    const thicketWolf = addEnemyTemplate({
-      id: 0n,
-      name: 'Thicket Wolf',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'woods,plains',
-      creatureType: 'animal',
-      timeOfDay: 'day',
-      socialGroup: 'animal',
-      socialRadius: 2n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 3n,
-      armorClass: 9n,
-      level: 1n,
-      maxHp: 22n,
-      baseDamage: 4n,
-      xpReward: 12n,
-      factionId: fVerdantCircle,
-    });
-    addRoleTemplate(thicketWolf, 'thicket_wolf', 'Thicket Wolf', 'dps', 'melee', 'pack bite, lunge');
-    addRoleTemplate(thicketWolf, 'thicket_wolf_alpha', 'Thicket Wolf Alpha', 'tank', 'melee', 'alpha bite, howl');
-    addRoleTemplate(thicketWolf, 'thicket_wolf_prowler', 'Thicket Wolf Prowler', 'dps', 'melee', 'lunge, rake');
+  const thicketWolf = addEnemyTemplate({
+    id: 0n,
+    name: 'Thicket Wolf',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods,plains',
+    creatureType: 'animal',
+    timeOfDay: 'day',
+    socialGroup: 'animal',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 9n,
+    level: 1n,
+    maxHp: 22n,
+    baseDamage: 4n,
+    xpReward: 12n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(thicketWolf, 'thicket_wolf', 'Thicket Wolf', 'dps', 'melee', 'pack bite, lunge');
+  addRoleTemplate(thicketWolf, 'thicket_wolf_alpha', 'Thicket Wolf Alpha', 'tank', 'melee', 'alpha bite, howl');
+  addRoleTemplate(thicketWolf, 'thicket_wolf_prowler', 'Thicket Wolf Prowler', 'dps', 'melee', 'lunge, rake');
 
-    const marshCroaker = addEnemyTemplate({
-      id: 0n,
-      name: 'Marsh Croaker',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'swamp',
-      creatureType: 'animal',
-      timeOfDay: 'day',
-      socialGroup: 'animal',
-      socialRadius: 2n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 8n,
-      level: 1n,
-      maxHp: 20n,
-      baseDamage: 3n,
-      xpReward: 10n,
-      factionId: fVerdantCircle,
-    });
-    addRoleTemplate(marshCroaker, 'marsh_croaker', 'Marsh Croaker', 'dps', 'melee', 'tongue lash, croak');
-    addRoleTemplate(marshCroaker, 'marsh_croaker_bully', 'Marsh Croaker Bully', 'tank', 'melee', 'slam, croak');
+  const marshCroaker = addEnemyTemplate({
+    id: 0n,
+    name: 'Marsh Croaker',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'swamp',
+    creatureType: 'animal',
+    timeOfDay: 'day',
+    socialGroup: 'animal',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 8n,
+    level: 1n,
+    maxHp: 20n,
+    baseDamage: 3n,
+    xpReward: 10n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(marshCroaker, 'marsh_croaker', 'Marsh Croaker', 'dps', 'melee', 'tongue lash, croak');
+  addRoleTemplate(marshCroaker, 'marsh_croaker_bully', 'Marsh Croaker Bully', 'tank', 'melee', 'slam, croak');
 
-    const dustHare = addEnemyTemplate({
-      id: 0n,
-      name: 'Dust Hare',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'plains',
-      creatureType: 'animal',
-      timeOfDay: 'day',
-      socialGroup: 'animal',
-      socialRadius: 2n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 7n,
-      level: 1n,
-      maxHp: 18n,
-      baseDamage: 3n,
-      xpReward: 10n,
-      factionId: fVerdantCircle,
-    });
-    addRoleTemplate(dustHare, 'dust_hare', 'Dust Hare', 'dps', 'melee', 'dart, nip');
-    addRoleTemplate(dustHare, 'dust_hare_skitter', 'Dust Hare Skitter', 'dps', 'melee', 'skitter, nip');
-    addRoleTemplate(dustHare, 'dust_hare_scout', 'Dust Hare Scout', 'support', 'melee', 'distract, dart');
+  const dustHare = addEnemyTemplate({
+    id: 0n,
+    name: 'Dust Hare',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'plains',
+    creatureType: 'animal',
+    timeOfDay: 'day',
+    socialGroup: 'animal',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 7n,
+    level: 1n,
+    maxHp: 18n,
+    baseDamage: 3n,
+    xpReward: 10n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(dustHare, 'dust_hare', 'Dust Hare', 'dps', 'melee', 'dart, nip');
+  addRoleTemplate(dustHare, 'dust_hare_skitter', 'Dust Hare Skitter', 'dps', 'melee', 'skitter, nip');
+  addRoleTemplate(dustHare, 'dust_hare_scout', 'Dust Hare Scout', 'support', 'melee', 'distract, dart');
 
-    const ashJackal = addEnemyTemplate({
-      id: 0n,
-      name: 'Ash Jackal',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'plains',
-      creatureType: 'beast',
-      timeOfDay: 'any',
-      socialGroup: 'beast',
-      socialRadius: 2n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 8n,
-      level: 2n,
-      maxHp: 24n,
-      baseDamage: 6n,
-      xpReward: 18n,
-      factionId: fVerdantCircle,
-    });
-    addRoleTemplate(ashJackal, 'ash_jackal', 'Ash Jackal', 'dps', 'melee', 'snap, pack feint');
-    addRoleTemplate(ashJackal, 'ash_jackal_alpha', 'Ash Jackal Alpha', 'tank', 'melee', 'alpha snap, snarl');
+  const ashJackal = addEnemyTemplate({
+    id: 0n,
+    name: 'Ash Jackal',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'plains',
+    creatureType: 'beast',
+    timeOfDay: 'any',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 8n,
+    level: 2n,
+    maxHp: 24n,
+    baseDamage: 6n,
+    xpReward: 18n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(ashJackal, 'ash_jackal', 'Ash Jackal', 'dps', 'melee', 'snap, pack feint');
+  addRoleTemplate(ashJackal, 'ash_jackal_alpha', 'Ash Jackal Alpha', 'tank', 'melee', 'alpha snap, snarl');
 
-    const thornSprite = addEnemyTemplate({
-      id: 0n,
-      name: 'Thorn Sprite',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'woods',
-      creatureType: 'spirit',
-      timeOfDay: 'night',
-      socialGroup: 'spirit',
-      socialRadius: 1n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 8n,
-      level: 2n,
-      maxHp: 20n,
-      baseDamage: 4n,
-      xpReward: 16n,
-      factionId: fVerdantCircle,
-    });
-    addRoleTemplate(thornSprite, 'thorn_sprite', 'Thorn Sprite', 'support', 'magic', 'sting, wither pollen');
-    addRoleTemplate(thornSprite, 'thorn_sprite_stinger', 'Thorn Sprite Stinger', 'dps', 'magic', 'sting, dart');
+  const thornSprite = addEnemyTemplate({
+    id: 0n,
+    name: 'Thorn Sprite',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods',
+    creatureType: 'spirit',
+    timeOfDay: 'night',
+    socialGroup: 'spirit',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 8n,
+    level: 2n,
+    maxHp: 20n,
+    baseDamage: 4n,
+    xpReward: 16n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(thornSprite, 'thorn_sprite', 'Thorn Sprite', 'support', 'magic', 'sting, wither pollen');
+  addRoleTemplate(thornSprite, 'thorn_sprite_stinger', 'Thorn Sprite Stinger', 'dps', 'magic', 'sting, dart');
 
-    const gloomStag = addEnemyTemplate({
-      id: 0n,
-      name: 'Gloom Stag',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'woods',
-      creatureType: 'beast',
-      timeOfDay: 'any',
-      socialGroup: 'beast',
-      socialRadius: 2n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 12n,
-      level: 3n,
-      maxHp: 34n,
-      baseDamage: 7n,
-      xpReward: 24n,
-      factionId: fVerdantCircle,
-    });
-    addRoleTemplate(gloomStag, 'gloom_stag', 'Gloom Stag', 'tank', 'melee', 'gore, bulwark');
-    addRoleTemplate(gloomStag, 'gloom_stag_charger', 'Gloom Stag Charger', 'dps', 'melee', 'charge, gore');
+  const gloomStag = addEnemyTemplate({
+    id: 0n,
+    name: 'Gloom Stag',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods',
+    creatureType: 'beast',
+    timeOfDay: 'any',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 12n,
+    level: 3n,
+    maxHp: 34n,
+    baseDamage: 7n,
+    xpReward: 24n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(gloomStag, 'gloom_stag', 'Gloom Stag', 'tank', 'melee', 'gore, bulwark');
+  addRoleTemplate(gloomStag, 'gloom_stag_charger', 'Gloom Stag Charger', 'dps', 'melee', 'charge, gore');
 
-    const mireLeech = addEnemyTemplate({
-      id: 0n,
-      name: 'Mire Leech',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'swamp',
-      creatureType: 'beast',
-      timeOfDay: 'any',
-      socialGroup: 'beast',
-      socialRadius: 2n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 9n,
-      level: 2n,
-      maxHp: 26n,
-      baseDamage: 6n,
-      xpReward: 18n,
-      factionId: fVerdantCircle,
-    });
-    addRoleTemplate(mireLeech, 'mire_leech', 'Mire Leech', 'dps', 'melee', 'drain, latch');
-    addRoleTemplate(mireLeech, 'mire_leech_bulwark', 'Mire Leech Bulwark', 'tank', 'melee', 'latch, bulwark');
+  const mireLeech = addEnemyTemplate({
+    id: 0n,
+    name: 'Mire Leech',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'swamp',
+    creatureType: 'beast',
+    timeOfDay: 'any',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 9n,
+    level: 2n,
+    maxHp: 26n,
+    baseDamage: 6n,
+    xpReward: 18n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(mireLeech, 'mire_leech', 'Mire Leech', 'dps', 'melee', 'drain, latch');
+  addRoleTemplate(mireLeech, 'mire_leech_bulwark', 'Mire Leech Bulwark', 'tank', 'melee', 'latch, bulwark');
 
-    const fenWitch = addEnemyTemplate({
-      id: 0n,
-      name: 'Fen Witch',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'swamp',
-      creatureType: 'humanoid',
-      timeOfDay: 'night',
-      socialGroup: 'humanoid',
-      socialRadius: 3n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 9n,
-      level: 3n,
-      maxHp: 28n,
-      baseDamage: 6n,
-      xpReward: 22n,
-      factionId: fAshenOrder,
-    });
-    addRoleTemplate(fenWitch, 'fen_witch', 'Fen Witch', 'support', 'magic', 'curse, mire ward');
-    addRoleTemplate(fenWitch, 'fen_witch_hexer', 'Fen Witch Hexer', 'dps', 'magic', 'hex, sting');
+  const fenWitch = addEnemyTemplate({
+    id: 0n,
+    name: 'Fen Witch',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'swamp',
+    creatureType: 'humanoid',
+    timeOfDay: 'night',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 9n,
+    level: 3n,
+    maxHp: 28n,
+    baseDamage: 6n,
+    xpReward: 22n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(fenWitch, 'fen_witch', 'Fen Witch', 'support', 'magic', 'curse, mire ward');
+  addRoleTemplate(fenWitch, 'fen_witch_hexer', 'Fen Witch Hexer', 'dps', 'magic', 'hex, sting');
 
-    const graveSkirmisher = addEnemyTemplate({
-      id: 0n,
-      name: 'Grave Skirmisher',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'town,city',
-      creatureType: 'undead',
-      timeOfDay: 'day',
-      socialGroup: 'undead',
-      socialRadius: 3n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 3n,
-      armorClass: 9n,
-      level: 2n,
-      maxHp: 26n,
-      baseDamage: 6n,
-      xpReward: 18n,
-      factionId: fAshenOrder,
-    });
-    addRoleTemplate(graveSkirmisher, 'grave_skirmisher', 'Grave Skirmisher', 'dps', 'melee', 'rusty slash, feint');
-    addRoleTemplate(graveSkirmisher, 'grave_skirmisher_guard', 'Grave Skirmisher Guard', 'tank', 'melee', 'guard, slam');
+  const graveSkirmisher = addEnemyTemplate({
+    id: 0n,
+    name: 'Grave Skirmisher',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'town,city',
+    creatureType: 'undead',
+    timeOfDay: 'day',
+    socialGroup: 'undead',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 9n,
+    level: 2n,
+    maxHp: 26n,
+    baseDamage: 6n,
+    xpReward: 18n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(graveSkirmisher, 'grave_skirmisher', 'Grave Skirmisher', 'dps', 'melee', 'rusty slash, feint');
+  addRoleTemplate(graveSkirmisher, 'grave_skirmisher_guard', 'Grave Skirmisher Guard', 'tank', 'melee', 'guard, slam');
 
-    const cinderSentinel = addEnemyTemplate({
-      id: 0n,
-      name: 'Cinder Sentinel',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'mountains,plains',
-      creatureType: 'construct',
-      timeOfDay: 'day',
-      socialGroup: 'construct',
-      socialRadius: 1n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 13n,
-      level: 3n,
-      maxHp: 36n,
-      baseDamage: 6n,
-      xpReward: 26n,
-      factionId: fIronCompact,
-    });
-    addRoleTemplate(cinderSentinel, 'cinder_sentinel', 'Cinder Sentinel', 'tank', 'melee', 'stone wall, slam');
-    addRoleTemplate(cinderSentinel, 'cinder_sentinel_breaker', 'Cinder Sentinel Breaker', 'dps', 'melee', 'breaker slam, cleave');
+  const cinderSentinel = addEnemyTemplate({
+    id: 0n,
+    name: 'Cinder Sentinel',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains,plains',
+    creatureType: 'construct',
+    timeOfDay: 'day',
+    socialGroup: 'construct',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 13n,
+    level: 3n,
+    maxHp: 36n,
+    baseDamage: 6n,
+    xpReward: 26n,
+    factionId: fIronCompact,
+  });
+  addRoleTemplate(cinderSentinel, 'cinder_sentinel', 'Cinder Sentinel', 'tank', 'melee', 'stone wall, slam');
+  addRoleTemplate(cinderSentinel, 'cinder_sentinel_breaker', 'Cinder Sentinel Breaker', 'dps', 'melee', 'breaker slam, cleave');
 
-    const emberling = addEnemyTemplate({
-      id: 0n,
-      name: 'Emberling',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'mountains,plains',
-      creatureType: 'spirit',
-      timeOfDay: 'day',
-      socialGroup: 'spirit',
-      socialRadius: 1n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 3n,
-      armorClass: 7n,
-      level: 1n,
-      maxHp: 18n,
-      baseDamage: 4n,
-      xpReward: 12n,
-      factionId: fVerdantCircle,
-    });
-    addRoleTemplate(emberling, 'emberling', 'Emberling', 'support', 'magic', 'ember spark, kindle');
-    addRoleTemplate(emberling, 'emberling_spark', 'Emberling Spark', 'dps', 'magic', 'spark, ignite');
+  const emberling = addEnemyTemplate({
+    id: 0n,
+    name: 'Emberling',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains,plains',
+    creatureType: 'spirit',
+    timeOfDay: 'day',
+    socialGroup: 'spirit',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 7n,
+    level: 1n,
+    maxHp: 18n,
+    baseDamage: 4n,
+    xpReward: 12n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(emberling, 'emberling', 'Emberling', 'support', 'magic', 'ember spark, kindle');
+  addRoleTemplate(emberling, 'emberling_spark', 'Emberling Spark', 'dps', 'magic', 'spark, ignite');
 
-    const frostboneAcolyte = addEnemyTemplate({
-      id: 0n,
-      name: 'Frostbone Acolyte',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'mountains,city',
-      creatureType: 'undead',
-      timeOfDay: 'night',
-      socialGroup: 'undead',
-      socialRadius: 3n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 9n,
-      level: 4n,
-      maxHp: 30n,
-      baseDamage: 6n,
-      xpReward: 30n,
-      factionId: fAshenOrder,
-    });
-    addRoleTemplate(
-      frostboneAcolyte,
-      'frostbone_acolyte',
-      'Frostbone Acolyte',
-      'healer',
-      'support',
-      'ice mend, ward'
-    );
-    addRoleTemplate(
-      frostboneAcolyte,
-      'frostbone_binder',
-      'Frostbone Binder',
-      'support',
-      'control',
-      'chill bind, ward'
-    );
-    addRoleTemplate(
-      frostboneAcolyte,
-      'frostbone_zealot',
-      'Frostbone Zealot',
-      'dps',
-      'melee',
-      'ice strike, frenzy'
-    );
+  const frostboneAcolyte = addEnemyTemplate({
+    id: 0n,
+    name: 'Frostbone Acolyte',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains,city',
+    creatureType: 'undead',
+    timeOfDay: 'night',
+    socialGroup: 'undead',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 9n,
+    level: 4n,
+    maxHp: 30n,
+    baseDamage: 6n,
+    xpReward: 30n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(
+    frostboneAcolyte,
+    'frostbone_acolyte',
+    'Frostbone Acolyte',
+    'healer',
+    'support',
+    'ice mend, ward'
+  );
+  addRoleTemplate(
+    frostboneAcolyte,
+    'frostbone_binder',
+    'Frostbone Binder',
+    'support',
+    'control',
+    'chill bind, ward'
+  );
+  addRoleTemplate(
+    frostboneAcolyte,
+    'frostbone_zealot',
+    'Frostbone Zealot',
+    'dps',
+    'melee',
+    'ice strike, frenzy'
+  );
 
-    const ridgeSkirmisher = addEnemyTemplate({
-      id: 0n,
-      name: 'Ridge Skirmisher',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'mountains',
-      creatureType: 'humanoid',
-      timeOfDay: 'day',
-      socialGroup: 'humanoid',
-      socialRadius: 3n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 3n,
-      armorClass: 10n,
-      level: 3n,
-      maxHp: 28n,
-      baseDamage: 7n,
-      xpReward: 24n,
-      factionId: fFreeBlades,
-    });
-    addRoleTemplate(ridgeSkirmisher, 'ridge_skirmisher', 'Ridge Skirmisher', 'dps', 'melee', 'rock slash, feint');
-    addRoleTemplate(
-      ridgeSkirmisher,
-      'ridge_skirmisher_guard',
-      'Ridge Skirmisher Guard',
-      'tank',
-      'melee',
-      'guard, slam'
-    );
+  const ridgeSkirmisher = addEnemyTemplate({
+    id: 0n,
+    name: 'Ridge Skirmisher',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains',
+    creatureType: 'humanoid',
+    timeOfDay: 'day',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 10n,
+    level: 3n,
+    maxHp: 28n,
+    baseDamage: 7n,
+    xpReward: 24n,
+    factionId: fFreeBlades,
+  });
+  addRoleTemplate(ridgeSkirmisher, 'ridge_skirmisher', 'Ridge Skirmisher', 'dps', 'melee', 'rock slash, feint');
+  addRoleTemplate(
+    ridgeSkirmisher,
+    'ridge_skirmisher_guard',
+    'Ridge Skirmisher Guard',
+    'tank',
+    'melee',
+    'guard, slam'
+  );
 
-    const emberhawk = addEnemyTemplate({
-      id: 0n,
-      name: 'Emberhawk',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'mountains,plains',
-      creatureType: 'beast',
-      timeOfDay: 'day',
-      socialGroup: 'beast',
-      socialRadius: 2n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 9n,
-      level: 4n,
-      maxHp: 26n,
-      baseDamage: 8n,
-      xpReward: 30n,
-      factionId: fVerdantCircle,
-    });
-    addRoleTemplate(emberhawk, 'emberhawk', 'Emberhawk', 'dps', 'ranged', 'burning dive');
-    addRoleTemplate(emberhawk, 'emberhawk_screecher', 'Emberhawk Screecher', 'support', 'ranged', 'screech, dive');
+  const emberhawk = addEnemyTemplate({
+    id: 0n,
+    name: 'Emberhawk',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains,plains',
+    creatureType: 'beast',
+    timeOfDay: 'day',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 9n,
+    level: 4n,
+    maxHp: 26n,
+    baseDamage: 8n,
+    xpReward: 30n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(emberhawk, 'emberhawk', 'Emberhawk', 'dps', 'ranged', 'burning dive');
+  addRoleTemplate(emberhawk, 'emberhawk_screecher', 'Emberhawk Screecher', 'support', 'ranged', 'screech, dive');
 
-    const basaltBrute = addEnemyTemplate({
-      id: 0n,
-      name: 'Basalt Brute',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'mountains',
-      creatureType: 'construct',
-      timeOfDay: 'any',
-      socialGroup: 'construct',
-      socialRadius: 1n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 14n,
-      level: 4n,
-      maxHp: 40n,
-      baseDamage: 7n,
-      xpReward: 32n,
-      factionId: fIronCompact,
-    });
-    addRoleTemplate(basaltBrute, 'basalt_brute', 'Basalt Brute', 'tank', 'melee', 'stone slam, brace');
+  const basaltBrute = addEnemyTemplate({
+    id: 0n,
+    name: 'Basalt Brute',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains',
+    creatureType: 'construct',
+    timeOfDay: 'any',
+    socialGroup: 'construct',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 14n,
+    level: 4n,
+    maxHp: 40n,
+    baseDamage: 7n,
+    xpReward: 32n,
+    factionId: fIronCompact,
+  });
+  addRoleTemplate(basaltBrute, 'basalt_brute', 'Basalt Brute', 'tank', 'melee', 'stone slam, brace');
 
-    const ashenRam = addEnemyTemplate({
-      id: 0n,
-      name: 'Ashen Ram',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'mountains',
-      creatureType: 'beast',
-      timeOfDay: 'day',
-      socialGroup: 'beast',
-      socialRadius: 2n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 12n,
-      level: 4n,
-      maxHp: 34n,
-      baseDamage: 8n,
-      xpReward: 32n,
-      factionId: fVerdantCircle,
-    });
-    addRoleTemplate(ashenRam, 'ashen_ram', 'Ashen Ram', 'tank', 'melee', 'ram charge, shove');
-    addRoleTemplate(ashenRam, 'ashen_ram_runner', 'Ashen Ram Runner', 'dps', 'melee', 'charging gore');
+  const ashenRam = addEnemyTemplate({
+    id: 0n,
+    name: 'Ashen Ram',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains',
+    creatureType: 'beast',
+    timeOfDay: 'day',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 12n,
+    level: 4n,
+    maxHp: 34n,
+    baseDamage: 8n,
+    xpReward: 32n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(ashenRam, 'ashen_ram', 'Ashen Ram', 'tank', 'melee', 'ram charge, shove');
+  addRoleTemplate(ashenRam, 'ashen_ram_runner', 'Ashen Ram Runner', 'dps', 'melee', 'charging gore');
 
-    const sootboundSentry = addEnemyTemplate({
-      id: 0n,
-      name: 'Sootbound Sentry',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'mountains',
-      creatureType: 'construct',
-      timeOfDay: 'any',
-      socialGroup: 'construct',
-      socialRadius: 2n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 14n,
-      level: 5n,
-      maxHp: 42n,
-      baseDamage: 9n,
-      xpReward: 38n,
-      factionId: fIronCompact,
-    });
-    addRoleTemplate(sootboundSentry, 'sootbound_sentry', 'Sootbound Sentry', 'tank', 'melee', 'iron guard');
-    addRoleTemplate(
-      sootboundSentry,
-      'sootbound_sentry_watcher',
-      'Sootbound Watcher',
-      'support',
-      'magic',
-      'alarm pulse'
-    );
-    addRoleTemplate(basaltBrute, 'basalt_brute_crusher', 'Basalt Brute Crusher', 'dps', 'melee', 'crusher slam, cleave');
+  const sootboundSentry = addEnemyTemplate({
+    id: 0n,
+    name: 'Sootbound Sentry',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains',
+    creatureType: 'construct',
+    timeOfDay: 'any',
+    socialGroup: 'construct',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 14n,
+    level: 5n,
+    maxHp: 42n,
+    baseDamage: 9n,
+    xpReward: 38n,
+    factionId: fIronCompact,
+  });
+  addRoleTemplate(sootboundSentry, 'sootbound_sentry', 'Sootbound Sentry', 'tank', 'melee', 'iron guard');
+  addRoleTemplate(
+    sootboundSentry,
+    'sootbound_sentry_watcher',
+    'Sootbound Watcher',
+    'support',
+    'magic',
+    'alarm pulse'
+  );
+  addRoleTemplate(basaltBrute, 'basalt_brute_crusher', 'Basalt Brute Crusher', 'dps', 'melee', 'crusher slam, cleave');
 
-    const graveServant = addEnemyTemplate({
-      id: 0n,
-      name: 'Grave Servant',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'town,city',
-      creatureType: 'undead',
-      timeOfDay: 'night',
-      socialGroup: 'undead',
-      socialRadius: 3n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 12n,
-      level: 3n,
-      maxHp: 34n,
-      baseDamage: 6n,
-      xpReward: 24n,
-      factionId: fAshenOrder,
-    });
-    addRoleTemplate(graveServant, 'grave_servant', 'Grave Servant', 'tank', 'melee', 'shield crush, watchful');
-    addRoleTemplate(graveServant, 'grave_servant_reaver', 'Grave Servant Reaver', 'dps', 'melee', 'reaver slash, feint');
+  const graveServant = addEnemyTemplate({
+    id: 0n,
+    name: 'Grave Servant',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'town,city',
+    creatureType: 'undead',
+    timeOfDay: 'night',
+    socialGroup: 'undead',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 12n,
+    level: 3n,
+    maxHp: 34n,
+    baseDamage: 6n,
+    xpReward: 24n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(graveServant, 'grave_servant', 'Grave Servant', 'tank', 'melee', 'shield crush, watchful');
+  addRoleTemplate(graveServant, 'grave_servant_reaver', 'Grave Servant Reaver', 'dps', 'melee', 'reaver slash, feint');
 
-    const alleyShade = addEnemyTemplate({
-      id: 0n,
-      name: 'Alley Shade',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'town,city',
-      creatureType: 'undead',
-      timeOfDay: 'night',
-      socialGroup: 'undead',
-      socialRadius: 3n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 3n,
-      armorClass: 10n,
-      level: 4n,
-      maxHp: 28n,
-      baseDamage: 9n,
-      xpReward: 30n,
-      factionId: fAshenOrder,
-    });
-    addRoleTemplate(alleyShade, 'alley_shade', 'Alley Shade', 'dps', 'melee', 'shadow cut, vanish');
-    addRoleTemplate(alleyShade, 'alley_shade_stalker', 'Alley Shade Stalker', 'dps', 'melee', 'stalk, strike');
-    addRoleTemplate(alleyShade, 'alley_shade_warden', 'Alley Shade Warden', 'tank', 'melee', 'ward, counter');
+  const alleyShade = addEnemyTemplate({
+    id: 0n,
+    name: 'Alley Shade',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'town,city',
+    creatureType: 'undead',
+    timeOfDay: 'night',
+    socialGroup: 'undead',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 10n,
+    level: 4n,
+    maxHp: 28n,
+    baseDamage: 9n,
+    xpReward: 30n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(alleyShade, 'alley_shade', 'Alley Shade', 'dps', 'melee', 'shadow cut, vanish');
+  addRoleTemplate(alleyShade, 'alley_shade_stalker', 'Alley Shade Stalker', 'dps', 'melee', 'stalk, strike');
+  addRoleTemplate(alleyShade, 'alley_shade_warden', 'Alley Shade Warden', 'tank', 'melee', 'ward, counter');
 
-    const vaultSentinel = addEnemyTemplate({
-      id: 0n,
-      name: 'Vault Sentinel',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'dungeon',
-      creatureType: 'construct',
-      timeOfDay: 'any',
-      socialGroup: 'construct',
-      socialRadius: 1n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 14n,
-      level: 4n,
-      maxHp: 42n,
-      baseDamage: 7n,
-      xpReward: 34n,
-      factionId: fIronCompact,
-    });
-    addRoleTemplate(vaultSentinel, 'vault_sentinel', 'Vault Sentinel', 'tank', 'melee', 'iron guard, shield bash');
-    addRoleTemplate(vaultSentinel, 'vault_sentinel_crusher', 'Vault Sentinel Crusher', 'dps', 'melee', 'crusher bash, cleave');
+  const vaultSentinel = addEnemyTemplate({
+    id: 0n,
+    name: 'Vault Sentinel',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'dungeon',
+    creatureType: 'construct',
+    timeOfDay: 'any',
+    socialGroup: 'construct',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 14n,
+    level: 4n,
+    maxHp: 42n,
+    baseDamage: 7n,
+    xpReward: 34n,
+    factionId: fIronCompact,
+  });
+  addRoleTemplate(vaultSentinel, 'vault_sentinel', 'Vault Sentinel', 'tank', 'melee', 'iron guard, shield bash');
+  addRoleTemplate(vaultSentinel, 'vault_sentinel_crusher', 'Vault Sentinel Crusher', 'dps', 'melee', 'crusher bash, cleave');
 
-    const sootboundMystic = addEnemyTemplate({
-      id: 0n,
-      name: 'Sootbound Mystic',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'dungeon',
-      creatureType: 'humanoid',
-      timeOfDay: 'any',
-      socialGroup: 'humanoid',
-      socialRadius: 3n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 10n,
-      level: 5n,
-      maxHp: 36n,
-      baseDamage: 8n,
-      xpReward: 38n,
-      factionId: fAshenOrder,
-    });
-    addRoleTemplate(
-      sootboundMystic,
-      'sootbound_mystic',
-      'Sootbound Mystic',
-      'support',
-      'magic',
-      'cinder hex, ember veil'
-    );
-    addRoleTemplate(
-      sootboundMystic,
-      'sootbound_seer',
-      'Sootbound Seer',
-      'support',
-      'magic',
-      'seer veil, ward'
-    );
-    addRoleTemplate(
-      sootboundMystic,
-      'sootbound_flayer',
-      'Sootbound Flayer',
-      'dps',
-      'magic',
-      'flay, hex'
-    );
+  const sootboundMystic = addEnemyTemplate({
+    id: 0n,
+    name: 'Sootbound Mystic',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'dungeon',
+    creatureType: 'humanoid',
+    timeOfDay: 'any',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 10n,
+    level: 5n,
+    maxHp: 36n,
+    baseDamage: 8n,
+    xpReward: 38n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(
+    sootboundMystic,
+    'sootbound_mystic',
+    'Sootbound Mystic',
+    'support',
+    'magic',
+    'cinder hex, ember veil'
+  );
+  addRoleTemplate(
+    sootboundMystic,
+    'sootbound_seer',
+    'Sootbound Seer',
+    'support',
+    'magic',
+    'seer veil, ward'
+  );
+  addRoleTemplate(
+    sootboundMystic,
+    'sootbound_flayer',
+    'Sootbound Flayer',
+    'dps',
+    'magic',
+    'flay, hex'
+  );
 
-    const emberPriest = addEnemyTemplate({
-      id: 0n,
-      name: 'Ember Priest',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'dungeon',
-      creatureType: 'humanoid',
-      timeOfDay: 'any',
-      socialGroup: 'humanoid',
-      socialRadius: 3n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 11n,
-      level: 5n,
-      maxHp: 38n,
-      baseDamage: 6n,
-      xpReward: 36n,
-      factionId: fAshenOrder,
-    });
-    addRoleTemplate(emberPriest, 'ember_priest', 'Ember Priest', 'healer', 'support', 'ashen mend, warding flame');
-    addRoleTemplate(emberPriest, 'ember_priest_zealot', 'Ember Priest Zealot', 'dps', 'magic', 'zeal, flame');
+  const emberPriest = addEnemyTemplate({
+    id: 0n,
+    name: 'Ember Priest',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'dungeon',
+    creatureType: 'humanoid',
+    timeOfDay: 'any',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 11n,
+    level: 5n,
+    maxHp: 38n,
+    baseDamage: 6n,
+    xpReward: 36n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(emberPriest, 'ember_priest', 'Ember Priest', 'healer', 'support', 'ashen mend, warding flame');
+  addRoleTemplate(emberPriest, 'ember_priest_zealot', 'Ember Priest Zealot', 'dps', 'magic', 'zeal, flame');
 
-    const ashforgedRevenant = addEnemyTemplate({
-      id: 0n,
-      name: 'Ashforged Revenant',
-      role: 'base',
-      roleDetail: 'base',
-      abilityProfile: '',
-      terrainTypes: 'dungeon',
-      creatureType: 'undead',
-      timeOfDay: 'any',
-      socialGroup: 'undead',
-      socialRadius: 3n,
-      awareness: 'idle',
-      groupMin: 1n,
-      groupMax: 2n,
-      armorClass: 12n,
-      level: 6n,
-      maxHp: 48n,
-      baseDamage: 10n,
-      xpReward: 44n,
-      factionId: fAshenOrder,
-    });
-    addRoleTemplate(
-      ashforgedRevenant,
-      'ashforged_revenant',
-      'Ashforged Revenant',
-      'dps',
-      'melee',
-      'searing cleave, molten strike'
-    );
-    addRoleTemplate(
-      ashforgedRevenant,
-      'ashforged_bulwark',
-      'Ashforged Bulwark',
-      'tank',
-      'melee',
-      'bulwark, cleave'
-    );
+  const ashforgedRevenant = addEnemyTemplate({
+    id: 0n,
+    name: 'Ashforged Revenant',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'dungeon',
+    creatureType: 'undead',
+    timeOfDay: 'any',
+    socialGroup: 'undead',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 12n,
+    level: 6n,
+    maxHp: 48n,
+    baseDamage: 10n,
+    xpReward: 44n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(
+    ashforgedRevenant,
+    'ashforged_revenant',
+    'Ashforged Revenant',
+    'dps',
+    'melee',
+    'searing cleave, molten strike'
+  );
+  addRoleTemplate(
+    ashforgedRevenant,
+    'ashforged_bulwark',
+    'Ashforged Bulwark',
+    'tank',
+    'melee',
+    'bulwark, cleave'
+  );
 }
 
 spacetimedb.init((ctx) => {
