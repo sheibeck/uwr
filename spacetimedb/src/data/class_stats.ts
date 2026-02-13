@@ -61,7 +61,7 @@ export const MANA_CLASSES = new Set([
 export const CLASS_ARMOR: Record<string, string[]> = {
   bard: ['leather', 'cloth'],
   enchanter: ['cloth'],
-  cleric: ['plate', 'chaing', 'leather', 'cloth'],
+  cleric: ['plate', 'chain', 'leather', 'cloth'],
   wizard: ['cloth'],
   druid: ['cloth'],
   necromancer: ['cloth'],
