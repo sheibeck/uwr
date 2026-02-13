@@ -1418,6 +1418,7 @@ export const styles = {
     gap: '0.4rem',
     userSelect: 'none',
     justifyContent: 'space-between',
+    width: '100%',
   },
   gridTileGoButton: {
     background: 'transparent',
