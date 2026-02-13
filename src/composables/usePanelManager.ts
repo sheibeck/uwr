@@ -33,7 +33,7 @@ interface ResizeState {
 
 interface ServerSyncOptions {
   serverPanelLayouts: Ref<any[]>;
-  selectedCharacterId: Ref<bigint | undefined>;
+  selectedCharacterId: Ref<string | bigint | undefined>;
   savePanelLayout: (args: { characterId: bigint; panelStatesJson: string }) => void;
 }
 
@@ -131,12 +131,14 @@ export function usePanelManager(
       const charId = serverSync.selectedCharacterId.value;
       if (!charId) return;
       try {
+        // Convert charId to bigint for reducer call (it's stored as a string in useCharacters)
+        const charIdBigInt = typeof charId === 'string' ? BigInt(charId) : charId;
         const data: Record<string, any> = {};
         for (const [id, state] of Object.entries(panels)) {
           // Save all fields except zIndex (local-only)
           data[id] = { open: state.open, x: state.x, y: state.y, w: state.w, h: state.h };
         }
-        serverSync.savePanelLayout({ characterId: charId, panelStatesJson: JSON.stringify(data) });
+        serverSync.savePanelLayout({ characterId: charIdBigInt, panelStatesJson: JSON.stringify(data) });
       } catch (e) {
         console.warn('Failed to save panel layout to server:', e);
       }
@@ -357,13 +359,24 @@ export function usePanelManager(
     watch(
       [() => serverSync.serverPanelLayouts.value, () => serverSync.selectedCharacterId.value],
       ([layouts, charId]) => {
+        console.log('[PanelManager] Server sync watcher fired:', {
+          charId: charId?.toString(),
+          layoutsCount: layouts?.length ?? 0
+        });
         if (!charId || !layouts || layouts.length === 0) return;
+        // Convert charId to bigint for comparison (it's stored as a string in useCharacters)
+        const charIdBigInt = typeof charId === 'string' ? BigInt(charId) : charId;
         // Find the layout row for the active character
-        const row = layouts.find((r: any) => r.characterId === charId);
+        const row = layouts.find((r: any) => r.characterId === charIdBigInt);
+        console.log('[PanelManager] Found layout row:', {
+          found: !!row,
+          hasJson: !!row?.panelStatesJson
+        });
         if (!row?.panelStatesJson) return;
         try {
           loadingFromServer.value = true;
           const parsed = JSON.parse(row.panelStatesJson);
+          console.log('[PanelManager] Loading panel states from server:', parsed);
           for (const [id, state] of Object.entries(parsed)) {
             if (panels[id] && typeof state === 'object' && state !== null) {
               const s = state as any;
@@ -375,6 +388,9 @@ export function usePanelManager(
               if (typeof s.open === 'boolean') panels[id].open = s.open;
             }
           }
+          console.log('[PanelManager] Panel states after loading:',
+            Object.fromEntries(Object.entries(panels).map(([id, state]) => [id, { open: state.open }]))
+          );
           // Always ensure fixed panels start open
           if (panels.group) panels.group.open = true;
           if (panels.travel) panels.travel.open = true;
