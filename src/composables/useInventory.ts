@@ -27,17 +27,17 @@ const EQUIPMENT_SLOTS = [
 // Client-side copy of CLASS_ARMOR from spacetimedb/src/data/class_stats.ts
 // Defines which armor types each class can wear
 const CLASS_ARMOR: Record<string, string[]> = {
-  bard: ['cloth'],
+  bard: ['plate', 'chain', 'leather', 'cloth'],
   enchanter: ['cloth'],
-  cleric: ['cloth'],
+  cleric: ['plate', 'chain', 'leather', 'cloth'],
   wizard: ['cloth'],
   druid: ['cloth'],
   necromancer: ['cloth'],
   summoner: ['cloth'],
   rogue: ['leather', 'cloth'],
   monk: ['leather', 'cloth'],
-  spellblade: ['leather', 'cloth'],
-  reaver: ['leather', 'cloth'],
+  spellblade: ['chain', 'leather', 'cloth'],
+  reaver: ['chain', 'leather', 'cloth'],
   beastmaster: ['leather', 'cloth'],
   ranger: ['chain', 'leather', 'cloth'],
   shaman: ['chain', 'leather', 'cloth'],
