@@ -923,14 +923,12 @@ export const registerCombatReducers = (deps: any) => {
           add.roleTemplateId
         );
       }
-      // Send private message to each participant
+      // Send private message to each participant (participants are Character rows)
       for (const p of participants) {
-        const pChar = ctx.db.character.id.find(p.characterId);
-        if (!pChar) continue;
-        const privateMsg = pChar.id === character.id
+        const privateMsg = p.id === character.id
           ? `Your ${pull.pullType} pull is noticed. You bring 1 of ${initialGroupCount} ${spawn.name} and ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately. Remaining in group: ${remainingGroup}.${reasonSuffix}`
           : `${character.name}'s ${pull.pullType} pull is noticed. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately. Remaining in group: ${remainingGroup}.${reasonSuffix}`;
-        appendPrivateEvent(ctx, pChar.id, pChar.ownerUserId, 'system', privateMsg);
+        appendPrivateEvent(ctx, p.id, p.ownerUserId, 'system', privateMsg);
       }
       // Send group message once
       if (combat.groupId) {
@@ -938,14 +936,12 @@ export const registerCombatReducers = (deps: any) => {
       }
     } else {
       const remainingGroup = ctx.db.enemySpawn.id.find(spawn.id)?.groupCount ?? 0n;
-      // Send private message to each participant
+      // Send private message to each participant (participants are Character rows)
       for (const p of participants) {
-        const pChar = ctx.db.character.id.find(p.characterId);
-        if (!pChar) continue;
-        const privateMsg = pChar.id === character.id
+        const privateMsg = p.id === character.id
           ? `Your ${pull.pullType} pull is clean. You draw 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`
           : `${character.name}'s pull is clean. You draw 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`;
-        appendPrivateEvent(ctx, pChar.id, pChar.ownerUserId, 'system', privateMsg);
+        appendPrivateEvent(ctx, p.id, p.ownerUserId, 'system', privateMsg);
       }
       // Send group message once
       if (combat.groupId) {
