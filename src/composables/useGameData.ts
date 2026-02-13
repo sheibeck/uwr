@@ -49,7 +49,7 @@ export const useGameData = () => {
   const [privateEvents] = useTable(tables.myPrivateEvents);
   const [groupEvents] = useTable(tables.myGroupEvents);
   const [groupMembers] = useTable(tables.myGroupMembers);
-  const [npcDialogs] = useTable(tables.myNpcDialog);
+  const [npcDialogs] = useTable(tables.npcDialog);
   const [questTemplates] = useTable(tables.questTemplate);
   const [questInstances] = useTable(tables.myQuests);
   const [worldState] = useTable(tables.worldState);

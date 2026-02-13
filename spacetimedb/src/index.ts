@@ -166,6 +166,7 @@ const Npc = table(
 const NpcDialog = table(
   {
     name: 'npc_dialog',
+    public: true,
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
       { name: 'by_npc', algorithm: 'btree', columns: ['npcId'] },

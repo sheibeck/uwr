@@ -378,6 +378,8 @@ import TradeItemRow from "./trade_item_table";
 export { TradeItemRow };
 import TradeSessionRow from "./trade_session_table";
 export { TradeSessionRow };
+import UiPanelLayoutRow from "./ui_panel_layout_table";
+export { UiPanelLayoutRow };
 import UserRow from "./user_table";
 export { UserRow };
 import VendorInventoryRow from "./vendor_inventory_table";
@@ -1739,6 +1741,20 @@ const tablesSchema = __schema(
       { name: 'trade_session_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, TradeSessionRow),
+  __table({
+    name: 'ui_panel_layout',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'ui_panel_layout_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, UiPanelLayoutRow),
   __table({
     name: 'user',
     indexes: [

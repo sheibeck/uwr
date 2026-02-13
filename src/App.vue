@@ -212,7 +212,7 @@
     <!-- Journal Panel (wide) -->
     <div v-if="panels.journal && panels.journal.open" data-panel-id="journal" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('journal').value || {}) }" @mousedown="bringToFront('journal')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('journal', $event)"><div>Journal</div><button type="button" :style="styles.panelClose" @click="closePanelById('journal')">×</button></div>
-      <div :style="styles.floatingPanelBody"><NpcDialogPanel :styles="styles" :npc-dialogs="npcDialogs" :npcs="npcs" :locations="locations" :regions="regions" /></div>
+      <div :style="styles.floatingPanelBody"><NpcDialogPanel :styles="styles" :npc-dialogs="characterNpcDialogs" :npcs="npcs" :locations="locations" :regions="regions" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('journal', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('journal', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('journal', $event, { right: true, bottom: true })" />
     </div>
 
@@ -816,6 +816,13 @@ const relevantEffects = computed(() => {
   }
   return characterEffects.value.filter(
     (effect: any) => memberIds.has(effect.characterId.toString())
+  );
+});
+
+const characterNpcDialogs = computed(() => {
+  if (!selectedCharacter.value) return [];
+  return npcDialogs.value.filter(
+    (entry: any) => entry.characterId.toString() === selectedCharacter.value!.id.toString()
   );
 });
 
