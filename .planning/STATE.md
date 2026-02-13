@@ -188,10 +188,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 55 | Fix production bugs - cooldown timers and pull bars - server clock offset mechanism to fix clock skew between maincloud server and client browsers | 2026-02-13 | 7c81f86 | [55-fix-production-bugs-cooldown-timers-not-](./quick/55-fix-production-bugs-cooldown-timers-not-/) |
 | 56 | Address combat duration - increase HP pools and add global damage reduction - roughly double combat duration from 2-3 rounds to 4-6+ rounds | 2026-02-13 | 2df7a36 | [56-address-combat-duration-explore-hp-pools](./quick/56-address-combat-duration-explore-hp-pools/) |
 | 57 | Fix ability cooldowns - Magic Missile 30s bug and Thorn Lash refill - server-side expired cooldown cleanup and client prediction trust with GCD clamp | 2026-02-13 | 5a6bb87 | [57-fix-ability-cooldowns-magic-missile-30s-](./quick/57-fix-ability-cooldowns-magic-missile-30s-/) |
+| 58 | Review all character abilities up through level 2 - fix ranger_track from no-op to enemy scouting ability revealing names/levels, reduce cooldown 600s to 120s | 2026-02-13 | e307bac | [58-review-all-character-abilities-up-throug](./quick/58-review-all-character-abilities-up-throug/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick task 57 — fix ability cooldowns (Magic Missile 30s bug, Thorn Lash refill)
+**Stopped at:** Completed quick task 58 — review level 1-2 abilities, fix ranger_track
 **Timestamp:** 2026-02-13T05:33:00Z
