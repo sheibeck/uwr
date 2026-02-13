@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-13
-**Status:** Phase 3.1.2 complete — Enemy combat balance system with power scaling, DoT/debuff budgets, healing, AoE, and buff abilities all verified functional
+**Status:** Phase 3.1.3 in progress — Enemy AI and aggro management: role-based threat system implemented (plan 01 complete)
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete — enemy power scaling, ability metadata, executeEnemyAbility with all 6 ability kinds, and human verification all approved.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) in progress — role-based threat multipliers implemented (tanks 1.5x, healers 0.5x + healing threat).
 
-**Current phase:** 3.1.2 (Combat Balance for Enemies)
-**Current plan:** 03 complete (3/3 plans done)
-**Next action:** Move to Phase 4 (LLM Architecture) or address combat duration feedback
+**Current phase:** 3.1.3 (Enemy AI and Aggro Management)
+**Current plan:** 01 complete (1/? plans done)
+**Next action:** Continue Phase 3.1.3 with enemy AI targeting and taunt mechanics
 
 ---
 
@@ -26,6 +26,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 3.1 | Combat Balance | Complete (5/5 plans done: 2 impl + 1 verify + 2 gaps, human-verified) |
 | 3.1.1 | Combat Balance Part 2 | Complete (3/3 plans done: metadata, implementation, verification all approved) |
 | 3.1.2 | Combat Balance for Enemies | Complete (3/3 plans done: metadata, implementation, verification all approved) |
+| 3.1.3 | Enemy AI and Aggro Management | In Progress (1/? plans done: role-based threat) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
 | 6 | World Events | Pending |
@@ -79,6 +80,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 41. Enemy AoE abilities have no DoT component (direct damage only) — AoE cannot apply DoTs per user decision (3.1.2-01)
 42. Enemy damage type routing: physical (poison/venom/bite/gore/bleed/stone/bog) vs magic (ember/fire/shadow/hex/curse/searing) routes through armor vs magic resist (3.1.2-01)
 43. Enemy combat balance verified functional with all 6 ability kinds — user noted combat duration concern (battles too short) for potential future survivability tuning pass (3.1.2-03)
+44. Tank threat multiplier 1.5x (conservative start), healer 0.5x, healing generates 50% threat split across enemies — role-based threat system for tank/healer/DPS trinity (3.1.3-01)
 
 ---
 
@@ -102,8 +104,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 03.1.2-combat-balance-for-enemies | 01 | 4min | 2 | 2 |
 | 03.1.2-combat-balance-for-enemies | 02 | 5min | 2 | 1 |
 | 03.1.2-combat-balance-for-enemies | 03 | 2min | 1 | 0 |
-
----
+| 03.1.3-enemy-ai-and-aggro-management | 01 | 3min | 2 | 4 |
 
 ## Accumulated Context
 
@@ -186,5 +187,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed 03.1.2-03-PLAN.md (Phase 03.1.2 complete — enemy combat balance verified)
-**Timestamp:** 2026-02-13T04:26:00Z
+**Stopped at:** Completed 03.1.3-01-PLAN.md (Phase 03.1.3 plan 01 — role-based threat system)
+**Timestamp:** 2026-02-13T05:10:47Z
