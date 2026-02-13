@@ -8,10 +8,10 @@
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete — DoT/HoT/debuff/AoE balance with power budget splits (50% periodic scaling), AoE enumeration (65% per target), and debuff power cost (25%) all verified functional. Phase 3.1.2 Plan 01 complete — enemy power scaling constants and ability metadata foundation.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete — DoT/HoT/debuff/AoE balance with power budget splits (50% periodic scaling), AoE enumeration (65% per target), and debuff power cost (25%) all verified functional. Phase 3.1.2 Plans 01-02 complete — enemy power scaling constants, ability metadata foundation, and full executeEnemyAbility implementation with all 6 ability kinds (dot, debuff, heal, aoe_damage, buff).
 
 **Current phase:** 3.1.2 (Combat Balance for Enemies)
-**Current plan:** 01 complete (1/? plans done)
+**Current plan:** 02 complete (2/? plans done)
 **Next action:** Continue Phase 3.1.2 or move to Phase 4 LLM Architecture
 
 ---
@@ -25,7 +25,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 3 | Renown Foundation | Complete (2/2 plans done, human-verified) |
 | 3.1 | Combat Balance | Complete (5/5 plans done: 2 impl + 1 verify + 2 gaps, human-verified) |
 | 3.1.1 | Combat Balance Part 2 | Complete (3/3 plans done: metadata, implementation, verification all approved) |
-| 3.1.2 | Combat Balance for Enemies | In Progress (1/? plans done: enemy metadata foundation complete) |
+| 3.1.2 | Combat Balance for Enemies | In Progress (2/? plans done: enemy metadata + executeEnemyAbility implementation complete) |
 | 4 | LLM Architecture | Pending |
 | 5 | Quest System | Pending |
 | 6 | World Events | Pending |
@@ -99,6 +99,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 03.1.1-combat-balance-part-2 | 02 | 3min | 4 | 2 |
 | 03.1.1-combat-balance-part-2 | 03 | 2min | 1 | 1 |
 | 03.1.2-combat-balance-for-enemies | 01 | 4min | 2 | 2 |
+| 03.1.2-combat-balance-for-enemies | 02 | 5min | 2 | 1 |
 
 ---
 
@@ -182,5 +183,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed 03.1.2-01-PLAN.md (Enemy power scaling and ability metadata foundation)
-**Timestamp:** 2026-02-13T04:11:05Z
+**Stopped at:** Completed 03.1.2-02-PLAN.md (Enemy ability execution with level-scaled power and all ability kinds)
+**Timestamp:** 2026-02-13T04:20:51Z
