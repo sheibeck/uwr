@@ -82,6 +82,20 @@ export const AOE_DAMAGE_MULTIPLIER = 65n;  // 65% on 100n scale
  */
 export const DEBUFF_POWER_COST_PERCENT = 25n;  // 25% on 100n scale
 
+/**
+ * Enemy base ability power (level 1 baseline)
+ * Enemies do NOT have stats — damage is purely level + power rating
+ * User decision: enemy ability damage scales by enemy level only
+ */
+export const ENEMY_BASE_POWER = 10n;
+
+/**
+ * Enemy ability power scaling per level
+ * Formula: ENEMY_BASE_POWER + (enemyLevel * ENEMY_LEVEL_POWER_SCALING)
+ * Level 1 = 15, Level 5 = 35, Level 10 = 60
+ */
+export const ENEMY_LEVEL_POWER_SCALING = 5n;
+
 // ============================================================================
 // ABILITY STAT SCALING MAPPING
 // ============================================================================
