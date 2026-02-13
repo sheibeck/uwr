@@ -20,7 +20,6 @@ export const useCharacterCreation = ({
   characters,
   races,
 }: UseCharacterCreationArgs) => {
-  const MAX_CHARACTER_SLOTS = 3;
   const createCharacterReducer = useReducer(reducers.createCharacter);
   const newCharacter = ref({ name: '', raceId: '', className: '' });
   const createError = ref('');
@@ -55,11 +54,6 @@ export const useCharacterCreation = ({
   const createCharacter = () => {
     if (!connActive.value || userId.value == null || !isCharacterFormValid.value) return;
     createError.value = '';
-    const ownedCount = characters.value.filter((row) => row.ownerUserId === userId.value).length;
-    if (ownedCount >= MAX_CHARACTER_SLOTS) {
-      createError.value = `You can only have ${MAX_CHARACTER_SLOTS} characters for now.`;
-      return;
-    }
     const desired = newCharacter.value.name.trim().toLowerCase();
     if (characters.value.some((row) => row.name.toLowerCase() === desired)) {
       createError.value = 'That name is already taken.';
