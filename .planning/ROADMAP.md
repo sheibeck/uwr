@@ -174,6 +174,30 @@ Plans:
 
 ---
 
+### Phase 03.1.2: Combat Balance for Enemies (INSERTED)
+
+**Goal:** Extend combat balance system to enemy abilities with level-based power scaling, DoT/debuff/healing/AoE mechanics using power budget splits. Enemies gain tactical variety (healers, AoE, buffers) and consistent damage scaling.
+**Depends on:** Phase 03.1.1
+**Status:** Planned
+**Plans:** 3 plans
+
+Plans:
+- [ ] 03.1.2-01-PLAN.md — Enemy metadata and constants: Add ENEMY_BASE_POWER/ENEMY_LEVEL_POWER_SCALING constants, extend all ENEMY_ABILITIES with power/damageType/budget split metadata, add new heal/AoE/buff abilities
+- [ ] 03.1.2-02-PLAN.md — Enemy ability implementation: Rewrite executeEnemyAbility with level-based power scaling, power budget splits, damage type routing, heal/AoE/buff handlers, seed new enemy abilities, publish module
+- [ ] 03.1.2-03-PLAN.md — Human verification: Test all enemy ability types (DoT scaling, debuff budget, healing, AoE, buffs, damage type routing)
+
+**Success Criteria:**
+- [ ] Enemy abilities scale with enemy level (not fixed magnitude values)
+- [ ] Enemy DoT abilities split power between direct damage and periodic ticks
+- [ ] Enemy debuff abilities deal reduced direct damage (25% power cost for debuff)
+- [ ] Enemy healer types heal lowest-HP ally with direct heal + HoT
+- [ ] Enemy AoE types hit all players at 65% damage per target (direct damage only, no DoTs)
+- [ ] Enemy buffer types apply buff effects to all living enemy allies
+- [ ] Physical enemy abilities mitigated by armor; magic abilities bypass armor
+- [ ] User verifies all 6 combat scenarios work correctly
+
+---
+
 ### Phase 4: LLM Architecture
 
 **Goal:** Working LLM content pipeline: procedure calls Anthropic API, writes to content tables, handles failures gracefully. No content consumers yet — this is the plumbing phase.
