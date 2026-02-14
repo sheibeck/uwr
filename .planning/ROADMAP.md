@@ -471,12 +471,14 @@ Plans:
 
 ### Phase 12: Overall Renown System - Character-wide renown separate from factions, renown ranks with unlockable perks, renown gain sources from events/bosses/achievements
 
-**Goal:** [To be planned]
+**Goal:** Character-wide renown progression system with 15 named ranks across 5 tiers, permanent perk choices from pools at each rank (mix of passive stat bonuses and active abilities), server-first tracking with diminishing returns, combat-integrated renown awards, achievement milestones, and dedicated tabbed UI panel with rank progression, perk selection, and leaderboard.
 **Depends on:** Phase 11
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 12 to break down)
+- [ ] 12-01-PLAN.md — Backend foundation: Renown/RenownPerk/RenownServerFirst/Achievement tables, 15-rank threshold curve, perk pools, awardRenown/awardServerFirst helpers, choose_perk/test reducers
+- [ ] 12-02-PLAN.md — Integration hooks: EnemyTemplate isBoss field, character creation Renown init, combat victory renown awards, perk stat bonuses in combat, publish module and regenerate bindings
+- [ ] 12-03-PLAN.md — Frontend UI: Tabbed RenownPanel (Factions/Renown/Leaderboard), perk selection flow, rank-up notification overlay, useGameData subscriptions, human verification
 
 ### Phase 13: Crafting System - Weapons & Armor - Extend recipe system for gear crafting, material requirements and gathering, crafted gear as deterministic progression path
 
