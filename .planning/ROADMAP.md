@@ -20,7 +20,7 @@
 | 8 | Narrative Tone Rollout | REQ-080–084 (applied) | Phase 5 (LLM pipeline running) | Pending |
 | 9 | Content Data Expansion | REQ-090–094 | Phases 1–3 (systems to populate) | Pending |
 | 10 | Travel & Movement Costs | None | Phase 4 | Complete (2026-02-13) |
-| 11 | Death & Corpse System | None | Phase 10 | Pending |
+| 11 | Death & Corpse System | None | Phase 10 | Planned |
 | 12 | Overall Renown System | None | Phase 11 | Pending |
 | 13 | Crafting System - Weapons & Armor | None | Phase 12 | Pending |
 | 14 | Loot & Gear Progression | None | Phase 13 | Pending |
@@ -458,14 +458,15 @@ Plans:
 - [x] 10-01-PLAN.md — Backend: TRAVEL_CONFIG constants, TravelCooldown table, move_character reducer with region-based stamina costs, group-wide validation, and per-character cooldown
 - [x] 10-02-PLAN.md — Frontend: Publish module, regenerate bindings, TravelPanel cost indicators, cooldown countdown display, affordability gating, human verification
 
-### Phase 11: Death & Corpse System - Corpse mechanic for level 5+ characters, equipped items stay while inventory drops to corpse, corpse retrieval mechanics, death penalties and resurrection
+### Phase 11: Death & Corpse System
 
-**Goal:** [To be planned]
+**Goal:** Level-gated death consequence system where level 5+ characters who die in combat create a corpse at the death location containing their inventory items (equipped gear stays on character). Characters respawn as ghosts at their bind point, travel to the corpse to retrieve items, or summon the corpse at a bind stone. Ghosts are immune to combat. Cleric Resurrect ability prevents corpse runs for organized groups.
 **Depends on:** Phase 10
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 11 to break down)
+- [ ] 11-01-PLAN.md — Backend: Corpse/CorpseItem tables, isGhost on Character, corpse helper, death hook in combat, modified respawn, retrieve/summon corpse reducers, ghost immunity guards, publish and regenerate bindings
+- [ ] 11-02-PLAN.md — Cleric Resurrect ability, frontend ghost banner UI, corpse indicators in location panel, inventory filtering for corpse items, ghost action disabling, human verification
 
 ### Phase 12: Overall Renown System - Character-wide renown separate from factions, renown ranks with unlockable perks, renown gain sources from events/bosses/achievements
 
