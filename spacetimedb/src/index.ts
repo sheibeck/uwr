@@ -50,7 +50,8 @@ import {
   TANK_THREAT_MULTIPLIER,
   HEALER_THREAT_MULTIPLIER,
   HEALING_THREAT_PERCENT,
-} from './data/combat_scaling';
+  ABILITY_STAT_SCALING,
+} from './data/combat_scaling.js';
 
 const Player = table(
   { name: 'player', public: true },
@@ -541,6 +542,17 @@ const AbilityTemplate = table(
     kind: t.string(),
     combatState: t.string(),
     description: t.string(),
+    power: t.u64().optional(),
+    damageType: t.string().optional(),
+    statScaling: t.string().optional(),
+    dotPowerSplit: t.f64().optional(),
+    dotDuration: t.u64().optional(),
+    hotPowerSplit: t.f64().optional(),
+    hotDuration: t.u64().optional(),
+    debuffType: t.string().optional(),
+    debuffMagnitude: t.i64().optional(),
+    debuffDuration: t.u64().optional(),
+    aoeTargets: t.string().optional(),
   }
 );
 
@@ -1694,15 +1706,17 @@ function isGroupLeaderOrSolo(ctx: any, character: any) {
   return !!group && group.leaderCharacterId === character.id;
 }
 
-function abilityCooldownMicros(abilityKey: string) {
-  const ability = ABILITIES[abilityKey as keyof typeof ABILITIES];
+function abilityCooldownMicros(ctx: any, abilityKey: string) {
+  const rows = [...ctx.db.abilityTemplate.by_key.filter(abilityKey)];
+  const ability = rows[0];
   if (!ability) return GLOBAL_COOLDOWN_MICROS;
   const specific = ability.cooldownSeconds ? ability.cooldownSeconds * 1_000_000n : 0n;
   return specific > GLOBAL_COOLDOWN_MICROS ? specific : GLOBAL_COOLDOWN_MICROS;
 }
 
-function abilityCastMicros(abilityKey: string) {
-  const ability = ABILITIES[abilityKey as keyof typeof ABILITIES];
+function abilityCastMicros(ctx: any, abilityKey: string) {
+  const rows = [...ctx.db.abilityTemplate.by_key.filter(abilityKey)];
+  const ability = rows[0];
   if (ability?.castSeconds) return ability.castSeconds * 1_000_000n;
   return 0n;
 }
@@ -1891,7 +1905,8 @@ function executeAbility(
   targetCharacterId?: bigint
 ) {
   const normalizedClass = normalizeClassName(character.className);
-  const ability = ABILITIES[abilityKey as keyof typeof ABILITIES];
+  const abilityRows = [...ctx.db.abilityTemplate.by_key.filter(abilityKey)];
+  const ability = abilityRows[0];
   if (!ability) throw new SenderError('Unknown ability');
   if (ability.className !== normalizedClass) {
     throw new SenderError('Ability not available');
@@ -2066,22 +2081,22 @@ function executeAbility(
       armor = armor > options.ignoreArmor ? armor - options.ignoreArmor : 0n;
     }
     // Get ability info for stat scaling
-    const abilityEntry = ABILITIES[abilityKey as keyof typeof ABILITIES];
     const statScaling = getAbilityStatScaling(
       { str: character.str, dex: character.dex, cha: character.cha, wis: character.wis, int: character.int },
       abilityKey,
-      character.className
+      character.className,
+      ability.statScaling ?? 'none'
     );
-    const abilityMultiplier = abilityEntry
-      ? getAbilityMultiplier(abilityEntry.castSeconds, abilityEntry.cooldownSeconds)
+    const abilityMultiplier = ability
+      ? getAbilityMultiplier(ability.castSeconds, ability.cooldownSeconds)
       : 100n;
 
     // Hybrid formula: (base + stat_scaling) * ability_multiplier / 100
-    const abilityBaseDamage = abilityEntry ? abilityEntry.power * 5n : 0n;
+    const abilityBaseDamage = ability ? (ability.power ?? 0n) * 5n : 0n;
     const scaledAbilityDamage = ((abilityBaseDamage + statScaling) * abilityMultiplier) / 100n;
 
     // Power budget split for DoT abilities
-    const directPowerFraction = abilityEntry?.dotPowerSplit ? 1.0 - abilityEntry.dotPowerSplit : 1.0;
+    const directPowerFraction = ability?.dotPowerSplit ? 1.0 - ability.dotPowerSplit : 1.0;
 
     // Apply power budget split to scaled ability damage
     const directAbilityDamage = (scaledAbilityDamage * BigInt(Math.floor(directPowerFraction * 100))) / 100n;
@@ -2089,21 +2104,21 @@ function executeAbility(
     // If ability has DoT, calculate DoT damage with reduced stat scaling
     let dotDamagePerTick = 0n;
     let dotDuration = 0n;
-    if (abilityEntry?.dotPowerSplit && abilityEntry?.dotDuration) {
-      const dotPowerFraction = abilityEntry.dotPowerSplit;
+    if (ability?.dotPowerSplit && ability?.dotDuration) {
+      const dotPowerFraction = ability.dotPowerSplit;
       const dotTotalDamage = (scaledAbilityDamage * BigInt(Math.floor(dotPowerFraction * 100))) / 100n;
 
       // DoT stat scaling uses REDUCED rate (50% of direct scaling)
       const dotStatScaling = (statScaling * DOT_SCALING_RATE_MODIFIER) / 100n;
 
       // DoT damage per tick = (total DoT power + reduced stat scaling) / duration
-      dotDamagePerTick = ((dotTotalDamage + dotStatScaling) / abilityEntry.dotDuration);
-      dotDuration = abilityEntry.dotDuration;
+      dotDamagePerTick = ((dotTotalDamage + dotStatScaling) / ability.dotDuration);
+      dotDuration = ability.dotDuration;
     }
 
     // If ability has debuff, reduce direct damage by debuff power cost
     let finalDirectDamage = directAbilityDamage;
-    if (abilityEntry?.debuffType && abilityEntry?.debuffMagnitude && abilityEntry?.debuffDuration) {
+    if (ability?.debuffType && ability?.debuffMagnitude && ability?.debuffDuration) {
       const debuffCostFraction = 1.0 - (Number(DEBUFF_POWER_COST_PERCENT) / 100);
       finalDirectDamage = (directAbilityDamage * BigInt(Math.floor(debuffCostFraction * 100))) / 100n;
     }
@@ -2112,7 +2127,7 @@ function executeAbility(
     const weaponComponent = percent > 0n ? abilityDamageFromWeapon(baseWeaponDamage, percent, bonus) : 0n;
 
     // AoE target enumeration and damage reduction
-    if (abilityEntry?.aoeTargets === 'all_enemies') {
+    if (ability?.aoeTargets === 'all_enemies') {
       const aoeMultiplier = Number(AOE_DAMAGE_MULTIPLIER) / 100;  // 65% = 0.65
       const enemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
 
@@ -2131,7 +2146,7 @@ function executeAbility(
         }
 
         // Route mitigation by damage type
-        const dmgType = abilityEntry?.damageType ?? 'physical';
+        const dmgType = ability?.damageType ?? 'physical';
         let mitigatedDamage: bigint;
         if (dmgType === 'magic') {
           mitigatedDamage = aoeDamage > 0n ? aoeDamage : 1n;
@@ -2159,7 +2174,7 @@ function executeAbility(
         }
 
         // Apply DoT to all AoE targets (DoT not further reduced per user decision: "Single tax")
-        if (dotDamagePerTick > 0n && dotDuration > 0n && abilityEntry?.name) {
+        if (dotDamagePerTick > 0n && dotDuration > 0n && ability?.name) {
           addEnemyEffect(
             ctx,
             combatId,
@@ -2167,7 +2182,7 @@ function executeAbility(
             'dot',
             dotDamagePerTick,
             dotDuration,
-            abilityEntry.name
+            ability.name
           );
         }
 
@@ -2179,7 +2194,7 @@ function executeAbility(
           character.id,
           character.ownerUserId,
           'damage',
-          `Your ${abilityEntry.name} hits ${targetName} for ${mitigatedDamage} damage.`
+          `Your ${ability.name} hits ${targetName} for ${mitigatedDamage} damage.`
         );
         if (actorGroupId) {
           appendGroupEvent(
@@ -2187,7 +2202,7 @@ function executeAbility(
             actorGroupId,
             character.id,
             'damage',
-            `${character.name}'s ${abilityEntry.name} hits ${targetName} for ${mitigatedDamage} damage.`
+            `${character.name}'s ${ability.name} hits ${targetName} for ${mitigatedDamage} damage.`
           );
         }
       }
@@ -2203,7 +2218,7 @@ function executeAbility(
       const raw = weaponComponent + finalDirectDamage + totalDamageUp + sumEnemyEffect(ctx, combatId, 'damage_taken', enemy.id);
 
       // Route mitigation by damage type
-      const dmgType = abilityEntry?.damageType ?? 'physical';
+      const dmgType = ability?.damageType ?? 'physical';
       let reduced: bigint;
       if (dmgType === 'magic') {
         // Magic damage bypasses armor entirely (makes magic impactful)
@@ -2254,7 +2269,7 @@ function executeAbility(
     }
 
     // Apply DoT effect if ability has DoT metadata
-    if (dotDamagePerTick > 0n && dotDuration > 0n && abilityEntry?.name) {
+    if (dotDamagePerTick > 0n && dotDuration > 0n && ability?.name) {
       addEnemyEffect(
         ctx,
         combatId,
@@ -2262,20 +2277,20 @@ function executeAbility(
         'dot',
         dotDamagePerTick,
         dotDuration,
-        abilityEntry.name
+        ability.name
       );
     }
 
     // Apply debuff effect if ability has debuff metadata
-    if (abilityEntry?.debuffType && abilityEntry?.debuffMagnitude && abilityEntry?.debuffDuration) {
+    if (ability?.debuffType && ability?.debuffMagnitude && ability?.debuffDuration) {
       addEnemyEffect(
         ctx,
         combatId,
         enemy.id,
-        abilityEntry.debuffType,
-        abilityEntry.debuffMagnitude,
-        abilityEntry.debuffDuration,
-        abilityEntry.name
+        ability.debuffType,
+        ability.debuffMagnitude,
+        ability.debuffDuration,
+        ability.name
       );
     }
 
@@ -2304,22 +2319,21 @@ function executeAbility(
     if (!current) return;
 
     // Power budget split for HoT abilities
-    const abilityEntry = ABILITIES[abilityKey as keyof typeof ABILITIES];
-    const directHealFraction = abilityEntry?.hotPowerSplit ? 1.0 - abilityEntry.hotPowerSplit : 1.0;
+    const directHealFraction = ability?.hotPowerSplit ? 1.0 - ability.hotPowerSplit : 1.0;
     const directHeal = (amount * BigInt(Math.floor(directHealFraction * 100))) / 100n;
 
     // If ability has HoT, calculate HoT healing with reduced stat scaling
-    if (abilityEntry?.hotPowerSplit && abilityEntry?.hotDuration && abilityEntry?.name) {
-      const hotPowerFraction = abilityEntry.hotPowerSplit;
+    if (ability?.hotPowerSplit && ability?.hotDuration && ability?.name) {
+      const hotPowerFraction = ability.hotPowerSplit;
       const hotTotalHealing = (amount * BigInt(Math.floor(hotPowerFraction * 100))) / 100n;
 
       // HoT stat scaling uses REDUCED rate (50% of direct healing scaling)
       // Note: WIS scaling already applied via calculateHealingPower, so we split the final scaled amount
       const scaledHotTotal = calculateHealingPower(hotTotalHealing, character.wis, character.className);
-      const hotHealPerTick = scaledHotTotal / abilityEntry.hotDuration;
+      const hotHealPerTick = scaledHotTotal / ability.hotDuration;
 
       // Apply HoT effect to target
-      addCharacterEffect(ctx, target.id, 'regen', hotHealPerTick, abilityEntry.hotDuration, abilityEntry.name);
+      addCharacterEffect(ctx, target.id, 'regen', hotHealPerTick, ability.hotDuration, ability.name);
     }
 
     // Apply WIS scaling to healing output (uses the CASTER's WIS, not target's)
@@ -4359,95 +4373,9 @@ function ensureRecipeTemplates(ctx: any) {
 }
 
 function ensureAbilityTemplates(ctx: any) {
-  // Restored from legacy client ability metadata so descriptions stay server-authored.
-  const legacyDescriptions: Record<string, string> = {
-    bard_discordant_note: 'A quick note that sharpens the party edge.',
-    bard_ballad_of_resolve: 'A long-form ballad that bolsters party strength.',
-    bard_echoed_chord: 'A resonant strike that grows stronger with allies nearby.',
-    bard_harmony: 'Bolster the party with a brief surge of coordination.',
-    bard_crushing_crescendo: 'A powerful crescendo that punishes weakened foes.',
-    enchanter_mind_fray: 'Mind-rending magic that weakens and lingers.',
-    enchanter_veil_of_calm: 'Soften your next pull to reduce the chance of adds.',
-    enchanter_slow: 'Reduce the enemy attack power for a short duration.',
-    enchanter_clarity_ii: 'Restore more mana to a party member.',
-    enchanter_charm_fray: 'Damage and weaken the enemy offense.',
-    cleric_mend: 'Restore health to a single ally.',
-    cleric_sanctify: 'Cleanse one harmful effect from an ally.',
-    cleric_smite: 'Holy strike that damages an enemy.',
-    cleric_sanctuary: 'Briefly fortify the party defenses.',
-    cleric_heal: 'A strong single-target heal.',
-    wizard_magic_missile: 'A focused bolt of arcane force.',
-    wizard_arcane_reservoir: 'Tap a personal reservoir to restore mana.',
-    wizard_frost_shard: 'Chilled magic that weakens enemy offense.',
-    wizard_mana_shield: 'A protective arcane barrier for an ally.',
-    wizard_lightning_surge: 'A violent surge of lightning.',
-    warrior_slam: 'A crushing blow that staggers the enemy.',
-    warrior_intimidating_presence: 'Intimidate the foe, reducing its damage.',
-    warrior_cleave: 'A powerful cleaving blow.',
-    warrior_rally: 'Bolster party defenses for a few rounds.',
-    warrior_crushing_blow: 'A brutal finishing strike.',
-    rogue_shadow_cut: 'A precise strike that leaves a bleeding wound.',
-    rogue_pickpocket: 'Steal a small prize during combat.',
-    rogue_bleed: 'Wound the enemy to cause lingering pain.',
-    rogue_evasion: 'Briefly increase your chance to avoid attacks.',
-    rogue_shadow_strike: 'A deadly strike empowered by debuffs.',
-    paladin_holy_strike: 'Smite the enemy and steady your guard.',
-    paladin_lay_on_hands: 'A massive heal with a long cooldown.',
-    paladin_shield_of_faith: 'Raise a protective ward of faith.',
-    paladin_devotion: 'Inspire allies to strike harder.',
-    paladin_radiant_smite: 'A radiant strike that burns the target.',
-    ranger_marked_shot: 'Tag the foe to take extra damage briefly.',
-    ranger_track: 'Reveal local creatures and choose one to engage.',
-    ranger_rapid_shot: 'Fire a quick volley of arrows.',
-    ranger_natures_balm: 'Draw on nature to mend your wounds.',
-    ranger_piercing_arrow: 'An arrow that punches through armor.',
-    necromancer_plague_spark: 'Blight the target with a lingering plague.',
-    necromancer_bone_servant: 'Summon a bone servant to fight for you.',
-    necromancer_wither: 'Blight the enemy with a withering curse.',
-    necromancer_bone_ward: 'A protective ward of bone and shadow.',
-    necromancer_grave_surge: 'Unleash grave energy against the foe.',
-    spellblade_arcane_slash: 'An arcane strike that shreds enemy armor briefly.',
-    spellblade_rune_ward: 'A runic shield that absorbs the next hit.',
-    spellblade_runic_strike: 'A runic strike that punishes weakened foes.',
-    spellblade_ward: 'Conjure a ward to increase defenses.',
-    spellblade_spellstorm: 'Unleash a storm of arcane strikes.',
-    shaman_spirit_mender: 'Heal an ally and grant brief regeneration.',
-    shaman_spirit_wolf: 'Summon a spirit wolf to fight for you.',
-    shaman_hex: 'Hex the enemy to reduce their damage.',
-    shaman_ancestral_ward: 'Ward an ally with ancestral protection.',
-    shaman_stormcall: 'Call down a storm to strike the target.',
-    beastmaster_pack_rush: 'Your pack surges in with a flurry of strikes.',
-    beastmaster_call_beast: 'Call a beast ally to fight for you.',
-    beastmaster_beast_fang: 'Your beast rends the target viciously.',
-    beastmaster_wild_howl: 'A primal howl that emboldens the party.',
-    beastmaster_alpha_assault: 'Command an alpha strike from your beast.',
-    monk_crippling_kick: 'A sharp kick that weakens enemy offense.',
-    monk_centering: 'Your next ability costs no stamina.',
-    monk_palm_strike: 'A focused palm strike.',
-    monk_inner_focus: 'Heighten your defenses for a short time.',
-    monk_tiger_flurry: 'A flurry of rapid strikes.',
-    druid_thorn_lash: 'Vines lash the enemy and soothe you slightly.',
-    druid_natures_mark: 'Instantly gather nearby resources.',
-    druid_bramble: 'Entangling brambles damage over time.',
-    druid_natures_gift: 'Bless the party with a natural boon.',
-    druid_wild_surge: 'Unleash a burst of wild energy.',
-    reaver_blood_rend: 'A brutal strike that siphons vitality.',
-    reaver_blood_pact: 'Sacrificial pact to bolster endurance.',
-    reaver_soul_rend: 'Rend the soul of your enemy.',
-    reaver_dread_aura: 'An aura that weakens enemy offense.',
-    reaver_oblivion: 'Annihilating strike from the void.',
-    summoner_familiar_strike: 'Your familiar lashes out and steadies your focus.',
-    summoner_arcane_familiar: 'Summon an arcane familiar to fight for you.',
-    summoner_earth_familiar: 'Summon an earth familiar that can taunt enemies.',
-    summoner_conjured_spike: 'A conjured spike that impales the foe.',
-    summoner_empower: 'Empower the party attacks briefly.',
-    summoner_spectral_lance: 'A spectral lance of raw magic.',
-    pet_taunt: 'Force attention onto the pet for a short time.',
-    pet_bleed: 'Pet attack that applies a bleed effect.',
-  };
-
-  const resolveDescription = (key: string, entry: { name: string; description?: string }) =>
-    entry.description ?? legacyDescriptions[key] ?? entry.name;
+  // Descriptions are now stored in the database (seeded from ABILITIES entries)
+  const resolveDescription = (entry: { name: string; description?: string }) =>
+    entry.description ?? entry.name;
 
   // Keep one canonical row per ability key so client-side lookups do not
   // pick stale duplicates with old cast/cooldown values.
@@ -4495,6 +4423,16 @@ function ensureAbilityTemplates(ctx: any) {
       castSeconds: bigint;
       cooldownSeconds: bigint;
       description?: string;
+      power: bigint;
+      damageType: string;
+      dotPowerSplit?: number;
+      dotDuration?: bigint;
+      hotPowerSplit?: number;
+      hotDuration?: bigint;
+      debuffType?: string;
+      debuffMagnitude?: bigint;
+      debuffDuration?: bigint;
+      aoeTargets?: string;
     };
     const existing = seenByKey.get(key);
     if (existing) {
@@ -4509,7 +4447,18 @@ function ensureAbilityTemplates(ctx: any) {
         cooldownSeconds: entry.cooldownSeconds,
         kind: utilityKeys.has(key) ? 'utility' : 'combat',
         combatState: combatStateFor(key),
-        description: resolveDescription(key, entry),
+        description: resolveDescription(entry),
+        power: entry.power ?? undefined,
+        damageType: entry.damageType ?? undefined,
+        statScaling: ABILITY_STAT_SCALING[key] ?? undefined,
+        dotPowerSplit: entry.dotPowerSplit ?? undefined,
+        dotDuration: entry.dotDuration ?? undefined,
+        hotPowerSplit: entry.hotPowerSplit ?? undefined,
+        hotDuration: entry.hotDuration ?? undefined,
+        debuffType: entry.debuffType ?? undefined,
+        debuffMagnitude: entry.debuffMagnitude ?? undefined,
+        debuffDuration: entry.debuffDuration ?? undefined,
+        aoeTargets: entry.aoeTargets ?? undefined,
       });
       seenByKey.set(key, {
         ...existing,
@@ -4522,7 +4471,18 @@ function ensureAbilityTemplates(ctx: any) {
         cooldownSeconds: entry.cooldownSeconds,
         kind: utilityKeys.has(key) ? 'utility' : 'combat',
         combatState: combatStateFor(key),
-        description: resolveDescription(key, entry),
+        description: resolveDescription(entry),
+        power: entry.power ?? undefined,
+        damageType: entry.damageType ?? undefined,
+        statScaling: ABILITY_STAT_SCALING[key] ?? undefined,
+        dotPowerSplit: entry.dotPowerSplit ?? undefined,
+        dotDuration: entry.dotDuration ?? undefined,
+        hotPowerSplit: entry.hotPowerSplit ?? undefined,
+        hotDuration: entry.hotDuration ?? undefined,
+        debuffType: entry.debuffType ?? undefined,
+        debuffMagnitude: entry.debuffMagnitude ?? undefined,
+        debuffDuration: entry.debuffDuration ?? undefined,
+        aoeTargets: entry.aoeTargets ?? undefined,
       });
       continue;
     }
@@ -4537,7 +4497,18 @@ function ensureAbilityTemplates(ctx: any) {
       cooldownSeconds: entry.cooldownSeconds,
       kind: utilityKeys.has(key) ? 'utility' : 'combat',
       combatState: combatStateFor(key),
-      description: resolveDescription(key, entry),
+      description: resolveDescription(entry),
+      power: entry.power ?? undefined,
+      damageType: entry.damageType ?? undefined,
+      statScaling: ABILITY_STAT_SCALING[key] ?? undefined,
+      dotPowerSplit: entry.dotPowerSplit ?? undefined,
+      dotDuration: entry.dotDuration ?? undefined,
+      hotPowerSplit: entry.hotPowerSplit ?? undefined,
+      hotDuration: entry.hotDuration ?? undefined,
+      debuffType: entry.debuffType ?? undefined,
+      debuffMagnitude: entry.debuffMagnitude ?? undefined,
+      debuffDuration: entry.debuffDuration ?? undefined,
+      aoeTargets: entry.aoeTargets ?? undefined,
     });
     seenByKey.set(key, inserted);
   }

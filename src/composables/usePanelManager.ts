@@ -38,7 +38,7 @@ interface ServerSyncOptions {
 }
 
 export function usePanelManager(
-  defaults: Record<string, { x: number; y: number; w?: number; h?: number }>,
+  defaults: Record<string, { x: number; y: number; w?: number; h?: number; open?: boolean }>,
   serverSync?: ServerSyncOptions
 ) {
   const panels = reactive<Record<string, PanelState>>({});
@@ -58,7 +58,7 @@ export function usePanelManager(
   // Initialize panels from defaults
   for (const [id, def] of Object.entries(defaults)) {
     panels[id] = {
-      open: false,
+      open: def.open ?? false,
       x: def.x,
       y: def.y,
       w: def.w ?? 0,

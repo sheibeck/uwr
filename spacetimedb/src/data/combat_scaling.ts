@@ -127,6 +127,9 @@ export const HEALING_THREAT_PERCENT = 50n;
  * cha: Bard abilities
  * none: Utility/non-damage abilities
  */
+
+// ABILITY_STAT_SCALING is kept for seeding purposes only (ensureAbilityTemplates)
+// Execution code reads statScaling from database rows, not this constant
 export const ABILITY_STAT_SCALING: Record<string, 'str' | 'dex' | 'int' | 'wis' | 'cha' | 'hybrid' | 'none'> = {
   // STR abilities (melee weapon)
   warrior_slam: 'str',
@@ -273,27 +276,26 @@ export function getCritMultiplier(weaponName: string, weaponType?: string): bigi
 
 /**
  * Get ability stat scaling contribution
- * Uses ABILITY_STAT_SCALING mapping to determine which stat(s) to use
+ * Reads statScaling from database row parameter
  * Returns flat stat contribution based on ability type
  */
 export function getAbilityStatScaling(
   characterStats: { str: bigint; dex: bigint; cha: bigint; wis: bigint; int: bigint },
   abilityKey: string,
-  className: string
+  className: string,
+  statScaling: string
 ): bigint {
-  const scalingType = ABILITY_STAT_SCALING[abilityKey];
-
-  if (!scalingType || scalingType === 'none') {
+  if (!statScaling || statScaling === 'none') {
     return 0n;
   }
 
-  if (scalingType === 'hybrid') {
+  if (statScaling === 'hybrid') {
     // Hybrid abilities: sum STR + INT, 1n per point (slightly lower than pure classes)
     return (characterStats.str + characterStats.int) * 1n;
   }
 
   // Pure stat scaling: 2n per point
-  return characterStats[scalingType] * ABILITY_STAT_SCALING_PER_POINT;
+  return characterStats[statScaling as keyof typeof characterStats] * ABILITY_STAT_SCALING_PER_POINT;
 }
 
 /**

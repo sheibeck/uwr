@@ -1506,7 +1506,7 @@ const {
   trade: { x: 600, y: 140 },
   track: { x: 600, y: 200 },
   combat: { x: 600, y: 140 },
-  log: { x: 40, y: 400, w: 500, h: 300 },
+  log: { x: 40, y: 400, w: 500, h: 300, open: true },
 }, {
   serverPanelLayouts: characterPanelLayouts,
   selectedCharacterId,
