@@ -321,6 +321,9 @@
           :selected-character="selectedCharacter"
           :locations="connectedLocations"
           :regions="regions"
+          :travel-cooldowns="travelCooldowns"
+          :all-locations="locations"
+          :location-connections="locationConnections"
           @move="moveTo"
         />
         <LocationGrid
@@ -553,6 +556,7 @@ const {
   factions,
   factionStandings,
   panelLayouts,
+  travelCooldowns,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ players, users });

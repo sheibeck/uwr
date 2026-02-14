@@ -58,6 +58,7 @@ export const useGameData = () => {
   const [factions] = useTable(tables.faction);
   const [factionStandings] = useTable(tables.factionStanding);
   const [panelLayouts] = useTable(tables.uiPanelLayout);
+  const [travelCooldowns] = useTable(tables.travelCooldown);
 
   return {
     conn,
@@ -116,5 +117,6 @@ export const useGameData = () => {
     factions,
     factionStandings,
     panelLayouts,
+    travelCooldowns,
   };
 };
