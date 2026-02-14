@@ -24,6 +24,14 @@ import { appendPrivateEvent, appendGroupEvent, logPrivateAndGroup } from './even
 import { getEquippedWeaponStats, hasInventorySpace, addItemToInventory } from './items';
 import { getGatherableResourceTemplates } from './location';
 import { partyMembersInLocation, recomputeCharacterDerived } from './character';
+import { AggroEntry, EnemyTemplate, EnemyRoleTemplate, Character } from '../schema/tables';
+import {
+  COMBAT_LOOP_INTERVAL_MICROS,
+  AUTO_ATTACK_INTERVAL,
+  GROUP_SIZE_DANGER_BASE,
+  GROUP_SIZE_BIAS_RANGE,
+  GROUP_SIZE_BIAS_MAX,
+} from '../data/combat_constants';
 
 const GLOBAL_COOLDOWN_MICROS = 1_500_000n;
 const ENEMY_ABILITIES: any = {}; // Will be populated from data
@@ -48,7 +56,7 @@ export {
   GROUP_SIZE_DANGER_BASE,
   GROUP_SIZE_BIAS_RANGE,
   GROUP_SIZE_BIAS_MAX,
-} from '../data/combat_constants';
+};
 
 export const ENEMY_ROLE_CONFIG: Record<
   string,
@@ -1081,7 +1089,7 @@ export function executeAbility(
       return;
     case 'paladin_lay_on_hands': {
       const target = targetCharacter ?? character;
-      const missing = target.maxHp > target.hp ? target.maxHp - target.hp : 0n;
+      const missing = target.maxHp > target.hp ? BigInt(target.maxHp) - BigInt(target.hp) : 0n;
       if (missing > 0n) applyHeal(target, missing, 'Lay on Hands');
       appendPrivateEvent(
         ctx,
