@@ -73,7 +73,7 @@ completed: 2026-02-14
 - **Duration:** 9 min
 - **Started:** 2026-02-14T13:41:01Z
 - **Completed:** 2026-02-14T13:50:08Z
-- **Tasks:** 2 of 3
+- **Tasks:** 3 of 3
 - **Files modified:** 7
 
 ## Accomplishments
@@ -100,7 +100,7 @@ Each task was committed atomically:
 
 1. **Task 1: Pending action tables and ability definitions** - `6a70943` (feat)
 2. **Task 2: Resurrection and Corpse Summon reducers with confirmation flow** - `4249e50` (feat)
-3. **Task 3: Publish module and regenerate bindings** - **BLOCKED** (see Issues Encountered)
+3. **Task 3: Publish module and regenerate bindings** - `6c8e9a9` (fix - resolved SpacetimeDB server error)
 
 ## Files Created/Modified
 - `spacetimedb/src/schema/tables.ts` - PendingResurrect and PendingCorpseSummon table definitions with indexes
@@ -122,55 +122,32 @@ Each task was committed atomically:
 
 ## Deviations from Plan
 
-**Task 3 Blocked - SpacetimeDB Server Issue:**
+**Task 3 Initially Blocked - SpacetimeDB Server Error RESOLVED:**
 
-Task 3 (publish module and regenerate bindings) could not be completed due to a pre-existing SpacetimeDB local server environment issue:
+Task 3 was initially blocked by a SpacetimeDB server 500 Internal Server Error during module publishing. This was traced to a bug in the seeding code at `ensure_items.ts:764` where `combatStateFor(key)` was called with only one argument instead of two `combatStateFor(key, entry)`, causing `undefined.combatState` access during the `init` reducer.
 
-```
-Error: The instance encountered a fatal error.
-Caused by:
-    HTTP status server error (500 Internal Server Error)
-```
+**Resolution:**
+- Fixed function call to pass both required arguments
+- Module published successfully
+- Client bindings regenerated successfully
+- All 20 binding files created for resurrection/corpse summon system
+- Commit `6c8e9a9` includes the bug fix and regenerated bindings
 
-**Root cause:** Local SpacetimeDB server returns 500 Internal Server Error on both publish attempts (with and without --clear-database flag). This is a pre-existing environment issue unrelated to the code changes in this plan.
-
-**Evidence of code correctness:**
-- `spacetime build` completes successfully
-- TypeScript compilation passes (only pre-existing type errors remain)
-- All reducer and helper code follows established patterns from Phase 11-01
-- Table definitions match schema requirements
-
-**Impact:**
-- Client bindings for PendingResurrect, PendingCorpseSummon, and six new reducers not generated
-- Plan 03 (UI integration) will need to either:
-  1. Resolve SpacetimeDB server issue and complete Task 3, or
-  2. Generate bindings manually from TypeScript definitions
-
-**No code changes made as deviation** - this is an infrastructure blocker, not a code issue.
+Task 3 is now complete.
 
 ## Issues Encountered
 
 **Pre-existing TypeScript compilation errors:** Server and client codebases have pre-existing type errors (implicit `any` types, RowBuilder property access patterns). These errors existed before Plan 11-02 work and are unrelated to Tasks 1-2 implementation. New code follows established patterns in the codebase.
 
-**SpacetimeDB local server 500 error:** Cannot publish module or generate bindings due to local server error. Attempted troubleshooting:
-- Restarted SpacetimeDB server
-- Tried both --clear-database and incremental publish
-- Verified build succeeds (`spacetime build`)
-- Error persists across all attempts
-
-This is an environment-specific issue that will need to be resolved before Plan 03 UI integration.
+**SpacetimeDB server 500 error (RESOLVED):** Initial publish attempts failed with 500 Internal Server Error. Root cause was missing `entry` argument in `combatStateFor(key)` call at ensure_items.ts:764, causing TypeError during init reducer execution. Fixed in commit `6c8e9a9` and module now publishes successfully.
 
 ## User Setup Required
 
-None for backend functionality - reducers and helpers are complete and follow correct patterns.
-
-**For Plan 03 (UI integration):**
-- SpacetimeDB local server issue must be resolved to generate client bindings
-- Alternative: Generate bindings manually from TypeScript schema definitions
+None - backend functionality complete and client bindings generated successfully.
 
 ## Next Phase Readiness
 
-Backend resurrection and corpse summon system complete and ready for Plan 03 (UI integration) pending binding generation:
+Backend resurrection and corpse summon system complete and ready for Plan 03 (UI integration):
 
 **Backend complete:**
 - All tables, reducers, and helpers implemented
@@ -178,19 +155,17 @@ Backend resurrection and corpse summon system complete and ready for Plan 03 (UI
 - Combat state and mana validation in place
 - Timeout and duplicate detection working
 
-**Blocked on bindings:**
-- Client cannot import PendingResurrect/PendingCorpseSummon table types
-- Client cannot call six new reducers
-- UI cannot display pending confirmation prompts
+**Client bindings ready:**
+- PendingResurrect/PendingCorpseSummon table types generated
+- All six reducer bindings available for client import
+- UI can now implement confirmation prompts
 
 **Next steps:**
-1. Resolve SpacetimeDB local server 500 error
-2. Run `spacetime publish uwr --clear-database -y --project-path spacetimedb`
-3. Run `spacetime generate --lang typescript --out-dir src/module_bindings --project-path spacetimedb`
-4. Commit generated bindings
-5. Proceed with Plan 03 UI implementation
+1. Implement Plan 03 (UI integration for resurrection/corpse summon confirmation prompts)
+2. Add Points of Interest section to Location panel showing corpses
+3. Add corpse right-click context menu with "Loot Corpse" option
 
-## Self-Check: PARTIAL
+## Self-Check: COMPLETE
 
 **Code files verified:**
 - spacetimedb/src/schema/tables.ts ✓ (PendingResurrect, PendingCorpseSummon tables defined)
@@ -199,22 +174,24 @@ Backend resurrection and corpse summon system complete and ready for Plan 03 (UI
 - spacetimedb/src/reducers/corpse.ts ✓ (all six reducers implemented)
 - spacetimedb/src/helpers/corpse.ts ✓ (executeResurrect and executeCorpseSummon added)
 - spacetimedb/src/index.ts ✓ (tables and helpers exported)
+- spacetimedb/src/seeding/ensure_items.ts ✓ (combatStateFor bug fixed)
 
 **Commits verified:**
 - 6a70943 ✓ (Task 1)
 - 4249e50 ✓ (Task 2)
+- 6c8e9a9 ✓ (Task 3 - bug fix and bindings)
 
 **Generated bindings:**
-- src/module_bindings/pending_resurrect_table.ts ✗ (blocked on publish)
-- src/module_bindings/pending_corpse_summon_table.ts ✗ (blocked on publish)
-- src/module_bindings/initiate_resurrect_reducer.ts ✗ (blocked on publish)
-- src/module_bindings/accept_resurrect_reducer.ts ✗ (blocked on publish)
-- src/module_bindings/decline_resurrect_reducer.ts ✗ (blocked on publish)
-- src/module_bindings/initiate_corpse_summon_reducer.ts ✗ (blocked on publish)
-- src/module_bindings/accept_corpse_summon_reducer.ts ✗ (blocked on publish)
-- src/module_bindings/decline_corpse_summon_reducer.ts ✗ (blocked on publish)
+- src/module_bindings/pending_resurrect_table.ts ✓
+- src/module_bindings/pending_corpse_summon_table.ts ✓
+- src/module_bindings/initiate_resurrect_reducer.ts ✓
+- src/module_bindings/accept_resurrect_reducer.ts ✓
+- src/module_bindings/decline_resurrect_reducer.ts ✓
+- src/module_bindings/initiate_corpse_summon_reducer.ts ✓
+- src/module_bindings/accept_corpse_summon_reducer.ts ✓
+- src/module_bindings/decline_corpse_summon_reducer.ts ✓
 
-**Status:** Backend code complete and verified. Bindings generation blocked on SpacetimeDB server issue.
+**Status:** Backend code complete, verified, and all bindings successfully generated. Ready for Plan 03 (UI integration).
 
 ---
 *Phase: 11-death-corpse-system*
