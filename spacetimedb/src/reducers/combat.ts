@@ -2,6 +2,8 @@ import { ENEMY_ABILITIES } from '../data/ability_catalog';
 import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier } from '../data/combat_scaling';
 import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
 import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, HEALING_THREAT_PERCENT } from '../data/combat_scaling';
+import { awardRenown, awardServerFirst, calculatePerkBonuses } from '../helpers/renown';
+import { RENOWN_GAIN } from '../data/renown_data';
 
 const AUTO_ATTACK_INTERVAL = 5_000_000n;
 const RETRY_ATTACK_INTERVAL = 1_000_000n;
@@ -1801,7 +1803,10 @@ export const registerCombatReducers = (deps: any) => {
       const targetName = currentEnemy.displayName ?? enemyTemplate?.name ?? 'enemy';
       const weapon = deps.getEquippedWeaponStats(ctx, character.id);
       const rawWeaponDamage = 5n + character.level + weapon.baseDamage + (weapon.dps / 2n);
-      const statScaledDamage = calculateStatScaledAutoAttack(rawWeaponDamage, character.str);
+      // Apply perk bonuses to effective stats
+      const perkBonuses = calculatePerkBonuses(ctx, character.id);
+      const effectiveStr = character.str + perkBonuses.str;
+      const statScaledDamage = calculateStatScaledAutoAttack(rawWeaponDamage, effectiveStr);
       const baseDamage = statScaledDamage + sumEnemyEffect(ctx, combat.id, 'damage_taken', currentEnemy.id);
       const damage = baseDamage;
       const outcomeSeed = nowMicros + character.id + currentEnemy.id;
@@ -2211,6 +2216,24 @@ export const registerCombatReducers = (deps: any) => {
             'system',
             `${character.name} reached level ${reward.newLevel}.`
           );
+        }
+
+        // Award renown based on enemy type
+        const primaryEnemy = enemies[0];
+        if (primaryEnemy) {
+          const template = ctx.db.enemyTemplate.id.find(primaryEnemy.enemyTemplateId);
+          if (template) {
+            if (template.isBoss) {
+              // Boss kill: server-first tracking with diminishing returns
+              const bossKey = `boss_${template.name.toLowerCase().replace(/\s+/g, '_')}`;
+              const serverFirstRenown = awardServerFirst(ctx, character, 'boss_kill', bossKey, RENOWN_GAIN.BOSS_KILL_BASE);
+              awardRenown(ctx, character, serverFirstRenown, `Defeating ${template.name}`);
+            } else {
+              // Regular enemy: small renown based on enemy level (1 renown per level, minimum 1)
+              const renownAmount = template.level > 0n ? template.level : 1n;
+              awardRenown(ctx, character, renownAmount, `Victory in combat`);
+            }
+          }
         }
       }
       return;
