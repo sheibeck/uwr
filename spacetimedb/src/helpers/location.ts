@@ -223,3 +223,332 @@ export function refreshSpawnGroupCount(ctx: any, spawnId: bigint) {
   return count;
 }
 
+export function ensureAvailableSpawn(
+  ctx: any,
+  locationId: bigint,
+  targetLevel: bigint = 1n
+): typeof EnemySpawn.rowType {
+  let best: typeof EnemySpawn.rowType | null = null;
+  let bestDiff: bigint | null = null;
+  const adjustedTarget = computeLocationTargetLevel(ctx, locationId, targetLevel);
+  for (const spawn of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    if (spawn.state !== 'available') continue;
+    if (spawn.groupCount === 0n) continue;
+    const template = ctx.db.enemyTemplate.id.find(spawn.enemyTemplateId);
+    if (!template) continue;
+    const diff =
+      template.level > adjustedTarget
+        ? template.level - adjustedTarget
+        : adjustedTarget - template.level;
+    if (!best || bestDiff === null || diff < bestDiff) {
+      best = spawn;
+      bestDiff = diff;
+    }
+  }
+  if (best && bestDiff !== null && bestDiff <= 1n) return best;
+  return spawnEnemy(ctx, locationId, targetLevel);
+}
+
+function ensureHealthRegenScheduled(ctx: any) {
+  if (!tableHasRows(ctx.db.healthRegenTick.iter())) {
+    ctx.db.healthRegenTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 3_000_000n),
+    });
+  }
+}
+
+const HUNGER_DECAY_INTERVAL_MICROS = 300_000_000n; // 5 minutes
+
+function ensureHungerDecayScheduled(ctx: any) {
+  if (!tableHasRows(ctx.db.hungerDecayTick.iter())) {
+    ctx.db.hungerDecayTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + HUNGER_DECAY_INTERVAL_MICROS),
+    });
+  }
+}
+
+function ensureEffectTickScheduled(ctx: any) {
+  if (!tableHasRows(ctx.db.effectTick.iter())) {
+    ctx.db.effectTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 10_000_000n),
+    });
+  }
+}
+
+function ensureHotTickScheduled(ctx: any) {
+  if (!tableHasRows(ctx.db.hotTick.iter())) {
+    ctx.db.hotTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 3_000_000n),
+    });
+  }
+}
+
+function ensureCastTickScheduled(ctx: any) {
+  if (!tableHasRows(ctx.db.castTick.iter())) {
+    ctx.db.castTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 200_000n),
+    });
+  }
+}
+
+function ensureDayNightTickScheduled(ctx: any) {
+  if (!tableHasRows(ctx.db.dayNightTick.iter())) {
+    const world = getWorldState(ctx);
+    const nextAt =
+      world?.nextTransitionAtMicros ?? ctx.timestamp.microsSinceUnixEpoch + DAY_DURATION_MICROS;
+    ctx.db.dayNightTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(nextAt),
+    });
+  }
+}
+
+export function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
+  const activeGroupKeys = new Set<string>();
+  for (const player of ctx.db.player.iter()) {
+    if (!player.activeCharacterId) continue;
+    const character = ctx.db.character.id.find(player.activeCharacterId);
+    if (!character || character.locationId !== locationId) continue;
+    activeGroupKeys.add(effectiveGroupKey(character));
+  }
+  const needed = activeGroupKeys.size;
+  let available = 0;
+  for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    if (row.state === 'available') available += 1;
+  }
+  while (available < needed) {
+    const availableTemplates: bigint[] = [];
+    for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+      if (row.state !== 'available') continue;
+      availableTemplates.push(row.enemyTemplateId);
+    }
+    spawnEnemy(ctx, locationId, 1n, availableTemplates);
+    available += 1;
+  }
+}
+
+function ensureLocationRuntimeBootstrap(ctx: any) {
+  for (const location of ctx.db.location.iter()) {
+    ensureResourceNodesForLocation(ctx, location.id);
+    let count = 0;
+    for (const _row of ctx.db.enemySpawn.by_location.filter(location.id)) {
+      count += 1;
+    }
+    while (count < DEFAULT_LOCATION_SPAWNS) {
+      const existingTemplates: bigint[] = [];
+      for (const row of ctx.db.enemySpawn.by_location.filter(location.id)) {
+        existingTemplates.push(row.enemyTemplateId);
+      }
+      spawnEnemy(ctx, location.id, 1n, existingTemplates);
+      count += 1;
+    }
+  }
+}
+
+function syncAllContent(ctx: any) {
+  ensureRaces(ctx);
+  ensureFactions(ctx);
+  ensureWorldLayout(ctx);
+  ensureStarterItemTemplates(ctx);
+  ensureResourceItemTemplates(ctx);
+  ensureFoodItemTemplates(ctx);
+  ensureAbilityTemplates(ctx);
+  ensureRecipeTemplates(ctx);
+  ensureNpcs(ctx);
+  ensureQuestTemplates(ctx);
+  ensureEnemyTemplatesAndRoles(ctx);
+  ensureEnemyAbilities(ctx);
+  ensureLocationEnemyTemplates(ctx);
+  ensureLocationRuntimeBootstrap(ctx);
+  ensureLootTables(ctx);
+  ensureVendorInventory(ctx);
+}
+
+export function respawnLocationSpawns(ctx: any, locationId: bigint, desired: number) {
+}
+export function spawnEnemy(
+  ctx: any,
+  locationId: bigint,
+  targetLevel: bigint = 1n,
+  avoidTemplateIds: bigint[] = []
+): typeof EnemySpawn.rowType {
+  const templates = [...ctx.db.locationEnemyTemplate.by_location.filter(locationId)];
+  if (templates.length === 0) throw new SenderError('No enemy templates for location');
+
+  const timePref = isNightTime(ctx) ? 'night' : 'day';
+  const allCandidates = templates
+    .map((ref) => ctx.db.enemyTemplate.id.find(ref.enemyTemplateId))
+    .filter(Boolean) as (typeof EnemyTemplate.rowType)[];
+  const timeFiltered = allCandidates.filter((template) => {
+    const pref = (template.timeOfDay ?? '').trim().toLowerCase();
+    if (!pref || pref === 'any') return true;
+    return pref === timePref;
+  });
+  const candidates = timeFiltered.length > 0 ? timeFiltered : allCandidates;
+  if (candidates.length === 0) throw new SenderError('Enemy template missing');
+
+  const adjustedTarget = computeLocationTargetLevel(ctx, locationId, targetLevel);
+  const minLevel = adjustedTarget > 1n ? adjustedTarget - 1n : 1n;
+  const maxLevel = adjustedTarget + 1n;
+  const filteredByLevel = candidates.filter(
+    (candidate) => candidate.level >= minLevel && candidate.level <= maxLevel
+  );
+  const viable = filteredByLevel.length > 0 ? filteredByLevel : candidates;
+  const avoidSet = new Set(avoidTemplateIds.map((id) => id.toString()));
+  const nonAvoid = viable.filter((candidate) => !avoidSet.has(candidate.id.toString()));
+  const pool = nonAvoid.length > 0 ? nonAvoid : viable;
+
+  const diffFor = (candidate: typeof EnemyTemplate.rowType) =>
+    candidate.level > adjustedTarget
+      ? candidate.level - adjustedTarget
+      : adjustedTarget - candidate.level;
+  const weighted: { candidate: typeof EnemyTemplate.rowType; weight: bigint }[] = [];
+  let totalWeight = 0n;
+  for (const candidate of pool) {
+    const diff = diffFor(candidate);
+    const weight = 4n - (diff > 3n ? 3n : diff);
+    const finalWeight = weight > 0n ? weight : 1n;
+    weighted.push({ candidate, weight: finalWeight });
+    totalWeight += finalWeight;
+  }
+  const seed =
+    ctx.timestamp.microsSinceUnixEpoch + locationId + BigInt(pool.length) + BigInt(totalWeight);
+  let roll = totalWeight > 0n ? seed % totalWeight : 0n;
+  let chosen = weighted[0]?.candidate ?? pool[0];
+  for (const entry of weighted) {
+    if (roll < entry.weight) {
+      chosen = entry.candidate;
+      break;
+    }
+    roll -= entry.weight;
+  }
+
+  const minGroup = chosen.groupMin && chosen.groupMin > 0n ? chosen.groupMin : 1n;
+  const maxGroup = chosen.groupMax && chosen.groupMax > 0n ? chosen.groupMax : minGroup;
+  const groupSeed = seed + chosen.id * 11n;
+  let groupCount = minGroup;
+  if (maxGroup > minGroup) {
+    const location = ctx.db.location.id.find(locationId);
+    const region = location ? ctx.db.region.id.find(location.regionId) : undefined;
+    const danger = region?.dangerMultiplier ?? GROUP_SIZE_DANGER_BASE;
+    const delta = danger > GROUP_SIZE_DANGER_BASE ? danger - GROUP_SIZE_DANGER_BASE : 0n;
+    const rawBias =
+      Number(delta) / Math.max(1, Number(GROUP_SIZE_BIAS_RANGE));
+    const bias = Math.max(0, Math.min(GROUP_SIZE_BIAS_MAX, rawBias));
+    const biasScaled = Math.round(bias * 1000);
+    const invBias = 1000 - biasScaled;
+    const sizeCount = Number(maxGroup - minGroup + 1n);
+    let totalWeight = 0;
+    const weights: number[] = [];
+    for (let i = 0; i < sizeCount; i += 1) {
+      const lowWeight = sizeCount - i;
+      const highWeight = i + 1;
+      const weight = invBias * lowWeight + biasScaled * highWeight;
+      weights.push(weight);
+      totalWeight += weight;
+    }
+    let roll = groupSeed % BigInt(totalWeight);
+    for (let i = 0; i < weights.length; i += 1) {
+      const weight = BigInt(weights[i]);
+      if (roll < weight) {
+        groupCount = minGroup + BigInt(i);
+        break;
+      }
+      roll -= weight;
+    }
+  }
+
+  const spawn = ctx.db.enemySpawn.insert({
+    id: 0n,
+    locationId,
+    enemyTemplateId: chosen.id,
+    name: chosen.name,
+    state: 'available',
+    lockedCombatId: undefined,
+    groupCount,
+  });
+
+  seedSpawnMembers(ctx, spawn.id, chosen.id, groupCount, groupSeed);
+  refreshSpawnGroupCount(ctx, spawn.id);
+
+  ctx.db.enemySpawn.id.update({
+    ...spawn,
+    name: `${chosen.name}`,
+  });
+  return ctx.db.enemySpawn.id.find(spawn.id)!;
+}
+
+export function spawnEnemyWithTemplate(
+  ctx: any,
+  locationId: bigint,
+  templateId: bigint
+): typeof EnemySpawn.rowType {
+  const template = ctx.db.enemyTemplate.id.find(templateId);
+  if (!template) throw new SenderError('Enemy template not found');
+  let allowedHere = false;
+  for (const row of ctx.db.locationEnemyTemplate.by_location.filter(locationId)) {
+    if (row.enemyTemplateId === templateId) {
+      allowedHere = true;
+      break;
+    }
+  }
+  if (!allowedHere) throw new SenderError('That creature cannot be tracked here');
+  const timePref = isNightTime(ctx) ? 'night' : 'day';
+  const pref = (template.timeOfDay ?? '').trim().toLowerCase();
+  if (pref && pref !== 'any' && pref !== timePref) {
+    throw new SenderError('That creature is not active right now');
+  }
+  const seed = ctx.timestamp.microsSinceUnixEpoch + locationId + template.id;
+  const minGroup = template.groupMin && template.groupMin > 0n ? template.groupMin : 1n;
+  const maxGroup = template.groupMax && template.groupMax > 0n ? template.groupMax : minGroup;
+  const groupSeed = seed + template.id * 11n;
+  let groupCount = minGroup;
+  if (maxGroup > minGroup) {
+    const location = ctx.db.location.id.find(locationId);
+    const region = location ? ctx.db.region.id.find(location.regionId) : undefined;
+    const danger = region?.dangerMultiplier ?? GROUP_SIZE_DANGER_BASE;
+    const delta = danger > GROUP_SIZE_DANGER_BASE ? danger - GROUP_SIZE_DANGER_BASE : 0n;
+    const rawBias = Number(delta) / Math.max(1, Number(GROUP_SIZE_BIAS_RANGE));
+    const bias = Math.max(0, Math.min(GROUP_SIZE_BIAS_MAX, rawBias));
+    const biasScaled = Math.round(bias * 1000);
+    const invBias = 1000 - biasScaled;
+    const sizeCount = Number(maxGroup - minGroup + 1n);
+    let totalWeight = 0;
+    const weights: number[] = [];
+    for (let i = 0; i < sizeCount; i += 1) {
+      const lowWeight = sizeCount - i;
+      const highWeight = i + 1;
+      const weight = invBias * lowWeight + biasScaled * highWeight;
+      weights.push(weight);
+      totalWeight += weight;
+    }
+    let roll = groupSeed % BigInt(totalWeight);
+    for (let i = 0; i < weights.length; i += 1) {
+      const weight = BigInt(weights[i]);
+      if (roll < weight) {
+        groupCount = minGroup + BigInt(i);
+        break;
+      }
+      roll -= weight;
+    }
+  }
+  const spawn = ctx.db.enemySpawn.insert({
+    id: 0n,
+    locationId,
+    enemyTemplateId: template.id,
+    name: template.name,
+    state: 'available',
+    lockedCombatId: undefined,
+    groupCount,
+  });
+  seedSpawnMembers(ctx, spawn.id, template.id, groupCount, groupSeed);
+  refreshSpawnGroupCount(ctx, spawn.id);
+  ctx.db.enemySpawn.id.update({ ...spawn, name: `${template.name}` });
+  return ctx.db.enemySpawn.id.find(spawn.id)!;
+}
+

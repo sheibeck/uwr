@@ -8,19 +8,20 @@
   "agents": {
     "research_enabled": true,
     "plan_check_enabled": true,
-    "verifier_enabled": true
+    "verifier_enabled": false
   },
   "models": {
     "profile": "balanced",
     "researcher": "sonnet",
-    "planner": "sonnet",
+    "planner": "opus",
     "executor": "sonnet",
     "verifier": "sonnet"
   },
   "git": {
     "enabled": true,
     "commit_docs": true,
-    "branch_per_phase": false
+    "branch_per_phase": false,
+    "branching_strategy": "none"
   },
   "project": {
     "type": "brownfield",

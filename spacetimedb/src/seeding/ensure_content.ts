@@ -12,8 +12,8 @@ import { ensureRaces } from '../data/races';
 import { ensureFactions } from '../data/faction_data';
 import { tableHasRows } from '../helpers/events';
 import { ensureResourceItemTemplates, ensureFoodItemTemplates, ensureRecipeTemplates, ensureAbilityTemplates } from './ensure_items';
-import { ensureNpcs, ensureQuestTemplates, ensureWorldLayout } from './ensure_world';
-import { ensureLootTables, ensureVendorInventory, ensureLocationEnemyTemplates, ensureEnemyAbilities, ensureEnemyTemplatesAndRoles } from './ensure_enemies';
+import { ensureNpcs, ensureQuestTemplates, ensureWorldLayout, ensureEnemyAbilities } from './ensure_world';
+import { ensureLootTables, ensureVendorInventory, ensureLocationEnemyTemplates, ensureEnemyTemplatesAndRoles } from './ensure_enemies';
 import { ensureSpawnsForLocation, ensureResourceNodesForLocation } from '../helpers/location';
 
 export function ensureHealthRegenScheduled(ctx: any) {
@@ -158,57 +158,4 @@ export function respawnLocationSpawns(ctx: any, locationId: bigint, desired: num
     count += 1;
   }
 }
-
-spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
-  const world = getWorldState(ctx);
-  if (!world) return;
-  const now = ctx.timestamp.microsSinceUnixEpoch;
-  if (world.nextTransitionAtMicros > now) {
-    ctx.db.dayNightTick.insert({
-      scheduledId: 0n,
-      scheduledAt: ScheduleAt.time(world.nextTransitionAtMicros),
-    });
-    return;
-  }
-  const nextIsNight = !world.isNight;
-  const nextDuration = nextIsNight ? NIGHT_DURATION_MICROS : DAY_DURATION_MICROS;
-  const nextTransition = now + nextDuration;
-  ctx.db.worldState.id.update({
-    ...world,
-    isNight: nextIsNight,
-    nextTransitionAtMicros: nextTransition,
-  });
-  const message = nextIsNight ? 'Night falls over the realm.' : 'Dawn breaks over the realm.';
-  appendWorldEvent(ctx, 'world', message);
-  for (const location of ctx.db.location.iter()) {
-    respawnLocationSpawns(ctx, location.id, DEFAULT_LOCATION_SPAWNS);
-    respawnResourceNodesForLocation(ctx, location.id);
-  }
-  ctx.db.dayNightTick.insert({
-    scheduledId: 0n,
-    scheduledAt: ScheduleAt.time(nextTransition),
-  });
-});
-
-registerViews({
-  spacetimedb,
-  t,
-  Player,
-  FriendRequest,
-  Friend,
-  GroupInvite,
-  EventGroup,
-  GroupMember,
-  CharacterEffect,
-  CombatResult,
-  CombatLoot,
-  EventLocation,
-  EventPrivate,
-  NpcDialog,
-  QuestInstance,
-  Hunger,
-  Faction,
-  FactionStanding,
-  UiPanelLayout,
-});
 

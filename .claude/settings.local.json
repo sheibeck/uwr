@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash([ -f \"C:/projects/uwr/.planning/phases/03-renown-foundation/03-02-SUMMARY.md\" ])",
+      "Bash(git -C \"C:/projects/uwr\" log --oneline --all)",
+      "Bash(git -C \"C:/projects/uwr\" add .planning/phases/03-renown-foundation/03-02-SUMMARY.md .planning/STATE.md)",
+      "Bash(git -C \"C:/projects/uwr\" commit -m \"$\\(cat <<''EOF''\ndocs\\(03-02\\): complete renown foundation frontend plan\n\n- 03-02-SUMMARY.md: RenownPanel with FACTION_RANKS, rank computation, progress bars\n- STATE.md: Phase 3 marked complete \\(2/2\\), advance to Phase 4 LLM Architecture\nEOF\n\\)\")",
+      "Bash(git -C C:/projects/uwr log --oneline -5)",
+      "Bash(python3:*)",
+      "Bash(/c/Python311/python:*)"
+    ]
+  }
+}

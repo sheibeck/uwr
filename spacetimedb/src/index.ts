@@ -1,7 +1,8 @@
 import { SenderError, t } from 'spacetimedb/server';
 import { ScheduleAt, Timestamp } from 'spacetimedb';
 import { registerReducers } from './reducers';
-export { spacetimedb } from './schema/tables';
+import { spacetimedb } from './schema/tables';
+export { spacetimedb };
 import {
   Player,
   User,
@@ -153,6 +154,11 @@ import {
   pickRoleTemplate,
   seedSpawnMembers,
   refreshSpawnGroupCount,
+  ensureAvailableSpawn,
+  ensureSpawnsForLocation,
+  respawnLocationSpawns,
+  spawnEnemy,
+  spawnEnemyWithTemplate,
 } from './helpers/location';
 import {
   COMBAT_LOOP_INTERVAL_MICROS,
@@ -398,7 +404,6 @@ const reducerDeps = {
   removeItemFromInventory,
   getItemCount,
   getGatherableResourceTemplates,
-  ensureStarterItemTemplates,
   ensureResourceItemTemplates,
   ensureFoodItemTemplates,
   ensureHungerDecayScheduled,
