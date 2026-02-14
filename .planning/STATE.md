@@ -281,6 +281,7 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 91 | Fix character creation crash - add missing ensureStarterItemTemplates dependency to grantStarterItems call, fixes PANIC error blocking all character creation | 2026-02-14 | f1c0da6 | [91-fix-ensurestarteritemtemplates-import-ca](./quick/91-fix-ensurestarteritemtemplates-import-ca/) |
 | 92 | Rebalance Warrior Slam ability - convert from damage-dealing to AC debuff (-5 AC for 7 seconds), shifting Warrior class identity toward tactical threat management | 2026-02-14 | cc2cf59 | [92-rebalance-warrior-slam-ability-change-fr](./quick/92-rebalance-warrior-slam-ability-change-fr/) |
 | 93 | Refactor resurrection & corpse summon spell system - merged PendingResurrect and PendingCorpseSummon into unified PendingSpellCast table, moved Corpse Summon from Cleric to Necromancer/Summoner, removed cooldowns, added flat mana costs (50/60) and 10s cast times | 2026-02-14 | bf1fad9 | [93-refactor-resurrection-corpse-summon-merg](./quick/93-refactor-resurrection-corpse-summon-merg/) |
+| 94 | Add /grantrenown command and fix Renown panel zero-state - wired grantTestRenown reducer to /grantrenown command, removed 'No renown data yet' guard to show Rank 1 (Unsung) info when renownData is null | 2026-02-14 | fab7a46 | [94-add-grantrenown-command-and-fix-renown-p](./quick/94-add-grantrenown-command-and-fix-renown-p/) |
 
 ---
 
