@@ -197,6 +197,7 @@ const emit = defineEmits<{
   (e: 'hail', npcName: string): void;
   (e: 'open-vendor', npcId: bigint): void;
   (e: 'character-action', characterId: bigint): void;
+  (e: 'gift-npc', npcId: bigint): void;
 }>();
 
 const selectedEnemyId = ref<bigint | null>(null);
@@ -313,6 +314,11 @@ const openNpcContextMenu = (event: MouseEvent, npc: NpcRow) => {
       },
     });
   }
+
+  items.push({
+    label: 'Give Gift',
+    action: () => emit('gift-npc', npc.id),
+  });
 
   contextMenu.value = {
     visible: true,

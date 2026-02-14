@@ -63,6 +63,8 @@ export const useGameData = () => {
   const [renownPerks] = useTable(tables.renownPerk);
   const [renownServerFirsts] = useTable(tables.renownServerFirst);
   const [achievements] = useTable(tables.achievement);
+  const [npcAffinities] = useTable(tables.npcAffinity);
+  const [npcDialogueOptions] = useTable(tables.npcDialogueOption);
 
   return {
     conn,
@@ -126,5 +128,7 @@ export const useGameData = () => {
     renownPerks,
     renownServerFirsts,
     achievements,
+    npcAffinities,
+    npcDialogueOptions,
   };
 };

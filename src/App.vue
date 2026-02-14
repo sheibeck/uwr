@@ -212,7 +212,7 @@
     <!-- Journal Panel (wide) -->
     <div v-if="panels.journal && panels.journal.open" data-panel-id="journal" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('journal').value || {}) }" @mousedown="bringToFront('journal')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('journal', $event)"><div>Journal</div><button type="button" :style="styles.panelClose" @click="closePanelById('journal')">×</button></div>
-      <div :style="styles.floatingPanelBody"><NpcDialogPanel :styles="styles" :npc-dialogs="characterNpcDialogs" :npcs="npcs" :locations="locations" :regions="regions" /></div>
+      <div :style="styles.floatingPanelBody"><NpcDialogPanel :styles="styles" :npc-dialogs="characterNpcDialogs" :npcs="npcs" :locations="locations" :regions="regions" :npc-affinities="npcAffinities" :npc-dialogue-options="npcDialogueOptions" :selected-character-id="selectedCharacterId" :faction-standings="characterFactionStandings" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('journal', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('journal', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('journal', $event, { right: true, bottom: true })" />
     </div>
 
@@ -336,6 +336,7 @@
           @hail="hailNpc"
           @open-vendor="openVendor"
           @character-action="openCharacterActions"
+          @gift-npc="openGiftOverlay"
         />
         </template>
       </div>
@@ -398,6 +399,29 @@
       <div :style="{ color: '#fff', fontSize: '1.2rem', marginBottom: '16px' }">{{ rankUpNotification.rankName }}</div>
       <div :style="{ color: '#aaa', fontSize: '0.85rem', marginBottom: '16px' }">Choose a perk from the Renown panel</div>
       <button :style="{ ...styles.actionButton, padding: '8px 24px', fontSize: '0.9rem' }" @click="rankUpNotification = null">Continue</button>
+    </div>
+  </div>
+
+  <!-- Gift overlay -->
+  <div v-if="giftTargetNpcId" :style="{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }" @click="giftTargetNpcId = null">
+    <div :style="{ background: '#1a1a2e', border: '2px solid #4c7df0', borderRadius: '8px', padding: '24px', maxWidth: '400px', maxHeight: '500px', overflow: 'auto' }" @click.stop>
+      <div :style="{ color: '#4c7df0', fontSize: '1.2rem', fontWeight: 700, marginBottom: '12px' }">Select Gift</div>
+      <div :style="{ color: '#aaa', fontSize: '0.85rem', marginBottom: '16px' }">Choose an item to give to {{ giftTargetNpcName }}</div>
+      <div v-if="giftableItems.length === 0" :style="{ color: '#888', fontSize: '0.85rem', fontStyle: 'italic' }">No items available to gift</div>
+      <div v-else :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
+        <div
+          v-for="item in giftableItems"
+          :key="item.id.toString()"
+          :style="{ padding: '10px', background: 'rgba(76, 125, 240, 0.15)', border: '1px solid rgba(76, 125, 240, 0.3)', borderRadius: '4px', cursor: 'pointer' }"
+          @click="giveGift(item.id)"
+          @mouseenter="$event.currentTarget.style.background = 'rgba(76, 125, 240, 0.25)'"
+          @mouseleave="$event.currentTarget.style.background = 'rgba(76, 125, 240, 0.15)'"
+        >
+          <div :style="{ fontSize: '0.9rem', fontWeight: 600 }">{{ item.name }}</div>
+          <div v-if="item.quantity > 1n" :style="{ fontSize: '0.75rem', opacity: 0.7 }">Quantity: {{ item.quantity }}</div>
+        </div>
+      </div>
+      <button :style="{ ...styles.actionButton, marginTop: '16px', width: '100%' }" @click="giftTargetNpcId = null">Cancel</button>
     </div>
   </div>
 
@@ -566,6 +590,8 @@ const {
   renownPerks,
   renownServerFirsts,
   achievements,
+  npcAffinities,
+  npcDialogueOptions,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ players, users });
@@ -1132,6 +1158,50 @@ const hailNpcReducer = useReducer(reducers.hailNpc);
 const hailNpc = (npcName: string) => {
   if (!selectedCharacter.value) return;
   hailNpcReducer({ characterId: selectedCharacter.value.id, npcName });
+  openPanel('journal');
+};
+
+// Gift overlay state and logic
+const giftTargetNpcId = ref<bigint | null>(null);
+
+const giftTargetNpcName = computed(() => {
+  if (!giftTargetNpcId.value) return '';
+  const npc = npcs.value.find(n => n.id.toString() === giftTargetNpcId.value?.toString());
+  return npc?.name ?? '';
+});
+
+const giftableItems = computed(() => {
+  if (!selectedCharacter.value || !giftTargetNpcId.value) return [];
+  // Get non-equipped inventory items
+  return itemInstances.value
+    .filter(item =>
+      item.ownerCharacterId.toString() === selectedCharacter.value!.id.toString() &&
+      !item.equippedSlot
+    )
+    .map(item => {
+      const template = itemTemplates.value.find(t => t.id.toString() === item.templateId.toString());
+      return {
+        id: item.id,
+        name: template?.name ?? 'Unknown Item',
+        quantity: item.quantity,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+});
+
+const openGiftOverlay = (npcId: bigint) => {
+  giftTargetNpcId.value = npcId;
+};
+
+const giveGiftReducer = useReducer(reducers.giveGiftToNpc);
+const giveGift = (itemInstanceId: bigint) => {
+  if (!selectedCharacter.value || !giftTargetNpcId.value) return;
+  giveGiftReducer({
+    characterId: selectedCharacter.value.id,
+    npcId: giftTargetNpcId.value,
+    itemInstanceId,
+  });
+  giftTargetNpcId.value = null;
 };
 
 const {
