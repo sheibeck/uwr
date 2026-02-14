@@ -326,6 +326,7 @@
           :styles="styles"
           :conn-active="conn.isActive"
           :selected-character="selectedCharacter"
+          :selected-npc-id="selectedNpcTarget"
           :characters-here="charactersHere"
           :npcs-here="npcsHere"
           :corpses-here="corpsesHere"
@@ -341,6 +342,7 @@
           @loot-all-corpse="onLootAllCorpse"
           @initiate-resurrect="onInitiateResurrect"
           @initiate-corpse-summon="onInitiateCorpseSummon"
+          @select-npc="selectNpcTarget"
         />
         </template>
       </div>
@@ -1167,6 +1169,11 @@ const { commandText, submitCommand } = useCommands({
   inviteSummaries,
   npcsHere,
   onNpcHail: () => {},
+  selectedNpcTarget,
+  npcDialogueOptions: computed(() => npcDialogueOptions.value),
+  npcAffinities: computed(() => npcAffinities.value),
+  factionStandings: characterFactionStandings,
+  selectedCharacterId: computed(() => selectedCharacterId.value),
 });
 
 const openCharacterActions = (characterId: bigint) => {
@@ -1728,6 +1735,16 @@ watch(
   },
   { immediate: true }
 );
+
+const selectedNpcTarget = ref<bigint | null>(null);
+const selectNpcTarget = (npcId: bigint | null) => {
+  selectedNpcTarget.value = npcId;
+};
+
+// Clear NPC selection when location changes
+watch(currentLocation, () => {
+  selectedNpcTarget.value = null;
+});
 
 // Initialize panel manager with default positions
 const {

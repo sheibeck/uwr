@@ -58,7 +58,7 @@ const highlighted = ref<string | null>(null);
 
   const commands = [
     { value: '/look', hint: 'Describe current location' },
-    { value: '/say', hint: 'Talk to everyone nearby' },
+    { value: '/say', hint: 'Talk nearby (targets NPC if selected)' },
     { value: '/w', hint: 'Whisper to a character' },
     { value: '/hail', hint: 'Greet an NPC' },
     { value: '/group', hint: 'Message your group' },

@@ -1388,6 +1388,11 @@ export const styles = {
     flexDirection: 'column',
     userSelect: 'none',
   },
+  gridTileNpcSelected: {
+    background: 'rgba(130, 200, 130, 0.25)',
+    border: '1px solid rgba(130, 200, 130, 0.7)',
+    color: '#a0e8a0',
+  },
   gridTileCorpse: {
     background: 'rgba(80, 60, 40, 0.15)',
     border: '1px solid rgba(180, 140, 100, 0.3)',
