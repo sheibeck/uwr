@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-14
-**Status:** Phase 12 Plan 01 complete — Overall Renown System backend foundation with 15-rank progression, perk pools, server-first tracking, and achievement system
+**Status:** Phase 11 Plan 01 complete — Death & Corpse System backend foundation with level-gated corpse creation, 30-day decay, and looting reducers. Phase 12 Plan 01 complete — Overall Renown System backend foundation with 15-rank progression, perk pools, server-first tracking, and achievement system.
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 (Travel & Movement Costs) complete — Region-based stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, all-or-nothing group validation, TravelPanel UI with cost indicators and live countdown timer. Human-verified functional.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 (Travel & Movement Costs) complete — Region-based stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, all-or-nothing group validation, TravelPanel UI with cost indicators and live countdown timer. Human-verified functional. Phase 11 (Death & Corpse System) Plan 01 complete — Backend corpse system with level 5+ gating, inventory-only item transfer, same-location combining, 30-day decay, and ownership-verified looting.
 
-**Current phase:** 12 (Overall Renown System)
-**Current plan:** 01 of ?? (Backend foundation complete)
-**Next action:** Continue with Phase 12 Plan 02 (Combat integration) or plan Phase 11 (Death & Corpse System)
+**Current phase:** 11 (Death & Corpse System)
+**Current plan:** 01 complete
+**Next action:** Continue with Phase 11 Plan 02 (UI integration) or Phase 12 Plan 02 (Renown combat integration)
 
 ---
 
@@ -34,7 +34,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 8 | Narrative Tone Rollout | Pending |
 | 9 | Content Data Expansion | Pending |
 | 10 | Travel & Movement Costs | Complete (2/2 plans done: backend + UI, human-verified) |
-| 11 | Death & Corpse System | Pending |
+| 11 | Death & Corpse System | In Progress (1/? plans done: backend foundation) |
 | 12 | Overall Renown System | In Progress (1/? plans done: backend foundation) |
 
 ---
@@ -108,6 +108,11 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 65. Diminishing returns formula for server-first: baseRenown / (2^(position-1)) using BigInt division, minimum 1 renown (12-01)
 66. Perk bonuses aggregated on-demand via calculatePerkBonuses helper (not cached on character stats) — future optimization possible (12-01)
 67. One permanent perk choice per rank enforced via choose_perk duplicate check — no respec mechanism by design (12-01)
+68. Corpse creation level-gated at 5+ to match existing XP penalty threshold (character.level < 5n skips corpse) (11-01)
+69. Same-location corpse combining updates timestamp to newest death for decay calculation (11-01)
+70. ItemInstance ownership never changes during corpse looting — items return by deleting CorpseItem row only (11-01)
+71. Decay cleanup runs opportunistically on respawn (not scheduled reducer) to avoid overhead (11-01)
+72. Empty corpses auto-delete after final item looted for database cleanliness (11-01)
 
 ---
 
@@ -137,6 +142,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 04-config-table-architecture | 02 | 4min | 4 | 5 |
 | 10-travel-movement-costs | 01 | 2min | 2 | 3 |
 | 10-travel-movement-costs | 02 | 8min | 3 | 10 |
+| 11-death-corpse-system | 01 | 5min | 3 | 12 |
 | 12-overall-renown-system | 01 | 4min | 2 | 5 |
 
 ## Accumulated Context
@@ -267,4 +273,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed Phase 12 Plan 01: Overall Renown System backend foundation (4 min, 2 tasks, 2 commits: renown tables/data + helpers/reducers)
+Last activity: 2026-02-14 - Completed Phase 11 Plan 01: Death & Corpse System backend foundation (5 min, 3 tasks, 3 commits: Corpse tables + death hooks/looting reducers + bindings)
