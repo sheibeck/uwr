@@ -287,4 +287,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed quick task 93: Refactor resurrection & corpse summon spell system
+Last activity: 2026-02-14 - Completed quick task 94: Add /grantrenown command and fix Renown panel zero-state
