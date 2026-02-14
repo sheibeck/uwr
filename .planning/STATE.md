@@ -249,9 +249,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 84 | Add confirmation dialog for cross-region travel - narrative confirmation dialog prevents accidental costly moves while within-region travel remains instant | 2026-02-14 | ef8605d | [84-add-confirmation-dialog-for-cross-region](./quick/84-add-confirmation-dialog-for-cross-region/) |
 | 85 | Fix duplicate table definition errors - removed 73 duplicate table definitions from index.ts and established schema/tables.ts as single source of truth | 2026-02-14 | ef7e2da | [85-fix-duplicate-table-definition-errors-ta](./quick/85-fix-duplicate-table-definition-errors-ta/) |
 | 86 | Fix circular dependency between combat.ts and location.ts - import GROUP_SIZE constants directly from combat_constants.ts instead of through combat.ts re-exports | 2026-02-14 | de7babf | [86-fix-circular-dependency-between-combat-t](./quick/86-fix-circular-dependency-between-combat-t/) |
+| 87 | Add missing schema export to index.ts (SpacetimeDB) - re-exported spacetimedb schema instance from entry point to fix module bundling error | 2026-02-14 | 3b336fc | [87-add-missing-schema-export-to-index-ts-sp](./quick/87-add-missing-schema-export-to-index-ts-sp/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed quick task 86: Fix circular dependency between combat.ts and location.ts - import GROUP_SIZE constants directly from combat_constants.ts (3 min, 1 commit)
+Last activity: 2026-02-14 - Completed quick task 87: Add missing schema export to index.ts (SpacetimeDB) - re-exported spacetimedb schema instance from entry point (1 min, 1 commit)
