@@ -132,6 +132,15 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 - Phase 03.1.3 inserted after Phase 03.1.2: Enemy AI and aggro management (URGENT)
 - Phase 9 added: Config Table Architecture - Consolidate ability and armor configuration into database tables (Technical Debt Reduction)
 - 2026-02-13: Phase 9 moved to Phase 4, existing Phases 4-8 renumbered to 5-9 (Config Tables before LLM for cleaner architecture)
+- 2026-02-14: Phase 10 added: Travel & Movement Costs - Region travel with distance-based costs (short = stamina, long = gold + cooldown), travel restrictions and validation, travel UI improvements
+- 2026-02-14: Phase 11 added: Death & Corpse System - Corpse mechanic for level 5+ characters, equipped items stay while inventory drops to corpse, corpse retrieval mechanics, death penalties and resurrection
+- 2026-02-14: Phase 12 added: Overall Renown System - Character-wide renown separate from factions, renown ranks with unlockable perks, renown gain sources from events/bosses/achievements
+- 2026-02-14: Phase 13 added: Crafting System - Weapons & Armor - Extend recipe system for gear crafting, material requirements and gathering, crafted gear as deterministic progression path
+- 2026-02-14: Phase 14 added: Loot & Gear Progression - Magic item properties and affixes, gear quality tiers (common to legendary), drop tables and rarity system, endgame gear hunting loop
+- 2026-02-14: Phase 15 added: Named NPCs - Unique NPC entities (not templates), NPC dialogue system, NPC-specific shops and services, NPC placement in regions
+- 2026-02-14: Phase 16 added: Travelling NPCs - NPC movement AI between regions, travelling merchant schedules, dynamic NPC location tracking
+- 2026-02-14: Phase 17 added: World Bosses - Elite enemy encounters, unique loot tables for bosses, boss spawn mechanics, group scaling for bosses
+- 2026-02-14: Phase 18 added: World Events System Expansion - Regional event spawning (Ripple system), event types and objectives, faction and overall renown rewards, event participation tracking
 
 ---
 
@@ -225,5 +234,5 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-**Stopped at:** Completed quick-79-PLAN.md
+**Stopped at:** Completed quick-80-PLAN.md
 **Timestamp:** 2026-02-14T03:05:01Z
