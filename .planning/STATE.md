@@ -217,10 +217,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 71 | Fix vendor store auto-opening when talking to vendor NPCs - removed vendor auto-open from hailNpc and onNpcHail, only "Open Store" context menu opens vendor panel | 2026-02-14 | 089ddfc | [71-fix-vendor-store-auto-opening-talk-shoul](./quick/71-fix-vendor-store-auto-opening-talk-shoul/) |
 | 73 | Fix window z-index not updating when dragging or clicking - removed early-return guard preventing z-index updates when multiple panels share same zIndex | 2026-02-14 | fd53bd1 | [73-fix-window-z-index-not-updating-when-dra](./quick/73-fix-window-z-index-not-updating-when-dra/) |
 | 74 | Fix git commit blocked by invalid nul file - removed Windows reserved device name and added .gitattributes for line ending normalization | 2026-02-14 | 12a0032 | [74-fix-git-commit-blocked-by-invalid-nul-fi](./quick/74-fix-git-commit-blocked-by-invalid-nul-fi/) |
+| 75 | Merge branch phase-4-config-tables into master - integrated Phase 4 database-driven ability architecture with master's quick-70 through quick-74 fixes | 2026-02-14 | fc7129f | [75-merge-branch-phase-4-config-tables-into-](./quick/75-merge-branch-phase-4-config-tables-into-/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick-74-PLAN.md
-**Timestamp:** 2026-02-14T02:53:31Z
+**Stopped at:** Completed quick-75-PLAN.md
+**Timestamp:** 2026-02-14T03:03:53Z
