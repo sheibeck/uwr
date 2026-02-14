@@ -251,9 +251,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 86 | Fix circular dependency between combat.ts and location.ts - import GROUP_SIZE constants directly from combat_constants.ts instead of through combat.ts re-exports | 2026-02-14 | de7babf | [86-fix-circular-dependency-between-combat-t](./quick/86-fix-circular-dependency-between-combat-t/) |
 | 87 | Add missing schema export to index.ts (SpacetimeDB) - re-exported spacetimedb schema instance from entry point to fix module bundling error | 2026-02-14 | 3b336fc | [87-add-missing-schema-export-to-index-ts-sp](./quick/87-add-missing-schema-export-to-index-ts-sp/) |
 | 88 | Fix missing imports after quick-83 refactoring - resolved all undefined references in 5 files, removed 206 lines of duplicate spawn functions, restored module to compilable state | 2026-02-14 | 1282d73 | [88-fix-missing-imports-after-quick-83-refac](./quick/88-fix-missing-imports-after-quick-83-refac/) |
+| 89 | Rebalance location levelOffsets and enemy group sizes for smooth 1-5 progression - reduced all offsets to eliminate level 7-8 spikes, adjusted group sizes by region tier (starter solo, dungeon groups) | 2026-02-14 | 62a3c38 | [89-rebalance-location-leveloffsets-for-smoo](./quick/89-rebalance-location-leveloffsets-for-smoo/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed quick task 88: Fix missing imports after quick-83 refactoring - resolved undefined references, removed duplicates, module now compiles and publishes (5 min, 4 commits)
+Last activity: 2026-02-14 - Completed quick task 89: Rebalance location levelOffsets and enemy group sizes - smooth 1-5 progression curve across all 30 locations (4 min, 2 commits)
