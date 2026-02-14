@@ -2,12 +2,17 @@ import { computed, type Ref } from 'vue';
 import type { PlayerRow, UserRow } from '../module_bindings';
 
 type UsePlayerArgs = {
-  myPlayer: Ref<PlayerRow[]>;
+  players: Ref<PlayerRow[]>;
   users: Ref<UserRow[]>;
 };
 
-export const usePlayer = ({ myPlayer, users }: UsePlayerArgs) => {
-  const player = computed(() => (myPlayer.value.length ? myPlayer.value[0] : null));
+export const usePlayer = ({ players, users }: UsePlayerArgs) => {
+  const player = computed(() => {
+    const myIdentity = window.__my_identity;
+    if (!myIdentity) return null;
+    const myHex = myIdentity.toHexString();
+    return players.value.find((row) => row.id.toHexString() === myHex) ?? null;
+  });
 
   const userId = computed(() => player.value?.userId ?? null);
   const sessionStartedAt = computed(() => player.value?.sessionStartedAt ?? null);

@@ -532,7 +532,6 @@ const {
   privateEvents,
   groupEvents,
   players,
-  myPlayer,
   users,
   friends,
   friendRequests,
@@ -558,7 +557,7 @@ const {
   panelLayouts,
 } = useGameData();
 
-const { player, userId, userEmail, sessionStartedAt } = usePlayer({ myPlayer, users });
+const { player, userId, userEmail, sessionStartedAt } = usePlayer({ players, users });
 
 const { isLoggedIn, isPendingLogin, login, logout, authMessage, authError } = useAuth({
   connActive: computed(() => conn.isActive),
