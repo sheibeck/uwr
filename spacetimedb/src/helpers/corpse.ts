@@ -121,3 +121,102 @@ export function removeCorpseIfEmpty(ctx: any, corpseId: bigint): boolean {
 
   return false;
 }
+
+/**
+ * Execute resurrection: teleport target to corpse location and restore 50% HP/mana.
+ * Corpse remains (player must loot it separately).
+ */
+export function executeResurrect(ctx: any, caster: any, target: any, corpse: any) {
+  const location = ctx.db.location.id.find(corpse.locationId);
+  const locationName = location?.name ?? 'unknown';
+
+  // Teleport target to corpse location
+  const updatedTarget = ctx.db.character.id.update({
+    ...target,
+    locationId: corpse.locationId,
+    hp: target.maxHp / 2n,
+    mana: target.maxMana / 2n,
+  });
+
+  appendPrivateEvent(
+    ctx,
+    target.id,
+    target.ownerUserId,
+    'system',
+    `${caster.name} has resurrected you at ${locationName}!`
+  );
+
+  appendPrivateEvent(
+    ctx,
+    caster.id,
+    caster.ownerUserId,
+    'system',
+    `You have resurrected ${target.name}.`
+  );
+
+  // Location event at corpse location
+  const targetLocation = ctx.db.location.id.find(corpse.locationId);
+  if (targetLocation) {
+    // appendLocationEvent helper - need to import this
+    // For now, skip location event or add inline
+    // appendLocationEvent(ctx, corpse.locationId, 'system', `${target.name} has been resurrected.`);
+  }
+}
+
+/**
+ * Execute corpse summon: merge all target corpses into one at caster's location.
+ */
+export function executeCorpseSummon(ctx: any, caster: any, target: any) {
+  // Find ALL corpses belonging to target
+  const allCorpses = [...ctx.db.corpse.by_character.filter(target.id)];
+
+  if (allCorpses.length === 0) {
+    // Safety check - shouldn't happen due to validation
+    return;
+  }
+
+  // Use the first corpse as the surviving corpse
+  const survivingCorpse = allCorpses[0];
+
+  // Update the surviving corpse to caster's location and refresh timestamp
+  ctx.db.corpse.id.update({
+    ...survivingCorpse,
+    locationId: caster.locationId,
+    createdAt: ctx.timestamp,
+  });
+
+  // Transfer items from all other corpses to the surviving corpse
+  for (let i = 1; i < allCorpses.length; i++) {
+    const oldCorpse = allCorpses[i];
+
+    // Transfer all CorpseItem rows to surviving corpse
+    for (const corpseItem of ctx.db.corpseItem.by_corpse.filter(oldCorpse.id)) {
+      ctx.db.corpseItem.id.update({
+        ...corpseItem,
+        corpseId: survivingCorpse.id,
+      });
+    }
+
+    // Delete the old corpse
+    ctx.db.corpse.id.delete(oldCorpse.id);
+  }
+
+  const location = ctx.db.location.id.find(caster.locationId);
+  const locationName = location?.name ?? 'unknown';
+
+  appendPrivateEvent(
+    ctx,
+    target.id,
+    target.ownerUserId,
+    'system',
+    `Your corpses have been summoned to ${locationName}.`
+  );
+
+  appendPrivateEvent(
+    ctx,
+    caster.id,
+    caster.ownerUserId,
+    'system',
+    `You have summoned ${target.name}'s corpses.`
+  );
+}

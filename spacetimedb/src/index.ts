@@ -189,6 +189,8 @@ import {
   createCorpse,
   cleanupDecayedCorpses,
   removeCorpseIfEmpty,
+  executeResurrect,
+  executeCorpseSummon,
 } from './helpers/corpse';
 
 import {
@@ -450,6 +452,8 @@ const reducerDeps = {
   createCorpse,
   cleanupDecayedCorpses,
   removeCorpseIfEmpty,
+  executeResurrect,
+  executeCorpseSummon,
   startCombatForSpawn: null as any,
 };
 
