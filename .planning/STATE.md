@@ -85,6 +85,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 45. Enemy AI scoring is combat-state-aware: healers +100 score when ally <30% HP, buffers +50 in first 10s, debuffers +25 vs highest threat — dynamic priority system (3.1.3-02)
 46. Enemies leash (evade to full HP) when all players flee combat — prevents kiting exploit, spawn resets to 'available' state (3.1.3-02)
 47. Combat duration tuned via centralized constants: BASE_HP (50n), HP_STR_MULTIPLIER (8n), GLOBAL_DAMAGE_MULTIPLIER (85n = 15% reduction), enemy HP ~80% increase — roughly doubles combat length (quick-56)
+48. myPlayer view replaced with client-side identity filtering — completes migration started in quick-46, all per-user tables now use public + client filtering pattern (quick-70)
 
 ---
 
@@ -203,11 +204,12 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 67 | Restore ability descriptions to AbilityTooltip - added meaningful descriptions to all 80 player abilities and fixed resolveDescription bug in seeding path | 2026-02-13 | bd26e4e | [67-restore-ability-descriptions-to-abilityt](./quick/67-restore-ability-descriptions-to-abilityt/) |
 | 68 | Split ability catalog by class - refactored monolithic ability_catalog.ts (1400 lines) into 17 per-class files with thin re-export hub for improved organization | 2026-02-13 | 810c155 | [68-split-ability-catalog-by-class-create-se](./quick/68-split-ability-catalog-by-class-create-se/) |
 | 69 | Refactor spacetimedb/src/index.ts - split 6825-line monolith into 12 modular files (schema, helpers, seeding) achieving 93% reduction to 473 lines | 2026-02-13 | dc9fe16 | [69-refactor-spacetimedb-src-index-ts-split-](./quick/69-refactor-spacetimedb-src-index-ts-split-/) |
+| 70 | Fix character creation kicking user to login screen - replace myPlayer view with client-side identity filtering (last remaining view after quick-46) | 2026-02-14 | bc9f0ce | [70-fix-character-creation-kicking-user-to-l](./quick/70-fix-character-creation-kicking-user-to-l/) |
 | 71 | Fix vendor store auto-opening when talking to vendor NPCs - removed vendor auto-open from hailNpc and onNpcHail, only "Open Store" context menu opens vendor panel | 2026-02-14 | 089ddfc | [71-fix-vendor-store-auto-opening-talk-shoul](./quick/71-fix-vendor-store-auto-opening-talk-shoul/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick-71-PLAN.md
-**Timestamp:** 2026-02-14T00:59:44Z
+**Stopped at:** Completed quick-70-PLAN.md
+**Timestamp:** 2026-02-14T01:01:08Z
