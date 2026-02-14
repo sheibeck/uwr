@@ -14,7 +14,6 @@ export type ViewDeps = {
   EventPrivate: any;
   NpcDialog: any;
   QuestInstance: any;
-  Hunger: any;
   Faction: any;
   FactionStanding: any;
   UiPanelLayout: any;

@@ -1,43 +1,11 @@
-export const registerHungerReducers = (deps: any) => {
+export const registerFoodReducers = (deps: any) => {
   const {
     spacetimedb,
     t,
     SenderError,
-    ScheduleAt,
-    Timestamp,
-    Hunger,
-    HungerDecayTick,
-    HUNGER_DECAY_INTERVAL_MICROS,
     requireCharacterOwnedBy,
     appendPrivateEvent,
   } = deps;
-
-  spacetimedb.reducer('decay_hunger', { arg: HungerDecayTick.rowType }, (ctx: any) => {
-    for (const hunger of ctx.db.hunger.iter()) {
-      if (hunger.currentHunger <= 0n) continue;
-      const next = hunger.currentHunger > 2n ? hunger.currentHunger - 2n : 0n;
-      let updatedHunger = { ...hunger, currentHunger: next };
-
-      // Apply regen buffs on each decay tick if the buff is still active
-      if (hunger.wellFedUntil.microsSinceUnixEpoch > ctx.timestamp.microsSinceUnixEpoch) {
-        const character = ctx.db.character.id.find(hunger.characterId);
-        if (character) {
-          if (hunger.wellFedBuffType === 'stamina_regen') {
-            // TODO: implement when stamina regen from Well Fed is wired to combat stamina flow
-          }
-          if (hunger.wellFedBuffType === 'mana_regen') {
-            // TODO: implement when mana regen from Well Fed is wired to mana flow
-          }
-        }
-      }
-
-      ctx.db.hunger.id.update(updatedHunger);
-    }
-    ctx.db.hungerDecayTick.insert({
-      scheduledId: 0n,
-      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + HUNGER_DECAY_INTERVAL_MICROS),
-    });
-  });
 
   spacetimedb.reducer(
     'eat_food',
@@ -53,9 +21,6 @@ export const registerHungerReducers = (deps: any) => {
       if (!template) throw new SenderError('Item template not found');
       if (template.slot !== 'food') throw new SenderError('This item is not food');
 
-      const hungerRow = [...ctx.db.hunger.characterId.filter(characterId)][0] ?? null;
-      if (!hungerRow) throw new SenderError('No hunger record for this character');
-
       // Consume the item
       if (instance.quantity > 1n) {
         ctx.db.itemInstance.id.update({ ...instance, quantity: instance.quantity - 1n });
@@ -63,26 +28,47 @@ export const registerHungerReducers = (deps: any) => {
         ctx.db.itemInstance.id.delete(itemInstanceId);
       }
 
+      // Apply food buff as CharacterEffect if the item has wellFed properties
       if (template.wellFedDurationMicros > 0n) {
-        const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
-        const newExpiry = nowMicros + template.wellFedDurationMicros;
-        const currentExpiry = hungerRow.wellFedUntil.microsSinceUnixEpoch;
-        const wellFedUntilMicros = newExpiry > currentExpiry ? newExpiry : currentExpiry;
+        // Map wellFedBuffType to CharacterEffect effectType
+        let effectType = '';
+        if (template.wellFedBuffType === 'str') effectType = 'str_bonus';
+        else if (template.wellFedBuffType === 'dex') effectType = 'dex_bonus';
+        else if (template.wellFedBuffType === 'mana_regen') effectType = 'mana_regen';
+        else if (template.wellFedBuffType === 'stamina_regen') effectType = 'stamina_regen';
 
-        ctx.db.hunger.id.update({
-          ...hungerRow,
-          wellFedUntil: new Timestamp(wellFedUntilMicros),
-          wellFedBuffType: template.wellFedBuffType,
-          wellFedBuffMagnitude: template.wellFedBuffMagnitude,
-        });
+        if (effectType) {
+          // Remove any existing food buff of the same type to prevent stacking
+          for (const effect of ctx.db.characterEffect.by_character.filter(characterId)) {
+            if (effect.sourceAbility === 'food_buff' && effect.effectType === effectType) {
+              ctx.db.characterEffect.id.delete(effect.id);
+            }
+          }
 
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'system',
-          `You eat the ${template.name} and feel well fed.`
-        );
+          // Insert new food buff effect with high roundsRemaining (99 = long-duration)
+          const magnitude = template.wellFedBuffMagnitude as bigint;
+          // Convert to i64 for magnitude (cast from u64 to i64)
+          const signedMagnitude = magnitude > 9223372036854775807n
+            ? -(18446744073709551616n - magnitude)
+            : magnitude;
+
+          ctx.db.characterEffect.insert({
+            id: 0n,
+            characterId,
+            effectType,
+            magnitude: signedMagnitude,
+            roundsRemaining: 99n,
+            sourceAbility: 'food_buff',
+          });
+
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'system',
+            `You eat the ${template.name} and feel well fed (+${template.wellFedBuffMagnitude} ${template.wellFedBuffType.toUpperCase()}).`
+          );
+        }
       }
     }
   );

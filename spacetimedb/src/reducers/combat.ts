@@ -1800,15 +1800,10 @@ export const registerCombatReducers = (deps: any) => {
       const enemyTemplate = ctx.db.enemyTemplate.id.find(currentEnemy.enemyTemplateId);
       const targetName = currentEnemy.displayName ?? enemyTemplate?.name ?? 'enemy';
       const weapon = deps.getEquippedWeaponStats(ctx, character.id);
-      const hungerRow = [...ctx.db.hunger.characterId.filter(character.id)][0] ?? null;
-      const isWellFed = hungerRow && hungerRow.wellFedUntil.microsSinceUnixEpoch > nowMicros;
-      const wellFedDmgBonus = isWellFed && (hungerRow.wellFedBuffType === 'str' || hungerRow.wellFedBuffType === 'dex')
-        ? hungerRow.wellFedBuffMagnitude
-        : 0n;
       const rawWeaponDamage = 5n + character.level + weapon.baseDamage + (weapon.dps / 2n);
       const statScaledDamage = calculateStatScaledAutoAttack(rawWeaponDamage, character.str);
       const baseDamage = statScaledDamage + sumEnemyEffect(ctx, combat.id, 'damage_taken', currentEnemy.id);
-      const damage = baseDamage + wellFedDmgBonus;
+      const damage = baseDamage;
       const outcomeSeed = nowMicros + character.id + currentEnemy.id;
       const { finalDamage, nextHp } = resolveAttack(ctx, {
         seed: outcomeSeed,

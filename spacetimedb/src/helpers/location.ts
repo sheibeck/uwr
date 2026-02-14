@@ -258,17 +258,6 @@ function ensureHealthRegenScheduled(ctx: any) {
   }
 }
 
-const HUNGER_DECAY_INTERVAL_MICROS = 300_000_000n; // 5 minutes
-
-function ensureHungerDecayScheduled(ctx: any) {
-  if (!tableHasRows(ctx.db.hungerDecayTick.iter())) {
-    ctx.db.hungerDecayTick.insert({
-      scheduledId: 0n,
-      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + HUNGER_DECAY_INTERVAL_MICROS),
-    });
-  }
-}
-
 function ensureEffectTickScheduled(ctx: any) {
   if (!tableHasRows(ctx.db.effectTick.iter())) {
     ctx.db.effectTick.insert({

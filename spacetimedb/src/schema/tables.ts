@@ -1016,10 +1016,7 @@ export const HealthRegenTick = table(
   }
 );
 
-export const HungerDecayTick = table(
-  { name: 'hunger_decay_tick', scheduled: 'decay_hunger' },
-  { scheduledId: t.u64().primaryKey().autoInc(), scheduledAt: t.scheduleAt() }
-);
+// HungerDecayTick removed - no hunger decay system
 
 export const EffectTick = table(
   {
@@ -1195,21 +1192,7 @@ export const Race = table(
   }
 );
 
-export const Hunger = table(
-  {
-    name: 'hunger',
-    public: true,
-    indexes: [{ name: 'characterId', algorithm: 'btree', columns: ['characterId'] }],
-  },
-  {
-    id: t.u64().primaryKey().autoInc(),
-    characterId: t.u64(),
-    currentHunger: t.u64(),
-    wellFedUntil: t.timestamp(),
-    wellFedBuffType: t.string(),
-    wellFedBuffMagnitude: t.u64(),
-  }
-);
+// Hunger table removed - food system now uses CharacterEffect for buffs
 
 export const Faction = table(
   { name: 'faction', public: true },
@@ -1321,8 +1304,6 @@ export const spacetimedb = schema(
   EventLocation,
   EventPrivate,
   EventGroup,
-  Hunger,
-  HungerDecayTick,
   Faction,
   FactionStanding,
   UiPanelLayout

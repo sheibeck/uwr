@@ -1069,10 +1069,7 @@ const HealthRegenTick = table(
   }
 );
 
-const HungerDecayTick = table(
-  { name: 'hunger_decay_tick', scheduled: 'decay_hunger' },
-  { scheduledId: t.u64().primaryKey().autoInc(), scheduledAt: t.scheduleAt() }
-);
+// HungerDecayTick removed - no hunger decay system
 
 const EffectTick = table(
   {
@@ -1248,21 +1245,7 @@ const Race = table(
   }
 );
 
-const Hunger = table(
-  {
-    name: 'hunger',
-    public: true,
-    indexes: [{ name: 'characterId', algorithm: 'btree', columns: ['characterId'] }],
-  },
-  {
-    id: t.u64().primaryKey().autoInc(),
-    characterId: t.u64(),
-    currentHunger: t.u64(),
-    wellFedUntil: t.timestamp(),
-    wellFedBuffType: t.string(),
-    wellFedBuffMagnitude: t.u64(),
-  }
-);
+// Hunger table removed - food system now uses CharacterEffect for buffs
 
 const Faction = table(
   { name: 'faction', public: true },
@@ -1374,8 +1357,6 @@ export const spacetimedb = schema(
   EventLocation,
   EventPrivate,
   EventGroup,
-  Hunger,
-  HungerDecayTick,
   Faction,
   FactionStanding,
   UiPanelLayout
@@ -1974,14 +1955,7 @@ function executeAbility(
   const baseWeaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
   const damageUp = sumCharacterEffect(ctx, character.id, 'damage_up');
   const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
-  const abilityHungerRow = [...ctx.db.hunger.characterId.filter(character.id)][0] ?? null;
-  const abilityIsWellFed = abilityHungerRow &&
-    abilityHungerRow.wellFedUntil.microsSinceUnixEpoch > nowMicros;
-  const wellFedAbilityBonus = abilityIsWellFed &&
-    (abilityHungerRow.wellFedBuffType === 'str' || abilityHungerRow.wellFedBuffType === 'dex')
-    ? abilityHungerRow.wellFedBuffMagnitude
-    : 0n;
-  const totalDamageUp = damageUp + wellFedAbilityBonus;
+  const totalDamageUp = damageUp;
 
   const summonPet = (
     petLabel: string,
@@ -5186,17 +5160,6 @@ function ensureHealthRegenScheduled(ctx: any) {
   }
 }
 
-const HUNGER_DECAY_INTERVAL_MICROS = 300_000_000n; // 5 minutes
-
-function ensureHungerDecayScheduled(ctx: any) {
-  if (!tableHasRows(ctx.db.hungerDecayTick.iter())) {
-    ctx.db.hungerDecayTick.insert({
-      scheduledId: 0n,
-      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + HUNGER_DECAY_INTERVAL_MICROS),
-    });
-  }
-}
-
 function ensureEffectTickScheduled(ctx: any) {
   if (!tableHasRows(ctx.db.effectTick.iter())) {
     ctx.db.effectTick.insert({
@@ -5384,7 +5347,6 @@ registerViews({
   EventPrivate,
   NpcDialog,
   QuestInstance,
-  Hunger,
   Faction,
   FactionStanding,
   UiPanelLayout,
@@ -6635,7 +6597,6 @@ spacetimedb.init((ctx) => {
   ensureHotTickScheduled(ctx);
   ensureCastTickScheduled(ctx);
   ensureDayNightTickScheduled(ctx);
-  ensureHungerDecayScheduled(ctx);
 });
 
 spacetimedb.clientConnected((ctx) => {
@@ -6657,7 +6618,6 @@ spacetimedb.clientConnected((ctx) => {
   ensureHotTickScheduled(ctx);
   ensureCastTickScheduled(ctx);
   ensureDayNightTickScheduled(ctx);
-  ensureHungerDecayScheduled(ctx);
 });
 
 spacetimedb.clientDisconnected((_ctx) => {
@@ -6728,9 +6688,6 @@ const reducerDeps = {
   ScheduleAt,
   Timestamp,
   Character,
-  Hunger,
-  HungerDecayTick,
-  HUNGER_DECAY_INTERVAL_MICROS,
   GroupMember,
   GroupInvite,
   CombatParticipant,
@@ -6804,7 +6761,6 @@ const reducerDeps = {
   ensureStarterItemTemplates,
   ensureResourceItemTemplates,
   ensureFoodItemTemplates,
-  ensureHungerDecayScheduled,
   ensureLootTables,
   ensureVendorInventory,
   ensureAbilityTemplates,

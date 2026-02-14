@@ -3,7 +3,6 @@ import { ScheduleAt } from 'spacetimedb';
 import {
   DayNightTick,
   HealthRegenTick,
-  HungerDecayTick,
   EffectTick,
   HotTick,
   CastTick,
@@ -21,17 +20,6 @@ export function ensureHealthRegenScheduled(ctx: any) {
     ctx.db.healthRegenTick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 3_000_000n),
-    });
-  }
-}
-
-export const HUNGER_DECAY_INTERVAL_MICROS = 300_000_000n; // 5 minutes
-
-export function ensureHungerDecayScheduled(ctx: any) {
-  if (!tableHasRows(ctx.db.hungerDecayTick.iter())) {
-    ctx.db.hungerDecayTick.insert({
-      scheduledId: 0n,
-      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + HUNGER_DECAY_INTERVAL_MICROS),
     });
   }
 }

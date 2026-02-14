@@ -344,15 +344,8 @@ export function executeAbility(
   const weapon = getEquippedWeaponStats(ctx, character.id);
   const baseWeaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
   const damageUp = sumCharacterEffect(ctx, character.id, 'damage_up');
+  const totalDamageUp = damageUp;
   const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
-  const abilityHungerRow = [...ctx.db.hunger.characterId.filter(character.id)][0] ?? null;
-  const abilityIsWellFed = abilityHungerRow &&
-    abilityHungerRow.wellFedUntil.microsSinceUnixEpoch > nowMicros;
-  const wellFedAbilityBonus = abilityIsWellFed &&
-    (abilityHungerRow.wellFedBuffType === 'str' || abilityHungerRow.wellFedBuffType === 'dex')
-    ? abilityHungerRow.wellFedBuffMagnitude
-    : 0n;
-  const totalDamageUp = damageUp + wellFedAbilityBonus;
 
   const summonPet = (
     petLabel: string,

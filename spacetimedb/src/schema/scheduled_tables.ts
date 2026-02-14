@@ -1,7 +1,6 @@
 export {
   DayNightTick,
   HealthRegenTick,
-  HungerDecayTick,
   EffectTick,
   HotTick,
   CastTick,
