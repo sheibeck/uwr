@@ -472,7 +472,7 @@ Plans:
 ### Phase 12: Overall Renown System - Character-wide renown separate from factions, renown ranks with unlockable perks, renown gain sources from events/bosses/achievements
 
 **Goal:** Character-wide renown progression system with 15 named ranks across 5 tiers, permanent perk choices from pools at each rank (mix of passive stat bonuses and active abilities), server-first tracking with diminishing returns, combat-integrated renown awards, achievement milestones, and dedicated tabbed UI panel with rank progression, perk selection, and leaderboard.
-**Depends on:** Phase 11
+**Depends on:** None (independent system - can run parallel with Phase 11)
 **Plans:** 3 plans
 
 Plans:
