@@ -248,9 +248,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 83 | Eliminate duplicate seeding code in index.ts - reduced from 7102 to 1769 lines (75%) by replacing all function definitions with imports from modular files | 2026-02-14 | 11241c5 | [83-eliminate-duplicate-seeding-code-in-inde](./quick/83-eliminate-duplicate-seeding-code-in-inde/) |
 | 84 | Add confirmation dialog for cross-region travel - narrative confirmation dialog prevents accidental costly moves while within-region travel remains instant | 2026-02-14 | ef8605d | [84-add-confirmation-dialog-for-cross-region](./quick/84-add-confirmation-dialog-for-cross-region/) |
 | 85 | Fix duplicate table definition errors - removed 73 duplicate table definitions from index.ts and established schema/tables.ts as single source of truth | 2026-02-14 | ef7e2da | [85-fix-duplicate-table-definition-errors-ta](./quick/85-fix-duplicate-table-definition-errors-ta/) |
+| 86 | Fix circular dependency between combat.ts and location.ts - import GROUP_SIZE constants directly from combat_constants.ts instead of through combat.ts re-exports | 2026-02-14 | de7babf | [86-fix-circular-dependency-between-combat-t](./quick/86-fix-circular-dependency-between-combat-t/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed quick task 85: Fix duplicate table definition errors - removed 73 duplicate table definitions from index.ts and established schema/tables.ts as single source of truth (3 min, 1 commit)
+Last activity: 2026-02-14 - Completed quick task 86: Fix circular dependency between combat.ts and location.ts - import GROUP_SIZE constants directly from combat_constants.ts (3 min, 1 commit)
