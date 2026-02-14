@@ -22,6 +22,7 @@ export const registerCharacterReducers = (deps: any) => {
     ScheduleAt,
     CharacterLogoutTick,
     grantStarterItems,
+    ensureStarterItemTemplates,
     activeCombatIdForCharacter,
     isClassAllowed,
   } = deps;
@@ -177,7 +178,7 @@ export const registerCharacterReducers = (deps: any) => {
         createdAt: ctx.timestamp,
       });
 
-      grantStarterItems(ctx, character);
+      grantStarterItems(ctx, character, ensureStarterItemTemplates);
 
       // Initialize FactionStanding for all factions at 0
       for (const faction of ctx.db.faction.iter()) {
