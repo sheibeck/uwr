@@ -3231,11 +3231,19 @@ function executeEnemyAbility(
     }
   } else if (ability.kind === 'debuff') {
     const damageType = (ability as any).damageType ?? 'physical';
+    const lifesteal = (ability as any).lifesteal;
     const debuffPowerCost = (ability as any).debuffPowerCost ?? 0.25;
 
-    // Direct damage reduced by debuff cost
-    const damageFraction = 1.0 - debuffPowerCost;
-    const directDamage = (totalPower * BigInt(Math.floor(damageFraction * 100))) / 100n;
+    // Calculate damage (full if lifesteal, reduced if debuff)
+    let directDamage: bigint;
+    if (lifesteal !== undefined) {
+      // Lifesteal abilities deal full damage
+      directDamage = totalPower;
+    } else {
+      // Debuff abilities deal reduced damage
+      const damageFraction = 1.0 - debuffPowerCost;
+      directDamage = (totalPower * BigInt(Math.floor(damageFraction * 100))) / 100n;
+    }
 
     // Apply direct damage with damage type routing
     let actualDamage = 0n;
@@ -3243,17 +3251,38 @@ function executeEnemyAbility(
       actualDamage = applyEnemyAbilityDamage(ctx, target, directDamage, damageType, enemyName, ability.name);
     }
 
-    // Apply debuff effect (fixed magnitude from metadata, not scaled)
-    const effectType = (ability as any).effectType ?? 'ac_bonus';
-    addCharacterEffect(ctx, target.id, effectType, ability.magnitude, ability.rounds, ability.name);
+    // Apply lifesteal healing to the enemy
+    if (lifesteal !== undefined && actualDamage > 0n) {
+      const healAmount = (actualDamage * BigInt(Math.floor(lifesteal * 100))) / 100n;
+      const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+      const maxHp = enemyTemplate?.maxHp ?? 100n;
+      const nextHp = enemy.currentHp + healAmount > maxHp ? maxHp : enemy.currentHp + healAmount;
+      ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
+    }
+
+    // Apply debuff effect only if effectType is defined
+    const effectType = (ability as any).effectType;
+    if (effectType) {
+      addCharacterEffect(ctx, target.id, effectType, ability.magnitude, ability.rounds, ability.name);
+    }
 
     // Log messages
-    const dmgMsg = actualDamage > 0n ? ` for ${actualDamage} and` : '';
-    const privateMessage = `${enemyName} uses ${ability.name}${dmgMsg} afflicts you.`;
-    const groupMessage = `${enemyName} uses ${ability.name}${dmgMsg} afflicts ${target.name}.`;
-    appendPrivateEvent(ctx, target.id, target.ownerUserId, 'ability', privateMessage);
-    if (target.groupId) {
-      appendGroupEvent(ctx, target.groupId, target.id, 'ability', groupMessage);
+    if (lifesteal !== undefined) {
+      const dmgMsg = actualDamage > 0n ? ` for ${actualDamage}` : '';
+      const privateMessage = `${enemyName} uses ${ability.name}${dmgMsg}, draining your life.`;
+      const groupMessage = `${enemyName} uses ${ability.name} on ${target.name}${dmgMsg}, draining their life.`;
+      appendPrivateEvent(ctx, target.id, target.ownerUserId, 'damage', privateMessage);
+      if (target.groupId) {
+        appendGroupEvent(ctx, target.groupId, target.id, 'damage', groupMessage);
+      }
+    } else {
+      const dmgMsg = actualDamage > 0n ? ` for ${actualDamage} and` : '';
+      const privateMessage = `${enemyName} uses ${ability.name}${dmgMsg} afflicts you.`;
+      const groupMessage = `${enemyName} uses ${ability.name}${dmgMsg} afflicts ${target.name}.`;
+      appendPrivateEvent(ctx, target.id, target.ownerUserId, 'ability', privateMessage);
+      if (target.groupId) {
+        appendGroupEvent(ctx, target.groupId, target.id, 'ability', groupMessage);
+      }
     }
   } else if (ability.kind === 'heal') {
     const allies = [...ctx.db.combatEnemy.by_combat.filter(combatId)]
