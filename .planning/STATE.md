@@ -286,4 +286,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed Phase 11 Plan 02: Resurrection and Corpse Summon backend (9 min, 2 of 3 tasks, 2 commits: PendingResurrect/PendingCorpseSummon tables + confirmation flow reducers). Task 3 (publish/bindings) blocked by SpacetimeDB server 500 error.
+Last activity: 2026-02-14 - Completed quick task 93: Refactor resurrection & corpse summon spell system
