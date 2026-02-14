@@ -17,6 +17,7 @@ import {
   EnemyAbility, CombatEnemyCooldown, CombatEnemyCast,
   CombatPendingAdd, AggroEntry,
 } from './schema/tables';
+export { spacetimedb } from './schema/tables';
 import { registerReducers } from './reducers';
 import {
   effectiveGroupId,
