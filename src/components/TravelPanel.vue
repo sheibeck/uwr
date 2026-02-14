@@ -1,5 +1,32 @@
 <template>
   <div>
+    <!-- Cross-region confirmation dialog overlay -->
+    <div v-if="pendingCrossRegionMove" :style="overlayStyle">
+      <div :style="dialogStyle">
+        <div :style="dialogTitleStyle">Cross-Region Expedition</div>
+        <div :style="dialogBodyStyle">
+          <p :style="dialogTextStyle">
+            You are about to embark on a long journey to
+            <span :style="{ color: '#d4a574', fontWeight: 'bold' }">{{ pendingCrossRegionMove.locationName }}</span>
+            in the
+            <span :style="{ color: '#d4a574', fontWeight: 'bold' }">{{ pendingCrossRegionMove.regionName }}</span>
+            region.
+          </p>
+          <p :style="dialogNarrativeStyle">
+            The road ahead is arduous. Such an expedition will exhaust your character,
+            and they must rest before undertaking another journey of this magnitude.
+          </p>
+          <p :style="dialogCostStyle">
+            Cost: {{ pendingCrossRegionMove.staminaCost }} stamina + 5 minute cooldown
+          </p>
+        </div>
+        <div :style="dialogButtonRowStyle">
+          <button :style="dialogCancelButtonStyle" @click="cancelCrossRegionTravel">Turn Back</button>
+          <button :style="dialogConfirmButtonStyle" @click="confirmCrossRegionTravel">Set Forth</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="!selectedCharacter" :style="styles.subtle">
       Select a character to travel.
     </div>
@@ -35,7 +62,7 @@
               styles.gridTileGoButton,
               (!canAffordTravel(entry) || (entry.isCrossRegion && !!activeCooldown)) ? { opacity: 0.5 } : {}
             ]"
-            @click="$emit('move', entry.location.id)"
+            @click="handleTravelClick(entry)"
             :disabled="!connActive || entry.location.id === selectedCharacter.locationId || !canAffordTravel(entry) || (entry.isCrossRegion && !!activeCooldown)"
           >
             {{ entry.staminaCost }} sta
@@ -61,9 +88,17 @@ const props = defineProps<{
   locationConnections: LocationConnectionRow[];
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'move', locationId: bigint): void;
 }>();
+
+// Pending cross-region move state
+const pendingCrossRegionMove = ref<null | {
+  locationId: bigint;
+  locationName: string;
+  regionName: string;
+  staminaCost: number;
+}>(null);
 
 const conStyleForDiff = (diff: number) => {
   if (diff <= -5) return props.styles.conGray;
@@ -177,5 +212,122 @@ const sortedLocations = computed(() => {
 const canAffordTravel = (entry: { staminaCost: number }) => {
   if (!props.selectedCharacter) return false;
   return Number(props.selectedCharacter.stamina) >= entry.staminaCost;
+};
+
+// Handle travel button click
+const handleTravelClick = (entry: {
+  location: LocationRow;
+  isCrossRegion: boolean;
+  regionName: string;
+  staminaCost: number;
+}) => {
+  if (entry.isCrossRegion) {
+    // Show confirmation dialog for cross-region travel
+    pendingCrossRegionMove.value = {
+      locationId: entry.location.id,
+      locationName: entry.location.name,
+      regionName: entry.regionName,
+      staminaCost: entry.staminaCost,
+    };
+  } else {
+    // Within-region travel - emit move directly
+    emit('move', entry.location.id);
+  }
+};
+
+// Confirm cross-region travel
+const confirmCrossRegionTravel = () => {
+  if (pendingCrossRegionMove.value) {
+    emit('move', pendingCrossRegionMove.value.locationId);
+    pendingCrossRegionMove.value = null;
+  }
+};
+
+// Cancel cross-region travel
+const cancelCrossRegionTravel = () => {
+  pendingCrossRegionMove.value = null;
+};
+
+// Dialog styles
+const overlayStyle = {
+  position: 'fixed' as const,
+  inset: '0',
+  background: 'rgba(0,0,0,0.6)',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 9000,
+};
+
+const dialogStyle = {
+  background: '#141821',
+  border: '1px solid rgba(255,255,255,0.15)',
+  borderRadius: '14px',
+  padding: '1.5rem',
+  maxWidth: '420px',
+  width: '90vw',
+  boxShadow: '0 14px 32px rgba(0,0,0,0.6)',
+};
+
+const dialogTitleStyle = {
+  fontSize: '1.1rem',
+  fontWeight: 'bold' as const,
+  color: '#e6e8ef',
+  marginBottom: '1rem',
+  textAlign: 'center' as const,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase' as const,
+};
+
+const dialogBodyStyle = {
+  marginBottom: '1.2rem',
+};
+
+const dialogTextStyle = {
+  fontSize: '0.9rem',
+  color: '#c8cad0',
+  lineHeight: '1.5',
+  marginBottom: '0.6rem',
+};
+
+const dialogNarrativeStyle = {
+  fontSize: '0.85rem',
+  color: 'rgba(212, 165, 116, 0.85)',
+  lineHeight: '1.5',
+  fontStyle: 'italic' as const,
+  marginBottom: '0.8rem',
+};
+
+const dialogCostStyle = {
+  fontSize: '0.8rem',
+  color: 'rgba(255,255,255,0.5)',
+  textAlign: 'center' as const,
+};
+
+const dialogButtonRowStyle = {
+  display: 'flex',
+  gap: '0.75rem',
+  justifyContent: 'center',
+};
+
+const dialogCancelButtonStyle = {
+  padding: '0.5rem 1.2rem',
+  background: 'transparent',
+  border: '1px solid rgba(255,255,255,0.2)',
+  borderRadius: '8px',
+  color: '#a0a3ab',
+  cursor: 'pointer',
+  fontSize: '0.85rem',
+};
+
+const dialogConfirmButtonStyle = {
+  padding: '0.5rem 1.2rem',
+  background: 'rgba(212, 165, 116, 0.15)',
+  border: '1px solid rgba(212, 165, 116, 0.4)',
+  borderRadius: '8px',
+  color: '#d4a574',
+  cursor: 'pointer',
+  fontSize: '0.85rem',
+  fontWeight: 'bold' as const,
 };
 </script>
