@@ -1339,9 +1339,9 @@ export const CorpseItem = table(
   }
 );
 
-export const PendingResurrect = table(
+export const PendingSpellCast = table(
   {
-    name: 'pending_resurrect',
+    name: 'pending_spell_cast',
     public: true,
     indexes: [
       { name: 'by_target', algorithm: 'btree', columns: ['targetCharacterId'] },
@@ -1350,26 +1350,10 @@ export const PendingResurrect = table(
   },
   {
     id: t.u64().primaryKey().autoInc(),
+    spellType: t.string(),  // 'resurrect' | 'corpse_summon'
     casterCharacterId: t.u64(),
     targetCharacterId: t.u64(),
-    corpseId: t.u64(),
-    createdAtMicros: t.u64(),
-  }
-);
-
-export const PendingCorpseSummon = table(
-  {
-    name: 'pending_corpse_summon',
-    public: true,
-    indexes: [
-      { name: 'by_target', algorithm: 'btree', columns: ['targetCharacterId'] },
-      { name: 'by_caster', algorithm: 'btree', columns: ['casterCharacterId'] },
-    ],
-  },
-  {
-    id: t.u64().primaryKey().autoInc(),
-    casterCharacterId: t.u64(),
-    targetCharacterId: t.u64(),
+    corpseId: t.u64().optional(),  // Only set for resurrect
     createdAtMicros: t.u64(),
   }
 );
@@ -1454,6 +1438,5 @@ export const spacetimedb = schema(
   Achievement,
   Corpse,
   CorpseItem,
-  PendingResurrect,
-  PendingCorpseSummon
+  PendingSpellCast
 );

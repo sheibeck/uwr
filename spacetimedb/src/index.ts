@@ -17,7 +17,7 @@ import {
   EnemyAbility, CombatEnemyCooldown, CombatEnemyCast,
   CombatPendingAdd, AggroEntry,
   Corpse, CorpseItem,
-  PendingResurrect, PendingCorpseSummon,
+  PendingSpellCast,
 } from './schema/tables';
 export { spacetimedb } from './schema/tables';
 import { registerReducers } from './reducers';
@@ -447,8 +447,7 @@ const reducerDeps = {
   UiPanelLayout,
   Corpse,
   CorpseItem,
-  PendingResurrect,
-  PendingCorpseSummon,
+  PendingSpellCast,
   createCorpse,
   cleanupDecayedCorpses,
   removeCorpseIfEmpty,

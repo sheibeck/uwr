@@ -58,4 +58,16 @@ export const NECROMANCER_ABILITIES: Record<string, AbilityMetadata> = {
     castSeconds: 1n,
     damageType: 'magic' as DamageType,
   },
+  necromancer_corpse_summon: {
+    name: 'Corpse Summon',
+    description: 'Summons all of a target character\'s corpses to the caster\'s location, merging them into one. The target must confirm before the summon proceeds. Costs 60 mana and takes 10 seconds to cast.',
+    className: 'necromancer',
+    resource: 'mana',
+    level: 6n,
+    power: 0n,
+    cooldownSeconds: 0n,
+    castSeconds: 10n,
+    damageType: 'none' as DamageType,
+    combatState: 'out_of_combat',
+  },
 };
