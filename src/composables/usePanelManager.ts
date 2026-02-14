@@ -220,7 +220,6 @@ export function usePanelManager(
   // Bring panel to front
   const bringToFront = (id: string) => {
     if (!panels[id]) return;
-    if (panels[id].zIndex === topZ.value) return; // Already on top
     topZ.value += 1;
     panels[id].zIndex = topZ.value;
   };
