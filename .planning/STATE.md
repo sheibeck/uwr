@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-14
-**Status:** Phase 10 complete — Travel & Movement Costs: Region-based stamina costs with cooldown system fully implemented and verified
+**Status:** Phase 12 Plan 01 complete — Overall Renown System backend foundation with 15-rank progression, perk pools, server-first tracking, and achievement system
 
 ---
 
@@ -10,9 +10,9 @@
 
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 (Travel & Movement Costs) complete — Region-based stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, all-or-nothing group validation, TravelPanel UI with cost indicators and live countdown timer. Human-verified functional.
 
-**Current phase:** 11 (Death & Corpse System) — awaiting planning
-**Current plan:** None (Phase 11 not yet planned)
-**Next action:** Run /gsd:plan-phase 11 to break down Death & Corpse System or continue with other work
+**Current phase:** 12 (Overall Renown System)
+**Current plan:** 01 of ?? (Backend foundation complete)
+**Next action:** Continue with Phase 12 Plan 02 (Combat integration) or plan Phase 11 (Death & Corpse System)
 
 ---
 
@@ -34,6 +34,8 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 8 | Narrative Tone Rollout | Pending |
 | 9 | Content Data Expansion | Pending |
 | 10 | Travel & Movement Costs | Complete (2/2 plans done: backend + UI, human-verified) |
+| 11 | Death & Corpse System | Pending |
+| 12 | Overall Renown System | In Progress (1/? plans done: backend foundation) |
 
 ---
 
@@ -101,6 +103,11 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 60. Travel UI displays stamina costs as "X sta" format, cross-region destinations shown with amber-colored region name for visual distinction (10-02)
 61. Server clock offset pattern used for accurate countdown timers synchronized with server time (window.__server_clock_offset from quick-55) (10-02)
 62. Unaffordable travel options dimmed with opacity: 0.5 instead of hidden for improved UX feedback (10-02)
+63. Renown rows lazy-initialized on first point award (not at character creation) to avoid cluttering database with inactive character records (12-01)
+64. Server-first tracking uses single-column by_category index with manual achievementKey filtering — multi-column indexes broken per CLAUDE.md (12-01)
+65. Diminishing returns formula for server-first: baseRenown / (2^(position-1)) using BigInt division, minimum 1 renown (12-01)
+66. Perk bonuses aggregated on-demand via calculatePerkBonuses helper (not cached on character stats) — future optimization possible (12-01)
+67. One permanent perk choice per rank enforced via choose_perk duplicate check — no respec mechanism by design (12-01)
 
 ---
 
@@ -130,7 +137,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 04-config-table-architecture | 02 | 4min | 4 | 5 |
 | 10-travel-movement-costs | 01 | 2min | 2 | 3 |
 | 10-travel-movement-costs | 02 | 8min | 3 | 10 |
-| Phase 10-travel-movement-costs P02 | 8min | 3 tasks | 10 files |
+| 12-overall-renown-system | 01 | 4min | 2 | 5 |
 
 ## Accumulated Context
 
@@ -260,4 +267,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed quick task 92: Rebalance Warrior Slam ability from damage to AC debuff (48s, 1 commit)
+Last activity: 2026-02-14 - Completed Phase 12 Plan 01: Overall Renown System backend foundation (4 min, 2 tasks, 2 commits: renown tables/data + helpers/reducers)
