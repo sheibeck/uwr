@@ -216,6 +216,10 @@ import SpawnCorpseReducer from "./spawn_corpse_reducer";
 export { SpawnCorpseReducer };
 import EatFoodReducer from "./eat_food_reducer";
 export { EatFoodReducer };
+import ChooseDialogueOptionReducer from "./choose_dialogue_option_reducer";
+export { ChooseDialogueOptionReducer };
+import GiveGiftToNpcReducer from "./give_gift_to_npc_reducer";
+export { GiveGiftToNpcReducer };
 import ChoosePerkReducer from "./choose_perk_reducer";
 export { ChoosePerkReducer };
 import GrantTestRenownReducer from "./grant_test_renown_reducer";
@@ -368,8 +372,12 @@ import MyQuestsRow from "./my_quests_table";
 export { MyQuestsRow };
 import NpcRow from "./npc_table";
 export { NpcRow };
+import NpcAffinityRow from "./npc_affinity_table";
+export { NpcAffinityRow };
 import NpcDialogRow from "./npc_dialog_table";
 export { NpcDialogRow };
+import NpcDialogueOptionRow from "./npc_dialogue_option_table";
+export { NpcDialogueOptionRow };
 import PendingSpellCastRow from "./pending_spell_cast_table";
 export { PendingSpellCastRow };
 import PlayerRow from "./player_table";
@@ -456,6 +464,8 @@ import CharacterLogout from "./character_logout_type";
 export { CharacterLogout };
 import CharacterLogoutTick from "./character_logout_tick_type";
 export { CharacterLogoutTick };
+import ChooseDialogueOption from "./choose_dialogue_option_type";
+export { ChooseDialogueOption };
 import ChoosePerk from "./choose_perk_type";
 export { ChoosePerk };
 import CombatEncounter from "./combat_encounter_type";
@@ -554,6 +564,8 @@ import Friend from "./friend_type";
 export { Friend };
 import FriendRequest from "./friend_request_type";
 export { FriendRequest };
+import GiveGiftToNpc from "./give_gift_to_npc_type";
+export { GiveGiftToNpc };
 import GrantItem from "./grant_item_type";
 export { GrantItem };
 import GrantTestAchievement from "./grant_test_achievement_type";
@@ -650,8 +662,12 @@ import MyQuests from "./my_quests_type";
 export { MyQuests };
 import Npc from "./npc_type";
 export { Npc };
+import NpcAffinity from "./npc_affinity_type";
+export { NpcAffinity };
 import NpcDialog from "./npc_dialog_type";
 export { NpcDialog };
+import NpcDialogueOption from "./npc_dialogue_option_type";
+export { NpcDialogueOption };
 import OfferTrade from "./offer_trade_type";
 export { OfferTrade };
 import OnConnect from "./on_connect_type";
@@ -1596,6 +1612,23 @@ const tablesSchema = __schema(
     ],
   }, NpcRow),
   __table({
+    name: 'npc_affinity',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_npc', algorithm: 'btree', columns: [
+        'npcId',
+      ] },
+    ],
+    constraints: [
+      { name: 'npc_affinity_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, NpcAffinityRow),
+  __table({
     name: 'npc_dialog',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1612,6 +1645,20 @@ const tablesSchema = __schema(
       { name: 'npc_dialog_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, NpcDialogRow),
+  __table({
+    name: 'npc_dialogue_option',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_npc', algorithm: 'btree', columns: [
+        'npcId',
+      ] },
+    ],
+    constraints: [
+      { name: 'npc_dialogue_option_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, NpcDialogueOptionRow),
   __table({
     name: 'pending_spell_cast',
     indexes: [
@@ -2149,6 +2196,8 @@ const reducersSchema = __reducers(
   __reducerSchema("decline_corpse_summon", DeclineCorpseSummonReducer),
   __reducerSchema("spawn_corpse", SpawnCorpseReducer),
   __reducerSchema("eat_food", EatFoodReducer),
+  __reducerSchema("choose_dialogue_option", ChooseDialogueOptionReducer),
+  __reducerSchema("give_gift_to_npc", GiveGiftToNpcReducer),
   __reducerSchema("choose_perk", ChoosePerkReducer),
   __reducerSchema("grant_test_renown", GrantTestRenownReducer),
   __reducerSchema("grant_test_achievement", GrantTestAchievementReducer),

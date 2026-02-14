@@ -12,12 +12,10 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  name: __t.string(),
-  npcType: __t.string(),
-  locationId: __t.u64(),
-  description: __t.string(),
-  greeting: __t.string(),
-  factionId: __t.option(__t.u64()),
-  personalityJson: __t.option(__t.string()),
-  baseMood: __t.option(__t.string()),
+  characterId: __t.u64(),
+  npcId: __t.u64(),
+  affinity: __t.i64(),
+  lastInteraction: __t.timestamp(),
+  giftsGiven: __t.u64(),
+  conversationCount: __t.u64(),
 });

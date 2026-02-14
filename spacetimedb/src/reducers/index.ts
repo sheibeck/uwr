@@ -7,6 +7,7 @@ import { registerGroupReducers } from './groups';
 import { registerFoodReducers } from './hunger';
 import { registerItemReducers } from './items';
 import { registerMovementReducers } from './movement';
+import { registerNpcInteractionReducers } from './npc_interaction';
 import { registerRenownReducers } from './renown';
 import { registerSocialReducers } from './social';
 import { registerUiReducers } from './ui';
@@ -22,6 +23,7 @@ export const registerReducers = (deps: any) => {
   registerCombatReducers(deps);
   registerCorpseReducers(deps);
   registerFoodReducers(deps);
+  registerNpcInteractionReducers(deps);
   registerRenownReducers(deps);
   registerUiReducers(deps);
 };

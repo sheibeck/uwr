@@ -1,3 +1,6 @@
+import { getAffinityForNpc, canConverseWithNpc, awardNpcAffinity } from '../helpers/npc_affinity';
+import { appendSystemMessage } from '../helpers/events';
+
 export const registerCommandReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -40,9 +43,55 @@ export const registerCommandReducers = (deps: any) => {
       }
     }
     if (!npc) return fail(ctx, character, 'No such NPC here');
-    const greeting = `${npc.name} says, "${npc.greeting}"`;
+
+    // Get affinity for dynamic greeting
+    const affinity = Number(getAffinityForNpc(ctx, character.id, npc.id));
+
+    // Get faction standing if NPC has faction
+    let factionStanding = 0;
+    if (npc.factionId) {
+      for (const fs of ctx.db.factionStanding.by_character.filter(character.id)) {
+        if (fs.factionId === npc.factionId) {
+          factionStanding = Number(fs.standing);
+          break;
+        }
+      }
+    }
+
+    // Get renown rank
+    let renownRank = 0;
+    for (const r of ctx.db.renown.by_character.filter(character.id)) {
+      renownRank = Number(r.currentRank);
+      break;
+    }
+
+    // Generate dynamic greeting
+    let greeting: string;
+    if (factionStanding < -50 || affinity < -50) {
+      greeting = `${npc.name} glares at you with open hostility. "Leave. Now."`;
+    } else if (affinity >= 75) {
+      greeting = `${npc.name} greets you warmly. "Ah, my friend! It is good to see you again."`;
+    } else if (affinity >= 50) {
+      greeting = `${npc.name} nods in recognition. "Welcome back. What can I do for you?"`;
+    } else if (affinity >= 25) {
+      greeting = `${npc.name} regards you with growing familiarity. "You again. What brings you?"`;
+    } else if (renownRank >= 5 && affinity < 25) {
+      greeting = `${npc.name} eyes you with a mix of respect and wariness. "Your reputation precedes you."`;
+    } else {
+      greeting = `${npc.name} says, "${npc.greeting}"`;
+    }
+
+    // IMPORTANT: Log "You begin to talk with X" to Log panel, actual greeting goes to Journal
+    appendSystemMessage(ctx, character, `You begin to talk with ${npc.name}.`);
+
+    // Greeting goes to Journal (NPC Dialog panel), not Log
     appendNpcDialog(ctx, character.id, npc.id, greeting);
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', greeting);
+
+    // Award small affinity for greeting (if cooldown allows)
+    if (canConverseWithNpc(ctx, character.id, npc.id)) {
+      awardNpcAffinity(ctx, character, npc.id, 1n);
+    }
 
     const quests = [...ctx.db.questTemplate.by_npc.filter(npc.id)].filter(
       (quest) => character.level >= quest.minLevel && character.level <= quest.maxLevel

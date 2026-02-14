@@ -12,12 +12,15 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  name: __t.string(),
-  npcType: __t.string(),
-  locationId: __t.u64(),
-  description: __t.string(),
-  greeting: __t.string(),
-  factionId: __t.option(__t.u64()),
-  personalityJson: __t.option(__t.string()),
-  baseMood: __t.option(__t.string()),
+  npcId: __t.u64(),
+  parentOptionId: __t.option(__t.u64()),
+  optionKey: __t.string(),
+  playerText: __t.string(),
+  npcResponse: __t.string(),
+  requiredAffinity: __t.i64(),
+  requiredFactionId: __t.option(__t.u64()),
+  requiredFactionStanding: __t.option(__t.i64()),
+  requiredRenownRank: __t.option(__t.u64()),
+  affinityChange: __t.i64(),
+  sortOrder: __t.u64(),
 });

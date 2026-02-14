@@ -17,6 +17,9 @@ export default __t.object("Npc", {
   locationId: __t.u64(),
   description: __t.string(),
   greeting: __t.string(),
+  factionId: __t.option(__t.u64()),
+  personalityJson: __t.option(__t.string()),
+  baseMood: __t.option(__t.string()),
 });
 
 
