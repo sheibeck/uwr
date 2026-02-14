@@ -1,5 +1,8 @@
 import { SenderError } from 'spacetimedb/server';
 import { findItemTemplateByName, STARTER_ARMOR, STARTER_WEAPONS } from '../helpers/items';
+import { ItemTemplate } from '../schema/tables';
+import { ABILITIES } from '../data/ability_catalog';
+import { ABILITY_STAT_SCALING } from '../data/combat_scaling';
 
 export function ensureStarterItemTemplates(ctx: any) {
   const upsertItemTemplateByName = (row: any) => {

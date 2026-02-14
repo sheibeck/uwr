@@ -1,5 +1,11 @@
 import { SenderError } from 'spacetimedb/server';
-import { connectLocations } from '../helpers/location';
+import {
+  connectLocations,
+  findEnemyTemplateByName,
+  areLocationsConnected,
+  getWorldState,
+  DAY_DURATION_MICROS,
+} from '../helpers/location';
 
 export function ensureNpcs(ctx: any) {
   const upsertNpcByName = (args: {
