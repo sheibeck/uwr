@@ -232,9 +232,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 78 | Make Log window permanently open and uncloseable - removed close button, converted action bar toggle to open-only, enforced open state in panel manager | 2026-02-14 | 298b1fa | [78-make-log-window-permanently-open-remove-](./quick/78-make-log-window-permanently-open-remove-/) |
 | 79 | Fix command autocomplete dropdown still appearing behind floating windows - established footer stacking context with position relative and z-index 10000 | 2026-02-14 | 27903c5 | [79-fix-command-autocomplete-dropdown-still-](./quick/79-fix-command-autocomplete-dropdown-still-/) |
 | 80 | Fix command autocomplete Enter key behavior - select highlighted item instead of submitting incomplete text as chat message | 2026-02-14 | 7f660ed | [80-when-typing-a-command-in-the-command-win](./quick/80-when-typing-a-command-in-the-command-win/) |
+| 81 | Expand world to 30 locations for movement research - 10 locations per region with varied terrain types and interconnected travel graphs | 2026-02-14 | 7cd4481 | [81-we-re-doing-research-for-movement-so-one](./quick/81-we-re-doing-research-for-movement-so-one/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed quick task 80: Fix command autocomplete Enter key behavior - select highlighted item instead of submitting incomplete text as chat message
+Last activity: 2026-02-14 - Completed quick task 81: Expand world to 30 locations for movement research - 10 locations per region with varied terrain types and interconnected travel graphs
