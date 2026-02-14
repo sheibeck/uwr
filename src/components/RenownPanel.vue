@@ -370,7 +370,7 @@ const factionRows = computed(() => {
 
 // Renown data computed
 const currentRankNum = computed(() => props.renownData ? Number(props.renownData.currentRank) : 1);
-const renownPoints = computed(() => props.renownData ? Number(props.renownData.renownPoints) : 0);
+const renownPoints = computed(() => props.renownData ? Number(props.renownData.points) : 0);
 const currentRankName = computed(() => {
   const rankInfo = RENOWN_RANKS.find(r => r.rank === currentRankNum.value);
   return rankInfo?.name ?? 'Unknown';
