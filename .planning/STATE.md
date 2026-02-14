@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-14
-**Status:** Phase 12 (Overall Renown System) complete — Character-wide renown progression with 15 ranks, permanent perk choices (2-3 options per rank), server-first tracking with diminishing returns, combat renown awards, tabbed UI with faction standings preserved, human-verified functional.
+**Status:** Phase 19 Plan 01 complete — NPC relationship backend foundation with NpcAffinity table (per-character per-NPC affinity tracking), NpcDialogueOption table (threshold-gated dialogue trees), personality-modified affinity progression, 14 dialogue options seeded across 4 tiers for 3 NPCs.
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 (Travel & Movement Costs) complete — Region-based stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, all-or-nothing group validation, TravelPanel UI with cost indicators and live countdown timer. Human-verified functional. Phase 12 (Overall Renown System) complete — Character-wide renown progression with 15 ranks, permanent perk system, server-first tracking, combat integration, tabbed UI. Human-verified functional.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 (Travel & Movement Costs) complete — Region-based stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, all-or-nothing group validation, TravelPanel UI with cost indicators and live countdown timer. Human-verified functional. Phase 11 (Death & Corpse System) Plan 01 complete — Backend corpse system with level 5+ gating, inventory-only item transfer, same-location combining, 30-day decay, and ownership-verified looting. Phase 12 (Overall Renown System) complete — Character-wide renown progression with 15 ranks, permanent perk system, server-first tracking, combat integration, tabbed UI. Human-verified functional.
 
-**Current phase:** 12 (Overall Renown System)
-**Current plan:** Complete (3/3 plans done)
-**Next action:** Continue with Phase 11 Plan 02 (Death UI integration) or add Phase 12.1 (Perk Expansion) to roadmap
+**Current phase:** 19 (NPC Interactions)
+**Current plan:** 01 complete
+**Next action:** Continue with Phase 19 Plan 02 (NPC interaction reducers and affinity-based greetings)
 
 ---
 
@@ -36,6 +36,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 10 | Travel & Movement Costs | Complete (2/2 plans done: backend + UI, human-verified) |
 | 11 | Death & Corpse System | In Progress (1/? plans done: backend foundation) |
 | 12 | Overall Renown System | Complete (3/3 plans done: backend + integration + UI, human-verified) |
+| 19 | NPC Interactions | In Progress (1/? plans done: backend foundation) |
 
 ---
 
@@ -123,6 +124,11 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 80. PendingResurrect and PendingCorpseSummon merged into unified PendingSpellCast table with spellType discriminator — eliminates duplicate code, simplifies spell-cast architecture (quick-93)
 81. Corpse Summon moved from Cleric to Necromancer and Summoner at level 6 — better thematic fit for entity-manipulation classes (quick-93)
 82. Resurrection and Corpse Summon changed to flat mana costs (50/60) with 0 cooldown and 10s cast time — resource-gated abilities instead of time-gated (quick-93)
+83. NPC affinity range set to -100 to +100 with 7 tiers (Hostile, Unfriendly, Wary, Stranger, Acquaintance, Friend, Close Friend, Devoted) for granular progression (19-01)
+84. NPC personality traits stored as JSON with affinityMultiplier field (0.8 to 1.2 range) — friendly NPCs build affinity 20% faster, grumpy NPCs 20% slower (19-01)
+85. Conversation cooldown set to 1 hour per-NPC stored on NpcAffinity.lastInteraction timestamp to prevent affinity grinding (19-01)
+86. Dialogue options filtered by affinity, faction standing, and renown rank (all optional) for flexible gating (19-01)
+87. Tier change notifications sent to Log panel only when crossing tier boundary, not on every affinity change to reduce spam (19-01)
 
 ---
 
@@ -157,6 +163,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 12-overall-renown-system | 01 | 4min | 2 | 5 |
 | 12-overall-renown-system | 02 | 10min | 2 | 3 |
 | 12-overall-renown-system | 03 | ~25min | 3 | 4 |
+| 19-npc-interactions | 01 | 3min | 2 | 6 |
 
 ## Accumulated Context
 
@@ -291,4 +298,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed Phase 12 (Overall Renown System): 3/3 plans done - 15-rank progression, permanent perk choices, server-first tracking, combat integration, tabbed UI with faction standings preserved. Human-verified functional.
+Last activity: 2026-02-14 - Completed Phase 19 Plan 01: NPC relationship backend foundation with NpcAffinity table (per-character per-NPC affinity tracking), NpcDialogueOption table (threshold-gated dialogue trees), affinity helpers with personality-modified progression, and dialogue seed data for 3 NPCs across 4 tiers.
