@@ -10,10 +10,12 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("PendingCorpseSummon", {
+export default __t.object("PendingSpellCast", {
   id: __t.u64(),
+  spellType: __t.string(),
   casterCharacterId: __t.u64(),
   targetCharacterId: __t.u64(),
+  corpseId: __t.option(__t.u64()),
   createdAtMicros: __t.u64(),
 });
 

@@ -32,6 +32,7 @@ export const useCommands = ({
   const friendReducer = useReducer(reducers.sendFriendRequestToCharacter);
   const levelReducer = useReducer(reducers.levelCharacter);
   const grantTestRenownReducer = useReducer(reducers.grantTestRenown);
+  const spawnCorpseReducer = useReducer(reducers.spawnCorpse);
   const commandText = ref('');
 
   const submitCommand = () => {
@@ -154,6 +155,10 @@ export const useCommands = ({
       grantTestRenownReducer({
         characterId: selectedCharacter.value.id,
         points: BigInt(Math.floor(value)),
+      });
+    } else if (lower === '/spawncorpse') {
+      spawnCorpseReducer({
+        characterId: selectedCharacter.value.id,
       });
     } else {
       submitCommandReducer({

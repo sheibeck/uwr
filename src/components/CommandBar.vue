@@ -73,6 +73,7 @@ const highlighted = ref<string | null>(null);
     { value: '/endcombat', hint: 'Force end current combat (leader)' },
     { value: '/synccontent', hint: 'Sync server content tables' },
     { value: '/grantrenown', hint: 'Grant test renown points' },
+    { value: '/spawncorpse', hint: 'Spawn test corpse with junk item' },
   ];
 
 const shouldShowSuggestions = computed(() => {

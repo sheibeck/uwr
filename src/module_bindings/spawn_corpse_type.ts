@@ -10,10 +10,8 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.row({
-  id: __t.u64().primaryKey(),
-  casterCharacterId: __t.u64(),
-  targetCharacterId: __t.u64(),
-  corpseId: __t.u64(),
-  createdAtMicros: __t.u64(),
+export default __t.object("SpawnCorpse", {
+  characterId: __t.u64(),
 });
+
+

@@ -212,6 +212,8 @@ import AcceptCorpseSummonReducer from "./accept_corpse_summon_reducer";
 export { AcceptCorpseSummonReducer };
 import DeclineCorpseSummonReducer from "./decline_corpse_summon_reducer";
 export { DeclineCorpseSummonReducer };
+import SpawnCorpseReducer from "./spawn_corpse_reducer";
+export { SpawnCorpseReducer };
 import EatFoodReducer from "./eat_food_reducer";
 export { EatFoodReducer };
 import ChoosePerkReducer from "./choose_perk_reducer";
@@ -368,10 +370,8 @@ import NpcRow from "./npc_table";
 export { NpcRow };
 import NpcDialogRow from "./npc_dialog_table";
 export { NpcDialogRow };
-import PendingCorpseSummonRow from "./pending_corpse_summon_table";
-export { PendingCorpseSummonRow };
-import PendingResurrectRow from "./pending_resurrect_table";
-export { PendingResurrectRow };
+import PendingSpellCastRow from "./pending_spell_cast_table";
+export { PendingSpellCastRow };
 import PlayerRow from "./player_table";
 export { PlayerRow };
 import PullStateRow from "./pull_state_table";
@@ -658,10 +658,8 @@ import OnConnect from "./on_connect_type";
 export { OnConnect };
 import OnDisconnect from "./on_disconnect_type";
 export { OnDisconnect };
-import PendingCorpseSummon from "./pending_corpse_summon_type";
-export { PendingCorpseSummon };
-import PendingResurrect from "./pending_resurrect_type";
-export { PendingResurrect };
+import PendingSpellCast from "./pending_spell_cast_type";
+export { PendingSpellCast };
 import Player from "./player_type";
 export { Player };
 import PromoteGroupLeader from "./promote_group_leader_type";
@@ -740,6 +738,8 @@ import SetGroupPuller from "./set_group_puller_type";
 export { SetGroupPuller };
 import SetHotbarSlot from "./set_hotbar_slot_type";
 export { SetHotbarSlot };
+import SpawnCorpse from "./spawn_corpse_type";
+export { SpawnCorpse };
 import SplitStack from "./split_stack_type";
 export { SplitStack };
 import StartCombat from "./start_combat_type";
@@ -1613,7 +1613,7 @@ const tablesSchema = __schema(
     ],
   }, NpcDialogRow),
   __table({
-    name: 'pending_corpse_summon',
+    name: 'pending_spell_cast',
     indexes: [
       { name: 'by_caster', algorithm: 'btree', columns: [
         'casterCharacterId',
@@ -1626,26 +1626,9 @@ const tablesSchema = __schema(
       ] },
     ],
     constraints: [
-      { name: 'pending_corpse_summon_id_key', constraint: 'unique', columns: ['id'] },
+      { name: 'pending_spell_cast_id_key', constraint: 'unique', columns: ['id'] },
     ],
-  }, PendingCorpseSummonRow),
-  __table({
-    name: 'pending_resurrect',
-    indexes: [
-      { name: 'by_caster', algorithm: 'btree', columns: [
-        'casterCharacterId',
-      ] },
-      { name: 'id', algorithm: 'btree', columns: [
-        'id',
-      ] },
-      { name: 'by_target', algorithm: 'btree', columns: [
-        'targetCharacterId',
-      ] },
-    ],
-    constraints: [
-      { name: 'pending_resurrect_id_key', constraint: 'unique', columns: ['id'] },
-    ],
-  }, PendingResurrectRow),
+  }, PendingSpellCastRow),
   __table({
     name: 'player',
     indexes: [
@@ -2164,6 +2147,7 @@ const reducersSchema = __reducers(
   __reducerSchema("initiate_corpse_summon", InitiateCorpseSummonReducer),
   __reducerSchema("accept_corpse_summon", AcceptCorpseSummonReducer),
   __reducerSchema("decline_corpse_summon", DeclineCorpseSummonReducer),
+  __reducerSchema("spawn_corpse", SpawnCorpseReducer),
   __reducerSchema("eat_food", EatFoodReducer),
   __reducerSchema("choose_perk", ChoosePerkReducer),
   __reducerSchema("grant_test_renown", GrantTestRenownReducer),
