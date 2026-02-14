@@ -985,6 +985,8 @@ export const registerCombatReducers = (deps: any) => {
   });
 
   spacetimedb.reducer('respawn_enemy', { arg: EnemyRespawnTick.rowType }, (ctx, { arg }) => {
+    const location = ctx.db.location.id.find(arg.locationId);
+    if (location?.isSafe) return;
     deps.spawnEnemy(ctx, arg.locationId, 1n);
   });
 

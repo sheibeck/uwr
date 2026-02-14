@@ -5237,6 +5237,9 @@ function ensureDayNightTickScheduled(ctx: any) {
 }
 
 function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
+  const location = ctx.db.location.id.find(locationId);
+  if (!location || location.isSafe) return;
+
   const activeGroupKeys = new Set<string>();
   for (const player of ctx.db.player.iter()) {
     if (!player.activeCharacterId) continue;
@@ -5263,6 +5266,18 @@ function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
 function ensureLocationRuntimeBootstrap(ctx: any) {
   for (const location of ctx.db.location.iter()) {
     ensureResourceNodesForLocation(ctx, location.id);
+
+    if (location.isSafe) {
+      // Clean up any existing spawns in safe locations
+      for (const row of ctx.db.enemySpawn.by_location.filter(location.id)) {
+        for (const member of ctx.db.enemySpawnMember.by_spawn.filter(row.id)) {
+          ctx.db.enemySpawnMember.id.delete(member.id);
+        }
+        ctx.db.enemySpawn.id.delete(row.id);
+      }
+      continue;
+    }
+
     let count = 0;
     for (const _row of ctx.db.enemySpawn.by_location.filter(location.id)) {
       count += 1;
@@ -5342,7 +5357,9 @@ spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
   const message = nextIsNight ? 'Night falls over the realm.' : 'Dawn breaks over the realm.';
   appendWorldEvent(ctx, 'world', message);
   for (const location of ctx.db.location.iter()) {
-    respawnLocationSpawns(ctx, location.id, DEFAULT_LOCATION_SPAWNS);
+    if (!location.isSafe) {
+      respawnLocationSpawns(ctx, location.id, DEFAULT_LOCATION_SPAWNS);
+    }
     respawnResourceNodesForLocation(ctx, location.id);
   }
   ctx.db.dayNightTick.insert({
