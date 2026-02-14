@@ -122,6 +122,9 @@ export const Npc = table(
     locationId: t.u64(),
     description: t.string(),
     greeting: t.string(),
+    factionId: t.u64().optional(),
+    personalityJson: t.string().optional(),
+    baseMood: t.string().optional(),
   }
 );
 
@@ -1358,6 +1361,50 @@ export const PendingSpellCast = table(
   }
 );
 
+export const NpcAffinity = table(
+  {
+    name: 'npc_affinity',
+    public: true,
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { name: 'by_npc', algorithm: 'btree', columns: ['npcId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    npcId: t.u64(),
+    affinity: t.i64(),              // -100 to +100
+    lastInteraction: t.timestamp(),
+    giftsGiven: t.u64(),
+    conversationCount: t.u64(),
+  }
+);
+
+export const NpcDialogueOption = table(
+  {
+    name: 'npc_dialogue_option',
+    public: true,
+    indexes: [
+      { name: 'by_npc', algorithm: 'btree', columns: ['npcId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    npcId: t.u64(),
+    parentOptionId: t.u64().optional(),  // null = root dialogue option
+    optionKey: t.string(),               // unique key like 'greet_stranger'
+    playerText: t.string(),              // What the player says
+    npcResponse: t.string(),             // What the NPC responds
+    requiredAffinity: t.i64(),           // Minimum affinity to see this option
+    requiredFactionId: t.u64().optional(),
+    requiredFactionStanding: t.i64().optional(),
+    requiredRenownRank: t.u64().optional(),
+    affinityChange: t.i64(),             // Affinity delta if chosen
+    sortOrder: t.u64(),                  // Display order
+  }
+);
+
 export const spacetimedb = schema(
   Player,
   User,
@@ -1369,6 +1416,8 @@ export const spacetimedb = schema(
   LocationConnection,
   Npc,
   NpcDialog,
+  NpcAffinity,
+  NpcDialogueOption,
   QuestTemplate,
   QuestInstance,
   HotbarSlot,
@@ -1438,5 +1487,7 @@ export const spacetimedb = schema(
   Achievement,
   Corpse,
   CorpseItem,
-  PendingSpellCast
+  PendingSpellCast,
+  NpcAffinity,
+  NpcDialogueOption
 );
