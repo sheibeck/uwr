@@ -2104,6 +2104,14 @@ export const registerCombatReducers = (deps: any) => {
           ctx.db.combatResult.id.delete(resultRow.id);
         }
       }
+      // Create corpses for dead characters first (before XP penalty)
+      for (const p of participants) {
+        const character = ctx.db.character.id.find(p.characterId);
+        if (character && character.hp === 0n) {
+          deps.createCorpse(ctx, character);
+        }
+      }
+
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (character && character.hp === 0n) {
@@ -2456,6 +2464,14 @@ export const registerCombatReducers = (deps: any) => {
         // Defeats never have loot, delete immediately (server-side events already logged)
         ctx.db.combatResult.id.delete(defeatResult.id);
       }
+      // Create corpses for dead characters first (before XP penalty)
+      for (const p of participants) {
+        const character = ctx.db.character.id.find(p.characterId);
+        if (character && character.hp === 0n) {
+          deps.createCorpse(ctx, character);
+        }
+      }
+
       clearCombatArtifacts(ctx, combat.id);
       ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
       for (const p of participants) {

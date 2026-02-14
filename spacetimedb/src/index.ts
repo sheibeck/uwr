@@ -16,6 +16,7 @@ import {
   TradeSession, TradeItem,
   EnemyAbility, CombatEnemyCooldown, CombatEnemyCast,
   CombatPendingAdd, AggroEntry,
+  Corpse, CorpseItem,
 } from './schema/tables';
 export { spacetimedb } from './schema/tables';
 import { registerReducers } from './reducers';
@@ -182,6 +183,12 @@ import {
   mutateStanding,
   grantFactionStandingForKill,
 } from './helpers/economy';
+
+import {
+  createCorpse,
+  cleanupDecayedCorpses,
+  removeCorpseIfEmpty,
+} from './helpers/corpse';
 
 import {
   ensureHealthRegenScheduled,
@@ -435,6 +442,11 @@ const reducerDeps = {
   FactionStanding,
   grantFactionStandingForKill,
   UiPanelLayout,
+  Corpse,
+  CorpseItem,
+  createCorpse,
+  cleanupDecayedCorpses,
+  removeCorpseIfEmpty,
   startCombatForSpawn: null as any,
 };
 

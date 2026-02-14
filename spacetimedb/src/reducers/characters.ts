@@ -25,6 +25,7 @@ export const registerCharacterReducers = (deps: any) => {
     ensureStarterItemTemplates,
     activeCombatIdForCharacter,
     isClassAllowed,
+    cleanupDecayedCorpses,
   } = deps;
   const CHARACTER_SWITCH_LOGOUT_DELAY = 30_000_000n;
 
@@ -331,6 +332,16 @@ export const registerCharacterReducers = (deps: any) => {
       }
     }
 
+    // Clean up corpses for this character
+    for (const corpse of ctx.db.corpse.by_character.filter(characterId)) {
+      // Delete all CorpseItem rows
+      for (const corpseItem of ctx.db.corpseItem.by_corpse.filter(corpse.id)) {
+        ctx.db.corpseItem.id.delete(corpseItem.id);
+      }
+      // Delete the corpse
+      ctx.db.corpse.id.delete(corpse.id);
+    }
+
     ctx.db.character.id.delete(characterId);
   });
 
@@ -340,6 +351,10 @@ export const registerCharacterReducers = (deps: any) => {
     if (activeCombatIdForCharacter(ctx, character.id)) {
       throw new SenderError('Cannot respawn during combat');
     }
+
+    // Clean up decayed corpses opportunistically
+    deps.cleanupDecayedCorpses(ctx);
+
     for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
       ctx.db.characterEffect.id.delete(effect.id);
     }
@@ -359,6 +374,24 @@ export const registerCharacterReducers = (deps: any) => {
       'combat',
       `You awaken at ${respawnLocation}, shaken but alive.`
     );
+
+    // Check for corpses and notify player
+    const corpses = [...ctx.db.corpse.by_character.filter(character.id)];
+    if (corpses.length > 0) {
+      const locationNames = corpses.map(c => {
+        const loc = ctx.db.location.id.find(c.locationId);
+        return loc?.name ?? 'unknown';
+      });
+      const unique = [...new Set(locationNames)];
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'system',
+        `You have ${corpses.length} corpse(s) containing your belongings at: ${unique.join(', ')}.`
+      );
+    }
+
     if (character.groupId) {
       appendGroupEvent(
         ctx,
