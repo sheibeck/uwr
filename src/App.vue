@@ -1163,6 +1163,16 @@ const {
   groupMembers: userGroupMembers,
 });
 
+// NPC targeting state (must be declared before useCommands)
+const selectedNpcTarget = ref<bigint | null>(null);
+const selectNpcTarget = (npcId: bigint | null) => {
+  selectedNpcTarget.value = npcId;
+};
+// Clear NPC selection when location changes
+watch(currentLocation, () => {
+  selectedNpcTarget.value = null;
+});
+
 const { commandText, submitCommand } = useCommands({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
@@ -1735,16 +1745,6 @@ watch(
   },
   { immediate: true }
 );
-
-const selectedNpcTarget = ref<bigint | null>(null);
-const selectNpcTarget = (npcId: bigint | null) => {
-  selectedNpcTarget.value = npcId;
-};
-
-// Clear NPC selection when location changes
-watch(currentLocation, () => {
-  selectedNpcTarget.value = null;
-});
 
 // Initialize panel manager with default positions
 const {
