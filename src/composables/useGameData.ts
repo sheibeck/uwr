@@ -65,6 +65,9 @@ export const useGameData = () => {
   const [achievements] = useTable(tables.achievement);
   const [npcAffinities] = useTable(tables.npcAffinity);
   const [npcDialogueOptions] = useTable(tables.npcDialogueOption);
+  const [corpses] = useTable(tables.corpse);
+  const [corpseItems] = useTable(tables.corpseItem);
+  const [pendingSpellCasts] = useTable(tables.pendingSpellCast);
 
   return {
     conn,
@@ -130,5 +133,8 @@ export const useGameData = () => {
     achievements,
     npcAffinities,
     npcDialogueOptions,
+    corpses,
+    corpseItems,
+    pendingSpellCasts,
   };
 };

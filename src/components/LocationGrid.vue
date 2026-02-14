@@ -5,7 +5,8 @@
       v-if="
         enemySpawns.length === 0 &&
         resourceNodes.length === 0 &&
-        npcsHere.length === 0
+        npcsHere.length === 0 &&
+        corpsesHere.length === 0
       "
       :style="styles.subtle"
     >
@@ -139,6 +140,27 @@
       </div>
     </div>
 
+    <!-- Points of Interest (Corpses) -->
+    <div v-if="corpsesHere.length > 0">
+      <div :style="styles.gridSectionLabel">POINTS OF INTEREST</div>
+      <div :style="styles.gridWrap">
+        <div
+          v-for="corpse in corpsesHere"
+          :key="corpse.id.toString()"
+          :style="styles.gridTileCorpse"
+          @contextmenu.prevent="openCorpseContextMenu($event, corpse)"
+        >
+          <span>{{ corpse.characterName }}'s corpse</span>
+          <span
+            v-if="corpse.isOwn && corpse.itemCount > 0"
+            :style="{ fontSize: '0.75rem', opacity: 0.6, marginLeft: '0.3rem' }"
+          >
+            ({{ corpse.itemCount }} items)
+          </span>
+        </div>
+      </div>
+    </div>
+
     <!-- Context Menu -->
     <ContextMenu
       :visible="contextMenu.visible"
@@ -177,6 +199,13 @@ const props = defineProps<{
   selectedCharacter: CharacterRow | null;
   charactersHere: { character: CharacterRow; disconnected: boolean }[];
   npcsHere: NpcRow[];
+  corpsesHere: Array<{
+    id: bigint;
+    characterName: string;
+    characterId: bigint;
+    isOwn: boolean;
+    itemCount: number;
+  }>;
   enemySpawns: EnemySummary[];
   resourceNodes: Array<{
     id: bigint;
@@ -198,6 +227,9 @@ const emit = defineEmits<{
   (e: 'open-vendor', npcId: bigint): void;
   (e: 'character-action', characterId: bigint): void;
   (e: 'gift-npc', npcId: bigint): void;
+  (e: 'loot-all-corpse', corpseId: bigint): void;
+  (e: 'initiate-resurrect', corpseId: bigint): void;
+  (e: 'initiate-corpse-summon', targetCharacterId: bigint): void;
 }>();
 
 const selectedEnemyId = ref<bigint | null>(null);
@@ -326,6 +358,47 @@ const openNpcContextMenu = (event: MouseEvent, npc: NpcRow) => {
     y: event.clientY,
     title: npc.name,
     subtitle: npc.description ?? '',
+    items,
+  };
+};
+
+const openCorpseContextMenu = (event: MouseEvent, corpse: { id: bigint; characterName: string; isOwn: boolean; itemCount: number; characterId: bigint }) => {
+  const items: Array<{ label: string; disabled?: boolean; action: () => void }> = [];
+
+  if (corpse.isOwn && corpse.itemCount > 0) {
+    items.push({
+      label: 'Loot All',
+      action: () => emit('loot-all-corpse', corpse.id),
+    });
+  } else if (!corpse.isOwn) {
+    // Check if viewer is cleric level 6+ for resurrect
+    const viewerIsCleric = props.selectedCharacter && props.selectedCharacter.className === 'Cleric';
+    const viewerLevel = props.selectedCharacter ? Number(props.selectedCharacter.level) : 0;
+    const canResurrect = viewerIsCleric && viewerLevel >= 6;
+
+    if (canResurrect) {
+      items.push({
+        label: 'Resurrect',
+        action: () => emit('initiate-resurrect', corpse.id),
+      });
+    }
+  }
+
+  // If no items, add a disabled "Examine" option
+  if (items.length === 0) {
+    items.push({
+      label: 'Examine',
+      disabled: true,
+      action: () => {},
+    });
+  }
+
+  contextMenu.value = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    title: `${corpse.characterName}'s corpse`,
+    subtitle: '',
     items,
   };
 };
