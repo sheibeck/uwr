@@ -416,7 +416,7 @@ const choosePerk = (perkKey: string) => {
 // Chosen perks display
 const chosenPerks = computed(() => {
   return props.renownPerks.map(perkRow => {
-    const rank = Number(perkRow.rankEarned);
+    const rank = Number(perkRow.rank);
     const pool = RENOWN_PERK_POOLS[rank] ?? [];
     const perkInfo = pool.find(p => p.key === perkRow.perkKey);
     return {
