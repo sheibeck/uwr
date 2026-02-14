@@ -245,9 +245,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 80 | Fix command autocomplete Enter key behavior - select highlighted item instead of submitting incomplete text as chat message | 2026-02-14 | 7f660ed | [80-when-typing-a-command-in-the-command-win](./quick/80-when-typing-a-command-in-the-command-win/) |
 | 81 | Expand world to 30 locations for movement research - 10 locations per region with varied terrain types and interconnected travel graphs | 2026-02-14 | 7cd4481 | [81-we-re-doing-research-for-movement-so-one](./quick/81-we-re-doing-research-for-movement-so-one/) |
 | 82 | Fix /synccontent not seeding new locations - sync stale ensureWorldLayout in index.ts to match ensure_world.ts (30 locations) | 2026-02-14 | 1282ff5 | [82-i-published-the-module-and-i-ran-synccon](./quick/82-i-published-the-module-and-i-ran-synccon/) |
+| 83 | Eliminate duplicate seeding code in index.ts - reduced from 7102 to 1769 lines (75%) by replacing all function definitions with imports from modular files | 2026-02-14 | 11241c5 | [83-eliminate-duplicate-seeding-code-in-inde](./quick/83-eliminate-duplicate-seeding-code-in-inde/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed Phase 10 Plan 02: Travel UI improvements with stamina cost indicators, live cooldown countdown timer, and affordability-based button disabling. User verified full end-to-end travel flow working correctly.
+Last activity: 2026-02-14 - Completed quick task 83: Eliminate duplicate seeding code in index.ts - reduced from 7102 to 1769 lines (75%) by replacing all function definitions with imports from modular files (33 min, 3 commits)
