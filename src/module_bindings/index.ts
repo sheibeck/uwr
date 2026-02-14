@@ -370,6 +370,8 @@ import TradeItemRow from "./trade_item_table";
 export { TradeItemRow };
 import TradeSessionRow from "./trade_session_table";
 export { TradeSessionRow };
+import TravelCooldownRow from "./travel_cooldown_table";
+export { TravelCooldownRow };
 import UiPanelLayoutRow from "./ui_panel_layout_table";
 export { UiPanelLayoutRow };
 import UserRow from "./user_table";
@@ -706,6 +708,8 @@ import TradeItem from "./trade_item_type";
 export { TradeItem };
 import TradeSession from "./trade_session_type";
 export { TradeSession };
+import TravelCooldown from "./travel_cooldown_type";
+export { TravelCooldown };
 import UiPanelLayout from "./ui_panel_layout_type";
 export { UiPanelLayout };
 import UnequipItem from "./unequip_item_type";
@@ -1700,6 +1704,20 @@ const tablesSchema = __schema(
       { name: 'trade_session_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, TradeSessionRow),
+  __table({
+    name: 'travel_cooldown',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'travel_cooldown_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, TravelCooldownRow),
   __table({
     name: 'ui_panel_layout',
     indexes: [
