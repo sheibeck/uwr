@@ -1,5 +1,6 @@
 import { computed, type Ref } from 'vue';
 import type { PlayerRow, UserRow } from '../module_bindings';
+import { useSpacetimeDB } from 'spacetimedb/vue';
 
 type UsePlayerArgs = {
   players: Ref<PlayerRow[]>;
@@ -7,10 +8,13 @@ type UsePlayerArgs = {
 };
 
 export const usePlayer = ({ players, users }: UsePlayerArgs) => {
+  const conn = useSpacetimeDB();
+
   const player = computed(() => {
-    const myIdentity = window.__my_identity;
-    if (!myIdentity) return null;
-    const myHex = myIdentity.toHexString();
+    // Use connection identity which is reactive
+    const identity = conn.identity;
+    if (!identity) return undefined;
+    const myHex = identity.toHexString();
     return players.value.find((row) => row.id.toHexString() === myHex) ?? null;
   });
 
