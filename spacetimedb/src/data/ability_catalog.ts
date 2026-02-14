@@ -576,7 +576,7 @@ export const ABILITIES = {
     className: 'spellblade',
     resource: 'mana',
     level: 1n,
-    power: 3n,
+    power: 2n,
     cooldownSeconds: 3n,
     castSeconds: 0n,
     damageType: 'physical' as DamageType,

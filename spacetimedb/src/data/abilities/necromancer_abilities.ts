@@ -65,7 +65,7 @@ export const NECROMANCER_ABILITIES: Record<string, AbilityMetadata> = {
     resource: 'mana',
     level: 6n,
     power: 0n,
-    cooldownSeconds: 0n,
+    cooldownSeconds: 2n,
     castSeconds: 10n,
     damageType: 'none' as DamageType,
     combatState: 'out_of_combat',

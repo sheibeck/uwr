@@ -134,11 +134,6 @@ export const registerCorpseReducers = (deps: any) => {
     const target = ctx.db.character.id.find(corpse.characterId);
     if (!target) throw new SenderError('Target character not found');
 
-    // Prevent self-resurrection
-    if (caster.id === target.id) {
-      throw new SenderError('You cannot resurrect yourself');
-    }
-
     // Verify caster has Resurrect ability
     const abilityTemplate = [...ctx.db.abilityTemplate.by_key.filter('cleric_resurrect')][0];
     if (!abilityTemplate) throw new SenderError('Resurrect ability not found');

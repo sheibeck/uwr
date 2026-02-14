@@ -151,7 +151,11 @@
         <div
           v-for="corpse in corpsesHere"
           :key="corpse.id.toString()"
-          :style="styles.gridTileCorpse"
+          :style="{
+            ...styles.gridTileCorpse,
+            ...(selectedCorpseId?.toString() === corpse.id.toString() ? styles.gridTileSelected : {}),
+          }"
+          @click="toggleSelectCorpse(corpse.id)"
           @contextmenu.prevent="openCorpseContextMenu($event, corpse)"
         >
           <span>{{ corpse.characterName }}'s corpse</span>
@@ -237,9 +241,11 @@ const emit = defineEmits<{
   (e: 'initiate-corpse-summon', targetCharacterId: bigint): void;
   (e: 'select-npc', npcId: bigint | null): void;
   (e: 'talk-npc', npcId: bigint): void;
+  (e: 'select-corpse', corpseId: bigint | null): void;
 }>();
 
 const selectedEnemyId = ref<bigint | null>(null);
+const selectedCorpseId = ref<bigint | null>(null);
 
 const contextMenu = ref<{
   visible: boolean;
@@ -270,6 +276,16 @@ const toggleSelectNpc = (npcId: bigint) => {
   emit('select-npc', npcId);
   // Trigger talk action (opens Journal + calls hailNpc)
   emit('talk-npc', npcId);
+};
+
+const toggleSelectCorpse = (corpseId: bigint) => {
+  if (selectedCorpseId.value?.toString() === corpseId.toString()) {
+    selectedCorpseId.value = null;
+    emit('select-corpse', null);
+  } else {
+    selectedCorpseId.value = corpseId;
+    emit('select-corpse', corpseId);
+  }
 };
 
 const openEnemyContextMenu = (event: MouseEvent, enemy: EnemySummary) => {

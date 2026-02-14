@@ -344,6 +344,7 @@
           @initiate-corpse-summon="onInitiateCorpseSummon"
           @select-npc="selectNpcTarget"
           @talk-npc="onTalkNpc"
+          @select-corpse="selectCorpseTarget"
         />
         </template>
       </div>
@@ -1168,6 +1169,12 @@ const {
 const selectedNpcTarget = ref<bigint | null>(null);
 const selectNpcTarget = (npcId: bigint | null) => {
   selectedNpcTarget.value = npcId;
+};
+
+// Corpse targeting state
+const selectedCorpseTarget = ref<bigint | null>(null);
+const selectCorpseTarget = (corpseId: bigint | null) => {
+  selectedCorpseTarget.value = corpseId;
 };
 
 const onTalkNpc = (npcId: bigint) => {
