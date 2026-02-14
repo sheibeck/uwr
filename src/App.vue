@@ -328,6 +328,7 @@
           :selected-character="selectedCharacter"
           :characters-here="charactersHere"
           :npcs-here="npcsHere"
+          :corpses-here="corpsesHere"
           :enemy-spawns="availableEnemies"
           :resource-nodes="resourceNodesHere"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || pullerId === selectedCharacter.id)"
@@ -337,6 +338,9 @@
           @open-vendor="openVendor"
           @character-action="openCharacterActions"
           @gift-npc="openGiftOverlay"
+          @loot-all-corpse="onLootAllCorpse"
+          @initiate-resurrect="onInitiateResurrect"
+          @initiate-corpse-summon="onInitiateCorpseSummon"
         />
         </template>
       </div>
@@ -390,6 +394,34 @@
       <div :style="styles.deathTitle">You have died.</div>
       <pre :style="styles.deathArt">{{ tombstoneArt }}</pre>
       <button :style="styles.primaryButton" @click="respawnCharacter">Respawn</button>
+    </div>
+  </div>
+
+  <!-- Corpse Action Confirmation (Resurrect / Corpse Summon) -->
+  <div v-if="pendingPrompt" :style="{ position: 'fixed', inset: '0', background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9000 }">
+    <div :style="{ background: '#141821', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '14px', padding: '1.5rem', maxWidth: '420px', width: '90vw', boxShadow: '0 14px 32px rgba(0,0,0,0.6)' }">
+      <div :style="{ fontSize: '1.1rem', fontWeight: 'bold', color: '#e6e8ef', marginBottom: '1rem', textAlign: 'center', letterSpacing: '0.05em', textTransform: 'uppercase' }">
+        {{ pendingPrompt.type === 'resurrect' ? 'Resurrect' : 'Corpse Summon' }}
+      </div>
+      <div :style="{ marginBottom: '1.2rem' }">
+        <p :style="{ fontSize: '0.9rem', color: '#c8cad0', lineHeight: '1.5', marginBottom: '0.6rem' }">
+          {{ pendingPrompt.message }}
+        </p>
+      </div>
+      <div :style="{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }">
+        <button
+          :style="{ padding: '0.5rem 1.2rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: '#a0a3ab', cursor: 'pointer', fontSize: '0.85rem' }"
+          @click="declinePendingAction"
+        >
+          Decline
+        </button>
+        <button
+          :style="{ padding: '0.5rem 1.2rem', background: 'rgba(76, 125, 240, 0.15)', border: '1px solid rgba(76, 125, 240, 0.4)', borderRadius: '8px', color: '#4c7df0', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }"
+          @click="acceptPendingAction"
+        >
+          Accept
+        </button>
+      </div>
     </div>
   </div>
 
@@ -592,6 +624,9 @@ const {
   achievements,
   npcAffinities,
   npcDialogueOptions,
+  corpses,
+  corpseItems,
+  pendingSpellCasts,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ players, users });
@@ -647,6 +682,39 @@ const npcsHere = computed(() => {
   if (!currentLocation.value) return [];
   const locationId = currentLocation.value.id.toString();
   return npcs.value.filter((npc) => npc.locationId.toString() === locationId);
+});
+
+const corpsesHere = computed(() => {
+  if (!selectedCharacter.value || !corpses.value) return [];
+  const locationId = selectedCharacter.value.locationId;
+
+  // Get all active player user IDs (online check)
+  const activePlayerUserIds = new Set<bigint>();
+  for (const player of players.value ?? []) {
+    if (player.activeCharacterId) {
+      const char = characters.value?.find(c => c.id === player.activeCharacterId);
+      if (char) activePlayerUserIds.add(char.ownerUserId);
+    }
+  }
+
+  return corpses.value
+    .filter(c => c.locationId === locationId)
+    .filter(c => {
+      // Only show corpses for online players
+      const corpseChar = characters.value?.find(ch => ch.id === c.characterId);
+      return corpseChar && activePlayerUserIds.has(corpseChar.ownerUserId);
+    })
+    .map(c => {
+      const corpseChar = characters.value?.find(ch => ch.id === c.characterId);
+      const itemCount = (corpseItems.value ?? []).filter(ci => ci.corpseId === c.id).length;
+      return {
+        id: c.id,
+        characterName: corpseChar?.name ?? 'Unknown',
+        characterId: c.characterId,
+        isOwn: c.characterId === selectedCharacter.value!.id,
+        itemCount,
+      };
+    });
 });
 
 const activeVendorId = ref<bigint | null>(null);
@@ -1202,6 +1270,98 @@ const giveGift = (itemInstanceId: bigint) => {
     itemInstanceId,
   });
   giftTargetNpcId.value = null;
+};
+
+// Corpse loot handlers
+const lootAllCorpseReducer = useReducer(reducers.lootAllCorpse);
+const onLootAllCorpse = (corpseId: bigint) => {
+  if (!conn.isActive || !selectedCharacter.value) return;
+  lootAllCorpseReducer({ characterId: selectedCharacter.value.id, corpseId });
+};
+
+// Resurrection and corpse summon handlers
+const initiateResurrectReducer = useReducer(reducers.initiateResurrect);
+const onInitiateResurrect = (corpseId: bigint) => {
+  if (!conn.isActive || !selectedCharacter.value) return;
+  initiateResurrectReducer({ casterCharacterId: selectedCharacter.value.id, corpseId });
+};
+
+const initiateCorpseSummonReducer = useReducer(reducers.initiateCorpseSummon);
+const onInitiateCorpseSummon = (targetCharacterId: bigint) => {
+  if (!conn.isActive || !selectedCharacter.value) return;
+  initiateCorpseSummonReducer({ casterCharacterId: selectedCharacter.value.id, targetCharacterId });
+};
+
+// Confirmation dialog for resurrection/corpse summon
+const pendingPrompt = ref<{
+  type: 'resurrect' | 'corpse_summon';
+  pendingId: bigint;
+  casterName: string;
+  message: string;
+} | null>(null);
+
+watch([pendingSpellCasts, selectedCharacter], () => {
+  if (!selectedCharacter.value) {
+    pendingPrompt.value = null;
+    return;
+  }
+  const charId = selectedCharacter.value.id;
+
+  // Check for pending resurrect
+  const rez = (pendingSpellCasts.value ?? []).find(p => p.spellType === 'resurrect' && p.targetCharacterId === charId);
+  if (rez) {
+    const caster = characters.value?.find(c => c.id === rez.casterCharacterId);
+    pendingPrompt.value = {
+      type: 'resurrect',
+      pendingId: rez.id,
+      casterName: caster?.name ?? 'A cleric',
+      message: `${caster?.name ?? 'A cleric'} wants to resurrect you. Accept?`,
+    };
+    return;
+  }
+
+  // Check for pending corpse summon
+  const summon = (pendingSpellCasts.value ?? []).find(p => p.spellType === 'corpse_summon' && p.targetCharacterId === charId);
+  if (summon) {
+    const caster = characters.value?.find(c => c.id === summon.casterCharacterId);
+    pendingPrompt.value = {
+      type: 'corpse_summon',
+      pendingId: summon.id,
+      casterName: caster?.name ?? 'Someone',
+      message: `${caster?.name ?? 'Someone'} wants to summon your corpses to their location. Accept?`,
+    };
+    return;
+  }
+
+  pendingPrompt.value = null;
+}, { deep: true });
+
+const acceptResurrectReducer = useReducer(reducers.acceptResurrect);
+const acceptCorpseSummonReducer = useReducer(reducers.acceptCorpseSummon);
+const acceptPendingAction = () => {
+  if (!conn.isActive || !selectedCharacter.value || !pendingPrompt.value) return;
+  const charId = selectedCharacter.value.id;
+  const pendingId = pendingPrompt.value.pendingId;
+  if (pendingPrompt.value.type === 'resurrect') {
+    acceptResurrectReducer({ characterId: charId, pendingId });
+  } else {
+    acceptCorpseSummonReducer({ characterId: charId, pendingId });
+  }
+  pendingPrompt.value = null;
+};
+
+const declineResurrectReducer = useReducer(reducers.declineResurrect);
+const declineCorpseSummonReducer = useReducer(reducers.declineCorpseSummon);
+const declinePendingAction = () => {
+  if (!conn.isActive || !selectedCharacter.value || !pendingPrompt.value) return;
+  const charId = selectedCharacter.value.id;
+  const pendingId = pendingPrompt.value.pendingId;
+  if (pendingPrompt.value.type === 'resurrect') {
+    declineResurrectReducer({ characterId: charId, pendingId });
+  } else {
+    declineCorpseSummonReducer({ characterId: charId, pendingId });
+  }
+  pendingPrompt.value = null;
 };
 
 const {
