@@ -129,7 +129,11 @@
         <div
           v-for="npc in npcsHere"
           :key="npc.id.toString()"
-          :style="styles.gridTileNpc"
+          :style="{
+            ...styles.gridTileNpc,
+            ...(selectedNpcId?.toString() === npc.id.toString() ? styles.gridTileNpcSelected : {}),
+          }"
+          @click="toggleSelectNpc(npc.id)"
           @contextmenu.prevent="openNpcContextMenu($event, npc)"
         >
           <div>{{ npc.name }}</div>
@@ -197,6 +201,7 @@ const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
   selectedCharacter: CharacterRow | null;
+  selectedNpcId: bigint | null;
   charactersHere: { character: CharacterRow; disconnected: boolean }[];
   npcsHere: NpcRow[];
   corpsesHere: Array<{
@@ -230,6 +235,7 @@ const emit = defineEmits<{
   (e: 'loot-all-corpse', corpseId: bigint): void;
   (e: 'initiate-resurrect', corpseId: bigint): void;
   (e: 'initiate-corpse-summon', targetCharacterId: bigint): void;
+  (e: 'select-npc', npcId: bigint | null): void;
 }>();
 
 const selectedEnemyId = ref<bigint | null>(null);
@@ -255,6 +261,14 @@ const toggleSelectEnemy = (enemyId: bigint) => {
     selectedEnemyId.value = null;
   } else {
     selectedEnemyId.value = enemyId;
+  }
+};
+
+const toggleSelectNpc = (npcId: bigint) => {
+  if (props.selectedNpcId?.toString() === npcId.toString()) {
+    emit('select-npc', null);
+  } else {
+    emit('select-npc', npcId);
   }
 };
 
@@ -372,7 +386,7 @@ const openCorpseContextMenu = (event: MouseEvent, corpse: { id: bigint; characte
     });
   } else if (!corpse.isOwn) {
     // Check if viewer is cleric level 6+ for resurrect
-    const viewerIsCleric = props.selectedCharacter && props.selectedCharacter.className === 'Cleric';
+    const viewerIsCleric = props.selectedCharacter && props.selectedCharacter.className === 'cleric';
     const viewerLevel = props.selectedCharacter ? Number(props.selectedCharacter.level) : 0;
     const canResurrect = viewerIsCleric && viewerLevel >= 6;
 
