@@ -1135,6 +1135,8 @@ export const styles = {
     padding: '1rem 2rem 1.5rem',
     borderTop: '1px solid rgba(255,255,255,0.08)',
     background: 'rgba(8,10,15,0.9)',
+    position: 'relative',
+    zIndex: 10000,
   },
   commandBar: {
     display: 'flex',
