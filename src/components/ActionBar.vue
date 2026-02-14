@@ -1,7 +1,7 @@
 <template>
   <div :style="styles.actionBar">
     <button
-      @click="emit('toggle', 'log')"
+      @click="emit('open', 'log')"
       :style="actionStyle('log')"
     >
       Log
@@ -108,15 +108,18 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'toggle', panel: string): void;
+  (e: 'open', panel: string): void;
 }>();
 
 const actionStyle = (panel: string) => {
   const highlight =
     (panel === 'inventory' && props.highlightInventory) ||
     (panel === 'hotbarPanel' && props.highlightHotbar);
+  // Log is always active since it cannot be closed
+  const isActive = panel === 'log' || props.openPanels.has(panel);
   return {
     ...props.styles.actionButton,
-    ...(props.openPanels.has(panel) ? props.styles.actionButtonActive : {}),
+    ...(isActive ? props.styles.actionButtonActive : {}),
     ...(highlight ? props.styles.actionButtonAttention : {}),
     ...(isLocked(panel) ? { opacity: 0.45, cursor: 'not-allowed' } : {}),
   };

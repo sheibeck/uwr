@@ -51,7 +51,6 @@
     >
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('log', $event)">
         <div>Log</div>
-        <button type="button" :style="styles.panelClose" @click="closePanelById('log')">×</button>
       </div>
       <div :style="{ ...styles.floatingPanelBody, flex: 1, minHeight: 0, overflow: 'auto' }">
         <LogWindow
@@ -412,6 +411,7 @@
       :highlight-inventory="highlightInventory"
       :highlight-hotbar="highlightHotbar"
       @toggle="togglePanel"
+      @open="openPanel"
     />
     </footer>
     <div

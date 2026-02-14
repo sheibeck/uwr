@@ -120,6 +120,7 @@ export function usePanelManager(
       if (panels.group) panels.group.open = true;
       if (panels.travel) panels.travel.open = true;
       if (panels.hotbar) panels.hotbar.open = true;
+      if (panels.log) panels.log.open = true;
     } catch (e) {
       console.warn('Failed to load panel states from localStorage:', e);
     }
@@ -398,6 +399,7 @@ export function usePanelManager(
           if (panels.group) panels.group.open = true;
           if (panels.travel) panels.travel.open = true;
           if (panels.hotbar) panels.hotbar.open = true;
+          if (panels.log) panels.log.open = true;
         } catch (e) {
           console.warn('Failed to parse server panel layout:', e);
         } finally {
