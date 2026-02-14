@@ -8,11 +8,11 @@
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 Plan 01 complete — TravelCooldown table, TRAVEL_CONFIG constants, and move_character reducer with flat stamina costs and per-character cooldown.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 Plans 01-02 complete — Backend stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, TravelPanel UI with cost indicators and live countdown timer.
 
 **Current phase:** 10 (Travel & Movement Costs)
-**Current plan:** 1/3 plans done (10-01 complete)
-**Next action:** Continue Phase 10 with travel UI improvements or validation
+**Current plan:** 2/3 plans done (10-01 and 10-02 complete)
+**Next action:** Check if Phase 10 has additional plans or proceed to phase goal verification
 
 ---
 
@@ -33,7 +33,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 7 | World Events | Pending |
 | 8 | Narrative Tone Rollout | Pending |
 | 9 | Content Data Expansion | Pending |
-| 10 | Travel & Movement Costs | In Progress (1/3 plans done: backend costs complete) |
+| 10 | Travel & Movement Costs | In Progress (2/3 plans done: backend + UI complete) |
 
 ---
 
@@ -98,6 +98,9 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 57. All-or-nothing group travel validation - entire group move fails if any member lacks stamina, error shows which character is short (10-01)
 58. Per-character cross-region cooldown (5 minutes) - not group-wide, only cross-region travel has cooldown (10-01)
 59. Opportunistic expired cooldown cleanup during cooldown check - prevents TravelCooldown table accumulation (10-01)
+60. Travel UI displays stamina costs as "X sta" format, cross-region destinations shown with amber-colored region name for visual distinction (10-02)
+61. Server clock offset pattern used for accurate countdown timers synchronized with server time (window.__server_clock_offset from quick-55) (10-02)
+62. Unaffordable travel options dimmed with opacity: 0.5 instead of hidden for improved UX feedback (10-02)
 
 ---
 
@@ -126,6 +129,8 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 04-config-table-architecture | 01 | 3min | 2 | 1 |
 | 04-config-table-architecture | 02 | 4min | 4 | 5 |
 | 10-travel-movement-costs | 01 | 2min | 2 | 3 |
+| 10-travel-movement-costs | 02 | 8min | 3 | 10 |
+| Phase 10-travel-movement-costs P02 | 8min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -245,4 +250,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed Phase 10 Plan 01: Travel cost system backend with flat stamina costs (5 within-region, 10 cross-region), per-character 5-minute cross-region cooldown, and all-or-nothing group validation
+Last activity: 2026-02-14 - Completed Phase 10 Plan 02: Travel UI improvements with stamina cost indicators, live cooldown countdown timer, and affordability-based button disabling. User verified full end-to-end travel flow working correctly.
