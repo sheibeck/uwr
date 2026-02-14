@@ -1307,28 +1307,6 @@ export const styles = {
     textTransform: 'uppercase',
     letterSpacing: '0.08em',
   },
-  hungerBar: {
-    width: '100%',
-    height: '14px',
-    backgroundColor: '#333',
-    borderRadius: '4px',
-    overflow: 'hidden',
-    marginTop: '4px',
-  },
-  hungerFill: {
-    height: '100%',
-    borderRadius: '4px',
-    transition: 'width 0.3s ease',
-  },
-  wellFedBadge: {
-    display: 'inline-block',
-    padding: '2px 8px',
-    borderRadius: '4px',
-    backgroundColor: '#2a5a2a',
-    color: '#7fdf7f',
-    fontSize: '11px',
-    marginTop: '4px',
-  },
   contextMenu: {
     position: 'fixed',
     zIndex: 9999,

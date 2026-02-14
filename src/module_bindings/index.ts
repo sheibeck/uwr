@@ -196,8 +196,6 @@ import TickCastsReducer from "./tick_casts_reducer";
 export { TickCastsReducer };
 import CombatLoopReducer from "./combat_loop_reducer";
 export { CombatLoopReducer };
-import DecayHungerReducer from "./decay_hunger_reducer";
-export { DecayHungerReducer };
 import EatFoodReducer from "./eat_food_reducer";
 export { EatFoodReducer };
 import SavePanelLayoutReducer from "./save_panel_layout_reducer";
@@ -292,10 +290,6 @@ import HotTickRow from "./hot_tick_table";
 export { HotTickRow };
 import HotbarSlotRow from "./hotbar_slot_table";
 export { HotbarSlotRow };
-import HungerRow from "./hunger_table";
-export { HungerRow };
-import HungerDecayTickRow from "./hunger_decay_tick_table";
-export { HungerDecayTickRow };
 import ItemCooldownRow from "./item_cooldown_table";
 export { ItemCooldownRow };
 import ItemInstanceRow from "./item_instance_table";
@@ -330,8 +324,6 @@ import MyGroupInvitesRow from "./my_group_invites_table";
 export { MyGroupInvitesRow };
 import MyGroupMembersRow from "./my_group_members_table";
 export { MyGroupMembersRow };
-import MyHungerRow from "./my_hunger_table";
-export { MyHungerRow };
 import MyLocationEventsRow from "./my_location_events_table";
 export { MyLocationEventsRow };
 import MyNpcDialogRow from "./my_npc_dialog_table";
@@ -456,8 +448,6 @@ import CreateItemTemplate from "./create_item_template_type";
 export { CreateItemTemplate };
 import DayNightTick from "./day_night_tick_type";
 export { DayNightTick };
-import DecayHunger from "./decay_hunger_type";
-export { DecayHunger };
 import DeleteCharacter from "./delete_character_type";
 export { DeleteCharacter };
 import DeleteItem from "./delete_item_type";
@@ -526,10 +516,6 @@ import HotTick from "./hot_tick_type";
 export { HotTick };
 import HotbarSlot from "./hotbar_slot_type";
 export { HotbarSlot };
-import Hunger from "./hunger_type";
-export { Hunger };
-import HungerDecayTick from "./hunger_decay_tick_type";
-export { HungerDecayTick };
 import Init from "./init_type";
 export { Init };
 import InviteToGroup from "./invite_to_group_type";
@@ -582,8 +568,6 @@ import MyGroupInvites from "./my_group_invites_type";
 export { MyGroupInvites };
 import MyGroupMembers from "./my_group_members_type";
 export { MyGroupMembers };
-import MyHunger from "./my_hunger_type";
-export { MyHunger };
 import MyLocationEvents from "./my_location_events_type";
 export { MyLocationEvents };
 import MyNpcDialog from "./my_npc_dialog_type";
@@ -1362,31 +1346,6 @@ const tablesSchema = __schema(
     ],
   }, HotbarSlotRow),
   __table({
-    name: 'hunger',
-    indexes: [
-      { name: 'characterId', algorithm: 'btree', columns: [
-        'characterId',
-      ] },
-      { name: 'id', algorithm: 'btree', columns: [
-        'id',
-      ] },
-    ],
-    constraints: [
-      { name: 'hunger_id_key', constraint: 'unique', columns: ['id'] },
-    ],
-  }, HungerRow),
-  __table({
-    name: 'hunger_decay_tick',
-    indexes: [
-      { name: 'scheduledId', algorithm: 'btree', columns: [
-        'scheduledId',
-      ] },
-    ],
-    constraints: [
-      { name: 'hunger_decay_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
-    ],
-  }, HungerDecayTickRow),
-  __table({
     name: 'item_cooldown',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1858,13 +1817,6 @@ const tablesSchema = __schema(
     ],
   }, MyGroupMembersRow),
   __table({
-    name: 'my_hunger',
-    indexes: [
-    ],
-    constraints: [
-    ],
-  }, MyHungerRow),
-  __table({
     name: 'my_location_events',
     indexes: [
     ],
@@ -1989,7 +1941,6 @@ const reducersSchema = __reducers(
   __reducerSchema("tick_hot", TickHotReducer),
   __reducerSchema("tick_casts", TickCastsReducer),
   __reducerSchema("combat_loop", CombatLoopReducer),
-  __reducerSchema("decay_hunger", DecayHungerReducer),
   __reducerSchema("eat_food", EatFoodReducer),
   __reducerSchema("save_panel_layout", SavePanelLayoutReducer),
 );

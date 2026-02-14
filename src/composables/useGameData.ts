@@ -55,7 +55,6 @@ export const useGameData = () => {
   const [tradeSessions] = useTable(tables.tradeSession);
   const [tradeItems] = useTable(tables.tradeItem);
   const [races] = useTable(tables.race);
-  const [myHunger] = useTable(tables.hunger);
   const [factions] = useTable(tables.faction);
   const [factionStandings] = useTable(tables.factionStanding);
   const [panelLayouts] = useTable(tables.uiPanelLayout);
@@ -114,7 +113,6 @@ export const useGameData = () => {
     tradeSessions,
     tradeItems,
     races,
-    myHunger,
     factions,
     factionStandings,
     panelLayouts,

@@ -199,7 +199,7 @@
     <!-- Stats Panel (wide) -->
     <div v-if="panels.stats && panels.stats.open" data-panel-id="stats" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('stats').value || {}) }" @mousedown="bringToFront('stats')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('stats', $event)"><div>Stats</div><button type="button" :style="styles.panelClose" @click="closePanelById('stats')">×</button></div>
-      <div :style="styles.floatingPanelBody"><StatsPanel :styles="styles" :selected-character="selectedCharacter" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" /><HungerBar v-if="selectedCharacter" :hunger="activeHunger" :styles="styles" :style="{ marginTop: '1rem' }" /></div>
+      <div :style="styles.floatingPanelBody"><StatsPanel :styles="styles" :selected-character="selectedCharacter" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('stats', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('stats', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('stats', $event, { right: true, bottom: true })" />
     </div>
 
@@ -476,7 +476,6 @@ import NpcDialogPanel from './components/NpcDialogPanel.vue';
 import QuestPanel from './components/QuestPanel.vue';
 import VendorPanel from './components/VendorPanel.vue';
 import TrackPanel from './components/TrackPanel.vue';
-import HungerBar from './components/HungerBar.vue';
 import RenownPanel from './components/RenownPanel.vue';
 import { useGameData } from './composables/useGameData';
 import { useCharacters } from './composables/useCharacters';
@@ -551,7 +550,6 @@ const {
   tradeSessions,
   tradeItems,
   races,
-  myHunger,
   factions,
   factionStandings,
   panelLayouts,
@@ -1419,13 +1417,6 @@ const {
     openPanel('track');
   },
   addLocalEvent,
-});
-
-const activeHunger = computed(() => {
-  if (!selectedCharacter.value || !myHunger.value.length) return null;
-  return myHunger.value.find(
-    (h: any) => h.characterId.toString() === selectedCharacter.value?.id.toString()
-  ) ?? null;
 });
 
 const eatFoodReducer = useReducer(reducers.eatFood);
