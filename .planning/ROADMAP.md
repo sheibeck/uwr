@@ -546,6 +546,15 @@ Plans:
 - [ ] 19-02-PLAN.md — Backend interaction: Dynamic greetings in hailNpc, choose_dialogue_option/give_gift_to_npc reducers, conversation cooldowns, publish module and regenerate bindings
 - [ ] 19-03-PLAN.md — Frontend UI: NpcDialogPanel overhaul with affinity display and dialogue options, LocationGrid gift context menu, useGameData subscriptions, human verification
 
+### Phase 20: Perk Variety Expansion
+
+**Goal:** [To be planned]
+**Depends on:** Phase 19
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 20 to break down)
+
 ---
 
 ## Milestone Success Criteria
