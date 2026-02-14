@@ -1170,7 +1170,7 @@ export const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '0.2rem',
-    zIndex: 20,
+    zIndex: 100,
   },
   commandSuggestionItem: {
     background: 'transparent',
