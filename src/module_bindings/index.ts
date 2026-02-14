@@ -196,8 +196,18 @@ import TickCastsReducer from "./tick_casts_reducer";
 export { TickCastsReducer };
 import CombatLoopReducer from "./combat_loop_reducer";
 export { CombatLoopReducer };
+import LootCorpseItemReducer from "./loot_corpse_item_reducer";
+export { LootCorpseItemReducer };
+import LootAllCorpseReducer from "./loot_all_corpse_reducer";
+export { LootAllCorpseReducer };
 import EatFoodReducer from "./eat_food_reducer";
 export { EatFoodReducer };
+import ChoosePerkReducer from "./choose_perk_reducer";
+export { ChoosePerkReducer };
+import GrantTestRenownReducer from "./grant_test_renown_reducer";
+export { GrantTestRenownReducer };
+import GrantTestAchievementReducer from "./grant_test_achievement_reducer";
+export { GrantTestAchievementReducer };
 import SavePanelLayoutReducer from "./save_panel_layout_reducer";
 export { SavePanelLayoutReducer };
 
@@ -208,6 +218,8 @@ import AbilityCooldownRow from "./ability_cooldown_table";
 export { AbilityCooldownRow };
 import AbilityTemplateRow from "./ability_template_table";
 export { AbilityTemplateRow };
+import AchievementRow from "./achievement_table";
+export { AchievementRow };
 import AggroEntryRow from "./aggro_entry_table";
 export { AggroEntryRow };
 import CastTickRow from "./cast_tick_table";
@@ -244,6 +256,10 @@ import CombatResultRow from "./combat_result_table";
 export { CombatResultRow };
 import CommandRow from "./command_table";
 export { CommandRow };
+import CorpseRow from "./corpse_table";
+export { CorpseRow };
+import CorpseItemRow from "./corpse_item_table";
+export { CorpseItemRow };
 import DayNightTickRow from "./day_night_tick_table";
 export { DayNightTickRow };
 import DisconnectLogoutTickRow from "./disconnect_logout_tick_table";
@@ -358,6 +374,12 @@ import RecipeTemplateRow from "./recipe_template_table";
 export { RecipeTemplateRow };
 import RegionRow from "./region_table";
 export { RegionRow };
+import RenownRow from "./renown_table";
+export { RenownRow };
+import RenownPerkRow from "./renown_perk_table";
+export { RenownPerkRow };
+import RenownServerFirstRow from "./renown_server_first_table";
+export { RenownServerFirstRow };
 import ResourceGatherRow from "./resource_gather_table";
 export { ResourceGatherRow };
 import ResourceGatherTickRow from "./resource_gather_tick_table";
@@ -390,6 +412,8 @@ import AcceptFriendRequest from "./accept_friend_request_type";
 export { AcceptFriendRequest };
 import AcceptGroupInvite from "./accept_group_invite_type";
 export { AcceptGroupInvite };
+import Achievement from "./achievement_type";
+export { Achievement };
 import AddTradeItem from "./add_trade_item_type";
 export { AddTradeItem };
 import AggroEntry from "./aggro_entry_type";
@@ -412,6 +436,8 @@ import CharacterLogout from "./character_logout_type";
 export { CharacterLogout };
 import CharacterLogoutTick from "./character_logout_tick_type";
 export { CharacterLogoutTick };
+import ChoosePerk from "./choose_perk_type";
+export { ChoosePerk };
 import CombatEncounter from "./combat_encounter_type";
 export { CombatEncounter };
 import CombatEnemy from "./combat_enemy_type";
@@ -440,6 +466,10 @@ import Command from "./command_type";
 export { Command };
 import ConsolidateStacks from "./consolidate_stacks_type";
 export { ConsolidateStacks };
+import Corpse from "./corpse_type";
+export { Corpse };
+import CorpseItem from "./corpse_item_type";
+export { CorpseItem };
 import CraftRecipe from "./craft_recipe_type";
 export { CraftRecipe };
 import CreateCharacter from "./create_character_type";
@@ -502,6 +532,10 @@ import FriendRequest from "./friend_request_type";
 export { FriendRequest };
 import GrantItem from "./grant_item_type";
 export { GrantItem };
+import GrantTestAchievement from "./grant_test_achievement_type";
+export { GrantTestAchievement };
+import GrantTestRenown from "./grant_test_renown_type";
+export { GrantTestRenown };
 import Group from "./group_type";
 export { Group };
 import GroupInvite from "./group_invite_type";
@@ -546,6 +580,10 @@ import LoginEmail from "./login_email_type";
 export { LoginEmail };
 import Logout from "./logout_type";
 export { Logout };
+import LootAllCorpse from "./loot_all_corpse_type";
+export { LootAllCorpse };
+import LootCorpseItem from "./loot_corpse_item_type";
+export { LootCorpseItem };
 import LootTable from "./loot_table_type";
 export { LootTable };
 import LootTableEntry from "./loot_table_entry_type";
@@ -622,6 +660,12 @@ import RemoveFriend from "./remove_friend_type";
 export { RemoveFriend };
 import RemoveTradeItem from "./remove_trade_item_type";
 export { RemoveTradeItem };
+import Renown from "./renown_type";
+export { Renown };
+import RenownPerk from "./renown_perk_type";
+export { RenownPerk };
+import RenownServerFirst from "./renown_server_first_type";
+export { RenownServerFirst };
 import ResearchRecipes from "./research_recipes_type";
 export { ResearchRecipes };
 import ResolvePull from "./resolve_pull_type";
@@ -760,6 +804,20 @@ const tablesSchema = __schema(
       { name: 'ability_template_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, AbilityTemplateRow),
+  __table({
+    name: 'achievement',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'achievement_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AchievementRow),
   __table({
     name: 'aggro_entry',
     indexes: [
@@ -1039,6 +1097,37 @@ const tablesSchema = __schema(
       { name: 'command_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CommandRow),
+  __table({
+    name: 'corpse',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_location', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'corpse_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CorpseRow),
+  __table({
+    name: 'corpse_item',
+    indexes: [
+      { name: 'by_corpse', algorithm: 'btree', columns: [
+        'corpseId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'corpse_item_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CorpseItemRow),
   __table({
     name: 'day_night_tick',
     indexes: [
@@ -1621,6 +1710,48 @@ const tablesSchema = __schema(
     ],
   }, RegionRow),
   __table({
+    name: 'renown',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'renown_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RenownRow),
+  __table({
+    name: 'renown_perk',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'renown_perk_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RenownPerkRow),
+  __table({
+    name: 'renown_server_first',
+    indexes: [
+      { name: 'by_category', algorithm: 'btree', columns: [
+        'category',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'renown_server_first_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RenownServerFirstRow),
+  __table({
     name: 'resource_gather',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1959,7 +2090,12 @@ const reducersSchema = __reducers(
   __reducerSchema("tick_hot", TickHotReducer),
   __reducerSchema("tick_casts", TickCastsReducer),
   __reducerSchema("combat_loop", CombatLoopReducer),
+  __reducerSchema("loot_corpse_item", LootCorpseItemReducer),
+  __reducerSchema("loot_all_corpse", LootAllCorpseReducer),
   __reducerSchema("eat_food", EatFoodReducer),
+  __reducerSchema("choose_perk", ChoosePerkReducer),
+  __reducerSchema("grant_test_renown", GrantTestRenownReducer),
+  __reducerSchema("grant_test_achievement", GrantTestAchievementReducer),
   __reducerSchema("save_panel_layout", SavePanelLayoutReducer),
 );
 
