@@ -460,13 +460,14 @@ Plans:
 
 ### Phase 11: Death & Corpse System
 
-**Goal:** Level-gated death consequence system where level 5+ characters who die in combat create a corpse at the death location containing their inventory items (equipped gear stays on character). Characters respawn as ghosts at their bind point, travel to the corpse to retrieve items, or summon the corpse at a bind stone. Ghosts are immune to combat. Cleric Resurrect ability prevents corpse runs for organized groups.
+**Goal:** Level-gated death consequence system where level 5+ characters who die in combat create a corpse at the death location containing their inventory items (equipped gear and gold stay on character). Characters respawn normally at their bind point with no ghost state. Corpses visible in Points of Interest section, lootable by owner only. Cleric Resurrect ability targets corpses to teleport dead player back. Corpse Summon ability merges all corpses to caster location. Confirmation prompts for both. 30-day corpse decay timer.
 **Depends on:** Phase 10
-**Plans:** 2 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — Backend: Corpse/CorpseItem tables, isGhost on Character, corpse helper, death hook in combat, modified respawn, retrieve/summon corpse reducers, ghost immunity guards, publish and regenerate bindings
-- [ ] 11-02-PLAN.md — Cleric Resurrect ability, frontend ghost banner UI, corpse indicators in location panel, inventory filtering for corpse items, ghost action disabling, human verification
+- [ ] 11-01-PLAN.md — Backend foundation: Corpse/CorpseItem tables, createCorpse helper, death hook in combat defeat sections, respawn modification, loot_corpse_item/loot_all_corpse reducers, corpse decay cleanup, publish and regenerate bindings
+- [ ] 11-02-PLAN.md — Resurrection and Corpse Summon: PendingResurrect/PendingCorpseSummon tables, cleric_resurrect/cleric_corpse_summon ability definitions, initiate/accept/decline reducers with confirmation flow, publish and regenerate bindings
+- [ ] 11-03-PLAN.md — Frontend UI: Points of Interest section in LocationGrid, corpse context menus, confirmation dialogs for resurrect/summon, useGameData subscriptions, App.vue wiring, human verification
 
 ### Phase 12: Overall Renown System - Character-wide renown separate from factions, renown ranks with unlockable perks, renown gain sources from events/bosses/achievements
 
