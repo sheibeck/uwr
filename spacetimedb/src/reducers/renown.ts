@@ -1,0 +1,68 @@
+import { RENOWN_PERK_POOLS } from '../data/renown_data';
+import { awardRenown, grantAchievement } from '../helpers/renown';
+
+export const registerRenownReducers = (deps: any) => {
+  const { spacetimedb, t, SenderError, requireCharacterOwnedBy, appendSystemMessage } = deps;
+
+  spacetimedb.reducer('choose_perk', { characterId: t.u64(), perkKey: t.string() }, (ctx: any, { characterId, perkKey }: any) => {
+    // Auth check
+    const character = requireCharacterOwnedBy(ctx, characterId);
+
+    // Get Renown row
+    let renownRow: any = null;
+    for (const row of ctx.db.renown.by_character.filter(characterId)) {
+      renownRow = row;
+      break;
+    }
+
+    if (!renownRow) {
+      throw new SenderError('No renown record found');
+    }
+
+    const currentRank = Number(renownRow.currentRank);
+
+    // Lookup perk pool for current rank
+    const perkPool = RENOWN_PERK_POOLS[currentRank];
+    if (!perkPool) {
+      throw new SenderError(`No perk pool for rank ${currentRank}`);
+    }
+
+    // Validate perkKey exists in pool
+    const perk = perkPool.find((p) => p.key === perkKey);
+    if (!perk) {
+      throw new SenderError('Invalid perk choice for your current rank');
+    }
+
+    // Check if already chosen a perk for this rank
+    for (const existingPerk of ctx.db.renownPerk.by_character.filter(characterId)) {
+      if (Number(existingPerk.rank) === currentRank) {
+        throw new SenderError('Perk already chosen for this rank');
+      }
+    }
+
+    // Insert RenownPerk row
+    ctx.db.renownPerk.insert({
+      id: 0n,
+      characterId,
+      rank: BigInt(currentRank),
+      perkKey,
+      chosenAt: ctx.timestamp,
+    });
+
+    // Log message
+    appendSystemMessage(ctx, character, `You have chosen the perk: ${perk.name}`);
+  });
+
+  spacetimedb.reducer('grant_test_renown', { characterId: t.u64(), points: t.u64() }, (ctx: any, { characterId, points }: any) => {
+    const character = requireCharacterOwnedBy(ctx, characterId);
+    awardRenown(ctx, character, points, 'Test grant');
+  });
+
+  spacetimedb.reducer('grant_test_achievement', { characterId: t.u64(), achievementKey: t.string() }, (ctx: any, { characterId, achievementKey }: any) => {
+    const character = requireCharacterOwnedBy(ctx, characterId);
+    const granted = grantAchievement(ctx, character, achievementKey);
+    if (!granted) {
+      throw new SenderError('Achievement already earned');
+    }
+  });
+};
