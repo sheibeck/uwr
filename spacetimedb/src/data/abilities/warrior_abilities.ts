@@ -3,7 +3,7 @@ import type { AbilityMetadata, DamageType } from '../ability_catalog.js';
 export const WARRIOR_ABILITIES: Record<string, AbilityMetadata> = {
   warrior_slam: {
     name: 'Slam',
-    description: 'Slams the target with a powerful blow, dealing physical damage.',
+    description: 'Slams the target with a powerful blow, reducing their armor class by 5 for 7 seconds.',
     className: 'warrior',
     resource: 'stamina',
     level: 1n,
@@ -11,6 +11,9 @@ export const WARRIOR_ABILITIES: Record<string, AbilityMetadata> = {
     cooldownSeconds: 6n,
     castSeconds: 0n,
     damageType: 'physical' as DamageType,
+    debuffType: 'ac_bonus',
+    debuffMagnitude: -5n,
+    debuffDuration: 7n,
   },
   warrior_intimidating_presence: {
     name: 'Intimidating Presence',
