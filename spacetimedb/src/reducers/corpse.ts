@@ -416,4 +416,67 @@ export const registerCorpseReducers = (deps: any) => {
     }
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', 'You declined the corpse summon.');
   });
+
+  // ===== ADMIN/TESTING COMMANDS =====
+
+  spacetimedb.reducer('spawn_corpse', { characterId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+
+    // Find a random junk item template
+    const junkTemplates = [...ctx.db.itemTemplate.iter()].filter((row: any) => row.isJunk);
+
+    if (junkTemplates.length === 0) {
+      throw new SenderError('No junk item templates found');
+    }
+
+    // Pick a random one using timestamp-based seed
+    const seed = ctx.timestamp.microsSinceUnixEpoch;
+    const template = junkTemplates[Number(seed % BigInt(junkTemplates.length))];
+
+    // Create an ItemInstance owned by the character
+    const item = ctx.db.itemInstance.insert({
+      id: 0n,
+      templateId: template.id,
+      ownerCharacterId: character.id,
+      equippedSlot: undefined,
+      quantity: 1n,
+    });
+
+    // Check for existing corpse at character's current location
+    const existingCorpses = [...ctx.db.corpse.by_character.filter(character.id)];
+    const existingAtLocation = existingCorpses.find((c: any) => c.locationId === character.locationId);
+
+    let corpse;
+    if (existingAtLocation) {
+      // Reuse existing corpse at this location, update timestamp
+      corpse = ctx.db.corpse.id.update({
+        ...existingAtLocation,
+        createdAt: ctx.timestamp,
+      });
+    } else {
+      // Create new corpse at character's location
+      corpse = ctx.db.corpse.insert({
+        id: 0n,
+        characterId: character.id,
+        locationId: character.locationId,
+        createdAt: ctx.timestamp,
+      });
+    }
+
+    // Insert CorpseItem linking the item to the corpse
+    ctx.db.corpseItem.insert({
+      id: 0n,
+      corpseId: corpse.id,
+      itemInstanceId: item.id,
+    });
+
+    // Log a message
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'system',
+      `A corpse appears with ${template.name}.`
+    );
+  });
 };
