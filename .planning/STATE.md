@@ -113,6 +113,13 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 70. ItemInstance ownership never changes during corpse looting — items return by deleting CorpseItem row only (11-01)
 71. Decay cleanup runs opportunistically on respawn (not scheduled reducer) to avoid overhead (11-01)
 72. Empty corpses auto-delete after final item looted for database cleanliness (11-01)
+73. Resurrection 30-second confirmation timeout prevents indefinitely pending actions (11-02)
+74. Mana deducted on accept (not initiate) to prevent griefing via declined prompts (11-02)
+75. Resurrect targets corpse requiring caster at corpse location — prevents remote resurrection (11-02)
+76. Corpse Summon targets character and works from any location for convenience (11-02)
+77. Resurrect teleports character to corpse location, restores 50% HP/mana, leaves corpse intact (11-02)
+78. Corpse Summon merges ALL corpses from all locations into single combined corpse at caster location (11-02)
+79. combatState field added to AbilityMetadata interface for explicit combat restrictions in ability definitions (11-02)
 
 ---
 
@@ -143,6 +150,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 10-travel-movement-costs | 01 | 2min | 2 | 3 |
 | 10-travel-movement-costs | 02 | 8min | 3 | 10 |
 | 11-death-corpse-system | 01 | 5min | 3 | 12 |
+| 11-death-corpse-system | 02 | 9min | 2 | 7 |
 | 12-overall-renown-system | 01 | 4min | 2 | 5 |
 
 ## Accumulated Context
@@ -273,4 +281,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed Phase 11 Plan 01: Death & Corpse System backend foundation (5 min, 3 tasks, 3 commits: Corpse tables + death hooks/looting reducers + bindings)
+Last activity: 2026-02-14 - Completed Phase 11 Plan 02: Resurrection and Corpse Summon backend (9 min, 2 of 3 tasks, 2 commits: PendingResurrect/PendingCorpseSummon tables + confirmation flow reducers). Task 3 (publish/bindings) blocked by SpacetimeDB server 500 error.
