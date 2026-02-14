@@ -1247,6 +1247,97 @@ export const TravelCooldown = table(
   }
 );
 
+export const Renown = table(
+  {
+    name: 'renown',
+    public: true,
+    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    points: t.u64(),
+    currentRank: t.u64(),
+    updatedAt: t.timestamp(),
+  }
+);
+
+export const RenownPerk = table(
+  {
+    name: 'renown_perk',
+    public: true,
+    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    rank: t.u64(),
+    perkKey: t.string(),
+    chosenAt: t.timestamp(),
+  }
+);
+
+export const RenownServerFirst = table(
+  {
+    name: 'renown_server_first',
+    public: true,
+    indexes: [{ name: 'by_category', algorithm: 'btree', columns: ['category'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    category: t.string(),
+    achievementKey: t.string(),
+    characterId: t.u64(),
+    characterName: t.string(),
+    achievedAt: t.timestamp(),
+    position: t.u64(),
+  }
+);
+
+export const Achievement = table(
+  {
+    name: 'achievement',
+    public: true,
+    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    achievementKey: t.string(),
+    achievedAt: t.timestamp(),
+  }
+);
+
+export const Corpse = table(
+  {
+    name: 'corpse',
+    public: true,
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    locationId: t.u64(),
+    createdAt: t.timestamp(),
+  }
+);
+
+export const CorpseItem = table(
+  {
+    name: 'corpse_item',
+    public: true,
+    indexes: [{ name: 'by_corpse', algorithm: 'btree', columns: ['corpseId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    corpseId: t.u64(),
+    itemInstanceId: t.u64(),
+  }
+);
+
 export const spacetimedb = schema(
   Player,
   User,
@@ -1320,5 +1411,11 @@ export const spacetimedb = schema(
   Faction,
   FactionStanding,
   UiPanelLayout,
-  TravelCooldown
+  TravelCooldown,
+  Renown,
+  RenownPerk,
+  RenownServerFirst,
+  Achievement,
+  Corpse,
+  CorpseItem
 );
