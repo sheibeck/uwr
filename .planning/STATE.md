@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-14
-**Status:** Phase 19 Plan 02 complete — NPC interaction reducers (choose_dialogue_option with multi-gate validation, give_gift_to_npc with item consumption), dynamic affinity-based greetings in hailNpc (7 tiers with faction/renown context), conversation cooldown enforcement (1 hour).
+**Status:** Completed quick task 96: Fix NPC dialogue logging issues and add NPC targeting - separated NPC conversation text to Journal-only (removed Log duplication), added click-to-select NPC targeting with green highlight, /say command with targeted NPC fuzzy-matches dialogue options.
 
 ---
 
