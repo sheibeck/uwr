@@ -1847,7 +1847,7 @@ export function applyDeathXpPenalty(ctx: any, character: any) {
 
 export function getEnemyRole(role: string) {
   const key = role.trim().toLowerCase();
-  return ENEMY_ROLE_CONFIG[key] ?? ENEMY_ROLE_CONFIG.dps;
+  return ENEMY_ROLE_CONFIG[key] ?? ENEMY_ROLE_CONFIG.damage;
 }
 
 export function scaleByPercent(value: bigint, percent: bigint) {
