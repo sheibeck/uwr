@@ -1707,11 +1707,33 @@ const formatTimestamp = (ts: { microsSinceUnixEpoch: bigint }) => {
 };
 
 const handleChoosePerk = (perkKey: string) => {
-  if (!selectedCharacter.value || !window.__db_conn) return;
-  window.__db_conn.reducers.choosePerk({
+  console.log('[handleChoosePerk] Called with perkKey:', perkKey);
+  console.log('[handleChoosePerk] selectedCharacter:', selectedCharacter.value);
+  console.log('[handleChoosePerk] window.__db_conn:', window.__db_conn);
+
+  if (!selectedCharacter.value) {
+    console.error('[handleChoosePerk] No selected character!');
+    return;
+  }
+  if (!window.__db_conn) {
+    console.error('[handleChoosePerk] No database connection!');
+    return;
+  }
+
+  console.log('[handleChoosePerk] Calling choosePerk reducer with:', {
     characterId: selectedCharacter.value.id,
     perkKey,
   });
+
+  try {
+    window.__db_conn.reducers.choosePerk({
+      characterId: selectedCharacter.value.id,
+      perkKey,
+    });
+    console.log('[handleChoosePerk] Reducer called successfully');
+  } catch (error) {
+    console.error('[handleChoosePerk] Error calling reducer:', error);
+  }
 };
 </script>
 
