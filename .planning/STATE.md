@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-14
-**Status:** Phase 11 Plan 01 complete — Death & Corpse System backend foundation with level-gated corpse creation, 30-day decay, and looting reducers. Phase 12 Plan 01 complete — Overall Renown System backend foundation with 15-rank progression, perk pools, server-first tracking, and achievement system.
+**Status:** Phase 12 (Overall Renown System) complete — Character-wide renown progression with 15 ranks, permanent perk choices (2-3 options per rank), server-first tracking with diminishing returns, combat renown awards, tabbed UI with faction standings preserved, human-verified functional.
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 (Travel & Movement Costs) complete — Region-based stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, all-or-nothing group validation, TravelPanel UI with cost indicators and live countdown timer. Human-verified functional. Phase 11 (Death & Corpse System) Plan 01 complete — Backend corpse system with level 5+ gating, inventory-only item transfer, same-location combining, 30-day decay, and ownership-verified looting.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 (Travel & Movement Costs) complete — Region-based stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, all-or-nothing group validation, TravelPanel UI with cost indicators and live countdown timer. Human-verified functional. Phase 12 (Overall Renown System) complete — Character-wide renown progression with 15 ranks, permanent perk system, server-first tracking, combat integration, tabbed UI. Human-verified functional.
 
-**Current phase:** 11 (Death & Corpse System)
-**Current plan:** 01 complete
-**Next action:** Continue with Phase 11 Plan 02 (UI integration) or Phase 12 Plan 02 (Renown combat integration)
+**Current phase:** 12 (Overall Renown System)
+**Current plan:** Complete (3/3 plans done)
+**Next action:** Continue with Phase 11 Plan 02 (Death UI integration) or add Phase 12.1 (Perk Expansion) to roadmap
 
 ---
 
@@ -35,7 +35,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 9 | Content Data Expansion | Pending |
 | 10 | Travel & Movement Costs | Complete (2/2 plans done: backend + UI, human-verified) |
 | 11 | Death & Corpse System | In Progress (1/? plans done: backend foundation) |
-| 12 | Overall Renown System | In Progress (1/? plans done: backend foundation) |
+| 12 | Overall Renown System | Complete (3/3 plans done: backend + integration + UI, human-verified) |
 
 ---
 
@@ -155,6 +155,8 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 11-death-corpse-system | 01 | 5min | 3 | 12 |
 | 11-death-corpse-system | 02 | 9min | 2 | 7 |
 | 12-overall-renown-system | 01 | 4min | 2 | 5 |
+| 12-overall-renown-system | 02 | 10min | 2 | 3 |
+| 12-overall-renown-system | 03 | ~25min | 3 | 4 |
 
 ## Accumulated Context
 
@@ -288,4 +290,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed quick task 95: Create /spawncorpse admin command for corpse system testing
+Last activity: 2026-02-14 - Completed Phase 12 (Overall Renown System): 3/3 plans done - 15-rank progression, permanent perk choices, server-first tracking, combat integration, tabbed UI with faction standings preserved. Human-verified functional.
