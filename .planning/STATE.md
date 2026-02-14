@@ -254,9 +254,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 89 | Rebalance location levelOffsets and enemy group sizes for smooth 1-5 progression - reduced all offsets to eliminate level 7-8 spikes, adjusted group sizes by region tier (starter solo, dungeon groups) | 2026-02-14 | 62a3c38 | [89-rebalance-location-leveloffsets-for-smoo](./quick/89-rebalance-location-leveloffsets-for-smoo/) |
 | 90 | Extract travel section from Location panel - TravelPanel separated into standalone floating panel with ActionBar toggle, reducing Location panel complexity | 2026-02-14 | 09f41ee | [90-extract-travel-section-from-location-pan](./quick/90-extract-travel-section-from-location-pan/) |
 | 91 | Fix character creation crash - add missing ensureStarterItemTemplates dependency to grantStarterItems call, fixes PANIC error blocking all character creation | 2026-02-14 | f1c0da6 | [91-fix-ensurestarteritemtemplates-import-ca](./quick/91-fix-ensurestarteritemtemplates-import-ca/) |
+| 92 | Rebalance Warrior Slam ability - convert from damage-dealing to AC debuff (-5 AC for 7 seconds), shifting Warrior class identity toward tactical threat management | 2026-02-14 | cc2cf59 | [92-rebalance-warrior-slam-ability-change-fr](./quick/92-rebalance-warrior-slam-ability-change-fr/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed quick task 91: Fix critical character creation crash by adding ensureStarterItemTemplates dependency to grantStarterItems call (1 min, 1 commit)
+Last activity: 2026-02-14 - Completed quick task 92: Rebalance Warrior Slam ability from damage to AC debuff (48s, 1 commit)
