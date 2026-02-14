@@ -84,8 +84,9 @@ export const registerCommandReducers = (deps: any) => {
     // IMPORTANT: Log "You begin to talk with X" to Log panel, actual greeting goes to Journal
     appendSystemMessage(ctx, character, `You begin to talk with ${npc.name}.`);
 
-    // Greeting goes to Journal (NPC Dialog panel), not Log
+    // Greeting goes to Journal (NPC Dialog panel) AND Log (private NPC message)
     appendNpcDialog(ctx, character.id, npc.id, greeting);
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', greeting);
 
     // Award small affinity for greeting (if cooldown allows)
     if (canConverseWithNpc(ctx, character.id, npc.id)) {

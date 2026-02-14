@@ -1,6 +1,6 @@
 import { SenderError } from 'spacetimedb/server';
 import { awardNpcAffinity, getAffinityForNpc, getAffinityRow } from '../helpers/npc_affinity';
-import { appendNpcDialog, appendSystemMessage, fail, requireCharacterOwnedBy } from '../helpers/events';
+import { appendNpcDialog, appendPrivateEvent, appendSystemMessage, fail, requireCharacterOwnedBy } from '../helpers/events';
 
 export const registerNpcInteractionReducers = (deps: any) => {
   const { spacetimedb, t } = deps;
@@ -66,14 +66,16 @@ export const registerNpcInteractionReducers = (deps: any) => {
       awardNpcAffinity(ctx, character, npcId, option.affinityChange);
     }
 
-    // IMPORTANT: Dialogue goes to Journal (NPC Dialog panel), NOT to Log
+    // IMPORTANT: Dialogue goes to Journal (NPC Dialog panel) AND Log (private NPC message)
     // Log the player's dialogue choice to Journal
     const playerLine = `You say, "${option.playerText}"`;
     appendNpcDialog(ctx, character.id, npc.id, playerLine);
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', playerLine);
 
-    // Log the NPC's response to Journal
+    // Log the NPC's response to Journal AND Log
     const npcLine = `${npc.name} says, "${option.npcResponse}"`;
     appendNpcDialog(ctx, character.id, npc.id, npcLine);
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', npcLine);
   });
 
   // Give an inventory item to an NPC as a gift
@@ -139,14 +141,15 @@ export const registerNpcInteractionReducers = (deps: any) => {
     }
     // If no affinityRow exists, awardNpcAffinity already created one
 
-    // IMPORTANT: Gift notification to Log, full conversation to Journal
+    // IMPORTANT: Gift notification to Log, full conversation to Journal AND Log
     appendSystemMessage(ctx, character, `You gave ${template.name} to ${npc.name}.`);
 
-    // Log the gift to Journal
+    // Log the gift to Journal AND Log
     const giftMsg = `You give ${template.name} to ${npc.name}. (+${affinityGain} affinity)`;
     appendNpcDialog(ctx, character.id, npc.id, giftMsg);
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', giftMsg);
 
-    // NPC reaction based on current affinity (goes to Journal)
+    // NPC reaction based on current affinity (goes to Journal AND Log)
     const newAffinity = Number(getAffinityForNpc(ctx, character.id, npcId));
     let reaction: string;
     if (newAffinity >= 75) {
@@ -159,5 +162,6 @@ export const registerNpcInteractionReducers = (deps: any) => {
       reaction = `${npc.name} takes the offering with a brief nod.`;
     }
     appendNpcDialog(ctx, character.id, npc.id, reaction);
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', reaction);
   });
 };
