@@ -218,10 +218,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 73 | Fix window z-index not updating when dragging or clicking - removed early-return guard preventing z-index updates when multiple panels share same zIndex | 2026-02-14 | fd53bd1 | [73-fix-window-z-index-not-updating-when-dra](./quick/73-fix-window-z-index-not-updating-when-dra/) |
 | 74 | Fix git commit blocked by invalid nul file - removed Windows reserved device name and added .gitattributes for line ending normalization | 2026-02-14 | 12a0032 | [74-fix-git-commit-blocked-by-invalid-nul-fi](./quick/74-fix-git-commit-blocked-by-invalid-nul-fi/) |
 | 75 | Merge branch phase-4-config-tables into master - integrated Phase 4 database-driven ability architecture with master's quick-70 through quick-74 fixes | 2026-02-14 | fc7129f | [75-merge-branch-phase-4-config-tables-into-](./quick/75-merge-branch-phase-4-config-tables-into-/) |
+| 77 | Fix command autocomplete dropdown z-index - increased commandSuggestions z-index from 20 to 100 to render above floating panels | 2026-02-14 | 885e5cf | [77-fix-command-autocomplete-dropdown-z-inde](./quick/77-fix-command-autocomplete-dropdown-z-inde/) |
 
 ---
 
 ## Last Session
 
-**Stopped at:** Completed quick-75-PLAN.md
-**Timestamp:** 2026-02-14T03:03:53Z
+**Stopped at:** Completed quick-77-PLAN.md
+**Timestamp:** 2026-02-14T03:12:41Z
