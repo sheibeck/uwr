@@ -438,15 +438,15 @@ Phase 9 (Content Data) <- Phase 1, 2, 3
 
 Phases 1, 3, 4, and 5 can run in parallel (4 and 5 both require 3 complete). Phases 2, 6, 7 start once their dependencies complete. Phases 8 and 9 run last.
 
-### Phase 10: Travel & Movement Costs - Region travel with distance-based costs (short = stamina, long = gold + cooldown), travel restrictions and validation, travel UI improvements
+### Phase 10: Travel & Movement Costs
 
-**Goal:** Distance-based travel cost system where short-distance travel (1-2 steps) costs stamina and long-distance travel (3+ steps) costs gold plus a 30-second cooldown. All reachable locations visible in travel panel with cost previews and affordability indicators.
+**Goal:** Region-based travel cost system where within-region travel costs 5 stamina per character and cross-region travel costs 10 stamina per character plus a 5-minute cooldown. All group members must afford travel or the group move fails. Travel UI shows cost indicators and cooldown countdowns.
 **Depends on:** Phase 4
 **Plans:** 2 plans
 
 Plans:
-- [ ] 10-01-PLAN.md — Backend: BFS distance calculation, TRAVEL_CONFIG constants, TravelCooldown table, move_character reducer with distance-based cost validation and deduction
-- [ ] 10-02-PLAN.md — Frontend: Publish module, regenerate bindings, client-side BFS for reachable locations, cost preview UI, cooldown countdown display, human verification
+- [ ] 10-01-PLAN.md — Backend: TRAVEL_CONFIG constants, TravelCooldown table, move_character reducer with region-based stamina costs, group-wide validation, and per-character cooldown
+- [ ] 10-02-PLAN.md — Frontend: Publish module, regenerate bindings, TravelPanel cost indicators, cooldown countdown display, affordability gating, human verification
 
 ### Phase 11: Death & Corpse System - Corpse mechanic for level 5+ characters, equipped items stay while inventory drops to corpse, corpse retrieval mechanics, death penalties and resurrection
 
