@@ -86,7 +86,6 @@ export const registerCommandReducers = (deps: any) => {
 
     // Greeting goes to Journal (NPC Dialog panel), not Log
     appendNpcDialog(ctx, character.id, npc.id, greeting);
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', greeting);
 
     // Award small affinity for greeting (if cooldown allows)
     if (canConverseWithNpc(ctx, character.id, npc.id)) {
@@ -106,7 +105,6 @@ export const registerCommandReducers = (deps: any) => {
           const progress = `${active.progress}/${quest.requiredCount}`;
           const reminder = `${npc.name} says, "You are still working on ${quest.name} (${progress})."`;
           appendNpcDialog(ctx, character.id, npc.id, reminder);
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', reminder);
         }
         continue;
       }
@@ -129,7 +127,6 @@ export const registerCommandReducers = (deps: any) => {
       });
       const offer = `${npc.name} offers you "${quest.name}". Objective: Slay ${quest.requiredCount} ${targetNameText}(s).${habitat}`;
       appendNpcDialog(ctx, character.id, npc.id, offer);
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', offer);
       return;
     }
   };

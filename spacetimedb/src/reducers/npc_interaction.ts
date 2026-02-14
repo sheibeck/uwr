@@ -1,6 +1,6 @@
 import { SenderError } from 'spacetimedb/server';
 import { awardNpcAffinity, getAffinityForNpc, getAffinityRow } from '../helpers/npc_affinity';
-import { appendNpcDialog, appendPrivateEvent, fail, requireCharacterOwnedBy } from '../helpers/events';
+import { appendNpcDialog, appendSystemMessage, fail, requireCharacterOwnedBy } from '../helpers/events';
 
 export const registerNpcInteractionReducers = (deps: any) => {
   const { spacetimedb, t } = deps;
@@ -70,12 +70,10 @@ export const registerNpcInteractionReducers = (deps: any) => {
     // Log the player's dialogue choice to Journal
     const playerLine = `You say, "${option.playerText}"`;
     appendNpcDialog(ctx, character.id, npc.id, playerLine);
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', playerLine);
 
     // Log the NPC's response to Journal
     const npcLine = `${npc.name} says, "${option.npcResponse}"`;
     appendNpcDialog(ctx, character.id, npc.id, npcLine);
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', npcLine);
   });
 
   // Give an inventory item to an NPC as a gift
@@ -141,11 +139,12 @@ export const registerNpcInteractionReducers = (deps: any) => {
     }
     // If no affinityRow exists, awardNpcAffinity already created one
 
-    // IMPORTANT: Gift dialogue goes to Journal, NOT to Log
+    // IMPORTANT: Gift notification to Log, full conversation to Journal
+    appendSystemMessage(ctx, character, `You gave ${template.name} to ${npc.name}.`);
+
     // Log the gift to Journal
     const giftMsg = `You give ${template.name} to ${npc.name}. (+${affinityGain} affinity)`;
     appendNpcDialog(ctx, character.id, npc.id, giftMsg);
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', giftMsg);
 
     // NPC reaction based on current affinity (goes to Journal)
     const newAffinity = Number(getAffinityForNpc(ctx, character.id, npcId));
@@ -160,6 +159,5 @@ export const registerNpcInteractionReducers = (deps: any) => {
       reaction = `${npc.name} takes the offering with a brief nod.`;
     }
     appendNpcDialog(ctx, character.id, npc.id, reaction);
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', reaction);
   });
 };
