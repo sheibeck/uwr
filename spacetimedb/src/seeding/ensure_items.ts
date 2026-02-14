@@ -761,7 +761,7 @@ export function ensureAbilityTemplates(ctx: any) {
       castSeconds: entry.castSeconds,
       cooldownSeconds: entry.cooldownSeconds,
       kind: utilityKeys.has(key) ? 'utility' : 'combat',
-      combatState: combatStateFor(key),
+      combatState: combatStateFor(key, entry),
       description: resolveDescription(entry),
       power: entry.power ?? undefined,
       damageType: entry.damageType ?? undefined,

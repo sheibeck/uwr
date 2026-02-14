@@ -200,6 +200,18 @@ import LootCorpseItemReducer from "./loot_corpse_item_reducer";
 export { LootCorpseItemReducer };
 import LootAllCorpseReducer from "./loot_all_corpse_reducer";
 export { LootAllCorpseReducer };
+import InitiateResurrectReducer from "./initiate_resurrect_reducer";
+export { InitiateResurrectReducer };
+import AcceptResurrectReducer from "./accept_resurrect_reducer";
+export { AcceptResurrectReducer };
+import DeclineResurrectReducer from "./decline_resurrect_reducer";
+export { DeclineResurrectReducer };
+import InitiateCorpseSummonReducer from "./initiate_corpse_summon_reducer";
+export { InitiateCorpseSummonReducer };
+import AcceptCorpseSummonReducer from "./accept_corpse_summon_reducer";
+export { AcceptCorpseSummonReducer };
+import DeclineCorpseSummonReducer from "./decline_corpse_summon_reducer";
+export { DeclineCorpseSummonReducer };
 import EatFoodReducer from "./eat_food_reducer";
 export { EatFoodReducer };
 import ChoosePerkReducer from "./choose_perk_reducer";
@@ -356,6 +368,10 @@ import NpcRow from "./npc_table";
 export { NpcRow };
 import NpcDialogRow from "./npc_dialog_table";
 export { NpcDialogRow };
+import PendingCorpseSummonRow from "./pending_corpse_summon_table";
+export { PendingCorpseSummonRow };
+import PendingResurrectRow from "./pending_resurrect_table";
+export { PendingResurrectRow };
 import PlayerRow from "./player_table";
 export { PlayerRow };
 import PullStateRow from "./pull_state_table";
@@ -408,10 +424,14 @@ import AbilityCooldown from "./ability_cooldown_type";
 export { AbilityCooldown };
 import AbilityTemplate from "./ability_template_type";
 export { AbilityTemplate };
+import AcceptCorpseSummon from "./accept_corpse_summon_type";
+export { AcceptCorpseSummon };
 import AcceptFriendRequest from "./accept_friend_request_type";
 export { AcceptFriendRequest };
 import AcceptGroupInvite from "./accept_group_invite_type";
 export { AcceptGroupInvite };
+import AcceptResurrect from "./accept_resurrect_type";
+export { AcceptResurrect };
 import Achievement from "./achievement_type";
 export { Achievement };
 import AddTradeItem from "./add_trade_item_type";
@@ -480,6 +500,10 @@ import CreateItemTemplate from "./create_item_template_type";
 export { CreateItemTemplate };
 import DayNightTick from "./day_night_tick_type";
 export { DayNightTick };
+import DeclineCorpseSummon from "./decline_corpse_summon_type";
+export { DeclineCorpseSummon };
+import DeclineResurrect from "./decline_resurrect_type";
+export { DeclineResurrect };
 import DeleteCharacter from "./delete_character_type";
 export { DeleteCharacter };
 import DeleteItem from "./delete_item_type";
@@ -554,6 +578,10 @@ import HotbarSlot from "./hotbar_slot_type";
 export { HotbarSlot };
 import Init from "./init_type";
 export { Init };
+import InitiateCorpseSummon from "./initiate_corpse_summon_type";
+export { InitiateCorpseSummon };
+import InitiateResurrect from "./initiate_resurrect_type";
+export { InitiateResurrect };
 import InviteToGroup from "./invite_to_group_type";
 export { InviteToGroup };
 import ItemCooldown from "./item_cooldown_type";
@@ -630,6 +658,10 @@ import OnConnect from "./on_connect_type";
 export { OnConnect };
 import OnDisconnect from "./on_disconnect_type";
 export { OnDisconnect };
+import PendingCorpseSummon from "./pending_corpse_summon_type";
+export { PendingCorpseSummon };
+import PendingResurrect from "./pending_resurrect_type";
+export { PendingResurrect };
 import Player from "./player_type";
 export { Player };
 import PromoteGroupLeader from "./promote_group_leader_type";
@@ -1581,6 +1613,40 @@ const tablesSchema = __schema(
     ],
   }, NpcDialogRow),
   __table({
+    name: 'pending_corpse_summon',
+    indexes: [
+      { name: 'by_caster', algorithm: 'btree', columns: [
+        'casterCharacterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_target', algorithm: 'btree', columns: [
+        'targetCharacterId',
+      ] },
+    ],
+    constraints: [
+      { name: 'pending_corpse_summon_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, PendingCorpseSummonRow),
+  __table({
+    name: 'pending_resurrect',
+    indexes: [
+      { name: 'by_caster', algorithm: 'btree', columns: [
+        'casterCharacterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_target', algorithm: 'btree', columns: [
+        'targetCharacterId',
+      ] },
+    ],
+    constraints: [
+      { name: 'pending_resurrect_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, PendingResurrectRow),
+  __table({
     name: 'player',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -2092,6 +2158,12 @@ const reducersSchema = __reducers(
   __reducerSchema("combat_loop", CombatLoopReducer),
   __reducerSchema("loot_corpse_item", LootCorpseItemReducer),
   __reducerSchema("loot_all_corpse", LootAllCorpseReducer),
+  __reducerSchema("initiate_resurrect", InitiateResurrectReducer),
+  __reducerSchema("accept_resurrect", AcceptResurrectReducer),
+  __reducerSchema("decline_resurrect", DeclineResurrectReducer),
+  __reducerSchema("initiate_corpse_summon", InitiateCorpseSummonReducer),
+  __reducerSchema("accept_corpse_summon", AcceptCorpseSummonReducer),
+  __reducerSchema("decline_corpse_summon", DeclineCorpseSummonReducer),
   __reducerSchema("eat_food", EatFoodReducer),
   __reducerSchema("choose_perk", ChoosePerkReducer),
   __reducerSchema("grant_test_renown", GrantTestRenownReducer),
