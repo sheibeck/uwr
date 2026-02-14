@@ -97,15 +97,15 @@ const addEnemyToCombat = (
     nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
   });
 
-    for (const p of participants) {
-      ctx.db.aggroEntry.insert({
-        id: 0n,
-        combatId: combat.id,
-        enemyId: combatEnemy.id,
-        characterId: p.id,
-        petId: undefined,
-        value: 0n,
-      });
+  for (const p of participants) {
+    ctx.db.aggroEntry.insert({
+      id: 0n,
+      combatId: combat.id,
+      enemyId: combatEnemy.id,
+      characterId: p.id,
+      petId: undefined,
+      value: 0n,
+    });
     const current = ctx.db.character.id.find(p.id);
     if (current && !current.combatTargetEnemyId) {
       ctx.db.character.id.update({ ...current, combatTargetEnemyId: combatEnemy.id });
@@ -611,12 +611,12 @@ export const registerCombatReducers = (deps: any) => {
     }
     const locationId = character.locationId;
 
-      const pullerCheck = requirePullerOrLog(ctx, character, fail, 'Only the group puller can start combat.');
-      if (!pullerCheck.ok) return;
-      let groupId: bigint | null = pullerCheck.groupId;
+    const pullerCheck = requirePullerOrLog(ctx, character, fail, 'Only the group puller can start combat.');
+    if (!pullerCheck.ok) return;
+    let groupId: bigint | null = pullerCheck.groupId;
 
     // Determine participants (virtual solo group)
-      const participants: typeof deps.Character.rowType[] = getGroupOrSoloParticipants(ctx, character);
+    const participants: typeof deps.Character.rowType[] = getGroupOrSoloParticipants(ctx, character);
     if (participants.length === 0) return failCombat(ctx, character, 'No participants available');
     for (const p of participants) {
       if (activeCombatIdForCharacter(ctx, p.id)) {
@@ -639,13 +639,13 @@ export const registerCombatReducers = (deps: any) => {
     { characterId: t.u64(), enemyTemplateId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
-    if (activeGather) {
-      return failCombat(ctx, character, 'Cannot start combat while gathering');
-    }
-    if (activeCombatIdForCharacter(ctx, character.id)) {
-      return failCombat(ctx, character, 'Already in combat');
-    }
+      const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
+      if (activeGather) {
+        return failCombat(ctx, character, 'Cannot start combat while gathering');
+      }
+      if (activeCombatIdForCharacter(ctx, character.id)) {
+        return failCombat(ctx, character, 'Already in combat');
+      }
       const locationId = character.locationId;
       const pullerCheck = requirePullerOrLog(ctx, character, fail, 'Only the group puller can start combat.');
       if (!pullerCheck.ok) return;
@@ -994,37 +994,37 @@ export const registerCombatReducers = (deps: any) => {
     'dismiss_combat_results',
     { characterId: t.u64(), force: t.bool().optional() },
     (ctx, args) => {
-    const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const groupId = effectiveGroupId(character);
-    if (groupId) {
-      // Each character dismisses only their own result and loot
-      const myResults = [...ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)]
-        .filter(r => r.groupId && r.groupId === groupId);
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const groupId = effectiveGroupId(character);
+      if (groupId) {
+        // Each character dismisses only their own result and loot
+        const myResults = [...ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)]
+          .filter(r => r.groupId && r.groupId === groupId);
+        const combatIds = new Set<bigint>();
+        for (const row of myResults) {
+          combatIds.add(row.combatId);
+          ctx.db.combatResult.id.delete(row.id);
+        }
+        // Delete only this character's loot
+        for (const combatId of combatIds) {
+          for (const loot of ctx.db.combatLoot.by_character.filter(character.id)) {
+            if (loot.combatId === combatId) {
+              ctx.db.combatLoot.id.delete(loot.id);
+            }
+          }
+        }
+        return;
+      }
       const combatIds = new Set<bigint>();
-      for (const row of myResults) {
+      for (const row of ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)) {
         combatIds.add(row.combatId);
         ctx.db.combatResult.id.delete(row.id);
       }
-      // Delete only this character's loot
       for (const combatId of combatIds) {
-        for (const loot of ctx.db.combatLoot.by_character.filter(character.id)) {
-          if (loot.combatId === combatId) {
-            ctx.db.combatLoot.id.delete(loot.id);
-          }
+        for (const loot of ctx.db.combatLoot.by_combat.filter(combatId)) {
+          ctx.db.combatLoot.id.delete(loot.id);
         }
       }
-      return;
-    }
-    const combatIds = new Set<bigint>();
-    for (const row of ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)) {
-      combatIds.add(row.combatId);
-      ctx.db.combatResult.id.delete(row.id);
-    }
-    for (const combatId of combatIds) {
-      for (const loot of ctx.db.combatLoot.by_combat.filter(combatId)) {
-        ctx.db.combatLoot.id.delete(loot.id);
-      }
-    }
     }
   );
 
@@ -1082,10 +1082,10 @@ export const registerCombatReducers = (deps: any) => {
 
   const HP_REGEN_OUT = 6n;
   const MANA_REGEN_OUT = 5n;
-  const STAMINA_REGEN_OUT = 5n;
+  const STAMINA_REGEN_OUT = 3n;
   const HP_REGEN_IN = 2n;
   const MANA_REGEN_IN = 2n;
-  const STAMINA_REGEN_IN = 2n;
+  const STAMINA_REGEN_IN = 1n;
   const REGEN_TICK_MICROS = 8_000_000n;
   const EFFECT_TICK_MICROS = 10_000_000n;
   const HOT_TICK_MICROS = 3_000_000n;
@@ -2273,43 +2273,43 @@ export const registerCombatReducers = (deps: any) => {
               aggroTargetCharacterId: undefined,
             });
           } else {
-          const targetName = topPet.name;
-          const outcomeSeed = nowMicros + enemySnapshot.id + topPet.id;
-          const { nextHp } = resolveAttack(ctx, {
-            seed: outcomeSeed,
-            baseDamage: enemySnapshot.attackDamage,
-            targetArmor: 0n,
-            canBlock: false,
-            canParry: false,
-            canDodge: true,
-            currentHp: topPet.currentHp,
-            logTargetId: owner.id,
-            logOwnerId: owner.ownerUserId,
-            messages: {
-              dodge: `${targetName} dodges ${name}'s attack.`,
-              miss: `${name} misses ${targetName}.`,
-              parry: `${name} is deflected by ${targetName}.`,
-              block: (damage) => `${targetName} blocks ${name}'s attack for ${damage}.`,
-              hit: (damage) => `${name} hits ${targetName} for ${damage}.`,
-            },
-            applyHp: (updatedHp) => {
-              ctx.db.combatPet.id.update({ ...topPet, currentHp: updatedHp });
-            },
-          });
-          if (nextHp === 0n) {
-            ctx.db.combatPet.id.delete(topPet.id);
-            for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
-              if (entry.petId && entry.petId === topPet.id) {
-                ctx.db.aggroEntry.id.delete(entry.id);
+            const targetName = topPet.name;
+            const outcomeSeed = nowMicros + enemySnapshot.id + topPet.id;
+            const { nextHp } = resolveAttack(ctx, {
+              seed: outcomeSeed,
+              baseDamage: enemySnapshot.attackDamage,
+              targetArmor: 0n,
+              canBlock: false,
+              canParry: false,
+              canDodge: true,
+              currentHp: topPet.currentHp,
+              logTargetId: owner.id,
+              logOwnerId: owner.ownerUserId,
+              messages: {
+                dodge: `${targetName} dodges ${name}'s attack.`,
+                miss: `${name} misses ${targetName}.`,
+                parry: `${name} is deflected by ${targetName}.`,
+                block: (damage) => `${targetName} blocks ${name}'s attack for ${damage}.`,
+                hit: (damage) => `${name} hits ${targetName} for ${damage}.`,
+              },
+              applyHp: (updatedHp) => {
+                ctx.db.combatPet.id.update({ ...topPet, currentHp: updatedHp });
+              },
+            });
+            if (nextHp === 0n) {
+              ctx.db.combatPet.id.delete(topPet.id);
+              for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+                if (entry.petId && entry.petId === topPet.id) {
+                  ctx.db.aggroEntry.id.delete(entry.id);
+                }
               }
             }
-          }
-          ctx.db.combatEnemy.id.update({
-            ...enemySnapshot,
-            nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
-            aggroTargetCharacterId: topAggro.characterId,
-            aggroTargetPetId: topPet.id,
-          });
+            ctx.db.combatEnemy.id.update({
+              ...enemySnapshot,
+              nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
+              aggroTargetCharacterId: topAggro.characterId,
+              aggroTargetPetId: topPet.id,
+            });
           }
         } else {
           const targetCharacter = ctx.db.character.id.find(topAggro.characterId);
