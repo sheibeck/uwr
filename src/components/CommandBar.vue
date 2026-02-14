@@ -129,20 +129,19 @@ const onKeydown = (event: KeyboardEvent) => {
   }
 
   if (event.key === 'Enter' && highlighted.value) {
+    event.preventDefault();
     const trimmed = props.commandText.trim();
     const hasArgs = trimmed.includes(' ') && trimmed.length > highlighted.value.length;
-    if (!hasArgs && trimmed !== highlighted.value && trimmed !== '/') {
-      return;
-    }
-    if (!hasArgs && trimmed === '/') {
-      event.preventDefault();
-      selectCommand(highlighted.value);
-      return;
-    }
-    if (!hasArgs && trimmed === highlighted.value) {
+
+    if (trimmed === highlighted.value || hasArgs) {
+      // Full command typed (with or without args) — execute it
       highlighted.value = null;
-      return;
+      emit('submit');
+    } else {
+      // Partial match — fill in the highlighted command
+      selectCommand(highlighted.value);
     }
+    return;
   }
 
   if (event.key === 'Escape') {
