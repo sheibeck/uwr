@@ -5648,7 +5648,7 @@ function ensureWorldLayout(ctx: any) {
     description: 'A cracked highway flanked by dead trees and drifting embers.',
     zone: 'Starter',
     regionId: starter.id,
-    levelOffset: 0n,
+    levelOffset: 1n,
     isSafe: false,
     terrainType: 'plains',
     bindStone: true,
@@ -5659,7 +5659,7 @@ function ensureWorldLayout(ctx: any) {
     description: 'Twisted roots and slick stones mark a shadowy crossing.',
     zone: 'Starter',
     regionId: starter.id,
-    levelOffset: 1n,
+    levelOffset: 2n,
     isSafe: false,
     terrainType: 'swamp',
     bindStone: false,
@@ -5670,9 +5670,75 @@ function ensureWorldLayout(ctx: any) {
     description: 'A dense thicket where tangled branches muffle the light.',
     zone: 'Starter',
     regionId: starter.id,
-    levelOffset: 1n,
+    levelOffset: 2n,
     isSafe: false,
     terrainType: 'woods',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const willowfen = upsertLocationByName({
+    name: 'Willowfen',
+    description: 'Drooping willows arch over stagnant pools buzzing with marsh flies.',
+    zone: 'Starter',
+    regionId: starter.id,
+    levelOffset: 1n,
+    isSafe: false,
+    terrainType: 'swamp',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const ironbell = upsertLocationByName({
+    name: 'Ironbell Farmstead',
+    description: 'An abandoned farmstead where a rusted bell still hangs in the rafters.',
+    zone: 'Starter',
+    regionId: starter.id,
+    levelOffset: 0n,
+    isSafe: true,
+    terrainType: 'plains',
+    bindStone: true,
+    craftingAvailable: false,
+  });
+  const duskwater = upsertLocationByName({
+    name: 'Duskwater Shallows',
+    description: 'Ankle-deep water stretches across a grey mudflat dotted with reeds.',
+    zone: 'Starter',
+    regionId: starter.id,
+    levelOffset: 1n,
+    isSafe: false,
+    terrainType: 'swamp',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const thornveil = upsertLocationByName({
+    name: 'Thornveil Thicket',
+    description: 'Barbed vines weave a living wall between ancient oaks.',
+    zone: 'Starter',
+    regionId: starter.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'woods',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const lichenRidge = upsertLocationByName({
+    name: 'Lichen Ridge',
+    description: 'A low ridge of mossy boulders overlooking the marshlands below.',
+    zone: 'Starter',
+    regionId: starter.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'mountains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const cairnMeadow = upsertLocationByName({
+    name: 'Cairn Meadow',
+    description: 'Tall grass sways around weathered stone cairns left by forgotten travelers.',
+    zone: 'Starter',
+    regionId: starter.id,
+    levelOffset: 1n,
+    isSafe: false,
+    terrainType: 'plains',
     bindStone: false,
     craftingAvailable: false,
   });
@@ -5695,6 +5761,94 @@ function ensureWorldLayout(ctx: any) {
     levelOffset: 5n,
     isSafe: false,
     terrainType: 'plains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const slagstone = upsertLocationByName({
+    name: 'Slagstone Waystation',
+    description: 'A crumbling waystation built from dark volcanic stone, offering meager shelter.',
+    zone: 'Border',
+    regionId: border.id,
+    levelOffset: 3n,
+    isSafe: true,
+    terrainType: 'town',
+    bindStone: true,
+    craftingAvailable: true,
+  });
+  const scoria = upsertLocationByName({
+    name: 'Scoria Flats',
+    description: 'Black glass shards crunch underfoot across a blasted volcanic plain.',
+    zone: 'Border',
+    regionId: border.id,
+    levelOffset: 4n,
+    isSafe: false,
+    terrainType: 'plains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const brimstone = upsertLocationByName({
+    name: 'Brimstone Gulch',
+    description: 'Sulfurous fumes rise from cracks in this narrow ravine.',
+    zone: 'Border',
+    regionId: border.id,
+    levelOffset: 4n,
+    isSafe: false,
+    terrainType: 'mountains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const charwood = upsertLocationByName({
+    name: 'Charwood Copse',
+    description: 'Petrified trees stand like black sentinels in this scorched woodland.',
+    zone: 'Border',
+    regionId: border.id,
+    levelOffset: 5n,
+    isSafe: false,
+    terrainType: 'woods',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const smolder = upsertLocationByName({
+    name: 'Smolder Marsh',
+    description: 'Steam curls from warm, bubbling pools in this geothermal swamp.',
+    zone: 'Border',
+    regionId: border.id,
+    levelOffset: 5n,
+    isSafe: false,
+    terrainType: 'swamp',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const ironvein = upsertLocationByName({
+    name: 'Ironvein Pass',
+    description: 'Exposed ore veins streak the walls of this wind-scoured mountain pass.',
+    zone: 'Border',
+    regionId: border.id,
+    levelOffset: 6n,
+    isSafe: false,
+    terrainType: 'mountains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const pyre = upsertLocationByName({
+    name: 'Pyre Overlook',
+    description: 'A scorched clifftop with a commanding view of the ember-lit valleys below.',
+    zone: 'Border',
+    regionId: border.id,
+    levelOffset: 6n,
+    isSafe: false,
+    terrainType: 'mountains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const ashfen = upsertLocationByName({
+    name: 'Ashfen Hollow',
+    description: 'Ash-grey reeds choke a low basin where embers drift on the wind.',
+    zone: 'Border',
+    regionId: border.id,
+    levelOffset: 4n,
+    isSafe: false,
+    terrainType: 'swamp',
     bindStone: false,
     craftingAvailable: false,
   });
@@ -5731,6 +5885,83 @@ function ensureWorldLayout(ctx: any) {
     bindStone: false,
     craftingAvailable: false,
   });
+  const slagTunnels = upsertLocationByName({
+    name: 'Slag Tunnels',
+    description: 'Narrow passages carved by ancient lava flows, walls still warm to the touch.',
+    zone: 'Dungeon',
+    regionId: embermarchDepths.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const crucible = upsertLocationByName({
+    name: 'The Crucible',
+    description: 'A vast underground forge hall where molten metal once flowed like rivers.',
+    zone: 'Dungeon',
+    regionId: embermarchDepths.id,
+    levelOffset: 4n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const bonecinder = upsertLocationByName({
+    name: 'Bonecinder Gallery',
+    description: 'Charred skeletal remains line alcoves in this grim processional corridor.',
+    zone: 'Dungeon',
+    regionId: embermarchDepths.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const embervault = upsertLocationByName({
+    name: 'Embervault Sanctum',
+    description: 'A sealed chamber where restless embers orbit a cracked obsidian altar.',
+    zone: 'Dungeon',
+    regionId: embermarchDepths.id,
+    levelOffset: 5n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const cinderWellspring = upsertLocationByName({
+    name: 'Cinder Wellspring',
+    description: 'A deep shaft where magma glows far below, heating the stone floor above.',
+    zone: 'Dungeon',
+    regionId: embermarchDepths.id,
+    levelOffset: 5n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const gloomspire = upsertLocationByName({
+    name: 'Gloomspire Landing',
+    description: 'A wide ledge overlooking a bottomless chasm spanned by a chain bridge.',
+    zone: 'Dungeon',
+    regionId: embermarchDepths.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: true,
+    craftingAvailable: false,
+  });
+  const ashwarden = upsertLocationByName({
+    name: 'Ashwarden Throne',
+    description: 'The deepest chamber where an empty throne of fused iron and bone awaits.',
+    zone: 'Dungeon',
+    regionId: embermarchDepths.id,
+    levelOffset: 6n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
 
   const world = getWorldState(ctx);
   if (world) {
@@ -5747,14 +5978,58 @@ function ensureWorldLayout(ctx: any) {
     });
   }
 
+  // Hollowmere Vale connections (keep existing + add new)
   connectIfMissing(town.id, ashen.id);
+  connectIfMissing(town.id, ironbell.id);
+  connectIfMissing(town.id, cairnMeadow.id);
   connectIfMissing(ashen.id, fogroot.id);
+  connectIfMissing(ashen.id, cairnMeadow.id);
+  connectIfMissing(ashen.id, lichenRidge.id);
   connectIfMissing(fogroot.id, bramble.id);
+  connectIfMissing(fogroot.id, willowfen.id);
+  connectIfMissing(fogroot.id, duskwater.id);
+  connectIfMissing(bramble.id, thornveil.id);
+  connectIfMissing(willowfen.id, duskwater.id);
+  connectIfMissing(thornveil.id, lichenRidge.id);
+  connectIfMissing(ironbell.id, cairnMeadow.id);
+
+  // Cross-region connection: Hollowmere Vale -> Embermarch Fringe
   connectIfMissing(fogroot.id, gate.id);
+
+  // Embermarch Fringe connections (keep existing + add new)
   connectIfMissing(gate.id, cinder.id);
+  connectIfMissing(gate.id, slagstone.id);
+  connectIfMissing(gate.id, scoria.id);
+  connectIfMissing(gate.id, ashfen.id);
+  connectIfMissing(slagstone.id, brimstone.id);
+  connectIfMissing(slagstone.id, scoria.id);
+  connectIfMissing(scoria.id, charwood.id);
+  connectIfMissing(scoria.id, ashfen.id);
+  connectIfMissing(brimstone.id, ironvein.id);
+  connectIfMissing(charwood.id, smolder.id);
+  connectIfMissing(cinder.id, charwood.id);
+  connectIfMissing(cinder.id, pyre.id);
+  connectIfMissing(ironvein.id, pyre.id);
+  connectIfMissing(smolder.id, ashfen.id);
+
+  // Cross-region connection: Embermarch Fringe -> Embermarch Depths
   connectIfMissing(gate.id, ashvault.id);
+
+  // Embermarch Depths connections (keep existing + add new)
   connectIfMissing(ashvault.id, sootveil.id);
+  connectIfMissing(ashvault.id, slagTunnels.id);
+  connectIfMissing(ashvault.id, bonecinder.id);
+  connectIfMissing(slagTunnels.id, gloomspire.id);
+  connectIfMissing(sootveil.id, bonecinder.id);
+  connectIfMissing(sootveil.id, crucible.id);
   connectIfMissing(sootveil.id, furnace.id);
+  connectIfMissing(bonecinder.id, gloomspire.id);
+  connectIfMissing(gloomspire.id, crucible.id);
+  connectIfMissing(crucible.id, cinderWellspring.id);
+  connectIfMissing(furnace.id, embervault.id);
+  connectIfMissing(furnace.id, cinderWellspring.id);
+  connectIfMissing(cinderWellspring.id, ashwarden.id);
+  connectIfMissing(embervault.id, ashwarden.id);
 }
 
 function ensureEnemyTemplatesAndRoles(ctx: any) {
