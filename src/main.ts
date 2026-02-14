@@ -8,7 +8,8 @@ import { getStoredIdToken, handleSpacetimeAuthCallback } from './auth/spacetimeA
 const HOST = import.meta.env.VITE_SPACETIMEDB_HOST ?? 'ws://localhost:3000';
 const DB_NAME = import.meta.env.VITE_SPACETIMEDB_DB_NAME ?? 'uwr';
 
-const onConnect = (_conn: DbConnection, identity: Identity) => {
+const onConnect = (conn: DbConnection, identity: Identity) => {
+  window.__db_conn = conn;
   window.__my_identity = identity;
   console.log(
     'Connected to SpacetimeDB with identity:',
@@ -48,6 +49,7 @@ void bootstrap();
 
 declare global {
   interface Window {
+    __db_conn?: DbConnection;
     __my_identity?: Identity;
   }
 }
