@@ -72,6 +72,7 @@ const highlighted = ref<string | null>(null);
     { value: '/leave', hint: 'Leave current group' },
     { value: '/endcombat', hint: 'Force end current combat (leader)' },
     { value: '/synccontent', hint: 'Sync server content tables' },
+    { value: '/grantrenown', hint: 'Grant test renown points' },
   ];
 
 const shouldShowSuggestions = computed(() => {

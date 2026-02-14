@@ -63,9 +63,6 @@
     <!-- Renown Tab -->
     <div v-else-if="activeTab === 'renown'">
       <div v-if="!selectedCharacter" :style="styles.subtle">Select a character.</div>
-      <div v-else-if="!renownData" :style="styles.subtle">
-        No renown data yet. Earn renown by defeating enemies and completing achievements!
-      </div>
       <div v-else>
         <!-- Current Rank Display -->
         <div :style="{ ...styles.resultCard, marginBottom: '16px' }">

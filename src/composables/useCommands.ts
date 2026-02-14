@@ -31,6 +31,7 @@ export const useCommands = ({
   const endCombatReducer = useReducer(reducers.endCombat);
   const friendReducer = useReducer(reducers.sendFriendRequestToCharacter);
   const levelReducer = useReducer(reducers.levelCharacter);
+  const grantTestRenownReducer = useReducer(reducers.grantTestRenown);
   const commandText = ref('');
 
   const submitCommand = () => {
@@ -146,6 +147,13 @@ export const useCommands = ({
       levelReducer({
         characterId: selectedCharacter.value.id,
         level: BigInt(Math.floor(value)),
+      });
+    } else if (lower.startsWith('/grantrenown ')) {
+      const value = Number(raw.slice(13).trim());
+      if (!Number.isFinite(value) || value < 1) return;
+      grantTestRenownReducer({
+        characterId: selectedCharacter.value.id,
+        points: BigInt(Math.floor(value)),
       });
     } else {
       submitCommandReducer({
