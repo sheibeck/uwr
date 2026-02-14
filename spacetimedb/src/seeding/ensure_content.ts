@@ -16,7 +16,7 @@ import {
   ensureRecipeTemplates,
   ensureAbilityTemplates
 } from './ensure_items';
-import { ensureNpcs, ensureQuestTemplates, ensureWorldLayout, ensureEnemyAbilities } from './ensure_world';
+import { ensureNpcs, ensureQuestTemplates, ensureWorldLayout, ensureEnemyAbilities, ensureDialogueOptions } from './ensure_world';
 import { ensureLootTables, ensureVendorInventory, ensureLocationEnemyTemplates, ensureEnemyTemplatesAndRoles } from './ensure_enemies';
 import {
   DAY_DURATION_MICROS,
@@ -85,6 +85,7 @@ export function syncAllContent(ctx: any) {
   ensureAbilityTemplates(ctx);
   ensureRecipeTemplates(ctx);
   ensureNpcs(ctx);
+  ensureDialogueOptions(ctx);
   ensureQuestTemplates(ctx);
   ensureEnemyTemplatesAndRoles(ctx);
   ensureEnemyAbilities(ctx);

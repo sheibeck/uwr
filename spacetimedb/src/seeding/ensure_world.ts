@@ -6,6 +6,8 @@ import {
   getWorldState,
   DAY_DURATION_MICROS,
 } from '../helpers/location';
+import { NPC_PERSONALITIES } from '../data/npc_data';
+import { NPC_DIALOGUE_OPTIONS } from '../data/dialogue_data';
 
 export function ensureNpcs(ctx: any) {
   const upsertNpcByName = (args: {
@@ -14,6 +16,9 @@ export function ensureNpcs(ctx: any) {
     locationName: string;
     description: string;
     greeting: string;
+    factionId?: bigint;
+    personalityJson?: string;
+    baseMood?: string;
   }) => {
     const location = [...ctx.db.location.iter()].find((row) => row.name === args.locationName);
     if (!location) return;
@@ -26,6 +31,9 @@ export function ensureNpcs(ctx: any) {
         locationId: location.id,
         description: args.description,
         greeting: args.greeting,
+        factionId: args.factionId,
+        personalityJson: args.personalityJson,
+        baseMood: args.baseMood,
       });
       return;
     }
@@ -36,8 +44,20 @@ export function ensureNpcs(ctx: any) {
       locationId: location.id,
       description: args.description,
       greeting: args.greeting,
+      factionId: args.factionId,
+      personalityJson: args.personalityJson,
+      baseMood: args.baseMood,
     });
   };
+
+  // Lookup Iron Compact faction
+  let ironCompactFactionId: bigint | undefined = undefined;
+  for (const f of ctx.db.faction.iter()) {
+    if (f.name === 'Iron Compact') {
+      ironCompactFactionId = f.id;
+      break;
+    }
+  }
 
   upsertNpcByName({
     name: 'Marla the Guide',
@@ -45,6 +65,8 @@ export function ensureNpcs(ctx: any) {
     locationName: 'Hollowmere',
     description: 'A veteran scout who knows every trail between the river and the emberlands.',
     greeting: 'Welcome, traveler. The road is cruel, but I can help you find your footing.',
+    baseMood: 'focused',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.veteran_scout),
   });
   upsertNpcByName({
     name: 'Elder Soren',
@@ -52,6 +74,8 @@ export function ensureNpcs(ctx: any) {
     locationName: 'Hollowmere',
     description: 'A stoic town elder with a gaze that weighs every word.',
     greeting: 'Hollowmere watches over its own. Keep your blade sharp and your wits sharper.',
+    baseMood: 'contemplative',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.wise_elder),
   });
   upsertNpcByName({
     name: 'Quartermaster Jyn',
@@ -59,6 +83,9 @@ export function ensureNpcs(ctx: any) {
     locationName: 'Hollowmere',
     description: 'A brisk quartermaster tallying supplies near the lantern-lit market.',
     greeting: 'Supplies are tight. If you can help keep the roads safe, the town will remember.',
+    baseMood: 'brisk',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.friendly_merchant),
+    factionId: ironCompactFactionId,
   });
 }
 
@@ -685,5 +712,74 @@ export function ensureWorldLayout(ctx: any) {
   connectIfMissing(furnace.id, cinderWellspring.id);
   connectIfMissing(cinderWellspring.id, ashwarden.id);
   connectIfMissing(embervault.id, ashwarden.id);
+}
+
+export function ensureDialogueOptions(ctx: any) {
+  for (const option of NPC_DIALOGUE_OPTIONS) {
+    // Resolve npcName to npcId
+    let npcId: bigint | null = null;
+    for (const npc of ctx.db.npc.iter()) {
+      if (npc.name === option.npcName) {
+        npcId = npc.id;
+        break;
+      }
+    }
+    if (!npcId) continue;
+
+    // Resolve parentOptionKey to parentOptionId (if set)
+    let parentOptionId: bigint | undefined = undefined;
+    if (option.parentOptionKey) {
+      for (const opt of ctx.db.npcDialogueOption.by_npc.filter(npcId)) {
+        if (opt.optionKey === option.parentOptionKey) {
+          parentOptionId = opt.id;
+          break;
+        }
+      }
+      if (!parentOptionId) continue; // Parent not found, skip this option
+    }
+
+    // Check if option already exists
+    let existing: any = null;
+    for (const opt of ctx.db.npcDialogueOption.by_npc.filter(npcId)) {
+      if (opt.optionKey === option.optionKey) {
+        existing = opt;
+        break;
+      }
+    }
+
+    if (existing) {
+      // Update existing option
+      ctx.db.npcDialogueOption.id.update({
+        ...existing,
+        npcId,
+        parentOptionId,
+        optionKey: option.optionKey,
+        playerText: option.playerText,
+        npcResponse: option.npcResponse,
+        requiredAffinity: option.requiredAffinity,
+        requiredFactionId: undefined,
+        requiredFactionStanding: undefined,
+        requiredRenownRank: undefined,
+        affinityChange: option.affinityChange,
+        sortOrder: option.sortOrder,
+      });
+    } else {
+      // Insert new option
+      ctx.db.npcDialogueOption.insert({
+        id: 0n,
+        npcId,
+        parentOptionId,
+        optionKey: option.optionKey,
+        playerText: option.playerText,
+        npcResponse: option.npcResponse,
+        requiredAffinity: option.requiredAffinity,
+        requiredFactionId: undefined,
+        requiredFactionStanding: undefined,
+        requiredRenownRank: undefined,
+        affinityChange: option.affinityChange,
+        sortOrder: option.sortOrder,
+      });
+    }
+  }
 }
 
