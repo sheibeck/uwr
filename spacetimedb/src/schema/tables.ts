@@ -1234,6 +1234,19 @@ export const UiPanelLayout = table(
   }
 );
 
+export const TravelCooldown = table(
+  {
+    name: 'travel_cooldown',
+    public: true,
+    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    readyAtMicros: t.u64(),
+  }
+);
+
 export const spacetimedb = schema(
   Player,
   User,
@@ -1306,5 +1319,6 @@ export const spacetimedb = schema(
   EventGroup,
   Faction,
   FactionStanding,
-  UiPanelLayout
+  UiPanelLayout,
+  TravelCooldown
 );
