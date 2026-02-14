@@ -59,6 +59,10 @@ export const useGameData = () => {
   const [factionStandings] = useTable(tables.factionStanding);
   const [panelLayouts] = useTable(tables.uiPanelLayout);
   const [travelCooldowns] = useTable(tables.travelCooldown);
+  const [renownRows] = useTable(tables.renown);
+  const [renownPerks] = useTable(tables.renownPerk);
+  const [renownServerFirsts] = useTable(tables.renownServerFirst);
+  const [achievements] = useTable(tables.achievement);
 
   return {
     conn,
@@ -118,5 +122,9 @@ export const useGameData = () => {
     factionStandings,
     panelLayouts,
     travelCooldowns,
+    renownRows,
+    renownPerks,
+    renownServerFirsts,
+    achievements,
   };
 };

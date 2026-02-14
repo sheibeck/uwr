@@ -226,7 +226,7 @@
     <!-- Renown Panel -->
     <div v-if="panels.renown && panels.renown.open" data-panel-id="renown" :style="{ ...styles.floatingPanel, ...(panelStyle('renown').value || {}) }" @mousedown="bringToFront('renown')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('renown', $event)"><div>Renown</div><button type="button" :style="styles.panelClose" @click="closePanelById('renown')">×</button></div>
-      <div :style="styles.floatingPanelBody"><RenownPanel :styles="styles" :factions="factions" :faction-standings="characterFactionStandings" :selected-character="selectedCharacter" /></div>
+      <div :style="styles.floatingPanelBody"><RenownPanel :styles="styles" :factions="factions" :faction-standings="characterFactionStandings" :selected-character="selectedCharacter" :renown-data="characterRenown" :renown-perks="characterRenownPerks" :server-firsts="renownServerFirsts" :conn-active="!!conn.isActive" @choose-perk="handleChoosePerk" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('renown', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('renown', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('renown', $event, { right: true, bottom: true })" />
     </div>
 
@@ -392,6 +392,15 @@
     </div>
   </div>
 
+  <div v-if="rankUpNotification" :style="{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }">
+    <div :style="{ background: '#1a1a2e', border: '2px solid #fa5', borderRadius: '12px', padding: '32px 48px', textAlign: 'center', maxWidth: '400px' }">
+      <div :style="{ color: '#fa5', fontSize: '1.5rem', fontWeight: 700, marginBottom: '8px' }">Rank Up!</div>
+      <div :style="{ color: '#fff', fontSize: '1.2rem', marginBottom: '16px' }">{{ rankUpNotification.rankName }}</div>
+      <div :style="{ color: '#aaa', fontSize: '0.85rem', marginBottom: '16px' }">Choose a perk from the Renown panel</div>
+      <button :style="{ ...styles.actionButton, padding: '8px 24px', fontSize: '0.9rem' }" @click="rankUpNotification = null">Continue</button>
+    </div>
+  </div>
+
     <footer :style="styles.footer">
       <CommandBar
         :styles="styles"
@@ -553,6 +562,10 @@ const {
   factionStandings,
   panelLayouts,
   travelCooldowns,
+  renownRows,
+  renownPerks,
+  renownServerFirsts,
+  achievements,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ players, users });
@@ -898,6 +911,17 @@ const characterFactionStandings = computed(() => {
   );
 });
 
+// Renown data for current character
+const characterRenown = computed(() => {
+  if (!selectedCharacter.value) return null;
+  return renownRows.value.find(r => r.characterId.toString() === selectedCharacter.value!.id.toString()) ?? null;
+});
+
+const characterRenownPerks = computed(() => {
+  if (!selectedCharacter.value) return [];
+  return renownPerks.value.filter(p => p.characterId.toString() === selectedCharacter.value!.id.toString());
+});
+
 // Filter panel layouts to current character
 const characterPanelLayouts = computed(() => {
   if (!selectedCharacter.value) return [];
@@ -909,6 +933,16 @@ const characterPanelLayouts = computed(() => {
 const lastResultId = ref<string | null>(null);
 const lastLevelUpEventId = ref<string | null>(null);
 const audioCtxRef = ref<AudioContext | null>(null);
+const rankUpNotification = ref<{ rankName: string } | null>(null);
+
+// Client-side renown ranks for rank name lookups
+const RENOWN_RANKS_CLIENT = [
+  { rank: 1, name: 'Unsung' }, { rank: 2, name: 'Whispered' }, { rank: 3, name: 'Recognized' },
+  { rank: 4, name: 'Proven' }, { rank: 5, name: 'Stalwart' }, { rank: 6, name: 'Vanguard' },
+  { rank: 7, name: 'Champion' }, { rank: 8, name: 'Paragon' }, { rank: 9, name: 'Exemplar' },
+  { rank: 10, name: 'Hero' }, { rank: 11, name: 'Exalted' }, { rank: 12, name: 'Ascendant' },
+  { rank: 13, name: 'Legend' }, { rank: 14, name: 'Mythic' }, { rank: 15, name: 'Eternal' },
+];
 
 const getAudioContext = () => {
   if (!audioCtxRef.value) {
@@ -1588,6 +1622,18 @@ watch(
   }
 );
 
+// Rank-up notification watcher
+let lastRenownRank = 0;
+watch(characterRenown, (newVal, oldVal) => {
+  if (!newVal) { lastRenownRank = 0; return; }
+  const newRank = Number(newVal.currentRank);
+  if (newRank > lastRenownRank && lastRenownRank > 0) {
+    const rankInfo = RENOWN_RANKS_CLIENT.find(r => r.rank === newRank);
+    rankUpNotification.value = { rankName: rankInfo?.name ?? `Rank ${newRank}` };
+  }
+  lastRenownRank = newRank;
+});
+
 const tooltip = ref<{
   visible: boolean;
   x: number;
@@ -1658,6 +1704,14 @@ watch(
 const formatTimestamp = (ts: { microsSinceUnixEpoch: bigint }) => {
   const millis = Number(ts.microsSinceUnixEpoch / 1000n);
   return new Date(millis).toLocaleTimeString();
+};
+
+const handleChoosePerk = (perkKey: string) => {
+  if (!selectedCharacter.value || !window.__db_conn) return;
+  window.__db_conn.reducers.choosePerk({
+    characterId: selectedCharacter.value.id,
+    perkKey,
+  });
 };
 </script>
 
