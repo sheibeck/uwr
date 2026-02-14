@@ -1,7 +1,7 @@
 import { SenderError } from 'spacetimedb/server';
 import { Timestamp } from 'spacetimedb';
 import { findItemTemplateByName } from './items';
-import { GROUP_SIZE_DANGER_BASE, GROUP_SIZE_BIAS_RANGE, GROUP_SIZE_BIAS_MAX } from '../data/combat_constants';
+import { GROUP_SIZE_DANGER_BASE, GROUP_SIZE_BIAS_RANGE, GROUP_SIZE_BIAS_MAX } from './combat';
 import { EnemySpawn, EnemyTemplate } from '../schema/tables';
 
 export const DAY_DURATION_MICROS = 1_200_000_000n;
