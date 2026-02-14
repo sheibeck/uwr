@@ -236,6 +236,7 @@ const emit = defineEmits<{
   (e: 'initiate-resurrect', corpseId: bigint): void;
   (e: 'initiate-corpse-summon', targetCharacterId: bigint): void;
   (e: 'select-npc', npcId: bigint | null): void;
+  (e: 'talk-npc', npcId: bigint): void;
 }>();
 
 const selectedEnemyId = ref<bigint | null>(null);
@@ -265,11 +266,10 @@ const toggleSelectEnemy = (enemyId: bigint) => {
 };
 
 const toggleSelectNpc = (npcId: bigint) => {
-  if (props.selectedNpcId?.toString() === npcId.toString()) {
-    emit('select-npc', null);
-  } else {
-    emit('select-npc', npcId);
-  }
+  // Always select the NPC
+  emit('select-npc', npcId);
+  // Trigger talk action (opens Journal + calls hailNpc)
+  emit('talk-npc', npcId);
 };
 
 const openEnemyContextMenu = (event: MouseEvent, enemy: EnemySummary) => {

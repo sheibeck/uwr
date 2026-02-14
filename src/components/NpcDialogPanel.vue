@@ -138,6 +138,7 @@ const props = defineProps<{
   npcDialogueOptions: NpcDialogueOptionRow[];
   selectedCharacterId: bigint | null;
   factionStandings: FactionStandingRow[];
+  selectedNpcTarget?: bigint | null;
 }>();
 
 const AFFINITY_TIERS = [
@@ -152,6 +153,13 @@ const AFFINITY_TIERS = [
 ];
 
 const selectedNpcId = ref<string | null>(null);
+
+// Sync with parent's selected NPC target
+watch(() => props.selectedNpcTarget, (npcId) => {
+  if (npcId !== null && npcId !== undefined) {
+    selectedNpcId.value = npcId.toString();
+  }
+}, { immediate: true });
 
 const getAffinityTier = (affinity: number) => {
   return AFFINITY_TIERS.find(tier => affinity >= tier.min && affinity <= tier.max) || AFFINITY_TIERS[3]; // Default to Stranger
