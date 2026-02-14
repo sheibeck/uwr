@@ -288,6 +288,7 @@ spacetimedb.clientConnected((ctx) => {
       displayName: undefined,
       activeCharacterId: undefined,
       userId: undefined,
+      sessionStartedAt: undefined,
     });
   } else {
     ctx.db.player.id.update({ ...existing, lastSeenAt: ctx.timestamp });
@@ -434,6 +435,7 @@ const reducerDeps = {
   FactionStanding,
   grantFactionStandingForKill,
   UiPanelLayout,
+  startCombatForSpawn: null as any,
 };
 
 reducerDeps.startCombatForSpawn = (
