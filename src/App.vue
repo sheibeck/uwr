@@ -1041,12 +1041,7 @@ const { commandText, submitCommand } = useCommands({
   selectedCharacter,
   inviteSummaries,
   npcsHere,
-  onNpcHail: (npc) => {
-    if (npc.npcType === 'vendor') {
-      openPanel('vendor');
-      activeVendorId.value = npc.id;
-    }
-  },
+  onNpcHail: () => {},
 });
 
 const openCharacterActions = (characterId: bigint) => {
@@ -1105,10 +1100,6 @@ const sellAllJunk = () => {
 const hailNpcReducer = useReducer(reducers.hailNpc);
 const hailNpc = (npcName: string) => {
   if (!selectedCharacter.value) return;
-  const npc = npcsHere.value.find((row) => row.name === npcName);
-  if (npc?.npcType === 'vendor') {
-    openVendor(npc.id);
-  }
   hailNpcReducer({ characterId: selectedCharacter.value.id, npcName });
 };
 
