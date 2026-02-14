@@ -1,4 +1,214 @@
 import { SenderError } from 'spacetimedb/server';
+import { findItemTemplateByName, STARTER_ARMOR, STARTER_WEAPONS } from '../helpers/items';
+
+export function ensureStarterItemTemplates(ctx: any) {
+  const upsertItemTemplateByName = (row: any) => {
+    const fullRow = {
+      wellFedDurationMicros: 0n,
+      wellFedBuffType: '',
+      wellFedBuffMagnitude: 0n,
+      weaponType: '',
+      magicResistanceBonus: 0n,
+      ...row,
+    };
+    const existing = findItemTemplateByName(ctx, fullRow.name);
+    if (existing) {
+      ctx.db.itemTemplate.id.update({
+        ...existing,
+        ...fullRow,
+        id: existing.id,
+      });
+      return existing;
+    }
+    return ctx.db.itemTemplate.insert({
+      id: 0n,
+      ...fullRow,
+    });
+  };
+
+  const ARMOR_ALLOWED_CLASSES: Record<string, string> = {
+    plate: 'warrior,paladin,bard,cleric',
+    chain: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver',
+    leather: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid',
+    cloth: 'any',
+  };
+
+  for (const [armorType, pieces] of Object.entries(STARTER_ARMOR)) {
+    upsertItemTemplateByName({
+      name: pieces.chest.name,
+      slot: 'chest',
+      armorType,
+      rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 2n,
+      requiredLevel: 1n,
+      allowedClasses: ARMOR_ALLOWED_CLASSES[armorType] ?? 'any',
+      strBonus: 0n,
+      dexBonus: 0n,
+      chaBonus: 0n,
+      wisBonus: 0n,
+      intBonus: 0n,
+      hpBonus: 0n,
+      manaBonus: 0n,
+      armorClassBonus: pieces.chest.ac,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
+      stackable: false,
+    });
+    upsertItemTemplateByName({
+      name: pieces.legs.name,
+      slot: 'legs',
+      armorType,
+      rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 2n,
+      requiredLevel: 1n,
+      allowedClasses: ARMOR_ALLOWED_CLASSES[armorType] ?? 'any',
+      strBonus: 0n,
+      dexBonus: 0n,
+      chaBonus: 0n,
+      wisBonus: 0n,
+      intBonus: 0n,
+      hpBonus: 0n,
+      manaBonus: 0n,
+      armorClassBonus: pieces.legs.ac,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
+      stackable: false,
+    });
+    upsertItemTemplateByName({
+      name: pieces.boots.name,
+      slot: 'boots',
+      armorType,
+      rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 2n,
+      requiredLevel: 1n,
+      allowedClasses: ARMOR_ALLOWED_CLASSES[armorType] ?? 'any',
+      strBonus: 0n,
+      dexBonus: 0n,
+      chaBonus: 0n,
+      wisBonus: 0n,
+      intBonus: 0n,
+      hpBonus: 0n,
+      manaBonus: 0n,
+      armorClassBonus: pieces.boots.ac,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
+      stackable: false,
+    });
+  }
+
+  const weaponTemplates: Record<string, { name: string; allowed: string; weaponType: string }> = {
+    'Training Sword': { name: 'Training Sword', allowed: 'warrior', weaponType: 'sword' },
+    'Training Mace': { name: 'Training Mace', allowed: 'paladin,cleric', weaponType: 'mace' },
+    'Training Staff': {
+      name: 'Training Staff',
+      allowed: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard',
+      weaponType: 'staff',
+    },
+    'Training Bow': { name: 'Training Bow', allowed: 'ranger', weaponType: 'bow' },
+    'Training Dagger': { name: 'Training Dagger', allowed: 'rogue', weaponType: 'dagger' },
+    'Training Axe': { name: 'Training Axe', allowed: 'beastmaster', weaponType: 'axe' },
+    'Training Blade': { name: 'Training Blade', allowed: 'spellblade,reaver', weaponType: 'blade' },
+    'Training Rapier': { name: 'Training Rapier', allowed: 'bard', weaponType: 'rapier' },
+  };
+
+  for (const weapon of Object.values(weaponTemplates)) {
+    upsertItemTemplateByName({
+      name: weapon.name,
+      slot: 'mainHand',
+      armorType: 'none',
+      rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 3n,
+      requiredLevel: 1n,
+      allowedClasses: weapon.allowed,
+      strBonus: 0n,
+      dexBonus: 0n,
+      chaBonus: 0n,
+      wisBonus: 0n,
+      intBonus: 0n,
+      hpBonus: 0n,
+      manaBonus: 0n,
+      armorClassBonus: 0n,
+      magicResistanceBonus: 0n,
+      weaponBaseDamage: 4n,
+      weaponDps: 6n,
+      weaponType: weapon.weaponType,
+      stackable: false,
+    });
+  }
+
+  const accessoryTemplates = [
+    { name: 'Rough Band', slot: 'earrings', rarity: 'common', stat: { dexBonus: 1n } },
+    { name: 'Worn Cloak', slot: 'cloak', rarity: 'common', stat: { hpBonus: 3n } },
+    { name: 'Traveler Necklace', slot: 'neck', rarity: 'common', stat: { wisBonus: 1n } },
+    { name: 'Glimmer Ring', slot: 'earrings', rarity: 'uncommon', stat: { intBonus: 1n } },
+    { name: 'Shaded Cloak', slot: 'cloak', rarity: 'uncommon', stat: { dexBonus: 1n } },
+  ];
+
+  for (const template of accessoryTemplates) {
+    upsertItemTemplateByName({
+      name: template.name,
+      slot: template.slot,
+      armorType: 'none',
+      rarity: template.rarity,
+      tier: 1n,
+      isJunk: false,
+      vendorValue: template.rarity === 'uncommon' ? 8n : 5n,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      strBonus: template.stat.strBonus ?? 0n,
+      dexBonus: template.stat.dexBonus ?? 0n,
+      chaBonus: template.stat.chaBonus ?? 0n,
+      wisBonus: template.stat.wisBonus ?? 0n,
+      intBonus: template.stat.intBonus ?? 0n,
+      hpBonus: template.stat.hpBonus ?? 0n,
+      manaBonus: template.stat.manaBonus ?? 0n,
+      armorClassBonus: 0n,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
+      stackable: false,
+    });
+  }
+
+  const junkTemplates = [
+    { name: 'Rat Tail', vendorValue: 1n },
+    { name: 'Torn Pelt', vendorValue: 2n },
+    { name: 'Cracked Fang', vendorValue: 1n },
+    { name: 'Ashen Bone', vendorValue: 2n },
+  ];
+
+  for (const junk of junkTemplates) {
+    upsertItemTemplateByName({
+      name: junk.name,
+      slot: 'junk',
+      armorType: 'none',
+      rarity: 'common',
+      tier: 1n,
+      isJunk: true,
+      vendorValue: junk.vendorValue,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      strBonus: 0n,
+      dexBonus: 0n,
+      chaBonus: 0n,
+      wisBonus: 0n,
+      intBonus: 0n,
+      hpBonus: 0n,
+      manaBonus: 0n,
+      armorClassBonus: 0n,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
+      stackable: true,
+    });
+  }
+}
 
 export function ensureResourceItemTemplates(ctx: any) {
   const resources = [

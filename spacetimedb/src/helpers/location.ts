@@ -1,6 +1,8 @@
 import { SenderError } from 'spacetimedb/server';
 import { Timestamp } from 'spacetimedb';
 import { findItemTemplateByName } from './items';
+import { GROUP_SIZE_DANGER_BASE, GROUP_SIZE_BIAS_RANGE, GROUP_SIZE_BIAS_MAX } from './combat';
+import { EnemySpawn, EnemyTemplate } from '../schema/tables';
 
 export const DAY_DURATION_MICROS = 1_200_000_000n;
 export const NIGHT_DURATION_MICROS = 600_000_000n;
@@ -249,61 +251,14 @@ export function ensureAvailableSpawn(
   return spawnEnemy(ctx, locationId, targetLevel);
 }
 
-function ensureHealthRegenScheduled(ctx: any) {
-  if (!tableHasRows(ctx.db.healthRegenTick.iter())) {
-    ctx.db.healthRegenTick.insert({
-      scheduledId: 0n,
-      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 3_000_000n),
-    });
-  }
-}
-
-function ensureEffectTickScheduled(ctx: any) {
-  if (!tableHasRows(ctx.db.effectTick.iter())) {
-    ctx.db.effectTick.insert({
-      scheduledId: 0n,
-      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 10_000_000n),
-    });
-  }
-}
-
-function ensureHotTickScheduled(ctx: any) {
-  if (!tableHasRows(ctx.db.hotTick.iter())) {
-    ctx.db.hotTick.insert({
-      scheduledId: 0n,
-      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 3_000_000n),
-    });
-  }
-}
-
-function ensureCastTickScheduled(ctx: any) {
-  if (!tableHasRows(ctx.db.castTick.iter())) {
-    ctx.db.castTick.insert({
-      scheduledId: 0n,
-      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 200_000n),
-    });
-  }
-}
-
-function ensureDayNightTickScheduled(ctx: any) {
-  if (!tableHasRows(ctx.db.dayNightTick.iter())) {
-    const world = getWorldState(ctx);
-    const nextAt =
-      world?.nextTransitionAtMicros ?? ctx.timestamp.microsSinceUnixEpoch + DAY_DURATION_MICROS;
-    ctx.db.dayNightTick.insert({
-      scheduledId: 0n,
-      scheduledAt: ScheduleAt.time(nextAt),
-    });
-  }
-}
-
 export function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
   const activeGroupKeys = new Set<string>();
   for (const player of ctx.db.player.iter()) {
     if (!player.activeCharacterId) continue;
     const character = ctx.db.character.id.find(player.activeCharacterId);
     if (!character || character.locationId !== locationId) continue;
-    activeGroupKeys.add(effectiveGroupKey(character));
+    const groupKey = character.groupId ? character.groupId.toString() : `solo_${character.id.toString()}`;
+    activeGroupKeys.add(groupKey);
   }
   const needed = activeGroupKeys.size;
   let available = 0;
@@ -321,7 +276,7 @@ export function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
   }
 }
 
-function ensureLocationRuntimeBootstrap(ctx: any) {
+export function ensureLocationRuntimeBootstrap(ctx: any) {
   for (const location of ctx.db.location.iter()) {
     ensureResourceNodesForLocation(ctx, location.id);
     let count = 0;
@@ -339,27 +294,29 @@ function ensureLocationRuntimeBootstrap(ctx: any) {
   }
 }
 
-function syncAllContent(ctx: any) {
-  ensureRaces(ctx);
-  ensureFactions(ctx);
-  ensureWorldLayout(ctx);
-  ensureStarterItemTemplates(ctx);
-  ensureResourceItemTemplates(ctx);
-  ensureFoodItemTemplates(ctx);
-  ensureAbilityTemplates(ctx);
-  ensureRecipeTemplates(ctx);
-  ensureNpcs(ctx);
-  ensureQuestTemplates(ctx);
-  ensureEnemyTemplatesAndRoles(ctx);
-  ensureEnemyAbilities(ctx);
-  ensureLocationEnemyTemplates(ctx);
-  ensureLocationRuntimeBootstrap(ctx);
-  ensureLootTables(ctx);
-  ensureVendorInventory(ctx);
+export function respawnLocationSpawns(ctx: any, locationId: bigint, desired: number) {
+  for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    if (row.state === 'available') {
+      for (const member of ctx.db.enemySpawnMember.by_spawn.filter(row.id)) {
+        ctx.db.enemySpawnMember.id.delete(member.id);
+      }
+      ctx.db.enemySpawn.id.delete(row.id);
+    }
+  }
+  let count = 0;
+  for (const _row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    count += 1;
+  }
+  while (count < desired) {
+    const existingTemplates: bigint[] = [];
+    for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+      existingTemplates.push(row.enemyTemplateId);
+    }
+    spawnEnemy(ctx, locationId, 1n, existingTemplates);
+    count += 1;
+  }
 }
 
-export function respawnLocationSpawns(ctx: any, locationId: bigint, desired: number) {
-}
 export function spawnEnemy(
   ctx: any,
   locationId: bigint,
