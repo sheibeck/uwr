@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-14
-**Status:** Phase 19 Plan 01 complete — NPC relationship backend foundation with NpcAffinity table (per-character per-NPC affinity tracking), NpcDialogueOption table (threshold-gated dialogue trees), personality-modified affinity progression, 14 dialogue options seeded across 4 tiers for 3 NPCs.
+**Status:** Phase 19 Plan 02 complete — NPC interaction reducers (choose_dialogue_option with multi-gate validation, give_gift_to_npc with item consumption), dynamic affinity-based greetings in hailNpc (7 tiers with faction/renown context), conversation cooldown enforcement (1 hour).
 
 ---
 
@@ -11,8 +11,8 @@
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 (Travel & Movement Costs) complete — Region-based stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, all-or-nothing group validation, TravelPanel UI with cost indicators and live countdown timer. Human-verified functional. Phase 11 (Death & Corpse System) Plan 01 complete — Backend corpse system with level 5+ gating, inventory-only item transfer, same-location combining, 30-day decay, and ownership-verified looting. Phase 12 (Overall Renown System) complete — Character-wide renown progression with 15 ranks, permanent perk system, server-first tracking, combat integration, tabbed UI. Human-verified functional.
 
 **Current phase:** 19 (NPC Interactions)
-**Current plan:** 01 complete
-**Next action:** Continue with Phase 19 Plan 02 (NPC interaction reducers and affinity-based greetings)
+**Current plan:** 02 complete
+**Next action:** Continue with Phase 19 Plan 03 (Frontend integration for NPC interactions)
 
 ---
 
@@ -36,7 +36,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 10 | Travel & Movement Costs | Complete (2/2 plans done: backend + UI, human-verified) |
 | 11 | Death & Corpse System | In Progress (1/? plans done: backend foundation) |
 | 12 | Overall Renown System | Complete (3/3 plans done: backend + integration + UI, human-verified) |
-| 19 | NPC Interactions | In Progress (1/? plans done: backend foundation) |
+| 19 | NPC Interactions | In Progress (2/? plans done: backend foundation, interaction reducers) |
 
 ---
 
@@ -164,6 +164,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 12-overall-renown-system | 02 | 10min | 2 | 3 |
 | 12-overall-renown-system | 03 | ~25min | 3 | 4 |
 | 19-npc-interactions | 01 | 3min | 2 | 6 |
+| 19-npc-interactions | 02 | 3min | 1 | 14 |
 
 ## Accumulated Context
 
