@@ -1487,7 +1487,5 @@ export const spacetimedb = schema(
   Achievement,
   Corpse,
   CorpseItem,
-  PendingSpellCast,
-  NpcAffinity,
-  NpcDialogueOption
+  PendingSpellCast
 );
