@@ -9,8 +9,7 @@ export const registerCorpseReducers = (deps: any) => {
     appendPrivateEvent,
     removeCorpseIfEmpty,
     activeCombatIdForCharacter,
-    PendingResurrect,
-    PendingCorpseSummon,
+    PendingSpellCast,
     executeResurrect,
     executeCorpseSummon,
   } = deps;
@@ -143,28 +142,31 @@ export const registerCorpseReducers = (deps: any) => {
       throw new SenderError('You must be a level 6+ cleric to resurrect');
     }
 
-    // Check mana cost (simple formula: 4 + level * 2 + power, where level=6 power=0)
-    const manaCost = 4n + 6n * 2n + 0n; // = 16 mana
+    // Check mana cost (flat 50 mana)
+    const manaCost = 50n;
     if (caster.mana < manaCost) {
       throw new SenderError('Not enough mana to resurrect');
     }
 
-    // Clean up expired pending resurrect actions
+    // Clean up expired pending spell casts
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
-    for (const pending of ctx.db.pendingResurrect.iter()) {
+    for (const pending of ctx.db.pendingSpellCast.iter()) {
       if (nowMicros - pending.createdAtMicros > CONFIRMATION_TIMEOUT) {
-        ctx.db.pendingResurrect.id.delete(pending.id);
+        ctx.db.pendingSpellCast.id.delete(pending.id);
       }
     }
 
     // Check for existing pending resurrect for this target
-    for (const pending of ctx.db.pendingResurrect.by_target.filter(target.id)) {
-      throw new SenderError('Target already has a pending resurrect');
+    for (const pending of ctx.db.pendingSpellCast.by_target.filter(target.id)) {
+      if (pending.spellType === 'resurrect') {
+        throw new SenderError('Target already has a pending resurrect');
+      }
     }
 
-    // Create PendingResurrect row
-    ctx.db.pendingResurrect.insert({
+    // Create PendingSpellCast row
+    ctx.db.pendingSpellCast.insert({
       id: 0n,
+      spellType: 'resurrect',
       casterCharacterId: caster.id,
       targetCharacterId: target.id,
       corpseId: corpse.id,
@@ -178,9 +180,14 @@ export const registerCorpseReducers = (deps: any) => {
   spacetimedb.reducer('accept_resurrect', { characterId: t.u64(), pendingId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
 
-    // Find PendingResurrect row
-    const pending = ctx.db.pendingResurrect.id.find(args.pendingId);
+    // Find PendingSpellCast row
+    const pending = ctx.db.pendingSpellCast.id.find(args.pendingId);
     if (!pending) throw new SenderError('Pending resurrect not found');
+
+    // Verify this is a resurrect spell
+    if (pending.spellType !== 'resurrect') {
+      throw new SenderError('Invalid spell type');
+    }
 
     // Verify the pending action belongs to this character
     if (pending.targetCharacterId !== character.id) {
@@ -190,28 +197,28 @@ export const registerCorpseReducers = (deps: any) => {
     // Verify not expired
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     if (nowMicros - pending.createdAtMicros > CONFIRMATION_TIMEOUT) {
-      ctx.db.pendingResurrect.id.delete(pending.id);
+      ctx.db.pendingSpellCast.id.delete(pending.id);
       throw new SenderError('Resurrect request expired');
     }
 
     // Find the corpse (it might have been looted/decayed in the meantime)
-    const corpse = ctx.db.corpse.id.find(pending.corpseId);
+    const corpse = pending.corpseId ? ctx.db.corpse.id.find(pending.corpseId) : null;
     if (!corpse) {
-      ctx.db.pendingResurrect.id.delete(pending.id);
+      ctx.db.pendingSpellCast.id.delete(pending.id);
       throw new SenderError('Corpse no longer exists');
     }
 
     // Find the caster (verify still exists and online)
     const caster = ctx.db.character.id.find(pending.casterCharacterId);
     if (!caster) {
-      ctx.db.pendingResurrect.id.delete(pending.id);
+      ctx.db.pendingSpellCast.id.delete(pending.id);
       throw new SenderError('Caster no longer online');
     }
 
-    // Re-verify mana availability
-    const manaCost = 4n + 6n * 2n + 0n; // = 16 mana
+    // Re-verify mana availability (flat 50 mana)
+    const manaCost = 50n;
     if (caster.mana < manaCost) {
-      ctx.db.pendingResurrect.id.delete(pending.id);
+      ctx.db.pendingSpellCast.id.delete(pending.id);
       throw new SenderError('Caster no longer has enough mana');
     }
 
@@ -224,28 +231,23 @@ export const registerCorpseReducers = (deps: any) => {
     // Execute resurrection
     executeResurrect(ctx, caster, character, corpse);
 
-    // Delete the PendingResurrect row
-    ctx.db.pendingResurrect.id.delete(pending.id);
+    // Delete the PendingSpellCast row
+    ctx.db.pendingSpellCast.id.delete(pending.id);
 
-    // Apply ability cooldown for cleric_resurrect on caster
-    const abilityTemplate = [...ctx.db.abilityTemplate.by_key.filter('cleric_resurrect')][0];
-    if (abilityTemplate) {
-      const cooldownMicros = abilityTemplate.cooldownSeconds * 1_000_000n;
-      ctx.db.abilityCooldown.insert({
-        id: 0n,
-        characterId: caster.id,
-        abilityKey: 'cleric_resurrect',
-        expiresAt: ctx.timestamp.microsSinceUnixEpoch + cooldownMicros,
-      });
-    }
+    // No cooldown for resurrect (cooldownSeconds: 0n in ability template)
   });
 
   spacetimedb.reducer('decline_resurrect', { characterId: t.u64(), pendingId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
 
-    // Find PendingResurrect row
-    const pending = ctx.db.pendingResurrect.id.find(args.pendingId);
+    // Find PendingSpellCast row
+    const pending = ctx.db.pendingSpellCast.id.find(args.pendingId);
     if (!pending) throw new SenderError('Pending resurrect not found');
+
+    // Verify this is a resurrect spell
+    if (pending.spellType !== 'resurrect') {
+      throw new SenderError('Invalid spell type');
+    }
 
     // Verify the pending action belongs to this character
     if (pending.targetCharacterId !== character.id) {
@@ -256,7 +258,7 @@ export const registerCorpseReducers = (deps: any) => {
     const caster = ctx.db.character.id.find(pending.casterCharacterId);
 
     // Delete the pending row
-    ctx.db.pendingResurrect.id.delete(pending.id);
+    ctx.db.pendingSpellCast.id.delete(pending.id);
 
     // Notify both players
     if (caster) {
@@ -286,38 +288,45 @@ export const registerCorpseReducers = (deps: any) => {
       throw new SenderError('Target has no corpses to summon');
     }
 
-    // Verify caster has Corpse Summon ability
-    const abilityTemplate = [...ctx.db.abilityTemplate.by_key.filter('cleric_corpse_summon')][0];
-    if (!abilityTemplate) throw new SenderError('Corpse Summon ability not found');
-
-    if (caster.className !== 'cleric' || caster.level < 7n) {
-      throw new SenderError('You must be a level 7+ cleric to summon corpses');
+    // Verify caster class and level
+    const validCorpseSummonClass = caster.className === 'necromancer' || caster.className === 'summoner';
+    if (!validCorpseSummonClass || caster.level < 6n) {
+      throw new SenderError('You must be a level 6+ necromancer or summoner to summon corpses');
     }
 
-    // Check mana cost (simple formula: 4 + level * 2 + power, where level=7 power=0)
-    const manaCost = 4n + 7n * 2n + 0n; // = 18 mana
+    // Verify caster has Corpse Summon ability
+    const abilityKey = `${caster.className}_corpse_summon`;
+    const abilityTemplate = [...ctx.db.abilityTemplate.by_key.filter(abilityKey)][0];
+    if (!abilityTemplate) throw new SenderError('Corpse Summon ability not found');
+
+    // Check mana cost (flat 60 mana)
+    const manaCost = 60n;
     if (caster.mana < manaCost) {
       throw new SenderError('Not enough mana to summon corpses');
     }
 
-    // Clean up expired pending corpse summon actions
+    // Clean up expired pending spell casts
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
-    for (const pending of ctx.db.pendingCorpseSummon.iter()) {
+    for (const pending of ctx.db.pendingSpellCast.iter()) {
       if (nowMicros - pending.createdAtMicros > CONFIRMATION_TIMEOUT) {
-        ctx.db.pendingCorpseSummon.id.delete(pending.id);
+        ctx.db.pendingSpellCast.id.delete(pending.id);
       }
     }
 
     // Check for existing pending summon for this target
-    for (const pending of ctx.db.pendingCorpseSummon.by_target.filter(target.id)) {
-      throw new SenderError('Target already has a pending corpse summon');
+    for (const pending of ctx.db.pendingSpellCast.by_target.filter(target.id)) {
+      if (pending.spellType === 'corpse_summon') {
+        throw new SenderError('Target already has a pending corpse summon');
+      }
     }
 
-    // Create PendingCorpseSummon row
-    ctx.db.pendingCorpseSummon.insert({
+    // Create PendingSpellCast row
+    ctx.db.pendingSpellCast.insert({
       id: 0n,
+      spellType: 'corpse_summon',
       casterCharacterId: caster.id,
       targetCharacterId: target.id,
+      corpseId: undefined,
       createdAtMicros: nowMicros,
     });
 
@@ -328,9 +337,14 @@ export const registerCorpseReducers = (deps: any) => {
   spacetimedb.reducer('accept_corpse_summon', { characterId: t.u64(), pendingId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
 
-    // Find PendingCorpseSummon row
-    const pending = ctx.db.pendingCorpseSummon.id.find(args.pendingId);
+    // Find PendingSpellCast row
+    const pending = ctx.db.pendingSpellCast.id.find(args.pendingId);
     if (!pending) throw new SenderError('Pending corpse summon not found');
+
+    // Verify this is a corpse_summon spell
+    if (pending.spellType !== 'corpse_summon') {
+      throw new SenderError('Invalid spell type');
+    }
 
     // Verify the pending action belongs to this character
     if (pending.targetCharacterId !== character.id) {
@@ -340,21 +354,21 @@ export const registerCorpseReducers = (deps: any) => {
     // Verify not expired
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     if (nowMicros - pending.createdAtMicros > CONFIRMATION_TIMEOUT) {
-      ctx.db.pendingCorpseSummon.id.delete(pending.id);
+      ctx.db.pendingSpellCast.id.delete(pending.id);
       throw new SenderError('Corpse summon request expired');
     }
 
     // Find the caster (verify still exists and online)
     const caster = ctx.db.character.id.find(pending.casterCharacterId);
     if (!caster) {
-      ctx.db.pendingCorpseSummon.id.delete(pending.id);
+      ctx.db.pendingSpellCast.id.delete(pending.id);
       throw new SenderError('Caster no longer online');
     }
 
-    // Re-verify mana availability
-    const manaCost = 4n + 7n * 2n + 0n; // = 18 mana
+    // Re-verify mana availability (flat 60 mana)
+    const manaCost = 60n;
     if (caster.mana < manaCost) {
-      ctx.db.pendingCorpseSummon.id.delete(pending.id);
+      ctx.db.pendingSpellCast.id.delete(pending.id);
       throw new SenderError('Caster no longer has enough mana');
     }
 
@@ -367,28 +381,23 @@ export const registerCorpseReducers = (deps: any) => {
     // Execute corpse summon
     executeCorpseSummon(ctx, caster, character);
 
-    // Delete the PendingCorpseSummon row
-    ctx.db.pendingCorpseSummon.id.delete(pending.id);
+    // Delete the PendingSpellCast row
+    ctx.db.pendingSpellCast.id.delete(pending.id);
 
-    // Apply ability cooldown for cleric_corpse_summon on caster
-    const abilityTemplate = [...ctx.db.abilityTemplate.by_key.filter('cleric_corpse_summon')][0];
-    if (abilityTemplate) {
-      const cooldownMicros = abilityTemplate.cooldownSeconds * 1_000_000n;
-      ctx.db.abilityCooldown.insert({
-        id: 0n,
-        characterId: caster.id,
-        abilityKey: 'cleric_corpse_summon',
-        expiresAt: ctx.timestamp.microsSinceUnixEpoch + cooldownMicros,
-      });
-    }
+    // No cooldown for corpse summon (cooldownSeconds: 0n in ability template)
   });
 
   spacetimedb.reducer('decline_corpse_summon', { characterId: t.u64(), pendingId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
 
-    // Find PendingCorpseSummon row
-    const pending = ctx.db.pendingCorpseSummon.id.find(args.pendingId);
+    // Find PendingSpellCast row
+    const pending = ctx.db.pendingSpellCast.id.find(args.pendingId);
     if (!pending) throw new SenderError('Pending corpse summon not found');
+
+    // Verify this is a corpse_summon spell
+    if (pending.spellType !== 'corpse_summon') {
+      throw new SenderError('Invalid spell type');
+    }
 
     // Verify the pending action belongs to this character
     if (pending.targetCharacterId !== character.id) {
@@ -399,7 +408,7 @@ export const registerCorpseReducers = (deps: any) => {
     const caster = ctx.db.character.id.find(pending.casterCharacterId);
 
     // Delete the pending row
-    ctx.db.pendingCorpseSummon.id.delete(pending.id);
+    ctx.db.pendingSpellCast.id.delete(pending.id);
 
     // Notify both players
     if (caster) {
