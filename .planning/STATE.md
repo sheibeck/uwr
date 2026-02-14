@@ -1,7 +1,7 @@
 # Project State
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
-**Last updated:** 2026-02-13
+**Last updated:** 2026-02-14
 **Status:** Phase 10 complete — Travel & Movement Costs: Region-based stamina costs with cooldown system fully implemented and verified
 
 ---
@@ -250,9 +250,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 85 | Fix duplicate table definition errors - removed 73 duplicate table definitions from index.ts and established schema/tables.ts as single source of truth | 2026-02-14 | ef7e2da | [85-fix-duplicate-table-definition-errors-ta](./quick/85-fix-duplicate-table-definition-errors-ta/) |
 | 86 | Fix circular dependency between combat.ts and location.ts - import GROUP_SIZE constants directly from combat_constants.ts instead of through combat.ts re-exports | 2026-02-14 | de7babf | [86-fix-circular-dependency-between-combat-t](./quick/86-fix-circular-dependency-between-combat-t/) |
 | 87 | Add missing schema export to index.ts (SpacetimeDB) - re-exported spacetimedb schema instance from entry point to fix module bundling error | 2026-02-14 | 3b336fc | [87-add-missing-schema-export-to-index-ts-sp](./quick/87-add-missing-schema-export-to-index-ts-sp/) |
+| 88 | Fix missing imports after quick-83 refactoring - resolved all undefined references in 5 files, removed 206 lines of duplicate spawn functions, restored module to compilable state | 2026-02-14 | 1282d73 | [88-fix-missing-imports-after-quick-83-refac](./quick/88-fix-missing-imports-after-quick-83-refac/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed quick task 87: Add missing schema export to index.ts (SpacetimeDB) - re-exported spacetimedb schema instance from entry point (1 min, 1 commit)
+Last activity: 2026-02-14 - Completed quick task 88: Fix missing imports after quick-83 refactoring - resolved undefined references, removed duplicates, module now compiles and publishes (5 min, 4 commits)
