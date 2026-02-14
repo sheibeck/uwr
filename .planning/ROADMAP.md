@@ -28,6 +28,7 @@
 | 16 | Travelling NPCs | None | Phase 15 | Pending |
 | 17 | World Bosses | None | Phase 16 | Pending |
 | 18 | World Events System Expansion | None | Phase 17 | Pending |
+| 19 | NPC Interactions | None | Phase 18 | Planned |
 
 ---
 
@@ -308,7 +309,7 @@ Plans:
 **Dependencies:** Phase 3 (FactionStanding for gating), Phase 5 (LLM text generation)
 
 **Scope:**
-- `Quest` table seeded with ≥8 quests (2 per faction, gated at Neutral and Friendly rank)
+- `Quest` table seeded with >=8 quests (2 per faction, gated at Neutral and Friendly rank)
 - `GeneratedQuestText` table extended (from Phase 4) with quest-specific fields
 - `PlayerQuest` table: tracks per-player quest status
 - `accept_quest` reducer: validates availability, creates PlayerQuest row, triggers quest text generation
@@ -533,6 +534,17 @@ Plans:
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 18 to break down)
+
+### Phase 19: NPC Interactions - Deepen relationships, dialogue complexity, affinity systems, and dynamic NPC reactions to player actions
+
+**Goal:** Per-NPC affinity tracking with tiered relationships (Hostile to Devoted), threshold-gated dialogue options, dynamic context-aware greetings based on affinity/faction/renown, gift-giving mechanics for relationship progression, and full UI integration with affinity display and dialogue trees.
+**Depends on:** Phase 18
+**Plans:** 3 plans
+
+Plans:
+- [ ] 19-01-PLAN.md — Backend foundation: NpcAffinity/NpcDialogueOption tables, Npc table expansion (factionId/personality/mood), affinity helper module, dialogue seed data for 3 NPCs across 4 tiers
+- [ ] 19-02-PLAN.md — Backend interaction: Dynamic greetings in hailNpc, choose_dialogue_option/give_gift_to_npc reducers, conversation cooldowns, publish module and regenerate bindings
+- [ ] 19-03-PLAN.md — Frontend UI: NpcDialogPanel overhaul with affinity display and dialogue options, LocationGrid gift context menu, useGameData subscriptions, human verification
 
 ---
 
