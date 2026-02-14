@@ -303,6 +303,33 @@ spacetimedb.clientConnected((ctx) => {
   ensureHungerDecayScheduled(ctx);
 });
 
+spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
+  const world = getWorldState(ctx);
+  if (!world) return;
+  const now = ctx.timestamp.microsSinceUnixEpoch;
+  if (world.nextTransitionAtMicros > now) {
+    ctx.db.dayNightTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(world.nextTransitionAtMicros),
+    });
+    return;
+  }
+  const nextIsNight = !world.isNight;
+  const nextDuration = nextIsNight ? NIGHT_DURATION_MICROS : DAY_DURATION_MICROS;
+  const nextTransition = now + nextDuration;
+  ctx.db.worldState.id.update({
+    ...world,
+    isNight: nextIsNight,
+    nextTransitionAtMicros: nextTransition,
+  });
+  const message = nextIsNight ? 'Night falls over the realm.' : 'Dawn breaks over the realm.';
+  appendWorldEvent(ctx, 'world', message);
+  ctx.db.dayNightTick.insert({
+    scheduledId: 0n,
+    scheduledAt: ScheduleAt.time(nextTransition),
+  });
+});
+
 spacetimedb.clientDisconnected((_ctx) => {
   // Presence events are written here so others see logout.
   // Note: _ctx.sender is still available in disconnect.
