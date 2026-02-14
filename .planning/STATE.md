@@ -120,6 +120,9 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 77. Resurrect teleports character to corpse location, restores 50% HP/mana, leaves corpse intact (11-02)
 78. Corpse Summon merges ALL corpses from all locations into single combined corpse at caster location (11-02)
 79. combatState field added to AbilityMetadata interface for explicit combat restrictions in ability definitions (11-02)
+80. PendingResurrect and PendingCorpseSummon merged into unified PendingSpellCast table with spellType discriminator — eliminates duplicate code, simplifies spell-cast architecture (quick-93)
+81. Corpse Summon moved from Cleric to Necromancer and Summoner at level 6 — better thematic fit for entity-manipulation classes (quick-93)
+82. Resurrection and Corpse Summon changed to flat mana costs (50/60) with 0 cooldown and 10s cast time — resource-gated abilities instead of time-gated (quick-93)
 
 ---
 
@@ -173,6 +176,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 - 2026-02-14: Phase 16 added: Travelling NPCs - NPC movement AI between regions, travelling merchant schedules, dynamic NPC location tracking
 - 2026-02-14: Phase 17 added: World Bosses - Elite enemy encounters, unique loot tables for bosses, boss spawn mechanics, group scaling for bosses
 - 2026-02-14: Phase 18 added: World Events System Expansion - Regional event spawning (Ripple system), event types and objectives, faction and overall renown rewards, event participation tracking
+- 2026-02-14: Phase 19 added: NPC Interactions - Deepen relationships, dialogue complexity, affinity systems, and dynamic NPC reactions to player actions
 
 ---
 
@@ -276,6 +280,7 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 90 | Extract travel section from Location panel - TravelPanel separated into standalone floating panel with ActionBar toggle, reducing Location panel complexity | 2026-02-14 | 09f41ee | [90-extract-travel-section-from-location-pan](./quick/90-extract-travel-section-from-location-pan/) |
 | 91 | Fix character creation crash - add missing ensureStarterItemTemplates dependency to grantStarterItems call, fixes PANIC error blocking all character creation | 2026-02-14 | f1c0da6 | [91-fix-ensurestarteritemtemplates-import-ca](./quick/91-fix-ensurestarteritemtemplates-import-ca/) |
 | 92 | Rebalance Warrior Slam ability - convert from damage-dealing to AC debuff (-5 AC for 7 seconds), shifting Warrior class identity toward tactical threat management | 2026-02-14 | cc2cf59 | [92-rebalance-warrior-slam-ability-change-fr](./quick/92-rebalance-warrior-slam-ability-change-fr/) |
+| 93 | Refactor resurrection & corpse summon spell system - merged PendingResurrect and PendingCorpseSummon into unified PendingSpellCast table, moved Corpse Summon from Cleric to Necromancer/Summoner, removed cooldowns, added flat mana costs (50/60) and 10s cast times | 2026-02-14 | bf1fad9 | [93-refactor-resurrection-corpse-summon-merg](./quick/93-refactor-resurrection-corpse-summon-merg/) |
 
 ---
 
