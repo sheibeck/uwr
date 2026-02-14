@@ -29,6 +29,9 @@ export interface AbilityMetadata {
 
   // AoE metadata
   aoeTargets?: 'all_enemies' | 'all_allies' | 'all_party';  // Target type
+
+  // Combat state restriction
+  combatState?: 'any' | 'combat_only' | 'out_of_combat' | 'out_of_combat_only';
 }
 
 export const ABILITIES = {
@@ -271,6 +274,30 @@ export const ABILITIES = {
     cooldownSeconds: 3n,
     castSeconds: 1n,
     damageType: 'magic' as DamageType,
+  },
+  cleric_resurrect: {
+    name: 'Resurrect',
+    description: 'Channels divine power to restore life to a fallen ally. Targets a corpse at the cleric\'s location. The dead character is teleported to the corpse and restored to 50% health and mana.',
+    className: 'cleric',
+    resource: 'mana',
+    level: 6n,
+    power: 0n,
+    cooldownSeconds: 600n,
+    castSeconds: 0n,
+    damageType: 'none' as DamageType,
+    combatState: 'out_of_combat',
+  },
+  cleric_corpse_summon: {
+    name: 'Corpse Summon',
+    description: 'Summons all of a target character\'s corpses to the caster\'s location, merging them into one. The target must confirm before the summon proceeds.',
+    className: 'cleric',
+    resource: 'mana',
+    level: 7n,
+    power: 0n,
+    cooldownSeconds: 900n,
+    castSeconds: 0n,
+    damageType: 'none' as DamageType,
+    combatState: 'out_of_combat',
   },
   wizard_arcane_reservoir: {
     name: 'Arcane Reservoir',

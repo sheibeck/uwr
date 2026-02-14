@@ -603,6 +603,7 @@ export const EnemyTemplate = table(
     baseDamage: t.u64(),
     xpReward: t.u64(),
     factionId: t.u64().optional(),
+    isBoss: t.bool().optional(),
   }
 );
 
@@ -1338,6 +1339,41 @@ export const CorpseItem = table(
   }
 );
 
+export const PendingResurrect = table(
+  {
+    name: 'pending_resurrect',
+    public: true,
+    indexes: [
+      { name: 'by_target', algorithm: 'btree', columns: ['targetCharacterId'] },
+      { name: 'by_caster', algorithm: 'btree', columns: ['casterCharacterId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    casterCharacterId: t.u64(),
+    targetCharacterId: t.u64(),
+    corpseId: t.u64(),
+    createdAtMicros: t.u64(),
+  }
+);
+
+export const PendingCorpseSummon = table(
+  {
+    name: 'pending_corpse_summon',
+    public: true,
+    indexes: [
+      { name: 'by_target', algorithm: 'btree', columns: ['targetCharacterId'] },
+      { name: 'by_caster', algorithm: 'btree', columns: ['casterCharacterId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    casterCharacterId: t.u64(),
+    targetCharacterId: t.u64(),
+    createdAtMicros: t.u64(),
+  }
+);
+
 export const spacetimedb = schema(
   Player,
   User,
@@ -1417,5 +1453,7 @@ export const spacetimedb = schema(
   RenownServerFirst,
   Achievement,
   Corpse,
-  CorpseItem
+  CorpseItem,
+  PendingResurrect,
+  PendingCorpseSummon
 );

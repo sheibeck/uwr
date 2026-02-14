@@ -670,10 +670,14 @@ export function ensureAbilityTemplates(ctx: any) {
   const outOfCombatOnlyKeys = new Set([
     'druid_natures_mark',
   ]);
-  const combatStateFor = (key: string) =>
-    combatOnlyKeys.has(key) ? 'combat_only' :
+  const combatStateFor = (key: string, entry: any) => {
+    // Use explicit combatState from ability if provided
+    if (entry.combatState) return entry.combatState;
+    // Fall back to hardcoded sets
+    return combatOnlyKeys.has(key) ? 'combat_only' :
       outOfCombatOnlyKeys.has(key) ? 'out_of_combat_only' :
         'any';
+  };
   for (const [key, ability] of Object.entries(ABILITIES)) {
     const entry = ability as {
       name: string;
@@ -693,6 +697,7 @@ export function ensureAbilityTemplates(ctx: any) {
       debuffMagnitude?: bigint;
       debuffDuration?: bigint;
       aoeTargets?: string;
+      combatState?: string;
     };
     const existing = seenByKey.get(key);
     if (existing) {
@@ -706,7 +711,7 @@ export function ensureAbilityTemplates(ctx: any) {
         castSeconds: entry.castSeconds,
         cooldownSeconds: entry.cooldownSeconds,
         kind: utilityKeys.has(key) ? 'utility' : 'combat',
-        combatState: combatStateFor(key),
+        combatState: combatStateFor(key, entry),
         description: resolveDescription(entry),
         power: entry.power ?? undefined,
         damageType: entry.damageType ?? undefined,
@@ -730,7 +735,7 @@ export function ensureAbilityTemplates(ctx: any) {
         castSeconds: entry.castSeconds,
         cooldownSeconds: entry.cooldownSeconds,
         kind: utilityKeys.has(key) ? 'utility' : 'combat',
-        combatState: combatStateFor(key),
+        combatState: combatStateFor(key, entry),
         description: resolveDescription(entry),
         power: entry.power ?? undefined,
         damageType: entry.damageType ?? undefined,
