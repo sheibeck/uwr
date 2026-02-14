@@ -265,6 +265,13 @@
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('track', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('track', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('track', $event, { right: true, bottom: true })" />
     </div>
 
+    <!-- Travel Panel -->
+    <div v-if="panels.travelPanel && panels.travelPanel.open" data-panel-id="travelPanel" :style="{ ...styles.floatingPanel, ...(panelStyle('travelPanel').value || {}) }" @mousedown="bringToFront('travelPanel')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('travelPanel', $event)"><div>Travel</div><button type="button" :style="styles.panelClose" @click="closePanelById('travelPanel')">x</button></div>
+      <div :style="styles.floatingPanelBody"><TravelPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :locations="connectedLocations" :regions="regions" :travel-cooldowns="travelCooldowns" :all-locations="locations" :location-connections="locationConnections" @move="moveTo" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('travelPanel', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('travelPanel', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('travelPanel', $event, { right: true, bottom: true })" />
+    </div>
+
     <div
       :style="{
         ...styles.floatingPanel,
@@ -315,17 +322,6 @@
           />
         </template>
         <template v-else>
-        <TravelPanel
-          :styles="styles"
-          :conn-active="conn.isActive"
-          :selected-character="selectedCharacter"
-          :locations="connectedLocations"
-          :regions="regions"
-          :travel-cooldowns="travelCooldowns"
-          :all-locations="locations"
-          :location-connections="locationConnections"
-          @move="moveTo"
-        />
         <LocationGrid
           :styles="styles"
           :conn-active="conn.isActive"
@@ -1500,6 +1496,7 @@ const {
   characterActions: { x: 600, y: 200 },
   trade: { x: 600, y: 140 },
   track: { x: 600, y: 200 },
+  travelPanel: { x: 600, y: 140 },
   combat: { x: 600, y: 140 },
   log: { x: 40, y: 400, w: 500, h: 300, open: true },
 }, {

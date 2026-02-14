@@ -64,6 +64,13 @@
         Renown
       </button>
       <button
+        @click="emit('toggle', 'travelPanel')"
+        :style="actionStyle('travelPanel')"
+        :disabled="isLocked('travelPanel')"
+      >
+        Travel
+      </button>
+      <button
         @click="emit('toggle', 'loot')"
         :style="actionStyle('loot')"
       >
@@ -95,6 +102,7 @@ type PanelKey =
   | 'renown'
   | 'loot'
   | 'travel'
+  | 'travelPanel'
   | 'combat';
 
 const props = defineProps<{
