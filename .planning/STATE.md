@@ -1,18 +1,18 @@
 # Project State
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
-**Last updated:** 2026-02-13
-**Status:** Phase 04 complete — Config Table Architecture: Database-driven ability execution with single source of truth
+**Last updated:** 2026-02-14
+**Status:** Phase 10 in progress — Travel & Movement Costs: Backend stamina-based travel costs with per-character cooldown
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 Plan 01 complete — TravelCooldown table, TRAVEL_CONFIG constants, and move_character reducer with flat stamina costs and per-character cooldown.
 
-**Current phase:** 04 (Config Table Architecture)
-**Current plan:** 2/2 plans done (04-01 complete, 04-02 complete)
-**Next action:** Phase 04 complete. Ready for Phase 05 (LLM Architecture)
+**Current phase:** 10 (Travel & Movement Costs)
+**Current plan:** 1/3 plans done (10-01 complete)
+**Next action:** Continue Phase 10 with travel UI improvements or validation
 
 ---
 
@@ -33,6 +33,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 7 | World Events | Pending |
 | 8 | Narrative Tone Rollout | Pending |
 | 9 | Content Data Expansion | Pending |
+| 10 | Travel & Movement Costs | In Progress (1/3 plans done: backend costs complete) |
 
 ---
 
@@ -93,6 +94,10 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 53. ABILITY_STAT_SCALING kept for seeding only, not execution — getAbilityStatScaling requires statScaling parameter from DB row, no fallback to constant (04-02)
 54. legacyDescriptions block (85 lines) removed from ensureAbilityTemplates — descriptions already in database, fallback no longer needed (04-02)
 55. btree index .filter() pattern for database lookups — by_key is btree (not unique), must use .filter() not .find() (04-02)
+56. Travel costs are flat stamina per character (5 within-region, 10 cross-region) - no BFS distance calculation, no gold costs, no per-step scaling (10-01)
+57. All-or-nothing group travel validation - entire group move fails if any member lacks stamina, error shows which character is short (10-01)
+58. Per-character cross-region cooldown (5 minutes) - not group-wide, only cross-region travel has cooldown (10-01)
+59. Opportunistic expired cooldown cleanup during cooldown check - prevents TravelCooldown table accumulation (10-01)
 
 ---
 
@@ -120,6 +125,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 03.1.3-enemy-ai-and-aggro-management | 02 | 4min | 2 | 1 |
 | 04-config-table-architecture | 01 | 3min | 2 | 1 |
 | 04-config-table-architecture | 02 | 4min | 4 | 5 |
+| 10-travel-movement-costs | 01 | 2min | 2 | 3 |
 
 ## Accumulated Context
 
@@ -239,4 +245,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed quick task 82: Fix /synccontent not seeding new locations - sync stale ensureWorldLayout in index.ts to match ensure_world.ts (30 locations)
+Last activity: 2026-02-14 - Completed Phase 10 Plan 01: Travel cost system backend with flat stamina costs (5 within-region, 10 cross-region), per-character 5-minute cross-region cooldown, and all-or-nothing group validation
