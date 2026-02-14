@@ -246,9 +246,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 81 | Expand world to 30 locations for movement research - 10 locations per region with varied terrain types and interconnected travel graphs | 2026-02-14 | 7cd4481 | [81-we-re-doing-research-for-movement-so-one](./quick/81-we-re-doing-research-for-movement-so-one/) |
 | 82 | Fix /synccontent not seeding new locations - sync stale ensureWorldLayout in index.ts to match ensure_world.ts (30 locations) | 2026-02-14 | 1282ff5 | [82-i-published-the-module-and-i-ran-synccon](./quick/82-i-published-the-module-and-i-ran-synccon/) |
 | 83 | Eliminate duplicate seeding code in index.ts - reduced from 7102 to 1769 lines (75%) by replacing all function definitions with imports from modular files | 2026-02-14 | 11241c5 | [83-eliminate-duplicate-seeding-code-in-inde](./quick/83-eliminate-duplicate-seeding-code-in-inde/) |
+| 84 | Add confirmation dialog for cross-region travel - narrative confirmation dialog prevents accidental costly moves while within-region travel remains instant | 2026-02-14 | ef8605d | [84-add-confirmation-dialog-for-cross-region](./quick/84-add-confirmation-dialog-for-cross-region/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed quick task 83: Eliminate duplicate seeding code in index.ts - reduced from 7102 to 1769 lines (75%) by replacing all function definitions with imports from modular files (33 min, 3 commits)
+Last activity: 2026-02-14 - Completed quick task 84: Add confirmation dialog for cross-region travel - narrative confirmation dialog prevents accidental costly moves while within-region travel remains instant (1 min, 1 commit)
