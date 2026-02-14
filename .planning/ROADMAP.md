@@ -19,6 +19,15 @@
 | 7 | World Events | REQ-030–035 | Phase 1 (race unlock), Phase 5 (LLM text) | Pending |
 | 8 | Narrative Tone Rollout | REQ-080–084 (applied) | Phase 5 (LLM pipeline running) | Pending |
 | 9 | Content Data Expansion | REQ-090–094 | Phases 1–3 (systems to populate) | Pending |
+| 10 | Travel & Movement Costs | None | Phase 4 | Complete (2026-02-13) |
+| 11 | Death & Corpse System | None | Phase 10 | Pending |
+| 12 | Overall Renown System | None | Phase 11 | Pending |
+| 13 | Crafting System - Weapons & Armor | None | Phase 12 | Pending |
+| 14 | Loot & Gear Progression | None | Phase 13 | Pending |
+| 15 | Named NPCs | None | Phase 14 | Pending |
+| 16 | Travelling NPCs | None | Phase 15 | Pending |
+| 17 | World Bosses | None | Phase 16 | Pending |
+| 18 | World Events System Expansion | None | Phase 17 | Pending |
 
 ---
 
@@ -442,11 +451,12 @@ Phases 1, 3, 4, and 5 can run in parallel (4 and 5 both require 3 complete). Pha
 
 **Goal:** Region-based travel cost system where within-region travel costs 5 stamina per character and cross-region travel costs 10 stamina per character plus a 5-minute cooldown. All group members must afford travel or the group move fails. Travel UI shows cost indicators and cooldown countdowns.
 **Depends on:** Phase 4
+**Status:** Complete (2026-02-13)
 **Plans:** 2 plans
 
 Plans:
-- [ ] 10-01-PLAN.md — Backend: TRAVEL_CONFIG constants, TravelCooldown table, move_character reducer with region-based stamina costs, group-wide validation, and per-character cooldown
-- [ ] 10-02-PLAN.md — Frontend: Publish module, regenerate bindings, TravelPanel cost indicators, cooldown countdown display, affordability gating, human verification
+- [x] 10-01-PLAN.md — Backend: TRAVEL_CONFIG constants, TravelCooldown table, move_character reducer with region-based stamina costs, group-wide validation, and per-character cooldown
+- [x] 10-02-PLAN.md — Frontend: Publish module, regenerate bindings, TravelPanel cost indicators, cooldown countdown display, affordability gating, human verification
 
 ### Phase 11: Death & Corpse System - Corpse mechanic for level 5+ characters, equipped items stay while inventory drops to corpse, corpse retrieval mechanics, death penalties and resurrection
 

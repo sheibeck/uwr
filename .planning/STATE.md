@@ -1,18 +1,18 @@
 # Project State
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
-**Last updated:** 2026-02-14
-**Status:** Phase 10 in progress — Travel & Movement Costs: Backend stamina-based travel costs with per-character cooldown
+**Last updated:** 2026-02-13
+**Status:** Phase 10 complete — Travel & Movement Costs: Region-based stamina costs with cooldown system fully implemented and verified
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 Plans 01-02 complete — Backend stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, TravelPanel UI with cost indicators and live countdown timer.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 (Travel & Movement Costs) complete — Region-based stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, all-or-nothing group validation, TravelPanel UI with cost indicators and live countdown timer. Human-verified functional.
 
-**Current phase:** 10 (Travel & Movement Costs)
-**Current plan:** 2/3 plans done (10-01 and 10-02 complete)
-**Next action:** Check if Phase 10 has additional plans or proceed to phase goal verification
+**Current phase:** 11 (Death & Corpse System) — awaiting planning
+**Current plan:** None (Phase 11 not yet planned)
+**Next action:** Run /gsd:plan-phase 11 to break down Death & Corpse System or continue with other work
 
 ---
 
@@ -33,7 +33,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 7 | World Events | Pending |
 | 8 | Narrative Tone Rollout | Pending |
 | 9 | Content Data Expansion | Pending |
-| 10 | Travel & Movement Costs | In Progress (2/3 plans done: backend + UI complete) |
+| 10 | Travel & Movement Costs | Complete (2/2 plans done: backend + UI, human-verified) |
 
 ---
 
