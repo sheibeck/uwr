@@ -294,9 +294,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 93 | Refactor resurrection & corpse summon spell system - merged PendingResurrect and PendingCorpseSummon into unified PendingSpellCast table, moved Corpse Summon from Cleric to Necromancer/Summoner, removed cooldowns, added flat mana costs (50/60) and 10s cast times | 2026-02-14 | bf1fad9 | [93-refactor-resurrection-corpse-summon-merg](./quick/93-refactor-resurrection-corpse-summon-merg/) |
 | 94 | Add /grantrenown command and fix Renown panel zero-state - wired grantTestRenown reducer to /grantrenown command, removed 'No renown data yet' guard to show Rank 1 (Unsung) info when renownData is null | 2026-02-14 | fab7a46 | [94-add-grantrenown-command-and-fix-renown-p](./quick/94-add-grantrenown-command-and-fix-renown-p/) |
 | 95 | Create /spawncorpse admin command - spawn test corpse with random junk item at current location for corpse system testing without requiring combat death | 2026-02-14 | 19eb965 | [95-create-spawncorpse-admin-command-that-sp](./quick/95-create-spawncorpse-admin-command-that-sp/) |
+| 96 | Fix NPC dialogue logging issues and add NPC targeting - separated NPC conversation text to Journal-only (removed Log duplication), added click-to-select NPC targeting with green highlight, /say command with targeted NPC fuzzy-matches dialogue options | 2026-02-14 | 7be12ba | [96-fix-npc-dialogue-logging-issues-greeting](./quick/96-fix-npc-dialogue-logging-issues-greeting/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-14 - Completed Phase 19 Plan 01: NPC relationship backend foundation with NpcAffinity table (per-character per-NPC affinity tracking), NpcDialogueOption table (threshold-gated dialogue trees), affinity helpers with personality-modified progression, and dialogue seed data for 3 NPCs across 4 tiers.
+Last activity: 2026-02-14 - Completed quick-96: Fixed NPC dialogue logging separation (Journal-only for conversations, Log-only for system messages) and added click-to-select NPC targeting with /say dialogue interaction using fuzzy matching.
