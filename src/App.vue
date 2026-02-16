@@ -1195,8 +1195,9 @@ const onTalkNpc = (npcId: bigint) => {
   hailNpcReducer({ characterId: selectedCharacter.value.id, npcName: npc.name });
 };
 
-// Clear NPC selection when location changes
-watch(currentLocation, () => {
+// Clear all target selections when location changes
+// Watch locationId directly for more reliable reactivity
+watch(() => selectedCharacter.value?.locationId, () => {
   selectedNpcTarget.value = null;
   selectedCharacterTarget.value = null;
   selectedCorpseTarget.value = null;
