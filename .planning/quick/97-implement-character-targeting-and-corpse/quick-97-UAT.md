@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: complete
 phase: quick-97
 source: 97-SUMMARY.md
 started: 2026-02-16T22:30:00Z
-updated: 2026-02-16T22:41:00Z
+updated: 2026-02-16T22:50:00Z
 ---
 
 ## Current Test
@@ -47,9 +47,8 @@ result: pass
 
 ### 9. Selection clearing on location change
 expected: Moving to different location clears character selection, NPC selection, and corpse selection.
-result: issue
-reported: "Moving to a different location cleared the character selection, but not the corpse selection"
-severity: major
+result: pass
+notes: Fixed in commit 19f901d - LocationGrid now uses prop instead of local state
 
 ### 10. Context menu Corpse Summon
 expected: REMOVED - Corpse Summon context menu option was intentionally removed. Corpse Summon only available via hotbar.
@@ -59,15 +58,15 @@ notes: Feature removed by design - only hotbar access remains
 ## Summary
 
 total: 10
-passed: 8
-issues: 1
+passed: 9
+issues: 0
 pending: 0
 skipped: 1
 
 ## Gaps
 
 - truth: "Moving to different location clears character selection, NPC selection, and corpse selection"
-  status: failed
+  status: resolved
   reason: "User reported: Moving to a different location cleared the character selection, but not the corpse selection"
   severity: major
   test: 9
