@@ -376,19 +376,6 @@ const openCharacterContextMenu = (event: MouseEvent, character: CharacterRow) =>
     },
   ];
 
-  // Check if caster can use Corpse Summon (necromancer/summoner level 6+)
-  const casterClass = props.selectedCharacter?.className.toLowerCase();
-  const casterLevel = props.selectedCharacter ? Number(props.selectedCharacter.level) : 0;
-  const canCorpseSummon =
-    (casterClass === 'necromancer' || casterClass === 'summoner') && casterLevel >= 6;
-
-  if (canCorpseSummon) {
-    items.push({
-      label: 'Corpse Summon',
-      action: () => emit('initiate-corpse-summon', character.id),
-    });
-  }
-
   contextMenu.value = {
     visible: true,
     x: event.clientX,

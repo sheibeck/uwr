@@ -1203,6 +1203,28 @@ watch(currentLocation, () => {
   selectedNpcTarget.value = null;
 });
 
+// Clear character target if target is no longer at same location
+watch(charactersHere, () => {
+  if (!selectedCharacterTarget.value) return;
+  const targetStillHere = charactersHere.value.find(
+    (char) => char.id.toString() === selectedCharacterTarget.value?.toString()
+  );
+  if (!targetStillHere) {
+    selectedCharacterTarget.value = null;
+  }
+});
+
+// Clear corpse target if corpse is no longer at location
+watch(corpsesHere, () => {
+  if (!selectedCorpseTarget.value) return;
+  const corpseStillHere = corpsesHere.value.find(
+    (corpse) => corpse.id.toString() === selectedCorpseTarget.value?.toString()
+  );
+  if (!corpseStillHere) {
+    selectedCorpseTarget.value = null;
+  }
+});
+
 const { commandText, submitCommand } = useCommands({
   connActive: computed(() => conn.isActive),
   selectedCharacter,

@@ -13,6 +13,7 @@ export const registerCorpseReducers = (deps: any) => {
     PendingSpellCast,
     executeResurrect,
     executeCorpseSummon,
+    abilityCastMicros,
   } = deps;
 
   spacetimedb.reducer('loot_corpse_item', { characterId: t.u64(), corpseItemId: t.u64() }, (ctx, args) => {
@@ -288,8 +289,8 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Note: Mana was already deducted in initiate_resurrect
 
-    // Start the 10-second cast (castSeconds: 10n in cleric_abilities.ts)
-    const castMicros = 10_000_000n;
+    // Start the cast (tick_casts will execute the ability and apply cooldown after cast completes)
+    const castMicros = abilityCastMicros(ctx, 'cleric_resurrect');
     ctx.db.characterCast.insert({
       id: 0n,
       characterId: caster.id,
@@ -298,26 +299,8 @@ export const registerCorpseReducers = (deps: any) => {
       endsAtMicros: nowMicros + castMicros,
     });
 
-    // Apply cooldown (3 seconds)
-    const cooldownMicros = 3_000_000n;
-    const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(caster.id)]
-      .find(cd => cd.abilityKey === 'cleric_resurrect');
-    if (existingCooldown) {
-      ctx.db.abilityCooldown.id.update({
-        ...existingCooldown,
-        readyAtMicros: nowMicros + castMicros + cooldownMicros,
-      });
-    } else {
-      ctx.db.abilityCooldown.insert({
-        id: 0n,
-        characterId: caster.id,
-        abilityKey: 'cleric_resurrect',
-        readyAtMicros: nowMicros + castMicros + cooldownMicros,
-      });
-    }
-
     // Delete the PendingSpellCast so the confirmation dialog closes
-    // executeAbility will find the corpse from targetCharacterId and location
+    // tick_casts will execute the ability and apply cooldown after cast completes
     ctx.db.pendingSpellCast.id.delete(pending.id);
 
     appendPrivateEvent(
@@ -435,6 +418,12 @@ export const registerCorpseReducers = (deps: any) => {
       }
     }
 
+    // Deduct mana cost upfront (before cast)
+    ctx.db.character.id.update({
+      ...caster,
+      mana: caster.mana - manaCost,
+    });
+
     // Create PendingSpellCast row
     ctx.db.pendingSpellCast.insert({
       id: 0n,
@@ -487,27 +476,57 @@ export const registerCorpseReducers = (deps: any) => {
       return;
     }
 
-    // Re-verify mana availability (flat 60 mana)
-    const manaCost = 60n;
-    if (caster.mana < manaCost) {
+    // Check if caster is already casting
+    const existingCast = [...ctx.db.characterCast.by_character.filter(caster.id)][0];
+    if (existingCast && existingCast.endsAtMicros > nowMicros) {
+      appendPrivateEvent(
+        ctx,
+        caster.id,
+        caster.ownerUserId,
+        'error',
+        `${character.name} accepted, but you are already casting.`
+      );
       ctx.db.pendingSpellCast.id.delete(pending.id);
-      fail(ctx, character, 'Caster no longer has enough mana');
+      fail(ctx, character, 'Caster is already casting');
       return;
     }
+    if (existingCast) {
+      ctx.db.characterCast.id.delete(existingCast.id);
+    }
 
-    // Deduct mana from caster
-    ctx.db.character.id.update({
-      ...caster,
-      mana: caster.mana - manaCost,
+    // Note: Mana was already deducted in initiate_corpse_summon
+
+    // Get the correct ability key based on caster class
+    const abilityKey = `${caster.className.toLowerCase()}_corpse_summon`;
+
+    // Start the cast (tick_casts will execute the ability and apply cooldown after cast completes)
+    const castMicros = abilityCastMicros(ctx, abilityKey);
+    ctx.db.characterCast.insert({
+      id: 0n,
+      characterId: caster.id,
+      abilityKey,
+      targetCharacterId: character.id,
+      endsAtMicros: nowMicros + castMicros,
     });
 
-    // Execute corpse summon
-    executeCorpseSummon(ctx, caster, character);
-
-    // Delete the PendingSpellCast row
+    // Delete the PendingSpellCast so the confirmation dialog closes
+    // tick_casts will execute the ability and apply cooldown after cast completes
     ctx.db.pendingSpellCast.id.delete(pending.id);
 
-    // No cooldown for corpse summon (cooldownSeconds: 0n in ability template)
+    appendPrivateEvent(
+      ctx,
+      caster.id,
+      caster.ownerUserId,
+      'ability',
+      `${character.name} accepted. Casting Corpse Summon...`
+    );
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'system',
+      'You accepted the corpse summon. The caster is now casting...'
+    );
   });
 
   spacetimedb.reducer('decline_corpse_summon', { characterId: t.u64(), pendingId: t.u64() }, (ctx, args) => {

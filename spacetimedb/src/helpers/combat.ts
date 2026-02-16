@@ -1013,6 +1013,24 @@ export function executeAbility(
       // Execute the resurrection
       executeResurrect(ctx, character, targetCharacter, resurrectCorpse);
       return;
+
+    case 'necromancer_corpse_summon':
+    case 'summoner_corpse_summon':
+      // targetCharacter is the character whose corpses we're summoning (from CharacterCast.targetCharacterId)
+      if (!targetCharacter) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'error',
+          'Corpse summon failed - target not found.'
+        );
+        return;
+      }
+
+      // Execute the corpse summon
+      executeCorpseSummon(ctx, character, targetCharacter);
+      return;
     case 'wizard_magic_missile':
       applyDamage(0n, 0n);
       return;
