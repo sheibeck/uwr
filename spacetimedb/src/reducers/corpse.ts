@@ -7,6 +7,7 @@ export const registerCorpseReducers = (deps: any) => {
     SenderError,
     requireCharacterOwnedBy,
     appendPrivateEvent,
+    fail,
     removeCorpseIfEmpty,
     activeCombatIdForCharacter,
     PendingSpellCast,
@@ -19,20 +20,28 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Find the CorpseItem row
     const corpseItem = ctx.db.corpseItem.id.find(args.corpseItemId);
-    if (!corpseItem) throw new SenderError('Item not found in corpse');
+    if (!corpseItem) {
+      fail(ctx, character, 'Item not found in corpse');
+      return;
+    }
 
     // Find the Corpse row
     const corpse = ctx.db.corpse.id.find(corpseItem.corpseId);
-    if (!corpse) throw new SenderError('Corpse not found');
+    if (!corpse) {
+      fail(ctx, character, 'Corpse not found');
+      return;
+    }
 
     // Verify ownership
     if (corpse.characterId !== character.id) {
-      throw new SenderError('This is not your corpse');
+      fail(ctx, character, 'This is not your corpse');
+      return;
     }
 
     // Verify location
     if (character.locationId !== corpse.locationId) {
-      throw new SenderError('You must be at the corpse location');
+      fail(ctx, character, 'You must be at the corpse location');
+      return;
     }
 
     // Get item details for message
@@ -69,16 +78,21 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Find the Corpse row
     const corpse = ctx.db.corpse.id.find(args.corpseId);
-    if (!corpse) throw new SenderError('Corpse not found');
+    if (!corpse) {
+      fail(ctx, character, 'Corpse not found');
+      return;
+    }
 
     // Verify ownership
     if (corpse.characterId !== character.id) {
-      throw new SenderError('This is not your corpse');
+      fail(ctx, character, 'This is not your corpse');
+      return;
     }
 
     // Verify location
     if (character.locationId !== corpse.locationId) {
-      throw new SenderError('You must be at the corpse location');
+      fail(ctx, character, 'You must be at the corpse location');
+      return;
     }
 
     // Count and delete all CorpseItem rows
@@ -118,34 +132,47 @@ export const registerCorpseReducers = (deps: any) => {
     // Verify caster is not in combat
     const combatId = activeCombatIdForCharacter(ctx, caster.id);
     if (combatId !== null) {
-      throw new SenderError('Cannot resurrect while in combat');
+      fail(ctx, caster, 'Cannot resurrect while in combat');
+      return;
     }
 
     // Find the corpse
     const corpse = ctx.db.corpse.id.find(args.corpseId);
-    if (!corpse) throw new SenderError('Corpse not found');
+    if (!corpse) {
+      fail(ctx, caster, 'Corpse not found');
+      return;
+    }
 
     // Verify caster is at same location as corpse
     if (caster.locationId !== corpse.locationId) {
-      throw new SenderError('You must be at the corpse location');
+      fail(ctx, caster, 'You must be at the corpse location');
+      return;
     }
 
     // Find the target character
     const target = ctx.db.character.id.find(corpse.characterId);
-    if (!target) throw new SenderError('Target character not found');
+    if (!target) {
+      fail(ctx, caster, 'Target character not found');
+      return;
+    }
 
     // Verify caster has Resurrect ability
     const abilityTemplate = [...ctx.db.abilityTemplate.by_key.filter('cleric_resurrect')][0];
-    if (!abilityTemplate) throw new SenderError('Resurrect ability not found');
+    if (!abilityTemplate) {
+      fail(ctx, caster, 'Resurrect ability not found');
+      return;
+    }
 
     if (caster.className.toLowerCase() !== 'cleric' || caster.level < 6n) {
-      throw new SenderError(`You must be a level 6+ cleric to resurrect (you are: ${caster.className} level ${caster.level})`);
+      fail(ctx, caster, `You must be a level 6+ cleric to resurrect (you are: ${caster.className} level ${caster.level})`);
+      return;
     }
 
     // Check mana cost (flat 50 mana)
     const manaCost = 50n;
     if (caster.mana < manaCost) {
-      throw new SenderError('Not enough mana to resurrect');
+      fail(ctx, caster, 'Not enough mana to resurrect');
+      return;
     }
 
     // Clean up expired pending spell casts
@@ -159,7 +186,8 @@ export const registerCorpseReducers = (deps: any) => {
     // Check for existing pending resurrect for this target
     for (const pending of ctx.db.pendingSpellCast.by_target.filter(target.id)) {
       if (pending.spellType === 'resurrect') {
-        throw new SenderError('Target already has a pending resurrect');
+        fail(ctx, caster, 'Target already has a pending resurrect');
+        return;
       }
     }
 
@@ -188,23 +216,29 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Find PendingSpellCast row
     const pending = ctx.db.pendingSpellCast.id.find(args.pendingId);
-    if (!pending) throw new SenderError('Pending resurrect not found');
+    if (!pending) {
+      fail(ctx, character, 'Pending resurrect not found');
+      return;
+    }
 
     // Verify this is a resurrect spell
     if (pending.spellType !== 'resurrect') {
-      throw new SenderError('Invalid spell type');
+      fail(ctx, character, 'Invalid spell type');
+      return;
     }
 
     // Verify the pending action belongs to this character
     if (pending.targetCharacterId !== character.id) {
-      throw new SenderError('This resurrect is not for you');
+      fail(ctx, character, 'This resurrect is not for you');
+      return;
     }
 
     // Verify not expired
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     if (nowMicros - pending.createdAtMicros > CONFIRMATION_TIMEOUT) {
       ctx.db.pendingSpellCast.id.delete(pending.id);
-      throw new SenderError('Resurrect request expired');
+      fail(ctx, character, 'Resurrect request expired');
+      return;
     }
 
     // Find the corpse (it might have been looted/decayed in the meantime)
@@ -222,14 +256,16 @@ export const registerCorpseReducers = (deps: any) => {
         );
       }
       ctx.db.pendingSpellCast.id.delete(pending.id);
-      throw new SenderError('Corpse no longer exists');
+      fail(ctx, character, 'Corpse no longer exists');
+      return;
     }
 
     // Find the caster (verify still exists and online)
     const caster = ctx.db.character.id.find(pending.casterCharacterId);
     if (!caster) {
       ctx.db.pendingSpellCast.id.delete(pending.id);
-      throw new SenderError('Caster no longer online');
+      fail(ctx, character, 'Caster no longer online');
+      return;
     }
 
     // Check if caster is already casting
@@ -243,7 +279,8 @@ export const registerCorpseReducers = (deps: any) => {
         `${character.name} accepted, but you are already casting.`
       );
       ctx.db.pendingSpellCast.id.delete(pending.id);
-      throw new SenderError('Caster is already casting');
+      fail(ctx, character, 'Caster is already casting');
+      return;
     }
     if (existingCast) {
       ctx.db.characterCast.id.delete(existingCast.id);
@@ -304,16 +341,21 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Find PendingSpellCast row
     const pending = ctx.db.pendingSpellCast.id.find(args.pendingId);
-    if (!pending) throw new SenderError('Pending resurrect not found');
+    if (!pending) {
+      fail(ctx, character, 'Pending resurrect not found');
+      return;
+    }
 
     // Verify this is a resurrect spell
     if (pending.spellType !== 'resurrect') {
-      throw new SenderError('Invalid spell type');
+      fail(ctx, character, 'Invalid spell type');
+      return;
     }
 
     // Verify the pending action belongs to this character
     if (pending.targetCharacterId !== character.id) {
-      throw new SenderError('This resurrect is not for you');
+      fail(ctx, character, 'This resurrect is not for you');
+      return;
     }
 
     // Find caster for notification
@@ -337,34 +379,44 @@ export const registerCorpseReducers = (deps: any) => {
     // Verify caster is not in combat
     const combatId = activeCombatIdForCharacter(ctx, caster.id);
     if (combatId !== null) {
-      throw new SenderError('Cannot summon corpses while in combat');
+      fail(ctx, caster, 'Cannot summon corpses while in combat');
+      return;
     }
 
     // Find target character
     const target = ctx.db.character.id.find(args.targetCharacterId);
-    if (!target) throw new SenderError('Target character not found');
+    if (!target) {
+      fail(ctx, caster, 'Target character not found');
+      return;
+    }
 
     // Verify target has at least one corpse
     const targetCorpses = [...ctx.db.corpse.by_character.filter(target.id)];
     if (targetCorpses.length === 0) {
-      throw new SenderError('Target has no corpses to summon');
+      fail(ctx, caster, 'Target has no corpses to summon');
+      return;
     }
 
     // Verify caster class and level
     const validCorpseSummonClass = caster.className.toLowerCase() === 'necromancer' || caster.className.toLowerCase() === 'summoner';
     if (!validCorpseSummonClass || caster.level < 6n) {
-      throw new SenderError('You must be a level 6+ necromancer or summoner to summon corpses');
+      fail(ctx, caster, 'You must be a level 6+ necromancer or summoner to summon corpses');
+      return;
     }
 
     // Verify caster has Corpse Summon ability
     const abilityKey = `${caster.className}_corpse_summon`;
     const abilityTemplate = [...ctx.db.abilityTemplate.by_key.filter(abilityKey)][0];
-    if (!abilityTemplate) throw new SenderError('Corpse Summon ability not found');
+    if (!abilityTemplate) {
+      fail(ctx, caster, 'Corpse Summon ability not found');
+      return;
+    }
 
     // Check mana cost (flat 60 mana)
     const manaCost = 60n;
     if (caster.mana < manaCost) {
-      throw new SenderError('Not enough mana to summon corpses');
+      fail(ctx, caster, 'Not enough mana to summon corpses');
+      return;
     }
 
     // Clean up expired pending spell casts
@@ -378,7 +430,8 @@ export const registerCorpseReducers = (deps: any) => {
     // Check for existing pending summon for this target
     for (const pending of ctx.db.pendingSpellCast.by_target.filter(target.id)) {
       if (pending.spellType === 'corpse_summon') {
-        throw new SenderError('Target already has a pending corpse summon');
+        fail(ctx, caster, 'Target already has a pending corpse summon');
+        return;
       }
     }
 
@@ -401,37 +454,45 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Find PendingSpellCast row
     const pending = ctx.db.pendingSpellCast.id.find(args.pendingId);
-    if (!pending) throw new SenderError('Pending corpse summon not found');
+    if (!pending) {
+      fail(ctx, character, 'Pending corpse summon not found');
+      return;
+    }
 
     // Verify this is a corpse_summon spell
     if (pending.spellType !== 'corpse_summon') {
-      throw new SenderError('Invalid spell type');
+      fail(ctx, character, 'Invalid spell type');
+      return;
     }
 
     // Verify the pending action belongs to this character
     if (pending.targetCharacterId !== character.id) {
-      throw new SenderError('This corpse summon is not for you');
+      fail(ctx, character, 'This corpse summon is not for you');
+      return;
     }
 
     // Verify not expired
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     if (nowMicros - pending.createdAtMicros > CONFIRMATION_TIMEOUT) {
       ctx.db.pendingSpellCast.id.delete(pending.id);
-      throw new SenderError('Corpse summon request expired');
+      fail(ctx, character, 'Corpse summon request expired');
+      return;
     }
 
     // Find the caster (verify still exists and online)
     const caster = ctx.db.character.id.find(pending.casterCharacterId);
     if (!caster) {
       ctx.db.pendingSpellCast.id.delete(pending.id);
-      throw new SenderError('Caster no longer online');
+      fail(ctx, character, 'Caster no longer online');
+      return;
     }
 
     // Re-verify mana availability (flat 60 mana)
     const manaCost = 60n;
     if (caster.mana < manaCost) {
       ctx.db.pendingSpellCast.id.delete(pending.id);
-      throw new SenderError('Caster no longer has enough mana');
+      fail(ctx, character, 'Caster no longer has enough mana');
+      return;
     }
 
     // Deduct mana from caster
@@ -454,16 +515,21 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Find PendingSpellCast row
     const pending = ctx.db.pendingSpellCast.id.find(args.pendingId);
-    if (!pending) throw new SenderError('Pending corpse summon not found');
+    if (!pending) {
+      fail(ctx, character, 'Pending corpse summon not found');
+      return;
+    }
 
     // Verify this is a corpse_summon spell
     if (pending.spellType !== 'corpse_summon') {
-      throw new SenderError('Invalid spell type');
+      fail(ctx, character, 'Invalid spell type');
+      return;
     }
 
     // Verify the pending action belongs to this character
     if (pending.targetCharacterId !== character.id) {
-      throw new SenderError('This corpse summon is not for you');
+      fail(ctx, character, 'This corpse summon is not for you');
+      return;
     }
 
     // Find caster for notification
@@ -488,7 +554,8 @@ export const registerCorpseReducers = (deps: any) => {
     const junkTemplates = [...ctx.db.itemTemplate.iter()].filter((row: any) => row.isJunk);
 
     if (junkTemplates.length === 0) {
-      throw new SenderError('No junk item templates found');
+      fail(ctx, character, 'No junk item templates found');
+      return;
     }
 
     // Pick a random one using timestamp-based seed
