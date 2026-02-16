@@ -351,7 +351,7 @@ export const registerCorpseReducers = (deps: any) => {
     }
 
     // Verify caster class and level
-    const validCorpseSummonClass = caster.className === 'necromancer' || caster.className === 'summoner';
+    const validCorpseSummonClass = caster.className.toLowerCase() === 'necromancer' || caster.className.toLowerCase() === 'summoner';
     if (!validCorpseSummonClass || caster.level < 6n) {
       throw new SenderError('You must be a level 6+ necromancer or summoner to summon corpses');
     }
