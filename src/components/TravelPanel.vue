@@ -112,11 +112,11 @@ const conStyleForDiff = (diff: number) => {
 
 const regionStyleForDiff = (diff: number) => conStyleForDiff(diff);
 
-const targetLevelForLocation = (location: LocationRow, level: number, regions: RegionRow[]) => {
+const targetLevelForLocation = (location: LocationRow, _level: number, regions: RegionRow[]) => {
   const region = regions.find((r) => r.id.toString() === location.regionId.toString());
   const multiplier = region ? Number(region.dangerMultiplier) : 100;
   const offset = Number(location.levelOffset ?? 0n);
-  const scaled = Math.floor((level * multiplier) / 100);
+  const scaled = Math.floor((1 * multiplier) / 100);
   return Math.max(1, scaled + offset);
 };
 
