@@ -192,13 +192,9 @@ export const registerCorpseReducers = (deps: any) => {
       }
     }
 
-    // Deduct mana cost upfront (before cast)
-    ctx.db.character.id.update({
-      ...caster,
-      mana: caster.mana - manaCost,
-    });
+    // Note: Mana will be deducted when target accepts (in accept_resurrect)
 
-    // Create PendingSpellCast row (confirmation request is sent after cast completes via use_ability flow)
+    // Create PendingSpellCast row
     ctx.db.pendingSpellCast.insert({
       id: 0n,
       spellType: 'resurrect',
@@ -287,7 +283,17 @@ export const registerCorpseReducers = (deps: any) => {
       ctx.db.characterCast.id.delete(existingCast.id);
     }
 
-    // Note: Mana was already deducted in initiate_resurrect
+    // Deduct mana cost now that target has accepted (flat 50 mana)
+    const manaCost = 50n;
+    if (caster.mana < manaCost) {
+      ctx.db.pendingSpellCast.id.delete(pending.id);
+      fail(ctx, character, 'Caster no longer has enough mana');
+      return;
+    }
+    ctx.db.character.id.update({
+      ...caster,
+      mana: caster.mana - manaCost,
+    });
 
     // Start the cast (tick_casts will execute the ability and apply cooldown after cast completes)
     const castMicros = abilityCastMicros(ctx, 'cleric_resurrect');
