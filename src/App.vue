@@ -1717,8 +1717,13 @@ const {
   activeCombat,
   canActInCombat,
   defensiveTargetId,
+  selectedCorpseTarget,
   onTrackRequested: () => {
     openPanel('track');
+  },
+  onResurrectRequested: (corpseId: bigint) => {
+    if (!selectedCharacter.value) return;
+    initiateResurrectReducer({ casterCharacterId: selectedCharacter.value.id, corpseId });
   },
   addLocalEvent,
 });

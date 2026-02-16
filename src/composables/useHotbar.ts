@@ -32,7 +32,9 @@ type UseHotbarArgs = {
   activeCombat: Ref<unknown | null>;
   canActInCombat: Ref<boolean>;
   defensiveTargetId: Ref<bigint | null>;
+  selectedCorpseTarget?: Ref<bigint | null>;
   onTrackRequested?: () => void;
+  onResurrectRequested?: (corpseId: bigint) => void;
   addLocalEvent?: (kind: string, message: string) => void;
 };
 
@@ -54,7 +56,9 @@ export const useHotbar = ({
   activeCombat,
   canActInCombat,
   defensiveTargetId,
+  selectedCorpseTarget,
   onTrackRequested,
+  onResurrectRequested,
   addLocalEvent,
 }: UseHotbarArgs) => {
   const setHotbarReducer = useReducer(reducers.setHotbarSlot);
@@ -274,6 +278,14 @@ export const useHotbar = ({
     if (isCasting.value) return;
     if (slot.abilityKey === 'ranger_track') {
       onTrackRequested?.();
+      return;
+    }
+    if (slot.abilityKey === 'cleric_resurrect') {
+      if (!selectedCorpseTarget?.value) {
+        addLocalEvent?.('blocked', 'You must target a corpse to resurrect.');
+        return;
+      }
+      onResurrectRequested?.(selectedCorpseTarget.value);
       return;
     }
     if (activeCombat.value && !canActInCombat.value && slot.kind !== 'utility') {
