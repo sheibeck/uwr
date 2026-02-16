@@ -463,6 +463,9 @@
     </div>
   </div>
 
+  <!-- Help overlay -->
+  <HelpOverlay v-if="showHelp" :styles="styles" @close="showHelp = false" />
+
     <footer :style="styles.footer">
       <CommandBar
         :styles="styles"
@@ -547,6 +550,7 @@ import QuestPanel from './components/QuestPanel.vue';
 import VendorPanel from './components/VendorPanel.vue';
 import TrackPanel from './components/TrackPanel.vue';
 import RenownPanel from './components/RenownPanel.vue';
+import HelpOverlay from './components/HelpOverlay.vue';
 import { useGameData } from './composables/useGameData';
 import { useCharacters } from './composables/useCharacters';
 import { useEvents } from './composables/useEvents';
@@ -1034,6 +1038,7 @@ const lastResultId = ref<string | null>(null);
 const lastLevelUpEventId = ref<string | null>(null);
 const audioCtxRef = ref<AudioContext | null>(null);
 const rankUpNotification = ref<{ rankName: string } | null>(null);
+const showHelp = ref(false);
 
 // Client-side renown ranks for rank name lookups
 const RENOWN_RANKS_CLIENT = [
@@ -1791,7 +1796,7 @@ watch(
 const {
   panels,
   openPanels,
-  togglePanel,
+  togglePanel: togglePanelInternal,
   openPanel,
   closePanel: closePanelById,
   bringToFront,
@@ -1826,6 +1831,15 @@ const {
   selectedCharacterId,
   savePanelLayout: savePanelLayoutReducer,
 });
+
+// Wrapper to intercept help toggle
+const togglePanel = (panelId: string) => {
+  if (panelId === 'help') {
+    showHelp.value = !showHelp.value;
+    return;
+  }
+  togglePanelInternal(panelId);
+};
 
 type AccordionKey = 'enemies';
 

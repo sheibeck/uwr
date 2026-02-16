@@ -13,6 +13,12 @@
     >
       Characters
     </button>
+    <button
+      @click="emit('toggle', 'help')"
+      :style="actionStyle('help')"
+    >
+      Help
+    </button>
     <template v-if="hasActiveCharacter">
       <button
         @click="emit('toggle', 'inventory')"
@@ -103,7 +109,8 @@ type PanelKey =
   | 'loot'
   | 'travel'
   | 'travelPanel'
-  | 'combat';
+  | 'combat'
+  | 'help';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
