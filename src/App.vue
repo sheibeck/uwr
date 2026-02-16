@@ -134,6 +134,29 @@
       </div>
     </div>
 
+    <!-- Global Cast Bar -->
+    <div
+      v-if="isCasting && castingState"
+      :style="{
+        position: 'fixed',
+        bottom: '80px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '300px',
+        background: 'rgba(0, 0, 0, 0.8)',
+        border: '1px solid rgba(255, 255, 255, 0.3)',
+        borderRadius: '4px',
+        padding: '8px',
+        zIndex: 1000,
+      }"
+    >
+      <div :style="{ fontSize: '0.85rem', marginBottom: '4px', textAlign: 'center' }">
+        Casting: {{ castingState.abilityKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) }}
+      </div>
+      <div :style="{ width: '100%', height: '20px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '2px', overflow: 'hidden' }">
+        <div :style="{ ...styles.hotbarCastFill, width: `${Math.round(castProgress * 100)}%`, height: '100%' }"></div>
+      </div>
+    </div>
 
     <!-- Character Panel -->
     <div
