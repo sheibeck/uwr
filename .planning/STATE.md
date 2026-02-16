@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-16
-**Status:** Completed quick task 102: Fix enemy debuffs/DoTs not displaying on group members - reverted to myCharacterEffects view for proper group effect visibility.
+**Status:** Completed quick task 103: Remove defunct dialog options from Journal - filtered empty-playerText root greeting nodes from NPC dialogue options display.
 
 ---
 
@@ -166,6 +166,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 19-npc-interactions | 01 | 3min | 2 | 6 |
 | 19-npc-interactions | 02 | 3min | 1 | 14 |
 | Phase quick-99 P01 | 1 | 1 tasks | 1 files |
+| Phase quick-103 P01 | 67 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -302,9 +303,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 100 | Fix hotbar tooltip appearing behind adjacent items - tooltip z-index raised to 9998 with panel z-index ceiling at 5000 preventing tooltips from being hidden behind floating panels | 2026-02-16 | f55c19a | [100-fix-hotbar-tooltip-appearing-behind-adja](./quick/100-fix-hotbar-tooltip-appearing-behind-adja/) |
 | 101 | Fix enemy spawns appearing in safe zones - added isSafe guards to all 4 enemy spawn entry points preventing enemy creation at safe locations like Hollowmere, with bootstrap cleanup | 2026-02-16 | a609ded | [101-fix-enemy-spawns-appearing-in-safe-zones](./quick/101-fix-enemy-spawns-appearing-in-safe-zones/) |
 | 102 | Fix enemy debuffs/DoTs not displaying on group members - reverted to myCharacterEffects view for proper group effect visibility (reverted commit 8b46cf7) | 2026-02-16 | b25751a | [102-fix-enemy-abilities-not-displaying-missi](./quick/102-fix-enemy-abilities-not-displaying-missi/) |
+| 103 | Remove defunct dialog options from Journal - filtered empty-playerText root greeting nodes from NPC dialogue options display while preserving /hail greeting functionality | 2026-02-16 | 55de49a | [103-remove-defunct-dialog-options-from-journ](./quick/103-remove-defunct-dialog-options-from-journ/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-16 - Completed quick-102: Fixed enemy debuffs/DoTs not displaying on group members by reverting to myCharacterEffects view subscription.
+Last activity: 2026-02-16 - Completed quick-103: Filtered empty-playerText root greeting nodes from NPC dialogue options display.
