@@ -156,7 +156,7 @@
           :key="corpse.id.toString()"
           :style="{
             ...styles.gridTileCorpse,
-            ...(selectedCorpseId?.toString() === corpse.id.toString() ? styles.gridTileSelected : {}),
+            ...(props.selectedCorpseId?.toString() === corpse.id.toString() ? styles.gridTileSelected : {}),
           }"
           @click="toggleSelectCorpse(corpse.id)"
           @contextmenu.prevent="openCorpseContextMenu($event, corpse)"
@@ -210,6 +210,7 @@ const props = defineProps<{
   selectedCharacter: CharacterRow | null;
   selectedNpcId: bigint | null;
   selectedCharacterTargetId: bigint | null;
+  selectedCorpseId: bigint | null;
   charactersHere: { character: CharacterRow; disconnected: boolean }[];
   npcsHere: NpcRow[];
   corpsesHere: Array<{
@@ -250,7 +251,6 @@ const emit = defineEmits<{
 }>();
 
 const selectedEnemyId = ref<bigint | null>(null);
-const selectedCorpseId = ref<bigint | null>(null);
 
 const contextMenu = ref<{
   visible: boolean;
@@ -284,11 +284,9 @@ const toggleSelectNpc = (npcId: bigint) => {
 };
 
 const toggleSelectCorpse = (corpseId: bigint) => {
-  if (selectedCorpseId.value?.toString() === corpseId.toString()) {
-    selectedCorpseId.value = null;
+  if (props.selectedCorpseId?.toString() === corpseId.toString()) {
     emit('select-corpse', null);
   } else {
-    selectedCorpseId.value = corpseId;
     emit('select-corpse', corpseId);
   }
 };

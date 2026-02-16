@@ -327,6 +327,7 @@
           :selected-character="selectedCharacter"
           :selected-npc-id="selectedNpcTarget"
           :selected-character-target-id="selectedCharacterTarget"
+          :selected-corpse-id="selectedCorpseTarget"
           :characters-here="charactersHere"
           :npcs-here="npcsHere"
           :corpses-here="corpsesHere"
