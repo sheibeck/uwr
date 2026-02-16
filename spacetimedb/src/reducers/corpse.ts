@@ -179,7 +179,9 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Apply cooldown (3 seconds)
     const cooldownMicros = 3_000_000n; // 3 seconds
-    const existingCooldown = [...ctx.db.abilityCooldown.by_character_key.filter(caster.id, 'cleric_resurrect')][0];
+    const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(caster.id)].find(
+      c => c.abilityKey === 'cleric_resurrect'
+    );
     if (existingCooldown) {
       ctx.db.abilityCooldown.id.update({
         ...existingCooldown,
