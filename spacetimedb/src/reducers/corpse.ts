@@ -279,12 +279,9 @@ export const registerCorpseReducers = (deps: any) => {
       });
     }
 
-    // Store corpseId in PendingSpellCast for executeAbility to use
-    // Update the PendingSpellCast to mark as "casting" instead of deleting it
-    ctx.db.pendingSpellCast.id.update({
-      ...pending,
-      createdAtMicros: nowMicros, // Reset timer to allow cast to complete
-    });
+    // Delete the PendingSpellCast so the confirmation dialog closes
+    // executeAbility will find the corpse from targetCharacterId and location
+    ctx.db.pendingSpellCast.id.delete(pending.id);
 
     appendPrivateEvent(
       ctx,

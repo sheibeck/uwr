@@ -321,7 +321,9 @@ export function executeAbility(
   const resolvedTargetId = targetCharacterId ?? character.id;
   const actorGroupId = effectiveGroupId(character);
   let targetCharacter: any | null = null;
-  if (resolvedTargetId) {
+
+  // Skip target validation for resurrection - it handles targeting differently
+  if (abilityKey !== 'cleric_resurrect' && resolvedTargetId) {
     targetCharacter = ctx.db.character.id.find(resolvedTargetId);
     if (!targetCharacter) throw new SenderError('Target not found');
     if (actorGroupId) {
@@ -331,6 +333,10 @@ export function executeAbility(
     } else if (targetCharacter.id !== character.id) {
       throw new SenderError('Target must be yourself');
     }
+  } else if (abilityKey === 'cleric_resurrect' && resolvedTargetId) {
+    // For resurrect, targetCharacterId is the dead character - just verify it exists
+    targetCharacter = ctx.db.character.id.find(resolvedTargetId);
+    if (!targetCharacter) throw new SenderError('Target not found');
   }
 
   if (ability.resource === 'mana') {
@@ -977,39 +983,34 @@ export function executeAbility(
       applyHeal(targetCharacter, 15n, 'Heal');
       return;
     case 'cleric_resurrect':
-      // Find the PendingSpellCast entry to get corpse info
-      const resurrectPending = [...ctx.db.pendingSpellCast.iter()]
-        .find(p => p.casterCharacterId === character.id && p.spellType === 'resurrect');
-      if (!resurrectPending || !resurrectPending.corpseId) {
+      // targetCharacter is the dead character (from CharacterCast.targetCharacterId)
+      if (!targetCharacter) {
         appendPrivateEvent(
           ctx,
           character.id,
           character.ownerUserId,
           'error',
-          'Resurrection failed - corpse not found.'
+          'Resurrection failed - target not found.'
         );
         return;
       }
 
-      const resurrectCorpse = ctx.db.corpse.id.find(resurrectPending.corpseId);
-      const resurrectTarget = ctx.db.character.id.find(resurrectPending.targetCharacterId);
-      if (!resurrectCorpse || !resurrectTarget) {
-        ctx.db.pendingSpellCast.id.delete(resurrectPending.id);
+      // Find the corpse for this character at the caster's location
+      const resurrectCorpses = [...ctx.db.corpse.by_character.filter(targetCharacter.id)];
+      const resurrectCorpse = resurrectCorpses.find(c => c.locationId === character.locationId);
+      if (!resurrectCorpse) {
         appendPrivateEvent(
           ctx,
           character.id,
           character.ownerUserId,
           'error',
-          'Resurrection failed - target no longer available.'
+          `Resurrection failed - no corpse found for ${targetCharacter.name} at this location.`
         );
         return;
       }
 
       // Execute the resurrection
-      executeResurrect(ctx, character, resurrectTarget, resurrectCorpse);
-
-      // Delete the PendingSpellCast row
-      ctx.db.pendingSpellCast.id.delete(resurrectPending.id);
+      executeResurrect(ctx, character, targetCharacter, resurrectCorpse);
       return;
     case 'wizard_magic_missile':
       applyDamage(0n, 0n);
