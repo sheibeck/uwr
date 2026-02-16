@@ -34,8 +34,8 @@
             event.kind === 'faction' ? styles.logFaction : {},
             event.kind === 'blocked' ? styles.logBlocked : {},
           ]"
+          v-html="renderClickableKeywords(event.message)"
         >
-          {{ event.message }}
         </span>
       </div>
     </div>
@@ -102,4 +102,23 @@ watch(
   },
   { deep: true, immediate: true }
 );
+
+// Parse message text and make [bracketed keywords] clickable
+const renderClickableKeywords = (text: string): string => {
+  return text.replace(/\[([^\]]+)\]/g, (match, keyword) => {
+    return `<span style="color: #60a5fa; cursor: pointer; text-decoration: underline; font-weight: 600;" onclick="window.clickNpcKeyword('${keyword.replace(/'/g, "\\'")}')">${match}</span>`;
+  });
+};
+
+// Handle clicking on a [keyword] - trigger dialogue advancement
+if (typeof window !== 'undefined') {
+  (window as any).clickNpcKeyword = (keyword: string) => {
+    if (!props.selectedCharacter) return;
+    // Trigger /say with the keyword to advance dialogue
+    window.__db_conn?.reducers.say({
+      characterId: props.selectedCharacter.id,
+      message: keyword,
+    });
+  };
+}
 </script>

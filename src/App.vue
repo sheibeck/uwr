@@ -1191,10 +1191,7 @@ const onTalkNpc = (npcId: bigint) => {
   const npc = npcs.value.find(n => n.id === npcId);
   if (!npc) return;
 
-  // Open Journal panel
-  openPanel('journal');
-
-  // Call hailNpc reducer
+  // Call hailNpc reducer (dialogue appears in Log + Journal, but doesn't auto-open Journal)
   hailNpcReducer({ characterId: selectedCharacter.value.id, npcName: npc.name });
 };
 
