@@ -1,8 +1,23 @@
 import { SenderError } from 'spacetimedb/server';
 import { findItemTemplateByName, STARTER_ARMOR, STARTER_WEAPONS } from '../helpers/items';
 import { ItemTemplate } from '../schema/tables';
-import { ABILITIES } from '../data/ability_catalog';
 import { ABILITY_STAT_SCALING } from '../data/combat_scaling';
+import { CLERIC_ABILITIES } from '../data/abilities/cleric_abilities';
+import { WARRIOR_ABILITIES } from '../data/abilities/warrior_abilities';
+import { WIZARD_ABILITIES } from '../data/abilities/wizard_abilities';
+import { ROGUE_ABILITIES } from '../data/abilities/rogue_abilities';
+import { RANGER_ABILITIES } from '../data/abilities/ranger_abilities';
+import { SHAMAN_ABILITIES } from '../data/abilities/shaman_abilities';
+import { ENCHANTER_ABILITIES } from '../data/abilities/enchanter_abilities';
+import { SUMMONER_ABILITIES } from '../data/abilities/summoner_abilities';
+import { NECROMANCER_ABILITIES } from '../data/abilities/necromancer_abilities';
+import { BARD_ABILITIES } from '../data/abilities/bard_abilities';
+import { BEASTMASTER_ABILITIES } from '../data/abilities/beastmaster_abilities';
+import { DRUID_ABILITIES } from '../data/abilities/druid_abilities';
+import { PALADIN_ABILITIES } from '../data/abilities/paladin_abilities';
+import { MONK_ABILITIES } from '../data/abilities/monk_abilities';
+import { SPELLBLADE_ABILITIES } from '../data/abilities/spellblade_abilities';
+import { REAVER_ABILITIES } from '../data/abilities/reaver_abilities';
 
 export function ensureStarterItemTemplates(ctx: any) {
   const upsertItemTemplateByName = (row: any) => {
@@ -633,6 +648,26 @@ export function ensureRecipeTemplates(ctx: any) {
 }
 
 export function ensureAbilityTemplates(ctx: any) {
+  // Merge all class abilities into one object
+  const ABILITIES = {
+    ...CLERIC_ABILITIES,
+    ...WARRIOR_ABILITIES,
+    ...WIZARD_ABILITIES,
+    ...ROGUE_ABILITIES,
+    ...RANGER_ABILITIES,
+    ...SHAMAN_ABILITIES,
+    ...ENCHANTER_ABILITIES,
+    ...SUMMONER_ABILITIES,
+    ...NECROMANCER_ABILITIES,
+    ...BARD_ABILITIES,
+    ...BEASTMASTER_ABILITIES,
+    ...DRUID_ABILITIES,
+    ...PALADIN_ABILITIES,
+    ...MONK_ABILITIES,
+    ...SPELLBLADE_ABILITIES,
+    ...REAVER_ABILITIES,
+  };
+
   // Descriptions are now stored in the database (seeded from ABILITIES entries)
   const resolveDescription = (entry: { name: string; description?: string }) =>
     entry.description ?? entry.name;
