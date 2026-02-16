@@ -418,11 +418,7 @@ export const registerCorpseReducers = (deps: any) => {
       }
     }
 
-    // Deduct mana cost upfront (before cast)
-    ctx.db.character.id.update({
-      ...caster,
-      mana: caster.mana - manaCost,
-    });
+    // Note: Mana will be deducted when target accepts (in accept_corpse_summon)
 
     // Create PendingSpellCast row
     ctx.db.pendingSpellCast.insert({
@@ -494,7 +490,17 @@ export const registerCorpseReducers = (deps: any) => {
       ctx.db.characterCast.id.delete(existingCast.id);
     }
 
-    // Note: Mana was already deducted in initiate_corpse_summon
+    // Deduct mana cost now that target has accepted (flat 60 mana)
+    const manaCost = 60n;
+    if (caster.mana < manaCost) {
+      ctx.db.pendingSpellCast.id.delete(pending.id);
+      fail(ctx, character, 'Caster no longer has enough mana');
+      return;
+    }
+    ctx.db.character.id.update({
+      ...caster,
+      mana: caster.mana - manaCost,
+    });
 
     // Get the correct ability key based on caster class
     const abilityKey = `${caster.className.toLowerCase()}_corpse_summon`;
