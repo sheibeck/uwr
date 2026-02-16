@@ -124,10 +124,8 @@ export const registerCharacterReducers = (deps: any) => {
 
       const world = ctx.db.worldState.id.find(1n);
       if (!world) throw new SenderError('World not initialized');
-      const bindLocation =
-        [...ctx.db.location.iter()].find((location) => location.bindStone) ??
-        ctx.db.location.id.find(world.startingLocationId);
-      if (!bindLocation) throw new SenderError('Bind location not initialized');
+      const startingLocation = ctx.db.location.id.find(world.startingLocationId);
+      if (!startingLocation) throw new SenderError('Starting location not initialized');
 
       const classStats = computeBaseStats(className, 1n);
       const baseStats = {
@@ -150,8 +148,8 @@ export const registerCharacterReducers = (deps: any) => {
         level: 1n,
         xp: 0n,
         gold: 0n,
-        locationId: bindLocation.id,
-        boundLocationId: bindLocation.id,
+        locationId: startingLocation.id,
+        boundLocationId: startingLocation.id,
         hp: maxHp,
         maxHp,
         mana: maxMana,
