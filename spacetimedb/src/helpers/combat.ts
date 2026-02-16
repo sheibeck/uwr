@@ -24,7 +24,7 @@ import { appendPrivateEvent, appendGroupEvent, logPrivateAndGroup } from './even
 import { getEquippedWeaponStats, hasInventorySpace, addItemToInventory } from './items';
 import { getGatherableResourceTemplates } from './location';
 import { partyMembersInLocation, recomputeCharacterDerived } from './character';
-import { executeResurrect } from './corpse';
+import { executeResurrect, executeCorpseSummon } from './corpse';
 import { AggroEntry, EnemyTemplate, EnemyRoleTemplate, Character } from '../schema/tables';
 import {
   COMBAT_LOOP_INTERVAL_MICROS,
