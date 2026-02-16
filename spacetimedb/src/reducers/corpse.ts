@@ -405,7 +405,7 @@ export const registerCorpseReducers = (deps: any) => {
     }
 
     // Verify caster has Corpse Summon ability
-    const abilityKey = `${caster.className}_corpse_summon`;
+    const abilityKey = `${caster.className.toLowerCase()}_corpse_summon`;
     const abilityTemplate = [...ctx.db.abilityTemplate.by_key.filter(abilityKey)][0];
     if (!abilityTemplate) {
       fail(ctx, caster, 'Corpse Summon ability not found');
