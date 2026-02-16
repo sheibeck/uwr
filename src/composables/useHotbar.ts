@@ -33,8 +33,10 @@ type UseHotbarArgs = {
   canActInCombat: Ref<boolean>;
   defensiveTargetId: Ref<bigint | null>;
   selectedCorpseTarget?: Ref<bigint | null>;
+  selectedCharacterTarget?: Ref<bigint | null>;
   onTrackRequested?: () => void;
   onResurrectRequested?: (corpseId: bigint) => void;
+  onCorpseSummonRequested?: (targetCharacterId: bigint) => void;
   addLocalEvent?: (kind: string, message: string) => void;
 };
 
@@ -57,8 +59,10 @@ export const useHotbar = ({
   canActInCombat,
   defensiveTargetId,
   selectedCorpseTarget,
+  selectedCharacterTarget,
   onTrackRequested,
   onResurrectRequested,
+  onCorpseSummonRequested,
   addLocalEvent,
 }: UseHotbarArgs) => {
   const setHotbarReducer = useReducer(reducers.setHotbarSlot);
@@ -296,19 +300,28 @@ export const useHotbar = ({
       return;
     }
 
-    // Special handling for resurrection/corpse summon - requires confirmation before casting
-    if (
-      slot.abilityKey === 'cleric_resurrect' ||
-      slot.abilityKey === 'necromancer_corpse_summon' ||
-      slot.abilityKey === 'summoner_corpse_summon'
-    ) {
+    // Special handling for resurrection - requires corpse target
+    if (slot.abilityKey === 'cleric_resurrect') {
       if (!selectedCorpseTarget?.value) {
         addLocalEvent?.('blocked', 'You must target a corpse first.');
         return;
       }
-      // Call initiate_resurrect/initiate_corpse_summon which creates PendingSpellCast for confirmation
-      // The actual cast will happen when target accepts
+      // Call initiate_resurrect which creates PendingSpellCast for confirmation
       onResurrectRequested?.(selectedCorpseTarget.value);
+      return;
+    }
+
+    // Special handling for corpse summon - requires character target (not corpse)
+    if (
+      slot.abilityKey === 'necromancer_corpse_summon' ||
+      slot.abilityKey === 'summoner_corpse_summon'
+    ) {
+      if (!selectedCharacterTarget?.value) {
+        addLocalEvent?.('blocked', 'You must target a character first.');
+        return;
+      }
+      // Call initiate_corpse_summon which creates PendingSpellCast for confirmation
+      onCorpseSummonRequested?.(selectedCharacterTarget.value);
       return;
     }
 

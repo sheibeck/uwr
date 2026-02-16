@@ -108,9 +108,12 @@
         <div
           v-for="entry in charactersHere"
           :key="entry.character.id.toString()"
-          :style="styles.gridTile"
-          @click="handleCharacterClick(entry.character.id)"
-          @contextmenu.prevent="handleCharacterClick(entry.character.id)"
+          :style="{
+            ...styles.gridTile,
+            ...(props.selectedCharacterTargetId?.toString() === entry.character.id.toString() ? styles.gridTileCharacterSelected : {}),
+          }"
+          @click="toggleSelectCharacter(entry.character.id)"
+          @contextmenu.prevent="openCharacterContextMenu($event, entry.character)"
         >
           <span>{{ entry.character.name }}</span>
           <span
@@ -206,6 +209,7 @@ const props = defineProps<{
   connActive: boolean;
   selectedCharacter: CharacterRow | null;
   selectedNpcId: bigint | null;
+  selectedCharacterTargetId: bigint | null;
   charactersHere: { character: CharacterRow; disconnected: boolean }[];
   npcsHere: NpcRow[];
   corpsesHere: Array<{
@@ -242,6 +246,7 @@ const emit = defineEmits<{
   (e: 'select-npc', npcId: bigint | null): void;
   (e: 'talk-npc', npcId: bigint): void;
   (e: 'select-corpse', corpseId: bigint | null): void;
+  (e: 'select-character', characterId: bigint | null): void;
 }>();
 
 const selectedEnemyId = ref<bigint | null>(null);
@@ -355,8 +360,43 @@ const openResourceContextMenu = (
   };
 };
 
-const handleCharacterClick = (characterId: bigint) => {
-  emit('character-action', characterId);
+const toggleSelectCharacter = (characterId: bigint) => {
+  if (props.selectedCharacterTargetId?.toString() === characterId.toString()) {
+    emit('select-character', null);
+  } else {
+    emit('select-character', characterId);
+  }
+};
+
+const openCharacterContextMenu = (event: MouseEvent, character: CharacterRow) => {
+  const items: Array<{ label: string; disabled?: boolean; action: () => void }> = [
+    {
+      label: 'Actions',
+      action: () => emit('character-action', character.id),
+    },
+  ];
+
+  // Check if caster can use Corpse Summon (necromancer/summoner level 6+)
+  const casterClass = props.selectedCharacter?.className.toLowerCase();
+  const casterLevel = props.selectedCharacter ? Number(props.selectedCharacter.level) : 0;
+  const canCorpseSummon =
+    (casterClass === 'necromancer' || casterClass === 'summoner') && casterLevel >= 6;
+
+  if (canCorpseSummon) {
+    items.push({
+      label: 'Corpse Summon',
+      action: () => emit('initiate-corpse-summon', character.id),
+    });
+  }
+
+  contextMenu.value = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    title: character.name,
+    subtitle: `${character.className} Lv ${character.level}`,
+    items,
+  };
 };
 
 const openNpcContextMenu = (event: MouseEvent, npc: NpcRow) => {

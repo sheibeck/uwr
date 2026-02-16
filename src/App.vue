@@ -326,6 +326,7 @@
           :conn-active="conn.isActive"
           :selected-character="selectedCharacter"
           :selected-npc-id="selectedNpcTarget"
+          :selected-character-target-id="selectedCharacterTarget"
           :characters-here="charactersHere"
           :npcs-here="npcsHere"
           :corpses-here="corpsesHere"
@@ -344,6 +345,7 @@
           @select-npc="selectNpcTarget"
           @talk-npc="onTalkNpc"
           @select-corpse="selectCorpseTarget"
+          @select-character="selectCharacterTarget"
         />
         </template>
       </div>
@@ -1176,6 +1178,12 @@ const selectCorpseTarget = (corpseId: bigint | null) => {
   selectedCorpseTarget.value = corpseId;
 };
 
+// Character targeting state (for character-targeted spells like corpse summon)
+const selectedCharacterTarget = ref<bigint | null>(null);
+const selectCharacterTarget = (characterId: bigint | null) => {
+  selectedCharacterTarget.value = characterId;
+};
+
 const onTalkNpc = (npcId: bigint) => {
   if (!selectedCharacter.value) return;
 
@@ -1717,12 +1725,17 @@ const {
   canActInCombat,
   defensiveTargetId,
   selectedCorpseTarget,
+  selectedCharacterTarget,
   onTrackRequested: () => {
     openPanel('track');
   },
   onResurrectRequested: (corpseId: bigint) => {
     if (!selectedCharacter.value) return;
     initiateResurrectReducer({ casterCharacterId: selectedCharacter.value.id, corpseId });
+  },
+  onCorpseSummonRequested: (targetCharacterId: bigint) => {
+    if (!selectedCharacter.value) return;
+    initiateCorpseSummonReducer({ casterCharacterId: selectedCharacter.value.id, targetCharacterId });
   },
   addLocalEvent,
 });

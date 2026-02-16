@@ -1393,6 +1393,11 @@ export const styles = {
     border: '1px solid rgba(130, 200, 130, 0.7)',
     color: '#a0e8a0',
   },
+  gridTileCharacterSelected: {
+    background: 'rgba(76, 180, 240, 0.2)',
+    border: '1px solid rgba(76, 180, 240, 0.6)',
+    color: '#7cc8f0',
+  },
   gridTileCorpse: {
     background: 'rgba(80, 60, 40, 0.15)',
     border: '1px solid rgba(180, 140, 100, 0.3)',
