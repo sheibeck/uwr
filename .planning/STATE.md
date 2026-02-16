@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-16
-**Status:** Completed quick task 100: Fix hotbar tooltip appearing behind adjacent items - Tooltip z-index raised to 9998 with panel z-index ceiling at 5000 preventing tooltips from ever being hidden behind floating panels.
+**Status:** Completed quick task 101: Fix enemy spawns appearing in safe zones - isSafe guards added to all enemy spawn entry points with bootstrap cleanup of existing spawns at safe locations.
 
 ---
 
@@ -300,9 +300,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 98 | Fix character starting location - new characters now deterministically spawn at Hollowmere using world.startingLocationId instead of nondeterministic bindStone iterator scan | 2026-02-16 | dfd8022 | [98-when-i-create-a-new-character-they-shoul](./quick/98-when-i-create-a-new-character-they-shoul/) |
 | 99 | Fix Travel panel location levels - changed targetLevelForLocation to use base level 1 instead of character level, matching Location panel's level formula for consistent display | 2026-02-16 | ee78465 | [99-fix-travel-panel-showing-character-level](./quick/99-fix-travel-panel-showing-character-level/) |
 | 100 | Fix hotbar tooltip appearing behind adjacent items - tooltip z-index raised to 9998 with panel z-index ceiling at 5000 preventing tooltips from being hidden behind floating panels | 2026-02-16 | f55c19a | [100-fix-hotbar-tooltip-appearing-behind-adja](./quick/100-fix-hotbar-tooltip-appearing-behind-adja/) |
+| 101 | Fix enemy spawns appearing in safe zones - added isSafe guards to all 4 enemy spawn entry points preventing enemy creation at safe locations like Hollowmere, with bootstrap cleanup | 2026-02-16 | a609ded | [101-fix-enemy-spawns-appearing-in-safe-zones](./quick/101-fix-enemy-spawns-appearing-in-safe-zones/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-16 - Completed quick-100: Fixed hotbar tooltip appearing behind adjacent items by raising tooltip z-index to 9998 and implementing panel z-index ceiling at 5000 with automatic reset to prevent unbounded growth.
+Last activity: 2026-02-16 - Completed quick-101: Fixed enemy spawns appearing in safe zones by adding isSafe guards to all enemy spawn functions and bootstrap cleanup for existing spawns.
