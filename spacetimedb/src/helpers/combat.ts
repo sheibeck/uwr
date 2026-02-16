@@ -323,8 +323,9 @@ export function executeAbility(
   const actorGroupId = effectiveGroupId(character);
   let targetCharacter: any | null = null;
 
-  // Skip target validation for resurrection - it handles targeting differently
-  if (abilityKey !== 'cleric_resurrect' && resolvedTargetId) {
+  // Skip target validation for special abilities that handle targeting differently
+  const specialTargetingAbilities = ['cleric_resurrect', 'necromancer_corpse_summon', 'summoner_corpse_summon'];
+  if (!specialTargetingAbilities.includes(abilityKey) && resolvedTargetId) {
     targetCharacter = ctx.db.character.id.find(resolvedTargetId);
     if (!targetCharacter) throw new SenderError('Target not found');
     if (actorGroupId) {
@@ -334,8 +335,8 @@ export function executeAbility(
     } else if (targetCharacter.id !== character.id) {
       throw new SenderError('Target must be yourself');
     }
-  } else if (abilityKey === 'cleric_resurrect' && resolvedTargetId) {
-    // For resurrect, targetCharacterId is the dead character - just verify it exists
+  } else if (specialTargetingAbilities.includes(abilityKey) && resolvedTargetId) {
+    // For special abilities, targetCharacterId is the target character - just verify it exists
     targetCharacter = ctx.db.character.id.find(resolvedTargetId);
     if (!targetCharacter) throw new SenderError('Target not found');
   }
