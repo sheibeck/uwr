@@ -1395,14 +1395,34 @@ export const NpcDialogueOption = table(
     npcId: t.u64(),
     parentOptionId: t.u64().optional(),  // null = root dialogue option
     optionKey: t.string(),               // unique key like 'greet_stranger'
-    playerText: t.string(),              // What the player says
-    npcResponse: t.string(),             // What the NPC responds
+    playerText: t.string(),              // Keyword that triggers this (e.g., "forest", "ruins")
+    npcResponse: t.string(),             // What the NPC responds (can contain [keywords])
     requiredAffinity: t.i64(),           // Minimum affinity to see this option
     requiredFactionId: t.u64().optional(),
     requiredFactionStanding: t.i64().optional(),
     requiredRenownRank: t.u64().optional(),
     affinityChange: t.i64(),             // Affinity delta if chosen
     sortOrder: t.u64(),                  // Display order
+    questTemplateName: t.string().optional(), // Quest name offered/completed by this dialogue
+    affinityHint: t.string().optional(), // Hint on increasing affinity ("Kill more ash jackals")
+    isAffinityLocked: t.bool().optional(), // If true, show "talk later" when locked
+  }
+);
+
+export const NpcDialogueVisited = table(
+  {
+    name: 'npc_dialogue_visited',
+    public: true,
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    npcId: t.u64(),
+    dialogueOptionId: t.u64(),
+    visitedAt: t.timestamp(),
   }
 );
 
@@ -1419,6 +1439,7 @@ export const spacetimedb = schema(
   NpcDialog,
   NpcAffinity,
   NpcDialogueOption,
+  NpcDialogueVisited,
   QuestTemplate,
   QuestInstance,
   HotbarSlot,

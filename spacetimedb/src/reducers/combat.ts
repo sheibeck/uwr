@@ -347,7 +347,8 @@ export const registerCombatReducers = (deps: any) => {
         ...quest,
         progress: nextProgress,
         completed: isComplete,
-        completedAt: isComplete ? ctx.timestamp : quest.completedAt,
+        // Don't set completedAt here - only when turning in to NPC
+        completedAt: quest.completedAt,
       });
       appendPrivateEvent(
         ctx,

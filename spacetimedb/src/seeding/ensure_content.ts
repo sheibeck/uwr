@@ -85,10 +85,10 @@ export function syncAllContent(ctx: any) {
   ensureAbilityTemplates(ctx);
   ensureRecipeTemplates(ctx);
   ensureNpcs(ctx);
-  ensureDialogueOptions(ctx);
-  ensureQuestTemplates(ctx);
   ensureEnemyTemplatesAndRoles(ctx);
   ensureEnemyAbilities(ctx);
+  ensureQuestTemplates(ctx);  // Must be after enemies are created
+  ensureDialogueOptions(ctx);  // Must be after quests are created
   ensureLocationEnemyTemplates(ctx);
   ensureLocationRuntimeBootstrap(ctx);
   ensureLootTables(ctx);

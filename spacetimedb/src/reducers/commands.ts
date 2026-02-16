@@ -1,4 +1,4 @@
-import { getAffinityForNpc, canConverseWithNpc, awardNpcAffinity } from '../helpers/npc_affinity';
+import { getAffinityForNpc, canConverseWithNpc, awardNpcAffinity, getAvailableDialogueOptions } from '../helpers/npc_affinity';
 import { appendSystemMessage } from '../helpers/events';
 
 export const registerCommandReducers = (deps: any) => {
@@ -44,116 +44,88 @@ export const registerCommandReducers = (deps: any) => {
     }
     if (!npc) return fail(ctx, character, 'No such NPC here');
 
-    // Get affinity for dynamic greeting
-    const affinity = Number(getAffinityForNpc(ctx, character.id, npc.id));
+    // Check for completed quests and auto-turn them in
+    const quests = [...ctx.db.questTemplate.by_npc.filter(npc.id)];
+    const questInstances = [...ctx.db.questInstance.by_character.filter(character.id)];
 
-    // Get faction standing if NPC has faction
-    let factionStanding = 0;
-    if (npc.factionId) {
-      for (const fs of ctx.db.factionStanding.by_character.filter(character.id)) {
-        if (fs.factionId === npc.factionId) {
-          factionStanding = Number(fs.standing);
-          break;
-        }
+    for (const quest of quests) {
+      const active = questInstances.find((row) => row.questTemplateId === quest.id);
+      if (active && active.completed && !active.completedAt) {
+        // Quest is ready to turn in!
+        const enemy = ctx.db.enemyTemplate.id.find(quest.targetEnemyTemplateId);
+        const targetNameText = enemy ? enemy.name : 'creatures';
+
+        // Mark quest as turned in
+        ctx.db.questInstance.id.update({
+          ...active,
+          completedAt: ctx.timestamp,
+        });
+
+        // NPC dialogue for quest completion
+        const turnInMsg = `${npc.name} says, "Well done! You have slain ${quest.requiredCount} ${targetNameText}(s)."`;
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', turnInMsg);
+        appendNpcDialog(ctx, character.id, npc.id, turnInMsg);
+
+        // Award XP (show in reward color)
+        const xpGained = quest.rewardXp;
+        const currentXp = character.xp + xpGained;
+        ctx.db.character.id.update({ ...character, xp: currentXp });
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward', `You gain ${xpGained} XP.`);
+
+        // Award affinity (show in faction/gold color)
+        const affinityGained = 10n;
+        awardNpcAffinity(ctx, character, npc.id, affinityGained);
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'faction', `You gain ${affinityGained} affinity with ${npc.name}.`);
+
+        return; // Stop here, quest turn-in takes priority
       }
     }
 
-    // Get renown rank
-    let renownRank = 0;
-    for (const r of ctx.db.renown.by_character.filter(character.id)) {
-      renownRank = Number(r.currentRank);
-      break;
-    }
-
-    // Get available dialogue options for this character
-    const availableOptions = getAvailableDialogueOptions(ctx, character.id, npc.id, null);
-
-    // Generate greeting with available topics in [brackets]
-    let greeting: string;
-    let hasNewContent = availableOptions.length > 0;
-
-    if (factionStanding < -50 || affinity < -50) {
-      // Hostile - no dialogue options
-      greeting = `${npc.name} glares at you with open hostility. "Leave. Now."`;
-      hasNewContent = false;
-    } else if (hasNewContent) {
-      // Has dialogue options - include them in [brackets]
-      const topics = availableOptions
-        .map(opt => `[${opt.playerText}]`)
-        .join(' or ');
-
-      let introText: string;
-      if (affinity >= 75) {
-        introText = `${npc.name} greets you warmly. "Ah, my friend! It is good to see you again."`;
-      } else if (affinity >= 50) {
-        introText = `${npc.name} nods in recognition. "Welcome back. What can I do for you?"`;
-      } else if (affinity >= 25) {
-        introText = `${npc.name} regards you with growing familiarity. "You again. What brings you?"`;
-      } else if (renownRank >= 5 && affinity < 25) {
-        introText = `${npc.name} eyes you with a mix of respect and wariness. "Your reputation precedes you."`;
-      } else {
-        introText = `${npc.name} says, "${npc.greeting}"`;
-      }
-
-      greeting = `${introText} I can tell you about ${topics}.`;
-    } else {
-      // No new dialogue options - default response (Log only, not Journal)
-      if (affinity >= 50) {
-        greeting = `${npc.name} nods. "I have nothing new to share at the moment."`;
-      } else {
-        greeting = `${npc.name} says, "I have already told you all I know."`;
+    // Get the root dialogue option (empty playerText)
+    let rootOption: any | null = null;
+    for (const opt of ctx.db.npcDialogueOption.by_npc.filter(npc.id)) {
+      if (opt.playerText === '' && (opt.parentOptionId === undefined || opt.parentOptionId === null)) {
+        rootOption = opt;
+        break;
       }
     }
 
-    // Log greeting to Log panel (always for user feedback)
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', greeting);
+    if (!rootOption) {
+      // Fallback if no root option defined
+      const fallback = `${npc.name} nods but has nothing to say.`;
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', fallback);
+      return;
+    }
 
-    // Only log to Journal if there are available dialogue options
-    if (hasNewContent) {
-      appendNpcDialog(ctx, character.id, npc.id, greeting);
+    // Check if already visited
+    let alreadyVisited = false;
+    for (const visited of ctx.db.npcDialogueVisited.by_character.filter(character.id)) {
+      if (visited.npcId === npc.id && visited.dialogueOptionId === rootOption.id) {
+        alreadyVisited = true;
+        break;
+      }
+    }
+
+    // Display greeting with [keywords] to Log (always)
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', `${npc.name}: ${rootOption.npcResponse}`);
+
+    // Only log to Journal if first time
+    if (!alreadyVisited) {
+      appendNpcDialog(ctx, character.id, npc.id, `${npc.name}: ${rootOption.npcResponse}`);
+
+      // Mark as visited
+      ctx.db.npcDialogueVisited.insert({
+        id: 0n,
+        characterId: character.id,
+        npcId: npc.id,
+        dialogueOptionId: rootOption.id,
+        visitedAt: ctx.timestamp,
+      });
     }
 
     // Award small affinity for greeting (if cooldown allows)
     if (canConverseWithNpc(ctx, character.id, npc.id)) {
       awardNpcAffinity(ctx, character, npc.id, 1n);
-    }
-
-    const quests = [...ctx.db.questTemplate.by_npc.filter(npc.id)].filter(
-      (quest) => character.level >= quest.minLevel && character.level <= quest.maxLevel
-    );
-    if (quests.length === 0) return;
-
-    const existing = [...ctx.db.questInstance.by_character.filter(character.id)];
-    for (const quest of quests) {
-      const active = existing.find((row) => row.questTemplateId === quest.id);
-      if (active) {
-        if (!active.completed) {
-          const progress = `${active.progress}/${quest.requiredCount}`;
-          const reminder = `${npc.name} says, "You are still working on ${quest.name} (${progress})."`;
-          appendNpcDialog(ctx, character.id, npc.id, reminder);
-        }
-        continue;
-      }
-      const enemy = ctx.db.enemyTemplate.id.find(quest.targetEnemyTemplateId);
-      const targetNameText = enemy ? enemy.name : 'creatures';
-      const terrainHint = enemy?.terrainTypes
-        ? enemy.terrainTypes.split(',')[0]?.trim()
-        : '';
-      const habitat = terrainHint
-        ? ` You can usually find them in ${terrainHint} areas.`
-        : '';
-      ctx.db.questInstance.insert({
-        id: 0n,
-        characterId: character.id,
-        questTemplateId: quest.id,
-        progress: 0n,
-        completed: false,
-        acceptedAt: ctx.timestamp,
-        completedAt: undefined,
-      });
-      const offer = `${npc.name} offers you "${quest.name}". Objective: Slay ${quest.requiredCount} ${targetNameText}(s).${habitat}`;
-      appendNpcDialog(ctx, character.id, npc.id, offer);
-      return;
     }
   };
 
@@ -212,6 +184,127 @@ export const registerCommandReducers = (deps: any) => {
     const trimmed = args.message.trim();
     if (!trimmed) return fail(ctx, character, 'Message is empty');
 
+    // Check if this is a dialogue keyword for an NPC at this location
+    const npcsHere = [...ctx.db.npc.by_location.filter(character.locationId)];
+    for (const npc of npcsHere) {
+      // Get all dialogue options for this NPC
+      const dialogueOptions = [...ctx.db.npcDialogueOption.by_npc.filter(npc.id)];
+      for (const option of dialogueOptions) {
+        // Match keyword (case-insensitive)
+        if (option.playerText.toLowerCase() === trimmed.toLowerCase()) {
+          // Found a matching dialogue option!
+          const affinity = getAffinityForNpc(ctx, character.id, npc.id);
+
+          // Check affinity requirement
+          if (affinity < option.requiredAffinity) {
+            // Affinity locked
+            if (option.isAffinityLocked && option.affinityHint) {
+              const lockedMsg = `${npc.name} says, "Maybe we can talk about that later. ${option.affinityHint}"`;
+              appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', lockedMsg);
+            } else {
+              const genericLocked = `${npc.name} says, "I'm not ready to discuss that with you yet."`;
+              appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', genericLocked);
+            }
+            return; // Stop here
+          }
+
+          // Check if already visited
+          let alreadyVisited = false;
+          for (const visited of ctx.db.npcDialogueVisited.by_character.filter(character.id)) {
+            if (visited.npcId === npc.id && visited.dialogueOptionId === option.id) {
+              alreadyVisited = true;
+              break;
+            }
+          }
+
+          // If already visited and no new children, show "nothing new"
+          if (alreadyVisited) {
+            const childOptions = getAvailableDialogueOptions(ctx, character.id, npc.id, option.id);
+            if (childOptions.length === 0) {
+              const nothingNew = `${npc.name} says, "I have nothing new to add about that."`;
+              appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', nothingNew);
+              return;
+            }
+          }
+
+          // Display NPC response with embedded [keywords] to Log
+          const response = `${npc.name}: ${option.npcResponse}`;
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', response);
+
+          // Only log to Journal if first time
+          if (!alreadyVisited) {
+            appendNpcDialog(ctx, character.id, npc.id, response);
+
+            // Mark as visited
+            ctx.db.npcDialogueVisited.insert({
+              id: 0n,
+              characterId: character.id,
+              npcId: npc.id,
+              dialogueOptionId: option.id,
+              visitedAt: ctx.timestamp,
+            });
+          }
+
+          // Award affinity change
+          if (option.affinityChange > 0n) {
+            awardNpcAffinity(ctx, character, npc.id, option.affinityChange);
+          }
+
+          // Auto-accept quest if offered
+          if (option.questTemplateName) {
+            // Look up quest by name (search all quests, not just for this NPC)
+            let questTemplate: any = null;
+            for (const qt of ctx.db.questTemplate.iter()) {
+              if (qt.name === option.questTemplateName) {
+                questTemplate = qt;
+                break;
+              }
+            }
+
+            if (questTemplate) {
+              // Check if already has this quest
+              let hasQuest = false;
+              for (const qi of ctx.db.questInstance.by_character.filter(character.id)) {
+                if (qi.questTemplateId === questTemplate.id) {
+                  hasQuest = true;
+                  break;
+                }
+              }
+
+              if (!hasQuest) {
+                // Auto-accept quest
+                ctx.db.questInstance.insert({
+                  id: 0n,
+                  characterId: character.id,
+                  questTemplateId: questTemplate.id,
+                  progress: 0n,
+                  completed: false,
+                  acceptedAt: ctx.timestamp,
+                  completedAt: undefined,
+                });
+
+                const enemy = ctx.db.enemyTemplate.id.find(questTemplate.targetEnemyTemplateId);
+                const targetNameText = enemy ? enemy.name : 'creatures';
+                const questAccept = `${npc.name} offers you "${questTemplate.name}". Objective: Slay ${questTemplate.requiredCount} ${targetNameText}(s). Quest accepted.`;
+                appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', questAccept);
+                appendNpcDialog(ctx, character.id, npc.id, questAccept);
+              } else {
+                // Already has quest - show progress
+                const qi = [...ctx.db.questInstance.by_character.filter(character.id)].find(q => q.questTemplateId === questTemplate.id);
+                if (qi && !qi.completed) {
+                  const reminder = `${npc.name} says, "You are still working on ${questTemplate.name} (${qi.progress}/${questTemplate.requiredCount})."`;
+                  appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', reminder);
+                }
+              }
+            }
+          }
+
+          return; // Handled as dialogue, don't broadcast as chat
+        }
+      }
+    }
+
+    // No dialogue match - broadcast as normal chat
     appendLocationEvent(ctx, character.locationId, 'say', `${character.name} says, "${trimmed}"`);
   });
 

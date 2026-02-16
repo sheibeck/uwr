@@ -378,6 +378,8 @@ import NpcDialogRow from "./npc_dialog_table";
 export { NpcDialogRow };
 import NpcDialogueOptionRow from "./npc_dialogue_option_table";
 export { NpcDialogueOptionRow };
+import NpcDialogueVisitedRow from "./npc_dialogue_visited_table";
+export { NpcDialogueVisitedRow };
 import PendingSpellCastRow from "./pending_spell_cast_table";
 export { PendingSpellCastRow };
 import PlayerRow from "./player_table";
@@ -668,6 +670,8 @@ import NpcDialog from "./npc_dialog_type";
 export { NpcDialog };
 import NpcDialogueOption from "./npc_dialogue_option_type";
 export { NpcDialogueOption };
+import NpcDialogueVisited from "./npc_dialogue_visited_type";
+export { NpcDialogueVisited };
 import OfferTrade from "./offer_trade_type";
 export { OfferTrade };
 import OnConnect from "./on_connect_type";
@@ -1659,6 +1663,20 @@ const tablesSchema = __schema(
       { name: 'npc_dialogue_option_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, NpcDialogueOptionRow),
+  __table({
+    name: 'npc_dialogue_visited',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'npc_dialogue_visited_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, NpcDialogueVisitedRow),
   __table({
     name: 'pending_spell_cast',
     indexes: [

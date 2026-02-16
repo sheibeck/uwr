@@ -23,6 +23,9 @@ export default __t.object("NpcDialogueOption", {
   requiredRenownRank: __t.option(__t.u64()),
   affinityChange: __t.i64(),
   sortOrder: __t.u64(),
+  questTemplateName: __t.option(__t.string()),
+  affinityHint: __t.option(__t.string()),
+  isAffinityLocked: __t.option(__t.bool()),
 });
 
 

@@ -762,6 +762,9 @@ export function ensureDialogueOptions(ctx: any) {
         requiredRenownRank: undefined,
         affinityChange: option.affinityChange,
         sortOrder: option.sortOrder,
+        questTemplateName: option.questTemplateName,
+        affinityHint: option.affinityHint,
+        isAffinityLocked: option.isAffinityLocked,
       });
     } else {
       // Insert new option
@@ -778,6 +781,9 @@ export function ensureDialogueOptions(ctx: any) {
         requiredRenownRank: undefined,
         affinityChange: option.affinityChange,
         sortOrder: option.sortOrder,
+        questTemplateName: option.questTemplateName,
+        affinityHint: option.affinityHint,
+        isAffinityLocked: option.isAffinityLocked,
       });
     }
   }
