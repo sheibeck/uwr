@@ -295,6 +295,23 @@ export const useHotbar = ({
       addLocalEvent?.('blocked', `${ability?.name ?? slot.name} cannot be used during combat.`);
       return;
     }
+
+    // Special handling for resurrection/corpse summon - requires confirmation before casting
+    if (
+      slot.abilityKey === 'cleric_resurrect' ||
+      slot.abilityKey === 'necromancer_corpse_summon' ||
+      slot.abilityKey === 'summoner_corpse_summon'
+    ) {
+      if (!selectedCorpseTarget?.value) {
+        addLocalEvent?.('blocked', 'You must target a corpse first.');
+        return;
+      }
+      // Call initiate_resurrect/initiate_corpse_summon which creates PendingSpellCast for confirmation
+      // The actual cast will happen when target accepts
+      onResurrectRequested?.(selectedCorpseTarget.value);
+      return;
+    }
+
     runPrediction(slot.abilityKey);
 
     const targetId =

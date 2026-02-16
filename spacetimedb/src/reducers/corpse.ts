@@ -228,19 +228,71 @@ export const registerCorpseReducers = (deps: any) => {
       throw new SenderError('Caster no longer has enough mana');
     }
 
+    // Check if caster is already casting
+    const existingCast = [...ctx.db.characterCast.by_character.filter(caster.id)][0];
+    if (existingCast && existingCast.endsAtMicros > nowMicros) {
+      ctx.db.pendingSpellCast.id.delete(pending.id);
+      throw new SenderError('Caster is already casting');
+    }
+    if (existingCast) {
+      ctx.db.characterCast.id.delete(existingCast.id);
+    }
+
     // Deduct mana from caster
     ctx.db.character.id.update({
       ...caster,
       mana: caster.mana - manaCost,
     });
 
-    // Execute resurrection
-    executeResurrect(ctx, caster, character, corpse);
+    // Start the 10-second cast (castSeconds: 10n in cleric_abilities.ts)
+    const castMicros = 10_000_000n;
+    ctx.db.characterCast.insert({
+      id: 0n,
+      characterId: caster.id,
+      abilityKey: 'cleric_resurrect',
+      targetCharacterId: character.id,
+      endsAtMicros: nowMicros + castMicros,
+    });
 
-    // Delete the PendingSpellCast row
-    ctx.db.pendingSpellCast.id.delete(pending.id);
+    // Apply cooldown (3 seconds)
+    const cooldownMicros = 3_000_000n;
+    const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(caster.id)]
+      .find(cd => cd.abilityKey === 'cleric_resurrect');
+    if (existingCooldown) {
+      ctx.db.abilityCooldown.id.update({
+        ...existingCooldown,
+        readyAtMicros: nowMicros + castMicros + cooldownMicros,
+      });
+    } else {
+      ctx.db.abilityCooldown.insert({
+        id: 0n,
+        characterId: caster.id,
+        abilityKey: 'cleric_resurrect',
+        readyAtMicros: nowMicros + castMicros + cooldownMicros,
+      });
+    }
 
-    // No cooldown for resurrect (cooldownSeconds: 0n in ability template)
+    // Store corpseId in PendingSpellCast for executeAbility to use
+    // Update the PendingSpellCast to mark as "casting" instead of deleting it
+    ctx.db.pendingSpellCast.id.update({
+      ...pending,
+      createdAtMicros: nowMicros, // Reset timer to allow cast to complete
+    });
+
+    appendPrivateEvent(
+      ctx,
+      caster.id,
+      caster.ownerUserId,
+      'ability',
+      `${character.name} accepted. Casting Resurrect...`
+    );
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'system',
+      'You accepted the resurrect. The caster is now casting...'
+    );
   });
 
   spacetimedb.reducer('decline_resurrect', { characterId: t.u64(), pendingId: t.u64() }, (ctx, args) => {

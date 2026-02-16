@@ -977,15 +977,39 @@ export function executeAbility(
       applyHeal(targetCharacter, 15n, 'Heal');
       return;
     case 'cleric_resurrect':
-      // Resurrect uses the initiate_resurrect → PendingSpellCast → accept_resurrect flow
-      // When cast via use_ability, trigger initiate_resurrect which will handle the confirmation
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Cast complete - resurrection request sent.'
-      );
+      // Find the PendingSpellCast entry to get corpse info
+      const resurrectPending = [...ctx.db.pendingSpellCast.iter()]
+        .find(p => p.casterCharacterId === character.id && p.spellType === 'resurrect');
+      if (!resurrectPending || !resurrectPending.corpseId) {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'error',
+          'Resurrection failed - corpse not found.'
+        );
+        return;
+      }
+
+      const resurrectCorpse = ctx.db.corpse.id.find(resurrectPending.corpseId);
+      const resurrectTarget = ctx.db.character.id.find(resurrectPending.targetCharacterId);
+      if (!resurrectCorpse || !resurrectTarget) {
+        ctx.db.pendingSpellCast.id.delete(resurrectPending.id);
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'error',
+          'Resurrection failed - target no longer available.'
+        );
+        return;
+      }
+
+      // Execute the resurrection
+      executeResurrect(ctx, character, resurrectTarget, resurrectCorpse);
+
+      // Delete the PendingSpellCast row
+      ctx.db.pendingSpellCast.id.delete(resurrectPending.id);
       return;
     case 'wizard_magic_missile':
       applyDamage(0n, 0n);
