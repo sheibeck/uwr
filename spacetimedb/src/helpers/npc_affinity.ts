@@ -77,6 +77,7 @@ export function awardNpcAffinity(ctx: any, character: any, npcId: bigint, baseCh
       lastInteraction: ctx.timestamp,
       giftsGiven: 0n,
       conversationCount: 1n,
+      hasGreeted: false,
     });
 
     // IMPORTANT: Check for tier change (from Stranger baseline) and log to Log panel

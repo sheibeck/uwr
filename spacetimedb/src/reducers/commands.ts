@@ -84,8 +84,23 @@ export const registerCommandReducers = (deps: any) => {
     // IMPORTANT: Log "You begin to talk with X" to Log panel, actual greeting goes to Journal
     appendSystemMessage(ctx, character, `You begin to talk with ${npc.name}.`);
 
-    // Greeting goes to Journal (NPC Dialog panel) AND Log (private NPC message)
-    appendNpcDialog(ctx, character.id, npc.id, greeting);
+    // Check if this is the first greeting - only log meaningful first greetings to Journal
+    const affinityRow = getAffinityRow(ctx, character.id, npc.id);
+    const isFirstGreeting = !affinityRow || !affinityRow.hasGreeted; // undefined or false = first greeting
+
+    if (isFirstGreeting) {
+      // First time greeting - log to Journal for story record
+      appendNpcDialog(ctx, character.id, npc.id, greeting);
+      // Mark as greeted
+      if (affinityRow) {
+        ctx.db.npcAffinity.id.update({
+          ...affinityRow,
+          hasGreeted: true,
+        });
+      }
+    }
+
+    // Always show greeting in Log for user feedback
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', greeting);
 
     // Award small affinity for greeting (if cooldown allows)

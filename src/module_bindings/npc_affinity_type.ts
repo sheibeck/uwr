@@ -18,6 +18,7 @@ export default __t.object("NpcAffinity", {
   lastInteraction: __t.timestamp(),
   giftsGiven: __t.u64(),
   conversationCount: __t.u64(),
+  hasGreeted: __t.option(__t.bool()),
 });
 
 

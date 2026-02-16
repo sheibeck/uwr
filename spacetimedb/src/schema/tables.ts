@@ -1378,6 +1378,7 @@ export const NpcAffinity = table(
     lastInteraction: t.timestamp(),
     giftsGiven: t.u64(),
     conversationCount: t.u64(),
+    hasGreeted: t.bool().optional(),  // Track if first greeting has been logged to Journal (undefined = false)
   }
 );
 
