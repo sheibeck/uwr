@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-16
-**Status:** Completed quick task 103: Remove defunct dialog options from Journal - filtered empty-playerText root greeting nodes from NPC dialogue options display.
+**Status:** Completed quick task 104: Add Help button with tutorial overlay - full-screen help overlay explaining game basics, UI interactions, travel costs, and location icons.
 
 ---
 
@@ -304,9 +304,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 101 | Fix enemy spawns appearing in safe zones - added isSafe guards to all 4 enemy spawn entry points preventing enemy creation at safe locations like Hollowmere, with bootstrap cleanup | 2026-02-16 | a609ded | [101-fix-enemy-spawns-appearing-in-safe-zones](./quick/101-fix-enemy-spawns-appearing-in-safe-zones/) |
 | 102 | Fix enemy debuffs/DoTs not displaying on group members - reverted to myCharacterEffects view for proper group effect visibility (reverted commit 8b46cf7) | 2026-02-16 | b25751a | [102-fix-enemy-abilities-not-displaying-missi](./quick/102-fix-enemy-abilities-not-displaying-missi/) |
 | 103 | Remove defunct dialog options from Journal - filtered empty-playerText root greeting nodes from NPC dialogue options display while preserving /hail greeting functionality | 2026-02-16 | 55de49a | [103-remove-defunct-dialog-options-from-journ](./quick/103-remove-defunct-dialog-options-from-journ/) |
+| 104 | Add Help button with tutorial overlay - full-screen help overlay explaining game basics, UI interactions, travel costs, and location icons, accessible from action bar | 2026-02-16 | a191d13 | [104-we-need-a-help-button-in-the-action-butt](./quick/104-we-need-a-help-button-in-the-action-butt/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-16 - Completed quick-103: Filtered empty-playerText root greeting nodes from NPC dialogue options display.
+Last activity: 2026-02-16 - Completed quick-104: Added Help button with tutorial overlay explaining game basics and UI interactions.
