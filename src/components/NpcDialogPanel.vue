@@ -248,7 +248,7 @@ const availableDialogueOptions = computed(() => {
   // Get root dialogue options for this NPC (parentOptionId is null/undefined)
   const options = props.npcDialogueOptions.filter(
     (opt) => opt.npcId.toString() === selectedNpcId.value && !opt.parentOptionId
-  );
+  ).filter(opt => opt.playerText.trim().length > 0);
 
   // Get current affinity
   const affinity = props.npcAffinities.find(
