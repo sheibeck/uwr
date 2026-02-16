@@ -210,6 +210,17 @@ export const registerCorpseReducers = (deps: any) => {
     // Find the corpse (it might have been looted/decayed in the meantime)
     const corpse = pending.corpseId ? ctx.db.corpse.id.find(pending.corpseId) : null;
     if (!corpse) {
+      // Notify caster before deleting
+      const caster = ctx.db.character.id.find(pending.casterCharacterId);
+      if (caster) {
+        appendPrivateEvent(
+          ctx,
+          caster.id,
+          caster.ownerUserId,
+          'error',
+          `${character.name} accepted, but the corpse no longer exists.`
+        );
+      }
       ctx.db.pendingSpellCast.id.delete(pending.id);
       throw new SenderError('Corpse no longer exists');
     }
@@ -221,16 +232,16 @@ export const registerCorpseReducers = (deps: any) => {
       throw new SenderError('Caster no longer online');
     }
 
-    // Re-verify mana availability (flat 50 mana)
-    const manaCost = 50n;
-    if (caster.mana < manaCost) {
-      ctx.db.pendingSpellCast.id.delete(pending.id);
-      throw new SenderError('Caster no longer has enough mana');
-    }
-
     // Check if caster is already casting
     const existingCast = [...ctx.db.characterCast.by_character.filter(caster.id)][0];
     if (existingCast && existingCast.endsAtMicros > nowMicros) {
+      appendPrivateEvent(
+        ctx,
+        caster.id,
+        caster.ownerUserId,
+        'error',
+        `${character.name} accepted, but you are already casting.`
+      );
       ctx.db.pendingSpellCast.id.delete(pending.id);
       throw new SenderError('Caster is already casting');
     }
@@ -238,11 +249,7 @@ export const registerCorpseReducers = (deps: any) => {
       ctx.db.characterCast.id.delete(existingCast.id);
     }
 
-    // Deduct mana from caster
-    ctx.db.character.id.update({
-      ...caster,
-      mana: caster.mana - manaCost,
-    });
+    // Note: Mana was already deducted in initiate_resurrect
 
     // Start the 10-second cast (castSeconds: 10n in cleric_abilities.ts)
     const castMicros = 10_000_000n;
