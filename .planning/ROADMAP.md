@@ -548,12 +548,14 @@ Plans:
 
 ### Phase 20: Perk Variety Expansion
 
-**Goal:** [To be planned]
+**Goal:** Expand renown perk pools (ranks 2-11) with diverse effect types across three domains: combat procs, crafting/gathering bonuses, and social/utility modifiers. 3 meaningful choices per rank with domain-based differentiation. Active ability perks with hotbar integration.
 **Depends on:** Phase 19
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 20 to break down)
+- [ ] 20-01-PLAN.md — Perk data foundation: extend PerkEffect type, design 30 perks for ranks 2-11 (combat/crafting/social), sync frontend display
+- [ ] 20-02-PLAN.md — Passive perk hooks: combat proc system, crafting/gathering bonuses, social/utility modifiers across all game systems
+- [ ] 20-03-PLAN.md — Active ability perks: hotbar auto-assignment, ability execution (Second Wind, Thunderous Blow, Wrath of the Fallen), cooldown tracking
 
 ---
 
