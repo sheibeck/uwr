@@ -976,6 +976,17 @@ export function executeAbility(
       if (!targetCharacter) throw new SenderError('Target required');
       applyHeal(targetCharacter, 15n, 'Heal');
       return;
+    case 'cleric_resurrect':
+      // Resurrect uses the initiate_resurrect → PendingSpellCast → accept_resurrect flow
+      // When cast via use_ability, trigger initiate_resurrect which will handle the confirmation
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        'Cast complete - resurrection request sent.'
+      );
+      return;
     case 'wizard_magic_missile':
       applyDamage(0n, 0n);
       return;

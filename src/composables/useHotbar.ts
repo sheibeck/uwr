@@ -280,14 +280,6 @@ export const useHotbar = ({
       onTrackRequested?.();
       return;
     }
-    if (slot.abilityKey === 'cleric_resurrect') {
-      if (!selectedCorpseTarget?.value) {
-        addLocalEvent?.('blocked', 'You must target a corpse to resurrect.');
-        return;
-      }
-      onResurrectRequested?.(selectedCorpseTarget.value);
-      return;
-    }
     if (activeCombat.value && !canActInCombat.value && slot.kind !== 'utility') {
       addLocalEvent?.('blocked', `Cannot act yet — waiting for combat turn.`);
       return;
