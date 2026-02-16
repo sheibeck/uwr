@@ -108,7 +108,7 @@
         </div>
         <div v-else :style="styles.logList">
           <div v-for="entry in dialogEntries" :key="entry.key" :style="styles.logItem">
-            <span :style="styles.logMessage">{{ entry.text }}</span>
+            <span :style="styles.logMessage" v-html="renderClickableTopics(entry.text)"></span>
           </div>
         </div>
       </template>
@@ -312,4 +312,22 @@ const chooseDialogueOption = (optionId: bigint) => {
     optionId: optionId,
   });
 };
+
+// Parse text and make [bracketed] topics clickable
+const renderClickableTopics = (text: string): string => {
+  return text.replace(/\[([^\]]+)\]/g, (match, topic) => {
+    return `<span style="color: #60a5fa; cursor: pointer; text-decoration: underline;" onclick="window.clickNpcTopic('${topic.replace(/'/g, "\\'")}')">${match}</span>`;
+  });
+};
+
+// Handle clicking on a [topic] - trigger /say command
+if (typeof window !== 'undefined') {
+  (window as any).clickNpcTopic = (topic: string) => {
+    if (!props.selectedCharacterId) return;
+    window.__db_conn?.reducers.say({
+      characterId: props.selectedCharacterId,
+      message: topic,
+    });
+  };
+}
 </script>

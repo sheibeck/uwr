@@ -65,43 +65,53 @@ export const registerCommandReducers = (deps: any) => {
       break;
     }
 
-    // Generate dynamic greeting
+    // Get available dialogue options for this character
+    const availableOptions = getAvailableDialogueOptions(ctx, character.id, npc.id, null);
+
+    // Generate greeting with available topics in [brackets]
     let greeting: string;
+    let hasNewContent = availableOptions.length > 0;
+
     if (factionStanding < -50 || affinity < -50) {
+      // Hostile - no dialogue options
       greeting = `${npc.name} glares at you with open hostility. "Leave. Now."`;
-    } else if (affinity >= 75) {
-      greeting = `${npc.name} greets you warmly. "Ah, my friend! It is good to see you again."`;
-    } else if (affinity >= 50) {
-      greeting = `${npc.name} nods in recognition. "Welcome back. What can I do for you?"`;
-    } else if (affinity >= 25) {
-      greeting = `${npc.name} regards you with growing familiarity. "You again. What brings you?"`;
-    } else if (renownRank >= 5 && affinity < 25) {
-      greeting = `${npc.name} eyes you with a mix of respect and wariness. "Your reputation precedes you."`;
+      hasNewContent = false;
+    } else if (hasNewContent) {
+      // Has dialogue options - include them in [brackets]
+      const topics = availableOptions
+        .map(opt => `[${opt.playerText}]`)
+        .join(' or ');
+
+      let introText: string;
+      if (affinity >= 75) {
+        introText = `${npc.name} greets you warmly. "Ah, my friend! It is good to see you again."`;
+      } else if (affinity >= 50) {
+        introText = `${npc.name} nods in recognition. "Welcome back. What can I do for you?"`;
+      } else if (affinity >= 25) {
+        introText = `${npc.name} regards you with growing familiarity. "You again. What brings you?"`;
+      } else if (renownRank >= 5 && affinity < 25) {
+        introText = `${npc.name} eyes you with a mix of respect and wariness. "Your reputation precedes you."`;
+      } else {
+        introText = `${npc.name} says, "${npc.greeting}"`;
+      }
+
+      greeting = `${introText} I can tell you about ${topics}.`;
     } else {
-      greeting = `${npc.name} says, "${npc.greeting}"`;
-    }
-
-    // IMPORTANT: Log "You begin to talk with X" to Log panel, actual greeting goes to Journal
-    appendSystemMessage(ctx, character, `You begin to talk with ${npc.name}.`);
-
-    // Check if this is the first greeting - only log meaningful first greetings to Journal
-    const affinityRow = getAffinityRow(ctx, character.id, npc.id);
-    const isFirstGreeting = !affinityRow || !affinityRow.hasGreeted; // undefined or false = first greeting
-
-    if (isFirstGreeting) {
-      // First time greeting - log to Journal for story record
-      appendNpcDialog(ctx, character.id, npc.id, greeting);
-      // Mark as greeted
-      if (affinityRow) {
-        ctx.db.npcAffinity.id.update({
-          ...affinityRow,
-          hasGreeted: true,
-        });
+      // No new dialogue options - default response (Log only, not Journal)
+      if (affinity >= 50) {
+        greeting = `${npc.name} nods. "I have nothing new to share at the moment."`;
+      } else {
+        greeting = `${npc.name} says, "I have already told you all I know."`;
       }
     }
 
-    // Always show greeting in Log for user feedback
+    // Log greeting to Log panel (always for user feedback)
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', greeting);
+
+    // Only log to Journal if there are available dialogue options
+    if (hasNewContent) {
+      appendNpcDialog(ctx, character.id, npc.id, greeting);
+    }
 
     // Award small affinity for greeting (if cooldown allows)
     if (canConverseWithNpc(ctx, character.id, npc.id)) {

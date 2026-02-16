@@ -363,7 +363,10 @@ const openNpcContextMenu = (event: MouseEvent, npc: NpcRow) => {
   const items: Array<{ label: string; disabled?: boolean; action: () => void }> = [
     {
       label: 'Talk',
-      action: () => emit('hail', npc.name),
+      action: () => {
+        emit('select-npc', npc.id);
+        emit('talk-npc', npc.id);
+      },
     },
   ];
 
