@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-16
-**Status:** Completed quick task 97: Implement character targeting and corpse looting - added left-click character selection with blue highlight, right-click context menus with Corpse Summon action (necromancer/summoner 6+), and fixed hotbar Corpse Summon to target characters instead of corpses.
+**Status:** Completed quick task 98: Fix character starting location - new characters now deterministically spawn at Hollowmere using world.startingLocationId instead of nondeterministic bindStone iterator scan.
 
 ---
 
@@ -296,9 +296,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 95 | Create /spawncorpse admin command - spawn test corpse with random junk item at current location for corpse system testing without requiring combat death | 2026-02-14 | 19eb965 | [95-create-spawncorpse-admin-command-that-sp](./quick/95-create-spawncorpse-admin-command-that-sp/) |
 | 96 | Fix NPC dialogue logging issues and add NPC targeting - separated NPC conversation text to Journal-only (removed Log duplication), added click-to-select NPC targeting with green highlight, /say command with targeted NPC fuzzy-matches dialogue options | 2026-02-14 | 7be12ba | [96-fix-npc-dialogue-logging-issues-greeting](./quick/96-fix-npc-dialogue-logging-issues-greeting/) |
 | 97 | Implement character targeting and corpse looting - left-click character selection with blue highlight, right-click context menus with Corpse Summon (necromancer/summoner 6+), fixed hotbar Corpse Summon to target characters not corpses | 2026-02-16 | fbf9fbd | [97-implement-character-targeting-and-corpse](./quick/97-implement-character-targeting-and-corpse/) |
+| 98 | Fix character starting location - new characters now deterministically spawn at Hollowmere using world.startingLocationId instead of nondeterministic bindStone iterator scan | 2026-02-16 | dfd8022 | [98-when-i-create-a-new-character-they-shoul](./quick/98-when-i-create-a-new-character-they-shoul/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-16 - Completed quick-97: Implemented character targeting system with left-click selection (blue highlight), right-click context menus with inline Corpse Summon action (gated by necromancer/summoner 6+), and fixed hotbar Corpse Summon to correctly target characters instead of corpses.
+Last activity: 2026-02-16 - Completed quick-98: Fixed character starting location to use deterministic world.startingLocationId lookup instead of bindStone iterator scan, ensuring all new characters spawn at Hollowmere.
