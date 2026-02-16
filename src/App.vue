@@ -1207,7 +1207,7 @@ watch(currentLocation, () => {
 watch(charactersHere, () => {
   if (!selectedCharacterTarget.value) return;
   const targetStillHere = charactersHere.value.find(
-    (char) => char.id.toString() === selectedCharacterTarget.value?.toString()
+    (char) => char.id?.toString() === selectedCharacterTarget.value?.toString()
   );
   if (!targetStillHere) {
     selectedCharacterTarget.value = null;
@@ -1218,7 +1218,7 @@ watch(charactersHere, () => {
 watch(corpsesHere, () => {
   if (!selectedCorpseTarget.value) return;
   const corpseStillHere = corpsesHere.value.find(
-    (corpse) => corpse.id.toString() === selectedCorpseTarget.value?.toString()
+    (corpse) => corpse.id?.toString() === selectedCorpseTarget.value?.toString()
   );
   if (!corpseStillHere) {
     selectedCorpseTarget.value = null;
