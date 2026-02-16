@@ -223,6 +223,19 @@ export function usePanelManager(
     if (!panels[id]) return;
     topZ.value += 1;
     panels[id].zIndex = topZ.value;
+
+    // Reset z-indexes when ceiling reached to prevent unbounded growth
+    if (topZ.value > 5000) {
+      // Collect all panels with their current zIndex, sort by zIndex ascending
+      const entries = Object.entries(panels).sort((a, b) => a[1].zIndex - b[1].zIndex);
+      // Reassign z-indexes starting from 10
+      entries.forEach(([pid, state], idx) => {
+        state.zIndex = 10 + idx;
+      });
+      topZ.value = 10 + entries.length;
+      // Re-apply the current panel on top
+      panels[id].zIndex = topZ.value;
+    }
   };
 
   // Start dragging a panel

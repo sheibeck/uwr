@@ -1249,7 +1249,7 @@ export const styles = {
     padding: '0.6rem 0.8rem',
     color: '#e6e8ef',
     fontSize: '0.8rem',
-    zIndex: 1000,
+    zIndex: 9998,
     pointerEvents: 'none',
     maxWidth: '240px',
     overflowWrap: 'break-word',
