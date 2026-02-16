@@ -138,8 +138,8 @@ export const registerCorpseReducers = (deps: any) => {
     const abilityTemplate = [...ctx.db.abilityTemplate.by_key.filter('cleric_resurrect')][0];
     if (!abilityTemplate) throw new SenderError('Resurrect ability not found');
 
-    if (caster.className !== 'cleric' || caster.level < 6n) {
-      throw new SenderError('You must be a level 6+ cleric to resurrect');
+    if (caster.className.toLowerCase() !== 'cleric' || caster.level < 6n) {
+      throw new SenderError(`You must be a level 6+ cleric to resurrect (you are: ${caster.className} level ${caster.level})`);
     }
 
     // Check mana cost (flat 50 mana)
