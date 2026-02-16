@@ -163,7 +163,38 @@ export const registerCorpseReducers = (deps: any) => {
       }
     }
 
-    // Create PendingSpellCast row
+    // Create cast entry (10 second cast time)
+    const castMicros = 10_000_000n; // 10 seconds
+    const existingCast = [...ctx.db.characterCast.by_character.filter(caster.id)][0];
+    if (existingCast) {
+      ctx.db.characterCast.id.delete(existingCast.id);
+    }
+    ctx.db.characterCast.insert({
+      id: 0n,
+      characterId: caster.id,
+      abilityKey: 'cleric_resurrect',
+      targetCharacterId: target.id,
+      endsAtMicros: nowMicros + castMicros,
+    });
+
+    // Apply cooldown (3 seconds)
+    const cooldownMicros = 3_000_000n; // 3 seconds
+    const existingCooldown = [...ctx.db.abilityCooldown.by_character_key.filter(caster.id, 'cleric_resurrect')][0];
+    if (existingCooldown) {
+      ctx.db.abilityCooldown.id.update({
+        ...existingCooldown,
+        readyAtMicros: nowMicros + castMicros + cooldownMicros, // Cooldown starts after cast completes
+      });
+    } else {
+      ctx.db.abilityCooldown.insert({
+        id: 0n,
+        characterId: caster.id,
+        abilityKey: 'cleric_resurrect',
+        readyAtMicros: nowMicros + castMicros + cooldownMicros,
+      });
+    }
+
+    // Create PendingSpellCast row (confirmation request is sent immediately, but cast takes 10s)
     ctx.db.pendingSpellCast.insert({
       id: 0n,
       spellType: 'resurrect',
@@ -173,7 +204,7 @@ export const registerCorpseReducers = (deps: any) => {
       createdAtMicros: nowMicros,
     });
 
-    appendPrivateEvent(ctx, caster.id, caster.ownerUserId, 'system', `Awaiting ${target.name}'s response to resurrect...`);
+    appendPrivateEvent(ctx, caster.id, caster.ownerUserId, 'system', `Channeling resurrection for ${target.name}...`);
     appendPrivateEvent(ctx, target.id, target.ownerUserId, 'system', `${caster.name} wants to resurrect you. Accept or decline the resurrect.`);
   });
 
