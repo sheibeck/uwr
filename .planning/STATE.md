@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-16
-**Status:** Completed quick task 98: Fix character starting location - new characters now deterministically spawn at Hollowmere using world.startingLocationId instead of nondeterministic bindStone iterator scan.
+**Status:** Completed quick task 99: Fix Travel panel location levels - Travel panel now uses base level 1 instead of character level, matching Location panel's level formula for consistent location level display.
 
 ---
 
@@ -165,6 +165,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 12-overall-renown-system | 03 | ~25min | 3 | 4 |
 | 19-npc-interactions | 01 | 3min | 2 | 6 |
 | 19-npc-interactions | 02 | 3min | 1 | 14 |
+| Phase quick-99 P01 | 1 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -297,9 +298,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 96 | Fix NPC dialogue logging issues and add NPC targeting - separated NPC conversation text to Journal-only (removed Log duplication), added click-to-select NPC targeting with green highlight, /say command with targeted NPC fuzzy-matches dialogue options | 2026-02-14 | 7be12ba | [96-fix-npc-dialogue-logging-issues-greeting](./quick/96-fix-npc-dialogue-logging-issues-greeting/) |
 | 97 | Implement character targeting and corpse looting - left-click character selection with blue highlight, right-click context menus with Corpse Summon (necromancer/summoner 6+), fixed hotbar Corpse Summon to target characters not corpses | 2026-02-16 | fbf9fbd | [97-implement-character-targeting-and-corpse](./quick/97-implement-character-targeting-and-corpse/) |
 | 98 | Fix character starting location - new characters now deterministically spawn at Hollowmere using world.startingLocationId instead of nondeterministic bindStone iterator scan | 2026-02-16 | dfd8022 | [98-when-i-create-a-new-character-they-shoul](./quick/98-when-i-create-a-new-character-they-shoul/) |
+| 99 | Fix Travel panel location levels - changed targetLevelForLocation to use base level 1 instead of character level, matching Location panel's level formula for consistent display | 2026-02-16 | ee78465 | [99-fix-travel-panel-showing-character-level](./quick/99-fix-travel-panel-showing-character-level/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-16 - Completed quick-98: Fixed character starting location to use deterministic world.startingLocationId lookup instead of bindStone iterator scan, ensuring all new characters spawn at Hollowmere.
+Last activity: 2026-02-16 - Completed quick-99: Fixed Travel panel location levels to use base level 1 instead of character level, matching Location panel's level formula for consistent display across both panels.
