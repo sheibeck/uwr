@@ -252,6 +252,9 @@ export function ensureAvailableSpawn(
 }
 
 export function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
+  const location = ctx.db.location.id.find(locationId);
+  if (!location || location.isSafe) return;
+
   const activeGroupKeys = new Set<string>();
   for (const player of ctx.db.player.iter()) {
     if (!player.activeCharacterId) continue;
@@ -279,6 +282,18 @@ export function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
 export function ensureLocationRuntimeBootstrap(ctx: any) {
   for (const location of ctx.db.location.iter()) {
     ensureResourceNodesForLocation(ctx, location.id);
+
+    // Skip enemy spawns for safe zones and clean up any existing spawns
+    if (location.isSafe) {
+      for (const spawn of ctx.db.enemySpawn.by_location.filter(location.id)) {
+        for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawn.id)) {
+          ctx.db.enemySpawnMember.id.delete(member.id);
+        }
+        ctx.db.enemySpawn.id.delete(spawn.id);
+      }
+      continue;
+    }
+
     let count = 0;
     for (const _row of ctx.db.enemySpawn.by_location.filter(location.id)) {
       count += 1;
@@ -323,6 +338,9 @@ export function spawnEnemy(
   targetLevel: bigint = 1n,
   avoidTemplateIds: bigint[] = []
 ): typeof EnemySpawn.rowType {
+  const locationRow = ctx.db.location.id.find(locationId);
+  if (locationRow?.isSafe) throw new SenderError('Cannot spawn enemies in safe zones');
+
   const templates = [...ctx.db.locationEnemyTemplate.by_location.filter(locationId)];
   if (templates.length === 0) throw new SenderError('No enemy templates for location');
 
@@ -434,6 +452,9 @@ export function spawnEnemyWithTemplate(
   locationId: bigint,
   templateId: bigint
 ): typeof EnemySpawn.rowType {
+  const locationRow = ctx.db.location.id.find(locationId);
+  if (locationRow?.isSafe) throw new SenderError('Cannot spawn enemies in safe zones');
+
   const template = ctx.db.enemyTemplate.id.find(templateId);
   if (!template) throw new SenderError('Enemy template not found');
   let allowedHere = false;
