@@ -322,7 +322,7 @@ export function ensureWorldLayout(ctx: any) {
     levelOffset: 0n,
     isSafe: true,
     terrainType: 'town',
-    bindStone: false,
+    bindStone: true,
     craftingAvailable: true,
   });
   const ashen = upsertLocationByName({
@@ -333,7 +333,7 @@ export function ensureWorldLayout(ctx: any) {
     levelOffset: 0n,
     isSafe: false,
     terrainType: 'plains',
-    bindStone: true,
+    bindStone: false,
     craftingAvailable: false,
   });
   const fogroot = upsertLocationByName({
