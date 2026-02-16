@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: quick-97
 source: 97-SUMMARY.md
 started: 2026-02-16T22:30:00Z
@@ -71,7 +71,18 @@ skipped: 1
   reason: "User reported: Moving to a different location cleared the character selection, but not the corpse selection"
   severity: major
   test: 9
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "Watcher at App.vue:1199-1203 correctly clears selectedCorpseTarget.value = null when currentLocation changes. currentLocation is computed from selectedCharacter.locationId (useCharacters.ts:72-78). The watcher logic appears correct. Possible causes: (1) timing issue where corpse selection is set after watcher fires, (2) watcher not triggering due to reactivity edge case, or (3) user testing error. Code inspection shows proper implementation - may need runtime verification."
+  artifacts:
+    - path: "src/App.vue"
+      lines: "1199-1203"
+      issue: "Location change watcher that should clear corpse selection"
+    - path: "src/composables/useCharacters.ts"
+      lines: "72-78"
+      issue: "currentLocation computed definition based on locationId"
+  missing:
+    - "Runtime verification needed - code appears correct but user reports failure"
+    - "Consider adding explicit logging to confirm watcher execution"
   debug_session: ""
+  fix_plan: "97-gap-01-PLAN.md"
+  fix_status: "implemented"
+  fix_commit: "ed8547b"
