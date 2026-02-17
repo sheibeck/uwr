@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Phases 11, 15, and 19 closed as complete. Phase 14 (Loot & Gear Progression) complete. Quick tasks 144-146: robust cast bar/cooldown safety nets and auto cache-busting on deploys. Next phase: 13 (Crafting), 16 (Travelling NPCs), or 20 (Perk Variety Expansion).
+**Status:** Phase 20 (Perk Variety Expansion) complete — 2/2 plans done. All perk effect types now functional: combat procs, gathering bonuses, vendor discounts, NPC affinity multipliers, travel cooldown reduction, gold find, XP bonus. Next phase: 13 (Crafting), 16 (Travelling NPCs), or 17 (World Bosses).
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems.
 
-**Last completed phase:** 14 (Loot & Gear Progression) — 4/4 plans, human-verified
-**Current phase:** 20 (Perk Variety Expansion) — 1/1 plan complete
-**Next action:** Phase 20 Plan 01 complete — perk data foundation established. Continue to Phase 20 Plan 02 (perk logic implementation), or begin Phase 13 (Crafting), Phase 16 (Travelling NPCs).
+**Last completed phase:** 20 (Perk Variety Expansion) — 2/2 plans complete
+**Current phase:** None — ready to begin next phase
+**Next action:** Begin Phase 13 (Crafting), Phase 16 (Travelling NPCs), or Phase 17 (World Bosses).
 
 ---
 
@@ -39,6 +39,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 14 | Loot & Gear Progression | Complete (4/4 plans done: schema+catalog, loot pipeline, legendary drops+salvage, client UI, human-verified) |
 | 15 | Named NPCs | Complete (implemented organically via Phase 19 and quick tasks — NPC entities, shops, world placement all in place) |
 | 19 | NPC Interactions | Complete (2/2 plans done: backend affinity/dialogue + interaction reducers; UI skipped per user decision — multi-step questing via NPC dialogue is sufficient MVP) |
+| 20 | Perk Variety Expansion | Complete (2/2 plans done: perk data foundation + perk logic implementation across all game systems) |
 
 ---
 
@@ -161,6 +162,11 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 115. Perk domain categorization: 'combat' | 'crafting' | 'social' — one of each per rank 2-11, ranks 12-15 use 'combat' as default pending capstone redesign (20-01)
 116. Proc chances 2-10% range: bloodthirst 3%, savage_strikes 5%, vampiric_strikes 5%, deathbringer 8%, undying_fury 3% — rare and impactful per design rules (20-01)
 117. Frontend domain color coding: combat=#c55, crafting=#5c5, social=#55c applied as border-left on perk options; domain prefix tags [Combat]/[Crafting]/[Social] in descriptions (20-01)
+118. Proc RNG uses (seed + perkIndex) % 100n deterministic arithmetic — no Math.random(), consistent with rollAttackOutcome pattern (20-02)
+119. gatherDoubleChance and rareGatherChance are mutually exclusive — double check fires first, rare only if double didn't trigger (20-02)
+120. vendorBuyDiscount capped at 50% max, travelCooldownReduction capped at 80% max — prevents exploitative zero-cost/zero-cooldown states (20-02)
+121. NPC affinity bonus only applied for positive baseChange values — hostile interactions don't benefit from Smooth Talker perk (20-02)
+122. XP bonus applied to base XP before awardCombatXp so level diff modifier (xpModifierForDiff) still applies correctly downstream (20-02)
 
 ---
 
@@ -207,6 +213,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 14-loot-gear-progression | 02 | 3min | 2 | 3 |
 | 14-loot-gear-progression | 03 | 15min | 2 | 2 |
 | 14-loot-gear-progression | 04 | 6min | 2 | 14 |
+| 20-perk-variety-expansion | 02 | ~25min | 2 | 7 |
 
 ## Accumulated Context
 
@@ -283,4 +290,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-17 - Phase 20 Plan 01 complete: extended PerkEffect type with proc/crafting/social/scaling fields, redesigned 30 perks for ranks 2-11 (3 per rank across combat/crafting/social domains), synced frontend RenownPanel.vue with matching perk definitions and domain color indicators. Stopped at: Completed 20-01-PLAN.md
+Last activity: 2026-02-17 - Phase 20 Plan 02 complete: wired all perk effects across game systems — combat procs (on_hit/on_crit/on_kill/on_damage_taken with deterministic RNG), gathering bonuses (double yield + rare materials), vendor discounts/sell bonuses, NPC affinity multiplier, travel cooldown reduction, gold find bonus, XP bonus. Phase 20 now fully complete. Stopped at: Completed 20-02-PLAN.md
