@@ -348,6 +348,26 @@ export const ItemInstance = table(
     ownerCharacterId: t.u64(),
     equippedSlot: t.string().optional(),
     quantity: t.u64(),
+    qualityTier: t.string().optional(),   // 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'; undefined = 'common'
+    displayName: t.string().optional(),   // null for common, e.g., 'Sturdy Scout Jerkin of Haste'
+    isNamed: t.bool().optional(),         // true only for Legendary unique items
+  }
+);
+
+export const ItemAffix = table(
+  {
+    name: 'item_affix',
+    public: true,
+    indexes: [{ name: 'by_instance', algorithm: 'btree', columns: ['itemInstanceId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    itemInstanceId: t.u64(),
+    affixType: t.string(),     // 'prefix' | 'suffix'
+    affixKey: t.string(),      // e.g., 'sturdy', 'of_haste'
+    affixName: t.string(),     // display name, e.g., 'Sturdy', 'of Haste'
+    statKey: t.string(),       // e.g., 'strBonus', 'lifeOnHit', 'cooldownReduction'
+    magnitude: t.i64(),        // fixed per tier; positive = bonus
   }
 );
 
@@ -512,6 +532,9 @@ export const CombatLoot = table(
     characterId: t.u64(),
     itemTemplateId: t.u64(),
     createdAt: t.timestamp(),
+    qualityTier: t.string().optional(),    // rolled quality, e.g., 'uncommon'
+    affixDataJson: t.string().optional(),  // JSON array of affix keys to apply at take time
+    isNamed: t.bool().optional(),          // true for Legendary uniques
   }
 );
 
@@ -1509,6 +1532,7 @@ export const spacetimedb = schema(
   Race,
   ItemTemplate,
   ItemInstance,
+  ItemAffix,
   RecipeTemplate,
   RecipeDiscovered,
   ItemCooldown,
