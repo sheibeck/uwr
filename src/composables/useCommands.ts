@@ -1,5 +1,5 @@
 import { ref, type Ref } from 'vue';
-import { reducers, type CharacterRow, type NpcRow, type NpcDialogueOptionRow, type NpcAffinityRow, type FactionStandingRow, type PlayerRow, type LocationRow } from '../module_bindings';
+import { reducers, tables, type CharacterRow, type NpcRow, type NpcDialogueOptionRow, type NpcAffinityRow, type FactionStandingRow, type PlayerRow, type LocationRow } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 
 type UseCommandsArgs = {
@@ -54,6 +54,7 @@ export const useCommands = ({
   const grantTestRenownReducer = useReducer(reducers.grantTestRenown);
   const spawnCorpseReducer = useReducer(reducers.spawnCorpse);
   const createTestItemReducer = useReducer(reducers.createTestItem);
+  const resolveWorldEventReducer = useReducer(reducers.resolveWorldEvent);
   const chooseDialogueOptionReducer = useReducer(reducers.chooseDialogueOption);
   const commandText = ref('');
 
@@ -314,6 +315,19 @@ export const useCommands = ({
       }
       if (addLocalEvent) {
         addLocalEvent('command', 'All windows reset to center.');
+      }
+    } else if (lower.startsWith('/endevent')) {
+      const parts = raw.trim().split(/\s+/);
+      const outcome = parts[1]?.toLowerCase() === 'fail' ? 'failure' : 'success';
+      const activeEvents = [...tables.worldEvent.iter()].filter((e: any) => e.status === 'active');
+      if (activeEvents.length === 0) {
+        addLocalEvent?.('command', 'No active world events.');
+      } else if (activeEvents.length === 1) {
+        resolveWorldEventReducer({ worldEventId: activeEvents[0].id, outcome });
+        addLocalEvent?.('command', `Ending event "${activeEvents[0].name}" as ${outcome}.`);
+      } else {
+        const list = activeEvents.map((e: any) => `  ${e.name} (id: ${e.id})`).join('\n');
+        addLocalEvent?.('command', `Multiple active events — use console:\n${list}\nwindow.__db_conn.reducers.resolveWorldEvent({ worldEventId: <id>n, outcome: '${outcome}' })`);
       }
     } else if (lower === '/who') {
       // Find all active character IDs from players with an activeCharacterId

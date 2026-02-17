@@ -77,6 +77,7 @@ const highlighted = ref<string | null>(null);
     { value: '/createitem', hint: 'Create test item by quality tier' },
     { value: '/resetwindows', hint: 'Reset all panel positions to center of screen' },
     { value: '/who', hint: 'List all online characters' },
+    { value: '/endevent', hint: 'End active world event as success (or /endevent fail)' },
   ];
 
 const shouldShowSuggestions = computed(() => {
