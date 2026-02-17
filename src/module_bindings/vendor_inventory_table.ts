@@ -15,4 +15,5 @@ export default __t.row({
   npcId: __t.u64(),
   itemTemplateId: __t.u64(),
   price: __t.u64(),
+  qualityTier: __t.option(__t.string()),
 });

@@ -586,7 +586,7 @@ export const registerCombatReducers = (deps: any) => {
     return entries[0];
   };
 
-  const generateLootTemplates = (ctx: any, enemyTemplate: any, seedBase: bigint) => {
+  const generateLootTemplates = (ctx: any, enemyTemplate: any, seedBase: bigint, dangerMultiplier?: bigint) => {
     const lootTable = findLootTable(ctx, enemyTemplate);
     if (!lootTable) return [];
     const entries = [...ctx.db.lootTableEntry.by_table.filter(lootTable.id)];
@@ -616,7 +616,7 @@ export const registerCombatReducers = (deps: any) => {
       if (pick) {
         const template = ctx.db.itemTemplate.id.find(pick.itemTemplateId);
         if (template) {
-          const quality = rollQualityTier(enemyTemplate.level ?? 1n, seedBase);
+          const quality = rollQualityTier(enemyTemplate.level ?? 1n, seedBase, dangerMultiplier);
           const JEWELRY_SLOTS_COMBAT = new Set(['earrings', 'neck']);
           const effectiveQuality =
             JEWELRY_SLOTS_COMBAT.has(template.slot) && template.armorClassBonus === 0n && quality === 'common'
@@ -2182,6 +2182,10 @@ export const registerCombatReducers = (deps: any) => {
       const fallenSuffix = fallenNames.length > 0 ? ` Fallen: ${fallenNames.join(', ')}.` : '';
       const summaryName =
         enemies.length > 1 ? `${primaryName} and allies` : primaryName;
+      // Look up combat location danger once — same for all templates in this combat
+      const lootLocation = ctx.db.location.id.find(combat.locationId);
+      const lootRegion = lootLocation ? ctx.db.region.id.find(lootLocation.regionId) : null;
+      const lootDanger = lootRegion?.dangerMultiplier ?? 100n;
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
@@ -2202,7 +2206,7 @@ export const registerCombatReducers = (deps: any) => {
         }
         for (const template of enemyTemplates) {
           const lootTemplates = template
-            ? generateLootTemplates(ctx, template, ctx.timestamp.microsSinceUnixEpoch + character.id)
+            ? generateLootTemplates(ctx, template, ctx.timestamp.microsSinceUnixEpoch + character.id, lootDanger)
             : [];
           for (const lootItem of lootTemplates) {
             ctx.db.combatLoot.insert({

@@ -70,10 +70,32 @@ export function getMaxTierForLevel(level: bigint): number {
   return 4;
 }
 
-export function rollQualityTier(creatureLevel: bigint, seedBase: bigint): string {
-  const roll = Number((seedBase + 31n) % 100n);
+export function rollQualityTier(creatureLevel: bigint, seedBase: bigint, dangerMultiplier?: bigint): string {
   const maxTier = getMaxTierForLevel(creatureLevel);
 
+  if (dangerMultiplier !== undefined) {
+    // Danger-based tier selection
+    const danger = Number(dangerMultiplier);
+    let baseTierNum: number;
+    if (danger <= 120) baseTierNum = 1;        // common
+    else if (danger <= 170) baseTierNum = 2;   // uncommon
+    else if (danger <= 250) baseTierNum = 3;   // rare
+    else if (danger <= 400) baseTierNum = 4;   // epic
+    else baseTierNum = 4;                       // cap at epic (legendaries are named only)
+
+    // 12% tier-up chance, capped at epic
+    const tierUpRoll = Number((seedBase + 47n) % 100n);
+    if (tierUpRoll < 12 && baseTierNum < 4) baseTierNum += 1;
+
+    // Respect creature level cap
+    if (baseTierNum > maxTier) baseTierNum = maxTier;
+
+    const tierNames = ['common', 'uncommon', 'rare', 'epic'];
+    return tierNames[baseTierNum - 1] ?? 'common';
+  }
+
+  // Fallback: level-based logic (backward compatible for create_test_item)
+  const roll = Number((seedBase + 31n) % 100n);
   if (maxTier === 1) {
     const uncommonThreshold = Math.min(25, Number(creatureLevel) * 2);
     return roll < uncommonThreshold ? 'uncommon' : 'common';
@@ -155,6 +177,21 @@ export function generateAffixData(
       const idx = Number((seedBase + 43n) % BigInt(combinedPool.length));
       result.push(makeAffix(combinedPool[idx]!));
     }
+  }
+
+  // Rare items: cap total affix magnitude at 2
+  if (qualityTier === 'rare') {
+    let remaining = 2n;
+    const capped: typeof result = [];
+    for (const affix of result) {
+      if (remaining <= 0n) break;
+      const cappedMagnitude = affix.magnitude < remaining ? affix.magnitude : remaining;
+      if (cappedMagnitude > 0n) {
+        capped.push({ ...affix, magnitude: cappedMagnitude });
+        remaining -= cappedMagnitude;
+      }
+    }
+    return capped;
   }
 
   return result;

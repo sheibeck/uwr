@@ -15,6 +15,7 @@ export default __t.object("VendorInventory", {
   npcId: __t.u64(),
   itemTemplateId: __t.u64(),
   price: __t.u64(),
+  qualityTier: __t.option(__t.string()),
 });
 
 
