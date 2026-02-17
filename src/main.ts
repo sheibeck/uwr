@@ -67,8 +67,8 @@ const checkForUpdates = async () => {
   }
 };
 
-// Check for updates every 60 seconds, but only in production
-if (CLIENT_VERSION !== 'dev') {
+// Check for updates every 60 seconds, but only in production builds
+if (import.meta.env.PROD) {
   setInterval(checkForUpdates, 60_000);
 }
 

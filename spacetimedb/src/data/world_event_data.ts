@@ -38,6 +38,7 @@ export type WorldEventDefinition = {
 // Run: spacetime identity list — to find your hex
 export const ADMIN_IDENTITIES = new Set<string>([
   // Add admin identity hex strings here
+  "c20006ce5893a0e7f3531d8cfc2bd561f78b60d08eb5137cc2ae3ca4ec060b80"
 ]);
 
 // Event definitions
@@ -113,6 +114,43 @@ export const WORLD_EVENT_DEFINITIONS: Record<string, WorldEventDefinition> = {
         locationKey: 'Bogfen Hollow',
         enemies: [{ enemyTemplateKey: 'Bog Lurker', count: 4 }],
         items: [{ name: 'Siege Supply Crate', count: 3 }],
+      },
+    ],
+  },
+
+  hollowmere_rat_infestation: {
+    name: 'The Hollowmere Infestation',
+    regionKey: 'Hollowmere Vale',
+    isRecurring: true,
+    failureConditionType: 'time',
+    durationMicros: 1_800_000_000n, // 30 minutes
+    successConsequenceType: 'faction_standing_bonus',
+    successConsequencePayload: JSON.stringify({ factionId: 1, amount: 25 }),
+    failureConsequenceType: 'none',
+    failureConsequencePayload: '',
+    consequenceTextStub: 'Bog rats pour from the wetlands into Hollowmere. Drive them back before they overrun the settlement.',
+    rewardTiers: {
+      bronze: {
+        threshold: 1,
+        success: { renown: 20, gold: 50, factionId: null, factionAmount: 0, itemTemplateKey: null },
+        failure: { renown: 5, gold: 10, factionId: null, factionAmount: 0, itemTemplateKey: null },
+      },
+      silver: {
+        threshold: 3,
+        success: { renown: 60, gold: 120, factionId: 1, factionAmount: 10, itemTemplateKey: null },
+        failure: { renown: 10, gold: 20, factionId: null, factionAmount: 0, itemTemplateKey: null },
+      },
+      gold: {
+        threshold: 8,
+        success: { renown: 150, gold: 300, factionId: 1, factionAmount: 30, itemTemplateKey: null },
+        failure: { renown: 25, gold: 50, factionId: null, factionAmount: 0, itemTemplateKey: null },
+      },
+    },
+    contentLocations: [
+      {
+        locationKey: 'Hollowmere',
+        enemies: [{ enemyTemplateKey: 'Bog Rat', count: 5 }],
+        items: [{ name: 'Rat Nest Token', count: 3 }],
       },
     ],
   },
