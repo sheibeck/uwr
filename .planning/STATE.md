@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Completed quick task 127: Location-based group combat — only same-location group members enter combat, cross-location heals/buffs blocked, arriving at group combat auto-joins participant.
+**Status:** Completed quick task 130: Removed starter gear from vendor inventories via module-scope STARTER_ITEM_NAMES filter, tuned world-drop tier 1 weapons to 5/7 base/dps and tier 1 armor to +1 AC over starter equivalents.
 
 ---
 
@@ -255,9 +255,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 127 | Location-based group combat - getGroupOrSoloParticipants filters by locationId so only same-location members enter combat; executeAbility throws SenderError for cross-location group targets; moveOne auto-joins arriving members to active group combat with combatParticipant and aggroEntry rows | 2026-02-17 | a892fc3 | [127-implement-location-based-group-combat-on](./quick/127-implement-location-based-group-combat-on/) |
 | 128 | Loot window shows only most recent combat - delete stale CombatLoot rows and orphaned CombatResult rows per-character before inserting new loot, using by_character index | 2026-02-17 | 3637b19 | [128-loot-window-shows-only-most-recent-comba](./quick/128-loot-window-shows-only-most-recent-comba/) |
 | 129 | Seed world-drop gear pool separate from starter items - 25 world-drop items across weapon types and armor slots/tiers, STARTER_ITEM_NAMES exclusion set in loot filter, equipped slot rarity text removed and name shows quality color instead | 2026-02-17 | e64b2b3 | [129-seed-world-drop-item-pool-separate-from-](./quick/129-seed-world-drop-item-pool-separate-from-/) |
+| 130 | Remove starter gear from vendor inventories - STARTER_ITEM_NAMES promoted to module scope with starter accessories added, ensureVendorInventory allEligible filter excludes starters, tier 1 world-drop weapons normalized to 5/7 base/dps, tier 1 armor +1 AC each | 2026-02-17 | ba5d315 | [130-remove-starter-gear-from-vendor-inventor](./quick/130-remove-starter-gear-from-vendor-inventor/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick task 129: Seeded 25-item world-drop gear pool, excluded starter items from loot tables via STARTER_ITEM_NAMES set, and equipped slot rarity text replaced with quality-colored name.
+Last activity: 2026-02-17 - Completed quick task 130: Removed starter gear from vendor inventories, tuned world-drop tier 1 weapons to 5/7 base/dps and armor to +1 AC over starter equivalents.
