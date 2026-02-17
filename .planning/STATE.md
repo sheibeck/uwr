@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Completed quick task 126: Fix beneficial spells ignoring player target — heals/buffs now correctly target the selected group member instead of defaulting to caster.
+**Status:** Completed quick task 127: Location-based group combat — only same-location group members enter combat, cross-location heals/buffs blocked, arriving at group combat auto-joins participant.
 
 ---
 
@@ -252,6 +252,7 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 125 | Add /createitem <quality> admin command - backend create_test_item reducer picks random gear slot, inserts item with correct affixes for quality tier; client /createitem wired with client-side tier guard | 2026-02-17 | de2bc80 | [125-add-createitem-quality-admin-command-tha](./quick/125-add-createitem-quality-admin-command-tha/) |
 | 126 | Fix beneficial spells ignoring player target - removed utility-only gate in onHotbarClick so heals/buffs/cleanses pass defensiveTargetId for all ability kinds | 2026-02-17 | bfa4a79 | [126-fix-beneficial-spells-ignoring-player-ta](./quick/126-fix-beneficial-spells-ignoring-player-ta/) |
 | 124 | Clean up ROADMAP.md and STATE.md - archived quick-1 through quick-113 to ARCHIVE.md, fixed ROADMAP.md phase statuses (Phase 2 removed, Phases 11/12/14/19 updated), corrected plan checkboxes and dependency graph | 2026-02-17 | 78cbb55 | [124-clean-up-roadmap-md-and-state-md-compres](./quick/124-clean-up-roadmap-md-and-state-md-compres/) |
+| 127 | Location-based group combat - getGroupOrSoloParticipants filters by locationId so only same-location members enter combat; executeAbility throws SenderError for cross-location group targets; moveOne auto-joins arriving members to active group combat with combatParticipant and aggroEntry rows | 2026-02-17 | b515596 | [127-implement-location-based-group-combat-on](./quick/127-implement-location-based-group-combat-on/) |
 | 128 | Loot window shows only most recent combat - delete stale CombatLoot rows and orphaned CombatResult rows per-character before inserting new loot, using by_character index | 2026-02-17 | 3637b19 | [128-loot-window-shows-only-most-recent-comba](./quick/128-loot-window-shows-only-most-recent-comba/) |
 
 ---
