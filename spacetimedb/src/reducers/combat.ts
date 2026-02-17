@@ -617,12 +617,16 @@ export const registerCombatReducers = (deps: any) => {
         const template = ctx.db.itemTemplate.id.find(pick.itemTemplateId);
         if (template) {
           const quality = rollQualityTier(enemyTemplate.level ?? 1n, seedBase);
-          if (quality !== 'common') {
-            const affixes = generateAffixData(template.slot, quality, seedBase);
+          const JEWELRY_SLOTS_COMBAT = new Set(['earrings', 'neck']);
+          const effectiveQuality = (JEWELRY_SLOTS_COMBAT.has(template.slot) && quality === 'common')
+            ? 'uncommon'
+            : quality;
+          if (effectiveQuality !== 'common') {
+            const affixes = generateAffixData(template.slot, effectiveQuality, seedBase);
             const affixDataJson = JSON.stringify(affixes);
-            lootItems.push({ template, qualityTier: quality, affixDataJson, isNamed: false });
+            lootItems.push({ template, qualityTier: effectiveQuality, affixDataJson, isNamed: false });
           } else {
-            lootItems.push({ template, qualityTier: 'common', isNamed: false });
+            lootItems.push({ template, qualityTier: effectiveQuality, isNamed: false });
           }
         }
       }

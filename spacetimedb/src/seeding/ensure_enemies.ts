@@ -78,8 +78,10 @@ export function ensureLootTables(ctx: any) {
         upsertLootEntry(tableId, rawMeat.id, 20n);
       }
     }
+    const JEWELRY_SLOTS = new Set(['earrings', 'neck']);
     for (const item of gearTemplates) {
-      upsertLootEntry(tableId, item.id, item.rarity === 'uncommon' ? 3n : 6n);
+      const weight = JEWELRY_SLOTS.has(item.slot) ? 1n : (item.rarity === 'uncommon' ? 3n : 6n);
+      upsertLootEntry(tableId, item.id, weight);
     }
   };
   const terrains = ['plains', 'woods', 'swamp', 'mountains', 'town', 'city', 'dungeon'];
