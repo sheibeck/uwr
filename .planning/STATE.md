@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Completed Phase 14 Plan 01: Schema and affix catalog foundation — ItemAffix table, quality fields on ItemInstance/CombatLoot, affix catalog with 12 prefixes, 11 suffixes, 4 legendary definitions.
+**Status:** Completed quick task 123: Implement chance-based flee mechanic - flee success depends on danger level, resolved on next combat tick, group notified of flee attempts and results.
 
 ---
 
@@ -348,7 +348,7 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 119 | Clean up personal resource system - removed ResourceRespawnTick table and respawn_resource reducer, removed shared-node branch in finish_gather, implemented tiered node counts (1/2/3 by roll), updated log message, removed resource badge from SEARCH section | 2026-02-16 | ed5a37a | [119-clean-up-personal-resource-system-remove](./quick/119-clean-up-personal-resource-system-remove/) |
 | 120 | Fix food buff display names, log messages, regen mechanic, and stacking - sourceAbility 'Well Fed' for group panel, BUFF_TYPE_LABELS map for readable log output, food_mana_regen/food_stamina_regen effectTypes boost per-tick regen rate in regen_health, one-food-at-a-time enforced by sourceAbility-only deletion | 2026-02-17 | 74ef58c | [120-fix-food-buff-display-names-regen-mechan](./quick/120-fix-food-buff-display-names-regen-mechan/) |
 | 121 | Update food item descriptions to communicate buff effect before eating - client-side description generation from wellFedBuffType/Magnitude/Duration fields in inventory and vendor tooltips | 2026-02-17 | bc6981a | [121-update-food-item-descriptions-to-clearly](./quick/121-update-food-item-descriptions-to-clearly/) |
-| 123 | Implement chance-based flee mechanic - flee_combat sets 'fleeing' status, combat_loop resolves on next tick with danger-scaled roll (starter ~87%, dungeon ~53%), success removes aggro/pets and logs success, failure reverts to active for retry | 2026-02-17 | d414c85 | [123-implement-chance-based-flee-mechanic-fle](./quick/123-implement-chance-based-flee-mechanic-fle/) |
+| 123 | Implement chance-based flee mechanic - flee_combat sets 'fleeing' status, combat_loop resolves on next tick with danger-scaled roll (starter ~87%, dungeon ~53%), success removes aggro/pets and logs success, failure reverts to active for retry | 2026-02-17 | a9ca67c | [123-implement-chance-based-flee-mechanic-fle](./quick/123-implement-chance-based-flee-mechanic-fle/) |
 
 ---
 
