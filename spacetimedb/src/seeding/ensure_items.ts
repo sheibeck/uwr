@@ -1320,7 +1320,7 @@ export function ensureFoodItemTemplates(ctx: any) {
       name: 'Roasted Roots',
       wellFedDurationMicros: 2_700_000_000n,
       wellFedBuffType: 'str',
-      wellFedBuffMagnitude: 2n,
+      wellFedBuffMagnitude: 1n,
     },
     {
       name: "Traveler's Stew",
@@ -1332,7 +1332,7 @@ export function ensureFoodItemTemplates(ctx: any) {
       name: "Forager's Salad",
       wellFedDurationMicros: 2_700_000_000n,
       wellFedBuffType: 'dex',
-      wellFedBuffMagnitude: 2n,
+      wellFedBuffMagnitude: 1n,
     },
     {
       name: "Healer's Porridge",
