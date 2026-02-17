@@ -147,6 +147,10 @@ export const useCharacters = ({
     }
   };
 
+  const deselectCharacter = () => {
+    selectedCharacterId.value = '';
+  };
+
   const bindLocation = () => {
     if (!connActive.value || !selectedCharacter.value) return;
     bindLocationReducer({ characterId: selectedCharacter.value.id });
@@ -166,6 +170,7 @@ export const useCharacters = ({
     currentGroup,
     groupMembers,
     deleteCharacter,
+    deselectCharacter,
     bindLocation,
     respawnCharacter,
   };

@@ -29,7 +29,31 @@
       @logout="logout"
     />
 
-  <main :style="[styles.main, showRightPanel ? {} : styles.mainWide]">
+  <!-- Character Select Screen: shown when logged in but no character selected -->
+  <div v-if="!selectedCharacter" :style="styles.charSelectScreen">
+    <div :style="styles.charSelectTitle">Select Your Character</div>
+    <div :style="styles.charSelectContent">
+      <CharacterPanel
+        :styles="styles"
+        :conn-active="conn.isActive"
+        :new-character="newCharacter"
+        :is-character-form-valid="isCharacterFormValid"
+        :create-error="createError"
+        :my-characters="myCharacters"
+        :selected-character-id="selectedCharacterId"
+        :races="races"
+        :selected-race-row="selectedRaceRow"
+        :filtered-class-options="filteredClassOptions"
+        @update:newCharacter="newCharacter = $event"
+        @create="createCharacter"
+        @delete="deleteCharacter"
+        @select="selectedCharacterId = $event"
+      />
+    </div>
+  </div>
+
+  <!-- Game World: shown only after a character is selected -->
+  <main v-else :style="[styles.main, showRightPanel ? {} : styles.mainWide]">
     <!-- Onboarding hint -->
     <div v-if="onboardingHint" :style="styles.onboardingHint">
       <div>{{ onboardingHint }}</div>
@@ -132,44 +156,6 @@
           <span :style="styles.hotbarSlotText">{{ slot.name }}</span>
         </button>
       </div>
-    </div>
-
-    <!-- Character Panel -->
-    <div
-      v-if="panels.character && panels.character.open"
-      data-panel-id="character"
-      :style="{
-        ...styles.floatingPanel,
-        ...styles.floatingPanelWide,
-        ...(panelStyle('character').value || {}),
-      }"
-      @mousedown="bringToFront('character')"
-    >
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('character', $event)">
-        <div>Characters</div>
-        <button type="button" :style="styles.panelClose" @click="closePanelById('character')">×</button>
-      </div>
-      <div :style="styles.floatingPanelBody">
-        <CharacterPanel
-          :styles="styles"
-          :conn-active="conn.isActive"
-          :new-character="newCharacter"
-          :is-character-form-valid="isCharacterFormValid"
-          :create-error="createError"
-          :my-characters="myCharacters"
-          :selected-character-id="selectedCharacterId"
-          :races="races"
-          :selected-race-row="selectedRaceRow"
-          :filtered-class-options="filteredClassOptions"
-          @update:newCharacter="newCharacter = $event"
-          @create="createCharacter"
-          @delete="deleteCharacter"
-          @select="selectedCharacterId = $event; closePanelById('character')"
-        />
-      </div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('character', $event, { right: true })" />
-      <div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('character', $event, { bottom: true })" />
-      <div :style="styles.resizeHandle" @mousedown.stop="startResize('character', $event, { right: true, bottom: true })" />
     </div>
 
     <!-- Inventory Panel (wide) -->
@@ -475,6 +461,7 @@
       :highlight-hotbar="highlightHotbar"
       @toggle="togglePanel"
       @open="openPanel"
+      @camp="goToCamp"
     />
     </footer>
 
@@ -652,6 +639,7 @@ const {
   currentGroup,
   groupMembers: groupCharacterMembers,
   deleteCharacter,
+  deselectCharacter,
   bindLocation,
   respawnCharacter,
 } = useCharacters({
@@ -1991,15 +1979,22 @@ watch(
       selectedCharacterId.value = activeId.toString();
       return;
     }
-    if (!activeId) {
-      openPanel('character');
-    }
+    // No activeId — the character select screen will show naturally
+    // since selectedCharacter will be null.
   }
 );
 
 const formatTimestamp = (ts: { microsSinceUnixEpoch: bigint }) => {
   const millis = Number(ts.microsSinceUnixEpoch / 1000n);
   return new Date(millis).toLocaleTimeString();
+};
+
+const goToCamp = () => {
+  deselectCharacter();
+  // Close all open panels to reset UI state
+  for (const id of openPanels.value) {
+    closePanelById(id);
+  }
 };
 
 const handleChoosePerk = (perkKey: string) => {
