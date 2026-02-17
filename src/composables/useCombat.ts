@@ -207,10 +207,15 @@ export const useCombat = ({
         const template = itemTemplates.value.find(
           (item) => item.id.toString() === row.itemTemplateId.toString()
         );
+        const activeLootQualityTier = row.qualityTier ?? template?.rarity ?? 'common';
+        const activeLootWeaponSlots = ['weapon', 'mainHand', 'offHand'];
+        const activeLootTypeField = activeLootWeaponSlots.includes(template?.slot ?? '')
+          ? (template?.weaponType || null)
+          : (template?.armorType && template.armorType !== 'none' ? template.armorType : null);
         const description =
           [
-            template?.rarity,
-            template?.armorType,
+            activeLootQualityTier,
+            activeLootTypeField,
             template?.slot,
             template?.tier ? `Tier ${template.tier}` : null,
           ]
@@ -279,10 +284,14 @@ export const useCombat = ({
                 return name;
               })()
             : (template?.name ?? 'Unknown');
+        const pendingWeaponSlots = ['weapon', 'mainHand', 'offHand'];
+        const pendingTypeField = pendingWeaponSlots.includes(template?.slot ?? '')
+          ? (template?.weaponType || null)
+          : (template?.armorType && template.armorType !== 'none' ? template.armorType : null);
         const description =
           [
             qualityTier,
-            template?.armorType,
+            pendingTypeField,
             template?.slot,
             template?.tier ? `Tier ${template.tier}` : null,
           ]

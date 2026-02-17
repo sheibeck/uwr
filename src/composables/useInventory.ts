@@ -130,11 +130,16 @@ export const useInventory = ({
           const buffLabel = WELL_FED_BUFF_LABELS[template.wellFedBuffType] ?? template.wellFedBuffType;
           return `Grants Well Fed: +${template.wellFedBuffMagnitude} ${buffLabel} for ${durationMins} minutes. Replaces any active food buff.`;
         })();
+        const qualityTier = instance.qualityTier ?? template?.rarity ?? 'common';
+        const weaponSlots = ['weapon', 'mainHand', 'offHand'];
+        const typeField = weaponSlots.includes(template?.slot ?? '')
+          ? (template?.weaponType || null)
+          : (template?.armorType && template.armorType !== 'none' ? template.armorType : null);
         const description =
           foodDescription ||
           ([
-            template?.rarity,
-            template?.armorType,
+            qualityTier,
+            typeField,
             template?.slot,
             template?.tier ? `Tier ${template.tier}` : null,
           ]
@@ -196,7 +201,6 @@ export const useInventory = ({
           value: `+${a.magnitude}`,
           affixName: a.affixName,
         }));
-        const qualityTier = instance.qualityTier ?? template?.rarity ?? 'common';
         const isNamed = instance.isNamed ?? false;
         const displayName = instance.displayName ?? template?.name ?? 'Unknown';
         return {
@@ -247,10 +251,15 @@ export const useInventory = ({
       const tier = template?.tier ?? 1n;
       const isJunk = template?.isJunk ?? false;
       const vendorValue = template?.vendorValue ?? 0n;
+      const equippedQualityTier = instance?.qualityTier ?? template?.rarity ?? 'common';
+      const equippedWeaponSlots = ['weapon', 'mainHand', 'offHand'];
+      const equippedTypeField = equippedWeaponSlots.includes(template?.slot ?? '')
+        ? (template?.weaponType || null)
+        : (template?.armorType && template.armorType !== 'none' ? template.armorType : null);
       const description =
         [
-          template?.rarity,
-          template?.armorType,
+          equippedQualityTier,
+          equippedTypeField,
           template?.slot,
           template?.tier ? `Tier ${template.tier}` : null,
         ]

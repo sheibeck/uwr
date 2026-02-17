@@ -479,7 +479,7 @@
         top: `${tooltip.y}px`,
       }"
     >
-      <div :style="styles.tooltipTitle">{{ tooltip.item?.name ?? 'Item' }}</div>
+      <div :style="{ ...styles.tooltipTitle, ...tooltipRarityColor(tooltip.item) }">{{ tooltip.item?.name ?? 'Item' }}</div>
       <div v-if="tooltip.item?.description" :style="styles.tooltipLine">
         {{ tooltip.item.description }}
       </div>
@@ -2018,6 +2018,18 @@ const tooltip = ref<{
   anchor: 'cursor',
 });
 
+
+const tooltipRarityColor = (item: any): Record<string, string> => {
+  const key = ((item?.qualityTier ?? item?.rarity ?? 'common') as string).toLowerCase();
+  const map: Record<string, string> = {
+    common: '#ffffff',
+    uncommon: '#22c55e',
+    rare: '#3b82f6',
+    epic: '#aa44ff',
+    legendary: '#ff8800',
+  };
+  return { color: map[key] ?? '#ffffff' };
+};
 
 const showTooltip = (payload: {
   item: any;
