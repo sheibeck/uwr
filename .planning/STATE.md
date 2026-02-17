@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Completed Phase 14 Plan 04 Tasks 1-2: Published module, regenerated bindings, integrated loot quality UI (quality-colored names, affix tooltip lines, Epic/Legendary flash, salvage context menu). Awaiting human verification (Task 3 checkpoint).
+**Status:** Completed quick task 126: Fix beneficial spells ignoring player target — heals/buffs now correctly target the selected group member instead of defaulting to caster.
 
 ---
 
@@ -10,9 +10,9 @@
 
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 (Travel & Movement Costs) complete — Region-based stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, all-or-nothing group validation, TravelPanel UI with cost indicators and live countdown timer. Human-verified functional. Phase 11 (Death & Corpse System) Plan 01 complete — Backend corpse system with level 5+ gating, inventory-only item transfer, same-location combining, 30-day decay, and ownership-verified looting. Phase 12 (Overall Renown System) complete — Character-wide renown progression with 15 ranks, permanent perk system, server-first tracking, combat integration, tabbed UI. Human-verified functional.
 
-**Current phase:** 14 (Loot & Gear Progression)
-**Current plan:** 14-04 Tasks 1-2 complete — Published module (--clear-database for new columns), regenerated bindings with ItemAffix/salvage_item, wired ItemAffix subscription, extended pendingLoot/inventoryItems with qualityTier/affixStats/displayName, LootPanel quality colors/flash/affix lines, InventoryPanel quality borders/salvage menu
-**Next action:** Human verification of Phase 14 Plan 04 Task 3 (verify loot quality UI end-to-end in browser)
+**Current phase:** 14 (Loot & Gear Progression) — COMPLETE (4/4 plans, human-verified)
+**Current plan:** 14-04 complete — quality colors, affix tooltips, Epic/Legendary flash, salvage context menu all verified working end-to-end
+**Next action:** Begin next phase (Phase 13 Crafting, Phase 15 Named NPCs, or Phase 17 World Bosses)
 
 ---
 
@@ -36,7 +36,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 10 | Travel & Movement Costs | Complete (2/2 plans done: backend + UI, human-verified) |
 | 11 | Death & Corpse System | In Progress (1/? plans done: backend foundation) |
 | 12 | Overall Renown System | Complete (3/3 plans done: backend + integration + UI, human-verified) |
-| 14 | Loot & Gear Progression | In Progress (3/? plans done: schema+catalog, loot pipeline, legendary drops+salvage) |
+| 14 | Loot & Gear Progression | Complete (4/4 plans done: schema+catalog, loot pipeline, legendary drops+salvage, client UI, human-verified) |
 | 19 | NPC Interactions | In Progress (2/? plans done: backend foundation, interaction reducers) |
 
 ---
@@ -359,7 +359,7 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 121 | Update food item descriptions to communicate buff effect before eating - client-side description generation from wellFedBuffType/Magnitude/Duration fields in inventory and vendor tooltips | 2026-02-17 | bc6981a | [121-update-food-item-descriptions-to-clearly](./quick/121-update-food-item-descriptions-to-clearly/) |
 | 123 | Implement chance-based flee mechanic - flee_combat sets 'fleeing' status, combat_loop resolves on next tick with danger-scaled roll (starter ~87%, dungeon ~53%), success removes aggro/pets and logs success, failure reverts to active for retry | 2026-02-17 | a9ca67c | [123-implement-chance-based-flee-mechanic-fle](./quick/123-implement-chance-based-flee-mechanic-fle/) |
 | 125 | Add /createitem <quality> admin command - backend create_test_item reducer picks random gear slot, inserts item with correct affixes for quality tier; client /createitem wired with client-side tier guard | 2026-02-17 | de2bc80 | [125-add-createitem-quality-admin-command-tha](./quick/125-add-createitem-quality-admin-command-tha/) |
-| 126 | Fix beneficial spells ignoring player target - removed utility-only gate in onHotbarClick so heals/buffs/cleanses pass defensiveTargetId for all ability kinds | 2026-02-17 | 909f6e9 | [126-fix-beneficial-spells-ignoring-player-ta](./quick/126-fix-beneficial-spells-ignoring-player-ta/) |
+| 126 | Fix beneficial spells ignoring player target - removed utility-only gate in onHotbarClick so heals/buffs/cleanses pass defensiveTargetId for all ability kinds | 2026-02-17 | bfa4a79 | [126-fix-beneficial-spells-ignoring-player-ta](./quick/126-fix-beneficial-spells-ignoring-player-ta/) |
 
 ---
 
