@@ -72,6 +72,11 @@ export const useGameData = () => {
   const [namedEnemies] = useTable(tables.namedEnemy);
   const [searchResults] = useTable(tables.searchResult);
   const [itemAffixes] = useTable(tables.itemAffix);
+  const [worldEventRows, worldEventRowsLoading] = useTable(tables.worldEvent);
+  const [eventContributions, eventContributionsLoading] = useTable(tables.eventContribution);
+  const [eventSpawnEnemies] = useTable(tables.eventSpawnEnemy);
+  const [eventSpawnItems] = useTable(tables.eventSpawnItem);
+  const [eventObjectives] = useTable(tables.eventObjective);
 
   return {
     conn,
@@ -144,5 +149,12 @@ export const useGameData = () => {
     namedEnemies,
     searchResults,
     itemAffixes,
+    worldEventRows,
+    worldEventRowsLoading,
+    eventContributions,
+    eventContributionsLoading,
+    eventSpawnEnemies,
+    eventSpawnItems,
+    eventObjectives,
   };
 };
