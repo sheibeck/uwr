@@ -246,6 +246,93 @@ export function ensureQuestTemplates(ctx: any) {
     maxLevel: 5n,
     rewardXp: 60n,
   });
+
+  // Hollowmere Vale quests
+  upsertQuestByName({
+    name: 'Wolf Pack Thinning',
+    npcName: 'Warden Kael',
+    enemyName: 'Thicket Wolf',
+    requiredCount: 5n,
+    minLevel: 1n,
+    maxLevel: 3n,
+    rewardXp: 50n,
+  });
+  upsertQuestByName({
+    name: 'Stalker Hunt',
+    npcName: 'Warden Kael',
+    enemyName: 'Blight Stalker',
+    requiredCount: 3n,
+    minLevel: 2n,
+    maxLevel: 5n,
+    rewardXp: 70n,
+  });
+  upsertQuestByName({
+    name: 'Croaker Culling',
+    npcName: 'Herbalist Venna',
+    enemyName: 'Marsh Croaker',
+    requiredCount: 6n,
+    minLevel: 1n,
+    maxLevel: 3n,
+    rewardXp: 45n,
+  });
+
+  // Embermarch Fringe quests
+  upsertQuestByName({
+    name: 'Jackal Purge',
+    npcName: 'Scout Thessa',
+    enemyName: 'Ash Jackal',
+    requiredCount: 5n,
+    minLevel: 2n,
+    maxLevel: 5n,
+    rewardXp: 80n,
+  });
+  upsertQuestByName({
+    name: 'Sentinel Dismantling',
+    npcName: 'Scout Thessa',
+    enemyName: 'Cinder Sentinel',
+    requiredCount: 3n,
+    minLevel: 3n,
+    maxLevel: 6n,
+    rewardXp: 100n,
+  });
+  upsertQuestByName({
+    name: 'Sprite Specimens',
+    npcName: 'Ashwalker Ren',
+    enemyName: 'Thorn Sprite',
+    requiredCount: 4n,
+    minLevel: 2n,
+    maxLevel: 5n,
+    rewardXp: 65n,
+  });
+
+  // Embermarch Depths quests
+  upsertQuestByName({
+    name: 'Revenant Scourge',
+    npcName: 'Torchbearer Isa',
+    enemyName: 'Ashforged Revenant',
+    requiredCount: 4n,
+    minLevel: 4n,
+    maxLevel: 8n,
+    rewardXp: 140n,
+  });
+  upsertQuestByName({
+    name: 'Vault Clearing',
+    npcName: 'Torchbearer Isa',
+    enemyName: 'Vault Sentinel',
+    requiredCount: 5n,
+    minLevel: 4n,
+    maxLevel: 7n,
+    rewardXp: 120n,
+  });
+  upsertQuestByName({
+    name: 'Mystic Suppression',
+    npcName: 'Keeper Mordane',
+    enemyName: 'Sootbound Mystic',
+    requiredCount: 4n,
+    minLevel: 4n,
+    maxLevel: 8n,
+    rewardXp: 130n,
+  });
 }
 
 export function ensureEnemyAbilities(ctx: any) {
