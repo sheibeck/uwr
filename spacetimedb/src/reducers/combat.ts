@@ -1540,6 +1540,8 @@ export const registerCombatReducers = (deps: any) => {
       return;
     }
 
+    const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
+
     const participants = [...ctx.db.combatParticipant.by_combat.filter(combat.id)];
     for (const p of participants) {
       if (p.status !== 'active') continue;
@@ -1555,10 +1557,63 @@ export const registerCombatReducers = (deps: any) => {
         }
       }
     }
+
+    // Resolve flee attempts - characters with 'fleeing' status get a danger-based roll
+    for (const p of participants) {
+      if (p.status !== 'fleeing') continue;
+      const fleeingChar = ctx.db.character.id.find(p.characterId);
+      if (!fleeingChar) continue;
+
+      // Get danger level from combat location's region
+      const fleeLocation = ctx.db.location.id.find(combat.locationId);
+      const fleeRegion = fleeLocation ? ctx.db.region.id.find(fleeLocation.regionId) : null;
+      const dangerMultiplier = fleeRegion?.dangerMultiplier ?? 100n;
+      const fleeChance = calculateFleeChance(dangerMultiplier);
+
+      // Deterministic roll using timestamp + character id
+      const fleeRoll = Number((nowMicros + fleeingChar.id * 13n) % 100n);
+
+      if (fleeRoll < fleeChance) {
+        // SUCCESS - mark as fled
+        ctx.db.combatParticipant.id.update({ ...p, status: 'fled' });
+
+        // Remove from aggro list so enemies stop targeting them
+        for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+          if (entry.characterId === fleeingChar.id && !entry.petId) {
+            ctx.db.aggroEntry.id.delete(entry.id);
+          }
+        }
+
+        // Remove their pets
+        for (const pet of ctx.db.combatPet.by_combat.filter(combat.id)) {
+          if (pet.ownerCharacterId === fleeingChar.id) {
+            ctx.db.combatPet.id.delete(pet.id);
+          }
+        }
+
+        // Clear combat target
+        ctx.db.character.id.update({ ...fleeingChar, combatTargetEnemyId: undefined });
+
+        // Log success
+        appendPrivateEvent(ctx, fleeingChar.id, fleeingChar.ownerUserId, 'combat', 'You successfully flee.');
+        const fleeGroupId = effectiveGroupId(fleeingChar);
+        if (fleeGroupId) {
+          appendGroupEvent(ctx, fleeGroupId, fleeingChar.id, 'combat', `${fleeingChar.name} successfully flees.`);
+        }
+      } else {
+        // FAILURE - revert to active so they can try again
+        ctx.db.combatParticipant.id.update({ ...p, status: 'active' });
+
+        appendPrivateEvent(ctx, fleeingChar.id, fleeingChar.ownerUserId, 'combat', 'You fail to flee!');
+        const fleeGroupId = effectiveGroupId(fleeingChar);
+        if (fleeGroupId) {
+          appendGroupEvent(ctx, fleeGroupId, fleeingChar.id, 'combat', `${fleeingChar.name} fails to flee.`);
+        }
+      }
+    }
+
     const refreshedParticipants = [...ctx.db.combatParticipant.by_combat.filter(combat.id)];
     const activeParticipants = refreshedParticipants.filter((p) => p.status === 'active');
-
-    const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
 
     // Leash check: if no active participants remain in combat, enemies evade and reset
     if (activeParticipants.length === 0) {
