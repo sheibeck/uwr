@@ -251,9 +251,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 123 | Implement chance-based flee mechanic - flee_combat sets 'fleeing' status, combat_loop resolves on next tick with danger-scaled roll (starter ~87%, dungeon ~53%), success removes aggro/pets and logs success, failure reverts to active for retry | 2026-02-17 | a9ca67c | [123-implement-chance-based-flee-mechanic-fle](./quick/123-implement-chance-based-flee-mechanic-fle/) |
 | 125 | Add /createitem <quality> admin command - backend create_test_item reducer picks random gear slot, inserts item with correct affixes for quality tier; client /createitem wired with client-side tier guard | 2026-02-17 | de2bc80 | [125-add-createitem-quality-admin-command-tha](./quick/125-add-createitem-quality-admin-command-tha/) |
 | 126 | Fix beneficial spells ignoring player target - removed utility-only gate in onHotbarClick so heals/buffs/cleanses pass defensiveTargetId for all ability kinds | 2026-02-17 | bfa4a79 | [126-fix-beneficial-spells-ignoring-player-ta](./quick/126-fix-beneficial-spells-ignoring-player-ta/) |
+| 124 | Clean up ROADMAP.md and STATE.md - archived quick-1 through quick-113 to ARCHIVE.md, fixed ROADMAP.md phase statuses (Phase 2 removed, Phases 11/12/14/19 updated), corrected plan checkboxes and dependency graph | 2026-02-17 | 78cbb55 | [124-clean-up-roadmap-md-and-state-md-compres](./quick/124-clean-up-roadmap-md-and-state-md-compres/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Phase 14 (Loot & Gear Progression) complete. Human verification of 14-04 Task 3 approved. Full loot quality system confirmed working end-to-end: quality-colored names, affix tooltips, Epic/Legendary flash animation, salvage context menu, affix bonuses in character stats. Phase 14 (4/4 plans) now marked complete. Stopped at: Phase 14 complete.
+Last activity: 2026-02-17 - Completed quick task 124: Clean up ROADMAP.md and STATE.md - compressed quick tasks table (archived entries 1-113 to ARCHIVE.md), fixed ROADMAP.md phase statuses and plan checkboxes.
