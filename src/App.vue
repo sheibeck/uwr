@@ -201,6 +201,27 @@
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('renown', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('renown', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('renown', $event, { right: true, bottom: true })" />
     </div>
 
+    <!-- World Events Panel -->
+    <div v-if="panels.worldEvents && panels.worldEvents.open" data-panel-id="worldEvents" :style="{ ...styles.floatingPanel, ...(panelStyle('worldEvents').value || {}) }" @mousedown="bringToFront('worldEvents')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('worldEvents', $event)"><div>World Events</div><button type="button" :style="styles.panelClose" @click="closePanelById('worldEvents')">×</button></div>
+      <div :style="styles.floatingPanelBody">
+        <WorldEventPanel
+          :styles="styles"
+          :world-event-rows="worldEventRows"
+          :event-contributions="eventContributions"
+          :event-objectives="eventObjectives"
+          :regions="regions"
+          :selected-character="selectedCharacter"
+        />
+      </div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('worldEvents', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('worldEvents', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('worldEvents', $event, { right: true, bottom: true })" />
+    </div>
+
+    <!-- World Event Banner Overlay -->
+    <div v-if="activeBanner" :style="styles.worldEventBanner">
+      {{ activeBanner }}
+    </div>
+
     <!-- Loot Panel -->
     <div v-if="panels.loot && panels.loot.open" data-panel-id="loot" :style="{ ...styles.floatingPanel, ...(panelStyle('loot').value || {}) }" @mousedown="bringToFront('loot')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('loot', $event)"><div>Loot</div><button type="button" :style="styles.panelClose" @click="closePanelById('loot')">×</button></div>
@@ -463,6 +484,7 @@
       :combat-locked="lockHotbarEdits"
       :highlight-inventory="highlightInventory"
       :highlight-hotbar="highlightHotbar"
+      :has-active-events="hasActiveEvents"
       @toggle="togglePanel"
       @camp="goToCamp"
     />
@@ -536,6 +558,7 @@ import NpcDialogPanel from './components/NpcDialogPanel.vue';
 import VendorPanel from './components/VendorPanel.vue';
 import TrackPanel from './components/TrackPanel.vue';
 import RenownPanel from './components/RenownPanel.vue';
+import WorldEventPanel from './components/WorldEventPanel.vue';
 import HelpOverlay from './components/HelpOverlay.vue';
 import { useGameData } from './composables/useGameData';
 import { useCharacters } from './composables/useCharacters';
@@ -627,6 +650,9 @@ const {
   namedEnemies,
   searchResults,
   itemAffixes,
+  worldEventRows,
+  eventContributions,
+  eventObjectives,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ players, users });
@@ -1077,6 +1103,24 @@ const characterRenownPerks = computed(() => {
   if (!selectedCharacter.value) return [];
   return renownPerks.value.filter(p => p.characterId.toString() === selectedCharacter.value!.id.toString());
 });
+
+// World Events: hasActiveEvents computed and banner overlay
+const hasActiveEvents = computed(() => (worldEventRows.value as any[])?.some((e: any) => e.status === 'active') ?? false);
+
+const activeBanner = ref<string | null>(null);
+let bannerTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(worldEventRows, (newRows, oldRows) => {
+  if (!oldRows) return;
+  const prevIds = new Set((oldRows as any[]).map((r: any) => r.id.toString()));
+  for (const row of (newRows as any[])) {
+    if (!prevIds.has(row.id.toString()) && row.status === 'active') {
+      activeBanner.value = `World Event: ${row.name} has begun!`;
+      if (bannerTimer) clearTimeout(bannerTimer);
+      bannerTimer = setTimeout(() => { activeBanner.value = null; }, 5000);
+    }
+  }
+}, { deep: true });
 
 // Filter panel layouts to current character
 const characterPanelLayouts = computed(() => {
@@ -1887,6 +1931,7 @@ const {
   crafting: { x: 600, y: 140 },
   journal: { x: 600, y: 140 },
   renown: { x: 600, y: 140 },
+  worldEvents: { x: 600, y: 140 },
   loot: { x: 600, y: 200 },
   vendor: { x: 600, y: 140 },
   trade: { x: 600, y: 140 },

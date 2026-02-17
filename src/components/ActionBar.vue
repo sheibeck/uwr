@@ -50,6 +50,17 @@
         Renown
       </button>
       <button
+        @click="emit('toggle', 'worldEvents')"
+        :style="{ ...actionStyle('worldEvents'), position: 'relative' }"
+      >
+        Events
+        <span
+          v-if="hasActiveEvents"
+          :style="{ position: 'absolute', top: '2px', right: '2px', width: '8px', height: '8px',
+                    background: '#facc15', borderRadius: '50%', display: 'block' }"
+        ></span>
+      </button>
+      <button
         @click="emit('toggle', 'travelPanel')"
         :style="actionStyle('travelPanel')"
         :disabled="isLocked('travelPanel')"
@@ -87,7 +98,8 @@ type PanelKey =
   | 'travel'
   | 'travelPanel'
   | 'combat'
-  | 'help';
+  | 'help'
+  | 'worldEvents';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
@@ -96,6 +108,7 @@ const props = defineProps<{
   combatLocked: boolean;
   highlightInventory: boolean;
   highlightHotbar: boolean;
+  hasActiveEvents: boolean;
 }>();
 
 const emit = defineEmits<{
