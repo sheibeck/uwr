@@ -20,7 +20,7 @@
 | 8 | Narrative Tone Rollout | REQ-080–084 (applied) | Phase 5 (LLM pipeline running) | Pending |
 | 9 | Content Data Expansion | REQ-090–094 | Phases 1–3 (systems to populate) | Pending |
 | 10 | Travel & Movement Costs | None | Phase 4 | Complete (2026-02-13) |
-| 11 | Death & Corpse System | None | Phase 10 | In Progress |
+| 11 | Death & Corpse System | None | Phase 10 | Complete (2026-02-17) |
 | 12 | Overall Renown System | None | Phase 11 | Complete (2026-02-14) |
 | 13 | Crafting System - Weapons & Armor | None | Phase 12 | Pending |
 | 14 | Loot & Gear Progression | None | Phase 13 | Complete (2026-02-17) |
@@ -494,8 +494,9 @@ Plans:
 
 ### Phase 11: Death & Corpse System
 
-**Goal:** Level-gated death consequence system where level 5+ characters who die in combat create a corpse at the death location containing their inventory items (equipped gear and gold stay on character). Characters respawn normally at their bind point with no ghost state. Corpses visible in Points of Interest section, lootable by owner only. Cleric Resurrect ability targets corpses to teleport dead player back. Corpse Summon ability merges all corpses to caster location. Confirmation prompts for both. 30-day corpse decay timer.
+**Goal:** Level-gated death consequence system where level 5+ characters who die in combat create a corpse at the death location containing their inventory items (equipped gear and gold stay on character). Characters respawn normally at their bind point with no ghost state. Cleric Resurrect ability targets corpses to teleport dead player back. Corpse Summon ability merges all corpses to caster location. Confirmation prompts for both. 30-day corpse decay timer.
 **Depends on:** Phase 10
+**Status:** Complete (2026-02-17)
 **Plans:** 3 plans
 
 Plans:

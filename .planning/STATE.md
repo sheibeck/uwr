@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Completed quick task 140: Removed duplicate mighty prefix — fierce is now sole STR weapon prefix (minTier=1); Dreadmaw legendary updated; module republished with --clear-database.
+**Status:** Phase 11 (Death & Corpse System) closed as complete. Phase 14 (Loot & Gear Progression) complete. Quick tasks 144-146: robust cast bar/cooldown safety nets and auto cache-busting on deploys. Next phase: 13 (Crafting), 15 (Named NPCs), or 19-03 (NPC Interactions UI).
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 (Travel & Movement Costs) complete — Region-based stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, all-or-nothing group validation, TravelPanel UI with cost indicators and live countdown timer. Human-verified functional. Phase 11 (Death & Corpse System) Plan 01 complete — Backend corpse system with level 5+ gating, inventory-only item transfer, same-location combining, 30-day decay, and ownership-verified looting. Phase 12 (Overall Renown System) complete — Character-wide renown progression with 15 ranks, permanent perk system, server-first tracking, combat integration, tabbed UI. Human-verified functional.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 19 (NPC Interactions) in progress — 2/3 plans done (backend affinity/dialogue tables, interaction reducers); 19-03 frontend UI pending.
 
-**Current phase:** 14 (Loot & Gear Progression) — COMPLETE (4/4 plans, human-verified)
-**Current plan:** 14-04 complete — quality colors, affix tooltips, Epic/Legendary flash, salvage context menu all verified working end-to-end
-**Next action:** Begin next phase (Phase 13 Crafting, Phase 15 Named NPCs, or Phase 17 World Bosses)
+**Last completed phase:** 14 (Loot & Gear Progression) — 4/4 plans, human-verified
+**Current phase:** none — choosing next phase
+**Next action:** Begin Phase 13 (Crafting System), Phase 15 (Named NPCs), or Phase 19-03 (NPC Interactions UI)
 
 ---
 
@@ -278,4 +278,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick task 146: Orphan safety nets for pull, gather, and quest-item cast bars — pull bar gets missing-row guard + duration+2s grace; gather bar gets interruption detector, combat-start clear, and orphan safety; quest item cast gets looted-detection watcher and 5s absolute orphan timeout.
+Last activity: 2026-02-17 - Phase 11 (Death & Corpse System) closed as complete. Quick 144: robust combat cast bars/cooldowns + auto cache-busting (Vite version plugin, 60s polling reload). Quick 145: /createitem autocomplete + /who command. Quick 146: pull bar, gather bar, quest-item cast bar orphan safety nets. Roadmap and STATE updated to reflect accurate project status.
