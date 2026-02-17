@@ -300,47 +300,74 @@ Plans:
 
 ---
 
-### Phase 6: Quest System
+### Phase 6: Quest Type Expansion + Passive Search System
 
-**Goal:** Renown-gated faction quests available per faction. Players accept quests, complete kill/travel objectives, earn XP/gold/faction standing rewards. Quest descriptions use hardcoded fallback text (LLM enhancement deferred until Phase 5 is implemented).
+**Goal:** Extend the existing quest system with four new quest types (kill_loot, explore, delivery, boss_kill) and introduce a passive Search mechanic that triggers on location entry, revealing hidden resources, quest items, and named enemies. Seed 14 new quests across all 3 regions woven into existing NPC dialogue chains via affinity-gated branches.
 
 **Requirements:** REQ-060, REQ-061, REQ-062, REQ-063, REQ-064, REQ-065, REQ-066
 
-**Dependencies:** Phase 3 (FactionStanding for gating)
+**Dependencies:** Phase 3 (FactionStanding), existing QuestTemplate/QuestInstance system (quick-106)
 
-**Plans:** 2 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Backend: FactionQuest/PlayerFactionQuest tables, 8 faction quest seed data, accept/complete reducers with validation, combat kill progress hook, character deletion cleanup, publish and regenerate bindings
-- [ ] 06-02-PLAN.md — Frontend: QuestPanel three-tab redesign (Available/Active/Log), useGameData subscriptions, App.vue wiring with reducer calls, human verification
+- [ ] 06-01-PLAN.md — Schema extension (QuestTemplate new fields, QuestItem/NamedEnemy/SearchResult tables) + quest type reducers (loot_quest_item, pull_named_enemy, delivery in hailNpc, kill_loot drops in combat)
+- [ ] 06-02-PLAN.md — Passive search system (performPassiveSearch helper, travel integration) + quest data seeding (14 quests + 14 dialogue branches across 7 NPCs)
+- [ ] 06-03-PLAN.md — Publish module, regenerate bindings, client integration (search results + quest items + named enemies in LocationGrid), human verification
 
 **Scope:**
-- `FactionQuest` table seeded with 8 quests (2+ per faction, gated at Neutral/Friendly/Honored rank)
-- `PlayerFactionQuest` table: per-character quest acceptance and status tracking
-- `accept_faction_quest` reducer: validates standing gate, prevents duplicates, creates tracking row
-- `complete_faction_quest` reducer: validates objectives, grants XP/gold/faction standing, penalizes rival faction
-- Kill-based progress tracking hooked into combat loop
-- Three-tab QuestPanel UI: Available (faction-gated browse), Active (progress tracking), Log (completed quests)
-- Client-side filtering of public tables (no views, per established pattern)
 
-**Quest seed data:**
-| Quest | Faction | Required Standing | Type | Target |
-|-------|---------|------------------|------|--------|
-| The Lost Shipment | Iron Compact | 0 (Neutral) | Kill | Bandit x5 |
-| Clearing the Route | Iron Compact | 1000 (Friendly) | Kill | Cinder Sentinel x4 |
-| The Overgrown Path | Verdant Circle | 0 (Neutral) | Travel | Thornveil Thicket |
-| The Fungal Bloom | Verdant Circle | 1000 (Friendly) | Kill | Marsh Croaker x6 |
-| The Missing Tome | Ashen Order | 0 (Neutral) | Kill | Sootbound Mystic x3 |
-| A Test of Mettle | Free Blades | 0 (Neutral) | Kill | Ash Jackal x5 |
-| Contract Work | Free Blades | 1000 (Friendly) | Kill | Ashforged Revenant x4 |
-| The Debt Ledger | Iron Compact | 3000 (Honored) | Kill | Vault Sentinel x3 |
+**Backend — Quest Type Expansion:**
+- Add `questType` field to `QuestTemplate`: `'kill' | 'kill_loot' | 'explore' | 'delivery' | 'boss_kill'`
+- Add optional fields: `targetLocationId`, `targetNpcId`, `targetItemName`, `itemDropChance`
+- `QuestItem` table: per-character lootable nodes spawned at target locations (public, client-filtered)
+- `NamedEnemy` table: instanced per-character world spawns with HP, respawn timer, spawnChance
+- `kill_loot` reducer: on enemy kill, roll drop chance, create QuestItem in character's inventory
+- `explore` reducer: looting a QuestItem node (cast timer, aggro chance from location enemy pool)
+- `delivery` reducer: hailing target NPC auto-completes delivery, unlocks follow-up dialogue branches
+- `boss_kill` progress: hooks into existing combat kill tracking for NamedEnemy kills
+
+**Backend — Passive Search System:**
+- `SearchResult` table: per-character, per-location, stores what was revealed this visit (public, client-filtered)
+- Search triggers on every location entry (in travel reducer)
+- Independent probability rolls per category:
+  - Hidden/rare resources: 65% chance
+  - Quest items (active explore quest at this location): 40% chance
+  - Named enemy (instanced): 20% chance
+- Deterministic pseudo-random using hash of (characterId XOR timestamp)
+- Results cleared when character leaves location
+- Future-ready: search skill level and perks will apply multipliers
+
+**New Quests Seeded (14 quests across existing NPCs via affinity-gated dialogue):**
+| NPC | Quest | Type | Affinity Gate |
+|-----|-------|------|---------------|
+| Marla the Guide | Old Debts | delivery | Acquaintance |
+| Warden Kael | Stolen Supply Cache | kill_loot | Acquaintance |
+| Warden Kael | The Ranger's Cache | explore | Friend |
+| Herbalist Venna | Bogfen Healing Moss | explore | Acquaintance |
+| Herbalist Venna | Croaker Bile Glands | kill_loot | Friend |
+| Scout Thessa | Enemy Scouting Reports | explore | (unlocks via Marla delivery) |
+| Scout Thessa | The Iron Compact Leak | delivery | Friend |
+| Ashwalker Ren | Encryption Key | kill_loot | Acquaintance |
+| Ashwalker Ren | The Ashforged Commander | boss_kill | Friend |
+| Torchbearer Isa | The Revenant Lord | boss_kill | Acquaintance |
+| Torchbearer Isa | The Binding Seal | explore | Friend |
+| Keeper Mordane | The Keeper's Ledger | explore | (unlocks via Thessa delivery) |
+| Keeper Mordane | The Vault Warden | boss_kill | Friend |
+
+**Narrative chains:**
+- Marla -> (delivery) -> Scout Thessa -> (delivery) -> Keeper Mordane (ties all 3 regions)
+- Each NPC's deeper quests unlock via affinity, creating long-term relationship investment
 
 **Success Criteria:**
-- [ ] Quest panel shows available quests filtered by player's faction standing
-- [ ] Locked quests visible with standing requirement shown
-- [ ] Accepting a quest creates PlayerFactionQuest row
-- [ ] Completing quest objectives grants XP, gold, and faction standing
-- [ ] Completing a quest with rival faction consequence reduces rival standing
+- [ ] Search triggers on location entry and reveals hidden resources, quest items, named enemies per probability
+- [ ] kill_loot quests complete when item drops from target enemy (per-character roll)
+- [ ] explore quests complete when character loots the quest node (cast timer, possible aggro)
+- [ ] delivery quests auto-complete when character hails the target NPC
+- [ ] boss_kill quests complete when character kills the instanced named enemy
+- [ ] Named enemies are instanced per-character with respawn timers
+- [ ] New quests are accessible via affinity-gated NPC dialogue branches
+- [ ] Delivery chain Marla -> Thessa -> Mordane links all 3 regions narratively
 
 ---
 
