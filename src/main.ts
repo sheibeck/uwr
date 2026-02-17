@@ -47,6 +47,31 @@ const bootstrap = async () => {
 
 void bootstrap();
 
+declare const __BUILD_VERSION__: string;
+
+const CLIENT_VERSION = typeof __BUILD_VERSION__ !== 'undefined' ? __BUILD_VERSION__ : 'dev';
+
+const checkForUpdates = async () => {
+  try {
+    const resp = await fetch('/version.json?_=' + Date.now(), {
+      cache: 'no-store',
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (data.version && data.version !== CLIENT_VERSION && CLIENT_VERSION !== 'dev') {
+      console.log('[Version] New client version detected, reloading...');
+      window.location.reload();
+    }
+  } catch {
+    // Network error or dev mode — skip silently
+  }
+};
+
+// Check for updates every 60 seconds, but only in production
+if (CLIENT_VERSION !== 'dev') {
+  setInterval(checkForUpdates, 60_000);
+}
+
 declare global {
   interface Window {
     __db_conn?: DbConnection;
