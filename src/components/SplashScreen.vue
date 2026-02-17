@@ -17,14 +17,30 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { onMounted, onUnmounted } from 'vue';
+
+const props = defineProps<{
   styles: Record<string, any>;
   connActive: boolean;
   authMessage: string;
   authError: string;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   login: [];
 }>();
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter' && props.connActive) {
+    emit('login');
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown);
+});
 </script>
