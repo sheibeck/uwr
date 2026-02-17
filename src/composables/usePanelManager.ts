@@ -383,17 +383,34 @@ export function usePanelManager(
 
   // Load from server when character changes
   if (serverSync) {
+    // Track the last JSON we actually applied to avoid re-applying stale server state
+    // when unrelated reactive updates (e.g. character stats changing) cause the
+    // serverPanelLayouts computed to produce a new array reference.
+    let lastAppliedJson = '';
+    let lastAppliedCharId = '';
+
     watch(
       [() => serverSync.serverPanelLayouts.value, () => serverSync.selectedCharacterId.value],
       ([layouts, charId]) => {
         if (!charId || !layouts || layouts.length === 0) return;
-        // Skip server sync if local state is dirty (user made recent changes)
-        if (dirtyUntil.value > Date.now()) return;
+        // Reset tracking when the active character changes
+        const charIdStr = String(charId);
+        if (charIdStr !== lastAppliedCharId) {
+          lastAppliedJson = '';
+          lastAppliedCharId = charIdStr;
+        }
         // Convert charId to bigint for comparison (it's stored as a string in useCharacters)
         const charIdBigInt = typeof charId === 'string' ? BigInt(charId) : charId;
         // Find the layout row for the active character
         const row = layouts.find((r: any) => r.characterId === charIdBigInt);
         if (!row?.panelStatesJson) return;
+        // Skip if server JSON hasn't changed — prevents reactive re-computations from
+        // triggering a stale apply and closing panels that the user just opened.
+        if (row.panelStatesJson === lastAppliedJson) return;
+        // Skip server sync if local state is dirty (user made recent changes)
+        if (dirtyUntil.value > Date.now()) return;
+        // Mark as applied before writing so a thrown error doesn't leave it stale
+        lastAppliedJson = row.panelStatesJson;
         try {
           loadingFromServer.value = true;
           const parsed = JSON.parse(row.panelStatesJson);
