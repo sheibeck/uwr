@@ -96,6 +96,11 @@ const formatAffixStatKey = (key: string): string => {
   return map[key] ?? key;
 };
 
+const qualityTierToNumber = (qt: string): number => {
+  const map: Record<string, number> = { common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5 };
+  return map[qt] ?? 1;
+};
+
 const timestampToMicros = (timestamp: any) => {
   if (!timestamp) return 0;
   if (typeof timestamp === 'bigint') return Number(timestamp);
@@ -212,8 +217,10 @@ export const useCombat = ({
         const activeLootTypeField = activeLootWeaponSlots.includes(template?.slot ?? '')
           ? (template?.weaponType || null)
           : (template?.armorType && template.armorType !== 'none' ? template.armorType : null);
+        const activeLootTierLabel = `Tier ${qualityTierToNumber(activeLootQualityTier)}`;
         const description =
           [
+            activeLootTierLabel,
             activeLootQualityTier,
             activeLootTypeField,
             template?.slot,
@@ -287,8 +294,10 @@ export const useCombat = ({
         const pendingTypeField = pendingWeaponSlots.includes(template?.slot ?? '')
           ? (template?.weaponType || null)
           : (template?.armorType && template.armorType !== 'none' ? template.armorType : null);
+        const pendingTierLabel = `Tier ${qualityTierToNumber(qualityTier)}`;
         const description =
           [
+            pendingTierLabel,
             qualityTier,
             pendingTypeField,
             template?.slot,

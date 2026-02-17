@@ -2,6 +2,11 @@ import { computed, type Ref } from 'vue';
 import { reducers, type CharacterRow, type ItemInstanceRow, type ItemTemplateRow, type ItemAffixRow } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 
+const qualityTierToNumber = (qt: string): number => {
+  const map: Record<string, number> = { common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5 };
+  return map[qt] ?? 1;
+};
+
 const formatAffixStatKeyInv = (key: string): string => {
   const map: Record<string, string> = {
     strBonus: 'STR',
@@ -135,9 +140,11 @@ export const useInventory = ({
         const typeField = weaponSlots.includes(template?.slot ?? '')
           ? (template?.weaponType || null)
           : (template?.armorType && template.armorType !== 'none' ? template.armorType : null);
+        const tierLabel = `Tier ${qualityTierToNumber(qualityTier)}`;
         const description =
           foodDescription ||
           ([
+            tierLabel,
             qualityTier,
             typeField,
             template?.slot,
@@ -255,8 +262,10 @@ export const useInventory = ({
       const equippedTypeField = equippedWeaponSlots.includes(template?.slot ?? '')
         ? (template?.weaponType || null)
         : (template?.armorType && template.armorType !== 'none' ? template.armorType : null);
+      const equippedTierLabel = `Tier ${qualityTierToNumber(equippedQualityTier)}`;
       const description =
         [
+          equippedTierLabel,
           equippedQualityTier,
           equippedTypeField,
           template?.slot,
