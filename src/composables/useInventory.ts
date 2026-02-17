@@ -89,15 +89,31 @@ export const useInventory = ({
         const tier = template?.tier ?? 1n;
         const isJunk = template?.isJunk ?? false;
         const vendorValue = template?.vendorValue ?? 0n;
+        const WELL_FED_BUFF_LABELS: Record<string, string> = {
+          mana_regen: 'mana regeneration per tick',
+          stamina_regen: 'stamina regeneration per tick',
+          str: 'STR',
+          dex: 'DEX',
+          int: 'INT',
+          wis: 'WIS',
+          cha: 'CHA',
+        };
+        const foodDescription = (() => {
+          if (template?.slot !== 'food' || !template.wellFedBuffType || !template.wellFedDurationMicros) return '';
+          const durationMins = Math.round(Number(template.wellFedDurationMicros) / 60_000_000);
+          const buffLabel = WELL_FED_BUFF_LABELS[template.wellFedBuffType] ?? template.wellFedBuffType;
+          return `Grants Well Fed: +${template.wellFedBuffMagnitude} ${buffLabel} for ${durationMins} minutes. Replaces any active food buff.`;
+        })();
         const description =
-          [
+          foodDescription ||
+          ([
             template?.rarity,
             template?.armorType,
             template?.slot,
             template?.tier ? `Tier ${template.tier}` : null,
           ]
             .filter((value) => value && value.length > 0)
-            .join(' • ') ?? '';
+            .join(' • ') ?? '');
         const stats = [
           template?.armorClassBonus ? { label: 'Armor Class', value: `+${template.armorClassBonus}` } : null,
           template?.weaponBaseDamage ? { label: 'Weapon Damage', value: `${template.weaponBaseDamage}` } : null,
