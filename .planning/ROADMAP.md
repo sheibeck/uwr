@@ -518,12 +518,14 @@ Plans:
 
 ### Phase 13: Crafting System - Weapons & Armor - Extend recipe system for gear crafting, material requirements and gathering, crafted gear as deterministic progression path
 
-**Goal:** [To be planned]
+**Goal:** Material-driven gear crafting system where players gather tiered materials from world nodes and enemy drops, discover recipes through salvage (75% chance), loot scrolls, and quest rewards, and craft fully deterministic gear with affixes controlled by material type and quality controlled by material tier. Salvage reworked from gold yield to material yield. Crafting UI extended with type filter chips and show-only-craftable toggle.
 **Depends on:** Phase 12
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 13 to break down)
+- [ ] 13-01-PLAN.md — Schema + data foundation: RecipeTemplate columns, crafting_materials.ts data file, material ItemTemplates, gear recipes, enemy material drops, resource nodes, crafting locations
+- [ ] 13-02-PLAN.md — Reducer rework: salvage_item yields materials + recipe discovery, craft_recipe applies deterministic affixes, learn_recipe_scroll reducer
+- [ ] 13-03-PLAN.md — Frontend UI: CraftingPanel filter chips + craftable toggle + red/green material display, remove Research Recipes button, update salvage confirm text
 
 ### Phase 14: Loot & Gear Progression - Magic item properties and affixes, gear quality tiers (common to legendary), drop tables and rarity system, endgame gear hunting loop
 
