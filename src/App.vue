@@ -1733,6 +1733,8 @@ const {
   defensiveTargetId,
   selectedCorpseTarget,
   selectedCharacterTarget,
+  groupId: computed(() => selectedCharacter.value?.groupId ?? null),
+  pullerId,
   onTrackRequested: () => {
     openPanel('track');
   },

@@ -34,6 +34,8 @@ type UseHotbarArgs = {
   defensiveTargetId: Ref<bigint | null>;
   selectedCorpseTarget?: Ref<bigint | null>;
   selectedCharacterTarget?: Ref<bigint | null>;
+  groupId?: Ref<bigint | null | undefined>;
+  pullerId?: Ref<bigint | null>;
   onTrackRequested?: () => void;
   onResurrectRequested?: (corpseId: bigint) => void;
   onCorpseSummonRequested?: (targetCharacterId: bigint) => void;
@@ -60,6 +62,8 @@ export const useHotbar = ({
   defensiveTargetId,
   selectedCorpseTarget,
   selectedCharacterTarget,
+  groupId,
+  pullerId,
   onTrackRequested,
   onResurrectRequested,
   onCorpseSummonRequested,
@@ -281,6 +285,16 @@ export const useHotbar = ({
     if (!selectedCharacter.value || !slot?.abilityKey) return;
     if (isCasting.value) return;
     if (slot.abilityKey === 'ranger_track') {
+      // Block Track if in group and not the puller
+      if (
+        groupId?.value &&
+        pullerId?.value !== null &&
+        pullerId?.value !== undefined &&
+        pullerId?.value !== selectedCharacter.value?.id
+      ) {
+        addLocalEvent?.('blocked', 'You must be the puller to use this ability.');
+        return;
+      }
       onTrackRequested?.();
       return;
     }
