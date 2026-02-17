@@ -566,12 +566,14 @@ Plans:
 
 ### Phase 18: World Events System Expansion - Regional event spawning (Ripple system), event types and objectives, faction and overall renown rewards, event participation tracking
 
-**Goal:** [To be planned]
+**Goal:** Persistent world event lifecycle system with stat-threshold-triggered and admin-fired events, regional scoping, objective-based participation tracking with contribution-scaled renown and faction standing rewards, and a Ripple cascade system that spawns follow-up events in neighboring regions on resolution.
 **Depends on:** Phase 17
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 18 to break down)
+- [ ] 18-01-PLAN.md — Backend foundation: WorldEvent/WorldStatTracker/WorldEventParticipant/RegionAdjacency tables, event data constants, lifecycle helpers (fire/join/contribute/resolve/ripple), seeding
+- [ ] 18-02-PLAN.md — Reducers and hooks: fire/join/resolve world event reducers, combat kill stat+contribution hooks, quest completion stat hooks, seeding integration, publish module and regenerate bindings
+- [ ] 18-03-PLAN.md — Client UI: WorldEventPanel with active/resolved events and stat trackers, useGameData subscriptions, App.vue wiring with action bar button, human verification
 
 ### Phase 19: NPC Interactions - Deepen relationships, dialogue complexity, affinity systems, and dynamic NPC reactions to player actions
 
