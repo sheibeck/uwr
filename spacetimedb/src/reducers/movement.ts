@@ -11,6 +11,7 @@ export const registerMovementReducers = (deps: any) => {
     activeCombatIdForCharacter,
     appendPrivateEvent,
     appendLocationEvent,
+    appendGroupEvent,
     ensureSpawnsForLocation,
     isGroupLeaderOrSolo,
     effectiveGroupId,
@@ -127,6 +128,58 @@ export const registerMovementReducers = (deps: any) => {
       appendLocationEvent(ctx, location.id, 'move', `${row.name} arrives.`, row.id);
       ensureSpawnsForLocation(ctx, location.id);
       performPassiveSearch(ctx, ctx.db.character.id.find(charId)!, location.id, appendPrivateEvent);
+
+      // AUTO-JOIN: If character's group has active combat at this location, join it
+      const movedChar = ctx.db.character.id.find(charId)!;
+      const gId = effectiveGroupId(movedChar);
+      if (gId && !activeCombatIdForCharacter(ctx, movedChar.id)) {
+        // Find active combat for this group at this location
+        for (const combat of ctx.db.combatEncounter.by_group.filter(gId)) {
+          if (combat.state !== 'active' || combat.locationId !== location.id) continue;
+          // Character is not already a participant
+          const alreadyIn = [...ctx.db.combatParticipant.by_character.filter(movedChar.id)]
+            .some(p => p.combatId === combat.id);
+          if (alreadyIn) break;
+
+          // Add as combat participant
+          const AUTO_ATTACK_INTERVAL = 5_000_000n;
+          ctx.db.combatParticipant.insert({
+            id: 0n,
+            combatId: combat.id,
+            characterId: movedChar.id,
+            status: 'active',
+            nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
+          });
+
+          // Add aggro entries for all living enemies in this combat
+          const enemies = [...ctx.db.combatEnemy.by_combat.filter(combat.id)];
+          for (const enemy of enemies) {
+            if (enemy.currentHp <= 0n) continue;
+            ctx.db.aggroEntry.insert({
+              id: 0n,
+              combatId: combat.id,
+              enemyId: enemy.id,
+              characterId: movedChar.id,
+              petId: undefined,
+              value: 0n,
+            });
+          }
+
+          // Auto-target first living enemy if character has no target
+          const firstLiving = enemies.find(e => e.currentHp > 0n);
+          if (firstLiving && !movedChar.combatTargetEnemyId) {
+            ctx.db.character.id.update({ ...movedChar, combatTargetEnemyId: firstLiving.id });
+          }
+
+          appendPrivateEvent(ctx, movedChar.id, movedChar.ownerUserId, 'combat',
+            'You join your group in combat!');
+          if (appendGroupEvent) {
+            appendGroupEvent(ctx, gId, movedChar.id, 'combat',
+              `${movedChar.name} joins the fight!`);
+          }
+          break; // Only join one combat
+        }
+      }
     };
 
     for (const traveler of travelingCharacters) {
