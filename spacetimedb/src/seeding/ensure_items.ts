@@ -258,8 +258,8 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     requiredLevel: 1n,
     allowedClasses: 'warrior,paladin,bard,spellblade,reaver',
     weaponType: 'sword',
-    weaponBaseDamage: 6n,
-    weaponDps: 9n,
+    weaponBaseDamage: 5n,
+    weaponDps: 7n,
     strBonus: 0n,
     dexBonus: 0n,
     chaBonus: 0n,
@@ -282,7 +282,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     allowedClasses: 'ranger',
     weaponType: 'bow',
     weaponBaseDamage: 5n,
-    weaponDps: 8n,
+    weaponDps: 7n,
     strBonus: 0n,
     dexBonus: 0n,
     chaBonus: 0n,
@@ -304,7 +304,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     requiredLevel: 1n,
     allowedClasses: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard',
     weaponType: 'staff',
-    weaponBaseDamage: 4n,
+    weaponBaseDamage: 5n,
     weaponDps: 7n,
     strBonus: 0n,
     dexBonus: 0n,
@@ -327,8 +327,8 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     requiredLevel: 1n,
     allowedClasses: 'paladin,cleric',
     weaponType: 'mace',
-    weaponBaseDamage: 6n,
-    weaponDps: 8n,
+    weaponBaseDamage: 5n,
+    weaponDps: 7n,
     strBonus: 0n,
     dexBonus: 0n,
     chaBonus: 0n,
@@ -350,8 +350,8 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     requiredLevel: 1n,
     allowedClasses: 'beastmaster',
     weaponType: 'axe',
-    weaponBaseDamage: 7n,
-    weaponDps: 9n,
+    weaponBaseDamage: 5n,
+    weaponDps: 7n,
     strBonus: 0n,
     dexBonus: 0n,
     chaBonus: 0n,
@@ -374,7 +374,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     allowedClasses: 'bard',
     weaponType: 'rapier',
     weaponBaseDamage: 5n,
-    weaponDps: 8n,
+    weaponDps: 7n,
     strBonus: 0n,
     dexBonus: 0n,
     chaBonus: 0n,
@@ -396,7 +396,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     requiredLevel: 1n,
     allowedClasses: 'rogue',
     weaponType: 'dagger',
-    weaponBaseDamage: 4n,
+    weaponBaseDamage: 5n,
     weaponDps: 7n,
     strBonus: 0n,
     dexBonus: 0n,
@@ -420,7 +420,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     allowedClasses: 'spellblade,reaver',
     weaponType: 'blade',
     weaponBaseDamage: 5n,
-    weaponDps: 8n,
+    weaponDps: 7n,
     strBonus: 0n,
     dexBonus: 0n,
     chaBonus: 0n,
@@ -523,7 +523,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 3n,
+    armorClassBonus: 4n,
     stackable: false,
   });
   upsertByName({
@@ -545,7 +545,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 2n,
+    armorClassBonus: 3n,
     stackable: false,
   });
   upsertByName({
@@ -567,7 +567,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 1n,
+    armorClassBonus: 2n,
     stackable: false,
   });
 
@@ -591,7 +591,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 4n,
+    armorClassBonus: 5n,
     stackable: false,
   });
   upsertByName({
@@ -613,7 +613,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 3n,
+    armorClassBonus: 4n,
     stackable: false,
   });
   upsertByName({
@@ -635,7 +635,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 2n,
+    armorClassBonus: 3n,
     stackable: false,
   });
 
@@ -659,7 +659,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 5n,
+    armorClassBonus: 6n,
     stackable: false,
   });
   upsertByName({
@@ -681,7 +681,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 4n,
+    armorClassBonus: 5n,
     stackable: false,
   });
   upsertByName({
@@ -703,7 +703,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 3n,
+    armorClassBonus: 4n,
     stackable: false,
   });
 
@@ -727,7 +727,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 6n,
+    armorClassBonus: 7n,
     stackable: false,
   });
   upsertByName({
@@ -749,7 +749,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 5n,
+    armorClassBonus: 6n,
     stackable: false,
   });
   upsertByName({
@@ -771,7 +771,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 4n,
+    armorClassBonus: 5n,
     stackable: false,
   });
 
