@@ -74,7 +74,9 @@ const highlighted = ref<string | null>(null);
     { value: '/synccontent', hint: 'Sync server content tables' },
     { value: '/grantrenown', hint: 'Grant test renown points' },
     { value: '/spawncorpse', hint: 'Spawn test corpse with junk item' },
+    { value: '/createitem', hint: 'Create test item by quality tier' },
     { value: '/resetwindows', hint: 'Reset all panel positions to center of screen' },
+    { value: '/who', hint: 'List all online characters' },
   ];
 
 const shouldShowSuggestions = computed(() => {
