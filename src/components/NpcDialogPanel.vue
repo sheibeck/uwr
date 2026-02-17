@@ -1,5 +1,38 @@
 <template>
-  <div :style="styles.panelSplit">
+  <!-- Tab bar -->
+  <div :style="{ display: 'flex', gap: '0', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '8px' }">
+    <button
+      @click="activeTab = 'journal'"
+      :style="{
+        background: activeTab === 'journal' ? 'rgba(255,255,255,0.08)' : 'transparent',
+        borderBottom: activeTab === 'journal' ? '2px solid #60a5fa' : '2px solid transparent',
+        padding: '8px 16px',
+        cursor: 'pointer',
+        color: activeTab === 'journal' ? '#fff' : '#d1d5db',
+        fontSize: '0.85rem',
+        fontWeight: 600,
+        border: 'none',
+        outline: 'none',
+      }"
+    >Journal</button>
+    <button
+      @click="activeTab = 'quests'"
+      :style="{
+        background: activeTab === 'quests' ? 'rgba(255,255,255,0.08)' : 'transparent',
+        borderBottom: activeTab === 'quests' ? '2px solid #60a5fa' : '2px solid transparent',
+        padding: '8px 16px',
+        cursor: 'pointer',
+        color: activeTab === 'quests' ? '#fff' : '#d1d5db',
+        fontSize: '0.85rem',
+        fontWeight: 600,
+        border: 'none',
+        outline: 'none',
+      }"
+    >Quests</button>
+  </div>
+
+  <!-- Journal tab -->
+  <div v-if="activeTab === 'journal'" :style="styles.panelSplit">
     <!-- Left column: NPC list with affinity badges -->
     <div :style="[styles.panelColumn, styles.panelColumnNarrow]">
       <div :style="styles.rosterTitle">NPCs</div>
@@ -84,6 +117,23 @@
       </template>
     </div>
   </div>
+
+  <!-- Quests tab -->
+  <div v-else-if="activeTab === 'quests'" :style="styles.panelBody">
+    <div v-if="questRows.length === 0" :style="styles.subtle">No active quests.</div>
+    <div v-else :style="styles.rosterList">
+      <div v-for="quest in questRows" :key="quest.id" :style="styles.rosterClickable">
+        <div>{{ quest.name }}</div>
+        <div :style="styles.subtleSmall">
+          {{ quest.giver }} · {{ quest.location }}
+        </div>
+        <div :style="styles.subtleSmall">
+          Progress: {{ quest.progress }}/{{ quest.requiredCount }}
+          <span v-if="quest.completed"> (Complete)</span>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -94,6 +144,8 @@ import type {
   LocationRow,
   RegionRow,
   NpcAffinityRow,
+  QuestInstanceRow,
+  QuestTemplateRow,
 } from '../module_bindings';
 
 const props = defineProps<{
@@ -105,7 +157,11 @@ const props = defineProps<{
   npcAffinities: NpcAffinityRow[];
   selectedCharacterId: bigint | null;
   selectedNpcTarget?: bigint | null;
+  questInstances: QuestInstanceRow[];
+  questTemplates: QuestTemplateRow[];
 }>();
+
+const activeTab = ref<'journal' | 'quests'>('journal');
 
 const AFFINITY_TIERS = [
   { min: -100, max: -51, name: 'Hostile', color: '#f87171' },
@@ -208,6 +264,34 @@ const selectedNpcData = computed(() => {
   };
 });
 
+const questRows = computed(() => {
+  return props.questInstances.map((instance) => {
+    const template = props.questTemplates.find(
+      (row) => row.id.toString() === instance.questTemplateId.toString()
+    );
+    const npc = template
+      ? props.npcs.find((row) => row.id.toString() === template.npcId.toString())
+      : null;
+    const location = npc
+      ? props.locations.find((row) => row.id.toString() === npc.locationId.toString())
+      : null;
+    const region = location
+      ? props.regions.find((row) => row.id.toString() === location.regionId.toString())
+      : null;
+    const locationLabel = location
+      ? `${location.name}${region ? `, ${region.name}` : ''}`
+      : 'Unknown';
+    return {
+      id: instance.id.toString(),
+      name: template?.name ?? 'Unknown Quest',
+      giver: npc?.name ?? 'Unknown',
+      location: locationLabel,
+      progress: instance.progress,
+      requiredCount: template?.requiredCount ?? 0n,
+      completed: instance.completed,
+    };
+  });
+});
 
 // Parse text and make [bracketed] topics clickable
 const renderClickableTopics = (text: string): string => {
