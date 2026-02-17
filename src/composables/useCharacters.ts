@@ -149,7 +149,7 @@ export const useCharacters = ({
   };
 
   const deselectCharacter = () => {
-    if (connActive.value) clearActiveCharacterReducer({});
+    if (connActive.value) clearActiveCharacterReducer();
     selectedCharacterId.value = '';
   };
 

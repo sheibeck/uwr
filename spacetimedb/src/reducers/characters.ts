@@ -111,6 +111,41 @@ export const registerCharacterReducers = (deps: any) => {
     const character = ctx.db.character.id.find(player.activeCharacterId);
     if (character) {
       appendLocationEvent(ctx, character.locationId, 'system', `${character.name} heads to camp.`, character.id);
+
+      // Leave group if in one
+      if (character.groupId) {
+        const groupId = character.groupId;
+        for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+          if (member.characterId === character.id) {
+            ctx.db.groupMember.id.delete(member.id);
+            break;
+          }
+        }
+        ctx.db.character.id.update({ ...character, groupId: undefined });
+        appendGroupEvent(ctx, groupId, character.id, 'group', `${character.name} headed to camp.`);
+
+        const remaining = [...ctx.db.groupMember.by_group.filter(groupId)];
+        if (remaining.length === 0) {
+          for (const invite of ctx.db.groupInvite.by_group.filter(groupId)) {
+            ctx.db.groupInvite.id.delete(invite.id);
+          }
+          ctx.db.group.id.delete(groupId);
+        } else {
+          const group = ctx.db.group.id.find(groupId);
+          if (group && group.leaderCharacterId === character.id) {
+            const newLeader = ctx.db.character.id.find(remaining[0].characterId);
+            if (newLeader) {
+              ctx.db.group.id.update({
+                ...group,
+                leaderCharacterId: newLeader.id,
+                pullerCharacterId: group.pullerCharacterId === character.id ? newLeader.id : group.pullerCharacterId,
+              });
+              ctx.db.groupMember.id.update({ ...remaining[0], role: 'leader' });
+              appendGroupEvent(ctx, groupId, newLeader.id, 'group', `${newLeader.name} is now the group leader.`);
+            }
+          }
+        }
+      }
     }
     ctx.db.player.id.update({ ...player, activeCharacterId: undefined });
   });
