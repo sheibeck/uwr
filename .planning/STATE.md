@@ -328,9 +328,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 114 | Replace login button with >> Login << styled text - amber monospace span with no button chrome, disabled state dims to opacity 0.4, click guard and Enter key handler preserved | 2026-02-16 | b20bcd8 | [114-replace-login-button-with-login-styled-t](./quick/114-replace-login-button-with-login-styled-t/) |
 | 115 | Remove log button from action bar - log panel permanently open since quick-78, removed button, dead emit, and always-true isActive override | 2026-02-16 | 54cfd3a | [115-remove-log-button-from-action-bar-since-](./quick/115-remove-log-button-from-action-bar-since-/) |
 | 116 | Fix backpack full message triggering at 15/20 slots - equipped items were counted toward bag slot capacity; added equippedSlot filter to itemCount in buy_item and take_loot reducers | 2026-02-16 | e488dcd | [116-fix-backpack-full-message-triggering-inc](./quick/116-fix-backpack-full-message-triggering-inc/) |
+| 117 | Add /resetwindows command to reset all panel positions to center of screen - resetAllPanels() in usePanelManager centers all panels and persists via localStorage + server save, wired through useCommands with addLocalEvent confirmation | 2026-02-17 | 7d360fa | [117-add-resetwindows-command-to-reset-all-pa](./quick/117-add-resetwindows-command-to-reset-all-pa/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-16 - Completed quick-116: Fix backpack full message triggering incorrectly — equipped items were included in itemCount, causing 'Backpack is full' at 15 bag slots when 5 items were equipped. Added .filter((row) => !row.equippedSlot) to itemCount in both buy_item and take_loot reducers.
+Last activity: 2026-02-17 - Completed quick-117: Add /resetwindows command — client-side emergency recovery command that centers all panel positions on screen and persists via localStorage + server save. Wired resetAllPanels from usePanelManager through useCommands via forward-declared callback ref. Shows "All windows reset to center." confirmation in log.
