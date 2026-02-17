@@ -1237,6 +1237,9 @@ watch(() => selectedCharacter.value?.locationId, () => {
   selectedCorpseTarget.value = null;
 });
 
+// Forward-declared callback so usePanelManager (declared later) can be wired in
+const _resetPanelsCb = ref<(() => void) | undefined>(undefined);
+
 const { commandText, submitCommand } = useCommands({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
@@ -1248,6 +1251,8 @@ const { commandText, submitCommand } = useCommands({
   npcAffinities: computed(() => npcAffinities.value),
   factionStandings: characterFactionStandings,
   selectedCharacterId: computed(() => selectedCharacterId.value),
+  resetPanels: () => _resetPanelsCb.value?.(),
+  addLocalEvent,
 });
 
 const openCharacterActions = (characterId: bigint) => {
@@ -1835,6 +1840,7 @@ const {
   onMouseMove: onPanelMouseMove,
   onMouseUp: onPanelMouseUp,
   panelStyle,
+  resetAllPanels,
 } = usePanelManager({
   group: { x: 40, y: 140 },
   travel: { x: 1040, y: 110 },
@@ -1859,6 +1865,9 @@ const {
   selectedCharacterId,
   savePanelLayout: savePanelLayoutReducer,
 });
+
+// Wire resetAllPanels into the command handler callback declared earlier
+_resetPanelsCb.value = resetAllPanels;
 
 // Wrapper to intercept help toggle
 const togglePanel = (panelId: string) => {

@@ -13,6 +13,8 @@ type UseCommandsArgs = {
   npcAffinities?: Ref<NpcAffinityRow[]>;
   factionStandings?: Ref<FactionStandingRow[]>;
   selectedCharacterId?: Ref<bigint | null>;
+  resetPanels?: () => void;
+  addLocalEvent?: (kind: string, message: string) => void;
 };
 
 export const useCommands = ({
@@ -26,6 +28,8 @@ export const useCommands = ({
   npcAffinities,
   factionStandings,
   selectedCharacterId,
+  resetPanels,
+  addLocalEvent,
 }: UseCommandsArgs) => {
   const submitCommandReducer = useReducer(reducers.submitCommand);
   const sayReducer = useReducer(reducers.say);
@@ -289,6 +293,13 @@ export const useCommands = ({
       spawnCorpseReducer({
         characterId: selectedCharacter.value.id,
       });
+    } else if (lower === '/resetwindows') {
+      if (resetPanels) {
+        resetPanels();
+      }
+      if (addLocalEvent) {
+        addLocalEvent('command', 'All windows reset to center.');
+      }
     } else {
       submitCommandReducer({
         characterId: selectedCharacter.value.id,

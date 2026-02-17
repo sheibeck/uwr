@@ -425,6 +425,21 @@ export function usePanelManager(
     );
   }
 
+  // Reset all panels to centered positions
+  const resetAllPanels = () => {
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    // Center each panel. Use a small offset grid so panels don't perfectly stack.
+    const centerX = Math.max(16, Math.round(cx - 160));
+    const centerY = Math.max(16, Math.round(cy - 100));
+    for (const id of Object.keys(panels)) {
+      panels[id].x = centerX;
+      panels[id].y = centerY;
+    }
+    markDirty();
+    saveToStorage();
+  };
+
   // Load initial state
   loadFromStorage();
 
@@ -440,5 +455,6 @@ export function usePanelManager(
     onMouseMove,
     onMouseUp,
     panelStyle,
+    resetAllPanels,
   };
 }
