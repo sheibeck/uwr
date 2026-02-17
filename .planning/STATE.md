@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Completed quick task 123: Implement chance-based flee mechanic - flee success depends on danger level, resolved on next combat tick, group notified of flee attempts and results.
+**Status:** Completed Phase 14 Plan 03: Named legendary drops from boss enemies (LEGENDARIES catalog) and salvage_item reducer for gear recycling into gold.
 
 ---
 
@@ -11,8 +11,8 @@
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 (Travel & Movement Costs) complete — Region-based stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, all-or-nothing group validation, TravelPanel UI with cost indicators and live countdown timer. Human-verified functional. Phase 11 (Death & Corpse System) Plan 01 complete — Backend corpse system with level 5+ gating, inventory-only item transfer, same-location combining, 30-day decay, and ownership-verified looting. Phase 12 (Overall Renown System) complete — Character-wide renown progression with 15 ranks, permanent perk system, server-first tracking, combat integration, tabbed UI. Human-verified functional.
 
 **Current phase:** 14 (Loot & Gear Progression)
-**Current plan:** 14-02 complete — Loot generation pipeline (quality tier rolling, affix generation, take_loot affix rows, equipped affix bonuses)
-**Next action:** Continue with Phase 14 Plan 03 (client-side loot display with quality colors and affix tooltips)
+**Current plan:** 14-03 complete — Named legendary drops (boss enemy kills drop LEGENDARIES catalog items with fixed affixes for first participant), salvage_item reducer (deletes ItemAffix + ItemInstance, grants gold scaled by tier+quality)
+**Next action:** Continue with Phase 14 Plan 04 (client-side loot display with quality colors and affix tooltips)
 
 ---
 
@@ -36,7 +36,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 10 | Travel & Movement Costs | Complete (2/2 plans done: backend + UI, human-verified) |
 | 11 | Death & Corpse System | In Progress (1/? plans done: backend foundation) |
 | 12 | Overall Renown System | Complete (3/3 plans done: backend + integration + UI, human-verified) |
-| 14 | Loot & Gear Progression | In Progress (1/? plans done: schema + affix catalog foundation) |
+| 14 | Loot & Gear Progression | In Progress (3/? plans done: schema+catalog, loot pipeline, legendary drops+salvage) |
 | 19 | NPC Interactions | In Progress (2/? plans done: backend foundation, interaction reducers) |
 
 ---
@@ -149,6 +149,10 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 104. JSON serialization bridges affix data from loot generation (combat.ts) to affix row creation (items.ts take_loot) (14-02)
 105. take_loot finds new ItemInstance by templateId + no equippedSlot + no qualityTier filter — the freshly inserted row has no quality yet (14-02)
 106. lifeOnHit, cooldownReduction, manaRegen accumulated in getEquippedBonuses return value but not yet consumed by combat — available for future Tier 3+ combat integration (14-02)
+107. Legendary drop check uses ctx.db.itemTemplate.iter() full scan by name — acceptable for rare boss kills, no name index needed (14-03)
+108. logGroupEvent (combatId param) used for legendary announcement — consistent with all other combat log helpers in same codebase section (14-03)
+109. Gold-only salvage yield (baseGold×tier) — material salvage deferred until Phase 13 crafting materials exist to avoid confusion with freely-gatherable resources (14-03)
+110. Legendary drop inserted after per-participant regular loot loop, before corpse creation — preserves combatResult auto-clean logic ordering (14-03)
 
 ---
 
@@ -193,6 +197,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 06-quest-system | 03 | ~25min | 3 | 8 |
 | 14-loot-gear-progression | 01 | 2min | 2 | 2 |
 | 14-loot-gear-progression | 02 | 3min | 2 | 3 |
+| 14-loot-gear-progression | 03 | 15min | 2 | 2 |
 
 ## Accumulated Context
 
@@ -354,4 +359,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick-123: Chance-based flee mechanic. calculateFleeChance helper added to helpers/combat.ts, flee_combat reducer now sets 'fleeing' interim status with attempt log message, combat_loop resolves flee each tick with deterministic roll based on region dangerMultiplier.
+Last activity: 2026-02-17 - Completed Phase 14 Plan 03: Named legendary drops and salvage reducer. LEGENDARIES imported into combat.ts, legendary drop check runs after regular loot loop for each killed enemy template matching by enemyTemplateName — single CombatLoot row with isNamed=true for first alive participant. salvage_item reducer validates ownership/equipped/slot, deletes ItemAffix rows then ItemInstance, grants gold scaled by quality×tier. Stopped at: Completed 14-03-PLAN.md
