@@ -1315,10 +1315,11 @@ const buyItem = (itemTemplateId: bigint) => {
 };
 
 const sellItem = (itemInstanceId: bigint) => {
-  if (!conn.isActive || !selectedCharacter.value) return;
+  if (!conn.isActive || !selectedCharacter.value || !activeVendorId.value) return;
   sellReducer({
     characterId: selectedCharacter.value.id,
     itemInstanceId,
+    npcId: activeVendorId.value,
   });
 };
 

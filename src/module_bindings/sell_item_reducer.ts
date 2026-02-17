@@ -13,4 +13,5 @@ import {
 export default {
   characterId: __t.u64(),
   itemInstanceId: __t.u64(),
+  npcId: __t.u64(),
 };
