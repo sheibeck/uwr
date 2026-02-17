@@ -193,26 +193,43 @@ export function ensureQuestTemplates(ctx: any) {
   const upsertQuestByName = (args: {
     name: string;
     npcName: string;
-    enemyName: string;
+    enemyName?: string;
     requiredCount: bigint;
     minLevel: bigint;
     maxLevel: bigint;
     rewardXp: bigint;
+    questType?: string;
+    targetLocationName?: string;
+    targetNpcName?: string;
+    targetItemName?: string;
+    itemDropChance?: bigint;
   }) => {
     const npc = [...ctx.db.npc.iter()].find((row) => row.name === args.npcName);
-    const enemy = findEnemyTemplateByName(ctx, args.enemyName);
-    if (!npc || !enemy) return;
+    const enemy = args.enemyName ? findEnemyTemplateByName(ctx, args.enemyName) : null;
+    const targetLocation = args.targetLocationName
+      ? [...ctx.db.location.iter()].find((row) => row.name === args.targetLocationName)
+      : null;
+    const targetNpc = args.targetNpcName
+      ? [...ctx.db.npc.iter()].find((row) => row.name === args.targetNpcName)
+      : null;
+    if (!npc) return;
+    // enemy is optional for non-kill quests
     const existing = [...ctx.db.questTemplate.iter()].find((row) => row.name === args.name);
     if (existing) {
       ctx.db.questTemplate.id.update({
         ...existing,
         name: args.name,
         npcId: npc.id,
-        targetEnemyTemplateId: enemy.id,
+        targetEnemyTemplateId: enemy?.id ?? existing.targetEnemyTemplateId ?? 0n,
         requiredCount: args.requiredCount,
         minLevel: args.minLevel,
         maxLevel: args.maxLevel,
         rewardXp: args.rewardXp,
+        questType: args.questType ?? 'kill',
+        targetLocationId: targetLocation?.id,
+        targetNpcId: targetNpc?.id,
+        targetItemName: args.targetItemName,
+        itemDropChance: args.itemDropChance,
       });
       return;
     }
@@ -220,11 +237,16 @@ export function ensureQuestTemplates(ctx: any) {
       id: 0n,
       name: args.name,
       npcId: npc.id,
-      targetEnemyTemplateId: enemy.id,
+      targetEnemyTemplateId: enemy?.id ?? 0n,
       requiredCount: args.requiredCount,
       minLevel: args.minLevel,
       maxLevel: args.maxLevel,
       rewardXp: args.rewardXp,
+      questType: args.questType ?? 'kill',
+      targetLocationId: targetLocation?.id,
+      targetNpcId: targetNpc?.id,
+      targetItemName: args.targetItemName,
+      itemDropChance: args.itemDropChance,
     });
   };
 
@@ -332,6 +354,169 @@ export function ensureQuestTemplates(ctx: any) {
     minLevel: 4n,
     maxLevel: 8n,
     rewardXp: 130n,
+  });
+
+  // === Phase 6: New Quest Types ===
+
+  // Marla the Guide — delivery quest
+  upsertQuestByName({
+    name: 'Old Debts',
+    npcName: 'Marla the Guide',
+    requiredCount: 1n,
+    minLevel: 1n,
+    maxLevel: 10n,
+    rewardXp: 80n,
+    questType: 'delivery',
+    targetNpcName: 'Scout Thessa',
+  });
+
+  // Warden Kael — kill_loot + explore
+  upsertQuestByName({
+    name: 'Stolen Supply Cache',
+    npcName: 'Warden Kael',
+    enemyName: 'Thicket Wolf',
+    requiredCount: 1n,
+    minLevel: 1n,
+    maxLevel: 5n,
+    rewardXp: 70n,
+    questType: 'kill_loot',
+    targetItemName: 'Stolen Supply Pack',
+    itemDropChance: 25n,
+  });
+  upsertQuestByName({
+    name: "The Ranger's Cache",
+    npcName: 'Warden Kael',
+    requiredCount: 1n,
+    minLevel: 2n,
+    maxLevel: 6n,
+    rewardXp: 100n,
+    questType: 'explore',
+    targetLocationName: 'Bramble Hollow',
+    targetItemName: 'Buried Supply Cache',
+  });
+
+  // Herbalist Venna — explore + kill_loot
+  upsertQuestByName({
+    name: 'Bogfen Healing Moss',
+    npcName: 'Herbalist Venna',
+    requiredCount: 1n,
+    minLevel: 1n,
+    maxLevel: 5n,
+    rewardXp: 65n,
+    questType: 'explore',
+    targetLocationName: 'Willowfen',
+    targetItemName: 'Rare Healing Moss',
+  });
+  upsertQuestByName({
+    name: 'Croaker Bile Glands',
+    npcName: 'Herbalist Venna',
+    enemyName: 'Marsh Croaker',
+    requiredCount: 1n,
+    minLevel: 2n,
+    maxLevel: 5n,
+    rewardXp: 90n,
+    questType: 'kill_loot',
+    targetItemName: 'Fresh Bile Gland',
+    itemDropChance: 30n,
+  });
+
+  // Scout Thessa — explore + delivery (unlocked via Marla delivery chain)
+  upsertQuestByName({
+    name: 'Enemy Scouting Reports',
+    npcName: 'Scout Thessa',
+    requiredCount: 1n,
+    minLevel: 3n,
+    maxLevel: 8n,
+    rewardXp: 120n,
+    questType: 'explore',
+    targetLocationName: 'Cinderwatch',
+    targetItemName: 'Scouting Reports',
+  });
+  upsertQuestByName({
+    name: 'The Iron Compact Leak',
+    npcName: 'Scout Thessa',
+    requiredCount: 1n,
+    minLevel: 3n,
+    maxLevel: 8n,
+    rewardXp: 110n,
+    questType: 'delivery',
+    targetNpcName: 'Keeper Mordane',
+  });
+
+  // Ashwalker Ren — kill_loot + boss_kill
+  upsertQuestByName({
+    name: 'Encryption Key',
+    npcName: 'Ashwalker Ren',
+    enemyName: 'Cinder Sentinel',
+    requiredCount: 1n,
+    minLevel: 3n,
+    maxLevel: 7n,
+    rewardXp: 100n,
+    questType: 'kill_loot',
+    targetItemName: 'Cipher Key Fragment',
+    itemDropChance: 20n,
+  });
+  upsertQuestByName({
+    name: 'The Ashforged Commander',
+    npcName: 'Ashwalker Ren',
+    enemyName: 'Cinder Sentinel',
+    requiredCount: 1n,
+    minLevel: 4n,
+    maxLevel: 8n,
+    rewardXp: 200n,
+    questType: 'boss_kill',
+    targetLocationName: 'Scoria Flats',
+    targetItemName: 'Ashforged Commander',
+  });
+
+  // Torchbearer Isa — boss_kill + explore
+  upsertQuestByName({
+    name: 'The Revenant Lord',
+    npcName: 'Torchbearer Isa',
+    enemyName: 'Ashforged Revenant',
+    requiredCount: 1n,
+    minLevel: 4n,
+    maxLevel: 8n,
+    rewardXp: 200n,
+    questType: 'boss_kill',
+    targetLocationName: 'Furnace Crypt',
+    targetItemName: 'Revenant Lord',
+  });
+  upsertQuestByName({
+    name: 'The Binding Seal',
+    npcName: 'Torchbearer Isa',
+    requiredCount: 1n,
+    minLevel: 4n,
+    maxLevel: 8n,
+    rewardXp: 150n,
+    questType: 'explore',
+    targetLocationName: 'Embervault Sanctum',
+    targetItemName: 'Ancient Binding Seal',
+  });
+
+  // Keeper Mordane — explore + boss_kill (unlocked via Thessa delivery chain)
+  upsertQuestByName({
+    name: "The Keeper's Ledger",
+    npcName: 'Keeper Mordane',
+    requiredCount: 1n,
+    minLevel: 5n,
+    maxLevel: 10n,
+    rewardXp: 160n,
+    questType: 'explore',
+    targetLocationName: 'Bonecinder Gallery',
+    targetItemName: "Keeper's Ledger",
+  });
+  upsertQuestByName({
+    name: 'The Vault Warden',
+    npcName: 'Keeper Mordane',
+    enemyName: 'Vault Sentinel',
+    requiredCount: 1n,
+    minLevel: 5n,
+    maxLevel: 10n,
+    rewardXp: 250n,
+    questType: 'boss_kill',
+    targetLocationName: 'The Crucible',
+    targetItemName: 'Vault Warden',
   });
 }
 

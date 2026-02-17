@@ -797,4 +797,201 @@ export const NPC_DIALOGUE_OPTIONS: DialogueOptionSeed[] = [
     affinityHint: null,
     isAffinityLocked: false,
   },
+
+  // === Phase 6: New Quest Dialogue Branches ===
+
+  // Marla the Guide — "Old Debts" (delivery) — Acquaintance gate (25)
+  {
+    npcName: 'Marla the Guide',
+    optionKey: 'marla_old_debts',
+    parentOptionKey: null,
+    playerText: 'debts',
+    npcResponse: 'I owe Scout Thessa an explanation. Would you carry a sealed letter to her in the Fringe? She is stationed near the Embermarch Gate.',
+    requiredAffinity: 25n,
+    affinityChange: 5n,
+    sortOrder: 5n,
+    questTemplateName: 'Old Debts',
+    affinityHint: 'Build trust with Marla to learn about her past.',
+    isAffinityLocked: true,
+  },
+
+  // Warden Kael — "Stolen Supply Cache" (kill_loot) — Acquaintance gate (25)
+  {
+    npcName: 'Warden Kael',
+    optionKey: 'kael_supply_cache',
+    parentOptionKey: null,
+    playerText: 'supplies',
+    npcResponse: 'The wolves have been raiding our supply caches. Kill wolves until you recover our stolen pack. It should still be intact.',
+    requiredAffinity: 25n,
+    affinityChange: 3n,
+    sortOrder: 5n,
+    questTemplateName: 'Stolen Supply Cache',
+    affinityHint: 'Help Warden Kael with wolf patrols first.',
+    isAffinityLocked: true,
+  },
+
+  // Warden Kael — "The Ranger's Cache" (explore) — Friend gate (50)
+  {
+    npcName: 'Warden Kael',
+    optionKey: 'kael_rangers_cache',
+    parentOptionKey: null,
+    playerText: 'cache',
+    npcResponse: 'Years ago, I buried emergency supplies in the Bramble Hollow. Search the area carefully — it should still be there.',
+    requiredAffinity: 50n,
+    affinityChange: 5n,
+    sortOrder: 6n,
+    questTemplateName: "The Ranger's Cache",
+    affinityHint: 'Prove yourself a trusted ally to Warden Kael.',
+    isAffinityLocked: true,
+  },
+
+  // Herbalist Venna — "Bogfen Healing Moss" (explore) — Acquaintance gate (25)
+  {
+    npcName: 'Herbalist Venna',
+    optionKey: 'venna_healing_moss',
+    parentOptionKey: null,
+    playerText: 'moss',
+    npcResponse: 'A rare healing moss grows deep in Willowfen, but it is hard to spot. Search the marsh carefully and you may find some.',
+    requiredAffinity: 25n,
+    affinityChange: 3n,
+    sortOrder: 5n,
+    questTemplateName: 'Bogfen Healing Moss',
+    affinityHint: 'Help Herbalist Venna with her research first.',
+    isAffinityLocked: true,
+  },
+
+  // Herbalist Venna — "Croaker Bile Glands" (kill_loot) — Friend gate (50)
+  {
+    npcName: 'Herbalist Venna',
+    optionKey: 'venna_bile_glands',
+    parentOptionKey: null,
+    playerText: 'glands',
+    npcResponse: 'I need a specific organ from the marsh croakers — a fresh bile gland. Not all of them carry one, so you may need to slay several.',
+    requiredAffinity: 50n,
+    affinityChange: 5n,
+    sortOrder: 6n,
+    questTemplateName: 'Croaker Bile Glands',
+    affinityHint: 'Deepen your friendship with Herbalist Venna.',
+    isAffinityLocked: true,
+  },
+
+  // Scout Thessa — "Enemy Scouting Reports" (explore) — Acquaintance gate (25)
+  {
+    npcName: 'Scout Thessa',
+    optionKey: 'thessa_scouting_reports',
+    parentOptionKey: null,
+    playerText: 'scouting',
+    npcResponse: 'Since you know Marla... I could use someone to search the Cinderwatch outpost for scouting reports left behind. Be careful — the area is hostile.',
+    requiredAffinity: 25n,
+    affinityChange: 5n,
+    sortOrder: 5n,
+    questTemplateName: 'Enemy Scouting Reports',
+    affinityHint: "Deliver Marla's letter to Scout Thessa first.",
+    isAffinityLocked: true,
+  },
+
+  // Scout Thessa — "The Iron Compact Leak" (delivery) — Friend gate (50)
+  {
+    npcName: 'Scout Thessa',
+    optionKey: 'thessa_iron_compact_leak',
+    parentOptionKey: null,
+    playerText: 'leak',
+    npcResponse: 'There is a leak in the Iron Compact supply chain. Take this evidence to Keeper Mordane in Sootveil Hall. He will know what to do.',
+    requiredAffinity: 50n,
+    affinityChange: 5n,
+    sortOrder: 6n,
+    questTemplateName: 'The Iron Compact Leak',
+    affinityHint: 'Build a strong friendship with Scout Thessa.',
+    isAffinityLocked: true,
+  },
+
+  // Ashwalker Ren — "Encryption Key" (kill_loot) — Acquaintance gate (25)
+  {
+    npcName: 'Ashwalker Ren',
+    optionKey: 'ren_encryption_key',
+    parentOptionKey: null,
+    playerText: 'cipher',
+    npcResponse: 'The Cinder Sentinels guard cipher key fragments. Destroy them and bring me any fragments you find. The drop rate is low, so be persistent.',
+    requiredAffinity: 25n,
+    affinityChange: 3n,
+    sortOrder: 5n,
+    questTemplateName: 'Encryption Key',
+    affinityHint: "Earn Ashwalker Ren's trust first.",
+    isAffinityLocked: true,
+  },
+
+  // Ashwalker Ren — "The Ashforged Commander" (boss_kill) — Friend gate (50)
+  {
+    npcName: 'Ashwalker Ren',
+    optionKey: 'ren_ashforged_commander',
+    parentOptionKey: null,
+    playerText: 'commander',
+    npcResponse: 'An Ashforged Commander has been spotted near the Scoria Flats. Search the area and engage it if you can. It will not go down easily.',
+    requiredAffinity: 50n,
+    affinityChange: 5n,
+    sortOrder: 6n,
+    questTemplateName: 'The Ashforged Commander',
+    affinityHint: 'Become a close ally of Ashwalker Ren.',
+    isAffinityLocked: true,
+  },
+
+  // Torchbearer Isa — "The Revenant Lord" (boss_kill) — Acquaintance gate (25)
+  {
+    npcName: 'Torchbearer Isa',
+    optionKey: 'isa_revenant_lord',
+    parentOptionKey: null,
+    playerText: 'lord',
+    npcResponse: 'A revenant lord haunts the Furnace Crypt. Search the depths for it. It only appears to those who look carefully.',
+    requiredAffinity: 25n,
+    affinityChange: 3n,
+    sortOrder: 5n,
+    questTemplateName: 'The Revenant Lord',
+    affinityHint: 'Prove your mettle to Torchbearer Isa.',
+    isAffinityLocked: true,
+  },
+
+  // Torchbearer Isa — "The Binding Seal" (explore) — Friend gate (50)
+  {
+    npcName: 'Torchbearer Isa',
+    optionKey: 'isa_binding_seal',
+    parentOptionKey: null,
+    playerText: 'seal',
+    npcResponse: 'Deep in the Embervault Sanctum lies an ancient binding seal. Search for it — but be warned, disturbing it may attract attention.',
+    requiredAffinity: 50n,
+    affinityChange: 5n,
+    sortOrder: 6n,
+    questTemplateName: 'The Binding Seal',
+    affinityHint: 'Build a strong bond with Torchbearer Isa.',
+    isAffinityLocked: true,
+  },
+
+  // Keeper Mordane — "The Keeper's Ledger" (explore) — Acquaintance gate (25)
+  {
+    npcName: 'Keeper Mordane',
+    optionKey: 'mordane_keepers_ledger',
+    parentOptionKey: null,
+    playerText: 'ledger',
+    npcResponse: "Since Scout Thessa trusts you with sensitive matters... There is a ledger hidden in the Bonecinder Gallery. Search for it. The vault's secrets must be preserved.",
+    requiredAffinity: 25n,
+    affinityChange: 5n,
+    sortOrder: 5n,
+    questTemplateName: "The Keeper's Ledger",
+    affinityHint: "Deliver Thessa's evidence to Keeper Mordane first.",
+    isAffinityLocked: true,
+  },
+
+  // Keeper Mordane — "The Vault Warden" (boss_kill) — Friend gate (50)
+  {
+    npcName: 'Keeper Mordane',
+    optionKey: 'mordane_vault_warden',
+    parentOptionKey: null,
+    playerText: 'warden',
+    npcResponse: 'A Vault Warden patrols The Crucible. It guards the deepest secrets. Search for it and put it down before it finds us.',
+    requiredAffinity: 50n,
+    affinityChange: 5n,
+    sortOrder: 6n,
+    questTemplateName: 'The Vault Warden',
+    affinityHint: 'Become a trusted friend of Keeper Mordane.',
+    isAffinityLocked: true,
+  },
 ];
