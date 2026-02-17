@@ -348,9 +348,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 119 | Clean up personal resource system - removed ResourceRespawnTick table and respawn_resource reducer, removed shared-node branch in finish_gather, implemented tiered node counts (1/2/3 by roll), updated log message, removed resource badge from SEARCH section | 2026-02-16 | ed5a37a | [119-clean-up-personal-resource-system-remove](./quick/119-clean-up-personal-resource-system-remove/) |
 | 120 | Fix food buff display names, log messages, regen mechanic, and stacking - sourceAbility 'Well Fed' for group panel, BUFF_TYPE_LABELS map for readable log output, food_mana_regen/food_stamina_regen effectTypes boost per-tick regen rate in regen_health, one-food-at-a-time enforced by sourceAbility-only deletion | 2026-02-17 | 74ef58c | [120-fix-food-buff-display-names-regen-mechan](./quick/120-fix-food-buff-display-names-regen-mechan/) |
 | 121 | Update food item descriptions to communicate buff effect before eating - client-side description generation from wellFedBuffType/Magnitude/Duration fields in inventory and vendor tooltips | 2026-02-17 | bc6981a | [121-update-food-item-descriptions-to-clearly](./quick/121-update-food-item-descriptions-to-clearly/) |
+| 123 | Implement chance-based flee mechanic - flee_combat sets 'fleeing' status, combat_loop resolves on next tick with danger-scaled roll (starter ~87%, dungeon ~53%), success removes aggro/pets and logs success, failure reverts to active for retry | 2026-02-17 | d414c85 | [123-implement-chance-based-flee-mechanic-fle](./quick/123-implement-chance-based-flee-mechanic-fle/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed Phase 14 Plan 02: Loot generation pipeline. rollQualityTier() with level-gated tier ceilings, generateAffixData() for 1-3 affixes per quality tier, take_loot creates ItemAffix rows and updates ItemInstance display name, getEquippedBonuses sums affix stat bonuses for 5 new stat fields, sell_item cleans up ItemAffix rows.
+Last activity: 2026-02-17 - Completed quick-123: Chance-based flee mechanic. calculateFleeChance helper added to helpers/combat.ts, flee_combat reducer now sets 'fleeing' interim status with attempt log message, combat_loop resolves flee each tick with deterministic roll based on region dangerMultiplier.
