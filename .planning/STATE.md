@@ -266,9 +266,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 138 | Rebalance affix catalog — remove weaponBaseDamage (double-dips with STR scaling), add fierce prefix (strBonus minTier=2), trim HP/AC/MR legendary caps, fix Dreadmaw and Ironveil legendaries, republish module | 2026-02-17 | 1be5623 | [138-rebalance-affix-catalog-remove-weapon-da](./quick/138-rebalance-affix-catalog-remove-weapon-da/) |
 | 139 | Apply quality rarity colors to vendor backpack — changed inventoryItems to use qualityTier instead of rarity for item name coloring in VendorPanel backpack section; added qualityTier to prop type | 2026-02-17 | 5478345 | [139-apply-quality-rarity-colors-to-vendor-st](./quick/139-apply-quality-rarity-colors-to-vendor-st/) |
 | 140 | Remove mighty prefix — fierce is now sole STR weapon prefix (minTier=1, [1,2,3,4]); updated Dreadmaw legendary to use fierce/Fierce; republished with --clear-database to flush stale mighty ItemAffix rows | 2026-02-17 | d335989 | — |
+| 141 | Fix item tooltip rarity color, tier, and armor type display — tooltipRarityColor helper maps qualityTier to hex color on title; description uses qualityTier instead of template rarity in useInventory/useCombat; armorType "none" hidden for weapons, weaponType shown instead | 2026-02-17 | 0966b68 | [140-fix-item-tooltip-to-show-correct-rarity-](./quick/140-fix-item-tooltip-to-show-correct-rarity-/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick task 140: Removed duplicate mighty prefix, fierce now covers all STR weapon affixes from uncommon through legendary.
+Last activity: 2026-02-17 - Completed quick task 141: Fixed item tooltip to show correct rarity color on name, correct qualityTier, and weapon type instead of "None" for armor type field.
