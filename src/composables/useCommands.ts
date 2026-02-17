@@ -47,6 +47,7 @@ export const useCommands = ({
   const levelReducer = useReducer(reducers.levelCharacter);
   const grantTestRenownReducer = useReducer(reducers.grantTestRenown);
   const spawnCorpseReducer = useReducer(reducers.spawnCorpse);
+  const createTestItemReducer = useReducer(reducers.createTestItem);
   const chooseDialogueOptionReducer = useReducer(reducers.chooseDialogueOption);
   const commandText = ref('');
 
@@ -292,6 +293,14 @@ export const useCommands = ({
     } else if (lower === '/spawncorpse') {
       spawnCorpseReducer({
         characterId: selectedCharacter.value.id,
+      });
+    } else if (lower.startsWith('/createitem ')) {
+      const tier = raw.slice(12).trim().toLowerCase();
+      const validTiers = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+      if (!validTiers.includes(tier)) return;
+      createTestItemReducer({
+        characterId: selectedCharacter.value.id,
+        qualityTier: tier,
       });
     } else if (lower === '/resetwindows') {
       if (resetPanels) {
