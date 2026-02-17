@@ -96,7 +96,7 @@ const backdropStyle = computed(() => ({
   display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
-  zIndex: 9000,
+  zIndex: 10001,
 }));
 
 const dialogStyle = computed(() => ({
@@ -106,7 +106,7 @@ const dialogStyle = computed(() => ({
   padding: '2rem',
   maxWidth: '600px',
   width: '90vw',
-  maxHeight: '80vh',
+  maxHeight: 'calc(100vh - 120px)',
   overflowY: 'auto' as const,
   boxShadow: '0 14px 32px rgba(0,0,0,0.6)',
 }));

@@ -463,9 +463,6 @@
     </div>
   </div>
 
-  <!-- Help overlay -->
-  <HelpOverlay v-if="showHelp" :styles="styles" @close="showHelp = false" />
-
     <footer :style="styles.footer">
       <CommandBar
         :styles="styles"
@@ -487,6 +484,10 @@
       @open="openPanel"
     />
     </footer>
+
+  <!-- Help overlay -->
+  <HelpOverlay v-if="showHelp" :styles="styles" @close="showHelp = false" />
+
     <div
       v-if="tooltip.visible"
       :style="{
