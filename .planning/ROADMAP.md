@@ -15,7 +15,7 @@
 | 3 | Renown Foundation | REQ-020–026 | None | Complete (2026-02-12) |
 | 4 | Config Table Architecture | None | Phase 3 (combat balance complete) | Complete (2026-02-13) |
 | 5 | LLM Architecture | REQ-040–047, REQ-080–084 | Phase 3 (first consumer) | Planned |
-| 6 | Quest System | REQ-060–066 | Phase 3 (renown gating) | Planned |
+| 6 | Quest System | REQ-060–066 | Phase 3 (renown gating) | Complete (2026-02-17) |
 | 7 | World Events | REQ-030–035 | Phase 1 (race unlock), Phase 5 (LLM text) | Pending |
 | 8 | Narrative Tone Rollout | REQ-080–084 (applied) | Phase 5 (LLM pipeline running) | Pending |
 | 9 | Content Data Expansion | REQ-090–094 | Phases 1–3 (systems to populate) | Pending |
