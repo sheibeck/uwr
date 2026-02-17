@@ -1,3 +1,10 @@
+const BUFF_TYPE_LABELS: Record<string, string> = {
+  'str': 'strength',
+  'dex': 'dexterity',
+  'mana_regen': 'mana regeneration',
+  'stamina_regen': 'stamina regeneration',
+};
+
 export const registerFoodReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -30,21 +37,23 @@ export const registerFoodReducers = (deps: any) => {
 
       // Apply food buff as CharacterEffect if the item has wellFed properties
       if (template.wellFedDurationMicros > 0n) {
+        // Remove any existing food buff (one food at a time - sourceAbility 'Well Fed')
+        for (const effect of ctx.db.characterEffect.by_character.filter(characterId)) {
+          if (effect.sourceAbility === 'Well Fed') {
+            ctx.db.characterEffect.id.delete(effect.id);
+          }
+        }
+
         // Map wellFedBuffType to CharacterEffect effectType
+        // mana_regen and stamina_regen use food-specific types to act as regen rate bonuses
+        // rather than periodic heal ticks (handled separately in regen_health reducer)
         let effectType = '';
         if (template.wellFedBuffType === 'str') effectType = 'str_bonus';
         else if (template.wellFedBuffType === 'dex') effectType = 'dex_bonus';
-        else if (template.wellFedBuffType === 'mana_regen') effectType = 'mana_regen';
-        else if (template.wellFedBuffType === 'stamina_regen') effectType = 'stamina_regen';
+        else if (template.wellFedBuffType === 'mana_regen') effectType = 'food_mana_regen';
+        else if (template.wellFedBuffType === 'stamina_regen') effectType = 'food_stamina_regen';
 
         if (effectType) {
-          // Remove any existing food buff of the same type to prevent stacking
-          for (const effect of ctx.db.characterEffect.by_character.filter(characterId)) {
-            if (effect.sourceAbility === 'food_buff' && effect.effectType === effectType) {
-              ctx.db.characterEffect.id.delete(effect.id);
-            }
-          }
-
           // Insert new food buff effect with high roundsRemaining (99 = long-duration)
           const magnitude = template.wellFedBuffMagnitude as bigint;
           // Convert to i64 for magnitude (cast from u64 to i64)
@@ -58,15 +67,16 @@ export const registerFoodReducers = (deps: any) => {
             effectType,
             magnitude: signedMagnitude,
             roundsRemaining: 99n,
-            sourceAbility: 'food_buff',
+            sourceAbility: 'Well Fed',
           });
 
+          const statLabel = BUFF_TYPE_LABELS[template.wellFedBuffType] || template.wellFedBuffType;
           appendPrivateEvent(
             ctx,
             character.id,
             character.ownerUserId,
             'system',
-            `You eat the ${template.name} and feel well fed (+${template.wellFedBuffMagnitude} ${template.wellFedBuffType.toUpperCase()}).`
+            `You eat the ${template.name} and feel well fed (+${template.wellFedBuffMagnitude} ${statLabel}).`
           );
         }
       }
