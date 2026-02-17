@@ -8,6 +8,7 @@ import { applyPerkProcs } from '../helpers/combat';
 import { RENOWN_GAIN } from '../data/renown_data';
 import { rollQualityTier, generateAffixData, buildDisplayName } from '../helpers/items';
 import { LEGENDARIES } from '../data/affix_catalog';
+import { incrementWorldStat } from '../helpers/world_events';
 
 const AUTO_ATTACK_INTERVAL = 5_000_000n;
 const RETRY_ATTACK_INTERVAL = 1_000_000n;
@@ -374,6 +375,8 @@ export const registerCombatReducers = (deps: any) => {
           'quest',
           `Quest complete: ${template.name}. Return to ${giver}.`
         );
+        // REQ-032: Increment world stat tracker for threshold-triggered events
+        incrementWorldStat(ctx, 'total_quests_completed', 1n);
       }
     }
   };
@@ -2159,6 +2162,13 @@ export const registerCombatReducers = (deps: any) => {
           : 1n;
       const primaryName = enemies[0]?.displayName ?? enemyTemplates[0]?.name ?? enemyName;
 
+      // Pre-capture spawnId map BEFORE spawn deletion block — spawn rows are deleted below
+      // and won't be accessible in the kill template loop afterward
+      const enemySpawnIds = new Map<bigint, bigint>();
+      for (const enemyRow of enemies) {
+        enemySpawnIds.set(enemyRow.id, enemyRow.spawnId);
+      }
+
       for (const enemyRow of enemies) {
         const spawn = ctx.db.enemySpawn.id.find(enemyRow.spawnId);
         if (!spawn) continue;
@@ -2184,6 +2194,49 @@ export const registerCombatReducers = (deps: any) => {
           updateQuestProgressForKill(ctx, character, template.id);
           rollKillLootDrop(ctx, character, template.id);
           grantFactionStandingForKill(ctx, character, template.id);
+
+          // World event contribution: check if killed enemy was an event spawn
+          // Use pre-captured spawnId since EnemySpawn rows are already deleted above
+          const matchedEnemy = enemies.find((e) => e.enemyTemplateId === template.id);
+          const capturedSpawnId = matchedEnemy ? enemySpawnIds.get(matchedEnemy.id) : undefined;
+          if (capturedSpawnId) {
+            for (const eventEnemy of ctx.db.eventSpawnEnemy.by_spawn.filter(capturedSpawnId)) {
+              // This was an event enemy — increment EventContribution for this character
+              let contribFound = false;
+              for (const contrib of ctx.db.eventContribution.by_character.filter(character.id)) {
+                if (contrib.eventId === eventEnemy.eventId) {
+                  ctx.db.eventContribution.id.update({
+                    ...contrib,
+                    count: contrib.count + 1n,
+                  });
+                  contribFound = true;
+                  break;
+                }
+              }
+              // If no contribution row exists yet, insert one with count=1
+              if (!contribFound) {
+                ctx.db.eventContribution.insert({
+                  id: 0n,
+                  eventId: eventEnemy.eventId,
+                  characterId: character.id,
+                  count: 1n,
+                  regionEnteredAt: ctx.timestamp,
+                });
+              }
+              // Also increment kill_count objectives for this event
+              for (const obj of ctx.db.eventObjective.by_event.filter(eventEnemy.eventId)) {
+                if (obj.objectiveType === 'kill_count') {
+                  ctx.db.eventObjective.id.update({
+                    ...obj,
+                    currentCount: obj.currentCount + 1n,
+                  });
+                }
+              }
+            }
+          }
+
+          // REQ-032: Increment world stat tracker for threshold-triggered events
+          incrementWorldStat(ctx, 'total_enemies_killed', 1n);
         }
       }
       const eligible = participants.filter((p) => p.status !== 'dead');

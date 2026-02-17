@@ -136,6 +136,33 @@ export const registerMovementReducers = (deps: any) => {
       ensureSpawnsForLocation(ctx, location.id);
       performPassiveSearch(ctx, ctx.db.character.id.find(charId)!, location.id, appendPrivateEvent);
 
+      // AUTO-REGISTER for active world events in destination region
+      // Region entry creates EventContribution row with count=0 (rewards only if count > 0)
+      const destLocation = ctx.db.location.id.find(location.id);
+      if (destLocation) {
+        const destRegionId = destLocation.regionId;
+        for (const event of ctx.db.worldEvent.by_region.filter(destRegionId)) {
+          if (event.status !== 'active') continue;
+          // Check if character already has a contribution row for this event
+          let alreadyRegistered = false;
+          for (const contrib of ctx.db.eventContribution.by_character.filter(charId)) {
+            if (contrib.eventId === event.id) {
+              alreadyRegistered = true;
+              break;
+            }
+          }
+          if (!alreadyRegistered) {
+            ctx.db.eventContribution.insert({
+              id: 0n,
+              eventId: event.id,
+              characterId: charId,
+              count: 0n,
+              regionEnteredAt: ctx.timestamp,
+            });
+          }
+        }
+      }
+
       // AUTO-JOIN: If character's group has active combat at this location, join it
       const movedChar = ctx.db.character.id.find(charId)!;
       const gId = effectiveGroupId(movedChar);

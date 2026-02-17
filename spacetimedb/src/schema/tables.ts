@@ -1638,7 +1638,7 @@ export const WorldStatTracker = table(
   },
   {
     id: t.u64().primaryKey().autoInc(),
-    statKey: t.string().unique(),        // e.g. 'total_enemies_killed', 'total_quests_completed'
+    statKey: t.string(),                 // e.g. 'total_enemies_killed', 'total_quests_completed'
     currentValue: t.u64(),               // running counter
     fireThreshold: t.u64(),              // when currentValue crosses this, auto-fire eventKeyToFire
     eventKeyToFire: t.string(),          // key into WORLD_EVENT_DEFINITIONS
