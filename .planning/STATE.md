@@ -359,9 +359,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 121 | Update food item descriptions to communicate buff effect before eating - client-side description generation from wellFedBuffType/Magnitude/Duration fields in inventory and vendor tooltips | 2026-02-17 | bc6981a | [121-update-food-item-descriptions-to-clearly](./quick/121-update-food-item-descriptions-to-clearly/) |
 | 123 | Implement chance-based flee mechanic - flee_combat sets 'fleeing' status, combat_loop resolves on next tick with danger-scaled roll (starter ~87%, dungeon ~53%), success removes aggro/pets and logs success, failure reverts to active for retry | 2026-02-17 | a9ca67c | [123-implement-chance-based-flee-mechanic-fle](./quick/123-implement-chance-based-flee-mechanic-fle/) |
 | 125 | Add /createitem <quality> admin command - backend create_test_item reducer picks random gear slot, inserts item with correct affixes for quality tier; client /createitem wired with client-side tier guard | 2026-02-17 | de2bc80 | [125-add-createitem-quality-admin-command-tha](./quick/125-add-createitem-quality-admin-command-tha/) |
+| 126 | Fix beneficial spells ignoring player target - removed utility-only gate in onHotbarClick so heals/buffs/cleanses pass defensiveTargetId for all ability kinds | 2026-02-17 | 909f6e9 | [126-fix-beneficial-spells-ignoring-player-ta](./quick/126-fix-beneficial-spells-ignoring-player-ta/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick-125: Added /createitem <quality> admin command. Backend create_test_item reducer in commands.ts with generateAffixData/buildDisplayName, client /createitem branch in useCommands.ts. Published module, regenerated bindings. Still paused at: 14-04-PLAN.md Task 3 (human-verify checkpoint)
+Last activity: 2026-02-17 - Completed quick-126: Fixed beneficial spells ignoring player target. Removed slot.kind === 'utility' gate in onHotbarClick, now all non-special abilities pass defensiveTargetId.value ?? undefined to useAbility. Still paused at: 14-04-PLAN.md Task 3 (human-verify checkpoint)
