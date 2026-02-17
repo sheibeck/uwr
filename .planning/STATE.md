@@ -1,8 +1,8 @@
 # Project State
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
-**Last updated:** 2026-02-16
-**Status:** Completed quick task 105: Fix help window extending under footer - raised HelpOverlay z-index and constrained height to prevent content from rendering behind footer.
+**Last updated:** 2026-02-17
+**Status:** Completed quick task 106: Seed more NPCs with dialog chains and dialogue abilities - added 9 new NPCs across all 3 regions with multi-tier dialogue trees (44 options), affinity-gated backstories, and 9 kill quests spanning level ranges 1-8.
 
 ---
 
@@ -167,6 +167,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 19-npc-interactions | 02 | 3min | 1 | 14 |
 | Phase quick-99 P01 | 1 | 1 tasks | 1 files |
 | Phase quick-103 P01 | 67 | 1 tasks | 1 files |
+| Phase quick-106 P01 | 4 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -306,9 +307,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 103 | Remove defunct dialog options from Journal - filtered empty-playerText root greeting nodes from NPC dialogue options display while preserving /hail greeting functionality | 2026-02-16 | 55de49a | [103-remove-defunct-dialog-options-from-journ](./quick/103-remove-defunct-dialog-options-from-journ/) |
 | 104 | Add Help button with tutorial overlay - full-screen help overlay explaining game basics, UI interactions, travel costs, and location icons, accessible from action bar | 2026-02-16 | a191d13 | [104-we-need-a-help-button-in-the-action-butt](./quick/104-we-need-a-help-button-in-the-action-butt/) |
 | 105 | Fix HelpOverlay z-index and height constraints - overlay renders above footer at z-index 10001 with calc-based height constraint, moved after footer in DOM for correct stacking | 2026-02-16 | a5f7288 | [105-the-help-window-is-too-tall-and-is-going](./quick/105-the-help-window-is-too-tall-and-is-going/) |
+| 106 | Seed more NPCs with dialog chains and dialogue abilities - added 9 new NPCs across all 3 regions with multi-tier dialogue trees (44 options), affinity-gated backstories, and 9 kill quests spanning level ranges 1-8 | 2026-02-17 | 5f96724 | [106-seed-more-npcs-with-dialog-chains-and-di](./quick/106-seed-more-npcs-with-dialog-chains-and-di/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-16 - Completed quick-105: Fixed HelpOverlay z-index and height constraints for proper rendering above footer.
+Last activity: 2026-02-17 - Completed quick-106: Seed more NPCs with dialog chains and dialogue abilities.
