@@ -13,6 +13,7 @@ import {
 export default __t.object("SellItem", {
   characterId: __t.u64(),
   itemInstanceId: __t.u64(),
+  npcId: __t.u64(),
 });
 
 

@@ -30,4 +30,5 @@ export default __t.row({
   baseDamage: __t.u64(),
   xpReward: __t.u64(),
   factionId: __t.option(__t.u64()),
+  isBoss: __t.option(__t.bool()),
 });

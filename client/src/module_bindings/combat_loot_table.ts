@@ -17,4 +17,7 @@ export default __t.row({
   characterId: __t.u64(),
   itemTemplateId: __t.u64(),
   createdAt: __t.timestamp(),
+  qualityTier: __t.option(__t.string()),
+  affixDataJson: __t.option(__t.string()),
+  isNamed: __t.option(__t.bool()),
 });

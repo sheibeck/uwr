@@ -40,22 +40,13 @@ export interface LegendaryDef {
 export const PREFIXES: AffixDef[] = [
   // --- Weapon-slot offensive prefixes ---
   {
-    key: 'mighty',
-    name: 'Mighty',
-    type: 'prefix',
-    slots: ['mainHand', 'offHand'],
-    statKey: 'strBonus',
-    minTier: 1,
-    magnitudeByTier: [1n, 2n, 3n, 4n],
-  },
-  {
     key: 'fierce',
     name: 'Fierce',
     type: 'prefix',
     slots: ['mainHand', 'offHand'],
     statKey: 'strBonus',
-    minTier: 2,
-    magnitudeByTier: [0n, 2n, 3n, 4n],
+    minTier: 1,
+    magnitudeByTier: [1n, 2n, 3n, 4n],
   },
   {
     key: 'swift',
@@ -347,11 +338,11 @@ export const LEGENDARIES: LegendaryDef[] = [
     slot: 'mainHand',
     affixes: [
       {
-        affixKey: 'mighty',
+        affixKey: 'fierce',
         type: 'prefix',
         statKey: 'strBonus',
         magnitude: 4n,
-        affixName: 'Mighty',
+        affixName: 'Fierce',
       },
       {
         affixKey: 'of_power',

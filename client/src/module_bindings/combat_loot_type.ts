@@ -17,6 +17,9 @@ export default __t.object("CombatLoot", {
   characterId: __t.u64(),
   itemTemplateId: __t.u64(),
   createdAt: __t.timestamp(),
+  qualityTier: __t.option(__t.string()),
+  affixDataJson: __t.option(__t.string()),
+  isNamed: __t.option(__t.bool()),
 });
 
 

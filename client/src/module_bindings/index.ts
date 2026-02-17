@@ -60,6 +60,8 @@ import DisconnectLogoutReducer from "./disconnect_logout_reducer";
 export { DisconnectLogoutReducer };
 import SetActiveCharacterReducer from "./set_active_character_reducer";
 export { SetActiveCharacterReducer };
+import ClearActiveCharacterReducer from "./clear_active_character_reducer";
+export { ClearActiveCharacterReducer };
 import CreateCharacterReducer from "./create_character_reducer";
 export { CreateCharacterReducer };
 import BindLocationReducer from "./bind_location_reducer";
@@ -100,8 +102,6 @@ import StartGatherResourceReducer from "./start_gather_resource_reducer";
 export { StartGatherResourceReducer };
 import FinishGatherReducer from "./finish_gather_reducer";
 export { FinishGatherReducer };
-import RespawnResourceReducer from "./respawn_resource_reducer";
-export { RespawnResourceReducer };
 import ResearchRecipesReducer from "./research_recipes_reducer";
 export { ResearchRecipesReducer };
 import CraftRecipeReducer from "./craft_recipe_reducer";
@@ -134,6 +134,8 @@ import SyncNpcQuestContentReducer from "./sync_npc_quest_content_reducer";
 export { SyncNpcQuestContentReducer };
 import SyncAllContentReducer from "./sync_all_content_reducer";
 export { SyncAllContentReducer };
+import SalvageItemReducer from "./salvage_item_reducer";
+export { SalvageItemReducer };
 import MoveCharacterReducer from "./move_character_reducer";
 export { MoveCharacterReducer };
 import SubmitCommandReducer from "./submit_command_reducer";
@@ -142,6 +144,8 @@ import SayReducer from "./say_reducer";
 export { SayReducer };
 import HailNpcReducer from "./hail_npc_reducer";
 export { HailNpcReducer };
+import CreateTestItemReducer from "./create_test_item_reducer";
+export { CreateTestItemReducer };
 import GroupMessageReducer from "./group_message_reducer";
 export { GroupMessageReducer };
 import LevelCharacterReducer from "./level_character_reducer";
@@ -196,10 +200,40 @@ import TickCastsReducer from "./tick_casts_reducer";
 export { TickCastsReducer };
 import CombatLoopReducer from "./combat_loop_reducer";
 export { CombatLoopReducer };
-import DecayHungerReducer from "./decay_hunger_reducer";
-export { DecayHungerReducer };
+import LootCorpseItemReducer from "./loot_corpse_item_reducer";
+export { LootCorpseItemReducer };
+import LootAllCorpseReducer from "./loot_all_corpse_reducer";
+export { LootAllCorpseReducer };
+import InitiateResurrectReducer from "./initiate_resurrect_reducer";
+export { InitiateResurrectReducer };
+import AcceptResurrectReducer from "./accept_resurrect_reducer";
+export { AcceptResurrectReducer };
+import DeclineResurrectReducer from "./decline_resurrect_reducer";
+export { DeclineResurrectReducer };
+import InitiateCorpseSummonReducer from "./initiate_corpse_summon_reducer";
+export { InitiateCorpseSummonReducer };
+import AcceptCorpseSummonReducer from "./accept_corpse_summon_reducer";
+export { AcceptCorpseSummonReducer };
+import DeclineCorpseSummonReducer from "./decline_corpse_summon_reducer";
+export { DeclineCorpseSummonReducer };
+import SpawnCorpseReducer from "./spawn_corpse_reducer";
+export { SpawnCorpseReducer };
 import EatFoodReducer from "./eat_food_reducer";
 export { EatFoodReducer };
+import ChooseDialogueOptionReducer from "./choose_dialogue_option_reducer";
+export { ChooseDialogueOptionReducer };
+import GiveGiftToNpcReducer from "./give_gift_to_npc_reducer";
+export { GiveGiftToNpcReducer };
+import LootQuestItemReducer from "./loot_quest_item_reducer";
+export { LootQuestItemReducer };
+import PullNamedEnemyReducer from "./pull_named_enemy_reducer";
+export { PullNamedEnemyReducer };
+import ChoosePerkReducer from "./choose_perk_reducer";
+export { ChoosePerkReducer };
+import GrantTestRenownReducer from "./grant_test_renown_reducer";
+export { GrantTestRenownReducer };
+import GrantTestAchievementReducer from "./grant_test_achievement_reducer";
+export { GrantTestAchievementReducer };
 import SavePanelLayoutReducer from "./save_panel_layout_reducer";
 export { SavePanelLayoutReducer };
 
@@ -210,6 +244,8 @@ import AbilityCooldownRow from "./ability_cooldown_table";
 export { AbilityCooldownRow };
 import AbilityTemplateRow from "./ability_template_table";
 export { AbilityTemplateRow };
+import AchievementRow from "./achievement_table";
+export { AchievementRow };
 import AggroEntryRow from "./aggro_entry_table";
 export { AggroEntryRow };
 import CastTickRow from "./cast_tick_table";
@@ -246,6 +282,10 @@ import CombatResultRow from "./combat_result_table";
 export { CombatResultRow };
 import CommandRow from "./command_table";
 export { CommandRow };
+import CorpseRow from "./corpse_table";
+export { CorpseRow };
+import CorpseItemRow from "./corpse_item_table";
+export { CorpseItemRow };
 import DayNightTickRow from "./day_night_tick_table";
 export { DayNightTickRow };
 import DisconnectLogoutTickRow from "./disconnect_logout_tick_table";
@@ -292,10 +332,8 @@ import HotTickRow from "./hot_tick_table";
 export { HotTickRow };
 import HotbarSlotRow from "./hotbar_slot_table";
 export { HotbarSlotRow };
-import HungerRow from "./hunger_table";
-export { HungerRow };
-import HungerDecayTickRow from "./hunger_decay_tick_table";
-export { HungerDecayTickRow };
+import ItemAffixRow from "./item_affix_table";
+export { ItemAffixRow };
 import ItemCooldownRow from "./item_cooldown_table";
 export { ItemCooldownRow };
 import ItemInstanceRow from "./item_instance_table";
@@ -330,8 +368,6 @@ import MyGroupInvitesRow from "./my_group_invites_table";
 export { MyGroupInvitesRow };
 import MyGroupMembersRow from "./my_group_members_table";
 export { MyGroupMembersRow };
-import MyHungerRow from "./my_hunger_table";
-export { MyHungerRow };
 import MyLocationEventsRow from "./my_location_events_table";
 export { MyLocationEventsRow };
 import MyNpcDialogRow from "./my_npc_dialog_table";
@@ -344,10 +380,20 @@ import MyPrivateEventsRow from "./my_private_events_table";
 export { MyPrivateEventsRow };
 import MyQuestsRow from "./my_quests_table";
 export { MyQuestsRow };
+import NamedEnemyRow from "./named_enemy_table";
+export { NamedEnemyRow };
 import NpcRow from "./npc_table";
 export { NpcRow };
+import NpcAffinityRow from "./npc_affinity_table";
+export { NpcAffinityRow };
 import NpcDialogRow from "./npc_dialog_table";
 export { NpcDialogRow };
+import NpcDialogueOptionRow from "./npc_dialogue_option_table";
+export { NpcDialogueOptionRow };
+import NpcDialogueVisitedRow from "./npc_dialogue_visited_table";
+export { NpcDialogueVisitedRow };
+import PendingSpellCastRow from "./pending_spell_cast_table";
+export { PendingSpellCastRow };
 import PlayerRow from "./player_table";
 export { PlayerRow };
 import PullStateRow from "./pull_state_table";
@@ -356,6 +402,8 @@ import PullTickRow from "./pull_tick_table";
 export { PullTickRow };
 import QuestInstanceRow from "./quest_instance_table";
 export { QuestInstanceRow };
+import QuestItemRow from "./quest_item_table";
+export { QuestItemRow };
 import QuestTemplateRow from "./quest_template_table";
 export { QuestTemplateRow };
 import RaceRow from "./race_table";
@@ -366,18 +414,26 @@ import RecipeTemplateRow from "./recipe_template_table";
 export { RecipeTemplateRow };
 import RegionRow from "./region_table";
 export { RegionRow };
+import RenownRow from "./renown_table";
+export { RenownRow };
+import RenownPerkRow from "./renown_perk_table";
+export { RenownPerkRow };
+import RenownServerFirstRow from "./renown_server_first_table";
+export { RenownServerFirstRow };
 import ResourceGatherRow from "./resource_gather_table";
 export { ResourceGatherRow };
 import ResourceGatherTickRow from "./resource_gather_tick_table";
 export { ResourceGatherTickRow };
 import ResourceNodeRow from "./resource_node_table";
 export { ResourceNodeRow };
-import ResourceRespawnTickRow from "./resource_respawn_tick_table";
-export { ResourceRespawnTickRow };
+import SearchResultRow from "./search_result_table";
+export { SearchResultRow };
 import TradeItemRow from "./trade_item_table";
 export { TradeItemRow };
 import TradeSessionRow from "./trade_session_table";
 export { TradeSessionRow };
+import TravelCooldownRow from "./travel_cooldown_table";
+export { TravelCooldownRow };
 import UiPanelLayoutRow from "./ui_panel_layout_table";
 export { UiPanelLayoutRow };
 import UserRow from "./user_table";
@@ -392,10 +448,16 @@ import AbilityCooldown from "./ability_cooldown_type";
 export { AbilityCooldown };
 import AbilityTemplate from "./ability_template_type";
 export { AbilityTemplate };
+import AcceptCorpseSummon from "./accept_corpse_summon_type";
+export { AcceptCorpseSummon };
 import AcceptFriendRequest from "./accept_friend_request_type";
 export { AcceptFriendRequest };
 import AcceptGroupInvite from "./accept_group_invite_type";
 export { AcceptGroupInvite };
+import AcceptResurrect from "./accept_resurrect_type";
+export { AcceptResurrect };
+import Achievement from "./achievement_type";
+export { Achievement };
 import AddTradeItem from "./add_trade_item_type";
 export { AddTradeItem };
 import AggroEntry from "./aggro_entry_type";
@@ -418,6 +480,12 @@ import CharacterLogout from "./character_logout_type";
 export { CharacterLogout };
 import CharacterLogoutTick from "./character_logout_tick_type";
 export { CharacterLogoutTick };
+import ChooseDialogueOption from "./choose_dialogue_option_type";
+export { ChooseDialogueOption };
+import ChoosePerk from "./choose_perk_type";
+export { ChoosePerk };
+import ClearActiveCharacter from "./clear_active_character_type";
+export { ClearActiveCharacter };
 import CombatEncounter from "./combat_encounter_type";
 export { CombatEncounter };
 import CombatEnemy from "./combat_enemy_type";
@@ -446,6 +514,10 @@ import Command from "./command_type";
 export { Command };
 import ConsolidateStacks from "./consolidate_stacks_type";
 export { ConsolidateStacks };
+import Corpse from "./corpse_type";
+export { Corpse };
+import CorpseItem from "./corpse_item_type";
+export { CorpseItem };
 import CraftRecipe from "./craft_recipe_type";
 export { CraftRecipe };
 import CreateCharacter from "./create_character_type";
@@ -454,10 +526,14 @@ import CreateGroup from "./create_group_type";
 export { CreateGroup };
 import CreateItemTemplate from "./create_item_template_type";
 export { CreateItemTemplate };
+import CreateTestItem from "./create_test_item_type";
+export { CreateTestItem };
 import DayNightTick from "./day_night_tick_type";
 export { DayNightTick };
-import DecayHunger from "./decay_hunger_type";
-export { DecayHunger };
+import DeclineCorpseSummon from "./decline_corpse_summon_type";
+export { DeclineCorpseSummon };
+import DeclineResurrect from "./decline_resurrect_type";
+export { DeclineResurrect };
 import DeleteCharacter from "./delete_character_type";
 export { DeleteCharacter };
 import DeleteItem from "./delete_item_type";
@@ -508,8 +584,14 @@ import Friend from "./friend_type";
 export { Friend };
 import FriendRequest from "./friend_request_type";
 export { FriendRequest };
+import GiveGiftToNpc from "./give_gift_to_npc_type";
+export { GiveGiftToNpc };
 import GrantItem from "./grant_item_type";
 export { GrantItem };
+import GrantTestAchievement from "./grant_test_achievement_type";
+export { GrantTestAchievement };
+import GrantTestRenown from "./grant_test_renown_type";
+export { GrantTestRenown };
 import Group from "./group_type";
 export { Group };
 import GroupInvite from "./group_invite_type";
@@ -526,14 +608,16 @@ import HotTick from "./hot_tick_type";
 export { HotTick };
 import HotbarSlot from "./hotbar_slot_type";
 export { HotbarSlot };
-import Hunger from "./hunger_type";
-export { Hunger };
-import HungerDecayTick from "./hunger_decay_tick_type";
-export { HungerDecayTick };
 import Init from "./init_type";
 export { Init };
+import InitiateCorpseSummon from "./initiate_corpse_summon_type";
+export { InitiateCorpseSummon };
+import InitiateResurrect from "./initiate_resurrect_type";
+export { InitiateResurrect };
 import InviteToGroup from "./invite_to_group_type";
 export { InviteToGroup };
+import ItemAffix from "./item_affix_type";
+export { ItemAffix };
 import ItemCooldown from "./item_cooldown_type";
 export { ItemCooldown };
 import ItemInstance from "./item_instance_type";
@@ -558,6 +642,12 @@ import LoginEmail from "./login_email_type";
 export { LoginEmail };
 import Logout from "./logout_type";
 export { Logout };
+import LootAllCorpse from "./loot_all_corpse_type";
+export { LootAllCorpse };
+import LootCorpseItem from "./loot_corpse_item_type";
+export { LootCorpseItem };
+import LootQuestItem from "./loot_quest_item_type";
+export { LootQuestItem };
 import LootTable from "./loot_table_type";
 export { LootTable };
 import LootTableEntry from "./loot_table_entry_type";
@@ -582,8 +672,6 @@ import MyGroupInvites from "./my_group_invites_type";
 export { MyGroupInvites };
 import MyGroupMembers from "./my_group_members_type";
 export { MyGroupMembers };
-import MyHunger from "./my_hunger_type";
-export { MyHunger };
 import MyLocationEvents from "./my_location_events_type";
 export { MyLocationEvents };
 import MyNpcDialog from "./my_npc_dialog_type";
@@ -596,26 +684,40 @@ import MyPrivateEvents from "./my_private_events_type";
 export { MyPrivateEvents };
 import MyQuests from "./my_quests_type";
 export { MyQuests };
+import NamedEnemy from "./named_enemy_type";
+export { NamedEnemy };
 import Npc from "./npc_type";
 export { Npc };
+import NpcAffinity from "./npc_affinity_type";
+export { NpcAffinity };
 import NpcDialog from "./npc_dialog_type";
 export { NpcDialog };
+import NpcDialogueOption from "./npc_dialogue_option_type";
+export { NpcDialogueOption };
+import NpcDialogueVisited from "./npc_dialogue_visited_type";
+export { NpcDialogueVisited };
 import OfferTrade from "./offer_trade_type";
 export { OfferTrade };
 import OnConnect from "./on_connect_type";
 export { OnConnect };
 import OnDisconnect from "./on_disconnect_type";
 export { OnDisconnect };
+import PendingSpellCast from "./pending_spell_cast_type";
+export { PendingSpellCast };
 import Player from "./player_type";
 export { Player };
 import PromoteGroupLeader from "./promote_group_leader_type";
 export { PromoteGroupLeader };
+import PullNamedEnemy from "./pull_named_enemy_type";
+export { PullNamedEnemy };
 import PullState from "./pull_state_type";
 export { PullState };
 import PullTick from "./pull_tick_type";
 export { PullTick };
 import QuestInstance from "./quest_instance_type";
 export { QuestInstance };
+import QuestItem from "./quest_item_type";
+export { QuestItem };
 import QuestTemplate from "./quest_template_type";
 export { QuestTemplate };
 import Race from "./race_type";
@@ -636,6 +738,12 @@ import RemoveFriend from "./remove_friend_type";
 export { RemoveFriend };
 import RemoveTradeItem from "./remove_trade_item_type";
 export { RemoveTradeItem };
+import Renown from "./renown_type";
+export { Renown };
+import RenownPerk from "./renown_perk_type";
+export { RenownPerk };
+import RenownServerFirst from "./renown_server_first_type";
+export { RenownServerFirst };
 import ResearchRecipes from "./research_recipes_type";
 export { ResearchRecipes };
 import ResolvePull from "./resolve_pull_type";
@@ -646,18 +754,18 @@ import ResourceGatherTick from "./resource_gather_tick_type";
 export { ResourceGatherTick };
 import ResourceNode from "./resource_node_type";
 export { ResourceNode };
-import ResourceRespawnTick from "./resource_respawn_tick_type";
-export { ResourceRespawnTick };
 import RespawnCharacter from "./respawn_character_type";
 export { RespawnCharacter };
 import RespawnEnemy from "./respawn_enemy_type";
 export { RespawnEnemy };
-import RespawnResource from "./respawn_resource_type";
-export { RespawnResource };
+import SalvageItem from "./salvage_item_type";
+export { SalvageItem };
 import SavePanelLayout from "./save_panel_layout_type";
 export { SavePanelLayout };
 import Say from "./say_type";
 export { Say };
+import SearchResult from "./search_result_type";
+export { SearchResult };
 import SellAllJunk from "./sell_all_junk_type";
 export { SellAllJunk };
 import SellItem from "./sell_item_type";
@@ -678,6 +786,8 @@ import SetGroupPuller from "./set_group_puller_type";
 export { SetGroupPuller };
 import SetHotbarSlot from "./set_hotbar_slot_type";
 export { SetHotbarSlot };
+import SpawnCorpse from "./spawn_corpse_type";
+export { SpawnCorpse };
 import SplitStack from "./split_stack_type";
 export { SplitStack };
 import StartCombat from "./start_combat_type";
@@ -722,6 +832,8 @@ import TradeItem from "./trade_item_type";
 export { TradeItem };
 import TradeSession from "./trade_session_type";
 export { TradeSession };
+import TravelCooldown from "./travel_cooldown_type";
+export { TravelCooldown };
 import UiPanelLayout from "./ui_panel_layout_type";
 export { UiPanelLayout };
 import UnequipItem from "./unequip_item_type";
@@ -772,6 +884,20 @@ const tablesSchema = __schema(
       { name: 'ability_template_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, AbilityTemplateRow),
+  __table({
+    name: 'achievement',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'achievement_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AchievementRow),
   __table({
     name: 'aggro_entry',
     indexes: [
@@ -1051,6 +1177,37 @@ const tablesSchema = __schema(
       { name: 'command_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CommandRow),
+  __table({
+    name: 'corpse',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_location', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'corpse_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CorpseRow),
+  __table({
+    name: 'corpse_item',
+    indexes: [
+      { name: 'by_corpse', algorithm: 'btree', columns: [
+        'corpseId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'corpse_item_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CorpseItemRow),
   __table({
     name: 'day_night_tick',
     indexes: [
@@ -1362,30 +1519,19 @@ const tablesSchema = __schema(
     ],
   }, HotbarSlotRow),
   __table({
-    name: 'hunger',
+    name: 'item_affix',
     indexes: [
-      { name: 'characterId', algorithm: 'btree', columns: [
-        'characterId',
-      ] },
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
-    ],
-    constraints: [
-      { name: 'hunger_id_key', constraint: 'unique', columns: ['id'] },
-    ],
-  }, HungerRow),
-  __table({
-    name: 'hunger_decay_tick',
-    indexes: [
-      { name: 'scheduledId', algorithm: 'btree', columns: [
-        'scheduledId',
+      { name: 'by_instance', algorithm: 'btree', columns: [
+        'itemInstanceId',
       ] },
     ],
     constraints: [
-      { name: 'hunger_decay_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+      { name: 'item_affix_id_key', constraint: 'unique', columns: ['id'] },
     ],
-  }, HungerDecayTickRow),
+  }, ItemAffixRow),
   __table({
     name: 'item_cooldown',
     indexes: [
@@ -1498,6 +1644,23 @@ const tablesSchema = __schema(
     ],
   }, LootTableEntryRow),
   __table({
+    name: 'named_enemy',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_location', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'named_enemy_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, NamedEnemyRow),
+  __table({
     name: 'npc',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1511,6 +1674,23 @@ const tablesSchema = __schema(
       { name: 'npc_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, NpcRow),
+  __table({
+    name: 'npc_affinity',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_npc', algorithm: 'btree', columns: [
+        'npcId',
+      ] },
+    ],
+    constraints: [
+      { name: 'npc_affinity_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, NpcAffinityRow),
   __table({
     name: 'npc_dialog',
     indexes: [
@@ -1528,6 +1708,51 @@ const tablesSchema = __schema(
       { name: 'npc_dialog_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, NpcDialogRow),
+  __table({
+    name: 'npc_dialogue_option',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_npc', algorithm: 'btree', columns: [
+        'npcId',
+      ] },
+    ],
+    constraints: [
+      { name: 'npc_dialogue_option_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, NpcDialogueOptionRow),
+  __table({
+    name: 'npc_dialogue_visited',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'npc_dialogue_visited_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, NpcDialogueVisitedRow),
+  __table({
+    name: 'pending_spell_cast',
+    indexes: [
+      { name: 'by_caster', algorithm: 'btree', columns: [
+        'casterCharacterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_target', algorithm: 'btree', columns: [
+        'targetCharacterId',
+      ] },
+    ],
+    constraints: [
+      { name: 'pending_spell_cast_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, PendingSpellCastRow),
   __table({
     name: 'player',
     indexes: [
@@ -1594,6 +1819,23 @@ const tablesSchema = __schema(
     ],
   }, QuestInstanceRow),
   __table({
+    name: 'quest_item',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_location', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'quest_item_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, QuestItemRow),
+  __table({
     name: 'quest_template',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1658,6 +1900,48 @@ const tablesSchema = __schema(
     ],
   }, RegionRow),
   __table({
+    name: 'renown',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'renown_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RenownRow),
+  __table({
+    name: 'renown_perk',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'renown_perk_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RenownPerkRow),
+  __table({
+    name: 'renown_server_first',
+    indexes: [
+      { name: 'by_category', algorithm: 'btree', columns: [
+        'category',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'renown_server_first_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RenownServerFirstRow),
+  __table({
     name: 'resource_gather',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1685,6 +1969,9 @@ const tablesSchema = __schema(
   __table({
     name: 'resource_node',
     indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
@@ -1697,16 +1984,19 @@ const tablesSchema = __schema(
     ],
   }, ResourceNodeRow),
   __table({
-    name: 'resource_respawn_tick',
+    name: 'search_result',
     indexes: [
-      { name: 'scheduledId', algorithm: 'btree', columns: [
-        'scheduledId',
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
       ] },
     ],
     constraints: [
-      { name: 'resource_respawn_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+      { name: 'search_result_id_key', constraint: 'unique', columns: ['id'] },
     ],
-  }, ResourceRespawnTickRow),
+  }, SearchResultRow),
   __table({
     name: 'trade_item',
     indexes: [
@@ -1741,6 +2031,20 @@ const tablesSchema = __schema(
       { name: 'trade_session_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, TradeSessionRow),
+  __table({
+    name: 'travel_cooldown',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'travel_cooldown_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, TravelCooldownRow),
   __table({
     name: 'ui_panel_layout',
     indexes: [
@@ -1858,13 +2162,6 @@ const tablesSchema = __schema(
     ],
   }, MyGroupMembersRow),
   __table({
-    name: 'my_hunger',
-    indexes: [
-    ],
-    constraints: [
-    ],
-  }, MyHungerRow),
-  __table({
     name: 'my_location_events',
     indexes: [
     ],
@@ -1921,6 +2218,7 @@ const reducersSchema = __reducers(
   __reducerSchema("logout", LogoutReducer),
   __reducerSchema("disconnect_logout", DisconnectLogoutReducer),
   __reducerSchema("set_active_character", SetActiveCharacterReducer),
+  __reducerSchema("clear_active_character", ClearActiveCharacterReducer),
   __reducerSchema("create_character", CreateCharacterReducer),
   __reducerSchema("bind_location", BindLocationReducer),
   __reducerSchema("delete_character", DeleteCharacterReducer),
@@ -1941,7 +2239,6 @@ const reducersSchema = __reducers(
   __reducerSchema("use_ability", UseAbilityReducer),
   __reducerSchema("start_gather_resource", StartGatherResourceReducer),
   __reducerSchema("finish_gather", FinishGatherReducer),
-  __reducerSchema("respawn_resource", RespawnResourceReducer),
   __reducerSchema("research_recipes", ResearchRecipesReducer),
   __reducerSchema("craft_recipe", CraftRecipeReducer),
   __reducerSchema("use_item", UseItemReducer),
@@ -1958,10 +2255,12 @@ const reducersSchema = __reducers(
   __reducerSchema("sync_recipe_templates", SyncRecipeTemplatesReducer),
   __reducerSchema("sync_npc_quest_content", SyncNpcQuestContentReducer),
   __reducerSchema("sync_all_content", SyncAllContentReducer),
+  __reducerSchema("salvage_item", SalvageItemReducer),
   __reducerSchema("move_character", MoveCharacterReducer),
   __reducerSchema("submit_command", SubmitCommandReducer),
   __reducerSchema("say", SayReducer),
   __reducerSchema("hail_npc", HailNpcReducer),
+  __reducerSchema("create_test_item", CreateTestItemReducer),
   __reducerSchema("group_message", GroupMessageReducer),
   __reducerSchema("level_character", LevelCharacterReducer),
   __reducerSchema("whisper", WhisperReducer),
@@ -1989,8 +2288,23 @@ const reducersSchema = __reducers(
   __reducerSchema("tick_hot", TickHotReducer),
   __reducerSchema("tick_casts", TickCastsReducer),
   __reducerSchema("combat_loop", CombatLoopReducer),
-  __reducerSchema("decay_hunger", DecayHungerReducer),
+  __reducerSchema("loot_corpse_item", LootCorpseItemReducer),
+  __reducerSchema("loot_all_corpse", LootAllCorpseReducer),
+  __reducerSchema("initiate_resurrect", InitiateResurrectReducer),
+  __reducerSchema("accept_resurrect", AcceptResurrectReducer),
+  __reducerSchema("decline_resurrect", DeclineResurrectReducer),
+  __reducerSchema("initiate_corpse_summon", InitiateCorpseSummonReducer),
+  __reducerSchema("accept_corpse_summon", AcceptCorpseSummonReducer),
+  __reducerSchema("decline_corpse_summon", DeclineCorpseSummonReducer),
+  __reducerSchema("spawn_corpse", SpawnCorpseReducer),
   __reducerSchema("eat_food", EatFoodReducer),
+  __reducerSchema("choose_dialogue_option", ChooseDialogueOptionReducer),
+  __reducerSchema("give_gift_to_npc", GiveGiftToNpcReducer),
+  __reducerSchema("loot_quest_item", LootQuestItemReducer),
+  __reducerSchema("pull_named_enemy", PullNamedEnemyReducer),
+  __reducerSchema("choose_perk", ChoosePerkReducer),
+  __reducerSchema("grant_test_renown", GrantTestRenownReducer),
+  __reducerSchema("grant_test_achievement", GrantTestAchievementReducer),
   __reducerSchema("save_panel_layout", SavePanelLayoutReducer),
 );
 

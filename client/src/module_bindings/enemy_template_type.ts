@@ -30,6 +30,7 @@ export default __t.object("EnemyTemplate", {
   baseDamage: __t.u64(),
   xpReward: __t.u64(),
   factionId: __t.option(__t.u64()),
+  isBoss: __t.option(__t.bool()),
 });
 
 
