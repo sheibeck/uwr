@@ -154,11 +154,18 @@ export function performPassiveSearch(
 
   // Spawn personal resource nodes if resources found
   if (foundResources) {
-    const nodeCount = 2 + Number(seed % 2n); // 2 or 3 nodes
+    let nodeCount: number;
+    if (resourceRoll >= 85n) {
+      nodeCount = 3;
+    } else if (resourceRoll >= 75n) {
+      nodeCount = 2;
+    } else {
+      nodeCount = 1; // roll 65-74
+    }
     for (let i = 0; i < nodeCount; i += 1) {
       spawnResourceNode(ctx, locationId, character.id, BigInt(i) * 1000n);
     }
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'move',
-      'You notice some hidden resources in the area.');
+      'You discover some resources.');
   }
 }

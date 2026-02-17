@@ -21,12 +21,6 @@
       <div :style="styles.gridSectionLabel">SEARCH</div>
       <div :style="styles.gridWrap">
         <div
-          v-if="searchResult.foundResources"
-          :style="{ ...styles.gridTile, color: '#60a5fa' }"
-        >
-          Hidden resources detected nearby
-        </div>
-        <div
           v-if="searchResult.foundQuestItem"
           :style="{ ...styles.gridTile, color: '#fbbf24' }"
         >
@@ -39,7 +33,7 @@
           A powerful presence lurks here
         </div>
         <div
-          v-if="!searchResult.foundResources && !searchResult.foundQuestItem && !searchResult.foundNamedEnemy"
+          v-if="!searchResult.foundQuestItem && !searchResult.foundNamedEnemy"
           :style="{ ...styles.gridTile, opacity: 0.5 }"
         >
           Nothing unusual detected
