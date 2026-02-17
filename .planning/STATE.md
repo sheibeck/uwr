@@ -77,7 +77,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 33. Scheduled reducer per-user data must use public tables, not private tables + views — views don't re-evaluate reliably for scheduled reducer inserts (quick-35)
 34. All abilities with power > 0n use ONLY hybrid formula (no weaponComponent) — fixes double-dipping bug that caused 5-6x damage (3.1-04)
 35. Ability scaling constants tuned: ABILITY_STAT_SCALING_PER_POINT reduced from 2n to 1n, power base multiplier reduced from 10n to 5n — brings abilities to 15-25 damage range, stats contribute ~30-40% (3.1-05)
-36. All per-user tables except Player converted to public with client-side filtering — SpacetimeDB views have unreliable reactivity; only myPlayer view remains (identity-based filtering) (quick-46)
+36. All per-user tables except Player converted to public with client-side filtering — SpacetimeDB views have unreliable reactivity; only myPlayer view remains (identity-based filtering) (quick-46). **DO NOT revert characterEffect back to myCharacterEffects view** — quick-102/111 kept reverting this, causing recurring debuff display bug. Use tables.characterEffect + client-side relevantEffects filtering (App.vue).
 37. DoT/HoT use 50% scaling rate modifier to prevent double-dipping on multi-tick periodic effects (3.1.1-01)
 38. AoE abilities deal 65% damage per target (tunable 60-70% range); debuffs cost 25% of ability power budget (3.1.1-01)
 39. Enemy ability power scales by level only (no stats): ENEMY_BASE_POWER (10n) + enemyLevel * ENEMY_LEVEL_POWER_SCALING (5n) (3.1.2-01)
