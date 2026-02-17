@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Phase 11 (Death & Corpse System) closed as complete. Phase 14 (Loot & Gear Progression) complete. Quick tasks 144-146: robust cast bar/cooldown safety nets and auto cache-busting on deploys. Next phase: 13 (Crafting), 15 (Named NPCs), or 19-03 (NPC Interactions UI).
+**Status:** Phases 11 and 19 closed as complete. Phase 14 (Loot & Gear Progression) complete. Quick tasks 144-146: robust cast bar/cooldown safety nets and auto cache-busting on deploys. Next phase: 13 (Crafting), 15 (Named NPCs), or 20 (Perk Variety Expansion).
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 19 (NPC Interactions) in progress — 2/3 plans done (backend affinity/dialogue tables, interaction reducers); 19-03 frontend UI pending.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision.
 
 **Last completed phase:** 14 (Loot & Gear Progression) — 4/4 plans, human-verified
 **Current phase:** none — choosing next phase
-**Next action:** Begin Phase 13 (Crafting System), Phase 15 (Named NPCs), or Phase 19-03 (NPC Interactions UI)
+**Next action:** Begin Phase 13 (Crafting System), Phase 15 (Named NPCs), or Phase 20 (Perk Variety Expansion)
 
 ---
 
@@ -37,7 +37,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 11 | Death & Corpse System | Complete (2/2 plans done: backend foundation + resurrection/corpse summon; UI skipped per user decision) |
 | 12 | Overall Renown System | Complete (3/3 plans done: backend + integration + UI, human-verified) |
 | 14 | Loot & Gear Progression | Complete (4/4 plans done: schema+catalog, loot pipeline, legendary drops+salvage, client UI, human-verified) |
-| 19 | NPC Interactions | In Progress (2/? plans done: backend foundation, interaction reducers) |
+| 19 | NPC Interactions | Complete (2/2 plans done: backend affinity/dialogue + interaction reducers; UI skipped per user decision — multi-step questing via NPC dialogue is sufficient MVP) |
 
 ---
 
@@ -278,4 +278,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-17 - Phase 11 (Death & Corpse System) closed as complete. Quick 144: robust combat cast bars/cooldowns + auto cache-busting (Vite version plugin, 60s polling reload). Quick 145: /createitem autocomplete + /who command. Quick 146: pull bar, gather bar, quest-item cast bar orphan safety nets. Roadmap and STATE updated to reflect accurate project status.
+Last activity: 2026-02-17 - Phases 11 and 19 closed as complete. Quick 144: robust combat cast bars/cooldowns + auto cache-busting. Quick 145: /createitem autocomplete + /who command. Quick 146: pull/gather/quest-item cast bar orphan safety nets. ROADMAP and STATE updated to accurate project status. Next: Phase 13, 15, or 20.

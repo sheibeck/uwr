@@ -28,7 +28,7 @@
 | 16 | Travelling NPCs | None | Phase 15 | Pending |
 | 17 | World Bosses | None | Phase 16 | Pending |
 | 18 | World Events System Expansion | None | Phase 17 | Pending |
-| 19 | NPC Interactions | None | Phase 18 | In Progress |
+| 19 | NPC Interactions | None | Phase 18 | Complete (2026-02-17) |
 
 ---
 
@@ -580,12 +580,13 @@ Plans:
 
 **Goal:** Per-NPC affinity tracking with tiered relationships (Hostile to Devoted), threshold-gated dialogue options, dynamic context-aware greetings based on affinity/faction/renown, gift-giving mechanics for relationship progression, and full UI integration with affinity display and dialogue trees.
 **Depends on:** Phase 18
+**Status:** Complete (2026-02-17)
 **Plans:** 3 plans
 
 Plans:
 - [x] 19-01-PLAN.md — Backend foundation: NpcAffinity/NpcDialogueOption tables, Npc table expansion (factionId/personality/mood), affinity helper module, dialogue seed data for 3 NPCs across 4 tiers
 - [x] 19-02-PLAN.md — Backend interaction: Dynamic greetings in hailNpc, choose_dialogue_option/give_gift_to_npc reducers, conversation cooldowns, publish module and regenerate bindings
-- [ ] 19-03-PLAN.md — Frontend UI: NpcDialogPanel overhaul with affinity display and dialogue options, LocationGrid gift context menu, useGameData subscriptions, human verification
+- [x] 19-03-PLAN.md — Frontend UI: skipped per user decision; multi-step questing via NPC dialogue deemed sufficient for MVP
 
 ### Phase 20: Perk Variety Expansion
 
