@@ -1,4 +1,4 @@
-import { computed, type Ref } from 'vue';
+import { computed, watch, type Ref } from 'vue';
 import type { Infer } from 'spacetimedb';
 import {
   reducers,
@@ -740,6 +740,14 @@ export const useCombat = ({
       enemyId: enemyId ?? undefined,
     });
   };
+
+  watch(
+    () => activeCombat.value?.id?.toString() ?? null,
+    () => {
+      effectTimers.clear();
+      enemyCastTimers.clear();
+    }
+  );
 
   return {
     activeCombat,

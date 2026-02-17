@@ -1958,7 +1958,7 @@ onMounted(() => {
   window.addEventListener('mouseup', onPanelMouseUp);
   uiTimer = window.setInterval(() => {
     nowMicros.value = Date.now() * 1000 + serverClockOffset.value;
-  }, 200);
+  }, 100);
 });
 
 onBeforeUnmount(() => {

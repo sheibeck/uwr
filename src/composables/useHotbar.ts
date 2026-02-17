@@ -356,10 +356,31 @@ export const useHotbar = ({
   );
 
   watch(
+    () => activeCombat.value,
+    (newVal, oldVal) => {
+      if (!newVal && oldVal) {
+        // Combat just ended — clear all optimistic predictions
+        localCast.value = null;
+        localCooldowns.value.clear();
+        predictedCooldownReadyAt.value.clear();
+        hotbarPulseKey.value = null;
+      }
+    }
+  );
+
+  watch(
     () => nowMicros.value,
     (now) => {
       if (localCast.value && now - localCast.value.startMicros >= localCast.value.durationMicros) {
         localCast.value = null;
+      }
+      // Safety net: clear orphaned localCast if server has no active cast and local timer expired + buffer
+      if (localCast.value && !castingState.value) {
+        const elapsed = now - localCast.value.startMicros;
+        const buffer = 2_000_000; // 2 second grace period
+        if (elapsed >= localCast.value.durationMicros + buffer) {
+          localCast.value = null;
+        }
       }
       if (localCooldowns.value.size === 0) return;
       for (const [key, readyAt] of localCooldowns.value.entries()) {
