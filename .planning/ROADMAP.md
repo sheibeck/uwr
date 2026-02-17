@@ -23,7 +23,7 @@
 | 11 | Death & Corpse System | None | Phase 10 | Planned |
 | 12 | Overall Renown System | None | Phase 11 | Pending |
 | 13 | Crafting System - Weapons & Armor | None | Phase 12 | Pending |
-| 14 | Loot & Gear Progression | None | Phase 13 | Pending |
+| 14 | Loot & Gear Progression | None | Phase 13 | Planned |
 | 15 | Named NPCs | None | Phase 14 | Pending |
 | 16 | Travelling NPCs | None | Phase 15 | Pending |
 | 17 | World Bosses | None | Phase 16 | Pending |
@@ -524,12 +524,15 @@ Plans:
 
 ### Phase 14: Loot & Gear Progression - Magic item properties and affixes, gear quality tiers (common to legendary), drop tables and rarity system, endgame gear hunting loop
 
-**Goal:** [To be planned]
+**Goal:** Dropped gear has quality tiers (Common through Legendary) with prefix/suffix affixes that create emergent item identities, level-gated quality unlocks per region tier, named Legendary uniques from boss enemies, and a complete gear lifecycle of drop-equip-outgrow-salvage.
 **Depends on:** Phase 13
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 14 to break down)
+- [ ] 14-01-PLAN.md — Schema foundation: ItemAffix table, ItemInstance/CombatLoot quality fields, affix catalog data file with prefixes/suffixes/legendaries
+- [ ] 14-02-PLAN.md — Loot pipeline: quality tier rolling, affix generation at drop time, affix application at take time, getEquippedBonuses affix support
+- [ ] 14-03-PLAN.md — Named legendary drops from boss enemies, salvage_item reducer for gear recycling
+- [ ] 14-04-PLAN.md — Publish module, regenerate bindings, client UI: quality colors, affix tooltips, Epic/Legendary flash, salvage context menu, human verification
 
 ### Phase 15: Named NPCs - Unique NPC entities (not templates), NPC dialogue system, NPC-specific shops and services, NPC placement in regions
 
