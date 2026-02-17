@@ -49,6 +49,15 @@ export const PREFIXES: AffixDef[] = [
     magnitudeByTier: [1n, 2n, 3n, 4n],
   },
   {
+    key: 'fierce',
+    name: 'Fierce',
+    type: 'prefix',
+    slots: ['mainHand', 'offHand'],
+    statKey: 'strBonus',
+    minTier: 2,
+    magnitudeByTier: [0n, 2n, 3n, 4n],
+  },
+  {
     key: 'swift',
     name: 'Swift',
     type: 'prefix',
@@ -76,15 +85,6 @@ export const PREFIXES: AffixDef[] = [
     magnitudeByTier: [1n, 2n, 3n, 4n],
   },
   {
-    key: 'keen',
-    name: 'Keen',
-    type: 'prefix',
-    slots: ['mainHand', 'offHand'],
-    statKey: 'weaponBaseDamage',
-    minTier: 1,
-    magnitudeByTier: [2n, 4n, 7n, 10n],
-  },
-  {
     key: 'vampiric',
     name: 'Vampiric',
     type: 'prefix',
@@ -102,7 +102,7 @@ export const PREFIXES: AffixDef[] = [
     slots: ['chest', 'legs', 'boots', 'head', 'hands', 'wrists', 'belt'],
     statKey: 'armorClassBonus',
     minTier: 1,
-    magnitudeByTier: [1n, 2n, 3n, 5n],
+    magnitudeByTier: [1n, 2n, 3n, 4n],
   },
   {
     key: 'vital',
@@ -111,7 +111,7 @@ export const PREFIXES: AffixDef[] = [
     slots: ['chest', 'legs', 'boots', 'head', 'hands', 'wrists', 'belt'],
     statKey: 'hpBonus',
     minTier: 1,
-    magnitudeByTier: [5n, 10n, 20n, 35n],
+    magnitudeByTier: [5n, 8n, 15n, 25n],
   },
   {
     key: 'warded',
@@ -120,7 +120,7 @@ export const PREFIXES: AffixDef[] = [
     slots: ['chest', 'legs', 'boots', 'head', 'hands', 'wrists', 'belt'],
     statKey: 'magicResistanceBonus',
     minTier: 1,
-    magnitudeByTier: [1n, 2n, 4n, 6n],
+    magnitudeByTier: [1n, 2n, 3n, 5n],
   },
   {
     key: 'fortified',
@@ -129,7 +129,7 @@ export const PREFIXES: AffixDef[] = [
     slots: ['chest', 'legs', 'boots', 'head', 'hands', 'wrists', 'belt'],
     statKey: 'armorClassBonus',
     minTier: 2,
-    magnitudeByTier: [0n, 3n, 5n, 8n],
+    magnitudeByTier: [0n, 2n, 4n, 6n],
   },
 
   // --- Accessory-slot mixed prefixes ---
@@ -195,7 +195,7 @@ export const SUFFIXES: AffixDef[] = [
     slots: ['chest', 'legs', 'boots', 'head', 'hands', 'wrists', 'belt'],
     statKey: 'hpBonus',
     minTier: 1,
-    magnitudeByTier: [5n, 10n, 20n, 35n],
+    magnitudeByTier: [5n, 8n, 15n, 25n],
   },
   {
     key: 'of_strength',
@@ -222,7 +222,7 @@ export const SUFFIXES: AffixDef[] = [
     slots: ['chest', 'legs', 'boots', 'head', 'hands', 'wrists', 'belt'],
     statKey: 'magicResistanceBonus',
     minTier: 2,
-    magnitudeByTier: [0n, 2n, 4n, 7n],
+    magnitudeByTier: [0n, 2n, 3n, 5n],
   },
   {
     key: 'of_resilience',
@@ -231,7 +231,7 @@ export const SUFFIXES: AffixDef[] = [
     slots: ['chest', 'legs', 'boots', 'head', 'hands', 'wrists', 'belt'],
     statKey: 'armorClassBonus',
     minTier: 1,
-    magnitudeByTier: [1n, 2n, 3n, 5n],
+    magnitudeByTier: [1n, 2n, 3n, 4n],
   },
 
   // --- Accessory-slot mixed suffixes ---
@@ -260,7 +260,7 @@ export const SUFFIXES: AffixDef[] = [
     slots: ['neck', 'earrings', 'cloak'],
     statKey: 'hpBonus',
     minTier: 1,
-    magnitudeByTier: [5n, 10n, 15n, 25n],
+    magnitudeByTier: [3n, 6n, 10n, 18n],
   },
 ];
 
@@ -304,14 +304,14 @@ export const LEGENDARIES: LegendaryDef[] = [
         affixKey: 'fortified',
         type: 'prefix',
         statKey: 'armorClassBonus',
-        magnitude: 8n,
+        magnitude: 6n,
         affixName: 'Fortified',
       },
       {
         affixKey: 'of_endurance',
         type: 'suffix',
         statKey: 'hpBonus',
-        magnitude: 35n,
+        magnitude: 25n,
         affixName: 'of Endurance',
       },
     ],
@@ -347,11 +347,11 @@ export const LEGENDARIES: LegendaryDef[] = [
     slot: 'mainHand',
     affixes: [
       {
-        affixKey: 'keen',
+        affixKey: 'mighty',
         type: 'prefix',
-        statKey: 'weaponBaseDamage',
-        magnitude: 10n,
-        affixName: 'Keen',
+        statKey: 'strBonus',
+        magnitude: 4n,
+        affixName: 'Mighty',
       },
       {
         affixKey: 'of_power',
