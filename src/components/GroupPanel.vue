@@ -14,7 +14,7 @@
             selectedTargetId === member.id ? styles.memberCardTargeted : {},
           ]"
           @click="$emit('target', member.id)"
-          @contextmenu.prevent="$emit('character-action', member.id)"
+          @contextmenu.prevent="openMemberContextMenu($event, member)"
         >
           <span>
             {{ member.name }} (Lv {{ member.level }}) - {{ member.className }}
@@ -163,13 +163,26 @@
         </ul>
       </div>
     </div>
+
+    <!-- Context Menu -->
+    <ContextMenu
+      :visible="contextMenu.visible"
+      :x="contextMenu.x"
+      :y="contextMenu.y"
+      :title="contextMenu.title"
+      :subtitle="contextMenu.subtitle"
+      :items="contextMenu.items"
+      :styles="styles"
+      @close="closeContextMenu"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { CharacterRow, GroupRow } from '../module_bindings';
 import { effectLabel, effectRemainingSeconds } from '../ui/effectTimers';
+import ContextMenu from './ContextMenu.vue';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
@@ -200,18 +213,103 @@ const props = defineProps<{
     currentHp: bigint;
     maxHp: bigint;
   }[];
+  myFriendUserIds?: string[];
+  myCharacterId?: bigint | null;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'leave'): void;
   (e: 'accept', fromName: string): void;
   (e: 'reject', fromName: string): void;
-  (e: 'kick', targetName: string): void;
   (e: 'toggle-follow', follow: boolean): void;
   (e: 'target', characterId: bigint): void;
-  (e: 'character-action', characterId: bigint): void;
   (e: 'set-puller', targetName: string): void;
+  (e: 'player-trade', targetName: string): void;
+  (e: 'player-friend', targetName: string): void;
+  (e: 'player-promote', targetName: string): void;
+  (e: 'player-kick', targetName: string): void;
+  (e: 'player-message', targetName: string): void;
 }>();
+
+const contextMenu = ref<{
+  visible: boolean;
+  x: number;
+  y: number;
+  title: string;
+  subtitle: string;
+  items: Array<{ label: string; disabled?: boolean; action: () => void }>;
+}>({
+  visible: false,
+  x: 0,
+  y: 0,
+  title: '',
+  subtitle: '',
+  items: [],
+});
+
+const closeContextMenu = () => {
+  contextMenu.value.visible = false;
+};
+
+const openMemberContextMenu = (event: MouseEvent, member: CharacterRow) => {
+  const isSelf = props.myCharacterId != null && member.id.toString() === props.myCharacterId.toString();
+  if (isSelf) {
+    contextMenu.value = {
+      visible: true,
+      x: event.clientX,
+      y: event.clientY,
+      title: member.name,
+      subtitle: `${member.className} Lv ${member.level}`,
+      items: [{ label: 'You', disabled: true, action: () => {} }],
+    };
+    return;
+  }
+
+  const isFriend = (props.myFriendUserIds ?? []).includes(member.ownerUserId.toString());
+  const isTargetLeader = props.leaderId != null && member.id.toString() === props.leaderId.toString();
+
+  const items: Array<{ label: string; disabled?: boolean; action: () => void }> = [
+    {
+      label: 'Target',
+      action: () => emit('target', member.id),
+    },
+    {
+      label: 'Trade',
+      action: () => emit('player-trade', member.name),
+    },
+    {
+      label: 'Send Message',
+      action: () => emit('player-message', member.name),
+    },
+  ];
+
+  if (!isFriend) {
+    items.push({
+      label: 'Friend Request',
+      action: () => emit('player-friend', member.name),
+    });
+  }
+
+  if (props.isLeader && !isTargetLeader) {
+    items.push({
+      label: 'Promote to Leader',
+      action: () => emit('player-promote', member.name),
+    });
+    items.push({
+      label: 'Kick',
+      action: () => emit('player-kick', member.name),
+    });
+  }
+
+  contextMenu.value = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    title: member.name,
+    subtitle: `${member.className} Lv ${member.level}`,
+    items,
+  };
+};
 
 const percent = (current: bigint, max: bigint) => {
   if (!max) return 0;
