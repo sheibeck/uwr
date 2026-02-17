@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Completed quick task 139: VendorPanel backpack section now uses per-instance qualityTier for item name colors instead of template base rarity — matches InventoryPanel coloring behavior.
+**Status:** Completed quick task 140: Removed duplicate mighty prefix — fierce is now sole STR weapon prefix (minTier=1); Dreadmaw legendary updated; module republished with --clear-database.
 
 ---
 
@@ -265,9 +265,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 137 | Add jewelry to world-drop loot tables - 10 templates (6 tier-1 + 4 tier-2 earrings/neck), weight 1n vs 3n-6n for weapons/armor, quality floor bumps common jewelry to uncommon in generateLootTemplates | 2026-02-17 | 5594672 | [137-add-jewelry-to-world-drop-loot-tables-wi](./quick/137-add-jewelry-to-world-drop-loot-tables-wi/) |
 | 138 | Rebalance affix catalog — remove weaponBaseDamage (double-dips with STR scaling), add fierce prefix (strBonus minTier=2), trim HP/AC/MR legendary caps, fix Dreadmaw and Ironveil legendaries, republish module | 2026-02-17 | 1be5623 | [138-rebalance-affix-catalog-remove-weapon-da](./quick/138-rebalance-affix-catalog-remove-weapon-da/) |
 | 139 | Apply quality rarity colors to vendor backpack — changed inventoryItems to use qualityTier instead of rarity for item name coloring in VendorPanel backpack section; added qualityTier to prop type | 2026-02-17 | 5478345 | [139-apply-quality-rarity-colors-to-vendor-st](./quick/139-apply-quality-rarity-colors-to-vendor-st/) |
+| 140 | Remove mighty prefix — fierce is now sole STR weapon prefix (minTier=1, [1,2,3,4]); updated Dreadmaw legendary to use fierce/Fierce; republished with --clear-database to flush stale mighty ItemAffix rows | 2026-02-17 | d335989 | — |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick task 139: VendorPanel backpack section now uses per-instance qualityTier for item name colors; matches InventoryPanel coloring behavior.
+Last activity: 2026-02-17 - Completed quick task 140: Removed duplicate mighty prefix, fierce now covers all STR weapon affixes from uncommon through legendary.
