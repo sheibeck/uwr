@@ -4,6 +4,7 @@ import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
 import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, HEALING_THREAT_PERCENT } from '../data/combat_scaling';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { awardRenown, awardServerFirst, calculatePerkBonuses } from '../helpers/renown';
+import { applyPerkProcs } from '../helpers/combat';
 import { RENOWN_GAIN } from '../data/renown_data';
 import { rollQualityTier, generateAffixData, buildDisplayName } from '../helpers/items';
 import { LEGENDARIES } from '../data/affix_catalog';
@@ -1954,7 +1955,7 @@ export const registerCombatReducers = (deps: any) => {
       const baseDamage = statScaledDamage + sumEnemyEffect(ctx, combat.id, 'damage_taken', currentEnemy.id);
       const damage = baseDamage;
       const outcomeSeed = nowMicros + character.id + currentEnemy.id;
-      const { finalDamage, nextHp } = resolveAttack(ctx, {
+      const { outcome: attackOutcome, finalDamage, nextHp } = resolveAttack(ctx, {
         seed: outcomeSeed,
         baseDamage: damage,
         targetArmor: currentEnemy.armorClass + sumEnemyEffect(ctx, combat.id, 'armor_down', currentEnemy.id),
@@ -1999,6 +2000,21 @@ export const registerCombatReducers = (deps: any) => {
           if (entry.characterId === character.id && entry.enemyId === currentEnemy.id) {
             ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + threat });
             break;
+          }
+        }
+
+        // Apply perk procs on hit
+        if (attackOutcome === 'hit' || attackOutcome === 'crit') {
+          const freshEnemy = ctx.db.combatEnemy.id.find(currentEnemy.id);
+          applyPerkProcs(ctx, character, 'on_hit', finalDamage, outcomeSeed, combat.id, freshEnemy);
+          if (attackOutcome === 'crit') {
+            const freshEnemyForCrit = ctx.db.combatEnemy.id.find(currentEnemy.id);
+            applyPerkProcs(ctx, character, 'on_crit', finalDamage, outcomeSeed + 1000n, combat.id, freshEnemyForCrit);
+          }
+          // Check on_kill if enemy died
+          const postAttackEnemy = ctx.db.combatEnemy.id.find(currentEnemy.id);
+          if (postAttackEnemy && postAttackEnemy.currentHp === 0n) {
+            applyPerkProcs(ctx, character, 'on_kill', finalDamage, outcomeSeed + 2000n, combat.id, postAttackEnemy);
           }
         }
       }
@@ -2572,7 +2588,7 @@ export const registerCombatReducers = (deps: any) => {
             const effectiveArmor =
               targetCharacter.armorClass + sumCharacterEffect(ctx, targetCharacter.id, 'ac_bonus');
             const outcomeSeed = nowMicros + enemySnapshot.id + targetCharacter.id;
-            const { nextHp } = resolveAttack(ctx, {
+            const { outcome: enemyAttackOutcome, finalDamage: enemyFinalDamage, nextHp } = resolveAttack(ctx, {
               seed: outcomeSeed,
               baseDamage: scaledDamage,
               targetArmor: effectiveArmor,
@@ -2603,6 +2619,10 @@ export const registerCombatReducers = (deps: any) => {
                 hit: (damage) => `${name} hits ${targetCharacter.name} with auto-attack for ${damage}.`,
               },
             });
+            // Apply on_damage_taken procs when character is hit
+            if ((enemyAttackOutcome === 'hit' || enemyAttackOutcome === 'crit') && enemyFinalDamage > 0n) {
+              applyPerkProcs(ctx, targetCharacter, 'on_damage_taken', enemyFinalDamage, outcomeSeed + 3000n, combat.id, null);
+            }
             if (nextHp === 0n) {
               for (const p of participants) {
                 if (p.characterId === targetCharacter.id) {

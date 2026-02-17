@@ -1,5 +1,6 @@
 import { SenderError } from 'spacetimedb/server';
 import { Timestamp, ScheduleAt } from 'spacetimedb';
+import { getPerkProcs } from './renown';
 import { normalizeClassName, computeBaseStats } from '../data/class_stats';
 import {
   calculateCritChance,
@@ -1952,6 +1953,113 @@ export function scheduleCombatTick(ctx: any, combatId: bigint) {
     scheduledAt: ScheduleAt.time(nextAt),
     combatId,
   });
+}
+
+/**
+ * Apply passive perk proc effects after a combat event.
+ * Uses deterministic RNG (seed-based arithmetic, no Math.random).
+ * Returns { bonusDamage, healing } from triggered procs.
+ */
+export function applyPerkProcs(
+  ctx: any,
+  character: any,
+  eventType: string,
+  damageDealt: bigint,
+  seed: bigint,
+  combatId: bigint,
+  enemy: any | null
+): { bonusDamage: bigint; healing: bigint } {
+  const procs = getPerkProcs(ctx, character.id, eventType);
+  let totalBonusDamage = 0n;
+  let totalHealing = 0n;
+
+  for (let i = 0; i < procs.length; i++) {
+    const perk = procs[i];
+    const effect = perk.effect;
+    const procChance = BigInt(effect.procChance ?? 0);
+    if (procChance <= 0n) continue;
+
+    // Deterministic roll: (seed + perkIndex) % 100
+    const roll = (seed + BigInt(i)) % 100n;
+    if (roll >= procChance) continue;
+
+    const perkName = perk.name;
+
+    // procDamageMultiplier: deal bonus damage as percentage of damageDealt
+    if (effect.procDamageMultiplier && enemy && enemy.currentHp > 0n) {
+      const bonusDmg = (damageDealt * effect.procDamageMultiplier) / 100n;
+      if (bonusDmg > 0n) {
+        const newHp = enemy.currentHp > bonusDmg ? enemy.currentHp - bonusDmg : 0n;
+        ctx.db.combatEnemy.id.update({ ...enemy, currentHp: newHp });
+        totalBonusDamage += bonusDmg;
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'damage',
+          `Your ${perkName} triggered! Bonus strike for ${bonusDmg} damage.`
+        );
+      }
+    }
+
+    // procBonusDamage: flat bonus damage
+    if (effect.procBonusDamage && effect.procBonusDamage > 0n && enemy && enemy.currentHp > 0n) {
+      const bonusDmg = effect.procBonusDamage as bigint;
+      const newHp = enemy.currentHp > bonusDmg ? enemy.currentHp - bonusDmg : 0n;
+      ctx.db.combatEnemy.id.update({ ...enemy, currentHp: newHp });
+      totalBonusDamage += bonusDmg;
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'damage',
+        `Your ${perkName} triggered! Bonus damage for ${bonusDmg}.`
+      );
+    }
+
+    // procHealPercent: heal character for X% of damage dealt
+    if (effect.procHealPercent && damageDealt > 0n) {
+      const healAmount = (damageDealt * BigInt(effect.procHealPercent)) / 100n;
+      if (healAmount > 0n) {
+        const freshChar = ctx.db.character.id.find(character.id);
+        if (freshChar) {
+          const newHp = freshChar.hp + healAmount > freshChar.maxHp ? freshChar.maxHp : freshChar.hp + healAmount;
+          ctx.db.character.id.update({ ...freshChar, hp: newHp });
+          totalHealing += healAmount;
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'heal',
+            `Your ${perkName} triggered! Healed for ${healAmount}.`
+          );
+        }
+      }
+    }
+
+    // on_kill AoE proc (Deathbringer): deal damage to all other enemies in combat
+    if (eventType === 'on_kill' && effect.procDamageMultiplier && combatId) {
+      const aoeDmg = (damageDealt * effect.procDamageMultiplier) / 100n;
+      if (aoeDmg > 0n) {
+        for (const otherEnemy of ctx.db.combatEnemy.by_combat.filter(combatId)) {
+          if (otherEnemy.id === enemy?.id) continue;
+          if (otherEnemy.currentHp <= 0n) continue;
+          const newHp = otherEnemy.currentHp > aoeDmg ? otherEnemy.currentHp - aoeDmg : 0n;
+          ctx.db.combatEnemy.id.update({ ...otherEnemy, currentHp: newHp });
+          totalBonusDamage += aoeDmg;
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'damage',
+            `Your ${perkName} radiates death for ${aoeDmg} to nearby enemies.`
+          );
+        }
+      }
+    }
+  }
+
+  return { bonusDamage: totalBonusDamage, healing: totalHealing };
 }
 
 /**

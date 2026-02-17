@@ -138,6 +138,66 @@ export function calculatePerkBonuses(ctx: any, characterId: bigint) {
   return totals;
 }
 
+export function getPerkProcs(ctx: any, characterId: bigint, eventType: string) {
+  const procs: any[] = [];
+  for (const perkRow of ctx.db.renownPerk.by_character.filter(characterId)) {
+    for (const rankNum in RENOWN_PERK_POOLS) {
+      const pool = RENOWN_PERK_POOLS[Number(rankNum)];
+      const found = pool.find((p) => p.key === perkRow.perkKey);
+      if (found && found.effect.procType === eventType) {
+        procs.push(found);
+        break;
+      }
+    }
+  }
+  return procs;
+}
+
+export function getPerkBonusByField(ctx: any, characterId: bigint, fieldName: string, characterLevel?: bigint): number {
+  let total = 0;
+  for (const perkRow of ctx.db.renownPerk.by_character.filter(characterId)) {
+    let perkDef: any = null;
+    for (const rankNum in RENOWN_PERK_POOLS) {
+      const pool = RENOWN_PERK_POOLS[Number(rankNum)];
+      const found = pool.find((p) => p.key === perkRow.perkKey);
+      if (found) {
+        perkDef = found;
+        break;
+      }
+    }
+    if (!perkDef) continue;
+    const effect = perkDef.effect;
+    const fieldValue = (effect as any)[fieldName];
+    if (fieldValue === undefined || fieldValue === null) continue;
+    let value = typeof fieldValue === 'bigint' ? Number(fieldValue) : fieldValue;
+    // Handle scaling perks
+    if (effect.scalesWithLevel && effect.perLevelBonus && characterLevel !== undefined) {
+      value += effect.perLevelBonus * Number(characterLevel);
+    }
+    total += value;
+  }
+  return total;
+}
+
+export function getAllPerkEffects(ctx: any, characterId: bigint, characterLevel?: bigint) {
+  const totals: Record<string, number> = {
+    gatherDoubleChance: 0,
+    gatherSpeedBonus: 0,
+    craftQualityBonus: 0,
+    rareGatherChance: 0,
+    npcAffinityGainBonus: 0,
+    vendorBuyDiscount: 0,
+    vendorSellBonus: 0,
+    travelCooldownReduction: 0,
+    goldFindBonus: 0,
+    xpBonus: 0,
+  };
+  for (const key of Object.keys(totals)) {
+    totals[key] = getPerkBonusByField(ctx, characterId, key, characterLevel);
+  }
+  return totals;
+}
+
 export function grantAchievement(ctx: any, character: any, achievementKey: string): boolean {
   // Check if character already has this achievement
   for (const row of ctx.db.achievement.by_character.filter(character.id)) {
