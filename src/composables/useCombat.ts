@@ -217,7 +217,6 @@ export const useCombat = ({
             activeLootQualityTier,
             activeLootTypeField,
             template?.slot,
-            template?.tier ? `Tier ${template.tier}` : null,
           ]
             .filter((value) => value && value.length > 0)
             .join(' • ') ?? '';
@@ -293,7 +292,6 @@ export const useCombat = ({
             qualityTier,
             pendingTypeField,
             template?.slot,
-            template?.tier ? `Tier ${template.tier}` : null,
           ]
             .filter((value) => value && value.length > 0)
             .join(' • ') ?? '';

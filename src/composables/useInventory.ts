@@ -141,7 +141,6 @@ export const useInventory = ({
             qualityTier,
             typeField,
             template?.slot,
-            template?.tier ? `Tier ${template.tier}` : null,
           ]
             .filter((value) => value && value.length > 0)
             .join(' • ') ?? '');
@@ -261,7 +260,6 @@ export const useInventory = ({
           equippedQualityTier,
           equippedTypeField,
           template?.slot,
-          template?.tier ? `Tier ${template.tier}` : null,
         ]
           .filter((value) => value && value.length > 0)
           .join(' • ') ?? '';
