@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Completed Phase 14 Plan 03: Named legendary drops from boss enemies (LEGENDARIES catalog) and salvage_item reducer for gear recycling into gold.
+**Status:** Completed Phase 14 Plan 04 Tasks 1-2: Published module, regenerated bindings, integrated loot quality UI (quality-colored names, affix tooltip lines, Epic/Legendary flash, salvage context menu). Awaiting human verification (Task 3 checkpoint).
 
 ---
 
@@ -11,8 +11,8 @@
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 (Travel & Movement Costs) complete — Region-based stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, all-or-nothing group validation, TravelPanel UI with cost indicators and live countdown timer. Human-verified functional. Phase 11 (Death & Corpse System) Plan 01 complete — Backend corpse system with level 5+ gating, inventory-only item transfer, same-location combining, 30-day decay, and ownership-verified looting. Phase 12 (Overall Renown System) complete — Character-wide renown progression with 15 ranks, permanent perk system, server-first tracking, combat integration, tabbed UI. Human-verified functional.
 
 **Current phase:** 14 (Loot & Gear Progression)
-**Current plan:** 14-03 complete — Named legendary drops (boss enemy kills drop LEGENDARIES catalog items with fixed affixes for first participant), salvage_item reducer (deletes ItemAffix + ItemInstance, grants gold scaled by tier+quality)
-**Next action:** Continue with Phase 14 Plan 04 (client-side loot display with quality colors and affix tooltips)
+**Current plan:** 14-04 Tasks 1-2 complete — Published module (--clear-database for new columns), regenerated bindings with ItemAffix/salvage_item, wired ItemAffix subscription, extended pendingLoot/inventoryItems with qualityTier/affixStats/displayName, LootPanel quality colors/flash/affix lines, InventoryPanel quality borders/salvage menu
+**Next action:** Human verification of Phase 14 Plan 04 Task 3 (verify loot quality UI end-to-end in browser)
 
 ---
 
@@ -153,6 +153,9 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 108. logGroupEvent (combatId param) used for legendary announcement — consistent with all other combat log helpers in same codebase section (14-03)
 109. Gold-only salvage yield (baseGold×tier) — material salvage deferred until Phase 13 crafting materials exist to avoid confusion with freely-gatherable resources (14-03)
 110. Legendary drop inserted after per-participant regular loot loop, before corpse creation — preserves combatResult auto-clean logic ordering (14-03)
+111. Module published with --clear-database when adding non-optional columns to existing tables (qualityTier, affixDataJson, isNamed on combat_loot and item_instance) — SpacetimeDB 1.11 migration limitation (14-04)
+112. affixDataJson on CombatLoot row drives loot panel affix display pre-take; ItemAffix table rows drive inventory tooltip post-take — two different data sources for same affix data (14-04)
+113. rarityEpic color set to #aa44ff (purple), rarityLegendary confirmed as #ff8800 (orange) — overrides old facc15 yellow epic color (14-04)
 
 ---
 
@@ -198,6 +201,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 14-loot-gear-progression | 01 | 2min | 2 | 2 |
 | 14-loot-gear-progression | 02 | 3min | 2 | 3 |
 | 14-loot-gear-progression | 03 | 15min | 2 | 2 |
+| 14-loot-gear-progression | 04 | 6min | 2 | 14 |
 
 ## Accumulated Context
 
@@ -359,4 +363,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed Phase 14 Plan 03: Named legendary drops and salvage reducer. LEGENDARIES imported into combat.ts, legendary drop check runs after regular loot loop for each killed enemy template matching by enemyTemplateName — single CombatLoot row with isNamed=true for first alive participant. salvage_item reducer validates ownership/equipped/slot, deletes ItemAffix rows then ItemInstance, grants gold scaled by quality×tier. Stopped at: Completed 14-03-PLAN.md
+Last activity: 2026-02-17 - Completed Phase 14 Plan 04 Tasks 1-2: Published module with --clear-database for new columns, regenerated bindings (ItemAffix table, salvage_item reducer, qualityTier/affixDataJson/isNamed fields). Extended useCombat pendingLoot and useInventory with affixStats, qualityTier, displayName. LootPanel updated with quality colors, tile borders, affix lines, Epic/Legendary flash animation. InventoryPanel updated with quality borders, Salvage context menu. Paused at: 14-04-PLAN.md Task 3 (human-verify checkpoint)
