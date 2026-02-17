@@ -138,7 +138,7 @@ export const registerItemReducers = (deps: any) => {
       if (!vendorItem) return failItem(ctx, character, 'Item not sold by this vendor');
       const template = ctx.db.itemTemplate.id.find(args.itemTemplateId);
       if (!template) return failItem(ctx, character, 'Item template missing');
-      const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].length;
+      const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].filter((row) => !row.equippedSlot).length;
       const hasStack =
         template.stackable &&
         [...ctx.db.itemInstance.by_owner.filter(character.id)].some(
@@ -222,7 +222,7 @@ export const registerItemReducers = (deps: any) => {
     if (loot.characterId !== character.id || loot.ownerUserId !== character.ownerUserId) {
       return failItem(ctx, character, 'Loot does not belong to you');
     }
-    const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].length;
+    const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].filter((row) => !row.equippedSlot).length;
     const template = ctx.db.itemTemplate.id.find(loot.itemTemplateId);
     if (!template) return failItem(ctx, character, 'Item template missing');
     const hasStack =
