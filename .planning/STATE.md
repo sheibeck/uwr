@@ -312,9 +312,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 108 | Combine Journal and Quests panels into single tabbed panel - Journal/Quests tabs in NpcDialogPanel, Quests button removed from action bar, quest data passed through to combined panel | 2026-02-17 | 193a3b5 | [108-combine-the-journal-and-the-quests-panel](./quick/108-combine-the-journal-and-the-quests-panel/) |
 | 109 | Implement character selection screen - full-screen CharacterPanel gates access to game world on login, Camp button replaces Characters button in action bar, clicking Camp deselects character and returns to select screen | 2026-02-17 | c9bb2a1 | [109-implement-character-selection-screen-aft](./quick/109-implement-character-selection-screen-aft/) |
 | 110 | Combine Inventory and Stats panels into single tabbed Character panel - new CharacterInfoPanel.vue with Inventory/Stats tabs, single Character button in action bar, Renown panel tabs updated to match Journal underline style | 2026-02-17 | 74abcd1 | [110-combine-inventory-and-stats-panels-into-](./quick/110-combine-inventory-and-stats-panels-into-/) |
+| 111 | Fix enemy DoT/debuff effects not applying - replaced empty ENEMY_ABILITIES stub with real named import from ability_catalog, enabling enemy poison/venom/hex/curse abilities to resolve and insert CharacterEffect rows during combat | 2026-02-17 | 6e800fa | [111-fix-enemy-dot-debuff-effects-not-applyin](./quick/111-fix-enemy-dot-debuff-effects-not-applyin/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick-110: Combine Inventory and Stats panels into single tabbed Character panel - created CharacterInfoPanel.vue with Inventory/Stats tabs using NpcDialogPanel tab-bar style, replaced Inventory+Stats buttons in ActionBar with single Character button, updated Renown panel tabs to match Journal underline style.
+Last activity: 2026-02-17 - Completed quick-111: Fix enemy DoT/debuff effects not applying - replaced empty ENEMY_ABILITIES stub const with real named import from ability_catalog, enabling enemy poison/venom/hex/curse abilities to resolve correctly during combat and insert CharacterEffect rows.
