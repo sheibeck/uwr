@@ -179,6 +179,7 @@ export const registerItemReducers = (deps: any) => {
       // Capture template info before deletion
       const soldTemplateId = instance.templateId;
       const soldVendorValue = template.vendorValue ?? 0n;
+      const soldQualityTier = instance.qualityTier ?? undefined;
       // Clean up any affixes before deleting the item instance
       for (const affix of ctx.db.itemAffix.by_instance.filter(instance.id)) {
         ctx.db.itemAffix.id.delete(affix.id);
@@ -192,7 +193,7 @@ export const registerItemReducers = (deps: any) => {
       const npc = ctx.db.npc.id.find(args.npcId);
       if (npc && npc.npcType === 'vendor') {
         const alreadyListed = [...ctx.db.vendorInventory.by_vendor.filter(args.npcId)].find(
-          (row) => row.itemTemplateId === soldTemplateId
+          (row) => row.itemTemplateId === soldTemplateId && (row.qualityTier ?? undefined) === soldQualityTier
         );
         if (!alreadyListed) {
           // Price at 2x vendorValue (what the vendor paid per unit)
@@ -202,6 +203,7 @@ export const registerItemReducers = (deps: any) => {
             npcId: args.npcId,
             itemTemplateId: soldTemplateId,
             price: resalePrice,
+            qualityTier: soldQualityTier,
           });
         }
       }

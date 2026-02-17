@@ -746,7 +746,7 @@ const vendorItems = computed(() => {
       const description =
         vendorFoodDesc ||
         ([
-          template?.rarity,
+          row.qualityTier ?? template?.rarity,
           template?.armorType,
           template?.slot,
           template?.tier ? `Tier ${template.tier}` : null,
@@ -771,7 +771,7 @@ const vendorItems = computed(() => {
         templateId: row.itemTemplateId,
         price: row.price,
         name: template?.name ?? 'Unknown',
-        rarity: template?.rarity ?? 'Common',
+        rarity: row.qualityTier ?? template?.rarity ?? 'common',
         tier: template?.tier ?? 1n,
         slot: template?.slot ?? 'misc',
         armorType: template?.armorType ?? 'none',

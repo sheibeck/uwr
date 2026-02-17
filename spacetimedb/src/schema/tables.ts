@@ -756,6 +756,7 @@ export const VendorInventory = table(
     npcId: t.u64(),
     itemTemplateId: t.u64(),
     price: t.u64(),
+    qualityTier: t.string().optional(),  // 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'; undefined = 'common'
   }
 );
 
