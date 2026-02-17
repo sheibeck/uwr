@@ -11,4 +11,5 @@ export {
   PullTick,
   CombatLoopTick,
   CombatEnemyCast,
+  EventDespawnTick,
 } from './tables';

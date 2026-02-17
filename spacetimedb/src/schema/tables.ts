@@ -1509,6 +1509,155 @@ export const NpcDialogueVisited = table(
   }
 );
 
+export const WorldEvent = table(
+  {
+    name: 'world_event',
+    public: true,
+    indexes: [
+      { name: 'by_status', algorithm: 'btree', columns: ['status'] },
+      { name: 'by_region', algorithm: 'btree', columns: ['regionId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    eventKey: t.string(),                    // data constant key, e.g. 'ashen_awakening'
+    name: t.string(),                        // display name
+    regionId: t.u64(),                       // region this event is scoped to
+    status: t.string(),                      // 'active' | 'success' | 'failed'
+    isRecurring: t.bool(),                   // one-time (default) vs recurring
+    firedAt: t.timestamp(),
+    resolvedAt: t.timestamp().optional(),
+
+    // Failure condition type
+    failureConditionType: t.string(),        // 'time' | 'threshold_race'
+
+    // Time-based failure: event deadline as microseconds since epoch
+    deadlineAtMicros: t.u64().optional(),
+
+    // Two-sided threshold race counters
+    successThreshold: t.u64().optional(),    // e.g. players must save 10 villagers
+    failureThreshold: t.u64().optional(),    // e.g. enemies kill 5 villagers
+    successCounter: t.u64().optional(),      // current success-side count
+    failureCounter: t.u64().optional(),      // current failure-side count
+
+    // Consequences — BOTH success AND failure (locked decision)
+    successConsequenceType: t.string(),      // 'race_unlock' | 'enemy_composition_change' | 'faction_standing_bonus' | 'none'
+    successConsequencePayload: t.string(),   // JSON or key string
+    failureConsequenceType: t.string(),      // same types as success
+    failureConsequencePayload: t.string(),
+
+    // Reward specs per tier as JSON: { bronze: {...}, silver: {...}, gold: {...} }
+    rewardTiersJson: t.string(),
+
+    // Consequence text (written at fire time from eventDef.consequenceTextStub)
+    consequenceText: t.string().optional(),
+  }
+);
+
+export const EventContribution = table(
+  {
+    name: 'event_contribution',
+    public: true,
+    indexes: [
+      { name: 'by_event', algorithm: 'btree', columns: ['eventId'] },
+      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    eventId: t.u64(),
+    characterId: t.u64(),
+    count: t.u64(),                 // meaningful interactions count; 0 = registered but no reward
+    regionEnteredAt: t.timestamp(),
+  }
+);
+
+export const EventSpawnEnemy = table(
+  {
+    name: 'event_spawn_enemy',
+    public: true,
+    indexes: [
+      { name: 'by_event', algorithm: 'btree', columns: ['eventId'] },
+      { name: 'by_spawn', algorithm: 'btree', columns: ['spawnId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    eventId: t.u64(),
+    spawnId: t.u64(),      // FK to EnemySpawn.id
+    locationId: t.u64(),
+  }
+);
+
+export const EventSpawnItem = table(
+  {
+    name: 'event_spawn_item',
+    public: true,
+    indexes: [
+      { name: 'by_event', algorithm: 'btree', columns: ['eventId'] },
+      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    eventId: t.u64(),
+    locationId: t.u64(),
+    name: t.string(),
+    collected: t.bool(),
+    collectedByCharacterId: t.u64().optional(),
+  }
+);
+
+export const EventObjective = table(
+  {
+    name: 'event_objective',
+    public: true,
+    indexes: [
+      { name: 'by_event', algorithm: 'btree', columns: ['eventId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    eventId: t.u64(),
+    objectiveType: t.string(),   // 'protect_npc' | 'explore' | 'kill_count'
+    locationId: t.u64(),
+    name: t.string(),
+    targetCount: t.u64(),
+    currentCount: t.u64(),
+    isAlive: t.bool().optional(), // for protect_npc objectives
+  }
+);
+
+export const WorldStatTracker = table(
+  {
+    name: 'world_stat_tracker',
+    public: true,
+    indexes: [
+      { name: 'by_stat_key', algorithm: 'btree', columns: ['statKey'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    statKey: t.string().unique(),        // e.g. 'total_enemies_killed', 'total_quests_completed'
+    currentValue: t.u64(),               // running counter
+    fireThreshold: t.u64(),              // when currentValue crosses this, auto-fire eventKeyToFire
+    eventKeyToFire: t.string(),          // key into WORLD_EVENT_DEFINITIONS
+    fired: t.bool(),                     // true once threshold crossed and event fired (prevent re-fire)
+  }
+);
+
+export const EventDespawnTick = table(
+  {
+    name: 'event_despawn_tick',
+    scheduled: 'despawn_event_content',
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    eventId: t.u64(),
+  }
+);
+
 export const spacetimedb = schema(
   Player,
   User,
@@ -1595,5 +1744,12 @@ export const spacetimedb = schema(
   PendingSpellCast,
   QuestItem,
   NamedEnemy,
-  SearchResult
+  SearchResult,
+  WorldEvent,
+  EventContribution,
+  EventSpawnEnemy,
+  EventSpawnItem,
+  EventObjective,
+  WorldStatTracker,
+  EventDespawnTick,
 );
