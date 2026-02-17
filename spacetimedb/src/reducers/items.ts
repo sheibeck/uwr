@@ -976,13 +976,111 @@ export const registerItemReducers = (deps: any) => {
       }
       addItemToInventory(ctx, character.id, recipe.outputTemplateId, recipe.outputCount);
       const output = ctx.db.itemTemplate.id.find(recipe.outputTemplateId);
+
+      // --- Deterministic affix application for gear recipes ---
+      let craftedDisplayName = output?.name ?? recipe.name;
+      const isGearRecipe = recipe.recipeType && recipe.recipeType !== 'consumable';
+      if (isGearRecipe && output) {
+        // Determine material key from req1 template name (the primary material slot)
+        const req1Template = ctx.db.itemTemplate.id.find(recipe.req1TemplateId);
+        const materialKey = req1Template
+          ? req1Template.name.toLowerCase().replace(/\s+/g, '_')
+          : '';
+
+        // Look up material tier from MATERIAL_DEFS
+        const materialDef = MATERIAL_DEFS.find((m) => m.key === materialKey);
+        const materialTier = materialDef ? materialDef.tier : 1n;
+
+        // Determine quality from material tier
+        const qualityTier = materialTierToQuality(materialTier);
+
+        if (qualityTier !== 'common') {
+          // Get deterministic affixes for this material + quality
+          const craftedAffixes = getCraftedAffixes(materialKey, qualityTier);
+
+          if (craftedAffixes.length > 0) {
+            // Find the newly created ItemInstance — fresh insert with no qualityTier
+            const newInstance = [...ctx.db.itemInstance.by_owner.filter(character.id)].find(
+              (i) => i.templateId === recipe.outputTemplateId && !i.equippedSlot && !i.qualityTier
+            );
+            if (newInstance) {
+              // Insert ItemAffix rows for each crafted affix
+              for (const affix of craftedAffixes) {
+                ctx.db.itemAffix.insert({
+                  id: 0n,
+                  itemInstanceId: newInstance.id,
+                  affixType: affix.affixType,
+                  affixKey: affix.affixKey,
+                  affixName: affix.affixName,
+                  statKey: affix.statKey,
+                  magnitude: affix.magnitude,
+                });
+              }
+              // Build display name with prefix/suffix
+              craftedDisplayName = buildDisplayName(output.name, craftedAffixes);
+              // Update ItemInstance with qualityTier and displayName
+              ctx.db.itemInstance.id.update({
+                ...newInstance,
+                qualityTier,
+                displayName: craftedDisplayName,
+              });
+            }
+          }
+        }
+      }
+
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'reward',
-        `You craft ${output?.name ?? recipe.name}.`
+        `You craft ${craftedDisplayName}.`
       );
+    }
+  );
+
+  spacetimedb.reducer(
+    'learn_recipe_scroll',
+    { characterId: t.u64(), itemInstanceId: t.u64() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+
+      // Find the scroll item
+      const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
+      if (!instance) return failItem(ctx, character, 'Item not found');
+      if (instance.ownerCharacterId !== character.id) return failItem(ctx, character, 'Not your item');
+
+      const template = ctx.db.itemTemplate.id.find(instance.templateId);
+      if (!template) return failItem(ctx, character, 'Template not found');
+
+      // Verify it's a recipe scroll
+      if (!template.name.startsWith('Scroll:')) return failItem(ctx, character, 'Not a recipe scroll');
+
+      // Extract recipe name from scroll name: "Scroll: Longsword" → "Longsword"
+      const recipeName = template.name.replace('Scroll: ', '').trim();
+      const recipe = [...ctx.db.recipeTemplate.iter()].find((r) => r.name === recipeName);
+      if (!recipe) return failItem(ctx, character, 'No recipe found for this scroll');
+
+      // Check if already known
+      const alreadyKnown = [...ctx.db.recipeDiscovered.by_character.filter(character.id)]
+        .some((r) => r.recipeTemplateId === recipe.id);
+
+      if (alreadyKnown) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          `You already know: ${recipe.name}`);
+      } else {
+        ctx.db.recipeDiscovered.insert({
+          id: 0n,
+          characterId: character.id,
+          recipeTemplateId: recipe.id,
+          discoveredAt: ctx.timestamp,
+        });
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          `You have learned: ${recipe.name}`);
+      }
+
+      // Consume the scroll (remove 1 from stack)
+      removeItemFromInventory(ctx, character.id, instance.templateId, 1n);
     }
   );
 
