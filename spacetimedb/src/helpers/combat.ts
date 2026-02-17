@@ -1951,3 +1951,15 @@ export function scheduleCombatTick(ctx: any, combatId: bigint) {
   });
 }
 
+/**
+ * Calculate flee success chance based on region danger level.
+ * Formula: 120 - floor(dangerMultiplier / 3), clamped to [10, 95]
+ * - dangerMultiplier 100 (starter zone) => ~87% flee chance
+ * - dangerMultiplier 160 (border zone)  => ~67% flee chance
+ * - dangerMultiplier 200 (dungeon zone) => ~53% flee chance
+ * Floor of 10% so it's never impossible; cap of 95% so it's never guaranteed.
+ */
+export function calculateFleeChance(dangerMultiplier: bigint): number {
+  return Math.max(10, Math.min(95, 120 - Math.floor(Number(dangerMultiplier) / 3)));
+}
+

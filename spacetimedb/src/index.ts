@@ -138,6 +138,7 @@ import {
   applyArmorMitigation,
   computeEnemyStats,
   scheduleCombatTick,
+  calculateFleeChance,
 } from './helpers/combat';
 
 import {
@@ -425,6 +426,7 @@ const reducerDeps = {
   rollAttackOutcome,
   hasShieldEquipped,
   canParry,
+  calculateFleeChance,
   getGroupParticipants,
   isGroupLeaderOrSolo,
   effectiveGroupId,

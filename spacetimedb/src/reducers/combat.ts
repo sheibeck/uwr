@@ -216,6 +216,7 @@ export const registerCombatReducers = (deps: any) => {
     logPrivateAndGroup,
     fail,
     grantFactionStandingForKill,
+    calculateFleeChance,
   } = deps;
   const failCombat = (ctx: any, character: any, message: string) =>
     fail(ctx, character, message, 'combat');
@@ -1038,15 +1039,19 @@ export const registerCombatReducers = (deps: any) => {
       if (participant.status !== 'active') return;
       ctx.db.combatParticipant.id.update({
         ...participant,
-        status: 'fled',
+        status: 'fleeing',
       });
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'combat',
-        'You are attempting to flee.'
+        'You attempt to flee...'
       );
+      const groupId = effectiveGroupId(character);
+      if (groupId) {
+        appendGroupEvent(ctx, groupId, character.id, 'combat', `${character.name} attempts to flee.`);
+      }
       return;
     }
   });
