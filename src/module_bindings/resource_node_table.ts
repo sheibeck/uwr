@@ -13,6 +13,7 @@ import {
 export default __t.row({
   id: __t.u64().primaryKey(),
   locationId: __t.u64(),
+  characterId: __t.option(__t.u64()),
   itemTemplateId: __t.u64(),
   name: __t.string(),
   timeOfDay: __t.string(),

@@ -1951,6 +1951,9 @@ const tablesSchema = __schema(
   __table({
     name: 'resource_node',
     indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },

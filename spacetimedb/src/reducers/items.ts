@@ -717,18 +717,24 @@ export const registerItemReducers = (deps: any) => {
         `You gather ${node.name} x${quantity}.`,
         `${character.name} gathers ${node.name} x${quantity}.`
       );
-      const respawnAt = ctx.timestamp.microsSinceUnixEpoch + RESOURCE_RESPAWN_MICROS;
-      ctx.db.resourceNode.id.update({
-        ...node,
-        state: 'depleted',
-        lockedByCharacterId: undefined,
-        respawnAtMicros: respawnAt,
-      });
-      ctx.db.resourceRespawnTick.insert({
-        scheduledId: 0n,
-        scheduledAt: ScheduleAt.time(respawnAt),
-        nodeId: node.id,
-      });
+      if (node.characterId) {
+        // Personal node: delete immediately after gathering, no respawn
+        ctx.db.resourceNode.id.delete(node.id);
+      } else {
+        // Shared node: existing deplete + respawn logic
+        const respawnAt = ctx.timestamp.microsSinceUnixEpoch + RESOURCE_RESPAWN_MICROS;
+        ctx.db.resourceNode.id.update({
+          ...node,
+          state: 'depleted',
+          lockedByCharacterId: undefined,
+          respawnAtMicros: respawnAt,
+        });
+        ctx.db.resourceRespawnTick.insert({
+          scheduledId: 0n,
+          scheduledAt: ScheduleAt.time(respawnAt),
+          nodeId: node.id,
+        });
+      }
     }
   );
 

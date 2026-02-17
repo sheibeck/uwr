@@ -1687,6 +1687,11 @@ const resourceNodesHere = computed(() => {
   const now = nowMicros.value;
   return resourceNodes.value
     .filter((node) => node.locationId.toString() === currentLocation.value?.id.toString())
+    .filter((node) => {
+      // Show shared nodes (no characterId) OR personal nodes for the selected character
+      if (!node.characterId) return true;
+      return node.characterId.toString() === selectedCharacter.value?.id.toString();
+    })
     .filter((node) => node.state === 'available' || node.state === 'harvesting')
     .map((node) => {
       const local = localGather.value?.nodeId?.toString() === node.id.toString();
