@@ -1,3 +1,5 @@
+import { buildDisplayName } from '../helpers/items';
+
 export const registerItemReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -174,6 +176,10 @@ export const registerItemReducers = (deps: any) => {
       const template = ctx.db.itemTemplate.id.find(instance.templateId);
       if (!template) return failItem(ctx, character, 'Item template missing');
       const value = (template.vendorValue ?? 0n) * (instance.quantity ?? 1n);
+      // Clean up any affixes before deleting the item instance
+      for (const affix of ctx.db.itemAffix.by_instance.filter(instance.id)) {
+        ctx.db.itemAffix.id.delete(affix.id);
+      }
       ctx.db.itemInstance.id.delete(instance.id);
       ctx.db.character.id.update({
         ...character,
@@ -231,13 +237,51 @@ export const registerItemReducers = (deps: any) => {
       );
     if (!hasStack && itemCount >= 20) return failItem(ctx, character, 'Backpack is full');
     addItemToInventory(ctx, character.id, template.id, 1n);
+
+    // Apply affix data if this is a non-common quality item
+    let displayName = template.name;
+    if (loot.qualityTier && loot.qualityTier !== 'common') {
+      // Find the newly created ItemInstance — most recent one for this character+template with no qualityTier
+      const instances = [...ctx.db.itemInstance.by_owner.filter(character.id)];
+      const newInstance = instances.find(
+        (i) => i.templateId === loot.itemTemplateId && !i.equippedSlot && !i.qualityTier
+      );
+      if (newInstance && loot.affixDataJson) {
+        const affixes = JSON.parse(loot.affixDataJson) as {
+          affixKey: string;
+          affixType: string;
+          magnitude: number;
+          statKey: string;
+          affixName: string;
+        }[];
+        for (const affix of affixes) {
+          ctx.db.itemAffix.insert({
+            id: 0n,
+            itemInstanceId: newInstance.id,
+            affixType: affix.affixType,
+            affixKey: affix.affixKey,
+            affixName: affix.affixName,
+            statKey: affix.statKey,
+            magnitude: BigInt(affix.magnitude),
+          });
+        }
+        displayName = buildDisplayName(template.name, affixes);
+        ctx.db.itemInstance.id.update({
+          ...newInstance,
+          qualityTier: loot.qualityTier,
+          displayName,
+          isNamed: loot.isNamed ?? undefined,
+        });
+      }
+    }
+
     ctx.db.combatLoot.id.delete(loot.id);
     logPrivateAndGroup(
       ctx,
       character,
       'reward',
-      `You take ${template.name}.`,
-      `${character.name} takes ${template.name}.`
+      `You receive ${displayName}.`,
+      `${character.name} takes ${displayName}.`
     );
 
     // Check if this character has any remaining loot for this combat
