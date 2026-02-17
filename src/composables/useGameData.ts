@@ -71,6 +71,7 @@ export const useGameData = () => {
   const [questItems] = useTable(tables.questItem);
   const [namedEnemies] = useTable(tables.namedEnemy);
   const [searchResults] = useTable(tables.searchResult);
+  const [itemAffixes] = useTable(tables.itemAffix);
 
   return {
     conn,
@@ -142,5 +143,6 @@ export const useGameData = () => {
     questItems,
     namedEnemies,
     searchResults,
+    itemAffixes,
   };
 };

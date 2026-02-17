@@ -16,4 +16,7 @@ export default __t.row({
   ownerCharacterId: __t.u64(),
   equippedSlot: __t.option(__t.string()),
   quantity: __t.u64(),
+  qualityTier: __t.option(__t.string()),
+  displayName: __t.option(__t.string()),
+  isNamed: __t.option(__t.bool()),
 });

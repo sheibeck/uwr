@@ -1,12 +1,31 @@
 import { computed, type Ref } from 'vue';
-import { reducers, type CharacterRow, type ItemInstanceRow, type ItemTemplateRow } from '../module_bindings';
+import { reducers, type CharacterRow, type ItemInstanceRow, type ItemTemplateRow, type ItemAffixRow } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
+
+const formatAffixStatKeyInv = (key: string): string => {
+  const map: Record<string, string> = {
+    strBonus: 'STR',
+    dexBonus: 'DEX',
+    intBonus: 'INT',
+    wisBonus: 'WIS',
+    chaBonus: 'CHA',
+    hpBonus: 'Max HP',
+    armorClassBonus: 'Armor',
+    magicResistanceBonus: 'Magic Resist',
+    lifeOnHit: 'Life on Hit',
+    cooldownReduction: 'Cooldown Reduction %',
+    manaRegen: 'Mana Regen',
+    weaponBaseDamage: 'Damage',
+  };
+  return map[key] ?? key;
+};
 
 type UseInventoryArgs = {
   connActive: Ref<boolean>;
   selectedCharacter: Ref<CharacterRow | null>;
   itemInstances: Ref<ItemInstanceRow[]>;
   itemTemplates: Ref<ItemTemplateRow[]>;
+  itemAffixes: Ref<ItemAffixRow[]>;
 };
 
 const EQUIPMENT_SLOTS = [
@@ -31,18 +50,21 @@ type InventoryItem = {
   slot: string;
   armorType: string;
   rarity: string;
+  qualityTier: string;
   tier: bigint;
   isJunk: boolean;
   vendorValue: bigint;
   requiredLevel: bigint;
   allowedClasses: string;
   stats: { label: string; value: string }[];
+  affixStats: { label: string; value: string; affixName: string }[];
   description: string;
   equipable: boolean;
   usable: boolean;
   eatable: boolean;
   quantity: bigint;
   stackable: boolean;
+  isNamed: boolean;
 };
 
 type EquippedSlot = {
@@ -64,12 +86,14 @@ export const useInventory = ({
   selectedCharacter,
   itemInstances,
   itemTemplates,
+  itemAffixes,
 }: UseInventoryArgs) => {
   const equipReducer = useReducer(reducers.equipItem);
   const unequipReducer = useReducer(reducers.unequipItem);
   const useItemReducer = useReducer(reducers.useItem);
   const splitStackReducer = useReducer(reducers.splitStack);
   const consolidateStacksReducer = useReducer(reducers.consolidateStacks);
+  const salvageItemReducer = useReducer(reducers.salvageItem);
 
   const ownedInstances = computed(() => {
     if (!selectedCharacter.value) return [];
@@ -162,25 +186,40 @@ export const useInventory = ({
         const usable =
           (template?.slot ?? '').toLowerCase() === 'consumable' && usableKeys.has(itemKey);
         const eatable = (template?.slot ?? '').toLowerCase() === 'food';
+        // Affix data
+        const instanceAffixes = itemAffixes.value.filter(
+          (a) => a.itemInstanceId.toString() === instance.id.toString()
+        );
+        const affixStats = instanceAffixes.map((a) => ({
+          label: formatAffixStatKeyInv(a.statKey),
+          value: `+${a.magnitude}`,
+          affixName: a.affixName,
+        }));
+        const qualityTier = instance.qualityTier ?? template?.rarity ?? 'common';
+        const isNamed = instance.isNamed ?? false;
+        const displayName = instance.displayName ?? template?.name ?? 'Unknown';
         return {
           id: instance.id,
           instanceId: instance.id,
-          name: template?.name ?? 'Unknown',
+          name: displayName,
           slot,
           armorType: template?.armorType ?? 'none',
-          rarity: template?.rarity ?? 'Common',
+          rarity: template?.rarity ?? 'common',
+          qualityTier,
           tier,
           isJunk,
           vendorValue,
           requiredLevel: template?.requiredLevel ?? 1n,
           allowedClasses: template?.allowedClasses ?? 'any',
           stats,
+          affixStats,
           description,
           equipable,
           usable,
           eatable,
           quantity,
           stackable,
+          isNamed,
         };
       })
       .sort((a, b) => {
@@ -270,6 +309,11 @@ export const useInventory = ({
     consolidateStacksReducer({ characterId: selectedCharacter.value.id });
   };
 
+  const salvageItem = (itemInstanceId: bigint) => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    salvageItemReducer({ characterId: selectedCharacter.value.id, itemInstanceId });
+  };
+
   const inventoryCount = computed(() => inventoryItems.value.length);
 
   return {
@@ -282,5 +326,6 @@ export const useInventory = ({
     useItem,
     splitStack,
     organizeInventory,
+    salvageItem,
   };
 };

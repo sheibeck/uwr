@@ -10,16 +10,14 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("CombatLoot", {
+export default __t.object("ItemAffix", {
   id: __t.u64(),
-  combatId: __t.u64(),
-  ownerUserId: __t.u64(),
-  characterId: __t.u64(),
-  itemTemplateId: __t.u64(),
-  createdAt: __t.timestamp(),
-  qualityTier: __t.option(__t.string()),
-  affixDataJson: __t.option(__t.string()),
-  isNamed: __t.option(__t.bool()),
+  itemInstanceId: __t.u64(),
+  affixType: __t.string(),
+  affixKey: __t.string(),
+  affixName: __t.string(),
+  statKey: __t.string(),
+  magnitude: __t.i64(),
 });
 
 

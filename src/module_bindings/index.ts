@@ -134,6 +134,8 @@ import SyncNpcQuestContentReducer from "./sync_npc_quest_content_reducer";
 export { SyncNpcQuestContentReducer };
 import SyncAllContentReducer from "./sync_all_content_reducer";
 export { SyncAllContentReducer };
+import SalvageItemReducer from "./salvage_item_reducer";
+export { SalvageItemReducer };
 import MoveCharacterReducer from "./move_character_reducer";
 export { MoveCharacterReducer };
 import SubmitCommandReducer from "./submit_command_reducer";
@@ -328,6 +330,8 @@ import HotTickRow from "./hot_tick_table";
 export { HotTickRow };
 import HotbarSlotRow from "./hotbar_slot_table";
 export { HotbarSlotRow };
+import ItemAffixRow from "./item_affix_table";
+export { ItemAffixRow };
 import ItemCooldownRow from "./item_cooldown_table";
 export { ItemCooldownRow };
 import ItemInstanceRow from "./item_instance_table";
@@ -608,6 +612,8 @@ import InitiateResurrect from "./initiate_resurrect_type";
 export { InitiateResurrect };
 import InviteToGroup from "./invite_to_group_type";
 export { InviteToGroup };
+import ItemAffix from "./item_affix_type";
+export { ItemAffix };
 import ItemCooldown from "./item_cooldown_type";
 export { ItemCooldown };
 import ItemInstance from "./item_instance_type";
@@ -748,6 +754,8 @@ import RespawnCharacter from "./respawn_character_type";
 export { RespawnCharacter };
 import RespawnEnemy from "./respawn_enemy_type";
 export { RespawnEnemy };
+import SalvageItem from "./salvage_item_type";
+export { SalvageItem };
 import SavePanelLayout from "./save_panel_layout_type";
 export { SavePanelLayout };
 import Say from "./say_type";
@@ -1507,6 +1515,20 @@ const tablesSchema = __schema(
     ],
   }, HotbarSlotRow),
   __table({
+    name: 'item_affix',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_instance', algorithm: 'btree', columns: [
+        'itemInstanceId',
+      ] },
+    ],
+    constraints: [
+      { name: 'item_affix_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ItemAffixRow),
+  __table({
     name: 'item_cooldown',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -2229,6 +2251,7 @@ const reducersSchema = __reducers(
   __reducerSchema("sync_recipe_templates", SyncRecipeTemplatesReducer),
   __reducerSchema("sync_npc_quest_content", SyncNpcQuestContentReducer),
   __reducerSchema("sync_all_content", SyncAllContentReducer),
+  __reducerSchema("salvage_item", SalvageItemReducer),
   __reducerSchema("move_character", MoveCharacterReducer),
   __reducerSchema("submit_command", SubmitCommandReducer),
   __reducerSchema("say", SayReducer),

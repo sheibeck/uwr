@@ -78,6 +78,24 @@ type UseCombatArgs = {
   factions: Ref<Infer<typeof FactionRow>[]>;
 };
 
+const formatAffixStatKey = (key: string): string => {
+  const map: Record<string, string> = {
+    strBonus: 'STR',
+    dexBonus: 'DEX',
+    intBonus: 'INT',
+    wisBonus: 'WIS',
+    chaBonus: 'CHA',
+    hpBonus: 'Max HP',
+    armorClassBonus: 'Armor',
+    magicResistanceBonus: 'Magic Resist',
+    lifeOnHit: 'Life on Hit',
+    cooldownReduction: 'Cooldown Reduction %',
+    manaRegen: 'Mana Regen',
+    weaponBaseDamage: 'Damage',
+  };
+  return map[key] ?? key;
+};
+
 const timestampToMicros = (timestamp: any) => {
   if (!timestamp) return 0;
   if (typeof timestamp === 'bigint') return Number(timestamp);
@@ -241,9 +259,29 @@ export const useCombat = ({
         const template = itemTemplates.value.find(
           (item) => item.id.toString() === row.itemTemplateId.toString()
         );
+        const qualityTier = row.qualityTier ?? template?.rarity ?? 'common';
+        const affixData = row.affixDataJson ? JSON.parse(row.affixDataJson) : [];
+        const affixStats = affixData.map((a: any) => ({
+          label: formatAffixStatKey(a.statKey),
+          value: `+${a.magnitude}`,
+          affixName: a.affixName,
+        }));
+        const displayName = row.isNamed
+          ? (template?.name ?? 'Unknown')
+          : affixData.length > 0
+            ? (() => {
+                const prefix = affixData.find((a: any) => a.affixType === 'prefix');
+                const suffix = affixData.find((a: any) => a.affixType === 'suffix');
+                const baseName = template?.name ?? 'Unknown';
+                let name = baseName;
+                if (prefix) name = `${prefix.affixName} ${name}`;
+                if (suffix) name = `${name} of ${suffix.affixName}`;
+                return name;
+              })()
+            : (template?.name ?? 'Unknown');
         const description =
           [
-            template?.rarity,
+            qualityTier,
             template?.armorType,
             template?.slot,
             template?.tier ? `Tier ${template.tier}` : null,
@@ -265,13 +303,16 @@ export const useCombat = ({
         ].filter(Boolean) as { label: string; value: string }[];
         return {
           id: row.id,
-          name: template?.name ?? 'Unknown',
-          rarity: template?.rarity ?? 'Common',
+          name: displayName,
+          rarity: template?.rarity ?? 'common',
+          qualityTier,
           tier: template?.tier ?? 1n,
           allowedClasses: template?.allowedClasses ?? 'any',
           armorType: template?.armorType ?? 'none',
           description,
           stats,
+          affixStats,
+          isNamed: row.isNamed ?? false,
         };
       });
   });

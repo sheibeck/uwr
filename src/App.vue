@@ -161,7 +161,7 @@
     <!-- Character Info Panel (wide) — combines Inventory and Stats tabs -->
     <div v-if="panels.characterInfo && panels.characterInfo.open" data-panel-id="characterInfo" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('characterInfo').value || {}) }" @mousedown="bringToFront('characterInfo')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('characterInfo', $event)"><div>Character</div><button type="button" :style="styles.panelClose" @click="closePanelById('characterInfo')">x</button></div>
-      <div :style="styles.floatingPanelBody"><CharacterInfoPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @organize="organizeInventory" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
+      <div :style="styles.floatingPanelBody"><CharacterInfoPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @organize="organizeInventory" @salvage-item="salvageItem" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('characterInfo', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('characterInfo', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('characterInfo', $event, { right: true, bottom: true })" />
     </div>
 
@@ -481,6 +481,11 @@
           {{ stat.label }}: {{ stat.value }}
         </div>
       </div>
+      <div v-if="tooltip.item?.affixStats?.length" :style="{ ...styles.tooltipLine, marginTop: '0.25rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.25rem' }">
+        <div v-for="(affix, idx) in tooltip.item.affixStats" :key="idx" :style="{ color: '#a0d8a0', fontSize: '0.78rem' }">
+          {{ affix.value }} {{ affix.label }} <span :style="{ opacity: 0.7 }">({{ affix.affixName }})</span>
+        </div>
+      </div>
       <div v-if="tooltip.item?.allowedClasses && tooltip.item.allowedClasses !== 'any'" :style="styles.tooltipLine">
         Classes: {{ tooltip.item.allowedClasses }}
       </div>
@@ -615,6 +620,7 @@ const {
   questItems,
   namedEnemies,
   searchResults,
+  itemAffixes,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ players, users });
@@ -1580,12 +1586,13 @@ const currentTypeLine = computed(() => {
   return `${regionType} · ${locationType}`;
 });
 
-const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipItem, unequipItem, useItem, splitStack, organizeInventory } =
+const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipItem, unequipItem, useItem, splitStack, organizeInventory, salvageItem } =
   useInventory({
     connActive: computed(() => conn.isActive),
     selectedCharacter,
     itemInstances,
     itemTemplates,
+    itemAffixes,
   });
 
 const deleteItem = (itemInstanceId: bigint) => {
