@@ -61,7 +61,7 @@
                 @mouseleave="$emit('hide-tooltip')"
               >
                 <div>
-                  <span :style="rarityStyle(item.rarity)">{{ item.name }}</span>
+                  <span :style="rarityStyle(item.qualityTier)">{{ item.name }}</span>
                 </div>
                 <div :style="styles.subtleSmall">
                   {{ item.slot }} • Value {{ item.vendorValue }}
@@ -108,6 +108,7 @@ const props = defineProps<{
     slot: string;
     armorType: string;
     rarity: string;
+    qualityTier: string;
     tier: bigint;
     isJunk: boolean;
     vendorValue: bigint;
