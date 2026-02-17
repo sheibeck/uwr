@@ -60,6 +60,8 @@ import DisconnectLogoutReducer from "./disconnect_logout_reducer";
 export { DisconnectLogoutReducer };
 import SetActiveCharacterReducer from "./set_active_character_reducer";
 export { SetActiveCharacterReducer };
+import ClearActiveCharacterReducer from "./clear_active_character_reducer";
+export { ClearActiveCharacterReducer };
 import CreateCharacterReducer from "./create_character_reducer";
 export { CreateCharacterReducer };
 import BindLocationReducer from "./bind_location_reducer";
@@ -470,6 +472,8 @@ import ChooseDialogueOption from "./choose_dialogue_option_type";
 export { ChooseDialogueOption };
 import ChoosePerk from "./choose_perk_type";
 export { ChoosePerk };
+import ClearActiveCharacter from "./clear_active_character_type";
+export { ClearActiveCharacter };
 import CombatEncounter from "./combat_encounter_type";
 export { CombatEncounter };
 import CombatEnemy from "./combat_enemy_type";
@@ -2136,6 +2140,7 @@ const reducersSchema = __reducers(
   __reducerSchema("logout", LogoutReducer),
   __reducerSchema("disconnect_logout", DisconnectLogoutReducer),
   __reducerSchema("set_active_character", SetActiveCharacterReducer),
+  __reducerSchema("clear_active_character", ClearActiveCharacterReducer),
   __reducerSchema("create_character", CreateCharacterReducer),
   __reducerSchema("bind_location", BindLocationReducer),
   __reducerSchema("delete_character", DeleteCharacterReducer),

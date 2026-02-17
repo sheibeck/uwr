@@ -41,6 +41,7 @@ export const useCharacters = ({
   nowMicros,
 }: UseCharactersArgs) => {
   const setActiveCharacterReducer = useReducer(reducers.setActiveCharacter);
+  const clearActiveCharacterReducer = useReducer(reducers.clearActiveCharacter);
   const deleteCharacterReducer = useReducer(reducers.deleteCharacter);
   const bindLocationReducer = useReducer(reducers.bindLocation);
   const respawnCharacterReducer = useReducer(reducers.respawnCharacter);
@@ -148,6 +149,7 @@ export const useCharacters = ({
   };
 
   const deselectCharacter = () => {
+    if (connActive.value) clearActiveCharacterReducer({});
     selectedCharacterId.value = '';
   };
 
