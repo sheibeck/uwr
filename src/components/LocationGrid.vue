@@ -8,37 +8,11 @@
         npcsHere.length === 0 &&
         corpsesHere.length === 0 &&
         questItems.length === 0 &&
-        namedEnemies.length === 0 &&
-        !searchResult
+        namedEnemies.length === 0
       "
       :style="styles.subtle"
     >
       Nothing of interest here.
-    </div>
-
-    <!-- Search Results -->
-    <div v-if="searchResult">
-      <div :style="styles.gridSectionLabel">SEARCH</div>
-      <div :style="styles.gridWrap">
-        <div
-          v-if="searchResult.foundQuestItem"
-          :style="{ ...styles.gridTile, color: '#fbbf24' }"
-        >
-          Something of interest found...
-        </div>
-        <div
-          v-if="searchResult.foundNamedEnemy"
-          :style="{ ...styles.gridTile, color: '#ef4444' }"
-        >
-          A powerful presence lurks here
-        </div>
-        <div
-          v-if="!searchResult.foundQuestItem && !searchResult.foundNamedEnemy"
-          :style="{ ...styles.gridTile, opacity: 0.5 }"
-        >
-          Nothing unusual detected
-        </div>
-      </div>
     </div>
 
     <!-- Enemies -->
@@ -326,15 +300,9 @@ const props = withDefaults(defineProps<{
   canEngage: boolean;
   questItems?: Array<{ id: bigint; name: string; discovered: boolean; looted: boolean }>;
   namedEnemies?: Array<{ id: bigint; name: string; isAlive: boolean }>;
-  searchResult?: {
-    foundResources: boolean;
-    foundQuestItem: boolean;
-    foundNamedEnemy: boolean;
-  } | null;
 }>(), {
   questItems: () => [],
   namedEnemies: () => [],
-  searchResult: null,
 });
 
 const emit = defineEmits<{

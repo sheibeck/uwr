@@ -307,7 +307,6 @@
           :resource-nodes="resourceNodesHere"
           :quest-items="locationQuestItems"
           :named-enemies="locationNamedEnemies"
-          :search-result="characterSearchResult"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || pullerId === selectedCharacter.id)"
           @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
           @gather-resource="startGather"
