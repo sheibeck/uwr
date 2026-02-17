@@ -5,8 +5,21 @@ import { EnemyTemplate } from '../schema/tables';
 
 export function ensureLootTables(ctx: any) {
   const junkTemplates = [...ctx.db.itemTemplate.iter()].filter((row) => row.isJunk);
+  const STARTER_ITEM_NAMES = new Set([
+    // Starter weapons
+    'Training Sword', 'Training Mace', 'Training Staff', 'Training Bow',
+    'Training Dagger', 'Training Axe', 'Training Blade', 'Training Rapier',
+    // Starter cloth armor
+    'Apprentice Robe', 'Apprentice Trousers', 'Apprentice Boots',
+    // Starter leather armor
+    'Scout Jerkin', 'Scout Pants', 'Scout Boots',
+    // Starter chain armor
+    'Warden Hauberk', 'Warden Greaves', 'Warden Boots',
+    // Starter plate armor
+    'Vanguard Cuirass', 'Vanguard Greaves', 'Vanguard Boots',
+  ]);
   const gearTemplates = [...ctx.db.itemTemplate.iter()].filter(
-    (row) => !row.isJunk && row.tier <= 1n && row.requiredLevel <= 9n
+    (row) => !row.isJunk && row.tier <= 1n && row.requiredLevel <= 9n && !STARTER_ITEM_NAMES.has(row.name)
   );
   const findLootTable = (terrainType: string, creatureType: string, tier: bigint) =>
     [...ctx.db.lootTable.iter()].find(

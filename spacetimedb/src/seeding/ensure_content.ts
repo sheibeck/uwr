@@ -11,6 +11,7 @@ import { ensureFactions } from '../data/faction_data';
 import { tableHasRows } from '../helpers/events';
 import {
   ensureStarterItemTemplates,
+  ensureWorldDropGearTemplates,
   ensureResourceItemTemplates,
   ensureFoodItemTemplates,
   ensureRecipeTemplates,
@@ -81,6 +82,7 @@ export function syncAllContent(ctx: any) {
   ensureStarterItemTemplates(ctx);
   ensureResourceItemTemplates(ctx);
   ensureFoodItemTemplates(ctx);
+  ensureWorldDropGearTemplates(ctx);
   ensureAbilityTemplates(ctx);
   ensureRecipeTemplates(ctx);
   ensureNpcs(ctx);
