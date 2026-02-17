@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-16
-**Status:** Completed quick task 104: Add Help button with tutorial overlay - full-screen help overlay explaining game basics, UI interactions, travel costs, and location icons.
+**Status:** Completed quick task 105: Fix help window extending under footer - raised HelpOverlay z-index and constrained height to prevent content from rendering behind footer.
 
 ---
 
