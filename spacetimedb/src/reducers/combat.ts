@@ -1636,27 +1636,26 @@ export const registerCombatReducers = (deps: any) => {
         }
       }
 
-      // Return enemies to spawn
+      // Return enemies to spawn — restore FULL original composition
+      // Save spawn members BEFORE deleting; this preserves enemies not in this combat
+      // (e.g. 3 rats that were never pulled) and killed enemies (full reset on leash)
       const spawnIds = new Set(enemies.map((e: any) => e.spawnId));
       for (const spawnId of spawnIds) {
         const spawn = ctx.db.enemySpawn.id.find(spawnId);
         if (spawn) {
-          // Reconstruct spawn members from surviving enemies
-          for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawnId)) {
+          const savedMembers = [...ctx.db.enemySpawnMember.by_spawn.filter(spawnId)];
+          for (const member of savedMembers) {
             ctx.db.enemySpawnMember.id.delete(member.id);
           }
           let count = 0n;
-          for (const enemyRow of enemies) {
-            if (enemyRow.spawnId !== spawnId) continue;
-            if (enemyRow.enemyRoleTemplateId) {
-              ctx.db.enemySpawnMember.insert({
-                id: 0n,
-                spawnId: spawnId,
-                enemyTemplateId: enemyRow.enemyTemplateId,
-                roleTemplateId: enemyRow.enemyRoleTemplateId,
-              });
-              count += 1n;
-            }
+          for (const member of savedMembers) {
+            ctx.db.enemySpawnMember.insert({
+              id: 0n,
+              spawnId: spawnId,
+              enemyTemplateId: member.enemyTemplateId,
+              roleTemplateId: member.roleTemplateId,
+            });
+            count += 1n;
           }
           ctx.db.enemySpawn.id.update({
             ...spawn,
@@ -2018,6 +2017,32 @@ export const registerCombatReducers = (deps: any) => {
           const postAttackEnemy = ctx.db.combatEnemy.id.find(currentEnemy.id);
           if (postAttackEnemy && postAttackEnemy.currentHp === 0n) {
             applyPerkProcs(ctx, character, 'on_kill', finalDamage, outcomeSeed + 2000n, combat.id, postAttackEnemy);
+            // Award event contribution per kill — runs on flee too, not just victory
+            const killedSpawnId = postAttackEnemy.spawnId;
+            for (const eventEnemy of ctx.db.eventSpawnEnemy.by_spawn.filter(killedSpawnId)) {
+              let contribFound = false;
+              for (const contrib of ctx.db.eventContribution.by_character.filter(character.id)) {
+                if (contrib.eventId === eventEnemy.eventId) {
+                  ctx.db.eventContribution.id.update({ ...contrib, count: contrib.count + 1n });
+                  contribFound = true;
+                  break;
+                }
+              }
+              if (!contribFound) {
+                ctx.db.eventContribution.insert({
+                  id: 0n,
+                  eventId: eventEnemy.eventId,
+                  characterId: character.id,
+                  count: 1n,
+                  regionEnteredAt: ctx.timestamp,
+                });
+              }
+              for (const obj of ctx.db.eventObjective.by_event.filter(eventEnemy.eventId)) {
+                if (obj.objectiveType === 'kill_count') {
+                  ctx.db.eventObjective.id.update({ ...obj, currentCount: obj.currentCount + 1n });
+                }
+              }
+            }
           }
         }
       }
@@ -2195,47 +2220,8 @@ export const registerCombatReducers = (deps: any) => {
           rollKillLootDrop(ctx, character, template.id);
           grantFactionStandingForKill(ctx, character, template.id);
 
-          // World event contribution: check if killed enemy was an event spawn
-          // Use pre-captured spawnId since EnemySpawn rows are already deleted above
-          const matchedEnemy = enemies.find((e) => e.enemyTemplateId === template.id);
-          const capturedSpawnId = matchedEnemy ? enemySpawnIds.get(matchedEnemy.id) : undefined;
-          if (capturedSpawnId) {
-            for (const eventEnemy of ctx.db.eventSpawnEnemy.by_spawn.filter(capturedSpawnId)) {
-              // This was an event enemy — increment EventContribution for this character
-              let contribFound = false;
-              for (const contrib of ctx.db.eventContribution.by_character.filter(character.id)) {
-                if (contrib.eventId === eventEnemy.eventId) {
-                  ctx.db.eventContribution.id.update({
-                    ...contrib,
-                    count: contrib.count + 1n,
-                  });
-                  contribFound = true;
-                  break;
-                }
-              }
-              // If no contribution row exists yet, insert one with count=1
-              if (!contribFound) {
-                ctx.db.eventContribution.insert({
-                  id: 0n,
-                  eventId: eventEnemy.eventId,
-                  characterId: character.id,
-                  count: 1n,
-                  regionEnteredAt: ctx.timestamp,
-                });
-              }
-              // Also increment kill_count objectives for this event
-              for (const obj of ctx.db.eventObjective.by_event.filter(eventEnemy.eventId)) {
-                if (obj.objectiveType === 'kill_count') {
-                  ctx.db.eventObjective.id.update({
-                    ...obj,
-                    currentCount: obj.currentCount + 1n,
-                  });
-                }
-              }
-            }
-          }
-
           // REQ-032: Increment world stat tracker for threshold-triggered events
+          // Event contribution is now handled per-kill in the on_kill hook above
           incrementWorldStat(ctx, 'total_enemies_killed', 1n);
         }
       }
