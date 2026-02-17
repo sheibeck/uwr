@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Completed quick task 135: Vendor seed capped at 10 common-only items (3 armor+3 weapons+2 accessories+2 consumables); sell_item reducer adds sold items to vendor inventory at 2x vendorValue markup; client passes npcId on sell.
+**Status:** Completed quick task 137: 10 world-drop jewelry templates seeded (6 tier-1, 4 tier-2 earrings/neck); loot table weight 1n for jewelry vs 3n-6n for weapons/armor; quality floor bumps common jewelry rolls to uncommon in combat loot generation.
 
 ---
 
@@ -261,9 +261,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 133 | Remove rarity text labels from vendor/quartermaster window and inventory context menu - deleted ({{ item.rarity }}) from both VendorPanel item lists, changed InventoryPanel context menu subtitle from qualityTier+slot to slot only; quality communicated by color only | 2026-02-17 | ab12b3e | [133-remove-rarity-text-labels-from-vendor-qu](./quick/133-remove-rarity-text-labels-from-vendor-qu/) |
 | 134 | Fix /createitem and combat loot to never pick starter gear - STARTER_ITEM_NAMES centralized in combat_constants.ts, create_test_item and generateLootTemplates gearEntries both filter !STARTER_ITEM_NAMES.has() at runtime | 2026-02-17 | 32b89a0 | [134-fix-create-test-item-reducer-and-loot-ge](./quick/134-fix-create-test-item-reducer-and-loot-ge/) |
 | 135 | Reduce vendor seed to 10 common-only items and add player-sold items to vendor inventory - allEligible filters rarity=common, picks capped at 3+3+2+2=10, stale removal loop removed, sell_item adds sold item at 2x vendorValue, client passes npcId | 2026-02-17 | b96595e | [135-reduce-vendor-seed-items-to-10-common-on](./quick/135-reduce-vendor-seed-items-to-10-common-on/) |
+| 137 | Add jewelry to world-drop loot tables - 10 templates (6 tier-1 + 4 tier-2 earrings/neck), weight 1n vs 3n-6n for weapons/armor, quality floor bumps common jewelry to uncommon in generateLootTemplates | 2026-02-17 | 5594672 | [137-add-jewelry-to-world-drop-loot-tables-wi](./quick/137-add-jewelry-to-world-drop-loot-tables-wi/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick task 135: Vendor seed capped at 10 common-only items (rarity filter + 3+3+2+2 category caps); stale removal loop removed to preserve player-sold items; sell_item accepts npcId and adds sold items to vendor inventory at 2x vendorValue; module published with --clear-database.
+Last activity: 2026-02-17 - Completed quick task 137: 10 world-drop jewelry templates seeded (Copper Band, Iron Signet, Tarnished Loop, Stone Pendant, Bone Charm, Frayed Cord for tier 1; Silver Band, Arcane Loop, Ember Pendant, Vitality Cord for tier 2); loot table weight 1n for earrings/neck slots; quality floor bumps common jewelry rolls to uncommon in generateLootTemplates; module published cleanly.
