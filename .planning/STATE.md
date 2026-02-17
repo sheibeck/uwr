@@ -11,8 +11,8 @@
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
 
 **Last completed phase:** 20 (Perk Variety Expansion) — 3/3 plans complete
-**Current phase:** 18 (World Events System Expansion) — Plans 01 and 02 complete, plan 03 remains
-**Next action:** Continue Phase 18 — execute Plan 03 (client UI for world events: WorldEventPanel, banner overlay, action bar button).
+**Current phase:** 18 (World Events System Expansion) — Plans 01 and 02 complete, plan 03 Tasks 1 and 2 complete (Tasks 1-2 committed), awaiting human verification at Task 3 checkpoint
+**Next action:** Human verification of WorldEventPanel (Task 3 checkpoint of 18-03-PLAN.md) — then mark Phase 18 complete.
 
 ---
 
@@ -177,6 +177,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 130. WorldStatTracker.statKey uses btree index only (not .unique()) — both together caused 'name used for multiple entities' publish error; btree by_stat_key.filter() is the access pattern used in incrementWorldStat (18-02)
 131. incrementWorldStat called once per template in kill loop (not per participant) — world stats are global counters, not per-character; calling per participant in group would over-count kills (18-02)
 132. Pre-capture spawnId Map built before spawn deletion block in combat_loop victory section — EnemySpawn rows are deleted before kill template loop, so spawnId must be captured first for EventSpawnEnemy lookup (18-02)
+133. worldEventRows used as useGameData key (not worldEvents) — worldEvents is already bound to eventWorld (the log table); WorldEvent game table needs a different name to avoid shadowing (18-03)
 
 ---
 
@@ -227,6 +228,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 20-perk-variety-expansion | 03 | ~15min | 2 | 2 |
 | Phase 18 P01 | 4 | 2 tasks | 4 files |
 | Phase 18 P02 | 20 | 2 tasks | 5 files |
+| Phase 18 P03 | ~5min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -303,4 +305,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-17 - Phase 18 Plan 02 complete: 5 world event reducers (fire/resolve/collect/counter/despawn), combat kill contribution tracking with pre-captured spawnId map (avoids stale references after spawn deletion), REQ-032 incrementWorldStat wired in combat kills and quest completions, region entry auto-registers EventContribution (count=0), fixed WorldStatTracker.statKey unique+btree conflict, module published with --clear-database, client bindings regenerated with all 7 world event table types and 5 reducer bindings. Stopped at: Completed 18-02-PLAN.md
+Last activity: 2026-02-17 - Phase 18 Plan 03 Tasks 1-2 complete: WorldEventPanel.vue created (300 lines) with Active/History tabs, contribution tier (Bronze/Silver/Gold), objective progress bars, rewards preview; useGameData subscriptions added for all 5 world event tables (worldEventRows key); styles.worldEventBanner added; App.vue wired with WorldEventPanel, hasActiveEvents computed, activeBanner watcher (5s auto-dismiss), banner overlay, worldEvents in usePanelManager; ActionBar.vue updated with worldEvents PanelKey and Events button with badge. Stopped at: Task 3 human-verify checkpoint of 18-03-PLAN.md
