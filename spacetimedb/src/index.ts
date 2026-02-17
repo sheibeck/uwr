@@ -12,7 +12,7 @@ import {
   PullState, PullTick,
   HealthRegenTick, EffectTick, HotTick, CastTick,
   DayNightTick, DisconnectLogoutTick, CharacterLogoutTick,
-  ResourceGatherTick, ResourceRespawnTick, EnemyRespawnTick,
+  ResourceGatherTick, EnemyRespawnTick,
   TradeSession, TradeItem,
   EnemyAbility, CombatEnemyCooldown, CombatEnemyCast,
   CombatPendingAdd, AggroEntry,
@@ -154,13 +154,9 @@ import {
   DAY_DURATION_MICROS,
   NIGHT_DURATION_MICROS,
   DEFAULT_LOCATION_SPAWNS,
-  RESOURCE_NODES_PER_LOCATION,
   RESOURCE_GATHER_CAST_MICROS,
-  RESOURCE_RESPAWN_MICROS,
   getGatherableResourceTemplates,
   spawnResourceNode,
-  ensureResourceNodesForLocation,
-  respawnResourceNodesForLocation,
   computeLocationTargetLevel,
   getWorldState,
   isNightTime,
@@ -250,7 +246,6 @@ spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
     if (!location.isSafe) {
       respawnLocationSpawns(ctx, location.id, DEFAULT_LOCATION_SPAWNS);
     }
-    respawnResourceNodesForLocation(ctx, location.id);
   }
   ctx.db.dayNightTick.insert({
     scheduledId: 0n,
@@ -352,7 +347,6 @@ const reducerDeps = {
   DisconnectLogoutTick,
   CharacterLogoutTick,
   ResourceGatherTick,
-  ResourceRespawnTick,
   EnemyRespawnTick,
   TradeSession,
   TradeItem,
@@ -424,8 +418,6 @@ const reducerDeps = {
   ensureLocationRuntimeBootstrap,
   syncAllContent,
   spawnResourceNode,
-  ensureResourceNodesForLocation,
-  respawnResourceNodesForLocation,
   awardCombatXp,
   xpRequiredForLevel,
   MAX_LEVEL,

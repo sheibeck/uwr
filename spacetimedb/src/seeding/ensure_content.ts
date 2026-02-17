@@ -21,7 +21,6 @@ import { ensureLootTables, ensureVendorInventory, ensureLocationEnemyTemplates, 
 import {
   DAY_DURATION_MICROS,
   getWorldState,
-  ensureResourceNodesForLocation,
   ensureLocationRuntimeBootstrap,
   ensureSpawnsForLocation,
   respawnLocationSpawns

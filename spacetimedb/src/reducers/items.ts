@@ -28,7 +28,6 @@ export const registerItemReducers = (deps: any) => {
     getGroupParticipants,
     getInventorySlotCount,
     ResourceGatherTick,
-    ResourceRespawnTick,
     ensureStarterItemTemplates,
     ensureResourceItemTemplates,
     ensureLootTables,
@@ -589,7 +588,6 @@ export const registerItemReducers = (deps: any) => {
   const BANDAGE_TICK_COUNT = 3n;
   const BANDAGE_TICK_HEAL = 5n;
   const RESOURCE_GATHER_CAST_MICROS = 8_000_000n;
-  const RESOURCE_RESPAWN_MICROS = 10n * 60n * 1_000_000n;
   const RESOURCE_GATHER_MIN_QTY = 2n;
   const RESOURCE_GATHER_MAX_QTY = 6n;
 
@@ -717,46 +715,10 @@ export const registerItemReducers = (deps: any) => {
         `You gather ${node.name} x${quantity}.`,
         `${character.name} gathers ${node.name} x${quantity}.`
       );
-      if (node.characterId) {
-        // Personal node: delete immediately after gathering, no respawn
-        ctx.db.resourceNode.id.delete(node.id);
-      } else {
-        // Shared node: existing deplete + respawn logic
-        const respawnAt = ctx.timestamp.microsSinceUnixEpoch + RESOURCE_RESPAWN_MICROS;
-        ctx.db.resourceNode.id.update({
-          ...node,
-          state: 'depleted',
-          lockedByCharacterId: undefined,
-          respawnAtMicros: respawnAt,
-        });
-        ctx.db.resourceRespawnTick.insert({
-          scheduledId: 0n,
-          scheduledAt: ScheduleAt.time(respawnAt),
-          nodeId: node.id,
-        });
-      }
+      // Personal node: delete immediately after gathering, no respawn
+      ctx.db.resourceNode.id.delete(node.id);
     }
   );
-
-  spacetimedb.reducer('respawn_resource', { arg: ResourceRespawnTick.rowType }, (ctx, { arg }) => {
-    const node = ctx.db.resourceNode.id.find(arg.nodeId);
-    if (!node) return;
-    const location = ctx.db.location.id.find(node.locationId);
-    if (!location) return;
-    const world = ctx.db.worldState.id.find(1n);
-    const timePref = world?.isNight ? 'night' : 'day';
-    const nodePref = (node.timeOfDay ?? 'any').toLowerCase();
-    if (nodePref !== 'any' && nodePref !== timePref) {
-      ctx.db.resourceNode.id.update({
-        ...node,
-        state: 'hidden',
-        respawnAtMicros: world?.nextTransitionAtMicros,
-      });
-      return;
-    }
-    ctx.db.resourceNode.id.delete(node.id);
-    deps.spawnResourceNode(ctx, location.id);
-  });
 
   spacetimedb.reducer('research_recipes', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);

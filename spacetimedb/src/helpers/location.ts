@@ -7,9 +7,7 @@ import { EnemySpawn, EnemyTemplate } from '../schema/tables';
 export const DAY_DURATION_MICROS = 1_200_000_000n;
 export const NIGHT_DURATION_MICROS = 600_000_000n;
 export const DEFAULT_LOCATION_SPAWNS = 3;
-export const RESOURCE_NODES_PER_LOCATION = 3;
 export const RESOURCE_GATHER_CAST_MICROS = 8_000_000n;
-export const RESOURCE_RESPAWN_MICROS = 10n * 60n * 1_000_000n;
 
 export function computeLocationTargetLevel(ctx: any, locationId: bigint, baseLevel: bigint) {
   const location = ctx.db.location.id.find(locationId);
@@ -153,31 +151,6 @@ export function spawnResourceNode(ctx: any, locationId: bigint, characterId?: bi
     lockedByCharacterId: undefined,
     respawnAtMicros: undefined,
   });
-}
-
-export function ensureResourceNodesForLocation(ctx: any, locationId: bigint) {
-  let count = 0;
-  for (const _row of ctx.db.resourceNode.by_location.filter(locationId)) {
-    count += 1;
-  }
-  while (count < RESOURCE_NODES_PER_LOCATION) {
-    spawnResourceNode(ctx, locationId);
-    count += 1;
-  }
-}
-
-export function respawnResourceNodesForLocation(ctx: any, locationId: bigint) {
-  for (const row of ctx.db.resourceNode.by_location.filter(locationId)) {
-    ctx.db.resourceNode.id.delete(row.id);
-  }
-  let count = 0;
-  for (const _row of ctx.db.resourceNode.by_location.filter(locationId)) {
-    count += 1;
-  }
-  while (count < RESOURCE_NODES_PER_LOCATION) {
-    spawnResourceNode(ctx, locationId);
-    count += 1;
-  }
 }
 
 export function getEnemyRoleTemplates(ctx: any, templateId: bigint) {

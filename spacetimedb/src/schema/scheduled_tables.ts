@@ -7,7 +7,6 @@ export {
   DisconnectLogoutTick,
   CharacterLogoutTick,
   ResourceGatherTick,
-  ResourceRespawnTick,
   EnemyRespawnTick,
   PullTick,
   CombatLoopTick,

@@ -445,18 +445,6 @@ export const ResourceGatherTick = table(
   }
 );
 
-export const ResourceRespawnTick = table(
-  {
-    name: 'resource_respawn_tick',
-    scheduled: 'respawn_resource',
-  },
-  {
-    scheduledId: t.u64().primaryKey().autoInc(),
-    scheduledAt: t.scheduleAt(),
-    nodeId: t.u64(),
-  }
-);
-
 export const EnemyRespawnTick = table(
   {
     name: 'enemy_respawn_tick',
@@ -1527,7 +1515,6 @@ export const spacetimedb = schema(
   ResourceNode,
   ResourceGather,
   ResourceGatherTick,
-  ResourceRespawnTick,
   TradeSession,
   TradeItem,
   EnemyRespawnTick,
