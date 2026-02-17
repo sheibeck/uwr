@@ -130,6 +130,7 @@
                 ...styles.resultCard,
                 cursor: connActive ? 'pointer' : 'default',
                 border: '1px solid rgba(255,255,255,0.2)',
+                borderLeft: `3px solid ${getDomainColor(perk.domain)}`,
                 transition: 'all 0.2s ease',
               }"
               @click="connActive && choosePerk(perk.key)"
@@ -269,76 +270,96 @@ const RENOWN_RANKS = [
 ];
 
 // Client-side perk pools (subset for display)
-const RENOWN_PERK_POOLS: Record<number, Array<{ key: string; name: string; type: 'passive' | 'active'; description: string }>> = {
+const DOMAIN_COLORS: Record<'combat' | 'crafting' | 'social', string> = {
+  combat: '#c55',
+  crafting: '#5c5',
+  social: '#55c',
+};
+
+const RENOWN_PERK_POOLS: Record<number, Array<{ key: string; name: string; type: 'passive' | 'active'; description: string; domain: 'combat' | 'crafting' | 'social' }>> = {
+  // Rank 2 - Tier 1
   2: [
-    { key: 'hp_boost_1', name: 'Vitality', type: 'passive', description: '+25 max health' },
-    { key: 'str_boost_1', name: 'Might', type: 'passive', description: '+1 Strength' },
-    { key: 'dex_boost_1', name: 'Agility', type: 'passive', description: '+1 Dexterity' },
+    { key: 'iron_will', name: 'Iron Will', type: 'passive', description: '[Combat] +25 max HP, +1 Strength', domain: 'combat' },
+    { key: 'keen_eye', name: 'Keen Eye', type: 'passive', description: '[Crafting] 10% chance to gather double resources', domain: 'crafting' },
+    { key: 'smooth_talker', name: 'Smooth Talker', type: 'passive', description: '[Social] +15% NPC affinity gain from conversations', domain: 'social' },
   ],
+  // Rank 3 - Tier 1
   3: [
-    { key: 'int_boost_1', name: 'Cunning', type: 'passive', description: '+1 Intelligence' },
-    { key: 'wis_boost_1', name: 'Insight', type: 'passive', description: '+1 Wisdom' },
-    { key: 'cha_boost_1', name: 'Presence', type: 'passive', description: '+1 Charisma' },
+    { key: 'quick_reflexes', name: 'Quick Reflexes', type: 'passive', description: '[Combat] +1 Dexterity, +2% melee crit chance', domain: 'combat' },
+    { key: 'efficient_hands', name: 'Efficient Hands', type: 'passive', description: '[Crafting] 15% faster gathering speed', domain: 'crafting' },
+    { key: 'shrewd_bargainer', name: 'Shrewd Bargainer', type: 'passive', description: '[Social] 5% discount on vendor purchases, 5% better sell prices', domain: 'social' },
   ],
+  // Rank 4 - Tier 2
   4: [
-    { key: 'hp_boost_2', name: 'Endurance', type: 'passive', description: '+50 max health' },
-    { key: 'str_boost_2', name: 'Brawn', type: 'passive', description: '+2 Strength' },
-    { key: 'dex_boost_2', name: 'Swiftness', type: 'passive', description: '+2 Dexterity' },
+    { key: 'bloodthirst', name: 'Bloodthirst', type: 'passive', description: '[Combat] 3% chance on kill to restore 20% HP', domain: 'combat' },
+    { key: 'prospectors_luck', name: "Prospector's Luck", type: 'passive', description: '[Crafting] 15% chance for rare material drops when gathering', domain: 'crafting' },
+    { key: 'wanderers_pace', name: "Wanderer's Pace", type: 'passive', description: '[Social] 20% travel cooldown reduction', domain: 'social' },
   ],
+  // Rank 5 - Tier 2
   5: [
-    { key: 'int_boost_2', name: 'Brilliance', type: 'passive', description: '+2 Intelligence' },
-    { key: 'wis_boost_2', name: 'Sagacity', type: 'passive', description: '+2 Wisdom' },
-    { key: 'second_wind', name: 'Second Wind', type: 'active', description: 'Restore 20% of your maximum health (5 minute cooldown)' },
+    { key: 'savage_strikes', name: 'Savage Strikes', type: 'passive', description: '[Combat] 5% chance on crit to deal 150% bonus damage as a burst', domain: 'combat' },
+    { key: 'master_harvester', name: 'Master Harvester', type: 'passive', description: '[Crafting] 20% double gather chance, 10% faster gathering', domain: 'crafting' },
+    { key: 'silver_tongue', name: 'Silver Tongue', type: 'passive', description: '[Social] +25% NPC affinity gain, +5% vendor discounts', domain: 'social' },
   ],
+  // Rank 6 - Tier 2
   6: [
-    { key: 'cha_boost_2', name: 'Magnetism', type: 'passive', description: '+2 Charisma' },
-    { key: 'armor_boost_1', name: 'Fortitude', type: 'passive', description: '+1 Armor Class' },
-    { key: 'battle_focus', name: 'Battle Focus', type: 'active', description: 'Increase critical strike chance by 10% for 30 seconds (5 minute cooldown)' },
+    { key: 'second_wind', name: 'Second Wind', type: 'active', description: '[Combat] Restore 20% of your maximum health (5 min cooldown)', domain: 'combat' },
+    { key: 'artisans_touch', name: "Artisan's Touch", type: 'passive', description: "[Crafting] +15% craft quality bonus on all crafted items", domain: 'crafting' },
+    { key: 'fortunes_favor', name: "Fortune's Favor", type: 'passive', description: '[Social] +10% gold from all sources, +5% XP bonus', domain: 'social' },
   ],
+  // Rank 7 - Tier 3
   7: [
-    { key: 'hp_boost_3', name: 'Resilience', type: 'passive', description: '+75 max health' },
-    { key: 'str_boost_3', name: 'Power', type: 'passive', description: '+3 Strength' },
-    { key: 'warcry', name: 'Warcry', type: 'active', description: 'Increase all damage dealt by 10% for 15 seconds (5 minute cooldown)' },
+    { key: 'vampiric_strikes', name: 'Vampiric Strikes', type: 'passive', description: '[Combat] 5% on-hit chance to heal for 30% of damage dealt', domain: 'combat' },
+    { key: 'bountiful_harvest', name: 'Bountiful Harvest', type: 'passive', description: '[Crafting] 25% double gather chance, 5% rare material chance', domain: 'crafting' },
+    { key: 'diplomats_grace', name: "Diplomat's Grace", type: 'passive', description: '[Social] +30% NPC affinity gain, 25% travel cooldown reduction', domain: 'social' },
   ],
+  // Rank 8 - Tier 3
   8: [
-    { key: 'dex_boost_3', name: 'Precision', type: 'passive', description: '+3 Dexterity' },
-    { key: 'int_boost_3', name: 'Genius', type: 'passive', description: '+3 Intelligence' },
-    { key: 'evasion', name: 'Evasion', type: 'active', description: 'Dodge the next attack against you (5 minute cooldown)' },
+    { key: 'thunderous_blow', name: 'Thunderous Blow', type: 'active', description: '[Combat] Deal 300% weapon damage to target (5 min cooldown)', domain: 'combat' },
+    { key: 'resourceful', name: 'Resourceful', type: 'passive', description: '[Crafting] 20% double gather, 20% faster gathering, +10% craft quality', domain: 'crafting' },
+    { key: 'merchant_prince', name: 'Merchant Prince', type: 'passive', description: '[Social] 10% vendor discount, 10% better sell prices, +10% gold find', domain: 'social' },
   ],
+  // Rank 9 - Tier 3
   9: [
-    { key: 'wis_boost_3', name: 'Enlightenment', type: 'passive', description: '+3 Wisdom' },
-    { key: 'crit_boost_1', name: 'Deadly Aim', type: 'passive', description: '+5% critical strike chance' },
-    { key: 'shield_wall', name: 'Shield Wall', type: 'active', description: 'Reduce damage taken by 50% for 10 seconds (5 minute cooldown)' },
+    { key: 'deathbringer', name: 'Deathbringer', type: 'passive', description: '[Combat] 8% on-kill chance to deal 200% weapon damage to all nearby enemies', domain: 'combat' },
+    { key: 'masterwork', name: 'Masterwork', type: 'passive', description: '[Crafting] +25% craft quality, scales with character level (+0.5% per level)', domain: 'crafting' },
+    { key: 'voice_of_authority', name: 'Voice of Authority', type: 'passive', description: '[Social] +40% NPC affinity, +8% vendor discounts, +8% XP bonus', domain: 'social' },
   ],
+  // Rank 10 - Tier 4
   10: [
-    { key: 'hp_boost_4', name: 'Indomitable', type: 'passive', description: '+100 max health' },
-    { key: 'str_boost_4', name: 'Titan Strength', type: 'passive', description: '+4 Strength' },
-    { key: 'rally', name: 'Rally', type: 'active', description: 'Restore 15% health to all nearby group members (10 minute cooldown)' },
+    { key: 'wrath_of_the_fallen', name: 'Wrath of the Fallen', type: 'active', description: '[Combat] +25% all damage for 20 seconds (10 min cooldown)', domain: 'combat' },
+    { key: 'golden_touch', name: 'Golden Touch', type: 'passive', description: '[Crafting] 30% double gather, 15% rare materials, +15% craft quality', domain: 'crafting' },
+    { key: 'legends_presence', name: "Legend's Presence", type: 'passive', description: "[Social] +50% NPC affinity, 30% travel cooldown reduction, +15% gold find", domain: 'social' },
   ],
+  // Rank 11 - Tier 4
   11: [
-    { key: 'dex_boost_4', name: 'Lightning Reflexes', type: 'passive', description: '+4 Dexterity' },
-    { key: 'armor_boost_2', name: 'Iron Skin', type: 'passive', description: '+2 Armor Class' },
-    { key: 'berserker_rage', name: 'Berserker Rage', type: 'active', description: 'Increase damage by 25% but take 10% more damage for 20 seconds (10 minute cooldown)' },
+    { key: 'undying_fury', name: 'Undying Fury', type: 'passive', description: '[Combat] 3% on-damage-taken chance to gain +50% damage for 10 seconds', domain: 'combat' },
+    { key: 'grand_artisan', name: 'Grand Artisan', type: 'passive', description: '[Crafting] 35% double gather, 20% rare materials, +25% craft quality, scales +0.5%/level', domain: 'crafting' },
+    { key: 'world_shaper', name: 'World Shaper', type: 'passive', description: '[Social] +15% XP, +15% gold find, +10% vendor both ways, 35% travel CD reduction', domain: 'social' },
   ],
+  // Rank 12 - Tier 4 capstone (unchanged)
   12: [
-    { key: 'int_boost_4', name: 'Arcane Mastery', type: 'passive', description: '+4 Intelligence' },
-    { key: 'wis_boost_4', name: 'Divine Wisdom', type: 'passive', description: '+4 Wisdom' },
-    { key: 'life_steal', name: 'Life Steal', type: 'active', description: 'Heal for 25% of damage dealt for 15 seconds (10 minute cooldown)' },
+    { key: 'int_boost_4', name: 'Arcane Mastery', type: 'passive', description: '+4 Intelligence', domain: 'combat' },
+    { key: 'wis_boost_4', name: 'Divine Wisdom', type: 'passive', description: '+4 Wisdom', domain: 'combat' },
+    { key: 'life_steal', name: 'Life Steal', type: 'active', description: 'Heal for 25% of damage dealt for 15 seconds (10 minute cooldown)', domain: 'combat' },
   ],
+  // Rank 13 - Tier 5 (unchanged)
   13: [
-    { key: 'hp_boost_5', name: 'Legendary Constitution', type: 'passive', description: '+150 max health' },
-    { key: 'str_boost_5', name: 'Godlike Strength', type: 'passive', description: '+5 Strength' },
-    { key: 'phoenix_rebirth', name: 'Phoenix Rebirth', type: 'active', description: 'Automatically revive with 50% health when killed (30 minute cooldown)' },
+    { key: 'hp_boost_5', name: 'Legendary Constitution', type: 'passive', description: '+150 max health', domain: 'combat' },
+    { key: 'str_boost_5', name: 'Godlike Strength', type: 'passive', description: '+5 Strength', domain: 'combat' },
+    { key: 'phoenix_rebirth', name: 'Phoenix Rebirth', type: 'active', description: 'Automatically revive with 50% health when killed (30 minute cooldown)', domain: 'combat' },
   ],
+  // Rank 14 - Tier 5 (unchanged)
   14: [
-    { key: 'dex_boost_5', name: 'Supernatural Agility', type: 'passive', description: '+5 Dexterity' },
-    { key: 'crit_boost_2', name: 'Perfect Strike', type: 'passive', description: '+10% critical strike chance' },
-    { key: 'defy_death', name: 'Defy Death', type: 'active', description: 'Prevent fatal damage once, leaving you at 1 HP (1 hour cooldown)' },
+    { key: 'dex_boost_5', name: 'Legendary Agility', type: 'passive', description: '+5 Dexterity', domain: 'combat' },
+    { key: 'armor_boost_3', name: 'Legendary Armor', type: 'passive', description: '+3 Armor Class', domain: 'combat' },
+    { key: 'timestop', name: 'Timestop', type: 'active', description: 'Freeze all enemies for 5 seconds (30 minute cooldown)', domain: 'combat' },
   ],
+  // Rank 15 - Tier 5 (unchanged)
   15: [
-    { key: 'int_boost_5', name: 'Cosmic Intelligence', type: 'passive', description: '+5 Intelligence' },
-    { key: 'wis_boost_5', name: 'Eternal Wisdom', type: 'passive', description: '+5 Wisdom' },
-    { key: 'armor_boost_3', name: 'Invulnerability', type: 'passive', description: '+3 Armor Class' },
+    { key: 'all_stats_boost', name: 'Eternal Excellence', type: 'passive', description: '+3 to all stats', domain: 'combat' },
+    { key: 'crit_boost_2', name: 'Perfect Strike', type: 'passive', description: '+10% critical strike chance', domain: 'combat' },
+    { key: 'defy_death', name: 'Defy Death', type: 'active', description: 'Prevent the next lethal blow and heal to 25% health (30 minute cooldown)', domain: 'combat' },
   ],
 };
 
@@ -435,6 +456,10 @@ const availablePerks = computed(() => {
 
 const choosePerk = (perkKey: string) => {
   emit('choosePerk', perkKey);
+};
+
+const getDomainColor = (domain: 'combat' | 'crafting' | 'social' | undefined): string => {
+  return DOMAIN_COLORS[domain ?? 'combat'] ?? '#888';
 };
 
 // Chosen perks display
