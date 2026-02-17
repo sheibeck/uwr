@@ -95,13 +95,7 @@ const filteredCommands = computed(() => {
 const onCommandInput = (event: Event) => {
   const value = (event.target as HTMLInputElement).value;
   emit('update:commandText', value);
-  if (!value.trim().startsWith('/')) {
-    highlighted.value = null;
-    return;
-  }
-  if (!highlighted.value && filteredCommands.value.length) {
-    highlighted.value = filteredCommands.value[0].value;
-  }
+  highlighted.value = null;
 };
 
 const selectCommand = (value: string) => {
