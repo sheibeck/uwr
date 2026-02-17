@@ -315,9 +315,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 111 | Fix enemy DoT/debuff effects not applying - replaced empty ENEMY_ABILITIES stub with real named import from ability_catalog, enabling enemy poison/venom/hex/curse abilities to resolve and insert CharacterEffect rows during combat | 2026-02-17 | 6e800fa | [111-fix-enemy-dot-debuff-effects-not-applyin](./quick/111-fix-enemy-dot-debuff-effects-not-applyin/) |
 | 112 | Replace SplashScreen ASCII art pre blocks with pixel art logo.png image - copied logo to public/assets/, replaced pre elements with img tag, added splashLogo style with imageRendering: pixelated | 2026-02-16 | 4f62831 | [112-replace-splashscreen-pre-areas-with-asse](./quick/112-replace-splashscreen-pre-areas-with-asse/) |
 | 113 | Wire up Enter key to trigger login on splash screen - window keydown listener emits 'login' on Enter when connActive is true, cleaned up on unmount | 2026-02-16 | 815dac3 | [113-wire-up-enter-key-to-trigger-login-on-sp](./quick/113-wire-up-enter-key-to-trigger-login-on-sp/) |
+| 114 | Replace login button with >> Login << styled text - amber monospace span with no button chrome, disabled state dims to opacity 0.4, click guard and Enter key handler preserved | 2026-02-16 | b20bcd8 | [114-replace-login-button-with-login-styled-t](./quick/114-replace-login-button-with-login-styled-t/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-16 - Completed quick-113: Wire up Enter key to trigger login on splash screen - added window keydown listener in SplashScreen.vue (onMounted/onUnmounted) that emits 'login' when Enter pressed and connActive is true, matching button's disabled guard.
+Last activity: 2026-02-16 - Completed quick-114: Replace login button with >> Login << styled text - replaced <button> with <span> in SplashScreen.vue, renamed splashLogin style to splashLoginText + splashLoginTextDisabled (opacity 0.4 when disabled), monospace amber text with no button chrome.
