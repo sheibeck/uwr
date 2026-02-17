@@ -5,6 +5,7 @@ import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, HEALING_THREAT_PERCEN
 import { awardRenown, awardServerFirst, calculatePerkBonuses } from '../helpers/renown';
 import { RENOWN_GAIN } from '../data/renown_data';
 import { rollQualityTier, generateAffixData, buildDisplayName } from '../helpers/items';
+import { LEGENDARIES } from '../data/affix_catalog';
 
 const AUTO_ATTACK_INTERVAL = 5_000_000n;
 const RETRY_ATTACK_INTERVAL = 1_000_000n;
@@ -2250,6 +2251,56 @@ export const registerCombatReducers = (deps: any) => {
           ctx.db.combatResult.id.delete(resultRow.id);
         }
       }
+      // Legendary drop check — named boss kills only, one loot row for first participant
+      for (const template of enemyTemplates) {
+        const legendary = LEGENDARIES.find((leg) => leg.enemyTemplateName === template.name);
+        if (!legendary) continue;
+        // Find base ItemTemplate by name
+        let baseTemplate: any = null;
+        for (const t of ctx.db.itemTemplate.iter()) {
+          if (t.name === legendary.baseTemplateName) {
+            baseTemplate = t;
+            break;
+          }
+        }
+        if (!baseTemplate) continue;
+        // Grant to first eligible participant (prefer alive, fall back to any)
+        const firstParticipant = participants.find((p) => {
+          const c = ctx.db.character.id.find(p.characterId);
+          return c && c.hp > 0n;
+        }) ?? participants[0];
+        if (!firstParticipant) continue;
+        const firstChar = ctx.db.character.id.find(firstParticipant.characterId);
+        if (!firstChar) continue;
+        const legendaryAffixJson = JSON.stringify(legendary.affixes.map((a) => ({
+          affixKey: a.affixKey,
+          affixType: a.type,
+          magnitude: Number(a.magnitude),
+          statKey: a.statKey,
+          affixName: a.affixName,
+        })));
+        ctx.db.combatLoot.insert({
+          id: 0n,
+          combatId: combat.id,
+          ownerUserId: firstChar.ownerUserId,
+          characterId: firstChar.id,
+          itemTemplateId: baseTemplate.id,
+          createdAt: ctx.timestamp,
+          qualityTier: 'legendary',
+          affixDataJson: legendaryAffixJson,
+          isNamed: true,
+        });
+        // Announce the legendary drop to all participants
+        for (const p of participants) {
+          const pChar = ctx.db.character.id.find(p.characterId);
+          if (!pChar) continue;
+          appendPrivateEvent(ctx, pChar.id, pChar.ownerUserId, 'reward',
+            `${legendary.name} has dropped for ${firstChar.name}!`);
+        }
+        logGroupEvent(ctx, combat.id, firstChar.id, 'reward',
+          `${legendary.name} has dropped for ${firstChar.name}!`);
+      }
+
       // Create corpses for dead characters first (before XP penalty)
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
