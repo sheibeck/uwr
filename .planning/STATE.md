@@ -257,9 +257,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 129 | Seed world-drop gear pool separate from starter items - 25 world-drop items across weapon types and armor slots/tiers, STARTER_ITEM_NAMES exclusion set in loot filter, equipped slot rarity text removed and name shows quality color instead | 2026-02-17 | e64b2b3 | [129-seed-world-drop-item-pool-separate-from-](./quick/129-seed-world-drop-item-pool-separate-from-/) |
 | 130 | Remove starter gear from vendor inventories - STARTER_ITEM_NAMES promoted to module scope with starter accessories added, ensureVendorInventory allEligible filter excludes starters, tier 1 world-drop weapons normalized to 5/7 base/dps, tier 1 armor +1 AC each | 2026-02-17 | ba5d315 | [130-remove-starter-gear-from-vendor-inventor](./quick/130-remove-starter-gear-from-vendor-inventor/) |
 | 132 | Verify per-character passive search independence in group travel - confirmed each character gets own performPassiveSearch call with unique charId XOR nowMicros seed; all resource nodes, search results, and quest rolls are already fully independent per character | 2026-02-17 | 0f3b86d | [132-verify-and-fix-per-character-independenc](./quick/132-verify-and-fix-per-character-independenc/) |
+| 133 | Remove rarity text labels from vendor/quartermaster window and inventory context menu - deleted ({{ item.rarity }}) from both VendorPanel item lists, changed InventoryPanel context menu subtitle from qualityTier+slot to slot only; quality communicated by color only | 2026-02-17 | ab12b3e | [133-remove-rarity-text-labels-from-vendor-qu](./quick/133-remove-rarity-text-labels-from-vendor-qu/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick task 132: Verified per-character passive search independence — no bug found, each group member already gets independent rolls via unique charId XOR timestamp seed.
+Last activity: 2026-02-17 - Completed quick task 133: Removed redundant rarity text labels from vendor panel item lists and inventory context menu subtitle — quality is now communicated by name color only.
