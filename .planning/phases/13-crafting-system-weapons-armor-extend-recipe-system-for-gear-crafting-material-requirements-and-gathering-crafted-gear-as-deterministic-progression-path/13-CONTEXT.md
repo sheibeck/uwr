@@ -22,10 +22,12 @@ Note: The phase is named "Weapons & Armor" but scope extends to ALL craftable eq
 - Salvage system upgraded: salvaging gear now yields materials ONLY (gold yield removed). Crafted gear salvages the same as any dropped gear — no special recycle path back to original materials
 
 ### Recipe Discovery
-- Recipes discovered via two paths: drop from enemies/exploration (passive search can surface recipe scrolls), and awarded as quest rewards (faction-adjacent quests)
+- Recipes discovered via THREE paths: drop from enemies/exploration (passive search can surface recipe scrolls), awarded as quest rewards (faction-adjacent quests), and **salvaging an item has a high chance to teach the recipe for that item type**
+- Salvage-to-recipe: salvaging a Longsword (regardless of quality) rolls a high-probability chance to add the Longsword recipe to the character's known recipes. This is the primary organic discovery path — dismantle gear you find, learn to build it
+- Recipes are per-item-type, NOT per-rarity — one recipe covers all quality tiers of that item (e.g. a single "Longsword" recipe). Quality tier is determined by the material tier used, not a separate recipe. No need to find a "Rare Longsword Recipe" separately from a "Common Longsword Recipe"
 - Recipes are character-specific — each character has their own recipe book; alts discover recipes independently
 - Any character can craft any recipe they've discovered — no class restriction on crafting
-- Learning is automatic on pickup: taking a recipe scroll from loot or quest reward immediately adds it to the character's known recipes and posts a Log entry ("You have learned: [Recipe Name]")
+- Learning is automatic on pickup or salvage trigger: recipe immediately added to known list with a Log entry ("You have learned: [Recipe Name]")
 - Recipes have types for sorting and filtering: Weapon, Armor, Consumable (and any other relevant categories)
 
 ### Crafted Gear Power & Identity
