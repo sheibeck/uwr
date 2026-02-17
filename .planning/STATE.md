@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Completed quick task 138: Removed weaponBaseDamage affix type (double-dipping with STR scaling), added fierce prefix (strBonus, minTier=2) as replacement, trimmed HP/AC/MR legendary magnitude caps, updated Dreadmaw (keen→mighty/strBonus) and Ironveil legendaries, republished module with --clear-database.
+**Status:** Completed quick task 139: VendorPanel backpack section now uses per-instance qualityTier for item name colors instead of template base rarity — matches InventoryPanel coloring behavior.
 
 ---
 
@@ -264,9 +264,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 136 | Stats panel shows effective stats inclusive of all bonuses - equippedStatBonuses computed in App.vue extended to sum gear affix bonuses (strBonus/dexBonus etc. on equipped ItemAffix rows) and CharacterEffect stat buffs (str_bonus/dex_bonus etc.); base value remains in parentheses | 2026-02-17 | a598f91 | [136-stats-panel-shows-effective-stats-inclus](./quick/136-stats-panel-shows-effective-stats-inclus/) |
 | 137 | Add jewelry to world-drop loot tables - 10 templates (6 tier-1 + 4 tier-2 earrings/neck), weight 1n vs 3n-6n for weapons/armor, quality floor bumps common jewelry to uncommon in generateLootTemplates | 2026-02-17 | 5594672 | [137-add-jewelry-to-world-drop-loot-tables-wi](./quick/137-add-jewelry-to-world-drop-loot-tables-wi/) |
 | 138 | Rebalance affix catalog — remove weaponBaseDamage (double-dips with STR scaling), add fierce prefix (strBonus minTier=2), trim HP/AC/MR legendary caps, fix Dreadmaw and Ironveil legendaries, republish module | 2026-02-17 | 1be5623 | [138-rebalance-affix-catalog-remove-weapon-da](./quick/138-rebalance-affix-catalog-remove-weapon-da/) |
+| 139 | Apply quality rarity colors to vendor backpack — changed inventoryItems to use qualityTier instead of rarity for item name coloring in VendorPanel backpack section; added qualityTier to prop type | 2026-02-17 | b4509b5 | [139-apply-quality-rarity-colors-to-vendor-st](./quick/139-apply-quality-rarity-colors-to-vendor-st/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick task 138: Removed weaponBaseDamage affix type and rebalanced HP/AC/MR affix magnitudes; Dreadmaw legendary converted to STR-focused weapon; module republished with --clear-database.
+Last activity: 2026-02-17 - Completed quick task 139: VendorPanel backpack section now uses per-instance qualityTier for item name colors; matches InventoryPanel coloring behavior.
