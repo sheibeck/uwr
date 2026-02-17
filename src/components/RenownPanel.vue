@@ -1,28 +1,52 @@
 <template>
   <div :style="styles.panelBody">
-    <!-- Tab Bar -->
-    <div :style="{ display: 'flex', gap: '8px', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '8px' }">
+    <!-- Tab Bar — matches NpcDialogPanel / Journal pattern -->
+    <div :style="{ display: 'flex', gap: '0', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '8px' }">
       <button
         type="button"
-        :style="activeTab === 'factions' ? { ...styles.actionButton, ...styles.actionButtonActive } : styles.actionButton"
         @click="activeTab = 'factions'"
-      >
-        Factions
-      </button>
+        :style="{
+          background: activeTab === 'factions' ? 'rgba(255,255,255,0.08)' : 'transparent',
+          borderBottom: activeTab === 'factions' ? '2px solid #60a5fa' : '2px solid transparent',
+          padding: '8px 16px',
+          cursor: 'pointer',
+          color: activeTab === 'factions' ? '#fff' : '#d1d5db',
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          border: 'none',
+          outline: 'none',
+        }"
+      >Factions</button>
       <button
         type="button"
-        :style="activeTab === 'renown' ? { ...styles.actionButton, ...styles.actionButtonActive } : styles.actionButton"
         @click="activeTab = 'renown'"
-      >
-        Renown
-      </button>
+        :style="{
+          background: activeTab === 'renown' ? 'rgba(255,255,255,0.08)' : 'transparent',
+          borderBottom: activeTab === 'renown' ? '2px solid #60a5fa' : '2px solid transparent',
+          padding: '8px 16px',
+          cursor: 'pointer',
+          color: activeTab === 'renown' ? '#fff' : '#d1d5db',
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          border: 'none',
+          outline: 'none',
+        }"
+      >Renown</button>
       <button
         type="button"
-        :style="activeTab === 'leaderboard' ? { ...styles.actionButton, ...styles.actionButtonActive } : styles.actionButton"
         @click="activeTab = 'leaderboard'"
-      >
-        Leaderboard
-      </button>
+        :style="{
+          background: activeTab === 'leaderboard' ? 'rgba(255,255,255,0.08)' : 'transparent',
+          borderBottom: activeTab === 'leaderboard' ? '2px solid #60a5fa' : '2px solid transparent',
+          padding: '8px 16px',
+          cursor: 'pointer',
+          color: activeTab === 'leaderboard' ? '#fff' : '#d1d5db',
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          border: 'none',
+          outline: 'none',
+        }"
+      >Leaderboard</button>
     </div>
 
     <!-- Tab Content -->
