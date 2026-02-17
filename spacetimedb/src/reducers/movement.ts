@@ -1,4 +1,5 @@
 import { TRAVEL_CONFIG } from '../data/travel_config';
+import { performPassiveSearch } from '../helpers/search';
 
 export const registerMovementReducers = (deps: any) => {
   const {
@@ -125,6 +126,7 @@ export const registerMovementReducers = (deps: any) => {
       appendLocationEvent(ctx, originLocationId, 'move', `${row.name} departs.`, row.id);
       appendLocationEvent(ctx, location.id, 'move', `${row.name} arrives.`, row.id);
       ensureSpawnsForLocation(ctx, location.id);
+      performPassiveSearch(ctx, ctx.db.character.id.find(charId)!, location.id, appendPrivateEvent);
     };
 
     for (const traveler of travelingCharacters) {
