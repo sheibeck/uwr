@@ -2,14 +2,12 @@
   <div :style="styles.splashOverlay">
     <img src="/assets/logo.png" alt="Unwritten Realms" :style="styles.splashLogo" />
 
-    <button
-      type="button"
-      :style="styles.splashLogin"
-      :disabled="!connActive"
-      @click="$emit('login')"
+    <span
+      :style="[styles.splashLoginText, !connActive && styles.splashLoginTextDisabled]"
+      @click="connActive && $emit('login')"
     >
-      Login &gt;
-    </button>
+      &gt;&gt; Login &lt;&lt;
+    </span>
 
     <div v-if="authMessage" :style="styles.authMessage">{{ authMessage }}</div>
     <div v-if="authError" :style="styles.authError">{{ authError }}</div>

@@ -1507,18 +1507,18 @@ export const styles = {
     userSelect: 'none',
     imageRendering: 'pixelated',
   },
-  splashLogin: {
-    background: 'none',
-    border: '1px solid rgba(248, 201, 74, 0.4)',
+  splashLoginText: {
     color: 'rgba(248, 201, 74, 0.9)',
     fontSize: '1.1rem',
-    letterSpacing: '0.12em',
-    padding: '0.6rem 2rem',
-    borderRadius: '8px',
+    letterSpacing: '0.15em',
     cursor: 'pointer',
-    fontFamily: '"PT Serif", "Georgia", serif',
-    textTransform: 'uppercase',
-    transition: 'border-color 0.2s, color 0.2s',
+    fontFamily: 'monospace',
+    userSelect: 'none' as const,
+    transition: 'color 0.2s, opacity 0.2s',
+  },
+  splashLoginTextDisabled: {
+    opacity: 0.4,
+    cursor: 'default',
   },
   loadingOverlay: {
     position: 'fixed',
