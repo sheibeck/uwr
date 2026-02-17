@@ -1296,10 +1296,21 @@ export const styles = {
     color: '#3b82f6',
   },
   rarityEpic: {
-    color: '#facc15',
+    color: '#aa44ff',
   },
   rarityLegendary: {
-    color: '#f97316',
+    color: '#ff8800',
+  },
+  qualityBorderCommon: { borderColor: '#555555' },
+  qualityBorderUncommon: { borderColor: '#22c55e' },
+  qualityBorderRare: { borderColor: '#3b82f6' },
+  qualityBorderEpic: { borderColor: '#aa44ff' },
+  qualityBorderLegendary: { borderColor: '#ff8800' },
+  lootFlashEpic: {
+    animation: 'lootFlash 0.6s ease-in-out 2',
+  },
+  lootFlashLegendary: {
+    animation: 'lootFlashLegendary 0.8s ease-in-out 3',
   },
   regionBadge: {
     padding: '0.15rem 0.4rem',

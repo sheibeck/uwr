@@ -58,7 +58,7 @@
           <div
             v-for="(slot, idx) in bagSlots"
             :key="idx"
-            :style="slot ? { ...styles.bagSlot, ...styles.bagSlotFilled } : styles.bagSlot"
+            :style="slot ? { ...styles.bagSlot, ...styles.bagSlotFilled, ...qualityBorderStyle(slot.qualityTier) } : styles.bagSlot"
             @contextmenu.prevent="slot && openItemContextMenu($event, slot)"
             @mouseenter="slot && $emit('show-tooltip', { item: slot, x: $event.clientX, y: $event.clientY })"
             @mousemove="slot && $emit('move-tooltip', { x: $event.clientX, y: $event.clientY })"
@@ -66,7 +66,7 @@
           >
             <template v-if="slot">
               <div :style="styles.bagSlotSlotLabel">{{ slot.slot }}</div>
-              <div :style="[styles.bagSlotName, rarityStyle(slot.rarity)]">{{ slot.name }}</div>
+              <div :style="[styles.bagSlotName, rarityStyle(slot.qualityTier)]">{{ slot.name }}</div>
               <span v-if="slot.stackable && slot.quantity > 1n" :style="styles.bagSlotQuantity">
                 x{{ slot.quantity }}
               </span>
@@ -93,6 +93,11 @@ import { ref, computed } from 'vue';
 import type { CharacterRow } from '../module_bindings';
 import ContextMenu from './ContextMenu.vue';
 
+const GEAR_SLOTS = new Set([
+  'head', 'chest', 'wrists', 'hands', 'belt', 'legs', 'boots',
+  'earrings', 'neck', 'cloak', 'mainHand', 'offHand',
+]);
+
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
@@ -115,18 +120,21 @@ const props = defineProps<{
     slot: string;
     armorType: string;
     rarity: string;
+    qualityTier: string;
     tier: bigint;
     isJunk: boolean;
     vendorValue: bigint;
     requiredLevel: bigint;
     allowedClasses: string;
     stats: { label: string; value: string }[];
+    affixStats: { label: string; value: string; affixName: string }[];
     description: string;
     equipable: boolean;
     usable: boolean;
     eatable: boolean;
     quantity: bigint;
     stackable: boolean;
+    isNamed: boolean;
   }[];
   inventoryCount: number;
   maxInventorySlots: number;
@@ -150,6 +158,20 @@ const rarityStyle = (rarity: string) => {
   return (props.styles as any)[map[key] ?? 'rarityCommon'] ?? {};
 };
 
+const qualityBorderStyle = (quality: string) => {
+  const key = (quality ?? 'common').toLowerCase();
+  const map: Record<string, string> = {
+    common: 'qualityBorderCommon',
+    uncommon: 'qualityBorderUncommon',
+    rare: 'qualityBorderRare',
+    epic: 'qualityBorderEpic',
+    legendary: 'qualityBorderLegendary',
+  };
+  const borderColor = ((props.styles as any)[map[key] ?? 'qualityBorderCommon'] ?? {}).borderColor;
+  if (!borderColor) return {};
+  return { border: `2px solid ${borderColor}` };
+};
+
 const emit = defineEmits<{
   (e: 'equip', itemInstanceId: bigint): void;
   (e: 'unequip', slot: string): void;
@@ -157,6 +179,7 @@ const emit = defineEmits<{
   (e: 'eat-food', itemInstanceId: bigint): void;
   (e: 'delete-item', itemInstanceId: bigint): void;
   (e: 'split-stack', itemInstanceId: bigint, quantity: bigint): void;
+  (e: 'salvage-item', itemInstanceId: bigint): void;
   (e: 'organize'): void;
   (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
   (e: 'move-tooltip', value: { x: number; y: number }): void;
@@ -207,6 +230,17 @@ const openItemContextMenu = (event: MouseEvent, item: typeof props.inventoryItem
       },
     });
   }
+  // Salvage option for unequipped gear items only
+  if (GEAR_SLOTS.has(item.slot) && !item.isJunk) {
+    items.push({
+      label: 'Salvage',
+      action: () => {
+        if (window.confirm(`Salvage ${item.name}? You will receive gold. This cannot be undone.`)) {
+          emit('salvage-item', item.id);
+        }
+      },
+    });
+  }
   items.push({
     label: 'Delete',
     action: () => {
@@ -223,7 +257,7 @@ const openItemContextMenu = (event: MouseEvent, item: typeof props.inventoryItem
     x: event.clientX,
     y: event.clientY,
     title: item.name,
-    subtitle: `${item.rarity} ${item.slot}`,
+    subtitle: `${item.qualityTier} ${item.slot}`,
     items,
   };
 };
