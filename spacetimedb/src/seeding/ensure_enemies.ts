@@ -119,9 +119,9 @@ export function ensureVendorInventory(ctx: any) {
     const tierRaw = Math.floor(Number(region.dangerMultiplier) / 100);
     const vendorTier = Math.max(1, tierRaw);
 
-    // Filter eligible items: not junk, not resources, tier <= vendor tier, not starter gear
+    // Filter eligible items: not junk, not resources, tier <= vendor tier, not starter gear, common rarity only
     const allEligible = [...ctx.db.itemTemplate.iter()].filter(
-      (row) => !row.isJunk && row.slot !== 'resource' && row.tier <= BigInt(vendorTier) && !STARTER_ITEM_NAMES.has(row.name)
+      (row) => !row.isJunk && row.slot !== 'resource' && row.tier <= BigInt(vendorTier) && !STARTER_ITEM_NAMES.has(row.name) && row.rarity === 'common'
     );
 
     // Group items by category
@@ -139,10 +139,11 @@ export function ensureVendorInventory(ctx: any) {
     );
 
     // Select random subset from each category using vendor.id as seed
-    const selectedArmor = pickN(armor, 4, vendor.id);
+    // Total cap: 3 armor + 3 weapons + 2 accessories + 2 consumables = 10 max items
+    const selectedArmor = pickN(armor, 3, vendor.id);
     const selectedWeapons = pickN(weapons, 3, vendor.id);
     const selectedAccessories = pickN(accessories, 2, vendor.id);
-    const selectedConsumables = consumables; // Keep all consumables
+    const selectedConsumables = pickN(consumables, 2, vendor.id + 11n);
 
     // Combine all selected items
     const selectedItems = [
@@ -179,13 +180,9 @@ export function ensureVendorInventory(ctx: any) {
       selectedItemIds.add(template.id);
     }
 
-    // Remove stale vendor items
-    const existingInventory = [...ctx.db.vendorInventory.by_vendor.filter(vendor.id)];
-    for (const inventoryRow of existingInventory) {
-      if (!selectedItemIds.has(inventoryRow.itemTemplateId)) {
-        ctx.db.vendorInventory.id.delete(inventoryRow.id);
-      }
-    }
+    // Note: stale removal intentionally omitted — player-sold items accumulate in vendor inventory
+    // and must not be purged on sync. Seed items are upserted idempotently.
+    void selectedItemIds; // suppress unused-variable warning
   }
 }
 

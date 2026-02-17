@@ -164,7 +164,7 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer(
     'sell_item',
-    { characterId: t.u64(), itemInstanceId: t.u64() },
+    { characterId: t.u64(), itemInstanceId: t.u64(), npcId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
@@ -176,6 +176,9 @@ export const registerItemReducers = (deps: any) => {
       const template = ctx.db.itemTemplate.id.find(instance.templateId);
       if (!template) return failItem(ctx, character, 'Item template missing');
       const value = (template.vendorValue ?? 0n) * (instance.quantity ?? 1n);
+      // Capture template info before deletion
+      const soldTemplateId = instance.templateId;
+      const soldVendorValue = template.vendorValue ?? 0n;
       // Clean up any affixes before deleting the item instance
       for (const affix of ctx.db.itemAffix.by_instance.filter(instance.id)) {
         ctx.db.itemAffix.id.delete(affix.id);
@@ -185,6 +188,23 @@ export const registerItemReducers = (deps: any) => {
         ...character,
         gold: (character.gold ?? 0n) + value,
       });
+      // Add sold item to the vendor's inventory so other players can buy it
+      const npc = ctx.db.npc.id.find(args.npcId);
+      if (npc && npc.npcType === 'vendor') {
+        const alreadyListed = [...ctx.db.vendorInventory.by_vendor.filter(args.npcId)].find(
+          (row) => row.itemTemplateId === soldTemplateId
+        );
+        if (!alreadyListed) {
+          // Price at 2x vendorValue (what the vendor paid per unit)
+          const resalePrice = soldVendorValue > 0n ? soldVendorValue * 2n : 10n;
+          ctx.db.vendorInventory.insert({
+            id: 0n,
+            npcId: args.npcId,
+            itemTemplateId: soldTemplateId,
+            price: resalePrice,
+          });
+        }
+      }
       appendPrivateEvent(
         ctx,
         character.id,
