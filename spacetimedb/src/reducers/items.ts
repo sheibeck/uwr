@@ -24,6 +24,7 @@ export const registerItemReducers = (deps: any) => {
     logPrivateAndGroup,
     startCombatForSpawn,
     effectiveGroupId,
+    requirePullerOrLog,
     getGroupParticipants,
     getInventorySlotCount,
     ResourceGatherTick,
@@ -515,6 +516,11 @@ export const registerItemReducers = (deps: any) => {
           `Casting ${abilityKey.replace(/_/g, ' ')}...`
         );
         return;
+      }
+      // Block ranger_track for non-pullers in groups
+      if (abilityKey === 'ranger_track') {
+        const pullerResult = requirePullerOrLog(ctx, character, fail, 'You must be the puller to use this ability.');
+        if (!pullerResult.ok) return;
       }
       try {
         const executed = executeAbilityAction(ctx, {
