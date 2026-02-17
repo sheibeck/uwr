@@ -11,8 +11,8 @@
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
 
 **Last completed phase:** 20 (Perk Variety Expansion) — 3/3 plans complete
-**Current phase:** None — ready to begin next phase
-**Next action:** Begin Phase 13 (Crafting), Phase 16 (Travelling NPCs), or Phase 17 (World Bosses).
+**Current phase:** 18 (World Events System Expansion) — Plan 01 complete, plans 02 and 03 remain
+**Next action:** Continue Phase 18 — execute Plan 02 (reducers and hooks for world event lifecycle).
 
 ---
 
@@ -170,6 +170,10 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 123. Active perk ability keys use perk_ prefix (e.g., perk_second_wind) to distinguish from class abilities in use_ability routing — enables single-reducer perk casting without AbilityTemplate entries (20-03)
 124. choose_perk auto-inserts HotbarSlot row for active perks; no error if hotbar full, only a management message — non-breaking for players with full hotbars (20-03)
 125. damage_boost CharacterEffect stored for Wrath of the Fallen but not yet consumed by combat loop — consistent with other deferred affixes (cooldownReduction/manaRegen); noted as future integration (20-03)
+126. WorldEvent table has both successConsequenceType AND failureConsequenceType — every event must have a defined consequence for both outcomes, failure darkens world but never breaks playability (18-01)
+127. consequenceText field on WorldEvent written at fire time from eventDef.consequenceTextStub, not at resolve time — ensures permanent historical record even if event definition changes (REQ-034) (18-01)
+128. WorldStatTracker + incrementWorldStat pattern for REQ-032 threshold-triggered events — call incrementWorldStat from combat/quest hooks, no separate event-checking reducer needed (18-01)
+129. EventDespawnTick defined in tables.ts alongside other scheduled tables and re-exported from scheduled_tables.ts — consistent with existing PullTick/CombatLoopTick pattern (18-01)
 
 ---
 
@@ -218,6 +222,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 14-loot-gear-progression | 04 | 6min | 2 | 14 |
 | 20-perk-variety-expansion | 02 | ~25min | 2 | 7 |
 | 20-perk-variety-expansion | 03 | ~15min | 2 | 2 |
+| Phase 18 P01 | 4 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -294,4 +299,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-17 - Phase 20 Plan 03 complete: active ability perks (Second Wind, Thunderous Blow, Wrath of the Fallen) implemented with hotbar auto-assignment on choose_perk, perkAbilityKey/healPercent/damagePercent/buffType fields in PerkEffect, executePerkAbility routes all three effect types, cooldowns tracked via AbilityCooldown table. Phase 20 (Perk Variety Expansion) now fully complete with 3/3 plans done. Stopped at: Completed 20-03-PLAN.md
+Last activity: 2026-02-17 - Phase 18 Plan 01 complete: world event backend foundation with 7 new tables (WorldEvent with dual consequences, EventContribution for tiered rewards, EventSpawnEnemy/EventSpawnItem for self-contained event content, EventObjective, WorldStatTracker for REQ-032 threshold-triggered events, EventDespawnTick scheduled), event data constants with 2 event definitions, and world_events.ts helpers for full lifecycle including incrementWorldStat (REQ-032) and consequenceText written at fire time (REQ-034). Stopped at: Completed 18-01-PLAN.md
