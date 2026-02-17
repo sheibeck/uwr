@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Completed quick task 131: Replaced player right-click 'Actions' entry with full inline context menus in LocationGrid and GroupPanel; CharacterActionsPanel floating panel removed.
+**Status:** Completed quick task 134: STARTER_ITEM_NAMES centralized in combat_constants.ts; create_test_item and generateLootTemplates now filter starter gear at runtime so /createitem and combat kills never drop Training Sword, Apprentice Robe, etc.
 
 ---
 
@@ -256,12 +256,13 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 128 | Loot window shows only most recent combat - delete stale CombatLoot rows and orphaned CombatResult rows per-character before inserting new loot, using by_character index | 2026-02-17 | 3637b19 | [128-loot-window-shows-only-most-recent-comba](./quick/128-loot-window-shows-only-most-recent-comba/) |
 | 129 | Seed world-drop gear pool separate from starter items - 25 world-drop items across weapon types and armor slots/tiers, STARTER_ITEM_NAMES exclusion set in loot filter, equipped slot rarity text removed and name shows quality color instead | 2026-02-17 | e64b2b3 | [129-seed-world-drop-item-pool-separate-from-](./quick/129-seed-world-drop-item-pool-separate-from-/) |
 | 130 | Remove starter gear from vendor inventories - STARTER_ITEM_NAMES promoted to module scope with starter accessories added, ensureVendorInventory allEligible filter excludes starters, tier 1 world-drop weapons normalized to 5/7 base/dps, tier 1 armor +1 AC each | 2026-02-17 | ba5d315 | [130-remove-starter-gear-from-vendor-inventor](./quick/130-remove-starter-gear-from-vendor-inventor/) |
-| 131 | Align player right-click context menu - replaced single 'Actions' entry with full inline context menus in LocationGrid (Target/Trade/Message/Invite/Friend/Promote/Kick) and GroupPanel (same set + self-detection); CharacterActionsPanel floating panel removed | 2026-02-17 | 2c67145 | [131-align-player-right-click-context-menu-wi](./quick/131-align-player-right-click-context-menu-wi/) |
+| 131 | Align player right-click context menu - replaced single 'Actions' entry with full inline context menus in LocationGrid (Target/Trade/Message/Invite/Friend/Promote/Kick) and GroupPanel (same set + self-detection); CharacterActionsPanel floating panel removed | 2026-02-17 | c8c953b | [131-align-player-right-click-context-menu-wi](./quick/131-align-player-right-click-context-menu-wi/) |
 | 132 | Verify per-character passive search independence in group travel - confirmed each character gets own performPassiveSearch call with unique charId XOR nowMicros seed; all resource nodes, search results, and quest rolls are already fully independent per character | 2026-02-17 | 0f3b86d | [132-verify-and-fix-per-character-independenc](./quick/132-verify-and-fix-per-character-independenc/) |
 | 133 | Remove rarity text labels from vendor/quartermaster window and inventory context menu - deleted ({{ item.rarity }}) from both VendorPanel item lists, changed InventoryPanel context menu subtitle from qualityTier+slot to slot only; quality communicated by color only | 2026-02-17 | ab12b3e | [133-remove-rarity-text-labels-from-vendor-qu](./quick/133-remove-rarity-text-labels-from-vendor-qu/) |
+| 134 | Fix /createitem and combat loot to never pick starter gear - STARTER_ITEM_NAMES centralized in combat_constants.ts, create_test_item and generateLootTemplates gearEntries both filter !STARTER_ITEM_NAMES.has() at runtime | 2026-02-17 | 32b89a0 | [134-fix-create-test-item-reducer-and-loot-ge](./quick/134-fix-create-test-item-reducer-and-loot-ge/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick task 131: Replaced player right-click 'Actions' menu entry with full inline context menus in LocationGrid and GroupPanel; CharacterActionsPanel floating panel removed from UI.
+Last activity: 2026-02-17 - Completed quick task 134: STARTER_ITEM_NAMES centralized in combat_constants.ts; /createitem and combat loot now filter starter gear at runtime; module published.
