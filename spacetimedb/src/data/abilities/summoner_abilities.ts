@@ -19,8 +19,8 @@ export const SUMMONER_ABILITIES: Record<string, AbilityMetadata> = {
     resource: 'mana',
     level: 2n,
     power: 2n,
-    cooldownSeconds: 20n,
-    castSeconds: 3n,
+    cooldownSeconds: 10n,
+    castSeconds: 1n,
     damageType: 'none' as DamageType,
   },
   summoner_conjured_spike: {

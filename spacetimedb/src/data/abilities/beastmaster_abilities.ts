@@ -19,8 +19,8 @@ export const BEASTMASTER_ABILITIES: Record<string, AbilityMetadata> = {
     resource: 'stamina',
     level: 2n,
     power: 1n,
-    cooldownSeconds: 20n,
-    castSeconds: 3n,
+    cooldownSeconds: 10n,
+    castSeconds: 1n,
     damageType: 'none' as DamageType,
   },
   beastmaster_beast_fang: {
