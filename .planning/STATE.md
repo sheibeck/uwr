@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Completed quick task 108: Combine Journal and Quests panels into a single tabbed panel - Journal action bar button opens panel with Journal/Quests tabs, Quests button removed from action bar.
+**Status:** Completed quick task 109: Implement character selection screen - full-screen character select/create UI gates access to game world, Camp button in action bar returns to character select screen.
 
 ---
 
@@ -310,9 +310,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 106 | Seed more NPCs with dialog chains and dialogue abilities - added 9 new NPCs across all 3 regions with multi-tier dialogue trees (44 options), affinity-gated backstories, and 9 kill quests spanning level ranges 1-8 | 2026-02-17 | 5f96724 | [106-seed-more-npcs-with-dialog-chains-and-di](./quick/106-seed-more-npcs-with-dialog-chains-and-di/) |
 | 107 | Fix Ranger Track ability when in a group - added client-side puller guard in useHotbar (blocks Track panel) and server-side guard in use_ability reducer (blocks execution, no cooldown consumed) for non-puller group members | 2026-02-17 | f1e7252 | [107-fix-ranger-track-ability-when-in-a-group](./quick/107-fix-ranger-track-ability-when-in-a-group/) |
 | 108 | Combine Journal and Quests panels into single tabbed panel - Journal/Quests tabs in NpcDialogPanel, Quests button removed from action bar, quest data passed through to combined panel | 2026-02-17 | 193a3b5 | [108-combine-the-journal-and-the-quests-panel](./quick/108-combine-the-journal-and-the-quests-panel/) |
+| 109 | Implement character selection screen - full-screen CharacterPanel gates access to game world on login, Camp button replaces Characters button in action bar, clicking Camp deselects character and returns to select screen | 2026-02-17 | c9bb2a1 | [109-implement-character-selection-screen-aft](./quick/109-implement-character-selection-screen-aft/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick-108: Combine Journal and Quests panels - added Journal/Quests tabs to NpcDialogPanel, removed Quests button from action bar, removed standalone Quests panel from App.vue, quest data (characterQuests, questTemplates) passed through to combined Journal panel.
+Last activity: 2026-02-17 - Completed quick-109: Character selection screen - added full-screen character select/create UI that gates access to game world when no character is active, replaced Characters button with Camp button in action bar (disabled during combat), Camp deselects character and closes all panels to return to character select screen.
