@@ -1,6 +1,7 @@
-import { buildDisplayName } from '../helpers/items';
+import { buildDisplayName, findItemTemplateByName } from '../helpers/items';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { getPerkBonusByField } from '../helpers/renown';
+import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, MATERIAL_DEFS, getCraftedAffixes, materialTierToQuality } from '../data/crafting_materials';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -1462,15 +1463,6 @@ export const registerItemReducers = (deps: any) => {
     syncAllContent(ctx);
   });
 
-  // Salvage yield in gold by quality tier
-  const SALVAGE_GOLD_BY_QUALITY: Record<string, bigint> = {
-    common: 2n,
-    uncommon: 5n,
-    rare: 10n,
-    epic: 20n,
-    legendary: 50n,
-  };
-
   spacetimedb.reducer('salvage_item', { characterId: t.u64(), itemInstanceId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
@@ -1491,12 +1483,44 @@ export const registerItemReducers = (deps: any) => {
       return failItem(ctx, character, 'Cannot salvage this item type');
     }
 
-    // Determine gold yield based on tier and quality
-    const tier = Number(template.tier ?? 1n);
-    const quality = instance.qualityTier ?? 'common';
-    const baseGold = SALVAGE_GOLD_BY_QUALITY[quality] ?? 2n;
-    const tierMultiplier = BigInt(Math.max(1, tier));
-    const goldYield = baseGold * tierMultiplier;
+    const itemName = instance.displayName ?? template.name;
+    const tier = template.tier ?? 1n;
+
+    // --- Material yield ---
+    const materialName = getMaterialForSalvage(template.slot, template.armorType, tier);
+    if (materialName) {
+      const materialTemplate = findItemTemplateByName(ctx, materialName);
+      if (materialTemplate) {
+        const yieldCount = SALVAGE_YIELD_BY_TIER[Number(tier)] ?? 2n;
+        addItemToInventory(ctx, character.id, materialTemplate.id, yieldCount);
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+          `You salvaged ${itemName} and received ${yieldCount}x ${materialTemplate.name}.`);
+      }
+    }
+
+    // --- Recipe discovery (75% chance) ---
+    // Find a recipe that outputs this item type
+    const matchingRecipe = [...ctx.db.recipeTemplate.iter()].find(
+      (r) => r.outputTemplateId === instance.templateId
+    );
+    if (matchingRecipe) {
+      const alreadyKnown = [...ctx.db.recipeDiscovered.by_character.filter(character.id)]
+        .some((r) => r.recipeTemplateId === matchingRecipe.id);
+      if (!alreadyKnown) {
+        // Deterministic 75% roll
+        const roll = (ctx.timestamp.microsSinceUnixEpoch + character.id) % 100n;
+        if (roll < 75n) {
+          ctx.db.recipeDiscovered.insert({
+            id: 0n,
+            characterId: character.id,
+            recipeTemplateId: matchingRecipe.id,
+            discoveredAt: ctx.timestamp,
+          });
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+            `You have learned: ${matchingRecipe.name}`);
+        }
+      }
+    }
 
     // Delete associated ItemAffix rows first
     for (const affix of ctx.db.itemAffix.by_instance.filter(instance.id)) {
@@ -1504,16 +1528,6 @@ export const registerItemReducers = (deps: any) => {
     }
 
     // Delete the item instance
-    const itemName = instance.displayName ?? template.name;
     ctx.db.itemInstance.id.delete(instance.id);
-
-    // Grant gold
-    ctx.db.character.id.update({
-      ...character,
-      gold: (character.gold ?? 0n) + goldYield,
-    });
-
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-      `You salvage ${itemName} into ${goldYield} gold.`);
   });
 };
