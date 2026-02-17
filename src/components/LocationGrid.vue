@@ -300,9 +300,17 @@ const props = withDefaults(defineProps<{
   canEngage: boolean;
   questItems?: Array<{ id: bigint; name: string; discovered: boolean; looted: boolean }>;
   namedEnemies?: Array<{ id: bigint; name: string; isAlive: boolean }>;
+  myFriendUserIds?: string[];
+  groupMemberIds?: string[];
+  isLeader?: boolean;
+  leaderId?: bigint | null;
 }>(), {
   questItems: () => [],
   namedEnemies: () => [],
+  myFriendUserIds: () => [],
+  groupMemberIds: () => [],
+  isLeader: false,
+  leaderId: null,
 });
 
 const emit = defineEmits<{
@@ -310,7 +318,12 @@ const emit = defineEmits<{
   (e: 'gather-resource', nodeId: bigint): void;
   (e: 'hail', npcName: string): void;
   (e: 'open-vendor', npcId: bigint): void;
-  (e: 'character-action', characterId: bigint): void;
+  (e: 'player-invite', targetName: string): void;
+  (e: 'player-kick', targetName: string): void;
+  (e: 'player-friend', targetName: string): void;
+  (e: 'player-promote', targetName: string): void;
+  (e: 'player-trade', targetName: string): void;
+  (e: 'player-message', targetName: string): void;
   (e: 'gift-npc', npcId: bigint): void;
   (e: 'loot-all-corpse', corpseId: bigint): void;
   (e: 'initiate-resurrect', corpseId: bigint): void;
@@ -474,12 +487,49 @@ const toggleSelectCharacter = (characterId: bigint) => {
 };
 
 const openCharacterContextMenu = (event: MouseEvent, character: CharacterRow) => {
+  const isFriend = props.myFriendUserIds.includes(character.ownerUserId.toString());
+  const isInGroup = props.groupMemberIds.includes(character.id.toString());
+  const isTargetLeader = props.leaderId != null && character.id.toString() === props.leaderId.toString();
+
   const items: Array<{ label: string; disabled?: boolean; action: () => void }> = [
     {
-      label: 'Actions',
-      action: () => emit('character-action', character.id),
+      label: 'Target',
+      action: () => emit('select-character', character.id),
+    },
+    {
+      label: 'Trade',
+      action: () => emit('player-trade', character.name),
+    },
+    {
+      label: 'Send Message',
+      action: () => emit('player-message', character.name),
     },
   ];
+
+  if (!isInGroup) {
+    items.push({
+      label: 'Invite to Group',
+      action: () => emit('player-invite', character.name),
+    });
+  }
+
+  if (!isFriend) {
+    items.push({
+      label: 'Friend Request',
+      action: () => emit('player-friend', character.name),
+    });
+  }
+
+  if (props.isLeader && isInGroup && !isTargetLeader) {
+    items.push({
+      label: 'Promote to Leader',
+      action: () => emit('player-promote', character.name),
+    });
+    items.push({
+      label: 'Kick',
+      action: () => emit('player-kick', character.name),
+    });
+  }
 
   contextMenu.value = {
     visible: true,

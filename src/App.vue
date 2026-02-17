@@ -215,13 +215,6 @@
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('vendor', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('vendor', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('vendor', $event, { right: true, bottom: true })" />
     </div>
 
-    <!-- Character Actions Panel -->
-    <div v-if="panels.characterActions && panels.characterActions.open" data-panel-id="characterActions" :style="{ ...styles.floatingPanel, ...(panelStyle('characterActions').value || {}) }" @mousedown="bringToFront('characterActions')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('characterActions', $event)"><div>{{ actionTargetCharacter ? `${actionTargetCharacter.name} · ${actionTargetCharacter.className} Lv ${actionTargetCharacter.level}` : 'Actions' }}</div><button type="button" :style="styles.panelClose" @click="closePanelById('characterActions')">×</button></div>
-      <div :style="styles.floatingPanelBody"><CharacterActionsPanel :styles="styles" :target="actionTargetCharacter" :is-friend="actionTargetIsFriend" :is-in-group="actionTargetInGroup" :is-leader="isLeader" :target-is-leader="actionTargetIsLeader" @invite="inviteToGroup" @kick="kickMember" @friend="sendFriendRequest" @promote="promoteLeader" @trade="startTrade" @message="sendWhisperTo" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('characterActions', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('characterActions', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('characterActions', $event, { right: true, bottom: true })" />
-    </div>
-
     <!-- Trade Panel (wide) -->
     <div v-if="panels.trade && panels.trade.open" data-panel-id="trade" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('trade').value || {}) }" @mousedown="bringToFront('trade')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('trade', $event)"><div>Trade</div><button type="button" :style="styles.panelClose" @click="closePanel('trade')">×</button></div>
@@ -308,11 +301,20 @@
           :quest-items="locationQuestItems"
           :named-enemies="locationNamedEnemies"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || pullerId === selectedCharacter.id)"
+          :my-friend-user-ids="myFriendUserIds"
+          :group-member-ids="groupMemberIdStrings"
+          :is-leader="isLeader"
+          :leader-id="leaderId"
           @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
           @gather-resource="startGather"
           @hail="hailNpc"
           @open-vendor="openVendor"
-          @character-action="openCharacterActions"
+          @player-invite="inviteToGroup"
+          @player-kick="kickMember"
+          @player-friend="sendFriendRequest"
+          @player-promote="promoteLeader"
+          @player-trade="startTrade"
+          @player-message="sendWhisperTo"
           @gift-npc="openGiftOverlay"
           @loot-all-corpse="onLootAllCorpse"
           @initiate-resurrect="onInitiateResurrect"
@@ -358,14 +360,19 @@
           :follow-leader="followLeader"
           :selected-target-id="defensiveTargetId"
           :now-micros="nowMicros"
+          :my-friend-user-ids="myFriendUserIds"
+          :my-character-id="selectedCharacter?.id ?? null"
           @leave="leaveGroup"
           @accept="acceptInvite"
           @reject="rejectInvite"
-          @kick="kickMember"
           @set-puller="setPuller"
           @toggle-follow="setFollowLeader"
           @target="setDefensiveTarget"
-          @character-action="openCharacterActions"
+          @player-trade="startTrade"
+          @player-friend="sendFriendRequest"
+          @player-promote="promoteLeader"
+          @player-kick="kickMember"
+          @player-message="sendWhisperTo"
         />
       </div>
     </div>
@@ -522,7 +529,6 @@ import CombatPanel from './components/CombatPanel.vue';
 import TravelPanel from './components/TravelPanel.vue';
 import LocationGrid from './components/LocationGrid.vue';
 import LootPanel from './components/LootPanel.vue';
-import CharacterActionsPanel from './components/CharacterActionsPanel.vue';
 import TradePanel from './components/TradePanel.vue';
 import CommandBar from './components/CommandBar.vue';
 import ActionBar from './components/ActionBar.vue';
@@ -1273,11 +1279,6 @@ const { commandText, submitCommand } = useCommands({
   addLocalEvent,
 });
 
-const openCharacterActions = (characterId: bigint) => {
-  actionTargetCharacterId.value = characterId;
-  openPanel('characterActions');
-};
-
 const inviteToGroup = (targetName: string) => {
   if (!selectedCharacter.value || !conn.isActive) return;
   inviteToGroupReducer({ characterId: selectedCharacter.value.id, targetName });
@@ -1625,30 +1626,13 @@ const onCraftRecipe = (recipeId: bigint) => {
   craftRecipe(recipeId);
 };
 
-const actionTargetCharacterId = ref<bigint | null>(null);
-const actionTargetCharacter = computed(() => {
-  if (!actionTargetCharacterId.value) return null;
-  return characters.value.find(
-    (row) => row.id.toString() === actionTargetCharacterId.value?.toString()
-  ) ?? null;
-});
-const actionTargetIsFriend = computed(() => {
-  if (!actionTargetCharacter.value) return false;
-  return friends.value.some(
-    (row) => row.friendUserId === actionTargetCharacter.value?.ownerUserId
-  );
-});
-const actionTargetInGroup = computed(() => {
-  if (!actionTargetCharacter.value) return false;
-  if (!currentGroup.value) return false;
-  return groupCharacterMembers.value.some(
-    (row) => row.id.toString() === actionTargetCharacter.value?.id.toString()
-  );
-});
-const actionTargetIsLeader = computed(() => {
-  if (!actionTargetCharacter.value || !leaderId.value) return false;
-  return actionTargetCharacter.value.id.toString() === leaderId.value.toString();
-});
+const myFriendUserIds = computed(() =>
+  friends.value.map((f) => f.friendUserId.toString())
+);
+
+const groupMemberIdStrings = computed(() =>
+  groupCharacterMembers.value.map((m) => m.id.toString())
+);
 
 const tradeOtherCharacter = computed(() => {
   if (!otherCharacterId.value) return null;
@@ -1878,7 +1862,6 @@ const {
   renown: { x: 600, y: 140 },
   loot: { x: 600, y: 200 },
   vendor: { x: 600, y: 140 },
-  characterActions: { x: 600, y: 200 },
   trade: { x: 600, y: 140 },
   track: { x: 600, y: 200 },
   travelPanel: { x: 600, y: 140 },
