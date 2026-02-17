@@ -453,7 +453,6 @@
       :highlight-inventory="highlightInventory"
       :highlight-hotbar="highlightHotbar"
       @toggle="togglePanel"
-      @open="openPanel"
       @camp="goToCamp"
     />
     </footer>
