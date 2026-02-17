@@ -6,11 +6,45 @@
         enemySpawns.length === 0 &&
         resourceNodes.length === 0 &&
         npcsHere.length === 0 &&
-        corpsesHere.length === 0
+        corpsesHere.length === 0 &&
+        questItems.length === 0 &&
+        namedEnemies.length === 0 &&
+        !searchResult
       "
       :style="styles.subtle"
     >
       Nothing of interest here.
+    </div>
+
+    <!-- Search Results -->
+    <div v-if="searchResult">
+      <div :style="styles.gridSectionLabel">SEARCH</div>
+      <div :style="styles.gridWrap">
+        <div
+          v-if="searchResult.foundResources"
+          :style="{ ...styles.gridTile, color: '#60a5fa' }"
+        >
+          Hidden resources detected nearby
+        </div>
+        <div
+          v-if="searchResult.foundQuestItem"
+          :style="{ ...styles.gridTile, color: '#fbbf24' }"
+        >
+          Something of interest found...
+        </div>
+        <div
+          v-if="searchResult.foundNamedEnemy"
+          :style="{ ...styles.gridTile, color: '#ef4444' }"
+        >
+          A powerful presence lurks here
+        </div>
+        <div
+          v-if="!searchResult.foundResources && !searchResult.foundQuestItem && !searchResult.foundNamedEnemy"
+          :style="{ ...styles.gridTile, opacity: 0.5 }"
+        >
+          Nothing unusual detected
+        </div>
+      </div>
     </div>
 
     <!-- Enemies -->
@@ -94,6 +128,70 @@
               }"
             ></div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quest Items -->
+    <div v-if="questItems.length > 0">
+      <div :style="styles.gridSectionLabel">QUEST ITEMS</div>
+      <div :style="styles.gridWrap">
+        <div
+          v-for="qi in questItems"
+          :key="qi.id.toString()"
+          :style="{
+            ...styles.gridTile,
+            color: '#fbbf24',
+            cursor: 'pointer',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+          }"
+          @click="startQuestItemCast(qi)"
+        >
+          <span>{{ qi.name }}</span>
+          <div
+            v-if="questItemCast?.id?.toString() === qi.id.toString() && questItemCast.progress > 0"
+            :style="{
+              width: '100%',
+              height: '3px',
+              background: 'rgba(251, 191, 36, 0.3)',
+              borderRadius: '2px',
+              overflow: 'hidden',
+              marginTop: '0.2rem',
+            }"
+          >
+            <div
+              :style="{
+                width: `${Math.round(questItemCast.progress * 100)}%`,
+                height: '100%',
+                background: 'rgba(251, 191, 36, 0.8)',
+              }"
+            ></div>
+          </div>
+          <span v-else :style="{ fontSize: '0.7rem', opacity: 0.7 }">Click to loot (3s cast)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Named Enemies -->
+    <div v-if="namedEnemies.length > 0">
+      <div :style="styles.gridSectionLabel">NAMED ENEMIES</div>
+      <div :style="styles.gridWrap">
+        <div
+          v-for="ne in namedEnemies"
+          :key="ne.id.toString()"
+          :style="{
+            ...styles.gridTile,
+            color: '#ef4444',
+            cursor: 'pointer',
+            borderLeft: '3px solid #ef4444',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+          }"
+          @click="emit('pull-named-enemy', ne.id)"
+        >
+          <span>{{ ne.name }}</span>
+          <span :style="{ fontSize: '0.7rem', opacity: 0.7 }">Click to engage</span>
         </div>
       </div>
     </div>
@@ -187,7 +285,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onBeforeUnmount } from 'vue';
 import type { CharacterRow, NpcRow } from '../module_bindings';
 import ContextMenu from './ContextMenu.vue';
 
@@ -204,7 +302,7 @@ type EnemySummary = {
   pullType: string | null;
 };
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
   selectedCharacter: CharacterRow | null;
@@ -232,7 +330,18 @@ const props = defineProps<{
     respawnSeconds: number | null;
   }>;
   canEngage: boolean;
-}>();
+  questItems?: Array<{ id: bigint; name: string; discovered: boolean; looted: boolean }>;
+  namedEnemies?: Array<{ id: bigint; name: string; isAlive: boolean }>;
+  searchResult?: {
+    foundResources: boolean;
+    foundQuestItem: boolean;
+    foundNamedEnemy: boolean;
+  } | null;
+}>(), {
+  questItems: () => [],
+  namedEnemies: () => [],
+  searchResult: null,
+});
 
 const emit = defineEmits<{
   (e: 'pull', value: { enemyId: bigint; pullType: 'careful' | 'body' }): void;
@@ -248,9 +357,45 @@ const emit = defineEmits<{
   (e: 'talk-npc', npcId: bigint): void;
   (e: 'select-corpse', corpseId: bigint | null): void;
   (e: 'select-character', characterId: bigint | null): void;
+  (e: 'loot-quest-item', questItemId: bigint): void;
+  (e: 'pull-named-enemy', namedEnemyId: bigint): void;
 }>();
 
 const selectedEnemyId = ref<bigint | null>(null);
+
+// Quest item cast timer (3-second client-side cast matching resource gather pattern)
+const questItemCast = ref<{ id: bigint; progress: number; timer: number | null } | null>(null);
+
+const startQuestItemCast = (qi: { id: bigint; name: string }) => {
+  // Cancel any existing cast
+  if (questItemCast.value?.timer != null) {
+    clearInterval(questItemCast.value.timer);
+  }
+  const CAST_MS = 3000;
+  const startTime = Date.now();
+  const timer = window.setInterval(() => {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(1, elapsed / CAST_MS);
+    if (questItemCast.value) {
+      questItemCast.value.progress = progress;
+    }
+    if (progress >= 1) {
+      clearInterval(timer);
+      const id = questItemCast.value?.id;
+      questItemCast.value = null;
+      if (id != null) {
+        emit('loot-quest-item', id);
+      }
+    }
+  }, 50);
+  questItemCast.value = { id: qi.id, progress: 0, timer };
+};
+
+onBeforeUnmount(() => {
+  if (questItemCast.value?.timer != null) {
+    clearInterval(questItemCast.value.timer);
+  }
+});
 
 const contextMenu = ref<{
   visible: boolean;
