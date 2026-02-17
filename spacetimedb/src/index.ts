@@ -18,6 +18,7 @@ import {
   CombatPendingAdd, AggroEntry,
   Corpse, CorpseItem,
   PendingSpellCast,
+  QuestItem, NamedEnemy, SearchResult,
 } from './schema/tables';
 export { spacetimedb } from './schema/tables';
 import { registerReducers } from './reducers';

@@ -164,6 +164,73 @@ export const QuestTemplate = table(
     minLevel: t.u64(),
     maxLevel: t.u64(),
     rewardXp: t.u64(),
+    questType: t.string().optional(),          // 'kill' | 'kill_loot' | 'explore' | 'delivery' | 'boss_kill'; undefined = 'kill'
+    targetLocationId: t.u64().optional(),      // for explore/delivery quests
+    targetNpcId: t.u64().optional(),           // for delivery quest turn-in target NPC
+    targetItemName: t.string().optional(),     // display name of the loot item (kill_loot quests)
+    itemDropChance: t.u64().optional(),        // per-kill drop chance as integer percent (e.g., 25 = 25%)
+  }
+);
+
+export const QuestItem = table(
+  {
+    name: 'quest_item',
+    public: true,
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    questTemplateId: t.u64(),
+    locationId: t.u64(),
+    name: t.string(),
+    discovered: t.bool(),     // true when search reveals it
+    looted: t.bool(),         // true when character loots it
+  }
+);
+
+export const NamedEnemy = table(
+  {
+    name: 'named_enemy',
+    public: true,
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    name: t.string(),
+    enemyTemplateId: t.u64(),
+    locationId: t.u64(),
+    isAlive: t.bool(),
+    lastKilledAt: t.timestamp().optional(),
+    respawnMinutes: t.u64(),
+  }
+);
+
+export const SearchResult = table(
+  {
+    name: 'search_result',
+    public: true,
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    locationId: t.u64(),
+    foundResources: t.bool(),
+    foundQuestItem: t.bool(),
+    questItemId: t.u64().optional(),
+    foundNamedEnemy: t.bool(),
+    namedEnemyId: t.u64().optional(),
+    searchedAt: t.timestamp(),
   }
 );
 
@@ -1509,5 +1576,8 @@ export const spacetimedb = schema(
   Achievement,
   Corpse,
   CorpseItem,
-  PendingSpellCast
+  PendingSpellCast,
+  QuestItem,
+  NamedEnemy,
+  SearchResult
 );
