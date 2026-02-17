@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Completed quick task 109: Implement character selection screen - full-screen character select/create UI gates access to game world, Camp button in action bar returns to character select screen.
+**Status:** Completed Phase 14 Plan 01: Schema and affix catalog foundation — ItemAffix table, quality fields on ItemInstance/CombatLoot, affix catalog with 12 prefixes, 11 suffixes, 4 legendary definitions.
 
 ---
 
@@ -10,9 +10,9 @@
 
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 (Travel & Movement Costs) complete — Region-based stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, all-or-nothing group validation, TravelPanel UI with cost indicators and live countdown timer. Human-verified functional. Phase 11 (Death & Corpse System) Plan 01 complete — Backend corpse system with level 5+ gating, inventory-only item transfer, same-location combining, 30-day decay, and ownership-verified looting. Phase 12 (Overall Renown System) complete — Character-wide renown progression with 15 ranks, permanent perk system, server-first tracking, combat integration, tabbed UI. Human-verified functional.
 
-**Current phase:** 19 (NPC Interactions)
-**Current plan:** 06-03 complete — Phase 06 (Quest System) fully complete
-**Next action:** Continue with Phase 19 Plan 03 (Frontend integration for NPC interactions)
+**Current phase:** 14 (Loot & Gear Progression)
+**Current plan:** 14-01 complete — Schema foundation (ItemAffix table, quality fields, affix catalog)
+**Next action:** Continue with Phase 14 Plan 02 (loot generation logic using affix catalog)
 
 ---
 
@@ -36,6 +36,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 10 | Travel & Movement Costs | Complete (2/2 plans done: backend + UI, human-verified) |
 | 11 | Death & Corpse System | In Progress (1/? plans done: backend foundation) |
 | 12 | Overall Renown System | Complete (3/3 plans done: backend + integration + UI, human-verified) |
+| 14 | Loot & Gear Progression | In Progress (1/? plans done: schema + affix catalog foundation) |
 | 19 | NPC Interactions | In Progress (2/? plans done: backend foundation, interaction reducers) |
 
 ---
@@ -141,6 +142,9 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 97. locationQuestItems/locationNamedEnemies filtered client-side by characterId + locationId + state (discovered/looted/isAlive) before passing to LocationGrid as props (06-03)
 98. Food buffs use food_mana_regen/food_stamina_regen effectTypes (not mana_regen/stamina_regen) so they bypass tick_effects periodic heal handlers and instead boost per-tick regen rate in regen_health (quick-120)
 99. sourceAbility='Well Fed' is canonical food buff identifier — used for group panel display (effectLabel returns sourceAbility when present) and one-at-a-time enforcement (delete by sourceAbility only) (quick-120)
+100. Legendary drop sources use placeholder enemy template names pending Phase 17 World Bosses — Soulrender→Fen Witch, Ironveil→Cinder Sentinel, Whisperwind→Hexbinder, Dreadmaw→Basalt Brute (14-01)
+101. lifeOnHit, cooldownReduction, manaRegen affixes are tier 3+ only (minTier=3) — no power affixes on low-quality gear (14-01)
+102. AFFIX_COUNT_BY_QUALITY: common=0, uncommon=1, rare=2, epic=3, legendary=0 — legendaries use fixed affixes not rolled ones (14-01)
 
 ---
 
@@ -183,6 +187,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 06-quest-system | 01 | 5min | 2 | 6 |
 | 06-quest-system | 02 | 4min | 2 | 4 |
 | 06-quest-system | 03 | ~25min | 3 | 8 |
+| 14-loot-gear-progression | 01 | 2min | 2 | 2 |
 
 ## Accumulated Context
 
@@ -343,4 +348,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick-121: Food item tooltips now show buff descriptions before eating — client-side generation from wellFedBuffType/Magnitude/Duration fields. Herb Broth shows "+4 mana regeneration per tick for 45 minutes", etc. Applies to both inventory and vendor panels.
+Last activity: 2026-02-17 - Completed Phase 14 Plan 01: Schema and affix catalog foundation. ItemAffix table (with by_instance index), quality fields on ItemInstance and CombatLoot, and affix_catalog.ts with 12 prefixes, 11 suffixes, 4 legendary definitions, and quality tier constants.
