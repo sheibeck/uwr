@@ -94,8 +94,6 @@ import type {
   LocationRow,
   RegionRow,
   NpcAffinityRow,
-  NpcDialogueOptionRow,
-  FactionStandingRow,
 } from '../module_bindings';
 
 const props = defineProps<{
@@ -105,9 +103,7 @@ const props = defineProps<{
   locations: LocationRow[];
   regions: RegionRow[];
   npcAffinities: NpcAffinityRow[];
-  npcDialogueOptions: NpcDialogueOptionRow[];
   selectedCharacterId: bigint | null;
-  factionStandings: FactionStandingRow[];
   selectedNpcTarget?: bigint | null;
 }>();
 
@@ -212,76 +208,6 @@ const selectedNpcData = computed(() => {
   };
 });
 
-const availableDialogueOptions = computed(() => {
-  if (!selectedNpcId.value || !props.selectedCharacterId) return [];
-
-  // Get root dialogue options for this NPC (parentOptionId is null/undefined)
-  const options = props.npcDialogueOptions.filter(
-    (opt) => opt.npcId.toString() === selectedNpcId.value && !opt.parentOptionId
-  ).filter(opt => opt.playerText.trim().length > 0);
-
-  // Get current affinity
-  const affinity = props.npcAffinities.find(
-    (a) => a.npcId.toString() === selectedNpcId.value && a.characterId.toString() === props.selectedCharacterId?.toString()
-  );
-  const affinityValue = affinity ? Number(affinity.affinity) : 0;
-
-  return options.map((opt) => {
-    const requirementTexts: string[] = [];
-    let isLocked = false;
-
-    // Check affinity requirement
-    if (opt.requiredAffinity !== null && opt.requiredAffinity !== undefined) {
-      const required = Number(opt.requiredAffinity);
-      if (affinityValue < required) {
-        isLocked = true;
-        const tier = getAffinityTier(required);
-        requirementTexts.push(`Requires ${tier.name} (${required} affinity)`);
-      }
-    }
-
-    // Check faction standing requirement
-    if (opt.requiredFactionId && opt.requiredFactionStanding !== null && opt.requiredFactionStanding !== undefined) {
-      const standing = props.factionStandings.find(
-        (s) => s.factionId.toString() === opt.requiredFactionId?.toString() && s.characterId.toString() === props.selectedCharacterId?.toString()
-      );
-      const standingValue = standing ? Number(standing.standing) : 0;
-      const required = Number(opt.requiredFactionStanding);
-      if (standingValue < required) {
-        isLocked = true;
-        requirementTexts.push(`Requires ${required} faction standing`);
-      }
-    }
-
-    // Check renown rank requirement
-    if (opt.requiredRenownRank !== null && opt.requiredRenownRank !== undefined) {
-      // TODO: When renown is wired up, add renown rank check here
-      // For now, we'll just show the requirement text if present
-      const required = Number(opt.requiredRenownRank);
-      requirementTexts.push(`Requires Renown Rank ${required}`);
-      isLocked = true;
-    }
-
-    return {
-      id: opt.id,
-      playerText: opt.playerText,
-      isLocked,
-      requirementText: requirementTexts.join(', '),
-    };
-  });
-});
-
-const chooseDialogueOption = (optionId: bigint) => {
-  if (!props.selectedCharacterId || !selectedNpcId.value) return;
-
-  const npcIdBigint = BigInt(selectedNpcId.value);
-
-  window.__db_conn?.reducers.chooseDialogueOption({
-    characterId: props.selectedCharacterId,
-    npcId: npcIdBigint,
-    optionId: optionId,
-  });
-};
 
 // Parse text and make [bracketed] topics clickable
 const renderClickableTopics = (text: string): string => {
