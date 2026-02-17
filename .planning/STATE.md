@@ -11,8 +11,8 @@
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision.
 
 **Last completed phase:** 14 (Loot & Gear Progression) — 4/4 plans, human-verified
-**Current phase:** none — choosing next phase
-**Next action:** Begin Phase 13 (Crafting System), Phase 16 (Travelling NPCs), or Phase 20 (Perk Variety Expansion)
+**Current phase:** 20 (Perk Variety Expansion) — 1/1 plan complete
+**Next action:** Phase 20 Plan 01 complete — perk data foundation established. Continue to Phase 20 Plan 02 (perk logic implementation), or begin Phase 13 (Crafting), Phase 16 (Travelling NPCs).
 
 ---
 
@@ -157,6 +157,10 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 111. Module published with --clear-database when adding non-optional columns to existing tables (qualityTier, affixDataJson, isNamed on combat_loot and item_instance) — SpacetimeDB 1.11 migration limitation (14-04)
 112. affixDataJson on CombatLoot row drives loot panel affix display pre-take; ItemAffix table rows drive inventory tooltip post-take — two different data sources for same affix data (14-04)
 113. rarityEpic color set to #aa44ff (purple), rarityLegendary confirmed as #ff8800 (orange) — overrides old facc15 yellow epic color (14-04)
+114. PerkEffect extended with proc/crafting/social/scaling fields for variety perks — existing stat fields unchanged, all new fields optional for backward compatibility (20-01)
+115. Perk domain categorization: 'combat' | 'crafting' | 'social' — one of each per rank 2-11, ranks 12-15 use 'combat' as default pending capstone redesign (20-01)
+116. Proc chances 2-10% range: bloodthirst 3%, savage_strikes 5%, vampiric_strikes 5%, deathbringer 8%, undying_fury 3% — rare and impactful per design rules (20-01)
+117. Frontend domain color coding: combat=#c55, crafting=#5c5, social=#55c applied as border-left on perk options; domain prefix tags [Combat]/[Crafting]/[Social] in descriptions (20-01)
 
 ---
 
@@ -279,4 +283,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-17 - Phases 11 and 19 closed as complete. Quick 144: robust combat cast bars/cooldowns + auto cache-busting. Quick 145: /createitem autocomplete + /who command. Quick 146: pull/gather/quest-item cast bar orphan safety nets. ROADMAP and STATE updated to accurate project status. Next: Phase 13, 15, or 20.
+Last activity: 2026-02-17 - Phase 20 Plan 01 complete: extended PerkEffect type with proc/crafting/social/scaling fields, redesigned 30 perks for ranks 2-11 (3 per rank across combat/crafting/social domains), synced frontend RenownPanel.vue with matching perk definitions and domain color indicators. Stopped at: Completed 20-01-PLAN.md
