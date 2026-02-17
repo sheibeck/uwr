@@ -1360,4 +1360,59 @@ export const registerItemReducers = (deps: any) => {
     requirePlayerUserId(ctx);
     syncAllContent(ctx);
   });
+
+  // Salvage yield in gold by quality tier
+  const SALVAGE_GOLD_BY_QUALITY: Record<string, bigint> = {
+    common: 2n,
+    uncommon: 5n,
+    rare: 10n,
+    epic: 20n,
+    legendary: 50n,
+  };
+
+  spacetimedb.reducer('salvage_item', { characterId: t.u64(), itemInstanceId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
+    if (!instance) return failItem(ctx, character, 'Item not found');
+    if (instance.ownerCharacterId !== character.id) return failItem(ctx, character, 'Not your item');
+    if (instance.equippedSlot) return failItem(ctx, character, 'Unequip item first');
+
+    const template = ctx.db.itemTemplate.id.find(instance.templateId);
+    if (!template) return failItem(ctx, character, 'Item template not found');
+
+    // Only gear in equipment slots can be salvaged
+    if (template.isJunk) return failItem(ctx, character, 'Cannot salvage junk items');
+    const nonSalvageSlots = ['consumable', 'food', 'resource', 'quest', 'junk'];
+    if (nonSalvageSlots.includes(template.slot)) {
+      return failItem(ctx, character, 'Cannot salvage this item type');
+    }
+    if (!EQUIPMENT_SLOTS.has(template.slot)) {
+      return failItem(ctx, character, 'Cannot salvage this item type');
+    }
+
+    // Determine gold yield based on tier and quality
+    const tier = Number(template.tier ?? 1n);
+    const quality = instance.qualityTier ?? 'common';
+    const baseGold = SALVAGE_GOLD_BY_QUALITY[quality] ?? 2n;
+    const tierMultiplier = BigInt(Math.max(1, tier));
+    const goldYield = baseGold * tierMultiplier;
+
+    // Delete associated ItemAffix rows first
+    for (const affix of ctx.db.itemAffix.by_instance.filter(instance.id)) {
+      ctx.db.itemAffix.id.delete(affix.id);
+    }
+
+    // Delete the item instance
+    const itemName = instance.displayName ?? template.name;
+    ctx.db.itemInstance.id.delete(instance.id);
+
+    // Grant gold
+    ctx.db.character.id.update({
+      ...character,
+      gold: (character.gold ?? 0n) + goldYield,
+    });
+
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+      `You salvage ${itemName} into ${goldYield} gold.`);
+  });
 };
