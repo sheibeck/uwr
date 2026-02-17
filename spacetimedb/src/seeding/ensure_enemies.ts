@@ -2,22 +2,7 @@ import { SenderError } from 'spacetimedb/server';
 import { getGatherableResourceTemplates, findEnemyTemplateByName } from '../helpers/location';
 import { findItemTemplateByName } from '../helpers/items';
 import { EnemyTemplate } from '../schema/tables';
-
-const STARTER_ITEM_NAMES = new Set([
-  // Starter weapons
-  'Training Sword', 'Training Mace', 'Training Staff', 'Training Bow',
-  'Training Dagger', 'Training Axe', 'Training Blade', 'Training Rapier',
-  // Starter cloth armor
-  'Apprentice Robe', 'Apprentice Trousers', 'Apprentice Boots',
-  // Starter leather armor
-  'Scout Jerkin', 'Scout Pants', 'Scout Boots',
-  // Starter chain armor
-  'Warden Hauberk', 'Warden Greaves', 'Warden Boots',
-  // Starter plate armor
-  'Vanguard Cuirass', 'Vanguard Greaves', 'Vanguard Boots',
-  // Starter accessories
-  'Rough Band', 'Worn Cloak', 'Traveler Necklace', 'Glimmer Ring', 'Shaded Cloak',
-]);
+import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 
 export function ensureLootTables(ctx: any) {
   const junkTemplates = [...ctx.db.itemTemplate.iter()].filter((row) => row.isJunk);
