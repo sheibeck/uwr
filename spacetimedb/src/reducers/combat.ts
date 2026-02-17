@@ -2179,6 +2179,21 @@ export const registerCombatReducers = (deps: any) => {
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
+        // Clear stale CombatLoot rows from previous combats so the loot window
+        // only ever shows items from the most recent combat.
+        const staleLoot = [...ctx.db.combatLoot.by_character.filter(character.id)];
+        const staleCombatIds = new Set(staleLoot.map(row => row.combatId));
+        for (const row of staleLoot) {
+          ctx.db.combatLoot.id.delete(row.id);
+        }
+        // Clean up orphaned CombatResult rows for those old combats (this character only).
+        for (const oldCombatId of staleCombatIds) {
+          for (const result of ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)) {
+            if (result.combatId === oldCombatId && result.characterId === character.id) {
+              ctx.db.combatResult.id.delete(result.id);
+            }
+          }
+        }
         for (const template of enemyTemplates) {
           const lootTemplates = template
             ? generateLootTemplates(ctx, template, ctx.timestamp.microsSinceUnixEpoch + character.id)
