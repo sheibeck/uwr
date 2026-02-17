@@ -50,12 +50,20 @@ export function ensureNpcs(ctx: any) {
     });
   };
 
-  // Lookup Iron Compact faction
+  // Lookup faction IDs
   let ironCompactFactionId: bigint | undefined = undefined;
+  let verdantCircleFactionId: bigint | undefined = undefined;
+  let ashenOrderFactionId: bigint | undefined = undefined;
+  let freeBladesFactionId: bigint | undefined = undefined;
   for (const f of ctx.db.faction.iter()) {
     if (f.name === 'Iron Compact') {
       ironCompactFactionId = f.id;
-      break;
+    } else if (f.name === 'Verdant Circle') {
+      verdantCircleFactionId = f.id;
+    } else if (f.name === 'Ashen Order') {
+      ashenOrderFactionId = f.id;
+    } else if (f.name === 'Free Blades') {
+      freeBladesFactionId = f.id;
     }
   }
 
@@ -86,6 +94,98 @@ export function ensureNpcs(ctx: any) {
     baseMood: 'brisk',
     personalityJson: JSON.stringify(NPC_PERSONALITIES.friendly_merchant),
     factionId: ironCompactFactionId,
+  });
+
+  // Hollowmere Vale - New NPCs
+  upsertNpcByName({
+    name: 'Warden Kael',
+    npcType: 'quest',
+    locationName: 'Bramble Hollow',
+    description: 'A ranger who patrols the thickets hunting Blight Stalkers.',
+    greeting: 'Stay low and move quick. The thickets have teeth.',
+    baseMood: 'watchful',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.veteran_scout),
+  });
+  upsertNpcByName({
+    name: 'Herbalist Venna',
+    npcType: 'quest',
+    locationName: 'Willowfen',
+    description: 'A Verdant Circle herbalist gathering reagents from the marshes.',
+    greeting: 'The marshes give and the marshes take. I am here to make sure it gives more.',
+    baseMood: 'tired',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.weary_healer),
+    factionId: verdantCircleFactionId,
+  });
+  upsertNpcByName({
+    name: 'Old Moss',
+    npcType: 'lore',
+    locationName: 'Lichen Ridge',
+    description: 'A reclusive old man who watches the marshlands from his ridge perch.',
+    greeting: 'Hmph. Another one climbing up here to gawk. Well, sit down if you must.',
+    baseMood: 'gruff',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.wise_elder),
+  });
+
+  // Embermarch Fringe - New NPCs
+  upsertNpcByName({
+    name: 'Forgemaster Dara',
+    npcType: 'vendor',
+    locationName: 'Slagstone Waystation',
+    description: 'An Iron Compact smith running the waystation forge.',
+    greeting: 'Iron bends to will, not whim. What do you need forged?',
+    baseMood: 'focused',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.friendly_merchant),
+    factionId: ironCompactFactionId,
+  });
+  upsertNpcByName({
+    name: 'Scout Thessa',
+    npcType: 'quest',
+    locationName: 'Cinderwatch',
+    description: 'A Free Blades scout tracking enemy movement across the ash dunes.',
+    greeting: 'You look like you can handle yourself. The Fringe needs fighters.',
+    baseMood: 'alert',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.hardened_soldier),
+    factionId: freeBladesFactionId,
+  });
+  upsertNpcByName({
+    name: 'Ashwalker Ren',
+    npcType: 'quest',
+    locationName: 'Charwood Copse',
+    description: 'An Ashen Order researcher studying the petrified trees and undead activity.',
+    greeting: 'The dead do not rest here. I study why. Care to help?',
+    baseMood: 'curious',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.curious_scholar),
+    factionId: ashenOrderFactionId,
+  });
+  upsertNpcByName({
+    name: 'Exile Voss',
+    npcType: 'lore',
+    locationName: 'Brimstone Gulch',
+    description: 'A bitter exile who knows the mountain passes.',
+    greeting: 'Keep walking. Unless you have coin or news.',
+    baseMood: 'bitter',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.bitter_exile),
+  });
+
+  // Embermarch Depths - New NPCs
+  upsertNpcByName({
+    name: 'Torchbearer Isa',
+    npcType: 'quest',
+    locationName: 'Gloomspire Landing',
+    description: 'A brave torchbearer who keeps the landing safe for adventurers.',
+    greeting: 'This is the last safe light before the deep. Ready yourself.',
+    baseMood: 'resolute',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.hardened_soldier),
+  });
+  upsertNpcByName({
+    name: 'Keeper Mordane',
+    npcType: 'lore',
+    locationName: 'Sootveil Hall',
+    description: 'An Ashen Order keeper who studies the vault\'s history.',
+    greeting: 'These halls remember what we have forgotten. Tread carefully.',
+    baseMood: 'solemn',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.dungeon_warden),
+    factionId: ashenOrderFactionId,
   });
 }
 
