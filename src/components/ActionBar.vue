@@ -7,19 +7,19 @@
       Log
     </button>
     <button
-      @click="emit('toggle', 'character')"
-      :style="actionStyle('character')"
-      :disabled="isLocked('character')"
-    >
-      Characters
-    </button>
-    <button
       @click="emit('toggle', 'help')"
       :style="actionStyle('help')"
     >
       Help
     </button>
     <template v-if="hasActiveCharacter">
+      <button
+        @click="emit('camp')"
+        :style="actionStyle('camp')"
+        :disabled="isLocked('camp')"
+      >
+        Camp
+      </button>
       <button
         @click="emit('toggle', 'inventory')"
         :style="actionStyle('inventory')"
@@ -116,6 +116,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'toggle', panel: string): void;
   (e: 'open', panel: string): void;
+  (e: 'camp'): void;
 }>();
 
 const actionStyle = (panel: string) => {
@@ -133,8 +134,8 @@ const actionStyle = (panel: string) => {
 };
 
 const isLocked = (panel: string) => {
-  // Character switching is blocked while the current character is in combat.
-  if (panel === 'character' && props.hasActiveCharacter && props.combatLocked) {
+  // Camp is blocked during combat.
+  if (panel === 'camp' && props.combatLocked) {
     return true;
   }
   return false;
