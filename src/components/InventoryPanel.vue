@@ -255,7 +255,7 @@ const openItemContextMenu = (event: MouseEvent, item: typeof props.inventoryItem
     x: event.clientX,
     y: event.clientY,
     title: item.name,
-    subtitle: `${item.qualityTier} ${item.slot}`,
+    subtitle: item.slot,
     items,
   };
 };
