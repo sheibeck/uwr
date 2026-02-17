@@ -10,9 +10,9 @@
 
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 04 (Config Table Architecture) complete — All ability metadata migrated from hardcoded constants to AbilityTemplate database lookups. legacyDescriptions removed. Combat verified working identically. Phase 10 (Travel & Movement Costs) complete — Region-based stamina costs (5 within-region, 10 cross-region), per-character 5-minute cooldown for cross-region travel, all-or-nothing group validation, TravelPanel UI with cost indicators and live countdown timer. Human-verified functional. Phase 11 (Death & Corpse System) Plan 01 complete — Backend corpse system with level 5+ gating, inventory-only item transfer, same-location combining, 30-day decay, and ownership-verified looting. Phase 12 (Overall Renown System) complete — Character-wide renown progression with 15 ranks, permanent perk system, server-first tracking, combat integration, tabbed UI. Human-verified functional.
 
-**Current phase:** 06 (Quest System) / 19 (NPC Interactions)
-**Current plan:** 06-02 complete
-**Next action:** Continue with Phase 06 Plan 03 (Frontend quest display) or Phase 19 Plan 03 (Frontend integration for NPC interactions)
+**Current phase:** 19 (NPC Interactions)
+**Current plan:** 06-03 complete — Phase 06 (Quest System) fully complete
+**Next action:** Continue with Phase 19 Plan 03 (Frontend integration for NPC interactions)
 
 ---
 
@@ -29,7 +29,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 3.1.3 | Enemy AI and Aggro Management | Complete (2/2 plans done: role-based threat, AI scoring + leashing) |
 | 4 | Config Table Architecture | Complete (2/2 plans done: table extension + consumer migration, human-verified) |
 | 5 | LLM Architecture | Pending |
-| 6 | Quest System | In Progress (2/3 plans done: backend schema + reducers, passive search + quest seeding) |
+| 6 | Quest System | Complete (3/3 plans done: backend schema + reducers, passive search + quest seeding, frontend integration + human-verified) |
 | 7 | World Events | Pending |
 | 8 | Narrative Tone Rollout | Pending |
 | 9 | Content Data Expansion | Pending |
@@ -137,6 +137,8 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 93. performPassiveSearch uses BigInt() casts on any-typed ctx fields to satisfy TypeScript strict mode bigint operator requirements (06-02)
 94. Named enemy name field reuses qt.targetItemName as boss display name for boss_kill quests — targetItemName holds the boss name for this quest type (06-02)
 95. Passive search seed = charId XOR nowMicros, with bit-shifted variants (>>8, *7) and (>>16, *13) for 3 independent rolls — deterministic per character per timestamp (06-02)
+96. Quest item cast timer is purely client-side UX — loot_quest_item reducer accepts call immediately, no server-side timer enforcement (06-03)
+97. locationQuestItems/locationNamedEnemies filtered client-side by characterId + locationId + state (discovered/looted/isAlive) before passing to LocationGrid as props (06-03)
 
 ---
 
@@ -178,6 +180,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | Phase quick-106 P01 | 4 | 2 tasks | 3 files |
 | 06-quest-system | 01 | 5min | 2 | 6 |
 | 06-quest-system | 02 | 4min | 2 | 4 |
+| 06-quest-system | 03 | ~25min | 3 | 8 |
 
 ## Accumulated Context
 
@@ -336,4 +339,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-16 - Completed quick-119: Clean up personal resource system — removed all shared resource spawning code (ensureResourceNodesForLocation, respawnResourceNodesForLocation, ResourceRespawnTick, respawn_resource reducer), finish_gather always deletes nodes immediately, tiered node counts (roll 65-74: 1, 75-84: 2, 85-99: 3), log message updated to 'You discover some resources.', resource badge removed from SEARCH section in LocationGrid.
+Last activity: 2026-02-17 - Completed 06-03: Quest System Frontend — published SpacetimeDB module with all Phase 06 tables, regenerated client bindings, added useTable subscriptions for QuestItem/NamedEnemy/SearchResult in App.vue, extended LocationGrid with SEARCH/QUEST ITEMS/NAMED ENEMIES sections (quest item loot has 3s client-side cast timer). Human-verified end-to-end. Phase 06 (Quest System) fully complete.
