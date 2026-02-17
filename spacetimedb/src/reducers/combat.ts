@@ -337,6 +337,8 @@ export const registerCombatReducers = (deps: any) => {
       if (quest.completed) continue;
       const template = ctx.db.questTemplate.id.find(quest.questTemplateId);
       if (!template) continue;
+      // Skip kill_loot quests — they advance only via item drop, not kill count
+      if ((template.questType ?? 'kill') === 'kill_loot') continue;
       if (template.targetEnemyTemplateId !== enemyTemplateId) continue;
       const nextProgress =
         quest.progress + 1n > template.requiredCount
@@ -370,6 +372,58 @@ export const registerCombatReducers = (deps: any) => {
       }
     }
   };
+
+  function rollKillLootDrop(
+    ctx: any,
+    character: any,
+    enemyTemplateId: bigint
+  ) {
+    // Check for active kill_loot quests targeting this enemy
+    for (const quest of ctx.db.questInstance.by_character.filter(character.id)) {
+      if (quest.completed) continue;
+      const template = ctx.db.questTemplate.id.find(quest.questTemplateId);
+      if (!template) continue;
+      if ((template.questType ?? 'kill') !== 'kill_loot') continue;
+      if (template.targetEnemyTemplateId !== enemyTemplateId) continue;
+
+      // Roll drop chance
+      const dropChance = template.itemDropChance ?? 25n;
+      const roll = (BigInt(character.id) ^ ctx.timestamp.microsSinceUnixEpoch) % 100n;
+      if (roll < dropChance) {
+        // Item drops! Create a QuestItem (discovered + looted since it drops directly)
+        ctx.db.questItem.insert({
+          id: 0n,
+          characterId: character.id,
+          questTemplateId: template.id,
+          locationId: character.locationId,
+          name: template.targetItemName ?? 'Quest Item',
+          discovered: true,
+          looted: true,
+        });
+
+        // Update quest progress
+        const nextProgress = quest.progress + 1n;
+        const isComplete = nextProgress >= template.requiredCount;
+        ctx.db.questInstance.id.update({
+          ...quest,
+          progress: nextProgress,
+          completed: isComplete,
+          completedAt: quest.completedAt,
+        });
+
+        deps.appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+          `${template.targetItemName ?? 'Quest item'} drops! (${nextProgress}/${template.requiredCount})`);
+
+        if (isComplete) {
+          deps.appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+            `Quest ready to turn in: ${template.name}. Return to the quest giver.`);
+        }
+      } else {
+        deps.appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+          `No ${template.targetItemName ?? 'quest item'} dropped this time.`);
+      }
+    }
+  }
 
   const resolveAttack = (
     ctx: any,
@@ -2023,6 +2077,7 @@ export const registerCombatReducers = (deps: any) => {
         if (!character) continue;
         for (const template of enemyTemplates) {
           updateQuestProgressForKill(ctx, character, template.id);
+          rollKillLootDrop(ctx, character, template.id);
           grantFactionStandingForKill(ctx, character, template.id);
         }
       }

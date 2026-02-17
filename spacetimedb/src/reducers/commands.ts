@@ -81,6 +81,42 @@ export const registerCommandReducers = (deps: any) => {
       }
     }
 
+    // Check for delivery quest completion (new quest types)
+    const deliveryInstances = [...ctx.db.questInstance.by_character.filter(character.id)];
+    for (const qi of deliveryInstances) {
+      if (qi.completed || qi.completedAt) continue;
+      const qt = ctx.db.questTemplate.id.find(qi.questTemplateId);
+      if (!qt) continue;
+      if ((qt.questType ?? 'kill') !== 'delivery') continue;
+      if (qt.targetNpcId !== npc.id) continue;
+
+      // Delivery quest complete!
+      ctx.db.questInstance.id.update({
+        ...qi,
+        progress: 1n,
+        completed: true,
+        completedAt: ctx.timestamp,
+      });
+
+      // Award XP
+      const currentXp = character.xp + qt.rewardXp;
+      ctx.db.character.id.update({ ...character, xp: currentXp });
+
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+        `Delivery complete: ${qt.name}. ${npc.name} accepts your delivery.`);
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+        `You gain ${qt.rewardXp} XP.`);
+      appendNpcDialog(ctx, character.id, npc.id,
+        `${npc.name} says, "Ah, you've brought it. Thank you."`);
+
+      // Award affinity
+      awardNpcAffinity(ctx, character, npc.id, 15n);
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'faction',
+        `You gain 15 affinity with ${npc.name}.`);
+
+      // DON'T return — continue to normal hail so follow-up dialogue branches appear
+    }
+
     // Get the root dialogue option (empty playerText)
     let rootOption: any | null = null;
     for (const opt of ctx.db.npcDialogueOption.by_npc.filter(npc.id)) {
