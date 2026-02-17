@@ -12,6 +12,8 @@ export const getGroupOrSoloParticipants = (ctx: any, character: any) => {
     if (seen.has(member.characterId.toString())) continue;
     const row = ctx.db.character.id.find(member.characterId);
     if (!row) continue;
+    // Only include members at the same location as the combat initiator
+    if (row.locationId !== character.locationId) continue;
     seen.add(row.id.toString());
     participants.push(row);
   }

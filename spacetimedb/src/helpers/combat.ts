@@ -332,6 +332,9 @@ export function executeAbility(
       if (effectiveGroupId(targetCharacter) !== actorGroupId) {
         throw new SenderError('Target not in your group');
       }
+      if (targetCharacter.locationId !== character.locationId) {
+        throw new SenderError('Target is not at your location');
+      }
     } else if (targetCharacter.id !== character.id) {
       throw new SenderError('Target must be yourself');
     }
