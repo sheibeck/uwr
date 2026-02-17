@@ -341,8 +341,7 @@ export const useHotbar = ({
 
     runPrediction(slot.abilityKey);
 
-    const targetId =
-      slot.kind === 'utility' ? defensiveTargetId.value ?? selectedCharacter.value.id : undefined;
+    const targetId = defensiveTargetId.value ?? undefined;
     useAbility(slot.abilityKey, targetId);
   };
 
