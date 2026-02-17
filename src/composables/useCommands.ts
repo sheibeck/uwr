@@ -1,5 +1,5 @@
 import { ref, type Ref } from 'vue';
-import { reducers, type CharacterRow, type NpcRow, type NpcDialogueOptionRow, type NpcAffinityRow, type FactionStandingRow } from '../module_bindings';
+import { reducers, type CharacterRow, type NpcRow, type NpcDialogueOptionRow, type NpcAffinityRow, type FactionStandingRow, type PlayerRow, type LocationRow } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 
 type UseCommandsArgs = {
@@ -15,6 +15,9 @@ type UseCommandsArgs = {
   selectedCharacterId?: Ref<bigint | null>;
   resetPanels?: () => void;
   addLocalEvent?: (kind: string, message: string) => void;
+  players?: Ref<PlayerRow[]>;
+  characters?: Ref<CharacterRow[]>;
+  locations?: Ref<LocationRow[]>;
 };
 
 export const useCommands = ({
@@ -30,6 +33,9 @@ export const useCommands = ({
   selectedCharacterId,
   resetPanels,
   addLocalEvent,
+  players,
+  characters,
+  locations,
 }: UseCommandsArgs) => {
   const submitCommandReducer = useReducer(reducers.submitCommand);
   const sayReducer = useReducer(reducers.say);
@@ -308,6 +314,32 @@ export const useCommands = ({
       }
       if (addLocalEvent) {
         addLocalEvent('command', 'All windows reset to center.');
+      }
+    } else if (lower === '/who') {
+      // Find all active character IDs from players with an activeCharacterId
+      const activeCharIds = new Set<string>();
+      for (const p of players?.value ?? []) {
+        if (p.activeCharacterId) {
+          activeCharIds.add(p.activeCharacterId.toString());
+        }
+      }
+      // Build character list
+      const activeChars = (characters?.value ?? [])
+        .filter(c => activeCharIds.has(c.id.toString()))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      if (activeChars.length === 0) {
+        addLocalEvent?.('command', 'No characters are currently online.');
+      } else {
+        const locationMap = new Map<string, string>();
+        for (const loc of locations?.value ?? []) {
+          locationMap.set(loc.id.toString(), loc.name);
+        }
+        const lines = activeChars.map(c => {
+          const locName = locationMap.get(c.locationId.toString()) ?? 'Unknown';
+          return `  ${c.name} — Level ${c.level} ${c.className} — ${locName}`;
+        });
+        addLocalEvent?.('command', `Online characters (${activeChars.length}):\n${lines.join('\n')}`);
       }
     } else {
       submitCommandReducer({

@@ -1277,6 +1277,9 @@ const { commandText, submitCommand } = useCommands({
   selectedCharacterId: computed(() => selectedCharacterId.value),
   resetPanels: () => _resetPanelsCb.value?.(),
   addLocalEvent,
+  players: computed(() => players.value),
+  characters: computed(() => characters.value),
+  locations: computed(() => locations.value),
 });
 
 const inviteToGroup = (targetName: string) => {
