@@ -326,9 +326,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 112 | Replace SplashScreen ASCII art pre blocks with pixel art logo.png image - copied logo to public/assets/, replaced pre elements with img tag, added splashLogo style with imageRendering: pixelated | 2026-02-16 | 4f62831 | [112-replace-splashscreen-pre-areas-with-asse](./quick/112-replace-splashscreen-pre-areas-with-asse/) |
 | 113 | Wire up Enter key to trigger login on splash screen - window keydown listener emits 'login' on Enter when connActive is true, cleaned up on unmount | 2026-02-16 | 815dac3 | [113-wire-up-enter-key-to-trigger-login-on-sp](./quick/113-wire-up-enter-key-to-trigger-login-on-sp/) |
 | 114 | Replace login button with >> Login << styled text - amber monospace span with no button chrome, disabled state dims to opacity 0.4, click guard and Enter key handler preserved | 2026-02-16 | b20bcd8 | [114-replace-login-button-with-login-styled-t](./quick/114-replace-login-button-with-login-styled-t/) |
+| 115 | Remove log button from action bar - log panel permanently open since quick-78, removed button, dead emit, and always-true isActive override | 2026-02-16 | 54cfd3a | [115-remove-log-button-from-action-bar-since-](./quick/115-remove-log-button-from-action-bar-since-/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed 06-02: Quest seeding and passive search — performPassiveSearch helper with 3 independent BigInt rolls (65%/40%/20%) wired into travel reducer, 14 new quest templates (delivery/kill_loot/explore/boss_kill), 14 affinity-gated dialogue branches, delivery chain Marla->Thessa->Mordane.
+Last activity: 2026-02-16 - Completed quick-115: Remove log button from action bar — log panel permanently open since quick-78, removed Log button, dead 'open' emit, and always-true isActive override from ActionBar.vue.
