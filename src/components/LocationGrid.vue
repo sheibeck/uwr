@@ -253,7 +253,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onBeforeUnmount } from 'vue';
+import { ref, watch, onBeforeUnmount } from 'vue';
 import type { CharacterRow, NpcRow } from '../module_bindings';
 import ContextMenu from './ContextMenu.vue';
 
@@ -362,6 +362,11 @@ const startQuestItemCast = (qi: { id: bigint; name: string }) => {
         emit('loot-quest-item', id);
       }
     }
+    // Absolute orphan safety: if somehow stuck beyond 5s, force clear
+    if (elapsed > 5000) {
+      clearInterval(timer);
+      questItemCast.value = null;
+    }
   }, 50);
   questItemCast.value = { id: qi.id, progress: 0, timer };
 };
@@ -371,6 +376,24 @@ onBeforeUnmount(() => {
     clearInterval(questItemCast.value.timer);
   }
 });
+
+// Early-clear quest item cast if the item disappears from the list (already looted/removed)
+watch(
+  () => props.questItems,
+  (items) => {
+    if (!questItemCast.value) return;
+    const castId = questItemCast.value.id.toString();
+    const stillPresent = items.some(qi => qi.id.toString() === castId && !qi.looted);
+    if (!stillPresent) {
+      // Item was looted or removed - clear the cast bar
+      if (questItemCast.value.timer != null) {
+        clearInterval(questItemCast.value.timer);
+      }
+      questItemCast.value = null;
+    }
+  },
+  { deep: true }
+);
 
 const contextMenu = ref<{
   visible: boolean;
