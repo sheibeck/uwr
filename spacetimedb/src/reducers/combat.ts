@@ -2,6 +2,7 @@ import { ENEMY_ABILITIES } from '../data/ability_catalog';
 import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier } from '../data/combat_scaling';
 import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
 import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, HEALING_THREAT_PERCENT } from '../data/combat_scaling';
+import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { awardRenown, awardServerFirst, calculatePerkBonuses } from '../helpers/renown';
 import { RENOWN_GAIN } from '../data/renown_data';
 import { rollQualityTier, generateAffixData, buildDisplayName } from '../helpers/items';
@@ -595,7 +596,7 @@ export const registerCombatReducers = (deps: any) => {
     });
     const gearEntries = entries.filter((entry) => {
       const template = ctx.db.itemTemplate.id.find(entry.itemTemplateId);
-      return template && !template.isJunk && template.requiredLevel <= (enemyTemplate.level ?? 1n) + 1n;
+      return template && !template.isJunk && !STARTER_ITEM_NAMES.has(template.name) && template.requiredLevel <= (enemyTemplate.level ?? 1n) + 1n;
     });
 
     const level = enemyTemplate.level ?? 1n;

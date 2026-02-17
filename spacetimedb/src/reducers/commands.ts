@@ -1,6 +1,7 @@
 import { getAffinityForNpc, canConverseWithNpc, awardNpcAffinity, getAvailableDialogueOptions } from '../helpers/npc_affinity';
 import { appendSystemMessage } from '../helpers/events';
 import { generateAffixData, buildDisplayName } from '../helpers/items';
+import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 
 export const registerCommandReducers = (deps: any) => {
   const {
@@ -367,18 +368,18 @@ export const registerCommandReducers = (deps: any) => {
       const slotIdx = Number(ctx.timestamp.microsSinceUnixEpoch % BigInt(gearSlots.length));
       const slot = gearSlots[slotIdx]!;
 
-      // Find any item template for this slot
+      // Find any item template for this slot (exclude starter items)
       let template: any = null;
       for (const tmpl of ctx.db.itemTemplate.iter()) {
-        if (tmpl.slot === slot && !tmpl.isJunk) {
+        if (tmpl.slot === slot && !tmpl.isJunk && !STARTER_ITEM_NAMES.has(tmpl.name)) {
           template = tmpl;
           break;
         }
       }
-      // Fallback: if no template found for the slot, pick any non-junk gear template
+      // Fallback: if no template found for the slot, pick any non-junk non-starter gear template
       if (!template) {
         for (const tmpl of ctx.db.itemTemplate.iter()) {
-          if (['chest', 'legs', 'boots', 'mainHand', 'head', 'hands', 'wrists', 'belt'].includes(tmpl.slot) && !tmpl.isJunk) {
+          if (['chest', 'legs', 'boots', 'mainHand', 'head', 'hands', 'wrists', 'belt'].includes(tmpl.slot) && !tmpl.isJunk && !STARTER_ITEM_NAMES.has(tmpl.name)) {
             template = tmpl;
             break;
           }
