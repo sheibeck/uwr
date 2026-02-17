@@ -1,6 +1,7 @@
 import { SenderError } from 'spacetimedb/server';
 import { findItemTemplateByName, STARTER_ARMOR, STARTER_WEAPONS } from '../helpers/items';
 import { ItemTemplate } from '../schema/tables';
+import { MATERIAL_DEFS } from '../data/crafting_materials';
 import { ABILITY_STAT_SCALING } from '../data/combat_scaling';
 import { CLERIC_ABILITIES } from '../data/abilities/cleric_abilities';
 import { WARRIOR_ABILITIES } from '../data/abilities/warrior_abilities';
@@ -1418,6 +1419,8 @@ export function ensureRecipeTemplates(ctx: any) {
     req2Count: bigint;
     req3?: typeof ItemTemplate.rowType | null;
     req3Count?: bigint;
+    recipeType?: string;
+    materialType?: string;
   }) => {
     if (!args.output || !args.req1 || !args.req2) return;
     const existing = [...ctx.db.recipeTemplate.iter()].find((row) => row.key === args.key);
@@ -1434,6 +1437,8 @@ export function ensureRecipeTemplates(ctx: any) {
         req2Count: args.req2Count,
         req3TemplateId: args.req3?.id,
         req3Count: args.req3Count,
+        recipeType: args.recipeType ?? existing.recipeType ?? 'consumable',
+        materialType: args.materialType ?? existing.materialType,
       });
       return;
     }
@@ -1449,6 +1454,8 @@ export function ensureRecipeTemplates(ctx: any) {
       req2Count: args.req2Count,
       req3TemplateId: args.req3?.id,
       req3Count: args.req3Count,
+      recipeType: args.recipeType ?? 'consumable',
+      materialType: args.materialType,
     });
   };
 
@@ -1771,4 +1778,241 @@ export function ensureAbilityTemplates(ctx: any) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// GEAR MATERIAL ITEM TEMPLATES
+// Seeds one ItemTemplate per crafting material (slot='resource', stackable=true).
+// Copper Ore already exists (seeded by ensureResourceItemTemplates) — reused.
+// Iron Ore/Iron Shard: Iron Shard already exists. Iron Ore is a NEW separate template
+// with consistent naming for the crafting system.
+// ---------------------------------------------------------------------------
 
+export function ensureGearMaterialItemTemplates(ctx: any) {
+  const upsertMaterial = (args: {
+    name: string;
+    tier: bigint;
+    vendorValue: bigint;
+  }) => {
+    if (findItemTemplateByName(ctx, args.name)) return;
+    ctx.db.itemTemplate.insert({
+      id: 0n,
+      name: args.name,
+      slot: 'resource',
+      armorType: 'none',
+      rarity: 'common',
+      tier: args.tier,
+      isJunk: false,
+      vendorValue: args.vendorValue,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      strBonus: 0n,
+      dexBonus: 0n,
+      chaBonus: 0n,
+      wisBonus: 0n,
+      intBonus: 0n,
+      hpBonus: 0n,
+      manaBonus: 0n,
+      armorClassBonus: 0n,
+      magicResistanceBonus: 0n,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
+      weaponType: '',
+      stackable: true,
+      wellFedDurationMicros: 0n,
+      wellFedBuffType: '',
+      wellFedBuffMagnitude: 0n,
+    });
+  };
+
+  // Tier 1 (Copper Ore already exists from ensureResourceItemTemplates)
+  // Rough Hide and Bone Shard are new
+  upsertMaterial({ name: 'Rough Hide', tier: 1n, vendorValue: 2n });
+  upsertMaterial({ name: 'Bone Shard', tier: 1n, vendorValue: 2n });
+
+  // Tier 2 (Iron Ore is new — Iron Shard already exists but is a different item)
+  upsertMaterial({ name: 'Iron Ore', tier: 2n, vendorValue: 4n });
+  upsertMaterial({ name: 'Tanned Leather', tier: 2n, vendorValue: 4n });
+  upsertMaterial({ name: 'Spirit Essence', tier: 2n, vendorValue: 5n });
+
+  // Tier 3
+  upsertMaterial({ name: 'Darksteel Ore', tier: 3n, vendorValue: 8n });
+  upsertMaterial({ name: 'Moonweave Cloth', tier: 3n, vendorValue: 8n });
+  upsertMaterial({ name: 'Shadowhide', tier: 3n, vendorValue: 8n });
+  upsertMaterial({ name: 'Void Crystal', tier: 3n, vendorValue: 10n });
+}
+
+// ---------------------------------------------------------------------------
+// BASE GEAR TEMPLATES FOR CRAFTING OUTPUT
+// Seeds ItemTemplates for gear slots not covered by ensureWorldDropGearTemplates:
+// head, wrists, hands, belt, offHand (shield), cloak (via neck slot).
+// These are "crafting base" items — common quality, no stats, used as recipe output.
+// ---------------------------------------------------------------------------
+
+export function ensureCraftingBaseGearTemplates(ctx: any) {
+  const upsertByName = (row: any) => {
+    const fullRow = {
+      wellFedDurationMicros: 0n,
+      wellFedBuffType: '',
+      wellFedBuffMagnitude: 0n,
+      weaponType: '',
+      magicResistanceBonus: 0n,
+      strBonus: 0n,
+      dexBonus: 0n,
+      chaBonus: 0n,
+      wisBonus: 0n,
+      intBonus: 0n,
+      hpBonus: 0n,
+      manaBonus: 0n,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
+      stackable: false,
+      ...row,
+    };
+    const existing = findItemTemplateByName(ctx, fullRow.name);
+    if (existing) {
+      ctx.db.itemTemplate.id.update({ ...existing, ...fullRow, id: existing.id });
+      return existing;
+    }
+    return ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
+  };
+
+  // Head slot
+  upsertByName({ name: 'Iron Helm', slot: 'head', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 3n });
+  // Wrists slot
+  upsertByName({ name: 'Leather Bracers', slot: 'wrists', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 2n });
+  // Hands slot
+  upsertByName({ name: 'Iron Gauntlets', slot: 'hands', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 2n });
+  // Belt slot
+  upsertByName({ name: 'Rough Girdle', slot: 'belt', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 1n });
+  // OffHand shield
+  upsertByName({ name: 'Wooden Shield', slot: 'offHand', armorType: 'none', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 4n });
+  // Cloak (neck slot with armorType cloth for identity, armorClassBonus distinguishes from jewelry)
+  upsertByName({ name: 'Simple Cloak', slot: 'neck', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 6n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 1n });
+}
+
+// ---------------------------------------------------------------------------
+// GEAR RECIPE TEMPLATES
+// Seeds one RecipeTemplate per gear type (weapon/armor/accessory).
+// Material TYPE is chosen by the player at craft time — Plan 02 reducer handles this.
+// For seeding, req1 = copper_ore (T1 metallic) with count 4n as base cost.
+// req2 = rough_hide (T1 hide) as a secondary material requirement.
+// ---------------------------------------------------------------------------
+
+export function ensureGearRecipeTemplates(ctx: any) {
+  const copperOre = findItemTemplateByName(ctx, 'Copper Ore');
+  const roughHide = findItemTemplateByName(ctx, 'Rough Hide');
+  if (!copperOre || !roughHide) return; // materials must be seeded first
+
+  const addGearRecipe = (args: {
+    key: string;
+    name: string;
+    outputName: string;
+    recipeType: 'weapon' | 'armor' | 'accessory';
+    req1Count: bigint;
+    req2Count: bigint;
+  }) => {
+    const output = findItemTemplateByName(ctx, args.outputName);
+    if (!output) return; // output template must exist
+    const existing = [...ctx.db.recipeTemplate.iter()].find((row) => row.key === args.key);
+    if (existing) {
+      ctx.db.recipeTemplate.id.update({
+        ...existing,
+        key: args.key,
+        name: args.name,
+        outputTemplateId: output.id,
+        outputCount: 1n,
+        req1TemplateId: copperOre.id,
+        req1Count: args.req1Count,
+        req2TemplateId: roughHide.id,
+        req2Count: args.req2Count,
+        recipeType: args.recipeType,
+        materialType: undefined,
+      });
+      return;
+    }
+    ctx.db.recipeTemplate.insert({
+      id: 0n,
+      key: args.key,
+      name: args.name,
+      outputTemplateId: output.id,
+      outputCount: 1n,
+      req1TemplateId: copperOre.id,
+      req1Count: args.req1Count,
+      req2TemplateId: roughHide.id,
+      req2Count: args.req2Count,
+      req3TemplateId: undefined,
+      req3Count: undefined,
+      recipeType: args.recipeType,
+      materialType: undefined,
+    });
+  };
+
+  // Weapons (mainHand)
+  addGearRecipe({ key: 'craft_longsword', name: 'Longsword', outputName: 'Iron Shortsword', recipeType: 'weapon', req1Count: 4n, req2Count: 1n });
+  addGearRecipe({ key: 'craft_dagger', name: 'Dagger', outputName: 'Chipped Dagger', recipeType: 'weapon', req1Count: 3n, req2Count: 1n });
+  addGearRecipe({ key: 'craft_staff', name: 'Staff', outputName: 'Gnarled Staff', recipeType: 'weapon', req1Count: 2n, req2Count: 2n });
+  addGearRecipe({ key: 'craft_mace', name: 'Mace', outputName: 'Worn Mace', recipeType: 'weapon', req1Count: 4n, req2Count: 1n });
+  // OffHand
+  addGearRecipe({ key: 'craft_shield', name: 'Shield', outputName: 'Wooden Shield', recipeType: 'weapon', req1Count: 3n, req2Count: 2n });
+
+  // Armor
+  addGearRecipe({ key: 'craft_helm', name: 'Helm', outputName: 'Iron Helm', recipeType: 'armor', req1Count: 3n, req2Count: 1n });
+  addGearRecipe({ key: 'craft_breastplate', name: 'Breastplate', outputName: 'Battered Cuirass', recipeType: 'armor', req1Count: 4n, req2Count: 2n });
+  addGearRecipe({ key: 'craft_bracers', name: 'Bracers', outputName: 'Leather Bracers', recipeType: 'armor', req1Count: 2n, req2Count: 2n });
+  addGearRecipe({ key: 'craft_gauntlets', name: 'Gauntlets', outputName: 'Iron Gauntlets', recipeType: 'armor', req1Count: 3n, req2Count: 1n });
+  addGearRecipe({ key: 'craft_girdle', name: 'Girdle', outputName: 'Rough Girdle', recipeType: 'armor', req1Count: 2n, req2Count: 2n });
+  addGearRecipe({ key: 'craft_greaves', name: 'Greaves', outputName: 'Dented Greaves', recipeType: 'armor', req1Count: 4n, req2Count: 2n });
+  addGearRecipe({ key: 'craft_sabatons', name: 'Sabatons', outputName: 'Dented Sabatons', recipeType: 'armor', req1Count: 3n, req2Count: 2n });
+
+  // Accessories
+  addGearRecipe({ key: 'craft_ring', name: 'Ring', outputName: 'Copper Band', recipeType: 'accessory', req1Count: 2n, req2Count: 1n });
+  addGearRecipe({ key: 'craft_amulet', name: 'Amulet', outputName: 'Stone Pendant', recipeType: 'accessory', req1Count: 2n, req2Count: 1n });
+  addGearRecipe({ key: 'craft_cloak', name: 'Cloak', outputName: 'Simple Cloak', recipeType: 'accessory', req1Count: 1n, req2Count: 3n });
+}
+
+// ---------------------------------------------------------------------------
+// RECIPE SCROLL ITEM TEMPLATES
+// One scroll per gear recipe, used as a "recipe discovery" item.
+// Slots: resource, stackable=true, rarity=uncommon, tier=1.
+// ---------------------------------------------------------------------------
+
+// List of gear recipe names — must match recipe names in ensureGearRecipeTemplates
+const GEAR_RECIPE_NAMES = [
+  'Longsword', 'Dagger', 'Staff', 'Mace', 'Shield',
+  'Helm', 'Breastplate', 'Bracers', 'Gauntlets', 'Girdle', 'Greaves', 'Sabatons',
+  'Ring', 'Amulet', 'Cloak',
+];
+
+export function ensureRecipeScrollItemTemplates(ctx: any) {
+  for (const recipeName of GEAR_RECIPE_NAMES) {
+    const scrollName = `Scroll: ${recipeName}`;
+    if (findItemTemplateByName(ctx, scrollName)) continue;
+    ctx.db.itemTemplate.insert({
+      id: 0n,
+      name: scrollName,
+      slot: 'resource',
+      armorType: 'none',
+      rarity: 'uncommon',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 10n,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      strBonus: 0n,
+      dexBonus: 0n,
+      chaBonus: 0n,
+      wisBonus: 0n,
+      intBonus: 0n,
+      hpBonus: 0n,
+      manaBonus: 0n,
+      armorClassBonus: 0n,
+      magicResistanceBonus: 0n,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
+      weaponType: '',
+      stackable: true,
+      wellFedDurationMicros: 0n,
+      wellFedBuffType: '',
+      wellFedBuffMagnitude: 0n,
+    });
+  }
+}

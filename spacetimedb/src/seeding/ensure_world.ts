@@ -996,14 +996,14 @@ export function ensureWorldLayout(ctx: any) {
   });
   const gloomspire = upsertLocationByName({
     name: 'Gloomspire Landing',
-    description: 'A wide ledge overlooking a bottomless chasm spanned by a chain bridge.',
+    description: 'A wide ledge overlooking a bottomless chasm spanned by a chain bridge. An old forge setup sits near the wall.',
     zone: 'Dungeon',
     regionId: embermarchDepths.id,
     levelOffset: 2n,
     isSafe: false,
     terrainType: 'dungeon',
     bindStone: true,
-    craftingAvailable: false,
+    craftingAvailable: true,
   });
   const ashwarden = upsertLocationByName({
     name: 'Ashwarden Throne',

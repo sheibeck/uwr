@@ -16,10 +16,14 @@ import {
   ensureResourceItemTemplates,
   ensureFoodItemTemplates,
   ensureRecipeTemplates,
-  ensureAbilityTemplates
+  ensureAbilityTemplates,
+  ensureGearMaterialItemTemplates,
+  ensureCraftingBaseGearTemplates,
+  ensureGearRecipeTemplates,
+  ensureRecipeScrollItemTemplates,
 } from './ensure_items';
 import { ensureNpcs, ensureQuestTemplates, ensureWorldLayout, ensureEnemyAbilities, ensureDialogueOptions } from './ensure_world';
-import { ensureLootTables, ensureVendorInventory, ensureLocationEnemyTemplates, ensureEnemyTemplatesAndRoles } from './ensure_enemies';
+import { ensureLootTables, ensureMaterialLootEntries, ensureVendorInventory, ensureLocationEnemyTemplates, ensureEnemyTemplatesAndRoles } from './ensure_enemies';
 import {
   DAY_DURATION_MICROS,
   getWorldState,
@@ -82,19 +86,24 @@ export function syncAllContent(ctx: any) {
   ensureWorldLayout(ctx);
   ensureStarterItemTemplates(ctx);
   ensureResourceItemTemplates(ctx);
+  ensureGearMaterialItemTemplates(ctx);   // Phase 13: crafting materials (after resource items)
   ensureFoodItemTemplates(ctx);
   ensureWorldDropGearTemplates(ctx);
   ensureWorldDropJewelryTemplates(ctx);
+  ensureCraftingBaseGearTemplates(ctx);   // Phase 13: base gear templates for recipe output
   ensureAbilityTemplates(ctx);
   ensureRecipeTemplates(ctx);
+  ensureGearRecipeTemplates(ctx);         // Phase 13: gear recipes (after material + base gear templates)
+  ensureRecipeScrollItemTemplates(ctx);   // Phase 13: scroll items (after gear recipes)
   ensureNpcs(ctx);
   ensureEnemyTemplatesAndRoles(ctx);
   ensureEnemyAbilities(ctx);
-  ensureQuestTemplates(ctx);  // Must be after enemies are created
-  ensureDialogueOptions(ctx);  // Must be after quests are created
+  ensureQuestTemplates(ctx);              // Must be after enemies are created
+  ensureDialogueOptions(ctx);            // Must be after quests are created
   ensureLocationEnemyTemplates(ctx);
   ensureLocationRuntimeBootstrap(ctx);
   ensureLootTables(ctx);
+  ensureMaterialLootEntries(ctx);         // Phase 13: material + scroll drops (after loot tables + material/scroll templates)
   ensureVendorInventory(ctx);
 }
 

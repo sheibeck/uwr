@@ -55,6 +55,8 @@ export function getGatherableResourceTemplates(ctx: any, terrainType: string, ti
   > = {
     mountains: [
       { name: 'Copper Ore', weight: 3n, timeOfDay: 'any' },
+      { name: 'Iron Ore', weight: 2n, timeOfDay: 'any' },        // T2 crafting material
+      { name: 'Darksteel Ore', weight: 1n, timeOfDay: 'any' },   // T3 crafting material (rare)
       { name: 'Stone', weight: 5n, timeOfDay: 'any' },
       { name: 'Sand', weight: 3n, timeOfDay: 'day' },
       { name: 'Clear Water', weight: 2n, timeOfDay: 'any' },
@@ -66,6 +68,7 @@ export function getGatherableResourceTemplates(ctx: any, terrainType: string, ti
       { name: 'Bitter Herbs', weight: 2n, timeOfDay: 'night' },
       { name: 'Clear Water', weight: 2n, timeOfDay: 'any' },
       { name: 'Wild Berries', weight: 3n, timeOfDay: 'any' },
+      { name: 'Moonweave Cloth', weight: 1n, timeOfDay: 'night' }, // T3 crafting material (rare)
     ],
     plains: [
       { name: 'Flax', weight: 4n, timeOfDay: 'day' },
@@ -74,17 +77,20 @@ export function getGatherableResourceTemplates(ctx: any, terrainType: string, ti
       { name: 'Salt', weight: 2n, timeOfDay: 'any' },
       { name: 'Wild Berries', weight: 2n, timeOfDay: 'day' },
       { name: 'Root Vegetable', weight: 3n, timeOfDay: 'any' },
+      { name: 'Copper Ore', weight: 2n, timeOfDay: 'any' },      // T1 crafting material
     ],
     swamp: [
       { name: 'Peat', weight: 4n, timeOfDay: 'any' },
       { name: 'Mushrooms', weight: 3n, timeOfDay: 'night' },
       { name: 'Murky Water', weight: 3n, timeOfDay: 'any' },
       { name: 'Bitter Herbs', weight: 2n, timeOfDay: 'night' },
+      { name: 'Moonweave Cloth', weight: 1n, timeOfDay: 'night' }, // T3 crafting material (rare)
     ],
     dungeon: [
       { name: 'Iron Shard', weight: 3n, timeOfDay: 'any' },
       { name: 'Ancient Dust', weight: 3n, timeOfDay: 'any' },
       { name: 'Stone', weight: 2n, timeOfDay: 'any' },
+      { name: 'Darksteel Ore', weight: 2n, timeOfDay: 'any' },   // T3 crafting material
     ],
     town: [
       { name: 'Scrap Cloth', weight: 3n, timeOfDay: 'any' },

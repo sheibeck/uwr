@@ -95,6 +95,178 @@ export function ensureLootTables(ctx: any) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// MATERIAL AND SCROLL LOOT TABLE ENTRIES
+// Adds crafting material drops and recipe scroll drops to enemy loot tables.
+// Must be called AFTER ensureLootTables (tables must exist) and AFTER
+// ensureGearMaterialItemTemplates + ensureRecipeScrollItemTemplates (templates must exist).
+//
+// Material tier mapping:
+//   T1 zones (dangerMultiplier ~100): T1 materials (rough_hide, bone_shard, copper_ore)
+//   T2 zones (dangerMultiplier ~160): T2 materials (tanned_leather, spirit_essence)
+//   T3 zones (dungeon/high danger):   T3 materials (shadowhide, void_crystal, darksteel_ore)
+//
+// Scroll drops: mid-tier enemies (T2) weight 3-5, high-tier (T3) weight 5-8. Low-tier: none.
+// ---------------------------------------------------------------------------
+
+export function ensureMaterialLootEntries(ctx: any) {
+  const upsertLootEntry = (lootTableId: bigint, itemTemplateId: bigint, weight: bigint) => {
+    const existing = [...ctx.db.lootTableEntry.by_table.filter(lootTableId)].find(
+      (row) => row.itemTemplateId === itemTemplateId
+    );
+    if (existing) {
+      if (existing.weight !== weight) {
+        ctx.db.lootTableEntry.id.update({ ...existing, weight });
+      }
+      return;
+    }
+    ctx.db.lootTableEntry.insert({ id: 0n, lootTableId, itemTemplateId, weight });
+  };
+
+  const findTable = (terrainType: string, creatureType: string, tier: bigint) =>
+    [...ctx.db.lootTable.iter()].find(
+      (row) =>
+        row.terrainType === terrainType &&
+        row.creatureType === creatureType &&
+        row.tier === tier
+    );
+
+  // Look up material templates
+  const roughHide = findItemTemplateByName(ctx, 'Rough Hide');
+  const boneShard = findItemTemplateByName(ctx, 'Bone Shard');
+  const copperOre = findItemTemplateByName(ctx, 'Copper Ore');
+  const tannedLeather = findItemTemplateByName(ctx, 'Tanned Leather');
+  const spiritEssence = findItemTemplateByName(ctx, 'Spirit Essence');
+  const shadowhide = findItemTemplateByName(ctx, 'Shadowhide');
+  const voidCrystal = findItemTemplateByName(ctx, 'Void Crystal');
+
+  // Look up scroll templates
+  const scrollLongsword = findItemTemplateByName(ctx, 'Scroll: Longsword');
+  const scrollDagger = findItemTemplateByName(ctx, 'Scroll: Dagger');
+  const scrollStaff = findItemTemplateByName(ctx, 'Scroll: Staff');
+  const scrollHelm = findItemTemplateByName(ctx, 'Scroll: Helm');
+  const scrollBreastplate = findItemTemplateByName(ctx, 'Scroll: Breastplate');
+  const scrollRing = findItemTemplateByName(ctx, 'Scroll: Ring');
+  const scrollCloak = findItemTemplateByName(ctx, 'Scroll: Cloak');
+
+  const terrains = ['plains', 'woods', 'swamp', 'mountains', 'town', 'city', 'dungeon'];
+
+  for (const terrain of terrains) {
+    // Determine tier zone: dungeon = high tier, town/city = mid tier, others = low/mid tier
+    // Using terrain type as proxy: dungeon = T3, mountains = T2/T3, others = T1/T2
+    const isHighTier = terrain === 'dungeon';
+    const isMidTier = terrain === 'mountains' || terrain === 'town' || terrain === 'city';
+
+    // --- ANIMAL loot tables: rough_hide (T1), tanned_leather (T2 mid/high) ---
+    const animalTable = findTable(terrain, 'animal', 1n);
+    if (animalTable) {
+      if (roughHide) upsertLootEntry(animalTable.id, roughHide.id, 20n);
+      if (isMidTier || isHighTier) {
+        if (tannedLeather) upsertLootEntry(animalTable.id, tannedLeather.id, 15n);
+      }
+      if (isHighTier) {
+        if (shadowhide) upsertLootEntry(animalTable.id, shadowhide.id, 10n);
+        // High-tier scroll drops: armor scrolls from animals
+        if (scrollHelm) upsertLootEntry(animalTable.id, scrollHelm.id, 5n);
+        if (scrollBreastplate) upsertLootEntry(animalTable.id, scrollBreastplate.id, 5n);
+      } else if (isMidTier) {
+        // Mid-tier: armor scroll drops (rare)
+        if (scrollHelm) upsertLootEntry(animalTable.id, scrollHelm.id, 3n);
+      }
+    }
+
+    // --- BEAST loot tables: rough_hide (T1), tanned_leather (T2), shadowhide (T3) ---
+    const beastTable = findTable(terrain, 'beast', 1n);
+    if (beastTable) {
+      if (roughHide) upsertLootEntry(beastTable.id, roughHide.id, 20n);
+      if (isMidTier || isHighTier) {
+        if (tannedLeather) upsertLootEntry(beastTable.id, tannedLeather.id, 15n);
+      }
+      if (isHighTier) {
+        if (shadowhide) upsertLootEntry(beastTable.id, shadowhide.id, 12n);
+        // High-tier scroll drops: armor from beasts
+        if (scrollBreastplate) upsertLootEntry(beastTable.id, scrollBreastplate.id, 6n);
+        if (scrollHelm) upsertLootEntry(beastTable.id, scrollHelm.id, 5n);
+        if (scrollCloak) upsertLootEntry(beastTable.id, scrollCloak.id, 5n);
+      } else if (isMidTier) {
+        if (scrollBreastplate) upsertLootEntry(beastTable.id, scrollBreastplate.id, 3n);
+      }
+    }
+
+    // --- UNDEAD loot tables: bone_shard (T1), spirit_essence (T2) ---
+    const undeadTable = findTable(terrain, 'undead', 1n);
+    if (undeadTable) {
+      if (boneShard) upsertLootEntry(undeadTable.id, boneShard.id, 18n);
+      if (isMidTier || isHighTier) {
+        if (spiritEssence) upsertLootEntry(undeadTable.id, spiritEssence.id, 15n);
+      }
+      if (isHighTier) {
+        // High-tier: weapon scrolls from undead
+        if (scrollLongsword) upsertLootEntry(undeadTable.id, scrollLongsword.id, 6n);
+        if (scrollStaff) upsertLootEntry(undeadTable.id, scrollStaff.id, 5n);
+      } else if (isMidTier) {
+        if (scrollLongsword) upsertLootEntry(undeadTable.id, scrollLongsword.id, 4n);
+      }
+    }
+
+    // --- SPIRIT loot tables: spirit_essence (T2), void_crystal (T3) ---
+    const spiritTable = findTable(terrain, 'spirit', 1n);
+    if (spiritTable) {
+      if (isMidTier || isHighTier) {
+        if (spiritEssence) upsertLootEntry(spiritTable.id, spiritEssence.id, 18n);
+      } else {
+        // Low-tier spirits only have T1 bone_shard
+        if (boneShard) upsertLootEntry(spiritTable.id, boneShard.id, 10n);
+      }
+      if (isHighTier) {
+        if (voidCrystal) upsertLootEntry(spiritTable.id, voidCrystal.id, 12n);
+        // High-tier: accessory + staff scrolls from spirits
+        if (scrollRing) upsertLootEntry(spiritTable.id, scrollRing.id, 7n);
+        if (scrollStaff) upsertLootEntry(spiritTable.id, scrollStaff.id, 6n);
+        if (scrollCloak) upsertLootEntry(spiritTable.id, scrollCloak.id, 6n);
+      } else if (isMidTier) {
+        if (scrollStaff) upsertLootEntry(spiritTable.id, scrollStaff.id, 4n);
+      }
+    }
+
+    // --- CONSTRUCT loot tables: shadowhide (T3), void_crystal (T3) ---
+    const constructTable = findTable(terrain, 'construct', 1n);
+    if (constructTable) {
+      if (isMidTier || isHighTier) {
+        if (shadowhide) upsertLootEntry(constructTable.id, shadowhide.id, 15n);
+      }
+      if (isHighTier) {
+        if (voidCrystal) upsertLootEntry(constructTable.id, voidCrystal.id, 12n);
+        // High-tier: weapon and armor scrolls from constructs
+        if (scrollLongsword) upsertLootEntry(constructTable.id, scrollLongsword.id, 8n);
+        if (scrollBreastplate) upsertLootEntry(constructTable.id, scrollBreastplate.id, 7n);
+        if (scrollHelm) upsertLootEntry(constructTable.id, scrollHelm.id, 6n);
+      } else if (isMidTier) {
+        if (scrollLongsword) upsertLootEntry(constructTable.id, scrollLongsword.id, 5n);
+        if (scrollDagger) upsertLootEntry(constructTable.id, scrollDagger.id, 3n);
+      }
+    }
+
+    // --- HUMANOID loot tables: bone_shard (T1), spirit_essence (T2) ---
+    const humanoidTable = findTable(terrain, 'humanoid', 1n);
+    if (humanoidTable) {
+      if (boneShard) upsertLootEntry(humanoidTable.id, boneShard.id, 15n);
+      if (isMidTier || isHighTier) {
+        if (spiritEssence) upsertLootEntry(humanoidTable.id, spiritEssence.id, 12n);
+      }
+      if (isHighTier) {
+        // High-tier: weapon scrolls from humanoids
+        if (scrollLongsword) upsertLootEntry(humanoidTable.id, scrollLongsword.id, 7n);
+        if (scrollDagger) upsertLootEntry(humanoidTable.id, scrollDagger.id, 6n);
+        if (scrollStaff) upsertLootEntry(humanoidTable.id, scrollStaff.id, 5n);
+      } else if (isMidTier) {
+        if (scrollLongsword) upsertLootEntry(humanoidTable.id, scrollLongsword.id, 4n);
+        if (scrollDagger) upsertLootEntry(humanoidTable.id, scrollDagger.id, 3n);
+      }
+    }
+  }
+}
+
 export function ensureVendorInventory(ctx: any) {
   // Helper function for deterministic random selection
   function pickN(items: any[], n: number, seed: bigint): any[] {
