@@ -1,5 +1,5 @@
 import { ref, type Ref } from 'vue';
-import { reducers, tables, type CharacterRow, type NpcRow, type NpcDialogueOptionRow, type NpcAffinityRow, type FactionStandingRow, type PlayerRow, type LocationRow } from '../module_bindings';
+import { reducers, type CharacterRow, type NpcRow, type NpcDialogueOptionRow, type NpcAffinityRow, type FactionStandingRow, type PlayerRow, type LocationRow } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 
 type UseCommandsArgs = {
@@ -18,6 +18,7 @@ type UseCommandsArgs = {
   players?: Ref<PlayerRow[]>;
   characters?: Ref<CharacterRow[]>;
   locations?: Ref<LocationRow[]>;
+  worldEventRows?: Ref<any[]>;
 };
 
 export const useCommands = ({
@@ -36,6 +37,7 @@ export const useCommands = ({
   players,
   characters,
   locations,
+  worldEventRows,
 }: UseCommandsArgs) => {
   const submitCommandReducer = useReducer(reducers.submitCommand);
   const sayReducer = useReducer(reducers.say);
@@ -319,7 +321,7 @@ export const useCommands = ({
     } else if (lower.startsWith('/endevent')) {
       const parts = raw.trim().split(/\s+/);
       const outcome = parts[1]?.toLowerCase() === 'fail' ? 'failure' : 'success';
-      const activeEvents = [...tables.worldEvent.iter()].filter((e: any) => e.status === 'active');
+      const activeEvents = (worldEventRows?.value ?? []).filter((e: any) => e.status === 'active');
       if (activeEvents.length === 0) {
         addLocalEvent?.('command', 'No active world events.');
       } else if (activeEvents.length === 1) {

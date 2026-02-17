@@ -1324,6 +1324,7 @@ const { commandText, submitCommand } = useCommands({
   players: computed(() => players.value),
   characters: computed(() => characters.value),
   locations: computed(() => locations.value),
+  worldEventRows: computed(() => (worldEventRows.value as any[])),
 });
 
 const inviteToGroup = (targetName: string) => {
