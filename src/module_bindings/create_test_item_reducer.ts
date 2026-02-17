@@ -10,14 +10,7 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.row({
-  id: __t.u64(),
-  combatId: __t.u64(),
-  ownerUserId: __t.u64(),
+export default {
   characterId: __t.u64(),
-  itemTemplateId: __t.u64(),
-  createdAt: __t.timestamp(),
-  qualityTier: __t.option(__t.string()),
-  affixDataJson: __t.option(__t.string()),
-  isNamed: __t.option(__t.bool()),
-});
+  qualityTier: __t.string(),
+};

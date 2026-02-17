@@ -144,6 +144,8 @@ import SayReducer from "./say_reducer";
 export { SayReducer };
 import HailNpcReducer from "./hail_npc_reducer";
 export { HailNpcReducer };
+import CreateTestItemReducer from "./create_test_item_reducer";
+export { CreateTestItemReducer };
 import GroupMessageReducer from "./group_message_reducer";
 export { GroupMessageReducer };
 import LevelCharacterReducer from "./level_character_reducer";
@@ -524,6 +526,8 @@ import CreateGroup from "./create_group_type";
 export { CreateGroup };
 import CreateItemTemplate from "./create_item_template_type";
 export { CreateItemTemplate };
+import CreateTestItem from "./create_test_item_type";
+export { CreateTestItem };
 import DayNightTick from "./day_night_tick_type";
 export { DayNightTick };
 import DeclineCorpseSummon from "./decline_corpse_summon_type";
@@ -2256,6 +2260,7 @@ const reducersSchema = __reducers(
   __reducerSchema("submit_command", SubmitCommandReducer),
   __reducerSchema("say", SayReducer),
   __reducerSchema("hail_npc", HailNpcReducer),
+  __reducerSchema("create_test_item", CreateTestItemReducer),
   __reducerSchema("group_message", GroupMessageReducer),
   __reducerSchema("level_character", LevelCharacterReducer),
   __reducerSchema("whisper", WhisperReducer),

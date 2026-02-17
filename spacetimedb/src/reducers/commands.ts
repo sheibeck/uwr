@@ -1,5 +1,6 @@
 import { getAffinityForNpc, canConverseWithNpc, awardNpcAffinity, getAvailableDialogueOptions } from '../helpers/npc_affinity';
 import { appendSystemMessage } from '../helpers/events';
+import { generateAffixData, buildDisplayName } from '../helpers/items';
 
 export const registerCommandReducers = (deps: any) => {
   const {
@@ -30,6 +31,7 @@ export const registerCommandReducers = (deps: any) => {
     ensureLootTables,
     ensureVendorInventory,
     syncAllContent,
+    addItemToInventory,
   } = deps;
 
   const hailNpc = (ctx: any, character: any, npcName: string) => {
@@ -348,6 +350,89 @@ export const registerCommandReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     hailNpc(ctx, character, args.npcName);
   });
+
+  spacetimedb.reducer(
+    'create_test_item',
+    { characterId: t.u64(), qualityTier: t.string() },
+    (ctx, { characterId, qualityTier }) => {
+      const character = requireCharacterOwnedBy(ctx, characterId);
+
+      const validTiers = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+      if (!validTiers.includes(qualityTier)) {
+        return fail(ctx, character, `Invalid quality tier. Use: ${validTiers.join(', ')}`);
+      }
+
+      // Pick a random gear slot from those supported by affix catalog
+      const gearSlots = ['chest', 'legs', 'boots', 'head', 'hands', 'wrists', 'belt', 'mainHand'];
+      const slotIdx = Number(ctx.timestamp.microsSinceUnixEpoch % BigInt(gearSlots.length));
+      const slot = gearSlots[slotIdx]!;
+
+      // Find any item template for this slot
+      let template: any = null;
+      for (const tmpl of ctx.db.itemTemplate.iter()) {
+        if (tmpl.slot === slot && !tmpl.isJunk) {
+          template = tmpl;
+          break;
+        }
+      }
+      // Fallback: if no template found for the slot, pick any non-junk gear template
+      if (!template) {
+        for (const tmpl of ctx.db.itemTemplate.iter()) {
+          if (['chest', 'legs', 'boots', 'mainHand', 'head', 'hands', 'wrists', 'belt'].includes(tmpl.slot) && !tmpl.isJunk) {
+            template = tmpl;
+            break;
+          }
+        }
+      }
+      if (!template) return fail(ctx, character, 'No item templates found to create test item');
+
+      // Check inventory space (max 20 non-equipped items)
+      const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].filter((r) => !r.equippedSlot).length;
+      if (itemCount >= 20) return fail(ctx, character, 'Backpack is full');
+
+      // Add base item to inventory
+      addItemToInventory(ctx, character.id, template.id, 1n);
+
+      // For non-common, apply affixes
+      let displayName = template.name;
+      if (qualityTier !== 'common') {
+        // Find the newly created instance (no qualityTier set yet, not equipped)
+        const instances = [...ctx.db.itemInstance.by_owner.filter(character.id)];
+        const newInstance = instances.find(
+          (i) => i.templateId === template.id && !i.equippedSlot && !i.qualityTier
+        );
+        if (newInstance) {
+          const seedBase = ctx.timestamp.microsSinceUnixEpoch + character.id;
+          const affixes = generateAffixData(template.slot, qualityTier, seedBase);
+          for (const affix of affixes) {
+            ctx.db.itemAffix.insert({
+              id: 0n,
+              itemInstanceId: newInstance.id,
+              affixType: affix.affixType,
+              affixKey: affix.affixKey,
+              affixName: affix.affixName,
+              statKey: affix.statKey,
+              magnitude: affix.magnitude,
+            });
+          }
+          displayName = buildDisplayName(template.name, affixes);
+          ctx.db.itemInstance.id.update({
+            ...newInstance,
+            qualityTier,
+            displayName,
+          });
+        }
+      }
+
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'reward',
+        `[Test] Created ${qualityTier} item: ${displayName}.`
+      );
+    }
+  );
 
   spacetimedb.reducer('group_message', { characterId: t.u64(), message: t.string() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
