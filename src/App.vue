@@ -1992,6 +1992,36 @@ watch(
     if (localGather.value && now - localGather.value.startMicros >= localGather.value.durationMicros) {
       localGather.value = null;
     }
+    // Orphan safety net: if localGather exceeds duration + 2s grace, force clear
+    if (localGather.value && now - localGather.value.startMicros >= localGather.value.durationMicros + 2_000_000) {
+      localGather.value = null;
+    }
+  }
+);
+
+// Gather interruption detector: if server has no active gather for our node, clear localGather after 1s grace
+watch(
+  () => [localGather.value, activeResourceGather.value] as const,
+  ([local, serverGather]) => {
+    if (!local) return;
+    // Server still shows active gather for this node - all good
+    if (serverGather && serverGather.nodeId.toString() === local.nodeId.toString()) return;
+    // Server has no active gather - check if enough time passed (1s grace for subscription lag)
+    const elapsed = nowMicros.value - local.startMicros;
+    if (elapsed > 1_000_000) {
+      // Grace period passed, server doesn't have this gather - it was interrupted
+      localGather.value = null;
+    }
+  }
+);
+
+// Clear localGather on combat start (gathering stops when entering combat)
+watch(
+  () => activeCombat.value,
+  (newVal) => {
+    if (newVal && localGather.value) {
+      localGather.value = null;
+    }
   }
 );
 
