@@ -1803,9 +1803,11 @@ const equippedStatBonuses = computed(() => {
     return { str: 0n, dex: 0n, cha: 0n, wis: 0n, int: 0n };
   }
   const bonus = { str: 0n, dex: 0n, cha: 0n, wis: 0n, int: 0n };
+  const equippedInstanceIds = new Set<string>();
   for (const instance of itemInstances.value) {
     if (instance.ownerCharacterId.toString() !== selectedCharacter.value.id.toString()) continue;
     if (!instance.equippedSlot) continue;
+    equippedInstanceIds.add(instance.id.toString());
     const template = itemTemplates.value.find(
       (row) => row.id.toString() === instance.templateId.toString()
     );
@@ -1815,6 +1817,27 @@ const equippedStatBonuses = computed(() => {
     bonus.cha += template.chaBonus ?? 0n;
     bonus.wis += template.wisBonus ?? 0n;
     bonus.int += template.intBonus ?? 0n;
+  }
+  // Add affix bonuses from equipped items
+  for (const affix of itemAffixes.value) {
+    if (!equippedInstanceIds.has(affix.itemInstanceId.toString())) continue;
+    const mag = BigInt(affix.magnitude);
+    if (affix.statKey === 'strBonus') bonus.str += mag;
+    else if (affix.statKey === 'dexBonus') bonus.dex += mag;
+    else if (affix.statKey === 'intBonus') bonus.int += mag;
+    else if (affix.statKey === 'wisBonus') bonus.wis += mag;
+    else if (affix.statKey === 'chaBonus') bonus.cha += mag;
+  }
+  // Add active CharacterEffect stat buffs for selected character
+  const charId = selectedCharacter.value.id.toString();
+  for (const effect of characterEffects.value) {
+    if (effect.characterId.toString() !== charId) continue;
+    const mag = BigInt(effect.magnitude);
+    if (effect.effectType === 'str_bonus') bonus.str += mag;
+    else if (effect.effectType === 'dex_bonus') bonus.dex += mag;
+    else if (effect.effectType === 'cha_bonus') bonus.cha += mag;
+    else if (effect.effectType === 'wis_bonus') bonus.wis += mag;
+    else if (effect.effectType === 'int_bonus') bonus.int += mag;
   }
   return bonus;
 });
