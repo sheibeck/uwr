@@ -139,6 +139,8 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 95. Passive search seed = charId XOR nowMicros, with bit-shifted variants (>>8, *7) and (>>16, *13) for 3 independent rolls — deterministic per character per timestamp (06-02)
 96. Quest item cast timer is purely client-side UX — loot_quest_item reducer accepts call immediately, no server-side timer enforcement (06-03)
 97. locationQuestItems/locationNamedEnemies filtered client-side by characterId + locationId + state (discovered/looted/isAlive) before passing to LocationGrid as props (06-03)
+98. Food buffs use food_mana_regen/food_stamina_regen effectTypes (not mana_regen/stamina_regen) so they bypass tick_effects periodic heal handlers and instead boost per-tick regen rate in regen_health (quick-120)
+99. sourceAbility='Well Fed' is canonical food buff identifier — used for group panel display (effectLabel returns sourceAbility when present) and one-at-a-time enforcement (delete by sourceAbility only) (quick-120)
 
 ---
 
@@ -334,9 +336,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 117 | Add /resetwindows command to reset all panel positions to center of screen - resetAllPanels() in usePanelManager centers all panels and persists via localStorage + server save, wired through useCommands with addLocalEvent confirmation | 2026-02-17 | 7d360fa | [117-add-resetwindows-command-to-reset-all-pa](./quick/117-add-resetwindows-command-to-reset-all-pa/) |
 | 118 | Replace shared resource nodes with personal per-character nodes discovered via passive search - ResourceNode gains optional characterId + by_character index, passive search spawns 2-3 personal nodes on 65% roll, finish_gather deletes personal nodes immediately, client filters to selected character's nodes | 2026-02-17 | 099af04 | [118-replace-shared-resource-nodes-with-perso](./quick/118-replace-shared-resource-nodes-with-perso/) |
 | 119 | Clean up personal resource system - removed ResourceRespawnTick table and respawn_resource reducer, removed shared-node branch in finish_gather, implemented tiered node counts (1/2/3 by roll), updated log message, removed resource badge from SEARCH section | 2026-02-16 | ed5a37a | [119-clean-up-personal-resource-system-remove](./quick/119-clean-up-personal-resource-system-remove/) |
+| 120 | Fix food buff display names, log messages, regen mechanic, and stacking - sourceAbility 'Well Fed' for group panel, BUFF_TYPE_LABELS map for readable log output, food_mana_regen/food_stamina_regen effectTypes boost per-tick regen rate in regen_health, one-food-at-a-time enforced by sourceAbility-only deletion | 2026-02-17 | 74ef58c | [120-fix-food-buff-display-names-regen-mechan](./quick/120-fix-food-buff-display-names-regen-mechan/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed 06-03: Quest System Frontend — published SpacetimeDB module with all Phase 06 tables, regenerated client bindings, added useTable subscriptions for QuestItem/NamedEnemy/SearchResult in App.vue, extended LocationGrid with SEARCH/QUEST ITEMS/NAMED ENEMIES sections (quest item loot has 3s client-side cast timer). Human-verified end-to-end. Phase 06 (Quest System) fully complete.
+Last activity: 2026-02-17 - Completed quick-120: Fixed food buff system — sourceAbility 'Well Fed' displays correctly in group panel, log messages use readable stat labels (mana regeneration etc.), food regen buffs boost per-tick rate in regen_health instead of periodic heals via tick_effects, one-food-at-a-time enforced. Module published and bindings regenerated.
