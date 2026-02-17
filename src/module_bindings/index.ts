@@ -102,8 +102,6 @@ import StartGatherResourceReducer from "./start_gather_resource_reducer";
 export { StartGatherResourceReducer };
 import FinishGatherReducer from "./finish_gather_reducer";
 export { FinishGatherReducer };
-import RespawnResourceReducer from "./respawn_resource_reducer";
-export { RespawnResourceReducer };
 import ResearchRecipesReducer from "./research_recipes_reducer";
 export { ResearchRecipesReducer };
 import CraftRecipeReducer from "./craft_recipe_reducer";
@@ -422,8 +420,6 @@ import ResourceGatherTickRow from "./resource_gather_tick_table";
 export { ResourceGatherTickRow };
 import ResourceNodeRow from "./resource_node_table";
 export { ResourceNodeRow };
-import ResourceRespawnTickRow from "./resource_respawn_tick_table";
-export { ResourceRespawnTickRow };
 import SearchResultRow from "./search_result_table";
 export { SearchResultRow };
 import TradeItemRow from "./trade_item_table";
@@ -748,14 +744,10 @@ import ResourceGatherTick from "./resource_gather_tick_type";
 export { ResourceGatherTick };
 import ResourceNode from "./resource_node_type";
 export { ResourceNode };
-import ResourceRespawnTick from "./resource_respawn_tick_type";
-export { ResourceRespawnTick };
 import RespawnCharacter from "./respawn_character_type";
 export { RespawnCharacter };
 import RespawnEnemy from "./respawn_enemy_type";
 export { RespawnEnemy };
-import RespawnResource from "./respawn_resource_type";
-export { RespawnResource };
 import SavePanelLayout from "./save_panel_layout_type";
 export { SavePanelLayout };
 import Say from "./say_type";
@@ -1966,17 +1958,6 @@ const tablesSchema = __schema(
     ],
   }, ResourceNodeRow),
   __table({
-    name: 'resource_respawn_tick',
-    indexes: [
-      { name: 'scheduledId', algorithm: 'btree', columns: [
-        'scheduledId',
-      ] },
-    ],
-    constraints: [
-      { name: 'resource_respawn_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
-    ],
-  }, ResourceRespawnTickRow),
-  __table({
     name: 'search_result',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -2232,7 +2213,6 @@ const reducersSchema = __reducers(
   __reducerSchema("use_ability", UseAbilityReducer),
   __reducerSchema("start_gather_resource", StartGatherResourceReducer),
   __reducerSchema("finish_gather", FinishGatherReducer),
-  __reducerSchema("respawn_resource", RespawnResourceReducer),
   __reducerSchema("research_recipes", ResearchRecipesReducer),
   __reducerSchema("craft_recipe", CraftRecipeReducer),
   __reducerSchema("use_item", UseItemReducer),
