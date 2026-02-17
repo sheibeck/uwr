@@ -1,3 +1,5 @@
+import { spawnResourceNode } from './location';
+
 export function performPassiveSearch(
   ctx: any,
   character: any,
@@ -143,8 +145,19 @@ export function performPassiveSearch(
     searchedAt: ctx.timestamp,
   });
 
-  // Log resource discovery
+  // Clean up old personal resource nodes for this character at this location
+  for (const node of ctx.db.resourceNode.by_character.filter(character.id)) {
+    if (node.locationId === locationId) {
+      ctx.db.resourceNode.id.delete(node.id);
+    }
+  }
+
+  // Spawn personal resource nodes if resources found
   if (foundResources) {
+    const nodeCount = 2 + Number(seed % 2n); // 2 or 3 nodes
+    for (let i = 0; i < nodeCount; i += 1) {
+      spawnResourceNode(ctx, locationId, character.id, BigInt(i) * 1000n);
+    }
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'move',
       'You notice some hidden resources in the area.');
   }

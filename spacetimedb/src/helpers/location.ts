@@ -119,14 +119,15 @@ export function getGatherableResourceTemplates(ctx: any, terrainType: string, ti
     .filter(Boolean) as { template: any; weight: bigint; timeOfDay: string }[];
   return resolved;
 }
-export function spawnResourceNode(ctx: any, locationId: bigint): any {
+export function spawnResourceNode(ctx: any, locationId: bigint, characterId?: bigint, seedOffset?: bigint): any {
   const location = ctx.db.location.id.find(locationId);
   if (!location) throw new SenderError('Location not found');
   const timePref = isNightTime(ctx) ? 'night' : 'day';
   const pool = getGatherableResourceTemplates(ctx, location.terrainType ?? 'plains', timePref);
   if (pool.length === 0) throw new SenderError('No resource templates for location');
   const totalWeight = pool.reduce((sum, entry) => sum + entry.weight, 0n);
-  let roll = (ctx.timestamp.microsSinceUnixEpoch + locationId) % totalWeight;
+  const offset = seedOffset ?? 0n;
+  let roll = (ctx.timestamp.microsSinceUnixEpoch + locationId + offset) % totalWeight;
   let chosen = pool[0];
   for (const entry of pool) {
     if (roll < entry.weight) {
@@ -135,7 +136,7 @@ export function spawnResourceNode(ctx: any, locationId: bigint): any {
     }
     roll -= entry.weight;
   }
-  const quantitySeed = ctx.timestamp.microsSinceUnixEpoch + chosen.template.id + locationId;
+  const quantitySeed = ctx.timestamp.microsSinceUnixEpoch + chosen.template.id + locationId + offset;
   const minQty = 2n;
   const maxQty = 6n;
   const qtyRange = maxQty - minQty + 1n;
@@ -143,6 +144,7 @@ export function spawnResourceNode(ctx: any, locationId: bigint): any {
   return ctx.db.resourceNode.insert({
     id: 0n,
     locationId,
+    characterId: characterId ?? undefined,
     itemTemplateId: chosen.template.id,
     name: chosen.template.name,
     timeOfDay: chosen.timeOfDay ?? 'any',
@@ -281,8 +283,6 @@ export function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
 
 export function ensureLocationRuntimeBootstrap(ctx: any) {
   for (const location of ctx.db.location.iter()) {
-    ensureResourceNodesForLocation(ctx, location.id);
-
     // Skip enemy spawns for safe zones and clean up any existing spawns
     if (location.isSafe) {
       for (const spawn of ctx.db.enemySpawn.by_location.filter(location.id)) {

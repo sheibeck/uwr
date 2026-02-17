@@ -400,11 +400,15 @@ export const ResourceNode = table(
   {
     name: 'resource_node',
     public: true,
-    indexes: [{ name: 'by_location', algorithm: 'btree', columns: ['locationId'] }],
+    indexes: [
+      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+    ],
   },
   {
     id: t.u64().primaryKey().autoInc(),
     locationId: t.u64(),
+    characterId: t.u64().optional(),
     itemTemplateId: t.u64(),
     name: t.string(),
     timeOfDay: t.string(),
