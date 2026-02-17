@@ -3,21 +3,24 @@ import { getGatherableResourceTemplates, findEnemyTemplateByName } from '../help
 import { findItemTemplateByName } from '../helpers/items';
 import { EnemyTemplate } from '../schema/tables';
 
+const STARTER_ITEM_NAMES = new Set([
+  // Starter weapons
+  'Training Sword', 'Training Mace', 'Training Staff', 'Training Bow',
+  'Training Dagger', 'Training Axe', 'Training Blade', 'Training Rapier',
+  // Starter cloth armor
+  'Apprentice Robe', 'Apprentice Trousers', 'Apprentice Boots',
+  // Starter leather armor
+  'Scout Jerkin', 'Scout Pants', 'Scout Boots',
+  // Starter chain armor
+  'Warden Hauberk', 'Warden Greaves', 'Warden Boots',
+  // Starter plate armor
+  'Vanguard Cuirass', 'Vanguard Greaves', 'Vanguard Boots',
+  // Starter accessories
+  'Rough Band', 'Worn Cloak', 'Traveler Necklace', 'Glimmer Ring', 'Shaded Cloak',
+]);
+
 export function ensureLootTables(ctx: any) {
   const junkTemplates = [...ctx.db.itemTemplate.iter()].filter((row) => row.isJunk);
-  const STARTER_ITEM_NAMES = new Set([
-    // Starter weapons
-    'Training Sword', 'Training Mace', 'Training Staff', 'Training Bow',
-    'Training Dagger', 'Training Axe', 'Training Blade', 'Training Rapier',
-    // Starter cloth armor
-    'Apprentice Robe', 'Apprentice Trousers', 'Apprentice Boots',
-    // Starter leather armor
-    'Scout Jerkin', 'Scout Pants', 'Scout Boots',
-    // Starter chain armor
-    'Warden Hauberk', 'Warden Greaves', 'Warden Boots',
-    // Starter plate armor
-    'Vanguard Cuirass', 'Vanguard Greaves', 'Vanguard Boots',
-  ]);
   const gearTemplates = [...ctx.db.itemTemplate.iter()].filter(
     (row) => !row.isJunk && row.tier <= 1n && row.requiredLevel <= 9n && !STARTER_ITEM_NAMES.has(row.name)
   );
@@ -131,9 +134,9 @@ export function ensureVendorInventory(ctx: any) {
     const tierRaw = Math.floor(Number(region.dangerMultiplier) / 100);
     const vendorTier = Math.max(1, tierRaw);
 
-    // Filter eligible items: not junk, not resources, tier <= vendor tier
+    // Filter eligible items: not junk, not resources, tier <= vendor tier, not starter gear
     const allEligible = [...ctx.db.itemTemplate.iter()].filter(
-      (row) => !row.isJunk && row.slot !== 'resource' && row.tier <= BigInt(vendorTier)
+      (row) => !row.isJunk && row.slot !== 'resource' && row.tier <= BigInt(vendorTier) && !STARTER_ITEM_NAMES.has(row.name)
     );
 
     // Group items by category
