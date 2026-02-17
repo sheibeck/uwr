@@ -239,7 +239,19 @@ interface RewardTier {
 
 const parseRewardTiers = (json: string): RewardTier[] => {
   try {
-    return JSON.parse(json) as RewardTier[];
+    const parsed = JSON.parse(json);
+    // Stored format: { bronze: { threshold, success, failure }, silver: ..., gold: ... }
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return (['bronze', 'silver', 'gold'] as const)
+        .filter((key) => parsed[key] != null)
+        .map((key) => ({
+          tier: key,
+          minCount: parsed[key].threshold ?? 0,
+          renown: parsed[key].success?.renown,
+          gold: parsed[key].success?.gold,
+        }));
+    }
+    return parsed as RewardTier[];
   } catch {
     return [];
   }
