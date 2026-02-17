@@ -33,9 +33,9 @@ import {
   GROUP_SIZE_BIAS_RANGE,
   GROUP_SIZE_BIAS_MAX,
 } from '../data/combat_constants';
+import { ENEMY_ABILITIES } from '../data/ability_catalog';
 
 const GLOBAL_COOLDOWN_MICROS = 1_500_000n;
-const ENEMY_ABILITIES: any = {}; // Will be populated from data
 
 // Class sets for threat calculation
 const TANK_CLASSES = new Set(['warrior', 'paladin']);
