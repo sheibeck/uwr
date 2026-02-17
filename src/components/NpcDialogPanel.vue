@@ -69,36 +69,6 @@
           </div>
         </div>
 
-        <!-- Dialogue options section -->
-        <div v-if="availableDialogueOptions.length > 0" :style="{ marginBottom: '12px' }">
-          <div :style="{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', opacity: 0.8 }">
-            Dialogue Options
-          </div>
-          <div :style="{ display: 'flex', flexDirection: 'column', gap: '4px' }">
-            <div
-              v-for="option in availableDialogueOptions"
-              :key="option.id.toString()"
-              :style="[
-                {
-                  padding: '8px',
-                  borderRadius: '4px',
-                  cursor: option.isLocked ? 'not-allowed' : 'pointer',
-                  background: option.isLocked ? 'rgba(255,255,255,0.02)' : 'rgba(76, 125, 240, 0.15)',
-                  border: option.isLocked ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(76, 125, 240, 0.3)',
-                  opacity: option.isLocked ? 0.5 : 1,
-                },
-                !option.isLocked ? { ':hover': { background: 'rgba(76, 125, 240, 0.25)' } } : {}
-              ]"
-              @click="!option.isLocked && chooseDialogueOption(option.id)"
-            >
-              <div :style="{ fontSize: '0.88rem' }">{{ option.playerText }}</div>
-              <div v-if="option.isLocked && option.requirementText" :style="{ fontSize: '0.75rem', marginTop: '4px', color: '#f87171' }">
-                {{ option.requirementText }}
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Conversation history -->
         <div :style="{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', opacity: 0.8 }">
           Conversation History
