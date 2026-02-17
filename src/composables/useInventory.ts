@@ -72,6 +72,7 @@ type EquippedSlot = {
   name: string;
   armorType: string;
   rarity: string;
+  qualityTier: string;
   tier: bigint;
   isJunk: boolean;
   vendorValue: bigint;
@@ -272,7 +273,8 @@ export const useInventory = ({
         slot,
         name: template?.name ?? 'Empty',
         armorType: template?.armorType ?? 'none',
-        rarity: template?.rarity ?? 'Common',
+        rarity: template?.rarity ?? 'common',
+        qualityTier: instance?.qualityTier ?? template?.rarity ?? 'common',
         tier,
         isJunk,
         vendorValue,

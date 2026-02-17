@@ -17,12 +17,9 @@
               @mouseleave="$emit('hide-tooltip')"
             >
               <div :style="styles.equipmentSlotLabel">{{ formatSlot(slot.slot) }}</div>
-              <div :style="[styles.equipmentSlotName, rarityStyle(slot.rarity)]">
+              <div :style="[styles.equipmentSlotName, slot.name !== 'Empty' ? rarityStyle(slot.qualityTier) : {}]">
                 {{ slot.name }}
               </div>
-              <span v-if="slot.name !== 'Empty'" :style="styles.subtle">
-                ({{ slot.rarity }})
-              </span>
             </div>
             <button
               v-if="slot.itemInstanceId"
@@ -107,6 +104,7 @@ const props = defineProps<{
     name: string;
     armorType: string;
     rarity: string;
+    qualityTier: string;
     tier: bigint;
     isJunk: boolean;
     vendorValue: bigint;
