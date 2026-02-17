@@ -4,6 +4,7 @@ import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
 import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, HEALING_THREAT_PERCENT } from '../data/combat_scaling';
 import { awardRenown, awardServerFirst, calculatePerkBonuses } from '../helpers/renown';
 import { RENOWN_GAIN } from '../data/renown_data';
+import { rollQualityTier, generateAffixData, buildDisplayName } from '../helpers/items';
 
 const AUTO_ATTACK_INTERVAL = 5_000_000n;
 const RETRY_ATTACK_INTERVAL = 1_000_000n;
@@ -599,11 +600,11 @@ export const registerCombatReducers = (deps: any) => {
     const gearBoost = BigInt(Math.min(25, Number(level) * 2));
     const gearChance = lootTable.gearChance + gearBoost;
 
-    const lootTemplates: any[] = [];
+    const lootItems: { template: any; qualityTier?: string; affixDataJson?: string; isNamed?: boolean }[] = [];
     const pick = pickWeightedEntry(junkEntries, seedBase + 11n);
     if (pick) {
       const template = ctx.db.itemTemplate.id.find(pick.itemTemplateId);
-      if (template) lootTemplates.push(template);
+      if (template) lootItems.push({ template });
     }
 
     const rollGear = rollPercent(seedBase + 19n);
@@ -611,11 +612,20 @@ export const registerCombatReducers = (deps: any) => {
       const pick = pickWeightedEntry(gearEntries, seedBase + 23n);
       if (pick) {
         const template = ctx.db.itemTemplate.id.find(pick.itemTemplateId);
-        if (template) lootTemplates.push(template);
+        if (template) {
+          const quality = rollQualityTier(enemyTemplate.level ?? 1n, seedBase);
+          if (quality !== 'common') {
+            const affixes = generateAffixData(template.slot, quality, seedBase);
+            const affixDataJson = JSON.stringify(affixes);
+            lootItems.push({ template, qualityTier: quality, affixDataJson, isNamed: false });
+          } else {
+            lootItems.push({ template, qualityTier: 'common', isNamed: false });
+          }
+        }
       }
     }
 
-    return lootTemplates;
+    return lootItems;
   };
 
   const rollGold = (seed: bigint, min: bigint, max: bigint) => {
@@ -2112,14 +2122,17 @@ export const registerCombatReducers = (deps: any) => {
           const lootTemplates = template
             ? generateLootTemplates(ctx, template, ctx.timestamp.microsSinceUnixEpoch + character.id)
             : [];
-          for (const lootTemplate of lootTemplates) {
+          for (const lootItem of lootTemplates) {
             ctx.db.combatLoot.insert({
               id: 0n,
               combatId: combat.id,
               ownerUserId: character.ownerUserId,
               characterId: character.id,
-              itemTemplateId: lootTemplate.id,
+              itemTemplateId: lootItem.template.id,
               createdAt: ctx.timestamp,
+              qualityTier: lootItem.qualityTier ?? undefined,
+              affixDataJson: lootItem.affixDataJson ?? undefined,
+              isNamed: lootItem.isNamed ?? undefined,
             });
           }
           // Diagnostic: log loot generation results
@@ -2129,7 +2142,7 @@ export const registerCombatReducers = (deps: any) => {
             character.ownerUserId,
             'reward',
             lootTemplates.length > 0
-              ? `Loot generated: ${lootTemplates.map(t => t.name).join(', ')}`
+              ? `Loot generated: ${lootTemplates.map(li => li.template.name).join(', ')}`
               : `No loot dropped from ${template?.name ?? 'enemy'}.`
           );
           const lootTable = template ? findLootTable(ctx, template) : null;

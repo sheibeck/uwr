@@ -1,6 +1,7 @@
 import { SenderError } from 'spacetimedb/server';
 import { Character } from '../schema/tables';
 import { CLASS_ARMOR, normalizeClassName } from '../data/class_stats';
+import { PREFIXES, SUFFIXES, AFFIX_COUNT_BY_QUALITY } from '../data/affix_catalog';
 
 export const EQUIPMENT_SLOTS = new Set([
   'head',
@@ -62,6 +63,112 @@ export const STARTER_WEAPONS: Record<string, { name: string; slot: string }> = {
   wizard: { name: 'Training Staff', slot: 'mainHand' },
 };
 
+export function getMaxTierForLevel(level: bigint): number {
+  if (level <= 10n) return 1;
+  if (level <= 20n) return 2;
+  if (level <= 30n) return 3;
+  return 4;
+}
+
+export function rollQualityTier(creatureLevel: bigint, seedBase: bigint): string {
+  const roll = Number((seedBase + 31n) % 100n);
+  const maxTier = getMaxTierForLevel(creatureLevel);
+
+  if (maxTier === 1) {
+    const uncommonThreshold = Math.min(25, Number(creatureLevel) * 2);
+    return roll < uncommonThreshold ? 'uncommon' : 'common';
+  }
+  if (maxTier === 2) {
+    if (roll < 10) return 'rare';
+    if (roll < 40) return 'uncommon';
+    return 'common';
+  }
+  if (maxTier === 3) {
+    if (roll < 5) return 'epic';
+    if (roll < 20) return 'rare';
+    if (roll < 50) return 'uncommon';
+    return 'common';
+  }
+  // maxTier >= 4
+  if (roll < 3) return 'epic';
+  if (roll < 15) return 'rare';
+  if (roll < 45) return 'uncommon';
+  return 'common';
+}
+
+export function generateAffixData(
+  slot: string,
+  qualityTier: string,
+  seedBase: bigint
+): { affixKey: string; affixType: string; magnitude: bigint; statKey: string; affixName: string }[] {
+  const tierMap: Record<string, number> = {
+    common: 0,
+    uncommon: 1,
+    rare: 2,
+    epic: 3,
+    legendary: 4,
+  };
+  const tierNum = tierMap[qualityTier] ?? 0;
+  const affixCount = AFFIX_COUNT_BY_QUALITY[qualityTier] ?? 0;
+  if (affixCount === 0) return [];
+
+  const eligiblePrefixes = PREFIXES.filter(
+    (a) => a.slots.includes(slot) && a.minTier <= tierNum
+  );
+  const eligibleSuffixes = SUFFIXES.filter(
+    (a) => a.slots.includes(slot) && a.minTier <= tierNum
+  );
+
+  const makeAffix = (def: typeof PREFIXES[number]) => ({
+    affixKey: def.key,
+    affixType: def.type,
+    magnitude: def.magnitudeByTier[tierNum - 1] ?? 0n,
+    statKey: def.statKey,
+    affixName: def.name,
+  });
+
+  const result: ReturnType<typeof makeAffix>[] = [];
+
+  if (affixCount >= 1) {
+    // Pick one prefix
+    if (eligiblePrefixes.length > 0) {
+      const idx = Number((seedBase + 37n) % BigInt(eligiblePrefixes.length));
+      result.push(makeAffix(eligiblePrefixes[idx]!));
+    }
+  }
+
+  if (affixCount >= 2) {
+    // Pick one suffix
+    if (eligibleSuffixes.length > 0) {
+      const idx = Number((seedBase + 41n) % BigInt(eligibleSuffixes.length));
+      result.push(makeAffix(eligibleSuffixes[idx]!));
+    }
+  }
+
+  if (affixCount >= 3) {
+    // Pick a second prefix or suffix (excluding already-chosen keys)
+    const usedKeys = new Set(result.map((r) => r.affixKey));
+    const remainingPrefixes = eligiblePrefixes.filter((a) => !usedKeys.has(a.key));
+    const remainingSuffixes = eligibleSuffixes.filter((a) => !usedKeys.has(a.key));
+    const combinedPool = [...remainingPrefixes, ...remainingSuffixes];
+    if (combinedPool.length > 0) {
+      const idx = Number((seedBase + 43n) % BigInt(combinedPool.length));
+      result.push(makeAffix(combinedPool[idx]!));
+    }
+  }
+
+  return result;
+}
+
+export function buildDisplayName(
+  baseItemName: string,
+  affixes: { affixType: string; affixName: string }[]
+): string {
+  const prefix = affixes.find((a) => a.affixType === 'prefix')?.affixName;
+  const suffix = affixes.find((a) => a.affixType === 'suffix')?.affixName;
+  return [prefix, baseItemName, suffix].filter(Boolean).join(' ');
+}
+
 export function getEquippedBonuses(ctx: any, characterId: bigint) {
   const bonuses = {
     str: 0n,
@@ -72,6 +179,11 @@ export function getEquippedBonuses(ctx: any, characterId: bigint) {
     hpBonus: 0n,
     manaBonus: 0n,
     armorClassBonus: 0n,
+    magicResistanceBonus: 0n,
+    lifeOnHit: 0n,
+    cooldownReduction: 0n,
+    manaRegen: 0n,
+    weaponBaseDamage: 0n,
   };
   for (const instance of ctx.db.itemInstance.by_owner.filter(characterId)) {
     if (!instance.equippedSlot) continue;
@@ -85,6 +197,25 @@ export function getEquippedBonuses(ctx: any, characterId: bigint) {
     bonuses.hpBonus += template.hpBonus;
     bonuses.manaBonus += template.manaBonus;
     bonuses.armorClassBonus += template.armorClassBonus;
+    bonuses.magicResistanceBonus += template.magicResistanceBonus;
+
+    // Sum affix bonuses for this equipped item
+    for (const affix of ctx.db.itemAffix.by_instance.filter(instance.id)) {
+      const key = affix.statKey;
+      if (key === 'strBonus') bonuses.str += affix.magnitude;
+      else if (key === 'dexBonus') bonuses.dex += affix.magnitude;
+      else if (key === 'intBonus') bonuses.int += affix.magnitude;
+      else if (key === 'wisBonus') bonuses.wis += affix.magnitude;
+      else if (key === 'chaBonus') bonuses.cha += affix.magnitude;
+      else if (key === 'hpBonus') bonuses.hpBonus += affix.magnitude;
+      else if (key === 'manaBonus') bonuses.manaBonus += affix.magnitude;
+      else if (key === 'armorClassBonus') bonuses.armorClassBonus += affix.magnitude;
+      else if (key === 'magicResistanceBonus') bonuses.magicResistanceBonus += affix.magnitude;
+      else if (key === 'lifeOnHit') bonuses.lifeOnHit += affix.magnitude;
+      else if (key === 'cooldownReduction') bonuses.cooldownReduction += affix.magnitude;
+      else if (key === 'manaRegen') bonuses.manaRegen += affix.magnitude;
+      else if (key === 'weaponBaseDamage') bonuses.weaponBaseDamage += affix.magnitude;
+    }
   }
   return bonuses;
 }
