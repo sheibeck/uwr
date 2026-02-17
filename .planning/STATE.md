@@ -327,9 +327,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 113 | Wire up Enter key to trigger login on splash screen - window keydown listener emits 'login' on Enter when connActive is true, cleaned up on unmount | 2026-02-16 | 815dac3 | [113-wire-up-enter-key-to-trigger-login-on-sp](./quick/113-wire-up-enter-key-to-trigger-login-on-sp/) |
 | 114 | Replace login button with >> Login << styled text - amber monospace span with no button chrome, disabled state dims to opacity 0.4, click guard and Enter key handler preserved | 2026-02-16 | b20bcd8 | [114-replace-login-button-with-login-styled-t](./quick/114-replace-login-button-with-login-styled-t/) |
 | 115 | Remove log button from action bar - log panel permanently open since quick-78, removed button, dead emit, and always-true isActive override | 2026-02-16 | 54cfd3a | [115-remove-log-button-from-action-bar-since-](./quick/115-remove-log-button-from-action-bar-since-/) |
+| 116 | Fix backpack full message triggering at 15/20 slots - equipped items were counted toward bag slot capacity; added equippedSlot filter to itemCount in buy_item and take_loot reducers | 2026-02-16 | e488dcd | [116-fix-backpack-full-message-triggering-inc](./quick/116-fix-backpack-full-message-triggering-inc/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-16 - Completed quick-115: Remove log button from action bar — log panel permanently open since quick-78, removed Log button, dead 'open' emit, and always-true isActive override from ActionBar.vue.
+Last activity: 2026-02-16 - Completed quick-116: Fix backpack full message triggering incorrectly — equipped items were included in itemCount, causing 'Backpack is full' at 15 bag slots when 5 items were equipped. Added .filter((row) => !row.equippedSlot) to itemCount in both buy_item and take_loot reducers.
