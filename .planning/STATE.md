@@ -254,9 +254,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 124 | Clean up ROADMAP.md and STATE.md - archived quick-1 through quick-113 to ARCHIVE.md, fixed ROADMAP.md phase statuses (Phase 2 removed, Phases 11/12/14/19 updated), corrected plan checkboxes and dependency graph | 2026-02-17 | 78cbb55 | [124-clean-up-roadmap-md-and-state-md-compres](./quick/124-clean-up-roadmap-md-and-state-md-compres/) |
 | 127 | Location-based group combat - getGroupOrSoloParticipants filters by locationId so only same-location members enter combat; executeAbility throws SenderError for cross-location group targets; moveOne auto-joins arriving members to active group combat with combatParticipant and aggroEntry rows | 2026-02-17 | a892fc3 | [127-implement-location-based-group-combat-on](./quick/127-implement-location-based-group-combat-on/) |
 | 128 | Loot window shows only most recent combat - delete stale CombatLoot rows and orphaned CombatResult rows per-character before inserting new loot, using by_character index | 2026-02-17 | 3637b19 | [128-loot-window-shows-only-most-recent-comba](./quick/128-loot-window-shows-only-most-recent-comba/) |
+| 129 | Seed world-drop gear pool separate from starter items - 25 world-drop items across weapon types and armor slots/tiers, STARTER_ITEM_NAMES exclusion set in loot filter, equipped slot rarity text removed and name shows quality color instead | 2026-02-17 | e64b2b3 | [129-seed-world-drop-item-pool-separate-from-](./quick/129-seed-world-drop-item-pool-separate-from-/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick task 128: Loot window shows only most recent combat - stale CombatLoot and orphaned CombatResult rows deleted per-character before new loot is inserted.
+Last activity: 2026-02-17 - Completed quick task 129: Seeded 25-item world-drop gear pool, excluded starter items from loot tables via STARTER_ITEM_NAMES set, and equipped slot rarity text replaced with quality-colored name.
