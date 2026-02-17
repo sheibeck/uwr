@@ -11,7 +11,7 @@
 | Phase | Name | Requirements | Dependencies | Status |
 |-------|------|-------------|--------------|--------|
 | 1 | Races | REQ-001–005 | None | Complete (2026-02-11) |
-| 2 | Hunger | REQ-010–015 | Phase 1 (race stat integration) | Complete (2026-02-12) |
+| 2 | Hunger | REQ-010–015 | Phase 1 (race stat integration) | Removed (quick-76) |
 | 3 | Renown Foundation | REQ-020–026 | None | Complete (2026-02-12) |
 | 4 | Config Table Architecture | None | Phase 3 (combat balance complete) | Complete (2026-02-13) |
 | 5 | LLM Architecture | REQ-040–047, REQ-080–084 | Phase 3 (first consumer) | Planned |
@@ -20,15 +20,15 @@
 | 8 | Narrative Tone Rollout | REQ-080–084 (applied) | Phase 5 (LLM pipeline running) | Pending |
 | 9 | Content Data Expansion | REQ-090–094 | Phases 1–3 (systems to populate) | Pending |
 | 10 | Travel & Movement Costs | None | Phase 4 | Complete (2026-02-13) |
-| 11 | Death & Corpse System | None | Phase 10 | Planned |
-| 12 | Overall Renown System | None | Phase 11 | Pending |
+| 11 | Death & Corpse System | None | Phase 10 | In Progress |
+| 12 | Overall Renown System | None | Phase 11 | Complete (2026-02-14) |
 | 13 | Crafting System - Weapons & Armor | None | Phase 12 | Pending |
-| 14 | Loot & Gear Progression | None | Phase 13 | Planned |
+| 14 | Loot & Gear Progression | None | Phase 13 | Complete (2026-02-17) |
 | 15 | Named NPCs | None | Phase 14 | Pending |
 | 16 | Travelling NPCs | None | Phase 15 | Pending |
 | 17 | World Bosses | None | Phase 16 | Pending |
 | 18 | World Events System Expansion | None | Phase 17 | Pending |
-| 19 | NPC Interactions | None | Phase 18 | Planned |
+| 19 | NPC Interactions | None | Phase 18 | In Progress |
 
 ---
 
@@ -72,13 +72,15 @@ Plans:
 
 **Goal:** Characters have a hunger track. Eating food grants Well Fed buff that improves combat performance. No penalties for low hunger.
 
+**NOTE:** Hunger system removed in quick-76. Food buff system preserved as CharacterEffect rows. See Key Decisions #98-99.
+
 **Requirements:** REQ-010, REQ-011, REQ-012, REQ-013, REQ-014, REQ-015
 
 **Plans:** 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Backend: Hunger table, HungerDecayTick, ItemTemplate extension, food seeding, eat_food/decay_hunger reducers, Well Fed combat integration, my_hunger view, publish and regenerate bindings
-- [ ] 02-02-PLAN.md — Frontend: HungerBar component, myHunger subscription, Eat button on food items, App.vue wiring, human verification
+- [x] 02-01-PLAN.md — Backend: Hunger table, HungerDecayTick, ItemTemplate extension, food seeding, eat_food/decay_hunger reducers, Well Fed combat integration, my_hunger view, publish and regenerate bindings
+- [x] 02-02-PLAN.md — Frontend: HungerBar component, myHunger subscription, Eat button on food items, App.vue wiring, human verification
 
 **Scope:**
 - `Hunger` table: `{ characterId, currentHunger, wellFedUntil }`
@@ -121,13 +123,13 @@ Plans:
 - Character creation initializes FactionStanding rows (all factions at 0)
 
 **Success Criteria:**
-- [ ] 4 factions seeded in Faction table
-- [ ] Character creation creates FactionStanding rows for all factions at 0
-- [ ] Combat kill of faction-associated enemy grants correct standing
-- [ ] Rival faction standing decreases when primary faction standing increases
-- [ ] `my_faction_standings` view returns correct data for authenticated player
-- [ ] Renown panel shows accurate standing and rank per faction
-- [ ] Standing never decays (verify after time passes with no activity)
+- [x] 4 factions seeded in Faction table
+- [x] Character creation creates FactionStanding rows for all factions at 0
+- [x] Combat kill of faction-associated enemy grants correct standing
+- [x] Rival faction standing decreases when primary faction standing increases
+- [x] `my_faction_standings` view returns correct data for authenticated player
+- [x] Renown panel shows accurate standing and rank per faction
+- [x] Standing never decays (verify after time passes with no activity)
 
 ---
 
@@ -269,9 +271,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Backend foundation: LlmConfig, GeneratedQuestText, GeneratedEventText, LlmCircuit tables + SHADESLINGER_SYSTEM_PROMPT and FALLBACK_CONTENT constants + set_llm_config and reset_llm_circuit reducers
-- [ ] 04-02-PLAN.md — Procedure implementation: generate_content procedure with Anthropic API call, circuit breaker, fallback writing + publish and regenerate bindings
-- [ ] 04-03-PLAN.md — Client integration: useLlmContent composable, GeneratedTextBlock component, useGameData subscriptions + human verification of end-to-end pipeline
+- [ ] 05-01-PLAN.md — Backend foundation: LlmConfig, GeneratedQuestText, GeneratedEventText, LlmCircuit tables + SHADESLINGER_SYSTEM_PROMPT and FALLBACK_CONTENT constants + set_llm_config and reset_llm_circuit reducers
+- [ ] 05-02-PLAN.md — Procedure implementation: generate_content procedure with Anthropic API call, circuit breaker, fallback writing + publish and regenerate bindings
+- [ ] 05-03-PLAN.md — Client integration: useLlmContent composable, GeneratedTextBlock component, useGameData subscriptions + human verification of end-to-end pipeline
 
 **Scope:**
 - `LlmConfig` table (private): api_key, default_model, circuit state
@@ -311,9 +313,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Schema extension (QuestTemplate new fields, QuestItem/NamedEnemy/SearchResult tables) + quest type reducers (loot_quest_item, pull_named_enemy, delivery in hailNpc, kill_loot drops in combat)
-- [ ] 06-02-PLAN.md — Passive search system (performPassiveSearch helper, travel integration) + quest data seeding (14 quests + 14 dialogue branches across 7 NPCs)
-- [ ] 06-03-PLAN.md — Publish module, regenerate bindings, client integration (search results + quest items + named enemies in LocationGrid), human verification
+- [x] 06-01-PLAN.md — Schema extension (QuestTemplate new fields, QuestItem/NamedEnemy/SearchResult tables) + quest type reducers (loot_quest_item, pull_named_enemy, delivery in hailNpc, kill_loot drops in combat)
+- [x] 06-02-PLAN.md — Passive search system (performPassiveSearch helper, travel integration) + quest data seeding (14 quests + 14 dialogue branches across 7 NPCs)
+- [x] 06-03-PLAN.md — Publish module, regenerate bindings, client integration (search results + quest items + named enemies in LocationGrid), human verification
 
 **Scope:**
 
@@ -360,14 +362,14 @@ Plans:
 - Each NPC's deeper quests unlock via affinity, creating long-term relationship investment
 
 **Success Criteria:**
-- [ ] Search triggers on location entry and reveals hidden resources, quest items, named enemies per probability
-- [ ] kill_loot quests complete when item drops from target enemy (per-character roll)
-- [ ] explore quests complete when character loots the quest node (cast timer, possible aggro)
-- [ ] delivery quests auto-complete when character hails the target NPC
-- [ ] boss_kill quests complete when character kills the instanced named enemy
-- [ ] Named enemies are instanced per-character with respawn timers
-- [ ] New quests are accessible via affinity-gated NPC dialogue branches
-- [ ] Delivery chain Marla -> Thessa -> Mordane links all 3 regions narratively
+- [x] Search triggers on location entry and reveals hidden resources, quest items, named enemies per probability
+- [x] kill_loot quests complete when item drops from target enemy (per-character roll)
+- [x] explore quests complete when character loots the quest node (cast timer, possible aggro)
+- [x] delivery quests auto-complete when character hails the target NPC
+- [x] boss_kill quests complete when character kills the instanced named enemy
+- [x] Named enemies are instanced per-character with respawn timers
+- [x] New quests are accessible via affinity-gated NPC dialogue branches
+- [x] Delivery chain Marla -> Thessa -> Mordane links all 3 regions narratively
 
 ---
 
@@ -470,15 +472,14 @@ Phase 3 (Renown) ─────────────────────
 Phase 4 (Config Tables) <- Phase 3                 │   │
 Phase 5 (LLM Architecture) <- Phase 3        ──┐   │   │
                                               │   │   │
-Phase 2 (Hunger) <- Phase 1                   │   │   │
 Phase 6 (Quests) <- Phase 3, Phase 5          │   │   │
 Phase 7 (World Events) <- Phase 5 ─────────── │ ──┘   │
                                     (race unlock) ──────┘
 Phase 8 (Tone) <- Phase 5, 6, 7
-Phase 9 (Content Data) <- Phase 1, 2, 3
+Phase 9 (Content Data) <- Phase 1, 3
 ```
 
-Phases 1, 3, 4, and 5 can run in parallel (4 and 5 both require 3 complete). Phases 2, 6, 7 start once their dependencies complete. Phases 8 and 9 run last.
+Phases 1, 3, 4, and 5 can run in parallel (4 and 5 both require 3 complete). Phases 6 and 7 start once their dependencies complete. Phases 8 and 9 run last.
 
 ### Phase 10: Travel & Movement Costs
 
@@ -498,7 +499,7 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — Backend foundation: Corpse/CorpseItem tables, createCorpse helper, death hook in combat defeat sections, respawn modification, loot_corpse_item/loot_all_corpse reducers, corpse decay cleanup, publish and regenerate bindings
+- [x] 11-01-PLAN.md — Backend foundation: Corpse/CorpseItem tables, createCorpse helper, death hook in combat defeat sections, respawn modification, loot_corpse_item/loot_all_corpse reducers, corpse decay cleanup, publish and regenerate bindings
 - [ ] 11-02-PLAN.md — Resurrection and Corpse Summon: PendingResurrect/PendingCorpseSummon tables, cleric_resurrect/cleric_corpse_summon ability definitions, initiate/accept/decline reducers with confirmation flow, publish and regenerate bindings
 - [ ] 11-03-PLAN.md — Frontend UI: Points of Interest section in LocationGrid, corpse context menus, confirmation dialogs for resurrect/summon, useGameData subscriptions, App.vue wiring, human verification
 
@@ -506,12 +507,13 @@ Plans:
 
 **Goal:** Character-wide renown progression system with 15 named ranks across 5 tiers, permanent perk choices from pools at each rank (mix of passive stat bonuses and active abilities), server-first tracking with diminishing returns, combat-integrated renown awards, achievement milestones, and dedicated tabbed UI panel with rank progression, perk selection, and leaderboard.
 **Depends on:** None (independent system - can run parallel with Phase 11)
+**Status:** Complete (2026-02-14)
 **Plans:** 3 plans
 
 Plans:
-- [ ] 12-01-PLAN.md — Backend foundation: Renown/RenownPerk/RenownServerFirst/Achievement tables, 15-rank threshold curve, perk pools, awardRenown/awardServerFirst helpers, choose_perk/test reducers
-- [ ] 12-02-PLAN.md — Integration hooks: EnemyTemplate isBoss field, character creation Renown init, combat victory renown awards, perk stat bonuses in combat, publish module and regenerate bindings
-- [ ] 12-03-PLAN.md — Frontend UI: Tabbed RenownPanel (Factions/Renown/Leaderboard), perk selection flow, rank-up notification overlay, useGameData subscriptions, human verification
+- [x] 12-01-PLAN.md — Backend foundation: Renown/RenownPerk/RenownServerFirst/Achievement tables, 15-rank threshold curve, perk pools, awardRenown/awardServerFirst helpers, choose_perk/test reducers
+- [x] 12-02-PLAN.md — Integration hooks: EnemyTemplate isBoss field, character creation Renown init, combat victory renown awards, perk stat bonuses in combat, publish module and regenerate bindings
+- [x] 12-03-PLAN.md — Frontend UI: Tabbed RenownPanel (Factions/Renown/Leaderboard), perk selection flow, rank-up notification overlay, useGameData subscriptions, human verification
 
 ### Phase 13: Crafting System - Weapons & Armor - Extend recipe system for gear crafting, material requirements and gathering, crafted gear as deterministic progression path
 
@@ -526,13 +528,14 @@ Plans:
 
 **Goal:** Dropped gear has quality tiers (Common through Legendary) with prefix/suffix affixes that create emergent item identities, level-gated quality unlocks per region tier, named Legendary uniques from boss enemies, and a complete gear lifecycle of drop-equip-outgrow-salvage.
 **Depends on:** Phase 13
+**Status:** Complete (2026-02-17)
 **Plans:** 4 plans
 
 Plans:
-- [ ] 14-01-PLAN.md — Schema foundation: ItemAffix table, ItemInstance/CombatLoot quality fields, affix catalog data file with prefixes/suffixes/legendaries
-- [ ] 14-02-PLAN.md — Loot pipeline: quality tier rolling, affix generation at drop time, affix application at take time, getEquippedBonuses affix support
-- [ ] 14-03-PLAN.md — Named legendary drops from boss enemies, salvage_item reducer for gear recycling
-- [ ] 14-04-PLAN.md — Publish module, regenerate bindings, client UI: quality colors, affix tooltips, Epic/Legendary flash, salvage context menu, human verification
+- [x] 14-01-PLAN.md — Schema foundation: ItemAffix table, ItemInstance/CombatLoot quality fields, affix catalog data file with prefixes/suffixes/legendaries
+- [x] 14-02-PLAN.md — Loot pipeline: quality tier rolling, affix generation at drop time, affix application at take time, getEquippedBonuses affix support
+- [x] 14-03-PLAN.md — Named legendary drops from boss enemies, salvage_item reducer for gear recycling
+- [x] 14-04-PLAN.md — Publish module, regenerate bindings, client UI: quality colors, affix tooltips, Epic/Legendary flash, salvage context menu, human verification
 
 ### Phase 15: Named NPCs - Unique NPC entities (not templates), NPC dialogue system, NPC-specific shops and services, NPC placement in regions
 
@@ -577,8 +580,8 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 19-01-PLAN.md — Backend foundation: NpcAffinity/NpcDialogueOption tables, Npc table expansion (factionId/personality/mood), affinity helper module, dialogue seed data for 3 NPCs across 4 tiers
-- [ ] 19-02-PLAN.md — Backend interaction: Dynamic greetings in hailNpc, choose_dialogue_option/give_gift_to_npc reducers, conversation cooldowns, publish module and regenerate bindings
+- [x] 19-01-PLAN.md — Backend foundation: NpcAffinity/NpcDialogueOption tables, Npc table expansion (factionId/personality/mood), affinity helper module, dialogue seed data for 3 NPCs across 4 tiers
+- [x] 19-02-PLAN.md — Backend interaction: Dynamic greetings in hailNpc, choose_dialogue_option/give_gift_to_npc reducers, conversation cooldowns, publish module and regenerate bindings
 - [ ] 19-03-PLAN.md — Frontend UI: NpcDialogPanel overhaul with affinity display and dialogue options, LocationGrid gift context menu, useGameData subscriptions, human verification
 
 ### Phase 20: Perk Variety Expansion
