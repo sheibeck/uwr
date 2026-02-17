@@ -16,7 +16,6 @@
               >
                 <div>
                   <span :style="rarityStyle(item.rarity)">{{ item.name }}</span>
-                  ({{ item.rarity }})
                 </div>
                 <div :style="styles.subtleSmall">
                   {{ item.slot }} • Tier {{ item.tier }}
@@ -63,7 +62,6 @@
               >
                 <div>
                   <span :style="rarityStyle(item.rarity)">{{ item.name }}</span>
-                  ({{ item.rarity }})
                 </div>
                 <div :style="styles.subtleSmall">
                   {{ item.slot }} • Value {{ item.vendorValue }}
