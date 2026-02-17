@@ -139,6 +139,7 @@ import {
   computeEnemyStats,
   scheduleCombatTick,
   calculateFleeChance,
+  executePerkAbility,
 } from './helpers/combat';
 
 import {
@@ -375,6 +376,7 @@ const reducerDeps = {
   scheduleCombatTick,
   recomputeCharacterDerived,
   executeAbilityAction,
+  executePerkAbility,
   isClassAllowed,
   RACE_DATA,
   isArmorAllowedForClass,

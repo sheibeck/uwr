@@ -1,4 +1,6 @@
 import { buildDisplayName } from '../helpers/items';
+import { RENOWN_PERK_POOLS } from '../data/renown_data';
+import { getPerkBonusByField } from '../helpers/renown';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -15,6 +17,7 @@ export const registerItemReducers = (deps: any) => {
     isArmorAllowedForClass,
     recomputeCharacterDerived,
     executeAbilityAction,
+    executePerkAbility,
     appendPrivateEvent,
     appendGroupEvent,
     abilityCooldownMicros,
@@ -146,10 +149,19 @@ export const registerItemReducers = (deps: any) => {
           (row) => row.templateId === template.id && !row.equippedSlot
         );
       if (!hasStack && itemCount >= 20) return failItem(ctx, character, 'Backpack is full');
-      if ((character.gold ?? 0n) < vendorItem.price) return failItem(ctx, character, 'Not enough gold');
+      // Apply vendor buy discount perk
+      const vendorBuyDiscount = getPerkBonusByField(ctx, character.id, 'vendorBuyDiscount', character.level);
+      let finalPrice = vendorItem.price;
+      let discountMsg = '';
+      if (vendorBuyDiscount > 0) {
+        finalPrice = (vendorItem.price * BigInt(100 - Math.min(vendorBuyDiscount, 50))) / 100n;
+        if (finalPrice < 1n) finalPrice = 1n;
+        discountMsg = ` (${vendorBuyDiscount}% perk discount)`;
+      }
+      if ((character.gold ?? 0n) < finalPrice) return failItem(ctx, character, 'Not enough gold');
       ctx.db.character.id.update({
         ...character,
-        gold: (character.gold ?? 0n) - vendorItem.price,
+        gold: (character.gold ?? 0n) - finalPrice,
       });
       addItemToInventory(ctx, character.id, template.id, 1n);
       appendPrivateEvent(
@@ -157,7 +169,7 @@ export const registerItemReducers = (deps: any) => {
         character.id,
         character.ownerUserId,
         'reward',
-        `You buy ${template.name} for ${vendorItem.price} gold.`
+        `You buy ${template.name} for ${finalPrice} gold.${discountMsg}`
       );
     }
   );
@@ -175,7 +187,15 @@ export const registerItemReducers = (deps: any) => {
       if (instance.equippedSlot) return failItem(ctx, character, 'Unequip item first');
       const template = ctx.db.itemTemplate.id.find(instance.templateId);
       if (!template) return failItem(ctx, character, 'Item template missing');
-      const value = (template.vendorValue ?? 0n) * (instance.quantity ?? 1n);
+      const baseValue = BigInt(template.vendorValue ?? 0) * BigInt(instance.quantity ?? 1);
+      // Apply vendor sell bonus perk
+      const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
+      let value = baseValue;
+      let sellBonusMsg = '';
+      if (vendorSellBonus > 0 && baseValue > 0n) {
+        value = (baseValue * BigInt(100 + vendorSellBonus)) / 100n;
+        sellBonusMsg = ` (${vendorSellBonus}% perk bonus)`;
+      }
       // Capture template info before deletion
       const soldTemplateId = instance.templateId;
       const soldVendorValue = template.vendorValue ?? 0n;
@@ -212,7 +232,7 @@ export const registerItemReducers = (deps: any) => {
         character.id,
         character.ownerUserId,
         'reward',
-        `You sell ${template.name} for ${value} gold.`
+        `You sell ${template.name} for ${value} gold.${sellBonusMsg}`
       );
     }
   );
@@ -587,6 +607,42 @@ export const registerItemReducers = (deps: any) => {
         const pullerResult = requirePullerOrLog(ctx, character, fail, 'You must be the puller to use this ability.');
         if (!pullerResult.ok) return;
       }
+      // Route perk_ abilities to perk ability handler
+      if (abilityKey.startsWith('perk_')) {
+        try {
+          executePerkAbility(ctx, character, abilityKey);
+          // Record cooldown for perk ability using cooldownSeconds from perk data
+          // Look up perk cooldown from perk data
+          let perkCooldownMicros = 300_000_000n; // default 5 min
+          const perkRawKey = abilityKey.replace(/^perk_/, '');
+          for (const rankNum in RENOWN_PERK_POOLS) {
+            const pool = RENOWN_PERK_POOLS[Number(rankNum)];
+            const found = pool.find((p) => p.key === perkRawKey);
+            if (found && found.effect.cooldownSeconds) {
+              perkCooldownMicros = BigInt(found.effect.cooldownSeconds) * 1_000_000n;
+              break;
+            }
+          }
+          if (existingCooldown) {
+            ctx.db.abilityCooldown.id.update({
+              ...existingCooldown,
+              readyAtMicros: nowMicros + perkCooldownMicros,
+            });
+          } else {
+            ctx.db.abilityCooldown.insert({
+              id: 0n,
+              characterId: character.id,
+              abilityKey,
+              readyAtMicros: nowMicros + perkCooldownMicros,
+            });
+          }
+        } catch (error) {
+          const message = String(error).replace(/^SenderError:\s*/i, '');
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', 'Ability failed: ' + message);
+        }
+        return;
+      }
+
       try {
         const executed = executeAbilityAction(ctx, {
           actorType: 'character',
@@ -770,15 +826,35 @@ export const registerItemReducers = (deps: any) => {
         return;
       }
       const qtyRange = RESOURCE_GATHER_MAX_QTY - RESOURCE_GATHER_MIN_QTY + 1n;
-      const quantity =
+      let quantity =
         RESOURCE_GATHER_MIN_QTY +
         ((ctx.timestamp.microsSinceUnixEpoch + node.id) % qtyRange);
+
+      // Apply gathering perk bonuses
+      const gatherSeed = (ctx.timestamp.microsSinceUnixEpoch + node.id) % 100n;
+      const gatherDoubleChance = getPerkBonusByField(ctx, character.id, 'gatherDoubleChance', character.level);
+      let gatherBonusMsg = '';
+      if (gatherDoubleChance > 0 && gatherSeed < BigInt(Math.floor(gatherDoubleChance))) {
+        quantity = quantity * 2n;
+        gatherBonusMsg = ' Your gathering perk triggered! Double resources collected.';
+      } else {
+        // Check rareGatherChance only if double didn't trigger (independent roll)
+        const rareSeed = (ctx.timestamp.microsSinceUnixEpoch + node.id + character.id) % 100n;
+        const rareGatherChance = getPerkBonusByField(ctx, character.id, 'rareGatherChance', character.level);
+        if (rareGatherChance > 0 && rareSeed < BigInt(Math.floor(rareGatherChance))) {
+          // Rare gather: add 50% extra resources
+          const bonus = (quantity + 1n) / 2n;
+          quantity = quantity + bonus;
+          gatherBonusMsg = ' Your gathering perk found rare materials!';
+        }
+      }
+
       addItemToInventory(ctx, character.id, node.itemTemplateId, quantity);
       logPrivateAndGroup(
         ctx,
         character,
         'reward',
-        `You gather ${node.name} x${quantity}.`,
+        `You gather ${node.name} x${quantity}.${gatherBonusMsg}`,
         `${character.name} gathers ${node.name} x${quantity}.`
       );
       // Personal node: delete immediately after gathering, no respawn

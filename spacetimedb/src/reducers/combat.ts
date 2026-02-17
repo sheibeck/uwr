@@ -3,7 +3,7 @@ import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier }
 import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
 import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, HEALING_THREAT_PERCENT } from '../data/combat_scaling';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
-import { awardRenown, awardServerFirst, calculatePerkBonuses } from '../helpers/renown';
+import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { applyPerkProcs } from '../helpers/combat';
 import { RENOWN_GAIN } from '../data/renown_data';
 import { rollQualityTier, generateAffixData, buildDisplayName } from '../helpers/items';
@@ -2248,24 +2248,30 @@ export const registerCombatReducers = (deps: any) => {
               : `No loot dropped from ${template?.name ?? 'enemy'}.`
           );
           const lootTable = template ? findLootTable(ctx, template) : null;
-          const goldReward = lootTable
+          const baseGoldReward = lootTable
             ? rollGold(
               ctx.timestamp.microsSinceUnixEpoch + character.id * 3n + template.id,
               lootTable.goldMin,
               lootTable.goldMax
             ) + template.level
             : template.level;
+          // Apply gold find perk bonus
+          const goldFindBonus = getPerkBonusByField(ctx, character.id, 'goldFindBonus', character.level);
+          const goldReward = goldFindBonus > 0 && baseGoldReward > 0n
+            ? (baseGoldReward * BigInt(100 + goldFindBonus)) / 100n
+            : baseGoldReward;
           if (goldReward > 0n) {
             ctx.db.character.id.update({
               ...character,
               gold: (character.gold ?? 0n) + goldReward,
             });
+            const goldMsg = goldFindBonus > 0 ? `You gain ${goldReward} gold. (+${goldFindBonus}% gold find)` : `You gain ${goldReward} gold.`;
             appendPrivateEvent(
               ctx,
               character.id,
               character.ownerUserId,
               'reward',
-              `You gain ${goldReward} gold.`
+              goldMsg
             );
             logGroupEvent(
               ctx,
@@ -2417,14 +2423,19 @@ export const registerCombatReducers = (deps: any) => {
           }
           continue;
         }
-        const reward = deps.awardCombatXp(ctx, character, avgLevel, adjustedBase / splitCount);
+        // Apply XP bonus perk
+        const xpBonusPct = getPerkBonusByField(ctx, character.id, 'xpBonus', character.level);
+        const baseXpAmount = adjustedBase / splitCount;
+        const scaledXpAmount = xpBonusPct > 0 ? (baseXpAmount * BigInt(100 + xpBonusPct)) / 100n : baseXpAmount;
+        const reward = deps.awardCombatXp(ctx, character, avgLevel, scaledXpAmount);
         if (reward.xpGained > 0n) {
+          const xpMsg = xpBonusPct > 0 ? `You gain ${reward.xpGained} XP. (+${xpBonusPct}% XP bonus)` : `You gain ${reward.xpGained} XP.`;
           appendPrivateEvent(
             ctx,
             character.id,
             character.ownerUserId,
             'reward',
-            `You gain ${reward.xpGained} XP.`
+            xpMsg
           );
           logGroupEvent(
             ctx,

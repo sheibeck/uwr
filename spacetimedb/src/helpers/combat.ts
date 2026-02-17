@@ -1,6 +1,7 @@
 import { SenderError } from 'spacetimedb/server';
 import { Timestamp, ScheduleAt } from 'spacetimedb';
 import { getPerkProcs } from './renown';
+import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { normalizeClassName, computeBaseStats } from '../data/class_stats';
 import {
   calculateCritChance,
@@ -2060,6 +2061,106 @@ export function applyPerkProcs(
   }
 
   return { bonusDamage: totalBonusDamage, healing: totalHealing };
+}
+
+/**
+ * Find a perk definition by its raw key (without 'perk_' prefix) across all RENOWN_PERK_POOLS.
+ */
+function findPerkByKey(perkKey: string) {
+  for (const rankNum in RENOWN_PERK_POOLS) {
+    const pool = RENOWN_PERK_POOLS[Number(rankNum)];
+    const found = pool.find((p) => p.key === perkKey);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * Execute an active perk ability cast from the hotbar.
+ * Handles Second Wind (heal), Thunderous Blow (damage), Wrath of the Fallen (buff).
+ * Cooldowns are managed via AbilityCooldown table using readyAtMicros.
+ * Second Wind is usable outside combat. Thunderous Blow requires combat.
+ * Wrath of the Fallen is usable in or out of combat.
+ */
+export function executePerkAbility(
+  ctx: any,
+  character: any,
+  abilityKey: string
+): void {
+  // Strip the 'perk_' prefix to get the raw perk key
+  const rawKey = abilityKey.replace(/^perk_/, '');
+  const perkDef = findPerkByKey(rawKey);
+  if (!perkDef || perkDef.type !== 'active') {
+    throw new SenderError('Invalid perk ability');
+  }
+
+  // Verify the character actually has this perk
+  let hasPerk = false;
+  for (const row of ctx.db.renownPerk.by_character.filter(character.id)) {
+    if (row.perkKey === rawKey) {
+      hasPerk = true;
+      break;
+    }
+  }
+  if (!hasPerk) {
+    throw new SenderError('You do not have this perk');
+  }
+
+  const effect = perkDef.effect;
+  const actorGroupId = effectiveGroupId(character);
+  const combatId = activeCombatIdForCharacter(ctx, character.id);
+
+  if (effect.healPercent) {
+    // Second Wind: heal for X% of max HP -- usable outside combat
+    const maxHp = character.maxHp;
+    const healAmount = (maxHp * BigInt(effect.healPercent)) / 100n;
+    const newHp = character.hp + healAmount > maxHp ? maxHp : character.hp + healAmount;
+    ctx.db.character.id.update({ ...character, hp: newHp });
+    const msg = character.name + ' uses ' + perkDef.name + '! Healed for ' + healAmount + ' HP.';
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'heal', msg);
+    if (actorGroupId) {
+      appendGroupEvent(ctx, actorGroupId, character.id, 'heal', msg);
+    }
+  } else if (effect.damagePercent) {
+    // Thunderous Blow: deal X% weapon damage to current target -- requires combat
+    if (!combatId) {
+      throw new SenderError('Thunderous Blow can only be used in combat');
+    }
+    const enemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n);
+    const preferredEnemy = character.combatTargetEnemyId
+      ? enemies.find((e: any) => e.id === character.combatTargetEnemyId)
+      : null;
+    const enemy = preferredEnemy ?? enemies[0] ?? null;
+    if (!enemy) {
+      throw new SenderError('No target in combat');
+    }
+    const weapon = getEquippedWeaponStats(ctx, character.id);
+    const baseDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
+    const totalDamage = (baseDamage * BigInt(effect.damagePercent)) / 100n;
+    const newHp = enemy.currentHp > totalDamage ? enemy.currentHp - totalDamage : 0n;
+    ctx.db.combatEnemy.id.update({ ...enemy, currentHp: newHp });
+    const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+    const enemyName = enemy.displayName ?? enemyTemplate?.name ?? 'enemy';
+    const msg = character.name + ' unleashes ' + perkDef.name + ' on ' + enemyName + ' for ' + totalDamage + ' damage!';
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage', msg);
+    if (actorGroupId) {
+      appendGroupEvent(ctx, actorGroupId, character.id, 'damage', msg);
+    }
+  } else if (effect.buffType) {
+    // Wrath of the Fallen: grant a damage buff -- usable in or out of combat
+    const buffDuration = effect.buffDurationSeconds ?? 20;
+    // Convert seconds to combat rounds (3s per round), minimum 1 round
+    const roundsRemaining = BigInt(Math.max(1, Math.ceil(buffDuration / 3)));
+    const buffMagnitude = effect.buffMagnitude ?? 25n;
+    addCharacterEffect(ctx, character.id, effect.buffType, buffMagnitude, roundsRemaining, abilityKey);
+    const msg = character.name + ' activates ' + perkDef.name + '! +' + buffMagnitude + '% damage for ' + buffDuration + 's.';
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', msg);
+    if (actorGroupId) {
+      appendGroupEvent(ctx, actorGroupId, character.id, 'ability', msg);
+    }
+  } else {
+    throw new SenderError('Unknown active perk effect type');
+  }
 }
 
 /**

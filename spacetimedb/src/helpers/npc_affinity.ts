@@ -1,5 +1,6 @@
 import { CONVERSATION_COOLDOWN_MICROS } from '../data/npc_data';
 import { appendSystemMessage } from './events';
+import { getPerkBonusByField } from './renown';
 
 export function getAffinityForNpc(ctx: any, characterId: bigint, npcId: bigint): bigint {
   for (const row of ctx.db.npcAffinity.by_character.filter(characterId)) {
@@ -39,6 +40,15 @@ export function awardNpcAffinity(ctx: any, character: any, npcId: bigint, baseCh
       multiplier = personality.affinityMultiplier || 1.0;
     } catch {}
   }
+
+  // Apply NPC affinity gain perk bonus (only for positive affinity changes)
+  if (baseChange > 0n) {
+    const affinityBonus = getPerkBonusByField(ctx, character.id, 'npcAffinityGainBonus', character.level);
+    if (affinityBonus > 0) {
+      multiplier = multiplier * (1.0 + affinityBonus / 100.0);
+    }
+  }
+
   const adjustedChange = BigInt(Math.round(Number(baseChange) * multiplier));
 
   // Get or create affinity row

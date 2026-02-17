@@ -1,5 +1,6 @@
 import { TRAVEL_CONFIG } from '../data/travel_config';
 import { performPassiveSearch } from '../helpers/search';
+import { getPerkBonusByField } from '../helpers/renown';
 
 export const registerMovementReducers = (deps: any) => {
   const {
@@ -104,7 +105,13 @@ export const registerMovementReducers = (deps: any) => {
       ctx.db.character.id.update({ ...traveler, stamina: traveler.stamina - staminaCost });
       if (isCrossRegion) {
         const existingCd = [...ctx.db.travelCooldown.by_character.filter(traveler.id)][0];
-        const readyAt = ctx.timestamp.microsSinceUnixEpoch + TRAVEL_CONFIG.CROSS_REGION_COOLDOWN_MICROS;
+        // Apply travel cooldown reduction perk
+        const travelCdReduction = getPerkBonusByField(ctx, traveler.id, 'travelCooldownReduction', traveler.level);
+        const baseCooldown = TRAVEL_CONFIG.CROSS_REGION_COOLDOWN_MICROS;
+        const reducedCooldown = travelCdReduction > 0
+          ? (baseCooldown * BigInt(100 - Math.min(travelCdReduction, 80))) / 100n
+          : baseCooldown;
+        const readyAt = ctx.timestamp.microsSinceUnixEpoch + reducedCooldown;
         if (existingCd) {
           ctx.db.travelCooldown.id.update({ ...existingCd, readyAtMicros: readyAt });
         } else {
