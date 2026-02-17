@@ -12,6 +12,7 @@ import { tableHasRows } from '../helpers/events';
 import {
   ensureStarterItemTemplates,
   ensureWorldDropGearTemplates,
+  ensureWorldDropJewelryTemplates,
   ensureResourceItemTemplates,
   ensureFoodItemTemplates,
   ensureRecipeTemplates,
@@ -83,6 +84,7 @@ export function syncAllContent(ctx: any) {
   ensureResourceItemTemplates(ctx);
   ensureFoodItemTemplates(ctx);
   ensureWorldDropGearTemplates(ctx);
+  ensureWorldDropJewelryTemplates(ctx);
   ensureAbilityTemplates(ctx);
   ensureRecipeTemplates(ctx);
   ensureNpcs(ctx);
