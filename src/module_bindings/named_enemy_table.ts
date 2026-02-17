@@ -12,16 +12,11 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
+  characterId: __t.u64(),
   name: __t.string(),
-  npcId: __t.u64(),
-  targetEnemyTemplateId: __t.u64(),
-  requiredCount: __t.u64(),
-  minLevel: __t.u64(),
-  maxLevel: __t.u64(),
-  rewardXp: __t.u64(),
-  questType: __t.option(__t.string()),
-  targetLocationId: __t.option(__t.u64()),
-  targetNpcId: __t.option(__t.u64()),
-  targetItemName: __t.option(__t.string()),
-  itemDropChance: __t.option(__t.u64()),
+  enemyTemplateId: __t.u64(),
+  locationId: __t.u64(),
+  isAlive: __t.bool(),
+  lastKilledAt: __t.option(__t.timestamp()),
+  respawnMinutes: __t.u64(),
 });

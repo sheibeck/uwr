@@ -222,6 +222,10 @@ import ChooseDialogueOptionReducer from "./choose_dialogue_option_reducer";
 export { ChooseDialogueOptionReducer };
 import GiveGiftToNpcReducer from "./give_gift_to_npc_reducer";
 export { GiveGiftToNpcReducer };
+import LootQuestItemReducer from "./loot_quest_item_reducer";
+export { LootQuestItemReducer };
+import PullNamedEnemyReducer from "./pull_named_enemy_reducer";
+export { PullNamedEnemyReducer };
 import ChoosePerkReducer from "./choose_perk_reducer";
 export { ChoosePerkReducer };
 import GrantTestRenownReducer from "./grant_test_renown_reducer";
@@ -372,6 +376,8 @@ import MyPrivateEventsRow from "./my_private_events_table";
 export { MyPrivateEventsRow };
 import MyQuestsRow from "./my_quests_table";
 export { MyQuestsRow };
+import NamedEnemyRow from "./named_enemy_table";
+export { NamedEnemyRow };
 import NpcRow from "./npc_table";
 export { NpcRow };
 import NpcAffinityRow from "./npc_affinity_table";
@@ -392,6 +398,8 @@ import PullTickRow from "./pull_tick_table";
 export { PullTickRow };
 import QuestInstanceRow from "./quest_instance_table";
 export { QuestInstanceRow };
+import QuestItemRow from "./quest_item_table";
+export { QuestItemRow };
 import QuestTemplateRow from "./quest_template_table";
 export { QuestTemplateRow };
 import RaceRow from "./race_table";
@@ -416,6 +424,8 @@ import ResourceNodeRow from "./resource_node_table";
 export { ResourceNodeRow };
 import ResourceRespawnTickRow from "./resource_respawn_tick_table";
 export { ResourceRespawnTickRow };
+import SearchResultRow from "./search_result_table";
+export { SearchResultRow };
 import TradeItemRow from "./trade_item_table";
 export { TradeItemRow };
 import TradeSessionRow from "./trade_session_table";
@@ -630,6 +640,8 @@ import LootAllCorpse from "./loot_all_corpse_type";
 export { LootAllCorpse };
 import LootCorpseItem from "./loot_corpse_item_type";
 export { LootCorpseItem };
+import LootQuestItem from "./loot_quest_item_type";
+export { LootQuestItem };
 import LootTable from "./loot_table_type";
 export { LootTable };
 import LootTableEntry from "./loot_table_entry_type";
@@ -666,6 +678,8 @@ import MyPrivateEvents from "./my_private_events_type";
 export { MyPrivateEvents };
 import MyQuests from "./my_quests_type";
 export { MyQuests };
+import NamedEnemy from "./named_enemy_type";
+export { NamedEnemy };
 import Npc from "./npc_type";
 export { Npc };
 import NpcAffinity from "./npc_affinity_type";
@@ -688,12 +702,16 @@ import Player from "./player_type";
 export { Player };
 import PromoteGroupLeader from "./promote_group_leader_type";
 export { PromoteGroupLeader };
+import PullNamedEnemy from "./pull_named_enemy_type";
+export { PullNamedEnemy };
 import PullState from "./pull_state_type";
 export { PullState };
 import PullTick from "./pull_tick_type";
 export { PullTick };
 import QuestInstance from "./quest_instance_type";
 export { QuestInstance };
+import QuestItem from "./quest_item_type";
+export { QuestItem };
 import QuestTemplate from "./quest_template_type";
 export { QuestTemplate };
 import Race from "./race_type";
@@ -742,6 +760,8 @@ import SavePanelLayout from "./save_panel_layout_type";
 export { SavePanelLayout };
 import Say from "./say_type";
 export { Say };
+import SearchResult from "./search_result_type";
+export { SearchResult };
 import SellAllJunk from "./sell_all_junk_type";
 export { SellAllJunk };
 import SellItem from "./sell_item_type";
@@ -1606,6 +1626,23 @@ const tablesSchema = __schema(
     ],
   }, LootTableEntryRow),
   __table({
+    name: 'named_enemy',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_location', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'named_enemy_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, NamedEnemyRow),
+  __table({
     name: 'npc',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1764,6 +1801,23 @@ const tablesSchema = __schema(
     ],
   }, QuestInstanceRow),
   __table({
+    name: 'quest_item',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_location', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'quest_item_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, QuestItemRow),
+  __table({
     name: 'quest_template',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1919,6 +1973,20 @@ const tablesSchema = __schema(
       { name: 'resource_respawn_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
     ],
   }, ResourceRespawnTickRow),
+  __table({
+    name: 'search_result',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'search_result_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, SearchResultRow),
   __table({
     name: 'trade_item',
     indexes: [
@@ -2221,6 +2289,8 @@ const reducersSchema = __reducers(
   __reducerSchema("eat_food", EatFoodReducer),
   __reducerSchema("choose_dialogue_option", ChooseDialogueOptionReducer),
   __reducerSchema("give_gift_to_npc", GiveGiftToNpcReducer),
+  __reducerSchema("loot_quest_item", LootQuestItemReducer),
+  __reducerSchema("pull_named_enemy", PullNamedEnemyReducer),
   __reducerSchema("choose_perk", ChoosePerkReducer),
   __reducerSchema("grant_test_renown", GrantTestRenownReducer),
   __reducerSchema("grant_test_achievement", GrantTestAchievementReducer),

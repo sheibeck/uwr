@@ -68,6 +68,9 @@ export const useGameData = () => {
   const [corpses] = useTable(tables.corpse);
   const [corpseItems] = useTable(tables.corpseItem);
   const [pendingSpellCasts] = useTable(tables.pendingSpellCast);
+  const [questItems] = useTable(tables.questItem);
+  const [namedEnemies] = useTable(tables.namedEnemy);
+  const [searchResults] = useTable(tables.searchResult);
 
   return {
     conn,
@@ -136,5 +139,8 @@ export const useGameData = () => {
     corpses,
     corpseItems,
     pendingSpellCasts,
+    questItems,
+    namedEnemies,
+    searchResults,
   };
 };

@@ -305,6 +305,9 @@
           :corpses-here="corpsesHere"
           :enemy-spawns="availableEnemies"
           :resource-nodes="resourceNodesHere"
+          :quest-items="locationQuestItems"
+          :named-enemies="locationNamedEnemies"
+          :search-result="characterSearchResult"
           :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || pullerId === selectedCharacter.id)"
           @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
           @gather-resource="startGather"
@@ -319,6 +322,8 @@
           @talk-npc="onTalkNpc"
           @select-corpse="selectCorpseTarget"
           @select-character="selectCharacterTarget"
+          @loot-quest-item="lootQuestItem"
+          @pull-named-enemy="pullNamedEnemy"
         />
         </template>
       </div>
@@ -608,6 +613,9 @@ const {
   corpses,
   corpseItems,
   pendingSpellCasts,
+  questItems,
+  namedEnemies,
+  searchResults,
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ players, users });
@@ -978,6 +986,54 @@ const characterQuests = computed(() => {
     (row: any) => row.characterId.toString() === selectedCharacter.value!.id.toString()
   );
 });
+
+// Quest item, named enemy, and search result computeds
+const characterQuestItems = computed(() => {
+  if (!selectedCharacter.value) return [];
+  const charId = selectedCharacter.value.id;
+  return questItems.value.filter((qi: any) => qi.characterId.toString() === charId.toString());
+});
+
+const characterNamedEnemies = computed(() => {
+  if (!selectedCharacter.value) return [];
+  const charId = selectedCharacter.value.id;
+  return namedEnemies.value.filter((ne: any) => ne.characterId.toString() === charId.toString());
+});
+
+const characterSearchResult = computed(() => {
+  if (!selectedCharacter.value) return null;
+  const charId = selectedCharacter.value.id;
+  return searchResults.value.find((sr: any) => sr.characterId.toString() === charId.toString()) ?? null;
+});
+
+const locationQuestItems = computed(() => {
+  if (!selectedCharacter.value) return [];
+  const locId = selectedCharacter.value.locationId;
+  return characterQuestItems.value.filter(
+    (qi: any) => qi.locationId.toString() === locId.toString() && qi.discovered && !qi.looted
+  );
+});
+
+const locationNamedEnemies = computed(() => {
+  if (!selectedCharacter.value) return [];
+  const locId = selectedCharacter.value.locationId;
+  return characterNamedEnemies.value.filter(
+    (ne: any) => ne.locationId.toString() === locId.toString() && ne.isAlive
+  );
+});
+
+// Reducer call handlers for quest interactions
+const lootQuestItem = (questItemId: bigint) => {
+  const db = window.__db_conn;
+  if (!selectedCharacter.value || !db) return;
+  db.reducers.lootQuestItem({ characterId: selectedCharacter.value.id, questItemId });
+};
+
+const pullNamedEnemy = (namedEnemyId: bigint) => {
+  const db = window.__db_conn;
+  if (!selectedCharacter.value || !db) return;
+  db.reducers.pullNamedEnemy({ characterId: selectedCharacter.value.id, namedEnemyId });
+};
 
 // Filter faction standings to current character
 const characterFactionStandings = computed(() => {
