@@ -99,6 +99,22 @@ export const registerCharacterReducers = (deps: any) => {
     ensureSpawnsForLocation(ctx, character.locationId);
   });
 
+  spacetimedb.reducer('clear_active_character', {}, (ctx, _) => {
+    const player = ctx.db.player.id.find(ctx.sender);
+    if (!player) throw new SenderError('Player not found');
+    if (!player.activeCharacterId) return;
+    const activeCombat = activeCombatIdForCharacter(ctx, player.activeCharacterId);
+    if (activeCombat) {
+      appendPrivateEvent(ctx, player.activeCharacterId, player.userId!, 'system', 'You cannot camp during combat.');
+      return;
+    }
+    const character = ctx.db.character.id.find(player.activeCharacterId);
+    if (character) {
+      appendLocationEvent(ctx, character.locationId, 'system', `${character.name} heads to camp.`, character.id);
+    }
+    ctx.db.player.id.update({ ...player, activeCharacterId: undefined });
+  });
+
   spacetimedb.reducer(
     'create_character',
     { name: t.string(), raceId: t.u64(), className: t.string() },
