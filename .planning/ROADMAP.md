@@ -15,7 +15,7 @@
 | 3 | Renown Foundation | REQ-020–026 | None | Complete (2026-02-12) |
 | 4 | Config Table Architecture | None | Phase 3 (combat balance complete) | Complete (2026-02-13) |
 | 5 | LLM Architecture | REQ-040–047, REQ-080–084 | Phase 3 (first consumer) | Planned |
-| 6 | Quest System | REQ-060–066 | Phase 3 (renown gating), Phase 5 (LLM text) | Pending |
+| 6 | Quest System | REQ-060–066 | Phase 3 (renown gating) | Planned |
 | 7 | World Events | REQ-030–035 | Phase 1 (race unlock), Phase 5 (LLM text) | Pending |
 | 8 | Narrative Tone Rollout | REQ-080–084 (applied) | Phase 5 (LLM pipeline running) | Pending |
 | 9 | Content Data Expansion | REQ-090–094 | Phases 1–3 (systems to populate) | Pending |
@@ -302,38 +302,43 @@ Plans:
 
 ### Phase 6: Quest System
 
-**Goal:** Renown-gated quests available per faction. Players accept quests, complete objectives, earn rewards. Quest text is LLM-generated.
+**Goal:** Renown-gated faction quests available per faction. Players accept quests, complete kill/travel objectives, earn XP/gold/faction standing rewards. Quest descriptions use hardcoded fallback text (LLM enhancement deferred until Phase 5 is implemented).
 
 **Requirements:** REQ-060, REQ-061, REQ-062, REQ-063, REQ-064, REQ-065, REQ-066
 
-**Dependencies:** Phase 3 (FactionStanding for gating), Phase 5 (LLM text generation)
+**Dependencies:** Phase 3 (FactionStanding for gating)
+
+**Plans:** 2 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — Backend: FactionQuest/PlayerFactionQuest tables, 8 faction quest seed data, accept/complete reducers with validation, combat kill progress hook, character deletion cleanup, publish and regenerate bindings
+- [ ] 06-02-PLAN.md — Frontend: QuestPanel three-tab redesign (Available/Active/Log), useGameData subscriptions, App.vue wiring with reducer calls, human verification
 
 **Scope:**
-- `Quest` table seeded with >=8 quests (2 per faction, gated at Neutral and Friendly rank)
-- `GeneratedQuestText` table extended (from Phase 4) with quest-specific fields
-- `PlayerQuest` table: tracks per-player quest status
-- `accept_quest` reducer: validates availability, creates PlayerQuest row, triggers quest text generation
-- `complete_quest` reducer: validates objectives met, grants rewards, updates standing
-- View `available_quests`: joins Quest + FactionStanding, filters by player's standing
-- Quest panel UI: available quests, active quests (with generated descriptions), quest log
+- `FactionQuest` table seeded with 8 quests (2+ per faction, gated at Neutral/Friendly/Honored rank)
+- `PlayerFactionQuest` table: per-character quest acceptance and status tracking
+- `accept_faction_quest` reducer: validates standing gate, prevents duplicates, creates tracking row
+- `complete_faction_quest` reducer: validates objectives, grants XP/gold/faction standing, penalizes rival faction
+- Kill-based progress tracking hooked into combat loop
+- Three-tab QuestPanel UI: Available (faction-gated browse), Active (progress tracking), Log (completed quests)
+- Client-side filtering of public tables (no views, per established pattern)
 
-**Quest seed data (v1):**
-| Quest | Faction | Required Standing | Type |
-|-------|---------|------------------|------|
-| The Lost Shipment | Iron Compact | 0 (Neutral) | Retrieve |
-| Clearing the Route | Iron Compact | 1000 (Friendly) | Kill |
-| The Overgrown Path | Verdant Circle | 0 (Neutral) | Travel |
-| The Fungal Bloom | Verdant Circle | 1000 (Friendly) | Kill |
-| The Missing Tome | Ashen Order | 0 (Neutral) | Retrieve |
-| A Test of Mettle | Free Blades | 0 (Neutral) | Kill |
-| Contract Work | Free Blades | 1000 (Friendly) | Kill |
-| The Debt Ledger | Iron Compact | 3000 (Honored) | Retrieve |
+**Quest seed data:**
+| Quest | Faction | Required Standing | Type | Target |
+|-------|---------|------------------|------|--------|
+| The Lost Shipment | Iron Compact | 0 (Neutral) | Kill | Bandit x5 |
+| Clearing the Route | Iron Compact | 1000 (Friendly) | Kill | Cinder Sentinel x4 |
+| The Overgrown Path | Verdant Circle | 0 (Neutral) | Travel | Thornveil Thicket |
+| The Fungal Bloom | Verdant Circle | 1000 (Friendly) | Kill | Marsh Croaker x6 |
+| The Missing Tome | Ashen Order | 0 (Neutral) | Kill | Sootbound Mystic x3 |
+| A Test of Mettle | Free Blades | 0 (Neutral) | Kill | Ash Jackal x5 |
+| Contract Work | Free Blades | 1000 (Friendly) | Kill | Ashforged Revenant x4 |
+| The Debt Ledger | Iron Compact | 3000 (Honored) | Kill | Vault Sentinel x3 |
 
 **Success Criteria:**
 - [ ] Quest panel shows available quests filtered by player's faction standing
-- [ ] Locked quests are visible with standing requirement shown
-- [ ] Accepting a quest creates PlayerQuest row and triggers text generation
-- [ ] Quest description shows Shadeslinger-tone LLM text (or fallback)
+- [ ] Locked quests visible with standing requirement shown
+- [ ] Accepting a quest creates PlayerFactionQuest row
 - [ ] Completing quest objectives grants XP, gold, and faction standing
 - [ ] Completing a quest with rival faction consequence reduces rival standing
 
