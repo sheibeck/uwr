@@ -34,6 +34,7 @@ export function calculateRankFromPoints(points: bigint): number {
 }
 
 type PerkEffect = {
+  // Stat bonuses (existing)
   maxHp?: bigint;
   str?: bigint;
   dex?: bigint;
@@ -45,6 +46,31 @@ type PerkEffect = {
   critRanged?: bigint;
   cooldownSeconds?: number;
   description?: string;
+
+  // Proc effects
+  procType?: 'on_crit' | 'on_hit' | 'on_kill' | 'on_damage_taken';
+  procChance?: number;           // percentage 0-100
+  procDamageMultiplier?: bigint; // percentage, e.g. 200n = 200% weapon damage
+  procHealPercent?: number;      // heal for X% of damage dealt
+  procBonusDamage?: bigint;      // flat bonus damage on proc
+
+  // Crafting/gathering
+  gatherDoubleChance?: number;   // percentage chance for 2x yield
+  gatherSpeedBonus?: number;     // percentage faster gathering
+  craftQualityBonus?: number;    // percentage better item stats
+  rareGatherChance?: number;     // percentage chance for rare materials
+
+  // Social/utility
+  npcAffinityGainBonus?: number; // percentage bonus to affinity gains
+  vendorBuyDiscount?: number;    // percentage discount on purchases
+  vendorSellBonus?: number;      // percentage better sell prices
+  travelCooldownReduction?: number; // percentage reduction
+  goldFindBonus?: number;        // percentage bonus gold from all sources
+  xpBonus?: number;              // percentage bonus XP from all sources
+
+  // Scaling
+  scalesWithLevel?: boolean;     // effect grows with character level
+  perLevelBonus?: number;        // multiplier per character level, e.g. 0.5 = +0.5 per level
 };
 
 type Perk = {
@@ -53,250 +79,281 @@ type Perk = {
   type: 'passive' | 'active';
   description: string;
   effect: PerkEffect;
+  domain: 'combat' | 'crafting' | 'social';
 };
 
 export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
-  // Rank 2 - Tier 1: Simple stat bonuses
+  // Rank 2 - Tier 1: Simple single-effect perks
   2: [
     {
-      key: 'hp_boost_1',
-      name: 'Vitality',
+      key: 'iron_will',
+      name: 'Iron Will',
       type: 'passive',
-      description: '+25 max health',
-      effect: { maxHp: 25n },
+      description: '+25 max HP, +1 Strength',
+      effect: { maxHp: 25n, str: 1n },
+      domain: 'combat',
     },
     {
-      key: 'str_boost_1',
-      name: 'Might',
+      key: 'keen_eye',
+      name: 'Keen Eye',
       type: 'passive',
-      description: '+1 Strength',
-      effect: { str: 1n },
+      description: '10% chance to gather double resources',
+      effect: { gatherDoubleChance: 10 },
+      domain: 'crafting',
     },
     {
-      key: 'dex_boost_1',
-      name: 'Agility',
+      key: 'smooth_talker',
+      name: 'Smooth Talker',
       type: 'passive',
-      description: '+1 Dexterity',
-      effect: { dex: 1n },
+      description: '+15% NPC affinity gain from conversations',
+      effect: { npcAffinityGainBonus: 15 },
+      domain: 'social',
     },
   ],
-  // Rank 3 - Tier 1: Simple stat bonuses
+  // Rank 3 - Tier 1: Simple single-effect perks
   3: [
     {
-      key: 'int_boost_1',
-      name: 'Cunning',
+      key: 'quick_reflexes',
+      name: 'Quick Reflexes',
       type: 'passive',
-      description: '+1 Intelligence',
-      effect: { int: 1n },
+      description: '+1 Dexterity, +2% melee crit chance',
+      effect: { dex: 1n, critMelee: 200n },
+      domain: 'combat',
     },
     {
-      key: 'wis_boost_1',
-      name: 'Insight',
+      key: 'efficient_hands',
+      name: 'Efficient Hands',
       type: 'passive',
-      description: '+1 Wisdom',
-      effect: { wis: 1n },
+      description: '15% faster gathering speed',
+      effect: { gatherSpeedBonus: 15 },
+      domain: 'crafting',
     },
     {
-      key: 'cha_boost_1',
-      name: 'Presence',
+      key: 'shrewd_bargainer',
+      name: 'Shrewd Bargainer',
       type: 'passive',
-      description: '+1 Charisma',
-      effect: { cha: 1n },
+      description: '5% discount on vendor purchases, 5% better sell prices',
+      effect: { vendorBuyDiscount: 5, vendorSellBonus: 5 },
+      domain: 'social',
     },
   ],
-  // Rank 4 - Tier 2: Larger stat bonuses
+  // Rank 4 - Tier 2: Moderate effects, introduce first procs
   4: [
     {
-      key: 'hp_boost_2',
-      name: 'Endurance',
+      key: 'bloodthirst',
+      name: 'Bloodthirst',
       type: 'passive',
-      description: '+50 max health',
-      effect: { maxHp: 50n },
+      description: '3% chance on kill to restore 20% HP',
+      effect: { procType: 'on_kill', procChance: 3, procHealPercent: 20 },
+      domain: 'combat',
     },
     {
-      key: 'str_boost_2',
-      name: 'Brawn',
+      key: 'prospectors_luck',
+      name: "Prospector's Luck",
       type: 'passive',
-      description: '+2 Strength',
-      effect: { str: 2n },
+      description: '15% chance for rare material drops when gathering',
+      effect: { rareGatherChance: 15 },
+      domain: 'crafting',
     },
     {
-      key: 'dex_boost_2',
-      name: 'Swiftness',
+      key: 'wanderers_pace',
+      name: "Wanderer's Pace",
       type: 'passive',
-      description: '+2 Dexterity',
-      effect: { dex: 2n },
+      description: '20% travel cooldown reduction',
+      effect: { travelCooldownReduction: 20 },
+      domain: 'social',
     },
   ],
-  // Rank 5 - Tier 2: Larger stat bonuses + first active ability
+  // Rank 5 - Tier 2: Moderate effects
   5: [
     {
-      key: 'int_boost_2',
-      name: 'Brilliance',
+      key: 'savage_strikes',
+      name: 'Savage Strikes',
       type: 'passive',
-      description: '+2 Intelligence',
-      effect: { int: 2n },
+      description: '5% chance on crit to deal 150% bonus damage as a burst',
+      effect: { procType: 'on_crit', procChance: 5, procDamageMultiplier: 150n },
+      domain: 'combat',
     },
     {
-      key: 'wis_boost_2',
-      name: 'Sagacity',
+      key: 'master_harvester',
+      name: 'Master Harvester',
       type: 'passive',
-      description: '+2 Wisdom',
-      effect: { wis: 2n },
+      description: '20% double gather chance, 10% faster gathering',
+      effect: { gatherDoubleChance: 20, gatherSpeedBonus: 10 },
+      domain: 'crafting',
     },
+    {
+      key: 'silver_tongue',
+      name: 'Silver Tongue',
+      type: 'passive',
+      description: '+25% NPC affinity gain, +5% vendor discounts',
+      effect: { npcAffinityGainBonus: 25, vendorBuyDiscount: 5 },
+      domain: 'social',
+    },
+  ],
+  // Rank 6 - Tier 2: First actives appear
+  6: [
     {
       key: 'second_wind',
       name: 'Second Wind',
       type: 'active',
-      description: 'Restore 20% of your maximum health (5 minute cooldown)',
+      description: 'Restore 20% of your maximum health (5 min cooldown)',
       effect: { cooldownSeconds: 300, description: 'Restores 20% HP' },
+      domain: 'combat',
+    },
+    {
+      key: 'artisans_touch',
+      name: "Artisan's Touch",
+      type: 'passive',
+      description: '+15% craft quality bonus on all crafted items',
+      effect: { craftQualityBonus: 15 },
+      domain: 'crafting',
+    },
+    {
+      key: 'fortunes_favor',
+      name: "Fortune's Favor",
+      type: 'passive',
+      description: '+10% gold from all sources, +5% XP bonus',
+      effect: { goldFindBonus: 10, xpBonus: 5 },
+      domain: 'social',
     },
   ],
-  // Rank 6 - Tier 2: Mixed passive and active
-  6: [
-    {
-      key: 'cha_boost_2',
-      name: 'Magnetism',
-      type: 'passive',
-      description: '+2 Charisma',
-      effect: { cha: 2n },
-    },
-    {
-      key: 'armor_boost_1',
-      name: 'Fortitude',
-      type: 'passive',
-      description: '+1 Armor Class',
-      effect: { armorClass: 1n },
-    },
-    {
-      key: 'battle_focus',
-      name: 'Battle Focus',
-      type: 'active',
-      description: 'Increase critical strike chance by 10% for 30 seconds (5 minute cooldown)',
-      effect: { cooldownSeconds: 300, description: '+10% crit for 30s' },
-    },
-  ],
-  // Rank 7 - Tier 3: Significant bonuses
+  // Rank 7 - Tier 3: Multi-part effects
   7: [
     {
-      key: 'hp_boost_3',
-      name: 'Resilience',
+      key: 'vampiric_strikes',
+      name: 'Vampiric Strikes',
       type: 'passive',
-      description: '+75 max health',
-      effect: { maxHp: 75n },
+      description: '5% on-hit chance to heal for 30% of damage dealt',
+      effect: { procType: 'on_hit', procChance: 5, procHealPercent: 30 },
+      domain: 'combat',
     },
     {
-      key: 'str_boost_3',
-      name: 'Power',
+      key: 'bountiful_harvest',
+      name: 'Bountiful Harvest',
       type: 'passive',
-      description: '+3 Strength',
-      effect: { str: 3n },
+      description: '25% double gather chance, 5% rare material chance',
+      effect: { gatherDoubleChance: 25, rareGatherChance: 5 },
+      domain: 'crafting',
     },
     {
-      key: 'warcry',
-      name: 'Warcry',
-      type: 'active',
-      description: 'Increase all damage dealt by 10% for 15 seconds (5 minute cooldown)',
-      effect: { cooldownSeconds: 300, description: '+10% damage for 15s' },
+      key: 'diplomats_grace',
+      name: "Diplomat's Grace",
+      type: 'passive',
+      description: '+30% NPC affinity gain, 25% travel cooldown reduction',
+      effect: { npcAffinityGainBonus: 30, travelCooldownReduction: 25 },
+      domain: 'social',
     },
   ],
-  // Rank 8 - Tier 3: Significant bonuses + active abilities
+  // Rank 8 - Tier 3: Complex effects
   8: [
     {
-      key: 'dex_boost_3',
-      name: 'Precision',
-      type: 'passive',
-      description: '+3 Dexterity',
-      effect: { dex: 3n },
-    },
-    {
-      key: 'int_boost_3',
-      name: 'Genius',
-      type: 'passive',
-      description: '+3 Intelligence',
-      effect: { int: 3n },
-    },
-    {
-      key: 'evasion',
-      name: 'Evasion',
+      key: 'thunderous_blow',
+      name: 'Thunderous Blow',
       type: 'active',
-      description: 'Dodge the next attack against you (5 minute cooldown)',
-      effect: { cooldownSeconds: 300, description: 'Dodge next attack' },
+      description: 'Deal 300% weapon damage to target (5 min cooldown)',
+      effect: { cooldownSeconds: 300, procDamageMultiplier: 300n, description: '300% weapon damage' },
+      domain: 'combat',
+    },
+    {
+      key: 'resourceful',
+      name: 'Resourceful',
+      type: 'passive',
+      description: '20% double gather, 20% faster gathering, +10% craft quality',
+      effect: { gatherDoubleChance: 20, gatherSpeedBonus: 20, craftQualityBonus: 10 },
+      domain: 'crafting',
+    },
+    {
+      key: 'merchant_prince',
+      name: 'Merchant Prince',
+      type: 'passive',
+      description: '10% vendor discount, 10% better sell prices, +10% gold find',
+      effect: { vendorBuyDiscount: 10, vendorSellBonus: 10, goldFindBonus: 10 },
+      domain: 'social',
     },
   ],
-  // Rank 9 - Tier 3: High stat bonuses
+  // Rank 9 - Tier 3: Scaling perks
   9: [
     {
-      key: 'wis_boost_3',
-      name: 'Enlightenment',
+      key: 'deathbringer',
+      name: 'Deathbringer',
       type: 'passive',
-      description: '+3 Wisdom',
-      effect: { wis: 3n },
+      description: '8% on-kill chance to deal 200% weapon damage to all nearby enemies',
+      effect: { procType: 'on_kill', procChance: 8, procDamageMultiplier: 200n },
+      domain: 'combat',
     },
     {
-      key: 'crit_boost_1',
-      name: 'Deadly Aim',
+      key: 'masterwork',
+      name: 'Masterwork',
       type: 'passive',
-      description: '+5% critical strike chance',
-      effect: { critMelee: 500n, critRanged: 500n },
+      description: '+25% craft quality, scales with character level (+0.5% per level)',
+      effect: { craftQualityBonus: 25, scalesWithLevel: true, perLevelBonus: 0.5 },
+      domain: 'crafting',
     },
     {
-      key: 'shield_wall',
-      name: 'Shield Wall',
-      type: 'active',
-      description: 'Reduce damage taken by 50% for 10 seconds (5 minute cooldown)',
-      effect: { cooldownSeconds: 300, description: '-50% damage taken for 10s' },
+      key: 'voice_of_authority',
+      name: 'Voice of Authority',
+      type: 'passive',
+      description: '+40% NPC affinity, +8% vendor discounts, +8% XP bonus',
+      effect: { npcAffinityGainBonus: 40, vendorBuyDiscount: 8, xpBonus: 8 },
+      domain: 'social',
     },
   ],
-  // Rank 10 - Tier 4: Major bonuses
+  // Rank 10 - Tier 4: Powerful effects
   10: [
     {
-      key: 'hp_boost_4',
-      name: 'Indomitable',
-      type: 'passive',
-      description: '+100 max health',
-      effect: { maxHp: 100n },
-    },
-    {
-      key: 'str_boost_4',
-      name: 'Titan Strength',
-      type: 'passive',
-      description: '+4 Strength',
-      effect: { str: 4n },
-    },
-    {
-      key: 'rally',
-      name: 'Rally',
+      key: 'wrath_of_the_fallen',
+      name: 'Wrath of the Fallen',
       type: 'active',
-      description: 'Restore 15% health to all nearby group members (10 minute cooldown)',
-      effect: { cooldownSeconds: 600, description: 'Group heal 15% HP' },
+      description: '+25% all damage for 20 seconds (10 min cooldown)',
+      effect: { cooldownSeconds: 600, description: '+25% all damage for 20s' },
+      domain: 'combat',
+    },
+    {
+      key: 'golden_touch',
+      name: 'Golden Touch',
+      type: 'passive',
+      description: '30% double gather, 15% rare materials, +15% craft quality',
+      effect: { gatherDoubleChance: 30, rareGatherChance: 15, craftQualityBonus: 15 },
+      domain: 'crafting',
+    },
+    {
+      key: 'legends_presence',
+      name: "Legend's Presence",
+      type: 'passive',
+      description: '+50% NPC affinity, 30% travel cooldown reduction, +15% gold find',
+      effect: { npcAffinityGainBonus: 50, travelCooldownReduction: 30, goldFindBonus: 15 },
+      domain: 'social',
     },
   ],
-  // Rank 11 - Tier 4: Major bonuses + powerful actives
+  // Rank 11 - Tier 4: Powerful effects, complex interactions
   11: [
     {
-      key: 'dex_boost_4',
-      name: 'Lightning Reflexes',
+      key: 'undying_fury',
+      name: 'Undying Fury',
       type: 'passive',
-      description: '+4 Dexterity',
-      effect: { dex: 4n },
+      description: '3% on-damage-taken chance to gain +50% damage for 10 seconds',
+      effect: { procType: 'on_damage_taken', procChance: 3, description: '+50% damage for 10s on proc' },
+      domain: 'combat',
     },
     {
-      key: 'armor_boost_2',
-      name: 'Iron Skin',
+      key: 'grand_artisan',
+      name: 'Grand Artisan',
       type: 'passive',
-      description: '+2 Armor Class',
-      effect: { armorClass: 2n },
+      description: '35% double gather, 20% rare materials, +25% craft quality, scales +0.5%/level',
+      effect: { gatherDoubleChance: 35, rareGatherChance: 20, craftQualityBonus: 25, scalesWithLevel: true, perLevelBonus: 0.5 },
+      domain: 'crafting',
     },
     {
-      key: 'berserker_rage',
-      name: 'Berserker Rage',
-      type: 'active',
-      description: 'Increase damage by 25% but take 10% more damage for 20 seconds (10 minute cooldown)',
-      effect: { cooldownSeconds: 600, description: '+25% damage, +10% damage taken for 20s' },
+      key: 'world_shaper',
+      name: 'World Shaper',
+      type: 'passive',
+      description: '+15% XP, +15% gold find, +10% vendor both ways, 35% travel CD reduction',
+      effect: { xpBonus: 15, goldFindBonus: 15, vendorBuyDiscount: 10, vendorSellBonus: 10, travelCooldownReduction: 35 },
+      domain: 'social',
     },
   ],
-  // Rank 12 - Tier 4: Major stat bonuses
+  // Rank 12 - Tier 4: Capstone (unchanged)
   12: [
     {
       key: 'int_boost_4',
@@ -304,6 +361,7 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       type: 'passive',
       description: '+4 Intelligence',
       effect: { int: 4n },
+      domain: 'combat',
     },
     {
       key: 'wis_boost_4',
@@ -311,6 +369,7 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       type: 'passive',
       description: '+4 Wisdom',
       effect: { wis: 4n },
+      domain: 'combat',
     },
     {
       key: 'life_steal',
@@ -318,9 +377,10 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       type: 'active',
       description: 'Heal for 25% of damage dealt for 15 seconds (10 minute cooldown)',
       effect: { cooldownSeconds: 600, description: 'Heal for 25% of damage dealt for 15s' },
+      domain: 'combat',
     },
   ],
-  // Rank 13 - Tier 5: Legendary bonuses
+  // Rank 13 - Tier 5: Legendary bonuses (unchanged)
   13: [
     {
       key: 'hp_boost_5',
@@ -328,6 +388,7 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       type: 'passive',
       description: '+150 max health',
       effect: { maxHp: 150n },
+      domain: 'combat',
     },
     {
       key: 'str_boost_5',
@@ -335,6 +396,7 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       type: 'passive',
       description: '+5 Strength',
       effect: { str: 5n },
+      domain: 'combat',
     },
     {
       key: 'phoenix_rebirth',
@@ -342,9 +404,10 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       type: 'active',
       description: 'Automatically revive with 50% health when killed (30 minute cooldown)',
       effect: { cooldownSeconds: 1800, description: 'Auto-revive at 50% HP on death' },
+      domain: 'combat',
     },
   ],
-  // Rank 14 - Tier 5: Legendary bonuses + signature actives
+  // Rank 14 - Tier 5: Legendary bonuses + signature actives (unchanged)
   14: [
     {
       key: 'dex_boost_5',
@@ -352,6 +415,7 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       type: 'passive',
       description: '+5 Dexterity',
       effect: { dex: 5n },
+      domain: 'combat',
     },
     {
       key: 'armor_boost_3',
@@ -359,6 +423,7 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       type: 'passive',
       description: '+3 Armor Class',
       effect: { armorClass: 3n },
+      domain: 'combat',
     },
     {
       key: 'timestop',
@@ -366,9 +431,10 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       type: 'active',
       description: 'Freeze all enemies for 5 seconds (30 minute cooldown)',
       effect: { cooldownSeconds: 1800, description: 'Freeze all enemies for 5s' },
+      domain: 'combat',
     },
   ],
-  // Rank 15 - Tier 5: Ultimate legendary bonuses
+  // Rank 15 - Tier 5: Ultimate legendary bonuses (unchanged)
   15: [
     {
       key: 'all_stats_boost',
@@ -376,6 +442,7 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       type: 'passive',
       description: '+3 to all stats',
       effect: { str: 3n, dex: 3n, int: 3n, wis: 3n, cha: 3n },
+      domain: 'combat',
     },
     {
       key: 'crit_boost_2',
@@ -383,6 +450,7 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       type: 'passive',
       description: '+10% critical strike chance',
       effect: { critMelee: 1000n, critRanged: 1000n },
+      domain: 'combat',
     },
     {
       key: 'defy_death',
@@ -390,6 +458,7 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       type: 'active',
       description: 'Prevent the next lethal blow and heal to 25% health (30 minute cooldown)',
       effect: { cooldownSeconds: 1800, description: 'Prevent lethal blow, heal to 25% HP' },
+      domain: 'combat',
     },
   ],
 };
