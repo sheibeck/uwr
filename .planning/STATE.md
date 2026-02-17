@@ -268,9 +268,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 140 | Remove mighty prefix — fierce is now sole STR weapon prefix (minTier=1, [1,2,3,4]); updated Dreadmaw legendary to use fierce/Fierce; republished with --clear-database to flush stale mighty ItemAffix rows | 2026-02-17 | d335989 | — |
 | 141 | Fix item tooltip rarity color, tier, and armor type display — tooltipRarityColor helper maps qualityTier to hex color on title; description uses qualityTier instead of template rarity in useInventory/useCombat; armorType "none" hidden for weapons, weaponType shown instead | 2026-02-17 | 0966b68 | [140-fix-item-tooltip-to-show-correct-rarity-](./quick/140-fix-item-tooltip-to-show-correct-rarity-/) |
 | 141 (vendor) | Verified sell_item reducer has no rarity filter on VendorInventory insert path — code already correct; alreadyListed check correctly prevents duplicates for already-seeded templates; republished module to flush stale state | 2026-02-17 | — | [141-fix-sell-item-to-list-non-common-player-](./quick/141-fix-sell-item-to-list-non-common-player-/) |
+| 142 | Fix jewelry quality floor and add cloaks — all 10 earring/pendant templates changed to rarity 'uncommon'; 5 cloak templates added (slot='neck', armorClassBonus 1n/2n, common); quality floor conditioned on armorClassBonus===0n; 'neck' removed from JEWELRY_SLOTS; affix catalog Whisperwind slot 'cloak'→'neck'; accessory affix slots remove 'cloak'; module republished | 2026-02-17 | 7e16d3e | [142-fix-jewelry-quality-floor-and-add-cloaks](./quick/142-fix-jewelry-quality-floor-and-add-cloaks/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick task 141 (vendor): Investigated sell_item VendorInventory insert path; confirmed no rarity filter exists; module republished cleanly.
+Last activity: 2026-02-17 - Completed quick task 142: Fixed jewelry quality floor and added cloaks to neck slot with AC bonus. All earring/pendant templates now rarity 'uncommon'; 5 cloak templates (common, AC 1-2) added; quality-floor and loot weights updated; affix catalog corrected and module republished.
