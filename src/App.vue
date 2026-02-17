@@ -158,11 +158,11 @@
       </div>
     </div>
 
-    <!-- Inventory Panel (wide) -->
-    <div v-if="panels.inventory && panels.inventory.open" data-panel-id="inventory" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('inventory').value || {}) }" @mousedown="bringToFront('inventory')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('inventory', $event)"><div>Inventory</div><button type="button" :style="styles.panelClose" @click="closePanelById('inventory')">×</button></div>
-      <div :style="styles.floatingPanelBody"><InventoryPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @organize="organizeInventory" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('inventory', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('inventory', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('inventory', $event, { right: true, bottom: true })" />
+    <!-- Character Info Panel (wide) — combines Inventory and Stats tabs -->
+    <div v-if="panels.characterInfo && panels.characterInfo.open" data-panel-id="characterInfo" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('characterInfo').value || {}) }" @mousedown="bringToFront('characterInfo')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('characterInfo', $event)"><div>Character</div><button type="button" :style="styles.panelClose" @click="closePanelById('characterInfo')">x</button></div>
+      <div :style="styles.floatingPanelBody"><CharacterInfoPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @organize="organizeInventory" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('characterInfo', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('characterInfo', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('characterInfo', $event, { right: true, bottom: true })" />
     </div>
 
     <!-- Hotbar Panel -->
@@ -178,13 +178,6 @@
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('friends', $event)"><div>Friends</div><button type="button" :style="styles.panelClose" @click="closePanelById('friends')">×</button></div>
       <div :style="styles.floatingPanelBody"><FriendsPanel :styles="styles" :conn-active="conn.isActive" :is-logged-in="isLoggedIn" :friend-email="friendEmail" :incoming-requests="incomingRequests" :outgoing-requests="outgoingRequests" :friends="myFriends" :email-by-user-id="emailByUserId" @update:friendEmail="friendEmail = $event" @send-request="sendRequest" @accept="acceptRequest" @reject="rejectRequest" @remove="removeFriend" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('friends', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('friends', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('friends', $event, { right: true, bottom: true })" />
-    </div>
-
-    <!-- Stats Panel (wide) -->
-    <div v-if="panels.stats && panels.stats.open" data-panel-id="stats" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('stats').value || {}) }" @mousedown="bringToFront('stats')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('stats', $event)"><div>Stats</div><button type="button" :style="styles.panelClose" @click="closePanelById('stats')">×</button></div>
-      <div :style="styles.floatingPanelBody"><StatsPanel :styles="styles" :selected-character="selectedCharacter" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('stats', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('stats', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('stats', $event, { right: true, bottom: true })" />
     </div>
 
     <!-- Crafting Panel (wide) -->
@@ -512,10 +505,9 @@ import SplashScreen from './components/SplashScreen.vue';
 import AppHeader from './components/AppHeader.vue';
 import LogWindow from './components/LogWindow.vue';
 import CharacterPanel from './components/CharacterPanel.vue';
-import InventoryPanel from './components/InventoryPanel.vue';
+import CharacterInfoPanel from './components/CharacterInfoPanel.vue';
 import GroupPanel from './components/GroupPanel.vue';
 import FriendsPanel from './components/FriendsPanel.vue';
-import StatsPanel from './components/StatsPanel.vue';
 import CraftingPanel from './components/CraftingPanel.vue';
 import HotbarPanel from './components/HotbarPanel.vue';
 import CombatPanel from './components/CombatPanel.vue';
@@ -1793,10 +1785,9 @@ const {
   travel: { x: 1040, y: 110 },
   hotbar: { x: 120, y: 260 },
   character: { x: 980, y: 140 },
-  inventory: { x: 600, y: 140 },
+  characterInfo: { x: 600, y: 140 },
   hotbarPanel: { x: 700, y: 140 },
   friends: { x: 500, y: 140 },
-  stats: { x: 600, y: 140 },
   crafting: { x: 600, y: 140 },
   journal: { x: 600, y: 140 },
   renown: { x: 600, y: 140 },
@@ -1858,7 +1849,7 @@ const updateAccordionState = (payload: { key: AccordionKey; open: boolean }) => 
 watch(
   () => [...openPanels.value],
   (panels) => {
-    if (onboardingStep.value === 'inventory' && panels.includes('inventory')) {
+    if (onboardingStep.value === 'inventory' && panels.includes('characterInfo')) {
       onboardingStep.value = 'hotbar';
     } else if (onboardingStep.value === 'hotbar' && panels.includes('hotbarPanel')) {
       onboardingStep.value = null;

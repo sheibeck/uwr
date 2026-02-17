@@ -21,11 +21,11 @@
         Camp
       </button>
       <button
-        @click="emit('toggle', 'inventory')"
-        :style="actionStyle('inventory')"
-        :disabled="isLocked('inventory')"
+        @click="emit('toggle', 'characterInfo')"
+        :style="actionStyle('characterInfo')"
+        :disabled="isLocked('characterInfo')"
       >
-        Inventory
+        Character
       </button>
       <button
         @click="emit('toggle', 'hotbarPanel')"
@@ -33,13 +33,6 @@
         :disabled="isLocked('hotbarPanel')"
       >
         Hotbar
-      </button>
-      <button
-        @click="emit('toggle', 'stats')"
-        :style="actionStyle('stats')"
-        :disabled="isLocked('stats')"
-      >
-        Stats
       </button>
       <button
         @click="emit('toggle', 'crafting')"
@@ -89,12 +82,11 @@
 <script setup lang="ts">
 type PanelKey =
   | 'character'
-  | 'inventory'
+  | 'characterInfo'
   | 'hotbar'
   | 'friends'
   | 'group'
   | 'log'
-  | 'stats'
   | 'crafting'
   | 'journal'
   | 'renown'
@@ -121,7 +113,7 @@ const emit = defineEmits<{
 
 const actionStyle = (panel: string) => {
   const highlight =
-    (panel === 'inventory' && props.highlightInventory) ||
+    (panel === 'characterInfo' && props.highlightInventory) ||
     (panel === 'hotbarPanel' && props.highlightHotbar);
   // Log is always active since it cannot be closed
   const isActive = panel === 'log' || props.openPanels.has(panel);
