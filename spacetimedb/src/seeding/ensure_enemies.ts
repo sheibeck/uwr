@@ -78,7 +78,7 @@ export function ensureLootTables(ctx: any) {
         upsertLootEntry(tableId, rawMeat.id, 20n);
       }
     }
-    const JEWELRY_SLOTS = new Set(['earrings', 'neck']);
+    const JEWELRY_SLOTS = new Set(['earrings']);
     for (const item of gearTemplates) {
       const weight = JEWELRY_SLOTS.has(item.slot) ? 1n : (item.rarity === 'uncommon' ? 3n : 6n);
       upsertLootEntry(tableId, item.id, weight);
@@ -134,7 +134,7 @@ export function ensureVendorInventory(ctx: any) {
       item.slot === 'mainHand' || item.slot === 'offHand'
     );
     const accessories = allEligible.filter((item) =>
-      item.slot === 'earrings' || item.slot === 'cloak' || item.slot === 'neck'
+      item.slot === 'earrings' || item.slot === 'neck'
     );
     const consumables = allEligible.filter((item) =>
       item.slot === 'consumable' || item.slot === 'food' || item.slot === 'utility'

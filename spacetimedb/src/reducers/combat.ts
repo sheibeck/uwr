@@ -618,9 +618,10 @@ export const registerCombatReducers = (deps: any) => {
         if (template) {
           const quality = rollQualityTier(enemyTemplate.level ?? 1n, seedBase);
           const JEWELRY_SLOTS_COMBAT = new Set(['earrings', 'neck']);
-          const effectiveQuality = (JEWELRY_SLOTS_COMBAT.has(template.slot) && quality === 'common')
-            ? 'uncommon'
-            : quality;
+          const effectiveQuality =
+            JEWELRY_SLOTS_COMBAT.has(template.slot) && template.armorClassBonus === 0n && quality === 'common'
+              ? 'uncommon'
+              : quality;
           if (effectiveQuality !== 'common') {
             const affixes = generateAffixData(template.slot, effectiveQuality, seedBase);
             const affixDataJson = JSON.stringify(affixes);
