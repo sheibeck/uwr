@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Completed quick task 134: STARTER_ITEM_NAMES centralized in combat_constants.ts; create_test_item and generateLootTemplates now filter starter gear at runtime so /createitem and combat kills never drop Training Sword, Apprentice Robe, etc.
+**Status:** Completed quick task 135: Vendor seed capped at 10 common-only items (3 armor+3 weapons+2 accessories+2 consumables); sell_item reducer adds sold items to vendor inventory at 2x vendorValue markup; client passes npcId on sell.
 
 ---
 
@@ -260,9 +260,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 132 | Verify per-character passive search independence in group travel - confirmed each character gets own performPassiveSearch call with unique charId XOR nowMicros seed; all resource nodes, search results, and quest rolls are already fully independent per character | 2026-02-17 | 0f3b86d | [132-verify-and-fix-per-character-independenc](./quick/132-verify-and-fix-per-character-independenc/) |
 | 133 | Remove rarity text labels from vendor/quartermaster window and inventory context menu - deleted ({{ item.rarity }}) from both VendorPanel item lists, changed InventoryPanel context menu subtitle from qualityTier+slot to slot only; quality communicated by color only | 2026-02-17 | ab12b3e | [133-remove-rarity-text-labels-from-vendor-qu](./quick/133-remove-rarity-text-labels-from-vendor-qu/) |
 | 134 | Fix /createitem and combat loot to never pick starter gear - STARTER_ITEM_NAMES centralized in combat_constants.ts, create_test_item and generateLootTemplates gearEntries both filter !STARTER_ITEM_NAMES.has() at runtime | 2026-02-17 | 32b89a0 | [134-fix-create-test-item-reducer-and-loot-ge](./quick/134-fix-create-test-item-reducer-and-loot-ge/) |
+| 135 | Reduce vendor seed to 10 common-only items and add player-sold items to vendor inventory - allEligible filters rarity=common, picks capped at 3+3+2+2=10, stale removal loop removed, sell_item adds sold item at 2x vendorValue, client passes npcId | 2026-02-17 | 4523bea | [135-reduce-vendor-seed-items-to-10-common-on](./quick/135-reduce-vendor-seed-items-to-10-common-on/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick task 134: STARTER_ITEM_NAMES centralized in combat_constants.ts; /createitem and combat loot now filter starter gear at runtime; module published.
+Last activity: 2026-02-17 - Completed quick task 135: Vendor seed capped at 10 common-only items (rarity filter + 3+3+2+2 category caps); stale removal loop removed to preserve player-sold items; sell_item accepts npcId and adds sold items to vendor inventory at 2x vendorValue; module published with --clear-database.
