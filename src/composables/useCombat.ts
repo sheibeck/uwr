@@ -505,15 +505,28 @@ export const useCombat = ({
         const pull = pullStates.value.find(
           (p) => p.enemySpawnId.toString() === spawn.id.toString() && p.state === 'pending'
         );
-        const isPulling = spawn.state === 'pulling';
+        let isPulling = spawn.state === 'pulling';
         let pullProgress = 0;
         let pullType: string | null = null;
+
+        // Safety net: if isPulling but no pull row, treat as not pulling
+        if (isPulling && !pull) {
+          isPulling = false;
+        }
 
         if (isPulling && pull) {
           pullType = pull.pullType;
           const pullDurationMicros = pull.pullType === 'careful' ? 2_000_000 : 1_000_000;
           const pullStartMicros = timestampToMicros(pull.createdAt);
           pullProgress = Math.max(0, Math.min(1, (nowMicros.value - pullStartMicros) / pullDurationMicros));
+
+          // Orphan safety net: if pull duration + 2s grace has elapsed, hide bar
+          const pullEndMicros = pullStartMicros + pullDurationMicros;
+          const graceMicros = 2_000_000; // 2s grace
+          if (nowMicros.value >= pullEndMicros + graceMicros) {
+            isPulling = false;
+            pullProgress = 0;
+          }
         }
 
         return {
