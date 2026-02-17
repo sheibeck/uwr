@@ -385,6 +385,8 @@ export const RecipeTemplate = table(
     req2Count: t.u64(),
     req3TemplateId: t.u64().optional(),
     req3Count: t.u64().optional(),
+    recipeType: t.string().optional(),      // 'weapon' | 'armor' | 'accessory' | 'consumable'
+    materialType: t.string().optional(),    // e.g. 'darksteel_ore'; undefined for consumables
   }
 );
 
