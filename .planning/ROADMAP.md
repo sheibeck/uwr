@@ -24,7 +24,7 @@
 | 12 | Overall Renown System | None | Phase 11 | Complete (2026-02-14) |
 | 13 | Crafting System - Weapons & Armor | None | Phase 12 | Pending |
 | 14 | Loot & Gear Progression | None | Phase 13 | Complete (2026-02-17) |
-| 15 | Named NPCs | None | Phase 14 | Pending |
+| 15 | Named NPCs | None | Phase 14 | Complete (2026-02-17) |
 | 16 | Travelling NPCs | None | Phase 15 | Pending |
 | 17 | World Bosses | None | Phase 16 | Pending |
 | 18 | World Events System Expansion | None | Phase 17 | Pending |
@@ -540,12 +540,13 @@ Plans:
 
 ### Phase 15: Named NPCs - Unique NPC entities (not templates), NPC dialogue system, NPC-specific shops and services, NPC placement in regions
 
-**Goal:** [To be planned]
+**Goal:** Unique named NPC entities placed in world regions with NPC-specific shops and services. Core NPC system implemented as part of earlier phases.
 **Depends on:** Phase 14
-**Plans:** 0 plans
+**Status:** Complete (2026-02-17)
+**Plans:** 0 plans (implemented organically via earlier quick tasks and NPC Interactions phase)
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 15 to break down)
+- [x] Implemented — core NPC system, shops, and world placement complete via Phase 19 and quick tasks
 
 ### Phase 16: Travelling NPCs - NPC movement AI between regions, travelling merchant schedules, dynamic NPC location tracking
 

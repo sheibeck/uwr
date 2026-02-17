@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Phases 11 and 19 closed as complete. Phase 14 (Loot & Gear Progression) complete. Quick tasks 144-146: robust cast bar/cooldown safety nets and auto cache-busting on deploys. Next phase: 13 (Crafting), 15 (Named NPCs), or 20 (Perk Variety Expansion).
+**Status:** Phases 11, 15, and 19 closed as complete. Phase 14 (Loot & Gear Progression) complete. Quick tasks 144-146: robust cast bar/cooldown safety nets and auto cache-busting on deploys. Next phase: 13 (Crafting), 16 (Travelling NPCs), or 20 (Perk Variety Expansion).
 
 ---
 
@@ -12,7 +12,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 
 **Last completed phase:** 14 (Loot & Gear Progression) — 4/4 plans, human-verified
 **Current phase:** none — choosing next phase
-**Next action:** Begin Phase 13 (Crafting System), Phase 15 (Named NPCs), or Phase 20 (Perk Variety Expansion)
+**Next action:** Begin Phase 13 (Crafting System), Phase 16 (Travelling NPCs), or Phase 20 (Perk Variety Expansion)
 
 ---
 
@@ -37,6 +37,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 11 | Death & Corpse System | Complete (2/2 plans done: backend foundation + resurrection/corpse summon; UI skipped per user decision) |
 | 12 | Overall Renown System | Complete (3/3 plans done: backend + integration + UI, human-verified) |
 | 14 | Loot & Gear Progression | Complete (4/4 plans done: schema+catalog, loot pipeline, legendary drops+salvage, client UI, human-verified) |
+| 15 | Named NPCs | Complete (implemented organically via Phase 19 and quick tasks — NPC entities, shops, world placement all in place) |
 | 19 | NPC Interactions | Complete (2/2 plans done: backend affinity/dialogue + interaction reducers; UI skipped per user decision — multi-step questing via NPC dialogue is sufficient MVP) |
 
 ---
