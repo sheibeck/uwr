@@ -780,7 +780,10 @@ export const registerItemReducers = (deps: any) => {
         }
       }
 
-      const endsAt = ctx.timestamp.microsSinceUnixEpoch + RESOURCE_GATHER_CAST_MICROS;
+      const gatherSpeedBonus = getPerkBonusByField(ctx, character.id, 'gatherSpeedBonus', character.level);
+      const rawGatherDuration = BigInt(Math.round(Number(RESOURCE_GATHER_CAST_MICROS) * (1 - gatherSpeedBonus / 100)));
+      const gatherDurationMicros = rawGatherDuration < 500_000n ? 500_000n : rawGatherDuration;
+      const endsAt = ctx.timestamp.microsSinceUnixEpoch + gatherDurationMicros;
       ctx.db.resourceNode.id.update({
         ...node,
         state: 'harvesting',
