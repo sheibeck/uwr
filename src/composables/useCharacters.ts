@@ -52,17 +52,8 @@ export const useCharacters = ({
     return characters.value.filter((row) => row.ownerUserId === userId.value);
   });
 
-  watch(
-    () => myCharacters.value.map((row) => row.id.toString()).join(','),
-    (next, prev) => {
-      if (!next || next === prev) return;
-      if (selectedCharacterId.value) return;
-      const latest = myCharacters.value.at(-1);
-      if (latest) {
-        selectedCharacterId.value = latest.id.toString();
-      }
-    }
-  );
+  // No auto-selection of characters — user must choose from the character select screen.
+  // Session restoration is handled by the App.vue watcher on player.activeCharacterId.
 
   const selectedCharacter = computed(() => {
     if (!selectedCharacterId.value) return null;
