@@ -568,14 +568,14 @@ Plans:
 
 ### Phase 18: World Events System Expansion - Regional event spawning (Ripple system), event types and objectives, faction and overall renown rewards, event participation tracking
 
-**Goal:** Persistent world event lifecycle system with stat-threshold-triggered and admin-fired events, regional scoping, objective-based participation tracking with contribution-scaled renown and faction standing rewards, and a Ripple cascade system that spawns follow-up events in neighboring regions on resolution.
+**Goal:** Persistent world event lifecycle system with admin-fired events scoped to regions, self-contained event content (exclusive enemies and items), Bronze/Silver/Gold contribution tiers with fixed tiered rewards, dual success/failure consequences that permanently change world state (Ripple), and a dedicated WorldEventPanel with Active + History tabs plus banner overlay notifications.
 **Depends on:** Phase 17
 **Plans:** 3 plans
 
 Plans:
-- [ ] 18-01-PLAN.md — Backend foundation: WorldEvent/WorldStatTracker/WorldEventParticipant/RegionAdjacency tables, event data constants, lifecycle helpers (fire/join/contribute/resolve/ripple), seeding
-- [ ] 18-02-PLAN.md — Reducers and hooks: fire/join/resolve world event reducers, combat kill stat+contribution hooks, quest completion stat hooks, seeding integration, publish module and regenerate bindings
-- [ ] 18-03-PLAN.md — Client UI: WorldEventPanel with active/resolved events and stat trackers, useGameData subscriptions, App.vue wiring with action bar button, human verification
+- [ ] 18-01-PLAN.md — Backend foundation: WorldEvent/EventContribution/EventSpawnEnemy/EventSpawnItem/EventObjective/EventDespawnTick tables, event data constants with tier reward specs, lifecycle helpers (fire/resolve/reward/consequence/spawn)
+- [ ] 18-02-PLAN.md — Reducers and hooks: fire/resolve/collect/increment/despawn reducers, combat kill contribution hooks, movement auto-registration, publish module and regenerate bindings
+- [ ] 18-03-PLAN.md — Client UI: WorldEventPanel with Active + History tabs, banner overlay notification, action bar button with badge, useGameData subscriptions, human verification
 
 ### Phase 19: NPC Interactions - Deepen relationships, dialogue complexity, affinity systems, and dynamic NPC reactions to player actions
 
