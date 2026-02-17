@@ -308,9 +308,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 104 | Add Help button with tutorial overlay - full-screen help overlay explaining game basics, UI interactions, travel costs, and location icons, accessible from action bar | 2026-02-16 | a191d13 | [104-we-need-a-help-button-in-the-action-butt](./quick/104-we-need-a-help-button-in-the-action-butt/) |
 | 105 | Fix HelpOverlay z-index and height constraints - overlay renders above footer at z-index 10001 with calc-based height constraint, moved after footer in DOM for correct stacking | 2026-02-16 | a5f7288 | [105-the-help-window-is-too-tall-and-is-going](./quick/105-the-help-window-is-too-tall-and-is-going/) |
 | 106 | Seed more NPCs with dialog chains and dialogue abilities - added 9 new NPCs across all 3 regions with multi-tier dialogue trees (44 options), affinity-gated backstories, and 9 kill quests spanning level ranges 1-8 | 2026-02-17 | 5f96724 | [106-seed-more-npcs-with-dialog-chains-and-di](./quick/106-seed-more-npcs-with-dialog-chains-and-di/) |
+| 107 | Fix Ranger Track ability when in a group - added client-side puller guard in useHotbar (blocks Track panel) and server-side guard in use_ability reducer (blocks execution, no cooldown consumed) for non-puller group members | 2026-02-17 | f1e7252 | [107-fix-ranger-track-ability-when-in-a-group](./quick/107-fix-ranger-track-ability-when-in-a-group/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick-106: Seed more NPCs with dialog chains and dialogue abilities.
+Last activity: 2026-02-17 - Completed quick-107: Fix Ranger Track ability when in a group - added client-side (useHotbar) and server-side (use_ability reducer) puller guards blocking ranger_track for non-pullers with 'You must be the puller to use this ability' message.
