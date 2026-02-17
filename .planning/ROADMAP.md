@@ -500,8 +500,8 @@ Plans:
 
 Plans:
 - [x] 11-01-PLAN.md — Backend foundation: Corpse/CorpseItem tables, createCorpse helper, death hook in combat defeat sections, respawn modification, loot_corpse_item/loot_all_corpse reducers, corpse decay cleanup, publish and regenerate bindings
-- [ ] 11-02-PLAN.md — Resurrection and Corpse Summon: PendingResurrect/PendingCorpseSummon tables, cleric_resurrect/cleric_corpse_summon ability definitions, initiate/accept/decline reducers with confirmation flow, publish and regenerate bindings
-- [ ] 11-03-PLAN.md — Frontend UI: Points of Interest section in LocationGrid, corpse context menus, confirmation dialogs for resurrect/summon, useGameData subscriptions, App.vue wiring, human verification
+- [x] 11-02-PLAN.md — Resurrection and Corpse Summon: PendingResurrect/PendingCorpseSummon tables, cleric_resurrect/cleric_corpse_summon ability definitions, initiate/accept/decline reducers with confirmation flow, publish and regenerate bindings (refactored to unified PendingSpellCast via quick-93)
+- [x] 11-03-PLAN.md — Frontend UI: skipped per user decision; functionality deemed complete
 
 ### Phase 12: Overall Renown System - Character-wide renown separate from factions, renown ranks with unlockable perks, renown gain sources from events/bosses/achievements
 

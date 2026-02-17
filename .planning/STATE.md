@@ -34,7 +34,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 8 | Narrative Tone Rollout | Pending |
 | 9 | Content Data Expansion | Pending |
 | 10 | Travel & Movement Costs | Complete (2/2 plans done: backend + UI, human-verified) |
-| 11 | Death & Corpse System | In Progress (1/? plans done: backend foundation) |
+| 11 | Death & Corpse System | Complete (2/2 plans done: backend foundation + resurrection/corpse summon; UI skipped per user decision) |
 | 12 | Overall Renown System | Complete (3/3 plans done: backend + integration + UI, human-verified) |
 | 14 | Loot & Gear Progression | Complete (4/4 plans done: schema+catalog, loot pipeline, legendary drops+salvage, client UI, human-verified) |
 | 19 | NPC Interactions | In Progress (2/? plans done: backend foundation, interaction reducers) |
