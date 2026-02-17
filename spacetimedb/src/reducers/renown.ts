@@ -49,6 +49,36 @@ export const registerRenownReducers = (deps: any) => {
       chosenAt: ctx.timestamp,
     });
 
+    // Auto-assign active ability perks to the hotbar
+    if (perk.type === 'active' && perk.effect.perkAbilityKey) {
+      const abilityKey = perk.effect.perkAbilityKey;
+      // Find all used hotbar slots for this character
+      const usedSlots = new Set<number>();
+      for (const slot of ctx.db.hotbarSlot.by_character.filter(characterId)) {
+        usedSlots.add(Number(slot.slot));
+      }
+      // Find first empty slot 0-11
+      let emptySlot: number | null = null;
+      for (let i = 0; i <= 11; i++) {
+        if (!usedSlots.has(i)) {
+          emptySlot = i;
+          break;
+        }
+      }
+      if (emptySlot !== null) {
+        ctx.db.hotbarSlot.insert({
+          id: 0n,
+          characterId,
+          slot: emptySlot,
+          abilityKey,
+          assignedAt: ctx.timestamp,
+        });
+        appendSystemMessage(ctx, character, `${perk.name} added to hotbar slot ${emptySlot}.`);
+      } else {
+        appendSystemMessage(ctx, character, `${perk.name} granted! Manage your hotbar to use it.`);
+      }
+    }
+
     // Log message
     appendSystemMessage(ctx, character, `You have chosen the perk: ${perk.name}`);
   });

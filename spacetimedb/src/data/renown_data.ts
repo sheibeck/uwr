@@ -47,6 +47,14 @@ type PerkEffect = {
   cooldownSeconds?: number;
   description?: string;
 
+  // Active ability fields
+  perkAbilityKey?: string;       // e.g. 'perk_second_wind' — key used in hotbar/cooldown
+  healPercent?: number;          // for Second Wind: heal for X% of max HP
+  damagePercent?: number;        // for Thunderous Blow: deal X% weapon damage (300 = 300%)
+  buffType?: string;             // for Wrath of the Fallen: effect type to apply
+  buffMagnitude?: bigint;        // buff strength
+  buffDurationSeconds?: number;  // buff duration in seconds
+
   // Proc effects
   procType?: 'on_crit' | 'on_hit' | 'on_kill' | 'on_damage_taken';
   procChance?: number;           // percentage 0-100
@@ -198,7 +206,12 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       name: 'Second Wind',
       type: 'active',
       description: 'Restore 20% of your maximum health (5 min cooldown)',
-      effect: { cooldownSeconds: 300, description: 'Restores 20% HP' },
+      effect: {
+        cooldownSeconds: 300,
+        perkAbilityKey: 'perk_second_wind',
+        healPercent: 20,
+        description: 'Restores 20% HP',
+      },
       domain: 'combat',
     },
     {
@@ -252,7 +265,13 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       name: 'Thunderous Blow',
       type: 'active',
       description: 'Deal 300% weapon damage to target (5 min cooldown)',
-      effect: { cooldownSeconds: 300, procDamageMultiplier: 300n, description: '300% weapon damage' },
+      effect: {
+        cooldownSeconds: 300,
+        perkAbilityKey: 'perk_thunderous_blow',
+        damagePercent: 300,
+        procDamageMultiplier: 300n,
+        description: '300% weapon damage',
+      },
       domain: 'combat',
     },
     {
@@ -306,7 +325,14 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       name: 'Wrath of the Fallen',
       type: 'active',
       description: '+25% all damage for 20 seconds (10 min cooldown)',
-      effect: { cooldownSeconds: 600, description: '+25% all damage for 20s' },
+      effect: {
+        cooldownSeconds: 600,
+        perkAbilityKey: 'perk_wrath_of_fallen',
+        buffType: 'damage_boost',
+        buffMagnitude: 25n,
+        buffDurationSeconds: 20,
+        description: '+25% all damage for 20s',
+      },
       domain: 'combat',
     },
     {
