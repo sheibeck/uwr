@@ -1167,14 +1167,23 @@ export const registerCombatReducers = (deps: any) => {
       const manaRegen = inCombat ? MANA_REGEN_IN : MANA_REGEN_OUT;
       const staminaRegen = inCombat ? STAMINA_REGEN_IN : STAMINA_REGEN_OUT;
 
+      // Sum food regen bonus effects (food_mana_regen, food_stamina_regen)
+      // These increase the per-tick regen rate instead of granting periodic heals
+      let manaRegenBonus = 0n;
+      let staminaRegenBonus = 0n;
+      for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
+        if (effect.effectType === 'food_mana_regen') manaRegenBonus += effect.magnitude;
+        else if (effect.effectType === 'food_stamina_regen') staminaRegenBonus += effect.magnitude;
+      }
+
       const nextHp =
         character.hp >= character.maxHp ? character.hp : character.hp + hpRegen;
       const nextMana =
-        character.mana >= character.maxMana ? character.mana : character.mana + manaRegen;
+        character.mana >= character.maxMana ? character.mana : character.mana + manaRegen + manaRegenBonus;
       const nextStamina =
         character.stamina >= character.maxStamina
           ? character.stamina
-          : character.stamina + staminaRegen;
+          : character.stamina + staminaRegen + staminaRegenBonus;
 
       ctx.db.character.id.update({
         ...character,
