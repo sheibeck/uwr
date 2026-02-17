@@ -363,7 +363,7 @@ export function ensureFoodItemTemplates(ctx: any) {
       name: 'Herb Broth',
       wellFedDurationMicros: 2_700_000_000n,
       wellFedBuffType: 'mana_regen',
-      wellFedBuffMagnitude: 4n,
+      wellFedBuffMagnitude: 1n,
     },
     {
       name: 'Roasted Roots',
@@ -375,13 +375,19 @@ export function ensureFoodItemTemplates(ctx: any) {
       name: "Traveler's Stew",
       wellFedDurationMicros: 2_700_000_000n,
       wellFedBuffType: 'stamina_regen',
-      wellFedBuffMagnitude: 4n,
+      wellFedBuffMagnitude: 1n,
     },
     {
       name: "Forager's Salad",
       wellFedDurationMicros: 2_700_000_000n,
       wellFedBuffType: 'dex',
       wellFedBuffMagnitude: 2n,
+    },
+    {
+      name: "Healer's Porridge",
+      wellFedDurationMicros: 2_700_000_000n,
+      wellFedBuffType: 'health_regen',
+      wellFedBuffMagnitude: 1n,
     },
   ];
 

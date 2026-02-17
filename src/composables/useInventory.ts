@@ -92,6 +92,7 @@ export const useInventory = ({
         const WELL_FED_BUFF_LABELS: Record<string, string> = {
           mana_regen: 'mana regeneration per tick',
           stamina_regen: 'stamina regeneration per tick',
+          health_regen: 'health regeneration per tick',
           str: 'STR',
           dex: 'DEX',
           int: 'INT',

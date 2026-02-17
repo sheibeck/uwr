@@ -3,6 +3,7 @@ const BUFF_TYPE_LABELS: Record<string, string> = {
   'dex': 'dexterity',
   'mana_regen': 'mana regeneration',
   'stamina_regen': 'stamina regeneration',
+  'health_regen': 'health regeneration',
 };
 
 export const registerFoodReducers = (deps: any) => {
@@ -52,6 +53,7 @@ export const registerFoodReducers = (deps: any) => {
         else if (template.wellFedBuffType === 'dex') effectType = 'dex_bonus';
         else if (template.wellFedBuffType === 'mana_regen') effectType = 'food_mana_regen';
         else if (template.wellFedBuffType === 'stamina_regen') effectType = 'food_stamina_regen';
+        else if (template.wellFedBuffType === 'health_regen') effectType = 'food_health_regen';
 
         if (effectType) {
           // Insert new food buff effect with high roundsRemaining (99 = long-duration)
