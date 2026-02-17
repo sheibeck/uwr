@@ -329,9 +329,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 115 | Remove log button from action bar - log panel permanently open since quick-78, removed button, dead emit, and always-true isActive override | 2026-02-16 | 54cfd3a | [115-remove-log-button-from-action-bar-since-](./quick/115-remove-log-button-from-action-bar-since-/) |
 | 116 | Fix backpack full message triggering at 15/20 slots - equipped items were counted toward bag slot capacity; added equippedSlot filter to itemCount in buy_item and take_loot reducers | 2026-02-16 | e488dcd | [116-fix-backpack-full-message-triggering-inc](./quick/116-fix-backpack-full-message-triggering-inc/) |
 | 117 | Add /resetwindows command to reset all panel positions to center of screen - resetAllPanels() in usePanelManager centers all panels and persists via localStorage + server save, wired through useCommands with addLocalEvent confirmation | 2026-02-17 | 7d360fa | [117-add-resetwindows-command-to-reset-all-pa](./quick/117-add-resetwindows-command-to-reset-all-pa/) |
+| 118 | Replace shared resource nodes with personal per-character nodes discovered via passive search - ResourceNode gains optional characterId + by_character index, passive search spawns 2-3 personal nodes on 65% roll, finish_gather deletes personal nodes immediately, client filters to selected character's nodes | 2026-02-17 | 099af04 | [118-replace-shared-resource-nodes-with-perso](./quick/118-replace-shared-resource-nodes-with-perso/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Completed quick-117: Add /resetwindows command — client-side emergency recovery command that centers all panel positions on screen and persists via localStorage + server save. Wired resetAllPanels from usePanelManager through useCommands via forward-declared callback ref. Shows "All windows reset to center." confirmation in log.
+Last activity: 2026-02-17 - Completed quick-118: Replace shared resource nodes with personal per-character nodes — ResourceNode table gains optional characterId + by_character index, spawnResourceNode accepts characterId/seedOffset, bootstrap no longer pre-spawns shared nodes, passive search spawns 2-3 personal nodes on 65% roll with cleanup on re-entry, finish_gather deletes personal nodes immediately instead of depleting, client filters to show only selected character's nodes.
