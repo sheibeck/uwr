@@ -659,7 +659,7 @@ export const registerItemReducers = (deps: any) => {
         let targetName = args.targetCharacterId
           ? ctx.db.character.id.find(args.targetCharacterId)?.name ?? 'your target'
           : 'yourself';
-        if (combatId) {
+        if (combatId && !args.targetCharacterId) {
           const enemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
           const preferred = character.combatTargetEnemyId
             ? enemies.find((row) => row.id === character.combatTargetEnemyId)
