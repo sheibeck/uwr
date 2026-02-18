@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Phase 13 complete (3/3 plans done) — crafting system fully wired: data foundation, reducers, and UI with filter chips, craftable toggle, red/green material display, and Learn Recipe scroll action.
+**Status:** Phase 13 (Crafting System) complete and human-verified — material-driven gear crafting, salvage → materials, deterministic affixes, recipe scroll learning, and full UI working in-game. Next: Phase 18 Plan 03 (World Events UI) or Phase 16 (Travelling NPCs).
 
 ---
 
@@ -10,9 +10,9 @@
 
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
 
-**Last completed phase:** 13 (Crafting System) — 3/3 plans complete
-**Current phase:** 13 (Crafting System) — All plans complete
-**Next action:** Publish module + generate bindings to make recipeType/materialType live; then proceed to next phase
+**Last completed phase:** 13 (Crafting System) — 3/3 plans complete, human-verified
+**Current phase:** —
+**Next action:** Phase 18 Plan 03 (World Events client UI) or Phase 16 (Travelling NPCs)
 
 ---
 
@@ -40,7 +40,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 15 | Named NPCs | Complete (implemented organically via Phase 19 and quick tasks — NPC entities, shops, world placement all in place) |
 | 19 | NPC Interactions | Complete (2/2 plans done: backend affinity/dialogue + interaction reducers; UI skipped per user decision — multi-step questing via NPC dialogue is sufficient MVP) |
 | 20 | Perk Variety Expansion | Complete (3/3 plans done: perk data foundation + perk logic implementation + active ability perks with hotbar integration) |
-| 13 | Crafting System | Complete (3/3 plans done: data foundation + reducers + UI filter chips/craftable toggle/material display/scroll learning) |
+| 13 | Crafting System | Complete (3/3 plans done: data foundation + reducers + UI filter chips/craftable toggle/material display/scroll learning, human-verified) |
 
 ---
 
