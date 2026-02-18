@@ -480,6 +480,37 @@ export const ESSENCE_TIER_THRESHOLDS: { minLevel: bigint; essenceName: string }[
 ];
 
 // ---------------------------------------------------------------------------
+// MODIFIER REAGENT THRESHOLDS — used by combat.ts for runtime reagent drops
+// Maps enemy level ranges to eligible modifier reagent names.
+// Ordered highest-first for early-return matching.
+// ---------------------------------------------------------------------------
+
+export const MODIFIER_REAGENT_THRESHOLDS: { minLevel: bigint; reagentNames: string[] }[] = [
+  {
+    // Level 21+: all 9 modifier reagents available
+    minLevel: 21n,
+    reagentNames: [
+      'Glowing Stone', 'Clear Crystal', 'Life Stone',
+      'Ancient Rune', 'Wisdom Herb', 'Iron Ward',
+      'Silver Token', 'Mana Pearl', 'Spirit Ward',
+    ],
+  },
+  {
+    // Level 11-20: basic + mid-tier (caster + defensive added)
+    minLevel: 11n,
+    reagentNames: [
+      'Glowing Stone', 'Clear Crystal', 'Life Stone',
+      'Ancient Rune', 'Wisdom Herb', 'Iron Ward',
+    ],
+  },
+  {
+    // Level 1-10: basic stat reagents only
+    minLevel: 1n,
+    reagentNames: ['Glowing Stone', 'Clear Crystal', 'Life Stone'],
+  },
+];
+
+// ---------------------------------------------------------------------------
 // CRAFTING MODIFIER DEFINITIONS
 // Modifier items that can be added to gear during crafting via the crafting dialog.
 // Each modifier item corresponds to one stat affix applied to the crafted item.

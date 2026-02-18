@@ -3,6 +3,7 @@ import { getGatherableResourceTemplates, findEnemyTemplateByName } from '../help
 import { findItemTemplateByName } from '../helpers/items';
 import { EnemyTemplate } from '../schema/tables';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
+import { CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 
 export function ensureLootTables(ctx: any) {
   const junkTemplates = [...ctx.db.itemTemplate.iter()].filter((row) => row.isJunk);
@@ -143,6 +144,13 @@ export function ensureMaterialLootEntries(ctx: any) {
   const shadowhide = findItemTemplateByName(ctx, 'Shadowhide');
   const voidCrystal = findItemTemplateByName(ctx, 'Void Crystal');
 
+  // Look up modifier reagent templates (for mid/high-tier loot table seeding)
+  const modifierReagentTemplates: Map<string, any> = new Map();
+  for (const def of CRAFTING_MODIFIER_DEFS) {
+    const tmpl = findItemTemplateByName(ctx, def.name);
+    if (tmpl) modifierReagentTemplates.set(def.name, tmpl);
+  }
+
   // Look up scroll templates
   const scrollLongsword = findItemTemplateByName(ctx, 'Scroll: Longsword');
   const scrollDagger = findItemTemplateByName(ctx, 'Scroll: Dagger');
@@ -166,6 +174,13 @@ export function ensureMaterialLootEntries(ctx: any) {
       if (roughHide) upsertLootEntry(animalTable.id, roughHide.id, 20n);
       if (isMidTier || isHighTier) {
         if (tannedLeather) upsertLootEntry(animalTable.id, tannedLeather.id, 15n);
+        // Mid/high-tier modifier reagents: physical stat reagents from natural creatures
+        const glowingStone = modifierReagentTemplates.get('Glowing Stone');
+        const clearCrystal = modifierReagentTemplates.get('Clear Crystal');
+        const lifeStone = modifierReagentTemplates.get('Life Stone');
+        if (glowingStone) upsertLootEntry(animalTable.id, glowingStone.id, 8n);
+        if (clearCrystal) upsertLootEntry(animalTable.id, clearCrystal.id, 8n);
+        if (lifeStone) upsertLootEntry(animalTable.id, lifeStone.id, 6n);
       }
       if (isHighTier) {
         if (shadowhide) upsertLootEntry(animalTable.id, shadowhide.id, 10n);
@@ -184,6 +199,13 @@ export function ensureMaterialLootEntries(ctx: any) {
       if (roughHide) upsertLootEntry(beastTable.id, roughHide.id, 20n);
       if (isMidTier || isHighTier) {
         if (tannedLeather) upsertLootEntry(beastTable.id, tannedLeather.id, 15n);
+        // Mid/high-tier modifier reagents: physical stat reagents from natural creatures
+        const glowingStone = modifierReagentTemplates.get('Glowing Stone');
+        const clearCrystal = modifierReagentTemplates.get('Clear Crystal');
+        const lifeStone = modifierReagentTemplates.get('Life Stone');
+        if (glowingStone) upsertLootEntry(beastTable.id, glowingStone.id, 8n);
+        if (clearCrystal) upsertLootEntry(beastTable.id, clearCrystal.id, 8n);
+        if (lifeStone) upsertLootEntry(beastTable.id, lifeStone.id, 6n);
       }
       if (isHighTier) {
         if (shadowhide) upsertLootEntry(beastTable.id, shadowhide.id, 12n);
@@ -202,6 +224,13 @@ export function ensureMaterialLootEntries(ctx: any) {
       if (boneShard) upsertLootEntry(undeadTable.id, boneShard.id, 18n);
       if (isMidTier || isHighTier) {
         if (spiritEssence) upsertLootEntry(undeadTable.id, spiritEssence.id, 15n);
+        // Mid/high-tier modifier reagents: magical/defensive from undead
+        const ancientRune = modifierReagentTemplates.get('Ancient Rune');
+        const lifeStone = modifierReagentTemplates.get('Life Stone');
+        const spiritWard = modifierReagentTemplates.get('Spirit Ward');
+        if (ancientRune) upsertLootEntry(undeadTable.id, ancientRune.id, 8n);
+        if (lifeStone) upsertLootEntry(undeadTable.id, lifeStone.id, 6n);
+        if (spiritWard) upsertLootEntry(undeadTable.id, spiritWard.id, 6n);
       }
       if (isHighTier) {
         // High-tier: weapon scrolls from undead
@@ -217,6 +246,13 @@ export function ensureMaterialLootEntries(ctx: any) {
     if (spiritTable) {
       if (isMidTier || isHighTier) {
         if (spiritEssence) upsertLootEntry(spiritTable.id, spiritEssence.id, 18n);
+        // Mid/high-tier modifier reagents: caster reagents from spirits
+        const wisdomHerb = modifierReagentTemplates.get('Wisdom Herb');
+        const manaPearl = modifierReagentTemplates.get('Mana Pearl');
+        const spiritWard = modifierReagentTemplates.get('Spirit Ward');
+        if (wisdomHerb) upsertLootEntry(spiritTable.id, wisdomHerb.id, 8n);
+        if (manaPearl) upsertLootEntry(spiritTable.id, manaPearl.id, 8n);
+        if (spiritWard) upsertLootEntry(spiritTable.id, spiritWard.id, 6n);
       } else {
         // Low-tier spirits only have T1 bone_shard
         if (boneShard) upsertLootEntry(spiritTable.id, boneShard.id, 10n);
@@ -237,6 +273,13 @@ export function ensureMaterialLootEntries(ctx: any) {
     if (constructTable) {
       if (isMidTier || isHighTier) {
         if (shadowhide) upsertLootEntry(constructTable.id, shadowhide.id, 15n);
+        // Mid/high-tier modifier reagents: defensive/arcane from constructs
+        const ironWard = modifierReagentTemplates.get('Iron Ward');
+        const glowingStone = modifierReagentTemplates.get('Glowing Stone');
+        const manaPearl = modifierReagentTemplates.get('Mana Pearl');
+        if (ironWard) upsertLootEntry(constructTable.id, ironWard.id, 8n);
+        if (glowingStone) upsertLootEntry(constructTable.id, glowingStone.id, 6n);
+        if (manaPearl) upsertLootEntry(constructTable.id, manaPearl.id, 6n);
       }
       if (isHighTier) {
         if (voidCrystal) upsertLootEntry(constructTable.id, voidCrystal.id, 12n);
@@ -256,6 +299,13 @@ export function ensureMaterialLootEntries(ctx: any) {
       if (boneShard) upsertLootEntry(humanoidTable.id, boneShard.id, 15n);
       if (isMidTier || isHighTier) {
         if (spiritEssence) upsertLootEntry(humanoidTable.id, spiritEssence.id, 12n);
+        // Mid/high-tier modifier reagents: social/diverse from humanoids
+        const silverToken = modifierReagentTemplates.get('Silver Token');
+        const clearCrystal = modifierReagentTemplates.get('Clear Crystal');
+        const wisdomHerb = modifierReagentTemplates.get('Wisdom Herb');
+        if (silverToken) upsertLootEntry(humanoidTable.id, silverToken.id, 8n);
+        if (clearCrystal) upsertLootEntry(humanoidTable.id, clearCrystal.id, 6n);
+        if (wisdomHerb) upsertLootEntry(humanoidTable.id, wisdomHerb.id, 6n);
       }
       if (isHighTier) {
         // High-tier: weapon scrolls from humanoids
