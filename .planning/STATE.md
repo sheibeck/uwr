@@ -202,6 +202,9 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 152. Essence tier thresholds corrected to 10-level-wide bands matching enemy tier structure; Essence IV added for level 31+ enemies — 1-10=I, 11-20=II, 21-30=III, 31+=IV; Essence IV defined in MATERIAL_DEFS (tier 4n) and seeded as ItemTemplate (vendorValue 24n) (quick-163)
 154. --clear-database is ONLY required for schema changes (adding non-optional columns to existing tables) — NOT for adding new enemy templates, items, abilities, or other data rows; all seeding functions use upsert (find-or-insert + update) patterns via syncAllContent(); plain `spacetime publish` preserves all player data (quick-172)
 155. New enemy abilities require entries in TWO places: (1) EnemyAbility DB table via ensureEnemyAbilities() in ensure_world.ts for ability SELECTION by the combat loop tick, AND (2) ENEMY_ABILITIES constant in data/abilities/enemy_abilities.ts for ability EXECUTION in executeEnemyAbility(); missing #2 causes silent no-op and enemy auto-attacks instead (quick-176)
+156. Rare affix budget cap raised from 2n to 4n — rare dropped gear (2 affixes, max 4n total) now matches crafted reinforced gear (2 modifier slots x magnitude 2n each = 4n); previous cap of 2n made rare drops strictly weaker than crafted equivalents (quick-177)
+157. T2 gear (requiredLevel 11+) seeded into mid/high-tier loot tables (mountains/town/city/dungeon) at weight 3n vs T1 weight 6n — T2 gear is rarer than T1 in these zones to maintain tier gradient (quick-177)
+158. BigInt affix magnitudes must be converted to Number before JSON.stringify in generateLootTemplates — BigInt is not JSON-serializable; take_loot already expected number type and calls BigInt() on insert; omitting conversion caused combat_loop PANIC on any non-common gear drop (quick-177)
 
 ---
 
@@ -356,9 +359,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 175 | Convert 4 insert-only seeding functions to upsert pattern — ensureResourceItemTemplates (3 loops), ensureGearMaterialItemTemplates, ensureCraftingModifierItemTemplates, ensureRecipeScrollItemTemplates all converted from skip-if-exists to find-or-insert+update; adding new resources/materials/modifiers/scrolls now works on plain spacetime publish without --clear-database | 2026-02-18 | df869dd | [175-let-s-make-sure-we-can-add-resources-and](./quick/175-let-s-make-sure-we-can-add-resources-and/) |
 | 174 | Flee cast bar — clicking Flee starts a 3-second client-side timer (localFlee ref + setTimeout); flee_combat reducer fires after 3s; CombatPanel shows amber fill bar + "Cancel" button text during cast; re-clicking cancels and clears timer; watcher auto-clears localFlee when combat ends | 2026-02-18 | 35ba79b | [174-flee-cast-bar-3-second-cast-time-before-](./quick/174-flee-cast-bar-3-second-cast-time-before-/) |
 | 176 | Fix newly added night enemies not logging special ability names — 8 missing ENEMY_ABILITIES definitions added (moth_dust, plague_bite, spectral_flame, shadow_pounce, drowning_grasp, soul_rend, venom_fang, sonic_screech); quick-170 enemies now execute their special abilities with correct combat log names instead of falling through to auto-attack | 2026-02-18 | ed1d519 | [176-fix-newly-added-enemies-not-logging-spec](./quick/176-fix-newly-added-enemies-not-logging-spec/) |
+| 177 | Validate and fix gear drop parity — rare affix budget raised from 2n to 4n (matches crafted reinforced), T2 gear added to mid/high-tier loot tables (mountains/town/city/dungeon, weight 3n), pre-existing BigInt JSON serialization panic fixed in combat_loop generateLootTemplates | 2026-02-18 | ee95c9d | [177-validate-that-gear-that-can-drop-from-en](./quick/177-validate-that-gear-that-can-drop-from-en/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 176: added 8 missing ENEMY_ABILITIES definitions for night enemies from quick-170; all 8 night enemies now use their special abilities in combat with correct log messages instead of auto-attacking
+Last activity: 2026-02-18 - Completed quick task 177: raised rare affix budget cap to 4n (parity with crafted reinforced), added T2 gear to mid/high-tier loot tables, fixed BigInt JSON serialization panic in combat_loop generateLootTemplates
