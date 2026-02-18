@@ -366,9 +366,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 183 | Fix version.json polling URL to use Vite BASE_URL — changed hardcoded /version.json to import.meta.env.BASE_URL + 'version.json' in src/main.ts; fixes 404 on GitHub Pages (/uwr/ deployment) where file lives at /uwr/version.json; dev mode unaffected (BASE_URL defaults to /) | 2026-02-18 | bab1585 | [183-fix-version-json-url-to-use-base-url-uwr](./quick/183-fix-version-json-url-to-use-base-url-uwr/) |
 | 184 | Restore Discover Recipes button to CraftingPanel — added button above filter chips with styles.ghostButton, disabled when !craftingAvailable or combatLocked, emits 'research' event; App.vue wired @research="onResearchRecipes"; onResearchRecipes and the research_recipes reducer were already intact | 2026-02-18 | e7bb5e7 | [184-restore-discover-recipes-button-in-craft](./quick/184-restore-discover-recipes-button-in-craft/) |
 | 185 | Fix version check causing infinite browser reloads — single BUILD_VERSION constant in vite.config.ts shared by define block and versionPlugin.closeBundle; previously two separate Date.now() calls produced different timestamps so CLIENT_VERSION never matched version.json | 2026-02-18 | e3156af | [185-fix-version-check-to-only-reload-browser](./quick/185-fix-version-check-to-only-reload-browser/) |
+| 186 | Filter gear recipes from Discover Recipes button — added isGearRecipe guard in research_recipes loop that skips recipeType != 'consumable'; 15 gear recipes (weapon/armor/accessory) excluded from auto-discovery while 14 consumable recipes remain freely discoverable; gear recipe paths via salvage/scroll unchanged | 2026-02-18 | 14ef3ac | [186-filter-gear-recipes-from-discover-recipe](./quick/186-filter-gear-recipes-from-discover-recipe/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 185: fixed version mismatch in vite.config.ts causing infinite 60s-poll reloads; single BUILD_VERSION constant now shared between define block and versionPlugin
+Last activity: 2026-02-18 - Completed quick task 186: filtered gear recipes from research_recipes reducer; isGearRecipe guard skips weapon/armor/accessory recipeType so Discover Recipes button only auto-discovers consumable/food recipes
