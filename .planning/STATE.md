@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-17
-**Status:** Phase 13 Plan 01 complete — crafting data foundation established (10 materials, 15 gear recipes, 15 recipe scrolls, 3 crafting stations). Plan 02 (craft_recipe reducer) next.
+**Status:** Phase 13 complete (3/3 plans done) — crafting system fully wired: data foundation, reducers, and UI with filter chips, craftable toggle, red/green material display, and Learn Recipe scroll action.
 
 ---
 
@@ -10,9 +10,9 @@
 
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
 
-**Last completed phase:** 20 (Perk Variety Expansion) — 3/3 plans complete
-**Current phase:** 13 (Crafting System) — Plan 01 complete (data foundation), Plan 02 next (craft_recipe reducer rework)
-**Next action:** Execute 13-02-PLAN.md (craft_recipe reducer logic using new recipeType/materialType columns)
+**Last completed phase:** 13 (Crafting System) — 3/3 plans complete
+**Current phase:** 13 (Crafting System) — All plans complete
+**Next action:** Publish module + generate bindings to make recipeType/materialType live; then proceed to next phase
 
 ---
 
@@ -40,6 +40,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 15 | Named NPCs | Complete (implemented organically via Phase 19 and quick tasks — NPC entities, shops, world placement all in place) |
 | 19 | NPC Interactions | Complete (2/2 plans done: backend affinity/dialogue + interaction reducers; UI skipped per user decision — multi-step questing via NPC dialogue is sufficient MVP) |
 | 20 | Perk Variety Expansion | Complete (3/3 plans done: perk data foundation + perk logic implementation + active ability perks with hotbar integration) |
+| 13 | Crafting System | Complete (3/3 plans done: data foundation + reducers + UI filter chips/craftable toggle/material display/scroll learning) |
 
 ---
 
@@ -182,6 +183,9 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 135. materialType=undefined on all 15 gear RecipeTemplates — Plan 02 craft_recipe reducer accepts any valid crafting material for req1 without type-gating per material (13-01)
 136. Static ResourceNode seeding replaced with getGatherableResourceTemplates terrain pool entries — personal node system (quick-118/119) spawns nodes at runtime via passive search; static rows are obsolete (13-01)
 137. Salvage now yields crafting materials (via getMaterialForSalvage) with SALVAGE_YIELD_BY_TIER 2/2/3 — gold-only salvage from Phase 14 extended with material output, no gold component change (13-01)
+138. CraftingPanel filter state (activeFilter, showOnlyCraftable) owned in useCrafting composable, passed as props to CraftingPanel and updated via update:activeFilter/update:showOnlyCraftable emits — clean unidirectional data flow (13-03)
+139. learnRecipeFromScroll uses window.__db_conn directly in InventoryPanel to avoid adding new emit chain through CharacterInfoPanel for a single non-destructive action (13-03)
+140. isRecipeScroll checks item.name.startsWith('Scroll:') — matches seeded scroll naming convention from Plan 01 ensureRecipeScrollItemTemplates (13-03)
 
 ---
 
@@ -234,6 +238,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | Phase 18 P02 | 20 | 2 tasks | 5 files |
 | Phase 18 P03 | ~5min | 2 tasks | 5 files |
 | 13-crafting-system | 01 | ~8min | 2 | 7 |
+| 13-crafting-system | 03 | ~10min | 3 | 4 |
 
 ## Accumulated Context
 
@@ -313,4 +318,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 150: Disable legendary items by commenting them out since they aren't tied to actual bosses yet
+Last activity: 2026-02-17 - Phase 13 Plan 03 complete: useCrafting extended with activeFilter/showOnlyCraftable/filteredRecipes/recipeTypes/hasMaterial; CraftingPanel rebuilt with type filter chips, craftable toggle, red/green material display, Research Recipes button removed; InventoryPanel salvage text updated to "crafting materials", Learn Recipe action added for Scroll: items calling learnRecipeScroll reducer via window.__db_conn. Phase 13 (Crafting System) now fully complete (3/3 plans). Stopped at: Completed 13-03-PLAN.md
