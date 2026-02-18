@@ -371,3 +371,22 @@ export const SALVAGE_YIELD_BY_TIER: Record<number, bigint> = {
   2: 2n,
   3: 3n,
 };
+
+/**
+ * Returns the numeric stat bonus for a given craft quality level.
+ * This bonus is applied as implicit ItemAffix rows on crafted gear to represent
+ * the base stat improvement from using higher-tier materials.
+ *
+ * - dented:     0n (no bonus, below standard quality)
+ * - standard:   0n (no bonus, tier 1 baseline)
+ * - reinforced: 1n (tier 2 bonus: +1 AC or +1/+1 baseDamage/dps)
+ * - exquisite:  2n (tier 3 bonus: +2 AC or +2/+2 baseDamage/dps)
+ * - mastercraft: 3n (reserved for future use)
+ * - default:    0n
+ */
+export function getCraftQualityStatBonus(craftQuality: string): bigint {
+  if (craftQuality === 'reinforced') return 1n;
+  if (craftQuality === 'exquisite') return 2n;
+  if (craftQuality === 'mastercraft') return 3n;
+  return 0n;
+}

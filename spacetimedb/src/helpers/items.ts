@@ -221,6 +221,7 @@ export function getEquippedBonuses(ctx: any, characterId: bigint) {
     cooldownReduction: 0n,
     manaRegen: 0n,
     weaponBaseDamage: 0n,
+    weaponDps: 0n,
   };
   for (const instance of ctx.db.itemInstance.by_owner.filter(characterId)) {
     if (!instance.equippedSlot) continue;
@@ -252,6 +253,7 @@ export function getEquippedBonuses(ctx: any, characterId: bigint) {
       else if (key === 'cooldownReduction') bonuses.cooldownReduction += affix.magnitude;
       else if (key === 'manaRegen') bonuses.manaRegen += affix.magnitude;
       else if (key === 'weaponBaseDamage') bonuses.weaponBaseDamage += affix.magnitude;
+      else if (key === 'weaponDps') bonuses.weaponDps += affix.magnitude;
     }
   }
   return bonuses;
@@ -262,9 +264,16 @@ export function getEquippedWeaponStats(ctx: any, characterId: bigint) {
     if (instance.equippedSlot !== 'mainHand') continue;
     const template = ctx.db.itemTemplate.id.find(instance.templateId);
     if (!template) continue;
+    // Sum weapon affix bonuses (includes craft quality implicit affixes)
+    let bonusDamage = 0n;
+    let bonusDps = 0n;
+    for (const affix of ctx.db.itemAffix.by_instance.filter(instance.id)) {
+      if (affix.statKey === 'weaponBaseDamage') bonusDamage += affix.magnitude;
+      else if (affix.statKey === 'weaponDps') bonusDps += affix.magnitude;
+    }
     return {
-      baseDamage: template.weaponBaseDamage,
-      dps: template.weaponDps,
+      baseDamage: template.weaponBaseDamage + bonusDamage,
+      dps: template.weaponDps + bonusDps,
       name: template.name,
       weaponType: template.weaponType,
     };

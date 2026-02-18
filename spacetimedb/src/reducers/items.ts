@@ -1,7 +1,7 @@
 import { buildDisplayName, findItemTemplateByName } from '../helpers/items';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { getPerkBonusByField } from '../helpers/renown';
-import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, MATERIAL_DEFS, getCraftedAffixes, materialTierToQuality, materialTierToCraftQuality } from '../data/crafting_materials';
+import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, MATERIAL_DEFS, getCraftedAffixes, materialTierToQuality, materialTierToCraftQuality, getCraftQualityStatBonus } from '../data/crafting_materials';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -1021,6 +1021,44 @@ export const registerItemReducers = (deps: any) => {
             }
             // Build display name with prefix/suffix
             craftedDisplayName = buildDisplayName(output.name, craftedAffixes);
+          }
+
+          // Insert implicit craft quality base stat bonus affixes for tier 2+ materials
+          const statBonus = getCraftQualityStatBonus(craftQuality);
+          if (statBonus > 0n) {
+            // Armor: +AC bonus
+            if (output.armorClassBonus > 0n) {
+              ctx.db.itemAffix.insert({
+                id: 0n,
+                itemInstanceId: newInstance.id,
+                affixType: 'implicit',
+                affixKey: 'craft_quality_ac',
+                affixName: 'Quality',
+                statKey: 'armorClassBonus',
+                magnitude: statBonus,
+              });
+            }
+            // Weapon: +baseDamage and +dps bonus
+            if (output.weaponBaseDamage > 0n) {
+              ctx.db.itemAffix.insert({
+                id: 0n,
+                itemInstanceId: newInstance.id,
+                affixType: 'implicit',
+                affixKey: 'craft_quality_dmg',
+                affixName: 'Quality',
+                statKey: 'weaponBaseDamage',
+                magnitude: statBonus,
+              });
+              ctx.db.itemAffix.insert({
+                id: 0n,
+                itemInstanceId: newInstance.id,
+                affixType: 'implicit',
+                affixKey: 'craft_quality_dps',
+                affixName: 'Quality',
+                statKey: 'weaponDps',
+                magnitude: statBonus,
+              });
+            }
           }
 
           // Update ItemInstance with BOTH axes
