@@ -70,8 +70,8 @@ export const ENEMY_ROLE_CONFIG: Record<
     damagePerLevel: 5n,
     baseHp: 40n,
     baseDamage: 12n,
-    baseArmor: 6n,
-    armorPerLevel: 3n,
+    baseArmor: 3n,
+    armorPerLevel: 2n,
   },
   tank: {
     hpPerLevel: 15n,
@@ -86,8 +86,8 @@ export const ENEMY_ROLE_CONFIG: Record<
     damagePerLevel: 2n,
     baseHp: 30n,
     baseDamage: 6n,
-    baseArmor: 3n,
-    armorPerLevel: 2n,
+    baseArmor: 6n,
+    armorPerLevel: 3n,
   },
   support: {
     hpPerLevel: 10n,
