@@ -63,31 +63,39 @@ export {
 
 export const ENEMY_ROLE_CONFIG: Record<
   string,
-  { hpPerLevel: bigint; damagePerLevel: bigint; baseHp: bigint; baseDamage: bigint }
+  { hpPerLevel: bigint; damagePerLevel: bigint; baseHp: bigint; baseDamage: bigint; baseArmor: bigint; armorPerLevel: bigint }
 > = {
   damage: {
     hpPerLevel: 10n,
     damagePerLevel: 5n,
     baseHp: 40n,
     baseDamage: 12n,
+    baseArmor: 6n,
+    armorPerLevel: 3n,
   },
   tank: {
     hpPerLevel: 15n,
     damagePerLevel: 3n,
     baseHp: 60n,
     baseDamage: 8n,
+    baseArmor: 14n,
+    armorPerLevel: 4n,
   },
   healer: {
     hpPerLevel: 8n,
     damagePerLevel: 2n,
     baseHp: 30n,
     baseDamage: 6n,
+    baseArmor: 3n,
+    armorPerLevel: 2n,
   },
   support: {
     hpPerLevel: 10n,
     damagePerLevel: 3n,
     baseHp: 35n,
     baseDamage: 7n,
+    baseArmor: 5n,
+    armorPerLevel: 2n,
   },
 };
 export function abilityResourceCost(level: bigint, power: bigint) {
@@ -1937,7 +1945,7 @@ export function computeEnemyStats(
   const effectiveLevel = template.level;
   const baseHp = role.baseHp + role.hpPerLevel * effectiveLevel;
   const baseDamage = role.baseDamage + role.damagePerLevel * effectiveLevel;
-  const baseArmorClass = template.armorClass + effectiveLevel;
+  const baseArmorClass = role.baseArmor + role.armorPerLevel * effectiveLevel;
 
   return {
     maxHp: baseHp,
