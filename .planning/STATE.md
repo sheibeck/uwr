@@ -10,9 +10,9 @@
 
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
 
-**Last completed phase:** 13.1 Plan 01 (Dual-Axis Gear System — Schema Extension and Material Foundation)
-**Current phase:** 13.1-dual-axis-gear-system (Plan 01/3 complete)
-**Next action:** Phase 13.1 Plan 02 (craft_recipe reducer update for dual-axis quality and Essence consumption)
+**Last completed phase:** 13.1 Plan 02 (Dual-Axis Gear System — craft_recipe reducer dual-axis update and frontend craft quality display)
+**Current phase:** 13.1-dual-axis-gear-system (Plan 02/3 complete)
+**Next action:** Phase 13.1 Plan 03 (if planned) or next phase
 
 ---
 
@@ -191,6 +191,10 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 143. Essence I/II/III are drop-only binding reagents required as req3 for all 15 gear recipe templates; terrain-tier-gated drops: low=EssenceI(w15), mid=EssenceI(w10)+EssenceII(w15), high=EssenceII(w10)+EssenceIII(w15) (13.1-01)
 144. Copper Ore moved from ensureResourceItemTemplates to ensureGearMaterialItemTemplates — all 13 crafting materials (10 original + 3 Essence) seeded together in one function (13.1-01)
 145. addRecipeTemplate is a single module-level upsert helper replacing both addRecipe (consumables) and addGearRecipe (gear) inline closures — eliminates code duplication in seeding (13.1-01)
+146. craft_recipe reducer now uses materialTierToCraftQuality for craftQuality and hardcodes qualityTier='common' for all crafted gear — rarity and craft quality are fully independent axes (13.1-02)
+147. getCraftedAffixes called with craftQuality (standard/reinforced/exquisite) not qualityTier — outer if(qualityTier!=='common') guard removed so all crafted gear gets craftQuality set (13.1-02)
+148. tierLabel in useInventory derives from craftQuality when instance.craftQuality is set (dented/standard→Tier 1, reinforced→Tier 2, exquisite/mastercraft→Tier 3), overriding qualityTier-based tier number (13.1-02)
+149. template.description priority: DB-stored description takes precedence over foodDescription and computed description in useInventory fallback chain (13.1-02)
 
 ---
 
@@ -245,6 +249,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 13-crafting-system | 01 | ~8min | 2 | 7 |
 | 13-crafting-system | 03 | ~10min | 3 | 4 |
 | 13.1-dual-axis-gear-system | 01 | ~5min | 2 | 4 |
+| 13.1-dual-axis-gear-system | 02 | ~10min | 2 | 6 |
 
 ## Accumulated Context
 
@@ -327,4 +332,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-18 - Phase 13.1 Plan 01 complete: Schema extension and dual-axis material foundation — craftQuality field on ItemInstance, description on ItemTemplate, MATERIAL_AFFIX_MAP keys renamed, Essence I/II/III seeded, addRecipeTemplate unified helper, all 15 gear recipes require Essence as req3, tier-gated Essence loot drops. Stopped at: Completed 13.1-01-PLAN.md
+Last activity: 2026-02-18 - Phase 13.1 Plan 02 complete: craft_recipe reducer dual-axis update (craftQuality from material tier, qualityTier='common' for all crafted gear), module published with --clear-database, bindings regenerated; frontend useInventory.ts reads craftQuality and derives tierLabel from it, template.description priority; App.vue craftQuality tooltip with color coding. Stopped at: Completed 13.1-02-PLAN.md
