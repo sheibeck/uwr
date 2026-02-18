@@ -359,4 +359,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 174: flee cast bar — 3-second client-side timer before flee_combat fires; amber fill bar in CombatPanel; re-click cancels; watcher clears on combat end
+Last activity: 2026-02-18 - Completed quick task 175: converted 4 insert-only seeding functions to upsert pattern; adding new resources, materials, modifier reagents, and recipe scrolls now works on plain spacetime publish without --clear-database
