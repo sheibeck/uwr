@@ -367,9 +367,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 184 | Restore Discover Recipes button to CraftingPanel — added button above filter chips with styles.ghostButton, disabled when !craftingAvailable or combatLocked, emits 'research' event; App.vue wired @research="onResearchRecipes"; onResearchRecipes and the research_recipes reducer were already intact | 2026-02-18 | e7bb5e7 | [184-restore-discover-recipes-button-in-craft](./quick/184-restore-discover-recipes-button-in-craft/) |
 | 185 | Fix version check causing infinite browser reloads — single BUILD_VERSION constant in vite.config.ts shared by define block and versionPlugin.closeBundle; previously two separate Date.now() calls produced different timestamps so CLIENT_VERSION never matched version.json | 2026-02-18 | e3156af | [185-fix-version-check-to-only-reload-browser](./quick/185-fix-version-check-to-only-reload-browser/) |
 | 186 | Filter gear recipes from Discover Recipes button — added isGearRecipe guard in research_recipes loop that skips recipeType != 'consumable'; 15 gear recipes (weapon/armor/accessory) excluded from auto-discovery while 14 consumable recipes remain freely discoverable; gear recipe paths via salvage/scroll unchanged | 2026-02-18 | 14ef3ac | [186-filter-gear-recipes-from-discover-recipe](./quick/186-filter-gear-recipes-from-discover-recipe/) |
+| 187 | Centralize backpack slot capacity into MAX_INVENTORY_SLOTS = 50 — constant defined in helpers/items.ts, exported via index.ts reducerDeps, replacing all 7 server-side hardcoded >= 20 capacity checks (5 in items reducer, 2 in commands reducer); client maxInventorySlots changed from 20 to 50 in useInventory.ts | 2026-02-18 | b34f6a9 | [187-make-backpack-slot-count-a-centralized-c](./quick/187-make-backpack-slot-count-a-centralized-c/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 186: filtered gear recipes from research_recipes reducer; isGearRecipe guard skips weapon/armor/accessory recipeType so Discover Recipes button only auto-discovers consumable/food recipes
+Last activity: 2026-02-18 - Completed quick task 187: centralized MAX_INVENTORY_SLOTS = 50 constant, replaced all 7 server hardcoded capacity 20s and client maxInventorySlots; backpack capacity now 50 slots
