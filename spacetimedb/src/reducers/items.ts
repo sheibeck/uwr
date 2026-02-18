@@ -805,7 +805,8 @@ export const registerItemReducers = (deps: any) => {
       ctx,
       character,
       'system',
-      `You begin gathering ${node.name}.`
+      `You begin gathering ${node.name}.`,
+      `${character.name} begins gathering ${node.name}.`
     );
     }
   );
