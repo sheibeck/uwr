@@ -34,13 +34,6 @@ export type WorldEventDefinition = {
   }>;
 };
 
-// Admin identity hex strings — set to admin player identities
-// Run: spacetime identity list — to find your hex
-export const ADMIN_IDENTITIES = new Set<string>([
-  // Add admin identity hex strings here
-  "c20006ce5893a0e7f3531d8cfc2bd561f78b60d08eb5137cc2ae3ca4ec060b80"
-]);
-
 // Event definitions
 export const WORLD_EVENT_DEFINITIONS: Record<string, WorldEventDefinition> = {
   ashen_awakening: {

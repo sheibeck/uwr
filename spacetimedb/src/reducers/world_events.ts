@@ -1,5 +1,5 @@
-import { ADMIN_IDENTITIES } from '../data/world_event_data';
-import { fireWorldEvent, resolveWorldEvent, incrementWorldStat } from '../helpers/world_events';
+import { requireAdmin } from '../data/admin';
+import { fireWorldEvent, resolveWorldEvent, incrementWorldStat, despawnEventContent } from '../helpers/world_events';
 import { appendPrivateEvent } from '../helpers/events';
 import { EventDespawnTick } from '../schema/tables';
 
@@ -9,9 +9,7 @@ export function registerWorldEventReducers(deps: any) {
   // fire_world_event — Admin-only reducer to fire a world event by eventKey
   spacetimedb.reducer('fire_world_event', { eventKey: t.string() }, (ctx: any, { eventKey }: { eventKey: string }) => {
     // Admin guard
-    if (!ADMIN_IDENTITIES.has(ctx.sender.toHexString())) {
-      throw new SenderError('Admin only');
-    }
+    requireAdmin(ctx);
 
     const result = fireWorldEvent(ctx, eventKey);
     if (!result) {
@@ -25,9 +23,7 @@ export function registerWorldEventReducers(deps: any) {
     { worldEventId: t.u64(), outcome: t.string() },
     (ctx: any, { worldEventId, outcome }: { worldEventId: bigint; outcome: string }) => {
       // Admin guard
-      if (!ADMIN_IDENTITIES.has(ctx.sender.toHexString())) {
-        throw new SenderError('Admin only');
-      }
+      requireAdmin(ctx);
 
       // Validate outcome
       if (outcome !== 'success' && outcome !== 'failure') {
@@ -138,8 +134,8 @@ export function registerWorldEventReducers(deps: any) {
       if (side === 'success') {
         const newSuccess = (event.successCounter ?? 0n) + amount;
         updatedEvent = { ...updatedEvent, successCounter: newSuccess };
-        // Check if success threshold hit
-        if (event.successThreshold && newSuccess >= event.successThreshold) {
+        // Check if success threshold hit (0n = no threshold)
+        if (event.successThreshold > 0n && newSuccess >= event.successThreshold) {
           ctx.db.worldEvent.id.update(updatedEvent);
           const fresh = ctx.db.worldEvent.id.find(eventId)!;
           resolveWorldEvent(ctx, fresh, 'success');
@@ -148,8 +144,8 @@ export function registerWorldEventReducers(deps: any) {
       } else {
         const newFailure = (event.failureCounter ?? 0n) + amount;
         updatedEvent = { ...updatedEvent, failureCounter: newFailure };
-        // Check if failure threshold hit
-        if (event.failureThreshold && newFailure >= event.failureThreshold) {
+        // Check if failure threshold hit (0n = no threshold)
+        if (event.failureThreshold > 0n && newFailure >= event.failureThreshold) {
           ctx.db.worldEvent.id.update(updatedEvent);
           const fresh = ctx.db.worldEvent.id.find(eventId)!;
           resolveWorldEvent(ctx, fresh, 'failure');
@@ -161,50 +157,13 @@ export function registerWorldEventReducers(deps: any) {
     }
   );
 
-  // despawn_event_content — Scheduled reducer: cleans up all event content after 2-minute linger
+  // despawn_event_content — Scheduled reducer (kept for manual/emergency despawn via console)
+  // resolveWorldEvent now calls despawnEventContent directly for immediate cleanup.
   spacetimedb.reducer(
     'despawn_event_content',
     { arg: EventDespawnTick.rowType },
     (ctx: any, { arg }: any) => {
-      const eventId: bigint = arg.eventId;
-
-      // Step 1: Clean up EnemySpawn + EnemySpawnMember rows for EventSpawnEnemy entries
-      // (Safe order: members -> spawn -> event reference to avoid ghost spawns)
-      for (const eventSpawnEnemy of ctx.db.eventSpawnEnemy.by_event.filter(eventId)) {
-        const spawnId = eventSpawnEnemy.spawnId;
-
-        // Delete EnemySpawnMember rows first
-        for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawnId)) {
-          ctx.db.enemySpawnMember.id.delete(member.id);
-        }
-
-        // Skip spawn deletion if it's locked in an active combat (let combat resolve naturally)
-        const spawn = ctx.db.enemySpawn.id.find(spawnId);
-        if (spawn) {
-          const isLockedInCombat = spawn.lockedCombatId !== undefined && spawn.lockedCombatId !== null;
-          if (!isLockedInCombat) {
-            ctx.db.enemySpawn.id.delete(spawnId);
-          }
-        }
-
-        // Delete EventSpawnEnemy reference row
-        ctx.db.eventSpawnEnemy.id.delete(eventSpawnEnemy.id);
-      }
-
-      // Step 2: Delete all EventSpawnItem rows for this event
-      for (const item of ctx.db.eventSpawnItem.by_event.filter(eventId)) {
-        ctx.db.eventSpawnItem.id.delete(item.id);
-      }
-
-      // Step 3: Delete all EventObjective rows for this event
-      for (const objective of ctx.db.eventObjective.by_event.filter(eventId)) {
-        ctx.db.eventObjective.id.delete(objective.id);
-      }
-
-      // Step 4: Delete all EventContribution rows for this event (cleanup after rewards awarded)
-      for (const contrib of ctx.db.eventContribution.by_event.filter(eventId)) {
-        ctx.db.eventContribution.id.delete(contrib.id);
-      }
+      despawnEventContent(ctx, arg.eventId);
     }
   );
 }
