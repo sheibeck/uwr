@@ -120,34 +120,29 @@ export const HEALING_THREAT_PERCENT = 50n;
 
 /**
  * Maps ability keys to their primary scaling stat
- * str: Melee weapon abilities
- * int: Arcane spells
- * wis: Divine/nature abilities
- * hybrid: STR+INT abilities
- * cha: Bard abilities
+ * str: Pure STR class damage abilities (warrior)
+ * dex: Pure DEX class damage abilities (rogue)
+ * int: Pure INT class damage abilities (wizard/necromancer/summoner)
+ * wis: Pure WIS class damage abilities (cleric/druid/shaman/paladin)
+ * cha: Pure CHA class damage abilities (enchanter)
+ * hybrid: 60% primary + 40% secondary per CLASS_CONFIG (ranger/monk/beastmaster/bard/spellblade/reaver)
  * none: Utility/non-damage abilities
  */
 
 // ABILITY_STAT_SCALING is kept for seeding purposes only (ensureAbilityTemplates)
 // Execution code reads statScaling from database rows, not this constant
 export const ABILITY_STAT_SCALING: Record<string, 'str' | 'dex' | 'int' | 'wis' | 'cha' | 'hybrid' | 'none'> = {
-  // STR abilities (melee weapon)
+  // STR abilities (warrior — pure STR class)
   warrior_slam: 'str',
   warrior_cleave: 'str',
   warrior_crushing_blow: 'str',
-  monk_crippling_kick: 'str',
-  monk_palm_strike: 'str',
-  monk_tiger_flurry: 'str',
-  beastmaster_pack_rush: 'str',
-  beastmaster_beast_fang: 'str',
-  beastmaster_alpha_assault: 'str',
 
   // DEX abilities (rogue finesse — rogue primary is DEX, not STR)
   rogue_shadow_cut: 'dex',
   rogue_bleed: 'dex',
   rogue_shadow_strike: 'dex',
 
-  // INT abilities (arcane spells)
+  // INT abilities (arcane spells — wizard/necromancer/summoner pure INT classes)
   wizard_magic_missile: 'int',
   wizard_frost_shard: 'int',
   wizard_lightning_surge: 'int',
@@ -157,11 +152,8 @@ export const ABILITY_STAT_SCALING: Record<string, 'str' | 'dex' | 'int' | 'wis' 
   summoner_conjure_vessel: 'int',
   summoner_conjured_spike: 'int',
   summoner_spectral_lance: 'int',
-  enchanter_mind_fray: 'int',
-  enchanter_slow: 'int',
-  enchanter_charm_fray: 'int',
 
-  // WIS abilities (divine/nature)
+  // WIS abilities (divine/nature — cleric/druid/shaman/paladin pure WIS classes)
   cleric_smite: 'wis',
   cleric_mend: 'wis',
   cleric_heal: 'wis',
@@ -171,24 +163,39 @@ export const ABILITY_STAT_SCALING: Record<string, 'str' | 'dex' | 'int' | 'wis' 
   shaman_hex: 'wis',
   shaman_stormcall: 'wis',
   shaman_spirit_mender: 'wis',
-  ranger_marked_shot: 'wis',
-  ranger_rapid_shot: 'wis',
-  ranger_piercing_arrow: 'wis',
+  paladin_holy_strike: 'wis',
+  paladin_radiant_smite: 'wis',
 
-  // Hybrid abilities (STR+INT)
-  paladin_holy_strike: 'hybrid',
-  paladin_radiant_smite: 'hybrid',
+  // CHA abilities (enchanter/bard pure CHA — enchanter has no secondary stat)
+  enchanter_mind_fray: 'cha',
+  enchanter_slow: 'cha',
+  enchanter_charm_fray: 'cha',
+
+  // Hybrid abilities (60% primary + 40% secondary per CLASS_CONFIG)
+  // ranger: primary=dex, secondary=wis
+  ranger_marked_shot: 'hybrid',
+  ranger_rapid_shot: 'hybrid',
+  ranger_piercing_arrow: 'hybrid',
+  // monk: primary=dex, secondary=str
+  monk_crippling_kick: 'hybrid',
+  monk_palm_strike: 'hybrid',
+  monk_tiger_flurry: 'hybrid',
+  // beastmaster: primary=str, secondary=dex
+  beastmaster_pack_rush: 'hybrid',
+  beastmaster_beast_fang: 'hybrid',
+  beastmaster_alpha_assault: 'hybrid',
+  // bard: primary=cha, secondary=int
+  bard_discordant_note: 'hybrid',
+  bard_echoed_chord: 'hybrid',
+  bard_crushing_crescendo: 'hybrid',
+  // spellblade: primary=int, secondary=str
   spellblade_arcane_slash: 'hybrid',
   spellblade_runic_strike: 'hybrid',
   spellblade_spellstorm: 'hybrid',
+  // reaver: primary=str, secondary=int
   reaver_blood_rend: 'hybrid',
   reaver_soul_rend: 'hybrid',
   reaver_oblivion: 'hybrid',
-
-  // CHA abilities
-  bard_discordant_note: 'cha',
-  bard_echoed_chord: 'cha',
-  bard_crushing_crescendo: 'cha',
 
   // None (utility/non-damage)
   warrior_intimidating_presence: 'none',
