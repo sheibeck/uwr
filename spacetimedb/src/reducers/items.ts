@@ -1067,6 +1067,11 @@ export const registerItemReducers = (deps: any) => {
               });
             }
 
+            // Both Essence and at least one valid reagent are required to apply affixes
+            if (appliedAffixes.length === 0) {
+              return failItem(ctx, character, 'Must provide at least one reagent when using an Essence');
+            }
+
             // Insert affix rows for modifier-based affixes
             for (const affix of appliedAffixes) {
               ctx.db.itemAffix.insert({

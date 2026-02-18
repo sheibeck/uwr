@@ -87,6 +87,11 @@
         </div>
       </div>
 
+      <!-- Reagent required hint -->
+      <div v-if="selectedCatalystId && slotsAvailable > 0 && appliedAffixes.length === 0" :style="{ color: '#c44', fontSize: '11px', marginBottom: '0.5rem' }">
+        Select at least one reagent to use your Essence.
+      </div>
+
       <!-- Live Preview -->
       <div v-if="selectedCatalystId && appliedAffixes.length > 0" :style="{ background: 'rgba(76,125,240,0.07)', border: '1px solid rgba(76,125,240,0.2)', borderRadius: '6px', padding: '0.75rem', marginBottom: '0.75rem' }">
         <div :style="{ fontSize: '0.75rem', color: '#666', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }">Item Preview</div>
@@ -299,6 +304,8 @@ const previewName = computed(() => {
 const canCraft = computed(() => {
   if (!props.recipe.canCraft) return false;
   if (catalystError.value) return false;
+  // If a catalyst (Essence) is selected, at least one reagent must be chosen
+  if (selectedCatalystId.value && appliedAffixes.value.length === 0) return false;
   return true;
 });
 
