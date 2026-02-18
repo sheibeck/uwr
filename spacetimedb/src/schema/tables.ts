@@ -333,6 +333,7 @@ export const ItemTemplate = table(
     wellFedDurationMicros: t.u64(),
     wellFedBuffType: t.string(),
     wellFedBuffMagnitude: t.u64(),
+    description: t.string().optional(), // Flavor text / metadata description
   }
 );
 
@@ -349,6 +350,7 @@ export const ItemInstance = table(
     equippedSlot: t.string().optional(),
     quantity: t.u64(),
     qualityTier: t.string().optional(),   // 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'; undefined = 'common'
+    craftQuality: t.string().optional(), // 'dented'|'standard'|'reinforced'|'exquisite'|'mastercraft'; undefined = 'standard'
     displayName: t.string().optional(),   // null for common, e.g., 'Sturdy Scout Jerkin of Haste'
     isNamed: t.bool().optional(),         // true only for Legendary unique items
   }
@@ -1533,14 +1535,14 @@ export const WorldEvent = table(
     // Failure condition type
     failureConditionType: t.string(),        // 'time' | 'threshold_race'
 
-    // Time-based failure: event deadline as microseconds since epoch
-    deadlineAtMicros: t.u64().optional(),
+    // Time-based failure: event deadline as microseconds since epoch (0n = no deadline)
+    deadlineAtMicros: t.u64(),
 
-    // Two-sided threshold race counters
-    successThreshold: t.u64().optional(),    // e.g. players must save 10 villagers
-    failureThreshold: t.u64().optional(),    // e.g. enemies kill 5 villagers
-    successCounter: t.u64().optional(),      // current success-side count
-    failureCounter: t.u64().optional(),      // current failure-side count
+    // Two-sided threshold race counters (0n = not applicable)
+    successThreshold: t.u64(),
+    failureThreshold: t.u64(),
+    successCounter: t.u64(),
+    failureCounter: t.u64(),
 
     // Consequences — BOTH success AND failure (locked decision)
     successConsequenceType: t.string(),      // 'race_unlock' | 'enemy_composition_change' | 'faction_standing_bonus' | 'none'

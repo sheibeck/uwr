@@ -8,9 +8,9 @@
 //   - Maps to specific stat affinities that determine crafted gear affixes
 //
 // Power parity: crafted gear magnitudes match equivalent-tier dropped gear.
-// uncommon tier affixes use magnitude 1n (matching PREFIXES/SUFFIXES magnitudeByTier[0])
-// rare tier affixes use magnitude 2n (matching magnitudeByTier[1])
-// epic tier affixes use magnitude 3n (matching magnitudeByTier[2])
+// standard craft quality affixes use magnitude 1n (matching PREFIXES/SUFFIXES magnitudeByTier[0])
+// reinforced craft quality affixes use magnitude 2n (matching magnitudeByTier[1])
+// exquisite craft quality affixes use magnitude 3n (matching magnitudeByTier[2])
 
 export interface CraftedAffix {
   affixKey: string;
@@ -31,7 +31,7 @@ export interface MaterialDef {
 }
 
 // ---------------------------------------------------------------------------
-// MATERIAL DEFINITIONS — 10 materials across 3 tiers
+// MATERIAL DEFINITIONS — 13 materials across 3 tiers (10 original + 3 Essence)
 // ---------------------------------------------------------------------------
 
 export const MATERIAL_DEFS: MaterialDef[] = [
@@ -120,154 +120,159 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     dropCreatureTypes: ['spirit', 'construct'],
     affinityStats: ['magicResistanceBonus', 'manaRegen'],
   },
+
+  // Essence (drop-only, required for gear crafting)
+  { key: 'essence_i', name: 'Essence I', tier: 1n, sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead'], affinityStats: [] },
+  { key: 'essence_ii', name: 'Essence II', tier: 2n, sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead', 'spirit'], affinityStats: [] },
+  { key: 'essence_iii', name: 'Essence III', tier: 3n, sources: ['drop'], dropCreatureTypes: ['beast', 'construct', 'spirit', 'undead'], affinityStats: [] },
 ];
 
 // ---------------------------------------------------------------------------
 // MATERIAL AFFIX MAP
-// Outer key = material key, Inner key = quality tier ('uncommon'|'rare'|'epic')
-// common quality = no affixes (empty array)
+// Outer key = material key, Inner key = craft quality level ('standard'|'reinforced'|'exquisite')
+// dented quality = no affixes (no entry needed, getCraftedAffixes returns [])
 // Magnitudes align with affix_catalog.ts PREFIXES/SUFFIXES magnitudeByTier values:
-//   uncommon: index 0 → 1n (stat) or 5n (hp)
-//   rare:     index 1 → 2n (stat) or 8n (hp)
-//   epic:     index 2 → 3n (stat) or 15n (hp)
+//   standard:    index 0 -> 1n (stat) or 5n (hp)
+//   reinforced:  index 1 -> 2n (stat) or 8n (hp)
+//   exquisite:   index 2 -> 3n (stat) or 15n (hp)
 // ---------------------------------------------------------------------------
 
 export const MATERIAL_AFFIX_MAP: Record<string, Record<string, CraftedAffix[]>> = {
   copper_ore: {
-    uncommon: [
+    standard: [
       { affixKey: 'fierce', statKey: 'strBonus', affixName: 'Fierce', affixType: 'prefix', magnitude: 1n },
     ],
-    rare: [
+    reinforced: [
       { affixKey: 'fierce', statKey: 'strBonus', affixName: 'Fierce', affixType: 'prefix', magnitude: 2n },
       { affixKey: 'of_power', statKey: 'strBonus', affixName: 'of Power', affixType: 'suffix', magnitude: 1n },
     ],
-    epic: [
+    exquisite: [
       { affixKey: 'fierce', statKey: 'strBonus', affixName: 'Fierce', affixType: 'prefix', magnitude: 3n },
       { affixKey: 'of_power', statKey: 'strBonus', affixName: 'of Power', affixType: 'suffix', magnitude: 2n },
       { affixKey: 'of_strength', statKey: 'strBonus', affixName: 'of Strength', affixType: 'suffix', magnitude: 1n },
     ],
   },
   rough_hide: {
-    uncommon: [
+    standard: [
       { affixKey: 'swift', statKey: 'dexBonus', affixName: 'Swift', affixType: 'prefix', magnitude: 1n },
     ],
-    rare: [
+    reinforced: [
       { affixKey: 'swift', statKey: 'dexBonus', affixName: 'Swift', affixType: 'prefix', magnitude: 2n },
       { affixKey: 'of_precision', statKey: 'dexBonus', affixName: 'of Precision', affixType: 'suffix', magnitude: 1n },
     ],
-    epic: [
+    exquisite: [
       { affixKey: 'swift', statKey: 'dexBonus', affixName: 'Swift', affixType: 'prefix', magnitude: 3n },
       { affixKey: 'of_precision', statKey: 'dexBonus', affixName: 'of Precision', affixType: 'suffix', magnitude: 2n },
       { affixKey: 'of_endurance', statKey: 'hpBonus', affixName: 'of Endurance', affixType: 'suffix', magnitude: 5n },
     ],
   },
   bone_shard: {
-    uncommon: [
+    standard: [
       { affixKey: 'vital', statKey: 'hpBonus', affixName: 'Vital', affixType: 'prefix', magnitude: 5n },
     ],
-    rare: [
+    reinforced: [
       { affixKey: 'vital', statKey: 'hpBonus', affixName: 'Vital', affixType: 'prefix', magnitude: 8n },
       { affixKey: 'sturdy', statKey: 'armorClassBonus', affixName: 'Sturdy', affixType: 'prefix', magnitude: 1n },
     ],
-    epic: [
+    exquisite: [
       { affixKey: 'vital', statKey: 'hpBonus', affixName: 'Vital', affixType: 'prefix', magnitude: 15n },
       { affixKey: 'sturdy', statKey: 'armorClassBonus', affixName: 'Sturdy', affixType: 'prefix', magnitude: 2n },
       { affixKey: 'of_resilience', statKey: 'armorClassBonus', affixName: 'of Resilience', affixType: 'suffix', magnitude: 1n },
     ],
   },
   iron_ore: {
-    uncommon: [
+    standard: [
       { affixKey: 'fierce', statKey: 'strBonus', affixName: 'Fierce', affixType: 'prefix', magnitude: 1n },
     ],
-    rare: [
+    reinforced: [
       { affixKey: 'fierce', statKey: 'strBonus', affixName: 'Fierce', affixType: 'prefix', magnitude: 2n },
       { affixKey: 'sturdy', statKey: 'armorClassBonus', affixName: 'Sturdy', affixType: 'prefix', magnitude: 1n },
     ],
-    epic: [
+    exquisite: [
       { affixKey: 'fierce', statKey: 'strBonus', affixName: 'Fierce', affixType: 'prefix', magnitude: 3n },
       { affixKey: 'sturdy', statKey: 'armorClassBonus', affixName: 'Sturdy', affixType: 'prefix', magnitude: 2n },
       { affixKey: 'of_strength', statKey: 'strBonus', affixName: 'of Strength', affixType: 'suffix', magnitude: 2n },
     ],
   },
   tanned_leather: {
-    uncommon: [
+    standard: [
       { affixKey: 'swift', statKey: 'dexBonus', affixName: 'Swift', affixType: 'prefix', magnitude: 1n },
     ],
-    rare: [
+    reinforced: [
       { affixKey: 'swift', statKey: 'dexBonus', affixName: 'Swift', affixType: 'prefix', magnitude: 2n },
       { affixKey: 'vital', statKey: 'hpBonus', affixName: 'Vital', affixType: 'prefix', magnitude: 5n },
     ],
-    epic: [
+    exquisite: [
       { affixKey: 'swift', statKey: 'dexBonus', affixName: 'Swift', affixType: 'prefix', magnitude: 3n },
       { affixKey: 'vital', statKey: 'hpBonus', affixName: 'Vital', affixType: 'prefix', magnitude: 8n },
       { affixKey: 'of_precision', statKey: 'dexBonus', affixName: 'of Precision', affixType: 'suffix', magnitude: 2n },
     ],
   },
   spirit_essence: {
-    uncommon: [
+    standard: [
       { affixKey: 'arcane', statKey: 'intBonus', affixName: 'Arcane', affixType: 'prefix', magnitude: 1n },
     ],
-    rare: [
+    reinforced: [
       { affixKey: 'arcane', statKey: 'intBonus', affixName: 'Arcane', affixType: 'prefix', magnitude: 2n },
       { affixKey: 'wise', statKey: 'wisBonus', affixName: 'Wise', affixType: 'prefix', magnitude: 1n },
     ],
-    epic: [
+    exquisite: [
       { affixKey: 'arcane', statKey: 'intBonus', affixName: 'Arcane', affixType: 'prefix', magnitude: 3n },
       { affixKey: 'wise', statKey: 'wisBonus', affixName: 'Wise', affixType: 'prefix', magnitude: 2n },
       { affixKey: 'of_the_mind', statKey: 'intBonus', affixName: 'of the Mind', affixType: 'suffix', magnitude: 2n },
     ],
   },
   darksteel_ore: {
-    uncommon: [
+    standard: [
       { affixKey: 'fierce', statKey: 'strBonus', affixName: 'Fierce', affixType: 'prefix', magnitude: 1n },
     ],
-    rare: [
+    reinforced: [
       { affixKey: 'fierce', statKey: 'strBonus', affixName: 'Fierce', affixType: 'prefix', magnitude: 2n },
       { affixKey: 'fortified', statKey: 'armorClassBonus', affixName: 'Fortified', affixType: 'prefix', magnitude: 2n },
     ],
-    epic: [
+    exquisite: [
       { affixKey: 'fierce', statKey: 'strBonus', affixName: 'Fierce', affixType: 'prefix', magnitude: 3n },
       { affixKey: 'fortified', statKey: 'armorClassBonus', affixName: 'Fortified', affixType: 'prefix', magnitude: 4n },
       { affixKey: 'of_power', statKey: 'strBonus', affixName: 'of Power', affixType: 'suffix', magnitude: 3n },
     ],
   },
   moonweave_cloth: {
-    uncommon: [
+    standard: [
       { affixKey: 'arcane', statKey: 'intBonus', affixName: 'Arcane', affixType: 'prefix', magnitude: 1n },
     ],
-    rare: [
+    reinforced: [
       { affixKey: 'arcane', statKey: 'intBonus', affixName: 'Arcane', affixType: 'prefix', magnitude: 2n },
       { affixKey: 'wise', statKey: 'wisBonus', affixName: 'Wise', affixType: 'prefix', magnitude: 2n },
     ],
-    epic: [
+    exquisite: [
       { affixKey: 'arcane', statKey: 'intBonus', affixName: 'Arcane', affixType: 'prefix', magnitude: 3n },
       { affixKey: 'wise', statKey: 'wisBonus', affixName: 'Wise', affixType: 'prefix', magnitude: 3n },
       { affixKey: 'of_mana_flow', statKey: 'manaRegen', affixName: 'of Mana Flow', affixType: 'suffix', magnitude: 5n },
     ],
   },
   shadowhide: {
-    uncommon: [
+    standard: [
       { affixKey: 'swift', statKey: 'dexBonus', affixName: 'Swift', affixType: 'prefix', magnitude: 1n },
     ],
-    rare: [
+    reinforced: [
       { affixKey: 'swift', statKey: 'dexBonus', affixName: 'Swift', affixType: 'prefix', magnitude: 2n },
       { affixKey: 'of_haste', statKey: 'cooldownReduction', affixName: 'of Haste', affixType: 'suffix', magnitude: 10n },
     ],
-    epic: [
+    exquisite: [
       { affixKey: 'swift', statKey: 'dexBonus', affixName: 'Swift', affixType: 'prefix', magnitude: 3n },
       { affixKey: 'of_haste', statKey: 'cooldownReduction', affixName: 'of Haste', affixType: 'suffix', magnitude: 10n },
       { affixKey: 'of_precision', statKey: 'dexBonus', affixName: 'of Precision', affixType: 'suffix', magnitude: 3n },
     ],
   },
   void_crystal: {
-    uncommon: [
+    standard: [
       { affixKey: 'warded', statKey: 'magicResistanceBonus', affixName: 'Warded', affixType: 'prefix', magnitude: 1n },
     ],
-    rare: [
+    reinforced: [
       { affixKey: 'warded', statKey: 'magicResistanceBonus', affixName: 'Warded', affixType: 'prefix', magnitude: 2n },
       { affixKey: 'of_mana_flow', statKey: 'manaRegen', affixName: 'of Mana Flow', affixType: 'suffix', magnitude: 5n },
     ],
-    epic: [
+    exquisite: [
       { affixKey: 'warded', statKey: 'magicResistanceBonus', affixName: 'Warded', affixType: 'prefix', magnitude: 3n },
       { affixKey: 'of_mana_flow', statKey: 'manaRegen', affixName: 'of Mana Flow', affixType: 'suffix', magnitude: 5n },
       { affixKey: 'of_warding', statKey: 'magicResistanceBonus', affixName: 'of Warding', affixType: 'suffix', magnitude: 2n },
@@ -292,14 +297,29 @@ export function materialTierToQuality(tier: bigint): string {
 }
 
 /**
- * Returns the crafted affixes for a given material and quality tier.
- * Returns empty array for 'common' quality or missing entries.
+ * Maps material tier to a craft quality level string.
+ * Tier 1 = standard, Tier 2 = reinforced, Tier 3 = exquisite.
+ * Dented and Mastercraft are not achievable via basic crafting.
  */
-export function getCraftedAffixes(materialKey: string, qualityTier: string): CraftedAffix[] {
-  if (qualityTier === 'common') return [];
+export function materialTierToCraftQuality(tier: bigint): string {
+  if (tier === 1n) return 'standard';
+  if (tier === 2n) return 'reinforced';
+  if (tier === 3n) return 'exquisite';
+  return 'standard';
+}
+
+/** Ordered craft quality levels from worst to best */
+export const CRAFT_QUALITY_LEVELS = ['dented', 'standard', 'reinforced', 'exquisite', 'mastercraft'] as const;
+
+/**
+ * Returns the crafted affixes for a given material and craft quality level.
+ * Returns empty array for 'dented' or 'common' quality or missing entries.
+ */
+export function getCraftedAffixes(materialKey: string, craftQuality: string): CraftedAffix[] {
+  if (craftQuality === 'dented' || craftQuality === 'common') return [];
   const materialMap = MATERIAL_AFFIX_MAP[materialKey];
   if (!materialMap) return [];
-  return materialMap[qualityTier] ?? [];
+  return materialMap[craftQuality] ?? [];
 }
 
 /**
