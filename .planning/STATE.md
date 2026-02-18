@@ -364,9 +364,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 181 | Consolidate ENEMY_ABILITIES to single source of truth — removed duplicate block from ability_catalog.ts, updated imports in helpers/combat.ts, reducers/combat.ts, and index.ts; added description field to all 41 entries; combat log messages now append flavour text for all 5 ability kinds (dot/debuff/heal/aoe_damage/buff) | 2026-02-18 | 298c222 | [181-consolidate-enemy-abilities-out-of-abili](./quick/181-consolidate-enemy-abilities-out-of-abili/) |
 | 182 | Rewrite all 41 enemy ability descriptions as combat log continuations — short (6-12 words), active voice, present tense, no enemy/ability name repetition, no "A"/"The" openers; each reads naturally after structured prefix in combat log | 2026-02-18 | bcc6eeb | [182-update-enemy-ability-descriptions-to-rea](./quick/182-update-enemy-ability-descriptions-to-rea/) |
 | 183 | Fix version.json polling URL to use Vite BASE_URL — changed hardcoded /version.json to import.meta.env.BASE_URL + 'version.json' in src/main.ts; fixes 404 on GitHub Pages (/uwr/ deployment) where file lives at /uwr/version.json; dev mode unaffected (BASE_URL defaults to /) | 2026-02-18 | bab1585 | [183-fix-version-json-url-to-use-base-url-uwr](./quick/183-fix-version-json-url-to-use-base-url-uwr/) |
+| 184 | Restore Discover Recipes button to CraftingPanel — added button above filter chips with styles.ghostButton, disabled when !craftingAvailable or combatLocked, emits 'research' event; App.vue wired @research="onResearchRecipes"; onResearchRecipes and the research_recipes reducer were already intact | 2026-02-18 | e7bb5e7 | [184-restore-discover-recipes-button-in-craft](./quick/184-restore-discover-recipes-button-in-craft/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 183: fixed version.json polling URL to use Vite BASE_URL prefix in src/main.ts, correcting 404 on GitHub Pages production deployment
+Last activity: 2026-02-18 - Completed quick task 184: restored Discover Recipes button to CraftingPanel.vue and wired @research emit to onResearchRecipes in App.vue
