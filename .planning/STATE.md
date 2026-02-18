@@ -198,6 +198,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 150. Enemy AC is role-driven via ENEMY_ROLE_CONFIG baseArmor/armorPerLevel (tank=14+4L, damage=6+3L, support=5+2L, healer=3+2L); template.armorClass field set to 0n and preserved for potential future per-enemy AC bonus (quick-159)
 151. Essence I/II/III drops moved from terrain-gated seeded loot tables to runtime combat resolution — 25% chance per kill per participant, tier by enemy level (1-5=I, 6-10=II, 11+=III), all terrain types eligible (quick-161)
 152. Rogue damage abilities (shadow_cut, bleed, shadow_strike) use DEX scaling not STR — rogue primary is DEX (12 at L1) vs STR (8 at L1); hybrid STR+INT sum and Shadow Cut DoT power split remain by-design (quick-164)
+153. Enemy combat HP = template.maxHp (individual seeded baseline) + role.baseHpBonus + role.hpBonusPerLevel * level — mirrors armor pattern; HP priority: tank(60/15) > healer(45/12) > support(35/10) > damage(20/8); enemy heal cap reads combatEnemy.maxHp not stale template.maxHp (quick-167)
 152. Essence tier thresholds corrected to 10-level-wide bands matching enemy tier structure; Essence IV added for level 31+ enemies — 1-10=I, 11-20=II, 21-30=III, 31+=IV; Essence IV defined in MATERIAL_DEFS (tier 4n) and seeded as ItemTemplate (vendorValue 24n) (quick-163)
 
 ---
@@ -342,9 +343,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 163 | Fix essence tier thresholds to 10-level-wide bands and add Essence IV — crafting_materials.ts gets essence_iv entry (tier 4n), ensure_items.ts seeds Essence IV (vendorValue 24n), combat.ts now uses 1-10=I/11-20=II/21-30=III/31+=IV thresholds | 2026-02-18 | 4df1c5c | [163-fix-essence-tiers-1-10-i-11-20-ii-21-30-](./quick/163-fix-essence-tiers-1-10-i-11-20-ii-21-30-/) |
 | 164 | Fix rogue damage ability stat scaling from STR (dump stat, 8 at L1) to DEX (primary stat, 12 at L1) — rogue_shadow_cut/bleed/shadow_strike changed to 'dex' in ABILITY_STAT_SCALING; narrows Shadow Cut damage gap from ~60% to ~15-20% vs hybrid classes; module republished | 2026-02-18 | df5cb7d | [164-investigate-shadowcut-damage-vs-reaver-s](./quick/164-investigate-shadowcut-damage-vs-reaver-s/) |
 | 165 | Audit and fix all class ability stat scaling — 17 entries corrected (enchanter int→cha, paladin hybrid→wis, ranger/monk/beastmaster/bard str/wis/cha→hybrid); hybrid formula updated from hardcoded STR+INT to 60% primary + 40% secondary via CLASS_CONFIG; module republished | 2026-02-18 | 065758d | [165-audit-and-fix-all-class-ability-stat-sca](./quick/165-audit-and-fix-all-class-ability-stat-sca/) |
+| 167 | Role-based HP bonus for enemies mirroring armor pattern — ENEMY_ROLE_CONFIG renamed baseHp/hpPerLevel→baseHpBonus/hpBonusPerLevel; HP priority reordered tank(60/15)>healer(45/12)>support(35/10)>damage(20/8); computeEnemyStats now uses template.maxHp+bonus formula; enemy heal cap fixed to use combatEnemy.maxHp instead of stale template value | 2026-02-18 | dfd1ea3 | [167-role-based-hp-bonus-for-enemies-mirrorin](./quick/167-role-based-hp-bonus-for-enemies-mirrorin/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 165: audited and fixed all 16 class ability stat scaling entries — 17 corrections across enchanter/paladin/ranger/monk/beastmaster/bard; replaced hardcoded STR+INT hybrid formula with 60/40 CLASS_CONFIG-aware weighted split; module republished
+Last activity: 2026-02-18 - Completed quick task 167: added role-based HP bonus system to enemies (ENEMY_ROLE_CONFIG baseHpBonus/hpBonusPerLevel fields, tank>healer>support>damage ordering), updated computeEnemyStats to template.maxHp+role bonus formula, fixed stale heal-cap bug; module republished
