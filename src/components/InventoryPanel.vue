@@ -95,6 +95,15 @@ const GEAR_SLOTS = new Set([
   'earrings', 'neck', 'cloak', 'mainHand', 'offHand',
 ]);
 
+const isRecipeScroll = (item: { name: string }) =>
+  item.name.startsWith('Scroll:');
+
+const learnRecipeFromScroll = (item: { id: bigint; name: string }) => {
+  const conn = window.__db_conn;
+  if (!conn || !props.selectedCharacter) return;
+  conn.reducers.learnRecipeScroll({ characterId: props.selectedCharacter.id, itemInstanceId: item.id });
+};
+
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
@@ -214,6 +223,9 @@ const openItemContextMenu = (event: MouseEvent, item: typeof props.inventoryItem
   }
   if (item.eatable) {
     items.push({ label: 'Eat', action: () => emit('eat-food', item.id) });
+  }
+  if (isRecipeScroll(item)) {
+    items.push({ label: 'Learn Recipe', action: () => learnRecipeFromScroll(item) });
   }
   if (item.stackable && item.quantity > 1n) {
     items.push({
