@@ -164,6 +164,7 @@ export const useCombat = ({
   const fleeCombatReducer = useReducer(reducers.fleeCombat);
   const dismissResultsReducer = useReducer(reducers.dismissCombatResults);
   const takeLootReducer = useReducer(reducers.takeLoot);
+  const takeAllLootReducer = useReducer(reducers.takeAllLoot);
 
   const activeCombat = computed(() => {
     if (!selectedCharacter.value) return null;
@@ -733,6 +734,11 @@ export const useCombat = ({
     takeLootReducer({ characterId: selectedCharacter.value.id, lootId });
   };
 
+  const takeAllLoot = () => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    takeAllLootReducer({ characterId: selectedCharacter.value.id });
+  };
+
   const setCombatTarget = (enemyId: bigint | null) => {
     if (!connActive.value || !selectedCharacter.value) return;
     setCombatTargetReducer({
@@ -768,5 +774,6 @@ export const useCombat = ({
     flee,
     dismissResults,
     takeLoot,
+    takeAllLoot,
   };
 };

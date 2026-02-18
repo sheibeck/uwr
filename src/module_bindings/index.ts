@@ -84,6 +84,8 @@ import SellAllJunkReducer from "./sell_all_junk_reducer";
 export { SellAllJunkReducer };
 import TakeLootReducer from "./take_loot_reducer";
 export { TakeLootReducer };
+import TakeAllLootReducer from "./take_all_loot_reducer";
+export { TakeAllLootReducer };
 import EquipItemReducer from "./equip_item_reducer";
 export { EquipItemReducer };
 import UnequipItemReducer from "./unequip_item_reducer";
@@ -820,6 +822,8 @@ import SyncWorldLayout from "./sync_world_layout_type";
 export { SyncWorldLayout };
 import TakeLoot from "./take_loot_type";
 export { TakeLoot };
+import TakeAllLoot from "./take_all_loot_type";
+export { TakeAllLoot };
 import TickCasts from "./tick_casts_type";
 export { TickCasts };
 import TickDayNight from "./tick_day_night_type";
@@ -2230,6 +2234,7 @@ const reducersSchema = __reducers(
   __reducerSchema("sell_item", SellItemReducer),
   __reducerSchema("sell_all_junk", SellAllJunkReducer),
   __reducerSchema("take_loot", TakeLootReducer),
+  __reducerSchema("take_all_loot", TakeAllLootReducer),
   __reducerSchema("equip_item", EquipItemReducer),
   __reducerSchema("unequip_item", UnequipItemReducer),
   __reducerSchema("delete_item", DeleteItemReducer),
