@@ -18,20 +18,21 @@ export interface AffixDef {
   magnitudeByTier: bigint[]; // index 0 = tier 1 magnitude, index 1 = tier 2, etc.
 }
 
-export interface LegendaryDef {
-  key: string;
-  name: string;             // display name, e.g., 'Soulrender'
-  baseTemplateName: string; // name of the ItemTemplate this is based on
-  slot: string;             // equipment slot
-  affixes: {
-    affixKey: string;
-    type: 'prefix' | 'suffix';
-    statKey: string;
-    magnitude: bigint;
-    affixName: string;
-  }[];
-  enemyTemplateName: string; // which named enemy drops this (placeholder until World Bosses phase)
-}
+// DISABLED: Legendary items not tied to actual bosses yet. Re-enable when World Bosses phase specs legendary drops.
+// export interface LegendaryDef {
+//   key: string;
+//   name: string;             // display name, e.g., 'Soulrender'
+//   baseTemplateName: string; // name of the ItemTemplate this is based on
+//   slot: string;             // equipment slot
+//   affixes: {
+//     affixKey: string;
+//     type: 'prefix' | 'suffix';
+//     statKey: string;
+//     magnitude: bigint;
+//     affixName: string;
+//   }[];
+//   enemyTemplateName: string; // which named enemy drops this (placeholder until World Bosses phase)
+// }
 
 // ---------------------------------------------------------------------------
 // PREFIXES
@@ -258,103 +259,107 @@ export const SUFFIXES: AffixDef[] = [
 // ---------------------------------------------------------------------------
 // LEGENDARIES
 // ---------------------------------------------------------------------------
+// DISABLED: Legendary items not tied to actual bosses yet. Re-enable when World Bosses phase specs legendary drops.
 // Note: enemyTemplateName is a placeholder until Phase 17 (World Bosses) adds
 // actual boss enemies. These names reference existing high-level enemy templates.
 
-export const LEGENDARIES: LegendaryDef[] = [
-  {
-    key: 'soulrender',
-    name: 'Soulrender',
-    baseTemplateName: 'Training Sword', // placeholder — replace with actual legendary base
-    slot: 'mainHand',
-    affixes: [
-      {
-        affixKey: 'vampiric',
-        type: 'prefix',
-        statKey: 'lifeOnHit',
-        magnitude: 5n,
-        affixName: 'Vampiric',
-      },
-      {
-        affixKey: 'of_haste',
-        type: 'suffix',
-        statKey: 'cooldownReduction',
-        magnitude: 15n,
-        affixName: 'of Haste',
-      },
-    ],
-    enemyTemplateName: 'Fen Witch', // placeholder boss — update when World Bosses added
-  },
-  {
-    key: 'ironveil',
-    name: 'Ironveil',
-    baseTemplateName: 'Scout Jerkin', // placeholder — replace with actual legendary base
-    slot: 'chest',
-    affixes: [
-      {
-        affixKey: 'fortified',
-        type: 'prefix',
-        statKey: 'armorClassBonus',
-        magnitude: 6n,
-        affixName: 'Fortified',
-      },
-      {
-        affixKey: 'of_endurance',
-        type: 'suffix',
-        statKey: 'hpBonus',
-        magnitude: 25n,
-        affixName: 'of Endurance',
-      },
-    ],
-    enemyTemplateName: 'Cinder Sentinel', // placeholder boss — update when World Bosses added
-  },
-  {
-    key: 'whisperwind',
-    name: 'Whisperwind',
-    baseTemplateName: 'Training Staff', // placeholder — cloak base item TBD
-    slot: 'neck',
-    affixes: [
-      {
-        affixKey: 'resolute',
-        type: 'prefix',
-        statKey: 'wisBonus',
-        magnitude: 4n,
-        affixName: 'Resolute',
-      },
-      {
-        affixKey: 'of_mana_flow',
-        type: 'suffix',
-        statKey: 'manaRegen',
-        magnitude: 8n,
-        affixName: 'of Mana Flow',
-      },
-    ],
-    enemyTemplateName: 'Hexbinder', // placeholder boss — update when World Bosses added
-  },
-  {
-    key: 'dreadmaw',
-    name: 'Dreadmaw',
-    baseTemplateName: 'Training Axe', // placeholder — replace with actual legendary base
-    slot: 'mainHand',
-    affixes: [
-      {
-        affixKey: 'fierce',
-        type: 'prefix',
-        statKey: 'strBonus',
-        magnitude: 4n,
-        affixName: 'Fierce',
-      },
-      {
-        affixKey: 'of_power',
-        type: 'suffix',
-        statKey: 'strBonus',
-        magnitude: 4n,
-        affixName: 'of Power',
-      },
-    ],
-    enemyTemplateName: 'Basalt Brute', // placeholder boss — update when World Bosses added
-  },
-];
+// export const LEGENDARIES: LegendaryDef[] = [
+//   {
+//     key: 'soulrender',
+//     name: 'Soulrender',
+//     baseTemplateName: 'Training Sword', // placeholder — replace with actual legendary base
+//     slot: 'mainHand',
+//     affixes: [
+//       {
+//         affixKey: 'vampiric',
+//         type: 'prefix',
+//         statKey: 'lifeOnHit',
+//         magnitude: 5n,
+//         affixName: 'Vampiric',
+//       },
+//       {
+//         affixKey: 'of_haste',
+//         type: 'suffix',
+//         statKey: 'cooldownReduction',
+//         magnitude: 15n,
+//         affixName: 'of Haste',
+//       },
+//     ],
+//     enemyTemplateName: 'Fen Witch', // placeholder boss — update when World Bosses added
+//   },
+//   {
+//     key: 'ironveil',
+//     name: 'Ironveil',
+//     baseTemplateName: 'Scout Jerkin', // placeholder — replace with actual legendary base
+//     slot: 'chest',
+//     affixes: [
+//       {
+//         affixKey: 'fortified',
+//         type: 'prefix',
+//         statKey: 'armorClassBonus',
+//         magnitude: 6n,
+//         affixName: 'Fortified',
+//       },
+//       {
+//         affixKey: 'of_endurance',
+//         type: 'suffix',
+//         statKey: 'hpBonus',
+//         magnitude: 25n,
+//         affixName: 'of Endurance',
+//       },
+//     ],
+//     enemyTemplateName: 'Cinder Sentinel', // placeholder boss — update when World Bosses added
+//   },
+//   {
+//     key: 'whisperwind',
+//     name: 'Whisperwind',
+//     baseTemplateName: 'Training Staff', // placeholder — cloak base item TBD
+//     slot: 'neck',
+//     affixes: [
+//       {
+//         affixKey: 'resolute',
+//         type: 'prefix',
+//         statKey: 'wisBonus',
+//         magnitude: 4n,
+//         affixName: 'Resolute',
+//       },
+//       {
+//         affixKey: 'of_mana_flow',
+//         type: 'suffix',
+//         statKey: 'manaRegen',
+//         magnitude: 8n,
+//         affixName: 'of Mana Flow',
+//       },
+//     ],
+//     enemyTemplateName: 'Hexbinder', // placeholder boss — update when World Bosses added
+//   },
+//   {
+//     key: 'dreadmaw',
+//     name: 'Dreadmaw',
+//     baseTemplateName: 'Training Axe', // placeholder — replace with actual legendary base
+//     slot: 'mainHand',
+//     affixes: [
+//       {
+//         affixKey: 'fierce',
+//         type: 'prefix',
+//         statKey: 'strBonus',
+//         magnitude: 4n,
+//         affixName: 'Fierce',
+//       },
+//       {
+//         affixKey: 'of_power',
+//         type: 'suffix',
+//         statKey: 'strBonus',
+//         magnitude: 4n,
+//         affixName: 'of Power',
+//       },
+//     ],
+//     enemyTemplateName: 'Basalt Brute', // placeholder boss — update when World Bosses added
+//   },
+// ];
+
+// Empty placeholder export — prevents import errors in any residual references.
+export const LEGENDARIES: any[] = [];
 
 // ---------------------------------------------------------------------------
 // QUALITY TIER CONSTANTS
