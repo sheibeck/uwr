@@ -196,6 +196,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 148. tierLabel in useInventory derives from craftQuality when instance.craftQuality is set (dented/standard→Tier 1, reinforced→Tier 2, exquisite/mastercraft→Tier 3), overriding qualityTier-based tier number (13.1-02)
 149. template.description priority: DB-stored description takes precedence over foodDescription and computed description in useInventory fallback chain (13.1-02)
 150. Enemy AC is role-driven via ENEMY_ROLE_CONFIG baseArmor/armorPerLevel (tank=14+4L, damage=6+3L, support=5+2L, healer=3+2L); template.armorClass field set to 0n and preserved for potential future per-enemy AC bonus (quick-159)
+151. Essence I/II/III drops moved from terrain-gated seeded loot tables to runtime combat resolution — 25% chance per kill per participant, tier by enemy level (1-5=I, 6-10=II, 11+=III), all terrain types eligible (quick-161)
 
 ---
 
@@ -334,9 +335,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 158 | craft_recipe applies per-material-quality stat bonuses via implicit ItemAffix rows — getCraftQualityStatBonus helper (standard=0, reinforced=+1, exquisite=+2, mastercraft=+3); armor inserts craft_quality_ac affix; weapons insert craft_quality_dmg + craft_quality_dps affixes; getEquippedWeaponStats sums weapon affixes; client tooltips show effective stats with implicit bonuses filtered from label list | 2026-02-18 | 4b4cf41 | [158-craft-recipe-reducer-applies-per-materia](./quick/158-craft-recipe-reducer-applies-per-materia/) |
 | 159 | Enemy AC now role-driven via ENEMY_ROLE_CONFIG baseArmor/armorPerLevel: tank=14+4L, damage=6+3L, support=5+2L, healer=3+2L; computeEnemyStats updated; all 29 enemy template armorClass values set to 0n | 2026-02-18 | fb58e4e | [159-enemy-armor-class-should-account-for-rol](./quick/159-enemy-armor-class-should-account-for-rol/) |
 | 160 | Audit and realign world-drop gear — T2 weapons fixed to 5/7 base/dps; Silken Robe AC=4, Ranger Jerkin AC=5, no stat bonuses on T2 base templates; added 10 T2 armor pieces (all 4 types x chest/legs/boots) + 5 T2 weapons; added 14 T1 other-slot templates (cloth/leather/chain/plate x head/wrists/hands/belt); module republished | 2026-02-18 | ededb33 | [160-audit-and-realign-ensure-items-ts-world-](./quick/160-audit-and-realign-ensure-items-ts-world-/) |
+| 161 | Rework essence drops — runtime 25% per-kill drop in combat.ts loot loop (tier by enemy level: 1-5=I, 6-10=II, 11+=III); removed all 6 terrain-gated essence blocks from ensureMaterialLootEntries; all zones now eligible | 2026-02-18 | d973957 | [161-rework-essence-drops-remove-terrain-gati](./quick/161-rework-essence-drops-remove-terrain-gati/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 160: audit/realign gear templates — T2 weapons 5/7 base/dps, T2 armor AC corrected, full T2 armor coverage (12 pieces), 5 missing T2 weapons, 14 T1 other-slot templates (head/wrists/hands/belt for all 4 armor types)
+Last activity: 2026-02-18 - Completed quick task 161: rework essence drops — runtime 25% per-kill drop in combat.ts (tier by enemy level), removed terrain-gated essence blocks from ensureMaterialLootEntries (6 creature types x 3 essence tiers = 18 upsert calls removed)
