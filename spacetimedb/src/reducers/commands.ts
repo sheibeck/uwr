@@ -34,6 +34,7 @@ export const registerCommandReducers = (deps: any) => {
     ensureVendorInventory,
     syncAllContent,
     addItemToInventory,
+    MAX_INVENTORY_SLOTS,
   } = deps;
 
   const hailNpc = (ctx: any, character: any, npcName: string) => {
@@ -390,9 +391,9 @@ export const registerCommandReducers = (deps: any) => {
       }
       if (!template) return fail(ctx, character, 'No item templates found to create test item');
 
-      // Check inventory space (max 20 non-equipped items)
+      // Check inventory space (max non-equipped items)
       const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].filter((r) => !r.equippedSlot).length;
-      if (itemCount >= 20) return fail(ctx, character, 'Backpack is full');
+      if (itemCount >= MAX_INVENTORY_SLOTS) return fail(ctx, character, 'Backpack is full');
 
       // Add base item to inventory
       addItemToInventory(ctx, character.id, template.id, 1n);
@@ -446,7 +447,7 @@ export const registerCommandReducers = (deps: any) => {
       const character = requireCharacterOwnedBy(ctx, characterId);
 
       const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].filter((r: any) => !r.equippedSlot).length;
-      if (itemCount >= 20) return fail(ctx, character, 'Backpack is full');
+      if (itemCount >= MAX_INVENTORY_SLOTS) return fail(ctx, character, 'Backpack is full');
 
       const scrollName = recipeName.trim()
         ? `Scroll: ${recipeName.trim()}`

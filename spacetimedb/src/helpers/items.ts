@@ -327,7 +327,7 @@ export function addItemToInventory(
   });
 }
 
-export const MAX_INVENTORY_SLOTS = 20;
+export const MAX_INVENTORY_SLOTS = 50;
 
 export function getInventorySlotCount(ctx: any, characterId: bigint) {
   return [...ctx.db.itemInstance.by_owner.filter(characterId)].filter((row) => !row.equippedSlot)

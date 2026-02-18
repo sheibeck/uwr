@@ -33,6 +33,7 @@ export const registerItemReducers = (deps: any) => {
     requirePullerOrLog,
     getGroupParticipants,
     getInventorySlotCount,
+    MAX_INVENTORY_SLOTS,
     ResourceGatherTick,
     ensureStarterItemTemplates,
     ensureResourceItemTemplates,
@@ -149,7 +150,7 @@ export const registerItemReducers = (deps: any) => {
         [...ctx.db.itemInstance.by_owner.filter(character.id)].some(
           (row) => row.templateId === template.id && !row.equippedSlot
         );
-      if (!hasStack && itemCount >= 20) return failItem(ctx, character, 'Backpack is full');
+      if (!hasStack && itemCount >= MAX_INVENTORY_SLOTS) return failItem(ctx, character, 'Backpack is full');
       // Apply vendor buy discount perk
       const vendorBuyDiscount = getPerkBonusByField(ctx, character.id, 'vendorBuyDiscount', character.level);
       let finalPrice = vendorItem.price;
@@ -278,7 +279,7 @@ export const registerItemReducers = (deps: any) => {
       [...ctx.db.itemInstance.by_owner.filter(character.id)].some(
         (row) => row.templateId === template.id && !row.equippedSlot
       );
-    if (!hasStack && itemCount >= 20) return failItem(ctx, character, 'Backpack is full');
+    if (!hasStack && itemCount >= MAX_INVENTORY_SLOTS) return failItem(ctx, character, 'Backpack is full');
     addItemToInventory(ctx, character.id, template.id, 1n);
 
     // Apply affix data if this is a non-common quality item
@@ -357,7 +358,7 @@ export const registerItemReducers = (deps: any) => {
         [...ctx.db.itemInstance.by_owner.filter(character.id)].some(
           (row) => row.templateId === template.id && !row.equippedSlot
         );
-      if (!hasStack && itemCount >= 20) {
+      if (!hasStack && itemCount >= MAX_INVENTORY_SLOTS) {
         skipped++;
         continue;
       }
@@ -512,7 +513,7 @@ export const registerItemReducers = (deps: any) => {
     if (instance.quantity <= 1n || args.quantity <= 0n || args.quantity >= instance.quantity) {
       return failItem(ctx, character, 'Invalid split quantity.');
     }
-    if (getInventorySlotCount(ctx, character.id) >= 20) {
+    if (getInventorySlotCount(ctx, character.id) >= MAX_INVENTORY_SLOTS) {
       return failItem(ctx, character, 'Not enough room to split this stack.');
     }
     ctx.db.itemInstance.id.update({ ...instance, quantity: instance.quantity - args.quantity });
@@ -1486,7 +1487,7 @@ export const registerItemReducers = (deps: any) => {
         requiredSlots += 1;
       }
     }
-    return getInventorySlotCount(ctx, characterId) + requiredSlots <= 20;
+    return getInventorySlotCount(ctx, characterId) + requiredSlots <= MAX_INVENTORY_SLOTS;
   };
 
   const finalizeTrade = (ctx: any, trade: any) => {

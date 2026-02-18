@@ -104,6 +104,7 @@ import {
   hasInventorySpace,
   removeItemFromInventory,
   grantStarterItems,
+  MAX_INVENTORY_SLOTS,
 } from './helpers/items';
 
 import {
@@ -438,6 +439,7 @@ const reducerDeps = {
   requirePullerOrLog,
   getInventorySlotCount,
   hasInventorySpace,
+  MAX_INVENTORY_SLOTS,
   usesMana,
   Faction,
   FactionStanding,
