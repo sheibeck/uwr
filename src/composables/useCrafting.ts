@@ -93,6 +93,32 @@ export const useCrafting = ({
         }
         const recipeType: string = (recipe as any).recipeType ?? 'consumable';
         const materialType: string | undefined = (recipe as any).materialType ?? undefined;
+        const outputItem = output ? {
+          name: output.name,
+          rarity: output.rarity,
+          qualityTier: output.rarity,
+          slot: output.slot,
+          armorType: output.armorType,
+          allowedClasses: output.allowedClasses,
+          requiredLevel: output.requiredLevel,
+          description: output.description ?? null,
+          stats: [
+            output.armorClassBonus ? { label: 'Armor Class', value: `+${output.armorClassBonus}` } : null,
+            output.weaponBaseDamage ? { label: 'Weapon Damage', value: `${output.weaponBaseDamage}` } : null,
+            output.weaponDps ? { label: 'Weapon DPS', value: `${output.weaponDps}` } : null,
+            output.weaponType ? { label: 'Type', value: output.weaponType } : null,
+            output.strBonus ? { label: 'STR', value: `+${output.strBonus}` } : null,
+            output.dexBonus ? { label: 'DEX', value: `+${output.dexBonus}` } : null,
+            output.chaBonus ? { label: 'CHA', value: `+${output.chaBonus}` } : null,
+            output.wisBonus ? { label: 'WIS', value: `+${output.wisBonus}` } : null,
+            output.intBonus ? { label: 'INT', value: `+${output.intBonus}` } : null,
+            output.hpBonus ? { label: 'HP', value: `+${output.hpBonus}` } : null,
+            output.manaBonus ? { label: 'Mana', value: `+${output.manaBonus}` } : null,
+            output.magicResistanceBonus ? { label: 'Magic Resist', value: `+${output.magicResistanceBonus}` } : null,
+            output.requiredLevel && output.requiredLevel > 0n ? { label: 'Required Level', value: `${output.requiredLevel}` } : null,
+          ].filter(Boolean) as { label: string; value: string }[],
+          affixStats: [],
+        } : null;
         return {
           id: recipe.id,
           name: recipe.name,
@@ -102,6 +128,7 @@ export const useCrafting = ({
           canCraft,
           recipeType,
           materialType,
+          outputItem,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name))
