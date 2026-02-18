@@ -7,6 +7,7 @@ export const registerCommandReducers = (deps: any) => {
   const {
     spacetimedb,
     t,
+    requireAdmin,
     requireCharacterOwnedBy,
     requirePlayerUserId,
     appendPrivateEvent,
@@ -188,6 +189,7 @@ export const registerCommandReducers = (deps: any) => {
     }
 
     if (trimmed.toLowerCase() === '/synccontent') {
+      requireAdmin(ctx);
       const userId = requirePlayerUserId(ctx);
       syncAllContent(ctx);
       appendPrivateEvent(
@@ -356,6 +358,7 @@ export const registerCommandReducers = (deps: any) => {
     'create_test_item',
     { characterId: t.u64(), qualityTier: t.string() },
     (ctx, { characterId, qualityTier }) => {
+      requireAdmin(ctx);
       const character = requireCharacterOwnedBy(ctx, characterId);
 
       const validTiers = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
@@ -439,6 +442,7 @@ export const registerCommandReducers = (deps: any) => {
     'create_recipe_scroll',
     { characterId: t.u64(), recipeName: t.string() },
     (ctx, { characterId, recipeName }) => {
+      requireAdmin(ctx);
       const character = requireCharacterOwnedBy(ctx, characterId);
 
       const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].filter((r: any) => !r.equippedSlot).length;
@@ -479,6 +483,7 @@ export const registerCommandReducers = (deps: any) => {
   });
 
   spacetimedb.reducer('level_character', { characterId: t.u64(), level: t.u64() }, (ctx, args) => {
+    requireAdmin(ctx);
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const target = args.level;
     if (target < 1n || target > MAX_LEVEL) {

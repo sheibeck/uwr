@@ -1,4 +1,5 @@
 import { t, SenderError } from 'spacetimedb/server';
+import { requireAdmin } from './data/admin';
 import { ScheduleAt, Timestamp } from 'spacetimedb';
 import {
   spacetimedb,
@@ -332,6 +333,7 @@ const reducerDeps = {
   spacetimedb,
   t,
   SenderError,
+  requireAdmin,
   ScheduleAt,
   Timestamp,
   Character,

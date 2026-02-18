@@ -5,6 +5,7 @@ export const registerCorpseReducers = (deps: any) => {
     spacetimedb,
     t,
     SenderError,
+    requireAdmin,
     requireCharacterOwnedBy,
     appendPrivateEvent,
     fail,
@@ -579,6 +580,7 @@ export const registerCorpseReducers = (deps: any) => {
   // ===== ADMIN/TESTING COMMANDS =====
 
   spacetimedb.reducer('spawn_corpse', { characterId: t.u64() }, (ctx, args) => {
+    requireAdmin(ctx);
     const character = requireCharacterOwnedBy(ctx, args.characterId);
 
     // Find a random junk item template

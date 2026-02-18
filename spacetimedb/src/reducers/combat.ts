@@ -183,6 +183,7 @@ export const registerCombatReducers = (deps: any) => {
   const {
     spacetimedb,
     t,
+    requireAdmin,
     ScheduleAt,
     CombatLoopTick,
     HealthRegenTick,
@@ -1111,6 +1112,7 @@ export const registerCombatReducers = (deps: any) => {
   );
 
   spacetimedb.reducer('end_combat', { characterId: t.u64() }, (ctx, args) => {
+    requireAdmin(ctx);
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     let combatId = activeCombatIdForCharacter(ctx, character.id);
     if (!combatId) {

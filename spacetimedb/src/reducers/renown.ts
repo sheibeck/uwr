@@ -2,7 +2,7 @@ import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { awardRenown, grantAchievement } from '../helpers/renown';
 
 export const registerRenownReducers = (deps: any) => {
-  const { spacetimedb, t, SenderError, requireCharacterOwnedBy, appendSystemMessage } = deps;
+  const { spacetimedb, t, SenderError, requireAdmin, requireCharacterOwnedBy, appendSystemMessage } = deps;
 
   spacetimedb.reducer('choose_perk', { characterId: t.u64(), perkKey: t.string() }, (ctx: any, { characterId, perkKey }: any) => {
     // Auth check
@@ -84,11 +84,13 @@ export const registerRenownReducers = (deps: any) => {
   });
 
   spacetimedb.reducer('grant_test_renown', { characterId: t.u64(), points: t.u64() }, (ctx: any, { characterId, points }: any) => {
+    requireAdmin(ctx);
     const character = requireCharacterOwnedBy(ctx, characterId);
     awardRenown(ctx, character, points, 'Test grant');
   });
 
   spacetimedb.reducer('grant_test_achievement', { characterId: t.u64(), achievementKey: t.string() }, (ctx: any, { characterId, achievementKey }: any) => {
+    requireAdmin(ctx);
     const character = requireCharacterOwnedBy(ctx, characterId);
     const granted = grantAchievement(ctx, character, achievementKey);
     if (!granted) {
