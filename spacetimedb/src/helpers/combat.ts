@@ -2038,6 +2038,21 @@ export function applyPerkProcs(
       }
     }
 
+    // buffType: apply a CharacterEffect buff on proc
+    if (effect.buffType) {
+      const buffDuration = effect.buffDurationSeconds ?? 10;
+      const roundsRemaining = BigInt(Math.max(1, Math.ceil(buffDuration / 3)));
+      const buffMagnitude = effect.buffMagnitude ?? 1n;
+      addCharacterEffect(ctx, character.id, effect.buffType, buffMagnitude, roundsRemaining, perkName);
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'ability',
+        `Your ${perkName} triggered! +${buffMagnitude}% damage for ${buffDuration}s.`
+      );
+    }
+
     // on_kill AoE proc (Deathbringer): deal damage to all other enemies in combat
     if (eventType === 'on_kill' && effect.procDamageMultiplier && combatId) {
       const aoeDmg = (damageDealt * effect.procDamageMultiplier) / 100n;

@@ -359,7 +359,7 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
       name: 'Undying Fury',
       type: 'passive',
       description: '3% on-damage-taken chance to gain +50% damage for 10 seconds',
-      effect: { procType: 'on_damage_taken', procChance: 3, description: '+50% damage for 10s on proc' },
+      effect: { procType: 'on_damage_taken', procChance: 3, buffType: 'damage_boost', buffMagnitude: 50n, buffDurationSeconds: 10 },
       domain: 'combat',
     },
     {
