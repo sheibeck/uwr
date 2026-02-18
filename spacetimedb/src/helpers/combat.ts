@@ -1945,7 +1945,7 @@ export function computeEnemyStats(
   const effectiveLevel = template.level;
   const baseHp = role.baseHp + role.hpPerLevel * effectiveLevel;
   const baseDamage = role.baseDamage + role.damagePerLevel * effectiveLevel;
-  const baseArmorClass = role.baseArmor + role.armorPerLevel * effectiveLevel;
+  const baseArmorClass = template.armorClass + role.baseArmor + role.armorPerLevel * effectiveLevel;
 
   return {
     maxHp: baseHp,
