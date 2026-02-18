@@ -368,9 +368,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 185 | Fix version check causing infinite browser reloads — single BUILD_VERSION constant in vite.config.ts shared by define block and versionPlugin.closeBundle; previously two separate Date.now() calls produced different timestamps so CLIENT_VERSION never matched version.json | 2026-02-18 | e3156af | [185-fix-version-check-to-only-reload-browser](./quick/185-fix-version-check-to-only-reload-browser/) |
 | 186 | Filter gear recipes from Discover Recipes button — added isGearRecipe guard in research_recipes loop that skips recipeType != 'consumable'; 15 gear recipes (weapon/armor/accessory) excluded from auto-discovery while 14 consumable recipes remain freely discoverable; gear recipe paths via salvage/scroll unchanged | 2026-02-18 | 14ef3ac | [186-filter-gear-recipes-from-discover-recipe](./quick/186-filter-gear-recipes-from-discover-recipe/) |
 | 187 | Centralize backpack slot capacity into MAX_INVENTORY_SLOTS = 50 — constant defined in helpers/items.ts, exported via index.ts reducerDeps, replacing all 7 server-side hardcoded >= 20 capacity checks (5 in items reducer, 2 in commands reducer); client maxInventorySlots changed from 20 to 50 in useInventory.ts | 2026-02-18 | b34f6a9 | [187-make-backpack-slot-count-a-centralized-c](./quick/187-make-backpack-slot-count-a-centralized-c/) |
+| 188 | Scale HP and mana crafting modifier magnitudes — MODIFIER_MAGNITUDE_BY_ESSENCE lookup (hpBonus/manaBonus: 5n/8n/15n per lesser/essence/greater); getModifierMagnitude helper with stat-specific override + ESSENCE_MAGNITUDE fallback; craft_recipe uses per-stat modMagnitude in modifier loop; primary stats unchanged at 1n/2n/3n | 2026-02-18 | 071ef2b | [188-scale-hp-and-mana-crafting-modifier-bonu](./quick/188-scale-hp-and-mana-crafting-modifier-bonu/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 187: centralized MAX_INVENTORY_SLOTS = 50 constant, replaced all 7 server hardcoded capacity 20s and client maxInventorySlots; backpack capacity now 50 slots
+Last activity: 2026-02-18 - Completed quick task 188: scaled Life Stone (hpBonus) and Mana Pearl (manaBonus) crafting modifier magnitudes from trivial 1n/2n/3n to meaningful 5n/8n/15n per Essence tier, matching MATERIAL_AFFIX_MAP bone_shard scale and Vital prefix magnitudeByTier
