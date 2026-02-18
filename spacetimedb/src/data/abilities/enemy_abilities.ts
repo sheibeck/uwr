@@ -4,7 +4,7 @@ export const ENEMY_ABILITIES = {
   // DoT abilities - physical damage
   poison_bite: {
     name: 'Poison Bite',
-    description: 'Venomous fangs sink deep, leaving a festering wound that seeps poison.',
+    description: 'Venom courses through the wound.',
     castSeconds: 3n,
     cooldownSeconds: 20n,
     kind: 'dot',
@@ -20,7 +20,7 @@ export const ENEMY_ABILITIES = {
   },
   rending_bite: {
     name: 'Rending Bite',
-    description: 'Savage jaws tear flesh in ragged strips.',
+    description: 'Flesh tears and bleeds freely.',
     castSeconds: 1n,
     cooldownSeconds: 12n,
     kind: 'dot',
@@ -36,7 +36,7 @@ export const ENEMY_ABILITIES = {
   },
   bleeding_shot: {
     name: 'Bleeding Shot',
-    description: 'A barbed arrow lodges in the wound, drawing blood with every movement.',
+    description: 'Barbed tip lodges in the wound, drawing blood.',
     castSeconds: 1n,
     cooldownSeconds: 15n,
     kind: 'dot',
@@ -52,7 +52,7 @@ export const ENEMY_ABILITIES = {
   },
   bog_slime: {
     name: 'Bog Slime',
-    description: 'Caustic muck splatters and burns, eating through armor.',
+    description: 'Caustic muck clings and keeps burning.',
     castSeconds: 1n,
     cooldownSeconds: 12n,
     kind: 'dot',
@@ -68,7 +68,7 @@ export const ENEMY_ABILITIES = {
   },
   quick_nip: {
     name: 'Quick Nip',
-    description: 'A darting snap that draws a thin line of blood.',
+    description: 'Blood seeps from the shallow bite.',
     castSeconds: 1n,
     cooldownSeconds: 10n,
     kind: 'dot',
@@ -84,7 +84,7 @@ export const ENEMY_ABILITIES = {
   },
   thorn_venom: {
     name: 'Thorn Venom',
-    description: 'Barbed thorns inject a slow-acting toxin that sears from within.',
+    description: 'Toxin spreads from the puncture, searing within.',
     castSeconds: 2n,
     cooldownSeconds: 16n,
     kind: 'dot',
@@ -100,7 +100,7 @@ export const ENEMY_ABILITIES = {
   },
   blood_drain: {
     name: 'Blood Drain',
-    description: 'Lamprey-like tendrils latch on, siphoning lifeblood in dark pulses.',
+    description: 'Blood drains in slow, dark pulses.',
     castSeconds: 2n,
     cooldownSeconds: 18n,
     kind: 'dot',
@@ -116,7 +116,7 @@ export const ENEMY_ABILITIES = {
   },
   rusty_bleed: {
     name: 'Rusty Bleed',
-    description: 'A jagged, corroded blade tears an ugly wound that refuses to close.',
+    description: 'Ragged wound refuses to close.',
     castSeconds: 1n,
     cooldownSeconds: 12n,
     kind: 'dot',
@@ -132,7 +132,7 @@ export const ENEMY_ABILITIES = {
   },
   stone_cleave: {
     name: 'Stone Cleave',
-    description: 'A massive stone edge cleaves downward, splitting armor and bone.',
+    description: 'Bone-deep gash bleeds with each breath.',
     castSeconds: 1n,
     cooldownSeconds: 14n,
     kind: 'dot',
@@ -150,7 +150,7 @@ export const ENEMY_ABILITIES = {
   // DoT abilities - magic damage
   ember_burn: {
     name: 'Ember Burn',
-    description: 'Searing embers cling to flesh, igniting in waves of crackling flame.',
+    description: 'Embers cling to flesh and keep burning.',
     castSeconds: 2n,
     cooldownSeconds: 18n,
     kind: 'dot',
@@ -166,7 +166,7 @@ export const ENEMY_ABILITIES = {
   },
   shadow_rend: {
     name: 'Shadow Rend',
-    description: 'Ribbons of living shadow slice through body and soul alike.',
+    description: 'Shadow cuts linger, gnawing at flesh and spirit.',
     castSeconds: 2n,
     cooldownSeconds: 18n,
     kind: 'dot',
@@ -182,7 +182,7 @@ export const ENEMY_ABILITIES = {
   },
   scorching_snap: {
     name: 'Scorching Snap',
-    description: 'A whip-crack of flame lashes out, leaving smoldering welts.',
+    description: 'Smoldering welts pulse with residual heat.',
     castSeconds: 1n,
     cooldownSeconds: 14n,
     kind: 'dot',
@@ -198,7 +198,7 @@ export const ENEMY_ABILITIES = {
   },
   ember_spark: {
     name: 'Ember Spark',
-    description: 'Tiny motes of fire burrow beneath the skin, burning from within.',
+    description: 'Sparks burrow beneath the skin and smolder.',
     castSeconds: 1n,
     cooldownSeconds: 12n,
     kind: 'dot',
@@ -214,7 +214,7 @@ export const ENEMY_ABILITIES = {
   },
   searing_talon: {
     name: 'Searing Talon',
-    description: 'White-hot claws rake across, leaving glowing furrows of pain.',
+    description: 'Glowing furrows sear with each passing moment.',
     castSeconds: 2n,
     cooldownSeconds: 18n,
     kind: 'dot',
@@ -230,7 +230,7 @@ export const ENEMY_ABILITIES = {
   },
   shadow_bleed: {
     name: 'Shadow Bleed',
-    description: 'Dark energy seeps into wounds, turning blood to black ichor.',
+    description: 'Blood blackens as shadow seeps into the wound.',
     castSeconds: 2n,
     cooldownSeconds: 18n,
     kind: 'dot',
@@ -246,7 +246,7 @@ export const ENEMY_ABILITIES = {
   },
   cinder_blight: {
     name: 'Cinder Blight',
-    description: 'Choking ash and cinders smother and burn in equal measure.',
+    description: 'Ash fills the lungs and char spreads outward.',
     castSeconds: 2n,
     cooldownSeconds: 16n,
     kind: 'dot',
@@ -262,7 +262,7 @@ export const ENEMY_ABILITIES = {
   },
   molten_bleed: {
     name: 'Molten Bleed',
-    description: 'Liquid fire courses through open wounds, cauterizing nothing.',
+    description: 'Liquid fire courses through the wound, cauterizing nothing.',
     castSeconds: 3n,
     cooldownSeconds: 20n,
     kind: 'dot',
@@ -280,7 +280,7 @@ export const ENEMY_ABILITIES = {
   // Debuff abilities - physical damage
   crushing_gore: {
     name: 'Crushing Gore',
-    description: 'A brutal horn strike that cracks armor and leaves you staggering.',
+    description: 'Your armor buckles from the impact.',
     castSeconds: 2n,
     cooldownSeconds: 18n,
     kind: 'debuff',
@@ -297,7 +297,7 @@ export const ENEMY_ABILITIES = {
   },
   quake_stomp: {
     name: 'Quake Stomp',
-    description: 'The ground itself buckles underfoot, shattering defensive stances.',
+    description: 'Balance shatters as the ground lurches underfoot.',
     castSeconds: 2n,
     cooldownSeconds: 22n,
     kind: 'debuff',
@@ -316,7 +316,7 @@ export const ENEMY_ABILITIES = {
   // Debuff abilities - magic damage
   sapping_chant: {
     name: 'Sapping Chant',
-    description: 'A droning incantation drains vitality, leaving limbs heavy and slow.',
+    description: 'Limbs grow heavy as vitality drains away.',
     castSeconds: 2n,
     cooldownSeconds: 20n,
     kind: 'debuff',
@@ -333,7 +333,7 @@ export const ENEMY_ABILITIES = {
   },
   withering_hex: {
     name: 'Withering Hex',
-    description: 'Cursed sigils etch into armor, weakening its protective wards.',
+    description: 'Cursed sigils eat into armor, stripping its ward.',
     castSeconds: 2n,
     cooldownSeconds: 20n,
     kind: 'debuff',
@@ -350,7 +350,7 @@ export const ENEMY_ABILITIES = {
   },
   mire_curse: {
     name: 'Mire Curse',
-    description: 'Swamp magic seeps into joints, corroding metal and resolve.',
+    description: 'Swamp magic seeps into joints, corroding armor.',
     castSeconds: 2n,
     cooldownSeconds: 20n,
     kind: 'debuff',
@@ -367,7 +367,7 @@ export const ENEMY_ABILITIES = {
   },
   ember_slam: {
     name: 'Ember Slam',
-    description: 'A concussive blast of flame hammers defenses into ruin.',
+    description: 'Defenses buckle under the concussive heat.',
     castSeconds: 2n,
     cooldownSeconds: 20n,
     kind: 'debuff',
@@ -384,7 +384,7 @@ export const ENEMY_ABILITIES = {
   },
   chill_touch: {
     name: 'Chill Touch',
-    description: 'Spectral cold numbs the body and brittles armor to cracking.',
+    description: 'Cold brittles armor and numbs your guard.',
     castSeconds: 2n,
     cooldownSeconds: 18n,
     kind: 'debuff',
@@ -401,7 +401,7 @@ export const ENEMY_ABILITIES = {
   },
   grave_shield_break: {
     name: 'Grave Shield Break',
-    description: 'Necrotic energy gnaws at protective enchantments, unraveling them.',
+    description: 'Necrotic energy unravels protective enchantments.',
     castSeconds: 2n,
     cooldownSeconds: 18n,
     kind: 'debuff',
@@ -418,7 +418,7 @@ export const ENEMY_ABILITIES = {
   },
   vault_crush: {
     name: 'Vault Crush',
-    description: 'Ancient stone magic grinds against your guard, pulverizing defenses.',
+    description: 'Stone magic grinds defenses to dust.',
     castSeconds: 2n,
     cooldownSeconds: 20n,
     kind: 'debuff',
@@ -435,7 +435,7 @@ export const ENEMY_ABILITIES = {
   },
   soot_hex: {
     name: 'Soot Hex',
-    description: 'A choking hex of black soot blinds and weakens in equal measure.',
+    description: 'Black soot chokes and weakens exposed flesh.',
     castSeconds: 2n,
     cooldownSeconds: 18n,
     kind: 'debuff',
@@ -454,7 +454,7 @@ export const ENEMY_ABILITIES = {
   // Heal abilities (new)
   shaman_heal: {
     name: 'Shaman Heal',
-    description: 'Guttural chanting mends torn flesh with pulsing green light.',
+    description: 'Torn flesh knits together with a sickly glow.',
     castSeconds: 2n,
     cooldownSeconds: 15n,
     kind: 'heal',
@@ -468,7 +468,7 @@ export const ENEMY_ABILITIES = {
   },
   dark_mend: {
     name: 'Dark Mend',
-    description: 'Shadow-stitched wounds knit together with an unnatural dark glow.',
+    description: 'Wounds stitch shut with unnatural dark energy.',
     castSeconds: 3n,
     cooldownSeconds: 20n,
     kind: 'heal',
@@ -484,7 +484,7 @@ export const ENEMY_ABILITIES = {
   // AoE damage abilities (new)
   flame_burst: {
     name: 'Flame Burst',
-    description: 'A roiling eruption of fire scorches everything nearby.',
+    description: 'Fire erupts across the field, scorching all in range.',
     castSeconds: 2n,
     cooldownSeconds: 20n,
     kind: 'aoe_damage',
@@ -497,7 +497,7 @@ export const ENEMY_ABILITIES = {
   },
   quake_wave: {
     name: 'Quake Wave',
-    description: 'The earth splits and heaves, sending shockwaves through all who stand.',
+    description: 'Shockwaves ripple outward, battering everyone who stands.',
     castSeconds: 3n,
     cooldownSeconds: 25n,
     kind: 'aoe_damage',
@@ -512,7 +512,7 @@ export const ENEMY_ABILITIES = {
   // Night enemy abilities (quick-170)
   moth_dust: {
     name: 'Moth Dust',
-    description: 'A cloud of stinging scales billows forth, irritating exposed skin.',
+    description: 'Scales irritate exposed skin and keep stinging.',
     castSeconds: 1n,
     cooldownSeconds: 12n,
     kind: 'dot',
@@ -528,7 +528,7 @@ export const ENEMY_ABILITIES = {
   },
   plague_bite: {
     name: 'Plague Bite',
-    description: 'Diseased fangs clamp down, injecting filth into the bloodstream.',
+    description: 'Filth spreads through the bloodstream from the bite.',
     castSeconds: 1n,
     cooldownSeconds: 12n,
     kind: 'dot',
@@ -544,7 +544,7 @@ export const ENEMY_ABILITIES = {
   },
   spectral_flame: {
     name: 'Spectral Flame',
-    description: 'Ghostly fire flickers to life, burning without heat but searing the soul.',
+    description: 'Ghostly fire sears the soul without giving warmth.',
     castSeconds: 2n,
     cooldownSeconds: 16n,
     kind: 'dot',
@@ -560,7 +560,7 @@ export const ENEMY_ABILITIES = {
   },
   shadow_pounce: {
     name: 'Shadow Pounce',
-    description: 'A blur of darkness slams into you, claws raking deep.',
+    description: 'Claws rake deep, leaving wounds that keep bleeding.',
     castSeconds: 2n,
     cooldownSeconds: 18n,
     kind: 'dot',
@@ -576,7 +576,7 @@ export const ENEMY_ABILITIES = {
   },
   drowning_grasp: {
     name: 'Drowning Grasp',
-    description: 'Phantom water fills the lungs, choking without a drop in sight.',
+    description: 'Lungs fill with phantom water, each breath a struggle.',
     castSeconds: 2n,
     cooldownSeconds: 18n,
     kind: 'dot',
@@ -592,7 +592,7 @@ export const ENEMY_ABILITIES = {
   },
   soul_rend: {
     name: 'Soul Rend',
-    description: 'A spectral claw tears at the essence within, fraying life force.',
+    description: 'Life force frays at the edges, bleeding away.',
     castSeconds: 2n,
     cooldownSeconds: 20n,
     kind: 'dot',
@@ -608,7 +608,7 @@ export const ENEMY_ABILITIES = {
   },
   venom_fang: {
     name: 'Venom Fang',
-    description: 'Needle-thin fangs deliver a burning venom that spreads fast.',
+    description: 'Burning venom spreads quickly through the bloodstream.',
     castSeconds: 1n,
     cooldownSeconds: 12n,
     kind: 'dot',
@@ -624,7 +624,7 @@ export const ENEMY_ABILITIES = {
   },
   sonic_screech: {
     name: 'Sonic Screech',
-    description: 'An ear-splitting shriek rattles bones and loosens armor straps.',
+    description: 'Bone-rattling shriek loosens armor and staggers the guard.',
     castSeconds: 1n,
     cooldownSeconds: 14n,
     kind: 'debuff',
@@ -643,7 +643,7 @@ export const ENEMY_ABILITIES = {
   // Buff abilities (new)
   warchief_rally: {
     name: 'Warchief Rally',
-    description: 'A thundering war cry that emboldens every nearby ally.',
+    description: 'War cry ignites fury in every ally nearby.',
     castSeconds: 2n,
     cooldownSeconds: 30n,
     kind: 'buff',
@@ -657,7 +657,7 @@ export const ENEMY_ABILITIES = {
   },
   bolster_defenses: {
     name: 'Bolster Defenses',
-    description: 'Dark magic hardens scales and toughens hides across the pack.',
+    description: 'Scales harden and hides thicken across the pack.',
     castSeconds: 2n,
     cooldownSeconds: 25n,
     kind: 'buff',
