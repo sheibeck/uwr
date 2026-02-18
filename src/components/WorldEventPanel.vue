@@ -59,7 +59,7 @@
           </template>
 
           <!-- Time Remaining -->
-          <div v-if="event.deadlineAtMicros != null" :style="{ fontSize: '0.8rem', color: '#f59e0b' }">
+          <div v-if="event.deadlineAtMicros" :style="{ fontSize: '0.8rem', color: '#f59e0b' }">
             Time remaining: {{ timeRemaining(event) }}
           </div>
 

@@ -8,7 +8,7 @@ export const SPELLBLADE_ABILITIES: Record<string, AbilityMetadata> = {
     resource: 'mana',
     level: 1n,
     power: 2n,
-    cooldownSeconds: 3n,
+    cooldownSeconds: 6n,
     castSeconds: 0n,
     damageType: 'physical' as DamageType,
   },

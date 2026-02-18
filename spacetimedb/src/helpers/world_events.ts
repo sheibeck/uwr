@@ -1,3 +1,4 @@
+import { ScheduleAt } from 'spacetimedb';
 import { WORLD_EVENT_DEFINITIONS } from '../data/world_event_data';
 import { appendWorldEvent, appendPrivateEvent } from './events';
 import { awardRenown } from './renown';
@@ -46,16 +47,18 @@ export function fireWorldEvent(ctx: any, eventKey: string, deps?: WorldEventDeps
     }
   }
 
-  // Compute deadline for time-based failure
-  let deadlineAtMicros: bigint | undefined = undefined;
-  if (eventDef.failureConditionType === 'time' && eventDef.durationMicros) {
-    deadlineAtMicros = ctx.timestamp.microsSinceUnixEpoch + eventDef.durationMicros;
-  }
+  // Compute deadline for time-based failure (0n = no deadline)
+  const deadlineAtMicros: bigint =
+    eventDef.failureConditionType === 'time' && eventDef.durationMicros
+      ? ctx.timestamp.microsSinceUnixEpoch + eventDef.durationMicros
+      : 0n;
 
   // Serialize reward tiers to JSON
   const rewardTiersJson = JSON.stringify(eventDef.rewardTiers);
 
   // Insert WorldEvent row — CRITICAL (REQ-034): write consequenceTextStub to consequenceText at insert time
+  // NOTE: optional BigInt fields always use 0n (not undefined) to prevent writeI64(undefined) serialization
+  // errors on subsequent .update() calls. 0n is the sentinel for "not set".
   const eventRow = ctx.db.worldEvent.insert({
     id: 0n,
     eventKey,
@@ -67,10 +70,10 @@ export function fireWorldEvent(ctx: any, eventKey: string, deps?: WorldEventDeps
     resolvedAt: undefined,
     failureConditionType: eventDef.failureConditionType,
     deadlineAtMicros,
-    successThreshold: eventDef.successThreshold,
-    failureThreshold: eventDef.failureThreshold,
-    successCounter: eventDef.failureConditionType === 'threshold_race' ? 0n : undefined,
-    failureCounter: eventDef.failureConditionType === 'threshold_race' ? 0n : undefined,
+    successThreshold: eventDef.successThreshold ?? 0n,
+    failureThreshold: eventDef.failureThreshold ?? 0n,
+    successCounter: 0n,
+    failureCounter: 0n,
     successConsequenceType: eventDef.successConsequenceType,
     successConsequencePayload: eventDef.successConsequencePayload,
     failureConsequenceType: eventDef.failureConsequenceType,
@@ -211,9 +214,53 @@ export function spawnEventContent(ctx: any, eventId: bigint, eventDef: any, _dep
 }
 
 /**
+ * despawnEventContent — immediately remove all event-spawned content for a given event.
+ * Deletes EnemySpawnMember rows, EnemySpawn rows (if not locked in active combat),
+ * EventSpawnEnemy, EventSpawnItem, EventObjective, and EventContribution rows.
+ * Called directly from resolveWorldEvent after rewards are awarded.
+ */
+export function despawnEventContent(ctx: any, eventId: bigint): void {
+  // Step 1: Clean up event enemy spawns
+  for (const eventSpawnEnemy of ctx.db.eventSpawnEnemy.by_event.filter(eventId)) {
+    const spawnId = eventSpawnEnemy.spawnId;
+
+    // Delete EnemySpawnMember rows first
+    for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawnId)) {
+      ctx.db.enemySpawnMember.id.delete(member.id);
+    }
+
+    // Skip spawn deletion if locked in an active combat — let combat resolve naturally
+    const spawn = ctx.db.enemySpawn.id.find(spawnId);
+    if (spawn) {
+      const isLockedInCombat = spawn.lockedCombatId !== undefined && spawn.lockedCombatId !== null;
+      if (!isLockedInCombat) {
+        ctx.db.enemySpawn.id.delete(spawnId);
+      }
+    }
+
+    ctx.db.eventSpawnEnemy.id.delete(eventSpawnEnemy.id);
+  }
+
+  // Step 2: Delete all EventSpawnItem rows
+  for (const item of ctx.db.eventSpawnItem.by_event.filter(eventId)) {
+    ctx.db.eventSpawnItem.id.delete(item.id);
+  }
+
+  // Step 3: Delete all EventObjective rows
+  for (const objective of ctx.db.eventObjective.by_event.filter(eventId)) {
+    ctx.db.eventObjective.id.delete(objective.id);
+  }
+
+  // Step 4: Delete all EventContribution rows (rewards already awarded before this call)
+  for (const contrib of ctx.db.eventContribution.by_event.filter(eventId)) {
+    ctx.db.eventContribution.id.delete(contrib.id);
+  }
+}
+
+/**
  * resolveWorldEvent — resolve an active event with outcome 'success' or 'failure'.
  * Guards against double-resolve. Updates WorldEvent status, applies consequences,
- * awards tiered rewards, logs resolution, schedules EventDespawnTick at +2 minutes.
+ * awards tiered rewards, logs resolution, then immediately despawns event content.
  */
 export function resolveWorldEvent(ctx: any, eventRow: any, outcome: 'success' | 'failure', deps?: WorldEventDeps): void {
   // Guard: prevent double-resolve
@@ -242,13 +289,8 @@ export function resolveWorldEvent(ctx: any, eventRow: any, outcome: 'success' | 
     `World Event ${outcomeText}: ${eventRow.name} has concluded. The world is changed.`
   );
 
-  // Schedule EventDespawnTick at 2 minutes from now
-  const despawnAtMicros = ctx.timestamp.microsSinceUnixEpoch + 120_000_000n;
-  ctx.db.eventDespawnTick.insert({
-    scheduledId: 0n,
-    scheduledAt: { tag: 'Time', value: { microsSinceUnixEpoch: despawnAtMicros } },
-    eventId: eventRow.id,
-  });
+  // Immediately despawn all event content (enemies, items, objectives, contributions)
+  despawnEventContent(ctx, eventRow.id);
 }
 
 /**
@@ -406,7 +448,7 @@ export function awardEventRewards(ctx: any, eventRow: any, outcome: 'success' | 
 export function checkTimeBasedExpiry(ctx: any, eventRow: any, deps?: WorldEventDeps): void {
   if (eventRow.failureConditionType !== 'time') return;
   if (eventRow.status !== 'active') return;
-  if (!eventRow.deadlineAtMicros) return;
+  if (eventRow.deadlineAtMicros === 0n) return;
   if (ctx.timestamp.microsSinceUnixEpoch >= eventRow.deadlineAtMicros) {
     resolveWorldEvent(ctx, eventRow, 'failure', deps);
   }
