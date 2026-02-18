@@ -201,6 +201,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 153. Enemy combat HP = template.maxHp (individual seeded baseline) + role.baseHpBonus + role.hpBonusPerLevel * level — mirrors armor pattern; HP priority: tank(60/15) > healer(45/12) > support(35/10) > damage(20/8); enemy heal cap reads combatEnemy.maxHp not stale template.maxHp (quick-167)
 152. Essence tier thresholds corrected to 10-level-wide bands matching enemy tier structure; Essence IV added for level 31+ enemies — 1-10=I, 11-20=II, 21-30=III, 31+=IV; Essence IV defined in MATERIAL_DEFS (tier 4n) and seeded as ItemTemplate (vendorValue 24n) (quick-163)
 154. --clear-database is ONLY required for schema changes (adding non-optional columns to existing tables) — NOT for adding new enemy templates, items, abilities, or other data rows; all seeding functions use upsert (find-or-insert + update) patterns via syncAllContent(); plain `spacetime publish` preserves all player data (quick-172)
+155. New enemy abilities require entries in TWO places: (1) EnemyAbility DB table via ensureEnemyAbilities() in ensure_world.ts for ability SELECTION by the combat loop tick, AND (2) ENEMY_ABILITIES constant in data/abilities/enemy_abilities.ts for ability EXECUTION in executeEnemyAbility(); missing #2 causes silent no-op and enemy auto-attacks instead (quick-176)
 
 ---
 
