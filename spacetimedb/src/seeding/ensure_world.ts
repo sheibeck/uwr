@@ -599,6 +599,16 @@ export function ensureEnemyAbilities(ctx: any) {
   // Buff abilities
   upsertEnemyAbility('Hexbinder', 'warchief_rally', 'Warchief Rally', 'buff', 2n, 30n, 'all_allies');
   upsertEnemyAbility('Sootbound Mystic', 'bolster_defenses', 'Bolster Defenses', 'buff', 2n, 25n, 'all_allies');
+
+  // Night enemy abilities (quick-170 — new night spawn coverage)
+  upsertEnemyAbility('Dusk Moth', 'moth_dust', 'Moth Dust', 'dot', 1n, 12n, 'aggro');
+  upsertEnemyAbility('Night Rat', 'plague_bite', 'Plague Bite', 'dot', 1n, 12n, 'aggro');
+  upsertEnemyAbility('Cinder Wraith', 'spectral_flame', 'Spectral Flame', 'dot', 2n, 16n, 'aggro');
+  upsertEnemyAbility('Shadow Prowler', 'shadow_pounce', 'Shadow Pounce', 'dot', 2n, 18n, 'aggro');
+  upsertEnemyAbility('Bog Specter', 'drowning_grasp', 'Drowning Grasp', 'dot', 2n, 18n, 'aggro');
+  upsertEnemyAbility('Ashveil Phantom', 'soul_rend', 'Soul Rend', 'dot', 2n, 20n, 'aggro');
+  upsertEnemyAbility('Nightfang Viper', 'venom_fang', 'Venom Fang', 'dot', 1n, 12n, 'aggro');
+  upsertEnemyAbility('Gloomwing Bat', 'sonic_screech', 'Sonic Screech', 'debuff', 1n, 14n, 'aggro');
 }
 
 export function ensureWorldLayout(ctx: any) {

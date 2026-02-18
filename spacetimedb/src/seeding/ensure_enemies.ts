@@ -1220,4 +1220,216 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     'melee',
     'bulwark, cleave'
   );
+
+  // ---------------------------------------------------------------------------
+  // NIGHT ENEMY COVERAGE — fills gaps identified in quick-170 audit
+  // ---------------------------------------------------------------------------
+
+  // 1. Dusk Moth — Level 1, plains, night, spirit
+  // Fills: Ashen Road (plains L1) and Ironbell Farmstead (plains L1)
+  const duskMoth = addEnemyTemplate({
+    id: 0n,
+    name: 'Dusk Moth',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'plains',
+    creatureType: 'spirit',
+    timeOfDay: 'night',
+    socialGroup: 'spirit',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 0n,
+    level: 1n,
+    maxHp: 16n,
+    baseDamage: 3n,
+    xpReward: 10n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(duskMoth, 'dusk_moth', 'Dusk Moth', 'dps', 'magic', 'flutter, dust');
+  addRoleTemplate(duskMoth, 'dusk_moth_glimmer', 'Dusk Moth Glimmer', 'support', 'magic', 'shimmer, blind');
+
+  // 2. Night Rat — Level 1, plains, night, animal
+  // Fills: Ashen Road (plains L1) and Ironbell Farmstead (plains L1)
+  const nightRat = addEnemyTemplate({
+    id: 0n,
+    name: 'Night Rat',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'plains',
+    creatureType: 'animal',
+    timeOfDay: 'night',
+    socialGroup: 'animal',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 0n,
+    level: 1n,
+    maxHp: 18n,
+    baseDamage: 3n,
+    xpReward: 10n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(nightRat, 'night_rat', 'Night Rat', 'dps', 'melee', 'gnaw, dart');
+  addRoleTemplate(nightRat, 'night_rat_scrapper', 'Night Rat Scrapper', 'tank', 'melee', 'gnaw, brace');
+
+  // 3. Cinder Wraith — Level 3, plains+mountains, night, undead
+  // Fills: Cinderwatch (plains L3), Scoria Flats (plains L3), Ironvein Pass (mountains L5 via +/-1)
+  const cinderWraith = addEnemyTemplate({
+    id: 0n,
+    name: 'Cinder Wraith',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'plains,mountains',
+    creatureType: 'undead',
+    timeOfDay: 'night',
+    socialGroup: 'undead',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 0n,
+    level: 3n,
+    maxHp: 28n,
+    baseDamage: 6n,
+    xpReward: 22n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(cinderWraith, 'cinder_wraith', 'Cinder Wraith', 'dps', 'magic', 'spectral flame, wail');
+  addRoleTemplate(cinderWraith, 'cinder_wraith_howler', 'Cinder Wraith Howler', 'support', 'magic', 'howl, chill');
+
+  // 4. Shadow Prowler — Level 4, woods, night, beast
+  // Fills: Charwood Copse (woods L4)
+  const shadowProwler = addEnemyTemplate({
+    id: 0n,
+    name: 'Shadow Prowler',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods',
+    creatureType: 'beast',
+    timeOfDay: 'night',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 0n,
+    level: 4n,
+    maxHp: 32n,
+    baseDamage: 8n,
+    xpReward: 30n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(shadowProwler, 'shadow_prowler', 'Shadow Prowler', 'dps', 'melee', 'pounce, rend');
+  addRoleTemplate(shadowProwler, 'shadow_prowler_stalker', 'Shadow Prowler Stalker', 'dps', 'melee', 'ambush, rake');
+
+  // 5. Bog Specter — Level 4, swamp, night, spirit
+  // Fills: Smolder Marsh (swamp L4)
+  const bogSpecter = addEnemyTemplate({
+    id: 0n,
+    name: 'Bog Specter',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'swamp',
+    creatureType: 'spirit',
+    timeOfDay: 'night',
+    socialGroup: 'spirit',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 0n,
+    level: 4n,
+    maxHp: 26n,
+    baseDamage: 7n,
+    xpReward: 28n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(bogSpecter, 'bog_specter', 'Bog Specter', 'dps', 'magic', 'drowning grasp, lure');
+  addRoleTemplate(bogSpecter, 'bog_specter_lantern', 'Bog Specter Lantern', 'support', 'magic', 'wisp light, veil');
+
+  // 6. Ashveil Phantom — Level 5, mountains, night, undead
+  // Fills: Ironvein Pass (mountains L5) and Pyre Overlook (mountains L5)
+  const ashveilPhantom = addEnemyTemplate({
+    id: 0n,
+    name: 'Ashveil Phantom',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains',
+    creatureType: 'undead',
+    timeOfDay: 'night',
+    socialGroup: 'undead',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 0n,
+    level: 5n,
+    maxHp: 34n,
+    baseDamage: 8n,
+    xpReward: 36n,
+    factionId: fAshenOrder,
+  });
+  addRoleTemplate(ashveilPhantom, 'ashveil_phantom', 'Ashveil Phantom', 'dps', 'magic', 'soul rend, phase');
+  addRoleTemplate(ashveilPhantom, 'ashveil_phantom_warden', 'Ashveil Phantom Warden', 'tank', 'melee', 'spectral guard, slam');
+
+  // 7. Nightfang Viper — Level 1, swamp, night, beast
+  // Fills: swamp L1 night coverage (Fogroot Crossing, Willowfen, Duskwater Shallows)
+  const nightfangViper = addEnemyTemplate({
+    id: 0n,
+    name: 'Nightfang Viper',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'swamp',
+    creatureType: 'beast',
+    timeOfDay: 'night',
+    socialGroup: 'beast',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 0n,
+    level: 1n,
+    maxHp: 16n,
+    baseDamage: 4n,
+    xpReward: 12n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(nightfangViper, 'nightfang_viper', 'Nightfang Viper', 'dps', 'melee', 'venom strike, coil');
+  addRoleTemplate(nightfangViper, 'nightfang_viper_spitter', 'Nightfang Viper Spitter', 'dps', 'ranged', 'venom spit, dart');
+
+  // 8. Gloomwing Bat — Level 1, woods+mountains, night, beast
+  // Fills: woods/mountains L1 night coverage (Bramble Hollow, Thornveil Thicket, Lichen Ridge)
+  const gloomwingBat = addEnemyTemplate({
+    id: 0n,
+    name: 'Gloomwing Bat',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods,mountains',
+    creatureType: 'beast',
+    timeOfDay: 'night',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 0n,
+    level: 1n,
+    maxHp: 14n,
+    baseDamage: 3n,
+    xpReward: 10n,
+    factionId: fVerdantCircle,
+  });
+  addRoleTemplate(gloomwingBat, 'gloomwing_bat', 'Gloomwing Bat', 'dps', 'melee', 'screech, swoop');
+  addRoleTemplate(gloomwingBat, 'gloomwing_bat_elder', 'Gloomwing Bat Elder', 'support', 'melee', 'sonic pulse, swoop');
 }
