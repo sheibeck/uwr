@@ -195,6 +195,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 147. getCraftedAffixes called with craftQuality (standard/reinforced/exquisite) not qualityTier — outer if(qualityTier!=='common') guard removed so all crafted gear gets craftQuality set (13.1-02)
 148. tierLabel in useInventory derives from craftQuality when instance.craftQuality is set (dented/standard→Tier 1, reinforced→Tier 2, exquisite/mastercraft→Tier 3), overriding qualityTier-based tier number (13.1-02)
 149. template.description priority: DB-stored description takes precedence over foodDescription and computed description in useInventory fallback chain (13.1-02)
+150. Enemy AC is role-driven via ENEMY_ROLE_CONFIG baseArmor/armorPerLevel (tank=14+4L, damage=6+3L, support=5+2L, healer=3+2L); template.armorClass field set to 0n and preserved for potential future per-enemy AC bonus (quick-159)
 
 ---
 
@@ -331,9 +332,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 154 | Fix group panel harvest messages — added 5th groupMessage arg to logPrivateAndGroup in start_gather_resource so group members see "{character.name} begins gathering {node}." instead of "You begin gathering {node}."; matches finish_gather and take_loot patterns | 2026-02-18 | e160b43 | [154-fix-group-panel-harvest-messages-to-show](./quick/154-fix-group-panel-harvest-messages-to-show/) |
 | 156 | Realign armor AC and weapon damage across starter and T1 tiers — STARTER_ARMOR cloth 2/1/1, leather 3/2/2, chain 4/3/2, plate 5/4/3; T1 drops starter+1 on all slots; T1 other-slot items (helm/bracers/gauntlets/girdle/cloaks) set to per-armor-type values; starter weapons 3/5 base/dps, T1 weapons 4/6; module republished via upsert | 2026-02-18 | 8b2a41e | [156-realign-armor-ac-values-across-all-tiers](./quick/156-realign-armor-ac-values-across-all-tiers/) |
 | 158 | craft_recipe applies per-material-quality stat bonuses via implicit ItemAffix rows — getCraftQualityStatBonus helper (standard=0, reinforced=+1, exquisite=+2, mastercraft=+3); armor inserts craft_quality_ac affix; weapons insert craft_quality_dmg + craft_quality_dps affixes; getEquippedWeaponStats sums weapon affixes; client tooltips show effective stats with implicit bonuses filtered from label list | 2026-02-18 | 4b4cf41 | [158-craft-recipe-reducer-applies-per-materia](./quick/158-craft-recipe-reducer-applies-per-materia/) |
+| 159 | Enemy AC now role-driven via ENEMY_ROLE_CONFIG baseArmor/armorPerLevel: tank=14+4L, damage=6+3L, support=5+2L, healer=3+2L; computeEnemyStats updated; all 29 enemy template armorClass values set to 0n | 2026-02-18 | fb58e4e | [159-enemy-armor-class-should-account-for-rol](./quick/159-enemy-armor-class-should-account-for-rol/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 158: craft_recipe quality bonuses — reinforced/exquisite crafted gear now gets +1/+2 implicit stat bonuses via ItemAffix rows; client tooltips updated to show effective values
+Last activity: 2026-02-18 - Completed quick task 159: enemy AC role/level scaling — role-based armor class formula via ENEMY_ROLE_CONFIG, tanks heavily armored (L1=18, L5=34), healers squishy (L1=5, L5=13), all template armorClass values normalized to 0n
