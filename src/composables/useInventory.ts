@@ -384,7 +384,7 @@ export const useInventory = ({
     equippedSlots,
     inventoryItems,
     inventoryCount,
-    maxInventorySlots: 20,
+    maxInventorySlots: 50,
     equipItem,
     unequipItem,
     useItem,
