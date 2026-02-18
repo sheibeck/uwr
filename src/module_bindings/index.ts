@@ -106,6 +106,8 @@ import ResearchRecipesReducer from "./research_recipes_reducer";
 export { ResearchRecipesReducer };
 import CraftRecipeReducer from "./craft_recipe_reducer";
 export { CraftRecipeReducer };
+import LearnRecipeScrollReducer from "./learn_recipe_scroll_reducer";
+export { LearnRecipeScrollReducer };
 import UseItemReducer from "./use_item_reducer";
 export { UseItemReducer };
 import StartTradeReducer from "./start_trade_reducer";
@@ -146,6 +148,8 @@ import HailNpcReducer from "./hail_npc_reducer";
 export { HailNpcReducer };
 import CreateTestItemReducer from "./create_test_item_reducer";
 export { CreateTestItemReducer };
+import CreateRecipeScrollReducer from "./create_recipe_scroll_reducer";
+export { CreateRecipeScrollReducer };
 import GroupMessageReducer from "./group_message_reducer";
 export { GroupMessageReducer };
 import LevelCharacterReducer from "./level_character_reducer";
@@ -552,6 +556,8 @@ import CreateGroup from "./create_group_type";
 export { CreateGroup };
 import CreateItemTemplate from "./create_item_template_type";
 export { CreateItemTemplate };
+import CreateRecipeScroll from "./create_recipe_scroll_type";
+export { CreateRecipeScroll };
 import CreateTestItem from "./create_test_item_type";
 export { CreateTestItem };
 import DayNightTick from "./day_night_tick_type";
@@ -670,6 +676,8 @@ import JoinGroup from "./join_group_type";
 export { JoinGroup };
 import KickGroupMember from "./kick_group_member_type";
 export { KickGroupMember };
+import LearnRecipeScroll from "./learn_recipe_scroll_type";
+export { LearnRecipeScroll };
 import LeaveGroup from "./leave_group_type";
 export { LeaveGroup };
 import LevelCharacter from "./level_character_type";
@@ -2396,6 +2404,7 @@ const reducersSchema = __reducers(
   __reducerSchema("finish_gather", FinishGatherReducer),
   __reducerSchema("research_recipes", ResearchRecipesReducer),
   __reducerSchema("craft_recipe", CraftRecipeReducer),
+  __reducerSchema("learn_recipe_scroll", LearnRecipeScrollReducer),
   __reducerSchema("use_item", UseItemReducer),
   __reducerSchema("start_trade", StartTradeReducer),
   __reducerSchema("add_trade_item", AddTradeItemReducer),
@@ -2416,6 +2425,7 @@ const reducersSchema = __reducers(
   __reducerSchema("say", SayReducer),
   __reducerSchema("hail_npc", HailNpcReducer),
   __reducerSchema("create_test_item", CreateTestItemReducer),
+  __reducerSchema("create_recipe_scroll", CreateRecipeScrollReducer),
   __reducerSchema("group_message", GroupMessageReducer),
   __reducerSchema("level_character", LevelCharacterReducer),
   __reducerSchema("whisper", WhisperReducer),

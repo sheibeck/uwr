@@ -1,7 +1,7 @@
 import { buildDisplayName, findItemTemplateByName } from '../helpers/items';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { getPerkBonusByField } from '../helpers/renown';
-import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, MATERIAL_DEFS, getCraftedAffixes, materialTierToQuality } from '../data/crafting_materials';
+import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, MATERIAL_DEFS, getCraftedAffixes, materialTierToQuality, materialTierToCraftQuality } from '../data/crafting_materials';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -977,7 +977,7 @@ export const registerItemReducers = (deps: any) => {
       addItemToInventory(ctx, character.id, recipe.outputTemplateId, recipe.outputCount);
       const output = ctx.db.itemTemplate.id.find(recipe.outputTemplateId);
 
-      // --- Deterministic affix application for gear recipes ---
+      // --- Deterministic affix application for gear recipes (dual-axis) ---
       let craftedDisplayName = output?.name ?? recipe.name;
       const isGearRecipe = recipe.recipeType && recipe.recipeType !== 'consumable';
       if (isGearRecipe && output) {
@@ -991,41 +991,44 @@ export const registerItemReducers = (deps: any) => {
         const materialDef = MATERIAL_DEFS.find((m) => m.key === materialKey);
         const materialTier = materialDef ? materialDef.tier : 1n;
 
-        // Determine quality from material tier
-        const qualityTier = materialTierToQuality(materialTier);
+        // Dual-axis: craft quality from material tier (controls affixes/base stats)
+        const craftQuality = materialTierToCraftQuality(materialTier);
+        // Rarity: crafted items always start as 'common' (no random affixes)
+        const qualityTier = 'common';
 
-        if (qualityTier !== 'common') {
-          // Get deterministic affixes for this material + quality
-          const craftedAffixes = getCraftedAffixes(materialKey, qualityTier);
+        // Get deterministic affixes based on craft quality level
+        const craftedAffixes = getCraftedAffixes(materialKey, craftQuality);
 
+        // Find the newly created ItemInstance
+        const newInstance = [...ctx.db.itemInstance.by_owner.filter(character.id)].find(
+          (i) => i.templateId === recipe.outputTemplateId && !i.equippedSlot && !i.qualityTier && !i.craftQuality
+        );
+
+        if (newInstance) {
+          // Insert ItemAffix rows for each crafted affix
           if (craftedAffixes.length > 0) {
-            // Find the newly created ItemInstance — fresh insert with no qualityTier
-            const newInstance = [...ctx.db.itemInstance.by_owner.filter(character.id)].find(
-              (i) => i.templateId === recipe.outputTemplateId && !i.equippedSlot && !i.qualityTier
-            );
-            if (newInstance) {
-              // Insert ItemAffix rows for each crafted affix
-              for (const affix of craftedAffixes) {
-                ctx.db.itemAffix.insert({
-                  id: 0n,
-                  itemInstanceId: newInstance.id,
-                  affixType: affix.affixType,
-                  affixKey: affix.affixKey,
-                  affixName: affix.affixName,
-                  statKey: affix.statKey,
-                  magnitude: affix.magnitude,
-                });
-              }
-              // Build display name with prefix/suffix
-              craftedDisplayName = buildDisplayName(output.name, craftedAffixes);
-              // Update ItemInstance with qualityTier and displayName
-              ctx.db.itemInstance.id.update({
-                ...newInstance,
-                qualityTier,
-                displayName: craftedDisplayName,
+            for (const affix of craftedAffixes) {
+              ctx.db.itemAffix.insert({
+                id: 0n,
+                itemInstanceId: newInstance.id,
+                affixType: affix.affixType,
+                affixKey: affix.affixKey,
+                affixName: affix.affixName,
+                statKey: affix.statKey,
+                magnitude: affix.magnitude,
               });
             }
+            // Build display name with prefix/suffix
+            craftedDisplayName = buildDisplayName(output.name, craftedAffixes);
           }
+
+          // Update ItemInstance with BOTH axes
+          ctx.db.itemInstance.id.update({
+            ...newInstance,
+            qualityTier,       // rarity = 'common' for all crafted gear
+            craftQuality,      // craft quality from material tier
+            displayName: craftedAffixes.length > 0 ? craftedDisplayName : undefined,
+          });
         }
       }
 

@@ -10,16 +10,9 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("ItemInstance", {
-  id: __t.u64(),
-  templateId: __t.u64(),
-  ownerCharacterId: __t.u64(),
-  equippedSlot: __t.option(__t.string()),
-  quantity: __t.u64(),
-  qualityTier: __t.option(__t.string()),
-  craftQuality: __t.option(__t.string()),
-  displayName: __t.option(__t.string()),
-  isNamed: __t.option(__t.bool()),
+export default __t.object("CreateRecipeScroll", {
+  characterId: __t.u64(),
+  recipeName: __t.string(),
 });
 
 

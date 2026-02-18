@@ -37,4 +37,5 @@ export default __t.row({
   wellFedDurationMicros: __t.u64(),
   wellFedBuffType: __t.string(),
   wellFedBuffMagnitude: __t.u64(),
+  description: __t.option(__t.string()),
 });
