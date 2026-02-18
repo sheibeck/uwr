@@ -1,8 +1,8 @@
 # Project State
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
-**Last updated:** 2026-02-17
-**Status:** Phase 13 (Crafting System) complete and human-verified — material-driven gear crafting, salvage → materials, deterministic affixes, recipe scroll learning, and full UI working in-game. Next: Phase 18 Plan 03 (World Events UI) or Phase 16 (Travelling NPCs).
+**Last updated:** 2026-02-18
+**Status:** Phase 13.1 Plan 01 complete — dual-axis gear quality schema (craftQuality + qualityTier), Essence I/II/III seeded, MATERIAL_AFFIX_MAP keys renamed, unified addRecipeTemplate helper, all gear recipes require Essence as req3. Plan 02 (craft_recipe reducer dual-axis update) is next.
 
 ---
 
@@ -10,9 +10,9 @@
 
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
 
-**Last completed phase:** 13 (Crafting System) — 3/3 plans complete, human-verified
-**Current phase:** —
-**Next action:** Phase 18 Plan 03 (World Events client UI) or Phase 16 (Travelling NPCs)
+**Last completed phase:** 13.1 Plan 01 (Dual-Axis Gear System — Schema Extension and Material Foundation)
+**Current phase:** 13.1-dual-axis-gear-system (Plan 01/3 complete)
+**Next action:** Phase 13.1 Plan 02 (craft_recipe reducer update for dual-axis quality and Essence consumption)
 
 ---
 
@@ -315,9 +315,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 149 | Fix undying_fury buff proc and damage_boost combat consumption — undying_fury effect gains buffType/buffMagnitude/buffDurationSeconds fields; applyPerkProcs gains buffType branch calling addCharacterEffect; auto-attack damage now applies damage_boost CharacterEffect multiplier; both Wrath of the Fallen (active) and undying_fury (proc) now produce measurable damage increase | 2026-02-18 | 863010a | [149-fix-undying-fury-buff-proc-and-damage-bo](./quick/149-fix-undying-fury-buff-proc-and-damage-bo/) |
 | 150 | Disable legendary items by commenting them out since they aren't tied to actual bosses yet — LEGENDARIES array (Soulrender/Ironveil/Whisperwind/Dreadmaw) commented out in affix_catalog.ts with empty placeholder export; legendary drop check block commented out in combat.ts pending World Bosses phase | 2026-02-18 | ed179f5 | [150-disable-legendary-items-by-commenting-th](./quick/150-disable-legendary-items-by-commenting-th/) |
 | 151 | Centralize admin system — ADMIN_IDENTITIES moved from world_event_data.ts to dedicated data/admin.ts with requireAdmin helper; 8 admin/test reducers now guarded: /synccontent, create_test_item, create_recipe_scroll, level_character, spawn_corpse, end_combat, grant_test_renown, grant_test_achievement | 2026-02-18 | 6cd910b | [151-centralize-admin-system-into-dedicated-m](./quick/151-centralize-admin-system-into-dedicated-m/) |
+| 152 | Set default panel layout for new players — getDefaultLayout() computes viewport-aware positions (log top-left, travel top-right, hotbar/group left-aligned chain); /resetwindows restores same layout instead of centering all panels | 2026-02-17 | 99cf383 | [152-set-default-panel-layout-for-new-players](./quick/152-set-default-panel-layout-for-new-players/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Quick-151 complete: Centralized admin system — ADMIN_IDENTITIES moved from world_event_data.ts to dedicated data/admin.ts module; requireAdmin helper wired through reducerDeps DI; 8 admin/test reducers now guarded. Stopped at: Completed quick-151-PLAN.md
+Last activity: 2026-02-17 - Quick-152 complete: Default panel layout for new players — getDefaultLayout() added to usePanelManager.ts, /resetwindows now restores structured layout. Stopped at: Completed quick-152-PLAN.md
