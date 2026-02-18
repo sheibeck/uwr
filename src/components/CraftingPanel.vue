@@ -11,6 +11,16 @@
         Crafting is only available at locations with crafting stations.
       </div>
 
+      <!-- Discover Recipes button -->
+      <button
+        :style="[styles.ghostButton, (!craftingAvailable || combatLocked) ? styles.disabledButton : {}]"
+        :disabled="!craftingAvailable || combatLocked"
+        @click="$emit('research')"
+        style="margin-bottom: 8px;"
+      >
+        Discover Recipes
+      </button>
+
       <!-- Type filter chips -->
       <div style="display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;">
         <button
@@ -104,6 +114,7 @@ defineEmits<{
   (e: 'update:activeFilter', value: string): void;
   (e: 'update:showOnlyCraftable', value: boolean): void;
   (e: 'open-modal', recipe: any): void;
+  (e: 'research'): void;
   (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
   (e: 'move-tooltip', value: { x: number; y: number }): void;
   (e: 'hide-tooltip'): void;
