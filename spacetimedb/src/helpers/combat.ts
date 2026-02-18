@@ -63,36 +63,36 @@ export {
 
 export const ENEMY_ROLE_CONFIG: Record<
   string,
-  { hpPerLevel: bigint; damagePerLevel: bigint; baseHp: bigint; baseDamage: bigint; baseArmor: bigint; armorPerLevel: bigint }
+  { hpBonusPerLevel: bigint; damagePerLevel: bigint; baseHpBonus: bigint; baseDamage: bigint; baseArmor: bigint; armorPerLevel: bigint }
 > = {
   damage: {
-    hpPerLevel: 10n,
+    hpBonusPerLevel: 8n,
     damagePerLevel: 5n,
-    baseHp: 40n,
+    baseHpBonus: 20n,
     baseDamage: 12n,
     baseArmor: 3n,
     armorPerLevel: 2n,
   },
   tank: {
-    hpPerLevel: 15n,
+    hpBonusPerLevel: 15n,
     damagePerLevel: 3n,
-    baseHp: 60n,
+    baseHpBonus: 60n,
     baseDamage: 8n,
     baseArmor: 14n,
     armorPerLevel: 4n,
   },
   healer: {
-    hpPerLevel: 8n,
+    hpBonusPerLevel: 12n,
     damagePerLevel: 2n,
-    baseHp: 30n,
+    baseHpBonus: 45n,
     baseDamage: 6n,
     baseArmor: 6n,
     armorPerLevel: 3n,
   },
   support: {
-    hpPerLevel: 10n,
+    hpBonusPerLevel: 10n,
     damagePerLevel: 3n,
-    baseHp: 35n,
+    baseHpBonus: 35n,
     baseDamage: 7n,
     baseArmor: 5n,
     armorPerLevel: 2n,
@@ -1659,9 +1659,8 @@ export function executeEnemyAbility(
     const healPowerSplit = (ability as any).healPowerSplit ?? 1.0;
     const directHeal = (totalPower * BigInt(Math.floor(healPowerSplit * 100))) / 100n;
 
-    // Cap at maxHp
-    const healTargetTemplate = ctx.db.enemyTemplate.id.find(healTarget.enemyTemplateId);
-    const maxHp = healTargetTemplate?.maxHp ?? 100n;
+    // Cap at maxHp (use computed combat maxHp from combatEnemy row, not stale template value)
+    const maxHp = healTarget.maxHp;
     const nextHp = healTarget.currentHp + directHeal > maxHp ? maxHp : healTarget.currentHp + directHeal;
     ctx.db.combatEnemy.id.update({ ...healTarget, currentHp: nextHp });
 
@@ -1677,7 +1676,7 @@ export function executeEnemyAbility(
     }
 
     // Log heal event to all active participants
-    const healTargetName = healTarget.displayName ?? healTargetTemplate?.name ?? 'an ally';
+    const healTargetName = healTarget.displayName ?? 'an ally';
     for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
       if (participant.status !== 'active') continue;
       const pc = ctx.db.character.id.find(participant.characterId);
@@ -1943,7 +1942,7 @@ export function computeEnemyStats(
   const roleKey = roleTemplate?.role ?? template.role;
   const role = getEnemyRole(roleKey);
   const effectiveLevel = template.level;
-  const baseHp = role.baseHp + role.hpPerLevel * effectiveLevel;
+  const baseHp = template.maxHp + role.baseHpBonus + role.hpBonusPerLevel * effectiveLevel;
   const baseDamage = role.baseDamage + role.damagePerLevel * effectiveLevel;
   const baseArmorClass = template.armorClass + role.baseArmor + role.armorPerLevel * effectiveLevel;
 
