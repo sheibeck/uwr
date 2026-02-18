@@ -86,8 +86,18 @@
                 :style="styles.ghostButton"
                 @click="$emit('flee')"
               >
-                Flee
+                {{ isFleeCasting ? 'Cancel' : 'Flee' }}
               </button>
+            </div>
+            <div v-if="isFleeCasting" :style="styles.enemyCastBar">
+              <div
+                :style="{
+                  ...styles.enemyCastFill,
+                  width: `${Math.round(fleeProgress * 100)}%`,
+                  background: 'linear-gradient(90deg, rgba(255,180,60,0.6), rgba(255,120,30,0.9))',
+                }"
+              ></div>
+              <span :style="styles.barText">Fleeing...</span>
             </div>
             <div v-if="!canAct" :style="styles.subtle">You are down and cannot act.</div>
           </div>
@@ -124,6 +134,8 @@ const props = defineProps<{
   accordionState: {
     enemies: boolean;
   };
+  isFleeCasting: boolean;
+  fleeProgress: number;
 }>();
 
 const percent = (value: bigint, max: bigint) => {
