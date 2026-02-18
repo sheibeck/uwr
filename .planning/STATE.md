@@ -197,6 +197,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 149. template.description priority: DB-stored description takes precedence over foodDescription and computed description in useInventory fallback chain (13.1-02)
 150. Enemy AC is role-driven via ENEMY_ROLE_CONFIG baseArmor/armorPerLevel (tank=14+4L, damage=6+3L, support=5+2L, healer=3+2L); template.armorClass field set to 0n and preserved for potential future per-enemy AC bonus (quick-159)
 151. Essence I/II/III drops moved from terrain-gated seeded loot tables to runtime combat resolution — 25% chance per kill per participant, tier by enemy level (1-5=I, 6-10=II, 11+=III), all terrain types eligible (quick-161)
+152. Essence tier thresholds corrected to 10-level-wide bands matching enemy tier structure; Essence IV added for level 31+ enemies — 1-10=I, 11-20=II, 21-30=III, 31+=IV; Essence IV defined in MATERIAL_DEFS (tier 4n) and seeded as ItemTemplate (vendorValue 24n) (quick-163)
 
 ---
 
@@ -337,9 +338,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 160 | Audit and realign world-drop gear — T2 weapons fixed to 5/7 base/dps; Silken Robe AC=4, Ranger Jerkin AC=5, no stat bonuses on T2 base templates; added 10 T2 armor pieces (all 4 types x chest/legs/boots) + 5 T2 weapons; added 14 T1 other-slot templates (cloth/leather/chain/plate x head/wrists/hands/belt); module republished | 2026-02-18 | ededb33 | [160-audit-and-realign-ensure-items-ts-world-](./quick/160-audit-and-realign-ensure-items-ts-world-/) |
 | 161 | Rework essence drops — runtime 25% per-kill drop in combat.ts loot loop (tier by enemy level: 1-5=I, 6-10=II, 11+=III); removed all 6 terrain-gated essence blocks from ensureMaterialLootEntries; all zones now eligible | 2026-02-18 | d973957 | [161-rework-essence-drops-remove-terrain-gati](./quick/161-rework-essence-drops-remove-terrain-gati/) |
 | 162 | Log panel always visible — removed v-if="panels.log.open" from Log panel div in App.vue; panel now always renders in game view (Group/Hotbar/Location were already always visible) | 2026-02-18 | — | [162-when-i-create-a-new-character-the-log-pa](./quick/162-when-i-create-a-new-character-the-log-pa/) |
+| 163 | Fix essence tier thresholds to 10-level-wide bands and add Essence IV — crafting_materials.ts gets essence_iv entry (tier 4n), ensure_items.ts seeds Essence IV (vendorValue 24n), combat.ts now uses 1-10=I/11-20=II/21-30=III/31+=IV thresholds | 2026-02-18 | 4df1c5c | [163-fix-essence-tiers-1-10-i-11-20-ii-21-30-](./quick/163-fix-essence-tiers-1-10-i-11-20-ii-21-30-/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 162: log panel always visible — removed v-if="panels.log.open" from App.vue so Log panel always renders in game view
+Last activity: 2026-02-18 - Completed quick task 163: fix essence tier thresholds (5-level bands corrected to 10-level bands) and added Essence IV material for level 31+ enemies
