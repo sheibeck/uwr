@@ -243,6 +243,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 ## Accumulated Context
 
 ### Roadmap Evolution
+- Phase 13.1 inserted after Phase 13: Dual-axis gear system (craft quality vs rarity), material consolidation, Essence material, metadata consistency (URGENT)
 - Phase 3.1 inserted after Phase 3: Combat Balance (URGENT)
 - 2026-02-12: Phase 3.1 renamed from "Faction Hits" to "Combat Balance" before planning
 - Phase 3.1.1 inserted after Phase 3.1: Combat balance part 2 (URGENT)
@@ -313,9 +314,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 148 | Apply gatherSpeedBonus to gather cast duration — start_gather_resource reads gatherSpeedBonus via getPerkBonusByField, reduces RESOURCE_GATHER_CAST_MICROS proportionally with 500ms minimum; Efficient Hands/Master Harvester/Resourceful perks now functional; Phase 20 VERIFICATION.md updated to remove false "gathering is instant" claim | 2026-02-17 | 4e80639 | [148-fix-gatherspeedbonus-to-apply-to-gather-](./quick/148-fix-gatherspeedbonus-to-apply-to-gather-/) |
 | 149 | Fix undying_fury buff proc and damage_boost combat consumption — undying_fury effect gains buffType/buffMagnitude/buffDurationSeconds fields; applyPerkProcs gains buffType branch calling addCharacterEffect; auto-attack damage now applies damage_boost CharacterEffect multiplier; both Wrath of the Fallen (active) and undying_fury (proc) now produce measurable damage increase | 2026-02-18 | 863010a | [149-fix-undying-fury-buff-proc-and-damage-bo](./quick/149-fix-undying-fury-buff-proc-and-damage-bo/) |
 | 150 | Disable legendary items by commenting them out since they aren't tied to actual bosses yet — LEGENDARIES array (Soulrender/Ironveil/Whisperwind/Dreadmaw) commented out in affix_catalog.ts with empty placeholder export; legendary drop check block commented out in combat.ts pending World Bosses phase | 2026-02-18 | ed179f5 | [150-disable-legendary-items-by-commenting-th](./quick/150-disable-legendary-items-by-commenting-th/) |
+| 151 | Centralize admin system — ADMIN_IDENTITIES moved from world_event_data.ts to dedicated data/admin.ts with requireAdmin helper; 8 admin/test reducers now guarded: /synccontent, create_test_item, create_recipe_scroll, level_character, spawn_corpse, end_combat, grant_test_renown, grant_test_achievement | 2026-02-18 | 6cd910b | [151-centralize-admin-system-into-dedicated-m](./quick/151-centralize-admin-system-into-dedicated-m/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-17 - Phase 13 Plan 03 complete: useCrafting extended with activeFilter/showOnlyCraftable/filteredRecipes/recipeTypes/hasMaterial; CraftingPanel rebuilt with type filter chips, craftable toggle, red/green material display, Research Recipes button removed; InventoryPanel salvage text updated to "crafting materials", Learn Recipe action added for Scroll: items calling learnRecipeScroll reducer via window.__db_conn. Phase 13 (Crafting System) now fully complete (3/3 plans). Stopped at: Completed 13-03-PLAN.md
+Last activity: 2026-02-18 - Quick-151 complete: Centralized admin system — ADMIN_IDENTITIES moved from world_event_data.ts to dedicated data/admin.ts module; requireAdmin helper wired through reducerDeps DI; 8 admin/test reducers now guarded. Stopped at: Completed quick-151-PLAN.md
