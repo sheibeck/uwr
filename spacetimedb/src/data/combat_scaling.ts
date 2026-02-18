@@ -135,15 +135,17 @@ export const ABILITY_STAT_SCALING: Record<string, 'str' | 'dex' | 'int' | 'wis' 
   warrior_slam: 'str',
   warrior_cleave: 'str',
   warrior_crushing_blow: 'str',
-  rogue_shadow_cut: 'str',
-  rogue_bleed: 'str',
-  rogue_shadow_strike: 'str',
   monk_crippling_kick: 'str',
   monk_palm_strike: 'str',
   monk_tiger_flurry: 'str',
   beastmaster_pack_rush: 'str',
   beastmaster_beast_fang: 'str',
   beastmaster_alpha_assault: 'str',
+
+  // DEX abilities (rogue finesse — rogue primary is DEX, not STR)
+  rogue_shadow_cut: 'dex',
+  rogue_bleed: 'dex',
+  rogue_shadow_strike: 'dex',
 
   // INT abilities (arcane spells)
   wizard_magic_missile: 'int',
