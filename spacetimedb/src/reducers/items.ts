@@ -982,6 +982,10 @@ export const registerItemReducers = (deps: any) => {
     let found = 0;
     for (const recipe of ctx.db.recipeTemplate.iter()) {
       if (discovered.has(recipe.id.toString())) continue;
+      // Skip gear recipes — only consumables are auto-discoverable
+      // Gear recipes require salvaging or recipe scrolls
+      const isGearRecipe = recipe.recipeType && recipe.recipeType !== 'consumable';
+      if (isGearRecipe) continue;
       const req1Count = getItemCount(ctx, character.id, recipe.req1TemplateId);
       const req2Count = getItemCount(ctx, character.id, recipe.req2TemplateId);
       const req3Count =
