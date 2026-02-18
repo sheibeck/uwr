@@ -233,7 +233,10 @@ export function ensureAvailableSpawn(
       bestDiff = diff;
     }
   }
-  if (best && bestDiff !== null && bestDiff <= 1n) return best;
+  const locationRow2 = ctx.db.location.id.find(locationId);
+  const offset2 = locationRow2?.levelOffset ?? 0n;
+  const maxDiff = offset2 === 0n ? 0n : 1n;
+  if (best && bestDiff !== null && bestDiff <= maxDiff) return best;
   return spawnEnemy(ctx, locationId, targetLevel);
 }
 
@@ -341,8 +344,10 @@ export function spawnEnemy(
   if (candidates.length === 0) throw new SenderError('Enemy template missing');
 
   const adjustedTarget = computeLocationTargetLevel(ctx, locationId, targetLevel);
-  const minLevel = adjustedTarget > 1n ? adjustedTarget - 1n : 1n;
-  const maxLevel = adjustedTarget + 1n;
+  const offset = locationRow?.levelOffset ?? 0n;
+  const exactMatch = offset === 0n;
+  const minLevel = exactMatch ? adjustedTarget : (adjustedTarget > 1n ? adjustedTarget - 1n : 1n);
+  const maxLevel = exactMatch ? adjustedTarget : adjustedTarget + 1n;
   const filteredByLevel = candidates.filter(
     (candidate) => candidate.level >= minLevel && candidate.level <= maxLevel
   );
