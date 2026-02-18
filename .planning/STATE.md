@@ -362,9 +362,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 177 | Validate and fix gear drop parity — rare affix budget raised from 2n to 4n (matches crafted reinforced), T2 gear added to mid/high-tier loot tables (mountains/town/city/dungeon, weight 3n), pre-existing BigInt JSON serialization panic fixed in combat_loop generateLootTemplates | 2026-02-18 | ee95c9d | [177-validate-that-gear-that-can-drop-from-en](./quick/177-validate-that-gear-that-can-drop-from-en/) |
 | 178 | Consolidate enemy ability definitions — ENEMY_ABILITIES now has targetRule on all 41 entries, ENEMY_TEMPLATE_ABILITIES maps 35 templates to ability keys; ensureEnemyAbilities() replaced 40 hardcoded upsert calls with a loop over ENEMY_TEMPLATE_ABILITIES; adding a new enemy ability now requires editing only enemy_abilities.ts | 2026-02-18 | ff1b808 | [178-can-we-consolidate-our-enemy-abilities-i](./quick/178-can-we-consolidate-our-enemy-abilities-i/) |
 | 181 | Consolidate ENEMY_ABILITIES to single source of truth — removed duplicate block from ability_catalog.ts, updated imports in helpers/combat.ts, reducers/combat.ts, and index.ts; added description field to all 41 entries; combat log messages now append flavour text for all 5 ability kinds (dot/debuff/heal/aoe_damage/buff) | 2026-02-18 | 298c222 | [181-consolidate-enemy-abilities-out-of-abili](./quick/181-consolidate-enemy-abilities-out-of-abili/) |
+| 183 | Fix version.json polling URL to use Vite BASE_URL — changed hardcoded /version.json to import.meta.env.BASE_URL + 'version.json' in src/main.ts; fixes 404 on GitHub Pages (/uwr/ deployment) where file lives at /uwr/version.json; dev mode unaffected (BASE_URL defaults to /) | 2026-02-18 | bab1585 | [183-fix-version-json-url-to-use-base-url-uwr](./quick/183-fix-version-json-url-to-use-base-url-uwr/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 181: consolidated ENEMY_ABILITIES to single source of truth in enemy_abilities.ts (removed duplicate from ability_catalog.ts), added description flavour text to all 41 entries, surfaced descriptions in combat log for dot/debuff/heal/aoe_damage/buff ability kinds
+Last activity: 2026-02-18 - Completed quick task 183: fixed version.json polling URL to use Vite BASE_URL prefix in src/main.ts, correcting 404 on GitHub Pages production deployment
