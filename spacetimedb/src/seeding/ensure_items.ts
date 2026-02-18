@@ -873,6 +873,31 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     armorClassBonus: 5n,
     stackable: false,
   });
+
+  // Tier 2 armor — cloth legs/boots
+  upsertByName({ name: 'Silken Trousers', slot: 'legs', armorType: 'cloth', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'any', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 3n, stackable: false });
+  upsertByName({ name: 'Silken Slippers', slot: 'boots', armorType: 'cloth', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 10n, requiredLevel: 11n, allowedClasses: 'any', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 3n, stackable: false });
+
+  // Tier 2 armor — leather legs/boots
+  upsertByName({ name: 'Ranger Leggings', slot: 'legs', armorType: 'leather', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 4n, stackable: false });
+  upsertByName({ name: 'Ranger Boots', slot: 'boots', armorType: 'leather', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 10n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 4n, stackable: false });
+
+  // Tier 2 armor — chain chest/legs/boots
+  upsertByName({ name: 'Riveted Hauberk', slot: 'chest', armorType: 'chain', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 16n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 6n, stackable: false });
+  upsertByName({ name: 'Riveted Greaves', slot: 'legs', armorType: 'chain', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 14n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 5n, stackable: false });
+  upsertByName({ name: 'Riveted Sabatons', slot: 'boots', armorType: 'chain', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 4n, stackable: false });
+
+  // Tier 2 armor — plate chest/legs/boots
+  upsertByName({ name: 'Forged Cuirass', slot: 'chest', armorType: 'plate', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 18n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,bard,cleric', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 7n, stackable: false });
+  upsertByName({ name: 'Forged Greaves', slot: 'legs', armorType: 'plate', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 16n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,bard,cleric', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 6n, stackable: false });
+  upsertByName({ name: 'Forged Boots', slot: 'boots', armorType: 'plate', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 14n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,bard,cleric', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 5n, stackable: false });
+
+  // Tier 2 weapons — remaining types
+  upsertByName({ name: 'Flanged Mace', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'paladin,cleric', weaponType: 'mace', weaponBaseDamage: 5n, weaponDps: 7n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false });
+  upsertByName({ name: 'Hardened Axe', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'beastmaster', weaponType: 'axe', weaponBaseDamage: 5n, weaponDps: 7n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false });
+  upsertByName({ name: 'Stiletto', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'rogue', weaponType: 'dagger', weaponBaseDamage: 5n, weaponDps: 7n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false });
+  upsertByName({ name: 'Dueling Rapier', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'bard', weaponType: 'rapier', weaponBaseDamage: 5n, weaponDps: 7n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false });
+  upsertByName({ name: 'Tempered Blade', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'spellblade,reaver', weaponType: 'blade', weaponBaseDamage: 5n, weaponDps: 7n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false });
 }
 
 export function ensureWorldDropJewelryTemplates(ctx: any) {
@@ -1883,15 +1908,35 @@ export function ensureCraftingBaseGearTemplates(ctx: any) {
   // Head slot
   upsertByName({ name: 'Iron Helm', slot: 'head', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 4n });
   // Wrists slot
-  upsertByName({ name: 'Leather Bracers', slot: 'wrists', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 3n });
+  upsertByName({ name: 'Leather Bracers', slot: 'wrists', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', armorClassBonus: 3n });
   // Hands slot
   upsertByName({ name: 'Iron Gauntlets', slot: 'hands', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 4n });
   // Belt slot
-  upsertByName({ name: 'Rough Girdle', slot: 'belt', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 3n });
+  upsertByName({ name: 'Rough Girdle', slot: 'belt', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', armorClassBonus: 3n });
   // OffHand shield
   upsertByName({ name: 'Wooden Shield', slot: 'offHand', armorType: 'none', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 4n });
   // Cloak (neck slot with armorType cloth for identity, armorClassBonus distinguishes from jewelry)
   upsertByName({ name: 'Simple Cloak', slot: 'neck', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 6n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 2n });
+
+  // Cloth other-slot items (AC=2)
+  upsertByName({ name: 'Cloth Hood', slot: 'head', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 2n });
+  upsertByName({ name: 'Cloth Wraps', slot: 'wrists', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 2n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 2n });
+  upsertByName({ name: 'Cloth Gloves', slot: 'hands', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 2n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 2n });
+  upsertByName({ name: 'Cloth Sash', slot: 'belt', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 2n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 2n });
+
+  // Leather other-slot items (AC=3) — head and hands (wrists=Leather Bracers, belt=Rough Girdle already above)
+  upsertByName({ name: 'Leather Cap', slot: 'head', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', armorClassBonus: 3n });
+  upsertByName({ name: 'Leather Gloves', slot: 'hands', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', armorClassBonus: 3n });
+
+  // Chain other-slot items (AC=3)
+  upsertByName({ name: 'Chain Coif', slot: 'head', armorType: 'chain', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', armorClassBonus: 3n });
+  upsertByName({ name: 'Chain Bracers', slot: 'wrists', armorType: 'chain', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', armorClassBonus: 3n });
+  upsertByName({ name: 'Chain Gauntlets', slot: 'hands', armorType: 'chain', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', armorClassBonus: 3n });
+  upsertByName({ name: 'Chain Girdle', slot: 'belt', armorType: 'chain', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', armorClassBonus: 3n });
+
+  // Plate other-slot items (AC=4) — wrists and belt (head=Iron Helm, hands=Iron Gauntlets already above)
+  upsertByName({ name: 'Plate Vambraces', slot: 'wrists', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 4n });
+  upsertByName({ name: 'Plate Girdle', slot: 'belt', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 4n });
 }
 
 // ---------------------------------------------------------------------------
