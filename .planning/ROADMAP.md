@@ -527,6 +527,16 @@ Plans:
 - [ ] 13-02-PLAN.md — Reducer rework: salvage_item yields materials + recipe discovery, craft_recipe applies deterministic affixes, learn_recipe_scroll reducer
 - [ ] 13-03-PLAN.md — Frontend UI: CraftingPanel filter chips + craftable toggle + red/green material display, remove Research Recipes button, update salvage confirm text
 
+### Phase 13.1: Dual-axis gear system: craft quality vs rarity, material consolidation, Essence material, metadata consistency (INSERTED)
+
+**Goal:** Separate craft quality (Dented/Standard/Reinforced/Exquisite/Mastercraft controlling base stats) from rarity (Common-Legendary controlling magical affixes). Consolidate all crafting materials into single seeding path, introduce Essence I/II/III as required gear crafting ingredients, unify recipe helpers, and add item description metadata to ItemTemplate.
+**Depends on:** Phase 13
+**Plans:** 2 plans
+
+Plans:
+- [ ] 13.1-01-PLAN.md — Schema + data foundation: craftQuality on ItemInstance, description on ItemTemplate, dual-axis helpers in crafting_materials.ts, Essence MATERIAL_DEFS, material consolidation, recipe helper unification, Essence enemy loot entries
+- [ ] 13.1-02-PLAN.md — Reducer + frontend: craft_recipe dual-axis logic, publish module, regenerate bindings, useInventory.ts craftQuality/description reading, App.vue tooltip updates
+
 ### Phase 14: Loot & Gear Progression - Magic item properties and affixes, gear quality tiers (common to legendary), drop tables and rarity system, endgame gear hunting loop
 
 **Goal:** Dropped gear has quality tiers (Common through Legendary) with prefix/suffix affixes that create emergent item identities, level-gated quality unlocks per region tier, named Legendary uniques from boss enemies, and a complete gear lifecycle of drop-equip-outgrow-salvage.
