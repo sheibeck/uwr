@@ -341,9 +341,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 162 | Log panel always visible — removed v-if="panels.log.open" from Log panel div in App.vue; panel now always renders in game view (Group/Hotbar/Location were already always visible) | 2026-02-18 | — | [162-when-i-create-a-new-character-the-log-pa](./quick/162-when-i-create-a-new-character-the-log-pa/) |
 | 163 | Fix essence tier thresholds to 10-level-wide bands and add Essence IV — crafting_materials.ts gets essence_iv entry (tier 4n), ensure_items.ts seeds Essence IV (vendorValue 24n), combat.ts now uses 1-10=I/11-20=II/21-30=III/31+=IV thresholds | 2026-02-18 | 4df1c5c | [163-fix-essence-tiers-1-10-i-11-20-ii-21-30-](./quick/163-fix-essence-tiers-1-10-i-11-20-ii-21-30-/) |
 | 164 | Fix rogue damage ability stat scaling from STR (dump stat, 8 at L1) to DEX (primary stat, 12 at L1) — rogue_shadow_cut/bleed/shadow_strike changed to 'dex' in ABILITY_STAT_SCALING; narrows Shadow Cut damage gap from ~60% to ~15-20% vs hybrid classes; module republished | 2026-02-18 | df5cb7d | [164-investigate-shadowcut-damage-vs-reaver-s](./quick/164-investigate-shadowcut-damage-vs-reaver-s/) |
+| 165 | Audit and fix all class ability stat scaling — 17 entries corrected (enchanter int→cha, paladin hybrid→wis, ranger/monk/beastmaster/bard str/wis/cha→hybrid); hybrid formula updated from hardcoded STR+INT to 60% primary + 40% secondary via CLASS_CONFIG; module republished | 2026-02-18 | 065758d | [165-audit-and-fix-all-class-ability-stat-sca](./quick/165-audit-and-fix-all-class-ability-stat-sca/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 164: fix rogue ability stat scaling from STR to DEX in ABILITY_STAT_SCALING (combat_scaling.ts), narrowing Shadow Cut damage gap vs hybrid classes from ~60% to ~15-20%
+Last activity: 2026-02-18 - Completed quick task 165: audited and fixed all 16 class ability stat scaling entries — 17 corrections across enchanter/paladin/ranger/monk/beastmaster/bard; replaced hardcoded STR+INT hybrid formula with 60/40 CLASS_CONFIG-aware weighted split; module republished
