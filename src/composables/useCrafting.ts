@@ -38,6 +38,25 @@ const ESSENCE_MAGNITUDES: Record<string, number> = {
   'Greater Essence': 3,
 };
 
+// Mirrors server-side MODIFIER_MAGNITUDE_BY_ESSENCE + ESSENCE_MAGNITUDE in
+// spacetimedb/src/data/crafting_materials.ts — client copy for display purposes only.
+const MODIFIER_MAGNITUDE_BY_ESSENCE: Record<string, Record<string, number>> = {
+  'Lesser Essence':  { hpBonus: 5, manaBonus: 5 },
+  'Essence':         { hpBonus: 8, manaBonus: 8 },
+  'Greater Essence': { hpBonus: 15, manaBonus: 15 },
+};
+
+/**
+ * Returns the magnitude for a modifier stat + essence combination.
+ * Checks MODIFIER_MAGNITUDE_BY_ESSENCE for stat-specific overrides (HP/mana)
+ * first, then falls back to ESSENCE_MAGNITUDES.
+ *
+ * Mirrors server-side getModifierMagnitude() in crafting_materials.ts
+ */
+export function getModifierMagnitude(essenceName: string, statKey: string): number {
+  return MODIFIER_MAGNITUDE_BY_ESSENCE[essenceName]?.[statKey] ?? ESSENCE_MAGNITUDES[essenceName] ?? 1;
+}
+
 const tierToCraftQuality = (tier: bigint): string => {
   if (tier === 3n) return 'exquisite';
   if (tier === 2n) return 'reinforced';
