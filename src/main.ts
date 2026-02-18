@@ -53,7 +53,7 @@ const CLIENT_VERSION = typeof __BUILD_VERSION__ !== 'undefined' ? __BUILD_VERSIO
 
 const checkForUpdates = async () => {
   try {
-    const resp = await fetch('/version.json?_=' + Date.now(), {
+    const resp = await fetch(import.meta.env.BASE_URL + 'version.json?_=' + Date.now(), {
       cache: 'no-store',
     });
     if (!resp.ok) return;
