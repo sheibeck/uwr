@@ -164,10 +164,28 @@ export const useInventory = ({
           ]
             .filter((value) => value && value.length > 0)
             .join(' \u2022 ') ?? '');
+        // Affix data (computed before stats so implicit bonuses can be applied to base values)
+        const instanceAffixes = itemAffixes.value.filter(
+          (a) => a.itemInstanceId.toString() === instance.id.toString()
+        );
+        // Sum implicit craft quality bonuses for base stat display
+        let implicitAcBonus = 0n;
+        let implicitDmgBonus = 0n;
+        let implicitDpsBonus = 0n;
+        for (const a of instanceAffixes) {
+          if (a.affixType === 'implicit') {
+            if (a.statKey === 'armorClassBonus') implicitAcBonus += a.magnitude;
+            else if (a.statKey === 'weaponBaseDamage') implicitDmgBonus += a.magnitude;
+            else if (a.statKey === 'weaponDps') implicitDpsBonus += a.magnitude;
+          }
+        }
+        const effectiveAc = (template?.armorClassBonus ?? 0n) + implicitAcBonus;
+        const effectiveDmg = (template?.weaponBaseDamage ?? 0n) + implicitDmgBonus;
+        const effectiveDps = (template?.weaponDps ?? 0n) + implicitDpsBonus;
         const stats = [
-          template?.armorClassBonus ? { label: 'Armor Class', value: `+${template.armorClassBonus}` } : null,
-          template?.weaponBaseDamage ? { label: 'Weapon Damage', value: `${template.weaponBaseDamage}` } : null,
-          template?.weaponDps ? { label: 'Weapon DPS', value: `${template.weaponDps}` } : null,
+          effectiveAc ? { label: 'Armor Class', value: `+${effectiveAc}` } : null,
+          effectiveDmg ? { label: 'Weapon Damage', value: `${effectiveDmg}` } : null,
+          effectiveDps ? { label: 'Weapon DPS', value: `${effectiveDps}` } : null,
           template?.strBonus ? { label: 'STR', value: `+${template.strBonus}` } : null,
           template?.dexBonus ? { label: 'DEX', value: `+${template.dexBonus}` } : null,
           template?.chaBonus ? { label: 'CHA', value: `+${template.chaBonus}` } : null,
@@ -211,11 +229,8 @@ export const useInventory = ({
         const usable =
           (template?.slot ?? '').toLowerCase() === 'consumable' && usableKeys.has(itemKey);
         const eatable = (template?.slot ?? '').toLowerCase() === 'food';
-        // Affix data
-        const instanceAffixes = itemAffixes.value.filter(
-          (a) => a.itemInstanceId.toString() === instance.id.toString()
-        );
-        const affixStats = instanceAffixes.map((a) => ({
+        // Visible affix stats: exclude implicit affixes (craft quality bonuses already reflected in base stats above)
+        const affixStats = instanceAffixes.filter((a) => a.affixType !== 'implicit').map((a) => ({
           label: formatAffixStatKeyInv(a.statKey),
           value: `+${a.magnitude}`,
           affixName: a.affixName,
@@ -286,10 +301,27 @@ export const useInventory = ({
         ]
           .filter((value) => value && value.length > 0)
           .join(' • ') ?? '';
+      // Sum implicit craft quality bonuses for equipped slot base stat display
+      const equippedAffixes = instance
+        ? itemAffixes.value.filter((a) => a.itemInstanceId.toString() === instance.id.toString())
+        : [];
+      let equippedImplicitAc = 0n;
+      let equippedImplicitDmg = 0n;
+      let equippedImplicitDps = 0n;
+      for (const a of equippedAffixes) {
+        if (a.affixType === 'implicit') {
+          if (a.statKey === 'armorClassBonus') equippedImplicitAc += a.magnitude;
+          else if (a.statKey === 'weaponBaseDamage') equippedImplicitDmg += a.magnitude;
+          else if (a.statKey === 'weaponDps') equippedImplicitDps += a.magnitude;
+        }
+      }
+      const equippedEffectiveAc = (template?.armorClassBonus ?? 0n) + equippedImplicitAc;
+      const equippedEffectiveDmg = (template?.weaponBaseDamage ?? 0n) + equippedImplicitDmg;
+      const equippedEffectiveDps = (template?.weaponDps ?? 0n) + equippedImplicitDps;
       const stats = [
-        template?.armorClassBonus ? { label: 'Armor Class', value: `+${template.armorClassBonus}` } : null,
-        template?.weaponBaseDamage ? { label: 'Weapon Damage', value: `${template.weaponBaseDamage}` } : null,
-        template?.weaponDps ? { label: 'Weapon DPS', value: `${template.weaponDps}` } : null,
+        equippedEffectiveAc ? { label: 'Armor Class', value: `+${equippedEffectiveAc}` } : null,
+        equippedEffectiveDmg ? { label: 'Weapon Damage', value: `${equippedEffectiveDmg}` } : null,
+        equippedEffectiveDps ? { label: 'Weapon DPS', value: `${equippedEffectiveDps}` } : null,
         template?.strBonus ? { label: 'STR', value: `+${template.strBonus}` } : null,
         template?.dexBonus ? { label: 'DEX', value: `+${template.dexBonus}` } : null,
         template?.chaBonus ? { label: 'CHA', value: `+${template.chaBonus}` } : null,
