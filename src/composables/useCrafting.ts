@@ -11,39 +11,39 @@ const MODIFIER_ITEM_NAMES = new Set([
 const MODIFIER_STAT_KEYS: Record<string, string> = {
   'Glowing Stone': 'strBonus',
   'Clear Crystal': 'dexBonus',
-  'Ancient Rune':  'intBonus',
-  'Wisdom Herb':   'wisBonus',
-  'Silver Token':  'chaBonus',
-  'Life Stone':    'hpBonus',
-  'Mana Pearl':    'manaBonus',
-  'Iron Ward':     'armorClassBonus',
-  'Spirit Ward':   'magicResistanceBonus',
+  'Ancient Rune': 'intBonus',
+  'Wisdom Herb': 'wisBonus',
+  'Silver Token': 'chaBonus',
+  'Life Stone': 'hpBonus',
+  'Mana Pearl': 'manaBonus',
+  'Iron Ward': 'armorClassBonus',
+  'Spirit Ward': 'magicResistanceBonus',
 };
 
 const MODIFIER_DESCRIPTIONS: Record<string, string> = {
   'Glowing Stone': 'Adds Strength to the crafted item.',
   'Clear Crystal': 'Adds Dexterity to the crafted item.',
-  'Ancient Rune':  'Adds Intelligence to the crafted item.',
-  'Wisdom Herb':   'Adds Wisdom to the crafted item.',
-  'Silver Token':  'Adds Charisma to the crafted item.',
-  'Life Stone':    'Adds max HP to the crafted item.',
-  'Mana Pearl':    'Adds max Mana to the crafted item.',
-  'Iron Ward':     'Adds Armor Class to the crafted item.',
-  'Spirit Ward':   'Adds Magic Resistance to the crafted item.',
+  'Ancient Rune': 'Adds Intelligence to the crafted item.',
+  'Wisdom Herb': 'Adds Wisdom to the crafted item.',
+  'Silver Token': 'Adds Charisma to the crafted item.',
+  'Life Stone': 'Adds max HP to the crafted item.',
+  'Mana Pearl': 'Adds max Mana to the crafted item.',
+  'Iron Ward': 'Adds Armor Class to the crafted item.',
+  'Spirit Ward': 'Adds Magic Resistance to the crafted item.',
 };
 
 const ESSENCE_MAGNITUDES: Record<string, number> = {
-  'Lesser Essence':  1,
-  'Essence':         2,
+  'Lesser Essence': 1,
+  'Essence': 2,
   'Greater Essence': 3,
 };
 
 // Mirrors server-side MODIFIER_MAGNITUDE_BY_ESSENCE + ESSENCE_MAGNITUDE in
 // spacetimedb/src/data/crafting_materials.ts — client copy for display purposes only.
 const MODIFIER_MAGNITUDE_BY_ESSENCE: Record<string, Record<string, number>> = {
-  'Lesser Essence':  { hpBonus: 5, manaBonus: 5 },
-  'Essence':         { hpBonus: 8, manaBonus: 8 },
-  'Greater Essence': { hpBonus: 15, manaBonus: 15 },
+  'Lesser Essence': { hpBonus: 5, manaBonus: 5, armorClassBonus: 2 },
+  'Essence': { hpBonus: 8, manaBonus: 8, armorClassBonus: 4 },
+  'Greater Essence': { hpBonus: 15, manaBonus: 15, armorClassBonus: 8 },
 };
 
 /**
