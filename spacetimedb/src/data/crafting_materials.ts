@@ -561,6 +561,38 @@ export const ESSENCE_MAGNITUDE: Record<string, bigint> = {
   'greater_essence': 3n,
 };
 
+/**
+ * Stat-specific magnitude overrides for modifier reagents per Essence tier.
+ * hpBonus and manaBonus use higher magnitudes (5/8/15) to match the existing
+ * hp scale in MATERIAL_AFFIX_MAP (bone_shard: 5n/8n/15n) and the Vital prefix
+ * magnitudeByTier in affix_catalog.ts. All other stats fall through to ESSENCE_MAGNITUDE.
+ *
+ * Outer key = essence item key, inner key = stat key, value = magnitude.
+ */
+export const MODIFIER_MAGNITUDE_BY_ESSENCE: Record<string, Record<string, bigint>> = {
+  'lesser_essence': {
+    hpBonus:   5n,
+    manaBonus: 5n,
+  },
+  'essence': {
+    hpBonus:   8n,
+    manaBonus: 8n,
+  },
+  'greater_essence': {
+    hpBonus:   15n,
+    manaBonus: 15n,
+  },
+};
+
+/**
+ * Returns the magnitude for a specific modifier stat + essence tier combination.
+ * Checks MODIFIER_MAGNITUDE_BY_ESSENCE for stat-specific overrides first,
+ * then falls back to the flat ESSENCE_MAGNITUDE value.
+ */
+export function getModifierMagnitude(essenceKey: string, statKey: string): bigint {
+  return MODIFIER_MAGNITUDE_BY_ESSENCE[essenceKey]?.[statKey] ?? ESSENCE_MAGNITUDE[essenceKey] ?? 1n;
+}
+
 /** Essence item key → craft qualities it can unlock stat affixes for */
 export const ESSENCE_QUALITY_GATE: Record<string, string[]> = {
   'lesser_essence':  ['standard'],

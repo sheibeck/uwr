@@ -1,7 +1,7 @@
 import { buildDisplayName, findItemTemplateByName } from '../helpers/items';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { getPerkBonusByField } from '../helpers/renown';
-import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, MATERIAL_DEFS, materialTierToCraftQuality, getCraftQualityStatBonus, CRAFTING_MODIFIER_DEFS, AFFIX_SLOTS_BY_QUALITY, ESSENCE_MAGNITUDE, ESSENCE_QUALITY_GATE } from '../data/crafting_materials';
+import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, MATERIAL_DEFS, materialTierToCraftQuality, getCraftQualityStatBonus, CRAFTING_MODIFIER_DEFS, AFFIX_SLOTS_BY_QUALITY, ESSENCE_MAGNITUDE, ESSENCE_QUALITY_GATE, getModifierMagnitude } from '../data/crafting_materials';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -1157,12 +1157,13 @@ export const registerItemReducers = (deps: any) => {
               }
               removeItemFromInventory(ctx, character.id, modId, 1n);
 
+              const modMagnitude = getModifierMagnitude(catalystKey, modDef.statKey);
               appliedAffixes.push({
                 affixType: 'suffix',
                 affixKey: `crafted_${modDef.statKey}`,
                 affixName: statKeyToAffix(modDef.statKey),
                 statKey: modDef.statKey,
-                magnitude,
+                magnitude: modMagnitude,
               });
             }
 
