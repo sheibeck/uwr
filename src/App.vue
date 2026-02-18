@@ -64,7 +64,6 @@
 
     <!-- Log Panel (floating) -->
     <div
-      v-if="panels.log.open"
       data-panel-id="log"
       :style="{
         ...styles.floatingPanel,

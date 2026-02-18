@@ -336,9 +336,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 159 | Enemy AC now role-driven via ENEMY_ROLE_CONFIG baseArmor/armorPerLevel: tank=14+4L, damage=6+3L, support=5+2L, healer=3+2L; computeEnemyStats updated; all 29 enemy template armorClass values set to 0n | 2026-02-18 | fb58e4e | [159-enemy-armor-class-should-account-for-rol](./quick/159-enemy-armor-class-should-account-for-rol/) |
 | 160 | Audit and realign world-drop gear — T2 weapons fixed to 5/7 base/dps; Silken Robe AC=4, Ranger Jerkin AC=5, no stat bonuses on T2 base templates; added 10 T2 armor pieces (all 4 types x chest/legs/boots) + 5 T2 weapons; added 14 T1 other-slot templates (cloth/leather/chain/plate x head/wrists/hands/belt); module republished | 2026-02-18 | ededb33 | [160-audit-and-realign-ensure-items-ts-world-](./quick/160-audit-and-realign-ensure-items-ts-world-/) |
 | 161 | Rework essence drops — runtime 25% per-kill drop in combat.ts loot loop (tier by enemy level: 1-5=I, 6-10=II, 11+=III); removed all 6 terrain-gated essence blocks from ensureMaterialLootEntries; all zones now eligible | 2026-02-18 | d973957 | [161-rework-essence-drops-remove-terrain-gati](./quick/161-rework-essence-drops-remove-terrain-gati/) |
+| 162 | Log panel always visible — removed v-if="panels.log.open" from Log panel div in App.vue; panel now always renders in game view (Group/Hotbar/Location were already always visible) | 2026-02-18 | — | [162-when-i-create-a-new-character-the-log-pa](./quick/162-when-i-create-a-new-character-the-log-pa/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 161: rework essence drops — runtime 25% per-kill drop in combat.ts (tier by enemy level), removed terrain-gated essence blocks from ensureMaterialLootEntries (6 creature types x 3 essence tiers = 18 upsert calls removed)
+Last activity: 2026-02-18 - Completed quick task 162: log panel always visible — removed v-if="panels.log.open" from App.vue so Log panel always renders in game view
