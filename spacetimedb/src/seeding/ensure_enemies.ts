@@ -107,6 +107,9 @@ export function ensureLootTables(ctx: any) {
 //   T3 zones (dungeon/high danger):   T3 materials (shadowhide, void_crystal, darksteel_ore)
 //
 // Scroll drops: mid-tier enemies (T2) weight 3-5, high-tier (T3) weight 5-8. Low-tier: none.
+//
+// NOTE: Essence I/II/III drops are NO LONGER seeded here. They are now handled
+// at runtime in combat.ts based on enemy level (25% chance per kill, tier by level).
 // ---------------------------------------------------------------------------
 
 export function ensureMaterialLootEntries(ctx: any) {
@@ -139,9 +142,6 @@ export function ensureMaterialLootEntries(ctx: any) {
   const spiritEssence = findItemTemplateByName(ctx, 'Spirit Essence');
   const shadowhide = findItemTemplateByName(ctx, 'Shadowhide');
   const voidCrystal = findItemTemplateByName(ctx, 'Void Crystal');
-  const essenceI = findItemTemplateByName(ctx, 'Essence I');
-  const essenceII = findItemTemplateByName(ctx, 'Essence II');
-  const essenceIII = findItemTemplateByName(ctx, 'Essence III');
 
   // Look up scroll templates
   const scrollLongsword = findItemTemplateByName(ctx, 'Scroll: Longsword');
@@ -176,18 +176,6 @@ export function ensureMaterialLootEntries(ctx: any) {
         // Mid-tier: armor scroll drops (rare)
         if (scrollHelm) upsertLootEntry(animalTable.id, scrollHelm.id, 3n);
       }
-      // Essence drops (tier-gated)
-      if (!isMidTier && !isHighTier) {
-        if (essenceI) upsertLootEntry(animalTable.id, essenceI.id, 15n);
-      }
-      if (isMidTier) {
-        if (essenceI) upsertLootEntry(animalTable.id, essenceI.id, 10n);
-        if (essenceII) upsertLootEntry(animalTable.id, essenceII.id, 15n);
-      }
-      if (isHighTier) {
-        if (essenceII) upsertLootEntry(animalTable.id, essenceII.id, 10n);
-        if (essenceIII) upsertLootEntry(animalTable.id, essenceIII.id, 15n);
-      }
     }
 
     // --- BEAST loot tables: rough_hide (T1), tanned_leather (T2), shadowhide (T3) ---
@@ -206,18 +194,6 @@ export function ensureMaterialLootEntries(ctx: any) {
       } else if (isMidTier) {
         if (scrollBreastplate) upsertLootEntry(beastTable.id, scrollBreastplate.id, 3n);
       }
-      // Essence drops (tier-gated)
-      if (!isMidTier && !isHighTier) {
-        if (essenceI) upsertLootEntry(beastTable.id, essenceI.id, 15n);
-      }
-      if (isMidTier) {
-        if (essenceI) upsertLootEntry(beastTable.id, essenceI.id, 10n);
-        if (essenceII) upsertLootEntry(beastTable.id, essenceII.id, 15n);
-      }
-      if (isHighTier) {
-        if (essenceII) upsertLootEntry(beastTable.id, essenceII.id, 10n);
-        if (essenceIII) upsertLootEntry(beastTable.id, essenceIII.id, 15n);
-      }
     }
 
     // --- UNDEAD loot tables: bone_shard (T1), spirit_essence (T2) ---
@@ -233,18 +209,6 @@ export function ensureMaterialLootEntries(ctx: any) {
         if (scrollStaff) upsertLootEntry(undeadTable.id, scrollStaff.id, 5n);
       } else if (isMidTier) {
         if (scrollLongsword) upsertLootEntry(undeadTable.id, scrollLongsword.id, 4n);
-      }
-      // Essence drops (tier-gated)
-      if (!isMidTier && !isHighTier) {
-        if (essenceI) upsertLootEntry(undeadTable.id, essenceI.id, 15n);
-      }
-      if (isMidTier) {
-        if (essenceI) upsertLootEntry(undeadTable.id, essenceI.id, 10n);
-        if (essenceII) upsertLootEntry(undeadTable.id, essenceII.id, 15n);
-      }
-      if (isHighTier) {
-        if (essenceII) upsertLootEntry(undeadTable.id, essenceII.id, 10n);
-        if (essenceIII) upsertLootEntry(undeadTable.id, essenceIII.id, 15n);
       }
     }
 
@@ -266,18 +230,6 @@ export function ensureMaterialLootEntries(ctx: any) {
       } else if (isMidTier) {
         if (scrollStaff) upsertLootEntry(spiritTable.id, scrollStaff.id, 4n);
       }
-      // Essence drops (tier-gated)
-      if (!isMidTier && !isHighTier) {
-        if (essenceI) upsertLootEntry(spiritTable.id, essenceI.id, 15n);
-      }
-      if (isMidTier) {
-        if (essenceI) upsertLootEntry(spiritTable.id, essenceI.id, 10n);
-        if (essenceII) upsertLootEntry(spiritTable.id, essenceII.id, 15n);
-      }
-      if (isHighTier) {
-        if (essenceII) upsertLootEntry(spiritTable.id, essenceII.id, 10n);
-        if (essenceIII) upsertLootEntry(spiritTable.id, essenceIII.id, 15n);
-      }
     }
 
     // --- CONSTRUCT loot tables: shadowhide (T3), void_crystal (T3) ---
@@ -296,18 +248,6 @@ export function ensureMaterialLootEntries(ctx: any) {
         if (scrollLongsword) upsertLootEntry(constructTable.id, scrollLongsword.id, 5n);
         if (scrollDagger) upsertLootEntry(constructTable.id, scrollDagger.id, 3n);
       }
-      // Essence drops (tier-gated)
-      if (!isMidTier && !isHighTier) {
-        if (essenceI) upsertLootEntry(constructTable.id, essenceI.id, 15n);
-      }
-      if (isMidTier) {
-        if (essenceI) upsertLootEntry(constructTable.id, essenceI.id, 10n);
-        if (essenceII) upsertLootEntry(constructTable.id, essenceII.id, 15n);
-      }
-      if (isHighTier) {
-        if (essenceII) upsertLootEntry(constructTable.id, essenceII.id, 10n);
-        if (essenceIII) upsertLootEntry(constructTable.id, essenceIII.id, 15n);
-      }
     }
 
     // --- HUMANOID loot tables: bone_shard (T1), spirit_essence (T2) ---
@@ -325,18 +265,6 @@ export function ensureMaterialLootEntries(ctx: any) {
       } else if (isMidTier) {
         if (scrollLongsword) upsertLootEntry(humanoidTable.id, scrollLongsword.id, 4n);
         if (scrollDagger) upsertLootEntry(humanoidTable.id, scrollDagger.id, 3n);
-      }
-      // Essence drops (tier-gated)
-      if (!isMidTier && !isHighTier) {
-        if (essenceI) upsertLootEntry(humanoidTable.id, essenceI.id, 15n);
-      }
-      if (isMidTier) {
-        if (essenceI) upsertLootEntry(humanoidTable.id, essenceI.id, 10n);
-        if (essenceII) upsertLootEntry(humanoidTable.id, essenceII.id, 15n);
-      }
-      if (isHighTier) {
-        if (essenceII) upsertLootEntry(humanoidTable.id, essenceII.id, 10n);
-        if (essenceIII) upsertLootEntry(humanoidTable.id, essenceIII.id, 15n);
       }
     }
   }
