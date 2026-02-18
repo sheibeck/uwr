@@ -8,6 +8,7 @@ import {
 } from '../helpers/location';
 import { NPC_PERSONALITIES } from '../data/npc_data';
 import { NPC_DIALOGUE_OPTIONS } from '../data/dialogue_data';
+import { ENEMY_ABILITIES, ENEMY_TEMPLATE_ABILITIES } from '../data/abilities/enemy_abilities';
 
 export function ensureNpcs(ctx: any) {
   const upsertNpcByName = (args: {
@@ -560,55 +561,21 @@ export function ensureEnemyAbilities(ctx: any) {
     });
   };
 
-  upsertEnemyAbility('Bog Rat', 'poison_bite', 'Poison Bite', 'dot', 3n, 20n, 'aggro');
-  upsertEnemyAbility('Ember Wisp', 'ember_burn', 'Ember Burn', 'dot', 2n, 18n, 'aggro');
-  upsertEnemyAbility('Bandit', 'bleeding_shot', 'Bleeding Shot', 'dot', 1n, 15n, 'aggro');
-  upsertEnemyAbility('Blight Stalker', 'shadow_rend', 'Shadow Rend', 'dot', 2n, 18n, 'aggro');
-  upsertEnemyAbility('Grave Acolyte', 'sapping_chant', 'Sapping Chant', 'debuff', 2n, 20n, 'aggro');
-  upsertEnemyAbility('Hexbinder', 'withering_hex', 'Withering Hex', 'debuff', 2n, 20n, 'aggro');
-  upsertEnemyAbility('Thicket Wolf', 'rending_bite', 'Rending Bite', 'dot', 1n, 12n, 'aggro');
-  upsertEnemyAbility('Marsh Croaker', 'bog_slime', 'Bog Slime', 'dot', 1n, 12n, 'aggro');
-  upsertEnemyAbility('Dust Hare', 'quick_nip', 'Quick Nip', 'dot', 1n, 10n, 'aggro');
-  upsertEnemyAbility('Ash Jackal', 'scorching_snap', 'Scorching Snap', 'dot', 1n, 14n, 'aggro');
-  upsertEnemyAbility('Thorn Sprite', 'thorn_venom', 'Thorn Venom', 'dot', 2n, 16n, 'aggro');
-  upsertEnemyAbility('Gloom Stag', 'crushing_gore', 'Crushing Gore', 'debuff', 2n, 18n, 'aggro');
-  upsertEnemyAbility('Mire Leech', 'blood_drain', 'Blood Drain', 'dot', 2n, 18n, 'aggro');
-  upsertEnemyAbility('Fen Witch', 'mire_curse', 'Mire Curse', 'debuff', 2n, 20n, 'aggro');
-  upsertEnemyAbility('Grave Skirmisher', 'rusty_bleed', 'Rusty Bleed', 'dot', 1n, 12n, 'aggro');
-  upsertEnemyAbility('Cinder Sentinel', 'ember_slam', 'Ember Slam', 'debuff', 2n, 20n, 'aggro');
-  upsertEnemyAbility('Emberling', 'ember_spark', 'Ember Spark', 'dot', 1n, 12n, 'aggro');
-  upsertEnemyAbility('Frostbone Acolyte', 'chill_touch', 'Chill Touch', 'debuff', 2n, 18n, 'aggro');
-  upsertEnemyAbility('Ridge Skirmisher', 'stone_cleave', 'Stone Cleave', 'dot', 1n, 14n, 'aggro');
-  upsertEnemyAbility('Emberhawk', 'searing_talon', 'Searing Talon', 'dot', 2n, 18n, 'aggro');
-  upsertEnemyAbility('Basalt Brute', 'quake_stomp', 'Quake Stomp', 'debuff', 2n, 22n, 'aggro');
-  upsertEnemyAbility('Grave Servant', 'grave_shield_break', 'Grave Shield Break', 'debuff', 2n, 18n, 'aggro');
-  upsertEnemyAbility('Alley Shade', 'shadow_bleed', 'Shadow Bleed', 'dot', 2n, 18n, 'aggro');
-  upsertEnemyAbility('Vault Sentinel', 'vault_crush', 'Vault Crush', 'debuff', 2n, 20n, 'aggro');
-  upsertEnemyAbility('Sootbound Mystic', 'soot_hex', 'Soot Hex', 'debuff', 2n, 18n, 'aggro');
-  upsertEnemyAbility('Ember Priest', 'cinder_blight', 'Cinder Blight', 'dot', 2n, 16n, 'aggro');
-  upsertEnemyAbility('Ashforged Revenant', 'molten_bleed', 'Molten Bleed', 'dot', 3n, 20n, 'aggro');
-
-  // Heal abilities
-  upsertEnemyAbility('Fen Witch', 'shaman_heal', 'Shaman Heal', 'heal', 2n, 15n, 'lowest_hp');
-  upsertEnemyAbility('Grave Acolyte', 'dark_mend', 'Dark Mend', 'heal', 3n, 20n, 'lowest_hp');
-
-  // AoE abilities
-  upsertEnemyAbility('Cinder Sentinel', 'flame_burst', 'Flame Burst', 'aoe_damage', 2n, 20n, 'all_players');
-  upsertEnemyAbility('Basalt Brute', 'quake_wave', 'Quake Wave', 'aoe_damage', 3n, 25n, 'all_players');
-
-  // Buff abilities
-  upsertEnemyAbility('Hexbinder', 'warchief_rally', 'Warchief Rally', 'buff', 2n, 30n, 'all_allies');
-  upsertEnemyAbility('Sootbound Mystic', 'bolster_defenses', 'Bolster Defenses', 'buff', 2n, 25n, 'all_allies');
-
-  // Night enemy abilities (quick-170 — new night spawn coverage)
-  upsertEnemyAbility('Dusk Moth', 'moth_dust', 'Moth Dust', 'dot', 1n, 12n, 'aggro');
-  upsertEnemyAbility('Night Rat', 'plague_bite', 'Plague Bite', 'dot', 1n, 12n, 'aggro');
-  upsertEnemyAbility('Cinder Wraith', 'spectral_flame', 'Spectral Flame', 'dot', 2n, 16n, 'aggro');
-  upsertEnemyAbility('Shadow Prowler', 'shadow_pounce', 'Shadow Pounce', 'dot', 2n, 18n, 'aggro');
-  upsertEnemyAbility('Bog Specter', 'drowning_grasp', 'Drowning Grasp', 'dot', 2n, 18n, 'aggro');
-  upsertEnemyAbility('Ashveil Phantom', 'soul_rend', 'Soul Rend', 'dot', 2n, 20n, 'aggro');
-  upsertEnemyAbility('Nightfang Viper', 'venom_fang', 'Venom Fang', 'dot', 1n, 12n, 'aggro');
-  upsertEnemyAbility('Gloomwing Bat', 'sonic_screech', 'Sonic Screech', 'debuff', 1n, 14n, 'aggro');
+  for (const [templateName, abilityKeys] of Object.entries(ENEMY_TEMPLATE_ABILITIES)) {
+    for (const abilityKey of abilityKeys) {
+      const ability = ENEMY_ABILITIES[abilityKey as keyof typeof ENEMY_ABILITIES];
+      if (!ability) continue;
+      upsertEnemyAbility(
+        templateName,
+        abilityKey,
+        ability.name,
+        ability.kind,
+        ability.castSeconds,
+        ability.cooldownSeconds,
+        ability.targetRule,
+      );
+    }
+  }
 }
 
 export function ensureWorldLayout(ctx: any) {
