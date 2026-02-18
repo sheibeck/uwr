@@ -435,6 +435,41 @@ export const registerCommandReducers = (deps: any) => {
     }
   );
 
+  spacetimedb.reducer(
+    'create_recipe_scroll',
+    { characterId: t.u64(), recipeName: t.string() },
+    (ctx, { characterId, recipeName }) => {
+      const character = requireCharacterOwnedBy(ctx, characterId);
+
+      const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].filter((r: any) => !r.equippedSlot).length;
+      if (itemCount >= 20) return fail(ctx, character, 'Backpack is full');
+
+      const scrollName = recipeName.trim()
+        ? `Scroll: ${recipeName.trim()}`
+        : (() => {
+            // Pick a random scroll from all Scroll: templates
+            const scrolls: any[] = [];
+            for (const tmpl of ctx.db.itemTemplate.iter()) {
+              if (tmpl.name.startsWith('Scroll:')) scrolls.push(tmpl);
+            }
+            if (!scrolls.length) return null;
+            const idx = Number(ctx.timestamp.microsSinceUnixEpoch % BigInt(scrolls.length));
+            return scrolls[idx]!.name;
+          })();
+
+      if (!scrollName) return fail(ctx, character, 'No recipe scrolls found in database.');
+
+      let template: any = null;
+      for (const tmpl of ctx.db.itemTemplate.iter()) {
+        if (tmpl.name === scrollName) { template = tmpl; break; }
+      }
+      if (!template) return fail(ctx, character, `No scroll found: "${scrollName}". Valid names: Longsword, Dagger, Staff, Mace, Shield, Helm, Breastplate, Bracers, Gauntlets, Girdle, Greaves, Sabatons, Ring, Amulet, Cloak`);
+
+      addItemToInventory(ctx, character.id, template.id, 1n);
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward', `[Test] Added ${template.name} to inventory.`);
+    }
+  );
+
   spacetimedb.reducer('group_message', { characterId: t.u64(), message: t.string() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const trimmed = args.message.trim();

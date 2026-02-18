@@ -56,6 +56,7 @@ export const useCommands = ({
   const grantTestRenownReducer = useReducer(reducers.grantTestRenown);
   const spawnCorpseReducer = useReducer(reducers.spawnCorpse);
   const createTestItemReducer = useReducer(reducers.createTestItem);
+  const createRecipeScrollReducer = useReducer(reducers.createRecipeScroll);
   const resolveWorldEventReducer = useReducer(reducers.resolveWorldEvent);
   const chooseDialogueOptionReducer = useReducer(reducers.chooseDialogueOption);
   const commandText = ref('');
@@ -310,6 +311,12 @@ export const useCommands = ({
       createTestItemReducer({
         characterId: selectedCharacter.value.id,
         qualityTier: tier,
+      });
+    } else if (lower.startsWith('/createscroll')) {
+      const recipeName = raw.slice(13).trim();
+      createRecipeScrollReducer({
+        characterId: selectedCharacter.value.id,
+        recipeName,
       });
     } else if (lower === '/resetwindows') {
       if (resetPanels) {

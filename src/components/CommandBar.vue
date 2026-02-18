@@ -75,6 +75,7 @@ const highlighted = ref<string | null>(null);
     { value: '/grantrenown', hint: 'Grant test renown points' },
     { value: '/spawncorpse', hint: 'Spawn test corpse with junk item' },
     { value: '/createitem', hint: 'Create test item by quality tier' },
+    { value: '/createscroll', hint: 'Create recipe scroll (optional: Longsword, Dagger, Staff, Helm, Ring…)' },
     { value: '/resetwindows', hint: 'Reset all panel positions to center of screen' },
     { value: '/who', hint: 'List all online characters' },
     { value: '/endevent', hint: 'End active world event as success (or /endevent fail)' },
