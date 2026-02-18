@@ -3,7 +3,7 @@ import { Timestamp } from 'spacetimedb';
 import { findItemTemplateByName } from './items';
 import { GROUP_SIZE_DANGER_BASE, GROUP_SIZE_BIAS_RANGE, GROUP_SIZE_BIAS_MAX } from '../data/combat_constants';
 import { EnemySpawn, EnemyTemplate } from '../schema/tables';
-import { MATERIAL_DEFS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
+import { MATERIAL_DEFS, CRAFTING_MODIFIER_DEFS, CRAFTING_MODIFIER_WEIGHT_MULTIPLIER } from '../data/crafting_materials';
 
 export const DAY_DURATION_MICROS = 1_200_000_000n;
 export const NIGHT_DURATION_MICROS = 600_000_000n;
@@ -114,7 +114,17 @@ export function getGatherableResourceTemplates(ctx: any, terrainType: string, ti
   for (const mod of CRAFTING_MODIFIER_DEFS) {
     for (const entry of mod.gatherEntries) {
       if (entry.terrain === key) {
-        modifierEntries.push({ name: mod.name, weight: entry.weight, timeOfDay: entry.timeOfDay });
+        modifierEntries.push({
+          name: mod.name,
+          weight: BigInt(
+            Math.max(
+              1,
+              Math.floor(Number(entry.weight) * CRAFTING_MODIFIER_WEIGHT_MULTIPLIER)
+            )
+          ),
+          timeOfDay: entry.timeOfDay
+        });
+
       }
     }
   }

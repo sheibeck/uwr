@@ -349,6 +349,8 @@ export interface CraftingModifierDef {
   gatherEntries: { terrain: string; weight: bigint; timeOfDay: string }[];  // terrain gather pool entries (weight 1n = rare)
 }
 
+export const CRAFTING_MODIFIER_WEIGHT_MULTIPLIER = 0.5;
+
 export const CRAFTING_MODIFIER_DEFS: CraftingModifierDef[] = [
   {
     key: 'glowing_stone', name: 'Glowing Stone', statKey: 'strBonus', description: 'Adds Strength to the crafted item.',

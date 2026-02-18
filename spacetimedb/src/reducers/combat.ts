@@ -2314,9 +2314,9 @@ export const registerCombatReducers = (deps: any) => {
               isNamed: lootItem.isNamed ?? undefined,
             });
           }
-          // --- Essence drop: 25% chance, tier based on enemy level ---
+          // --- Essence drop: 12% chance, tier based on enemy level ---
           const essenceSeed = (character.id * 7n ^ ctx.timestamp.microsSinceUnixEpoch + template.id * 31n) % 100n;
-          if (essenceSeed < 25n) {
+          if (essenceSeed < 12n) {
             const enemyLevel = template.level ?? 1n;
             let essenceToDrop: any = null;
             for (const threshold of ESSENCE_TIER_THRESHOLDS) {

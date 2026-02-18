@@ -847,10 +847,10 @@ export const registerItemReducers = (deps: any) => {
               BigInt(availableSpawns.length)
             );
             const spawnToUse = availableSpawns[spawnIndex] ?? availableSpawns[0];
-              const participants = getGroupParticipants(ctx, character, true);
-              appendPrivateEvent(
-                ctx,
-                character.id,
+            const participants = getGroupParticipants(ctx, character, true);
+            appendPrivateEvent(
+              ctx,
+              character.id,
               character.ownerUserId,
               'system',
               `As you reach for ${node.name}, ${spawnToUse.name} notices you and attacks!`
@@ -887,13 +887,13 @@ export const registerItemReducers = (deps: any) => {
         scheduledAt: ScheduleAt.time(endsAt),
         gatherId: gather.id,
       });
-    logPrivateAndGroup(
-      ctx,
-      character,
-      'system',
-      `You begin gathering ${node.name}.`,
-      `${character.name} begins gathering ${node.name}.`
-    );
+      logPrivateAndGroup(
+        ctx,
+        character,
+        'system',
+        `You begin gathering ${node.name}.`,
+        `${character.name} begins gathering ${node.name}.`
+      );
     }
   );
 
@@ -1030,14 +1030,14 @@ export const registerItemReducers = (deps: any) => {
   // Maps stat key → readable affix suffix name for crafted items
   const statKeyToAffix = (statKey: string): string => {
     const map: Record<string, string> = {
-      strBonus:             'of Strength',
-      dexBonus:             'of Dexterity',
-      intBonus:             'of Intelligence',
-      wisBonus:             'of Wisdom',
-      chaBonus:             'of Charisma',
-      hpBonus:              'of Vitality',
-      manaBonus:            'of the Arcane',
-      armorClassBonus:      'of Warding',
+      strBonus: 'of Strength',
+      dexBonus: 'of Dexterity',
+      intBonus: 'of Intelligence',
+      wisBonus: 'of Wisdom',
+      chaBonus: 'of Charisma',
+      hpBonus: 'of Vitality',
+      manaBonus: 'of the Arcane',
+      armorClassBonus: 'of Warding',
       magicResistanceBonus: 'of Magic Resistance',
     };
     return map[statKey] ?? 'of Power';
@@ -1046,9 +1046,9 @@ export const registerItemReducers = (deps: any) => {
   spacetimedb.reducer(
     'craft_recipe',
     {
-      characterId:         t.u64(),
-      recipeTemplateId:    t.u64(),
-      catalystTemplateId:  t.u64().optional(),
+      characterId: t.u64(),
+      recipeTemplateId: t.u64(),
+      catalystTemplateId: t.u64().optional(),
       modifier1TemplateId: t.u64().optional(),
       modifier2TemplateId: t.u64().optional(),
       modifier3TemplateId: t.u64().optional(),
@@ -1631,8 +1631,8 @@ export const registerItemReducers = (deps: any) => {
         'system',
         `${character.name} wants to trade with you.`
       );
-      }
-    );
+    }
+  );
 
   spacetimedb.reducer(
     'add_trade_item',
@@ -1802,9 +1802,9 @@ export const registerItemReducers = (deps: any) => {
       }
     }
 
-    // --- Bonus modifier reagent yield (30% chance) ---
+    // --- Bonus modifier reagent yield (12% chance) ---
     const modifierRoll = (ctx.timestamp.microsSinceUnixEpoch + args.itemInstanceId * 13n) % 100n;
-    if (modifierRoll < 30n) {
+    if (modifierRoll < 12n) {
       const modIdx = Number((args.itemInstanceId + character.id) % BigInt(CRAFTING_MODIFIER_DEFS.length));
       const modDef = CRAFTING_MODIFIER_DEFS[modIdx];
       const modifierTemplate = findItemTemplateByName(ctx, modDef.name);
