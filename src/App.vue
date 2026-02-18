@@ -300,8 +300,10 @@
             :combat-enemies="combatEnemiesList"
             :can-act="canActInCombat"
             :accordion-state="accordionState"
+            :is-flee-casting="isFleeCasting"
+            :flee-progress="fleeProgress"
             @select-enemy="setCombatTarget"
-            @flee="flee"
+            @flee="handleFlee"
             @accordion-toggle="updateAccordionState"
           />
         </template>
@@ -2037,6 +2039,33 @@ const localGather = ref<{ nodeId: bigint; startMicros: number; durationMicros: n
   null
 );
 
+const localFlee = ref<{ startMicros: number; durationMicros: number; timer: number } | null>(null);
+
+const isFleeCasting = computed(() => localFlee.value !== null);
+const fleeProgress = computed(() => {
+  if (!localFlee.value) return 0;
+  return Math.min(1, Math.max(0, (nowMicros.value - localFlee.value.startMicros) / localFlee.value.durationMicros));
+});
+
+const handleFlee = () => {
+  if (!selectedCharacter.value || !conn.isActive || !activeCombat.value) return;
+  // If already casting flee, cancel it
+  if (localFlee.value) {
+    clearTimeout(localFlee.value.timer);
+    localFlee.value = null;
+    return;
+  }
+  const timer = window.setTimeout(() => {
+    flee();
+    localFlee.value = null;
+  }, 3000);
+  localFlee.value = {
+    startMicros: nowMicros.value,
+    durationMicros: 3_000_000,
+    timer,
+  };
+};
+
 watch(
   () => selectedCharacter.value?.id,
   (id) => {
@@ -2081,6 +2110,17 @@ watch(
   (newVal) => {
     if (newVal && localGather.value) {
       localGather.value = null;
+    }
+  }
+);
+
+// Clear localFlee when combat ends (flee cast auto-cancelled if combat resolves)
+watch(
+  () => activeCombat.value,
+  (newVal, oldVal) => {
+    if (!newVal && localFlee.value) {
+      clearTimeout(localFlee.value.timer);
+      localFlee.value = null;
     }
   }
 );
