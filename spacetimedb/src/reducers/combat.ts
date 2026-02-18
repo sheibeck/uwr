@@ -3,7 +3,7 @@ import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier }
 import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
 import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, HEALING_THREAT_PERCENT } from '../data/combat_scaling';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
-import { ESSENCE_TIER_THRESHOLDS } from '../data/crafting_materials';
+import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { applyPerkProcs } from '../helpers/combat';
 import { RENOWN_GAIN } from '../data/renown_data';
@@ -2272,6 +2272,12 @@ export const registerCombatReducers = (deps: any) => {
         const tmpl = [...ctx.db.itemTemplate.iter()].find((t: any) => t.name === threshold.essenceName);
         if (tmpl) essenceTemplateMap.set(threshold.essenceName, tmpl);
       }
+      // Look up modifier reagent templates once per victory for runtime drops
+      const modifierTemplateMap = new Map<string, any>();
+      for (const def of CRAFTING_MODIFIER_DEFS) {
+        const tmpl = [...ctx.db.itemTemplate.iter()].find((t: any) => t.name === def.name);
+        if (tmpl) modifierTemplateMap.set(def.name, tmpl);
+      }
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
@@ -2330,6 +2336,36 @@ export const registerCombatReducers = (deps: any) => {
                 affixDataJson: undefined,
                 isNamed: undefined,
               });
+            }
+          }
+          // --- Modifier reagent drop: 15% chance, level-gated by MODIFIER_REAGENT_THRESHOLDS ---
+          const modifierSeed = (character.id * 11n ^ ctx.timestamp.microsSinceUnixEpoch + template.id * 43n) % 100n;
+          if (modifierSeed < 15n) {
+            const enemyLevel = template.level ?? 1n;
+            let eligibleNames: string[] = [];
+            for (const threshold of MODIFIER_REAGENT_THRESHOLDS) {
+              if (enemyLevel >= threshold.minLevel) {
+                eligibleNames = threshold.reagentNames;
+                break;
+              }
+            }
+            if (eligibleNames.length > 0) {
+              const pickIndex = Number((character.id + template.id) % BigInt(eligibleNames.length));
+              const pickedName = eligibleNames[pickIndex];
+              const modifierTemplate = modifierTemplateMap.get(pickedName);
+              if (modifierTemplate) {
+                ctx.db.combatLoot.insert({
+                  id: 0n,
+                  combatId: combat.id,
+                  ownerUserId: character.ownerUserId,
+                  characterId: character.id,
+                  itemTemplateId: modifierTemplate.id,
+                  createdAt: ctx.timestamp,
+                  qualityTier: undefined,
+                  affixDataJson: undefined,
+                  isNamed: undefined,
+                });
+              }
             }
           }
           // Diagnostic: log loot generation results

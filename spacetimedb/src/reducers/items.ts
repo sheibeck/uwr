@@ -1702,6 +1702,19 @@ export const registerItemReducers = (deps: any) => {
       }
     }
 
+    // --- Bonus modifier reagent yield (30% chance) ---
+    const modifierRoll = (ctx.timestamp.microsSinceUnixEpoch + args.itemInstanceId * 13n) % 100n;
+    if (modifierRoll < 30n) {
+      const modIdx = Number((args.itemInstanceId + character.id) % BigInt(CRAFTING_MODIFIER_DEFS.length));
+      const modDef = CRAFTING_MODIFIER_DEFS[modIdx];
+      const modifierTemplate = findItemTemplateByName(ctx, modDef.name);
+      if (modifierTemplate) {
+        addItemToInventory(ctx, character.id, modifierTemplate.id, 1n);
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+          `You also found 1x ${modDef.name} while salvaging.`);
+      }
+    }
+
     // --- Recipe discovery (75% chance) ---
     // Find a recipe that outputs this item type
     const matchingRecipe = [...ctx.db.recipeTemplate.iter()].find(
