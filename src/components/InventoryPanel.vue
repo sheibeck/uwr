@@ -233,7 +233,7 @@ const openItemContextMenu = (event: MouseEvent, item: typeof props.inventoryItem
     items.push({
       label: 'Salvage',
       action: () => {
-        if (window.confirm(`Salvage ${item.name}? You will receive gold. This cannot be undone.`)) {
+        if (window.confirm(`Salvage ${item.name}? You will receive crafting materials. This cannot be undone.`)) {
           emit('salvage-item', item.id);
         }
       },

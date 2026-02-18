@@ -183,7 +183,7 @@
     <!-- Crafting Panel (wide) -->
     <div v-if="panels.crafting && panels.crafting.open" data-panel-id="crafting" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('crafting').value || {}) }" @mousedown="bringToFront('crafting')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('crafting', $event)"><div>Crafting</div><button type="button" :style="styles.panelClose" @click="closePanelById('crafting')">×</button></div>
-      <div :style="styles.floatingPanelBody"><CraftingPanel :styles="styles" :selected-character="selectedCharacter" :crafting-available="currentLocationCraftingAvailable" :combat-locked="lockCrafting" :recipes="craftingRecipes" @research="onResearchRecipes" @craft="onCraftRecipe" /></div>
+      <div :style="styles.floatingPanelBody"><CraftingPanel :styles="styles" :selected-character="selectedCharacter" :crafting-available="currentLocationCraftingAvailable" :combat-locked="lockCrafting" :recipes="craftingFilteredRecipes" :recipe-types="craftingRecipeTypes" :active-filter="craftingActiveFilter" :show-only-craftable="craftingShowOnlyCraftable" @update:active-filter="craftingActiveFilter = $event" @update:show-only-craftable="craftingShowOnlyCraftable = $event" @craft="onCraftRecipe" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('crafting', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('crafting', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('crafting', $event, { right: true, bottom: true })" />
     </div>
 
@@ -1656,7 +1656,15 @@ const deleteItemReducer = useReducer(reducers.deleteItem);
 const inviteToGroupReducer = useReducer(reducers.inviteToGroup);
 const friendRequestReducer = useReducer(reducers.sendFriendRequestToCharacter);
 
-const { recipes: craftingRecipes, research: researchRecipes, craft: craftRecipe } = useCrafting({
+const {
+  recipes: craftingRecipes,
+  filteredRecipes: craftingFilteredRecipes,
+  recipeTypes: craftingRecipeTypes,
+  activeFilter: craftingActiveFilter,
+  showOnlyCraftable: craftingShowOnlyCraftable,
+  research: researchRecipes,
+  craft: craftRecipe,
+} = useCrafting({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
   itemInstances,
