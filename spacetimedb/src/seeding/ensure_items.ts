@@ -208,8 +208,8 @@ export function ensureStarterItemTemplates(ctx: any) {
       manaBonus: 0n,
       armorClassBonus: 0n,
       magicResistanceBonus: 0n,
-      weaponBaseDamage: 4n,
-      weaponDps: 6n,
+      weaponBaseDamage: 3n,
+      weaponDps: 5n,
       weaponType: weapon.weaponType,
       stackable: false,
     });
@@ -311,8 +311,8 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     requiredLevel: 1n,
     allowedClasses: 'warrior,paladin,bard,spellblade,reaver',
     weaponType: 'sword',
-    weaponBaseDamage: 5n,
-    weaponDps: 7n,
+    weaponBaseDamage: 4n,
+    weaponDps: 6n,
     strBonus: 0n,
     dexBonus: 0n,
     chaBonus: 0n,
@@ -334,8 +334,8 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     requiredLevel: 1n,
     allowedClasses: 'ranger',
     weaponType: 'bow',
-    weaponBaseDamage: 5n,
-    weaponDps: 7n,
+    weaponBaseDamage: 4n,
+    weaponDps: 6n,
     strBonus: 0n,
     dexBonus: 0n,
     chaBonus: 0n,
@@ -357,8 +357,8 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     requiredLevel: 1n,
     allowedClasses: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard',
     weaponType: 'staff',
-    weaponBaseDamage: 5n,
-    weaponDps: 7n,
+    weaponBaseDamage: 4n,
+    weaponDps: 6n,
     strBonus: 0n,
     dexBonus: 0n,
     chaBonus: 0n,
@@ -380,8 +380,8 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     requiredLevel: 1n,
     allowedClasses: 'paladin,cleric',
     weaponType: 'mace',
-    weaponBaseDamage: 5n,
-    weaponDps: 7n,
+    weaponBaseDamage: 4n,
+    weaponDps: 6n,
     strBonus: 0n,
     dexBonus: 0n,
     chaBonus: 0n,
@@ -403,8 +403,8 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     requiredLevel: 1n,
     allowedClasses: 'beastmaster',
     weaponType: 'axe',
-    weaponBaseDamage: 5n,
-    weaponDps: 7n,
+    weaponBaseDamage: 4n,
+    weaponDps: 6n,
     strBonus: 0n,
     dexBonus: 0n,
     chaBonus: 0n,
@@ -426,8 +426,8 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     requiredLevel: 1n,
     allowedClasses: 'bard',
     weaponType: 'rapier',
-    weaponBaseDamage: 5n,
-    weaponDps: 7n,
+    weaponBaseDamage: 4n,
+    weaponDps: 6n,
     strBonus: 0n,
     dexBonus: 0n,
     chaBonus: 0n,
@@ -449,8 +449,8 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     requiredLevel: 1n,
     allowedClasses: 'rogue',
     weaponType: 'dagger',
-    weaponBaseDamage: 5n,
-    weaponDps: 7n,
+    weaponBaseDamage: 4n,
+    weaponDps: 6n,
     strBonus: 0n,
     dexBonus: 0n,
     chaBonus: 0n,
@@ -472,8 +472,8 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     requiredLevel: 1n,
     allowedClasses: 'spellblade,reaver',
     weaponType: 'blade',
-    weaponBaseDamage: 5n,
-    weaponDps: 7n,
+    weaponBaseDamage: 4n,
+    weaponDps: 6n,
     strBonus: 0n,
     dexBonus: 0n,
     chaBonus: 0n,
@@ -576,7 +576,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 4n,
+    armorClassBonus: 3n,
     stackable: false,
   });
   upsertByName({
@@ -598,7 +598,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 3n,
+    armorClassBonus: 2n,
     stackable: false,
   });
   upsertByName({
@@ -644,7 +644,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 5n,
+    armorClassBonus: 4n,
     stackable: false,
   });
   upsertByName({
@@ -666,7 +666,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 4n,
+    armorClassBonus: 3n,
     stackable: false,
   });
   upsertByName({
@@ -712,7 +712,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 6n,
+    armorClassBonus: 5n,
     stackable: false,
   });
   upsertByName({
@@ -734,7 +734,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 5n,
+    armorClassBonus: 4n,
     stackable: false,
   });
   upsertByName({
@@ -756,7 +756,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 4n,
+    armorClassBonus: 3n,
     stackable: false,
   });
 
@@ -780,7 +780,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 7n,
+    armorClassBonus: 6n,
     stackable: false,
   });
   upsertByName({
@@ -802,7 +802,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 6n,
+    armorClassBonus: 5n,
     stackable: false,
   });
   upsertByName({
@@ -824,7 +824,7 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 5n,
+    armorClassBonus: 4n,
     stackable: false,
   });
 
@@ -1135,7 +1135,7 @@ export function ensureWorldDropJewelryTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 1n,
+    armorClassBonus: 2n,
     weaponBaseDamage: 0n,
     weaponDps: 0n,
     stackable: false,
@@ -1157,7 +1157,7 @@ export function ensureWorldDropJewelryTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 1n,
+    armorClassBonus: 2n,
     weaponBaseDamage: 0n,
     weaponDps: 0n,
     stackable: false,
@@ -1179,7 +1179,7 @@ export function ensureWorldDropJewelryTemplates(ctx: any) {
     intBonus: 0n,
     hpBonus: 0n,
     manaBonus: 0n,
-    armorClassBonus: 1n,
+    armorClassBonus: 2n,
     weaponBaseDamage: 0n,
     weaponDps: 0n,
     stackable: false,
@@ -1881,17 +1881,17 @@ export function ensureCraftingBaseGearTemplates(ctx: any) {
   };
 
   // Head slot
-  upsertByName({ name: 'Iron Helm', slot: 'head', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 3n });
+  upsertByName({ name: 'Iron Helm', slot: 'head', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 4n });
   // Wrists slot
-  upsertByName({ name: 'Leather Bracers', slot: 'wrists', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 2n });
+  upsertByName({ name: 'Leather Bracers', slot: 'wrists', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 3n });
   // Hands slot
-  upsertByName({ name: 'Iron Gauntlets', slot: 'hands', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 2n });
+  upsertByName({ name: 'Iron Gauntlets', slot: 'hands', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 4n });
   // Belt slot
-  upsertByName({ name: 'Rough Girdle', slot: 'belt', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 1n });
+  upsertByName({ name: 'Rough Girdle', slot: 'belt', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 3n });
   // OffHand shield
   upsertByName({ name: 'Wooden Shield', slot: 'offHand', armorType: 'none', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 4n });
   // Cloak (neck slot with armorType cloth for identity, armorClassBonus distinguishes from jewelry)
-  upsertByName({ name: 'Simple Cloak', slot: 'neck', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 6n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 1n });
+  upsertByName({ name: 'Simple Cloak', slot: 'neck', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 6n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 2n });
 }
 
 // ---------------------------------------------------------------------------

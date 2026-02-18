@@ -23,24 +23,24 @@ export const STARTER_ARMOR: Record<
   { chest: { name: string; ac: bigint }; legs: { name: string; ac: bigint }; boots: { name: string; ac: bigint } }
 > = {
   cloth: {
-    chest: { name: 'Apprentice Robe', ac: 3n },
-    legs: { name: 'Apprentice Trousers', ac: 2n },
+    chest: { name: 'Apprentice Robe', ac: 2n },
+    legs: { name: 'Apprentice Trousers', ac: 1n },
     boots: { name: 'Apprentice Boots', ac: 1n },
   },
   leather: {
-    chest: { name: 'Scout Jerkin', ac: 4n },
-    legs: { name: 'Scout Pants', ac: 3n },
+    chest: { name: 'Scout Jerkin', ac: 3n },
+    legs: { name: 'Scout Pants', ac: 2n },
     boots: { name: 'Scout Boots', ac: 2n },
   },
   chain: {
-    chest: { name: 'Warden Hauberk', ac: 5n },
-    legs: { name: 'Warden Greaves', ac: 4n },
-    boots: { name: 'Warden Boots', ac: 3n },
+    chest: { name: 'Warden Hauberk', ac: 4n },
+    legs: { name: 'Warden Greaves', ac: 3n },
+    boots: { name: 'Warden Boots', ac: 2n },
   },
   plate: {
-    chest: { name: 'Vanguard Cuirass', ac: 6n },
-    legs: { name: 'Vanguard Greaves', ac: 5n },
-    boots: { name: 'Vanguard Boots', ac: 4n },
+    chest: { name: 'Vanguard Cuirass', ac: 5n },
+    legs: { name: 'Vanguard Greaves', ac: 4n },
+    boots: { name: 'Vanguard Boots', ac: 3n },
   },
 };
 
