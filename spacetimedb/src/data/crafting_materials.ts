@@ -24,9 +24,11 @@ export interface MaterialDef {
   key: string;              // matches ItemTemplate name lowercased with underscores
   name: string;             // display name e.g. 'Darksteel Ore'
   tier: bigint;             // 1n, 2n, or 3n
+  vendorValue?: bigint;     // base vendor sell price
   sources: ('gather' | 'drop')[];
   dropCreatureTypes?: string[];  // which creature types drop this
   gatherTerrains?: string[];     // which terrain types have nodes
+  gatherEntries?: { terrain: string; weight: bigint; timeOfDay: string }[];  // terrain gather pool entries
   affinityStats: string[];       // stat keys this material enables
 }
 
@@ -40,14 +42,20 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     key: 'copper_ore',
     name: 'Copper Ore',
     tier: 1n,
+    vendorValue: 2n,
     sources: ['gather'],
     gatherTerrains: ['mountains', 'plains'],
+    gatherEntries: [
+      { terrain: 'mountains', weight: 3n, timeOfDay: 'any' },
+      { terrain: 'plains', weight: 2n, timeOfDay: 'any' },
+    ],
     affinityStats: ['strBonus'],
   },
   {
     key: 'rough_hide',
     name: 'Rough Hide',
     tier: 1n,
+    vendorValue: 2n,
     sources: ['drop'],
     dropCreatureTypes: ['animal', 'beast'],
     affinityStats: ['dexBonus'],
@@ -56,6 +64,7 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     key: 'bone_shard',
     name: 'Bone Shard',
     tier: 1n,
+    vendorValue: 2n,
     sources: ['drop'],
     dropCreatureTypes: ['undead', 'animal', 'humanoid'],
     affinityStats: ['hpBonus', 'armorClassBonus'],
@@ -66,14 +75,19 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     key: 'iron_ore',
     name: 'Iron Ore',
     tier: 2n,
+    vendorValue: 4n,
     sources: ['gather'],
     gatherTerrains: ['mountains'],
+    gatherEntries: [
+      { terrain: 'mountains', weight: 2n, timeOfDay: 'any' },
+    ],
     affinityStats: ['strBonus', 'armorClassBonus'],
   },
   {
     key: 'tanned_leather',
     name: 'Tanned Leather',
     tier: 2n,
+    vendorValue: 4n,
     sources: ['drop'],
     dropCreatureTypes: ['beast', 'animal'],
     affinityStats: ['dexBonus', 'hpBonus'],
@@ -82,6 +96,7 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     key: 'spirit_essence',
     name: 'Spirit Essence',
     tier: 2n,
+    vendorValue: 5n,
     sources: ['drop'],
     dropCreatureTypes: ['spirit', 'undead', 'humanoid'],
     affinityStats: ['intBonus', 'wisBonus'],
@@ -92,22 +107,33 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     key: 'darksteel_ore',
     name: 'Darksteel Ore',
     tier: 3n,
+    vendorValue: 8n,
     sources: ['gather'],
     gatherTerrains: ['dungeon', 'mountains'],
+    gatherEntries: [
+      { terrain: 'mountains', weight: 1n, timeOfDay: 'any' },
+      { terrain: 'dungeon', weight: 2n, timeOfDay: 'any' },
+    ],
     affinityStats: ['strBonus'],
   },
   {
     key: 'moonweave_cloth',
     name: 'Moonweave Cloth',
     tier: 3n,
+    vendorValue: 8n,
     sources: ['gather'],
     gatherTerrains: ['swamp', 'woods'],
+    gatherEntries: [
+      { terrain: 'swamp', weight: 1n, timeOfDay: 'night' },
+      { terrain: 'woods', weight: 1n, timeOfDay: 'night' },
+    ],
     affinityStats: ['intBonus', 'wisBonus', 'manaBonus'],
   },
   {
     key: 'shadowhide',
     name: 'Shadowhide',
     tier: 3n,
+    vendorValue: 8n,
     sources: ['drop'],
     dropCreatureTypes: ['beast', 'construct'],
     affinityStats: ['dexBonus', 'cooldownReduction'],
@@ -116,16 +142,17 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     key: 'void_crystal',
     name: 'Void Crystal',
     tier: 3n,
+    vendorValue: 10n,
     sources: ['drop'],
     dropCreatureTypes: ['spirit', 'construct'],
     affinityStats: ['magicResistanceBonus', 'manaRegen'],
   },
 
   // Essence (drop-only, required for gear crafting)
-  { key: 'essence_i', name: 'Essence I', tier: 1n, sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead'], affinityStats: [] },
-  { key: 'essence_ii', name: 'Essence II', tier: 2n, sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead', 'spirit'], affinityStats: [] },
-  { key: 'essence_iii', name: 'Essence III', tier: 3n, sources: ['drop'], dropCreatureTypes: ['beast', 'construct', 'spirit', 'undead'], affinityStats: [] },
-  { key: 'essence_iv', name: 'Essence IV', tier: 4n, sources: ['drop'], dropCreatureTypes: ['beast', 'construct', 'spirit', 'undead', 'humanoid'], affinityStats: [] },
+  { key: 'essence_i', name: 'Essence I', tier: 1n, vendorValue: 3n, sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead'], affinityStats: [] },
+  { key: 'essence_ii', name: 'Essence II', tier: 2n, vendorValue: 6n, sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead', 'spirit'], affinityStats: [] },
+  { key: 'essence_iii', name: 'Essence III', tier: 3n, vendorValue: 12n, sources: ['drop'], dropCreatureTypes: ['beast', 'construct', 'spirit', 'undead'], affinityStats: [] },
+  { key: 'essence_iv', name: 'Essence IV', tier: 4n, vendorValue: 24n, sources: ['drop'], dropCreatureTypes: ['beast', 'construct', 'spirit', 'undead', 'humanoid'], affinityStats: [] },
 ];
 
 // ---------------------------------------------------------------------------
@@ -363,6 +390,96 @@ export function getMaterialForSalvage(
 
   return undefined;
 }
+
+// ---------------------------------------------------------------------------
+// CONSUMABLE RECIPE DEFINITIONS — 14 consumable recipes
+// Centralized so seeding and other consumers don't duplicate recipe metadata.
+// ---------------------------------------------------------------------------
+
+export interface ConsumableRecipeDef {
+  key: string;
+  name: string;
+  outputName: string;   // matches ItemTemplate.name
+  outputCount: bigint;
+  req1Name: string;     // matches ItemTemplate.name
+  req1Count: bigint;
+  req2Name: string;
+  req2Count: bigint;
+  req3Name?: string;
+  req3Count?: bigint;
+}
+
+export const CONSUMABLE_RECIPES: ConsumableRecipeDef[] = [
+  { key: 'bandage',         name: 'Bandages',          outputName: 'Bandage',          outputCount: 1n, req1Name: 'Flax',          req1Count: 1n, req2Name: 'Herbs',       req2Count: 1n },
+  { key: 'simple_rations',  name: 'Simple Rations',    outputName: 'Simple Rations',   outputCount: 1n, req1Name: 'Raw Meat',      req1Count: 1n, req2Name: 'Salt',        req2Count: 1n },
+  { key: 'torch',           name: 'Torch',             outputName: 'Torch',            outputCount: 1n, req1Name: 'Wood',          req1Count: 1n, req2Name: 'Resin',       req2Count: 1n },
+  { key: 'basic_poultice',  name: 'Basic Poultice',    outputName: 'Basic Poultice',   outputCount: 1n, req1Name: 'Herbs',         req1Count: 1n, req2Name: 'Flax',        req2Count: 1n, req3Name: 'Clear Water', req3Count: 1n },
+  { key: 'travelers_tea',   name: 'Travelers Tea',     outputName: 'Travelers Tea',    outputCount: 1n, req1Name: 'Herbs',         req1Count: 1n, req2Name: 'Clear Water', req2Count: 1n },
+  { key: 'whetstone',       name: 'Whetstone',         outputName: 'Whetstone',        outputCount: 1n, req1Name: 'Stone',         req1Count: 1n, req2Name: 'Sand',        req2Count: 1n },
+  { key: 'kindling_bundle', name: 'Kindling Bundle',   outputName: 'Kindling Bundle',  outputCount: 1n, req1Name: 'Wood',          req1Count: 1n, req2Name: 'Dry Grass',   req2Count: 1n },
+  { key: 'rough_rope',      name: 'Rough Rope',        outputName: 'Rough Rope',       outputCount: 1n, req1Name: 'Flax',          req1Count: 1n, req2Name: 'Resin',       req2Count: 1n },
+  { key: 'charcoal',        name: 'Charcoal',          outputName: 'Charcoal',         outputCount: 1n, req1Name: 'Wood',          req1Count: 1n, req2Name: 'Stone',       req2Count: 1n },
+  { key: 'crude_poison',    name: 'Crude Poison',      outputName: 'Crude Poison',     outputCount: 1n, req1Name: 'Bitter Herbs',  req1Count: 1n, req2Name: 'Resin',       req2Count: 1n },
+  { key: 'herb_broth',      name: 'Herb Broth',        outputName: 'Herb Broth',       outputCount: 1n, req1Name: 'Wild Berries',  req1Count: 2n, req2Name: 'Clear Water', req2Count: 1n },
+  { key: 'roasted_roots',   name: 'Roasted Roots',     outputName: 'Roasted Roots',    outputCount: 1n, req1Name: 'Root Vegetable',req1Count: 2n, req2Name: 'Salt',        req2Count: 1n },
+  { key: 'travelers_stew',  name: "Traveler's Stew",   outputName: "Traveler's Stew",  outputCount: 1n, req1Name: 'Root Vegetable',req1Count: 1n, req2Name: 'Raw Meat',    req2Count: 1n },
+  { key: 'foragers_salad',  name: "Forager's Salad",   outputName: "Forager's Salad",  outputCount: 1n, req1Name: 'Wild Berries',  req1Count: 1n, req2Name: 'Herbs',       req2Count: 1n },
+];
+
+// ---------------------------------------------------------------------------
+// GEAR RECIPE DEFINITIONS — 15 gear recipes
+// Centralized so seeding can loop instead of hardcoding each recipe.
+// ---------------------------------------------------------------------------
+
+export interface GearRecipeDef {
+  key: string;
+  name: string;
+  outputName: string;   // matches ItemTemplate.name for the base gear output
+  recipeType: 'weapon' | 'armor' | 'accessory';
+  req1Name: string;     // default primary material (Copper Ore)
+  req1Count: bigint;
+  req2Name: string;     // default secondary material (Rough Hide)
+  req2Count: bigint;
+  req3Name: string;     // Essence I
+  req3Count: bigint;
+}
+
+export const GEAR_RECIPES: GearRecipeDef[] = [
+  // Weapons (mainHand)
+  { key: 'craft_longsword',  name: 'Longsword',   outputName: 'Iron Shortsword',  recipeType: 'weapon',    req1Name: 'Copper Ore', req1Count: 4n, req2Name: 'Rough Hide', req2Count: 1n, req3Name: 'Essence I', req3Count: 1n },
+  { key: 'craft_dagger',     name: 'Dagger',      outputName: 'Chipped Dagger',   recipeType: 'weapon',    req1Name: 'Copper Ore', req1Count: 3n, req2Name: 'Rough Hide', req2Count: 1n, req3Name: 'Essence I', req3Count: 1n },
+  { key: 'craft_staff',      name: 'Staff',       outputName: 'Gnarled Staff',    recipeType: 'weapon',    req1Name: 'Copper Ore', req1Count: 2n, req2Name: 'Rough Hide', req2Count: 2n, req3Name: 'Essence I', req3Count: 1n },
+  { key: 'craft_mace',       name: 'Mace',        outputName: 'Worn Mace',        recipeType: 'weapon',    req1Name: 'Copper Ore', req1Count: 4n, req2Name: 'Rough Hide', req2Count: 1n, req3Name: 'Essence I', req3Count: 1n },
+  // OffHand
+  { key: 'craft_shield',     name: 'Shield',      outputName: 'Wooden Shield',    recipeType: 'weapon',    req1Name: 'Copper Ore', req1Count: 3n, req2Name: 'Rough Hide', req2Count: 2n, req3Name: 'Essence I', req3Count: 1n },
+  // Armor
+  { key: 'craft_helm',       name: 'Helm',        outputName: 'Iron Helm',        recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 3n, req2Name: 'Rough Hide', req2Count: 1n, req3Name: 'Essence I', req3Count: 1n },
+  { key: 'craft_breastplate',name: 'Breastplate', outputName: 'Battered Cuirass', recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 4n, req2Name: 'Rough Hide', req2Count: 2n, req3Name: 'Essence I', req3Count: 1n },
+  { key: 'craft_bracers',    name: 'Bracers',     outputName: 'Leather Bracers',  recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 2n, req2Name: 'Rough Hide', req2Count: 2n, req3Name: 'Essence I', req3Count: 1n },
+  { key: 'craft_gauntlets',  name: 'Gauntlets',   outputName: 'Iron Gauntlets',   recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 3n, req2Name: 'Rough Hide', req2Count: 1n, req3Name: 'Essence I', req3Count: 1n },
+  { key: 'craft_girdle',     name: 'Girdle',      outputName: 'Rough Girdle',     recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 2n, req2Name: 'Rough Hide', req2Count: 2n, req3Name: 'Essence I', req3Count: 1n },
+  { key: 'craft_greaves',    name: 'Greaves',     outputName: 'Dented Greaves',   recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 4n, req2Name: 'Rough Hide', req2Count: 2n, req3Name: 'Essence I', req3Count: 1n },
+  { key: 'craft_sabatons',   name: 'Sabatons',    outputName: 'Dented Sabatons',  recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 3n, req2Name: 'Rough Hide', req2Count: 2n, req3Name: 'Essence I', req3Count: 1n },
+  // Accessories
+  { key: 'craft_ring',       name: 'Ring',        outputName: 'Copper Band',      recipeType: 'accessory', req1Name: 'Copper Ore', req1Count: 2n, req2Name: 'Rough Hide', req2Count: 1n, req3Name: 'Essence I', req3Count: 1n },
+  { key: 'craft_amulet',     name: 'Amulet',      outputName: 'Stone Pendant',    recipeType: 'accessory', req1Name: 'Copper Ore', req1Count: 2n, req2Name: 'Rough Hide', req2Count: 1n, req3Name: 'Essence I', req3Count: 1n },
+  { key: 'craft_cloak',      name: 'Cloak',       outputName: 'Simple Cloak',     recipeType: 'accessory', req1Name: 'Copper Ore', req1Count: 1n, req2Name: 'Rough Hide', req2Count: 3n, req3Name: 'Essence I', req3Count: 1n },
+];
+
+/** Derived from GEAR_RECIPES — single source of truth for gear recipe names */
+export const GEAR_RECIPE_NAMES = GEAR_RECIPES.map(r => r.name);
+
+// ---------------------------------------------------------------------------
+// ESSENCE TIER THRESHOLDS — used by combat.ts for runtime essence drops
+// Ordered highest-first for early-return matching.
+// ---------------------------------------------------------------------------
+
+export const ESSENCE_TIER_THRESHOLDS: { minLevel: bigint; essenceName: string }[] = [
+  { minLevel: 31n, essenceName: 'Essence IV' },
+  { minLevel: 21n, essenceName: 'Essence III' },
+  { minLevel: 11n, essenceName: 'Essence II' },
+  { minLevel:  1n, essenceName: 'Essence I' },
+];
 
 /**
  * Number of material items yielded from salvaging a gear piece by tier.
