@@ -1,4 +1,4 @@
-import { ENEMY_ABILITIES } from '../data/ability_catalog';
+import { ENEMY_ABILITIES } from '../data/abilities/enemy_abilities';
 import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier } from '../data/combat_scaling';
 import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
 import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, HEALING_THREAT_PERCENT } from '../data/combat_scaling';

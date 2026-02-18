@@ -50,7 +50,6 @@ import {
 } from './data/class_stats';
 import {
   ABILITIES,
-  ENEMY_ABILITIES,
   GLOBAL_COOLDOWN_MICROS,
 } from './data/ability_catalog';
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from './data/xp';

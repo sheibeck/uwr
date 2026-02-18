@@ -35,7 +35,7 @@ import {
   GROUP_SIZE_BIAS_RANGE,
   GROUP_SIZE_BIAS_MAX,
 } from '../data/combat_constants';
-import { ENEMY_ABILITIES } from '../data/ability_catalog';
+import { ENEMY_ABILITIES } from '../data/abilities/enemy_abilities';
 
 const GLOBAL_COOLDOWN_MICROS = 1_500_000n;
 
@@ -1572,6 +1572,7 @@ export function executeEnemyAbility(
   if (!combat || combat.state !== 'active') return;
   const ability = ENEMY_ABILITIES[abilityKey as keyof typeof ENEMY_ABILITIES];
   if (!ability) return;
+  const desc = (ability as any).description ?? '';
   const enemy = ctx.db.combatEnemy.id.find(enemyId);
   if (!enemy) return;
   const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
@@ -1598,7 +1599,7 @@ export function executeEnemyAbility(
     // DoT portion
     const dotFraction = dotPowerSplit;
     const dotTotalDamage = (totalPower * BigInt(Math.floor(dotFraction * 100))) / 100n;
-    const dotPerTick = ability.rounds > 0n ? dotTotalDamage / ability.rounds : dotTotalDamage;
+    const dotPerTick = (ability as any).rounds > 0n ? dotTotalDamage / (ability as any).rounds : dotTotalDamage;
 
     // Apply direct damage with armor/magic resist routing
     let actualDamage = 0n;
@@ -1608,13 +1609,17 @@ export function executeEnemyAbility(
 
     // Apply DoT via existing CharacterEffect system (tick_hot reducer handles it)
     if (dotPerTick > 0n) {
-      addCharacterEffect(ctx, target.id, 'dot', dotPerTick, ability.rounds, ability.name);
+      addCharacterEffect(ctx, target.id, 'dot', dotPerTick, (ability as any).rounds, ability.name);
     }
 
     // Log messages
     const dmgMsg = actualDamage > 0n ? ` for ${actualDamage}` : '';
-    const privateMessage = `${enemyName} uses ${ability.name} on you${dmgMsg}.`;
-    const groupMessage = `${enemyName} uses ${ability.name} on ${target.name}${dmgMsg}.`;
+    const privateMessage = desc
+      ? `${enemyName} uses ${ability.name} on you${dmgMsg}. ${desc}`
+      : `${enemyName} uses ${ability.name} on you${dmgMsg}.`;
+    const groupMessage = desc
+      ? `${enemyName} uses ${ability.name} on ${target.name}${dmgMsg}. ${desc}`
+      : `${enemyName} uses ${ability.name} on ${target.name}${dmgMsg}.`;
     appendPrivateEvent(ctx, target.id, target.ownerUserId, 'damage', privateMessage);
     if (target.groupId) {
       appendGroupEvent(ctx, target.groupId, target.id, 'damage', groupMessage);
@@ -1635,12 +1640,16 @@ export function executeEnemyAbility(
 
     // Apply debuff effect (fixed magnitude from metadata, not scaled)
     const effectType = (ability as any).effectType ?? 'ac_bonus';
-    addCharacterEffect(ctx, target.id, effectType, ability.magnitude, ability.rounds, ability.name);
+    addCharacterEffect(ctx, target.id, effectType, (ability as any).magnitude, (ability as any).rounds, ability.name);
 
     // Log messages
     const dmgMsg = actualDamage > 0n ? ` for ${actualDamage} and` : '';
-    const privateMessage = `${enemyName} uses ${ability.name}${dmgMsg} afflicts you.`;
-    const groupMessage = `${enemyName} uses ${ability.name}${dmgMsg} afflicts ${target.name}.`;
+    const privateMessage = desc
+      ? `${enemyName} uses ${ability.name}${dmgMsg} afflicts you. ${desc}`
+      : `${enemyName} uses ${ability.name}${dmgMsg} afflicts you.`;
+    const groupMessage = desc
+      ? `${enemyName} uses ${ability.name}${dmgMsg} afflicts ${target.name}. ${desc}`
+      : `${enemyName} uses ${ability.name}${dmgMsg} afflicts ${target.name}.`;
     appendPrivateEvent(ctx, target.id, target.ownerUserId, 'ability', privateMessage);
     if (target.groupId) {
       appendGroupEvent(ctx, target.groupId, target.id, 'ability', groupMessage);
@@ -1677,20 +1686,21 @@ export function executeEnemyAbility(
 
     // Log heal event to all active participants
     const healTargetName = healTarget.displayName ?? 'an ally';
+    const healMsg = desc
+      ? `${enemyName} heals ${healTargetName} for ${directHeal}. ${desc}`
+      : `${enemyName} heals ${healTargetName} for ${directHeal}.`;
     for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
       if (participant.status !== 'active') continue;
       const pc = ctx.db.character.id.find(participant.characterId);
       if (!pc) continue;
-      appendPrivateEvent(ctx, pc.id, pc.ownerUserId, 'combat',
-        `${enemyName} heals ${healTargetName} for ${directHeal}.`);
+      appendPrivateEvent(ctx, pc.id, pc.ownerUserId, 'combat', healMsg);
     }
     const firstActive = [...ctx.db.combatParticipant.by_combat.filter(combatId)]
       .find((p: any) => p.status === 'active');
     if (firstActive) {
       const pc = ctx.db.character.id.find(firstActive.characterId);
       if (pc?.groupId) {
-        appendGroupEvent(ctx, pc.groupId, pc.id, 'combat',
-          `${enemyName} heals ${healTargetName} for ${directHeal}.`);
+        appendGroupEvent(ctx, pc.groupId, pc.id, 'combat', healMsg);
       }
     }
   } else if (ability.kind === 'aoe_damage') {
@@ -1706,16 +1716,20 @@ export function executeEnemyAbility(
       const actualDamage = applyEnemyAbilityDamage(ctx, pc, perTargetDamage, damageType, enemyName, ability.name);
 
       appendPrivateEvent(ctx, pc.id, pc.ownerUserId, 'damage',
-        `${enemyName} hits you with ${ability.name} for ${actualDamage}.`);
+        desc
+          ? `${enemyName} hits you with ${ability.name} for ${actualDamage}. ${desc}`
+          : `${enemyName} hits you with ${ability.name} for ${actualDamage}.`);
       if (pc.groupId) {
         appendGroupEvent(ctx, pc.groupId, pc.id, 'damage',
-          `${enemyName} hits ${pc.name} with ${ability.name} for ${actualDamage}.`);
+          desc
+            ? `${enemyName} hits ${pc.name} with ${ability.name} for ${actualDamage}. ${desc}`
+            : `${enemyName} hits ${pc.name} with ${ability.name} for ${actualDamage}.`);
       }
     }
   } else if (ability.kind === 'buff') {
     const effectType = (ability as any).effectType ?? 'damage_bonus';
-    const magnitude = ability.magnitude ?? 3n;
-    const rounds = ability.rounds ?? 3n;
+    const magnitude = (ability as any).magnitude ?? 3n;
+    const rounds = (ability as any).rounds ?? 3n;
 
     // Buff all living enemy allies
     for (const ally of ctx.db.combatEnemy.by_combat.filter(combatId)) {
@@ -1724,20 +1738,21 @@ export function executeEnemyAbility(
     }
 
     // Log buff event
+    const buffMsg = desc
+      ? `${enemyName} rallies allies with ${ability.name}! ${desc}`
+      : `${enemyName} rallies allies with ${ability.name}!`;
     for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
       if (participant.status !== 'active') continue;
       const pc = ctx.db.character.id.find(participant.characterId);
       if (!pc) continue;
-      appendPrivateEvent(ctx, pc.id, pc.ownerUserId, 'combat',
-        `${enemyName} rallies allies with ${ability.name}!`);
+      appendPrivateEvent(ctx, pc.id, pc.ownerUserId, 'combat', buffMsg);
     }
     const firstActive = [...ctx.db.combatParticipant.by_combat.filter(combatId)]
       .find((p: any) => p.status === 'active');
     if (firstActive) {
       const pc = ctx.db.character.id.find(firstActive.characterId);
       if (pc?.groupId) {
-        appendGroupEvent(ctx, pc.groupId, pc.id, 'combat',
-          `${enemyName} rallies allies with ${ability.name}!`);
+        appendGroupEvent(ctx, pc.groupId, pc.id, 'combat', buffMsg);
       }
     }
   }
