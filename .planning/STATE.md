@@ -186,6 +186,11 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 138. CraftingPanel filter state (activeFilter, showOnlyCraftable) owned in useCrafting composable, passed as props to CraftingPanel and updated via update:activeFilter/update:showOnlyCraftable emits — clean unidirectional data flow (13-03)
 139. learnRecipeFromScroll uses window.__db_conn directly in InventoryPanel to avoid adding new emit chain through CharacterInfoPanel for a single non-destructive action (13-03)
 140. isRecipeScroll checks item.name.startsWith('Scroll:') — matches seeded scroll naming convention from Plan 01 ensureRecipeScrollItemTemplates (13-03)
+141. craftQuality (dented/standard/reinforced/exquisite/mastercraft) separates craft potency axis from qualityTier rarity axis (common/uncommon/rare/epic/legendary) on ItemInstance — dual-axis gear quality system (13.1-01)
+142. MATERIAL_AFFIX_MAP inner keys renamed from uncommon/rare/epic to standard/reinforced/exquisite to align with craft quality vocabulary; getCraftedAffixes guards on 'dented' and 'common' for empty affix return (13.1-01)
+143. Essence I/II/III are drop-only binding reagents required as req3 for all 15 gear recipe templates; terrain-tier-gated drops: low=EssenceI(w15), mid=EssenceI(w10)+EssenceII(w15), high=EssenceII(w10)+EssenceIII(w15) (13.1-01)
+144. Copper Ore moved from ensureResourceItemTemplates to ensureGearMaterialItemTemplates — all 13 crafting materials (10 original + 3 Essence) seeded together in one function (13.1-01)
+145. addRecipeTemplate is a single module-level upsert helper replacing both addRecipe (consumables) and addGearRecipe (gear) inline closures — eliminates code duplication in seeding (13.1-01)
 
 ---
 
@@ -239,6 +244,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | Phase 18 P03 | ~5min | 2 tasks | 5 files |
 | 13-crafting-system | 01 | ~8min | 2 | 7 |
 | 13-crafting-system | 03 | ~10min | 3 | 4 |
+| 13.1-dual-axis-gear-system | 01 | ~5min | 2 | 4 |
 
 ## Accumulated Context
 
@@ -321,4 +327,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-17 - Quick-152 complete: Default panel layout for new players — getDefaultLayout() added to usePanelManager.ts, /resetwindows now restores structured layout. Stopped at: Completed quick-152-PLAN.md
+Last activity: 2026-02-18 - Phase 13.1 Plan 01 complete: Schema extension and dual-axis material foundation — craftQuality field on ItemInstance, description on ItemTemplate, MATERIAL_AFFIX_MAP keys renamed, Essence I/II/III seeded, addRecipeTemplate unified helper, all 15 gear recipes require Essence as req3, tier-gated Essence loot drops. Stopped at: Completed 13.1-01-PLAN.md
