@@ -125,6 +125,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { getModifierMagnitude } from '../composables/useCrafting';
 
 type Recipe = {
   id: bigint;
@@ -243,17 +244,11 @@ const slotsAvailable = computed(() => {
   return AFFIX_SLOTS[craftQuality.value] ?? 1;
 });
 
-const HP_MANA_MAGNITUDE: Record<string, Record<string, number>> = {
-  'Lesser Essence': { hpBonus: 5, manaBonus: 5 },
-  'Essence':        { hpBonus: 8, manaBonus: 8 },
-  'Greater Essence':{ hpBonus: 15, manaBonus: 15 },
-};
-
 function getMagnitudeForStat(statKey: string): number {
   if (!selectedCatalystId.value) return 0;
   const essenceItem = props.essenceItems.find(e => e.templateId.toString() === selectedCatalystId.value?.toString());
   if (!essenceItem) return 1;
-  return HP_MANA_MAGNITUDE[essenceItem.name]?.[statKey] ?? essenceItem.magnitude ?? 1;
+  return getModifierMagnitude(essenceItem.name, statKey);
 }
 
 const catalystError = computed(() => {
