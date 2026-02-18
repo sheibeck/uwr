@@ -10,6 +10,10 @@ export function ensureLootTables(ctx: any) {
   const gearTemplates = [...ctx.db.itemTemplate.iter()].filter(
     (row) => !row.isJunk && row.tier <= 1n && row.requiredLevel <= 9n && !STARTER_ITEM_NAMES.has(row.name)
   );
+  // T2 gear templates for mid/high-tier loot tables (mountains, town, city, dungeon)
+  const t2GearTemplates = [...ctx.db.itemTemplate.iter()].filter(
+    (row) => !row.isJunk && row.tier === 2n && row.requiredLevel <= 20n && !STARTER_ITEM_NAMES.has(row.name)
+  );
   const findLootTable = (terrainType: string, creatureType: string, tier: bigint) =>
     [...ctx.db.lootTable.iter()].find(
       (row) =>
@@ -93,6 +97,23 @@ export function ensureLootTables(ctx: any) {
     addOrSyncTable(terrain, 'undead', 55n, 20n, 1n, 4n);
     addOrSyncTable(terrain, 'spirit', 50n, 20n, 1n, 4n);
     addOrSyncTable(terrain, 'construct', 60n, 20n, 1n, 4n);
+  }
+
+  // --- T2 gear entries for mid/high-tier loot tables ---
+  // T2 gear (requiredLevel 11+) added to mountains/town/city/dungeon tables only.
+  // Weight 3n (less common than T1 gear at 6n). Jewelry slots at 1n (rare).
+  const JEWELRY_SLOTS_T2 = new Set(['earrings']);
+  const MID_HIGH_TERRAINS = ['mountains', 'town', 'city', 'dungeon'];
+  const creatureTypes = ['animal', 'beast', 'humanoid', 'undead', 'spirit', 'construct'];
+  for (const terrain of MID_HIGH_TERRAINS) {
+    for (const creature of creatureTypes) {
+      const table = findLootTable(terrain, creature, 1n);
+      if (!table) continue;
+      for (const item of t2GearTemplates) {
+        const weight = JEWELRY_SLOTS_T2.has(item.slot) ? 1n : 3n;
+        upsertLootEntry(table.id, item.id, weight);
+      }
+    }
   }
 }
 

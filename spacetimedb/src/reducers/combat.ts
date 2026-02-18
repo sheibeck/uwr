@@ -629,7 +629,8 @@ export const registerCombatReducers = (deps: any) => {
               : quality;
           if (effectiveQuality !== 'common') {
             const affixes = generateAffixData(template.slot, effectiveQuality, seedBase);
-            const affixDataJson = JSON.stringify(affixes);
+            // Convert BigInt magnitude to Number before JSON serialization (BigInt is not JSON-serializable)
+            const affixDataJson = JSON.stringify(affixes.map((a) => ({ ...a, magnitude: Number(a.magnitude) })));
             lootItems.push({ template, qualityTier: effectiveQuality, affixDataJson, isNamed: false });
           } else {
             lootItems.push({ template, qualityTier: effectiveQuality, isNamed: false });

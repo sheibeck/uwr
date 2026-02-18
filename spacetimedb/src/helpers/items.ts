@@ -179,9 +179,9 @@ export function generateAffixData(
     }
   }
 
-  // Rare items: cap total affix magnitude at 2
+  // Rare items: cap total affix magnitude at 4 (matches crafted reinforced: 2 slots × 2n each = 4n total)
   if (qualityTier === 'rare') {
-    let remaining = 2n;
+    let remaining = 4n;
     const capped: typeof result = [];
     for (const affix of result) {
       if (remaining <= 0n) break;
