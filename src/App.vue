@@ -182,7 +182,7 @@
     <!-- Crafting Panel (wide) -->
     <div v-if="panels.crafting && panels.crafting.open" data-panel-id="crafting" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('crafting').value || {}) }" @mousedown="bringToFront('crafting')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('crafting', $event)"><div>Crafting</div><button type="button" :style="styles.panelClose" @click="closePanelById('crafting')">×</button></div>
-      <div :style="styles.floatingPanelBody"><CraftingPanel :styles="styles" :selected-character="selectedCharacter" :crafting-available="currentLocationCraftingAvailable" :combat-locked="lockCrafting" :recipes="craftingFilteredRecipes" :recipe-types="craftingRecipeTypes" :active-filter="craftingActiveFilter" :show-only-craftable="craftingShowOnlyCraftable" @update:active-filter="craftingActiveFilter = $event" @update:show-only-craftable="craftingShowOnlyCraftable = $event" @craft="onCraftRecipe" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
+      <div :style="styles.floatingPanelBody"><CraftingPanel :styles="styles" :selected-character="selectedCharacter" :crafting-available="currentLocationCraftingAvailable" :combat-locked="lockCrafting" :recipes="craftingFilteredRecipes" :recipe-types="craftingRecipeTypes" :active-filter="craftingActiveFilter" :show-only-craftable="craftingShowOnlyCraftable" @update:active-filter="craftingActiveFilter = $event" @update:show-only-craftable="craftingShowOnlyCraftable = $event" @open-modal="onOpenCraftModal" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('crafting', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('crafting', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('crafting', $event, { right: true, bottom: true })" />
     </div>
 
@@ -398,6 +398,16 @@
     </div>
   </main>
 
+  <!-- Crafting Modal -->
+  <CraftingModal
+    v-if="craftingModalRecipe"
+    :recipe="craftingModalRecipe"
+    :essence-items="craftingEssenceItems"
+    :modifier-items="craftingModifierItems"
+    @craft="craftWithEnhancements"
+    @close="closeCraftModal"
+  />
+
   <div v-if="showDeathModal" :style="styles.deathOverlay">
     <div :style="styles.deathModal">
       <div :style="styles.deathTitle">You have died.</div>
@@ -548,6 +558,7 @@ import CharacterInfoPanel from './components/CharacterInfoPanel.vue';
 import GroupPanel from './components/GroupPanel.vue';
 import FriendsPanel from './components/FriendsPanel.vue';
 import CraftingPanel from './components/CraftingPanel.vue';
+import CraftingModal from './components/CraftingModal.vue';
 import HotbarPanel from './components/HotbarPanel.vue';
 import CombatPanel from './components/CombatPanel.vue';
 import TravelPanel from './components/TravelPanel.vue';
@@ -1664,8 +1675,14 @@ const {
   recipeTypes: craftingRecipeTypes,
   activeFilter: craftingActiveFilter,
   showOnlyCraftable: craftingShowOnlyCraftable,
+  craftingModalRecipe,
+  openCraftModal,
+  closeCraftModal,
+  modifierItems: craftingModifierItems,
+  essenceItems: craftingEssenceItems,
   research: researchRecipes,
   craft: craftRecipe,
+  craftWithEnhancements,
 } = useCrafting({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
@@ -1683,6 +1700,11 @@ const onResearchRecipes = () => {
 const onCraftRecipe = (recipeId: bigint) => {
   if (lockCrafting.value) return;
   craftRecipe(recipeId);
+};
+
+const onOpenCraftModal = (recipe: any) => {
+  if (lockCrafting.value) return;
+  openCraftModal(recipe);
 };
 
 const myFriendUserIds = computed(() =>

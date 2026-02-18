@@ -1,7 +1,7 @@
 import { SenderError } from 'spacetimedb/server';
 import { findItemTemplateByName, STARTER_ARMOR, STARTER_WEAPONS } from '../helpers/items';
 import { ItemTemplate } from '../schema/tables';
-import { MATERIAL_DEFS, CONSUMABLE_RECIPES, GEAR_RECIPES, GEAR_RECIPE_NAMES } from '../data/crafting_materials';
+import { MATERIAL_DEFS, CONSUMABLE_RECIPES, GEAR_RECIPES, GEAR_RECIPE_NAMES, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 import { ABILITY_STAT_SCALING } from '../data/combat_scaling';
 import { CLERIC_ABILITIES } from '../data/abilities/cleric_abilities';
 import { WARRIOR_ABILITIES } from '../data/abilities/warrior_abilities';
@@ -1773,7 +1773,7 @@ export function ensureGearRecipeTemplates(ctx: any) {
     const output = findItemTemplateByName(ctx, recipe.outputName);
     const req1 = findItemTemplateByName(ctx, recipe.req1Name);
     const req2 = findItemTemplateByName(ctx, recipe.req2Name);
-    const req3 = findItemTemplateByName(ctx, recipe.req3Name);
+    const req3 = recipe.req3Name ? findItemTemplateByName(ctx, recipe.req3Name) : undefined;
     if (!req1 || !req2) continue;
     addRecipeTemplate(ctx, {
       key: recipe.key,
@@ -1787,6 +1787,46 @@ export function ensureGearRecipeTemplates(ctx: any) {
       req3,
       req3Count: recipe.req3Count,
       recipeType: recipe.recipeType,
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// CRAFTING MODIFIER ITEM TEMPLATES
+// Seeds one ItemTemplate per crafting modifier (slot='material', stackable=true).
+// These are consumed in the crafting dialog to add stat affixes to crafted gear.
+// ---------------------------------------------------------------------------
+
+export function ensureCraftingModifierItemTemplates(ctx: any) {
+  for (const mod of CRAFTING_MODIFIER_DEFS) {
+    if (findItemTemplateByName(ctx, mod.name)) continue;
+    ctx.db.itemTemplate.insert({
+      id: 0n,
+      name: mod.name,
+      slot: 'material',
+      armorType: 'none',
+      rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 5n,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      strBonus: 0n,
+      dexBonus: 0n,
+      chaBonus: 0n,
+      wisBonus: 0n,
+      intBonus: 0n,
+      hpBonus: 0n,
+      manaBonus: 0n,
+      armorClassBonus: 0n,
+      magicResistanceBonus: 0n,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
+      weaponType: '',
+      stackable: true,
+      wellFedDurationMicros: 0n,
+      wellFedBuffType: '',
+      wellFedBuffMagnitude: 0n,
     });
   }
 }

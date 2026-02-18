@@ -108,7 +108,7 @@ export function ensureLootTables(ctx: any) {
 //
 // Scroll drops: mid-tier enemies (T2) weight 3-5, high-tier (T3) weight 5-8. Low-tier: none.
 //
-// NOTE: Essence I/II/III drops are NO LONGER seeded here. They are now handled
+// NOTE: Lesser/Standard/Greater Essence drops are NO LONGER seeded here. They are now handled
 // at runtime in combat.ts based on enemy level (25% chance per kill, tier by level).
 // ---------------------------------------------------------------------------
 

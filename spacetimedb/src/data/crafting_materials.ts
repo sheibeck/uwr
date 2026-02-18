@@ -148,11 +148,10 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     affinityStats: ['magicResistanceBonus', 'manaRegen'],
   },
 
-  // Essence (drop-only, required for gear crafting)
-  { key: 'essence_i', name: 'Essence I', tier: 1n, vendorValue: 3n, sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead'], affinityStats: [] },
-  { key: 'essence_ii', name: 'Essence II', tier: 2n, vendorValue: 6n, sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead', 'spirit'], affinityStats: [] },
-  { key: 'essence_iii', name: 'Essence III', tier: 3n, vendorValue: 12n, sources: ['drop'], dropCreatureTypes: ['beast', 'construct', 'spirit', 'undead'], affinityStats: [] },
-  { key: 'essence_iv', name: 'Essence IV', tier: 4n, vendorValue: 24n, sources: ['drop'], dropCreatureTypes: ['beast', 'construct', 'spirit', 'undead', 'humanoid'], affinityStats: [] },
+  // Essence (drop-only, used in crafting dialog to unlock stat affixes)
+  { key: 'lesser_essence',  name: 'Lesser Essence',  tier: 1n, vendorValue: 3n,  sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead'],          affinityStats: [] },
+  { key: 'essence',         name: 'Essence',          tier: 2n, vendorValue: 6n,  sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead', 'spirit'], affinityStats: [] },
+  { key: 'greater_essence', name: 'Greater Essence',  tier: 3n, vendorValue: 12n, sources: ['drop'], dropCreatureTypes: ['beast', 'construct', 'spirit', 'undead'],          affinityStats: [] },
 ];
 
 // ---------------------------------------------------------------------------
@@ -440,30 +439,30 @@ export interface GearRecipeDef {
   req1Count: bigint;
   req2Name: string;     // default secondary material (Rough Hide)
   req2Count: bigint;
-  req3Name: string;     // Essence I
-  req3Count: bigint;
+  req3Name?: string;    // optional (Essence moved to crafting dialog)
+  req3Count?: bigint;
 }
 
 export const GEAR_RECIPES: GearRecipeDef[] = [
   // Weapons (mainHand)
-  { key: 'craft_longsword',  name: 'Longsword',   outputName: 'Iron Shortsword',  recipeType: 'weapon',    req1Name: 'Copper Ore', req1Count: 4n, req2Name: 'Rough Hide', req2Count: 1n, req3Name: 'Essence I', req3Count: 1n },
-  { key: 'craft_dagger',     name: 'Dagger',      outputName: 'Chipped Dagger',   recipeType: 'weapon',    req1Name: 'Copper Ore', req1Count: 3n, req2Name: 'Rough Hide', req2Count: 1n, req3Name: 'Essence I', req3Count: 1n },
-  { key: 'craft_staff',      name: 'Staff',       outputName: 'Gnarled Staff',    recipeType: 'weapon',    req1Name: 'Copper Ore', req1Count: 2n, req2Name: 'Rough Hide', req2Count: 2n, req3Name: 'Essence I', req3Count: 1n },
-  { key: 'craft_mace',       name: 'Mace',        outputName: 'Worn Mace',        recipeType: 'weapon',    req1Name: 'Copper Ore', req1Count: 4n, req2Name: 'Rough Hide', req2Count: 1n, req3Name: 'Essence I', req3Count: 1n },
+  { key: 'craft_longsword',  name: 'Longsword',   outputName: 'Iron Shortsword',  recipeType: 'weapon',    req1Name: 'Copper Ore', req1Count: 4n, req2Name: 'Rough Hide', req2Count: 1n },
+  { key: 'craft_dagger',     name: 'Dagger',      outputName: 'Chipped Dagger',   recipeType: 'weapon',    req1Name: 'Copper Ore', req1Count: 3n, req2Name: 'Rough Hide', req2Count: 1n },
+  { key: 'craft_staff',      name: 'Staff',       outputName: 'Gnarled Staff',    recipeType: 'weapon',    req1Name: 'Copper Ore', req1Count: 2n, req2Name: 'Rough Hide', req2Count: 2n },
+  { key: 'craft_mace',       name: 'Mace',        outputName: 'Worn Mace',        recipeType: 'weapon',    req1Name: 'Copper Ore', req1Count: 4n, req2Name: 'Rough Hide', req2Count: 1n },
   // OffHand
-  { key: 'craft_shield',     name: 'Shield',      outputName: 'Wooden Shield',    recipeType: 'weapon',    req1Name: 'Copper Ore', req1Count: 3n, req2Name: 'Rough Hide', req2Count: 2n, req3Name: 'Essence I', req3Count: 1n },
+  { key: 'craft_shield',     name: 'Shield',      outputName: 'Wooden Shield',    recipeType: 'weapon',    req1Name: 'Copper Ore', req1Count: 3n, req2Name: 'Rough Hide', req2Count: 2n },
   // Armor
-  { key: 'craft_helm',       name: 'Helm',        outputName: 'Iron Helm',        recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 3n, req2Name: 'Rough Hide', req2Count: 1n, req3Name: 'Essence I', req3Count: 1n },
-  { key: 'craft_breastplate',name: 'Breastplate', outputName: 'Battered Cuirass', recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 4n, req2Name: 'Rough Hide', req2Count: 2n, req3Name: 'Essence I', req3Count: 1n },
-  { key: 'craft_bracers',    name: 'Bracers',     outputName: 'Leather Bracers',  recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 2n, req2Name: 'Rough Hide', req2Count: 2n, req3Name: 'Essence I', req3Count: 1n },
-  { key: 'craft_gauntlets',  name: 'Gauntlets',   outputName: 'Iron Gauntlets',   recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 3n, req2Name: 'Rough Hide', req2Count: 1n, req3Name: 'Essence I', req3Count: 1n },
-  { key: 'craft_girdle',     name: 'Girdle',      outputName: 'Rough Girdle',     recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 2n, req2Name: 'Rough Hide', req2Count: 2n, req3Name: 'Essence I', req3Count: 1n },
-  { key: 'craft_greaves',    name: 'Greaves',     outputName: 'Dented Greaves',   recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 4n, req2Name: 'Rough Hide', req2Count: 2n, req3Name: 'Essence I', req3Count: 1n },
-  { key: 'craft_sabatons',   name: 'Sabatons',    outputName: 'Dented Sabatons',  recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 3n, req2Name: 'Rough Hide', req2Count: 2n, req3Name: 'Essence I', req3Count: 1n },
+  { key: 'craft_helm',       name: 'Helm',        outputName: 'Iron Helm',        recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 3n, req2Name: 'Rough Hide', req2Count: 1n },
+  { key: 'craft_breastplate',name: 'Breastplate', outputName: 'Battered Cuirass', recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 4n, req2Name: 'Rough Hide', req2Count: 2n },
+  { key: 'craft_bracers',    name: 'Bracers',     outputName: 'Leather Bracers',  recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 2n, req2Name: 'Rough Hide', req2Count: 2n },
+  { key: 'craft_gauntlets',  name: 'Gauntlets',   outputName: 'Iron Gauntlets',   recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 3n, req2Name: 'Rough Hide', req2Count: 1n },
+  { key: 'craft_girdle',     name: 'Girdle',      outputName: 'Rough Girdle',     recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 2n, req2Name: 'Rough Hide', req2Count: 2n },
+  { key: 'craft_greaves',    name: 'Greaves',     outputName: 'Dented Greaves',   recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 4n, req2Name: 'Rough Hide', req2Count: 2n },
+  { key: 'craft_sabatons',   name: 'Sabatons',    outputName: 'Dented Sabatons',  recipeType: 'armor',     req1Name: 'Copper Ore', req1Count: 3n, req2Name: 'Rough Hide', req2Count: 2n },
   // Accessories
-  { key: 'craft_ring',       name: 'Ring',        outputName: 'Copper Band',      recipeType: 'accessory', req1Name: 'Copper Ore', req1Count: 2n, req2Name: 'Rough Hide', req2Count: 1n, req3Name: 'Essence I', req3Count: 1n },
-  { key: 'craft_amulet',     name: 'Amulet',      outputName: 'Stone Pendant',    recipeType: 'accessory', req1Name: 'Copper Ore', req1Count: 2n, req2Name: 'Rough Hide', req2Count: 1n, req3Name: 'Essence I', req3Count: 1n },
-  { key: 'craft_cloak',      name: 'Cloak',       outputName: 'Simple Cloak',     recipeType: 'accessory', req1Name: 'Copper Ore', req1Count: 1n, req2Name: 'Rough Hide', req2Count: 3n, req3Name: 'Essence I', req3Count: 1n },
+  { key: 'craft_ring',       name: 'Ring',        outputName: 'Copper Band',      recipeType: 'accessory', req1Name: 'Copper Ore', req1Count: 2n, req2Name: 'Rough Hide', req2Count: 1n },
+  { key: 'craft_amulet',     name: 'Amulet',      outputName: 'Stone Pendant',    recipeType: 'accessory', req1Name: 'Copper Ore', req1Count: 2n, req2Name: 'Rough Hide', req2Count: 1n },
+  { key: 'craft_cloak',      name: 'Cloak',       outputName: 'Simple Cloak',     recipeType: 'accessory', req1Name: 'Copper Ore', req1Count: 1n, req2Name: 'Rough Hide', req2Count: 3n },
 ];
 
 /** Derived from GEAR_RECIPES — single source of truth for gear recipe names */
@@ -475,11 +474,58 @@ export const GEAR_RECIPE_NAMES = GEAR_RECIPES.map(r => r.name);
 // ---------------------------------------------------------------------------
 
 export const ESSENCE_TIER_THRESHOLDS: { minLevel: bigint; essenceName: string }[] = [
-  { minLevel: 31n, essenceName: 'Essence IV' },
-  { minLevel: 21n, essenceName: 'Essence III' },
-  { minLevel: 11n, essenceName: 'Essence II' },
-  { minLevel:  1n, essenceName: 'Essence I' },
+  { minLevel: 21n, essenceName: 'Greater Essence' },
+  { minLevel: 11n, essenceName: 'Essence' },
+  { minLevel:  1n, essenceName: 'Lesser Essence' },
 ];
+
+// ---------------------------------------------------------------------------
+// CRAFTING MODIFIER DEFINITIONS
+// Modifier items that can be added to gear during crafting via the crafting dialog.
+// Each modifier item corresponds to one stat affix applied to the crafted item.
+// ---------------------------------------------------------------------------
+
+export interface CraftingModifierDef {
+  key: string;          // matches ItemTemplate name lowercased with underscores
+  name: string;         // display name
+  statKey: string;      // stat field name on ItemAffix
+  description: string;  // shown in hover tooltip
+}
+
+export const CRAFTING_MODIFIER_DEFS: CraftingModifierDef[] = [
+  { key: 'glowing_stone',  name: 'Glowing Stone',  statKey: 'strBonus',             description: 'Adds Strength to the crafted item.' },
+  { key: 'clear_crystal',  name: 'Clear Crystal',  statKey: 'dexBonus',             description: 'Adds Dexterity to the crafted item.' },
+  { key: 'ancient_rune',   name: 'Ancient Rune',   statKey: 'intBonus',             description: 'Adds Intelligence to the crafted item.' },
+  { key: 'wisdom_herb',    name: 'Wisdom Herb',    statKey: 'wisBonus',             description: 'Adds Wisdom to the crafted item.' },
+  { key: 'silver_token',   name: 'Silver Token',   statKey: 'chaBonus',             description: 'Adds Charisma to the crafted item.' },
+  { key: 'life_stone',     name: 'Life Stone',     statKey: 'hpBonus',              description: 'Adds max HP to the crafted item.' },
+  { key: 'mana_pearl',     name: 'Mana Pearl',     statKey: 'manaBonus',            description: 'Adds max Mana to the crafted item.' },
+  { key: 'iron_ward',      name: 'Iron Ward',      statKey: 'armorClassBonus',      description: 'Adds Armor Class to the crafted item.' },
+  { key: 'spirit_ward',    name: 'Spirit Ward',    statKey: 'magicResistanceBonus', description: 'Adds Magic Resistance to the crafted item.' },
+];
+
+/** Affix slots available per craft quality level */
+export const AFFIX_SLOTS_BY_QUALITY: Record<string, number> = {
+  dented:      0,
+  standard:    1,
+  reinforced:  2,
+  exquisite:   3,
+  mastercraft: 3,
+};
+
+/** Essence item key → stat magnitude applied per modifier */
+export const ESSENCE_MAGNITUDE: Record<string, bigint> = {
+  'lesser_essence':  1n,
+  'essence':         2n,
+  'greater_essence': 3n,
+};
+
+/** Essence item key → craft qualities it can unlock stat affixes for */
+export const ESSENCE_QUALITY_GATE: Record<string, string[]> = {
+  'lesser_essence':  ['standard'],
+  'essence':         ['standard', 'reinforced'],
+  'greater_essence': ['standard', 'reinforced', 'exquisite'],
+};
 
 /**
  * Number of material items yielded from salvaging a gear piece by tier.

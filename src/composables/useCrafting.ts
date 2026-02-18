@@ -2,6 +2,88 @@ import { computed, ref, type Ref } from 'vue';
 import { reducers, type CharacterRow, type ItemInstanceRow, type ItemTemplateRow, type RecipeTemplateRow, type RecipeDiscoveredRow } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 
+// Modifier item names that correspond to crafting affixes
+const MODIFIER_ITEM_NAMES = new Set([
+  'Glowing Stone', 'Clear Crystal', 'Ancient Rune', 'Wisdom Herb',
+  'Silver Token', 'Life Stone', 'Mana Pearl', 'Iron Ward', 'Spirit Ward',
+]);
+
+const MODIFIER_STAT_KEYS: Record<string, string> = {
+  'Glowing Stone': 'strBonus',
+  'Clear Crystal': 'dexBonus',
+  'Ancient Rune':  'intBonus',
+  'Wisdom Herb':   'wisBonus',
+  'Silver Token':  'chaBonus',
+  'Life Stone':    'hpBonus',
+  'Mana Pearl':    'manaBonus',
+  'Iron Ward':     'armorClassBonus',
+  'Spirit Ward':   'magicResistanceBonus',
+};
+
+const MODIFIER_DESCRIPTIONS: Record<string, string> = {
+  'Glowing Stone': 'Adds Strength to the crafted item.',
+  'Clear Crystal': 'Adds Dexterity to the crafted item.',
+  'Ancient Rune':  'Adds Intelligence to the crafted item.',
+  'Wisdom Herb':   'Adds Wisdom to the crafted item.',
+  'Silver Token':  'Adds Charisma to the crafted item.',
+  'Life Stone':    'Adds max HP to the crafted item.',
+  'Mana Pearl':    'Adds max Mana to the crafted item.',
+  'Iron Ward':     'Adds Armor Class to the crafted item.',
+  'Spirit Ward':   'Adds Magic Resistance to the crafted item.',
+};
+
+const ESSENCE_MAGNITUDES: Record<string, number> = {
+  'Lesser Essence':  1,
+  'Essence':         2,
+  'Greater Essence': 3,
+};
+
+const tierToCraftQuality = (tier: bigint): string => {
+  if (tier === 3n) return 'exquisite';
+  if (tier === 2n) return 'reinforced';
+  return 'standard';
+};
+
+type CraftingOutputItem = {
+  name: string;
+  rarity: string;
+  qualityTier: string;
+  slot: string;
+  armorType: string;
+  allowedClasses: string;
+  description: string | null;
+  stats: { label: string; value: string }[];
+  affixStats: { label: string; value: string; affixName: string }[];
+};
+
+export type CraftingRecipe = {
+  id: bigint;
+  name: string;
+  outputName: string;
+  outputCount: bigint;
+  craftQuality: string;
+  requirements: { name: string; required: bigint; available: bigint; hasMaterial: boolean }[];
+  canCraft: boolean;
+  recipeType: string;
+  materialType?: string;
+  outputItem: CraftingOutputItem | null;
+};
+
+export type CraftingEssenceItem = {
+  templateId: bigint;
+  name: string;
+  magnitude: number;
+  available: bigint;
+};
+
+export type CraftingModifierItem = {
+  templateId: bigint;
+  name: string;
+  description: string;
+  statKey: string;
+  available: bigint;
+};
+
 type UseCraftingArgs = {
   connActive: Ref<boolean>;
   selectedCharacter: Ref<CharacterRow | null>;
@@ -24,6 +106,11 @@ export const useCrafting = ({
 
   const activeFilter = ref<string>('All');
   const showOnlyCraftable = ref(false);
+
+  // Modal state
+  const craftingModalRecipe = ref<CraftingRecipe | null>(null);
+  const openCraftModal = (recipe: CraftingRecipe) => { craftingModalRecipe.value = recipe; };
+  const closeCraftModal = () => { craftingModalRecipe.value = null; };
 
   const ownedInstances = computed(() => {
     if (!selectedCharacter.value) return [];
@@ -119,11 +206,14 @@ export const useCrafting = ({
           ].filter(Boolean) as { label: string; value: string }[],
           affixStats: [],
         } : null;
+        // Determine craft quality from req1 material tier
+        const craftQuality = tierToCraftQuality(req1?.tier ?? 1n);
         return {
           id: recipe.id,
           name: recipe.name,
           outputName: output?.name ?? 'Unknown',
           outputCount: recipe.outputCount,
+          craftQuality,
           requirements,
           canCraft,
           recipeType,
@@ -145,6 +235,48 @@ export const useCrafting = ({
       .filter((r) => !showOnlyCraftable.value || r.canCraft)
   );
 
+  // Modifier items in player inventory (items matching crafting modifier names)
+  const modifierItems = computed((): CraftingModifierItem[] => {
+    const result: CraftingModifierItem[] = [];
+    for (const instance of ownedInstances.value) {
+      if (instance.equippedSlot) continue;
+      const template = itemTemplates.value.find(t => t.id.toString() === instance.templateId.toString());
+      if (!template || !MODIFIER_ITEM_NAMES.has(template.name)) continue;
+      const count = countForTemplate(instance.templateId);
+      if (count <= 0n) continue;
+      if (result.some(r => r.templateId.toString() === instance.templateId.toString())) continue;
+      result.push({
+        templateId: template.id,
+        name: template.name,
+        description: MODIFIER_DESCRIPTIONS[template.name] ?? '',
+        statKey: MODIFIER_STAT_KEYS[template.name] ?? '',
+        available: count,
+      });
+    }
+    return result;
+  });
+
+  // Essence items in player inventory
+  const essenceItems = computed((): CraftingEssenceItem[] => {
+    const result: CraftingEssenceItem[] = [];
+    const essenceNames = Object.keys(ESSENCE_MAGNITUDES);
+    for (const instance of ownedInstances.value) {
+      if (instance.equippedSlot) continue;
+      const template = itemTemplates.value.find(t => t.id.toString() === instance.templateId.toString());
+      if (!template || !essenceNames.includes(template.name)) continue;
+      const count = countForTemplate(instance.templateId);
+      if (count <= 0n) continue;
+      if (result.some(r => r.templateId.toString() === instance.templateId.toString())) continue;
+      result.push({
+        templateId: template.id,
+        name: template.name,
+        magnitude: ESSENCE_MAGNITUDES[template.name] ?? 1,
+        available: count,
+      });
+    }
+    return result;
+  });
+
   const research = () => {
     if (!connActive.value || !selectedCharacter.value) return;
     researchReducer({ characterId: selectedCharacter.value.id });
@@ -152,7 +284,26 @@ export const useCrafting = ({
 
   const craft = (recipeTemplateId: bigint) => {
     if (!connActive.value || !selectedCharacter.value) return;
-    craftReducer({ characterId: selectedCharacter.value.id, recipeTemplateId });
+    craftReducer({ characterId: selectedCharacter.value.id, recipeTemplateId, catalystTemplateId: undefined, modifier1TemplateId: undefined, modifier2TemplateId: undefined, modifier3TemplateId: undefined });
+  };
+
+  const craftWithEnhancements = (args: {
+    recipeTemplateId: bigint;
+    catalystTemplateId?: bigint;
+    modifier1TemplateId?: bigint;
+    modifier2TemplateId?: bigint;
+    modifier3TemplateId?: bigint;
+  }) => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    craftReducer({
+      characterId: selectedCharacter.value.id,
+      recipeTemplateId: args.recipeTemplateId,
+      catalystTemplateId: args.catalystTemplateId,
+      modifier1TemplateId: args.modifier1TemplateId,
+      modifier2TemplateId: args.modifier2TemplateId,
+      modifier3TemplateId: args.modifier3TemplateId,
+    });
+    closeCraftModal();
   };
 
   return {
@@ -161,7 +312,13 @@ export const useCrafting = ({
     recipeTypes,
     activeFilter,
     showOnlyCraftable,
+    craftingModalRecipe,
+    openCraftModal,
+    closeCraftModal,
+    modifierItems,
+    essenceItems,
     research,
     craft,
+    craftWithEnhancements,
   };
 };

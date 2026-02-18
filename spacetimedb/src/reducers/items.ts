@@ -1,7 +1,7 @@
 import { buildDisplayName, findItemTemplateByName } from '../helpers/items';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { getPerkBonusByField } from '../helpers/renown';
-import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, MATERIAL_DEFS, getCraftedAffixes, materialTierToQuality, materialTierToCraftQuality, getCraftQualityStatBonus } from '../data/crafting_materials';
+import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, MATERIAL_DEFS, materialTierToCraftQuality, getCraftQualityStatBonus, CRAFTING_MODIFIER_DEFS, AFFIX_SLOTS_BY_QUALITY, ESSENCE_MAGNITUDE, ESSENCE_QUALITY_GATE } from '../data/crafting_materials';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -928,9 +928,32 @@ export const registerItemReducers = (deps: any) => {
     }
   });
 
+  // Maps stat key → readable affix suffix name for crafted items
+  const statKeyToAffix = (statKey: string): string => {
+    const map: Record<string, string> = {
+      strBonus:             'of Strength',
+      dexBonus:             'of Dexterity',
+      intBonus:             'of Intelligence',
+      wisBonus:             'of Wisdom',
+      chaBonus:             'of Charisma',
+      hpBonus:              'of Vitality',
+      manaBonus:            'of the Arcane',
+      armorClassBonus:      'of Warding',
+      magicResistanceBonus: 'of Magic Resistance',
+    };
+    return map[statKey] ?? 'of Power';
+  };
+
   spacetimedb.reducer(
     'craft_recipe',
-    { characterId: t.u64(), recipeTemplateId: t.u64() },
+    {
+      characterId:         t.u64(),
+      recipeTemplateId:    t.u64(),
+      catalystTemplateId:  t.u64().optional(),
+      modifier1TemplateId: t.u64().optional(),
+      modifier2TemplateId: t.u64().optional(),
+      modifier3TemplateId: t.u64().optional(),
+    },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       const location = ctx.db.location.id.find(character.locationId);
@@ -978,27 +1001,19 @@ export const registerItemReducers = (deps: any) => {
       addItemToInventory(ctx, character.id, recipe.outputTemplateId, recipe.outputCount);
       const output = ctx.db.itemTemplate.id.find(recipe.outputTemplateId);
 
-      // --- Deterministic affix application for gear recipes (dual-axis) ---
+      // --- Gear recipe affix application (catalyst + modifier system) ---
       let craftedDisplayName = output?.name ?? recipe.name;
       const isGearRecipe = recipe.recipeType && recipe.recipeType !== 'consumable';
       if (isGearRecipe && output) {
-        // Determine material key from req1 template name (the primary material slot)
+        // Determine craft quality from primary material tier
         const req1Template = ctx.db.itemTemplate.id.find(recipe.req1TemplateId);
         const materialKey = req1Template
           ? req1Template.name.toLowerCase().replace(/\s+/g, '_')
           : '';
-
-        // Look up material tier from MATERIAL_DEFS
         const materialDef = MATERIAL_DEFS.find((m) => m.key === materialKey);
         const materialTier = materialDef ? materialDef.tier : 1n;
-
-        // Dual-axis: craft quality from material tier (controls affixes/base stats)
         const craftQuality = materialTierToCraftQuality(materialTier);
-        // Rarity: crafted items always start as 'common' (no random affixes)
         const qualityTier = 'common';
-
-        // Get deterministic affixes based on craft quality level
-        const craftedAffixes = getCraftedAffixes(materialKey, craftQuality);
 
         // Find the newly created ItemInstance
         const newInstance = [...ctx.db.itemInstance.by_owner.filter(character.id)].find(
@@ -1006,9 +1021,54 @@ export const registerItemReducers = (deps: any) => {
         );
 
         if (newInstance) {
-          // Insert ItemAffix rows for each crafted affix
-          if (craftedAffixes.length > 0) {
-            for (const affix of craftedAffixes) {
+          const appliedAffixes: { affixType: string; affixKey: string; affixName: string; statKey: string; magnitude: bigint }[] = [];
+
+          // --- Catalyst (Essence) + Modifier logic ---
+          if (args.catalystTemplateId) {
+            const catalystTemplate = ctx.db.itemTemplate.id.find(args.catalystTemplateId);
+            const catalystKey = catalystTemplate
+              ? catalystTemplate.name.toLowerCase().replace(/\s+/g, '_')
+              : '';
+            const magnitude = ESSENCE_MAGNITUDE[catalystKey] ?? 1n;
+            const slotsAvailable = AFFIX_SLOTS_BY_QUALITY[craftQuality] ?? 1;
+            const allowedQualities = ESSENCE_QUALITY_GATE[catalystKey] ?? [];
+
+            if (!allowedQualities.includes(craftQuality)) {
+              return failItem(ctx, character, 'Essence tier too low for this craft quality');
+            }
+            if (getItemCount(ctx, character.id, args.catalystTemplateId) < 1n) {
+              return failItem(ctx, character, 'Missing catalyst (Essence)');
+            }
+            removeItemFromInventory(ctx, character.id, args.catalystTemplateId, 1n);
+
+            // Collect modifier IDs up to available slots
+            const modifierIds = [args.modifier1TemplateId, args.modifier2TemplateId, args.modifier3TemplateId]
+              .filter((id): id is bigint => id != null)
+              .slice(0, slotsAvailable);
+
+            for (const modId of modifierIds) {
+              const modTemplate = ctx.db.itemTemplate.id.find(modId);
+              if (!modTemplate) continue;
+              const modKey = modTemplate.name.toLowerCase().replace(/\s+/g, '_');
+              const modDef = CRAFTING_MODIFIER_DEFS.find((d) => d.key === modKey);
+              if (!modDef) continue;
+
+              if (getItemCount(ctx, character.id, modId) < 1n) {
+                return failItem(ctx, character, `Missing modifier: ${modTemplate.name}`);
+              }
+              removeItemFromInventory(ctx, character.id, modId, 1n);
+
+              appliedAffixes.push({
+                affixType: 'suffix',
+                affixKey: `crafted_${modDef.statKey}`,
+                affixName: statKeyToAffix(modDef.statKey),
+                statKey: modDef.statKey,
+                magnitude,
+              });
+            }
+
+            // Insert affix rows for modifier-based affixes
+            for (const affix of appliedAffixes) {
               ctx.db.itemAffix.insert({
                 id: 0n,
                 itemInstanceId: newInstance.id,
@@ -1019,14 +1079,15 @@ export const registerItemReducers = (deps: any) => {
                 magnitude: affix.magnitude,
               });
             }
-            // Build display name with prefix/suffix
-            craftedDisplayName = buildDisplayName(output.name, craftedAffixes);
+
+            if (appliedAffixes.length > 0) {
+              craftedDisplayName = buildDisplayName(output.name, appliedAffixes);
+            }
           }
 
-          // Insert implicit craft quality base stat bonus affixes for tier 2+ materials
+          // --- Implicit craft quality base stat bonus (unchanged) ---
           const statBonus = getCraftQualityStatBonus(craftQuality);
           if (statBonus > 0n) {
-            // Armor: +AC bonus
             if (output.armorClassBonus > 0n) {
               ctx.db.itemAffix.insert({
                 id: 0n,
@@ -1038,7 +1099,6 @@ export const registerItemReducers = (deps: any) => {
                 magnitude: statBonus,
               });
             }
-            // Weapon: +baseDamage and +dps bonus
             if (output.weaponBaseDamage > 0n) {
               ctx.db.itemAffix.insert({
                 id: 0n,
@@ -1061,12 +1121,11 @@ export const registerItemReducers = (deps: any) => {
             }
           }
 
-          // Update ItemInstance with BOTH axes
           ctx.db.itemInstance.id.update({
             ...newInstance,
-            qualityTier,       // rarity = 'common' for all crafted gear
-            craftQuality,      // craft quality from material tier
-            displayName: craftedAffixes.length > 0 ? craftedDisplayName : undefined,
+            qualityTier,
+            craftQuality,
+            displayName: appliedAffixes.length > 0 ? craftedDisplayName : undefined,
           });
         }
       }

@@ -56,9 +56,9 @@
             </div>
           </div>
           <button
-            :style="[styles.primaryButton, (!recipe.canCraft || !craftingAvailable || combatLocked) ? styles.disabledButton : {}]"
-            :disabled="!recipe.canCraft || !craftingAvailable || combatLocked"
-            @click="$emit('craft', recipe.id)"
+            :style="[styles.primaryButton, (!craftingAvailable || combatLocked) ? styles.disabledButton : {}]"
+            :disabled="!craftingAvailable || combatLocked"
+            @click="$emit('open-modal', recipe)"
           >
             Craft
           </button>
@@ -103,7 +103,7 @@ defineProps<{
 defineEmits<{
   (e: 'update:activeFilter', value: string): void;
   (e: 'update:showOnlyCraftable', value: boolean): void;
-  (e: 'craft', recipeId: bigint): void;
+  (e: 'open-modal', recipe: any): void;
   (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
   (e: 'move-tooltip', value: { x: number; y: number }): void;
   (e: 'hide-tooltip'): void;

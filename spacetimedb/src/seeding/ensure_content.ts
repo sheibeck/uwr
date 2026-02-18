@@ -21,6 +21,7 @@ import {
   ensureCraftingBaseGearTemplates,
   ensureGearRecipeTemplates,
   ensureRecipeScrollItemTemplates,
+  ensureCraftingModifierItemTemplates,
 } from './ensure_items';
 import { ensureNpcs, ensureQuestTemplates, ensureWorldLayout, ensureEnemyAbilities, ensureDialogueOptions } from './ensure_world';
 import { ensureLootTables, ensureMaterialLootEntries, ensureVendorInventory, ensureLocationEnemyTemplates, ensureEnemyTemplatesAndRoles } from './ensure_enemies';
@@ -87,6 +88,7 @@ export function syncAllContent(ctx: any) {
   ensureStarterItemTemplates(ctx);
   ensureResourceItemTemplates(ctx);
   ensureGearMaterialItemTemplates(ctx);   // Phase 13: crafting materials (after resource items)
+  ensureCraftingModifierItemTemplates(ctx); // Phase 13: crafting modifier items for affix dialog
   ensureFoodItemTemplates(ctx);
   ensureWorldDropGearTemplates(ctx);
   ensureWorldDropJewelryTemplates(ctx);
