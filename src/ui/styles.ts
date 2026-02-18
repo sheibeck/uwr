@@ -1002,7 +1002,7 @@ export const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 70,
+    zIndex: 9999,
   },
   deathModal: {
     background: 'rgba(15, 20, 28, 0.95)',
