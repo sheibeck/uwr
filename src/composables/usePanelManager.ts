@@ -1,5 +1,48 @@
 import { computed, reactive, ref, watch, Ref } from 'vue';
 
+// Panel IDs that open on demand — default to screen center
+const ON_DEMAND_PANEL_IDS = [
+  'character', 'characterInfo', 'hotbarPanel', 'friends', 'crafting',
+  'journal', 'renown', 'worldEvents', 'loot', 'vendor', 'trade',
+  'track', 'travelPanel', 'combat',
+];
+
+/**
+ * Compute the default panel layout based on current viewport dimensions.
+ * Called both for initial defaults (new players) and by /resetwindows.
+ *
+ * Layout:
+ *   log     — top-left  (x=16, y=16, w=500, h=300)
+ *   travel  — top-right (x = vw - 320 - 16, y=16)
+ *   hotbar  — just left of travel (x = travelX - 160 - 8, y=16)
+ *   group   — just left of hotbar (x = hotbarX - 260 - 8, y=16)
+ *   others  — screen center
+ */
+export function getDefaultLayout(): Record<string, { x: number; y: number; w?: number; h?: number; open?: boolean }> {
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1920;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 1080;
+
+  const travelX = Math.max(400, vw - 320 - 16);
+  const hotbarX = travelX - 160 - 8;
+  const groupX = hotbarX - 260 - 8;
+
+  const centerX = Math.round(vw / 2 - 160);
+  const centerY = Math.round(vh / 2 - 100);
+
+  const layout: Record<string, { x: number; y: number; w?: number; h?: number; open?: boolean }> = {
+    log:    { x: 16,     y: 16, w: 500, h: 300, open: true },
+    travel: { x: travelX, y: 16, open: true },
+    hotbar: { x: hotbarX, y: 16, open: true },
+    group:  { x: groupX,  y: 16, open: true },
+  };
+
+  for (const id of ON_DEMAND_PANEL_IDS) {
+    layout[id] = { x: centerX, y: centerY };
+  }
+
+  return layout;
+}
+
 export interface PanelState {
   open: boolean;
   x: number;
@@ -442,16 +485,15 @@ export function usePanelManager(
     );
   }
 
-  // Reset all panels to centered positions
+  // Reset all panels to the default layout (same as new player defaults)
   const resetAllPanels = () => {
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
-    // Center each panel. Use a small offset grid so panels don't perfectly stack.
-    const centerX = Math.max(16, Math.round(cx - 160));
-    const centerY = Math.max(16, Math.round(cy - 100));
-    for (const id of Object.keys(panels)) {
-      panels[id].x = centerX;
-      panels[id].y = centerY;
+    const layout = getDefaultLayout();
+    for (const [id, pos] of Object.entries(layout)) {
+      if (!panels[id]) continue;
+      panels[id].x = pos.x;
+      panels[id].y = pos.y;
+      if (pos.w !== undefined) panels[id].w = pos.w;
+      if (pos.h !== undefined) panels[id].h = pos.h;
     }
     markDirty();
     saveToStorage();

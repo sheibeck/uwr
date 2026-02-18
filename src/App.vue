@@ -577,7 +577,7 @@ import { useCrafting } from './composables/useCrafting';
 import { useHotbar } from './composables/useHotbar';
 import { useTrade } from './composables/useTrade';
 import { useCombatLock } from './composables/useCombatLock';
-import { usePanelManager } from './composables/usePanelManager';
+import { usePanelManager, getDefaultLayout } from './composables/usePanelManager';
 
 const {
   conn,
@@ -1929,26 +1929,7 @@ const {
   onMouseUp: onPanelMouseUp,
   panelStyle,
   resetAllPanels,
-} = usePanelManager({
-  group: { x: 40, y: 140 },
-  travel: { x: 1040, y: 110 },
-  hotbar: { x: 120, y: 260 },
-  character: { x: 980, y: 140 },
-  characterInfo: { x: 600, y: 140 },
-  hotbarPanel: { x: 700, y: 140 },
-  friends: { x: 500, y: 140 },
-  crafting: { x: 600, y: 140 },
-  journal: { x: 600, y: 140 },
-  renown: { x: 600, y: 140 },
-  worldEvents: { x: 600, y: 140 },
-  loot: { x: 600, y: 200 },
-  vendor: { x: 600, y: 140 },
-  trade: { x: 600, y: 140 },
-  track: { x: 600, y: 200 },
-  travelPanel: { x: 600, y: 140 },
-  combat: { x: 600, y: 140 },
-  log: { x: 40, y: 400, w: 500, h: 300, open: true },
-}, {
+} = usePanelManager(getDefaultLayout(), {
   serverPanelLayouts: characterPanelLayouts,
   selectedCharacterId,
   savePanelLayout: savePanelLayoutReducer,
