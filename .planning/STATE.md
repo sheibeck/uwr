@@ -330,9 +330,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 153 | Fix Sanctify generating two log messages — guarded enemy-name override in use_ability reducer with !args.targetCharacterId check so friendly-targeted abilities skip the combat enemy name lookup; single correct log line now emitted | 2026-02-18 | dcc06f9 | [153-fix-sanctify-generating-two-log-messages](./quick/153-fix-sanctify-generating-two-log-messages/) |
 | 154 | Fix group panel harvest messages — added 5th groupMessage arg to logPrivateAndGroup in start_gather_resource so group members see "{character.name} begins gathering {node}." instead of "You begin gathering {node}."; matches finish_gather and take_loot patterns | 2026-02-18 | e160b43 | [154-fix-group-panel-harvest-messages-to-show](./quick/154-fix-group-panel-harvest-messages-to-show/) |
 | 156 | Realign armor AC and weapon damage across starter and T1 tiers — STARTER_ARMOR cloth 2/1/1, leather 3/2/2, chain 4/3/2, plate 5/4/3; T1 drops starter+1 on all slots; T1 other-slot items (helm/bracers/gauntlets/girdle/cloaks) set to per-armor-type values; starter weapons 3/5 base/dps, T1 weapons 4/6; module republished via upsert | 2026-02-18 | 8b2a41e | [156-realign-armor-ac-values-across-all-tiers](./quick/156-realign-armor-ac-values-across-all-tiers/) |
+| 158 | craft_recipe applies per-material-quality stat bonuses via implicit ItemAffix rows — getCraftQualityStatBonus helper (standard=0, reinforced=+1, exquisite=+2, mastercraft=+3); armor inserts craft_quality_ac affix; weapons insert craft_quality_dmg + craft_quality_dps affixes; getEquippedWeaponStats sums weapon affixes; client tooltips show effective stats with implicit bonuses filtered from label list | 2026-02-18 | 4b4cf41 | [158-craft-recipe-reducer-applies-per-materia](./quick/158-craft-recipe-reducer-applies-per-materia/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 156: Armor AC and weapon damage realignment — starters reduced, T1 drops set to starter+1, module published
+Last activity: 2026-02-18 - Completed quick task 158: craft_recipe quality bonuses — reinforced/exquisite crafted gear now gets +1/+2 implicit stat bonuses via ItemAffix rows; client tooltips updated to show effective values
