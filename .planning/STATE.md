@@ -200,6 +200,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 152. Rogue damage abilities (shadow_cut, bleed, shadow_strike) use DEX scaling not STR — rogue primary is DEX (12 at L1) vs STR (8 at L1); hybrid STR+INT sum and Shadow Cut DoT power split remain by-design (quick-164)
 153. Enemy combat HP = template.maxHp (individual seeded baseline) + role.baseHpBonus + role.hpBonusPerLevel * level — mirrors armor pattern; HP priority: tank(60/15) > healer(45/12) > support(35/10) > damage(20/8); enemy heal cap reads combatEnemy.maxHp not stale template.maxHp (quick-167)
 152. Essence tier thresholds corrected to 10-level-wide bands matching enemy tier structure; Essence IV added for level 31+ enemies — 1-10=I, 11-20=II, 21-30=III, 31+=IV; Essence IV defined in MATERIAL_DEFS (tier 4n) and seeded as ItemTemplate (vendorValue 24n) (quick-163)
+154. --clear-database is ONLY required for schema changes (adding non-optional columns to existing tables) — NOT for adding new enemy templates, items, abilities, or other data rows; all seeding functions use upsert (find-or-insert + update) patterns via syncAllContent(); plain `spacetime publish` preserves all player data (quick-172)
 
 ---
 
@@ -349,9 +350,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 169 | Zero-offset locations spawn enemies at exact target level — spawnEnemy uses exactMatch flag (levelOffset===0n) to set minLevel===maxLevel===adjustedTarget; ensureAvailableSpawn uses maxDiff=0n for zero-offset locations; starter areas (Lanternford, Ashfall Road, Bell Farm) now only spawn level 1 enemies | 2026-02-18 | ea3e39e | [169-locations-with-0-level-offset-spawn-enem](./quick/169-locations-with-0-level-offset-spawn-enem/) |
 | 170 | Audit and fix night spawn coverage — 8 new night enemy templates (Dusk Moth L1 plains, Night Rat L1 plains, Nightfang Viper L1 swamp, Gloomwing Bat L1 woods+mountains, Cinder Wraith L3 plains+mountains, Shadow Prowler L4 woods, Bog Specter L4 swamp, Ashveil Phantom L5 mountains); each with 2 role templates and 1 enemy ability; fills all gaps so every non-safe non-dungeon location has level-appropriate night enemies | 2026-02-18 | 46ee85f | [170-audit-and-fix-night-spawn-coverage-ensur](./quick/170-audit-and-fix-night-spawn-coverage-ensur/) |
 | 171 | Death overlay renders on top of everything — deathOverlay zIndex bumped from 70 to 9999; was buried under floating panels (up to ~5000) and resurrect confirmation (9000) | 2026-02-18 | 7eb274d | [171-death-splash-screen-shows-on-top-of-ever](./quick/171-death-splash-screen-shows-on-top-of-ever/) |
+| 172 | Confirmed --clear-database is NOT required when adding new enemies — all seeding (ensureEnemyTemplatesAndRoles, addRoleTemplate, ensureEnemyAbilities, ensureLocationEnemyTemplates) uses upsert find-or-insert patterns; plain `spacetime publish` is sufficient for content-only changes; --clear-database only needed for schema changes (non-optional column additions) | 2026-02-18 | — | [172-investigate-whether-clear-database-is-re](./quick/172-investigate-whether-clear-database-is-re/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 170: added 8 night enemy templates (Dusk Moth, Night Rat, Nightfang Viper, Gloomwing Bat, Cinder Wraith, Shadow Prowler, Bog Specter, Ashveil Phantom) filling all night spawn gaps across every non-safe non-dungeon terrain type and level range; module republished with --clear-database
+Last activity: 2026-02-18 - Completed quick task 172: confirmed --clear-database not required for new enemy additions; all seeding uses upsert patterns; locked as Key Decision #154: added 8 night enemy templates (Dusk Moth, Night Rat, Nightfang Viper, Gloomwing Bat, Cinder Wraith, Shadow Prowler, Bog Specter, Ashveil Phantom) filling all night spawn gaps across every non-safe non-dungeon terrain type and level range; module republished with --clear-database
