@@ -1258,6 +1258,40 @@ export function ensureWorldDropJewelryTemplates(ctx: any) {
 }
 
 export function ensureResourceItemTemplates(ctx: any) {
+  const upsertResourceByName = (row: any) => {
+    const fullRow = {
+      armorType: 'none',
+      rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      strBonus: 0n,
+      dexBonus: 0n,
+      chaBonus: 0n,
+      wisBonus: 0n,
+      intBonus: 0n,
+      hpBonus: 0n,
+      manaBonus: 0n,
+      armorClassBonus: 0n,
+      magicResistanceBonus: 0n,
+      weaponBaseDamage: 0n,
+      weaponDps: 0n,
+      weaponType: '',
+      stackable: true,
+      wellFedDurationMicros: 0n,
+      wellFedBuffType: '',
+      wellFedBuffMagnitude: 0n,
+      ...row,
+    };
+    const existing = findItemTemplateByName(ctx, fullRow.name);
+    if (existing) {
+      ctx.db.itemTemplate.id.update({ ...existing, ...fullRow, id: existing.id });
+      return existing;
+    }
+    return ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
+  };
+
   const resources = [
     { name: 'Flax', slot: 'resource', vendorValue: 1n },
     { name: 'Herbs', slot: 'resource', vendorValue: 1n },
@@ -1281,66 +1315,11 @@ export function ensureResourceItemTemplates(ctx: any) {
     { name: 'Root Vegetable', slot: 'resource', vendorValue: 1n },
   ];
   for (const resource of resources) {
-    if (findItemTemplateByName(ctx, resource.name)) continue;
-    ctx.db.itemTemplate.insert({
-      id: 0n,
-      name: resource.name,
-      slot: resource.slot,
-      armorType: 'none',
-      rarity: 'common',
-      tier: 1n,
-      isJunk: false,
-      vendorValue: resource.vendorValue,
-      requiredLevel: 1n,
-      allowedClasses: 'any',
-      strBonus: 0n,
-      dexBonus: 0n,
-      chaBonus: 0n,
-      wisBonus: 0n,
-      intBonus: 0n,
-      hpBonus: 0n,
-      manaBonus: 0n,
-      armorClassBonus: 0n,
-      magicResistanceBonus: 0n,
-      weaponBaseDamage: 0n,
-      weaponDps: 0n,
-      weaponType: '',
-      stackable: true,
-      wellFedDurationMicros: 0n,
-      wellFedBuffType: '',
-      wellFedBuffMagnitude: 0n,
-    });
+    upsertResourceByName({ name: resource.name, slot: resource.slot, vendorValue: resource.vendorValue });
   }
-  if (!findItemTemplateByName(ctx, 'Bandage')) {
-    ctx.db.itemTemplate.insert({
-      id: 0n,
-      name: 'Bandage',
-      slot: 'consumable',
-      armorType: 'none',
-      rarity: 'common',
-      tier: 1n,
-      isJunk: false,
-      vendorValue: 2n,
-      requiredLevel: 1n,
-      allowedClasses: 'any',
-      strBonus: 0n,
-      dexBonus: 0n,
-      chaBonus: 0n,
-      wisBonus: 0n,
-      intBonus: 0n,
-      hpBonus: 0n,
-      manaBonus: 0n,
-      armorClassBonus: 0n,
-      magicResistanceBonus: 0n,
-      weaponBaseDamage: 0n,
-      weaponDps: 0n,
-      weaponType: '',
-      stackable: true,
-      wellFedDurationMicros: 0n,
-      wellFedBuffType: '',
-      wellFedBuffMagnitude: 0n,
-    });
-  }
+
+  upsertResourceByName({ name: 'Bandage', slot: 'consumable', vendorValue: 2n });
+
   const craftItems = [
     { name: 'Simple Rations', slot: 'consumable', vendorValue: 2n },
     { name: 'Torch', slot: 'utility', vendorValue: 2n },
@@ -1353,35 +1332,7 @@ export function ensureResourceItemTemplates(ctx: any) {
     { name: 'Crude Poison', slot: 'consumable', vendorValue: 3n },
   ];
   for (const item of craftItems) {
-    if (findItemTemplateByName(ctx, item.name)) continue;
-    ctx.db.itemTemplate.insert({
-      id: 0n,
-      name: item.name,
-      slot: item.slot,
-      armorType: 'none',
-      rarity: 'common',
-      tier: 1n,
-      isJunk: false,
-      vendorValue: item.vendorValue,
-      requiredLevel: 1n,
-      allowedClasses: 'any',
-      strBonus: 0n,
-      dexBonus: 0n,
-      chaBonus: 0n,
-      wisBonus: 0n,
-      intBonus: 0n,
-      hpBonus: 0n,
-      manaBonus: 0n,
-      armorClassBonus: 0n,
-      magicResistanceBonus: 0n,
-      weaponBaseDamage: 0n,
-      weaponDps: 0n,
-      weaponType: '',
-      stackable: true,
-      wellFedDurationMicros: 0n,
-      wellFedBuffType: '',
-      wellFedBuffMagnitude: 0n,
-    });
+    upsertResourceByName({ name: item.name, slot: item.slot, vendorValue: item.vendorValue });
   }
 }
 
@@ -1659,9 +1610,7 @@ export function ensureAbilityTemplates(ctx: any) {
 
 export function ensureGearMaterialItemTemplates(ctx: any) {
   for (const mat of MATERIAL_DEFS) {
-    if (findItemTemplateByName(ctx, mat.name)) continue;
-    ctx.db.itemTemplate.insert({
-      id: 0n,
+    const fullRow = {
       name: mat.name,
       slot: 'resource',
       armorType: 'none',
@@ -1687,7 +1636,13 @@ export function ensureGearMaterialItemTemplates(ctx: any) {
       wellFedDurationMicros: 0n,
       wellFedBuffType: '',
       wellFedBuffMagnitude: 0n,
-    });
+    };
+    const existing = findItemTemplateByName(ctx, mat.name);
+    if (existing) {
+      ctx.db.itemTemplate.id.update({ ...existing, ...fullRow, id: existing.id });
+      continue;
+    }
+    ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
   }
 }
 
@@ -1799,9 +1754,7 @@ export function ensureGearRecipeTemplates(ctx: any) {
 
 export function ensureCraftingModifierItemTemplates(ctx: any) {
   for (const mod of CRAFTING_MODIFIER_DEFS) {
-    if (findItemTemplateByName(ctx, mod.name)) continue;
-    ctx.db.itemTemplate.insert({
-      id: 0n,
+    const fullRow = {
       name: mod.name,
       slot: 'material',
       armorType: 'none',
@@ -1827,7 +1780,13 @@ export function ensureCraftingModifierItemTemplates(ctx: any) {
       wellFedDurationMicros: 0n,
       wellFedBuffType: '',
       wellFedBuffMagnitude: 0n,
-    });
+    };
+    const existing = findItemTemplateByName(ctx, mod.name);
+    if (existing) {
+      ctx.db.itemTemplate.id.update({ ...existing, ...fullRow, id: existing.id });
+      continue;
+    }
+    ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
   }
 }
 
@@ -1840,9 +1799,7 @@ export function ensureCraftingModifierItemTemplates(ctx: any) {
 export function ensureRecipeScrollItemTemplates(ctx: any) {
   for (const recipeName of GEAR_RECIPE_NAMES) {
     const scrollName = `Scroll: ${recipeName}`;
-    if (findItemTemplateByName(ctx, scrollName)) continue;
-    ctx.db.itemTemplate.insert({
-      id: 0n,
+    const fullRow = {
       name: scrollName,
       slot: 'resource',
       armorType: 'none',
@@ -1868,6 +1825,12 @@ export function ensureRecipeScrollItemTemplates(ctx: any) {
       wellFedDurationMicros: 0n,
       wellFedBuffType: '',
       wellFedBuffMagnitude: 0n,
-    });
+    };
+    const existing = findItemTemplateByName(ctx, scrollName);
+    if (existing) {
+      ctx.db.itemTemplate.id.update({ ...existing, ...fullRow, id: existing.id });
+      continue;
+    }
+    ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
   }
 }
