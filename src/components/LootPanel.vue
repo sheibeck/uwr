@@ -4,6 +4,14 @@
       No unclaimed loot.
     </div>
     <div v-else :style="{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }">
+      <button
+        type="button"
+        :style="styles.ghostButton"
+        :disabled="!connActive"
+        @click="$emit('take-all-loot')"
+      >
+        Take All
+      </button>
       <div
         v-for="item in lootItems"
         :key="item.id.toString()"
@@ -103,6 +111,7 @@ const flashStyle = (quality: string) => {
 
 defineEmits<{
   (e: 'take-loot', lootId: bigint): void;
+  (e: 'take-all-loot'): void;
   (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
   (e: 'move-tooltip', value: { x: number; y: number }): void;
   (e: 'hide-tooltip'): void;

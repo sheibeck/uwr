@@ -340,6 +340,91 @@ export const registerItemReducers = (deps: any) => {
     }
   });
 
+  spacetimedb.reducer('take_all_loot', { characterId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const allLoot = [...ctx.db.combatLoot.by_character.filter(character.id)];
+    if (allLoot.length === 0) return;
+
+    const takenNames: string[] = [];
+    let skipped = 0;
+
+    for (const loot of allLoot) {
+      const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].filter((row) => !row.equippedSlot).length;
+      const template = ctx.db.itemTemplate.id.find(loot.itemTemplateId);
+      if (!template) continue;
+      const hasStack =
+        template.stackable &&
+        [...ctx.db.itemInstance.by_owner.filter(character.id)].some(
+          (row) => row.templateId === template.id && !row.equippedSlot
+        );
+      if (!hasStack && itemCount >= 20) {
+        skipped++;
+        continue;
+      }
+
+      addItemToInventory(ctx, character.id, template.id, 1n);
+
+      let displayName = template.name;
+      if (loot.qualityTier && loot.qualityTier !== 'common') {
+        const instances = [...ctx.db.itemInstance.by_owner.filter(character.id)];
+        const newInstance = instances.find(
+          (i) => i.templateId === loot.itemTemplateId && !i.equippedSlot && !i.qualityTier
+        );
+        if (newInstance && loot.affixDataJson) {
+          const affixes = JSON.parse(loot.affixDataJson) as {
+            affixKey: string;
+            affixType: string;
+            magnitude: number;
+            statKey: string;
+            affixName: string;
+          }[];
+          for (const affix of affixes) {
+            ctx.db.itemAffix.insert({
+              id: 0n,
+              itemInstanceId: newInstance.id,
+              affixType: affix.affixType,
+              affixKey: affix.affixKey,
+              affixName: affix.affixName,
+              statKey: affix.statKey,
+              magnitude: BigInt(affix.magnitude),
+            });
+          }
+          displayName = buildDisplayName(template.name, affixes);
+          ctx.db.itemInstance.id.update({
+            ...newInstance,
+            qualityTier: loot.qualityTier,
+            displayName,
+            isNamed: loot.isNamed ?? undefined,
+          });
+        }
+      }
+
+      ctx.db.combatLoot.id.delete(loot.id);
+      takenNames.push(displayName);
+    }
+
+    if (takenNames.length > 0) {
+      const msg = `You take all loot: ${takenNames.join(', ')}.`;
+      logPrivateAndGroup(ctx, character, 'reward', msg, `${character.name} takes all loot.`);
+    }
+    if (skipped > 0) {
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'warning', `Backpack full — ${skipped} item(s) left behind.`);
+    }
+
+    // Clean up combat results if no loot remains
+    const remaining = [...ctx.db.combatLoot.by_character.filter(character.id)];
+    if (remaining.length === 0) {
+      const combatIds = new Set(allLoot.map((l) => l.combatId));
+      for (const combatId of combatIds) {
+        for (const result of ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)) {
+          if (result.combatId === combatId) {
+            ctx.db.combatResult.id.delete(result.id);
+          }
+        }
+      }
+    }
+  });
+
   spacetimedb.reducer(
     'equip_item',
     { characterId: t.u64(), itemInstanceId: t.u64() },
