@@ -328,9 +328,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 151 | Centralize admin system — ADMIN_IDENTITIES moved from world_event_data.ts to dedicated data/admin.ts with requireAdmin helper; 8 admin/test reducers now guarded: /synccontent, create_test_item, create_recipe_scroll, level_character, spawn_corpse, end_combat, grant_test_renown, grant_test_achievement | 2026-02-18 | 6cd910b | [151-centralize-admin-system-into-dedicated-m](./quick/151-centralize-admin-system-into-dedicated-m/) |
 | 152 | Set default panel layout for new players — getDefaultLayout() computes viewport-aware positions (log top-left, travel top-right, hotbar/group left-aligned chain); /resetwindows restores same layout instead of centering all panels | 2026-02-17 | 99cf383 | [152-set-default-panel-layout-for-new-players](./quick/152-set-default-panel-layout-for-new-players/) |
 | 153 | Fix Sanctify generating two log messages — guarded enemy-name override in use_ability reducer with !args.targetCharacterId check so friendly-targeted abilities skip the combat enemy name lookup; single correct log line now emitted | 2026-02-18 | dcc06f9 | [153-fix-sanctify-generating-two-log-messages](./quick/153-fix-sanctify-generating-two-log-messages/) |
+| 154 | Fix group panel harvest messages — added 5th groupMessage arg to logPrivateAndGroup in start_gather_resource so group members see "{character.name} begins gathering {node}." instead of "You begin gathering {node}."; matches finish_gather and take_loot patterns | 2026-02-18 | e160b43 | [154-fix-group-panel-harvest-messages-to-show](./quick/154-fix-group-panel-harvest-messages-to-show/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Quick task 153: Fixed double log message bug in use_ability reducer — guarded enemy-name override with `!args.targetCharacterId` so Sanctify and other friendly-targeted abilities produce only one correct log line. Stopped at: Completed quick-153.
+Last activity: 2026-02-18 - Quick task 154: Fixed group panel harvest messages — added 5th groupMessage arg to logPrivateAndGroup in start_gather_resource so group members see the gatherer's name instead of "You". Stopped at: Completed quick-154.
