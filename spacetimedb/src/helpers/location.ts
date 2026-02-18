@@ -3,7 +3,7 @@ import { Timestamp } from 'spacetimedb';
 import { findItemTemplateByName } from './items';
 import { GROUP_SIZE_DANGER_BASE, GROUP_SIZE_BIAS_RANGE, GROUP_SIZE_BIAS_MAX } from '../data/combat_constants';
 import { EnemySpawn, EnemyTemplate } from '../schema/tables';
-import { MATERIAL_DEFS } from '../data/crafting_materials';
+import { MATERIAL_DEFS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 
 export const DAY_DURATION_MICROS = 1_200_000_000n;
 export const NIGHT_DURATION_MICROS = 600_000_000n;
@@ -109,7 +109,16 @@ export function getGatherableResourceTemplates(ctx: any, terrainType: string, ti
       }
     }
   }
-  const entries = [...baseEntries, ...materialEntries];
+  // Inject modifier reagents (Glowing Stone, Wisdom Herb, etc.) — weight 1n makes them rare vs regular materials
+  const modifierEntries: { name: string; weight: bigint; timeOfDay: string }[] = [];
+  for (const mod of CRAFTING_MODIFIER_DEFS) {
+    for (const entry of mod.gatherEntries) {
+      if (entry.terrain === key) {
+        modifierEntries.push({ name: mod.name, weight: entry.weight, timeOfDay: entry.timeOfDay });
+      }
+    }
+  }
+  const entries = [...baseEntries, ...materialEntries, ...modifierEntries];
   const pref = (timePref ?? '').trim().toLowerCase();
   const filtered =
     pref && pref !== 'any'

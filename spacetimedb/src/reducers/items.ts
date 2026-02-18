@@ -915,27 +915,36 @@ export const registerItemReducers = (deps: any) => {
         ctx.db.resourceNode.id.update({ ...node, state: 'available', lockedByCharacterId: undefined });
         return;
       }
-      const qtyRange = RESOURCE_GATHER_MAX_QTY - RESOURCE_GATHER_MIN_QTY + 1n;
-      let quantity =
-        RESOURCE_GATHER_MIN_QTY +
-        ((ctx.timestamp.microsSinceUnixEpoch + node.id) % qtyRange);
-
-      // Apply gathering perk bonuses
-      const gatherSeed = (ctx.timestamp.microsSinceUnixEpoch + node.id) % 100n;
-      const gatherDoubleChance = getPerkBonusByField(ctx, character.id, 'gatherDoubleChance', character.level);
-      let gatherBonusMsg = '';
-      if (gatherDoubleChance > 0 && gatherSeed < BigInt(Math.floor(gatherDoubleChance))) {
-        quantity = quantity * 2n;
-        gatherBonusMsg = ' Your gathering perk triggered! Double resources collected.';
+      // Modifier reagents (crafting affix components) always yield exactly 1
+      const isModifierReagent = CRAFTING_MODIFIER_DEFS.some(d => d.name === node.name);
+      let quantity: bigint;
+      if (isModifierReagent) {
+        quantity = 1n;
       } else {
-        // Check rareGatherChance only if double didn't trigger (independent roll)
-        const rareSeed = (ctx.timestamp.microsSinceUnixEpoch + node.id + character.id) % 100n;
-        const rareGatherChance = getPerkBonusByField(ctx, character.id, 'rareGatherChance', character.level);
-        if (rareGatherChance > 0 && rareSeed < BigInt(Math.floor(rareGatherChance))) {
-          // Rare gather: add 50% extra resources
-          const bonus = (quantity + 1n) / 2n;
-          quantity = quantity + bonus;
-          gatherBonusMsg = ' Your gathering perk found rare materials!';
+        const qtyRange = RESOURCE_GATHER_MAX_QTY - RESOURCE_GATHER_MIN_QTY + 1n;
+        quantity =
+          RESOURCE_GATHER_MIN_QTY +
+          ((ctx.timestamp.microsSinceUnixEpoch + node.id) % qtyRange);
+      }
+
+      // Apply gathering perk bonuses — skipped for modifier reagents (always exactly 1)
+      let gatherBonusMsg = '';
+      if (!isModifierReagent) {
+        const gatherSeed = (ctx.timestamp.microsSinceUnixEpoch + node.id) % 100n;
+        const gatherDoubleChance = getPerkBonusByField(ctx, character.id, 'gatherDoubleChance', character.level);
+        if (gatherDoubleChance > 0 && gatherSeed < BigInt(Math.floor(gatherDoubleChance))) {
+          quantity = quantity * 2n;
+          gatherBonusMsg = ' Your gathering perk triggered! Double resources collected.';
+        } else {
+          // Check rareGatherChance only if double didn't trigger (independent roll)
+          const rareSeed = (ctx.timestamp.microsSinceUnixEpoch + node.id + character.id) % 100n;
+          const rareGatherChance = getPerkBonusByField(ctx, character.id, 'rareGatherChance', character.level);
+          if (rareGatherChance > 0 && rareSeed < BigInt(Math.floor(rareGatherChance))) {
+            // Rare gather: add 50% extra resources
+            const bonus = (quantity + 1n) / 2n;
+            quantity = quantity + bonus;
+            gatherBonusMsg = ' Your gathering perk found rare materials!';
+          }
         }
       }
 

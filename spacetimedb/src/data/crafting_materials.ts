@@ -521,18 +521,28 @@ export interface CraftingModifierDef {
   name: string;         // display name
   statKey: string;      // stat field name on ItemAffix
   description: string;  // shown in hover tooltip
+  gatherEntries: { terrain: string; weight: bigint; timeOfDay: string }[];  // terrain gather pool entries (weight 1n = rare)
 }
 
 export const CRAFTING_MODIFIER_DEFS: CraftingModifierDef[] = [
-  { key: 'glowing_stone',  name: 'Glowing Stone',  statKey: 'strBonus',             description: 'Adds Strength to the crafted item.' },
-  { key: 'clear_crystal',  name: 'Clear Crystal',  statKey: 'dexBonus',             description: 'Adds Dexterity to the crafted item.' },
-  { key: 'ancient_rune',   name: 'Ancient Rune',   statKey: 'intBonus',             description: 'Adds Intelligence to the crafted item.' },
-  { key: 'wisdom_herb',    name: 'Wisdom Herb',    statKey: 'wisBonus',             description: 'Adds Wisdom to the crafted item.' },
-  { key: 'silver_token',   name: 'Silver Token',   statKey: 'chaBonus',             description: 'Adds Charisma to the crafted item.' },
-  { key: 'life_stone',     name: 'Life Stone',     statKey: 'hpBonus',              description: 'Adds max HP to the crafted item.' },
-  { key: 'mana_pearl',     name: 'Mana Pearl',     statKey: 'manaBonus',            description: 'Adds max Mana to the crafted item.' },
-  { key: 'iron_ward',      name: 'Iron Ward',      statKey: 'armorClassBonus',      description: 'Adds Armor Class to the crafted item.' },
-  { key: 'spirit_ward',    name: 'Spirit Ward',    statKey: 'magicResistanceBonus', description: 'Adds Magic Resistance to the crafted item.' },
+  { key: 'glowing_stone',  name: 'Glowing Stone',  statKey: 'strBonus',             description: 'Adds Strength to the crafted item.',
+    gatherEntries: [{ terrain: 'mountains', weight: 1n, timeOfDay: 'any' }, { terrain: 'plains', weight: 1n, timeOfDay: 'any' }] },
+  { key: 'clear_crystal',  name: 'Clear Crystal',  statKey: 'dexBonus',             description: 'Adds Dexterity to the crafted item.',
+    gatherEntries: [{ terrain: 'mountains', weight: 1n, timeOfDay: 'any' }, { terrain: 'dungeon', weight: 1n, timeOfDay: 'any' }] },
+  { key: 'ancient_rune',   name: 'Ancient Rune',   statKey: 'intBonus',             description: 'Adds Intelligence to the crafted item.',
+    gatherEntries: [{ terrain: 'dungeon', weight: 1n, timeOfDay: 'any' }] },
+  { key: 'wisdom_herb',    name: 'Wisdom Herb',    statKey: 'wisBonus',             description: 'Adds Wisdom to the crafted item.',
+    gatherEntries: [{ terrain: 'woods', weight: 1n, timeOfDay: 'any' }, { terrain: 'swamp', weight: 1n, timeOfDay: 'any' }] },
+  { key: 'silver_token',   name: 'Silver Token',   statKey: 'chaBonus',             description: 'Adds Charisma to the crafted item.',
+    gatherEntries: [{ terrain: 'plains', weight: 1n, timeOfDay: 'any' }, { terrain: 'city', weight: 1n, timeOfDay: 'any' }] },
+  { key: 'life_stone',     name: 'Life Stone',     statKey: 'hpBonus',              description: 'Adds max HP to the crafted item.',
+    gatherEntries: [{ terrain: 'woods', weight: 1n, timeOfDay: 'any' }, { terrain: 'swamp', weight: 1n, timeOfDay: 'any' }] },
+  { key: 'mana_pearl',     name: 'Mana Pearl',     statKey: 'manaBonus',            description: 'Adds max Mana to the crafted item.',
+    gatherEntries: [{ terrain: 'swamp', weight: 1n, timeOfDay: 'any' }] },
+  { key: 'iron_ward',      name: 'Iron Ward',      statKey: 'armorClassBonus',      description: 'Adds Armor Class to the crafted item.',
+    gatherEntries: [{ terrain: 'mountains', weight: 1n, timeOfDay: 'any' }, { terrain: 'dungeon', weight: 1n, timeOfDay: 'any' }] },
+  { key: 'spirit_ward',    name: 'Spirit Ward',    statKey: 'magicResistanceBonus', description: 'Adds Magic Resistance to the crafted item.',
+    gatherEntries: [{ terrain: 'swamp', weight: 1n, timeOfDay: 'any' }, { terrain: 'woods', weight: 1n, timeOfDay: 'any' }] },
 ];
 
 /** Affix slots available per craft quality level */
