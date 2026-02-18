@@ -347,9 +347,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 167 | Role-based HP bonus for enemies mirroring armor pattern — ENEMY_ROLE_CONFIG renamed baseHp/hpPerLevel→baseHpBonus/hpBonusPerLevel; HP priority reordered tank(60/15)>healer(45/12)>support(35/10)>damage(20/8); computeEnemyStats now uses template.maxHp+bonus formula; enemy heal cap fixed to use combatEnemy.maxHp instead of stale template value | 2026-02-18 | dfd1ea3 | [167-role-based-hp-bonus-for-enemies-mirrorin](./quick/167-role-based-hp-bonus-for-enemies-mirrorin/) |
 | 168 | Add recipe hover tooltip to crafting panel — hovering a recipe card shows the output item's full tooltip (rarity color, stats, description, allowed classes); outputItem field added to useCrafting recipe entries; mouseenter/mousemove/mouseleave handlers emit show/move/hide-tooltip from CraftingPanel; App.vue wires to shared tooltip pipeline | 2026-02-18 | c9d119e | [168-add-recipe-hover-tooltip-to-crafting-pan](./quick/168-add-recipe-hover-tooltip-to-crafting-pan/) |
 | 169 | Zero-offset locations spawn enemies at exact target level — spawnEnemy uses exactMatch flag (levelOffset===0n) to set minLevel===maxLevel===adjustedTarget; ensureAvailableSpawn uses maxDiff=0n for zero-offset locations; starter areas (Lanternford, Ashfall Road, Bell Farm) now only spawn level 1 enemies | 2026-02-18 | ea3e39e | [169-locations-with-0-level-offset-spawn-enem](./quick/169-locations-with-0-level-offset-spawn-enem/) |
+| 171 | Death overlay renders on top of everything — deathOverlay zIndex bumped from 70 to 9999; was buried under floating panels (up to ~5000) and resurrect confirmation (9000) | 2026-02-18 | 7eb274d | [171-death-splash-screen-shows-on-top-of-ever](./quick/171-death-splash-screen-shows-on-top-of-ever/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 169: zero-offset locations spawn enemies at exact target level — spawnEnemy and ensureAvailableSpawn both read locationRow.levelOffset to determine whether to use exact match (offset===0n) or +/- 1 window (offset!==0n); starter areas now predictably spawn only level 1 enemies
+Last activity: 2026-02-18 - Completed quick task 171: death overlay zIndex 70→9999 so death screen always renders above all floating panels and modals
