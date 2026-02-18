@@ -31,7 +31,7 @@ export interface MaterialDef {
 }
 
 // ---------------------------------------------------------------------------
-// MATERIAL DEFINITIONS — 13 materials across 3 tiers (10 original + 3 Essence)
+// MATERIAL DEFINITIONS — 14 materials across 3 tiers (10 original + 4 Essence)
 // ---------------------------------------------------------------------------
 
 export const MATERIAL_DEFS: MaterialDef[] = [
@@ -125,6 +125,7 @@ export const MATERIAL_DEFS: MaterialDef[] = [
   { key: 'essence_i', name: 'Essence I', tier: 1n, sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead'], affinityStats: [] },
   { key: 'essence_ii', name: 'Essence II', tier: 2n, sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead', 'spirit'], affinityStats: [] },
   { key: 'essence_iii', name: 'Essence III', tier: 3n, sources: ['drop'], dropCreatureTypes: ['beast', 'construct', 'spirit', 'undead'], affinityStats: [] },
+  { key: 'essence_iv', name: 'Essence IV', tier: 4n, sources: ['drop'], dropCreatureTypes: ['beast', 'construct', 'spirit', 'undead', 'humanoid'], affinityStats: [] },
 ];
 
 // ---------------------------------------------------------------------------

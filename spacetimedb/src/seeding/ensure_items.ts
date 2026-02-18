@@ -1806,7 +1806,7 @@ export function ensureAbilityTemplates(ctx: any) {
 // ---------------------------------------------------------------------------
 // GEAR MATERIAL ITEM TEMPLATES
 // Seeds one ItemTemplate per crafting material (slot='resource', stackable=true).
-// All 13 materials seeded here: 10 original (Tier 1-3) + 3 Essence variants.
+// All 14 materials seeded here: 10 original (Tier 1-3) + 4 Essence variants.
 // Iron Ore/Iron Shard: Iron Shard already exists. Iron Ore is a NEW separate template
 // with consistent naming for the crafting system.
 // ---------------------------------------------------------------------------
@@ -1868,6 +1868,7 @@ export function ensureGearMaterialItemTemplates(ctx: any) {
   upsertMaterial({ name: 'Essence I', tier: 1n, vendorValue: 3n });
   upsertMaterial({ name: 'Essence II', tier: 2n, vendorValue: 6n });
   upsertMaterial({ name: 'Essence III', tier: 3n, vendorValue: 12n });
+  upsertMaterial({ name: 'Essence IV', tier: 4n, vendorValue: 24n });
 }
 
 // ---------------------------------------------------------------------------
