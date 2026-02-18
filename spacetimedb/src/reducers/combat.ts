@@ -1955,7 +1955,10 @@ export const registerCombatReducers = (deps: any) => {
       const effectiveStr = character.str + perkBonuses.str;
       const statScaledDamage = calculateStatScaledAutoAttack(rawWeaponDamage, effectiveStr);
       const baseDamage = statScaledDamage + sumEnemyEffect(ctx, combat.id, 'damage_taken', currentEnemy.id);
-      const damage = baseDamage;
+      const damageBoostPercent = sumCharacterEffect(ctx, character.id, 'damage_boost');
+      const damage = damageBoostPercent > 0n
+        ? (baseDamage * (100n + damageBoostPercent)) / 100n
+        : baseDamage;
       const outcomeSeed = nowMicros + character.id + currentEnemy.id;
       const { outcome: attackOutcome, finalDamage, nextHp } = resolveAttack(ctx, {
         seed: outcomeSeed,
@@ -2005,7 +2008,7 @@ export const registerCombatReducers = (deps: any) => {
           }
         }
 
-        // Apply perk procs on hit
+        // Apply perk procs on hit/crit
         if (attackOutcome === 'hit' || attackOutcome === 'crit') {
           const freshEnemy = ctx.db.combatEnemy.id.find(currentEnemy.id);
           applyPerkProcs(ctx, character, 'on_hit', finalDamage, outcomeSeed, combat.id, freshEnemy);
@@ -2013,33 +2016,53 @@ export const registerCombatReducers = (deps: any) => {
             const freshEnemyForCrit = ctx.db.combatEnemy.id.find(currentEnemy.id);
             applyPerkProcs(ctx, character, 'on_crit', finalDamage, outcomeSeed + 1000n, combat.id, freshEnemyForCrit);
           }
-          // Check on_kill if enemy died
-          const postAttackEnemy = ctx.db.combatEnemy.id.find(currentEnemy.id);
-          if (postAttackEnemy && postAttackEnemy.currentHp === 0n) {
-            applyPerkProcs(ctx, character, 'on_kill', finalDamage, outcomeSeed + 2000n, combat.id, postAttackEnemy);
-            // Award event contribution per kill — runs on flee too, not just victory
-            const killedSpawnId = postAttackEnemy.spawnId;
-            for (const eventEnemy of ctx.db.eventSpawnEnemy.by_spawn.filter(killedSpawnId)) {
-              let contribFound = false;
-              for (const contrib of ctx.db.eventContribution.by_character.filter(character.id)) {
-                if (contrib.eventId === eventEnemy.eventId) {
-                  ctx.db.eventContribution.id.update({ ...contrib, count: contrib.count + 1n });
-                  contribFound = true;
-                  break;
+        }
+        // Check on_kill for ANY damaging attack (hit, crit, or block all deal damage)
+        const postAttackEnemy = ctx.db.combatEnemy.id.find(currentEnemy.id);
+        if (postAttackEnemy && postAttackEnemy.currentHp === 0n) {
+          applyPerkProcs(ctx, character, 'on_kill', finalDamage, outcomeSeed + 2000n, combat.id, postAttackEnemy);
+          // Award event contribution for any kill matching an active event's enemy type in this region
+          const killedTemplateId = postAttackEnemy.enemyTemplateId;
+          const freshChar = ctx.db.character.id.find(character.id);
+          if (freshChar) {
+            const charLoc = ctx.db.location.id.find(freshChar.locationId);
+            if (charLoc) {
+              for (const activeEvent of ctx.db.worldEvent.by_status.filter('active')) {
+                if (activeEvent.regionId !== charLoc.regionId) continue;
+                // Check if this event has enemies of the killed template at this location
+                let matchesEvent = false;
+                for (const ese of ctx.db.eventSpawnEnemy.by_event.filter(activeEvent.id)) {
+                  if (ese.locationId !== freshChar.locationId) continue;
+                  const eventSpawn = ctx.db.enemySpawn.id.find(ese.spawnId);
+                  if (eventSpawn && eventSpawn.enemyTemplateId === killedTemplateId) {
+                    matchesEvent = true;
+                    break;
+                  }
                 }
-              }
-              if (!contribFound) {
-                ctx.db.eventContribution.insert({
-                  id: 0n,
-                  eventId: eventEnemy.eventId,
-                  characterId: character.id,
-                  count: 1n,
-                  regionEnteredAt: ctx.timestamp,
-                });
-              }
-              for (const obj of ctx.db.eventObjective.by_event.filter(eventEnemy.eventId)) {
-                if (obj.objectiveType === 'kill_count') {
-                  ctx.db.eventObjective.id.update({ ...obj, currentCount: obj.currentCount + 1n });
+                if (!matchesEvent) continue;
+                // Award contribution
+                let contribFound = false;
+                for (const contrib of ctx.db.eventContribution.by_character.filter(character.id)) {
+                  if (contrib.eventId === activeEvent.id) {
+                    ctx.db.eventContribution.id.update({ ...contrib, count: contrib.count + 1n });
+                    contribFound = true;
+                    break;
+                  }
+                }
+                if (!contribFound) {
+                  ctx.db.eventContribution.insert({
+                    id: 0n,
+                    eventId: activeEvent.id,
+                    characterId: character.id,
+                    count: 1n,
+                    regionEnteredAt: ctx.timestamp,
+                  });
+                }
+                // Update kill_count objective
+                for (const obj of ctx.db.eventObjective.by_event.filter(activeEvent.id)) {
+                  if (obj.objectiveType === 'kill_count') {
+                    ctx.db.eventObjective.id.update({ ...obj, currentCount: obj.currentCount + 1n });
+                  }
                 }
               }
             }
