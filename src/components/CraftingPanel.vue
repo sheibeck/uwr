@@ -39,7 +39,11 @@
 
       <div v-if="recipes.length === 0" :style="styles.subtle">No recipes discovered.</div>
       <ul v-else :style="styles.list">
-        <li v-for="recipe in recipes" :key="recipe.id.toString()" :style="styles.recipeCard">
+        <li v-for="recipe in recipes" :key="recipe.id.toString()" :style="styles.recipeCard"
+          @mouseenter="recipe.outputItem && $emit('show-tooltip', { item: recipe.outputItem, x: $event.clientX, y: $event.clientY })"
+          @mousemove="recipe.outputItem && $emit('move-tooltip', { x: $event.clientX, y: $event.clientY })"
+          @mouseleave="recipe.outputItem && $emit('hide-tooltip')"
+        >
           <div :style="styles.recipeHeader">
             <div :style="styles.recipeName">{{ recipe.name }}</div>
             <div :style="styles.subtle">Creates {{ recipe.outputName }} x{{ recipe.outputCount }}</div>
@@ -82,6 +86,17 @@ defineProps<{
     canCraft: boolean;
     recipeType: string;
     materialType?: string;
+    outputItem: {
+      name: string;
+      rarity: string;
+      qualityTier: string;
+      slot: string;
+      armorType: string;
+      allowedClasses: string;
+      description: string | null;
+      stats: { label: string; value: string }[];
+      affixStats: { label: string; value: string; affixName: string }[];
+    } | null;
   }[];
 }>();
 
@@ -89,5 +104,8 @@ defineEmits<{
   (e: 'update:activeFilter', value: string): void;
   (e: 'update:showOnlyCraftable', value: boolean): void;
   (e: 'craft', recipeId: bigint): void;
+  (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
+  (e: 'move-tooltip', value: { x: number; y: number }): void;
+  (e: 'hide-tooltip'): void;
 }>();
 </script>
