@@ -2269,6 +2269,7 @@ export const registerCombatReducers = (deps: any) => {
       const essenceITemplate = [...ctx.db.itemTemplate.iter()].find(t => t.name === 'Essence I');
       const essenceIITemplate = [...ctx.db.itemTemplate.iter()].find(t => t.name === 'Essence II');
       const essenceIIITemplate = [...ctx.db.itemTemplate.iter()].find(t => t.name === 'Essence III');
+      const essenceIVTemplate = [...ctx.db.itemTemplate.iter()].find(t => t.name === 'Essence IV');
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
@@ -2309,8 +2310,9 @@ export const registerCombatReducers = (deps: any) => {
           if (essenceSeed < 25n) {
             const enemyLevel = template.level ?? 1n;
             const essenceToDrop =
-              enemyLevel >= 11n ? essenceIIITemplate :
-              enemyLevel >= 6n  ? essenceIITemplate  :
+              enemyLevel >= 31n ? essenceIVTemplate  :
+              enemyLevel >= 21n ? essenceIIITemplate :
+              enemyLevel >= 11n ? essenceIITemplate  :
                                   essenceITemplate;
             if (essenceToDrop) {
               ctx.db.combatLoot.insert({
