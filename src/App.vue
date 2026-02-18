@@ -224,7 +224,7 @@
     <!-- Loot Panel -->
     <div v-if="panels.loot && panels.loot.open" data-panel-id="loot" :style="{ ...styles.floatingPanel, ...(panelStyle('loot').value || {}) }" @mousedown="bringToFront('loot')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('loot', $event)"><div>Loot</div><button type="button" :style="styles.panelClose" @click="closePanelById('loot')">×</button></div>
-      <div :style="styles.floatingPanelBody"><LootPanel :styles="styles" :conn-active="conn.isActive" :loot-items="pendingLoot" @take-loot="takeLoot" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
+      <div :style="styles.floatingPanelBody"><LootPanel :styles="styles" :conn-active="conn.isActive" :loot-items="pendingLoot" @take-loot="takeLoot" @take-all-loot="takeAllLoot" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('loot', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('loot', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('loot', $event, { right: true, bottom: true })" />
     </div>
 
@@ -961,6 +961,7 @@ const {
   setCombatTarget,
   flee,
   takeLoot,
+  takeAllLoot,
 } = useCombat({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
