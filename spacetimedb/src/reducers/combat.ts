@@ -3,6 +3,7 @@ import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier }
 import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
 import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, HEALING_THREAT_PERCENT } from '../data/combat_scaling';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
+import { ESSENCE_TIER_THRESHOLDS } from '../data/crafting_materials';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { applyPerkProcs } from '../helpers/combat';
 import { RENOWN_GAIN } from '../data/renown_data';
@@ -2265,11 +2266,12 @@ export const registerCombatReducers = (deps: any) => {
       const lootLocation = ctx.db.location.id.find(combat.locationId);
       const lootRegion = lootLocation ? ctx.db.region.id.find(lootLocation.regionId) : null;
       const lootDanger = lootRegion?.dangerMultiplier ?? 100n;
-      // Look up essence templates once per victory (not per participant per template)
-      const essenceITemplate = [...ctx.db.itemTemplate.iter()].find(t => t.name === 'Essence I');
-      const essenceIITemplate = [...ctx.db.itemTemplate.iter()].find(t => t.name === 'Essence II');
-      const essenceIIITemplate = [...ctx.db.itemTemplate.iter()].find(t => t.name === 'Essence III');
-      const essenceIVTemplate = [...ctx.db.itemTemplate.iter()].find(t => t.name === 'Essence IV');
+      // Look up essence templates once per victory using ESSENCE_TIER_THRESHOLDS
+      const essenceTemplateMap = new Map<string, any>();
+      for (const threshold of ESSENCE_TIER_THRESHOLDS) {
+        const tmpl = [...ctx.db.itemTemplate.iter()].find((t: any) => t.name === threshold.essenceName);
+        if (tmpl) essenceTemplateMap.set(threshold.essenceName, tmpl);
+      }
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
@@ -2309,11 +2311,13 @@ export const registerCombatReducers = (deps: any) => {
           const essenceSeed = (character.id * 7n ^ ctx.timestamp.microsSinceUnixEpoch + template.id * 31n) % 100n;
           if (essenceSeed < 25n) {
             const enemyLevel = template.level ?? 1n;
-            const essenceToDrop =
-              enemyLevel >= 31n ? essenceIVTemplate  :
-              enemyLevel >= 21n ? essenceIIITemplate :
-              enemyLevel >= 11n ? essenceIITemplate  :
-                                  essenceITemplate;
+            let essenceToDrop: any = null;
+            for (const threshold of ESSENCE_TIER_THRESHOLDS) {
+              if (enemyLevel >= threshold.minLevel) {
+                essenceToDrop = essenceTemplateMap.get(threshold.essenceName);
+                break;
+              }
+            }
             if (essenceToDrop) {
               ctx.db.combatLoot.insert({
                 id: 0n,

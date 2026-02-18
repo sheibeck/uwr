@@ -1,7 +1,7 @@
 import { SenderError } from 'spacetimedb/server';
 import { findItemTemplateByName, STARTER_ARMOR, STARTER_WEAPONS } from '../helpers/items';
 import { ItemTemplate } from '../schema/tables';
-import { MATERIAL_DEFS } from '../data/crafting_materials';
+import { MATERIAL_DEFS, CONSUMABLE_RECIPES, GEAR_RECIPES, GEAR_RECIPE_NAMES } from '../data/crafting_materials';
 import { ABILITY_STAT_SCALING } from '../data/combat_scaling';
 import { CLERIC_ABILITIES } from '../data/abilities/cleric_abilities';
 import { WARRIOR_ABILITIES } from '../data/abilities/warrior_abilities';
@@ -1462,178 +1462,24 @@ export function ensureFoodItemTemplates(ctx: any) {
 }
 
 export function ensureRecipeTemplates(ctx: any) {
-  const flax = findItemTemplateByName(ctx, 'Flax');
-  const herbs = findItemTemplateByName(ctx, 'Herbs');
-  const bandage = findItemTemplateByName(ctx, 'Bandage');
-  const rawMeat = findItemTemplateByName(ctx, 'Raw Meat');
-  const salt = findItemTemplateByName(ctx, 'Salt');
-  const simpleRations = findItemTemplateByName(ctx, 'Simple Rations');
-  const wood = findItemTemplateByName(ctx, 'Wood');
-  const resin = findItemTemplateByName(ctx, 'Resin');
-  const torch = findItemTemplateByName(ctx, 'Torch');
-  const clearWater = findItemTemplateByName(ctx, 'Clear Water');
-  const basicPoultice = findItemTemplateByName(ctx, 'Basic Poultice');
-  const travelersTea = findItemTemplateByName(ctx, 'Travelers Tea');
-  const stone = findItemTemplateByName(ctx, 'Stone');
-  const sand = findItemTemplateByName(ctx, 'Sand');
-  const whetstone = findItemTemplateByName(ctx, 'Whetstone');
-  const dryGrass = findItemTemplateByName(ctx, 'Dry Grass');
-  const kindling = findItemTemplateByName(ctx, 'Kindling Bundle');
-  const roughRope = findItemTemplateByName(ctx, 'Rough Rope');
-  const charcoal = findItemTemplateByName(ctx, 'Charcoal');
-  const bitterHerbs = findItemTemplateByName(ctx, 'Bitter Herbs');
-  const crudePoison = findItemTemplateByName(ctx, 'Crude Poison');
-
-  addRecipeTemplate(ctx, {
-    key: 'bandage',
-    name: 'Bandages',
-    output: bandage,
-    outputCount: 1n,
-    req1: flax,
-    req1Count: 1n,
-    req2: herbs,
-    req2Count: 1n,
-  });
-  addRecipeTemplate(ctx, {
-    key: 'simple_rations',
-    name: 'Simple Rations',
-    output: simpleRations,
-    outputCount: 1n,
-    req1: rawMeat,
-    req1Count: 1n,
-    req2: salt,
-    req2Count: 1n,
-  });
-  addRecipeTemplate(ctx, {
-    key: 'torch',
-    name: 'Torch',
-    output: torch,
-    outputCount: 1n,
-    req1: wood,
-    req1Count: 1n,
-    req2: resin,
-    req2Count: 1n,
-  });
-  addRecipeTemplate(ctx, {
-    key: 'basic_poultice',
-    name: 'Basic Poultice',
-    output: basicPoultice,
-    outputCount: 1n,
-    req1: herbs,
-    req1Count: 1n,
-    req2: flax,
-    req2Count: 1n,
-    req3: clearWater,
-    req3Count: 1n,
-  });
-  addRecipeTemplate(ctx, {
-    key: 'travelers_tea',
-    name: 'Travelers Tea',
-    output: travelersTea,
-    outputCount: 1n,
-    req1: herbs,
-    req1Count: 1n,
-    req2: clearWater,
-    req2Count: 1n,
-  });
-  addRecipeTemplate(ctx, {
-    key: 'whetstone',
-    name: 'Whetstone',
-    output: whetstone,
-    outputCount: 1n,
-    req1: stone,
-    req1Count: 1n,
-    req2: sand,
-    req2Count: 1n,
-  });
-  addRecipeTemplate(ctx, {
-    key: 'kindling_bundle',
-    name: 'Kindling Bundle',
-    output: kindling,
-    outputCount: 1n,
-    req1: wood,
-    req1Count: 1n,
-    req2: dryGrass,
-    req2Count: 1n,
-  });
-  addRecipeTemplate(ctx, {
-    key: 'rough_rope',
-    name: 'Rough Rope',
-    output: roughRope,
-    outputCount: 1n,
-    req1: flax,
-    req1Count: 1n,
-    req2: resin,
-    req2Count: 1n,
-  });
-  addRecipeTemplate(ctx, {
-    key: 'charcoal',
-    name: 'Charcoal',
-    output: charcoal,
-    outputCount: 1n,
-    req1: wood,
-    req1Count: 1n,
-    req2: stone,
-    req2Count: 1n,
-  });
-  addRecipeTemplate(ctx, {
-    key: 'crude_poison',
-    name: 'Crude Poison',
-    output: crudePoison,
-    outputCount: 1n,
-    req1: bitterHerbs,
-    req1Count: 1n,
-    req2: resin,
-    req2Count: 1n,
-  });
-
-  const wildBerries = findItemTemplateByName(ctx, 'Wild Berries');
-  const rootVegetable = findItemTemplateByName(ctx, 'Root Vegetable');
-  const herbBroth = findItemTemplateByName(ctx, 'Herb Broth');
-  const roastedRoots = findItemTemplateByName(ctx, 'Roasted Roots');
-  const travelerStew = findItemTemplateByName(ctx, "Traveler's Stew");
-  const foragerSalad = findItemTemplateByName(ctx, "Forager's Salad");
-
-  addRecipeTemplate(ctx, {
-    key: 'herb_broth',
-    name: 'Herb Broth',
-    output: herbBroth,
-    outputCount: 1n,
-    req1: wildBerries,
-    req1Count: 2n,
-    req2: clearWater,
-    req2Count: 1n,
-  });
-  addRecipeTemplate(ctx, {
-    key: 'roasted_roots',
-    name: 'Roasted Roots',
-    output: roastedRoots,
-    outputCount: 1n,
-    req1: rootVegetable,
-    req1Count: 2n,
-    req2: salt,
-    req2Count: 1n,
-  });
-  addRecipeTemplate(ctx, {
-    key: 'travelers_stew',
-    name: "Traveler's Stew",
-    output: travelerStew,
-    outputCount: 1n,
-    req1: rootVegetable,
-    req1Count: 1n,
-    req2: rawMeat,
-    req2Count: 1n,
-  });
-  addRecipeTemplate(ctx, {
-    key: 'foragers_salad',
-    name: "Forager's Salad",
-    output: foragerSalad,
-    outputCount: 1n,
-    req1: wildBerries,
-    req1Count: 1n,
-    req2: herbs,
-    req2Count: 1n,
-  });
+  for (const recipe of CONSUMABLE_RECIPES) {
+    const output = findItemTemplateByName(ctx, recipe.outputName);
+    const req1 = findItemTemplateByName(ctx, recipe.req1Name);
+    const req2 = findItemTemplateByName(ctx, recipe.req2Name);
+    const req3 = recipe.req3Name ? findItemTemplateByName(ctx, recipe.req3Name) : undefined;
+    addRecipeTemplate(ctx, {
+      key: recipe.key,
+      name: recipe.name,
+      output,
+      outputCount: recipe.outputCount,
+      req1,
+      req1Count: recipe.req1Count,
+      req2,
+      req2Count: recipe.req2Count,
+      req3,
+      req3Count: recipe.req3Count,
+    });
+  }
 }
 
 export function ensureAbilityTemplates(ctx: any) {
@@ -1812,21 +1658,17 @@ export function ensureAbilityTemplates(ctx: any) {
 // ---------------------------------------------------------------------------
 
 export function ensureGearMaterialItemTemplates(ctx: any) {
-  const upsertMaterial = (args: {
-    name: string;
-    tier: bigint;
-    vendorValue: bigint;
-  }) => {
-    if (findItemTemplateByName(ctx, args.name)) return;
+  for (const mat of MATERIAL_DEFS) {
+    if (findItemTemplateByName(ctx, mat.name)) continue;
     ctx.db.itemTemplate.insert({
       id: 0n,
-      name: args.name,
+      name: mat.name,
       slot: 'resource',
       armorType: 'none',
       rarity: 'common',
-      tier: args.tier,
+      tier: mat.tier,
       isJunk: false,
-      vendorValue: args.vendorValue,
+      vendorValue: mat.vendorValue ?? 1n,
       requiredLevel: 1n,
       allowedClasses: 'any',
       strBonus: 0n,
@@ -1846,29 +1688,7 @@ export function ensureGearMaterialItemTemplates(ctx: any) {
       wellFedBuffType: '',
       wellFedBuffMagnitude: 0n,
     });
-  };
-
-  // Tier 1 (all T1 materials including Copper Ore)
-  upsertMaterial({ name: 'Copper Ore', tier: 1n, vendorValue: 2n });
-  upsertMaterial({ name: 'Rough Hide', tier: 1n, vendorValue: 2n });
-  upsertMaterial({ name: 'Bone Shard', tier: 1n, vendorValue: 2n });
-
-  // Tier 2 (Iron Ore is new — Iron Shard already exists but is a different item)
-  upsertMaterial({ name: 'Iron Ore', tier: 2n, vendorValue: 4n });
-  upsertMaterial({ name: 'Tanned Leather', tier: 2n, vendorValue: 4n });
-  upsertMaterial({ name: 'Spirit Essence', tier: 2n, vendorValue: 5n });
-
-  // Tier 3
-  upsertMaterial({ name: 'Darksteel Ore', tier: 3n, vendorValue: 8n });
-  upsertMaterial({ name: 'Moonweave Cloth', tier: 3n, vendorValue: 8n });
-  upsertMaterial({ name: 'Shadowhide', tier: 3n, vendorValue: 8n });
-  upsertMaterial({ name: 'Void Crystal', tier: 3n, vendorValue: 10n });
-
-  // Essence (required for gear crafting, drop-only)
-  upsertMaterial({ name: 'Essence I', tier: 1n, vendorValue: 3n });
-  upsertMaterial({ name: 'Essence II', tier: 2n, vendorValue: 6n });
-  upsertMaterial({ name: 'Essence III', tier: 3n, vendorValue: 12n });
-  upsertMaterial({ name: 'Essence IV', tier: 4n, vendorValue: 24n });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1949,32 +1769,26 @@ export function ensureCraftingBaseGearTemplates(ctx: any) {
 // ---------------------------------------------------------------------------
 
 export function ensureGearRecipeTemplates(ctx: any) {
-  const copperOre = findItemTemplateByName(ctx, 'Copper Ore');
-  const roughHide = findItemTemplateByName(ctx, 'Rough Hide');
-  const essenceI = findItemTemplateByName(ctx, 'Essence I');
-  if (!copperOre || !roughHide) return; // materials must be seeded first
-
-  // Weapons (mainHand)
-  addRecipeTemplate(ctx, { key: 'craft_longsword', name: 'Longsword', output: findItemTemplateByName(ctx, 'Iron Shortsword'), outputCount: 1n, req1: copperOre, req1Count: 4n, req2: roughHide, req2Count: 1n, req3: essenceI, req3Count: 1n, recipeType: 'weapon' });
-  addRecipeTemplate(ctx, { key: 'craft_dagger', name: 'Dagger', output: findItemTemplateByName(ctx, 'Chipped Dagger'), outputCount: 1n, req1: copperOre, req1Count: 3n, req2: roughHide, req2Count: 1n, req3: essenceI, req3Count: 1n, recipeType: 'weapon' });
-  addRecipeTemplate(ctx, { key: 'craft_staff', name: 'Staff', output: findItemTemplateByName(ctx, 'Gnarled Staff'), outputCount: 1n, req1: copperOre, req1Count: 2n, req2: roughHide, req2Count: 2n, req3: essenceI, req3Count: 1n, recipeType: 'weapon' });
-  addRecipeTemplate(ctx, { key: 'craft_mace', name: 'Mace', output: findItemTemplateByName(ctx, 'Worn Mace'), outputCount: 1n, req1: copperOre, req1Count: 4n, req2: roughHide, req2Count: 1n, req3: essenceI, req3Count: 1n, recipeType: 'weapon' });
-  // OffHand
-  addRecipeTemplate(ctx, { key: 'craft_shield', name: 'Shield', output: findItemTemplateByName(ctx, 'Wooden Shield'), outputCount: 1n, req1: copperOre, req1Count: 3n, req2: roughHide, req2Count: 2n, req3: essenceI, req3Count: 1n, recipeType: 'weapon' });
-
-  // Armor
-  addRecipeTemplate(ctx, { key: 'craft_helm', name: 'Helm', output: findItemTemplateByName(ctx, 'Iron Helm'), outputCount: 1n, req1: copperOre, req1Count: 3n, req2: roughHide, req2Count: 1n, req3: essenceI, req3Count: 1n, recipeType: 'armor' });
-  addRecipeTemplate(ctx, { key: 'craft_breastplate', name: 'Breastplate', output: findItemTemplateByName(ctx, 'Battered Cuirass'), outputCount: 1n, req1: copperOre, req1Count: 4n, req2: roughHide, req2Count: 2n, req3: essenceI, req3Count: 1n, recipeType: 'armor' });
-  addRecipeTemplate(ctx, { key: 'craft_bracers', name: 'Bracers', output: findItemTemplateByName(ctx, 'Leather Bracers'), outputCount: 1n, req1: copperOre, req1Count: 2n, req2: roughHide, req2Count: 2n, req3: essenceI, req3Count: 1n, recipeType: 'armor' });
-  addRecipeTemplate(ctx, { key: 'craft_gauntlets', name: 'Gauntlets', output: findItemTemplateByName(ctx, 'Iron Gauntlets'), outputCount: 1n, req1: copperOre, req1Count: 3n, req2: roughHide, req2Count: 1n, req3: essenceI, req3Count: 1n, recipeType: 'armor' });
-  addRecipeTemplate(ctx, { key: 'craft_girdle', name: 'Girdle', output: findItemTemplateByName(ctx, 'Rough Girdle'), outputCount: 1n, req1: copperOre, req1Count: 2n, req2: roughHide, req2Count: 2n, req3: essenceI, req3Count: 1n, recipeType: 'armor' });
-  addRecipeTemplate(ctx, { key: 'craft_greaves', name: 'Greaves', output: findItemTemplateByName(ctx, 'Dented Greaves'), outputCount: 1n, req1: copperOre, req1Count: 4n, req2: roughHide, req2Count: 2n, req3: essenceI, req3Count: 1n, recipeType: 'armor' });
-  addRecipeTemplate(ctx, { key: 'craft_sabatons', name: 'Sabatons', output: findItemTemplateByName(ctx, 'Dented Sabatons'), outputCount: 1n, req1: copperOre, req1Count: 3n, req2: roughHide, req2Count: 2n, req3: essenceI, req3Count: 1n, recipeType: 'armor' });
-
-  // Accessories
-  addRecipeTemplate(ctx, { key: 'craft_ring', name: 'Ring', output: findItemTemplateByName(ctx, 'Copper Band'), outputCount: 1n, req1: copperOre, req1Count: 2n, req2: roughHide, req2Count: 1n, req3: essenceI, req3Count: 1n, recipeType: 'accessory' });
-  addRecipeTemplate(ctx, { key: 'craft_amulet', name: 'Amulet', output: findItemTemplateByName(ctx, 'Stone Pendant'), outputCount: 1n, req1: copperOre, req1Count: 2n, req2: roughHide, req2Count: 1n, req3: essenceI, req3Count: 1n, recipeType: 'accessory' });
-  addRecipeTemplate(ctx, { key: 'craft_cloak', name: 'Cloak', output: findItemTemplateByName(ctx, 'Simple Cloak'), outputCount: 1n, req1: copperOre, req1Count: 1n, req2: roughHide, req2Count: 3n, req3: essenceI, req3Count: 1n, recipeType: 'accessory' });
+  for (const recipe of GEAR_RECIPES) {
+    const output = findItemTemplateByName(ctx, recipe.outputName);
+    const req1 = findItemTemplateByName(ctx, recipe.req1Name);
+    const req2 = findItemTemplateByName(ctx, recipe.req2Name);
+    const req3 = findItemTemplateByName(ctx, recipe.req3Name);
+    if (!req1 || !req2) continue;
+    addRecipeTemplate(ctx, {
+      key: recipe.key,
+      name: recipe.name,
+      output,
+      outputCount: 1n,
+      req1,
+      req1Count: recipe.req1Count,
+      req2,
+      req2Count: recipe.req2Count,
+      req3,
+      req3Count: recipe.req3Count,
+      recipeType: recipe.recipeType,
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1982,13 +1796,6 @@ export function ensureGearRecipeTemplates(ctx: any) {
 // One scroll per gear recipe, used as a "recipe discovery" item.
 // Slots: resource, stackable=true, rarity=uncommon, tier=1.
 // ---------------------------------------------------------------------------
-
-// List of gear recipe names — must match recipe names in ensureGearRecipeTemplates
-const GEAR_RECIPE_NAMES = [
-  'Longsword', 'Dagger', 'Staff', 'Mace', 'Shield',
-  'Helm', 'Breastplate', 'Bracers', 'Gauntlets', 'Girdle', 'Greaves', 'Sabatons',
-  'Ring', 'Amulet', 'Cloak',
-];
 
 export function ensureRecipeScrollItemTemplates(ctx: any) {
   for (const recipeName of GEAR_RECIPE_NAMES) {

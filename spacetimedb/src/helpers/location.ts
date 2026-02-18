@@ -3,6 +3,7 @@ import { Timestamp } from 'spacetimedb';
 import { findItemTemplateByName } from './items';
 import { GROUP_SIZE_DANGER_BASE, GROUP_SIZE_BIAS_RANGE, GROUP_SIZE_BIAS_MAX } from '../data/combat_constants';
 import { EnemySpawn, EnemyTemplate } from '../schema/tables';
+import { MATERIAL_DEFS } from '../data/crafting_materials';
 
 export const DAY_DURATION_MICROS = 1_200_000_000n;
 export const NIGHT_DURATION_MICROS = 600_000_000n;
@@ -54,9 +55,6 @@ export function getGatherableResourceTemplates(ctx: any, terrainType: string, ti
     { name: string; weight: bigint; timeOfDay: string }[]
   > = {
     mountains: [
-      { name: 'Copper Ore', weight: 3n, timeOfDay: 'any' },
-      { name: 'Iron Ore', weight: 2n, timeOfDay: 'any' },        // T2 crafting material
-      { name: 'Darksteel Ore', weight: 1n, timeOfDay: 'any' },   // T3 crafting material (rare)
       { name: 'Stone', weight: 5n, timeOfDay: 'any' },
       { name: 'Sand', weight: 3n, timeOfDay: 'day' },
       { name: 'Clear Water', weight: 2n, timeOfDay: 'any' },
@@ -68,7 +66,6 @@ export function getGatherableResourceTemplates(ctx: any, terrainType: string, ti
       { name: 'Bitter Herbs', weight: 2n, timeOfDay: 'night' },
       { name: 'Clear Water', weight: 2n, timeOfDay: 'any' },
       { name: 'Wild Berries', weight: 3n, timeOfDay: 'any' },
-      { name: 'Moonweave Cloth', weight: 1n, timeOfDay: 'night' }, // T3 crafting material (rare)
     ],
     plains: [
       { name: 'Flax', weight: 4n, timeOfDay: 'day' },
@@ -77,20 +74,17 @@ export function getGatherableResourceTemplates(ctx: any, terrainType: string, ti
       { name: 'Salt', weight: 2n, timeOfDay: 'any' },
       { name: 'Wild Berries', weight: 2n, timeOfDay: 'day' },
       { name: 'Root Vegetable', weight: 3n, timeOfDay: 'any' },
-      { name: 'Copper Ore', weight: 2n, timeOfDay: 'any' },      // T1 crafting material
     ],
     swamp: [
       { name: 'Peat', weight: 4n, timeOfDay: 'any' },
       { name: 'Mushrooms', weight: 3n, timeOfDay: 'night' },
       { name: 'Murky Water', weight: 3n, timeOfDay: 'any' },
       { name: 'Bitter Herbs', weight: 2n, timeOfDay: 'night' },
-      { name: 'Moonweave Cloth', weight: 1n, timeOfDay: 'night' }, // T3 crafting material (rare)
     ],
     dungeon: [
       { name: 'Iron Shard', weight: 3n, timeOfDay: 'any' },
       { name: 'Ancient Dust', weight: 3n, timeOfDay: 'any' },
       { name: 'Stone', weight: 2n, timeOfDay: 'any' },
-      { name: 'Darksteel Ore', weight: 2n, timeOfDay: 'any' },   // T3 crafting material
     ],
     town: [
       { name: 'Scrap Cloth', weight: 3n, timeOfDay: 'any' },
@@ -104,7 +98,18 @@ export function getGatherableResourceTemplates(ctx: any, terrainType: string, ti
     ],
   };
   const key = (terrainType ?? '').trim().toLowerCase();
-  const entries = pools[key] ?? pools.plains;
+  const baseEntries = pools[key] ?? pools.plains;
+  // Inject gatherable crafting materials from MATERIAL_DEFS
+  const materialEntries: { name: string; weight: bigint; timeOfDay: string }[] = [];
+  for (const mat of MATERIAL_DEFS) {
+    if (!mat.gatherEntries) continue;
+    for (const entry of mat.gatherEntries) {
+      if (entry.terrain === key) {
+        materialEntries.push({ name: mat.name, weight: entry.weight, timeOfDay: entry.timeOfDay });
+      }
+    }
+  }
+  const entries = [...baseEntries, ...materialEntries];
   const pref = (timePref ?? '').trim().toLowerCase();
   const filtered =
     pref && pref !== 'any'
