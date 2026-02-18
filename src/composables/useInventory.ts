@@ -56,6 +56,7 @@ type InventoryItem = {
   armorType: string;
   rarity: string;
   qualityTier: string;
+  craftQuality: string | undefined;
   tier: bigint;
   isJunk: boolean;
   vendorValue: bigint;
@@ -136,21 +137,33 @@ export const useInventory = ({
           return `Grants Well Fed: +${template.wellFedBuffMagnitude} ${buffLabel} for ${durationMins} minutes. Replaces any active food buff.`;
         })();
         const qualityTier = instance.qualityTier ?? template?.rarity ?? 'common';
+        const craftQuality = instance.craftQuality ?? undefined;
         const weaponSlots = ['weapon', 'mainHand', 'offHand'];
         const typeField = weaponSlots.includes(template?.slot ?? '')
           ? (template?.weaponType || null)
           : (template?.armorType && template.armorType !== 'none' ? template.armorType : null);
-        const tierLabel = `Tier ${qualityTierToNumber(qualityTier)}`;
+        const craftQualityToTierNumber = (cq: string): number => {
+          if (cq === 'dented' || cq === 'standard') return 1;
+          if (cq === 'reinforced') return 2;
+          if (cq === 'exquisite' || cq === 'mastercraft') return 3;
+          return 1;
+        };
+        const tierNumber = craftQuality
+          ? craftQualityToTierNumber(craftQuality)
+          : qualityTierToNumber(qualityTier);
+        const tierLabel = `Tier ${tierNumber}`;
         const description =
+          template?.description ||
           foodDescription ||
           ([
             tierLabel,
             qualityTier,
+            craftQuality && craftQuality !== 'standard' ? craftQuality : null,
             typeField,
             template?.slot,
           ]
             .filter((value) => value && value.length > 0)
-            .join(' • ') ?? '');
+            .join(' \u2022 ') ?? '');
         const stats = [
           template?.armorClassBonus ? { label: 'Armor Class', value: `+${template.armorClassBonus}` } : null,
           template?.weaponBaseDamage ? { label: 'Weapon Damage', value: `${template.weaponBaseDamage}` } : null,
@@ -217,6 +230,7 @@ export const useInventory = ({
           armorType: template?.armorType ?? 'none',
           rarity: template?.rarity ?? 'common',
           qualityTier,
+          craftQuality,
           tier,
           isJunk,
           vendorValue,

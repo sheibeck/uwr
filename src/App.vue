@@ -505,6 +505,9 @@
       <div v-if="tooltip.item?.description" :style="styles.tooltipLine">
         {{ tooltip.item.description }}
       </div>
+      <div v-if="tooltip.item?.craftQuality" :style="styles.tooltipLine">
+        <span :style="{ color: craftQualityColor(tooltip.item.craftQuality), fontSize: '11px', textTransform: 'capitalize' }">{{ tooltip.item.craftQuality }} Quality</span>
+      </div>
       <div v-if="tooltip.item?.stats?.length" :style="styles.tooltipLine">
         <div v-for="stat in tooltip.item.stats" :key="stat.label">
           {{ stat.label }}: {{ stat.value }}
@@ -2097,6 +2100,17 @@ const tooltipRarityColor = (item: any): Record<string, string> => {
     legendary: '#ff8800',
   };
   return { color: map[key] ?? '#ffffff' };
+};
+
+const craftQualityColor = (cq: string): string => {
+  const map: Record<string, string> = {
+    dented: '#888',
+    standard: '#ccc',
+    reinforced: '#6c9',
+    exquisite: '#9cf',
+    mastercraft: '#f90',
+  };
+  return map[cq] ?? '#ccc';
 };
 
 const showTooltip = (payload: {
