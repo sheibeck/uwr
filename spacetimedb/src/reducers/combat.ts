@@ -2265,6 +2265,10 @@ export const registerCombatReducers = (deps: any) => {
       const lootLocation = ctx.db.location.id.find(combat.locationId);
       const lootRegion = lootLocation ? ctx.db.region.id.find(lootLocation.regionId) : null;
       const lootDanger = lootRegion?.dangerMultiplier ?? 100n;
+      // Look up essence templates once per victory (not per participant per template)
+      const essenceITemplate = [...ctx.db.itemTemplate.iter()].find(t => t.name === 'Essence I');
+      const essenceIITemplate = [...ctx.db.itemTemplate.iter()].find(t => t.name === 'Essence II');
+      const essenceIIITemplate = [...ctx.db.itemTemplate.iter()].find(t => t.name === 'Essence III');
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
@@ -2299,6 +2303,28 @@ export const registerCombatReducers = (deps: any) => {
               affixDataJson: lootItem.affixDataJson ?? undefined,
               isNamed: lootItem.isNamed ?? undefined,
             });
+          }
+          // --- Essence drop: 25% chance, tier based on enemy level ---
+          const essenceSeed = (character.id * 7n ^ ctx.timestamp.microsSinceUnixEpoch + template.id * 31n) % 100n;
+          if (essenceSeed < 25n) {
+            const enemyLevel = template.level ?? 1n;
+            const essenceToDrop =
+              enemyLevel >= 11n ? essenceIIITemplate :
+              enemyLevel >= 6n  ? essenceIITemplate  :
+                                  essenceITemplate;
+            if (essenceToDrop) {
+              ctx.db.combatLoot.insert({
+                id: 0n,
+                combatId: combat.id,
+                ownerUserId: character.ownerUserId,
+                characterId: character.id,
+                itemTemplateId: essenceToDrop.id,
+                createdAt: ctx.timestamp,
+                qualityTier: undefined,
+                affixDataJson: undefined,
+                isNamed: undefined,
+              });
+            }
           }
           // Diagnostic: log loot generation results
           appendPrivateEvent(
