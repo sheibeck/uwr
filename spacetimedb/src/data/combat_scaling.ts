@@ -292,8 +292,16 @@ export function getAbilityStatScaling(
   }
 
   if (statScaling === 'hybrid') {
-    // Hybrid abilities: sum STR + INT, 1n per point (slightly lower than pure classes)
-    return (characterStats.str + characterStats.int) * 1n;
+    // Hybrid abilities: 60% primary + 40% secondary from CLASS_CONFIG
+    const config = getClassConfig(className);
+    if (config.secondary) {
+      const primaryVal = characterStats[config.primary as keyof typeof characterStats] ?? 0n;
+      const secondaryVal = characterStats[config.secondary as keyof typeof characterStats] ?? 0n;
+      // 60% primary + 40% secondary, scaled by ABILITY_STAT_SCALING_PER_POINT
+      return ((primaryVal * 60n + secondaryVal * 40n) / 100n) * ABILITY_STAT_SCALING_PER_POINT;
+    }
+    // Fallback: class has no secondary, use primary only
+    return characterStats[config.primary as keyof typeof characterStats] * ABILITY_STAT_SCALING_PER_POINT;
   }
 
   // Pure stat scaling: 2n per point
