@@ -329,9 +329,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 152 | Set default panel layout for new players — getDefaultLayout() computes viewport-aware positions (log top-left, travel top-right, hotbar/group left-aligned chain); /resetwindows restores same layout instead of centering all panels | 2026-02-17 | 99cf383 | [152-set-default-panel-layout-for-new-players](./quick/152-set-default-panel-layout-for-new-players/) |
 | 153 | Fix Sanctify generating two log messages — guarded enemy-name override in use_ability reducer with !args.targetCharacterId check so friendly-targeted abilities skip the combat enemy name lookup; single correct log line now emitted | 2026-02-18 | dcc06f9 | [153-fix-sanctify-generating-two-log-messages](./quick/153-fix-sanctify-generating-two-log-messages/) |
 | 154 | Fix group panel harvest messages — added 5th groupMessage arg to logPrivateAndGroup in start_gather_resource so group members see "{character.name} begins gathering {node}." instead of "You begin gathering {node}."; matches finish_gather and take_loot patterns | 2026-02-18 | e160b43 | [154-fix-group-panel-harvest-messages-to-show](./quick/154-fix-group-panel-harvest-messages-to-show/) |
+| 156 | Realign armor AC and weapon damage across starter and T1 tiers — STARTER_ARMOR cloth 2/1/1, leather 3/2/2, chain 4/3/2, plate 5/4/3; T1 drops starter+1 on all slots; T1 other-slot items (helm/bracers/gauntlets/girdle/cloaks) set to per-armor-type values; starter weapons 3/5 base/dps, T1 weapons 4/6; module republished via upsert | 2026-02-18 | 8b2a41e | [156-realign-armor-ac-values-across-all-tiers](./quick/156-realign-armor-ac-values-across-all-tiers/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Quick task 154: Fixed group panel harvest messages — added 5th groupMessage arg to logPrivateAndGroup in start_gather_resource so group members see the gatherer's name instead of "You". Stopped at: Completed quick-154.
+Last activity: 2026-02-18 - Completed quick task 156: Armor AC and weapon damage realignment — starters reduced, T1 drops set to starter+1, module published
