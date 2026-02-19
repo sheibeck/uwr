@@ -63,88 +63,105 @@ export const STARTER_WEAPONS: Record<string, { name: string; slot: string }> = {
   wizard: { name: 'Training Staff', slot: 'mainHand' },
 };
 
-export function getMaxTierForLevel(level: bigint): number {
+export function getWorldTier(level: bigint): number {
   if (level <= 10n) return 1;
   if (level <= 20n) return 2;
   if (level <= 30n) return 3;
-  return 4;
+  if (level <= 40n) return 4;
+  return 5; // T5: L41-50
 }
+
+/** Backward-compatible alias for callers that used getMaxTierForLevel */
+export function getMaxTierForLevel(level: bigint): number {
+  return getWorldTier(level);
+}
+
+/**
+ * Per-tier rarity probability weights for world drops.
+ * Array order: [common%, uncommon%, rare%, epic%]
+ * These are percentage thresholds (cumulative roll out of 100).
+ * Tune these values to adjust the drop economy.
+ */
+export const TIER_RARITY_WEIGHTS: Record<number, [number, number, number, number]> = {
+  1: [95, 5,  0,  0 ],  // T1 (L1-10):  95% common, 5% uncommon, 0% rare, 0% epic
+  2: [60, 30, 9,  1 ],  // T2 (L11-20): 60% common, 30% uncommon, 9% rare, 1% epic
+  3: [35, 35, 25, 5 ],  // T3 (L21-30): 35% common, 35% uncommon, 25% rare, 5% epic
+  4: [20, 35, 35, 10],  // T4 (L31-40): 20% common, 35% uncommon, 35% rare, 10% epic
+  5: [10, 20, 40, 30],  // T5 (L41-50): 10% common, 20% uncommon, 40% rare, 30% epic
+};
+
+/**
+ * Per-tier quality probability weights for world drops (independent from rarity).
+ * Array order: [standard%, reinforced%, exquisite%]
+ * These are percentage thresholds (cumulative roll out of 100).
+ * Tune these values to adjust quality distribution.
+ */
+export const TIER_QUALITY_WEIGHTS: Record<number, [number, number, number]> = {
+  1: [100, 0,  0 ],  // T1: Standard only
+  2: [80,  20, 0 ],  // T2: Standard dominant, Reinforced rare
+  3: [55,  35, 10],  // T3: Standard common, Reinforced moderate, Exquisite rare
+  4: [30,  50, 20],  // T4: Reinforced dominant, Exquisite attainable
+  5: [15,  45, 40],  // T5: Exquisite primary aspirational, Reinforced baseline
+};
 
 /**
  * Determines the quality tier of a dropped item.
  *
- * T1 creatures (level 1-10, maxTier=1): Level-scaled uncommon chance.
+ * T1 creatures (level 1-10): Uses TIER_RARITY_WEIGHTS[1] with level-scaled uncommon chance.
  *   uncommonChance = min(35, level*5 + dangerBonus)
  *   dangerBonus = max(0, floor((danger - 120) / 10))
  *
- *   Effective per-kill affixed rate (gear% * uncommon%):
- *     L1 danger 100: ~1%    | L3 danger 100: ~5%
- *     L3 danger 160: ~3-5%  | L5 danger 160: ~7-10%
- *     L6 danger 200: ~8-12%
- *
- *   Crafting equivalence: ~15-20 kills for materials + essence + reagent
- *   (matches finding affixed drop naturally around L3-5)
- *
- * T2+ creatures: Danger-based tier with 12% tier-up chance.
- *   danger <=120=common, 121-170=uncommon, 171-250=rare, 251-400=epic
+ * T2+ creatures: Uses TIER_RARITY_WEIGHTS per tier with danger bonus shift.
+ *   dangerBonus shifts thresholds toward higher rarity (max +10% shift).
  */
 export function rollQualityTier(creatureLevel: bigint, seedBase: bigint, dangerMultiplier?: bigint): string {
-  const maxTier = getMaxTierForLevel(creatureLevel);
+  const tier = getWorldTier(creatureLevel);
+  const weights = TIER_RARITY_WEIGHTS[tier] ?? TIER_RARITY_WEIGHTS[1]!;
+  const [wCommon, wUncommon, wRare] = weights;
 
-  if (dangerMultiplier !== undefined) {
-    const danger = Number(dangerMultiplier);
+  // Apply danger bonus: shifts thresholds toward higher rarity (max +10% shift)
+  const dangerBonus = dangerMultiplier !== undefined
+    ? Math.min(10, Math.max(0, Math.floor((Number(dangerMultiplier) - 120) / 15)))
+    : 0;
 
-    // T1 creatures (maxTier 1): level-scaled uncommon chance instead of hard common cap
-    if (maxTier === 1) {
-      const level = Number(creatureLevel);
-      const levelPct = Math.min(30, level * 5); // L1=5%, L2=10% ... L6=30%
-      const dangerBonus = danger > 120 ? Math.floor((danger - 120) / 10) : 0;
-      const uncommonChance = Math.min(35, levelPct + dangerBonus);
-      const uncommonRoll = Number((seedBase + 53n) % 100n);
-      return uncommonRoll < uncommonChance ? 'uncommon' : 'common';
-    }
-
-    // Higher-tier creatures: danger-based tier selection (unchanged)
-    let baseTierNum: number;
-    if (danger <= 120) baseTierNum = 1;        // common
-    else if (danger <= 170) baseTierNum = 2;   // uncommon
-    else if (danger <= 250) baseTierNum = 3;   // rare
-    else if (danger <= 400) baseTierNum = 4;   // epic
-    else baseTierNum = 4;                       // cap at epic (legendaries are named only)
-
-    // 12% tier-up chance, capped at epic
-    const tierUpRoll = Number((seedBase + 47n) % 100n);
-    if (tierUpRoll < 12 && baseTierNum < 4) baseTierNum += 1;
-
-    // Respect creature level cap
-    if (baseTierNum > maxTier) baseTierNum = maxTier;
-
-    const tierNames = ['common', 'uncommon', 'rare', 'epic'];
-    return tierNames[baseTierNum - 1] ?? 'common';
+  // T1 creatures: level-scaled uncommon chance instead of hard common cap
+  if (tier === 1 && dangerMultiplier !== undefined) {
+    const level = Number(creatureLevel);
+    const levelPct = Math.min(30, level * 5); // L1=5%, L2=10% ... L6=30%
+    const db = Number(dangerMultiplier) > 120 ? Math.floor((Number(dangerMultiplier) - 120) / 10) : 0;
+    const uncommonChance = Math.min(35, levelPct + db);
+    const uncommonRoll = Number((seedBase + 53n) % 100n);
+    return uncommonRoll < uncommonChance ? 'uncommon' : 'common';
   }
 
-  // Fallback: level-based logic (backward compatible for create_test_item)
-  const roll = Number((seedBase + 31n) % 100n);
-  if (maxTier === 1) {
-    const uncommonThreshold = Math.min(25, Number(creatureLevel) * 2);
-    return roll < uncommonThreshold ? 'uncommon' : 'common';
-  }
-  if (maxTier === 2) {
-    if (roll < 10) return 'rare';
-    if (roll < 40) return 'uncommon';
-    return 'common';
-  }
-  if (maxTier === 3) {
-    if (roll < 5) return 'epic';
-    if (roll < 20) return 'rare';
-    if (roll < 50) return 'uncommon';
-    return 'common';
-  }
-  // maxTier >= 4
-  if (roll < 3) return 'epic';
-  if (roll < 15) return 'rare';
-  if (roll < 45) return 'uncommon';
-  return 'common';
+  const roll = Number((seedBase + 53n) % 100n);
+  const uncommonThreshold = wCommon - dangerBonus;
+  const rareThreshold = uncommonThreshold + wUncommon;
+  const epicThreshold = rareThreshold + wRare;
+
+  if (roll < uncommonThreshold) return 'common';
+  if (roll < rareThreshold) return 'uncommon';
+  if (roll < epicThreshold) return 'rare';
+  return 'epic';
+}
+
+/**
+ * Rolls the quality (craftsmanship) axis for a world drop.
+ * Quality is independent from rarity — a common item can be Reinforced.
+ * Uses TIER_QUALITY_WEIGHTS keyed by enemy level band.
+ */
+export function rollQualityForDrop(creatureLevel: bigint, seedBase: bigint): string {
+  const tier = getWorldTier(creatureLevel);
+  const weights = TIER_QUALITY_WEIGHTS[tier] ?? TIER_QUALITY_WEIGHTS[1]!;
+  const [wStandard, wReinforced] = weights;
+
+  const roll = Number((seedBase + 67n) % 100n); // offset 67n avoids collision with rarity roll (53n)
+  const reinforcedThreshold = wStandard;
+  const exquisiteThreshold = wStandard + wReinforced;
+
+  if (roll < reinforcedThreshold) return 'standard';
+  if (roll < exquisiteThreshold) return 'reinforced';
+  return 'exquisite';
 }
 
 export function generateAffixData(
