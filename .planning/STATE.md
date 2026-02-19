@@ -407,9 +407,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 208 | WorldEventPanel time-remaining countdown now ticks every second by consuming nowMicros prop (updated every 100ms by App.vue setInterval) instead of calling Date.now() inline — Vue reactivity re-renders timeRemaining() on each tick without requiring server data change | 2026-02-19 | 4fda3db | [208-the-time-remaining-in-the-active-events-](./quick/208-the-time-remaining-in-the-active-events-/) |
 | 209 | Move event kill credit to victory path so all kill types (auto-attack and ability) award contribution — removed per-kill credit from auto-attack guard; added contribution (per participant × per enemy template) and kill_count objective increment (once per enemy) in the victory section alongside updateQuestProgressForKill | 2026-02-18 | 3a2c7f3 | — |
 | 210 | Fix quest XP not triggering level-up — both kill quest and delivery quest turn-ins in hailNpc now route XP through awardCombatXp (passing character.level as enemyLevel for 100% modifier), which runs the while-loop level check, recomputes derived stats, and emits level-up events | 2026-02-19 | 3845054 | [210-when-i-complete-a-quest-and-the-xp-pushe](./quick/210-when-i-complete-a-quest-and-the-xp-pushe/) |
+| 211 | Fix infinite reload loop in version check watcher — sessionStorage guard prevents repeated reloads when server AppVersion is stale after a new deploy; guard cleared when versions match so future updates still trigger one reload | 2026-02-19 | 75a882a | — |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-19 - Completed quick-210: fixed quest XP not triggering level-up by routing hailNpc XP awards through awardCombatXp for both kill and delivery quest turn-ins. Previous: quick-209 (event kill credit to victory path).
+Last activity: 2026-02-19 - Completed quick-211: fixed infinite reload loop in version watcher with sessionStorage guard. Previous: quick-210 (quest XP level-up fix).
