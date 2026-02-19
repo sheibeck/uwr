@@ -9,6 +9,7 @@ import { applyPerkProcs } from '../helpers/combat';
 import { RENOWN_GAIN } from '../data/renown_data';
 import { rollQualityTier, rollQualityForDrop, generateAffixData, buildDisplayName } from '../helpers/items';
 import { incrementWorldStat } from '../helpers/world_events';
+import { WORLD_EVENT_DEFINITIONS } from '../data/world_event_data';
 
 const AUTO_ATTACK_INTERVAL = 5_000_000n;
 const RETRY_ATTACK_INTERVAL = 1_000_000n;
@@ -2033,15 +2034,25 @@ export const registerCombatReducers = (deps: any) => {
             if (charLoc) {
               for (const activeEvent of ctx.db.worldEvent.by_status.filter('active')) {
                 if (activeEvent.regionId !== charLoc.regionId) continue;
-                // Check if this event has enemies of the killed template at this location
+                // Check if this event's definition includes the killed enemy template.
+                // Do NOT use the EventSpawnEnemy -> EnemySpawn chain: EnemySpawn rows are
+                // deleted on kill and safe-town locations block respawn, so that chain goes
+                // stale permanently after the first kill (see quick-204).
                 let matchesEvent = false;
-                for (const ese of ctx.db.eventSpawnEnemy.by_event.filter(activeEvent.id)) {
-                  if (ese.locationId !== freshChar.locationId) continue;
-                  const eventSpawn = ctx.db.enemySpawn.id.find(ese.spawnId);
-                  if (eventSpawn && eventSpawn.enemyTemplateId === killedTemplateId) {
-                    matchesEvent = true;
-                    break;
+                const eventDef = WORLD_EVENT_DEFINITIONS[activeEvent.eventKey];
+                if (eventDef) {
+                  const eventTemplateIds = new Set<bigint>();
+                  for (const cl of eventDef.contentLocations) {
+                    for (const e of cl.enemies) {
+                      for (const tmpl of ctx.db.enemyTemplate.iter()) {
+                        if (tmpl.name === e.enemyTemplateKey) {
+                          eventTemplateIds.add(tmpl.id);
+                          break;
+                        }
+                      }
+                    }
                   }
+                  matchesEvent = eventTemplateIds.has(killedTemplateId);
                 }
                 if (!matchesEvent) continue;
                 // Award contribution
