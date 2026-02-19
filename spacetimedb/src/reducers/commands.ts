@@ -183,6 +183,10 @@ export const registerCommandReducers = (deps: any) => {
 
   spacetimedb.reducer('submit_command', { characterId: t.u64(), text: t.string() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const _player = ctx.db.player.id.find(ctx.sender);
+    if (_player) {
+      ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
+    }
     const trimmed = args.text.trim();
     if (!trimmed) return fail(ctx, character, 'Command is empty');
 
@@ -234,6 +238,10 @@ export const registerCommandReducers = (deps: any) => {
 
   spacetimedb.reducer('say', { characterId: t.u64(), message: t.string() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const _player = ctx.db.player.id.find(ctx.sender);
+    if (_player) {
+      ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
+    }
     const trimmed = args.message.trim();
     if (!trimmed) return fail(ctx, character, 'Message is empty');
 

@@ -629,6 +629,10 @@ export const registerItemReducers = (deps: any) => {
     { characterId: t.u64(), abilityKey: t.string(), targetCharacterId: t.u64().optional() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const _player = ctx.db.player.id.find(ctx.sender);
+      if (_player) {
+        ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
+      }
       const abilityKey = args.abilityKey.trim();
       if (!abilityKey) return failItem(ctx, character, 'Ability required');
       const nowMicros = ctx.timestamp.microsSinceUnixEpoch;

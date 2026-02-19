@@ -13,7 +13,7 @@ import {
   PullState, PullTick,
   HealthRegenTick, EffectTick, HotTick, CastTick,
   DayNightTick, DisconnectLogoutTick, CharacterLogoutTick,
-  ResourceGatherTick, EnemyRespawnTick,
+  ResourceGatherTick, EnemyRespawnTick, InactivityTick,
   TradeSession, TradeItem,
   EnemyAbility, CombatEnemyCooldown, CombatEnemyCast,
   CombatPendingAdd, AggroEntry,
@@ -197,6 +197,7 @@ import {
   ensureHotTickScheduled,
   ensureCastTickScheduled,
   ensureDayNightTickScheduled,
+  ensureInactivityTickScheduled,
   syncAllContent,
 } from './seeding/ensure_content';
 
@@ -254,6 +255,87 @@ spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
   });
 });
 
+const INACTIVITY_TIMEOUT_MICROS = 900_000_000n; // 15 minutes
+const INACTIVITY_SWEEP_INTERVAL_MICROS = 300_000_000n; // 5 minutes
+
+spacetimedb.reducer('sweep_inactivity', { arg: InactivityTick.rowType }, (ctx) => {
+  const now = ctx.timestamp.microsSinceUnixEpoch;
+  const cutoff = now - INACTIVITY_TIMEOUT_MICROS;
+
+  for (const player of ctx.db.player.iter()) {
+    // Only check players who have an active character
+    if (!player.activeCharacterId || !player.userId) continue;
+
+    // Determine last activity time — prefer lastActivityAt, fall back to lastSeenAt
+    const lastActive = player.lastActivityAt ?? player.lastSeenAt;
+    if (!lastActive) continue;
+    if (lastActive.microsSinceUnixEpoch > cutoff) continue;
+
+    // Player is inactive — auto-camp
+    const character = ctx.db.character.id.find(player.activeCharacterId);
+    if (character) {
+      // Cannot camp during combat
+      const inCombat = activeCombatIdForCharacter(ctx, character.id);
+      if (inCombat) continue;
+
+      // Announce to location
+      appendLocationEvent(ctx, character.locationId, 'system', `${character.name} heads to camp.`, character.id);
+
+      // Leave group if in one (mirrors clear_active_character logic)
+      if (character.groupId) {
+        const groupId = character.groupId;
+        for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+          if (member.characterId === character.id) {
+            ctx.db.groupMember.id.delete(member.id);
+            break;
+          }
+        }
+        ctx.db.character.id.update({ ...character, groupId: undefined });
+        appendGroupEvent(ctx, groupId, character.id, 'group', `${character.name} headed to camp (AFK).`);
+
+        const remaining = [...ctx.db.groupMember.by_group.filter(groupId)];
+        if (remaining.length === 0) {
+          for (const invite of ctx.db.groupInvite.by_group.filter(groupId)) {
+            ctx.db.groupInvite.id.delete(invite.id);
+          }
+          ctx.db.group.id.delete(groupId);
+        } else {
+          const group = ctx.db.group.id.find(groupId);
+          if (group && group.leaderCharacterId === character.id) {
+            const newLeader = ctx.db.character.id.find(remaining[0]!.characterId);
+            if (newLeader) {
+              ctx.db.group.id.update({
+                ...group,
+                leaderCharacterId: newLeader.id,
+                pullerCharacterId: group.pullerCharacterId === character.id ? newLeader.id : group.pullerCharacterId,
+              });
+              ctx.db.groupMember.id.update({ ...remaining[0]!, role: 'leader' });
+              appendGroupEvent(ctx, groupId, newLeader.id, 'group', `${newLeader.name} is now the group leader.`);
+            }
+          }
+        }
+      }
+
+      // Notify player's private event stream
+      appendPrivateEvent(ctx, character.id, player.userId, 'system',
+        'You have been automatically camped due to inactivity.');
+    }
+
+    // Clear active character (the actual camp)
+    ctx.db.player.id.update({
+      ...player,
+      activeCharacterId: undefined,
+      lastActivityAt: undefined,
+    });
+  }
+
+  // Schedule next sweep
+  ctx.db.inactivityTick.insert({
+    scheduledId: 0n,
+    scheduledAt: ScheduleAt.time(now + INACTIVITY_SWEEP_INTERVAL_MICROS),
+  });
+});
+
 spacetimedb.reducer('set_app_version', { version: t.string() }, (ctx, { version }) => {
   requireAdmin(ctx);
   const existing = [...ctx.db.appVersion.iter()][0];
@@ -293,6 +375,7 @@ spacetimedb.init((ctx) => {
   ensureHotTickScheduled(ctx);
   ensureCastTickScheduled(ctx);
   ensureDayNightTickScheduled(ctx);
+  ensureInactivityTickScheduled(ctx);
 });
 
 spacetimedb.clientConnected((ctx) => {
@@ -315,6 +398,7 @@ spacetimedb.clientConnected((ctx) => {
   ensureHotTickScheduled(ctx);
   ensureCastTickScheduled(ctx);
   ensureDayNightTickScheduled(ctx);
+  ensureInactivityTickScheduled(ctx);
 });
 
 spacetimedb.clientDisconnected((_ctx) => {
@@ -360,6 +444,7 @@ const reducerDeps = {
   CharacterLogoutTick,
   ResourceGatherTick,
   EnemyRespawnTick,
+  InactivityTick,
   TradeSession,
   TradeItem,
   EnemyAbility,

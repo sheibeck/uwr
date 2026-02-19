@@ -25,6 +25,10 @@ export const registerMovementReducers = (deps: any) => {
 
   spacetimedb.reducer('move_character', { characterId: t.u64(), locationId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const _player = ctx.db.player.id.find(ctx.sender);
+    if (_player) {
+      ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
+    }
     const location = ctx.db.location.id.find(args.locationId);
     if (!location) return fail(ctx, character, 'Location not found');
     if (character.locationId === location.id) return;

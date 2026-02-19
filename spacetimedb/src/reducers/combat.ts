@@ -688,6 +688,10 @@ export const registerCombatReducers = (deps: any) => {
 
   spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const _player = ctx.db.player.id.find(ctx.sender);
+    if (_player) {
+      ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
+    }
     const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
     if (activeGather) {
       return failCombat(ctx, character, 'Cannot start combat while gathering');
@@ -722,6 +726,10 @@ export const registerCombatReducers = (deps: any) => {
     { characterId: t.u64(), enemyTemplateId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const _player = ctx.db.player.id.find(ctx.sender);
+      if (_player) {
+        ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
+      }
       const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
       if (activeGather) {
         return failCombat(ctx, character, 'Cannot start combat while gathering');
@@ -750,6 +758,10 @@ export const registerCombatReducers = (deps: any) => {
     { characterId: t.u64(), enemySpawnId: t.u64(), pullType: t.string() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const _player = ctx.db.player.id.find(ctx.sender);
+      if (_player) {
+        ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
+      }
       const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
       if (activeGather) {
         return failCombat(ctx, character, 'Cannot pull while gathering');
