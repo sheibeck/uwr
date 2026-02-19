@@ -2316,9 +2316,9 @@ export const registerCombatReducers = (deps: any) => {
               craftQuality: lootItem.craftQuality ?? undefined,
             });
           }
-          // --- Essence drop: 12% chance, tier based on enemy level ---
+          // --- Essence drop: 6% chance, tier based on enemy level ---
           const essenceSeed = (character.id * 7n ^ ctx.timestamp.microsSinceUnixEpoch + template.id * 31n) % 100n;
-          if (essenceSeed < 12n) {
+          if (essenceSeed < 6n) {
             const enemyLevel = template.level ?? 1n;
             let essenceToDrop: any = null;
             for (const threshold of ESSENCE_TIER_THRESHOLDS) {
@@ -2341,9 +2341,9 @@ export const registerCombatReducers = (deps: any) => {
               });
             }
           }
-          // --- Modifier reagent drop: 15% chance, level-gated by MODIFIER_REAGENT_THRESHOLDS ---
+          // --- Modifier reagent drop: 10% chance, level-gated by MODIFIER_REAGENT_THRESHOLDS ---
           const modifierSeed = (character.id * 11n ^ ctx.timestamp.microsSinceUnixEpoch + template.id * 43n) % 100n;
-          if (modifierSeed < 15n) {
+          if (modifierSeed < 10n) {
             const enemyLevel = template.level ?? 1n;
             let eligibleNames: string[] = [];
             for (const threshold of MODIFIER_REAGENT_THRESHOLDS) {
