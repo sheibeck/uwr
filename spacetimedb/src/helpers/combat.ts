@@ -714,23 +714,31 @@ export function executeAbility(
     const directHealFraction = ability?.hotPowerSplit ? 1.0 - ability.hotPowerSplit : 1.0;
     const directHeal = (amount * BigInt(Math.floor(directHealFraction * 100))) / 100n;
 
+    // Build characterStats object for stat scaling (same pattern as applyDamage)
+    const characterStats = {
+      str: character.str,
+      dex: character.dex,
+      cha: character.cha,
+      wis: character.wis,
+      int: character.int,
+    };
+
     // If ability has HoT, calculate HoT healing with reduced stat scaling
     if (ability?.hotPowerSplit && ability?.hotDuration && ability?.name) {
       const hotPowerFraction = ability.hotPowerSplit;
       const hotTotalHealing = (amount * BigInt(Math.floor(hotPowerFraction * 100))) / 100n;
 
-      // HoT stat scaling uses REDUCED rate (50% of direct healing scaling)
-      // Note: WIS scaling already applied via calculateHealingPower, so we split the final scaled amount
-      const scaledHotTotal = calculateHealingPower(hotTotalHealing, character.wis, character.className);
+      // Apply stat scaling (primary/secondary per class config) to HoT total
+      const scaledHotTotal = calculateHealingPower(hotTotalHealing, characterStats, character.className, ability?.statScaling ?? 'none');
       const hotHealPerTick = scaledHotTotal / ability.hotDuration;
 
       // Apply HoT effect to target
       addCharacterEffect(ctx, target.id, 'regen', hotHealPerTick, ability.hotDuration, ability.name);
     }
 
-    // Apply WIS scaling to healing output (uses the CASTER's WIS, not target's)
+    // Apply stat scaling (primary/secondary per class config) to direct heal output (uses the CASTER's stats, not target's)
     // Use directHeal for immediate healing (replace 'amount' with 'directHeal')
-    const scaledAmount = calculateHealingPower(directHeal, character.wis, character.className);
+    const scaledAmount = calculateHealingPower(directHeal, characterStats, character.className, ability?.statScaling ?? 'none');
     const nextHp = current.hp + scaledAmount > current.maxHp ? current.maxHp : current.hp + scaledAmount;
     ctx.db.character.id.update({ ...current, hp: nextHp });
     const message = `${source} restores ${scaledAmount} health to ${current.name}.`;
