@@ -1662,6 +1662,19 @@ export const registerCombatReducers = (deps: any) => {
             });
             count += 1n;
           }
+          // Re-add enemies that were actively in combat
+          // (their EnemySpawnMember rows were deleted by takeSpawnMember() when pulled)
+          for (const enemy of enemies) {
+            if (enemy.spawnId === spawnId) {
+              ctx.db.enemySpawnMember.insert({
+                id: 0n,
+                spawnId: spawnId,
+                enemyTemplateId: enemy.enemyTemplateId,
+                roleTemplateId: enemy.enemyRoleTemplateId ?? 0n,
+              });
+              count += 1n;
+            }
+          }
           ctx.db.enemySpawn.id.update({
             ...spawn,
             state: 'available',
