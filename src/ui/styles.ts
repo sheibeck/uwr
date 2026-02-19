@@ -1,3 +1,5 @@
+import { RARITY_COLORS } from './colors';
+
 export const styles = {
   shell: {
     height: '100vh',
@@ -1287,25 +1289,25 @@ export const styles = {
     color: '#f87171',
   },
   rarityCommon: {
-    color: '#ffffff',
+    color: RARITY_COLORS.common,
   },
   rarityUncommon: {
-    color: '#22c55e',
+    color: RARITY_COLORS.uncommon,
   },
   rarityRare: {
-    color: '#3b82f6',
+    color: RARITY_COLORS.rare,
   },
   rarityEpic: {
-    color: '#aa44ff',
+    color: RARITY_COLORS.epic,
   },
   rarityLegendary: {
-    color: '#ff8800',
+    color: RARITY_COLORS.legendary,
   },
   qualityBorderCommon: { borderColor: '#555555' },
-  qualityBorderUncommon: { borderColor: '#22c55e' },
-  qualityBorderRare: { borderColor: '#3b82f6' },
-  qualityBorderEpic: { borderColor: '#aa44ff' },
-  qualityBorderLegendary: { borderColor: '#ff8800' },
+  qualityBorderUncommon: { borderColor: RARITY_COLORS.uncommon },
+  qualityBorderRare: { borderColor: RARITY_COLORS.rare },
+  qualityBorderEpic: { borderColor: RARITY_COLORS.epic },
+  qualityBorderLegendary: { borderColor: RARITY_COLORS.legendary },
   lootFlashEpic: {
     animation: 'lootFlash 0.6s ease-in-out 2',
   },

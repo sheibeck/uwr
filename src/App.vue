@@ -211,6 +211,7 @@
           :event-objectives="eventObjectives"
           :regions="regions"
           :selected-character="selectedCharacter"
+          :is-admin="isAdmin"
         />
       </div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('worldEvents', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('worldEvents', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('worldEvents', $event, { right: true, bottom: true })" />
@@ -575,6 +576,7 @@ import TrackPanel from './components/TrackPanel.vue';
 import RenownPanel from './components/RenownPanel.vue';
 import WorldEventPanel from './components/WorldEventPanel.vue';
 import HelpOverlay from './components/HelpOverlay.vue';
+import { ADMIN_IDENTITY_HEX } from './data/worldEventDefs';
 import { useGameData } from './composables/useGameData';
 import { useCharacters } from './composables/useCharacters';
 import { useEvents } from './composables/useEvents';
@@ -593,6 +595,7 @@ import { useHotbar } from './composables/useHotbar';
 import { useTrade } from './composables/useTrade';
 import { useCombatLock } from './composables/useCombatLock';
 import { usePanelManager, getDefaultLayout } from './composables/usePanelManager';
+import { rarityColor, craftQualityColor } from './ui/colors';
 
 const {
   conn,
@@ -671,6 +674,11 @@ const {
 } = useGameData();
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ players, users });
+
+const isAdmin = computed(() => {
+  const identity = window.__my_identity;
+  return identity?.toHexString() === ADMIN_IDENTITY_HEX;
+});
 
 const { isLoggedIn, isPendingLogin, login, logout, authMessage, authError } = useAuth({
   connActive: computed(() => conn.isActive),
@@ -2154,25 +2162,7 @@ const tooltip = ref<{
 
 const tooltipRarityColor = (item: any): Record<string, string> => {
   const key = ((item?.qualityTier ?? item?.rarity ?? 'common') as string).toLowerCase();
-  const map: Record<string, string> = {
-    common: '#ffffff',
-    uncommon: '#22c55e',
-    rare: '#3b82f6',
-    epic: '#aa44ff',
-    legendary: '#ff8800',
-  };
-  return { color: map[key] ?? '#ffffff' };
-};
-
-const craftQualityColor = (cq: string): string => {
-  const map: Record<string, string> = {
-    dented: '#888',
-    standard: '#ccc',
-    reinforced: '#6c9',
-    exquisite: '#9cf',
-    mastercraft: '#f90',
-  };
-  return map[cq] ?? '#ccc';
+  return { color: rarityColor(key) };
 };
 
 const showTooltip = (payload: {

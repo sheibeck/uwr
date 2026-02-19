@@ -126,6 +126,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { getModifierMagnitude } from '../composables/useCrafting';
+import { rarityColor, craftQualityColor as craftQualityColorFn } from '../ui/colors';
 
 type Recipe = {
   id: bigint;
@@ -224,16 +225,7 @@ const craftQualityLabel = computed(() => {
   return q.charAt(0).toUpperCase() + q.slice(1);
 });
 
-const craftQualityColor = computed(() => {
-  const map: Record<string, string> = {
-    dented: '#888',
-    standard: '#ccc',
-    reinforced: '#6c9',
-    exquisite: '#9cf',
-    mastercraft: '#f90',
-  };
-  return map[craftQuality.value] ?? '#ccc';
-});
+const craftQualityColor = computed(() => craftQualityColorFn(craftQuality.value));
 
 const slotsAvailable = computed(() => {
   if (!selectedCatalystId.value) return 0;
@@ -332,17 +324,6 @@ const craftButtonStyle = computed(() => ({
   fontSize: '0.85rem',
   fontWeight: 'bold',
 }));
-
-const rarityColor = (rarity: string): string => {
-  const map: Record<string, string> = {
-    common: '#ffffff',
-    uncommon: '#22c55e',
-    rare: '#3b82f6',
-    epic: '#aa44ff',
-    legendary: '#ff8800',
-  };
-  return map[(rarity ?? 'common').toLowerCase()] ?? '#ffffff';
-};
 
 const onCatalystChange = (event: Event) => {
   const val = (event.target as HTMLSelectElement).value;
