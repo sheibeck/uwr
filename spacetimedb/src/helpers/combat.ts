@@ -1555,9 +1555,11 @@ export function executeAbility(
     ctx.db.characterEffect.id.delete(staminaFreeEffectId);
   }
   if (ability.resource === 'mana') {
-    ctx.db.character.id.update({ ...character, mana: character.mana - resourceCost });
+    const latest = ctx.db.character.id.find(character.id);
+    if (latest) ctx.db.character.id.update({ ...latest, mana: character.mana - resourceCost });
   } else if (ability.resource === 'stamina') {
-    ctx.db.character.id.update({ ...character, stamina: character.stamina - resourceCost });
+    const latest = ctx.db.character.id.find(character.id);
+    if (latest) ctx.db.character.id.update({ ...latest, stamina: character.stamina - resourceCost });
   }
 }
 
