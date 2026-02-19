@@ -210,6 +210,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 161. materialTierToCraftQuality is fully deterministic: T1→standard, T2→reinforced, T3→exquisite; no seed parameter, no CRAFT_QUALITY_PROBS; craft_recipe calls with one argument (quick-195 supersedes quick-192)
 162. craftQuality on CombatLoot is optional to preserve backward compat — new column enables quality to flow from loot-roll through take_loot to ItemInstance for both common and non-common rarity items (quick-192)
 163. getGatherableResourceTemplates accepts optional zoneTier (default 3) and filters materials where Number(mat.tier) > zoneTier; spawnResourceNode and passive gather derive zoneTier from region.dangerMultiplier (dm<130=T1, dm<190=T2, dm>=190=T3); ensure_enemies.ts seeding omits zoneTier to keep all tiers in loot tables (quick-195)
+164. Essence drop rate reduced from 12% to 6% and modifier reagent from 15% to 10% — expected kills for both crafting components ~16-18 vs natural affixed gear ~20 at T1 L1; essence is the bottleneck by design (quick-196)
 
 ---
 
@@ -381,9 +382,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 194 | Fix salvage reagent drops to only yield modifier reagents matching item's actual affix statKeys — affixStatKeys set collected from ItemAffix rows, CRAFTING_MODIFIER_DEFS filtered to filteredModDefs, roll and pick only when filteredModDefs.length > 0; common items (no affixes) never drop reagents | 2026-02-18 | c03cb31 | [194-fix-salvage-to-only-yield-modifier-reage](./quick/194-fix-salvage-to-only-yield-modifier-reage/) |
 | 192 | Align gear and crafting progression to world-tier spec — TIER_RARITY_WEIGHTS/TIER_QUALITY_WEIGHTS named config constants (T1-T5), rollQualityForDrop for independent quality axis (seed 67n), getWorldTier with T5 support, craftQuality column on CombatLoot, quality flows from loot-roll to ItemInstance via take_loot/take_all_loot, equip level gate removed, CRAFT_QUALITY_PROBS for probabilistic crafting quality | 2026-02-19 | 9ff573d | [192-align-gear-and-crafting-progression-to-w](./quick/192-align-gear-and-crafting-progression-to-w/) |
 | 195 | Revert crafting quality to deterministic and tier-gate gather pool — materialTierToCraftQuality fully deterministic (T1→standard, T2→reinforced, T3→exquisite), CRAFT_QUALITY_PROBS removed, craftSeed removed from craft_recipe; getGatherableResourceTemplates zoneTier parameter filters materials by zone dangerMultiplier | 2026-02-18 | df5a5a3 | [195-revert-crafting-quality-to-deterministic](./quick/195-revert-crafting-quality-to-deterministic/) |
+| 196 | Lower essence drop from 12% to 6% and modifier reagent from 15% to 10% — brings expected kills for both components to ~16-18 vs natural affixed gear at ~20 kills T1 L1; essence is bottleneck by design | 2026-02-18 | 73a573d | [196-simplify-essence-drops-to-3-tiers-by-wor](./quick/196-simplify-essence-drops-to-3-tiers-by-wor/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 195: revert crafting quality to deterministic and tier-gate gather pool by zone dangerMultiplier
+Last activity: 2026-02-18 - Completed quick task 196: lower essence drop to 6% and modifier reagent to 10% for T1 crafting parity
