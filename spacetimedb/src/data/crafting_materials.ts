@@ -159,40 +159,15 @@ export const MATERIAL_DEFS: MaterialDef[] = [
 // ---------------------------------------------------------------------------
 
 /**
- * Per-material-tier craft quality probability weights.
- * Array order: [standard%, reinforced%, exquisite%]
- * Higher-tier materials shift probability toward better quality without hard-gating.
- * Tune these values to adjust the crafting economy.
- */
-export const CRAFT_QUALITY_PROBS: Record<number, [number, number, number]> = {
-  1: [85, 15, 0 ],  // Tier 1 materials: mostly Standard, small Reinforced chance
-  2: [20, 65, 15],  // Tier 2 materials: Reinforced dominant, Exquisite possible
-  3: [5,  35, 60],  // Tier 3 materials: Exquisite dominant, Reinforced as fallback
-};
-
-/**
- * Maps material tier to a craft quality level string.
- * When seed is provided, rolls probabilistically using CRAFT_QUALITY_PROBS.
- * When seed is undefined, falls back to deterministic tier-based mapping.
+ * Maps material tier to craft quality level. Fully deterministic.
+ * T1 → standard, T2 → reinforced, T3 → exquisite.
  * Dented and Mastercraft are not achievable via basic crafting.
  */
-export function materialTierToCraftQuality(tier: bigint, seed?: bigint): string {
-  const tierNum = Number(tier);
-  const weights = CRAFT_QUALITY_PROBS[tierNum] ?? CRAFT_QUALITY_PROBS[1]!;
-  const [wStandard, wReinforced] = weights;
-
-  if (seed === undefined) {
-    // Deterministic fallback (same as old behavior) for callers without seed
-    if (tier === 1n) return 'standard';
-    if (tier === 2n) return 'reinforced';
-    if (tier === 3n) return 'exquisite';
-    return 'standard';
-  }
-
-  const roll = Number((seed + 71n) % 100n); // offset 71n for craft quality roll
-  if (roll < wStandard) return 'standard';
-  if (roll < wStandard + wReinforced) return 'reinforced';
-  return 'exquisite';
+export function materialTierToCraftQuality(tier: bigint): string {
+  if (tier === 1n) return 'standard';
+  if (tier === 2n) return 'reinforced';
+  if (tier === 3n) return 'exquisite';
+  return 'standard';
 }
 
 /** Ordered craft quality levels from worst to best */

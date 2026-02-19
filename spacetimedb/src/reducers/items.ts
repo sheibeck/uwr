@@ -1137,8 +1137,7 @@ export const registerItemReducers = (deps: any) => {
           : '';
         const materialDef = MATERIAL_DEFS.find((m) => m.key === materialKey);
         const materialTier = materialDef ? materialDef.tier : 1n;
-        const craftSeed = ctx.timestamp.microsSinceUnixEpoch + character.id;
-        const craftQuality = materialTierToCraftQuality(materialTier, craftSeed);
+        const craftQuality = materialTierToCraftQuality(materialTier);
         const qualityTier = 'common';
 
         // Find the newly created ItemInstance
