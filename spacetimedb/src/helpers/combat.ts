@@ -1401,7 +1401,10 @@ export function executeAbility(
       }
       const location = ctx.db.location.id.find(freshChar.locationId);
       if (!location) throw new SenderError('Location not found');
-      const pool = getGatherableResourceTemplates(ctx, location.terrainType ?? 'plains');
+      const region = ctx.db.region.id.find(location.regionId);
+      const dm = region?.dangerMultiplier ?? 100n;
+      const gatherZoneTier = dm < 130n ? 1 : dm < 190n ? 2 : 3;
+      const pool = getGatherableResourceTemplates(ctx, location.terrainType ?? 'plains', undefined, gatherZoneTier);
       if (pool.length === 0) {
         appendPrivateEvent(
           ctx,

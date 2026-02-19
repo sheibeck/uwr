@@ -49,7 +49,7 @@ export function findEnemyTemplateByName(ctx: any, name: string) {
   return null;
 }
 
-export function getGatherableResourceTemplates(ctx: any, terrainType: string, timePref?: string) {
+export function getGatherableResourceTemplates(ctx: any, terrainType: string, timePref?: string, zoneTier: number = 3) {
   const pools: Record<
     string,
     { name: string; weight: bigint; timeOfDay: string }[]
@@ -99,10 +99,11 @@ export function getGatherableResourceTemplates(ctx: any, terrainType: string, ti
   };
   const key = (terrainType ?? '').trim().toLowerCase();
   const baseEntries = pools[key] ?? pools.plains;
-  // Inject gatherable crafting materials from MATERIAL_DEFS
+  // Inject gatherable crafting materials from MATERIAL_DEFS, filtered by zoneTier
   const materialEntries: { name: string; weight: bigint; timeOfDay: string }[] = [];
   for (const mat of MATERIAL_DEFS) {
     if (!mat.gatherEntries) continue;
+    if (Number(mat.tier) > zoneTier) continue;  // tier-gate: skip materials above zone tier
     for (const entry of mat.gatherEntries) {
       if (entry.terrain === key) {
         materialEntries.push({ name: mat.name, weight: entry.weight, timeOfDay: entry.timeOfDay });
@@ -151,7 +152,10 @@ export function spawnResourceNode(ctx: any, locationId: bigint, characterId?: bi
   const location = ctx.db.location.id.find(locationId);
   if (!location) throw new SenderError('Location not found');
   const timePref = isNightTime(ctx) ? 'night' : 'day';
-  const pool = getGatherableResourceTemplates(ctx, location.terrainType ?? 'plains', timePref);
+  const region = ctx.db.region.id.find(location.regionId);
+  const dm = region?.dangerMultiplier ?? 100n;
+  const zoneTier = dm < 130n ? 1 : dm < 190n ? 2 : 3;
+  const pool = getGatherableResourceTemplates(ctx, location.terrainType ?? 'plains', timePref, zoneTier);
   if (pool.length === 0) throw new SenderError('No resource templates for location');
   const totalWeight = pool.reduce((sum, entry) => sum + entry.weight, 0n);
   const offset = seedOffset ?? 0n;
