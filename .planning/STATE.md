@@ -1,7 +1,7 @@
 # Project State
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
-**Last updated:** 2026-02-18
+**Last updated:** 2026-02-19
 **Status:** All planned phases complete (1, 3, 3.1, 3.1.1, 3.1.2, 3.1.3, 4, 6, 10, 11, 12, 13, 13.1, 14, 15, 18, 19, 20). Quick tasks through 196 have done substantial balance, polish, and system refinement. Next formal phases: 5 (LLM), 7 (World Events LLM text), 8 (Narrative Tone), 9 (Content Expansion), 16 (Travelling NPCs), 17 (World Bosses).
 
 ---
@@ -218,6 +218,8 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 165. Description comes exclusively from server ItemTemplate.description — no client-side fallback strings; blank server description shows blank tooltip (quick-193)
 166. buildItemTooltipData is a pure function (not a reactive composable) in useItemTooltip.ts — single source of truth for all 5 tooltip code paths (inventoryItems, equippedSlots, vendorItems, pendingLoot, crafting outputItem) (quick-193)
 167. SpacetimeDB Row type exports are values (class instances), not TypeScript types — must use Infer<typeof RowType> for type annotations, NOT import type { RowType } (quick-193)
+168. Auto-camp inactivity uses lastSeenAt as fallback when lastActivityAt is null — prevents immediate camping of existing players on first deploy who have never triggered an activity touch (quick-217)
+169. sweep_inactivity skips combat-active players entirely — players in combat are never auto-camped even if 15+ min pass; lastActivityAt touch happens at combat initiation not during combat (quick-217)
 
 ---
 
@@ -276,6 +278,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | quick-193 | 01 | ~90min | 3 | 8 |
 | Phase quick-197 P01 | 20min | 2 tasks | 2 files |
 | Phase quick-202 P01 | 12min | 3 tasks | 3 files |
+| Phase quick-217 P01 | ~15min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -413,6 +416,7 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 214 | Fix cooldown display stuck at max for cast-time abilities — abilityCooldowns watcher used lastClearCheck=0 causing it to fire at T+100ms before server sets AbilityCooldown (only set after tick_casts fires post-cast); added localCast and castingState continue guards to skip clearing while ability is being cast, preserving hasPrediction=true and keeping countdown immune to server clock skew | 2026-02-18 | 8003750 | [214-cast-cooldown-prediction-clearing](./quick/214-cast-cooldown-prediction-clearing/) |
 | 215 | Healing ability power now scales by class primary/secondary stat via getAbilityStatScaling — calculateHealingPower updated to accept characterStats + statScaling, applyHeal threads caster stats through both HoT and direct heal paths; WIS-tagged heals scale for healers, 'none'-tagged flat heals unchanged; mirrors damage scaling exactly | 2026-02-19 | a4dcbce | [215-healing-effects-from-abilities-should-sc](./quick/215-healing-effects-from-abilities-should-sc/) |
 | 216 | Fix two regressions from quick-215: (1) mana/stamina deduction re-fetches latest character row from DB before update so healed HP is not overwritten by stale pre-heal snapshot; (2) removed redundant addCharacterEffect regen call from shaman_spirit_mender since applyHeal now handles HoT internally via hotPowerSplit | 2026-02-19 | 08c80ea | [216-fix-regression-from-quick-215-direct-hea](./quick/216-fix-regression-from-quick-215-direct-hea/) |
+| 217 | Auto-camp players inactive for 15+ minutes — lastActivityAt optional timestamp on Player table, InactivityTick scheduled table fires sweep_inactivity every 5 min, activity touch on move_character/start_combat/start_tracked_combat/start_pull/use_ability/submit_command/say, sweep skips combat-active players, fires location event + group cleanup + private notification on auto-camp | 2026-02-19 | 7c8081b | [217-if-a-player-is-completely-inactive-for-1](./quick/217-if-a-player-is-completely-inactive-for-1/) |
 
 ---
 
