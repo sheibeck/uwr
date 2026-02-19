@@ -410,10 +410,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 211 | Fix infinite reload loop in version check watcher — sessionStorage guard prevents repeated reloads when server AppVersion is stale after a new deploy; guard cleared when versions match so future updates still trigger one reload | 2026-02-19 | 75a882a | — |
 | 212 | Award event kill credit on player death for enemies killed mid-combat — player-death path now loops through enemies with currentHp===0n and awards contribution per participant + advances kill_count objective once per killed enemy; victory path only fires when all enemies die so this was a blind spot | 2026-02-19 | 9917e62 | — |
 | 213 | Rename awardCombatXp to awardXp — pure identifier rename across helpers/combat.ts (definition), reducers/commands.ts (import + 2 calls), reducers/combat.ts (2 deps calls), index.ts (import + deps entry); function was already called from quest reducers making the combat-specific name misleading | 2026-02-19 | 09b62ab | [213-rename-awardcombatxp-to-awardxp-since-th](./quick/213-rename-awardcombatxp-to-awardxp-since-th/) |
+| 214 | Fix cooldown display stuck at max for cast-time abilities — abilityCooldowns watcher used lastClearCheck=0 causing it to fire at T+100ms before server sets AbilityCooldown (only set after tick_casts fires post-cast); added localCast and castingState continue guards to skip clearing while ability is being cast, preserving hasPrediction=true and keeping countdown immune to server clock skew | 2026-02-18 | 8003750 | [214-cast-cooldown-prediction-clearing](./quick/214-cast-cooldown-prediction-clearing/) |
 | 215 | Healing ability power now scales by class primary/secondary stat via getAbilityStatScaling — calculateHealingPower updated to accept characterStats + statScaling, applyHeal threads caster stats through both HoT and direct heal paths; WIS-tagged heals scale for healers, 'none'-tagged flat heals unchanged; mirrors damage scaling exactly | 2026-02-19 | a4dcbce | [215-healing-effects-from-abilities-should-sc](./quick/215-healing-effects-from-abilities-should-sc/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-19 - Completed quick-215: healing abilities now scale by class primary/secondary stat via getAbilityStatScaling, mirroring damage scaling. Previous: quick-213 (rename awardCombatXp to awardXp).
+Last activity: 2026-02-18 - Completed quick-214: fix cooldown display stuck at max for cast-time abilities (abilityCooldowns watcher premature clear). Previous: quick-215 (healing stat scaling).
