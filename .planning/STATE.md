@@ -399,9 +399,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 200 | Add build version number as small muted text after Connected/Disconnected status in AppHeader — clientVersion computed ref reads window.__client_version ?? 'dev'; span styled at fontSize 0.7rem, opacity 0.45, marginLeft 6px | 2026-02-18 | afe213d | [200-add-current-version-number-in-small-text](./quick/200-add-current-version-number-in-small-text/) |
 | 201 | Extend ConsumableRecipeDef with description/outputSlot/outputVendorValue/foodBuff fields and populate all 14 CONSUMABLE_RECIPES entries; replace standalone Bandage upsert + craftItems array + ensureFoodItemTemplates inline list with loops over CONSUMABLE_RECIPES — crafting_materials.ts is now single source of truth for all consumable metadata | 2026-02-18 | 6258787 | [201-add-descriptions-to-consumable-recipes-a](./quick/201-add-descriptions-to-consumable-recipes-a/) |
 | 202 | Extract all inline item data from ensure_items.ts into item_defs.ts (9 typed constants: ARMOR_ALLOWED_CLASSES, STARTER_ARMOR_DESCS, STARTER_WEAPON_DEFS, STARTER_ACCESSORY_DEFS, JUNK_DEFS, RESOURCE_DEFS, WORLD_DROP_GEAR_DEFS, WORLD_DROP_JEWELRY_DEFS, CRAFTING_BASE_GEAR_DEFS); add Healer's Porridge as 15th CONSUMABLE_RECIPES entry; ensure_items.ts now contains only imports, upsert helpers, and for-loops | 2026-02-19 | 51543ef | [202-refactor-ensure-items-ts-extract-all-inli](./quick/202-refactor-ensure-items-ts-extract-all-inli/) |
+| 203 | Remove Generate build version step, env block, and Notify SpacetimeDB curl step from GitHub Actions workflow; add /setappversion admin command in useCommands.ts (ADMIN_IDENTITY_HEX guard + setAppVersion reducer call) + autocomplete entry in CommandBar.vue | 2026-02-18 | 211a3f5 | [203-remove-yaml-version-call-to-spacetimedb-](./quick/203-remove-yaml-version-call-to-spacetimedb-/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-19 - Completed quick-202: extract all inline item data from ensure_items.ts into item_defs.ts; added Healer's Porridge to CONSUMABLE_RECIPES. Previous: quick-201 (consumable recipe consolidation).
+Last activity: 2026-02-18 - Completed quick-203: removed SPACETIMEDB_ADMIN_TOKEN curl from CI workflow, added /setappversion admin command. Previous: quick-202 (ensure_items.ts refactor).
