@@ -2798,22 +2798,20 @@ export const registerCombatReducers = (deps: any) => {
         (s) => s.lockedCombatId === combat.id
       );
       if (spawn) {
-        for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawn.id)) {
-          ctx.db.enemySpawnMember.id.delete(member.id);
-        }
-        let count = 0n;
+        // Un-pulled members are already correct — keep them, just count them
+        const remainingMemberCount = BigInt([...ctx.db.enemySpawnMember.by_spawn.filter(spawn.id)].length);
+        let count = remainingMemberCount;
+        // Re-insert surviving pulled enemies back into the spawn group
         for (const enemyRow of enemies) {
           if (enemyRow.spawnId !== spawn.id) continue;
           if (enemyRow.currentHp === 0n) continue;
-          if (enemyRow.enemyRoleTemplateId) {
-            ctx.db.enemySpawnMember.insert({
-              id: 0n,
-              spawnId: spawn.id,
-              enemyTemplateId: enemyRow.enemyTemplateId,
-              roleTemplateId: enemyRow.enemyRoleTemplateId,
-            });
-            count += 1n;
-          }
+          ctx.db.enemySpawnMember.insert({
+            id: 0n,
+            spawnId: spawn.id,
+            enemyTemplateId: enemyRow.enemyTemplateId,
+            roleTemplateId: enemyRow.enemyRoleTemplateId ?? 0n,
+          });
+          count += 1n;
         }
         ctx.db.enemySpawn.id.update({
           ...spawn,
