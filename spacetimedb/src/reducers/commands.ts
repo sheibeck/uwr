@@ -19,6 +19,7 @@ export const registerCommandReducers = (deps: any) => {
     recomputeCharacterDerived,
     xpRequiredForLevel,
     MAX_LEVEL,
+    awardCombatXp,
     ensureWorldLayout,
     ensureStarterItemTemplates,
     ensureResourceItemTemplates,
@@ -71,11 +72,16 @@ export const registerCommandReducers = (deps: any) => {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', turnInMsg);
         appendNpcDialog(ctx, character.id, npc.id, turnInMsg);
 
-        // Award XP (show in reward color)
-        const xpGained = quest.rewardXp;
-        const currentXp = character.xp + xpGained;
-        ctx.db.character.id.update({ ...character, xp: currentXp });
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward', `You gain ${xpGained} XP.`);
+        // Award XP — use awardCombatXp so level-up check runs
+        // Pass character.level as enemyLevel: diff=0 → 100% modifier, no scaling penalty on quest XP
+        const xpResult = awardCombatXp(ctx, character, character.level, quest.rewardXp);
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward', `You gain ${xpResult.xpGained} XP.`);
+        if (xpResult.leveledUp) {
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+            `You reached level ${xpResult.newLevel}!`);
+          appendLocationEvent(ctx, character.locationId, 'system',
+            `${character.name} reached level ${xpResult.newLevel}.`);
+        }
 
         // Award affinity (show in faction/gold color)
         const affinityGained = 10n;
@@ -103,14 +109,19 @@ export const registerCommandReducers = (deps: any) => {
         completedAt: ctx.timestamp,
       });
 
-      // Award XP
-      const currentXp = character.xp + qt.rewardXp;
-      ctx.db.character.id.update({ ...character, xp: currentXp });
+      // Award XP — use awardCombatXp so level-up check runs
+      const deliveryXpResult = awardCombatXp(ctx, character, character.level, qt.rewardXp);
 
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
         `Delivery complete: ${qt.name}. ${npc.name} accepts your delivery.`);
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-        `You gain ${qt.rewardXp} XP.`);
+        `You gain ${deliveryXpResult.xpGained} XP.`);
+      if (deliveryXpResult.leveledUp) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          `You reached level ${deliveryXpResult.newLevel}!`);
+        appendLocationEvent(ctx, character.locationId, 'system',
+          `${character.name} reached level ${deliveryXpResult.newLevel}.`);
+      }
       appendNpcDialog(ctx, character.id, npc.id,
         `${npc.name} says, "Ah, you've brought it. Thank you."`);
 
