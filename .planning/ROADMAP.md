@@ -270,41 +270,40 @@ Plans:
 
 ### Phase 5: LLM Architecture
 
-**Goal:** Working LLM content pipeline: procedure calls Anthropic API, writes to content tables, handles failures gracefully. No content consumers yet — this is the plumbing phase.
+**Goal:** Working LLM content pipeline: procedure calls OpenAI Responses API, writes to content tables, handles failures gracefully with Shadeslinger-tone fallbacks. Client-side components render pending/ready/fallback states with on-tone loading flavor text.
 
 **Requirements:** REQ-040, REQ-041, REQ-042, REQ-043, REQ-044, REQ-045, REQ-046, REQ-047, REQ-080, REQ-081, REQ-082, REQ-083, REQ-084
 
 **Plans:** 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Backend foundation: LlmConfig, GeneratedQuestText, GeneratedEventText, LlmCircuit tables + SHADESLINGER_SYSTEM_PROMPT and FALLBACK_CONTENT constants + set_llm_config and reset_llm_circuit reducers
-- [ ] 05-02-PLAN.md — Procedure implementation: generate_content procedure with Anthropic API call, circuit breaker, fallback writing + publish and regenerate bindings
-- [ ] 05-03-PLAN.md — Client integration: useLlmContent composable, GeneratedTextBlock component, useGameData subscriptions + human verification of end-to-end pipeline
+- [ ] 05-01-PLAN.md — Backend data layer: LlmConfig (private), GeneratedQuestText, GeneratedEventText, GeneratedNpcContent, LlmCircuit tables + llm_prompts.ts (SHADESLINGER_SYSTEM_PROMPT, prompt builders, JSON schemas) + llm_fallbacks.ts (FALLBACK_CONTENT)
+- [ ] 05-02-PLAN.md — Backend behavior: generate_content procedure (OpenAI Responses API, circuit breaker, fallback writing) + set_llm_config/reset_llm_circuit reducers + local publish + bindings regeneration
+- [ ] 05-03-PLAN.md — Client integration: useLlmContent composable (triggerGeneration procedure call), GeneratedTextBlock.vue (pending/ready/fallback rendering with flavor text), useGameData subscriptions + human verification
 
 **Scope:**
-- `LlmConfig` table (private): api_key, default_model, circuit state
+- `LlmConfig` table (private): api_key, default_model (gpt-5-mini), circuit state
 - `setLlmConfig` admin-only reducer
-- `GeneratedQuestText` table (public, status-gated)
-- `GeneratedEventText` table (public, status-gated)
-- `generate_content` procedure: reads config, calls Anthropic API, writes result or fallback
+- `GeneratedQuestText`, `GeneratedEventText`, `GeneratedNpcContent` tables (public, status-gated)
+- `generate_content` procedure: reads config, calls OpenAI Responses API, writes result or fallback
 - `SHADESLINGER_SYSTEM_PROMPT` constant with tone instructions + 5 examples
-- Per-content-type prompt builder functions
+- Per-content-type prompt builder functions (buildQuestPrompt, buildEventPrompt, buildNpcDialoguePrompt)
 - `FALLBACK_CONTENT` constant with 3+ fallbacks per content type (in Shadeslinger tone)
-- `LlmCircuit` scheduled table for circuit auto-reset
+- `LlmCircuit` scheduled table for circuit auto-reset (5-minute reset after 3 failures in 60s)
 - Client loading state components with on-tone placeholder text
-- `spacetimedb/src/procedures/` directory created for procedure abstraction layer
+- `spacetimedb/src/procedures/` directory created
 
 **Integration test:** Admin sets API key → client calls generate_content procedure → quest text row flips from pending to ready.
 
 **Success Criteria:**
 - [ ] Admin can set API key via `setLlmConfig` reducer
-- [ ] `generate_content` procedure successfully calls Anthropic API and writes text
+- [ ] `generate_content` procedure successfully calls OpenAI Responses API and writes text
 - [ ] Failing API call (bad key, timeout) writes fallback text — never leaves status as `pending`
 - [ ] Circuit breaker opens after 3 failures in 60 seconds, all calls serve fallback
-- [ ] Circuit breaker auto-resets after 5 minutes
-- [ ] Prompt caching applied to SHADESLINGER_SYSTEM_PROMPT section
-- [ ] Generated output is valid JSON matching the expected schema
-- [ ] Prompt injection test: character name with injection attempt → sanitized before prompt
+- [ ] Circuit breaker auto-resets after 5 minutes via LlmCircuit scheduled table
+- [ ] Prompt caching: automatic on OpenAI at 1024+ tokens (optimization only, not a requirement)
+- [ ] Generated output is valid JSON matching the expected schema per content type
+- [ ] Prompt injection test: player name with injection attempt → sanitized before prompt (alphanumeric + space, max 30 chars)
 
 ---
 
