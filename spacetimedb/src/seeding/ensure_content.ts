@@ -5,6 +5,7 @@ import {
   EffectTick,
   HotTick,
   CastTick,
+  InactivityTick,
 } from '../schema/scheduled_tables';
 import { ensureRaces } from '../data/races';
 import { ensureFactions } from '../data/faction_data';
@@ -77,6 +78,15 @@ export function ensureDayNightTickScheduled(ctx: any) {
     ctx.db.dayNightTick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(nextAt),
+    });
+  }
+}
+
+export function ensureInactivityTickScheduled(ctx: any) {
+  if (!tableHasRows(ctx.db.inactivityTick.iter())) {
+    ctx.db.inactivityTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 300_000_000n),
     });
   }
 }

@@ -10,6 +10,7 @@ export const Player = table(
     activeCharacterId: t.u64().optional(),
     userId: t.u64().optional(),
     sessionStartedAt: t.timestamp().optional(),
+    lastActivityAt: t.timestamp().optional(),
   }
 );
 
@@ -1663,6 +1664,17 @@ export const EventDespawnTick = table(
   }
 );
 
+export const InactivityTick = table(
+  {
+    name: 'inactivity_tick',
+    scheduled: 'sweep_inactivity',
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+  }
+);
+
 export const AppVersion = table(
   { name: 'app_version', public: true },
   {
@@ -1766,5 +1778,6 @@ export const spacetimedb = schema(
   EventObjective,
   WorldStatTracker,
   EventDespawnTick,
+  InactivityTick,
   AppVersion,
 );

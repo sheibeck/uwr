@@ -12,4 +12,5 @@ export {
   CombatLoopTick,
   CombatEnemyCast,
   EventDespawnTick,
+  InactivityTick,
 } from './tables';

@@ -175,6 +175,33 @@ Set the `BUILD_VERSION` environment variable during CI to stamp the build:
 BUILD_VERSION=1.2.3 pnpm build
 ```
 
+### Post-Deploy In-Game Steps (Admin Required)
+
+After every production deployment, log into the game with an admin account and run these two commands in the chat bar:
+
+#### `/synccontent`
+
+Re-seeds all static game content tables from code to the live database. Run this after any backend publish that adds or changes:
+
+- Abilities, item templates, crafting recipes, recipe scrolls
+- Enemies, enemy abilities, loot tables, vendor inventory
+- NPCs, quest templates, dialogue options
+- Races, factions, world layout, locations
+
+This is safe to run on a live database — it upserts rows, it does not wipe player data.
+
+#### `/setappversion`
+
+Writes the current client build version into the `AppVersion` SpacetimeDB table. Connected clients compare their build version against this value and automatically reload when there is a mismatch (i.e. after a new frontend deploy). Run this after every frontend deploy so players pick up the new build.
+
+**Full post-deploy checklist:**
+
+1. `spacetime publish uwr --project-path spacetimedb` — publish backend
+2. `pnpm build && git push` — build and deploy frontend
+3. Log into the game with an admin account
+4. Type `/synccontent` in chat — syncs all game content to the live DB
+5. Type `/setappversion` in chat — tells connected clients a new build is available
+
 ---
 
 ## Admin Reference
