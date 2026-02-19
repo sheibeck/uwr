@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 
-const BUILD_VERSION = Date.now().toString();
+const BUILD_VERSION = process.env.BUILD_VERSION || Date.now().toString();
 
 // https://vite.dev/config/
 export default defineConfig({

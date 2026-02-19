@@ -36,6 +36,8 @@ import {
 // Import and reexport all reducer arg types
 import TickDayNightReducer from "./tick_day_night_reducer";
 export { TickDayNightReducer };
+import SetAppVersionReducer from "./set_app_version_reducer";
+export { SetAppVersionReducer };
 import OnConnectReducer from "./on_connect_reducer";
 export { OnConnectReducer };
 import OnDisconnectReducer from "./on_disconnect_reducer";
@@ -264,6 +266,8 @@ import AchievementRow from "./achievement_table";
 export { AchievementRow };
 import AggroEntryRow from "./aggro_entry_table";
 export { AggroEntryRow };
+import AppVersionRow from "./app_version_table";
+export { AppVersionRow };
 import CastTickRow from "./cast_tick_table";
 export { CastTickRow };
 import CharacterRow from "./character_table";
@@ -492,6 +496,8 @@ import AddTradeItem from "./add_trade_item_type";
 export { AddTradeItem };
 import AggroEntry from "./aggro_entry_type";
 export { AggroEntry };
+import AppVersion from "./app_version_type";
+export { AppVersion };
 import BindLocation from "./bind_location_type";
 export { BindLocation };
 import BuyItem from "./buy_item_type";
@@ -830,6 +836,8 @@ import SendFriendRequestToCharacter from "./send_friend_request_to_character_typ
 export { SendFriendRequestToCharacter };
 import SetActiveCharacter from "./set_active_character_type";
 export { SetActiveCharacter };
+import SetAppVersion from "./set_app_version_type";
+export { SetAppVersion };
 import SetCombatTarget from "./set_combat_target_type";
 export { SetCombatTarget };
 import SetDisplayName from "./set_display_name_type";
@@ -975,6 +983,17 @@ const tablesSchema = __schema(
       { name: 'aggro_entry_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, AggroEntryRow),
+  __table({
+    name: 'app_version',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'app_version_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AppVersionRow),
   __table({
     name: 'cast_tick',
     indexes: [
@@ -2375,6 +2394,7 @@ const tablesSchema = __schema(
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("tick_day_night", TickDayNightReducer),
+  __reducerSchema("set_app_version", SetAppVersionReducer),
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("send_friend_request", SendFriendRequestReducer),
   __reducerSchema("send_friend_request_to_character", SendFriendRequestToCharacterReducer),
