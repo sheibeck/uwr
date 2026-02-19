@@ -19,7 +19,7 @@ export const registerCommandReducers = (deps: any) => {
     recomputeCharacterDerived,
     xpRequiredForLevel,
     MAX_LEVEL,
-    awardCombatXp,
+    awardXp,
     ensureWorldLayout,
     ensureStarterItemTemplates,
     ensureResourceItemTemplates,
@@ -72,9 +72,9 @@ export const registerCommandReducers = (deps: any) => {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', turnInMsg);
         appendNpcDialog(ctx, character.id, npc.id, turnInMsg);
 
-        // Award XP — use awardCombatXp so level-up check runs
+        // Award XP — use awardXp so level-up check runs
         // Pass character.level as enemyLevel: diff=0 → 100% modifier, no scaling penalty on quest XP
-        const xpResult = awardCombatXp(ctx, character, character.level, quest.rewardXp);
+        const xpResult = awardXp(ctx, character, character.level, quest.rewardXp);
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward', `You gain ${xpResult.xpGained} XP.`);
         if (xpResult.leveledUp) {
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
@@ -109,8 +109,8 @@ export const registerCommandReducers = (deps: any) => {
         completedAt: ctx.timestamp,
       });
 
-      // Award XP — use awardCombatXp so level-up check runs
-      const deliveryXpResult = awardCombatXp(ctx, character, character.level, qt.rewardXp);
+      // Award XP — use awardXp so level-up check runs
+      const deliveryXpResult = awardXp(ctx, character, character.level, qt.rewardXp);
 
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
         `Delivery complete: ${qt.name}. ${npc.name} accepts your delivery.`);

@@ -2502,7 +2502,7 @@ export const registerCombatReducers = (deps: any) => {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
         if (p.status === 'dead') {
-          const reward = deps.awardCombatXp(
+          const reward = deps.awardXp(
             ctx,
             character,
             avgLevel,
@@ -2546,7 +2546,7 @@ export const registerCombatReducers = (deps: any) => {
         const xpBonusPct = getPerkBonusByField(ctx, character.id, 'xpBonus', character.level);
         const baseXpAmount = adjustedBase / splitCount;
         const scaledXpAmount = xpBonusPct > 0 ? (baseXpAmount * BigInt(100 + xpBonusPct)) / 100n : baseXpAmount;
-        const reward = deps.awardCombatXp(ctx, character, avgLevel, scaledXpAmount);
+        const reward = deps.awardXp(ctx, character, avgLevel, scaledXpAmount);
         if (reward.xpGained > 0n) {
           const xpMsg = xpBonusPct > 0 ? `You gain ${reward.xpGained} XP. (+${xpBonusPct}% XP bonus)` : `You gain ${reward.xpGained} XP.`;
           appendPrivateEvent(

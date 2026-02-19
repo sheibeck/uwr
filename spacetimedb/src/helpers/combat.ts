@@ -1887,7 +1887,7 @@ export function executeAbilityAction(
   );
 }
 
-export function awardCombatXp(
+export function awardXp(
   ctx: any,
   character: any,
   enemyLevel: bigint,
