@@ -2829,6 +2829,61 @@ export const registerCombatReducers = (deps: any) => {
           groupCount: count,
         });
       }
+      // Award event kill credit for enemies killed before the player died
+      // (victory path never runs on player death, so we award here for hp===0 enemies)
+      const killedEnemies = enemies.filter((e: any) => e.currentHp === 0n);
+      if (killedEnemies.length > 0) {
+        const deathCombatLoc = ctx.db.location.id.find(combat.locationId);
+        if (deathCombatLoc) {
+          for (const activeEvent of ctx.db.worldEvent.by_status.filter('active')) {
+            if (activeEvent.regionId !== deathCombatLoc.regionId) continue;
+            const eventDef = WORLD_EVENT_DEFINITIONS[activeEvent.eventKey];
+            if (!eventDef) continue;
+            const eventTemplateIds = new Set<bigint>();
+            for (const cl of eventDef.contentLocations) {
+              for (const e of cl.enemies) {
+                for (const tmpl of ctx.db.enemyTemplate.iter()) {
+                  if (tmpl.name === e.enemyTemplateKey) {
+                    eventTemplateIds.add(tmpl.id);
+                    break;
+                  }
+                }
+              }
+            }
+            for (const killedEnemy of killedEnemies) {
+              if (!eventTemplateIds.has(killedEnemy.enemyTemplateId)) continue;
+              // Award contribution per participant
+              for (const p of participants) {
+                const character = ctx.db.character.id.find(p.characterId);
+                if (!character) continue;
+                let contribFound = false;
+                for (const contrib of ctx.db.eventContribution.by_character.filter(character.id)) {
+                  if (contrib.eventId === activeEvent.id) {
+                    ctx.db.eventContribution.id.update({ ...contrib, count: contrib.count + 1n });
+                    contribFound = true;
+                    break;
+                  }
+                }
+                if (!contribFound) {
+                  ctx.db.eventContribution.insert({
+                    id: 0n,
+                    eventId: activeEvent.id,
+                    characterId: character.id,
+                    count: 1n,
+                    regionEnteredAt: ctx.timestamp,
+                  });
+                }
+              }
+              // Advance kill_count objective once per enemy killed (not per participant)
+              for (const obj of ctx.db.eventObjective.by_event.filter(activeEvent.id)) {
+                if (obj.objectiveType === 'kill_count') {
+                  ctx.db.eventObjective.id.update({ ...obj, currentCount: obj.currentCount + 1n });
+                }
+              }
+            }
+          }
+        }
+      }
       const fallenNames = participants
         .filter((p) => {
           const character = ctx.db.character.id.find(p.characterId);
