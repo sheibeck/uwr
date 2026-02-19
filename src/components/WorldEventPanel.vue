@@ -186,6 +186,7 @@ const props = defineProps<{
   regions: RegionRow[];
   selectedCharacter: CharacterRow | null;
   isAdmin: boolean;
+  nowMicros: number;
 }>();
 
 const activeTab = ref<'active' | 'history' | 'admin'>('active');
@@ -263,14 +264,15 @@ const thresholdPercent = (event: any): number => {
   return Math.min(100, Math.max(0, (current / target) * 100));
 };
 
-// Time remaining string
+// Time remaining string — uses props.nowMicros (updated every 100ms by App.vue setInterval)
+// so the display ticks continuously without requiring a server data change
 const timeRemaining = (event: any): string => {
   if (!event.deadlineAtMicros) return '';
-  const nowMicros = BigInt(Date.now()) * 1000n;
-  const deadlineMicros = BigInt(event.deadlineAtMicros);
+  const nowMicros = props.nowMicros;
+  const deadlineMicros = Number(BigInt(event.deadlineAtMicros));
   if (nowMicros >= deadlineMicros) return 'Expired';
   const remainMicros = deadlineMicros - nowMicros;
-  const remainSec = Number(remainMicros / 1_000_000n);
+  const remainSec = Math.floor(remainMicros / 1_000_000);
   const m = Math.floor(remainSec / 60);
   const s = remainSec % 60;
   return `${m}m ${s}s`;

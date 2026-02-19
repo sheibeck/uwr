@@ -212,6 +212,7 @@
           :regions="regions"
           :selected-character="selectedCharacter"
           :is-admin="isAdmin"
+          :now-micros="nowMicros"
         />
       </div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('worldEvents', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('worldEvents', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('worldEvents', $event, { right: true, bottom: true })" />
