@@ -2,17 +2,17 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-18
-**Status:** Phase 13.1 Plan 01 complete — dual-axis gear quality schema (craftQuality + qualityTier), Essence I/II/III seeded, MATERIAL_AFFIX_MAP keys renamed, unified addRecipeTemplate helper, all gear recipes require Essence as req3. Plan 02 (craft_recipe reducer dual-axis update) is next.
+**Status:** All planned phases complete (1, 3, 3.1, 3.1.1, 3.1.2, 3.1.3, 4, 6, 10, 11, 12, 13, 13.1, 14, 15, 18, 19, 20). Quick tasks through 196 have done substantial balance, polish, and system refinement. Next formal phases: 5 (LLM), 7 (World Events LLM text), 8 (Narrative Tone), 9 (Content Expansion), 16 (Travelling NPCs), 17 (World Bosses).
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
+Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 13 (Crafting System) complete — 10 crafting materials, 29 recipes (14 consumable + 15 gear), salvage yields materials, craft_recipe applies deterministic affixes, CraftingPanel filter chips + craftable toggle, human-verified. Phase 13.1 (Dual-Axis Gear System) complete — craftQuality (dented/standard/reinforced/exquisite/mastercraft) separates potency from rarity axis, Essence I/II/III/IV as gear crafting reagents, unified addRecipeTemplate helper, per-material-quality stat bonuses via implicit ItemAffix rows. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 15 (Named NPCs) complete — implemented organically via Phase 19 and quick tasks; 7+ NPCs, shops, world placement in place. Phase 18 (World Events System Expansion) complete — admin-fired events, event spawns, Bronze/Silver/Gold contribution tiers, dual success/failure consequences (Ripple), WorldEventPanel with Active + History tabs, banner overlay notifications, admin event panel (quick-191), WorldStatTracker for threshold events. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
 
-**Last completed phase:** 13.1 Plan 02 (Dual-Axis Gear System — craft_recipe reducer dual-axis update and frontend craft quality display)
-**Current phase:** 13.1-dual-axis-gear-system (Plan 02/3 complete)
-**Next action:** Phase 13.1 Plan 03 (if planned) or next phase
+**Last completed phase:** 20 (Perk Variety Expansion — Plan 03 complete: active ability perks with hotbar integration)
+**Current phase:** None — all planned phases executed. Quick tasks active for balance/polish.
+**Next action:** Plan Phase 5 (LLM Architecture) when ready, or continue quick tasks for balance/polish
 
 ---
 
@@ -21,7 +21,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Races | Complete (2/2 plans done) |
-| 2 | Hunger | Complete (2/2 plans done, human-verified) |
+| 2 | Hunger | Removed (quick-76) — food buff system preserved as CharacterEffect |
 | 3 | Renown Foundation | Complete (2/2 plans done, human-verified) |
 | 3.1 | Combat Balance | Complete (5/5 plans done: 2 impl + 1 verify + 2 gaps, human-verified) |
 | 3.1.1 | Combat Balance Part 2 | Complete (3/3 plans done: metadata, implementation, verification all approved) |
@@ -30,17 +30,21 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 4 | Config Table Architecture | Complete (2/2 plans done: table extension + consumer migration, human-verified) |
 | 5 | LLM Architecture | Pending |
 | 6 | Quest System | Complete (3/3 plans done: backend schema + reducers, passive search + quest seeding, frontend integration + human-verified) |
-| 7 | World Events | Pending |
+| 7 | World Events | Pending (core system built in Phase 18; LLM text + threshold auto-fire + race_unlock pending) |
 | 8 | Narrative Tone Rollout | Pending |
-| 9 | Content Data Expansion | Pending |
+| 9 | Content Data Expansion | Pending (most targets exceeded: 29+ enemies, 20+ resources, 7+ NPCs, 29 recipes) |
 | 10 | Travel & Movement Costs | Complete (2/2 plans done: backend + UI, human-verified) |
 | 11 | Death & Corpse System | Complete (2/2 plans done: backend foundation + resurrection/corpse summon; UI skipped per user decision) |
 | 12 | Overall Renown System | Complete (3/3 plans done: backend + integration + UI, human-verified) |
+| 13 | Crafting System | Complete (3/3 plans done: data foundation + reducers + UI filter chips/craftable toggle/material display/scroll learning, human-verified) |
+| 13.1 | Dual-Axis Gear System | Complete (2/2 plans done: craftQuality schema + dual-axis craft_recipe reducer + frontend craft quality display) |
 | 14 | Loot & Gear Progression | Complete (4/4 plans done: schema+catalog, loot pipeline, legendary drops+salvage, client UI, human-verified) |
 | 15 | Named NPCs | Complete (implemented organically via Phase 19 and quick tasks — NPC entities, shops, world placement all in place) |
+| 16 | Travelling NPCs | Pending (not yet planned) |
+| 17 | World Bosses | Pending (not yet planned) |
+| 18 | World Events System Expansion | Complete (3/3 plans done: backend WorldEvent/EventContribution/EventSpawnEnemy tables + reducers + WorldEventPanel UI with Active/History tabs and admin event panel) |
 | 19 | NPC Interactions | Complete (2/2 plans done: backend affinity/dialogue + interaction reducers; UI skipped per user decision — multi-step questing via NPC dialogue is sufficient MVP) |
 | 20 | Perk Variety Expansion | Complete (3/3 plans done: perk data foundation + perk logic implementation + active ability perks with hotbar integration) |
-| 13 | Crafting System | Complete (3/3 plans done: data foundation + reducers + UI filter chips/craftable toggle/material display/scroll learning, human-verified) |
 
 ---
 
@@ -393,4 +397,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-19 - Completed quick task 193: add unique descriptions to all 142 item templates and unify all 5 tooltip code paths into buildItemTooltipData in useItemTooltip.ts
+Last activity: 2026-02-18/19 - Quick tasks through 196 complete. Most recent: quick-196 (essence/reagent drop rate tuning, 12%→6% and 15%→10%), quick-193 (add descriptions to all 142 item templates + unify 5 tooltip code paths into buildItemTooltipData in useItemTooltip.ts, date 2026-02-19), quick-189 (consolidate HP/mana modifier magnitude into getModifierMagnitude helper in useCrafting.ts). Previous highlights: quick-191 (admin world events tab in WorldEventPanel), quick-192 (align gear/crafting progression to world-tier spec), quick-178 (consolidate enemy abilities to single source of truth).
