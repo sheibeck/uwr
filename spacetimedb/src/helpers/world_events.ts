@@ -82,6 +82,15 @@ export function fireWorldEvent(ctx: any, eventKey: string, deps?: WorldEventDeps
     consequenceText: eventDef.consequenceTextStub ?? '',
   });
 
+  // Schedule automatic expiry for time-based events
+  if (deadlineAtMicros > 0n) {
+    ctx.db.eventDespawnTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(deadlineAtMicros),
+      eventId: eventRow.id,
+    });
+  }
+
   // Spawn event-exclusive content
   spawnEventContent(ctx, eventRow.id, eventDef, resolvedDeps);
 

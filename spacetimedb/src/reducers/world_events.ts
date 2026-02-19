@@ -1,5 +1,5 @@
 import { requireAdmin } from '../data/admin';
-import { fireWorldEvent, resolveWorldEvent, incrementWorldStat, despawnEventContent } from '../helpers/world_events';
+import { fireWorldEvent, resolveWorldEvent, incrementWorldStat } from '../helpers/world_events';
 import { appendPrivateEvent } from '../helpers/events';
 import { EventDespawnTick } from '../schema/tables';
 
@@ -157,13 +157,16 @@ export function registerWorldEventReducers(deps: any) {
     }
   );
 
-  // despawn_event_content — Scheduled reducer (kept for manual/emergency despawn via console)
-  // resolveWorldEvent now calls despawnEventContent directly for immediate cleanup.
+  // despawn_event_content — Scheduled reducer: auto-resolve time-based events on deadline.
+  // resolveWorldEvent guards against double-resolve (exits if status !== 'active'),
+  // so manual admin resolution before the deadline fires safely.
   spacetimedb.reducer(
     'despawn_event_content',
     { arg: EventDespawnTick.rowType },
     (ctx: any, { arg }: any) => {
-      despawnEventContent(ctx, arg.eventId);
+      const event = ctx.db.worldEvent.id.find(arg.eventId);
+      if (!event || event.status !== 'active') return;
+      resolveWorldEvent(ctx, event, 'failure');
     }
   );
 }
