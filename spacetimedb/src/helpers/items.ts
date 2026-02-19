@@ -70,12 +70,41 @@ export function getMaxTierForLevel(level: bigint): number {
   return 4;
 }
 
+/**
+ * Determines the quality tier of a dropped item.
+ *
+ * T1 creatures (level 1-10, maxTier=1): Level-scaled uncommon chance.
+ *   uncommonChance = min(35, level*5 + dangerBonus)
+ *   dangerBonus = max(0, floor((danger - 120) / 10))
+ *
+ *   Effective per-kill affixed rate (gear% * uncommon%):
+ *     L1 danger 100: ~1%    | L3 danger 100: ~5%
+ *     L3 danger 160: ~3-5%  | L5 danger 160: ~7-10%
+ *     L6 danger 200: ~8-12%
+ *
+ *   Crafting equivalence: ~15-20 kills for materials + essence + reagent
+ *   (matches finding affixed drop naturally around L3-5)
+ *
+ * T2+ creatures: Danger-based tier with 12% tier-up chance.
+ *   danger <=120=common, 121-170=uncommon, 171-250=rare, 251-400=epic
+ */
 export function rollQualityTier(creatureLevel: bigint, seedBase: bigint, dangerMultiplier?: bigint): string {
   const maxTier = getMaxTierForLevel(creatureLevel);
 
   if (dangerMultiplier !== undefined) {
-    // Danger-based tier selection
     const danger = Number(dangerMultiplier);
+
+    // T1 creatures (maxTier 1): level-scaled uncommon chance instead of hard common cap
+    if (maxTier === 1) {
+      const level = Number(creatureLevel);
+      const levelPct = Math.min(30, level * 5); // L1=5%, L2=10% ... L6=30%
+      const dangerBonus = danger > 120 ? Math.floor((danger - 120) / 10) : 0;
+      const uncommonChance = Math.min(35, levelPct + dangerBonus);
+      const uncommonRoll = Number((seedBase + 53n) % 100n);
+      return uncommonRoll < uncommonChance ? 'uncommon' : 'common';
+    }
+
+    // Higher-tier creatures: danger-based tier selection (unchanged)
     let baseTierNum: number;
     if (danger <= 120) baseTierNum = 1;        // common
     else if (danger <= 170) baseTierNum = 2;   // uncommon
