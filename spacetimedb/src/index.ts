@@ -255,11 +255,21 @@ spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
   });
 });
 
+const INACTIVITY_AUTO_CAMP_ENABLED = false; // Set to true to enable auto-camp on inactivity
 const INACTIVITY_TIMEOUT_MICROS = 900_000_000n; // 15 minutes
 const INACTIVITY_SWEEP_INTERVAL_MICROS = 300_000_000n; // 5 minutes
 
 spacetimedb.reducer('sweep_inactivity', { arg: InactivityTick.rowType }, (ctx) => {
   const now = ctx.timestamp.microsSinceUnixEpoch;
+
+  // Schedule next sweep regardless of enabled state
+  ctx.db.inactivityTick.insert({
+    scheduledId: 0n,
+    scheduledAt: ScheduleAt.time(now + INACTIVITY_SWEEP_INTERVAL_MICROS),
+  });
+
+  if (!INACTIVITY_AUTO_CAMP_ENABLED) return;
+
   const cutoff = now - INACTIVITY_TIMEOUT_MICROS;
 
   for (const player of ctx.db.player.iter()) {
@@ -329,11 +339,6 @@ spacetimedb.reducer('sweep_inactivity', { arg: InactivityTick.rowType }, (ctx) =
     });
   }
 
-  // Schedule next sweep
-  ctx.db.inactivityTick.insert({
-    scheduledId: 0n,
-    scheduledAt: ScheduleAt.time(now + INACTIVITY_SWEEP_INTERVAL_MICROS),
-  });
 });
 
 spacetimedb.reducer('set_app_version', { version: t.string() }, (ctx, { version }) => {
