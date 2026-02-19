@@ -408,9 +408,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 209 | Move event kill credit to victory path so all kill types (auto-attack and ability) award contribution — removed per-kill credit from auto-attack guard; added contribution (per participant × per enemy template) and kill_count objective increment (once per enemy) in the victory section alongside updateQuestProgressForKill | 2026-02-18 | 3a2c7f3 | — |
 | 210 | Fix quest XP not triggering level-up — both kill quest and delivery quest turn-ins in hailNpc now route XP through awardCombatXp (passing character.level as enemyLevel for 100% modifier), which runs the while-loop level check, recomputes derived stats, and emits level-up events | 2026-02-19 | 3845054 | [210-when-i-complete-a-quest-and-the-xp-pushe](./quick/210-when-i-complete-a-quest-and-the-xp-pushe/) |
 | 211 | Fix infinite reload loop in version check watcher — sessionStorage guard prevents repeated reloads when server AppVersion is stale after a new deploy; guard cleared when versions match so future updates still trigger one reload | 2026-02-19 | 75a882a | — |
+| 212 | Award event kill credit on player death for enemies killed mid-combat — player-death path now loops through enemies with currentHp===0n and awards contribution per participant + advances kill_count objective once per killed enemy; victory path only fires when all enemies die so this was a blind spot | 2026-02-19 | 9917e62 | — |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-19 - Completed quick-211: fixed infinite reload loop in version watcher with sessionStorage guard. Previous: quick-210 (quest XP level-up fix).
+Last activity: 2026-02-19 - Completed quick-212: award event kill credit on player death for enemies already killed during combat. Previous: quick-211 (version reload loop fix).
