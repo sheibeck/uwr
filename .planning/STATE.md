@@ -422,4 +422,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-19 - Completed quick-217: auto-camp players inactive 15+ minutes — lastActivityAt tracking, InactivityTick sweep, combat protection. Previous: quick-216 (heal HP overwrite fix).
+Last activity: 2026-02-18 - Phase 8 context gathered (Narrative Tone Rollout). Resume: `.planning/phases/08-narrative-tone-rollout/08-CONTEXT.md`. Previous: quick-217 (auto-camp inactive players).
