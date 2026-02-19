@@ -406,9 +406,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 207 | Preserve un-pulled EnemySpawnMember rows on player death — removed delete-all-members loop from player-death spawn restore block; remainingMemberCount counts existing un-pulled rows before re-inserting pulled survivors; roleTemplateId uses ?? 0n fallback; groupCount = un-pulled survivors + pulled survivors with hp > 0 | 2026-02-18 | 9988410 | [207-restore-surviving-enemies-to-spawn-group](./quick/207-restore-surviving-enemies-to-spawn-group/) |
 | 208 | WorldEventPanel time-remaining countdown now ticks every second by consuming nowMicros prop (updated every 100ms by App.vue setInterval) instead of calling Date.now() inline — Vue reactivity re-renders timeRemaining() on each tick without requiring server data change | 2026-02-19 | 4fda3db | [208-the-time-remaining-in-the-active-events-](./quick/208-the-time-remaining-in-the-active-events-/) |
 | 209 | Move event kill credit to victory path so all kill types (auto-attack and ability) award contribution — removed per-kill credit from auto-attack guard; added contribution (per participant × per enemy template) and kill_count objective increment (once per enemy) in the victory section alongside updateQuestProgressForKill | 2026-02-18 | 3a2c7f3 | — |
+| 210 | Fix quest XP not triggering level-up — both kill quest and delivery quest turn-ins in hailNpc now route XP through awardCombatXp (passing character.level as enemyLevel for 100% modifier), which runs the while-loop level check, recomputes derived stats, and emits level-up events | 2026-02-19 | 3845054 | [210-when-i-complete-a-quest-and-the-xp-pushe](./quick/210-when-i-complete-a-quest-and-the-xp-pushe/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick-209: moved event kill credit from auto-attack path to victory path so all kills (auto-attack and abilities) award event contribution. Previous: quick-208 (WorldEventPanel time-remaining countdown via nowMicros prop).
+Last activity: 2026-02-19 - Completed quick-210: fixed quest XP not triggering level-up by routing hailNpc XP awards through awardCombatXp for both kill and delivery quest turn-ins. Previous: quick-209 (event kill credit to victory path).
