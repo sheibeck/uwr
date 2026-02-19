@@ -1,5 +1,4 @@
 import { getClassConfig, type StatKey } from './class_stats.js';
-import { ABILITIES } from './ability_catalog.js';
 
 // ============================================================================
 // COMBAT SCALING CONSTANTS

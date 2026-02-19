@@ -34,19 +34,3 @@ export interface AbilityMetadata {
   combatState?: 'any' | 'combat_only' | 'out_of_combat' | 'out_of_combat_only';
 }
 
-// All class abilities are now defined in their respective class files:
-// - cleric_abilities.ts
-// - warrior_abilities.ts
-// - wizard_abilities.ts
-// - rogue_abilities.ts
-// - ranger_abilities.ts
-// - shaman_abilities.ts
-// - enchanter_abilities.ts
-// - necromancer_abilities.ts
-// - summoner_abilities.ts
-// - bard_abilities.ts
-// - beastmaster_abilities.ts
-// - druid_abilities.ts
-export const ABILITIES = {
-  // Empty - use individual class files
-};

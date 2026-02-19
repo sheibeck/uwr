@@ -48,10 +48,7 @@ import {
   TANK_CLASSES,
   HEALER_CLASSES,
 } from './data/class_stats';
-import {
-  ABILITIES,
-  GLOBAL_COOLDOWN_MICROS,
-} from './data/ability_catalog';
+import { GLOBAL_COOLDOWN_MICROS } from './data/ability_catalog';
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from './data/xp';
 import { RACE_DATA, ensureRaces } from './data/races';
 import { ensureFactions } from './data/faction_data';

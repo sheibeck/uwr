@@ -148,18 +148,6 @@ export const MATERIAL_DEFS: MaterialDef[] = [
 // ---------------------------------------------------------------------------
 
 /**
- * Maps material tier to a quality tier string.
- * Tier 1 = common, Tier 2 = uncommon, Tier 3 = rare.
- * (Higher tiers possible in future.)
- */
-export function materialTierToQuality(tier: bigint): string {
-  if (tier === 1n) return 'common';
-  if (tier === 2n) return 'uncommon';
-  if (tier === 3n) return 'rare';
-  return 'common';
-}
-
-/**
  * Maps material tier to a craft quality level string.
  * Tier 1 = standard, Tier 2 = reinforced, Tier 3 = exquisite.
  * Dented and Mastercraft are not achievable via basic crafting.
