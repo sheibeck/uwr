@@ -1,4 +1,5 @@
-import type { ItemTemplateRow, ItemAffixRow } from '../module_bindings';
+import { type Infer } from 'spacetimedb';
+import { ItemTemplateRow, ItemAffixRow } from '../module_bindings';
 
 export type TooltipStatLine = { label: string; value: string };
 export type TooltipAffixLine = { label: string; value: string; affixName: string };
@@ -19,7 +20,7 @@ export type ItemTooltipData = {
 };
 
 type BuildTooltipArgs = {
-  template: ItemTemplateRow | null | undefined;
+  template: Infer<typeof ItemTemplateRow> | null | undefined;
   instance?: {
     id?: bigint;
     qualityTier?: string | null;
@@ -28,7 +29,7 @@ type BuildTooltipArgs = {
     isNamed?: boolean | null;
     quantity?: bigint | null;
   };
-  affixes?: ItemAffixRow[];
+  affixes?: Infer<typeof ItemAffixRow>[];
   affixDataJson?: string | null;
   priceOrValue?: TooltipStatLine;
 };

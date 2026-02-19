@@ -1,14 +1,15 @@
 import { computed, type Ref } from 'vue';
-import { reducers, type CharacterRow, type ItemInstanceRow, type ItemTemplateRow, type ItemAffixRow } from '../module_bindings';
+import { type Infer } from 'spacetimedb';
+import { reducers, CharacterRow, ItemInstanceRow, ItemTemplateRow, ItemAffixRow } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 import { buildItemTooltipData, type ItemTooltipData } from './useItemTooltip';
 
 type UseInventoryArgs = {
   connActive: Ref<boolean>;
-  selectedCharacter: Ref<CharacterRow | null>;
-  itemInstances: Ref<ItemInstanceRow[]>;
-  itemTemplates: Ref<ItemTemplateRow[]>;
-  itemAffixes: Ref<ItemAffixRow[]>;
+  selectedCharacter: Ref<Infer<typeof CharacterRow> | null>;
+  itemInstances: Ref<Infer<typeof ItemInstanceRow>[]>;
+  itemTemplates: Ref<Infer<typeof ItemTemplateRow>[]>;
+  itemAffixes: Ref<Infer<typeof ItemAffixRow>[]>;
 };
 
 const EQUIPMENT_SLOTS = [
