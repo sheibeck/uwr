@@ -275,6 +275,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 13.1-dual-axis-gear-system | 02 | ~10min | 2 | 6 |
 | quick-193 | 01 | ~90min | 3 | 8 |
 | Phase quick-197 P01 | 20min | 2 tasks | 2 files |
+| Phase quick-202 P01 | 12min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -397,9 +398,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 199 | Fix ability resource consumption — stamina/mana now deducted AFTER ability fires successfully via arrow-function wrapper around switch-case; failing abilities (no combat target, wrong state) no longer drain resources; updated immersive failure messages in combat.ts and items.ts | 2026-02-19 | 0784442 | [199-don-t-consume-ability-resource-when-comb](./quick/199-don-t-consume-ability-resource-when-comb/) |
 | 200 | Add build version number as small muted text after Connected/Disconnected status in AppHeader — clientVersion computed ref reads window.__client_version ?? 'dev'; span styled at fontSize 0.7rem, opacity 0.45, marginLeft 6px | 2026-02-18 | afe213d | [200-add-current-version-number-in-small-text](./quick/200-add-current-version-number-in-small-text/) |
 | 201 | Extend ConsumableRecipeDef with description/outputSlot/outputVendorValue/foodBuff fields and populate all 14 CONSUMABLE_RECIPES entries; replace standalone Bandage upsert + craftItems array + ensureFoodItemTemplates inline list with loops over CONSUMABLE_RECIPES — crafting_materials.ts is now single source of truth for all consumable metadata | 2026-02-18 | 6258787 | [201-add-descriptions-to-consumable-recipes-a](./quick/201-add-descriptions-to-consumable-recipes-a/) |
+| 202 | Extract all inline item data from ensure_items.ts into item_defs.ts (9 typed constants: ARMOR_ALLOWED_CLASSES, STARTER_ARMOR_DESCS, STARTER_WEAPON_DEFS, STARTER_ACCESSORY_DEFS, JUNK_DEFS, RESOURCE_DEFS, WORLD_DROP_GEAR_DEFS, WORLD_DROP_JEWELRY_DEFS, CRAFTING_BASE_GEAR_DEFS); add Healer's Porridge as 15th CONSUMABLE_RECIPES entry; ensure_items.ts now contains only imports, upsert helpers, and for-loops | 2026-02-19 | 51543ef | [202-refactor-ensure-items-ts-extract-all-inli](./quick/202-refactor-ensure-items-ts-extract-all-inli/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick-201: extend ConsumableRecipeDef with metadata fields and consolidate ensure_items.ts seeding to loop over CONSUMABLE_RECIPES (single source of truth). Previous: quick-200 (build version in AppHeader).
+Last activity: 2026-02-19 - Completed quick-202: extract all inline item data from ensure_items.ts into item_defs.ts; added Healer's Porridge to CONSUMABLE_RECIPES. Previous: quick-201 (consumable recipe consolidation).
