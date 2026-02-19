@@ -4,6 +4,7 @@
     <div :style="{ display: 'flex', gap: '0', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '8px' }">
       <button type="button" @click="activeTab = 'active'" :style="tabStyle('active')">Active</button>
       <button type="button" @click="activeTab = 'history'" :style="tabStyle('history')">History</button>
+      <button v-if="isAdmin" type="button" @click="activeTab = 'admin'" :style="tabStyle('admin')">Admin</button>
     </div>
 
     <!-- Active Tab -->
@@ -124,12 +125,58 @@
         </div>
       </div>
     </div>
+
+    <!-- Admin Tab -->
+    <div v-else-if="activeTab === 'admin'">
+      <!-- Event Definitions — Start Event -->
+      <div :style="{ fontWeight: 700, fontSize: '0.85rem', color: '#f59e0b', marginBottom: '8px' }">Event Definitions</div>
+      <div :style="{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }">
+        <div
+          v-for="def in CLIENT_EVENT_DEFS"
+          :key="def.key"
+          :style="styles.resultCard"
+        >
+          <div :style="{ fontWeight: 600 }">{{ def.name }}</div>
+          <div :style="styles.subtleSmall">Region: {{ def.regionKey }} &middot; {{ def.isRecurring ? 'Recurring' : 'One-time' }}</div>
+          <button
+            type="button"
+            :style="{ ...styles.actionButton, marginTop: '4px', fontSize: '0.78rem', padding: '3px 10px' }"
+            :disabled="isEventActive(def.key)"
+            @click="startEvent(def.key)"
+          >
+            {{ isEventActive(def.key) ? 'Already Active' : 'Start Event' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Events — End Event -->
+      <div :style="{ fontWeight: 700, fontSize: '0.85rem', color: '#f59e0b', marginBottom: '8px' }">Active Events</div>
+      <div v-if="activeEvents.length === 0" :style="styles.subtle">No active events.</div>
+      <div v-else :style="{ display: 'flex', flexDirection: 'column', gap: '8px' }">
+        <div
+          v-for="event in activeEvents"
+          :key="event.id.toString()"
+          :style="styles.resultCard"
+        >
+          <div :style="{ fontWeight: 600 }">{{ event.name }}</div>
+          <div :style="styles.subtleSmall">ID: {{ event.id.toString() }}</div>
+          <button
+            type="button"
+            :style="{ ...styles.actionButton, marginTop: '4px', fontSize: '0.78rem', padding: '3px 10px', background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.5)' }"
+            @click="endEvent(event.id)"
+          >
+            End Event (Failure)
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import type { CharacterRow, RegionRow } from '../module_bindings';
+import { CLIENT_EVENT_DEFS } from '../data/worldEventDefs';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
@@ -138,12 +185,13 @@ const props = defineProps<{
   eventObjectives: any[];
   regions: RegionRow[];
   selectedCharacter: CharacterRow | null;
+  isAdmin: boolean;
 }>();
 
-const activeTab = ref<'active' | 'history'>('active');
+const activeTab = ref<'active' | 'history' | 'admin'>('active');
 
 // Tab styling — matches RenownPanel pattern exactly
-const tabStyle = (tab: 'active' | 'history') => ({
+const tabStyle = (tab: 'active' | 'history' | 'admin') => ({
   background: activeTab.value === tab ? 'rgba(255,255,255,0.08)' : 'transparent',
   borderBottom: activeTab.value === tab ? '2px solid #60a5fa' : '2px solid transparent',
   padding: '8px 16px',
@@ -308,5 +356,24 @@ const formatTimestamp = (ts: any): string => {
   } catch {
     return '';
   }
+};
+
+// Admin: check if an event is currently active by matching name to event def
+const isEventActive = (eventKey: string): boolean => {
+  const def = CLIENT_EVENT_DEFS.find(d => d.key === eventKey);
+  if (!def) return false;
+  return activeEvents.value.some((e: any) => e.name === def.name);
+};
+
+const startEvent = (eventKey: string) => {
+  const db = window.__db_conn;
+  if (!db) return;
+  db.reducers.fireWorldEvent({ eventKey });
+};
+
+const endEvent = (worldEventId: bigint) => {
+  const db = window.__db_conn;
+  if (!db) return;
+  db.reducers.resolveWorldEvent({ worldEventId, outcome: 'failure' });
 };
 </script>
