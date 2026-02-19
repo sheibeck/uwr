@@ -482,54 +482,31 @@ export function ensureResourceItemTemplates(ctx: any) {
     upsertResourceByName({ name: resource.name, slot: resource.slot, vendorValue: resource.vendorValue, description: resource.description });
   }
 
-  upsertResourceByName({ name: 'Bandage', slot: 'consumable', vendorValue: 2n, description: 'Strips of clean cloth used to bind wounds. Restores a small amount of health.' });
-
-  const craftItems = [
-    { name: 'Simple Rations', slot: 'consumable', vendorValue: 2n, description: 'Basic preserved food. Staves off hunger but grants no special effects.' },
-    { name: 'Torch', slot: 'utility', vendorValue: 2n, description: 'A wooden shaft wrapped in oil-soaked cloth. Provides light in dark places.' },
-    { name: 'Basic Poultice', slot: 'consumable', vendorValue: 2n, description: 'A moist herbal compress that speeds natural healing.' },
-    { name: 'Travelers Tea', slot: 'consumable', vendorValue: 2n, description: 'A warm herbal infusion that restores stamina on the road.' },
-    { name: 'Whetstone', slot: 'utility', vendorValue: 2n, description: 'A coarse grinding stone used to sharpen blades before battle.' },
-    { name: 'Kindling Bundle', slot: 'utility', vendorValue: 1n, description: 'A bundle of dry twigs and bark. Starts campfires quickly.' },
-    { name: 'Rough Rope', slot: 'utility', vendorValue: 2n, description: 'Braided plant fibers twisted into a sturdy rope.' },
-    { name: 'Charcoal', slot: 'resource', vendorValue: 1n, description: 'Blackened wood remnants. Burns hotter than raw timber.' },
-    { name: 'Crude Poison', slot: 'consumable', vendorValue: 3n, description: 'A noxious paste distilled from bitter herbs. Applied to weapon edges.' },
-  ];
-  for (const item of craftItems) {
-    upsertResourceByName({ name: item.name, slot: item.slot, vendorValue: item.vendorValue, description: item.description });
+  for (const recipe of CONSUMABLE_RECIPES) {
+    if (recipe.foodBuff) continue; // food items handled by ensureFoodItemTemplates
+    upsertResourceByName({
+      name: recipe.outputName,
+      slot: recipe.outputSlot,
+      vendorValue: recipe.outputVendorValue,
+      description: recipe.description,
+    });
   }
 }
 
 export function ensureFoodItemTemplates(ctx: any) {
-  const foodItems = [
-    {
-      name: 'Herb Broth',
-      wellFedDurationMicros: 2_700_000_000n,
-      wellFedBuffType: 'mana_regen',
-      wellFedBuffMagnitude: 1n,
-      description: 'A fragrant broth steeped with wild herbs. Boosts mana regeneration while Well Fed.',
-    },
-    {
-      name: 'Roasted Roots',
-      wellFedDurationMicros: 2_700_000_000n,
-      wellFedBuffType: 'str',
-      wellFedBuffMagnitude: 1n,
-      description: 'Hearty roasted tubers seasoned with salt. Boosts strength while Well Fed.',
-    },
-    {
-      name: "Traveler's Stew",
-      wellFedDurationMicros: 2_700_000_000n,
-      wellFedBuffType: 'stamina_regen',
-      wellFedBuffMagnitude: 1n,
-      description: 'A thick stew of meat and vegetables. Boosts stamina regeneration while Well Fed.',
-    },
-    {
-      name: "Forager's Salad",
-      wellFedDurationMicros: 2_700_000_000n,
-      wellFedBuffType: 'dex',
-      wellFedBuffMagnitude: 1n,
-      description: 'A crisp mix of berries and greens. Boosts dexterity while Well Fed.',
-    },
+  // Food items from CONSUMABLE_RECIPES (have foodBuff data)
+  const recipeFoodItems = CONSUMABLE_RECIPES
+    .filter(r => r.foodBuff)
+    .map(r => ({
+      name: r.outputName,
+      wellFedDurationMicros: r.foodBuff!.durationMicros,
+      wellFedBuffType: r.foodBuff!.buffType,
+      wellFedBuffMagnitude: r.foodBuff!.magnitude,
+      description: r.description,
+    }));
+
+  // Additional food items not in CONSUMABLE_RECIPES
+  const extraFoodItems = [
     {
       name: "Healer's Porridge",
       wellFedDurationMicros: 2_700_000_000n,
@@ -538,6 +515,8 @@ export function ensureFoodItemTemplates(ctx: any) {
       description: 'A soothing oat porridge infused with restorative herbs. Boosts health regeneration while Well Fed.',
     },
   ];
+
+  const foodItems = [...recipeFoodItems, ...extraFoodItems];
 
   for (const food of foodItems) {
     const existing = findItemTemplateByName(ctx, food.name);
