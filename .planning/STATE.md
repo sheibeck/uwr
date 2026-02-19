@@ -422,4 +422,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-19 - Completed quick-216: fix regression from quick-215 — mana/stamina deduction now re-fetches latest character row before update preserving healed HP; removed duplicate HoT from shaman_spirit_mender. Previous: quick-215 (healing stat scaling).
+Last activity: 2026-02-19 - Completed quick-217: auto-camp players inactive 15+ minutes — lastActivityAt tracking, InactivityTick sweep, combat protection. Previous: quick-216 (heal HP overwrite fix).
