@@ -655,7 +655,7 @@ export const registerItemReducers = (deps: any) => {
           character.id,
           character.ownerUserId,
           'ability',
-          'This ability can only be used in combat.'
+          'You must be engaged in battle to use this ability.'
         );
         return;
       }
@@ -665,7 +665,7 @@ export const registerItemReducers = (deps: any) => {
           character.id,
           character.ownerUserId,
           'ability',
-          'This ability cannot be used in combat.'
+          'This ability can only be used when you are at peace.'
         );
         return;
       }

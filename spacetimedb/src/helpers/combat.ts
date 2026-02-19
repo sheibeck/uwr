@@ -308,13 +308,15 @@ export function executeAbility(
   if (character.level < ability.level) throw new SenderError('Ability not unlocked');
 
   let staminaFree = false;
+  let staminaFreeEffectId: bigint | undefined;
   if (ability.resource === 'stamina') {
     const free = [...ctx.db.characterEffect.by_character.filter(character.id)].find(
       (effect) => effect.effectType === 'stamina_free'
     );
     if (free) {
       staminaFree = true;
-      ctx.db.characterEffect.id.delete(free.id);
+      staminaFreeEffectId = free.id;
+      // Do NOT delete the effect here — delete it only after the ability fires successfully
     }
   }
   const resourceCost =
@@ -354,12 +356,6 @@ export function executeAbility(
     if (!targetCharacter) throw new SenderError('Target not found');
   }
 
-  if (ability.resource === 'mana') {
-    ctx.db.character.id.update({ ...character, mana: character.mana - resourceCost });
-  } else if (ability.resource === 'stamina') {
-    ctx.db.character.id.update({ ...character, stamina: character.stamina - resourceCost });
-  }
-
   const combatId = activeCombatIdForCharacter(ctx, character.id);
   const combat = combatId ? ctx.db.combatEncounter.id.find(combatId) : null;
   const enemies = combatId ? [...ctx.db.combatEnemy.by_combat.filter(combatId)] : [];
@@ -393,9 +389,9 @@ export function executeAbility(
     }
   ) => {
     if (!combatId || !combat || combat.state !== 'active') {
-      throw new SenderError('Pets can only be summoned in combat');
+      throw new SenderError('Your companion can only be called forth when enemies are near.');
     }
-    if (!enemy) throw new SenderError('No enemy in combat');
+    if (!enemy) throw new SenderError('You have no target to unleash this upon.');
     for (const existing of ctx.db.combatPet.by_combat.filter(combatId)) {
       if (existing.ownerCharacterId === character.id) {
         ctx.db.combatPet.id.delete(existing.id);
@@ -465,7 +461,7 @@ export function executeAbility(
       perHitMessage?: (damage: bigint, hitIndex: bigint, totalHits: bigint) => string;
     }
   ) => {
-    if (!enemy || !combatId) throw new SenderError('No enemy in combat');
+    if (!enemy || !combatId) throw new SenderError('You have no target to unleash this upon.');
     const hits = options?.hits ?? 1n;
     let armor = enemy.armorClass;
     const armorDebuff = sumEnemyEffect(ctx, combatId, 'armor_down', enemy.id);
@@ -794,6 +790,9 @@ export function executeAbility(
     }
   };
 
+  // Wrap the switch in an arrow function so that `return` exits only the inner function,
+  // allowing resource deduction to occur after a successful ability fire.
+  const runAbility = () => {
   switch (abilityKey) {
     case 'shaman_spirit_mender':
       if (!targetCharacter) throw new SenderError('Target required');
@@ -842,7 +841,7 @@ export function executeAbility(
       });
       return;
     case 'warrior_intimidating_presence':
-      if (!enemy || !combatId) throw new SenderError('No enemy target');
+      if (!enemy || !combatId) throw new SenderError('You have no target to unleash this upon.');
       addEnemyEffect(ctx, combatId, enemy.id, 'damage_down', -3n, 3n, 'Intimidating Presence');
       appendPrivateEvent(
         ctx,
@@ -1394,7 +1393,7 @@ export function executeAbility(
       if (activeCombatIdForCharacter(ctx, character.id)) {
         throw new SenderError('Cannot use while in combat');
       }
-      // Re-read character from database to ensure fresh data after mana deduction
+      // Re-read character from database to ensure fresh location/state data
       const freshChar = ctx.db.character.id.find(character.id);
       if (!freshChar) {
         throw new SenderError('Character not found');
@@ -1539,6 +1538,18 @@ export function executeAbility(
         'ability',
         `You use ${ability.name}.`
       );
+  }
+  }; // end runAbility
+  runAbility();
+
+  // Ability fired successfully — now consume resources
+  if (staminaFreeEffectId !== undefined) {
+    ctx.db.characterEffect.id.delete(staminaFreeEffectId);
+  }
+  if (ability.resource === 'mana') {
+    ctx.db.character.id.update({ ...character, mana: character.mana - resourceCost });
+  } else if (ability.resource === 'stamina') {
+    ctx.db.character.id.update({ ...character, stamina: character.stamina - resourceCost });
   }
 }
 
