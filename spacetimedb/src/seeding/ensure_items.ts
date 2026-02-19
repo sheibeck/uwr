@@ -19,6 +19,17 @@ import { PALADIN_ABILITIES } from '../data/abilities/paladin_abilities';
 import { MONK_ABILITIES } from '../data/abilities/monk_abilities';
 import { SPELLBLADE_ABILITIES } from '../data/abilities/spellblade_abilities';
 import { REAVER_ABILITIES } from '../data/abilities/reaver_abilities';
+import {
+  ARMOR_ALLOWED_CLASSES,
+  STARTER_ARMOR_DESCS,
+  STARTER_WEAPON_DEFS,
+  STARTER_ACCESSORY_DEFS,
+  JUNK_DEFS,
+  RESOURCE_DEFS,
+  WORLD_DROP_GEAR_DEFS,
+  WORLD_DROP_JEWELRY_DEFS,
+  CRAFTING_BASE_GEAR_DEFS,
+} from '../data/item_defs';
 
 /** Unified recipe template upsert helper — replaces addRecipe and addGearRecipe */
 function addRecipeTemplate(ctx: any, args: {
@@ -97,22 +108,8 @@ export function ensureStarterItemTemplates(ctx: any) {
     });
   };
 
-  const ARMOR_ALLOWED_CLASSES: Record<string, string> = {
-    plate: 'warrior,paladin,bard,cleric',
-    chain: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver',
-    leather: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid',
-    cloth: 'any',
-  };
-
-  const STARTER_ARMOR_DESC: Record<string, string> = {
-    cloth: 'Threadbare cloth garments offering minimal protection. Standard issue for new adventurers.',
-    leather: 'Scuffed leather armor worn thin by previous owners. Better than nothing.',
-    chain: 'Dented chain mail that still turns a blade. Issued to melee recruits.',
-    plate: 'Battered plate armor, dented but functional. Heavy protection for frontline fighters.',
-  };
-
   for (const [armorType, pieces] of Object.entries(STARTER_ARMOR)) {
-    const armorDesc = STARTER_ARMOR_DESC[armorType] ?? '';
+    const armorDesc = STARTER_ARMOR_DESCS[armorType] ?? '';
     upsertItemTemplateByName({
       name: pieces.chest.name,
       slot: 'chest',
@@ -184,23 +181,7 @@ export function ensureStarterItemTemplates(ctx: any) {
     });
   }
 
-  const weaponTemplates: Record<string, { name: string; allowed: string; weaponType: string; description: string }> = {
-    'Training Sword': { name: 'Training Sword', allowed: 'warrior', weaponType: 'sword', description: 'A blunt practice sword. Barely adequate for real combat.' },
-    'Training Mace': { name: 'Training Mace', allowed: 'paladin,cleric', weaponType: 'mace', description: 'A weighted training mace. Clumsy but functional.' },
-    'Training Staff': {
-      name: 'Training Staff',
-      allowed: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard',
-      weaponType: 'staff',
-      description: 'A worn wooden staff. Channels magic adequately for beginners.',
-    },
-    'Training Bow': { name: 'Training Bow', allowed: 'ranger', weaponType: 'bow', description: 'A simple shortbow with fraying string. Accurate enough at short range.' },
-    'Training Dagger': { name: 'Training Dagger', allowed: 'rogue', weaponType: 'dagger', description: 'A dull practice dagger. Quick in the right hands.' },
-    'Training Axe': { name: 'Training Axe', allowed: 'beastmaster', weaponType: 'axe', description: 'A notched training axe. Heavy enough to do damage.' },
-    'Training Blade': { name: 'Training Blade', allowed: 'spellblade,reaver', weaponType: 'blade', description: 'A thin practice blade balanced for dual-discipline fighting.' },
-    'Training Rapier': { name: 'Training Rapier', allowed: 'bard', weaponType: 'rapier', description: 'A flexible practice rapier. Light and swift.' },
-  };
-
-  for (const weapon of Object.values(weaponTemplates)) {
+  for (const weapon of STARTER_WEAPON_DEFS) {
     upsertItemTemplateByName({
       name: weapon.name,
       slot: 'mainHand',
@@ -228,15 +209,7 @@ export function ensureStarterItemTemplates(ctx: any) {
     });
   }
 
-  const accessoryTemplates = [
-    { name: 'Rough Band', slot: 'earrings', rarity: 'common', stat: { dexBonus: 1n }, description: 'A crude copper ring. Mildly enhances agility.' },
-    { name: 'Worn Cloak', slot: 'cloak', rarity: 'common', stat: { hpBonus: 3n }, description: 'A tattered traveling cloak. Provides slight warmth and protection.' },
-    { name: 'Traveler Necklace', slot: 'neck', rarity: 'common', stat: { wisBonus: 1n }, description: 'A simple cord with a polished stone. Said to bring wisdom.' },
-    { name: 'Glimmer Ring', slot: 'earrings', rarity: 'uncommon', stat: { intBonus: 1n }, description: 'A ring set with a tiny glowing crystal. Faintly enhances focus.' },
-    { name: 'Shaded Cloak', slot: 'cloak', rarity: 'uncommon', stat: { dexBonus: 1n }, description: 'A dark hooded cloak favored by scouts. Improves nimbleness.' },
-  ];
-
-  for (const template of accessoryTemplates) {
+  for (const template of STARTER_ACCESSORY_DEFS) {
     upsertItemTemplateByName({
       name: template.name,
       slot: template.slot,
@@ -262,14 +235,7 @@ export function ensureStarterItemTemplates(ctx: any) {
     });
   }
 
-  const junkTemplates = [
-    { name: 'Rat Tail', vendorValue: 1n, description: 'A scaly rat tail. Worthless except to a vendor.' },
-    { name: 'Torn Pelt', vendorValue: 2n, description: 'A ragged piece of animal skin. Too damaged for leatherworking.' },
-    { name: 'Cracked Fang', vendorValue: 1n, description: 'A broken tooth from some creature. Might fetch a coin or two.' },
-    { name: 'Ashen Bone', vendorValue: 2n, description: 'A charred bone fragment. Only a vendor would want this.' },
-  ];
-
-  for (const junk of junkTemplates) {
+  for (const junk of JUNK_DEFS) {
     upsertItemTemplateByName({
       name: junk.name,
       slot: 'junk',
@@ -314,69 +280,23 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     return ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
   };
 
-  // Tier 1 weapons (requiredLevel: 1n)
-  upsertByName({ name: 'Iron Shortsword', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,spellblade,reaver', weaponType: 'sword', weaponBaseDamage: 4n, weaponDps: 6n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'A serviceable iron blade. Reliable in close quarters.' });
-  upsertByName({ name: 'Hunting Bow', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'ranger', weaponType: 'bow', weaponBaseDamage: 4n, weaponDps: 6n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'A sturdy bow designed for woodland game. Pulls smoothly.' });
-  upsertByName({ name: 'Gnarled Staff', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard', weaponType: 'staff', weaponBaseDamage: 4n, weaponDps: 6n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'A twisted wooden staff thrumming with latent energy.' });
-  upsertByName({ name: 'Worn Mace', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'paladin,cleric', weaponType: 'mace', weaponBaseDamage: 4n, weaponDps: 6n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'A heavy flanged mace showing signs of hard use.' });
-  upsertByName({ name: 'Rusty Axe', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'beastmaster', weaponType: 'axe', weaponBaseDamage: 4n, weaponDps: 6n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'A broad axe dulled by rust but still fearsome.' });
-  upsertByName({ name: 'Notched Rapier', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'bard', weaponType: 'rapier', weaponBaseDamage: 4n, weaponDps: 6n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'A slender rapier with a chipped edge. Fast and precise.' });
-  upsertByName({ name: 'Chipped Dagger', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'rogue', weaponType: 'dagger', weaponBaseDamage: 4n, weaponDps: 6n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'A small blade with a nicked edge. Quick draw, quick strike.' });
-  upsertByName({ name: 'Cracked Blade', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'spellblade,reaver', weaponType: 'blade', weaponBaseDamage: 4n, weaponDps: 6n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'A fractured sword that channels both steel and sorcery.' });
-
-  // Tier 2 weapons (requiredLevel: 11n)
-  upsertByName({ name: 'Steel Longsword', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,bard,spellblade,reaver', weaponType: 'sword', weaponBaseDamage: 5n, weaponDps: 7n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'Forged steel with a keen edge. A significant upgrade over iron.' });
-  upsertByName({ name: 'Yew Bow', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'ranger', weaponType: 'bow', weaponBaseDamage: 5n, weaponDps: 7n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'A flexible yew bow with superior range and draw weight.' });
-  upsertByName({ name: 'Oak Staff', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard', weaponType: 'staff', weaponBaseDamage: 5n, weaponDps: 7n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'A dense oak staff carved with faint runes.' });
-
-  // Tier 1 armor — cloth
-  upsertByName({ name: 'Worn Robe', slot: 'chest', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'any', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 3n, stackable: false, description: 'A faded cloth robe. Offers little physical protection.' });
-  upsertByName({ name: 'Worn Trousers', slot: 'legs', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'any', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 2n, stackable: false, description: 'Patched cloth leggings. Light and breathable.' });
-  upsertByName({ name: 'Worn Slippers', slot: 'boots', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 2n, requiredLevel: 1n, allowedClasses: 'any', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 2n, stackable: false, description: 'Thin-soled cloth shoes. Quiet on stone floors.' });
-
-  // Tier 1 armor — leather
-  upsertByName({ name: 'Scuffed Jerkin', slot: 'chest', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 4n, stackable: false, description: 'A leather vest scarred by use. Decent protection for light fighters.' });
-  upsertByName({ name: 'Scuffed Leggings', slot: 'legs', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 3n, stackable: false, description: 'Leather leggings with reinforced knees.' });
-  upsertByName({ name: 'Scuffed Boots', slot: 'boots', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 2n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 3n, stackable: false, description: 'Sturdy leather boots built for rough terrain.' });
-
-  // Tier 1 armor — chain
-  upsertByName({ name: 'Dented Hauberk', slot: 'chest', armorType: 'chain', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 5n, stackable: false, description: 'Chain mail with bent links. Still deflects slashing blows.' });
-  upsertByName({ name: 'Dented Greaves', slot: 'legs', armorType: 'chain', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 4n, stackable: false, description: 'Chain leggings with dented rings. Functional leg protection.' });
-  upsertByName({ name: 'Dented Sabatons', slot: 'boots', armorType: 'chain', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 3n, stackable: false, description: 'Chain boots that clank with every step.' });
-
-  // Tier 1 armor — plate
-  upsertByName({ name: 'Battered Cuirass', slot: 'chest', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 6n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 6n, stackable: false, description: 'Heavy plate chest armor, dented but intact.' });
-  upsertByName({ name: 'Battered Greaves', slot: 'legs', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 5n, stackable: false, description: 'Plate leg guards battered from many battles.' });
-  upsertByName({ name: 'Battered Boots', slot: 'boots', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 4n, stackable: false, description: 'Thick plate boots that absorb heavy impacts.' });
-
-  // Tier 2 armor (requiredLevel: 11n)
-  upsertByName({ name: 'Silken Robe', slot: 'chest', armorType: 'cloth', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 14n, requiredLevel: 11n, allowedClasses: 'any', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 4n, stackable: false, description: 'Fine silk woven for comfort and moderate protection.' });
-  upsertByName({ name: 'Ranger Jerkin', slot: 'chest', armorType: 'leather', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 14n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 5n, stackable: false, description: 'Supple leather armor favored by woodsmen.' });
-
-  // Tier 2 armor — cloth legs/boots
-  upsertByName({ name: 'Silken Trousers', slot: 'legs', armorType: 'cloth', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'any', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 3n, stackable: false, description: 'Light silk leggings tailored for mobility.' });
-  upsertByName({ name: 'Silken Slippers', slot: 'boots', armorType: 'cloth', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 10n, requiredLevel: 11n, allowedClasses: 'any', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 3n, stackable: false, description: 'Soft silk shoes that barely make a sound.' });
-
-  // Tier 2 armor — leather legs/boots
-  upsertByName({ name: 'Ranger Leggings', slot: 'legs', armorType: 'leather', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 4n, stackable: false, description: 'Reinforced leather leggings for wilderness travel.' });
-  upsertByName({ name: 'Ranger Boots', slot: 'boots', armorType: 'leather', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 10n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 4n, stackable: false, description: 'Leather boots with thick soles for rough trails.' });
-
-  // Tier 2 armor — chain chest/legs/boots
-  upsertByName({ name: 'Riveted Hauberk', slot: 'chest', armorType: 'chain', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 16n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 6n, stackable: false, description: 'Chain mail reinforced with riveted links. Sturdy protection.' });
-  upsertByName({ name: 'Riveted Greaves', slot: 'legs', armorType: 'chain', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 14n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 5n, stackable: false, description: 'Riveted chain leggings that resist cutting blows.' });
-  upsertByName({ name: 'Riveted Sabatons', slot: 'boots', armorType: 'chain', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 4n, stackable: false, description: 'Heavy chain boots with reinforced toe caps.' });
-
-  // Tier 2 armor — plate chest/legs/boots
-  upsertByName({ name: 'Forged Cuirass', slot: 'chest', armorType: 'plate', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 18n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,bard,cleric', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 7n, stackable: false, description: 'Expertly forged plate armor. Superior physical defense.' });
-  upsertByName({ name: 'Forged Greaves', slot: 'legs', armorType: 'plate', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 16n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,bard,cleric', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 6n, stackable: false, description: 'Thick forged plate leggings. Absorbs punishing blows.' });
-  upsertByName({ name: 'Forged Boots', slot: 'boots', armorType: 'plate', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 14n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,bard,cleric', weaponBaseDamage: 0n, weaponDps: 0n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 5n, stackable: false, description: 'Plate boots forged from high-quality steel.' });
-
-  // Tier 2 weapons — remaining types
-  upsertByName({ name: 'Flanged Mace', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'paladin,cleric', weaponType: 'mace', weaponBaseDamage: 5n, weaponDps: 7n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'A reinforced mace with protruding flanges for armor-piercing strikes.' });
-  upsertByName({ name: 'Hardened Axe', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'beastmaster', weaponType: 'axe', weaponBaseDamage: 5n, weaponDps: 7n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'A tempered axe head on an ironwood haft. Cleaves deep.' });
-  upsertByName({ name: 'Stiletto', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'rogue', weaponType: 'dagger', weaponBaseDamage: 5n, weaponDps: 7n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'A needle-thin blade designed for finding gaps in armor.' });
-  upsertByName({ name: 'Dueling Rapier', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'bard', weaponType: 'rapier', weaponBaseDamage: 5n, weaponDps: 7n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'An elegant thrusting sword favored by duelists.' });
-  upsertByName({ name: 'Tempered Blade', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'spellblade,reaver', weaponType: 'blade', weaponBaseDamage: 5n, weaponDps: 7n, strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, stackable: false, description: 'A balanced blade forged for hybrid combat styles.' });
+  for (const item of WORLD_DROP_GEAR_DEFS) {
+    upsertByName({
+      ...item,
+      isJunk: false,
+      strBonus: item.strBonus ?? 0n,
+      dexBonus: item.dexBonus ?? 0n,
+      chaBonus: item.chaBonus ?? 0n,
+      wisBonus: item.wisBonus ?? 0n,
+      intBonus: item.intBonus ?? 0n,
+      hpBonus: item.hpBonus ?? 0n,
+      manaBonus: item.manaBonus ?? 0n,
+      armorClassBonus: item.armorClassBonus ?? 0n,
+      weaponBaseDamage: item.weaponBaseDamage ?? 0n,
+      weaponDps: item.weaponDps ?? 0n,
+      stackable: false,
+    });
+  }
 }
 
 export function ensureWorldDropJewelryTemplates(ctx: any) {
@@ -397,28 +317,23 @@ export function ensureWorldDropJewelryTemplates(ctx: any) {
     return ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
   };
 
-  // Tier 1 jewelry (requiredLevel: 1n, tier: 1n)
-  upsertByName({ name: 'Copper Band', slot: 'earrings', armorType: 'none', rarity: 'uncommon', tier: 1n, isJunk: false, vendorValue: 6n, requiredLevel: 1n, allowedClasses: 'any', strBonus: 1n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, weaponBaseDamage: 0n, weaponDps: 0n, stackable: false, description: 'A simple copper ring. Lends a touch of might.' });
-  upsertByName({ name: 'Iron Signet', slot: 'earrings', armorType: 'none', rarity: 'uncommon', tier: 1n, isJunk: false, vendorValue: 6n, requiredLevel: 1n, allowedClasses: 'any', strBonus: 0n, dexBonus: 1n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, weaponBaseDamage: 0n, weaponDps: 0n, stackable: false, description: 'A plain iron ring stamped with an unknown crest. Sharpens reflexes.' });
-  upsertByName({ name: 'Tarnished Loop', slot: 'earrings', armorType: 'none', rarity: 'uncommon', tier: 1n, isJunk: false, vendorValue: 6n, requiredLevel: 1n, allowedClasses: 'any', strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 1n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, weaponBaseDamage: 0n, weaponDps: 0n, stackable: false, description: 'A tarnished silver loop. Hums faintly with arcane resonance.' });
-  upsertByName({ name: 'Stone Pendant', slot: 'neck', armorType: 'none', rarity: 'uncommon', tier: 1n, isJunk: false, vendorValue: 6n, requiredLevel: 1n, allowedClasses: 'any', strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 1n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, weaponBaseDamage: 0n, weaponDps: 0n, stackable: false, description: 'A smooth river stone on a leather cord. Calms the mind.' });
-  upsertByName({ name: 'Bone Charm', slot: 'neck', armorType: 'none', rarity: 'uncommon', tier: 1n, isJunk: false, vendorValue: 6n, requiredLevel: 1n, allowedClasses: 'any', strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 3n, manaBonus: 0n, armorClassBonus: 0n, weaponBaseDamage: 0n, weaponDps: 0n, stackable: false, description: 'A carved bone talisman said to fortify the body.' });
-  upsertByName({ name: 'Frayed Cord', slot: 'neck', armorType: 'none', rarity: 'uncommon', tier: 1n, isJunk: false, vendorValue: 6n, requiredLevel: 1n, allowedClasses: 'any', strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 3n, armorClassBonus: 0n, weaponBaseDamage: 0n, weaponDps: 0n, stackable: false, description: 'A braided cord set with a pale bead. Draws mana to the wearer.' });
-
-  // Tier 2 jewelry (requiredLevel: 11n, tier: 2n)
-  upsertByName({ name: 'Silver Band', slot: 'earrings', armorType: 'none', rarity: 'uncommon', tier: 2n, isJunk: false, vendorValue: 16n, requiredLevel: 11n, allowedClasses: 'any', strBonus: 2n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, weaponBaseDamage: 0n, weaponDps: 0n, stackable: false, description: 'A polished silver ring. Channels physical power.' });
-  upsertByName({ name: 'Arcane Loop', slot: 'earrings', armorType: 'none', rarity: 'uncommon', tier: 2n, isJunk: false, vendorValue: 16n, requiredLevel: 11n, allowedClasses: 'any', strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 2n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, weaponBaseDamage: 0n, weaponDps: 0n, stackable: false, description: 'A ring inscribed with glowing sigils. Amplifies magical focus.' });
-  upsertByName({ name: 'Ember Pendant', slot: 'neck', armorType: 'none', rarity: 'uncommon', tier: 2n, isJunk: false, vendorValue: 16n, requiredLevel: 11n, allowedClasses: 'any', strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 2n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 0n, weaponBaseDamage: 0n, weaponDps: 0n, stackable: false, description: 'A pendant holding a warm ember crystal. Sharpens intuition.' });
-  upsertByName({ name: 'Vitality Cord', slot: 'neck', armorType: 'none', rarity: 'uncommon', tier: 2n, isJunk: false, vendorValue: 16n, requiredLevel: 11n, allowedClasses: 'any', strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 6n, manaBonus: 0n, armorClassBonus: 0n, weaponBaseDamage: 0n, weaponDps: 0n, stackable: false, description: 'A thick cord woven with life-thread. Bolsters constitution.' });
-
-  // Tier 1 cloaks
-  upsertByName({ name: 'Rough Cloak', slot: 'neck', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 8n, requiredLevel: 1n, allowedClasses: 'any', strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 2n, weaponBaseDamage: 0n, weaponDps: 0n, stackable: false, description: 'A coarse woolen cloak. Keeps the chill off.' });
-  upsertByName({ name: 'Wool Cloak', slot: 'neck', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 8n, requiredLevel: 1n, allowedClasses: 'any', strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 2n, weaponBaseDamage: 0n, weaponDps: 0n, stackable: false, description: 'A thick wool cloak. Warmth and slight protection.' });
-  upsertByName({ name: 'Drifter Cloak', slot: 'neck', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 8n, requiredLevel: 1n, allowedClasses: 'any', strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 2n, weaponBaseDamage: 0n, weaponDps: 0n, stackable: false, description: 'A road-worn cloak patched many times over.' });
-
-  // Tier 2 cloaks
-  upsertByName({ name: 'Reinforced Cloak', slot: 'neck', armorType: 'cloth', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 18n, requiredLevel: 11n, allowedClasses: 'any', strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 2n, weaponBaseDamage: 0n, weaponDps: 0n, stackable: false, description: 'A cloak with leather panels sewn into the lining.' });
-  upsertByName({ name: 'Stalker Cloak', slot: 'neck', armorType: 'cloth', rarity: 'common', tier: 2n, isJunk: false, vendorValue: 18n, requiredLevel: 11n, allowedClasses: 'any', strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n, hpBonus: 0n, manaBonus: 0n, armorClassBonus: 2n, weaponBaseDamage: 0n, weaponDps: 0n, stackable: false, description: 'A dark cloak designed to blend into shadows.' });
+  for (const item of WORLD_DROP_JEWELRY_DEFS) {
+    upsertByName({
+      ...item,
+      isJunk: false,
+      strBonus: item.strBonus ?? 0n,
+      dexBonus: item.dexBonus ?? 0n,
+      chaBonus: item.chaBonus ?? 0n,
+      wisBonus: item.wisBonus ?? 0n,
+      intBonus: item.intBonus ?? 0n,
+      hpBonus: item.hpBonus ?? 0n,
+      manaBonus: item.manaBonus ?? 0n,
+      armorClassBonus: item.armorClassBonus ?? 0n,
+      weaponBaseDamage: item.weaponBaseDamage ?? 0n,
+      weaponDps: item.weaponDps ?? 0n,
+      stackable: false,
+    });
+  }
 }
 
 export function ensureResourceItemTemplates(ctx: any) {
@@ -456,29 +371,7 @@ export function ensureResourceItemTemplates(ctx: any) {
     return ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
   };
 
-  const resources = [
-    { name: 'Flax', slot: 'resource', vendorValue: 1n, description: 'Long fibrous stalks used to weave cloth and rope.' },
-    { name: 'Herbs', slot: 'resource', vendorValue: 1n, description: 'Common medicinal plants gathered from wild growth.' },
-    { name: 'Wood', slot: 'resource', vendorValue: 1n, description: 'Rough-cut timber suitable for torches and simple tools.' },
-    { name: 'Resin', slot: 'resource', vendorValue: 1n, description: 'Sticky tree sap that serves as a natural adhesive and fuel.' },
-    { name: 'Stone', slot: 'resource', vendorValue: 1n, description: 'A chunk of sturdy rock used for grinding and sharpening.' },
-    { name: 'Raw Meat', slot: 'resource', vendorValue: 1n, description: 'Uncooked animal flesh. Cook it before eating or it may cause illness.' },
-    { name: 'Salt', slot: 'resource', vendorValue: 1n, description: 'Coarse mineral salt used to preserve food and season rations.' },
-    { name: 'Clear Water', slot: 'resource', vendorValue: 1n, description: 'Fresh water drawn from a clean spring.' },
-    { name: 'Sand', slot: 'resource', vendorValue: 1n, description: 'Fine-grained sand useful for polishing and abrasion.' },
-    { name: 'Dry Grass', slot: 'resource', vendorValue: 1n, description: 'Brittle dried grass that catches fire easily.' },
-    { name: 'Bitter Herbs', slot: 'resource', vendorValue: 1n, description: 'Pungent wild herbs with toxic properties. Handle with care.' },
-    { name: 'Peat', slot: 'resource', vendorValue: 1n, description: 'Dense organic soil that burns slowly. Used in crude fire-starting.' },
-    { name: 'Mushrooms', slot: 'resource', vendorValue: 1n, description: 'Earthy fungi foraged from damp places.' },
-    { name: 'Murky Water', slot: 'resource', vendorValue: 1n, description: 'Brackish water from a stagnant source. Not fit for drinking as-is.' },
-    { name: 'Iron Shard', slot: 'resource', vendorValue: 2n, description: 'A small fragment of rusted iron. Retains enough metal for minor crafting.' },
-    { name: 'Ancient Dust', slot: 'resource', vendorValue: 2n, description: 'Fine powder sifted from old ruins. Carries faint traces of enchantment.' },
-    { name: 'Scrap Cloth', slot: 'resource', vendorValue: 1n, description: 'Torn fabric scraps salvaged from the wilds.' },
-    { name: 'Lamp Oil', slot: 'resource', vendorValue: 1n, description: 'Rendered animal fat that burns cleanly in lanterns.' },
-    { name: 'Wild Berries', slot: 'resource', vendorValue: 1n, description: 'Tart wild berries picked from roadside bushes. Edible raw or cooked.' },
-    { name: 'Root Vegetable', slot: 'resource', vendorValue: 1n, description: 'A starchy tuber dug from soft earth. Filling when roasted.' },
-  ];
-  for (const resource of resources) {
+  for (const resource of RESOURCE_DEFS) {
     upsertResourceByName({ name: resource.name, slot: resource.slot, vendorValue: resource.vendorValue, description: resource.description });
   }
 
@@ -495,6 +388,7 @@ export function ensureResourceItemTemplates(ctx: any) {
 
 export function ensureFoodItemTemplates(ctx: any) {
   // Food items from CONSUMABLE_RECIPES (have foodBuff data)
+  // Healer's Porridge is now in CONSUMABLE_RECIPES so recipeFoodItems already includes it
   const recipeFoodItems = CONSUMABLE_RECIPES
     .filter(r => r.foodBuff)
     .map(r => ({
@@ -505,20 +399,7 @@ export function ensureFoodItemTemplates(ctx: any) {
       description: r.description,
     }));
 
-  // Additional food items not in CONSUMABLE_RECIPES
-  const extraFoodItems = [
-    {
-      name: "Healer's Porridge",
-      wellFedDurationMicros: 2_700_000_000n,
-      wellFedBuffType: 'health_regen',
-      wellFedBuffMagnitude: 1n,
-      description: 'A soothing oat porridge infused with restorative herbs. Boosts health regeneration while Well Fed.',
-    },
-  ];
-
-  const foodItems = [...recipeFoodItems, ...extraFoodItems];
-
-  for (const food of foodItems) {
+  for (const food of recipeFoodItems) {
     const existing = findItemTemplateByName(ctx, food.name);
     if (existing) {
       ctx.db.itemTemplate.id.update({
@@ -832,38 +713,9 @@ export function ensureCraftingBaseGearTemplates(ctx: any) {
     return ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
   };
 
-  // Head slot
-  upsertByName({ name: 'Iron Helm', slot: 'head', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 4n, description: 'A basic iron helm. Protects the skull from overhead blows.' });
-  // Wrists slot
-  upsertByName({ name: 'Leather Bracers', slot: 'wrists', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', armorClassBonus: 3n, description: 'Simple leather wrist guards. Deflect glancing strikes.' });
-  // Hands slot
-  upsertByName({ name: 'Iron Gauntlets', slot: 'hands', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 4n, description: 'Heavy iron hand protection. Adds weight behind punches.' });
-  // Belt slot
-  upsertByName({ name: 'Rough Girdle', slot: 'belt', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', armorClassBonus: 3n, description: 'A leather belt reinforced with metal studs.' });
-  // OffHand shield
-  upsertByName({ name: 'Wooden Shield', slot: 'offHand', armorType: 'none', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 4n, description: 'A round wooden shield banded with iron.' });
-  // Cloak (neck slot with armorType cloth for identity, armorClassBonus distinguishes from jewelry)
-  upsertByName({ name: 'Simple Cloak', slot: 'neck', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 6n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 2n, description: 'A plain travelling cloak offering minimal coverage.' });
-
-  // Cloth other-slot items (AC=2)
-  upsertByName({ name: 'Cloth Hood', slot: 'head', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 2n, description: 'A simple cloth hood. Keeps sun and rain at bay.' });
-  upsertByName({ name: 'Cloth Wraps', slot: 'wrists', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 2n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 2n, description: 'Strips of cloth wound around the wrists. Barely protective.' });
-  upsertByName({ name: 'Cloth Gloves', slot: 'hands', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 2n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 2n, description: 'Thin cloth gloves. Dexterous but fragile.' });
-  upsertByName({ name: 'Cloth Sash', slot: 'belt', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 2n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 2n, description: 'A cloth belt tied at the waist. Decorative more than defensive.' });
-
-  // Leather other-slot items (AC=3)
-  upsertByName({ name: 'Leather Cap', slot: 'head', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', armorClassBonus: 3n, description: 'A molded leather cap. Lightweight head protection.' });
-  upsertByName({ name: 'Leather Gloves', slot: 'hands', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', armorClassBonus: 3n, description: 'Fitted leather gloves for grip and protection.' });
-
-  // Chain other-slot items (AC=3)
-  upsertByName({ name: 'Chain Coif', slot: 'head', armorType: 'chain', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', armorClassBonus: 3n, description: 'A chain mail hood covering head and neck.' });
-  upsertByName({ name: 'Chain Bracers', slot: 'wrists', armorType: 'chain', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', armorClassBonus: 3n, description: 'Chain mail wrist guards. Sturdy against slashing attacks.' });
-  upsertByName({ name: 'Chain Gauntlets', slot: 'hands', armorType: 'chain', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', armorClassBonus: 3n, description: 'Chain mail gloves offering good hand protection.' });
-  upsertByName({ name: 'Chain Girdle', slot: 'belt', armorType: 'chain', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,bard,cleric,spellblade,reaver', armorClassBonus: 3n, description: 'A chain mail belt reinforcing the midsection.' });
-
-  // Plate other-slot items (AC=4)
-  upsertByName({ name: 'Plate Vambraces', slot: 'wrists', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 4n, description: 'Plate wrist guards. Heavy but nearly impenetrable.' });
-  upsertByName({ name: 'Plate Girdle', slot: 'belt', armorType: 'plate', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 4n, description: 'A broad plate belt protecting the midsection.' });
+  for (const item of CRAFTING_BASE_GEAR_DEFS) {
+    upsertByName(item);
+  }
 }
 
 // ---------------------------------------------------------------------------
