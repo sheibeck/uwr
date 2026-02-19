@@ -77,6 +77,8 @@ export const useGameData = () => {
   const [eventSpawnEnemies] = useTable(tables.eventSpawnEnemy);
   const [eventSpawnItems] = useTable(tables.eventSpawnItem);
   const [eventObjectives] = useTable(tables.eventObjective);
+  // @ts-expect-error bindings pending regeneration — run spacetime generate after publishing
+  const [appVersionRows] = useTable(tables.appVersion);
 
   return {
     conn,
@@ -156,5 +158,6 @@ export const useGameData = () => {
     eventSpawnEnemies,
     eventSpawnItems,
     eventObjectives,
+    appVersionRows,
   };
 };

@@ -51,30 +51,12 @@ declare const __BUILD_VERSION__: string;
 
 const CLIENT_VERSION = typeof __BUILD_VERSION__ !== 'undefined' ? __BUILD_VERSION__ : 'dev';
 
-const checkForUpdates = async () => {
-  try {
-    const resp = await fetch(import.meta.env.BASE_URL + 'version.json?_=' + Date.now(), {
-      cache: 'no-store',
-    });
-    if (!resp.ok) return;
-    const data = await resp.json();
-    if (data.version && data.version !== CLIENT_VERSION && CLIENT_VERSION !== 'dev') {
-      console.log('[Version] New client version detected, reloading...');
-      window.location.reload();
-    }
-  } catch {
-    // Network error or dev mode — skip silently
-  }
-};
-
-// Check for updates every 60 seconds, but only in production builds
-if (import.meta.env.PROD) {
-  setInterval(checkForUpdates, 60_000);
-}
+window.__client_version = CLIENT_VERSION;
 
 declare global {
   interface Window {
     __db_conn?: DbConnection;
     __my_identity?: Identity;
+    __client_version?: string;
   }
 }

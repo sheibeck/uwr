@@ -672,7 +672,17 @@ const {
   worldEventRows,
   eventContributions,
   eventObjectives,
+  appVersionRows,
 } = useGameData();
+
+watch(appVersionRows, (rows) => {
+  const serverVersion = (rows as Array<{ version: string }>)[0]?.version;
+  const clientVersion = window.__client_version;
+  if (serverVersion && clientVersion && clientVersion !== 'dev' && serverVersion !== clientVersion) {
+    console.log('[Version] New deployment detected, reloading...');
+    window.location.reload();
+  }
+});
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ players, users });
 
