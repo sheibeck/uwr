@@ -2039,62 +2039,6 @@ export const registerCombatReducers = (deps: any) => {
         const postAttackEnemy = ctx.db.combatEnemy.id.find(currentEnemy.id);
         if (postAttackEnemy && postAttackEnemy.currentHp === 0n) {
           applyPerkProcs(ctx, character, 'on_kill', finalDamage, outcomeSeed + 2000n, combat.id, postAttackEnemy);
-          // Award event contribution for any kill matching an active event's enemy type in this region
-          const killedTemplateId = postAttackEnemy.enemyTemplateId;
-          const freshChar = ctx.db.character.id.find(character.id);
-          if (freshChar) {
-            const charLoc = ctx.db.location.id.find(freshChar.locationId);
-            if (charLoc) {
-              for (const activeEvent of ctx.db.worldEvent.by_status.filter('active')) {
-                if (activeEvent.regionId !== charLoc.regionId) continue;
-                // Check if this event's definition includes the killed enemy template.
-                // Do NOT use the EventSpawnEnemy -> EnemySpawn chain: EnemySpawn rows are
-                // deleted on kill and safe-town locations block respawn, so that chain goes
-                // stale permanently after the first kill (see quick-204).
-                let matchesEvent = false;
-                const eventDef = WORLD_EVENT_DEFINITIONS[activeEvent.eventKey];
-                if (eventDef) {
-                  const eventTemplateIds = new Set<bigint>();
-                  for (const cl of eventDef.contentLocations) {
-                    for (const e of cl.enemies) {
-                      for (const tmpl of ctx.db.enemyTemplate.iter()) {
-                        if (tmpl.name === e.enemyTemplateKey) {
-                          eventTemplateIds.add(tmpl.id);
-                          break;
-                        }
-                      }
-                    }
-                  }
-                  matchesEvent = eventTemplateIds.has(killedTemplateId);
-                }
-                if (!matchesEvent) continue;
-                // Award contribution
-                let contribFound = false;
-                for (const contrib of ctx.db.eventContribution.by_character.filter(character.id)) {
-                  if (contrib.eventId === activeEvent.id) {
-                    ctx.db.eventContribution.id.update({ ...contrib, count: contrib.count + 1n });
-                    contribFound = true;
-                    break;
-                  }
-                }
-                if (!contribFound) {
-                  ctx.db.eventContribution.insert({
-                    id: 0n,
-                    eventId: activeEvent.id,
-                    characterId: character.id,
-                    count: 1n,
-                    regionEnteredAt: ctx.timestamp,
-                  });
-                }
-                // Update kill_count objective
-                for (const obj of ctx.db.eventObjective.by_event.filter(activeEvent.id)) {
-                  if (obj.objectiveType === 'kill_count') {
-                    ctx.db.eventObjective.id.update({ ...obj, currentCount: obj.currentCount + 1n });
-                  }
-                }
-              }
-            }
-          }
         }
       }
 
@@ -2263,6 +2207,7 @@ export const registerCombatReducers = (deps: any) => {
           });
         }
       }
+      const combatLoc = ctx.db.location.id.find(combat.locationId);
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
@@ -2272,8 +2217,72 @@ export const registerCombatReducers = (deps: any) => {
           grantFactionStandingForKill(ctx, character, template.id);
 
           // REQ-032: Increment world stat tracker for threshold-triggered events
-          // Event contribution is now handled per-kill in the on_kill hook above
           incrementWorldStat(ctx, 'total_enemies_killed', 1n);
+
+          // Award event contribution per participant per enemy killed (all kill types)
+          if (combatLoc) {
+            for (const activeEvent of ctx.db.worldEvent.by_status.filter('active')) {
+              if (activeEvent.regionId !== combatLoc.regionId) continue;
+              const eventDef = WORLD_EVENT_DEFINITIONS[activeEvent.eventKey];
+              if (!eventDef) continue;
+              const eventTemplateIds = new Set<bigint>();
+              for (const cl of eventDef.contentLocations) {
+                for (const e of cl.enemies) {
+                  for (const tmpl of ctx.db.enemyTemplate.iter()) {
+                    if (tmpl.name === e.enemyTemplateKey) {
+                      eventTemplateIds.add(tmpl.id);
+                      break;
+                    }
+                  }
+                }
+              }
+              if (!eventTemplateIds.has(template.id)) continue;
+              let contribFound = false;
+              for (const contrib of ctx.db.eventContribution.by_character.filter(character.id)) {
+                if (contrib.eventId === activeEvent.id) {
+                  ctx.db.eventContribution.id.update({ ...contrib, count: contrib.count + 1n });
+                  contribFound = true;
+                  break;
+                }
+              }
+              if (!contribFound) {
+                ctx.db.eventContribution.insert({
+                  id: 0n,
+                  eventId: activeEvent.id,
+                  characterId: character.id,
+                  count: 1n,
+                  regionEnteredAt: ctx.timestamp,
+                });
+              }
+            }
+          }
+        }
+      }
+      // Advance kill_count objective once per enemy killed (not multiplied by participants)
+      if (combatLoc) {
+        for (const template of enemyTemplates) {
+          for (const activeEvent of ctx.db.worldEvent.by_status.filter('active')) {
+            if (activeEvent.regionId !== combatLoc.regionId) continue;
+            const eventDef = WORLD_EVENT_DEFINITIONS[activeEvent.eventKey];
+            if (!eventDef) continue;
+            const eventTemplateIds = new Set<bigint>();
+            for (const cl of eventDef.contentLocations) {
+              for (const e of cl.enemies) {
+                for (const tmpl of ctx.db.enemyTemplate.iter()) {
+                  if (tmpl.name === e.enemyTemplateKey) {
+                    eventTemplateIds.add(tmpl.id);
+                    break;
+                  }
+                }
+              }
+            }
+            if (!eventTemplateIds.has(template.id)) continue;
+            for (const obj of ctx.db.eventObjective.by_event.filter(activeEvent.id)) {
+              if (obj.objectiveType === 'kill_count') {
+                ctx.db.eventObjective.id.update({ ...obj, currentCount: obj.currentCount + 1n });
+              }
+            }
+          }
         }
       }
       const eligible = participants.filter((p) => p.status !== 'dead');
