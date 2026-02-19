@@ -9,12 +9,13 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import EventDespawnTick from "./event_despawn_tick_type";
 
-export default {
-  characterId: __t.u64(),
-  recipeTemplateId: __t.u64(),
-  catalystTemplateId: __t.option(__t.u64()),
-  modifier1TemplateId: __t.option(__t.u64()),
-  modifier2TemplateId: __t.option(__t.u64()),
-  modifier3TemplateId: __t.option(__t.u64()),
-};
+
+export default __t.object("DespawnEventContent", {
+  get arg() {
+    return EventDespawnTick;
+  },
+});
+
+

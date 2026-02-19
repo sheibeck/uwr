@@ -84,6 +84,8 @@ import SellAllJunkReducer from "./sell_all_junk_reducer";
 export { SellAllJunkReducer };
 import TakeLootReducer from "./take_loot_reducer";
 export { TakeLootReducer };
+import TakeAllLootReducer from "./take_all_loot_reducer";
+export { TakeAllLootReducer };
 import EquipItemReducer from "./equip_item_reducer";
 export { EquipItemReducer };
 import UnequipItemReducer from "./unequip_item_reducer";
@@ -106,6 +108,8 @@ import ResearchRecipesReducer from "./research_recipes_reducer";
 export { ResearchRecipesReducer };
 import CraftRecipeReducer from "./craft_recipe_reducer";
 export { CraftRecipeReducer };
+import LearnRecipeScrollReducer from "./learn_recipe_scroll_reducer";
+export { LearnRecipeScrollReducer };
 import UseItemReducer from "./use_item_reducer";
 export { UseItemReducer };
 import StartTradeReducer from "./start_trade_reducer";
@@ -146,6 +150,8 @@ import HailNpcReducer from "./hail_npc_reducer";
 export { HailNpcReducer };
 import CreateTestItemReducer from "./create_test_item_reducer";
 export { CreateTestItemReducer };
+import CreateRecipeScrollReducer from "./create_recipe_scroll_reducer";
+export { CreateRecipeScrollReducer };
 import GroupMessageReducer from "./group_message_reducer";
 export { GroupMessageReducer };
 import LevelCharacterReducer from "./level_character_reducer";
@@ -236,6 +242,16 @@ import GrantTestAchievementReducer from "./grant_test_achievement_reducer";
 export { GrantTestAchievementReducer };
 import SavePanelLayoutReducer from "./save_panel_layout_reducer";
 export { SavePanelLayoutReducer };
+import FireWorldEventReducer from "./fire_world_event_reducer";
+export { FireWorldEventReducer };
+import ResolveWorldEventReducer from "./resolve_world_event_reducer";
+export { ResolveWorldEventReducer };
+import CollectEventItemReducer from "./collect_event_item_reducer";
+export { CollectEventItemReducer };
+import IncrementEventCounterReducer from "./increment_event_counter_reducer";
+export { IncrementEventCounterReducer };
+import DespawnEventContentReducer from "./despawn_event_content_reducer";
+export { DespawnEventContentReducer };
 
 // Import and reexport all procedure arg types
 
@@ -304,12 +320,22 @@ import EnemySpawnMemberRow from "./enemy_spawn_member_table";
 export { EnemySpawnMemberRow };
 import EnemyTemplateRow from "./enemy_template_table";
 export { EnemyTemplateRow };
+import EventContributionRow from "./event_contribution_table";
+export { EventContributionRow };
+import EventDespawnTickRow from "./event_despawn_tick_table";
+export { EventDespawnTickRow };
 import EventGroupRow from "./event_group_table";
 export { EventGroupRow };
 import EventLocationRow from "./event_location_table";
 export { EventLocationRow };
+import EventObjectiveRow from "./event_objective_table";
+export { EventObjectiveRow };
 import EventPrivateRow from "./event_private_table";
 export { EventPrivateRow };
+import EventSpawnEnemyRow from "./event_spawn_enemy_table";
+export { EventSpawnEnemyRow };
+import EventSpawnItemRow from "./event_spawn_item_table";
+export { EventSpawnItemRow };
 import EventWorldRow from "./event_world_table";
 export { EventWorldRow };
 import FactionRow from "./faction_table";
@@ -440,6 +466,10 @@ import UserRow from "./user_table";
 export { UserRow };
 import VendorInventoryRow from "./vendor_inventory_table";
 export { VendorInventoryRow };
+import WorldEventRow from "./world_event_table";
+export { WorldEventRow };
+import WorldStatTrackerRow from "./world_stat_tracker_table";
+export { WorldStatTrackerRow };
 import WorldStateRow from "./world_state_table";
 export { WorldStateRow };
 
@@ -486,6 +516,8 @@ import ChoosePerk from "./choose_perk_type";
 export { ChoosePerk };
 import ClearActiveCharacter from "./clear_active_character_type";
 export { ClearActiveCharacter };
+import CollectEventItem from "./collect_event_item_type";
+export { CollectEventItem };
 import CombatEncounter from "./combat_encounter_type";
 export { CombatEncounter };
 import CombatEnemy from "./combat_enemy_type";
@@ -526,6 +558,8 @@ import CreateGroup from "./create_group_type";
 export { CreateGroup };
 import CreateItemTemplate from "./create_item_template_type";
 export { CreateItemTemplate };
+import CreateRecipeScroll from "./create_recipe_scroll_type";
+export { CreateRecipeScroll };
 import CreateTestItem from "./create_test_item_type";
 export { CreateTestItem };
 import DayNightTick from "./day_night_tick_type";
@@ -538,6 +572,8 @@ import DeleteCharacter from "./delete_character_type";
 export { DeleteCharacter };
 import DeleteItem from "./delete_item_type";
 export { DeleteItem };
+import DespawnEventContent from "./despawn_event_content_type";
+export { DespawnEventContent };
 import DisconnectLogout from "./disconnect_logout_type";
 export { DisconnectLogout };
 import DisconnectLogoutTick from "./disconnect_logout_tick_type";
@@ -564,12 +600,22 @@ import EnemyTemplate from "./enemy_template_type";
 export { EnemyTemplate };
 import EquipItem from "./equip_item_type";
 export { EquipItem };
+import EventContribution from "./event_contribution_type";
+export { EventContribution };
+import EventDespawnTick from "./event_despawn_tick_type";
+export { EventDespawnTick };
 import EventGroup from "./event_group_type";
 export { EventGroup };
 import EventLocation from "./event_location_type";
 export { EventLocation };
+import EventObjective from "./event_objective_type";
+export { EventObjective };
 import EventPrivate from "./event_private_type";
 export { EventPrivate };
+import EventSpawnEnemy from "./event_spawn_enemy_type";
+export { EventSpawnEnemy };
+import EventSpawnItem from "./event_spawn_item_type";
+export { EventSpawnItem };
 import EventWorld from "./event_world_type";
 export { EventWorld };
 import Faction from "./faction_type";
@@ -578,6 +624,8 @@ import FactionStanding from "./faction_standing_type";
 export { FactionStanding };
 import FinishGather from "./finish_gather_type";
 export { FinishGather };
+import FireWorldEvent from "./fire_world_event_type";
+export { FireWorldEvent };
 import FleeCombat from "./flee_combat_type";
 export { FleeCombat };
 import Friend from "./friend_type";
@@ -608,6 +656,8 @@ import HotTick from "./hot_tick_type";
 export { HotTick };
 import HotbarSlot from "./hotbar_slot_type";
 export { HotbarSlot };
+import IncrementEventCounter from "./increment_event_counter_type";
+export { IncrementEventCounter };
 import Init from "./init_type";
 export { Init };
 import InitiateCorpseSummon from "./initiate_corpse_summon_type";
@@ -628,6 +678,8 @@ import JoinGroup from "./join_group_type";
 export { JoinGroup };
 import KickGroupMember from "./kick_group_member_type";
 export { KickGroupMember };
+import LearnRecipeScroll from "./learn_recipe_scroll_type";
+export { LearnRecipeScroll };
 import LeaveGroup from "./leave_group_type";
 export { LeaveGroup };
 import LevelCharacter from "./level_character_type";
@@ -748,6 +800,8 @@ import ResearchRecipes from "./research_recipes_type";
 export { ResearchRecipes };
 import ResolvePull from "./resolve_pull_type";
 export { ResolvePull };
+import ResolveWorldEvent from "./resolve_world_event_type";
+export { ResolveWorldEvent };
 import ResourceGather from "./resource_gather_type";
 export { ResourceGather };
 import ResourceGatherTick from "./resource_gather_tick_type";
@@ -818,6 +872,8 @@ import SyncRecipeTemplates from "./sync_recipe_templates_type";
 export { SyncRecipeTemplates };
 import SyncWorldLayout from "./sync_world_layout_type";
 export { SyncWorldLayout };
+import TakeAllLoot from "./take_all_loot_type";
+export { TakeAllLoot };
 import TakeLoot from "./take_loot_type";
 export { TakeLoot };
 import TickCasts from "./tick_casts_type";
@@ -848,6 +904,10 @@ import VendorInventory from "./vendor_inventory_type";
 export { VendorInventory };
 import Whisper from "./whisper_type";
 export { Whisper };
+import WorldEvent from "./world_event_type";
+export { WorldEvent };
+import WorldStatTracker from "./world_stat_tracker_type";
+export { WorldStatTracker };
 import WorldState from "./world_state_type";
 export { WorldState };
 
@@ -1323,6 +1383,34 @@ const tablesSchema = __schema(
     ],
   }, EnemyTemplateRow),
   __table({
+    name: 'event_contribution',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'by_event', algorithm: 'btree', columns: [
+        'eventId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'event_contribution_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, EventContributionRow),
+  __table({
+    name: 'event_despawn_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'event_despawn_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, EventDespawnTickRow),
+  __table({
     name: 'event_group',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1354,6 +1442,20 @@ const tablesSchema = __schema(
     ],
   }, EventLocationRow),
   __table({
+    name: 'event_objective',
+    indexes: [
+      { name: 'by_event', algorithm: 'btree', columns: [
+        'eventId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'event_objective_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, EventObjectiveRow),
+  __table({
     name: 'event_private',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1370,6 +1472,40 @@ const tablesSchema = __schema(
       { name: 'event_private_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EventPrivateRow),
+  __table({
+    name: 'event_spawn_enemy',
+    indexes: [
+      { name: 'by_event', algorithm: 'btree', columns: [
+        'eventId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_spawn', algorithm: 'btree', columns: [
+        'spawnId',
+      ] },
+    ],
+    constraints: [
+      { name: 'event_spawn_enemy_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, EventSpawnEnemyRow),
+  __table({
+    name: 'event_spawn_item',
+    indexes: [
+      { name: 'by_event', algorithm: 'btree', columns: [
+        'eventId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_location', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'event_spawn_item_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, EventSpawnItemRow),
   __table({
     name: 'event_world',
     indexes: [
@@ -2088,6 +2224,37 @@ const tablesSchema = __schema(
     ],
   }, VendorInventoryRow),
   __table({
+    name: 'world_event',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_region', algorithm: 'btree', columns: [
+        'regionId',
+      ] },
+      { name: 'by_status', algorithm: 'btree', columns: [
+        'status',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_event_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldEventRow),
+  __table({
+    name: 'world_stat_tracker',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_stat_key', algorithm: 'btree', columns: [
+        'statKey',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_stat_tracker_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldStatTrackerRow),
+  __table({
     name: 'world_state',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -2230,6 +2397,7 @@ const reducersSchema = __reducers(
   __reducerSchema("sell_item", SellItemReducer),
   __reducerSchema("sell_all_junk", SellAllJunkReducer),
   __reducerSchema("take_loot", TakeLootReducer),
+  __reducerSchema("take_all_loot", TakeAllLootReducer),
   __reducerSchema("equip_item", EquipItemReducer),
   __reducerSchema("unequip_item", UnequipItemReducer),
   __reducerSchema("delete_item", DeleteItemReducer),
@@ -2241,6 +2409,7 @@ const reducersSchema = __reducers(
   __reducerSchema("finish_gather", FinishGatherReducer),
   __reducerSchema("research_recipes", ResearchRecipesReducer),
   __reducerSchema("craft_recipe", CraftRecipeReducer),
+  __reducerSchema("learn_recipe_scroll", LearnRecipeScrollReducer),
   __reducerSchema("use_item", UseItemReducer),
   __reducerSchema("start_trade", StartTradeReducer),
   __reducerSchema("add_trade_item", AddTradeItemReducer),
@@ -2261,6 +2430,7 @@ const reducersSchema = __reducers(
   __reducerSchema("say", SayReducer),
   __reducerSchema("hail_npc", HailNpcReducer),
   __reducerSchema("create_test_item", CreateTestItemReducer),
+  __reducerSchema("create_recipe_scroll", CreateRecipeScrollReducer),
   __reducerSchema("group_message", GroupMessageReducer),
   __reducerSchema("level_character", LevelCharacterReducer),
   __reducerSchema("whisper", WhisperReducer),
@@ -2306,6 +2476,11 @@ const reducersSchema = __reducers(
   __reducerSchema("grant_test_renown", GrantTestRenownReducer),
   __reducerSchema("grant_test_achievement", GrantTestAchievementReducer),
   __reducerSchema("save_panel_layout", SavePanelLayoutReducer),
+  __reducerSchema("fire_world_event", FireWorldEventReducer),
+  __reducerSchema("resolve_world_event", ResolveWorldEventReducer),
+  __reducerSchema("collect_event_item", CollectEventItemReducer),
+  __reducerSchema("increment_event_counter", IncrementEventCounterReducer),
+  __reducerSchema("despawn_event_content", DespawnEventContentReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

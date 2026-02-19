@@ -11,10 +11,6 @@ import {
 } from "spacetimedb";
 
 export default {
-  characterId: __t.u64(),
-  recipeTemplateId: __t.u64(),
-  catalystTemplateId: __t.option(__t.u64()),
-  modifier1TemplateId: __t.option(__t.u64()),
-  modifier2TemplateId: __t.option(__t.u64()),
-  modifier3TemplateId: __t.option(__t.u64()),
+  worldEventId: __t.u64(),
+  outcome: __t.string(),
 };

@@ -20,6 +20,7 @@ export default __t.object("CombatLoot", {
   qualityTier: __t.option(__t.string()),
   affixDataJson: __t.option(__t.string()),
   isNamed: __t.option(__t.bool()),
+  craftQuality: __t.option(__t.string()),
 });
 
 
