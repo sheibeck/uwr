@@ -805,7 +805,6 @@ export function executeAbility(
     case 'shaman_spirit_mender':
       if (!targetCharacter) throw new SenderError('Target required');
       applyHeal(targetCharacter, 12n, 'Spirit Mender');
-      addCharacterEffect(ctx, targetCharacter.id, 'regen', 5n, 2n, 'Spirit Mender');
       appendPrivateEvent(
         ctx,
         character.id,
