@@ -79,6 +79,7 @@ const highlighted = ref<string | null>(null);
     { value: '/resetwindows', hint: 'Reset all panel positions to center of screen' },
     { value: '/who', hint: 'List all online characters' },
     { value: '/endevent', hint: 'End active world event as success (or /endevent fail)' },
+    { value: '/setappversion', hint: 'Set app version in SpacetimeDB (admin only)' },
   ];
 
 const shouldShowSuggestions = computed(() => {

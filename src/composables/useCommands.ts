@@ -1,6 +1,7 @@
 import { ref, type Ref } from 'vue';
 import { reducers, type CharacterRow, type NpcRow, type NpcDialogueOptionRow, type NpcAffinityRow, type FactionStandingRow, type PlayerRow, type LocationRow } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
+import { ADMIN_IDENTITY_HEX } from '../data/worldEventDefs';
 
 type UseCommandsArgs = {
   connActive: Ref<boolean>;
@@ -58,6 +59,7 @@ export const useCommands = ({
   const createTestItemReducer = useReducer(reducers.createTestItem);
   const createRecipeScrollReducer = useReducer(reducers.createRecipeScroll);
   const resolveWorldEventReducer = useReducer(reducers.resolveWorldEvent);
+  const setAppVersionReducer = useReducer(reducers.setAppVersion);
   const chooseDialogueOptionReducer = useReducer(reducers.chooseDialogueOption);
   const commandText = ref('');
 
@@ -364,6 +366,16 @@ export const useCommands = ({
         });
         addLocalEvent?.('command', `Online characters (${activeChars.length}):\n${lines.join('\n')}`);
       }
+    } else if (lower === '/setappversion') {
+      const isAdmin = window.__my_identity?.toHexString() === ADMIN_IDENTITY_HEX;
+      if (!isAdmin) {
+        addLocalEvent?.('command', 'Permission denied.');
+        commandText.value = '';
+        return;
+      }
+      const version = window.__client_version ?? 'dev';
+      setAppVersionReducer({ version });
+      addLocalEvent?.('command', `App version set to "${version}".`);
     } else {
       submitCommandReducer({
         characterId: selectedCharacter.value.id,
