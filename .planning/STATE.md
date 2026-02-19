@@ -405,9 +405,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 206 | Re-insert pulled CombatEnemy rows as EnemySpawnMembers on leash restore — second loop after savedMembers re-insertion iterates enemies[] and re-inserts EnemySpawnMember for each enemy whose spawnId matches; increments count so groupCount reflects the full original composition (e.g. 5 rats not 4) after all-flee events | 2026-02-18 | fdf46d1 | [206-restore-event-enemy-to-spawn-group-after](./quick/206-restore-event-enemy-to-spawn-group-after/) |
 | 207 | Preserve un-pulled EnemySpawnMember rows on player death — removed delete-all-members loop from player-death spawn restore block; remainingMemberCount counts existing un-pulled rows before re-inserting pulled survivors; roleTemplateId uses ?? 0n fallback; groupCount = un-pulled survivors + pulled survivors with hp > 0 | 2026-02-18 | 9988410 | [207-restore-surviving-enemies-to-spawn-group](./quick/207-restore-surviving-enemies-to-spawn-group/) |
 | 208 | WorldEventPanel time-remaining countdown now ticks every second by consuming nowMicros prop (updated every 100ms by App.vue setInterval) instead of calling Date.now() inline — Vue reactivity re-renders timeRemaining() on each tick without requiring server data change | 2026-02-19 | 4fda3db | [208-the-time-remaining-in-the-active-events-](./quick/208-the-time-remaining-in-the-active-events-/) |
+| 209 | Move event kill credit to victory path so all kill types (auto-attack and ability) award contribution — removed per-kill credit from auto-attack guard; added contribution (per participant × per enemy template) and kill_count objective increment (once per enemy) in the victory section alongside updateQuestProgressForKill | 2026-02-18 | 3a2c7f3 | — |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-19 - Completed quick-208: added nowMicros prop to WorldEventPanel (passed from App.vue's 100ms setInterval); timeRemaining() now uses props.nowMicros so the countdown ticks every second without requiring server data change. Previous: quick-207 (preserve un-pulled spawn members on player death).
+Last activity: 2026-02-18 - Completed quick-209: moved event kill credit from auto-attack path to victory path so all kills (auto-attack and abilities) award event contribution. Previous: quick-208 (WorldEventPanel time-remaining countdown via nowMicros prop).
