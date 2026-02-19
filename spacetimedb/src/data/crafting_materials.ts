@@ -230,23 +230,31 @@ export interface ConsumableRecipeDef {
   req2Count: bigint;
   req3Name?: string;
   req3Count?: bigint;
+  description: string;
+  outputSlot: string;
+  outputVendorValue: bigint;
+  foodBuff?: {
+    buffType: string;
+    magnitude: bigint;
+    durationMicros: bigint;
+  };
 }
 
 export const CONSUMABLE_RECIPES: ConsumableRecipeDef[] = [
-  { key: 'bandage', name: 'Bandages', outputName: 'Bandage', outputCount: 1n, req1Name: 'Flax', req1Count: 1n, req2Name: 'Herbs', req2Count: 1n },
-  { key: 'simple_rations', name: 'Simple Rations', outputName: 'Simple Rations', outputCount: 1n, req1Name: 'Raw Meat', req1Count: 1n, req2Name: 'Salt', req2Count: 1n },
-  { key: 'torch', name: 'Torch', outputName: 'Torch', outputCount: 1n, req1Name: 'Wood', req1Count: 1n, req2Name: 'Resin', req2Count: 1n },
-  { key: 'basic_poultice', name: 'Basic Poultice', outputName: 'Basic Poultice', outputCount: 1n, req1Name: 'Herbs', req1Count: 1n, req2Name: 'Flax', req2Count: 1n, req3Name: 'Clear Water', req3Count: 1n },
-  { key: 'travelers_tea', name: 'Travelers Tea', outputName: 'Travelers Tea', outputCount: 1n, req1Name: 'Herbs', req1Count: 1n, req2Name: 'Clear Water', req2Count: 1n },
-  { key: 'whetstone', name: 'Whetstone', outputName: 'Whetstone', outputCount: 1n, req1Name: 'Stone', req1Count: 1n, req2Name: 'Sand', req2Count: 1n },
-  { key: 'kindling_bundle', name: 'Kindling Bundle', outputName: 'Kindling Bundle', outputCount: 1n, req1Name: 'Wood', req1Count: 1n, req2Name: 'Dry Grass', req2Count: 1n },
-  { key: 'rough_rope', name: 'Rough Rope', outputName: 'Rough Rope', outputCount: 1n, req1Name: 'Flax', req1Count: 1n, req2Name: 'Resin', req2Count: 1n },
-  { key: 'charcoal', name: 'Charcoal', outputName: 'Charcoal', outputCount: 1n, req1Name: 'Wood', req1Count: 1n, req2Name: 'Stone', req2Count: 1n },
-  { key: 'crude_poison', name: 'Crude Poison', outputName: 'Crude Poison', outputCount: 1n, req1Name: 'Bitter Herbs', req1Count: 1n, req2Name: 'Resin', req2Count: 1n },
-  { key: 'herb_broth', name: 'Herb Broth', outputName: 'Herb Broth', outputCount: 1n, req1Name: 'Wild Berries', req1Count: 2n, req2Name: 'Clear Water', req2Count: 1n },
-  { key: 'roasted_roots', name: 'Roasted Roots', outputName: 'Roasted Roots', outputCount: 1n, req1Name: 'Root Vegetable', req1Count: 2n, req2Name: 'Salt', req2Count: 1n },
-  { key: 'travelers_stew', name: "Traveler's Stew", outputName: "Traveler's Stew", outputCount: 1n, req1Name: 'Root Vegetable', req1Count: 1n, req2Name: 'Raw Meat', req2Count: 1n },
-  { key: 'foragers_salad', name: "Forager's Salad", outputName: "Forager's Salad", outputCount: 1n, req1Name: 'Wild Berries', req1Count: 1n, req2Name: 'Herbs', req2Count: 1n },
+  { key: 'bandage', name: 'Bandages', outputName: 'Bandage', outputCount: 1n, req1Name: 'Flax', req1Count: 1n, req2Name: 'Herbs', req2Count: 1n, description: 'Strips of clean cloth used to bind wounds. Restores a small amount of health.', outputSlot: 'consumable', outputVendorValue: 2n },
+  { key: 'simple_rations', name: 'Simple Rations', outputName: 'Simple Rations', outputCount: 1n, req1Name: 'Raw Meat', req1Count: 1n, req2Name: 'Salt', req2Count: 1n, description: 'Basic preserved food. Staves off hunger but grants no special effects.', outputSlot: 'consumable', outputVendorValue: 2n },
+  { key: 'torch', name: 'Torch', outputName: 'Torch', outputCount: 1n, req1Name: 'Wood', req1Count: 1n, req2Name: 'Resin', req2Count: 1n, description: 'A wooden shaft wrapped in oil-soaked cloth. Provides light in dark places.', outputSlot: 'utility', outputVendorValue: 2n },
+  { key: 'basic_poultice', name: 'Basic Poultice', outputName: 'Basic Poultice', outputCount: 1n, req1Name: 'Herbs', req1Count: 1n, req2Name: 'Flax', req2Count: 1n, req3Name: 'Clear Water', req3Count: 1n, description: 'A moist herbal compress that speeds natural healing.', outputSlot: 'consumable', outputVendorValue: 2n },
+  { key: 'travelers_tea', name: 'Travelers Tea', outputName: 'Travelers Tea', outputCount: 1n, req1Name: 'Herbs', req1Count: 1n, req2Name: 'Clear Water', req2Count: 1n, description: 'A warm herbal infusion that restores stamina on the road.', outputSlot: 'consumable', outputVendorValue: 2n },
+  { key: 'whetstone', name: 'Whetstone', outputName: 'Whetstone', outputCount: 1n, req1Name: 'Stone', req1Count: 1n, req2Name: 'Sand', req2Count: 1n, description: 'A coarse grinding stone used to sharpen blades before battle.', outputSlot: 'utility', outputVendorValue: 2n },
+  { key: 'kindling_bundle', name: 'Kindling Bundle', outputName: 'Kindling Bundle', outputCount: 1n, req1Name: 'Wood', req1Count: 1n, req2Name: 'Dry Grass', req2Count: 1n, description: 'A bundle of dry twigs and bark. Starts campfires quickly.', outputSlot: 'utility', outputVendorValue: 1n },
+  { key: 'rough_rope', name: 'Rough Rope', outputName: 'Rough Rope', outputCount: 1n, req1Name: 'Flax', req1Count: 1n, req2Name: 'Resin', req2Count: 1n, description: 'Braided plant fibers twisted into a sturdy rope.', outputSlot: 'utility', outputVendorValue: 2n },
+  { key: 'charcoal', name: 'Charcoal', outputName: 'Charcoal', outputCount: 1n, req1Name: 'Wood', req1Count: 1n, req2Name: 'Stone', req2Count: 1n, description: 'Blackened wood remnants. Burns hotter than raw timber.', outputSlot: 'resource', outputVendorValue: 1n },
+  { key: 'crude_poison', name: 'Crude Poison', outputName: 'Crude Poison', outputCount: 1n, req1Name: 'Bitter Herbs', req1Count: 1n, req2Name: 'Resin', req2Count: 1n, description: 'A noxious paste distilled from bitter herbs. Applied to weapon edges.', outputSlot: 'consumable', outputVendorValue: 3n },
+  { key: 'herb_broth', name: 'Herb Broth', outputName: 'Herb Broth', outputCount: 1n, req1Name: 'Wild Berries', req1Count: 2n, req2Name: 'Clear Water', req2Count: 1n, description: 'A fragrant broth steeped with wild herbs. Boosts mana regeneration while Well Fed.', outputSlot: 'food', outputVendorValue: 2n, foodBuff: { buffType: 'mana_regen', magnitude: 1n, durationMicros: 2_700_000_000n } },
+  { key: 'roasted_roots', name: 'Roasted Roots', outputName: 'Roasted Roots', outputCount: 1n, req1Name: 'Root Vegetable', req1Count: 2n, req2Name: 'Salt', req2Count: 1n, description: 'Hearty roasted tubers seasoned with salt. Boosts strength while Well Fed.', outputSlot: 'food', outputVendorValue: 2n, foodBuff: { buffType: 'str', magnitude: 1n, durationMicros: 2_700_000_000n } },
+  { key: 'travelers_stew', name: "Traveler's Stew", outputName: "Traveler's Stew", outputCount: 1n, req1Name: 'Root Vegetable', req1Count: 1n, req2Name: 'Raw Meat', req2Count: 1n, description: 'A thick stew of meat and vegetables. Boosts stamina regeneration while Well Fed.', outputSlot: 'food', outputVendorValue: 2n, foodBuff: { buffType: 'stamina_regen', magnitude: 1n, durationMicros: 2_700_000_000n } },
+  { key: 'foragers_salad', name: "Forager's Salad", outputName: "Forager's Salad", outputCount: 1n, req1Name: 'Wild Berries', req1Count: 1n, req2Name: 'Herbs', req2Count: 1n, description: "A crisp mix of berries and greens. Boosts dexterity while Well Fed.", outputSlot: 'food', outputVendorValue: 2n, foodBuff: { buffType: 'dex', magnitude: 1n, durationMicros: 2_700_000_000n } },
 ];
 
 // ---------------------------------------------------------------------------
