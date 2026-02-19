@@ -327,21 +327,33 @@ export function getAbilityMultiplier(castSeconds: bigint, cooldownSeconds: bigin
 }
 
 /**
- * Calculate healing power with WIS scaling
- * Only applies WIS scaling if class config has primary='wis' or secondary='wis'
- * Formula: baseHealing + (baseHealing * casterWis * HEALING_WIS_SCALING_PER_1000) / 1000n
+ * Calculate healing power with stat scaling via getAbilityStatScaling
+ * Uses the same stat-scaling path as damage abilities (Decision #32, #34, #35)
+ * - statScaling='none' or falsy: returns baseHealing unchanged
+ * - statScaling='hybrid': uses 60% primary + 40% secondary per CLASS_CONFIG
+ * - Other stats: gated on class having that stat as primary or secondary (Decision #32)
+ * Formula: baseHealing + getAbilityStatScaling(characterStats, '', className, statScaling)
  */
-export function calculateHealingPower(baseHealing: bigint, casterWis: bigint, className: string): bigint {
-  const config = getClassConfig(className);
-
-  // Only apply WIS scaling for healing classes
-  const isHealingClass = config.primary === 'wis' || config.secondary === 'wis';
-
-  if (!isHealingClass) {
+export function calculateHealingPower(
+  baseHealing: bigint,
+  characterStats: { str: bigint; dex: bigint; cha: bigint; wis: bigint; int: bigint },
+  className: string,
+  statScaling: string
+): bigint {
+  if (!statScaling || statScaling === 'none') {
     return baseHealing;
   }
 
-  return baseHealing + (baseHealing * casterWis * HEALING_WIS_SCALING_PER_1000) / 1000n;
+  // Decision #32: Only apply stat scaling for classes that have the relevant stat
+  // as primary or secondary. Hybrid classes always qualify.
+  if (statScaling !== 'hybrid') {
+    const config = getClassConfig(className);
+    const hasStat = config.primary === statScaling || config.secondary === statScaling;
+    if (!hasStat) return baseHealing;
+  }
+
+  const statBonus = getAbilityStatScaling(characterStats, '', className, statScaling);
+  return baseHealing + statBonus;
 }
 
 /**
