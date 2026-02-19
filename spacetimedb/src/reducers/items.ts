@@ -1802,16 +1802,25 @@ export const registerItemReducers = (deps: any) => {
       }
     }
 
-    // --- Bonus modifier reagent yield (12% chance) ---
-    const modifierRoll = (ctx.timestamp.microsSinceUnixEpoch + args.itemInstanceId * 13n) % 100n;
-    if (modifierRoll < 12n) {
-      const modIdx = Number((args.itemInstanceId + character.id) % BigInt(CRAFTING_MODIFIER_DEFS.length));
-      const modDef = CRAFTING_MODIFIER_DEFS[modIdx];
-      const modifierTemplate = findItemTemplateByName(ctx, modDef.name);
-      if (modifierTemplate) {
-        addItemToInventory(ctx, character.id, modifierTemplate.id, 1n);
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-          `You also found 1x ${modDef.name} while salvaging.`);
+    // --- Bonus modifier reagent yield (12% chance, affix-constrained) ---
+    // Collect the unique statKey set from this item's actual ItemAffix rows.
+    // Affix deletion happens later, so rows still exist here.
+    const affixStatKeys = new Set(
+      [...ctx.db.itemAffix.by_instance.filter(instance.id)].map(a => a.statKey)
+    );
+    // Only yield reagents whose statKey matches one of the item's actual affixes.
+    const filteredModDefs = CRAFTING_MODIFIER_DEFS.filter(d => affixStatKeys.has(d.statKey));
+    if (filteredModDefs.length > 0) {
+      const modifierRoll = (ctx.timestamp.microsSinceUnixEpoch + args.itemInstanceId * 13n) % 100n;
+      if (modifierRoll < 12n) {
+        const modIdx = Number((args.itemInstanceId + character.id) % BigInt(filteredModDefs.length));
+        const modDef = filteredModDefs[modIdx];
+        const modifierTemplate = findItemTemplateByName(ctx, modDef.name);
+        if (modifierTemplate) {
+          addItemToInventory(ctx, character.id, modifierTemplate.id, 1n);
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+            `You also found 1x ${modDef.name} while salvaging.`);
+        }
       }
     }
 
