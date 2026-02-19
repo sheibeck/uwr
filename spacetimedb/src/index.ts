@@ -20,6 +20,7 @@ import {
   Corpse, CorpseItem,
   PendingSpellCast,
   QuestItem, NamedEnemy, SearchResult,
+  AppVersion,
 } from './schema/tables';
 export { spacetimedb } from './schema/tables';
 import { registerReducers } from './reducers';
@@ -251,6 +252,16 @@ spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
     scheduledId: 0n,
     scheduledAt: ScheduleAt.time(nextTransition),
   });
+});
+
+spacetimedb.reducer('set_app_version', { version: t.string() }, (ctx, { version }) => {
+  requireAdmin(ctx);
+  const existing = [...ctx.db.appVersion.iter()][0];
+  if (existing) {
+    ctx.db.appVersion.id.update({ ...existing, version, updatedAt: ctx.timestamp });
+  } else {
+    ctx.db.appVersion.insert({ id: 0n, version, updatedAt: ctx.timestamp });
+  }
 });
 
 registerViews({

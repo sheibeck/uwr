@@ -1663,6 +1663,15 @@ export const EventDespawnTick = table(
   }
 );
 
+export const AppVersion = table(
+  { name: 'app_version', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    version: t.string(),
+    updatedAt: t.timestamp(),
+  }
+);
+
 export const spacetimedb = schema(
   Player,
   User,
@@ -1757,4 +1766,5 @@ export const spacetimedb = schema(
   EventObjective,
   WorldStatTracker,
   EventDespawnTick,
+  AppVersion,
 );
