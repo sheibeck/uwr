@@ -679,10 +679,21 @@ const {
 watch(appVersionRows, (rows) => {
   const serverVersion = (rows as Array<{ version: string }>)[0]?.version;
   const clientVersion = window.__client_version;
-  if (serverVersion && clientVersion && clientVersion !== 'dev' && serverVersion !== clientVersion) {
-    console.log('[Version] New deployment detected, reloading...');
-    window.location.reload();
+  if (!serverVersion || !clientVersion || clientVersion === 'dev') return;
+  if (serverVersion === clientVersion) {
+    // Versions match — clear stale reload guard so future updates can still trigger
+    sessionStorage.removeItem('_version_reload_attempted');
+    return;
   }
+  // Mismatch — only reload once per session to prevent infinite reload loops
+  // (server AppVersion may be stale if /setappversion wasn't re-run after the latest deploy)
+  if (sessionStorage.getItem('_version_reload_attempted')) {
+    console.log('[Version] Mismatch persists but reload already attempted this session, skipping.');
+    return;
+  }
+  sessionStorage.setItem('_version_reload_attempted', '1');
+  console.log('[Version] New deployment detected, reloading...');
+  window.location.reload();
 });
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ players, users });
