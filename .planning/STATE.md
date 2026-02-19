@@ -396,9 +396,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 198 | Replace 60-second setInterval polling loop with SpacetimeDB subscription-based version check — AppVersion table (public), set_app_version admin reducer with upsert, window.__client_version exposed for App.vue watch, versionPlugin removed from vite.config.ts (no more dist/version.json emitted); run spacetime publish + generate to activate | 2026-02-19 | a660fa3 | [198-replace-polling-version-check-with-space](./quick/198-replace-polling-version-check-with-space/) |
 | 199 | Fix ability resource consumption — stamina/mana now deducted AFTER ability fires successfully via arrow-function wrapper around switch-case; failing abilities (no combat target, wrong state) no longer drain resources; updated immersive failure messages in combat.ts and items.ts | 2026-02-19 | 0784442 | [199-don-t-consume-ability-resource-when-comb](./quick/199-don-t-consume-ability-resource-when-comb/) |
 | 200 | Add build version number as small muted text after Connected/Disconnected status in AppHeader — clientVersion computed ref reads window.__client_version ?? 'dev'; span styled at fontSize 0.7rem, opacity 0.45, marginLeft 6px | 2026-02-18 | afe213d | [200-add-current-version-number-in-small-text](./quick/200-add-current-version-number-in-small-text/) |
+| 201 | Extend ConsumableRecipeDef with description/outputSlot/outputVendorValue/foodBuff fields and populate all 14 CONSUMABLE_RECIPES entries; replace standalone Bandage upsert + craftItems array + ensureFoodItemTemplates inline list with loops over CONSUMABLE_RECIPES — crafting_materials.ts is now single source of truth for all consumable metadata | 2026-02-18 | 6258787 | [201-add-descriptions-to-consumable-recipes-a](./quick/201-add-descriptions-to-consumable-recipes-a/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick-200: add build version number to AppHeader (reads window.__client_version, styled as small muted text after status span). Previous: quick-199 (ability resource deduction fix), quick-198 (SpacetimeDB subscription-based version check).
+Last activity: 2026-02-18 - Completed quick-201: extend ConsumableRecipeDef with metadata fields and consolidate ensure_items.ts seeding to loop over CONSUMABLE_RECIPES (single source of truth). Previous: quick-200 (build version in AppHeader).
