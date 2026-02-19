@@ -26,6 +26,7 @@ import {
   effectLabel,
   effectRemainingSeconds,
 } from '../ui/effectTimers';
+import { buildItemTooltipData } from './useItemTooltip';
 
 type EnemySummary = {
   id: bigint;
@@ -76,29 +77,6 @@ type UseCombatArgs = {
   nowMicros: Ref<number>;
   characters: Ref<Infer<typeof CharacterRow>[]>;
   factions: Ref<Infer<typeof FactionRow>[]>;
-};
-
-const formatAffixStatKey = (key: string): string => {
-  const map: Record<string, string> = {
-    strBonus: 'STR',
-    dexBonus: 'DEX',
-    intBonus: 'INT',
-    wisBonus: 'WIS',
-    chaBonus: 'CHA',
-    hpBonus: 'Max HP',
-    armorClassBonus: 'Armor',
-    magicResistanceBonus: 'Magic Resist',
-    lifeOnHit: 'Life on Hit',
-    cooldownReduction: 'Cooldown Reduction %',
-    manaRegen: 'Mana Regen',
-    weaponBaseDamage: 'Damage',
-  };
-  return map[key] ?? key;
-};
-
-const qualityTierToNumber = (qt: string): number => {
-  const map: Record<string, number> = { common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5 };
-  return map[qt] ?? 1;
 };
 
 const timestampToMicros = (timestamp: any) => {
@@ -213,43 +191,14 @@ export const useCombat = ({
         const template = itemTemplates.value.find(
           (item) => item.id.toString() === row.itemTemplateId.toString()
         );
-        const activeLootQualityTier = row.qualityTier ?? template?.rarity ?? 'common';
-        const activeLootWeaponSlots = ['weapon', 'mainHand', 'offHand'];
-        const activeLootTypeField = activeLootWeaponSlots.includes(template?.slot ?? '')
-          ? (template?.weaponType || null)
-          : (template?.armorType && template.armorType !== 'none' ? template.armorType : null);
-        const activeLootTierLabel = `Tier ${qualityTierToNumber(activeLootQualityTier)}`;
-        const description =
-          [
-            activeLootTierLabel,
-            activeLootQualityTier,
-            activeLootTypeField,
-            template?.slot,
-          ]
-            .filter((value) => value && value.length > 0)
-            .join(' • ') ?? '';
-        const stats = [
-          template?.armorClassBonus ? { label: 'Armor Class', value: `+${template.armorClassBonus}` } : null,
-          template?.weaponBaseDamage ? { label: 'Weapon Damage', value: `${template.weaponBaseDamage}` } : null,
-          template?.weaponDps ? { label: 'Weapon DPS', value: `${template.weaponDps}` } : null,
-          template?.strBonus ? { label: 'STR', value: `+${template.strBonus}` } : null,
-          template?.dexBonus ? { label: 'DEX', value: `+${template.dexBonus}` } : null,
-          template?.chaBonus ? { label: 'CHA', value: `+${template.chaBonus}` } : null,
-          template?.wisBonus ? { label: 'WIS', value: `+${template.wisBonus}` } : null,
-          template?.intBonus ? { label: 'INT', value: `+${template.intBonus}` } : null,
-          template?.hpBonus ? { label: 'HP', value: `+${template.hpBonus}` } : null,
-          template?.manaBonus ? { label: 'Mana', value: `+${template.manaBonus}` } : null,
-          template?.vendorValue ? { label: 'Value', value: `${template.vendorValue} gold` } : null,
-        ].filter(Boolean) as { label: string; value: string }[];
+        const tooltipData = buildItemTooltipData({
+          template,
+          instance: { qualityTier: row.qualityTier },
+          priceOrValue: template?.vendorValue ? { label: 'Value', value: `${template.vendorValue} gold` } : undefined,
+        });
         return {
           id: row.id,
-          name: template?.name ?? 'Unknown',
-          rarity: template?.rarity ?? 'Common',
-          tier: template?.tier ?? 1n,
-          allowedClasses: template?.allowedClasses ?? 'any',
-          armorType: template?.armorType ?? 'none',
-          description,
-          stats,
+          ...tooltipData,
         };
       });
   });
@@ -271,65 +220,18 @@ export const useCombat = ({
         const template = itemTemplates.value.find(
           (item) => item.id.toString() === row.itemTemplateId.toString()
         );
-        const qualityTier = row.qualityTier ?? template?.rarity ?? 'common';
-        const affixData = row.affixDataJson ? JSON.parse(row.affixDataJson) : [];
-        const affixStats = affixData.map((a: any) => ({
-          label: formatAffixStatKey(a.statKey),
-          value: `+${a.magnitude}`,
-          affixName: a.affixName,
-        }));
-        const displayName = row.isNamed
-          ? (template?.name ?? 'Unknown')
-          : affixData.length > 0
-            ? (() => {
-                const prefix = affixData.find((a: any) => a.affixType === 'prefix');
-                const suffix = affixData.find((a: any) => a.affixType === 'suffix');
-                const baseName = template?.name ?? 'Unknown';
-                let name = baseName;
-                if (prefix) name = `${prefix.affixName} ${name}`;
-                if (suffix) name = `${name} of ${suffix.affixName}`;
-                return name;
-              })()
-            : (template?.name ?? 'Unknown');
-        const pendingWeaponSlots = ['weapon', 'mainHand', 'offHand'];
-        const pendingTypeField = pendingWeaponSlots.includes(template?.slot ?? '')
-          ? (template?.weaponType || null)
-          : (template?.armorType && template.armorType !== 'none' ? template.armorType : null);
-        const pendingTierLabel = `Tier ${qualityTierToNumber(qualityTier)}`;
-        const description =
-          [
-            pendingTierLabel,
-            qualityTier,
-            pendingTypeField,
-            template?.slot,
-          ]
-            .filter((value) => value && value.length > 0)
-            .join(' • ') ?? '';
-        const stats = [
-          template?.armorClassBonus ? { label: 'Armor Class', value: `+${template.armorClassBonus}` } : null,
-          template?.weaponBaseDamage ? { label: 'Weapon Damage', value: `${template.weaponBaseDamage}` } : null,
-          template?.weaponDps ? { label: 'Weapon DPS', value: `${template.weaponDps}` } : null,
-          template?.strBonus ? { label: 'STR', value: `+${template.strBonus}` } : null,
-          template?.dexBonus ? { label: 'DEX', value: `+${template.dexBonus}` } : null,
-          template?.chaBonus ? { label: 'CHA', value: `+${template.chaBonus}` } : null,
-          template?.wisBonus ? { label: 'WIS', value: `+${template.wisBonus}` } : null,
-          template?.intBonus ? { label: 'INT', value: `+${template.intBonus}` } : null,
-          template?.hpBonus ? { label: 'HP', value: `+${template.hpBonus}` } : null,
-          template?.manaBonus ? { label: 'Mana', value: `+${template.manaBonus}` } : null,
-          template?.vendorValue ? { label: 'Value', value: `${template.vendorValue} gold` } : null,
-        ].filter(Boolean) as { label: string; value: string }[];
+        const tooltipData = buildItemTooltipData({
+          template,
+          instance: {
+            qualityTier: row.qualityTier,
+            isNamed: row.isNamed,
+          },
+          affixDataJson: row.affixDataJson,
+          priceOrValue: template?.vendorValue ? { label: 'Value', value: `${template.vendorValue} gold` } : undefined,
+        });
         return {
           id: row.id,
-          name: displayName,
-          rarity: template?.rarity ?? 'common',
-          qualityTier,
-          tier: template?.tier ?? 1n,
-          allowedClasses: template?.allowedClasses ?? 'any',
-          armorType: template?.armorType ?? 'none',
-          description,
-          stats,
-          affixStats,
-          isNamed: row.isNamed ?? false,
+          ...tooltipData,
         };
       });
   });

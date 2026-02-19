@@ -1,6 +1,7 @@
 import { computed, ref, type Ref } from 'vue';
 import { reducers, type CharacterRow, type ItemInstanceRow, type ItemTemplateRow, type RecipeTemplateRow, type RecipeDiscoveredRow } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
+import { buildItemTooltipData } from './useItemTooltip';
 
 // Modifier item names that correspond to crafting affixes
 const MODIFIER_ITEM_NAMES = new Set([
@@ -70,9 +71,13 @@ type CraftingOutputItem = {
   slot: string;
   armorType: string;
   allowedClasses: string;
-  description: string | null;
+  description: string;
   stats: { label: string; value: string }[];
   affixStats: { label: string; value: string; affixName: string }[];
+  requiredLevel?: bigint;
+  tier?: bigint;
+  isNamed?: boolean;
+  craftQuality?: string;
 };
 
 export type CraftingRecipe = {
@@ -199,32 +204,12 @@ export const useCrafting = ({
         }
         const recipeType: string = (recipe as any).recipeType ?? 'consumable';
         const materialType: string | undefined = (recipe as any).materialType ?? undefined;
-        const outputItem = output ? {
-          name: output.name,
-          rarity: output.rarity,
-          qualityTier: output.rarity,
-          slot: output.slot,
-          armorType: output.armorType,
-          allowedClasses: output.allowedClasses,
-          requiredLevel: output.requiredLevel,
-          description: output.description ?? null,
-          stats: [
-            output.armorClassBonus ? { label: 'Armor Class', value: `+${output.armorClassBonus}` } : null,
-            output.weaponBaseDamage ? { label: 'Weapon Damage', value: `${output.weaponBaseDamage}` } : null,
-            output.weaponDps ? { label: 'Weapon DPS', value: `${output.weaponDps}` } : null,
-            output.weaponType ? { label: 'Type', value: output.weaponType } : null,
-            output.strBonus ? { label: 'STR', value: `+${output.strBonus}` } : null,
-            output.dexBonus ? { label: 'DEX', value: `+${output.dexBonus}` } : null,
-            output.chaBonus ? { label: 'CHA', value: `+${output.chaBonus}` } : null,
-            output.wisBonus ? { label: 'WIS', value: `+${output.wisBonus}` } : null,
-            output.intBonus ? { label: 'INT', value: `+${output.intBonus}` } : null,
-            output.hpBonus ? { label: 'HP', value: `+${output.hpBonus}` } : null,
-            output.manaBonus ? { label: 'Mana', value: `+${output.manaBonus}` } : null,
-            output.magicResistanceBonus ? { label: 'Magic Resist', value: `+${output.magicResistanceBonus}` } : null,
-            output.requiredLevel && output.requiredLevel > 0n ? { label: 'Required Level', value: `${output.requiredLevel}` } : null,
-          ].filter(Boolean) as { label: string; value: string }[],
-          affixStats: [],
-        } : null;
+        const outputItem = output
+          ? {
+              ...buildItemTooltipData({ template: output }),
+              requiredLevel: output.requiredLevel,
+            }
+          : null;
         // Determine craft quality from req1 material tier
         const craftQuality = tierToCraftQuality(req1?.tier ?? 1n);
         return {

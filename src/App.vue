@@ -596,6 +596,7 @@ import { useTrade } from './composables/useTrade';
 import { useCombatLock } from './composables/useCombatLock';
 import { usePanelManager, getDefaultLayout } from './composables/usePanelManager';
 import { rarityColor, craftQualityColor } from './ui/colors';
+import { buildItemTooltipData } from './composables/useItemTooltip';
 
 const {
   conn,
@@ -780,53 +781,16 @@ const vendorItems = computed(() => {
       const template = itemTemplates.value.find(
         (item) => item.id.toString() === row.itemTemplateId.toString()
       );
-      const WELL_FED_BUFF_LABELS_VENDOR: Record<string, string> = {
-        mana_regen: 'mana regeneration per tick',
-        stamina_regen: 'stamina regeneration per tick',
-        health_regen: 'health regeneration per tick',
-        str: 'STR', dex: 'DEX', int: 'INT', wis: 'WIS', cha: 'CHA',
-      };
-      const vendorFoodDesc = (() => {
-        if (template?.slot !== 'food' || !template.wellFedBuffType || !template.wellFedDurationMicros) return '';
-        const mins = Math.round(Number(template.wellFedDurationMicros) / 60_000_000);
-        const lbl = WELL_FED_BUFF_LABELS_VENDOR[template.wellFedBuffType] ?? template.wellFedBuffType;
-        return `Grants Well Fed: +${template.wellFedBuffMagnitude} ${lbl} for ${mins} minutes. Replaces any active food buff.`;
-      })();
-      const description =
-        vendorFoodDesc ||
-        ([
-          row.qualityTier ?? template?.rarity,
-          template?.armorType,
-          template?.slot,
-          template?.tier ? `Tier ${template.tier}` : null,
-        ]
-          .filter((value) => value && value.length > 0)
-          .join(' • ') ?? '');
-      const stats = [
-        template?.armorClassBonus ? { label: 'Armor Class', value: `+${template.armorClassBonus}` } : null,
-        template?.weaponBaseDamage ? { label: 'Weapon Damage', value: `${template.weaponBaseDamage}` } : null,
-        template?.weaponDps ? { label: 'Weapon DPS', value: `${template.weaponDps}` } : null,
-        template?.strBonus ? { label: 'STR', value: `+${template.strBonus}` } : null,
-        template?.dexBonus ? { label: 'DEX', value: `+${template.dexBonus}` } : null,
-        template?.chaBonus ? { label: 'CHA', value: `+${template.chaBonus}` } : null,
-        template?.wisBonus ? { label: 'WIS', value: `+${template.wisBonus}` } : null,
-        template?.intBonus ? { label: 'INT', value: `+${template.intBonus}` } : null,
-        template?.hpBonus ? { label: 'HP', value: `+${template.hpBonus}` } : null,
-        template?.manaBonus ? { label: 'Mana', value: `+${template.manaBonus}` } : null,
-        row.price ? { label: 'Price', value: `${row.price} gold` } : null,
-      ].filter(Boolean) as { label: string; value: string }[];
+      const tooltipData = buildItemTooltipData({
+        template,
+        instance: { qualityTier: row.qualityTier },
+        priceOrValue: row.price ? { label: 'Price', value: `${row.price} gold` } : undefined,
+      });
       return {
         id: row.id,
         templateId: row.itemTemplateId,
         price: row.price,
-        name: template?.name ?? 'Unknown',
-        rarity: row.qualityTier ?? template?.rarity ?? 'common',
-        tier: template?.tier ?? 1n,
-        slot: template?.slot ?? 'misc',
-        armorType: template?.armorType ?? 'none',
-        allowedClasses: template?.allowedClasses ?? 'any',
-        description,
-        stats,
+        ...tooltipData,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));

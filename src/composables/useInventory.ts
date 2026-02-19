@@ -1,29 +1,7 @@
 import { computed, type Ref } from 'vue';
 import { reducers, type CharacterRow, type ItemInstanceRow, type ItemTemplateRow, type ItemAffixRow } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
-
-const qualityTierToNumber = (qt: string): number => {
-  const map: Record<string, number> = { common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5 };
-  return map[qt] ?? 1;
-};
-
-const formatAffixStatKeyInv = (key: string): string => {
-  const map: Record<string, string> = {
-    strBonus: 'STR',
-    dexBonus: 'DEX',
-    intBonus: 'INT',
-    wisBonus: 'WIS',
-    chaBonus: 'CHA',
-    hpBonus: 'Max HP',
-    armorClassBonus: 'Armor',
-    magicResistanceBonus: 'Magic Resist',
-    lifeOnHit: 'Life on Hit',
-    cooldownReduction: 'Cooldown Reduction %',
-    manaRegen: 'Mana Regen',
-    weaponBaseDamage: 'Damage',
-  };
-  return map[key] ?? key;
-};
+import { buildItemTooltipData, type ItemTooltipData } from './useItemTooltip';
 
 type UseInventoryArgs = {
   connActive: Ref<boolean>;
@@ -48,44 +26,24 @@ const EQUIPMENT_SLOTS = [
   'offHand',
 ] as const;
 
-type InventoryItem = {
+type InventoryItem = ItemTooltipData & {
   id: bigint;
   instanceId: bigint;
-  name: string;
-  slot: string;
-  armorType: string;
-  rarity: string;
-  qualityTier: string;
-  craftQuality: string | undefined;
-  tier: bigint;
   isJunk: boolean;
   vendorValue: bigint;
   requiredLevel: bigint;
-  allowedClasses: string;
-  stats: { label: string; value: string }[];
-  affixStats: { label: string; value: string; affixName: string }[];
-  description: string;
   equipable: boolean;
   usable: boolean;
   eatable: boolean;
   quantity: bigint;
   stackable: boolean;
-  isNamed: boolean;
 };
 
-type EquippedSlot = {
+type EquippedSlot = ItemTooltipData & {
   slot: string;
-  name: string;
-  armorType: string;
-  rarity: string;
-  qualityTier: string;
-  tier: bigint;
   isJunk: boolean;
   vendorValue: bigint;
   itemInstanceId: bigint | null;
-  allowedClasses: string;
-  stats: { label: string; value: string }[];
-  description: string;
 };
 
 export const useInventory = ({
@@ -117,84 +75,26 @@ export const useInventory = ({
         const template = itemTemplates.value.find(
           (row) => row.id.toString() === instance.templateId.toString()
         );
-        const tier = template?.tier ?? 1n;
         const isJunk = template?.isJunk ?? false;
         const vendorValue = template?.vendorValue ?? 0n;
-        const WELL_FED_BUFF_LABELS: Record<string, string> = {
-          mana_regen: 'mana regeneration per tick',
-          stamina_regen: 'stamina regeneration per tick',
-          health_regen: 'health regeneration per tick',
-          str: 'STR',
-          dex: 'DEX',
-          int: 'INT',
-          wis: 'WIS',
-          cha: 'CHA',
-        };
-        const foodDescription = (() => {
-          if (template?.slot !== 'food' || !template.wellFedBuffType || !template.wellFedDurationMicros) return '';
-          const durationMins = Math.round(Number(template.wellFedDurationMicros) / 60_000_000);
-          const buffLabel = WELL_FED_BUFF_LABELS[template.wellFedBuffType] ?? template.wellFedBuffType;
-          return `Grants Well Fed: +${template.wellFedBuffMagnitude} ${buffLabel} for ${durationMins} minutes. Replaces any active food buff.`;
-        })();
-        const qualityTier = instance.qualityTier ?? template?.rarity ?? 'common';
-        const craftQuality = instance.craftQuality ?? undefined;
-        const weaponSlots = ['weapon', 'mainHand', 'offHand'];
-        const typeField = weaponSlots.includes(template?.slot ?? '')
-          ? (template?.weaponType || null)
-          : (template?.armorType && template.armorType !== 'none' ? template.armorType : null);
-        const craftQualityToTierNumber = (cq: string): number => {
-          if (cq === 'dented' || cq === 'standard') return 1;
-          if (cq === 'reinforced') return 2;
-          if (cq === 'exquisite' || cq === 'mastercraft') return 3;
-          return 1;
-        };
-        const tierNumber = craftQuality
-          ? craftQualityToTierNumber(craftQuality)
-          : qualityTierToNumber(qualityTier);
-        const tierLabel = `Tier ${tierNumber}`;
-        const description =
-          template?.description ||
-          foodDescription ||
-          ([
-            tierLabel,
-            qualityTier,
-            craftQuality && craftQuality !== 'standard' ? craftQuality : null,
-            typeField,
-            template?.slot,
-          ]
-            .filter((value) => value && value.length > 0)
-            .join(' \u2022 ') ?? '');
-        // Affix data (computed before stats so implicit bonuses can be applied to base values)
         const instanceAffixes = itemAffixes.value.filter(
           (a) => a.itemInstanceId.toString() === instance.id.toString()
         );
-        // Sum implicit craft quality bonuses for base stat display
-        let implicitAcBonus = 0n;
-        let implicitDmgBonus = 0n;
-        let implicitDpsBonus = 0n;
-        for (const a of instanceAffixes) {
-          if (a.affixType === 'implicit') {
-            if (a.statKey === 'armorClassBonus') implicitAcBonus += a.magnitude;
-            else if (a.statKey === 'weaponBaseDamage') implicitDmgBonus += a.magnitude;
-            else if (a.statKey === 'weaponDps') implicitDpsBonus += a.magnitude;
-          }
-        }
-        const effectiveAc = (template?.armorClassBonus ?? 0n) + implicitAcBonus;
-        const effectiveDmg = (template?.weaponBaseDamage ?? 0n) + implicitDmgBonus;
-        const effectiveDps = (template?.weaponDps ?? 0n) + implicitDpsBonus;
-        const stats = [
-          effectiveAc ? { label: 'Armor Class', value: `+${effectiveAc}` } : null,
-          effectiveDmg ? { label: 'Weapon Damage', value: `${effectiveDmg}` } : null,
-          effectiveDps ? { label: 'Weapon DPS', value: `${effectiveDps}` } : null,
-          template?.strBonus ? { label: 'STR', value: `+${template.strBonus}` } : null,
-          template?.dexBonus ? { label: 'DEX', value: `+${template.dexBonus}` } : null,
-          template?.chaBonus ? { label: 'CHA', value: `+${template.chaBonus}` } : null,
-          template?.wisBonus ? { label: 'WIS', value: `+${template.wisBonus}` } : null,
-          template?.intBonus ? { label: 'INT', value: `+${template.intBonus}` } : null,
-          template?.hpBonus ? { label: 'HP', value: `+${template.hpBonus}` } : null,
-          template?.manaBonus ? { label: 'Mana', value: `+${template.manaBonus}` } : null,
-          vendorValue ? { label: 'Value', value: `${vendorValue} gold` } : null,
-        ].filter(Boolean) as { label: string; value: string }[];
+
+        const tooltipData = buildItemTooltipData({
+          template,
+          instance: {
+            id: instance.id,
+            qualityTier: instance.qualityTier,
+            craftQuality: instance.craftQuality,
+            displayName: instance.displayName,
+            isNamed: instance.isNamed,
+            quantity: instance.quantity,
+          },
+          affixes: instanceAffixes,
+          priceOrValue: vendorValue ? { label: 'Value', value: `${vendorValue} gold` } : undefined,
+        });
+
         const slot = template?.slot ?? 'unknown';
         const stackable = template?.stackable ?? false;
         const quantity = instance.quantity ?? 1n;
@@ -207,7 +107,6 @@ export const useInventory = ({
           allowedClasses.length === 0 ||
           allowedClasses.includes('any') ||
           allowedClasses.includes(normalizedClass);
-        // Armor type validation now handled server-side only
         const equipable =
           EQUIPMENT_SLOTS.includes(slot as (typeof EQUIPMENT_SLOTS)[number]) &&
           !isJunk &&
@@ -229,37 +128,19 @@ export const useInventory = ({
         const usable =
           (template?.slot ?? '').toLowerCase() === 'consumable' && usableKeys.has(itemKey);
         const eatable = (template?.slot ?? '').toLowerCase() === 'food';
-        // Visible affix stats: exclude implicit affixes (craft quality bonuses already reflected in base stats above)
-        const affixStats = instanceAffixes.filter((a) => a.affixType !== 'implicit').map((a) => ({
-          label: formatAffixStatKeyInv(a.statKey),
-          value: `+${a.magnitude}`,
-          affixName: a.affixName,
-        }));
-        const isNamed = instance.isNamed ?? false;
-        const displayName = instance.displayName ?? template?.name ?? 'Unknown';
+
         return {
+          ...tooltipData,
           id: instance.id,
           instanceId: instance.id,
-          name: displayName,
-          slot,
-          armorType: template?.armorType ?? 'none',
-          rarity: template?.rarity ?? 'common',
-          qualityTier,
-          craftQuality,
-          tier,
           isJunk,
           vendorValue,
           requiredLevel: template?.requiredLevel ?? 1n,
-          allowedClasses: template?.allowedClasses ?? 'any',
-          stats,
-          affixStats,
-          description,
           equipable,
           usable,
           eatable,
           quantity,
           stackable,
-          isNamed,
         };
       })
       .sort((a, b) => {
@@ -283,67 +164,37 @@ export const useInventory = ({
       const template = instance
         ? itemTemplates.value.find((row) => row.id.toString() === instance.templateId.toString())
         : null;
-      const tier = template?.tier ?? 1n;
       const isJunk = template?.isJunk ?? false;
       const vendorValue = template?.vendorValue ?? 0n;
-      const equippedQualityTier = instance?.qualityTier ?? template?.rarity ?? 'common';
-      const equippedWeaponSlots = ['weapon', 'mainHand', 'offHand'];
-      const equippedTypeField = equippedWeaponSlots.includes(template?.slot ?? '')
-        ? (template?.weaponType || null)
-        : (template?.armorType && template.armorType !== 'none' ? template.armorType : null);
-      const equippedTierLabel = `Tier ${qualityTierToNumber(equippedQualityTier)}`;
-      const description =
-        [
-          equippedTierLabel,
-          equippedQualityTier,
-          equippedTypeField,
-          template?.slot,
-        ]
-          .filter((value) => value && value.length > 0)
-          .join(' • ') ?? '';
-      // Sum implicit craft quality bonuses for equipped slot base stat display
       const equippedAffixes = instance
         ? itemAffixes.value.filter((a) => a.itemInstanceId.toString() === instance.id.toString())
         : [];
-      let equippedImplicitAc = 0n;
-      let equippedImplicitDmg = 0n;
-      let equippedImplicitDps = 0n;
-      for (const a of equippedAffixes) {
-        if (a.affixType === 'implicit') {
-          if (a.statKey === 'armorClassBonus') equippedImplicitAc += a.magnitude;
-          else if (a.statKey === 'weaponBaseDamage') equippedImplicitDmg += a.magnitude;
-          else if (a.statKey === 'weaponDps') equippedImplicitDps += a.magnitude;
-        }
-      }
-      const equippedEffectiveAc = (template?.armorClassBonus ?? 0n) + equippedImplicitAc;
-      const equippedEffectiveDmg = (template?.weaponBaseDamage ?? 0n) + equippedImplicitDmg;
-      const equippedEffectiveDps = (template?.weaponDps ?? 0n) + equippedImplicitDps;
-      const stats = [
-        equippedEffectiveAc ? { label: 'Armor Class', value: `+${equippedEffectiveAc}` } : null,
-        equippedEffectiveDmg ? { label: 'Weapon Damage', value: `${equippedEffectiveDmg}` } : null,
-        equippedEffectiveDps ? { label: 'Weapon DPS', value: `${equippedEffectiveDps}` } : null,
-        template?.strBonus ? { label: 'STR', value: `+${template.strBonus}` } : null,
-        template?.dexBonus ? { label: 'DEX', value: `+${template.dexBonus}` } : null,
-        template?.chaBonus ? { label: 'CHA', value: `+${template.chaBonus}` } : null,
-        template?.wisBonus ? { label: 'WIS', value: `+${template.wisBonus}` } : null,
-        template?.intBonus ? { label: 'INT', value: `+${template.intBonus}` } : null,
-        template?.hpBonus ? { label: 'HP', value: `+${template.hpBonus}` } : null,
-        template?.manaBonus ? { label: 'Mana', value: `+${template.manaBonus}` } : null,
-        vendorValue ? { label: 'Value', value: `${vendorValue} gold` } : null,
-      ].filter(Boolean) as { label: string; value: string }[];
+
+      const tooltipData = buildItemTooltipData({
+        template,
+        instance: instance
+          ? {
+              id: instance.id,
+              qualityTier: instance.qualityTier,
+              craftQuality: instance.craftQuality,
+              displayName: instance.displayName,
+              isNamed: instance.isNamed,
+            }
+          : undefined,
+        affixes: equippedAffixes,
+        priceOrValue: vendorValue ? { label: 'Value', value: `${vendorValue} gold` } : undefined,
+      });
+
+      // For empty slots, override name to 'Empty'
+      const name = template ? tooltipData.name : 'Empty';
+
       return {
+        ...tooltipData,
+        name,
         slot,
-        name: template?.name ?? 'Empty',
-        armorType: template?.armorType ?? 'none',
-        rarity: template?.rarity ?? 'common',
-        qualityTier: instance?.qualityTier ?? template?.rarity ?? 'common',
-        tier,
         isJunk,
         vendorValue,
         itemInstanceId: instance?.id ?? null,
-        allowedClasses: template?.allowedClasses ?? 'any',
-        stats,
-        description,
       };
     })
   );
