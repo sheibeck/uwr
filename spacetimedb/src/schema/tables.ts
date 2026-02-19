@@ -536,9 +536,10 @@ export const CombatLoot = table(
     characterId: t.u64(),
     itemTemplateId: t.u64(),
     createdAt: t.timestamp(),
-    qualityTier: t.string().optional(),    // rolled quality, e.g., 'uncommon'
+    qualityTier: t.string().optional(),    // rolled rarity, e.g., 'uncommon'
     affixDataJson: t.string().optional(),  // JSON array of affix keys to apply at take time
     isNamed: t.bool().optional(),          // true for Legendary uniques
+    craftQuality: t.string().optional(),   // rolled craftsmanship quality, e.g., 'reinforced'
   }
 );
 

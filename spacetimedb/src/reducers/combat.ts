@@ -7,7 +7,7 @@ import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { applyPerkProcs } from '../helpers/combat';
 import { RENOWN_GAIN } from '../data/renown_data';
-import { rollQualityTier, generateAffixData, buildDisplayName } from '../helpers/items';
+import { rollQualityTier, rollQualityForDrop, generateAffixData, buildDisplayName } from '../helpers/items';
 import { incrementWorldStat } from '../helpers/world_events';
 
 const AUTO_ATTACK_INTERVAL = 5_000_000n;
@@ -608,7 +608,7 @@ export const registerCombatReducers = (deps: any) => {
     const gearBoost = BigInt(Math.min(25, Number(level) * 2));
     const gearChance = lootTable.gearChance + gearBoost;
 
-    const lootItems: { template: any; qualityTier?: string; affixDataJson?: string; isNamed?: boolean }[] = [];
+    const lootItems: { template: any; qualityTier?: string; affixDataJson?: string; isNamed?: boolean; craftQuality?: string }[] = [];
     const pick = pickWeightedEntry(junkEntries, seedBase + 11n);
     if (pick) {
       const template = ctx.db.itemTemplate.id.find(pick.itemTemplateId);
@@ -622,6 +622,7 @@ export const registerCombatReducers = (deps: any) => {
         const template = ctx.db.itemTemplate.id.find(pick.itemTemplateId);
         if (template) {
           const quality = rollQualityTier(enemyTemplate.level ?? 1n, seedBase, dangerMultiplier);
+          const craftQual = rollQualityForDrop(enemyTemplate.level ?? 1n, seedBase);
           const JEWELRY_SLOTS_COMBAT = new Set(['earrings', 'neck']);
           const effectiveQuality =
             JEWELRY_SLOTS_COMBAT.has(template.slot) && template.armorClassBonus === 0n && quality === 'common'
@@ -631,9 +632,9 @@ export const registerCombatReducers = (deps: any) => {
             const affixes = generateAffixData(template.slot, effectiveQuality, seedBase);
             // Convert BigInt magnitude to Number before JSON serialization (BigInt is not JSON-serializable)
             const affixDataJson = JSON.stringify(affixes.map((a) => ({ ...a, magnitude: Number(a.magnitude) })));
-            lootItems.push({ template, qualityTier: effectiveQuality, affixDataJson, isNamed: false });
+            lootItems.push({ template, qualityTier: effectiveQuality, affixDataJson, isNamed: false, craftQuality: craftQual });
           } else {
-            lootItems.push({ template, qualityTier: effectiveQuality, isNamed: false });
+            lootItems.push({ template, qualityTier: effectiveQuality, isNamed: false, craftQuality: craftQual });
           }
         }
       }
@@ -2312,6 +2313,7 @@ export const registerCombatReducers = (deps: any) => {
               qualityTier: lootItem.qualityTier ?? undefined,
               affixDataJson: lootItem.affixDataJson ?? undefined,
               isNamed: lootItem.isNamed ?? undefined,
+              craftQuality: lootItem.craftQuality ?? undefined,
             });
           }
           // --- Essence drop: 12% chance, tier based on enemy level ---

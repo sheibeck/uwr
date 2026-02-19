@@ -315,7 +315,19 @@ export const registerItemReducers = (deps: any) => {
           qualityTier: loot.qualityTier,
           displayName,
           isNamed: loot.isNamed ?? undefined,
+          craftQuality: loot.craftQuality ?? undefined,  // propagate rolled quality from loot row
         });
+      }
+    }
+
+    // For common items (affix branch above was skipped), still propagate craftQuality if present
+    if (loot.craftQuality && (!loot.qualityTier || loot.qualityTier === 'common')) {
+      const instances = [...ctx.db.itemInstance.by_owner.filter(character.id)];
+      const newInstance = instances.find(
+        (i) => i.templateId === loot.itemTemplateId && !i.equippedSlot && !i.qualityTier
+      );
+      if (newInstance) {
+        ctx.db.itemInstance.id.update({ ...newInstance, craftQuality: loot.craftQuality });
       }
     }
 
@@ -396,7 +408,19 @@ export const registerItemReducers = (deps: any) => {
             qualityTier: loot.qualityTier,
             displayName,
             isNamed: loot.isNamed ?? undefined,
+            craftQuality: loot.craftQuality ?? undefined,  // propagate rolled quality from loot row
           });
+        }
+      }
+
+      // For common items (affix branch above was skipped), still propagate craftQuality if present
+      if (loot.craftQuality && (!loot.qualityTier || loot.qualityTier === 'common')) {
+        const instances = [...ctx.db.itemInstance.by_owner.filter(character.id)];
+        const newInstance = instances.find(
+          (i) => i.templateId === loot.itemTemplateId && !i.equippedSlot && !i.qualityTier
+        );
+        if (newInstance) {
+          ctx.db.itemInstance.id.update({ ...newInstance, craftQuality: loot.craftQuality });
         }
       }
 
@@ -442,7 +466,9 @@ export const registerItemReducers = (deps: any) => {
       const template = ctx.db.itemTemplate.id.find(instance.templateId);
       if (!template) return failItem(ctx, character, 'Item template missing');
       if (template.stackable) return failItem(ctx, character, 'Cannot equip this item');
-      if (character.level < template.requiredLevel) return failItem(ctx, character, 'Level too low');
+      // REMOVED per world-tier spec: gear availability is world-driven, not character-level-gated.
+      // Any item found in the world can be equipped by any character.
+      // if (character.level < template.requiredLevel) return failItem(ctx, character, 'Level too low');
       if (!isClassAllowed(template.allowedClasses, character.className)) {
         const isWeaponSlot = template.slot === 'mainHand' || template.slot === 'offHand';
         return failItem(ctx, character, isWeaponSlot ? 'Weapon type not allowed for this class' : 'Class cannot use this item');
@@ -1111,7 +1137,8 @@ export const registerItemReducers = (deps: any) => {
           : '';
         const materialDef = MATERIAL_DEFS.find((m) => m.key === materialKey);
         const materialTier = materialDef ? materialDef.tier : 1n;
-        const craftQuality = materialTierToCraftQuality(materialTier);
+        const craftSeed = ctx.timestamp.microsSinceUnixEpoch + character.id;
+        const craftQuality = materialTierToCraftQuality(materialTier, craftSeed);
         const qualityTier = 'common';
 
         // Find the newly created ItemInstance

@@ -13,6 +13,7 @@ export interface MaterialDef {
   name: string;             // display name e.g. 'Darksteel Ore'
   tier: bigint;             // 1n, 2n, or 3n
   vendorValue?: bigint;     // base vendor sell price
+  description?: string;     // shown in hover tooltip
   sources: ('gather' | 'drop')[];
   dropCreatureTypes?: string[];  // which creature types drop this
   gatherTerrains?: string[];     // which terrain types have nodes
@@ -31,6 +32,7 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     name: 'Copper Ore',
     tier: 1n,
     vendorValue: 2n,
+    description: 'Raw copper ore mined from rocky deposits. Used in basic metalworking recipes.',
     sources: ['gather'],
     gatherTerrains: ['mountains', 'plains'],
     gatherEntries: [
@@ -44,6 +46,7 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     name: 'Rough Hide',
     tier: 1n,
     vendorValue: 2n,
+    description: 'Untreated animal hide stripped from beasts. A staple leather-working material.',
     sources: ['drop'],
     dropCreatureTypes: ['animal', 'beast'],
     affinityStats: ['dexBonus'],
@@ -53,6 +56,7 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     name: 'Bone Shard',
     tier: 1n,
     vendorValue: 2n,
+    description: 'Splintered bone fragments scavenged from the dead. Used to reinforce armor and accessories.',
     sources: ['drop'],
     dropCreatureTypes: ['undead', 'animal', 'humanoid'],
     affinityStats: ['hpBonus', 'armorClassBonus'],
@@ -64,6 +68,7 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     name: 'Iron Ore',
     tier: 2n,
     vendorValue: 4n,
+    description: 'Dense iron ore found deep in mountain veins. Smelts into sturdy ingots for advanced crafting.',
     sources: ['gather'],
     gatherTerrains: ['mountains'],
     gatherEntries: [
@@ -76,6 +81,7 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     name: 'Tanned Leather',
     tier: 2n,
     vendorValue: 4n,
+    description: 'Cured animal leather, supple and durable. Essential for mid-tier armor crafting.',
     sources: ['drop'],
     dropCreatureTypes: ['beast', 'animal'],
     affinityStats: ['dexBonus', 'hpBonus'],
@@ -85,6 +91,7 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     name: 'Spirit Essence',
     tier: 2n,
     vendorValue: 5n,
+    description: 'Concentrated spiritual residue harvested from otherworldly creatures. Channels arcane properties into crafted items.',
     sources: ['drop'],
     dropCreatureTypes: ['spirit', 'undead', 'humanoid'],
     affinityStats: ['intBonus', 'wisBonus'],
@@ -96,6 +103,7 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     name: 'Darksteel Ore',
     tier: 3n,
     vendorValue: 8n,
+    description: 'Rare dark-veined ore infused with residual magic. The finest metallic crafting material.',
     sources: ['gather'],
     gatherTerrains: ['dungeon', 'mountains'],
     gatherEntries: [
@@ -109,6 +117,7 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     name: 'Moonweave Cloth',
     tier: 3n,
     vendorValue: 8n,
+    description: 'Gossamer fibers gathered under moonlight from enchanted flora. Prized by cloth-working artisans.',
     sources: ['gather'],
     gatherTerrains: ['swamp', 'woods'],
     gatherEntries: [
@@ -122,6 +131,7 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     name: 'Shadowhide',
     tier: 3n,
     vendorValue: 8n,
+    description: 'Supernaturally tough hide from shadow-touched beasts. Near-impervious when worked properly.',
     sources: ['drop'],
     dropCreatureTypes: ['beast', 'construct'],
     affinityStats: ['dexBonus', 'cooldownReduction'],
@@ -131,15 +141,16 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     name: 'Void Crystal',
     tier: 3n,
     vendorValue: 10n,
+    description: 'A crystalline shard pulsing with void energy. Amplifies magical resistance when embedded in gear.',
     sources: ['drop'],
     dropCreatureTypes: ['spirit', 'construct'],
     affinityStats: ['magicResistanceBonus', 'manaRegen'],
   },
 
   // Essence (drop-only, used in crafting dialog to unlock stat affixes)
-  { key: 'lesser_essence', name: 'Lesser Essence', tier: 1n, vendorValue: 3n, sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead'], affinityStats: [] },
-  { key: 'essence', name: 'Essence', tier: 2n, vendorValue: 6n, sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead', 'spirit'], affinityStats: [] },
-  { key: 'greater_essence', name: 'Greater Essence', tier: 3n, vendorValue: 12n, sources: ['drop'], dropCreatureTypes: ['beast', 'construct', 'spirit', 'undead'], affinityStats: [] },
+  { key: 'lesser_essence', name: 'Lesser Essence', tier: 1n, vendorValue: 3n, description: 'A faint spark of elemental power extracted from slain creatures. Used to imbue crafted gear with minor enchantments.', sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead'], affinityStats: [] },
+  { key: 'essence', name: 'Essence', tier: 2n, vendorValue: 6n, description: 'A concentrated elemental force drawn from formidable foes. Enables moderate gear enchantments.', sources: ['drop'], dropCreatureTypes: ['animal', 'beast', 'humanoid', 'undead', 'spirit'], affinityStats: [] },
+  { key: 'greater_essence', name: 'Greater Essence', tier: 3n, vendorValue: 12n, description: 'A potent wellspring of elemental might. Unlocks the strongest gear enchantments.', sources: ['drop'], dropCreatureTypes: ['beast', 'construct', 'spirit', 'undead'], affinityStats: [] },
 ];
 
 
@@ -148,15 +159,40 @@ export const MATERIAL_DEFS: MaterialDef[] = [
 // ---------------------------------------------------------------------------
 
 /**
+ * Per-material-tier craft quality probability weights.
+ * Array order: [standard%, reinforced%, exquisite%]
+ * Higher-tier materials shift probability toward better quality without hard-gating.
+ * Tune these values to adjust the crafting economy.
+ */
+export const CRAFT_QUALITY_PROBS: Record<number, [number, number, number]> = {
+  1: [85, 15, 0 ],  // Tier 1 materials: mostly Standard, small Reinforced chance
+  2: [20, 65, 15],  // Tier 2 materials: Reinforced dominant, Exquisite possible
+  3: [5,  35, 60],  // Tier 3 materials: Exquisite dominant, Reinforced as fallback
+};
+
+/**
  * Maps material tier to a craft quality level string.
- * Tier 1 = standard, Tier 2 = reinforced, Tier 3 = exquisite.
+ * When seed is provided, rolls probabilistically using CRAFT_QUALITY_PROBS.
+ * When seed is undefined, falls back to deterministic tier-based mapping.
  * Dented and Mastercraft are not achievable via basic crafting.
  */
-export function materialTierToCraftQuality(tier: bigint): string {
-  if (tier === 1n) return 'standard';
-  if (tier === 2n) return 'reinforced';
-  if (tier === 3n) return 'exquisite';
-  return 'standard';
+export function materialTierToCraftQuality(tier: bigint, seed?: bigint): string {
+  const tierNum = Number(tier);
+  const weights = CRAFT_QUALITY_PROBS[tierNum] ?? CRAFT_QUALITY_PROBS[1]!;
+  const [wStandard, wReinforced] = weights;
+
+  if (seed === undefined) {
+    // Deterministic fallback (same as old behavior) for callers without seed
+    if (tier === 1n) return 'standard';
+    if (tier === 2n) return 'reinforced';
+    if (tier === 3n) return 'exquisite';
+    return 'standard';
+  }
+
+  const roll = Number((seed + 71n) % 100n); // offset 71n for craft quality roll
+  if (roll < wStandard) return 'standard';
+  if (roll < wStandard + wReinforced) return 'reinforced';
+  return 'exquisite';
 }
 
 /** Ordered craft quality levels from worst to best */
