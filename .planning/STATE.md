@@ -205,6 +205,10 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 156. Rare affix budget cap raised from 2n to 4n — rare dropped gear (2 affixes, max 4n total) now matches crafted reinforced gear (2 modifier slots x magnitude 2n each = 4n); previous cap of 2n made rare drops strictly weaker than crafted equivalents (quick-177)
 157. T2 gear (requiredLevel 11+) seeded into mid/high-tier loot tables (mountains/town/city/dungeon) at weight 3n vs T1 weight 6n — T2 gear is rarer than T1 in these zones to maintain tier gradient (quick-177)
 158. BigInt affix magnitudes must be converted to Number before JSON.stringify in generateLootTemplates — BigInt is not JSON-serializable; take_loot already expected number type and calls BigInt() on insert; omitting conversion caused combat_loop PANIC on any non-common gear drop (quick-177)
+159. World drop uses two independent probability axes: rarity (TIER_RARITY_WEIGHTS, seed offset 53n) and quality (TIER_QUALITY_WEIGHTS, seed offset 67n) — both rolled from same seedBase with different offsets to avoid collision; T5 (L41-50) added as distinct tier in both tables (quick-192)
+160. Equip level gate removed from equip_item reducer — gear availability is world-driven, any item found can be equipped regardless of character level; requiredLevel field preserved for display and other uses (quick-192)
+161. materialTierToCraftQuality accepts optional seed parameter; probabilistic when seed provided (CRAFT_QUALITY_PROBS: T1=85% std, T2=65% reinf, T3=60% exq); deterministic fallback when seed omitted for backward compat (quick-192)
+162. craftQuality on CombatLoot is optional to preserve backward compat — new column enables quality to flow from loot-roll through take_loot to ItemInstance for both common and non-common rarity items (quick-192)
 
 ---
 
@@ -374,9 +378,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 190 | Comprehensive codebase re-org: remove dead code from server data files (dead ABILITIES import in index.ts, empty LEGENDARIES/QUALITY_TIER_COLORS/QUALITY_TIER_NUMBER in affix_catalog.ts, dead materialTierToQuality in crafting_materials.ts, commented legendary drop block in combat.ts), delete stale App.vue.backup, and consolidate rarity/craft quality color maps from 5 definitions to 1 in src/ui/colors.ts | 2026-02-19 | 6afdcca | [190-codebase-re-org-audit-all-duplicated-dat](./quick/190-codebase-re-org-audit-all-duplicated-dat/) |
 | 191 | Admin-only third tab in WorldEventPanel for firing and resolving world events from the UI — src/data/worldEventDefs.ts with CLIENT_EVENT_DEFS and ADMIN_IDENTITY_HEX; Admin tab (v-if isAdmin) shows 3 event defs with Start Event buttons and active events with End Event (Failure) buttons; isAdmin computed in App.vue from window.__my_identity | 2026-02-19 | 76059c2 | [191-admin-world-events-tab-in-eventspanel-wi](./quick/191-admin-world-events-tab-in-eventspanel-wi/) |
 | 194 | Fix salvage reagent drops to only yield modifier reagents matching item's actual affix statKeys — affixStatKeys set collected from ItemAffix rows, CRAFTING_MODIFIER_DEFS filtered to filteredModDefs, roll and pick only when filteredModDefs.length > 0; common items (no affixes) never drop reagents | 2026-02-18 | c03cb31 | [194-fix-salvage-to-only-yield-modifier-reage](./quick/194-fix-salvage-to-only-yield-modifier-reage/) |
+| 192 | Align gear and crafting progression to world-tier spec — TIER_RARITY_WEIGHTS/TIER_QUALITY_WEIGHTS named config constants (T1-T5), rollQualityForDrop for independent quality axis (seed 67n), getWorldTier with T5 support, craftQuality column on CombatLoot, quality flows from loot-roll to ItemInstance via take_loot/take_all_loot, equip level gate removed, CRAFT_QUALITY_PROBS for probabilistic crafting quality | 2026-02-19 | 9ff573d | [192-align-gear-and-crafting-progression-to-w](./quick/192-align-gear-and-crafting-progression-to-w/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Completed quick task 194: fix salvage reagent drops to be affix-constrained — items only yield reagents whose statKey matches one of the item's actual ItemAffix rows
+Last activity: 2026-02-19 - Completed quick task 192: align gear and crafting progression to world-tier spec — dual-axis drop rolls, T5 tier, craftQuality flowing from loot-roll to ItemInstance, equip gate removed, probabilistic crafting quality
