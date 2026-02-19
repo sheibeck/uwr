@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Created:** 2026-02-11
-**Status:** Planning
+**Status:** All planned phases complete. Quick tasks active for balance/polish.
 
 ---
 
@@ -13,22 +13,28 @@
 | 1 | Races | REQ-001–005 | None | Complete (2026-02-11) |
 | 2 | Hunger | REQ-010–015 | Phase 1 (race stat integration) | Removed (quick-76) |
 | 3 | Renown Foundation | REQ-020–026 | None | Complete (2026-02-12) |
+| 3.1 | Combat Balance | None | Phase 3 | Complete (2026-02-12) |
+| 3.1.1 | Combat Balance Part 2 | None | Phase 3.1 | Complete (2026-02-12) |
+| 3.1.2 | Combat Balance for Enemies | None | Phase 3.1.1 | Complete (2026-02-13) |
+| 3.1.3 | Enemy AI and Aggro Management | None | Phase 3.1.2 | Complete (2026-02-13) |
 | 4 | Config Table Architecture | None | Phase 3 (combat balance complete) | Complete (2026-02-13) |
 | 5 | LLM Architecture | REQ-040–047, REQ-080–084 | Phase 3 (first consumer) | Planned |
 | 6 | Quest System | REQ-060–066 | Phase 3 (renown gating) | Complete (2026-02-17) |
-| 7 | World Events | REQ-030–035 | Phase 1 (race unlock), Phase 5 (LLM text) | Pending |
+| 7 | World Events | REQ-030–035 | Phase 1 (race unlock), Phase 5 (LLM text) | Pending (core system built in Phase 18; LLM text pending) |
 | 8 | Narrative Tone Rollout | REQ-080–084 (applied) | Phase 5 (LLM pipeline running) | Pending |
-| 9 | Content Data Expansion | REQ-090–094 | Phases 1–3 (systems to populate) | Pending |
+| 9 | Content Data Expansion | REQ-090–094 | Phases 1–3 (systems to populate) | Pending (most targets exceeded via quick tasks) |
 | 10 | Travel & Movement Costs | None | Phase 4 | Complete (2026-02-13) |
 | 11 | Death & Corpse System | None | Phase 10 | Complete (2026-02-17) |
 | 12 | Overall Renown System | None | Phase 11 | Complete (2026-02-14) |
-| 13 | Crafting System - Weapons & Armor | None | Phase 12 | Pending |
+| 13 | Crafting System - Weapons & Armor | None | Phase 12 | Complete (2026-02-18) |
+| 13.1 | Dual-Axis Gear System | None | Phase 13 | Complete (2026-02-18) |
 | 14 | Loot & Gear Progression | None | Phase 13 | Complete (2026-02-17) |
 | 15 | Named NPCs | None | Phase 14 | Complete (2026-02-17) |
 | 16 | Travelling NPCs | None | Phase 15 | Pending |
 | 17 | World Bosses | None | Phase 16 | Pending |
-| 18 | World Events System Expansion | None | Phase 17 | Pending |
+| 18 | World Events System Expansion | None | Phase 17 | Complete (2026-02-18) |
 | 19 | NPC Interactions | None | Phase 18 | Complete (2026-02-17) |
+| 20 | Perk Variety Expansion | None | Phase 19 | Complete (2026-02-18) |
 
 ---
 
@@ -72,7 +78,7 @@ Plans:
 
 **Goal:** Characters have a hunger track. Eating food grants Well Fed buff that improves combat performance. No penalties for low hunger.
 
-**NOTE:** Hunger system removed in quick-76. Food buff system preserved as CharacterEffect rows. See Key Decisions #98-99.
+**NOTE:** Hunger system removed in quick-76. Food buff system preserved as CharacterEffect rows. See Key Decisions #98-99 in STATE.md.
 
 **Requirements:** REQ-010, REQ-011, REQ-012, REQ-013, REQ-014, REQ-015
 
@@ -90,7 +96,7 @@ Plans:
 - 4 food item templates seeded (one per tier)
 - Hunger bar UI component (shows hunger level + Well Fed status + time remaining)
 
-**Success Criteria:**
+**Success Criteria (Phase removed — success criteria N/A):**
 - [ ] `Hunger` row created for all new characters at creation
 - [ ] Hunger decrements every 5 minutes (verify via scheduled table)
 - [ ] Eating food sets Well Fed buff with correct duration per tier
@@ -377,34 +383,33 @@ Plans:
 
 **Goal:** Server-wide events fire (admin-triggered or threshold-triggered), generate LLM consequence text, appear in the world event log, and can unlock races.
 
+**NOTE:** Core world events system (admin-fired events, event spawns, contribution tiers, rewards, dual success/failure consequences, WorldEventPanel UI) was implemented in Phase 18 WITHOUT LLM. Remaining scope for Phase 7 is: LLM-generated event text via Phase 5 pipeline, threshold-triggered auto-firing, and race_unlock consequence. The fire_world_event reducer exists and admin event panel is functional.
+
 **Requirements:** REQ-030, REQ-031, REQ-032, REQ-033, REQ-034, REQ-035
 
-**Dependencies:** Phase 1 (race unlock target), Phase 5 (LLM generation)
+**Dependencies:** Phase 1 (race unlock target), Phase 5 (LLM text)
 
-**Scope:**
-- `WorldEvent` table: event type, target, status, firedAt
-- `WorldServerStats` table: server-wide counters (total kills, total quests completed, etc.)
-- `fire_world_event` reducer (admin-only, protected by admin identity check)
+**Scope (remaining):**
+- `GeneratedEventText` used from Phase 5 pipeline (LLM text for event consequences)
 - Threshold check in combat/quest reducers: when stat crosses threshold → fire world event automatically
 - World event consequence: type `race_unlock` sets `Race.unlocked = true`
-- `GeneratedEventText` used from Phase 4 pipeline
-- EventWorld log entry with consequence text visible to all players
-- World events panel or prominent UI element showing recent world events
 
-**v1 World Events (seeded):**
-| Event | Trigger | Consequence |
-|-------|---------|-------------|
-| The Iron Reckoning | 1000 Iron Compact quests completed (server-wide) | Faction gear unlocked |
-| The Green Awakening | 500 Verdant Circle kills | New zone opens |
-| The Hollowed Emerge | 2000 Hollow Crown enemies killed (total) | Hollowed race unlocked |
+**Done (Phase 18):**
+- `WorldEvent` table with event type, status, firedAt, consequenceType fields
+- `WorldStatTracker` for server-wide counters
+- `fire_world_event` reducer (admin-only, guarded by admin identity)
+- `resolve_world_event` reducer (admin-only, applies consequences)
+- Bronze/Silver/Gold contribution tiers with fixed tiered rewards
+- WorldEventPanel with Active + History tabs
+- Banner overlay notifications for event start/end
 
 **Success Criteria:**
-- [ ] Admin can fire a world event via reducer
-- [ ] World event fires automatically when server threshold is crossed
-- [ ] WorldEvent row appears in world events table
-- [ ] LLM-generated consequence text appears in world event log for all players
-- [ ] `race_unlock` world event sets `Race.unlocked = true` for the target race
-- [ ] Players can create Hollowed characters after the Hollowed Emerge event fires
+- [ ] Admin can fire a world event via reducer (done — fire_world_event exists)
+- [ ] World event fires automatically when server threshold is crossed (pending)
+- [ ] WorldEvent row appears in world events table (done — Phase 18)
+- [ ] LLM-generated consequence text appears in world event log for all players (pending — requires Phase 5)
+- [ ] `race_unlock` world event sets `Race.unlocked = true` for the target race (pending)
+- [ ] Players can create Hollowed characters after the Hollowed Emerge event fires (pending)
 
 ---
 
@@ -436,6 +441,14 @@ Plans:
 
 **Goal:** Game world feels populated. Enough gear, resources, NPCs, and enemies to support meaningful progression through the new systems.
 
+**NOTE:** Most targets have been exceeded through quick tasks and phase work:
+- Enemies: 29+ enemy templates across all regions and time periods (target: 8+) — EXCEEDED
+- Resources: 20+ resource/material templates in crafting_materials.ts (target: 10+) — EXCEEDED
+- Named NPCs: 7+ NPCs seeded with dialogue trees (target: 5+) — EXCEEDED
+- Recipes: 14 consumable recipes + 15 gear recipes = 29 total (target: 4-6 food recipes) — EXCEEDED
+- Gear sets: 3 world-drop tiers + crafted gear from materials (target: 3 gear sets) — MET
+- Hunger-specific food crafting: N/A — hunger removed; food buff system uses CharacterEffect
+
 **Requirements:** REQ-090, REQ-091, REQ-092, REQ-093, REQ-094
 
 **Dependencies:** Phases 1-3 (systems to tie content to)
@@ -445,7 +458,7 @@ Plans:
 - 10+ resources in resource catalog (including food ingredients)
 - 5+ named NPCs with faction, location, personality notes
 - 8+ enemy types (at least 2 per zone, with faction associations)
-- 4-6 crafting recipes for food items (Hunger tiers 2-4)
+- 4-6 crafting recipes for food items (Hunger tiers 2-4) — NOTE: Hunger removed; 14 consumable recipes exist
 - Vendor inventories updated to include new food items and resources
 
 **Gear set suggestions:**
@@ -456,30 +469,47 @@ Plans:
 | Ashen Scholar | End | Scholar-mage | Mage, Priest |
 
 **Success Criteria:**
-- [ ] 3 gear sets defined with full slot coverage (head, chest, legs, hands, feet, weapon)
-- [ ] 10+ resources defined in data file, at least 5 harvestable from world locations
-- [ ] 5 named NPCs defined with all required fields; at least 2 serve as quest givers
-- [ ] 8 enemy types defined; combat system tested with new enemies
-- [ ] Food crafting recipes defined; end-to-end test: harvest resource → craft food → eat → get buff
+- [ ] 3 gear sets defined with full slot coverage (head, chest, legs, hands, feet, weapon) — partially met via T1/T2/T3 world-drop tiers
+- [ ] 10+ resources defined in data file, at least 5 harvestable from world locations — MET (20+ resources)
+- [ ] 5 named NPCs defined with all required fields; at least 2 serve as quest givers — MET (7+ NPCs)
+- [ ] 8 enemy types defined; combat system tested with new enemies — EXCEEDED (29+ templates)
+- [ ] Food crafting recipes defined; end-to-end test: harvest resource → craft food → eat → get buff — MET (14 consumable recipes; Hunger system removed per quick-76)
 
 ---
 
 ## Dependency Graph
 
 ```
-Phase 1 (Races) ──────────────────────────────────────┐
-Phase 3 (Renown) ──────────────────────────────────┐   │
-Phase 4 (Config Tables) <- Phase 3                 │   │
-Phase 5 (LLM Architecture) <- Phase 3        ──┐   │   │
-                                              │   │   │
-Phase 6 (Quests) <- Phase 3, Phase 5          │   │   │
-Phase 7 (World Events) <- Phase 5 ─────────── │ ──┘   │
-                                    (race unlock) ──────┘
-Phase 8 (Tone) <- Phase 5, 6, 7
-Phase 9 (Content Data) <- Phase 1, 3
+Phase 1 (Races) ──────────────────────────────────────────────────┐
+Phase 3 (Renown) ──────────────────────────────────────────────┐  │
+Phase 3.1 (Combat Balance) <- Phase 3                          │  │
+Phase 3.1.1 (Combat Balance Part 2) <- Phase 3.1               │  │
+Phase 3.1.2 (Combat Balance for Enemies) <- Phase 3.1.1        │  │
+Phase 3.1.3 (Enemy AI & Aggro) <- Phase 3.1.2                  │  │
+Phase 4 (Config Tables) <- Phase 3 ─────────────────────────┐  │  │
+Phase 5 (LLM Architecture) <- Phase 3  ──────────────────┐  │  │  │
+                                                          │  │  │  │
+Phase 6 (Quests) <- Phase 3, Phase 5                     │  │  │  │
+Phase 7 (World Events) <- Phase 5 ──────────────────(race unlock) ┘│
+                                                          │       │
+Phase 8 (Tone) <- Phase 5, 6, 7                          │       │
+Phase 9 (Content Data) <- Phase 1, 3                     │       │
+                                                          │       │
+Phase 10 (Travel) <- Phase 4                             │       │
+Phase 11 (Death & Corpse) <- Phase 10                    │       │
+Phase 12 (Overall Renown) <- Phase 11                    │       │
+Phase 13 (Crafting System) <- Phase 12                   │       │
+Phase 13.1 (Dual-Axis Gear) <- Phase 13                  │       │
+Phase 14 (Loot & Gear) <- Phase 13                       │       │
+Phase 15 (Named NPCs) <- Phase 14                        │       │
+Phase 16 (Travelling NPCs) <- Phase 15                   │       │
+Phase 17 (World Bosses) <- Phase 16                      │       │
+Phase 18 (World Events Expansion) <- Phase 17 ───────────┘       │
+Phase 19 (NPC Interactions) <- Phase 18                          │
+Phase 20 (Perk Variety Expansion) <- Phase 19                    │
 ```
 
-Phases 1, 3, 4, and 5 can run in parallel (4 and 5 both require 3 complete). Phases 6 and 7 start once their dependencies complete. Phases 8 and 9 run last.
+**Status legend:** Phases 1, 3, 3.1, 3.1.1, 3.1.2, 3.1.3, 4, 6, 10, 11, 12, 13, 13.1, 14, 15, 18, 19, 20 = Complete. Phases 5, 7, 8, 9 = Pending. Phases 16, 17 = Pending (not yet planned).
 
 ### Phase 10: Travel & Movement Costs
 
@@ -516,26 +546,28 @@ Plans:
 - [x] 12-02-PLAN.md — Integration hooks: EnemyTemplate isBoss field, character creation Renown init, combat victory renown awards, perk stat bonuses in combat, publish module and regenerate bindings
 - [x] 12-03-PLAN.md — Frontend UI: Tabbed RenownPanel (Factions/Renown/Leaderboard), perk selection flow, rank-up notification overlay, useGameData subscriptions, human verification
 
-### Phase 13: Crafting System - Weapons & Armor - Extend recipe system for gear crafting, material requirements and gathering, crafted gear as deterministic progression path
+### Phase 13: Crafting System - Weapons & Armor
 
 **Goal:** Material-driven gear crafting system where players gather tiered materials from world nodes and enemy drops, discover recipes through salvage (75% chance), loot scrolls, and quest rewards, and craft fully deterministic gear with affixes controlled by material type and quality controlled by material tier. Salvage reworked from gold yield to material yield. Crafting UI extended with type filter chips and show-only-craftable toggle.
 **Depends on:** Phase 12
+**Status:** Complete (2026-02-18)
 **Plans:** 3 plans
 
 Plans:
-- [ ] 13-01-PLAN.md — Schema + data foundation: RecipeTemplate columns, crafting_materials.ts data file, material ItemTemplates, gear recipes, enemy material drops, resource nodes, crafting locations
-- [ ] 13-02-PLAN.md — Reducer rework: salvage_item yields materials + recipe discovery, craft_recipe applies deterministic affixes, learn_recipe_scroll reducer
-- [ ] 13-03-PLAN.md — Frontend UI: CraftingPanel filter chips + craftable toggle + red/green material display, remove Research Recipes button, update salvage confirm text
+- [x] 13-01-PLAN.md — Schema + data foundation: RecipeTemplate columns, crafting_materials.ts data file, material ItemTemplates, gear recipes, enemy material drops, resource nodes, crafting locations
+- [x] 13-02-PLAN.md — Reducer rework: salvage_item yields materials + recipe discovery, craft_recipe applies deterministic affixes, learn_recipe_scroll reducer
+- [x] 13-03-PLAN.md — Frontend UI: CraftingPanel filter chips + craftable toggle + red/green material display, remove Research Recipes button, update salvage confirm text
 
-### Phase 13.1: Dual-axis gear system: craft quality vs rarity, material consolidation, Essence material, metadata consistency (INSERTED)
+### Phase 13.1: Dual-Axis Gear System (INSERTED)
 
 **Goal:** Separate craft quality (Dented/Standard/Reinforced/Exquisite/Mastercraft controlling base stats) from rarity (Common-Legendary controlling magical affixes). Consolidate all crafting materials into single seeding path, introduce Essence I/II/III as required gear crafting ingredients, unify recipe helpers, and add item description metadata to ItemTemplate.
 **Depends on:** Phase 13
+**Status:** Complete (2026-02-18)
 **Plans:** 2 plans
 
 Plans:
-- [ ] 13.1-01-PLAN.md — Schema + data foundation: craftQuality on ItemInstance, description on ItemTemplate, dual-axis helpers in crafting_materials.ts, Essence MATERIAL_DEFS, material consolidation, recipe helper unification, Essence enemy loot entries
-- [ ] 13.1-02-PLAN.md — Reducer + frontend: craft_recipe dual-axis logic, publish module, regenerate bindings, useInventory.ts craftQuality/description reading, App.vue tooltip updates
+- [x] 13.1-01-PLAN.md — Schema + data foundation: craftQuality on ItemInstance, description on ItemTemplate, dual-axis helpers in crafting_materials.ts, Essence MATERIAL_DEFS, material consolidation, recipe helper unification, Essence enemy loot entries
+- [x] 13.1-02-PLAN.md — Reducer + frontend: craft_recipe dual-axis logic, publish module, regenerate bindings, useInventory.ts craftQuality/description reading, App.vue tooltip updates
 
 ### Phase 14: Loot & Gear Progression - Magic item properties and affixes, gear quality tiers (common to legendary), drop tables and rarity system, endgame gear hunting loop
 
@@ -578,16 +610,17 @@ Plans:
 Plans:
 - [ ] TBD (run /gsd:plan-phase 17 to break down)
 
-### Phase 18: World Events System Expansion - Regional event spawning (Ripple system), event types and objectives, faction and overall renown rewards, event participation tracking
+### Phase 18: World Events System Expansion
 
 **Goal:** Persistent world event lifecycle system with admin-fired events scoped to regions, self-contained event content (exclusive enemies and items), Bronze/Silver/Gold contribution tiers with fixed tiered rewards, dual success/failure consequences that permanently change world state (Ripple), and a dedicated WorldEventPanel with Active + History tabs plus banner overlay notifications.
 **Depends on:** Phase 17
+**Status:** Complete (2026-02-18)
 **Plans:** 3 plans
 
 Plans:
-- [ ] 18-01-PLAN.md — Backend foundation: WorldEvent/EventContribution/EventSpawnEnemy/EventSpawnItem/EventObjective/EventDespawnTick tables, event data constants with tier reward specs, lifecycle helpers (fire/resolve/reward/consequence/spawn)
-- [ ] 18-02-PLAN.md — Reducers and hooks: fire/resolve/collect/increment/despawn reducers, combat kill contribution hooks, movement auto-registration, publish module and regenerate bindings
-- [ ] 18-03-PLAN.md — Client UI: WorldEventPanel with Active + History tabs, banner overlay notification, action bar button with badge, useGameData subscriptions, human verification
+- [x] 18-01-PLAN.md — Backend foundation: WorldEvent/EventContribution/EventSpawnEnemy/EventSpawnItem/EventObjective/EventDespawnTick tables, event data constants with tier reward specs, lifecycle helpers (fire/resolve/reward/consequence/spawn)
+- [x] 18-02-PLAN.md — Reducers and hooks: fire/resolve/collect/increment/despawn reducers, combat kill contribution hooks, movement auto-registration, publish module and regenerate bindings
+- [x] 18-03-PLAN.md — Client UI: WorldEventPanel with Active + History tabs, banner overlay notification, action bar button with badge, useGameData subscriptions, human verification
 
 ### Phase 19: NPC Interactions - Deepen relationships, dialogue complexity, affinity systems, and dynamic NPC reactions to player actions
 
@@ -605,12 +638,13 @@ Plans:
 
 **Goal:** Expand renown perk pools (ranks 2-11) with diverse effect types across three domains: combat procs, crafting/gathering bonuses, and social/utility modifiers. 3 meaningful choices per rank with domain-based differentiation. Active ability perks with hotbar integration.
 **Depends on:** Phase 19
+**Status:** Complete (2026-02-18)
 **Plans:** 3 plans
 
 Plans:
-- [ ] 20-01-PLAN.md — Perk data foundation: extend PerkEffect type, design 30 perks for ranks 2-11 (combat/crafting/social), sync frontend display
-- [ ] 20-02-PLAN.md — Passive perk hooks: combat proc system, crafting/gathering bonuses, social/utility modifiers across all game systems
-- [ ] 20-03-PLAN.md — Active ability perks: hotbar auto-assignment, ability execution (Second Wind, Thunderous Blow, Wrath of the Fallen), cooldown tracking
+- [x] 20-01-PLAN.md — Perk data foundation: extend PerkEffect type, design 30 perks for ranks 2-11 (combat/crafting/social), sync frontend display
+- [x] 20-02-PLAN.md — Passive perk hooks: combat proc system, crafting/gathering bonuses, social/utility modifiers across all game systems
+- [x] 20-03-PLAN.md — Active ability perks: hotbar auto-assignment, ability execution (Second Wind, Thunderous Blow, Wrath of the Fallen), cooldown tracking
 
 ---
 
@@ -618,11 +652,11 @@ Plans:
 
 The milestone is complete when:
 
-1. **Races**: Players can select from >=4 races at character creation; race restricts classes; racial bonuses apply in combat
-2. **Hunger**: Hunger decays over time; eating food grants Well Fed buff; buff improves combat stats; no starvation penalty exists
-3. **Renown**: Completing faction actions increases standing; rank thresholds unlock quests and rewards; standing persists permanently
-4. **Quests**: Players can accept and complete renown-gated quests; quest text is LLM-generated in Shadeslinger tone
-5. **World Events**: Admin (or threshold) fires a world event; LLM generates consequence text; all players see it; race unlock event works end-to-end
-6. **LLM Integration**: All generation uses Shadeslinger tone; fallback content exists; circuit breaker works; no game state depends on LLM success
-7. **Content**: >=3 gear sets, >=10 resources, >=5 NPCs, >=8 enemies, food crafting recipes defined
-8. **Tone**: All LLM-generated and LLM-fallback text passes human Shadeslinger tone review
+1. **Races**: Players can select from >=4 races at character creation; race restricts classes; racial bonuses apply in combat — MET
+2. **Hunger**: Removed (quick-76). Food buff system preserved as CharacterEffect. Well Fed buff works via food_mana_regen/food_stamina_regen effectTypes. No starvation penalty by design. See Key Decisions #98-99.
+3. **Renown**: Completing faction actions increases standing; rank thresholds unlock quests and rewards; standing persists permanently — MET
+4. **Quests**: Players can accept and complete renown-gated quests; quest system works without LLM (LLM text generation deferred to Phase 5+7); 5 quest types functional (kill, kill_loot, explore, delivery, boss_kill) — MET
+5. **World Events**: Admin fires world events via UI (WorldEventPanel admin tab); event participation tracking works; Bronze/Silver/Gold contribution tiers functional; LLM-generated consequence text NOT integrated (deferred to Phase 5+7); threshold-triggered auto-firing NOT implemented; race_unlock consequence NOT implemented — PARTIALLY MET
+6. **LLM Integration**: Not yet implemented (Phase 5 pending). All generation deferred. Circuit breaker and fallback content not yet built. No game state depends on LLM success — PENDING
+7. **Content**: >=3 gear tiers (T1/T2/T3), >=20 resources, >=7 NPCs, >=29 enemy templates, 29 recipes (14 consumable + 15 gear), 3 gear quality axes (rarity + craft quality + world-drop tier) — EXCEEDED
+8. **Tone**: Pending Phase 5 LLM implementation — PENDING
