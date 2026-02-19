@@ -8,8 +8,8 @@ export const CLERIC_ABILITIES: Record<string, AbilityMetadata> = {
     resource: 'mana',
     level: 1n,
     power: 3n,
-    cooldownSeconds: 0n,
-    castSeconds: 1n,
+    cooldownSeconds: 2n,
+    castSeconds: 2n,
     damageType: 'magic' as DamageType,
   },
   cleric_sanctify: {
