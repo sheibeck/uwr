@@ -47,14 +47,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate build version
-        run: echo "BUILD_VERSION=$(date +%s%3N)" >> $GITHUB_ENV
-
       # IMPORTANT: run Vite directly, do NOT run tsc
       - name: Build (vite)
         run: npx vite build --base=/uwr/
-        env:
-          BUILD_VERSION: ${{ env.BUILD_VERSION }}
 
       - name: Verify dist output
         run: |
@@ -70,11 +65,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
-      - name: Notify SpacetimeDB of new version
-        run: |
-          curl -sf -X POST \
-            "https://${{ secrets.VITE_SPACETIMEDB_HOST }}/v1/database/${{ secrets.VITE_SPACETIMEDB_DB_NAME }}/call/set_app_version" \
-            -H "Authorization: Bearer ${{ secrets.SPACETIMEDB_ADMIN_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"version\": \"$BUILD_VERSION\"}"
