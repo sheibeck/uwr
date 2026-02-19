@@ -7,6 +7,9 @@
         <span :style="connActive ? styles.statusOnline : styles.statusOffline">
           {{ connActive ? 'Connected' : 'Disconnected' }}
         </span>
+        <span :style="{ fontSize: '0.7rem', opacity: 0.45, marginLeft: '6px', letterSpacing: '0.02em' }">
+          v{{ clientVersion }}
+        </span>
       </div>
     </div>
     <div :style="styles.headerCenter">
@@ -57,6 +60,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { CharacterRow, LocationRow } from '../module_bindings';
+
+const clientVersion = computed(() => (window as any).__client_version ?? 'dev');
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
