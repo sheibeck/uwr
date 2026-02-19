@@ -395,9 +395,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 193 | Add unique descriptions to all 142 item template seeds on the server and unify all 5 client tooltip code paths into a single buildItemTooltipData pure function in useItemTooltip.ts — eliminates duplicate WELL_FED_BUFF_LABELS maps and client-side description fallback logic | 2026-02-19 | 57f1a9f | [193-add-descriptions-to-all-item-templates-r](./quick/193-add-descriptions-to-all-item-templates-r/) |
 | 198 | Replace 60-second setInterval polling loop with SpacetimeDB subscription-based version check — AppVersion table (public), set_app_version admin reducer with upsert, window.__client_version exposed for App.vue watch, versionPlugin removed from vite.config.ts (no more dist/version.json emitted); run spacetime publish + generate to activate | 2026-02-19 | a660fa3 | [198-replace-polling-version-check-with-space](./quick/198-replace-polling-version-check-with-space/) |
 | 199 | Fix ability resource consumption — stamina/mana now deducted AFTER ability fires successfully via arrow-function wrapper around switch-case; failing abilities (no combat target, wrong state) no longer drain resources; updated immersive failure messages in combat.ts and items.ts | 2026-02-19 | 0784442 | [199-don-t-consume-ability-resource-when-comb](./quick/199-don-t-consume-ability-resource-when-comb/) |
+| 200 | Add build version number as small muted text after Connected/Disconnected status in AppHeader — clientVersion computed ref reads window.__client_version ?? 'dev'; span styled at fontSize 0.7rem, opacity 0.45, marginLeft 6px | 2026-02-18 | afe213d | [200-add-current-version-number-in-small-text](./quick/200-add-current-version-number-in-small-text/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-19 - Completed quick-199: fix ability resource consumption (stamina/mana deducted only after ability fires via arrow-function wrapper in executeAbility; immersive failure messages). Previous: quick-198 (SpacetimeDB subscription-based version check), quick-196 (essence/reagent drop rate tuning).
+Last activity: 2026-02-18 - Completed quick-200: add build version number to AppHeader (reads window.__client_version, styled as small muted text after status span). Previous: quick-199 (ability resource deduction fix), quick-198 (SpacetimeDB subscription-based version check).
