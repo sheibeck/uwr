@@ -415,6 +415,12 @@ export const useHotbar = ({
       // Clear local cooldowns that don't exist on server (ability failed)
       for (const [key, readyAt] of localCooldowns.value.entries()) {
         if (readyAt > now && !serverCooldownKeys.has(key)) {
+          // Don't clear while this ability is still being cast — server won't have
+          // the AbilityCooldown row until the cast tick fires (after castSeconds).
+          // Clearing early sets hasPrediction=false, exposing the display to server
+          // clock skew and causing the cooldown to appear "stuck at max" after the cast.
+          if (localCast.value?.abilityKey === key) continue;
+          if (castingState.value?.abilityKey === key) continue;
           // Local shows cooldown active, but server doesn't - ability failed
           localCooldowns.value.delete(key);
           predictedCooldownReadyAt.value.delete(key);
