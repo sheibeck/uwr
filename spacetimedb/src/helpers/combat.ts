@@ -1582,7 +1582,7 @@ export function applyEnemyAbilityDamage(
     const effectiveArmor = target.armorClass + sumCharacterEffect(ctx, target.id, 'ac_bonus');
     finalDamage = applyArmorMitigation(rawDamage, effectiveArmor > 0n ? effectiveArmor : 0n);
   } else if (damageType === 'magic') {
-    const magicResist = sumCharacterEffect(ctx, target.id, 'magic_resist');
+    const magicResist = sumCharacterEffect(ctx, target.id, 'magic_resist') + (target.racialMagicResist ?? 0n);
     finalDamage = applyMagicResistMitigation(rawDamage, magicResist);
   }
   if (finalDamage < 1n) finalDamage = 1n;
