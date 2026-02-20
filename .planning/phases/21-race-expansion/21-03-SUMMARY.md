@@ -99,6 +99,16 @@ None.
 - formatRaceBonus covers all 14 bonus types from the type key convention established in Plan 01
 - Locked race hiding is fully functional — 4 locked races absent from character creation until admin fires /unlockrace
 
+## Self-Check: PASSED
+
+- `src/components/CharacterPanel.vue`: FOUND (confirmed via Read tool)
+- Commit `3d1fece`: FOUND (confirmed via git log)
+- Commit `82aa8c1` (docs metadata): FOUND (confirmed via git log)
+- No references to strBonus/dexBonus/chaBonus/wisBonus/intBonus in CharacterPanel.vue: VERIFIED (grep returned no matches)
+- formatRaceBonus function present with 14 cases: VERIFIED (lines 308-327)
+- unlockedRaces computed filters r.unlocked: VERIFIED (line 286-288)
+- bonus1Type/bonus2Type in template: VERIFIED (lines 36, 38)
+
 ---
 *Phase: 21-race-expansion*
 *Completed: 2026-02-20*
