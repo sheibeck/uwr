@@ -36,7 +36,7 @@
 | 19 | NPC Interactions | None | Phase 18 | Complete (2026-02-17) |
 | 20 | Perk Variety Expansion | None | Phase 19 | Complete (2026-02-18) |
 | 21 | 3/4 | In Progress|  | Pending |
-| 22 | Class Ability Balancing & Progression | ABILITY-01–06 | Phase 21 | Pending |
+| 22 | Class Ability Balancing & Progression | ABILITY-01–06 | Phase 21 | In Progress (Plan 01/N complete) |
 
 ---
 
@@ -726,6 +726,15 @@ Each race grants exactly two bonuses. Bonuses are not limited to stat points. Th
 - [ ] Dark-Elf, Half-Giant, Cyclops, Satyr remain locked until /unlockrace fires
 
 ---
+
+### Phase 21.1: Stat Systems & Off-Stat Hooks (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Depends on:** Phase 21
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 21.1 to break down)
 
 ### Phase 22: Class Ability Balancing & Progression
 

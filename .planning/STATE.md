@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-20
-**Status:** Phase 21 (Race Expansion) complete. Full racial system redesign: 15 races with 4-field bonus schema (creation bonuses x2, penalty, level bonus), 9 new Character racial columns, computeRacialAtLevel() unified function, /level notification fix, travel cost modifiers, faction bonus, HP regen, CharacterPanel penalty/level-bonus display, StatsPanel Racial Profile section. Published and bindings regenerated.
+**Status:** Phase 22 (Class Ability Balancing & Progression) — Plan 01 complete. Schema extended with ownerCharacterId on CombatEnemyEffect (life-drain DoTs), isTemporary on ItemInstance (Summoner Conjure Equipment), ActiveBardSong and BardSongTick tables for bard melody system. Stun added to combat skip check. travel_discount CharacterEffect wired into move_character. Module published and bindings regenerated.
 
 ---
 
@@ -11,8 +11,8 @@
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 13 (Crafting System) complete — 10 crafting materials, 29 recipes (14 consumable + 15 gear), salvage yields materials, craft_recipe applies deterministic affixes, CraftingPanel filter chips + craftable toggle, human-verified. Phase 13.1 (Dual-Axis Gear System) complete — craftQuality (dented/standard/reinforced/exquisite/mastercraft) separates potency from rarity axis, Essence I/II/III/IV as gear crafting reagents, unified addRecipeTemplate helper, per-material-quality stat bonuses via implicit ItemAffix rows. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 15 (Named NPCs) complete — implemented organically via Phase 19 and quick tasks; 7+ NPCs, shops, world placement in place. Phase 18 (World Events System Expansion) complete — admin-fired events, event spawns, Bronze/Silver/Gold contribution tiers, dual success/failure consequences (Ripple), WorldEventPanel with Active + History tabs, banner overlay notifications, admin event panel (quick-191), WorldStatTracker for threshold events. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
 
 **Last completed phase:** 21 — Race Expansion (full redesign: 15 races, 4-field schema, /level fix, travel cost, faction bonus, HP regen, UI panels updated)
-**Current phase:** 22 (next)
-**Next action:** Plan Phase 22
+**Current phase:** 22 — Class Ability Balancing & Progression (Plan 01 of N complete)
+**Next action:** Execute Phase 22 Plan 02 (class ability implementations)
 
 ---
 
@@ -46,7 +46,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 19 | NPC Interactions | Complete (2/2 plans done: backend affinity/dialogue + interaction reducers; UI skipped per user decision — multi-step questing via NPC dialogue is sufficient MVP) |
 | 20 | Perk Variety Expansion | Complete (3/3 plans done: perk data foundation + perk logic implementation + active ability perks with hotbar integration) |
 | 21 | Race Expansion | In Progress (Plans 01-03 complete: dual-bonus schema, 15 races seeded, racial columns, level-up stacking, CharacterPanel UI updated) |
-| 22 | Class Ability Balancing & Progression | Pending (not yet planned) |
+| 22 | Class Ability Balancing & Progression | In Progress (Plan 01 complete: schema columns + bard/stun/drain backend systems, published) |
 
 ---
 
@@ -231,6 +231,9 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 176. Race row lookup by name string in level-up: character.race is a display name, use [...ctx.db.race.iter()].find(r => r.name === character.race) — no FK join needed since character.race is a denormalized snapshot (21-02)
 177. /unlockrace command is one-way (no re-lock): sets Race.unlocked=true globally, broadcasts appendWorldEvent world announcement, gives admin private confirmation — all players see the unlock simultaneously (21-02)
 178. racialSpellDamage/racialPhysDamage wired into single-target hit loop only; AoE path unchanged — AoE racial bonus deferred to future plan, single-target path is the primary use case (21-02)
+179. Stub reducers required immediately when adding scheduled tables — SpacetimeDB validates scheduled.reducer field at publish time, not at runtime; tick_bard_songs stub added to combat.ts before publish (22-01)
+180. travel_discount CharacterEffect applied in BOTH stamina validation AND deduction loops in move_character — must be consistent so the pre-check matches the actual deduction (22-01)
+181. Life-drain DoT heal uses effect.ownerCharacterId directly on CombatEnemyEffect — no separate table needed; ownerCharacterId optional so existing DoTs without it are unaffected (22-01)
 
 ---
 
@@ -294,6 +297,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 21-race-expansion | 01 | 16min | 3 | 12 |
 | 21-race-expansion | 02 | 12min | 3 | 3 |
 | Phase 21-race-expansion P03 | 5 | 1 tasks | 1 files |
+| 22-class-ability-balancing | 01 | ~25min | 4 | 18 |
 
 ## Accumulated Context
 
@@ -318,6 +322,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 - 2026-02-14: Phase 18 added: World Events System Expansion - Regional event spawning (Ripple system), event types and objectives, faction and overall renown rewards, event participation tracking
 - 2026-02-14: Phase 19 added: NPC Interactions - Deepen relationships, dialogue complexity, affinity systems, and dynamic NPC reactions to player actions
 - 2026-02-14: Phase 20 added: Perk Variety Expansion - Expand renown perk pools with diverse effect types, build-defining capstone perks
+- Phase 21.1 inserted after Phase 21: Stat Systems & Off-Stat Hooks (INSERTED)
 
 ---
 
