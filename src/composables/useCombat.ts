@@ -135,6 +135,9 @@ export const useCombat = ({
     string,
     { startMicros: number; durationMicros: number; endsAtMicros: number }
   >();
+  // Records the nowMicros value when each pull row first arrived — same frame as nowMicros,
+  // so elapsed = nowMicros.value - startMicros needs no server/client clock sync.
+  const pullArrivalTimes = new Map<string, number>();
   const startCombatReducer = useReducer(reducers.startCombat);
   const startPullReducer = useReducer(reducers.startPull);
   const startTrackedCombatReducer = useReducer(reducers.startTrackedCombat);
@@ -420,8 +423,13 @@ export const useCombat = ({
         if (isPulling && pull) {
           pullType = pull.pullType;
           const pullDurationMicros = pull.pullType === 'careful' ? 2_000_000 : 1_000_000;
-          // Use createdAt as start — works for all players at the location, not just the puller
-          const startMicros = timestampToMicros(pull.createdAt);
+          // Record arrival time the first time we see this pull row (in nowMicros frame,
+          // so elapsed calculation stays in the same reference frame — no server clock sync needed).
+          const spawnKey = spawn.id.toString();
+          if (!pullArrivalTimes.has(spawnKey)) {
+            pullArrivalTimes.set(spawnKey, nowMicros.value);
+          }
+          const startMicros = pullArrivalTimes.get(spawnKey)!;
           const elapsed = nowMicros.value - startMicros;
           pullProgress = Math.min(1, Math.max(0, elapsed / pullDurationMicros));
 
@@ -429,7 +437,11 @@ export const useCombat = ({
           if (elapsed > pullDurationMicros + 2_000_000) {
             isPulling = false;
             pullProgress = 0;
+            pullArrivalTimes.delete(spawnKey);
           }
+        } else {
+          // Clean up arrival time if no longer pulling
+          pullArrivalTimes.delete(spawn.id.toString());
         }
 
         return {
