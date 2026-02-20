@@ -12,7 +12,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 
 **Last completed phase:** 20 (Perk Variety Expansion — Plan 03 complete: active ability perks with hotbar integration)
 **Current phase:** None — all planned phases executed. Quick tasks active for balance/polish.
-**Next action:** Plan Phase 5 (LLM Architecture) when ready, or continue quick tasks for balance/polish
+**Next action:** Plan Phase 5 (LLM Architecture) when ready, or plan Phase 21 (Class Ability Balancing), or continue quick tasks for balance/polish
 
 ---
 
@@ -45,6 +45,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 18 | World Events System Expansion | Complete (3/3 plans done: backend WorldEvent/EventContribution/EventSpawnEnemy tables + reducers + WorldEventPanel UI with Active/History tabs and admin event panel) |
 | 19 | NPC Interactions | Complete (2/2 plans done: backend affinity/dialogue + interaction reducers; UI skipped per user decision — multi-step questing via NPC dialogue is sufficient MVP) |
 | 20 | Perk Variety Expansion | Complete (3/3 plans done: perk data foundation + perk logic implementation + active ability perks with hotbar integration) |
+| 21 | Class Ability Balancing & Progression | Pending (not yet planned) |
 
 ---
 
