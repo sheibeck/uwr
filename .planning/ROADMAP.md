@@ -36,7 +36,7 @@
 | 19 | NPC Interactions | None | Phase 18 | Complete (2026-02-17) |
 | 20 | Perk Variety Expansion | None | Phase 19 | Complete (2026-02-18) |
 | 21 | 3/4 | In Progress|  | Pending |
-| 22 | Class Ability Balancing & Progression | ABILITY-01–06 | Phase 21 | In Progress (Plan 01/N complete) |
+| 22 | 2/4 | In Progress|  | In Progress (Plan 01/N complete) |
 
 ---
 
@@ -750,7 +750,7 @@ Plans:
 
 **Requirements:** ABILITY-01, ABILITY-02, ABILITY-03, ABILITY-04, ABILITY-05, ABILITY-06
 
-**Plans:** 0 plans
+**Plans:** 2/4 plans executed
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 22 to break down)
