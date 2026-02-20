@@ -268,7 +268,7 @@ export const CRAFTING_BASE_GEAR_DEFS: CraftingBaseGearDef[] = [
   // Belt slot — leather
   { name: 'Rough Girdle', slot: 'belt', armorType: 'leather', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 3n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,ranger,shaman,rogue,monk,spellblade,reaver,beastmaster,druid', armorClassBonus: 3n, description: 'A leather belt reinforced with metal studs.' },
   // OffHand shield
-  { name: 'Wooden Shield', slot: 'offHand', armorType: 'none', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 4n, description: 'A round wooden shield banded with iron.' },
+  { name: 'Wooden Shield', slot: 'offHand', armorType: 'none', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,cleric,shaman', armorClassBonus: 4n, description: 'A round wooden shield banded with iron.' },
   // Cloak (neck slot, armorType cloth)
   { name: 'Simple Cloak', slot: 'neck', armorType: 'cloth', rarity: 'common', tier: 1n, isJunk: false, vendorValue: 6n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 2n, description: 'A plain travelling cloak offering minimal coverage.' },
   // Cloth other-slot items (AC=2)

@@ -433,4 +433,12 @@ export function grantStarterItems(ctx: any, character: any, ensureStarterItemTem
   if (weaponTemplate) {
     addItemToInventory(ctx, character.id, weaponTemplate.id, 1n);
   }
+
+  const SHIELD_CLASSES = new Set(['warrior', 'paladin', 'cleric', 'shaman']);
+  if (SHIELD_CLASSES.has(normalizeClassName(character.className))) {
+    const shieldTemplate = findItemTemplateByName(ctx, 'Wooden Shield');
+    if (shieldTemplate) {
+      addItemToInventory(ctx, character.id, shieldTemplate.id, 1n);
+    }
+  }
 }
