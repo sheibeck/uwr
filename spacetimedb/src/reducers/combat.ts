@@ -2,6 +2,14 @@ import { ENEMY_ABILITIES } from '../data/abilities/enemy_abilities';
 import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier } from '../data/combat_scaling';
 import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
 import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, HEALING_THREAT_PERCENT } from '../data/combat_scaling';
+import {
+  statOffset,
+  BLOCK_CHANCE_BASE,
+  BLOCK_CHANCE_DEX_PER_POINT,
+  BLOCK_MITIGATION_BASE,
+  BLOCK_MITIGATION_STR_PER_POINT,
+  WIS_PULL_BONUS_PER_POINT,
+} from '../data/combat_scaling';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
@@ -442,6 +450,8 @@ export const registerCombatReducers = (deps: any) => {
       baseDamage,
       targetArmor,
       canBlock,
+      blockChanceBasis,
+      blockMitigationPercent,
       canParry,
       canDodge,
       currentHp,
@@ -461,6 +471,8 @@ export const registerCombatReducers = (deps: any) => {
       baseDamage: bigint;
       targetArmor: bigint;
       canBlock: boolean;
+      blockChanceBasis?: bigint;        // stat-derived, on 1000-scale
+      blockMitigationPercent?: bigint;  // stat-derived, on 100n-scale
       canParry: boolean;
       canDodge: boolean;
       currentHp: bigint;
@@ -492,7 +504,16 @@ export const registerCombatReducers = (deps: any) => {
     }
   ) => {
     const reducedDamage = applyArmorMitigation(baseDamage, targetArmor);
-    const outcome = rollAttackOutcome(seed, { canBlock, canParry, canDodge, characterDex, weaponName, weaponType });
+    const outcome = rollAttackOutcome(seed, {
+      canBlock,
+      blockChanceBasis,       // undefined if not provided, rollAttackOutcome uses ?? 50n default
+      blockMitigationPercent, // undefined if not provided, rollAttackOutcome uses ?? 50n default
+      canParry,
+      canDodge,
+      characterDex,
+      weaponName,
+      weaponType,
+    });
     let finalDamage = (reducedDamage * outcome.multiplier) / 100n;
     if (finalDamage < 0n) finalDamage = 0n;
     if (outcome.outcome === 'hit' && targetCharacterId) {
@@ -806,7 +827,6 @@ export const registerCombatReducers = (deps: any) => {
         delayedAdds: undefined,
         delayedAddsAtMicros: undefined,
         createdAt: ctx.timestamp,
-        resolveAtMicros: resolveAt,
       });
       schedulePullResolve(ctx, pull.id, resolveAt);
 
@@ -907,6 +927,14 @@ export const registerCombatReducers = (deps: any) => {
       fail = Math.min(95, fail + 10);
     }
     partial = Math.max(5, 100 - success - fail);
+
+    // WIS off-stat hook: WIS shifts pull success% up and fail% down (same pattern as pull_veil)
+    const wisOffset = Number(statOffset(character.wis, WIS_PULL_BONUS_PER_POINT));
+    if (wisOffset !== 0) {
+      success = Math.min(95, Math.max(5, success + wisOffset));
+      fail    = Math.max(5, Math.min(95, fail - wisOffset));
+      // partial is the remainder (100 - success - fail), not adjusted directly
+    }
 
     const roll =
       Number(
@@ -2886,11 +2914,26 @@ export const registerCombatReducers = (deps: any) => {
             const effectiveArmor =
               targetCharacter.armorClass + sumCharacterEffect(ctx, targetCharacter.id, 'ac_bonus');
             const outcomeSeed = nowMicros + enemySnapshot.id + targetCharacter.id;
+            // Compute stat-derived block values for the defending character
+            const blockChanceBasis: bigint = (() => {
+              const offset = statOffset(targetCharacter.dex, BLOCK_CHANCE_DEX_PER_POINT);
+              const raw = BLOCK_CHANCE_BASE + offset;
+              // Clamp to [10n, 200n] on 1000-scale (1% min, 20% max)
+              return raw < 10n ? 10n : raw > 200n ? 200n : raw;
+            })();
+            const blockMitigationPercent: bigint = (() => {
+              const offset = statOffset(targetCharacter.str, BLOCK_MITIGATION_STR_PER_POINT);
+              const raw = BLOCK_MITIGATION_BASE + offset;
+              // Clamp to [10n, 80n] on 100n-scale (10% min, 80% max)
+              return raw < 10n ? 10n : raw > 80n ? 80n : raw;
+            })();
             const { outcome: enemyAttackOutcome, finalDamage: enemyFinalDamage, nextHp } = resolveAttack(ctx, {
               seed: outcomeSeed,
               baseDamage: scaledDamage,
               targetArmor: effectiveArmor,
               canBlock: hasShieldEquipped(ctx, targetCharacter.id),
+              blockChanceBasis,
+              blockMitigationPercent,
               canParry: canParry(targetCharacter.className),
               canDodge: true,
               currentHp: targetCharacter.hp,
