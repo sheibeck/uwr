@@ -88,12 +88,19 @@
     </div>
 
     <!-- Racial Profile section -->
-    <div v-if="racialBonusEntries.length > 0" style="margin-top: 12px">
-      <div :style="styles.panelSectionTitle">Racial Profile</div>
+    <div v-if="racialProfileRace" style="margin-top: 12px">
+      <div :style="styles.panelSectionTitle">Racial Profile — {{ racialProfileRace.name }}</div>
       <div :style="styles.statsGrid">
-        <template v-for="entry in racialBonusEntries" :key="entry.label + entry.value">
-          <div>{{ entry.label }}</div>
-          <div :style="entry.negative ? { color: 'rgba(255,100,100,0.85)' } : {}">{{ entry.value }}</div>
+        <template v-for="entry in racialProfileEntries" :key="entry.label + entry.style">
+          <div :style="entry.style === 'rate' ? { color: 'rgba(180,180,180,0.65)', fontStyle: 'italic' } : {}">
+            {{ entry.label }}
+          </div>
+          <div :style="
+            entry.style === 'penalty' ? { color: 'rgba(255,100,100,0.85)' } :
+            entry.style === 'level' ? { color: 'rgba(255,215,100,0.9)' } :
+            entry.style === 'rate' ? { color: 'rgba(180,180,180,0.65)', fontStyle: 'italic' } :
+            {}
+          ">{{ entry.value }}</div>
         </template>
       </div>
     </div>
@@ -112,6 +119,7 @@
     statBonuses: { str: bigint; dex: bigint; cha: bigint; wis: bigint; int: bigint };
     locations: LocationRow[];
     regions: RegionRow[];
+    races: any[];
   }>();
 
   const boundLocationName = computed(() => {
@@ -147,35 +155,112 @@
   const formatPercent = (value: bigint) => `${(Number(value) / 100).toFixed(2)}%`;
   const formatScalar = (value: bigint) => Number(value).toString();
 
-  const racialBonusEntries = computed(() => {
+  // Format a bonus value for a given type (100=1% scale for % stats)
+  function fmtVal(type: string, value: bigint): string {
+    const v = Number(value);
+    switch (type) {
+      case 'crit_chance':
+      case 'dodge':
+      case 'hit_chance':
+      case 'parry':
+      case 'magic_resist':
+        return `+${(v / 100).toFixed(2).replace(/\.?0+$/, '')}%`;
+      case 'faction_bonus':
+      case 'loot_bonus':
+        return `+${v}%`;
+      case 'travel_cost_discount':
+        return `−${v} stamina`;
+      case 'travel_cost_increase':
+        return `+${v} stamina`;
+      default:
+        return `+${v}`;
+    }
+  }
+
+  function fmtLabel(type: string): string {
+    switch (type) {
+      case 'stat_str': return 'STR';
+      case 'stat_dex': return 'DEX';
+      case 'stat_int': return 'INT';
+      case 'stat_wis': return 'WIS';
+      case 'stat_cha': return 'CHA';
+      case 'spell_damage': return 'Spell Damage';
+      case 'phys_damage': return 'Phys Damage';
+      case 'max_hp': return 'Max HP';
+      case 'max_mana': return 'Max Mana';
+      case 'mana_regen': return 'Mana Regen';
+      case 'stamina_regen': return 'Stamina Regen';
+      case 'crit_chance': return 'Crit';
+      case 'armor': return 'Armor';
+      case 'dodge': return 'Dodge';
+      case 'hp_regen': return 'HP Regen';
+      case 'max_stamina': return 'Max Stamina';
+      case 'hit_chance': return 'Hit';
+      case 'parry': return 'Parry';
+      case 'faction_bonus': return 'Faction Gain';
+      case 'magic_resist': return 'Magic Resist';
+      case 'perception': return 'Perception';
+      case 'travel_cost_discount': return 'Travel Discount';
+      case 'travel_cost_increase': return 'Travel Cost';
+      case 'loot_bonus': return 'Resource Find';
+      default: return type;
+    }
+  }
+
+  const racialProfileRace = computed(() => {
     const c = props.selectedCharacter;
-    if (!c) return [];
-    const entries: { label: string; value: string; negative?: boolean }[] = [];
-    const add = (label: string, val: bigint | undefined | null, fmt: (v: bigint) => string, negative = false) => {
-      if (val && val > 0n) entries.push({ label, value: fmt(val), negative });
-    };
-    const flat = (v: bigint) => `+${v}`;
-    // % stats stored in 100=1% scale
-    const pct = (v: bigint) => `+${(Number(v) / 100).toFixed(2).replace(/\.?0+$/, '')}%`;
-    add('Spell Damage', c.racialSpellDamage, flat);
-    add('Phys Damage', c.racialPhysDamage, flat);
-    add('Max HP', c.racialMaxHp, flat);
-    add('Max Mana', c.racialMaxMana, flat);
-    add('Mana Regen', c.racialManaRegen, flat);
-    add('Stamina Regen', c.racialStaminaRegen, flat);
-    add('Crit', c.racialCritBonus, pct);
-    add('Armor', c.racialArmorBonus, flat);
-    add('Dodge', c.racialDodgeBonus, pct);
-    add('HP Regen', c.racialHpRegen, flat);
-    add('Max Stamina', c.racialMaxStamina, flat);
-    add('Travel Cost', c.racialTravelCostIncrease, (v) => `+${v} stamina`, true);
-    add('Travel Discount', c.racialTravelCostDiscount, (v) => `−${v} stamina`);
-    add('Hit', c.racialHitBonus, pct);
-    add('Parry', c.racialParryBonus, pct);
-    add('Faction Gain', c.racialFactionBonus, (v) => `+${v}%`);
-    add('Magic Resist', c.racialMagicResist, pct);
-    add('Perception', c.racialPerceptionBonus, flat);
-    add('Resource Find', c.racialLootBonus, (v) => `+${v}%`);
+    if (!c || !props.races?.length) return null;
+    return props.races.find((r: any) => r.id.toString() === c.raceId?.toString()) ?? null;
+  });
+
+  type ProfileEntry = { label: string; value: string; style: 'normal' | 'penalty' | 'level' | 'rate' };
+
+  const racialProfileEntries = computed((): ProfileEntry[] => {
+    const c = props.selectedCharacter;
+    const race = racialProfileRace.value;
+    if (!c || !race) return [];
+
+    const level = c.level as bigint;
+    const evenLevels = level / 2n;
+    const entries: ProfileEntry[] = [];
+
+    // Creation bonus 1
+    entries.push({ label: fmtLabel(race.bonus1Type), value: fmtVal(race.bonus1Type, race.bonus1Value), style: 'normal' });
+    // Creation bonus 2
+    entries.push({ label: fmtLabel(race.bonus2Type), value: fmtVal(race.bonus2Type, race.bonus2Value), style: 'normal' });
+
+    // Penalty (one-time at creation)
+    if (race.penaltyType && race.penaltyValue) {
+      const pType = race.penaltyType as string;
+      const pVal = race.penaltyValue as bigint;
+      if (pType === 'travel_cost_discount') {
+        // discount as penalty slot = a benefit
+        entries.push({ label: fmtLabel(pType), value: fmtVal(pType, pVal), style: 'normal' });
+      } else if (pType === 'travel_cost_increase') {
+        entries.push({ label: fmtLabel(pType), value: `+${pVal} stamina`, style: 'penalty' });
+      } else {
+        entries.push({ label: fmtLabel(pType), value: `−${pVal}`, style: 'penalty' });
+      }
+    }
+
+    // Accumulated level bonuses (gold, shows total so far)
+    if (evenLevels > 0n) {
+      const totalVal = race.levelBonusValue * evenLevels;
+      const rateStr = fmtVal(race.levelBonusType, race.levelBonusValue);
+      entries.push({
+        label: fmtLabel(race.levelBonusType),
+        value: `${fmtVal(race.levelBonusType, totalVal)} (${evenLevels}× ${rateStr})`,
+        style: 'level',
+      });
+    }
+
+    // Per-even-level rate (gray/italic)
+    entries.push({
+      label: 'Per even level',
+      value: `${fmtVal(race.levelBonusType, race.levelBonusValue)} ${fmtLabel(race.levelBonusType)}`,
+      style: 'rate',
+    });
+
     return entries;
   });
   </script>

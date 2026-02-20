@@ -65,6 +65,7 @@
     :stat-bonuses="statBonuses"
     :locations="locations"
     :regions="regions"
+    :races="races"
   />
 </template>
 
@@ -85,6 +86,7 @@ const props = defineProps<{
   statBonuses: any;
   locations: any[];
   regions: any[];
+  races: any[];
 }>();
 
 const emit = defineEmits<{
