@@ -1575,6 +1575,19 @@ export const registerCombatReducers = (deps: any) => {
         break;
     }
 
+    // Notify the bard that their song ticked
+    const songTickFeedback: Record<string, string> = {
+      bard_discordant_note: 'Discordant Note deals sonic damage to all enemies.',
+      bard_melody_of_mending: 'Melody of Mending heals the party.',
+      bard_chorus_of_vigor: 'Chorus of Vigor restores mana to the party.',
+      bard_march_of_wayfarers: 'March of Wayfarers refreshes travel stamina discount.',
+      bard_battle_hymn: 'Battle Hymn strikes enemies and heals the party.',
+    };
+    const tickFeedback = songTickFeedback[activeSong.songKey];
+    if (tickFeedback) {
+      appendPrivateEvent(ctx, bard.id, bard.ownerUserId, 'ability', tickFeedback);
+    }
+
     // If the song was fading, delete it after this tick (no reschedule)
     if (activeSong.isFading) {
       ctx.db.activeBardSong.id.delete(activeSong.id);

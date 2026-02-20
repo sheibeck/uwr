@@ -786,13 +786,17 @@ export const registerItemReducers = (deps: any) => {
             targetName = template?.name ?? 'enemy';
           }
         }
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'ability',
-          `You use ${abilityKey.replace(/_/g, ' ')} on ${targetName}.`
-        );
+        // Bard songs self-log "You begin singing X" from within executeAbilityAction; skip the generic "You use X on Y" message for them.
+        const BARD_SONG_KEYS = ['bard_discordant_note', 'bard_melody_of_mending', 'bard_chorus_of_vigor', 'bard_march_of_wayfarers', 'bard_battle_hymn'];
+        if (!BARD_SONG_KEYS.includes(abilityKey)) {
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'ability',
+            `You use ${abilityKey.replace(/_/g, ' ')} on ${targetName}.`
+          );
+        }
         // Apply cooldown only after ability completes successfully
         const cooldown = abilityCooldownMicros(ctx, abilityKey);
         if (cooldown > 0n) {
