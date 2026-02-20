@@ -35,7 +35,7 @@ export const MONK_ABILITIES: Record<string, AbilityMetadata> = {
     className: 'monk',
     resource: 'stamina',
     level: 5n,
-    power: 5n,
+    power: 6n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
     damageType: 'physical' as DamageType,

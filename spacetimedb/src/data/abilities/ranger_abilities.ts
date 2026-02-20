@@ -56,7 +56,7 @@ export const RANGER_ABILITIES: Record<string, AbilityMetadata> = {
     className: 'ranger',
     resource: 'stamina',
     level: 9n,
-    power: 5n,
+    power: 8n,
     cooldownSeconds: 6n,
     castSeconds: 0n,
     damageType: 'physical' as DamageType,
