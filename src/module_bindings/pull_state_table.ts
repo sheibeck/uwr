@@ -22,5 +22,4 @@ export default __t.row({
   delayedAdds: __t.option(__t.u64()),
   delayedAddsAtMicros: __t.option(__t.u64()),
   createdAt: __t.timestamp(),
-  resolveAtMicros: __t.u64(),
 });
