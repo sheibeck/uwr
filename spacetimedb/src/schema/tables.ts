@@ -373,6 +373,7 @@ export const ItemInstance = table(
     craftQuality: t.string().optional(), // 'dented'|'standard'|'reinforced'|'exquisite'|'mastercraft'; undefined = 'standard'
     displayName: t.string().optional(),   // null for common, e.g., 'Sturdy Scout Jerkin of Haste'
     isNamed: t.bool().optional(),         // true only for Legendary unique items
+    isTemporary: t.bool().optional(),     // true for Summoner Conjure Equipment items — deleted on logout
   }
 );
 
@@ -1045,6 +1046,7 @@ export const CombatEnemyEffect = table(
     magnitude: t.i64(),
     roundsRemaining: t.u64(),
     sourceAbility: t.string().optional(),
+    ownerCharacterId: t.u64().optional(),  // for life drain DoTs — character that receives the heal
   }
 );
 
