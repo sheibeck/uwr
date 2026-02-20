@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-19
-**Status:** All planned phases complete (1, 3, 3.1, 3.1.1, 3.1.2, 3.1.3, 4, 6, 10, 11, 12, 13, 13.1, 14, 15, 18, 19, 20). Quick tasks through 196 have done substantial balance, polish, and system refinement. Next formal phases: 5 (LLM), 7 (World Events LLM text), 8 (Narrative Tone), 9 (Content Expansion), 16 (Travelling NPCs), 17 (World Bosses).
+**Status:** All planned phases complete (1, 3, 3.1, 3.1.1, 3.1.2, 3.1.3, 4, 6, 10, 11, 12, 13, 13.1, 14, 15, 18, 19, 20). Quick tasks through 196 have done substantial balance, polish, and system refinement. Next formal phases: 5 (LLM), 7 (World Events LLM text), 8 (Narrative Tone), 9 (Content Expansion), 16 (Travelling NPCs), 17 (World Bosses), 21 (Race Expansion), 22 (Class Ability Balancing).
 
 ---
 
@@ -12,7 +12,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 
 **Last completed phase:** 20 (Perk Variety Expansion — Plan 03 complete: active ability perks with hotbar integration)
 **Current phase:** None — all planned phases executed. Quick tasks active for balance/polish.
-**Next action:** Plan Phase 5 (LLM Architecture) when ready, or plan Phase 21 (Class Ability Balancing), or continue quick tasks for balance/polish
+**Next action:** Plan Phase 5 (LLM Architecture) when ready, or plan Phase 21 (Race Expansion), or plan Phase 22 (Class Ability Balancing) after Phase 21, or continue quick tasks for balance/polish
 
 ---
 
@@ -45,7 +45,8 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 18 | World Events System Expansion | Complete (3/3 plans done: backend WorldEvent/EventContribution/EventSpawnEnemy tables + reducers + WorldEventPanel UI with Active/History tabs and admin event panel) |
 | 19 | NPC Interactions | Complete (2/2 plans done: backend affinity/dialogue + interaction reducers; UI skipped per user decision — multi-step questing via NPC dialogue is sufficient MVP) |
 | 20 | Perk Variety Expansion | Complete (3/3 plans done: perk data foundation + perk logic implementation + active ability perks with hotbar integration) |
-| 21 | Class Ability Balancing & Progression | Pending (not yet planned) |
+| 21 | Race Expansion | Pending (not yet planned) |
+| 22 | Class Ability Balancing & Progression | Pending (not yet planned) |
 
 ---
 
