@@ -349,3 +349,84 @@ export function applyMagicResistMitigation(damage: bigint, magicResist: bigint):
   const globalReduced = (resistReduced * GLOBAL_DAMAGE_MULTIPLIER) / 100n;
   return globalReduced > 0n ? globalReduced : 1n;
 }
+
+// ============================================================================
+// STAT OFFSET SCALING (Phase 21.1)
+// ============================================================================
+
+/**
+ * Symmetric stat scaling base — all off-stat hooks scale around this value.
+ * Formula: bonus above STAT_BASE = penalty below STAT_BASE (mirror symmetry).
+ */
+export const STAT_BASE = 10n;
+
+/**
+ * Compute a signed bigint offset for a stat relative to STAT_BASE (10).
+ * Returns: (statValue - STAT_BASE) * bonusPerPoint
+ *   - statValue > 10: positive offset (bonus)
+ *   - statValue = 10: zero offset (no change)
+ *   - statValue < 10: negative offset (penalty)
+ *
+ * TypeScript bigint handles negatives natively.
+ * Do NOT store this as u64 in the DB — compute inline at call sites only.
+ *
+ * @param statValue  Character stat (u64 from DB, treated as signed in arithmetic)
+ * @param bonusPerPoint Bonus per point above 10 (same magnitude used for penalty below 10)
+ */
+export function statOffset(statValue: bigint, bonusPerPoint: bigint): bigint {
+  return (statValue - STAT_BASE) * bonusPerPoint;
+}
+
+// ===== Block system constants (DEX / STR) =====
+
+/** Block chance on 1000-scale per DEX point above/below 10.
+ *  5n = 0.5% per point. At DEX=10: base only. At DEX=14: +2%. At DEX=6: -2%. */
+export const BLOCK_CHANCE_DEX_PER_POINT = 5n;
+
+/** Base block chance on 1000-scale (50n = 5%). Applied when shield is equipped.
+ *  DEX offset added/subtracted from this base. */
+export const BLOCK_CHANCE_BASE = 50n;
+
+/** Block mitigation per STR point above/below 10, on 100n (percent) scale.
+ *  2n = 2% per point. At STR=10: 30%. At STR=14: 38%. At STR=6: 22%. */
+export const BLOCK_MITIGATION_STR_PER_POINT = 2n;
+
+/** Base block mitigation percent on 100n scale (30n = 30% damage absorbed).
+ *  STR offset added/subtracted from this base. */
+export const BLOCK_MITIGATION_BASE = 30n;
+
+// ===== WIS pull hook constant =====
+
+/** WIS offset per point for pull success/fail shift, in integer percentage points.
+ *  2n = ±2 percentage points per WIS point above/below 10. */
+export const WIS_PULL_BONUS_PER_POINT = 2n;
+
+// ===== INT salvage scroll constant =====
+
+/** INT offset per point for scroll drop chance, on 100n (percent) scale.
+ *  3n = ±3% per point. At INT=10: base 25%. At INT=14: 37%. At INT=6: 13%. */
+export const INT_SALVAGE_BONUS_PER_POINT = 3n;
+
+/** Base scroll drop chance on 100n scale. Replaces old hardcoded 75n auto-learn.
+ *  Lower base reflects that the player now gets a tradeable item (more valuable). */
+export const SALVAGE_SCROLL_CHANCE_BASE = 25n;
+
+// ===== CHA hooks constants =====
+
+/** CHA offset per point for faction gains, on 100n (percent) scale.
+ *  1n = ±1% per point. Applied as a multiplier on positive faction deltas. */
+export const CHA_FACTION_BONUS_PER_POINT = 1n;
+
+/** CHA offset per point for NPC affinity gains, on 100n (percent) scale.
+ *  1n = ±1% per point. Applied as a multiplier on positive affinity changes. */
+export const CHA_AFFINITY_BONUS_PER_POINT = 1n;
+
+/** CHA vendor modifier scale for recomputeCharacterDerived.
+ *  10n means CHA=10 gives +0, CHA=11 gives +10, CHA=9 gives -10 (on 1000-scale).
+ *  vendorBuyMod = (cha - 10) * 10 (clamped ≥ 0 to avoid penalties on u64 col) */
+export const CHA_VENDOR_SCALE = 10n;
+
+/** CHA vendor sell modifier scale for recomputeCharacterDerived.
+ *  8n means CHA=10 gives +0, CHA=11 gives +8, CHA=9 gives -8 (on 1000-scale).
+ *  vendorSellMod = (cha - 10) * 8 (clamped ≥ 0 to avoid penalties on u64 col) */
+export const CHA_VENDOR_SELL_SCALE = 8n;
