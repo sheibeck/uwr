@@ -31,7 +31,7 @@ export const HP_STR_MULTIPLIER = 8n;
 export const BASE_MANA = 10n;
 
 export const ARMOR_TYPES = ['cloth', 'leather', 'chain', 'plate'] as const;
-export const ARMOR_TYPES_WITH_NONE = ['none', ...ARMOR_TYPES] as const;
+export const ARMOR_TYPES_WITH_NONE = ['none', ...ARMOR_TYPES, 'shield'] as const;
 
 export const PARRY_CLASSES = new Set([
   'warrior',
@@ -73,21 +73,25 @@ export const HEALER_CLASSES = new Set([
 export const CLASS_ARMOR: Record<string, string[]> = {
   bard: ['plate', 'chain', 'leather', 'cloth'],
   enchanter: ['cloth'],
-  cleric: ['plate', 'chain', 'leather', 'cloth'],
+  cleric: ['plate', 'chain', 'leather', 'cloth', 'shield'],
   wizard: ['cloth'],
   druid: ['leather', 'cloth'],
   necromancer: ['cloth'],
   summoner: ['cloth'],
   rogue: ['leather', 'cloth'],
   monk: ['leather', 'cloth'],
-  spellblade: ['chain', 'leather', 'cloth'],
+  spellblade: ['chain', 'leather', 'cloth', 'shield'],
   reaver: ['chain', 'leather', 'cloth'],
   beastmaster: ['leather', 'cloth'],
   ranger: ['chain', 'leather', 'cloth'],
-  shaman: ['chain', 'leather', 'cloth'],
-  warrior: ['plate', 'chain', 'leather', 'cloth'],
-  paladin: ['plate', 'chain', 'leather', 'cloth'],
+  shaman: ['chain', 'leather', 'cloth', 'shield'],
+  warrior: ['plate', 'chain', 'leather', 'cloth', 'shield'],
+  paladin: ['plate', 'chain', 'leather', 'cloth', 'shield'],
 };
+
+export const SHIELD_CLASSES = new Set([
+  'warrior', 'paladin', 'cleric', 'spellblade', 'shaman',
+]);
 
 export const BASE_ARMOR_CLASS: Record<string, bigint> = {
   cloth: 2n,
