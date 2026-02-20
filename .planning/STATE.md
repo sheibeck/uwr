@@ -418,9 +418,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 215 | Healing ability power now scales by class primary/secondary stat via getAbilityStatScaling — calculateHealingPower updated to accept characterStats + statScaling, applyHeal threads caster stats through both HoT and direct heal paths; WIS-tagged heals scale for healers, 'none'-tagged flat heals unchanged; mirrors damage scaling exactly | 2026-02-19 | a4dcbce | [215-healing-effects-from-abilities-should-sc](./quick/215-healing-effects-from-abilities-should-sc/) |
 | 216 | Fix two regressions from quick-215: (1) mana/stamina deduction re-fetches latest character row from DB before update so healed HP is not overwritten by stale pre-heal snapshot; (2) removed redundant addCharacterEffect regen call from shaman_spirit_mender since applyHeal now handles HoT internally via hotPowerSplit | 2026-02-19 | 08c80ea | [216-fix-regression-from-quick-215-direct-hea](./quick/216-fix-regression-from-quick-215-direct-hea/) |
 | 217 | Auto-camp players inactive for 15+ minutes — lastActivityAt optional timestamp on Player table, InactivityTick scheduled table fires sweep_inactivity every 5 min, activity touch on move_character/start_combat/start_tracked_combat/start_pull/use_ability/submit_command/say, sweep skips combat-active players, fires location event + group cleanup + private notification on auto-camp | 2026-02-19 | 7c8081b | [217-if-a-player-is-completely-inactive-for-1](./quick/217-if-a-player-is-completely-inactive-for-1/) |
+| 218 | Add Phase 21 to ROADMAP.md — Class Ability Balancing & Progression: full audit and design of all class abilities levels 1-10, unlock curve redesign, class identity pillars, backend mechanic gap-filling; phase section includes goal, ABILITY-01–06 requirements, scope, and 5 success criteria checkboxes | 2026-02-20 | caf5dd3 | [218-add-phase-for-class-ability-balancing-an](./quick/218-add-phase-for-class-ability-balancing-an/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-18 - Phase 8 context gathered (Narrative Tone Rollout). Resume: `.planning/phases/08-narrative-tone-rollout/08-CONTEXT.md`. Previous: quick-217 (auto-camp inactive players).
+Last activity: 2026-02-20 - Completed quick-218: added Phase 21 (Class Ability Balancing & Progression) to ROADMAP.md. Previous: quick-217 (auto-camp inactive players).
