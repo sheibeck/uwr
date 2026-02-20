@@ -1478,7 +1478,7 @@ export function executeAbility(
     case 'beastmaster_pack_rush':
       applyDamage(0n, 0n, {
         hits: 2n,
-        perHitMessage: (damage: bigint, hitIndex: number, totalHits: number) =>
+        perHitMessage: (damage: bigint, hitIndex: bigint, totalHits: bigint) =>
           `Pack Rush strikes ${enemyName} for ${damage} damage. (${hitIndex}/${totalHits})`,
       });
       return;
@@ -1538,7 +1538,7 @@ export function executeAbility(
     case 'monk_hundred_fists':
       applyDamage(0n, 0n, {
         hits: 5n,
-        perHitMessage: (damage: bigint, hitIndex: number, totalHits: number) =>
+        perHitMessage: (damage: bigint, hitIndex: bigint, totalHits: bigint) =>
           `Hundred Fists strikes ${enemyName} for ${damage} damage. (${hitIndex}/${totalHits})`,
       });
       return;
