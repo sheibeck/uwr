@@ -2,6 +2,7 @@ import { buildDisplayName, findItemTemplateByName } from '../helpers/items';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { getPerkBonusByField } from '../helpers/renown';
 import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, MATERIAL_DEFS, materialTierToCraftQuality, getCraftQualityStatBonus, CRAFTING_MODIFIER_DEFS, AFFIX_SLOTS_BY_QUALITY, ESSENCE_MAGNITUDE, ESSENCE_QUALITY_GATE, getModifierMagnitude } from '../data/crafting_materials';
+import { statOffset, INT_SALVAGE_BONUS_PER_POINT, SALVAGE_SCROLL_CHANCE_BASE } from '../data/combat_scaling.js';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -1867,26 +1868,28 @@ export const registerItemReducers = (deps: any) => {
       }
     }
 
-    // --- Recipe discovery (75% chance) ---
+    // --- INT-boosted recipe scroll drop (replaces auto-learn) ---
     // Find a recipe that outputs this item type
     const matchingRecipe = [...ctx.db.recipeTemplate.iter()].find(
       (r) => r.outputTemplateId === instance.templateId
     );
     if (matchingRecipe) {
-      const alreadyKnown = [...ctx.db.recipeDiscovered.by_character.filter(character.id)]
-        .some((r) => r.recipeTemplateId === matchingRecipe.id);
-      if (!alreadyKnown) {
-        // Deterministic 75% roll
-        const roll = (ctx.timestamp.microsSinceUnixEpoch + character.id) % 100n;
-        if (roll < 75n) {
-          ctx.db.recipeDiscovered.insert({
-            id: 0n,
-            characterId: character.id,
-            recipeTemplateId: matchingRecipe.id,
-            discoveredAt: ctx.timestamp,
-          });
+      // Compute INT-boosted chance (on 100n scale)
+      const intOffset = statOffset(character.int, INT_SALVAGE_BONUS_PER_POINT);
+      const rawChance = SALVAGE_SCROLL_CHANCE_BASE + intOffset;
+      // Clamp to [5n, 95n]
+      const scrollChance = rawChance < 5n ? 5n : rawChance > 95n ? 95n : rawChance;
+      const roll = (ctx.timestamp.microsSinceUnixEpoch + character.id) % 100n;
+      if (roll < scrollChance) {
+        const scrollTemplate = findItemTemplateByName(ctx, `Scroll: ${matchingRecipe.name}`);
+        if (scrollTemplate) {
+          addItemToInventory(ctx, character.id, scrollTemplate.id, 1n);
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+            `You found a recipe scroll: Scroll: ${matchingRecipe.name}.`);
+        } else {
+          // Template missing — log for debugging but don't crash
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-            `You have learned: ${matchingRecipe.name}`);
+            `[Debug] No scroll template found for: ${matchingRecipe.name}.`);
         }
       }
     }
