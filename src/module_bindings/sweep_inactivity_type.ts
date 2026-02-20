@@ -9,14 +9,13 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import InactivityTick from "./inactivity_tick_type";
 
-export default __t.row({
-  id: __t.identity(),
-  createdAt: __t.timestamp(),
-  lastSeenAt: __t.timestamp(),
-  displayName: __t.option(__t.string()),
-  activeCharacterId: __t.option(__t.u64()),
-  userId: __t.option(__t.u64()),
-  sessionStartedAt: __t.option(__t.timestamp()),
-  lastActivityAt: __t.option(__t.timestamp()),
+
+export default __t.object("SweepInactivity", {
+  get arg() {
+    return InactivityTick;
+  },
 });
+
+

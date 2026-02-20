@@ -36,6 +36,8 @@ import {
 // Import and reexport all reducer arg types
 import TickDayNightReducer from "./tick_day_night_reducer";
 export { TickDayNightReducer };
+import SweepInactivityReducer from "./sweep_inactivity_reducer";
+export { SweepInactivityReducer };
 import SetAppVersionReducer from "./set_app_version_reducer";
 export { SetAppVersionReducer };
 import OnConnectReducer from "./on_connect_reducer";
@@ -362,6 +364,8 @@ import HotTickRow from "./hot_tick_table";
 export { HotTickRow };
 import HotbarSlotRow from "./hotbar_slot_table";
 export { HotbarSlotRow };
+import InactivityTickRow from "./inactivity_tick_table";
+export { InactivityTickRow };
 import ItemAffixRow from "./item_affix_table";
 export { ItemAffixRow };
 import ItemCooldownRow from "./item_cooldown_table";
@@ -662,6 +666,8 @@ import HotTick from "./hot_tick_type";
 export { HotTick };
 import HotbarSlot from "./hotbar_slot_type";
 export { HotbarSlot };
+import InactivityTick from "./inactivity_tick_type";
+export { InactivityTick };
 import IncrementEventCounter from "./increment_event_counter_type";
 export { IncrementEventCounter };
 import Init from "./init_type";
@@ -864,6 +870,8 @@ import StartTrade from "./start_trade_type";
 export { StartTrade };
 import SubmitCommand from "./submit_command_type";
 export { SubmitCommand };
+import SweepInactivity from "./sweep_inactivity_type";
+export { SweepInactivity };
 import SyncAbilityTemplates from "./sync_ability_templates_type";
 export { SyncAbilityTemplates };
 import SyncAllContent from "./sync_all_content_type";
@@ -1674,6 +1682,17 @@ const tablesSchema = __schema(
     ],
   }, HotbarSlotRow),
   __table({
+    name: 'inactivity_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'inactivity_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, InactivityTickRow),
+  __table({
     name: 'item_affix',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -2394,6 +2413,7 @@ const tablesSchema = __schema(
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("tick_day_night", TickDayNightReducer),
+  __reducerSchema("sweep_inactivity", SweepInactivityReducer),
   __reducerSchema("set_app_version", SetAppVersionReducer),
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("send_friend_request", SendFriendRequestReducer),

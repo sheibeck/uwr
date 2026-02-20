@@ -18,6 +18,7 @@ export default __t.object("Player", {
   activeCharacterId: __t.option(__t.u64()),
   userId: __t.option(__t.u64()),
   sessionStartedAt: __t.option(__t.timestamp()),
+  lastActivityAt: __t.option(__t.timestamp()),
 });
 
 

@@ -48,4 +48,13 @@ export default __t.row({
   stamina: __t.u64(),
   maxStamina: __t.u64(),
   combatTargetEnemyId: __t.option(__t.u64()),
+  racialSpellDamage: __t.option(__t.u64()),
+  racialPhysDamage: __t.option(__t.u64()),
+  racialMaxHp: __t.option(__t.u64()),
+  racialMaxMana: __t.option(__t.u64()),
+  racialManaRegen: __t.option(__t.u64()),
+  racialStaminaRegen: __t.option(__t.u64()),
+  racialCritBonus: __t.option(__t.u64()),
+  racialArmorBonus: __t.option(__t.u64()),
+  racialDodgeBonus: __t.option(__t.u64()),
 });

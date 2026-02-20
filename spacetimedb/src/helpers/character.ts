@@ -72,17 +72,24 @@ export function recomputeCharacterDerived(ctx: any, character: any) {
     int: character.int + gear.int + intEffect,
   };
 
+  // Read racial bonus columns (optional — default to 0n if not set)
+  const racialMaxHp = character.racialMaxHp ?? 0n;
+  const racialMaxMana = character.racialMaxMana ?? 0n;
+  const racialCritBonus = character.racialCritBonus ?? 0n;
+  const racialArmorBonus = character.racialArmorBonus ?? 0n;
+  const racialDodgeBonus = character.racialDodgeBonus ?? 0n;
+
   const manaStat = manaStatForClass(character.className, totalStats);
-  const maxHp = BASE_HP + totalStats.str * HP_STR_MULTIPLIER + gear.hpBonus;
+  const maxHp = BASE_HP + totalStats.str * HP_STR_MULTIPLIER + gear.hpBonus + racialMaxHp;
   const maxMana = usesMana(character.className)
-    ? BASE_MANA + manaStat * 6n + gear.manaBonus
+    ? BASE_MANA + manaStat * 6n + gear.manaBonus + racialMaxMana
     : 0n;
 
   const hitChance = totalStats.dex * 15n;
-  const dodgeChance = totalStats.dex * 12n;
+  const dodgeChance = totalStats.dex * 12n + racialDodgeBonus;
   const parryChance = totalStats.dex * 10n;
-  const critMelee = totalStats.dex * 12n;
-  const critRanged = totalStats.dex * 12n;
+  const critMelee = totalStats.dex * 12n + racialCritBonus;
+  const critRanged = totalStats.dex * 12n + racialCritBonus;
   const critDivine = totalStats.wis * 12n;
   const critArcane = totalStats.int * 12n;
 
@@ -92,7 +99,7 @@ export function recomputeCharacterDerived(ctx: any, character: any) {
     if (effect.effectType === 'ac_bonus') acBonus += BigInt(effect.magnitude);
   }
 
-  const armorClass = baseArmorForClass(character.className) + gear.armorClassBonus + acBonus;
+  const armorClass = baseArmorForClass(character.className) + gear.armorClassBonus + acBonus + racialArmorBonus;
   const perception = totalStats.wis * 25n;
   const search = totalStats.int * 25n;
   const ccPower = totalStats.cha * 15n;

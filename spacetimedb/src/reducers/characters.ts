@@ -1,3 +1,40 @@
+// Compute racial bonus contributions from a race row.
+// multiplier = 1n for initial application at level 1.
+// For even-level stacking, awardXp computes and passes the full accumulated value.
+function computeRacialContributions(raceRow: any, multiplier: bigint = 1n) {
+  const result = {
+    str: 0n, dex: 0n, int: 0n, wis: 0n, cha: 0n,
+    racialSpellDamage: 0n, racialPhysDamage: 0n,
+    racialMaxHp: 0n, racialMaxMana: 0n,
+    racialManaRegen: 0n, racialStaminaRegen: 0n,
+    racialCritBonus: 0n, racialArmorBonus: 0n, racialDodgeBonus: 0n,
+  };
+
+  function applyBonus(bonusType: string, bonusValue: bigint) {
+    const v = bonusValue * multiplier;
+    switch (bonusType) {
+      case 'stat_str': result.str += v; break;
+      case 'stat_dex': result.dex += v; break;
+      case 'stat_int': result.int += v; break;
+      case 'stat_wis': result.wis += v; break;
+      case 'stat_cha': result.cha += v; break;
+      case 'spell_damage': result.racialSpellDamage += v; break;
+      case 'phys_damage': result.racialPhysDamage += v; break;
+      case 'max_hp': result.racialMaxHp += v; break;
+      case 'max_mana': result.racialMaxMana += v; break;
+      case 'mana_regen': result.racialManaRegen += v; break;
+      case 'stamina_regen': result.racialStaminaRegen += v; break;
+      case 'crit_chance': result.racialCritBonus += v; break;
+      case 'armor': result.racialArmorBonus += v; break;
+      case 'dodge': result.racialDodgeBonus += v; break;
+    }
+  }
+
+  applyBonus(raceRow.bonus1Type, raceRow.bonus1Value);
+  applyBonus(raceRow.bonus2Type, raceRow.bonus2Value);
+  return result;
+}
+
 export const registerCharacterReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -179,17 +216,18 @@ export const registerCharacterReducers = (deps: any) => {
       if (!startingLocation) throw new SenderError('Starting location not initialized');
 
       const classStats = computeBaseStats(className, 1n);
+      const racial = computeRacialContributions(raceRow, 1n);
       const baseStats = {
-        str: classStats.str + raceRow.strBonus,
-        dex: classStats.dex + raceRow.dexBonus,
-        cha: classStats.cha + raceRow.chaBonus,
-        wis: classStats.wis + raceRow.wisBonus,
-        int: classStats.int + raceRow.intBonus,
+        str: classStats.str + racial.str,
+        dex: classStats.dex + racial.dex,
+        cha: classStats.cha + racial.cha,
+        wis: classStats.wis + racial.wis,
+        int: classStats.int + racial.int,
       };
       const manaStat = manaStatForClass(className, baseStats);
-      const maxHp = BASE_HP + baseStats.str * HP_STR_MULTIPLIER;
-      const maxMana = usesMana(className) ? BASE_MANA + manaStat * 6n : 0n;
-      const armorClass = baseArmorForClass(className);
+      const maxHp = BASE_HP + baseStats.str * HP_STR_MULTIPLIER + (racial.racialMaxHp || 0n);
+      const maxMana = usesMana(className) ? BASE_MANA + manaStat * 6n + (racial.racialMaxMana || 0n) : 0n;
+      const armorClass = baseArmorForClass(className) + (racial.racialArmorBonus || 0n);
       const character = ctx.db.character.insert({
         id: 0n,
         ownerUserId: userId,
@@ -211,10 +249,10 @@ export const registerCharacterReducers = (deps: any) => {
         wis: baseStats.wis,
         int: baseStats.int,
         hitChance: baseStats.dex * 15n,
-        dodgeChance: baseStats.dex * 12n,
+        dodgeChance: baseStats.dex * 12n + (racial.racialDodgeBonus || 0n),
         parryChance: baseStats.dex * 10n,
-        critMelee: baseStats.dex * 12n,
-        critRanged: baseStats.dex * 12n,
+        critMelee: baseStats.dex * 12n + (racial.racialCritBonus || 0n),
+        critRanged: baseStats.dex * 12n + (racial.racialCritBonus || 0n),
         critDivine: baseStats.wis * 12n,
         critArcane: baseStats.int * 12n,
         armorClass,
@@ -226,6 +264,15 @@ export const registerCharacterReducers = (deps: any) => {
         stamina: 20n,
         maxStamina: 20n,
         createdAt: ctx.timestamp,
+        racialSpellDamage: racial.racialSpellDamage || undefined,
+        racialPhysDamage: racial.racialPhysDamage || undefined,
+        racialMaxHp: racial.racialMaxHp || undefined,
+        racialMaxMana: racial.racialMaxMana || undefined,
+        racialManaRegen: racial.racialManaRegen || undefined,
+        racialStaminaRegen: racial.racialStaminaRegen || undefined,
+        racialCritBonus: racial.racialCritBonus || undefined,
+        racialArmorBonus: racial.racialArmorBonus || undefined,
+        racialDodgeBonus: racial.racialDodgeBonus || undefined,
       });
 
       grantStarterItems(ctx, character, ensureStarterItemTemplates);

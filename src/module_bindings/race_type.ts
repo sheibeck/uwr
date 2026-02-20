@@ -15,11 +15,10 @@ export default __t.object("Race", {
   name: __t.string(),
   description: __t.string(),
   availableClasses: __t.string(),
-  strBonus: __t.u64(),
-  dexBonus: __t.u64(),
-  chaBonus: __t.u64(),
-  wisBonus: __t.u64(),
-  intBonus: __t.u64(),
+  bonus1Type: __t.string(),
+  bonus1Value: __t.u64(),
+  bonus2Type: __t.string(),
+  bonus2Value: __t.u64(),
   unlocked: __t.bool(),
 });
 
