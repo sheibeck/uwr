@@ -33,11 +33,9 @@
         <div v-if="selectedRaceRow" :style="styles.roster">
           <div>{{ selectedRaceRow.description }}</div>
           <div :style="styles.subtle">
-            <span v-if="selectedRaceRow.strBonus > 0n">STR +{{ selectedRaceRow.strBonus }} </span>
-            <span v-if="selectedRaceRow.dexBonus > 0n">DEX +{{ selectedRaceRow.dexBonus }} </span>
-            <span v-if="selectedRaceRow.chaBonus > 0n">CHA +{{ selectedRaceRow.chaBonus }} </span>
-            <span v-if="selectedRaceRow.wisBonus > 0n">WIS +{{ selectedRaceRow.wisBonus }} </span>
-            <span v-if="selectedRaceRow.intBonus > 0n">INT +{{ selectedRaceRow.intBonus }} </span>
+            <span>{{ formatRaceBonus(selectedRaceRow.bonus1Type, selectedRaceRow.bonus1Value) }}</span>
+            <span> | </span>
+            <span>{{ formatRaceBonus(selectedRaceRow.bonus2Type, selectedRaceRow.bonus2Value) }}</span>
           </div>
           <div v-if="selectedRaceRow.availableClasses && selectedRaceRow.availableClasses.trim() !== ''" :style="styles.subtle">
             Classes: {{ formatAvailableClasses(selectedRaceRow.availableClasses) }}
@@ -306,4 +304,25 @@ const formatAvailableClasses = (classes: string) =>
     .filter(Boolean)
     .map((c) => c.charAt(0).toUpperCase() + c.slice(1))
     .join(', ');
+
+function formatRaceBonus(bonusType: string, bonusValue: bigint): string {
+  const v = bonusValue.toString();
+  switch (bonusType) {
+    case 'stat_str': return `STR +${v}`;
+    case 'stat_dex': return `DEX +${v}`;
+    case 'stat_int': return `INT +${v}`;
+    case 'stat_wis': return `WIS +${v}`;
+    case 'stat_cha': return `CHA +${v}`;
+    case 'spell_damage': return `Spell Damage +${v}`;
+    case 'phys_damage': return `Physical Damage +${v}`;
+    case 'max_hp': return `Max HP +${v}`;
+    case 'max_mana': return `Max Mana +${v}`;
+    case 'mana_regen': return `Mana Regen +${v}`;
+    case 'stamina_regen': return `Stamina Regen +${v}`;
+    case 'crit_chance': return `Crit Chance +${v}`;
+    case 'armor': return `Armor +${v}`;
+    case 'dodge': return `Dodge +${v}`;
+    default: return `${bonusType} +${v}`;
+  }
+}
 </script>
