@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-20
-**Status:** Phase 21 (Race Expansion) Plan 01 complete. Race table migrated to dual-bonus schema; 15 races seeded (11 unlocked, 4 locked); Character table has 9 optional racial bonus columns; module published with --clear-database; client bindings regenerated. Next: Phase 21 Plan 02 (level-up racial stacking).
+**Status:** Phase 21 (Race Expansion) Plan 03 complete. CharacterPanel.vue race info panel updated to use bonus1Type/bonus2Type dual-bonus system with formatRaceBonus() helper; old strBonus/dexBonus fields removed. Plans 01-03 complete. Next: Phase 21 Plan 04 (unlockrace admin command).
 
 ---
 
@@ -10,9 +10,9 @@
 
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 13 (Crafting System) complete — 10 crafting materials, 29 recipes (14 consumable + 15 gear), salvage yields materials, craft_recipe applies deterministic affixes, CraftingPanel filter chips + craftable toggle, human-verified. Phase 13.1 (Dual-Axis Gear System) complete — craftQuality (dented/standard/reinforced/exquisite/mastercraft) separates potency from rarity axis, Essence I/II/III/IV as gear crafting reagents, unified addRecipeTemplate helper, per-material-quality stat bonuses via implicit ItemAffix rows. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 15 (Named NPCs) complete — implemented organically via Phase 19 and quick tasks; 7+ NPCs, shops, world placement in place. Phase 18 (World Events System Expansion) complete — admin-fired events, event spawns, Bronze/Silver/Gold contribution tiers, dual success/failure consequences (Ripple), WorldEventPanel with Active + History tabs, banner overlay notifications, admin event panel (quick-191), WorldStatTracker for threshold events. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
 
-**Last completed phase:** 21 Plan 01 (Race Expansion — dual-bonus schema + 15 races + racial bonus columns + publish + bindings)
-**Current phase:** 21 — Race Expansion (Plan 01 of N complete)
-**Next action:** Execute Phase 21 Plan 02 (level-up racial stacking mechanic)
+**Last completed phase:** 21 Plan 03 (Race Expansion — CharacterPanel race info panel updated to dual-bonus display with formatRaceBonus helper)
+**Current phase:** 21 — Race Expansion (Plans 01-03 complete)
+**Next action:** Execute Phase 21 Plan 04 (unlockrace admin command with world broadcast)
 
 ---
 
@@ -45,7 +45,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 18 | World Events System Expansion | Complete (3/3 plans done: backend WorldEvent/EventContribution/EventSpawnEnemy tables + reducers + WorldEventPanel UI with Active/History tabs and admin event panel) |
 | 19 | NPC Interactions | Complete (2/2 plans done: backend affinity/dialogue + interaction reducers; UI skipped per user decision — multi-step questing via NPC dialogue is sufficient MVP) |
 | 20 | Perk Variety Expansion | Complete (3/3 plans done: perk data foundation + perk logic implementation + active ability perks with hotbar integration) |
-| 21 | Race Expansion | In Progress (Plan 01 complete: dual-bonus schema, 15 races seeded, racial bonus columns, publish, bindings) |
+| 21 | Race Expansion | In Progress (Plans 01-03 complete: dual-bonus schema, 15 races seeded, racial columns, level-up stacking, CharacterPanel UI updated) |
 | 22 | Class Ability Balancing & Progression | Pending (not yet planned) |
 
 ---
@@ -288,6 +288,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | Phase quick-217 P01 | ~15min | 2 tasks | 8 files |
 | Phase quick-219 P01 | 10 | 2 tasks | 2 files |
 | 21-race-expansion | 01 | 16min | 3 | 12 |
+| Phase 21-race-expansion P03 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
