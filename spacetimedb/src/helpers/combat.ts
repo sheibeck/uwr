@@ -1692,7 +1692,8 @@ export function executeAbility(
         'Earth Elemental', 'an earth elemental',
         ['Granite', 'Boulder', 'Stone', 'Clay', 'Bedrock'],
         { key: 'pet_taunt', cooldownSeconds: 8n },
-        { hpBase: 30n, hpPerLevel: 8n, damageBase: 2n, damagePerLevel: 1n, weaponScalePercent: 20n }
+        // High HP tank with enough damage to generate meaningful aggro between taunts
+        { hpBase: 30n, hpPerLevel: 8n, damageBase: 5n, damagePerLevel: 2n, weaponScalePercent: 40n }
       );
       return;
     case 'summoner_fire_elemental':
@@ -2065,7 +2066,7 @@ export function executePetAbility(
       if (entry.value > maxAggro) maxAggro = entry.value;
       if (entry.petId && entry.petId === pet.id) petEntry = entry;
     }
-    const newValue = maxAggro + 5n;
+    const newValue = maxAggro + 20n;
     if (petEntry) {
       ctx.db.aggroEntry.id.update({ ...petEntry, value: newValue });
     } else {

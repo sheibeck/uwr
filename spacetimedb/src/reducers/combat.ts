@@ -2273,8 +2273,12 @@ export const registerCombatReducers = (deps: any) => {
             break;
           }
         }
+        // Tank pets (pet_taunt) generate bonus aggro per hit to passively hold attention
+        // between active taunt casts — effectively "taunting with each hit".
+        const tauntBonus = pet.abilityKey === 'pet_taunt' ? 5n : 0n;
+        const aggroGain = finalDamage + tauntBonus;
         if (petEntry) {
-          ctx.db.aggroEntry.id.update({ ...petEntry, value: petEntry.value + finalDamage });
+          ctx.db.aggroEntry.id.update({ ...petEntry, value: petEntry.value + aggroGain });
         } else {
           ctx.db.aggroEntry.insert({
             id: 0n,
@@ -2282,7 +2286,7 @@ export const registerCombatReducers = (deps: any) => {
             enemyId: target.id,
             characterId: owner.id,
             petId: pet.id,
-            value: finalDamage,
+            value: aggroGain,
           });
         }
       }
