@@ -408,7 +408,7 @@ export const useHotbar = ({
 
       const serverCooldownKeys = new Set(
         serverCooldowns
-          .filter(cd => cd.characterId === charId && cd.readyAtMicros > now)
+          .filter(cd => cd.characterId === charId && Number(cd.readyAtMicros) > now)
           .map(cd => cd.abilityKey)
       );
 
