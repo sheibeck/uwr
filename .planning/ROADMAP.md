@@ -35,7 +35,8 @@
 | 18 | World Events System Expansion | None | Phase 17 | Complete (2026-02-18) |
 | 19 | NPC Interactions | None | Phase 18 | Complete (2026-02-17) |
 | 20 | Perk Variety Expansion | None | Phase 19 | Complete (2026-02-18) |
-| 21 | Class Ability Balancing & Progression | ABILITY-01–06 | Phase 20 | Pending |
+| 21 | Race Expansion | RACE-EXP-01–05 | Phase 20 | Pending |
+| 22 | Class Ability Balancing & Progression | ABILITY-01–06 | Phase 21 | Pending |
 
 ---
 
@@ -507,9 +508,11 @@ Phase 17 (World Bosses) <- Phase 16                      │       │
 Phase 18 (World Events Expansion) <- Phase 17 ───────────┘       │
 Phase 19 (NPC Interactions) <- Phase 18                          │
 Phase 20 (Perk Variety Expansion) <- Phase 19                    │
+Phase 21 (Race Expansion) <- Phase 20
+Phase 22 (Class Ability Balancing) <- Phase 21 (races must be expanded first)
 ```
 
-**Status legend:** Phases 1, 3, 3.1, 3.1.1, 3.1.2, 3.1.3, 4, 6, 10, 11, 12, 13, 13.1, 14, 15, 18, 19, 20 = Complete. Phases 5, 7, 8, 9 = Pending. Phases 16, 17 = Pending (not yet planned).
+**Status legend:** Phases 1, 3, 3.1, 3.1.1, 3.1.2, 3.1.3, 4, 6, 10, 11, 12, 13, 13.1, 14, 15, 18, 19, 20 = Complete. Phases 5, 7, 8, 9 = Pending. Phases 16, 17, 21, 22 = Pending (not yet planned).
 
 ### Phase 10: Travel & Movement Costs
 
@@ -646,18 +649,93 @@ Plans:
 - [x] 20-02-PLAN.md — Passive perk hooks: combat proc system, crafting/gathering bonuses, social/utility modifiers across all game systems
 - [x] 20-03-PLAN.md — Active ability perks: hotbar auto-assignment, ability execution (Second Wind, Thunderous Blow, Wrath of the Fallen), cooldown tracking
 
-### Phase 21: Class Ability Balancing & Progression
+### Phase 21: Race Expansion
+
+**Goal:** Expand the race roster from 4 starter races to 15+ traditional fantasy races (good and evil alignment), upgrade all races to a dual-bonus system, and introduce a level-up racial bonus mechanic that fires at character creation and every even level. Locked races require world events to unlock; starter races remain available from the start.
+
+**Depends on:** Phase 20
+
+**Requirements:** RACE-EXP-01, RACE-EXP-02, RACE-EXP-03, RACE-EXP-04, RACE-EXP-05
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 21 to break down)
+
+**Scope:**
+
+**New races to add (target 11+ new races):**
+- Goblin (unlocked — cunning, small, bonus magic damage + bonus mana regen)
+- Troll (unlocked — regenerating, brutish, bonus max HP + bonus physical damage)
+- Dark-Elf (locked — graceful and sinister, bonus spell damage + bonus mana regen)
+- Dwarf (unlocked — stout and stubborn, bonus max HP + bonus physical damage)
+- Gnome (unlocked — inventive and quick, bonus mana regen + bonus max mana)
+- Halfling (unlocked — nimble and lucky, bonus crit chance + bonus evasion)
+- Half-Elf (unlocked — versatile and adaptable, +1 to two stats of choice at creation)
+- Orc (unlocked — savage and strong, bonus physical damage + bonus max HP)
+- Half-Giant (locked — massive, bonus max HP + bonus physical damage but reduced mana)
+- Cyclops (locked — singular-minded brutes, bonus physical damage + bonus armor)
+- Satyr (locked — wild and magical, bonus spell damage + bonus stamina regen)
+
+**Dual-bonus system for all races (including 4 existing starter races):**
+Each race grants exactly two bonuses. Bonuses are not limited to stat points. The bonus pool includes:
+- +1 to a specific stat (STR, DEX, INT, WIS, CON, CHA)
+- Bonus spell damage (flat, added after stat scaling)
+- Bonus physical damage (flat, added after stat scaling)
+- Bonus max mana (increases max mana pool)
+- Bonus mana regen (restores additional mana per regen tick)
+- Bonus max HP (increases max health pool)
+- Bonus stamina regen (restores additional stamina per tick)
+- Bonus crit chance (flat %, added to base crit)
+- Bonus armor (flat, added to armor total)
+
+**Level-up racial bonus mechanic:**
+- Racial bonuses apply once at character creation (level 1)
+- Bonuses apply again at every EVEN character level (2, 4, 6, 8, 10...)
+- This compounds racial identity across the progression curve without overwhelming early balance
+- Implementation: hook into level-up logic to re-apply racial bonus row at even levels
+
+**Locked vs unlocked races:**
+- Unlocked races: Human, Eldrin, Ironclad, Wyldfang, Goblin, Dwarf, Gnome, Halfling, Half-Elf, Orc, Troll
+- Locked races (require world events): Dark-Elf, Half-Giant, Cyclops, Satyr
+- Locked races show in the race picker with a lock icon but cannot be selected until unlocked
+- The `Race.unlocked` field (already on the table from Phase 1) controls this
+
+**Existing starter races — dual-bonus upgrades:**
+- Human: +1 CHA + bonus stamina regen (versatile, resilient)
+- Eldrin: bonus spell damage + bonus max mana (magical heritage)
+- Ironclad: bonus physical damage + bonus armor (forged body)
+- Wyldfang: bonus crit chance + bonus mana regen (primal instinct)
+
+**Requirements Detail:**
+- RACE-EXP-01: At least 11 new races added to RACE_DATA with unlocked/locked status and two distinct bonuses each
+- RACE-EXP-02: All 4 existing starter races upgraded to dual-bonus system (not breaking existing characters)
+- RACE-EXP-03: Level-up racial bonus mechanic implemented — even-level hook re-applies racial bonuses
+- RACE-EXP-04: Locked races visible but unselectable in character creation UI; unlock via world event sets Race.unlocked = true
+- RACE-EXP-05: Racial bonuses cover the full bonus pool (at least spell damage, physical damage, max mana, mana regen, max HP used across the roster)
+
+**Success Criteria:**
+- [ ] 15+ races defined in RACE_DATA with `unlocked` flag and exactly two bonuses each
+- [ ] Character creation race picker shows all races; locked races display lock indicator
+- [ ] Creating a character with any race applies both racial bonuses to stats/combat modifiers
+- [ ] Leveling a character to an even level (2, 4, 6...) triggers re-application of racial bonuses
+- [ ] Existing characters are not broken by the dual-bonus upgrade to starter races
+- [ ] Dark-Elf, Half-Giant, Cyclops, Satyr remain locked until the corresponding world event fires
+
+---
+
+### Phase 22: Class Ability Balancing & Progression
 
 **Goal:** Every class has a fully designed, mechanically distinct ability set covering levels 1–10, with clear class identity enforced through ability choice, stat scaling, and resource usage. The unlock curve is deliberately paced — abilities arrive at meaningful moments, not one-per-level automatically. All referenced mechanics (DoT, HoT, AoE, debuffs, aggro) have backend support.
 
-**Depends on:** Phase 20
+**Depends on:** Phase 21 (Race Expansion must be complete so class abilities can reference fully-defined racial bonus system)
 
 **Requirements:** ABILITY-01, ABILITY-02, ABILITY-03, ABILITY-04, ABILITY-05, ABILITY-06
 
 **Plans:** 0 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 21 to break down)
+- [ ] TBD (run /gsd:plan-phase 22 to break down)
 
 **Scope:**
 
