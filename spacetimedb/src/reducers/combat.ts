@@ -2195,31 +2195,30 @@ export const registerCombatReducers = (deps: any) => {
 
     const pets = [...ctx.db.combatPet.by_combat.filter(combat.id)];
     for (const pet of pets) {
-      if (pet.nextAutoAttackAt > nowMicros) continue;
+      // Owner check: dismiss the pet if its owner is dead.
       const owner = ctx.db.character.id.find(pet.ownerCharacterId);
       if (!owner || owner.hp === 0n) {
         ctx.db.combatPet.id.delete(pet.id);
         continue;
       }
+      // Resolve target (switch away from dead enemies).
       let target = pet.targetEnemyId ? ctx.db.combatEnemy.id.find(pet.targetEnemyId) : null;
       if (!target || target.currentHp === 0n) {
         const preferred = owner.combatTargetEnemyId
           ? ctx.db.combatEnemy.id.find(owner.combatTargetEnemyId)
           : null;
         target = preferred ?? livingEnemies[0] ?? null;
-        ctx.db.combatPet.id.update({
-          ...pet,
-          targetEnemyId: target?.id,
-        });
       }
       if (!target) {
-        ctx.db.combatPet.id.update({
-          ...pet,
-          nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL,
-        });
+        if (pet.nextAutoAttackAt <= nowMicros) {
+          ctx.db.combatPet.id.update({ ...pet, nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL, targetEnemyId: undefined });
+        }
         continue;
       }
       let nextAbilityAt = pet.nextAbilityAt;
+      // Pet ability fires as soon as it's ready — independent of auto-attack timing.
+      // This lets pets taunt/use abilities immediately on summon without waiting 5s for the
+      // first auto-attack window.
       if (pet.abilityKey && pet.nextAbilityAt && pet.nextAbilityAt <= nowMicros) {
         const used = executeAbilityAction(ctx, {
           actorType: 'pet',
@@ -2232,6 +2231,14 @@ export const registerCombatReducers = (deps: any) => {
           const cooldownMicros = (pet.abilityCooldownSeconds ?? 10n) * 1_000_000n;
           nextAbilityAt = nowMicros + cooldownMicros;
         }
+      }
+      // Auto-attack: only when that timer is ready.
+      if (pet.nextAutoAttackAt > nowMicros) {
+        // Update target and ability cooldown even when not auto-attacking.
+        if (nextAbilityAt !== pet.nextAbilityAt || target.id !== pet.targetEnemyId) {
+          ctx.db.combatPet.id.update({ ...pet, nextAbilityAt, targetEnemyId: target.id });
+        }
+        continue;
       }
       const targetName = target.displayName ?? 'enemy';
       const { finalDamage } = resolveAttack(ctx, {

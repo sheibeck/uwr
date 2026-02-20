@@ -213,6 +213,20 @@ export function addCharacterEffect(
     roundsRemaining,
     sourceAbility,
   });
+  // Apply the first tick immediately for DoTs and HoTs so the effect is felt on cast.
+  // Subsequent ticks are handled by the global tick_hot scheduler (every 3s).
+  if (effectType === 'regen' || effectType === 'dot') {
+    const character = ctx.db.character.id.find(characterId);
+    if (character && character.hp > 0n) {
+      if (effectType === 'regen') {
+        const healed = character.hp + magnitude > character.maxHp ? character.maxHp : character.hp + magnitude;
+        ctx.db.character.id.update({ ...character, hp: healed });
+      } else {
+        const nextHp = character.hp > magnitude ? character.hp - magnitude : 0n;
+        ctx.db.character.id.update({ ...character, hp: nextHp });
+      }
+    }
+  }
 }
 
 export function addEnemyEffect(
@@ -908,10 +922,11 @@ export function executeAbility(
       if (prevSong) {
         ctx.db.activeBardSong.id.update({ ...prevSong, isFading: true });
       } else {
-        // Schedule first tick (subsequent ticks are rescheduled from the tick reducer)
+        // Schedule first tick almost immediately so the first effect is felt on cast.
+        // Subsequent ticks are rescheduled 6s apart from within tick_bard_songs.
         ctx.db.bardSongTick.insert({
           scheduledId: 0n,
-          scheduledAt: ScheduleAt.time(nowMicros + 6_000_000n),
+          scheduledAt: ScheduleAt.time(nowMicros + 1_000_000n),
           bardCharacterId: character.id,
           combatId,
         });
