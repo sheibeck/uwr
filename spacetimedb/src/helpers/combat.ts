@@ -144,6 +144,8 @@ export function rollAttackOutcome(
   seed: bigint,
   opts: {
     canBlock: boolean;
+    blockChanceBasis?: bigint;        // on 1000-scale; default 50n (5%)
+    blockMitigationPercent?: bigint;  // on 100n-scale; default 50n (50% mitigation)
     canParry: boolean;
     canDodge: boolean;
     characterDex?: bigint;
@@ -162,8 +164,15 @@ export function rollAttackOutcome(
     if (roll < cursor) return { outcome: 'parry', multiplier: 0n };
   }
   if (opts.canBlock) {
-    cursor += 50n;
-    if (roll < cursor) return { outcome: 'block', multiplier: 50n };
+    const blockChance = opts.blockChanceBasis ?? 50n;          // default 5% on 1000-scale
+    const blockMitigation = opts.blockMitigationPercent ?? 50n; // default 50% mitigation
+    cursor += blockChance;
+    if (roll < cursor) {
+      // multiplier represents damage taken: 100% - mitigation%
+      // e.g. 30% mitigation → multiplier 70n (player takes 70% of hit damage)
+      const damageTaken = 100n - blockMitigation;
+      return { outcome: 'block', multiplier: damageTaken > 0n ? damageTaken : 1n };
+    }
   }
   // Critical strike check
   if (opts.characterDex !== undefined) {
