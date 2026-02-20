@@ -206,6 +206,8 @@ import TickEffectsReducer from "./tick_effects_reducer";
 export { TickEffectsReducer };
 import TickHotReducer from "./tick_hot_reducer";
 export { TickHotReducer };
+import TickBardSongsReducer from "./tick_bard_songs_reducer";
+export { TickBardSongsReducer };
 import TickCastsReducer from "./tick_casts_reducer";
 export { TickCastsReducer };
 import CombatLoopReducer from "./combat_loop_reducer";
@@ -266,10 +268,14 @@ import AbilityTemplateRow from "./ability_template_table";
 export { AbilityTemplateRow };
 import AchievementRow from "./achievement_table";
 export { AchievementRow };
+import ActiveBardSongRow from "./active_bard_song_table";
+export { ActiveBardSongRow };
 import AggroEntryRow from "./aggro_entry_table";
 export { AggroEntryRow };
 import AppVersionRow from "./app_version_table";
 export { AppVersionRow };
+import BardSongTickRow from "./bard_song_tick_table";
+export { BardSongTickRow };
 import CastTickRow from "./cast_tick_table";
 export { CastTickRow };
 import CharacterRow from "./character_table";
@@ -496,12 +502,16 @@ import AcceptResurrect from "./accept_resurrect_type";
 export { AcceptResurrect };
 import Achievement from "./achievement_type";
 export { Achievement };
+import ActiveBardSong from "./active_bard_song_type";
+export { ActiveBardSong };
 import AddTradeItem from "./add_trade_item_type";
 export { AddTradeItem };
 import AggroEntry from "./aggro_entry_type";
 export { AggroEntry };
 import AppVersion from "./app_version_type";
 export { AppVersion };
+import BardSongTick from "./bard_song_tick_type";
+export { BardSongTick };
 import BindLocation from "./bind_location_type";
 export { BindLocation };
 import BuyItem from "./buy_item_type";
@@ -892,6 +902,8 @@ import TakeAllLoot from "./take_all_loot_type";
 export { TakeAllLoot };
 import TakeLoot from "./take_loot_type";
 export { TakeLoot };
+import TickBardSongs from "./tick_bard_songs_type";
+export { TickBardSongs };
 import TickCasts from "./tick_casts_type";
 export { TickCasts };
 import TickDayNight from "./tick_day_night_type";
@@ -975,6 +987,20 @@ const tablesSchema = __schema(
     ],
   }, AchievementRow),
   __table({
+    name: 'active_bard_song',
+    indexes: [
+      { name: 'by_bard', algorithm: 'btree', columns: [
+        'bardCharacterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'active_bard_song_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ActiveBardSongRow),
+  __table({
     name: 'aggro_entry',
     indexes: [
       { name: 'by_combat', algorithm: 'btree', columns: [
@@ -1002,6 +1028,17 @@ const tablesSchema = __schema(
       { name: 'app_version_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, AppVersionRow),
+  __table({
+    name: 'bard_song_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'bard_song_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, BardSongTickRow),
   __table({
     name: 'cast_tick',
     indexes: [
@@ -2496,6 +2533,7 @@ const reducersSchema = __reducers(
   __reducerSchema("regen_health", RegenHealthReducer),
   __reducerSchema("tick_effects", TickEffectsReducer),
   __reducerSchema("tick_hot", TickHotReducer),
+  __reducerSchema("tick_bard_songs", TickBardSongsReducer),
   __reducerSchema("tick_casts", TickCastsReducer),
   __reducerSchema("combat_loop", CombatLoopReducer),
   __reducerSchema("loot_corpse_item", LootCorpseItemReducer),

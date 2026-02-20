@@ -11,14 +11,8 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  id: __t.u64().primaryKey(),
-  templateId: __t.u64(),
-  ownerCharacterId: __t.u64(),
-  equippedSlot: __t.option(__t.string()),
-  quantity: __t.u64(),
-  qualityTier: __t.option(__t.string()),
-  craftQuality: __t.option(__t.string()),
-  displayName: __t.option(__t.string()),
-  isNamed: __t.option(__t.bool()),
-  isTemporary: __t.option(__t.bool()),
+  scheduledId: __t.u64().primaryKey(),
+  scheduledAt: __t.scheduleAt(),
+  bardCharacterId: __t.u64(),
+  combatId: __t.u64(),
 });

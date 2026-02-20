@@ -10,15 +10,13 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("CombatEnemyEffect", {
+export default __t.object("ActiveBardSong", {
   id: __t.u64(),
+  bardCharacterId: __t.u64(),
   combatId: __t.u64(),
-  enemyId: __t.u64(),
-  effectType: __t.string(),
-  magnitude: __t.i64(),
-  roundsRemaining: __t.u64(),
-  sourceAbility: __t.option(__t.string()),
-  ownerCharacterId: __t.option(__t.u64()),
+  songKey: __t.string(),
+  startedAtMicros: __t.u64(),
+  isFading: __t.bool(),
 });
 
 
