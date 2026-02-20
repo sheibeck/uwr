@@ -1454,6 +1454,16 @@ export const registerCombatReducers = (deps: any) => {
       const total = effect.magnitude + bonus;
       const nextHp = enemy.currentHp > total ? enemy.currentHp - total : 0n;
       ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
+      // Life-drain: heal the ownerCharacterId for the same tick amount
+      if (effect.ownerCharacterId && total > 0n) {
+        const drainTarget = ctx.db.character.id.find(effect.ownerCharacterId);
+        if (drainTarget && drainTarget.hp > 0n) {
+          const healedHp = drainTarget.hp + total > drainTarget.maxHp
+            ? drainTarget.maxHp
+            : drainTarget.hp + total;
+          ctx.db.character.id.update({ ...drainTarget, hp: healedHp });
+        }
+      }
       const source = effect.sourceAbility ?? 'a lingering effect';
       for (const participant of ctx.db.combatParticipant.by_combat.filter(effect.combatId)) {
         const character = ctx.db.character.id.find(participant.characterId);
@@ -2646,7 +2656,7 @@ export const registerCombatReducers = (deps: any) => {
       const name = enemySnapshot?.displayName ?? enemyTemplate?.name ?? enemyName;
       if (topAggro && enemySnapshot && enemySnapshot.nextAutoAttackAt <= nowMicros) {
         const skipEffect = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find(
-          (effect) => effect.effectType === 'skip'
+          (effect) => effect.effectType === 'skip' || effect.effectType === 'stun'
         );
         if (skipEffect) {
           ctx.db.combatEnemyEffect.id.delete(skipEffect.id);

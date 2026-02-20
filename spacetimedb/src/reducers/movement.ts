@@ -84,7 +84,11 @@ export const registerMovementReducers = (deps: any) => {
       const costIncrease = traveler.racialTravelCostIncrease ?? 0n;
       const costDiscount = traveler.racialTravelCostDiscount ?? 0n;
       const rawCost = staminaCost + costIncrease;
-      const effectiveCost = rawCost > costDiscount ? rawCost - costDiscount : 0n;
+      const abilityDiscount = [...ctx.db.characterEffect.by_character.filter(traveler.id)]
+        .filter((e: any) => e.effectType === 'travel_discount' && e.roundsRemaining > 0n)
+        .reduce((sum: bigint, e: any) => sum + BigInt(e.magnitude), 0n);
+      const totalDiscount = costDiscount + abilityDiscount;
+      const effectiveCost = rawCost > totalDiscount ? rawCost - totalDiscount : 0n;
       if (traveler.stamina < effectiveCost) {
         return fail(ctx, character, `${traveler.name} does not have enough stamina to travel`);
       }
@@ -113,7 +117,11 @@ export const registerMovementReducers = (deps: any) => {
       const costIncrease = traveler.racialTravelCostIncrease ?? 0n;
       const costDiscount = traveler.racialTravelCostDiscount ?? 0n;
       const rawCost = staminaCost + costIncrease;
-      const effectiveCost = rawCost > costDiscount ? rawCost - costDiscount : 0n;
+      const abilityDiscount = [...ctx.db.characterEffect.by_character.filter(traveler.id)]
+        .filter((e: any) => e.effectType === 'travel_discount' && e.roundsRemaining > 0n)
+        .reduce((sum: bigint, e: any) => sum + BigInt(e.magnitude), 0n);
+      const totalDiscount = costDiscount + abilityDiscount;
+      const effectiveCost = rawCost > totalDiscount ? rawCost - totalDiscount : 0n;
       ctx.db.character.id.update({ ...traveler, stamina: traveler.stamina - effectiveCost });
       if (isCrossRegion) {
         const existingCd = [...ctx.db.travelCooldown.by_character.filter(traveler.id)][0];
