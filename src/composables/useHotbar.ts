@@ -359,10 +359,12 @@ export const useHotbar = ({
     () => activeCombat.value,
     (newVal, oldVal) => {
       if (!newVal && oldVal) {
-        // Combat just ended — clear all optimistic predictions
+        // Combat just ended — clear active cast, but preserve cooldown predictions.
+        // Clearing predictions here causes a window where kill-shot abilities appear
+        // off cooldown before the server cooldown row arrives in the subscription.
+        // The nowMicros watcher naturally expires predictions, and the 500ms
+        // server-confirmation check cleans up predictions for abilities that failed.
         localCast.value = null;
-        localCooldowns.value.clear();
-        predictedCooldownReadyAt.value.clear();
         hotbarPulseKey.value = null;
       }
     }

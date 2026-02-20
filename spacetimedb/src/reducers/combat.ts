@@ -1668,6 +1668,27 @@ export const registerCombatReducers = (deps: any) => {
           continue;
         }
       }
+      // Apply cooldown on use, not on success — prevents kill-shot abilities from losing
+      // their cooldown when combat ends before the subscription row arrives.
+      const cooldown = abilityCooldownMicros(ctx, cast.abilityKey);
+      const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(character.id)].find(
+        (row) => row.abilityKey === cast.abilityKey
+      );
+      if (cooldown > 0n) {
+        if (existingCooldown) {
+          ctx.db.abilityCooldown.id.update({
+            ...existingCooldown,
+            readyAtMicros: nowMicros + cooldown,
+          });
+        } else {
+          ctx.db.abilityCooldown.insert({
+            id: 0n,
+            characterId: character.id,
+            abilityKey: cast.abilityKey,
+            readyAtMicros: nowMicros + cooldown,
+          });
+        }
+      }
       try {
         deps.executeAbilityAction(ctx, {
           actorType: 'character',
@@ -1675,26 +1696,6 @@ export const registerCombatReducers = (deps: any) => {
           abilityKey: cast.abilityKey,
           targetCharacterId: cast.targetCharacterId,
         });
-        // Apply cooldown only after ability completes successfully
-        const cooldown = abilityCooldownMicros(ctx, cast.abilityKey);
-        const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(character.id)].find(
-          (row) => row.abilityKey === cast.abilityKey
-        );
-        if (cooldown > 0n) {
-          if (existingCooldown) {
-            ctx.db.abilityCooldown.id.update({
-              ...existingCooldown,
-              readyAtMicros: nowMicros + cooldown,
-            });
-          } else {
-            ctx.db.abilityCooldown.insert({
-              id: 0n,
-              characterId: character.id,
-              abilityKey: cast.abilityKey,
-              readyAtMicros: nowMicros + cooldown,
-            });
-          }
-        }
       } catch (error) {
         const message = String(error).replace(/^SenderError:\s*/i, '');
         appendPrivateEvent(
