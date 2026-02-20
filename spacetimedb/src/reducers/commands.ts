@@ -1,5 +1,5 @@
 import { getAffinityForNpc, canConverseWithNpc, awardNpcAffinity, getAvailableDialogueOptions } from '../helpers/npc_affinity';
-import { appendSystemMessage } from '../helpers/events';
+import { appendSystemMessage, appendWorldEvent } from '../helpers/events';
 import { generateAffixData, buildDisplayName } from '../helpers/items';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 
@@ -215,6 +215,39 @@ export const registerCommandReducers = (deps: any) => {
         'system',
         'Content sync completed.'
       );
+      return;
+    }
+
+    const unlockRaceMatch = trimmed.match(/^\/unlockrace\s+(.+)$/i);
+    if (unlockRaceMatch) {
+      requireAdmin(ctx);
+      const raceName = unlockRaceMatch[1].trim();
+      let found = false;
+      for (const race of ctx.db.race.iter()) {
+        if (race.name.toLowerCase() === raceName.toLowerCase()) {
+          if (race.unlocked) {
+            appendPrivateEvent(
+              ctx, character.id, requirePlayerUserId(ctx), 'system',
+              `${race.name} is already unlocked.`
+            );
+            return;
+          }
+          ctx.db.race.id.update({ ...race, unlocked: true });
+          appendWorldEvent(ctx, 'world_event', `A world-shaking event has occurred — the ${race.name} have emerged from hiding and may now walk among us!`);
+          appendPrivateEvent(
+            ctx, character.id, requirePlayerUserId(ctx), 'system',
+            `Unlocked race: ${race.name}.`
+          );
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        appendPrivateEvent(
+          ctx, character.id, requirePlayerUserId(ctx), 'system',
+          `Race not found: "${raceName}". Check spelling (case-insensitive).`
+        );
+      }
       return;
     }
 
@@ -534,15 +567,56 @@ export const registerCommandReducers = (deps: any) => {
     }
 
     const newBase = computeBaseStats(character.className, target);
+    const raceRow = [...ctx.db.race.iter()].find((r: any) => r.name === character.race);
+    const evenApplications = target / 2n;
+
+    const racial = { str: 0n, dex: 0n, int: 0n, wis: 0n, cha: 0n,
+      spellDmg: 0n, physDmg: 0n, maxHp: 0n, maxMana: 0n,
+      manaRegen: 0n, staminaRegen: 0n, crit: 0n, armor: 0n, dodge: 0n };
+
+    function applyRacialBonus(bonusType: string, baseValue: bigint) {
+      const total = baseValue + (baseValue / 2n) * evenApplications;
+      switch (bonusType) {
+        case 'stat_str': racial.str += total; break;
+        case 'stat_dex': racial.dex += total; break;
+        case 'stat_int': racial.int += total; break;
+        case 'stat_wis': racial.wis += total; break;
+        case 'stat_cha': racial.cha += total; break;
+        case 'spell_damage': racial.spellDmg += total; break;
+        case 'phys_damage': racial.physDmg += total; break;
+        case 'max_hp': racial.maxHp += total; break;
+        case 'max_mana': racial.maxMana += total; break;
+        case 'mana_regen': racial.manaRegen += total; break;
+        case 'stamina_regen': racial.staminaRegen += total; break;
+        case 'crit_chance': racial.crit += total; break;
+        case 'armor': racial.armor += total; break;
+        case 'dodge': racial.dodge += total; break;
+      }
+    }
+
+    if (raceRow) {
+      applyRacialBonus(raceRow.bonus1Type, raceRow.bonus1Value);
+      applyRacialBonus(raceRow.bonus2Type, raceRow.bonus2Value);
+    }
+
     const updated = {
       ...character,
       level: target,
       xp: xpRequiredForLevel(target),
-      str: newBase.str,
-      dex: newBase.dex,
-      cha: newBase.cha,
-      wis: newBase.wis,
-      int: newBase.int,
+      str: newBase.str + racial.str,
+      dex: newBase.dex + racial.dex,
+      cha: newBase.cha + racial.cha,
+      wis: newBase.wis + racial.wis,
+      int: newBase.int + racial.int,
+      racialSpellDamage: racial.spellDmg || undefined,
+      racialPhysDamage: racial.physDmg || undefined,
+      racialMaxHp: racial.maxHp || undefined,
+      racialMaxMana: racial.maxMana || undefined,
+      racialManaRegen: racial.manaRegen || undefined,
+      racialStaminaRegen: racial.staminaRegen || undefined,
+      racialCritBonus: racial.crit || undefined,
+      racialArmorBonus: racial.armor || undefined,
+      racialDodgeBonus: racial.dodge || undefined,
     };
     ctx.db.character.id.update(updated);
     recomputeCharacterDerived(ctx, updated);

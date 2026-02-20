@@ -1222,6 +1222,10 @@ export const registerCombatReducers = (deps: any) => {
         else if (effect.effectType === 'food_stamina_regen') staminaRegenBonus += effect.magnitude;
       }
 
+      // Add racial regen bonuses from Character row (these persist through death, unlike CharacterEffects)
+      manaRegenBonus += character.racialManaRegen ?? 0n;
+      staminaRegenBonus += character.racialStaminaRegen ?? 0n;
+
       const nextHp =
         character.hp >= character.maxHp ? character.hp : character.hp + hpRegen + hpRegenBonus;
       const nextMana =
