@@ -36,7 +36,7 @@
 | 19 | NPC Interactions | None | Phase 18 | Complete (2026-02-17) |
 | 20 | Perk Variety Expansion | None | Phase 19 | Complete (2026-02-18) |
 | 21 | 3/4 | In Progress|  | Pending |
-| 21.1 | Stat Systems Off-Stat Hooks | STAT-01, STAT-02 | Phase 22 | In Progress (Plan 01/N complete: statOffset helper + shield restrictions) |
+| 21.1 | 3/4 | In Progress|  | In Progress (Plan 01/N complete: statOffset helper + shield restrictions) |
 | 22 | 2/4 | In Progress|  | In Progress (Plan 01/N complete) |
 
 ---
@@ -735,7 +735,7 @@ Each race grants exactly two bonuses. Bonuses are not limited to stat points. Th
 **Requirements:** STAT-01, STAT-02, STAT-03, STAT-04, STAT-05
 
 **Depends on:** Phase 21
-**Plans:** 4 plans
+**Plans:** 3/4 plans executed
 
 Plans:
 - [ ] 21.1-01-PLAN.md — Stat scaling helper (statOffset) + shield armor type and class restrictions

@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-20
-**Status:** Phase 21.1 (Stat Systems Off-Stat Hooks) — In Progress. Plan 01 complete: statOffset() helper, shield armor type restrictions, Wooden Shield item fix.
+**Status:** Phase 21.1 (Stat Systems Off-Stat Hooks) — In Progress. Plans 01-03 complete: statOffset() helper, shield armor type, DEX/STR block system, WIS pull hook, INT salvage scroll drop, CHA vendor/faction/affinity hooks.
 
 ---
 
@@ -11,8 +11,8 @@
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 13 (Crafting System) complete — 10 crafting materials, 29 recipes (14 consumable + 15 gear), salvage yields materials, craft_recipe applies deterministic affixes, CraftingPanel filter chips + craftable toggle, human-verified. Phase 13.1 (Dual-Axis Gear System) complete — craftQuality (dented/standard/reinforced/exquisite/mastercraft) separates potency from rarity axis, Essence I/II/III/IV as gear crafting reagents, unified addRecipeTemplate helper, per-material-quality stat bonuses via implicit ItemAffix rows. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 15 (Named NPCs) complete — implemented organically via Phase 19 and quick tasks; 7+ NPCs, shops, world placement in place. Phase 18 (World Events System Expansion) complete — admin-fired events, event spawns, Bronze/Silver/Gold contribution tiers, dual success/failure consequences (Ripple), WorldEventPanel with Active + History tabs, banner overlay notifications, admin event panel (quick-191), WorldStatTracker for threshold events. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
 
 **Last completed phase:** 22 — Class Ability Balancing & Progression (all 16 classes with level 1/3/5/7/9/10 abilities, Bard song system, Summoner/Beastmaster pets, human-verified)
-**Current phase:** 21.1 — Stat Systems Off-Stat Hooks (Plan 01 of N complete)
-**Next action:** Execute 21.1-02-PLAN.md
+**Current phase:** 21.1 — Stat Systems Off-Stat Hooks (Plans 01-03 of N complete)
+**Next action:** Execute 21.1-04-PLAN.md or advance to next phase
 
 ---
 
@@ -46,7 +46,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 19 | NPC Interactions | Complete (2/2 plans done: backend affinity/dialogue + interaction reducers; UI skipped per user decision — multi-step questing via NPC dialogue is sufficient MVP) |
 | 20 | Perk Variety Expansion | Complete (3/3 plans done: perk data foundation + perk logic implementation + active ability perks with hotbar integration) |
 | 21 | Race Expansion | In Progress (Plans 01-03 complete: dual-bonus schema, 15 races seeded, racial columns, level-up stacking, CharacterPanel UI updated) |
-| 21.1 | Stat Systems Off-Stat Hooks | In Progress (Plan 01 complete: statOffset() helper, shield armor type, Wooden Shield fix) |
+| 21.1 | Stat Systems Off-Stat Hooks | In Progress (Plans 01-02 complete: statOffset() helper, shield armor type, Wooden Shield fix, DEX/STR block system, WIS pull hook) |
 | 22 | Class Ability Balancing & Progression | In Progress (Plans 01-03 complete: schema, ability data rewrite, full executeAbility switch for all 16 classes + bard song tick reducer + temp item logout cleanup) |
 
 ---
@@ -315,6 +315,8 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 22-class-ability-balancing | 02 | 14min | 3 | 16 |
 | 22-class-ability-balancing | 03 | 35min | 3 | 3 |
 | 21.1-stat-systems-off-stat-hooks | 01 | 15min | 3 | 3 |
+| Phase 21.1-stat-systems-off-stat-hooks P02 | 18 | 2 tasks | 2 files |
+| Phase 21.1-stat-systems-off-stat-hooks P03 | 25 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
