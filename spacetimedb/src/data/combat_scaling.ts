@@ -408,8 +408,9 @@ export const WIS_PULL_BONUS_PER_POINT = 2n;
 export const INT_SALVAGE_BONUS_PER_POINT = 3n;
 
 /** Base scroll drop chance on 100n scale. Replaces old hardcoded 75n auto-learn.
- *  Lower base reflects that the player now gets a tradeable item (more valuable). */
-export const SALVAGE_SCROLL_CHANCE_BASE = 25n;
+ *  Low base — scrolls are tradeable and valuable, so they should be rare finds.
+ *  INT=10: 8%. INT=14: 20%. INT=6: down to 5% clamp. */
+export const SALVAGE_SCROLL_CHANCE_BASE = 8n;
 
 // ===== CHA hooks constants =====
 
