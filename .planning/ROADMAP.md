@@ -36,6 +36,7 @@
 | 19 | NPC Interactions | None | Phase 18 | Complete (2026-02-17) |
 | 20 | Perk Variety Expansion | None | Phase 19 | Complete (2026-02-18) |
 | 21 | 3/4 | In Progress|  | Pending |
+| 21.1 | Stat Systems Off-Stat Hooks | STAT-01, STAT-02 | Phase 22 | In Progress (Plan 01/N complete: statOffset helper + shield restrictions) |
 | 22 | 2/4 | In Progress|  | In Progress (Plan 01/N complete) |
 
 ---
