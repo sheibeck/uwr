@@ -424,4 +424,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-20 - Completed quick-218: added Phase 21 (Class Ability Balancing & Progression) to ROADMAP.md. Previous: quick-217 (auto-camp inactive players).
+Last activity: 2026-02-20 - Phase 21 context gathered (Class Ability Balancing & Progression). Resume: `.planning/phases/21-class-ability-balancing-progression/21-CONTEXT.md`. Previous: quick-218 (add Phase 21 to roadmap).
