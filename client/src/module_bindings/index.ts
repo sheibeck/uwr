@@ -36,6 +36,10 @@ import {
 // Import and reexport all reducer arg types
 import TickDayNightReducer from "./tick_day_night_reducer";
 export { TickDayNightReducer };
+import SweepInactivityReducer from "./sweep_inactivity_reducer";
+export { SweepInactivityReducer };
+import SetAppVersionReducer from "./set_app_version_reducer";
+export { SetAppVersionReducer };
 import OnConnectReducer from "./on_connect_reducer";
 export { OnConnectReducer };
 import OnDisconnectReducer from "./on_disconnect_reducer";
@@ -202,6 +206,8 @@ import TickEffectsReducer from "./tick_effects_reducer";
 export { TickEffectsReducer };
 import TickHotReducer from "./tick_hot_reducer";
 export { TickHotReducer };
+import TickBardSongsReducer from "./tick_bard_songs_reducer";
+export { TickBardSongsReducer };
 import TickCastsReducer from "./tick_casts_reducer";
 export { TickCastsReducer };
 import CombatLoopReducer from "./combat_loop_reducer";
@@ -262,8 +268,14 @@ import AbilityTemplateRow from "./ability_template_table";
 export { AbilityTemplateRow };
 import AchievementRow from "./achievement_table";
 export { AchievementRow };
+import ActiveBardSongRow from "./active_bard_song_table";
+export { ActiveBardSongRow };
 import AggroEntryRow from "./aggro_entry_table";
 export { AggroEntryRow };
+import AppVersionRow from "./app_version_table";
+export { AppVersionRow };
+import BardSongTickRow from "./bard_song_tick_table";
+export { BardSongTickRow };
 import CastTickRow from "./cast_tick_table";
 export { CastTickRow };
 import CharacterRow from "./character_table";
@@ -358,6 +370,8 @@ import HotTickRow from "./hot_tick_table";
 export { HotTickRow };
 import HotbarSlotRow from "./hotbar_slot_table";
 export { HotbarSlotRow };
+import InactivityTickRow from "./inactivity_tick_table";
+export { InactivityTickRow };
 import ItemAffixRow from "./item_affix_table";
 export { ItemAffixRow };
 import ItemCooldownRow from "./item_cooldown_table";
@@ -488,10 +502,16 @@ import AcceptResurrect from "./accept_resurrect_type";
 export { AcceptResurrect };
 import Achievement from "./achievement_type";
 export { Achievement };
+import ActiveBardSong from "./active_bard_song_type";
+export { ActiveBardSong };
 import AddTradeItem from "./add_trade_item_type";
 export { AddTradeItem };
 import AggroEntry from "./aggro_entry_type";
 export { AggroEntry };
+import AppVersion from "./app_version_type";
+export { AppVersion };
+import BardSongTick from "./bard_song_tick_type";
+export { BardSongTick };
 import BindLocation from "./bind_location_type";
 export { BindLocation };
 import BuyItem from "./buy_item_type";
@@ -656,6 +676,8 @@ import HotTick from "./hot_tick_type";
 export { HotTick };
 import HotbarSlot from "./hotbar_slot_type";
 export { HotbarSlot };
+import InactivityTick from "./inactivity_tick_type";
+export { InactivityTick };
 import IncrementEventCounter from "./increment_event_counter_type";
 export { IncrementEventCounter };
 import Init from "./init_type";
@@ -830,6 +852,8 @@ import SendFriendRequestToCharacter from "./send_friend_request_to_character_typ
 export { SendFriendRequestToCharacter };
 import SetActiveCharacter from "./set_active_character_type";
 export { SetActiveCharacter };
+import SetAppVersion from "./set_app_version_type";
+export { SetAppVersion };
 import SetCombatTarget from "./set_combat_target_type";
 export { SetCombatTarget };
 import SetDisplayName from "./set_display_name_type";
@@ -856,6 +880,8 @@ import StartTrade from "./start_trade_type";
 export { StartTrade };
 import SubmitCommand from "./submit_command_type";
 export { SubmitCommand };
+import SweepInactivity from "./sweep_inactivity_type";
+export { SweepInactivity };
 import SyncAbilityTemplates from "./sync_ability_templates_type";
 export { SyncAbilityTemplates };
 import SyncAllContent from "./sync_all_content_type";
@@ -876,6 +902,8 @@ import TakeAllLoot from "./take_all_loot_type";
 export { TakeAllLoot };
 import TakeLoot from "./take_loot_type";
 export { TakeLoot };
+import TickBardSongs from "./tick_bard_songs_type";
+export { TickBardSongs };
 import TickCasts from "./tick_casts_type";
 export { TickCasts };
 import TickDayNight from "./tick_day_night_type";
@@ -959,6 +987,20 @@ const tablesSchema = __schema(
     ],
   }, AchievementRow),
   __table({
+    name: 'active_bard_song',
+    indexes: [
+      { name: 'by_bard', algorithm: 'btree', columns: [
+        'bardCharacterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'active_bard_song_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ActiveBardSongRow),
+  __table({
     name: 'aggro_entry',
     indexes: [
       { name: 'by_combat', algorithm: 'btree', columns: [
@@ -975,6 +1017,28 @@ const tablesSchema = __schema(
       { name: 'aggro_entry_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, AggroEntryRow),
+  __table({
+    name: 'app_version',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'app_version_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AppVersionRow),
+  __table({
+    name: 'bard_song_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'bard_song_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, BardSongTickRow),
   __table({
     name: 'cast_tick',
     indexes: [
@@ -1654,6 +1718,17 @@ const tablesSchema = __schema(
       { name: 'hotbar_slot_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, HotbarSlotRow),
+  __table({
+    name: 'inactivity_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'inactivity_tick_scheduledId_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, InactivityTickRow),
   __table({
     name: 'item_affix',
     indexes: [
@@ -2375,6 +2450,8 @@ const tablesSchema = __schema(
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("tick_day_night", TickDayNightReducer),
+  __reducerSchema("sweep_inactivity", SweepInactivityReducer),
+  __reducerSchema("set_app_version", SetAppVersionReducer),
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("send_friend_request", SendFriendRequestReducer),
   __reducerSchema("send_friend_request_to_character", SendFriendRequestToCharacterReducer),
@@ -2456,6 +2533,7 @@ const reducersSchema = __reducers(
   __reducerSchema("regen_health", RegenHealthReducer),
   __reducerSchema("tick_effects", TickEffectsReducer),
   __reducerSchema("tick_hot", TickHotReducer),
+  __reducerSchema("tick_bard_songs", TickBardSongsReducer),
   __reducerSchema("tick_casts", TickCastsReducer),
   __reducerSchema("combat_loop", CombatLoopReducer),
   __reducerSchema("loot_corpse_item", LootCorpseItemReducer),

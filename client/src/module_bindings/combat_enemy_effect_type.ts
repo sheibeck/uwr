@@ -18,6 +18,7 @@ export default __t.object("CombatEnemyEffect", {
   magnitude: __t.i64(),
   roundsRemaining: __t.u64(),
   sourceAbility: __t.option(__t.string()),
+  ownerCharacterId: __t.option(__t.u64()),
 });
 
 

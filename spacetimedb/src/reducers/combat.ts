@@ -1490,6 +1490,16 @@ export const registerCombatReducers = (deps: any) => {
     });
   });
 
+  // Bard song tick: fires every 6 seconds to apply active song group effects.
+  // Full implementation in Phase 22 ability plans.
+  spacetimedb.reducer('tick_bard_songs', { arg: deps.BardSongTick.rowType }, (ctx, { arg }) => {
+    const combat = ctx.db.combatEncounter.id.find(arg.combatId);
+    if (!combat || combat.state !== 'active') return;
+    const song = [...ctx.db.activeBardSong.by_bard.filter(arg.bardCharacterId)][0];
+    if (!song) return;
+    // Song effect application will be implemented with Bard ability reducers in a later plan.
+  });
+
   spacetimedb.reducer('tick_casts', { arg: deps.CastTick.rowType }, (ctx) => {
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     for (const cast of ctx.db.characterCast.iter()) {

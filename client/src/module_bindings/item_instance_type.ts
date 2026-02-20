@@ -20,6 +20,7 @@ export default __t.object("ItemInstance", {
   craftQuality: __t.option(__t.string()),
   displayName: __t.option(__t.string()),
   isNamed: __t.option(__t.bool()),
+  isTemporary: __t.option(__t.bool()),
 });
 
 

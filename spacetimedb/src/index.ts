@@ -21,6 +21,7 @@ import {
   PendingSpellCast,
   QuestItem, NamedEnemy, SearchResult,
   AppVersion,
+  ActiveBardSong, BardSongTick,
 } from './schema/tables';
 export { spacetimedb } from './schema/tables';
 import { registerReducers } from './reducers';
@@ -450,6 +451,7 @@ const reducerDeps = {
   ResourceGatherTick,
   EnemyRespawnTick,
   InactivityTick,
+  BardSongTick,
   TradeSession,
   TradeItem,
   EnemyAbility,
