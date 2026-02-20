@@ -35,7 +35,7 @@
 | 18 | World Events System Expansion | None | Phase 17 | Complete (2026-02-18) |
 | 19 | NPC Interactions | None | Phase 18 | Complete (2026-02-17) |
 | 20 | Perk Variety Expansion | None | Phase 19 | Complete (2026-02-18) |
-| 21 | Race Expansion | RACE-EXP-01–05 | Phase 20 | Pending |
+| 21 | 1/4 | In Progress|  | Pending |
 | 22 | Class Ability Balancing & Progression | ABILITY-01–06 | Phase 21 | Pending |
 
 ---
@@ -657,7 +657,7 @@ Plans:
 
 **Requirements:** RACE-EXP-01, RACE-EXP-02, RACE-EXP-03, RACE-EXP-04, RACE-EXP-05
 
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 Plans:
 - [ ] 21-01-PLAN.md — Schema migration (Race table bonus1Type/bonus1Value schema, Character table 9 optional racial bonus columns), RACE_DATA expanded to 15 races, create_character dual-bonus application, recomputeCharacterDerived racial contributions, publish --clear-database, regenerate bindings
