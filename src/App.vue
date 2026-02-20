@@ -674,6 +674,7 @@ const {
   eventContributions,
   eventObjectives,
   appVersionRows,
+  activeBardSongs,
 } = useGameData();
 
 watch(appVersionRows, (rows) => {
@@ -1020,6 +1021,14 @@ const combatPetsForGroup = computed(() => {
   return combatPets.value.filter((pet) => pet.combatId.toString() === combatId);
 });
 
+const BARD_SONG_DISPLAY_NAMES: Record<string, string> = {
+  bard_discordant_note: 'Discordant Note',
+  bard_melody_of_mending: 'Melody of Mending',
+  bard_chorus_of_vigor: 'Chorus of Vigor',
+  bard_march_of_wayfarers: 'March of Wayfarers',
+  bard_battle_hymn: 'Battle Hymn',
+};
+
 const relevantEffects = computed(() => {
   if (!selectedCharacter.value) return [];
   const memberIds = new Set<string>();
@@ -1027,9 +1036,22 @@ const relevantEffects = computed(() => {
   for (const member of groupCharacterMembers.value) {
     memberIds.add(member.id.toString());
   }
-  return characterEffects.value.filter(
+  const effects: any[] = characterEffects.value.filter(
     (effect: any) => memberIds.has(effect.characterId.toString())
   );
+  for (const song of (activeBardSongs.value as any[])) {
+    if (memberIds.has(song.bardCharacterId.toString())) {
+      effects.push({
+        id: song.id,
+        characterId: song.bardCharacterId,
+        effectType: 'song',
+        magnitude: 0n,
+        roundsRemaining: 0n,
+        sourceAbility: BARD_SONG_DISPLAY_NAMES[song.songKey] ?? song.songKey,
+      });
+    }
+  }
+  return effects;
 });
 
 const characterNpcDialogs = computed(() => {

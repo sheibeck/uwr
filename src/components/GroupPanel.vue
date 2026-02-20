@@ -343,6 +343,7 @@ const effectTimers = new Map<
 >();
 
 const effectDurationLabel = (effect: { id: bigint; roundsRemaining: bigint; effectType: string }) => {
+  if (effect.effectType === 'song') return '♪';
   const now = props.nowMicros ?? Date.now() * 1000;
   return `${effectRemainingSeconds(effect, now, effectTimers)}s`;
 };
