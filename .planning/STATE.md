@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-20
-**Status:** Phase 21 (Race Expansion) Plan 03 complete. CharacterPanel.vue race info panel updated to use bonus1Type/bonus2Type dual-bonus system with formatRaceBonus() helper; old strBonus/dexBonus fields removed. Plans 01-03 complete. Next: Phase 21 Plan 04 (unlockrace admin command).
+**Status:** Phase 21 (Race Expansion) complete. Full racial system redesign: 15 races with 4-field bonus schema (creation bonuses x2, penalty, level bonus), 9 new Character racial columns, computeRacialAtLevel() unified function, /level notification fix, travel cost modifiers, faction bonus, HP regen, CharacterPanel penalty/level-bonus display, StatsPanel Racial Profile section. Published and bindings regenerated.
 
 ---
 
@@ -10,9 +10,9 @@
 
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 13 (Crafting System) complete — 10 crafting materials, 29 recipes (14 consumable + 15 gear), salvage yields materials, craft_recipe applies deterministic affixes, CraftingPanel filter chips + craftable toggle, human-verified. Phase 13.1 (Dual-Axis Gear System) complete — craftQuality (dented/standard/reinforced/exquisite/mastercraft) separates potency from rarity axis, Essence I/II/III/IV as gear crafting reagents, unified addRecipeTemplate helper, per-material-quality stat bonuses via implicit ItemAffix rows. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 15 (Named NPCs) complete — implemented organically via Phase 19 and quick tasks; 7+ NPCs, shops, world placement in place. Phase 18 (World Events System Expansion) complete — admin-fired events, event spawns, Bronze/Silver/Gold contribution tiers, dual success/failure consequences (Ripple), WorldEventPanel with Active + History tabs, banner overlay notifications, admin event panel (quick-191), WorldStatTracker for threshold events. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
 
-**Last completed phase:** 21 Plan 02 (Race Expansion — level-up racial stacking bug fixed, /unlockrace command, racial regen and damage bonuses wired into combat)
-**Current phase:** 21 — Race Expansion (Plans 01-03 complete)
-**Next action:** Execute Phase 21 Plan 04 (unlockrace admin command with world broadcast) or verify remaining plans
+**Last completed phase:** 21 — Race Expansion (full redesign: 15 races, 4-field schema, /level fix, travel cost, faction bonus, HP regen, UI panels updated)
+**Current phase:** 22 (next)
+**Next action:** Plan Phase 22
 
 ---
 

@@ -657,13 +657,13 @@ Plans:
 
 **Requirements:** RACE-EXP-01, RACE-EXP-02, RACE-EXP-03, RACE-EXP-04, RACE-EXP-05
 
-**Plans:** 3/4 plans executed
+**Plans:** Complete
 
 Plans:
-- [ ] 21-01-PLAN.md — Schema migration (Race table bonus1Type/bonus1Value schema, Character table 9 optional racial bonus columns), RACE_DATA expanded to 15 races, create_character dual-bonus application, recomputeCharacterDerived racial contributions, publish --clear-database, regenerate bindings
-- [ ] 21-02-PLAN.md — Level-up racial bonus fix (awardXp preserves race bonuses + even-level stacking with diminishing returns), level_character admin command fix, /unlockrace admin command with world broadcast, racialManaRegen/racialStaminaRegen wired into regen tick
-- [ ] 21-03-PLAN.md — CharacterPanel.vue race info panel updated to show bonus1Type/bonus2Type with human-readable labels via formatRaceBonus helper
-- [ ] 21-04-PLAN.md — Human verification: race picker shows 11 races, bonus labels correct, even-level notification fires, /unlockrace works end-to-end
+- [x] 21-01-PLAN.md — Schema migration (Race table bonus1Type/bonus1Value schema, Character table 9 optional racial bonus columns), RACE_DATA expanded to 15 races, create_character dual-bonus application, recomputeCharacterDerived racial contributions, publish --clear-database, regenerate bindings
+- [x] 21-02-PLAN.md — Level-up racial bonus fix (awardXp preserves race bonuses + even-level stacking with diminishing returns), level_character admin command fix, /unlockrace admin command with world broadcast, racialManaRegen/racialStaminaRegen wired into regen tick
+- [x] 21-03-PLAN.md — CharacterPanel.vue race info panel updated to show bonus1Type/bonus2Type with human-readable labels via formatRaceBonus helper
+- [x] 21-04 (redesign) — Full racial system redesign: 4-field schema (creation x2, penalty, levelBonus), 9 new Character columns, computeRacialAtLevel(), /level notification fix, travel cost modifiers, faction bonus, HP regen wiring, CharacterPanel penalty/level-bonus UI, StatsPanel Racial Profile section
 
 **Scope:**
 
