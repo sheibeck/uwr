@@ -65,9 +65,9 @@ Expand the race roster from 4 starter races to 15+ traditional fantasy races, up
 
 ### Even-level stacking mechanic
 - **Level 1:** racial bonuses applied at character creation
-- **Even levels (2, 4, 6, 8, 10...):** racial bonuses re-applied again (stacking)
+- **Even levels (2, 4, 6, 8, 10...):** racial bonuses re-applied again (stacking — flat additive)
 - **Odd levels:** class abilities only — race has no interaction
-- **Stacking model:** Diminishing returns / percentage-based scaling — NOT flat additive. Each even-level application is slightly smaller than the last. This is designed for a 50-level cap (25 even levels = 25 applications). Specific diminishing factor is Claude's discretion, but must not produce runaway bonuses by level 10 and must scale gracefully to level 50.
+- **Stacking model:** Flat additive — the same incremental bonus applies each even level. Simple, predictable, and transparent to players. The increment per even-level application is half the base value (`floor(baseValue / 2)`), so a race with +2 spell damage would add +1 spell damage at each even level.
 - **Bug fix included:** Current level-up code silently drops racial bonuses when recalculating stats. Phase 21 must fix this — racial bonuses must be preserved at EVERY level-up, and ADDITIONALLY stacked again at even levels.
 
 ### Level-up feedback
@@ -107,8 +107,8 @@ Expand the race roster from 4 starter races to 15+ traditional fantasy races, up
 <deferred>
 ## Deferred Ideas
 
-### Percentage-scaling formula for levels 11-50
-At the level cap of 50, there will be 25 even-level applications. The exact diminishing returns curve that keeps bonuses balanced across the full 1-50 range is deferred to a future phase when the level cap expands. Phase 21 establishes the flat baseline values and the principle of diminishing returns; the scaling formula can be tuned later.
+### Stacking tuning for levels 11-50
+At the level cap of 50, the flat additive model will produce 25 half-value applications (plus the full base at creation). Whether to introduce diminishing returns at higher tiers is deferred to a future phase when the level cap expands. Phase 21 establishes the flat additive baseline; curve tuning can be revisited later.
 
 ### Race-restricted classes for new races
 Whether new races should have class restrictions (like Eldrin and Ironclad) is deferred. For Phase 21, new races default to unrestricted (like Human) unless a strong identity reason exists. Restrictions can be added in a future balance pass.
