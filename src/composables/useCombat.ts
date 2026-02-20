@@ -420,14 +420,13 @@ export const useCombat = ({
         if (isPulling && pull) {
           pullType = pull.pullType;
           const pullDurationMicros = pull.pullType === 'careful' ? 2_000_000 : 1_000_000;
-          // Count down from resolveAtMicros — immune to client/server clock skew direction
-          const resolveAt = Number(pull.resolveAtMicros);
-          const remaining = Math.max(0, resolveAt - nowMicros.value);
-          pullProgress = Math.min(1, 1 - remaining / pullDurationMicros);
+          // Use createdAt as start — works for all players at the location, not just the puller
+          const startMicros = timestampToMicros(pull.createdAt);
+          const elapsed = nowMicros.value - startMicros;
+          pullProgress = Math.min(1, Math.max(0, elapsed / pullDurationMicros));
 
-          // Orphan safety net: 2s grace after expected resolve, then hide bar
-          const graceMicros = 2_000_000;
-          if (nowMicros.value >= resolveAt + graceMicros) {
+          // Orphan safety net: if elapsed exceeds duration + 2s grace, stop showing bar
+          if (elapsed > pullDurationMicros + 2_000_000) {
             isPulling = false;
             pullProgress = 0;
           }
