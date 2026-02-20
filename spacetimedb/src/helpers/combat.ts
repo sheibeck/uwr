@@ -749,17 +749,16 @@ export function executeAbility(
       const hotPowerFraction = ability.hotPowerSplit;
       const hotTotalHealing = (amount * BigInt(Math.floor(hotPowerFraction * 100))) / 100n;
 
-      // Apply stat scaling (primary/secondary per class config) to HoT total
-      const scaledHotTotal = calculateHealingPower(hotTotalHealing, characterStats, character.className, ability?.statScaling ?? 'none');
+      // Apply Wisdom scaling to HoT total
+      const scaledHotTotal = calculateHealingPower(hotTotalHealing, characterStats);
       const hotHealPerTick = scaledHotTotal / ability.hotDuration;
 
       // Apply HoT effect to target
       addCharacterEffect(ctx, target.id, 'regen', hotHealPerTick, ability.hotDuration, ability.name);
     }
 
-    // Apply stat scaling (primary/secondary per class config) to direct heal output (uses the CASTER's stats, not target's)
-    // Use directHeal for immediate healing (replace 'amount' with 'directHeal')
-    const scaledAmount = calculateHealingPower(directHeal, characterStats, character.className, ability?.statScaling ?? 'none');
+    // Apply Wisdom scaling to direct heal output (uses the CASTER's stats, not target's)
+    const scaledAmount = calculateHealingPower(directHeal, characterStats);
     const nextHp = current.hp + scaledAmount > current.maxHp ? current.maxHp : current.hp + scaledAmount;
     ctx.db.character.id.update({ ...current, hp: nextHp });
     const message = `${source} restores ${scaledAmount} health to ${current.name}.`;

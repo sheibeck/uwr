@@ -327,33 +327,14 @@ export function getAbilityMultiplier(castSeconds: bigint, cooldownSeconds: bigin
 }
 
 /**
- * Calculate healing power with stat scaling via getAbilityStatScaling
- * Uses the same stat-scaling path as damage abilities (Decision #32, #34, #35)
- * - statScaling='none' or falsy: returns baseHealing unchanged
- * - statScaling='hybrid': uses 60% primary + 40% secondary per CLASS_CONFIG
- * - Other stats: gated on class having that stat as primary or secondary (Decision #32)
- * Formula: baseHealing + getAbilityStatScaling(characterStats, '', className, statScaling)
+ * Calculate healing power — always scales with Wisdom for all healing types.
+ * Formula: baseHealing + wis * ABILITY_STAT_SCALING_PER_POINT
  */
 export function calculateHealingPower(
   baseHealing: bigint,
-  characterStats: { str: bigint; dex: bigint; cha: bigint; wis: bigint; int: bigint },
-  className: string,
-  statScaling: string
+  characterStats: { str: bigint; dex: bigint; cha: bigint; wis: bigint; int: bigint }
 ): bigint {
-  if (!statScaling || statScaling === 'none') {
-    return baseHealing;
-  }
-
-  // Decision #32: Only apply stat scaling for classes that have the relevant stat
-  // as primary or secondary. Hybrid classes always qualify.
-  if (statScaling !== 'hybrid') {
-    const config = getClassConfig(className);
-    const hasStat = config.primary === statScaling || config.secondary === statScaling;
-    if (!hasStat) return baseHealing;
-  }
-
-  const statBonus = getAbilityStatScaling(characterStats, '', className, statScaling);
-  return baseHealing + statBonus;
+  return baseHealing + characterStats.wis * ABILITY_STAT_SCALING_PER_POINT;
 }
 
 /**
