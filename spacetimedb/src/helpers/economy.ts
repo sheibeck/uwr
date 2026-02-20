@@ -1,4 +1,5 @@
 import { logPrivateAndGroup } from './events';
+import { statOffset, CHA_FACTION_BONUS_PER_POINT } from '../data/combat_scaling.js';
 
 export const STANDING_PER_KILL = 10n;
 export const RIVAL_STANDING_PENALTY = 5n;
@@ -11,6 +12,14 @@ export function mutateStanding(ctx: any, characterId: bigint, factionId: bigint,
     const racialBonus = character?.racialFactionBonus ?? 0n;
     if (racialBonus > 0n) {
       effectiveDelta = delta + (delta * racialBonus) / 100n; // racialFactionBonus = +1% per point
+    }
+    // CHA off-stat hook: boosts positive faction gains
+    if (character) {
+      const chaOffset = statOffset(character.cha, CHA_FACTION_BONUS_PER_POINT);
+      if (chaOffset !== 0n) {
+        effectiveDelta = effectiveDelta + (effectiveDelta * chaOffset) / 100n;
+        if (effectiveDelta < 1n) effectiveDelta = 1n; // floor at 1 on positive delta
+      }
     }
   }
 

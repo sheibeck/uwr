@@ -1,6 +1,7 @@
 import { CONVERSATION_COOLDOWN_MICROS } from '../data/npc_data';
 import { appendSystemMessage } from './events';
 import { getPerkBonusByField } from './renown';
+import { statOffset, CHA_AFFINITY_BONUS_PER_POINT } from '../data/combat_scaling.js';
 
 export function getAffinityForNpc(ctx: any, characterId: bigint, npcId: bigint): bigint {
   for (const row of ctx.db.npcAffinity.by_character.filter(characterId)) {
@@ -46,6 +47,12 @@ export function awardNpcAffinity(ctx: any, character: any, npcId: bigint, baseCh
     const affinityBonus = getPerkBonusByField(ctx, character.id, 'npcAffinityGainBonus', character.level);
     if (affinityBonus > 0) {
       multiplier = multiplier * (1.0 + affinityBonus / 100.0);
+    }
+    // CHA off-stat hook: boosts positive affinity gains
+    const chaOffsetPct = Number(statOffset(character.cha, CHA_AFFINITY_BONUS_PER_POINT));
+    if (chaOffsetPct !== 0) {
+      multiplier = multiplier * (1.0 + chaOffsetPct / 100.0);
+      if (multiplier < 0.01) multiplier = 0.01; // floor at near-zero, don't flip sign
     }
   }
 
