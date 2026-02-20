@@ -40,7 +40,7 @@
             </span>
           </div>
           <div
-            v-if="enemy.isPulling && enemy.pullProgress > 0"
+            v-if="enemy.isPulling"
             :style="{
               width: '100%',
               height: '3px',
