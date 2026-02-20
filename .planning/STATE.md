@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-20
-**Status:** Phase 22 (Class Ability Balancing & Progression) — Plan 02 complete. All 16 class ability data files rewritten with locked 6-ability L1/3/5/7/9/10 progression, unique class identities, and power/cooldown normalization pass applied.
+**Status:** Phase 22 (Class Ability Balancing & Progression) — Plan 03 complete. All 16 class ability executeAbility switch cases implemented: bard song system (5 songs + finale + tick_bard_songs reducer), life drain DoT via ownerCharacterId, summoner conjure equipment (isTemporary), temp item logout cleanup, all stances and new mechanics.
 
 ---
 
@@ -11,8 +11,8 @@
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 13 (Crafting System) complete — 10 crafting materials, 29 recipes (14 consumable + 15 gear), salvage yields materials, craft_recipe applies deterministic affixes, CraftingPanel filter chips + craftable toggle, human-verified. Phase 13.1 (Dual-Axis Gear System) complete — craftQuality (dented/standard/reinforced/exquisite/mastercraft) separates potency from rarity axis, Essence I/II/III/IV as gear crafting reagents, unified addRecipeTemplate helper, per-material-quality stat bonuses via implicit ItemAffix rows. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 15 (Named NPCs) complete — implemented organically via Phase 19 and quick tasks; 7+ NPCs, shops, world placement in place. Phase 18 (World Events System Expansion) complete — admin-fired events, event spawns, Bronze/Silver/Gold contribution tiers, dual success/failure consequences (Ripple), WorldEventPanel with Active + History tabs, banner overlay notifications, admin event panel (quick-191), WorldStatTracker for threshold events. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
 
 **Last completed phase:** 21 — Race Expansion (full redesign: 15 races, 4-field schema, /level fix, travel cost, faction bonus, HP regen, UI panels updated)
-**Current phase:** 22 — Class Ability Balancing & Progression (Plan 02 of N complete)
-**Next action:** Execute Phase 22 Plan 03 (ability implementation/combat wiring)
+**Current phase:** 22 — Class Ability Balancing & Progression (Plan 03 of N complete)
+**Next action:** Execute Phase 22 Plan 04 (remaining class ability integration, if any)
 
 ---
 
@@ -46,7 +46,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 19 | NPC Interactions | Complete (2/2 plans done: backend affinity/dialogue + interaction reducers; UI skipped per user decision — multi-step questing via NPC dialogue is sufficient MVP) |
 | 20 | Perk Variety Expansion | Complete (3/3 plans done: perk data foundation + perk logic implementation + active ability perks with hotbar integration) |
 | 21 | Race Expansion | In Progress (Plans 01-03 complete: dual-bonus schema, 15 races seeded, racial columns, level-up stacking, CharacterPanel UI updated) |
-| 22 | Class Ability Balancing & Progression | In Progress (Plans 01-02 complete: schema columns + bard/stun/drain backend systems published; all 16 class ability data files rewritten with L1/3/5/7/9/10 progression and power normalization) |
+| 22 | Class Ability Balancing & Progression | In Progress (Plans 01-03 complete: schema, ability data rewrite, full executeAbility switch for all 16 classes + bard song tick reducer + temp item logout cleanup) |
 
 ---
 
@@ -237,6 +237,12 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 182. Ability levels locked to 1n, 3n, 5n, 7n, 9n, 10n only across all 16 class ability files — no even-level abilities permitted in any class (22-02)
 183. Bard songs use cooldownSeconds: 1n (effectively instant) — songs replace each other on activation, traditional cooldown gating doesn't apply to the song system (22-02)
 184. Normalization corrections applied after data write: shaman 0-cd spam fixed (6n), necromancer wither/soul_rot power raised to L5/L7 floor, ranger rapid_shot corrected from regression, monk tiger_flurry bumped to midpoint (22-02)
+185. Bard song switch deletes previous row immediately; BardSongTick was already scheduled on first song activation and continues self-rescheduling — no new tick needed on song switch (22-03)
+186. monk_centering changed from stamina_free effect to direct stamina restore (+15 to current stamina) — simpler, more predictable resource recovery (22-03)
+187. monk_inner_focus changed from ac_bonus (3/3) to damage_up (3/3) to fit new monk DPS role — tank buff repurposed for offensive identity (22-03)
+188. reaver_dread_aura changed from single-target applyDamage+debuff to explicit AoE loop over all combatEnemy rows — matches plan's "AoE all enemies" spec (22-03)
+189. addCharacterEffect imported directly in reducers/combat.ts (not in registerCombatReducers deps) for use inside tick_bard_songs — cleaner than passing through deps just for this one use (22-03)
+190. isTemporary items deleted in character_logout reducer via by_owner index loop — no separate cleanup table needed, by_owner index makes the filter O(1) per character (22-03)
 
 ---
 
@@ -302,6 +308,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | Phase 21-race-expansion P03 | 5 | 1 tasks | 1 files |
 | 22-class-ability-balancing | 01 | ~25min | 4 | 18 |
 | 22-class-ability-balancing | 02 | 14min | 3 | 16 |
+| 22-class-ability-balancing | 03 | 35min | 3 | 3 |
 
 ## Accumulated Context
 
