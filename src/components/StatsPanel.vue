@@ -83,6 +83,10 @@
             <div>-{{ formatPercent(selectedCharacter.vendorBuyMod) }}</div>
           <div>Vendor Sell</div>
           <div>+{{ formatPercent(selectedCharacter.vendorSellMod) }}</div>
+            <div>Block Chance</div>
+            <div>{{ blockChancePercent.toFixed(1) }}% <span :style="styles.subtleSmall">(with shield)</span></div>
+            <div>Block Mitigation</div>
+            <div>{{ blockMitigationPercent }}% <span :style="styles.subtleSmall">(with shield)</span></div>
         </div>
       </div>
     </div>
@@ -132,6 +136,34 @@
   const totalCha = computed(() => baseCha.value + Number(props.statBonuses?.cha ?? 0n));
   const totalWis = computed(() => baseWis.value + Number(props.statBonuses?.wis ?? 0n));
   const totalInt = computed(() => baseInt.value + Number(props.statBonuses?.int ?? 0n));
+
+  // Block stats — same constants and formula as combat_scaling.ts / reducers/combat.ts
+  // Computed from character base stats (not gear-boosted totals) to match server behaviour
+  const STAT_BASE = 10n;
+  const BLOCK_CHANCE_DEX_PER_POINT = 5n;  // 0.5% per DEX point, on 1000-scale
+  const BLOCK_CHANCE_BASE = 50n;           // 5% base, on 1000-scale
+  const BLOCK_MITIGATION_STR_PER_POINT = 2n; // 2% per STR point, on 100-scale
+  const BLOCK_MITIGATION_BASE = 30n;       // 30% base, on 100-scale
+
+  // Block chance: 5.0% at DEX=10, +0.5% per DEX above 10, clamped [1%, 20%]
+  const blockChancePercent = computed((): number => {
+    if (!props.selectedCharacter) return 0;
+    const dex = props.selectedCharacter.dex;
+    const offset = (dex - STAT_BASE) * BLOCK_CHANCE_DEX_PER_POINT;
+    const raw = BLOCK_CHANCE_BASE + offset;
+    const clamped = raw < 10n ? 10n : raw > 200n ? 200n : raw;
+    return Number(clamped) / 10; // 1000-scale → percentage with one decimal (50n → 5.0%)
+  });
+
+  // Block mitigation: 30% at STR=10, +2% per STR above 10, clamped [10%, 80%]
+  const blockMitigationPercent = computed((): number => {
+    if (!props.selectedCharacter) return 0;
+    const str = props.selectedCharacter.str;
+    const offset = (str - STAT_BASE) * BLOCK_MITIGATION_STR_PER_POINT;
+    const raw = BLOCK_MITIGATION_BASE + offset;
+    const clamped = raw < 10n ? 10n : raw > 80n ? 80n : raw;
+    return Number(clamped); // 100-scale → direct percentage (30n → 30%)
+  });
 
   const formatPercent = (value: bigint) => `${(Number(value) / 100).toFixed(2)}%`;
   const formatScalar = (value: bigint) => Number(value).toString();
