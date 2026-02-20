@@ -1917,6 +1917,7 @@ function computeRacialAtLevelFromRow(raceRow: any, level: bigint) {
     racialTravelCostIncrease: 0n, racialTravelCostDiscount: 0n,
     racialHitBonus: 0n, racialParryBonus: 0n,
     racialFactionBonus: 0n, racialMagicResist: 0n, racialPerceptionBonus: 0n,
+    racialLootBonus: 0n,
   };
   function applyType(t: string, v: bigint) {
     switch (t) {
@@ -1943,6 +1944,7 @@ function computeRacialAtLevelFromRow(raceRow: any, level: bigint) {
       case 'perception': r.racialPerceptionBonus += v; break;
       case 'travel_cost_increase': r.racialTravelCostIncrease += v; break;
       case 'travel_cost_discount': r.racialTravelCostDiscount += v; break;
+      case 'loot_bonus': r.racialLootBonus += v; break;
     }
   }
   applyType(raceRow.bonus1Type, raceRow.bonus1Value);
@@ -2024,6 +2026,7 @@ export function awardXp(
     racialFactionBonus: racial?.racialFactionBonus || undefined,
     racialMagicResist: racial?.racialMagicResist || undefined,
     racialPerceptionBonus: racial?.racialPerceptionBonus || undefined,
+    racialLootBonus: racial?.racialLootBonus || undefined,
   };
   ctx.db.character.id.update(updated);
   recomputeCharacterDerived(ctx, updated);

@@ -977,6 +977,15 @@ export const registerItemReducers = (deps: any) => {
             gatherBonusMsg = ' Your gathering perk found rare materials!';
           }
         }
+        // Racial loot bonus: independent roll for +1 extra resource per % point
+        const racialLootBonus = character.racialLootBonus ?? 0n;
+        if (racialLootBonus > 0n) {
+          const racialSeed = (ctx.timestamp.microsSinceUnixEpoch + node.id + character.id + 7n) % 100n;
+          if (racialSeed < racialLootBonus) {
+            quantity = quantity + 1n;
+            gatherBonusMsg = gatherBonusMsg || ' Your racial instincts uncovered an extra resource!';
+          }
+        }
       }
 
       addItemToInventory(ctx, character.id, node.itemTemplateId, quantity);

@@ -14,6 +14,7 @@ function computeRacialAtLevel(raceRow: any, level: bigint) {
     racialTravelCostIncrease: 0n, racialTravelCostDiscount: 0n,
     racialHitBonus: 0n, racialParryBonus: 0n,
     racialFactionBonus: 0n, racialMagicResist: 0n, racialPerceptionBonus: 0n,
+    racialLootBonus: 0n,
   };
 
   function applyType(bonusType: string, value: bigint) {
@@ -41,6 +42,7 @@ function computeRacialAtLevel(raceRow: any, level: bigint) {
       case 'perception': result.racialPerceptionBonus += value; break;
       case 'travel_cost_increase': result.racialTravelCostIncrease += value; break;
       case 'travel_cost_discount': result.racialTravelCostDiscount += value; break;
+      case 'loot_bonus': result.racialLootBonus += value; break;
     }
   }
 
@@ -320,6 +322,7 @@ export const registerCharacterReducers = (deps: any) => {
         racialFactionBonus: racial.racialFactionBonus > 0n ? racial.racialFactionBonus : undefined,
         racialMagicResist: racial.racialMagicResist > 0n ? racial.racialMagicResist : undefined,
         racialPerceptionBonus: racial.racialPerceptionBonus > 0n ? racial.racialPerceptionBonus : undefined,
+        racialLootBonus: racial.racialLootBonus > 0n ? racial.racialLootBonus : undefined,
       });
 
       grantStarterItems(ctx, character, ensureStarterItemTemplates);

@@ -155,7 +155,8 @@
       if (val && val > 0n) entries.push({ label, value: fmt(val), negative });
     };
     const flat = (v: bigint) => `+${v}`;
-    const pct = (v: bigint) => `+${v}%`;
+    // % stats stored in 100=1% scale
+    const pct = (v: bigint) => `+${(Number(v) / 100).toFixed(2).replace(/\.?0+$/, '')}%`;
     add('Spell Damage', c.racialSpellDamage, flat);
     add('Phys Damage', c.racialPhysDamage, flat);
     add('Max HP', c.racialMaxHp, flat);
@@ -171,9 +172,10 @@
     add('Travel Discount', c.racialTravelCostDiscount, (v) => `−${v} stamina`);
     add('Hit', c.racialHitBonus, pct);
     add('Parry', c.racialParryBonus, pct);
-    add('Faction Gain', c.racialFactionBonus, (v) => `+${v}0%`);
+    add('Faction Gain', c.racialFactionBonus, (v) => `+${v}%`);
     add('Magic Resist', c.racialMagicResist, pct);
     add('Perception', c.racialPerceptionBonus, flat);
+    add('Resource Find', c.racialLootBonus, (v) => `+${v}%`);
     return entries;
   });
   </script>

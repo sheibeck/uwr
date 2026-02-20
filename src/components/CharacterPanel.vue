@@ -312,6 +312,8 @@ const formatAvailableClasses = (classes: string) =>
 
 function formatRaceBonus(bonusType: string, bonusValue: bigint): string {
   const v = bonusValue.toString();
+  // % stats are stored in 100=1% scale; divide for display
+  const pct = (val: bigint) => `${(Number(val) / 100).toFixed(2).replace(/\.?0+$/, '')}%`;
   switch (bonusType) {
     case 'stat_str': return `STR +${v}`;
     case 'stat_dex': return `DEX +${v}`;
@@ -324,17 +326,18 @@ function formatRaceBonus(bonusType: string, bonusValue: bigint): string {
     case 'max_mana': return `Max Mana +${v}`;
     case 'mana_regen': return `Mana Regen +${v}`;
     case 'stamina_regen': return `Stamina Regen +${v}`;
-    case 'crit_chance': return `Crit +${v}%`;
+    case 'crit_chance': return `Crit +${pct(bonusValue)}`;
     case 'armor': return `Armor +${v}`;
-    case 'dodge': return `Dodge +${v}%`;
+    case 'dodge': return `Dodge +${pct(bonusValue)}`;
     case 'hp_regen': return `HP Regen +${v}`;
     case 'max_stamina': return `Max Stamina +${v}`;
-    case 'hit_chance': return `Hit +${v}%`;
-    case 'parry': return `Parry +${v}%`;
-    case 'faction_bonus': return `Faction Gain +${v}0%`;
-    case 'magic_resist': return `Magic Resist +${v}%`;
+    case 'hit_chance': return `Hit +${pct(bonusValue)}`;
+    case 'parry': return `Parry +${pct(bonusValue)}`;
+    case 'faction_bonus': return `Faction Gain +${v}%`;
+    case 'magic_resist': return `Magic Resist +${pct(bonusValue)}`;
     case 'perception': return `Perception +${v}`;
     case 'travel_cost_discount': return `Travel Cost −${v}`;
+    case 'loot_bonus': return `Resource Find +${v}%`;
     default: return `${bonusType} +${v}`;
   }
 }

@@ -320,6 +320,7 @@ export const Character = table(
     racialFactionBonus: t.u64().optional(),
     racialMagicResist: t.u64().optional(),
     racialPerceptionBonus: t.u64().optional(),
+    racialLootBonus: t.u64().optional(),
   }
 );
 

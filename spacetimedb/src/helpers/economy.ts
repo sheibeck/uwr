@@ -10,7 +10,7 @@ export function mutateStanding(ctx: any, characterId: bigint, factionId: bigint,
     const character = ctx.db.character.id.find(characterId);
     const racialBonus = character?.racialFactionBonus ?? 0n;
     if (racialBonus > 0n) {
-      effectiveDelta = delta + (delta * racialBonus) / 10n; // racialFactionBonus = +10% per point
+      effectiveDelta = delta + (delta * racialBonus) / 100n; // racialFactionBonus = +1% per point
     }
   }
 
