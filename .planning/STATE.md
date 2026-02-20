@@ -427,4 +427,4 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 
 ## Last Session
 
-Last activity: 2026-02-20 - Completed quick-219: inserted Phase 21 Race Expansion (new fantasy races + dual per-race bonus system); renumbered old Phase 21 to Phase 22. Previous: Phase 21 context gathered (Class Ability Balancing, now Phase 22).
+Last activity: 2026-02-18 - discuss-phase 21 (Race Expansion): gathered full context for Race Expansion phase. Key decisions: dual-bonus system with flexible bonus1Type/bonus1Value schema, asymmetric balance philosophy, Wyldfang gets crit+DEX (not mana regen), even-level stacking with diminishing returns (designed for 25 applications at level 50), locked races completely hidden until admin /unlockrace fires global world broadcast. Fixed phase directory naming: moved Phase 22 context to 22-class-ability-balancing-progression/, created 21-race-expansion/ with fresh 21-CONTEXT.md.
