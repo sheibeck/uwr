@@ -603,14 +603,21 @@ export function executeAbility(
       return 0n;  // Return early from applyDamage function
     }
 
+    // Read racial damage bonuses from character row — these are flat additions to each hit
+    const racialSpellBonus = character.racialSpellDamage ?? 0n;
+    const racialPhysBonus = character.racialPhysDamage ?? 0n;
+
     let totalDamage = 0n;
     const hitDamages: bigint[] = [];
     for (let i = 0n; i < hits; i += 1n) {
-      // Total raw damage
-      const raw = weaponComponent + finalDirectDamage + totalDamageUp + sumEnemyEffect(ctx, combatId, 'damage_taken', enemy.id);
+      // Route racial bonus by damage type
+      const dmgType = ability?.damageType ?? 'physical';
+      const racialDamageBonus = dmgType === 'magic' ? racialSpellBonus : racialPhysBonus;
+
+      // Total raw damage (racial bonus added per hit)
+      const raw = weaponComponent + finalDirectDamage + totalDamageUp + racialDamageBonus + sumEnemyEffect(ctx, combatId, 'damage_taken', enemy.id);
 
       // Route mitigation by damage type
-      const dmgType = ability?.damageType ?? 'physical';
       let reduced: bigint;
       if (dmgType === 'magic') {
         // Magic damage bypasses armor entirely (makes magic impactful)
