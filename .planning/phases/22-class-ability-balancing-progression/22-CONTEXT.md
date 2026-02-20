@@ -1,4 +1,4 @@
-# Phase 21: Class Ability Balancing & Progression - Context
+# Phase 22: Class Ability Balancing & Progression - Context
 
 **Gathered:** 2026-02-20
 **Status:** Ready for planning
@@ -8,6 +8,8 @@
 
 Design, implement, and balance the full ability set for all 15 classes across levels 1–10. This includes: redesigning the unlock curve (abilities granted on odd levels, stat bonuses on even levels), defining class identity pillars and the 4-role structure, extending every class from level 5 to level 10, implementing all missing backend mechanics required by class abilities, and a free-revision pass on existing level 1–5 abilities. This phase is expected to be broken into sub-phases grouped by shared mechanic dependencies.
 
+**Depends on Phase 21 (Race Expansion):** Even-level racial bonus mechanic must be implemented before this phase designs around it.
+
 </domain>
 
 <decisions>
@@ -15,7 +17,7 @@ Design, implement, and balance the full ability set for all 15 classes across le
 
 ### Unlock Curve
 - **Ability unlock levels:** 1, 3, 5, 7, 9, and 10 (10 is the Tier 1 capstone). Not strict 1-per-level — some levels can grant multiple abilities if the class identity warrants it.
-- **Even levels (2, 4, 6, 8):** Grant racial stat bonuses (+2 total stat points distributed per race — e.g. +1 primary / +1 secondary). Races must have a defined "level-up stat bonus" as part of RACE_DATA. This is a dependency: races need to be extended before Phase 21 can fully implement even-level progression.
+- **Even levels (2, 4, 6, 8):** Grant racial stat bonuses (defined in Phase 21 Race Expansion). This is a dependency: races must be extended before Phase 22 can fully implement even-level progression.
 - **Long-term design principle:** Pace must scale to eventual level 50 cap. 1 ability every other level is the intended cadence across all tiers; the 1–10 curve establishes the pattern.
 - **No 1-ability-per-level assumption:** Some odd levels may grant 2 abilities if the class has utility + combat to hand out at that level.
 
@@ -45,14 +47,14 @@ Design, implement, and balance the full ability set for all 15 classes across le
   - **Aggro reduction** — allows a character to drop threat and pull themselves out of enemy targeting
   - **Mesmerize / crowd control** — immobilizes or incapacitates a target
   - **Summon consumables** — conjure food, bandages, or temporary equipment from ability
-- **Sub-phase structure:** Phase 21 will be broken into sub-phases grouped by shared mechanic dependencies. Claude proposes the grouping during planning (e.g. classes that share mechanic needs like taunt/group-buffs/stances/pets/CC are grouped together so each sub-phase ships coherent mechanic sets).
+- **Sub-phase structure:** Phase 22 will be broken into sub-phases grouped by shared mechanic dependencies. Claude proposes the grouping during planning (e.g. classes that share mechanic needs like taunt/group-buffs/stances/pets/CC are grouped together so each sub-phase ships coherent mechanic sets).
 
 ### Claude's Discretion
 - Proposed role assignments for all 15 classes (user reviews at planning)
 - Specific sub-phase groupings and ordering
 - Exact ability names, descriptions, and power values for levels 6–10
 - Which specific levels for each class grant 1 vs. 2 abilities at once
-- Specific RACE_DATA level-up stat bonus values per race (to be defined in coordination with Race data expansion)
+- Specific RACE_DATA level-up stat bonus values per race (defined by Phase 21)
 
 </decisions>
 
@@ -60,7 +62,7 @@ Design, implement, and balance the full ability set for all 15 classes across le
 ## Specific Ideas
 
 - Level 50 is the eventual cap — the 1–10 unlock curve must establish a cadent pattern that works at scale, not front-load everything
-- Even-level racial stat bonuses means races are a meaningful long-term choice, not just a cosmetic one at character creation
+- Even-level racial stat bonuses (from Phase 21) means races are a meaningful long-term choice, not just a cosmetic one at character creation
 - The phase is expected to be large: 15 classes × ~5 new abilities each + multiple new mechanic systems. Sub-phases are the right delivery vehicle.
 - "Soft synergy" example: Rogue ability that applies a bleed → follow-up ability does bonus damage to bleeding targets. Works alone, better in sequence.
 - Stance system (Warrior) is a potential level 10 capstone: entering a stance changes the character's combat mode, not just a buff.
@@ -77,5 +79,5 @@ Design, implement, and balance the full ability set for all 15 classes across le
 
 ---
 
-*Phase: 21-class-ability-balancing-progression*
+*Phase: 22-class-ability-balancing-progression*
 *Context gathered: 2026-02-20*
