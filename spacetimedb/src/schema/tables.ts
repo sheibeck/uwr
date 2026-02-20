@@ -302,6 +302,15 @@ export const Character = table(
     stamina: t.u64().default(0n),
     maxStamina: t.u64().default(0n),
     combatTargetEnemyId: t.u64().optional(),
+    racialSpellDamage: t.u64().optional(),
+    racialPhysDamage: t.u64().optional(),
+    racialMaxHp: t.u64().optional(),
+    racialMaxMana: t.u64().optional(),
+    racialManaRegen: t.u64().optional(),
+    racialStaminaRegen: t.u64().optional(),
+    racialCritBonus: t.u64().optional(),
+    racialArmorBonus: t.u64().optional(),
+    racialDodgeBonus: t.u64().optional(),
   }
 );
 
@@ -1276,11 +1285,10 @@ export const Race = table(
     name: t.string(),
     description: t.string(),
     availableClasses: t.string(),
-    strBonus: t.u64(),
-    dexBonus: t.u64(),
-    chaBonus: t.u64(),
-    wisBonus: t.u64(),
-    intBonus: t.u64(),
+    bonus1Type: t.string(),
+    bonus1Value: t.u64(),
+    bonus2Type: t.string(),
+    bonus2Value: t.u64(),
     unlocked: t.bool(),
   }
 );
