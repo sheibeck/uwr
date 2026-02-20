@@ -1518,14 +1518,22 @@ export const registerCombatReducers = (deps: any) => {
 
     // Apply the current song's per-tick effect
     switch (activeSong.songKey) {
-      case 'bard_discordant_note':
-        // AoE sonic damage to all enemies
+      case 'bard_discordant_note': {
+        // AoE sonic damage to all enemies — scales with level + CHA
         for (const en of enemies) {
-          const dmg = 5n + bard.level;
+          const dmg = 8n + bard.level * 2n + bard.cha;
           const nextHp = en.currentHp > dmg ? en.currentHp - dmg : 0n;
           ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
         }
+        // Small mana drain per pulse
+        const freshBardDN = ctx.db.character.id.find(bard.id);
+        if (freshBardDN && freshBardDN.mana > 0n) {
+          const manaCost = 3n;
+          const newMana = freshBardDN.mana > manaCost ? freshBardDN.mana - manaCost : 0n;
+          ctx.db.character.id.update({ ...freshBardDN, mana: newMana });
+        }
         break;
+      }
       case 'bard_melody_of_mending':
         // Group HP regen tick
         for (const member of partyMembers) {
@@ -1553,12 +1561,19 @@ export const registerCombatReducers = (deps: any) => {
           addCharacterEffect(ctx, member.id, 'travel_discount', 3n, 2n, 'March of Wayfarers');
         }
         break;
-      case 'bard_battle_hymn':
-        // AoE damage + party HP + mana regen simultaneously
+      case 'bard_battle_hymn': {
+        // AoE damage + party HP + mana regen simultaneously — scales with level + CHA
         for (const en of enemies) {
-          const dmg = 6n + bard.level;
+          const dmg = 10n + bard.level * 2n + bard.cha;
           const nextHp = en.currentHp > dmg ? en.currentHp - dmg : 0n;
           ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
+        }
+        // Small mana drain per pulse
+        const freshBardBH = ctx.db.character.id.find(bard.id);
+        if (freshBardBH && freshBardBH.mana > 0n) {
+          const manaCost = 4n;
+          const newMana = freshBardBH.mana > manaCost ? freshBardBH.mana - manaCost : 0n;
+          ctx.db.character.id.update({ ...freshBardBH, mana: newMana });
         }
         for (const member of partyMembers) {
           if (!member) continue;
@@ -1573,6 +1588,7 @@ export const registerCombatReducers = (deps: any) => {
           }
         }
         break;
+      }
     }
 
     // Notify the bard that their song ticked

@@ -921,11 +921,11 @@ export function executeAbility(
       if (prevSong) {
         ctx.db.activeBardSong.id.update({ ...prevSong, isFading: true });
       } else {
-        // Schedule first tick almost immediately so the first effect is felt on cast.
-        // Subsequent ticks are rescheduled 6s apart from within tick_bard_songs.
+        // Schedule first tick 6s after cast — damage songs fire immediately on cast below,
+        // so the tick loop begins at the standard 6s interval.
         ctx.db.bardSongTick.insert({
           scheduledId: 0n,
-          scheduledAt: ScheduleAt.time(nowMicros + 1_000_000n),
+          scheduledAt: ScheduleAt.time(nowMicros + 6_000_000n),
           bardCharacterId: character.id,
           combatId,
         });
@@ -949,6 +949,17 @@ export function executeAbility(
         bard_march_of_wayfarers: 'March of Wayfarers',
         bard_battle_hymn: 'Battle Hymn',
       };
+      // Damage songs deal an immediate burst on cast
+      if (abilityKey === 'bard_discordant_note' || abilityKey === 'bard_battle_hymn') {
+        const activeEnemies = combatId
+          ? [...ctx.db.combatEnemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n)
+          : [];
+        const burstDmg = 8n + character.level * 2n + character.cha;
+        for (const en of activeEnemies) {
+          const nextHp = en.currentHp > burstDmg ? en.currentHp - burstDmg : 0n;
+          ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
+        }
+      }
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
         `You begin singing ${songNames[abilityKey] ?? abilityKey}.`
       );
