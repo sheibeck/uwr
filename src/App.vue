@@ -798,21 +798,28 @@ const activeVendor = computed(() => {
 });
 const vendorItems = computed(() => {
   if (!activeVendorId.value) return [];
+  const chaDiscount = selectedCharacter.value?.vendorBuyMod ?? 0n;
   return vendorInventory.value
     .filter((row) => row.npcId.toString() === activeVendorId.value?.toString())
     .map((row) => {
       const template = itemTemplates.value.find(
         (item) => item.id.toString() === row.itemTemplateId.toString()
       );
+      // Apply CHA vendor discount to displayed price (mirrors buy_item reducer formula)
+      let displayPrice = row.price;
+      if (chaDiscount > 0n && displayPrice > 0n) {
+        displayPrice = (displayPrice * (1000n - chaDiscount)) / 1000n;
+        if (displayPrice < 1n) displayPrice = 1n;
+      }
       const tooltipData = buildItemTooltipData({
         template,
         instance: { qualityTier: row.qualityTier },
-        priceOrValue: row.price ? { label: 'Price', value: `${row.price} gold` } : undefined,
+        priceOrValue: row.price ? { label: 'Price', value: `${displayPrice} gold` } : undefined,
       });
       return {
         id: row.id,
         templateId: row.itemTemplateId,
-        price: row.price,
+        price: displayPrice,
         ...tooltipData,
       };
     })
