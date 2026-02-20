@@ -3,7 +3,8 @@
     <div v-if="!selectedCharacter" :style="styles.subtle">
       Select a character to view stats.
     </div>
-    <div v-else :style="styles.statsColumns">
+    <div v-else>
+    <div :style="styles.statsColumns">
       <div :style="styles.statsColumn">
         <div :style="styles.panelSectionTitle">Core</div>
         <div :style="styles.statsGrid">
@@ -85,6 +86,19 @@
         </div>
       </div>
     </div>
+
+    <!-- Racial Profile section -->
+    <div v-if="racialBonusEntries.length > 0" style="margin-top: 12px">
+      <div :style="styles.panelSectionTitle">Racial Profile</div>
+      <div :style="styles.statsGrid">
+        <template v-for="entry in racialBonusEntries" :key="entry.label + entry.value">
+          <div>{{ entry.label }}</div>
+          <div :style="entry.negative ? { color: 'rgba(255,100,100,0.85)' } : {}">{{ entry.value }}</div>
+        </template>
+      </div>
+    </div>
+
+    </div>
   </div>
 </template>
 
@@ -132,4 +146,34 @@
 
   const formatPercent = (value: bigint) => `${(Number(value) / 100).toFixed(2)}%`;
   const formatScalar = (value: bigint) => Number(value).toString();
+
+  const racialBonusEntries = computed(() => {
+    const c = props.selectedCharacter;
+    if (!c) return [];
+    const entries: { label: string; value: string; negative?: boolean }[] = [];
+    const add = (label: string, val: bigint | undefined | null, fmt: (v: bigint) => string, negative = false) => {
+      if (val && val > 0n) entries.push({ label, value: fmt(val), negative });
+    };
+    const flat = (v: bigint) => `+${v}`;
+    const pct = (v: bigint) => `+${v}%`;
+    add('Spell Damage', c.racialSpellDamage, flat);
+    add('Phys Damage', c.racialPhysDamage, flat);
+    add('Max HP', c.racialMaxHp, flat);
+    add('Max Mana', c.racialMaxMana, flat);
+    add('Mana Regen', c.racialManaRegen, flat);
+    add('Stamina Regen', c.racialStaminaRegen, flat);
+    add('Crit', c.racialCritBonus, pct);
+    add('Armor', c.racialArmorBonus, flat);
+    add('Dodge', c.racialDodgeBonus, pct);
+    add('HP Regen', c.racialHpRegen, flat);
+    add('Max Stamina', c.racialMaxStamina, flat);
+    add('Travel Cost', c.racialTravelCostIncrease, (v) => `+${v} stamina`, true);
+    add('Travel Discount', c.racialTravelCostDiscount, (v) => `−${v} stamina`);
+    add('Hit', c.racialHitBonus, pct);
+    add('Parry', c.racialParryBonus, pct);
+    add('Faction Gain', c.racialFactionBonus, (v) => `+${v}0%`);
+    add('Magic Resist', c.racialMagicResist, pct);
+    add('Perception', c.racialPerceptionBonus, flat);
+    return entries;
+  });
   </script>

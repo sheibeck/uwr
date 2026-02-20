@@ -78,16 +78,21 @@ export function recomputeCharacterDerived(ctx: any, character: any) {
   const racialCritBonus = character.racialCritBonus ?? 0n;
   const racialArmorBonus = character.racialArmorBonus ?? 0n;
   const racialDodgeBonus = character.racialDodgeBonus ?? 0n;
+  const racialHitBonus = character.racialHitBonus ?? 0n;
+  const racialParryBonus = character.racialParryBonus ?? 0n;
+  const racialPerceptionBonus = character.racialPerceptionBonus ?? 0n;
+  const racialMaxStamina = character.racialMaxStamina ?? 0n;
 
   const manaStat = manaStatForClass(character.className, totalStats);
   const maxHp = BASE_HP + totalStats.str * HP_STR_MULTIPLIER + gear.hpBonus + racialMaxHp;
   const maxMana = usesMana(character.className)
     ? BASE_MANA + manaStat * 6n + gear.manaBonus + racialMaxMana
     : 0n;
+  const maxStamina = 20n + racialMaxStamina;
 
-  const hitChance = totalStats.dex * 15n;
+  const hitChance = totalStats.dex * 15n + racialHitBonus;
   const dodgeChance = totalStats.dex * 12n + racialDodgeBonus;
-  const parryChance = totalStats.dex * 10n;
+  const parryChance = totalStats.dex * 10n + racialParryBonus;
   const critMelee = totalStats.dex * 12n + racialCritBonus;
   const critRanged = totalStats.dex * 12n + racialCritBonus;
   const critDivine = totalStats.wis * 12n;
@@ -100,7 +105,7 @@ export function recomputeCharacterDerived(ctx: any, character: any) {
   }
 
   const armorClass = baseArmorForClass(character.className) + gear.armorClassBonus + acBonus + racialArmorBonus;
-  const perception = totalStats.wis * 25n;
+  const perception = totalStats.wis * 25n + racialPerceptionBonus;
   const search = totalStats.int * 25n;
   const ccPower = totalStats.cha * 15n;
   const vendorBuyMod = totalStats.cha * 10n;
@@ -110,6 +115,7 @@ export function recomputeCharacterDerived(ctx: any, character: any) {
     ...character,
     maxHp,
     maxMana,
+    maxStamina,
     hitChance,
     dodgeChance,
     parryChance,

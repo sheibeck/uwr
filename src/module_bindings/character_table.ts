@@ -57,4 +57,13 @@ export default __t.row({
   racialCritBonus: __t.option(__t.u64()),
   racialArmorBonus: __t.option(__t.u64()),
   racialDodgeBonus: __t.option(__t.u64()),
+  racialHpRegen: __t.option(__t.u64()),
+  racialMaxStamina: __t.option(__t.u64()),
+  racialTravelCostIncrease: __t.option(__t.u64()),
+  racialTravelCostDiscount: __t.option(__t.u64()),
+  racialHitBonus: __t.option(__t.u64()),
+  racialParryBonus: __t.option(__t.u64()),
+  racialFactionBonus: __t.option(__t.u64()),
+  racialMagicResist: __t.option(__t.u64()),
+  racialPerceptionBonus: __t.option(__t.u64()),
 });

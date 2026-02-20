@@ -36,6 +36,11 @@
             <span>{{ formatRaceBonus(selectedRaceRow.bonus1Type, selectedRaceRow.bonus1Value) }}</span>
             <span> | </span>
             <span>{{ formatRaceBonus(selectedRaceRow.bonus2Type, selectedRaceRow.bonus2Value) }}</span>
+            <span v-if="selectedRaceRow.penaltyType && selectedRaceRow.penaltyValue"> | </span>
+            <span v-if="selectedRaceRow.penaltyType && selectedRaceRow.penaltyValue" style="color: rgba(255,100,100,0.85)">{{ formatRacePenalty(selectedRaceRow.penaltyType, selectedRaceRow.penaltyValue) }}</span>
+          </div>
+          <div :style="styles.subtle" style="color: rgba(180,220,255,0.7)">
+            Each even level: {{ formatRaceBonus(selectedRaceRow.levelBonusType, selectedRaceRow.levelBonusValue) }}
           </div>
           <div v-if="selectedRaceRow.availableClasses && selectedRaceRow.availableClasses.trim() !== ''" :style="styles.subtle">
             Classes: {{ formatAvailableClasses(selectedRaceRow.availableClasses) }}
@@ -319,10 +324,31 @@ function formatRaceBonus(bonusType: string, bonusValue: bigint): string {
     case 'max_mana': return `Max Mana +${v}`;
     case 'mana_regen': return `Mana Regen +${v}`;
     case 'stamina_regen': return `Stamina Regen +${v}`;
-    case 'crit_chance': return `Crit Chance +${v}`;
+    case 'crit_chance': return `Crit +${v}%`;
     case 'armor': return `Armor +${v}`;
-    case 'dodge': return `Dodge +${v}`;
+    case 'dodge': return `Dodge +${v}%`;
+    case 'hp_regen': return `HP Regen +${v}`;
+    case 'max_stamina': return `Max Stamina +${v}`;
+    case 'hit_chance': return `Hit +${v}%`;
+    case 'parry': return `Parry +${v}%`;
+    case 'faction_bonus': return `Faction Gain +${v}0%`;
+    case 'magic_resist': return `Magic Resist +${v}%`;
+    case 'perception': return `Perception +${v}`;
+    case 'travel_cost_discount': return `Travel Cost −${v}`;
     default: return `${bonusType} +${v}`;
+  }
+}
+
+function formatRacePenalty(penaltyType: string, penaltyValue: bigint): string {
+  const v = penaltyValue.toString();
+  switch (penaltyType) {
+    case 'stat_str': return `STR −${v}`;
+    case 'stat_dex': return `DEX −${v}`;
+    case 'stat_int': return `INT −${v}`;
+    case 'stat_wis': return `WIS −${v}`;
+    case 'stat_cha': return `CHA −${v}`;
+    case 'travel_cost_increase': return `Travel Cost +${v}`;
+    default: return `${penaltyType} −${v}`;
   }
 }
 </script>

@@ -3,6 +3,64 @@ import { appendSystemMessage, appendWorldEvent } from '../helpers/events';
 import { generateAffixData, buildDisplayName } from '../helpers/items';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 
+// Compute all racial contributions at a target level (same logic as awardXp / computeRacialAtLevel).
+function computeRacialAtLevelForAdmin(raceRow: any, level: bigint) {
+  const evenLevels = level / 2n;
+  const r = {
+    str: 0n, dex: 0n, int: 0n, wis: 0n, cha: 0n,
+    racialSpellDamage: 0n, racialPhysDamage: 0n,
+    racialMaxHp: 0n, racialMaxMana: 0n,
+    racialManaRegen: 0n, racialStaminaRegen: 0n,
+    racialCritBonus: 0n, racialArmorBonus: 0n, racialDodgeBonus: 0n,
+    racialHpRegen: 0n, racialMaxStamina: 0n,
+    racialTravelCostIncrease: 0n, racialTravelCostDiscount: 0n,
+    racialHitBonus: 0n, racialParryBonus: 0n,
+    racialFactionBonus: 0n, racialMagicResist: 0n, racialPerceptionBonus: 0n,
+  };
+  function applyType(t: string, v: bigint) {
+    switch (t) {
+      case 'stat_str': r.str += v; break;
+      case 'stat_dex': r.dex += v; break;
+      case 'stat_int': r.int += v; break;
+      case 'stat_wis': r.wis += v; break;
+      case 'stat_cha': r.cha += v; break;
+      case 'spell_damage': r.racialSpellDamage += v; break;
+      case 'phys_damage': r.racialPhysDamage += v; break;
+      case 'max_hp': r.racialMaxHp += v; break;
+      case 'max_mana': r.racialMaxMana += v; break;
+      case 'mana_regen': r.racialManaRegen += v; break;
+      case 'stamina_regen': r.racialStaminaRegen += v; break;
+      case 'crit_chance': r.racialCritBonus += v; break;
+      case 'armor': r.racialArmorBonus += v; break;
+      case 'dodge': r.racialDodgeBonus += v; break;
+      case 'hp_regen': r.racialHpRegen += v; break;
+      case 'max_stamina': r.racialMaxStamina += v; break;
+      case 'hit_chance': r.racialHitBonus += v; break;
+      case 'parry': r.racialParryBonus += v; break;
+      case 'faction_bonus': r.racialFactionBonus += v; break;
+      case 'magic_resist': r.racialMagicResist += v; break;
+      case 'perception': r.racialPerceptionBonus += v; break;
+      case 'travel_cost_increase': r.racialTravelCostIncrease += v; break;
+      case 'travel_cost_discount': r.racialTravelCostDiscount += v; break;
+    }
+  }
+  applyType(raceRow.bonus1Type, raceRow.bonus1Value);
+  applyType(raceRow.bonus2Type, raceRow.bonus2Value);
+  if (raceRow.penaltyType && raceRow.penaltyValue) {
+    const pt = raceRow.penaltyType as string;
+    const pv = raceRow.penaltyValue as bigint;
+    if (pt === 'travel_cost_increase' || pt === 'travel_cost_discount') {
+      applyType(pt, pv);
+    } else {
+      applyType(pt, -pv);
+    }
+  }
+  if (evenLevels > 0n) {
+    applyType(raceRow.levelBonusType, raceRow.levelBonusValue * evenLevels);
+  }
+  return r;
+}
+
 export const registerCommandReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -556,67 +614,48 @@ export const registerCommandReducers = (deps: any) => {
       return;
     }
 
-    for (let lvl = character.level + 1n; lvl <= target; lvl += 1n) {
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'system',
-        `You reached level ${lvl}.`
-      );
-    }
-
-    const newBase = computeBaseStats(character.className, target);
     const raceRow = [...ctx.db.race.iter()].find((r: any) => r.name === character.race);
-    const evenApplications = target / 2n;
 
-    const racial = { str: 0n, dex: 0n, int: 0n, wis: 0n, cha: 0n,
-      spellDmg: 0n, physDmg: 0n, maxHp: 0n, maxMana: 0n,
-      manaRegen: 0n, staminaRegen: 0n, crit: 0n, armor: 0n, dodge: 0n };
-
-    function applyRacialBonus(bonusType: string, baseValue: bigint) {
-      const total = baseValue + (baseValue / 2n) * evenApplications;
-      switch (bonusType) {
-        case 'stat_str': racial.str += total; break;
-        case 'stat_dex': racial.dex += total; break;
-        case 'stat_int': racial.int += total; break;
-        case 'stat_wis': racial.wis += total; break;
-        case 'stat_cha': racial.cha += total; break;
-        case 'spell_damage': racial.spellDmg += total; break;
-        case 'phys_damage': racial.physDmg += total; break;
-        case 'max_hp': racial.maxHp += total; break;
-        case 'max_mana': racial.maxMana += total; break;
-        case 'mana_regen': racial.manaRegen += total; break;
-        case 'stamina_regen': racial.staminaRegen += total; break;
-        case 'crit_chance': racial.crit += total; break;
-        case 'armor': racial.armor += total; break;
-        case 'dodge': racial.dodge += total; break;
+    for (let lvl = character.level + 1n; lvl <= target; lvl += 1n) {
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', `You reached level ${lvl}.`);
+      if (lvl % 2n === 0n && raceRow) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          `Your ${raceRow.name} heritage grows stronger at level ${lvl}.`);
       }
     }
 
-    if (raceRow) {
-      applyRacialBonus(raceRow.bonus1Type, raceRow.bonus1Value);
-      applyRacialBonus(raceRow.bonus2Type, raceRow.bonus2Value);
-    }
+    const newBase = computeBaseStats(character.className, target);
+
+    // Compute racial at target level using the same formula as awardXp
+    const racial = raceRow ? computeRacialAtLevelForAdmin(raceRow, target) : null;
 
     const updated = {
       ...character,
       level: target,
       xp: xpRequiredForLevel(target),
-      str: newBase.str + racial.str,
-      dex: newBase.dex + racial.dex,
-      cha: newBase.cha + racial.cha,
-      wis: newBase.wis + racial.wis,
-      int: newBase.int + racial.int,
-      racialSpellDamage: racial.spellDmg || undefined,
-      racialPhysDamage: racial.physDmg || undefined,
-      racialMaxHp: racial.maxHp || undefined,
-      racialMaxMana: racial.maxMana || undefined,
-      racialManaRegen: racial.manaRegen || undefined,
-      racialStaminaRegen: racial.staminaRegen || undefined,
-      racialCritBonus: racial.crit || undefined,
-      racialArmorBonus: racial.armor || undefined,
-      racialDodgeBonus: racial.dodge || undefined,
+      str: newBase.str + (racial?.str ?? 0n),
+      dex: newBase.dex + (racial?.dex ?? 0n),
+      cha: newBase.cha + (racial?.cha ?? 0n),
+      wis: newBase.wis + (racial?.wis ?? 0n),
+      int: newBase.int + (racial?.int ?? 0n),
+      racialSpellDamage: racial?.racialSpellDamage || undefined,
+      racialPhysDamage: racial?.racialPhysDamage || undefined,
+      racialMaxHp: racial?.racialMaxHp || undefined,
+      racialMaxMana: racial?.racialMaxMana || undefined,
+      racialManaRegen: racial?.racialManaRegen || undefined,
+      racialStaminaRegen: racial?.racialStaminaRegen || undefined,
+      racialCritBonus: racial?.racialCritBonus || undefined,
+      racialArmorBonus: racial?.racialArmorBonus || undefined,
+      racialDodgeBonus: racial?.racialDodgeBonus || undefined,
+      racialHpRegen: racial?.racialHpRegen || undefined,
+      racialMaxStamina: racial?.racialMaxStamina || undefined,
+      racialTravelCostIncrease: racial?.racialTravelCostIncrease || undefined,
+      racialTravelCostDiscount: racial?.racialTravelCostDiscount || undefined,
+      racialHitBonus: racial?.racialHitBonus || undefined,
+      racialParryBonus: racial?.racialParryBonus || undefined,
+      racialFactionBonus: racial?.racialFactionBonus || undefined,
+      racialMagicResist: racial?.racialMagicResist || undefined,
+      racialPerceptionBonus: racial?.racialPerceptionBonus || undefined,
     };
     ctx.db.character.id.update(updated);
     recomputeCharacterDerived(ctx, updated);

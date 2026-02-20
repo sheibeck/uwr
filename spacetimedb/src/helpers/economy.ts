@@ -4,12 +4,22 @@ export const STANDING_PER_KILL = 10n;
 export const RIVAL_STANDING_PENALTY = 5n;
 
 export function mutateStanding(ctx: any, characterId: bigint, factionId: bigint, delta: bigint) {
+  // Apply racial faction bonus if positive delta (Human's level bonus)
+  let effectiveDelta = delta;
+  if (delta > 0n) {
+    const character = ctx.db.character.id.find(characterId);
+    const racialBonus = character?.racialFactionBonus ?? 0n;
+    if (racialBonus > 0n) {
+      effectiveDelta = delta + (delta * racialBonus) / 10n; // racialFactionBonus = +10% per point
+    }
+  }
+
   const rows = [...ctx.db.factionStanding.by_character.filter(characterId)];
   const existing = rows.find((row: any) => row.factionId === factionId);
   if (existing) {
-    ctx.db.factionStanding.id.update({ ...existing, standing: existing.standing + delta });
+    ctx.db.factionStanding.id.update({ ...existing, standing: existing.standing + effectiveDelta });
   } else {
-    ctx.db.factionStanding.insert({ id: 0n, characterId, factionId, standing: delta });
+    ctx.db.factionStanding.insert({ id: 0n, characterId, factionId, standing: effectiveDelta });
   }
 }
 

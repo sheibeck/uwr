@@ -1223,6 +1223,7 @@ export const registerCombatReducers = (deps: any) => {
       }
 
       // Add racial regen bonuses from Character row (these persist through death, unlike CharacterEffects)
+      hpRegenBonus += character.racialHpRegen ?? 0n;
       manaRegenBonus += character.racialManaRegen ?? 0n;
       staminaRegenBonus += character.racialStaminaRegen ?? 0n;
 

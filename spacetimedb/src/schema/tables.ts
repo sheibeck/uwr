@@ -311,6 +311,15 @@ export const Character = table(
     racialCritBonus: t.u64().optional(),
     racialArmorBonus: t.u64().optional(),
     racialDodgeBonus: t.u64().optional(),
+    racialHpRegen: t.u64().optional(),
+    racialMaxStamina: t.u64().optional(),
+    racialTravelCostIncrease: t.u64().optional(),
+    racialTravelCostDiscount: t.u64().optional(),
+    racialHitBonus: t.u64().optional(),
+    racialParryBonus: t.u64().optional(),
+    racialFactionBonus: t.u64().optional(),
+    racialMagicResist: t.u64().optional(),
+    racialPerceptionBonus: t.u64().optional(),
   }
 );
 
@@ -1289,6 +1298,10 @@ export const Race = table(
     bonus1Value: t.u64(),
     bonus2Type: t.string(),
     bonus2Value: t.u64(),
+    penaltyType: t.string().optional(),
+    penaltyValue: t.u64().optional(),
+    levelBonusType: t.string(),
+    levelBonusValue: t.u64(),
     unlocked: t.bool(),
   }
 );

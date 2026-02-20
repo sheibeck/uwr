@@ -19,5 +19,9 @@ export default __t.row({
   bonus1Value: __t.u64(),
   bonus2Type: __t.string(),
   bonus2Value: __t.u64(),
+  penaltyType: __t.option(__t.string()),
+  penaltyValue: __t.option(__t.u64()),
+  levelBonusType: __t.string(),
+  levelBonusValue: __t.u64(),
   unlocked: __t.bool(),
 });

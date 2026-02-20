@@ -79,9 +79,13 @@ export const registerMovementReducers = (deps: any) => {
       travelingCharacters.push(character);
     }
 
-    // Validate ALL-OR-NOTHING stamina
+    // Validate ALL-OR-NOTHING stamina (using each traveler's effective cost)
     for (const traveler of travelingCharacters) {
-      if (traveler.stamina < staminaCost) {
+      const costIncrease = traveler.racialTravelCostIncrease ?? 0n;
+      const costDiscount = traveler.racialTravelCostDiscount ?? 0n;
+      const rawCost = staminaCost + costIncrease;
+      const effectiveCost = rawCost > costDiscount ? rawCost - costDiscount : 0n;
+      if (traveler.stamina < effectiveCost) {
         return fail(ctx, character, `${traveler.name} does not have enough stamina to travel`);
       }
     }
@@ -104,9 +108,13 @@ export const registerMovementReducers = (deps: any) => {
       }
     }
 
-    // Deduct stamina and apply cooldowns
+    // Deduct stamina and apply cooldowns (using each traveler's effective cost)
     for (const traveler of travelingCharacters) {
-      ctx.db.character.id.update({ ...traveler, stamina: traveler.stamina - staminaCost });
+      const costIncrease = traveler.racialTravelCostIncrease ?? 0n;
+      const costDiscount = traveler.racialTravelCostDiscount ?? 0n;
+      const rawCost = staminaCost + costIncrease;
+      const effectiveCost = rawCost > costDiscount ? rawCost - costDiscount : 0n;
+      ctx.db.character.id.update({ ...traveler, stamina: traveler.stamina - effectiveCost });
       if (isCrossRegion) {
         const existingCd = [...ctx.db.travelCooldown.by_character.filter(traveler.id)][0];
         // Apply travel cooldown reduction perk

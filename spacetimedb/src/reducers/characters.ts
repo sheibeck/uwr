@@ -1,38 +1,75 @@
-// Compute racial bonus contributions from a race row.
-// multiplier = 1n for initial application at level 1.
-// For even-level stacking, awardXp computes and passes the full accumulated value.
-function computeRacialContributions(raceRow: any, multiplier: bigint = 1n) {
+// Compute all racial contributions for a character at a given level.
+// Applies creation bonuses (bonus1 + bonus2 + penalty) once,
+// then adds levelBonusType * levelBonusValue for each even level up to `level`.
+function computeRacialAtLevel(raceRow: any, level: bigint) {
+  const evenLevels = level / 2n; // BigInt floor division
+
   const result = {
     str: 0n, dex: 0n, int: 0n, wis: 0n, cha: 0n,
     racialSpellDamage: 0n, racialPhysDamage: 0n,
     racialMaxHp: 0n, racialMaxMana: 0n,
     racialManaRegen: 0n, racialStaminaRegen: 0n,
     racialCritBonus: 0n, racialArmorBonus: 0n, racialDodgeBonus: 0n,
+    racialHpRegen: 0n, racialMaxStamina: 0n,
+    racialTravelCostIncrease: 0n, racialTravelCostDiscount: 0n,
+    racialHitBonus: 0n, racialParryBonus: 0n,
+    racialFactionBonus: 0n, racialMagicResist: 0n, racialPerceptionBonus: 0n,
   };
 
-  function applyBonus(bonusType: string, bonusValue: bigint) {
-    const v = bonusValue * multiplier;
+  function applyType(bonusType: string, value: bigint) {
     switch (bonusType) {
-      case 'stat_str': result.str += v; break;
-      case 'stat_dex': result.dex += v; break;
-      case 'stat_int': result.int += v; break;
-      case 'stat_wis': result.wis += v; break;
-      case 'stat_cha': result.cha += v; break;
-      case 'spell_damage': result.racialSpellDamage += v; break;
-      case 'phys_damage': result.racialPhysDamage += v; break;
-      case 'max_hp': result.racialMaxHp += v; break;
-      case 'max_mana': result.racialMaxMana += v; break;
-      case 'mana_regen': result.racialManaRegen += v; break;
-      case 'stamina_regen': result.racialStaminaRegen += v; break;
-      case 'crit_chance': result.racialCritBonus += v; break;
-      case 'armor': result.racialArmorBonus += v; break;
-      case 'dodge': result.racialDodgeBonus += v; break;
+      case 'stat_str': result.str += value; break;
+      case 'stat_dex': result.dex += value; break;
+      case 'stat_int': result.int += value; break;
+      case 'stat_wis': result.wis += value; break;
+      case 'stat_cha': result.cha += value; break;
+      case 'spell_damage': result.racialSpellDamage += value; break;
+      case 'phys_damage': result.racialPhysDamage += value; break;
+      case 'max_hp': result.racialMaxHp += value; break;
+      case 'max_mana': result.racialMaxMana += value; break;
+      case 'mana_regen': result.racialManaRegen += value; break;
+      case 'stamina_regen': result.racialStaminaRegen += value; break;
+      case 'crit_chance': result.racialCritBonus += value; break;
+      case 'armor': result.racialArmorBonus += value; break;
+      case 'dodge': result.racialDodgeBonus += value; break;
+      case 'hp_regen': result.racialHpRegen += value; break;
+      case 'max_stamina': result.racialMaxStamina += value; break;
+      case 'hit_chance': result.racialHitBonus += value; break;
+      case 'parry': result.racialParryBonus += value; break;
+      case 'faction_bonus': result.racialFactionBonus += value; break;
+      case 'magic_resist': result.racialMagicResist += value; break;
+      case 'perception': result.racialPerceptionBonus += value; break;
+      case 'travel_cost_increase': result.racialTravelCostIncrease += value; break;
+      case 'travel_cost_discount': result.racialTravelCostDiscount += value; break;
     }
   }
 
-  applyBonus(raceRow.bonus1Type, raceRow.bonus1Value);
-  applyBonus(raceRow.bonus2Type, raceRow.bonus2Value);
+  // One-time creation bonuses
+  applyType(raceRow.bonus1Type, raceRow.bonus1Value);
+  applyType(raceRow.bonus2Type, raceRow.bonus2Value);
+
+  // One-time creation penalty (subtract for stats, add for travel modifiers)
+  if (raceRow.penaltyType && raceRow.penaltyValue) {
+    const pt = raceRow.penaltyType as string;
+    const pv = raceRow.penaltyValue as bigint;
+    if (pt === 'travel_cost_increase' || pt === 'travel_cost_discount') {
+      applyType(pt, pv);
+    } else {
+      applyType(pt, -pv);
+    }
+  }
+
+  // Per-even-level incremental bonus
+  if (evenLevels > 0n) {
+    applyType(raceRow.levelBonusType, raceRow.levelBonusValue * evenLevels);
+  }
+
   return result;
+}
+
+// Convenience wrapper for creation (level 1 = 0 even levels = creation bonuses only)
+function computeRacialContributions(raceRow: any) {
+  return computeRacialAtLevel(raceRow, 1n);
 }
 
 export const registerCharacterReducers = (deps: any) => {
@@ -216,7 +253,7 @@ export const registerCharacterReducers = (deps: any) => {
       if (!startingLocation) throw new SenderError('Starting location not initialized');
 
       const classStats = computeBaseStats(className, 1n);
-      const racial = computeRacialContributions(raceRow, 1n);
+      const racial = computeRacialContributions(raceRow);
       const baseStats = {
         str: classStats.str + racial.str,
         dex: classStats.dex + racial.dex,
@@ -227,6 +264,7 @@ export const registerCharacterReducers = (deps: any) => {
       const manaStat = manaStatForClass(className, baseStats);
       const maxHp = BASE_HP + baseStats.str * HP_STR_MULTIPLIER + (racial.racialMaxHp || 0n);
       const maxMana = usesMana(className) ? BASE_MANA + manaStat * 6n + (racial.racialMaxMana || 0n) : 0n;
+      const baseMaxStamina = 20n + (racial.racialMaxStamina || 0n);
       const armorClass = baseArmorForClass(className) + (racial.racialArmorBonus || 0n);
       const character = ctx.db.character.insert({
         id: 0n,
@@ -248,31 +286,40 @@ export const registerCharacterReducers = (deps: any) => {
         cha: baseStats.cha,
         wis: baseStats.wis,
         int: baseStats.int,
-        hitChance: baseStats.dex * 15n,
+        hitChance: baseStats.dex * 15n + (racial.racialHitBonus || 0n),
         dodgeChance: baseStats.dex * 12n + (racial.racialDodgeBonus || 0n),
-        parryChance: baseStats.dex * 10n,
+        parryChance: baseStats.dex * 10n + (racial.racialParryBonus || 0n),
         critMelee: baseStats.dex * 12n + (racial.racialCritBonus || 0n),
         critRanged: baseStats.dex * 12n + (racial.racialCritBonus || 0n),
         critDivine: baseStats.wis * 12n,
         critArcane: baseStats.int * 12n,
         armorClass,
-        perception: baseStats.wis * 25n,
+        perception: baseStats.wis * 25n + (racial.racialPerceptionBonus || 0n),
         search: baseStats.int * 25n,
         ccPower: baseStats.cha * 15n,
         vendorBuyMod: baseStats.cha * 10n,
         vendorSellMod: baseStats.cha * 8n,
-        stamina: 20n,
-        maxStamina: 20n,
+        stamina: baseMaxStamina,
+        maxStamina: baseMaxStamina,
         createdAt: ctx.timestamp,
-        racialSpellDamage: racial.racialSpellDamage || undefined,
-        racialPhysDamage: racial.racialPhysDamage || undefined,
-        racialMaxHp: racial.racialMaxHp || undefined,
-        racialMaxMana: racial.racialMaxMana || undefined,
-        racialManaRegen: racial.racialManaRegen || undefined,
-        racialStaminaRegen: racial.racialStaminaRegen || undefined,
-        racialCritBonus: racial.racialCritBonus || undefined,
-        racialArmorBonus: racial.racialArmorBonus || undefined,
-        racialDodgeBonus: racial.racialDodgeBonus || undefined,
+        racialSpellDamage: racial.racialSpellDamage > 0n ? racial.racialSpellDamage : undefined,
+        racialPhysDamage: racial.racialPhysDamage > 0n ? racial.racialPhysDamage : undefined,
+        racialMaxHp: racial.racialMaxHp > 0n ? racial.racialMaxHp : undefined,
+        racialMaxMana: racial.racialMaxMana > 0n ? racial.racialMaxMana : undefined,
+        racialManaRegen: racial.racialManaRegen > 0n ? racial.racialManaRegen : undefined,
+        racialStaminaRegen: racial.racialStaminaRegen > 0n ? racial.racialStaminaRegen : undefined,
+        racialCritBonus: racial.racialCritBonus > 0n ? racial.racialCritBonus : undefined,
+        racialArmorBonus: racial.racialArmorBonus > 0n ? racial.racialArmorBonus : undefined,
+        racialDodgeBonus: racial.racialDodgeBonus > 0n ? racial.racialDodgeBonus : undefined,
+        racialHpRegen: racial.racialHpRegen > 0n ? racial.racialHpRegen : undefined,
+        racialMaxStamina: racial.racialMaxStamina > 0n ? racial.racialMaxStamina : undefined,
+        racialTravelCostIncrease: racial.racialTravelCostIncrease > 0n ? racial.racialTravelCostIncrease : undefined,
+        racialTravelCostDiscount: racial.racialTravelCostDiscount > 0n ? racial.racialTravelCostDiscount : undefined,
+        racialHitBonus: racial.racialHitBonus > 0n ? racial.racialHitBonus : undefined,
+        racialParryBonus: racial.racialParryBonus > 0n ? racial.racialParryBonus : undefined,
+        racialFactionBonus: racial.racialFactionBonus > 0n ? racial.racialFactionBonus : undefined,
+        racialMagicResist: racial.racialMagicResist > 0n ? racial.racialMagicResist : undefined,
+        racialPerceptionBonus: racial.racialPerceptionBonus > 0n ? racial.racialPerceptionBonus : undefined,
       });
 
       grantStarterItems(ctx, character, ensureStarterItemTemplates);
