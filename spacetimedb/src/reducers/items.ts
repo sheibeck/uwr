@@ -161,6 +161,11 @@ export const registerItemReducers = (deps: any) => {
         if (finalPrice < 1n) finalPrice = 1n;
         discountMsg = ` (${vendorBuyDiscount}% perk discount)`;
       }
+      // Apply CHA vendor buy discount (character.vendorBuyMod is on 1000-scale)
+      if (character.vendorBuyMod > 0n) {
+        finalPrice = (finalPrice * (1000n - character.vendorBuyMod)) / 1000n;
+        if (finalPrice < 1n) finalPrice = 1n;
+      }
       if ((character.gold ?? 0n) < finalPrice) return failItem(ctx, character, 'Not enough gold');
       ctx.db.character.id.update({
         ...character,
@@ -198,6 +203,10 @@ export const registerItemReducers = (deps: any) => {
       if (vendorSellBonus > 0 && baseValue > 0n) {
         value = (baseValue * BigInt(100 + vendorSellBonus)) / 100n;
         sellBonusMsg = ` (${vendorSellBonus}% perk bonus)`;
+      }
+      // Apply CHA vendor sell bonus (character.vendorSellMod is on 1000-scale)
+      if (character.vendorSellMod > 0n) {
+        value = (value * (1000n + character.vendorSellMod)) / 1000n;
       }
       // Capture template info before deletion
       const soldTemplateId = instance.templateId;

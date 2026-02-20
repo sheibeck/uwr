@@ -11,6 +11,7 @@ import {
 } from '../data/class_stats';
 import { getEquippedBonuses } from './items';
 import { effectiveGroupId } from './group';
+import { statOffset, CHA_VENDOR_SCALE, CHA_VENDOR_SELL_SCALE } from '../data/combat_scaling.js';
 
 export function getGroupParticipants(ctx: any, character: any, sameLocation: boolean = true) {
   const groupId = effectiveGroupId(character);
@@ -108,8 +109,11 @@ export function recomputeCharacterDerived(ctx: any, character: any) {
   const perception = totalStats.wis * 25n + racialPerceptionBonus;
   const search = totalStats.int * 25n;
   const ccPower = totalStats.cha * 15n;
-  const vendorBuyMod = totalStats.cha * 10n;
-  const vendorSellMod = totalStats.cha * 8n;
+  // Symmetric CHA formula: (cha - 10) * scale, clamped to 0 (no penalty, just no bonus)
+  const vendorBuyModRaw  = statOffset(totalStats.cha, CHA_VENDOR_SCALE);
+  const vendorSellModRaw = statOffset(totalStats.cha, CHA_VENDOR_SELL_SCALE);
+  const vendorBuyMod  = vendorBuyModRaw  < 0n ? 0n : vendorBuyModRaw;
+  const vendorSellMod = vendorSellModRaw < 0n ? 0n : vendorSellModRaw;
 
   const updated = {
     ...character,
