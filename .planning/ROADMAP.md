@@ -35,6 +35,7 @@
 | 18 | World Events System Expansion | None | Phase 17 | Complete (2026-02-18) |
 | 19 | NPC Interactions | None | Phase 18 | Complete (2026-02-17) |
 | 20 | Perk Variety Expansion | None | Phase 19 | Complete (2026-02-18) |
+| 21 | Class Ability Balancing & Progression | ABILITY-01–06 | Phase 20 | Pending |
 
 ---
 
@@ -644,6 +645,45 @@ Plans:
 - [x] 20-01-PLAN.md — Perk data foundation: extend PerkEffect type, design 30 perks for ranks 2-11 (combat/crafting/social), sync frontend display
 - [x] 20-02-PLAN.md — Passive perk hooks: combat proc system, crafting/gathering bonuses, social/utility modifiers across all game systems
 - [x] 20-03-PLAN.md — Active ability perks: hotbar auto-assignment, ability execution (Second Wind, Thunderous Blow, Wrath of the Fallen), cooldown tracking
+
+### Phase 21: Class Ability Balancing & Progression
+
+**Goal:** Every class has a fully designed, mechanically distinct ability set covering levels 1–10, with clear class identity enforced through ability choice, stat scaling, and resource usage. The unlock curve is deliberately paced — abilities arrive at meaningful moments, not one-per-level automatically. All referenced mechanics (DoT, HoT, AoE, debuffs, aggro) have backend support.
+
+**Depends on:** Phase 20
+
+**Requirements:** ABILITY-01, ABILITY-02, ABILITY-03, ABILITY-04, ABILITY-05, ABILITY-06
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 21 to break down)
+
+**Scope:**
+
+- Audit all 15 class ability files (`warrior`, `cleric`, `wizard`, `rogue`, `ranger`, `druid`, `bard`, `monk`, `paladin`, `shaman`, `necromancer`, `beastmaster`, `enchanter`, `reaver`, `spellblade`, `summoner`) — verify each existing ability has correct damage values, descriptions, debuff magnitudes, and mechanical backing
+- Extend all classes from level 5 to level 10: design 5 additional abilities per class (up to 75 new abilities total), preserving class identity and avoiding cross-class homogeneity
+- Redesign the unlock curve: evaluate whether 1-ability-per-level is optimal or whether some levels grant utility, upgrades, or passive modifiers instead of active abilities; produce a progression design document as a CONTEXT file before implementation
+- Enforce class identity pillars: each class should have a distinct primary niche (e.g. Warrior = damage + armor shred, Cleric = group healing + resurrection, Wizard = burst magic + mana management, Rogue = single-target burst + evasion) that is consistently expressed across all 10 levels
+- Build any missing backend systems that existing abilities reference but do not have reducer support for: e.g. taunt/aggro for `warrior_intimidating_presence`, group morale for `warrior_rally`, AoE damage distribution for `cleave`-type abilities
+- Balance check: validate that power values scale appropriately with level and that no class is dominant or useless in group combat
+
+**Requirements Detail:**
+
+- ABILITY-01: All 15 classes have abilities defined for levels 1–10 in their respective data files
+- ABILITY-02: Each class has a documented identity pillar (1-sentence description of primary role and playstyle)
+- ABILITY-03: Every ability with a mechanic tag (DoT, HoT, AoE, debuff, aggro) has corresponding backend reducer support that implements the tag's effect
+- ABILITY-04: The unlock curve (which levels grant abilities vs. passives vs. upgrades) is explicitly designed and applied consistently across all classes
+- ABILITY-05: Power values are reviewed and balanced relative to level — no ability at level 6+ should be weaker than a level 2 ability of the same class
+- ABILITY-06: New abilities are human-verified in-game: cast animations, damage numbers, buff/debuff applications all observable
+
+**Success Criteria:**
+
+- [ ] All 15 class ability files contain entries for levels 1–10
+- [ ] A CONTEXT.md or design note covers the unlock curve decision and class identity pillars for all 15 classes
+- [ ] No ability references a debuffType, aoeTargets, or mechanic tag that is unimplemented in `reducers/combat.ts`
+- [ ] Power scaling passes sanity check: level N ability power >= level (N-3) ability power for same class (no regression)
+- [ ] Human verification: player can level a character to 10 and observe distinct, functional abilities at each unlock point
 
 ---
 
