@@ -71,7 +71,7 @@ const props = defineProps<{
 const race = computed(() => {
   const c = props.selectedCharacter;
   if (!c || !props.races?.length) return null;
-  return props.races.find((r: any) => r.id.toString() === c.raceId?.toString()) ?? null;
+  return props.races.find((r: any) => r.name.toLowerCase() === (c.race as string).toLowerCase()) ?? null;
 });
 
 const evenLevels = computed((): bigint => {
