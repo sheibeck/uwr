@@ -67,7 +67,7 @@
                     <span :style="styles.combatLabel">Targeting</span>
                     <span :style="styles.combatValue">{{ enemy.targetName }}</span>
                   </div>
-                  <div v-if="enemy.castProgress > 0" :style="styles.enemyCastBar">
+                  <div v-if="enemy.isCasting" :style="styles.enemyCastBar">
                     <div
                       :style="{
                         ...styles.enemyCastFill,

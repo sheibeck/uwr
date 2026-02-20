@@ -542,6 +542,7 @@ export const useCombat = ({
         effects,
         castLabel: ability?.name ?? '',
         castProgress,
+        isCasting: !!cast && castDuration > 0,
         targetName,
       };
     });
