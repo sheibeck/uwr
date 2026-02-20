@@ -1693,7 +1693,7 @@ export function executeAbility(
         ['Granite', 'Boulder', 'Stone', 'Clay', 'Bedrock'],
         { key: 'pet_taunt', cooldownSeconds: 8n },
         // High HP tank with enough damage to generate meaningful aggro between taunts
-        { hpBase: 30n, hpPerLevel: 8n, damageBase: 5n, damagePerLevel: 2n, weaponScalePercent: 40n }
+        { hpBase: 50n, hpPerLevel: 12n, damageBase: 5n, damagePerLevel: 2n, weaponScalePercent: 40n }
       );
       return;
     case 'summoner_fire_elemental':
