@@ -1708,6 +1708,37 @@ export const AppVersion = table(
   }
 );
 
+// Bard active song tracker — one row per bard in combat, replaced when a new song is cast
+export const ActiveBardSong = table(
+  {
+    name: 'active_bard_song',
+    public: true,
+    indexes: [{ name: 'by_bard', algorithm: 'btree', columns: ['bardCharacterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    bardCharacterId: t.u64(),
+    combatId: t.u64(),
+    songKey: t.string(),       // e.g. 'bard_discordant_note', 'bard_battle_hymn'
+    startedAtMicros: t.u64(), // timestamp when song became active (for fade tracking)
+    isFading: t.bool(),        // true during the 6-second fade when a new song replaces it
+  }
+);
+
+// Scheduled song tick — fires every 6 seconds to apply the active song's group effect
+export const BardSongTick = table(
+  {
+    name: 'bard_song_tick',
+    scheduled: 'tick_bard_songs',
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    bardCharacterId: t.u64(),
+    combatId: t.u64(),
+  }
+);
+
 export const spacetimedb = schema(
   Player,
   User,
@@ -1804,4 +1835,6 @@ export const spacetimedb = schema(
   EventDespawnTick,
   InactivityTick,
   AppVersion,
+  ActiveBardSong,
+  BardSongTick,
 );
