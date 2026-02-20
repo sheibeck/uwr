@@ -729,12 +729,18 @@ Each race grants exactly two bonuses. Bonuses are not limited to stat points. Th
 
 ### Phase 21.1: Stat Systems & Off-Stat Hooks (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
+**Goal:** Stat scaling is symmetric around base 10, all five off-stats (WIS, INT, CHA, STR, DEX) have live hooks affecting gameplay, the block system uses DEX chance and STR mitigation, and salvage drops recipe scrolls with INT-boosted probability instead of auto-learning.
+
+**Requirements:** STAT-01, STAT-02, STAT-03, STAT-04, STAT-05
+
 **Depends on:** Phase 21
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 21.1 to break down)
+- [ ] 21.1-01-PLAN.md — Stat scaling helper (statOffset) + shield armor type and class restrictions
+- [ ] 21.1-02-PLAN.md — Block system (DEX chance, STR mitigation) + WIS pull hook
+- [ ] 21.1-03-PLAN.md — INT salvage scroll drop + CHA vendor/faction/affinity hooks
+- [ ] 21.1-04-PLAN.md — Publish backend, regenerate bindings, client block stats display, human verify
 
 ### Phase 22: Class Ability Balancing & Progression
 
