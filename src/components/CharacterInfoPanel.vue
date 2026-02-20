@@ -31,6 +31,21 @@
         outline: 'none',
       }"
     >Stats</button>
+    <button
+      type="button"
+      @click="activeTab = 'race'"
+      :style="{
+        background: activeTab === 'race' ? 'rgba(255,255,255,0.08)' : 'transparent',
+        borderBottom: activeTab === 'race' ? '2px solid #60a5fa' : '2px solid transparent',
+        padding: '8px 16px',
+        cursor: 'pointer',
+        color: activeTab === 'race' ? '#fff' : '#d1d5db',
+        fontSize: '0.85rem',
+        fontWeight: 600,
+        border: 'none',
+        outline: 'none',
+      }"
+    >Race</button>
   </div>
 
   <!-- Inventory tab -->
@@ -67,12 +82,21 @@
     :regions="regions"
     :races="races"
   />
+
+  <!-- Race tab -->
+  <RacialProfilePanel
+    v-else-if="activeTab === 'race'"
+    :styles="styles"
+    :selected-character="selectedCharacter"
+    :races="races"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
 import InventoryPanel from './InventoryPanel.vue';
 import StatsPanel from './StatsPanel.vue';
+import RacialProfilePanel from './RacialProfilePanel.vue';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
@@ -103,5 +127,5 @@ const emit = defineEmits<{
   (e: 'hide-tooltip'): void;
 }>();
 
-const activeTab = ref<'inventory' | 'stats'>('inventory');
+const activeTab = ref<'inventory' | 'stats' | 'race'>('inventory');
 </script>
