@@ -657,10 +657,13 @@ Plans:
 
 **Requirements:** RACE-EXP-01, RACE-EXP-02, RACE-EXP-03, RACE-EXP-04, RACE-EXP-05
 
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 21 to break down)
+- [ ] 21-01-PLAN.md — Schema migration (Race table bonus1Type/bonus1Value schema, Character table 9 optional racial bonus columns), RACE_DATA expanded to 15 races, create_character dual-bonus application, recomputeCharacterDerived racial contributions, publish --clear-database, regenerate bindings
+- [ ] 21-02-PLAN.md — Level-up racial bonus fix (awardXp preserves race bonuses + even-level stacking with diminishing returns), level_character admin command fix, /unlockrace admin command with world broadcast, racialManaRegen/racialStaminaRegen wired into regen tick
+- [ ] 21-03-PLAN.md — CharacterPanel.vue race info panel updated to show bonus1Type/bonus2Type with human-readable labels via formatRaceBonus helper
+- [ ] 21-04-PLAN.md — Human verification: race picker shows 11 races, bonus labels correct, even-level notification fires, /unlockrace works end-to-end
 
 **Scope:**
 
@@ -698,29 +701,29 @@ Each race grants exactly two bonuses. Bonuses are not limited to stat points. Th
 **Locked vs unlocked races:**
 - Unlocked races: Human, Eldrin, Ironclad, Wyldfang, Goblin, Dwarf, Gnome, Halfling, Half-Elf, Orc, Troll
 - Locked races (require world events): Dark-Elf, Half-Giant, Cyclops, Satyr
-- Locked races show in the race picker with a lock icon but cannot be selected until unlocked
+- Locked races completely hidden from race picker (not shown with lock icon — invisible until unlocked)
 - The `Race.unlocked` field (already on the table from Phase 1) controls this
 
 **Existing starter races — dual-bonus upgrades:**
 - Human: +1 CHA + bonus stamina regen (versatile, resilient)
 - Eldrin: bonus spell damage + bonus max mana (magical heritage)
 - Ironclad: bonus physical damage + bonus armor (forged body)
-- Wyldfang: bonus crit chance + bonus mana regen (primal instinct)
+- Wyldfang: bonus crit chance + +1 DEX (primal instinct)
 
 **Requirements Detail:**
 - RACE-EXP-01: At least 11 new races added to RACE_DATA with unlocked/locked status and two distinct bonuses each
-- RACE-EXP-02: All 4 existing starter races upgraded to dual-bonus system (not breaking existing characters)
+- RACE-EXP-02: All 4 existing starter races upgraded to dual-bonus system
 - RACE-EXP-03: Level-up racial bonus mechanic implemented — even-level hook re-applies racial bonuses
-- RACE-EXP-04: Locked races visible but unselectable in character creation UI; unlock via world event sets Race.unlocked = true
-- RACE-EXP-05: Racial bonuses cover the full bonus pool (at least spell damage, physical damage, max mana, mana regen, max HP used across the roster)
+- RACE-EXP-04: Locked races completely hidden in character creation UI; /unlockrace admin command with world broadcast
+- RACE-EXP-05: Racial bonuses cover the full bonus pool (spell damage, physical damage, max mana, mana regen, max HP, armor, crit used across the roster)
 
 **Success Criteria:**
-- [ ] 15+ races defined in RACE_DATA with `unlocked` flag and exactly two bonuses each
-- [ ] Character creation race picker shows all races; locked races display lock indicator
+- [ ] 15 races defined in RACE_DATA with `unlocked` flag and exactly two bonuses each
+- [ ] Character creation race picker shows 11 unlocked races; 4 locked races completely absent
 - [ ] Creating a character with any race applies both racial bonuses to stats/combat modifiers
-- [ ] Leveling a character to an even level (2, 4, 6...) triggers re-application of racial bonuses
-- [ ] Existing characters are not broken by the dual-bonus upgrade to starter races
-- [ ] Dark-Elf, Half-Giant, Cyclops, Satyr remain locked until the corresponding world event fires
+- [ ] Leveling a character to an even level (2, 4, 6...) triggers racial bonus stack + notification
+- [ ] /unlockrace admin command unlocks a race globally with world broadcast
+- [ ] Dark-Elf, Half-Giant, Cyclops, Satyr remain locked until /unlockrace fires
 
 ---
 
