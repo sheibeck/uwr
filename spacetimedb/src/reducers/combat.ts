@@ -806,6 +806,7 @@ export const registerCombatReducers = (deps: any) => {
         delayedAdds: undefined,
         delayedAddsAtMicros: undefined,
         createdAt: ctx.timestamp,
+        resolveAtMicros: resolveAt,
       });
       schedulePullResolve(ctx, pull.id, resolveAt);
 

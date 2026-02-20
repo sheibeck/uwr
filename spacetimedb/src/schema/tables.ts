@@ -890,6 +890,7 @@ export const PullState = table(
     delayedAdds: t.u64().optional(),
     delayedAddsAtMicros: t.u64().optional(),
     createdAt: t.timestamp(),
+    resolveAtMicros: t.u64(),
   }
 );
 
