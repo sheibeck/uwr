@@ -1922,18 +1922,90 @@ export function awardXp(
   }
 
   const newBase = computeBaseStats(character.className, newLevel);
+
+  // Look up the character's race row by name (character.race is a display name string, not an ID).
+  const raceRow = [...ctx.db.race.iter()].find((r: any) => r.name === character.race);
+
+  // Flat additive stacking formula:
+  //   At creation (level 1): full baseValue applied once
+  //   At each even level: floor(baseValue / 2) added again
+  //   Total at newLevel = baseValue + floor(baseValue / 2) * floor(newLevel / 2)
+  //
+  // Example — Eldrin (spell_damage base=2n):
+  //   Level 1 creation: +2 spell damage
+  //   Level 2 (app 1):  +1 more = 3 total
+  //   Level 4 (app 2):  +1 more = 4 total
+  //   Level 10 (app 5): +1 more = 7 total
+
+  const evenApplications = newLevel / 2n; // BigInt floor division
+
+  function accumulateRacialBonus(bonusType: string, baseValue: bigint,
+    out: { str: bigint; dex: bigint; int: bigint; wis: bigint; cha: bigint;
+           spellDmg: bigint; physDmg: bigint; maxHp: bigint; maxMana: bigint;
+           manaRegen: bigint; staminaRegen: bigint; crit: bigint; armor: bigint; dodge: bigint }
+  ) {
+    // Full base at creation + half-base per even level
+    const total = baseValue + (baseValue / 2n) * evenApplications;
+    switch (bonusType) {
+      case 'stat_str': out.str += total; break;
+      case 'stat_dex': out.dex += total; break;
+      case 'stat_int': out.int += total; break;
+      case 'stat_wis': out.wis += total; break;
+      case 'stat_cha': out.cha += total; break;
+      case 'spell_damage': out.spellDmg += total; break;
+      case 'phys_damage': out.physDmg += total; break;
+      case 'max_hp': out.maxHp += total; break;
+      case 'max_mana': out.maxMana += total; break;
+      case 'mana_regen': out.manaRegen += total; break;
+      case 'stamina_regen': out.staminaRegen += total; break;
+      case 'crit_chance': out.crit += total; break;
+      case 'armor': out.armor += total; break;
+      case 'dodge': out.dodge += total; break;
+    }
+  }
+
+  const racial = { str: 0n, dex: 0n, int: 0n, wis: 0n, cha: 0n,
+    spellDmg: 0n, physDmg: 0n, maxHp: 0n, maxMana: 0n,
+    manaRegen: 0n, staminaRegen: 0n, crit: 0n, armor: 0n, dodge: 0n };
+
+  if (raceRow) {
+    accumulateRacialBonus(raceRow.bonus1Type, raceRow.bonus1Value, racial);
+    accumulateRacialBonus(raceRow.bonus2Type, raceRow.bonus2Value, racial);
+  }
+
   const updated = {
     ...character,
     level: newLevel,
     xp: newXp,
-    str: newBase.str,
-    dex: newBase.dex,
-    cha: newBase.cha,
-    wis: newBase.wis,
-    int: newBase.int,
+    str: newBase.str + racial.str,
+    dex: newBase.dex + racial.dex,
+    cha: newBase.cha + racial.cha,
+    wis: newBase.wis + racial.wis,
+    int: newBase.int + racial.int,
+    racialSpellDamage: racial.spellDmg || undefined,
+    racialPhysDamage: racial.physDmg || undefined,
+    racialMaxHp: racial.maxHp || undefined,
+    racialMaxMana: racial.maxMana || undefined,
+    racialManaRegen: racial.manaRegen || undefined,
+    racialStaminaRegen: racial.staminaRegen || undefined,
+    racialCritBonus: racial.crit || undefined,
+    racialArmorBonus: racial.armor || undefined,
+    racialDodgeBonus: racial.dodge || undefined,
   };
   ctx.db.character.id.update(updated);
   recomputeCharacterDerived(ctx, updated);
+
+  // Notify on even-level racial bonus re-application
+  if (newLevel % 2n === 0n && raceRow) {
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'system',
+      `Your ${raceRow.name} heritage grows stronger at level ${newLevel}.`
+    );
+  }
+
   return { xpGained: gained, leveledUp: true, newLevel };
 }
 
