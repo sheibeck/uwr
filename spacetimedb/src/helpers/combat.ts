@@ -811,12 +811,8 @@ export function executeAbility(
   switch (abilityKey) {
     case 'shaman_spirit_mender':
       if (!targetCharacter) throw new SenderError('Target required');
-      applyHeal(targetCharacter, 12n, 'Spirit Mender');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
+      applyHeal(targetCharacter, 15n, 'Spirit Mender');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
         `Spirit Mender soothes ${targetCharacter.name}.`
       );
       return;
@@ -831,22 +827,32 @@ export function executeAbility(
       return;
     case 'shaman_hex':
       applyDamage(0n, 0n, {
-        debuff: { type: 'damage_down', magnitude: -2n, rounds: 3n, source: 'Hex' },
+        debuff: { type: 'ac_bonus', magnitude: -2n, rounds: 3n, source: 'Hex' },
       });
       return;
     case 'shaman_ancestral_ward':
       if (!targetCharacter) throw new SenderError('Target required');
-      addCharacterEffect(ctx, targetCharacter.id, 'ac_bonus', 2n, 3n, 'Ancestral Ward');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
+      addCharacterEffect(ctx, targetCharacter.id, 'ac_bonus', 4n, 4n, 'Ancestral Ward');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
         `Ancestral Ward shields ${targetCharacter.name}.`
       );
       return;
     case 'shaman_stormcall':
       applyDamage(0n, 0n);
+      return;
+    case 'shaman_earthquake':
+      // AoE physical damage + stun all enemies
+      applyDamage(0n, 0n);
+      if (combatId) {
+        const earthquakeEnemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
+        for (const en of earthquakeEnemies) {
+          if (en.currentHp === 0n) continue;
+          addEnemyEffect(ctx, combatId, en.id, 'stun', 1n, 4n, 'Earthquake');
+        }
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Earthquake shakes the ground, stunning all enemies!'
+      );
       return;
     case 'warrior_slam':
       applyDamage(0n, 0n, {
@@ -881,118 +887,206 @@ export function executeAbility(
     case 'warrior_crushing_blow':
       applyDamage(0n, 0n, { threatBonus: 5n });
       return;
+    case 'warrior_berserker_rage':
+      // 30s stance: +50% physical damage, blocks defensive abilities
+      addCharacterEffect(ctx, character.id, 'damage_up', 5n, 6n, 'Berserker Rage');
+      addCharacterEffect(ctx, character.id, 'berserker_stance', 1n, 6n, 'Berserker Rage');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Berserker Rage ignites your fury! Physical damage increased. Cannot use defensive abilities.'
+      );
+      return;
+    // ===== BARD SONG SYSTEM =====
+    // All bard songs insert/update ActiveBardSong and schedule a BardSongTick if none exists.
     case 'bard_discordant_note':
-      applyDamage(0n, 0n);
-      applyPartyEffect('damage_up', 1n, 2n, 'Discordant Note');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Discordant Note that deals damage and sharpens the party.'
-      );
-      return;
-    case 'bard_ballad_of_resolve':
-      for (const member of partyMembers) {
-        addCharacterEffect(ctx, member.id, 'str_bonus', 1n, 60n, 'Ballad of Resolve');
-        recomputeCharacterDerived(ctx, member);
+    case 'bard_melody_of_mending':
+    case 'bard_chorus_of_vigor':
+    case 'bard_march_of_wayfarers':
+    case 'bard_battle_hymn': {
+      if (!combatId || !combat) throw new SenderError('Songs can only be sung in combat.');
+      // Mark previous song as fading
+      const prevSong = [...ctx.db.activeBardSong.by_bard.filter(character.id)][0];
+      if (prevSong) {
+        ctx.db.activeBardSong.id.update({ ...prevSong, isFading: true });
+      } else {
+        // Schedule first tick (subsequent ticks are rescheduled from the tick reducer)
+        ctx.db.bardSongTick.insert({
+          scheduledId: 0n,
+          scheduledAt: ScheduleAt.time(nowMicros + 6_000_000n),
+          bardCharacterId: character.id,
+          combatId,
+        });
       }
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Ballad of Resolve strengthens the party.'
+      // Insert new active song (delete previous first if exists)
+      if (prevSong) {
+        ctx.db.activeBardSong.id.delete(prevSong.id);
+      }
+      ctx.db.activeBardSong.insert({
+        id: 0n,
+        bardCharacterId: character.id,
+        combatId,
+        songKey: abilityKey,
+        startedAtMicros: nowMicros,
+        isFading: false,
+      });
+      const songNames: Record<string, string> = {
+        bard_discordant_note: 'Discordant Note',
+        bard_melody_of_mending: 'Melody of Mending',
+        bard_chorus_of_vigor: 'Chorus of Vigor',
+        bard_march_of_wayfarers: 'March of Wayfarers',
+        bard_battle_hymn: 'Battle Hymn',
+      };
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        `You begin singing ${songNames[abilityKey] ?? abilityKey}.`
       );
-      return;
-    case 'bard_echoed_chord': {
-      const allyBonus = BigInt(partyMembers.length - 1) > 0n ? BigInt(partyMembers.length - 1) : 0n;
-      applyDamage(0n, 0n);
       return;
     }
-    case 'bard_harmony':
-      applyPartyEffect('damage_up', 2n, 3n, 'Harmony');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Harmony steadies the party.'
+
+    case 'bard_finale': {
+      // Burst the active song: apply its effect once immediately
+      const activeSong = [...ctx.db.activeBardSong.by_bard.filter(character.id)][0];
+      if (!activeSong) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+          'No active song to unleash.'
+        );
+        return;
+      }
+      // Apply the current song's effect immediately once
+      const bardEnemies = combatId ? [...ctx.db.combatEnemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n) : [];
+      switch (activeSong.songKey) {
+        case 'bard_discordant_note':
+        case 'bard_battle_hymn':
+          for (const tEnemy of bardEnemies) {
+            const dmg = 5n + character.level;
+            const nextHp = tEnemy.currentHp > dmg ? tEnemy.currentHp - dmg : 0n;
+            ctx.db.combatEnemy.id.update({ ...tEnemy, currentHp: nextHp });
+          }
+          if (activeSong.songKey === 'bard_battle_hymn') {
+            for (const m of partyMembers) {
+              const fresh = ctx.db.character.id.find(m.id);
+              if (!fresh) continue;
+              const healed = fresh.hp + 8n > fresh.maxHp ? fresh.maxHp : fresh.hp + 8n;
+              ctx.db.character.id.update({ ...fresh, hp: healed });
+              const freshM2 = ctx.db.character.id.find(m.id);
+              if (freshM2 && freshM2.maxMana > 0n) {
+                const manaRestored = freshM2.mana + 4n > freshM2.maxMana ? freshM2.maxMana : freshM2.mana + 4n;
+                ctx.db.character.id.update({ ...freshM2, mana: manaRestored });
+              }
+            }
+          }
+          break;
+        case 'bard_melody_of_mending':
+          for (const m of partyMembers) {
+            const fresh = ctx.db.character.id.find(m.id);
+            if (!fresh) continue;
+            const healed = fresh.hp + 10n > fresh.maxHp ? fresh.maxHp : fresh.hp + 10n;
+            ctx.db.character.id.update({ ...fresh, hp: healed });
+          }
+          break;
+        case 'bard_chorus_of_vigor':
+          for (const m of partyMembers) {
+            const fresh = ctx.db.character.id.find(m.id);
+            if (!fresh || fresh.maxMana === 0n) continue;
+            const manaGain = fresh.mana + 8n > fresh.maxMana ? fresh.maxMana : fresh.mana + 8n;
+            ctx.db.character.id.update({ ...fresh, mana: manaGain });
+          }
+          break;
+        case 'bard_march_of_wayfarers':
+          for (const m of partyMembers) {
+            addCharacterEffect(ctx, m.id, 'travel_discount', 3n, 2n, 'March of Wayfarers');
+          }
+          break;
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Finale! Your song crescendos in a powerful burst!'
       );
-      return;
-    case 'bard_crushing_crescendo': {
-      let bonus = 5n;
-      if (enemy && enemy.currentHp * 2n <= enemy.maxHp) bonus += 3n;
-      applyDamage(0n, 0n);
       return;
     }
     case 'enchanter_mind_fray':
       applyDamage(0n, 0n, {
-        dot: { magnitude: 2n, rounds: 2n, source: 'Mind Fray' },
-        debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Mind Fray' },
+        dot: { magnitude: 3n, rounds: 3n, source: 'Mind Fray' },
       });
       return;
-    case 'enchanter_veil_of_calm':
-      addCharacterEffect(ctx, character.id, 'pull_veil', 1n, 12n, 'Veil of Calm');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Veil of Calm settles your presence for the next pull.'
-      );
-      return;
-    case 'enchanter_slow':
+    case 'enchanter_mesmerize':
       applyDamage(0n, 0n, {
-        debuff: { type: 'damage_down', magnitude: -3n, rounds: 2n, source: 'Slow' },
+        debuff: { type: 'stun', magnitude: 1n, rounds: 4n, source: 'Mesmerize' },
       });
       return;
-    case 'enchanter_clarity_ii':
+    case 'enchanter_clarity':
       if (!targetCharacter) throw new SenderError('Target required');
-      addCharacterEffect(ctx, targetCharacter.id, 'mana_regen', 6n, 3n, 'Clarity II');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        `Clarity II restores ${targetCharacter.name}'s mana.`
+      addCharacterEffect(ctx, targetCharacter.id, 'mana_regen', 8n, 4n, 'Clarity');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        `Clarity rapidly restores ${targetCharacter.name}'s mana.`
       );
       return;
-    case 'enchanter_charm_fray':
-      applyDamage(0n, 0n, {
-        debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Charm Fray' },
-      });
+    case 'enchanter_haste':
+      // Party-wide haste buff
+      applyPartyEffect('haste', 1n, 5n, 'Haste');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Haste accelerates the entire party!'
+      );
       return;
+    case 'enchanter_bewilderment':
+      // AoE AC debuff on all enemies
+      if (combatId) {
+        const bewilderedEnemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
+        for (const en of bewilderedEnemies) {
+          if (en.currentHp === 0n) continue;
+          addEnemyEffect(ctx, combatId, en.id, 'ac_bonus', -3n, 3n, 'Bewilderment');
+        }
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Bewilderment confuses all enemies, reducing their defenses!'
+      );
+      return;
+    case 'enchanter_charm': {
+      // Spawn a charmed copy of the current enemy as a CombatPet
+      if (!enemy || !combatId) throw new SenderError('You have no target to unleash this upon.');
+      summonPet(
+        'Charmed', `a charmed ${enemyName}`,
+        [enemyName, 'Echo', 'Mirror'],
+        undefined,
+        {
+          hpBase: enemy.maxHp / 2n > 10n ? enemy.maxHp / 2n : 10n,
+          hpPerLevel: 0n,
+          damageBase: enemy.attackDamage / 2n > 2n ? enemy.attackDamage / 2n : 2n,
+          damagePerLevel: 0n,
+          weaponScalePercent: 0n,
+        }
+      );
+      return;
+    }
     case 'cleric_mend':
       if (!targetCharacter) throw new SenderError('Target required');
       applyHeal(targetCharacter, 18n, 'Mend');
       return;
-    case 'cleric_sanctify': {
-      if (!targetCharacter) throw new SenderError('Target required');
-      const effects = [...ctx.db.characterEffect.by_character.filter(targetCharacter.id)];
-      const negative = effects.find(
-        (effect) => effect.effectType === 'dot' || effect.magnitude < 0n
+    case 'cleric_sanctify':
+      // Group AC + HP regen buff ~45min
+      applyPartyEffect('ac_bonus', 3n, 450n, 'Sanctify');
+      applyPartyEffect('regen', 4n, 450n, 'Sanctify');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Sanctify blesses the party with divine protection.'
       );
-      if (negative) {
-        ctx.db.characterEffect.id.delete(negative.id);
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'ability',
-          `Sanctify cleanses ${targetCharacter.name}.`
-        );
-      } else {
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'ability',
-          `${targetCharacter.name} has no harmful effects to cleanse.`
-        );
-      }
       return;
-    }
+    case 'cleric_blessing_of_might':
+      // Group STR buff ~45min = 450 rounds
+      applyPartyEffect('str_bonus', 3n, 450n, 'Blessing of Might');
+      for (const member of partyMembers) {
+        recomputeCharacterDerived(ctx, member);
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Blessing of Might strengthens the party with divine power.'
+      );
+      return;
+    case 'cleric_holy_nova':
+      // AoE magic damage to all enemies + heal all allies simultaneously
+      applyDamage(0n, 0n);
+      for (const member of partyMembers) {
+        applyHeal(member, 20n, 'Holy Nova');
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Holy Nova erupts in divine light!'
+      );
+      return;
     case 'cleric_smite':
       applyDamage(0n, 0n);
       return;
@@ -1088,6 +1182,12 @@ export function executeAbility(
     case 'wizard_lightning_surge':
       applyDamage(0n, 0n);
       return;
+    case 'wizard_arcane_storm':
+      applyDamage(0n, 0n);
+      return;
+    case 'wizard_arcane_explosion':
+      applyDamage(0n, 0n);
+      return;
     case 'rogue_shadow_cut':
       applyDamage(0n, 0n, { dot: { magnitude: 2n, rounds: 2n, source: 'Shadow Cut' } });
       return;
@@ -1158,14 +1258,19 @@ export function executeAbility(
       applyDamage(0n, 0n);
       return;
     }
+    case 'rogue_death_mark': {
+      if (!enemy || !combatId) throw new SenderError('You have no target to unleash this upon.');
+      // Debuff: increases damage taken by enemy
+      addEnemyEffect(ctx, combatId, enemy.id, 'damage_taken', 5n, 3n, 'Death Mark');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        `Death Mark condemns ${enemyName} — all damage to them increased.`
+      );
+      return;
+    }
     case 'paladin_holy_strike':
-      applyDamage(0n, 0n);
+      applyDamage(0n, 0n, { threatBonus: 5n });
       addCharacterEffect(ctx, character.id, 'ac_bonus', 2n, 2n, 'Holy Strike');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
         'Holy Strike steadies your guard.'
       );
       return;
@@ -1206,6 +1311,17 @@ export function executeAbility(
     case 'paladin_radiant_smite':
       applyDamage(0n, 0n, { dot: { magnitude: 2n, rounds: 2n, source: 'Radiant Smite' } });
       return;
+    case 'paladin_consecrated_ground': {
+      // AoE DoT all enemies + HoT all allies simultaneously
+      applyDamage(0n, 0n);
+      for (const member of partyMembers) {
+        addCharacterEffect(ctx, member.id, 'regen', 8n, 3n, 'Consecrated Ground');
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Consecrated Ground burns your enemies and heals your allies!'
+      );
+      return;
+    }
     case 'ranger_marked_shot':
       applyDamage(0n, 0n, {
         debuff: { type: 'damage_taken', magnitude: 1n, rounds: 2n, source: 'Marked Shot' },
@@ -1260,6 +1376,9 @@ export function executeAbility(
     case 'ranger_rapid_shot':
       applyDamage(0n, 0n, { hits: 2n });
       return;
+    case 'ranger_rain_of_arrows':
+      applyDamage(0n, 0n);
+      return;
     case 'ranger_natures_balm':
       if (!targetCharacter) throw new SenderError('Target required');
       addCharacterEffect(ctx, targetCharacter.id, 'regen', 7n, 3n, "Nature's Balm");
@@ -1287,117 +1406,141 @@ export function executeAbility(
         'Morrow',
       ], undefined, { damageBase: 4n, damagePerLevel: 2n, weaponScalePercent: 45n });
       return;
-    case 'necromancer_wither':
-      applyDamage(0n, 0n, { dot: { magnitude: 3n, rounds: 2n, source: 'Wither' } });
-      return;
-    case 'necromancer_bone_ward':
-      addCharacterEffect(ctx, character.id, 'ac_bonus', 3n, 3n, 'Bone Ward');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Bone Ward hardens your defenses.'
+    case 'necromancer_wither': {
+      // Life drain DoT: damages enemy AND heals caster per tick via ownerCharacterId
+      if (!enemy || !combatId) throw new SenderError('You have no target to unleash this upon.');
+      const witherDotDamage = 5n + character.level;
+      addEnemyEffect(ctx, combatId, enemy.id, 'dot', witherDotDamage, 3n, 'Wither');
+      // Find the just-inserted effect and add ownerCharacterId
+      const witherEffect = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)]
+        .find((e: any) => e.effectType === 'dot' && e.sourceAbility === 'Wither');
+      if (witherEffect) {
+        ctx.db.combatEnemyEffect.id.update({ ...witherEffect, ownerCharacterId: character.id });
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        `Wither drains life from ${enemyName}.`
       );
       return;
-    case 'necromancer_grave_surge':
+    }
+    case 'necromancer_soul_rot': {
+      // DoT + AC debuff
+      applyDamage(0n, 0n, {
+        debuff: { type: 'ac_bonus', magnitude: -2n, rounds: 3n, source: 'Soul Rot' },
+        dot: { magnitude: 4n, rounds: 3n, source: 'Soul Rot' },
+      });
+      return;
+    }
+    case 'necromancer_plague_lord_form':
+      // 30s stance: marker that combat loop uses for DoT amplification
+      addCharacterEffect(ctx, character.id, 'plague_lord_stance', 1n, 5n, 'Plague Lord Form');
+      addCharacterEffect(ctx, character.id, 'damage_up', 4n, 5n, 'Plague Lord Form');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Plague Lord Form consumes you with dark power!'
+      );
+      return;
+    case 'spellblade_flame_strike':
+      applyDamage(0n, 0n, { dot: { magnitude: 3n, rounds: 2n, source: 'Flame Strike' } });
+      return;
+    case 'spellblade_frost_armor':
+      addCharacterEffect(ctx, character.id, 'ac_bonus', 4n, 4n, 'Frost Armor');
+      addCharacterEffect(ctx, character.id, 'damage_shield', 5n, 4n, 'Frost Armor');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Frost Armor encases you in protective ice.'
+      );
+      return;
+    case 'spellblade_thunder_cleave':
       applyDamage(0n, 0n);
       return;
-    case 'spellblade_arcane_slash':
-      applyDamage(0n, 0n, {
-        debuff: { type: 'armor_down', magnitude: -2n, rounds: 2n, source: 'Arcane Slash' },
-      });
-      return;
-    case 'spellblade_rune_ward':
-      addCharacterEffect(ctx, character.id, 'damage_shield', 10n, 6n, 'Rune Ward');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Rune Ward wraps you in protective sigils.'
+    case 'spellblade_stone_skin':
+      addCharacterEffect(ctx, character.id, 'ac_bonus', 8n, 5n, 'Stone Skin');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Stone Skin hardens you like the earth itself.'
       );
       return;
-    case 'spellblade_runic_strike':
-      applyDamage(0n, 0n, {
-        debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Runic Strike' },
-      });
-      return;
-    case 'spellblade_ward':
-      addCharacterEffect(ctx, character.id, 'ac_bonus', 3n, 3n, 'Ward');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Ward surrounds you in arcane protection.'
+    case 'spellblade_magma_shield':
+      addCharacterEffect(ctx, character.id, 'ac_bonus', 5n, 5n, 'Magma Shield');
+      addCharacterEffect(ctx, character.id, 'damage_shield', 8n, 5n, 'Magma Shield');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Magma Shield surrounds you in molten protection.'
       );
       return;
-    case 'spellblade_spellstorm':
-      applyDamage(0n, 0n, { hits: 3n });
+    case 'spellblade_elemental_surge':
+      applyDamage(0n, 0n);
+      return;
+    case 'beastmaster_call_beast':
+      summonPet(
+        'Beast', 'a wild beast',
+        ['Brindle', 'Moss', 'Cinder', 'Tawny', 'Thorn'],
+        { key: 'pet_bleed', cooldownSeconds: 10n },
+        { damageBase: 3n, damagePerLevel: 2n, weaponScalePercent: 40n }
+      );
       return;
     case 'beastmaster_pack_rush':
       applyDamage(0n, 0n, {
         hits: 2n,
-        perHitMessage: (damage, hitIndex, totalHits) =>
-          `Your ${ability.name} hits ${enemyName} for ${damage} damage. (${hitIndex}/${totalHits})`,
+        perHitMessage: (damage: bigint, hitIndex: number, totalHits: number) =>
+          `Pack Rush strikes ${enemyName} for ${damage} damage. (${hitIndex}/${totalHits})`,
       });
       return;
-    case 'beastmaster_call_beast':
-      summonPet(
-        'Beast',
-        'a wild beast',
-        ['Brindle', 'Moss', 'Cinder', 'Tawny', 'Thorn'],
-        { key: 'pet_bleed', cooldownSeconds: 10n },
-        { damageBase: 3n, damagePerLevel: 1n, weaponScalePercent: 35n }
-      );
-      return;
     case 'beastmaster_beast_fang':
-      applyDamage(0n, 0n, { dot: { magnitude: 2n, rounds: 2n, source: 'Beast Fang' } });
+      applyDamage(0n, 0n, { dot: { magnitude: 3n, rounds: 2n, source: 'Beast Fang' } });
       return;
     case 'beastmaster_wild_howl':
-      applyPartyEffect('damage_up', 3n, 3n, 'Wild Howl');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Wild Howl emboldens the party.'
+      applyPartyEffect('damage_up', 3n, 4n, 'Wild Howl');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Wild Howl emboldens you and your beast!'
       );
       return;
     case 'beastmaster_alpha_assault':
       applyDamage(0n, 0n);
+      return;
+    case 'beastmaster_wild_hunt':
+      // Pet AoE: applies AoE damage from the character (acting as pet-proxy)
+      applyDamage(0n, 0n);
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Wild Hunt! Your beast ravages all enemies!'
+      );
       return;
     case 'monk_crippling_kick':
       applyDamage(0n, 0n, {
         debuff: { type: 'damage_down', magnitude: -2n, rounds: 2n, source: 'Crippling Kick' },
       });
       return;
-    case 'monk_centering':
-      addCharacterEffect(ctx, character.id, 'stamina_free', 1n, 2n, 'Centering');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'You center yourself for a cost-free strike.'
+    case 'monk_stunning_strike':
+      // Physical damage + stun
+      applyDamage(0n, 0n, {
+        debuff: { type: 'stun', magnitude: 1n, rounds: 4n, source: 'Stunning Strike' },
+      });
+      return;
+    case 'monk_centering': {
+      // Restore stamina directly
+      const latestChar = ctx.db.character.id.find(character.id);
+      if (latestChar) {
+        const restored = latestChar.stamina + 15n > latestChar.maxStamina
+          ? latestChar.maxStamina
+          : latestChar.stamina + 15n;
+        ctx.db.character.id.update({ ...latestChar, stamina: restored });
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Centering restores your inner energy.'
       );
       return;
-    case 'monk_palm_strike':
-      applyDamage(0n, 0n);
-      return;
+    }
     case 'monk_inner_focus':
-      addCharacterEffect(ctx, character.id, 'ac_bonus', 3n, 3n, 'Inner Focus');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Inner Focus hardens your guard.'
+      addCharacterEffect(ctx, character.id, 'damage_up', 3n, 3n, 'Inner Focus');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Inner Focus sharpens your combat senses.'
       );
       return;
     case 'monk_tiger_flurry':
       applyDamage(0n, 0n, { hits: 3n });
+      return;
+    case 'monk_hundred_fists':
+      applyDamage(0n, 0n, {
+        hits: 5n,
+        perHitMessage: (damage: bigint, hitIndex: number, totalHits: number) =>
+          `Hundred Fists strikes ${enemyName} for ${damage} damage. (${hitIndex}/${totalHits})`,
+      });
       return;
     case 'druid_thorn_lash':
       applyDamage(0n, 0n, { dot: { magnitude: 2n, rounds: 2n, source: 'Thorn Lash' } });
@@ -1462,8 +1605,17 @@ export function executeAbility(
       );
       return;
     }
-    case 'druid_bramble':
-      applyDamage(0n, 0n, { dot: { magnitude: 3n, rounds: 2n, source: 'Bramble' } });
+    case 'druid_entangle':
+      applyDamage(0n, 0n);
+      return;
+    case 'druid_shapeshifter_form':
+      // +40% physical damage for ~5 rounds (30s), temp HP buffer as hp_bonus
+      addCharacterEffect(ctx, character.id, 'damage_up', 4n, 5n, 'Shapeshifter Form');
+      addCharacterEffect(ctx, character.id, 'shapeshifter_stance', 1n, 5n, 'Shapeshifter Form');
+      applyHpBonus(ctx, character, 20n, 5n, 'Shapeshifter Form');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'You shift into a primal beast form! Physical damage increased.'
+      );
       return;
     case 'druid_natures_gift':
       applyPartyHpBonus(15n, 3n, "Nature's Gift");
@@ -1488,62 +1640,145 @@ export function executeAbility(
       }
       return;
     case 'reaver_blood_pact':
-      addCharacterEffect(ctx, character.id, 'damage_up', 3n, 3n, 'Blood Pact');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Blood Pact fuels your offense.'
+      addCharacterEffect(ctx, character.id, 'damage_up', 4n, 4n, 'Blood Pact');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Blood Pact fuels your dark power.'
       );
       return;
     case 'reaver_soul_rend':
-      applyDamage(0n, 0n, { dot: { magnitude: 3n, rounds: 2n, source: 'Soul Rend' } });
+      applyDamage(0n, 0n);
       return;
     case 'reaver_dread_aura':
-      applyDamage(0n, 0n, {
-        debuff: { type: 'damage_down', magnitude: -3n, rounds: 2n, source: 'Dread Aura' },
-      });
+      // AoE debuff all enemies
+      if (combatId) {
+        const dreadEnemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
+        for (const en of dreadEnemies) {
+          if (en.currentHp === 0n) continue;
+          addEnemyEffect(ctx, combatId, en.id, 'damage_down', -3n, 3n, 'Dread Aura');
+        }
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Dread Aura weakens all enemies around you.'
+      );
       return;
     case 'reaver_oblivion':
       applyDamage(0n, 0n);
       return;
-    case 'summoner_conjure_vessel':
-      applyDamage(0n, 0n);
-      addCharacterEffect(ctx, character.id, 'mana_regen', 2n, 2n, 'Familiar Strike');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Conjure a vessel that strikes your enemy and captures some of their essence.'
+    case 'reaver_deaths_embrace':
+      // 30s stance: lifesteal + damage_up
+      addCharacterEffect(ctx, character.id, 'deaths_embrace_stance', 1n, 5n, "Death's Embrace");
+      addCharacterEffect(ctx, character.id, 'damage_up', 3n, 5n, "Death's Embrace");
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        "Death's Embrace empowers you with dark vitality!"
       );
       return;
-    case 'summoner_earth_familiar':
+    case 'summoner_earth_elemental':
       summonPet(
-        'Familiar',
-        'an earth familiar',
-        ['Cipher', 'Glim', 'Vex', 'Aster', 'Sigil'],
-        { key: 'pet_taunt', cooldownSeconds: 10n },
-        { hpBase: 22n, hpPerLevel: 6n, damageBase: 2n, damagePerLevel: 1n, weaponScalePercent: 30n }
+        'Earth Elemental', 'an earth elemental',
+        ['Granite', 'Boulder', 'Stone', 'Clay', 'Bedrock'],
+        { key: 'pet_taunt', cooldownSeconds: 8n },
+        { hpBase: 30n, hpPerLevel: 8n, damageBase: 2n, damagePerLevel: 1n, weaponScalePercent: 20n }
       );
       return;
-    case 'summoner_conjured_spike':
-      applyDamage(0n, 0n);
-      return;
-    case 'summoner_empower':
-      applyPartyEffect('damage_up', 2n, 3n, 'Empower');
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'ability',
-        'Empower strengthens the party.'
+    case 'summoner_fire_elemental':
+      summonPet(
+        'Fire Elemental', 'a fire elemental',
+        ['Ember', 'Blaze', 'Scorch', 'Cinder', 'Pyre'],
+        undefined,
+        { hpBase: 18n, hpPerLevel: 5n, damageBase: 5n, damagePerLevel: 3n, weaponScalePercent: 60n }
       );
       return;
-    case 'summoner_spectral_lance':
-      applyDamage(0n, 0n);
+    case 'summoner_water_elemental':
+      // Water elemental with heal ability
+      summonPet(
+        'Water Elemental', 'a water elemental',
+        ['Tide', 'Current', 'Flow', 'Rill', 'Mist'],
+        { key: 'pet_heal', cooldownSeconds: 6n },
+        { hpBase: 22n, hpPerLevel: 6n, damageBase: 2n, damagePerLevel: 1n, weaponScalePercent: 25n }
+      );
       return;
+    case 'summoner_primal_titan':
+      summonPet(
+        'Primal Titan', 'the Primal Titan',
+        ['Titan', 'Colossus', 'Ancient'],
+        { key: 'pet_aoe_heal', cooldownSeconds: 6n },
+        { hpBase: 60n, hpPerLevel: 12n, damageBase: 6n, damagePerLevel: 4n, weaponScalePercent: 70n }
+      );
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'The Primal Titan answers your call!'
+      );
+      return;
+    case 'summoner_conjure_sustenance': {
+      // Give all party members food items from existing templates
+      const bandageTemplate = [...ctx.db.itemTemplate.iter()].find(
+        (t: any) => t.name.toLowerCase().includes('bandage')
+      );
+      const foodTemplate = [...ctx.db.itemTemplate.iter()].find(
+        (t: any) => t.isJunk === false && t.wellFedDurationMicros > 0n
+      );
+      let conjured = 0;
+      for (const member of partyMembers) {
+        if (bandageTemplate && hasInventorySpace(ctx, member.id, bandageTemplate.id)) {
+          addItemToInventory(ctx, member.id, bandageTemplate.id, 2n);
+          conjured++;
+        }
+        if (foodTemplate && hasInventorySpace(ctx, member.id, foodTemplate.id)) {
+          addItemToInventory(ctx, member.id, foodTemplate.id, 1n);
+        }
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        `Conjure Sustenance provides supplies to ${conjured} party members.`
+      );
+      return;
+    }
+    case 'summoner_conjure_equipment': {
+      // Create temporary weapon and armor items marked isTemporary=true
+      const weaponCandidates = [...ctx.db.itemTemplate.iter()].filter(
+        (t: any) => t.slot === 'mainHand' && !t.isJunk
+      );
+      const armorCandidates = [...ctx.db.itemTemplate.iter()].filter(
+        (t: any) => t.slot === 'chest' && !t.isJunk
+      );
+      const seed = nowMicros + character.id;
+      const weaponTpl = weaponCandidates.length > 0
+        ? weaponCandidates[Number(seed % BigInt(weaponCandidates.length))]
+        : null;
+      const armorTpl = armorCandidates.length > 0
+        ? armorCandidates[Number((seed + 7n) % BigInt(armorCandidates.length))]
+        : null;
+      if (weaponTpl && hasInventorySpace(ctx, character.id, weaponTpl.id)) {
+        ctx.db.itemInstance.insert({
+          id: 0n,
+          templateId: weaponTpl.id,
+          ownerCharacterId: character.id,
+          equippedSlot: undefined,
+          quantity: 1n,
+          qualityTier: 'uncommon',
+          craftQuality: undefined,
+          displayName: `Conjured ${weaponTpl.name}`,
+          isNamed: undefined,
+          isTemporary: true,
+        });
+      }
+      if (armorTpl && hasInventorySpace(ctx, character.id, armorTpl.id)) {
+        ctx.db.itemInstance.insert({
+          id: 0n,
+          templateId: armorTpl.id,
+          ownerCharacterId: character.id,
+          equippedSlot: undefined,
+          quantity: 1n,
+          qualityTier: 'uncommon',
+          craftQuality: undefined,
+          displayName: `Conjured ${armorTpl.name}`,
+          isNamed: undefined,
+          isTemporary: true,
+        });
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        'Conjure Equipment materializes temporary gear.'
+      );
+      return;
+    }
     default:
       appendPrivateEvent(
         ctx,

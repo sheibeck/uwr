@@ -560,6 +560,14 @@ export const registerCharacterReducers = (deps: any) => {
           return;
         }
       }
+
+      // Delete all temporary items for this character (Summoner Conjure Equipment)
+      for (const instance of ctx.db.itemInstance.by_owner.filter(arg.characterId)) {
+        if (instance.isTemporary) {
+          ctx.db.itemInstance.id.delete(instance.id);
+        }
+      }
+
       const friends = friendUserIds(ctx, arg.ownerUserId);
       for (const friendId of friends) {
         appendPrivateEvent(

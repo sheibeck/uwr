@@ -5,7 +5,7 @@ import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, HEALING_THREAT_PERCEN
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
-import { applyPerkProcs } from '../helpers/combat';
+import { applyPerkProcs, addCharacterEffect } from '../helpers/combat';
 import { RENOWN_GAIN } from '../data/renown_data';
 import { rollQualityTier, rollQualityForDrop, generateAffixData, buildDisplayName } from '../helpers/items';
 import { incrementWorldStat } from '../helpers/world_events';
@@ -1491,13 +1491,103 @@ export const registerCombatReducers = (deps: any) => {
   });
 
   // Bard song tick: fires every 6 seconds to apply active song group effects.
-  // Full implementation in Phase 22 ability plans.
   spacetimedb.reducer('tick_bard_songs', { arg: deps.BardSongTick.rowType }, (ctx, { arg }) => {
     const combat = ctx.db.combatEncounter.id.find(arg.combatId);
-    if (!combat || combat.state !== 'active') return;
-    const song = [...ctx.db.activeBardSong.by_bard.filter(arg.bardCharacterId)][0];
-    if (!song) return;
-    // Song effect application will be implemented with Bard ability reducers in a later plan.
+    if (!combat || combat.state !== 'active') {
+      // Combat over — clean up active song rows for this bard
+      for (const song of ctx.db.activeBardSong.by_bard.filter(arg.bardCharacterId)) {
+        ctx.db.activeBardSong.id.delete(song.id);
+      }
+      return;
+    }
+
+    const bard = ctx.db.character.id.find(arg.bardCharacterId);
+    if (!bard) return;
+
+    const songs = [...ctx.db.activeBardSong.by_bard.filter(arg.bardCharacterId)];
+    if (songs.length === 0) return;
+
+    const activeSong = songs[0];
+
+    // Gather party members and living enemies
+    const partyMembers = [...ctx.db.combatParticipant.by_combat.filter(arg.combatId)]
+      .map((p: any) => ctx.db.character.id.find(p.characterId))
+      .filter(Boolean);
+    const enemies = [...ctx.db.combatEnemy.by_combat.filter(arg.combatId)]
+      .filter((e: any) => e.currentHp > 0n);
+
+    // Apply the current song's per-tick effect
+    switch (activeSong.songKey) {
+      case 'bard_discordant_note':
+        // AoE sonic damage to all enemies
+        for (const en of enemies) {
+          const dmg = 5n + bard.level;
+          const nextHp = en.currentHp > dmg ? en.currentHp - dmg : 0n;
+          ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
+        }
+        break;
+      case 'bard_melody_of_mending':
+        // Group HP regen tick
+        for (const member of partyMembers) {
+          if (!member) continue;
+          const fresh = ctx.db.character.id.find(member.id);
+          if (!fresh) continue;
+          const healed = fresh.hp + 10n > fresh.maxHp ? fresh.maxHp : fresh.hp + 10n;
+          ctx.db.character.id.update({ ...fresh, hp: healed });
+        }
+        break;
+      case 'bard_chorus_of_vigor':
+        // Group mana regen tick
+        for (const member of partyMembers) {
+          if (!member || member.maxMana === 0n) continue;
+          const fresh = ctx.db.character.id.find(member.id);
+          if (!fresh || fresh.maxMana === 0n) continue;
+          const gained = fresh.mana + 8n > fresh.maxMana ? fresh.maxMana : fresh.mana + 8n;
+          ctx.db.character.id.update({ ...fresh, mana: gained });
+        }
+        break;
+      case 'bard_march_of_wayfarers':
+        // Refresh travel discount for all party members
+        for (const member of partyMembers) {
+          if (!member) continue;
+          addCharacterEffect(ctx, member.id, 'travel_discount', 3n, 2n, 'March of Wayfarers');
+        }
+        break;
+      case 'bard_battle_hymn':
+        // AoE damage + party HP + mana regen simultaneously
+        for (const en of enemies) {
+          const dmg = 6n + bard.level;
+          const nextHp = en.currentHp > dmg ? en.currentHp - dmg : 0n;
+          ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
+        }
+        for (const member of partyMembers) {
+          if (!member) continue;
+          const fresh = ctx.db.character.id.find(member.id);
+          if (!fresh) continue;
+          const healed = fresh.hp + 8n > fresh.maxHp ? fresh.maxHp : fresh.hp + 8n;
+          ctx.db.character.id.update({ ...fresh, hp: healed });
+          const freshM = ctx.db.character.id.find(member.id);
+          if (freshM && freshM.maxMana > 0n) {
+            const gained = freshM.mana + 4n > freshM.maxMana ? freshM.maxMana : freshM.mana + 4n;
+            ctx.db.character.id.update({ ...freshM, mana: gained });
+          }
+        }
+        break;
+    }
+
+    // If the song was fading, delete it after this tick (no reschedule)
+    if (activeSong.isFading) {
+      ctx.db.activeBardSong.id.delete(activeSong.id);
+      return;
+    }
+
+    // Reschedule next tick in 6 seconds
+    ctx.db.bardSongTick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 6_000_000n),
+      bardCharacterId: arg.bardCharacterId,
+      combatId: arg.combatId,
+    });
   });
 
   spacetimedb.reducer('tick_casts', { arg: deps.CastTick.rowType }, (ctx) => {
