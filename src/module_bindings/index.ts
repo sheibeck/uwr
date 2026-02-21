@@ -160,6 +160,8 @@ import GroupMessageReducer from "./group_message_reducer";
 export { GroupMessageReducer };
 import LevelCharacterReducer from "./level_character_reducer";
 export { LevelCharacterReducer };
+import RecomputeRacialAllReducer from "./recompute_racial_all_reducer";
+export { RecomputeRacialAllReducer };
 import WhisperReducer from "./whisper_reducer";
 export { WhisperReducer };
 import CreateGroupReducer from "./create_group_reducer";
@@ -800,6 +802,8 @@ import RecipeDiscovered from "./recipe_discovered_type";
 export { RecipeDiscovered };
 import RecipeTemplate from "./recipe_template_type";
 export { RecipeTemplate };
+import RecomputeRacialAll from "./recompute_racial_all_type";
+export { RecomputeRacialAll };
 import RegenHealth from "./regen_health_type";
 export { RegenHealth };
 import Region from "./region_type";
@@ -2510,6 +2514,7 @@ const reducersSchema = __reducers(
   __reducerSchema("create_recipe_scroll", CreateRecipeScrollReducer),
   __reducerSchema("group_message", GroupMessageReducer),
   __reducerSchema("level_character", LevelCharacterReducer),
+  __reducerSchema("recompute_racial_all", RecomputeRacialAllReducer),
   __reducerSchema("whisper", WhisperReducer),
   __reducerSchema("create_group", CreateGroupReducer),
   __reducerSchema("join_group", JoinGroupReducer),
