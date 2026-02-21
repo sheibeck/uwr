@@ -9,6 +9,16 @@ files_modified:
   - spacetimedb/src/helpers/character.ts
   - spacetimedb/src/data/abilities/paladin_abilities.ts
   - spacetimedb/src/data/abilities/reaver_abilities.ts
+  - spacetimedb/src/data/abilities/cleric_abilities.ts
+  - spacetimedb/src/data/abilities/wizard_abilities.ts
+  - spacetimedb/src/data/abilities/druid_abilities.ts
+  - spacetimedb/src/data/abilities/bard_abilities.ts
+  - spacetimedb/src/data/abilities/enchanter_abilities.ts
+  - spacetimedb/src/data/abilities/spellblade_abilities.ts
+  - spacetimedb/src/data/abilities/ranger_abilities.ts
+  - spacetimedb/src/data/abilities/shaman_abilities.ts
+  - spacetimedb/src/data/abilities/necromancer_abilities.ts
+  - spacetimedb/src/data/abilities/beastmaster_abilities.ts
 autonomous: true
 requirements: [QUICK-229]
 
@@ -19,6 +29,8 @@ must_haves:
     - "Paladin's two physical melee attacks (Holy Strike, Radiant Smite) cost stamina, not mana"
     - "Reaver's Blood Rend (physical self-leeching melee) costs stamina, not mana"
     - "Paladin has a secondary stat (STR) feeding into mana pool via manaStatForClass blending"
+    - "All mana abilities have castSeconds >= 1n (no instant mana abilities)"
+    - "All stamina abilities have castSeconds = 0n (all stamina abilities are instant)"
   artifacts:
     - path: "spacetimedb/src/data/class_stats.ts"
       provides: "HYBRID_MANA_CLASSES set, HYBRID_MANA_MULTIPLIER constant, paladin secondary STR"
@@ -185,6 +197,103 @@ After editing the .ts files, the seeding system (ensureAbilityTemplates) will up
 - reaver_blood_rend has resource='stamina' in DB
 - paladin and reaver each have 2 stamina / 4 mana abilities
 - No publish errors
+  </done>
+</task>
+
+
+<task type="auto">
+  <name>Task 4: Enforce cast time rules — mana abilities min 1s, stamina abilities instant</name>
+  <files>
+    spacetimedb/src/data/abilities/cleric_abilities.ts
+    spacetimedb/src/data/abilities/wizard_abilities.ts
+    spacetimedb/src/data/abilities/druid_abilities.ts
+    spacetimedb/src/data/abilities/bard_abilities.ts
+    spacetimedb/src/data/abilities/paladin_abilities.ts
+    spacetimedb/src/data/abilities/enchanter_abilities.ts
+    spacetimedb/src/data/abilities/reaver_abilities.ts
+    spacetimedb/src/data/abilities/spellblade_abilities.ts
+    spacetimedb/src/data/abilities/ranger_abilities.ts
+    spacetimedb/src/data/abilities/shaman_abilities.ts
+    spacetimedb/src/data/abilities/necromancer_abilities.ts
+    spacetimedb/src/data/abilities/beastmaster_abilities.ts
+  </files>
+  <action>
+The rule: mana abilities must have castSeconds >= 1n. Stamina abilities must have castSeconds = 0n.
+
+Read each file and make the following precise changes (only castSeconds field):
+
+**cleric_abilities.ts** (3 changes — mana 0n → 1n):
+- cleric_blessing_of_might: castSeconds: 0n → 1n
+- cleric_sanctify: castSeconds: 0n → 1n
+- cleric_holy_nova: castSeconds: 0n → 1n
+
+**wizard_abilities.ts** (1 change — mana 0n → 1n):
+- wizard_mana_shield: castSeconds: 0n → 1n
+
+**druid_abilities.ts** (3 changes — mana 0n → 1n):
+- druid_natures_mark: castSeconds: 0n → 1n
+- druid_natures_gift: castSeconds: 0n → 1n
+- druid_shapeshifter_form: castSeconds: 0n → 1n
+
+**bard_abilities.ts** (6 changes — all bard abilities are mana 0n → 1n):
+- bard_discordant_note: castSeconds: 0n → 1n
+- bard_melody_of_mending: castSeconds: 0n → 1n
+- bard_chorus_of_vigor: castSeconds: 0n → 1n
+- bard_march_of_wayfarers: castSeconds: 0n → 1n
+- bard_battle_hymn: castSeconds: 0n → 1n
+- bard_finale: castSeconds: 0n → 1n
+
+**paladin_abilities.ts** (5 changes — mana 0n → 1n + stamina 1n → 0n):
+- paladin_shield_of_faith: castSeconds: 0n → 1n  (stays mana)
+- paladin_lay_on_hands: castSeconds: 0n → 1n  (stays mana)
+- paladin_devotion: castSeconds: 0n → 1n  (stays mana)
+- paladin_consecrated_ground: castSeconds: 0n → 1n  (stays mana)
+- paladin_radiant_smite: castSeconds: 1n → 0n  (was mana, Task 3 moved it to stamina — stamina must be instant)
+NOTE: paladin_holy_strike was mana with 0n, Task 3 moved it to stamina; it's already 0n so no castSeconds change needed.
+
+**enchanter_abilities.ts** (3 changes — mana 0n → 1n):
+- enchanter_clarity: castSeconds: 0n → 1n
+- enchanter_haste: castSeconds: 0n → 1n
+- enchanter_bewilderment: castSeconds: 0n → 1n
+
+**reaver_abilities.ts** (3 changes — mana 0n → 1n):
+NOTE: blood_rend was moved to stamina by Task 3; it's already castSeconds: 0n so no change needed.
+- reaver_soul_rend: castSeconds: 0n → 1n  (stays mana)
+- reaver_dread_aura: castSeconds: 0n → 1n  (stays mana)
+- reaver_deaths_embrace: castSeconds: 0n → 1n  (stays mana)
+
+**spellblade_abilities.ts** (3 changes — mana 0n → 1n):
+- spellblade_frost_armor: castSeconds: 0n → 1n
+- spellblade_stone_skin: castSeconds: 0n → 1n
+- spellblade_magma_shield: castSeconds: 0n → 1n
+
+**ranger_abilities.ts** (2 changes — mana 0n → 1n):
+- ranger_track: castSeconds: 0n → 1n
+- ranger_natures_balm: castSeconds: 0n → 1n
+
+**shaman_abilities.ts** (2 changes — mana 0n → 1n):
+- shaman_ancestral_ward: castSeconds: 0n → 1n
+- shaman_earthquake: castSeconds: 0n → 1n
+
+**necromancer_abilities.ts** (1 change — mana 0n → 1n):
+- necromancer_plague_lord_form: castSeconds: 0n → 1n
+
+**beastmaster_abilities.ts** (1 change — stamina 5n → 0n):
+- beastmaster_call_beast: castSeconds: 5n → 0n  (stamina must be instant)
+
+Do NOT change abilities that already satisfy the rule (mana >= 1n or stamina = 0n).
+Do NOT touch warrior, rogue, monk — they are pure stamina classes and all already 0n.
+Do NOT touch summoner or remaining necromancer/shaman abilities with castSeconds > 1n — those already satisfy mana >= 1n.
+  </action>
+  <verify>
+Publish the module to confirm no TypeScript errors:
+  spacetime publish uwr --project-path C:/projects/uwr/spacetimedb 2>&1 | tail -5
+
+Spot check one file:
+  grep -A3 "bard_discordant_note\|cleric_blessing_of_might\|beastmaster_call_beast" spacetimedb/src/data/abilities/bard_abilities.ts spacetimedb/src/data/abilities/cleric_abilities.ts spacetimedb/src/data/abilities/beastmaster_abilities.ts
+  </verify>
+  <done>
+All listed changes applied. No mana ability has castSeconds: 0n. No stamina ability has castSeconds > 0n. Module publishes cleanly.
   </done>
 </task>
 
