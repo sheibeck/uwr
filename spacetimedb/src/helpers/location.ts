@@ -11,13 +11,9 @@ export const DEFAULT_LOCATION_SPAWNS = 3;
 export const RESOURCE_GATHER_CAST_MICROS = 8_000_000n;
 
 export function getLocationSpawnCap(ctx: any, locationId: bigint): number {
-  const location = ctx.db.location.id.find(locationId);
-  if (!location) return 6;
-  const region = ctx.db.region.id.find(location.regionId);
-  const dm = region?.dangerMultiplier ?? 100n;
-  if (dm < 130n) return 6;   // T1 starter
-  if (dm < 190n) return 9;   // T2 border
-  return 12;                  // T3 dungeon/high
+  // Flat 3-6 per location, seeded by locationId for consistency across calls.
+  // Danger is expressed through isSocial (social enemies pull together) not quantity.
+  return 3 + Number(locationId % 4n);
 }
 
 export function computeLocationTargetLevel(ctx: any, locationId: bigint, baseLevel: bigint) {
