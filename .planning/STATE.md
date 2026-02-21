@@ -504,10 +504,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 255 | Water elemental now heals itself — pet_heal's candidate loop was participant-only; added pet self-check after the participant scan using currentHp/maxHp ratio; healTargetIsPet flag dispatches to activePet.id.update when the pet wins the lowest-ratio comparison | 2026-02-21 | ac427f9 | [255-water-elemental-is-not-healing-itself](./quick/255-water-elemental-is-not-healing-itself/) |
 | 256 | Primal Titan pet_aoe_heal now heals the pet itself — after the participant loop in the pet_aoe_heal case, added a self-heal block: checks pet.currentHp < maxHp, applies same formula (10 + level*5), clamps to maxHp, updates via activePet.id.update; healedCount++ keeps early-return guard consistent | 2026-02-21 | b35e007 | [256-primal-titan-pet-aoe-heal-should-also-he](./quick/256-primal-titan-pet-aoe-heal-should-also-he/) |
 | 257 | Modifier reagent nodes capped at 1 per location, quantity 1 — spawnResourceNode checks CRAFTING_MODIFIER_DEFS; returns early if any non-depleted modifier reagent already exists at location; sets quantity=1 instead of 2-6 for all modifier reagents | 2026-02-21 | 2930a7d | [257-modifier-reagent-nodes-capped-at-1-per-l](./quick/257-modifier-reagent-nodes-capped-at-1-per-l/) |
+| 258 | Pet health bar not updating in UI when pet heals itself — out-of-combat pet_heal and pet_aoe_heal loops never wrote currentHp back to ActivePet; added pet as heal candidate in pet_heal (healTargetIsPet flag) and self-heal block in pet_aoe_heal, both with combined activePet.id.update calls | 2026-02-21 | d883212 | [258-pet-health-bar-not-updating-in-ui-when-p](./quick/258-pet-health-bar-not-updating-in-ui-when-p/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 256: Primal Titan pet_aoe_heal now heals the pet itself
+Last activity: 2026-02-21 - Completed quick task 258: Pet health bar not updating in UI when pet heals itself
 
 ## Last Session
 
