@@ -471,6 +471,24 @@ export function executeAbility(
         petId: pet.id,
         value: SUMMONER_PET_INITIAL_AGGRO,
       });
+    } else if (inActiveCombat && ability?.key === 'pet_aoe_heal') {
+      // Primal Titan draws aggro from ALL enemies on summon
+      for (const combatEnemy of ctx.db.combatEnemy.by_combat.filter(combatId!)) {
+        if (combatEnemy.currentHp === 0n) continue; // skip dead enemies
+        ctx.db.aggroEntry.insert({
+          id: 0n,
+          combatId: combatId!,
+          enemyId: combatEnemy.id,
+          characterId: character.id,
+          petId: pet.id,
+          value: SUMMONER_PET_INITIAL_AGGRO,
+        });
+        ctx.db.combatEnemy.id.update({
+          ...combatEnemy,
+          aggroTargetPetId: pet.id,
+          aggroTargetCharacterId: character.id,
+        });
+      }
     }
     appendPrivateEvent(
       ctx,
@@ -2220,6 +2238,38 @@ export function executePetAbility(
     ctx.db.character.id.update({ ...healTarget, hp: newHp });
 
     const message = `${pet.name} heals ${healTarget.name} for ${healAmount}.`;
+    appendPrivateEvent(ctx, owner.id, owner.ownerUserId, 'ability', message);
+    if (actorGroupId) {
+      appendGroupEvent(ctx, actorGroupId, owner.id, 'ability', message);
+    }
+    return true;
+  }
+
+  if (abilityKey === 'pet_aoe_heal') {
+    const healAmount = 10n + pet.level * 5n;
+    let healedCount = 0n;
+
+    // Heal owner first if injured
+    if (owner.hp > 0n && owner.hp < owner.maxHp) {
+      const newHp = owner.hp + healAmount > owner.maxHp ? owner.maxHp : owner.hp + healAmount;
+      ctx.db.character.id.update({ ...owner, hp: newHp });
+      healedCount++;
+    }
+
+    // Heal all active combat participants (party members)
+    for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
+      if (participant.status !== 'active') continue;
+      const member = ctx.db.character.id.find(participant.characterId);
+      if (!member || member.hp === 0n || member.hp >= member.maxHp) continue;
+      if (member.id === owner.id) continue; // already healed above
+      const newHp = member.hp + healAmount > member.maxHp ? member.maxHp : member.hp + healAmount;
+      ctx.db.character.id.update({ ...member, hp: newHp });
+      healedCount++;
+    }
+
+    if (healedCount === 0n) return false; // Nothing to heal
+
+    const message = `${pet.name} heals the party for ${healAmount}!`;
     appendPrivateEvent(ctx, owner.id, owner.ownerUserId, 'ability', message);
     if (actorGroupId) {
       appendGroupEvent(ctx, actorGroupId, owner.id, 'ability', message);
