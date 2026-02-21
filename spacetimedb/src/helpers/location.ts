@@ -179,11 +179,22 @@ export function spawnResourceNode(ctx: any, locationId: bigint, characterId?: bi
     }
     roll -= entry.weight;
   }
+  // Modifier reagents (Glowing Stone, Clear Crystal, etc.) are rare: cap at 1 per location,
+  // quantity always 1. If one already exists at this location, skip spawning another.
+  const modifierNames = new Set(CRAFTING_MODIFIER_DEFS.map((m) => m.name));
+  const isModifierReagent = modifierNames.has(chosen.template.name);
+  if (isModifierReagent) {
+    for (const existing of ctx.db.resourceNode.by_location.filter(locationId)) {
+      if (modifierNames.has(existing.name) && existing.state !== 'depleted') {
+        return undefined; // Already one here — enforce 1-per-location cap
+      }
+    }
+  }
   const quantitySeed = ctx.timestamp.microsSinceUnixEpoch + chosen.template.id + locationId + offset;
   const minQty = 2n;
   const maxQty = 6n;
   const qtyRange = maxQty - minQty + 1n;
-  const quantity = minQty + (quantitySeed % qtyRange);
+  const quantity = isModifierReagent ? 1n : minQty + (quantitySeed % qtyRange);
   return ctx.db.resourceNode.insert({
     id: 0n,
     locationId,
