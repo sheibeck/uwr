@@ -19,8 +19,9 @@ export const useAuth = ({ connActive, player }: UseAuthArgs) => {
 
   const authEmail = ref(getStoredEmail() ?? '');
   const tokenCleared = ref(false);
-  const isPendingLogin = ref(Boolean(getStoredIdToken()) && player.value?.userId == null);
-  const isLoggedIn = computed(() => !tokenCleared.value && Boolean(getStoredIdToken()) && player.value?.userId != null);
+  const hasToken = ref(Boolean(getStoredIdToken()));
+  const isPendingLogin = ref(hasToken.value && player.value?.userId == null);
+  const isLoggedIn = computed(() => !tokenCleared.value && hasToken.value && player.value?.userId != null);
   const authMessage = ref('');
   const authError = ref('');
 
