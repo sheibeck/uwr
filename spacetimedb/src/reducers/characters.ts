@@ -89,16 +89,7 @@ export const registerCharacterReducers = (deps: any) => {
     appendLocationEvent,
     ensureSpawnsForLocation,
     computeBaseStats,
-    manaStatForClass,
-    usesMana,
-    baseArmorForClass,
-    BASE_HP,
-    HP_STR_MULTIPLIER,
-    BASE_MANA,
-    MANA_MULTIPLIER,
-    HYBRID_MANA_MULTIPLIER,
-    HYBRID_MANA_CLASSES,
-    normalizeClassName,
+    recomputeCharacterDerived,
     ScheduleAt,
     CharacterLogoutTick,
     grantStarterItems,
@@ -267,12 +258,6 @@ export const registerCharacterReducers = (deps: any) => {
         wis: classStats.wis + racial.wis,
         int: classStats.int + racial.int,
       };
-      const manaStat = manaStatForClass(className, baseStats);
-      const maxHp = BASE_HP + baseStats.str * HP_STR_MULTIPLIER + (racial.racialMaxHp || 0n);
-      const manaMultiplier = HYBRID_MANA_CLASSES.has(normalizeClassName(className)) ? HYBRID_MANA_MULTIPLIER : MANA_MULTIPLIER;
-      const maxMana = usesMana(className) ? BASE_MANA + manaStat * manaMultiplier + (racial.racialMaxMana || 0n) : 0n;
-      const baseMaxStamina = 20n + (racial.racialMaxStamina || 0n);
-      const armorClass = baseArmorForClass(className) + (racial.racialArmorBonus || 0n);
       const character = ctx.db.character.insert({
         id: 0n,
         ownerUserId: userId,
@@ -284,31 +269,34 @@ export const registerCharacterReducers = (deps: any) => {
         gold: 0n,
         locationId: startingLocation.id,
         boundLocationId: startingLocation.id,
-        hp: maxHp,
-        maxHp,
-        mana: maxMana,
-        maxMana,
+        // base stats — identity data, needed for recomputeCharacterDerived
         str: baseStats.str,
         dex: baseStats.dex,
         cha: baseStats.cha,
         wis: baseStats.wis,
         int: baseStats.int,
-        hitChance: baseStats.dex * 15n + (racial.racialHitBonus || 0n),
-        dodgeChance: baseStats.dex * 5n + (racial.racialDodgeBonus || 0n),
-        parryChance: baseStats.dex * 4n + (racial.racialParryBonus || 0n),
-        critMelee: baseStats.dex * 12n + (racial.racialCritBonus || 0n),
-        critRanged: baseStats.dex * 12n + (racial.racialCritBonus || 0n),
-        critDivine: baseStats.wis * 12n,
-        critArcane: baseStats.int * 12n,
-        armorClass,
-        perception: baseStats.wis * 25n + (racial.racialPerceptionBonus || 0n),
-        search: baseStats.int * 25n,
-        ccPower: baseStats.cha * 15n,
-        vendorBuyMod: baseStats.cha * 10n,
-        vendorSellMod: baseStats.cha * 8n,
-        stamina: baseMaxStamina,
-        maxStamina: baseMaxStamina,
+        // derived stats — placeholder zeros, recomputeCharacterDerived will set these
+        hp: 0n,
+        maxHp: 0n,
+        mana: 0n,
+        maxMana: 0n,
+        stamina: 0n,
+        maxStamina: 0n,
+        hitChance: 0n,
+        dodgeChance: 0n,
+        parryChance: 0n,
+        critMelee: 0n,
+        critRanged: 0n,
+        critDivine: 0n,
+        critArcane: 0n,
+        armorClass: 0n,
+        perception: 0n,
+        search: 0n,
+        ccPower: 0n,
+        vendorBuyMod: 0n,
+        vendorSellMod: 0n,
         createdAt: ctx.timestamp,
+        // racial columns (identity data)
         racialSpellDamage: racial.racialSpellDamage > 0n ? racial.racialSpellDamage : undefined,
         racialPhysDamage: racial.racialPhysDamage > 0n ? racial.racialPhysDamage : undefined,
         racialMaxHp: racial.racialMaxHp > 0n ? racial.racialMaxHp : undefined,
@@ -329,6 +317,21 @@ export const registerCharacterReducers = (deps: any) => {
         racialPerceptionBonus: racial.racialPerceptionBonus > 0n ? racial.racialPerceptionBonus : undefined,
         racialLootBonus: racial.racialLootBonus > 0n ? racial.racialLootBonus : undefined,
       });
+
+      // Compute all derived stats (maxHp, maxMana, maxStamina, hitChance, armorClass, etc.)
+      // using the single source of truth — no duplication of formulas here.
+      recomputeCharacterDerived(ctx, character);
+
+      // New characters start at full hp/mana/stamina — read back the recomputed max values.
+      const recomputed = ctx.db.character.id.find(character.id);
+      if (recomputed) {
+        ctx.db.character.id.update({
+          ...recomputed,
+          hp: recomputed.maxHp,
+          mana: recomputed.maxMana,
+          stamina: recomputed.maxStamina,
+        });
+      }
 
       grantStarterItems(ctx, character, ensureStarterItemTemplates);
 
