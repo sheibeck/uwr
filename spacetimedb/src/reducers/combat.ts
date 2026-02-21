@@ -196,12 +196,15 @@ export const startCombatForSpawn = (
         targetEnemyId: undefined,
       });
       if (p.className?.toLowerCase() === 'summoner') {
-        for (const en of ctx.db.combatEnemy.by_combat.filter(combat.id)) {
-          if (en.currentHp <= 0n) continue;
+        // Single-target taunt: only generate initial aggro against the primary target
+        // (the spawn combat was initiated against), not every enemy in the encounter.
+        const primaryEnemy = [...ctx.db.combatEnemy.by_combat.filter(combat.id)]
+          .find(en => en.spawnId === spawnToUse.id && en.currentHp > 0n);
+        if (primaryEnemy) {
           ctx.db.aggroEntry.insert({
             id: 0n,
             combatId: combat.id,
-            enemyId: en.id,
+            enemyId: primaryEnemy.id,
             characterId: p.id,
             petId: ap.id,
             value: SUMMONER_PET_INITIAL_AGGRO,

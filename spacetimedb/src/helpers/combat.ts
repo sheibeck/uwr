@@ -457,19 +457,16 @@ export function executeAbility(
       nextAutoAttackAt: inActiveCombat ? nowMicros + AUTO_ATTACK_INTERVAL : undefined,
     });
     if (inActiveCombat && character.className?.toLowerCase() === 'summoner') {
-      // Summoner pets are the primary combat presence — give them immediate aggro
-      // so they draw enemy attention before the summoner's own threat builds up.
-      for (const en of ctx.db.combatEnemy.by_combat.filter(combatId)) {
-        if (en.currentHp <= 0n) continue;
-        ctx.db.aggroEntry.insert({
-          id: 0n,
-          combatId,
-          enemyId: en.id,
-          characterId: character.id,
-          petId: pet.id,
-          value: SUMMONER_PET_INITIAL_AGGRO,
-        });
-      }
+      // Single-target taunt: only generate initial aggro against the targeted enemy,
+      // not an AoE taunt against every enemy in combat.
+      ctx.db.aggroEntry.insert({
+        id: 0n,
+        combatId,
+        enemyId: enemy!.id,
+        characterId: character.id,
+        petId: pet.id,
+        value: SUMMONER_PET_INITIAL_AGGRO,
+      });
     }
     appendPrivateEvent(
       ctx,
