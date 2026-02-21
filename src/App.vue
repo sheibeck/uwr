@@ -2359,11 +2359,11 @@ const handleChoosePerk = (perkKey: string) => {
 }
 
 @keyframes lootBorderPulse {
-  0%   { box-shadow: 0 0 4px 2px rgba(255, 180, 40, 0.0),  border-color: rgba(255, 255, 255, 0.10); }
-  20%  { box-shadow: 0 0 12px 5px rgba(255, 180, 40, 0.75), border-color: rgba(255, 190, 60, 0.90); }
-  50%  { box-shadow: 0 0 20px 8px rgba(255, 160, 20, 0.55), border-color: rgba(255, 200, 80, 0.80); }
-  80%  { box-shadow: 0 0 12px 5px rgba(255, 180, 40, 0.40), border-color: rgba(255, 190, 60, 0.60); }
-  100% { box-shadow: 0 0 4px 2px rgba(255, 180, 40, 0.0),  border-color: rgba(255, 255, 255, 0.10); }
+  0%   { box-shadow: 0 0 4px 2px rgba(255, 180, 40, 0.0);   border-color: rgba(255, 255, 255, 0.10); }
+  20%  { box-shadow: 0 0 12px 5px rgba(255, 180, 40, 0.75); border-color: rgba(255, 190, 60, 0.90); }
+  50%  { box-shadow: 0 0 20px 8px rgba(255, 160, 20, 0.55); border-color: rgba(255, 200, 80, 0.80); }
+  80%  { box-shadow: 0 0 12px 5px rgba(255, 180, 40, 0.40); border-color: rgba(255, 190, 60, 0.60); }
+  100% { box-shadow: 0 0 4px 2px rgba(255, 180, 40, 0.0);   border-color: rgba(255, 255, 255, 0.10); }
 }
 
 .loot-panel-pulse {
