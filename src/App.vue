@@ -2259,10 +2259,6 @@ const formatTimestamp = (ts: { microsSinceUnixEpoch: bigint }) => {
 
 const goToCamp = () => {
   deselectCharacter();
-  // Close all open panels to reset UI state
-  for (const id of openPanels.value) {
-    closePanelById(id);
-  }
 };
 
 const handleChoosePerk = (perkKey: string) => {
