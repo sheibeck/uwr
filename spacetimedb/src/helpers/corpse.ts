@@ -53,6 +53,9 @@ export function createCorpse(ctx: any, character: any): typeof Corpse.rowType | 
       corpseId: corpse.id,
       itemInstanceId: item.id,
     });
+
+    // Transfer ownership away from character (0n sentinel = on corpse, no owner)
+    ctx.db.itemInstance.id.update({ ...item, ownerCharacterId: 0n });
   }
 
   return corpse;
