@@ -485,10 +485,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 234 | Ensure all healer/support enemies have a meaningful ability — frost_mend+ember_mend (healer enemies), ember_daze/dust_cloud/wisp_drain/soot_pulse (support enemies with no abilities), moth_dust/sonic_screech wired to Dusk Moth/Gloomwing Bat; fixed all_allies targetRule in pickEnemyTarget so warchief_rally/bolster_defenses actually buff all allies | 2026-02-21 | fde441d | [234-ensure-all-healer-and-support-enemies-ha](./quick/234-ensure-all-healer-and-support-enemies-ha/) |
 | 235 | Hotbar right-click shows persistent ability description popup; hover now shows stats-only (no description) — abilityPopup ref + showAbilityPopup/hideAbilityPopup in App.vue, @contextmenu.prevent on hotbar buttons, global click-to-dismiss via document listener, description removed from hotbarTooltipItem return | 2026-02-21 | 5124b05 | [235-hotbar-right-click-shows-ability-descrip](./quick/235-hotbar-right-click-shows-ability-descrip/) |
 | 236 | Fix class abilities with magic damage type incorrectly set to none — audited all 16 class ability files; all 50 damageType: 'none' entries verified as correctly classified (heals, buffs, shields, stances, summons, utilities, debuff-only); no changes needed | 2026-02-21 | a978cd8 | [236-fix-class-abilities-with-magic-damage-ty](./quick/236-fix-class-abilities-with-magic-damage-ty/) |
+| 237 | Fix enemy ability targeting to respect pet aggro — pickEnemyTarget now returns { characterId?, petId? } and includes pet aggro entries in candidate pool; CombatEnemyCast gains targetPetId; executeEnemyAbility routes damage to pet when targetPetId set; summoner threat loop guards !entry.petId so own hits don't update pet's aggro entry | 2026-02-21 | 87fc0c0 | [237-fix-enemy-ability-targeting-to-respect-p](./quick/237-fix-enemy-ability-targeting-to-respect-p/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 236: Fix class abilities with magic damage type incorrectly set to none
+Last activity: 2026-02-21 - Completed quick task 237: Fix enemy ability targeting to respect pet aggro
 
 ## Last Session
 
