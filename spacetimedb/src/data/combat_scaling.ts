@@ -111,11 +111,11 @@ export const TANK_THREAT_MULTIPLIER = 150n;
 export const HEALER_THREAT_MULTIPLIER = 50n;
 
 /**
- * Summoner threat multiplier (25n = 0.25x on 100n scale).
- * Summoners rely on pets as their primary combat presence — their own spells
- * should not pull aggro off pets.
+ * Summoner threat multiplier (75n = 0.75x on 100n scale).
+ * Summoners generate significant threat themselves so they are at meaningful risk
+ * in combat — pets handle single-target taunt but the summoner is far from safe.
  */
-export const SUMMONER_THREAT_MULTIPLIER = 25n;
+export const SUMMONER_THREAT_MULTIPLIER = 75n;
 
 /**
  * Starting aggro value granted to summoner pets when they are summoned.
