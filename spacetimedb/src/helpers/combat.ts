@@ -988,10 +988,8 @@ export function executeAbility(
             combatId,
           });
         }
-        // Insert new active song (delete previous first if exists)
-        if (prevSong) {
-          ctx.db.activeBardSong.id.delete(prevSong.id);
-        }
+        // Insert new active song. The previous (fading) row is kept alive in DB
+        // so it fires one final tick and then deletes itself naturally.
         ctx.db.activeBardSong.insert({
           id: 0n,
           bardCharacterId: character.id,

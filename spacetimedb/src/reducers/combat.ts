@@ -1753,116 +1753,121 @@ export const registerCombatReducers = (deps: any) => {
     const songs = [...ctx.db.activeBardSong.by_bard.filter(arg.bardCharacterId)];
     if (songs.length === 0) return;
 
-    const activeSong = songs[0];
-
-    // Gather party members and living enemies
+    // Gather party members and living enemies (shared across all songs this tick)
     const partyMembers = [...ctx.db.combatParticipant.by_combat.filter(arg.combatId)]
       .map((p: any) => ctx.db.character.id.find(p.characterId))
       .filter(Boolean);
     const enemies = [...ctx.db.combatEnemy.by_combat.filter(arg.combatId)]
       .filter((e: any) => e.currentHp > 0n);
 
-    // Apply the current song's per-tick effect
-    switch (activeSong.songKey) {
-      case 'bard_discordant_note': {
-        // AoE sonic damage to all enemies — scales with level + CHA
-        for (const en of enemies) {
-          const dmg = 8n + bard.level * 2n + bard.cha;
-          const nextHp = en.currentHp > dmg ? en.currentHp - dmg : 0n;
-          ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
-        }
-        // Small mana drain per pulse
-        const freshBardDN = ctx.db.character.id.find(bard.id);
-        if (freshBardDN && freshBardDN.mana > 0n) {
-          const manaCost = 3n;
-          const newMana = freshBardDN.mana > manaCost ? freshBardDN.mana - manaCost : 0n;
-          ctx.db.character.id.update({ ...freshBardDN, mana: newMana });
-        }
-        break;
-      }
-      case 'bard_melody_of_mending':
-        // Group HP regen tick
-        for (const member of partyMembers) {
-          if (!member) continue;
-          const fresh = ctx.db.character.id.find(member.id);
-          if (!fresh) continue;
-          const healed = fresh.hp + 10n > fresh.maxHp ? fresh.maxHp : fresh.hp + 10n;
-          ctx.db.character.id.update({ ...fresh, hp: healed });
-        }
-        break;
-      case 'bard_chorus_of_vigor':
-        // Group mana regen tick
-        for (const member of partyMembers) {
-          if (!member || member.maxMana === 0n) continue;
-          const fresh = ctx.db.character.id.find(member.id);
-          if (!fresh || fresh.maxMana === 0n) continue;
-          const gained = fresh.mana + 8n > fresh.maxMana ? fresh.maxMana : fresh.mana + 8n;
-          ctx.db.character.id.update({ ...fresh, mana: gained });
-        }
-        break;
-      case 'bard_march_of_wayfarers':
-        // Refresh travel discount for all party members
-        for (const member of partyMembers) {
-          if (!member) continue;
-          addCharacterEffect(ctx, member.id, 'travel_discount', 3n, 2n, 'March of Wayfarers');
-        }
-        break;
-      case 'bard_battle_hymn': {
-        // AoE damage + party HP + mana regen simultaneously — scales with level + CHA
-        for (const en of enemies) {
-          const dmg = 10n + bard.level * 2n + bard.cha;
-          const nextHp = en.currentHp > dmg ? en.currentHp - dmg : 0n;
-          ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
-        }
-        // Small mana drain per pulse
-        const freshBardBH = ctx.db.character.id.find(bard.id);
-        if (freshBardBH && freshBardBH.mana > 0n) {
-          const manaCost = 4n;
-          const newMana = freshBardBH.mana > manaCost ? freshBardBH.mana - manaCost : 0n;
-          ctx.db.character.id.update({ ...freshBardBH, mana: newMana });
-        }
-        for (const member of partyMembers) {
-          if (!member) continue;
-          const fresh = ctx.db.character.id.find(member.id);
-          if (!fresh) continue;
-          const healed = fresh.hp + 8n > fresh.maxHp ? fresh.maxHp : fresh.hp + 8n;
-          ctx.db.character.id.update({ ...fresh, hp: healed });
-          const freshM = ctx.db.character.id.find(member.id);
-          if (freshM && freshM.maxMana > 0n) {
-            const gained = freshM.mana + 4n > freshM.maxMana ? freshM.maxMana : freshM.mana + 4n;
-            ctx.db.character.id.update({ ...freshM, mana: gained });
+    // Process ALL songs (both active and fading) in this tick pass.
+    // Fading songs fire their final effect then get deleted. Non-fading ones are rescheduled.
+    for (const song of songs) {
+      switch (song.songKey) {
+        case 'bard_discordant_note': {
+          // AoE sonic damage to all enemies — scales with level + CHA
+          for (const en of enemies) {
+            const dmg = 8n + bard.level * 2n + bard.cha;
+            const nextHp = en.currentHp > dmg ? en.currentHp - dmg : 0n;
+            ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
           }
+          // Small mana drain per pulse
+          const freshBardDN = ctx.db.character.id.find(bard.id);
+          if (freshBardDN && freshBardDN.mana > 0n) {
+            const manaCost = 3n;
+            const newMana = freshBardDN.mana > manaCost ? freshBardDN.mana - manaCost : 0n;
+            ctx.db.character.id.update({ ...freshBardDN, mana: newMana });
+          }
+          appendPrivateEvent(ctx, bard.id, bard.ownerUserId, 'ability', 'Discordant Note deals sonic damage to all enemies.');
+          break;
         }
-        break;
+        case 'bard_melody_of_mending': {
+          // Group HP regen tick — accumulate total healed for feedback
+          let totalHealed = 0n;
+          for (const member of partyMembers) {
+            if (!member) continue;
+            const fresh = ctx.db.character.id.find(member.id);
+            if (!fresh) continue;
+            const newHp = fresh.hp + 10n > fresh.maxHp ? fresh.maxHp : fresh.hp + 10n;
+            totalHealed += newHp - fresh.hp;
+            ctx.db.character.id.update({ ...fresh, hp: newHp });
+          }
+          logPrivateAndGroup(ctx, bard, 'heal', `Melody of Mending heals the group for ${totalHealed} health.`);
+          break;
+        }
+        case 'bard_chorus_of_vigor': {
+          // Group mana regen tick — accumulate total restored for feedback
+          let totalMana = 0n;
+          for (const member of partyMembers) {
+            if (!member || member.maxMana === 0n) continue;
+            const fresh = ctx.db.character.id.find(member.id);
+            if (!fresh || fresh.maxMana === 0n) continue;
+            const newMana = fresh.mana + 8n > fresh.maxMana ? fresh.maxMana : fresh.mana + 8n;
+            totalMana += newMana - fresh.mana;
+            ctx.db.character.id.update({ ...fresh, mana: newMana });
+          }
+          logPrivateAndGroup(ctx, bard, 'ability', `Chorus of Vigor restores ${totalMana} mana to the group.`);
+          break;
+        }
+        case 'bard_march_of_wayfarers':
+          // Refresh travel discount for all party members
+          for (const member of partyMembers) {
+            if (!member) continue;
+            addCharacterEffect(ctx, member.id, 'travel_discount', 3n, 2n, 'March of Wayfarers');
+          }
+          appendPrivateEvent(ctx, bard.id, bard.ownerUserId, 'ability', 'March of Wayfarers refreshes travel stamina discount.');
+          break;
+        case 'bard_battle_hymn': {
+          // AoE damage + party HP + mana regen simultaneously — scales with level + CHA
+          for (const en of enemies) {
+            const dmg = 10n + bard.level * 2n + bard.cha;
+            const nextHp = en.currentHp > dmg ? en.currentHp - dmg : 0n;
+            ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
+          }
+          // Small mana drain per pulse
+          const freshBardBH = ctx.db.character.id.find(bard.id);
+          if (freshBardBH && freshBardBH.mana > 0n) {
+            const manaCost = 4n;
+            const newMana = freshBardBH.mana > manaCost ? freshBardBH.mana - manaCost : 0n;
+            ctx.db.character.id.update({ ...freshBardBH, mana: newMana });
+          }
+          let totalHealedBH = 0n;
+          let totalManaBH = 0n;
+          for (const member of partyMembers) {
+            if (!member) continue;
+            const fresh = ctx.db.character.id.find(member.id);
+            if (!fresh) continue;
+            const newHp = fresh.hp + 8n > fresh.maxHp ? fresh.maxHp : fresh.hp + 8n;
+            totalHealedBH += newHp - fresh.hp;
+            ctx.db.character.id.update({ ...fresh, hp: newHp });
+            const freshM = ctx.db.character.id.find(member.id);
+            if (freshM && freshM.maxMana > 0n) {
+              const newManaM = freshM.mana + 4n > freshM.maxMana ? freshM.maxMana : freshM.mana + 4n;
+              totalManaBH += newManaM - freshM.mana;
+              ctx.db.character.id.update({ ...freshM, mana: newManaM });
+            }
+          }
+          logPrivateAndGroup(ctx, bard, 'heal', `Battle Hymn heals the group for ${totalHealedBH} health and restores ${totalManaBH} mana.`);
+          break;
+        }
+      }
+
+      // Fading songs fire their final effect and are then removed — no reschedule
+      if (song.isFading) {
+        ctx.db.activeBardSong.id.delete(song.id);
       }
     }
 
-    // Notify the bard that their song ticked
-    const songTickFeedback: Record<string, string> = {
-      bard_discordant_note: 'Discordant Note deals sonic damage to all enemies.',
-      bard_melody_of_mending: 'Melody of Mending heals the party.',
-      bard_chorus_of_vigor: 'Chorus of Vigor restores mana to the party.',
-      bard_march_of_wayfarers: 'March of Wayfarers refreshes travel stamina discount.',
-      bard_battle_hymn: 'Battle Hymn strikes enemies and heals the party.',
-    };
-    const tickFeedback = songTickFeedback[activeSong.songKey];
-    if (tickFeedback) {
-      appendPrivateEvent(ctx, bard.id, bard.ownerUserId, 'ability', tickFeedback);
+    // Reschedule next tick only if at least one non-fading song remains
+    const stillActive = songs.filter((s: any) => !s.isFading);
+    if (stillActive.length > 0) {
+      ctx.db.bardSongTick.insert({
+        scheduledId: 0n,
+        scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 6_000_000n),
+        bardCharacterId: arg.bardCharacterId,
+        combatId: arg.combatId,
+      });
     }
-
-    // If the song was fading, delete it after this tick (no reschedule)
-    if (activeSong.isFading) {
-      ctx.db.activeBardSong.id.delete(activeSong.id);
-      return;
-    }
-
-    // Reschedule next tick in 6 seconds
-    ctx.db.bardSongTick.insert({
-      scheduledId: 0n,
-      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 6_000_000n),
-      bardCharacterId: arg.bardCharacterId,
-      combatId: arg.combatId,
-    });
   });
 
   spacetimedb.reducer('tick_casts', { arg: deps.CastTick.rowType }, (ctx) => {
