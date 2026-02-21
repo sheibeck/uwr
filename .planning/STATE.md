@@ -470,9 +470,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 221 | Fix mana regen +1 racial bonus not applying — gear manaRegen affix bonuses were silently dropped from regen tick (now added via getEquippedBonuses); added recompute_racial_all admin reducer to repair legacy characters where racialManaRegen is null | 2026-02-21 | 280961f | [221-fix-mana-regen-plus-one-racial-bonus-not](./quick/221-fix-mana-regen-plus-one-racial-bonus-not/) |
 | 222 | Summoner aggro mechanics — pet single-target taunt only (removed AoE loop), SUMMONER_THREAT_MULTIPLIER raised 25n → 75n so summoner gets targeted more often | 2026-02-21 | c307a3b | [222-revisit-summoner-aggro-mechanics-pet-sin](./quick/222-revisit-summoner-aggro-mechanics-pet-sin/) |
 | 223 | Fix players being dumped to login screen — (1) removed eager sessionStorage guard-clear in version watcher (allowed repeated reload cycles on SpacetimeDB reconnect); (2) replaced getStoredIdToken() in isLoggedIn computed with hasToken ref captured once at setup (prevented OIDC token expiry from booting players mid-session) | 2026-02-21 | 8f5fbbb | [223-fix-players-being-dumped-to-login-screen](./quick/223-fix-players-being-dumped-to-login-screen/) |
+| 225 | Sort races alphabetically on character creation screen | 2026-02-21 | 8d9d9eb | [225-sort-races-alphabetically-on-character-c](./quick/225-sort-races-alphabetically-on-character-c/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-21 - Completed quick task 223: Fix players being dumped to login screen (version watcher guard + isLoggedIn token expiry)
+Last activity: 2026-02-21 - Completed quick task 225: Sort races alphabetically on character creation screen
