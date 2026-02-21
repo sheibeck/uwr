@@ -50,6 +50,7 @@ export const HYBRID_MANA_CLASSES = new Set([
   'paladin',
   'ranger',
   'reaver',
+  'spellblade',
 ]);
 
 export const MANA_CLASSES = new Set([
