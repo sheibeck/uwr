@@ -1,7 +1,7 @@
 import { ENEMY_ABILITIES } from '../data/abilities/enemy_abilities';
 import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier } from '../data/combat_scaling';
 import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
-import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, HEALING_THREAT_PERCENT } from '../data/combat_scaling';
+import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, SUMMONER_THREAT_MULTIPLIER, HEALING_THREAT_PERCENT } from '../data/combat_scaling';
 import {
   statOffset,
   BLOCK_CHANCE_BASE,
@@ -2203,7 +2203,8 @@ export const registerCombatReducers = (deps: any) => {
       if (finalDamage > 0n) {
         const className = character.className?.toLowerCase() ?? '';
         const threatMult = TANK_CLASSES.has(className) ? TANK_THREAT_MULTIPLIER
-          : HEALER_CLASSES.has(className) ? HEALER_THREAT_MULTIPLIER : 100n;
+          : HEALER_CLASSES.has(className) ? HEALER_THREAT_MULTIPLIER
+          : className === 'summoner' ? SUMMONER_THREAT_MULTIPLIER : 100n;
         const threat = (finalDamage * threatMult) / 100n;
         for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
           if (entry.characterId === character.id && entry.enemyId === currentEnemy.id) {

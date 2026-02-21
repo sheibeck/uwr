@@ -18,6 +18,8 @@ import {
   GLOBAL_DAMAGE_MULTIPLIER,
   TANK_THREAT_MULTIPLIER,
   HEALER_THREAT_MULTIPLIER,
+  SUMMONER_THREAT_MULTIPLIER,
+  SUMMONER_PET_INITIAL_AGGRO,
   HEALING_THREAT_PERCENT,
 } from '../data/combat_scaling';
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from '../data/xp';
@@ -449,6 +451,21 @@ export function executeAbility(
       targetEnemyId: enemy.id,
       nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
     });
+    // Summoner pets are the primary combat presence — give them immediate aggro
+    // so they draw enemy attention before the summoner's own threat builds up.
+    if (character.className?.toLowerCase() === 'summoner') {
+      for (const en of ctx.db.combatEnemy.by_combat.filter(combatId)) {
+        if (en.currentHp <= 0n) continue;
+        ctx.db.aggroEntry.insert({
+          id: 0n,
+          combatId,
+          enemyId: en.id,
+          characterId: character.id,
+          petId: pet.id,
+          value: SUMMONER_PET_INITIAL_AGGRO,
+        });
+      }
+    }
     appendPrivateEvent(
       ctx,
       character.id,
@@ -578,7 +595,8 @@ export function executeAbility(
           if (entry.characterId === character.id && entry.enemyId === targetEnemy.id) {
             const className = character.className?.toLowerCase() ?? '';
             const threatMult = TANK_CLASSES.has(className) ? TANK_THREAT_MULTIPLIER
-              : HEALER_CLASSES.has(className) ? HEALER_THREAT_MULTIPLIER : 100n;
+              : HEALER_CLASSES.has(className) ? HEALER_THREAT_MULTIPLIER
+              : className === 'summoner' ? SUMMONER_THREAT_MULTIPLIER : 100n;
             const threat = (mitigatedDamage * threatMult) / 100n;
             ctx.db.aggroEntry.id.update({
               ...entry,
@@ -658,7 +676,8 @@ export function executeAbility(
       if (entry.characterId === character.id && entry.enemyId === enemy.id) {
         const className = character.className?.toLowerCase() ?? '';
         const threatMult = TANK_CLASSES.has(className) ? TANK_THREAT_MULTIPLIER
-          : HEALER_CLASSES.has(className) ? HEALER_THREAT_MULTIPLIER : 100n;
+          : HEALER_CLASSES.has(className) ? HEALER_THREAT_MULTIPLIER
+          : className === 'summoner' ? SUMMONER_THREAT_MULTIPLIER : 100n;
         const threat = (totalDamage * threatMult) / 100n + (options?.threatBonus ?? 0n);
         ctx.db.aggroEntry.id.update({
           ...entry,

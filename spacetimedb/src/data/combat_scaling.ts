@@ -110,6 +110,20 @@ export const TANK_THREAT_MULTIPLIER = 150n;
 /** Healer threat multiplier (50n = 0.5x on 100n scale) */
 export const HEALER_THREAT_MULTIPLIER = 50n;
 
+/**
+ * Summoner threat multiplier (25n = 0.25x on 100n scale).
+ * Summoners rely on pets as their primary combat presence — their own spells
+ * should not pull aggro off pets.
+ */
+export const SUMMONER_THREAT_MULTIPLIER = 25n;
+
+/**
+ * Starting aggro value granted to summoner pets when they are summoned.
+ * Puts them immediately at the top of the aggro table so enemies target
+ * the pet before the summoner even after a spell cast or two.
+ */
+export const SUMMONER_PET_INITIAL_AGGRO = 200n;
+
 /** Healing threat as percentage of healing done (50n = 50% on 100n scale) */
 export const HEALING_THREAT_PERCENT = 50n;
 
