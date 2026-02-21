@@ -479,9 +479,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 228 | Pack Rush hits at 65% power per strike — added hitMultiplier?: bigint to applyDamage options, applied in hit loop; beastmaster_pack_rush passes hitMultiplier: 65n alongside hits: 2n, matching AOE_DAMAGE_MULTIPLIER | 2026-02-21 | 8d2262e | [228-pack-rush-hits-at-65-power-per-strike-li](./quick/228-pack-rush-hits-at-65-power-per-strike-li/) |
 | 229 | Paladin hybrid mana/stamina pools + reaver stamina Blood Rend — HYBRID_MANA_MULTIPLIER=4n (vs 6n for full casters), HYBRID_MANA_CLASSES={paladin,ranger,reaver}, paladin secondary str, holy_strike+radiant_smite+blood_rend moved to stamina, all mana abilities >= 1s castSeconds, all stamina abilities = 0s | 2026-02-21 | dfc88fc | [229-paladin-hybrid-mana-stamina-pools-reaver](./quick/229-paladin-hybrid-mana-stamina-pools-reaver/) |
 | 231 | Fix hybrid mana multiplier not applied at character creation — create_character was hardcoding * 6n instead of using HYBRID_MANA_MULTIPLIER; added MANA_MULTIPLIER/HYBRID_MANA_MULTIPLIER/HYBRID_MANA_CLASSES/normalizeClassName to reducerDeps in index.ts, destructured in characters.ts, replaced hardcoded 6n with conditional manaMultiplier | 2026-02-21 | 128e8bf | [231-fix-hybrid-mana-multiplier-not-applied-a](./quick/231-fix-hybrid-mana-multiplier-not-applied-a/) |
+| 230 | Replace AbilityCooldown readyAtMicros with startedAtMicros+durationMicros to eliminate server clock skew — schema updated, all 6 server write/read points in combat.ts and items.ts updated, bindings regenerated, useHotbar drops predictedCooldownReadyAt/COOLDOWN_SKEW_SUPPRESS_MICROS in favour of receivedAt tracking, App.vue drops serverClockOffset entirely | 2026-02-21 | 442df45 | [230-replace-abilitycooldown-readyatmicros-wi](./quick/230-replace-abilitycooldown-readyatmicros-wi/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-21 - Fixed hybrid mana multiplier not applying at character creation (quick-231): create_character was hardcoding * 6n for all classes
+Last activity: 2026-02-21 - Completed quick task 230: Replace AbilityCooldown readyAtMicros with startedAtMicros+durationMicros to eliminate server clock skew
