@@ -134,7 +134,9 @@ export const useHotbar = ({
         if (row.characterId.toString() !== charId.toString()) continue;
         const key = row.abilityKey;
         activeKeys.add(key);
-        if (!cooldownReceivedAt.value.has(key)) {
+        // Reset receivedAt if this is a new key OR if we have a local prediction
+        // (meaning the server just confirmed a new use — the row was upserted with a new startedAtMicros)
+        if (!cooldownReceivedAt.value.has(key) || localCooldowns.value.has(key)) {
           cooldownReceivedAt.value.set(key, Date.now() * 1000);
         }
         // Server confirmed this cooldown — remove local prediction if it exists
