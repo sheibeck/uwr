@@ -95,6 +95,10 @@ export const registerCharacterReducers = (deps: any) => {
     BASE_HP,
     HP_STR_MULTIPLIER,
     BASE_MANA,
+    MANA_MULTIPLIER,
+    HYBRID_MANA_MULTIPLIER,
+    HYBRID_MANA_CLASSES,
+    normalizeClassName,
     ScheduleAt,
     CharacterLogoutTick,
     grantStarterItems,
@@ -265,7 +269,8 @@ export const registerCharacterReducers = (deps: any) => {
       };
       const manaStat = manaStatForClass(className, baseStats);
       const maxHp = BASE_HP + baseStats.str * HP_STR_MULTIPLIER + (racial.racialMaxHp || 0n);
-      const maxMana = usesMana(className) ? BASE_MANA + manaStat * 6n + (racial.racialMaxMana || 0n) : 0n;
+      const manaMultiplier = HYBRID_MANA_CLASSES.has(normalizeClassName(className)) ? HYBRID_MANA_MULTIPLIER : MANA_MULTIPLIER;
+      const maxMana = usesMana(className) ? BASE_MANA + manaStat * manaMultiplier + (racial.racialMaxMana || 0n) : 0n;
       const baseMaxStamina = 20n + (racial.racialMaxStamina || 0n);
       const armorClass = baseArmorForClass(className) + (racial.racialArmorBonus || 0n);
       const character = ctx.db.character.insert({
