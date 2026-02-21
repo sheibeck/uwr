@@ -973,7 +973,10 @@ export function executeAbility(
       case 'bard_chorus_of_vigor':
       case 'bard_march_of_wayfarers':
       case 'bard_battle_hymn': {
-        if (!combatId || !combat) throw new SenderError('Songs can only be sung in combat.');
+        const DAMAGE_SONGS = ['bard_discordant_note', 'bard_battle_hymn'];
+        if (DAMAGE_SONGS.includes(abilityKey) && (!combatId || !combat)) {
+          throw new SenderError('This song can only be sung in combat.');
+        }
         // Mark previous song as fading
         const prevSong = [...ctx.db.activeBardSong.by_bard.filter(character.id)][0];
         if (prevSong) {
@@ -985,7 +988,7 @@ export function executeAbility(
             scheduledId: 0n,
             scheduledAt: ScheduleAt.time(nowMicros + 6_000_000n),
             bardCharacterId: character.id,
-            combatId,
+            combatId: combatId ?? undefined,
           });
         }
         // Insert new active song. The previous (fading) row is kept alive in DB
@@ -993,7 +996,7 @@ export function executeAbility(
         ctx.db.activeBardSong.insert({
           id: 0n,
           bardCharacterId: character.id,
-          combatId,
+          combatId: combatId ?? undefined,
           songKey: abilityKey,
           startedAtMicros: nowMicros,
           isFading: false,
