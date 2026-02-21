@@ -10,6 +10,16 @@ export const NIGHT_DURATION_MICROS = 600_000_000n;
 export const DEFAULT_LOCATION_SPAWNS = 3;
 export const RESOURCE_GATHER_CAST_MICROS = 8_000_000n;
 
+export function getLocationSpawnCap(ctx: any, locationId: bigint): number {
+  const location = ctx.db.location.id.find(locationId);
+  if (!location) return 6;
+  const region = ctx.db.region.id.find(location.regionId);
+  const dm = region?.dangerMultiplier ?? 100n;
+  if (dm < 130n) return 6;   // T1 starter
+  if (dm < 190n) return 9;   // T2 border
+  return 12;                  // T3 dungeon/high
+}
+
 export function computeLocationTargetLevel(ctx: any, locationId: bigint, baseLevel: bigint) {
   const location = ctx.db.location.id.find(locationId);
   if (!location) return baseLevel;
@@ -276,11 +286,14 @@ export function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
     activeGroupKeys.add(groupKey);
   }
   const needed = activeGroupKeys.size;
+  const cap = getLocationSpawnCap(ctx, locationId);
   let available = 0;
+  let total = 0;
   for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
     if (row.state === 'available') available += 1;
+    total += 1;
   }
-  while (available < needed) {
+  while (available < needed && total < cap) {
     const availableTemplates: bigint[] = [];
     for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
       if (row.state !== 'available') continue;
@@ -288,6 +301,7 @@ export function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
     }
     spawnEnemy(ctx, locationId, 1n, availableTemplates);
     available += 1;
+    total += 1;
   }
 }
 
@@ -308,7 +322,8 @@ export function ensureLocationRuntimeBootstrap(ctx: any) {
     for (const _row of ctx.db.enemySpawn.by_location.filter(location.id)) {
       count += 1;
     }
-    while (count < DEFAULT_LOCATION_SPAWNS) {
+    const cap = getLocationSpawnCap(ctx, location.id);
+    while (count < cap) {
       const existingTemplates: bigint[] = [];
       for (const row of ctx.db.enemySpawn.by_location.filter(location.id)) {
         existingTemplates.push(row.enemyTemplateId);
@@ -439,24 +454,33 @@ export function spawnEnemy(
     }
   }
 
-  const spawn = ctx.db.enemySpawn.insert({
-    id: 0n,
-    locationId,
-    enemyTemplateId: chosen.id,
-    name: chosen.name,
-    state: 'available',
-    lockedCombatId: undefined,
-    groupCount,
-  });
-
-  seedSpawnMembers(ctx, spawn.id, chosen.id, groupCount, groupSeed);
-  refreshSpawnGroupCount(ctx, spawn.id);
-
-  ctx.db.enemySpawn.id.update({
-    ...spawn,
-    name: `${chosen.name}`,
-  });
-  return ctx.db.enemySpawn.id.find(spawn.id)!;
+  let firstSpawn: typeof EnemySpawn.rowType | null = null;
+  const total = Number(groupCount);
+  for (let i = 0; i < total; i += 1) {
+    const spawn = ctx.db.enemySpawn.insert({
+      id: 0n,
+      locationId,
+      enemyTemplateId: chosen.id,
+      name: chosen.name,
+      state: 'available',
+      lockedCombatId: undefined,
+      groupCount: 1n,
+    });
+    const role = pickRoleTemplate(ctx, chosen.id, groupSeed + BigInt(i) * 7n);
+    if (role) {
+      ctx.db.enemySpawnMember.insert({
+        id: 0n,
+        spawnId: spawn.id,
+        enemyTemplateId: chosen.id,
+        roleTemplateId: role.id,
+      });
+    }
+    refreshSpawnGroupCount(ctx, spawn.id);
+    if (firstSpawn === null) {
+      firstSpawn = ctx.db.enemySpawn.id.find(spawn.id)!;
+    }
+  }
+  return firstSpawn!;
 }
 
 export function spawnEnemyWithTemplate(
@@ -516,18 +540,32 @@ export function spawnEnemyWithTemplate(
       roll -= weight;
     }
   }
-  const spawn = ctx.db.enemySpawn.insert({
-    id: 0n,
-    locationId,
-    enemyTemplateId: template.id,
-    name: template.name,
-    state: 'available',
-    lockedCombatId: undefined,
-    groupCount,
-  });
-  seedSpawnMembers(ctx, spawn.id, template.id, groupCount, groupSeed);
-  refreshSpawnGroupCount(ctx, spawn.id);
-  ctx.db.enemySpawn.id.update({ ...spawn, name: `${template.name}` });
-  return ctx.db.enemySpawn.id.find(spawn.id)!;
+  let firstSpawn: typeof EnemySpawn.rowType | null = null;
+  const total = Number(groupCount);
+  for (let i = 0; i < total; i += 1) {
+    const spawn = ctx.db.enemySpawn.insert({
+      id: 0n,
+      locationId,
+      enemyTemplateId: template.id,
+      name: template.name,
+      state: 'available',
+      lockedCombatId: undefined,
+      groupCount: 1n,
+    });
+    const role = pickRoleTemplate(ctx, template.id, groupSeed + BigInt(i) * 7n);
+    if (role) {
+      ctx.db.enemySpawnMember.insert({
+        id: 0n,
+        spawnId: spawn.id,
+        enemyTemplateId: template.id,
+        roleTemplateId: role.id,
+      });
+    }
+    refreshSpawnGroupCount(ctx, spawn.id);
+    if (firstSpawn === null) {
+      firstSpawn = ctx.db.enemySpawn.id.find(spawn.id)!;
+    }
+  }
+  return firstSpawn!;
 }
 
