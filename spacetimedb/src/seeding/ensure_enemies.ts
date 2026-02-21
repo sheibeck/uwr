@@ -538,6 +538,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 5n,
     xpReward: 18n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(bogRat, 'bog_rat', 'Bog Rat', 'tank', 'melee', 'thick hide, taunt');
   addRoleTemplate(bogRat, 'bog_rat_brute', 'Bog Rat Brute', 'tank', 'melee', 'thick hide, taunt');
@@ -562,6 +563,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 6n,
     xpReward: 20n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(emberWisp, 'ember_wisp', 'Ember Wisp', 'dps', 'magic', 'fire bolts, ignite');
   addRoleTemplate(emberWisp, 'ember_wisp_flare', 'Ember Wisp Flare', 'dps', 'magic', 'flare, ignite');
@@ -586,6 +588,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 7n,
     xpReward: 18n,
     factionId: fFreeBlades,
+    isSocial: true,
   });
   addRoleTemplate(bandit, 'bandit_archer', 'Bandit Archer', 'dps', 'ranged', 'rapid shot, bleed');
   addRoleTemplate(bandit, 'bandit_ruffian', 'Bandit Ruffian', 'tank', 'melee', 'shield bash, taunt');
@@ -610,6 +613,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 8n,
     xpReward: 24n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(blightStalker, 'blight_stalker', 'Blight Stalker', 'dps', 'melee', 'pounce, shred');
   addRoleTemplate(blightStalker, 'blight_stalker_brute', 'Blight Stalker Brute', 'tank', 'melee', 'maul, snarl');
@@ -635,6 +639,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 4n,
     xpReward: 18n,
     factionId: fAshenOrder,
+    isSocial: true,
   });
   addRoleTemplate(graveAcolyte, 'grave_acolyte', 'Grave Acolyte', 'healer', 'support', 'mend, cleanse');
   addRoleTemplate(graveAcolyte, 'grave_ritualist', 'Grave Ritualist', 'support', 'control', 'curse, drain');
@@ -660,6 +665,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 5n,
     xpReward: 22n,
     factionId: fAshenOrder,
+    isSocial: true,
   });
   addRoleTemplate(hexbinder, 'hexbinder', 'Hexbinder', 'support', 'control', 'weaken, slow, snare');
   addRoleTemplate(hexbinder, 'hexbinder_stalker', 'Hexbinder Stalker', 'dps', 'melee', 'hex strike, feint');
@@ -685,6 +691,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 4n,
     xpReward: 12n,
     factionId: fVerdantCircle,
+    isSocial: true,
   });
   addRoleTemplate(thicketWolf, 'thicket_wolf', 'Thicket Wolf', 'dps', 'melee', 'pack bite, lunge');
   addRoleTemplate(thicketWolf, 'thicket_wolf_alpha', 'Thicket Wolf Alpha', 'tank', 'melee', 'alpha bite, howl');
@@ -710,6 +717,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 3n,
     xpReward: 10n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(marshCroaker, 'marsh_croaker', 'Marsh Croaker', 'dps', 'melee', 'tongue lash, croak');
   addRoleTemplate(marshCroaker, 'marsh_croaker_bully', 'Marsh Croaker Bully', 'tank', 'melee', 'slam, croak');
@@ -734,6 +742,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 3n,
     xpReward: 10n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(dustHare, 'dust_hare', 'Dust Hare', 'dps', 'melee', 'dart, nip');
   addRoleTemplate(dustHare, 'dust_hare_skitter', 'Dust Hare Skitter', 'dps', 'melee', 'skitter, nip');
@@ -759,6 +768,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 6n,
     xpReward: 18n,
     factionId: fVerdantCircle,
+    isSocial: true,
   });
   addRoleTemplate(ashJackal, 'ash_jackal', 'Ash Jackal', 'dps', 'melee', 'snap, pack feint');
   addRoleTemplate(ashJackal, 'ash_jackal_alpha', 'Ash Jackal Alpha', 'tank', 'melee', 'alpha snap, snarl');
@@ -783,6 +793,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 4n,
     xpReward: 16n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(thornSprite, 'thorn_sprite', 'Thorn Sprite', 'support', 'magic', 'sting, wither pollen');
   addRoleTemplate(thornSprite, 'thorn_sprite_stinger', 'Thorn Sprite Stinger', 'dps', 'magic', 'sting, dart');
@@ -807,6 +818,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 7n,
     xpReward: 24n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(gloomStag, 'gloom_stag', 'Gloom Stag', 'tank', 'melee', 'gore, bulwark');
   addRoleTemplate(gloomStag, 'gloom_stag_charger', 'Gloom Stag Charger', 'dps', 'melee', 'charge, gore');
@@ -831,6 +843,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 6n,
     xpReward: 18n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(mireLeech, 'mire_leech', 'Mire Leech', 'dps', 'melee', 'drain, latch');
   addRoleTemplate(mireLeech, 'mire_leech_bulwark', 'Mire Leech Bulwark', 'tank', 'melee', 'latch, bulwark');
@@ -855,6 +868,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 6n,
     xpReward: 22n,
     factionId: fAshenOrder,
+    isSocial: true,
   });
   addRoleTemplate(fenWitch, 'fen_witch', 'Fen Witch', 'support', 'magic', 'curse, mire ward');
   addRoleTemplate(fenWitch, 'fen_witch_hexer', 'Fen Witch Hexer', 'dps', 'magic', 'hex, sting');
@@ -879,6 +893,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 6n,
     xpReward: 18n,
     factionId: fAshenOrder,
+    isSocial: true,
   });
   addRoleTemplate(graveSkirmisher, 'grave_skirmisher', 'Grave Skirmisher', 'dps', 'melee', 'rusty slash, feint');
   addRoleTemplate(graveSkirmisher, 'grave_skirmisher_guard', 'Grave Skirmisher Guard', 'tank', 'melee', 'guard, slam');
@@ -903,6 +918,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 6n,
     xpReward: 26n,
     factionId: fIronCompact,
+    isSocial: true,
   });
   addRoleTemplate(cinderSentinel, 'cinder_sentinel', 'Cinder Sentinel', 'tank', 'melee', 'stone wall, slam');
   addRoleTemplate(cinderSentinel, 'cinder_sentinel_breaker', 'Cinder Sentinel Breaker', 'dps', 'melee', 'breaker slam, cleave');
@@ -927,6 +943,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 4n,
     xpReward: 12n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(emberling, 'emberling', 'Emberling', 'support', 'magic', 'ember spark, kindle');
   addRoleTemplate(emberling, 'emberling_spark', 'Emberling Spark', 'dps', 'magic', 'spark, ignite');
@@ -951,6 +968,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 6n,
     xpReward: 30n,
     factionId: fAshenOrder,
+    isSocial: true,
   });
   addRoleTemplate(
     frostboneAcolyte,
@@ -997,6 +1015,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 7n,
     xpReward: 24n,
     factionId: fFreeBlades,
+    isSocial: true,
   });
   addRoleTemplate(ridgeSkirmisher, 'ridge_skirmisher', 'Ridge Skirmisher', 'dps', 'melee', 'rock slash, feint');
   addRoleTemplate(
@@ -1028,6 +1047,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 8n,
     xpReward: 30n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(emberhawk, 'emberhawk', 'Emberhawk', 'dps', 'ranged', 'burning dive');
   addRoleTemplate(emberhawk, 'emberhawk_screecher', 'Emberhawk Screecher', 'support', 'ranged', 'screech, dive');
@@ -1052,6 +1072,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 7n,
     xpReward: 32n,
     factionId: fIronCompact,
+    isSocial: true,
   });
   addRoleTemplate(basaltBrute, 'basalt_brute', 'Basalt Brute', 'tank', 'melee', 'stone slam, brace');
 
@@ -1075,6 +1096,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 8n,
     xpReward: 32n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(ashenRam, 'ashen_ram', 'Ashen Ram', 'tank', 'melee', 'ram charge, shove');
   addRoleTemplate(ashenRam, 'ashen_ram_runner', 'Ashen Ram Runner', 'dps', 'melee', 'charging gore');
@@ -1099,6 +1121,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 9n,
     xpReward: 38n,
     factionId: fIronCompact,
+    isSocial: true,
   });
   addRoleTemplate(sootboundSentry, 'sootbound_sentry', 'Sootbound Sentry', 'tank', 'melee', 'iron guard');
   addRoleTemplate(
@@ -1131,6 +1154,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 6n,
     xpReward: 24n,
     factionId: fAshenOrder,
+    isSocial: true,
   });
   addRoleTemplate(graveServant, 'grave_servant', 'Grave Servant', 'tank', 'melee', 'shield crush, watchful');
   addRoleTemplate(graveServant, 'grave_servant_reaver', 'Grave Servant Reaver', 'dps', 'melee', 'reaver slash, feint');
@@ -1155,6 +1179,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 9n,
     xpReward: 30n,
     factionId: fAshenOrder,
+    isSocial: true,
   });
   addRoleTemplate(alleyShade, 'alley_shade', 'Alley Shade', 'dps', 'melee', 'shadow cut, vanish');
   addRoleTemplate(alleyShade, 'alley_shade_stalker', 'Alley Shade Stalker', 'dps', 'melee', 'stalk, strike');
@@ -1180,6 +1205,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 7n,
     xpReward: 34n,
     factionId: fIronCompact,
+    isSocial: true,
   });
   addRoleTemplate(vaultSentinel, 'vault_sentinel', 'Vault Sentinel', 'tank', 'melee', 'iron guard, shield bash');
   addRoleTemplate(vaultSentinel, 'vault_sentinel_crusher', 'Vault Sentinel Crusher', 'dps', 'melee', 'crusher bash, cleave');
@@ -1204,6 +1230,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 8n,
     xpReward: 38n,
     factionId: fAshenOrder,
+    isSocial: true,
   });
   addRoleTemplate(
     sootboundMystic,
@@ -1250,6 +1277,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 6n,
     xpReward: 36n,
     factionId: fAshenOrder,
+    isSocial: true,
   });
   addRoleTemplate(emberPriest, 'ember_priest', 'Ember Priest', 'healer', 'support', 'ashen mend, warding flame');
   addRoleTemplate(emberPriest, 'ember_priest_zealot', 'Ember Priest Zealot', 'dps', 'magic', 'zeal, flame');
@@ -1274,6 +1302,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 10n,
     xpReward: 44n,
     factionId: fAshenOrder,
+    isSocial: true,
   });
   addRoleTemplate(
     ashforgedRevenant,
@@ -1318,6 +1347,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 3n,
     xpReward: 10n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(duskMoth, 'dusk_moth', 'Dusk Moth', 'dps', 'magic', 'flutter, dust');
   addRoleTemplate(duskMoth, 'dusk_moth_glimmer', 'Dusk Moth Glimmer', 'support', 'magic', 'shimmer, blind');
@@ -1344,6 +1374,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 3n,
     xpReward: 10n,
     factionId: fVerdantCircle,
+    isSocial: true,
   });
   addRoleTemplate(nightRat, 'night_rat', 'Night Rat', 'dps', 'melee', 'gnaw, dart');
   addRoleTemplate(nightRat, 'night_rat_scrapper', 'Night Rat Scrapper', 'tank', 'melee', 'gnaw, brace');
@@ -1370,6 +1401,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 6n,
     xpReward: 22n,
     factionId: fAshenOrder,
+    isSocial: true,
   });
   addRoleTemplate(cinderWraith, 'cinder_wraith', 'Cinder Wraith', 'dps', 'magic', 'spectral flame, wail');
   addRoleTemplate(cinderWraith, 'cinder_wraith_howler', 'Cinder Wraith Howler', 'support', 'magic', 'howl, chill');
@@ -1396,6 +1428,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 8n,
     xpReward: 30n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(shadowProwler, 'shadow_prowler', 'Shadow Prowler', 'dps', 'melee', 'pounce, rend');
   addRoleTemplate(shadowProwler, 'shadow_prowler_stalker', 'Shadow Prowler Stalker', 'dps', 'melee', 'ambush, rake');
@@ -1422,6 +1455,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 7n,
     xpReward: 28n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(bogSpecter, 'bog_specter', 'Bog Specter', 'dps', 'magic', 'drowning grasp, lure');
   addRoleTemplate(bogSpecter, 'bog_specter_lantern', 'Bog Specter Lantern', 'support', 'magic', 'wisp light, veil');
@@ -1448,6 +1482,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 8n,
     xpReward: 36n,
     factionId: fAshenOrder,
+    isSocial: true,
   });
   addRoleTemplate(ashveilPhantom, 'ashveil_phantom', 'Ashveil Phantom', 'dps', 'magic', 'soul rend, phase');
   addRoleTemplate(ashveilPhantom, 'ashveil_phantom_warden', 'Ashveil Phantom Warden', 'tank', 'melee', 'spectral guard, slam');
@@ -1474,6 +1509,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 4n,
     xpReward: 12n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(nightfangViper, 'nightfang_viper', 'Nightfang Viper', 'dps', 'melee', 'venom strike, coil');
   addRoleTemplate(nightfangViper, 'nightfang_viper_spitter', 'Nightfang Viper Spitter', 'dps', 'ranged', 'venom spit, dart');
@@ -1500,6 +1536,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     baseDamage: 3n,
     xpReward: 10n,
     factionId: fVerdantCircle,
+    isSocial: false,
   });
   addRoleTemplate(gloomwingBat, 'gloomwing_bat', 'Gloomwing Bat', 'dps', 'melee', 'screech, swoop');
   addRoleTemplate(gloomwingBat, 'gloomwing_bat_elder', 'Gloomwing Bat Elder', 'support', 'melee', 'sonic pulse, swoop');
