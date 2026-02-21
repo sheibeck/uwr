@@ -498,10 +498,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 249 | Fix mana cost mismatch — server read ability.resourceCostOverride (not a DB column) so always fell back to formula; now uses ability.resourceCost (pre-baked at seed time with override applied); client and server now agree on cost | 2026-02-21 | bd1c221 | [249-fix-mana-cost-mismatch-between-client-pr](./quick/249-fix-mana-cost-mismatch-between-client-pr/) |
 | 250 | Implement water elemental pet_heal ability — in-combat path heals lowest-HP active participant for 10+level*5 HP; out-of-combat loop in regen_health ticks at abilityCooldownSeconds interval; pet armed immediately on combat exit; disarms when all party at max HP | 2026-02-21 | df2f0fc | [250-implement-water-elemental-pet-heal-abili](./quick/250-implement-water-elemental-pet-heal-abili/) |
 | 251 | Respawn bypasses region travel cooldown and clears it — confirmed respawn_character sets locationId directly (no cooldown check); added cooldown clear on respawn so player can travel cross-region immediately after death to retrieve corpse | 2026-02-21 | 4e858e7 | [251-validate-respawn-at-bind-point-bypasses-](./quick/251-validate-respawn-at-bind-point-bypasses-/) |
+| 253 | Fix respawn_enemy overcapping — reducer called spawnEnemy unconditionally; night transitions refill to cap so pending respawn ticks afterward pushed locations over the limit; now checks currentCount >= cap and skips spawn if full | 2026-02-21 | 69e3a3a | [253-fix-respawn-enemy-ignores-spawn-cap](./quick/253-fix-respawn-enemy-ignores-spawn-cap/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 250: Water elemental pet_heal ability (in-combat and out-of-combat heal paths)
+Last activity: 2026-02-21 - Completed quick task 253: Fix respawn_enemy spawn cap enforcement
 
 ## Last Session
 
