@@ -331,10 +331,7 @@ export function ensureLocationRuntimeBootstrap(ctx: any) {
       continue;
     }
 
-    let count = 0;
-    for (const row of ctx.db.enemySpawn.by_location.filter(location.id)) {
-      if (!isEventSpawn(ctx, row.id)) count += 1; // event spawns don't count against cap
-    }
+    let count = countNonEventSpawns(ctx, location.id);
     const cap = getLocationSpawnCap(ctx, location.id);
     while (count < cap) {
       const existingTemplates: bigint[] = [];
@@ -342,9 +339,19 @@ export function ensureLocationRuntimeBootstrap(ctx: any) {
         existingTemplates.push(row.enemyTemplateId);
       }
       spawnEnemy(ctx, location.id, 1n, existingTemplates);
-      count += 1;
+      const newCount = countNonEventSpawns(ctx, location.id);
+      if (newCount <= count) break; // safety guard: spawnEnemy was a no-op, avoid infinite loop
+      count = newCount;
     }
   }
+}
+
+function countNonEventSpawns(ctx: any, locationId: bigint): number {
+  let count = 0;
+  for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    if (!isEventSpawn(ctx, row.id)) count += 1;
+  }
+  return count;
 }
 
 export function respawnLocationSpawns(ctx: any, locationId: bigint, desired: number) {
@@ -357,17 +364,16 @@ export function respawnLocationSpawns(ctx: any, locationId: bigint, desired: num
       ctx.db.enemySpawn.id.delete(row.id);
     }
   }
-  let count = 0;
-  for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
-    if (!isEventSpawn(ctx, row.id)) count += 1; // event spawns don't count against cap
-  }
+  let count = countNonEventSpawns(ctx, locationId);
   while (count < desired) {
     const existingTemplates: bigint[] = [];
     for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
       existingTemplates.push(row.enemyTemplateId);
     }
     spawnEnemy(ctx, locationId, 1n, existingTemplates);
-    count += 1;
+    const newCount = countNonEventSpawns(ctx, locationId);
+    if (newCount <= count) break; // safety guard: spawnEnemy was a no-op, avoid infinite loop
+    count = newCount;
   }
 }
 
