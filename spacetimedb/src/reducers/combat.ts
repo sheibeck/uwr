@@ -3136,20 +3136,21 @@ export const registerCombatReducers = (deps: any) => {
           markParticipantDead(ctx, currentParticipant, character, enemyName);
         }
       }
-      const spawn = [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
-        (s) => s.lockedCombatId === combat.id
-      );
-      if (spawn) {
+      // Reset ALL spawns involved in this combat (primary + add spawns from cross-aggro pulls)
+      const wipeSpawnIds = new Set(enemies.map((e: any) => e.spawnId));
+      for (const spawnId of wipeSpawnIds) {
+        const spawn = ctx.db.enemySpawn.id.find(spawnId);
+        if (!spawn) continue;
         // Un-pulled members are already correct — keep them, just count them
-        const remainingMemberCount = BigInt([...ctx.db.enemySpawnMember.by_spawn.filter(spawn.id)].length);
+        const remainingMemberCount = BigInt([...ctx.db.enemySpawnMember.by_spawn.filter(spawnId)].length);
         let count = remainingMemberCount;
         // Re-insert surviving pulled enemies back into the spawn group
         for (const enemyRow of enemies) {
-          if (enemyRow.spawnId !== spawn.id) continue;
+          if (enemyRow.spawnId !== spawnId) continue;
           if (enemyRow.currentHp === 0n) continue;
           ctx.db.enemySpawnMember.insert({
             id: 0n,
-            spawnId: spawn.id,
+            spawnId: spawnId,
             enemyTemplateId: enemyRow.enemyTemplateId,
             roleTemplateId: enemyRow.enemyRoleTemplateId ?? 0n,
           });
