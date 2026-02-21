@@ -510,10 +510,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 261 | Water elemental in-combat self-heal not updating HP — pet tick loop spread stale `pet` object after executePetAbility wrote healed currentHp to DB, overwriting the heal; fix: changed loop to `let pet`, re-fetch via activePet.id.find after ability fires so both early-exit and normal spreads use current DB row | 2026-02-21 | 230f7a6 | [261-water-elemental-in-combat-self-heal-not-](./quick/261-water-elemental-in-combat-self-heal-not-/) |
 | 262 | Water elemental summoned out of combat does not begin healing party — summonPet set nextAbilityAt=undefined when inActiveCombat=false; regen_health loop skips pets with undefined nextAbilityAt; fix: arm pet_heal/pet_aoe_heal pets at summon time with nextAbilityAt=nowMicros regardless of combat state | 2026-02-21 | ec03779 | [262-water-elemental-summoned-out-of-combat-d](./quick/262-water-elemental-summoned-out-of-combat-d/) |
 | 263 | Corpse drop on death level 5+ — createCorpse sets ItemInstance.ownerCharacterId=0n (sentinel) for each corpse item, removing them from character's inventory (useInventory.ts filters by character.id); loot_corpse_item and loot_all_corpse restore ownerCharacterId to the looting character before deleting CorpseItem rows | 2026-02-21 | 4948aa7 | [263-corpse-drop-on-death-level-5-transfer-in](./quick/263-corpse-drop-on-death-level-5-transfer-in/) |
+| 265 | Fix adds never showing aggro target — addEnemyToCombat used p.id as AggroEntry.characterId but pending-add call site passes CombatParticipant rows (p.id = participant row ID, not character ID); fix uses p.characterId ?? p.id; also captures return value and sets aggroTargetCharacterId immediately on add arrival for instant UI display | 2026-02-21 | 021a1cb | [265-fix-adds-never-showing-aggro-target-adde](./quick/265-fix-adds-never-showing-aggro-target-adde/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 263: Corpse drop on death level 5+ — inventory transferred to corpse on death
+Last activity: 2026-02-21 - Completed quick task 265: Fix adds never showing aggro target and never attacking
 
 ## Last Session
 
