@@ -165,6 +165,6 @@
     return Number(clamped); // 100-scale → direct percentage (30n → 30%)
   });
 
-  const formatPercent = (value: bigint) => `${(Number(value) / 100).toFixed(2)}%`;
+  const formatPercent = (value: bigint) => `${(Number(value) / 10).toFixed(2)}%`;
   const formatScalar = (value: bigint) => Number(value).toString();
   </script>

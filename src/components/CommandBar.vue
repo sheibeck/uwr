@@ -80,6 +80,7 @@ const highlighted = ref<string | null>(null);
     { value: '/who', hint: 'List all online characters' },
     { value: '/endevent', hint: 'End active world event as success (or /endevent fail)' },
     { value: '/setappversion', hint: 'Set app version in SpacetimeDB (admin only)' },
+    { value: '/recomputeracial', hint: 'Recompute racial bonuses for all characters (admin only)' },
   ];
 
 const shouldShowSuggestions = computed(() => {

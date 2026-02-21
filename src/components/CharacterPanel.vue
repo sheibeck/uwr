@@ -312,8 +312,8 @@ const formatAvailableClasses = (classes: string) =>
 
 function formatRaceBonus(bonusType: string, bonusValue: bigint): string {
   const v = bonusValue.toString();
-  // % stats are stored in 100=1% scale; divide for display
-  const pct = (val: bigint) => `${(Number(val) / 100).toFixed(2).replace(/\.?0+$/, '')}%`;
+  // % stats are stored in 1000-scale (10 = 1%); divide by 10 for display
+  const pct = (val: bigint) => `${(Number(val) / 10).toFixed(2).replace(/\.?0+$/, '')}%`;
   switch (bonusType) {
     case 'stat_str': return `STR +${v}`;
     case 'stat_dex': return `DEX +${v}`;
