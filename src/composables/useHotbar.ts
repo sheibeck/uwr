@@ -282,16 +282,21 @@ export const useHotbar = ({
     }
     const castLabel = castSeconds > 0n ? `${Number(castSeconds)}s` : 'Instant';
     const cooldownLabel = cooldownSeconds > 0n ? `${Number(cooldownSeconds)}s` : 'No cooldown';
+    const damageType = liveAbility?.damageType;
+    const stats = [
+      { label: 'Level', value: slot.level || '-' },
+      { label: 'Type', value: slot.kind || '-' },
+      { label: 'Cost', value: costLabel },
+      { label: 'Cast', value: castLabel },
+      { label: 'Cooldown', value: cooldownLabel },
+    ];
+    if (damageType && damageType !== 'none') {
+      stats.splice(2, 0, { label: 'Damage', value: damageType });
+    }
     return {
       name: slot.name || slot.abilityKey,
       description,
-      stats: [
-        { label: 'Level', value: slot.level || '-' },
-        { label: 'Type', value: slot.kind || '-' },
-        { label: 'Cost', value: costLabel },
-        { label: 'Cast', value: castLabel },
-        { label: 'Cooldown', value: cooldownLabel },
-      ],
+      stats,
     };
   };
 
