@@ -88,7 +88,7 @@ function fmtVal(type: string, value: bigint): string {
     case 'hit_chance':
     case 'parry':
     case 'magic_resist':
-      return `+${(v / 100).toFixed(2).replace(/\.?0+$/, '')}%`;
+      return `+${(v / 10).toFixed(2).replace(/\.?0+$/, '')}%`;
     case 'faction_bonus':
     case 'loot_bonus':
       return `+${v}%`;

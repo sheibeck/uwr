@@ -60,6 +60,7 @@ export const useCommands = ({
   const createRecipeScrollReducer = useReducer(reducers.createRecipeScroll);
   const resolveWorldEventReducer = useReducer(reducers.resolveWorldEvent);
   const setAppVersionReducer = useReducer(reducers.setAppVersion);
+  const recomputeRacialAllReducer = useReducer(reducers.recomputeRacialAll);
   const chooseDialogueOptionReducer = useReducer(reducers.chooseDialogueOption);
   const commandText = ref('');
 
@@ -376,6 +377,15 @@ export const useCommands = ({
       const version = window.__client_version ?? 'dev';
       setAppVersionReducer({ version });
       addLocalEvent?.('command', `App version set to "${version}".`);
+    } else if (lower === '/recomputeracial') {
+      const isAdmin = window.__my_identity?.toHexString() === ADMIN_IDENTITY_HEX;
+      if (!isAdmin) {
+        addLocalEvent?.('command', 'Permission denied.');
+        commandText.value = '';
+        return;
+      }
+      recomputeRacialAllReducer({});
+      addLocalEvent?.('command', 'Recomputing racial bonuses for all characters...');
     } else {
       submitCommandReducer({
         characterId: selectedCharacter.value.id,

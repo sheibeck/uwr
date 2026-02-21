@@ -97,7 +97,7 @@ export const RACE_DATA: Array<{
       availableClasses: 'rogue,ranger,bard,druid,monk,enchanter',
       bonus1Type: 'stat_dex', bonus1Value: 1n,
       bonus2Type: 'dodge', bonus2Value: 10n,
-      levelBonusType: 'dodge', levelBonusValue: 10n,
+      levelBonusType: 'dodge', levelBonusValue: 5n,
       unlocked: true,
     },
     {
