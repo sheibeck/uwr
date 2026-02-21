@@ -1178,10 +1178,11 @@ export const registerCombatReducers = (deps: any) => {
   spacetimedb.reducer('respawn_enemy', { arg: EnemyRespawnTick.rowType }, (ctx, { arg }) => {
     const location = ctx.db.location.id.find(arg.locationId);
     if (location?.isSafe) return;
-    // Respect spawn cap — night transitions may have already refilled the location
-    const currentCount = [...ctx.db.enemySpawn.by_location.filter(arg.locationId)].length;
+    // Respect spawn cap — event spawns don't count against it
+    const nonEventCount = [...ctx.db.enemySpawn.by_location.filter(arg.locationId)]
+      .filter(row => [...ctx.db.eventSpawnEnemy.by_spawn.filter(row.id)].length === 0).length;
     const cap = getLocationSpawnCap(ctx, arg.locationId);
-    if (currentCount >= cap) return;
+    if (nonEventCount >= cap) return;
     deps.spawnEnemy(ctx, arg.locationId, 1n);
   });
 

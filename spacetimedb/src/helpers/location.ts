@@ -16,6 +16,11 @@ export function getLocationSpawnCap(ctx: any, locationId: bigint): number {
   return 3 + Number(locationId % 4n);
 }
 
+/** Returns true if the given EnemySpawn was created by a world event (has an EventSpawnEnemy link). */
+export function isEventSpawn(ctx: any, spawnId: bigint): boolean {
+  return [...ctx.db.eventSpawnEnemy.by_spawn.filter(spawnId)].length > 0;
+}
+
 export function computeLocationTargetLevel(ctx: any, locationId: bigint, baseLevel: bigint) {
   const location = ctx.db.location.id.find(locationId);
   if (!location) return baseLevel;
@@ -286,6 +291,7 @@ export function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
   let available = 0;
   let total = 0;
   for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    if (isEventSpawn(ctx, row.id)) continue; // event spawns don't count against cap
     if (row.state === 'available') available += 1;
     total += 1;
   }
@@ -315,8 +321,8 @@ export function ensureLocationRuntimeBootstrap(ctx: any) {
     }
 
     let count = 0;
-    for (const _row of ctx.db.enemySpawn.by_location.filter(location.id)) {
-      count += 1;
+    for (const row of ctx.db.enemySpawn.by_location.filter(location.id)) {
+      if (!isEventSpawn(ctx, row.id)) count += 1; // event spawns don't count against cap
     }
     const cap = getLocationSpawnCap(ctx, location.id);
     while (count < cap) {
@@ -333,6 +339,7 @@ export function ensureLocationRuntimeBootstrap(ctx: any) {
 export function respawnLocationSpawns(ctx: any, locationId: bigint, desired: number) {
   for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
     if (row.state === 'available') {
+      if (isEventSpawn(ctx, row.id)) continue; // never unspawn event enemies on day/night cycle
       for (const member of ctx.db.enemySpawnMember.by_spawn.filter(row.id)) {
         ctx.db.enemySpawnMember.id.delete(member.id);
       }
@@ -340,8 +347,8 @@ export function respawnLocationSpawns(ctx: any, locationId: bigint, desired: num
     }
   }
   let count = 0;
-  for (const _row of ctx.db.enemySpawn.by_location.filter(locationId)) {
-    count += 1;
+  for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    if (!isEventSpawn(ctx, row.id)) count += 1; // event spawns don't count against cap
   }
   while (count < desired) {
     const existingTemplates: bigint[] = [];
