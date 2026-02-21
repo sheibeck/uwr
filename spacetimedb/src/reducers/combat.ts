@@ -2495,7 +2495,7 @@ export const registerCombatReducers = (deps: any) => {
     const aliveEnemyIds = new Set(livingEnemies.map((row) => row.id));
 
     const pets = [...ctx.db.activePet.by_combat.filter(combat.id)];
-    for (const pet of pets) {
+    for (let pet of pets) {
       // Owner check: dismiss the pet if its owner is dead.
       const owner = ctx.db.character.id.find(pet.characterId);
       if (!owner || owner.hp === 0n) {
@@ -2531,6 +2531,9 @@ export const registerCombatReducers = (deps: any) => {
         if (used) {
           const cooldownMicros = (pet.abilityCooldownSeconds ?? 10n) * 1_000_000n;
           nextAbilityAt = nowMicros + cooldownMicros;
+          // Re-fetch pet so subsequent updates don't clobber fields changed by the ability
+          // (e.g. pet_heal updates currentHp; spreading stale pet would overwrite it).
+          pet = ctx.db.activePet.id.find(pet.id) ?? pet;
         }
       }
       // Auto-attack: only when that timer is ready.
