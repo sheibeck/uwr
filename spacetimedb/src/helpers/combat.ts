@@ -356,12 +356,9 @@ export function executeAbility(
       // Do NOT delete the effect here — delete it only after the ability fires successfully
     }
   }
-  const resourceCost =
-    ability.resource === 'stamina'
-      ? staminaFree
-        ? 0n
-        : staminaResourceCost(ability.power)
-      : (ability.resourceCostOverride ?? abilityResourceCost(ability.level, ability.power));
+  // Use the pre-baked resourceCost from AbilityTemplate (respects resourceCostOverride at seed time).
+  // AbilityTemplate has no resourceCostOverride column — only resourceCost (final value).
+  const resourceCost = staminaFree && ability.resource === 'stamina' ? 0n : ability.resourceCost;
   if (ability.resource === 'mana') {
     if (character.mana < resourceCost) throw new SenderError('Not enough mana');
   } else if (ability.resource === 'stamina') {
