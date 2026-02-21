@@ -115,15 +115,16 @@ const addEnemyToCombat = (
   });
 
   for (const p of participants) {
+    const charId = (p as any).characterId ?? p.id;
     ctx.db.aggroEntry.insert({
       id: 0n,
       combatId: combat.id,
       enemyId: combatEnemy.id,
-      characterId: p.id,
+      characterId: charId,
       petId: undefined,
       value: 0n,
     });
-    const current = ctx.db.character.id.find(p.id);
+    const current = ctx.db.character.id.find(charId);
     if (current && !current.combatTargetEnemyId) {
       ctx.db.character.id.update({ ...current, combatTargetEnemyId: combatEnemy.id });
     }
@@ -902,7 +903,7 @@ export const registerCombatReducers = (deps: any) => {
         ctx,
         character,
         'system',
-        `You begin a ${pullType === 'careful' ? 'Careful Pull' : 'Body Pull'} on ${spawn.name} (group size ${spawn.groupCount}).`,
+        `You begin a ${pullType === 'careful' ? 'Careful Pull' : 'Body Pull'} on ${spawn.name}.`,
         `${character.name} begins a ${pullType === 'careful' ? 'Careful Pull' : 'Body Pull'} on ${spawn.name}.`
       );
     }
@@ -1016,9 +1017,7 @@ export const registerCombatReducers = (deps: any) => {
       outcome = 'failure';
     }
 
-    const initialGroupCount = spawn.groupCount > 0n ? Number(spawn.groupCount) : 1;
-    const groupAddsAvailable = Math.max(0, initialGroupCount - 1);
-    const maxAdds = groupAddsAvailable + candidates.length;
+    const maxAdds = candidates.length;
     const addCount = maxAdds > 0 ? Math.min(maxAdds, Math.max(1, targetRadius || 1)) : 0;
 
     const participants: typeof deps.Character.rowType[] = getGroupOrSoloParticipants(ctx, character);
@@ -1052,30 +1051,18 @@ export const registerCombatReducers = (deps: any) => {
     const reserveAdds = (count: number) => {
       if (count <= 0) return [] as { spawn: any; roleTemplateId?: bigint }[];
       const reserved: { spawn: any; roleTemplateId?: bigint }[] = [];
-      const updatedPullSpawn = ctx.db.enemySpawn.id.find(spawn.id);
-      const availableFromGroup = updatedPullSpawn ? Number(updatedPullSpawn.groupCount) : 0;
-      const groupTake = Math.min(count, availableFromGroup);
-      if (groupTake > 0 && updatedPullSpawn) {
-        for (let i = 0; i < groupTake; i += 1) {
-          const member = takeSpawnMember(ctx, updatedPullSpawn.id);
-          if (!member) break;
-          reserved.push({ spawn: updatedPullSpawn, roleTemplateId: member.roleTemplateId });
-        }
-      }
-      let remaining = count - groupTake;
+      let remaining = count;
       for (const candidate of candidates) {
         if (remaining <= 0) break;
         if (!candidate.spawn) continue;
         const candidateSpawn = ctx.db.enemySpawn.id.find(candidate.spawn.id);
-        if (!candidateSpawn || candidateSpawn.groupCount === 0n) continue;
-        const member = takeSpawnMember(ctx, candidateSpawn.id);
-        if (!member) continue;
+        if (!candidateSpawn || candidateSpawn.state !== 'available') continue;
         ctx.db.enemySpawn.id.update({
           ...candidateSpawn,
           state: 'engaged',
           lockedCombatId: combat.id,
         });
-        reserved.push({ spawn: candidateSpawn, roleTemplateId: member.roleTemplateId });
+        reserved.push({ spawn: candidateSpawn, roleTemplateId: undefined });
         remaining -= 1;
       }
       return reserved;
@@ -1084,7 +1071,6 @@ export const registerCombatReducers = (deps: any) => {
     if (outcome === 'partial' && addCount > 0) {
       const delayMicros = AUTO_ATTACK_INTERVAL * PULL_ADD_DELAY_ROUNDS;
       const reserved = reserveAdds(addCount);
-      const remainingGroup = ctx.db.enemySpawn.id.find(spawn.id)?.groupCount ?? 0n;
       for (const add of reserved) {
         ctx.db.combatPendingAdd.insert({
           id: 0n,
@@ -1106,7 +1092,6 @@ export const registerCombatReducers = (deps: any) => {
       }
     } else if (outcome === 'failure' && addCount > 0) {
       const reserved = reserveAdds(addCount);
-      const remainingGroup = ctx.db.enemySpawn.id.find(spawn.id)?.groupCount ?? 0n;
       for (const add of reserved) {
         addEnemyToCombat(
           deps,
@@ -1130,7 +1115,6 @@ export const registerCombatReducers = (deps: any) => {
         appendGroupEvent(ctx, combat.groupId, character.id, 'system', `${character.name}'s pull is noticed. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately.`);
       }
     } else {
-      const remainingGroup = ctx.db.enemySpawn.id.find(spawn.id)?.groupCount ?? 0n;
       // Send private message to each participant (participants are Character rows)
       for (const p of participants) {
         const privateMsg = p.id === character.id
