@@ -495,6 +495,7 @@ export function executeAbility(
     bonus: bigint,
     options?: {
       hits?: bigint;
+      hitMultiplier?: bigint;
       ignoreArmor?: bigint;
       threatBonus?: bigint;
       debuff?: { type: string; magnitude: bigint; rounds: bigint; source: string };
@@ -658,7 +659,8 @@ export function executeAbility(
       const racialDamageBonus = dmgType === 'magic' ? racialSpellBonus : racialPhysBonus;
 
       // Total raw damage (racial bonus added per hit)
-      const raw = weaponComponent + finalDirectDamage + totalDamageUp + racialDamageBonus + sumEnemyEffect(ctx, combatId, 'damage_taken', enemy.id);
+      let raw = weaponComponent + finalDirectDamage + totalDamageUp + racialDamageBonus + sumEnemyEffect(ctx, combatId, 'damage_taken', enemy.id);
+      if (options?.hitMultiplier) raw = (raw * options.hitMultiplier) / 100n;
 
       // Route mitigation by damage type
       let reduced: bigint;
@@ -1533,6 +1535,7 @@ export function executeAbility(
       case 'beastmaster_pack_rush':
         applyDamage(0n, 0n, {
           hits: 2n,
+          hitMultiplier: 65n,
           perHitMessage: (damage: bigint, hitIndex: bigint, totalHits: bigint) =>
             `Pack Rush strikes ${enemyName} for ${damage} damage. (${hitIndex}/${totalHits})`,
         });
