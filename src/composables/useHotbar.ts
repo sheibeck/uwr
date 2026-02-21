@@ -269,13 +269,12 @@ export const useHotbar = ({
     const level = liveAbility?.level ?? slot.level ?? 0n;
     const castSeconds = liveAbility?.castSeconds ?? 0n;
     const cooldownSeconds = liveAbility?.cooldownSeconds ?? slot.cooldownSeconds ?? 0n;
+    const resourceCost = liveAbility?.resourceCost ?? 0n;
     let costLabel: string;
     if (resource === 'mana') {
-      const cost = 4n + level * 2n + power;
-      costLabel = `${cost} mana`;
+      costLabel = `${resourceCost} mana`;
     } else if (resource === 'stamina') {
-      const cost = 2n + power / 2n;
-      costLabel = `${cost} stamina`;
+      costLabel = `${resourceCost} stamina`;
     } else {
       costLabel = 'Free';
     }
@@ -379,18 +378,15 @@ export const useHotbar = ({
 
     // Client-side resource pre-check (server remains authoritative)
     const resource = ability?.resource ?? '';
-    const power = ability?.power ?? 0n;
-    const level = ability?.level ?? slot.level ?? 0n;
+    const resourceCostCheck = ability?.resourceCost ?? 0n;
     const char = selectedCharacter.value;
     if (resource === 'mana') {
-      const cost = 4n + level * 2n + power;
-      if ((char.mana ?? 0n) < cost) {
+      if ((char.mana ?? 0n) < resourceCostCheck) {
         addLocalEvent?.('blocked', 'Not enough mana.');
         return;
       }
     } else if (resource === 'stamina') {
-      const cost = 2n + power / 2n;
-      if ((char.stamina ?? 0n) < cost) {
+      if ((char.stamina ?? 0n) < resourceCostCheck) {
         addLocalEvent?.('blocked', 'Not enough stamina.');
         return;
       }

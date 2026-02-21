@@ -32,5 +32,9 @@ export interface AbilityMetadata {
 
   // Combat state restriction
   combatState?: 'any' | 'combat_only' | 'out_of_combat' | 'out_of_combat_only';
+
+  // Override the computed resource cost (4 + level*2 + power) with a fixed value.
+  // Use for pet summons where power represents pet stats, not casting strength.
+  resourceCostOverride?: bigint;
 }
 

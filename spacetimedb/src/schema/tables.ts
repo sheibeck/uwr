@@ -611,6 +611,7 @@ export const AbilityTemplate = table(
     debuffMagnitude: t.i64().optional(),
     debuffDuration: t.u64().optional(),
     aoeTargets: t.string().optional(),
+    resourceCost: t.u64(),
   }
 );
 

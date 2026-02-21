@@ -11,6 +11,7 @@ export const SUMMONER_ABILITIES: Record<string, AbilityMetadata> = {
     cooldownSeconds: 10n,
     castSeconds: 5n,
     damageType: 'none' as DamageType,
+    resourceCostOverride: 30n,
   },
   summoner_conjure_sustenance: {
     name: 'Conjure Sustenance',
@@ -34,6 +35,7 @@ export const SUMMONER_ABILITIES: Record<string, AbilityMetadata> = {
     cooldownSeconds: 10n,
     castSeconds: 5n,
     damageType: 'none' as DamageType,
+    resourceCostOverride: 38n,
   },
   summoner_water_elemental: {
     name: 'Water Elemental',
@@ -45,6 +47,7 @@ export const SUMMONER_ABILITIES: Record<string, AbilityMetadata> = {
     cooldownSeconds: 10n,
     castSeconds: 5n,
     damageType: 'none' as DamageType,
+    resourceCostOverride: 44n,
   },
   summoner_conjure_equipment: {
     name: 'Conjure Equipment',
@@ -67,5 +70,6 @@ export const SUMMONER_ABILITIES: Record<string, AbilityMetadata> = {
     cooldownSeconds: 300n,
     castSeconds: 5n,
     damageType: 'none' as DamageType,
+    resourceCostOverride: 68n,
   },
 };

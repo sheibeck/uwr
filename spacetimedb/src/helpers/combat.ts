@@ -361,7 +361,7 @@ export function executeAbility(
       ? staminaFree
         ? 0n
         : staminaResourceCost(ability.power)
-      : abilityResourceCost(ability.level, ability.power);
+      : (ability.resourceCostOverride ?? abilityResourceCost(ability.level, ability.power));
   if (ability.resource === 'mana') {
     if (character.mana < resourceCost) throw new SenderError('Not enough mana');
   } else if (ability.resource === 'stamina') {
@@ -1748,7 +1748,7 @@ export function executeAbility(
           'Fire Elemental', 'a fire elemental',
           ['Ember', 'Blaze', 'Scorch', 'Cinder', 'Pyre'],
           undefined,
-          { hpBase: 18n, hpPerLevel: 5n, damageBase: 5n, damagePerLevel: 3n, weaponScalePercent: 60n }
+          { hpBase: 30n, hpPerLevel: 6n, damageBase: 5n, damagePerLevel: 4n, weaponScalePercent: 60n }
         );
         return;
       case 'summoner_water_elemental':
@@ -1757,7 +1757,7 @@ export function executeAbility(
           'Water Elemental', 'a water elemental',
           ['Tide', 'Current', 'Flow', 'Rill', 'Mist'],
           { key: 'pet_heal', cooldownSeconds: 6n },
-          { hpBase: 22n, hpPerLevel: 6n, damageBase: 2n, damagePerLevel: 1n, weaponScalePercent: 25n }
+          { hpBase: 40n, hpPerLevel: 8n, damageBase: 3n, damagePerLevel: 2n, weaponScalePercent: 30n }
         );
         return;
       case 'summoner_primal_titan':
@@ -1765,7 +1765,7 @@ export function executeAbility(
           'Primal Titan', 'the Primal Titan',
           ['Titan', 'Colossus', 'Ancient'],
           { key: 'pet_aoe_heal', cooldownSeconds: 6n },
-          { hpBase: 60n, hpPerLevel: 12n, damageBase: 6n, damagePerLevel: 4n, weaponScalePercent: 70n }
+          { hpBase: 60n, hpPerLevel: 20n, damageBase: 6n, damagePerLevel: 4n, weaponScalePercent: 70n }
         );
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
           'The Primal Titan answers your call!'

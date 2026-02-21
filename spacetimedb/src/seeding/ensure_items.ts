@@ -3,6 +3,7 @@ import { findItemTemplateByName, STARTER_ARMOR, STARTER_WEAPONS } from '../helpe
 import { ItemTemplate } from '../schema/tables';
 import { MATERIAL_DEFS, CONSUMABLE_RECIPES, GEAR_RECIPES, GEAR_RECIPE_NAMES, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 import { ABILITY_STAT_SCALING } from '../data/combat_scaling';
+import { abilityResourceCost, staminaResourceCost } from '../helpers/combat';
 import { CLERIC_ABILITIES } from '../data/abilities/cleric_abilities';
 import { WARRIOR_ABILITIES } from '../data/abilities/warrior_abilities';
 import { WIZARD_ABILITIES } from '../data/abilities/wizard_abilities';
@@ -547,6 +548,7 @@ export function ensureAbilityTemplates(ctx: any) {
       debuffDuration?: bigint;
       aoeTargets?: string;
       combatState?: string;
+      resourceCostOverride?: bigint;
     };
     const existing = seenByKey.get(key);
     if (existing) {
@@ -597,6 +599,11 @@ export function ensureAbilityTemplates(ctx: any) {
         debuffMagnitude: entry.debuffMagnitude ?? undefined,
         debuffDuration: entry.debuffDuration ?? undefined,
         aoeTargets: entry.aoeTargets ?? undefined,
+        resourceCost: entry.resourceCostOverride ?? (
+          entry.resource === 'stamina'
+            ? staminaResourceCost(entry.power)
+            : abilityResourceCost(entry.level, entry.power)
+        ),
       });
       continue;
     }
@@ -623,6 +630,11 @@ export function ensureAbilityTemplates(ctx: any) {
       debuffMagnitude: entry.debuffMagnitude ?? undefined,
       debuffDuration: entry.debuffDuration ?? undefined,
       aoeTargets: entry.aoeTargets ?? undefined,
+      resourceCost: entry.resourceCostOverride ?? (
+        entry.resource === 'stamina'
+          ? staminaResourceCost(entry.power)
+          : abilityResourceCost(entry.level, entry.power)
+      ),
     });
     seenByKey.set(key, inserted);
   }
