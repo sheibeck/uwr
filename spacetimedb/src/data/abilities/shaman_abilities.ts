@@ -45,9 +45,9 @@ export const SHAMAN_ABILITIES: Record<string, AbilityMetadata> = {
     className: 'shaman',
     resource: 'mana',
     level: 7n,
-    power: 4n,
+    power: 48n,
     cooldownSeconds: 10n,
-    castSeconds: 1n,
+    castSeconds: 5n,
     damageType: 'none' as DamageType,
   },
   shaman_ancestral_ward: {

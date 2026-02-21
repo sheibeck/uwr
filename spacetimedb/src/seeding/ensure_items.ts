@@ -514,7 +514,6 @@ export function ensureAbilityTemplates(ctx: any) {
     'bard_ballad_of_resolve',
   ]);
   const combatOnlyKeys = new Set([
-    'shaman_spirit_wolf',
     'summoner_earth_familiar',
   ]);
   const outOfCombatOnlyKeys = new Set([
