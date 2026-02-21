@@ -2127,7 +2127,7 @@ export const registerCombatReducers = (deps: any) => {
       if (pending.arriveAtMicros > nowMicros) continue;
       const spawnRow = pending.spawnId ? ctx.db.enemySpawn.id.find(pending.spawnId) : null;
       if (spawnRow) {
-        addEnemyToCombat(
+        const newEnemy = addEnemyToCombat(
           deps,
           ctx,
           combat,
@@ -2136,6 +2136,13 @@ export const registerCombatReducers = (deps: any) => {
           false,
           pending.enemyRoleTemplateId ?? undefined
         );
+        // Set initial aggro target so UI shows "Targeting" immediately on arrival
+        if (newEnemy && activeParticipants.length > 0) {
+          ctx.db.combatEnemy.id.update({
+            ...newEnemy,
+            aggroTargetCharacterId: activeParticipants[0].characterId,
+          });
+        }
       }
       ctx.db.combatPendingAdd.id.delete(pending.id);
       for (const p of activeParticipants) {
