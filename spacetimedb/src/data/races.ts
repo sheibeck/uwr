@@ -38,7 +38,7 @@ export const RACE_DATA: Array<{
       availableClasses: 'warrior,paladin,monk,beastmaster,spellblade,ranger,shaman',
       bonus1Type: 'phys_damage', bonus1Value: 3n,
       bonus2Type: 'armor', bonus2Value: 2n,
-      levelBonusType: 'parry', levelBonusValue: 50n,
+      levelBonusType: 'parry', levelBonusValue: 5n,
       unlocked: true,
     },
     {
@@ -96,8 +96,8 @@ export const RACE_DATA: Array<{
       description: 'Nimble and hard to hit, halflings slip through dangers that fell taller folk.',
       availableClasses: 'rogue,ranger,bard,druid,monk,enchanter',
       bonus1Type: 'stat_dex', bonus1Value: 1n,
-      bonus2Type: 'dodge', bonus2Value: 400n,
-      levelBonusType: 'dodge', levelBonusValue: 50n,
+      bonus2Type: 'dodge', bonus2Value: 10n,
+      levelBonusType: 'dodge', levelBonusValue: 10n,
       unlocked: true,
     },
     {
@@ -125,7 +125,7 @@ export const RACE_DATA: Array<{
       description: 'Graceful and sinister, dark elves wield shadow-touched magic with lethal precision.',
       availableClasses: 'rogue,necromancer,wizard,enchanter,spellblade,reaver,bard,ranger',
       bonus1Type: 'spell_damage', bonus1Value: 4n,
-      bonus2Type: 'dodge', bonus2Value: 300n,
+      bonus2Type: 'dodge', bonus2Value: 10n,
       penaltyType: 'stat_str', penaltyValue: 1n,
       levelBonusType: 'spell_damage', levelBonusValue: 1n,
       unlocked: false,

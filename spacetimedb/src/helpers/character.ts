@@ -92,8 +92,8 @@ export function recomputeCharacterDerived(ctx: any, character: any) {
   const maxStamina = 20n + racialMaxStamina;
 
   const hitChance = totalStats.dex * 15n + racialHitBonus;
-  const dodgeChance = totalStats.dex * 12n + racialDodgeBonus;
-  const parryChance = totalStats.dex * 10n + racialParryBonus;
+  const dodgeChance = totalStats.dex * 5n + racialDodgeBonus;
+  const parryChance = totalStats.dex * 4n + racialParryBonus;
   const critMelee = totalStats.dex * 12n + racialCritBonus;
   const critRanged = totalStats.dex * 12n + racialCritBonus;
   const critDivine = totalStats.wis * 12n;
