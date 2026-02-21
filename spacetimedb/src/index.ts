@@ -50,6 +50,9 @@ import {
   usesMana,
   TANK_CLASSES,
   HEALER_CLASSES,
+  MANA_MULTIPLIER,
+  HYBRID_MANA_MULTIPLIER,
+  HYBRID_MANA_CLASSES,
 } from './data/class_stats';
 import { GLOBAL_COOLDOWN_MICROS } from './data/ability_catalog';
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from './data/xp';
@@ -493,6 +496,10 @@ const reducerDeps = {
   BASE_HP,
   HP_STR_MULTIPLIER,
   BASE_MANA,
+  MANA_MULTIPLIER,
+  HYBRID_MANA_MULTIPLIER,
+  HYBRID_MANA_CLASSES,
+  normalizeClassName,
   abilityCooldownMicros,
   abilityCastMicros,
   enemyAbilityCastMicros,
