@@ -131,6 +131,15 @@
           "
           @mousemove="slot.abilityKey && moveTooltip({ x: $event.clientX, y: $event.clientY })"
           @mouseleave="slot.abilityKey && hideTooltip()"
+          @contextmenu.prevent="
+            slot.abilityKey &&
+            showAbilityPopup({
+              name: slot.name || slot.abilityKey,
+              description: hotbarAbilityDescription(slot),
+              x: ($event.currentTarget?.getBoundingClientRect().right ?? $event.clientX) + 12,
+              y: ($event.currentTarget?.getBoundingClientRect().top ?? $event.clientY),
+            })
+          "
         >
           <div
             v-if="isCasting && slot.abilityKey === activeCastKey"
@@ -546,6 +555,20 @@
       <div v-if="tooltip.item?.factionName" :style="styles.tooltipLine">
         Faction: {{ tooltip.item.factionName }}
       </div>
+    </div>
+    <div
+      v-if="abilityPopup.visible"
+      :style="{
+        ...styles.tooltip,
+        left: `${abilityPopup.x}px`,
+        top: `${abilityPopup.y}px`,
+        pointerEvents: 'auto',
+        maxWidth: '280px',
+      }"
+      @click.stop
+    >
+      <div :style="styles.tooltipTitle">{{ abilityPopup.name }}</div>
+      <div v-if="abilityPopup.description" :style="styles.tooltipLine">{{ abilityPopup.description }}</div>
     </div>
   </div>
 </template>
@@ -1872,6 +1895,7 @@ const {
   activeCastKey,
   isCasting,
   castProgress,
+  abilityLookup,
 } = useHotbar({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
@@ -2049,6 +2073,7 @@ onMounted(() => {
   loadAccordionState();
   window.addEventListener('mousemove', onPanelMouseMove);
   window.addEventListener('mouseup', onPanelMouseUp);
+  document.addEventListener('click', hideAbilityPopup);
   uiTimer = window.setInterval(() => {
     nowMicros.value = Date.now() * 1000;
   }, 100);
@@ -2057,6 +2082,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('mousemove', onPanelMouseMove);
   window.removeEventListener('mouseup', onPanelMouseUp);
+  document.removeEventListener('click', hideAbilityPopup);
   if (uiTimer) clearInterval(uiTimer);
 });
 
@@ -2179,6 +2205,20 @@ const tooltip = ref<{
   anchor: 'cursor',
 });
 
+const abilityPopup = ref<{
+  visible: boolean;
+  x: number;
+  y: number;
+  name: string;
+  description: string;
+}>({
+  visible: false,
+  x: 0,
+  y: 0,
+  name: '',
+  description: '',
+});
+
 
 const tooltipRarityColor = (item: any): Record<string, string> => {
   const key = ((item?.qualityTier ?? item?.rarity ?? 'common') as string).toLowerCase();
@@ -2210,6 +2250,19 @@ const moveTooltip = (payload: { x: number; y: number }) => {
 
 const hideTooltip = () => {
   tooltip.value = { visible: false, x: 0, y: 0, item: null, anchor: 'cursor' };
+};
+
+const showAbilityPopup = (payload: { name: string; description: string; x: number; y: number }) => {
+  abilityPopup.value = { visible: true, ...payload };
+};
+
+const hideAbilityPopup = () => {
+  abilityPopup.value = { visible: false, x: 0, y: 0, name: '', description: '' };
+};
+
+const hotbarAbilityDescription = (slot: any): string => {
+  const liveAbility = abilityLookup.value.get(slot.abilityKey ?? '');
+  return liveAbility?.description?.trim() || slot.description || `${slot.name} ability.`;
 };
 
 // panelTitle no longer needed - each panel has its own title in the template
