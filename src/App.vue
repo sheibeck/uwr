@@ -223,7 +223,7 @@
     </div>
 
     <!-- Loot Panel -->
-    <div v-if="panels.loot && panels.loot.open" data-panel-id="loot" :style="{ ...styles.floatingPanel, ...(panelStyle('loot').value || {}) }" @mousedown="bringToFront('loot')">
+    <div v-if="panels.loot && panels.loot.open" data-panel-id="loot" :class="{ 'loot-panel-pulse': lootPanelPulsing }" :style="{ ...styles.floatingPanel, ...(panelStyle('loot').value || {}) }" @mousedown="bringToFront('loot')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('loot', $event)"><div>Loot</div><button type="button" :style="styles.panelClose" @click="closePanelById('loot')">×</button></div>
       <div :style="styles.floatingPanelBody"><LootPanel :styles="styles" :conn-active="conn.isActive" :loot-items="pendingLoot" @take-loot="takeLoot" @take-all-loot="takeAllLoot" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('loot', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('loot', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('loot', $event, { right: true, bottom: true })" />
@@ -1289,6 +1289,9 @@ watch(
 );
 
 
+const lootPanelPulsing = ref(false);
+let lootPulseTimer: ReturnType<typeof setTimeout> | null = null;
+
 // Auto-open loot panel when pendingLoot goes from empty to non-empty
 watch(
   () => pendingLoot.value.length,
@@ -1296,6 +1299,15 @@ watch(
     console.log('[LOOT DEBUG] pendingLoot changed:', prevCount, '->', count);
     if (count > 0 && (prevCount === 0 || prevCount === undefined)) {
       openPanel('loot');
+    }
+    // Pulse when new items arrive (count increased)
+    if (count > (prevCount ?? 0)) {
+      if (lootPulseTimer !== null) clearTimeout(lootPulseTimer);
+      lootPanelPulsing.value = true;
+      lootPulseTimer = setTimeout(() => {
+        lootPanelPulsing.value = false;
+        lootPulseTimer = null;
+      }, 3500);
     }
   }
 );
@@ -2344,6 +2356,19 @@ const handleChoosePerk = (perkKey: string) => {
   50% {
     opacity: 1;
   }
+}
+
+@keyframes lootBorderPulse {
+  0%   { box-shadow: 0 0 4px 2px rgba(255, 180, 40, 0.0),  border-color: rgba(255, 255, 255, 0.10); }
+  20%  { box-shadow: 0 0 12px 5px rgba(255, 180, 40, 0.75), border-color: rgba(255, 190, 60, 0.90); }
+  50%  { box-shadow: 0 0 20px 8px rgba(255, 160, 20, 0.55), border-color: rgba(255, 200, 80, 0.80); }
+  80%  { box-shadow: 0 0 12px 5px rgba(255, 180, 40, 0.40), border-color: rgba(255, 190, 60, 0.60); }
+  100% { box-shadow: 0 0 4px 2px rgba(255, 180, 40, 0.0),  border-color: rgba(255, 255, 255, 0.10); }
+}
+
+.loot-panel-pulse {
+  animation: lootBorderPulse 0.9s ease-in-out 4;
+  border: 1px solid rgba(255, 190, 60, 0.70) !important;
 }
 </style>
 
