@@ -134,14 +134,10 @@ export const useHotbar = ({
         if (row.characterId.toString() !== charId.toString()) continue;
         const key = row.abilityKey;
         activeKeys.add(key);
-        // Reset receivedAt if this is a new key OR if we have a local prediction
-        // (meaning the server just confirmed a new use — the row was upserted with a new startedAtMicros)
-        if (!cooldownReceivedAt.value.has(key) || localCooldowns.value.has(key)) {
+        // Only record receivedAt the first time this key is seen (for reconnect case)
+        // Do NOT delete localCooldowns here — local runs its full countdown as the primary display
+        if (!cooldownReceivedAt.value.has(key)) {
           cooldownReceivedAt.value.set(key, Date.now() * 1000);
-        }
-        // Server confirmed this cooldown — remove local prediction if it exists
-        if (localCooldowns.value.has(key)) {
-          localCooldowns.value.delete(key);
         }
       }
       // Clean up receivedAt entries for rows that no longer exist
@@ -423,13 +419,11 @@ export const useHotbar = ({
       if (now - lastClearCheck < 500_000) return; // Check every 500ms
       lastClearCheck = now;
 
+      // Just check existence — if the server has a row, the ability fired (even if the row looks expired
+      // by our stale receivedAt). Server-side cleanup deletes expired rows on its own schedule.
       const serverCooldownKeys = new Set(
         serverCooldowns
-          .filter(cd => {
-            if (cd.characterId.toString() !== charId.toString()) return false;
-            const receivedAt = cooldownReceivedAt.value.get(cd.abilityKey) ?? (Date.now() * 1000);
-            return Number(cd.durationMicros) - (now - receivedAt) > 0;
-          })
+          .filter(cd => cd.characterId.toString() === charId.toString())
           .map(cd => cd.abilityKey)
       );
 
