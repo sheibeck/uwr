@@ -104,6 +104,10 @@ export function abilityResourceCost(level: bigint, power: bigint) {
   return 4n + level * 2n + power;
 }
 
+export function staminaResourceCost(power: bigint) {
+  return 2n + power / 2n;
+}
+
 export function hasShieldEquipped(ctx: any, characterId: bigint) {
   for (const instance of ctx.db.itemInstance.by_owner.filter(characterId)) {
     if (instance.equippedSlot !== 'offHand') continue;
@@ -356,7 +360,7 @@ export function executeAbility(
     ability.resource === 'stamina'
       ? staminaFree
         ? 0n
-        : 3n
+        : staminaResourceCost(ability.power)
       : abilityResourceCost(ability.level, ability.power);
   if (ability.resource === 'mana') {
     if (character.mana < resourceCost) throw new SenderError('Not enough mana');
