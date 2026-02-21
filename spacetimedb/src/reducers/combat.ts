@@ -185,24 +185,15 @@ export const startCombatForSpawn = (
     );
   }
 
-  // Bring any pre-summoned pets into combat
+  // Bring any pre-summoned pets into combat by setting their combatId
   for (const p of participants) {
     for (const ap of [...ctx.db.activePet.by_character.filter(p.id)]) {
-      ctx.db.activePet.id.delete(ap.id);
-      const pet = ctx.db.combatPet.insert({
-        id: 0n,
+      const pet = ctx.db.activePet.id.update({
+        ...ap,
         combatId: combat.id,
-        ownerCharacterId: p.id,
-        name: ap.name,
-        level: ap.level,
-        currentHp: ap.currentHp,
-        maxHp: ap.maxHp,
-        attackDamage: ap.attackDamage,
-        abilityKey: ap.abilityKey,
-        abilityCooldownSeconds: ap.abilityCooldownSeconds,
         nextAbilityAt: ap.abilityKey ? ctx.timestamp.microsSinceUnixEpoch : undefined,
-        targetEnemyId: undefined,
         nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
+        targetEnemyId: undefined,
       });
       if (p.className?.toLowerCase() === 'summoner') {
         for (const en of ctx.db.combatEnemy.by_combat.filter(combat.id)) {
@@ -212,7 +203,7 @@ export const startCombatForSpawn = (
             combatId: combat.id,
             enemyId: en.id,
             characterId: p.id,
-            petId: pet.id,
+            petId: ap.id,
             value: SUMMONER_PET_INITIAL_AGGRO,
           });
         }
@@ -309,9 +300,9 @@ export const registerCombatReducers = (deps: any) => {
       'combat',
       `You have died. Killed by ${enemyName}.`
     );
-    for (const pet of ctx.db.combatPet.by_combat.filter(participant.combatId)) {
-      if (pet.ownerCharacterId === character.id) {
-        ctx.db.combatPet.id.delete(pet.id);
+    for (const pet of ctx.db.activePet.by_combat.filter(participant.combatId)) {
+      if (pet.characterId === character.id) {
+        ctx.db.activePet.id.delete(pet.id);
       }
     }
   };
@@ -329,22 +320,20 @@ export const registerCombatReducers = (deps: any) => {
       participantIds.push(row.characterId);
       ctx.db.combatParticipant.id.delete(row.id);
     }
-    for (const pet of ctx.db.combatPet.by_combat.filter(combatId)) {
-      // Surviving pets return to their out-of-combat active state
+    for (const pet of ctx.db.activePet.by_combat.filter(combatId)) {
       if (pet.currentHp > 0n) {
-        ctx.db.activePet.insert({
-          id: 0n,
-          characterId: pet.ownerCharacterId,
-          name: pet.name,
-          level: pet.level,
-          currentHp: pet.currentHp,
-          maxHp: pet.maxHp,
-          attackDamage: pet.attackDamage,
-          abilityKey: pet.abilityKey,
-          abilityCooldownSeconds: pet.abilityCooldownSeconds,
+        // Surviving pet returns to out-of-combat state
+        ctx.db.activePet.id.update({
+          ...pet,
+          combatId: undefined,
+          nextAbilityAt: undefined,
+          targetEnemyId: undefined,
+          nextAutoAttackAt: undefined,
         });
+      } else {
+        // Dead pet is dismissed
+        ctx.db.activePet.id.delete(pet.id);
       }
-      ctx.db.combatPet.id.delete(pet.id);
     }
     for (const characterId of participantIds) {
       const character = ctx.db.character.id.find(characterId);
@@ -1844,10 +1833,16 @@ export const registerCombatReducers = (deps: any) => {
           }
         }
 
-        // Remove their pets
-        for (const pet of ctx.db.combatPet.by_combat.filter(combat.id)) {
-          if (pet.ownerCharacterId === fleeingChar.id) {
-            ctx.db.combatPet.id.delete(pet.id);
+        // Return their pet to out-of-combat state when fleeing
+        for (const pet of ctx.db.activePet.by_combat.filter(combat.id)) {
+          if (pet.characterId === fleeingChar.id) {
+            ctx.db.activePet.id.update({
+              ...pet,
+              combatId: undefined,
+              nextAbilityAt: undefined,
+              targetEnemyId: undefined,
+              nextAutoAttackAt: undefined,
+            });
           }
         }
 
@@ -2305,12 +2300,12 @@ export const registerCombatReducers = (deps: any) => {
       .filter((row): row is typeof deps.CombatEnemy.rowType => Boolean(row) && row.currentHp > 0n);
     const aliveEnemyIds = new Set(livingEnemies.map((row) => row.id));
 
-    const pets = [...ctx.db.combatPet.by_combat.filter(combat.id)];
+    const pets = [...ctx.db.activePet.by_combat.filter(combat.id)];
     for (const pet of pets) {
       // Owner check: dismiss the pet if its owner is dead.
-      const owner = ctx.db.character.id.find(pet.ownerCharacterId);
+      const owner = ctx.db.character.id.find(pet.characterId);
       if (!owner || owner.hp === 0n) {
-        ctx.db.combatPet.id.delete(pet.id);
+        ctx.db.activePet.id.delete(pet.id);
         continue;
       }
       // Resolve target (switch away from dead enemies).
@@ -2322,8 +2317,8 @@ export const registerCombatReducers = (deps: any) => {
         target = preferred ?? livingEnemies[0] ?? null;
       }
       if (!target) {
-        if (pet.nextAutoAttackAt <= nowMicros) {
-          ctx.db.combatPet.id.update({ ...pet, nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL, targetEnemyId: undefined });
+        if (pet.nextAutoAttackAt && pet.nextAutoAttackAt <= nowMicros) {
+          ctx.db.activePet.id.update({ ...pet, nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL, targetEnemyId: undefined });
         }
         continue;
       }
@@ -2345,10 +2340,10 @@ export const registerCombatReducers = (deps: any) => {
         }
       }
       // Auto-attack: only when that timer is ready.
-      if (pet.nextAutoAttackAt > nowMicros) {
+      if (pet.nextAutoAttackAt && pet.nextAutoAttackAt > nowMicros) {
         // Update target and ability cooldown even when not auto-attacking.
         if (nextAbilityAt !== pet.nextAbilityAt || target.id !== pet.targetEnemyId) {
-          ctx.db.combatPet.id.update({ ...pet, nextAbilityAt, targetEnemyId: target.id });
+          ctx.db.activePet.id.update({ ...pet, nextAbilityAt, targetEnemyId: target.id });
         }
         continue;
       }
@@ -2402,7 +2397,7 @@ export const registerCombatReducers = (deps: any) => {
           });
         }
       }
-      ctx.db.combatPet.id.update({
+      ctx.db.activePet.id.update({
         ...pet,
         nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
         nextAbilityAt,
@@ -2869,11 +2864,11 @@ export const registerCombatReducers = (deps: any) => {
     const activeIds = new Set(activeParticipants.map((p) => p.characterId));
     for (const enemy of enemies) {
       let topAggro: typeof deps.AggroEntry.rowType | null = null;
-      let topPet: typeof deps.CombatPet.rowType | null = null;
+      let topPet: typeof deps.ActivePet.rowType | null = null;
       for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
         if (entry.enemyId !== enemy.id) continue;
         if (entry.petId) {
-          const pet = ctx.db.combatPet.id.find(entry.petId);
+          const pet = ctx.db.activePet.id.find(entry.petId);
           if (!pet || pet.currentHp === 0n) continue;
           if (!topAggro || entry.value > topAggro.value) {
             topAggro = entry;
@@ -2950,11 +2945,11 @@ export const registerCombatReducers = (deps: any) => {
                 hit: (damage) => `${name} hits ${targetName} for ${damage}.`,
               },
               applyHp: (updatedHp) => {
-                ctx.db.combatPet.id.update({ ...topPet, currentHp: updatedHp });
+                ctx.db.activePet.id.update({ ...topPet, currentHp: updatedHp });
               },
             });
             if (nextHp === 0n) {
-              ctx.db.combatPet.id.delete(topPet.id);
+              ctx.db.activePet.id.delete(topPet.id);
               for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
                 if (entry.petId && entry.petId === topPet.id) {
                   ctx.db.aggroEntry.id.delete(entry.id);

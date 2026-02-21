@@ -621,7 +621,7 @@ const {
   combatEncounters,
   combatParticipants,
   combatEnemies,
-  combatPets,
+  activePets,
   combatEnemyEffects,
   combatEnemyCasts,
   aggroEntries,
@@ -983,7 +983,7 @@ const {
   combatEncounters,
   combatParticipants,
   combatEnemies,
-  combatPets,
+  activePets,
   combatEnemyEffects,
   combatEnemyCasts,
   combatLoot,
@@ -1023,9 +1023,34 @@ const tombstoneArt = ` _____
  |______||`;
 
 const combatPetsForGroup = computed(() => {
-  if (!activeCombat.value) return [];
-  const combatId = activeCombat.value.id.toString();
-  return combatPets.value.filter((pet) => pet.combatId.toString() === combatId);
+  if (!selectedCharacter.value) return [];
+  const relevantIds = new Set<string>();
+  relevantIds.add(selectedCharacter.value.id.toString());
+  for (const member of groupCharacterMembers.value) {
+    relevantIds.add(member.id.toString());
+  }
+  if (activeCombat.value) {
+    const combatId = activeCombat.value.id.toString();
+    return (activePets.value as any[])
+      .filter((pet: any) => pet.combatId?.toString() === combatId)
+      .map((pet: any) => ({
+        id: pet.id,
+        ownerCharacterId: pet.characterId,
+        name: pet.name,
+        currentHp: pet.currentHp,
+        maxHp: pet.maxHp,
+      }));
+  }
+  // Out of combat: show active persistent pets (those without a combatId)
+  return (activePets.value as any[])
+    .filter((pet: any) => !pet.combatId && relevantIds.has(pet.characterId.toString()))
+    .map((pet: any) => ({
+      id: pet.id,
+      ownerCharacterId: pet.characterId,
+      name: pet.name,
+      currentHp: pet.currentHp,
+      maxHp: pet.maxHp,
+    }));
 });
 
 const BARD_SONG_DISPLAY_NAMES: Record<string, string> = {

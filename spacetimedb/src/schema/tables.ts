@@ -987,19 +987,19 @@ export const CombatEnemy = table(
   }
 );
 
-export const CombatPet = table(
+export const ActivePet = table(
   {
-    name: 'combat_pet',
+    name: 'active_pet',
     public: true,
     indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
       { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
-      { name: 'by_owner', algorithm: 'btree', columns: ['ownerCharacterId'] },
     ],
   },
   {
     id: t.u64().primaryKey().autoInc(),
-    combatId: t.u64(),
-    ownerCharacterId: t.u64(),
+    characterId: t.u64(),
+    combatId: t.u64().optional(),
     name: t.string(),
     level: t.u64(),
     currentHp: t.u64(),
@@ -1009,7 +1009,7 @@ export const CombatPet = table(
     nextAbilityAt: t.u64().optional(),
     abilityCooldownSeconds: t.u64().optional(),
     targetEnemyId: t.u64().optional(),
-    nextAutoAttackAt: t.u64(),
+    nextAutoAttackAt: t.u64().optional(),
   }
 );
 
@@ -1791,7 +1791,7 @@ export const spacetimedb = schema(
   CombatEncounter,
   CombatParticipant,
   CombatEnemy,
-  CombatPet,
+  ActivePet,
   CombatEnemyCast,
   CombatEnemyCooldown,
   CharacterEffect,

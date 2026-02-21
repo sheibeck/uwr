@@ -6,7 +6,7 @@ import {
   CombatEncounterRow,
   CombatParticipantRow,
   CombatEnemyRow,
-  CombatPetRow,
+  ActivePetRow,
   CombatEnemyCastRow,
   CombatResultRow,
   CombatLootRow,
@@ -61,7 +61,7 @@ type UseCombatArgs = {
   combatEncounters: Ref<Infer<typeof CombatEncounterRow>[]>;
   combatParticipants: Ref<Infer<typeof CombatParticipantRow>[]>;
   combatEnemies: Ref<Infer<typeof CombatEnemyRow>[]>;
-  combatPets: Ref<Infer<typeof CombatPetRow>[]>;
+  activePets: Ref<Infer<typeof ActivePetRow>[]>;
   combatEnemyEffects: Ref<Infer<typeof CombatEnemyEffectRow>[]>;
   combatEnemyCasts: Ref<Infer<typeof CombatEnemyCastRow>[]>;
   enemyAbilities: Ref<Infer<typeof EnemyAbilityRow>[]>;
@@ -110,7 +110,7 @@ export const useCombat = ({
   combatEncounters,
   combatParticipants,
   combatEnemies,
-  combatPets,
+  activePets,
   combatEnemyEffects,
   combatEnemyCasts,
   enemyAbilities,
@@ -531,7 +531,7 @@ export const useCombat = ({
       const targetName = (() => {
         if (enemy.aggroTargetPetId) {
           return (
-            combatPets.value.find(
+            activePets.value.find(
               (row) => row.id.toString() === enemy.aggroTargetPetId?.toString()
             )?.name ?? null
           );

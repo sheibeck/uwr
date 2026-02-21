@@ -270,6 +270,8 @@ import AchievementRow from "./achievement_table";
 export { AchievementRow };
 import ActiveBardSongRow from "./active_bard_song_table";
 export { ActiveBardSongRow };
+import ActivePetRow from "./active_pet_table";
+export { ActivePetRow };
 import AggroEntryRow from "./aggro_entry_table";
 export { AggroEntryRow };
 import AppVersionRow from "./app_version_table";
@@ -304,8 +306,6 @@ import CombatParticipantRow from "./combat_participant_table";
 export { CombatParticipantRow };
 import CombatPendingAddRow from "./combat_pending_add_table";
 export { CombatPendingAddRow };
-import CombatPetRow from "./combat_pet_table";
-export { CombatPetRow };
 import CombatResultRow from "./combat_result_table";
 export { CombatResultRow };
 import CommandRow from "./command_table";
@@ -504,6 +504,8 @@ import Achievement from "./achievement_type";
 export { Achievement };
 import ActiveBardSong from "./active_bard_song_type";
 export { ActiveBardSong };
+import ActivePet from "./active_pet_type";
+export { ActivePet };
 import AddTradeItem from "./add_trade_item_type";
 export { AddTradeItem };
 import AggroEntry from "./aggro_entry_type";
@@ -558,8 +560,6 @@ import CombatParticipant from "./combat_participant_type";
 export { CombatParticipant };
 import CombatPendingAdd from "./combat_pending_add_type";
 export { CombatPendingAdd };
-import CombatPet from "./combat_pet_type";
-export { CombatPet };
 import CombatResult from "./combat_result_type";
 export { CombatResult };
 import Command from "./command_type";
@@ -1001,6 +1001,23 @@ const tablesSchema = __schema(
     ],
   }, ActiveBardSongRow),
   __table({
+    name: 'active_pet',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'by_combat', algorithm: 'btree', columns: [
+        'combatId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'active_pet_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ActivePetRow),
+  __table({
     name: 'aggro_entry',
     indexes: [
       { name: 'by_combat', algorithm: 'btree', columns: [
@@ -1250,23 +1267,6 @@ const tablesSchema = __schema(
       { name: 'combat_pending_add_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatPendingAddRow),
-  __table({
-    name: 'combat_pet',
-    indexes: [
-      { name: 'by_combat', algorithm: 'btree', columns: [
-        'combatId',
-      ] },
-      { name: 'id', algorithm: 'btree', columns: [
-        'id',
-      ] },
-      { name: 'by_owner', algorithm: 'btree', columns: [
-        'ownerCharacterId',
-      ] },
-    ],
-    constraints: [
-      { name: 'combat_pet_id_key', constraint: 'unique', columns: ['id'] },
-    ],
-  }, CombatPetRow),
   __table({
     name: 'combat_result',
     indexes: [

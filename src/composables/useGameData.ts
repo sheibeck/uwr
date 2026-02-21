@@ -32,7 +32,7 @@ export const useGameData = () => {
   const [combatEncounters] = useTable(tables.combatEncounter);
   const [combatParticipants] = useTable(tables.combatParticipant);
   const [combatEnemies] = useTable(tables.combatEnemy);
-  const [combatPets] = useTable(tables.combatPet);
+  const [activePets] = useTable(tables.activePet);
   const [combatEnemyEffects] = useTable(tables.combatEnemyEffect);
   const [combatEnemyCasts] = useTable(tables.combatEnemyCast);
   const [aggroEntries] = useTable(tables.aggroEntry);
@@ -77,7 +77,6 @@ export const useGameData = () => {
   const [eventSpawnEnemies] = useTable(tables.eventSpawnEnemy);
   const [eventSpawnItems] = useTable(tables.eventSpawnItem);
   const [eventObjectives] = useTable(tables.eventObjective);
-  // @ts-expect-error bindings pending regeneration — run spacetime generate after publishing
   const [appVersionRows] = useTable(tables.appVersion);
   const [activeBardSongs] = useTable(tables.activeBardSong);
 
@@ -112,7 +111,7 @@ export const useGameData = () => {
     combatEncounters,
     combatParticipants,
     combatEnemies,
-    combatPets,
+    activePets,
     combatEnemyEffects,
     combatEnemyCasts,
     aggroEntries,

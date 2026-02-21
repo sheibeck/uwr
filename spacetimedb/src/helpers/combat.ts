@@ -421,17 +421,9 @@ export function executeAbility(
       weaponScalePercent?: bigint;
     }
   ) => {
-    // Clear any existing active pet (out-of-combat)
+    // Dismiss any existing pet for this character (single pet at a time)
     for (const existing of ctx.db.activePet.by_character.filter(character.id)) {
       ctx.db.activePet.id.delete(existing.id);
-    }
-    // Clear any existing combat pet if in combat
-    if (combatId) {
-      for (const existing of ctx.db.combatPet.by_combat.filter(combatId)) {
-        if (existing.ownerCharacterId === character.id) {
-          ctx.db.combatPet.id.delete(existing.id);
-        }
-      }
     }
     const pickIndex = Number((nowMicros + character.id * 7n) % BigInt(namePool.length));
     const petName = namePool[pickIndex] ?? 'Echo';
@@ -446,51 +438,38 @@ export function executeAbility(
     const weaponProxy = (weapon.baseDamage * weaponScalePercent) / 100n;
     const petMaxHp = hpBase + petLevel * hpPerLevel;
     const petAttackDamage = damageBase + petLevel * damagePerLevel + weaponProxy;
-    if (combatId && combat && combat.state === 'active') {
-      if (!enemy) throw new SenderError('You have no target to unleash this upon.');
-      const pet = ctx.db.combatPet.insert({
-        id: 0n,
-        combatId,
-        ownerCharacterId: character.id,
-        name: displayName,
-        level: petLevel,
-        currentHp: petMaxHp,
-        maxHp: petMaxHp,
-        attackDamage: petAttackDamage,
-        abilityKey: ability?.key,
-        abilityCooldownSeconds: ability?.cooldownSeconds,
-        // Allow pets to attempt their ability immediately on summon.
-        nextAbilityAt: ability ? nowMicros : undefined,
-        targetEnemyId: enemy.id,
-        nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
-      });
+    const inActiveCombat = combatId && combat && combat.state === 'active';
+    if (inActiveCombat && !enemy) throw new SenderError('You have no target to unleash this upon.');
+    const pet = ctx.db.activePet.insert({
+      id: 0n,
+      characterId: character.id,
+      combatId: inActiveCombat ? combatId : undefined,
+      name: displayName,
+      level: petLevel,
+      currentHp: petMaxHp,
+      maxHp: petMaxHp,
+      attackDamage: petAttackDamage,
+      abilityKey: ability?.key,
+      abilityCooldownSeconds: ability?.cooldownSeconds,
+      // Combat-only fields
+      nextAbilityAt: inActiveCombat && ability ? nowMicros : undefined,
+      targetEnemyId: inActiveCombat ? enemy!.id : undefined,
+      nextAutoAttackAt: inActiveCombat ? nowMicros + AUTO_ATTACK_INTERVAL : undefined,
+    });
+    if (inActiveCombat && character.className?.toLowerCase() === 'summoner') {
       // Summoner pets are the primary combat presence — give them immediate aggro
       // so they draw enemy attention before the summoner's own threat builds up.
-      if (character.className?.toLowerCase() === 'summoner') {
-        for (const en of ctx.db.combatEnemy.by_combat.filter(combatId)) {
-          if (en.currentHp <= 0n) continue;
-          ctx.db.aggroEntry.insert({
-            id: 0n,
-            combatId,
-            enemyId: en.id,
-            characterId: character.id,
-            petId: pet.id,
-            value: SUMMONER_PET_INITIAL_AGGRO,
-          });
-        }
+      for (const en of ctx.db.combatEnemy.by_combat.filter(combatId)) {
+        if (en.currentHp <= 0n) continue;
+        ctx.db.aggroEntry.insert({
+          id: 0n,
+          combatId,
+          enemyId: en.id,
+          characterId: character.id,
+          petId: pet.id,
+          value: SUMMONER_PET_INITIAL_AGGRO,
+        });
       }
-    } else {
-      ctx.db.activePet.insert({
-        id: 0n,
-        characterId: character.id,
-        name: displayName,
-        level: petLevel,
-        currentHp: petMaxHp,
-        maxHp: petMaxHp,
-        attackDamage: petAttackDamage,
-        abilityKey: ability?.key,
-        abilityCooldownSeconds: ability?.cooldownSeconds,
-      });
     }
     appendPrivateEvent(
       ctx,
@@ -2112,9 +2091,9 @@ export function executePetAbility(
 ) {
   const combat = ctx.db.combatEncounter.id.find(combatId);
   if (!combat || combat.state !== 'active') return false;
-  const pet = ctx.db.combatPet.id.find(petId);
+  const pet = ctx.db.activePet.id.find(petId);
   if (!pet) return false;
-  const owner = ctx.db.character.id.find(pet.ownerCharacterId);
+  const owner = ctx.db.character.id.find(pet.characterId);
   if (!owner || owner.hp === 0n) return false;
   const target =
     (targetEnemyId ? ctx.db.combatEnemy.id.find(targetEnemyId) : null) ??

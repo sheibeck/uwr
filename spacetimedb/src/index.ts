@@ -22,6 +22,7 @@ import {
   QuestItem, NamedEnemy, SearchResult,
   AppVersion,
   ActiveBardSong, BardSongTick,
+  ActivePet,
 } from './schema/tables';
 export { spacetimedb } from './schema/tables';
 import { registerReducers } from './reducers';
@@ -459,6 +460,7 @@ const reducerDeps = {
   CombatEnemyCast,
   CombatPendingAdd,
   AggroEntry,
+  ActivePet,
   requirePlayerUserId,
   requireCharacterOwnedBy,
   findCharacterByName,

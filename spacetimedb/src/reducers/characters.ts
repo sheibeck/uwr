@@ -567,6 +567,10 @@ export const registerCharacterReducers = (deps: any) => {
           ctx.db.itemInstance.id.delete(instance.id);
         }
       }
+      // Dismiss active pets on logout
+      for (const pet of ctx.db.activePet.by_character.filter(arg.characterId)) {
+        ctx.db.activePet.id.delete(pet.id);
+      }
 
       const friends = friendUserIds(ctx, arg.ownerUserId);
       for (const friendId of friends) {

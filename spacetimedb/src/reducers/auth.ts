@@ -78,6 +78,10 @@ export const registerAuthReducers = (deps: any) => {
             );
           }
         }
+        // Dismiss active pets on disconnect
+        for (const pet of ctx.db.activePet.by_character.filter(player.activeCharacterId)) {
+          ctx.db.activePet.id.delete(pet.id);
+        }
       }
       ctx.db.player.id.update({
         ...player,

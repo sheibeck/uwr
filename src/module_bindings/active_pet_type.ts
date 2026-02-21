@@ -10,10 +10,10 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("CombatPet", {
+export default __t.object("ActivePet", {
   id: __t.u64(),
-  combatId: __t.u64(),
-  ownerCharacterId: __t.u64(),
+  characterId: __t.u64(),
+  combatId: __t.option(__t.u64()),
   name: __t.string(),
   level: __t.u64(),
   currentHp: __t.u64(),
@@ -23,7 +23,7 @@ export default __t.object("CombatPet", {
   nextAbilityAt: __t.option(__t.u64()),
   abilityCooldownSeconds: __t.option(__t.u64()),
   targetEnemyId: __t.option(__t.u64()),
-  nextAutoAttackAt: __t.u64(),
+  nextAutoAttackAt: __t.option(__t.u64()),
 });
 
 

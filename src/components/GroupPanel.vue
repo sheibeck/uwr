@@ -207,7 +207,7 @@ const props = defineProps<{
   nowMicros?: number;
   combatPets: {
     id: bigint;
-    combatId: bigint;
+    combatId?: bigint;
     ownerCharacterId: bigint;
     name: string;
     currentHp: bigint;

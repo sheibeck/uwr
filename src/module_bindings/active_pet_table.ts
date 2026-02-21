@@ -12,8 +12,8 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  combatId: __t.u64(),
-  ownerCharacterId: __t.u64(),
+  characterId: __t.u64(),
+  combatId: __t.option(__t.u64()),
   name: __t.string(),
   level: __t.u64(),
   currentHp: __t.u64(),
@@ -23,5 +23,5 @@ export default __t.row({
   nextAbilityAt: __t.option(__t.u64()),
   abilityCooldownSeconds: __t.option(__t.u64()),
   targetEnemyId: __t.option(__t.u64()),
-  nextAutoAttackAt: __t.u64(),
+  nextAutoAttackAt: __t.option(__t.u64()),
 });
