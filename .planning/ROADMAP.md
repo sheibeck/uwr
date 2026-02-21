@@ -750,7 +750,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 21.1.1-01-PLAN.md — Extend rollAttackOutcome with dodgeChanceBasis/parryChanceBasis/attackerHitBonus opts, wire two call sites (player-attacks-enemy, enemy-attacks-player)
+- [x] 21.1.1-01-PLAN.md — Extend rollAttackOutcome with dodgeChanceBasis/parryChanceBasis/attackerHitBonus opts, wire two call sites (player-attacks-enemy, enemy-attacks-player)
 
 ### Phase 22: Class Ability Balancing & Progression
 

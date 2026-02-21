@@ -1,8 +1,8 @@
 # Project State
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
-**Last updated:** 2026-02-20
-**Status:** Phase 21.1 (Stat Systems Off-Stat Hooks) — In Progress. Plans 01-03 complete. Plan 04 in progress (checkpoint): backend published to local, bindings regenerated, StatsPanel block stats added. Awaiting human verification.
+**Last updated:** 2026-02-21
+**Status:** Phase 21.1.1 (Hit/Dodge/Parry Active Stats) — In Progress. Plan 01 complete: stat-derived dodge/parry/hit wired into rollAttackOutcome and resolveAttack call sites.
 
 ---
 
@@ -11,8 +11,9 @@
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 13 (Crafting System) complete — 10 crafting materials, 29 recipes (14 consumable + 15 gear), salvage yields materials, craft_recipe applies deterministic affixes, CraftingPanel filter chips + craftable toggle, human-verified. Phase 13.1 (Dual-Axis Gear System) complete — craftQuality (dented/standard/reinforced/exquisite/mastercraft) separates potency from rarity axis, Essence I/II/III/IV as gear crafting reagents, unified addRecipeTemplate helper, per-material-quality stat bonuses via implicit ItemAffix rows. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 15 (Named NPCs) complete — implemented organically via Phase 19 and quick tasks; 7+ NPCs, shops, world placement in place. Phase 18 (World Events System Expansion) complete — admin-fired events, event spawns, Bronze/Silver/Gold contribution tiers, dual success/failure consequences (Ripple), WorldEventPanel with Active + History tabs, banner overlay notifications, admin event panel (quick-191), WorldStatTracker for threshold events. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
 
 **Last completed phase:** 22 — Class Ability Balancing & Progression (all 16 classes with level 1/3/5/7/9/10 abilities, Bard song system, Summoner/Beastmaster pets, human-verified)
-**Current phase:** 21.1 — Stat Systems Off-Stat Hooks (Plan 04 at checkpoint — tasks 1-2 done, awaiting Task 3 human-verify)
-**Next action:** Resume 21.1-04 after human verification approval
+**Current phase:** 21.1.1 — Hit/Dodge/Parry Active Stats (Plan 01 complete — stat-derived windows wired)
+**Next action:** Continue with next plan in phase 21.1.1 (if any) or return to phase 21.1 plan 04 checkpoint
+**Last session:** 2026-02-21 — Completed 21.1.1-01-PLAN.md
 
 ---
 
@@ -47,6 +48,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 20 | Perk Variety Expansion | Complete (3/3 plans done: perk data foundation + perk logic implementation + active ability perks with hotbar integration) |
 | 21 | Race Expansion | In Progress (Plans 01-03 complete: dual-bonus schema, 15 races seeded, racial columns, level-up stacking, CharacterPanel UI updated) |
 | 21.1 | Stat Systems Off-Stat Hooks | In Progress (Plans 01-03 complete. Plan 04 at checkpoint: backend published locally, bindings regenerated, StatsPanel block chance/mitigation display added; awaiting human verify) |
+| 21.1.1 | Hit/Dodge/Parry Active Stats | In Progress (Plan 01 complete: stat-derived dodge/parry/hit wired into rollAttackOutcome and resolveAttack; DEX now live defensive stat) |
 | 22 | Class Ability Balancing & Progression | In Progress (Plans 01-03 complete: schema, ability data rewrite, full executeAbility switch for all 16 classes + bard song tick reducer + temp item logout cleanup) |
 
 ---
@@ -248,6 +250,10 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 192. statOffset() uses STAT_BASE=10n; signed bigint arithmetic provides natural negative offsets below 10 — no special casing needed; do NOT store result as u64 in DB, compute inline only (21.1-01)
 193. Five locked shield classes: warrior, paladin, cleric, spellblade, shaman — bard was a legacy error in Wooden Shield allowedClasses; CLASS_ARMOR updated, no equip reducer changes needed (21.1-01)
 194. CHA vendor columns remain u64; formula changed to (cha-10n)*scale clamped at 0n — CHA<10 yields no bonus rather than a penalty, consistent with u64 constraint; CHA_VENDOR_SCALE=10n, CHA_VENDOR_SELL_SCALE=8n (21.1-01)
+195. hitBonus reduces dodge window and parry window independently (not double-dipped) — 30% hit bonus neutralizes up to 30% from each window separately, consistent with additive cursor system (21.1.1-01)
+196. Caps: dodge max 250n (25%), parry max 200n (20%), hitBonus max 300n (30%) on 1000-scale — prevents untouchable builds while allowing meaningful DEX investment (21.1.1-01)
+197. Bow attackers cannot trigger enemy parry — `canParry(className) && weapon.weaponType !== 'bow'`; ranged attacks are unparriable by design (21.1.1-01)
+198. rollAttackOutcome defaults to 50n (5%) for dodge/parry when opts not provided — all other call sites (pet, enemy-pet) unchanged; only player-enemy and enemy-player call sites wired with stat values (21.1.1-01)
 
 ---
 
@@ -317,6 +323,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 | 21.1-stat-systems-off-stat-hooks | 01 | 15min | 3 | 3 |
 | Phase 21.1-stat-systems-off-stat-hooks P02 | 18 | 2 tasks | 2 files |
 | Phase 21.1-stat-systems-off-stat-hooks P03 | 25 | 3 tasks | 4 files |
+| 21.1.1-hit-dodge-parry-active-stats | 01 | 12min | 2 | 2 |
 
 ## Accumulated Context
 
@@ -324,6 +331,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 - Phase 13.1 inserted after Phase 13: Dual-axis gear system (craft quality vs rarity), material consolidation, Essence material, metadata consistency (URGENT)
 - Phase 3.1 inserted after Phase 3: Combat Balance (URGENT)
 - 2026-02-12: Phase 3.1 renamed from "Faction Hits" to "Combat Balance" before planning
+- Phase 21.1.1 inserted after Phase 21.1: Hit/Dodge/Parry Active Stats — wire DEX-derived dodge/parry into combat via opposed roll, parry melee restriction, stat-derived avoidance replacing hardcoded 5% values (URGENT)
 - Phase 3.1.1 inserted after Phase 3.1: Combat balance part 2 (URGENT)
 - 2026-02-12: Phase 3.1.1 planned — DoT/HoT/debuff/AoE balance with power budget approach, 3 plans created
 - Phase 3.1.2 inserted after Phase 3.1.1: Combat balance for Enemies (URGENT)
