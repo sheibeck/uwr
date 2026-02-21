@@ -28,7 +28,7 @@ export const useCharacterCreation = ({
 
   const isCharacterFormValid = computed(() =>
     Boolean(
-      newCharacter.value.name.trim() &&
+      newCharacter.value.name.trim().length >= 4 &&
         newCharacter.value.raceId &&
         newCharacter.value.className.trim()
     )
@@ -52,7 +52,15 @@ export const useCharacterCreation = ({
   });
 
   const createCharacter = () => {
-    if (!connActive.value || userId.value == null || !isCharacterFormValid.value) return;
+    if (!connActive.value || userId.value == null) return;
+    const errors: string[] = [];
+    if (newCharacter.value.name.trim().length < 4) errors.push('Character name must be at least 4 characters.');
+    if (!newCharacter.value.raceId) errors.push('You must select a race.');
+    if (!newCharacter.value.className.trim()) errors.push('You must select a class.');
+    if (errors.length > 0) {
+      createError.value = errors.join(' ');
+      return;
+    }
     createError.value = '';
     const desired = newCharacter.value.name.trim().toLowerCase();
     if (characters.value.some((row) => row.name.toLowerCase() === desired)) {
