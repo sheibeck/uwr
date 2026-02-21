@@ -963,9 +963,8 @@ export const registerCombatReducers = (deps: any) => {
           .filter(
             (row) =>
               row.template &&
-              row.template.factionId !== undefined &&
-              template.factionId !== undefined &&
-              row.template.factionId === template.factionId
+              row.template.isSocial === true &&
+              row.template.id === template.id
           )
       : [];
 
@@ -1044,7 +1043,7 @@ export const registerCombatReducers = (deps: any) => {
       reasons.push('A veil of calm muffles your pull.');
     }
     if (PULL_ALLOW_EXTERNAL_ADDS && overlapPressure > 0) {
-      reasons.push(`Other ${template.name} of the same faction are nearby and may answer the call.`);
+      reasons.push(`Other ${template.name}s are nearby and may answer the call.`);
     }
     const reasonSuffix = reasons.length > 0 ? ` ${reasons.join(' ')}` : '';
 
@@ -1099,7 +1098,7 @@ export const registerCombatReducers = (deps: any) => {
           ctx,
           p,
           'system',
-          `Your ${pull.pullType} pull draws attention. You engage ${spawn.name}, but ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} of the same faction will arrive in ${Number(delayMicros / 1_000_000n)}s.${reasonSuffix}`,
+          `Your ${pull.pullType} pull draws attention. You engage ${spawn.name}, but ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} will arrive in ${Number(delayMicros / 1_000_000n)}s.${reasonSuffix}`,
           `${character.name}'s pull draws attention. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} will arrive in ${Number(delayMicros / 1_000_000n)}s.`
         );
       }
@@ -1120,7 +1119,7 @@ export const registerCombatReducers = (deps: any) => {
       // Send private message to each participant (participants are Character rows)
       for (const p of participants) {
         const privateMsg = p.id === character.id
-          ? `Your ${pull.pullType} pull is noticed. You engage ${spawn.name} and ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} of the same faction rush in immediately.${reasonSuffix}`
+          ? `Your ${pull.pullType} pull is noticed. You engage ${spawn.name} and ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately.${reasonSuffix}`
           : `${character.name}'s ${pull.pullType} pull is noticed. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately.${reasonSuffix}`;
         appendPrivateEvent(ctx, p.id, p.ownerUserId, 'system', privateMsg);
       }
