@@ -2133,7 +2133,7 @@ export const registerCombatReducers = (deps: any) => {
           combat,
           spawnRow,
           participants,
-          false,
+          true,
           pending.enemyRoleTemplateId ?? undefined
         );
         // Set initial aggro target so UI shows "Targeting" immediately on arrival
