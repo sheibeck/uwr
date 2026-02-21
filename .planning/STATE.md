@@ -496,11 +496,12 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 247 | Enforce 90s Primal Titan expiry — petDurationSeconds added to AbilityMetadata; expiresAtMicros added to ActivePet schema; summonPet accepts durationSeconds param; primal_titan passes 90n; regen_health tick auto-dismisses expired pets | 2026-02-21 | c7adc73 | [247-primal-titan-90s-expiry](./quick/247-primal-titan-90s-expiry/) |
 | 248 | Fire and water elementals spawn with no initial aggro — restricted AggroEntry insertion in summonPet to pet_taunt ability only; earth elemental still gets initial aggro as tank; fire/water elementals start with no aggro so enemies keep targeting the summoner | 2026-02-21 | 715659a | [248-fire-and-water-elementals-spawn-with-no-](./quick/248-fire-and-water-elementals-spawn-with-no-/) |
 | 249 | Fix mana cost mismatch — server read ability.resourceCostOverride (not a DB column) so always fell back to formula; now uses ability.resourceCost (pre-baked at seed time with override applied); client and server now agree on cost | 2026-02-21 | bd1c221 | [249-fix-mana-cost-mismatch-between-client-pr](./quick/249-fix-mana-cost-mismatch-between-client-pr/) |
+| 250 | Implement water elemental pet_heal ability — in-combat path heals lowest-HP active participant for 10+level*5 HP; out-of-combat loop in regen_health ticks at abilityCooldownSeconds interval; pet armed immediately on combat exit; disarms when all party at max HP | 2026-02-21 | df2f0fc | [250-implement-water-elemental-pet-heal-abili](./quick/250-implement-water-elemental-pet-heal-abili/) |
 | 251 | Respawn bypasses region travel cooldown and clears it — confirmed respawn_character sets locationId directly (no cooldown check); added cooldown clear on respawn so player can travel cross-region immediately after death to retrieve corpse | 2026-02-21 | 4e858e7 | [251-validate-respawn-at-bind-point-bypasses-](./quick/251-validate-respawn-at-bind-point-bypasses-/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 251: Respawn at bind point bypasses and clears region travel cooldown
+Last activity: 2026-02-21 - Completed quick task 250: Water elemental pet_heal ability (in-combat and out-of-combat heal paths)
 
 ## Last Session
 
