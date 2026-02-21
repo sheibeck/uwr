@@ -14,6 +14,7 @@ import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { applyPerkProcs, addCharacterEffect } from '../helpers/combat';
+import { partyMembersInLocation } from '../helpers/character';
 import { getLocationSpawnCap } from '../helpers/location';
 import { RENOWN_GAIN } from '../data/renown_data';
 import { rollQualityTier, rollQualityForDrop, generateAffixData, buildDisplayName, getEquippedBonuses } from '../helpers/items';
@@ -1738,13 +1739,16 @@ export const registerCombatReducers = (deps: any) => {
 
   // Bard song tick: fires every 6 seconds to apply active song group effects.
   spacetimedb.reducer('tick_bard_songs', { arg: deps.BardSongTick.rowType }, (ctx, { arg }) => {
-    const combat = ctx.db.combatEncounter.id.find(arg.combatId);
-    if (!combat || combat.state !== 'active') {
-      // Combat over — clean up active song rows for this bard
-      for (const song of ctx.db.activeBardSong.by_bard.filter(arg.bardCharacterId)) {
-        ctx.db.activeBardSong.id.delete(song.id);
+    const bardCombatId = arg.combatId;
+    if (bardCombatId !== undefined) {
+      const combat = ctx.db.combatEncounter.id.find(bardCombatId);
+      if (!combat || combat.state !== 'active') {
+        // Combat over — clean up active song rows for this bard
+        for (const song of ctx.db.activeBardSong.by_bard.filter(arg.bardCharacterId)) {
+          ctx.db.activeBardSong.id.delete(song.id);
+        }
+        return;
       }
-      return;
     }
 
     const bard = ctx.db.character.id.find(arg.bardCharacterId);
@@ -1754,11 +1758,14 @@ export const registerCombatReducers = (deps: any) => {
     if (songs.length === 0) return;
 
     // Gather party members and living enemies (shared across all songs this tick)
-    const partyMembers = [...ctx.db.combatParticipant.by_combat.filter(arg.combatId)]
-      .map((p: any) => ctx.db.character.id.find(p.characterId))
-      .filter(Boolean);
-    const enemies = [...ctx.db.combatEnemy.by_combat.filter(arg.combatId)]
-      .filter((e: any) => e.currentHp > 0n);
+    const partyMembers = bardCombatId !== undefined
+      ? [...ctx.db.combatParticipant.by_combat.filter(bardCombatId)]
+          .map((p: any) => ctx.db.character.id.find(p.characterId))
+          .filter(Boolean)
+      : partyMembersInLocation(ctx, bard);
+    const enemies = bardCombatId !== undefined
+      ? [...ctx.db.combatEnemy.by_combat.filter(bardCombatId)].filter((e: any) => e.currentHp > 0n)
+      : [];
 
     // Process ALL songs (both active and fading) in this tick pass.
     // Fading songs fire their final effect then get deleted. Non-fading ones are rescheduled.
@@ -1865,7 +1872,7 @@ export const registerCombatReducers = (deps: any) => {
         scheduledId: 0n,
         scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 6_000_000n),
         bardCharacterId: arg.bardCharacterId,
-        combatId: arg.combatId,
+        combatId: arg.combatId ?? undefined,
       });
     }
   });
