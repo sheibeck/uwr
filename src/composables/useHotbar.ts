@@ -47,7 +47,7 @@ const toMicros = (seconds: bigint | undefined) => {
   return Math.round(Number(seconds) * 1_000_000);
 };
 
-const COOLDOWN_SKEW_SUPPRESS_MICROS = 10_000_000;
+const COOLDOWN_SKEW_SUPPRESS_MICROS = 30_000_000; // 30s — covers production server/client clock skew
 
 export const useHotbar = ({
   connActive,
