@@ -2,7 +2,7 @@
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
 **Last updated:** 2026-02-21
-**Status:** Phase 21.1.1 (Hit/Dodge/Parry Active Stats) — In Progress. Plan 01 complete: stat-derived dodge/parry/hit wired into rollAttackOutcome and resolveAttack call sites.
+**Status:** Ready to plan
 
 ---
 

@@ -747,7 +747,8 @@ Plans:
 
 **Goal:** Wire DEX-derived dodge/parry into combat via opposed roll — stat-derived avoidance replaces hardcoded 5% values, parry restricted against bow attacks.
 **Depends on:** Phase 21.1
-**Plans:** 1 plan
+**Status:** Complete (2026-02-21)
+**Plans:** 1/1 plan complete
 
 Plans:
 - [x] 21.1.1-01-PLAN.md — Extend rollAttackOutcome with dodgeChanceBasis/parryChanceBasis/attackerHitBonus opts, wire two call sites (player-attacks-enemy, enemy-attacks-player)
