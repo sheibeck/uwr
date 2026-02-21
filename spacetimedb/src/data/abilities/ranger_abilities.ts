@@ -63,7 +63,7 @@ export const RANGER_ABILITIES: Record<string, AbilityMetadata> = {
   },
   ranger_rain_of_arrows: {
     name: 'Rain of Arrows',
-    description: 'Rains a volley of arrows down upon all enemies simultaneously. 2 minute cooldown.',
+    description: 'Rains a volley of arrows down upon all enemies simultaneously.',
     className: 'ranger',
     resource: 'stamina',
     level: 10n,

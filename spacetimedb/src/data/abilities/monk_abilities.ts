@@ -42,7 +42,7 @@ export const MONK_ABILITIES: Record<string, AbilityMetadata> = {
   },
   monk_centering: {
     name: 'Centering',
-    description: 'Centers your focus, restoring stamina instantly. 60 second cooldown.',
+    description: 'Centers your focus, restoring stamina instantly.',
     className: 'monk',
     resource: 'stamina',
     level: 7n,
@@ -64,7 +64,7 @@ export const MONK_ABILITIES: Record<string, AbilityMetadata> = {
   },
   monk_hundred_fists: {
     name: 'Hundred Fists',
-    description: 'Unleashes a legendary barrage of five rapid strikes totaling immense power. 2 minute cooldown.',
+    description: 'Unleashes a legendary barrage of five rapid strikes totaling immense power.',
     className: 'monk',
     resource: 'stamina',
     level: 10n,

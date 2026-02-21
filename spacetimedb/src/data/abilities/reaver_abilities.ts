@@ -62,7 +62,7 @@ export const REAVER_ABILITIES: Record<string, AbilityMetadata> = {
   },
   reaver_deaths_embrace: {
     name: "Death's Embrace",
-    description: 'Embraces death for 30 seconds — all damage dealt leeches 30% as health and physical damage is increased by 25%. 5 minute cooldown.',
+    description: 'Embraces death for 30 seconds — all damage dealt leeches 30% as health and physical damage is increased by 25%.',
     className: 'reaver',
     resource: 'mana',
     level: 10n,

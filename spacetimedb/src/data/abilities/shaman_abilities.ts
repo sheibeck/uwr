@@ -63,7 +63,7 @@ export const SHAMAN_ABILITIES: Record<string, AbilityMetadata> = {
   },
   shaman_earthquake: {
     name: 'Earthquake',
-    description: 'Calls down a devastating earthquake that stuns all enemies and deals physical damage. 5 minute cooldown.',
+    description: 'Calls down a devastating earthquake that stuns all enemies and deals physical damage.',
     className: 'shaman',
     resource: 'mana',
     level: 10n,

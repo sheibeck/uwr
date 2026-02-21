@@ -3,7 +3,7 @@ import type { AbilityMetadata, DamageType } from '../ability_catalog.js';
 export const NECROMANCER_ABILITIES: Record<string, AbilityMetadata> = {
   necromancer_plague_spark: {
     name: 'Plague Spark',
-    description: 'Inflicts the target with festering plague that deals magic damage over time (50% DoT split, 3 ticks).',
+    description: 'Inflicts the target with festering plague that deals magic damage over time.',
     className: 'necromancer',
     resource: 'mana',
     level: 1n,
@@ -40,7 +40,7 @@ export const NECROMANCER_ABILITIES: Record<string, AbilityMetadata> = {
   },
   necromancer_soul_rot: {
     name: 'Soul Rot',
-    description: 'Infects the target with soul rot, dealing magic damage and reducing their armor class each tick over 3 rounds.',
+    description: 'Infects the target with soul rot, dealing magic damage and reducing their armor class.',
     className: 'necromancer',
     resource: 'mana',
     level: 7n,
@@ -56,7 +56,7 @@ export const NECROMANCER_ABILITIES: Record<string, AbilityMetadata> = {
   },
   necromancer_corpse_summon: {
     name: 'Corpse Summon',
-    description: 'Summons all of a target character\'s corpses to the caster\'s location, merging them into one. The target must confirm before the summon proceeds. Costs 60 mana and takes 10 seconds to cast.',
+    description: 'Summons all of a target character\'s corpses to the caster\'s location, merging them into one. The target must confirm before the summon proceeds.',
     className: 'necromancer',
     resource: 'mana',
     level: 9n,
@@ -68,7 +68,7 @@ export const NECROMANCER_ABILITIES: Record<string, AbilityMetadata> = {
   },
   necromancer_plague_lord_form: {
     name: 'Plague Lord Form',
-    description: 'Assumes the Plague Lord stance for 30 seconds — all DoTs tick at double speed and all life drains heal for double. 5 minute cooldown.',
+    description: 'Assumes the Plague Lord stance for 30 seconds — all DoTs tick at double speed and all life drains heal for double.',
     className: 'necromancer',
     resource: 'mana',
     level: 10n,

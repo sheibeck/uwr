@@ -3,7 +3,7 @@ import type { AbilityMetadata, DamageType } from '../ability_catalog.js';
 export const ROGUE_ABILITIES: Record<string, AbilityMetadata> = {
   rogue_shadow_cut: {
     name: 'Shadow Cut',
-    description: 'Slashes with a shadow-infused blade dealing physical damage plus a lingering bleed (40% split, 2 ticks).',
+    description: 'Slashes with a shadow-infused blade dealing physical damage plus a lingering bleed.',
     className: 'rogue',
     resource: 'stamina',
     level: 1n,
@@ -38,7 +38,7 @@ export const ROGUE_ABILITIES: Record<string, AbilityMetadata> = {
   },
   rogue_bleed: {
     name: 'Bleed',
-    description: 'Cuts a vital artery causing the target to bleed profusely (60% DoT split, 3 ticks).',
+    description: 'Cuts a vital artery causing the target to bleed profusely.',
     className: 'rogue',
     resource: 'stamina',
     level: 7n,
@@ -62,7 +62,7 @@ export const ROGUE_ABILITIES: Record<string, AbilityMetadata> = {
   },
   rogue_death_mark: {
     name: 'Death Mark',
-    description: 'Marks a target for death, increasing all damage dealt to them by 50% for 15 seconds. 3 minute cooldown.',
+    description: 'Marks a target for death, increasing all damage dealt to them by 50% for 15 seconds.',
     className: 'rogue',
     resource: 'stamina',
     level: 10n,

@@ -36,7 +36,7 @@ export const PALADIN_ABILITIES: Record<string, AbilityMetadata> = {
   },
   paladin_lay_on_hands: {
     name: 'Lay on Hands',
-    description: 'Channels divine power through touch to fully restore an ally\'s health. 10 minute cooldown.',
+    description: 'Channels divine power through touch to fully restore an ally\'s health.',
     className: 'paladin',
     resource: 'mana',
     level: 7n,
@@ -59,7 +59,7 @@ export const PALADIN_ABILITIES: Record<string, AbilityMetadata> = {
   },
   paladin_consecrated_ground: {
     name: 'Consecrated Ground',
-    description: 'Consecrates the battlefield, dealing magic damage to all enemies and healing all allies over 3 ticks simultaneously. 3 minute cooldown.',
+    description: 'Consecrates the battlefield, dealing magic damage to all enemies and healing all allies over 3 ticks simultaneously.',
     className: 'paladin',
     resource: 'mana',
     level: 10n,
