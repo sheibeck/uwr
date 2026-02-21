@@ -471,9 +471,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 222 | Summoner aggro mechanics — pet single-target taunt only (removed AoE loop), SUMMONER_THREAT_MULTIPLIER raised 25n → 75n so summoner gets targeted more often | 2026-02-21 | c307a3b | [222-revisit-summoner-aggro-mechanics-pet-sin](./quick/222-revisit-summoner-aggro-mechanics-pet-sin/) |
 | 223 | Fix players being dumped to login screen — (1) removed eager sessionStorage guard-clear in version watcher (allowed repeated reload cycles on SpacetimeDB reconnect); (2) replaced getStoredIdToken() in isLoggedIn computed with hasToken ref captured once at setup (prevented OIDC token expiry from booting players mid-session) | 2026-02-21 | 8f5fbbb | [223-fix-players-being-dumped-to-login-screen](./quick/223-fix-players-being-dumped-to-login-screen/) |
 | 225 | Sort races alphabetically on character creation screen | 2026-02-21 | 8d9d9eb | [225-sort-races-alphabetically-on-character-c](./quick/225-sort-races-alphabetically-on-character-c/) |
+| 226 | Persist panel open/closed state across sessions — added markDirty() after loadFromStorage() when localStorage has panel data, blocking server sync for 3s to prevent stale server state from overwriting correctly-restored localStorage open states; fresh devices without localStorage skip the guard | 2026-02-21 | cc9e6ed | [226-persist-panel-open-closed-state-across-s](./quick/226-persist-panel-open-closed-state-across-s/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-21 - Completed quick task 225: Sort races alphabetically on character creation screen
+Last activity: 2026-02-21 - Completed quick task 226: Persist panel open/closed state across sessions
