@@ -28,7 +28,7 @@ const DEFAULT_AI_RANDOMNESS = 15;
 const PULL_DELAY_CAREFUL = 2_000_000n;
 const PULL_DELAY_BODY = 1_000_000n;
 const PULL_ADD_DELAY_ROUNDS = 2n;
-const PULL_ALLOW_EXTERNAL_ADDS = false;
+const PULL_ALLOW_EXTERNAL_ADDS = true;
 const ENEMY_RESPAWN_MICROS = 5n * 60n * 1_000_000n;
 
 const refreshSpawnGroupCount = (ctx: any, spawnId: bigint) => {
@@ -953,20 +953,20 @@ export const registerCombatReducers = (deps: any) => {
       return;
     }
 
-    const targetGroup = (template.socialGroup || template.creatureType || '').trim().toLowerCase();
     const candidates = PULL_ALLOW_EXTERNAL_ADDS
       ? [...ctx.db.enemySpawn.by_location.filter(pull.locationId)]
-        .filter((row) => row.id !== spawn.id && row.state === 'available')
-        .map((row) => ({
-          spawn: row,
-          template: ctx.db.enemyTemplate.id.find(row.enemyTemplateId),
-        }))
-        .filter(
-          (row) =>
-            row.template &&
-            (row.template.socialGroup || row.template.creatureType || '').trim().toLowerCase() ===
-            targetGroup
-        )
+          .filter((row) => row.id !== spawn.id && row.state === 'available')
+          .map((row) => ({
+            spawn: row,
+            template: ctx.db.enemyTemplate.id.find(row.enemyTemplateId),
+          }))
+          .filter(
+            (row) =>
+              row.template &&
+              row.template.factionId !== undefined &&
+              template.factionId !== undefined &&
+              row.template.factionId === template.factionId
+          )
       : [];
 
     const targetRadius = Number(template.socialRadius ?? 0n);
@@ -1044,7 +1044,7 @@ export const registerCombatReducers = (deps: any) => {
       reasons.push('A veil of calm muffles your pull.');
     }
     if (PULL_ALLOW_EXTERNAL_ADDS && overlapPressure > 0) {
-      reasons.push(`Other ${template.name} are nearby and may answer the call.`);
+      reasons.push(`Other ${template.name} of the same faction are nearby and may answer the call.`);
     }
     const reasonSuffix = reasons.length > 0 ? ` ${reasons.join(' ')}` : '';
 
@@ -1099,12 +1099,8 @@ export const registerCombatReducers = (deps: any) => {
           ctx,
           p,
           'system',
-          `Your ${pull.pullType} pull draws attention. You isolate 1 of ${initialGroupCount} ${spawn.name}, but ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} will arrive in ${Number(
-            delayMicros / 1_000_000n
-          )}s. Remaining in group: ${remainingGroup}.${reasonSuffix}`,
-          `${character.name}'s pull draws attention. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} will arrive in ${Number(
-            delayMicros / 1_000_000n
-          )}s.`
+          `Your ${pull.pullType} pull draws attention. You engage ${spawn.name}, but ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} of the same faction will arrive in ${Number(delayMicros / 1_000_000n)}s.${reasonSuffix}`,
+          `${character.name}'s pull draws attention. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} will arrive in ${Number(delayMicros / 1_000_000n)}s.`
         );
       }
     } else if (outcome === 'failure' && addCount > 0) {
@@ -1124,8 +1120,8 @@ export const registerCombatReducers = (deps: any) => {
       // Send private message to each participant (participants are Character rows)
       for (const p of participants) {
         const privateMsg = p.id === character.id
-          ? `Your ${pull.pullType} pull is noticed. You bring 1 of ${initialGroupCount} ${spawn.name} and ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately. Remaining in group: ${remainingGroup}.${reasonSuffix}`
-          : `${character.name}'s ${pull.pullType} pull is noticed. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately. Remaining in group: ${remainingGroup}.${reasonSuffix}`;
+          ? `Your ${pull.pullType} pull is noticed. You engage ${spawn.name} and ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} of the same faction rush in immediately.${reasonSuffix}`
+          : `${character.name}'s ${pull.pullType} pull is noticed. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately.${reasonSuffix}`;
         appendPrivateEvent(ctx, p.id, p.ownerUserId, 'system', privateMsg);
       }
       // Send group message once
@@ -1137,8 +1133,8 @@ export const registerCombatReducers = (deps: any) => {
       // Send private message to each participant (participants are Character rows)
       for (const p of participants) {
         const privateMsg = p.id === character.id
-          ? `Your ${pull.pullType} pull is clean. You draw 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`
-          : `${character.name}'s pull is clean. You draw 1 of ${initialGroupCount} ${spawn.name}. Remaining in group: ${remainingGroup}.${reasonSuffix}`;
+          ? `Your ${pull.pullType} pull is clean. You engage ${spawn.name} alone.${reasonSuffix}`
+          : `${character.name}'s pull is clean.`;
         appendPrivateEvent(ctx, p.id, p.ownerUserId, 'system', privateMsg);
       }
       // Send group message once
