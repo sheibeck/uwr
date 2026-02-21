@@ -499,10 +499,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 250 | Implement water elemental pet_heal ability — in-combat path heals lowest-HP active participant for 10+level*5 HP; out-of-combat loop in regen_health ticks at abilityCooldownSeconds interval; pet armed immediately on combat exit; disarms when all party at max HP | 2026-02-21 | df2f0fc | [250-implement-water-elemental-pet-heal-abili](./quick/250-implement-water-elemental-pet-heal-abili/) |
 | 251 | Respawn bypasses region travel cooldown and clears it — confirmed respawn_character sets locationId directly (no cooldown check); added cooldown clear on respawn so player can travel cross-region immediately after death to retrieve corpse | 2026-02-21 | 4e858e7 | [251-validate-respawn-at-bind-point-bypasses-](./quick/251-validate-respawn-at-bind-point-bypasses-/) |
 | 253 | Fix respawn_enemy overcapping — reducer called spawnEnemy unconditionally; night transitions refill to cap so pending respawn ticks afterward pushed locations over the limit; now checks currentCount >= cap and skips spawn if full | 2026-02-21 | 69e3a3a | [253-fix-respawn-enemy-ignores-spawn-cap](./quick/253-fix-respawn-enemy-ignores-spawn-cap/) |
+| 254 | Event spawns exempt from location spawn cap and day/night unspawn — added isEventSpawn() helper using EventSpawnEnemy.by_spawn index; applied in respawnLocationSpawns (skip delete + exclude from count), ensureLocationRuntimeBootstrap, ensureSpawnsForLocation, and respawn_enemy | 2026-02-21 | e0413e4 | [254-event-spawns-dont-count-against-location](./quick/254-event-spawns-dont-count-against-location/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 253: Fix respawn_enemy spawn cap enforcement
+Last activity: 2026-02-21 - Completed quick task 254: Event spawns exempt from spawn cap and day/night cycle
 
 ## Last Session
 
