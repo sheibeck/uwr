@@ -2186,12 +2186,52 @@ export function executePetAbility(
   if (!pet) return false;
   const owner = ctx.db.character.id.find(pet.characterId);
   if (!owner || owner.hp === 0n) return false;
+
+  const actorGroupId = effectiveGroupId(owner);
+
+  if (abilityKey === 'pet_heal') {
+    // Find the lowest-HP living party member among combat participants
+    let healTarget: any = null;
+    let lowestHpRatio = 101n; // > 100 to ensure first candidate wins
+
+    for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
+      if (participant.status !== 'active') continue;
+      const member = ctx.db.character.id.find(participant.characterId);
+      if (!member || member.hp === 0n || member.hp >= member.maxHp) continue;
+      // Use integer ratio comparison: hp * 100 / maxHp
+      const ratio = (member.hp * 100n) / member.maxHp;
+      if (ratio < lowestHpRatio) {
+        lowestHpRatio = ratio;
+        healTarget = member;
+      }
+    }
+
+    // Also consider the owner if they're injured and not already found via participants
+    if (!healTarget && owner.hp > 0n && owner.hp < owner.maxHp) {
+      healTarget = owner;
+    }
+
+    if (!healTarget) return false; // Everyone is full HP
+
+    const healAmount = 10n + pet.level * 5n;
+    const newHp = healTarget.hp + healAmount > healTarget.maxHp
+      ? healTarget.maxHp
+      : healTarget.hp + healAmount;
+    ctx.db.character.id.update({ ...healTarget, hp: newHp });
+
+    const message = `${pet.name} heals ${healTarget.name} for ${healAmount}.`;
+    appendPrivateEvent(ctx, owner.id, owner.ownerUserId, 'ability', message);
+    if (actorGroupId) {
+      appendGroupEvent(ctx, actorGroupId, owner.id, 'ability', message);
+    }
+    return true;
+  }
+
   const target =
     (targetEnemyId ? ctx.db.combatEnemy.id.find(targetEnemyId) : null) ??
     (pet.targetEnemyId ? ctx.db.combatEnemy.id.find(pet.targetEnemyId) : null);
   if (!target || target.currentHp === 0n) return false;
 
-  const actorGroupId = effectiveGroupId(owner);
   if (abilityKey === 'pet_taunt') {
     let maxAggro = 0n;
     let petEntry: typeof AggroEntry.rowType | null = null;
