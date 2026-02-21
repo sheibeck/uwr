@@ -515,10 +515,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 266 | Social add kills not decrementing spawn group count — addEnemyToCombat called with consumeSpawnCount=false for pending adds, so takeSpawnMember never ran; spawn groupCount stayed > 0 and victory path reset add's spawn to 'available' instead of deleting it; fix: consumeSpawnCount=true so the spawn member is consumed and groupCount reaches 0 on kill | 2026-02-21 | 350696d | [266-social-add-kills-not-decrementing-spawn-](./quick/266-social-add-kills-not-decrementing-spawn-/) |
 | 267 | Character creation validation errors — Create button no longer silently disabled; createCharacter() collects all errors into array ("name ≥4 chars", "must select race/class") and shows them above the submit button; server minimum raised from 2 to 4 chars | 2026-02-21 | 51785a7 | [267-character-creation-validation-errors-for](./quick/267-character-creation-validation-errors-for/) |
 | 268 | setappversion does not trigger reload on out-of-date clients — watch(appVersionRows) was shallow; SpacetimeDB mutates the array in-place on row update so reference never changed; fix: added deep:true to watcher; also clears sessionStorage reload guard when versions match so repeated deploys in same session work | 2026-02-21 | 359f149 | [268-setappversion-does-not-trigger-reload-on](./quick/268-setappversion-does-not-trigger-reload-on/) |
+| 269 | Bard song re-activation guard and 6s off-cooldown — clicking an active bard song again stops it (deletes ActiveBardSong, logs "You stop singing X.") and applies a 6s AbilityCooldown; same-song re-click no longer fires burst DD; switching to a different song unchanged | 2026-02-21 | 72e8d0e | [269-bard-song-re-activation-guard-and-6s-off](./quick/269-bard-song-re-activation-guard-and-6s-off/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 268: setappversion reload fix
+Last activity: 2026-02-21 - Completed quick task 269: Bard song re-activation guard and 6s off-cooldown
 
 ## Last Session
 
