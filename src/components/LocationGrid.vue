@@ -35,9 +35,6 @@
             <span :style="styles[enemy.conClass] ?? {}">
               {{ enemy.name }} (L{{ enemy.level }})
             </span>
-            <span v-if="enemy.groupCount > 1n" :style="{ fontSize: '0.78rem', opacity: 0.8 }">
-              x{{ enemy.groupCount }}
-            </span>
           </div>
           <div
             v-if="enemy.isPulling"
@@ -461,7 +458,7 @@ const openEnemyContextMenu = (event: MouseEvent, enemy: EnemySummary) => {
     x: event.clientX,
     y: event.clientY,
     title: enemy.name,
-    subtitle: `L${enemy.level}${enemy.groupCount > 1n ? ' x' + enemy.groupCount : ''} · ${enemy.factionName}`,
+    subtitle: `L${enemy.level} · ${enemy.factionName}`,
     items,
   };
 };
