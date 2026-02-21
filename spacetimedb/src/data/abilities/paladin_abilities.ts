@@ -8,7 +8,7 @@ export const PALADIN_ABILITIES: Record<string, AbilityMetadata> = {
     resource: 'stamina',
     level: 1n,
     power: 3n,
-    cooldownSeconds: 4n,
+    cooldownSeconds: 5n,
     castSeconds: 0n,
     damageType: 'physical' as DamageType,
   },
