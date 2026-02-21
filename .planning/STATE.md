@@ -486,11 +486,12 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 235 | Hotbar right-click shows persistent ability description popup; hover now shows stats-only (no description) — abilityPopup ref + showAbilityPopup/hideAbilityPopup in App.vue, @contextmenu.prevent on hotbar buttons, global click-to-dismiss via document listener, description removed from hotbarTooltipItem return | 2026-02-21 | 5124b05 | [235-hotbar-right-click-shows-ability-descrip](./quick/235-hotbar-right-click-shows-ability-descrip/) |
 | 236 | Fix class abilities with magic damage type incorrectly set to none — audited all 16 class ability files; all 50 damageType: 'none' entries verified as correctly classified (heals, buffs, shields, stances, summons, utilities, debuff-only); no changes needed | 2026-02-21 | a978cd8 | [236-fix-class-abilities-with-magic-damage-ty](./quick/236-fix-class-abilities-with-magic-damage-ty/) |
 | 237 | Fix enemy ability targeting to respect pet aggro — pickEnemyTarget now returns { characterId?, petId? } and includes pet aggro entries in candidate pool; CombatEnemyCast gains targetPetId; executeEnemyAbility routes damage to pet when targetPetId set; summoner threat loop guards !entry.petId so own hits don't update pet's aggro entry | 2026-02-21 | 87fc0c0 | [237-fix-enemy-ability-targeting-to-respect-p](./quick/237-fix-enemy-ability-targeting-to-respect-p/) |
+| 238 | Refactor enemy groups to individual spawns with faction-based cross-spawn aggro — spawnEnemy loops N times creating individual EnemySpawn rows (groupCount=1 each); PULL_ALLOW_EXTERNAL_ADDS=true; candidates filter uses factionId equality; danger-tiered spawn caps (6/9/12); removed group multiplier display from LocationGrid; day/night respawn uses per-location cap | 2026-02-21 | ee34b52 | [238-refactor-enemy-groups-to-individual-spaw](./quick/238-refactor-enemy-groups-to-individual-spaw/) |
 | 240 | Add pet HP regen inside existing regen_health reducer — pets regen 3 HP/tick out of combat, 2 HP/tick in combat (every 16s via halfTick gate); skips dead and full-HP pets; no new scheduled table needed | 2026-02-21 | e57b3eb | [240-pets-should-also-have-a-health-regen-jus](./quick/240-pets-should-also-have-a-health-regen-jus/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 240: Pets should also have a health regen just like characters
+Last activity: 2026-02-21 - Completed quick task 238: Refactor enemy groups to individual spawns with faction-based cross-spawn aggro
 
 ## Last Session
 
