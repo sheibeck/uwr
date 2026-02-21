@@ -12,8 +12,6 @@
           :style="styles.input"
           @input="onNameInput"
         />
-        <div v-if="createError" :style="styles.errorText">{{ createError }}</div>
-
         <!-- Race tiles -->
         <div :style="styles.gridWrap">
           <div
@@ -70,9 +68,10 @@
           <div :style="styles.subtle">Abilities: {{ selectedClass.abilities }}</div>
         </div>
 
+        <div v-if="createError" :style="styles.errorText">{{ createError }}</div>
         <button
           type="submit"
-          :disabled="!connActive || !isCharacterFormValid"
+          :disabled="!connActive"
           :style="styles.primaryButton"
         >
           Create
