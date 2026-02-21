@@ -1,7 +1,7 @@
 import { ENEMY_ABILITIES } from '../data/abilities/enemy_abilities';
 import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier } from '../data/combat_scaling';
 import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
-import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, SUMMONER_THREAT_MULTIPLIER, HEALING_THREAT_PERCENT } from '../data/combat_scaling';
+import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, SUMMONER_THREAT_MULTIPLIER, SUMMONER_PET_INITIAL_AGGRO, HEALING_THREAT_PERCENT } from '../data/combat_scaling';
 import {
   statOffset,
   BLOCK_CHANCE_BASE,
@@ -185,6 +185,41 @@ export const startCombatForSpawn = (
     );
   }
 
+  // Bring any pre-summoned pets into combat
+  for (const p of participants) {
+    for (const ap of [...ctx.db.activePet.by_character.filter(p.id)]) {
+      ctx.db.activePet.id.delete(ap.id);
+      const pet = ctx.db.combatPet.insert({
+        id: 0n,
+        combatId: combat.id,
+        ownerCharacterId: p.id,
+        name: ap.name,
+        level: ap.level,
+        currentHp: ap.currentHp,
+        maxHp: ap.maxHp,
+        attackDamage: ap.attackDamage,
+        abilityKey: ap.abilityKey,
+        abilityCooldownSeconds: ap.abilityCooldownSeconds,
+        nextAbilityAt: ap.abilityKey ? ctx.timestamp.microsSinceUnixEpoch : undefined,
+        targetEnemyId: undefined,
+        nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
+      });
+      if (p.className?.toLowerCase() === 'summoner') {
+        for (const en of ctx.db.combatEnemy.by_combat.filter(combat.id)) {
+          if (en.currentHp <= 0n) continue;
+          ctx.db.aggroEntry.insert({
+            id: 0n,
+            combatId: combat.id,
+            enemyId: en.id,
+            characterId: p.id,
+            petId: pet.id,
+            value: SUMMONER_PET_INITIAL_AGGRO,
+          });
+        }
+      }
+    }
+  }
+
   scheduleCombatTick(ctx, combat.id);
   return combat;
 };
@@ -295,6 +330,20 @@ export const registerCombatReducers = (deps: any) => {
       ctx.db.combatParticipant.id.delete(row.id);
     }
     for (const pet of ctx.db.combatPet.by_combat.filter(combatId)) {
+      // Surviving pets return to their out-of-combat active state
+      if (pet.currentHp > 0n) {
+        ctx.db.activePet.insert({
+          id: 0n,
+          characterId: pet.ownerCharacterId,
+          name: pet.name,
+          level: pet.level,
+          currentHp: pet.currentHp,
+          maxHp: pet.maxHp,
+          attackDamage: pet.attackDamage,
+          abilityKey: pet.abilityKey,
+          abilityCooldownSeconds: pet.abilityCooldownSeconds,
+        });
+      }
       ctx.db.combatPet.id.delete(pet.id);
     }
     for (const characterId of participantIds) {
@@ -454,6 +503,9 @@ export const registerCombatReducers = (deps: any) => {
       blockMitigationPercent,
       canParry,
       canDodge,
+      dodgeChanceBasis,
+      parryChanceBasis,
+      attackerHitBonus,
       currentHp,
       logTargetId,
       logOwnerId,
@@ -475,6 +527,9 @@ export const registerCombatReducers = (deps: any) => {
       blockMitigationPercent?: bigint;  // stat-derived, on 100n-scale
       canParry: boolean;
       canDodge: boolean;
+      dodgeChanceBasis?: bigint;        // stat-derived, on 1000-scale
+      parryChanceBasis?: bigint;        // stat-derived, on 1000-scale
+      attackerHitBonus?: bigint;        // stat-derived, on 1000-scale
       currentHp: bigint;
       logTargetId: bigint;
       logOwnerId: bigint;
@@ -510,6 +565,9 @@ export const registerCombatReducers = (deps: any) => {
       blockMitigationPercent, // undefined if not provided, rollAttackOutcome uses ?? 50n default
       canParry,
       canDodge,
+      dodgeChanceBasis,       // undefined if not provided, rollAttackOutcome uses ?? 50n default
+      parryChanceBasis,       // undefined if not provided, rollAttackOutcome uses ?? 50n default
+      attackerHitBonus,       // undefined if not provided, rollAttackOutcome uses ?? 0n default
       characterDex,
       weaponName,
       weaponType,
@@ -2165,13 +2223,19 @@ export const registerCombatReducers = (deps: any) => {
         ? (baseDamage * (100n + damageBoostPercent)) / 100n
         : baseDamage;
       const outcomeSeed = nowMicros + character.id + currentEnemy.id;
+      // Clamp attacker hitChance to [0n, 300n] (0%–30% on 1000-scale)
+      const attackerHitBonus: bigint = (() => {
+        const raw = character.hitChance;
+        return raw > 300n ? 300n : raw;
+      })();
       const { outcome: attackOutcome, finalDamage, nextHp } = resolveAttack(ctx, {
         seed: outcomeSeed,
         baseDamage: damage,
         targetArmor: currentEnemy.armorClass + sumEnemyEffect(ctx, combat.id, 'armor_down', currentEnemy.id),
         canBlock: hasShieldEquipped(ctx, character.id),
-        canParry: canParry(character.className),
+        canParry: canParry(character.className) && weapon.weaponType !== 'bow',
         canDodge: true,
+        attackerHitBonus,
         currentHp: currentEnemy.currentHp,
         logTargetId: character.id,
         logOwnerId: character.ownerUserId,
@@ -2930,6 +2994,17 @@ export const registerCombatReducers = (deps: any) => {
               // Clamp to [10n, 80n] on 100n-scale (10% min, 80% max)
               return raw < 10n ? 10n : raw > 80n ? 80n : raw;
             })();
+            // Caps: dodge [0,250] = max 25%, parry [0,200] = max 20%, hitBonus [0,300] = max 30%
+            // Clamp defender dodgeChance to [0n, 250n] (0%–25% on 1000-scale)
+            const clampedDodge: bigint = (() => {
+              const raw = targetCharacter.dodgeChance;
+              return raw > 250n ? 250n : raw;
+            })();
+            // Clamp defender parryChance to [0n, 200n] (0%–20% on 1000-scale)
+            const clampedParry: bigint = (() => {
+              const raw = targetCharacter.parryChance;
+              return raw > 200n ? 200n : raw;
+            })();
             const { outcome: enemyAttackOutcome, finalDamage: enemyFinalDamage, nextHp } = resolveAttack(ctx, {
               seed: outcomeSeed,
               baseDamage: scaledDamage,
@@ -2937,6 +3012,8 @@ export const registerCombatReducers = (deps: any) => {
               canBlock: hasShieldEquipped(ctx, targetCharacter.id),
               blockChanceBasis,
               blockMitigationPercent,
+              dodgeChanceBasis: clampedDodge,
+              parryChanceBasis: clampedParry,
               canParry: canParry(targetCharacter.className),
               canDodge: true,
               currentHp: targetCharacter.hp,
