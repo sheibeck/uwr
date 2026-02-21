@@ -493,10 +493,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 243 | Client-side mana/stamina pre-check in onHotbarClick — guards before reducer call using same cost formulas as hotbarTooltipItem; shows "Not enough mana/stamina" locally and returns early; eliminates server round-trip for rejection | 2026-02-21 | cfe6952 | [243-client-side-mana-check-before-cast-to-pr](./quick/243-client-side-mana-check-before-cast-to-pr/) |
 | 245 | Fix Hollomere infestation event to spawn 5 individual rats instead of 1 — spawnEventContent loop now creates one EnemySpawn (groupCount=1n) + EnemySpawnMember + EventSpawnEnemy per enemy spec count; fixes all 3 events: hollowmere_rat_infestation (5 rats), hollowmere_siege (4 lurkers), ashen_awakening (3 jackals) | 2026-02-21 | 337751a | [245-fix-hollomere-infestation-event-to-spawn](./quick/245-fix-hollomere-infestation-event-to-spawn/) |
 | 246 | Return surviving adds to location on flee or death — wipe/flee path in combat_loop now loops all unique spawnIds from enemies array (not just primary spawn); re-inserts surviving members and resets each spawn to state='available'; dead enemies stay depleted | 2026-02-21 | de6f285 | [246-return-surviving-adds-to-location-on-fle](./quick/246-return-surviving-adds-to-location-on-fle/) |
+| 247 | Enforce 90s Primal Titan expiry — petDurationSeconds added to AbilityMetadata; expiresAtMicros added to ActivePet schema; summonPet accepts durationSeconds param; primal_titan passes 90n; regen_health tick auto-dismisses expired pets | 2026-02-21 | c7adc73 | [247-primal-titan-90s-expiry](./quick/247-primal-titan-90s-expiry/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 246: Return surviving adds to location on flee or death
+Last activity: 2026-02-21 - Completed quick task 247: Enforce 90s Primal Titan expiry
 
 ## Last Session
 
