@@ -664,6 +664,42 @@ export const registerCommandReducers = (deps: any) => {
     recomputeCharacterDerived(ctx, updated);
   });
 
+  spacetimedb.reducer('recompute_racial_all', {}, (ctx) => {
+    requireAdmin(ctx);
+    let count = 0;
+    for (const character of ctx.db.character.iter()) {
+      const raceRow = [...ctx.db.race.iter()].find((r: any) => r.name === character.race);
+      if (!raceRow) continue;
+      const racial = computeRacialAtLevelForAdmin(raceRow, character.level);
+      const updated = {
+        ...character,
+        racialSpellDamage: racial.racialSpellDamage || undefined,
+        racialPhysDamage: racial.racialPhysDamage || undefined,
+        racialMaxHp: racial.racialMaxHp || undefined,
+        racialMaxMana: racial.racialMaxMana || undefined,
+        racialManaRegen: racial.racialManaRegen || undefined,
+        racialStaminaRegen: racial.racialStaminaRegen || undefined,
+        racialCritBonus: racial.racialCritBonus || undefined,
+        racialArmorBonus: racial.racialArmorBonus || undefined,
+        racialDodgeBonus: racial.racialDodgeBonus || undefined,
+        racialHpRegen: racial.racialHpRegen || undefined,
+        racialMaxStamina: racial.racialMaxStamina || undefined,
+        racialTravelCostIncrease: racial.racialTravelCostIncrease || undefined,
+        racialTravelCostDiscount: racial.racialTravelCostDiscount || undefined,
+        racialHitBonus: racial.racialHitBonus || undefined,
+        racialParryBonus: racial.racialParryBonus || undefined,
+        racialFactionBonus: racial.racialFactionBonus || undefined,
+        racialMagicResist: racial.racialMagicResist || undefined,
+        racialPerceptionBonus: racial.racialPerceptionBonus || undefined,
+        racialLootBonus: racial.racialLootBonus || undefined,
+      };
+      ctx.db.character.id.update(updated);
+      recomputeCharacterDerived(ctx, updated);
+      count += 1;
+    }
+    appendSystemMessage(ctx, `[Admin] Recomputed racial bonuses for ${count} character(s).`);
+  });
+
   spacetimedb.reducer(
     'whisper',
     { characterId: t.u64(), targetName: t.string(), message: t.string() },
