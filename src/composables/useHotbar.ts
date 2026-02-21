@@ -265,13 +265,33 @@ export const useHotbar = ({
     if (!slot?.abilityKey) return null;
     const liveAbility = abilityLookup.value.get(slot.abilityKey);
     const description = liveAbility?.description?.trim() || slot.description || `${slot.name} ability.`;
+    const resource = liveAbility?.resource ?? slot.resource ?? '';
+    const power = liveAbility?.power ?? 0n;
+    const level = liveAbility?.level ?? slot.level ?? 0n;
+    const castSeconds = liveAbility?.castSeconds ?? 0n;
+    const cooldownSeconds = liveAbility?.cooldownSeconds ?? slot.cooldownSeconds ?? 0n;
+    let costLabel: string;
+    if (resource === 'mana') {
+      const cost = 4n + level * 2n + power;
+      costLabel = `${cost} mana`;
+    } else if (resource === 'stamina') {
+      const cost = 2n + power / 2n;
+      costLabel = `${cost} stamina`;
+    } else {
+      costLabel = 'Free';
+    }
+    const castLabel = castSeconds > 0n ? `${Number(castSeconds)}s` : 'Instant';
+    const cooldownLabel = cooldownSeconds > 0n ? `${Number(cooldownSeconds)}s` : 'No cooldown';
     return {
       name: slot.name || slot.abilityKey,
       description,
       stats: [
         { label: 'Level', value: slot.level || '-' },
         { label: 'Type', value: slot.kind || '-' },
-        { label: 'Resource', value: slot.resource || '-' },
+        { label: 'Resource', value: resource || '-' },
+        { label: 'Cost', value: costLabel },
+        { label: 'Cast', value: castLabel },
+        { label: 'Cooldown', value: cooldownLabel },
       ],
     };
   };
