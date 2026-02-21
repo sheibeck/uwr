@@ -136,35 +136,33 @@ export function spawnEventContent(ctx: any, eventId: bigint, eventDef: any, _dep
         break;
       }
 
-      // Create one EnemySpawn group for the count
-      const groupCount = BigInt(enemySpec.count);
-      const spawn = ctx.db.enemySpawn.insert({
-        id: 0n,
-        locationId,
-        enemyTemplateId: enemyTemplate.id,
-        name: `${enemyTemplate.name} (Event)`,
-        state: 'available',
-        lockedCombatId: undefined,
-        groupCount,
-      });
-
-      // Insert EnemySpawnMember rows for each enemy in the group
+      // Spawn N individual enemies (groupCount=1 each) — post quick-238 pattern
       for (let i = 0; i < enemySpec.count; i++) {
+        const spawn = ctx.db.enemySpawn.insert({
+          id: 0n,
+          locationId,
+          enemyTemplateId: enemyTemplate.id,
+          name: `${enemyTemplate.name} (Event)`,
+          state: 'available',
+          lockedCombatId: undefined,
+          groupCount: 1n,
+        });
+
         ctx.db.enemySpawnMember.insert({
           id: 0n,
           spawnId: spawn.id,
           enemyTemplateId: enemyTemplate.id,
           roleTemplateId,
         });
-      }
 
-      // Insert EventSpawnEnemy row linking this spawn to the event
-      ctx.db.eventSpawnEnemy.insert({
-        id: 0n,
-        eventId,
-        spawnId: spawn.id,
-        locationId,
-      });
+        // Each individual spawn gets its own EventSpawnEnemy link
+        ctx.db.eventSpawnEnemy.insert({
+          id: 0n,
+          eventId,
+          spawnId: spawn.id,
+          locationId,
+        });
+      }
     }
 
     // Insert EventSpawnItem rows for event-exclusive collectibles
