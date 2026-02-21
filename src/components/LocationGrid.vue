@@ -32,9 +32,8 @@
           @contextmenu.prevent="openEnemyContextMenu($event, enemy)"
         >
           <div :style="{ display: 'flex', alignItems: 'center', gap: '0.3rem' }">
-            <span :style="styles[enemy.conClass] ?? {}">
-              {{ enemy.name }} (L{{ enemy.level }})
-            </span>
+            <span :style="styles[enemy.conClass] ?? {}">{{ enemy.name }}</span>
+            <span :style="{ fontSize: '0.65rem', opacity: 0.55, fontWeight: 'normal' }">L{{ enemy.level }}</span>
           </div>
           <div
             v-if="enemy.isPulling"
@@ -444,14 +443,6 @@ const openEnemyContextMenu = (event: MouseEvent, enemy: EnemySummary) => {
       action: () => emit('pull', { enemyId: enemy.id, pullType: 'body' }),
     },
   ];
-
-  if (enemy.memberNames && enemy.memberNames.length > 0) {
-    items.push({
-      label: `Members: ${enemy.memberNames.join(', ')}`,
-      disabled: true,
-      action: () => {},
-    });
-  }
 
   contextMenu.value = {
     visible: true,
