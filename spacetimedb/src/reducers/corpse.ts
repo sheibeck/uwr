@@ -51,7 +51,12 @@ export const registerCorpseReducers = (deps: any) => {
     const itemTemplate = itemInstance ? ctx.db.itemTemplate.id.find(itemInstance.templateId) : null;
     const itemName = itemTemplate?.name ?? 'item';
 
-    // Delete the CorpseItem row (item returns to character's inventory automatically)
+    // Restore ownership to the looting character
+    if (itemInstance) {
+      ctx.db.itemInstance.id.update({ ...itemInstance, ownerCharacterId: character.id });
+    }
+
+    // Delete the CorpseItem row (item now visible in character's inventory)
     ctx.db.corpseItem.id.delete(corpseItem.id);
 
     appendPrivateEvent(
@@ -97,9 +102,13 @@ export const registerCorpseReducers = (deps: any) => {
       return;
     }
 
-    // Count and delete all CorpseItem rows
+    // Count and delete all CorpseItem rows, restoring item ownership
     let itemCount = 0;
     for (const corpseItem of ctx.db.corpseItem.by_corpse.filter(corpse.id)) {
+      const itemInstance = ctx.db.itemInstance.id.find(corpseItem.itemInstanceId);
+      if (itemInstance) {
+        ctx.db.itemInstance.id.update({ ...itemInstance, ownerCharacterId: character.id });
+      }
       ctx.db.corpseItem.id.delete(corpseItem.id);
       itemCount += 1;
     }
