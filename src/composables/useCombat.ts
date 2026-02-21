@@ -444,9 +444,18 @@ export const useCombat = ({
           pullArrivalTimes.delete(spawn.id.toString());
         }
 
+        const roleTemplate = members.length > 0
+          ? enemyRoleTemplates.value.find(
+              (r) => r.id.toString() === members[0].roleTemplateId.toString()
+            )
+          : undefined;
+        const fullName = roleTemplate?.displayName
+          ? `${template?.name ?? spawn.name} ${roleTemplate.displayName}`
+          : (template?.name ?? spawn.name);
+
         return {
           id: spawn.id,
-          name: spawn.name,
+          name: fullName,
           level,
           conClass,
           groupCount: spawn.groupCount ?? 1n,
