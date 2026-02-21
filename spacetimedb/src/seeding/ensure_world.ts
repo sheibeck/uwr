@@ -561,6 +561,7 @@ export function ensureEnemyAbilities(ctx: any) {
     });
   };
 
+  // Upsert current abilities from the map
   for (const [templateName, abilityKeys] of Object.entries(ENEMY_TEMPLATE_ABILITIES)) {
     for (const abilityKey of abilityKeys) {
       const ability = ENEMY_ABILITIES[abilityKey as keyof typeof ENEMY_ABILITIES];
@@ -574,6 +575,20 @@ export function ensureEnemyAbilities(ctx: any) {
         ability.cooldownSeconds,
         ability.targetRule,
       );
+    }
+  }
+
+  // Clean up stale DB rows for abilities that were removed from the map.
+  // Iterates all enemy templates: if a template has DB ability rows that are
+  // no longer listed in ENEMY_TEMPLATE_ABILITIES, delete them.
+  for (const template of ctx.db.enemyTemplate.iter()) {
+    const allowedKeys = new Set(
+      ENEMY_TEMPLATE_ABILITIES[template.name as keyof typeof ENEMY_TEMPLATE_ABILITIES] ?? []
+    );
+    for (const row of ctx.db.enemyAbility.by_template.filter(template.id)) {
+      if (!allowedKeys.has(row.abilityKey)) {
+        ctx.db.enemyAbility.id.delete(row.id);
+      }
     }
   }
 }

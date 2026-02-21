@@ -2031,8 +2031,9 @@ export const registerCombatReducers = (deps: any) => {
             const randomness = meta?.aiRandomness ?? DEFAULT_AI_RANDOMNESS;
             let score = baseWeight;
 
-            // --- Static bonuses (existing) ---
-            if (ability.kind === 'dot') score += 30;
+            // --- Static bonuses ---
+            // DoTs get only a small bonus — not overwhelming priority vs debuffs/heals.
+            if (ability.kind === 'dot') score += 10;
             if (ability.targetRule === 'lowest_hp') score += 20;
             if (ability.targetRule === 'aggro') score += 10;
 

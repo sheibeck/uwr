@@ -675,41 +675,49 @@ export const ENEMY_ABILITIES = {
 // This is the single source of truth for which enemies have which abilities.
 // Adding a new enemy ability requires: (1) add entry to ENEMY_ABILITIES above,
 // (2) add template mapping here — both in this same file.
+//
+// Design notes:
+//   - Basic creatures (rats, wolves, frogs, etc.) have NO abilities — they auto-attack only.
+//   - Thematic DoTs: only enemies where a DoT makes narrative sense (leech, wisp, venom snake…).
+//   - Warrior/fighter types use debuffs rather than DoTs — a heavy blow cracks armor.
+//   - Spellcasters and special enemies may have 2 abilities for variety.
 export const ENEMY_TEMPLATE_ABILITIES: Record<string, string[]> = {
-  'Bog Rat': ['poison_bite'],
-  'Ember Wisp': ['ember_burn'],
-  'Bandit': ['bleeding_shot'],
-  'Blight Stalker': ['shadow_rend'],
-  'Grave Acolyte': ['sapping_chant', 'dark_mend'],
-  'Hexbinder': ['withering_hex', 'warchief_rally'],
-  'Thicket Wolf': ['rending_bite'],
-  'Marsh Croaker': ['bog_slime'],
-  'Dust Hare': ['quick_nip'],
-  'Ash Jackal': ['scorching_snap'],
-  'Thorn Sprite': ['thorn_venom'],
-  'Gloom Stag': ['crushing_gore'],
-  'Mire Leech': ['blood_drain'],
-  'Fen Witch': ['mire_curse', 'shaman_heal'],
-  'Grave Skirmisher': ['rusty_bleed'],
-  'Cinder Sentinel': ['ember_slam', 'flame_burst'],
-  'Emberling': ['ember_spark'],
-  'Frostbone Acolyte': ['chill_touch'],
-  'Ridge Skirmisher': ['stone_cleave'],
-  'Emberhawk': ['searing_talon'],
-  'Basalt Brute': ['quake_stomp', 'quake_wave'],
-  'Grave Servant': ['grave_shield_break'],
-  'Alley Shade': ['shadow_bleed'],
-  'Vault Sentinel': ['vault_crush'],
-  'Sootbound Mystic': ['soot_hex', 'bolster_defenses'],
-  'Ember Priest': ['cinder_blight'],
-  'Ashforged Revenant': ['molten_bleed'],
-  // Night enemies (quick-170)
-  'Dusk Moth': ['moth_dust'],
-  'Night Rat': ['plague_bite'],
-  'Cinder Wraith': ['spectral_flame'],
-  'Shadow Prowler': ['shadow_pounce'],
-  'Bog Specter': ['drowning_grasp'],
-  'Ashveil Phantom': ['soul_rend'],
-  'Nightfang Viper': ['venom_fang'],
-  'Gloomwing Bat': ['sonic_screech'],
+  // --- Basic creatures: auto-attack only, no abilities ---
+  // Bog Rat, Thicket Wolf, Marsh Croaker, Dust Hare, Emberling,
+  // Dusk Moth, Night Rat, Gloomwing Bat → omitted intentionally
+
+  // --- Thematic DoT enemies ---
+  'Ember Wisp':          ['ember_burn'],       // fire wisp, pure magic burn
+  'Bandit':              ['bleeding_shot'],     // archer landing a bleeding wound
+  'Blight Stalker':      ['shadow_rend'],       // dark creature, magic blight DoT
+  'Ash Jackal':          ['scorching_snap'],    // fire-touched jackal bite
+  'Thorn Sprite':        ['thorn_venom'],       // nature creature, poison DoT
+  'Mire Leech':          ['blood_drain'],       // leech — blood drain is the whole point
+  'Emberhawk':           ['searing_talon'],     // fire hawk, burning talon DoT
+  'Alley Shade':         ['shadow_bleed'],      // shadow creature, magic bleed
+  'Sootbound Mystic':    ['soot_hex', 'bolster_defenses'],  // mystic DoT + buff
+  'Ember Priest':        ['cinder_blight'],     // fire mage DoT
+  'Ashforged Revenant':  ['molten_bleed'],      // fire undead, molten blood DoT
+
+  // --- Debuff enemies (fighter/warrior types that hit hard) ---
+  'Gloom Stag':          ['crushing_gore'],     // charging stag, powerful debuff strike
+  'Grave Skirmisher':    ['crushing_gore'],     // undead warrior, punishing blow
+  'Ridge Skirmisher':    ['quake_stomp'],       // heavy stone fighter, quake debuff
+  'Frostbone Acolyte':   ['chill_touch'],       // undead mage, chilling debuff
+  'Grave Servant':       ['grave_shield_break'],// undead with shield-shattering strike
+  'Vault Sentinel':      ['vault_crush'],       // heavy guardian, crushing debuff
+
+  // --- Mixed ability enemies (spellcasters and elites) ---
+  'Grave Acolyte':       ['sapping_chant', 'dark_mend'],     // undead mage: debuff + self-heal
+  'Hexbinder':           ['withering_hex', 'warchief_rally'],// humanoid mage: debuff + group buff
+  'Fen Witch':           ['mire_curse', 'shaman_heal'],      // witch: debuff + heal
+  'Cinder Sentinel':     ['ember_slam', 'flame_burst'],      // elite: debuff + AoE
+  'Basalt Brute':        ['quake_stomp', 'quake_wave'],      // elite: debuff + AoE
+
+  // --- Night enemies ---
+  'Cinder Wraith':       ['spectral_flame'],    // fire ghost, magic DoT
+  'Shadow Prowler':      ['shadow_pounce'],     // ambush predator, physical DoT
+  'Bog Specter':         ['drowning_grasp'],    // bog ghost, magic DoT
+  'Ashveil Phantom':     ['soul_rend'],         // phantom, soul DoT
+  'Nightfang Viper':     ['venom_fang'],        // snake — venom is entirely on-brand
 };
