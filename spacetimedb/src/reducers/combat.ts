@@ -3049,6 +3049,7 @@ export const registerCombatReducers = (deps: any) => {
     // Enemy attacks highest aggro
     const activeIds = new Set(activeParticipants.map((p) => p.characterId));
     for (const enemy of enemies) {
+      if (enemy.currentHp === 0n) continue; // skip dead enemies (cross-tick guard)
       let topAggro: typeof deps.AggroEntry.rowType | null = null;
       let topPet: typeof deps.ActivePet.rowType | null = null;
       for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
@@ -3071,7 +3072,7 @@ export const registerCombatReducers = (deps: any) => {
       const enemySnapshot = ctx.db.combatEnemy.id.find(enemy.id);
       const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
       const name = enemySnapshot?.displayName ?? enemyTemplate?.name ?? enemyName;
-      if (topAggro && enemySnapshot && enemySnapshot.nextAutoAttackAt <= nowMicros) {
+      if (topAggro && enemySnapshot && enemySnapshot.currentHp > 0n && enemySnapshot.nextAutoAttackAt <= nowMicros) {
         const skipEffect = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find(
           (effect) => effect.effectType === 'skip' || effect.effectType === 'stun'
         );
