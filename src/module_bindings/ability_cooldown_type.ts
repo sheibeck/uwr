@@ -14,7 +14,8 @@ export default __t.object("AbilityCooldown", {
   id: __t.u64(),
   characterId: __t.u64(),
   abilityKey: __t.string(),
-  readyAtMicros: __t.u64(),
+  startedAtMicros: __t.u64(),
+  durationMicros: __t.u64(),
 });
 
 
