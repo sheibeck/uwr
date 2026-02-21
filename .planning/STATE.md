@@ -13,7 +13,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 **Last completed phase:** 21.1.1 — Hit/Dodge/Parry Active Stats (stat-derived dodge/parry/hit wired; DEX live defensive stat)
 **Current phase:** 21.1 — Stat Systems Off-Stat Hooks (COMPLETE — human-verified 2026-02-21)
 **Next action:** Continue Phase 21 (Race Expansion) or Phase 22 (Class Ability Balancing) — run /gsd:progress to check
-**Last session:** 2026-02-21T20:03:47.592Z — Completed quick-238: Refactor enemy groups to individual spawns with faction aggro
+**Last session:** 2026-02-21T20:13:00Z — Completed quick-241: Loot window border pulse glow on new loot
 
 ---
 
