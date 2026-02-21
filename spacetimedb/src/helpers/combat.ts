@@ -1894,7 +1894,8 @@ export function executeEnemyAbility(
   combatId: bigint,
   enemyId: bigint,
   abilityKey: string,
-  targetCharacterId?: bigint
+  targetCharacterId?: bigint,
+  targetPetId?: bigint
 ) {
   const combat = ctx.db.combatEncounter.id.find(combatId);
   if (!combat || combat.state !== 'active') return;
@@ -1905,6 +1906,49 @@ export function executeEnemyAbility(
   if (!enemy) return;
   const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
   const enemyName = enemy.displayName ?? enemyTemplate?.name ?? 'Enemy';
+
+  // If ability targets a pet, route to pet instead of character
+  if (targetPetId) {
+    const pet = ctx.db.activePet.id.find(targetPetId);
+    if (!pet || pet.currentHp === 0n) return;
+    const owner = ctx.db.character.id.find(pet.characterId);
+    if (!owner) return;
+
+    // Calculate power for this enemy ability
+    const enemyLevel = enemyTemplate?.level ?? 1n;
+    const abilityPower = (ability as any).power ?? 3n;
+    const enemyPower = ENEMY_BASE_POWER + (enemyLevel * ENEMY_LEVEL_POWER_SCALING);
+    const totalPower = enemyPower + abilityPower * 5n;
+    const rawDamage = totalPower;
+    const newHp = pet.currentHp > rawDamage ? pet.currentHp - rawDamage : 0n;
+    ctx.db.activePet.id.update({ ...pet, currentHp: newHp });
+
+    // Log pet being targeted
+    const privateMessage = `${enemyName} uses ${ability.name} on ${pet.name} for ${rawDamage}.`;
+    appendPrivateEvent(ctx, owner.id, owner.ownerUserId, 'damage', privateMessage);
+    if (owner.groupId) {
+      appendGroupEvent(ctx, owner.groupId, owner.id, 'damage', `${enemyName} uses ${ability.name} on ${pet.name} for ${rawDamage}.`);
+    }
+
+    // Handle pet death
+    if (newHp === 0n) {
+      const deathMsg = `${pet.name} has been slain!`;
+      appendPrivateEvent(ctx, owner.id, owner.ownerUserId, 'combat', deathMsg);
+      if (owner.groupId) {
+        appendGroupEvent(ctx, owner.groupId, owner.id, 'combat', deathMsg);
+      }
+      // Remove pet's aggro entries
+      for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+        if (entry.petId && entry.petId === pet.id) {
+          ctx.db.aggroEntry.id.delete(entry.id);
+        }
+      }
+      // Delete the pet
+      ctx.db.activePet.id.delete(pet.id);
+    }
+    return;
+  }
+
   const targetId = targetCharacterId ?? getTopAggroId(ctx, combatId, enemy.id);
   if (!targetId) return;
   const target = ctx.db.character.id.find(targetId);
@@ -2167,6 +2211,7 @@ export function executeAbilityAction(
       combatId: bigint;
       abilityKey: string;
       targetCharacterId?: bigint;
+      targetPetId?: bigint;
     }
     | {
       actorType: 'pet';
@@ -2188,7 +2233,8 @@ export function executeAbilityAction(
       args.combatId,
       args.actorId,
       args.abilityKey,
-      args.targetCharacterId
+      args.targetCharacterId,
+      args.targetPetId
     );
     return true;
   }

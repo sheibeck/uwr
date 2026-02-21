@@ -17,4 +17,5 @@ export default __t.row({
   abilityKey: __t.string(),
   endsAtMicros: __t.u64(),
   targetCharacterId: __t.option(__t.u64()),
+  targetPetId: __t.option(__t.u64()),
 });
