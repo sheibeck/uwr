@@ -449,9 +449,7 @@ export const useCombat = ({
               (r) => r.id.toString() === members[0].roleTemplateId.toString()
             )
           : undefined;
-        const fullName = roleTemplate?.displayName
-          ? `${template?.name ?? spawn.name} ${roleTemplate.displayName}`
-          : (template?.name ?? spawn.name);
+        const fullName = roleTemplate?.displayName ?? template?.name ?? spawn.name;
 
         return {
           id: spawn.id,
