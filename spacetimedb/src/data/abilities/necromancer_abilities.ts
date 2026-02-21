@@ -74,7 +74,7 @@ export const NECROMANCER_ABILITIES: Record<string, AbilityMetadata> = {
     level: 10n,
     power: 0n,
     cooldownSeconds: 300n,
-    castSeconds: 0n,
+    castSeconds: 1n,
     damageType: 'none' as DamageType,
     combatState: 'any',
   },

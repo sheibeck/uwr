@@ -23,7 +23,7 @@ export const RANGER_ABILITIES: Record<string, AbilityMetadata> = {
     level: 3n,
     power: 1n,
     cooldownSeconds: 120n,
-    castSeconds: 0n,
+    castSeconds: 1n,
     damageType: 'none' as DamageType,
   },
   ranger_piercing_arrow: {
@@ -45,7 +45,7 @@ export const RANGER_ABILITIES: Record<string, AbilityMetadata> = {
     level: 7n,
     power: 3n,
     cooldownSeconds: 8n,
-    castSeconds: 0n,
+    castSeconds: 1n,
     damageType: 'none' as DamageType,
     hotPowerSplit: 0.6,
     hotDuration: 3n,

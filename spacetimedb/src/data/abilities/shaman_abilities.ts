@@ -58,7 +58,7 @@ export const SHAMAN_ABILITIES: Record<string, AbilityMetadata> = {
     level: 9n,
     power: 3n,
     cooldownSeconds: 0n,
-    castSeconds: 0n,
+    castSeconds: 1n,
     damageType: 'none' as DamageType,
   },
   shaman_earthquake: {
@@ -69,7 +69,7 @@ export const SHAMAN_ABILITIES: Record<string, AbilityMetadata> = {
     level: 10n,
     power: 9n,
     cooldownSeconds: 300n,
-    castSeconds: 0n,
+    castSeconds: 1n,
     damageType: 'physical' as DamageType,
     aoeTargets: 'all_enemies',
     debuffType: 'stun',

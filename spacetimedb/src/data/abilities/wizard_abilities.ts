@@ -45,7 +45,7 @@ export const WIZARD_ABILITIES: Record<string, AbilityMetadata> = {
     level: 7n,
     power: 2n,
     cooldownSeconds: 10n,
-    castSeconds: 0n,
+    castSeconds: 1n,
     damageType: 'none' as DamageType,
   },
   wizard_arcane_storm: {

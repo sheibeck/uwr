@@ -22,7 +22,7 @@ export const SPELLBLADE_ABILITIES: Record<string, AbilityMetadata> = {
     level: 3n,
     power: 2n,
     cooldownSeconds: 20n,
-    castSeconds: 0n,
+    castSeconds: 1n,
     damageType: 'none' as DamageType,
   },
   spellblade_thunder_cleave: {
@@ -45,7 +45,7 @@ export const SPELLBLADE_ABILITIES: Record<string, AbilityMetadata> = {
     level: 7n,
     power: 2n,
     cooldownSeconds: 45n,
-    castSeconds: 0n,
+    castSeconds: 1n,
     damageType: 'none' as DamageType,
   },
   spellblade_magma_shield: {
@@ -56,7 +56,7 @@ export const SPELLBLADE_ABILITIES: Record<string, AbilityMetadata> = {
     level: 9n,
     power: 3n,
     cooldownSeconds: 30n,
-    castSeconds: 0n,
+    castSeconds: 1n,
     damageType: 'none' as DamageType,
   },
   spellblade_elemental_surge: {
