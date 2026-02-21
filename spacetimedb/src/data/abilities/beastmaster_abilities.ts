@@ -60,7 +60,7 @@ export const BEASTMASTER_ABILITIES: Record<string, AbilityMetadata> = {
   },
   beastmaster_wild_hunt: {
     name: 'Wild Hunt',
-    description: 'Your companion launches into a feral frenzy, attacking all enemies simultaneously. 3 minute cooldown.',
+    description: 'Your companion launches into a feral frenzy, attacking all enemies simultaneously.',
     className: 'beastmaster',
     resource: 'stamina',
     level: 10n,

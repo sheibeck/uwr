@@ -3,7 +3,7 @@ import type { AbilityMetadata, DamageType } from '../ability_catalog.js';
 export const BARD_ABILITIES: Record<string, AbilityMetadata> = {
   bard_discordant_note: {
     name: 'Discordant Note',
-    description: 'Activates a song that strikes all enemies with sonic damage every 6 seconds.',
+    description: 'Activates a song that strikes all enemies with sonic damage.',
     className: 'bard',
     resource: 'mana',
     level: 1n,
@@ -15,7 +15,7 @@ export const BARD_ABILITIES: Record<string, AbilityMetadata> = {
   },
   bard_melody_of_mending: {
     name: 'Melody of Mending',
-    description: 'Activates a healing melody that restores HP to all party members every 6 seconds.',
+    description: 'Activates a healing melody that restores HP to all party members.',
     className: 'bard',
     resource: 'mana',
     level: 3n,
@@ -27,7 +27,7 @@ export const BARD_ABILITIES: Record<string, AbilityMetadata> = {
   },
   bard_chorus_of_vigor: {
     name: 'Chorus of Vigor',
-    description: 'Activates a vigorous chorus that restores mana to all party members every 6 seconds.',
+    description: 'Activates a vigorous chorus that restores mana to all party members.',
     className: 'bard',
     resource: 'mana',
     level: 5n,

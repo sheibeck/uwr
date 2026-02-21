@@ -61,7 +61,7 @@ export const SPELLBLADE_ABILITIES: Record<string, AbilityMetadata> = {
   },
   spellblade_elemental_surge: {
     name: 'Elemental Surge',
-    description: 'Channels all four elements simultaneously into a single devastating attack on one target. 5 minute cooldown.',
+    description: 'Channels all four elements simultaneously into a single devastating attack on one target.',
     className: 'spellblade',
     resource: 'mana',
     level: 10n,

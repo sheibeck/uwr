@@ -62,7 +62,7 @@ export const WIZARD_ABILITIES: Record<string, AbilityMetadata> = {
   },
   wizard_arcane_explosion: {
     name: 'Arcane Explosion',
-    description: 'Detonates a massive explosion of arcane power that obliterates all enemies. 3 second cast, 5 minute cooldown.',
+    description: 'Detonates a massive explosion of arcane power that obliterates all enemies.',
     className: 'wizard',
     resource: 'mana',
     level: 10n,

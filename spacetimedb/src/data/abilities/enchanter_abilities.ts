@@ -3,7 +3,7 @@ import type { AbilityMetadata, DamageType } from '../ability_catalog.js';
 export const ENCHANTER_ABILITIES: Record<string, AbilityMetadata> = {
   enchanter_mind_fray: {
     name: 'Mind Fray',
-    description: 'Assaults the target with psychic energy, dealing magic damage over 3 ticks.',
+    description: 'Assaults the target with psychic energy, dealing magic damage over time.',
     className: 'enchanter',
     resource: 'mana',
     level: 1n,
@@ -68,7 +68,7 @@ export const ENCHANTER_ABILITIES: Record<string, AbilityMetadata> = {
   },
   enchanter_charm: {
     name: 'Charm',
-    description: 'Charms the current target, spawning a psychic copy of them as your combat pet for the duration. 5 minute cooldown.',
+    description: 'Charms the current target, spawning a psychic copy of them as your combat pet for the duration.',
     className: 'enchanter',
     resource: 'mana',
     level: 10n,

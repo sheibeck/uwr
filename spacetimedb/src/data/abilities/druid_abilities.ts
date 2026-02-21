@@ -14,7 +14,7 @@ export const DRUID_ABILITIES: Record<string, AbilityMetadata> = {
   },
   druid_natures_mark: {
     name: "Nature's Mark",
-    description: 'Channels nature\'s power to instantly gather resources from your current location.',
+    description: 'Channels nature\'s power to gather resources from your current location.',
     className: 'druid',
     resource: 'mana',
     level: 3n,
@@ -63,7 +63,7 @@ export const DRUID_ABILITIES: Record<string, AbilityMetadata> = {
   },
   druid_shapeshifter_form: {
     name: 'Shapeshifter Form',
-    description: 'Shifts into a primal beast form for 30 seconds, granting +40% physical damage and a temporary HP buffer. Cannot cast spells while shifted. 5 minute cooldown.',
+    description: 'Shifts into a primal beast form for 30 seconds, granting +40% physical damage and a temporary HP buffer. Cannot cast spells while shifted.',
     className: 'druid',
     resource: 'mana',
     level: 10n,

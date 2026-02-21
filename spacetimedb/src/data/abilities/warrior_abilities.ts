@@ -3,7 +3,7 @@ import type { AbilityMetadata, DamageType } from '../ability_catalog.js';
 export const WARRIOR_ABILITIES: Record<string, AbilityMetadata> = {
   warrior_slam: {
     name: 'Slam',
-    description: 'Slams the target with a powerful blow, reducing their armor class by 5 for 7 seconds.',
+    description: 'Slams the target with a powerful blow, reducing their armor class by',
     className: 'warrior',
     resource: 'stamina',
     level: 1n,
@@ -39,7 +39,7 @@ export const WARRIOR_ABILITIES: Record<string, AbilityMetadata> = {
   },
   warrior_cleave: {
     name: 'Cleave',
-    description: 'Sweeps your weapon in a wide arc, striking all nearby enemies for 65% damage each.',
+    description: 'Sweeps your weapon in a wide arc, striking all nearby enemies.',
     className: 'warrior',
     resource: 'stamina',
     level: 7n,
@@ -63,7 +63,7 @@ export const WARRIOR_ABILITIES: Record<string, AbilityMetadata> = {
   },
   warrior_berserker_rage: {
     name: 'Berserker Rage',
-    description: 'Enters a 30-second berserk stance granting +50% physical damage. Cannot use defensive abilities while raging. 5 minute cooldown.',
+    description: 'Enters a 30-second berserk stance granting +50% physical damage. Cannot use defensive abilities while raging.',
     className: 'warrior',
     resource: 'stamina',
     level: 10n,

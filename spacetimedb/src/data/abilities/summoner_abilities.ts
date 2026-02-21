@@ -26,7 +26,7 @@ export const SUMMONER_ABILITIES: Record<string, AbilityMetadata> = {
   },
   summoner_fire_elemental: {
     name: 'Fire Elemental',
-    description: 'Summons a fire elemental that deals magic damage. Replaces Earth Elemental after a 10-second overlap.',
+    description: 'Summons a fire elemental that deals magic damage.',
     className: 'summoner',
     resource: 'mana',
     level: 5n,
@@ -59,7 +59,7 @@ export const SUMMONER_ABILITIES: Record<string, AbilityMetadata> = {
   },
   summoner_primal_titan: {
     name: 'Primal Titan',
-    description: 'Summons the Primal Titan for 90 seconds — it tanks all enemies, deals AoE magic damage, and heals the party each round simultaneously. 5 minute cooldown.',
+    description: 'Summons the Primal Titan for 90 seconds — it tanks all enemies, deals AoE magic damage, and heals the party each round simultaneously.',
     className: 'summoner',
     resource: 'mana',
     level: 10n,

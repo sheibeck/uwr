@@ -49,7 +49,7 @@ export const CLERIC_ABILITIES: Record<string, AbilityMetadata> = {
   },
   cleric_resurrect: {
     name: 'Resurrect',
-    description: 'Channels divine power to restore life to a fallen ally. Targets a corpse at the cleric\'s location. The dead character is teleported to the corpse and restored to 50% health and mana. Costs 50 mana and takes 10 seconds to cast.',
+    description: 'Channels divine power to restore life to a fallen ally. Targets a corpse at the cleric\'s location. The dead character is teleported to the corpse and restored to 50% health and mana.',
     className: 'cleric',
     resource: 'mana',
     level: 9n,
@@ -61,7 +61,7 @@ export const CLERIC_ABILITIES: Record<string, AbilityMetadata> = {
   },
   cleric_holy_nova: {
     name: 'Holy Nova',
-    description: 'Releases a burst of divine light that deals magic damage to all enemies while simultaneously healing all allies. 3 minute cooldown.',
+    description: 'Releases a burst of divine light that deals magic damage to all enemies while simultaneously healing all allies.',
     className: 'cleric',
     resource: 'mana',
     level: 10n,

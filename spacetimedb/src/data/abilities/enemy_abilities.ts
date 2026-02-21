@@ -450,6 +450,74 @@ export const ENEMY_ABILITIES = {
     aiWeight: 60,
     aiRandomness: 20,
   },
+  ember_daze: {
+    name: 'Ember Daze',
+    description: 'Scorching pulse disorients and leaves armor exposed.',
+    castSeconds: 2n,
+    cooldownSeconds: 18n,
+    kind: 'debuff',
+    effectType: 'ac_bonus',
+    magnitude: -2n,
+    rounds: 3n,
+    power: 3n,
+    damageType: 'magic' as DamageType,
+    debuffPowerCost: 0.25,
+    targetRule: 'aggro',
+    aiChance: 45,
+    aiWeight: 60,
+    aiRandomness: 20,
+  },
+  dust_cloud: {
+    name: 'Dust Cloud',
+    description: 'Choking dust stings eyes and loosens protective gear.',
+    castSeconds: 1n,
+    cooldownSeconds: 16n,
+    kind: 'debuff',
+    effectType: 'ac_bonus',
+    magnitude: -2n,
+    rounds: 3n,
+    power: 3n,
+    damageType: 'physical' as DamageType,
+    debuffPowerCost: 0.25,
+    targetRule: 'aggro',
+    aiChance: 50,
+    aiWeight: 55,
+    aiRandomness: 20,
+  },
+  wisp_drain: {
+    name: 'Wisp Drain',
+    description: 'Spectral energy saps defensive cohesion.',
+    castSeconds: 1n,
+    cooldownSeconds: 16n,
+    kind: 'debuff',
+    effectType: 'ac_bonus',
+    magnitude: -2n,
+    rounds: 3n,
+    power: 3n,
+    damageType: 'magic' as DamageType,
+    debuffPowerCost: 0.25,
+    targetRule: 'aggro',
+    aiChance: 45,
+    aiWeight: 55,
+    aiRandomness: 20,
+  },
+  soot_pulse: {
+    name: 'Soot Pulse',
+    description: 'Mechanical soot cloud reduces armor effectiveness.',
+    castSeconds: 2n,
+    cooldownSeconds: 20n,
+    kind: 'debuff',
+    effectType: 'ac_bonus',
+    magnitude: -2n,
+    rounds: 3n,
+    power: 3n,
+    damageType: 'magic' as DamageType,
+    debuffPowerCost: 0.25,
+    targetRule: 'aggro',
+    aiChance: 45,
+    aiWeight: 60,
+    aiRandomness: 20,
+  },
 
   // Heal abilities (new)
   shaman_heal: {
@@ -474,6 +542,34 @@ export const ENEMY_ABILITIES = {
     kind: 'heal',
     power: 6n,
     healPowerSplit: 0.5,
+    hotDuration: 2n,
+    targetRule: 'lowest_hp',
+    aiChance: 65,
+    aiWeight: 75,
+    aiRandomness: 10,
+  },
+  frost_mend: {
+    name: 'Frost Mend',
+    description: 'Ice crystals seal wounds with a numbing chill.',
+    castSeconds: 2n,
+    cooldownSeconds: 18n,
+    kind: 'heal',
+    power: 4n,
+    healPowerSplit: 0.6,
+    hotDuration: 2n,
+    targetRule: 'lowest_hp',
+    aiChance: 65,
+    aiWeight: 75,
+    aiRandomness: 10,
+  },
+  ember_mend: {
+    name: 'Ember Mend',
+    description: 'Smoldering energy cauterizes wounds and restores vitality.',
+    castSeconds: 2n,
+    cooldownSeconds: 18n,
+    kind: 'heal',
+    power: 4n,
+    healPowerSplit: 0.6,
     hotDuration: 2n,
     targetRule: 'lowest_hp',
     aiChance: 65,
@@ -683,11 +779,11 @@ export const ENEMY_ABILITIES = {
 //   - Spellcasters and special enemies may have 2 abilities for variety.
 export const ENEMY_TEMPLATE_ABILITIES: Record<string, string[]> = {
   // --- Basic creatures: auto-attack only, no abilities ---
-  // Bog Rat, Thicket Wolf, Marsh Croaker, Dust Hare, Emberling,
-  // Dusk Moth, Night Rat, Gloomwing Bat → omitted intentionally
+  // Bog Rat, Thicket Wolf, Marsh Croaker → omitted intentionally
+  // (Dust Hare, Emberling, Dusk Moth, Gloomwing Bat now have abilities)
 
   // --- Thematic DoT enemies ---
-  'Ember Wisp':          ['ember_burn'],       // fire wisp, pure magic burn
+  'Ember Wisp':          ['ember_burn', 'wisp_drain'],  // fire wisp: magic burn DoT + debuff for support variant
   'Bandit':              ['bleeding_shot'],     // archer landing a bleeding wound
   'Blight Stalker':      ['shadow_rend'],       // dark creature, magic blight DoT
   'Ash Jackal':          ['scorching_snap'],    // fire-touched jackal bite
@@ -696,16 +792,23 @@ export const ENEMY_TEMPLATE_ABILITIES: Record<string, string[]> = {
   'Emberhawk':           ['searing_talon'],     // fire hawk, burning talon DoT
   'Alley Shade':         ['shadow_bleed'],      // shadow creature, magic bleed
   'Sootbound Mystic':    ['soot_hex', 'bolster_defenses'],  // mystic DoT + buff
-  'Ember Priest':        ['cinder_blight'],     // fire mage DoT
+  'Ember Priest':        ['cinder_blight', 'ember_mend'],  // fire mage DoT + heal
   'Ashforged Revenant':  ['molten_bleed'],      // fire undead, molten blood DoT
 
   // --- Debuff enemies (fighter/warrior types that hit hard) ---
   'Gloom Stag':          ['crushing_gore'],     // charging stag, powerful debuff strike
   'Grave Skirmisher':    ['crushing_gore'],     // undead warrior, punishing blow
   'Ridge Skirmisher':    ['quake_stomp'],       // heavy stone fighter, quake debuff
-  'Frostbone Acolyte':   ['chill_touch'],       // undead mage, chilling debuff
+  'Frostbone Acolyte':   ['chill_touch', 'frost_mend'],  // undead mage: chilling debuff + heal
   'Grave Servant':       ['grave_shield_break'],// undead with shield-shattering strike
   'Vault Sentinel':      ['vault_crush'],       // heavy guardian, crushing debuff
+
+  // --- Support enemies (non-DoT abilities) ---
+  'Emberling':           ['ember_daze'],        // support ember spirit, disorient pulse
+  'Dust Hare':           ['dust_cloud'],        // support hare, choking dust
+  'Sootbound Sentry':    ['soot_pulse'],        // construct watcher, armor-stripping pulse
+  'Dusk Moth':           ['moth_dust'],         // moth dust DoT for glimmer support variant
+  'Gloomwing Bat':       ['sonic_screech'],     // sonic screech debuff for elder support variant
 
   // --- Mixed ability enemies (spellcasters and elites) ---
   'Grave Acolyte':       ['sapping_chant', 'dark_mend'],     // undead mage: debuff + self-heal
