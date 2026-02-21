@@ -495,10 +495,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 246 | Return surviving adds to location on flee or death — wipe/flee path in combat_loop now loops all unique spawnIds from enemies array (not just primary spawn); re-inserts surviving members and resets each spawn to state='available'; dead enemies stay depleted | 2026-02-21 | de6f285 | [246-return-surviving-adds-to-location-on-fle](./quick/246-return-surviving-adds-to-location-on-fle/) |
 | 247 | Enforce 90s Primal Titan expiry — petDurationSeconds added to AbilityMetadata; expiresAtMicros added to ActivePet schema; summonPet accepts durationSeconds param; primal_titan passes 90n; regen_health tick auto-dismisses expired pets | 2026-02-21 | c7adc73 | [247-primal-titan-90s-expiry](./quick/247-primal-titan-90s-expiry/) |
 | 248 | Fire and water elementals spawn with no initial aggro — restricted AggroEntry insertion in summonPet to pet_taunt ability only; earth elemental still gets initial aggro as tank; fire/water elementals start with no aggro so enemies keep targeting the summoner | 2026-02-21 | 715659a | [248-fire-and-water-elementals-spawn-with-no-](./quick/248-fire-and-water-elementals-spawn-with-no-/) |
+| 249 | Fix mana cost mismatch — server read ability.resourceCostOverride (not a DB column) so always fell back to formula; now uses ability.resourceCost (pre-baked at seed time with override applied); client and server now agree on cost | 2026-02-21 | bd1c221 | [249-fix-mana-cost-mismatch-between-client-pr](./quick/249-fix-mana-cost-mismatch-between-client-pr/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 248: Fire and water elementals spawn with no initial aggro
+Last activity: 2026-02-21 - Completed quick task 249: Fix mana cost mismatch between client pre-check and server
 
 ## Last Session
 
