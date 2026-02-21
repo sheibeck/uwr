@@ -14,6 +14,7 @@ import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { applyPerkProcs, addCharacterEffect } from '../helpers/combat';
+import { getLocationSpawnCap } from '../helpers/location';
 import { RENOWN_GAIN } from '../data/renown_data';
 import { rollQualityTier, rollQualityForDrop, generateAffixData, buildDisplayName, getEquippedBonuses } from '../helpers/items';
 import { incrementWorldStat } from '../helpers/world_events';
@@ -1177,6 +1178,10 @@ export const registerCombatReducers = (deps: any) => {
   spacetimedb.reducer('respawn_enemy', { arg: EnemyRespawnTick.rowType }, (ctx, { arg }) => {
     const location = ctx.db.location.id.find(arg.locationId);
     if (location?.isSafe) return;
+    // Respect spawn cap — night transitions may have already refilled the location
+    const currentCount = [...ctx.db.enemySpawn.by_location.filter(arg.locationId)].length;
+    const cap = getLocationSpawnCap(ctx, arg.locationId);
+    if (currentCount >= cap) return;
     deps.spawnEnemy(ctx, arg.locationId, 1n);
   });
 
