@@ -462,9 +462,10 @@ export function executeAbility(
       nextAutoAttackAt: inActiveCombat ? nowMicros + AUTO_ATTACK_INTERVAL : undefined,
       expiresAtMicros: durationSeconds ? nowMicros + durationSeconds * 1_000_000n : undefined,
     });
-    if (inActiveCombat && character.className?.toLowerCase() === 'summoner') {
+    if (inActiveCombat && character.className?.toLowerCase() === 'summoner' && ability?.key === 'pet_taunt') {
       // Single-target taunt: only generate initial aggro against the targeted enemy,
       // not an AoE taunt against every enemy in combat.
+      // Only pet_taunt pets (earth elemental) get initial aggro; fire/water elementals do not.
       ctx.db.aggroEntry.insert({
         id: 0n,
         combatId,
