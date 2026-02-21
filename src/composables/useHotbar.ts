@@ -288,7 +288,6 @@ export const useHotbar = ({
       stats: [
         { label: 'Level', value: slot.level || '-' },
         { label: 'Type', value: slot.kind || '-' },
-        { label: 'Resource', value: resource || '-' },
         { label: 'Cost', value: costLabel },
         { label: 'Cast', value: castLabel },
         { label: 'Cooldown', value: cooldownLabel },
