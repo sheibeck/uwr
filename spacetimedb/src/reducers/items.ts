@@ -788,13 +788,25 @@ export const registerItemReducers = (deps: any) => {
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
             `You stop singing ${songDisplayNames[abilityKey] ?? abilityKey}.`
           );
-          const offCooldownMicros = 6_000_000n;
+          const offCooldownMicros = 3_000_000n;
           if (existingCooldown) {
             ctx.db.abilityCooldown.id.update({ ...existingCooldown, startedAtMicros: nowMicros, durationMicros: offCooldownMicros });
           } else {
             ctx.db.abilityCooldown.insert({ id: 0n, characterId: character.id, abilityKey, startedAtMicros: nowMicros, durationMicros: offCooldownMicros });
           }
           return;
+        }
+        // SWITCH: different song clicked while one is active — apply 3s cooldown to the old song
+        if (activeSong && activeSong.songKey !== abilityKey) {
+          const prevSongKey = activeSong.songKey;
+          const prevCooldown = [...ctx.db.abilityCooldown.by_character.filter(character.id)]
+            .find((r: any) => r.abilityKey === prevSongKey);
+          if (prevCooldown) {
+            ctx.db.abilityCooldown.id.update({ ...prevCooldown, startedAtMicros: nowMicros, durationMicros: 3_000_000n });
+          } else {
+            ctx.db.abilityCooldown.insert({ id: 0n, characterId: character.id, abilityKey: prevSongKey, startedAtMicros: nowMicros, durationMicros: 3_000_000n });
+          }
+          // Fall through to executeAbilityAction for the new song
         }
       }
 
