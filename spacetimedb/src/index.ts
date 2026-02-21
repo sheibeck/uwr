@@ -179,6 +179,7 @@ import {
   ensureSpawnsForLocation,
   ensureLocationRuntimeBootstrap,
   respawnLocationSpawns,
+  getLocationSpawnCap,
 } from './helpers/location';
 
 import {
@@ -251,7 +252,7 @@ spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
   appendWorldEvent(ctx, 'world', message);
   for (const location of ctx.db.location.iter()) {
     if (!location.isSafe) {
-      respawnLocationSpawns(ctx, location.id, DEFAULT_LOCATION_SPAWNS);
+      respawnLocationSpawns(ctx, location.id, getLocationSpawnCap(ctx, location.id));
     }
   }
   ctx.db.dayNightTick.insert({
