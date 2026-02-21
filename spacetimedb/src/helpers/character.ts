@@ -4,6 +4,9 @@ import {
   BASE_HP,
   HP_STR_MULTIPLIER,
   BASE_MANA,
+  MANA_MULTIPLIER,
+  HYBRID_MANA_MULTIPLIER,
+  HYBRID_MANA_CLASSES,
   baseArmorForClass,
   manaStatForClass,
   usesMana,
@@ -86,8 +89,11 @@ export function recomputeCharacterDerived(ctx: any, character: any) {
 
   const manaStat = manaStatForClass(character.className, totalStats);
   const maxHp = BASE_HP + totalStats.str * HP_STR_MULTIPLIER + gear.hpBonus + racialMaxHp;
+  const manaMultiplier = HYBRID_MANA_CLASSES.has(normalizeClassName(character.className))
+    ? HYBRID_MANA_MULTIPLIER
+    : MANA_MULTIPLIER;
   const maxMana = usesMana(character.className)
-    ? BASE_MANA + manaStat * 6n + gear.manaBonus + racialMaxMana
+    ? BASE_MANA + manaStat * manaMultiplier + gear.manaBonus + racialMaxMana
     : 0n;
   const maxStamina = 20n + racialMaxStamina;
 
