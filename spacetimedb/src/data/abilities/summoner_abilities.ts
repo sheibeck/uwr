@@ -19,7 +19,7 @@ export const SUMMONER_ABILITIES: Record<string, AbilityMetadata> = {
     resource: 'mana',
     level: 3n,
     power: 0n,
-    cooldownSeconds: 60n,
+    cooldownSeconds: 5n,
     castSeconds: 2n,
     damageType: 'none' as DamageType,
     aoeTargets: 'all_party',
