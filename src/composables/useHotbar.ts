@@ -264,7 +264,6 @@ export const useHotbar = ({
   const hotbarTooltipItem = (slot: HotbarDisplaySlot) => {
     if (!slot?.abilityKey) return null;
     const liveAbility = abilityLookup.value.get(slot.abilityKey);
-    const description = liveAbility?.description?.trim() || slot.description || `${slot.name} ability.`;
     const resource = liveAbility?.resource ?? slot.resource ?? '';
     const power = liveAbility?.power ?? 0n;
     const level = liveAbility?.level ?? slot.level ?? 0n;
@@ -295,7 +294,6 @@ export const useHotbar = ({
     }
     return {
       name: slot.name || slot.abilityKey,
-      description,
       stats,
     };
   };
