@@ -454,7 +454,11 @@ export function executeAbility(
       abilityKey: ability?.key,
       abilityCooldownSeconds: ability?.cooldownSeconds,
       // Combat-only fields
-      nextAbilityAt: inActiveCombat && ability ? nowMicros : undefined,
+      nextAbilityAt: inActiveCombat && ability
+        ? nowMicros
+        : (!inActiveCombat && (ability?.key === 'pet_heal' || ability?.key === 'pet_aoe_heal'))
+          ? nowMicros
+          : undefined,
       targetEnemyId: inActiveCombat ? enemy!.id : undefined,
       nextAutoAttackAt: inActiveCombat ? nowMicros + AUTO_ATTACK_INTERVAL : undefined,
       expiresAtMicros: durationSeconds ? nowMicros + durationSeconds * 1_000_000n : undefined,
