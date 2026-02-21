@@ -120,22 +120,12 @@
             !slot.abilityKey ? styles.hotbarSlotEmpty : {},
           ]"
           @click="slot.abilityKey && onHotbarClick(slot)"
-          @mouseenter="
-            slot.abilityKey &&
-            showTooltip({
-              item: hotbarTooltipItem(slot),
-              x: $event.currentTarget?.getBoundingClientRect().right ?? $event.clientX,
-              y: $event.currentTarget?.getBoundingClientRect().top ?? $event.clientY,
-              anchor: 'right',
-            })
-          "
-          @mousemove="slot.abilityKey && moveTooltip({ x: $event.clientX, y: $event.clientY })"
-          @mouseleave="slot.abilityKey && hideTooltip()"
           @contextmenu.prevent="
             slot.abilityKey &&
             showAbilityPopup({
               name: slot.name || slot.abilityKey,
               description: hotbarAbilityDescription(slot),
+              stats: hotbarTooltipItem(slot)?.stats ?? [],
               x: ($event.currentTarget?.getBoundingClientRect().right ?? $event.clientX) + 12,
               y: ($event.currentTarget?.getBoundingClientRect().top ?? $event.clientY),
             })
@@ -569,6 +559,9 @@
     >
       <div :style="styles.tooltipTitle">{{ abilityPopup.name }}</div>
       <div v-if="abilityPopup.description" :style="styles.tooltipLine">{{ abilityPopup.description }}</div>
+      <div v-if="abilityPopup.stats?.length" :style="styles.tooltipLine">
+        <div v-for="stat in abilityPopup.stats" :key="stat.label">{{ stat.label }}: {{ stat.value }}</div>
+      </div>
     </div>
   </div>
 </template>
@@ -2211,12 +2204,14 @@ const abilityPopup = ref<{
   y: number;
   name: string;
   description: string;
+  stats: { label: string; value: any }[];
 }>({
   visible: false,
   x: 0,
   y: 0,
   name: '',
   description: '',
+  stats: [],
 });
 
 
@@ -2252,12 +2247,12 @@ const hideTooltip = () => {
   tooltip.value = { visible: false, x: 0, y: 0, item: null, anchor: 'cursor' };
 };
 
-const showAbilityPopup = (payload: { name: string; description: string; x: number; y: number }) => {
+const showAbilityPopup = (payload: { name: string; description: string; stats: { label: string; value: any }[]; x: number; y: number }) => {
   abilityPopup.value = { visible: true, ...payload };
 };
 
 const hideAbilityPopup = () => {
-  abilityPopup.value = { visible: false, x: 0, y: 0, name: '', description: '' };
+  abilityPopup.value = { visible: false, x: 0, y: 0, name: '', description: '', stats: [] };
 };
 
 const hotbarAbilityDescription = (slot: any): string => {
