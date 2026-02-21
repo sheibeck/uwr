@@ -31,6 +31,7 @@ export default __t.object("EnemyTemplate", {
   xpReward: __t.u64(),
   factionId: __t.option(__t.u64()),
   isBoss: __t.option(__t.bool()),
+  isSocial: __t.option(__t.bool()),
 });
 
 

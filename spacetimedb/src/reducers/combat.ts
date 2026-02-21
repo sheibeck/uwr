@@ -1352,6 +1352,12 @@ export const registerCombatReducers = (deps: any) => {
     const PET_HP_REGEN_IN = 2n;
 
     for (const pet of ctx.db.activePet.iter()) {
+      // Dismiss timed pets when their duration has elapsed
+      if (pet.expiresAtMicros !== undefined && pet.expiresAtMicros !== null &&
+          ctx.timestamp.microsSinceUnixEpoch >= pet.expiresAtMicros) {
+        ctx.db.activePet.id.delete(pet.id);
+        continue;
+      }
       if (pet.currentHp === 0n) continue;           // dead pet — skip
       if (pet.currentHp >= pet.maxHp) continue;     // full HP — skip
 

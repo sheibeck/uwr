@@ -24,4 +24,5 @@ export default __t.row({
   abilityCooldownSeconds: __t.option(__t.u64()),
   targetEnemyId: __t.option(__t.u64()),
   nextAutoAttackAt: __t.option(__t.u64()),
+  expiresAtMicros: __t.option(__t.u64()),
 });

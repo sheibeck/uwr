@@ -33,6 +33,7 @@ export default __t.object("AbilityTemplate", {
   debuffMagnitude: __t.option(__t.i64()),
   debuffDuration: __t.option(__t.u64()),
   aoeTargets: __t.option(__t.string()),
+  resourceCost: __t.u64(),
 });
 
 

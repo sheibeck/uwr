@@ -423,7 +423,8 @@ export function executeAbility(
       damageBase?: bigint;
       damagePerLevel?: bigint;
       weaponScalePercent?: bigint;
-    }
+    },
+    durationSeconds?: bigint
   ) => {
     // Dismiss any existing pet for this character (single pet at a time)
     for (const existing of ctx.db.activePet.by_character.filter(character.id)) {
@@ -459,6 +460,7 @@ export function executeAbility(
       nextAbilityAt: inActiveCombat && ability ? nowMicros : undefined,
       targetEnemyId: inActiveCombat ? enemy!.id : undefined,
       nextAutoAttackAt: inActiveCombat ? nowMicros + AUTO_ATTACK_INTERVAL : undefined,
+      expiresAtMicros: durationSeconds ? nowMicros + durationSeconds * 1_000_000n : undefined,
     });
     if (inActiveCombat && character.className?.toLowerCase() === 'summoner') {
       // Single-target taunt: only generate initial aggro against the targeted enemy,
@@ -1765,7 +1767,8 @@ export function executeAbility(
           'Primal Titan', 'the Primal Titan',
           ['Titan', 'Colossus', 'Ancient'],
           { key: 'pet_aoe_heal', cooldownSeconds: 6n },
-          { hpBase: 60n, hpPerLevel: 20n, damageBase: 6n, damagePerLevel: 4n, weaponScalePercent: 70n }
+          { hpBase: 60n, hpPerLevel: 20n, damageBase: 6n, damagePerLevel: 4n, weaponScalePercent: 70n },
+          90n
         );
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
           'The Primal Titan answers your call!'

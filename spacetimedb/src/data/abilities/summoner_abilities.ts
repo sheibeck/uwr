@@ -13,6 +13,18 @@ export const SUMMONER_ABILITIES: Record<string, AbilityMetadata> = {
     damageType: 'none' as DamageType,
     resourceCostOverride: 30n,
   },
+  summoner_redirect: {
+    name: 'Redirect',
+    description: 'Commands your active pet to stand down, drawing all enemy attention to yourself.',
+    className: 'summoner',
+    resource: 'stamina',
+    level: 2n,
+    power: 0n,
+    cooldownSeconds: 12n,
+    castSeconds: 0n,
+    damageType: 'none' as DamageType,
+    combatState: 'combat_only',
+  },
   summoner_conjure_sustenance: {
     name: 'Conjure Sustenance',
     description: 'Conjures food and bandages for all party members from magical essence.',
@@ -71,5 +83,6 @@ export const SUMMONER_ABILITIES: Record<string, AbilityMetadata> = {
     castSeconds: 5n,
     damageType: 'none' as DamageType,
     resourceCostOverride: 68n,
+    petDurationSeconds: 90n,
   },
 };

@@ -36,5 +36,8 @@ export interface AbilityMetadata {
   // Override the computed resource cost (4 + level*2 + power) with a fixed value.
   // Use for pet summons where power represents pet stats, not casting strength.
   resourceCostOverride?: bigint;
+
+  // Duration in seconds for timed pets (e.g. Primal Titan). Undefined = permanent.
+  petDurationSeconds?: bigint;
 }
 

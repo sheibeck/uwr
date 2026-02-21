@@ -1014,6 +1014,7 @@ export const ActivePet = table(
     abilityCooldownSeconds: t.u64().optional(),
     targetEnemyId: t.u64().optional(),
     nextAutoAttackAt: t.u64().optional(),
+    expiresAtMicros: t.u64().optional(),
   }
 );
 
