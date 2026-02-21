@@ -7,7 +7,7 @@ export const SUMMONER_ABILITIES: Record<string, AbilityMetadata> = {
     className: 'summoner',
     resource: 'mana',
     level: 1n,
-    power: 24n,
+    power: 39n,
     cooldownSeconds: 10n,
     castSeconds: 5n,
     damageType: 'none' as DamageType,
