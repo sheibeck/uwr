@@ -9,7 +9,7 @@ export const BEASTMASTER_ABILITIES: Record<string, AbilityMetadata> = {
     level: 3n,
     power: 3n,
     cooldownSeconds: 10n,
-    castSeconds: 1n,
+    castSeconds: 5n,
     damageType: 'none' as DamageType,
   },
   beastmaster_pack_rush: {

@@ -20,9 +20,9 @@ export const NECROMANCER_ABILITIES: Record<string, AbilityMetadata> = {
     className: 'necromancer',
     resource: 'mana',
     level: 3n,
-    power: 4n,
+    power: 32n,
     cooldownSeconds: 10n,
-    castSeconds: 1n,
+    castSeconds: 5n,
     damageType: 'none' as DamageType,
   },
   necromancer_wither: {
