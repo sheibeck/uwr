@@ -1348,6 +1348,28 @@ export const registerCombatReducers = (deps: any) => {
       }
     }
 
+    // Pet HP regen — mirrors character regen rates
+    const PET_HP_REGEN_OUT = 3n;
+    const PET_HP_REGEN_IN = 2n;
+
+    for (const pet of ctx.db.activePet.iter()) {
+      if (pet.currentHp === 0n) continue;           // dead pet — skip
+      if (pet.currentHp >= pet.maxHp) continue;     // full HP — skip
+
+      const petInCombat = pet.combatId !== undefined && pet.combatId !== null;
+
+      // In combat: only regen on halfTick (every other 8s tick = every 16s)
+      if (petInCombat && !halfTick) continue;
+
+      const regenAmount = petInCombat ? PET_HP_REGEN_IN : PET_HP_REGEN_OUT;
+      const nextHp = pet.currentHp + regenAmount;
+
+      ctx.db.activePet.id.update({
+        ...pet,
+        currentHp: nextHp > pet.maxHp ? pet.maxHp : nextHp,
+      });
+    }
+
     // Watchdog: ensure active combats always have a scheduled tick.
     for (const combat of ctx.db.combatEncounter.iter()) {
       if (combat.state !== 'active') continue;
