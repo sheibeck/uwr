@@ -502,10 +502,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 253 | Fix respawn_enemy overcapping — reducer called spawnEnemy unconditionally; night transitions refill to cap so pending respawn ticks afterward pushed locations over the limit; now checks currentCount >= cap and skips spawn if full | 2026-02-21 | 69e3a3a | [253-fix-respawn-enemy-ignores-spawn-cap](./quick/253-fix-respawn-enemy-ignores-spawn-cap/) |
 | 254 | Event spawns exempt from location spawn cap and day/night unspawn — added isEventSpawn() helper using EventSpawnEnemy.by_spawn index; applied in respawnLocationSpawns (skip delete + exclude from count), ensureLocationRuntimeBootstrap, ensureSpawnsForLocation, and respawn_enemy | 2026-02-21 | e0413e4 | [254-event-spawns-dont-count-against-location](./quick/254-event-spawns-dont-count-against-location/) |
 | 255 | Water elemental now heals itself — pet_heal's candidate loop was participant-only; added pet self-check after the participant scan using currentHp/maxHp ratio; healTargetIsPet flag dispatches to activePet.id.update when the pet wins the lowest-ratio comparison | 2026-02-21 | ac427f9 | [255-water-elemental-is-not-healing-itself](./quick/255-water-elemental-is-not-healing-itself/) |
+| 257 | Modifier reagent nodes capped at 1 per location, quantity 1 — spawnResourceNode checks CRAFTING_MODIFIER_DEFS; returns early if any non-depleted modifier reagent already exists at location; sets quantity=1 instead of 2-6 for all modifier reagents | 2026-02-21 | 2930a7d | [257-modifier-reagent-nodes-capped-at-1-per-l](./quick/257-modifier-reagent-nodes-capped-at-1-per-l/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 255: Water elemental now heals itself when it has the lowest HP ratio
+Last activity: 2026-02-21 - Completed quick task 257: Modifier reagent nodes capped at 1 per location with quantity 1
 
 ## Last Session
 
