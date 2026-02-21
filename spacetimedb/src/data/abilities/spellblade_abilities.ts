@@ -3,7 +3,7 @@ import type { AbilityMetadata, DamageType } from '../ability_catalog.js';
 export const SPELLBLADE_ABILITIES: Record<string, AbilityMetadata> = {
   spellblade_flame_strike: {
     name: 'Flame Strike',
-    description: 'Strikes with a fire-infused blade dealing physical damage plus a fire DoT (stamina).',
+    description: 'Strikes with a fire-infused blade dealing physical damage plus a fire DoT.',
     className: 'spellblade',
     resource: 'stamina',
     level: 1n,
@@ -16,7 +16,7 @@ export const SPELLBLADE_ABILITIES: Record<string, AbilityMetadata> = {
   },
   spellblade_frost_armor: {
     name: 'Frost Armor',
-    description: 'Encases yourself in ice armor that reduces incoming damage and briefly slows attackers on hit (mana).',
+    description: 'Encases yourself in ice armor that reduces incoming damage and briefly slows attackers on hit.',
     className: 'spellblade',
     resource: 'mana',
     level: 3n,
@@ -27,7 +27,7 @@ export const SPELLBLADE_ABILITIES: Record<string, AbilityMetadata> = {
   },
   spellblade_thunder_cleave: {
     name: 'Thunder Cleave',
-    description: 'Unleashes a lightning-charged cleave that strikes all enemies with combined physical and magic damage (stamina).',
+    description: 'Unleashes a lightning-charged cleave that strikes all enemies with combined physical and magic damage.',
     className: 'spellblade',
     resource: 'stamina',
     level: 5n,
@@ -39,24 +39,24 @@ export const SPELLBLADE_ABILITIES: Record<string, AbilityMetadata> = {
   },
   spellblade_stone_skin: {
     name: 'Stone Skin',
-    description: 'Hardens your skin with earth magic for 30 seconds, greatly increasing armor class (mana).',
+    description: 'Hardens your skin with earth magic for 30 seconds, greatly increasing armor class.',
     className: 'spellblade',
     resource: 'mana',
     level: 7n,
     power: 2n,
     cooldownSeconds: 45n,
-    castSeconds: 1n,
+    castSeconds: 2n,
     damageType: 'none' as DamageType,
   },
   spellblade_magma_shield: {
     name: 'Magma Shield',
-    description: 'Surrounds yourself in molten rock that reduces incoming damage and burns attackers with fire DoT (mana).',
+    description: 'Surrounds yourself in molten rock that reduces incoming damage and burns attackers with fire DoT.',
     className: 'spellblade',
     resource: 'mana',
     level: 9n,
     power: 3n,
     cooldownSeconds: 30n,
-    castSeconds: 1n,
+    castSeconds: 2n,
     damageType: 'none' as DamageType,
   },
   spellblade_elemental_surge: {
@@ -67,7 +67,7 @@ export const SPELLBLADE_ABILITIES: Record<string, AbilityMetadata> = {
     level: 10n,
     power: 10n,
     cooldownSeconds: 300n,
-    castSeconds: 2n,
+    castSeconds: 3n,
     damageType: 'magic' as DamageType,
   },
 };

@@ -3,7 +3,7 @@ import type { AbilityMetadata, DamageType } from '../ability_catalog.js';
 export const BEASTMASTER_ABILITIES: Record<string, AbilityMetadata> = {
   beastmaster_pack_rush: {
     name: 'Pack Rush',
-    description: 'You and your beast companion rush the target together, each striking once.',
+    description: 'You surge forward with predatory instinct, striking the target with a swift opening attack.',
     className: 'beastmaster',
     resource: 'stamina',
     level: 1n,
@@ -20,7 +20,7 @@ export const BEASTMASTER_ABILITIES: Record<string, AbilityMetadata> = {
     level: 3n,
     power: 3n,
     cooldownSeconds: 10n,
-    castSeconds: 0n,
+    castSeconds: 5n,
     damageType: 'none' as DamageType,
   },
   beastmaster_alpha_assault: {
