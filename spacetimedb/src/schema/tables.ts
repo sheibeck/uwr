@@ -716,6 +716,7 @@ export const EnemyTemplate = table(
     xpReward: t.u64(),
     factionId: t.u64().optional(),
     isBoss: t.bool().optional(),
+    isSocial: t.bool().optional(),
   }
 );
 
