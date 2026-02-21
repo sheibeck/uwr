@@ -75,8 +75,6 @@
             <div>{{ selectedCharacter.armorClass }}</div>
             <div>Perception</div>
             <div>{{ formatScalar(selectedCharacter.perception) }}</div>
-            <div>Search</div>
-            <div>{{ formatScalar(selectedCharacter.search) }}</div>
             <div>CC Power</div>
             <div>{{ formatPercent(selectedCharacter.ccPower) }}</div>
             <div>Vendor Buy</div>
