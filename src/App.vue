@@ -1035,6 +1035,7 @@ const combatPetsForGroup = computed(() => {
         name: pet.name,
         currentHp: pet.currentHp,
         maxHp: pet.maxHp,
+        expiresAtMicros: pet.expiresAtMicros ?? null,
       }));
   }
   // Out of combat: show active persistent pets (those without a combatId)
@@ -1046,6 +1047,7 @@ const combatPetsForGroup = computed(() => {
       name: pet.name,
       currentHp: pet.currentHp,
       maxHp: pet.maxHp,
+      expiresAtMicros: pet.expiresAtMicros ?? null,
     }));
 });
 

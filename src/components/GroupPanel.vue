@@ -47,7 +47,7 @@
             </span>
           </div>
           <div v-for="pet in petsFor(member.id)" :key="pet.id.toString()" :style="styles.petCard">
-            <span>{{ pet.name }}</span>
+            <span>{{ pet.name }}<template v-if="petCountdown(pet)"> ({{ petCountdown(pet) }})</template></span>
             <div :style="styles.hpBar">
               <div :style="{ ...styles.hpFill, width: `${percent(pet.currentHp, pet.maxHp)}%` }"></div>
               <span :style="styles.barText">{{ pet.currentHp }} / {{ pet.maxHp }}</span>
@@ -128,7 +128,7 @@
         </span>
       </div>
       <div v-for="pet in petsFor(selectedCharacter.id)" :key="pet.id.toString()" :style="styles.petCard">
-        <span>{{ pet.name }}</span>
+        <span>{{ pet.name }}<template v-if="petCountdown(pet)"> ({{ petCountdown(pet) }})</template></span>
         <div :style="styles.hpBar">
           <div :style="{ ...styles.hpFill, width: `${percent(pet.currentHp, pet.maxHp)}%` }"></div>
           <span :style="styles.barText">{{ pet.currentHp }} / {{ pet.maxHp }}</span>
@@ -212,6 +212,7 @@ const props = defineProps<{
     name: string;
     currentHp: bigint;
     maxHp: bigint;
+    expiresAtMicros?: bigint | null;
   }[];
   myFriendUserIds?: string[];
   myCharacterId?: bigint | null;
@@ -333,6 +334,14 @@ const pullerName = computed(() => {
 
 const petsFor = (characterId: bigint) =>
   props.combatPets.filter((pet) => pet.ownerCharacterId === characterId);
+
+function petCountdown(pet: { expiresAtMicros?: bigint | null }): string | null {
+  if (!pet.expiresAtMicros) return null;
+  const now = props.nowMicros ?? Date.now() * 1000;
+  const remainingSeconds = Math.ceil((Number(pet.expiresAtMicros) - now) / 1_000_000);
+  if (remainingSeconds <= 0) return 'Expiring...';
+  return `${remainingSeconds}s`;
+}
 
 const effectsFor = (characterId: bigint) =>
   props.characterEffects.filter((effect) => effect.characterId === characterId);
