@@ -5,7 +5,7 @@ export const REAVER_ABILITIES: Record<string, AbilityMetadata> = {
     name: 'Blood Rend',
     description: 'Rends flesh with dark power dealing physical damage and leeching ~20% of damage dealt as health.',
     className: 'reaver',
-    resource: 'mana',
+    resource: 'stamina',
     level: 1n,
     power: 3n,
     cooldownSeconds: 6n,
