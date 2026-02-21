@@ -289,7 +289,7 @@ const CLASS_OPTIONS = [
 ];
 
 const unlockedRaces = computed(() =>
-  props.races.filter((r: any) => r.unlocked)
+  props.races.filter((r: any) => r.unlocked).sort((a: any, b: any) => a.name.localeCompare(b.name))
 );
 
 const displayedClassOptions = computed(() => {
