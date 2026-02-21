@@ -1774,6 +1774,48 @@ export function executeAbility(
           'The Primal Titan answers your call!'
         );
         return;
+      case 'summoner_redirect': {
+        // Pull all enemy aggro off the active pet and onto the summoner.
+        if (!combatId) throw new SenderError('You must be in combat to use Redirect.');
+        const myPets = [...ctx.db.activePet.by_character.filter(character.id)]
+          .filter((p: any) => p.combatId === combatId);
+        if (myPets.length === 0) throw new SenderError('You have no active pet to redirect from.');
+        const combatEnemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
+        let redirected = 0;
+        for (const petRow of myPets) {
+          for (const e of combatEnemies) {
+            if (e.currentHp <= 0n) continue;
+            // Force this enemy to target the summoner instead of the pet
+            if (e.aggroTargetPetId === petRow.id) {
+              ctx.db.combatEnemy.id.update({
+                ...e,
+                aggroTargetCharacterId: character.id,
+                aggroTargetPetId: undefined,
+              });
+              redirected++;
+            }
+            // Transfer the pet's aggro value to the summoner so they stay top of the list
+            const petEntry = [...ctx.db.aggroEntry.by_enemy.filter(e.id)]
+              .find((a: any) => a.petId === petRow.id && a.characterId === character.id);
+            if (petEntry) {
+              const myEntry = [...ctx.db.aggroEntry.by_enemy.filter(e.id)]
+                .find((a: any) => !a.petId && a.characterId === character.id);
+              if (myEntry) {
+                ctx.db.aggroEntry.id.update({ ...myEntry, value: myEntry.value + petEntry.value });
+                ctx.db.aggroEntry.id.delete(petEntry.id);
+              } else {
+                ctx.db.aggroEntry.id.update({ ...petEntry, petId: undefined });
+              }
+            }
+          }
+        }
+        const msg = redirected > 0
+          ? 'You draw all enemy attention to yourself!'
+          : 'You steel yourself, drawing enemy focus.';
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', msg);
+        if (actorGroupId) logGroup('ability', `${character.name} uses Redirect, drawing enemy aggro.`);
+        return;
+      }
       case 'summoner_conjure_sustenance': {
         // Give all party members food items from existing templates
         const bandageTemplate = [...ctx.db.itemTemplate.iter()].find(
