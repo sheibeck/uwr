@@ -483,10 +483,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 232 | Consolidate derived stat computation into recomputeCharacterDerived — create_character no longer computes maxHp/maxMana/hitChance/armorClass etc inline; inserts with 0n placeholders, calls recomputeCharacterDerived, then full-heals new character; 9 unused constants removed from deps destructuring | 2026-02-21 | b76329e | [232-consolidate-maxmana-and-derived-stat-cal](./quick/232-consolidate-maxmana-and-derived-stat-cal/) |
 | 233 | Hotbar ability tooltip now shows resource cost (mana: 4+level*2+power, stamina: 2+power/2, other: Free), cast time (Xs or Instant), and cooldown (Xs or No cooldown) — three new stat lines appended to hotbarTooltipItem stats array in useHotbar.ts | 2026-02-21 | 0eac176 | [233-hotbar-ability-tooltip-shows-cost-cast-t](./quick/233-hotbar-ability-tooltip-shows-cost-cast-t/) |
 | 234 | Ensure all healer/support enemies have a meaningful ability — frost_mend+ember_mend (healer enemies), ember_daze/dust_cloud/wisp_drain/soot_pulse (support enemies with no abilities), moth_dust/sonic_screech wired to Dusk Moth/Gloomwing Bat; fixed all_allies targetRule in pickEnemyTarget so warchief_rally/bolster_defenses actually buff all allies | 2026-02-21 | fde441d | [234-ensure-all-healer-and-support-enemies-ha](./quick/234-ensure-all-healer-and-support-enemies-ha/) |
+| 235 | Hotbar right-click shows persistent ability description popup; hover now shows stats-only (no description) — abilityPopup ref + showAbilityPopup/hideAbilityPopup in App.vue, @contextmenu.prevent on hotbar buttons, global click-to-dismiss via document listener, description removed from hotbarTooltipItem return | 2026-02-21 | 5124b05 | [235-hotbar-right-click-shows-ability-descrip](./quick/235-hotbar-right-click-shows-ability-descrip/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 234: Ensure all healer/support enemies have a meaningful ability
+Last activity: 2026-02-21 - Completed quick task 235: Hotbar right-click description popup; hover shows stats only
 
 ## Last Session
 
