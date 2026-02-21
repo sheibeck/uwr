@@ -512,6 +512,12 @@ export const registerCharacterReducers = (deps: any) => {
     for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
       ctx.db.characterEffect.id.delete(effect.id);
     }
+    // Clear travel cooldown on respawn — death is penalty enough; player needs to be able
+    // to travel cross-region immediately after respawn (e.g. to retrieve their corpse).
+    // This also intentionally bypasses any active cooldown for the bind-point teleport itself.
+    for (const cd of ctx.db.travelCooldown.by_character.filter(character.id)) {
+      ctx.db.travelCooldown.id.delete(cd.id);
+    }
     const nextLocationId = character.boundLocationId ?? character.locationId;
     const respawnLocation = ctx.db.location.id.find(nextLocationId)?.name ?? 'your bind point';
     ctx.db.character.id.update({
