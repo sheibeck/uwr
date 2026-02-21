@@ -1073,15 +1073,22 @@ const relevantEffects = computed(() => {
   const effects: any[] = characterEffects.value.filter(
     (effect: any) => memberIds.has(effect.characterId.toString())
   );
+  const PULSE_MICROS = 6_000_000n;
   for (const song of (activeBardSongs.value as any[])) {
     if (memberIds.has(song.bardCharacterId.toString())) {
+      // Compute time until next 6s pulse from startedAtMicros
+      const elapsed = BigInt(nowMicros.value) - song.startedAtMicros;
+      const pulsesDone = elapsed >= 0n ? elapsed / PULSE_MICROS : 0n;
+      const nextPulseMicros = Number(song.startedAtMicros + (pulsesDone + 1n) * PULSE_MICROS);
       effects.push({
         id: song.id,
         characterId: song.bardCharacterId,
-        effectType: 'song',
+        effectType: song.isFading ? 'song_fading' : 'song',
         magnitude: 0n,
         roundsRemaining: 0n,
         sourceAbility: BARD_SONG_DISPLAY_NAMES[song.songKey] ?? song.songKey,
+        nextPulseMicros,
+        isFading: song.isFading,
       });
     }
   }

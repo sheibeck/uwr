@@ -41,7 +41,7 @@
             <span
               v-for="effect in effectsFor(member.id)"
               :key="effect.id.toString()"
-              :style="styles.effectBadge"
+              :style="[styles.effectBadge, effect.effectType === 'song_fading' ? { opacity: '0.6' } : {}]"
             >
               {{ effectLabelForDisplay(effect) }} ({{ effectDurationLabel(effect) }})
             </span>
@@ -122,7 +122,7 @@
         <span
           v-for="effect in effectsFor(selectedCharacter.id)"
           :key="effect.id.toString()"
-          :style="styles.effectBadge"
+          :style="[styles.effectBadge, effect.effectType === 'song_fading' ? { opacity: '0.6' } : {}]"
         >
           {{ effectLabelForDisplay(effect) }} ({{ effectDurationLabel(effect) }})
         </span>
@@ -197,6 +197,8 @@ const props = defineProps<{
     magnitude: bigint;
     roundsRemaining: bigint;
     sourceAbility?: string;
+    nextPulseMicros?: number;
+    isFading?: boolean;
   }[];
   inviteSummaries: { invite: { id: bigint }; fromName: string; groupName: string }[];
   leaderId: bigint | null;
@@ -351,8 +353,22 @@ const effectTimers = new Map<
   { seenAtMicros: number; rounds: bigint; tickSeconds: number }
 >();
 
-const effectDurationLabel = (effect: { id: bigint; roundsRemaining: bigint; effectType: string }) => {
-  if (effect.effectType === 'song') return '♪';
+const effectDurationLabel = (effect: {
+  id: bigint;
+  roundsRemaining: bigint;
+  effectType: string;
+  nextPulseMicros?: number;
+  isFading?: boolean;
+}) => {
+  if (effect.effectType === 'song' || effect.effectType === 'song_fading') {
+    const now = props.nowMicros ?? Date.now() * 1000;
+    if (effect.nextPulseMicros) {
+      const secsLeft = Math.max(0, Math.ceil((effect.nextPulseMicros - now) / 1_000_000));
+      const fadingLabel = effect.effectType === 'song_fading' ? ' fade' : '';
+      return `${secsLeft}s${fadingLabel}`;
+    }
+    return '♪';
+  }
   const now = props.nowMicros ?? Date.now() * 1000;
   return `${effectRemainingSeconds(effect, now, effectTimers)}s`;
 };
