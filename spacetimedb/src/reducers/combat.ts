@@ -1421,6 +1421,17 @@ export const registerCombatReducers = (deps: any) => {
         }
       }
 
+      // Consider the pet itself as a heal candidate
+      let healTargetIsPet = false;
+      if (pet.currentHp > 0n && pet.currentHp < pet.maxHp) {
+        const petRatio = (pet.currentHp * 100n) / pet.maxHp;
+        if (petRatio < lowestHpRatio) {
+          lowestHpRatio = petRatio;
+          healTarget = pet;
+          healTargetIsPet = true;
+        }
+      }
+
       if (!healTarget) {
         // Everyone at full HP — disarm until combat exit re-arms (clear nextAbilityAt)
         ctx.db.activePet.id.update({ ...pet, nextAbilityAt: undefined });
@@ -1428,19 +1439,23 @@ export const registerCombatReducers = (deps: any) => {
       }
 
       const healAmount = 10n + pet.level * 5n;
-      const newHp = healTarget.hp + healAmount > healTarget.maxHp
-        ? healTarget.maxHp
-        : healTarget.hp + healAmount;
-      ctx.db.character.id.update({ ...healTarget, hp: newHp });
+      const cooldownMicros = (pet.abilityCooldownSeconds ?? 10n) * 1_000_000n;
+      if (healTargetIsPet) {
+        const newHp = pet.currentHp + healAmount > pet.maxHp ? pet.maxHp : pet.currentHp + healAmount;
+        ctx.db.activePet.id.update({ ...pet, currentHp: newHp, nextAbilityAt: ctx.timestamp.microsSinceUnixEpoch + cooldownMicros });
+      } else {
+        const newHp = healTarget.hp + healAmount > healTarget.maxHp
+          ? healTarget.maxHp
+          : healTarget.hp + healAmount;
+        ctx.db.character.id.update({ ...healTarget, hp: newHp });
+        ctx.db.activePet.id.update({ ...pet, nextAbilityAt: ctx.timestamp.microsSinceUnixEpoch + cooldownMicros });
+      }
 
       const healMsg = `${pet.name} heals ${healTarget.name} for ${healAmount}.`;
       appendPrivateEvent(ctx, healPetOwner.id, healPetOwner.ownerUserId, 'ability', healMsg);
       if (healPetOwner.groupId) {
         appendGroupEvent(ctx, healPetOwner.groupId, healPetOwner.id, 'ability', healMsg);
       }
-
-      const cooldownMicros = (pet.abilityCooldownSeconds ?? 10n) * 1_000_000n;
-      ctx.db.activePet.id.update({ ...pet, nextAbilityAt: ctx.timestamp.microsSinceUnixEpoch + cooldownMicros });
     }
 
     // Out-of-combat pet_aoe_heal ability ticks
@@ -1478,6 +1493,13 @@ export const registerCombatReducers = (deps: any) => {
         }
       }
 
+      // Also heal the pet itself if injured
+      let petHealedHp = pet.currentHp;
+      if (pet.currentHp > 0n && pet.currentHp < pet.maxHp) {
+        petHealedHp = pet.currentHp + healAmount > pet.maxHp ? pet.maxHp : pet.currentHp + healAmount;
+        healedCount++;
+      }
+
       if (healedCount === 0n) {
         ctx.db.activePet.id.update({ ...pet, nextAbilityAt: undefined });
         continue;
@@ -1490,7 +1512,7 @@ export const registerCombatReducers = (deps: any) => {
       }
 
       const cooldownMicros = (pet.abilityCooldownSeconds ?? 10n) * 1_000_000n;
-      ctx.db.activePet.id.update({ ...pet, nextAbilityAt: ctx.timestamp.microsSinceUnixEpoch + cooldownMicros });
+      ctx.db.activePet.id.update({ ...pet, currentHp: petHealedHp, nextAbilityAt: ctx.timestamp.microsSinceUnixEpoch + cooldownMicros });
     }
 
     // Watchdog: ensure active combats always have a scheduled tick.
