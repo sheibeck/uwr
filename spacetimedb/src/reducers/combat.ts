@@ -750,6 +750,11 @@ export const registerCombatReducers = (deps: any) => {
       return activeParticipants[idx]?.characterId;
     }
     if (normalized === 'self') return undefined;
+    if (normalized === 'all_allies') {
+      // Buff applies to all living enemy allies via executeAbilityAction.
+      // Return any active participant as a placeholder so the cast is not skipped.
+      return activeParticipants[0]?.characterId;
+    }
     const targetEntry = [...ctx.db.aggroEntry.by_combat.filter(combatId)]
       .filter((entry) => entry.enemyId === enemyId)
       .filter((entry) => activeParticipants.some((p) => p.characterId === entry.characterId))
