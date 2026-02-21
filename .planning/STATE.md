@@ -501,11 +501,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 252 | Primal Titan AoE heal, all-enemy aggro on summon, and 90s countdown timer — pet_aoe_heal implemented in executePetAbility (heals all party members); summonPet inserts AggroEntry + sets aggroTargetPetId on every combat enemy for pet_aoe_heal pets; out-of-combat AoE heal tick added to regen_health; GroupPanel shows (Xs) countdown for timed pets via expiresAtMicros field | 2026-02-21 | 9ad922a | [252-primal-titan-aoe-heal-all-enemy-aggro-on](./quick/252-primal-titan-aoe-heal-all-enemy-aggro-on/) |
 | 253 | Fix respawn_enemy overcapping — reducer called spawnEnemy unconditionally; night transitions refill to cap so pending respawn ticks afterward pushed locations over the limit; now checks currentCount >= cap and skips spawn if full | 2026-02-21 | 69e3a3a | [253-fix-respawn-enemy-ignores-spawn-cap](./quick/253-fix-respawn-enemy-ignores-spawn-cap/) |
 | 254 | Event spawns exempt from location spawn cap and day/night unspawn — added isEventSpawn() helper using EventSpawnEnemy.by_spawn index; applied in respawnLocationSpawns (skip delete + exclude from count), ensureLocationRuntimeBootstrap, ensureSpawnsForLocation, and respawn_enemy | 2026-02-21 | e0413e4 | [254-event-spawns-dont-count-against-location](./quick/254-event-spawns-dont-count-against-location/) |
-| 255 | Fix event kill credit to require actual event spawns — three blocks used eventTemplateIds built from event def metadata (any same-type mob matched); now checks EventSpawnEnemy.by_spawn against actual CombatEnemy.spawnId; fixes victory contribution, kill_count objective, and player-death contribution | 2026-02-21 | 7903332 | [255-fix-event-kill-credit-requires-actual-ev](./quick/255-fix-event-kill-credit-requires-actual-ev/) |
+| 255 | Water elemental now heals itself — pet_heal's candidate loop was participant-only; added pet self-check after the participant scan using currentHp/maxHp ratio; healTargetIsPet flag dispatches to activePet.id.update when the pet wins the lowest-ratio comparison | 2026-02-21 | ac427f9 | [255-water-elemental-is-not-healing-itself](./quick/255-water-elemental-is-not-healing-itself/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 255: Fix event kill credit to require actual event spawns
+Last activity: 2026-02-21 - Completed quick task 255: Water elemental now heals itself when it has the lowest HP ratio
 
 ## Last Session
 
