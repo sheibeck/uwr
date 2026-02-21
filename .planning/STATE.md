@@ -491,10 +491,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 241 | Loot panel border pulses amber/gold for ~3.5s when new loot arrives — lootPanelPulsing ref + pendingLoot watcher (fires on count increase only); @keyframes lootBorderPulse (4 cycles × 0.9s); cleared on re-trigger | 2026-02-21 | db9a88e | [241-loot-window-border-pulse-glow-when-updat](./quick/241-loot-window-border-pulse-glow-when-updat/) |
 | 242 | Enemy nameplate shows full name, smaller level indicator, remove members from context menu — useCombat derives fullName from template+role; LocationGrid renders name + small muted L5 badge; Members block removed from openEnemyContextMenu | 2026-02-21 | 36a53f9 | [242-enemy-nameplate-shows-full-name-smaller-](./quick/242-enemy-nameplate-shows-full-name-smaller-/) |
 | 243 | Client-side mana/stamina pre-check in onHotbarClick — guards before reducer call using same cost formulas as hotbarTooltipItem; shows "Not enough mana/stamina" locally and returns early; eliminates server round-trip for rejection | 2026-02-21 | cfe6952 | [243-client-side-mana-check-before-cast-to-pr](./quick/243-client-side-mana-check-before-cast-to-pr/) |
+| 245 | Fix Hollomere infestation event to spawn 5 individual rats instead of 1 — spawnEventContent loop now creates one EnemySpawn (groupCount=1n) + EnemySpawnMember + EventSpawnEnemy per enemy spec count; fixes all 3 events: hollowmere_rat_infestation (5 rats), hollowmere_siege (4 lurkers), ashen_awakening (3 jackals) | 2026-02-21 | 337751a | [245-fix-hollomere-infestation-event-to-spawn](./quick/245-fix-hollomere-infestation-event-to-spawn/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 242: Enemy nameplate shows full name, smaller level indicator, remove members from context menu
+Last activity: 2026-02-21 - Completed quick task 245: Fix Hollomere infestation event to spawn 5 individual rats instead of 1
 
 ## Last Session
 
