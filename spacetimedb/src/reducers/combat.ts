@@ -325,11 +325,12 @@ export const registerCombatReducers = (deps: any) => {
     }
     for (const pet of ctx.db.activePet.by_combat.filter(combatId)) {
       if (pet.currentHp > 0n) {
-        // Surviving pet returns to out-of-combat state
+        // Surviving pet returns to out-of-combat state.
+        // Heal pets arm their out-of-combat tick immediately on combat exit.
         ctx.db.activePet.id.update({
           ...pet,
           combatId: undefined,
-          nextAbilityAt: undefined,
+          nextAbilityAt: pet.abilityKey === 'pet_heal' ? ctx.timestamp.microsSinceUnixEpoch : undefined,
           targetEnemyId: undefined,
           nextAutoAttackAt: undefined,
         });
@@ -1375,6 +1376,67 @@ export const registerCombatReducers = (deps: any) => {
       });
     }
 
+    // Out-of-combat pet_heal ability ticks
+    for (const pet of ctx.db.activePet.iter()) {
+      if (pet.abilityKey !== 'pet_heal') continue;
+      if (pet.combatId !== undefined && pet.combatId !== null) continue; // in combat: handled by combat loop
+      if (pet.currentHp === 0n) continue;
+      if (!pet.nextAbilityAt) continue;
+      if (pet.nextAbilityAt > ctx.timestamp.microsSinceUnixEpoch) continue;
+
+      const healPetOwner = ctx.db.character.id.find(pet.characterId);
+      if (!healPetOwner || healPetOwner.hp === 0n) continue;
+
+      // Find lowest-HP party member (owner + group members at same location)
+      const groupId = healPetOwner.groupId ?? null;
+      let healTarget: any = null;
+      let lowestHpRatio = 101n;
+
+      // Check owner
+      if (healPetOwner.hp > 0n && healPetOwner.hp < healPetOwner.maxHp) {
+        const ratio = (healPetOwner.hp * 100n) / healPetOwner.maxHp;
+        if (ratio < lowestHpRatio) {
+          lowestHpRatio = ratio;
+          healTarget = healPetOwner;
+        }
+      }
+
+      // Check group members at same location
+      if (groupId) {
+        for (const membership of ctx.db.groupMember.by_group.filter(groupId)) {
+          const member = ctx.db.character.id.find(membership.characterId);
+          if (!member || member.hp === 0n || member.locationId !== healPetOwner.locationId) continue;
+          if (member.hp >= member.maxHp) continue;
+          const ratio = (member.hp * 100n) / member.maxHp;
+          if (ratio < lowestHpRatio) {
+            lowestHpRatio = ratio;
+            healTarget = member;
+          }
+        }
+      }
+
+      if (!healTarget) {
+        // Everyone at full HP — disarm until combat exit re-arms (clear nextAbilityAt)
+        ctx.db.activePet.id.update({ ...pet, nextAbilityAt: undefined });
+        continue;
+      }
+
+      const healAmount = 10n + pet.level * 5n;
+      const newHp = healTarget.hp + healAmount > healTarget.maxHp
+        ? healTarget.maxHp
+        : healTarget.hp + healAmount;
+      ctx.db.character.id.update({ ...healTarget, hp: newHp });
+
+      const healMsg = `${pet.name} heals ${healTarget.name} for ${healAmount}.`;
+      appendPrivateEvent(ctx, healPetOwner.id, healPetOwner.ownerUserId, 'ability', healMsg);
+      if (healPetOwner.groupId) {
+        appendGroupEvent(ctx, healPetOwner.groupId, healPetOwner.id, 'ability', healMsg);
+      }
+
+      const cooldownMicros = (pet.abilityCooldownSeconds ?? 10n) * 1_000_000n;
+      ctx.db.activePet.id.update({ ...pet, nextAbilityAt: ctx.timestamp.microsSinceUnixEpoch + cooldownMicros });
+    }
+
     // Watchdog: ensure active combats always have a scheduled tick.
     for (const combat of ctx.db.combatEncounter.iter()) {
       if (combat.state !== 'active') continue;
@@ -1881,13 +1943,14 @@ export const registerCombatReducers = (deps: any) => {
           }
         }
 
-        // Return their pet to out-of-combat state when fleeing
+        // Return their pet to out-of-combat state when fleeing.
+        // Heal pets arm their out-of-combat tick immediately on flee.
         for (const pet of ctx.db.activePet.by_combat.filter(combat.id)) {
           if (pet.characterId === fleeingChar.id) {
             ctx.db.activePet.id.update({
               ...pet,
               combatId: undefined,
-              nextAbilityAt: undefined,
+              nextAbilityAt: pet.abilityKey === 'pet_heal' ? ctx.timestamp.microsSinceUnixEpoch : undefined,
               targetEnemyId: undefined,
               nextAutoAttackAt: undefined,
             });
