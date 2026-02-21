@@ -480,9 +480,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 229 | Paladin hybrid mana/stamina pools + reaver stamina Blood Rend — HYBRID_MANA_MULTIPLIER=4n (vs 6n for full casters), HYBRID_MANA_CLASSES={paladin,ranger,reaver}, paladin secondary str, holy_strike+radiant_smite+blood_rend moved to stamina, all mana abilities >= 1s castSeconds, all stamina abilities = 0s | 2026-02-21 | dfc88fc | [229-paladin-hybrid-mana-stamina-pools-reaver](./quick/229-paladin-hybrid-mana-stamina-pools-reaver/) |
 | 231 | Fix hybrid mana multiplier not applied at character creation — create_character was hardcoding * 6n instead of using HYBRID_MANA_MULTIPLIER; added MANA_MULTIPLIER/HYBRID_MANA_MULTIPLIER/HYBRID_MANA_CLASSES/normalizeClassName to reducerDeps in index.ts, destructured in characters.ts, replaced hardcoded 6n with conditional manaMultiplier | 2026-02-21 | 128e8bf | [231-fix-hybrid-mana-multiplier-not-applied-a](./quick/231-fix-hybrid-mana-multiplier-not-applied-a/) |
 | 230 | Replace AbilityCooldown readyAtMicros with startedAtMicros+durationMicros to eliminate server clock skew — schema updated, all 6 server write/read points in combat.ts and items.ts updated, bindings regenerated, useHotbar drops predictedCooldownReadyAt/COOLDOWN_SKEW_SUPPRESS_MICROS in favour of receivedAt tracking, App.vue drops serverClockOffset entirely | 2026-02-21 | 442df45 | [230-replace-abilitycooldown-readyatmicros-wi](./quick/230-replace-abilitycooldown-readyatmicros-wi/) |
+| 232 | Consolidate derived stat computation into recomputeCharacterDerived — create_character no longer computes maxHp/maxMana/hitChance/armorClass etc inline; inserts with 0n placeholders, calls recomputeCharacterDerived, then full-heals new character; 9 unused constants removed from deps destructuring | 2026-02-21 | b76329e | [232-consolidate-maxmana-and-derived-stat-cal](./quick/232-consolidate-maxmana-and-derived-stat-cal/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-21 - Completed quick task 230: Replace AbilityCooldown readyAtMicros with startedAtMicros+durationMicros to eliminate server clock skew
+Last activity: 2026-02-21 - Consolidated derived stat computation (quick-232): create_character now delegates to recomputeCharacterDerived instead of duplicating formulas
