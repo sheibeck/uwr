@@ -226,7 +226,7 @@ export const registerCharacterReducers = (deps: any) => {
     { name: t.string(), raceId: t.u64(), className: t.string() },
     (ctx, { name, raceId, className }) => {
       const trimmed = name.trim();
-      if (trimmed.length < 2) throw new SenderError('Name too short');
+      if (trimmed.length < 4) throw new SenderError('Character name must be at least 4 characters');
       const userId = requirePlayerUserId(ctx);
       for (const row of ctx.db.character.iter()) {
         if (row.name.toLowerCase() === trimmed.toLowerCase()) {
