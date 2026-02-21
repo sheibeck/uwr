@@ -473,6 +473,7 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 225 | Sort races alphabetically on character creation screen | 2026-02-21 | 8d9d9eb | [225-sort-races-alphabetically-on-character-c](./quick/225-sort-races-alphabetically-on-character-c/) |
 | 226 | Persist panel open/closed state across sessions — (1) added markDirty() after loadFromStorage() to block server sync overwriting restored open states; (2) removed explicit closePanelById loop from goToCamp() — panels are v-if="selectedCharacter" so they hide naturally, and the loop was overwriting localStorage with closed state before relog | 2026-02-21 | 151b197 | [226-persist-panel-open-closed-state-across-s](./quick/226-persist-panel-open-closed-state-across-s/) |
 | 227 | Reduce 3-resource node frequency on location search — 3-node threshold raised 80→90 (10% of finds), 2-node threshold raised 65→70 (20% of finds) | 2026-02-21 | 4a92008 | [227-reduce-frequency-of-finding-3-resources-](./quick/227-reduce-frequency-of-finding-3-resources-/) |
+| 228 | Pack Rush hits at 65% power per strike — added hitMultiplier?: bigint to applyDamage options, applied in hit loop; beastmaster_pack_rush passes hitMultiplier: 65n alongside hits: 2n, matching AOE_DAMAGE_MULTIPLIER | 2026-02-21 | 8d2262e | [228-pack-rush-hits-at-65-power-per-strike-li](./quick/228-pack-rush-hits-at-65-power-per-strike-li/) |
 
 ---
 
