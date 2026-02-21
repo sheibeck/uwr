@@ -624,7 +624,8 @@ export const AbilityCooldown = table(
     id: t.u64().primaryKey().autoInc(),
     characterId: t.u64(),
     abilityKey: t.string(),
-    readyAtMicros: t.u64(),
+    startedAtMicros: t.u64(),
+    durationMicros: t.u64(),
   }
 );
 

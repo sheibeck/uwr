@@ -649,7 +649,7 @@ export const registerItemReducers = (deps: any) => {
       const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(character.id)].find(
         (row) => row.abilityKey === abilityKey
       );
-      if (existingCooldown && existingCooldown.readyAtMicros > nowMicros) {
+      if (existingCooldown && existingCooldown.startedAtMicros + existingCooldown.durationMicros > nowMicros) {
         appendPrivateEvent(
           ctx,
           character.id,
@@ -753,14 +753,16 @@ export const registerItemReducers = (deps: any) => {
           if (existingCooldown) {
             ctx.db.abilityCooldown.id.update({
               ...existingCooldown,
-              readyAtMicros: nowMicros + perkCooldownMicros,
+              startedAtMicros: nowMicros,
+              durationMicros: perkCooldownMicros,
             });
           } else {
             ctx.db.abilityCooldown.insert({
               id: 0n,
               characterId: character.id,
               abilityKey,
-              readyAtMicros: nowMicros + perkCooldownMicros,
+              startedAtMicros: nowMicros,
+              durationMicros: perkCooldownMicros,
             });
           }
         } catch (error) {
@@ -813,14 +815,16 @@ export const registerItemReducers = (deps: any) => {
           if (existingCooldown) {
             ctx.db.abilityCooldown.id.update({
               ...existingCooldown,
-              readyAtMicros: nowMicros + cooldown,
+              startedAtMicros: nowMicros,
+              durationMicros: cooldown,
             });
           } else {
             ctx.db.abilityCooldown.insert({
               id: 0n,
               characterId: character.id,
               abilityKey,
-              readyAtMicros: nowMicros + cooldown,
+              startedAtMicros: nowMicros,
+              durationMicros: cooldown,
             });
           }
         }

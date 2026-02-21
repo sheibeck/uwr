@@ -348,7 +348,7 @@ export const registerCombatReducers = (deps: any) => {
       }
       // Remove expired cooldown rows to prevent stale data
       for (const cd of ctx.db.abilityCooldown.by_character.filter(characterId)) {
-        if (cd.readyAtMicros <= ctx.timestamp.microsSinceUnixEpoch) {
+        if (cd.startedAtMicros + cd.durationMicros <= ctx.timestamp.microsSinceUnixEpoch) {
           ctx.db.abilityCooldown.id.delete(cd.id);
         }
       }
@@ -1329,7 +1329,7 @@ export const registerCombatReducers = (deps: any) => {
       // Clean up expired cooldown rows for out-of-combat characters
       if (!inCombat) {
         for (const cd of ctx.db.abilityCooldown.by_character.filter(character.id)) {
-          if (cd.readyAtMicros <= ctx.timestamp.microsSinceUnixEpoch) {
+          if (cd.startedAtMicros + cd.durationMicros <= ctx.timestamp.microsSinceUnixEpoch) {
             ctx.db.abilityCooldown.id.delete(cd.id);
           }
         }
@@ -1732,14 +1732,16 @@ export const registerCombatReducers = (deps: any) => {
         if (existingCooldown) {
           ctx.db.abilityCooldown.id.update({
             ...existingCooldown,
-            readyAtMicros: nowMicros + cooldown,
+            startedAtMicros: nowMicros,
+            durationMicros: cooldown,
           });
         } else {
           ctx.db.abilityCooldown.insert({
             id: 0n,
             characterId: character.id,
             abilityKey: cast.abilityKey,
-            readyAtMicros: nowMicros + cooldown,
+            startedAtMicros: nowMicros,
+            durationMicros: cooldown,
           });
         }
       }
