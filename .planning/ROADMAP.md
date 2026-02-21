@@ -743,6 +743,15 @@ Plans:
 - [ ] 21.1-03-PLAN.md — INT salvage scroll drop + CHA vendor/faction/affinity hooks
 - [ ] 21.1-04-PLAN.md — Publish backend, regenerate bindings, client block stats display, human verify
 
+### Phase 21.1.1: Hit/Dodge/Parry Active Stats (INSERTED)
+
+**Goal:** Wire DEX-derived dodge/parry into combat via opposed roll — stat-derived avoidance replaces hardcoded 5% values, parry restricted against bow attacks.
+**Depends on:** Phase 21.1
+**Plans:** 1 plan
+
+Plans:
+- [ ] 21.1.1-01-PLAN.md — Extend rollAttackOutcome with dodgeChanceBasis/parryChanceBasis/attackerHitBonus opts, wire two call sites (player-attacks-enemy, enemy-attacks-player)
+
 ### Phase 22: Class Ability Balancing & Progression
 
 **Goal:** Every class has a fully designed, mechanically distinct ability set covering levels 1–10, with clear class identity enforced through ability choice, stat scaling, and resource usage. The unlock curve is deliberately paced — abilities arrive at meaningful moments, not one-per-level automatically. All referenced mechanics (DoT, HoT, AoE, debuffs, aggro) have backend support.
