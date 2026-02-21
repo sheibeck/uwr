@@ -772,6 +772,32 @@ export const registerItemReducers = (deps: any) => {
         return;
       }
 
+      // Bard song turn-off: clicking the active song again stops it and applies a 6s cooldown
+      const BARD_SONG_KEYS = ['bard_discordant_note', 'bard_melody_of_mending', 'bard_chorus_of_vigor', 'bard_march_of_wayfarers', 'bard_battle_hymn'];
+      if (BARD_SONG_KEYS.includes(abilityKey)) {
+        const activeSong = [...ctx.db.activeBardSong.by_bard.filter(character.id)][0];
+        if (activeSong && activeSong.songKey === abilityKey) {
+          ctx.db.activeBardSong.id.delete(activeSong.id);
+          const songDisplayNames: Record<string, string> = {
+            bard_discordant_note: 'Discordant Note',
+            bard_melody_of_mending: 'Melody of Mending',
+            bard_chorus_of_vigor: 'Chorus of Vigor',
+            bard_march_of_wayfarers: 'March of Wayfarers',
+            bard_battle_hymn: 'Battle Hymn',
+          };
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+            `You stop singing ${songDisplayNames[abilityKey] ?? abilityKey}.`
+          );
+          const offCooldownMicros = 6_000_000n;
+          if (existingCooldown) {
+            ctx.db.abilityCooldown.id.update({ ...existingCooldown, startedAtMicros: nowMicros, durationMicros: offCooldownMicros });
+          } else {
+            ctx.db.abilityCooldown.insert({ id: 0n, characterId: character.id, abilityKey, startedAtMicros: nowMicros, durationMicros: offCooldownMicros });
+          }
+          return;
+        }
+      }
+
       try {
         const executed = executeAbilityAction(ctx, {
           actorType: 'character',
