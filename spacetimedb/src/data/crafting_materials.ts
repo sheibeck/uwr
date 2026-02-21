@@ -36,8 +36,8 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     sources: ['gather'],
     gatherTerrains: ['mountains', 'plains'],
     gatherEntries: [
-      { terrain: 'mountains', weight: 3n, timeOfDay: 'any' },
-      { terrain: 'plains', weight: 2n, timeOfDay: 'any' },
+      { terrain: 'mountains', weight: 15n, timeOfDay: 'any' },
+      { terrain: 'plains', weight: 10n, timeOfDay: 'any' },
     ],
     affinityStats: ['strBonus'],
   },
@@ -72,7 +72,7 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     sources: ['gather'],
     gatherTerrains: ['mountains'],
     gatherEntries: [
-      { terrain: 'mountains', weight: 2n, timeOfDay: 'any' },
+      { terrain: 'mountains', weight: 10n, timeOfDay: 'any' },
     ],
     affinityStats: ['strBonus', 'armorClassBonus'],
   },
@@ -107,8 +107,8 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     sources: ['gather'],
     gatherTerrains: ['dungeon', 'mountains'],
     gatherEntries: [
-      { terrain: 'mountains', weight: 1n, timeOfDay: 'any' },
-      { terrain: 'dungeon', weight: 2n, timeOfDay: 'any' },
+      { terrain: 'mountains', weight: 5n, timeOfDay: 'any' },
+      { terrain: 'dungeon', weight: 10n, timeOfDay: 'any' },
     ],
     affinityStats: ['strBonus'],
   },
@@ -121,8 +121,8 @@ export const MATERIAL_DEFS: MaterialDef[] = [
     sources: ['gather'],
     gatherTerrains: ['swamp', 'woods'],
     gatherEntries: [
-      { terrain: 'swamp', weight: 1n, timeOfDay: 'night' },
-      { terrain: 'woods', weight: 1n, timeOfDay: 'night' },
+      { terrain: 'swamp', weight: 5n, timeOfDay: 'night' },
+      { terrain: 'woods', weight: 5n, timeOfDay: 'night' },
     ],
     affinityStats: ['intBonus', 'wisBonus', 'manaBonus'],
   },
