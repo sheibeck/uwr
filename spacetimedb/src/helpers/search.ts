@@ -160,10 +160,10 @@ export function performPassiveSearch(
   if (foundResources) {
     let nodeCount: number;
     // Node count tiers use upper range (resourceRoll >= findThreshold already confirmed):
-    // roll 80-99 → 3 nodes (20%), roll 65-79 → 2 nodes (15%), else → 1 node
-    if (resourceRoll >= 80n) {
+    // roll 90-99 → 3 nodes (10%), roll 70-89 → 2 nodes (20%), else → 1 node
+    if (resourceRoll >= 90n) {
       nodeCount = 3;
-    } else if (resourceRoll >= 65n) {
+    } else if (resourceRoll >= 70n) {
       nodeCount = 2;
     } else {
       nodeCount = 1;
