@@ -2284,6 +2284,13 @@ export function executePetAbility(
       healedCount++;
     }
 
+    // Also heal the pet itself if injured
+    if (pet.currentHp > 0n && pet.currentHp < pet.maxHp) {
+      const newPetHp = pet.currentHp + healAmount > pet.maxHp ? pet.maxHp : pet.currentHp + healAmount;
+      ctx.db.activePet.id.update({ ...pet, currentHp: newPetHp });
+      healedCount++;
+    }
+
     if (healedCount === 0n) return false; // Nothing to heal
 
     const message = `${pet.name} heals the party for ${healAmount}!`;
