@@ -47,8 +47,6 @@ const toMicros = (seconds: bigint | undefined) => {
   return Math.round(Number(seconds) * 1_000_000);
 };
 
-const COOLDOWN_SKEW_SUPPRESS_MICROS = 30_000_000; // 30s — covers production server/client clock skew
-
 export const useHotbar = ({
   connActive,
   selectedCharacter,
@@ -76,7 +74,7 @@ export const useHotbar = ({
     null
   );
   const localCooldowns = ref(new Map<string, number>());
-  const predictedCooldownReadyAt = ref(new Map<string, number>());
+  const cooldownReceivedAt = ref(new Map<string, number>());
   const hotbarPulseKey = ref<string | null>(null);
 
   const availableAbilities = computed(() => {
@@ -115,14 +113,44 @@ export const useHotbar = ({
   });
 
   const cooldownByAbility = computed(() => {
-    if (!selectedCharacter.value) return new Map<string, bigint>();
-    const map = new Map<string, bigint>();
+    if (!selectedCharacter.value) return new Map<string, { durationMicros: number; receivedAt: number }>();
+    const map = new Map<string, { durationMicros: number; receivedAt: number }>();
     for (const row of abilityCooldowns.value) {
       if (row.characterId.toString() !== selectedCharacter.value.id.toString()) continue;
-      map.set(row.abilityKey, row.readyAtMicros);
+      const key = row.abilityKey;
+      const receivedAt = cooldownReceivedAt.value.get(key) ?? Date.now() * 1000;
+      map.set(key, { durationMicros: Number(row.durationMicros), receivedAt });
     }
     return map;
   });
+
+  watch(
+    () => abilityCooldowns.value,
+    (rows) => {
+      const charId = selectedCharacter.value?.id;
+      if (!charId) return;
+      const activeKeys = new Set<string>();
+      for (const row of rows) {
+        if (row.characterId.toString() !== charId.toString()) continue;
+        const key = row.abilityKey;
+        activeKeys.add(key);
+        if (!cooldownReceivedAt.value.has(key)) {
+          cooldownReceivedAt.value.set(key, Date.now() * 1000);
+        }
+        // Server confirmed this cooldown — remove local prediction if it exists
+        if (localCooldowns.value.has(key)) {
+          localCooldowns.value.delete(key);
+        }
+      }
+      // Clean up receivedAt entries for rows that no longer exist
+      for (const key of cooldownReceivedAt.value.keys()) {
+        if (!activeKeys.has(key)) {
+          cooldownReceivedAt.value.delete(key);
+        }
+      }
+    },
+    { deep: true }
+  );
 
   const hotbarDisplay = computed<HotbarDisplaySlot[]>(() => {
     const slots = new Map(hotbarAssignments.value.map((slot) => [slot.slot, slot]));
@@ -137,23 +165,16 @@ export const useHotbar = ({
       const ability = assignment.abilityKey
         ? abilityLookup.value.get(assignment.abilityKey)
         : undefined;
-      const readyAt = assignment.abilityKey
-        ? cooldownByAbility.value.get(assignment.abilityKey)
-        : undefined;
-      const serverReadyAt = readyAt ? Number(readyAt) : 0;
       const localReadyAt = assignment.abilityKey
         ? localCooldowns.value.get(assignment.abilityKey) ?? 0
         : 0;
-      const predictedReadyAt = assignment.abilityKey
-        ? predictedCooldownReadyAt.value.get(assignment.abilityKey) ?? 0
-        : 0;
-
-      // If we made a local prediction for this ability, trust it over the server
-      // until the prediction entry is fully cleaned up (10s after expiry).
-      // This prevents the "cooldown refills" visual glitch from server latency.
-      const hasPrediction = predictedReadyAt > 0;
-      const serverRemaining = hasPrediction ? 0 : Math.max(serverReadyAt - nowMicros.value, 0);
+      const serverCd = assignment.abilityKey
+        ? cooldownByAbility.value.get(assignment.abilityKey)
+        : undefined;
       const localRemaining = localReadyAt ? localReadyAt - nowMicros.value : 0;
+      const serverRemaining = serverCd
+        ? Math.max(0, serverCd.durationMicros - (nowMicros.value - serverCd.receivedAt))
+        : 0;
 
       const isLocallyCastingThisAbility = Boolean(
         localCast.value &&
@@ -163,9 +184,7 @@ export const useHotbar = ({
       );
       const effectiveLocalRemaining = isLocallyCastingThisAbility ? 0 : localRemaining;
       const remainingMicros =
-        effectiveLocalRemaining > 0
-          ? effectiveLocalRemaining
-          : Math.max(serverRemaining, 0);
+        effectiveLocalRemaining > 0 ? effectiveLocalRemaining : serverRemaining;
       const cooldownRemainingRaw = remainingMicros > 0 ? Math.ceil(remainingMicros / 1_000_000) : 0;
       const configuredCooldownSeconds = ability?.cooldownSeconds
         ? Number(ability.cooldownSeconds)
@@ -273,7 +292,6 @@ export const useHotbar = ({
     if (cooldownMicros > 0) {
       const readyAt = nowMicros.value + castDurationMicros + cooldownMicros;
       localCooldowns.value.set(abilityKey, readyAt);
-      predictedCooldownReadyAt.value.set(abilityKey, readyAt);
     }
     hotbarPulseKey.value = abilityKey;
     window.setTimeout(() => {
@@ -350,7 +368,7 @@ export const useHotbar = ({
     () => {
       localCast.value = null;
       localCooldowns.value.clear();
-      predictedCooldownReadyAt.value.clear();
+      cooldownReceivedAt.value.clear();
       hotbarPulseKey.value = null;
     }
   );
@@ -390,11 +408,6 @@ export const useHotbar = ({
           localCooldowns.value.delete(key);
         }
       }
-      for (const [key, readyAt] of predictedCooldownReadyAt.value.entries()) {
-        if (now >= readyAt + COOLDOWN_SKEW_SUPPRESS_MICROS) {
-          predictedCooldownReadyAt.value.delete(key);
-        }
-      }
     }
   );
 
@@ -410,7 +423,11 @@ export const useHotbar = ({
 
       const serverCooldownKeys = new Set(
         serverCooldowns
-          .filter(cd => cd.characterId === charId && Number(cd.readyAtMicros) > now)
+          .filter(cd => {
+            if (cd.characterId.toString() !== charId.toString()) return false;
+            const receivedAt = cooldownReceivedAt.value.get(cd.abilityKey) ?? (Date.now() * 1000);
+            return Number(cd.durationMicros) - (now - receivedAt) > 0;
+          })
           .map(cd => cd.abilityKey)
       );
 
@@ -419,13 +436,10 @@ export const useHotbar = ({
         if (readyAt > now && !serverCooldownKeys.has(key)) {
           // Don't clear while this ability is still being cast — server won't have
           // the AbilityCooldown row until the cast tick fires (after castSeconds).
-          // Clearing early sets hasPrediction=false, exposing the display to server
-          // clock skew and causing the cooldown to appear "stuck at max" after the cast.
           if (localCast.value?.abilityKey === key) continue;
           if (castingState.value?.abilityKey === key) continue;
           // Local shows cooldown active, but server doesn't - ability failed
           localCooldowns.value.delete(key);
-          predictedCooldownReadyAt.value.delete(key);
         }
       }
     }
