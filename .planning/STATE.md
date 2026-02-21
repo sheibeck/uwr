@@ -513,10 +513,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 264 | Remove groupCount from pull logic — adds now come only from location's available social spawn pool; removed initialGroupCount/groupAddsAvailable/takeSpawnMember group block from reserveAdds(); maxAdds=candidates.length; all delayed/immediate adds mark their EnemySpawn row as engaged so other groups cannot pull them | 2026-02-21 | 021a1cb | [264-remove-groupcount-from-pull-logic-adds-c](./quick/264-remove-groupcount-from-pull-logic-adds-c/) |
 | 265 | Fix adds never showing aggro target — addEnemyToCombat used p.id as AggroEntry.characterId but pending-add call site passes CombatParticipant rows (p.id = participant row ID, not character ID); fix uses p.characterId ?? p.id; also captures return value and sets aggroTargetCharacterId immediately on add arrival for instant UI display | 2026-02-21 | 021a1cb | [265-fix-adds-never-showing-aggro-target-adde](./quick/265-fix-adds-never-showing-aggro-target-adde/) |
 | 266 | Social add kills not decrementing spawn group count — addEnemyToCombat called with consumeSpawnCount=false for pending adds, so takeSpawnMember never ran; spawn groupCount stayed > 0 and victory path reset add's spawn to 'available' instead of deleting it; fix: consumeSpawnCount=true so the spawn member is consumed and groupCount reaches 0 on kill | 2026-02-21 | 350696d | [266-social-add-kills-not-decrementing-spawn-](./quick/266-social-add-kills-not-decrementing-spawn-/) |
+| 267 | Character creation validation errors — Create button no longer silently disabled; createCharacter() collects all errors into array ("name ≥4 chars", "must select race/class") and shows them above the submit button; server minimum raised from 2 to 4 chars | 2026-02-21 | 51785a7 | [267-character-creation-validation-errors-for](./quick/267-character-creation-validation-errors-for/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 266: Social add kills not decrementing spawn group count
+Last activity: 2026-02-21 - Completed quick task 267: Character creation validation errors
 
 ## Last Session
 
