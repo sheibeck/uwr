@@ -150,6 +150,9 @@ export function rollAttackOutcome(
     blockMitigationPercent?: bigint;  // on 100n-scale; default 50n (50% mitigation)
     canParry: boolean;
     canDodge: boolean;
+    dodgeChanceBasis?: bigint;        // on 1000-scale; default 50n (5%) — defender's pre-computed dodgeChance
+    parryChanceBasis?: bigint;        // on 1000-scale; default 50n (5%) — defender's pre-computed parryChance
+    attackerHitBonus?: bigint;        // on 1000-scale; default 0n — attacker's pre-computed hitChance
     characterDex?: bigint;
     weaponName?: string;
     weaponType?: string;
@@ -157,12 +160,17 @@ export function rollAttackOutcome(
 ) {
   const roll = seed % 1000n;
   let cursor = 0n;
+  const hitBonus = opts.attackerHitBonus ?? 0n;
   if (opts.canDodge) {
-    cursor += 50n;
+    const raw = opts.dodgeChanceBasis ?? 50n;
+    const net = raw > hitBonus ? raw - hitBonus : 0n;
+    cursor += net;
     if (roll < cursor) return { outcome: 'dodge', multiplier: 0n };
   }
   if (opts.canParry) {
-    cursor += 50n;
+    const raw = opts.parryChanceBasis ?? 50n;
+    const net = raw > hitBonus ? raw - hitBonus : 0n;
+    cursor += net;
     if (roll < cursor) return { outcome: 'parry', multiplier: 0n };
   }
   if (opts.canBlock) {
@@ -413,13 +421,16 @@ export function executeAbility(
       weaponScalePercent?: bigint;
     }
   ) => {
-    if (!combatId || !combat || combat.state !== 'active') {
-      throw new SenderError('Your companion can only be called forth when enemies are near.');
+    // Clear any existing active pet (out-of-combat)
+    for (const existing of ctx.db.activePet.by_character.filter(character.id)) {
+      ctx.db.activePet.id.delete(existing.id);
     }
-    if (!enemy) throw new SenderError('You have no target to unleash this upon.');
-    for (const existing of ctx.db.combatPet.by_combat.filter(combatId)) {
-      if (existing.ownerCharacterId === character.id) {
-        ctx.db.combatPet.id.delete(existing.id);
+    // Clear any existing combat pet if in combat
+    if (combatId) {
+      for (const existing of ctx.db.combatPet.by_combat.filter(combatId)) {
+        if (existing.ownerCharacterId === character.id) {
+          ctx.db.combatPet.id.delete(existing.id);
+        }
       }
     }
     const pickIndex = Number((nowMicros + character.id * 7n) % BigInt(namePool.length));
@@ -435,36 +446,51 @@ export function executeAbility(
     const weaponProxy = (weapon.baseDamage * weaponScalePercent) / 100n;
     const petMaxHp = hpBase + petLevel * hpPerLevel;
     const petAttackDamage = damageBase + petLevel * damagePerLevel + weaponProxy;
-    const pet = ctx.db.combatPet.insert({
-      id: 0n,
-      combatId,
-      ownerCharacterId: character.id,
-      name: displayName,
-      level: petLevel,
-      currentHp: petMaxHp,
-      maxHp: petMaxHp,
-      attackDamage: petAttackDamage,
-      abilityKey: ability?.key,
-      abilityCooldownSeconds: ability?.cooldownSeconds,
-      // Allow pets to attempt their ability immediately on summon.
-      nextAbilityAt: ability ? nowMicros : undefined,
-      targetEnemyId: enemy.id,
-      nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
-    });
-    // Summoner pets are the primary combat presence — give them immediate aggro
-    // so they draw enemy attention before the summoner's own threat builds up.
-    if (character.className?.toLowerCase() === 'summoner') {
-      for (const en of ctx.db.combatEnemy.by_combat.filter(combatId)) {
-        if (en.currentHp <= 0n) continue;
-        ctx.db.aggroEntry.insert({
-          id: 0n,
-          combatId,
-          enemyId: en.id,
-          characterId: character.id,
-          petId: pet.id,
-          value: SUMMONER_PET_INITIAL_AGGRO,
-        });
+    if (combatId && combat && combat.state === 'active') {
+      if (!enemy) throw new SenderError('You have no target to unleash this upon.');
+      const pet = ctx.db.combatPet.insert({
+        id: 0n,
+        combatId,
+        ownerCharacterId: character.id,
+        name: displayName,
+        level: petLevel,
+        currentHp: petMaxHp,
+        maxHp: petMaxHp,
+        attackDamage: petAttackDamage,
+        abilityKey: ability?.key,
+        abilityCooldownSeconds: ability?.cooldownSeconds,
+        // Allow pets to attempt their ability immediately on summon.
+        nextAbilityAt: ability ? nowMicros : undefined,
+        targetEnemyId: enemy.id,
+        nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
+      });
+      // Summoner pets are the primary combat presence — give them immediate aggro
+      // so they draw enemy attention before the summoner's own threat builds up.
+      if (character.className?.toLowerCase() === 'summoner') {
+        for (const en of ctx.db.combatEnemy.by_combat.filter(combatId)) {
+          if (en.currentHp <= 0n) continue;
+          ctx.db.aggroEntry.insert({
+            id: 0n,
+            combatId,
+            enemyId: en.id,
+            characterId: character.id,
+            petId: pet.id,
+            value: SUMMONER_PET_INITIAL_AGGRO,
+          });
+        }
       }
+    } else {
+      ctx.db.activePet.insert({
+        id: 0n,
+        characterId: character.id,
+        name: displayName,
+        level: petLevel,
+        currentHp: petMaxHp,
+        maxHp: petMaxHp,
+        attackDamage: petAttackDamage,
+        abilityKey: ability?.key,
+        abilityCooldownSeconds: ability?.cooldownSeconds,
+      });
     }
     appendPrivateEvent(
       ctx,
