@@ -735,13 +735,14 @@ Each race grants exactly two bonuses. Bonuses are not limited to stat points. Th
 **Requirements:** STAT-01, STAT-02, STAT-03, STAT-04, STAT-05
 
 **Depends on:** Phase 21
-**Plans:** 3/4 plans executed
+**Status:** Complete (2026-02-21)
+**Plans:** 4/4 plans complete
 
 Plans:
-- [ ] 21.1-01-PLAN.md — Stat scaling helper (statOffset) + shield armor type and class restrictions
-- [ ] 21.1-02-PLAN.md — Block system (DEX chance, STR mitigation) + WIS pull hook
-- [ ] 21.1-03-PLAN.md — INT salvage scroll drop + CHA vendor/faction/affinity hooks
-- [ ] 21.1-04-PLAN.md — Publish backend, regenerate bindings, client block stats display, human verify
+- [x] 21.1-01-PLAN.md — Stat scaling helper (statOffset) + shield armor type and class restrictions
+- [x] 21.1-02-PLAN.md — Block system (DEX chance, STR mitigation) + WIS pull hook
+- [x] 21.1-03-PLAN.md — INT salvage scroll drop + CHA vendor/faction/affinity hooks
+- [x] 21.1-04-PLAN.md — Publish backend, regenerate bindings, client block stats display, human verify
 
 ### Phase 21.1.1: Hit/Dodge/Parry Active Stats (INSERTED)
 
