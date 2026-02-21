@@ -377,6 +377,25 @@ export const useHotbar = ({
       return;
     }
 
+    // Client-side resource pre-check (server remains authoritative)
+    const resource = ability?.resource ?? '';
+    const power = ability?.power ?? 0n;
+    const level = ability?.level ?? slot.level ?? 0n;
+    const char = selectedCharacter.value;
+    if (resource === 'mana') {
+      const cost = 4n + level * 2n + power;
+      if ((char.mana ?? 0n) < cost) {
+        addLocalEvent?.('blocked', 'Not enough mana.');
+        return;
+      }
+    } else if (resource === 'stamina') {
+      const cost = 2n + power / 2n;
+      if ((char.stamina ?? 0n) < cost) {
+        addLocalEvent?.('blocked', 'Not enough stamina.');
+        return;
+      }
+    }
+
     runPrediction(slot.abilityKey);
 
     const targetId = defensiveTargetId.value ?? undefined;
