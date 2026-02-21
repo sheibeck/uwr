@@ -15,7 +15,7 @@ import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { applyPerkProcs, addCharacterEffect } from '../helpers/combat';
 import { RENOWN_GAIN } from '../data/renown_data';
-import { rollQualityTier, rollQualityForDrop, generateAffixData, buildDisplayName } from '../helpers/items';
+import { rollQualityTier, rollQualityForDrop, generateAffixData, buildDisplayName, getEquippedBonuses } from '../helpers/items';
 import { incrementWorldStat } from '../helpers/world_events';
 import { WORLD_EVENT_DEFINITIONS } from '../data/world_event_data';
 
@@ -1302,6 +1302,10 @@ export const registerCombatReducers = (deps: any) => {
       hpRegenBonus += character.racialHpRegen ?? 0n;
       manaRegenBonus += character.racialManaRegen ?? 0n;
       staminaRegenBonus += character.racialStaminaRegen ?? 0n;
+
+      // Add gear manaRegen affix bonuses
+      const gear = getEquippedBonuses(ctx, character.id);
+      manaRegenBonus += gear.manaRegen;
 
       const nextHp =
         character.hp >= character.maxHp ? character.hp : character.hp + hpRegen + hpRegenBonus;
