@@ -515,8 +515,6 @@ export function ensureAbilityTemplates(ctx: any) {
   ]);
   const combatOnlyKeys = new Set([
     'shaman_spirit_wolf',
-    'necromancer_bone_servant',
-    'beastmaster_call_beast',
     'summoner_earth_familiar',
   ]);
   const outOfCombatOnlyKeys = new Set([
