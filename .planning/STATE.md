@@ -467,9 +467,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 218 | Add Phase 21 to ROADMAP.md — Class Ability Balancing & Progression: full audit and design of all class abilities levels 1-10, unlock curve redesign, class identity pillars, backend mechanic gap-filling; phase section includes goal, ABILITY-01–06 requirements, scope, and 5 success criteria checkboxes | 2026-02-20 | caf5dd3 | [218-add-phase-for-class-ability-balancing-an](./quick/218-add-phase-for-class-ability-balancing-an/) |
 | 219 | Insert Phase 21 Race Expansion into ROADMAP.md (before Class Ability Balancing, now Phase 22) — 11 new fantasy races (7 unlocked: Goblin, Troll, Dwarf, Gnome, Halfling, Half-Elf, Orc; 4 locked: Dark-Elf, Half-Giant, Cyclops, Satyr), dual-bonus system per race covering stats/spell damage/mana regen/etc., level-up racial bonus mechanic at even levels, enhanced existing 4 starter races; renumbered old Phase 21 to Phase 22 | 2026-02-20 | b467fb8 | [219-add-phase-for-race-expansion-with-new-fa](./quick/219-add-phase-for-race-expansion-with-new-fa/) |
 | 220 | Pet summon cast time + mana cost — beastmaster/necromancer/summoner get 5s cast time; necromancer and summoner mana tripled; beastmaster_call_beast and necromancer_bone_servant removed from combatOnlyKeys | 2026-02-21 | fe6ba10 | [220-now-that-pets-can-be-cast-out-of-combat-](./quick/220-now-that-pets-can-be-cast-out-of-combat-/) |
+| 221 | Fix mana regen +1 racial bonus not applying — gear manaRegen affix bonuses were silently dropped from regen tick (now added via getEquippedBonuses); added recompute_racial_all admin reducer to repair legacy characters where racialManaRegen is null | 2026-02-21 | 280961f | [221-fix-mana-regen-plus-one-racial-bonus-not](./quick/221-fix-mana-regen-plus-one-racial-bonus-not/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-21 - Completed quick task 220: Pet summon cast time + mana cost (beastmaster/necromancer/summoner 5s cast, necro/summoner 3x mana, removed combatOnlyKeys restrictions)
+Last activity: 2026-02-21 - Completed quick task 221: Fix mana regen +1 racial bonus not applying for Gnome Summoner (gear manaRegen now applied in tick, recompute_racial_all admin reducer added)
