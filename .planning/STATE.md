@@ -508,10 +508,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 259 | Reduce rare crafting reagent spawn rate — CRAFTING_MODIFIER_WEIGHT_MULTIPLIER was broken (floor(1×0.5)=0 clamped back to 1, so multiplier did nothing); fix: scale all base pool weights and MATERIAL_DEFS gatherEntries weights ×5, leaving modifier weights at 1n; dungeon modifier share drops from 23% (3/13) to 5.7% (3/53) | 2026-02-21 | e19f4ac | [259-reduce-rare-crafting-reagent-spawn-rate-](./quick/259-reduce-rare-crafting-reagent-spawn-rate-/) |
 | 260 | Daytime transition spawning too many enemies — spawnEnemy inserts one row per group member but respawnLocationSpawns/ensureLocationRuntimeBootstrap only did count+=1 per call; cap loop terminated based on call count not DB rows; fix: added countNonEventSpawns() helper querying live DB, both functions now recount after each spawnEnemy call | 2026-02-21 | 4ab0c23 | [260-daytime-transition-spawning-too-many-ene](./quick/260-daytime-transition-spawning-too-many-ene/) |
 | 261 | Water elemental in-combat self-heal not updating HP — pet tick loop spread stale `pet` object after executePetAbility wrote healed currentHp to DB, overwriting the heal; fix: changed loop to `let pet`, re-fetch via activePet.id.find after ability fires so both early-exit and normal spreads use current DB row | 2026-02-21 | 230f7a6 | [261-water-elemental-in-combat-self-heal-not-](./quick/261-water-elemental-in-combat-self-heal-not-/) |
+| 262 | Water elemental summoned out of combat does not begin healing party — summonPet set nextAbilityAt=undefined when inActiveCombat=false; regen_health loop skips pets with undefined nextAbilityAt; fix: arm pet_heal/pet_aoe_heal pets at summon time with nextAbilityAt=nowMicros regardless of combat state | 2026-02-21 | ec03779 | [262-water-elemental-summoned-out-of-combat-d](./quick/262-water-elemental-summoned-out-of-combat-d/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 261: Water elemental in-combat self-heal HP fixed
+Last activity: 2026-02-21 - Completed quick task 262: Water elemental out-of-combat summon heal fixed
 
 ## Last Session
 
