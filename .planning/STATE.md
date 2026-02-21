@@ -512,10 +512,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 263 | Corpse drop on death level 5+ — createCorpse sets ItemInstance.ownerCharacterId=0n (sentinel) for each corpse item, removing them from character's inventory (useInventory.ts filters by character.id); loot_corpse_item and loot_all_corpse restore ownerCharacterId to the looting character before deleting CorpseItem rows | 2026-02-21 | 4948aa7 | [263-corpse-drop-on-death-level-5-transfer-in](./quick/263-corpse-drop-on-death-level-5-transfer-in/) |
 | 264 | Remove groupCount from pull logic — adds now come only from location's available social spawn pool; removed initialGroupCount/groupAddsAvailable/takeSpawnMember group block from reserveAdds(); maxAdds=candidates.length; all delayed/immediate adds mark their EnemySpawn row as engaged so other groups cannot pull them | 2026-02-21 | 021a1cb | [264-remove-groupcount-from-pull-logic-adds-c](./quick/264-remove-groupcount-from-pull-logic-adds-c/) |
 | 265 | Fix adds never showing aggro target — addEnemyToCombat used p.id as AggroEntry.characterId but pending-add call site passes CombatParticipant rows (p.id = participant row ID, not character ID); fix uses p.characterId ?? p.id; also captures return value and sets aggroTargetCharacterId immediately on add arrival for instant UI display | 2026-02-21 | 021a1cb | [265-fix-adds-never-showing-aggro-target-adde](./quick/265-fix-adds-never-showing-aggro-target-adde/) |
+| 266 | Social add kills not decrementing spawn group count — addEnemyToCombat called with consumeSpawnCount=false for pending adds, so takeSpawnMember never ran; spawn groupCount stayed > 0 and victory path reset add's spawn to 'available' instead of deleting it; fix: consumeSpawnCount=true so the spawn member is consumed and groupCount reaches 0 on kill | 2026-02-21 | 350696d | [266-social-add-kills-not-decrementing-spawn-](./quick/266-social-add-kills-not-decrementing-spawn-/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 265: Fix adds never showing aggro target and never attacking
+Last activity: 2026-02-21 - Completed quick task 266: Social add kills not decrementing spawn group count
 
 ## Last Session
 
