@@ -501,6 +501,12 @@ export function usePanelManager(
 
   // Load initial state
   loadFromStorage();
+  // Guard: if localStorage has panel data, block server sync for 3s to protect
+  // freshly-restored open/closed state. Server save debounce is 2s — user may have
+  // camped before it completed, leaving server state stale.
+  if (localStorage.getItem('uwr.panelStates')) {
+    markDirty();
+  }
 
   return {
     panels,
