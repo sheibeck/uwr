@@ -7,7 +7,7 @@ export const CLASS_CONFIG: Record<string, { primary: StatKey; secondary?: StatKe
   wizard: { primary: 'int' },
   warrior: { primary: 'str' },
   rogue: { primary: 'dex' },
-  paladin: { primary: 'wis' },
+  paladin: { primary: 'wis', secondary: 'str' },
   ranger: { primary: 'dex', secondary: 'wis' },
   necromancer: { primary: 'int' },
   spellblade: { primary: 'int', secondary: 'str' },
@@ -29,6 +29,8 @@ export const OTHER_GROWTH = 1n;
 export const BASE_HP = 50n;
 export const HP_STR_MULTIPLIER = 8n;
 export const BASE_MANA = 10n;
+export const MANA_MULTIPLIER = 6n;
+export const HYBRID_MANA_MULTIPLIER = 4n;
 
 export const ARMOR_TYPES = ['cloth', 'leather', 'chain', 'plate'] as const;
 export const ARMOR_TYPES_WITH_NONE = ['none', ...ARMOR_TYPES, 'shield'] as const;
@@ -42,6 +44,12 @@ export const PARRY_CLASSES = new Set([
   'monk',
   'beastmaster',
   'spellblade',
+]);
+
+export const HYBRID_MANA_CLASSES = new Set([
+  'paladin',
+  'ranger',
+  'reaver',
 ]);
 
 export const MANA_CLASSES = new Set([
