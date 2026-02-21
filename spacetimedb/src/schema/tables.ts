@@ -1723,7 +1723,7 @@ export const ActiveBardSong = table(
   {
     id: t.u64().primaryKey().autoInc(),
     bardCharacterId: t.u64(),
-    combatId: t.u64(),
+    combatId: t.u64().optional(),
     songKey: t.string(),       // e.g. 'bard_discordant_note', 'bard_battle_hymn'
     startedAtMicros: t.u64(), // timestamp when song became active (for fade tracking)
     isFading: t.bool(),        // true during the 6-second fade when a new song replaces it
@@ -1740,7 +1740,7 @@ export const BardSongTick = table(
     scheduledId: t.u64().primaryKey().autoInc(),
     scheduledAt: t.scheduleAt(),
     bardCharacterId: t.u64(),
-    combatId: t.u64(),
+    combatId: t.u64().optional(),
   }
 );
 
