@@ -735,7 +735,7 @@ export const registerCombatReducers = (deps: any) => {
     ctx: any,
     combatId: bigint,
     enemyId: bigint
-  ) => {
+  ): { characterId?: bigint; petId?: bigint } | undefined => {
     if (activeParticipants.length === 0) return undefined;
     const normalized = (rule ?? 'aggro').toLowerCase();
     if (normalized === 'lowest_hp') {
@@ -743,23 +743,34 @@ export const registerCombatReducers = (deps: any) => {
         .map((p) => ctx.db.character.id.find(p.characterId))
         .filter((c) => Boolean(c))
         .sort((a, b) => (a.hp > b.hp ? 1 : a.hp < b.hp ? -1 : 0))[0];
-      return lowest?.id;
+      return lowest ? { characterId: lowest.id } : undefined;
     }
     if (normalized === 'random') {
       const idx = Number((ctx.timestamp.microsSinceUnixEpoch % BigInt(activeParticipants.length)));
-      return activeParticipants[idx]?.characterId;
+      const charId = activeParticipants[idx]?.characterId;
+      return charId ? { characterId: charId } : undefined;
     }
     if (normalized === 'self') return undefined;
     if (normalized === 'all_allies') {
       // Buff applies to all living enemy allies via executeAbilityAction.
       // Return any active participant as a placeholder so the cast is not skipped.
-      return activeParticipants[0]?.characterId;
+      const charId = activeParticipants[0]?.characterId;
+      return charId ? { characterId: charId } : undefined;
     }
-    const targetEntry = [...ctx.db.aggroEntry.by_combat.filter(combatId)]
+    // Aggro branch: include pet entries so pets with top aggro can be targeted
+    const topEntry = [...ctx.db.aggroEntry.by_combat.filter(combatId)]
       .filter((entry) => entry.enemyId === enemyId)
-      .filter((entry) => activeParticipants.some((p) => p.characterId === entry.characterId))
+      .filter((entry) => {
+        if (entry.petId) return true; // pet entries always eligible
+        return activeParticipants.some((p) => p.characterId === entry.characterId);
+      })
       .sort((a, b) => (a.value > b.value ? -1 : a.value < b.value ? 1 : 0))[0];
-    return targetEntry?.characterId ?? activeParticipants[0]?.characterId;
+    if (!topEntry) {
+      const charId = activeParticipants[0]?.characterId;
+      return charId ? { characterId: charId } : undefined;
+    }
+    if (topEntry.petId) return { petId: topEntry.petId };
+    return { characterId: topEntry.characterId };
   };
 
   spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64() }, (ctx, args) => {
@@ -2010,6 +2021,7 @@ export const registerCombatReducers = (deps: any) => {
           combatId: combat.id,
           abilityKey: existingCast.abilityKey,
           targetCharacterId: existingCast.targetCharacterId,
+          targetPetId: existingCast.targetPetId,
         });
         const cooldownTable = ctx.db.combatEnemyCooldown;
         if (cooldownTable) {
@@ -2043,7 +2055,7 @@ export const registerCombatReducers = (deps: any) => {
         } else {
           type Candidate = {
             ability: typeof deps.EnemyAbility.rowType;
-            targetId: bigint;
+            target: { characterId?: bigint; petId?: bigint };
             score: number;
             castMicros: bigint;
             cooldownMicros: bigint;
@@ -2064,14 +2076,14 @@ export const registerCombatReducers = (deps: any) => {
               }
             }
 
-            const targetId = pickEnemyTarget(
+            const target = pickEnemyTarget(
               ability.targetRule,
               activeParticipants,
               ctx,
               combat.id,
               enemy.id
             );
-            if (!targetId) continue;
+            if (!target) continue;
 
             const meta = ENEMY_ABILITIES[ability.abilityKey as keyof typeof ENEMY_ABILITIES];
             const castMicros =
@@ -2081,16 +2093,19 @@ export const registerCombatReducers = (deps: any) => {
               enemyAbilityCooldownMicros(ability.abilityKey) ||
               (ability.cooldownSeconds ?? 0n) * 1_000_000n;
 
-            if (ability.kind === 'dot') {
-              const alreadyApplied = [...ctx.db.characterEffect.by_character.filter(targetId)].some(
-                (effect) => effect.effectType === 'dot' && effect.sourceAbility === ability.name
-              );
-              if (alreadyApplied) continue;
-            } else if (ability.kind === 'debuff') {
-              const alreadyApplied = [...ctx.db.characterEffect.by_character.filter(targetId)].some(
-                (effect) => effect.sourceAbility === ability.name
-              );
-              if (alreadyApplied) continue;
+            // dot/debuff already-applied checks only apply to character targets (pets have no character effects)
+            if (!target.petId) {
+              if (ability.kind === 'dot') {
+                const alreadyApplied = [...ctx.db.characterEffect.by_character.filter(target.characterId!)].some(
+                  (effect) => effect.effectType === 'dot' && effect.sourceAbility === ability.name
+                );
+                if (alreadyApplied) continue;
+              } else if (ability.kind === 'debuff') {
+                const alreadyApplied = [...ctx.db.characterEffect.by_character.filter(target.characterId!)].some(
+                  (effect) => effect.sourceAbility === ability.name
+                );
+                if (alreadyApplied) continue;
+              }
             }
 
             const baseWeight = meta?.aiWeight ?? DEFAULT_AI_WEIGHT;
@@ -2153,7 +2168,7 @@ export const registerCombatReducers = (deps: any) => {
               const highestThreatEntry = [...ctx.db.aggroEntry.by_combat.filter(combat.id)]
                 .filter((e: any) => e.enemyId === enemy.id && !e.petId)
                 .sort((a: any, b: any) => a.value > b.value ? -1 : a.value < b.value ? 1 : 0)[0];
-              if (highestThreatEntry && highestThreatEntry.characterId === targetId) {
+              if (highestThreatEntry && highestThreatEntry.characterId === target.characterId) {
                 score += 25;  // Bonus for debuffing the highest-threat target
               }
             }
@@ -2163,7 +2178,7 @@ export const registerCombatReducers = (deps: any) => {
             score += jitter;
             candidates.push({
               ability,
-              targetId,
+              target,
               score,
               castMicros,
               cooldownMicros,
@@ -2187,12 +2202,13 @@ export const registerCombatReducers = (deps: any) => {
                 enemyId: enemy.id,
                 abilityKey: chosen.ability.abilityKey,
                 endsAtMicros: nowMicros + chosen.castMicros,
-                targetCharacterId: chosen.targetId,
+                targetCharacterId: chosen.target.characterId,
+                targetPetId: chosen.target.petId,
               });
               ctx.db.combatEnemy.id.update({
                 ...enemy,
                 nextAutoAttackAt: nowMicros + chosen.castMicros,
-                aggroTargetCharacterId: chosen.targetId,
+                aggroTargetCharacterId: chosen.target.characterId,
               });
             }
           }
@@ -2281,7 +2297,7 @@ export const registerCombatReducers = (deps: any) => {
           : className === 'summoner' ? SUMMONER_THREAT_MULTIPLIER : 100n;
         const threat = (finalDamage * threatMult) / 100n;
         for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
-          if (entry.characterId === character.id && entry.enemyId === currentEnemy.id) {
+          if (entry.characterId === character.id && entry.enemyId === currentEnemy.id && !entry.petId) {
             ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + threat });
             break;
           }

@@ -922,6 +922,7 @@ export const CombatEnemyCast = table(
     abilityKey: t.string(),
     endsAtMicros: t.u64(),
     targetCharacterId: t.u64().optional(),
+    targetPetId: t.u64().optional(),
   }
 );
 
