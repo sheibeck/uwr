@@ -489,10 +489,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 238 | Refactor enemy groups to individual spawns with faction-based cross-spawn aggro — spawnEnemy loops N times creating individual EnemySpawn rows (groupCount=1 each); PULL_ALLOW_EXTERNAL_ADDS=true; candidates filter uses factionId equality; danger-tiered spawn caps (6/9/12); removed group multiplier display from LocationGrid; day/night respawn uses per-location cap | 2026-02-21 | ee34b52 | [238-refactor-enemy-groups-to-individual-spaw](./quick/238-refactor-enemy-groups-to-individual-spaw/) |
 | 240 | Add pet HP regen inside existing regen_health reducer — pets regen 3 HP/tick out of combat, 2 HP/tick in combat (every 16s via halfTick gate); skips dead and full-HP pets; no new scheduled table needed | 2026-02-21 | e57b3eb | [240-pets-should-also-have-a-health-regen-jus](./quick/240-pets-should-also-have-a-health-regen-jus/) |
 | 241 | Loot panel border pulses amber/gold for ~3.5s when new loot arrives — lootPanelPulsing ref + pendingLoot watcher (fires on count increase only); @keyframes lootBorderPulse (4 cycles × 0.9s); cleared on re-trigger | 2026-02-21 | db9a88e | [241-loot-window-border-pulse-glow-when-updat](./quick/241-loot-window-border-pulse-glow-when-updat/) |
+| 243 | Client-side mana/stamina pre-check in onHotbarClick — guards before reducer call using same cost formulas as hotbarTooltipItem; shows "Not enough mana/stamina" locally and returns early; eliminates server round-trip for rejection | 2026-02-21 | cfe6952 | [243-client-side-mana-check-before-cast-to-pr](./quick/243-client-side-mana-check-before-cast-to-pr/) |
 
 ---
 
-Last activity: 2026-02-21 - Completed quick task 241: Loot window border pulse glow when updated after combat
+Last activity: 2026-02-21 - Completed quick task 243: Client-side mana check before cast to prevent not enough mana failure
 
 ## Last Session
 
