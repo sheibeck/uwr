@@ -2653,20 +2653,19 @@ export const registerCombatReducers = (deps: any) => {
           if (combatLoc) {
             for (const activeEvent of ctx.db.worldEvent.by_status.filter('active')) {
               if (activeEvent.regionId !== combatLoc.regionId) continue;
-              const eventDef = WORLD_EVENT_DEFINITIONS[activeEvent.eventKey];
-              if (!eventDef) continue;
-              const eventTemplateIds = new Set<bigint>();
-              for (const cl of eventDef.contentLocations) {
-                for (const e of cl.enemies) {
-                  for (const tmpl of ctx.db.enemyTemplate.iter()) {
-                    if (tmpl.name === e.enemyTemplateKey) {
-                      eventTemplateIds.add(tmpl.id);
-                      break;
-                    }
+              // Only credit kills of enemies actually spawned by this event (not any same-type mob)
+              const eventSpawnTemplateIds = new Set<bigint>();
+              for (const enemyRow of enemies) {
+                const spawnId = enemySpawnIds.get(enemyRow.id);
+                if (spawnId === undefined) continue;
+                for (const link of ctx.db.eventSpawnEnemy.by_spawn.filter(spawnId)) {
+                  if (link.eventId === activeEvent.id) {
+                    eventSpawnTemplateIds.add(enemyRow.enemyTemplateId);
+                    break;
                   }
                 }
               }
-              if (!eventTemplateIds.has(template.id)) continue;
+              if (!eventSpawnTemplateIds.has(template.id)) continue;
               let contribFound = false;
               for (const contrib of ctx.db.eventContribution.by_character.filter(character.id)) {
                 if (contrib.eventId === activeEvent.id) {
@@ -2693,20 +2692,19 @@ export const registerCombatReducers = (deps: any) => {
         for (const template of enemyTemplates) {
           for (const activeEvent of ctx.db.worldEvent.by_status.filter('active')) {
             if (activeEvent.regionId !== combatLoc.regionId) continue;
-            const eventDef = WORLD_EVENT_DEFINITIONS[activeEvent.eventKey];
-            if (!eventDef) continue;
-            const eventTemplateIds = new Set<bigint>();
-            for (const cl of eventDef.contentLocations) {
-              for (const e of cl.enemies) {
-                for (const tmpl of ctx.db.enemyTemplate.iter()) {
-                  if (tmpl.name === e.enemyTemplateKey) {
-                    eventTemplateIds.add(tmpl.id);
-                    break;
-                  }
+            // Only advance objective for enemies actually spawned by this event
+            const eventKillTemplateIds = new Set<bigint>();
+            for (const enemyRow of enemies) {
+              const spawnId = enemySpawnIds.get(enemyRow.id);
+              if (spawnId === undefined) continue;
+              for (const link of ctx.db.eventSpawnEnemy.by_spawn.filter(spawnId)) {
+                if (link.eventId === activeEvent.id) {
+                  eventKillTemplateIds.add(enemyRow.enemyTemplateId);
+                  break;
                 }
               }
             }
-            if (!eventTemplateIds.has(template.id)) continue;
+            if (!eventKillTemplateIds.has(template.id)) continue;
             for (const obj of ctx.db.eventObjective.by_event.filter(activeEvent.id)) {
               if (obj.objectiveType === 'kill_count') {
                 ctx.db.eventObjective.id.update({ ...obj, currentCount: obj.currentCount + 1n });
@@ -3296,21 +3294,11 @@ export const registerCombatReducers = (deps: any) => {
         if (deathCombatLoc) {
           for (const activeEvent of ctx.db.worldEvent.by_status.filter('active')) {
             if (activeEvent.regionId !== deathCombatLoc.regionId) continue;
-            const eventDef = WORLD_EVENT_DEFINITIONS[activeEvent.eventKey];
-            if (!eventDef) continue;
-            const eventTemplateIds = new Set<bigint>();
-            for (const cl of eventDef.contentLocations) {
-              for (const e of cl.enemies) {
-                for (const tmpl of ctx.db.enemyTemplate.iter()) {
-                  if (tmpl.name === e.enemyTemplateKey) {
-                    eventTemplateIds.add(tmpl.id);
-                    break;
-                  }
-                }
-              }
-            }
             for (const killedEnemy of killedEnemies) {
-              if (!eventTemplateIds.has(killedEnemy.enemyTemplateId)) continue;
+              // Only credit kills of enemies actually spawned by this event
+              const isEventKill = [...ctx.db.eventSpawnEnemy.by_spawn.filter(killedEnemy.spawnId)]
+                .some(link => link.eventId === activeEvent.id);
+              if (!isEventKill) continue;
               // Award contribution per participant
               for (const p of participants) {
                 const character = ctx.db.character.id.find(p.characterId);
