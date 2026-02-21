@@ -2211,6 +2211,7 @@ export function executePetAbility(
     // Find the lowest-HP living party member among combat participants
     let healTarget: any = null;
     let lowestHpRatio = 101n; // > 100 to ensure first candidate wins
+    let healTargetIsPet = false;
 
     for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
       if (participant.status !== 'active') continue;
@@ -2221,6 +2222,17 @@ export function executePetAbility(
       if (ratio < lowestHpRatio) {
         lowestHpRatio = ratio;
         healTarget = member;
+        healTargetIsPet = false;
+      }
+    }
+
+    // Consider the pet itself as a heal candidate
+    if (pet.currentHp > 0n && pet.currentHp < pet.maxHp) {
+      const petRatio = (pet.currentHp * 100n) / pet.maxHp;
+      if (petRatio < lowestHpRatio) {
+        lowestHpRatio = petRatio;
+        healTarget = pet;
+        healTargetIsPet = true;
       }
     }
 
@@ -2232,10 +2244,15 @@ export function executePetAbility(
     if (!healTarget) return false; // Everyone is full HP
 
     const healAmount = 10n + pet.level * 5n;
-    const newHp = healTarget.hp + healAmount > healTarget.maxHp
+    const targetCurrentHp = healTargetIsPet ? healTarget.currentHp : healTarget.hp;
+    const newHp = targetCurrentHp + healAmount > healTarget.maxHp
       ? healTarget.maxHp
-      : healTarget.hp + healAmount;
-    ctx.db.character.id.update({ ...healTarget, hp: newHp });
+      : targetCurrentHp + healAmount;
+    if (healTargetIsPet) {
+      ctx.db.activePet.id.update({ ...healTarget, currentHp: newHp });
+    } else {
+      ctx.db.character.id.update({ ...healTarget, hp: newHp });
+    }
 
     const message = `${pet.name} heals ${healTarget.name} for ${healAmount}.`;
     appendPrivateEvent(ctx, owner.id, owner.ownerUserId, 'ability', message);
