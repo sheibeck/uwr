@@ -254,6 +254,9 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 196. Caps: dodge max 250n (25%), parry max 200n (20%), hitBonus max 300n (30%) on 1000-scale — prevents untouchable builds while allowing meaningful DEX investment (21.1.1-01)
 197. Bow attackers cannot trigger enemy parry — `canParry(className) && weapon.weaponType !== 'bow'`; ranged attacks are unparriable by design (21.1.1-01)
 198. rollAttackOutcome defaults to 50n (5%) for dodge/parry when opts not provided — all other call sites (pet, enemy-pet) unchanged; only player-enemy and enemy-player call sites wired with stat values (21.1.1-01)
+199. HYBRID_MANA_MULTIPLIER=4n vs MANA_MULTIPLIER=6n gives paladin/ranger/reaver ~33% less mana per mana stat point — paladin at L10 has ~53% of wizard mana, appropriate hybrid identity (quick-229)
+200. Paladin gains secondary 'str' in CLASS_CONFIG so manaStatForClass blends WIS(70%)+STR(30%), naturally reducing raw mana stat vs pure WIS casters without special-casing (quick-229)
+201. Stamina abilities must have castSeconds=0n (instant physical exertion); mana abilities must have castSeconds>=1n (focus/channeling required) — enforced system-wide across all 12 ability files (quick-229)
 
 ---
 
@@ -474,9 +477,10 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 226 | Persist panel open/closed state across sessions — (1) added markDirty() after loadFromStorage() to block server sync overwriting restored open states; (2) removed explicit closePanelById loop from goToCamp() — panels are v-if="selectedCharacter" so they hide naturally, and the loop was overwriting localStorage with closed state before relog | 2026-02-21 | 151b197 | [226-persist-panel-open-closed-state-across-s](./quick/226-persist-panel-open-closed-state-across-s/) |
 | 227 | Reduce 3-resource node frequency on location search — 3-node threshold raised 80→90 (10% of finds), 2-node threshold raised 65→70 (20% of finds) | 2026-02-21 | 4a92008 | [227-reduce-frequency-of-finding-3-resources-](./quick/227-reduce-frequency-of-finding-3-resources-/) |
 | 228 | Pack Rush hits at 65% power per strike — added hitMultiplier?: bigint to applyDamage options, applied in hit loop; beastmaster_pack_rush passes hitMultiplier: 65n alongside hits: 2n, matching AOE_DAMAGE_MULTIPLIER | 2026-02-21 | 8d2262e | [228-pack-rush-hits-at-65-power-per-strike-li](./quick/228-pack-rush-hits-at-65-power-per-strike-li/) |
+| 229 | Paladin hybrid mana/stamina pools + reaver stamina Blood Rend — HYBRID_MANA_MULTIPLIER=4n (vs 6n for full casters), HYBRID_MANA_CLASSES={paladin,ranger,reaver}, paladin secondary str, holy_strike+radiant_smite+blood_rend moved to stamina, all mana abilities >= 1s castSeconds, all stamina abilities = 0s | 2026-02-21 | dfc88fc | [229-paladin-hybrid-mana-stamina-pools-reaver](./quick/229-paladin-hybrid-mana-stamina-pools-reaver/) |
 
 ---
 
 ## Last Session
 
-Last activity: 2026-02-21 - Fixed panel open/closed state persistence (226 follow-up): removed goToCamp() closePanelById loop that was overwriting localStorage with closed state on camp
+Last activity: 2026-02-21 - Paladin hybrid mana/stamina pools + cast time rules (quick-229): HYBRID_MANA_MULTIPLIER, paladin secondary str, stamina abilities for holy_strike/radiant_smite/blood_rend, mana>=1s/stamina=0s enforced across 12 ability files
