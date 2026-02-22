@@ -45,20 +45,22 @@
                       Target
                     </span>
                   </div>
-                  <div :style="styles.hpBar">
+                  <div :style="{ ...styles.hpBar, height: '10px', marginTop: '0.1rem' }">
                     <div
                       :style="{
                         ...styles.hpFill,
                         width: `${percent(enemy.hp, enemy.maxHp)}%`,
                       }"
                     ></div>
-                    <span :style="styles.barText">{{ enemy.hp }} / {{ enemy.maxHp }}</span>
+                    <span :style="{ ...styles.barText, fontSize: '0.55rem' }">{{ enemy.hp }} / {{ enemy.maxHp }}</span>
                   </div>
                   <div v-if="enemy.effects.length > 0" :style="styles.effectRow">
                     <span
                       v-for="effect in enemy.effects"
                       :key="effect.id.toString()"
-                      :style="effect.isNegative ? styles.effectBadgeNegative : styles.effectBadgePositive"
+                      :style="effect.isOwn
+                        ? (effect.isNegative ? styles.effectBadgeOwnNegative : styles.effectBadgeOwnPositive)
+                        : (effect.isNegative ? styles.effectBadgeNegative : styles.effectBadgePositive)"
                     >
                       {{ effect.label }} {{ effect.seconds }}s
                     </span>
@@ -125,7 +127,7 @@ const props = defineProps<{
     maxHp: bigint;
     conClass: string;
     isTarget: boolean;
-    effects: { id: bigint; label: string; seconds: number; isNegative: boolean }[];
+    effects: { id: bigint; label: string; seconds: number; isNegative: boolean; isOwn: boolean }[];
     castProgress: number;
     castLabel: string;
     targetName: string | null;
