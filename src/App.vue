@@ -124,13 +124,11 @@
           @click="slot.abilityKey && onHotbarClick(slot)"
           @contextmenu.prevent="
             slot.abilityKey &&
-            showAbilityPopup({
-              name: slot.name || slot.abilityKey,
-              description: hotbarAbilityDescription(slot),
-              stats: hotbarTooltipItem(slot)?.stats ?? [],
-              x: ($event.currentTarget?.getBoundingClientRect().right ?? $event.clientX) + 12,
-              y: ($event.currentTarget?.getBoundingClientRect().top ?? $event.clientY),
-            })
+            showHotbarContextMenu(
+              slot,
+              ($event.currentTarget?.getBoundingClientRect().right ?? $event.clientX) + 4,
+              ($event.currentTarget?.getBoundingClientRect().top ?? $event.clientY)
+            )
           "
         >
           <div
@@ -562,6 +560,50 @@
       <div v-if="abilityPopup.stats?.length" :style="styles.tooltipLine">
         <div v-for="stat in abilityPopup.stats" :key="stat.label">{{ stat.label }}: {{ stat.value }}</div>
       </div>
+    </div>
+    <!-- Hotbar slot context menu -->
+    <div
+      v-if="hotbarContextMenu.visible"
+      :style="{
+        position: 'fixed',
+        left: hotbarContextMenu.x + 'px',
+        top: hotbarContextMenu.y + 'px',
+        background: '#1f2937',
+        border: '1px solid rgba(255,255,255,0.15)',
+        borderRadius: '6px',
+        zIndex: 9999,
+        minWidth: '200px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+      }"
+      @mouseleave="hideHotbarContextMenu"
+    >
+      <div
+        v-if="hotbarContextMenu.description"
+        :style="{
+          padding: '8px 14px',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          color: '#9ca3af',
+          fontSize: '0.8rem',
+          lineHeight: '1.4',
+          maxWidth: '220px',
+          whiteSpace: 'normal',
+        }"
+      >{{ hotbarContextMenu.description }}</div>
+      <button
+        type="button"
+        :style="{
+          display: 'block',
+          width: '100%',
+          padding: '8px 14px',
+          background: 'transparent',
+          border: 'none',
+          color: '#e5e7eb',
+          fontSize: '0.85rem',
+          cursor: 'pointer',
+          textAlign: 'left',
+        }"
+        @click="setHotbarSlot(hotbarContextMenu.slot, ''); hideHotbarContextMenu()"
+      >Remove from Hotbar</button>
     </div>
   </div>
 </template>
@@ -2260,6 +2302,15 @@ const abilityPopup = ref<{
   stats: [],
 });
 
+const hotbarContextMenu = ref<{
+  visible: boolean;
+  x: number;
+  y: number;
+  slot: number;
+  name: string;
+  description: string;
+}>({ visible: false, x: 0, y: 0, slot: 0, name: '', description: '' });
+
 
 const tooltipRarityColor = (item: any): Record<string, string> => {
   const key = ((item?.qualityTier ?? item?.rarity ?? 'common') as string).toLowerCase();
@@ -2299,6 +2350,21 @@ const showAbilityPopup = (payload: { name: string; description: string; stats: {
 
 const hideAbilityPopup = () => {
   abilityPopup.value = { visible: false, x: 0, y: 0, name: '', description: '', stats: [] };
+};
+
+const showHotbarContextMenu = (slot: any, x: number, y: number) => {
+  hotbarContextMenu.value = {
+    visible: true,
+    x,
+    y,
+    slot: slot.slot,
+    name: slot.name || slot.abilityKey,
+    description: hotbarAbilityDescription(slot),
+  };
+};
+
+const hideHotbarContextMenu = () => {
+  hotbarContextMenu.value.visible = false;
 };
 
 const hotbarAbilityDescription = (slot: any): string => {
