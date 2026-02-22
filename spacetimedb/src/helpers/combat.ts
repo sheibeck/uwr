@@ -1030,6 +1030,36 @@ export function executeAbility(
             }
             logPrivateAndGroup(ctx, character, 'damage', `Discordant Note deals ${totalDamage} damage to all enemies.`);
           }
+          if (abilityKey === 'bard_battle_hymn') {
+            // Also apply the heal portion of Battle Hymn on cast
+            const healAmt = (8n * 65n) / 100n;
+            let totalHealed = 0n;
+            for (const member of partyMembers) {
+              const fresh = ctx.db.character.id.find(member.id);
+              if (!fresh) continue;
+              const newHp = fresh.hp + healAmt > fresh.maxHp ? fresh.maxHp : fresh.hp + healAmt;
+              totalHealed += newHp - fresh.hp;
+              ctx.db.character.id.update({ ...fresh, hp: newHp });
+            }
+            if (totalHealed > 0n) {
+              logPrivateAndGroup(ctx, character, 'heal', `Battle Hymn heals the group for ${totalHealed} health.`);
+            }
+          }
+        }
+        // Melody of Mending heals the group immediately on cast
+        if (abilityKey === 'bard_melody_of_mending') {
+          const healAmt = (10n * 65n) / 100n;
+          let totalHealed = 0n;
+          for (const member of partyMembers) {
+            const fresh = ctx.db.character.id.find(member.id);
+            if (!fresh) continue;
+            const newHp = fresh.hp + healAmt > fresh.maxHp ? fresh.maxHp : fresh.hp + healAmt;
+            totalHealed += newHp - fresh.hp;
+            ctx.db.character.id.update({ ...fresh, hp: newHp });
+          }
+          if (totalHealed > 0n) {
+            logPrivateAndGroup(ctx, character, 'heal', `Melody of Mending heals the group for ${totalHealed} health.`);
+          }
         }
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
           `You begin singing ${songNames[abilityKey] ?? abilityKey}.`
