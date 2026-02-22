@@ -488,13 +488,16 @@ export function usePanelManager(
     );
   }
 
-  // Reset all panels to the default layout (same as new player defaults)
+  // Reset all panels to the default layout — all panels centered and top-aligned
   const resetAllPanels = () => {
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1920;
+    const centerY = 50;
     const layout = getDefaultLayout();
     for (const [id, pos] of Object.entries(layout)) {
       if (!panels[id]) continue;
-      panels[id].x = pos.x;
-      panels[id].y = pos.y;
+      const w = pos.w ?? 320;
+      panels[id].x = Math.round(vw / 2 - w / 2);
+      panels[id].y = centerY;
       if (pos.w !== undefined) panels[id].w = pos.w;
       if (pos.h !== undefined) panels[id].h = pos.h;
     }

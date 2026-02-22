@@ -166,7 +166,7 @@ export const styles = {
   floatingPanel: {
     position: 'absolute',
     width: 'min(320px, 90vw)',
-    maxHeight: '70vh',
+    maxHeight: '75vh',
     background: '#141821',
     border: '1px solid rgba(255,255,255,0.12)',
     borderRadius: '14px',
