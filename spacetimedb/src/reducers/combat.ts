@@ -1614,8 +1614,13 @@ export const registerCombatReducers = (deps: any) => {
 
     for (const effect of ctx.db.combatEnemyEffect.iter()) {
       if (effect.effectType === 'dot') continue;
-      // Stun effects are time-based (magnitude = expiry micros); skip round-based logic entirely.
-      if (effect.effectType === 'stun') continue;
+      // Stun effects are time-based (magnitude = expiry micros); delete when expired.
+      if (effect.effectType === 'stun') {
+        if (effect.magnitude <= ctx.timestamp.microsSinceUnixEpoch) {
+          ctx.db.combatEnemyEffect.id.delete(effect.id);
+        }
+        continue;
+      }
       const enemy = ctx.db.combatEnemy.id.find(effect.enemyId);
       if (!enemy) {
         ctx.db.combatEnemyEffect.id.delete(effect.id);
