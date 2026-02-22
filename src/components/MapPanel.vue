@@ -96,7 +96,7 @@ const props = defineProps<{
   selectedCharacter: CharacterRow | null;
 }>();
 
-const NODE_W = 150;
+const NODE_W = 180;
 const NODE_H = 60;
 const H_GAP = 64;
 const V_GAP = 24;
@@ -213,16 +213,17 @@ const renderedNodes = computed(() => {
     const pos = positions.value.get(r.id.toString());
     if (!pos) return [];
 
-    const base = Math.floor(playerLevel * Number(r.dangerMultiplier) / 100);
+    // Fixed base level derived from dangerMultiplier alone (÷10 gives a clean scale)
+    const base = Math.round(Number(r.dangerMultiplier) / 10);
     const locs = props.locations.filter(l => l.regionId.toString() === r.id.toString());
     const levels = locs.length > 0
       ? locs.map(l => Math.max(1, base + Number(l.levelOffset)))
       : [Math.max(1, base)];
     const minLv = Math.min(...levels);
     const maxLv = Math.max(...levels);
-    const levelLabel = minLv === maxLv ? `~${minLv}` : `~${minLv}-${maxLv}`;
+    const levelLabel = minLv === maxLv ? `Approx. Level ${minLv}` : `Approx. Level ${minLv}-${maxLv}`;
 
-    // Use average level for colorization
+    // Colorize relative to player level using the average fixed level
     const avgLv = Math.round((minLv + maxLv) / 2);
     const diff = avgLv - playerLevel;
 
