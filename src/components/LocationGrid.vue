@@ -330,6 +330,7 @@ const emit = defineEmits<{
   (e: 'select-character', characterId: bigint | null): void;
   (e: 'loot-quest-item', questItemId: bigint): void;
   (e: 'pull-named-enemy', namedEnemyId: bigint): void;
+  (e: 'open-bank', npcId: bigint): void;
 }>();
 
 const selectedEnemyId = ref<bigint | null>(null);
@@ -570,6 +571,13 @@ const openNpcContextMenu = (event: MouseEvent, npc: NpcRow) => {
         emit('hail', npc.name);
         emit('open-vendor', npc.id);
       },
+    });
+  }
+
+  if (npc.npcType === 'banker') {
+    items.push({
+      label: 'Access Bank',
+      action: () => emit('open-bank', npc.id),
     });
   }
 

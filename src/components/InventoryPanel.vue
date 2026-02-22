@@ -147,6 +147,7 @@ const props = defineProps<{
   inventoryCount: number;
   maxInventorySlots: number;
   combatLocked: boolean;
+  bankOpen?: boolean;
 }>();
 
 const formatSlot = (slot: string) =>
@@ -193,6 +194,7 @@ const emit = defineEmits<{
   (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
   (e: 'move-tooltip', value: { x: number; y: number }): void;
   (e: 'hide-tooltip'): void;
+  (e: 'deposit-to-bank', itemInstanceId: bigint): void;
 }>();
 
 const contextMenu = ref<{
@@ -257,6 +259,12 @@ const openItemContextMenu = (event: MouseEvent, item: typeof props.inventoryItem
           emit('salvage-item', item.id);
         }
       },
+    });
+  }
+  if (props.bankOpen) {
+    items.push({
+      label: 'Deposit to Bank',
+      action: () => emit('deposit-to-bank', item.id),
     });
   }
   items.push({

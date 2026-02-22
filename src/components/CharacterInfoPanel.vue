@@ -76,6 +76,8 @@
     :inventory-count="inventoryCount"
     :max-inventory-slots="maxInventorySlots"
     :combat-locked="combatLocked"
+    :bank-open="bankOpen"
+    @deposit-to-bank="$emit('deposit-to-bank', $event)"
     @equip="$emit('equip', $event)"
     @unequip="$emit('unequip', $event)"
     @use-item="$emit('use-item', $event)"
@@ -208,6 +210,7 @@ const props = defineProps<{
   inventoryCount: number;
   maxInventorySlots: number;
   combatLocked: boolean;
+  bankOpen?: boolean;
   statBonuses: any;
   locations: any[];
   regions: any[];
@@ -232,6 +235,7 @@ const emit = defineEmits<{
   (e: 'hide-tooltip'): void;
   (e: 'add-ability-to-hotbar', abilityKey: string, name: string): void;
   (e: 'tab-change', tab: string): void;
+  (e: 'deposit-to-bank', itemInstanceId: bigint): void;
 }>();
 
 const activeTab = ref<'inventory' | 'stats' | 'race' | 'abilities'>('inventory');

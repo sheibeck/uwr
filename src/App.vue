@@ -166,7 +166,7 @@
     <!-- Character Info Panel (wide) — combines Inventory and Stats tabs -->
     <div v-if="panels.characterInfo && panels.characterInfo.open" data-panel-id="characterInfo" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('characterInfo').value || {}) }" @mousedown="bringToFront('characterInfo')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('characterInfo', $event)"><div>Character</div><button type="button" :style="styles.panelClose" @click="closePanelById('characterInfo')">x</button></div>
-      <div :style="styles.floatingPanelBody"><CharacterInfoPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" :races="races" :available-abilities="availableAbilities" :renown-perks="characterRenownPerks" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @organize="organizeInventory" @salvage-item="salvageItem" @add-to-hotbar="onAddItemToHotbar" @add-ability-to-hotbar="onAddAbilityToHotbar" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" :onboarding="highlightInventory" @tab-change="onCharacterTabChange" /></div>
+      <div :style="styles.floatingPanelBody"><CharacterInfoPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" :races="races" :available-abilities="availableAbilities" :renown-perks="characterRenownPerks" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @organize="organizeInventory" @salvage-item="salvageItem" @add-to-hotbar="onAddItemToHotbar" @add-ability-to-hotbar="onAddAbilityToHotbar" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" :onboarding="highlightInventory" @tab-change="onCharacterTabChange" :bank-open="panels.bank?.open ?? false" @deposit-to-bank="depositToBank" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('characterInfo', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('characterInfo', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('characterInfo', $event, { right: true, bottom: true })" />
     </div>
 
@@ -233,6 +233,13 @@
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('vendor', $event)"><div>{{ activeVendor?.name ?? 'Vendor' }}</div><button type="button" :style="styles.panelClose" @click="closePanelById('vendor')">×</button></div>
       <div :style="styles.floatingPanelBody"><VendorPanel :styles="styles" :selected-character="selectedCharacter" :vendor="activeVendor" :vendor-items="vendorItems" :inventory-items="inventoryItems" @buy="buyItem" @sell="sellItem" @sell-all-junk="sellAllJunk" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('vendor', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('vendor', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('vendor', $event, { right: true, bottom: true })" />
+    </div>
+
+    <!-- Bank Panel (wide) -->
+    <div v-if="panels.bank && panels.bank.open" data-panel-id="bank" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('bank').value || {}) }" @mousedown="bringToFront('bank')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('bank', $event)"><div>Bank Vault</div><button type="button" :style="styles.panelClose" @click="closePanelById('bank')">×</button></div>
+      <div :style="styles.floatingPanelBody"><BankPanel :styles="styles" :bank-slots="bankSlots" :item-templates="itemTemplates" :item-instances="itemInstances" :selected-character="selectedCharacter" @withdraw="withdrawFromBank" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('bank', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('bank', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('bank', $event, { right: true, bottom: true })" />
     </div>
 
     <!-- Trade Panel (wide) -->
@@ -338,6 +345,7 @@
           @gather-resource="startGather"
           @hail="hailNpc"
           @open-vendor="openVendor"
+          @open-bank="openBank"
           @player-invite="inviteToGroup"
           @player-kick="kickMember"
           @player-friend="sendFriendRequest"
@@ -638,6 +646,7 @@ import CommandBar from './components/CommandBar.vue';
 import ActionBar from './components/ActionBar.vue';
 import NpcDialogPanel from './components/NpcDialogPanel.vue';
 import VendorPanel from './components/VendorPanel.vue';
+import BankPanel from './components/BankPanel.vue';
 import TrackPanel from './components/TrackPanel.vue';
 import RenownPanel from './components/RenownPanel.vue';
 import WorldEventPanel from './components/WorldEventPanel.vue';
@@ -742,6 +751,7 @@ const {
   eventObjectives,
   appVersionRows,
   activeBardSongs,
+  bankSlots,
 } = useGameData();
 
 watch(appVersionRows, (rows) => {
@@ -1493,6 +1503,26 @@ const closePanel = (panelId: string) => {
 const openVendor = (npcId: bigint) => {
   openPanel('vendor');
   activeVendorId.value = npcId;
+};
+
+const openBank = (_npcId: bigint) => {
+  openPanel('bank');
+};
+
+const depositToBank = (instanceId: bigint) => {
+  if (!conn.isActive || !selectedCharacter.value) return;
+  window.__db_conn?.reducers.depositToBank({
+    characterId: selectedCharacter.value.id,
+    instanceId,
+  });
+};
+
+const withdrawFromBank = (bankSlotId: bigint) => {
+  if (!conn.isActive || !selectedCharacter.value) return;
+  window.__db_conn?.reducers.withdrawFromBank({
+    characterId: selectedCharacter.value.id,
+    bankSlotId,
+  });
 };
 
 const buyItem = (itemTemplateId: bigint) => {
