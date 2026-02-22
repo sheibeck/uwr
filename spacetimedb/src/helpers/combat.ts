@@ -261,6 +261,32 @@ export function addEnemyEffect(
   roundsRemaining: bigint,
   sourceAbility: string
 ) {
+  // Stun uses a time-based window stored in CombatEnemyEffect.magnitude (expiry micros).
+  // roundsRemaining is treated as seconds. Multiple stuns extend the window via max().
+  if (effectType === 'stun') {
+    const durationMicros = roundsRemaining * 1_000_000n;
+    const newUntil = ctx.timestamp.microsSinceUnixEpoch + durationMicros;
+    const existing = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemyId)].find(
+      (effect: any) => effect.effectType === 'stun'
+    );
+    if (existing) {
+      const maxExpiry = existing.magnitude > newUntil ? existing.magnitude : newUntil;
+      ctx.db.combatEnemyEffect.id.update({ ...existing, magnitude: maxExpiry });
+    } else {
+      ctx.db.combatEnemyEffect.insert({
+        id: 0n,
+        combatId,
+        enemyId,
+        effectType: 'stun',
+        magnitude: newUntil,
+        roundsRemaining: 0n,
+        sourceAbility,
+        ownerCharacterId: undefined,
+      });
+    }
+    return;
+  }
+
   const existing = [...ctx.db.combatEnemyEffect.by_combat.filter(combatId)].find(
     (effect) =>
       effect.enemyId === enemyId &&

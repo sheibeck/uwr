@@ -1614,6 +1614,8 @@ export const registerCombatReducers = (deps: any) => {
 
     for (const effect of ctx.db.combatEnemyEffect.iter()) {
       if (effect.effectType === 'dot') continue;
+      // Stun effects are time-based (magnitude = expiry micros); skip round-based logic entirely.
+      if (effect.effectType === 'stun') continue;
       const enemy = ctx.db.combatEnemy.id.find(effect.enemyId);
       if (!enemy) {
         ctx.db.combatEnemyEffect.id.delete(effect.id);
@@ -2200,12 +2202,12 @@ export const registerCombatReducers = (deps: any) => {
         (row) => row.enemyId === enemy.id
       );
       if (existingCast && existingCast.endsAtMicros <= nowMicros) {
-        const stunEffect = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find(
-          (effect) => effect.effectType === 'stun'
+        const stunEffectAtCast = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find(
+          (e: any) => e.effectType === 'stun'
         );
-        if (stunEffect) {
-          // Stun interrupts the cast — consume the stun, cancel the ability
-          ctx.db.combatEnemyEffect.id.delete(stunEffect.id);
+        const isStunnedNow = stunEffectAtCast && stunEffectAtCast.magnitude > nowMicros;
+        if (isStunnedNow) {
+          // Stun window is active — cancel the cast (stun handles blocking; no consumption needed)
           ctx.db.combatEnemyCast.id.delete(existingCast.id);
           const eName = template?.name ?? 'Enemy';
           for (const participant of activeParticipants) {
@@ -2249,9 +2251,10 @@ export const registerCombatReducers = (deps: any) => {
           ctx.db.combatEnemyCast.id.delete(existingCast.id);
         }
       }
-      const isStunned = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].some(
-        (effect) => effect.effectType === 'stun'
+      const stunEffectForCast = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find(
+        (e: any) => e.effectType === 'stun'
       );
+      const isStunned = stunEffectForCast && stunEffectForCast.magnitude > nowMicros;
       if (enemyAbilities.length > 0 && !existingCast && !isStunned) {
         const cooldownTable = ctx.db.combatEnemyCooldown;
         if (!cooldownTable) {
@@ -3125,10 +3128,29 @@ export const registerCombatReducers = (deps: any) => {
       const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
       const name = enemySnapshot?.displayName ?? enemyTemplate?.name ?? enemyName;
       if (topAggro && enemySnapshot && enemySnapshot.currentHp > 0n && enemySnapshot.nextAutoAttackAt <= nowMicros) {
-        const skipEffect = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find(
-          (effect) => effect.effectType === 'skip' || effect.effectType === 'stun'
+        const stunEffectForAuto = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find(
+          (effect: any) => effect.effectType === 'stun'
         );
-        if (skipEffect) {
+        const timeStunned = stunEffectForAuto && stunEffectForAuto.magnitude > nowMicros;
+        const skipEffect = !timeStunned
+          ? [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find(
+              (effect) => effect.effectType === 'skip'
+            )
+          : null;
+        if (timeStunned) {
+          // Push auto-attack to when the stun expires — no consumption, stun window handles it
+          ctx.db.combatEnemy.id.update({
+            ...enemySnapshot,
+            nextAutoAttackAt: stunEffectForAuto.magnitude,
+          });
+          const firstActive = activeParticipants[0]?.characterId;
+          if (firstActive) logGroupEvent(ctx, combat.id, firstActive, 'combat', `${name} is stunned.`);
+          for (const participant of activeParticipants) {
+            const character = ctx.db.character.id.find(participant.characterId);
+            if (!character) continue;
+            appendPrivateEvent(ctx, character.id, character.ownerUserId, 'combat', `${name} is stunned.`);
+          }
+        } else if (skipEffect) {
           ctx.db.combatEnemyEffect.id.delete(skipEffect.id);
           ctx.db.combatEnemy.id.update({
             ...enemySnapshot,
