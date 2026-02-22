@@ -1157,9 +1157,9 @@ export function executeAbility(
         return;
       case 'enchanter_clarity':
         if (!targetCharacter) throw new SenderError('Target required');
-        addCharacterEffect(ctx, targetCharacter.id, 'mana_regen', 8n, 4n, 'Clarity');
+        addCharacterEffect(ctx, targetCharacter.id, 'food_mana_regen', 1n, 270n, 'Clarity');
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
-          `Clarity rapidly restores ${targetCharacter.name}'s mana.`
+          `Clarity increases ${targetCharacter.name}'s mana regeneration rate for 45 minutes.`
         );
         return;
       case 'enchanter_haste':
