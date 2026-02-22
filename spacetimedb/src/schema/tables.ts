@@ -1744,6 +1744,22 @@ export const BardSongTick = table(
   }
 );
 
+export const BankSlot = table(
+  {
+    name: 'bank_slot',
+    indexes: [
+      { name: 'by_owner', algorithm: 'btree', columns: ['ownerUserId'] },
+      { name: 'by_item', algorithm: 'btree', columns: ['itemInstanceId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    ownerUserId: t.u64(),
+    slot: t.u64(),         // 0-39 bank slot index
+    itemInstanceId: t.u64(),
+  }
+);
+
 export const spacetimedb = schema(
   Player,
   User,
@@ -1842,4 +1858,15 @@ export const spacetimedb = schema(
   AppVersion,
   ActiveBardSong,
   BardSongTick,
+  BankSlot,
+);
+
+spacetimedb.view(
+  { name: 'my_bank_slots', public: true },
+  t.array(BankSlot.rowType),
+  (ctx) => {
+    const player = ctx.db.player.id.find(ctx.sender);
+    if (!player || player.userId == null) return [];
+    return [...ctx.db.bank_slot.by_owner.filter(player.userId)];
+  }
 );
