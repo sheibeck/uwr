@@ -2233,15 +2233,53 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
   onHotbarClick(slot);
 };
 
+// --- Idle auto-camp config (tweak these to test) ---
+const IDLE_TIMEOUT_MS     = 15 * 60 * 1000; // total idle time before auto-camp (ms)
+const IDLE_WARN_BEFORE_MS =  1 * 60 * 1000; // show warning this long before camping (ms)
+let idleWarnTimer: ReturnType<typeof setTimeout> | null = null;
+let idleCampTimer: ReturnType<typeof setTimeout> | null = null;
+
+const clearIdleTimers = () => {
+  if (idleWarnTimer !== null) { clearTimeout(idleWarnTimer); idleWarnTimer = null; }
+  if (idleCampTimer !== null) { clearTimeout(idleCampTimer); idleCampTimer = null; }
+};
+
+const resetIdleTimer = () => {
+  clearIdleTimers();
+  if (!selectedCharacter.value) return;
+  idleWarnTimer = setTimeout(() => {
+    if (!selectedCharacter.value) return;
+    addLocalEvent('system', 'You will be logged off in 1 minute due to inactivity.');
+    idleCampTimer = setTimeout(() => {
+      if (!selectedCharacter.value || lockHotbarEdits.value) return;
+      addLocalEvent('system', 'You have been automatically camped due to inactivity.');
+      goToCamp();
+    }, IDLE_WARN_BEFORE_MS);
+  }, IDLE_TIMEOUT_MS - IDLE_WARN_BEFORE_MS);
+};
+
+let lastIdleReset = 0;
+const onIdleActivity = () => {
+  const now = Date.now();
+  if (now - lastIdleReset > 5000) { lastIdleReset = now; resetIdleTimer(); }
+};
+
+watch(selectedCharacter, resetIdleTimer);
+
 onMounted(() => {
   loadAccordionState();
   window.addEventListener('mousemove', onPanelMouseMove);
   window.addEventListener('mouseup', onPanelMouseUp);
   document.addEventListener('click', hideAbilityPopup);
   document.addEventListener('keydown', handleHotbarKeydown);
+  document.addEventListener('mousemove', onIdleActivity, { passive: true });
+  document.addEventListener('mousedown', onIdleActivity, { passive: true });
+  document.addEventListener('keydown', onIdleActivity, { passive: true });
+  document.addEventListener('touchstart', onIdleActivity, { passive: true });
   uiTimer = window.setInterval(() => {
     nowMicros.value = Date.now() * 1000;
   }, 100);
+  resetIdleTimer();
 });
 
 onBeforeUnmount(() => {
@@ -2249,6 +2287,11 @@ onBeforeUnmount(() => {
   window.removeEventListener('mouseup', onPanelMouseUp);
   document.removeEventListener('click', hideAbilityPopup);
   document.removeEventListener('keydown', handleHotbarKeydown);
+  document.removeEventListener('mousemove', onIdleActivity);
+  document.removeEventListener('mousedown', onIdleActivity);
+  document.removeEventListener('keydown', onIdleActivity);
+  document.removeEventListener('touchstart', onIdleActivity);
+  clearIdleTimers();
   if (uiTimer) clearInterval(uiTimer);
 });
 

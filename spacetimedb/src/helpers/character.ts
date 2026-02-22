@@ -1,6 +1,6 @@
 import { SenderError } from 'spacetimedb/server';
 import { Character } from '../schema/tables';
-import { appendPrivateEvent } from './events';
+import { appendPrivateEvent, appendLocationEvent, appendGroupEvent } from './events';
 import {
   BASE_HP,
   HP_STR_MULTIPLIER,
@@ -160,6 +160,44 @@ export function isClassAllowed(allowedClasses: string, className: string) {
     .filter((entry) => entry.length > 0);
   if (allowed.includes('any')) return true;
   return allowed.includes(normalized);
+}
+
+export function campCharacter(ctx: any, player: any, character: any, afk = false) {
+  appendLocationEvent(ctx, character.locationId, 'system', `${character.name} heads to camp.`, character.id);
+
+  if (character.groupId) {
+    const groupId = character.groupId;
+    for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+      if (member.characterId === character.id) { ctx.db.groupMember.id.delete(member.id); break; }
+    }
+    ctx.db.character.id.update({ ...character, groupId: undefined });
+    appendGroupEvent(ctx, groupId, character.id, 'group',
+      afk ? `${character.name} headed to camp (AFK).` : `${character.name} headed to camp.`);
+
+    const remaining = [...ctx.db.groupMember.by_group.filter(groupId)];
+    if (remaining.length === 0) {
+      for (const invite of ctx.db.groupInvite.by_group.filter(groupId)) {
+        ctx.db.groupInvite.id.delete(invite.id);
+      }
+      ctx.db.group.id.delete(groupId);
+    } else {
+      const group = ctx.db.group.id.find(groupId);
+      if (group && group.leaderCharacterId === character.id) {
+        const newLeader = ctx.db.character.id.find(remaining[0].characterId);
+        if (newLeader) {
+          ctx.db.group.id.update({
+            ...group,
+            leaderCharacterId: newLeader.id,
+            pullerCharacterId: group.pullerCharacterId === character.id ? newLeader.id : group.pullerCharacterId,
+          });
+          ctx.db.groupMember.id.update({ ...remaining[0], role: 'leader' });
+          appendGroupEvent(ctx, groupId, newLeader.id, 'group', `${newLeader.name} is now the group leader.`);
+        }
+      }
+    }
+  }
+
+  ctx.db.player.id.update({ ...player, activeCharacterId: undefined, lastActivityAt: undefined });
 }
 
 export function friendUserIds(ctx: any, userId: bigint): bigint[] {

@@ -155,6 +155,7 @@ import {
   friendUserIds,
   findCharacterByName,
   autoRespawnDeadCharacter,
+  campCharacter,
 } from './helpers/character';
 
 import {
@@ -262,90 +263,39 @@ spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
   });
 });
 
-const INACTIVITY_AUTO_CAMP_ENABLED = false; // Set to true to enable auto-camp on inactivity
+// Server-side sweep: safety net for players who disconnect without camping.
+// The client handles the 15-minute idle timer for connected sessions.
 const INACTIVITY_TIMEOUT_MICROS = 900_000_000n; // 15 minutes
 const INACTIVITY_SWEEP_INTERVAL_MICROS = 300_000_000n; // 5 minutes
 
 spacetimedb.reducer('sweep_inactivity', { arg: InactivityTick.rowType }, (ctx) => {
   const now = ctx.timestamp.microsSinceUnixEpoch;
 
-  // Schedule next sweep regardless of enabled state
   ctx.db.inactivityTick.insert({
     scheduledId: 0n,
     scheduledAt: ScheduleAt.time(now + INACTIVITY_SWEEP_INTERVAL_MICROS),
   });
 
-  if (!INACTIVITY_AUTO_CAMP_ENABLED) return;
-
   const cutoff = now - INACTIVITY_TIMEOUT_MICROS;
 
   for (const player of ctx.db.player.iter()) {
-    // Only check players who have an active character
     if (!player.activeCharacterId || !player.userId) continue;
 
-    // Determine last activity time — prefer lastActivityAt, fall back to lastSeenAt
     const lastActive = player.lastActivityAt ?? player.lastSeenAt;
-    if (!lastActive) continue;
-    if (lastActive.microsSinceUnixEpoch > cutoff) continue;
+    if (!lastActive || lastActive.microsSinceUnixEpoch > cutoff) continue;
 
-    // Player is inactive — auto-camp
     const character = ctx.db.character.id.find(player.activeCharacterId);
-    if (character) {
-      // Cannot camp during combat
-      const inCombat = activeCombatIdForCharacter(ctx, character.id);
-      if (inCombat) continue;
-
-      // Announce to location
-      appendLocationEvent(ctx, character.locationId, 'system', `${character.name} heads to camp.`, character.id);
-
-      // Leave group if in one (mirrors clear_active_character logic)
-      if (character.groupId) {
-        const groupId = character.groupId;
-        for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
-          if (member.characterId === character.id) {
-            ctx.db.groupMember.id.delete(member.id);
-            break;
-          }
-        }
-        ctx.db.character.id.update({ ...character, groupId: undefined });
-        appendGroupEvent(ctx, groupId, character.id, 'group', `${character.name} headed to camp (AFK).`);
-
-        const remaining = [...ctx.db.groupMember.by_group.filter(groupId)];
-        if (remaining.length === 0) {
-          for (const invite of ctx.db.groupInvite.by_group.filter(groupId)) {
-            ctx.db.groupInvite.id.delete(invite.id);
-          }
-          ctx.db.group.id.delete(groupId);
-        } else {
-          const group = ctx.db.group.id.find(groupId);
-          if (group && group.leaderCharacterId === character.id) {
-            const newLeader = ctx.db.character.id.find(remaining[0]!.characterId);
-            if (newLeader) {
-              ctx.db.group.id.update({
-                ...group,
-                leaderCharacterId: newLeader.id,
-                pullerCharacterId: group.pullerCharacterId === character.id ? newLeader.id : group.pullerCharacterId,
-              });
-              ctx.db.groupMember.id.update({ ...remaining[0]!, role: 'leader' });
-              appendGroupEvent(ctx, groupId, newLeader.id, 'group', `${newLeader.name} is now the group leader.`);
-            }
-          }
-        }
-      }
-
-      // Notify player's private event stream
-      appendPrivateEvent(ctx, character.id, player.userId, 'system',
-        'You have been automatically camped due to inactivity.');
+    if (!character) {
+      ctx.db.player.id.update({ ...player, activeCharacterId: undefined, lastActivityAt: undefined });
+      continue;
     }
 
-    // Clear active character (the actual camp)
-    ctx.db.player.id.update({
-      ...player,
-      activeCharacterId: undefined,
-      lastActivityAt: undefined,
-    });
-  }
+    if (activeCombatIdForCharacter(ctx, character.id)) continue;
 
+    appendPrivateEvent(ctx, character.id, player.userId, 'system',
+      'You have been automatically camped due to inactivity.');
+    campCharacter(ctx, player, character, true);
+  }
 });
 
 spacetimedb.reducer('set_app_version', { version: t.string() }, (ctx, { version }) => {
@@ -565,6 +515,7 @@ const reducerDeps = {
   executeResurrect,
   executeCorpseSummon,
   autoRespawnDeadCharacter,
+  campCharacter,
   startCombatForSpawn: null as any,
 };
 
