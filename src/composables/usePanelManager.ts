@@ -40,6 +40,9 @@ export function getDefaultLayout(): Record<string, { x: number; y: number; w?: n
     layout[id] = { x: centerX, y: centerY };
   }
 
+  // Map panel gets a wider default size to show the region graph comfortably
+  layout.map = { x: Math.round(vw / 2 - 350), y: Math.round(vh / 2 - 120), w: 700, h: 240 };
+
   return layout;
 }
 
