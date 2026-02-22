@@ -18,24 +18,24 @@
         >
           <span style="font-size: 11px;">
             {{ member.name }} (Lv {{ member.level }}) - {{ member.className }}
-            <span v-if="member.id === leaderId" :style="styles.subtle">· Leader</span>
-            <span v-if="member.id === pullerId" :style="styles.subtle">· Puller</span>
+            <span v-if="member.id === leaderId" :style="styles.subtle" title="Leader">★</span>
+            <span v-if="member.id === pullerId" :style="styles.subtle" title="Puller">P</span>
           </span>
-          <div :style="styles.hpBar">
+          <div :style="{ ...styles.hpBar, height: '10px', marginTop: '0.1rem' }">
             <div :style="{ ...styles.hpFill, width: `${percent(member.hp, member.maxHp)}%` }"></div>
-            <span :style="styles.barText">{{ member.hp }} / {{ member.maxHp }}</span>
+            <span :style="{ ...styles.barText, fontSize: '0.55rem' }">{{ member.hp }} / {{ member.maxHp }}</span>
           </div>
           <template v-if="member.maxMana > 0">
-            <div :style="styles.hpBar">
+            <div :style="{ ...styles.hpBar, height: '10px', marginTop: '0.1rem' }">
               <div :style="{ ...styles.manaFill, width: `${percent(member.mana, member.maxMana)}%` }"></div>
-              <span :style="styles.barText">{{ member.mana }} / {{ member.maxMana }}</span>
+              <span :style="{ ...styles.barText, fontSize: '0.55rem' }">{{ member.mana }} / {{ member.maxMana }}</span>
             </div>
           </template>
-          <div :style="styles.hpBar">
+          <div :style="{ ...styles.hpBar, height: '10px', marginTop: '0.1rem' }">
             <div
               :style="{ ...styles.staminaFill, width: `${percent(member.stamina, member.maxStamina)}%` }"
             ></div>
-            <span :style="styles.barText">{{ member.stamina }} / {{ member.maxStamina }}</span>
+            <span :style="{ ...styles.barText, fontSize: '0.55rem' }">{{ member.stamina }} / {{ member.maxStamina }}</span>
           </div>
           <div v-if="effectsFor(member.id).length" :style="styles.effectRow">
             <span
@@ -48,9 +48,9 @@
           </div>
           <div v-for="pet in petsFor(member.id)" :key="pet.id.toString()" :style="styles.petCard">
             <span style="font-size: 11px;">{{ pet.name }}<template v-if="petCountdown(pet)"> ({{ petCountdown(pet) }})</template></span>
-            <div :style="styles.hpBar">
+            <div :style="{ ...styles.hpBar, height: '10px', marginTop: '0.1rem' }">
               <div :style="{ ...styles.hpFill, width: `${percent(pet.currentHp, pet.maxHp)}%` }"></div>
-              <span :style="styles.barText">{{ pet.currentHp }} / {{ pet.maxHp }}</span>
+              <span :style="{ ...styles.barText, fontSize: '0.55rem' }">{{ pet.currentHp }} / {{ pet.maxHp }}</span>
             </div>
           </div>
         </li>
@@ -92,29 +92,29 @@
         {{ selectedCharacter.name }} (Lv {{ selectedCharacter.level }}) -
         {{ selectedCharacter.className }}
       </div>
-      <div v-if="selectedCharacter" :style="styles.hpBar">
+      <div v-if="selectedCharacter" :style="{ ...styles.hpBar, height: '10px', marginTop: '0.1rem' }">
         <div
           :style="{ ...styles.hpFill, width: `${percent(selectedCharacter.hp, selectedCharacter.maxHp)}%` }"
         ></div>
-        <span :style="styles.barText">
+        <span :style="{ ...styles.barText, fontSize: '0.55rem' }">
           {{ selectedCharacter.hp }} / {{ selectedCharacter.maxHp }}
         </span>
       </div>
       <template v-if="selectedCharacter && selectedCharacter.maxMana > 0">
-        <div :style="styles.hpBar">
+        <div :style="{ ...styles.hpBar, height: '10px', marginTop: '0.1rem' }">
           <div
             :style="{ ...styles.manaFill, width: `${percent(selectedCharacter.mana, selectedCharacter.maxMana)}%` }"
           ></div>
-          <span :style="styles.barText">
+          <span :style="{ ...styles.barText, fontSize: '0.55rem' }">
             {{ selectedCharacter.mana }} / {{ selectedCharacter.maxMana }}
           </span>
         </div>
       </template>
-      <div v-if="selectedCharacter" :style="styles.hpBar">
+      <div v-if="selectedCharacter" :style="{ ...styles.hpBar, height: '10px', marginTop: '0.1rem' }">
         <div
           :style="{ ...styles.staminaFill, width: `${percent(selectedCharacter.stamina, selectedCharacter.maxStamina)}%` }"
         ></div>
-        <span :style="styles.barText">
+        <span :style="{ ...styles.barText, fontSize: '0.55rem' }">
           {{ selectedCharacter.stamina }} / {{ selectedCharacter.maxStamina }}
         </span>
       </div>
@@ -128,10 +128,10 @@
         </span>
       </div>
       <div v-for="pet in petsFor(selectedCharacter.id)" :key="pet.id.toString()" :style="styles.petCard">
-        <span>{{ pet.name }}<template v-if="petCountdown(pet)"> ({{ petCountdown(pet) }})</template></span>
-        <div :style="styles.hpBar">
+        <span style="font-size: 11px;">{{ pet.name }}<template v-if="petCountdown(pet)"> ({{ petCountdown(pet) }})</template></span>
+        <div :style="{ ...styles.hpBar, height: '10px', marginTop: '0.1rem' }">
           <div :style="{ ...styles.hpFill, width: `${percent(pet.currentHp, pet.maxHp)}%` }"></div>
-          <span :style="styles.barText">{{ pet.currentHp }} / {{ pet.maxHp }}</span>
+          <span :style="{ ...styles.barText, fontSize: '0.55rem' }">{{ pet.currentHp }} / {{ pet.maxHp }}</span>
         </div>
       </div>
 
