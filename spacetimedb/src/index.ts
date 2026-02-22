@@ -292,8 +292,6 @@ spacetimedb.reducer('sweep_inactivity', { arg: InactivityTick.rowType }, (ctx) =
 
     if (activeCombatIdForCharacter(ctx, character.id)) continue;
 
-    appendPrivateEvent(ctx, character.id, player.userId, 'system',
-      'You have been automatically camped due to inactivity.');
     campCharacter(ctx, player, character, true);
   }
 });

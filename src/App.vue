@@ -2234,7 +2234,7 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
 };
 
 // --- Idle auto-camp config (tweak these to test) ---
-const IDLE_TIMEOUT_MS     = 15 * 60 * 1000; // total idle time before auto-camp (ms)
+const IDLE_TIMEOUT_MS     = 2 * 60 * 1000; // total idle time before auto-camp (ms)
 const IDLE_WARN_BEFORE_MS =  1 * 60 * 1000; // show warning this long before camping (ms)
 let idleWarnTimer: ReturnType<typeof setTimeout> | null = null;
 let idleCampTimer: ReturnType<typeof setTimeout> | null = null;
@@ -2249,11 +2249,10 @@ const resetIdleTimer = () => {
   if (!selectedCharacter.value) return;
   idleWarnTimer = setTimeout(() => {
     if (!selectedCharacter.value) return;
-    addLocalEvent('system', 'You will be logged off in 1 minute due to inactivity.');
+    addLocalEvent('system', 'You will be logged off in 1 minute due to inactivity.', 'private');
     idleCampTimer = setTimeout(() => {
       if (!selectedCharacter.value || lockHotbarEdits.value) return;
-      addLocalEvent('system', 'You have been automatically camped due to inactivity.');
-      goToCamp();
+      logout();
     }, IDLE_WARN_BEFORE_MS);
   }, IDLE_TIMEOUT_MS - IDLE_WARN_BEFORE_MS);
 };

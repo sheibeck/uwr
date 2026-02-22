@@ -32,16 +32,10 @@ export const useEvents = ({
   const localEvents = ref<EventItem[]>([]);
   let localEventIdCounter = 9000000000n;
 
-  const addLocalEvent = (kind: string, message: string) => {
+  const addLocalEvent = (kind: string, message: string, scope: string = 'client') => {
     const id = localEventIdCounter++;
     const createdAt = { microsSinceUnixEpoch: BigInt(Date.now() * 1000) };
-    localEvents.value.push({
-      id,
-      createdAt,
-      kind,
-      message,
-      scope: 'client',
-    });
+    localEvents.value.push({ id, createdAt, kind, message, scope });
   };
 
   // Trim local events older than 2 minutes to prevent unbounded growth
