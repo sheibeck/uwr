@@ -369,6 +369,20 @@ export const registerCombatReducers = (deps: any) => {
     }
     if (ctx.db.combatPendingAdd) {
       for (const row of ctx.db.combatPendingAdd.by_combat.filter(combatId)) {
+        // Restore the spawn for any pending add that never actually joined combat.
+        // reserveAdds() set these spawns to state='engaged'; if combat ends before
+        // they arrive, their spawn must be released back to 'available' so the
+        // enemies are not permanently lost from the location.
+        if (row.spawnId) {
+          const pendingSpawn = ctx.db.enemySpawn.id.find(row.spawnId);
+          if (pendingSpawn && pendingSpawn.state === 'engaged' && pendingSpawn.lockedCombatId === combatId) {
+            ctx.db.enemySpawn.id.update({
+              ...pendingSpawn,
+              state: 'available',
+              lockedCombatId: undefined,
+            });
+          }
+        }
         ctx.db.combatPendingAdd.id.delete(row.id);
       }
     }
@@ -2088,12 +2102,27 @@ export const registerCombatReducers = (deps: any) => {
               count += 1n;
             }
           }
-          ctx.db.enemySpawn.id.update({
-            ...spawn,
-            state: 'available',
-            lockedCombatId: undefined,
-            groupCount: count > 0n ? count : spawn.groupCount,
-          });
+          if (count > 0n) {
+            ctx.db.enemySpawn.id.update({
+              ...spawn,
+              state: 'available',
+              lockedCombatId: undefined,
+              groupCount: count,
+            });
+          } else {
+            // All enemies in this spawn group were killed — remove the spawn and
+            // schedule a respawn, matching the behavior of the victory path.
+            for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawn.id)) {
+              ctx.db.enemySpawnMember.id.delete(member.id);
+            }
+            ctx.db.enemySpawn.id.delete(spawn.id);
+            const respawnAt = ctx.timestamp.microsSinceUnixEpoch + ENEMY_RESPAWN_MICROS;
+            ctx.db.enemyRespawnTick.insert({
+              scheduledId: 0n,
+              scheduledAt: ScheduleAt.time(respawnAt),
+              locationId: spawn.locationId,
+            });
+          }
         }
       }
 
@@ -3300,12 +3329,28 @@ export const registerCombatReducers = (deps: any) => {
           });
           count += 1n;
         }
-        ctx.db.enemySpawn.id.update({
-          ...spawn,
-          state: 'available',
-          lockedCombatId: undefined,
-          groupCount: count,
-        });
+        if (count > 0n) {
+          ctx.db.enemySpawn.id.update({
+            ...spawn,
+            state: 'available',
+            lockedCombatId: undefined,
+            groupCount: count,
+          });
+        } else {
+          // All enemies in this spawn group were killed before the player died.
+          // Delete the spawn and schedule respawn rather than leaving a groupCount=0
+          // spawn with state='available', which would appear as a ghost enemy in the UI.
+          for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawn.id)) {
+            ctx.db.enemySpawnMember.id.delete(member.id);
+          }
+          ctx.db.enemySpawn.id.delete(spawn.id);
+          const respawnAt = ctx.timestamp.microsSinceUnixEpoch + ENEMY_RESPAWN_MICROS;
+          ctx.db.enemyRespawnTick.insert({
+            scheduledId: 0n,
+            scheduledAt: ScheduleAt.time(respawnAt),
+            locationId: spawn.locationId,
+          });
+        }
       }
       // Award event kill credit for enemies killed before the player died
       // (victory path never runs on player death, so we award here for hp===0 enemies)
