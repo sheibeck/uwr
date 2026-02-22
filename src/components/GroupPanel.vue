@@ -59,18 +59,6 @@
           </div>
         </li>
       </ul>
-      <div v-if="isLeader" :style="styles.checkboxRow">
-        <span :style="{ ...styles.subtle, fontSize: '11px' }">Puller</span>
-        <select
-          :style="{ ...styles.input, fontSize: '11px', padding: '2px 4px' }"
-          :value="pullerName"
-          @change="$emit('set-puller', ($event.target as HTMLSelectElement).value)"
-        >
-          <option v-for="member in sortedMembers" :key="member.id.toString()" :value="member.name">
-            {{ member.name }}
-          </option>
-        </select>
-      </div>
       <label v-if="!isLeader" :style="styles.checkboxRow">
         <input
           type="checkbox"
@@ -257,14 +245,22 @@ const closeContextMenu = () => {
 
 const openMemberContextMenu = (event: MouseEvent, member: CharacterRow) => {
   const isSelf = props.myCharacterId != null && member.id.toString() === props.myCharacterId.toString();
+  const isTargetPuller = props.pullerId != null && member.id.toString() === props.pullerId.toString();
+
   if (isSelf) {
+    const items: Array<{ label: string; disabled?: boolean; action: () => void }> = [
+      { label: 'You', disabled: true, action: () => {} },
+    ];
+    if (props.isLeader && !isTargetPuller) {
+      items.push({ label: 'Make Puller', action: () => emit('set-puller', member.name) });
+    }
     contextMenu.value = {
       visible: true,
       x: event.clientX,
       y: event.clientY,
       title: member.name,
       subtitle: `${member.className} Lv ${member.level}`,
-      items: [{ label: 'You', disabled: true, action: () => {} }],
+      items,
     };
     return;
   }
@@ -294,15 +290,23 @@ const openMemberContextMenu = (event: MouseEvent, member: CharacterRow) => {
     });
   }
 
-  if (props.isLeader && !isTargetLeader) {
-    items.push({
-      label: 'Promote to Leader',
-      action: () => emit('player-promote', member.name),
-    });
-    items.push({
-      label: 'Kick',
-      action: () => emit('player-kick', member.name),
-    });
+  if (props.isLeader) {
+    if (!isTargetPuller) {
+      items.push({
+        label: 'Make Puller',
+        action: () => emit('set-puller', member.name),
+      });
+    }
+    if (!isTargetLeader) {
+      items.push({
+        label: 'Promote to Leader',
+        action: () => emit('player-promote', member.name),
+      });
+      items.push({
+        label: 'Kick',
+        action: () => emit('player-kick', member.name),
+      });
+    }
   }
 
   contextMenu.value = {
