@@ -14,7 +14,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 **Current phase:** 21.1 — Stat Systems Off-Stat Hooks (COMPLETE — human-verified 2026-02-21)
 **Next action:** Continue Phase 21 (Race Expansion) or Phase 22 (Class Ability Balancing) — run /gsd:progress to check
 **Last session:** 2026-02-21T00:00:00Z
-**Stopped at:** Completed quick-278: Remove Hotbar panel button, add Abilities tab to Character panel
+**Stopped at:** Completed quick-282: Fix onboarding hint z-index to 9000, pulse Character/Inventory/Abilities tabs orange during onboarding, auto-dismiss on Abilities tab click
 
 ---
 
