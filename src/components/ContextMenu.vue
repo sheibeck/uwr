@@ -11,6 +11,9 @@
     >
       <div :style="styles.contextMenuTitle">{{ title }}</div>
       <div v-if="subtitle" :style="styles.contextMenuSubtitle">{{ subtitle }}</div>
+      <template v-if="$slots.default">
+        <slot />
+      </template>
       <div
         v-for="(item, idx) in items"
         :key="idx"
