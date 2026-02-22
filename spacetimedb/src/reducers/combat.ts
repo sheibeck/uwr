@@ -1277,7 +1277,6 @@ export const registerCombatReducers = (deps: any) => {
     ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
   });
 
-  const STAMINA_REGEN_OUT = 3n;
   const HP_REGEN_IN = 2n;
   const MANA_REGEN_IN = 2n;
   const STAMINA_REGEN_IN = 1n;
@@ -1303,7 +1302,7 @@ export const registerCombatReducers = (deps: any) => {
 
       const hpRegen = inCombat ? HP_REGEN_IN : (character.maxHp / 15n || 1n);
       const manaRegen = inCombat ? MANA_REGEN_IN : (character.maxMana > 0n ? character.maxMana / 20n || 1n : 0n);
-      const staminaRegen = inCombat ? STAMINA_REGEN_IN : STAMINA_REGEN_OUT;
+      const staminaRegen = inCombat ? STAMINA_REGEN_IN : (character.maxStamina / 12n > 2n ? character.maxStamina / 12n : 2n);
 
       // Sum food regen bonus effects (food_mana_regen, food_stamina_regen, food_health_regen)
       // These increase the per-tick regen rate instead of granting periodic heals

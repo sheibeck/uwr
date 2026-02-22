@@ -96,7 +96,7 @@ export function recomputeCharacterDerived(ctx: any, character: any) {
   const maxMana = usesMana(character.className)
     ? BASE_MANA + manaStat * manaMultiplier + gear.manaBonus + racialMaxMana
     : 0n;
-  const maxStamina = 20n + racialMaxStamina;
+  const maxStamina = 19n + racialMaxStamina + character.level;
 
   const hitChance = totalStats.dex * 15n + racialHitBonus;
   const dodgeChance = totalStats.dex * 5n + racialDodgeBonus;
