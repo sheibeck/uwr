@@ -1936,7 +1936,7 @@ export const registerItemReducers = (deps: any) => {
         if (scrollTemplate) {
           addItemToInventory(ctx, character.id, scrollTemplate.id, 1n);
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-            `You found a recipe scroll: Scroll: ${matchingRecipe.name}.`);
+            `You found a recipe: ${matchingRecipe.name}.`);
         } else {
           // Template missing — log for debugging but don't crash
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
