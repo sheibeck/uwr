@@ -973,8 +973,8 @@ export function executeAbility(
       case 'bard_chorus_of_vigor':
       case 'bard_march_of_wayfarers':
       case 'bard_requiem_of_ruin': {
-        const DAMAGE_SONGS = ['bard_discordant_note', 'bard_requiem_of_ruin'];
-        if (DAMAGE_SONGS.includes(abilityKey) && (!combatId || !combat)) {
+        const COMBAT_SONGS = ['bard_discordant_note', 'bard_requiem_of_ruin'];
+        if (COMBAT_SONGS.includes(abilityKey) && (!combatId || !combat)) {
           throw new SenderError('This song can only be sung in combat.');
         }
         // Mark previous song as fading (only consider non-fading songs to avoid double-fading)
