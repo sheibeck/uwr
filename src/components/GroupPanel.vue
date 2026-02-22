@@ -21,9 +21,8 @@
           @contextmenu.prevent="openMemberContextMenu($event, member)"
         >
           <span style="font-size: 11px;">
-            {{ member.name }} (Lv {{ member.level }}) - {{ member.className }}
-            <span v-if="member.id === leaderId" :style="styles.subtle" title="Leader">★</span>
-            <span v-if="member.id === pullerId" :style="styles.subtle" title="Puller">P</span>
+            <span v-if="member.id === leaderId" :style="styles.subtle" title="Leader">★ </span>{{ member.name }} (Lv {{ member.level }}) - {{ member.className }}
+            <span v-if="member.id === pullerId" :style="styles.subtle" title="Puller"> · Puller</span>
           </span>
           <div :style="{ ...styles.hpBar, height: '10px', marginTop: '0.1rem' }">
             <div :style="{ ...styles.hpFill, width: `${percent(member.hp, member.maxHp)}%` }"></div>
