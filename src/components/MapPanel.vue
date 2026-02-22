@@ -24,28 +24,62 @@
           :x="node.x" :y="node.y"
           :width="NODE_W" :height="NODE_H"
           rx="6"
-          :fill="node.isCurrent ? '#1a2744' : '#111827'"
-          :stroke="node.color"
+          :fill="node.isCurrent ? '#0d2118' : '#111827'"
+          :stroke="node.isCurrent ? '#50dc96' : node.color"
           :stroke-width="node.isCurrent ? 2.5 : 1.5"
         />
-        <text
-          :x="node.x + NODE_W / 2"
-          :y="node.y + NODE_H / 2 - 8"
-          text-anchor="middle"
-          dominant-baseline="middle"
-          :fill="node.color"
-          font-size="13"
-          font-family="ui-monospace, 'Cascadia Code', monospace"
-        >{{ node.name }}</text>
-        <text
-          :x="node.x + NODE_W / 2"
-          :y="node.y + NODE_H / 2 + 10"
-          text-anchor="middle"
-          dominant-baseline="middle"
-          :fill="node.isCurrent ? '#9ca3af' : '#6b7280'"
-          font-size="11"
-          font-family="ui-monospace, 'Cascadia Code', monospace"
-        >Lv {{ node.level }}</text>
+        <!-- Current region: 3 lines (name / level / you are here) -->
+        <template v-if="node.isCurrent">
+          <text
+            :x="node.x + NODE_W / 2"
+            :y="node.y + 16"
+            text-anchor="middle"
+            dominant-baseline="middle"
+            fill="#50dc96"
+            font-size="13"
+            font-family="ui-monospace, 'Cascadia Code', monospace"
+          >{{ node.name }}</text>
+          <text
+            :x="node.x + NODE_W / 2"
+            :y="node.y + 31"
+            text-anchor="middle"
+            dominant-baseline="middle"
+            fill="#9ca3af"
+            font-size="11"
+            font-family="ui-monospace, 'Cascadia Code', monospace"
+          >Lv {{ node.level }}</text>
+          <text
+            :x="node.x + NODE_W / 2"
+            :y="node.y + 46"
+            text-anchor="middle"
+            dominant-baseline="middle"
+            fill="#50dc96"
+            font-size="10"
+            font-style="italic"
+            font-family="ui-monospace, 'Cascadia Code', monospace"
+          >(you are here)</text>
+        </template>
+        <!-- Other regions: 2 lines (name / level) -->
+        <template v-else>
+          <text
+            :x="node.x + NODE_W / 2"
+            :y="node.y + NODE_H / 2 - 8"
+            text-anchor="middle"
+            dominant-baseline="middle"
+            :fill="node.color"
+            font-size="13"
+            font-family="ui-monospace, 'Cascadia Code', monospace"
+          >{{ node.name }}</text>
+          <text
+            :x="node.x + NODE_W / 2"
+            :y="node.y + NODE_H / 2 + 10"
+            text-anchor="middle"
+            dominant-baseline="middle"
+            fill="#6b7280"
+            font-size="11"
+            font-family="ui-monospace, 'Cascadia Code', monospace"
+          >Lv {{ node.level }}</text>
+        </template>
       </g>
     </svg>
   </div>
