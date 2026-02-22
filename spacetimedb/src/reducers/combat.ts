@@ -1799,7 +1799,8 @@ export const registerCombatReducers = (deps: any) => {
             if (!member) continue;
             const fresh = ctx.db.character.id.find(member.id);
             if (!fresh) continue;
-            const newHp = fresh.hp + 10n > fresh.maxHp ? fresh.maxHp : fresh.hp + 10n;
+            const healAmt = (10n * 65n) / 100n;
+            const newHp = fresh.hp + healAmt > fresh.maxHp ? fresh.maxHp : fresh.hp + healAmt;
             totalHealed += newHp - fresh.hp;
             ctx.db.character.id.update({ ...fresh, hp: newHp });
           }
@@ -1820,7 +1821,8 @@ export const registerCombatReducers = (deps: any) => {
             if (!member || member.maxMana === 0n) continue;
             const fresh = ctx.db.character.id.find(member.id);
             if (!fresh || fresh.maxMana === 0n) continue;
-            const newMana = fresh.mana + 8n > fresh.maxMana ? fresh.maxMana : fresh.mana + 8n;
+            const manaAmt = (8n * 65n) / 100n;
+            const newMana = fresh.mana + manaAmt > fresh.maxMana ? fresh.maxMana : fresh.mana + manaAmt;
             totalMana += newMana - fresh.mana;
             ctx.db.character.id.update({ ...fresh, mana: newMana });
           }
@@ -1838,7 +1840,7 @@ export const registerCombatReducers = (deps: any) => {
         case 'bard_battle_hymn': {
           // AoE damage + party HP + mana regen simultaneously — scales with level + CHA
           for (const en of enemies) {
-            const dmg = 10n + bard.level * 2n + bard.cha;
+            const dmg = ((10n + bard.level * 2n + bard.cha) * 65n) / 100n;
             const nextHp = en.currentHp > dmg ? en.currentHp - dmg : 0n;
             ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
           }
@@ -1855,12 +1857,13 @@ export const registerCombatReducers = (deps: any) => {
             if (!member) continue;
             const fresh = ctx.db.character.id.find(member.id);
             if (!fresh) continue;
-            const newHp = fresh.hp + 8n > fresh.maxHp ? fresh.maxHp : fresh.hp + 8n;
+            const bhHealAmt = (8n * 65n) / 100n;
+            const newHp = fresh.hp + bhHealAmt > fresh.maxHp ? fresh.maxHp : fresh.hp + bhHealAmt;
             totalHealedBH += newHp - fresh.hp;
             ctx.db.character.id.update({ ...fresh, hp: newHp });
             const freshM = ctx.db.character.id.find(member.id);
             if (freshM && freshM.maxMana > 0n) {
-              const newManaM = freshM.mana + 4n > freshM.maxMana ? freshM.maxMana : freshM.mana + 4n;
+              const newManaM = freshM.mana + (4n * 65n) / 100n > freshM.maxMana ? freshM.maxMana : freshM.mana + (4n * 65n) / 100n;
               totalManaBH += newManaM - freshM.mana;
               ctx.db.character.id.update({ ...freshM, mana: newManaM });
             }
