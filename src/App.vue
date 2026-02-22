@@ -56,9 +56,9 @@
   <main v-else :style="[styles.main, showRightPanel ? {} : styles.mainWide]">
     <!-- Onboarding hint -->
     <div v-if="onboardingHint" :style="styles.onboardingHint">
-      <div>{{ onboardingHint }}</div>
+      <span>{{ onboardingHint }}</span>
       <button type="button" :style="styles.onboardingDismiss" @click="dismissOnboarding">
-        Dismiss tour
+        Dismiss
       </button>
     </div>
 
@@ -900,7 +900,7 @@ const {
 const onboardingStep = ref<'inventory' | 'abilities' | null>(null);
 const onboardingHint = computed(() => {
   if (onboardingStep.value === 'inventory') {
-    return 'New character created! Open Character > Abilities tab to assign your abilities to the hotbar.';
+    return 'Open the Character panel, equip your gear from the Inventory tab, then add an ability to your hotbar from the Abilities tab.';
   }
   return '';
 });
