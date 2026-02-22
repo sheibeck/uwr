@@ -2198,6 +2198,9 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
   const target = e.target as HTMLElement;
   if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
 
+  // Skip if a modifier key is held (allows browser/OS shortcuts to work normally)
+  if (e.ctrlKey || e.altKey) return;
+
   // Panel shortcuts (only when a character is selected)
   if (selectedCharacter.value) {
     switch (e.key) {
