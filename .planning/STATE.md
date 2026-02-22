@@ -529,10 +529,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 278 | Remove Hotbar panel button from ActionBar; add Abilities tab to CharacterInfoPanel listing class abilities (filtered by level) + active renown perks with right-click → "What does this do?" + "Add to Hotbar"; update onboarding hint to reference Character > Abilities tab | 2026-02-22 | d4e4622 | [278-remove-hotbar-panel-add-abilities-tab-to](./quick/278-remove-hotbar-panel-add-abilities-tab-to/) |
 | 279 | Fix new character onboarding hint — position: fixed, z-index 500 (above all panels), flex-row layout to reduce height, exact hint text: "Open the Character panel, equip your gear from the Inventory tab, then add an ability to your hotbar from the Abilities tab." | 2026-02-22 | 30bbe32 | [279-fix-new-character-hint-z-index-reduce-he](./quick/279-fix-new-character-hint-z-index-reduce-he/) |
 | 280 | Overhaul right-click context menus — Abilities tab: show description inline at top, only "Add to Hotbar" action (removed "What does this do?"); Hotbar slot: show description inline + "Remove from Hotbar" action that clears slot via setHotbarSlot(slot, '') | 2026-02-22 | b42f1cb | [280-ability-right-click-shows-description-th](./quick/280-ability-right-click-shows-description-th/) |
+| 281 | Abilities tab right-click shows full ability info — name header, Cost/Cast/Cooldown stat rows, description, then Add to Hotbar button; prop type extended with castSeconds/cooldownSeconds/resourceCost/damageType; renown perk rows use zeroed stub | 2026-02-22 | 2272ab0 | [281-abilities-tab-right-click-shows-full-abi](./quick/281-abilities-tab-right-click-shows-full-abi/) |
 
 ---
 
-Last activity: 2026-02-22 - Overhauled ability/hotbar right-click context menus (quick-280)
+Last activity: 2026-02-22 - Full ability info in Abilities tab right-click popup (quick-281)
 
 ## Last Session
 
