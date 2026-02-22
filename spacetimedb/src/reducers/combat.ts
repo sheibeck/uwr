@@ -112,7 +112,7 @@ const addEnemyToCombat = (
     attackDamage,
     armorClass,
     aggroTargetCharacterId: undefined,
-    nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
+    nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + 1_000_000n + (spawnToUse.id % 2_000_000n),
   });
 
   for (const p of participants) {
