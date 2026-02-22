@@ -96,6 +96,15 @@ export function ensureNpcs(ctx: any) {
     personalityJson: JSON.stringify(NPC_PERSONALITIES.friendly_merchant),
     factionId: ironCompactFactionId,
   });
+  upsertNpcByName({
+    name: 'Thurwick',
+    npcType: 'banker',
+    locationName: 'Hollowmere',
+    description: 'A meticulous record-keeper who manages the town vault with quiet precision.',
+    greeting: 'Your valuables are safe with me. The vault has never been breached.',
+    baseMood: 'composed',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.shrewd_trader),
+  });
 
   // Hollowmere Vale - New NPCs
   upsertNpcByName({

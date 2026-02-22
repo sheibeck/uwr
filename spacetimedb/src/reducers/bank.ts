@@ -1,0 +1,127 @@
+export const registerBankReducers = (deps: any) => {
+  const {
+    spacetimedb,
+    t,
+    requirePlayerUserId,
+    requireCharacterOwnedBy,
+    appendPrivateEvent,
+    hasInventorySpace,
+    MAX_INVENTORY_SLOTS,
+    getInventorySlotCount,
+    fail,
+  } = deps;
+
+  const MAX_BANK_SLOTS = 40n;
+
+  const failBank = (ctx: any, character: any, message: string) =>
+    fail(ctx, character, message, 'system');
+
+  spacetimedb.reducer(
+    'deposit_to_bank',
+    { characterId: t.u64(), instanceId: t.u64() },
+    (ctx: any, args: any) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const userId = requirePlayerUserId(ctx);
+
+      const instance = ctx.db.itemInstance.id.find(args.instanceId);
+      if (!instance) return failBank(ctx, character, 'Item not found');
+      if (instance.ownerCharacterId !== character.id) {
+        return failBank(ctx, character, 'Item does not belong to your character');
+      }
+      if (instance.equippedSlot) {
+        return failBank(ctx, character, 'Unequip the item before depositing');
+      }
+
+      // Count existing bank slots for this user
+      const existingSlots = [...ctx.db.bank_slot.by_owner.filter(userId)];
+      if (BigInt(existingSlots.length) >= MAX_BANK_SLOTS) {
+        return failBank(ctx, character, 'Bank is full (40 slots maximum)');
+      }
+
+      // Find first free slot index (0-39)
+      const usedSlots = new Set(existingSlots.map((s: any) => Number(s.slot)));
+      let freeSlot = -1;
+      for (let i = 0; i < 40; i++) {
+        if (!usedSlots.has(i)) { freeSlot = i; break; }
+      }
+      if (freeSlot === -1) return failBank(ctx, character, 'Bank is full');
+
+      // Remove from character inventory (set ownerCharacterId to 0 as sentinel — row stays)
+      // The ItemInstance row is kept but orphaned from the character.
+      // ownerCharacterId = 0n means "in bank" — no character owns it.
+      ctx.db.itemInstance.id.update({
+        ...instance,
+        ownerCharacterId: 0n,
+        equippedSlot: undefined,
+      });
+
+      ctx.db.bank_slot.insert({
+        id: 0n,
+        ownerUserId: userId,
+        slot: BigInt(freeSlot),
+        itemInstanceId: instance.id,
+      });
+
+      const template = ctx.db.itemTemplate.id.find(instance.templateId);
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'system',
+        `You deposit ${template?.name ?? 'item'} into the bank.`
+      );
+    }
+  );
+
+  spacetimedb.reducer(
+    'withdraw_from_bank',
+    { characterId: t.u64(), bankSlotId: t.u64() },
+    (ctx: any, args: any) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const userId = requirePlayerUserId(ctx);
+
+      const bankSlot = ctx.db.bank_slot.id.find(args.bankSlotId);
+      if (!bankSlot) return failBank(ctx, character, 'Bank slot not found');
+      if (bankSlot.ownerUserId !== userId) {
+        return failBank(ctx, character, 'This is not your bank slot');
+      }
+
+      const instance = ctx.db.itemInstance.id.find(bankSlot.itemInstanceId);
+      if (!instance) {
+        // Orphaned bank slot — clean it up
+        ctx.db.bank_slot.id.delete(bankSlot.id);
+        return failBank(ctx, character, 'Item not found in bank');
+      }
+
+      // Check inventory space
+      const template = ctx.db.itemTemplate.id.find(instance.templateId);
+      if (!template) return failBank(ctx, character, 'Item template missing');
+
+      const hasStack = template.stackable &&
+        [...ctx.db.itemInstance.by_owner.filter(character.id)].some(
+          (row: any) => row.templateId === template.id && !row.equippedSlot
+        );
+      const slotCount = getInventorySlotCount(ctx, character.id);
+      if (!hasStack && slotCount >= MAX_INVENTORY_SLOTS) {
+        return failBank(ctx, character, 'Backpack is full');
+      }
+
+      // Transfer item back to character
+      ctx.db.itemInstance.id.update({
+        ...instance,
+        ownerCharacterId: character.id,
+        equippedSlot: undefined,
+      });
+
+      ctx.db.bank_slot.id.delete(bankSlot.id);
+
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'system',
+        `You withdraw ${template.name} from the bank.`
+      );
+    }
+  );
+};

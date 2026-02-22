@@ -1,4 +1,5 @@
 import { registerAuthReducers } from './auth';
+import { registerBankReducers } from './bank';
 import { registerCharacterReducers } from './characters';
 import { registerCommandReducers } from './commands';
 import { registerCombatReducers } from './combat';
@@ -30,4 +31,5 @@ export const registerReducers = (deps: any) => {
   registerRenownReducers(deps);
   registerUiReducers(deps);
   registerWorldEventReducers(deps);
+  registerBankReducers(deps);
 };
