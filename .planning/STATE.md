@@ -524,10 +524,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 273 | Fix player death not teleporting to bind point — combat_loop defeat/victory paths never auto-teleported dead characters; added autoRespawnDeadCharacter helper (clears effects/cooldowns, moves to boundLocationId, sets hp/mana/stamina=1n, logs awakening message) called from both paths | 2026-02-22 | 81be09c | [273-fix-player-death-not-teleporting-to-bind](./quick/273-fix-player-death-not-teleporting-to-bind/) |
 | 274 | Melody of Mending costs mana per tick — 3 mana drain per tick in tick_bard_songs, clamps to 0, song continues even on empty mana | 2026-02-22 | d969da1 | [274-melody-of-mending-costs-mana-per-tick-li](./quick/274-melody-of-mending-costs-mana-per-tick-li/) |
 | 275 | Discordant Note initial damage tick on cast — fires immediate burst (8+level*2+cha, 3 mana drain) matching the 6s tick formula; log via logPrivateAndGroup; Battle Hymn burst unchanged | 2026-02-22 | 412f002 | [275-discordant-note-missing-initial-damage-t](./quick/275-discordant-note-missing-initial-damage-t/) |
+| 276 | Replace Battle Hymn with Requiem of Ruin — level 9 bard song renamed bard_requiem_of_ruin; every 6s tick applies damage_taken debuff (magnitude 3n, rounds 1n) to all active enemies; initial cast fires first debuff immediately; updated across bard_abilities.ts, helpers/combat.ts, reducers/combat.ts, items.ts, App.vue | 2026-02-22 | be06f43 | [276-replace-battle-hymn-with-requiem-of-ruin](./quick/276-replace-battle-hymn-with-requiem-of-ruin/) |
 
 ---
 
-Last activity: 2026-02-22 - Restored quick-274 (MoM mana drain) and quick-275 (DN initial burst on cast)
+Last activity: 2026-02-22 - Replaced Battle Hymn with Requiem of Ruin (quick-276): bard level 9 song now applies damage_taken debuff to all enemies every 6s
 
 ## Last Session
 
