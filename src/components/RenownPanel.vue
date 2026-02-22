@@ -4,7 +4,7 @@
     <div :style="{ display: 'flex', gap: '0', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '8px' }">
       <button
         type="button"
-        @click="activeTab = 'factions'"
+        @click="setTab('factions')"
         :style="{
           background: activeTab === 'factions' ? 'rgba(255,255,255,0.08)' : 'transparent',
           borderBottom: activeTab === 'factions' ? '2px solid #60a5fa' : '2px solid transparent',
@@ -19,7 +19,7 @@
       >Factions</button>
       <button
         type="button"
-        @click="activeTab = 'renown'"
+        @click="setTab('renown')"
         :style="{
           background: activeTab === 'renown' ? 'rgba(255,255,255,0.08)' : 'transparent',
           borderBottom: activeTab === 'renown' ? '2px solid #60a5fa' : '2px solid transparent',
@@ -34,7 +34,7 @@
       >Renown</button>
       <button
         type="button"
-        @click="activeTab = 'leaderboard'"
+        @click="setTab('leaderboard')"
         :style="{
           background: activeTab === 'leaderboard' ? 'rgba(255,255,255,0.08)' : 'transparent',
           borderBottom: activeTab === 'leaderboard' ? '2px solid #60a5fa' : '2px solid transparent',
@@ -229,7 +229,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { FactionRow, FactionStandingRow, CharacterRow, RenownRow, RenownPerkRow, RenownServerFirstRow } from '../module_bindings';
 
 const props = defineProps<{
@@ -241,14 +241,25 @@ const props = defineProps<{
   renownPerks: RenownPerkRow[];
   serverFirsts: RenownServerFirstRow[];
   connActive: boolean;
+  requestedTab?: string | null;
 }>();
 
 const emit = defineEmits<{
   (e: 'choosePerk', perkKey: string): void;
+  (e: 'tab-change', tab: string): void;
 }>();
 
-// Active tab state (default to renown)
-const activeTab = ref<'factions' | 'renown' | 'leaderboard'>('renown');
+type RenownTab = 'factions' | 'renown' | 'leaderboard';
+const activeTab = ref<RenownTab>((props.requestedTab as RenownTab) ?? 'renown');
+
+watch(() => props.requestedTab, (tab) => {
+  if (tab) activeTab.value = tab as RenownTab;
+});
+
+const setTab = (tab: RenownTab) => {
+  activeTab.value = tab;
+  emit('tab-change', tab);
+};
 
 // Client-side renown ranks
 const RENOWN_RANKS = [

@@ -166,7 +166,7 @@
     <!-- Character Info Panel (wide) — combines Inventory and Stats tabs -->
     <div v-if="panels.characterInfo && panels.characterInfo.open" data-panel-id="characterInfo" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('characterInfo').value || {}) }" @mousedown="bringToFront('characterInfo')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('characterInfo', $event)"><div>Character</div><button type="button" :style="styles.panelClose" @click="closePanelById('characterInfo')">x</button></div>
-      <div :style="styles.floatingPanelBody"><CharacterInfoPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" :races="races" :available-abilities="availableAbilities" :renown-perks="characterRenownPerks" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @organize="organizeInventory" @salvage-item="salvageItem" @add-to-hotbar="onAddItemToHotbar" @add-ability-to-hotbar="onAddAbilityToHotbar" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" :onboarding="highlightInventory" @tab-change="onCharacterTabChange" :bank-open="panels.bank?.open ?? false" @deposit-to-bank="depositToBank" /></div>
+      <div :style="styles.floatingPanelBody"><CharacterInfoPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" :races="races" :available-abilities="availableAbilities" :renown-perks="characterRenownPerks" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @organize="organizeInventory" @salvage-item="salvageItem" @add-to-hotbar="onAddItemToHotbar" @add-ability-to-hotbar="onAddAbilityToHotbar" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" :onboarding="highlightInventory" :requested-tab="panels.characterInfo?.tab" @tab-change="onCharacterTabChange" :bank-open="panels.bank?.open ?? false" @deposit-to-bank="depositToBank" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('characterInfo', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('characterInfo', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('characterInfo', $event, { right: true, bottom: true })" />
     </div>
 
@@ -187,14 +187,14 @@
     <!-- Journal Panel (wide) -->
     <div v-if="panels.journal && panels.journal.open" data-panel-id="journal" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('journal').value || {}) }" @mousedown="bringToFront('journal')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('journal', $event)"><div>Journal</div><button type="button" :style="styles.panelClose" @click="closePanelById('journal')">×</button></div>
-      <div :style="styles.floatingPanelBody"><NpcDialogPanel :styles="styles" :npc-dialogs="characterNpcDialogs" :npcs="npcs" :locations="locations" :regions="regions" :npc-affinities="npcAffinities" :selected-character-id="selectedCharacterId" :selected-npc-target="selectedNpcTarget" :quest-instances="characterQuests" :quest-templates="questTemplates" :requested-tab="journalRequestedTab" /></div>
+      <div :style="styles.floatingPanelBody"><NpcDialogPanel :styles="styles" :npc-dialogs="characterNpcDialogs" :npcs="npcs" :locations="locations" :regions="regions" :npc-affinities="npcAffinities" :selected-character-id="selectedCharacterId" :selected-npc-target="selectedNpcTarget" :quest-instances="characterQuests" :quest-templates="questTemplates" :requested-tab="journalRequestedTab" @tab-change="tab => setPanelTab('journal', tab)" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('journal', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('journal', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('journal', $event, { right: true, bottom: true })" />
     </div>
 
     <!-- Renown Panel -->
     <div v-if="panels.renown && panels.renown.open" data-panel-id="renown" :style="{ ...styles.floatingPanel, ...(panelStyle('renown').value || {}) }" @mousedown="bringToFront('renown')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('renown', $event)"><div>Renown</div><button type="button" :style="styles.panelClose" @click="closePanelById('renown')">×</button></div>
-      <div :style="styles.floatingPanelBody"><RenownPanel :styles="styles" :factions="factions" :faction-standings="characterFactionStandings" :selected-character="selectedCharacter" :renown-data="characterRenown" :renown-perks="characterRenownPerks" :server-firsts="renownServerFirsts" :conn-active="!!conn.isActive" @choose-perk="handleChoosePerk" /></div>
+      <div :style="styles.floatingPanelBody"><RenownPanel :styles="styles" :factions="factions" :faction-standings="characterFactionStandings" :selected-character="selectedCharacter" :renown-data="characterRenown" :renown-perks="characterRenownPerks" :server-firsts="renownServerFirsts" :conn-active="!!conn.isActive" :requested-tab="panels.renown?.tab" @tab-change="tab => setPanelTab('renown', tab)" @choose-perk="handleChoosePerk" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('renown', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('renown', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('renown', $event, { right: true, bottom: true })" />
     </div>
 
@@ -2130,6 +2130,7 @@ const {
   togglePanel: togglePanelInternal,
   openPanel,
   closePanel: closePanelById,
+  setPanelTab,
   bringToFront,
   startDrag,
   startResize,
@@ -2188,6 +2189,7 @@ const updateAccordionState = (payload: { key: AccordionKey; open: boolean }) => 
 };
 
 const onCharacterTabChange = (tab: string) => {
+  setPanelTab('characterInfo', tab);
   if (onboardingStep.value !== null && tab === 'abilities') {
     onboardingStep.value = null;
   }
@@ -2204,7 +2206,23 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
   // Panel shortcuts (only when a character is selected)
   if (selectedCharacter.value) {
     switch (e.key) {
-      case 'j': case 'J': togglePanel('journal'); return;
+      case 'i': case 'I':
+        if (panels.characterInfo?.open && panels.characterInfo?.tab === 'inventory') {
+          closePanel('characterInfo');
+        } else {
+          setPanelTab('characterInfo', 'inventory');
+          openPanel('characterInfo');
+        }
+        return;
+      case 'j': case 'J':
+        if (panels.journal?.open) {
+          closePanel('journal');
+        } else {
+          journalRequestedTab.value = panels.journal?.tab ?? null;
+          openPanel('journal');
+          setTimeout(() => { journalRequestedTab.value = null; }, 100);
+        }
+        return;
       case 'r': case 'R': togglePanel('renown'); return;
       case 'c': case 'C': togglePanel('characterInfo'); return;
       case 'e': case 'E': togglePanel('worldEvents'); return;
@@ -2213,6 +2231,7 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
           closePanel('journal');
         } else {
           journalRequestedTab.value = 'quests';
+          setPanelTab('journal', 'quests');
           openPanel('journal');
           setTimeout(() => { journalRequestedTab.value = null; }, 100);
         }

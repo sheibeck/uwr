@@ -2,7 +2,7 @@
   <!-- Tab bar -->
   <div :style="{ display: 'flex', gap: '0', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '8px' }">
     <button
-      @click="activeTab = 'journal'"
+      @click="setTab('journal')"
       :style="{
         background: activeTab === 'journal' ? 'rgba(255,255,255,0.08)' : 'transparent',
         borderBottom: activeTab === 'journal' ? '2px solid #60a5fa' : '2px solid transparent',
@@ -16,7 +16,7 @@
       }"
     >Journal</button>
     <button
-      @click="activeTab = 'quests'"
+      @click="setTab('quests')"
       :style="{
         background: activeTab === 'quests' ? 'rgba(255,255,255,0.08)' : 'transparent',
         borderBottom: activeTab === 'quests' ? '2px solid #60a5fa' : '2px solid transparent',
@@ -162,11 +162,20 @@ const props = defineProps<{
   requestedTab?: 'journal' | 'quests' | null;
 }>();
 
+const emit = defineEmits<{
+  (e: 'tab-change', tab: string): void;
+}>();
+
 const activeTab = ref<'journal' | 'quests'>('journal');
 
 watch(() => props.requestedTab, (val) => {
   if (val) activeTab.value = val;
 }, { immediate: true });
+
+const setTab = (tab: 'journal' | 'quests') => {
+  activeTab.value = tab;
+  emit('tab-change', tab);
+};
 
 const AFFINITY_TIERS = [
   { min: -100, max: -51, name: 'Hostile', color: '#f87171' },

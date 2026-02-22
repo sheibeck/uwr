@@ -53,6 +53,7 @@ export interface PanelState {
   w: number; // 0 = auto/CSS default
   h: number; // 0 = auto/CSS default
   zIndex: number;
+  tab?: string; // active tab, if the panel has tabs
 }
 
 interface DragState {
@@ -192,7 +193,7 @@ export function usePanelManager(
         const data: Record<string, any> = {};
         for (const [id, state] of Object.entries(panels)) {
           // Save all fields except zIndex (local-only)
-          data[id] = { open: state.open, x: state.x, y: state.y, w: state.w, h: state.h };
+          data[id] = { open: state.open, x: state.x, y: state.y, w: state.w, h: state.h, tab: state.tab };
         }
         serverSync.savePanelLayout({ characterId: charIdBigInt, panelStatesJson: JSON.stringify(data) });
       } catch (e) {
@@ -514,12 +515,19 @@ export function usePanelManager(
     markDirty();
   }
 
+  const setPanelTab = (id: string, tab: string) => {
+    if (!panels[id]) return;
+    panels[id].tab = tab;
+    markDirty();
+  };
+
   return {
     panels,
     openPanels,
     togglePanel,
     openPanel,
     closePanel,
+    setPanelTab,
     bringToFront,
     startDrag,
     startResize,

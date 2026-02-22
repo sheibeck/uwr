@@ -195,7 +195,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import InventoryPanel from './InventoryPanel.vue';
 import StatsPanel from './StatsPanel.vue';
 import RacialProfilePanel from './RacialProfilePanel.vue';
@@ -218,6 +218,7 @@ const props = defineProps<{
   availableAbilities: { key: string; name: string; description: string; resource: string; kind: string; level: bigint; castSeconds: bigint; cooldownSeconds: bigint; resourceCost: bigint; damageType?: string | null }[];
   renownPerks: { id: bigint; characterId: bigint; rank: bigint; perkKey: string }[];
   onboarding?: boolean;
+  requestedTab?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -238,9 +239,14 @@ const emit = defineEmits<{
   (e: 'deposit-to-bank', itemInstanceId: bigint): void;
 }>();
 
-const activeTab = ref<'inventory' | 'stats' | 'race' | 'abilities'>('inventory');
+type CharacterTab = 'inventory' | 'stats' | 'race' | 'abilities';
+const activeTab = ref<CharacterTab>((props.requestedTab as CharacterTab) ?? 'inventory');
 
-const setTab = (tab: 'inventory' | 'stats' | 'race' | 'abilities') => {
+watch(() => props.requestedTab, (tab) => {
+  if (tab) activeTab.value = tab as CharacterTab;
+});
+
+const setTab = (tab: CharacterTab) => {
   activeTab.value = tab;
   emit('tab-change', tab);
 };
