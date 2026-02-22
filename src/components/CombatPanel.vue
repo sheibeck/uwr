@@ -45,7 +45,7 @@
                       Target
                     </span>
                   </div>
-                  <div :style="{ ...styles.hpBar, height: '10px', marginTop: '0.1rem' }">
+                  <div :style="{ ...styles.hpBar, height: '13px', marginTop: '0.15rem' }">
                     <div
                       :style="{
                         ...styles.hpFill,
