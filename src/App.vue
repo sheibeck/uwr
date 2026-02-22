@@ -111,6 +111,7 @@
             !slot.abilityKey ||
             isCasting ||
             slot.cooldownRemaining > 0 ||
+            (slot.kind === 'item' && (slot.itemCount ?? 0) === 0) ||
             (activeCombat && !canActInCombat && slot.kind !== 'utility')
           "
           :style="[
@@ -118,6 +119,7 @@
             slot.abilityKey === castingState?.castingAbilityKey ? styles.hotbarSlotActive : {},
             hotbarPulseKey === slot.abilityKey ? styles.hotbarSlotActive : {},
             !slot.abilityKey ? styles.hotbarSlotEmpty : {},
+            (slot.kind === 'item' && (slot.itemCount ?? 0) === 0) ? styles.hotbarSlotEmpty : {},
           ]"
           @click="slot.abilityKey && onHotbarClick(slot)"
           @contextmenu.prevent="
@@ -156,6 +158,9 @@
           </span>
           <span :style="styles.hotbarSlotText">{{ slot.slot }}</span>
           <span :style="styles.hotbarSlotText">{{ slot.name }}</span>
+          <span v-if="slot.kind === 'item' && slot.itemCount != null" :style="styles.hotbarSlotCount">
+            x{{ slot.itemCount }}
+          </span>
         </button>
       </div>
     </div>
@@ -163,7 +168,7 @@
     <!-- Character Info Panel (wide) — combines Inventory and Stats tabs -->
     <div v-if="panels.characterInfo && panels.characterInfo.open" data-panel-id="characterInfo" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('characterInfo').value || {}) }" @mousedown="bringToFront('characterInfo')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('characterInfo', $event)"><div>Character</div><button type="button" :style="styles.panelClose" @click="closePanelById('characterInfo')">x</button></div>
-      <div :style="styles.floatingPanelBody"><CharacterInfoPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" :races="races" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @organize="organizeInventory" @salvage-item="salvageItem" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
+      <div :style="styles.floatingPanelBody"><CharacterInfoPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" :races="races" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @organize="organizeInventory" @salvage-item="salvageItem" @add-to-hotbar="onAddItemToHotbar" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('characterInfo', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('characterInfo', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('characterInfo', $event, { right: true, bottom: true })" />
     </div>
 
@@ -1914,6 +1919,12 @@ const setDefensiveTarget = (characterId: bigint) => {
   defensiveTargetId.value = characterId;
 };
 
+const eatFoodReducer = useReducer(reducers.eatFood);
+const eatFood = (itemInstanceId: bigint) => {
+  if (!conn.isActive || !selectedCharacter.value) return;
+  eatFoodReducer({ characterId: selectedCharacter.value.id, itemInstanceId });
+};
+
 const {
   hotbarAssignments,
   availableAbilities,
@@ -1955,12 +1966,16 @@ const {
     initiateCorpseSummonReducer({ casterCharacterId: selectedCharacter.value.id, targetCharacterId });
   },
   addLocalEvent,
+  inventoryItems,
+  eatFoodFn: eatFood,
 });
 
-const eatFoodReducer = useReducer(reducers.eatFood);
-const eatFood = (itemInstanceId: bigint) => {
-  if (!conn.isActive || !selectedCharacter.value) return;
-  eatFoodReducer({ characterId: selectedCharacter.value.id, itemInstanceId });
+const onAddItemToHotbar = (templateId: bigint, itemName: string) => {
+  const input = window.prompt(`Assign "${itemName}" to hotbar slot (1-10):`);
+  if (input === null) return;
+  const slotNum = parseInt(input, 10);
+  if (isNaN(slotNum) || slotNum < 1 || slotNum > 10) return;
+  setHotbarSlot(slotNum, `item:${templateId}`);
 };
 
 const savePanelLayoutReducer = useReducer(reducers.savePanelLayout);

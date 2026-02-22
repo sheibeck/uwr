@@ -30,6 +30,7 @@ const EQUIPMENT_SLOTS = [
 type InventoryItem = ItemTooltipData & {
   id: bigint;
   instanceId: bigint;
+  templateId: bigint;
   isJunk: boolean;
   vendorValue: bigint;
   requiredLevel: bigint;
@@ -134,6 +135,7 @@ export const useInventory = ({
           ...tooltipData,
           id: instance.id,
           instanceId: instance.id,
+          templateId: instance.templateId,
           isJunk,
           vendorValue,
           requiredLevel: template?.requiredLevel ?? 1n,

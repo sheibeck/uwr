@@ -142,6 +142,7 @@ const props = defineProps<{
     quantity: bigint;
     stackable: boolean;
     isNamed: boolean;
+    templateId: bigint;
   }[];
   inventoryCount: number;
   maxInventorySlots: number;
@@ -188,6 +189,7 @@ const emit = defineEmits<{
   (e: 'split-stack', itemInstanceId: bigint, quantity: bigint): void;
   (e: 'salvage-item', itemInstanceId: bigint): void;
   (e: 'organize'): void;
+  (e: 'add-to-hotbar', templateId: bigint, name: string): void;
   (e: 'show-tooltip', value: { item: any; x: number; y: number }): void;
   (e: 'move-tooltip', value: { x: number; y: number }): void;
   (e: 'hide-tooltip'): void;
@@ -226,6 +228,12 @@ const openItemContextMenu = (event: MouseEvent, item: typeof props.inventoryItem
   }
   if (isRecipeScroll(item)) {
     items.push({ label: 'Learn Recipe', action: () => learnRecipeFromScroll(item) });
+  }
+  if (item.usable || item.eatable) {
+    items.push({
+      label: 'Add to Hotbar',
+      action: () => emit('add-to-hotbar', item.templateId, item.name),
+    });
   }
   if (item.stackable && item.quantity > 1n) {
     items.push({

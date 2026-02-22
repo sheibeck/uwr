@@ -67,6 +67,7 @@
     @split-stack="$emit('split-stack', $event)"
     @organize="$emit('organize')"
     @salvage-item="$emit('salvage-item', $event)"
+    @add-to-hotbar="(templateId: bigint, name: string) => $emit('add-to-hotbar', templateId, name)"
     @show-tooltip="$emit('show-tooltip', $event)"
     @move-tooltip="$emit('move-tooltip', $event)"
     @hide-tooltip="$emit('hide-tooltip')"
@@ -122,6 +123,7 @@ const emit = defineEmits<{
   (e: 'split-stack', payload: any): void;
   (e: 'organize'): void;
   (e: 'salvage-item', payload: any): void;
+  (e: 'add-to-hotbar', templateId: bigint, name: string): void;
   (e: 'show-tooltip', payload: any): void;
   (e: 'move-tooltip', payload: any): void;
   (e: 'hide-tooltip'): void;

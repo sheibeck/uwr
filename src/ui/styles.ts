@@ -232,6 +232,13 @@ export const styles = {
     zIndex: 1,
     color: 'inherit',
   },
+  hotbarSlotCount: {
+    position: 'relative',
+    zIndex: 1,
+    fontSize: '0.65rem',
+    color: 'rgba(200,230,200,0.85)',
+    fontWeight: 600,
+  },
   hotbarCooldown: {
     position: 'absolute',
     top: '6px',
