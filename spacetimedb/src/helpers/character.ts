@@ -1,5 +1,6 @@
 import { SenderError } from 'spacetimedb/server';
 import { Character } from '../schema/tables';
+import { appendPrivateEvent } from './events';
 import {
   BASE_HP,
   HP_STR_MULTIPLIER,
@@ -178,4 +179,47 @@ export function findCharacterByName(ctx: any, name: string) {
     }
   }
   return found;
+}
+
+export function autoRespawnDeadCharacter(ctx: any, character: any): void {
+  // Clear character effects
+  for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
+    ctx.db.characterEffect.id.delete(effect.id);
+  }
+  // Clear travel cooldowns — death is penalty enough
+  for (const cd of ctx.db.travelCooldown.by_character.filter(character.id)) {
+    ctx.db.travelCooldown.id.delete(cd.id);
+  }
+  const nextLocationId = character.boundLocationId ?? character.locationId;
+  const respawnLocation = ctx.db.location.id.find(nextLocationId)?.name ?? 'your bind point';
+  ctx.db.character.id.update({
+    ...character,
+    locationId: nextLocationId,
+    hp: 1n,
+    mana: character.maxMana > 0n ? 1n : 0n,
+    stamina: character.maxStamina > 0n ? 1n : 0n,
+  });
+  appendPrivateEvent(
+    ctx,
+    character.id,
+    character.ownerUserId,
+    'combat',
+    `You awaken at ${respawnLocation}, shaken but alive.`
+  );
+  // Notify about corpse location(s)
+  const corpses = [...ctx.db.corpse.by_character.filter(character.id)];
+  if (corpses.length > 0) {
+    const locationNames = corpses.map((c: any) => {
+      const loc = ctx.db.location.id.find(c.locationId);
+      return loc?.name ?? 'unknown';
+    });
+    const unique = [...new Set(locationNames)];
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'system',
+      `You have ${corpses.length} corpse(s) containing your belongings at: ${unique.join(', ')}.`
+    );
+  }
 }
