@@ -562,49 +562,28 @@
       </div>
     </div>
     <!-- Hotbar slot context menu -->
-    <div
-      v-if="hotbarContextMenu.visible"
-      :style="{
-        position: 'fixed',
-        left: hotbarContextMenu.x + 'px',
-        top: hotbarContextMenu.y + 'px',
-        background: '#1f2937',
-        border: '1px solid rgba(255,255,255,0.15)',
-        borderRadius: '6px',
-        zIndex: 9999,
-        minWidth: '200px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-      }"
-      @mouseleave="hideHotbarContextMenu"
+    <ContextMenu
+      :visible="hotbarContextMenu.visible"
+      :x="hotbarContextMenu.x"
+      :y="hotbarContextMenu.y"
+      :title="hotbarContextMenu.name"
+      :items="[{ label: 'Remove from Hotbar', action: () => { setHotbarSlot(hotbarContextMenu.slot, ''); hideHotbarContextMenu(); } }]"
+      :styles="styles"
+      @close="hideHotbarContextMenu"
     >
       <div
         v-if="hotbarContextMenu.description"
         :style="{
-          padding: '8px 14px',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
-          color: '#9ca3af',
-          fontSize: '0.8rem',
+          padding: '0.3rem 0.75rem 0.5rem',
+          fontSize: '0.75rem',
+          color: 'rgba(230,232,239,0.55)',
           lineHeight: '1.4',
           maxWidth: '220px',
           whiteSpace: 'normal',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
         }"
       >{{ hotbarContextMenu.description }}</div>
-      <button
-        type="button"
-        :style="{
-          display: 'block',
-          width: '100%',
-          padding: '8px 14px',
-          background: 'transparent',
-          border: 'none',
-          color: '#e5e7eb',
-          fontSize: '0.85rem',
-          cursor: 'pointer',
-          textAlign: 'left',
-        }"
-        @click="setHotbarSlot(hotbarContextMenu.slot, ''); hideHotbarContextMenu()"
-      >Remove from Hotbar</button>
-    </div>
+    </ContextMenu>
   </div>
 </template>
 
@@ -634,6 +613,7 @@ import TrackPanel from './components/TrackPanel.vue';
 import RenownPanel from './components/RenownPanel.vue';
 import WorldEventPanel from './components/WorldEventPanel.vue';
 import HelpOverlay from './components/HelpOverlay.vue';
+import ContextMenu from './components/ContextMenu.vue';
 import { ADMIN_IDENTITY_HEX } from './data/worldEventDefs';
 import { useGameData } from './composables/useGameData';
 import { useCharacters } from './composables/useCharacters';
