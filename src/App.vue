@@ -2261,7 +2261,14 @@ const resetIdleTimer = () => {
 let lastIdleReset = 0;
 const onIdleActivity = () => {
   const now = Date.now();
-  if (now - lastIdleReset > 5000) { lastIdleReset = now; resetIdleTimer(); }
+  if (now - lastIdleReset > 5000) {
+    lastIdleReset = now;
+    const wasWarned = idleCampTimer !== null;
+    resetIdleTimer();
+    if (wasWarned && selectedCharacter.value) {
+      addLocalEvent('system', 'You are no longer idle.');
+    }
+  }
 };
 
 watch(selectedCharacter, resetIdleTimer);
