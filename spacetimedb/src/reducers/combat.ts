@@ -13,7 +13,7 @@ import {
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
-import { applyPerkProcs, addCharacterEffect } from '../helpers/combat';
+import { applyPerkProcs, addCharacterEffect, addEnemyEffect } from '../helpers/combat';
 import { partyMembersInLocation } from '../helpers/character';
 import { getLocationSpawnCap } from '../helpers/location';
 import { RENOWN_GAIN } from '../data/renown_data';
@@ -1837,38 +1837,12 @@ export const registerCombatReducers = (deps: any) => {
           }
           appendPrivateEvent(ctx, bard.id, bard.ownerUserId, 'ability', 'March of Wayfarers refreshes travel stamina discount.');
           break;
-        case 'bard_battle_hymn': {
-          // AoE damage + party HP + mana regen simultaneously — scales with level + CHA
+        case 'bard_requiem_of_ruin': {
+          if (!combatId) break;
           for (const en of enemies) {
-            const dmg = ((10n + bard.level * 2n + bard.cha) * 65n) / 100n;
-            const nextHp = en.currentHp > dmg ? en.currentHp - dmg : 0n;
-            ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
+            addEnemyEffect(ctx, combatId, en.id, 'damage_taken', 3n, 1n, 'Requiem of Ruin');
           }
-          // Small mana drain per pulse
-          const freshBardBH = ctx.db.character.id.find(bard.id);
-          if (freshBardBH && freshBardBH.mana > 0n) {
-            const manaCost = 4n;
-            const newMana = freshBardBH.mana > manaCost ? freshBardBH.mana - manaCost : 0n;
-            ctx.db.character.id.update({ ...freshBardBH, mana: newMana });
-          }
-          let totalHealedBH = 0n;
-          let totalManaBH = 0n;
-          for (const member of partyMembers) {
-            if (!member) continue;
-            const fresh = ctx.db.character.id.find(member.id);
-            if (!fresh) continue;
-            const bhHealAmt = (8n * 65n) / 100n;
-            const newHp = fresh.hp + bhHealAmt > fresh.maxHp ? fresh.maxHp : fresh.hp + bhHealAmt;
-            totalHealedBH += newHp - fresh.hp;
-            ctx.db.character.id.update({ ...fresh, hp: newHp });
-            const freshM = ctx.db.character.id.find(member.id);
-            if (freshM && freshM.maxMana > 0n) {
-              const newManaM = freshM.mana + (4n * 65n) / 100n > freshM.maxMana ? freshM.maxMana : freshM.mana + (4n * 65n) / 100n;
-              totalManaBH += newManaM - freshM.mana;
-              ctx.db.character.id.update({ ...freshM, mana: newManaM });
-            }
-          }
-          logPrivateAndGroup(ctx, bard, 'heal', `Battle Hymn heals the group for ${totalHealedBH} health and restores ${totalManaBH} mana.`);
+          logPrivateAndGroup(ctx, bard, 'ability', 'Requiem of Ruin weakens all enemies, increasing damage they take.');
           break;
         }
       }

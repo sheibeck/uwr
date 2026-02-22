@@ -1724,7 +1724,7 @@ export const ActiveBardSong = table(
     id: t.u64().primaryKey().autoInc(),
     bardCharacterId: t.u64(),
     combatId: t.u64().optional(),
-    songKey: t.string(),       // e.g. 'bard_discordant_note', 'bard_battle_hymn'
+    songKey: t.string(),       // e.g. 'bard_discordant_note', 'bard_requiem_of_ruin'
     startedAtMicros: t.u64(), // timestamp when song became active (for fade tracking)
     isFading: t.bool(),        // true during the 6-second fade when a new song replaces it
   }
