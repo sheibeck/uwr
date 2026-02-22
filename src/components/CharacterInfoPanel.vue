@@ -146,35 +146,26 @@
     </div>
   </div>
 
-  <!-- Context menu overlay -->
-  <div
-    v-if="contextMenu.visible"
-    :style="{
-      position: 'fixed', left: contextMenu.x + 'px', top: contextMenu.y + 'px',
-      background: '#1f2937', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px',
-      zIndex: 9999, minWidth: '200px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-    }"
-    @mouseleave="hideContextMenu"
+  <!-- Ability context menu using shared ContextMenu component -->
+  <ContextMenu
+    :visible="contextMenu.visible"
+    :x="contextMenu.x"
+    :y="contextMenu.y"
+    :title="contextMenu.name"
+    :items="[{ label: 'Add to Hotbar', action: onAddToHotbar }]"
+    :styles="styles"
+    @close="hideContextMenu"
   >
-    <!-- Ability name header -->
+    <!-- Stats: cost / cast / cooldown -->
     <div :style="{
-      padding: '8px 14px 4px',
-      color: '#e5e7eb',
-      fontSize: '0.85rem',
-      fontWeight: 600,
-      borderBottom: '1px solid rgba(255,255,255,0.08)',
-    }">{{ contextMenu.name }}</div>
-
-    <!-- Stats row: cost / cast / cooldown -->
-    <div :style="{
-      padding: '6px 14px',
+      padding: '0.3rem 0.75rem',
+      fontSize: '0.75rem',
+      color: 'rgba(230,232,239,0.55)',
+      lineHeight: '1.5',
       borderBottom: contextMenu.description ? '1px solid rgba(255,255,255,0.08)' : 'none',
-      display: 'flex', flexDirection: 'column', gap: '2px',
     }">
-      <!-- Cost -->
-      <div :style="{ fontSize: '0.75rem', color: '#9ca3af' }">
-        Cost:
-        <span :style="{ color: '#e5e7eb' }">{{
+      <div>Cost:
+        <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{
           contextMenu.resource === 'mana'
             ? `${contextMenu.resourceCost} mana`
             : contextMenu.resource === 'stamina'
@@ -182,35 +173,23 @@
               : 'Free'
         }}</span>
       </div>
-      <!-- Cast -->
-      <div :style="{ fontSize: '0.75rem', color: '#9ca3af' }">
-        Cast: <span :style="{ color: '#e5e7eb' }">{{ contextMenu.castSeconds > 0n ? `${Number(contextMenu.castSeconds)}s` : 'Instant' }}</span>
-      </div>
-      <!-- Cooldown -->
-      <div :style="{ fontSize: '0.75rem', color: '#9ca3af' }">
-        Cooldown: <span :style="{ color: '#e5e7eb' }">{{ contextMenu.cooldownSeconds > 0n ? `${Number(contextMenu.cooldownSeconds)}s` : 'None' }}</span>
-      </div>
+      <div>Cast: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ contextMenu.castSeconds > 0n ? `${Number(contextMenu.castSeconds)}s` : 'Instant' }}</span></div>
+      <div>Cooldown: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ contextMenu.cooldownSeconds > 0n ? `${Number(contextMenu.cooldownSeconds)}s` : 'None' }}</span></div>
     </div>
-
     <!-- Description (only if present) -->
     <div
       v-if="contextMenu.description"
       :style="{
-        padding: '6px 14px',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
-        color: '#9ca3af',
-        fontSize: '0.8rem',
-        lineHeight: '1.4',
+        padding: '0.3rem 0.75rem',
+        fontSize: '0.75rem',
+        color: 'rgba(230,232,239,0.55)',
+        lineHeight: '1.5',
         maxWidth: '220px',
         whiteSpace: 'normal',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
       }"
     >{{ contextMenu.description }}</div>
-    <button
-      type="button"
-      :style="{ display: 'block', width: '100%', padding: '8px 14px', background: 'transparent', border: 'none', color: '#e5e7eb', fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' }"
-      @click="onAddToHotbar"
-    >Add to Hotbar</button>
-  </div>
+  </ContextMenu>
 </template>
 
 <script setup lang="ts">
@@ -218,6 +197,7 @@ import { ref } from 'vue';
 import InventoryPanel from './InventoryPanel.vue';
 import StatsPanel from './StatsPanel.vue';
 import RacialProfilePanel from './RacialProfilePanel.vue';
+import ContextMenu from './ContextMenu.vue';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
