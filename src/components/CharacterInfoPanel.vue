@@ -117,7 +117,7 @@
       v-for="ability in availableAbilities"
       :key="ability.key"
       :style="{ background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '6px 10px', cursor: 'context-menu' }"
-      @contextmenu.prevent="showContextMenu($event, ability.key, ability.name, ability.description)"
+      @contextmenu.prevent="showContextMenu($event, ability)"
     >
       <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }">
         <span :style="{ fontWeight: 600, fontSize: '0.85rem' }">{{ ability.name }}</span>
@@ -134,7 +134,7 @@
       v-for="perk in renownPerks"
       :key="String(perk.id)"
       :style="{ background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '6px 10px', cursor: 'context-menu' }"
-      @contextmenu.prevent="showContextMenu($event, perk.perkKey, perk.perkKey, '')"
+      @contextmenu.prevent="showContextMenu($event, { key: perk.perkKey, name: perk.perkKey, description: '', resource: '', resourceCost: 0n, castSeconds: 0n, cooldownSeconds: 0n, kind: '', level: 0n })"
     >
       <span :style="{ fontWeight: 600, fontSize: '0.85rem' }">{{ perk.perkKey }}</span>
     </div>
@@ -154,10 +154,47 @@
     }"
     @mouseleave="hideContextMenu"
   >
+    <!-- Ability name header -->
+    <div :style="{
+      padding: '8px 14px 4px',
+      color: '#e5e7eb',
+      fontSize: '0.85rem',
+      fontWeight: 600,
+      borderBottom: '1px solid rgba(255,255,255,0.08)',
+    }">{{ contextMenu.name }}</div>
+
+    <!-- Stats row: cost / cast / cooldown -->
+    <div :style="{
+      padding: '6px 14px',
+      borderBottom: contextMenu.description ? '1px solid rgba(255,255,255,0.08)' : 'none',
+      display: 'flex', flexDirection: 'column', gap: '2px',
+    }">
+      <!-- Cost -->
+      <div :style="{ fontSize: '0.75rem', color: '#9ca3af' }">
+        Cost:
+        <span :style="{ color: '#e5e7eb' }">{{
+          contextMenu.resource === 'mana'
+            ? `${contextMenu.resourceCost} mana`
+            : contextMenu.resource === 'stamina'
+              ? `${contextMenu.resourceCost} stamina`
+              : 'Free'
+        }}</span>
+      </div>
+      <!-- Cast -->
+      <div :style="{ fontSize: '0.75rem', color: '#9ca3af' }">
+        Cast: <span :style="{ color: '#e5e7eb' }">{{ contextMenu.castSeconds > 0n ? `${Number(contextMenu.castSeconds)}s` : 'Instant' }}</span>
+      </div>
+      <!-- Cooldown -->
+      <div :style="{ fontSize: '0.75rem', color: '#9ca3af' }">
+        Cooldown: <span :style="{ color: '#e5e7eb' }">{{ contextMenu.cooldownSeconds > 0n ? `${Number(contextMenu.cooldownSeconds)}s` : 'None' }}</span>
+      </div>
+    </div>
+
+    <!-- Description (only if present) -->
     <div
       v-if="contextMenu.description"
       :style="{
-        padding: '8px 14px',
+        padding: '6px 14px',
         borderBottom: '1px solid rgba(255,255,255,0.08)',
         color: '#9ca3af',
         fontSize: '0.8rem',
@@ -193,7 +230,7 @@ defineProps<{
   locations: any[];
   regions: any[];
   races: any[];
-  availableAbilities: { key: string; name: string; description: string; resource: string; kind: string; level: bigint }[];
+  availableAbilities: { key: string; name: string; description: string; resource: string; kind: string; level: bigint; castSeconds: bigint; cooldownSeconds: bigint; resourceCost: bigint; damageType?: string | null }[];
   renownPerks: { id: bigint; characterId: bigint; rank: bigint; perkKey: string }[];
 }>();
 
@@ -215,12 +252,23 @@ const emit = defineEmits<{
 
 const activeTab = ref<'inventory' | 'stats' | 'race' | 'abilities'>('inventory');
 
-const contextMenu = ref<{ visible: boolean; x: number; y: number; abilityKey: string; name: string; description: string }>({
+const contextMenu = ref<{
+  visible: boolean; x: number; y: number;
+  abilityKey: string; name: string; description: string;
+  resource: string; resourceCost: bigint;
+  castSeconds: bigint; cooldownSeconds: bigint;
+}>({
   visible: false, x: 0, y: 0, abilityKey: '', name: '', description: '',
+  resource: '', resourceCost: 0n, castSeconds: 0n, cooldownSeconds: 0n,
 });
 
-const showContextMenu = (event: MouseEvent, abilityKey: string, name: string, description: string) => {
-  contextMenu.value = { visible: true, x: event.clientX, y: event.clientY, abilityKey, name, description };
+const showContextMenu = (event: MouseEvent, ability: { key: string; name: string; description: string; resource: string; resourceCost: bigint; castSeconds: bigint; cooldownSeconds: bigint; kind: string; level: bigint }) => {
+  contextMenu.value = {
+    visible: true, x: event.clientX, y: event.clientY,
+    abilityKey: ability.key, name: ability.name, description: ability.description,
+    resource: ability.resource, resourceCost: ability.resourceCost,
+    castSeconds: ability.castSeconds, cooldownSeconds: ability.cooldownSeconds,
+  };
 };
 
 const hideContextMenu = () => {
