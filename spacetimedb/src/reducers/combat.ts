@@ -1773,8 +1773,11 @@ export const registerCombatReducers = (deps: any) => {
       switch (song.songKey) {
         case 'bard_discordant_note': {
           // AoE sonic damage to all enemies — scales with level + CHA
+          let totalDamage = 0n;
           for (const en of enemies) {
             const dmg = 8n + bard.level * 2n + bard.cha;
+            const actualDmg = en.currentHp > dmg ? dmg : en.currentHp;
+            totalDamage += actualDmg;
             const nextHp = en.currentHp > dmg ? en.currentHp - dmg : 0n;
             ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
           }
@@ -1785,7 +1788,7 @@ export const registerCombatReducers = (deps: any) => {
             const newMana = freshBardDN.mana > manaCost ? freshBardDN.mana - manaCost : 0n;
             ctx.db.character.id.update({ ...freshBardDN, mana: newMana });
           }
-          appendPrivateEvent(ctx, bard.id, bard.ownerUserId, 'ability', 'Discordant Note deals sonic damage to all enemies.');
+          logPrivateAndGroup(ctx, bard, 'damage', `Discordant Note deals ${totalDamage} damage to all enemies.`);
           break;
         }
         case 'bard_melody_of_mending': {
