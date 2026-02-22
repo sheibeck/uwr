@@ -972,8 +972,8 @@ export function executeAbility(
       case 'bard_melody_of_mending':
       case 'bard_chorus_of_vigor':
       case 'bard_march_of_wayfarers':
-      case 'bard_battle_hymn': {
-        const DAMAGE_SONGS = ['bard_discordant_note', 'bard_battle_hymn'];
+      case 'bard_requiem_of_ruin': {
+        const DAMAGE_SONGS = ['bard_discordant_note', 'bard_requiem_of_ruin'];
         if (DAMAGE_SONGS.includes(abilityKey) && (!combatId || !combat)) {
           throw new SenderError('This song can only be sung in combat.');
         }
@@ -1006,10 +1006,10 @@ export function executeAbility(
           bard_melody_of_mending: 'Melody of Mending',
           bard_chorus_of_vigor: 'Chorus of Vigor',
           bard_march_of_wayfarers: 'March of Wayfarers',
-          bard_battle_hymn: 'Battle Hymn',
+          bard_requiem_of_ruin: 'Requiem of Ruin',
         };
-        // Damage songs deal an immediate tick on cast
-        if (abilityKey === 'bard_battle_hymn' || abilityKey === 'bard_discordant_note') {
+        // Discordant Note deals an immediate tick on cast
+        if (abilityKey === 'bard_discordant_note') {
           const activeEnemies = combatId
             ? [...ctx.db.combatEnemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n)
             : [];
@@ -1021,30 +1021,23 @@ export function executeAbility(
             const nextHp = en.currentHp > burstDmg ? en.currentHp - burstDmg : 0n;
             ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
           }
-          if (abilityKey === 'bard_discordant_note') {
-            const freshBard = ctx.db.character.id.find(character.id);
-            if (freshBard && freshBard.mana > 0n) {
-              const manaCost = 3n;
-              const newMana = freshBard.mana > manaCost ? freshBard.mana - manaCost : 0n;
-              ctx.db.character.id.update({ ...freshBard, mana: newMana });
-            }
-            logPrivateAndGroup(ctx, character, 'damage', `Discordant Note deals ${totalDamage} damage to all enemies.`);
+          const freshBard = ctx.db.character.id.find(character.id);
+          if (freshBard && freshBard.mana > 0n) {
+            const manaCost = 3n;
+            const newMana = freshBard.mana > manaCost ? freshBard.mana - manaCost : 0n;
+            ctx.db.character.id.update({ ...freshBard, mana: newMana });
           }
-          if (abilityKey === 'bard_battle_hymn') {
-            // Also apply the heal portion of Battle Hymn on cast
-            const healAmt = (8n * 65n) / 100n;
-            let totalHealed = 0n;
-            for (const member of partyMembers) {
-              const fresh = ctx.db.character.id.find(member.id);
-              if (!fresh) continue;
-              const newHp = fresh.hp + healAmt > fresh.maxHp ? fresh.maxHp : fresh.hp + healAmt;
-              totalHealed += newHp - fresh.hp;
-              ctx.db.character.id.update({ ...fresh, hp: newHp });
-            }
-            if (totalHealed > 0n) {
-              logPrivateAndGroup(ctx, character, 'heal', `Battle Hymn heals the group for ${totalHealed} health.`);
-            }
+          logPrivateAndGroup(ctx, character, 'damage', `Discordant Note deals ${totalDamage} damage to all enemies.`);
+        }
+        // Requiem of Ruin applies damage_taken debuff to all active enemies immediately on cast
+        if (abilityKey === 'bard_requiem_of_ruin') {
+          const activeEnemies = combatId
+            ? [...ctx.db.combatEnemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n)
+            : [];
+          for (const en of activeEnemies) {
+            addEnemyEffect(ctx, combatId!, en.id, 'damage_taken', 3n, 1n, 'Requiem of Ruin');
           }
+          logPrivateAndGroup(ctx, character, 'ability', 'Requiem of Ruin weakens all enemies, increasing damage they take.');
         }
         // Melody of Mending heals the group immediately on cast
         if (abilityKey === 'bard_melody_of_mending') {
@@ -1080,24 +1073,15 @@ export function executeAbility(
         const bardEnemies = combatId ? [...ctx.db.combatEnemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n) : [];
         switch (activeSong.songKey) {
           case 'bard_discordant_note':
-          case 'bard_battle_hymn':
             for (const tEnemy of bardEnemies) {
               const dmg = 5n + character.level;
               const nextHp = tEnemy.currentHp > dmg ? tEnemy.currentHp - dmg : 0n;
               ctx.db.combatEnemy.id.update({ ...tEnemy, currentHp: nextHp });
             }
-            if (activeSong.songKey === 'bard_battle_hymn') {
-              for (const m of partyMembers) {
-                const fresh = ctx.db.character.id.find(m.id);
-                if (!fresh) continue;
-                const healed = fresh.hp + 8n > fresh.maxHp ? fresh.maxHp : fresh.hp + 8n;
-                ctx.db.character.id.update({ ...fresh, hp: healed });
-                const freshM2 = ctx.db.character.id.find(m.id);
-                if (freshM2 && freshM2.maxMana > 0n) {
-                  const manaRestored = freshM2.mana + 4n > freshM2.maxMana ? freshM2.maxMana : freshM2.mana + 4n;
-                  ctx.db.character.id.update({ ...freshM2, mana: manaRestored });
-                }
-              }
+            break;
+          case 'bard_requiem_of_ruin':
+            for (const tEnemy of bardEnemies) {
+              addEnemyEffect(ctx, combatId!, tEnemy.id, 'damage_taken', 3n, 1n, 'Requiem of Ruin');
             }
             break;
           case 'bard_melody_of_mending':

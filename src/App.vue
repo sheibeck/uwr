@@ -1064,7 +1064,7 @@ const BARD_SONG_DISPLAY_NAMES: Record<string, string> = {
   bard_melody_of_mending: 'Melody of Mending',
   bard_chorus_of_vigor: 'Chorus of Vigor',
   bard_march_of_wayfarers: 'March of Wayfarers',
-  bard_battle_hymn: 'Battle Hymn',
+  bard_requiem_of_ruin: 'Requiem of Ruin',
 };
 
 const relevantEffects = computed(() => {

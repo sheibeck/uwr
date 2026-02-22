@@ -773,7 +773,7 @@ export const registerItemReducers = (deps: any) => {
       }
 
       // Bard song turn-off: clicking the active song again stops it and applies a 6s cooldown
-      const BARD_SONG_KEYS = ['bard_discordant_note', 'bard_melody_of_mending', 'bard_chorus_of_vigor', 'bard_march_of_wayfarers', 'bard_battle_hymn'];
+      const BARD_SONG_KEYS = ['bard_discordant_note', 'bard_melody_of_mending', 'bard_chorus_of_vigor', 'bard_march_of_wayfarers', 'bard_requiem_of_ruin'];
       if (BARD_SONG_KEYS.includes(abilityKey)) {
         const activeSong = [...ctx.db.activeBardSong.by_bard.filter(character.id)].find((r: any) => !r.isFading);
         if (activeSong && activeSong.songKey === abilityKey) {
@@ -783,7 +783,7 @@ export const registerItemReducers = (deps: any) => {
             bard_melody_of_mending: 'Melody of Mending',
             bard_chorus_of_vigor: 'Chorus of Vigor',
             bard_march_of_wayfarers: 'March of Wayfarers',
-            bard_battle_hymn: 'Battle Hymn',
+            bard_requiem_of_ruin: 'Requiem of Ruin',
           };
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
             `You stop singing ${songDisplayNames[abilityKey] ?? abilityKey}.`
@@ -837,7 +837,7 @@ export const registerItemReducers = (deps: any) => {
           }
         }
         // Bard songs self-log "You begin singing X" from within executeAbilityAction; skip the generic "You use X on Y" message for them.
-        const BARD_SONG_KEYS = ['bard_discordant_note', 'bard_melody_of_mending', 'bard_chorus_of_vigor', 'bard_march_of_wayfarers', 'bard_battle_hymn'];
+        const BARD_SONG_KEYS = ['bard_discordant_note', 'bard_melody_of_mending', 'bard_chorus_of_vigor', 'bard_march_of_wayfarers', 'bard_requiem_of_ruin'];
         if (!BARD_SONG_KEYS.includes(abilityKey)) {
           appendPrivateEvent(
             ctx,

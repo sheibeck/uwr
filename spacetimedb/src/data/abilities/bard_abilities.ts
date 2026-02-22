@@ -49,17 +49,16 @@ export const BARD_ABILITIES: Record<string, AbilityMetadata> = {
     damageType: 'none' as DamageType,
     aoeTargets: 'all_party',
   },
-  bard_battle_hymn: {
-    name: 'Battle Hymn',
-    description: 'Activates a powerful battle hymn that deals sonic damage to all enemies and restores HP and mana to all allies every 6 seconds.',
+  bard_requiem_of_ruin: {
+    name: 'Requiem of Ruin',
+    description: 'Activates a dark requiem that weakens all enemies in combat, increasing all damage they take every 6 seconds.',
     className: 'bard',
     resource: 'mana',
     level: 9n,
     power: 4n,
     cooldownSeconds: 1n,
     castSeconds: 0n,
-    damageType: 'magic' as DamageType,
-    aoeTargets: 'all_enemies',
+    damageType: 'none' as DamageType,
   },
   bard_finale: {
     name: 'Finale',
