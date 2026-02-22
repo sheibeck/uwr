@@ -1856,7 +1856,7 @@ export const registerCombatReducers = (deps: any) => {
         case 'bard_requiem_of_ruin': {
           if (!combatId) break;
           for (const en of enemies) {
-            addEnemyEffect(ctx, combatId, en.id, 'damage_taken', 3n, 1n, 'Requiem of Ruin');
+            addEnemyEffect(ctx, combatId, en.id, 'damage_taken', 3n, 1n, 'Requiem of Ruin', bard.id);
           }
           logPrivateAndGroup(ctx, bard, 'ability', 'Requiem of Ruin weakens all enemies, increasing damage they take.');
           break;

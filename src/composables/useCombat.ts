@@ -307,6 +307,7 @@ export const useCombat = ({
     if (!activeCombat.value || !activeEnemy.value) return [];
     const combatId = activeCombat.value.id.toString();
     const enemyId = activeEnemy.value.id.toString();
+    const myCharId = selectedCharacter.value?.id.toString();
     return combatEnemyEffects.value
       .filter(
         (row) =>
@@ -316,13 +317,16 @@ export const useCombat = ({
         const seconds = effectRemainingSeconds(effect, nowMicros.value, effectTimers);
         const label = effectLabel(effect);
         const isNegative = effectIsNegative(effect);
+        const isOwn = !!myCharId && effect.ownerCharacterId?.toString() === myCharId;
         return {
           id: effect.id,
           label,
           seconds,
           isNegative,
+          isOwn,
         };
-      });
+      })
+      .sort((a, b) => (b.isOwn ? 1 : 0) - (a.isOwn ? 1 : 0));
   });
 
   const activeEnemyActionText = computed(() => {
@@ -489,6 +493,7 @@ export const useCombat = ({
       else if (diff === 1) conClass = 'conYellow';
       else if (diff === 2) conClass = 'conOrange';
       else conClass = 'conRed';
+       const myCharId = selectedCharacter.value?.id.toString();
        const effects = combatEnemyEffects.value
          .filter(
            (row) =>
@@ -499,13 +504,16 @@ export const useCombat = ({
            const seconds = effectRemainingSeconds(effect, nowMicros.value, effectTimers);
            const label = effectLabel(effect);
            const isNegative = effectIsNegative(effect);
+           const isOwn = !!myCharId && effect.ownerCharacterId?.toString() === myCharId;
            return {
              id: effect.id,
              label,
             seconds,
             isNegative,
+            isOwn,
           };
-        });
+        })
+        .sort((a, b) => (b.isOwn ? 1 : 0) - (a.isOwn ? 1 : 0));
       const cast = combatEnemyCasts.value.find(
         (row) =>
           row.combatId.toString() === combatId &&

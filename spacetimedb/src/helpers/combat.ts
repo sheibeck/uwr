@@ -259,7 +259,8 @@ export function addEnemyEffect(
   effectType: string,
   magnitude: bigint,
   roundsRemaining: bigint,
-  sourceAbility: string
+  sourceAbility: string,
+  ownerCharacterId?: bigint
 ) {
   // Stun uses a time-based window stored in CombatEnemyEffect.magnitude (expiry micros).
   // roundsRemaining is treated as seconds. Multiple stuns extend the window via max().
@@ -271,7 +272,7 @@ export function addEnemyEffect(
     );
     if (existing) {
       const maxExpiry = existing.magnitude > newUntil ? existing.magnitude : newUntil;
-      ctx.db.combatEnemyEffect.id.update({ ...existing, magnitude: maxExpiry });
+      ctx.db.combatEnemyEffect.id.update({ ...existing, magnitude: maxExpiry, ownerCharacterId });
     } else {
       ctx.db.combatEnemyEffect.insert({
         id: 0n,
@@ -281,7 +282,7 @@ export function addEnemyEffect(
         magnitude: newUntil,
         roundsRemaining: 0n,
         sourceAbility,
-        ownerCharacterId: undefined,
+        ownerCharacterId,
       });
     }
     return;
@@ -298,6 +299,7 @@ export function addEnemyEffect(
       ...existing,
       magnitude,
       roundsRemaining,
+      ownerCharacterId,
     });
     return;
   }
@@ -309,6 +311,7 @@ export function addEnemyEffect(
     magnitude,
     roundsRemaining,
     sourceAbility,
+    ownerCharacterId,
   });
 }
 
@@ -670,7 +673,8 @@ export function executeAbility(
             'dot',
             dotDamagePerTick,
             dotDuration,
-            ability.name
+            ability.name,
+            character.id
           );
         }
 
@@ -750,7 +754,8 @@ export function executeAbility(
         options.debuff.type,
         options.debuff.magnitude,
         options.debuff.rounds,
-        options.debuff.source
+        options.debuff.source,
+        character.id
       );
     }
     if (options?.dot) {
@@ -761,7 +766,8 @@ export function executeAbility(
         'dot',
         options.dot.magnitude,
         options.dot.rounds,
-        options.dot.source
+        options.dot.source,
+        character.id
       );
     }
 
@@ -774,7 +780,8 @@ export function executeAbility(
         'dot',
         dotDamagePerTick,
         dotDuration,
-        ability.name
+        ability.name,
+        character.id
       );
     }
 
@@ -787,7 +794,8 @@ export function executeAbility(
         ability.debuffType,
         ability.debuffMagnitude,
         ability.debuffDuration,
-        ability.name
+        ability.name,
+        character.id
       );
     }
 
@@ -944,7 +952,7 @@ export function executeAbility(
           const earthquakeEnemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
           for (const en of earthquakeEnemies) {
             if (en.currentHp === 0n) continue;
-            addEnemyEffect(ctx, combatId, en.id, 'stun', 1n, 4n, 'Earthquake');
+            addEnemyEffect(ctx, combatId, en.id, 'stun', 1n, 4n, 'Earthquake', character.id);
           }
         }
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
@@ -959,7 +967,7 @@ export function executeAbility(
         return;
       case 'warrior_intimidating_presence':
         if (!enemy || !combatId) throw new SenderError('You have no target to unleash this upon.');
-        addEnemyEffect(ctx, combatId, enemy.id, 'damage_down', -3n, 3n, 'Intimidating Presence');
+        addEnemyEffect(ctx, combatId, enemy.id, 'damage_down', -3n, 3n, 'Intimidating Presence', character.id);
         appendPrivateEvent(
           ctx,
           character.id,
@@ -1061,7 +1069,7 @@ export function executeAbility(
             ? [...ctx.db.combatEnemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n)
             : [];
           for (const en of activeEnemies) {
-            addEnemyEffect(ctx, combatId!, en.id, 'damage_taken', 3n, 1n, 'Requiem of Ruin');
+            addEnemyEffect(ctx, combatId!, en.id, 'damage_taken', 3n, 1n, 'Requiem of Ruin', character.id);
           }
           logPrivateAndGroup(ctx, character, 'ability', 'Requiem of Ruin weakens all enemies, increasing damage they take.');
         }
@@ -1107,7 +1115,7 @@ export function executeAbility(
             break;
           case 'bard_requiem_of_ruin':
             for (const tEnemy of bardEnemies) {
-              addEnemyEffect(ctx, combatId!, tEnemy.id, 'damage_taken', 3n, 1n, 'Requiem of Ruin');
+              addEnemyEffect(ctx, combatId!, tEnemy.id, 'damage_taken', 3n, 1n, 'Requiem of Ruin', character.id);
             }
             break;
           case 'bard_melody_of_mending':
@@ -1167,7 +1175,7 @@ export function executeAbility(
           const bewilderedEnemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
           for (const en of bewilderedEnemies) {
             if (en.currentHp === 0n) continue;
-            addEnemyEffect(ctx, combatId, en.id, 'ac_bonus', -3n, 3n, 'Bewilderment');
+            addEnemyEffect(ctx, combatId, en.id, 'ac_bonus', -3n, 3n, 'Bewilderment', character.id);
           }
         }
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
@@ -1397,7 +1405,7 @@ export function executeAbility(
       case 'rogue_death_mark': {
         if (!enemy || !combatId) throw new SenderError('You have no target to unleash this upon.');
         // Debuff: increases damage taken by enemy
-        addEnemyEffect(ctx, combatId, enemy.id, 'damage_taken', 5n, 3n, 'Death Mark');
+        addEnemyEffect(ctx, combatId, enemy.id, 'damage_taken', 5n, 3n, 'Death Mark', character.id);
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
           `Death Mark condemns ${enemyName} — all damage to them increased.`
         );
@@ -1546,7 +1554,7 @@ export function executeAbility(
         // Life drain DoT: damages enemy AND heals caster per tick via ownerCharacterId
         if (!enemy || !combatId) throw new SenderError('You have no target to unleash this upon.');
         const witherDotDamage = 5n + character.level;
-        addEnemyEffect(ctx, combatId, enemy.id, 'dot', witherDotDamage, 3n, 'Wither');
+        addEnemyEffect(ctx, combatId, enemy.id, 'dot', witherDotDamage, 3n, 'Wither', character.id);
         // Find the just-inserted effect and add ownerCharacterId
         const witherEffect = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)]
           .find((e: any) => e.effectType === 'dot' && e.sourceAbility === 'Wither');
@@ -1791,7 +1799,7 @@ export function executeAbility(
           const dreadEnemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
           for (const en of dreadEnemies) {
             if (en.currentHp === 0n) continue;
-            addEnemyEffect(ctx, combatId, en.id, 'damage_down', -3n, 3n, 'Dread Aura');
+            addEnemyEffect(ctx, combatId, en.id, 'damage_down', -3n, 3n, 'Dread Aura', character.id);
           }
         }
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
