@@ -56,9 +56,9 @@
         </li>
       </ul>
       <div v-if="isLeader" :style="styles.checkboxRow">
-        <span :style="styles.subtle">Puller</span>
+        <span :style="{ ...styles.subtle, fontSize: '11px' }">Puller</span>
         <select
-          :style="styles.input"
+          :style="{ ...styles.input, fontSize: '11px', padding: '2px 4px' }"
           :value="pullerName"
           @change="$emit('set-puller', ($event.target as HTMLSelectElement).value)"
         >
