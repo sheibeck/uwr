@@ -5,6 +5,10 @@
       Select a character to view group details.
     </div>
     <div v-else-if="currentGroup">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
+        <span :style="styles.panelSectionTitle">{{ currentGroup.name }}</span>
+        <button :style="{ ...styles.ghostButton, fontSize: '11px', padding: '2px 8px' }" @click="$emit('leave')">Leave</button>
+      </div>
       <ul :style="styles.list">
         <li
           v-for="member in sortedMembers"
@@ -75,9 +79,6 @@
         />
         <span>Follow leader movement</span>
       </label>
-      <button :style="styles.ghostButton" @click="$emit('leave')">
-        Leave Group
-      </button>
     </div>
     <div v-else>
       <div v-if="selectedCharacter" :style="styles.panelSectionTitle"></div>
