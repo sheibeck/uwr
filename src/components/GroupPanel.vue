@@ -20,9 +20,9 @@
           @click="$emit('target', member.id)"
           @contextmenu.prevent="openMemberContextMenu($event, member)"
         >
-          <span style="font-size: 11px;">
+          <span style="font-size: 12px;">
             <span v-if="member.id === leaderId" :style="styles.subtle" title="Leader">★ </span>{{ member.name }} (#{{ member.level }}) - {{ member.className }}
-            <span v-if="member.id === pullerId" :style="styles.subtle" title="Puller"> · Puller</span>
+            <span v-if="member.id === pullerId" :style="{ ...styles.subtle, fontSize: '12px' }" title="Puller"> · Puller</span>
           </span>
           <div :style="{ ...styles.hpBar, height: '10px', marginTop: '0.1rem' }">
             <div :style="{ ...styles.hpFill, width: `${percent(member.hp, member.maxHp)}%` }"></div>
