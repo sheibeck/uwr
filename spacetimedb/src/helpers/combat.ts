@@ -1008,15 +1008,27 @@ export function executeAbility(
           bard_march_of_wayfarers: 'March of Wayfarers',
           bard_battle_hymn: 'Battle Hymn',
         };
-        // Battle Hymn deals an immediate burst on cast
-        if (abilityKey === 'bard_battle_hymn') {
+        // Damage songs deal an immediate tick on cast
+        if (abilityKey === 'bard_battle_hymn' || abilityKey === 'bard_discordant_note') {
           const activeEnemies = combatId
             ? [...ctx.db.combatEnemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n)
             : [];
           const burstDmg = 8n + character.level * 2n + character.cha;
+          let totalDamage = 0n;
           for (const en of activeEnemies) {
+            const actualDmg = en.currentHp > burstDmg ? burstDmg : en.currentHp;
+            totalDamage += actualDmg;
             const nextHp = en.currentHp > burstDmg ? en.currentHp - burstDmg : 0n;
             ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
+          }
+          if (abilityKey === 'bard_discordant_note') {
+            const freshBard = ctx.db.character.id.find(character.id);
+            if (freshBard && freshBard.mana > 0n) {
+              const manaCost = 3n;
+              const newMana = freshBard.mana > manaCost ? freshBard.mana - manaCost : 0n;
+              ctx.db.character.id.update({ ...freshBard, mana: newMana });
+            }
+            logPrivateAndGroup(ctx, character, 'damage', `Discordant Note deals ${totalDamage} damage to all enemies.`);
           }
         }
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',

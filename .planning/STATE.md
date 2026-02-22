@@ -522,10 +522,12 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 271 | Fix bard song spam / remove Discordant Note burst / UI indicators — fixed [0] song lookup to .find(!isFading) in guard + executeAbilityAction + bard_finale to prevent duplicate ActiveBardSong rows when a fading song exists; removed initial burst from bard_discordant_note (only Battle Hymn bursts); green fill overlay on active-song hotbar slot; ♪ prefix on song buff in group window | 2026-02-21 | 35041ce | [271-fix-bard-song-stacking-remove-dn-burst-a](./quick/271-fix-bard-song-stacking-remove-dn-burst-a/) |
 | 272 | Discordant Note damage log message in red — tick_bard_songs bard_discordant_note case now accumulates clamped actualDmg per enemy and logs "Discordant Note deals X damage to all enemies." with kind 'damage' (red) via logPrivateAndGroup so bard and group both see it | 2026-02-22 | f9582de | [272-discordant-note-damage-log-message-in-re](./quick/272-discordant-note-damage-log-message-in-re/) |
 | 273 | Fix player death not teleporting to bind point — combat_loop defeat/victory paths never auto-teleported dead characters; added autoRespawnDeadCharacter helper (clears effects/cooldowns, moves to boundLocationId, sets hp/mana/stamina=1n, logs awakening message) called from both paths | 2026-02-22 | 81be09c | [273-fix-player-death-not-teleporting-to-bind](./quick/273-fix-player-death-not-teleporting-to-bind/) |
+| 274 | Melody of Mending costs mana per tick — 3 mana drain per tick in tick_bard_songs, clamps to 0, song continues even on empty mana | 2026-02-22 | d969da1 | [274-melody-of-mending-costs-mana-per-tick-li](./quick/274-melody-of-mending-costs-mana-per-tick-li/) |
+| 275 | Discordant Note initial damage tick on cast — fires immediate burst (8+level*2+cha, 3 mana drain) matching the 6s tick formula; log via logPrivateAndGroup; Battle Hymn burst unchanged | 2026-02-22 | 412f002 | [275-discordant-note-missing-initial-damage-t](./quick/275-discordant-note-missing-initial-damage-t/) |
 
 ---
 
-Last activity: 2026-02-22 - Completed quick-273: Fix player death not teleporting to bind point; reverted unauthorized quick-274/275 executor changes
+Last activity: 2026-02-22 - Restored quick-274 (MoM mana drain) and quick-275 (DN initial burst on cast)
 
 ## Last Session
 
