@@ -1277,8 +1277,6 @@ export const registerCombatReducers = (deps: any) => {
     ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
   });
 
-  const HP_REGEN_OUT = 6n;
-  const MANA_REGEN_OUT = 5n;
   const STAMINA_REGEN_OUT = 3n;
   const HP_REGEN_IN = 2n;
   const MANA_REGEN_IN = 2n;
@@ -1303,8 +1301,8 @@ export const registerCombatReducers = (deps: any) => {
       }
       if (inCombat && !halfTick) continue;
 
-      const hpRegen = inCombat ? HP_REGEN_IN : HP_REGEN_OUT;
-      const manaRegen = inCombat ? MANA_REGEN_IN : MANA_REGEN_OUT;
+      const hpRegen = inCombat ? HP_REGEN_IN : (character.maxHp / 15n || 1n);
+      const manaRegen = inCombat ? MANA_REGEN_IN : (character.maxMana > 0n ? character.maxMana / 20n || 1n : 0n);
       const staminaRegen = inCombat ? STAMINA_REGEN_IN : STAMINA_REGEN_OUT;
 
       // Sum food regen bonus effects (food_mana_regen, food_stamina_regen, food_health_regen)
