@@ -528,10 +528,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 277 | Add consumable and food items to hotbar — right-click inventory item shows "Add to Hotbar", stores item:<templateId> in HotbarSlot.abilityKey; useHotbar resolves name/count from inventoryItems, calls use_item or eatFood on click; slot shows xN count badge and disables at 0; no backend schema changes | 2026-02-22 | c7238bd | [277-add-consumable-and-food-items-to-hotbar](./quick/277-add-consumable-and-food-items-to-hotbar/) |
 | 278 | Remove Hotbar panel button from ActionBar; add Abilities tab to CharacterInfoPanel listing class abilities (filtered by level) + active renown perks with right-click → "What does this do?" + "Add to Hotbar"; update onboarding hint to reference Character > Abilities tab | 2026-02-22 | d4e4622 | [278-remove-hotbar-panel-add-abilities-tab-to](./quick/278-remove-hotbar-panel-add-abilities-tab-to/) |
 | 279 | Fix new character onboarding hint — position: fixed, z-index 500 (above all panels), flex-row layout to reduce height, exact hint text: "Open the Character panel, equip your gear from the Inventory tab, then add an ability to your hotbar from the Abilities tab." | 2026-02-22 | 30bbe32 | [279-fix-new-character-hint-z-index-reduce-he](./quick/279-fix-new-character-hint-z-index-reduce-he/) |
+| 280 | Overhaul right-click context menus — Abilities tab: show description inline at top, only "Add to Hotbar" action (removed "What does this do?"); Hotbar slot: show description inline + "Remove from Hotbar" action that clears slot via setHotbarSlot(slot, '') | 2026-02-22 | b42f1cb | [280-ability-right-click-shows-description-th](./quick/280-ability-right-click-shows-description-th/) |
 
 ---
 
-Last activity: 2026-02-22 - Fixed onboarding hint z-index/height/text (quick-279)
+Last activity: 2026-02-22 - Overhauled ability/hotbar right-click context menus (quick-280)
 
 ## Last Session
 
