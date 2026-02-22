@@ -1242,7 +1242,7 @@ export const styles = {
     top: '80px',
     left: '50%',
     transform: 'translateX(-50%)',
-    zIndex: 500,
+    zIndex: 9000,
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',

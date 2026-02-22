@@ -166,7 +166,7 @@
     <!-- Character Info Panel (wide) — combines Inventory and Stats tabs -->
     <div v-if="panels.characterInfo && panels.characterInfo.open" data-panel-id="characterInfo" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('characterInfo').value || {}) }" @mousedown="bringToFront('characterInfo')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('characterInfo', $event)"><div>Character</div><button type="button" :style="styles.panelClose" @click="closePanelById('characterInfo')">x</button></div>
-      <div :style="styles.floatingPanelBody"><CharacterInfoPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" :races="races" :available-abilities="availableAbilities" :renown-perks="characterRenownPerks" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @organize="organizeInventory" @salvage-item="salvageItem" @add-to-hotbar="onAddItemToHotbar" @add-ability-to-hotbar="onAddAbilityToHotbar" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
+      <div :style="styles.floatingPanelBody"><CharacterInfoPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" :races="races" :available-abilities="availableAbilities" :renown-perks="characterRenownPerks" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @organize="organizeInventory" @salvage-item="salvageItem" @add-to-hotbar="onAddItemToHotbar" @add-ability-to-hotbar="onAddAbilityToHotbar" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" :onboarding="highlightInventory" @tab-change="onCharacterTabChange" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('characterInfo', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('characterInfo', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('characterInfo', $event, { right: true, bottom: true })" />
     </div>
 
@@ -2141,14 +2141,11 @@ const updateAccordionState = (payload: { key: AccordionKey; open: boolean }) => 
   persistAccordionState();
 };
 
-watch(
-  () => [...openPanels.value],
-  (panels) => {
-    if (onboardingStep.value === 'inventory' && panels.includes('characterInfo')) {
-      onboardingStep.value = null;
-    }
+const onCharacterTabChange = (tab: string) => {
+  if (onboardingStep.value !== null && tab === 'abilities') {
+    onboardingStep.value = null;
   }
-);
+};
 
 onMounted(() => {
   loadAccordionState();
@@ -2469,6 +2466,18 @@ const handleChoosePerk = (perkKey: string) => {
 .loot-panel-pulse {
   animation: lootBorderPulse 0.9s ease-in-out 4;
   border: 1px solid rgba(255, 190, 60, 0.70) !important;
+}
+
+@keyframes onboardingButtonPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 165, 0, 0.0);   border-color: rgba(255,255,255,0.15); }
+  40%  { box-shadow: 0 0 0 6px rgba(255, 165, 0, 0.55); border-color: rgba(255, 165, 0, 0.90); }
+  70%  { box-shadow: 0 0 0 3px rgba(255, 165, 0, 0.30); border-color: rgba(255, 165, 0, 0.60); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 165, 0, 0.0);   border-color: rgba(255,255,255,0.15); }
+}
+
+.onboarding-pulse {
+  animation: onboardingButtonPulse 1.4s ease-in-out infinite;
+  border: 1px solid rgba(255, 165, 0, 0.80) !important;
 }
 </style>
 
