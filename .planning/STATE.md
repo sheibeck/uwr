@@ -525,10 +525,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 274 | Melody of Mending costs mana per tick — 3 mana drain per tick in tick_bard_songs, clamps to 0, song continues even on empty mana | 2026-02-22 | d969da1 | [274-melody-of-mending-costs-mana-per-tick-li](./quick/274-melody-of-mending-costs-mana-per-tick-li/) |
 | 275 | Discordant Note initial damage tick on cast — fires immediate burst (8+level*2+cha, 3 mana drain) matching the 6s tick formula; log via logPrivateAndGroup; Battle Hymn burst unchanged | 2026-02-22 | 412f002 | [275-discordant-note-missing-initial-damage-t](./quick/275-discordant-note-missing-initial-damage-t/) |
 | 276 | Replace Battle Hymn with Requiem of Ruin — level 9 bard song renamed bard_requiem_of_ruin; every 6s tick applies damage_taken debuff (magnitude 3n, rounds 1n) to all active enemies; initial cast fires first debuff immediately; updated across bard_abilities.ts, helpers/combat.ts, reducers/combat.ts, items.ts, App.vue | 2026-02-22 | be06f43 | [276-replace-battle-hymn-with-requiem-of-ruin](./quick/276-replace-battle-hymn-with-requiem-of-ruin/) |
+| 277 | Add consumable and food items to hotbar — right-click inventory item shows "Add to Hotbar", stores item:<templateId> in HotbarSlot.abilityKey; useHotbar resolves name/count from inventoryItems, calls use_item or eatFood on click; slot shows xN count badge and disables at 0; no backend schema changes | 2026-02-22 | c7238bd | [277-add-consumable-and-food-items-to-hotbar](./quick/277-add-consumable-and-food-items-to-hotbar/) |
 
 ---
 
-Last activity: 2026-02-22 - Replaced Battle Hymn with Requiem of Ruin (quick-276): bard level 9 song now applies damage_taken debuff to all enemies every 6s
+Last activity: 2026-02-22 - Added consumable/food items to hotbar (quick-277): right-click inventory → Add to Hotbar, slot shows count badge
 
 ## Last Session
 
