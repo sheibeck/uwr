@@ -20,7 +20,7 @@
         :class="{ 'onboarding-pulse': props.highlightInventory }"
         :disabled="isLocked('characterInfo')"
       >
-        Character
+        Character (C)
       </button>
       <button
         @click="emit('toggle', 'crafting')"
@@ -34,20 +34,20 @@
         :style="actionStyle('journal')"
         :disabled="isLocked('journal')"
       >
-        Journal
+        Journal (J)
       </button>
       <button
         @click="emit('toggle', 'renown')"
         :style="actionStyle('renown')"
         :disabled="isLocked('renown')"
       >
-        Renown
+        Renown (R)
       </button>
       <button
         @click="emit('toggle', 'worldEvents')"
         :style="{ ...actionStyle('worldEvents'), position: 'relative' }"
       >
-        Events
+        Events (E)
         <span
           v-if="hasActiveEvents"
           :style="{ position: 'absolute', top: '2px', right: '2px', width: '8px', height: '8px',
@@ -59,13 +59,13 @@
         :style="actionStyle('travelPanel')"
         :disabled="isLocked('travelPanel')"
       >
-        Travel
+        Travel (T)
       </button>
       <button
         @click="emit('toggle', 'loot')"
         :style="actionStyle('loot')"
       >
-        Loot
+        Loot (L)
       </button>
       <button
         @click="emit('toggle', 'friends')"

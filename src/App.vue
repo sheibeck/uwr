@@ -187,7 +187,7 @@
     <!-- Journal Panel (wide) -->
     <div v-if="panels.journal && panels.journal.open" data-panel-id="journal" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('journal').value || {}) }" @mousedown="bringToFront('journal')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('journal', $event)"><div>Journal</div><button type="button" :style="styles.panelClose" @click="closePanelById('journal')">×</button></div>
-      <div :style="styles.floatingPanelBody"><NpcDialogPanel :styles="styles" :npc-dialogs="characterNpcDialogs" :npcs="npcs" :locations="locations" :regions="regions" :npc-affinities="npcAffinities" :selected-character-id="selectedCharacterId" :selected-npc-target="selectedNpcTarget" :quest-instances="characterQuests" :quest-templates="questTemplates" /></div>
+      <div :style="styles.floatingPanelBody"><NpcDialogPanel :styles="styles" :npc-dialogs="characterNpcDialogs" :npcs="npcs" :locations="locations" :regions="regions" :npc-affinities="npcAffinities" :selected-character-id="selectedCharacterId" :selected-npc-target="selectedNpcTarget" :quest-instances="characterQuests" :quest-templates="questTemplates" :requested-tab="journalRequestedTab" /></div>
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('journal', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('journal', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('journal', $event, { right: true, bottom: true })" />
     </div>
 
@@ -1517,6 +1517,9 @@ const hailNpc = (npcName: string) => {
   openPanel('journal');
 };
 
+// Requested tab for journal panel (used by Q keyboard shortcut)
+const journalRequestedTab = ref<'journal' | 'quests' | null>(null);
+
 // Gift overlay state and logic
 const giftTargetNpcId = ref<bigint | null>(null);
 
@@ -2153,6 +2156,23 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
   // Skip if any text input or textarea has focus
   const target = e.target as HTMLElement;
   if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+
+  // Panel shortcuts (only when a character is selected)
+  if (selectedCharacter.value) {
+    switch (e.key) {
+      case 'j': case 'J': togglePanel('journal'); return;
+      case 'r': case 'R': togglePanel('renown'); return;
+      case 'c': case 'C': togglePanel('characterInfo'); return;
+      case 'e': case 'E': togglePanel('worldEvents'); return;
+      case 'q': case 'Q':
+        journalRequestedTab.value = 'quests';
+        openPanel('journal');
+        setTimeout(() => { journalRequestedTab.value = null; }, 100);
+        return;
+      case 't': case 'T': togglePanel('travelPanel'); return;
+      case 'l': case 'L': togglePanel('loot'); return;
+    }
+  }
 
   // Map key to hotbar slot index (1-9 → slots 1-9, 0 → slot 10)
   let slotIndex: number | null = null;

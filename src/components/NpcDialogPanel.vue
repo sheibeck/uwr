@@ -159,9 +159,14 @@ const props = defineProps<{
   selectedNpcTarget?: bigint | null;
   questInstances: QuestInstanceRow[];
   questTemplates: QuestTemplateRow[];
+  requestedTab?: 'journal' | 'quests' | null;
 }>();
 
 const activeTab = ref<'journal' | 'quests'>('journal');
+
+watch(() => props.requestedTab, (val) => {
+  if (val) activeTab.value = val;
+});
 
 const AFFINITY_TIERS = [
   { min: -100, max: -51, name: 'Hostile', color: '#f87171' },
