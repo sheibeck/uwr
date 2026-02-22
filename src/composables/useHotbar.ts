@@ -19,6 +19,19 @@ type HotbarDisplaySlot = {
   level: bigint;
   cooldownSeconds: bigint;
   cooldownRemaining: number;
+  itemCount?: number;
+  itemTemplateId?: bigint | null;
+};
+
+type InventoryItemRef = {
+  id: bigint;
+  name: string;
+  slot: string;
+  quantity: bigint;
+  stackable: boolean;
+  usable: boolean;
+  eatable: boolean;
+  templateId: bigint;
 };
 
 type UseHotbarArgs = {
@@ -40,6 +53,8 @@ type UseHotbarArgs = {
   onResurrectRequested?: (corpseId: bigint) => void;
   onCorpseSummonRequested?: (targetCharacterId: bigint) => void;
   addLocalEvent?: (kind: string, message: string) => void;
+  inventoryItems?: Ref<InventoryItemRef[]>;
+  eatFoodFn?: (itemInstanceId: bigint) => void;
 };
 
 const toMicros = (seconds: bigint | undefined) => {
@@ -66,6 +81,8 @@ export const useHotbar = ({
   onResurrectRequested,
   onCorpseSummonRequested,
   addLocalEvent,
+  inventoryItems,
+  eatFoodFn,
 }: UseHotbarArgs) => {
   const setHotbarReducer = useReducer(reducers.setHotbarSlot);
   const useAbilityReducer = useReducer(reducers.useAbility);
@@ -103,11 +120,17 @@ export const useHotbar = ({
     if (!selectedCharacter.value) return slots;
     for (const row of hotbarSlots.value) {
       if (row.characterId.toString() !== selectedCharacter.value.id.toString()) continue;
-      const ability = availableAbilities.value.find((item) => item.key === row.abilityKey);
       const target = slots[row.slot - 1];
       if (!target) continue;
       target.abilityKey = row.abilityKey;
-      target.name = ability?.name ?? row.abilityKey;
+      if (row.abilityKey.startsWith('item:')) {
+        const templateId = BigInt(row.abilityKey.split(':')[1]);
+        const match = inventoryItems?.value.find(i => i.templateId === templateId);
+        target.name = match?.name ?? row.abilityKey;
+      } else {
+        const ability = availableAbilities.value.find((item) => item.key === row.abilityKey);
+        target.name = ability?.name ?? row.abilityKey;
+      }
     }
     return slots;
   });
@@ -194,14 +217,28 @@ export const useHotbar = ({
           : Math.min(cooldownRemainingRaw, GCD_SECONDS);
       const resolvedDescription =
         ability?.description?.trim() || (assignment.abilityKey ? `${assignment.name} ability.` : '');
+
+      // Item slot handling
+      const isItemSlot = assignment.abilityKey.startsWith('item:');
+      let itemCount: number | undefined;
+      let itemTemplateId: bigint | null | undefined;
+      if (isItemSlot) {
+        const templateId = BigInt(assignment.abilityKey.split(':')[1]);
+        itemTemplateId = templateId;
+        const matches = inventoryItems?.value.filter(i => i.templateId === templateId) ?? [];
+        itemCount = matches.reduce((sum, i) => sum + Number(i.quantity), 0);
+      }
+
       return {
         ...assignment,
         description: resolvedDescription,
         resource: ability?.resource ?? '',
-        kind: ability?.kind ?? '',
+        kind: isItemSlot ? 'item' : (ability?.kind ?? ''),
         level: ability?.level ?? 0n,
-        cooldownSeconds: ability?.cooldownSeconds ?? 0n,
-        cooldownRemaining,
+        cooldownSeconds: isItemSlot ? 0n : (ability?.cooldownSeconds ?? 0n),
+        cooldownRemaining: isItemSlot ? 0 : cooldownRemaining,
+        itemCount,
+        itemTemplateId,
       };
     });
   });
@@ -263,6 +300,8 @@ export const useHotbar = ({
 
   const hotbarTooltipItem = (slot: HotbarDisplaySlot) => {
     if (!slot?.abilityKey) return null;
+    // Item slots don't have ability tooltip data
+    if (slot.abilityKey.startsWith('item:')) return null;
     const liveAbility = abilityLookup.value.get(slot.abilityKey);
     const resource = liveAbility?.resource ?? slot.resource ?? '';
     const power = liveAbility?.power ?? 0n;
@@ -321,6 +360,31 @@ export const useHotbar = ({
   const onHotbarClick = (slot: HotbarDisplaySlot) => {
     if (!selectedCharacter.value || !slot?.abilityKey) return;
     if (isCasting.value) return;
+
+    // Item slot handler
+    if (slot.abilityKey.startsWith('item:') && slot.itemTemplateId != null) {
+      const templateId = slot.itemTemplateId;
+      const charId = selectedCharacter.value?.id;
+      if (!charId) return;
+      const match = inventoryItems?.value.find(i => i.templateId === templateId && i.quantity > 0n);
+      if (!match) {
+        addLocalEvent?.('blocked', 'No more of that item.');
+        return;
+      }
+      hotbarPulseKey.value = slot.abilityKey;
+      window.setTimeout(() => {
+        if (hotbarPulseKey.value === slot.abilityKey) hotbarPulseKey.value = null;
+      }, 800);
+      if (match.eatable) {
+        eatFoodFn?.(match.id);
+      } else {
+        const conn = window.__db_conn;
+        if (!conn) return;
+        conn.reducers.useItem({ characterId: charId, itemInstanceId: match.id });
+      }
+      return;
+    }
+
     if (slot.abilityKey === 'ranger_track') {
       // Block Track if in group and not the puller
       if (
