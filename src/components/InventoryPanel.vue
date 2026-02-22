@@ -57,6 +57,7 @@
             :key="idx"
             :style="slot ? { ...styles.bagSlot, ...styles.bagSlotFilled, ...qualityBorderStyle(slot.qualityTier) } : styles.bagSlot"
             @contextmenu.prevent="slot && openItemContextMenu($event, slot)"
+            @dblclick="slot && props.bankOpen && $emit('deposit-to-bank', slot.id)"
             @mouseenter="slot && $emit('show-tooltip', { item: slot, x: $event.clientX, y: $event.clientY })"
             @mousemove="slot && $emit('move-tooltip', { x: $event.clientX, y: $event.clientY })"
             @mouseleave="slot && $emit('hide-tooltip')"
