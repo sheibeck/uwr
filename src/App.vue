@@ -512,6 +512,8 @@
       :has-active-events="hasActiveEvents"
       @toggle="togglePanel"
       @camp="goToCamp"
+      @camp-start="addLocalEvent('system', 'You begin to make camp.')"
+      @camp-cancel="addLocalEvent('system', 'You stop making camp.')"
     />
     </footer>
 

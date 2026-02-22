@@ -115,6 +115,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'toggle', panel: string): void;
   (e: 'camp'): void;
+  (e: 'camp-start'): void;
+  (e: 'camp-cancel'): void;
 }>();
 
 const campCountdown = ref<number | null>(null);
@@ -128,9 +130,11 @@ const clearCampTimer = () => {
 const onCampClick = () => {
   if (campCountdown.value !== null) {
     clearCampTimer();
+    emit('camp-cancel');
     return;
   }
   campCountdown.value = 10;
+  emit('camp-start');
   campTimer = setInterval(() => {
     if (campCountdown.value === null) return;
     campCountdown.value--;
@@ -141,7 +145,7 @@ const onCampClick = () => {
   }, 1000);
 };
 
-// Cancel countdown if combat starts
+// Cancel countdown if combat starts (no message — combat interrupt is self-explanatory)
 watch(() => props.combatLocked, (locked) => { if (locked) clearCampTimer(); });
 onUnmounted(clearCampTimer);
 
