@@ -8,11 +8,11 @@
     </button>
     <template v-if="hasActiveCharacter">
       <button
-        @click="emit('camp')"
-        :style="actionStyle('camp')"
+        @click="onCampClick"
+        :style="campButtonStyle"
         :disabled="isLocked('camp')"
       >
-        Camp
+        {{ campCountdown !== null ? `Camp (${campCountdown}s)` : 'Camp' }}
       </button>
       <button
         @click="emit('toggle', 'characterInfo')"
@@ -85,6 +85,8 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch, onUnmounted } from 'vue';
+
 type PanelKey =
   | 'character'
   | 'characterInfo'
@@ -114,6 +116,39 @@ const emit = defineEmits<{
   (e: 'toggle', panel: string): void;
   (e: 'camp'): void;
 }>();
+
+const campCountdown = ref<number | null>(null);
+let campTimer: ReturnType<typeof setInterval> | null = null;
+
+const clearCampTimer = () => {
+  if (campTimer !== null) { clearInterval(campTimer); campTimer = null; }
+  campCountdown.value = null;
+};
+
+const onCampClick = () => {
+  if (campCountdown.value !== null) {
+    clearCampTimer();
+    return;
+  }
+  campCountdown.value = 10;
+  campTimer = setInterval(() => {
+    if (campCountdown.value === null) return;
+    campCountdown.value--;
+    if (campCountdown.value <= 0) {
+      clearCampTimer();
+      emit('camp');
+    }
+  }, 1000);
+};
+
+// Cancel countdown if combat starts
+watch(() => props.combatLocked, (locked) => { if (locked) clearCampTimer(); });
+onUnmounted(clearCampTimer);
+
+const campButtonStyle = computed(() => ({
+  ...actionStyle('camp'),
+  ...(campCountdown.value !== null ? { color: '#f97316', borderColor: '#f97316' } : {}),
+}));
 
 const actionStyle = (panel: string) => {
   const highlight = panel === 'characterInfo' && props.highlightInventory;
