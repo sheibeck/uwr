@@ -14,7 +14,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 **Current phase:** 21.1 — Stat Systems Off-Stat Hooks (COMPLETE — human-verified 2026-02-21)
 **Next action:** Continue Phase 21 (Race Expansion) or Phase 22 (Class Ability Balancing) — run /gsd:progress to check
 **Last session:** 2026-02-21T00:00:00Z
-**Stopped at:** Completed quick-276: Replace Battle Hymn with Requiem of Ruin
+**Stopped at:** Completed quick-277: Add consumable and food items to hotbar
 
 ---
 
