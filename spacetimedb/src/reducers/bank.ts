@@ -97,21 +97,32 @@ export const registerBankReducers = (deps: any) => {
       const template = ctx.db.itemTemplate.id.find(instance.templateId);
       if (!template) return failBank(ctx, character, 'Item template missing');
 
-      const hasStack = template.stackable &&
-        [...ctx.db.itemInstance.by_owner.filter(character.id)].some(
-          (row: any) => row.templateId === template.id && !row.equippedSlot
-        );
+      // Check for existing stack to merge into
+      const existingStack = template.stackable
+        ? [...ctx.db.itemInstance.by_owner.filter(character.id)].find(
+            (row: any) => row.templateId === template.id && !row.equippedSlot
+          )
+        : null;
       const slotCount = getInventorySlotCount(ctx, character.id);
-      if (!hasStack && slotCount >= MAX_INVENTORY_SLOTS) {
+      if (!existingStack && slotCount >= MAX_INVENTORY_SLOTS) {
         return failBank(ctx, character, 'Backpack is full');
       }
 
-      // Transfer item back to character
-      ctx.db.itemInstance.id.update({
-        ...instance,
-        ownerCharacterId: character.id,
-        equippedSlot: undefined,
-      });
+      if (existingStack) {
+        // Merge quantity into existing stack, delete the bank instance
+        ctx.db.itemInstance.id.update({
+          ...existingStack,
+          quantity: (existingStack.quantity ?? 1n) + (instance.quantity ?? 1n),
+        });
+        ctx.db.itemInstance.id.delete(instance.id);
+      } else {
+        // Transfer item back to character as a new slot
+        ctx.db.itemInstance.id.update({
+          ...instance,
+          ownerCharacterId: character.id,
+          equippedSlot: undefined,
+        });
+      }
 
       ctx.db.bankSlot.id.delete(bankSlot.id);
 
