@@ -10,6 +10,18 @@
           Create a character by choosing a race and class. Select your character to enter the world.
         </div>
 
+        <!-- Communicating -->
+        <div :style="sectionHeaderStyle">COMMUNICATING</div>
+        <div :style="sectionTextStyle">
+          Use the chat input at the bottom of the screen to communicate with other players. Type <b>/say Hello</b> to say something in the local area, or <b>/w character_name Hello</b> to send a private message.
+        </div>
+        <div :style="sectionTextStyle">
+          Typing <b>/</b> will show a list of available slash commands for communication, emotes, and more.
+        </div>
+        <div :style="sectionTextStyle">
+          The log panel is your window into the world. It shows chat messages, combat events, and system notifications. Open it to stay informed about what's happening around you.
+        </div>
+
         <!-- Interacting with the World -->
         <div :style="sectionHeaderStyle">INTERACTING WITH THE WORLD</div>
         <div :style="sectionTextStyle">
@@ -46,10 +58,11 @@
           </span>
         </div>
 
+
         <!-- Combat -->
         <div :style="sectionHeaderStyle">COMBAT</div>
         <div :style="sectionTextStyle">
-          Engage enemies by right-clicking and selecting "Pull" or "Attack".
+          Engage enemies by right-clicking and choose a pull option.
         </div>
         <div :style="sectionTextStyle">
           Use your hotbar abilities during combat. Abilities have cooldowns and cast times.
