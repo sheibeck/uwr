@@ -256,6 +256,13 @@
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('travelPanel', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('travelPanel', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('travelPanel', $event, { right: true, bottom: true })" />
     </div>
 
+    <!-- Map Panel -->
+    <div v-if="panels.map && panels.map.open" data-panel-id="map" :style="{ ...styles.floatingPanel, ...(panelStyle('map').value || {}) }" @mousedown="bringToFront('map')">
+      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('map', $event)"><div>Map</div><button type="button" :style="styles.panelClose" @click="closePanelById('map')">×</button></div>
+      <div :style="styles.floatingPanelBody"><MapPanel :regions="regions" :locations="locations" :location-connections="locationConnections" :selected-character="selectedCharacter" /></div>
+      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('map', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('map', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('map', $event, { right: true, bottom: true })" />
+    </div>
+
     <div
       :style="{
         ...styles.floatingPanel,
@@ -635,6 +642,7 @@ import TrackPanel from './components/TrackPanel.vue';
 import RenownPanel from './components/RenownPanel.vue';
 import WorldEventPanel from './components/WorldEventPanel.vue';
 import HelpOverlay from './components/HelpOverlay.vue';
+import MapPanel from './components/MapPanel.vue';
 import ContextMenu from './components/ContextMenu.vue';
 import { ADMIN_IDENTITY_HEX } from './data/worldEventDefs';
 import { useGameData } from './composables/useGameData';
@@ -2175,6 +2183,7 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
         return;
       case 't': case 'T': togglePanel('travelPanel'); return;
       case 'l': case 'L': togglePanel('loot'); return;
+      case 'm': case 'M': togglePanel('map'); return;
     }
   }
 

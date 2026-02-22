@@ -68,6 +68,12 @@
         Loot (L)
       </button>
       <button
+        @click="emit('toggle', 'map')"
+        :style="actionStyle('map')"
+      >
+        Map (M)
+      </button>
+      <button
         @click="emit('toggle', 'friends')"
         :style="actionStyle('friends')"
         :disabled="isLocked('friends')"
@@ -92,7 +98,8 @@ type PanelKey =
   | 'travelPanel'
   | 'combat'
   | 'help'
-  | 'worldEvents';
+  | 'worldEvents'
+  | 'map';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
