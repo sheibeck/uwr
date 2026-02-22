@@ -16,7 +16,7 @@ export const ENCHANTER_ABILITIES: Record<string, AbilityMetadata> = {
   },
   enchanter_mesmerize: {
     name: 'Mesmerize',
-    description: 'Mesmerizes the target with psychic power, stunning them for 4 seconds.',
+    description: 'Mesmerizes the target with psychic power, interrupting their next action.',
     className: 'enchanter',
     resource: 'mana',
     level: 3n,
