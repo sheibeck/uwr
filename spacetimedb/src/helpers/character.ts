@@ -144,10 +144,15 @@ export function recomputeCharacterDerived(ctx: any, character: any) {
 
   const clampedHp = character.hp > maxHp ? maxHp : character.hp;
   const clampedMana = maxMana === 0n ? 0n : character.mana > maxMana ? maxMana : character.mana;
+  const oldMaxStamina = character.maxStamina ?? 0n;
+  const clampedStamina = maxStamina > oldMaxStamina
+    ? maxStamina
+    : (character.stamina > maxStamina ? maxStamina : character.stamina);
   ctx.db.character.id.update({
     ...updated,
     hp: clampedHp,
     mana: clampedMana,
+    stamina: clampedStamina,
   });
 }
 

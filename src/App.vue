@@ -376,10 +376,16 @@
       @mousedown="bringToFront('group')"
     >
       <div
-        :style="styles.floatingPanelHeader"
+        :style="{ ...styles.floatingPanelHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }"
         @mousedown="startDrag('group', $event)"
       >
-        Group
+        <span>Group</span>
+        <button
+          v-if="currentGroup"
+          :style="{ ...styles.ghostButton, fontSize: '11px', padding: '2px 8px' }"
+          @mousedown.stop
+          @click="leaveGroup"
+        >Leave</button>
       </div>
       <div :style="styles.floatingPanelBody">
         <GroupPanel

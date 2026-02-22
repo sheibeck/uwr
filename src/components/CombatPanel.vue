@@ -62,7 +62,7 @@
                         ? (effect.isNegative ? styles.effectBadgeOwnNegative : styles.effectBadgeOwnPositive)
                         : (effect.isNegative ? styles.effectBadgeNegative : styles.effectBadgePositive)"
                     >
-                      {{ effect.label }} {{ effect.seconds }}s
+                      {{ effect.label }} {{ formatEffectDuration(effect.seconds) }}
                     </span>
                   </div>
                   <div v-if="enemy.targetName" :style="styles.combatRow">
@@ -113,6 +113,7 @@ import type {
   CharacterRow,
   CombatEncounterRow,
 } from '../module_bindings';
+import { formatEffectDuration } from '../ui/effectTimers';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;

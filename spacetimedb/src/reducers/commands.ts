@@ -697,7 +697,11 @@ export const registerCommandReducers = (deps: any) => {
       recomputeCharacterDerived(ctx, updated);
       count += 1;
     }
-    appendSystemMessage(ctx, `[Admin] Recomputed racial bonuses for ${count} character(s).`);
+    const adminPlayer = ctx.db.player.id.find(ctx.sender);
+    const adminChar = adminPlayer?.activeCharacterId ? ctx.db.character.id.find(adminPlayer.activeCharacterId) : null;
+    if (adminChar) {
+      appendSystemMessage(ctx, adminChar, `[Admin] Recomputed racial bonuses for ${count} character(s).`);
+    }
   });
 
   spacetimedb.reducer(

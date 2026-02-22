@@ -41,6 +41,11 @@ export const effectIsNegative = (
   return negativeTypes.has(effect.effectType) || (effect.magnitude ?? 0n) < 0n;
 };
 
+export const formatEffectDuration = (seconds: number): string => {
+  if (seconds >= 60) return `${Math.floor(seconds / 60)}m`;
+  return `${seconds}s`;
+};
+
 export const effectRemainingSeconds = (
   effect: Pick<TimedEffectLike, 'id' | 'effectType' | 'roundsRemaining' | 'magnitude'>,
   nowMicros: number,

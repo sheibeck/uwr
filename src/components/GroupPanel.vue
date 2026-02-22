@@ -1,14 +1,9 @@
 ﻿<template>
   <div>
-    <div :style="styles.panelSectionTitle"></div>
     <div v-if="!selectedCharacter" :style="styles.subtle">
       Select a character to view group details.
     </div>
     <div v-else-if="currentGroup">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
-        <span :style="styles.panelSectionTitle">{{ currentGroup.name }}</span>
-        <button :style="{ ...styles.ghostButton, fontSize: '11px', padding: '2px 8px' }" @click="$emit('leave')">Leave</button>
-      </div>
       <ul :style="styles.list">
         <li
           v-for="member in sortedMembers"
@@ -20,9 +15,9 @@
           @click="$emit('target', member.id)"
           @contextmenu.prevent="openMemberContextMenu($event, member)"
         >
-          <span style="font-size: 12px;">
-            <span v-if="member.id === leaderId" :style="styles.subtle" title="Leader">★ </span>{{ member.name }} (#{{ member.level }}) - {{ member.className }}
-            <span v-if="member.id === pullerId" :style="{ ...styles.subtle, fontSize: '12px' }" title="Puller"> · Puller</span>
+          <span style="font-size: 13px;">
+            <span v-if="member.id === leaderId" :style="styles.subtle" title="Leader">★ </span>{{ member.name }} ({{ member.level }}) - {{ member.className }}
+            <span v-if="member.id === pullerId" :style="{ ...styles.subtle, fontSize: '13px' }" title="Puller"> · Puller</span>
           </span>
           <div :style="{ ...styles.hpBar, height: '13px', marginTop: '0.15rem' }">
             <div :style="{ ...styles.hpFill, width: `${percent(member.hp, member.maxHp)}%` }"></div>
@@ -77,7 +72,7 @@
         ]"
         @click="$emit('target', selectedCharacter.id)"
       >
-        {{ selectedCharacter.name }} (#{{ selectedCharacter.level }}) -
+        {{ selectedCharacter.name }} ({{ selectedCharacter.level }}) -
         {{ selectedCharacter.className }}
       </div>
       <div v-if="selectedCharacter" :style="{ ...styles.hpBar, height: '13px', marginTop: '0.15rem' }">
@@ -169,7 +164,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { CharacterRow, GroupRow } from '../module_bindings';
-import { effectLabel, effectRemainingSeconds } from '../ui/effectTimers';
+import { effectLabel, effectRemainingSeconds, formatEffectDuration } from '../ui/effectTimers';
 import ContextMenu from './ContextMenu.vue';
 
 const props = defineProps<{
@@ -346,7 +341,7 @@ function petCountdown(pet: { expiresAtMicros?: bigint | null }): string | null {
   const now = props.nowMicros ?? Date.now() * 1000;
   const remainingSeconds = Math.ceil((Number(pet.expiresAtMicros) - now) / 1_000_000);
   if (remainingSeconds <= 0) return 'Expiring...';
-  return `${remainingSeconds}s`;
+  return formatEffectDuration(remainingSeconds);
 }
 
 const effectsFor = (characterId: bigint) =>
@@ -374,7 +369,7 @@ const effectDurationLabel = (effect: {
     return '♪';
   }
   const now = props.nowMicros ?? Date.now() * 1000;
-  return `${effectRemainingSeconds(effect, now, effectTimers)}s`;
+  return formatEffectDuration(effectRemainingSeconds(effect, now, effectTimers));
 };
 
 const effectLabelForDisplay = (effect: {
