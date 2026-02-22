@@ -2200,40 +2200,59 @@ export const registerCombatReducers = (deps: any) => {
         (row) => row.enemyId === enemy.id
       );
       if (existingCast && existingCast.endsAtMicros <= nowMicros) {
-        executeAbilityAction(ctx, {
-          actorType: 'enemy',
-          actorId: enemy.id,
-          combatId: combat.id,
-          abilityKey: existingCast.abilityKey,
-          targetCharacterId: existingCast.targetCharacterId,
-          targetPetId: existingCast.targetPetId,
-        });
-        const cooldownTable = ctx.db.combatEnemyCooldown;
-        if (cooldownTable) {
-          const abilityRow = enemyAbilities.find(
-            (row) => row.abilityKey === existingCast.abilityKey
-          );
-          const cooldownMicros =
-            enemyAbilityCooldownMicros(existingCast.abilityKey) ||
-            (abilityRow?.cooldownSeconds ?? 0n) * 1_000_000n;
-          if (cooldownMicros > 0n) {
-            for (const row of cooldownTable.by_enemy.filter(enemy.id)) {
-              if (row.abilityKey === existingCast.abilityKey) {
-                cooldownTable.id.delete(row.id);
-              }
-            }
-            cooldownTable.insert({
-              id: 0n,
-              combatId: combat.id,
-              enemyId: enemy.id,
-              abilityKey: existingCast.abilityKey,
-              readyAtMicros: nowMicros + cooldownMicros,
-            });
+        const stunEffect = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find(
+          (effect) => effect.effectType === 'stun'
+        );
+        if (stunEffect) {
+          // Stun interrupts the cast — consume the stun, cancel the ability
+          ctx.db.combatEnemyEffect.id.delete(stunEffect.id);
+          ctx.db.combatEnemyCast.id.delete(existingCast.id);
+          const eName = template?.name ?? 'Enemy';
+          for (const participant of activeParticipants) {
+            const character = ctx.db.character.id.find(participant.characterId);
+            if (!character) continue;
+            appendPrivateEvent(ctx, character.id, character.ownerUserId, 'combat',
+              `${eName}'s spell is interrupted!`);
           }
+        } else {
+          executeAbilityAction(ctx, {
+            actorType: 'enemy',
+            actorId: enemy.id,
+            combatId: combat.id,
+            abilityKey: existingCast.abilityKey,
+            targetCharacterId: existingCast.targetCharacterId,
+            targetPetId: existingCast.targetPetId,
+          });
+          const cooldownTable = ctx.db.combatEnemyCooldown;
+          if (cooldownTable) {
+            const abilityRow = enemyAbilities.find(
+              (row) => row.abilityKey === existingCast.abilityKey
+            );
+            const cooldownMicros =
+              enemyAbilityCooldownMicros(existingCast.abilityKey) ||
+              (abilityRow?.cooldownSeconds ?? 0n) * 1_000_000n;
+            if (cooldownMicros > 0n) {
+              for (const row of cooldownTable.by_enemy.filter(enemy.id)) {
+                if (row.abilityKey === existingCast.abilityKey) {
+                  cooldownTable.id.delete(row.id);
+                }
+              }
+              cooldownTable.insert({
+                id: 0n,
+                combatId: combat.id,
+                enemyId: enemy.id,
+                abilityKey: existingCast.abilityKey,
+                readyAtMicros: nowMicros + cooldownMicros,
+              });
+            }
+          }
+          ctx.db.combatEnemyCast.id.delete(existingCast.id);
         }
-        ctx.db.combatEnemyCast.id.delete(existingCast.id);
       }
-      if (enemyAbilities.length > 0 && !existingCast) {
+      const isStunned = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].some(
+        (effect) => effect.effectType === 'stun'
+      );
+      if (enemyAbilities.length > 0 && !existingCast && !isStunned) {
         const cooldownTable = ctx.db.combatEnemyCooldown;
         if (!cooldownTable) {
           // cooldown table missing; skip casting to avoid spam
