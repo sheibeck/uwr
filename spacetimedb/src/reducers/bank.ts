@@ -33,7 +33,7 @@ export const registerBankReducers = (deps: any) => {
       }
 
       // Count existing bank slots for this user
-      const existingSlots = [...ctx.db.bank_slot.by_owner.filter(userId)];
+      const existingSlots = [...ctx.db.bankSlot.by_owner.filter(userId)];
       if (BigInt(existingSlots.length) >= MAX_BANK_SLOTS) {
         return failBank(ctx, character, 'Bank is full (40 slots maximum)');
       }
@@ -55,7 +55,7 @@ export const registerBankReducers = (deps: any) => {
         equippedSlot: undefined,
       });
 
-      ctx.db.bank_slot.insert({
+      ctx.db.bankSlot.insert({
         id: 0n,
         ownerUserId: userId,
         slot: BigInt(freeSlot),
@@ -80,7 +80,7 @@ export const registerBankReducers = (deps: any) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       const userId = requirePlayerUserId(ctx);
 
-      const bankSlot = ctx.db.bank_slot.id.find(args.bankSlotId);
+      const bankSlot = ctx.db.bankSlot.id.find(args.bankSlotId);
       if (!bankSlot) return failBank(ctx, character, 'Bank slot not found');
       if (bankSlot.ownerUserId !== userId) {
         return failBank(ctx, character, 'This is not your bank slot');
@@ -89,7 +89,7 @@ export const registerBankReducers = (deps: any) => {
       const instance = ctx.db.itemInstance.id.find(bankSlot.itemInstanceId);
       if (!instance) {
         // Orphaned bank slot — clean it up
-        ctx.db.bank_slot.id.delete(bankSlot.id);
+        ctx.db.bankSlot.id.delete(bankSlot.id);
         return failBank(ctx, character, 'Item not found in bank');
       }
 
@@ -113,7 +113,7 @@ export const registerBankReducers = (deps: any) => {
         equippedSlot: undefined,
       });
 
-      ctx.db.bank_slot.id.delete(bankSlot.id);
+      ctx.db.bankSlot.id.delete(bankSlot.id);
 
       appendPrivateEvent(
         ctx,

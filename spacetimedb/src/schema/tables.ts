@@ -1867,6 +1867,6 @@ spacetimedb.view(
   (ctx) => {
     const player = ctx.db.player.id.find(ctx.sender);
     if (!player || player.userId == null) return [];
-    return [...ctx.db.bank_slot.by_owner.filter(player.userId)];
+    return [...ctx.db.bankSlot.by_owner.filter(player.userId)];
   }
 );
