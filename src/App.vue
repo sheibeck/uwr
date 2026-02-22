@@ -2233,9 +2233,9 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
   onHotbarClick(slot);
 };
 
-// --- Idle auto-camp config (tweak these to test) ---
-const IDLE_TIMEOUT_MS     = 2 * 60 * 1000; // total idle time before auto-camp (ms)
-const IDLE_WARN_BEFORE_MS =  1 * 60 * 1000; // show warning this long before camping (ms)
+// --- Idle auto-logout config (tweak these to test) ---
+const IDLE_TIMEOUT_MS     = 15 * 60 * 1000; // total idle time before logout (ms)
+const IDLE_WARN_BEFORE_MS =  1 * 60 * 1000; // show warning this long before logout (ms)
 let idleWarnTimer: ReturnType<typeof setTimeout> | null = null;
 let idleCampTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -2246,15 +2246,24 @@ const clearIdleTimers = () => {
 
 const resetIdleTimer = () => {
   clearIdleTimers();
-  if (!selectedCharacter.value) return;
-  idleWarnTimer = setTimeout(() => {
-    if (!selectedCharacter.value) return;
-    addLocalEvent('system', 'You will be logged off in 1 minute due to inactivity.', 'private');
-    idleCampTimer = setTimeout(() => {
-      if (!selectedCharacter.value || lockHotbarEdits.value) return;
+  if (selectedCharacter.value) {
+    // In-game: warn at 14 min, logout at 15 min
+    idleWarnTimer = setTimeout(() => {
+      if (!selectedCharacter.value) return;
+      addLocalEvent('system', 'You will be logged off in 1 minute due to inactivity.', 'private');
+      idleCampTimer = setTimeout(() => {
+        if (!selectedCharacter.value || lockHotbarEdits.value) return;
+        addLocalEvent('system', 'You have been logged off due to inactivity.', 'private');
+        logout();
+      }, IDLE_WARN_BEFORE_MS);
+    }, IDLE_TIMEOUT_MS - IDLE_WARN_BEFORE_MS);
+  } else if (isLoggedIn.value) {
+    // Character select screen: silent logout after 15 min
+    idleWarnTimer = setTimeout(() => {
+      if (!isLoggedIn.value || selectedCharacter.value) return;
       logout();
-    }, IDLE_WARN_BEFORE_MS);
-  }, IDLE_TIMEOUT_MS - IDLE_WARN_BEFORE_MS);
+    }, IDLE_TIMEOUT_MS);
+  }
 };
 
 let lastIdleReset = 0;
@@ -2265,12 +2274,13 @@ const onIdleActivity = () => {
     const wasWarned = idleCampTimer !== null;
     resetIdleTimer();
     if (wasWarned && selectedCharacter.value) {
-      addLocalEvent('system', 'You are no longer idle.');
+      addLocalEvent('system', 'You are no longer idle.', 'private');
     }
   }
 };
 
 watch(selectedCharacter, resetIdleTimer);
+watch(isLoggedIn, resetIdleTimer);
 
 onMounted(() => {
   loadAccordionState();
