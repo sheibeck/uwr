@@ -83,7 +83,7 @@
     @use-item="$emit('use-item', $event)"
     @eat-food="$emit('eat-food', $event)"
     @delete-item="$emit('delete-item', $event)"
-    @split-stack="$emit('split-stack', $event)"
+    @split-stack="(id, qty) => $emit('split-stack', id, qty)"
     @organize="$emit('organize')"
     @salvage-item="$emit('salvage-item', $event)"
     @add-to-hotbar="(templateId: bigint, name: string) => $emit('add-to-hotbar', templateId, name)"
@@ -226,7 +226,7 @@ const emit = defineEmits<{
   (e: 'use-item', payload: any): void;
   (e: 'eat-food', payload: any): void;
   (e: 'delete-item', payload: any): void;
-  (e: 'split-stack', payload: any): void;
+  (e: 'split-stack', id: bigint, qty: bigint): void;
   (e: 'organize'): void;
   (e: 'salvage-item', payload: any): void;
   (e: 'add-to-hotbar', templateId: bigint, name: string): void;

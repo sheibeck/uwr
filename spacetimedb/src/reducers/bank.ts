@@ -32,8 +32,29 @@ export const registerBankReducers = (deps: any) => {
         return failBank(ctx, character, 'Unequip the item before depositing');
       }
 
-      // Count existing bank slots for this user
+      const template = ctx.db.itemTemplate.id.find(instance.templateId);
+      if (!template) return failBank(ctx, character, 'Item template missing');
+
+      // Check for existing stack in bank to merge into
       const existingSlots = [...ctx.db.bankSlot.by_owner.filter(userId)];
+      if (template.stackable) {
+        const existingBankStack = existingSlots
+          .map((s: any) => ({ bankSlot: s, item: ctx.db.itemInstance.id.find(s.itemInstanceId) }))
+          .find(({ item }) => item && item.templateId === instance.templateId);
+
+        if (existingBankStack) {
+          ctx.db.itemInstance.id.update({
+            ...existingBankStack.item,
+            quantity: (existingBankStack.item.quantity ?? 1n) + (instance.quantity ?? 1n),
+          });
+          ctx.db.itemInstance.id.delete(instance.id);
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+            `You deposit ${template.name} into the bank.`);
+          return;
+        }
+      }
+
+      // No existing stack — need a free slot
       if (BigInt(existingSlots.length) >= MAX_BANK_SLOTS) {
         return failBank(ctx, character, 'Bank is full (40 slots maximum)');
       }
@@ -46,9 +67,7 @@ export const registerBankReducers = (deps: any) => {
       }
       if (freeSlot === -1) return failBank(ctx, character, 'Bank is full');
 
-      // Remove from character inventory (set ownerCharacterId to 0 as sentinel — row stays)
-      // The ItemInstance row is kept but orphaned from the character.
-      // ownerCharacterId = 0n means "in bank" — no character owns it.
+      // Remove from character inventory (ownerCharacterId = 0n means "in bank")
       ctx.db.itemInstance.id.update({
         ...instance,
         ownerCharacterId: 0n,
@@ -62,13 +81,12 @@ export const registerBankReducers = (deps: any) => {
         itemInstanceId: instance.id,
       });
 
-      const template = ctx.db.itemTemplate.id.find(instance.templateId);
       appendPrivateEvent(
         ctx,
         character.id,
         character.ownerUserId,
         'system',
-        `You deposit ${template?.name ?? 'item'} into the bank.`
+        `You deposit ${template.name} into the bank.`
       );
     }
   );
