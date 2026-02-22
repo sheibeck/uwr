@@ -2053,9 +2053,9 @@ export const registerCombatReducers = (deps: any) => {
         }
       }
 
-      // Return enemies to spawn — restore FULL original composition
+      // Return enemies to spawn — restore surviving composition (killed enemies are not restored)
       // Save spawn members BEFORE deleting; this preserves enemies not in this combat
-      // (e.g. 3 rats that were never pulled) and killed enemies (full reset on leash)
+      // (e.g. 3 rats that were never pulled). Enemies killed during combat stay dead.
       const spawnIds = new Set(enemies.map((e: any) => e.spawnId));
       for (const spawnId of spawnIds) {
         const spawn = ctx.db.enemySpawn.id.find(spawnId);
@@ -2074,10 +2074,11 @@ export const registerCombatReducers = (deps: any) => {
             });
             count += 1n;
           }
-          // Re-add enemies that were actively in combat
+          // Re-add enemies that were actively in combat and survived
           // (their EnemySpawnMember rows were deleted by takeSpawnMember() when pulled)
+          // Skip enemies killed during combat (currentHp === 0n) so player kills persist after fleeing.
           for (const enemy of enemies) {
-            if (enemy.spawnId === spawnId) {
+            if (enemy.spawnId === spawnId && enemy.currentHp > 0n) {
               ctx.db.enemySpawnMember.insert({
                 id: 0n,
                 spawnId: spawnId,
