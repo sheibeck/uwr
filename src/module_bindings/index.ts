@@ -260,6 +260,10 @@ import IncrementEventCounterReducer from "./increment_event_counter_reducer";
 export { IncrementEventCounterReducer };
 import DespawnEventContentReducer from "./despawn_event_content_reducer";
 export { DespawnEventContentReducer };
+import DepositToBankReducer from "./deposit_to_bank_reducer";
+export { DepositToBankReducer };
+import WithdrawFromBankReducer from "./withdraw_from_bank_reducer";
+export { WithdrawFromBankReducer };
 
 // Import and reexport all procedure arg types
 
@@ -278,6 +282,8 @@ import AggroEntryRow from "./aggro_entry_table";
 export { AggroEntryRow };
 import AppVersionRow from "./app_version_table";
 export { AppVersionRow };
+import BankSlotRow from "./bank_slot_table";
+export { BankSlotRow };
 import BardSongTickRow from "./bard_song_tick_table";
 export { BardSongTickRow };
 import CastTickRow from "./cast_tick_table";
@@ -392,6 +398,8 @@ import LootTableRow from "./loot_table_table";
 export { LootTableRow };
 import LootTableEntryRow from "./loot_table_entry_table";
 export { LootTableEntryRow };
+import MyBankSlotsRow from "./my_bank_slots_table";
+export { MyBankSlotsRow };
 import MyCharacterEffectsRow from "./my_character_effects_table";
 export { MyCharacterEffectsRow };
 import MyCombatLootRow from "./my_combat_loot_table";
@@ -514,6 +522,8 @@ import AggroEntry from "./aggro_entry_type";
 export { AggroEntry };
 import AppVersion from "./app_version_type";
 export { AppVersion };
+import BankSlot from "./bank_slot_type";
+export { BankSlot };
 import BardSongTick from "./bard_song_tick_type";
 export { BardSongTick };
 import BindLocation from "./bind_location_type";
@@ -594,6 +604,8 @@ import DeleteCharacter from "./delete_character_type";
 export { DeleteCharacter };
 import DeleteItem from "./delete_item_type";
 export { DeleteItem };
+import DepositToBank from "./deposit_to_bank_type";
+export { DepositToBank };
 import DespawnEventContent from "./despawn_event_content_type";
 export { DespawnEventContent };
 import DisconnectLogout from "./disconnect_logout_type";
@@ -730,6 +742,8 @@ import LootTableEntry from "./loot_table_entry_type";
 export { LootTableEntry };
 import MoveCharacter from "./move_character_type";
 export { MoveCharacter };
+import MyBankSlots from "./my_bank_slots_type";
+export { MyBankSlots };
 import MyCharacterEffects from "./my_character_effects_type";
 export { MyCharacterEffects };
 import MyCombatLoot from "./my_combat_loot_type";
@@ -936,6 +950,8 @@ import VendorInventory from "./vendor_inventory_type";
 export { VendorInventory };
 import Whisper from "./whisper_type";
 export { Whisper };
+import WithdrawFromBank from "./withdraw_from_bank_type";
+export { WithdrawFromBank };
 import WorldEvent from "./world_event_type";
 export { WorldEvent };
 import WorldStatTracker from "./world_stat_tracker_type";
@@ -1049,6 +1065,23 @@ const tablesSchema = __schema(
       { name: 'app_version_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, AppVersionRow),
+  __table({
+    name: 'bank_slot',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_item', algorithm: 'btree', columns: [
+        'itemInstanceId',
+      ] },
+      { name: 'by_owner', algorithm: 'btree', columns: [
+        'ownerUserId',
+      ] },
+    ],
+    constraints: [
+      { name: 'bank_slot_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BankSlotRow),
   __table({
     name: 'bard_song_tick',
     indexes: [
@@ -2345,6 +2378,13 @@ const tablesSchema = __schema(
     ],
   }, WorldStateRow),
   __table({
+    name: 'my_bank_slots',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyBankSlotsRow),
+  __table({
     name: 'my_character_effects',
     indexes: [
     ],
@@ -2564,6 +2604,8 @@ const reducersSchema = __reducers(
   __reducerSchema("collect_event_item", CollectEventItemReducer),
   __reducerSchema("increment_event_counter", IncrementEventCounterReducer),
   __reducerSchema("despawn_event_content", DespawnEventContentReducer),
+  __reducerSchema("deposit_to_bank", DepositToBankReducer),
+  __reducerSchema("withdraw_from_bank", WithdrawFromBankReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

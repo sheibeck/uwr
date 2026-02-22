@@ -79,6 +79,7 @@ export const useGameData = () => {
   const [eventObjectives] = useTable(tables.eventObjective);
   const [appVersionRows] = useTable(tables.appVersion);
   const [activeBardSongs] = useTable(tables.activeBardSong);
+  const [bankSlots] = useTable(tables.myBankSlots);
 
   return {
     conn,
@@ -160,5 +161,6 @@ export const useGameData = () => {
     eventObjectives,
     appVersionRows,
     activeBardSongs,
+    bankSlots,
   };
 };
