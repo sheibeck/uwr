@@ -530,10 +530,12 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 279 | Fix new character onboarding hint — position: fixed, z-index 500 (above all panels), flex-row layout to reduce height, exact hint text: "Open the Character panel, equip your gear from the Inventory tab, then add an ability to your hotbar from the Abilities tab." | 2026-02-22 | 30bbe32 | [279-fix-new-character-hint-z-index-reduce-he](./quick/279-fix-new-character-hint-z-index-reduce-he/) |
 | 280 | Overhaul right-click context menus — Abilities tab: show description inline at top, only "Add to Hotbar" action (removed "What does this do?"); Hotbar slot: show description inline + "Remove from Hotbar" action that clears slot via setHotbarSlot(slot, '') | 2026-02-22 | b42f1cb | [280-ability-right-click-shows-description-th](./quick/280-ability-right-click-shows-description-th/) |
 | 281 | Abilities tab right-click shows full ability info — name header, Cost/Cast/Cooldown stat rows, description, then Add to Hotbar button; prop type extended with castSeconds/cooldownSeconds/resourceCost/damageType; renown perk rows use zeroed stub | 2026-02-22 | 2272ab0 | [281-abilities-tab-right-click-shows-full-abi](./quick/281-abilities-tab-right-click-shows-full-abi/) |
+| 282 | Fix onboarding hint z-index to 9000 (above all panels); add CSS onboardingButtonPulse orange glow animation; Character button pulses while onboarding active; Inventory+Abilities tabs pulse orange; hint auto-dismisses only when Abilities tab is opened | 2026-02-22 | 483f10e | [282-fix-onboarding-hint-z-index-to-top-pulse](./quick/282-fix-onboarding-hint-z-index-to-top-pulse/) |
+| 283 | Unify right-click context menus — added default slot to ContextMenu.vue; migrated CharacterInfoPanel ability popup and App.vue hotbar popup to use shared ContextMenu component with proper backdrop, blur, rounded corners matching InventoryPanel | 2026-02-22 | 746c992 | [283-unify-right-click-context-menu-look-and](./quick/283-unify-right-click-context-menu-look-and/) |
 
 ---
 
-Last activity: 2026-02-22 - Full ability info in Abilities tab right-click popup (quick-281)
+Last activity: 2026-02-22 - Unified all right-click context menus (quick-283)
 
 ## Last Session
 
