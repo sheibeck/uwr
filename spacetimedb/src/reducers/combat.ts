@@ -1317,6 +1317,7 @@ export const registerCombatReducers = (deps: any) => {
         if (effect.effectType === 'food_health_regen') hpRegenBonus += effect.magnitude;
         else if (effect.effectType === 'food_mana_regen') manaRegenBonus += effect.magnitude;
         else if (effect.effectType === 'food_stamina_regen') staminaRegenBonus += effect.magnitude;
+        else if (effect.effectType === 'mana_regen_bonus') manaRegenBonus += effect.magnitude;
       }
 
       // Add racial regen bonuses from Character row (these persist through death, unlike CharacterEffects)
