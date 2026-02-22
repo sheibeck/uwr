@@ -172,14 +172,6 @@
       <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('characterInfo', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('characterInfo', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('characterInfo', $event, { right: true, bottom: true })" />
     </div>
 
-    <!-- Hotbar Panel -->
-    <div v-if="panels.hotbarPanel && panels.hotbarPanel.open" data-panel-id="hotbarPanel" :style="{ ...styles.floatingPanel, ...(panelStyle('hotbarPanel').value || {}) }" @mousedown="bringToFront('hotbarPanel')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('hotbarPanel', $event)"><div>Hotbar</div><button type="button" :style="styles.panelClose" @click="closePanelById('hotbarPanel')">×</button></div>
-      <div :style="styles.floatingPanelBody"><HotbarPanel :styles="styles" :selected-character="selectedCharacter" :available-abilities="availableAbilities" :hotbar="hotbarAssignments" :combat-locked="lockHotbarEdits" @set-hotbar="setHotbarSlot" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('hotbarPanel', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('hotbarPanel', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('hotbarPanel', $event, { right: true, bottom: true })" />
-    </div>
-
-
     <!-- Friends Panel -->
     <div v-if="panels.friends && panels.friends.open" data-panel-id="friends" :style="{ ...styles.floatingPanel, ...(panelStyle('friends').value || {}) }" @mousedown="bringToFront('friends')">
       <div :style="styles.floatingPanelHeader" @mousedown="startDrag('friends', $event)"><div>Friends</div><button type="button" :style="styles.panelClose" @click="closePanelById('friends')">×</button></div>
@@ -504,7 +496,6 @@
       :has-active-character="Boolean(selectedCharacter)"
       :combat-locked="lockHotbarEdits"
       :highlight-inventory="highlightInventory"
-      :highlight-hotbar="highlightHotbar"
       :has-active-events="hasActiveEvents"
       @toggle="togglePanel"
       @camp="goToCamp"
@@ -588,7 +579,6 @@ import GroupPanel from './components/GroupPanel.vue';
 import FriendsPanel from './components/FriendsPanel.vue';
 import CraftingPanel from './components/CraftingPanel.vue';
 import CraftingModal from './components/CraftingModal.vue';
-import HotbarPanel from './components/HotbarPanel.vue';
 import CombatPanel from './components/CombatPanel.vue';
 import TravelPanel from './components/TravelPanel.vue';
 import LocationGrid from './components/LocationGrid.vue';
@@ -907,18 +897,14 @@ const {
     races,
   });
 
-const onboardingStep = ref<'inventory' | 'hotbar' | null>(null);
+const onboardingStep = ref<'inventory' | 'abilities' | null>(null);
 const onboardingHint = computed(() => {
   if (onboardingStep.value === 'inventory') {
-    return 'New character created! Open Inventory to equip your starter gear.';
-  }
-  if (onboardingStep.value === 'hotbar') {
-    return 'Next, open Hotbar to assign your abilities.';
+    return 'New character created! Open Character > Abilities tab to assign your abilities to the hotbar.';
   }
   return '';
 });
 const highlightInventory = computed(() => onboardingStep.value === 'inventory');
-const highlightHotbar = computed(() => onboardingStep.value === 'hotbar');
 const dismissOnboarding = () => {
   onboardingStep.value = null;
 };
@@ -2109,8 +2095,6 @@ watch(
   () => [...openPanels.value],
   (panels) => {
     if (onboardingStep.value === 'inventory' && panels.includes('characterInfo')) {
-      onboardingStep.value = 'hotbar';
-    } else if (onboardingStep.value === 'hotbar' && panels.includes('hotbarPanel')) {
       onboardingStep.value = null;
     }
   }

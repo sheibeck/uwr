@@ -22,13 +22,6 @@
         Character
       </button>
       <button
-        @click="emit('toggle', 'hotbarPanel')"
-        :style="actionStyle('hotbarPanel')"
-        :disabled="isLocked('hotbarPanel')"
-      >
-        Hotbar
-      </button>
-      <button
         @click="emit('toggle', 'crafting')"
         :style="actionStyle('crafting')"
         :disabled="isLocked('crafting')"
@@ -88,7 +81,6 @@
 type PanelKey =
   | 'character'
   | 'characterInfo'
-  | 'hotbar'
   | 'friends'
   | 'group'
   | 'crafting'
@@ -107,7 +99,6 @@ const props = defineProps<{
   hasActiveCharacter: boolean;
   combatLocked: boolean;
   highlightInventory: boolean;
-  highlightHotbar: boolean;
   hasActiveEvents: boolean;
 }>();
 
@@ -117,9 +108,7 @@ const emit = defineEmits<{
 }>();
 
 const actionStyle = (panel: string) => {
-  const highlight =
-    (panel === 'characterInfo' && props.highlightInventory) ||
-    (panel === 'hotbarPanel' && props.highlightHotbar);
+  const highlight = panel === 'characterInfo' && props.highlightInventory;
   const isActive = props.openPanels.has(panel);
   return {
     ...props.styles.actionButton,
