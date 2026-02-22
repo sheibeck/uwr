@@ -520,10 +520,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 270 | Bard song cooldown refactor and out-of-combat support — stop/switch both 3s (was 6s stop, no switch cooldown); switching songs applies 3s cooldown to old song; support songs (melody_of_mending, chorus_of_vigor, march_of_wayfarers) castable out of combat via optional combatId in ActiveBardSong/BardSongTick; tick uses partyMembersInLocation when no combat | 2026-02-21 | fa631df | [270-bard-song-cooldown-refactor-and-out-of-c](./quick/270-bard-song-cooldown-refactor-and-out-of-c/) |
 | 271 | Fix bard song spam / remove Discordant Note burst / UI indicators — fixed [0] song lookup to .find(!isFading) in guard + executeAbilityAction + bard_finale to prevent duplicate ActiveBardSong rows when a fading song exists; removed initial burst from bard_discordant_note (only Battle Hymn bursts); green fill overlay on active-song hotbar slot; ♪ prefix on song buff in group window | 2026-02-21 | 35041ce | [271-fix-bard-song-stacking-remove-dn-burst-a](./quick/271-fix-bard-song-stacking-remove-dn-burst-a/) |
 | 272 | Discordant Note damage log message in red — tick_bard_songs bard_discordant_note case now accumulates clamped actualDmg per enemy and logs "Discordant Note deals X damage to all enemies." with kind 'damage' (red) via logPrivateAndGroup so bard and group both see it | 2026-02-22 | f9582de | [272-discordant-note-damage-log-message-in-re](./quick/272-discordant-note-damage-log-message-in-re/) |
+| 274 | Melody of Mending costs mana per tick like Discordant Note — inserted 6-line mana drain block (3 mana/tick, clamps to 0, song continues even on empty mana) into bard_melody_of_mending case of tick_bard_songs, mirroring the Discordant Note pattern | 2026-02-22 | d969da1 | [274-melody-of-mending-costs-mana-per-tick-li](./quick/274-melody-of-mending-costs-mana-per-tick-li/) |
 
 ---
 
-Last activity: 2026-02-22 - Completed quick task 272: Discordant Note damage log message in red
+Last activity: 2026-02-22 - Completed quick task 274: Melody of Mending mana cost per tick
 
 ## Last Session
 
