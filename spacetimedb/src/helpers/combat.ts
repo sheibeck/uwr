@@ -25,7 +25,7 @@ import {
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from '../data/xp';
 import { effectiveGroupId } from './group';
 import { appendPrivateEvent, appendGroupEvent, logPrivateAndGroup } from './events';
-import { getEquippedWeaponStats, hasInventorySpace, addItemToInventory } from './items';
+import { getEquippedWeaponStats, hasInventorySpace, addItemToInventory, getEquippedBonuses } from './items';
 import { getGatherableResourceTemplates } from './location';
 import { partyMembersInLocation, recomputeCharacterDerived } from './character';
 import { executeResurrect, executeCorpseSummon } from './corpse';
@@ -1972,7 +1972,8 @@ export function applyEnemyAbilityDamage(
     const effectiveArmor = target.armorClass + sumCharacterEffect(ctx, target.id, 'ac_bonus');
     finalDamage = applyArmorMitigation(rawDamage, effectiveArmor > 0n ? effectiveArmor : 0n);
   } else if (damageType === 'magic') {
-    const magicResist = sumCharacterEffect(ctx, target.id, 'magic_resist') + (target.racialMagicResist ?? 0n);
+    const gearMR = getEquippedBonuses(ctx, target.id).magicResistanceBonus;
+    const magicResist = sumCharacterEffect(ctx, target.id, 'magic_resist') + (target.racialMagicResist ?? 0n) + gearMR;
     finalDamage = applyMagicResistMitigation(rawDamage, magicResist);
   }
   if (finalDamage < 1n) finalDamage = 1n;
