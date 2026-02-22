@@ -28,11 +28,11 @@
           :stroke="node.isCurrent ? '#50dc96' : node.color"
           :stroke-width="node.isCurrent ? 2.5 : 1.5"
         />
-        <!-- Current region: name + you are here -->
+        <!-- Current region: name / level range / you are here -->
         <template v-if="node.isCurrent">
           <text
             :x="node.x + NODE_W / 2"
-            :y="node.y + NODE_H / 2 - 8"
+            :y="node.y + 15"
             text-anchor="middle"
             dominant-baseline="middle"
             fill="#50dc96"
@@ -41,7 +41,16 @@
           >{{ node.name }}</text>
           <text
             :x="node.x + NODE_W / 2"
-            :y="node.y + NODE_H / 2 + 10"
+            :y="node.y + 31"
+            text-anchor="middle"
+            dominant-baseline="middle"
+            fill="#9ca3af"
+            font-size="11"
+            font-family="ui-monospace, 'Cascadia Code', monospace"
+          >{{ node.levelLabel }}</text>
+          <text
+            :x="node.x + NODE_W / 2"
+            :y="node.y + 47"
             text-anchor="middle"
             dominant-baseline="middle"
             fill="#50dc96"
@@ -50,17 +59,26 @@
             font-family="ui-monospace, 'Cascadia Code', monospace"
           >(you are here)</text>
         </template>
-        <!-- Other regions: name only, colorized by difficulty -->
+        <!-- Other regions: name / level range, colorized by difficulty -->
         <template v-else>
           <text
             :x="node.x + NODE_W / 2"
-            :y="node.y + NODE_H / 2"
+            :y="node.y + NODE_H / 2 - 8"
             text-anchor="middle"
             dominant-baseline="middle"
             :fill="node.color"
             font-size="13"
             font-family="ui-monospace, 'Cascadia Code', monospace"
           >{{ node.name }}</text>
+          <text
+            :x="node.x + NODE_W / 2"
+            :y="node.y + NODE_H / 2 + 10"
+            text-anchor="middle"
+            dominant-baseline="middle"
+            fill="#6b7280"
+            font-size="11"
+            font-family="ui-monospace, 'Cascadia Code', monospace"
+          >{{ node.levelLabel }}</text>
         </template>
       </g>
     </svg>
@@ -194,11 +212,24 @@ const renderedNodes = computed(() => {
   return props.regions.flatMap(r => {
     const pos = positions.value.get(r.id.toString());
     if (!pos) return [];
-    const regionLevel = Math.max(1, Math.floor(playerLevel * Number(r.dangerMultiplier) / 100));
-    const diff = regionLevel - playerLevel;
+
+    const base = Math.floor(playerLevel * Number(r.dangerMultiplier) / 100);
+    const locs = props.locations.filter(l => l.regionId.toString() === r.id.toString());
+    const levels = locs.length > 0
+      ? locs.map(l => Math.max(1, base + Number(l.levelOffset)))
+      : [Math.max(1, base)];
+    const minLv = Math.min(...levels);
+    const maxLv = Math.max(...levels);
+    const levelLabel = minLv === maxLv ? `~${minLv}` : `~${minLv}-${maxLv}`;
+
+    // Use average level for colorization
+    const avgLv = Math.round((minLv + maxLv) / 2);
+    const diff = avgLv - playerLevel;
+
     return [{
       id: r.id.toString(),
       name: r.name,
+      levelLabel,
       x: pos.x,
       y: pos.y,
       color: conColorForDiff(diff),
