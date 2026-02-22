@@ -24,7 +24,7 @@
           :x="node.x" :y="node.y"
           :width="NODE_W" :height="NODE_H"
           rx="6"
-          :fill="node.isCurrent ? 'rgba(96,165,250,0.1)' : '#111827'"
+          :fill="node.isCurrent ? '#1a2744' : '#111827'"
           :stroke="node.color"
           :stroke-width="node.isCurrent ? 2.5 : 1.5"
         />
