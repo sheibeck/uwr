@@ -6,6 +6,7 @@ import type {
   CharacterCastRow,
   CharacterRow,
   HotbarSlotRow,
+  ItemTemplateRow,
 } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 
@@ -54,6 +55,7 @@ type UseHotbarArgs = {
   onCorpseSummonRequested?: (targetCharacterId: bigint) => void;
   addLocalEvent?: (kind: string, message: string) => void;
   inventoryItems?: Ref<InventoryItemRef[]>;
+  itemTemplates?: Ref<ItemTemplateRow[]>;
   eatFoodFn?: (itemInstanceId: bigint) => void;
 };
 
@@ -82,6 +84,7 @@ export const useHotbar = ({
   onCorpseSummonRequested,
   addLocalEvent,
   inventoryItems,
+  itemTemplates,
   eatFoodFn,
 }: UseHotbarArgs) => {
   const setHotbarReducer = useReducer(reducers.setHotbarSlot);
@@ -126,7 +129,8 @@ export const useHotbar = ({
       if (row.abilityKey.startsWith('item:')) {
         const templateId = BigInt(row.abilityKey.split(':')[1]);
         const match = inventoryItems?.value.find(i => i.templateId === templateId);
-        target.name = match?.name ?? row.abilityKey;
+        const template = itemTemplates?.value.find(t => t.id === templateId);
+        target.name = match?.name ?? template?.name ?? row.abilityKey;
       } else {
         const ability = availableAbilities.value.find((item) => item.key === row.abilityKey);
         target.name = ability?.name ?? row.abilityKey;

@@ -156,7 +156,7 @@
           </span>
           <span :style="styles.hotbarSlotText">{{ slot.slot }}</span>
           <span :style="styles.hotbarSlotText">{{ slot.name }}</span>
-          <span v-if="slot.kind === 'item' && slot.itemCount != null" :style="styles.hotbarSlotCount">
+          <span v-if="slot.kind === 'item' && slot.itemCount != null && slot.itemCount > 0" :style="styles.hotbarSlotCount">
             x{{ slot.itemCount }}
           </span>
         </button>
@@ -2040,6 +2040,7 @@ const {
   },
   addLocalEvent,
   inventoryItems,
+  itemTemplates,
   eatFoodFn: eatFood,
 });
 
