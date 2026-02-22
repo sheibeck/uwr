@@ -30,10 +30,10 @@ export function getDefaultLayout(): Record<string, { x: number; y: number; w?: n
   const centerY = Math.round(vh / 2 - 100);
 
   const layout: Record<string, { x: number; y: number; w?: number; h?: number; open?: boolean }> = {
-    log:    { x: 16,     y: 16, w: 500, h: 300, open: true },
-    travel: { x: travelX, y: 16, open: true },
-    hotbar: { x: hotbarX, y: 16, open: true },
-    group:  { x: groupX,  y: 16, open: true },
+    log:    { x: 16,     y: 4, w: 500, h: 300, open: true },
+    travel: { x: travelX, y: 4, open: true },
+    hotbar: { x: hotbarX, y: 4, open: true },
+    group:  { x: groupX,  y: 4, open: true },
   };
 
   for (const id of ON_DEMAND_PANEL_IDS) {
