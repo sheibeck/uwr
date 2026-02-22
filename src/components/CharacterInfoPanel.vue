@@ -156,26 +156,6 @@
     :styles="styles"
     @close="hideContextMenu"
   >
-    <!-- Stats: cost / cast / cooldown -->
-    <div :style="{
-      padding: '0.3rem 0.75rem',
-      fontSize: '0.75rem',
-      color: 'rgba(230,232,239,0.55)',
-      lineHeight: '1.5',
-      borderBottom: contextMenu.description ? '1px solid rgba(255,255,255,0.08)' : 'none',
-    }">
-      <div>Cost:
-        <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{
-          contextMenu.resource === 'mana'
-            ? `${contextMenu.resourceCost} mana`
-            : contextMenu.resource === 'stamina'
-              ? `${contextMenu.resourceCost} stamina`
-              : 'Free'
-        }}</span>
-      </div>
-      <div>Cast: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ contextMenu.castSeconds > 0n ? `${Number(contextMenu.castSeconds)}s` : 'Instant' }}</span></div>
-      <div>Cooldown: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ contextMenu.cooldownSeconds > 0n ? `${Number(contextMenu.cooldownSeconds)}s` : 'None' }}</span></div>
-    </div>
     <!-- Description (only if present) -->
     <div
       v-if="contextMenu.description"
@@ -189,6 +169,26 @@
         borderBottom: '1px solid rgba(255,255,255,0.08)',
       }"
     >{{ contextMenu.description }}</div>
+    <!-- Stats: cost / cast / cooldown -->
+    <div :style="{
+      padding: '0.3rem 0.75rem',
+      fontSize: '0.75rem',
+      color: 'rgba(230,232,239,0.55)',
+      lineHeight: '1.5',
+      borderBottom: '1px solid rgba(255,255,255,0.08)',
+    }">
+      <div>Cost:
+        <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{
+          contextMenu.resource === 'mana'
+            ? `${contextMenu.resourceCost} mana`
+            : contextMenu.resource === 'stamina'
+              ? `${contextMenu.resourceCost} stamina`
+              : 'Free'
+        }}</span>
+      </div>
+      <div>Cast: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ contextMenu.castSeconds > 0n ? `${Number(contextMenu.castSeconds)}s` : 'Instant' }}</span></div>
+      <div>Cooldown: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ contextMenu.cooldownSeconds > 0n ? `${Number(contextMenu.cooldownSeconds)}s` : 'None' }}</span></div>
+    </div>
   </ContextMenu>
 </template>
 

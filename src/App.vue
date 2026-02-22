@@ -571,6 +571,7 @@
       :styles="styles"
       @close="hideHotbarContextMenu"
     >
+      <!-- Description -->
       <div
         v-if="hotbarContextMenu.description"
         :style="{
@@ -583,6 +584,27 @@
           borderBottom: '1px solid rgba(255,255,255,0.08)',
         }"
       >{{ hotbarContextMenu.description }}</div>
+      <!-- Stats: cost / cast / cooldown (abilities only, not items) -->
+      <div
+        v-if="!hotbarContextMenu.name.startsWith('item:')"
+        :style="{
+          padding: '0.3rem 0.75rem',
+          fontSize: '0.75rem',
+          color: 'rgba(230,232,239,0.55)',
+          lineHeight: '1.5',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+        }"
+      >
+        <div>Cost: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{
+          hotbarContextMenu.resource === 'mana'
+            ? `${hotbarContextMenu.resourceCost} mana`
+            : hotbarContextMenu.resource === 'stamina'
+              ? `${hotbarContextMenu.resourceCost} stamina`
+              : 'Free'
+        }}</span></div>
+        <div>Cast: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ hotbarContextMenu.castSeconds > 0n ? `${Number(hotbarContextMenu.castSeconds)}s` : 'Instant' }}</span></div>
+        <div>Cooldown: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ hotbarContextMenu.cooldownSeconds > 0n ? `${Number(hotbarContextMenu.cooldownSeconds)}s` : 'None' }}</span></div>
+      </div>
     </ContextMenu>
   </div>
 </template>
@@ -2286,7 +2308,11 @@ const hotbarContextMenu = ref<{
   slot: number;
   name: string;
   description: string;
-}>({ visible: false, x: 0, y: 0, slot: 0, name: '', description: '' });
+  resource: string;
+  resourceCost: bigint;
+  castSeconds: bigint;
+  cooldownSeconds: bigint;
+}>({ visible: false, x: 0, y: 0, slot: 0, name: '', description: '', resource: '', resourceCost: 0n, castSeconds: 0n, cooldownSeconds: 0n });
 
 
 const tooltipRarityColor = (item: any): Record<string, string> => {
@@ -2330,6 +2356,7 @@ const hideAbilityPopup = () => {
 };
 
 const showHotbarContextMenu = (slot: any, x: number, y: number) => {
+  const ability = abilityLookup.value.get(slot.abilityKey ?? '');
   hotbarContextMenu.value = {
     visible: true,
     x,
@@ -2337,6 +2364,10 @@ const showHotbarContextMenu = (slot: any, x: number, y: number) => {
     slot: slot.slot,
     name: slot.name || slot.abilityKey,
     description: hotbarAbilityDescription(slot),
+    resource: ability?.resource ?? '',
+    resourceCost: ability?.resourceCost ?? 0n,
+    castSeconds: ability?.castSeconds ?? 0n,
+    cooldownSeconds: ability?.cooldownSeconds ?? 0n,
   };
 };
 
