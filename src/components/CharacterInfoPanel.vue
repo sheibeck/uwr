@@ -150,15 +150,22 @@
     :style="{
       position: 'fixed', left: contextMenu.x + 'px', top: contextMenu.y + 'px',
       background: '#1f2937', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px',
-      zIndex: 9999, minWidth: '160px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+      zIndex: 9999, minWidth: '200px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
     }"
     @mouseleave="hideContextMenu"
   >
-    <button
-      type="button"
-      :style="{ display: 'block', width: '100%', padding: '8px 14px', background: 'transparent', border: 'none', color: '#e5e7eb', fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' }"
-      @click="onShowDescription"
-    >What does this do?</button>
+    <div
+      v-if="contextMenu.description"
+      :style="{
+        padding: '8px 14px',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        color: '#9ca3af',
+        fontSize: '0.8rem',
+        lineHeight: '1.4',
+        maxWidth: '220px',
+        whiteSpace: 'normal',
+      }"
+    >{{ contextMenu.description }}</div>
     <button
       type="button"
       :style="{ display: 'block', width: '100%', padding: '8px 14px', background: 'transparent', border: 'none', color: '#e5e7eb', fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' }"
@@ -204,7 +211,6 @@ const emit = defineEmits<{
   (e: 'move-tooltip', payload: any): void;
   (e: 'hide-tooltip'): void;
   (e: 'add-ability-to-hotbar', abilityKey: string, name: string): void;
-  (e: 'show-ability-popup', payload: { name: string; description: string; x: number; y: number }): void;
 }>();
 
 const activeTab = ref<'inventory' | 'stats' | 'race' | 'abilities'>('inventory');
@@ -219,16 +225,6 @@ const showContextMenu = (event: MouseEvent, abilityKey: string, name: string, de
 
 const hideContextMenu = () => {
   contextMenu.value.visible = false;
-};
-
-const onShowDescription = () => {
-  emit('show-ability-popup', {
-    name: contextMenu.value.name,
-    description: contextMenu.value.description || '(No description available)',
-    x: contextMenu.value.x + 12,
-    y: contextMenu.value.y,
-  });
-  hideContextMenu();
 };
 
 const onAddToHotbar = () => {
