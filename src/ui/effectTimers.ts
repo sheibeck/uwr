@@ -17,6 +17,7 @@ export const DEFAULT_NEGATIVE_EFFECT_TYPES = new Set([
   'dot',
   'skip',
   'slow',
+  'stun',
   'weaken',
 ]);
 
@@ -41,10 +42,15 @@ export const effectIsNegative = (
 };
 
 export const effectRemainingSeconds = (
-  effect: Pick<TimedEffectLike, 'id' | 'effectType' | 'roundsRemaining'>,
+  effect: Pick<TimedEffectLike, 'id' | 'effectType' | 'roundsRemaining' | 'magnitude'>,
   nowMicros: number,
   timerStore: Map<string, EffectTimerEntry>
 ) => {
+  // Stun effects store the expiry timestamp in magnitude rather than using round-based counting.
+  if (effect.effectType === 'stun' && effect.magnitude != null) {
+    const remainingMicros = Number(effect.magnitude) - nowMicros;
+    return Math.max(0, Math.ceil(remainingMicros / 1_000_000));
+  }
   const tickSeconds = effectTickSeconds(effect.effectType);
   const key = effect.id.toString();
   const existing = timerStore.get(key);
