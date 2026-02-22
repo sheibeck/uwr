@@ -1776,7 +1776,7 @@ export const registerCombatReducers = (deps: any) => {
           // AoE sonic damage to all enemies — scales with level + CHA
           let totalDamage = 0n;
           for (const en of enemies) {
-            const dmg = 8n + bard.level * 2n + bard.cha;
+            const dmg = ((8n + bard.level * 2n + bard.cha) * 65n) / 100n;
             const actualDmg = en.currentHp > dmg ? dmg : en.currentHp;
             totalDamage += actualDmg;
             const nextHp = en.currentHp > dmg ? en.currentHp - dmg : 0n;

@@ -1013,7 +1013,7 @@ export function executeAbility(
           const activeEnemies = combatId
             ? [...ctx.db.combatEnemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n)
             : [];
-          const burstDmg = 8n + character.level * 2n + character.cha;
+          const burstDmg = ((8n + character.level * 2n + character.cha) * 65n) / 100n;
           let totalDamage = 0n;
           for (const en of activeEnemies) {
             const actualDmg = en.currentHp > burstDmg ? burstDmg : en.currentHp;
