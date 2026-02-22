@@ -17,6 +17,7 @@
       <button
         @click="emit('toggle', 'characterInfo')"
         :style="actionStyle('characterInfo')"
+        :class="{ 'onboarding-pulse': props.highlightInventory }"
         :disabled="isLocked('characterInfo')"
       >
         Character

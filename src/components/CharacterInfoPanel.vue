@@ -3,22 +3,23 @@
   <div :style="{ display: 'flex', gap: '0', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '8px' }">
     <button
       type="button"
-      @click="activeTab = 'inventory'"
+      @click="setTab('inventory')"
       :style="{
         background: activeTab === 'inventory' ? 'rgba(255,255,255,0.08)' : 'transparent',
         borderBottom: activeTab === 'inventory' ? '2px solid #60a5fa' : '2px solid transparent',
         padding: '8px 16px',
         cursor: 'pointer',
-        color: activeTab === 'inventory' ? '#fff' : '#d1d5db',
+        color: props.onboarding ? '#ffa500' : (activeTab === 'inventory' ? '#fff' : '#d1d5db'),
         fontSize: '0.85rem',
         fontWeight: 600,
         border: 'none',
         outline: 'none',
+        ...(props.onboarding ? { boxShadow: '0 0 0 2px rgba(255,165,0,0.7)', borderBottom: '2px solid rgba(255,165,0,0.9)' } : {}),
       }"
     >Inventory</button>
     <button
       type="button"
-      @click="activeTab = 'stats'"
+      @click="setTab('stats')"
       :style="{
         background: activeTab === 'stats' ? 'rgba(255,255,255,0.08)' : 'transparent',
         borderBottom: activeTab === 'stats' ? '2px solid #60a5fa' : '2px solid transparent',
@@ -33,7 +34,7 @@
     >Stats</button>
     <button
       type="button"
-      @click="activeTab = 'race'"
+      @click="setTab('race')"
       :style="{
         background: activeTab === 'race' ? 'rgba(255,255,255,0.08)' : 'transparent',
         borderBottom: activeTab === 'race' ? '2px solid #60a5fa' : '2px solid transparent',
@@ -48,17 +49,18 @@
     >Race</button>
     <button
       type="button"
-      @click="activeTab = 'abilities'"
+      @click="setTab('abilities')"
       :style="{
         background: activeTab === 'abilities' ? 'rgba(255,255,255,0.08)' : 'transparent',
         borderBottom: activeTab === 'abilities' ? '2px solid #60a5fa' : '2px solid transparent',
         padding: '8px 16px',
         cursor: 'pointer',
-        color: activeTab === 'abilities' ? '#fff' : '#d1d5db',
+        color: props.onboarding ? '#ffa500' : (activeTab === 'abilities' ? '#fff' : '#d1d5db'),
         fontSize: '0.85rem',
         fontWeight: 600,
         border: 'none',
         outline: 'none',
+        ...(props.onboarding ? { boxShadow: '0 0 0 2px rgba(255,165,0,0.7)', borderBottom: '2px solid rgba(255,165,0,0.9)' } : {}),
       }"
     >Abilities</button>
   </div>
@@ -217,7 +219,7 @@ import InventoryPanel from './InventoryPanel.vue';
 import StatsPanel from './StatsPanel.vue';
 import RacialProfilePanel from './RacialProfilePanel.vue';
 
-defineProps<{
+const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
   selectedCharacter: any;
@@ -232,6 +234,7 @@ defineProps<{
   races: any[];
   availableAbilities: { key: string; name: string; description: string; resource: string; kind: string; level: bigint; castSeconds: bigint; cooldownSeconds: bigint; resourceCost: bigint; damageType?: string | null }[];
   renownPerks: { id: bigint; characterId: bigint; rank: bigint; perkKey: string }[];
+  onboarding?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -248,9 +251,15 @@ const emit = defineEmits<{
   (e: 'move-tooltip', payload: any): void;
   (e: 'hide-tooltip'): void;
   (e: 'add-ability-to-hotbar', abilityKey: string, name: string): void;
+  (e: 'tab-change', tab: string): void;
 }>();
 
 const activeTab = ref<'inventory' | 'stats' | 'race' | 'abilities'>('inventory');
+
+const setTab = (tab: 'inventory' | 'stats' | 'race' | 'abilities') => {
+  activeTab.value = tab;
+  emit('tab-change', tab);
+};
 
 const contextMenu = ref<{
   visible: boolean; x: number; y: number;
