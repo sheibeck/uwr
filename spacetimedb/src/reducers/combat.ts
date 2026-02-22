@@ -1803,13 +1803,6 @@ export const registerCombatReducers = (deps: any) => {
             totalHealed += newHp - fresh.hp;
             ctx.db.character.id.update({ ...fresh, hp: newHp });
           }
-          // Small mana drain per pulse
-          const freshBardMoM = ctx.db.character.id.find(bard.id);
-          if (freshBardMoM && freshBardMoM.mana > 0n) {
-            const manaCost = 3n;
-            const newMana = freshBardMoM.mana > manaCost ? freshBardMoM.mana - manaCost : 0n;
-            ctx.db.character.id.update({ ...freshBardMoM, mana: newMana });
-          }
           logPrivateAndGroup(ctx, bard, 'heal', `Melody of Mending heals the group for ${totalHealed} health.`);
           break;
         }
