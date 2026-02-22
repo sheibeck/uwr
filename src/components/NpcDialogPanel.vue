@@ -166,7 +166,7 @@ const activeTab = ref<'journal' | 'quests'>('journal');
 
 watch(() => props.requestedTab, (val) => {
   if (val) activeTab.value = val;
-});
+}, { immediate: true });
 
 const AFFINITY_TIERS = [
   { min: -100, max: -51, name: 'Hostile', color: '#f87171' },
