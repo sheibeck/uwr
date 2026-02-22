@@ -14,5 +14,5 @@ export default __t.row({
   scheduledId: __t.u64().primaryKey(),
   scheduledAt: __t.scheduleAt(),
   bardCharacterId: __t.u64(),
-  combatId: __t.u64(),
+  combatId: __t.option(__t.u64()),
 });

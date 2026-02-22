@@ -13,7 +13,7 @@ import {
 export default __t.row({
   id: __t.u64().primaryKey(),
   bardCharacterId: __t.u64(),
-  combatId: __t.u64(),
+  combatId: __t.option(__t.u64()),
   songKey: __t.string(),
   startedAtMicros: __t.u64(),
   isFading: __t.bool(),

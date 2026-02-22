@@ -14,7 +14,7 @@ export default __t.object("BardSongTick", {
   scheduledId: __t.u64(),
   scheduledAt: __t.scheduleAt(),
   bardCharacterId: __t.u64(),
-  combatId: __t.u64(),
+  combatId: __t.option(__t.u64()),
 });
 
 

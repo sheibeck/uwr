@@ -13,7 +13,7 @@ import {
 export default __t.object("ActiveBardSong", {
   id: __t.u64(),
   bardCharacterId: __t.u64(),
-  combatId: __t.u64(),
+  combatId: __t.option(__t.u64()),
   songKey: __t.string(),
   startedAtMicros: __t.u64(),
   isFading: __t.bool(),
