@@ -532,10 +532,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 281 | Abilities tab right-click shows full ability info — name header, Cost/Cast/Cooldown stat rows, description, then Add to Hotbar button; prop type extended with castSeconds/cooldownSeconds/resourceCost/damageType; renown perk rows use zeroed stub | 2026-02-22 | 2272ab0 | [281-abilities-tab-right-click-shows-full-abi](./quick/281-abilities-tab-right-click-shows-full-abi/) |
 | 282 | Fix onboarding hint z-index to 9000 (above all panels); add CSS onboardingButtonPulse orange glow animation; Character button pulses while onboarding active; Inventory+Abilities tabs pulse orange; hint auto-dismisses only when Abilities tab is opened | 2026-02-22 | 483f10e | [282-fix-onboarding-hint-z-index-to-top-pulse](./quick/282-fix-onboarding-hint-z-index-to-top-pulse/) |
 | 283 | Unify right-click context menus — added default slot to ContextMenu.vue; migrated CharacterInfoPanel ability popup and App.vue hotbar popup to use shared ContextMenu component with proper backdrop, blur, rounded corners matching InventoryPanel | 2026-02-22 | 746c992 | [283-unify-right-click-context-menu-look-and](./quick/283-unify-right-click-context-menu-look-and/) |
+| 284 | Hotbar keyboard shortcuts 1-9 fire slots 1-9, 0 fires slot 10; document-level keydown listener skips when INPUT/TEXTAREA/contentEditable focused so command bar typing is unaffected; calls onHotbarClick so all cooldown/cast/resource guards apply | 2026-02-22 | 0d45c84 | [284-hotbar-keyboard-shortcuts-1-10-to-fire-a](./quick/284-hotbar-keyboard-shortcuts-1-10-to-fire-a/) |
 
 ---
 
-Last activity: 2026-02-22 - Unified all right-click context menus (quick-283)
+Last activity: 2026-02-22 - Hotbar keyboard shortcuts 1-0 (quick-284)
 
 ## Last Session
 
