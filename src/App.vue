@@ -2165,9 +2165,13 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
       case 'c': case 'C': togglePanel('characterInfo'); return;
       case 'e': case 'E': togglePanel('worldEvents'); return;
       case 'q': case 'Q':
-        journalRequestedTab.value = 'quests';
-        openPanel('journal');
-        setTimeout(() => { journalRequestedTab.value = null; }, 100);
+        if (panels.journal?.open) {
+          closePanel('journal');
+        } else {
+          journalRequestedTab.value = 'quests';
+          openPanel('journal');
+          setTimeout(() => { journalRequestedTab.value = null; }, 100);
+        }
         return;
       case 't': case 'T': togglePanel('travelPanel'); return;
       case 'l': case 'L': togglePanel('loot'); return;
