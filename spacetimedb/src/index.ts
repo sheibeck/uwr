@@ -154,6 +154,7 @@ import {
   isClassAllowed,
   friendUserIds,
   findCharacterByName,
+  autoRespawnDeadCharacter,
 } from './helpers/character';
 
 import {
@@ -563,6 +564,7 @@ const reducerDeps = {
   removeCorpseIfEmpty,
   executeResurrect,
   executeCorpseSummon,
+  autoRespawnDeadCharacter,
   startCombatForSpawn: null as any,
 };
 

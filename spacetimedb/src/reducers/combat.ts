@@ -263,6 +263,7 @@ export const registerCombatReducers = (deps: any) => {
     fail,
     grantFactionStandingForKill,
     calculateFleeChance,
+    autoRespawnDeadCharacter,
   } = deps;
   const failCombat = (ctx: any, character: any, message: string) =>
     fail(ctx, character, message, 'combat');
@@ -3006,6 +3007,9 @@ export const registerCombatReducers = (deps: any) => {
               `${character.name} reached level ${reward.newLevel}.`
             );
           }
+          // Auto-respawn dead party member after XP award
+          const deadChar = ctx.db.character.id.find(p.characterId);
+          if (deadChar) autoRespawnDeadCharacter(ctx, deadChar);
           continue;
         }
         // Apply XP bonus perk
@@ -3414,6 +3418,12 @@ export const registerCombatReducers = (deps: any) => {
             'reward',
             `You lose ${loss} XP from the defeat.`
           );
+        }
+      }
+      for (const p of participants) {
+        const character = ctx.db.character.id.find(p.characterId);
+        if (character && character.hp === 0n) {
+          autoRespawnDeadCharacter(ctx, character);
         }
       }
       return;
