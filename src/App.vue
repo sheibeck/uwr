@@ -132,6 +132,10 @@
           "
         >
           <div
+            v-if="activeSongKey === slot.abilityKey"
+            :style="styles.hotbarSongActiveFill"
+          ></div>
+          <div
             v-if="isCasting && slot.abilityKey === activeCastKey"
             :style="{
               ...styles.hotbarCastFill,
@@ -1093,6 +1097,16 @@ const relevantEffects = computed(() => {
     }
   }
   return effects;
+});
+
+// Active (non-fading) bard song key for the selected character — used to highlight hotbar slot
+const activeSongKey = computed<string | null>(() => {
+  if (!selectedCharacter.value) return null;
+  const charIdStr = selectedCharacter.value.id.toString();
+  const active = (activeBardSongs.value as any[]).find(
+    (s) => s.bardCharacterId.toString() === charIdStr && !s.isFading
+  );
+  return active?.songKey ?? null;
 });
 
 const characterNpcDialogs = computed(() => {

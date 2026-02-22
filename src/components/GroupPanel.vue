@@ -376,5 +376,9 @@ const effectDurationLabel = (effect: {
 const effectLabelForDisplay = (effect: {
   effectType: string;
   sourceAbility?: string;
-}) => effectLabel(effect);
+}) => {
+  const base = effectLabel(effect);
+  if (effect.effectType === 'song') return `♪ ${base}`;
+  return base;
+};
 </script>

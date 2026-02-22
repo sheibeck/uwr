@@ -212,6 +212,12 @@ export const styles = {
     transformOrigin: 'right center',
     zIndex: 0,
   },
+  hotbarSongActiveFill: {
+    position: 'absolute',
+    inset: 0,
+    background: 'linear-gradient(90deg, rgba(80, 220, 150, 0.22), rgba(80, 220, 150, 0.5))',
+    zIndex: 0,
+  },
   hotbarSlotEmpty: {
     opacity: 0.4,
     cursor: 'not-allowed',

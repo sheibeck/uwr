@@ -977,8 +977,8 @@ export function executeAbility(
         if (DAMAGE_SONGS.includes(abilityKey) && (!combatId || !combat)) {
           throw new SenderError('This song can only be sung in combat.');
         }
-        // Mark previous song as fading
-        const prevSong = [...ctx.db.activeBardSong.by_bard.filter(character.id)][0];
+        // Mark previous song as fading (only consider non-fading songs to avoid double-fading)
+        const prevSong = [...ctx.db.activeBardSong.by_bard.filter(character.id)].find((r: any) => !r.isFading);
         if (prevSong) {
           ctx.db.activeBardSong.id.update({ ...prevSong, isFading: true });
         } else {
@@ -1008,8 +1008,8 @@ export function executeAbility(
           bard_march_of_wayfarers: 'March of Wayfarers',
           bard_battle_hymn: 'Battle Hymn',
         };
-        // Damage songs deal an immediate burst on cast
-        if (abilityKey === 'bard_discordant_note' || abilityKey === 'bard_battle_hymn') {
+        // Damage songs deal an immediate burst on cast (discordant_note excluded — too powerful)
+        if (abilityKey === 'bard_battle_hymn') {
           const activeEnemies = combatId
             ? [...ctx.db.combatEnemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n)
             : [];
@@ -1027,7 +1027,7 @@ export function executeAbility(
 
       case 'bard_finale': {
         // Burst the active song: apply its effect once immediately
-        const activeSong = [...ctx.db.activeBardSong.by_bard.filter(character.id)][0];
+        const activeSong = [...ctx.db.activeBardSong.by_bard.filter(character.id)].find((r: any) => !r.isFading);
         if (!activeSong) {
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
             'No active song to unleash.'
