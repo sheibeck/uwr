@@ -1937,6 +1937,16 @@ export const registerCombatReducers = (deps: any) => {
           targetCharacterId: cast.targetCharacterId,
         });
       } catch (error) {
+        // Ability failed due to validation — revert the cooldown so the player can retry
+        if (cooldown > 0n) {
+          if (existingCooldown) {
+            ctx.db.abilityCooldown.id.update({ ...existingCooldown });
+          } else {
+            const revertCd = [...ctx.db.abilityCooldown.by_character.filter(character.id)]
+              .find((row) => row.abilityKey === cast.abilityKey);
+            if (revertCd) ctx.db.abilityCooldown.id.delete(revertCd.id);
+          }
+        }
         const message = String(error).replace(/^SenderError:\s*/i, '');
         appendPrivateEvent(
           ctx,
