@@ -41,7 +41,7 @@ export function getDefaultLayout(): Record<string, { x: number; y: number; w?: n
   }
 
   // Map panel gets a wider default size to show the region graph comfortably
-  layout.map = { x: Math.round(vw / 2 - 420), y: centerY, w: 840, h: 240 };
+  layout.map = { x: Math.round(vw / 2 - 380), y: centerY, w: 760, h: 240 };
 
   return layout;
 }

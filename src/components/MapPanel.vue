@@ -96,7 +96,7 @@ const props = defineProps<{
   selectedCharacter: CharacterRow | null;
 }>();
 
-const NODE_W = 180;
+const NODE_W = 160;
 const NODE_H = 60;
 const H_GAP = 64;
 const V_GAP = 24;
@@ -213,15 +213,14 @@ const renderedNodes = computed(() => {
     const pos = positions.value.get(r.id.toString());
     if (!pos) return [];
 
-    // Fixed base level derived from dangerMultiplier alone (÷10 gives a clean scale)
-    const base = Math.round(Number(r.dangerMultiplier) / 10);
+    // Fixed level range: same formula as enemy scaling but with playerLevel=1
+    // floor(1 × dangerMultiplier / 100) gives the base, locationLevelOffset adds spread
+    const base = Math.floor(Number(r.dangerMultiplier) / 100);
     const locs = props.locations.filter(l => l.regionId.toString() === r.id.toString());
-    const levels = locs.length > 0
-      ? locs.map(l => Math.max(1, base + Number(l.levelOffset)))
-      : [Math.max(1, base)];
-    const minLv = Math.min(...levels);
-    const maxLv = Math.max(...levels);
-    const levelLabel = minLv === maxLv ? `Approx. Level ${minLv}` : `Approx. Level ${minLv}-${maxLv}`;
+    const offsets = locs.length > 0 ? locs.map(l => Number(l.levelOffset)) : [0];
+    const minLv = Math.max(1, base + Math.min(...offsets));
+    const maxLv = Math.max(1, base + Math.max(...offsets));
+    const levelLabel = minLv === maxLv ? `Levels ${minLv}` : `Levels ${minLv}-${maxLv}`;
 
     // Colorize relative to player level using the average fixed level
     const avgLv = Math.round((minLv + maxLv) / 2);
