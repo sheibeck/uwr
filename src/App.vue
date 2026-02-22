@@ -2149,11 +2149,31 @@ const onCharacterTabChange = (tab: string) => {
   }
 };
 
+const handleHotbarKeydown = (e: KeyboardEvent) => {
+  // Skip if any text input or textarea has focus
+  const target = e.target as HTMLElement;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+
+  // Map key to hotbar slot index (1-9 → slots 1-9, 0 → slot 10)
+  let slotIndex: number | null = null;
+  if (e.key >= '1' && e.key <= '9') {
+    slotIndex = Number(e.key);
+  } else if (e.key === '0') {
+    slotIndex = 10;
+  }
+  if (slotIndex === null) return;
+
+  const slot = hotbarDisplay.value[slotIndex - 1];
+  if (!slot?.abilityKey) return;
+  onHotbarClick(slot);
+};
+
 onMounted(() => {
   loadAccordionState();
   window.addEventListener('mousemove', onPanelMouseMove);
   window.addEventListener('mouseup', onPanelMouseUp);
   document.addEventListener('click', hideAbilityPopup);
+  document.addEventListener('keydown', handleHotbarKeydown);
   uiTimer = window.setInterval(() => {
     nowMicros.value = Date.now() * 1000;
   }, 100);
@@ -2163,6 +2183,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('mousemove', onPanelMouseMove);
   window.removeEventListener('mouseup', onPanelMouseUp);
   document.removeEventListener('click', hideAbilityPopup);
+  document.removeEventListener('keydown', handleHotbarKeydown);
   if (uiTimer) clearInterval(uiTimer);
 });
 
