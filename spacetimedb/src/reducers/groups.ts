@@ -1,3 +1,5 @@
+const MAX_GROUP_SIZE = 5;
+
 export const registerGroupReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -47,6 +49,9 @@ export const registerGroupReducers = (deps: any) => {
     if (character.groupId) return failGroup(ctx, character, 'Character already in a group');
     const group = ctx.db.group.id.find(args.groupId);
     if (!group) return failGroup(ctx, character, 'Group not found');
+
+    const currentSize = [...ctx.db.groupMember.by_group.filter(group.id)].length;
+    if (currentSize >= MAX_GROUP_SIZE) return failGroup(ctx, character, 'Group is full.');
 
     ctx.db.groupMember.insert({
       id: 0n,
@@ -294,6 +299,12 @@ export const registerGroupReducers = (deps: any) => {
         appendGroupEvent(ctx, groupId, inviter.id, 'group', `${inviter.name} formed a group.`);
       }
 
+      const groupSize = [...ctx.db.groupMember.by_group.filter(groupId)].length;
+      if (groupSize >= MAX_GROUP_SIZE) {
+        appendPrivateEvent(ctx, inviter.id, inviter.ownerUserId, 'group', 'Your group is full.');
+        return;
+      }
+
       for (const invite of ctx.db.groupInvite.by_to_character.filter(target.id)) {
         appendPrivateEvent(
           ctx,
@@ -343,6 +354,9 @@ export const registerGroupReducers = (deps: any) => {
 
       const group = ctx.db.group.id.find(inviteRow.groupId);
       if (!group) return failGroup(ctx, character, 'Group not found');
+
+      const currentSize = [...ctx.db.groupMember.by_group.filter(group.id)].length;
+      if (currentSize >= MAX_GROUP_SIZE) return failGroup(ctx, character, 'Group is full.');
 
       ctx.db.groupInvite.id.delete(inviteRow.id);
       ctx.db.groupMember.insert({

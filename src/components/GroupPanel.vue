@@ -16,7 +16,7 @@
           @click="$emit('target', member.id)"
           @contextmenu.prevent="openMemberContextMenu($event, member)"
         >
-          <span>
+          <span style="font-size: 11px;">
             {{ member.name }} (Lv {{ member.level }}) - {{ member.className }}
             <span v-if="member.id === leaderId" :style="styles.subtle">· Leader</span>
             <span v-if="member.id === pullerId" :style="styles.subtle">· Puller</span>
@@ -47,7 +47,7 @@
             </span>
           </div>
           <div v-for="pet in petsFor(member.id)" :key="pet.id.toString()" :style="styles.petCard">
-            <span>{{ pet.name }}<template v-if="petCountdown(pet)"> ({{ petCountdown(pet) }})</template></span>
+            <span style="font-size: 11px;">{{ pet.name }}<template v-if="petCountdown(pet)"> ({{ petCountdown(pet) }})</template></span>
             <div :style="styles.hpBar">
               <div :style="{ ...styles.hpFill, width: `${percent(pet.currentHp, pet.maxHp)}%` }"></div>
               <span :style="styles.barText">{{ pet.currentHp }} / {{ pet.maxHp }}</span>
