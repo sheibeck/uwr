@@ -542,10 +542,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 291 | Frontend reorg: extract FloatingPanel.vue, useCharacterScope, useTooltip, useAudio from App.vue (2670→2369 lines) | 2026-02-23 | 09169be | [291-reorganize-frontend-src-reduce-duplicate](./quick/291-reorganize-frontend-src-reduce-duplicate/) |
 | 292 | Friendly spell casts persist through combat state transitions; only combat_only casts cancelled | 2026-02-23 | 4b121d3 | [292-friendly-spell-casts-should-not-be-cance](./quick/292-friendly-spell-casts-should-not-be-cance/) |
 | 293 | Fix panels TDZ crash — relocate usePanelManager() before eager watch access in App.vue | 2026-02-23 | b7ae15c | [293-fix-panels-before-initialization-referen](./quick/293-fix-panels-before-initialization-referen/) |
+| 294 | Add ±15% damage/healing variance to all combat paths (auto-attacks, abilities, healing, enemies) | 2026-02-23 | d3c1dcf | [294-add-damage-rng-variance-to-auto-attacks-](./quick/294-add-damage-rng-variance-to-auto-attacks-/) |
 
 ---
 
-Last activity: 2026-02-23 - Fix panels before initialization ReferenceError (quick-293)
+Last activity: 2026-02-23 - Add ±15% damage/healing RNG variance to all combat (quick-294)
 
 ## Last Session
 
