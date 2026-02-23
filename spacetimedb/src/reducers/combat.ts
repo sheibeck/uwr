@@ -13,7 +13,8 @@ import {
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
-import { applyPerkProcs, addCharacterEffect, addEnemyEffect } from '../helpers/combat';
+import { addCharacterEffect, addEnemyEffect } from '../helpers/combat';
+import { applyPerkProcs } from '../helpers/combat_perks';
 import { partyMembersInLocation } from '../helpers/character';
 import { getLocationSpawnCap } from '../helpers/location';
 import { RENOWN_GAIN } from '../data/renown_data';

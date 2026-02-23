@@ -135,16 +135,26 @@ import {
   GROUP_SIZE_DANGER_BASE,
   GROUP_SIZE_BIAS_RANGE,
   GROUP_SIZE_BIAS_MAX,
-  awardXp,
-  applyDeathXpPenalty,
+  scheduleCombatTick,
+} from './helpers/combat';
+
+import {
   getEnemyRole,
   scaleByPercent,
   applyArmorMitigation,
   computeEnemyStats,
-  scheduleCombatTick,
-  calculateFleeChance,
+} from './helpers/combat_enemies';
+
+import {
+  applyPerkProcs,
   executePerkAbility,
-} from './helpers/combat';
+  calculateFleeChance,
+} from './helpers/combat_perks';
+
+import {
+  awardXp,
+  applyDeathXpPenalty,
+} from './helpers/combat_rewards';
 
 import {
   getGroupParticipants,
