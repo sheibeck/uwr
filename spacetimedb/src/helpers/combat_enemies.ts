@@ -8,15 +8,16 @@ import { GLOBAL_DAMAGE_MULTIPLIER } from '../data/combat_scaling';
 
 export const ENEMY_ROLE_CONFIG: Record<
   string,
-  { hpBonusPerLevel: bigint; damagePerLevel: bigint; baseHpBonus: bigint; baseDamage: bigint; baseArmor: bigint; armorPerLevel: bigint }
+  { hpBonusPerLevel: bigint; damagePerLevel: bigint; baseHpBonus: bigint; baseDamage: bigint; baseArmor: bigint; armorPerLevel: bigint; attackSpeedMicros: bigint }
 > = {
   damage: {
     hpBonusPerLevel: 8n,
-    damagePerLevel: 5n,
+    damagePerLevel: 4n,
     baseHpBonus: 20n,
-    baseDamage: 12n,
+    baseDamage: 8n,
     baseArmor: 3n,
     armorPerLevel: 2n,
+    attackSpeedMicros: 3_500_000n,
   },
   tank: {
     hpBonusPerLevel: 15n,
@@ -25,28 +26,37 @@ export const ENEMY_ROLE_CONFIG: Record<
     baseDamage: 8n,
     baseArmor: 14n,
     armorPerLevel: 4n,
+    attackSpeedMicros: 5_000_000n,
   },
   healer: {
     hpBonusPerLevel: 12n,
     damagePerLevel: 2n,
     baseHpBonus: 45n,
-    baseDamage: 6n,
+    baseDamage: 5n,
     baseArmor: 6n,
     armorPerLevel: 3n,
+    attackSpeedMicros: 4_000_000n,
   },
   support: {
     hpBonusPerLevel: 10n,
-    damagePerLevel: 3n,
+    damagePerLevel: 2n,
     baseHpBonus: 35n,
-    baseDamage: 7n,
+    baseDamage: 6n,
     baseArmor: 5n,
     armorPerLevel: 2n,
+    attackSpeedMicros: 4_000_000n,
   },
 };
 
 export function getEnemyRole(role: string) {
   const key = role.trim().toLowerCase();
   return ENEMY_ROLE_CONFIG[key] ?? ENEMY_ROLE_CONFIG.damage;
+}
+
+export function getEnemyAttackSpeed(role: string): bigint {
+  const key = role.trim().toLowerCase();
+  const config = ENEMY_ROLE_CONFIG[key] ?? ENEMY_ROLE_CONFIG.damage;
+  return config.attackSpeedMicros;
 }
 
 export function scaleByPercent(value: bigint, percent: bigint) {
@@ -95,5 +105,6 @@ export function computeEnemyStats(
     attackDamage: baseDamage,
     armorClass: baseArmorClass,
     avgLevel: effectiveLevel,
+    attackSpeedMicros: role.attackSpeedMicros,
   };
 }
