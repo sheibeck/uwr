@@ -10,15 +10,19 @@
           :key="member.id.toString()"
           :style="[
             styles.memberCard,
-            selectedTargetId === member.id ? styles.memberCardTargeted : {},
+            selectedTargetId === member.id && !isRemote(member) ? styles.memberCardTargeted : {},
+            isRemote(member) ? { opacity: '0.45', filter: 'grayscale(0.7)', cursor: 'default' } : {},
           ]"
-          @click="$emit('target', member.id)"
+          @click="!isRemote(member) && $emit('target', member.id)"
           @contextmenu.prevent="openMemberContextMenu($event, member)"
         >
           <span style="font-size: 13px;">
             <span v-if="member.id === leaderId" :style="styles.subtle" title="Leader">★ </span>{{ member.name }} ({{ member.level }}) - {{ member.className }}
             <span v-if="member.id === pullerId" :style="{ ...styles.subtle, fontSize: '13px' }" title="Puller"> · Puller</span>
           </span>
+          <div v-if="isRemote(member)" style="font-size: 11px; color: rgba(180, 180, 200, 0.6); margin-top: 1px;">
+            {{ locationName(member) }}
+          </div>
           <div :style="{ ...styles.hpBar, height: '13px', marginTop: '0.15rem' }">
             <div :style="{ ...styles.hpFill, width: `${percent(member.hp, member.maxHp)}%` }"></div>
             <span :style="{ ...styles.barText, fontSize: '0.55rem' }">{{ member.hp }} / {{ member.maxHp }}</span>
@@ -201,6 +205,8 @@ const props = defineProps<{
   }[];
   myFriendUserIds?: string[];
   myCharacterId?: bigint | null;
+  locations: { id: bigint; name: string }[];
+  myLocationId: bigint | null;
 }>();
 
 const emit = defineEmits<{
@@ -237,6 +243,16 @@ const closeContextMenu = () => {
   contextMenu.value.visible = false;
 };
 
+const isRemote = (member: CharacterRow) => {
+  if (props.myLocationId == null) return false;
+  return member.locationId !== props.myLocationId;
+};
+
+const locationName = (member: CharacterRow) => {
+  const loc = props.locations.find(l => l.id === member.locationId);
+  return loc?.name ?? 'Unknown';
+};
+
 const openMemberContextMenu = (event: MouseEvent, member: CharacterRow) => {
   const isSelf = props.myCharacterId != null && member.id.toString() === props.myCharacterId.toString();
   const isTargetPuller = props.pullerId != null && member.id.toString() === props.pullerId.toString();
@@ -262,13 +278,16 @@ const openMemberContextMenu = (event: MouseEvent, member: CharacterRow) => {
   const isFriend = (props.myFriendUserIds ?? []).includes(member.ownerUserId.toString());
   const isTargetLeader = props.leaderId != null && member.id.toString() === props.leaderId.toString();
 
+  const remote = isRemote(member);
   const items: Array<{ label: string; disabled?: boolean; action: () => void }> = [
     {
       label: 'Target',
+      disabled: remote,
       action: () => emit('target', member.id),
     },
     {
       label: 'Trade',
+      disabled: remote,
       action: () => emit('player-trade', member.name),
     },
     {

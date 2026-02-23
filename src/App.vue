@@ -405,6 +405,8 @@
           :now-micros="nowMicros"
           :my-friend-user-ids="myFriendUserIds"
           :my-character-id="selectedCharacter?.id ?? null"
+          :locations="locations"
+          :my-location-id="selectedCharacter?.locationId ?? null"
           @leave="leaveGroup"
           @accept="acceptInvite"
           @reject="rejectInvite"
