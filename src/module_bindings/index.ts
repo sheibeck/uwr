@@ -104,28 +104,8 @@ import SetHotbarSlotReducer from "./set_hotbar_slot_reducer";
 export { SetHotbarSlotReducer };
 import UseAbilityReducer from "./use_ability_reducer";
 export { UseAbilityReducer };
-import StartGatherResourceReducer from "./start_gather_resource_reducer";
-export { StartGatherResourceReducer };
-import FinishGatherReducer from "./finish_gather_reducer";
-export { FinishGatherReducer };
-import ResearchRecipesReducer from "./research_recipes_reducer";
-export { ResearchRecipesReducer };
-import CraftRecipeReducer from "./craft_recipe_reducer";
-export { CraftRecipeReducer };
-import LearnRecipeScrollReducer from "./learn_recipe_scroll_reducer";
-export { LearnRecipeScrollReducer };
 import UseItemReducer from "./use_item_reducer";
 export { UseItemReducer };
-import StartTradeReducer from "./start_trade_reducer";
-export { StartTradeReducer };
-import AddTradeItemReducer from "./add_trade_item_reducer";
-export { AddTradeItemReducer };
-import RemoveTradeItemReducer from "./remove_trade_item_reducer";
-export { RemoveTradeItemReducer };
-import OfferTradeReducer from "./offer_trade_reducer";
-export { OfferTradeReducer };
-import CancelTradeReducer from "./cancel_trade_reducer";
-export { CancelTradeReducer };
 import SyncEquipmentTablesReducer from "./sync_equipment_tables_reducer";
 export { SyncEquipmentTablesReducer };
 import SyncLootTablesReducer from "./sync_loot_tables_reducer";
@@ -142,8 +122,28 @@ import SyncNpcQuestContentReducer from "./sync_npc_quest_content_reducer";
 export { SyncNpcQuestContentReducer };
 import SyncAllContentReducer from "./sync_all_content_reducer";
 export { SyncAllContentReducer };
+import ResearchRecipesReducer from "./research_recipes_reducer";
+export { ResearchRecipesReducer };
+import CraftRecipeReducer from "./craft_recipe_reducer";
+export { CraftRecipeReducer };
+import LearnRecipeScrollReducer from "./learn_recipe_scroll_reducer";
+export { LearnRecipeScrollReducer };
 import SalvageItemReducer from "./salvage_item_reducer";
 export { SalvageItemReducer };
+import StartGatherResourceReducer from "./start_gather_resource_reducer";
+export { StartGatherResourceReducer };
+import FinishGatherReducer from "./finish_gather_reducer";
+export { FinishGatherReducer };
+import StartTradeReducer from "./start_trade_reducer";
+export { StartTradeReducer };
+import AddTradeItemReducer from "./add_trade_item_reducer";
+export { AddTradeItemReducer };
+import RemoveTradeItemReducer from "./remove_trade_item_reducer";
+export { RemoveTradeItemReducer };
+import OfferTradeReducer from "./offer_trade_reducer";
+export { OfferTradeReducer };
+import CancelTradeReducer from "./cancel_trade_reducer";
+export { CancelTradeReducer };
 import MoveCharacterReducer from "./move_character_reducer";
 export { MoveCharacterReducer };
 import SubmitCommandReducer from "./submit_command_reducer";
@@ -2526,17 +2526,7 @@ const reducersSchema = __reducers(
   __reducerSchema("consolidate_stacks", ConsolidateStacksReducer),
   __reducerSchema("set_hotbar_slot", SetHotbarSlotReducer),
   __reducerSchema("use_ability", UseAbilityReducer),
-  __reducerSchema("start_gather_resource", StartGatherResourceReducer),
-  __reducerSchema("finish_gather", FinishGatherReducer),
-  __reducerSchema("research_recipes", ResearchRecipesReducer),
-  __reducerSchema("craft_recipe", CraftRecipeReducer),
-  __reducerSchema("learn_recipe_scroll", LearnRecipeScrollReducer),
   __reducerSchema("use_item", UseItemReducer),
-  __reducerSchema("start_trade", StartTradeReducer),
-  __reducerSchema("add_trade_item", AddTradeItemReducer),
-  __reducerSchema("remove_trade_item", RemoveTradeItemReducer),
-  __reducerSchema("offer_trade", OfferTradeReducer),
-  __reducerSchema("cancel_trade", CancelTradeReducer),
   __reducerSchema("sync_equipment_tables", SyncEquipmentTablesReducer),
   __reducerSchema("sync_loot_tables", SyncLootTablesReducer),
   __reducerSchema("sync_enemy_content", SyncEnemyContentReducer),
@@ -2545,7 +2535,17 @@ const reducersSchema = __reducers(
   __reducerSchema("sync_recipe_templates", SyncRecipeTemplatesReducer),
   __reducerSchema("sync_npc_quest_content", SyncNpcQuestContentReducer),
   __reducerSchema("sync_all_content", SyncAllContentReducer),
+  __reducerSchema("research_recipes", ResearchRecipesReducer),
+  __reducerSchema("craft_recipe", CraftRecipeReducer),
+  __reducerSchema("learn_recipe_scroll", LearnRecipeScrollReducer),
   __reducerSchema("salvage_item", SalvageItemReducer),
+  __reducerSchema("start_gather_resource", StartGatherResourceReducer),
+  __reducerSchema("finish_gather", FinishGatherReducer),
+  __reducerSchema("start_trade", StartTradeReducer),
+  __reducerSchema("add_trade_item", AddTradeItemReducer),
+  __reducerSchema("remove_trade_item", RemoveTradeItemReducer),
+  __reducerSchema("offer_trade", OfferTradeReducer),
+  __reducerSchema("cancel_trade", CancelTradeReducer),
   __reducerSchema("move_character", MoveCharacterReducer),
   __reducerSchema("submit_command", SubmitCommandReducer),
   __reducerSchema("say", SayReducer),
