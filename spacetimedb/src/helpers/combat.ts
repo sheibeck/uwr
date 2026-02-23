@@ -34,7 +34,7 @@ import {
   GROUP_SIZE_BIAS_MAX,
 } from '../data/combat_constants';
 import { ENEMY_ABILITIES } from '../data/abilities/enemy_abilities';
-import { applyArmorMitigation, scaleByPercent } from './combat_enemies';
+import { applyArmorMitigation, applyVariance, scaleByPercent } from './combat_enemies';
 
 const GLOBAL_COOLDOWN_MICROS = 1_500_000n;
 
@@ -604,18 +604,21 @@ export function executeAbility(
           mitigatedDamage = applyArmorMitigation(aoeDamage, targetArmor);
         }
 
+        // Apply variance to mitigated damage
+        const variedMitigated = applyVariance(mitigatedDamage, nowMicros + character.id + targetEnemy.id);
+
         // Apply damage to target
-        const nextHp = targetEnemy.currentHp > mitigatedDamage ? targetEnemy.currentHp - mitigatedDamage : 0n;
+        const nextHp = targetEnemy.currentHp > variedMitigated ? targetEnemy.currentHp - variedMitigated : 0n;
         ctx.db.combatEnemy.id.update({ ...targetEnemy, currentHp: nextHp });
 
-        // Update aggro for this target
+        // Update aggro for this target (threat tracks actual damage dealt)
         for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
           if (entry.characterId === character.id && entry.enemyId === targetEnemy.id) {
             const className = character.className?.toLowerCase() ?? '';
             const threatMult = TANK_CLASSES.has(className) ? TANK_THREAT_MULTIPLIER
               : HEALER_CLASSES.has(className) ? HEALER_THREAT_MULTIPLIER
                 : className === 'summoner' ? SUMMONER_THREAT_MULTIPLIER : 100n;
-            const threat = (mitigatedDamage * threatMult) / 100n;
+            const threat = (variedMitigated * threatMult) / 100n;
             ctx.db.aggroEntry.id.update({
               ...entry,
               value: entry.value + threat,
@@ -646,7 +649,7 @@ export function executeAbility(
           character.id,
           character.ownerUserId,
           'damage',
-          `Your ${ability.name} hits ${targetName} for ${mitigatedDamage} damage.`
+          `Your ${ability.name} hits ${targetName} for ${variedMitigated} damage.`
         );
         if (actorGroupId) {
           appendGroupEvent(
@@ -654,7 +657,7 @@ export function executeAbility(
             actorGroupId,
             character.id,
             'damage',
-            `${character.name}'s ${ability.name} hits ${targetName} for ${mitigatedDamage} damage.`
+            `${character.name}'s ${ability.name} hits ${targetName} for ${variedMitigated} damage.`
           );
         }
       }
@@ -687,8 +690,9 @@ export function executeAbility(
         // Physical damage uses armor mitigation
         reduced = applyArmorMitigation(raw, armor);
       }
-      hitDamages.push(reduced);
-      totalDamage += reduced;
+      const variedReduced = applyVariance(reduced, nowMicros + character.id + i * 997n);
+      hitDamages.push(variedReduced);
+      totalDamage += variedReduced;
     }
     const nextHp = enemy.currentHp > totalDamage ? enemy.currentHp - totalDamage : 0n;
     ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
@@ -810,7 +814,8 @@ export function executeAbility(
     }
 
     // Apply Wisdom scaling to direct heal output (uses the CASTER's stats, not target's)
-    const scaledAmount = calculateHealingPower(directHeal, characterStats);
+    const rawScaledAmount = calculateHealingPower(directHeal, characterStats);
+    const scaledAmount = applyVariance(rawScaledAmount, nowMicros + character.id + target.id + 4231n);
     const nextHp = current.hp + scaledAmount > current.maxHp ? current.maxHp : current.hp + scaledAmount;
     ctx.db.character.id.update({ ...current, hp: nextHp });
     const message = `${source} restores ${scaledAmount} health to ${current.name}.`;
@@ -1970,6 +1975,7 @@ export function applyEnemyAbilityDamage(
     const magicResist = sumCharacterEffect(ctx, target.id, 'magic_resist') + (target.racialMagicResist ?? 0n) + gearMR;
     finalDamage = applyMagicResistMitigation(rawDamage, magicResist);
   }
+  finalDamage = applyVariance(finalDamage, target.id + BigInt(abilityName.length) * 1009n);
   if (finalDamage < 1n) finalDamage = 1n;
   const nextHp = target.hp > finalDamage ? target.hp - finalDamage : 0n;
   ctx.db.character.id.update({ ...target, hp: nextHp });
@@ -2006,7 +2012,7 @@ export function executeEnemyAbility(
     const abilityPower = (ability as any).power ?? 3n;
     const enemyPower = ENEMY_BASE_POWER + (enemyLevel * ENEMY_LEVEL_POWER_SCALING);
     const totalPower = enemyPower + abilityPower * 5n;
-    const rawDamage = totalPower;
+    const rawDamage = applyVariance(totalPower, enemyId + pet.id + 6173n);
     const newHp = pet.currentHp > rawDamage ? pet.currentHp - rawDamage : 0n;
     ctx.db.activePet.id.update({ ...pet, currentHp: newHp });
 

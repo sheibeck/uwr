@@ -252,6 +252,7 @@ export const registerCombatReducers = (deps: any) => {
     sumCharacterEffect,
     sumEnemyEffect,
     applyArmorMitigation,
+    applyVariance,
     abilityCooldownMicros,
     executeAbilityAction,
     rollAttackOutcome,
@@ -589,6 +590,7 @@ export const registerCombatReducers = (deps: any) => {
     }
   ) => {
     const reducedDamage = applyArmorMitigation(baseDamage, targetArmor);
+    const variedDamage = applyVariance(reducedDamage, seed + 7919n);
     const outcome = rollAttackOutcome(seed, {
       canBlock,
       blockChanceBasis,       // undefined if not provided, rollAttackOutcome uses ?? 50n default
@@ -602,7 +604,7 @@ export const registerCombatReducers = (deps: any) => {
       weaponName,
       weaponType,
     });
-    let finalDamage = (reducedDamage * outcome.multiplier) / 100n;
+    let finalDamage = (variedDamage * outcome.multiplier) / 100n;
     if (finalDamage < 0n) finalDamage = 0n;
     if (outcome.outcome === 'hit' && targetCharacterId) {
       const shield = [...ctx.db.characterEffect.by_character.filter(targetCharacterId)].find(

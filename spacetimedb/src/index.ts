@@ -142,6 +142,7 @@ import {
   getEnemyRole,
   scaleByPercent,
   applyArmorMitigation,
+  applyVariance,
   computeEnemyStats,
 } from './helpers/combat_enemies';
 
@@ -469,6 +470,7 @@ const reducerDeps = {
   sumCharacterEffect,
   sumEnemyEffect,
   applyArmorMitigation,
+  applyVariance,
   spawnEnemy,
   spawnEnemyWithTemplate,
   getEquippedWeaponStats,

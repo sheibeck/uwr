@@ -65,6 +65,19 @@ export function applyArmorMitigation(damage: bigint, armorClass: bigint) {
   return globalReduced > 0n ? globalReduced : 1n;
 }
 
+/**
+ * Apply +-15% variance to a damage or healing value using a deterministic seed.
+ * Formula: value * (85 + seed % 31) / 100  -->  range [85%, 115%] of base
+ * Returns at least 1n to avoid zero-damage hits.
+ */
+export function applyVariance(value: bigint, seed: bigint): bigint {
+  if (value <= 0n) return value;
+  const roll = ((seed < 0n ? -seed : seed) % 31n);  // 0-30
+  const percent = 85n + roll;  // 85-115
+  const result = (value * percent) / 100n;
+  return result > 0n ? result : 1n;
+}
+
 export function computeEnemyStats(
   template: any,
   roleTemplate: any | null,
