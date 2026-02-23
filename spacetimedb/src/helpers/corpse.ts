@@ -44,6 +44,7 @@ export function createCorpse(ctx: any, character: any): typeof Corpse.rowType | 
       .map(ci => ci.itemInstanceId)
   );
 
+  let transferredCount = 0;
   for (const item of inventoryItems) {
     // Skip if already in this corpse
     if (existingCorpseItems.has(item.id)) continue;
@@ -56,6 +57,29 @@ export function createCorpse(ctx: any, character: any): typeof Corpse.rowType | 
 
     // Transfer ownership away from character (0n sentinel = on corpse, no owner)
     ctx.db.itemInstance.id.update({ ...item, ownerCharacterId: 0n });
+    transferredCount++;
+  }
+
+  // Log a narrative message about the corpse and belongings
+  const location = ctx.db.location.id.find(character.locationId);
+  const locationName = location?.name ?? 'an unknown place';
+
+  if (transferredCount > 0) {
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'system',
+      `Your body crumbles to the ground at ${locationName}. Your belongings remain with your corpse — return to claim them before thirty days pass, or they will be lost to decay.`
+    );
+  } else {
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'system',
+      `Your body falls at ${locationName}, but you carried nothing of value.`
+    );
   }
 
   return corpse;
