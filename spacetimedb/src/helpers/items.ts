@@ -51,7 +51,7 @@ export const STARTER_WEAPONS: Record<string, { name: string; slot: string }> = {
   warrior: { name: 'Training Sword', slot: 'mainHand' },
   paladin: { name: 'Training Mace', slot: 'mainHand' },
   cleric: { name: 'Training Mace', slot: 'mainHand' },
-  shaman: { name: 'Training Staff', slot: 'mainHand' },
+  shaman: { name: 'Training Mace', slot: 'mainHand' },
   druid: { name: 'Training Staff', slot: 'mainHand' },
   ranger: { name: 'Training Bow', slot: 'mainHand' },
   rogue: { name: 'Training Dagger', slot: 'mainHand' },

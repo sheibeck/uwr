@@ -38,7 +38,7 @@ export interface StarterWeaponDef {
 
 export const STARTER_WEAPON_DEFS: StarterWeaponDef[] = [
   { name: 'Training Sword', allowed: 'warrior,paladin,bard,spellblade,reaver,ranger', weaponType: 'sword', description: 'A blunt practice sword. Barely adequate for real combat.' },
-  { name: 'Training Mace', allowed: 'paladin,cleric,druid,ranger', weaponType: 'mace', description: 'A weighted training mace. Clumsy but functional.' },
+  { name: 'Training Mace', allowed: 'paladin,cleric,druid,shaman,ranger', weaponType: 'mace', description: 'A weighted training mace. Clumsy but functional.' },
   { name: 'Training Staff', allowed: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard,ranger', weaponType: 'staff', description: 'A worn wooden staff. Channels magic adequately for beginners.' },
   { name: 'Training Bow', allowed: 'ranger', weaponType: 'bow', description: 'A simple shortbow with fraying string. Accurate enough at short range.' },
   { name: 'Training Dagger', allowed: 'rogue,enchanter,necromancer,summoner,wizard,shaman,druid,monk,ranger', weaponType: 'dagger', description: 'A dull practice dagger. Quick in the right hands.' },
