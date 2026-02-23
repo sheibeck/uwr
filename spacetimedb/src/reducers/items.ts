@@ -1,6 +1,7 @@
 import { buildDisplayName } from '../helpers/items';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { getPerkBonusByField } from '../helpers/renown';
+import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -472,6 +473,27 @@ export const registerItemReducers = (deps: any) => {
         return failItem(ctx, character, 'Armor type not allowed for this class');
       }
       if (!EQUIPMENT_SLOTS.has(template.slot)) return failItem(ctx, character, 'Invalid slot');
+
+      // --- Two-handed weapon enforcement ---
+      // If equipping a mainHand weapon that is two-handed, auto-unequip offHand
+      if (template.slot === 'mainHand' && template.weaponType && TWO_HANDED_WEAPON_TYPES.has(template.weaponType)) {
+        for (const other of ctx.db.itemInstance.by_owner.filter(character.id)) {
+          if (other.equippedSlot === 'offHand') {
+            ctx.db.itemInstance.id.update({ ...other, equippedSlot: undefined });
+          }
+        }
+      }
+      // If equipping an offHand item, check if mainHand is two-handed and auto-unequip it
+      if (template.slot === 'offHand') {
+        for (const other of ctx.db.itemInstance.by_owner.filter(character.id)) {
+          if (other.equippedSlot === 'mainHand') {
+            const otherTemplate = ctx.db.itemTemplate.id.find(other.templateId);
+            if (otherTemplate && otherTemplate.weaponType && TWO_HANDED_WEAPON_TYPES.has(otherTemplate.weaponType)) {
+              ctx.db.itemInstance.id.update({ ...other, equippedSlot: undefined });
+            }
+          }
+        }
+      }
 
       for (const other of ctx.db.itemInstance.by_owner.filter(character.id)) {
         if (other.equippedSlot === template.slot) {

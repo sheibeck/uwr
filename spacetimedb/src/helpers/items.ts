@@ -3,7 +3,8 @@ import { Character } from '../schema/tables';
 import { CLASS_ARMOR, normalizeClassName } from '../data/class_stats';
 import { PREFIXES, SUFFIXES, AFFIX_COUNT_BY_QUALITY } from '../data/affix_catalog';
 import { getWeaponSpeed } from '../data/combat_scaling';
-import { DEFAULT_WEAPON_SPEED_MICROS } from '../data/combat_constants';
+import { DEFAULT_WEAPON_SPEED_MICROS, TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
+import { STARTER_WEAPON_DEFS } from '../data/item_defs';
 
 export const EQUIPMENT_SLOTS = new Set([
   'head',
@@ -64,6 +65,11 @@ export const STARTER_WEAPONS: Record<string, { name: string; slot: string }> = {
   summoner: { name: 'Training Staff', slot: 'mainHand' },
   wizard: { name: 'Training Staff', slot: 'mainHand' },
 };
+
+/** Returns true if the given weaponType is a two-handed weapon. */
+export function isTwoHandedWeapon(weaponType: string): boolean {
+  return TWO_HANDED_WEAPON_TYPES.has(weaponType);
+}
 
 export function getWorldTier(level: bigint): number {
   if (level <= 10n) return 1;
@@ -439,9 +445,14 @@ export function grantStarterItems(ctx: any, character: any, ensureStarterItemTem
 
   const SHIELD_CLASSES = new Set(['warrior', 'paladin', 'cleric', 'shaman']);
   if (SHIELD_CLASSES.has(normalizeClassName(character.className))) {
-    const shieldTemplate = findItemTemplateByName(ctx, 'Wooden Shield');
-    if (shieldTemplate) {
-      addItemToInventory(ctx, character.id, shieldTemplate.id, 1n);
+    // Don't grant shield if the class starter weapon is two-handed
+    const weaponEntry = STARTER_WEAPONS[normalizeClassName(character.className)];
+    const starterWeaponDef = weaponEntry ? STARTER_WEAPON_DEFS.find(w => w.name === weaponEntry.name) : null;
+    if (!starterWeaponDef || !isTwoHandedWeapon(starterWeaponDef.weaponType)) {
+      const shieldTemplate = findItemTemplateByName(ctx, 'Wooden Shield');
+      if (shieldTemplate) {
+        addItemToInventory(ctx, character.id, shieldTemplate.id, 1n);
+      }
     }
   }
 }
