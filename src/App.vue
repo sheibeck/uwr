@@ -607,9 +607,11 @@ import { useHotbar } from './composables/useHotbar';
 import { useTrade } from './composables/useTrade';
 import { useCombatLock } from './composables/useCombatLock';
 import { usePanelManager, getDefaultLayout } from './composables/usePanelManager';
-import { rarityColor, craftQualityColor } from './ui/colors';
+import { craftQualityColor } from './ui/colors';
 import { buildItemTooltipData } from './composables/useItemTooltip';
 import { useCharacterScope } from './composables/useCharacterScope';
+import { useTooltip } from './composables/useTooltip';
+import { useAudio } from './composables/useAudio';
 
 const {
   conn,
@@ -1158,9 +1160,6 @@ watch(worldEventRows, (newRows, oldRows) => {
 
 // characterPanelLayouts provided by useCharacterScope
 
-const lastResultId = ref<string | null>(null);
-const lastLevelUpEventId = ref<string | null>(null);
-const audioCtxRef = ref<AudioContext | null>(null);
 const rankUpNotification = ref<{ rankName: string } | null>(null);
 const showHelp = ref(false);
 
@@ -1173,88 +1172,8 @@ const RENOWN_RANKS_CLIENT = [
   { rank: 13, name: 'Legend' }, { rank: 14, name: 'Mythic' }, { rank: 15, name: 'Eternal' },
 ];
 
-const getAudioContext = () => {
-  if (!audioCtxRef.value) {
-    audioCtxRef.value = new (window.AudioContext || (window as any).webkitAudioContext)();
-  }
-  return audioCtxRef.value;
-};
-
-const playTone = (
-  frequency: number,
-  durationMs: number,
-  startAt: number,
-  envelope: { start: number; end: number }
-) => {
-  const ctx = getAudioContext();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = 'sine';
-  osc.frequency.value = frequency;
-  const now = ctx.currentTime;
-  gain.gain.setValueAtTime(envelope.start, now + startAt);
-  gain.gain.exponentialRampToValueAtTime(
-    Math.max(0.0001, envelope.end),
-    now + startAt + durationMs / 1000
-  );
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.start(now + startAt);
-  osc.stop(now + startAt + durationMs / 1000);
-};
-
-const playVictorySound = () => {
-  playTone(392, 160, 0, { start: 0.18, end: 0.03 });
-  playTone(494, 160, 0.18, { start: 0.18, end: 0.03 });
-  playTone(587, 520, 0.36, { start: 0.2, end: 0.008 });
-};
-
-const playDefeatSound = () => {
-  playTone(330, 220, 0, { start: 0.12, end: 0.02 });
-  playTone(262, 240, 0.25, { start: 0.12, end: 0.02 });
-  playTone(196, 260, 0.55, { start: 0.12, end: 0.02 });
-};
-
-const playLevelUpSound = () => {
-  playTone(880, 900, 0, { start: 0.16, end: 0.005 });
-  playTone(1100, 700, 0.08, { start: 0.12, end: 0.004 });
-};
-
-watch(
-  () => combinedEvents.value,
-  (events) => {
-    if (!events || events.length === 0) return;
-    const last = events[events.length - 1];
-    const id = `sound-${last.id}`;
-    if (lastResultId.value === id) return;
-    if (last.kind !== 'combat') return;
-    const msg = (last.message ?? '').toLowerCase();
-    if (msg.startsWith('victory')) {
-      lastResultId.value = id;
-      playVictorySound();
-    } else if (msg.startsWith('defeat')) {
-      lastResultId.value = id;
-      playDefeatSound();
-    }
-  },
-  { deep: true }
-);
-
-
-watch(
-  () => combinedEvents.value,
-  (events) => {
-    if (!events || events.length === 0) return;
-    const last = events[events.length - 1];
-    const id = last.id.toString();
-    if (lastLevelUpEventId.value === id) return;
-    if (last.kind === 'system' && /you reached level/i.test(last.message)) {
-      lastLevelUpEventId.value = id;
-      playLevelUpSound();
-    }
-  },
-  { deep: true }
-);
+// Audio: victory/defeat/level-up sounds from combinedEvents
+useAudio({ combinedEvents });
 
 
 const lootPanelPulsing = ref(false);
@@ -1279,12 +1198,6 @@ watch(
     }
   }
 );
-
-onBeforeUnmount(() => {
-  if (audioCtxRef.value) {
-    audioCtxRef.value.close();
-  }
-});
 
 const {
   leaveGroup,
@@ -2331,118 +2244,20 @@ watch(characterRenown, (newVal, oldVal) => {
   lastRenownRank = newRank;
 });
 
-const tooltip = ref<{
-  visible: boolean;
-  x: number;
-  y: number;
-  item: any | null;
-  anchor: 'cursor' | 'right';
-}>({
-  visible: false,
-  x: 0,
-  y: 0,
-  item: null,
-  anchor: 'cursor',
-});
-
-const abilityPopup = ref<{
-  visible: boolean;
-  x: number;
-  y: number;
-  name: string;
-  description: string;
-  stats: { label: string; value: any }[];
-}>({
-  visible: false,
-  x: 0,
-  y: 0,
-  name: '',
-  description: '',
-  stats: [],
-});
-
-const hotbarContextMenu = ref<{
-  visible: boolean;
-  x: number;
-  y: number;
-  slot: number;
-  name: string;
-  description: string;
-  resource: string;
-  resourceCost: bigint;
-  castSeconds: bigint;
-  cooldownSeconds: bigint;
-}>({ visible: false, x: 0, y: 0, slot: 0, name: '', description: '', resource: '', resourceCost: 0n, castSeconds: 0n, cooldownSeconds: 0n });
-
-
-const tooltipRarityColor = (item: any): Record<string, string> => {
-  const key = ((item?.qualityTier ?? item?.rarity ?? 'common') as string).toLowerCase();
-  return { color: rarityColor(key) };
-};
-
-const showTooltip = (payload: {
-  item: any;
-  x: number;
-  y: number;
-  anchor?: 'cursor' | 'right';
-}) => {
-  const anchor = payload.anchor ?? 'cursor';
-  const offsetX = 12;
-  const offsetY = anchor === 'right' ? 0 : 12;
-  tooltip.value = {
-    visible: true,
-    x: payload.x + offsetX,
-    y: payload.y + offsetY,
-    item: payload.item,
-    anchor,
-  };
-};
-
-const moveTooltip = (payload: { x: number; y: number }) => {
-  if (!tooltip.value.visible || tooltip.value.anchor === 'right') return;
-  tooltip.value = { ...tooltip.value, x: payload.x + 12, y: payload.y + 12 };
-};
-
-const hideTooltip = () => {
-  tooltip.value = { visible: false, x: 0, y: 0, item: null, anchor: 'cursor' };
-};
-
-const showAbilityPopup = (payload: { name: string; description: string; stats: { label: string; value: any }[]; x: number; y: number }) => {
-  abilityPopup.value = { visible: true, ...payload };
-};
-
-const hideAbilityPopup = () => {
-  abilityPopup.value = { visible: false, x: 0, y: 0, name: '', description: '', stats: [] };
-};
-
-const showHotbarContextMenu = (slot: any, x: number, y: number) => {
-  const ability = abilityLookup.value.get(slot.abilityKey ?? '');
-  hotbarContextMenu.value = {
-    visible: true,
-    x,
-    y,
-    slot: slot.slot,
-    name: slot.name || slot.abilityKey,
-    description: hotbarAbilityDescription(slot),
-    resource: ability?.resource ?? '',
-    resourceCost: ability?.resourceCost ?? 0n,
-    castSeconds: ability?.castSeconds ?? 0n,
-    cooldownSeconds: ability?.cooldownSeconds ?? 0n,
-  };
-};
-
-const hideHotbarContextMenu = () => {
-  hotbarContextMenu.value.visible = false;
-};
-
-const hotbarAbilityDescription = (slot: any): string => {
-  const liveAbility = abilityLookup.value.get(slot.abilityKey ?? '');
-  return liveAbility?.description?.trim() || slot.description || `${slot.name} ability.`;
-};
-
-// panelTitle no longer needed - each panel has its own title in the template
-
-// togglePanel now comes from usePanelManager
+// Tooltip, ability popup, and hotbar context menu state
+const {
+  tooltip,
+  abilityPopup,
+  hotbarContextMenu,
+  tooltipRarityColor,
+  showTooltip,
+  moveTooltip,
+  hideTooltip,
+  showAbilityPopup,
+  hideAbilityPopup,
+  showHotbarContextMenu,
+  hideHotbarContextMenu,
+} = useTooltip({ abilityLookup });
 
 watch(
   [() => isLoggedIn.value, () => player.value?.activeCharacterId],
