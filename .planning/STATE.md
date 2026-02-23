@@ -541,10 +541,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 290 | Split reducers/items.ts (1956→1082) into 4 files: items.ts, items_crafting.ts (441), items_gathering.ts (204), items_trading.ts (282) | 2026-02-23 | 5eeb675 | [290-review-and-reorganize-large-files-in-spa](./quick/290-review-and-reorganize-large-files-in-spa/) |
 | 291 | Frontend reorg: extract FloatingPanel.vue, useCharacterScope, useTooltip, useAudio from App.vue (2670→2369 lines) | 2026-02-23 | 09169be | [291-reorganize-frontend-src-reduce-duplicate](./quick/291-reorganize-frontend-src-reduce-duplicate/) |
 | 292 | Friendly spell casts persist through combat state transitions; only combat_only casts cancelled | 2026-02-23 | 4b121d3 | [292-friendly-spell-casts-should-not-be-cance](./quick/292-friendly-spell-casts-should-not-be-cance/) |
+| 293 | Fix panels TDZ crash — relocate usePanelManager() before eager watch access in App.vue | 2026-02-23 | b7ae15c | [293-fix-panels-before-initialization-referen](./quick/293-fix-panels-before-initialization-referen/) |
 
 ---
 
-Last activity: 2026-02-23 - Friendly spell casts persist through combat transitions (quick-292)
+Last activity: 2026-02-23 - Fix panels before initialization ReferenceError (quick-293)
 
 ## Last Session
 
