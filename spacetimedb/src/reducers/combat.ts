@@ -974,17 +974,17 @@ export const registerCombatReducers = (deps: any) => {
 
     const candidates = PULL_ALLOW_EXTERNAL_ADDS
       ? [...ctx.db.enemySpawn.by_location.filter(pull.locationId)]
-          .filter((row) => row.id !== spawn.id && row.state === 'available')
-          .map((row) => ({
-            spawn: row,
-            template: ctx.db.enemyTemplate.id.find(row.enemyTemplateId),
-          }))
-          .filter(
-            (row) =>
-              row.template &&
-              row.template.isSocial === true &&
-              row.template.id === template.id
-          )
+        .filter((row) => row.id !== spawn.id && row.state === 'available')
+        .map((row) => ({
+          spawn: row,
+          template: ctx.db.enemyTemplate.id.find(row.enemyTemplateId),
+        }))
+        .filter(
+          (row) =>
+            row.template &&
+            row.template.isSocial === true &&
+            row.template.id === template.id
+        )
       : [];
 
     const targetRadius = Number(template.socialRadius ?? 0n);
@@ -1016,7 +1016,7 @@ export const registerCombatReducers = (deps: any) => {
     const wisOffset = Number(statOffset(character.wis, WIS_PULL_BONUS_PER_POINT));
     if (wisOffset !== 0) {
       success = Math.min(95, Math.max(5, success + wisOffset));
-      fail    = Math.max(5, Math.min(95, fail - wisOffset));
+      fail = Math.max(5, Math.min(95, fail - wisOffset));
       // partial is the remainder (100 - success - fail), not adjusted directly
     }
 
@@ -1359,7 +1359,7 @@ export const registerCombatReducers = (deps: any) => {
     for (const pet of ctx.db.activePet.iter()) {
       // Dismiss timed pets when their duration has elapsed
       if (pet.expiresAtMicros !== undefined && pet.expiresAtMicros !== null &&
-          ctx.timestamp.microsSinceUnixEpoch >= pet.expiresAtMicros) {
+        ctx.timestamp.microsSinceUnixEpoch >= pet.expiresAtMicros) {
         ctx.db.activePet.id.delete(pet.id);
         continue;
       }
@@ -1780,8 +1780,8 @@ export const registerCombatReducers = (deps: any) => {
     // Gather party members and living enemies (shared across all songs this tick)
     const partyMembers = bardCombatId !== undefined
       ? [...ctx.db.combatParticipant.by_combat.filter(bardCombatId)]
-          .map((p: any) => ctx.db.character.id.find(p.characterId))
-          .filter(Boolean)
+        .map((p: any) => ctx.db.character.id.find(p.characterId))
+        .filter(Boolean)
       : partyMembersInLocation(ctx, bard);
     const enemies = bardCombatId !== undefined
       ? [...ctx.db.combatEnemy.by_combat.filter(bardCombatId)].filter((e: any) => e.currentHp > 0n)
@@ -2514,7 +2514,7 @@ export const registerCombatReducers = (deps: any) => {
         const className = character.className?.toLowerCase() ?? '';
         const threatMult = TANK_CLASSES.has(className) ? TANK_THREAT_MULTIPLIER
           : HEALER_CLASSES.has(className) ? HEALER_THREAT_MULTIPLIER
-          : className === 'summoner' ? SUMMONER_THREAT_MULTIPLIER : 100n;
+            : className === 'summoner' ? SUMMONER_THREAT_MULTIPLIER : 100n;
         const threat = (finalDamage * threatMult) / 100n;
         for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
           if (entry.characterId === character.id && entry.enemyId === currentEnemy.id && !entry.petId) {
@@ -3147,8 +3147,8 @@ export const registerCombatReducers = (deps: any) => {
         const timeStunned = stunEffectForAuto && stunEffectForAuto.magnitude > nowMicros;
         const skipEffect = !timeStunned
           ? [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find(
-              (effect) => effect.effectType === 'skip'
-            )
+            (effect) => effect.effectType === 'skip'
+          )
           : null;
         if (timeStunned) {
           // Push auto-attack to when the stun expires — no consumption, stun window handles it
