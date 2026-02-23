@@ -20,6 +20,15 @@ import { RENOWN_GAIN } from '../data/renown_data';
 import { rollQualityTier, rollQualityForDrop, generateAffixData, buildDisplayName, getEquippedBonuses } from '../helpers/items';
 import { incrementWorldStat } from '../helpers/world_events';
 import { WORLD_EVENT_DEFINITIONS } from '../data/world_event_data';
+import {
+  awardEventContribution,
+  advanceEventKillObjectives,
+  getEventSpawnTemplateIds,
+  buildFallenNamesSuffix,
+  createCorpsesForDead,
+  applyDeathPenalties,
+  resetSpawnAfterCombat,
+} from '../helpers/combat_rewards';
 
 const AUTO_ATTACK_INTERVAL = 5_000_000n;
 const RETRY_ATTACK_INTERVAL = 1_000_000n;
@@ -2700,24 +2709,7 @@ export const registerCombatReducers = (deps: any) => {
         enemySpawnIds.set(enemyRow.id, enemyRow.spawnId);
       }
 
-      for (const enemyRow of enemies) {
-        const spawn = ctx.db.enemySpawn.id.find(enemyRow.spawnId);
-        if (!spawn) continue;
-        if (spawn.groupCount > 0n) {
-          ctx.db.enemySpawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
-        } else {
-          for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawn.id)) {
-            ctx.db.enemySpawnMember.id.delete(member.id);
-          }
-          ctx.db.enemySpawn.id.delete(spawn.id);
-          const respawnAt = ctx.timestamp.microsSinceUnixEpoch + ENEMY_RESPAWN_MICROS;
-          ctx.db.enemyRespawnTick.insert({
-            scheduledId: 0n,
-            scheduledAt: ScheduleAt.time(respawnAt),
-            locationId: spawn.locationId,
-          });
-        }
-      }
+      resetSpawnAfterCombat(ctx, enemies, ScheduleAt, ENEMY_RESPAWN_MICROS, false);
       const combatLoc = ctx.db.location.id.find(combat.locationId);
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
@@ -2735,35 +2727,9 @@ export const registerCombatReducers = (deps: any) => {
             for (const activeEvent of ctx.db.worldEvent.by_status.filter('active')) {
               if (activeEvent.regionId !== combatLoc.regionId) continue;
               // Only credit kills of enemies actually spawned by this event (not any same-type mob)
-              const eventSpawnTemplateIds = new Set<bigint>();
-              for (const enemyRow of enemies) {
-                const spawnId = enemySpawnIds.get(enemyRow.id);
-                if (spawnId === undefined) continue;
-                for (const link of ctx.db.eventSpawnEnemy.by_spawn.filter(spawnId)) {
-                  if (link.eventId === activeEvent.id) {
-                    eventSpawnTemplateIds.add(enemyRow.enemyTemplateId);
-                    break;
-                  }
-                }
-              }
+              const eventSpawnTemplateIds = getEventSpawnTemplateIds(ctx, enemies, enemySpawnIds, activeEvent.id);
               if (!eventSpawnTemplateIds.has(template.id)) continue;
-              let contribFound = false;
-              for (const contrib of ctx.db.eventContribution.by_character.filter(character.id)) {
-                if (contrib.eventId === activeEvent.id) {
-                  ctx.db.eventContribution.id.update({ ...contrib, count: contrib.count + 1n });
-                  contribFound = true;
-                  break;
-                }
-              }
-              if (!contribFound) {
-                ctx.db.eventContribution.insert({
-                  id: 0n,
-                  eventId: activeEvent.id,
-                  characterId: character.id,
-                  count: 1n,
-                  regionEnteredAt: ctx.timestamp,
-                });
-              }
+              awardEventContribution(ctx, character, activeEvent);
             }
           }
         }
@@ -2774,23 +2740,9 @@ export const registerCombatReducers = (deps: any) => {
           for (const activeEvent of ctx.db.worldEvent.by_status.filter('active')) {
             if (activeEvent.regionId !== combatLoc.regionId) continue;
             // Only advance objective for enemies actually spawned by this event
-            const eventKillTemplateIds = new Set<bigint>();
-            for (const enemyRow of enemies) {
-              const spawnId = enemySpawnIds.get(enemyRow.id);
-              if (spawnId === undefined) continue;
-              for (const link of ctx.db.eventSpawnEnemy.by_spawn.filter(spawnId)) {
-                if (link.eventId === activeEvent.id) {
-                  eventKillTemplateIds.add(enemyRow.enemyTemplateId);
-                  break;
-                }
-              }
-            }
+            const eventKillTemplateIds = getEventSpawnTemplateIds(ctx, enemies, enemySpawnIds, activeEvent.id);
             if (!eventKillTemplateIds.has(template.id)) continue;
-            for (const obj of ctx.db.eventObjective.by_event.filter(activeEvent.id)) {
-              if (obj.objectiveType === 'kill_count') {
-                ctx.db.eventObjective.id.update({ ...obj, currentCount: obj.currentCount + 1n });
-              }
-            }
+            advanceEventKillObjectives(ctx, activeEvent);
           }
         }
       }
@@ -2799,11 +2751,7 @@ export const registerCombatReducers = (deps: any) => {
       const groupBonus = BigInt(Math.min(20, Math.max(0, (participants.length - 1) * 5)));
       const bonusMultiplier = 100n + groupBonus;
       const adjustedBase = (totalBaseXp * bonusMultiplier) / 100n;
-      const fallenNames = participants
-        .filter((p) => p.status === 'dead')
-        .map((p) => ctx.db.character.id.find(p.characterId)?.name)
-        .filter((name): name is string => Boolean(name));
-      const fallenSuffix = fallenNames.length > 0 ? ` Fallen: ${fallenNames.join(', ')}.` : '';
+      const fallenSuffix = buildFallenNamesSuffix(ctx, participants, (p, _char) => p.status === 'dead');
       const summaryName =
         enemies.length > 1 ? `${primaryName} and allies` : primaryName;
       // Look up combat location danger once — same for all templates in this combat
@@ -2977,33 +2925,8 @@ export const registerCombatReducers = (deps: any) => {
       // TODO: Legendary drops — implement when World Bosses phase adds boss encounters
 
       // Create corpses for dead characters first (before XP penalty)
-      for (const p of participants) {
-        const character = ctx.db.character.id.find(p.characterId);
-        if (character && character.hp === 0n) {
-          deps.createCorpse(ctx, character);
-        }
-      }
-
-      for (const p of participants) {
-        const character = ctx.db.character.id.find(p.characterId);
-        if (character && character.hp === 0n) {
-          const loss = deps.applyDeathXpPenalty(ctx, character);
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'reward',
-            `You lose ${loss} XP from the defeat.`
-          );
-          logGroupEvent(
-            ctx,
-            combat.id,
-            character.id,
-            'reward',
-            `${character.name} lost ${loss} XP from the defeat.`
-          );
-        }
-      }
+      createCorpsesForDead(ctx, deps, participants);
+      applyDeathPenalties(ctx, deps, participants, appendPrivateEvent, logGroupEvent, combat.id);
       clearCombatArtifacts(ctx, combat.id);
       ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
 
@@ -3364,48 +3287,7 @@ export const registerCombatReducers = (deps: any) => {
         }
       }
       // Reset ALL spawns involved in this combat (primary + add spawns from cross-aggro pulls)
-      const wipeSpawnIds = new Set(enemies.map((e: any) => e.spawnId));
-      for (const spawnId of wipeSpawnIds) {
-        const spawn = ctx.db.enemySpawn.id.find(spawnId);
-        if (!spawn) continue;
-        // Un-pulled members are already correct — keep them, just count them
-        const remainingMemberCount = BigInt([...ctx.db.enemySpawnMember.by_spawn.filter(spawnId)].length);
-        let count = remainingMemberCount;
-        // Re-insert surviving pulled enemies back into the spawn group
-        for (const enemyRow of enemies) {
-          if (enemyRow.spawnId !== spawnId) continue;
-          if (enemyRow.currentHp === 0n) continue;
-          ctx.db.enemySpawnMember.insert({
-            id: 0n,
-            spawnId: spawnId,
-            enemyTemplateId: enemyRow.enemyTemplateId,
-            roleTemplateId: enemyRow.enemyRoleTemplateId ?? 0n,
-          });
-          count += 1n;
-        }
-        if (count > 0n) {
-          ctx.db.enemySpawn.id.update({
-            ...spawn,
-            state: 'available',
-            lockedCombatId: undefined,
-            groupCount: count,
-          });
-        } else {
-          // All enemies in this spawn group were killed before the player died.
-          // Delete the spawn and schedule respawn rather than leaving a groupCount=0
-          // spawn with state='available', which would appear as a ghost enemy in the UI.
-          for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawn.id)) {
-            ctx.db.enemySpawnMember.id.delete(member.id);
-          }
-          ctx.db.enemySpawn.id.delete(spawn.id);
-          const respawnAt = ctx.timestamp.microsSinceUnixEpoch + ENEMY_RESPAWN_MICROS;
-          ctx.db.enemyRespawnTick.insert({
-            scheduledId: 0n,
-            scheduledAt: ScheduleAt.time(respawnAt),
-            locationId: spawn.locationId,
-          });
-        }
-      }
+      resetSpawnAfterCombat(ctx, enemies, ScheduleAt, ENEMY_RESPAWN_MICROS, true);
       // Award event kill credit for enemies killed before the player died
       // (victory path never runs on player death, so we award here for hp===0 enemies)
       const killedEnemies = enemies.filter((e: any) => e.currentHp === 0n);
@@ -3423,42 +3305,15 @@ export const registerCombatReducers = (deps: any) => {
               for (const p of participants) {
                 const character = ctx.db.character.id.find(p.characterId);
                 if (!character) continue;
-                let contribFound = false;
-                for (const contrib of ctx.db.eventContribution.by_character.filter(character.id)) {
-                  if (contrib.eventId === activeEvent.id) {
-                    ctx.db.eventContribution.id.update({ ...contrib, count: contrib.count + 1n });
-                    contribFound = true;
-                    break;
-                  }
-                }
-                if (!contribFound) {
-                  ctx.db.eventContribution.insert({
-                    id: 0n,
-                    eventId: activeEvent.id,
-                    characterId: character.id,
-                    count: 1n,
-                    regionEnteredAt: ctx.timestamp,
-                  });
-                }
+                awardEventContribution(ctx, character, activeEvent);
               }
               // Advance kill_count objective once per enemy killed (not per participant)
-              for (const obj of ctx.db.eventObjective.by_event.filter(activeEvent.id)) {
-                if (obj.objectiveType === 'kill_count') {
-                  ctx.db.eventObjective.id.update({ ...obj, currentCount: obj.currentCount + 1n });
-                }
-              }
+              advanceEventKillObjectives(ctx, activeEvent);
             }
           }
         }
       }
-      const fallenNames = participants
-        .filter((p) => {
-          const character = ctx.db.character.id.find(p.characterId);
-          return character ? character.hp === 0n : false;
-        })
-        .map((p) => ctx.db.character.id.find(p.characterId)?.name)
-        .filter((name): name is string => Boolean(name));
-      const fallenSuffix = fallenNames.length > 0 ? ` Fallen: ${fallenNames.join(', ')}.` : '';
+      const fallenSuffix = buildFallenNamesSuffix(ctx, participants, (_p, character) => character.hp === 0n);
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
@@ -3475,28 +3330,11 @@ export const registerCombatReducers = (deps: any) => {
         ctx.db.combatResult.id.delete(defeatResult.id);
       }
       // Create corpses for dead characters first (before XP penalty)
-      for (const p of participants) {
-        const character = ctx.db.character.id.find(p.characterId);
-        if (character && character.hp === 0n) {
-          deps.createCorpse(ctx, character);
-        }
-      }
+      createCorpsesForDead(ctx, deps, participants);
 
       clearCombatArtifacts(ctx, combat.id);
       ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
-      for (const p of participants) {
-        const character = ctx.db.character.id.find(p.characterId);
-        if (character && character.hp === 0n) {
-          const loss = deps.applyDeathXpPenalty(ctx, character);
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'reward',
-            `You lose ${loss} XP from the defeat.`
-          );
-        }
-      }
+      applyDeathPenalties(ctx, deps, participants, appendPrivateEvent);
       for (const p of participants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (character && character.hp === 0n) {
