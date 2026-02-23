@@ -545,10 +545,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 294 | Add ±15% damage/healing variance to all combat paths (auto-attacks, abilities, healing, enemies) | 2026-02-23 | d3c1dcf | [294-add-damage-rng-variance-to-auto-attacks-](./quick/294-add-damage-rng-variance-to-auto-attacks-/) |
 | 295 | Weapon speed/base damage system — 4 tiers (fast 3s, normal 3.5s, medium 4s, slow 5s) with inverse damage scaling for balanced DPS | 2026-02-23 | a4b5f9a | [295-weapon-speed-and-base-damage-system-mean](./quick/295-weapon-speed-and-base-damage-system-mean/) |
 | 296 | Two-handed weapons (staff/bow/greatsword at 5.0s), speed rebalance, off-hand auto-unequip enforcement | 2026-02-23 | 4872ad3 | [296-two-handed-weapons-system-staff-bow-grea](./quick/296-two-handed-weapons-system-staff-bow-grea/) |
+| 297 | Expand class weapon proficiencies — casters get dagger, ranger all types, warrior/reaver get axe, spellblade gets greatsword | 2026-02-23 | abc207d | [297-expand-class-weapon-proficiencies-caster](./quick/297-expand-class-weapon-proficiencies-caster/) |
 
 ---
 
-Last activity: 2026-02-23 - Two-handed weapons system with speed rebalance and off-hand enforcement (quick-296)
+Last activity: 2026-02-23 - Expand class weapon proficiencies for build diversity (quick-297)
 
 ## Last Session
 
