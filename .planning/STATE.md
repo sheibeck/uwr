@@ -536,10 +536,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 285 | Add Thurwick banker NPC to Hollowmere with account-wide bank vault — BankSlot table (ownerUserId, slot 0-39) + my_bank_slots view; deposit_to_bank/withdraw_from_bank reducers; BankPanel.vue 40-slot grid matching inventory style; double-click inventory→bank and bank→inventory; "Access Bank" NPC context menu; log entry on full | 2026-02-22 | 0004b63 | [285-add-banker-npc-to-hollowmere-with-accoun](./quick/285-add-banker-npc-to-hollowmere-with-accoun/) |
 | 286 | Gray out remote group members, show location name, prevent targeting | 2026-02-23 | b3fde89 | [286-group-members-gray-out-when-in-different](./quick/286-group-members-gray-out-when-in-different/) |
 | 287 | Death corpse log message about retrieving belongings within 30 days | 2026-02-23 | 1ca89b0 | [287-death-corpse-log-message-about-retrievin](./quick/287-death-corpse-log-message-about-retrievin/) |
+| 288 | Refactor combat.ts — extract helpers to combat_rewards.ts, decompose combat_loop into 10 named sub-functions, remove duplication (-261 lines) | 2026-02-23 | 4e252d8 | [288-refactor-combat-ts-for-cleaner-maintaina](./quick/288-refactor-combat-ts-for-cleaner-maintaina/) |
 
 ---
 
-Last activity: 2026-02-23 - Death corpse log message with 30-day retrieval warning (quick-287)
+Last activity: 2026-02-23 - Refactor combat.ts for cleaner maintainable code (quick-288)
 
 ## Last Session
 
