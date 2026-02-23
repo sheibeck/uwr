@@ -818,16 +818,7 @@ export const registerItemReducers = (deps: any) => {
       }
 
       try {
-        const executed = executeAbilityAction(ctx, {
-          actorType: 'character',
-          actorId: character.id,
-          abilityKey,
-          targetCharacterId: args.targetCharacterId,
-        });
-        if (!executed) {
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', 'Ability had no effect.');
-          return;
-        }
+        // Resolve target name and emit "You use" message BEFORE execution so it appears before damage in the log
         const combatId = activeCombatIdForCharacter(ctx, character.id);
         let targetName = args.targetCharacterId
           ? ctx.db.character.id.find(args.targetCharacterId)?.name ?? 'your target'
@@ -843,7 +834,6 @@ export const registerItemReducers = (deps: any) => {
             targetName = template?.name ?? 'enemy';
           }
         }
-        // Bard songs self-log "You begin singing X" from within executeAbilityAction; skip the generic "You use X on Y" message for them.
         const BARD_SONG_KEYS = ['bard_discordant_note', 'bard_melody_of_mending', 'bard_chorus_of_vigor', 'bard_march_of_wayfarers', 'bard_requiem_of_ruin'];
         if (!BARD_SONG_KEYS.includes(abilityKey)) {
           appendPrivateEvent(
@@ -853,6 +843,17 @@ export const registerItemReducers = (deps: any) => {
             'ability',
             `You use ${abilityKey.replace(/_/g, ' ')} on ${targetName}.`
           );
+        }
+
+        const executed = executeAbilityAction(ctx, {
+          actorType: 'character',
+          actorId: character.id,
+          abilityKey,
+          targetCharacterId: args.targetCharacterId,
+        });
+        if (!executed) {
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', 'Ability had no effect.');
+          return;
         }
         // Apply cooldown only after ability completes successfully
         const cooldown = abilityCooldownMicros(ctx, abilityKey);
