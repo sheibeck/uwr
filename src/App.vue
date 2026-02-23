@@ -1700,6 +1700,44 @@ const {
   tradeItems,
 });
 
+// Initialize panel manager with default positions (must be before any watch
+// that eagerly accesses `panels` — e.g. () => panels.trade?.open)
+const savePanelLayoutReducer = useReducer(reducers.savePanelLayout);
+const {
+  panels,
+  openPanels,
+  togglePanel: togglePanelInternal,
+  openPanel,
+  closePanel: closePanelById,
+  setPanelTab,
+  bringToFront,
+  startDrag,
+  startResize,
+  onMouseMove: onPanelMouseMove,
+  onMouseUp: onPanelMouseUp,
+  panelStyle,
+  resetAllPanels,
+} = usePanelManager(getDefaultLayout(), {
+  serverPanelLayouts: characterPanelLayouts,
+  selectedCharacterId,
+  savePanelLayout: savePanelLayoutReducer,
+});
+
+// Wire resetAllPanels into the command handler callback declared earlier
+_resetPanelsCb.value = resetAllPanels;
+
+// Provide panel manager for FloatingPanel component
+provide('panelManager', { panels, panelStyle, bringToFront, startDrag, startResize, closePanelById });
+
+// Wrapper to intercept help toggle
+const togglePanel = (panelId: string) => {
+  if (panelId === 'help') {
+    showHelp.value = !showHelp.value;
+    return;
+  }
+  togglePanelInternal(panelId);
+};
+
 watch(
   () => activeTrade.value,
   (trade) => {
@@ -1862,8 +1900,6 @@ const onAddAbilityToHotbar = (abilityKey: string, name: string) => {
   setHotbarSlot(slotNum, abilityKey);
 };
 
-const savePanelLayoutReducer = useReducer(reducers.savePanelLayout);
-
 const equippedStatBonuses = computed(() => {
   if (!selectedCharacter.value) {
     return { str: 0n, dex: 0n, cha: 0n, wis: 0n, int: 0n };
@@ -1924,42 +1960,6 @@ watch(
   },
   { immediate: true }
 );
-
-// Initialize panel manager with default positions
-const {
-  panels,
-  openPanels,
-  togglePanel: togglePanelInternal,
-  openPanel,
-  closePanel: closePanelById,
-  setPanelTab,
-  bringToFront,
-  startDrag,
-  startResize,
-  onMouseMove: onPanelMouseMove,
-  onMouseUp: onPanelMouseUp,
-  panelStyle,
-  resetAllPanels,
-} = usePanelManager(getDefaultLayout(), {
-  serverPanelLayouts: characterPanelLayouts,
-  selectedCharacterId,
-  savePanelLayout: savePanelLayoutReducer,
-});
-
-// Wire resetAllPanels into the command handler callback declared earlier
-_resetPanelsCb.value = resetAllPanels;
-
-// Provide panel manager for FloatingPanel component
-provide('panelManager', { panels, panelStyle, bringToFront, startDrag, startResize, closePanelById });
-
-// Wrapper to intercept help toggle
-const togglePanel = (panelId: string) => {
-  if (panelId === 'help') {
-    showHelp.value = !showHelp.value;
-    return;
-  }
-  togglePanelInternal(panelId);
-};
 
 type AccordionKey = 'enemies';
 
