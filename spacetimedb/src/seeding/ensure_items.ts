@@ -182,7 +182,20 @@ export function ensureStarterItemTemplates(ctx: any) {
     });
   }
 
+  // Starter weapon stats scaled inversely with weapon speed for DPS parity
+  const STARTER_WEAPON_STATS: Record<string, { baseDamage: bigint; dps: bigint }> = {
+    dagger: { baseDamage: 2n, dps: 4n },
+    rapier: { baseDamage: 2n, dps: 4n },
+    staff:  { baseDamage: 3n, dps: 4n },
+    bow:    { baseDamage: 3n, dps: 4n },
+    sword:  { baseDamage: 3n, dps: 5n },
+    blade:  { baseDamage: 3n, dps: 5n },
+    mace:   { baseDamage: 3n, dps: 5n },
+    axe:    { baseDamage: 4n, dps: 6n },
+  };
+
   for (const weapon of STARTER_WEAPON_DEFS) {
+    const stats = STARTER_WEAPON_STATS[weapon.weaponType] ?? { baseDamage: 3n, dps: 5n };
     upsertItemTemplateByName({
       name: weapon.name,
       slot: 'mainHand',
@@ -203,8 +216,8 @@ export function ensureStarterItemTemplates(ctx: any) {
       manaBonus: 0n,
       armorClassBonus: 0n,
       magicResistanceBonus: 0n,
-      weaponBaseDamage: 3n,
-      weaponDps: 5n,
+      weaponBaseDamage: stats.baseDamage,
+      weaponDps: stats.dps,
       weaponType: weapon.weaponType,
       stackable: false,
     });

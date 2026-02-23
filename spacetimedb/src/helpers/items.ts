@@ -2,6 +2,8 @@ import { SenderError } from 'spacetimedb/server';
 import { Character } from '../schema/tables';
 import { CLASS_ARMOR, normalizeClassName } from '../data/class_stats';
 import { PREFIXES, SUFFIXES, AFFIX_COUNT_BY_QUALITY } from '../data/affix_catalog';
+import { getWeaponSpeed } from '../data/combat_scaling';
+import { DEFAULT_WEAPON_SPEED_MICROS } from '../data/combat_constants';
 
 export const EQUIPMENT_SLOTS = new Set([
   'head',
@@ -322,9 +324,10 @@ export function getEquippedWeaponStats(ctx: any, characterId: bigint) {
       dps: template.weaponDps + bonusDps,
       name: template.name,
       weaponType: template.weaponType,
+      speed: getWeaponSpeed(template.weaponType),
     };
   }
-  return { baseDamage: 0n, dps: 0n, name: '', weaponType: '' };
+  return { baseDamage: 0n, dps: 0n, name: '', weaponType: '', speed: DEFAULT_WEAPON_SPEED_MICROS };
 }
 
 export function findItemTemplateByName(ctx: any, name: string) {

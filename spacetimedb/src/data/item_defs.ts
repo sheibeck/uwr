@@ -148,20 +148,20 @@ export interface WorldDropItemDef {
 }
 
 export const WORLD_DROP_GEAR_DEFS: WorldDropItemDef[] = [
-  // Tier 1 weapons (requiredLevel: 1n)
+  // Tier 1 weapons (requiredLevel: 1n) — damage scaled inversely with weapon speed
   { name: 'Iron Shortsword', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,spellblade,reaver', weaponType: 'sword', weaponBaseDamage: 4n, weaponDps: 6n, description: 'A serviceable iron blade. Reliable in close quarters.' },
-  { name: 'Hunting Bow', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'ranger', weaponType: 'bow', weaponBaseDamage: 4n, weaponDps: 6n, description: 'A sturdy bow designed for woodland game. Pulls smoothly.' },
-  { name: 'Gnarled Staff', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard', weaponType: 'staff', weaponBaseDamage: 4n, weaponDps: 6n, description: 'A twisted wooden staff thrumming with latent energy.' },
+  { name: 'Hunting Bow', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'ranger', weaponType: 'bow', weaponBaseDamage: 4n, weaponDps: 5n, description: 'A sturdy bow designed for woodland game. Pulls smoothly.' },
+  { name: 'Gnarled Staff', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard', weaponType: 'staff', weaponBaseDamage: 4n, weaponDps: 5n, description: 'A twisted wooden staff thrumming with latent energy.' },
   { name: 'Worn Mace', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'paladin,cleric', weaponType: 'mace', weaponBaseDamage: 4n, weaponDps: 6n, description: 'A heavy flanged mace showing signs of hard use.' },
-  { name: 'Rusty Axe', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'beastmaster', weaponType: 'axe', weaponBaseDamage: 4n, weaponDps: 6n, description: 'A broad axe dulled by rust but still fearsome.' },
-  { name: 'Notched Rapier', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'bard', weaponType: 'rapier', weaponBaseDamage: 4n, weaponDps: 6n, description: 'A slender rapier with a chipped edge. Fast and precise.' },
-  { name: 'Chipped Dagger', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'rogue', weaponType: 'dagger', weaponBaseDamage: 4n, weaponDps: 6n, description: 'A small blade with a nicked edge. Quick draw, quick strike.' },
+  { name: 'Rusty Axe', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'beastmaster', weaponType: 'axe', weaponBaseDamage: 5n, weaponDps: 8n, description: 'A broad axe dulled by rust but still fearsome.' },
+  { name: 'Notched Rapier', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'bard', weaponType: 'rapier', weaponBaseDamage: 3n, weaponDps: 5n, description: 'A slender rapier with a chipped edge. Fast and precise.' },
+  { name: 'Chipped Dagger', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'rogue', weaponType: 'dagger', weaponBaseDamage: 3n, weaponDps: 5n, description: 'A small blade with a nicked edge. Quick draw, quick strike.' },
   { name: 'Cracked Blade', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'spellblade,reaver', weaponType: 'blade', weaponBaseDamage: 4n, weaponDps: 6n, description: 'A fractured sword that channels both steel and sorcery.' },
 
-  // Tier 2 weapons (requiredLevel: 11n)
+  // Tier 2 weapons (requiredLevel: 11n) — damage scaled inversely with weapon speed
   { name: 'Steel Longsword', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,bard,spellblade,reaver', weaponType: 'sword', weaponBaseDamage: 5n, weaponDps: 7n, description: 'Forged steel with a keen edge. A significant upgrade over iron.' },
-  { name: 'Yew Bow', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'ranger', weaponType: 'bow', weaponBaseDamage: 5n, weaponDps: 7n, description: 'A flexible yew bow with superior range and draw weight.' },
-  { name: 'Oak Staff', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard', weaponType: 'staff', weaponBaseDamage: 5n, weaponDps: 7n, description: 'A dense oak staff carved with faint runes.' },
+  { name: 'Yew Bow', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'ranger', weaponType: 'bow', weaponBaseDamage: 5n, weaponDps: 6n, description: 'A flexible yew bow with superior range and draw weight.' },
+  { name: 'Oak Staff', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard', weaponType: 'staff', weaponBaseDamage: 5n, weaponDps: 6n, description: 'A dense oak staff carved with faint runes.' },
 
   // Tier 1 armor — cloth
   { name: 'Worn Robe', slot: 'chest', armorType: 'cloth', rarity: 'common', tier: 1n, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 3n, description: 'A faded cloth robe. Offers little physical protection.' },
@@ -203,11 +203,11 @@ export const WORLD_DROP_GEAR_DEFS: WorldDropItemDef[] = [
   { name: 'Forged Greaves', slot: 'legs', armorType: 'plate', rarity: 'common', tier: 2n, vendorValue: 16n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 6n, description: 'Thick forged plate leggings. Absorbs punishing blows.' },
   { name: 'Forged Boots', slot: 'boots', armorType: 'plate', rarity: 'common', tier: 2n, vendorValue: 14n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,bard,cleric', armorClassBonus: 5n, description: 'Plate boots forged from high-quality steel.' },
 
-  // Tier 2 weapons — remaining types
+  // Tier 2 weapons — remaining types (damage scaled inversely with weapon speed)
   { name: 'Flanged Mace', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'paladin,cleric', weaponType: 'mace', weaponBaseDamage: 5n, weaponDps: 7n, description: 'A reinforced mace with protruding flanges for armor-piercing strikes.' },
-  { name: 'Hardened Axe', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'beastmaster', weaponType: 'axe', weaponBaseDamage: 5n, weaponDps: 7n, description: 'A tempered axe head on an ironwood haft. Cleaves deep.' },
-  { name: 'Stiletto', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'rogue', weaponType: 'dagger', weaponBaseDamage: 5n, weaponDps: 7n, description: 'A needle-thin blade designed for finding gaps in armor.' },
-  { name: 'Dueling Rapier', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'bard', weaponType: 'rapier', weaponBaseDamage: 5n, weaponDps: 7n, description: 'An elegant thrusting sword favored by duelists.' },
+  { name: 'Hardened Axe', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'beastmaster', weaponType: 'axe', weaponBaseDamage: 7n, weaponDps: 9n, description: 'A tempered axe head on an ironwood haft. Cleaves deep.' },
+  { name: 'Stiletto', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'rogue', weaponType: 'dagger', weaponBaseDamage: 4n, weaponDps: 5n, description: 'A needle-thin blade designed for finding gaps in armor.' },
+  { name: 'Dueling Rapier', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'bard', weaponType: 'rapier', weaponBaseDamage: 4n, weaponDps: 5n, description: 'An elegant thrusting sword favored by duelists.' },
   { name: 'Tempered Blade', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'spellblade,reaver', weaponType: 'blade', weaponBaseDamage: 5n, weaponDps: 7n, description: 'A balanced blade forged for hybrid combat styles.' },
 ];
 

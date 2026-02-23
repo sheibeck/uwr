@@ -1,4 +1,5 @@
 import { getClassConfig, type StatKey } from './class_stats.js';
+import { WEAPON_SPEED_MICROS, DEFAULT_WEAPON_SPEED_MICROS } from './combat_constants.js';
 
 // ============================================================================
 // COMBAT SCALING CONSTANTS
@@ -285,6 +286,13 @@ export function calculateStatScaledAutoAttack(baseWeaponDamage: bigint, characte
 export function calculateCritChance(characterDex: bigint): bigint {
   const chance = CRIT_BASE_CHANCE + characterDex * CRIT_DEX_BONUS_PER_POINT;
   return chance > CRIT_CHANCE_CAP ? CRIT_CHANCE_CAP : chance;
+}
+
+/** Get auto-attack interval in microseconds for a weapon type.
+ *  Falls back to DEFAULT_WEAPON_SPEED_MICROS for unknown types.
+ */
+export function getWeaponSpeed(weaponType: string): bigint {
+  return WEAPON_SPEED_MICROS[weaponType] ?? DEFAULT_WEAPON_SPEED_MICROS;
 }
 
 /**
