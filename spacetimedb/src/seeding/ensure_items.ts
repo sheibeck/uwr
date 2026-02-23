@@ -184,14 +184,15 @@ export function ensureStarterItemTemplates(ctx: any) {
 
   // Starter weapon stats scaled inversely with weapon speed for DPS parity
   const STARTER_WEAPON_STATS: Record<string, { baseDamage: bigint; dps: bigint }> = {
-    dagger: { baseDamage: 2n, dps: 4n },
-    rapier: { baseDamage: 2n, dps: 4n },
-    staff:  { baseDamage: 3n, dps: 4n },
-    bow:    { baseDamage: 3n, dps: 4n },
-    sword:  { baseDamage: 3n, dps: 5n },
-    blade:  { baseDamage: 3n, dps: 5n },
-    mace:   { baseDamage: 3n, dps: 5n },
-    axe:    { baseDamage: 4n, dps: 6n },
+    dagger:     { baseDamage: 2n, dps: 4n },  // Fast 3.0s
+    rapier:     { baseDamage: 2n, dps: 4n },  // Fast 3.0s
+    sword:      { baseDamage: 3n, dps: 5n },  // Normal 3.5s
+    blade:      { baseDamage: 3n, dps: 5n },  // Normal 3.5s
+    mace:       { baseDamage: 3n, dps: 5n },  // Normal 3.5s
+    axe:        { baseDamage: 4n, dps: 6n },  // Medium 4.0s
+    staff:      { baseDamage: 4n, dps: 5n },  // Slow 5.0s
+    bow:        { baseDamage: 4n, dps: 5n },  // Slow 5.0s
+    greatsword: { baseDamage: 5n, dps: 6n },  // Slow 5.0s (highest starter per-hit)
   };
 
   for (const weapon of STARTER_WEAPON_DEFS) {

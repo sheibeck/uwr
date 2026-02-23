@@ -45,6 +45,7 @@ export const STARTER_WEAPON_DEFS: StarterWeaponDef[] = [
   { name: 'Training Axe', allowed: 'beastmaster', weaponType: 'axe', description: 'A notched training axe. Heavy enough to do damage.' },
   { name: 'Training Blade', allowed: 'spellblade,reaver', weaponType: 'blade', description: 'A thin practice blade balanced for dual-discipline fighting.' },
   { name: 'Training Rapier', allowed: 'bard', weaponType: 'rapier', description: 'A flexible practice rapier. Light and swift.' },
+  { name: 'Training Greatsword', allowed: 'warrior,paladin,reaver', weaponType: 'greatsword', description: 'A heavy two-handed practice sword. Slow but devastating.' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -150,18 +151,20 @@ export interface WorldDropItemDef {
 export const WORLD_DROP_GEAR_DEFS: WorldDropItemDef[] = [
   // Tier 1 weapons (requiredLevel: 1n) — damage scaled inversely with weapon speed
   { name: 'Iron Shortsword', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,bard,spellblade,reaver', weaponType: 'sword', weaponBaseDamage: 4n, weaponDps: 6n, description: 'A serviceable iron blade. Reliable in close quarters.' },
-  { name: 'Hunting Bow', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'ranger', weaponType: 'bow', weaponBaseDamage: 4n, weaponDps: 5n, description: 'A sturdy bow designed for woodland game. Pulls smoothly.' },
-  { name: 'Gnarled Staff', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard', weaponType: 'staff', weaponBaseDamage: 4n, weaponDps: 5n, description: 'A twisted wooden staff thrumming with latent energy.' },
+  { name: 'Hunting Bow', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'ranger', weaponType: 'bow', weaponBaseDamage: 6n, weaponDps: 7n, description: 'A sturdy bow designed for woodland game. Pulls smoothly.' },
+  { name: 'Gnarled Staff', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard', weaponType: 'staff', weaponBaseDamage: 6n, weaponDps: 7n, description: 'A twisted wooden staff thrumming with latent energy.' },
   { name: 'Worn Mace', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'paladin,cleric', weaponType: 'mace', weaponBaseDamage: 4n, weaponDps: 6n, description: 'A heavy flanged mace showing signs of hard use.' },
   { name: 'Rusty Axe', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'beastmaster', weaponType: 'axe', weaponBaseDamage: 5n, weaponDps: 8n, description: 'A broad axe dulled by rust but still fearsome.' },
   { name: 'Notched Rapier', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'bard', weaponType: 'rapier', weaponBaseDamage: 3n, weaponDps: 5n, description: 'A slender rapier with a chipped edge. Fast and precise.' },
   { name: 'Chipped Dagger', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'rogue', weaponType: 'dagger', weaponBaseDamage: 3n, weaponDps: 5n, description: 'A small blade with a nicked edge. Quick draw, quick strike.' },
   { name: 'Cracked Blade', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'spellblade,reaver', weaponType: 'blade', weaponBaseDamage: 4n, weaponDps: 6n, description: 'A fractured sword that channels both steel and sorcery.' },
+  { name: 'Crude Greatsword', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 1n, vendorValue: 5n, requiredLevel: 1n, allowedClasses: 'warrior,paladin,reaver', weaponType: 'greatsword', weaponBaseDamage: 7n, weaponDps: 8n, description: 'A massive blade meant for two-handed sweeping strikes. Crude but powerful.' },
 
   // Tier 2 weapons (requiredLevel: 11n) — damage scaled inversely with weapon speed
   { name: 'Steel Longsword', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,bard,spellblade,reaver', weaponType: 'sword', weaponBaseDamage: 5n, weaponDps: 7n, description: 'Forged steel with a keen edge. A significant upgrade over iron.' },
-  { name: 'Yew Bow', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'ranger', weaponType: 'bow', weaponBaseDamage: 5n, weaponDps: 6n, description: 'A flexible yew bow with superior range and draw weight.' },
-  { name: 'Oak Staff', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard', weaponType: 'staff', weaponBaseDamage: 5n, weaponDps: 6n, description: 'A dense oak staff carved with faint runes.' },
+  { name: 'Yew Bow', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'ranger', weaponType: 'bow', weaponBaseDamage: 8n, weaponDps: 8n, description: 'A flexible yew bow with superior range and draw weight.' },
+  { name: 'Oak Staff', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'enchanter,necromancer,summoner,druid,shaman,monk,wizard', weaponType: 'staff', weaponBaseDamage: 8n, weaponDps: 8n, description: 'A dense oak staff carved with faint runes.' },
+  { name: 'Steel Greatsword', slot: 'mainHand', armorType: 'none', rarity: 'common', tier: 2n, vendorValue: 12n, requiredLevel: 11n, allowedClasses: 'warrior,paladin,reaver', weaponType: 'greatsword', weaponBaseDamage: 9n, weaponDps: 10n, description: 'A well-forged two-handed blade. Its weight cleaves through armor.' },
 
   // Tier 1 armor — cloth
   { name: 'Worn Robe', slot: 'chest', armorType: 'cloth', rarity: 'common', tier: 1n, vendorValue: 4n, requiredLevel: 1n, allowedClasses: 'any', armorClassBonus: 3n, description: 'A faded cloth robe. Offers little physical protection.' },
