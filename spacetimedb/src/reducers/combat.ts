@@ -179,12 +179,13 @@ export const startCombatForSpawn = (
   addEnemyToCombat(deps, ctx, combat, spawnToUse, participants);
 
   for (const p of participants) {
+    const pWeapon = deps.getEquippedWeaponStats(ctx, p.id);
     ctx.db.combatParticipant.insert({
       id: 0n,
       combatId: combat.id,
       characterId: p.id,
       status: 'active',
-      nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
+      nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + pWeapon.speed,
     });
   }
 
@@ -2384,7 +2385,8 @@ export const registerCombatReducers = (deps: any) => {
           applyPerkProcs(ctx, character, 'on_kill', finalDamage, outcomeSeed + 2000n, combat.id, postAttackEnemy);
         }
       }
-      ctx.db.combatParticipant.id.update({ ...participant, nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL });
+      // TODO: Check for 'haste' CharacterEffect to reduce weapon speed interval
+      ctx.db.combatParticipant.id.update({ ...participant, nextAutoAttackAt: nowMicros + weapon.speed });
     }
   };
 

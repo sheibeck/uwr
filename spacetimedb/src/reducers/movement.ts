@@ -195,14 +195,14 @@ export const registerMovementReducers = (deps: any) => {
             .some(p => p.combatId === combat.id);
           if (alreadyIn) break;
 
-          // Add as combat participant
-          const AUTO_ATTACK_INTERVAL = 5_000_000n;
+          // Add as combat participant — use character's weapon speed
+          const joinWeapon = deps.getEquippedWeaponStats(ctx, movedChar.id);
           ctx.db.combatParticipant.insert({
             id: 0n,
             combatId: combat.id,
             characterId: movedChar.id,
             status: 'active',
-            nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
+            nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + joinWeapon.speed,
           });
 
           // Add aggro entries for all living enemies in this combat
