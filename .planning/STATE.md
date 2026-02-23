@@ -543,10 +543,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 292 | Friendly spell casts persist through combat state transitions; only combat_only casts cancelled | 2026-02-23 | 4b121d3 | [292-friendly-spell-casts-should-not-be-cance](./quick/292-friendly-spell-casts-should-not-be-cance/) |
 | 293 | Fix panels TDZ crash — relocate usePanelManager() before eager watch access in App.vue | 2026-02-23 | b7ae15c | [293-fix-panels-before-initialization-referen](./quick/293-fix-panels-before-initialization-referen/) |
 | 294 | Add ±15% damage/healing variance to all combat paths (auto-attacks, abilities, healing, enemies) | 2026-02-23 | d3c1dcf | [294-add-damage-rng-variance-to-auto-attacks-](./quick/294-add-damage-rng-variance-to-auto-attacks-/) |
+| 295 | Weapon speed/base damage system — 4 tiers (fast 3s, normal 3.5s, medium 4s, slow 5s) with inverse damage scaling for balanced DPS | 2026-02-23 | a4b5f9a | [295-weapon-speed-and-base-damage-system-mean](./quick/295-weapon-speed-and-base-damage-system-mean/) |
 
 ---
 
-Last activity: 2026-02-23 - Add ±15% damage/healing RNG variance to all combat (quick-294)
+Last activity: 2026-02-23 - Weapon speed and base damage system for meaningful weapon choices (quick-295)
 
 ## Last Session
 
