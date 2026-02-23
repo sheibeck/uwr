@@ -538,10 +538,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 287 | Death corpse log message about retrieving belongings within 30 days | 2026-02-23 | 1ca89b0 | [287-death-corpse-log-message-about-retrievin](./quick/287-death-corpse-log-message-about-retrievin/) |
 | 288 | Refactor combat.ts — extract helpers to combat_rewards.ts, decompose combat_loop into 10 named sub-functions, remove duplication (-261 lines) | 2026-02-23 | 4e252d8 | [288-refactor-combat-ts-for-cleaner-maintaina](./quick/288-refactor-combat-ts-for-cleaner-maintaina/) |
 | 289 | Reorganize combat helpers into 4 cohesive files: combat.ts (2442), combat_rewards.ts (405), combat_perks.ts (256), combat_enemies.ts (86) | 2026-02-23 | 8fc236e | [289-reorganize-combat-helper-files-into-sens](./quick/289-reorganize-combat-helper-files-into-sens/) |
+| 290 | Split reducers/items.ts (1956→1082) into 4 files: items.ts, items_crafting.ts (441), items_gathering.ts (204), items_trading.ts (282) | 2026-02-23 | 5eeb675 | [290-review-and-reorganize-large-files-in-spa](./quick/290-review-and-reorganize-large-files-in-spa/) |
 
 ---
 
-Last activity: 2026-02-23 - Reorganize combat helper files into sensible groupings (quick-289)
+Last activity: 2026-02-23 - Split items.ts reducer into 4 cohesive files (quick-290)
 
 ## Last Session
 
