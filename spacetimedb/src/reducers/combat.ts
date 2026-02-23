@@ -249,6 +249,7 @@ export const registerCombatReducers = (deps: any) => {
     activeCombatIdForCharacter,
     ensureAvailableSpawn,
     computeEnemyStats,
+    getEnemyAttackSpeed,
     scheduleCombatTick,
     sumCharacterEffect,
     sumEnemyEffect,
@@ -2740,6 +2741,10 @@ export const registerCombatReducers = (deps: any) => {
       const enemySnapshot = ctx.db.combatEnemy.id.find(enemy.id);
       const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
       const name = enemySnapshot?.displayName ?? enemyTemplate?.name ?? enemyName;
+      const roleTemplateForSpeed = enemySnapshot?.enemyRoleTemplateId
+        ? ctx.db.enemyRoleTemplate.id.find(enemySnapshot.enemyRoleTemplateId)
+        : null;
+      const enemyAttackSpeed = getEnemyAttackSpeed(roleTemplateForSpeed?.role ?? 'damage');
       if (topAggro && enemySnapshot && enemySnapshot.currentHp > 0n && enemySnapshot.nextAutoAttackAt <= nowMicros) {
         const stunEffectForAuto = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find((effect: any) => effect.effectType === 'stun');
         const timeStunned = stunEffectForAuto && stunEffectForAuto.magnitude > nowMicros;
@@ -2757,7 +2762,7 @@ export const registerCombatReducers = (deps: any) => {
           }
         } else if (skipEffect) {
           ctx.db.combatEnemyEffect.id.delete(skipEffect.id);
-          ctx.db.combatEnemy.id.update({ ...enemySnapshot, nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL });
+          ctx.db.combatEnemy.id.update({ ...enemySnapshot, nextAutoAttackAt: nowMicros + enemyAttackSpeed });
           const firstActive = activeParticipants[0]?.characterId;
           if (firstActive) {
             logGroupEvent(ctx, combat.id, firstActive, 'combat', `${name} is staggered and misses a turn.`);
@@ -2794,7 +2799,7 @@ export const registerCombatReducers = (deps: any) => {
               }
             }
             ctx.db.combatEnemy.id.update({
-              ...enemySnapshot, nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
+              ...enemySnapshot, nextAutoAttackAt: nowMicros + enemyAttackSpeed,
               aggroTargetCharacterId: topAggro.characterId, aggroTargetPetId: topPet.id,
             });
           }
@@ -2847,7 +2852,7 @@ export const registerCombatReducers = (deps: any) => {
               }
             }
             ctx.db.combatEnemy.id.update({
-              ...enemySnapshot, nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL,
+              ...enemySnapshot, nextAutoAttackAt: nowMicros + enemyAttackSpeed,
               aggroTargetCharacterId: targetCharacter.id, aggroTargetPetId: undefined,
             });
           } else {

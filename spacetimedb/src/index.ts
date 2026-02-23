@@ -144,6 +144,7 @@ import {
   applyArmorMitigation,
   applyVariance,
   computeEnemyStats,
+  getEnemyAttackSpeed,
 } from './helpers/combat_enemies';
 
 import {
@@ -440,6 +441,7 @@ const reducerDeps = {
   ensureSpawnsForLocation,
   ensureAvailableSpawn,
   computeEnemyStats,
+  getEnemyAttackSpeed,
   activeCombatIdForCharacter,
   scheduleCombatTick,
   recomputeCharacterDerived,
