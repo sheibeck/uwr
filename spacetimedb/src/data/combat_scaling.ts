@@ -7,19 +7,21 @@ import { WEAPON_SPEED_MICROS, DEFAULT_WEAPON_SPEED_MICROS } from './combat_const
 
 /**
  * Weapon crit multipliers by weapon type (per 100n base)
- * Fast weapons: 1.5x crit multiplier
- * Medium weapons: 2.0x crit multiplier
- * Slow weapons: 2.5x crit multiplier
+ * Fast (3.0s): 1.5x crit multiplier
+ * Normal (3.5s): 1.75x crit multiplier
+ * Medium (4.0s): 2.0x crit multiplier
+ * Slow (5.0s): 2.25x-2.5x crit multiplier
  */
 export const WEAPON_CRIT_MULTIPLIERS: Record<string, bigint> = {
-  dagger: 150n,
-  rapier: 150n,
-  staff: 150n,
-  sword: 200n,
-  blade: 200n,
-  mace: 200n,
-  bow: 200n,
-  axe: 250n,
+  dagger:     150n,
+  rapier:     150n,
+  sword:      175n,
+  blade:      175n,
+  mace:       175n,
+  axe:        200n,
+  bow:        225n,
+  staff:      225n,
+  greatsword: 250n,
 };
 
 /**
@@ -261,6 +263,7 @@ export function inferWeaponType(weaponName: string): string {
   if (name.includes('dagger')) return 'dagger';
   if (name.includes('rapier')) return 'rapier';
   if (name.includes('staff')) return 'staff';
+  if (name.includes('greatsword')) return 'greatsword';
   if (name.includes('sword')) return 'sword';
   if (name.includes('blade')) return 'blade';
   if (name.includes('axe')) return 'axe';

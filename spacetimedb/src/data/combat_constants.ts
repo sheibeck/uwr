@@ -10,22 +10,27 @@ export const AUTO_ATTACK_INTERVAL = 5_000_000n; // Used for enemies, pets, and p
  *
  *  Speed tiers:
  *    Fast   (3.0s): dagger, rapier
- *    Normal (3.5s): staff, bow
- *    Medium (4.0s): sword, blade, mace
- *    Slow   (5.0s): axe
+ *    Normal (3.5s): sword, blade, mace
+ *    Medium (4.0s): axe
+ *    Slow   (5.0s): staff, bow, greatsword (two-handed)
  *  Default fallback (unarmed/unknown): 4_000_000n (4.0s)
  */
 export const WEAPON_SPEED_MICROS: Record<string, bigint> = {
-  dagger: 3_000_000n,
-  rapier: 3_000_000n,
-  staff:  3_500_000n,
-  bow:    3_500_000n,
-  sword:  4_000_000n,
-  blade:  4_000_000n,
-  mace:   4_000_000n,
-  axe:    5_000_000n,
+  dagger:     3_000_000n,
+  rapier:     3_000_000n,
+  sword:      3_500_000n,
+  blade:      3_500_000n,
+  mace:       3_500_000n,
+  axe:        4_000_000n,
+  staff:      5_000_000n,
+  bow:        5_000_000n,
+  greatsword: 5_000_000n,
 };
 export const DEFAULT_WEAPON_SPEED_MICROS = 4_000_000n;
+
+/** Weapon types that occupy both hands — cannot equip offHand alongside these. */
+export const TWO_HANDED_WEAPON_TYPES = new Set(['staff', 'bow', 'greatsword']);
+
 export const GROUP_SIZE_DANGER_BASE = 100n;
 export const GROUP_SIZE_BIAS_RANGE = 200n;
 export const GROUP_SIZE_BIAS_MAX = 0.8;
@@ -34,6 +39,7 @@ export const STARTER_ITEM_NAMES = new Set([
   // Starter weapons
   'Training Sword', 'Training Mace', 'Training Staff', 'Training Bow',
   'Training Dagger', 'Training Axe', 'Training Blade', 'Training Rapier',
+  'Training Greatsword',
   // Starter cloth armor
   'Apprentice Robe', 'Apprentice Trousers', 'Apprentice Boots',
   // Starter leather armor
