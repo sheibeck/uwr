@@ -535,10 +535,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 284 | Hotbar keyboard shortcuts 1-9 fire slots 1-9, 0 fires slot 10; document-level keydown listener skips when INPUT/TEXTAREA/contentEditable focused so command bar typing is unaffected; calls onHotbarClick so all cooldown/cast/resource guards apply | 2026-02-22 | 0d45c84 | [284-hotbar-keyboard-shortcuts-1-10-to-fire-a](./quick/284-hotbar-keyboard-shortcuts-1-10-to-fire-a/) |
 | 285 | Add Thurwick banker NPC to Hollowmere with account-wide bank vault — BankSlot table (ownerUserId, slot 0-39) + my_bank_slots view; deposit_to_bank/withdraw_from_bank reducers; BankPanel.vue 40-slot grid matching inventory style; double-click inventory→bank and bank→inventory; "Access Bank" NPC context menu; log entry on full | 2026-02-22 | 0004b63 | [285-add-banker-npc-to-hollowmere-with-accoun](./quick/285-add-banker-npc-to-hollowmere-with-accoun/) |
 | 286 | Gray out remote group members, show location name, prevent targeting | 2026-02-23 | b3fde89 | [286-group-members-gray-out-when-in-different](./quick/286-group-members-gray-out-when-in-different/) |
+| 287 | Death corpse log message about retrieving belongings within 30 days | 2026-02-23 | 1ca89b0 | [287-death-corpse-log-message-about-retrievin](./quick/287-death-corpse-log-message-about-retrievin/) |
 
 ---
 
-Last activity: 2026-02-23 - Gray out remote group members with location label (quick-286)
+Last activity: 2026-02-23 - Death corpse log message with 30-day retrieval warning (quick-287)
 
 ## Last Session
 
