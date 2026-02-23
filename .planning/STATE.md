@@ -537,10 +537,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 286 | Gray out remote group members, show location name, prevent targeting | 2026-02-23 | b3fde89 | [286-group-members-gray-out-when-in-different](./quick/286-group-members-gray-out-when-in-different/) |
 | 287 | Death corpse log message about retrieving belongings within 30 days | 2026-02-23 | 1ca89b0 | [287-death-corpse-log-message-about-retrievin](./quick/287-death-corpse-log-message-about-retrievin/) |
 | 288 | Refactor combat.ts — extract helpers to combat_rewards.ts, decompose combat_loop into 10 named sub-functions, remove duplication (-261 lines) | 2026-02-23 | 4e252d8 | [288-refactor-combat-ts-for-cleaner-maintaina](./quick/288-refactor-combat-ts-for-cleaner-maintaina/) |
+| 289 | Reorganize combat helpers into 4 cohesive files: combat.ts (2442), combat_rewards.ts (405), combat_perks.ts (256), combat_enemies.ts (86) | 2026-02-23 | 8fc236e | [289-reorganize-combat-helper-files-into-sens](./quick/289-reorganize-combat-helper-files-into-sens/) |
 
 ---
 
-Last activity: 2026-02-23 - Refactor combat.ts for cleaner maintainable code (quick-288)
+Last activity: 2026-02-23 - Reorganize combat helper files into sensible groupings (quick-289)
 
 ## Last Session
 
