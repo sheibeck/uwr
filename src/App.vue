@@ -63,46 +63,18 @@
     </div>
 
     <!-- Log Panel (floating) -->
-    <div
-      data-panel-id="log"
-      :style="{
-        ...styles.floatingPanel,
-        ...styles.floatingPanelWide,
-        ...panelStyle('log').value,
-      }"
-      @mousedown="bringToFront('log')"
-    >
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('log', $event)">
-        <div>Log</div>
-      </div>
-      <div :style="{ ...styles.floatingPanelBody, flex: 1, minHeight: 0, overflow: 'auto' }">
-        <LogWindow
-          :styles="styles"
-          :selected-character="selectedCharacter"
-          :combined-events="combinedEvents"
-          :format-timestamp="formatTimestamp"
-        />
-      </div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('log', $event, { right: true })" />
-      <div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('log', $event, { bottom: true })" />
-      <div :style="styles.resizeHandle" @mousedown.stop="startResize('log', $event, { right: true, bottom: true })" />
-    </div>
+    <FloatingPanel panel-id="log" title="Log" wide always-open :closable="false" :body-style="{ ...styles.floatingPanelBody, flex: 1, minHeight: 0, overflow: 'auto' }">
+      <LogWindow
+        :styles="styles"
+        :selected-character="selectedCharacter"
+        :combined-events="combinedEvents"
+        :format-timestamp="formatTimestamp"
+      />
+    </FloatingPanel>
 
-    <div
-      v-if="selectedCharacter"
-      data-panel-id="hotbar"
-      :style="{
-        ...styles.floatingPanel,
-        ...styles.floatingPanelHotbar,
-        ...panelStyle('hotbar').value,
-      }"
-      @mousedown="bringToFront('hotbar')"
-    >
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('hotbar', $event)">
-        Hotbar
-      </div>
-      <div :style="styles.floatingPanelBody">
-        <button
+    <FloatingPanel v-if="selectedCharacter" panel-id="hotbar" title="Hotbar" hotbar always-open :closable="false">
+      <div>
+      <button
           v-for="slot in hotbarDisplay"
           :key="slot.slot"
           type="button"
@@ -161,60 +133,46 @@
           </span>
         </button>
       </div>
-    </div>
+    </FloatingPanel>
 
-    <!-- Character Info Panel (wide) — combines Inventory and Stats tabs -->
-    <div v-if="panels.characterInfo && panels.characterInfo.open" data-panel-id="characterInfo" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('characterInfo').value || {}) }" @mousedown="bringToFront('characterInfo')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('characterInfo', $event)"><div>Character</div><button type="button" :style="styles.panelClose" @click="closePanelById('characterInfo')">x</button></div>
-      <div :style="styles.floatingPanelBody"><CharacterInfoPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" :races="races" :available-abilities="availableAbilities" :renown-perks="characterRenownPerks" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @organize="organizeInventory" @salvage-item="salvageItem" @add-to-hotbar="onAddItemToHotbar" @add-ability-to-hotbar="onAddAbilityToHotbar" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" :onboarding="highlightInventory" :requested-tab="panels.characterInfo?.tab" @tab-change="onCharacterTabChange" :bank-open="panels.bank?.open ?? false" @deposit-to-bank="depositToBank" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('characterInfo', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('characterInfo', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('characterInfo', $event, { right: true, bottom: true })" />
-    </div>
+    <!-- Character Info Panel (wide) -->
+    <FloatingPanel panel-id="characterInfo" title="Character" wide>
+      <CharacterInfoPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" :races="races" :available-abilities="availableAbilities" :renown-perks="characterRenownPerks" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @organize="organizeInventory" @salvage-item="salvageItem" @add-to-hotbar="onAddItemToHotbar" @add-ability-to-hotbar="onAddAbilityToHotbar" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" :onboarding="highlightInventory" :requested-tab="panels.characterInfo?.tab" @tab-change="onCharacterTabChange" :bank-open="panels.bank?.open ?? false" @deposit-to-bank="depositToBank" />
+    </FloatingPanel>
 
     <!-- Friends Panel -->
-    <div v-if="panels.friends && panels.friends.open" data-panel-id="friends" :style="{ ...styles.floatingPanel, ...(panelStyle('friends').value || {}) }" @mousedown="bringToFront('friends')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('friends', $event)"><div>Friends</div><button type="button" :style="styles.panelClose" @click="closePanelById('friends')">×</button></div>
-      <div :style="styles.floatingPanelBody"><FriendsPanel :styles="styles" :conn-active="conn.isActive" :is-logged-in="isLoggedIn" :friend-email="friendEmail" :incoming-requests="incomingRequests" :outgoing-requests="outgoingRequests" :friends="myFriends" :email-by-user-id="emailByUserId" @update:friendEmail="friendEmail = $event" @send-request="sendRequest" @accept="acceptRequest" @reject="rejectRequest" @remove="removeFriend" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('friends', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('friends', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('friends', $event, { right: true, bottom: true })" />
-    </div>
+    <FloatingPanel panel-id="friends" title="Friends">
+      <FriendsPanel :styles="styles" :conn-active="conn.isActive" :is-logged-in="isLoggedIn" :friend-email="friendEmail" :incoming-requests="incomingRequests" :outgoing-requests="outgoingRequests" :friends="myFriends" :email-by-user-id="emailByUserId" @update:friendEmail="friendEmail = $event" @send-request="sendRequest" @accept="acceptRequest" @reject="rejectRequest" @remove="removeFriend" />
+    </FloatingPanel>
 
     <!-- Crafting Panel (wide) -->
-    <div v-if="panels.crafting && panels.crafting.open" data-panel-id="crafting" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('crafting').value || {}) }" @mousedown="bringToFront('crafting')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('crafting', $event)"><div>Crafting</div><button type="button" :style="styles.panelClose" @click="closePanelById('crafting')">×</button></div>
-      <div :style="styles.floatingPanelBody"><CraftingPanel :styles="styles" :selected-character="selectedCharacter" :crafting-available="currentLocationCraftingAvailable" :combat-locked="lockCrafting" :recipes="craftingFilteredRecipes" :recipe-types="craftingRecipeTypes" :active-filter="craftingActiveFilter" :show-only-craftable="craftingShowOnlyCraftable" @update:active-filter="craftingActiveFilter = $event" @update:show-only-craftable="craftingShowOnlyCraftable = $event" @open-modal="onOpenCraftModal" @research="onResearchRecipes" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('crafting', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('crafting', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('crafting', $event, { right: true, bottom: true })" />
-    </div>
+    <FloatingPanel panel-id="crafting" title="Crafting" wide>
+      <CraftingPanel :styles="styles" :selected-character="selectedCharacter" :crafting-available="currentLocationCraftingAvailable" :combat-locked="lockCrafting" :recipes="craftingFilteredRecipes" :recipe-types="craftingRecipeTypes" :active-filter="craftingActiveFilter" :show-only-craftable="craftingShowOnlyCraftable" @update:active-filter="craftingActiveFilter = $event" @update:show-only-craftable="craftingShowOnlyCraftable = $event" @open-modal="onOpenCraftModal" @research="onResearchRecipes" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" />
+    </FloatingPanel>
 
     <!-- Journal Panel (wide) -->
-    <div v-if="panels.journal && panels.journal.open" data-panel-id="journal" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('journal').value || {}) }" @mousedown="bringToFront('journal')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('journal', $event)"><div>Journal</div><button type="button" :style="styles.panelClose" @click="closePanelById('journal')">×</button></div>
-      <div :style="styles.floatingPanelBody"><NpcDialogPanel :styles="styles" :npc-dialogs="characterNpcDialogs" :npcs="npcs" :locations="locations" :regions="regions" :npc-affinities="npcAffinities" :selected-character-id="selectedCharacterId" :selected-npc-target="selectedNpcTarget" :quest-instances="characterQuests" :quest-templates="questTemplates" :requested-tab="journalRequestedTab" @tab-change="tab => setPanelTab('journal', tab)" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('journal', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('journal', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('journal', $event, { right: true, bottom: true })" />
-    </div>
+    <FloatingPanel panel-id="journal" title="Journal" wide>
+      <NpcDialogPanel :styles="styles" :npc-dialogs="characterNpcDialogs" :npcs="npcs" :locations="locations" :regions="regions" :npc-affinities="npcAffinities" :selected-character-id="selectedCharacterId" :selected-npc-target="selectedNpcTarget" :quest-instances="characterQuests" :quest-templates="questTemplates" :requested-tab="journalRequestedTab" @tab-change="tab => setPanelTab('journal', tab)" />
+    </FloatingPanel>
 
     <!-- Renown Panel -->
-    <div v-if="panels.renown && panels.renown.open" data-panel-id="renown" :style="{ ...styles.floatingPanel, ...(panelStyle('renown').value || {}) }" @mousedown="bringToFront('renown')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('renown', $event)"><div>Renown</div><button type="button" :style="styles.panelClose" @click="closePanelById('renown')">×</button></div>
-      <div :style="styles.floatingPanelBody"><RenownPanel :styles="styles" :factions="factions" :faction-standings="characterFactionStandings" :selected-character="selectedCharacter" :renown-data="characterRenown" :renown-perks="characterRenownPerks" :server-firsts="renownServerFirsts" :conn-active="!!conn.isActive" :requested-tab="panels.renown?.tab" @tab-change="tab => setPanelTab('renown', tab)" @choose-perk="handleChoosePerk" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('renown', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('renown', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('renown', $event, { right: true, bottom: true })" />
-    </div>
+    <FloatingPanel panel-id="renown" title="Renown">
+      <RenownPanel :styles="styles" :factions="factions" :faction-standings="characterFactionStandings" :selected-character="selectedCharacter" :renown-data="characterRenown" :renown-perks="characterRenownPerks" :server-firsts="renownServerFirsts" :conn-active="!!conn.isActive" :requested-tab="panels.renown?.tab" @tab-change="tab => setPanelTab('renown', tab)" @choose-perk="handleChoosePerk" />
+    </FloatingPanel>
 
     <!-- World Events Panel -->
-    <div v-if="panels.worldEvents && panels.worldEvents.open" data-panel-id="worldEvents" :style="{ ...styles.floatingPanel, ...(panelStyle('worldEvents').value || {}) }" @mousedown="bringToFront('worldEvents')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('worldEvents', $event)"><div>World Events</div><button type="button" :style="styles.panelClose" @click="closePanelById('worldEvents')">×</button></div>
-      <div :style="styles.floatingPanelBody">
-        <WorldEventPanel
-          :styles="styles"
-          :world-event-rows="worldEventRows"
-          :event-contributions="eventContributions"
-          :event-objectives="eventObjectives"
-          :regions="regions"
-          :selected-character="selectedCharacter"
-          :is-admin="isAdmin"
-          :now-micros="nowMicros"
-        />
-      </div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('worldEvents', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('worldEvents', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('worldEvents', $event, { right: true, bottom: true })" />
-    </div>
+    <FloatingPanel panel-id="worldEvents" title="World Events">
+      <WorldEventPanel
+        :styles="styles"
+        :world-event-rows="worldEventRows"
+        :event-contributions="eventContributions"
+        :event-objectives="eventObjectives"
+        :regions="regions"
+        :selected-character="selectedCharacter"
+        :is-admin="isAdmin"
+        :now-micros="nowMicros"
+      />
+    </FloatingPanel>
 
     <!-- World Event Banner Overlay -->
     <div v-if="activeBanner" :style="styles.worldEventBanner">
@@ -222,62 +180,42 @@
     </div>
 
     <!-- Loot Panel -->
-    <div v-if="panels.loot && panels.loot.open" data-panel-id="loot" :class="{ 'loot-panel-pulse': lootPanelPulsing }" :style="{ ...styles.floatingPanel, ...(panelStyle('loot').value || {}) }" @mousedown="bringToFront('loot')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('loot', $event)"><div>Loot</div><button type="button" :style="styles.panelClose" @click="closePanelById('loot')">×</button></div>
-      <div :style="styles.floatingPanelBody"><LootPanel :styles="styles" :conn-active="conn.isActive" :loot-items="pendingLoot" @take-loot="takeLoot" @take-all-loot="takeAllLoot" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('loot', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('loot', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('loot', $event, { right: true, bottom: true })" />
-    </div>
+    <FloatingPanel panel-id="loot" title="Loot" :extra-class="lootPanelPulsing ? 'loot-panel-pulse' : undefined">
+      <LootPanel :styles="styles" :conn-active="conn.isActive" :loot-items="pendingLoot" @take-loot="takeLoot" @take-all-loot="takeAllLoot" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" />
+    </FloatingPanel>
 
     <!-- Vendor Panel (wide) -->
-    <div v-if="panels.vendor && panels.vendor.open" data-panel-id="vendor" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('vendor').value || {}) }" @mousedown="bringToFront('vendor')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('vendor', $event)"><div>{{ activeVendor?.name ?? 'Vendor' }}</div><button type="button" :style="styles.panelClose" @click="closePanelById('vendor')">×</button></div>
-      <div :style="styles.floatingPanelBody"><VendorPanel :styles="styles" :selected-character="selectedCharacter" :vendor="activeVendor" :vendor-items="vendorItems" :inventory-items="inventoryItems" @buy="buyItem" @sell="sellItem" @sell-all-junk="sellAllJunk" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('vendor', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('vendor', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('vendor', $event, { right: true, bottom: true })" />
-    </div>
+    <FloatingPanel panel-id="vendor" :title="activeVendor?.name ?? 'Vendor'" wide>
+      <VendorPanel :styles="styles" :selected-character="selectedCharacter" :vendor="activeVendor" :vendor-items="vendorItems" :inventory-items="inventoryItems" @buy="buyItem" @sell="sellItem" @sell-all-junk="sellAllJunk" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" />
+    </FloatingPanel>
 
     <!-- Bank Panel (wide) -->
-    <div v-if="panels.bank && panels.bank.open" data-panel-id="bank" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('bank').value || {}) }" @mousedown="bringToFront('bank')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('bank', $event)"><div>Bank Vault</div><button type="button" :style="styles.panelClose" @click="closePanelById('bank')">×</button></div>
-      <div :style="styles.floatingPanelBody"><BankPanel :styles="styles" :bank-slots="bankSlots" :item-templates="itemTemplates" :item-instances="itemInstances" :selected-character="selectedCharacter" @withdraw="withdrawFromBank" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('bank', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('bank', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('bank', $event, { right: true, bottom: true })" />
-    </div>
+    <FloatingPanel panel-id="bank" title="Bank Vault" wide>
+      <BankPanel :styles="styles" :bank-slots="bankSlots" :item-templates="itemTemplates" :item-instances="itemInstances" :selected-character="selectedCharacter" @withdraw="withdrawFromBank" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" />
+    </FloatingPanel>
 
     <!-- Trade Panel (wide) -->
-    <div v-if="panels.trade && panels.trade.open" data-panel-id="trade" :style="{ ...styles.floatingPanel, ...styles.floatingPanelWide, ...(panelStyle('trade').value || {}) }" @mousedown="bringToFront('trade')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('trade', $event)"><div>Trade</div><button type="button" :style="styles.panelClose" @click="closePanel('trade')">×</button></div>
-      <div :style="styles.floatingPanelBody"><TradePanel :styles="styles" :trade="activeTrade" :inventory="tradeInventory" :my-offer="myOffer" :other-offer="otherOffer" :my-offer-locked="myOfferLocked" :other-offer-locked="otherOfferLocked" @add-item="addTradeItem" @remove-item="removeTradeItem" @offer="offerTrade" @cancel="cancelTrade" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('trade', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('trade', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('trade', $event, { right: true, bottom: true })" />
-    </div>
+    <FloatingPanel panel-id="trade" title="Trade" wide>
+      <TradePanel :styles="styles" :trade="activeTrade" :inventory="tradeInventory" :my-offer="myOffer" :other-offer="otherOffer" :my-offer-locked="myOfferLocked" :other-offer-locked="otherOfferLocked" @add-item="addTradeItem" @remove-item="removeTradeItem" @offer="offerTrade" @cancel="cancelTrade" />
+    </FloatingPanel>
 
     <!-- Track Panel -->
-    <div v-if="panels.track && panels.track.open" data-panel-id="track" :style="{ ...styles.floatingPanel, ...(panelStyle('track').value || {}) }" @mousedown="bringToFront('track')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('track', $event)"><div>Track</div><button type="button" :style="styles.panelClose" @click="closePanelById('track')">×</button></div>
-      <div :style="styles.floatingPanelBody"><TrackPanel :styles="styles" :options="trackOptions" @select="selectTrackedTarget" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('track', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('track', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('track', $event, { right: true, bottom: true })" />
-    </div>
+    <FloatingPanel panel-id="track" title="Track">
+      <TrackPanel :styles="styles" :options="trackOptions" @select="selectTrackedTarget" />
+    </FloatingPanel>
 
     <!-- Travel Panel -->
-    <div v-if="panels.travelPanel && panels.travelPanel.open" data-panel-id="travelPanel" :style="{ ...styles.floatingPanel, ...(panelStyle('travelPanel').value || {}) }" @mousedown="bringToFront('travelPanel')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('travelPanel', $event)"><div>Travel</div><button type="button" :style="styles.panelClose" @click="closePanelById('travelPanel')">x</button></div>
-      <div :style="styles.floatingPanelBody"><TravelPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :locations="connectedLocations" :regions="regions" :travel-cooldowns="travelCooldowns" :all-locations="locations" :location-connections="locationConnections" @move="moveTo" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('travelPanel', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('travelPanel', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('travelPanel', $event, { right: true, bottom: true })" />
-    </div>
+    <FloatingPanel panel-id="travelPanel" title="Travel">
+      <TravelPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :locations="connectedLocations" :regions="regions" :travel-cooldowns="travelCooldowns" :all-locations="locations" :location-connections="locationConnections" @move="moveTo" />
+    </FloatingPanel>
 
     <!-- Map Panel -->
-    <div v-if="panels.map && panels.map.open" data-panel-id="map" :style="{ ...styles.floatingPanel, ...(panelStyle('map').value || {}) }" @mousedown="bringToFront('map')">
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('map', $event)"><div>Map</div><button type="button" :style="styles.panelClose" @click="closePanelById('map')">×</button></div>
-      <div :style="styles.floatingPanelBody"><MapPanel :regions="regions" :locations="locations" :location-connections="locationConnections" :selected-character="selectedCharacter" /></div>
-      <div :style="styles.resizeHandleRight" @mousedown.stop="startResize('map', $event, { right: true })" /><div :style="styles.resizeHandleBottom" @mousedown.stop="startResize('map', $event, { bottom: true })" /><div :style="styles.resizeHandle" @mousedown.stop="startResize('map', $event, { right: true, bottom: true })" />
-    </div>
+    <FloatingPanel panel-id="map" title="Map">
+      <MapPanel :regions="regions" :locations="locations" :location-connections="locationConnections" :selected-character="selectedCharacter" />
+    </FloatingPanel>
 
-    <div
-      :style="{
-        ...styles.floatingPanel,
-        ...panelStyle('travel').value,
-      }"
-      @mousedown="bringToFront('travel')"
-    >
-      <div :style="styles.floatingPanelHeader" @mousedown="startDrag('travel', $event)">
+    <FloatingPanel panel-id="travel" always-open :closable="false" :body-style="activeCombat ? styles.floatingPanelBodyCombat : styles.floatingPanelBody">
+      <template #header>
         <div :style="styles.panelHeaderStack">
         <div :style="styles.panelHeaderLocationRow">
           <div :style="styles.panelHeaderLocation">{{ currentLocationName }}</div>
@@ -303,82 +241,70 @@
           :style="[styles.timeIndicator, isNight ? styles.timeIndicatorNight : null]"
           :title="timeTooltip"
         />
-      </div>
-      <div :style="activeCombat ? styles.floatingPanelBodyCombat : styles.floatingPanelBody">
-        <template v-if="activeCombat">
-          <CombatPanel
-            :styles="styles"
-            :conn-active="conn.isActive"
-            :selected-character="selectedCharacter"
-            :active-combat="activeCombat"
-            :combat-enemies="combatEnemiesList"
-            :can-act="canActInCombat"
-            :accordion-state="accordionState"
-            :is-flee-casting="isFleeCasting"
-            :flee-progress="fleeProgress"
-            @select-enemy="setCombatTarget"
-            @flee="handleFlee"
-            @accordion-toggle="updateAccordionState"
-          />
-        </template>
-        <template v-else>
-        <LocationGrid
+      </template>
+      <template v-if="activeCombat">
+        <CombatPanel
           :styles="styles"
           :conn-active="conn.isActive"
           :selected-character="selectedCharacter"
-          :selected-npc-id="selectedNpcTarget"
-          :selected-character-target-id="selectedCharacterTarget"
-          :selected-corpse-id="selectedCorpseTarget"
-          :characters-here="charactersHere"
-          :npcs-here="npcsHere"
-          :corpses-here="corpsesHere"
-          :enemy-spawns="availableEnemies"
-          :resource-nodes="resourceNodesHere"
-          :quest-items="locationQuestItems"
-          :named-enemies="locationNamedEnemies"
-          :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || pullerId === selectedCharacter.id)"
-          :my-friend-user-ids="myFriendUserIds"
-          :group-member-ids="groupMemberIdStrings"
-          :is-leader="isLeader"
-          :leader-id="leaderId"
-          @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
-          @gather-resource="startGather"
-          @hail="hailNpc"
-          @open-vendor="openVendor"
-          @open-bank="openBank"
-          @player-invite="inviteToGroup"
-          @player-kick="kickMember"
-          @player-friend="sendFriendRequest"
-          @player-promote="promoteLeader"
-          @player-trade="startTrade"
-          @player-message="sendWhisperTo"
-          @gift-npc="openGiftOverlay"
-          @loot-all-corpse="onLootAllCorpse"
-          @initiate-resurrect="onInitiateResurrect"
-          @initiate-corpse-summon="onInitiateCorpseSummon"
-          @select-npc="selectNpcTarget"
-          @talk-npc="onTalkNpc"
-          @select-corpse="selectCorpseTarget"
-          @select-character="selectCharacterTarget"
-          @loot-quest-item="lootQuestItem"
-          @pull-named-enemy="pullNamedEnemy"
+          :active-combat="activeCombat"
+          :combat-enemies="combatEnemiesList"
+          :can-act="canActInCombat"
+          :accordion-state="accordionState"
+          :is-flee-casting="isFleeCasting"
+          :flee-progress="fleeProgress"
+          @select-enemy="setCombatTarget"
+          @flee="handleFlee"
+          @accordion-toggle="updateAccordionState"
         />
-        </template>
-      </div>
-    </div>
+      </template>
+      <template v-else>
+      <LocationGrid
+        :styles="styles"
+        :conn-active="conn.isActive"
+        :selected-character="selectedCharacter"
+        :selected-npc-id="selectedNpcTarget"
+        :selected-character-target-id="selectedCharacterTarget"
+        :selected-corpse-id="selectedCorpseTarget"
+        :characters-here="charactersHere"
+        :npcs-here="npcsHere"
+        :corpses-here="corpsesHere"
+        :enemy-spawns="availableEnemies"
+        :resource-nodes="resourceNodesHere"
+        :quest-items="locationQuestItems"
+        :named-enemies="locationNamedEnemies"
+        :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || pullerId === selectedCharacter.id)"
+        :my-friend-user-ids="myFriendUserIds"
+        :group-member-ids="groupMemberIdStrings"
+        :is-leader="isLeader"
+        :leader-id="leaderId"
+        @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
+        @gather-resource="startGather"
+        @hail="hailNpc"
+        @open-vendor="openVendor"
+        @open-bank="openBank"
+        @player-invite="inviteToGroup"
+        @player-kick="kickMember"
+        @player-friend="sendFriendRequest"
+        @player-promote="promoteLeader"
+        @player-trade="startTrade"
+        @player-message="sendWhisperTo"
+        @gift-npc="openGiftOverlay"
+        @loot-all-corpse="onLootAllCorpse"
+        @initiate-resurrect="onInitiateResurrect"
+        @initiate-corpse-summon="onInitiateCorpseSummon"
+        @select-npc="selectNpcTarget"
+        @talk-npc="onTalkNpc"
+        @select-corpse="selectCorpseTarget"
+        @select-character="selectCharacterTarget"
+        @loot-quest-item="lootQuestItem"
+        @pull-named-enemy="pullNamedEnemy"
+      />
+      </template>
+    </FloatingPanel>
 
-    <div
-      :style="{
-        ...styles.floatingPanel,
-        ...styles.floatingPanelCompact,
-        ...panelStyle('group').value,
-      }"
-      @mousedown="bringToFront('group')"
-    >
-      <div
-        :style="{ ...styles.floatingPanelHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }"
-        @mousedown="startDrag('group', $event)"
-      >
+    <FloatingPanel panel-id="group" compact always-open :closable="false">
+      <template #header>
         <span>Group</span>
         <button
           v-if="currentGroup"
@@ -386,41 +312,39 @@
           @mousedown.stop
           @click="leaveGroup"
         >Leave</button>
-      </div>
-      <div :style="styles.floatingPanelBody">
-        <GroupPanel
-          :styles="styles"
-          :conn-active="conn.isActive"
-          :selected-character="selectedCharacter"
-          :current-group="currentGroup"
-          :group-members="groupCharacterMembers"
-          :character-effects="relevantEffects"
-          :combat-pets="combatPetsForGroup"
-          :invite-summaries="inviteSummaries"
-          :leader-id="leaderId"
-          :puller-id="pullerId"
-          :is-leader="isLeader"
-          :follow-leader="followLeader"
-          :selected-target-id="defensiveTargetId"
-          :now-micros="nowMicros"
-          :my-friend-user-ids="myFriendUserIds"
-          :my-character-id="selectedCharacter?.id ?? null"
-          :locations="locations"
-          :my-location-id="selectedCharacter?.locationId ?? null"
-          @leave="leaveGroup"
-          @accept="acceptInvite"
-          @reject="rejectInvite"
-          @set-puller="setPuller"
-          @toggle-follow="setFollowLeader"
-          @target="setDefensiveTarget"
-          @player-trade="startTrade"
-          @player-friend="sendFriendRequest"
-          @player-promote="promoteLeader"
-          @player-kick="kickMember"
-          @player-message="sendWhisperTo"
-        />
-      </div>
-    </div>
+      </template>
+      <GroupPanel
+        :styles="styles"
+        :conn-active="conn.isActive"
+        :selected-character="selectedCharacter"
+        :current-group="currentGroup"
+        :group-members="groupCharacterMembers"
+        :character-effects="relevantEffects"
+        :combat-pets="combatPetsForGroup"
+        :invite-summaries="inviteSummaries"
+        :leader-id="leaderId"
+        :puller-id="pullerId"
+        :is-leader="isLeader"
+        :follow-leader="followLeader"
+        :selected-target-id="defensiveTargetId"
+        :now-micros="nowMicros"
+        :my-friend-user-ids="myFriendUserIds"
+        :my-character-id="selectedCharacter?.id ?? null"
+        :locations="locations"
+        :my-location-id="selectedCharacter?.locationId ?? null"
+        @leave="leaveGroup"
+        @accept="acceptInvite"
+        @reject="rejectInvite"
+        @set-puller="setPuller"
+        @toggle-follow="setFollowLeader"
+        @target="setDefensiveTarget"
+        @player-trade="startTrade"
+        @player-friend="sendFriendRequest"
+        @player-promote="promoteLeader"
+        @player-kick="kickMember"
+        @player-message="sendWhisperTo"
+      />
+    </FloatingPanel>
   </main>
 
   <!-- Crafting Modal -->
@@ -635,7 +559,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from 'vue';
 import { useReducer } from 'spacetimedb/vue';
 import { styles } from './ui/styles';
 import SplashScreen from './components/SplashScreen.vue';
@@ -663,6 +587,7 @@ import WorldEventPanel from './components/WorldEventPanel.vue';
 import HelpOverlay from './components/HelpOverlay.vue';
 import MapPanel from './components/MapPanel.vue';
 import ContextMenu from './components/ContextMenu.vue';
+import FloatingPanel from './components/FloatingPanel.vue';
 import { ADMIN_IDENTITY_HEX } from './data/worldEventDefs';
 import { useGameData } from './composables/useGameData';
 import { useCharacters } from './composables/useCharacters';
@@ -684,6 +609,7 @@ import { useCombatLock } from './composables/useCombatLock';
 import { usePanelManager, getDefaultLayout } from './composables/usePanelManager';
 import { rarityColor, craftQualityColor } from './ui/colors';
 import { buildItemTooltipData } from './composables/useItemTooltip';
+import { useCharacterScope } from './composables/useCharacterScope';
 
 const {
   conn,
@@ -1172,54 +1098,29 @@ const activeSongKey = computed<string | null>(() => {
   return active?.songKey ?? null;
 });
 
-const characterNpcDialogs = computed(() => {
-  if (!selectedCharacter.value) return [];
-  return npcDialogs.value.filter(
-    (entry: any) => entry.characterId.toString() === selectedCharacter.value!.id.toString()
-  );
-});
-
-// Filter quest instances to current character
-const characterQuests = computed(() => {
-  if (!selectedCharacter.value) return [];
-  return questInstances.value.filter(
-    (row: any) => row.characterId.toString() === selectedCharacter.value!.id.toString()
-  );
-});
-
-// Quest item, named enemy, and search result computeds
-const characterQuestItems = computed(() => {
-  if (!selectedCharacter.value) return [];
-  const charId = selectedCharacter.value.id;
-  return questItems.value.filter((qi: any) => qi.characterId.toString() === charId.toString());
-});
-
-const characterNamedEnemies = computed(() => {
-  if (!selectedCharacter.value) return [];
-  const charId = selectedCharacter.value.id;
-  return namedEnemies.value.filter((ne: any) => ne.characterId.toString() === charId.toString());
-});
-
-const characterSearchResult = computed(() => {
-  if (!selectedCharacter.value) return null;
-  const charId = selectedCharacter.value.id;
-  return searchResults.value.find((sr: any) => sr.characterId.toString() === charId.toString()) ?? null;
-});
-
-const locationQuestItems = computed(() => {
-  if (!selectedCharacter.value) return [];
-  const locId = selectedCharacter.value.locationId;
-  return characterQuestItems.value.filter(
-    (qi: any) => qi.locationId.toString() === locId.toString() && qi.discovered && !qi.looted
-  );
-});
-
-const locationNamedEnemies = computed(() => {
-  if (!selectedCharacter.value) return [];
-  const locId = selectedCharacter.value.locationId;
-  return characterNamedEnemies.value.filter(
-    (ne: any) => ne.locationId.toString() === locId.toString() && ne.isAlive
-  );
+const {
+  characterNpcDialogs,
+  characterQuests,
+  characterQuestItems,
+  characterNamedEnemies,
+  characterSearchResult,
+  characterFactionStandings,
+  characterRenown,
+  characterRenownPerks,
+  characterPanelLayouts,
+  locationQuestItems,
+  locationNamedEnemies,
+} = useCharacterScope({
+  selectedCharacter,
+  npcDialogs,
+  questInstances,
+  questItems,
+  namedEnemies,
+  searchResults,
+  factionStandings,
+  renownRows,
+  renownPerks,
+  panelLayouts,
 });
 
 // Reducer call handlers for quest interactions
@@ -1235,24 +1136,7 @@ const pullNamedEnemy = (namedEnemyId: bigint) => {
   db.reducers.pullNamedEnemy({ characterId: selectedCharacter.value.id, namedEnemyId });
 };
 
-// Filter faction standings to current character
-const characterFactionStandings = computed(() => {
-  if (!selectedCharacter.value) return [];
-  return factionStandings.value.filter(
-    (row: any) => row.characterId.toString() === selectedCharacter.value!.id.toString()
-  );
-});
-
-// Renown data for current character
-const characterRenown = computed(() => {
-  if (!selectedCharacter.value) return null;
-  return renownRows.value.find(r => r.characterId.toString() === selectedCharacter.value!.id.toString()) ?? null;
-});
-
-const characterRenownPerks = computed(() => {
-  if (!selectedCharacter.value) return [];
-  return renownPerks.value.filter(p => p.characterId.toString() === selectedCharacter.value!.id.toString());
-});
+// characterFactionStandings, characterRenown, characterRenownPerks provided by useCharacterScope
 
 // World Events: hasActiveEvents computed and banner overlay
 const hasActiveEvents = computed(() => (worldEventRows.value as any[])?.some((e: any) => e.status === 'active') ?? false);
@@ -1272,13 +1156,7 @@ watch(worldEventRows, (newRows, oldRows) => {
   }
 }, { deep: true });
 
-// Filter panel layouts to current character
-const characterPanelLayouts = computed(() => {
-  if (!selectedCharacter.value) return [];
-  return panelLayouts.value.filter(
-    (row: any) => row.characterId.toString() === selectedCharacter.value!.id.toString()
-  );
-});
+// characterPanelLayouts provided by useCharacterScope
 
 const lastResultId = ref<string | null>(null);
 const lastLevelUpEventId = ref<string | null>(null);
@@ -1501,13 +1379,6 @@ const sendFriendRequest = (targetName: string) => {
 
 const sendWhisperTo = (targetName: string) => {
   commandText.value = `/w ${targetName} `;
-};
-
-const closePanel = (panelId: string) => {
-  if (panelId === 'trade') {
-    cancelTrade();
-  }
-  closePanelById(panelId);
 };
 
 const openVendor = (npcId: bigint) => {
@@ -1927,6 +1798,16 @@ watch(
   }
 );
 
+// Cancel active trade when user closes trade panel via X button
+watch(
+  () => panels.trade?.open,
+  (isOpen, wasOpen) => {
+    if (wasOpen && !isOpen && activeTrade.value) {
+      cancelTrade();
+    }
+  }
+);
+
 const currentLocationCraftingAvailable = computed(
   () => currentLocation.value?.craftingAvailable ?? false
 );
@@ -2155,6 +2036,9 @@ const {
 // Wire resetAllPanels into the command handler callback declared earlier
 _resetPanelsCb.value = resetAllPanels;
 
+// Provide panel manager for FloatingPanel component
+provide('panelManager', { panels, panelStyle, bringToFront, startDrag, startResize, closePanelById });
+
 // Wrapper to intercept help toggle
 const togglePanel = (panelId: string) => {
   if (panelId === 'help') {
@@ -2216,7 +2100,7 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
     switch (e.key) {
       case 'i': case 'I':
         if (panels.characterInfo?.open && panels.characterInfo?.tab === 'inventory') {
-          closePanel('characterInfo');
+          closePanelById('characterInfo');
         } else {
           setPanelTab('characterInfo', 'inventory');
           openPanel('characterInfo');
@@ -2224,7 +2108,7 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
         return;
       case 'j': case 'J':
         if (panels.journal?.open) {
-          closePanel('journal');
+          closePanelById('journal');
         } else {
           journalRequestedTab.value = panels.journal?.tab ?? null;
           openPanel('journal');
@@ -2236,7 +2120,7 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
       case 'e': case 'E': togglePanel('worldEvents'); return;
       case 'q': case 'Q':
         if (panels.journal?.open) {
-          closePanel('journal');
+          closePanelById('journal');
         } else {
           journalRequestedTab.value = 'quests';
           setPanelTab('journal', 'quests');
