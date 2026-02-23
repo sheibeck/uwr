@@ -540,10 +540,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 289 | Reorganize combat helpers into 4 cohesive files: combat.ts (2442), combat_rewards.ts (405), combat_perks.ts (256), combat_enemies.ts (86) | 2026-02-23 | 8fc236e | [289-reorganize-combat-helper-files-into-sens](./quick/289-reorganize-combat-helper-files-into-sens/) |
 | 290 | Split reducers/items.ts (1956→1082) into 4 files: items.ts, items_crafting.ts (441), items_gathering.ts (204), items_trading.ts (282) | 2026-02-23 | 5eeb675 | [290-review-and-reorganize-large-files-in-spa](./quick/290-review-and-reorganize-large-files-in-spa/) |
 | 291 | Frontend reorg: extract FloatingPanel.vue, useCharacterScope, useTooltip, useAudio from App.vue (2670→2369 lines) | 2026-02-23 | 09169be | [291-reorganize-frontend-src-reduce-duplicate](./quick/291-reorganize-frontend-src-reduce-duplicate/) |
+| 292 | Friendly spell casts persist through combat state transitions; only combat_only casts cancelled | 2026-02-23 | 4b121d3 | [292-friendly-spell-casts-should-not-be-cance](./quick/292-friendly-spell-casts-should-not-be-cance/) |
 
 ---
 
-Last activity: 2026-02-23 - Frontend src reorganization, extract composables and components (quick-291)
+Last activity: 2026-02-23 - Friendly spell casts persist through combat transitions (quick-292)
 
 ## Last Session
 
