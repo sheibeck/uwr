@@ -363,7 +363,12 @@ export const registerCombatReducers = (deps: any) => {
         ctx.db.character.id.update({ ...character, combatTargetEnemyId: undefined });
       }
       for (const cast of ctx.db.characterCast.by_character.filter(characterId)) {
-        ctx.db.characterCast.id.delete(cast.id);
+        const abilityRows = [...ctx.db.abilityTemplate.by_key.filter(cast.abilityKey)];
+        const ability = abilityRows[0];
+        // Only cancel combat-only casts; friendly/utility casts persist through combat transitions
+        if (!ability || ability.combatState === 'combat_only') {
+          ctx.db.characterCast.id.delete(cast.id);
+        }
       }
       // Remove expired cooldown rows to prevent stale data
       for (const cd of ctx.db.abilityCooldown.by_character.filter(characterId)) {
