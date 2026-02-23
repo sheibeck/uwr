@@ -534,10 +534,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 283 | Unify right-click context menus — added default slot to ContextMenu.vue; migrated CharacterInfoPanel ability popup and App.vue hotbar popup to use shared ContextMenu component with proper backdrop, blur, rounded corners matching InventoryPanel | 2026-02-22 | 746c992 | [283-unify-right-click-context-menu-look-and](./quick/283-unify-right-click-context-menu-look-and/) |
 | 284 | Hotbar keyboard shortcuts 1-9 fire slots 1-9, 0 fires slot 10; document-level keydown listener skips when INPUT/TEXTAREA/contentEditable focused so command bar typing is unaffected; calls onHotbarClick so all cooldown/cast/resource guards apply | 2026-02-22 | 0d45c84 | [284-hotbar-keyboard-shortcuts-1-10-to-fire-a](./quick/284-hotbar-keyboard-shortcuts-1-10-to-fire-a/) |
 | 285 | Add Thurwick banker NPC to Hollowmere with account-wide bank vault — BankSlot table (ownerUserId, slot 0-39) + my_bank_slots view; deposit_to_bank/withdraw_from_bank reducers; BankPanel.vue 40-slot grid matching inventory style; double-click inventory→bank and bank→inventory; "Access Bank" NPC context menu; log entry on full | 2026-02-22 | 0004b63 | [285-add-banker-npc-to-hollowmere-with-accoun](./quick/285-add-banker-npc-to-hollowmere-with-accoun/) |
+| 286 | Gray out remote group members, show location name, prevent targeting | 2026-02-23 | b3fde89 | [286-group-members-gray-out-when-in-different](./quick/286-group-members-gray-out-when-in-different/) |
 
 ---
 
-Last activity: 2026-02-22 - Banker NPC + account-wide bank vault (quick-285)
+Last activity: 2026-02-23 - Gray out remote group members with location label (quick-286)
 
 ## Last Session
 
