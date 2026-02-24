@@ -177,6 +177,162 @@ export function ensureNpcs(ctx: any) {
     personalityJson: JSON.stringify(NPC_PERSONALITIES.bitter_exile),
   });
 
+  // Greyveil Moors NPCs
+  upsertNpcByName({
+    name: 'Taverness Ellyn',
+    npcType: 'vendor',
+    locationName: 'Greyveil Crossroads',
+    description: 'A no-nonsense innkeeper who trades supplies for news of the road.',
+    greeting: 'Warm food and cold ale. What else do you need?',
+    baseMood: 'brisk',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.friendly_merchant),
+    factionId: freeBladesFactionId,
+  });
+  upsertNpcByName({
+    name: 'Moorcaller Phelan',
+    npcType: 'quest',
+    locationName: 'Greyveil Crossroads',
+    description: 'A hooded figure who communes with the spirits of the moor.',
+    greeting: 'The moors speak to those who listen. Do you hear them?',
+    baseMood: 'contemplative',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.curious_scholar),
+    factionId: verdantCircleFactionId,
+  });
+  upsertNpcByName({
+    name: 'Gravewatcher Maren',
+    npcType: 'quest',
+    locationName: 'Barrowfield',
+    description: 'A somber woman who guards the barrow tombs from desecration.',
+    greeting: 'The dead deserve their rest. Help me protect them.',
+    baseMood: 'solemn',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.hardened_soldier),
+    factionId: ashenOrderFactionId,
+  });
+  upsertNpcByName({
+    name: 'Hermit Dunstan',
+    npcType: 'lore',
+    locationName: 'Wraith Hollow',
+    description: 'A wild-eyed hermit who claims to hear the dead speak.',
+    greeting: 'Shhh! They are talking. Always talking. Can you not hear them?',
+    baseMood: 'nervous',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.bitter_exile),
+  });
+
+  // Silverpine Forest NPCs
+  upsertNpcByName({
+    name: 'Rootwarden Lyria',
+    npcType: 'quest',
+    locationName: 'Silverroot Camp',
+    description: 'A Verdant Circle ranger who protects the oldest trees.',
+    greeting: 'The forest is under siege from within. Will you help defend it?',
+    baseMood: 'determined',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.veteran_scout),
+    factionId: verdantCircleFactionId,
+  });
+  upsertNpcByName({
+    name: 'Alchemist Corwin',
+    npcType: 'vendor',
+    locationName: 'Silverroot Camp',
+    description: 'A traveling alchemist who studies the unique properties of silverpine sap.',
+    greeting: 'Fascinating specimens here. Need potions? I have the finest silverpine distillates.',
+    baseMood: 'enthusiastic',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.shrewd_trader),
+    factionId: verdantCircleFactionId,
+  });
+  upsertNpcByName({
+    name: 'Spider Hunter Vex',
+    npcType: 'quest',
+    locationName: 'Webwood Thicket',
+    description: 'A scarred hunter who tracks the giant spiders deeper into the forest.',
+    greeting: 'Watch where you step. The webs are everywhere.',
+    baseMood: 'alert',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.hardened_soldier),
+    factionId: freeBladesFactionId,
+  });
+  upsertNpcByName({
+    name: 'Sage Tindra',
+    npcType: 'lore',
+    locationName: 'Mossgrave Ruins',
+    description: 'An elderly scholar piecing together the history of the ruined civilization.',
+    greeting: 'These walls speak of a people who came before us. Their story must not be lost.',
+    baseMood: 'focused',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.wise_elder),
+  });
+
+  // Ironhold Garrison NPCs
+  upsertNpcByName({
+    name: 'Marshal Greyholt',
+    npcType: 'quest',
+    locationName: 'Ironhold Keep',
+    description: 'The garrison\'s commanding officer, stern and unyielding.',
+    greeting: 'State your business. The garrison has no time for idle chatter.',
+    baseMood: 'stern',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.grumpy_guard),
+    factionId: ironCompactFactionId,
+  });
+  upsertNpcByName({
+    name: 'Field Medic Saera',
+    npcType: 'quest',
+    locationName: 'Quarantine Ward',
+    description: 'A tired healer working tirelessly to contain the plague.',
+    greeting: 'More patients every day. If you are healthy, count your blessings.',
+    baseMood: 'exhausted',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.weary_healer),
+    factionId: ironCompactFactionId,
+  });
+  upsertNpcByName({
+    name: 'Armorer Brant',
+    npcType: 'vendor',
+    locationName: 'Ironhold Keep',
+    description: 'A master smith who forges the garrison\'s finest equipment.',
+    greeting: 'Iron Compact steel. The best in the land. What do you need?',
+    baseMood: 'proud',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.friendly_merchant),
+    factionId: ironCompactFactionId,
+  });
+  upsertNpcByName({
+    name: 'Deserter Callum',
+    npcType: 'lore',
+    locationName: 'Siege Fields',
+    description: 'A former knight who questions the Compact\'s methods.',
+    greeting: 'I served. I saw. I left. Do not judge what you do not understand.',
+    baseMood: 'weary',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.bitter_exile),
+    factionId: freeBladesFactionId,
+  });
+
+  // Dreadspire Ruins NPCs
+  upsertNpcByName({
+    name: 'Pathfinder Zara',
+    npcType: 'quest',
+    locationName: 'Spire Barracks',
+    description: 'A fearless explorer who maps the ruins\' shifting corridors.',
+    greeting: 'Another brave soul. Good. We need all the help we can get down here.',
+    baseMood: 'resolute',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.veteran_scout),
+    factionId: freeBladesFactionId,
+  });
+  upsertNpcByName({
+    name: 'Arcanist Morvaine',
+    npcType: 'quest',
+    locationName: 'Runecarver Chamber',
+    description: 'An Ashen Order scholar studying the spire\'s dark magic.',
+    greeting: 'The runes here predate the Ashfall. Their power is immense and dangerous.',
+    baseMood: 'intense',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.curious_scholar),
+    factionId: ashenOrderFactionId,
+  });
+  upsertNpcByName({
+    name: 'Keeper of Bones',
+    npcType: 'lore',
+    locationName: 'Bone Reliquary',
+    description: 'A disturbing figure who catalogs the dead with unsettling care.',
+    greeting: 'Every bone tells a story. I listen. I catalog. I remember.',
+    baseMood: 'eerie',
+    personalityJson: JSON.stringify(NPC_PERSONALITIES.dungeon_warden),
+    factionId: ashenOrderFactionId,
+  });
+
   // Embermarch Depths - New NPCs
   upsertNpcByName({
     name: 'Torchbearer Isa',
@@ -527,6 +683,266 @@ export function ensureQuestTemplates(ctx: any) {
     questType: 'boss_kill',
     targetLocationName: 'The Crucible',
     targetItemName: 'Vault Warden',
+  });
+
+  // === Greyveil Moors quests ===
+  upsertQuestByName({
+    name: 'Harrier Harassment',
+    npcName: 'Moorcaller Phelan',
+    enemyName: 'Moorland Harrier',
+    requiredCount: 4n,
+    minLevel: 3n,
+    maxLevel: 5n,
+    rewardXp: 80n,
+  });
+  upsertQuestByName({
+    name: 'Barrow Blight',
+    npcName: 'Gravewatcher Maren',
+    enemyName: 'Barrow Wight',
+    requiredCount: 3n,
+    minLevel: 4n,
+    maxLevel: 6n,
+    rewardXp: 110n,
+  });
+  upsertQuestByName({
+    name: 'Wight Relics',
+    npcName: 'Gravewatcher Maren',
+    enemyName: 'Barrow Wight',
+    requiredCount: 1n,
+    minLevel: 4n,
+    maxLevel: 6n,
+    rewardXp: 120n,
+    questType: 'kill_loot',
+    targetItemName: 'Ancient Wight Relic',
+    itemDropChance: 25n,
+  });
+  upsertQuestByName({
+    name: "The Hermit's Warning",
+    npcName: 'Gravewatcher Maren',
+    requiredCount: 1n,
+    minLevel: 3n,
+    maxLevel: 10n,
+    rewardXp: 90n,
+    questType: 'delivery',
+    targetNpcName: 'Hermit Dunstan',
+  });
+  upsertQuestByName({
+    name: 'Moorland Survey',
+    npcName: 'Moorcaller Phelan',
+    requiredCount: 1n,
+    minLevel: 3n,
+    maxLevel: 6n,
+    rewardXp: 100n,
+    questType: 'explore',
+    targetLocationName: 'Hauntwell Springs',
+    targetItemName: 'Moorland Survey Notes',
+  });
+
+  // === Silverpine Forest quests ===
+  upsertQuestByName({
+    name: 'Spider Infestation',
+    npcName: 'Spider Hunter Vex',
+    enemyName: 'Webspinner',
+    requiredCount: 5n,
+    minLevel: 4n,
+    maxLevel: 6n,
+    rewardXp: 120n,
+  });
+  upsertQuestByName({
+    name: 'Sentinel Communion',
+    npcName: 'Rootwarden Lyria',
+    enemyName: 'Silverpine Sentinel',
+    requiredCount: 3n,
+    minLevel: 5n,
+    maxLevel: 7n,
+    rewardXp: 140n,
+  });
+  upsertQuestByName({
+    name: 'Troll Slaying',
+    npcName: 'Spider Hunter Vex',
+    enemyName: 'Moss Troll',
+    requiredCount: 2n,
+    minLevel: 5n,
+    maxLevel: 8n,
+    rewardXp: 160n,
+  });
+  upsertQuestByName({
+    name: 'Druid Corruption',
+    npcName: 'Rootwarden Lyria',
+    enemyName: 'Feral Druid',
+    requiredCount: 4n,
+    minLevel: 5n,
+    maxLevel: 7n,
+    rewardXp: 130n,
+  });
+  upsertQuestByName({
+    name: 'Roots of Darkness',
+    npcName: 'Rootwarden Lyria',
+    requiredCount: 1n,
+    minLevel: 4n,
+    maxLevel: 7n,
+    rewardXp: 110n,
+    questType: 'explore',
+    targetLocationName: 'Rootknot Caves',
+    targetItemName: 'Corrupted Root Sample',
+  });
+  upsertQuestByName({
+    name: 'The Lost Expedition',
+    npcName: 'Sage Tindra',
+    requiredCount: 1n,
+    minLevel: 5n,
+    maxLevel: 7n,
+    rewardXp: 120n,
+    questType: 'explore',
+    targetLocationName: 'Mossgrave Ruins',
+    targetItemName: 'Expedition Journal',
+  });
+  upsertQuestByName({
+    name: 'Venom Harvest',
+    npcName: 'Spider Hunter Vex',
+    enemyName: 'Webspinner',
+    requiredCount: 1n,
+    minLevel: 4n,
+    maxLevel: 6n,
+    rewardXp: 100n,
+    questType: 'kill_loot',
+    targetItemName: 'Spider Venom Sac',
+    itemDropChance: 30n,
+  });
+
+  // === Ironhold Garrison quests ===
+  upsertQuestByName({
+    name: 'Golem Malfunction',
+    npcName: 'Marshal Greyholt',
+    enemyName: 'Iron Golem',
+    requiredCount: 3n,
+    minLevel: 6n,
+    maxLevel: 8n,
+    rewardXp: 180n,
+  });
+  upsertQuestByName({
+    name: 'Renegade Roundup',
+    npcName: 'Marshal Greyholt',
+    enemyName: 'Renegade Knight',
+    requiredCount: 4n,
+    minLevel: 6n,
+    maxLevel: 9n,
+    rewardXp: 200n,
+  });
+  upsertQuestByName({
+    name: 'Plague Source',
+    npcName: 'Field Medic Saera',
+    enemyName: 'Plague Cultist',
+    requiredCount: 5n,
+    minLevel: 6n,
+    maxLevel: 8n,
+    rewardXp: 170n,
+  });
+  upsertQuestByName({
+    name: 'Cure Components',
+    npcName: 'Field Medic Saera',
+    enemyName: 'Plague Cultist',
+    requiredCount: 1n,
+    minLevel: 6n,
+    maxLevel: 8n,
+    rewardXp: 190n,
+    questType: 'kill_loot',
+    targetItemName: 'Plague Sample',
+    itemDropChance: 20n,
+  });
+  upsertQuestByName({
+    name: 'Foundry Sabotage',
+    npcName: 'Marshal Greyholt',
+    requiredCount: 1n,
+    minLevel: 7n,
+    maxLevel: 9n,
+    rewardXp: 220n,
+    questType: 'explore',
+    targetLocationName: 'Forgecinder Foundry',
+    targetItemName: 'Foundry Control Key',
+  });
+  upsertQuestByName({
+    name: "The Deserter's Intel",
+    npcName: 'Field Medic Saera',
+    requiredCount: 1n,
+    minLevel: 6n,
+    maxLevel: 10n,
+    rewardXp: 150n,
+    questType: 'delivery',
+    targetNpcName: 'Deserter Callum',
+  });
+
+  // === Dreadspire Ruins quests (group content, higher rewards) ===
+  upsertQuestByName({
+    name: 'Wraith Purge',
+    npcName: 'Pathfinder Zara',
+    enemyName: 'Dreadspire Wraith',
+    requiredCount: 5n,
+    minLevel: 8n,
+    maxLevel: 12n,
+    rewardXp: 280n,
+  });
+  upsertQuestByName({
+    name: 'Golem Dismantling',
+    npcName: 'Pathfinder Zara',
+    enemyName: 'Runebound Golem',
+    requiredCount: 3n,
+    minLevel: 9n,
+    maxLevel: 12n,
+    rewardXp: 320n,
+  });
+  upsertQuestByName({
+    name: 'Necromancer Hunt',
+    npcName: 'Arcanist Morvaine',
+    enemyName: 'Shadow Necromancer',
+    requiredCount: 3n,
+    minLevel: 9n,
+    maxLevel: 12n,
+    rewardXp: 340n,
+  });
+  upsertQuestByName({
+    name: 'Fiend Banishment',
+    npcName: 'Arcanist Morvaine',
+    enemyName: 'Abyssal Fiend',
+    requiredCount: 2n,
+    minLevel: 10n,
+    maxLevel: 12n,
+    rewardXp: 380n,
+  });
+  upsertQuestByName({
+    name: 'The Dread Knight',
+    npcName: 'Arcanist Morvaine',
+    enemyName: 'Dread Knight',
+    requiredCount: 1n,
+    minLevel: 10n,
+    maxLevel: 12n,
+    rewardXp: 500n,
+    questType: 'boss_kill',
+    targetLocationName: 'Throne of Whispers',
+    targetItemName: 'Dread Knight',
+  });
+  upsertQuestByName({
+    name: 'Abyssal Vault Key',
+    npcName: 'Pathfinder Zara',
+    requiredCount: 1n,
+    minLevel: 10n,
+    maxLevel: 12n,
+    rewardXp: 400n,
+    questType: 'explore',
+    targetLocationName: 'The Abyssal Vault',
+    targetItemName: 'Abyssal Vault Key',
+  });
+  upsertQuestByName({
+    name: 'Dark Tomes',
+    npcName: 'Arcanist Morvaine',
+    enemyName: 'Shadow Necromancer',
+    requiredCount: 1n,
+    minLevel: 9n,
+    maxLevel: 12n,
+    rewardXp: 360n,
+    questType: 'kill_loot',
+    targetItemName: 'Dark Tome',
+    itemDropChance: 15n,
   });
 }
 
