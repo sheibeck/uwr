@@ -1762,7 +1762,7 @@ export const BankSlot = table(
   }
 );
 
-export const spacetimedb = schema(
+const spacetimedb = schema({
   Player,
   User,
   FriendRequest,
@@ -1861,7 +1861,9 @@ export const spacetimedb = schema(
   ActiveBardSong,
   BardSongTick,
   BankSlot,
-);
+});
+export default spacetimedb;
+export { spacetimedb };
 
 spacetimedb.view(
   { name: 'my_bank_slots', public: true },

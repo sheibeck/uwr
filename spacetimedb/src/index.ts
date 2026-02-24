@@ -24,7 +24,7 @@ import {
   ActiveBardSong, BardSongTick,
   ActivePet,
 } from './schema/tables';
-export { spacetimedb } from './schema/tables';
+export { default, default as spacetimedb } from './schema/tables';
 import { registerReducers } from './reducers';
 import {
   effectiveGroupId,
