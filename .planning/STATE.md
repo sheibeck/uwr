@@ -1,8 +1,8 @@
 # Project State
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
-**Last updated:** 2026-02-21
-**Status:** Ready to plan
+**Last updated:** 2026-02-24
+**Status:** In progress
 
 ---
 
@@ -11,10 +11,10 @@
 Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 13 (Crafting System) complete — 10 crafting materials, 29 recipes (14 consumable + 15 gear), salvage yields materials, craft_recipe applies deterministic affixes, CraftingPanel filter chips + craftable toggle, human-verified. Phase 13.1 (Dual-Axis Gear System) complete — craftQuality (dented/standard/reinforced/exquisite/mastercraft) separates potency from rarity axis, Essence I/II/III/IV as gear crafting reagents, unified addRecipeTemplate helper, per-material-quality stat bonuses via implicit ItemAffix rows. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 15 (Named NPCs) complete — implemented organically via Phase 19 and quick tasks; 7+ NPCs, shops, world placement in place. Phase 18 (World Events System Expansion) complete — admin-fired events, event spawns, Bronze/Silver/Gold contribution tiers, dual success/failure consequences (Ripple), WorldEventPanel with Active + History tabs, banner overlay notifications, admin event panel (quick-191), WorldStatTracker for threshold events. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
 
 **Last completed phase:** 21.1.1 — Hit/Dodge/Parry Active Stats (stat-derived dodge/parry/hit wired; DEX live defensive stat)
-**Current phase:** 23 — V2 Subscription Optimization (Plan 01 complete: event tables converted to event:true)
-**Next action:** Execute Phase 23 Plan 02 (client-side event handling updates)
-**Last session:** 2026-02-24T21:28:46.413Z
-Last activity: 2026-02-24 - Completed Phase 23 Plan 01: Convert event tables to event:true, remove trimming, remove event views
+**Current phase:** 23 — V2 Subscription Optimization (Plans 01-02 complete: event tables converted to event:true, client onInsert wiring done)
+**Next action:** Continue Phase 23 optimization or begin next phase
+**Last session:** 2026-02-24T21:34:34.300Z
+Last activity: 2026-02-24 - Completed Phase 23 Plan 02: Client event handling switched from useTable to onInsert callbacks
 
 ---
 
@@ -51,7 +51,7 @@ Last activity: 2026-02-24 - Completed Phase 23 Plan 01: Convert event tables to 
 | 21.1 | Stat Systems Off-Stat Hooks | Complete (4/4 plans done: statOffset helper, block system DEX/STR, INT salvage scrolls, CHA hooks, client StatsPanel display, human-verified 2026-02-21) |
 | 21.1.1 | Hit/Dodge/Parry Active Stats | In Progress (Plan 01 complete: stat-derived dodge/parry/hit wired into rollAttackOutcome and resolveAttack; DEX now live defensive stat) |
 | 22 | Class Ability Balancing & Progression | In Progress (Plans 01-03 complete: schema, ability data rewrite, full executeAbility switch for all 16 classes + bard song tick reducer + temp item logout cleanup) |
-| 23 | V2 Subscription Optimization | In Progress (Plan 01 complete: event tables converted to event:true, trimming removed, event views removed) |
+| 23 | V2 Subscription Optimization | In Progress (Plans 01-02 complete: event tables converted to event:true, client onInsert wiring done; 2/2 plans done) |
 
 ---
 
@@ -262,6 +262,7 @@ Last activity: 2026-02-24 - Completed Phase 23 Plan 01: Convert event tables to 
 202. Dead characters auto-respawn to bind point with hp=1n at combat resolution — both defeat and victory-with-deaths paths call autoRespawnDeadCharacter; re-fetch character row after XP award/penalty to avoid stale spread overwriting XP (quick-273)
 203. Event tables use event:true flag for auto-deletion after broadcast to subscribers — eliminates need for server-side trimming (23-01)
 204. Event views removed entirely — event tables cannot be accessed in view functions, data delivered via onInsert callbacks (23-01)
+205. Client event tables consumed via onInsert callbacks + shallowRef arrays (not useTable/iter) — event:true tables never store rows in client cache; 200-entry cap prevents unbounded growth; useEvents composable unchanged (23-02)
 
 ---
 
@@ -334,6 +335,7 @@ Last activity: 2026-02-24 - Completed Phase 23 Plan 01: Convert event tables to 
 | 21.1.1-hit-dodge-parry-active-stats | 01 | 12min | 2 | 2 |
 | Phase quick-308 P01 | 3min | 2 tasks | 39 files |
 | Phase 23 P01 | 4min | 2 tasks | 7 files |
+| Phase 23-v2-subscription-optimization P02 | 3min | 2 tasks | 1 files |
 
 ## Accumulated Context
 

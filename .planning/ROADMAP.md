@@ -38,7 +38,7 @@
 | 21 | 3/4 | In Progress|  | Pending |
 | 21.1 | 3/4 | In Progress|  | In Progress (Plan 01/N complete: statOffset helper + shield restrictions) |
 | 22 | 2/4 | In Progress|  | In Progress (Plan 01/N complete) |
-| 23 | V2 Subscription Optimization | None | None | In Progress (Plan 01/2 complete: event tables converted to event:true) |
+| 23 | 2/2 | Complete   | 2026-02-24 | In Progress (Plan 01/2 complete: event tables converted to event:true) |
 
 ---
 
@@ -798,7 +798,7 @@ Plans:
 
 **Goal:** Convert the four event log tables to SpacetimeDB v2 Event Tables (auto-delete after broadcast, eliminating server-side trimming), and update the client to consume event data via onInsert callbacks instead of useTable (which returns empty for event tables).
 **Depends on:** Phase 22
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 23-01-PLAN.md — Backend: convert 4 event tables to event:true, remove trimming code, remove event views, publish and regenerate bindings
