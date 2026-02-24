@@ -321,6 +321,7 @@ export const Character = table(
     racialMagicResist: t.u64().optional(),
     racialPerceptionBonus: t.u64().optional(),
     racialLootBonus: t.u64().optional(),
+    lastCombatEndAt: t.u64().optional(),
   }
 );
 
