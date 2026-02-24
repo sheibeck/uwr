@@ -1,3 +1,5 @@
+import { scheduledReducers } from '../schema/tables';
+
 // Compute all racial contributions for a character at a given level.
 // Applies creation bonuses (bonus1 + bonus2 + penalty) once,
 // then adds levelBonusType * levelBonusValue for each even level up to `level`.
@@ -527,7 +529,7 @@ export const registerCharacterReducers = (deps: any) => {
     }
   });
 
-  spacetimedb.reducer(
+  scheduledReducers['character_logout'] = spacetimedb.reducer(
     'character_logout',
     { arg: CharacterLogoutTick.rowType },
     (ctx, { arg }) => {

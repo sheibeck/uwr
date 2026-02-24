@@ -1,3 +1,5 @@
+import { scheduledReducers } from '../schema/tables';
+
 export const registerAuthReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -52,7 +54,7 @@ export const registerAuthReducers = (deps: any) => {
     ctx.db.player.id.update({ ...player, lastSeenAt: ctx.timestamp });
   });
 
-  spacetimedb.reducer(
+  scheduledReducers['disconnect_logout'] = spacetimedb.reducer(
     'disconnect_logout',
     { arg: DisconnectLogoutTick.rowType },
     (ctx, { arg }) => {

@@ -1,3 +1,4 @@
+import { scheduledReducers } from '../schema/tables';
 import { getPerkBonusByField } from '../helpers/renown';
 import { CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 
@@ -128,7 +129,7 @@ export const registerItemGatheringReducers = (deps: any) => {
     }
   );
 
-  spacetimedb.reducer(
+  scheduledReducers['finish_gather'] = spacetimedb.reducer(
     'finish_gather',
     { arg: ResourceGatherTick.rowType },
     (ctx, { arg }) => {

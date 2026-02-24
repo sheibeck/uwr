@@ -1,5 +1,8 @@
 import { schema, table, t } from 'spacetimedb/server';
 
+// Registry for scheduled reducer references (v2 requires lazy thunks, not string names)
+export const scheduledReducers: Record<string, any> = {};
+
 export const Player = table(
   { name: 'player', public: true },
   {
@@ -18,7 +21,7 @@ export const User = table(
   {
     name: 'user',
     public: true,
-    indexes: [{ name: 'by_email', algorithm: 'btree', columns: ['email'] }],
+    indexes: [{ accessor: 'by_email', algorithm: 'btree', columns: ['email'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -32,8 +35,8 @@ export const FriendRequest = table(
     name: 'friend_request',
     public: true,
     indexes: [
-      { name: 'by_from', algorithm: 'btree', columns: ['fromUserId'] },
-      { name: 'by_to', algorithm: 'btree', columns: ['toUserId'] },
+      { accessor: 'by_from', algorithm: 'btree', columns: ['fromUserId'] },
+      { accessor: 'by_to', algorithm: 'btree', columns: ['toUserId'] },
     ],
   },
   {
@@ -48,7 +51,7 @@ export const Friend = table(
   {
     name: 'friend',
     public: true,
-    indexes: [{ name: 'by_user', algorithm: 'btree', columns: ['userId'] }],
+    indexes: [{ accessor: 'by_user', algorithm: 'btree', columns: ['userId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -99,8 +102,8 @@ export const LocationConnection = table(
     name: 'location_connection',
     public: true,
     indexes: [
-      { name: 'by_from', algorithm: 'btree', columns: ['fromLocationId'] },
-      { name: 'by_to', algorithm: 'btree', columns: ['toLocationId'] },
+      { accessor: 'by_from', algorithm: 'btree', columns: ['fromLocationId'] },
+      { accessor: 'by_to', algorithm: 'btree', columns: ['toLocationId'] },
     ],
   },
   {
@@ -114,7 +117,7 @@ export const Npc = table(
   {
     name: 'npc',
     public: true,
-    indexes: [{ name: 'by_location', algorithm: 'btree', columns: ['locationId'] }],
+    indexes: [{ accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -134,8 +137,8 @@ export const NpcDialog = table(
     name: 'npc_dialog',
     public: true,
     indexes: [
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
-      { name: 'by_npc', algorithm: 'btree', columns: ['npcId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_npc', algorithm: 'btree', columns: ['npcId'] },
     ],
   },
   {
@@ -152,8 +155,8 @@ export const QuestTemplate = table(
     name: 'quest_template',
     public: true,
     indexes: [
-      { name: 'by_npc', algorithm: 'btree', columns: ['npcId'] },
-      { name: 'by_enemy', algorithm: 'btree', columns: ['targetEnemyTemplateId'] },
+      { accessor: 'by_npc', algorithm: 'btree', columns: ['npcId'] },
+      { accessor: 'by_enemy', algorithm: 'btree', columns: ['targetEnemyTemplateId'] },
     ],
   },
   {
@@ -178,8 +181,8 @@ export const QuestItem = table(
     name: 'quest_item',
     public: true,
     indexes: [
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
-      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] },
     ],
   },
   {
@@ -198,8 +201,8 @@ export const NamedEnemy = table(
     name: 'named_enemy',
     public: true,
     indexes: [
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
-      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] },
     ],
   },
   {
@@ -219,7 +222,7 @@ export const SearchResult = table(
     name: 'search_result',
     public: true,
     indexes: [
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
   },
   {
@@ -240,8 +243,8 @@ export const QuestInstance = table(
     name: 'quest_instance',
     public: true,
     indexes: [
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
-      { name: 'by_template', algorithm: 'btree', columns: ['questTemplateId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_template', algorithm: 'btree', columns: ['questTemplateId'] },
     ],
   },
   {
@@ -260,8 +263,8 @@ export const Character = table(
     name: 'character',
     public: true,
     indexes: [
-      { name: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
-      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { accessor: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
+      { accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] },
     ],
   },
   {
@@ -362,7 +365,7 @@ export const ItemInstance = table(
   {
     name: 'item_instance',
     public: true,
-    indexes: [{ name: 'by_owner', algorithm: 'btree', columns: ['ownerCharacterId'] }],
+    indexes: [{ accessor: 'by_owner', algorithm: 'btree', columns: ['ownerCharacterId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -382,7 +385,7 @@ export const ItemAffix = table(
   {
     name: 'item_affix',
     public: true,
-    indexes: [{ name: 'by_instance', algorithm: 'btree', columns: ['itemInstanceId'] }],
+    indexes: [{ accessor: 'by_instance', algorithm: 'btree', columns: ['itemInstanceId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -418,7 +421,7 @@ export const RecipeDiscovered = table(
   {
     name: 'recipe_discovered',
     public: true,
-    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -432,7 +435,7 @@ export const ItemCooldown = table(
   {
     name: 'item_cooldown',
     public: true,
-    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -447,8 +450,8 @@ export const ResourceNode = table(
     name: 'resource_node',
     public: true,
     indexes: [
-      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
   },
   {
@@ -469,7 +472,7 @@ export const ResourceGather = table(
   {
     name: 'resource_gather',
     public: true,
-    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -482,7 +485,7 @@ export const ResourceGather = table(
 export const ResourceGatherTick = table(
   {
     name: 'resource_gather_tick',
-    scheduled: 'finish_gather',
+    scheduled: () => scheduledReducers['finish_gather'],
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
@@ -494,7 +497,7 @@ export const ResourceGatherTick = table(
 export const EnemyRespawnTick = table(
   {
     name: 'enemy_respawn_tick',
-    scheduled: 'respawn_enemy',
+    scheduled: () => scheduledReducers['respawn_enemy'],
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
@@ -508,8 +511,8 @@ export const TradeSession = table(
     name: 'trade_session',
     public: true,
     indexes: [
-      { name: 'by_from', algorithm: 'btree', columns: ['fromCharacterId'] },
-      { name: 'by_to', algorithm: 'btree', columns: ['toCharacterId'] },
+      { accessor: 'by_from', algorithm: 'btree', columns: ['fromCharacterId'] },
+      { accessor: 'by_to', algorithm: 'btree', columns: ['toCharacterId'] },
     ],
   },
   {
@@ -528,8 +531,8 @@ export const TradeItem = table(
     name: 'trade_item',
     public: true,
     indexes: [
-      { name: 'by_trade', algorithm: 'btree', columns: ['tradeId'] },
-      { name: 'by_character', algorithm: 'btree', columns: ['fromCharacterId'] },
+      { accessor: 'by_trade', algorithm: 'btree', columns: ['tradeId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['fromCharacterId'] },
     ],
   },
   {
@@ -546,9 +549,9 @@ export const CombatLoot = table(
     name: 'combat_loot',
     public: true,
     indexes: [
-      { name: 'by_owner', algorithm: 'btree', columns: ['ownerUserId'] },
-      { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_owner', algorithm: 'btree', columns: ['ownerUserId'] },
+      { accessor: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
   },
   {
@@ -569,7 +572,7 @@ export const HotbarSlot = table(
   {
     name: 'hotbar_slot',
     public: true,
-    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -585,8 +588,8 @@ export const AbilityTemplate = table(
     name: 'ability_template',
     public: true,
     indexes: [
-      { name: 'by_key', algorithm: 'btree', columns: ['key'] },
-      { name: 'by_class', algorithm: 'btree', columns: ['className'] },
+      { accessor: 'by_key', algorithm: 'btree', columns: ['key'] },
+      { accessor: 'by_class', algorithm: 'btree', columns: ['className'] },
     ],
   },
   {
@@ -620,7 +623,7 @@ export const AbilityCooldown = table(
   {
     name: 'ability_cooldown',
     public: true,
-    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -635,7 +638,7 @@ export const CharacterCast = table(
   {
     name: 'character_cast',
     public: true,
-    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -662,8 +665,8 @@ export const GroupMember = table(
     name: 'group_member',
     public: true,
     indexes: [
-      { name: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
-      { name: 'by_group', algorithm: 'btree', columns: ['groupId'] },
+      { accessor: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
+      { accessor: 'by_group', algorithm: 'btree', columns: ['groupId'] },
     ],
   },
   {
@@ -682,8 +685,8 @@ export const GroupInvite = table(
     name: 'group_invite',
     public: true,
     indexes: [
-      { name: 'by_to_character', algorithm: 'btree', columns: ['toCharacterId'] },
-      { name: 'by_group', algorithm: 'btree', columns: ['groupId'] },
+      { accessor: 'by_to_character', algorithm: 'btree', columns: ['toCharacterId'] },
+      { accessor: 'by_group', algorithm: 'btree', columns: ['groupId'] },
     ],
   },
   {
@@ -727,7 +730,7 @@ export const EnemyRoleTemplate = table(
   {
     name: 'enemy_role_template',
     public: true,
-    indexes: [{ name: 'by_template', algorithm: 'btree', columns: ['enemyTemplateId'] }],
+    indexes: [{ accessor: 'by_template', algorithm: 'btree', columns: ['enemyTemplateId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -744,7 +747,7 @@ export const EnemyAbility = table(
   {
     name: 'enemy_ability',
     public: true,
-    indexes: [{ name: 'by_template', algorithm: 'btree', columns: ['enemyTemplateId'] }],
+    indexes: [{ accessor: 'by_template', algorithm: 'btree', columns: ['enemyTemplateId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -763,8 +766,8 @@ export const CombatEnemyCooldown = table(
     name: 'combat_enemy_cooldown',
     public: true,
     indexes: [
-      { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
-      { name: 'by_enemy', algorithm: 'btree', columns: ['enemyId'] },
+      { accessor: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
+      { accessor: 'by_enemy', algorithm: 'btree', columns: ['enemyId'] },
     ],
   },
   {
@@ -780,7 +783,7 @@ export const VendorInventory = table(
   {
     name: 'vendor_inventory',
     public: true,
-    indexes: [{ name: 'by_vendor', algorithm: 'btree', columns: ['npcId'] }],
+    indexes: [{ accessor: 'by_vendor', algorithm: 'btree', columns: ['npcId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -796,7 +799,7 @@ export const LootTable = table(
     name: 'loot_table',
     public: true,
     indexes: [
-      { name: 'by_key', algorithm: 'btree', columns: ['terrainType', 'creatureType', 'tier'] },
+      { accessor: 'by_key', algorithm: 'btree', columns: ['terrainType', 'creatureType', 'tier'] },
     ],
   },
   {
@@ -814,7 +817,7 @@ export const LootTable = table(
 export const LootTableEntry = table(
   {
     name: 'loot_table_entry',
-    indexes: [{ name: 'by_table', algorithm: 'btree', columns: ['lootTableId'] }],
+    indexes: [{ accessor: 'by_table', algorithm: 'btree', columns: ['lootTableId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -828,7 +831,7 @@ export const LocationEnemyTemplate = table(
   {
     name: 'location_enemy_template',
     indexes: [
-      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] },
     ],
   },
   {
@@ -843,8 +846,8 @@ export const EnemySpawn = table(
     name: 'enemy_spawn',
     public: true,
     indexes: [
-      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
-      { name: 'by_state', algorithm: 'btree', columns: ['state'] },
+      { accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { accessor: 'by_state', algorithm: 'btree', columns: ['state'] },
     ],
   },
   {
@@ -862,7 +865,7 @@ export const EnemySpawnMember = table(
   {
     name: 'enemy_spawn_member',
     public: true,
-    indexes: [{ name: 'by_spawn', algorithm: 'btree', columns: ['spawnId'] }],
+    indexes: [{ accessor: 'by_spawn', algorithm: 'btree', columns: ['spawnId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -877,10 +880,10 @@ export const PullState = table(
     name: 'pull_state',
     public: true,
     indexes: [
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
-      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
-      { name: 'by_group', algorithm: 'btree', columns: ['groupId'] },
-      { name: 'by_state', algorithm: 'btree', columns: ['state'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { accessor: 'by_group', algorithm: 'btree', columns: ['groupId'] },
+      { accessor: 'by_state', algorithm: 'btree', columns: ['state'] },
     ],
   },
   {
@@ -901,9 +904,9 @@ export const PullState = table(
 export const PullTick = table(
   {
     name: 'pull_tick',
-    scheduled: 'resolve_pull',
+    scheduled: () => scheduledReducers['resolve_pull'],
     public: true,
-    indexes: [{ name: 'by_pull', algorithm: 'btree', columns: ['pullId'] }],
+    indexes: [{ accessor: 'by_pull', algorithm: 'btree', columns: ['pullId'] }],
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
@@ -917,7 +920,7 @@ export const CombatEnemyCast = table(
   {
     name: 'combat_enemy_cast',
     public: true,
-    indexes: [{ name: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
+    indexes: [{ accessor: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -935,8 +938,8 @@ export const CombatEncounter = table(
     name: 'combat_encounter',
     public: true,
     indexes: [
-      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
-      { name: 'by_group', algorithm: 'btree', columns: ['groupId'] },
+      { accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { accessor: 'by_group', algorithm: 'btree', columns: ['groupId'] },
     ],
   },
   {
@@ -957,8 +960,8 @@ export const CombatParticipant = table(
     name: 'combat_participant',
     public: true,
     indexes: [
-      { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
   },
   {
@@ -974,7 +977,7 @@ export const CombatEnemy = table(
   {
     name: 'combat_enemy',
     public: true,
-    indexes: [{ name: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
+    indexes: [{ accessor: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -998,8 +1001,8 @@ export const ActivePet = table(
     name: 'active_pet',
     public: true,
     indexes: [
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
-      { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
     ],
   },
   {
@@ -1024,7 +1027,7 @@ export const CharacterEffect = table(
   {
     name: 'character_effect',
     public: true,
-    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -1041,8 +1044,8 @@ export const CombatEnemyEffect = table(
     name: 'combat_enemy_effect',
     public: true,
     indexes: [
-      { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
-      { name: 'by_enemy', algorithm: 'btree', columns: ['enemyId'] },
+      { accessor: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
+      { accessor: 'by_enemy', algorithm: 'btree', columns: ['enemyId'] },
     ],
   },
   {
@@ -1062,8 +1065,8 @@ export const CombatPendingAdd = table(
     name: 'combat_pending_add',
     public: true,
     indexes: [
-      { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
-      { name: 'by_ready', algorithm: 'btree', columns: ['arriveAtMicros'] },
+      { accessor: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
+      { accessor: 'by_ready', algorithm: 'btree', columns: ['arriveAtMicros'] },
     ],
   },
   {
@@ -1081,8 +1084,8 @@ export const CombatResult = table(
     name: 'combat_result',
     public: true,
     indexes: [
-      { name: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
-      { name: 'by_group', algorithm: 'btree', columns: ['groupId'] },
+      { accessor: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
+      { accessor: 'by_group', algorithm: 'btree', columns: ['groupId'] },
     ],
   },
   {
@@ -1100,8 +1103,8 @@ export const AggroEntry = table(
   {
     name: 'aggro_entry',
     indexes: [
-      { name: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
-      { name: 'by_enemy', algorithm: 'btree', columns: ['enemyId'] },
+      { accessor: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
+      { accessor: 'by_enemy', algorithm: 'btree', columns: ['enemyId'] },
     ],
   },
   {
@@ -1117,7 +1120,7 @@ export const AggroEntry = table(
 export const CombatLoopTick = table(
   {
     name: 'combat_loop_tick',
-    scheduled: 'combat_loop',
+    scheduled: () => scheduledReducers['combat_loop'],
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
@@ -1129,7 +1132,7 @@ export const CombatLoopTick = table(
 export const HealthRegenTick = table(
   {
     name: 'health_regen_tick',
-    scheduled: 'regen_health',
+    scheduled: () => scheduledReducers['regen_health'],
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
@@ -1142,7 +1145,7 @@ export const HealthRegenTick = table(
 export const EffectTick = table(
   {
     name: 'effect_tick',
-    scheduled: 'tick_effects',
+    scheduled: () => scheduledReducers['tick_effects'],
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
@@ -1153,7 +1156,7 @@ export const EffectTick = table(
 export const HotTick = table(
   {
     name: 'hot_tick',
-    scheduled: 'tick_hot',
+    scheduled: () => scheduledReducers['tick_hot'],
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
@@ -1164,7 +1167,7 @@ export const HotTick = table(
 export const CastTick = table(
   {
     name: 'cast_tick',
-    scheduled: 'tick_casts',
+    scheduled: () => scheduledReducers['tick_casts'],
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
@@ -1175,7 +1178,7 @@ export const CastTick = table(
 export const DayNightTick = table(
   {
     name: 'day_night_tick',
-    scheduled: 'tick_day_night',
+    scheduled: () => scheduledReducers['tick_day_night'],
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
@@ -1186,7 +1189,7 @@ export const DayNightTick = table(
 export const DisconnectLogoutTick = table(
   {
     name: 'disconnect_logout_tick',
-    scheduled: 'disconnect_logout',
+    scheduled: () => scheduledReducers['disconnect_logout'],
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
@@ -1200,7 +1203,7 @@ export const CharacterLogoutTick = table(
   {
     name: 'character_logout_tick',
     public: true,
-    scheduled: 'character_logout',
+    scheduled: () => scheduledReducers['character_logout'],
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
@@ -1216,8 +1219,8 @@ export const Command = table(
     name: 'command',
     public: true,
     indexes: [
-      { name: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
   },
   {
@@ -1247,7 +1250,7 @@ export const EventLocation = table(
   {
     name: 'event_location',
     public: true,
-    indexes: [{ name: 'by_location', algorithm: 'btree', columns: ['locationId'] }],
+    indexes: [{ accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -1264,8 +1267,8 @@ export const EventPrivate = table(
     name: 'event_private',
     public: true,
     indexes: [
-      { name: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
   },
   {
@@ -1283,8 +1286,8 @@ export const EventGroup = table(
     name: 'event_group',
     public: true,
     indexes: [
-      { name: 'by_group', algorithm: 'btree', columns: ['groupId'] },
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_group', algorithm: 'btree', columns: ['groupId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
   },
   {
@@ -1333,7 +1336,7 @@ export const FactionStanding = table(
     name: 'faction_standing',
     public: true,
     indexes: [
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
   },
   {
@@ -1348,7 +1351,7 @@ export const UiPanelLayout = table(
   {
     name: 'ui_panel_layout',
     public: true,
-    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -1362,7 +1365,7 @@ export const TravelCooldown = table(
   {
     name: 'travel_cooldown',
     public: true,
-    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -1375,7 +1378,7 @@ export const Renown = table(
   {
     name: 'renown',
     public: true,
-    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -1390,7 +1393,7 @@ export const RenownPerk = table(
   {
     name: 'renown_perk',
     public: true,
-    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -1405,7 +1408,7 @@ export const RenownServerFirst = table(
   {
     name: 'renown_server_first',
     public: true,
-    indexes: [{ name: 'by_category', algorithm: 'btree', columns: ['category'] }],
+    indexes: [{ accessor: 'by_category', algorithm: 'btree', columns: ['category'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -1422,7 +1425,7 @@ export const Achievement = table(
   {
     name: 'achievement',
     public: true,
-    indexes: [{ name: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -1437,8 +1440,8 @@ export const Corpse = table(
     name: 'corpse',
     public: true,
     indexes: [
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
-      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] },
     ],
   },
   {
@@ -1453,7 +1456,7 @@ export const CorpseItem = table(
   {
     name: 'corpse_item',
     public: true,
-    indexes: [{ name: 'by_corpse', algorithm: 'btree', columns: ['corpseId'] }],
+    indexes: [{ accessor: 'by_corpse', algorithm: 'btree', columns: ['corpseId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -1467,8 +1470,8 @@ export const PendingSpellCast = table(
     name: 'pending_spell_cast',
     public: true,
     indexes: [
-      { name: 'by_target', algorithm: 'btree', columns: ['targetCharacterId'] },
-      { name: 'by_caster', algorithm: 'btree', columns: ['casterCharacterId'] },
+      { accessor: 'by_target', algorithm: 'btree', columns: ['targetCharacterId'] },
+      { accessor: 'by_caster', algorithm: 'btree', columns: ['casterCharacterId'] },
     ],
   },
   {
@@ -1486,8 +1489,8 @@ export const NpcAffinity = table(
     name: 'npc_affinity',
     public: true,
     indexes: [
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
-      { name: 'by_npc', algorithm: 'btree', columns: ['npcId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_npc', algorithm: 'btree', columns: ['npcId'] },
     ],
   },
   {
@@ -1507,7 +1510,7 @@ export const NpcDialogueOption = table(
     name: 'npc_dialogue_option',
     public: true,
     indexes: [
-      { name: 'by_npc', algorithm: 'btree', columns: ['npcId'] },
+      { accessor: 'by_npc', algorithm: 'btree', columns: ['npcId'] },
     ],
   },
   {
@@ -1534,7 +1537,7 @@ export const NpcDialogueVisited = table(
     name: 'npc_dialogue_visited',
     public: true,
     indexes: [
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
   },
   {
@@ -1551,8 +1554,8 @@ export const WorldEvent = table(
     name: 'world_event',
     public: true,
     indexes: [
-      { name: 'by_status', algorithm: 'btree', columns: ['status'] },
-      { name: 'by_region', algorithm: 'btree', columns: ['regionId'] },
+      { accessor: 'by_status', algorithm: 'btree', columns: ['status'] },
+      { accessor: 'by_region', algorithm: 'btree', columns: ['regionId'] },
     ],
   },
   {
@@ -1596,8 +1599,8 @@ export const EventContribution = table(
     name: 'event_contribution',
     public: true,
     indexes: [
-      { name: 'by_event', algorithm: 'btree', columns: ['eventId'] },
-      { name: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_event', algorithm: 'btree', columns: ['eventId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
   },
   {
@@ -1614,8 +1617,8 @@ export const EventSpawnEnemy = table(
     name: 'event_spawn_enemy',
     public: true,
     indexes: [
-      { name: 'by_event', algorithm: 'btree', columns: ['eventId'] },
-      { name: 'by_spawn', algorithm: 'btree', columns: ['spawnId'] },
+      { accessor: 'by_event', algorithm: 'btree', columns: ['eventId'] },
+      { accessor: 'by_spawn', algorithm: 'btree', columns: ['spawnId'] },
     ],
   },
   {
@@ -1631,8 +1634,8 @@ export const EventSpawnItem = table(
     name: 'event_spawn_item',
     public: true,
     indexes: [
-      { name: 'by_event', algorithm: 'btree', columns: ['eventId'] },
-      { name: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { accessor: 'by_event', algorithm: 'btree', columns: ['eventId'] },
+      { accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] },
     ],
   },
   {
@@ -1650,7 +1653,7 @@ export const EventObjective = table(
     name: 'event_objective',
     public: true,
     indexes: [
-      { name: 'by_event', algorithm: 'btree', columns: ['eventId'] },
+      { accessor: 'by_event', algorithm: 'btree', columns: ['eventId'] },
     ],
   },
   {
@@ -1670,7 +1673,7 @@ export const WorldStatTracker = table(
     name: 'world_stat_tracker',
     public: true,
     indexes: [
-      { name: 'by_stat_key', algorithm: 'btree', columns: ['statKey'] },
+      { accessor: 'by_stat_key', algorithm: 'btree', columns: ['statKey'] },
     ],
   },
   {
@@ -1686,7 +1689,7 @@ export const WorldStatTracker = table(
 export const EventDespawnTick = table(
   {
     name: 'event_despawn_tick',
-    scheduled: 'despawn_event_content',
+    scheduled: () => scheduledReducers['despawn_event_content'],
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
@@ -1698,7 +1701,7 @@ export const EventDespawnTick = table(
 export const InactivityTick = table(
   {
     name: 'inactivity_tick',
-    scheduled: 'sweep_inactivity',
+    scheduled: () => scheduledReducers['sweep_inactivity'],
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
@@ -1720,7 +1723,7 @@ export const ActiveBardSong = table(
   {
     name: 'active_bard_song',
     public: true,
-    indexes: [{ name: 'by_bard', algorithm: 'btree', columns: ['bardCharacterId'] }],
+    indexes: [{ accessor: 'by_bard', algorithm: 'btree', columns: ['bardCharacterId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -1736,7 +1739,7 @@ export const ActiveBardSong = table(
 export const BardSongTick = table(
   {
     name: 'bard_song_tick',
-    scheduled: 'tick_bard_songs',
+    scheduled: () => scheduledReducers['tick_bard_songs'],
   },
   {
     scheduledId: t.u64().primaryKey().autoInc(),
@@ -1750,8 +1753,8 @@ export const BankSlot = table(
   {
     name: 'bank_slot',
     indexes: [
-      { name: 'by_owner', algorithm: 'btree', columns: ['ownerUserId'] },
-      { name: 'by_item', algorithm: 'btree', columns: ['itemInstanceId'] },
+      { accessor: 'by_owner', algorithm: 'btree', columns: ['ownerUserId'] },
+      { accessor: 'by_item', algorithm: 'btree', columns: ['itemInstanceId'] },
     ],
   },
   {
@@ -1865,7 +1868,7 @@ const spacetimedb = schema({
 export default spacetimedb;
 export { spacetimedb };
 
-spacetimedb.view(
+export const myBankSlotsView = spacetimedb.view(
   { name: 'my_bank_slots', public: true },
   t.array(BankSlot.rowType),
   (ctx) => {

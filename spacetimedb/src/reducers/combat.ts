@@ -1,3 +1,4 @@
+import { scheduledReducers } from '../schema/tables';
 import { ENEMY_ABILITIES } from '../data/abilities/enemy_abilities';
 import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier } from '../data/combat_scaling';
 import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
@@ -963,7 +964,7 @@ export const registerCombatReducers = (deps: any) => {
     }
   );
 
-  spacetimedb.reducer('resolve_pull', { arg: PullTick.rowType }, (ctx, { arg }) => {
+  scheduledReducers['resolve_pull'] = spacetimedb.reducer('resolve_pull', { arg: PullTick.rowType }, (ctx, { arg }) => {
     const pull = ctx.db.pullState.id.find(arg.pullId);
     if (!pull || pull.state !== 'pending') return;
 
@@ -1194,7 +1195,7 @@ export const registerCombatReducers = (deps: any) => {
     }
   });
 
-  spacetimedb.reducer('respawn_enemy', { arg: EnemyRespawnTick.rowType }, (ctx, { arg }) => {
+  scheduledReducers['respawn_enemy'] = spacetimedb.reducer('respawn_enemy', { arg: EnemyRespawnTick.rowType }, (ctx, { arg }) => {
     const location = ctx.db.location.id.find(arg.locationId);
     if (location?.isSafe) return;
     // Respect spawn cap — event spawns don't count against it
@@ -1304,7 +1305,7 @@ export const registerCombatReducers = (deps: any) => {
   const EFFECT_TICK_MICROS = 10_000_000n;
   const HOT_TICK_MICROS = 3_000_000n;
 
-  spacetimedb.reducer('regen_health', { arg: HealthRegenTick.rowType }, (ctx) => {
+  scheduledReducers['regen_health'] = spacetimedb.reducer('regen_health', { arg: HealthRegenTick.rowType }, (ctx) => {
     const tickIndex = ctx.timestamp.microsSinceUnixEpoch / REGEN_TICK_MICROS;
     const halfTick = tickIndex % 2n === 0n;
 
@@ -1557,7 +1558,7 @@ export const registerCombatReducers = (deps: any) => {
     });
   });
 
-  spacetimedb.reducer('tick_effects', { arg: deps.EffectTick.rowType }, (ctx) => {
+  scheduledReducers['tick_effects'] = spacetimedb.reducer('tick_effects', { arg: deps.EffectTick.rowType }, (ctx) => {
     for (const effect of ctx.db.characterEffect.iter()) {
       const owner = ctx.db.character.id.find(effect.characterId);
       if (!owner) {
@@ -1663,7 +1664,7 @@ export const registerCombatReducers = (deps: any) => {
     });
   });
 
-  spacetimedb.reducer('tick_hot', { arg: deps.HotTick.rowType }, (ctx) => {
+  scheduledReducers['tick_hot'] = spacetimedb.reducer('tick_hot', { arg: deps.HotTick.rowType }, (ctx) => {
     for (const effect of ctx.db.characterEffect.iter()) {
       const owner = ctx.db.character.id.find(effect.characterId);
       if (!owner) {
@@ -1781,7 +1782,7 @@ export const registerCombatReducers = (deps: any) => {
   });
 
   // Bard song tick: fires every 6 seconds to apply active song group effects.
-  spacetimedb.reducer('tick_bard_songs', { arg: deps.BardSongTick.rowType }, (ctx, { arg }) => {
+  scheduledReducers['tick_bard_songs'] = spacetimedb.reducer('tick_bard_songs', { arg: deps.BardSongTick.rowType }, (ctx, { arg }) => {
     const bardCombatId = arg.combatId;
     if (bardCombatId !== undefined) {
       const combat = ctx.db.combatEncounter.id.find(bardCombatId);
@@ -1907,7 +1908,7 @@ export const registerCombatReducers = (deps: any) => {
     }
   });
 
-  spacetimedb.reducer('tick_casts', { arg: deps.CastTick.rowType }, (ctx) => {
+  scheduledReducers['tick_casts'] = spacetimedb.reducer('tick_casts', { arg: deps.CastTick.rowType }, (ctx) => {
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     for (const cast of ctx.db.characterCast.iter()) {
       if (cast.endsAtMicros > nowMicros) continue;
@@ -2934,7 +2935,7 @@ export const registerCombatReducers = (deps: any) => {
 
   // ── End Combat Loop Sub-Functions ─────────────────────────────────────
 
-  spacetimedb.reducer('combat_loop', { arg: CombatLoopTick.rowType }, (ctx, { arg }) => {
+  scheduledReducers['combat_loop'] = spacetimedb.reducer('combat_loop', { arg: CombatLoopTick.rowType }, (ctx, { arg }) => {
     const combat = ctx.db.combatEncounter.id.find(arg.combatId);
     if (!combat || combat.state !== 'active') return;
 

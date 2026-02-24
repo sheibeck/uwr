@@ -1,3 +1,4 @@
+import { scheduledReducers } from '../schema/tables';
 import { requireAdmin } from '../data/admin';
 import { fireWorldEvent, resolveWorldEvent, incrementWorldStat } from '../helpers/world_events';
 import { appendPrivateEvent } from '../helpers/events';
@@ -160,7 +161,7 @@ export function registerWorldEventReducers(deps: any) {
   // despawn_event_content — Scheduled reducer: auto-resolve time-based events on deadline.
   // resolveWorldEvent guards against double-resolve (exits if status !== 'active'),
   // so manual admin resolution before the deadline fires safely.
-  spacetimedb.reducer(
+  scheduledReducers['despawn_event_content'] = spacetimedb.reducer(
     'despawn_event_content',
     { arg: EventDespawnTick.rowType },
     (ctx: any, { arg }: any) => {

@@ -1,8 +1,8 @@
 import { t, SenderError } from 'spacetimedb/server';
 import { requireAdmin } from './data/admin';
 import { ScheduleAt, Timestamp } from 'spacetimedb';
-import {
-  spacetimedb,
+import spacetimedb, {
+  scheduledReducers,
   Player, Character,
   FriendRequest, Friend,
   GroupMember, GroupInvite, EventGroup,
@@ -24,7 +24,7 @@ import {
   ActiveBardSong, BardSongTick,
   ActivePet,
 } from './schema/tables';
-export { default, default as spacetimedb } from './schema/tables';
+export default spacetimedb;
 import { registerReducers } from './reducers';
 import {
   effectiveGroupId,
@@ -243,7 +243,40 @@ import {
   ensureEnemyTemplatesAndRoles,
 } from './seeding/ensure_enemies';
 
-spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
+import { myBankSlotsView } from './schema/tables';
+
+// === V2 EXPORT COLLECTION ===
+// SpacetimeDB v2 requires all reducers, lifecycle hooks, and views to be named exports.
+// Monkey-patch registration methods to auto-collect return values, then export via exportGroup.
+const _moduleExports: Record<string, any> = {};
+let _exportCounter = 0;
+
+const _wrapMethod = (methodName: string, nameExtractor: (args: any[]) => string | undefined) => {
+  const orig = (spacetimedb as any)[methodName].bind(spacetimedb);
+  (spacetimedb as any)[methodName] = (...args: any[]) => {
+    // Fix v1 string-name convention: ('name', ...) → ({ name }, ...)
+    const fixedArgs = [...args];
+    if (methodName === 'reducer' && args.length >= 2 && typeof args[0] === 'string') {
+      fixedArgs[0] = { name: args[0] };
+    }
+    const result = orig(...fixedArgs);
+    const exportName = nameExtractor(args) || `_${methodName}_${_exportCounter++}`;
+    _moduleExports[exportName] = result;
+    return result;
+  };
+};
+
+_wrapMethod('reducer', (args) => typeof args[0] === 'string' ? args[0] : args[0]?.name);
+_wrapMethod('init', () => '__init__');
+_wrapMethod('clientConnected', () => '__client_connected__');
+_wrapMethod('clientDisconnected', () => '__client_disconnected__');
+_wrapMethod('view', (args) => args[0]?.name);
+
+// Include the view defined in tables.ts (runs before monkey-patch)
+_moduleExports['my_bank_slots'] = myBankSlotsView;
+// === END V2 EXPORT COLLECTION ===
+
+scheduledReducers['tick_day_night'] = spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
   const world = getWorldState(ctx);
   if (!world) return;
   const now = ctx.timestamp.microsSinceUnixEpoch;
@@ -280,7 +313,7 @@ spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
 const INACTIVITY_TIMEOUT_MICROS = 900_000_000n; // 15 minutes
 const INACTIVITY_SWEEP_INTERVAL_MICROS = 300_000_000n; // 5 minutes
 
-spacetimedb.reducer('sweep_inactivity', { arg: InactivityTick.rowType }, (ctx) => {
+scheduledReducers['sweep_inactivity'] = spacetimedb.reducer('sweep_inactivity', { arg: InactivityTick.rowType }, (ctx) => {
   const now = ctx.timestamp.microsSinceUnixEpoch;
 
   ctx.db.inactivityTick.insert({
@@ -541,7 +574,8 @@ reducerDeps.startCombatForSpawn = (
 
 registerReducers(reducerDeps);
 
-
+// V2: Export all collected reducers, lifecycle hooks, and views
+export const _stdb_exports = spacetimedb.exportGroup(_moduleExports);
 
 
 
