@@ -276,7 +276,6 @@ export const registerCombatReducers = (deps: any) => {
     fail,
     grantFactionStandingForKill,
     calculateFleeChance,
-    autoRespawnDeadCharacter,
   } = deps;
   const failCombat = (ctx: any, character: any, message: string) =>
     fail(ctx, character, message, 'combat');
@@ -2683,8 +2682,6 @@ export const registerCombatReducers = (deps: any) => {
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', `You reached level ${reward.newLevel}.`);
           logGroupEvent(ctx, combat.id, character.id, 'system', `${character.name} reached level ${reward.newLevel}.`);
         }
-        const deadChar = ctx.db.character.id.find(p.characterId);
-        if (deadChar) autoRespawnDeadCharacter(ctx, deadChar);
         continue;
       }
       const xpBonusPct = getPerkBonusByField(ctx, character.id, 'xpBonus', character.level);
@@ -2914,12 +2911,6 @@ export const registerCombatReducers = (deps: any) => {
     clearCombatArtifacts(ctx, combat.id);
     ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
     applyDeathPenalties(ctx, deps, participants, appendPrivateEvent);
-    for (const p of participants) {
-      const character = ctx.db.character.id.find(p.characterId);
-      if (character && character.hp === 0n) {
-        autoRespawnDeadCharacter(ctx, character);
-      }
-    }
   };
 
   // ── End Combat Loop Sub-Functions ─────────────────────────────────────
