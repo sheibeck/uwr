@@ -14,6 +14,7 @@ import {
   ensureStarterItemTemplates,
   ensureWorldDropGearTemplates,
   ensureWorldDropJewelryTemplates,
+  ensureBossDropTemplates,
   ensureResourceItemTemplates,
   ensureFoodItemTemplates,
   ensureRecipeTemplates,
@@ -102,6 +103,7 @@ export function syncAllContent(ctx: any) {
   ensureFoodItemTemplates(ctx);
   ensureWorldDropGearTemplates(ctx);
   ensureWorldDropJewelryTemplates(ctx);
+  ensureBossDropTemplates(ctx);           // Boss-unique rare drops (must be before ensureNamedEnemies)
   ensureCraftingBaseGearTemplates(ctx);   // Phase 13: base gear templates for recipe output
   ensureAbilityTemplates(ctx);
   ensureRecipeTemplates(ctx);

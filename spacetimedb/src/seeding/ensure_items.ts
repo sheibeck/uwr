@@ -31,6 +31,7 @@ import {
   WORLD_DROP_JEWELRY_DEFS,
   CRAFTING_BASE_GEAR_DEFS,
 } from '../data/item_defs';
+import { BOSS_DROP_DEFS } from '../data/named_enemy_defs';
 
 /** Unified recipe template upsert helper — replaces addRecipe and addGearRecipe */
 function addRecipeTemplate(ctx: any, args: {
@@ -333,6 +334,43 @@ export function ensureWorldDropJewelryTemplates(ctx: any) {
   };
 
   for (const item of WORLD_DROP_JEWELRY_DEFS) {
+    upsertByName({
+      ...item,
+      isJunk: false,
+      strBonus: item.strBonus ?? 0n,
+      dexBonus: item.dexBonus ?? 0n,
+      chaBonus: item.chaBonus ?? 0n,
+      wisBonus: item.wisBonus ?? 0n,
+      intBonus: item.intBonus ?? 0n,
+      hpBonus: item.hpBonus ?? 0n,
+      manaBonus: item.manaBonus ?? 0n,
+      armorClassBonus: item.armorClassBonus ?? 0n,
+      weaponBaseDamage: item.weaponBaseDamage ?? 0n,
+      weaponDps: item.weaponDps ?? 0n,
+      stackable: false,
+    });
+  }
+}
+
+export function ensureBossDropTemplates(ctx: any) {
+  const upsertByName = (row: any) => {
+    const fullRow = {
+      wellFedDurationMicros: 0n,
+      wellFedBuffType: '',
+      wellFedBuffMagnitude: 0n,
+      weaponType: '',
+      magicResistanceBonus: 0n,
+      ...row,
+    };
+    const existing = findItemTemplateByName(ctx, fullRow.name);
+    if (existing) {
+      ctx.db.itemTemplate.id.update({ ...existing, ...fullRow, id: existing.id });
+      return existing;
+    }
+    return ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
+  };
+
+  for (const item of BOSS_DROP_DEFS) {
     upsertByName({
       ...item,
       isJunk: false,
