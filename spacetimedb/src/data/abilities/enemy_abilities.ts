@@ -823,4 +823,18 @@ export const ENEMY_TEMPLATE_ABILITIES: Record<string, string[]> = {
   'Bog Specter':         ['drowning_grasp'],    // bog ghost, magic DoT
   'Ashveil Phantom':     ['soul_rend'],         // phantom, soul DoT
   'Nightfang Viper':     ['venom_fang'],        // snake — venom is entirely on-brand
+
+  // --- Named bosses ---
+  'Rotfang':                 ['poison_bite', 'rending_bite'],                    // L2 beast dps — venomous bite + lunge rend
+  'Mirewalker Thane':        ['crushing_gore', 'warchief_rally'],               // L2 humanoid tank — shield bash + war cry
+  'Thornmother':             ['thorn_venom', 'sapping_chant'],                  // L2 beast caster — thorn volley + root grasp
+  'Ashwright':               ['ember_spark', 'wisp_drain'],                     // L2 spirit caster — spirit blast + phase shift
+  'Crag Tyrant':             ['quake_stomp', 'quake_wave'],                     // L4 beast tank — crushing blow + boulder toss
+  'Hexweaver Nyx':           ['withering_hex', 'shadow_rend', 'bolster_defenses'], // L4 humanoid caster — hex + mana drain + dark ward
+  'Scorchfang':              ['searing_talon', 'rending_bite'],                 // L5 beast dps — flame strike + rending claws
+  'Warden of Ash':           ['ember_slam', 'flame_burst', 'bolster_defenses'], // L5 construct tank — smash + flame aura + fortify
+  'Smolderveil Banshee':     ['soul_rend', 'chill_touch', 'dark_mend'],        // L4 spirit caster — wail + spectral chill + life drain
+  'Pyrelord Kazrak':         ['molten_bleed', 'ember_slam', 'quake_wave'],     // L7 humanoid tank — inferno slash + molten shield + earthquake
+  'Sootveil Archon':         ['shadow_rend', 'withering_hex', 'dark_mend'],    // L7 undead caster — shadow bolt + necrotic wave + dark pact
+  'Emberclaw Matriarch':     ['molten_bleed', 'warchief_rally', 'flame_burst'], // L9 beast dps — savage rend + primal roar + flame breath
 };
