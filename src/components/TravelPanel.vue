@@ -75,17 +75,17 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue';
-import type { CharacterRow, LocationRow, RegionRow, TravelCooldownRow, LocationConnectionRow } from '../stdb-types';
+import type { Character, Location, Region, TravelCooldown, LocationConnection } from '../module_bindings/types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
-  selectedCharacter: CharacterRow | null;
-  locations: LocationRow[];
-  regions: RegionRow[];
-  travelCooldowns: TravelCooldownRow[];
-  allLocations: LocationRow[];
-  locationConnections: LocationConnectionRow[];
+  selectedCharacter: Character | null;
+  locations: Location[];
+  regions: Region[];
+  travelCooldowns: TravelCooldown[];
+  allLocations: Location[];
+  locationConnections: LocationConnection[];
 }>();
 
 const emit = defineEmits<{
@@ -112,7 +112,7 @@ const conStyleForDiff = (diff: number) => {
 
 const regionStyleForDiff = (diff: number) => conStyleForDiff(diff);
 
-const targetLevelForLocation = (location: LocationRow, _level: number, regions: RegionRow[]) => {
+const targetLevelForLocation = (location: Location, _level: number, regions: Region[]) => {
   const region = regions.find((r) => r.id.toString() === location.regionId.toString());
   const multiplier = region ? Number(region.dangerMultiplier) : 100;
   const offset = Number(location.levelOffset ?? 0n);
@@ -216,7 +216,7 @@ const canAffordTravel = (entry: { staminaCost: number }) => {
 
 // Handle travel button click
 const handleTravelClick = (entry: {
-  location: LocationRow;
+  location: Location;
   isCrossRegion: boolean;
   regionName: string;
   staminaCost: number;

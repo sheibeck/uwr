@@ -58,11 +58,11 @@
 </template>
 
 <script setup lang="ts">
-import type { CharacterRow } from '../stdb-types';
+import type { Character } from '../module_bindings/types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
-  selectedCharacter: CharacterRow | null;
+  selectedCharacter: Character | null;
   availableAbilities: { key: string; name: string }[];
   hotbar: { slot: number; abilityKey: string; name: string }[];
   combatLocked: boolean;

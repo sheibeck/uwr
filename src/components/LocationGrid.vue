@@ -250,7 +250,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onBeforeUnmount } from 'vue';
-import type { CharacterRow, NpcRow } from '../stdb-types';
+import type { Character, Npc } from '../module_bindings/types';
 import ContextMenu from './ContextMenu.vue';
 
 type EnemySummary = {
@@ -269,12 +269,12 @@ type EnemySummary = {
 const props = withDefaults(defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
-  selectedCharacter: CharacterRow | null;
+  selectedCharacter: Character | null;
   selectedNpcId: bigint | null;
   selectedCharacterTargetId: bigint | null;
   selectedCorpseId: bigint | null;
-  charactersHere: { character: CharacterRow; disconnected: boolean }[];
-  npcsHere: NpcRow[];
+  charactersHere: { character: Character; disconnected: boolean }[];
+  npcsHere: Npc[];
   corpsesHere: Array<{
     id: bigint;
     characterName: string;
@@ -498,7 +498,7 @@ const toggleSelectCharacter = (characterId: bigint) => {
   }
 };
 
-const openCharacterContextMenu = (event: MouseEvent, character: CharacterRow) => {
+const openCharacterContextMenu = (event: MouseEvent, character: Character) => {
   const isFriend = props.myFriendUserIds.includes(character.ownerUserId.toString());
   const isInGroup = props.groupMemberIds.includes(character.id.toString());
   const isTargetLeader = props.leaderId != null && character.id.toString() === props.leaderId.toString();
@@ -553,7 +553,7 @@ const openCharacterContextMenu = (event: MouseEvent, character: CharacterRow) =>
   };
 };
 
-const openNpcContextMenu = (event: MouseEvent, npc: NpcRow) => {
+const openNpcContextMenu = (event: MouseEvent, npc: Npc) => {
   const items: Array<{ label: string; disabled?: boolean; action: () => void }> = [
     {
       label: 'Talk',

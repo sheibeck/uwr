@@ -70,16 +70,16 @@
 </template>
 
 <script setup lang="ts">
-import type { FriendRequestRow, FriendRow } from '../stdb-types';
+import type { FriendRequest, Friend } from '../module_bindings/types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
   isLoggedIn: boolean;
   friendEmail: string;
-  incomingRequests: FriendRequestRow[];
-  outgoingRequests: FriendRequestRow[];
-  friends: FriendRow[];
+  incomingRequests: FriendRequest[];
+  outgoingRequests: FriendRequest[];
+  friends: Friend[];
   emailByUserId: (id: bigint) => string;
 }>();
 

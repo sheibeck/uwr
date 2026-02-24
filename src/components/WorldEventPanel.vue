@@ -175,7 +175,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import type { CharacterRow, RegionRow } from '../stdb-types';
+import type { Character, Region } from '../module_bindings/types';
 import { CLIENT_EVENT_DEFS } from '../data/worldEventDefs';
 
 const props = defineProps<{
@@ -183,8 +183,8 @@ const props = defineProps<{
   worldEventRows: any[];
   eventContributions: any[];
   eventObjectives: any[];
-  regions: RegionRow[];
-  selectedCharacter: CharacterRow | null;
+  regions: Region[];
+  selectedCharacter: Character | null;
   isAdmin: boolean;
   nowMicros: number;
 }>();

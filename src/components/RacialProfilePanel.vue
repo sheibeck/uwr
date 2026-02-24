@@ -60,11 +60,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { CharacterRow } from '../stdb-types';
+import type { Character } from '../module_bindings/types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
-  selectedCharacter: CharacterRow | null;
+  selectedCharacter: Character | null;
   races: any[];
 }>();
 

@@ -95,14 +95,14 @@
 
   <script setup lang="ts">
   import { computed } from 'vue';
-  import type { CharacterRow, LocationRow, RegionRow } from '../stdb-types';
+  import type { Character, Location, Region } from '../module_bindings/types';
 
   const props = defineProps<{
     styles: Record<string, Record<string, string | number>>;
-    selectedCharacter: CharacterRow | null;
+    selectedCharacter: Character | null;
     statBonuses: { str: bigint; dex: bigint; cha: bigint; wis: bigint; int: bigint };
-    locations: LocationRow[];
-    regions: RegionRow[];
+    locations: Location[];
+    regions: Region[];
   }>();
 
   const boundLocationName = computed(() => {

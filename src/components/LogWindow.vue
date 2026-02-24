@@ -51,7 +51,7 @@
 
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue';
-import type { CharacterRow } from '../stdb-types';
+import type { Character } from '../module_bindings/types';
 
 type EventItem = {
   id: bigint;
@@ -63,7 +63,7 @@ type EventItem = {
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
-  selectedCharacter: CharacterRow | null;
+  selectedCharacter: Character | null;
   combinedEvents: EventItem[];
   formatTimestamp: (ts: { microsSinceUnixEpoch: bigint }) => string;
 }>();

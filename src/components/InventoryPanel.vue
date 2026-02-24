@@ -88,7 +88,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import type { CharacterRow } from '../stdb-types';
+import type { Character } from '../module_bindings/types';
 import ContextMenu from './ContextMenu.vue';
 
 const GEAR_SLOTS = new Set([
@@ -108,7 +108,7 @@ const learnRecipeFromScroll = (item: { id: bigint; name: string }) => {
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
-  selectedCharacter: CharacterRow | null;
+  selectedCharacter: Character | null;
   equippedSlots: {
     slot: string;
     name: string;

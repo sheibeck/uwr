@@ -139,26 +139,26 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import type {
-  NpcDialogRow,
-  NpcRow,
-  LocationRow,
-  RegionRow,
-  NpcAffinityRow,
-  QuestInstanceRow,
-  QuestTemplateRow,
-} from '../stdb-types';
+  NpcDialog,
+  Npc,
+  Location,
+  Region,
+  NpcAffinity,
+  QuestInstance,
+  QuestTemplate,
+} from '../module_bindings/types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
-  npcDialogs: NpcDialogRow[];
-  npcs: NpcRow[];
-  locations: LocationRow[];
-  regions: RegionRow[];
-  npcAffinities: NpcAffinityRow[];
+  npcDialogs: NpcDialog[];
+  npcs: Npc[];
+  locations: Location[];
+  regions: Region[];
+  npcAffinities: NpcAffinity[];
   selectedCharacterId: bigint | null;
   selectedNpcTarget?: bigint | null;
-  questInstances: QuestInstanceRow[];
-  questTemplates: QuestTemplateRow[];
+  questInstances: QuestInstance[];
+  questTemplates: QuestTemplate[];
   requestedTab?: 'journal' | 'quests' | null;
 }>();
 

@@ -43,11 +43,11 @@
 </template>
 
 <script setup lang="ts">
-import type { TradeSessionRow } from '../stdb-types';
+import type { TradeSession } from '../module_bindings/types';
 
 defineProps<{
   styles: Record<string, Record<string, string | number>>;
-  trade: TradeSessionRow | null;
+  trade: TradeSession | null;
   inventory: { id: bigint; name: string; quantity: bigint; stackable: boolean }[];
   myOffer: { id: bigint; item: { name: string; quantity: bigint; stackable: boolean } }[];
   otherOffer: { id: bigint; item: { name: string; quantity: bigint; stackable: boolean } }[];

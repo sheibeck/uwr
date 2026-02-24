@@ -167,16 +167,16 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import type { CharacterRow, GroupRow } from '../stdb-types';
+import type { Character, Group } from '../module_bindings/types';
 import { effectLabel, effectRemainingSeconds, formatEffectDuration } from '../ui/effectTimers';
 import ContextMenu from './ContextMenu.vue';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
-  selectedCharacter: CharacterRow | null;
-  currentGroup: GroupRow | null;
-   groupMembers: CharacterRow[];
+  selectedCharacter: Character | null;
+  currentGroup: Group | null;
+   groupMembers: Character[];
   characterEffects: {
     id: bigint;
     characterId: bigint;
@@ -243,17 +243,17 @@ const closeContextMenu = () => {
   contextMenu.value.visible = false;
 };
 
-const isRemote = (member: CharacterRow) => {
+const isRemote = (member: Character) => {
   if (props.myLocationId == null) return false;
   return member.locationId !== props.myLocationId;
 };
 
-const locationName = (member: CharacterRow) => {
+const locationName = (member: Character) => {
   const loc = props.locations.find(l => l.id === member.locationId);
   return loc?.name ?? 'Unknown';
 };
 
-const openMemberContextMenu = (event: MouseEvent, member: CharacterRow) => {
+const openMemberContextMenu = (event: MouseEvent, member: Character) => {
   const isSelf = props.myCharacterId != null && member.id.toString() === props.myCharacterId.toString();
   const isTargetPuller = props.pullerId != null && member.id.toString() === props.pullerId.toString();
 

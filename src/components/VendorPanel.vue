@@ -83,12 +83,12 @@
 </template>
 
 <script setup lang="ts">
-import type { CharacterRow, NpcRow } from '../stdb-types';
+import type { Character, Npc } from '../module_bindings/types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
-  selectedCharacter: CharacterRow | null;
-  vendor: NpcRow | null;
+  selectedCharacter: Character | null;
+  vendor: Npc | null;
   vendorItems: {
     id: bigint;
     templateId: bigint;

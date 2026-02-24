@@ -110,16 +110,16 @@
 
 <script setup lang="ts">
 import type {
-  CharacterRow,
-  CombatEncounterRow,
-} from '../stdb-types';
+  Character,
+  CombatEncounter,
+} from '../module_bindings/types';
 import { formatEffectDuration } from '../ui/effectTimers';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
-  selectedCharacter: CharacterRow | null;
-  activeCombat: CombatEncounterRow | null;
+  selectedCharacter: Character | null;
+  activeCombat: CombatEncounter | null;
   combatEnemies: {
     id: bigint;
     name: string;

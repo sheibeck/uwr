@@ -17,11 +17,11 @@
 </template>
 
 <script setup lang="ts">
-import type { EnemyTemplateRow } from '../stdb-types';
+import type { EnemyTemplate } from '../module_bindings/types';
 
 defineProps<{
   styles: Record<string, any>;
-  options: EnemyTemplateRow[];
+  options: EnemyTemplate[];
 }>();
 
 defineEmits<{

@@ -59,15 +59,15 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { CharacterRow, LocationRow } from '../stdb-types';
+import type { Character, Location } from '../module_bindings/types';
 
 const clientVersion = computed(() => (window as any).__client_version ?? 'dev');
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
-  selectedCharacter: CharacterRow | null;
-  currentLocation: LocationRow | null;
+  selectedCharacter: Character | null;
+  currentLocation: Location | null;
   isLoggedIn: boolean;
   loggedInEmail: string | null;
   authMessage: string;

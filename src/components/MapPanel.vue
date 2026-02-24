@@ -87,13 +87,13 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { RegionRow, LocationRow, LocationConnectionRow, CharacterRow } from '../stdb-types';
+import type { Region, Location, LocationConnection, Character } from '../module_bindings/types';
 
 const props = defineProps<{
-  regions: RegionRow[];
-  locations: LocationRow[];
-  locationConnections: LocationConnectionRow[];
-  selectedCharacter: CharacterRow | null;
+  regions: Region[];
+  locations: Location[];
+  locationConnections: LocationConnection[];
+  selectedCharacter: Character | null;
 }>();
 
 const NODE_W = 160;

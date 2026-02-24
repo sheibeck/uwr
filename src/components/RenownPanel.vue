@@ -230,16 +230,16 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import type { FactionRow, FactionStandingRow, CharacterRow, RenownRow, RenownPerkRow, RenownServerFirstRow } from '../stdb-types';
+import type { Faction, FactionStanding, Character, Renown, RenownPerk, RenownServerFirst } from '../module_bindings/types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
-  factions: FactionRow[];
-  factionStandings: FactionStandingRow[];
-  selectedCharacter: CharacterRow | null;
-  renownData: RenownRow | null;
-  renownPerks: RenownPerkRow[];
-  serverFirsts: RenownServerFirstRow[];
+  factions: Faction[];
+  factionStandings: FactionStanding[];
+  selectedCharacter: Character | null;
+  renownData: Renown | null;
+  renownPerks: RenownPerk[];
+  serverFirsts: RenownServerFirst[];
   connActive: boolean;
   requestedTab?: string | null;
 }>();

@@ -43,11 +43,11 @@
 </template>
 
 <script setup lang="ts">
-import type { CharacterRow } from '../stdb-types';
+import type { Character } from '../module_bindings/types';
 
 defineProps<{
   styles: Record<string, Record<string, string | number>>;
-  target: CharacterRow | null;
+  target: Character | null;
   isFriend: boolean;
   isInGroup: boolean;
   isLeader: boolean;

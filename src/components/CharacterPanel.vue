@@ -28,20 +28,20 @@
         </div>
 
         <!-- Race info panel -->
-        <div v-if="selectedRaceRow" :style="styles.roster">
-          <div>{{ selectedRaceRow.description }}</div>
+        <div v-if="selectedRace" :style="styles.roster">
+          <div>{{ selectedRace.description }}</div>
           <div :style="styles.subtle">
-            <span>{{ formatRaceBonus(selectedRaceRow.bonus1Type, selectedRaceRow.bonus1Value) }}</span>
+            <span>{{ formatRaceBonus(selectedRace.bonus1Type, selectedRace.bonus1Value) }}</span>
             <span> | </span>
-            <span>{{ formatRaceBonus(selectedRaceRow.bonus2Type, selectedRaceRow.bonus2Value) }}</span>
-            <span v-if="selectedRaceRow.penaltyType && selectedRaceRow.penaltyValue"> | </span>
-            <span v-if="selectedRaceRow.penaltyType && selectedRaceRow.penaltyValue" style="color: rgba(255,100,100,0.85)">{{ formatRacePenalty(selectedRaceRow.penaltyType, selectedRaceRow.penaltyValue) }}</span>
+            <span>{{ formatRaceBonus(selectedRace.bonus2Type, selectedRace.bonus2Value) }}</span>
+            <span v-if="selectedRace.penaltyType && selectedRace.penaltyValue"> | </span>
+            <span v-if="selectedRace.penaltyType && selectedRace.penaltyValue" style="color: rgba(255,100,100,0.85)">{{ formatRacePenalty(selectedRace.penaltyType, selectedRace.penaltyValue) }}</span>
           </div>
           <div :style="styles.subtle" style="color: rgba(180,220,255,0.7)">
-            Each even level: {{ formatRaceBonus(selectedRaceRow.levelBonusType, selectedRaceRow.levelBonusValue) }}
+            Each even level: {{ formatRaceBonus(selectedRace.levelBonusType, selectedRace.levelBonusValue) }}
           </div>
-          <div v-if="selectedRaceRow.availableClasses && selectedRaceRow.availableClasses.trim() !== ''" :style="styles.subtle">
-            Classes: {{ formatAvailableClasses(selectedRaceRow.availableClasses) }}
+          <div v-if="selectedRace.availableClasses && selectedRace.availableClasses.trim() !== ''" :style="styles.subtle">
+            Classes: {{ formatAvailableClasses(selectedRace.availableClasses) }}
           </div>
         </div>
 
@@ -117,7 +117,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { CharacterRow } from '../stdb-types';
+import type { Character } from '../module_bindings/types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
@@ -125,10 +125,10 @@ const props = defineProps<{
   newCharacter: { name: string; raceId: string; className: string };
   isCharacterFormValid: boolean;
   createError: string;
-  myCharacters: CharacterRow[];
+  myCharacters: Character[];
   selectedCharacterId: string;
   races: any[];
-  selectedRaceRow: any | null;
+  selectedRace: any | null;
   filteredClassOptions: string[] | null;
 }>();
 
@@ -166,7 +166,7 @@ const onClassTileClick = (className: string) => {
   emit('update:newCharacter', { ...props.newCharacter, className });
 };
 
-const confirmDelete = (character: CharacterRow) => {
+const confirmDelete = (character: Character) => {
   const ok = window.confirm(`Delete ${character.name}? This cannot be undone.`);
   if (!ok) return;
   emit('delete', character.id.toString());

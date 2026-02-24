@@ -19,20 +19,20 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type {
-  QuestInstanceRow,
-  QuestTemplateRow,
-  NpcRow,
-  LocationRow,
-  RegionRow,
-} from '../stdb-types';
+  QuestInstance,
+  QuestTemplate,
+  Npc,
+  Location,
+  Region,
+} from '../module_bindings/types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
-  questInstances: QuestInstanceRow[];
-  questTemplates: QuestTemplateRow[];
-  npcs: NpcRow[];
-  locations: LocationRow[];
-  regions: RegionRow[];
+  questInstances: QuestInstance[];
+  questTemplates: QuestTemplate[];
+  npcs: Npc[];
+  locations: Location[];
+  regions: Region[];
 }>();
 
 const questRows = computed(() => {
