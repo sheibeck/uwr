@@ -1,10 +1,10 @@
 import { computed, type Ref } from 'vue';
-import type { PlayerRow, UserRow } from '../stdb-types';
+import type { Player, User } from '../module_bindings/types';
 import { useSpacetimeDB } from 'spacetimedb/vue';
 
 type UsePlayerArgs = {
-  players: Ref<PlayerRow[]>;
-  users: Ref<UserRow[]>;
+  players: Ref<Player[]>;
+  users: Ref<User[]>;
 };
 
 export const usePlayer = ({ players, users }: UsePlayerArgs) => {

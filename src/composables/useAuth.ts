@@ -1,6 +1,6 @@
 import { computed, ref, watch, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
-import type { PlayerRow } from '../stdb-types';
+import type { Player } from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
 import {
   beginSpacetimeAuthLogin,
@@ -11,7 +11,7 @@ import {
 
 type UseAuthArgs = {
   connActive: Ref<boolean>;
-  player: Ref<PlayerRow | null>;
+  player: Ref<Player | null>;
 };
 
 export const useAuth = ({ connActive, player }: UseAuthArgs) => {

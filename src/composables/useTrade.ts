@@ -1,15 +1,15 @@
 import { computed, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
-import type { CharacterRow, ItemInstanceRow, ItemTemplateRow, TradeSessionRow, TradeItemRow } from '../stdb-types';
+import type { Character, ItemInstance, ItemTemplate, TradeSession, TradeItem } from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
 
 type UseTradeArgs = {
   connActive: Ref<boolean>;
-  selectedCharacter: Ref<CharacterRow | null>;
-  itemInstances: Ref<ItemInstanceRow[]>;
-  itemTemplates: Ref<ItemTemplateRow[]>;
-  tradeSessions: Ref<TradeSessionRow[]>;
-  tradeItems: Ref<TradeItemRow[]>;
+  selectedCharacter: Ref<Character | null>;
+  itemInstances: Ref<ItemInstance[]>;
+  itemTemplates: Ref<ItemTemplate[]>;
+  tradeSessions: Ref<TradeSession[]>;
+  tradeItems: Ref<TradeItem[]>;
 };
 
 export const useTrade = ({
@@ -52,7 +52,7 @@ export const useTrade = ({
       .map((row) => mapItem(row));
   });
 
-  const mapItem = (instance: ItemInstanceRow) => {
+  const mapItem = (instance: ItemInstance) => {
     const template = itemTemplates.value.find(
       (row) => row.id.toString() === instance.templateId.toString()
     );

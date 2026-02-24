@@ -1,25 +1,25 @@
 import { ref, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
-import type { CharacterRow, NpcRow, NpcDialogueOptionRow, NpcAffinityRow, FactionStandingRow, PlayerRow, LocationRow } from '../stdb-types';
+import type { Character, Npc, NpcDialogueOption, NpcAffinity, FactionStanding, Player, Location } from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
 import { ADMIN_IDENTITY_HEX } from '../data/worldEventDefs';
 
 type UseCommandsArgs = {
   connActive: Ref<boolean>;
-  selectedCharacter: Ref<CharacterRow | null>;
+  selectedCharacter: Ref<Character | null>;
   inviteSummaries?: Ref<{ fromName: string }[]>;
-  npcsHere?: Ref<NpcRow[]>;
-  onNpcHail?: (npc: NpcRow) => void;
+  npcsHere?: Ref<Npc[]>;
+  onNpcHail?: (npc: Npc) => void;
   selectedNpcTarget?: Ref<bigint | null>;
-  npcDialogueOptions?: Ref<NpcDialogueOptionRow[]>;
-  npcAffinities?: Ref<NpcAffinityRow[]>;
-  factionStandings?: Ref<FactionStandingRow[]>;
+  npcDialogueOptions?: Ref<NpcDialogueOption[]>;
+  npcAffinities?: Ref<NpcAffinity[]>;
+  factionStandings?: Ref<FactionStanding[]>;
   selectedCharacterId?: Ref<bigint | null>;
   resetPanels?: () => void;
   addLocalEvent?: (kind: string, message: string) => void;
-  players?: Ref<PlayerRow[]>;
-  characters?: Ref<CharacterRow[]>;
-  locations?: Ref<LocationRow[]>;
+  players?: Ref<Player[]>;
+  characters?: Ref<Character[]>;
+  locations?: Ref<Location[]>;
   worldEventRows?: Ref<any[]>;
 };
 
@@ -66,7 +66,7 @@ export const useCommands = ({
   const commandText = ref('');
 
   // Helper to check if dialogue option is unlocked for character
-  const isDialogueOptionUnlocked = (option: NpcDialogueOptionRow, characterId: bigint): boolean => {
+  const isDialogueOptionUnlocked = (option: NpcDialogueOption, characterId: bigint): boolean => {
     // Check affinity requirement
     const currentAffinity = npcAffinities?.value?.find(
       (a) => a.characterId.toString() === characterId.toString() && a.npcId.toString() === option.npcId.toString()
@@ -97,7 +97,7 @@ export const useCommands = ({
   };
 
   // Helper to find matching dialogue option
-  const findMatchingDialogueOption = (npcId: bigint, userText: string, characterId: bigint): NpcDialogueOptionRow | null => {
+  const findMatchingDialogueOption = (npcId: bigint, userText: string, characterId: bigint): NpcDialogueOption | null => {
     if (!npcDialogueOptions?.value) return null;
 
     const normalizedUserText = userText.toLowerCase().trim();

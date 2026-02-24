@@ -1,11 +1,11 @@
 import { type Ref } from 'vue';
 import { reducers } from '../module_bindings';
-import type { CharacterRow } from '../stdb-types';
+import type { Character } from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
 
 type UseMovementArgs = {
   connActive: Ref<boolean>;
-  selectedCharacter: Ref<CharacterRow | null>;
+  selectedCharacter: Ref<Character | null>;
 };
 
 export const useMovement = ({ connActive, selectedCharacter }: UseMovementArgs) => {

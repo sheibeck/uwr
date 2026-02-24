@@ -1,18 +1,18 @@
 import { computed, ref, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
 import type {
-  FriendRequestRow,
-  FriendRow,
-  UserRow,
-} from '../stdb-types';
+  FriendRequest,
+  Friend,
+  User,
+} from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
 
 type UseFriendsArgs = {
   connActive: Ref<boolean>;
   userId: Ref<bigint | null>;
-  friends: Ref<FriendRow[]>;
-  friendRequests: Ref<FriendRequestRow[]>;
-  users: Ref<UserRow[]>;
+  friends: Ref<Friend[]>;
+  friendRequests: Ref<FriendRequest[]>;
+  users: Ref<User[]>;
 };
 
 export const useFriends = ({

@@ -1,24 +1,24 @@
 import { computed, watch, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
 import type {
-  CharacterRow,
-  CombatEncounterRow,
-  CombatParticipantRow,
-  CombatEnemyRow,
-  ActivePetRow,
-  CombatEnemyCastRow,
-  CombatResultRow,
-  CombatLootRow,
-  EnemySpawnRow,
-  EnemyTemplateRow,
-  EnemyRoleTemplateRow,
-  EnemySpawnMemberRow,
-  CombatEnemyEffectRow,
-  EnemyAbilityRow,
-  ItemTemplateRow,
-  FactionRow,
-  PullStateRow,
-} from '../stdb-types';
+  Character,
+  CombatEncounter,
+  CombatParticipant,
+  CombatEnemy,
+  ActivePet,
+  CombatEnemyCast,
+  CombatResult,
+  CombatLoot,
+  EnemySpawn,
+  EnemyTemplate,
+  EnemyRoleTemplate,
+  EnemySpawnMember,
+  CombatEnemyEffect,
+  EnemyAbility,
+  ItemTemplate,
+  Faction,
+  PullState,
+} from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
 import {
   effectIsNegative,
@@ -56,26 +56,26 @@ type CombatRosterEntry = {
 
 type UseCombatArgs = {
   connActive: Ref<boolean>;
-  selectedCharacter: Ref<CharacterRow | null>;
-  combatEncounters: Ref<CombatEncounterRow[]>;
-  combatParticipants: Ref<CombatParticipantRow[]>;
-  combatEnemies: Ref<CombatEnemyRow[]>;
-  activePets: Ref<ActivePetRow[]>;
-  combatEnemyEffects: Ref<CombatEnemyEffectRow[]>;
-  combatEnemyCasts: Ref<CombatEnemyCastRow[]>;
-  enemyAbilities: Ref<EnemyAbilityRow[]>;
-  combatResults: Ref<CombatResultRow[]>;
-  combatLoot: Ref<CombatLootRow[]>;
-  itemTemplates: Ref<ItemTemplateRow[]>;
-  fallbackRoster: Ref<CharacterRow[]>;
-  enemySpawns: Ref<EnemySpawnRow[]>;
-  enemyTemplates: Ref<EnemyTemplateRow[]>;
-  enemyRoleTemplates: Ref<EnemyRoleTemplateRow[]>;
-  enemySpawnMembers: Ref<EnemySpawnMemberRow[]>;
-  pullStates: Ref<PullStateRow[]>;
+  selectedCharacter: Ref<Character | null>;
+  combatEncounters: Ref<CombatEncounter[]>;
+  combatParticipants: Ref<CombatParticipant[]>;
+  combatEnemies: Ref<CombatEnemy[]>;
+  activePets: Ref<ActivePet[]>;
+  combatEnemyEffects: Ref<CombatEnemyEffect[]>;
+  combatEnemyCasts: Ref<CombatEnemyCast[]>;
+  enemyAbilities: Ref<EnemyAbility[]>;
+  combatResults: Ref<CombatResult[]>;
+  combatLoot: Ref<CombatLoot[]>;
+  itemTemplates: Ref<ItemTemplate[]>;
+  fallbackRoster: Ref<Character[]>;
+  enemySpawns: Ref<EnemySpawn[]>;
+  enemyTemplates: Ref<EnemyTemplate[]>;
+  enemyRoleTemplates: Ref<EnemyRoleTemplate[]>;
+  enemySpawnMembers: Ref<EnemySpawnMember[]>;
+  pullStates: Ref<PullState[]>;
   nowMicros: Ref<number>;
-  characters: Ref<CharacterRow[]>;
-  factions: Ref<FactionRow[]>;
+  characters: Ref<Character[]>;
+  factions: Ref<Faction[]>;
 };
 
 const timestampToMicros = (timestamp: any) => {

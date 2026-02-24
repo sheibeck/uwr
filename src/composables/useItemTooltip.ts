@@ -1,4 +1,4 @@
-import type { ItemTemplateRow, ItemAffixRow } from '../stdb-types';
+import type { ItemTemplate, ItemAffix } from '../module_bindings/types';
 
 export type TooltipStatLine = { label: string; value: string };
 export type TooltipAffixLine = { label: string; value: string; affixName: string };
@@ -19,7 +19,7 @@ export type ItemTooltipData = {
 };
 
 type BuildTooltipArgs = {
-  template: ItemTemplateRow | null | undefined;
+  template: ItemTemplate | null | undefined;
   instance?: {
     id?: bigint;
     qualityTier?: string | null;
@@ -28,7 +28,7 @@ type BuildTooltipArgs = {
     isNamed?: boolean | null;
     quantity?: bigint | null;
   };
-  affixes?: ItemAffixRow[];
+  affixes?: ItemAffix[];
   affixDataJson?: string | null;
   priceOrValue?: TooltipStatLine;
 };

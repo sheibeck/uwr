@@ -1,12 +1,12 @@
 import { computed, ref, watch, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
 import type {
-  CharacterRow,
-  GroupRow,
-  LocationRow,
-  PlayerRow,
-  CharacterLogoutTickRow,
-} from '../stdb-types';
+  Character,
+  Group,
+  Location,
+  Player,
+  CharacterLogoutTick,
+} from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
 
 export type PanelKey =
@@ -21,12 +21,12 @@ export type PanelKey =
 
 type UseCharactersArgs = {
   connActive: Ref<boolean>;
-  characters: Ref<CharacterRow[]>;
-  locations: Ref<LocationRow[]>;
-  groups: Ref<GroupRow[]>;
-  players: Ref<PlayerRow[]>;
+  characters: Ref<Character[]>;
+  locations: Ref<Location[]>;
+  groups: Ref<Group[]>;
+  players: Ref<Player[]>;
   userId: Ref<bigint | null>;
-  characterLogoutTicks: Ref<CharacterLogoutTickRow[]>;
+  characterLogoutTicks: Ref<CharacterLogoutTick[]>;
   nowMicros: Ref<number>;
 };
 

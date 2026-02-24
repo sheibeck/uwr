@@ -1,10 +1,10 @@
 import { computed, ref, watch, type Ref } from 'vue';
 import type {
-  EventWorldRow,
-  EventLocationRow,
-  EventPrivateRow,
-  EventGroupRow,
-} from '../stdb-types';
+  EventWorld,
+  EventLocation,
+  EventPrivate,
+  EventGroup,
+} from '../module_bindings/types';
 
 export type EventItem = {
   id: bigint;
@@ -15,10 +15,10 @@ export type EventItem = {
 };
 
 type UseEventsArgs = {
-  worldEvents: Ref<EventWorldRow[]>;
-  locationEvents: Ref<EventLocationRow[]>;
-  privateEvents: Ref<EventPrivateRow[]>;
-  groupEvents: Ref<EventGroupRow[]>;
+  worldEvents: Ref<EventWorld[]>;
+  locationEvents: Ref<EventLocation[]>;
+  privateEvents: Ref<EventPrivate[]>;
+  groupEvents: Ref<EventGroup[]>;
   sessionStartedAt: Ref<{ microsSinceUnixEpoch: bigint } | null>;
 };
 

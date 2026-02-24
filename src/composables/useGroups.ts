@@ -1,20 +1,20 @@
 import { computed, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
 import type {
-  CharacterRow,
-  GroupInviteRow,
-  GroupRow,
-  GroupMemberRow,
-} from '../stdb-types';
+  Character,
+  GroupInvite,
+  Group,
+  GroupMember,
+} from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
 
 type UseGroupsArgs = {
   connActive: Ref<boolean>;
-  selectedCharacter: Ref<CharacterRow | null>;
-  groups: Ref<GroupRow[]>;
-  groupInvites: Ref<GroupInviteRow[]>;
-  characters: Ref<CharacterRow[]>;
-  groupMembers: Ref<GroupMemberRow[]>;
+  selectedCharacter: Ref<Character | null>;
+  groups: Ref<Group[]>;
+  groupInvites: Ref<GroupInvite[]>;
+  characters: Ref<Character[]>;
+  groupMembers: Ref<GroupMember[]>;
 };
 
 export const useGroups = ({

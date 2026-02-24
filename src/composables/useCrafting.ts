@@ -1,6 +1,6 @@
 import { computed, ref, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
-import type { CharacterRow, ItemInstanceRow, ItemTemplateRow, RecipeTemplateRow, RecipeDiscoveredRow } from '../stdb-types';
+import type { Character, ItemInstance, ItemTemplate, RecipeTemplate, RecipeDiscovered } from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
 import { buildItemTooltipData } from './useItemTooltip';
 
@@ -111,11 +111,11 @@ export type CraftingModifierItem = {
 
 type UseCraftingArgs = {
   connActive: Ref<boolean>;
-  selectedCharacter: Ref<CharacterRow | null>;
-  itemInstances: Ref<ItemInstanceRow[]>;
-  itemTemplates: Ref<ItemTemplateRow[]>;
-  recipeTemplates: Ref<RecipeTemplateRow[]>;
-  recipeDiscovered: Ref<RecipeDiscoveredRow[]>;
+  selectedCharacter: Ref<Character | null>;
+  itemInstances: Ref<ItemInstance[]>;
+  itemTemplates: Ref<ItemTemplate[]>;
+  recipeTemplates: Ref<RecipeTemplate[]>;
+  recipeDiscovered: Ref<RecipeDiscovered[]>;
 };
 
 export const useCrafting = ({

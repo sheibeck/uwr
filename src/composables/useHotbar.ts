@@ -1,13 +1,13 @@
 import { computed, ref, watch, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
 import type {
-  AbilityCooldownRow,
-  AbilityTemplateRow,
-  CharacterCastRow,
-  CharacterRow,
-  HotbarSlotRow,
-  ItemTemplateRow,
-} from '../stdb-types';
+  AbilityCooldown,
+  AbilityTemplate,
+  CharacterCast,
+  Character,
+  HotbarSlot,
+  ItemTemplate,
+} from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
 
 type HotbarDisplaySlot = {
@@ -37,11 +37,11 @@ type InventoryItemRef = {
 
 type UseHotbarArgs = {
   connActive: Ref<boolean>;
-  selectedCharacter: Ref<CharacterRow | null>;
-  hotbarSlots: Ref<HotbarSlotRow[]>;
-  abilityTemplates: Ref<AbilityTemplateRow[]>;
-  abilityCooldowns: Ref<AbilityCooldownRow[]>;
-  characterCasts: Ref<CharacterCastRow[]>;
+  selectedCharacter: Ref<Character | null>;
+  hotbarSlots: Ref<HotbarSlot[]>;
+  abilityTemplates: Ref<AbilityTemplate[]>;
+  abilityCooldowns: Ref<AbilityCooldown[]>;
+  characterCasts: Ref<CharacterCast[]>;
   nowMicros: Ref<number>;
   activeCombat: Ref<unknown | null>;
   canActInCombat: Ref<boolean>;
@@ -55,7 +55,7 @@ type UseHotbarArgs = {
   onCorpseSummonRequested?: (targetCharacterId: bigint) => void;
   addLocalEvent?: (kind: string, message: string) => void;
   inventoryItems?: Ref<InventoryItemRef[]>;
-  itemTemplates?: Ref<ItemTemplateRow[]>;
+  itemTemplates?: Ref<ItemTemplate[]>;
   eatFoodFn?: (itemInstanceId: bigint) => void;
 };
 
@@ -108,7 +108,7 @@ export const useHotbar = ({
   });
 
   const abilityLookup = computed(() => {
-    const map = new Map<string, AbilityTemplateRow>();
+    const map = new Map<string, AbilityTemplate>();
     for (const ability of abilityTemplates.value) {
       map.set(ability.key, ability);
     }

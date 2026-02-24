@@ -1,15 +1,15 @@
 import { computed, ref, watch, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
-import type { CharacterRow, RaceRow } from '../stdb-types';
+import type { Character, Race } from '../module_bindings/types';
 
 type UseCharacterCreationArgs = {
   connActive: Ref<boolean>;
-  selectedCharacter: Ref<CharacterRow | null>;
+  selectedCharacter: Ref<Character | null>;
   selectedCharacterId: Ref<string>;
   userId: Ref<bigint | null>;
-  characters: Ref<CharacterRow[]>;
-  races: Ref<RaceRow[]>;
+  characters: Ref<Character[]>;
+  races: Ref<Race[]>;
 };
 
 export const useCharacterCreation = ({
@@ -34,14 +34,14 @@ export const useCharacterCreation = ({
     )
   );
 
-  const selectedRaceRow = computed(() => {
+  const selectedRace = computed(() => {
     if (!newCharacter.value.raceId) return null;
     const id = BigInt(newCharacter.value.raceId);
     return races.value.find((r) => r.id === id) ?? null;
   });
 
   const filteredClassOptions = computed(() => {
-    const race = selectedRaceRow.value;
+    const race = selectedRace.value;
     if (!race) return [];
     const allowed = race.availableClasses;
     if (!allowed || allowed.trim() === '') {
@@ -102,7 +102,7 @@ export const useCharacterCreation = ({
     hasCharacter: computed(() => Boolean(selectedCharacter.value)),
     createError,
     creationToken,
-    selectedRaceRow,
+    selectedRace,
     filteredClassOptions,
   };
 };
