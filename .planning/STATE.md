@@ -555,10 +555,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 304 | 3s combat cooldown before out-of-combat regen, increase stamina regen by 1 | 2026-02-24 | c6e11b6 | [304-3s-combat-cooldown-before-out-of-combat-](./quick/304-3s-combat-cooldown-before-out-of-combat-/) |
 | 305 | Wire up all 12 named boss abilities + clean misleading abilityProfile text on ability-less enemies | 2026-02-24 | e6ffdbc | [305-wire-up-all-enemy-abilities-across-all-e](./quick/305-wire-up-all-enemy-abilities-across-all-e/) |
 | 306 | Wire abilities to L5+ region enemies — 19 new abilities, 17 enemies wired | 2026-02-24 | e34fe65 | [306-wire-abilities-to-higher-level-region-en](./quick/306-wire-abilities-to-higher-level-region-en/) |
+| 307 | migrate spacetimedb from 1.12 to 2.0 | 2026-02-24 | 7d27784 | [307-migrate-spacetimedb-from-1-12-to-2-0](./quick/307-migrate-spacetimedb-from-1-12-to-2-0/) |
 
 ---
 
-Last activity: 2026-02-24 - Completed quick task 306: Wire abilities to L5+ region enemies — 19 new abilities, 17 enemies wired
+Last activity: 2026-02-24 - Completed quick task 307: migrate spacetimedb from 1.12 to 2.0
 
 ## Last Session
 
