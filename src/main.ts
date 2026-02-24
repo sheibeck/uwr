@@ -8,7 +8,7 @@ import { getStoredIdToken, handleSpacetimeAuthCallback } from './auth/spacetimeA
 const HOST = import.meta.env.VITE_SPACETIMEDB_HOST ?? 'ws://localhost:3000';
 const DB_NAME = import.meta.env.VITE_SPACETIMEDB_DB_NAME ?? 'uwr';
 
-const onConnect = (conn: DbConnection, identity: Identity) => {
+const onConnect = (conn: DbConnection, identity: Identity, _token: string) => {
   window.__db_conn = conn;
   window.__my_identity = identity;
   console.log(
@@ -17,7 +17,7 @@ const onConnect = (conn: DbConnection, identity: Identity) => {
   );
 };
 
-const onDisconnect = () => {
+const onDisconnect = (_ctx: ErrorContext, _err?: Error) => {
   console.log('Disconnected from SpacetimeDB');
 };
 
@@ -34,7 +34,7 @@ const bootstrap = async () => {
 
   const connectionBuilder = DbConnection.builder()
     .withUri(HOST)
-    .withModuleName(DB_NAME)
+    .withDatabaseName(DB_NAME)
     .withToken(getStoredIdToken() || undefined)
     .onConnect(onConnect)
     .onDisconnect(onDisconnect)
