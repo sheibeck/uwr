@@ -42,7 +42,7 @@
         :my-characters="myCharacters"
         :selected-character-id="selectedCharacterId"
         :races="races"
-        :selected-race-row="selectedRaceRow"
+        :selected-race="selectedRace"
         :filtered-class-options="filteredClassOptions"
         @update:newCharacter="newCharacter = $event"
         @create="createCharacter"
@@ -886,7 +886,7 @@ const {
   hasCharacter,
   createError,
   creationToken,
-  selectedRaceRow,
+  selectedRace,
   filteredClassOptions,
 } = useCharacterCreation({
     connActive: computed(() => conn.isActive),
