@@ -1112,6 +1112,31 @@ export const ENEMY_TEMPLATE_ABILITIES: Record<string, string[]> = {
   'Ashveil Phantom':     ['soul_rend'],         // phantom, soul DoT
   'Nightfang Viper':     ['venom_fang'],        // snake — venom is entirely on-brand
 
+  // --- Mid/High-level region enemies ---
+
+  // L3-4 (select enemies gain 1 ability)
+  'Barrow Wight':        ['barrow_chill'],                          // undead, magic debuff — grave-cold theme
+  'Webspinner':          ['web_snare'],                             // beast, physical debuff — webbing
+
+  // L5-6 (1-2 abilities)
+  'Silverpine Sentinel': ['spirit_ward'],                           // spirit tank/support — protective ward
+  'Moor Hag':           ['mire_curse', 'shaman_heal'],             // swamp humanoid — curse + heal
+  'Feral Druid':        ['nature_mend', 'thorn_venom'],            // woods humanoid healer — heal + nature DoT
+  'Moss Troll':         ['troll_smash', 'stone_cleave'],           // beast tank — armor debuff + physical DoT
+  'Plague Cultist':     ['plague_touch', 'sapping_chant'],         // humanoid magic dps — plague DoT + drain debuff
+
+  // L7-8 (2 abilities)
+  'Iron Golem':         ['armor_shatter', 'ironclad_rend'],        // construct tank — crushing debuff + physical DoT
+  'Renegade Knight':    ['knight_challenge', 'bleeding_shot'],     // humanoid tank — war cry debuff + bleed
+  'Warforged Hulk':     ['quake_stomp', 'ironclad_rend'],          // construct tank — existing quake + physical DoT
+
+  // L9-12 dungeon elites (2-3 abilities, high-tier)
+  'Dreadspire Wraith':  ['necrotic_rot', 'doom_mark', 'death_pulse'],              // undead dps — necrotic DoT + curse + AoE
+  'Runebound Golem':    ['warding_crush', 'runic_discharge', 'quake_wave'],        // construct tank — rune debuff + magic DoT + AoE
+  'Shadow Necromancer': ['shadow_rend', 'unholy_mend', 'command_undead'],          // humanoid caster — shadow DoT + dark heal + buff
+  'Abyssal Fiend':      ['abyssal_flame', 'doom_mark', 'death_pulse'],             // spirit dps — hellfire DoT + curse + AoE
+  'Dread Knight':       ['executioner_bleed', 'armor_shatter', 'command_undead'],  // undead tank — bleed DoT + armor crush + commander buff
+
   // --- Named bosses ---
   'Rotfang':                 ['poison_bite', 'rending_bite'],                    // L2 beast dps — venomous bite + lunge rend
   'Mirewalker Thane':        ['crushing_gore', 'warchief_rally'],               // L2 humanoid tank — shield bash + war cry
