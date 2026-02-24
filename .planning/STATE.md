@@ -14,7 +14,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 **Current phase:** 21.1 — Stat Systems Off-Stat Hooks (COMPLETE — human-verified 2026-02-21)
 **Next action:** Continue Phase 21 (Race Expansion) or Phase 22 (Class Ability Balancing) — run /gsd:progress to check
 **Last session:** 2026-02-24T16:22:48.323Z
-**Stopped at:** Completed quick-308-PLAN.md
+Last activity: 2026-02-24 - Completed quick task 308: Continue quick task 307
 
 ---
 
@@ -557,6 +557,7 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 305 | Wire up all 12 named boss abilities + clean misleading abilityProfile text on ability-less enemies | 2026-02-24 | e6ffdbc | [305-wire-up-all-enemy-abilities-across-all-e](./quick/305-wire-up-all-enemy-abilities-across-all-e/) |
 | 306 | Wire abilities to L5+ region enemies — 19 new abilities, 17 enemies wired | 2026-02-24 | e34fe65 | [306-wire-abilities-to-higher-level-region-en](./quick/306-wire-abilities-to-higher-level-region-en/) |
 | 307 | migrate spacetimedb from 1.12 to 2.0 | 2026-02-24 | 7d27784 | [307-migrate-spacetimedb-from-1-12-to-2-0](./quick/307-migrate-spacetimedb-from-1-12-to-2-0/) |
+| 308 | Continue quick task 307 — fix 7 v2-specific TS errors, commit 33 v2 module_bindings | 2026-02-24 | 9c16337 | [308-continue-quick-task-307](./quick/308-continue-quick-task-307/) |
 
 ---
 
