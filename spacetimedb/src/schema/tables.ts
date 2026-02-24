@@ -718,6 +718,7 @@ export const EnemyTemplate = table(
     factionId: t.u64().optional(),
     isBoss: t.bool().optional(),
     isSocial: t.bool().optional(),
+    bossRegionName: t.string().optional(),
   }
 );
 

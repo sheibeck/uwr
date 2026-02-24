@@ -452,6 +452,13 @@ export function ensureLocationEnemyTemplates(ctx: any) {
       if (allowed.length > 0 && locationTerrain && !allowed.includes(locationTerrain)) {
         continue;
       }
+      // Region-lock boss templates to their designated region
+      if (template.isBoss && template.bossRegionName) {
+        const region = ctx.db.region.id.find(location.regionId);
+        if (!region || region.name !== template.bossRegionName) {
+          continue;
+        }
+      }
       if (existing.has(template.id.toString())) continue;
       ctx.db.locationEnemyTemplate.insert({
         id: 0n,
@@ -2048,6 +2055,7 @@ export function ensureNamedEnemies(ctx: any) {
       factionId,
       isBoss: true,
       isSocial: false,
+      bossRegionName: def.regionName,
     });
 
     // Add role templates
