@@ -1,6 +1,7 @@
-// Re-exports v2 SpacetimeDB types with Row suffix aliases for v1 compatibility.
-// v2 codegen exports types as PascalCase (e.g. Character) from module_bindings/types.
-// Client code uses XxxRow names (e.g. CharacterRow). This shim bridges the gap.
+// Row suffix type aliases for namespace disambiguation.
+// v2 codegen exports bare PascalCase types (e.g. Character, Location, Group) which
+// can collide with browser globals or generic names. XxxRow aliases (e.g. CharacterRow,
+// LocationRow) make DB row types unambiguous throughout client code.
 export type {
   AbilityCooldown as AbilityCooldownRow,
   AbilityTemplate as AbilityTemplateRow,
