@@ -552,10 +552,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 301 | Seed 12 named boss enemies with enhanced stats and class-specific magical loot tables across all regions | 2026-02-24 | 715bd3f | [301-seed-named-enemies-with-enhanced-stats-a](./quick/301-seed-named-enemies-with-enhanced-stats-a/) |
 | 302 | unique magical drops for each boss covering all 14 classes | 2026-02-24 | 7560732 | [302-unique-magical-drops-for-each-boss-cover](./quick/302-unique-magical-drops-for-each-boss-cover/) |
 | 303 | deepdive into in combat regen of health and look for anything that could be an issue | 2026-02-24 | 60d80c6 | [303-deepdive-into-in-combat-regen-of-health-](./quick/303-deepdive-into-in-combat-regen-of-health-/) |
+| 304 | 3s combat cooldown before out-of-combat regen, increase stamina regen by 1 | 2026-02-24 | c6e11b6 | [304-3s-combat-cooldown-before-out-of-combat-](./quick/304-3s-combat-cooldown-before-out-of-combat-/) |
 
 ---
 
-Last activity: 2026-02-24 - Completed quick task 303: deepdive into in combat regen of health and look for anything that could be an issue
+Last activity: 2026-02-24 - Completed quick task 304: 3s combat cooldown before out-of-combat regen, increase stamina regen by 1
 
 ## Last Session
 
