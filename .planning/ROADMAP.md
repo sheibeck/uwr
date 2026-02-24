@@ -38,7 +38,7 @@
 | 21 | 3/4 | In Progress|  | Pending |
 | 21.1 | 3/4 | In Progress|  | In Progress (Plan 01/N complete: statOffset helper + shield restrictions) |
 | 22 | 2/4 | In Progress|  | In Progress (Plan 01/N complete) |
-| 23 | 2/2 | Complete   | 2026-02-24 | In Progress (Plan 01/2 complete: event tables converted to event:true) |
+| 23 | 2/2 | Complete    | 2026-02-24 | In Progress (Plan 01/2 complete: event tables converted to event:true) |
 
 ---
 
