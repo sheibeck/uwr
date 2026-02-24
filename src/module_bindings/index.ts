@@ -34,6 +34,8 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
+import TickDayNightReducer from "./tick_day_night_reducer";
+import SweepInactivityReducer from "./sweep_inactivity_reducer";
 import SetAppVersionReducer from "./set_app_version_reducer";
 import SetDisplayNameReducer from "./set_display_name_reducer";
 import SendFriendRequestReducer from "./send_friend_request_reducer";
@@ -43,12 +45,14 @@ import RejectFriendRequestReducer from "./reject_friend_request_reducer";
 import RemoveFriendReducer from "./remove_friend_reducer";
 import LoginEmailReducer from "./login_email_reducer";
 import LogoutReducer from "./logout_reducer";
+import DisconnectLogoutReducer from "./disconnect_logout_reducer";
 import SetActiveCharacterReducer from "./set_active_character_reducer";
 import ClearActiveCharacterReducer from "./clear_active_character_reducer";
 import CreateCharacterReducer from "./create_character_reducer";
 import BindLocationReducer from "./bind_location_reducer";
 import DeleteCharacterReducer from "./delete_character_reducer";
 import RespawnCharacterReducer from "./respawn_character_reducer";
+import CharacterLogoutReducer from "./character_logout_reducer";
 import CreateItemTemplateReducer from "./create_item_template_reducer";
 import GrantItemReducer from "./grant_item_reducer";
 import BuyItemReducer from "./buy_item_reducer";
@@ -77,6 +81,7 @@ import CraftRecipeReducer from "./craft_recipe_reducer";
 import LearnRecipeScrollReducer from "./learn_recipe_scroll_reducer";
 import SalvageItemReducer from "./salvage_item_reducer";
 import StartGatherResourceReducer from "./start_gather_resource_reducer";
+import FinishGatherReducer from "./finish_gather_reducer";
 import StartTradeReducer from "./start_trade_reducer";
 import AddTradeItemReducer from "./add_trade_item_reducer";
 import RemoveTradeItemReducer from "./remove_trade_item_reducer";
@@ -106,9 +111,17 @@ import StartCombatReducer from "./start_combat_reducer";
 import StartTrackedCombatReducer from "./start_tracked_combat_reducer";
 import StartPullReducer from "./start_pull_reducer";
 import SetCombatTargetReducer from "./set_combat_target_reducer";
+import ResolvePullReducer from "./resolve_pull_reducer";
 import FleeCombatReducer from "./flee_combat_reducer";
+import RespawnEnemyReducer from "./respawn_enemy_reducer";
 import DismissCombatResultsReducer from "./dismiss_combat_results_reducer";
 import EndCombatReducer from "./end_combat_reducer";
+import RegenHealthReducer from "./regen_health_reducer";
+import TickEffectsReducer from "./tick_effects_reducer";
+import TickHotReducer from "./tick_hot_reducer";
+import TickBardSongsReducer from "./tick_bard_songs_reducer";
+import TickCastsReducer from "./tick_casts_reducer";
+import CombatLoopReducer from "./combat_loop_reducer";
 import LootCorpseItemReducer from "./loot_corpse_item_reducer";
 import LootAllCorpseReducer from "./loot_all_corpse_reducer";
 import InitiateResurrectReducer from "./initiate_resurrect_reducer";
@@ -131,6 +144,7 @@ import FireWorldEventReducer from "./fire_world_event_reducer";
 import ResolveWorldEventReducer from "./resolve_world_event_reducer";
 import CollectEventItemReducer from "./collect_event_item_reducer";
 import IncrementEventCounterReducer from "./increment_event_counter_reducer";
+import DespawnEventContentReducer from "./despawn_event_content_reducer";
 import DepositToBankReducer from "./deposit_to_bank_reducer";
 import WithdrawFromBankReducer from "./withdraw_from_bank_reducer";
 
@@ -142,7 +156,11 @@ import AbilityTemplateRow from "./ability_template_table";
 import AchievementRow from "./achievement_table";
 import ActiveBardSongRow from "./active_bard_song_table";
 import ActivePetRow from "./active_pet_table";
+import AggroEntryRow from "./aggro_entry_table";
 import AppVersionRow from "./app_version_table";
+import BankSlotRow from "./bank_slot_table";
+import BardSongTickRow from "./bard_song_tick_table";
+import CastTickRow from "./cast_tick_table";
 import CharacterRow from "./character_table";
 import CharacterCastRow from "./character_cast_table";
 import CharacterEffectRow from "./character_effect_table";
@@ -152,6 +170,7 @@ import CombatEnemyRow from "./combat_enemy_table";
 import CombatEnemyCastRow from "./combat_enemy_cast_table";
 import CombatEnemyCooldownRow from "./combat_enemy_cooldown_table";
 import CombatEnemyEffectRow from "./combat_enemy_effect_table";
+import CombatLoopTickRow from "./combat_loop_tick_table";
 import CombatLootRow from "./combat_loot_table";
 import CombatParticipantRow from "./combat_participant_table";
 import CombatPendingAddRow from "./combat_pending_add_table";
@@ -159,12 +178,17 @@ import CombatResultRow from "./combat_result_table";
 import CommandRow from "./command_table";
 import CorpseRow from "./corpse_table";
 import CorpseItemRow from "./corpse_item_table";
+import DayNightTickRow from "./day_night_tick_table";
+import DisconnectLogoutTickRow from "./disconnect_logout_tick_table";
+import EffectTickRow from "./effect_tick_table";
 import EnemyAbilityRow from "./enemy_ability_table";
+import EnemyRespawnTickRow from "./enemy_respawn_tick_table";
 import EnemyRoleTemplateRow from "./enemy_role_template_table";
 import EnemySpawnRow from "./enemy_spawn_table";
 import EnemySpawnMemberRow from "./enemy_spawn_member_table";
 import EnemyTemplateRow from "./enemy_template_table";
 import EventContributionRow from "./event_contribution_table";
+import EventDespawnTickRow from "./event_despawn_tick_table";
 import EventGroupRow from "./event_group_table";
 import EventLocationRow from "./event_location_table";
 import EventObjectiveRow from "./event_objective_table";
@@ -179,14 +203,19 @@ import FriendRequestRow from "./friend_request_table";
 import GroupRow from "./group_table";
 import GroupInviteRow from "./group_invite_table";
 import GroupMemberRow from "./group_member_table";
+import HealthRegenTickRow from "./health_regen_tick_table";
+import HotTickRow from "./hot_tick_table";
 import HotbarSlotRow from "./hotbar_slot_table";
+import InactivityTickRow from "./inactivity_tick_table";
 import ItemAffixRow from "./item_affix_table";
 import ItemCooldownRow from "./item_cooldown_table";
 import ItemInstanceRow from "./item_instance_table";
 import ItemTemplateRow from "./item_template_table";
 import LocationRow from "./location_table";
 import LocationConnectionRow from "./location_connection_table";
+import LocationEnemyTemplateRow from "./location_enemy_template_table";
 import LootTableRow from "./loot_table_table";
+import LootTableEntryRow from "./loot_table_entry_table";
 import NamedEnemyRow from "./named_enemy_table";
 import NpcRow from "./npc_table";
 import NpcAffinityRow from "./npc_affinity_table";
@@ -208,6 +237,7 @@ import RenownRow from "./renown_table";
 import RenownPerkRow from "./renown_perk_table";
 import RenownServerFirstRow from "./renown_server_first_table";
 import ResourceGatherRow from "./resource_gather_table";
+import ResourceGatherTickRow from "./resource_gather_tick_table";
 import ResourceNodeRow from "./resource_node_table";
 import SearchResultRow from "./search_result_table";
 import TradeItemRow from "./trade_item_table";
@@ -316,6 +346,23 @@ const tablesSchema = __schema({
       { name: 'active_pet_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ActivePetRow),
+  AggroEntry: __table({
+    name: 'aggro_entry',
+    indexes: [
+      { name: 'by_combat', algorithm: 'btree', columns: [
+        'combatId',
+      ] },
+      { name: 'by_enemy', algorithm: 'btree', columns: [
+        'enemyId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'aggro_entry_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AggroEntryRow),
   AppVersion: __table({
     name: 'app_version',
     indexes: [
@@ -327,6 +374,45 @@ const tablesSchema = __schema({
       { name: 'app_version_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, AppVersionRow),
+  BankSlot: __table({
+    name: 'bank_slot',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_item', algorithm: 'btree', columns: [
+        'itemInstanceId',
+      ] },
+      { name: 'by_owner', algorithm: 'btree', columns: [
+        'ownerUserId',
+      ] },
+    ],
+    constraints: [
+      { name: 'bank_slot_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BankSlotRow),
+  BardSongTick: __table({
+    name: 'bard_song_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'bard_song_tick_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, BardSongTickRow),
+  CastTick: __table({
+    name: 'cast_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'cast_tick_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, CastTickRow),
   Character: __table({
     name: 'character',
     indexes: [
@@ -462,6 +548,17 @@ const tablesSchema = __schema({
       { name: 'combat_enemy_effect_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatEnemyEffectRow),
+  CombatLoopTick: __table({
+    name: 'combat_loop_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_loop_tick_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, CombatLoopTickRow),
   CombatLoot: __table({
     name: 'combat_loot',
     indexes: [
@@ -581,6 +678,39 @@ const tablesSchema = __schema({
       { name: 'corpse_item_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CorpseItemRow),
+  DayNightTick: __table({
+    name: 'day_night_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'day_night_tick_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, DayNightTickRow),
+  DisconnectLogoutTick: __table({
+    name: 'disconnect_logout_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'disconnect_logout_tick_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, DisconnectLogoutTickRow),
+  EffectTick: __table({
+    name: 'effect_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'effect_tick_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, EffectTickRow),
   EnemyAbility: __table({
     name: 'enemy_ability',
     indexes: [
@@ -595,6 +725,17 @@ const tablesSchema = __schema({
       { name: 'enemy_ability_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EnemyAbilityRow),
+  EnemyRespawnTick: __table({
+    name: 'enemy_respawn_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'enemy_respawn_tick_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, EnemyRespawnTickRow),
   EnemyRoleTemplate: __table({
     name: 'enemy_role_template',
     indexes: [
@@ -668,6 +809,17 @@ const tablesSchema = __schema({
       { name: 'event_contribution_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EventContributionRow),
+  EventDespawnTick: __table({
+    name: 'event_despawn_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'event_despawn_tick_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, EventDespawnTickRow),
   EventGroup: __table({
     name: 'event_group',
     indexes: [
@@ -876,6 +1028,28 @@ const tablesSchema = __schema({
       { name: 'group_member_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, GroupMemberRow),
+  HealthRegenTick: __table({
+    name: 'health_regen_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'health_regen_tick_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, HealthRegenTickRow),
+  HotTick: __table({
+    name: 'hot_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'hot_tick_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, HotTickRow),
   HotbarSlot: __table({
     name: 'hotbar_slot',
     indexes: [
@@ -890,6 +1064,17 @@ const tablesSchema = __schema({
       { name: 'hotbar_slot_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, HotbarSlotRow),
+  InactivityTick: __table({
+    name: 'inactivity_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'inactivity_tick_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, InactivityTickRow),
   ItemAffix: __table({
     name: 'item_affix',
     indexes: [
@@ -971,6 +1156,20 @@ const tablesSchema = __schema({
       { name: 'location_connection_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, LocationConnectionRow),
+  LocationEnemyTemplate: __table({
+    name: 'location_enemy_template',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_location', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'location_enemy_template_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, LocationEnemyTemplateRow),
   LootTable: __table({
     name: 'loot_table',
     indexes: [
@@ -987,6 +1186,20 @@ const tablesSchema = __schema({
       { name: 'loot_table_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, LootTableRow),
+  LootTableEntry: __table({
+    name: 'loot_table_entry',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_table', algorithm: 'btree', columns: [
+        'lootTableId',
+      ] },
+    ],
+    constraints: [
+      { name: 'loot_table_entry_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, LootTableEntryRow),
   NamedEnemy: __table({
     name: 'named_enemy',
     indexes: [
@@ -1299,6 +1512,17 @@ const tablesSchema = __schema({
       { name: 'resource_gather_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ResourceGatherRow),
+  ResourceGatherTick: __table({
+    name: 'resource_gather_tick',
+    indexes: [
+      { name: 'scheduledId', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'resource_gather_tick_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, ResourceGatherTickRow),
   ResourceNode: __table({
     name: 'resource_node',
     indexes: [
@@ -1578,6 +1802,8 @@ const tablesSchema = __schema({
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("tick_day_night", TickDayNightReducer),
+  __reducerSchema("sweep_inactivity", SweepInactivityReducer),
   __reducerSchema("set_app_version", SetAppVersionReducer),
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("send_friend_request", SendFriendRequestReducer),
@@ -1587,12 +1813,14 @@ const reducersSchema = __reducers(
   __reducerSchema("remove_friend", RemoveFriendReducer),
   __reducerSchema("login_email", LoginEmailReducer),
   __reducerSchema("logout", LogoutReducer),
+  __reducerSchema("disconnect_logout", DisconnectLogoutReducer),
   __reducerSchema("set_active_character", SetActiveCharacterReducer),
   __reducerSchema("clear_active_character", ClearActiveCharacterReducer),
   __reducerSchema("create_character", CreateCharacterReducer),
   __reducerSchema("bind_location", BindLocationReducer),
   __reducerSchema("delete_character", DeleteCharacterReducer),
   __reducerSchema("respawn_character", RespawnCharacterReducer),
+  __reducerSchema("character_logout", CharacterLogoutReducer),
   __reducerSchema("create_item_template", CreateItemTemplateReducer),
   __reducerSchema("grant_item", GrantItemReducer),
   __reducerSchema("buy_item", BuyItemReducer),
@@ -1621,6 +1849,7 @@ const reducersSchema = __reducers(
   __reducerSchema("learn_recipe_scroll", LearnRecipeScrollReducer),
   __reducerSchema("salvage_item", SalvageItemReducer),
   __reducerSchema("start_gather_resource", StartGatherResourceReducer),
+  __reducerSchema("finish_gather", FinishGatherReducer),
   __reducerSchema("start_trade", StartTradeReducer),
   __reducerSchema("add_trade_item", AddTradeItemReducer),
   __reducerSchema("remove_trade_item", RemoveTradeItemReducer),
@@ -1650,9 +1879,17 @@ const reducersSchema = __reducers(
   __reducerSchema("start_tracked_combat", StartTrackedCombatReducer),
   __reducerSchema("start_pull", StartPullReducer),
   __reducerSchema("set_combat_target", SetCombatTargetReducer),
+  __reducerSchema("resolve_pull", ResolvePullReducer),
   __reducerSchema("flee_combat", FleeCombatReducer),
+  __reducerSchema("respawn_enemy", RespawnEnemyReducer),
   __reducerSchema("dismiss_combat_results", DismissCombatResultsReducer),
   __reducerSchema("end_combat", EndCombatReducer),
+  __reducerSchema("regen_health", RegenHealthReducer),
+  __reducerSchema("tick_effects", TickEffectsReducer),
+  __reducerSchema("tick_hot", TickHotReducer),
+  __reducerSchema("tick_bard_songs", TickBardSongsReducer),
+  __reducerSchema("tick_casts", TickCastsReducer),
+  __reducerSchema("combat_loop", CombatLoopReducer),
   __reducerSchema("loot_corpse_item", LootCorpseItemReducer),
   __reducerSchema("loot_all_corpse", LootAllCorpseReducer),
   __reducerSchema("initiate_resurrect", InitiateResurrectReducer),
@@ -1675,6 +1912,7 @@ const reducersSchema = __reducers(
   __reducerSchema("resolve_world_event", ResolveWorldEventReducer),
   __reducerSchema("collect_event_item", CollectEventItemReducer),
   __reducerSchema("increment_event_counter", IncrementEventCounterReducer),
+  __reducerSchema("despawn_event_content", DespawnEventContentReducer),
   __reducerSchema("deposit_to_bank", DepositToBankReducer),
   __reducerSchema("withdraw_from_bank", WithdrawFromBankReducer),
 );

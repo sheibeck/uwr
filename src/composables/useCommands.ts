@@ -385,7 +385,7 @@ export const useCommands = ({
         commandText.value = '';
         return;
       }
-      recomputeRacialAllReducer({});
+      recomputeRacialAllReducer();
       addLocalEvent?.('command', 'Recomputing racial bonuses for all characters...');
     } else {
       submitCommandReducer({

@@ -209,10 +209,10 @@
               fontWeight: 700,
               padding: '2px 6px',
               borderRadius: '4px',
-              background: getPositionColor(entry.position),
+              background: getPositionColor(Number(entry.position)),
               color: '#000',
             }">
-              {{ getPositionOrdinal(entry.position) }}
+              {{ getPositionOrdinal(Number(entry.position)) }}
             </div>
             <div :style="{ fontWeight: 600, fontSize: '0.9rem' }">{{ entry.characterName }}</div>
           </div>
@@ -456,7 +456,7 @@ const rankProgress = computed(() => {
 const hasUnspentPerk = computed(() => {
   if (!props.renownData || currentRankNum.value < 2) return false;
   // Check if a perk has been chosen for the current rank
-  const existingPerk = props.renownPerks.find(p => Number(p.rankEarned) === currentRankNum.value);
+  const existingPerk = props.renownPerks.find(p => Number(p.rank) === currentRankNum.value);
   return !existingPerk;
 });
 

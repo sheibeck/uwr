@@ -13,7 +13,7 @@ export const usePlayer = ({ players, users }: UsePlayerArgs) => {
   const player = computed(() => {
     // Use connection identity which is reactive
     const identity = conn.identity;
-    if (!identity) return undefined;
+    if (!identity) return null;
     const myHex = identity.toHexString();
     return players.value.find((row) => row.id.toHexString() === myHex) ?? null;
   });
