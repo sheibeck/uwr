@@ -14,5 +14,5 @@ export default __t.row({
   id: __t.u64().primaryKey(),
   message: __t.string(),
   kind: __t.string(),
-  createdAt: __t.timestamp(),
+  createdAt: __t.timestamp().name("created_at"),
 });

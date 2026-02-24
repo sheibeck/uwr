@@ -12,8 +12,8 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
+  characterId: __t.u64().name("character_id"),
   points: __t.u64(),
-  currentRank: __t.u64(),
-  updatedAt: __t.timestamp(),
+  currentRank: __t.u64().name("current_rank"),
+  updatedAt: __t.timestamp().name("updated_at"),
 });

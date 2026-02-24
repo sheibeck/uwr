@@ -12,7 +12,7 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
-  recipeTemplateId: __t.u64(),
-  discoveredAt: __t.timestamp(),
+  characterId: __t.u64().name("character_id"),
+  recipeTemplateId: __t.u64().name("recipe_template_id"),
+  discoveredAt: __t.timestamp().name("discovered_at"),
 });

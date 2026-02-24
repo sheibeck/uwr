@@ -13,9 +13,9 @@ import {
 export default __t.row({
   id: __t.u64().primaryKey(),
   category: __t.string(),
-  achievementKey: __t.string(),
-  characterId: __t.u64(),
-  characterName: __t.string(),
-  achievedAt: __t.timestamp(),
+  achievementKey: __t.string().name("achievement_key"),
+  characterId: __t.u64().name("character_id"),
+  characterName: __t.string().name("character_name"),
+  achievedAt: __t.timestamp().name("achieved_at"),
   position: __t.u64(),
 });

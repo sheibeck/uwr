@@ -14,5 +14,5 @@ export default __t.row({
   id: __t.u64().primaryKey(),
   name: __t.string(),
   description: __t.string(),
-  rivalFactionId: __t.option(__t.u64()),
+  rivalFactionId: __t.option(__t.u64()).name("rival_faction_id"),
 });

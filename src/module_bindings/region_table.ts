@@ -13,6 +13,6 @@ import {
 export default __t.row({
   id: __t.u64().primaryKey(),
   name: __t.string(),
-  dangerMultiplier: __t.u64(),
-  regionType: __t.string(),
+  dangerMultiplier: __t.u64().name("danger_multiplier"),
+  regionType: __t.string().name("region_type"),
 });

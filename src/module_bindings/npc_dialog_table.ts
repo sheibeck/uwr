@@ -12,8 +12,8 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
-  npcId: __t.u64(),
+  characterId: __t.u64().name("character_id"),
+  npcId: __t.u64().name("npc_id"),
   text: __t.string(),
-  createdAt: __t.timestamp(),
+  createdAt: __t.timestamp().name("created_at"),
 });

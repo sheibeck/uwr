@@ -12,7 +12,7 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  spawnId: __t.u64(),
-  enemyTemplateId: __t.u64(),
-  roleTemplateId: __t.u64(),
+  spawnId: __t.u64().name("spawn_id"),
+  enemyTemplateId: __t.u64().name("enemy_template_id"),
+  roleTemplateId: __t.u64().name("role_template_id"),
 });

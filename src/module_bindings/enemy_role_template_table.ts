@@ -12,10 +12,10 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  enemyTemplateId: __t.u64(),
-  roleKey: __t.string(),
-  displayName: __t.string(),
+  enemyTemplateId: __t.u64().name("enemy_template_id"),
+  roleKey: __t.string().name("role_key"),
+  displayName: __t.string().name("display_name"),
   role: __t.string(),
-  roleDetail: __t.string(),
-  abilityProfile: __t.string(),
+  roleDetail: __t.string().name("role_detail"),
+  abilityProfile: __t.string().name("ability_profile"),
 });

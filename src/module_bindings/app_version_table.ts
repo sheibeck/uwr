@@ -13,5 +13,5 @@ import {
 export default __t.row({
   id: __t.u64().primaryKey(),
   version: __t.string(),
-  updatedAt: __t.timestamp(),
+  updatedAt: __t.timestamp().name("updated_at"),
 });

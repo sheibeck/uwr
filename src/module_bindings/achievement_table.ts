@@ -12,7 +12,7 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
-  achievementKey: __t.string(),
-  achievedAt: __t.timestamp(),
+  characterId: __t.u64().name("character_id"),
+  achievementKey: __t.string().name("achievement_key"),
+  achievedAt: __t.timestamp().name("achieved_at"),
 });

@@ -12,8 +12,8 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
-  abilityKey: __t.string(),
-  targetCharacterId: __t.option(__t.u64()),
-  endsAtMicros: __t.u64(),
+  characterId: __t.u64().name("character_id"),
+  abilityKey: __t.string().name("ability_key"),
+  targetCharacterId: __t.option(__t.u64()).name("target_character_id"),
+  endsAtMicros: __t.u64().name("ends_at_micros"),
 });

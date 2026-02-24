@@ -12,11 +12,11 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  eventId: __t.u64(),
-  objectiveType: __t.string(),
-  locationId: __t.u64(),
+  eventId: __t.u64().name("event_id"),
+  objectiveType: __t.string().name("objective_type"),
+  locationId: __t.u64().name("location_id"),
   name: __t.string(),
-  targetCount: __t.u64(),
-  currentCount: __t.u64(),
-  isAlive: __t.option(__t.bool()),
+  targetCount: __t.u64().name("target_count"),
+  currentCount: __t.u64().name("current_count"),
+  isAlive: __t.option(__t.bool()).name("is_alive"),
 });

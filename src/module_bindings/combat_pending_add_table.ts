@@ -12,9 +12,9 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  combatId: __t.u64(),
-  enemyTemplateId: __t.u64(),
-  enemyRoleTemplateId: __t.option(__t.u64()),
-  spawnId: __t.option(__t.u64()),
-  arriveAtMicros: __t.u64(),
+  combatId: __t.u64().name("combat_id"),
+  enemyTemplateId: __t.u64().name("enemy_template_id"),
+  enemyRoleTemplateId: __t.option(__t.u64()).name("enemy_role_template_id"),
+  spawnId: __t.option(__t.u64()).name("spawn_id"),
+  arriveAtMicros: __t.u64().name("arrive_at_micros"),
 });

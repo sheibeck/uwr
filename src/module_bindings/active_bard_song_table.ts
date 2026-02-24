@@ -12,9 +12,9 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  bardCharacterId: __t.u64(),
-  combatId: __t.option(__t.u64()),
-  songKey: __t.string(),
-  startedAtMicros: __t.u64(),
-  isFading: __t.bool(),
+  bardCharacterId: __t.u64().name("bard_character_id"),
+  combatId: __t.option(__t.u64()).name("combat_id"),
+  songKey: __t.string().name("song_key"),
+  startedAtMicros: __t.u64().name("started_at_micros"),
+  isFading: __t.bool().name("is_fading"),
 });

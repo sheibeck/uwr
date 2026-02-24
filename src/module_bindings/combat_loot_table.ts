@@ -12,13 +12,13 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  combatId: __t.u64(),
-  ownerUserId: __t.u64(),
-  characterId: __t.u64(),
-  itemTemplateId: __t.u64(),
-  createdAt: __t.timestamp(),
-  qualityTier: __t.option(__t.string()),
-  affixDataJson: __t.option(__t.string()),
-  isNamed: __t.option(__t.bool()),
-  craftQuality: __t.option(__t.string()),
+  combatId: __t.u64().name("combat_id"),
+  ownerUserId: __t.u64().name("owner_user_id"),
+  characterId: __t.u64().name("character_id"),
+  itemTemplateId: __t.u64().name("item_template_id"),
+  createdAt: __t.timestamp().name("created_at"),
+  qualityTier: __t.option(__t.string()).name("quality_tier"),
+  affixDataJson: __t.option(__t.string()).name("affix_data_json"),
+  isNamed: __t.option(__t.bool()).name("is_named"),
+  craftQuality: __t.option(__t.string()).name("craft_quality"),
 });

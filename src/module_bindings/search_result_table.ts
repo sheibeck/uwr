@@ -12,12 +12,12 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
-  locationId: __t.u64(),
-  foundResources: __t.bool(),
-  foundQuestItem: __t.bool(),
-  questItemId: __t.option(__t.u64()),
-  foundNamedEnemy: __t.bool(),
-  namedEnemyId: __t.option(__t.u64()),
-  searchedAt: __t.timestamp(),
+  characterId: __t.u64().name("character_id"),
+  locationId: __t.u64().name("location_id"),
+  foundResources: __t.bool().name("found_resources"),
+  foundQuestItem: __t.bool().name("found_quest_item"),
+  questItemId: __t.option(__t.u64()).name("quest_item_id"),
+  foundNamedEnemy: __t.bool().name("found_named_enemy"),
+  namedEnemyId: __t.option(__t.u64()).name("named_enemy_id"),
+  searchedAt: __t.timestamp().name("searched_at"),
 });

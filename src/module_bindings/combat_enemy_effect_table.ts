@@ -12,11 +12,11 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  combatId: __t.u64(),
-  enemyId: __t.u64(),
-  effectType: __t.string(),
+  combatId: __t.u64().name("combat_id"),
+  enemyId: __t.u64().name("enemy_id"),
+  effectType: __t.string().name("effect_type"),
   magnitude: __t.i64(),
-  roundsRemaining: __t.u64(),
-  sourceAbility: __t.option(__t.string()),
-  ownerCharacterId: __t.option(__t.u64()),
+  roundsRemaining: __t.u64().name("rounds_remaining"),
+  sourceAbility: __t.option(__t.string()).name("source_ability"),
+  ownerCharacterId: __t.option(__t.u64()).name("owner_character_id"),
 });

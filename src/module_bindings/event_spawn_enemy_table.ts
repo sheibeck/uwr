@@ -12,7 +12,7 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  eventId: __t.u64(),
-  spawnId: __t.u64(),
-  locationId: __t.u64(),
+  eventId: __t.u64().name("event_id"),
+  spawnId: __t.u64().name("spawn_id"),
+  locationId: __t.u64().name("location_id"),
 });

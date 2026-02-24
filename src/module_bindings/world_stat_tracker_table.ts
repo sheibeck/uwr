@@ -12,9 +12,9 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  statKey: __t.string(),
-  currentValue: __t.u64(),
-  fireThreshold: __t.u64(),
-  eventKeyToFire: __t.string(),
+  statKey: __t.string().name("stat_key"),
+  currentValue: __t.u64().name("current_value"),
+  fireThreshold: __t.u64().name("fire_threshold"),
+  eventKeyToFire: __t.string().name("event_key_to_fire"),
   fired: __t.bool(),
 });

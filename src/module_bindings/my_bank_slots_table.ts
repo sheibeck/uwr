@@ -12,7 +12,7 @@ import {
 
 export default __t.row({
   id: __t.u64(),
-  ownerUserId: __t.u64(),
+  ownerUserId: __t.u64().name("owner_user_id"),
   slot: __t.u64(),
-  itemInstanceId: __t.u64(),
+  itemInstanceId: __t.u64().name("item_instance_id"),
 });

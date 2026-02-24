@@ -11,9 +11,9 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  scheduledId: __t.u64().primaryKey(),
-  scheduledAt: __t.scheduleAt(),
-  characterId: __t.u64(),
-  ownerUserId: __t.u64(),
-  logoutAtMicros: __t.u64(),
+  scheduledId: __t.u64().primaryKey().name("scheduled_id"),
+  scheduledAt: __t.scheduleAt().name("scheduled_at"),
+  characterId: __t.u64().name("character_id"),
+  ownerUserId: __t.u64().name("owner_user_id"),
+  logoutAtMicros: __t.u64().name("logout_at_micros"),
 });

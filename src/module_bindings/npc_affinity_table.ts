@@ -12,11 +12,11 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
-  npcId: __t.u64(),
+  characterId: __t.u64().name("character_id"),
+  npcId: __t.u64().name("npc_id"),
   affinity: __t.i64(),
-  lastInteraction: __t.timestamp(),
-  giftsGiven: __t.u64(),
-  conversationCount: __t.u64(),
-  hasGreeted: __t.option(__t.bool()),
+  lastInteraction: __t.timestamp().name("last_interaction"),
+  giftsGiven: __t.u64().name("gifts_given"),
+  conversationCount: __t.u64().name("conversation_count"),
+  hasGreeted: __t.option(__t.bool()).name("has_greeted"),
 });

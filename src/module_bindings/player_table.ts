@@ -12,11 +12,11 @@ import {
 
 export default __t.row({
   id: __t.identity().primaryKey(),
-  createdAt: __t.timestamp(),
-  lastSeenAt: __t.timestamp(),
-  displayName: __t.option(__t.string()),
-  activeCharacterId: __t.option(__t.u64()),
-  userId: __t.option(__t.u64()),
-  sessionStartedAt: __t.option(__t.timestamp()),
-  lastActivityAt: __t.option(__t.timestamp()),
+  createdAt: __t.timestamp().name("created_at"),
+  lastSeenAt: __t.timestamp().name("last_seen_at"),
+  displayName: __t.option(__t.string()).name("display_name"),
+  activeCharacterId: __t.option(__t.u64()).name("active_character_id"),
+  userId: __t.option(__t.u64()).name("user_id"),
+  sessionStartedAt: __t.option(__t.timestamp()).name("session_started_at"),
+  lastActivityAt: __t.option(__t.timestamp()).name("last_activity_at"),
 });

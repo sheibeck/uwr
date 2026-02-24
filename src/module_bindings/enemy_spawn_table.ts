@@ -12,10 +12,10 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  locationId: __t.u64(),
-  enemyTemplateId: __t.u64(),
+  locationId: __t.u64().name("location_id"),
+  enemyTemplateId: __t.u64().name("enemy_template_id"),
   name: __t.string(),
   state: __t.string(),
-  lockedCombatId: __t.option(__t.u64()),
-  groupCount: __t.u64(),
+  lockedCombatId: __t.option(__t.u64()).name("locked_combat_id"),
+  groupCount: __t.u64().name("group_count"),
 });

@@ -12,10 +12,10 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  combatId: __t.u64(),
-  enemyId: __t.u64(),
-  abilityKey: __t.string(),
-  endsAtMicros: __t.u64(),
-  targetCharacterId: __t.option(__t.u64()),
-  targetPetId: __t.option(__t.u64()),
+  combatId: __t.u64().name("combat_id"),
+  enemyId: __t.u64().name("enemy_id"),
+  abilityKey: __t.string().name("ability_key"),
+  endsAtMicros: __t.u64().name("ends_at_micros"),
+  targetCharacterId: __t.option(__t.u64()).name("target_character_id"),
+  targetPetId: __t.option(__t.u64()).name("target_pet_id"),
 });

@@ -12,7 +12,7 @@ import {
 
 export default __t.row({
   id: __t.u64(),
-  characterId: __t.u64(),
-  factionId: __t.u64(),
+  characterId: __t.u64().name("character_id"),
+  factionId: __t.u64().name("faction_id"),
   standing: __t.i64(),
 });

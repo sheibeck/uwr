@@ -12,9 +12,9 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
-  questTemplateId: __t.u64(),
-  locationId: __t.u64(),
+  characterId: __t.u64().name("character_id"),
+  questTemplateId: __t.u64().name("quest_template_id"),
+  locationId: __t.u64().name("location_id"),
   name: __t.string(),
   discovered: __t.bool(),
   looted: __t.bool(),

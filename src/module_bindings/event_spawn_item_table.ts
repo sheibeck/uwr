@@ -12,9 +12,9 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  eventId: __t.u64(),
-  locationId: __t.u64(),
+  eventId: __t.u64().name("event_id"),
+  locationId: __t.u64().name("location_id"),
   name: __t.string(),
   collected: __t.bool(),
-  collectedByCharacterId: __t.option(__t.u64()),
+  collectedByCharacterId: __t.option(__t.u64()).name("collected_by_character_id"),
 });

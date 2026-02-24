@@ -12,7 +12,7 @@ import {
 
 export default __t.row({
   id: __t.u64(),
-  fromUserId: __t.u64(),
-  toUserId: __t.u64(),
-  createdAt: __t.timestamp(),
+  fromUserId: __t.u64().name("from_user_id"),
+  toUserId: __t.u64().name("to_user_id"),
+  createdAt: __t.timestamp().name("created_at"),
 });

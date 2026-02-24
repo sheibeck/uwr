@@ -12,6 +12,6 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  corpseId: __t.u64(),
-  itemInstanceId: __t.u64(),
+  corpseId: __t.u64().name("corpse_id"),
+  itemInstanceId: __t.u64().name("item_instance_id"),
 });

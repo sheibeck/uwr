@@ -12,10 +12,10 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  fromCharacterId: __t.u64(),
-  toCharacterId: __t.u64(),
+  fromCharacterId: __t.u64().name("from_character_id"),
+  toCharacterId: __t.u64().name("to_character_id"),
   state: __t.string(),
-  fromAccepted: __t.bool(),
-  toAccepted: __t.bool(),
-  createdAt: __t.timestamp(),
+  fromAccepted: __t.bool().name("from_accepted"),
+  toAccepted: __t.bool().name("to_accepted"),
+  createdAt: __t.timestamp().name("created_at"),
 });

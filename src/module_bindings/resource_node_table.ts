@@ -12,13 +12,13 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  locationId: __t.u64(),
-  characterId: __t.option(__t.u64()),
-  itemTemplateId: __t.u64(),
+  locationId: __t.u64().name("location_id"),
+  characterId: __t.option(__t.u64()).name("character_id"),
+  itemTemplateId: __t.u64().name("item_template_id"),
   name: __t.string(),
-  timeOfDay: __t.string(),
+  timeOfDay: __t.string().name("time_of_day"),
   quantity: __t.u64(),
   state: __t.string(),
-  lockedByCharacterId: __t.option(__t.u64()),
-  respawnAtMicros: __t.option(__t.u64()),
+  lockedByCharacterId: __t.option(__t.u64()).name("locked_by_character_id"),
+  respawnAtMicros: __t.option(__t.u64()).name("respawn_at_micros"),
 });

@@ -12,10 +12,10 @@ import {
 
 export default __t.row({
   id: __t.u64(),
-  characterId: __t.u64(),
-  questTemplateId: __t.u64(),
+  characterId: __t.u64().name("character_id"),
+  questTemplateId: __t.u64().name("quest_template_id"),
   progress: __t.u64(),
   completed: __t.bool(),
-  acceptedAt: __t.timestamp(),
-  completedAt: __t.option(__t.timestamp()),
+  acceptedAt: __t.timestamp().name("accepted_at"),
+  completedAt: __t.option(__t.timestamp()).name("completed_at"),
 });
