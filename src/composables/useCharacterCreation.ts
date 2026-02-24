@@ -1,7 +1,7 @@
 import { computed, ref, watch, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
-import type { CharacterRow, RaceRow } from '../module_bindings';
+import type { CharacterRow, RaceRow } from '../stdb-types';
 
 type UseCharacterCreationArgs = {
   connActive: Ref<boolean>;

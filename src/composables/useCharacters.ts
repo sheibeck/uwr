@@ -1,12 +1,12 @@
 import { computed, ref, watch, type Ref } from 'vue';
-import {
-  reducers,
-  type CharacterRow,
-  type GroupRow,
-  type LocationRow,
-  type PlayerRow,
-  type CharacterLogoutTickRow,
-} from '../module_bindings';
+import { reducers } from '../module_bindings';
+import type {
+  CharacterRow,
+  GroupRow,
+  LocationRow,
+  PlayerRow,
+  CharacterLogoutTickRow,
+} from '../stdb-types';
 import { useReducer } from 'spacetimedb/vue';
 
 export type PanelKey =

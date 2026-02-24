@@ -7,7 +7,7 @@ import type {
   CharacterRow,
   HotbarSlotRow,
   ItemTemplateRow,
-} from '../module_bindings';
+} from '../stdb-types';
 import { useReducer } from 'spacetimedb/vue';
 
 type HotbarDisplaySlot = {

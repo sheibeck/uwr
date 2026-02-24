@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue';
-import type { PlayerRow, UserRow } from '../module_bindings';
+import type { PlayerRow, UserRow } from '../stdb-types';
 import { useSpacetimeDB } from 'spacetimedb/vue';
 
 type UsePlayerArgs = {

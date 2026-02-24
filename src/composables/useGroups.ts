@@ -1,11 +1,11 @@
 import { computed, type Ref } from 'vue';
-import {
-  reducers,
-  type CharacterRow,
-  type GroupInviteRow,
-  type GroupRow,
-  type GroupMemberRow,
-} from '../module_bindings';
+import { reducers } from '../module_bindings';
+import type {
+  CharacterRow,
+  GroupInviteRow,
+  GroupRow,
+  GroupMemberRow,
+} from '../stdb-types';
 import { useReducer } from 'spacetimedb/vue';
 
 type UseGroupsArgs = {

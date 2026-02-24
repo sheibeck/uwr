@@ -1,5 +1,6 @@
 import { computed, ref, watch, type Ref } from 'vue';
-import { reducers, type PlayerRow } from '../module_bindings';
+import { reducers } from '../module_bindings';
+import type { PlayerRow } from '../stdb-types';
 import { useReducer } from 'spacetimedb/vue';
 import {
   beginSpacetimeAuthLogin,

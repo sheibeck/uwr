@@ -1,5 +1,6 @@
 import { type Ref } from 'vue';
-import { reducers, type CharacterRow } from '../module_bindings';
+import { reducers } from '../module_bindings';
+import type { CharacterRow } from '../stdb-types';
 import { useReducer } from 'spacetimedb/vue';
 
 type UseMovementArgs = {

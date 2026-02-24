@@ -1,7 +1,6 @@
 import { computed, watch, type Ref } from 'vue';
-import type { Infer } from 'spacetimedb';
-import {
-  reducers,
+import { reducers } from '../module_bindings';
+import type {
   CharacterRow,
   CombatEncounterRow,
   CombatParticipantRow,
@@ -19,7 +18,7 @@ import {
   ItemTemplateRow,
   FactionRow,
   PullStateRow,
-} from '../module_bindings';
+} from '../stdb-types';
 import { useReducer } from 'spacetimedb/vue';
 import {
   effectIsNegative,
@@ -57,26 +56,26 @@ type CombatRosterEntry = {
 
 type UseCombatArgs = {
   connActive: Ref<boolean>;
-  selectedCharacter: Ref<Infer<typeof CharacterRow> | null>;
-  combatEncounters: Ref<Infer<typeof CombatEncounterRow>[]>;
-  combatParticipants: Ref<Infer<typeof CombatParticipantRow>[]>;
-  combatEnemies: Ref<Infer<typeof CombatEnemyRow>[]>;
-  activePets: Ref<Infer<typeof ActivePetRow>[]>;
-  combatEnemyEffects: Ref<Infer<typeof CombatEnemyEffectRow>[]>;
-  combatEnemyCasts: Ref<Infer<typeof CombatEnemyCastRow>[]>;
-  enemyAbilities: Ref<Infer<typeof EnemyAbilityRow>[]>;
-  combatResults: Ref<Infer<typeof CombatResultRow>[]>;
-  combatLoot: Ref<Infer<typeof CombatLootRow>[]>;
-  itemTemplates: Ref<Infer<typeof ItemTemplateRow>[]>;
-  fallbackRoster: Ref<Infer<typeof CharacterRow>[]>;
-  enemySpawns: Ref<Infer<typeof EnemySpawnRow>[]>;
-  enemyTemplates: Ref<Infer<typeof EnemyTemplateRow>[]>;
-  enemyRoleTemplates: Ref<Infer<typeof EnemyRoleTemplateRow>[]>;
-  enemySpawnMembers: Ref<Infer<typeof EnemySpawnMemberRow>[]>;
-  pullStates: Ref<Infer<typeof PullStateRow>[]>;
+  selectedCharacter: Ref<CharacterRow | null>;
+  combatEncounters: Ref<CombatEncounterRow[]>;
+  combatParticipants: Ref<CombatParticipantRow[]>;
+  combatEnemies: Ref<CombatEnemyRow[]>;
+  activePets: Ref<ActivePetRow[]>;
+  combatEnemyEffects: Ref<CombatEnemyEffectRow[]>;
+  combatEnemyCasts: Ref<CombatEnemyCastRow[]>;
+  enemyAbilities: Ref<EnemyAbilityRow[]>;
+  combatResults: Ref<CombatResultRow[]>;
+  combatLoot: Ref<CombatLootRow[]>;
+  itemTemplates: Ref<ItemTemplateRow[]>;
+  fallbackRoster: Ref<CharacterRow[]>;
+  enemySpawns: Ref<EnemySpawnRow[]>;
+  enemyTemplates: Ref<EnemyTemplateRow[]>;
+  enemyRoleTemplates: Ref<EnemyRoleTemplateRow[]>;
+  enemySpawnMembers: Ref<EnemySpawnMemberRow[]>;
+  pullStates: Ref<PullStateRow[]>;
   nowMicros: Ref<number>;
-  characters: Ref<Infer<typeof CharacterRow>[]>;
-  factions: Ref<Infer<typeof FactionRow>[]>;
+  characters: Ref<CharacterRow[]>;
+  factions: Ref<FactionRow[]>;
 };
 
 const timestampToMicros = (timestamp: any) => {

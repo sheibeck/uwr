@@ -1,5 +1,6 @@
 import { computed, type Ref } from 'vue';
-import { reducers, type CharacterRow, type ItemInstanceRow, type ItemTemplateRow, type TradeSessionRow, type TradeItemRow } from '../module_bindings';
+import { reducers } from '../module_bindings';
+import type { CharacterRow, ItemInstanceRow, ItemTemplateRow, TradeSessionRow, TradeItemRow } from '../stdb-types';
 import { useReducer } from 'spacetimedb/vue';
 
 type UseTradeArgs = {

@@ -1,5 +1,6 @@
 import { computed, ref, type Ref } from 'vue';
-import { reducers, type CharacterRow, type ItemInstanceRow, type ItemTemplateRow, type RecipeTemplateRow, type RecipeDiscoveredRow } from '../module_bindings';
+import { reducers } from '../module_bindings';
+import type { CharacterRow, ItemInstanceRow, ItemTemplateRow, RecipeTemplateRow, RecipeDiscoveredRow } from '../stdb-types';
 import { useReducer } from 'spacetimedb/vue';
 import { buildItemTooltipData } from './useItemTooltip';
 

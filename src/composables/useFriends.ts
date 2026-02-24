@@ -1,10 +1,10 @@
 import { computed, ref, type Ref } from 'vue';
-import {
-  reducers,
-  type FriendRequestRow,
-  type FriendRow,
-  type UserRow,
-} from '../module_bindings';
+import { reducers } from '../module_bindings';
+import type {
+  FriendRequestRow,
+  FriendRow,
+  UserRow,
+} from '../stdb-types';
 import { useReducer } from 'spacetimedb/vue';
 
 type UseFriendsArgs = {

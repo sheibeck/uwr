@@ -1,5 +1,6 @@
 import { ref, type Ref } from 'vue';
-import { reducers, type CharacterRow, type NpcRow, type NpcDialogueOptionRow, type NpcAffinityRow, type FactionStandingRow, type PlayerRow, type LocationRow } from '../module_bindings';
+import { reducers } from '../module_bindings';
+import type { CharacterRow, NpcRow, NpcDialogueOptionRow, NpcAffinityRow, FactionStandingRow, PlayerRow, LocationRow } from '../stdb-types';
 import { useReducer } from 'spacetimedb/vue';
 import { ADMIN_IDENTITY_HEX } from '../data/worldEventDefs';
 

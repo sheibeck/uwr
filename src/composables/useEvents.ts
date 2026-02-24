@@ -4,7 +4,7 @@ import type {
   EventLocationRow,
   EventPrivateRow,
   EventGroupRow,
-} from '../module_bindings';
+} from '../stdb-types';
 
 export type EventItem = {
   id: bigint;
