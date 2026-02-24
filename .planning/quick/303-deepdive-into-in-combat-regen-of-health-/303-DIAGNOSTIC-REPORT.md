@@ -268,3 +268,28 @@ To narrow down the root cause, the user should check:
 | lifeOnHit gear | 0 (unused) | Never | No (stat tracked but unused) |
 
 **Root cause verdict:** The most likely explanation is a persistent `regen` CharacterEffect from Sanctify, a Bandage, or another party member's healing ability. Check the CharacterEffect table for the specific character.
+
+---
+
+## CONFIRMED ROOT CAUSE (Post-Verification)
+
+**Date confirmed:** 2026-02-24
+
+The user confirmed: NO HoTs, no food buffs, no party buffs. Solo combat only.
+
+**Observed ticks:**
+- +7 HP ticks (51->58, 56->63, 54->61)
+- +2 HP ticks (61->63)
+
+**Actual root cause: Out-of-combat vs in-combat regen rate disparity during sequential fights.**
+
+The +7 HP ticks are the **out-of-combat** regen rate: `maxHp / 15 = 114 / 15 = 7` (integer division). The +2 HP ticks are the **in-combat** rate: `HP_REGEN_IN = 2n`.
+
+The key mechanism:
+1. When combat ends via `handleVictory`, `clearCombatArtifacts` immediately deletes all `combatParticipant` rows
+2. The character is instantly "out of combat" the moment the last enemy dies
+3. There is no auto-aggro system, so there is always a gap between sequential kills
+4. During that gap, even if brief, the `regen_health` reducer sees the character as out-of-combat and applies the full `maxHp/15` rate
+5. Out-of-combat: +7 HP every 8 seconds. In-combat: +2 HP every 16 seconds. That is a **7x healing rate difference**.
+
+**Verdict: Working as designed.** The regen system correctly distinguishes combat state, and the transition between fights naturally causes the higher out-of-combat rate to apply. No bug, no code changes needed.
