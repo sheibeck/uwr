@@ -1697,6 +1697,14 @@ const REMOTE_MODULE = {
   typeof proceduresSchema
 >;
 
+// Fix v2 wire protocol mismatch: the server sends snake_case canonical table
+// names (e.g. "location_connection") but the SDK builds its lookup map using
+// the camelCase sourceName from tablesSchema keys (e.g. "locationConnection").
+// Patch each table's sourceName to the snake_case form so lookups succeed.
+for (const tbl of Object.values(REMOTE_MODULE.tables) as any[]) {
+  tbl.sourceName = tbl.sourceName.replace(/([A-Z])/g, '_$1').toLowerCase();
+}
+
 /** The tables available in this remote SpacetimeDB module. Each table reference doubles as a query builder. */
 export const tables: __QueryBuilder<typeof tablesSchema.schemaType> = __makeQueryBuilder(tablesSchema.schemaType);
 
