@@ -67,6 +67,7 @@ export default __t.object("Character", {
   racialMagicResist: __t.option(__t.u64()),
   racialPerceptionBonus: __t.option(__t.u64()),
   racialLootBonus: __t.option(__t.u64()),
+  lastCombatEndAt: __t.option(__t.u64()),
 });
 
 

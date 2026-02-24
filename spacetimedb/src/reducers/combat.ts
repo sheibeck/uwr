@@ -361,8 +361,12 @@ export const registerCombatReducers = (deps: any) => {
     }
     for (const characterId of participantIds) {
       const character = ctx.db.character.id.find(characterId);
-      if (character && character.combatTargetEnemyId) {
-        ctx.db.character.id.update({ ...character, combatTargetEnemyId: undefined });
+      if (character) {
+        ctx.db.character.id.update({
+          ...character,
+          combatTargetEnemyId: undefined,
+          lastCombatEndAt: ctx.timestamp.microsSinceUnixEpoch,
+        });
       }
       for (const cast of ctx.db.characterCast.by_character.filter(characterId)) {
         const abilityRows = [...ctx.db.abilityTemplate.by_key.filter(cast.abilityKey)];
@@ -1294,7 +1298,8 @@ export const registerCombatReducers = (deps: any) => {
 
   const HP_REGEN_IN = 2n;
   const MANA_REGEN_IN = 2n;
-  const STAMINA_REGEN_IN = 1n;
+  const STAMINA_REGEN_IN = 2n;  // bumped from 1
+  const COMBAT_COOLDOWN_MICROS = 3_000_000n;  // 3 seconds post-combat cooldown
   const REGEN_TICK_MICROS = 8_000_000n;
   const EFFECT_TICK_MICROS = 10_000_000n;
   const HOT_TICK_MICROS = 3_000_000n;
@@ -1304,7 +1309,10 @@ export const registerCombatReducers = (deps: any) => {
     const halfTick = tickIndex % 2n === 0n;
 
     for (const character of ctx.db.character.iter()) {
-      const inCombat = !!activeCombatIdForCharacter(ctx, character.id);
+      const activelyInCombat = !!activeCombatIdForCharacter(ctx, character.id);
+      const inCooldown = !activelyInCombat && character.lastCombatEndAt !== undefined && character.lastCombatEndAt !== null &&
+        (ctx.timestamp.microsSinceUnixEpoch - character.lastCombatEndAt) < COMBAT_COOLDOWN_MICROS;
+      const inCombat = activelyInCombat || inCooldown;
       if (character.hp === 0n) {
         if (!inCombat) {
           for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
@@ -1317,7 +1325,7 @@ export const registerCombatReducers = (deps: any) => {
 
       const hpRegen = inCombat ? HP_REGEN_IN : (character.maxHp / 15n || 1n);
       const manaRegen = inCombat ? MANA_REGEN_IN : (character.maxMana > 0n ? character.maxMana / 20n || 1n : 0n);
-      const staminaRegen = inCombat ? STAMINA_REGEN_IN : (character.maxStamina / 12n > 2n ? character.maxStamina / 12n : 2n);
+      const staminaRegen = inCombat ? STAMINA_REGEN_IN : (character.maxStamina / 12n > 3n ? character.maxStamina / 12n : 3n);
 
       // Sum food regen bonus effects (food_mana_regen, food_stamina_regen, food_health_regen)
       // These increase the per-tick regen rate instead of granting periodic heals
