@@ -757,9 +757,6 @@ export type MyGroupInvites = __Infer<typeof MyGroupInvites>;
 export const MyGroupMembers = __t.object("MyGroupMembers", {});
 export type MyGroupMembers = __Infer<typeof MyGroupMembers>;
 
-export const MyLocationEvents = __t.object("MyLocationEvents", {});
-export type MyLocationEvents = __Infer<typeof MyLocationEvents>;
-
 export const MyNpcDialog = __t.object("MyNpcDialog", {});
 export type MyNpcDialog = __Infer<typeof MyNpcDialog>;
 
@@ -768,9 +765,6 @@ export type MyPanelLayout = __Infer<typeof MyPanelLayout>;
 
 export const MyPlayer = __t.object("MyPlayer", {});
 export type MyPlayer = __Infer<typeof MyPlayer>;
-
-export const MyPrivateEvents = __t.object("MyPrivateEvents", {});
-export type MyPrivateEvents = __Infer<typeof MyPrivateEvents>;
 
 export const MyQuests = __t.object("MyQuests", {});
 export type MyQuests = __Infer<typeof MyQuests>;

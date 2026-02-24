@@ -197,11 +197,9 @@ import MyFriendsRow from "./my_friends_table";
 import MyGroupEventsRow from "./my_group_events_table";
 import MyGroupInvitesRow from "./my_group_invites_table";
 import MyGroupMembersRow from "./my_group_members_table";
-import MyLocationEventsRow from "./my_location_events_table";
 import MyNpcDialogRow from "./my_npc_dialog_table";
 import MyPanelLayoutRow from "./my_panel_layout_table";
 import MyPlayerRow from "./my_player_table";
-import MyPrivateEventsRow from "./my_private_events_table";
 import MyQuestsRow from "./my_quests_table";
 import NamedEnemyRow from "./named_enemy_table";
 import NpcRow from "./npc_table";
@@ -684,6 +682,7 @@ const tablesSchema = __schema({
     constraints: [
       { name: 'event_group_id_key', constraint: 'unique', columns: ['id'] },
     ],
+    event: true,
   }, EventGroupRow),
   event_location: __table({
     name: 'event_location',
@@ -698,6 +697,7 @@ const tablesSchema = __schema({
     constraints: [
       { name: 'event_location_id_key', constraint: 'unique', columns: ['id'] },
     ],
+    event: true,
   }, EventLocationRow),
   event_objective: __table({
     name: 'event_objective',
@@ -729,6 +729,7 @@ const tablesSchema = __schema({
     constraints: [
       { name: 'event_private_id_key', constraint: 'unique', columns: ['id'] },
     ],
+    event: true,
   }, EventPrivateRow),
   event_spawn_enemy: __table({
     name: 'event_spawn_enemy',
@@ -774,6 +775,7 @@ const tablesSchema = __schema({
     constraints: [
       { name: 'event_world_id_key', constraint: 'unique', columns: ['id'] },
     ],
+    event: true,
   }, EventWorldRow),
   faction: __table({
     name: 'faction',
@@ -1532,13 +1534,6 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyGroupMembersRow),
-  my_location_events: __table({
-    name: 'my_location_events',
-    indexes: [
-    ],
-    constraints: [
-    ],
-  }, MyLocationEventsRow),
   my_npc_dialog: __table({
     name: 'my_npc_dialog',
     indexes: [
@@ -1560,13 +1555,6 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyPlayerRow),
-  my_private_events: __table({
-    name: 'my_private_events',
-    indexes: [
-    ],
-    constraints: [
-    ],
-  }, MyPrivateEventsRow),
   my_quests: __table({
     name: 'my_quests',
     indexes: [
