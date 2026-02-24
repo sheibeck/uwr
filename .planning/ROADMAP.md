@@ -793,6 +793,16 @@ Plans:
 - [ ] Power scaling passes sanity check: level N ability power >= level (N-3) ability power for same class (no regression)
 - [ ] Human verification: player can level a character to 10 and observe distinct, functional abilities at each unlock point
 
+### Phase 23: V2 Subscription Optimization
+
+**Goal:** Convert the four event log tables to SpacetimeDB v2 Event Tables (auto-delete after broadcast, eliminating server-side trimming), and update the client to consume event data via onInsert callbacks instead of useTable (which returns empty for event tables).
+**Depends on:** Phase 22
+**Plans:** 2 plans
+
+Plans:
+- [ ] 23-01-PLAN.md — Backend: convert 4 event tables to event:true, remove trimming code, remove event views, publish and regenerate bindings
+- [ ] 23-02-PLAN.md — Client: replace useTable with onInsert callbacks for event tables, verify event log wiring and scoping
+
 ---
 
 ## Milestone Success Criteria
