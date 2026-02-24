@@ -14,7 +14,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 **Current phase:** 21.1 — Stat Systems Off-Stat Hooks (COMPLETE — human-verified 2026-02-21)
 **Next action:** Continue Phase 21 (Race Expansion) or Phase 22 (Class Ability Balancing) — run /gsd:progress to check
 **Last session:** 2026-02-24T19:58:48.286Z
-Last activity: 2026-02-24 - Completed quick task 312: Fix Cannot read properties of undefined reading columns error in SpacetimeDB client
+Last activity: 2026-02-24 - Completed quick task 313: Remove private tables from v2 bindings, delete stale v1 files, clear Vite cache
 
 ---
 
@@ -562,10 +562,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 310 | Remove v1 shims, fix useTable crash — PascalCase→camelCase table keys, clean stdb-types comment | 2026-02-24 | c5e3dfd | [310-remove-v1-shims-and-fix-usetable-error-n](./quick/310-remove-v1-shims-and-fix-usetable-error-n/) |
 | 311 | Remove stdb-types.ts shim — rename XxxRow to Xxx across 36 files, import from module_bindings/types | 2026-02-24 | 4e127cd | [311-remove-stdb-types-ts-shim-rename-all-xxx](./quick/311-remove-stdb-types-ts-shim-rename-all-xxx/) |
 | 312 | Fix Cannot read properties of undefined reading columns error in SpacetimeDB client | 2026-02-24 | 1608878 | [312-fix-cannot-read-properties-of-undefined-](./quick/312-fix-cannot-read-properties-of-undefined-/) |
+| 313 | Debug persistent columns undefined error — v2 SDK table lookup mismatch | 2026-02-24 | 5313fa5 | [313-debug-persistent-columns-undefined-error](./quick/313-debug-persistent-columns-undefined-error/) |
 
 ---
 
-Last activity: 2026-02-24 - Completed quick task 312: Fix Cannot read properties of undefined reading columns error in SpacetimeDB client
+Last activity: 2026-02-24 - Completed quick task 313: Remove private tables from v2 bindings, delete stale v1 files, clear Vite cache
 
 ## Last Session
 
