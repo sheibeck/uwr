@@ -1018,6 +1018,478 @@ export function ensureWorldLayout(ctx: any) {
     craftingAvailable: false,
   });
 
+  // === Region 4: Greyveil Moors ===
+  const greyveilMoors = upsertRegionByName({
+    name: 'Greyveil Moors',
+    dangerMultiplier: 140n,
+    regionType: 'outdoor',
+  });
+
+  const greyveilCrossroads = upsertLocationByName({
+    name: 'Greyveil Crossroads',
+    description: 'A windswept crossroads where moss-covered signposts point in every direction. A small inn offers warmth.',
+    zone: 'Greyveil',
+    regionId: greyveilMoors.id,
+    levelOffset: 0n,
+    isSafe: true,
+    terrainType: 'town',
+    bindStone: true,
+    craftingAvailable: true,
+  });
+  const misthollowBog = upsertLocationByName({
+    name: 'Misthollow Bog',
+    description: 'Thick fog clings to pools of dark water where unseen things splash and gurgle.',
+    zone: 'Greyveil',
+    regionId: greyveilMoors.id,
+    levelOffset: 1n,
+    isSafe: false,
+    terrainType: 'swamp',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const standingStoneCircle = upsertLocationByName({
+    name: 'Standing Stone Circle',
+    description: 'Twelve weathered megaliths form a circle on a treeless hilltop. Faint runes glow at dusk.',
+    zone: 'Greyveil',
+    regionId: greyveilMoors.id,
+    levelOffset: 1n,
+    isSafe: false,
+    terrainType: 'plains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const barrowfield = upsertLocationByName({
+    name: 'Barrowfield',
+    description: 'Low earthen mounds stretch across a grey field. Some have been broken open.',
+    zone: 'Greyveil',
+    regionId: greyveilMoors.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'plains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const thornmireEdge = upsertLocationByName({
+    name: 'Thornmire Edge',
+    description: 'Where the moor meets tangled briars, the ground squelches with every step.',
+    zone: 'Greyveil',
+    regionId: greyveilMoors.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'swamp',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const cairnHeights = upsertLocationByName({
+    name: 'Cairn Heights',
+    description: 'Rocky outcrops and cairn markers overlook the misty lowlands.',
+    zone: 'Greyveil',
+    regionId: greyveilMoors.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'mountains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const wraithHollow = upsertLocationByName({
+    name: 'Wraith Hollow',
+    description: 'Gnarled trees with bone-white bark grow in a silent depression. No birds sing here.',
+    zone: 'Greyveil',
+    regionId: greyveilMoors.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'woods',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const peatQuarry = upsertLocationByName({
+    name: 'Peat Quarry',
+    description: 'An abandoned peat-cutting operation. Tools still rust where they were dropped.',
+    zone: 'Greyveil',
+    regionId: greyveilMoors.id,
+    levelOffset: 1n,
+    isSafe: false,
+    terrainType: 'plains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const greywindPass = upsertLocationByName({
+    name: 'Greywind Pass',
+    description: 'A narrow mountain pass where wind screams through rocky teeth.',
+    zone: 'Greyveil',
+    regionId: greyveilMoors.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'mountains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const hauntwellSprings = upsertLocationByName({
+    name: 'Hauntwell Springs',
+    description: 'Natural springs bubble up from deep underground, their water tinged grey with mineral deposits.',
+    zone: 'Greyveil',
+    regionId: greyveilMoors.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'swamp',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+
+  // === Region 5: Silverpine Forest ===
+  const silverpineForest = upsertRegionByName({
+    name: 'Silverpine Forest',
+    dangerMultiplier: 180n,
+    regionType: 'outdoor',
+  });
+
+  const silverrootCamp = upsertLocationByName({
+    name: 'Silverroot Camp',
+    description: 'A Verdant Circle outpost built around the roots of an enormous silver pine. Rope bridges connect platforms.',
+    zone: 'Silverpine',
+    regionId: silverpineForest.id,
+    levelOffset: 0n,
+    isSafe: true,
+    terrainType: 'town',
+    bindStone: true,
+    craftingAvailable: true,
+  });
+  const dappledGlade = upsertLocationByName({
+    name: 'Dappled Glade',
+    description: 'Shafts of pale light pierce the canopy, illuminating a clearing of soft moss and wildflowers.',
+    zone: 'Silverpine',
+    regionId: silverpineForest.id,
+    levelOffset: 1n,
+    isSafe: false,
+    terrainType: 'woods',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const webwoodThicket = upsertLocationByName({
+    name: 'Webwood Thicket',
+    description: 'Dense webs stretch between trunks. The silk is strong as rope and sticky as pitch.',
+    zone: 'Silverpine',
+    regionId: silverpineForest.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'woods',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const moonwellClearing = upsertLocationByName({
+    name: 'Moonwell Clearing',
+    description: 'A natural clearing where a crystalline pool reflects the sky. The water hums faintly.',
+    zone: 'Silverpine',
+    regionId: silverpineForest.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'plains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const rootknotCaves = upsertLocationByName({
+    name: 'Rootknot Caves',
+    description: 'Tree roots have broken through cave ceilings, creating a labyrinth of stone and wood.',
+    zone: 'Silverpine',
+    regionId: silverpineForest.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const darkpineHollow = upsertLocationByName({
+    name: 'Darkpine Hollow',
+    description: 'The oldest trees grow here, their bark nearly black. Strange fungi glow between their roots.',
+    zone: 'Silverpine',
+    regionId: silverpineForest.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'woods',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const owlwatchRidge = upsertLocationByName({
+    name: 'Owlwatch Ridge',
+    description: 'A forested ridge where ancient owls roost in hollow trunks. Their eyes track all movement.',
+    zone: 'Silverpine',
+    regionId: silverpineForest.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'mountains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const frostfernDell = upsertLocationByName({
+    name: 'Frostfern Dell',
+    description: 'Delicate frost-covered ferns grow year-round in this shaded valley. The air is always cold.',
+    zone: 'Silverpine',
+    regionId: silverpineForest.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'woods',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const mossgraveRuins = upsertLocationByName({
+    name: 'Mossgrave Ruins',
+    description: 'Crumbling walls and broken arches of a civilization older than memory, reclaimed by moss and vine.',
+    zone: 'Silverpine',
+    regionId: silverpineForest.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'plains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const briarthornGate = upsertLocationByName({
+    name: 'Briarthorn Gate',
+    description: 'Massive thorny growths form a natural archway. Beyond lies the road to harder lands.',
+    zone: 'Silverpine',
+    regionId: silverpineForest.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'woods',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+
+  // === Region 6: Ironhold Garrison ===
+  const ironholdGarrison = upsertRegionByName({
+    name: 'Ironhold Garrison',
+    dangerMultiplier: 220n,
+    regionType: 'outdoor',
+  });
+
+  const ironholdKeep = upsertLocationByName({
+    name: 'Ironhold Keep',
+    description: 'A massive stone keep with iron-banded gates. The Iron Compact banner flies from every tower.',
+    zone: 'Ironhold',
+    regionId: ironholdGarrison.id,
+    levelOffset: 0n,
+    isSafe: true,
+    terrainType: 'town',
+    bindStone: true,
+    craftingAvailable: true,
+  });
+  const sentinelWalk = upsertLocationByName({
+    name: 'Sentinel Walk',
+    description: 'A raised stone walkway connecting watchtowers. Patrols march here constantly.',
+    zone: 'Ironhold',
+    regionId: ironholdGarrison.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'plains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const rustedArmory = upsertLocationByName({
+    name: 'Rusted Armory',
+    description: 'An underground armory where weapons and armor from forgotten wars line the walls.',
+    zone: 'Ironhold',
+    regionId: ironholdGarrison.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const windshearBluffs = upsertLocationByName({
+    name: 'Windshear Bluffs',
+    description: 'Howling winds tear across exposed cliff faces. Only the sure-footed survive.',
+    zone: 'Ironhold',
+    regionId: ironholdGarrison.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'mountains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const siegeFields = upsertLocationByName({
+    name: 'Siege Fields',
+    description: 'Scarred battlegrounds where siege engines rot. Bones still surface after rain.',
+    zone: 'Ironhold',
+    regionId: ironholdGarrison.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'plains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const quarantineWard = upsertLocationByName({
+    name: 'Quarantine Ward',
+    description: 'A walled-off section of the garrison where the sick and cursed are kept.',
+    zone: 'Ironhold',
+    regionId: ironholdGarrison.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'town',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const ashfallowTrenches = upsertLocationByName({
+    name: 'Ashfallow Trenches',
+    description: 'Deep trenches dug into volcanic soil. The air tastes of sulphur and iron.',
+    zone: 'Ironhold',
+    regionId: ironholdGarrison.id,
+    levelOffset: 4n,
+    isSafe: false,
+    terrainType: 'plains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const forgecinder = upsertLocationByName({
+    name: 'Forgecinder Foundry',
+    description: 'A massive underground foundry still burning with ancient fires. Constructs patrol the halls.',
+    zone: 'Ironhold',
+    regionId: ironholdGarrison.id,
+    levelOffset: 4n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const rampartRoad = upsertLocationByName({
+    name: 'Rampart Road',
+    description: 'A fortified mountain road lined with arrow slits and murder holes.',
+    zone: 'Ironhold',
+    regionId: ironholdGarrison.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'mountains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const dreadgate = upsertLocationByName({
+    name: 'Dreadgate',
+    description: 'The final fortification before the Dreadspire. Its gates have been breached from within.',
+    zone: 'Ironhold',
+    regionId: ironholdGarrison.id,
+    levelOffset: 4n,
+    isSafe: false,
+    terrainType: 'mountains',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+
+  // === Region 7: Dreadspire Ruins ===
+  const dreadspireRuins = upsertRegionByName({
+    name: 'Dreadspire Ruins',
+    dangerMultiplier: 280n,
+    regionType: 'dungeon',
+  });
+
+  const shatteredVestibule = upsertLocationByName({
+    name: 'Shattered Vestibule',
+    description: 'Broken columns and cracked floor tiles mark the entrance to the ruined spire. A cold wind blows upward from below.',
+    zone: 'Dreadspire',
+    regionId: dreadspireRuins.id,
+    levelOffset: 1n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const wailingGallery = upsertLocationByName({
+    name: 'Wailing Gallery',
+    description: 'A long corridor where the wind produces an eerie wailing. Tattered tapestries line the walls.',
+    zone: 'Dreadspire',
+    regionId: dreadspireRuins.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const spireBarracks = upsertLocationByName({
+    name: 'Spire Barracks',
+    description: 'An old military barracks repurposed as a forward camp. A forge still glows.',
+    zone: 'Dreadspire',
+    regionId: dreadspireRuins.id,
+    levelOffset: 2n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: true,
+    craftingAvailable: true,
+  });
+  const runecarverChamber = upsertLocationByName({
+    name: 'Runecarver Chamber',
+    description: 'Arcane circles cover every surface. The air crackles with residual magic.',
+    zone: 'Dreadspire',
+    regionId: dreadspireRuins.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const collapsingAtrium = upsertLocationByName({
+    name: 'Collapsing Atrium',
+    description: 'The central hall of the spire, its ceiling half-caved. Rubble creates natural chokepoints.',
+    zone: 'Dreadspire',
+    regionId: dreadspireRuins.id,
+    levelOffset: 3n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const shadowveinDepths = upsertLocationByName({
+    name: 'Shadowvein Depths',
+    description: 'Deep tunnels where veins of dark crystal pulse with faint light. The darkness feels alive.',
+    zone: 'Dreadspire',
+    regionId: dreadspireRuins.id,
+    levelOffset: 4n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const boneReliquary = upsertLocationByName({
+    name: 'Bone Reliquary',
+    description: 'Shelves of preserved bones and jars of viscera. A necromancer\'s laboratory.',
+    zone: 'Dreadspire',
+    regionId: dreadspireRuins.id,
+    levelOffset: 4n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const dreadlordAscent = upsertLocationByName({
+    name: 'Dreadlord Ascent',
+    description: 'A spiraling staircase ascending through the intact upper levels. Guards watch from alcoves.',
+    zone: 'Dreadspire',
+    regionId: dreadspireRuins.id,
+    levelOffset: 5n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const throneOfWhispers = upsertLocationByName({
+    name: 'Throne of Whispers',
+    description: 'The seat of power of the fallen Dreadlord. Shadows coalesce and disperse around the throne.',
+    zone: 'Dreadspire',
+    regionId: dreadspireRuins.id,
+    levelOffset: 5n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  const abyssalVault = upsertLocationByName({
+    name: 'The Abyssal Vault',
+    description: 'The deepest chamber, sealed behind wards. Something immensely powerful stirs within.',
+    zone: 'Dreadspire',
+    regionId: dreadspireRuins.id,
+    levelOffset: 6n,
+    isSafe: false,
+    terrainType: 'dungeon',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+
   const world = getWorldState(ctx);
   if (world) {
     ctx.db.worldState.id.update({
@@ -1085,6 +1557,90 @@ export function ensureWorldLayout(ctx: any) {
   connectIfMissing(furnace.id, cinderWellspring.id);
   connectIfMissing(cinderWellspring.id, ashwarden.id);
   connectIfMissing(embervault.id, ashwarden.id);
+
+  // === Greyveil Moors connections ===
+  connectIfMissing(greyveilCrossroads.id, misthollowBog.id);
+  connectIfMissing(greyveilCrossroads.id, standingStoneCircle.id);
+  connectIfMissing(greyveilCrossroads.id, peatQuarry.id);
+  connectIfMissing(greyveilCrossroads.id, barrowfield.id);
+  connectIfMissing(misthollowBog.id, thornmireEdge.id);
+  connectIfMissing(misthollowBog.id, hauntwellSprings.id);
+  connectIfMissing(standingStoneCircle.id, barrowfield.id);
+  connectIfMissing(standingStoneCircle.id, cairnHeights.id);
+  connectIfMissing(barrowfield.id, wraithHollow.id);
+  connectIfMissing(barrowfield.id, thornmireEdge.id);
+  connectIfMissing(cairnHeights.id, greywindPass.id);
+  connectIfMissing(wraithHollow.id, hauntwellSprings.id);
+  connectIfMissing(thornmireEdge.id, hauntwellSprings.id);
+  connectIfMissing(greywindPass.id, wraithHollow.id);
+
+  // Cross-region connections: Hollowmere Vale <-> Greyveil Moors
+  connectIfMissing(lichenRidge.id, greyveilCrossroads.id);
+  connectIfMissing(cairnMeadow.id, standingStoneCircle.id);
+
+  // Cross-region connection: Greyveil Moors <-> Silverpine Forest
+  connectIfMissing(greyveilCrossroads.id, silverrootCamp.id);
+
+  // === Silverpine Forest connections ===
+  connectIfMissing(silverrootCamp.id, dappledGlade.id);
+  connectIfMissing(silverrootCamp.id, frostfernDell.id);
+  connectIfMissing(silverrootCamp.id, owlwatchRidge.id);
+  connectIfMissing(dappledGlade.id, webwoodThicket.id);
+  connectIfMissing(dappledGlade.id, moonwellClearing.id);
+  connectIfMissing(webwoodThicket.id, darkpineHollow.id);
+  connectIfMissing(webwoodThicket.id, rootknotCaves.id);
+  connectIfMissing(moonwellClearing.id, mossgraveRuins.id);
+  connectIfMissing(moonwellClearing.id, owlwatchRidge.id);
+  connectIfMissing(darkpineHollow.id, briarthornGate.id);
+  connectIfMissing(darkpineHollow.id, mossgraveRuins.id);
+  connectIfMissing(owlwatchRidge.id, frostfernDell.id);
+  connectIfMissing(frostfernDell.id, rootknotCaves.id);
+  connectIfMissing(briarthornGate.id, mossgraveRuins.id);
+
+  // Cross-region connection: Hollowmere Vale <-> Silverpine Forest
+  connectIfMissing(thornveil.id, dappledGlade.id);
+
+  // Cross-region connection: Silverpine Forest <-> Ironhold Garrison
+  connectIfMissing(briarthornGate.id, ironholdKeep.id);
+
+  // === Ironhold Garrison connections ===
+  connectIfMissing(ironholdKeep.id, sentinelWalk.id);
+  connectIfMissing(ironholdKeep.id, siegeFields.id);
+  connectIfMissing(ironholdKeep.id, rampartRoad.id);
+  connectIfMissing(sentinelWalk.id, windshearBluffs.id);
+  connectIfMissing(sentinelWalk.id, quarantineWard.id);
+  connectIfMissing(siegeFields.id, ashfallowTrenches.id);
+  connectIfMissing(siegeFields.id, rustedArmory.id);
+  connectIfMissing(windshearBluffs.id, rampartRoad.id);
+  connectIfMissing(ashfallowTrenches.id, forgecinder.id);
+  connectIfMissing(quarantineWard.id, rustedArmory.id);
+  connectIfMissing(rampartRoad.id, dreadgate.id);
+  connectIfMissing(forgecinder.id, dreadgate.id);
+  connectIfMissing(rustedArmory.id, forgecinder.id);
+
+  // Cross-region connection: Embermarch Fringe <-> Ironhold Garrison
+  connectIfMissing(pyre.id, rampartRoad.id);
+
+  // Cross-region connection: Ironhold Garrison <-> Dreadspire Ruins
+  connectIfMissing(dreadgate.id, shatteredVestibule.id);
+
+  // === Dreadspire Ruins connections ===
+  connectIfMissing(shatteredVestibule.id, wailingGallery.id);
+  connectIfMissing(shatteredVestibule.id, spireBarracks.id);
+  connectIfMissing(wailingGallery.id, runecarverChamber.id);
+  connectIfMissing(wailingGallery.id, collapsingAtrium.id);
+  connectIfMissing(spireBarracks.id, collapsingAtrium.id);
+  connectIfMissing(runecarverChamber.id, boneReliquary.id);
+  connectIfMissing(collapsingAtrium.id, shadowveinDepths.id);
+  connectIfMissing(collapsingAtrium.id, dreadlordAscent.id);
+  connectIfMissing(shadowveinDepths.id, boneReliquary.id);
+  connectIfMissing(shadowveinDepths.id, throneOfWhispers.id);
+  connectIfMissing(boneReliquary.id, dreadlordAscent.id);
+  connectIfMissing(dreadlordAscent.id, throneOfWhispers.id);
+  connectIfMissing(throneOfWhispers.id, abyssalVault.id);
+
+  // Cross-region connection: Embermarch Depths <-> Dreadspire Ruins (underground passage)
+  connectIfMissing(ashwarden.id, shadowveinDepths.id);
 }
 
 export function ensureDialogueOptions(ctx: any) {
