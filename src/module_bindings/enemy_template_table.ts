@@ -32,4 +32,5 @@ export default __t.row({
   factionId: __t.option(__t.u64()),
   isBoss: __t.option(__t.bool()),
   isSocial: __t.option(__t.bool()),
+  bossRegionName: __t.option(__t.string()),
 });
