@@ -553,10 +553,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 302 | unique magical drops for each boss covering all 14 classes | 2026-02-24 | 7560732 | [302-unique-magical-drops-for-each-boss-cover](./quick/302-unique-magical-drops-for-each-boss-cover/) |
 | 303 | deepdive into in combat regen of health and look for anything that could be an issue | 2026-02-24 | 60d80c6 | [303-deepdive-into-in-combat-regen-of-health-](./quick/303-deepdive-into-in-combat-regen-of-health-/) |
 | 304 | 3s combat cooldown before out-of-combat regen, increase stamina regen by 1 | 2026-02-24 | c6e11b6 | [304-3s-combat-cooldown-before-out-of-combat-](./quick/304-3s-combat-cooldown-before-out-of-combat-/) |
+| 305 | Wire up all 12 named boss abilities + clean misleading abilityProfile text on ability-less enemies | 2026-02-24 | e6ffdbc | [305-wire-up-all-enemy-abilities-across-all-e](./quick/305-wire-up-all-enemy-abilities-across-all-e/) |
 
 ---
 
-Last activity: 2026-02-24 - Completed quick task 304: 3s combat cooldown before out-of-combat regen, increase stamina regen by 1
+Last activity: 2026-02-24 - Completed quick task 305: Wire up all 12 named boss abilities + clean misleading abilityProfile text on ability-less enemies
 
 ## Last Session
 
