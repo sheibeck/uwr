@@ -47,13 +47,13 @@ spacetime login
 spacetime start
 
 # Publish module
-spacetime publish <db-name> --project-path <module-path>
+spacetime publish <db-name> --module-path <module-path>
 
 # Clear and republish
-spacetime publish <db-name> --clear-database -y --project-path <module-path>
+spacetime publish <db-name> --clear-database -y --module-path <module-path>
 
 # Generate client bindings
-spacetime generate --lang <lang> --out-dir <out> --project-path <module-path>
+spacetime generate --lang <lang> --out-dir <out> --module-path <module-path>
 
 # View logs
 spacetime logs <db-name>
@@ -588,13 +588,13 @@ spacetimedb.procedure('save_fetched_data', { url: t.string() }, t.unit(), (ctx, 
 spacetime start
 
 # Publish module
-spacetime publish <module-name> --project-path <backend-dir>
+spacetime publish <module-name> --module-path <backend-dir>
 
 # Clear database and republish
-spacetime publish <module-name> --clear-database -y --project-path <backend-dir>
+spacetime publish <module-name> --clear-database -y --module-path <backend-dir>
 
 # Generate bindings
-spacetime generate --lang typescript --out-dir <client>/src/module_bindings --project-path <backend-dir>
+spacetime generate --lang typescript --out-dir <client>/src/module_bindings --module-path <backend-dir>
 
 # View logs
 spacetime logs <module-name>

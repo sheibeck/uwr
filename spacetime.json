@@ -1,0 +1,7 @@
+{
+  "dev": {
+    "run": "pnpm run dev"
+  },
+  "module-path": "./spacetimedb",
+  "server": "local"
+}
