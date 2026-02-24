@@ -1,6 +1,6 @@
 import { useSpacetimeDB, useTable as _useTable } from 'spacetimedb/vue';
 import { tables } from '../module_bindings';
-import type { Ref } from 'vue';
+import { ref, type Ref } from 'vue';
 
 // v2 useTable returns Readonly<Ref<readonly Row[]>>. Components expect Ref<Row[]>.
 // This wrapper strips the readonly since consumer code never mutates subscription data.
@@ -42,7 +42,7 @@ export const useGameData = () => {
   const [activePets] = useTable(tables.activePet);
   const [combatEnemyEffects] = useTable(tables.combatEnemyEffect);
   const [combatEnemyCasts] = useTable(tables.combatEnemyCast);
-  const [aggroEntries] = useTable(tables.aggroEntry);
+  const aggroEntries = ref([] as any[]); // aggro_entry is private in v2, not subscribable
   const [combatResults] = useTable(tables.combatResult);
   const [combatLoot] = useTable(tables.combatLoot);
   const [groups] = useTable(tables.group);
