@@ -383,6 +383,54 @@ const [spawnsHere] = useTable(
 - Global reducer callbacks: Removed in v2, replaced by event tables
 - Light mode: Removed in v2
 
+## Event Table Conversion (Expanded Scope per User Request)
+
+The user has requested that event logging be updated to use v2 Event Tables to eliminate the need for manual trimming. The official SpacetimeDB Event Tables documentation (https://spacetimedb.com/docs/tables/event-tables/) confirms:
+
+### Official Event Table Behavior
+- Rows "exist only for the duration of the transaction that created them"
+- After transaction commits, rows are "broadcast to subscribed clients and then deleted from the table"
+- Table remains empty between transactions
+- Constraints operate "only within a single transaction and reset between transactions"
+- The `event` flag **cannot change after publishing** — conversion requires `--delete-data=always` (schema migration)
+- Event tables **cannot be accessed within view functions** — critical: the existing `my_private_events` and `my_location_events` views MUST be removed before converting
+- Event tables **cannot be used as lookup tables in subscription joins**
+- RLS rules function identically to regular tables (identity-based filtering still works)
+- Only `onInsert` callbacks exist on client — no `onDelete`, `onUpdate`, `onBeforeDelete`
+
+### Tables to Convert to Event Tables
+
+**Primary targets (4 event log tables):**
+| Table | Current Trimming | Post-Conversion |
+|-------|-----------------|-----------------|
+| event_world | 200 rows / 1hr age | Auto-delete, no trimming code needed |
+| event_location | 200 rows / 1hr age | Auto-delete, no trimming code needed |
+| event_private | 200 rows / 1hr age | Auto-delete, no trimming code needed |
+| event_group | 200 rows / 1hr age | Auto-delete, no trimming code needed |
+
+**Server-side changes needed:**
+1. Add `event: true` to all 4 table definitions in `spacetimedb/src/schema/tables.ts`
+2. Remove all `trimEventRows()` calls from `spacetimedb/src/helpers/events.ts` — event tables auto-delete
+3. Remove `EVENT_TRIM_MAX` and `EVENT_TRIM_AGE_MICROS` constants
+4. Remove `my_private_events` and `my_location_events` views from `spacetimedb/src/views/events.ts` — views cannot access event tables
+5. Keep helper functions (appendWorldEvent, appendLocationEvent, etc.) — they still handle insert logic
+
+**Client-side changes needed:**
+1. Replace `useTable(tables.event_world)` etc. with `onInsert` callbacks — `useTable()` doesn't work for event tables (iter() always empty)
+2. Maintain local `shallowRef<EventItem[]>` arrays, append on onInsert, client-side trim to 200 entries
+3. Update `useEvents.ts` to consume local arrays instead of reactive table data
+4. Add explicit `subscriptionBuilder().subscribe()` for each event table — event tables require explicit subscription
+
+**Additional candidates evaluated:**
+| Table | Candidate? | Reason |
+|-------|-----------|--------|
+| npc_dialog | NO | Needs to persist across transactions for conversation history display |
+| command | NO | Has `status` field — needs update tracking, not just insert |
+| combat_result | NO | Persists until player dismisses loot — not transient |
+| search_result | NO | Persists until player acts on results — not transient |
+
+**Conclusion:** Only the 4 event log tables are good candidates for event table conversion. Other log-like tables have persistence requirements that conflict with the auto-delete behavior.
+
 ## Open Questions
 
 1. **How many simultaneous subscriptions can SpacetimeDB handle efficiently?**
