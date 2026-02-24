@@ -554,10 +554,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 303 | deepdive into in combat regen of health and look for anything that could be an issue | 2026-02-24 | 60d80c6 | [303-deepdive-into-in-combat-regen-of-health-](./quick/303-deepdive-into-in-combat-regen-of-health-/) |
 | 304 | 3s combat cooldown before out-of-combat regen, increase stamina regen by 1 | 2026-02-24 | c6e11b6 | [304-3s-combat-cooldown-before-out-of-combat-](./quick/304-3s-combat-cooldown-before-out-of-combat-/) |
 | 305 | Wire up all 12 named boss abilities + clean misleading abilityProfile text on ability-less enemies | 2026-02-24 | e6ffdbc | [305-wire-up-all-enemy-abilities-across-all-e](./quick/305-wire-up-all-enemy-abilities-across-all-e/) |
+| 306 | Wire abilities to L5+ region enemies — 19 new abilities, 17 enemies wired | 2026-02-24 | e34fe65 | [306-wire-abilities-to-higher-level-region-en](./quick/306-wire-abilities-to-higher-level-region-en/) |
 
 ---
 
-Last activity: 2026-02-24 - Completed quick task 305: Wire up all 12 named boss abilities + clean misleading abilityProfile text on ability-less enemies
+Last activity: 2026-02-24 - Completed quick task 306: Wire abilities to L5+ region enemies — 19 new abilities, 17 enemies wired
 
 ## Last Session
 
