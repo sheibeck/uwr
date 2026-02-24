@@ -14,7 +14,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 **Current phase:** 21.1 — Stat Systems Off-Stat Hooks (COMPLETE — human-verified 2026-02-21)
 **Next action:** Continue Phase 21 (Race Expansion) or Phase 22 (Class Ability Balancing) — run /gsd:progress to check
 **Last session:** 2026-02-24T19:33:55.748Z
-Last activity: 2026-02-24 - Completed quick task 310: Remove v1 shims and fix useTable error
+Last activity: 2026-02-24 - Completed quick task 312: Fix Cannot read properties of undefined reading columns error in SpacetimeDB client
 
 ---
 
@@ -561,10 +561,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 309 | Fix client_connected reducer undefined id — v2 schema keys must be camelCase | 2026-02-24 | 735d1da | [309-fix-client-connected-reducer-undefined-i](./quick/309-fix-client-connected-reducer-undefined-i/) |
 | 310 | Remove v1 shims, fix useTable crash — PascalCase→camelCase table keys, clean stdb-types comment | 2026-02-24 | c5e3dfd | [310-remove-v1-shims-and-fix-usetable-error-n](./quick/310-remove-v1-shims-and-fix-usetable-error-n/) |
 | 311 | Remove stdb-types.ts shim — rename XxxRow to Xxx across 36 files, import from module_bindings/types | 2026-02-24 | 4e127cd | [311-remove-stdb-types-ts-shim-rename-all-xxx](./quick/311-remove-stdb-types-ts-shim-rename-all-xxx/) |
+| 312 | Fix Cannot read properties of undefined reading columns error in SpacetimeDB client | 2026-02-24 | 1608878 | [312-fix-cannot-read-properties-of-undefined-](./quick/312-fix-cannot-read-properties-of-undefined-/) |
 
 ---
 
-Last activity: 2026-02-24 - Completed quick task 311: Remove stdb-types.ts shim
+Last activity: 2026-02-24 - Completed quick task 312: Fix Cannot read properties of undefined reading columns error in SpacetimeDB client
 
 ## Last Session
 
