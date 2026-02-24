@@ -13,8 +13,8 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 **Last completed phase:** 21.1.1 — Hit/Dodge/Parry Active Stats (stat-derived dodge/parry/hit wired; DEX live defensive stat)
 **Current phase:** 21.1 — Stat Systems Off-Stat Hooks (COMPLETE — human-verified 2026-02-21)
 **Next action:** Continue Phase 21 (Race Expansion) or Phase 22 (Class Ability Balancing) — run /gsd:progress to check
-**Last session:** 2026-02-24T16:52:17.808Z
-Last activity: 2026-02-24 - Completed quick task 308: Continue quick task 307
+**Last session:** 2026-02-24T16:46:53.630Z
+Last activity: 2026-02-24 - Completed quick task 309: Fix client_connected reducer undefined id error
 
 ---
 
@@ -558,10 +558,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 306 | Wire abilities to L5+ region enemies — 19 new abilities, 17 enemies wired | 2026-02-24 | e34fe65 | [306-wire-abilities-to-higher-level-region-en](./quick/306-wire-abilities-to-higher-level-region-en/) |
 | 307 | migrate spacetimedb from 1.12 to 2.0 | 2026-02-24 | 7d27784 | [307-migrate-spacetimedb-from-1-12-to-2-0](./quick/307-migrate-spacetimedb-from-1-12-to-2-0/) |
 | 308 | Continue quick task 307 — fix 7 v2-specific TS errors, commit 33 v2 module_bindings | 2026-02-24 | 9c16337 | [308-continue-quick-task-307](./quick/308-continue-quick-task-307/) |
+| 309 | Fix client_connected reducer undefined id — v2 schema keys must be camelCase | 2026-02-24 | 735d1da | [309-fix-client-connected-reducer-undefined-i](./quick/309-fix-client-connected-reducer-undefined-i/) |
 
 ---
 
-Last activity: 2026-02-24 - Completed quick task 307: migrate spacetimedb from 1.12 to 2.0
+Last activity: 2026-02-24 - Completed quick task 309: Fix client_connected reducer undefined id error
 
 ## Last Session
 
