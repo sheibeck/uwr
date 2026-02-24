@@ -8,7 +8,7 @@ export const getGroupOrSoloParticipants = (ctx: any, character: any) => {
   if (!groupId) return [character];
   const participants: typeof character[] = [character];
   const seen = new Set([character.id.toString()]);
-  for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+  for (const member of ctx.db.group_member.by_group.filter(groupId)) {
     if (seen.has(member.characterId.toString())) continue;
     const row = ctx.db.character.id.find(member.characterId);
     if (!row) continue;

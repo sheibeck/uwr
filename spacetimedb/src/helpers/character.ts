@@ -22,7 +22,7 @@ export function getGroupParticipants(ctx: any, character: any, sameLocation: boo
   if (!groupId) return [character];
   const participants: any[] = [];
   const seen = new Set<string>();
-  for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+  for (const member of ctx.db.group_member.by_group.filter(groupId)) {
     const memberChar = ctx.db.character.id.find(member.characterId);
     if (!memberChar) continue;
     if (sameLocation && memberChar.locationId !== character.locationId) continue;
@@ -45,7 +45,7 @@ export function partyMembersInLocation(ctx: any, character: any) {
   const groupId = effectiveGroupId(character);
   if (!groupId) return [character];
   const members: any[] = [];
-  for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+  for (const member of ctx.db.group_member.by_group.filter(groupId)) {
     const memberChar = ctx.db.character.id.find(member.characterId);
     if (memberChar && memberChar.locationId === character.locationId) {
       members.push(memberChar);
@@ -61,7 +61,7 @@ export function recomputeCharacterDerived(ctx: any, character: any) {
   // Import sumCharacterEffect from combat - need to handle circular dependency
   // For now, we'll compute effect stats inline
   let strEffect = 0n, dexEffect = 0n, chaEffect = 0n, wisEffect = 0n, intEffect = 0n;
-  for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
+  for (const effect of ctx.db.character_effect.by_character.filter(character.id)) {
     if (effect.effectType === 'str_bonus') strEffect += BigInt(effect.magnitude);
     if (effect.effectType === 'dex_bonus') dexEffect += BigInt(effect.magnitude);
     if (effect.effectType === 'cha_bonus') chaEffect += BigInt(effect.magnitude);
@@ -108,7 +108,7 @@ export function recomputeCharacterDerived(ctx: any, character: any) {
 
   // Compute AC bonus inline to avoid circular dependency with combat helper
   let acBonus = 0n;
-  for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
+  for (const effect of ctx.db.character_effect.by_character.filter(character.id)) {
     if (effect.effectType === 'ac_bonus') acBonus += BigInt(effect.magnitude);
   }
 
@@ -172,17 +172,17 @@ export function campCharacter(ctx: any, player: any, character: any, afk = false
 
   if (character.groupId) {
     const groupId = character.groupId;
-    for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
-      if (member.characterId === character.id) { ctx.db.groupMember.id.delete(member.id); break; }
+    for (const member of ctx.db.group_member.by_group.filter(groupId)) {
+      if (member.characterId === character.id) { ctx.db.group_member.id.delete(member.id); break; }
     }
     ctx.db.character.id.update({ ...character, groupId: undefined });
     appendGroupEvent(ctx, groupId, character.id, 'group',
       afk ? `${character.name} headed to camp (AFK).` : `${character.name} headed to camp.`);
 
-    const remaining = [...ctx.db.groupMember.by_group.filter(groupId)];
+    const remaining = [...ctx.db.group_member.by_group.filter(groupId)];
     if (remaining.length === 0) {
-      for (const invite of ctx.db.groupInvite.by_group.filter(groupId)) {
-        ctx.db.groupInvite.id.delete(invite.id);
+      for (const invite of ctx.db.group_invite.by_group.filter(groupId)) {
+        ctx.db.group_invite.id.delete(invite.id);
       }
       ctx.db.group.id.delete(groupId);
     } else {
@@ -195,7 +195,7 @@ export function campCharacter(ctx: any, player: any, character: any, afk = false
             leaderCharacterId: newLeader.id,
             pullerCharacterId: group.pullerCharacterId === character.id ? newLeader.id : group.pullerCharacterId,
           });
-          ctx.db.groupMember.id.update({ ...remaining[0], role: 'leader' });
+          ctx.db.group_member.id.update({ ...remaining[0], role: 'leader' });
           appendGroupEvent(ctx, groupId, newLeader.id, 'group', `${newLeader.name} is now the group leader.`);
         }
       }
@@ -226,12 +226,12 @@ export function findCharacterByName(ctx: any, name: string) {
 
 export function autoRespawnDeadCharacter(ctx: any, character: any): void {
   // Clear character effects
-  for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
-    ctx.db.characterEffect.id.delete(effect.id);
+  for (const effect of ctx.db.character_effect.by_character.filter(character.id)) {
+    ctx.db.character_effect.id.delete(effect.id);
   }
   // Clear travel cooldowns — death is penalty enough
-  for (const cd of ctx.db.travelCooldown.by_character.filter(character.id)) {
-    ctx.db.travelCooldown.id.delete(cd.id);
+  for (const cd of ctx.db.travel_cooldown.by_character.filter(character.id)) {
+    ctx.db.travel_cooldown.id.delete(cd.id);
   }
   const nextLocationId = character.boundLocationId ?? character.locationId;
   const respawnLocation = ctx.db.location.id.find(nextLocationId)?.name ?? 'your bind point';

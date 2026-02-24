@@ -7,8 +7,8 @@ export function performPassiveSearch(
   appendPrivateEvent: any,
 ) {
   // Delete any previous SearchResult for this character
-  for (const sr of ctx.db.searchResult.by_character.filter(character.id)) {
-    ctx.db.searchResult.id.delete(sr.id);
+  for (const sr of ctx.db.search_result.by_character.filter(character.id)) {
+    ctx.db.search_result.id.delete(sr.id);
   }
 
   // Deterministic pseudo-random seed
@@ -37,16 +37,16 @@ export function performPassiveSearch(
   const questRollRaw: bigint = ((seed >> 8n) ^ (seed * 7n)) % 100n;
   const questRoll: bigint = questRollRaw < 0n ? questRollRaw + 100n : questRollRaw;
 
-  for (const qi of ctx.db.questInstance.by_character.filter(character.id)) {
+  for (const qi of ctx.db.quest_instance.by_character.filter(character.id)) {
     if (qi.completed) continue;
-    const qt = ctx.db.questTemplate.id.find(qi.questTemplateId);
+    const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
     if (!qt) continue;
     if ((qt.questType ?? 'kill') !== 'explore') continue;
     if (qt.targetLocationId !== locationId) continue;
 
     // Check if character already has a discovered (but not looted) quest item for this quest here
     let alreadyHasItem = false;
-    for (const existingItem of ctx.db.questItem.by_character.filter(character.id)) {
+    for (const existingItem of ctx.db.quest_item.by_character.filter(character.id)) {
       if (existingItem.questTemplateId === qt.id && existingItem.locationId === locationId && !existingItem.looted) {
         alreadyHasItem = true;
         break;
@@ -56,7 +56,7 @@ export function performPassiveSearch(
 
     if (questRoll < 40n) {
       // Create a quest item node at this location
-      const newItem = ctx.db.questItem.insert({
+      const newItem = ctx.db.quest_item.insert({
         id: 0n,
         characterId: character.id,
         questTemplateId: qt.id,
@@ -79,16 +79,16 @@ export function performPassiveSearch(
   const enemyRoll: bigint = enemyRollRaw < 0n ? enemyRollRaw + 100n : enemyRollRaw;
 
   // Check if there's a boss_kill quest active for this location
-  for (const qi of ctx.db.questInstance.by_character.filter(character.id)) {
+  for (const qi of ctx.db.quest_instance.by_character.filter(character.id)) {
     if (qi.completed) continue;
-    const qt = ctx.db.questTemplate.id.find(qi.questTemplateId);
+    const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
     if (!qt) continue;
     if ((qt.questType ?? 'kill') !== 'boss_kill') continue;
     if (qt.targetLocationId !== locationId) continue;
 
     // Check if named enemy already exists (alive) at this location for this character
     let existingEnemy: any = null;
-    for (const ne of ctx.db.namedEnemy.by_character.filter(character.id)) {
+    for (const ne of ctx.db.named_enemy.by_character.filter(character.id)) {
       if (ne.locationId === locationId && ne.enemyTemplateId === qt.targetEnemyTemplateId) {
         existingEnemy = ne;
         break;
@@ -110,7 +110,7 @@ export function performPassiveSearch(
         break; // Still on respawn cooldown
       }
       // Respawned — revive it
-      ctx.db.namedEnemy.id.update({ ...existingEnemy, isAlive: true, lastKilledAt: undefined });
+      ctx.db.named_enemy.id.update({ ...existingEnemy, isAlive: true, lastKilledAt: undefined });
       foundNamedEnemy = true;
       namedEnemyId = existingEnemy.id;
       break;
@@ -118,7 +118,7 @@ export function performPassiveSearch(
 
     // No existing enemy — roll to discover
     if (enemyRoll < 20n) {
-      const newEnemy = ctx.db.namedEnemy.insert({
+      const newEnemy = ctx.db.named_enemy.insert({
         id: 0n,
         characterId: character.id,
         name: qt.targetItemName ?? 'Named Enemy',
@@ -137,7 +137,7 @@ export function performPassiveSearch(
   }
 
   // Always create a SearchResult row
-  ctx.db.searchResult.insert({
+  ctx.db.search_result.insert({
     id: 0n,
     characterId: character.id,
     locationId,
@@ -150,9 +150,9 @@ export function performPassiveSearch(
   });
 
   // Clean up old personal resource nodes for this character at this location
-  for (const node of ctx.db.resourceNode.by_character.filter(character.id)) {
+  for (const node of ctx.db.resource_node.by_character.filter(character.id)) {
     if (node.locationId === locationId) {
-      ctx.db.resourceNode.id.delete(node.id);
+      ctx.db.resource_node.id.delete(node.id);
     }
   }
 

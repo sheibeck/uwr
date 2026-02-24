@@ -30,10 +30,10 @@ export function fireWorldEvent(ctx: any, eventKey: string, deps?: WorldEventDeps
 
   // One-time event guard: if already resolved and not recurring, reject
   if (!eventDef.isRecurring) {
-    for (const existing of ctx.db.worldEvent.by_status.filter('success')) {
+    for (const existing of ctx.db.world_event.by_status.filter('success')) {
       if (existing.eventKey === eventKey) return null;
     }
-    for (const existing of ctx.db.worldEvent.by_status.filter('failed')) {
+    for (const existing of ctx.db.world_event.by_status.filter('failed')) {
       if (existing.eventKey === eventKey) return null;
     }
   }
@@ -59,7 +59,7 @@ export function fireWorldEvent(ctx: any, eventKey: string, deps?: WorldEventDeps
   // Insert WorldEvent row — CRITICAL (REQ-034): write consequenceTextStub to consequenceText at insert time
   // NOTE: optional BigInt fields always use 0n (not undefined) to prevent writeI64(undefined) serialization
   // errors on subsequent .update() calls. 0n is the sentinel for "not set".
-  const eventRow = ctx.db.worldEvent.insert({
+  const eventRow = ctx.db.world_event.insert({
     id: 0n,
     eventKey,
     name: eventDef.name,
@@ -84,7 +84,7 @@ export function fireWorldEvent(ctx: any, eventKey: string, deps?: WorldEventDeps
 
   // Schedule automatic expiry for time-based events
   if (deadlineAtMicros > 0n) {
-    ctx.db.eventDespawnTick.insert({
+    ctx.db.event_despawn_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(deadlineAtMicros),
       eventId: eventRow.id,
@@ -121,7 +121,7 @@ export function spawnEventContent(ctx: any, eventId: bigint, eventDef: any, _dep
     for (const enemySpec of contentLocation.enemies) {
       // Look up EnemyTemplate by name
       let enemyTemplate: any = null;
-      for (const tmpl of ctx.db.enemyTemplate.iter()) {
+      for (const tmpl of ctx.db.enemy_template.iter()) {
         if (tmpl.name === enemySpec.enemyTemplateKey) {
           enemyTemplate = tmpl;
           break;
@@ -131,14 +131,14 @@ export function spawnEventContent(ctx: any, eventId: bigint, eventDef: any, _dep
 
       // Look up a role template for this enemy template (use first found)
       let roleTemplateId = 0n;
-      for (const roleTemplate of ctx.db.enemyRoleTemplate.by_template.filter(enemyTemplate.id)) {
+      for (const roleTemplate of ctx.db.enemy_role_template.by_template.filter(enemyTemplate.id)) {
         roleTemplateId = roleTemplate.id;
         break;
       }
 
       // Spawn N individual enemies (groupCount=1 each) — post quick-238 pattern
       for (let i = 0; i < enemySpec.count; i++) {
-        const spawn = ctx.db.enemySpawn.insert({
+        const spawn = ctx.db.enemy_spawn.insert({
           id: 0n,
           locationId,
           enemyTemplateId: enemyTemplate.id,
@@ -148,7 +148,7 @@ export function spawnEventContent(ctx: any, eventId: bigint, eventDef: any, _dep
           groupCount: 1n,
         });
 
-        ctx.db.enemySpawnMember.insert({
+        ctx.db.enemy_spawn_member.insert({
           id: 0n,
           spawnId: spawn.id,
           enemyTemplateId: enemyTemplate.id,
@@ -156,7 +156,7 @@ export function spawnEventContent(ctx: any, eventId: bigint, eventDef: any, _dep
         });
 
         // Each individual spawn gets its own EventSpawnEnemy link
-        ctx.db.eventSpawnEnemy.insert({
+        ctx.db.event_spawn_enemy.insert({
           id: 0n,
           eventId,
           spawnId: spawn.id,
@@ -168,7 +168,7 @@ export function spawnEventContent(ctx: any, eventId: bigint, eventDef: any, _dep
     // Insert EventSpawnItem rows for event-exclusive collectibles
     for (const itemSpec of contentLocation.items) {
       for (let i = 0; i < itemSpec.count; i++) {
-        ctx.db.eventSpawnItem.insert({
+        ctx.db.event_spawn_item.insert({
           id: 0n,
           eventId,
           locationId,
@@ -182,7 +182,7 @@ export function spawnEventContent(ctx: any, eventId: bigint, eventDef: any, _dep
     // Create EventObjective rows based on failure condition type
     if (eventDef.failureConditionType === 'threshold_race') {
       // protect_npc objective — track villager survival (failure side)
-      ctx.db.eventObjective.insert({
+      ctx.db.event_objective.insert({
         id: 0n,
         eventId,
         objectiveType: 'protect_npc',
@@ -193,7 +193,7 @@ export function spawnEventContent(ctx: any, eventId: bigint, eventDef: any, _dep
         isAlive: true,
       });
       // kill_count objective — track invader kills (success side)
-      ctx.db.eventObjective.insert({
+      ctx.db.event_objective.insert({
         id: 0n,
         eventId,
         objectiveType: 'kill_count',
@@ -206,7 +206,7 @@ export function spawnEventContent(ctx: any, eventId: bigint, eventDef: any, _dep
     } else {
       // Time-based: kill_count objective
       const totalEnemies = contentLocation.enemies.reduce((sum: number, e: any) => sum + e.count, 0);
-      ctx.db.eventObjective.insert({
+      ctx.db.event_objective.insert({
         id: 0n,
         eventId,
         objectiveType: 'kill_count',
@@ -228,39 +228,39 @@ export function spawnEventContent(ctx: any, eventId: bigint, eventDef: any, _dep
  */
 export function despawnEventContent(ctx: any, eventId: bigint): void {
   // Step 1: Clean up event enemy spawns
-  for (const eventSpawnEnemy of ctx.db.eventSpawnEnemy.by_event.filter(eventId)) {
+  for (const eventSpawnEnemy of ctx.db.event_spawn_enemy.by_event.filter(eventId)) {
     const spawnId = eventSpawnEnemy.spawnId;
 
     // Delete EnemySpawnMember rows first
-    for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawnId)) {
-      ctx.db.enemySpawnMember.id.delete(member.id);
+    for (const member of ctx.db.enemy_spawn_member.by_spawn.filter(spawnId)) {
+      ctx.db.enemy_spawn_member.id.delete(member.id);
     }
 
     // Skip spawn deletion if locked in an active combat — let combat resolve naturally
-    const spawn = ctx.db.enemySpawn.id.find(spawnId);
+    const spawn = ctx.db.enemy_spawn.id.find(spawnId);
     if (spawn) {
       const isLockedInCombat = spawn.lockedCombatId !== undefined && spawn.lockedCombatId !== null;
       if (!isLockedInCombat) {
-        ctx.db.enemySpawn.id.delete(spawnId);
+        ctx.db.enemy_spawn.id.delete(spawnId);
       }
     }
 
-    ctx.db.eventSpawnEnemy.id.delete(eventSpawnEnemy.id);
+    ctx.db.event_spawn_enemy.id.delete(eventSpawnEnemy.id);
   }
 
   // Step 2: Delete all EventSpawnItem rows
-  for (const item of ctx.db.eventSpawnItem.by_event.filter(eventId)) {
-    ctx.db.eventSpawnItem.id.delete(item.id);
+  for (const item of ctx.db.event_spawn_item.by_event.filter(eventId)) {
+    ctx.db.event_spawn_item.id.delete(item.id);
   }
 
   // Step 3: Delete all EventObjective rows
-  for (const objective of ctx.db.eventObjective.by_event.filter(eventId)) {
-    ctx.db.eventObjective.id.delete(objective.id);
+  for (const objective of ctx.db.event_objective.by_event.filter(eventId)) {
+    ctx.db.event_objective.id.delete(objective.id);
   }
 
   // Step 4: Delete all EventContribution rows (rewards already awarded before this call)
-  for (const contrib of ctx.db.eventContribution.by_event.filter(eventId)) {
-    ctx.db.eventContribution.id.delete(contrib.id);
+  for (const contrib of ctx.db.event_contribution.by_event.filter(eventId)) {
+    ctx.db.event_contribution.id.delete(contrib.id);
   }
 }
 
@@ -276,7 +276,7 @@ export function resolveWorldEvent(ctx: any, eventRow: any, outcome: 'success' | 
   const resolvedDeps = { ...getDefaultDeps(), ...deps };
 
   // Update WorldEvent status to outcome
-  ctx.db.worldEvent.id.update({
+  ctx.db.world_event.id.update({
     ...eventRow,
     status: outcome,
     resolvedAt: ctx.timestamp,
@@ -333,7 +333,7 @@ export function applyConsequence(ctx: any, eventRow: any, outcome: 'success' | '
       if (!parsed) break;
       const factionIdBig = BigInt(parsed.factionId);
       const amountBig = BigInt(parsed.amount);
-      for (const contribution of ctx.db.eventContribution.by_event.filter(eventRow.id)) {
+      for (const contribution of ctx.db.event_contribution.by_event.filter(eventRow.id)) {
         if (contribution.count === 0n) continue;
         mutateStanding(ctx, contribution.characterId, factionIdBig, amountBig);
       }
@@ -382,7 +382,7 @@ export function awardEventRewards(ctx: any, eventRow: any, outcome: 'success' | 
   const gold = rewardTiers.gold;
 
   // Iterate all contributors for this event
-  for (const contribution of ctx.db.eventContribution.by_event.filter(eventRow.id)) {
+  for (const contribution of ctx.db.event_contribution.by_event.filter(eventRow.id)) {
     // Zero-contribution guard: skip if no meaningful interactions
     if (contribution.count === 0n) continue;
 
@@ -470,7 +470,7 @@ export function incrementWorldStat(ctx: any, statKey: string, amount: bigint, de
 
   // Look up WorldStatTracker row by statKey
   let statRow: any = null;
-  for (const row of ctx.db.worldStatTracker.by_stat_key.filter(statKey)) {
+  for (const row of ctx.db.world_stat_tracker.by_stat_key.filter(statKey)) {
     statRow = row;
     break;
   }
@@ -487,7 +487,7 @@ export function incrementWorldStat(ctx: any, statKey: string, amount: bigint, de
   // Check if threshold crossed
   if (newValue >= statRow.fireThreshold) {
     // Set fired = true and update the row
-    ctx.db.worldStatTracker.id.update({
+    ctx.db.world_stat_tracker.id.update({
       ...statRow,
       currentValue: newValue,
       fired: true,
@@ -497,7 +497,7 @@ export function incrementWorldStat(ctx: any, statKey: string, amount: bigint, de
     fireWorldEvent(ctx, statRow.eventKeyToFire, resolvedDeps);
   } else {
     // Just update the current value
-    ctx.db.worldStatTracker.id.update({
+    ctx.db.world_stat_tracker.id.update({
       ...statRow,
       currentValue: newValue,
     });

@@ -281,7 +281,7 @@ scheduledReducers['tick_day_night'] = spacetimedb.reducer('tick_day_night', { ar
   if (!world) return;
   const now = ctx.timestamp.microsSinceUnixEpoch;
   if (world.nextTransitionAtMicros > now) {
-    ctx.db.dayNightTick.insert({
+    ctx.db.day_night_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(world.nextTransitionAtMicros),
     });
@@ -290,7 +290,7 @@ scheduledReducers['tick_day_night'] = spacetimedb.reducer('tick_day_night', { ar
   const nextIsNight = !world.isNight;
   const nextDuration = nextIsNight ? NIGHT_DURATION_MICROS : DAY_DURATION_MICROS;
   const nextTransition = now + nextDuration;
-  ctx.db.worldState.id.update({
+  ctx.db.world_state.id.update({
     ...world,
     isNight: nextIsNight,
     nextTransitionAtMicros: nextTransition,
@@ -302,7 +302,7 @@ scheduledReducers['tick_day_night'] = spacetimedb.reducer('tick_day_night', { ar
       respawnLocationSpawns(ctx, location.id, getLocationSpawnCap(ctx, location.id));
     }
   }
-  ctx.db.dayNightTick.insert({
+  ctx.db.day_night_tick.insert({
     scheduledId: 0n,
     scheduledAt: ScheduleAt.time(nextTransition),
   });
@@ -316,7 +316,7 @@ const INACTIVITY_SWEEP_INTERVAL_MICROS = 300_000_000n; // 5 minutes
 scheduledReducers['sweep_inactivity'] = spacetimedb.reducer('sweep_inactivity', { arg: InactivityTick.rowType }, (ctx) => {
   const now = ctx.timestamp.microsSinceUnixEpoch;
 
-  ctx.db.inactivityTick.insert({
+  ctx.db.inactivity_tick.insert({
     scheduledId: 0n,
     scheduledAt: ScheduleAt.time(now + INACTIVITY_SWEEP_INTERVAL_MICROS),
   });
@@ -343,11 +343,11 @@ scheduledReducers['sweep_inactivity'] = spacetimedb.reducer('sweep_inactivity', 
 
 spacetimedb.reducer('set_app_version', { version: t.string() }, (ctx, { version }) => {
   requireAdmin(ctx);
-  const existing = [...ctx.db.appVersion.iter()][0];
+  const existing = [...ctx.db.app_version.iter()][0];
   if (existing) {
-    ctx.db.appVersion.id.update({ ...existing, version, updatedAt: ctx.timestamp });
+    ctx.db.app_version.id.update({ ...existing, version, updatedAt: ctx.timestamp });
   } else {
-    ctx.db.appVersion.insert({ id: 0n, version, updatedAt: ctx.timestamp });
+    ctx.db.app_version.insert({ id: 0n, version, updatedAt: ctx.timestamp });
   }
 });
 
@@ -417,7 +417,7 @@ spacetimedb.clientDisconnected((_ctx) => {
 
   if (player) {
     const disconnectAtMicros = ctx.timestamp.microsSinceUnixEpoch;
-    ctx.db.disconnectLogoutTick.insert({
+    ctx.db.disconnect_logout_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(disconnectAtMicros + 30_000_000n),
       playerId: player.id,

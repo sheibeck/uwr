@@ -32,7 +32,7 @@ export function registerWorldEventReducers(deps: any) {
       }
 
       // Look up event
-      const event = ctx.db.worldEvent.id.find(worldEventId);
+      const event = ctx.db.world_event.id.find(worldEventId);
       if (!event) {
         throw new SenderError('World event not found');
       }
@@ -57,7 +57,7 @@ export function registerWorldEventReducers(deps: any) {
       }
 
       // Find the EventSpawnItem
-      const spawnItem = ctx.db.eventSpawnItem.id.find(eventSpawnItemId);
+      const spawnItem = ctx.db.event_spawn_item.id.find(eventSpawnItemId);
       if (!spawnItem) throw new SenderError('Event item not found');
       if (spawnItem.collected) throw new SenderError('Item already collected');
 
@@ -67,13 +67,13 @@ export function registerWorldEventReducers(deps: any) {
       }
 
       // Check event is still active
-      const event = ctx.db.worldEvent.id.find(spawnItem.eventId);
+      const event = ctx.db.world_event.id.find(spawnItem.eventId);
       if (!event || event.status !== 'active') {
         throw new SenderError('This event is no longer active');
       }
 
       // Mark item collected
-      ctx.db.eventSpawnItem.id.update({
+      ctx.db.event_spawn_item.id.update({
         ...spawnItem,
         collected: true,
         collectedByCharacterId: characterId,
@@ -81,9 +81,9 @@ export function registerWorldEventReducers(deps: any) {
 
       // Increment EventContribution count for this character and event
       let found = false;
-      for (const contrib of ctx.db.eventContribution.by_character.filter(characterId)) {
+      for (const contrib of ctx.db.event_contribution.by_character.filter(characterId)) {
         if (contrib.eventId === spawnItem.eventId) {
-          ctx.db.eventContribution.id.update({
+          ctx.db.event_contribution.id.update({
             ...contrib,
             count: contrib.count + 1n,
           });
@@ -93,7 +93,7 @@ export function registerWorldEventReducers(deps: any) {
       }
       // If no contribution row exists yet, insert one with count=1
       if (!found) {
-        ctx.db.eventContribution.insert({
+        ctx.db.event_contribution.insert({
           id: 0n,
           eventId: spawnItem.eventId,
           characterId,
@@ -122,7 +122,7 @@ export function registerWorldEventReducers(deps: any) {
         throw new SenderError("Side must be 'success' or 'failure'");
       }
 
-      const event = ctx.db.worldEvent.id.find(eventId);
+      const event = ctx.db.world_event.id.find(eventId);
       if (!event) throw new SenderError('World event not found');
       if (event.status !== 'active') return; // silently ignore if resolved
 
@@ -137,8 +137,8 @@ export function registerWorldEventReducers(deps: any) {
         updatedEvent = { ...updatedEvent, successCounter: newSuccess };
         // Check if success threshold hit (0n = no threshold)
         if (event.successThreshold > 0n && newSuccess >= event.successThreshold) {
-          ctx.db.worldEvent.id.update(updatedEvent);
-          const fresh = ctx.db.worldEvent.id.find(eventId)!;
+          ctx.db.world_event.id.update(updatedEvent);
+          const fresh = ctx.db.world_event.id.find(eventId)!;
           resolveWorldEvent(ctx, fresh, 'success');
           return;
         }
@@ -147,14 +147,14 @@ export function registerWorldEventReducers(deps: any) {
         updatedEvent = { ...updatedEvent, failureCounter: newFailure };
         // Check if failure threshold hit (0n = no threshold)
         if (event.failureThreshold > 0n && newFailure >= event.failureThreshold) {
-          ctx.db.worldEvent.id.update(updatedEvent);
-          const fresh = ctx.db.worldEvent.id.find(eventId)!;
+          ctx.db.world_event.id.update(updatedEvent);
+          const fresh = ctx.db.world_event.id.find(eventId)!;
           resolveWorldEvent(ctx, fresh, 'failure');
           return;
         }
       }
 
-      ctx.db.worldEvent.id.update(updatedEvent);
+      ctx.db.world_event.id.update(updatedEvent);
     }
   );
 
@@ -165,7 +165,7 @@ export function registerWorldEventReducers(deps: any) {
     'despawn_event_content',
     { arg: EventDespawnTick.rowType },
     (ctx: any, { arg }: any) => {
-      const event = ctx.db.worldEvent.id.find(arg.eventId);
+      const event = ctx.db.world_event.id.find(arg.eventId);
       if (!event || event.status !== 'active') return;
       resolveWorldEvent(ctx, event, 'failure');
     }

@@ -44,8 +44,8 @@ const HEALER_CLASSES = new Set(['cleric', 'shaman']);
 
 // Helper to get active combat for character
 function activeCombatIdForCharacter(ctx: any, characterId: bigint): bigint | null {
-  for (const row of ctx.db.combatParticipant.by_character.filter(characterId)) {
-    const combat = ctx.db.combatEncounter.id.find(row.combatId);
+  for (const row of ctx.db.combat_participant.by_character.filter(characterId)) {
+    const combat = ctx.db.combat_encounter.id.find(row.combatId);
     if (combat && combat.state === 'active') return combat.id;
   }
   return null;
@@ -69,9 +69,9 @@ export function staminaResourceCost(power: bigint) {
 }
 
 export function hasShieldEquipped(ctx: any, characterId: bigint) {
-  for (const instance of ctx.db.itemInstance.by_owner.filter(characterId)) {
+  for (const instance of ctx.db.item_instance.by_owner.filter(characterId)) {
     if (instance.equippedSlot !== 'offHand') continue;
-    const template = ctx.db.itemTemplate.id.find(instance.templateId);
+    const template = ctx.db.item_template.id.find(instance.templateId);
     if (!template) continue;
     const name = template.name.toLowerCase();
     if (name.includes('shield') || template.armorType === 'shield') return true;
@@ -80,7 +80,7 @@ export function hasShieldEquipped(ctx: any, characterId: bigint) {
 }
 
 export function abilityCooldownMicros(ctx: any, abilityKey: string) {
-  const rows = [...ctx.db.abilityTemplate.by_key.filter(abilityKey)];
+  const rows = [...ctx.db.ability_template.by_key.filter(abilityKey)];
   const ability = rows[0];
   if (!ability) return GLOBAL_COOLDOWN_MICROS;
   const specific = ability.cooldownSeconds ? ability.cooldownSeconds * 1_000_000n : 0n;
@@ -88,7 +88,7 @@ export function abilityCooldownMicros(ctx: any, abilityKey: string) {
 }
 
 export function abilityCastMicros(ctx: any, abilityKey: string) {
-  const rows = [...ctx.db.abilityTemplate.by_key.filter(abilityKey)];
+  const rows = [...ctx.db.ability_template.by_key.filter(abilityKey)];
   const ability = rows[0];
   if (ability?.castSeconds) return ability.castSeconds * 1_000_000n;
   return 0n;
@@ -177,18 +177,18 @@ export function addCharacterEffect(
   roundsRemaining: bigint,
   sourceAbility: string
 ) {
-  const existing = [...ctx.db.characterEffect.by_character.filter(characterId)].find(
+  const existing = [...ctx.db.character_effect.by_character.filter(characterId)].find(
     (effect) => effect.effectType === effectType && effect.sourceAbility === sourceAbility
   );
   if (existing) {
-    ctx.db.characterEffect.id.update({
+    ctx.db.character_effect.id.update({
       ...existing,
       magnitude,
       roundsRemaining,
     });
     return;
   }
-  ctx.db.characterEffect.insert({
+  ctx.db.character_effect.insert({
     id: 0n,
     characterId,
     effectType,
@@ -227,14 +227,14 @@ export function addEnemyEffect(
   if (effectType === 'stun') {
     const durationMicros = roundsRemaining * 1_000_000n;
     const newUntil = ctx.timestamp.microsSinceUnixEpoch + durationMicros;
-    const existing = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemyId)].find(
+    const existing = [...ctx.db.combat_enemy_effect.by_enemy.filter(enemyId)].find(
       (effect: any) => effect.effectType === 'stun'
     );
     if (existing) {
       const maxExpiry = existing.magnitude > newUntil ? existing.magnitude : newUntil;
-      ctx.db.combatEnemyEffect.id.update({ ...existing, magnitude: maxExpiry, ownerCharacterId });
+      ctx.db.combat_enemy_effect.id.update({ ...existing, magnitude: maxExpiry, ownerCharacterId });
     } else {
-      ctx.db.combatEnemyEffect.insert({
+      ctx.db.combat_enemy_effect.insert({
         id: 0n,
         combatId,
         enemyId,
@@ -248,14 +248,14 @@ export function addEnemyEffect(
     return;
   }
 
-  const existing = [...ctx.db.combatEnemyEffect.by_combat.filter(combatId)].find(
+  const existing = [...ctx.db.combat_enemy_effect.by_combat.filter(combatId)].find(
     (effect) =>
       effect.enemyId === enemyId &&
       effect.effectType === effectType &&
       effect.sourceAbility === sourceAbility
   );
   if (existing) {
-    ctx.db.combatEnemyEffect.id.update({
+    ctx.db.combat_enemy_effect.id.update({
       ...existing,
       magnitude,
       roundsRemaining,
@@ -263,7 +263,7 @@ export function addEnemyEffect(
     });
     return;
   }
-  ctx.db.combatEnemyEffect.insert({
+  ctx.db.combat_enemy_effect.insert({
     id: 0n,
     combatId,
     enemyId,
@@ -292,7 +292,7 @@ export function applyHpBonus(
 
 export function getTopAggroId(ctx: any, combatId: bigint, enemyId?: bigint) {
   let top: any | null = null;
-  for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+  for (const entry of ctx.db.aggro_entry.by_combat.filter(combatId)) {
     if (enemyId && entry.enemyId !== enemyId) continue;
     if (entry.petId) continue;
     if (!top || entry.value > top.value) top = entry;
@@ -302,7 +302,7 @@ export function getTopAggroId(ctx: any, combatId: bigint, enemyId?: bigint) {
 
 export function sumCharacterEffect(ctx: any, characterId: bigint, effectType: string) {
   let total = 0n;
-  for (const effect of ctx.db.characterEffect.by_character.filter(characterId)) {
+  for (const effect of ctx.db.character_effect.by_character.filter(characterId)) {
     if (effect.effectType === effectType) total += BigInt(effect.magnitude);
   }
   return total;
@@ -310,7 +310,7 @@ export function sumCharacterEffect(ctx: any, characterId: bigint, effectType: st
 
 export function sumEnemyEffect(ctx: any, combatId: bigint, effectType: string, enemyId?: bigint) {
   let total = 0n;
-  for (const effect of ctx.db.combatEnemyEffect.by_combat.filter(combatId)) {
+  for (const effect of ctx.db.combat_enemy_effect.by_combat.filter(combatId)) {
     if (enemyId && effect.enemyId !== enemyId) continue;
     if (effect.effectType === effectType) total += BigInt(effect.magnitude);
   }
@@ -324,7 +324,7 @@ export function executeAbility(
   targetCharacterId?: bigint
 ) {
   const normalizedClass = normalizeClassName(character.className);
-  const abilityRows = [...ctx.db.abilityTemplate.by_key.filter(abilityKey)];
+  const abilityRows = [...ctx.db.ability_template.by_key.filter(abilityKey)];
   const ability = abilityRows[0];
   if (!ability) throw new SenderError('Unknown ability');
   if (ability.className !== normalizedClass) {
@@ -336,7 +336,7 @@ export function executeAbility(
   let staminaFree = false;
   let staminaFreeEffectId: bigint | undefined;
   if (ability.resource === 'stamina') {
-    const free = [...ctx.db.characterEffect.by_character.filter(character.id)].find(
+    const free = [...ctx.db.character_effect.by_character.filter(character.id)].find(
       (effect) => effect.effectType === 'stamina_free'
     );
     if (free) {
@@ -380,8 +380,8 @@ export function executeAbility(
   }
 
   const combatId = activeCombatIdForCharacter(ctx, character.id);
-  const combat = combatId ? ctx.db.combatEncounter.id.find(combatId) : null;
-  const enemies = combatId ? [...ctx.db.combatEnemy.by_combat.filter(combatId)] : [];
+  const combat = combatId ? ctx.db.combat_encounter.id.find(combatId) : null;
+  const enemies = combatId ? [...ctx.db.combat_enemy.by_combat.filter(combatId)] : [];
   const preferredEnemy = character.combatTargetEnemyId
     ? enemies.find((row) => row.id === character.combatTargetEnemyId)
     : null;
@@ -390,7 +390,7 @@ export function executeAbility(
     enemies.find((row) => row.currentHp > 0n) ??
     enemies[0] ??
     null;
-  const enemyTemplate = enemy ? ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId) : null;
+  const enemyTemplate = enemy ? ctx.db.enemy_template.id.find(enemy.enemyTemplateId) : null;
   const enemyName = enemy?.displayName ?? enemyTemplate?.name ?? 'enemy';
   const weapon = getEquippedWeaponStats(ctx, character.id);
   const baseWeaponDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
@@ -413,8 +413,8 @@ export function executeAbility(
     durationSeconds?: bigint
   ) => {
     // Dismiss any existing pet for this character (single pet at a time)
-    for (const existing of ctx.db.activePet.by_character.filter(character.id)) {
-      ctx.db.activePet.id.delete(existing.id);
+    for (const existing of ctx.db.active_pet.by_character.filter(character.id)) {
+      ctx.db.active_pet.id.delete(existing.id);
     }
     const pickIndex = Number((nowMicros + character.id * 7n) % BigInt(namePool.length));
     const petName = namePool[pickIndex] ?? 'Echo';
@@ -431,7 +431,7 @@ export function executeAbility(
     const petAttackDamage = damageBase + petLevel * damagePerLevel + weaponProxy;
     const inActiveCombat = combatId && combat && combat.state === 'active';
     if (inActiveCombat && !enemy) throw new SenderError('You have no target to unleash this upon.');
-    const pet = ctx.db.activePet.insert({
+    const pet = ctx.db.active_pet.insert({
       id: 0n,
       characterId: character.id,
       combatId: inActiveCombat ? combatId : undefined,
@@ -456,7 +456,7 @@ export function executeAbility(
       // Single-target taunt: only generate initial aggro against the targeted enemy,
       // not an AoE taunt against every enemy in combat.
       // Only pet_taunt pets (earth elemental) get initial aggro; fire/water elementals do not.
-      ctx.db.aggroEntry.insert({
+      ctx.db.aggro_entry.insert({
         id: 0n,
         combatId,
         enemyId: enemy!.id,
@@ -466,9 +466,9 @@ export function executeAbility(
       });
     } else if (inActiveCombat && ability?.key === 'pet_aoe_heal') {
       // Primal Titan draws aggro from ALL enemies on summon
-      for (const combatEnemy of ctx.db.combatEnemy.by_combat.filter(combatId!)) {
+      for (const combatEnemy of ctx.db.combat_enemy.by_combat.filter(combatId!)) {
         if (combatEnemy.currentHp === 0n) continue; // skip dead enemies
-        ctx.db.aggroEntry.insert({
+        ctx.db.aggro_entry.insert({
           id: 0n,
           combatId: combatId!,
           enemyId: combatEnemy.id,
@@ -476,7 +476,7 @@ export function executeAbility(
           petId: pet.id,
           value: SUMMONER_PET_INITIAL_AGGRO,
         });
-        ctx.db.combatEnemy.id.update({
+        ctx.db.combat_enemy.id.update({
           ...combatEnemy,
           aggroTargetPetId: pet.id,
           aggroTargetCharacterId: character.id,
@@ -579,7 +579,7 @@ export function executeAbility(
     // AoE target enumeration and damage reduction
     if (ability?.aoeTargets === 'all_enemies') {
       const aoeMultiplier = Number(AOE_DAMAGE_MULTIPLIER) / 100;  // 65% = 0.65
-      const enemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
+      const enemies = [...ctx.db.combat_enemy.by_combat.filter(combatId)];
 
       for (const targetEnemy of enemies) {
         if (targetEnemy.currentHp === 0n) continue;  // Skip dead enemies
@@ -609,17 +609,17 @@ export function executeAbility(
 
         // Apply damage to target
         const nextHp = targetEnemy.currentHp > variedMitigated ? targetEnemy.currentHp - variedMitigated : 0n;
-        ctx.db.combatEnemy.id.update({ ...targetEnemy, currentHp: nextHp });
+        ctx.db.combat_enemy.id.update({ ...targetEnemy, currentHp: nextHp });
 
         // Update aggro for this target (threat tracks actual damage dealt)
-        for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+        for (const entry of ctx.db.aggro_entry.by_combat.filter(combatId)) {
           if (entry.characterId === character.id && entry.enemyId === targetEnemy.id) {
             const className = character.className?.toLowerCase() ?? '';
             const threatMult = TANK_CLASSES.has(className) ? TANK_THREAT_MULTIPLIER
               : HEALER_CLASSES.has(className) ? HEALER_THREAT_MULTIPLIER
                 : className === 'summoner' ? SUMMONER_THREAT_MULTIPLIER : 100n;
             const threat = (variedMitigated * threatMult) / 100n;
-            ctx.db.aggroEntry.id.update({
+            ctx.db.aggro_entry.id.update({
               ...entry,
               value: entry.value + threat,
             });
@@ -642,7 +642,7 @@ export function executeAbility(
         }
 
         // Log damage for each target
-        const targetEnemyTemplate = ctx.db.enemyTemplate.id.find(targetEnemy.enemyTemplateId);
+        const targetEnemyTemplate = ctx.db.enemy_template.id.find(targetEnemy.enemyTemplateId);
         const targetName = targetEnemy.displayName ?? targetEnemyTemplate?.name ?? 'enemy';
         appendPrivateEvent(
           ctx,
@@ -695,15 +695,15 @@ export function executeAbility(
       totalDamage += variedReduced;
     }
     const nextHp = enemy.currentHp > totalDamage ? enemy.currentHp - totalDamage : 0n;
-    ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
-    for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+    ctx.db.combat_enemy.id.update({ ...enemy, currentHp: nextHp });
+    for (const entry of ctx.db.aggro_entry.by_combat.filter(combatId)) {
       if (entry.characterId === character.id && entry.enemyId === enemy.id) {
         const className = character.className?.toLowerCase() ?? '';
         const threatMult = TANK_CLASSES.has(className) ? TANK_THREAT_MULTIPLIER
           : HEALER_CLASSES.has(className) ? HEALER_THREAT_MULTIPLIER
             : className === 'summoner' ? SUMMONER_THREAT_MULTIPLIER : 100n;
         const threat = (totalDamage * threatMult) / 100n + (options?.threatBonus ?? 0n);
-        ctx.db.aggroEntry.id.update({
+        ctx.db.aggro_entry.id.update({
           ...entry,
           value: entry.value + threat,
         });
@@ -829,15 +829,15 @@ export function executeAbility(
     if (combatId) {
       const healingThreat = (scaledAmount * HEALING_THREAT_PERCENT) / 100n;
       if (healingThreat > 0n) {
-        const enemiesInCombat = [...ctx.db.combatEnemy.by_combat.filter(combatId)]
+        const enemiesInCombat = [...ctx.db.combat_enemy.by_combat.filter(combatId)]
           .filter((e: any) => e.currentHp > 0n);
         if (enemiesInCombat.length > 0) {
           const threatPerEnemy = healingThreat / BigInt(enemiesInCombat.length);
           if (threatPerEnemy > 0n) {
             for (const en of enemiesInCombat) {
-              for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+              for (const entry of ctx.db.aggro_entry.by_combat.filter(combatId)) {
                 if (entry.characterId === character.id && entry.enemyId === en.id) {
-                  ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + threatPerEnemy });
+                  ctx.db.aggro_entry.id.update({ ...entry, value: entry.value + threatPerEnemy });
                   break;
                 }
               }
@@ -914,7 +914,7 @@ export function executeAbility(
         // AoE physical damage + stun all enemies
         applyDamage(0n, 0n);
         if (combatId) {
-          const earthquakeEnemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
+          const earthquakeEnemies = [...ctx.db.combat_enemy.by_combat.filter(combatId)];
           for (const en of earthquakeEnemies) {
             if (en.currentHp === 0n) continue;
             addEnemyEffect(ctx, combatId, en.id, 'stun', 1n, 4n, 'Earthquake', character.id);
@@ -977,13 +977,13 @@ export function executeAbility(
           throw new SenderError('This song can only be sung in combat.');
         }
         // Mark previous song as fading (only consider non-fading songs to avoid double-fading)
-        const prevSong = [...ctx.db.activeBardSong.by_bard.filter(character.id)].find((r: any) => !r.isFading);
+        const prevSong = [...ctx.db.active_bard_song.by_bard.filter(character.id)].find((r: any) => !r.isFading);
         if (prevSong) {
-          ctx.db.activeBardSong.id.update({ ...prevSong, isFading: true });
+          ctx.db.active_bard_song.id.update({ ...prevSong, isFading: true });
         } else {
           // Schedule first tick 6s after cast — damage songs fire immediately on cast below,
           // so the tick loop begins at the standard 6s interval.
-          ctx.db.bardSongTick.insert({
+          ctx.db.bard_song_tick.insert({
             scheduledId: 0n,
             scheduledAt: ScheduleAt.time(nowMicros + 6_000_000n),
             bardCharacterId: character.id,
@@ -992,7 +992,7 @@ export function executeAbility(
         }
         // Insert new active song. The previous (fading) row is kept alive in DB
         // so it fires one final tick and then deletes itself naturally.
-        ctx.db.activeBardSong.insert({
+        ctx.db.active_bard_song.insert({
           id: 0n,
           bardCharacterId: character.id,
           combatId: combatId ?? undefined,
@@ -1010,7 +1010,7 @@ export function executeAbility(
         // Discordant Note deals an immediate tick on cast
         if (abilityKey === 'bard_discordant_note') {
           const activeEnemies = combatId
-            ? [...ctx.db.combatEnemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n)
+            ? [...ctx.db.combat_enemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n)
             : [];
           const burstDmg = ((8n + character.level * 2n + character.cha) * 65n) / 100n;
           let totalDamage = 0n;
@@ -1018,7 +1018,7 @@ export function executeAbility(
             const actualDmg = en.currentHp > burstDmg ? burstDmg : en.currentHp;
             totalDamage += actualDmg;
             const nextHp = en.currentHp > burstDmg ? en.currentHp - burstDmg : 0n;
-            ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
+            ctx.db.combat_enemy.id.update({ ...en, currentHp: nextHp });
           }
           const freshBard = ctx.db.character.id.find(character.id);
           if (freshBard && freshBard.mana > 0n) {
@@ -1031,7 +1031,7 @@ export function executeAbility(
         // Requiem of Ruin applies damage_taken debuff to all active enemies immediately on cast
         if (abilityKey === 'bard_requiem_of_ruin') {
           const activeEnemies = combatId
-            ? [...ctx.db.combatEnemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n)
+            ? [...ctx.db.combat_enemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n)
             : [];
           for (const en of activeEnemies) {
             addEnemyEffect(ctx, combatId!, en.id, 'damage_taken', 3n, 1n, 'Requiem of Ruin', character.id);
@@ -1061,7 +1061,7 @@ export function executeAbility(
 
       case 'bard_finale': {
         // Burst the active song: apply its effect once immediately
-        const activeSong = [...ctx.db.activeBardSong.by_bard.filter(character.id)].find((r: any) => !r.isFading);
+        const activeSong = [...ctx.db.active_bard_song.by_bard.filter(character.id)].find((r: any) => !r.isFading);
         if (!activeSong) {
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
             'No active song to unleash.'
@@ -1069,13 +1069,13 @@ export function executeAbility(
           return;
         }
         // Apply the current song's effect immediately once
-        const bardEnemies = combatId ? [...ctx.db.combatEnemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n) : [];
+        const bardEnemies = combatId ? [...ctx.db.combat_enemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n) : [];
         switch (activeSong.songKey) {
           case 'bard_discordant_note':
             for (const tEnemy of bardEnemies) {
               const dmg = 5n + character.level;
               const nextHp = tEnemy.currentHp > dmg ? tEnemy.currentHp - dmg : 0n;
-              ctx.db.combatEnemy.id.update({ ...tEnemy, currentHp: nextHp });
+              ctx.db.combat_enemy.id.update({ ...tEnemy, currentHp: nextHp });
             }
             break;
           case 'bard_requiem_of_ruin':
@@ -1137,7 +1137,7 @@ export function executeAbility(
       case 'enchanter_bewilderment':
         // AoE AC debuff on all enemies
         if (combatId) {
-          const bewilderedEnemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
+          const bewilderedEnemies = [...ctx.db.combat_enemy.by_combat.filter(combatId)];
           for (const en of bewilderedEnemies) {
             if (en.currentHp === 0n) continue;
             addEnemyEffect(ctx, combatId, en.id, 'ac_bonus', -3n, 3n, 'Bewilderment', character.id);
@@ -1316,7 +1316,7 @@ export function executeAbility(
           );
           return;
         }
-        const junk = [...ctx.db.itemTemplate.iter()].filter((row) => row.isJunk);
+        const junk = [...ctx.db.item_template.iter()].filter((row) => row.isJunk);
         if (junk.length === 0) {
           appendPrivateEvent(
             ctx,
@@ -1438,7 +1438,7 @@ export function executeAbility(
         return;
       case 'ranger_track': {
         // Get all enemy spawns at the character's location
-        const spawns = [...ctx.db.enemySpawn.by_location.filter(character.locationId)];
+        const spawns = [...ctx.db.enemy_spawn.by_location.filter(character.locationId)];
 
         if (spawns.length === 0) {
           appendPrivateEvent(
@@ -1454,7 +1454,7 @@ export function executeAbility(
         // Reveal information about each enemy spawn
         let trackedCount = 0;
         for (const spawn of spawns) {
-          const template = ctx.db.enemyTemplate.id.find(spawn.enemyTemplateId);
+          const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
           if (!template) continue;
 
           appendPrivateEvent(
@@ -1521,10 +1521,10 @@ export function executeAbility(
         const witherDotDamage = 5n + character.level;
         addEnemyEffect(ctx, combatId, enemy.id, 'dot', witherDotDamage, 3n, 'Wither', character.id);
         // Find the just-inserted effect and add ownerCharacterId
-        const witherEffect = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)]
+        const witherEffect = [...ctx.db.combat_enemy_effect.by_enemy.filter(enemy.id)]
           .find((e: any) => e.effectType === 'dot' && e.sourceAbility === 'Wither');
         if (witherEffect) {
-          ctx.db.combatEnemyEffect.id.update({ ...witherEffect, ownerCharacterId: character.id });
+          ctx.db.combat_enemy_effect.id.update({ ...witherEffect, ownerCharacterId: character.id });
         }
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
           `Wither drains life from ${enemyName}.`
@@ -1761,7 +1761,7 @@ export function executeAbility(
       case 'reaver_dread_aura':
         // AoE debuff all enemies
         if (combatId) {
-          const dreadEnemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
+          const dreadEnemies = [...ctx.db.combat_enemy.by_combat.filter(combatId)];
           for (const en of dreadEnemies) {
             if (en.currentHp === 0n) continue;
             addEnemyEffect(ctx, combatId, en.id, 'damage_down', -3n, 3n, 'Dread Aura', character.id);
@@ -1823,17 +1823,17 @@ export function executeAbility(
       case 'summoner_redirect': {
         // Pull all enemy aggro off the active pet and onto the summoner.
         if (!combatId) throw new SenderError('You must be in combat to use Redirect.');
-        const myPets = [...ctx.db.activePet.by_character.filter(character.id)]
+        const myPets = [...ctx.db.active_pet.by_character.filter(character.id)]
           .filter((p: any) => p.combatId === combatId);
         if (myPets.length === 0) throw new SenderError('You have no active pet to redirect from.');
-        const combatEnemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
+        const combatEnemies = [...ctx.db.combat_enemy.by_combat.filter(combatId)];
         let redirected = 0;
         for (const petRow of myPets) {
           for (const e of combatEnemies) {
             if (e.currentHp <= 0n) continue;
             // Force this enemy to target the summoner instead of the pet
             if (e.aggroTargetPetId === petRow.id) {
-              ctx.db.combatEnemy.id.update({
+              ctx.db.combat_enemy.id.update({
                 ...e,
                 aggroTargetCharacterId: character.id,
                 aggroTargetPetId: undefined,
@@ -1841,16 +1841,16 @@ export function executeAbility(
               redirected++;
             }
             // Transfer the pet's aggro value to the summoner so they stay top of the list
-            const petEntry = [...ctx.db.aggroEntry.by_enemy.filter(e.id)]
+            const petEntry = [...ctx.db.aggro_entry.by_enemy.filter(e.id)]
               .find((a: any) => a.petId === petRow.id && a.characterId === character.id);
             if (petEntry) {
-              const myEntry = [...ctx.db.aggroEntry.by_enemy.filter(e.id)]
+              const myEntry = [...ctx.db.aggro_entry.by_enemy.filter(e.id)]
                 .find((a: any) => !a.petId && a.characterId === character.id);
               if (myEntry) {
-                ctx.db.aggroEntry.id.update({ ...myEntry, value: myEntry.value + petEntry.value });
-                ctx.db.aggroEntry.id.delete(petEntry.id);
+                ctx.db.aggro_entry.id.update({ ...myEntry, value: myEntry.value + petEntry.value });
+                ctx.db.aggro_entry.id.delete(petEntry.id);
               } else {
-                ctx.db.aggroEntry.id.update({ ...petEntry, petId: undefined });
+                ctx.db.aggro_entry.id.update({ ...petEntry, petId: undefined });
               }
             }
           }
@@ -1864,10 +1864,10 @@ export function executeAbility(
       }
       case 'summoner_conjure_sustenance': {
         // Give all party members food items from existing templates
-        const bandageTemplate = [...ctx.db.itemTemplate.iter()].find(
+        const bandageTemplate = [...ctx.db.item_template.iter()].find(
           (t: any) => t.name.toLowerCase().includes('bandage')
         );
-        const foodTemplate = [...ctx.db.itemTemplate.iter()].find(
+        const foodTemplate = [...ctx.db.item_template.iter()].find(
           (t: any) => t.isJunk === false && t.wellFedDurationMicros > 0n
         );
         let conjured = 0;
@@ -1887,10 +1887,10 @@ export function executeAbility(
       }
       case 'summoner_conjure_equipment': {
         // Create temporary weapon and armor items marked isTemporary=true
-        const weaponCandidates = [...ctx.db.itemTemplate.iter()].filter(
+        const weaponCandidates = [...ctx.db.item_template.iter()].filter(
           (t: any) => t.slot === 'mainHand' && !t.isJunk
         );
-        const armorCandidates = [...ctx.db.itemTemplate.iter()].filter(
+        const armorCandidates = [...ctx.db.item_template.iter()].filter(
           (t: any) => t.slot === 'chest' && !t.isJunk
         );
         const seed = nowMicros + character.id;
@@ -1901,7 +1901,7 @@ export function executeAbility(
           ? armorCandidates[Number((seed + 7n) % BigInt(armorCandidates.length))]
           : null;
         if (weaponTpl && hasInventorySpace(ctx, character.id, weaponTpl.id)) {
-          ctx.db.itemInstance.insert({
+          ctx.db.item_instance.insert({
             id: 0n,
             templateId: weaponTpl.id,
             ownerCharacterId: character.id,
@@ -1915,7 +1915,7 @@ export function executeAbility(
           });
         }
         if (armorTpl && hasInventorySpace(ctx, character.id, armorTpl.id)) {
-          ctx.db.itemInstance.insert({
+          ctx.db.item_instance.insert({
             id: 0n,
             templateId: armorTpl.id,
             ownerCharacterId: character.id,
@@ -1947,7 +1947,7 @@ export function executeAbility(
 
   // Ability fired successfully — now consume resources
   if (staminaFreeEffectId !== undefined) {
-    ctx.db.characterEffect.id.delete(staminaFreeEffectId);
+    ctx.db.character_effect.id.delete(staminaFreeEffectId);
   }
   if (ability.resource === 'mana') {
     const latest = ctx.db.character.id.find(character.id);
@@ -1990,19 +1990,19 @@ export function executeEnemyAbility(
   targetCharacterId?: bigint,
   targetPetId?: bigint
 ) {
-  const combat = ctx.db.combatEncounter.id.find(combatId);
+  const combat = ctx.db.combat_encounter.id.find(combatId);
   if (!combat || combat.state !== 'active') return;
   const ability = ENEMY_ABILITIES[abilityKey as keyof typeof ENEMY_ABILITIES];
   if (!ability) return;
   const desc = (ability as any).description ?? '';
-  const enemy = ctx.db.combatEnemy.id.find(enemyId);
+  const enemy = ctx.db.combat_enemy.id.find(enemyId);
   if (!enemy) return;
-  const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+  const enemyTemplate = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
   const enemyName = enemy.displayName ?? enemyTemplate?.name ?? 'Enemy';
 
   // If ability targets a pet, route to pet instead of character
   if (targetPetId) {
-    const pet = ctx.db.activePet.id.find(targetPetId);
+    const pet = ctx.db.active_pet.id.find(targetPetId);
     if (!pet || pet.currentHp === 0n) return;
     const owner = ctx.db.character.id.find(pet.characterId);
     if (!owner) return;
@@ -2014,7 +2014,7 @@ export function executeEnemyAbility(
     const totalPower = enemyPower + abilityPower * 5n;
     const rawDamage = applyVariance(totalPower, enemyId + pet.id + 6173n);
     const newHp = pet.currentHp > rawDamage ? pet.currentHp - rawDamage : 0n;
-    ctx.db.activePet.id.update({ ...pet, currentHp: newHp });
+    ctx.db.active_pet.id.update({ ...pet, currentHp: newHp });
 
     // Log pet being targeted
     const privateMessage = `${enemyName} uses ${ability.name} on ${pet.name} for ${rawDamage}.`;
@@ -2031,13 +2031,13 @@ export function executeEnemyAbility(
         appendGroupEvent(ctx, owner.groupId, owner.id, 'combat', deathMsg);
       }
       // Remove pet's aggro entries
-      for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+      for (const entry of ctx.db.aggro_entry.by_combat.filter(combatId)) {
         if (entry.petId && entry.petId === pet.id) {
-          ctx.db.aggroEntry.id.delete(entry.id);
+          ctx.db.aggro_entry.id.delete(entry.id);
         }
       }
       // Delete the pet
-      ctx.db.activePet.id.delete(pet.id);
+      ctx.db.active_pet.id.delete(pet.id);
     }
     return;
   }
@@ -2120,7 +2120,7 @@ export function executeEnemyAbility(
       appendGroupEvent(ctx, target.groupId, target.id, 'ability', groupMessage);
     }
   } else if (ability.kind === 'heal') {
-    const allies = [...ctx.db.combatEnemy.by_combat.filter(combatId)]
+    const allies = [...ctx.db.combat_enemy.by_combat.filter(combatId)]
       .filter((e: any) => e.currentHp > 0n);
     if (allies.length === 0) return;
 
@@ -2136,7 +2136,7 @@ export function executeEnemyAbility(
     // Cap at maxHp (use computed combat maxHp from combatEnemy row, not stale template value)
     const maxHp = healTarget.maxHp;
     const nextHp = healTarget.currentHp + directHeal > maxHp ? maxHp : healTarget.currentHp + directHeal;
-    ctx.db.combatEnemy.id.update({ ...healTarget, currentHp: nextHp });
+    ctx.db.combat_enemy.id.update({ ...healTarget, currentHp: nextHp });
 
     // Apply HoT if split specified
     const hotDuration = (ability as any).hotDuration;
@@ -2154,13 +2154,13 @@ export function executeEnemyAbility(
     const healMsg = desc
       ? `${enemyName} heals ${healTargetName} for ${directHeal}. ${desc}`
       : `${enemyName} heals ${healTargetName} for ${directHeal}.`;
-    for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
+    for (const participant of ctx.db.combat_participant.by_combat.filter(combatId)) {
       if (participant.status !== 'active') continue;
       const pc = ctx.db.character.id.find(participant.characterId);
       if (!pc) continue;
       appendPrivateEvent(ctx, pc.id, pc.ownerUserId, 'combat', healMsg);
     }
-    const firstActive = [...ctx.db.combatParticipant.by_combat.filter(combatId)]
+    const firstActive = [...ctx.db.combat_participant.by_combat.filter(combatId)]
       .find((p: any) => p.status === 'active');
     if (firstActive) {
       const pc = ctx.db.character.id.find(firstActive.characterId);
@@ -2173,7 +2173,7 @@ export function executeEnemyAbility(
     const perTargetDamage = (totalPower * AOE_DAMAGE_MULTIPLIER) / 100n;
 
     // Hit all active participants
-    for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
+    for (const participant of ctx.db.combat_participant.by_combat.filter(combatId)) {
       if (participant.status !== 'active') continue;
       const pc = ctx.db.character.id.find(participant.characterId);
       if (!pc || pc.hp === 0n) continue;
@@ -2197,7 +2197,7 @@ export function executeEnemyAbility(
     const rounds = (ability as any).rounds ?? 3n;
 
     // Buff all living enemy allies
-    for (const ally of ctx.db.combatEnemy.by_combat.filter(combatId)) {
+    for (const ally of ctx.db.combat_enemy.by_combat.filter(combatId)) {
       if (ally.currentHp <= 0n) continue;
       addEnemyEffect(ctx, combatId, ally.id, effectType, magnitude, rounds, ability.name);
     }
@@ -2206,13 +2206,13 @@ export function executeEnemyAbility(
     const buffMsg = desc
       ? `${enemyName} rallies allies with ${ability.name}! ${desc}`
       : `${enemyName} rallies allies with ${ability.name}!`;
-    for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
+    for (const participant of ctx.db.combat_participant.by_combat.filter(combatId)) {
       if (participant.status !== 'active') continue;
       const pc = ctx.db.character.id.find(participant.characterId);
       if (!pc) continue;
       appendPrivateEvent(ctx, pc.id, pc.ownerUserId, 'combat', buffMsg);
     }
-    const firstActive = [...ctx.db.combatParticipant.by_combat.filter(combatId)]
+    const firstActive = [...ctx.db.combat_participant.by_combat.filter(combatId)]
       .find((p: any) => p.status === 'active');
     if (firstActive) {
       const pc = ctx.db.character.id.find(firstActive.characterId);
@@ -2230,9 +2230,9 @@ export function executePetAbility(
   abilityKey: string,
   targetEnemyId?: bigint
 ) {
-  const combat = ctx.db.combatEncounter.id.find(combatId);
+  const combat = ctx.db.combat_encounter.id.find(combatId);
   if (!combat || combat.state !== 'active') return false;
-  const pet = ctx.db.activePet.id.find(petId);
+  const pet = ctx.db.active_pet.id.find(petId);
   if (!pet) return false;
   const owner = ctx.db.character.id.find(pet.characterId);
   if (!owner || owner.hp === 0n) return false;
@@ -2245,7 +2245,7 @@ export function executePetAbility(
     let lowestHpRatio = 101n; // > 100 to ensure first candidate wins
     let healTargetIsPet = false;
 
-    for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
+    for (const participant of ctx.db.combat_participant.by_combat.filter(combatId)) {
       if (participant.status !== 'active') continue;
       const member = ctx.db.character.id.find(participant.characterId);
       if (!member || member.hp === 0n || member.hp >= member.maxHp) continue;
@@ -2281,7 +2281,7 @@ export function executePetAbility(
       ? healTarget.maxHp
       : targetCurrentHp + healAmount;
     if (healTargetIsPet) {
-      ctx.db.activePet.id.update({ ...healTarget, currentHp: newHp });
+      ctx.db.active_pet.id.update({ ...healTarget, currentHp: newHp });
     } else {
       ctx.db.character.id.update({ ...healTarget, hp: newHp });
     }
@@ -2306,7 +2306,7 @@ export function executePetAbility(
     }
 
     // Heal all active combat participants (party members)
-    for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
+    for (const participant of ctx.db.combat_participant.by_combat.filter(combatId)) {
       if (participant.status !== 'active') continue;
       const member = ctx.db.character.id.find(participant.characterId);
       if (!member || member.hp === 0n || member.hp >= member.maxHp) continue;
@@ -2319,7 +2319,7 @@ export function executePetAbility(
     // Also heal the pet itself if injured
     if (pet.currentHp > 0n && pet.currentHp < pet.maxHp) {
       const newPetHp = pet.currentHp + healAmount > pet.maxHp ? pet.maxHp : pet.currentHp + healAmount;
-      ctx.db.activePet.id.update({ ...pet, currentHp: newPetHp });
+      ctx.db.active_pet.id.update({ ...pet, currentHp: newPetHp });
       healedCount++;
     }
 
@@ -2334,23 +2334,23 @@ export function executePetAbility(
   }
 
   const target =
-    (targetEnemyId ? ctx.db.combatEnemy.id.find(targetEnemyId) : null) ??
-    (pet.targetEnemyId ? ctx.db.combatEnemy.id.find(pet.targetEnemyId) : null);
+    (targetEnemyId ? ctx.db.combat_enemy.id.find(targetEnemyId) : null) ??
+    (pet.targetEnemyId ? ctx.db.combat_enemy.id.find(pet.targetEnemyId) : null);
   if (!target || target.currentHp === 0n) return false;
 
   if (abilityKey === 'pet_taunt') {
     let maxAggro = 0n;
     let petEntry: typeof AggroEntry.rowType | null = null;
-    for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+    for (const entry of ctx.db.aggro_entry.by_combat.filter(combatId)) {
       if (entry.enemyId !== target.id) continue;
       if (entry.value > maxAggro) maxAggro = entry.value;
       if (entry.petId && entry.petId === pet.id) petEntry = entry;
     }
     const newValue = maxAggro + 20n;
     if (petEntry) {
-      ctx.db.aggroEntry.id.update({ ...petEntry, value: newValue });
+      ctx.db.aggro_entry.id.update({ ...petEntry, value: newValue });
     } else {
-      ctx.db.aggroEntry.insert({
+      ctx.db.aggro_entry.insert({
         id: 0n,
         combatId,
         enemyId: target.id,
@@ -2364,7 +2364,7 @@ export function executePetAbility(
     if (actorGroupId) {
       appendGroupEvent(ctx, actorGroupId, owner.id, 'ability', message);
     }
-    ctx.db.combatEnemy.id.update({
+    ctx.db.combat_enemy.id.update({
       ...target,
       aggroTargetPetId: pet.id,
       aggroTargetCharacterId: owner.id,
@@ -2438,7 +2438,7 @@ export function executeAbilityAction(
 
 export function scheduleCombatTick(ctx: any, combatId: bigint) {
   const nextAt = ctx.timestamp.microsSinceUnixEpoch + COMBAT_LOOP_INTERVAL_MICROS;
-  ctx.db.combatLoopTick.insert({
+  ctx.db.combat_loop_tick.insert({
     scheduledId: 0n,
     scheduledAt: ScheduleAt.time(nextAt),
     combatId,

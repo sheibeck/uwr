@@ -41,7 +41,7 @@ export const registerItemGatheringReducers = (deps: any) => {
       if (activeCombatIdForCharacter(ctx, character.id)) {
         return failItem(ctx, character, 'Cannot gather during combat');
       }
-      const node = ctx.db.resourceNode.id.find(args.nodeId);
+      const node = ctx.db.resource_node.id.find(args.nodeId);
       if (!node) return failItem(ctx, character, 'Resource not found');
       if (node.locationId !== character.locationId) {
         return failItem(ctx, character, 'Resource is not here');
@@ -49,7 +49,7 @@ export const registerItemGatheringReducers = (deps: any) => {
       if (node.state !== 'available') {
         return failItem(ctx, character, 'Resource is not available');
       }
-      for (const gather of ctx.db.resourceGather.by_character.filter(character.id)) {
+      for (const gather of ctx.db.resource_gather.by_character.filter(character.id)) {
         return failItem(ctx, character, 'Already gathering');
       }
 
@@ -57,11 +57,11 @@ export const registerItemGatheringReducers = (deps: any) => {
       const region = location ? ctx.db.region.id.find(location.regionId) : null;
       if (location && !location.isSafe) {
         const availableSpawns = [
-          ...ctx.db.enemySpawn.by_location.filter(character.locationId),
+          ...ctx.db.enemy_spawn.by_location.filter(character.locationId),
         ].filter((row) => {
           if (row.state !== 'available') return false;
           if (row.groupCount > 0n) return true;
-          return ctx.db.enemySpawnMember.by_spawn.filter(row.id).length > 0;
+          return ctx.db.enemy_spawn_member.by_spawn.filter(row.id).length > 0;
         });
         if (availableSpawns.length > 0) {
           const danger = Number(region?.dangerMultiplier ?? 100n);
@@ -103,18 +103,18 @@ export const registerItemGatheringReducers = (deps: any) => {
       const rawGatherDuration = BigInt(Math.round(Number(RESOURCE_GATHER_CAST_MICROS) * (1 - gatherSpeedBonus / 100)));
       const gatherDurationMicros = rawGatherDuration < 500_000n ? 500_000n : rawGatherDuration;
       const endsAt = ctx.timestamp.microsSinceUnixEpoch + gatherDurationMicros;
-      ctx.db.resourceNode.id.update({
+      ctx.db.resource_node.id.update({
         ...node,
         state: 'harvesting',
         lockedByCharacterId: character.id,
       });
-      const gather = ctx.db.resourceGather.insert({
+      const gather = ctx.db.resource_gather.insert({
         id: 0n,
         characterId: character.id,
         nodeId: node.id,
         endsAtMicros: endsAt,
       });
-      ctx.db.resourceGatherTick.insert({
+      ctx.db.resource_gather_tick.insert({
         scheduledId: 0n,
         scheduledAt: ScheduleAt.time(endsAt),
         gatherId: gather.id,
@@ -133,19 +133,19 @@ export const registerItemGatheringReducers = (deps: any) => {
     'finish_gather',
     { arg: ResourceGatherTick.rowType },
     (ctx, { arg }) => {
-      const gather = ctx.db.resourceGather.id.find(arg.gatherId);
+      const gather = ctx.db.resource_gather.id.find(arg.gatherId);
       if (!gather) return;
       if (!gather) return;
       const character = ctx.db.character.id.find(gather.characterId);
-      const node = ctx.db.resourceNode.id.find(gather.nodeId);
-      ctx.db.resourceGather.id.delete(gather.id);
+      const node = ctx.db.resource_node.id.find(gather.nodeId);
+      ctx.db.resource_gather.id.delete(gather.id);
       if (!character || !node) return;
       if (node.lockedByCharacterId?.toString() !== character.id.toString()) {
-        ctx.db.resourceNode.id.update({ ...node, state: 'available', lockedByCharacterId: undefined });
+        ctx.db.resource_node.id.update({ ...node, state: 'available', lockedByCharacterId: undefined });
         return;
       }
       if (character.locationId !== node.locationId || activeCombatIdForCharacter(ctx, character.id)) {
-        ctx.db.resourceNode.id.update({ ...node, state: 'available', lockedByCharacterId: undefined });
+        ctx.db.resource_node.id.update({ ...node, state: 'available', lockedByCharacterId: undefined });
         return;
       }
       // Modifier reagents (crafting affix components) always yield exactly 1
@@ -199,7 +199,7 @@ export const registerItemGatheringReducers = (deps: any) => {
         `${character.name} gathers ${node.name} x${quantity}.`
       );
       // Personal node: delete immediately after gathering, no respawn
-      ctx.db.resourceNode.id.delete(node.id);
+      ctx.db.resource_node.id.delete(node.id);
     }
   );
 };

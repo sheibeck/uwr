@@ -9,7 +9,7 @@ export const registerGroupViews = ({ spacetimedb, t, GroupInvite, EventGroup, Gr
       if (!player || player.userId == null) return [];
       const invites: typeof GroupInvite.rowType[] = [];
       for (const character of ctx.db.character.by_owner_user.filter(player.userId)) {
-        for (const invite of ctx.db.groupInvite.by_to_character.filter(character.id)) {
+        for (const invite of ctx.db.group_invite.by_to_character.filter(character.id)) {
           invites.push(invite);
         }
       }
@@ -24,8 +24,8 @@ export const registerGroupViews = ({ spacetimedb, t, GroupInvite, EventGroup, Gr
       const events: typeof EventGroup.rowType[] = [];
       const player = ctx.db.player.id.find(ctx.sender);
       if (!player || player.userId == null) return events;
-      for (const member of ctx.db.groupMember.by_owner_user.filter(player.userId)) {
-        for (const event of ctx.db.eventGroup.by_group.filter(member.groupId)) {
+      for (const member of ctx.db.group_member.by_owner_user.filter(player.userId)) {
+        for (const event of ctx.db.event_group.by_group.filter(member.groupId)) {
           events.push(event);
         }
       }
@@ -39,7 +39,7 @@ export const registerGroupViews = ({ spacetimedb, t, GroupInvite, EventGroup, Gr
     (ctx: any) => {
       const player = ctx.db.player.id.find(ctx.sender);
       if (!player || player.userId == null) return [];
-      return [...ctx.db.groupMember.by_owner_user.filter(player.userId)];
+      return [...ctx.db.group_member.by_owner_user.filter(player.userId)];
     }
   );
 };

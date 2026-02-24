@@ -7,7 +7,7 @@ export const registerNpcViews = ({ spacetimedb, t, NpcDialog }: ViewDeps) => {
     (ctx: any) => {
       const player = ctx.db.player.id.find(ctx.sender);
       if (!player?.activeCharacterId) return [];
-      return [...ctx.db.npcDialog.by_character.filter(player.activeCharacterId)];
+      return [...ctx.db.npc_dialog.by_character.filter(player.activeCharacterId)];
     }
   );
 };

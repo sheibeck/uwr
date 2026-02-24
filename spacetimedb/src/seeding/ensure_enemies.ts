@@ -7,32 +7,32 @@ import { CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 import { NAMED_ENEMY_DEFS } from '../data/named_enemy_defs';
 
 export function ensureLootTables(ctx: any) {
-  const junkTemplates = [...ctx.db.itemTemplate.iter()].filter((row) => row.isJunk);
-  const gearTemplates = [...ctx.db.itemTemplate.iter()].filter(
+  const junkTemplates = [...ctx.db.item_template.iter()].filter((row) => row.isJunk);
+  const gearTemplates = [...ctx.db.item_template.iter()].filter(
     (row) => !row.isJunk && row.tier <= 1n && row.requiredLevel <= 9n && !STARTER_ITEM_NAMES.has(row.name)
   );
   // T2 gear templates for mid/high-tier loot tables (mountains, town, city, dungeon)
-  const t2GearTemplates = [...ctx.db.itemTemplate.iter()].filter(
+  const t2GearTemplates = [...ctx.db.item_template.iter()].filter(
     (row) => !row.isJunk && row.tier === 2n && row.requiredLevel <= 20n && !STARTER_ITEM_NAMES.has(row.name)
   );
   const findLootTable = (terrainType: string, creatureType: string, tier: bigint) =>
-    [...ctx.db.lootTable.iter()].find(
+    [...ctx.db.loot_table.iter()].find(
       (row) =>
         row.terrainType === terrainType &&
         row.creatureType === creatureType &&
         row.tier === tier
     );
   const upsertLootEntry = (lootTableId: bigint, itemTemplateId: bigint, weight: bigint) => {
-    const existing = [...ctx.db.lootTableEntry.by_table.filter(lootTableId)].find(
+    const existing = [...ctx.db.loot_table_entry.by_table.filter(lootTableId)].find(
       (row) => row.itemTemplateId === itemTemplateId
     );
     if (existing) {
       if (existing.weight !== weight) {
-        ctx.db.lootTableEntry.id.update({ ...existing, weight });
+        ctx.db.loot_table_entry.id.update({ ...existing, weight });
       }
       return;
     }
-    ctx.db.lootTableEntry.insert({
+    ctx.db.loot_table_entry.insert({
       id: 0n,
       lootTableId,
       itemTemplateId,
@@ -50,7 +50,7 @@ export function ensureLootTables(ctx: any) {
     const existing = findLootTable(terrainType, creatureType, 1n);
     let tableId: bigint;
     if (existing) {
-      ctx.db.lootTable.id.update({
+      ctx.db.loot_table.id.update({
         ...existing,
         junkChance,
         gearChance,
@@ -59,7 +59,7 @@ export function ensureLootTables(ctx: any) {
       });
       tableId = existing.id;
     } else {
-      const inserted = ctx.db.lootTable.insert({
+      const inserted = ctx.db.loot_table.insert({
         id: 0n,
         terrainType,
         creatureType,
@@ -137,20 +137,20 @@ export function ensureLootTables(ctx: any) {
 
 export function ensureMaterialLootEntries(ctx: any) {
   const upsertLootEntry = (lootTableId: bigint, itemTemplateId: bigint, weight: bigint) => {
-    const existing = [...ctx.db.lootTableEntry.by_table.filter(lootTableId)].find(
+    const existing = [...ctx.db.loot_table_entry.by_table.filter(lootTableId)].find(
       (row) => row.itemTemplateId === itemTemplateId
     );
     if (existing) {
       if (existing.weight !== weight) {
-        ctx.db.lootTableEntry.id.update({ ...existing, weight });
+        ctx.db.loot_table_entry.id.update({ ...existing, weight });
       }
       return;
     }
-    ctx.db.lootTableEntry.insert({ id: 0n, lootTableId, itemTemplateId, weight });
+    ctx.db.loot_table_entry.insert({ id: 0n, lootTableId, itemTemplateId, weight });
   };
 
   const findTable = (terrainType: string, creatureType: string, tier: bigint) =>
-    [...ctx.db.lootTable.iter()].find(
+    [...ctx.db.loot_table.iter()].find(
       (row) =>
         row.terrainType === terrainType &&
         row.creatureType === creatureType &&
@@ -369,7 +369,7 @@ export function ensureVendorInventory(ctx: any) {
     const vendorTier = Math.max(1, tierRaw);
 
     // Filter eligible items: not junk, not resources, tier <= vendor tier, not starter gear, common rarity only
-    const allEligible = [...ctx.db.itemTemplate.iter()].filter(
+    const allEligible = [...ctx.db.item_template.iter()].filter(
       (row) => !row.isJunk && row.slot !== 'resource' && row.tier <= BigInt(vendorTier) && !STARTER_ITEM_NAMES.has(row.name) && row.rarity === 'common'
     );
 
@@ -404,16 +404,16 @@ export function ensureVendorInventory(ctx: any) {
 
     // Upsert selected items
     const upsertVendorItem = (itemTemplateId: bigint, price: bigint) => {
-      const existing = [...ctx.db.vendorInventory.by_vendor.filter(vendor.id)].find(
+      const existing = [...ctx.db.vendor_inventory.by_vendor.filter(vendor.id)].find(
         (row) => row.itemTemplateId === itemTemplateId
       );
       if (existing) {
         if (existing.price !== price) {
-          ctx.db.vendorInventory.id.update({ ...existing, price });
+          ctx.db.vendor_inventory.id.update({ ...existing, price });
         }
         return;
       }
-      ctx.db.vendorInventory.insert({
+      ctx.db.vendor_inventory.insert({
         id: 0n,
         npcId: vendor.id,
         itemTemplateId,
@@ -440,11 +440,11 @@ export function ensureVendorInventory(ctx: any) {
 export function ensureLocationEnemyTemplates(ctx: any) {
   for (const location of ctx.db.location.iter()) {
     const existing = new Set<string>();
-    for (const row of ctx.db.locationEnemyTemplate.by_location.filter(location.id)) {
+    for (const row of ctx.db.location_enemy_template.by_location.filter(location.id)) {
       existing.add(row.enemyTemplateId.toString());
     }
     const locationTerrain = (location.terrainType ?? '').trim().toLowerCase();
-    for (const template of ctx.db.enemyTemplate.iter()) {
+    for (const template of ctx.db.enemy_template.iter()) {
       const allowed = (template.terrainTypes ?? '')
         .split(',')
         .map((entry) => entry.trim().toLowerCase())
@@ -460,7 +460,7 @@ export function ensureLocationEnemyTemplates(ctx: any) {
         }
       }
       if (existing.has(template.id.toString())) continue;
-      ctx.db.locationEnemyTemplate.insert({
+      ctx.db.location_enemy_template.insert({
         id: 0n,
         locationId: location.id,
         enemyTemplateId: template.id,
@@ -473,14 +473,14 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
   const addEnemyTemplate = (row: any) => {
     const existing = findEnemyTemplateByName(ctx, row.name);
     if (existing) {
-      ctx.db.enemyTemplate.id.update({
+      ctx.db.enemy_template.id.update({
         ...existing,
         ...row,
         id: existing.id,
       });
-      return ctx.db.enemyTemplate.id.find(existing.id) ?? { ...existing, ...row, id: existing.id };
+      return ctx.db.enemy_template.id.find(existing.id) ?? { ...existing, ...row, id: existing.id };
     }
-    return ctx.db.enemyTemplate.insert({
+    return ctx.db.enemy_template.insert({
       id: 0n,
       ...row,
     });
@@ -493,11 +493,11 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     roleDetail: string,
     abilityProfile: string
   ) => {
-    const existing = [...ctx.db.enemyRoleTemplate.by_template.filter(template.id)].find(
+    const existing = [...ctx.db.enemy_role_template.by_template.filter(template.id)].find(
       (row) => row.roleKey === roleKey
     );
     if (existing) {
-      ctx.db.enemyRoleTemplate.id.update({
+      ctx.db.enemy_role_template.id.update({
         ...existing,
         enemyTemplateId: template.id,
         roleKey,
@@ -508,7 +508,7 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
       });
       return;
     }
-    ctx.db.enemyRoleTemplate.insert({
+    ctx.db.enemy_role_template.insert({
       id: 0n,
       enemyTemplateId: template.id,
       roleKey,
@@ -1983,14 +1983,14 @@ export function ensureNamedEnemies(ctx: any) {
   const addEnemyTemplate = (row: any) => {
     const existing = findEnemyTemplateByName(ctx, row.name);
     if (existing) {
-      ctx.db.enemyTemplate.id.update({
+      ctx.db.enemy_template.id.update({
         ...existing,
         ...row,
         id: existing.id,
       });
-      return ctx.db.enemyTemplate.id.find(existing.id) ?? { ...existing, ...row, id: existing.id };
+      return ctx.db.enemy_template.id.find(existing.id) ?? { ...existing, ...row, id: existing.id };
     }
-    return ctx.db.enemyTemplate.insert({
+    return ctx.db.enemy_template.insert({
       id: 0n,
       ...row,
     });
@@ -2004,11 +2004,11 @@ export function ensureNamedEnemies(ctx: any) {
     roleDetail: string,
     abilityProfile: string
   ) => {
-    const existing = [...ctx.db.enemyRoleTemplate.by_template.filter(template.id)].find(
+    const existing = [...ctx.db.enemy_role_template.by_template.filter(template.id)].find(
       (row: any) => row.roleKey === roleKey
     );
     if (existing) {
-      ctx.db.enemyRoleTemplate.id.update({
+      ctx.db.enemy_role_template.id.update({
         ...existing,
         enemyTemplateId: template.id,
         roleKey,
@@ -2019,7 +2019,7 @@ export function ensureNamedEnemies(ctx: any) {
       });
       return;
     }
-    ctx.db.enemyRoleTemplate.insert({
+    ctx.db.enemy_role_template.insert({
       id: 0n,
       enemyTemplateId: template.id,
       roleKey,
@@ -2065,12 +2065,12 @@ export function ensureNamedEnemies(ctx: any) {
 
     // Create dedicated named loot table (tier=2n, unique terrainType key)
     const namedKey = 'named_' + def.name.toLowerCase().replace(/\s+/g, '_');
-    const existingTable = [...ctx.db.lootTable.iter()].find(
+    const existingTable = [...ctx.db.loot_table.iter()].find(
       (row: any) => row.terrainType === namedKey && row.creatureType === def.creatureType && row.tier === 2n
     );
     let tableId: bigint;
     if (existingTable) {
-      ctx.db.lootTable.id.update({
+      ctx.db.loot_table.id.update({
         ...existingTable,
         junkChance: def.loot.junkChance,
         gearChance: def.loot.gearChance,
@@ -2079,7 +2079,7 @@ export function ensureNamedEnemies(ctx: any) {
       });
       tableId = existingTable.id;
     } else {
-      const inserted = ctx.db.lootTable.insert({
+      const inserted = ctx.db.loot_table.insert({
         id: 0n,
         terrainType: namedKey,
         creatureType: def.creatureType,
@@ -2096,15 +2096,15 @@ export function ensureNamedEnemies(ctx: any) {
     for (const entry of def.loot.entries) {
       const itemTemplate = findItemTemplateByName(ctx, entry.itemName);
       if (!itemTemplate) continue;
-      const existingEntry = [...ctx.db.lootTableEntry.by_table.filter(tableId)].find(
+      const existingEntry = [...ctx.db.loot_table_entry.by_table.filter(tableId)].find(
         (row: any) => row.itemTemplateId === itemTemplate.id
       );
       if (existingEntry) {
         if (existingEntry.weight !== entry.weight) {
-          ctx.db.lootTableEntry.id.update({ ...existingEntry, weight: entry.weight });
+          ctx.db.loot_table_entry.id.update({ ...existingEntry, weight: entry.weight });
         }
       } else {
-        ctx.db.lootTableEntry.insert({
+        ctx.db.loot_table_entry.insert({
           id: 0n,
           lootTableId: tableId,
           itemTemplateId: itemTemplate.id,

@@ -18,7 +18,7 @@ export function getLocationSpawnCap(ctx: any, locationId: bigint): number {
 
 /** Returns true if the given EnemySpawn was created by a world event (has an EventSpawnEnemy link). */
 export function isEventSpawn(ctx: any, spawnId: bigint): boolean {
-  return [...ctx.db.eventSpawnEnemy.by_spawn.filter(spawnId)].length > 0;
+  return [...ctx.db.event_spawn_enemy.by_spawn.filter(spawnId)].length > 0;
 }
 
 export function computeLocationTargetLevel(ctx: any, locationId: bigint, baseLevel: bigint) {
@@ -33,7 +33,7 @@ export function computeLocationTargetLevel(ctx: any, locationId: bigint, baseLev
 }
 
 export function getWorldState(ctx: any) {
-  return ctx.db.worldState.id.find(1n);
+  return ctx.db.world_state.id.find(1n);
 }
 
 export function isNightTime(ctx: any) {
@@ -42,19 +42,19 @@ export function isNightTime(ctx: any) {
 }
 
 export function connectLocations(ctx: any, fromId: bigint, toId: bigint) {
-  ctx.db.locationConnection.insert({ id: 0n, fromLocationId: fromId, toLocationId: toId });
-  ctx.db.locationConnection.insert({ id: 0n, fromLocationId: toId, toLocationId: fromId });
+  ctx.db.location_connection.insert({ id: 0n, fromLocationId: fromId, toLocationId: toId });
+  ctx.db.location_connection.insert({ id: 0n, fromLocationId: toId, toLocationId: fromId });
 }
 
 export function areLocationsConnected(ctx: any, fromId: bigint, toId: bigint) {
-  for (const row of ctx.db.locationConnection.by_from.filter(fromId)) {
+  for (const row of ctx.db.location_connection.by_from.filter(fromId)) {
     if (row.toLocationId === toId) return true;
   }
   return false;
 }
 
 export function findEnemyTemplateByName(ctx: any, name: string) {
-  for (const row of ctx.db.enemyTemplate.iter()) {
+  for (const row of ctx.db.enemy_template.iter()) {
     if (row.name.toLowerCase() === name.toLowerCase()) return row;
   }
   return null;
@@ -184,7 +184,7 @@ export function spawnResourceNode(ctx: any, locationId: bigint, characterId?: bi
   const modifierNames = new Set(CRAFTING_MODIFIER_DEFS.map((m) => m.name));
   const isModifierReagent = modifierNames.has(chosen.template.name);
   if (isModifierReagent) {
-    for (const existing of ctx.db.resourceNode.by_location.filter(locationId)) {
+    for (const existing of ctx.db.resource_node.by_location.filter(locationId)) {
       if (modifierNames.has(existing.name) && existing.state !== 'depleted') {
         return undefined; // Already one here — enforce 1-per-location cap
       }
@@ -195,7 +195,7 @@ export function spawnResourceNode(ctx: any, locationId: bigint, characterId?: bi
   const maxQty = 6n;
   const qtyRange = maxQty - minQty + 1n;
   const quantity = isModifierReagent ? 1n : minQty + (quantitySeed % qtyRange);
-  return ctx.db.resourceNode.insert({
+  return ctx.db.resource_node.insert({
     id: 0n,
     locationId,
     characterId: characterId ?? undefined,
@@ -210,7 +210,7 @@ export function spawnResourceNode(ctx: any, locationId: bigint, characterId?: bi
 }
 
 export function getEnemyRoleTemplates(ctx: any, templateId: bigint) {
-  return [...ctx.db.enemyRoleTemplate.by_template.filter(templateId)];
+  return [...ctx.db.enemy_role_template.by_template.filter(templateId)];
 }
 
 export function pickRoleTemplate(
@@ -235,7 +235,7 @@ export function seedSpawnMembers(
   for (let i = 0; i < total; i += 1) {
     const role = pickRoleTemplate(ctx, templateId, seed + BigInt(i) * 7n);
     if (!role) continue;
-    ctx.db.enemySpawnMember.insert({
+    ctx.db.enemy_spawn_member.insert({
       id: 0n,
       spawnId,
       enemyTemplateId: templateId,
@@ -246,12 +246,12 @@ export function seedSpawnMembers(
 
 export function refreshSpawnGroupCount(ctx: any, spawnId: bigint) {
   let count = 0n;
-  for (const _row of ctx.db.enemySpawnMember.by_spawn.filter(spawnId)) {
+  for (const _row of ctx.db.enemy_spawn_member.by_spawn.filter(spawnId)) {
     count += 1n;
   }
-  const spawn = ctx.db.enemySpawn.id.find(spawnId);
+  const spawn = ctx.db.enemy_spawn.id.find(spawnId);
   if (spawn) {
-    ctx.db.enemySpawn.id.update({ ...spawn, groupCount: count });
+    ctx.db.enemy_spawn.id.update({ ...spawn, groupCount: count });
   }
   return count;
 }
@@ -264,10 +264,10 @@ export function ensureAvailableSpawn(
   let best: typeof EnemySpawn.rowType | null = null;
   let bestDiff: bigint | null = null;
   const adjustedTarget = computeLocationTargetLevel(ctx, locationId, targetLevel);
-  for (const spawn of ctx.db.enemySpawn.by_location.filter(locationId)) {
+  for (const spawn of ctx.db.enemy_spawn.by_location.filter(locationId)) {
     if (spawn.state !== 'available') continue;
     if (spawn.groupCount === 0n) continue;
-    const template = ctx.db.enemyTemplate.id.find(spawn.enemyTemplateId);
+    const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
     if (!template) continue;
     const diff =
       template.level > adjustedTarget
@@ -301,14 +301,14 @@ export function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
   const cap = getLocationSpawnCap(ctx, locationId);
   let available = 0;
   let total = 0;
-  for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+  for (const row of ctx.db.enemy_spawn.by_location.filter(locationId)) {
     if (isEventSpawn(ctx, row.id)) continue; // event spawns don't count against cap
     if (row.state === 'available') available += 1;
     total += 1;
   }
   while (available < needed && total < cap) {
     const availableTemplates: bigint[] = [];
-    for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    for (const row of ctx.db.enemy_spawn.by_location.filter(locationId)) {
       if (row.state !== 'available') continue;
       availableTemplates.push(row.enemyTemplateId);
     }
@@ -322,11 +322,11 @@ export function ensureLocationRuntimeBootstrap(ctx: any) {
   for (const location of ctx.db.location.iter()) {
     // Skip enemy spawns for safe zones and clean up any existing spawns
     if (location.isSafe) {
-      for (const spawn of ctx.db.enemySpawn.by_location.filter(location.id)) {
-        for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawn.id)) {
-          ctx.db.enemySpawnMember.id.delete(member.id);
+      for (const spawn of ctx.db.enemy_spawn.by_location.filter(location.id)) {
+        for (const member of ctx.db.enemy_spawn_member.by_spawn.filter(spawn.id)) {
+          ctx.db.enemy_spawn_member.id.delete(member.id);
         }
-        ctx.db.enemySpawn.id.delete(spawn.id);
+        ctx.db.enemy_spawn.id.delete(spawn.id);
       }
       continue;
     }
@@ -335,7 +335,7 @@ export function ensureLocationRuntimeBootstrap(ctx: any) {
     const cap = getLocationSpawnCap(ctx, location.id);
     while (count < cap) {
       const existingTemplates: bigint[] = [];
-      for (const row of ctx.db.enemySpawn.by_location.filter(location.id)) {
+      for (const row of ctx.db.enemy_spawn.by_location.filter(location.id)) {
         existingTemplates.push(row.enemyTemplateId);
       }
       spawnEnemy(ctx, location.id, 1n, existingTemplates);
@@ -348,26 +348,26 @@ export function ensureLocationRuntimeBootstrap(ctx: any) {
 
 function countNonEventSpawns(ctx: any, locationId: bigint): number {
   let count = 0;
-  for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+  for (const row of ctx.db.enemy_spawn.by_location.filter(locationId)) {
     if (!isEventSpawn(ctx, row.id)) count += 1;
   }
   return count;
 }
 
 export function respawnLocationSpawns(ctx: any, locationId: bigint, desired: number) {
-  for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+  for (const row of ctx.db.enemy_spawn.by_location.filter(locationId)) {
     if (row.state === 'available') {
       if (isEventSpawn(ctx, row.id)) continue; // never unspawn event enemies on day/night cycle
-      for (const member of ctx.db.enemySpawnMember.by_spawn.filter(row.id)) {
-        ctx.db.enemySpawnMember.id.delete(member.id);
+      for (const member of ctx.db.enemy_spawn_member.by_spawn.filter(row.id)) {
+        ctx.db.enemy_spawn_member.id.delete(member.id);
       }
-      ctx.db.enemySpawn.id.delete(row.id);
+      ctx.db.enemy_spawn.id.delete(row.id);
     }
   }
   let count = countNonEventSpawns(ctx, locationId);
   while (count < desired) {
     const existingTemplates: bigint[] = [];
-    for (const row of ctx.db.enemySpawn.by_location.filter(locationId)) {
+    for (const row of ctx.db.enemy_spawn.by_location.filter(locationId)) {
       existingTemplates.push(row.enemyTemplateId);
     }
     spawnEnemy(ctx, locationId, 1n, existingTemplates);
@@ -386,12 +386,12 @@ export function spawnEnemy(
   const locationRow = ctx.db.location.id.find(locationId);
   if (locationRow?.isSafe) throw new SenderError('Cannot spawn enemies in safe zones');
 
-  const templates = [...ctx.db.locationEnemyTemplate.by_location.filter(locationId)];
+  const templates = [...ctx.db.location_enemy_template.by_location.filter(locationId)];
   if (templates.length === 0) throw new SenderError('No enemy templates for location');
 
   const timePref = isNightTime(ctx) ? 'night' : 'day';
   const allCandidates = templates
-    .map((ref) => ctx.db.enemyTemplate.id.find(ref.enemyTemplateId))
+    .map((ref) => ctx.db.enemy_template.id.find(ref.enemyTemplateId))
     .filter(Boolean) as (typeof EnemyTemplate.rowType)[];
   const timeFiltered = allCandidates.filter((template) => {
     const pref = (template.timeOfDay ?? '').trim().toLowerCase();
@@ -477,7 +477,7 @@ export function spawnEnemy(
   let firstSpawn: typeof EnemySpawn.rowType | null = null;
   const total = Number(groupCount);
   for (let i = 0; i < total; i += 1) {
-    const spawn = ctx.db.enemySpawn.insert({
+    const spawn = ctx.db.enemy_spawn.insert({
       id: 0n,
       locationId,
       enemyTemplateId: chosen.id,
@@ -488,7 +488,7 @@ export function spawnEnemy(
     });
     const role = pickRoleTemplate(ctx, chosen.id, groupSeed + BigInt(i) * 7n);
     if (role) {
-      ctx.db.enemySpawnMember.insert({
+      ctx.db.enemy_spawn_member.insert({
         id: 0n,
         spawnId: spawn.id,
         enemyTemplateId: chosen.id,
@@ -497,7 +497,7 @@ export function spawnEnemy(
     }
     refreshSpawnGroupCount(ctx, spawn.id);
     if (firstSpawn === null) {
-      firstSpawn = ctx.db.enemySpawn.id.find(spawn.id)!;
+      firstSpawn = ctx.db.enemy_spawn.id.find(spawn.id)!;
     }
   }
   return firstSpawn!;
@@ -511,10 +511,10 @@ export function spawnEnemyWithTemplate(
   const locationRow = ctx.db.location.id.find(locationId);
   if (locationRow?.isSafe) throw new SenderError('Cannot spawn enemies in safe zones');
 
-  const template = ctx.db.enemyTemplate.id.find(templateId);
+  const template = ctx.db.enemy_template.id.find(templateId);
   if (!template) throw new SenderError('Enemy template not found');
   let allowedHere = false;
-  for (const row of ctx.db.locationEnemyTemplate.by_location.filter(locationId)) {
+  for (const row of ctx.db.location_enemy_template.by_location.filter(locationId)) {
     if (row.enemyTemplateId === templateId) {
       allowedHere = true;
       break;
@@ -563,7 +563,7 @@ export function spawnEnemyWithTemplate(
   let firstSpawn: typeof EnemySpawn.rowType | null = null;
   const total = Number(groupCount);
   for (let i = 0; i < total; i += 1) {
-    const spawn = ctx.db.enemySpawn.insert({
+    const spawn = ctx.db.enemy_spawn.insert({
       id: 0n,
       locationId,
       enemyTemplateId: template.id,
@@ -574,7 +574,7 @@ export function spawnEnemyWithTemplate(
     });
     const role = pickRoleTemplate(ctx, template.id, groupSeed + BigInt(i) * 7n);
     if (role) {
-      ctx.db.enemySpawnMember.insert({
+      ctx.db.enemy_spawn_member.insert({
         id: 0n,
         spawnId: spawn.id,
         enemyTemplateId: template.id,
@@ -583,7 +583,7 @@ export function spawnEnemyWithTemplate(
     }
     refreshSpawnGroupCount(ctx, spawn.id);
     if (firstSpawn === null) {
-      firstSpawn = ctx.db.enemySpawn.id.find(spawn.id)!;
+      firstSpawn = ctx.db.enemy_spawn.id.find(spawn.id)!;
     }
   }
   return firstSpawn!;

@@ -21,27 +21,27 @@ export const registerFoodReducers = (deps: any) => {
     (ctx: any, { characterId, itemInstanceId }: { characterId: bigint; itemInstanceId: bigint }) => {
       const character = requireCharacterOwnedBy(ctx, characterId);
 
-      const instance = ctx.db.itemInstance.id.find(itemInstanceId);
+      const instance = ctx.db.item_instance.id.find(itemInstanceId);
       if (!instance) throw new SenderError('Item not found');
       if (instance.ownerCharacterId !== characterId) throw new SenderError('Not your item');
 
-      const template = ctx.db.itemTemplate.id.find(instance.templateId);
+      const template = ctx.db.item_template.id.find(instance.templateId);
       if (!template) throw new SenderError('Item template not found');
       if (template.slot !== 'food') throw new SenderError('This item is not food');
 
       // Consume the item
       if (instance.quantity > 1n) {
-        ctx.db.itemInstance.id.update({ ...instance, quantity: instance.quantity - 1n });
+        ctx.db.item_instance.id.update({ ...instance, quantity: instance.quantity - 1n });
       } else {
-        ctx.db.itemInstance.id.delete(itemInstanceId);
+        ctx.db.item_instance.id.delete(itemInstanceId);
       }
 
       // Apply food buff as CharacterEffect if the item has wellFed properties
       if (template.wellFedDurationMicros > 0n) {
         // Remove any existing food buff (one food at a time - sourceAbility 'Well Fed')
-        for (const effect of ctx.db.characterEffect.by_character.filter(characterId)) {
+        for (const effect of ctx.db.character_effect.by_character.filter(characterId)) {
           if (effect.sourceAbility === 'Well Fed') {
-            ctx.db.characterEffect.id.delete(effect.id);
+            ctx.db.character_effect.id.delete(effect.id);
           }
         }
 
@@ -63,7 +63,7 @@ export const registerFoodReducers = (deps: any) => {
             ? -(18446744073709551616n - magnitude)
             : magnitude;
 
-          ctx.db.characterEffect.insert({
+          ctx.db.character_effect.insert({
             id: 0n,
             characterId,
             effectType,

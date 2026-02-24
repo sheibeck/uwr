@@ -14,8 +14,8 @@ import { effectiveGroupId } from './group';
 
 // Private helper: get active combat for character
 function activeCombatIdForCharacter(ctx: any, characterId: bigint): bigint | null {
-  for (const row of ctx.db.combatParticipant.by_character.filter(characterId)) {
-    const combat = ctx.db.combatEncounter.id.find(row.combatId);
+  for (const row of ctx.db.combat_participant.by_character.filter(characterId)) {
+    const combat = ctx.db.combat_encounter.id.find(row.combatId);
     if (combat && combat.state === 'active') return combat.id;
   }
   return null;
@@ -56,7 +56,7 @@ export function applyPerkProcs(
       const bonusDmg = (damageDealt * effect.procDamageMultiplier) / 100n;
       if (bonusDmg > 0n) {
         const newHp = enemy.currentHp > bonusDmg ? enemy.currentHp - bonusDmg : 0n;
-        ctx.db.combatEnemy.id.update({ ...enemy, currentHp: newHp });
+        ctx.db.combat_enemy.id.update({ ...enemy, currentHp: newHp });
         totalBonusDamage += bonusDmg;
         appendPrivateEvent(
           ctx,
@@ -72,7 +72,7 @@ export function applyPerkProcs(
     if (effect.procBonusDamage && effect.procBonusDamage > 0n && enemy && enemy.currentHp > 0n) {
       const bonusDmg = effect.procBonusDamage as bigint;
       const newHp = enemy.currentHp > bonusDmg ? enemy.currentHp - bonusDmg : 0n;
-      ctx.db.combatEnemy.id.update({ ...enemy, currentHp: newHp });
+      ctx.db.combat_enemy.id.update({ ...enemy, currentHp: newHp });
       totalBonusDamage += bonusDmg;
       appendPrivateEvent(
         ctx,
@@ -122,11 +122,11 @@ export function applyPerkProcs(
     if (eventType === 'on_kill' && effect.procDamageMultiplier && combatId) {
       const aoeDmg = (damageDealt * effect.procDamageMultiplier) / 100n;
       if (aoeDmg > 0n) {
-        for (const otherEnemy of ctx.db.combatEnemy.by_combat.filter(combatId)) {
+        for (const otherEnemy of ctx.db.combat_enemy.by_combat.filter(combatId)) {
           if (otherEnemy.id === enemy?.id) continue;
           if (otherEnemy.currentHp <= 0n) continue;
           const newHp = otherEnemy.currentHp > aoeDmg ? otherEnemy.currentHp - aoeDmg : 0n;
-          ctx.db.combatEnemy.id.update({ ...otherEnemy, currentHp: newHp });
+          ctx.db.combat_enemy.id.update({ ...otherEnemy, currentHp: newHp });
           totalBonusDamage += aoeDmg;
           appendPrivateEvent(
             ctx,
@@ -176,7 +176,7 @@ export function executePerkAbility(
 
   // Verify the character actually has this perk
   let hasPerk = false;
-  for (const row of ctx.db.renownPerk.by_character.filter(character.id)) {
+  for (const row of ctx.db.renown_perk.by_character.filter(character.id)) {
     if (row.perkKey === rawKey) {
       hasPerk = true;
       break;
@@ -206,7 +206,7 @@ export function executePerkAbility(
     if (!combatId) {
       throw new SenderError('Thunderous Blow can only be used in combat');
     }
-    const enemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n);
+    const enemies = [...ctx.db.combat_enemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n);
     const preferredEnemy = character.combatTargetEnemyId
       ? enemies.find((e: any) => e.id === character.combatTargetEnemyId)
       : null;
@@ -218,8 +218,8 @@ export function executePerkAbility(
     const baseDamage = 5n + character.level + weapon.baseDamage + weapon.dps / 2n;
     const totalDamage = (baseDamage * BigInt(effect.damagePercent)) / 100n;
     const newHp = enemy.currentHp > totalDamage ? enemy.currentHp - totalDamage : 0n;
-    ctx.db.combatEnemy.id.update({ ...enemy, currentHp: newHp });
-    const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+    ctx.db.combat_enemy.id.update({ ...enemy, currentHp: newHp });
+    const enemyTemplate = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
     const enemyName = enemy.displayName ?? enemyTemplate?.name ?? 'enemy';
     const msg = character.name + ' unleashes ' + perkDef.name + ' on ' + enemyName + ' for ' + totalDamage + ' damage!';
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage', msg);

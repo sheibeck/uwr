@@ -30,7 +30,7 @@ export const registerGroupReducers = (deps: any) => {
       createdAt: ctx.timestamp,
     });
 
-    ctx.db.groupMember.insert({
+    ctx.db.group_member.insert({
       id: 0n,
       groupId: group.id,
       characterId: character.id,
@@ -50,10 +50,10 @@ export const registerGroupReducers = (deps: any) => {
     const group = ctx.db.group.id.find(args.groupId);
     if (!group) return failGroup(ctx, character, 'Group not found');
 
-    const currentSize = [...ctx.db.groupMember.by_group.filter(group.id)].length;
+    const currentSize = [...ctx.db.group_member.by_group.filter(group.id)].length;
     if (currentSize >= MAX_GROUP_SIZE) return failGroup(ctx, character, 'Group is full.');
 
-    ctx.db.groupMember.insert({
+    ctx.db.group_member.insert({
       id: 0n,
       groupId: group.id,
       characterId: character.id,
@@ -73,9 +73,9 @@ export const registerGroupReducers = (deps: any) => {
     const groupId = character.groupId;
     const group = ctx.db.group.id.find(groupId);
 
-    for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+    for (const member of ctx.db.group_member.by_group.filter(groupId)) {
       if (member.characterId === character.id) {
-        ctx.db.groupMember.id.delete(member.id);
+        ctx.db.group_member.id.delete(member.id);
         break;
       }
     }
@@ -84,13 +84,13 @@ export const registerGroupReducers = (deps: any) => {
     appendGroupEvent(ctx, groupId, character.id, 'group', `${character.name} left the group.`);
 
     let newLeaderMember: typeof GroupMember.rowType | null = null;
-    for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+    for (const member of ctx.db.group_member.by_group.filter(groupId)) {
       if (!newLeaderMember) newLeaderMember = member;
     }
 
     if (!newLeaderMember) {
-      for (const invite of ctx.db.groupInvite.by_group.filter(groupId)) {
-        ctx.db.groupInvite.id.delete(invite.id);
+      for (const invite of ctx.db.group_invite.by_group.filter(groupId)) {
+        ctx.db.group_invite.id.delete(invite.id);
       }
       ctx.db.group.id.delete(groupId);
       return;
@@ -105,7 +105,7 @@ export const registerGroupReducers = (deps: any) => {
           pullerCharacterId:
             group.pullerCharacterId === character.id ? newLeaderCharacter.id : group.pullerCharacterId,
         });
-        ctx.db.groupMember.id.update({ ...newLeaderMember, role: 'leader' });
+        ctx.db.group_member.id.update({ ...newLeaderMember, role: 'leader' });
         appendGroupEvent(
           ctx,
           groupId,
@@ -128,9 +128,9 @@ export const registerGroupReducers = (deps: any) => {
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       if (!character.groupId) return failGroup(ctx, character, 'Not in a group');
-      for (const member of ctx.db.groupMember.by_group.filter(character.groupId)) {
+      for (const member of ctx.db.group_member.by_group.filter(character.groupId)) {
         if (member.characterId === character.id) {
-          ctx.db.groupMember.id.update({ ...member, followLeader: args.follow });
+          ctx.db.group_member.id.update({ ...member, followLeader: args.follow });
           return;
         }
       }
@@ -159,11 +159,11 @@ export const registerGroupReducers = (deps: any) => {
           group.pullerCharacterId === leader.id ? target.id : group.pullerCharacterId,
       });
 
-      for (const member of ctx.db.groupMember.by_group.filter(group.id)) {
+      for (const member of ctx.db.group_member.by_group.filter(group.id)) {
         if (member.characterId === leader.id) {
-          ctx.db.groupMember.id.update({ ...member, role: 'member' });
+          ctx.db.group_member.id.update({ ...member, role: 'member' });
         } else if (member.characterId === target.id) {
-          ctx.db.groupMember.id.update({ ...member, role: 'leader' });
+          ctx.db.group_member.id.update({ ...member, role: 'leader' });
         }
       }
 
@@ -205,9 +205,9 @@ export const registerGroupReducers = (deps: any) => {
       if (target.groupId !== leader.groupId) return failGroup(ctx, leader, 'Target not in your group');
       if (target.id === leader.id) return failGroup(ctx, leader, 'Leader cannot kick themselves');
 
-      for (const member of ctx.db.groupMember.by_group.filter(group.id)) {
+      for (const member of ctx.db.group_member.by_group.filter(group.id)) {
         if (member.characterId === target.id) {
-          ctx.db.groupMember.id.delete(member.id);
+          ctx.db.group_member.id.delete(member.id);
           break;
         }
       }
@@ -227,13 +227,13 @@ export const registerGroupReducers = (deps: any) => {
       }
 
       let remaining = 0;
-      for (const _row of ctx.db.groupMember.by_group.filter(group.id)) {
+      for (const _row of ctx.db.group_member.by_group.filter(group.id)) {
         remaining += 1;
         break;
       }
       if (remaining === 0) {
-        for (const invite of ctx.db.groupInvite.by_group.filter(group.id)) {
-          ctx.db.groupInvite.id.delete(invite.id);
+        for (const invite of ctx.db.group_invite.by_group.filter(group.id)) {
+          ctx.db.group_invite.id.delete(invite.id);
         }
         ctx.db.group.id.delete(group.id);
       }
@@ -285,7 +285,7 @@ export const registerGroupReducers = (deps: any) => {
           pullerCharacterId: inviter.id,
           createdAt: ctx.timestamp,
         });
-        ctx.db.groupMember.insert({
+        ctx.db.group_member.insert({
           id: 0n,
           groupId: group.id,
           characterId: inviter.id,
@@ -299,13 +299,13 @@ export const registerGroupReducers = (deps: any) => {
         appendGroupEvent(ctx, groupId, inviter.id, 'group', `${inviter.name} formed a group.`);
       }
 
-      const groupSize = [...ctx.db.groupMember.by_group.filter(groupId)].length;
+      const groupSize = [...ctx.db.group_member.by_group.filter(groupId)].length;
       if (groupSize >= MAX_GROUP_SIZE) {
         appendPrivateEvent(ctx, inviter.id, inviter.ownerUserId, 'group', 'Your group is full.');
         return;
       }
 
-      for (const invite of ctx.db.groupInvite.by_to_character.filter(target.id)) {
+      for (const invite of ctx.db.group_invite.by_to_character.filter(target.id)) {
         appendPrivateEvent(
           ctx,
           inviter.id,
@@ -316,7 +316,7 @@ export const registerGroupReducers = (deps: any) => {
         return;
       }
 
-      ctx.db.groupInvite.insert({
+      ctx.db.group_invite.insert({
         id: 0n,
         groupId,
         fromCharacterId: inviter.id,
@@ -344,7 +344,7 @@ export const registerGroupReducers = (deps: any) => {
       if (!from) return failGroup(ctx, character, 'Inviter not found');
 
       let inviteRow: typeof GroupInvite.rowType | null = null;
-      for (const invite of ctx.db.groupInvite.by_to_character.filter(character.id)) {
+      for (const invite of ctx.db.group_invite.by_to_character.filter(character.id)) {
         if (invite.fromCharacterId === from.id) {
           inviteRow = invite;
           break;
@@ -355,11 +355,11 @@ export const registerGroupReducers = (deps: any) => {
       const group = ctx.db.group.id.find(inviteRow.groupId);
       if (!group) return failGroup(ctx, character, 'Group not found');
 
-      const currentSize = [...ctx.db.groupMember.by_group.filter(group.id)].length;
+      const currentSize = [...ctx.db.group_member.by_group.filter(group.id)].length;
       if (currentSize >= MAX_GROUP_SIZE) return failGroup(ctx, character, 'Group is full.');
 
-      ctx.db.groupInvite.id.delete(inviteRow.id);
-      ctx.db.groupMember.insert({
+      ctx.db.group_invite.id.delete(inviteRow.id);
+      ctx.db.group_member.insert({
         id: 0n,
         groupId: group.id,
         characterId: character.id,
@@ -380,9 +380,9 @@ export const registerGroupReducers = (deps: any) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       const from = findCharacterByName(ctx, args.fromName.trim());
       if (!from) return failGroup(ctx, character, 'Inviter not found');
-      for (const invite of ctx.db.groupInvite.by_to_character.filter(character.id)) {
+      for (const invite of ctx.db.group_invite.by_to_character.filter(character.id)) {
         if (invite.fromCharacterId === from.id) {
-          ctx.db.groupInvite.id.delete(invite.id);
+          ctx.db.group_invite.id.delete(invite.id);
           appendPrivateEvent(
             ctx,
             from.id,

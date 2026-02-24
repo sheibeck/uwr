@@ -33,12 +33,12 @@ export const registerItemCraftingReducers = (deps: any) => {
       return;
     }
     const discovered = new Set(
-      [...ctx.db.recipeDiscovered.by_character.filter(character.id)].map((row) =>
+      [...ctx.db.recipe_discovered.by_character.filter(character.id)].map((row) =>
         row.recipeTemplateId.toString()
       )
     );
     let found = 0;
-    for (const recipe of ctx.db.recipeTemplate.iter()) {
+    for (const recipe of ctx.db.recipe_template.iter()) {
       if (discovered.has(recipe.id.toString())) continue;
       // Skip gear recipes — only consumables are auto-discoverable
       // Gear recipes require salvaging or recipe scrolls
@@ -52,16 +52,16 @@ export const registerItemCraftingReducers = (deps: any) => {
           : 0n;
       const meetsReq3 = recipe.req3TemplateId == null || req3Count >= (recipe.req3Count ?? 0n);
       if (req1Count >= recipe.req1Count && req2Count >= recipe.req2Count && meetsReq3) {
-        ctx.db.recipeDiscovered.insert({
+        ctx.db.recipe_discovered.insert({
           id: 0n,
           characterId: character.id,
           recipeTemplateId: recipe.id,
           discoveredAt: ctx.timestamp,
         });
-        const req1 = ctx.db.itemTemplate.id.find(recipe.req1TemplateId);
-        const req2 = ctx.db.itemTemplate.id.find(recipe.req2TemplateId);
+        const req1 = ctx.db.item_template.id.find(recipe.req1TemplateId);
+        const req2 = ctx.db.item_template.id.find(recipe.req2TemplateId);
         const req3 = recipe.req3TemplateId
-          ? ctx.db.itemTemplate.id.find(recipe.req3TemplateId)
+          ? ctx.db.item_template.id.find(recipe.req3TemplateId)
           : null;
         appendPrivateEvent(
           ctx,
@@ -123,9 +123,9 @@ export const registerItemCraftingReducers = (deps: any) => {
         );
         return;
       }
-      const recipe = ctx.db.recipeTemplate.id.find(args.recipeTemplateId);
+      const recipe = ctx.db.recipe_template.id.find(args.recipeTemplateId);
       if (!recipe) return failItem(ctx, character, 'Recipe not found');
-      const discovered = [...ctx.db.recipeDiscovered.by_character.filter(character.id)].find(
+      const discovered = [...ctx.db.recipe_discovered.by_character.filter(character.id)].find(
         (row) => row.recipeTemplateId === recipe.id
       );
       if (!discovered) return failItem(ctx, character, 'Recipe not discovered');
@@ -155,14 +155,14 @@ export const registerItemCraftingReducers = (deps: any) => {
         removeItemFromInventory(ctx, character.id, recipe.req3TemplateId, recipe.req3Count);
       }
       addItemToInventory(ctx, character.id, recipe.outputTemplateId, recipe.outputCount);
-      const output = ctx.db.itemTemplate.id.find(recipe.outputTemplateId);
+      const output = ctx.db.item_template.id.find(recipe.outputTemplateId);
 
       // --- Gear recipe affix application (catalyst + modifier system) ---
       let craftedDisplayName = output?.name ?? recipe.name;
       const isGearRecipe = recipe.recipeType && recipe.recipeType !== 'consumable';
       if (isGearRecipe && output) {
         // Determine craft quality from primary material tier
-        const req1Template = ctx.db.itemTemplate.id.find(recipe.req1TemplateId);
+        const req1Template = ctx.db.item_template.id.find(recipe.req1TemplateId);
         const materialKey = req1Template
           ? req1Template.name.toLowerCase().replace(/\s+/g, '_')
           : '';
@@ -172,7 +172,7 @@ export const registerItemCraftingReducers = (deps: any) => {
         const qualityTier = 'common';
 
         // Find the newly created ItemInstance
-        const newInstance = [...ctx.db.itemInstance.by_owner.filter(character.id)].find(
+        const newInstance = [...ctx.db.item_instance.by_owner.filter(character.id)].find(
           (i) => i.templateId === recipe.outputTemplateId && !i.equippedSlot && !i.qualityTier && !i.craftQuality
         );
 
@@ -181,7 +181,7 @@ export const registerItemCraftingReducers = (deps: any) => {
 
           // --- Catalyst (Essence) + Modifier logic ---
           if (args.catalystTemplateId) {
-            const catalystTemplate = ctx.db.itemTemplate.id.find(args.catalystTemplateId);
+            const catalystTemplate = ctx.db.item_template.id.find(args.catalystTemplateId);
             const catalystKey = catalystTemplate
               ? catalystTemplate.name.toLowerCase().replace(/\s+/g, '_')
               : '';
@@ -203,7 +203,7 @@ export const registerItemCraftingReducers = (deps: any) => {
               .slice(0, slotsAvailable);
 
             for (const modId of modifierIds) {
-              const modTemplate = ctx.db.itemTemplate.id.find(modId);
+              const modTemplate = ctx.db.item_template.id.find(modId);
               if (!modTemplate) continue;
               const modKey = modTemplate.name.toLowerCase().replace(/\s+/g, '_');
               const modDef = CRAFTING_MODIFIER_DEFS.find((d) => d.key === modKey);
@@ -231,7 +231,7 @@ export const registerItemCraftingReducers = (deps: any) => {
 
             // Insert affix rows for modifier-based affixes
             for (const affix of appliedAffixes) {
-              ctx.db.itemAffix.insert({
+              ctx.db.item_affix.insert({
                 id: 0n,
                 itemInstanceId: newInstance.id,
                 affixType: affix.affixType,
@@ -251,7 +251,7 @@ export const registerItemCraftingReducers = (deps: any) => {
           const statBonus = getCraftQualityStatBonus(craftQuality);
           if (statBonus > 0n) {
             if (output.armorClassBonus > 0n) {
-              ctx.db.itemAffix.insert({
+              ctx.db.item_affix.insert({
                 id: 0n,
                 itemInstanceId: newInstance.id,
                 affixType: 'implicit',
@@ -262,7 +262,7 @@ export const registerItemCraftingReducers = (deps: any) => {
               });
             }
             if (output.weaponBaseDamage > 0n) {
-              ctx.db.itemAffix.insert({
+              ctx.db.item_affix.insert({
                 id: 0n,
                 itemInstanceId: newInstance.id,
                 affixType: 'implicit',
@@ -271,7 +271,7 @@ export const registerItemCraftingReducers = (deps: any) => {
                 statKey: 'weaponBaseDamage',
                 magnitude: statBonus,
               });
-              ctx.db.itemAffix.insert({
+              ctx.db.item_affix.insert({
                 id: 0n,
                 itemInstanceId: newInstance.id,
                 affixType: 'implicit',
@@ -283,7 +283,7 @@ export const registerItemCraftingReducers = (deps: any) => {
             }
           }
 
-          ctx.db.itemInstance.id.update({
+          ctx.db.item_instance.id.update({
             ...newInstance,
             qualityTier,
             craftQuality,
@@ -309,11 +309,11 @@ export const registerItemCraftingReducers = (deps: any) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
 
       // Find the scroll item
-      const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
+      const instance = ctx.db.item_instance.id.find(args.itemInstanceId);
       if (!instance) return failItem(ctx, character, 'Item not found');
       if (instance.ownerCharacterId !== character.id) return failItem(ctx, character, 'Not your item');
 
-      const template = ctx.db.itemTemplate.id.find(instance.templateId);
+      const template = ctx.db.item_template.id.find(instance.templateId);
       if (!template) return failItem(ctx, character, 'Template not found');
 
       // Verify it's a recipe scroll
@@ -321,18 +321,18 @@ export const registerItemCraftingReducers = (deps: any) => {
 
       // Extract recipe name from scroll name: "Scroll: Longsword" → "Longsword"
       const recipeName = template.name.replace('Scroll: ', '').trim();
-      const recipe = [...ctx.db.recipeTemplate.iter()].find((r) => r.name === recipeName);
+      const recipe = [...ctx.db.recipe_template.iter()].find((r) => r.name === recipeName);
       if (!recipe) return failItem(ctx, character, 'No recipe found for this scroll');
 
       // Check if already known
-      const alreadyKnown = [...ctx.db.recipeDiscovered.by_character.filter(character.id)]
+      const alreadyKnown = [...ctx.db.recipe_discovered.by_character.filter(character.id)]
         .some((r) => r.recipeTemplateId === recipe.id);
 
       if (alreadyKnown) {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
           `You already know: ${recipe.name}`);
       } else {
-        ctx.db.recipeDiscovered.insert({
+        ctx.db.recipe_discovered.insert({
           id: 0n,
           characterId: character.id,
           recipeTemplateId: recipe.id,
@@ -349,12 +349,12 @@ export const registerItemCraftingReducers = (deps: any) => {
 
   spacetimedb.reducer('salvage_item', { characterId: t.u64(), itemInstanceId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
+    const instance = ctx.db.item_instance.id.find(args.itemInstanceId);
     if (!instance) return failItem(ctx, character, 'Item not found');
     if (instance.ownerCharacterId !== character.id) return failItem(ctx, character, 'Not your item');
     if (instance.equippedSlot) return failItem(ctx, character, 'Unequip item first');
 
-    const template = ctx.db.itemTemplate.id.find(instance.templateId);
+    const template = ctx.db.item_template.id.find(instance.templateId);
     if (!template) return failItem(ctx, character, 'Item template not found');
 
     // Only gear in equipment slots can be salvaged
@@ -386,7 +386,7 @@ export const registerItemCraftingReducers = (deps: any) => {
     // Collect the unique statKey set from this item's actual ItemAffix rows.
     // Affix deletion happens later, so rows still exist here.
     const affixStatKeys = new Set(
-      [...ctx.db.itemAffix.by_instance.filter(instance.id)].map(a => a.statKey)
+      [...ctx.db.item_affix.by_instance.filter(instance.id)].map(a => a.statKey)
     );
     // Only yield reagents whose statKey matches one of the item's actual affixes.
     const filteredModDefs = CRAFTING_MODIFIER_DEFS.filter(d => affixStatKeys.has(d.statKey));
@@ -406,7 +406,7 @@ export const registerItemCraftingReducers = (deps: any) => {
 
     // --- INT-boosted recipe scroll drop (replaces auto-learn) ---
     // Find a recipe that outputs this item type
-    const matchingRecipe = [...ctx.db.recipeTemplate.iter()].find(
+    const matchingRecipe = [...ctx.db.recipe_template.iter()].find(
       (r) => r.outputTemplateId === instance.templateId
     );
     if (matchingRecipe) {
@@ -431,11 +431,11 @@ export const registerItemCraftingReducers = (deps: any) => {
     }
 
     // Delete associated ItemAffix rows first
-    for (const affix of ctx.db.itemAffix.by_instance.filter(instance.id)) {
-      ctx.db.itemAffix.id.delete(affix.id);
+    for (const affix of ctx.db.item_affix.by_instance.filter(instance.id)) {
+      ctx.db.item_affix.id.delete(affix.id);
     }
 
     // Delete the item instance
-    ctx.db.itemInstance.id.delete(instance.id);
+    ctx.db.item_instance.id.delete(instance.id);
   });
 };

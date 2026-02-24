@@ -7,7 +7,7 @@ export const registerFactionViews = ({ spacetimedb, t, FactionStanding }: ViewDe
     (ctx: any) => {
       const player = ctx.db.player.id.find(ctx.sender);
       if (!player?.activeCharacterId) return [];
-      return [...ctx.db.factionStanding.by_character.filter(player.activeCharacterId)];
+      return [...ctx.db.faction_standing.by_character.filter(player.activeCharacterId)];
     }
   );
 };

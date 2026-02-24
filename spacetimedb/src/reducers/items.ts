@@ -81,7 +81,7 @@ export const registerItemReducers = (deps: any) => {
       if (!ARMOR_TYPES_WITH_NONE.includes(armorType as (typeof ARMOR_TYPES_WITH_NONE)[number])) {
         throw new SenderError('Invalid armor type');
       }
-      ctx.db.itemTemplate.insert({
+      ctx.db.item_template.insert({
         id: 0n,
         name: args.name.trim(),
         slot,
@@ -114,7 +114,7 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer('grant_item', { characterId: t.u64(), templateId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const template = ctx.db.itemTemplate.id.find(args.templateId);
+    const template = ctx.db.item_template.id.find(args.templateId);
     if (!template) return failItem(ctx, character, 'Item template not found');
     addItemToInventory(ctx, character.id, template.id, 1n);
   });
@@ -124,17 +124,17 @@ export const registerItemReducers = (deps: any) => {
     { characterId: t.u64(), npcId: t.u64(), itemTemplateId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
-      const vendorItem = ctx.db.vendorInventory
+      const vendorItem = ctx.db.vendor_inventory
         .by_vendor
         .filter(args.npcId)
         .find((row) => row.itemTemplateId === args.itemTemplateId);
       if (!vendorItem) return failItem(ctx, character, 'Item not sold by this vendor');
-      const template = ctx.db.itemTemplate.id.find(args.itemTemplateId);
+      const template = ctx.db.item_template.id.find(args.itemTemplateId);
       if (!template) return failItem(ctx, character, 'Item template missing');
-      const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].filter((row) => !row.equippedSlot).length;
+      const itemCount = [...ctx.db.item_instance.by_owner.filter(character.id)].filter((row) => !row.equippedSlot).length;
       const hasStack =
         template.stackable &&
-        [...ctx.db.itemInstance.by_owner.filter(character.id)].some(
+        [...ctx.db.item_instance.by_owner.filter(character.id)].some(
           (row) => row.templateId === template.id && !row.equippedSlot
         );
       if (!hasStack && itemCount >= MAX_INVENTORY_SLOTS) return failItem(ctx, character, 'Backpack is full');
@@ -173,13 +173,13 @@ export const registerItemReducers = (deps: any) => {
     { characterId: t.u64(), itemInstanceId: t.u64(), npcId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
-      const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
+      const instance = ctx.db.item_instance.id.find(args.itemInstanceId);
       if (!instance) return failItem(ctx, character, 'Item not found');
       if (instance.ownerCharacterId !== character.id) {
         return failItem(ctx, character, 'Item does not belong to you');
       }
       if (instance.equippedSlot) return failItem(ctx, character, 'Unequip item first');
-      const template = ctx.db.itemTemplate.id.find(instance.templateId);
+      const template = ctx.db.item_template.id.find(instance.templateId);
       if (!template) return failItem(ctx, character, 'Item template missing');
       const baseValue = BigInt(template.vendorValue ?? 0) * BigInt(instance.quantity ?? 1);
       // Apply vendor sell bonus perk
@@ -199,10 +199,10 @@ export const registerItemReducers = (deps: any) => {
       const soldVendorValue = template.vendorValue ?? 0n;
       const soldQualityTier = instance.qualityTier ?? undefined;
       // Clean up any affixes before deleting the item instance
-      for (const affix of ctx.db.itemAffix.by_instance.filter(instance.id)) {
-        ctx.db.itemAffix.id.delete(affix.id);
+      for (const affix of ctx.db.item_affix.by_instance.filter(instance.id)) {
+        ctx.db.item_affix.id.delete(affix.id);
       }
-      ctx.db.itemInstance.id.delete(instance.id);
+      ctx.db.item_instance.id.delete(instance.id);
       ctx.db.character.id.update({
         ...character,
         gold: (character.gold ?? 0n) + value,
@@ -210,13 +210,13 @@ export const registerItemReducers = (deps: any) => {
       // Add sold item to the vendor's inventory so other players can buy it
       const npc = ctx.db.npc.id.find(args.npcId);
       if (npc && npc.npcType === 'vendor') {
-        const alreadyListed = [...ctx.db.vendorInventory.by_vendor.filter(args.npcId)].find(
+        const alreadyListed = [...ctx.db.vendor_inventory.by_vendor.filter(args.npcId)].find(
           (row) => row.itemTemplateId === soldTemplateId && (row.qualityTier ?? undefined) === soldQualityTier
         );
         if (!alreadyListed) {
           // Price at 2x vendorValue (what the vendor paid per unit)
           const resalePrice = soldVendorValue > 0n ? soldVendorValue * 2n : 10n;
-          ctx.db.vendorInventory.insert({
+          ctx.db.vendor_inventory.insert({
             id: 0n,
             npcId: args.npcId,
             itemTemplateId: soldTemplateId,
@@ -238,12 +238,12 @@ export const registerItemReducers = (deps: any) => {
   spacetimedb.reducer('sell_all_junk', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     let total = 0n;
-    for (const instance of ctx.db.itemInstance.by_owner.filter(character.id)) {
+    for (const instance of ctx.db.item_instance.by_owner.filter(character.id)) {
       if (instance.equippedSlot) continue;
-      const template = ctx.db.itemTemplate.id.find(instance.templateId);
+      const template = ctx.db.item_template.id.find(instance.templateId);
       if (!template || !template.isJunk) continue;
       total += (template.vendorValue ?? 0n) * (instance.quantity ?? 1n);
-      ctx.db.itemInstance.id.delete(instance.id);
+      ctx.db.item_instance.id.delete(instance.id);
     }
     if (total > 0n) {
       ctx.db.character.id.update({
@@ -262,17 +262,17 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer('take_loot', { characterId: t.u64(), lootId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const loot = ctx.db.combatLoot.id.find(args.lootId);
+    const loot = ctx.db.combat_loot.id.find(args.lootId);
     if (!loot) return failItem(ctx, character, 'Loot not found');
     if (loot.characterId !== character.id || loot.ownerUserId !== character.ownerUserId) {
       return failItem(ctx, character, 'Loot does not belong to you');
     }
-    const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].filter((row) => !row.equippedSlot).length;
-    const template = ctx.db.itemTemplate.id.find(loot.itemTemplateId);
+    const itemCount = [...ctx.db.item_instance.by_owner.filter(character.id)].filter((row) => !row.equippedSlot).length;
+    const template = ctx.db.item_template.id.find(loot.itemTemplateId);
     if (!template) return failItem(ctx, character, 'Item template missing');
     const hasStack =
       template.stackable &&
-      [...ctx.db.itemInstance.by_owner.filter(character.id)].some(
+      [...ctx.db.item_instance.by_owner.filter(character.id)].some(
         (row) => row.templateId === template.id && !row.equippedSlot
       );
     if (!hasStack && itemCount >= MAX_INVENTORY_SLOTS) return failItem(ctx, character, 'Backpack is full');
@@ -282,7 +282,7 @@ export const registerItemReducers = (deps: any) => {
     let displayName = template.name;
     if (loot.qualityTier && loot.qualityTier !== 'common') {
       // Find the newly created ItemInstance — most recent one for this character+template with no qualityTier
-      const instances = [...ctx.db.itemInstance.by_owner.filter(character.id)];
+      const instances = [...ctx.db.item_instance.by_owner.filter(character.id)];
       const newInstance = instances.find(
         (i) => i.templateId === loot.itemTemplateId && !i.equippedSlot && !i.qualityTier
       );
@@ -295,7 +295,7 @@ export const registerItemReducers = (deps: any) => {
           affixName: string;
         }[];
         for (const affix of affixes) {
-          ctx.db.itemAffix.insert({
+          ctx.db.item_affix.insert({
             id: 0n,
             itemInstanceId: newInstance.id,
             affixType: affix.affixType,
@@ -306,7 +306,7 @@ export const registerItemReducers = (deps: any) => {
           });
         }
         displayName = buildDisplayName(template.name, affixes);
-        ctx.db.itemInstance.id.update({
+        ctx.db.item_instance.id.update({
           ...newInstance,
           qualityTier: loot.qualityTier,
           displayName,
@@ -318,16 +318,16 @@ export const registerItemReducers = (deps: any) => {
 
     // For common items (affix branch above was skipped), still propagate craftQuality if present
     if (loot.craftQuality && (!loot.qualityTier || loot.qualityTier === 'common')) {
-      const instances = [...ctx.db.itemInstance.by_owner.filter(character.id)];
+      const instances = [...ctx.db.item_instance.by_owner.filter(character.id)];
       const newInstance = instances.find(
         (i) => i.templateId === loot.itemTemplateId && !i.equippedSlot && !i.qualityTier
       );
       if (newInstance) {
-        ctx.db.itemInstance.id.update({ ...newInstance, craftQuality: loot.craftQuality });
+        ctx.db.item_instance.id.update({ ...newInstance, craftQuality: loot.craftQuality });
       }
     }
 
-    ctx.db.combatLoot.id.delete(loot.id);
+    ctx.db.combat_loot.id.delete(loot.id);
     logPrivateAndGroup(
       ctx,
       character,
@@ -337,13 +337,13 @@ export const registerItemReducers = (deps: any) => {
     );
 
     // Check if this character has any remaining loot for this combat
-    const myRemainingLoot = [...ctx.db.combatLoot.by_character.filter(character.id)]
+    const myRemainingLoot = [...ctx.db.combat_loot.by_character.filter(character.id)]
       .filter(row => row.combatId === loot.combatId);
     if (myRemainingLoot.length === 0) {
       // Delete only this character's result for this combat
-      for (const result of ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)) {
+      for (const result of ctx.db.combat_result.by_owner_user.filter(character.ownerUserId)) {
         if (result.combatId === loot.combatId) {
-          ctx.db.combatResult.id.delete(result.id);
+          ctx.db.combat_result.id.delete(result.id);
         }
       }
     }
@@ -351,19 +351,19 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer('take_all_loot', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const allLoot = [...ctx.db.combatLoot.by_character.filter(character.id)];
+    const allLoot = [...ctx.db.combat_loot.by_character.filter(character.id)];
     if (allLoot.length === 0) return;
 
     const takenNames: string[] = [];
     let skipped = 0;
 
     for (const loot of allLoot) {
-      const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].filter((row) => !row.equippedSlot).length;
-      const template = ctx.db.itemTemplate.id.find(loot.itemTemplateId);
+      const itemCount = [...ctx.db.item_instance.by_owner.filter(character.id)].filter((row) => !row.equippedSlot).length;
+      const template = ctx.db.item_template.id.find(loot.itemTemplateId);
       if (!template) continue;
       const hasStack =
         template.stackable &&
-        [...ctx.db.itemInstance.by_owner.filter(character.id)].some(
+        [...ctx.db.item_instance.by_owner.filter(character.id)].some(
           (row) => row.templateId === template.id && !row.equippedSlot
         );
       if (!hasStack && itemCount >= MAX_INVENTORY_SLOTS) {
@@ -375,7 +375,7 @@ export const registerItemReducers = (deps: any) => {
 
       let displayName = template.name;
       if (loot.qualityTier && loot.qualityTier !== 'common') {
-        const instances = [...ctx.db.itemInstance.by_owner.filter(character.id)];
+        const instances = [...ctx.db.item_instance.by_owner.filter(character.id)];
         const newInstance = instances.find(
           (i) => i.templateId === loot.itemTemplateId && !i.equippedSlot && !i.qualityTier
         );
@@ -388,7 +388,7 @@ export const registerItemReducers = (deps: any) => {
             affixName: string;
           }[];
           for (const affix of affixes) {
-            ctx.db.itemAffix.insert({
+            ctx.db.item_affix.insert({
               id: 0n,
               itemInstanceId: newInstance.id,
               affixType: affix.affixType,
@@ -399,7 +399,7 @@ export const registerItemReducers = (deps: any) => {
             });
           }
           displayName = buildDisplayName(template.name, affixes);
-          ctx.db.itemInstance.id.update({
+          ctx.db.item_instance.id.update({
             ...newInstance,
             qualityTier: loot.qualityTier,
             displayName,
@@ -411,16 +411,16 @@ export const registerItemReducers = (deps: any) => {
 
       // For common items (affix branch above was skipped), still propagate craftQuality if present
       if (loot.craftQuality && (!loot.qualityTier || loot.qualityTier === 'common')) {
-        const instances = [...ctx.db.itemInstance.by_owner.filter(character.id)];
+        const instances = [...ctx.db.item_instance.by_owner.filter(character.id)];
         const newInstance = instances.find(
           (i) => i.templateId === loot.itemTemplateId && !i.equippedSlot && !i.qualityTier
         );
         if (newInstance) {
-          ctx.db.itemInstance.id.update({ ...newInstance, craftQuality: loot.craftQuality });
+          ctx.db.item_instance.id.update({ ...newInstance, craftQuality: loot.craftQuality });
         }
       }
 
-      ctx.db.combatLoot.id.delete(loot.id);
+      ctx.db.combat_loot.id.delete(loot.id);
       takenNames.push(displayName);
     }
 
@@ -433,13 +433,13 @@ export const registerItemReducers = (deps: any) => {
     }
 
     // Clean up combat results if no loot remains
-    const remaining = [...ctx.db.combatLoot.by_character.filter(character.id)];
+    const remaining = [...ctx.db.combat_loot.by_character.filter(character.id)];
     if (remaining.length === 0) {
       const combatIds = new Set(allLoot.map((l) => l.combatId));
       for (const combatId of combatIds) {
-        for (const result of ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)) {
+        for (const result of ctx.db.combat_result.by_owner_user.filter(character.ownerUserId)) {
           if (result.combatId === combatId) {
-            ctx.db.combatResult.id.delete(result.id);
+            ctx.db.combat_result.id.delete(result.id);
           }
         }
       }
@@ -454,12 +454,12 @@ export const registerItemReducers = (deps: any) => {
       if (activeCombatIdForCharacter(ctx, character.id)) {
         return failItem(ctx, character, 'Cannot change equipment during combat');
       }
-      const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
+      const instance = ctx.db.item_instance.id.find(args.itemInstanceId);
       if (!instance) return failItem(ctx, character, 'Item not found');
       if (instance.ownerCharacterId !== character.id) {
         return failItem(ctx, character, 'Item does not belong to you');
       }
-      const template = ctx.db.itemTemplate.id.find(instance.templateId);
+      const template = ctx.db.item_template.id.find(instance.templateId);
       if (!template) return failItem(ctx, character, 'Item template missing');
       if (template.stackable) return failItem(ctx, character, 'Cannot equip this item');
       // REMOVED per world-tier spec: gear availability is world-driven, not character-level-gated.
@@ -477,30 +477,30 @@ export const registerItemReducers = (deps: any) => {
       // --- Two-handed weapon enforcement ---
       // If equipping a mainHand weapon that is two-handed, auto-unequip offHand
       if (template.slot === 'mainHand' && template.weaponType && TWO_HANDED_WEAPON_TYPES.has(template.weaponType)) {
-        for (const other of ctx.db.itemInstance.by_owner.filter(character.id)) {
+        for (const other of ctx.db.item_instance.by_owner.filter(character.id)) {
           if (other.equippedSlot === 'offHand') {
-            ctx.db.itemInstance.id.update({ ...other, equippedSlot: undefined });
+            ctx.db.item_instance.id.update({ ...other, equippedSlot: undefined });
           }
         }
       }
       // If equipping an offHand item, check if mainHand is two-handed and auto-unequip it
       if (template.slot === 'offHand') {
-        for (const other of ctx.db.itemInstance.by_owner.filter(character.id)) {
+        for (const other of ctx.db.item_instance.by_owner.filter(character.id)) {
           if (other.equippedSlot === 'mainHand') {
-            const otherTemplate = ctx.db.itemTemplate.id.find(other.templateId);
+            const otherTemplate = ctx.db.item_template.id.find(other.templateId);
             if (otherTemplate && otherTemplate.weaponType && TWO_HANDED_WEAPON_TYPES.has(otherTemplate.weaponType)) {
-              ctx.db.itemInstance.id.update({ ...other, equippedSlot: undefined });
+              ctx.db.item_instance.id.update({ ...other, equippedSlot: undefined });
             }
           }
         }
       }
 
-      for (const other of ctx.db.itemInstance.by_owner.filter(character.id)) {
+      for (const other of ctx.db.item_instance.by_owner.filter(character.id)) {
         if (other.equippedSlot === template.slot) {
-          ctx.db.itemInstance.id.update({ ...other, equippedSlot: undefined });
+          ctx.db.item_instance.id.update({ ...other, equippedSlot: undefined });
         }
       }
-      ctx.db.itemInstance.id.update({ ...instance, equippedSlot: template.slot });
+      ctx.db.item_instance.id.update({ ...instance, equippedSlot: template.slot });
       recomputeCharacterDerived(ctx, character);
     }
   );
@@ -514,9 +514,9 @@ export const registerItemReducers = (deps: any) => {
         return failItem(ctx, character, 'Cannot change equipment during combat');
       }
       const slot = args.slot.trim();
-      for (const instance of ctx.db.itemInstance.by_owner.filter(character.id)) {
+      for (const instance of ctx.db.item_instance.by_owner.filter(character.id)) {
         if (instance.equippedSlot === slot) {
-          ctx.db.itemInstance.id.update({ ...instance, equippedSlot: undefined });
+          ctx.db.item_instance.id.update({ ...instance, equippedSlot: undefined });
           recomputeCharacterDerived(ctx, character);
           return;
         }
@@ -526,13 +526,13 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer('delete_item', { characterId: t.u64(), itemInstanceId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
+    const instance = ctx.db.item_instance.id.find(args.itemInstanceId);
     if (!instance) return failItem(ctx, character, 'Item not found');
     if (instance.ownerCharacterId !== character.id) {
       return failItem(ctx, character, 'Item does not belong to you');
     }
     if (instance.equippedSlot) return failItem(ctx, character, 'Cannot delete equipped items');
-    ctx.db.itemInstance.id.delete(instance.id);
+    ctx.db.item_instance.id.delete(instance.id);
     appendPrivateEvent(
       ctx,
       character.id,
@@ -544,13 +544,13 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer('split_stack', { characterId: t.u64(), itemInstanceId: t.u64(), quantity: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
+    const instance = ctx.db.item_instance.id.find(args.itemInstanceId);
     if (!instance) return failItem(ctx, character, 'Item not found');
     if (instance.ownerCharacterId !== character.id) {
       return failItem(ctx, character, 'Item does not belong to you');
     }
     if (instance.equippedSlot) return failItem(ctx, character, 'Cannot split equipped items');
-    const template = ctx.db.itemTemplate.id.find(instance.templateId);
+    const template = ctx.db.item_template.id.find(instance.templateId);
     if (!template) return failItem(ctx, character, 'Item template missing');
     if (!template.stackable) return failItem(ctx, character, 'This item cannot be split.');
     if (instance.quantity <= 1n || args.quantity <= 0n || args.quantity >= instance.quantity) {
@@ -559,8 +559,8 @@ export const registerItemReducers = (deps: any) => {
     if (getInventorySlotCount(ctx, character.id) >= MAX_INVENTORY_SLOTS) {
       return failItem(ctx, character, 'Not enough room to split this stack.');
     }
-    ctx.db.itemInstance.id.update({ ...instance, quantity: instance.quantity - args.quantity });
-    ctx.db.itemInstance.insert({
+    ctx.db.item_instance.id.update({ ...instance, quantity: instance.quantity - args.quantity });
+    ctx.db.item_instance.insert({
       id: 0n,
       templateId: instance.templateId,
       ownerCharacterId: character.id,
@@ -580,9 +580,9 @@ export const registerItemReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     // Group all unequipped stackable instances by templateId
     const stacks = new Map<string, any[]>();
-    for (const instance of ctx.db.itemInstance.by_owner.filter(character.id)) {
+    for (const instance of ctx.db.item_instance.by_owner.filter(character.id)) {
       if (instance.equippedSlot) continue;
-      const template = ctx.db.itemTemplate.id.find(instance.templateId);
+      const template = ctx.db.item_template.id.find(instance.templateId);
       if (!template || !template.stackable) continue;
       const key = instance.templateId.toString();
       if (!stacks.has(key)) stacks.set(key, []);
@@ -596,9 +596,9 @@ export const registerItemReducers = (deps: any) => {
       for (const inst of instances) {
         totalQty += inst.quantity ?? 1n;
       }
-      ctx.db.itemInstance.id.update({ ...instances[0], quantity: totalQty });
+      ctx.db.item_instance.id.update({ ...instances[0], quantity: totalQty });
       for (let i = 1; i < instances.length; i++) {
-        ctx.db.itemInstance.id.delete(instances[i].id);
+        ctx.db.item_instance.id.delete(instances[i].id);
         merged++;
       }
     }
@@ -615,15 +615,15 @@ export const registerItemReducers = (deps: any) => {
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       if (args.slot < 1 || args.slot > 10) return failItem(ctx, character, 'Invalid hotbar slot');
-      const existing = [...ctx.db.hotbarSlot.by_character.filter(character.id)].find(
+      const existing = [...ctx.db.hotbar_slot.by_character.filter(character.id)].find(
         (row) => row.slot === args.slot
       );
       if (existing) {
         if (!args.abilityKey) {
-          ctx.db.hotbarSlot.id.delete(existing.id);
+          ctx.db.hotbar_slot.id.delete(existing.id);
           return;
         }
-        ctx.db.hotbarSlot.id.update({
+        ctx.db.hotbar_slot.id.update({
           ...existing,
           abilityKey: args.abilityKey.trim(),
           assignedAt: ctx.timestamp,
@@ -631,7 +631,7 @@ export const registerItemReducers = (deps: any) => {
         return;
       }
       if (!args.abilityKey) return;
-      ctx.db.hotbarSlot.insert({
+      ctx.db.hotbar_slot.insert({
         id: 0n,
         characterId: character.id,
         slot: args.slot,
@@ -653,7 +653,7 @@ export const registerItemReducers = (deps: any) => {
       const abilityKey = args.abilityKey.trim();
       if (!abilityKey) return failItem(ctx, character, 'Ability required');
       const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
-      const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(character.id)].find(
+      const existingCooldown = [...ctx.db.ability_cooldown.by_character.filter(character.id)].find(
         (row) => row.abilityKey === abilityKey
       );
       if (existingCooldown && existingCooldown.startedAtMicros + existingCooldown.durationMicros > nowMicros) {
@@ -666,7 +666,7 @@ export const registerItemReducers = (deps: any) => {
         );
         return;
       }
-      const abilityRow = [...ctx.db.abilityTemplate.by_key.filter(abilityKey)][0];
+      const abilityRow = [...ctx.db.ability_template.by_key.filter(abilityKey)][0];
       const combatState = abilityRow?.combatState ?? 'any';
       const castMicros = abilityCastMicros(ctx, abilityKey);
       const combatId = activeCombatIdForCharacter(ctx, character.id);
@@ -691,7 +691,7 @@ export const registerItemReducers = (deps: any) => {
         return;
       }
       if (combatId) {
-        const participant = [...ctx.db.combatParticipant.by_combat.filter(combatId)].find(
+        const participant = [...ctx.db.combat_participant.by_combat.filter(combatId)].find(
           (row) => row.characterId === character.id
         );
         if (!participant || participant.status !== 'active') {
@@ -706,7 +706,7 @@ export const registerItemReducers = (deps: any) => {
         }
       }
       if (castMicros > 0n) {
-        const existingCast = [...ctx.db.characterCast.by_character.filter(character.id)][0];
+        const existingCast = [...ctx.db.character_cast.by_character.filter(character.id)][0];
         if (existingCast && existingCast.endsAtMicros > nowMicros) {
           appendPrivateEvent(
             ctx,
@@ -718,9 +718,9 @@ export const registerItemReducers = (deps: any) => {
           return;
         }
         if (existingCast) {
-          ctx.db.characterCast.id.delete(existingCast.id);
+          ctx.db.character_cast.id.delete(existingCast.id);
         }
-        ctx.db.characterCast.insert({
+        ctx.db.character_cast.insert({
           id: 0n,
           characterId: character.id,
           abilityKey,
@@ -758,13 +758,13 @@ export const registerItemReducers = (deps: any) => {
             }
           }
           if (existingCooldown) {
-            ctx.db.abilityCooldown.id.update({
+            ctx.db.ability_cooldown.id.update({
               ...existingCooldown,
               startedAtMicros: nowMicros,
               durationMicros: perkCooldownMicros,
             });
           } else {
-            ctx.db.abilityCooldown.insert({
+            ctx.db.ability_cooldown.insert({
               id: 0n,
               characterId: character.id,
               abilityKey,
@@ -782,9 +782,9 @@ export const registerItemReducers = (deps: any) => {
       // Bard song turn-off: clicking the active song again stops it and applies a 6s cooldown
       const BARD_SONG_KEYS = ['bard_discordant_note', 'bard_melody_of_mending', 'bard_chorus_of_vigor', 'bard_march_of_wayfarers', 'bard_requiem_of_ruin'];
       if (BARD_SONG_KEYS.includes(abilityKey)) {
-        const activeSong = [...ctx.db.activeBardSong.by_bard.filter(character.id)].find((r: any) => !r.isFading);
+        const activeSong = [...ctx.db.active_bard_song.by_bard.filter(character.id)].find((r: any) => !r.isFading);
         if (activeSong && activeSong.songKey === abilityKey) {
-          ctx.db.activeBardSong.id.delete(activeSong.id);
+          ctx.db.active_bard_song.id.delete(activeSong.id);
           const songDisplayNames: Record<string, string> = {
             bard_discordant_note: 'Discordant Note',
             bard_melody_of_mending: 'Melody of Mending',
@@ -797,21 +797,21 @@ export const registerItemReducers = (deps: any) => {
           );
           const offCooldownMicros = 3_000_000n;
           if (existingCooldown) {
-            ctx.db.abilityCooldown.id.update({ ...existingCooldown, startedAtMicros: nowMicros, durationMicros: offCooldownMicros });
+            ctx.db.ability_cooldown.id.update({ ...existingCooldown, startedAtMicros: nowMicros, durationMicros: offCooldownMicros });
           } else {
-            ctx.db.abilityCooldown.insert({ id: 0n, characterId: character.id, abilityKey, startedAtMicros: nowMicros, durationMicros: offCooldownMicros });
+            ctx.db.ability_cooldown.insert({ id: 0n, characterId: character.id, abilityKey, startedAtMicros: nowMicros, durationMicros: offCooldownMicros });
           }
           return;
         }
         // SWITCH: different song clicked while one is active — apply 3s cooldown to the old song
         if (activeSong && activeSong.songKey !== abilityKey) {
           const prevSongKey = activeSong.songKey;
-          const prevCooldown = [...ctx.db.abilityCooldown.by_character.filter(character.id)]
+          const prevCooldown = [...ctx.db.ability_cooldown.by_character.filter(character.id)]
             .find((r: any) => r.abilityKey === prevSongKey);
           if (prevCooldown) {
-            ctx.db.abilityCooldown.id.update({ ...prevCooldown, startedAtMicros: nowMicros, durationMicros: 3_000_000n });
+            ctx.db.ability_cooldown.id.update({ ...prevCooldown, startedAtMicros: nowMicros, durationMicros: 3_000_000n });
           } else {
-            ctx.db.abilityCooldown.insert({ id: 0n, characterId: character.id, abilityKey: prevSongKey, startedAtMicros: nowMicros, durationMicros: 3_000_000n });
+            ctx.db.ability_cooldown.insert({ id: 0n, characterId: character.id, abilityKey: prevSongKey, startedAtMicros: nowMicros, durationMicros: 3_000_000n });
           }
           // Fall through to executeAbilityAction for the new song
         }
@@ -824,13 +824,13 @@ export const registerItemReducers = (deps: any) => {
           ? ctx.db.character.id.find(args.targetCharacterId)?.name ?? 'your target'
           : 'yourself';
         if (combatId && !args.targetCharacterId) {
-          const enemies = [...ctx.db.combatEnemy.by_combat.filter(combatId)];
+          const enemies = [...ctx.db.combat_enemy.by_combat.filter(combatId)];
           const preferred = character.combatTargetEnemyId
             ? enemies.find((row) => row.id === character.combatTargetEnemyId)
             : null;
           const enemy = preferred ?? enemies.find((row) => row.currentHp > 0n) ?? enemies[0];
           if (enemy) {
-            const template = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+            const template = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
             targetName = template?.name ?? 'enemy';
           }
         }
@@ -859,13 +859,13 @@ export const registerItemReducers = (deps: any) => {
         const cooldown = abilityCooldownMicros(ctx, abilityKey);
         if (cooldown > 0n) {
           if (existingCooldown) {
-            ctx.db.abilityCooldown.id.update({
+            ctx.db.ability_cooldown.id.update({
               ...existingCooldown,
               startedAtMicros: nowMicros,
               durationMicros: cooldown,
             });
           } else {
-            ctx.db.abilityCooldown.insert({
+            ctx.db.ability_cooldown.insert({
               id: 0n,
               characterId: character.id,
               abilityKey,
@@ -893,12 +893,12 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer('use_item', { characterId: t.u64(), itemInstanceId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const instance = ctx.db.itemInstance.id.find(args.itemInstanceId);
+    const instance = ctx.db.item_instance.id.find(args.itemInstanceId);
     if (!instance) return failItem(ctx, character, 'Item not found');
     if (instance.ownerCharacterId !== character.id) {
       return failItem(ctx, character, 'Item does not belong to you');
     }
-    const template = ctx.db.itemTemplate.id.find(instance.templateId);
+    const template = ctx.db.item_template.id.find(instance.templateId);
     if (!template) return failItem(ctx, character, 'Item template missing');
     if (activeCombatIdForCharacter(ctx, character.id)) {
       return failItem(ctx, character, 'Cannot use this during combat');
@@ -918,7 +918,7 @@ export const registerItemReducers = (deps: any) => {
     ]);
     if (!handledKeys.has(itemKey)) return failItem(ctx, character, 'Item cannot be used');
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
-    const existingCooldown = [...ctx.db.itemCooldown.by_character.filter(character.id)].find(
+    const existingCooldown = [...ctx.db.item_cooldown.by_character.filter(character.id)].find(
       (row) => row.itemKey === itemKey
     );
     if (existingCooldown && existingCooldown.readyAtMicros > nowMicros) {
@@ -927,18 +927,18 @@ export const registerItemReducers = (deps: any) => {
     }
     const currentQty = instance.quantity ?? 1n;
     if (currentQty > 1n) {
-      ctx.db.itemInstance.id.update({ ...instance, quantity: currentQty - 1n });
+      ctx.db.item_instance.id.update({ ...instance, quantity: currentQty - 1n });
     } else {
-      ctx.db.itemInstance.id.delete(instance.id);
+      ctx.db.item_instance.id.delete(instance.id);
     }
     const setCooldown = (micros: bigint) => {
       if (existingCooldown) {
-        ctx.db.itemCooldown.id.update({
+        ctx.db.item_cooldown.id.update({
           ...existingCooldown,
           readyAtMicros: nowMicros + micros,
         });
       } else {
-        ctx.db.itemCooldown.insert({
+        ctx.db.item_cooldown.insert({
           id: 0n,
           characterId: character.id,
           itemKey,
@@ -948,13 +948,13 @@ export const registerItemReducers = (deps: any) => {
     };
 
     if (itemKey === 'bandage') {
-      const existingEffect = [...ctx.db.characterEffect.by_character.filter(character.id)].find(
+      const existingEffect = [...ctx.db.character_effect.by_character.filter(character.id)].find(
         (effect) => effect.effectType === 'regen' && effect.sourceAbility === 'Bandage'
       );
       if (existingEffect) {
-        ctx.db.characterEffect.id.delete(existingEffect.id);
+        ctx.db.character_effect.id.delete(existingEffect.id);
       }
-      ctx.db.characterEffect.insert({
+      ctx.db.character_effect.insert({
         id: 0n,
         characterId: character.id,
         effectType: 'regen',
@@ -974,11 +974,11 @@ export const registerItemReducers = (deps: any) => {
     }
 
     if (itemKey === 'basic_poultice') {
-      const existingEffect = [...ctx.db.characterEffect.by_character.filter(character.id)].find(
+      const existingEffect = [...ctx.db.character_effect.by_character.filter(character.id)].find(
         (effect) => effect.effectType === 'stamina_regen' && effect.sourceAbility === 'Basic Poultice'
       );
-      if (existingEffect) ctx.db.characterEffect.id.delete(existingEffect.id);
-      ctx.db.characterEffect.insert({
+      if (existingEffect) ctx.db.character_effect.id.delete(existingEffect.id);
+      ctx.db.character_effect.insert({
         id: 0n,
         characterId: character.id,
         effectType: 'stamina_regen',
@@ -998,13 +998,13 @@ export const registerItemReducers = (deps: any) => {
     }
 
     if (itemKey === 'simple_rations') {
-      const existingEffect = [...ctx.db.characterEffect.by_character.filter(character.id)].find(
+      const existingEffect = [...ctx.db.character_effect.by_character.filter(character.id)].find(
         (effect) => effect.effectType === 'regen' && effect.sourceAbility === 'Simple Rations'
       );
       if (existingEffect) {
-        ctx.db.characterEffect.id.delete(existingEffect.id);
+        ctx.db.character_effect.id.delete(existingEffect.id);
       }
-      ctx.db.characterEffect.insert({
+      ctx.db.character_effect.insert({
         id: 0n,
         characterId: character.id,
         effectType: 'regen',
@@ -1024,11 +1024,11 @@ export const registerItemReducers = (deps: any) => {
     }
 
     if (itemKey === 'travelers_tea') {
-      const existingEffect = [...ctx.db.characterEffect.by_character.filter(character.id)].find(
+      const existingEffect = [...ctx.db.character_effect.by_character.filter(character.id)].find(
         (effect) => effect.effectType === 'mana_regen' && effect.sourceAbility === 'Travelers Tea'
       );
-      if (existingEffect) ctx.db.characterEffect.id.delete(existingEffect.id);
-      ctx.db.characterEffect.insert({
+      if (existingEffect) ctx.db.character_effect.id.delete(existingEffect.id);
+      ctx.db.character_effect.insert({
         id: 0n,
         characterId: character.id,
         effectType: 'mana_regen',

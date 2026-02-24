@@ -277,9 +277,9 @@ export function getEquippedBonuses(ctx: any, characterId: bigint) {
     weaponBaseDamage: 0n,
     weaponDps: 0n,
   };
-  for (const instance of ctx.db.itemInstance.by_owner.filter(characterId)) {
+  for (const instance of ctx.db.item_instance.by_owner.filter(characterId)) {
     if (!instance.equippedSlot) continue;
-    const template = ctx.db.itemTemplate.id.find(instance.templateId);
+    const template = ctx.db.item_template.id.find(instance.templateId);
     if (!template) continue;
     bonuses.str += template.strBonus;
     bonuses.dex += template.dexBonus;
@@ -292,7 +292,7 @@ export function getEquippedBonuses(ctx: any, characterId: bigint) {
     bonuses.magicResistanceBonus += template.magicResistanceBonus;
 
     // Sum affix bonuses for this equipped item
-    for (const affix of ctx.db.itemAffix.by_instance.filter(instance.id)) {
+    for (const affix of ctx.db.item_affix.by_instance.filter(instance.id)) {
       const key = affix.statKey;
       if (key === 'strBonus') bonuses.str += affix.magnitude;
       else if (key === 'dexBonus') bonuses.dex += affix.magnitude;
@@ -314,14 +314,14 @@ export function getEquippedBonuses(ctx: any, characterId: bigint) {
 }
 
 export function getEquippedWeaponStats(ctx: any, characterId: bigint) {
-  for (const instance of ctx.db.itemInstance.by_owner.filter(characterId)) {
+  for (const instance of ctx.db.item_instance.by_owner.filter(characterId)) {
     if (instance.equippedSlot !== 'mainHand') continue;
-    const template = ctx.db.itemTemplate.id.find(instance.templateId);
+    const template = ctx.db.item_template.id.find(instance.templateId);
     if (!template) continue;
     // Sum weapon affix bonuses (includes craft quality implicit affixes)
     let bonusDamage = 0n;
     let bonusDps = 0n;
-    for (const affix of ctx.db.itemAffix.by_instance.filter(instance.id)) {
+    for (const affix of ctx.db.item_affix.by_instance.filter(instance.id)) {
       if (affix.statKey === 'weaponBaseDamage') bonusDamage += affix.magnitude;
       else if (affix.statKey === 'weaponDps') bonusDps += affix.magnitude;
     }
@@ -337,7 +337,7 @@ export function getEquippedWeaponStats(ctx: any, characterId: bigint) {
 }
 
 export function findItemTemplateByName(ctx: any, name: string) {
-  for (const row of ctx.db.itemTemplate.iter()) {
+  for (const row of ctx.db.item_template.iter()) {
     if (row.name.toLowerCase() === name.toLowerCase()) return row;
   }
   return null;
@@ -345,7 +345,7 @@ export function findItemTemplateByName(ctx: any, name: string) {
 
 export function getItemCount(ctx: any, characterId: bigint, templateId: bigint): bigint {
   let count = 0n;
-  for (const instance of ctx.db.itemInstance.by_owner.filter(characterId)) {
+  for (const instance of ctx.db.item_instance.by_owner.filter(characterId)) {
     if (instance.templateId !== templateId || instance.equippedSlot) continue;
     count += instance.quantity ?? 1n;
   }
@@ -358,22 +358,22 @@ export function addItemToInventory(
   templateId: bigint,
   quantity: bigint
 ): void {
-  const template = ctx.db.itemTemplate.id.find(templateId);
+  const template = ctx.db.item_template.id.find(templateId);
   if (!template) throw new SenderError('Item template missing');
   const stackable = template.stackable ?? false;
   if (stackable) {
-    const existing = [...ctx.db.itemInstance.by_owner.filter(characterId)].find(
+    const existing = [...ctx.db.item_instance.by_owner.filter(characterId)].find(
       (row) => row.templateId === templateId && !row.equippedSlot
     );
     if (existing) {
-      ctx.db.itemInstance.id.update({
+      ctx.db.item_instance.id.update({
         ...existing,
         quantity: (existing.quantity ?? 1n) + quantity,
       });
       return;
     }
   }
-  ctx.db.itemInstance.insert({
+  ctx.db.item_instance.insert({
     id: 0n,
     templateId,
     ownerCharacterId: characterId,
@@ -385,15 +385,15 @@ export function addItemToInventory(
 export const MAX_INVENTORY_SLOTS = 50;
 
 export function getInventorySlotCount(ctx: any, characterId: bigint) {
-  return [...ctx.db.itemInstance.by_owner.filter(characterId)].filter((row) => !row.equippedSlot)
+  return [...ctx.db.item_instance.by_owner.filter(characterId)].filter((row) => !row.equippedSlot)
     .length;
 }
 
 export function hasInventorySpace(ctx: any, characterId: bigint, templateId: bigint) {
-  const template = ctx.db.itemTemplate.id.find(templateId);
+  const template = ctx.db.item_template.id.find(templateId);
   if (!template) return false;
   if (template.stackable) {
-    const existing = [...ctx.db.itemInstance.by_owner.filter(characterId)].find(
+    const existing = [...ctx.db.item_instance.by_owner.filter(characterId)].find(
       (row) => row.templateId === templateId && !row.equippedSlot
     );
     if (existing) return true;
@@ -408,15 +408,15 @@ export function removeItemFromInventory(
   quantity: bigint
 ): void {
   let remaining = quantity;
-  for (const instance of ctx.db.itemInstance.by_owner.filter(characterId)) {
+  for (const instance of ctx.db.item_instance.by_owner.filter(characterId)) {
     if (instance.templateId !== templateId || instance.equippedSlot) continue;
     const current = instance.quantity ?? 1n;
     if (current > remaining) {
-      ctx.db.itemInstance.id.update({ ...instance, quantity: current - remaining });
+      ctx.db.item_instance.id.update({ ...instance, quantity: current - remaining });
       return;
     }
     remaining -= current;
-    ctx.db.itemInstance.id.delete(instance.id);
+    ctx.db.item_instance.id.delete(instance.id);
     if (remaining === 0n) return;
   }
   if (remaining > 0n) throw new SenderError('Not enough materials');

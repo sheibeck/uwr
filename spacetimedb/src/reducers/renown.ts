@@ -34,14 +34,14 @@ export const registerRenownReducers = (deps: any) => {
     }
 
     // Check if already chosen a perk for this rank
-    for (const existingPerk of ctx.db.renownPerk.by_character.filter(characterId)) {
+    for (const existingPerk of ctx.db.renown_perk.by_character.filter(characterId)) {
       if (Number(existingPerk.rank) === currentRank) {
         throw new SenderError('Perk already chosen for this rank');
       }
     }
 
     // Insert RenownPerk row
-    ctx.db.renownPerk.insert({
+    ctx.db.renown_perk.insert({
       id: 0n,
       characterId,
       rank: BigInt(currentRank),
@@ -54,7 +54,7 @@ export const registerRenownReducers = (deps: any) => {
       const abilityKey = perk.effect.perkAbilityKey;
       // Find all used hotbar slots for this character
       const usedSlots = new Set<number>();
-      for (const slot of ctx.db.hotbarSlot.by_character.filter(characterId)) {
+      for (const slot of ctx.db.hotbar_slot.by_character.filter(characterId)) {
         usedSlots.add(Number(slot.slot));
       }
       // Find first empty slot 0-11
@@ -66,7 +66,7 @@ export const registerRenownReducers = (deps: any) => {
         }
       }
       if (emptySlot !== null) {
-        ctx.db.hotbarSlot.insert({
+        ctx.db.hotbar_slot.insert({
           id: 0n,
           characterId,
           slot: emptySlot,

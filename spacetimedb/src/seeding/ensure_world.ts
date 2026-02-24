@@ -380,9 +380,9 @@ export function ensureQuestTemplates(ctx: any) {
       : null;
     if (!npc) return;
     // enemy is optional for non-kill quests
-    const existing = [...ctx.db.questTemplate.iter()].find((row) => row.name === args.name);
+    const existing = [...ctx.db.quest_template.iter()].find((row) => row.name === args.name);
     if (existing) {
-      ctx.db.questTemplate.id.update({
+      ctx.db.quest_template.id.update({
         ...existing,
         name: args.name,
         npcId: npc.id,
@@ -399,7 +399,7 @@ export function ensureQuestTemplates(ctx: any) {
       });
       return;
     }
-    ctx.db.questTemplate.insert({
+    ctx.db.quest_template.insert({
       id: 0n,
       name: args.name,
       npcId: npc.id,
@@ -958,11 +958,11 @@ export function ensureEnemyAbilities(ctx: any) {
   ) => {
     const template = findEnemyTemplateByName(ctx, templateName);
     if (!template) return;
-    const existing = [...ctx.db.enemyAbility.by_template.filter(template.id)].find(
+    const existing = [...ctx.db.enemy_ability.by_template.filter(template.id)].find(
       (row) => row.abilityKey === abilityKey
     );
     if (existing) {
-      ctx.db.enemyAbility.id.update({
+      ctx.db.enemy_ability.id.update({
         ...existing,
         enemyTemplateId: template.id,
         abilityKey,
@@ -974,7 +974,7 @@ export function ensureEnemyAbilities(ctx: any) {
       });
       return;
     }
-    ctx.db.enemyAbility.insert({
+    ctx.db.enemy_ability.insert({
       id: 0n,
       enemyTemplateId: template.id,
       abilityKey,
@@ -1006,13 +1006,13 @@ export function ensureEnemyAbilities(ctx: any) {
   // Clean up stale DB rows for abilities that were removed from the map.
   // Iterates all enemy templates: if a template has DB ability rows that are
   // no longer listed in ENEMY_TEMPLATE_ABILITIES, delete them.
-  for (const template of ctx.db.enemyTemplate.iter()) {
+  for (const template of ctx.db.enemy_template.iter()) {
     const allowedKeys = new Set(
       ENEMY_TEMPLATE_ABILITIES[template.name as keyof typeof ENEMY_TEMPLATE_ABILITIES] ?? []
     );
-    for (const row of ctx.db.enemyAbility.by_template.filter(template.id)) {
+    for (const row of ctx.db.enemy_ability.by_template.filter(template.id)) {
       if (!allowedKeys.has(row.abilityKey)) {
-        ctx.db.enemyAbility.id.delete(row.id);
+        ctx.db.enemy_ability.id.delete(row.id);
       }
     }
   }
@@ -1908,12 +1908,12 @@ export function ensureWorldLayout(ctx: any) {
 
   const world = getWorldState(ctx);
   if (world) {
-    ctx.db.worldState.id.update({
+    ctx.db.world_state.id.update({
       ...world,
       startingLocationId: town.id,
     });
   } else {
-    ctx.db.worldState.insert({
+    ctx.db.world_state.insert({
       id: 1n,
       startingLocationId: town.id,
       isNight: false,
@@ -2074,7 +2074,7 @@ export function ensureDialogueOptions(ctx: any) {
     // Resolve parentOptionKey to parentOptionId (if set)
     let parentOptionId: bigint | undefined = undefined;
     if (option.parentOptionKey) {
-      for (const opt of ctx.db.npcDialogueOption.by_npc.filter(npcId)) {
+      for (const opt of ctx.db.npc_dialogue_option.by_npc.filter(npcId)) {
         if (opt.optionKey === option.parentOptionKey) {
           parentOptionId = opt.id;
           break;
@@ -2085,7 +2085,7 @@ export function ensureDialogueOptions(ctx: any) {
 
     // Check if option already exists
     let existing: any = null;
-    for (const opt of ctx.db.npcDialogueOption.by_npc.filter(npcId)) {
+    for (const opt of ctx.db.npc_dialogue_option.by_npc.filter(npcId)) {
       if (opt.optionKey === option.optionKey) {
         existing = opt;
         break;
@@ -2094,7 +2094,7 @@ export function ensureDialogueOptions(ctx: any) {
 
     if (existing) {
       // Update existing option
-      ctx.db.npcDialogueOption.id.update({
+      ctx.db.npc_dialogue_option.id.update({
         ...existing,
         npcId,
         parentOptionId,
@@ -2113,7 +2113,7 @@ export function ensureDialogueOptions(ctx: any) {
       });
     } else {
       // Insert new option
-      ctx.db.npcDialogueOption.insert({
+      ctx.db.npc_dialogue_option.insert({
         id: 0n,
         npcId,
         parentOptionId,

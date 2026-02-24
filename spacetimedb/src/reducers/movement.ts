@@ -35,7 +35,7 @@ export const registerMovementReducers = (deps: any) => {
     if (activeCombatIdForCharacter(ctx, character.id)) {
       return fail(ctx, character, 'Cannot travel while in combat');
     }
-    const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
+    const activeGather = [...ctx.db.resource_gather.by_character.filter(character.id)][0];
     if (activeGather) {
       return fail(ctx, character, 'Cannot travel while gathering');
     }
@@ -59,7 +59,7 @@ export const registerMovementReducers = (deps: any) => {
       if (group && group.leaderCharacterId === character.id) {
         // Group leader - add leader and following members at same location
         travelingCharacters.push(character);
-        for (const member of ctx.db.groupMember.by_group.filter(group.id)) {
+        for (const member of ctx.db.group_member.by_group.filter(group.id)) {
           if (!member.followLeader) continue;
           const memberCharacter = ctx.db.character.id.find(member.characterId);
           if (
@@ -84,7 +84,7 @@ export const registerMovementReducers = (deps: any) => {
       const costIncrease = traveler.racialTravelCostIncrease ?? 0n;
       const costDiscount = traveler.racialTravelCostDiscount ?? 0n;
       const rawCost = staminaCost + costIncrease;
-      const abilityDiscount = [...ctx.db.characterEffect.by_character.filter(traveler.id)]
+      const abilityDiscount = [...ctx.db.character_effect.by_character.filter(traveler.id)]
         .filter((e: any) => e.effectType === 'travel_discount' && e.roundsRemaining > 0n)
         .reduce((sum: bigint, e: any) => sum + BigInt(e.magnitude), 0n);
       const totalDiscount = costDiscount + abilityDiscount;
@@ -97,7 +97,7 @@ export const registerMovementReducers = (deps: any) => {
     // Check cross-region cooldown (only for cross-region travel)
     if (isCrossRegion) {
       for (const traveler of travelingCharacters) {
-        const cooldowns = [...ctx.db.travelCooldown.by_character.filter(traveler.id)];
+        const cooldowns = [...ctx.db.travel_cooldown.by_character.filter(traveler.id)];
         const activeCooldown = cooldowns.find(cd => cd.readyAtMicros > ctx.timestamp.microsSinceUnixEpoch);
         if (activeCooldown) {
           const remainingSec = Number((activeCooldown.readyAtMicros - ctx.timestamp.microsSinceUnixEpoch) / 1_000_000n);
@@ -106,7 +106,7 @@ export const registerMovementReducers = (deps: any) => {
         // Clean up expired cooldowns opportunistically
         for (const cd of cooldowns) {
           if (cd.readyAtMicros <= ctx.timestamp.microsSinceUnixEpoch) {
-            ctx.db.travelCooldown.id.delete(cd.id);
+            ctx.db.travel_cooldown.id.delete(cd.id);
           }
         }
       }
@@ -117,14 +117,14 @@ export const registerMovementReducers = (deps: any) => {
       const costIncrease = traveler.racialTravelCostIncrease ?? 0n;
       const costDiscount = traveler.racialTravelCostDiscount ?? 0n;
       const rawCost = staminaCost + costIncrease;
-      const abilityDiscount = [...ctx.db.characterEffect.by_character.filter(traveler.id)]
+      const abilityDiscount = [...ctx.db.character_effect.by_character.filter(traveler.id)]
         .filter((e: any) => e.effectType === 'travel_discount' && e.roundsRemaining > 0n)
         .reduce((sum: bigint, e: any) => sum + BigInt(e.magnitude), 0n);
       const totalDiscount = costDiscount + abilityDiscount;
       const effectiveCost = rawCost > totalDiscount ? rawCost - totalDiscount : 0n;
       ctx.db.character.id.update({ ...traveler, stamina: traveler.stamina - effectiveCost });
       if (isCrossRegion) {
-        const existingCd = [...ctx.db.travelCooldown.by_character.filter(traveler.id)][0];
+        const existingCd = [...ctx.db.travel_cooldown.by_character.filter(traveler.id)][0];
         // Apply travel cooldown reduction perk
         const travelCdReduction = getPerkBonusByField(ctx, traveler.id, 'travelCooldownReduction', traveler.level);
         const baseCooldown = TRAVEL_CONFIG.CROSS_REGION_COOLDOWN_MICROS;
@@ -133,9 +133,9 @@ export const registerMovementReducers = (deps: any) => {
           : baseCooldown;
         const readyAt = ctx.timestamp.microsSinceUnixEpoch + reducedCooldown;
         if (existingCd) {
-          ctx.db.travelCooldown.id.update({ ...existingCd, readyAtMicros: readyAt });
+          ctx.db.travel_cooldown.id.update({ ...existingCd, readyAtMicros: readyAt });
         } else {
-          ctx.db.travelCooldown.insert({ id: 0n, characterId: traveler.id, readyAtMicros: readyAt });
+          ctx.db.travel_cooldown.insert({ id: 0n, characterId: traveler.id, readyAtMicros: readyAt });
         }
       }
     }
@@ -161,18 +161,18 @@ export const registerMovementReducers = (deps: any) => {
       const destLocation = ctx.db.location.id.find(location.id);
       if (destLocation) {
         const destRegionId = destLocation.regionId;
-        for (const event of ctx.db.worldEvent.by_region.filter(destRegionId)) {
+        for (const event of ctx.db.world_event.by_region.filter(destRegionId)) {
           if (event.status !== 'active') continue;
           // Check if character already has a contribution row for this event
           let alreadyRegistered = false;
-          for (const contrib of ctx.db.eventContribution.by_character.filter(charId)) {
+          for (const contrib of ctx.db.event_contribution.by_character.filter(charId)) {
             if (contrib.eventId === event.id) {
               alreadyRegistered = true;
               break;
             }
           }
           if (!alreadyRegistered) {
-            ctx.db.eventContribution.insert({
+            ctx.db.event_contribution.insert({
               id: 0n,
               eventId: event.id,
               characterId: charId,
@@ -188,16 +188,16 @@ export const registerMovementReducers = (deps: any) => {
       const gId = effectiveGroupId(movedChar);
       if (gId && !activeCombatIdForCharacter(ctx, movedChar.id)) {
         // Find active combat for this group at this location
-        for (const combat of ctx.db.combatEncounter.by_group.filter(gId)) {
+        for (const combat of ctx.db.combat_encounter.by_group.filter(gId)) {
           if (combat.state !== 'active' || combat.locationId !== location.id) continue;
           // Character is not already a participant
-          const alreadyIn = [...ctx.db.combatParticipant.by_character.filter(movedChar.id)]
+          const alreadyIn = [...ctx.db.combat_participant.by_character.filter(movedChar.id)]
             .some(p => p.combatId === combat.id);
           if (alreadyIn) break;
 
           // Add as combat participant — use character's weapon speed
           const joinWeapon = deps.getEquippedWeaponStats(ctx, movedChar.id);
-          ctx.db.combatParticipant.insert({
+          ctx.db.combat_participant.insert({
             id: 0n,
             combatId: combat.id,
             characterId: movedChar.id,
@@ -206,10 +206,10 @@ export const registerMovementReducers = (deps: any) => {
           });
 
           // Add aggro entries for all living enemies in this combat
-          const enemies = [...ctx.db.combatEnemy.by_combat.filter(combat.id)];
+          const enemies = [...ctx.db.combat_enemy.by_combat.filter(combat.id)];
           for (const enemy of enemies) {
             if (enemy.currentHp <= 0n) continue;
-            ctx.db.aggroEntry.insert({
+            ctx.db.aggro_entry.insert({
               id: 0n,
               combatId: combat.id,
               enemyId: enemy.id,

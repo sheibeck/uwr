@@ -4,14 +4,14 @@ import { getPerkBonusByField } from './renown';
 import { statOffset, CHA_AFFINITY_BONUS_PER_POINT } from '../data/combat_scaling.js';
 
 export function getAffinityForNpc(ctx: any, characterId: bigint, npcId: bigint): bigint {
-  for (const row of ctx.db.npcAffinity.by_character.filter(characterId)) {
+  for (const row of ctx.db.npc_affinity.by_character.filter(characterId)) {
     if (row.npcId === npcId) return row.affinity;
   }
   return 0n;
 }
 
 export function getAffinityRow(ctx: any, characterId: bigint, npcId: bigint): any | null {
-  for (const row of ctx.db.npcAffinity.by_character.filter(characterId)) {
+  for (const row of ctx.db.npc_affinity.by_character.filter(characterId)) {
     if (row.npcId === npcId) return row;
   }
   return null;
@@ -69,7 +69,7 @@ export function awardNpcAffinity(ctx: any, character: any, npcId: bigint, baseCh
     if (newAffinity > 100n) newAffinity = 100n;
     if (newAffinity < -100n) newAffinity = -100n;
 
-    ctx.db.npcAffinity.id.update({
+    ctx.db.npc_affinity.id.update({
       ...existing,
       affinity: newAffinity,
       lastInteraction: ctx.timestamp,
@@ -86,7 +86,7 @@ export function awardNpcAffinity(ctx: any, character: any, npcId: bigint, baseCh
     if (initial > 100n) initial = 100n;
     if (initial < -100n) initial = -100n;
 
-    ctx.db.npcAffinity.insert({
+    ctx.db.npc_affinity.insert({
       id: 0n,
       characterId: character.id,
       npcId,
@@ -116,7 +116,7 @@ export function getAvailableDialogueOptions(ctx: any, characterId: bigint, npcId
   const affinity = getAffinityForNpc(ctx, characterId, npcId);
   const options: any[] = [];
 
-  for (const opt of ctx.db.npcDialogueOption.by_npc.filter(npcId)) {
+  for (const opt of ctx.db.npc_dialogue_option.by_npc.filter(npcId)) {
     // Filter by parent
     if (parentOptionId === null) {
       if (opt.parentOptionId !== undefined && opt.parentOptionId !== null) continue;
@@ -131,7 +131,7 @@ export function getAvailableDialogueOptions(ctx: any, characterId: bigint, npcId
     if (opt.requiredFactionId) {
       let hasFaction = false;
       const minStanding = opt.requiredFactionStanding ?? 0n;
-      for (const fs of ctx.db.factionStanding.by_character.filter(characterId)) {
+      for (const fs of ctx.db.faction_standing.by_character.filter(characterId)) {
         if (fs.factionId === opt.requiredFactionId && fs.standing >= minStanding) {
           hasFaction = true;
           break;

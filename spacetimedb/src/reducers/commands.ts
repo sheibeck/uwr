@@ -111,18 +111,18 @@ export const registerCommandReducers = (deps: any) => {
     if (!npc) return fail(ctx, character, 'No such NPC here');
 
     // Check for completed quests and auto-turn them in
-    const quests = [...ctx.db.questTemplate.by_npc.filter(npc.id)];
-    const questInstances = [...ctx.db.questInstance.by_character.filter(character.id)];
+    const quests = [...ctx.db.quest_template.by_npc.filter(npc.id)];
+    const questInstances = [...ctx.db.quest_instance.by_character.filter(character.id)];
 
     for (const quest of quests) {
       const active = questInstances.find((row) => row.questTemplateId === quest.id);
       if (active && active.completed && !active.completedAt) {
         // Quest is ready to turn in!
-        const enemy = ctx.db.enemyTemplate.id.find(quest.targetEnemyTemplateId);
+        const enemy = ctx.db.enemy_template.id.find(quest.targetEnemyTemplateId);
         const targetNameText = enemy ? enemy.name : 'creatures';
 
         // Mark quest as turned in
-        ctx.db.questInstance.id.update({
+        ctx.db.quest_instance.id.update({
           ...active,
           completedAt: ctx.timestamp,
         });
@@ -153,16 +153,16 @@ export const registerCommandReducers = (deps: any) => {
     }
 
     // Check for delivery quest completion (new quest types)
-    const deliveryInstances = [...ctx.db.questInstance.by_character.filter(character.id)];
+    const deliveryInstances = [...ctx.db.quest_instance.by_character.filter(character.id)];
     for (const qi of deliveryInstances) {
       if (qi.completed || qi.completedAt) continue;
-      const qt = ctx.db.questTemplate.id.find(qi.questTemplateId);
+      const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
       if (!qt) continue;
       if ((qt.questType ?? 'kill') !== 'delivery') continue;
       if (qt.targetNpcId !== npc.id) continue;
 
       // Delivery quest complete!
-      ctx.db.questInstance.id.update({
+      ctx.db.quest_instance.id.update({
         ...qi,
         progress: 1n,
         completed: true,
@@ -195,7 +195,7 @@ export const registerCommandReducers = (deps: any) => {
 
     // Get the root dialogue option (empty playerText)
     let rootOption: any | null = null;
-    for (const opt of ctx.db.npcDialogueOption.by_npc.filter(npc.id)) {
+    for (const opt of ctx.db.npc_dialogue_option.by_npc.filter(npc.id)) {
       if (opt.playerText === '' && (opt.parentOptionId === undefined || opt.parentOptionId === null)) {
         rootOption = opt;
         break;
@@ -211,7 +211,7 @@ export const registerCommandReducers = (deps: any) => {
 
     // Check if already visited
     let alreadyVisited = false;
-    for (const visited of ctx.db.npcDialogueVisited.by_character.filter(character.id)) {
+    for (const visited of ctx.db.npc_dialogue_visited.by_character.filter(character.id)) {
       if (visited.npcId === npc.id && visited.dialogueOptionId === rootOption.id) {
         alreadyVisited = true;
         break;
@@ -226,7 +226,7 @@ export const registerCommandReducers = (deps: any) => {
       appendNpcDialog(ctx, character.id, npc.id, `${npc.name}: ${rootOption.npcResponse}`);
 
       // Mark as visited
-      ctx.db.npcDialogueVisited.insert({
+      ctx.db.npc_dialogue_visited.insert({
         id: 0n,
         characterId: character.id,
         npcId: npc.id,
@@ -342,7 +342,7 @@ export const registerCommandReducers = (deps: any) => {
     const npcsHere = [...ctx.db.npc.by_location.filter(character.locationId)];
     for (const npc of npcsHere) {
       // Get all dialogue options for this NPC
-      const dialogueOptions = [...ctx.db.npcDialogueOption.by_npc.filter(npc.id)];
+      const dialogueOptions = [...ctx.db.npc_dialogue_option.by_npc.filter(npc.id)];
       for (const option of dialogueOptions) {
         // Match keyword (case-insensitive)
         if (option.playerText.toLowerCase() === trimmed.toLowerCase()) {
@@ -364,7 +364,7 @@ export const registerCommandReducers = (deps: any) => {
 
           // Check if already visited
           let alreadyVisited = false;
-          for (const visited of ctx.db.npcDialogueVisited.by_character.filter(character.id)) {
+          for (const visited of ctx.db.npc_dialogue_visited.by_character.filter(character.id)) {
             if (visited.npcId === npc.id && visited.dialogueOptionId === option.id) {
               alreadyVisited = true;
               break;
@@ -390,7 +390,7 @@ export const registerCommandReducers = (deps: any) => {
             appendNpcDialog(ctx, character.id, npc.id, response);
 
             // Mark as visited
-            ctx.db.npcDialogueVisited.insert({
+            ctx.db.npc_dialogue_visited.insert({
               id: 0n,
               characterId: character.id,
               npcId: npc.id,
@@ -408,7 +408,7 @@ export const registerCommandReducers = (deps: any) => {
           if (option.questTemplateName) {
             // Look up quest by name (search all quests, not just for this NPC)
             let questTemplate: any = null;
-            for (const qt of ctx.db.questTemplate.iter()) {
+            for (const qt of ctx.db.quest_template.iter()) {
               if (qt.name === option.questTemplateName) {
                 questTemplate = qt;
                 break;
@@ -418,7 +418,7 @@ export const registerCommandReducers = (deps: any) => {
             if (questTemplate) {
               // Check if already has this quest
               let hasQuest = false;
-              for (const qi of ctx.db.questInstance.by_character.filter(character.id)) {
+              for (const qi of ctx.db.quest_instance.by_character.filter(character.id)) {
                 if (qi.questTemplateId === questTemplate.id) {
                   hasQuest = true;
                   break;
@@ -427,7 +427,7 @@ export const registerCommandReducers = (deps: any) => {
 
               if (!hasQuest) {
                 // Auto-accept quest
-                ctx.db.questInstance.insert({
+                ctx.db.quest_instance.insert({
                   id: 0n,
                   characterId: character.id,
                   questTemplateId: questTemplate.id,
@@ -437,14 +437,14 @@ export const registerCommandReducers = (deps: any) => {
                   completedAt: undefined,
                 });
 
-                const enemy = ctx.db.enemyTemplate.id.find(questTemplate.targetEnemyTemplateId);
+                const enemy = ctx.db.enemy_template.id.find(questTemplate.targetEnemyTemplateId);
                 const targetNameText = enemy ? enemy.name : 'creatures';
                 const questAccept = `${npc.name} offers you "${questTemplate.name}". Objective: Slay ${questTemplate.requiredCount} ${targetNameText}(s). Quest accepted.`;
                 appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', questAccept);
                 appendNpcDialog(ctx, character.id, npc.id, questAccept);
               } else {
                 // Already has quest - show progress
-                const qi = [...ctx.db.questInstance.by_character.filter(character.id)].find(q => q.questTemplateId === questTemplate.id);
+                const qi = [...ctx.db.quest_instance.by_character.filter(character.id)].find(q => q.questTemplateId === questTemplate.id);
                 if (qi && !qi.completed) {
                   const reminder = `${npc.name} says, "You are still working on ${questTemplate.name} (${qi.progress}/${questTemplate.requiredCount})."`;
                   appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', reminder);
@@ -486,7 +486,7 @@ export const registerCommandReducers = (deps: any) => {
 
       // Find any item template for this slot (exclude starter items)
       let template: any = null;
-      for (const tmpl of ctx.db.itemTemplate.iter()) {
+      for (const tmpl of ctx.db.item_template.iter()) {
         if (tmpl.slot === slot && !tmpl.isJunk && !STARTER_ITEM_NAMES.has(tmpl.name)) {
           template = tmpl;
           break;
@@ -494,7 +494,7 @@ export const registerCommandReducers = (deps: any) => {
       }
       // Fallback: if no template found for the slot, pick any non-junk non-starter gear template
       if (!template) {
-        for (const tmpl of ctx.db.itemTemplate.iter()) {
+        for (const tmpl of ctx.db.item_template.iter()) {
           if (['chest', 'legs', 'boots', 'mainHand', 'head', 'hands', 'wrists', 'belt'].includes(tmpl.slot) && !tmpl.isJunk && !STARTER_ITEM_NAMES.has(tmpl.name)) {
             template = tmpl;
             break;
@@ -504,7 +504,7 @@ export const registerCommandReducers = (deps: any) => {
       if (!template) return fail(ctx, character, 'No item templates found to create test item');
 
       // Check inventory space (max non-equipped items)
-      const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].filter((r) => !r.equippedSlot).length;
+      const itemCount = [...ctx.db.item_instance.by_owner.filter(character.id)].filter((r) => !r.equippedSlot).length;
       if (itemCount >= MAX_INVENTORY_SLOTS) return fail(ctx, character, 'Backpack is full');
 
       // Add base item to inventory
@@ -514,7 +514,7 @@ export const registerCommandReducers = (deps: any) => {
       let displayName = template.name;
       if (qualityTier !== 'common') {
         // Find the newly created instance (no qualityTier set yet, not equipped)
-        const instances = [...ctx.db.itemInstance.by_owner.filter(character.id)];
+        const instances = [...ctx.db.item_instance.by_owner.filter(character.id)];
         const newInstance = instances.find(
           (i) => i.templateId === template.id && !i.equippedSlot && !i.qualityTier
         );
@@ -522,7 +522,7 @@ export const registerCommandReducers = (deps: any) => {
           const seedBase = ctx.timestamp.microsSinceUnixEpoch + character.id;
           const affixes = generateAffixData(template.slot, qualityTier, seedBase);
           for (const affix of affixes) {
-            ctx.db.itemAffix.insert({
+            ctx.db.item_affix.insert({
               id: 0n,
               itemInstanceId: newInstance.id,
               affixType: affix.affixType,
@@ -533,7 +533,7 @@ export const registerCommandReducers = (deps: any) => {
             });
           }
           displayName = buildDisplayName(template.name, affixes);
-          ctx.db.itemInstance.id.update({
+          ctx.db.item_instance.id.update({
             ...newInstance,
             qualityTier,
             displayName,
@@ -558,7 +558,7 @@ export const registerCommandReducers = (deps: any) => {
       requireAdmin(ctx);
       const character = requireCharacterOwnedBy(ctx, characterId);
 
-      const itemCount = [...ctx.db.itemInstance.by_owner.filter(character.id)].filter((r: any) => !r.equippedSlot).length;
+      const itemCount = [...ctx.db.item_instance.by_owner.filter(character.id)].filter((r: any) => !r.equippedSlot).length;
       if (itemCount >= MAX_INVENTORY_SLOTS) return fail(ctx, character, 'Backpack is full');
 
       const scrollName = recipeName.trim()
@@ -566,7 +566,7 @@ export const registerCommandReducers = (deps: any) => {
         : (() => {
             // Pick a random scroll from all Scroll: templates
             const scrolls: any[] = [];
-            for (const tmpl of ctx.db.itemTemplate.iter()) {
+            for (const tmpl of ctx.db.item_template.iter()) {
               if (tmpl.name.startsWith('Scroll:')) scrolls.push(tmpl);
             }
             if (!scrolls.length) return null;
@@ -577,7 +577,7 @@ export const registerCommandReducers = (deps: any) => {
       if (!scrollName) return fail(ctx, character, 'No recipe scrolls found in database.');
 
       let template: any = null;
-      for (const tmpl of ctx.db.itemTemplate.iter()) {
+      for (const tmpl of ctx.db.item_template.iter()) {
         if (tmpl.name === scrollName) { template = tmpl; break; }
       }
       if (!template) return fail(ctx, character, `No scroll found: "${scrollName}". Valid names: Longsword, Dagger, Staff, Mace, Shield, Helm, Breastplate, Bracers, Gauntlets, Girdle, Greaves, Sabatons, Ring, Amulet, Cloak`);

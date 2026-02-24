@@ -36,8 +36,8 @@ import {
 } from '../helpers/location';
 
 export function ensureHealthRegenScheduled(ctx: any) {
-  if (!tableHasRows(ctx.db.healthRegenTick.iter())) {
-    ctx.db.healthRegenTick.insert({
+  if (!tableHasRows(ctx.db.health_regen_tick.iter())) {
+    ctx.db.health_regen_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 3_000_000n),
     });
@@ -45,8 +45,8 @@ export function ensureHealthRegenScheduled(ctx: any) {
 }
 
 export function ensureEffectTickScheduled(ctx: any) {
-  if (!tableHasRows(ctx.db.effectTick.iter())) {
-    ctx.db.effectTick.insert({
+  if (!tableHasRows(ctx.db.effect_tick.iter())) {
+    ctx.db.effect_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 10_000_000n),
     });
@@ -54,8 +54,8 @@ export function ensureEffectTickScheduled(ctx: any) {
 }
 
 export function ensureHotTickScheduled(ctx: any) {
-  if (!tableHasRows(ctx.db.hotTick.iter())) {
-    ctx.db.hotTick.insert({
+  if (!tableHasRows(ctx.db.hot_tick.iter())) {
+    ctx.db.hot_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 3_000_000n),
     });
@@ -63,8 +63,8 @@ export function ensureHotTickScheduled(ctx: any) {
 }
 
 export function ensureCastTickScheduled(ctx: any) {
-  if (!tableHasRows(ctx.db.castTick.iter())) {
-    ctx.db.castTick.insert({
+  if (!tableHasRows(ctx.db.cast_tick.iter())) {
+    ctx.db.cast_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 200_000n),
     });
@@ -72,11 +72,11 @@ export function ensureCastTickScheduled(ctx: any) {
 }
 
 export function ensureDayNightTickScheduled(ctx: any) {
-  if (!tableHasRows(ctx.db.dayNightTick.iter())) {
+  if (!tableHasRows(ctx.db.day_night_tick.iter())) {
     const world = getWorldState(ctx);
     const nextAt =
       world?.nextTransitionAtMicros ?? ctx.timestamp.microsSinceUnixEpoch + DAY_DURATION_MICROS;
-    ctx.db.dayNightTick.insert({
+    ctx.db.day_night_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(nextAt),
     });
@@ -84,8 +84,8 @@ export function ensureDayNightTickScheduled(ctx: any) {
 }
 
 export function ensureInactivityTickScheduled(ctx: any) {
-  if (!tableHasRows(ctx.db.inactivityTick.iter())) {
-    ctx.db.inactivityTick.insert({
+  if (!tableHasRows(ctx.db.inactivity_tick.iter())) {
+    ctx.db.inactivity_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 300_000_000n),
     });

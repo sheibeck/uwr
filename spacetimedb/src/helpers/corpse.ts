@@ -35,12 +35,12 @@ export function createCorpse(ctx: any, character: any): typeof Corpse.rowType | 
   }
 
   // Transfer inventory items (not equipped) to corpse
-  const inventoryItems = [...ctx.db.itemInstance.by_owner.filter(character.id)]
+  const inventoryItems = [...ctx.db.item_instance.by_owner.filter(character.id)]
     .filter(item => !item.equippedSlot);
 
   // Get existing items in this corpse to avoid duplicates
   const existingCorpseItems = new Set(
-    [...ctx.db.corpseItem.by_corpse.filter(corpse.id)]
+    [...ctx.db.corpse_item.by_corpse.filter(corpse.id)]
       .map(ci => ci.itemInstanceId)
   );
 
@@ -49,14 +49,14 @@ export function createCorpse(ctx: any, character: any): typeof Corpse.rowType | 
     // Skip if already in this corpse
     if (existingCorpseItems.has(item.id)) continue;
 
-    ctx.db.corpseItem.insert({
+    ctx.db.corpse_item.insert({
       id: 0n,
       corpseId: corpse.id,
       itemInstanceId: item.id,
     });
 
     // Transfer ownership away from character (0n sentinel = on corpse, no owner)
-    ctx.db.itemInstance.id.update({ ...item, ownerCharacterId: 0n });
+    ctx.db.item_instance.id.update({ ...item, ownerCharacterId: 0n });
     transferredCount++;
   }
 
@@ -112,11 +112,11 @@ export function decayCorpse(ctx: any, corpse: typeof Corpse.rowType) {
   const locationName = location?.name ?? 'unknown';
 
   // Delete all CorpseItem rows and their ItemInstance rows
-  for (const corpseItem of ctx.db.corpseItem.by_corpse.filter(corpse.id)) {
+  for (const corpseItem of ctx.db.corpse_item.by_corpse.filter(corpse.id)) {
     // Delete the ItemInstance (permanent loss)
-    ctx.db.itemInstance.id.delete(corpseItem.itemInstanceId);
+    ctx.db.item_instance.id.delete(corpseItem.itemInstanceId);
     // Delete the CorpseItem row
-    ctx.db.corpseItem.id.delete(corpseItem.id);
+    ctx.db.corpse_item.id.delete(corpseItem.id);
   }
 
   // Delete the Corpse row
@@ -139,7 +139,7 @@ export function decayCorpse(ctx: any, corpse: typeof Corpse.rowType) {
  * Returns true if corpse was deleted, false if items remain.
  */
 export function removeCorpseIfEmpty(ctx: any, corpseId: bigint): boolean {
-  const corpseItems = [...ctx.db.corpseItem.by_corpse.filter(corpseId)];
+  const corpseItems = [...ctx.db.corpse_item.by_corpse.filter(corpseId)];
 
   if (corpseItems.length === 0) {
     ctx.db.corpse.id.delete(corpseId);
@@ -217,8 +217,8 @@ export function executeCorpseSummon(ctx: any, caster: any, target: any) {
     const oldCorpse = allCorpses[i];
 
     // Transfer all CorpseItem rows to surviving corpse
-    for (const corpseItem of ctx.db.corpseItem.by_corpse.filter(oldCorpse.id)) {
-      ctx.db.corpseItem.id.update({
+    for (const corpseItem of ctx.db.corpse_item.by_corpse.filter(oldCorpse.id)) {
+      ctx.db.corpse_item.id.update({
         ...corpseItem,
         corpseId: survivingCorpse.id,
       });

@@ -138,7 +138,7 @@ export const registerCharacterReducers = (deps: any) => {
       const previous = ctx.db.character.id.find(previousActiveId);
         if (previous) {
         const logoutAtMicros = ctx.timestamp.microsSinceUnixEpoch + CHARACTER_SWITCH_LOGOUT_DELAY;
-        ctx.db.characterLogoutTick.insert({
+        ctx.db.character_logout_tick.insert({
           scheduledId: 0n,
           scheduledAt: ScheduleAt.time(logoutAtMicros),
           characterId: previous.id,
@@ -210,7 +210,7 @@ export const registerCharacterReducers = (deps: any) => {
         throw new SenderError(`${className} is not available for ${raceRow.name}`);
       }
 
-      const world = ctx.db.worldState.id.find(1n);
+      const world = ctx.db.world_state.id.find(1n);
       if (!world) throw new SenderError('World not initialized');
       const startingLocation = ctx.db.location.id.find(world.startingLocationId);
       if (!startingLocation) throw new SenderError('Starting location not initialized');
@@ -303,7 +303,7 @@ export const registerCharacterReducers = (deps: any) => {
 
       // Initialize FactionStanding for all factions at 0
       for (const faction of ctx.db.faction.iter()) {
-        ctx.db.factionStanding.insert({
+        ctx.db.faction_standing.insert({
           id: 0n,
           characterId: character.id,
           factionId: faction.id,
@@ -346,9 +346,9 @@ export const registerCharacterReducers = (deps: any) => {
       const group = ctx.db.group.id.find(groupId);
       const wasLeader = group?.leaderCharacterId === characterId;
 
-      for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+      for (const member of ctx.db.group_member.by_group.filter(groupId)) {
         if (member.characterId === characterId) {
-          ctx.db.groupMember.id.delete(member.id);
+          ctx.db.group_member.id.delete(member.id);
           break;
         }
       }
@@ -362,20 +362,20 @@ export const registerCharacterReducers = (deps: any) => {
       );
 
       let newLeaderMember: typeof GroupMember.rowType | null = null;
-      for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+      for (const member of ctx.db.group_member.by_group.filter(groupId)) {
         if (!newLeaderMember) newLeaderMember = member;
       }
 
       if (!newLeaderMember) {
-        for (const invite of ctx.db.groupInvite.by_group.filter(groupId)) {
-          ctx.db.groupInvite.id.delete(invite.id);
+        for (const invite of ctx.db.group_invite.by_group.filter(groupId)) {
+          ctx.db.group_invite.id.delete(invite.id);
         }
         ctx.db.group.id.delete(groupId);
       } else if (group && wasLeader) {
         const newLeaderCharacter = ctx.db.character.id.find(newLeaderMember.characterId);
         if (newLeaderCharacter) {
           ctx.db.group.id.update({ ...group, leaderCharacterId: newLeaderCharacter.id });
-          ctx.db.groupMember.id.update({ ...newLeaderMember, role: 'leader' });
+          ctx.db.group_member.id.update({ ...newLeaderMember, role: 'leader' });
           appendGroupEvent(
             ctx,
             groupId,
@@ -387,76 +387,76 @@ export const registerCharacterReducers = (deps: any) => {
       }
     }
 
-    for (const invite of ctx.db.groupInvite.iter()) {
+    for (const invite of ctx.db.group_invite.iter()) {
       if (invite.fromCharacterId === characterId || invite.toCharacterId === characterId) {
-        ctx.db.groupInvite.id.delete(invite.id);
+        ctx.db.group_invite.id.delete(invite.id);
       }
     }
 
-    for (const row of ctx.db.eventGroup.by_character.filter(characterId)) {
-      ctx.db.eventGroup.id.delete(row.id);
+    for (const row of ctx.db.event_group.by_character.filter(characterId)) {
+      ctx.db.event_group.id.delete(row.id);
     }
-    for (const row of ctx.db.eventPrivate.by_character.filter(characterId)) {
-      ctx.db.eventPrivate.id.delete(row.id);
+    for (const row of ctx.db.event_private.by_character.filter(characterId)) {
+      ctx.db.event_private.id.delete(row.id);
     }
     for (const row of ctx.db.command.by_character.filter(characterId)) {
       ctx.db.command.id.delete(row.id);
     }
-    for (const row of ctx.db.npcDialog.by_character.filter(characterId)) {
-      ctx.db.npcDialog.id.delete(row.id);
+    for (const row of ctx.db.npc_dialog.by_character.filter(characterId)) {
+      ctx.db.npc_dialog.id.delete(row.id);
     }
-    for (const row of ctx.db.questInstance.by_character.filter(characterId)) {
-      ctx.db.questInstance.id.delete(row.id);
+    for (const row of ctx.db.quest_instance.by_character.filter(characterId)) {
+      ctx.db.quest_instance.id.delete(row.id);
     }
-    for (const row of ctx.db.hotbarSlot.by_character.filter(characterId)) {
-      ctx.db.hotbarSlot.id.delete(row.id);
+    for (const row of ctx.db.hotbar_slot.by_character.filter(characterId)) {
+      ctx.db.hotbar_slot.id.delete(row.id);
     }
-    for (const row of ctx.db.characterEffect.by_character.filter(characterId)) {
-      ctx.db.characterEffect.id.delete(row.id);
+    for (const row of ctx.db.character_effect.by_character.filter(characterId)) {
+      ctx.db.character_effect.id.delete(row.id);
     }
-    for (const row of ctx.db.factionStanding.by_character.filter(characterId)) {
-      ctx.db.factionStanding.id.delete(row.id);
+    for (const row of ctx.db.faction_standing.by_character.filter(characterId)) {
+      ctx.db.faction_standing.id.delete(row.id);
     }
-    for (const row of ctx.db.itemInstance.by_owner.filter(characterId)) {
-      ctx.db.itemInstance.id.delete(row.id);
+    for (const row of ctx.db.item_instance.by_owner.filter(characterId)) {
+      ctx.db.item_instance.id.delete(row.id);
     }
 
     const combatIds = new Set<bigint>();
-    for (const participant of ctx.db.combatParticipant.by_character.filter(characterId)) {
+    for (const participant of ctx.db.combat_participant.by_character.filter(characterId)) {
       combatIds.add(participant.combatId);
-      ctx.db.combatParticipant.id.delete(participant.id);
+      ctx.db.combat_participant.id.delete(participant.id);
     }
 
     for (const combatId of combatIds) {
-      for (const entry of ctx.db.aggroEntry.by_combat.filter(combatId)) {
+      for (const entry of ctx.db.aggro_entry.by_combat.filter(combatId)) {
         if (entry.characterId === characterId) {
-          ctx.db.aggroEntry.id.delete(entry.id);
+          ctx.db.aggro_entry.id.delete(entry.id);
         }
       }
-      const combat = ctx.db.combatEncounter.id.find(combatId);
+      const combat = ctx.db.combat_encounter.id.find(combatId);
       if (combat && combat.leaderCharacterId === characterId) {
         let replacement: typeof CombatParticipant.rowType | null = null;
-        for (const participant of ctx.db.combatParticipant.by_combat.filter(combatId)) {
+        for (const participant of ctx.db.combat_participant.by_combat.filter(combatId)) {
           if (!replacement) replacement = participant;
         }
-        ctx.db.combatEncounter.id.update({
+        ctx.db.combat_encounter.id.update({
           ...combat,
           leaderCharacterId: replacement ? replacement.characterId : undefined,
         });
       }
     }
 
-    for (const row of ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)) {
+    for (const row of ctx.db.combat_result.by_owner_user.filter(character.ownerUserId)) {
       if (row.characterId === characterId) {
-        ctx.db.combatResult.id.delete(row.id);
+        ctx.db.combat_result.id.delete(row.id);
       }
     }
 
     // Clean up corpses for this character
     for (const corpse of ctx.db.corpse.by_character.filter(characterId)) {
       // Delete all CorpseItem rows
-      for (const corpseItem of ctx.db.corpseItem.by_corpse.filter(corpse.id)) {
-        ctx.db.corpseItem.id.delete(corpseItem.id);
+      for (const corpseItem of ctx.db.corpse_item.by_corpse.filter(corpse.id)) {
+        ctx.db.corpse_item.id.delete(corpseItem.id);
       }
       // Delete the corpse
       ctx.db.corpse.id.delete(corpse.id);
@@ -475,14 +475,14 @@ export const registerCharacterReducers = (deps: any) => {
     // Clean up decayed corpses opportunistically
     deps.cleanupDecayedCorpses(ctx);
 
-    for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
-      ctx.db.characterEffect.id.delete(effect.id);
+    for (const effect of ctx.db.character_effect.by_character.filter(character.id)) {
+      ctx.db.character_effect.id.delete(effect.id);
     }
     // Clear travel cooldown on respawn — death is penalty enough; player needs to be able
     // to travel cross-region immediately after respawn (e.g. to retrieve their corpse).
     // This also intentionally bypasses any active cooldown for the bind-point teleport itself.
-    for (const cd of ctx.db.travelCooldown.by_character.filter(character.id)) {
-      ctx.db.travelCooldown.id.delete(cd.id);
+    for (const cd of ctx.db.travel_cooldown.by_character.filter(character.id)) {
+      ctx.db.travel_cooldown.id.delete(cd.id);
     }
     const nextLocationId = character.boundLocationId ?? character.locationId;
     const respawnLocation = ctx.db.location.id.find(nextLocationId)?.name ?? 'your bind point';
@@ -542,14 +542,14 @@ export const registerCharacterReducers = (deps: any) => {
       }
 
       // Delete all temporary items for this character (Summoner Conjure Equipment)
-      for (const instance of ctx.db.itemInstance.by_owner.filter(arg.characterId)) {
+      for (const instance of ctx.db.item_instance.by_owner.filter(arg.characterId)) {
         if (instance.isTemporary) {
-          ctx.db.itemInstance.id.delete(instance.id);
+          ctx.db.item_instance.id.delete(instance.id);
         }
       }
       // Dismiss active pets on logout
-      for (const pet of ctx.db.activePet.by_character.filter(arg.characterId)) {
-        ctx.db.activePet.id.delete(pet.id);
+      for (const pet of ctx.db.active_pet.by_character.filter(arg.characterId)) {
+        ctx.db.active_pet.id.delete(pet.id);
       }
 
       const friends = friendUserIds(ctx, arg.ownerUserId);

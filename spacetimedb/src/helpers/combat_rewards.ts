@@ -23,15 +23,15 @@ export const awardEventContribution = (
   activeEvent: any
 ) => {
   let contribFound = false;
-  for (const contrib of ctx.db.eventContribution.by_character.filter(character.id)) {
+  for (const contrib of ctx.db.event_contribution.by_character.filter(character.id)) {
     if (contrib.eventId === activeEvent.id) {
-      ctx.db.eventContribution.id.update({ ...contrib, count: contrib.count + 1n });
+      ctx.db.event_contribution.id.update({ ...contrib, count: contrib.count + 1n });
       contribFound = true;
       break;
     }
   }
   if (!contribFound) {
-    ctx.db.eventContribution.insert({
+    ctx.db.event_contribution.insert({
       id: 0n,
       eventId: activeEvent.id,
       characterId: character.id,
@@ -51,9 +51,9 @@ export const advanceEventKillObjectives = (
   ctx: any,
   activeEvent: any
 ) => {
-  for (const obj of ctx.db.eventObjective.by_event.filter(activeEvent.id)) {
+  for (const obj of ctx.db.event_objective.by_event.filter(activeEvent.id)) {
     if (obj.objectiveType === 'kill_count') {
-      ctx.db.eventObjective.id.update({ ...obj, currentCount: obj.currentCount + 1n });
+      ctx.db.event_objective.id.update({ ...obj, currentCount: obj.currentCount + 1n });
     }
   }
 };
@@ -76,7 +76,7 @@ export const getEventSpawnTemplateIds = (
   for (const enemyRow of enemies) {
     const spawnId = enemySpawnIds.get(enemyRow.id);
     if (spawnId === undefined) continue;
-    for (const link of ctx.db.eventSpawnEnemy.by_spawn.filter(spawnId)) {
+    for (const link of ctx.db.event_spawn_enemy.by_spawn.filter(spawnId)) {
       if (link.eventId === eventId) {
         eventSpawnTemplateIds.add(enemyRow.enemyTemplateId);
         break;
@@ -192,17 +192,17 @@ export const resetSpawnAfterCombat = (
 ) => {
   const spawnIds = new Set(enemies.map((e: any) => e.spawnId));
   for (const spawnId of spawnIds) {
-    const spawn = ctx.db.enemySpawn.id.find(spawnId);
+    const spawn = ctx.db.enemy_spawn.id.find(spawnId);
     if (!spawn) continue;
 
     if (reinsertSurvivors) {
       // Defeat path: count existing members + re-insert survivors
-      const remainingMemberCount = BigInt([...ctx.db.enemySpawnMember.by_spawn.filter(spawnId)].length);
+      const remainingMemberCount = BigInt([...ctx.db.enemy_spawn_member.by_spawn.filter(spawnId)].length);
       let count = remainingMemberCount;
       for (const enemyRow of enemies) {
         if (enemyRow.spawnId !== spawnId) continue;
         if (enemyRow.currentHp === 0n) continue;
-        ctx.db.enemySpawnMember.insert({
+        ctx.db.enemy_spawn_member.insert({
           id: 0n,
           spawnId: spawnId,
           enemyTemplateId: enemyRow.enemyTemplateId,
@@ -211,19 +211,19 @@ export const resetSpawnAfterCombat = (
         count += 1n;
       }
       if (count > 0n) {
-        ctx.db.enemySpawn.id.update({
+        ctx.db.enemy_spawn.id.update({
           ...spawn,
           state: 'available',
           lockedCombatId: undefined,
           groupCount: count,
         });
       } else {
-        for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawn.id)) {
-          ctx.db.enemySpawnMember.id.delete(member.id);
+        for (const member of ctx.db.enemy_spawn_member.by_spawn.filter(spawn.id)) {
+          ctx.db.enemy_spawn_member.id.delete(member.id);
         }
-        ctx.db.enemySpawn.id.delete(spawn.id);
+        ctx.db.enemy_spawn.id.delete(spawn.id);
         const respawnAt = ctx.timestamp.microsSinceUnixEpoch + ENEMY_RESPAWN_MICROS;
-        ctx.db.enemyRespawnTick.insert({
+        ctx.db.enemy_respawn_tick.insert({
           scheduledId: 0n,
           scheduledAt: ScheduleAt.time(respawnAt),
           locationId: spawn.locationId,
@@ -232,14 +232,14 @@ export const resetSpawnAfterCombat = (
     } else {
       // Victory path: simple groupCount check
       if (spawn.groupCount > 0n) {
-        ctx.db.enemySpawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
+        ctx.db.enemy_spawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
       } else {
-        for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawn.id)) {
-          ctx.db.enemySpawnMember.id.delete(member.id);
+        for (const member of ctx.db.enemy_spawn_member.by_spawn.filter(spawn.id)) {
+          ctx.db.enemy_spawn_member.id.delete(member.id);
         }
-        ctx.db.enemySpawn.id.delete(spawn.id);
+        ctx.db.enemy_spawn.id.delete(spawn.id);
         const respawnAt = ctx.timestamp.microsSinceUnixEpoch + ENEMY_RESPAWN_MICROS;
-        ctx.db.enemyRespawnTick.insert({
+        ctx.db.enemy_respawn_tick.insert({
           scheduledId: 0n,
           scheduledAt: ScheduleAt.time(respawnAt),
           locationId: spawn.locationId,

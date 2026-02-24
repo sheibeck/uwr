@@ -16,7 +16,7 @@ export const registerAuthReducers = (deps: any) => {
 
   const scheduleLogout = (ctx: any, playerId: bigint) => {
     const disconnectAtMicros = ctx.timestamp.microsSinceUnixEpoch;
-    ctx.db.disconnectLogoutTick.insert({
+    ctx.db.disconnect_logout_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(disconnectAtMicros + LOGOUT_DELAY_MICROS),
       playerId,
@@ -81,8 +81,8 @@ export const registerAuthReducers = (deps: any) => {
           }
         }
         // Dismiss active pets on disconnect
-        for (const pet of ctx.db.activePet.by_character.filter(player.activeCharacterId)) {
-          ctx.db.activePet.id.delete(pet.id);
+        for (const pet of ctx.db.active_pet.by_character.filter(player.activeCharacterId)) {
+          ctx.db.active_pet.id.delete(pet.id);
         }
       }
       ctx.db.player.id.update({

@@ -15,14 +15,14 @@ export const registerEffectViews = ({ spacetimedb, t, CharacterEffect }: ViewDep
       ids.add(character.id);
       const groupId = effectiveGroupId(character);
       if (groupId) {
-        for (const member of ctx.db.groupMember.by_group.filter(groupId)) {
+        for (const member of ctx.db.group_member.by_group.filter(groupId)) {
           ids.add(member.characterId);
         }
       }
 
       const effects: typeof CharacterEffect.rowType[] = [];
       for (const characterId of ids) {
-        for (const effect of ctx.db.characterEffect.by_character.filter(characterId)) {
+        for (const effect of ctx.db.character_effect.by_character.filter(characterId)) {
           effects.push(effect);
         }
       }

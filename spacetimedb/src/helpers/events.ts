@@ -56,22 +56,22 @@ export function requireCharacterOwnedBy(ctx: any, characterId: bigint) {
 }
 
 export function activeCombatIdForCharacter(ctx: any, characterId: bigint): bigint | null {
-  for (const participant of ctx.db.combatParticipant.by_character.filter(characterId)) {
-    const combat = ctx.db.combatEncounter.id.find(participant.combatId);
+  for (const participant of ctx.db.combat_participant.by_character.filter(characterId)) {
+    const combat = ctx.db.combat_encounter.id.find(participant.combatId);
     if (combat && combat.state === 'active') return combat.id;
   }
   return null;
 }
 
 export function appendWorldEvent(ctx: any, kind: string, message: string) {
-  const row = ctx.db.eventWorld.insert({
+  const row = ctx.db.event_world.insert({
     id: 0n,
     kind,
     message,
     createdAt: ctx.timestamp,
   });
-  const rows = [...ctx.db.eventWorld.iter()];
-  trimEventRows(rows, (id) => ctx.db.eventWorld.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
+  const rows = [...ctx.db.event_world.iter()];
+  trimEventRows(rows, (id) => ctx.db.event_world.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
   return row;
 }
 
@@ -82,7 +82,7 @@ export function appendLocationEvent(
   message: string,
   excludeCharacterId?: bigint
 ) {
-  const row = ctx.db.eventLocation.insert({
+  const row = ctx.db.event_location.insert({
     id: 0n,
     locationId,
     kind,
@@ -90,8 +90,8 @@ export function appendLocationEvent(
     excludeCharacterId,
     createdAt: ctx.timestamp,
   });
-  const rows = [...ctx.db.eventLocation.by_location.filter(locationId)];
-  trimEventRows(rows, (id) => ctx.db.eventLocation.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
+  const rows = [...ctx.db.event_location.by_location.filter(locationId)];
+  trimEventRows(rows, (id) => ctx.db.event_location.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
   return row;
 }
 
@@ -102,7 +102,7 @@ export function appendPrivateEvent(
   kind: string,
   message: string
 ) {
-  const row = ctx.db.eventPrivate.insert({
+  const row = ctx.db.event_private.insert({
     id: 0n,
     ownerUserId,
     characterId,
@@ -110,8 +110,8 @@ export function appendPrivateEvent(
     message,
     createdAt: ctx.timestamp,
   });
-  const rows = [...ctx.db.eventPrivate.by_owner_user.filter(ownerUserId)];
-  trimEventRows(rows, (id) => ctx.db.eventPrivate.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
+  const rows = [...ctx.db.event_private.by_owner_user.filter(ownerUserId)];
+  trimEventRows(rows, (id) => ctx.db.event_private.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
   return row;
 }
 
@@ -148,14 +148,14 @@ export function fail(ctx: any, character: any, message: string, kind = 'system')
 
 export function appendNpcDialog(ctx: any, characterId: bigint, npcId: bigint, text: string) {
   const cutoff = ctx.timestamp.microsSinceUnixEpoch - 60_000_000n;
-  for (const row of ctx.db.npcDialog.by_character.filter(characterId)) {
+  for (const row of ctx.db.npc_dialog.by_character.filter(characterId)) {
     if (row.npcId !== npcId) continue;
     if (row.text !== text) continue;
     if (row.createdAt.microsSinceUnixEpoch >= cutoff) {
       return;
     }
   }
-  ctx.db.npcDialog.insert({
+  ctx.db.npc_dialog.insert({
     id: 0n,
     characterId,
     npcId,
@@ -171,7 +171,7 @@ export function appendGroupEvent(
   kind: string,
   message: string
 ) {
-  const row = ctx.db.eventGroup.insert({
+  const row = ctx.db.event_group.insert({
     id: 0n,
     groupId,
     characterId,
@@ -179,7 +179,7 @@ export function appendGroupEvent(
     message,
     createdAt: ctx.timestamp,
   });
-  const rows = [...ctx.db.eventGroup.by_group.filter(groupId)];
-  trimEventRows(rows, (id) => ctx.db.eventGroup.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
+  const rows = [...ctx.db.event_group.by_group.filter(groupId)];
+  trimEventRows(rows, (id) => ctx.db.event_group.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
   return row;
 }

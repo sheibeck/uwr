@@ -7,7 +7,7 @@ export const registerUiViews = ({ spacetimedb, t, UiPanelLayout }: ViewDeps) => 
     (ctx: any) => {
       const player = ctx.db.player.id.find(ctx.sender);
       if (!player || !player.activeCharacterId) return [];
-      return [...ctx.db.uiPanelLayout.by_character.filter(player.activeCharacterId)];
+      return [...ctx.db.ui_panel_layout.by_character.filter(player.activeCharacterId)];
     }
   );
 };

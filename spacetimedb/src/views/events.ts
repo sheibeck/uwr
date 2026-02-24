@@ -7,7 +7,7 @@ export const registerEventViews = ({ spacetimedb, t, EventLocation, EventPrivate
     (ctx: any) => {
       const player = ctx.db.player.id.find(ctx.sender);
       if (!player || player.userId == null) return [];
-      return [...ctx.db.eventPrivate.by_owner_user.filter(player.userId)];
+      return [...ctx.db.event_private.by_owner_user.filter(player.userId)];
     }
   );
 
@@ -19,7 +19,7 @@ export const registerEventViews = ({ spacetimedb, t, EventLocation, EventPrivate
       if (!player?.activeCharacterId) return [];
       const character = ctx.db.character.id.find(player.activeCharacterId);
       if (!character) return [];
-      const events = [...ctx.db.eventLocation.by_location.filter(character.locationId)];
+      const events = [...ctx.db.event_location.by_location.filter(character.locationId)];
       return events.filter(
         (event) => !event.excludeCharacterId || event.excludeCharacterId !== character.id
       );

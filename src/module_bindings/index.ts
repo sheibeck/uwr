@@ -240,7 +240,7 @@ import WorldStateRow from "./world_state_table";
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
-  abilityCooldown: __table({
+  ability_cooldown: __table({
     name: 'ability_cooldown',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -254,7 +254,7 @@ const tablesSchema = __schema({
       { name: 'ability_cooldown_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, AbilityCooldownRow),
-  abilityTemplate: __table({
+  ability_template: __table({
     name: 'ability_template',
     indexes: [
       { name: 'by_class', algorithm: 'btree', columns: [
@@ -285,7 +285,7 @@ const tablesSchema = __schema({
       { name: 'achievement_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, AchievementRow),
-  activeBardSong: __table({
+  active_bard_song: __table({
     name: 'active_bard_song',
     indexes: [
       { name: 'by_bard', algorithm: 'btree', columns: [
@@ -299,7 +299,7 @@ const tablesSchema = __schema({
       { name: 'active_bard_song_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ActiveBardSongRow),
-  activePet: __table({
+  active_pet: __table({
     name: 'active_pet',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -316,7 +316,7 @@ const tablesSchema = __schema({
       { name: 'active_pet_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ActivePetRow),
-  appVersion: __table({
+  app_version: __table({
     name: 'app_version',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -344,7 +344,7 @@ const tablesSchema = __schema({
       { name: 'character_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CharacterRow),
-  characterCast: __table({
+  character_cast: __table({
     name: 'character_cast',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -358,7 +358,7 @@ const tablesSchema = __schema({
       { name: 'character_cast_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CharacterCastRow),
-  characterEffect: __table({
+  character_effect: __table({
     name: 'character_effect',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -372,7 +372,7 @@ const tablesSchema = __schema({
       { name: 'character_effect_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CharacterEffectRow),
-  characterLogoutTick: __table({
+  character_logout_tick: __table({
     name: 'character_logout_tick',
     indexes: [
       { name: 'scheduledId', algorithm: 'btree', columns: [
@@ -383,7 +383,7 @@ const tablesSchema = __schema({
       { name: 'character_logout_tick_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
     ],
   }, CharacterLogoutTickRow),
-  combatEncounter: __table({
+  combat_encounter: __table({
     name: 'combat_encounter',
     indexes: [
       { name: 'by_group', algorithm: 'btree', columns: [
@@ -400,7 +400,7 @@ const tablesSchema = __schema({
       { name: 'combat_encounter_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatEncounterRow),
-  combatEnemy: __table({
+  combat_enemy: __table({
     name: 'combat_enemy',
     indexes: [
       { name: 'by_combat', algorithm: 'btree', columns: [
@@ -414,7 +414,7 @@ const tablesSchema = __schema({
       { name: 'combat_enemy_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatEnemyRow),
-  combatEnemyCast: __table({
+  combat_enemy_cast: __table({
     name: 'combat_enemy_cast',
     indexes: [
       { name: 'by_combat', algorithm: 'btree', columns: [
@@ -428,7 +428,7 @@ const tablesSchema = __schema({
       { name: 'combat_enemy_cast_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatEnemyCastRow),
-  combatEnemyCooldown: __table({
+  combat_enemy_cooldown: __table({
     name: 'combat_enemy_cooldown',
     indexes: [
       { name: 'by_combat', algorithm: 'btree', columns: [
@@ -445,7 +445,7 @@ const tablesSchema = __schema({
       { name: 'combat_enemy_cooldown_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatEnemyCooldownRow),
-  combatEnemyEffect: __table({
+  combat_enemy_effect: __table({
     name: 'combat_enemy_effect',
     indexes: [
       { name: 'by_combat', algorithm: 'btree', columns: [
@@ -462,7 +462,7 @@ const tablesSchema = __schema({
       { name: 'combat_enemy_effect_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatEnemyEffectRow),
-  combatLoot: __table({
+  combat_loot: __table({
     name: 'combat_loot',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -482,7 +482,7 @@ const tablesSchema = __schema({
       { name: 'combat_loot_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatLootRow),
-  combatParticipant: __table({
+  combat_participant: __table({
     name: 'combat_participant',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -499,7 +499,7 @@ const tablesSchema = __schema({
       { name: 'combat_participant_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatParticipantRow),
-  combatPendingAdd: __table({
+  combat_pending_add: __table({
     name: 'combat_pending_add',
     indexes: [
       { name: 'by_ready', algorithm: 'btree', columns: [
@@ -516,7 +516,7 @@ const tablesSchema = __schema({
       { name: 'combat_pending_add_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatPendingAddRow),
-  combatResult: __table({
+  combat_result: __table({
     name: 'combat_result',
     indexes: [
       { name: 'by_group', algorithm: 'btree', columns: [
@@ -567,7 +567,7 @@ const tablesSchema = __schema({
       { name: 'corpse_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CorpseRow),
-  corpseItem: __table({
+  corpse_item: __table({
     name: 'corpse_item',
     indexes: [
       { name: 'by_corpse', algorithm: 'btree', columns: [
@@ -581,7 +581,7 @@ const tablesSchema = __schema({
       { name: 'corpse_item_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CorpseItemRow),
-  enemyAbility: __table({
+  enemy_ability: __table({
     name: 'enemy_ability',
     indexes: [
       { name: 'by_template', algorithm: 'btree', columns: [
@@ -595,7 +595,7 @@ const tablesSchema = __schema({
       { name: 'enemy_ability_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EnemyAbilityRow),
-  enemyRoleTemplate: __table({
+  enemy_role_template: __table({
     name: 'enemy_role_template',
     indexes: [
       { name: 'by_template', algorithm: 'btree', columns: [
@@ -609,7 +609,7 @@ const tablesSchema = __schema({
       { name: 'enemy_role_template_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EnemyRoleTemplateRow),
-  enemySpawn: __table({
+  enemy_spawn: __table({
     name: 'enemy_spawn',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -626,7 +626,7 @@ const tablesSchema = __schema({
       { name: 'enemy_spawn_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EnemySpawnRow),
-  enemySpawnMember: __table({
+  enemy_spawn_member: __table({
     name: 'enemy_spawn_member',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -640,7 +640,7 @@ const tablesSchema = __schema({
       { name: 'enemy_spawn_member_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EnemySpawnMemberRow),
-  enemyTemplate: __table({
+  enemy_template: __table({
     name: 'enemy_template',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -651,7 +651,7 @@ const tablesSchema = __schema({
       { name: 'enemy_template_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EnemyTemplateRow),
-  eventContribution: __table({
+  event_contribution: __table({
     name: 'event_contribution',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -668,7 +668,7 @@ const tablesSchema = __schema({
       { name: 'event_contribution_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EventContributionRow),
-  eventGroup: __table({
+  event_group: __table({
     name: 'event_group',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -685,7 +685,7 @@ const tablesSchema = __schema({
       { name: 'event_group_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EventGroupRow),
-  eventLocation: __table({
+  event_location: __table({
     name: 'event_location',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -699,7 +699,7 @@ const tablesSchema = __schema({
       { name: 'event_location_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EventLocationRow),
-  eventObjective: __table({
+  event_objective: __table({
     name: 'event_objective',
     indexes: [
       { name: 'by_event', algorithm: 'btree', columns: [
@@ -713,7 +713,7 @@ const tablesSchema = __schema({
       { name: 'event_objective_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EventObjectiveRow),
-  eventPrivate: __table({
+  event_private: __table({
     name: 'event_private',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -730,7 +730,7 @@ const tablesSchema = __schema({
       { name: 'event_private_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EventPrivateRow),
-  eventSpawnEnemy: __table({
+  event_spawn_enemy: __table({
     name: 'event_spawn_enemy',
     indexes: [
       { name: 'by_event', algorithm: 'btree', columns: [
@@ -747,7 +747,7 @@ const tablesSchema = __schema({
       { name: 'event_spawn_enemy_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EventSpawnEnemyRow),
-  eventSpawnItem: __table({
+  event_spawn_item: __table({
     name: 'event_spawn_item',
     indexes: [
       { name: 'by_event', algorithm: 'btree', columns: [
@@ -764,7 +764,7 @@ const tablesSchema = __schema({
       { name: 'event_spawn_item_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EventSpawnItemRow),
-  eventWorld: __table({
+  event_world: __table({
     name: 'event_world',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -786,7 +786,7 @@ const tablesSchema = __schema({
       { name: 'faction_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, FactionRow),
-  factionStanding: __table({
+  faction_standing: __table({
     name: 'faction_standing',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -814,7 +814,7 @@ const tablesSchema = __schema({
       { name: 'friend_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, FriendRow),
-  friendRequest: __table({
+  friend_request: __table({
     name: 'friend_request',
     indexes: [
       { name: 'by_from', algorithm: 'btree', columns: [
@@ -842,7 +842,7 @@ const tablesSchema = __schema({
       { name: 'group_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, GroupRow),
-  groupInvite: __table({
+  group_invite: __table({
     name: 'group_invite',
     indexes: [
       { name: 'by_group', algorithm: 'btree', columns: [
@@ -859,7 +859,7 @@ const tablesSchema = __schema({
       { name: 'group_invite_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, GroupInviteRow),
-  groupMember: __table({
+  group_member: __table({
     name: 'group_member',
     indexes: [
       { name: 'by_group', algorithm: 'btree', columns: [
@@ -876,7 +876,7 @@ const tablesSchema = __schema({
       { name: 'group_member_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, GroupMemberRow),
-  hotbarSlot: __table({
+  hotbar_slot: __table({
     name: 'hotbar_slot',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -890,7 +890,7 @@ const tablesSchema = __schema({
       { name: 'hotbar_slot_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, HotbarSlotRow),
-  itemAffix: __table({
+  item_affix: __table({
     name: 'item_affix',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -904,7 +904,7 @@ const tablesSchema = __schema({
       { name: 'item_affix_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ItemAffixRow),
-  itemCooldown: __table({
+  item_cooldown: __table({
     name: 'item_cooldown',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -918,7 +918,7 @@ const tablesSchema = __schema({
       { name: 'item_cooldown_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ItemCooldownRow),
-  itemInstance: __table({
+  item_instance: __table({
     name: 'item_instance',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -932,7 +932,7 @@ const tablesSchema = __schema({
       { name: 'item_instance_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ItemInstanceRow),
-  itemTemplate: __table({
+  item_template: __table({
     name: 'item_template',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -954,7 +954,7 @@ const tablesSchema = __schema({
       { name: 'location_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, LocationRow),
-  locationConnection: __table({
+  location_connection: __table({
     name: 'location_connection',
     indexes: [
       { name: 'by_from', algorithm: 'btree', columns: [
@@ -971,7 +971,7 @@ const tablesSchema = __schema({
       { name: 'location_connection_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, LocationConnectionRow),
-  lootTable: __table({
+  loot_table: __table({
     name: 'loot_table',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -987,7 +987,7 @@ const tablesSchema = __schema({
       { name: 'loot_table_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, LootTableRow),
-  namedEnemy: __table({
+  named_enemy: __table({
     name: 'named_enemy',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1018,7 +1018,7 @@ const tablesSchema = __schema({
       { name: 'npc_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, NpcRow),
-  npcAffinity: __table({
+  npc_affinity: __table({
     name: 'npc_affinity',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1035,7 +1035,7 @@ const tablesSchema = __schema({
       { name: 'npc_affinity_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, NpcAffinityRow),
-  npcDialog: __table({
+  npc_dialog: __table({
     name: 'npc_dialog',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1052,7 +1052,7 @@ const tablesSchema = __schema({
       { name: 'npc_dialog_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, NpcDialogRow),
-  npcDialogueOption: __table({
+  npc_dialogue_option: __table({
     name: 'npc_dialogue_option',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1066,7 +1066,7 @@ const tablesSchema = __schema({
       { name: 'npc_dialogue_option_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, NpcDialogueOptionRow),
-  npcDialogueVisited: __table({
+  npc_dialogue_visited: __table({
     name: 'npc_dialogue_visited',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1080,7 +1080,7 @@ const tablesSchema = __schema({
       { name: 'npc_dialogue_visited_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, NpcDialogueVisitedRow),
-  pendingSpellCast: __table({
+  pending_spell_cast: __table({
     name: 'pending_spell_cast',
     indexes: [
       { name: 'by_caster', algorithm: 'btree', columns: [
@@ -1108,7 +1108,7 @@ const tablesSchema = __schema({
       { name: 'player_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, PlayerRow),
-  pullState: __table({
+  pull_state: __table({
     name: 'pull_state',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1131,7 +1131,7 @@ const tablesSchema = __schema({
       { name: 'pull_state_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, PullStateRow),
-  pullTick: __table({
+  pull_tick: __table({
     name: 'pull_tick',
     indexes: [
       { name: 'by_pull', algorithm: 'btree', columns: [
@@ -1145,7 +1145,7 @@ const tablesSchema = __schema({
       { name: 'pull_tick_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
     ],
   }, PullTickRow),
-  questInstance: __table({
+  quest_instance: __table({
     name: 'quest_instance',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1162,7 +1162,7 @@ const tablesSchema = __schema({
       { name: 'quest_instance_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, QuestInstanceRow),
-  questItem: __table({
+  quest_item: __table({
     name: 'quest_item',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1179,7 +1179,7 @@ const tablesSchema = __schema({
       { name: 'quest_item_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, QuestItemRow),
-  questTemplate: __table({
+  quest_template: __table({
     name: 'quest_template',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1207,7 +1207,7 @@ const tablesSchema = __schema({
       { name: 'race_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, RaceRow),
-  recipeDiscovered: __table({
+  recipe_discovered: __table({
     name: 'recipe_discovered',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1221,7 +1221,7 @@ const tablesSchema = __schema({
       { name: 'recipe_discovered_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, RecipeDiscoveredRow),
-  recipeTemplate: __table({
+  recipe_template: __table({
     name: 'recipe_template',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1257,7 +1257,7 @@ const tablesSchema = __schema({
       { name: 'renown_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, RenownRow),
-  renownPerk: __table({
+  renown_perk: __table({
     name: 'renown_perk',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1271,7 +1271,7 @@ const tablesSchema = __schema({
       { name: 'renown_perk_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, RenownPerkRow),
-  renownServerFirst: __table({
+  renown_server_first: __table({
     name: 'renown_server_first',
     indexes: [
       { name: 'by_category', algorithm: 'btree', columns: [
@@ -1285,7 +1285,7 @@ const tablesSchema = __schema({
       { name: 'renown_server_first_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, RenownServerFirstRow),
-  resourceGather: __table({
+  resource_gather: __table({
     name: 'resource_gather',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1299,7 +1299,7 @@ const tablesSchema = __schema({
       { name: 'resource_gather_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ResourceGatherRow),
-  resourceNode: __table({
+  resource_node: __table({
     name: 'resource_node',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1316,7 +1316,7 @@ const tablesSchema = __schema({
       { name: 'resource_node_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ResourceNodeRow),
-  searchResult: __table({
+  search_result: __table({
     name: 'search_result',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1330,7 +1330,7 @@ const tablesSchema = __schema({
       { name: 'search_result_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, SearchResultRow),
-  tradeItem: __table({
+  trade_item: __table({
     name: 'trade_item',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1347,7 +1347,7 @@ const tablesSchema = __schema({
       { name: 'trade_item_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, TradeItemRow),
-  tradeSession: __table({
+  trade_session: __table({
     name: 'trade_session',
     indexes: [
       { name: 'by_from', algorithm: 'btree', columns: [
@@ -1364,7 +1364,7 @@ const tablesSchema = __schema({
       { name: 'trade_session_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, TradeSessionRow),
-  travelCooldown: __table({
+  travel_cooldown: __table({
     name: 'travel_cooldown',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1378,7 +1378,7 @@ const tablesSchema = __schema({
       { name: 'travel_cooldown_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, TravelCooldownRow),
-  uiPanelLayout: __table({
+  ui_panel_layout: __table({
     name: 'ui_panel_layout',
     indexes: [
       { name: 'by_character', algorithm: 'btree', columns: [
@@ -1406,7 +1406,7 @@ const tablesSchema = __schema({
       { name: 'user_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, UserRow),
-  vendorInventory: __table({
+  vendor_inventory: __table({
     name: 'vendor_inventory',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1420,7 +1420,7 @@ const tablesSchema = __schema({
       { name: 'vendor_inventory_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, VendorInventoryRow),
-  worldEvent: __table({
+  world_event: __table({
     name: 'world_event',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1437,7 +1437,7 @@ const tablesSchema = __schema({
       { name: 'world_event_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldEventRow),
-  worldStatTracker: __table({
+  world_stat_tracker: __table({
     name: 'world_stat_tracker',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1451,7 +1451,7 @@ const tablesSchema = __schema({
       { name: 'world_stat_tracker_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldStatTrackerRow),
-  worldState: __table({
+  world_state: __table({
     name: 'world_state',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -1696,14 +1696,6 @@ const REMOTE_MODULE = {
   typeof reducersSchema.reducersType,
   typeof proceduresSchema
 >;
-
-// Fix v2 wire protocol mismatch: the server sends snake_case canonical table
-// names (e.g. "location_connection") but the SDK builds its lookup map using
-// the camelCase sourceName from tablesSchema keys (e.g. "locationConnection").
-// Patch each table's sourceName to the snake_case form so lookups succeed.
-for (const tbl of Object.values(REMOTE_MODULE.tables) as any[]) {
-  tbl.sourceName = tbl.sourceName.replace(/([A-Z])/g, '_$1').toLowerCase();
-}
 
 /** The tables available in this remote SpacetimeDB module. Each table reference doubles as a query builder. */
 export const tables: __QueryBuilder<typeof tablesSchema.schemaType> = __makeQueryBuilder(tablesSchema.schemaType);

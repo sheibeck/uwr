@@ -45,10 +45,10 @@ const PULL_ALLOW_EXTERNAL_ADDS = true;
 const ENEMY_RESPAWN_MICROS = 5n * 60n * 1_000_000n;
 
 const refreshSpawnGroupCount = (ctx: any, spawnId: bigint) => {
-  const spawn = ctx.db.enemySpawn.id.find(spawnId);
+  const spawn = ctx.db.enemy_spawn.id.find(spawnId);
   if (!spawn) return;
-  const remaining = [...ctx.db.enemySpawnMember.by_spawn.filter(spawnId)].length;
-  ctx.db.enemySpawn.id.update({
+  const remaining = [...ctx.db.enemy_spawn_member.by_spawn.filter(spawnId)].length;
+  ctx.db.enemy_spawn.id.update({
     ...spawn,
     groupCount: BigInt(remaining),
     state: remaining > 0 ? spawn.state : 'depleted',
@@ -56,21 +56,21 @@ const refreshSpawnGroupCount = (ctx: any, spawnId: bigint) => {
 };
 
 const pickRoleTemplate = (ctx: any, templateId: bigint, seed: bigint) => {
-  const options = [...ctx.db.enemyRoleTemplate.by_template.filter(templateId)];
+  const options = [...ctx.db.enemy_role_template.by_template.filter(templateId)];
   if (options.length === 0) return null;
   const index = Number(seed % BigInt(options.length));
   return options[index] ?? options[0];
 };
 
 const takeSpawnMember = (ctx: any, spawnId: bigint) => {
-  const members = [...ctx.db.enemySpawnMember.by_spawn.filter(spawnId)];
+  const members = [...ctx.db.enemy_spawn_member.by_spawn.filter(spawnId)];
   if (members.length === 0) return null;
   const index = Number(
     (ctx.timestamp.microsSinceUnixEpoch + spawnId) % BigInt(members.length)
   );
   const member = members[index];
   if (!member) return null;
-  ctx.db.enemySpawnMember.id.delete(member.id);
+  ctx.db.enemy_spawn_member.id.delete(member.id);
   refreshSpawnGroupCount(ctx, spawnId);
   return member;
 };
@@ -85,16 +85,16 @@ const addEnemyToCombat = (
   roleTemplateId?: bigint
 ) => {
   const { SenderError, computeEnemyStats } = deps;
-  const template = ctx.db.enemyTemplate.id.find(spawnToUse.enemyTemplateId);
+  const template = ctx.db.enemy_template.id.find(spawnToUse.enemyTemplateId);
   if (!template) throw new SenderError('Enemy template missing');
 
   let roleTemplate = roleTemplateId
-    ? ctx.db.enemyRoleTemplate.id.find(roleTemplateId)
+    ? ctx.db.enemy_role_template.id.find(roleTemplateId)
     : null;
   if (!roleTemplate && consumeSpawnCount) {
     const member = takeSpawnMember(ctx, spawnToUse.id);
     if (member) {
-      roleTemplate = ctx.db.enemyRoleTemplate.id.find(member.roleTemplateId);
+      roleTemplate = ctx.db.enemy_role_template.id.find(member.roleTemplateId);
     }
   }
   if (!roleTemplate) {
@@ -111,7 +111,7 @@ const addEnemyToCombat = (
     participants
   );
   const displayName = roleTemplate?.displayName ?? template.name;
-  const combatEnemy = ctx.db.combatEnemy.insert({
+  const combatEnemy = ctx.db.combat_enemy.insert({
     id: 0n,
     combatId: combat.id,
     spawnId: spawnToUse.id,
@@ -128,7 +128,7 @@ const addEnemyToCombat = (
 
   for (const p of participants) {
     const charId = (p as any).characterId ?? p.id;
-    ctx.db.aggroEntry.insert({
+    ctx.db.aggro_entry.insert({
       id: 0n,
       combatId: combat.id,
       enemyId: combatEnemy.id,
@@ -143,9 +143,9 @@ const addEnemyToCombat = (
   }
 
   if (consumeSpawnCount) {
-    const refreshed = ctx.db.enemySpawn.id.find(spawnToUse.id);
+    const refreshed = ctx.db.enemy_spawn.id.find(spawnToUse.id);
     if (refreshed) {
-      ctx.db.enemySpawn.id.update({
+      ctx.db.enemy_spawn.id.update({
         ...refreshed,
         state: 'engaged',
         lockedCombatId: combat.id,
@@ -165,7 +165,7 @@ export const startCombatForSpawn = (
   groupId: bigint | null
 ) => {
   const { appendPrivateEvent, scheduleCombatTick } = deps;
-  const combat = ctx.db.combatEncounter.insert({
+  const combat = ctx.db.combat_encounter.insert({
     id: 0n,
     locationId: leader.locationId,
     groupId: groupId ?? undefined,
@@ -181,7 +181,7 @@ export const startCombatForSpawn = (
 
   for (const p of participants) {
     const pWeapon = deps.getEquippedWeaponStats(ctx, p.id);
-    ctx.db.combatParticipant.insert({
+    ctx.db.combat_participant.insert({
       id: 0n,
       combatId: combat.id,
       characterId: p.id,
@@ -202,8 +202,8 @@ export const startCombatForSpawn = (
 
   // Bring any pre-summoned pets into combat by setting their combatId
   for (const p of participants) {
-    for (const ap of [...ctx.db.activePet.by_character.filter(p.id)]) {
-      const pet = ctx.db.activePet.id.update({
+    for (const ap of [...ctx.db.active_pet.by_character.filter(p.id)]) {
+      const pet = ctx.db.active_pet.id.update({
         ...ap,
         combatId: combat.id,
         nextAbilityAt: ap.abilityKey ? ctx.timestamp.microsSinceUnixEpoch : undefined,
@@ -213,10 +213,10 @@ export const startCombatForSpawn = (
       if (p.className?.toLowerCase() === 'summoner') {
         // Single-target taunt: only generate initial aggro against the primary target
         // (the spawn combat was initiated against), not every enemy in the encounter.
-        const primaryEnemy = [...ctx.db.combatEnemy.by_combat.filter(combat.id)]
+        const primaryEnemy = [...ctx.db.combat_enemy.by_combat.filter(combat.id)]
           .find(en => en.spawnId === spawnToUse.id && en.currentHp > 0n);
         if (primaryEnemy) {
-          ctx.db.aggroEntry.insert({
+          ctx.db.aggro_entry.insert({
             id: 0n,
             combatId: combat.id,
             enemyId: primaryEnemy.id,
@@ -292,19 +292,19 @@ export const registerCombatReducers = (deps: any) => {
     kind: string,
     message: string
   ) => {
-    const combat = ctx.db.combatEncounter.id.find(combatId);
+    const combat = ctx.db.combat_encounter.id.find(combatId);
     if (!combat?.groupId) return;
     appendGroupEvent(ctx, combat.groupId, characterId, kind, message);
   };
 
   const clearCharacterEffectsOnDeath = (ctx: any, character: any) => {
-    for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
+    for (const effect of ctx.db.character_effect.by_character.filter(character.id)) {
       if (effect.effectType === 'hp_bonus') {
         const nextMax = character.maxHp > effect.magnitude ? character.maxHp - effect.magnitude : 0n;
         const nextHp = character.hp > nextMax ? nextMax : character.hp;
         ctx.db.character.id.update({ ...character, maxHp: nextMax, hp: nextHp });
       }
-      ctx.db.characterEffect.id.delete(effect.id);
+      ctx.db.character_effect.id.delete(effect.id);
     }
   };
 
@@ -314,9 +314,9 @@ export const registerCombatReducers = (deps: any) => {
     character: any,
     enemyName: string
   ) => {
-    const current = ctx.db.combatParticipant.id.find(participant.id);
+    const current = ctx.db.combat_participant.id.find(participant.id);
     if (!current || current.status === 'dead') return;
-    ctx.db.combatParticipant.id.update({ ...participant, status: 'dead' });
+    ctx.db.combat_participant.id.update({ ...participant, status: 'dead' });
     clearCharacterEffectsOnDeath(ctx, character);
     logPrivateAndGroup(
       ctx,
@@ -324,15 +324,15 @@ export const registerCombatReducers = (deps: any) => {
       'combat',
       `You have died. Killed by ${enemyName}.`
     );
-    for (const pet of ctx.db.activePet.by_combat.filter(participant.combatId)) {
+    for (const pet of ctx.db.active_pet.by_combat.filter(participant.combatId)) {
       if (pet.characterId === character.id) {
-        ctx.db.activePet.id.delete(pet.id);
+        ctx.db.active_pet.id.delete(pet.id);
       }
     }
   };
 
   const clearCombatArtifacts = (ctx: any, combatId: bigint) => {
-    const loopTable = ctx.db.combatLoopTick;
+    const loopTable = ctx.db.combat_loop_tick;
     if (loopTable && loopTable.iter && loopTable.id && loopTable.id.delete) {
       for (const row of loopTable.iter()) {
         if (row.combatId !== combatId) continue;
@@ -340,15 +340,15 @@ export const registerCombatReducers = (deps: any) => {
       }
     }
     const participantIds: bigint[] = [];
-    for (const row of ctx.db.combatParticipant.by_combat.filter(combatId)) {
+    for (const row of ctx.db.combat_participant.by_combat.filter(combatId)) {
       participantIds.push(row.characterId);
-      ctx.db.combatParticipant.id.delete(row.id);
+      ctx.db.combat_participant.id.delete(row.id);
     }
-    for (const pet of ctx.db.activePet.by_combat.filter(combatId)) {
+    for (const pet of ctx.db.active_pet.by_combat.filter(combatId)) {
       if (pet.currentHp > 0n) {
         // Surviving pet returns to out-of-combat state.
         // Heal pets arm their out-of-combat tick immediately on combat exit.
-        ctx.db.activePet.id.update({
+        ctx.db.active_pet.id.update({
           ...pet,
           combatId: undefined,
           nextAbilityAt: (pet.abilityKey === 'pet_heal' || pet.abilityKey === 'pet_aoe_heal') ? ctx.timestamp.microsSinceUnixEpoch : undefined,
@@ -357,7 +357,7 @@ export const registerCombatReducers = (deps: any) => {
         });
       } else {
         // Dead pet is dismissed
-        ctx.db.activePet.id.delete(pet.id);
+        ctx.db.active_pet.id.delete(pet.id);
       }
     }
     for (const characterId of participantIds) {
@@ -369,61 +369,61 @@ export const registerCombatReducers = (deps: any) => {
           lastCombatEndAt: ctx.timestamp.microsSinceUnixEpoch,
         });
       }
-      for (const cast of ctx.db.characterCast.by_character.filter(characterId)) {
-        const abilityRows = [...ctx.db.abilityTemplate.by_key.filter(cast.abilityKey)];
+      for (const cast of ctx.db.character_cast.by_character.filter(characterId)) {
+        const abilityRows = [...ctx.db.ability_template.by_key.filter(cast.abilityKey)];
         const ability = abilityRows[0];
         // Only cancel combat-only casts; friendly/utility casts persist through combat transitions
         if (!ability || ability.combatState === 'combat_only') {
-          ctx.db.characterCast.id.delete(cast.id);
+          ctx.db.character_cast.id.delete(cast.id);
         }
       }
       // Remove expired cooldown rows to prevent stale data
-      for (const cd of ctx.db.abilityCooldown.by_character.filter(characterId)) {
+      for (const cd of ctx.db.ability_cooldown.by_character.filter(characterId)) {
         if (cd.startedAtMicros + cd.durationMicros <= ctx.timestamp.microsSinceUnixEpoch) {
-          ctx.db.abilityCooldown.id.delete(cd.id);
+          ctx.db.ability_cooldown.id.delete(cd.id);
         }
       }
     }
-    for (const row of ctx.db.aggroEntry.by_combat.filter(combatId)) {
-      ctx.db.aggroEntry.id.delete(row.id);
+    for (const row of ctx.db.aggro_entry.by_combat.filter(combatId)) {
+      ctx.db.aggro_entry.id.delete(row.id);
     }
-    for (const row of ctx.db.combatEnemy.by_combat.filter(combatId)) {
-      ctx.db.combatEnemy.id.delete(row.id);
+    for (const row of ctx.db.combat_enemy.by_combat.filter(combatId)) {
+      ctx.db.combat_enemy.id.delete(row.id);
     }
-    for (const row of ctx.db.combatEnemyEffect.by_combat.filter(combatId)) {
-      ctx.db.combatEnemyEffect.id.delete(row.id);
+    for (const row of ctx.db.combat_enemy_effect.by_combat.filter(combatId)) {
+      ctx.db.combat_enemy_effect.id.delete(row.id);
     }
-    if (ctx.db.combatPendingAdd) {
-      for (const row of ctx.db.combatPendingAdd.by_combat.filter(combatId)) {
+    if (ctx.db.combat_pending_add) {
+      for (const row of ctx.db.combat_pending_add.by_combat.filter(combatId)) {
         // Restore the spawn for any pending add that never actually joined combat.
         // reserveAdds() set these spawns to state='engaged'; if combat ends before
         // they arrive, their spawn must be released back to 'available' so the
         // enemies are not permanently lost from the location.
         if (row.spawnId) {
-          const pendingSpawn = ctx.db.enemySpawn.id.find(row.spawnId);
+          const pendingSpawn = ctx.db.enemy_spawn.id.find(row.spawnId);
           if (pendingSpawn && pendingSpawn.state === 'engaged' && pendingSpawn.lockedCombatId === combatId) {
-            ctx.db.enemySpawn.id.update({
+            ctx.db.enemy_spawn.id.update({
               ...pendingSpawn,
               state: 'available',
               lockedCombatId: undefined,
             });
           }
         }
-        ctx.db.combatPendingAdd.id.delete(row.id);
+        ctx.db.combat_pending_add.id.delete(row.id);
       }
     }
-    for (const row of ctx.db.combatEnemyCast.by_combat.filter(combatId)) {
-      ctx.db.combatEnemyCast.id.delete(row.id);
+    for (const row of ctx.db.combat_enemy_cast.by_combat.filter(combatId)) {
+      ctx.db.combat_enemy_cast.id.delete(row.id);
     }
-    if (ctx.db.combatEnemyCooldown) {
-      for (const row of ctx.db.combatEnemyCooldown.by_combat.filter(combatId)) {
-        ctx.db.combatEnemyCooldown.id.delete(row.id);
+    if (ctx.db.combat_enemy_cooldown) {
+      for (const row of ctx.db.combat_enemy_cooldown.by_combat.filter(combatId)) {
+        ctx.db.combat_enemy_cooldown.id.delete(row.id);
       }
     }
   };
 
   const schedulePullResolve = (ctx: any, pullId: bigint, resolveAtMicros: bigint) => {
-    ctx.db.pullTick.insert({
+    ctx.db.pull_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(resolveAtMicros),
       pullId,
@@ -435,9 +435,9 @@ export const registerCombatReducers = (deps: any) => {
     character: any,
     enemyTemplateId: bigint
   ) => {
-    for (const quest of ctx.db.questInstance.by_character.filter(character.id)) {
+    for (const quest of ctx.db.quest_instance.by_character.filter(character.id)) {
       if (quest.completed) continue;
-      const template = ctx.db.questTemplate.id.find(quest.questTemplateId);
+      const template = ctx.db.quest_template.id.find(quest.questTemplateId);
       if (!template) continue;
       // Skip kill_loot quests — they advance only via item drop, not kill count
       if ((template.questType ?? 'kill') === 'kill_loot') continue;
@@ -447,7 +447,7 @@ export const registerCombatReducers = (deps: any) => {
           ? template.requiredCount
           : quest.progress + 1n;
       const isComplete = nextProgress >= template.requiredCount;
-      ctx.db.questInstance.id.update({
+      ctx.db.quest_instance.id.update({
         ...quest,
         progress: nextProgress,
         completed: isComplete,
@@ -483,9 +483,9 @@ export const registerCombatReducers = (deps: any) => {
     enemyTemplateId: bigint
   ) {
     // Check for active kill_loot quests targeting this enemy
-    for (const quest of ctx.db.questInstance.by_character.filter(character.id)) {
+    for (const quest of ctx.db.quest_instance.by_character.filter(character.id)) {
       if (quest.completed) continue;
-      const template = ctx.db.questTemplate.id.find(quest.questTemplateId);
+      const template = ctx.db.quest_template.id.find(quest.questTemplateId);
       if (!template) continue;
       if ((template.questType ?? 'kill') !== 'kill_loot') continue;
       if (template.targetEnemyTemplateId !== enemyTemplateId) continue;
@@ -495,7 +495,7 @@ export const registerCombatReducers = (deps: any) => {
       const roll = (BigInt(character.id) ^ ctx.timestamp.microsSinceUnixEpoch) % 100n;
       if (roll < dropChance) {
         // Item drops! Create a QuestItem (discovered + looted since it drops directly)
-        ctx.db.questItem.insert({
+        ctx.db.quest_item.insert({
           id: 0n,
           characterId: character.id,
           questTemplateId: template.id,
@@ -508,7 +508,7 @@ export const registerCombatReducers = (deps: any) => {
         // Update quest progress
         const nextProgress = quest.progress + 1n;
         const isComplete = nextProgress >= template.requiredCount;
-        ctx.db.questInstance.id.update({
+        ctx.db.quest_instance.id.update({
           ...quest,
           progress: nextProgress,
           completed: isComplete,
@@ -613,13 +613,13 @@ export const registerCombatReducers = (deps: any) => {
     let finalDamage = (variedDamage * outcome.multiplier) / 100n;
     if (finalDamage < 0n) finalDamage = 0n;
     if (outcome.outcome === 'hit' && targetCharacterId) {
-      const shield = [...ctx.db.characterEffect.by_character.filter(targetCharacterId)].find(
+      const shield = [...ctx.db.character_effect.by_character.filter(targetCharacterId)].find(
         (effect) => effect.effectType === 'damage_shield'
       );
       if (shield) {
         const absorbed = shield.magnitude >= finalDamage ? finalDamage : shield.magnitude;
         finalDamage -= absorbed;
-        ctx.db.characterEffect.id.delete(shield.id);
+        ctx.db.character_effect.id.delete(shield.id);
         appendPrivateEvent(
           ctx,
           targetCharacterId,
@@ -661,7 +661,7 @@ export const registerCombatReducers = (deps: any) => {
     // Boss/named enemies: try named-specific loot table first (tier 2)
     if (enemyTemplate.isBoss) {
       const namedKey = 'named_' + enemyTemplate.name.toLowerCase().replace(/\s+/g, '_');
-      for (const row of ctx.db.lootTable.iter()) {
+      for (const row of ctx.db.loot_table.iter()) {
         if (row.tier !== 2n) continue;
         if (row.terrainType !== namedKey) continue;
         if (row.creatureType !== creatureType) continue;
@@ -670,7 +670,7 @@ export const registerCombatReducers = (deps: any) => {
     }
     // Normal fallback: tier 1
     let best: any | null = null;
-    for (const row of ctx.db.lootTable.iter()) {
+    for (const row of ctx.db.loot_table.iter()) {
       if (row.tier !== 1n) continue;
       if (row.terrainType !== terrain) continue;
       if (row.creatureType !== creatureType) continue;
@@ -678,7 +678,7 @@ export const registerCombatReducers = (deps: any) => {
       break;
     }
     if (best) return best;
-    for (const row of ctx.db.lootTable.iter()) {
+    for (const row of ctx.db.loot_table.iter()) {
       if (row.tier !== 1n) continue;
       if (row.terrainType !== 'plains') continue;
       if (row.creatureType !== creatureType) continue;
@@ -705,13 +705,13 @@ export const registerCombatReducers = (deps: any) => {
   const generateLootTemplates = (ctx: any, enemyTemplate: any, seedBase: bigint, dangerMultiplier?: bigint) => {
     const lootTable = findLootTable(ctx, enemyTemplate);
     if (!lootTable) return [];
-    const entries = [...ctx.db.lootTableEntry.by_table.filter(lootTable.id)];
+    const entries = [...ctx.db.loot_table_entry.by_table.filter(lootTable.id)];
     const junkEntries = entries.filter((entry) => {
-      const template = ctx.db.itemTemplate.id.find(entry.itemTemplateId);
+      const template = ctx.db.item_template.id.find(entry.itemTemplateId);
       return template?.isJunk;
     });
     const gearEntries = entries.filter((entry) => {
-      const template = ctx.db.itemTemplate.id.find(entry.itemTemplateId);
+      const template = ctx.db.item_template.id.find(entry.itemTemplateId);
       return template && !template.isJunk && !STARTER_ITEM_NAMES.has(template.name) && template.requiredLevel <= (enemyTemplate.level ?? 1n) + 1n;
     });
 
@@ -722,7 +722,7 @@ export const registerCombatReducers = (deps: any) => {
     const lootItems: { template: any; qualityTier?: string; affixDataJson?: string; isNamed?: boolean; craftQuality?: string }[] = [];
     const pick = pickWeightedEntry(junkEntries, seedBase + 11n);
     if (pick) {
-      const template = ctx.db.itemTemplate.id.find(pick.itemTemplateId);
+      const template = ctx.db.item_template.id.find(pick.itemTemplateId);
       if (template) lootItems.push({ template });
     }
 
@@ -730,7 +730,7 @@ export const registerCombatReducers = (deps: any) => {
     if (rollGear < Number(gearChance)) {
       const pick = pickWeightedEntry(gearEntries, seedBase + 23n);
       if (pick) {
-        const template = ctx.db.itemTemplate.id.find(pick.itemTemplateId);
+        const template = ctx.db.item_template.id.find(pick.itemTemplateId);
         if (template) {
           const quality = rollQualityTier(enemyTemplate.level ?? 1n, seedBase, dangerMultiplier);
           const craftQual = rollQualityForDrop(enemyTemplate.level ?? 1n, seedBase);
@@ -797,7 +797,7 @@ export const registerCombatReducers = (deps: any) => {
       return charId ? { characterId: charId } : undefined;
     }
     // Aggro branch: include pet entries so pets with top aggro can be targeted
-    const topEntry = [...ctx.db.aggroEntry.by_combat.filter(combatId)]
+    const topEntry = [...ctx.db.aggro_entry.by_combat.filter(combatId)]
       .filter((entry) => entry.enemyId === enemyId)
       .filter((entry) => {
         if (entry.petId) return true; // pet entries always eligible
@@ -818,7 +818,7 @@ export const registerCombatReducers = (deps: any) => {
     if (_player) {
       ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
     }
-    const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
+    const activeGather = [...ctx.db.resource_gather.by_character.filter(character.id)][0];
     if (activeGather) {
       return failCombat(ctx, character, 'Cannot start combat while gathering');
     }
@@ -837,7 +837,7 @@ export const registerCombatReducers = (deps: any) => {
       }
     }
 
-    const spawn = ctx.db.enemySpawn.id.find(args.enemySpawnId);
+    const spawn = ctx.db.enemy_spawn.id.find(args.enemySpawnId);
     let desiredLevel = 1n;
     const spawnToUse =
       spawn && spawn.locationId === locationId && spawn.state === 'available'
@@ -856,7 +856,7 @@ export const registerCombatReducers = (deps: any) => {
       if (_player) {
         ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
       }
-      const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
+      const activeGather = [...ctx.db.resource_gather.by_character.filter(character.id)][0];
       if (activeGather) {
         return failCombat(ctx, character, 'Cannot start combat while gathering');
       }
@@ -888,7 +888,7 @@ export const registerCombatReducers = (deps: any) => {
       if (_player) {
         ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
       }
-      const activeGather = [...ctx.db.resourceGather.by_character.filter(character.id)][0];
+      const activeGather = [...ctx.db.resource_gather.by_character.filter(character.id)][0];
       if (activeGather) {
         return failCombat(ctx, character, 'Cannot pull while gathering');
       }
@@ -905,22 +905,22 @@ export const registerCombatReducers = (deps: any) => {
       if (!pullerCheck.ok) return;
       let groupId: bigint | null = pullerCheck.groupId;
 
-      for (const pull of ctx.db.pullState.by_character.filter(character.id)) {
+      for (const pull of ctx.db.pull_state.by_character.filter(character.id)) {
         if (pull.state === 'pending') {
           return failCombat(ctx, character, 'Pull already in progress');
         }
       }
 
-      const spawn = ctx.db.enemySpawn.id.find(args.enemySpawnId);
+      const spawn = ctx.db.enemy_spawn.id.find(args.enemySpawnId);
       if (!spawn || spawn.locationId !== locationId || spawn.state !== 'available') {
         return failCombat(ctx, character, 'Enemy is not available to pull');
       }
 
-      ctx.db.enemySpawn.id.update({ ...spawn, state: 'pulling' });
+      ctx.db.enemy_spawn.id.update({ ...spawn, state: 'pulling' });
 
       const delayMicros = pullType === 'careful' ? PULL_DELAY_CAREFUL : PULL_DELAY_BODY;
       const resolveAt = ctx.timestamp.microsSinceUnixEpoch + delayMicros;
-      const pull = ctx.db.pullState.insert({
+      const pull = ctx.db.pull_state.insert({
         id: 0n,
         characterId: character.id,
         groupId: groupId ?? undefined,
@@ -953,7 +953,7 @@ export const registerCombatReducers = (deps: any) => {
       const combatId = activeCombatIdForCharacter(ctx, character.id);
       if (!combatId) return failCombat(ctx, character, 'Not in combat');
       if (args.enemyId) {
-        const enemy = ctx.db.combatEnemy.id.find(args.enemyId);
+        const enemy = ctx.db.combat_enemy.id.find(args.enemyId);
         if (!enemy || enemy.combatId !== combatId) {
           return failCombat(ctx, character, 'Enemy not in combat');
         }
@@ -965,39 +965,39 @@ export const registerCombatReducers = (deps: any) => {
   );
 
   scheduledReducers['resolve_pull'] = spacetimedb.reducer('resolve_pull', { arg: PullTick.rowType }, (ctx, { arg }) => {
-    const pull = ctx.db.pullState.id.find(arg.pullId);
+    const pull = ctx.db.pull_state.id.find(arg.pullId);
     if (!pull || pull.state !== 'pending') return;
 
     const character = ctx.db.character.id.find(pull.characterId);
-    const spawn = ctx.db.enemySpawn.id.find(pull.enemySpawnId);
+    const spawn = ctx.db.enemy_spawn.id.find(pull.enemySpawnId);
     if (!character || !spawn || spawn.locationId !== pull.locationId) {
       if (spawn && spawn.state === 'pulling') {
-        ctx.db.enemySpawn.id.update({ ...spawn, state: 'available' });
+        ctx.db.enemy_spawn.id.update({ ...spawn, state: 'available' });
       }
-      ctx.db.pullState.id.delete(pull.id);
+      ctx.db.pull_state.id.delete(pull.id);
       return;
     }
     if (activeCombatIdForCharacter(ctx, character.id)) {
       if (spawn.state === 'pulling') {
-        ctx.db.enemySpawn.id.update({ ...spawn, state: 'available' });
+        ctx.db.enemy_spawn.id.update({ ...spawn, state: 'available' });
       }
-      ctx.db.pullState.id.delete(pull.id);
+      ctx.db.pull_state.id.delete(pull.id);
       return;
     }
 
-    const template = ctx.db.enemyTemplate.id.find(spawn.enemyTemplateId);
+    const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
     if (!template) {
-      ctx.db.enemySpawn.id.update({ ...spawn, state: 'available' });
-      ctx.db.pullState.id.delete(pull.id);
+      ctx.db.enemy_spawn.id.update({ ...spawn, state: 'available' });
+      ctx.db.pull_state.id.delete(pull.id);
       return;
     }
 
     const candidates = PULL_ALLOW_EXTERNAL_ADDS
-      ? [...ctx.db.enemySpawn.by_location.filter(pull.locationId)]
+      ? [...ctx.db.enemy_spawn.by_location.filter(pull.locationId)]
         .filter((row) => row.id !== spawn.id && row.state === 'available')
         .map((row) => ({
           spawn: row,
-          template: ctx.db.enemyTemplate.id.find(row.enemyTemplateId),
+          template: ctx.db.enemy_template.id.find(row.enemyTemplateId),
         }))
         .filter(
           (row) =>
@@ -1019,8 +1019,8 @@ export const registerCombatReducers = (deps: any) => {
     if (veil > 0n) {
       success = Math.min(95, success + 15);
       fail = Math.max(5, fail - 15);
-      for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
-        if (effect.effectType === 'pull_veil') ctx.db.characterEffect.id.delete(effect.id);
+      for (const effect of ctx.db.character_effect.by_character.filter(character.id)) {
+        if (effect.effectType === 'pull_veil') ctx.db.character_effect.id.delete(effect.id);
       }
     }
     const awarenessAlert =
@@ -1058,8 +1058,8 @@ export const registerCombatReducers = (deps: any) => {
 
     const participants: typeof deps.Character.rowType[] = getGroupOrSoloParticipants(ctx, character);
     if (participants.length === 0) {
-      ctx.db.enemySpawn.id.update({ ...spawn, state: 'available' });
-      ctx.db.pullState.id.delete(pull.id);
+      ctx.db.enemy_spawn.id.update({ ...spawn, state: 'available' });
+      ctx.db.pull_state.id.delete(pull.id);
       return;
     }
 
@@ -1091,9 +1091,9 @@ export const registerCombatReducers = (deps: any) => {
       for (const candidate of candidates) {
         if (remaining <= 0) break;
         if (!candidate.spawn) continue;
-        const candidateSpawn = ctx.db.enemySpawn.id.find(candidate.spawn.id);
+        const candidateSpawn = ctx.db.enemy_spawn.id.find(candidate.spawn.id);
         if (!candidateSpawn || candidateSpawn.state !== 'available') continue;
-        ctx.db.enemySpawn.id.update({
+        ctx.db.enemy_spawn.id.update({
           ...candidateSpawn,
           state: 'engaged',
           lockedCombatId: combat.id,
@@ -1108,7 +1108,7 @@ export const registerCombatReducers = (deps: any) => {
       const delayMicros = AUTO_ATTACK_INTERVAL * PULL_ADD_DELAY_ROUNDS;
       const reserved = reserveAdds(addCount);
       for (const add of reserved) {
-        ctx.db.combatPendingAdd.insert({
+        ctx.db.combat_pending_add.insert({
           id: 0n,
           combatId: combat.id,
           enemyTemplateId: add.spawn.enemyTemplateId,
@@ -1163,20 +1163,20 @@ export const registerCombatReducers = (deps: any) => {
         appendGroupEvent(ctx, combat.groupId, character.id, 'system', `${character.name}'s pull is clean.`);
       }
     }
-    ctx.db.pullState.id.delete(pull.id);
+    ctx.db.pull_state.id.delete(pull.id);
   });
 
   spacetimedb.reducer('flee_combat', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const combatId = activeCombatIdForCharacter(ctx, character.id);
     if (!combatId) return failCombat(ctx, character, 'Combat not active');
-    const combat = ctx.db.combatEncounter.id.find(combatId);
+    const combat = ctx.db.combat_encounter.id.find(combatId);
     if (!combat || combat.state !== 'active') return failCombat(ctx, character, 'Combat not active');
 
-    for (const participant of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
+    for (const participant of ctx.db.combat_participant.by_combat.filter(combat.id)) {
       if (participant.characterId !== character.id) continue;
       if (participant.status !== 'active') return;
-      ctx.db.combatParticipant.id.update({
+      ctx.db.combat_participant.id.update({
         ...participant,
         status: 'fleeing',
       });
@@ -1199,8 +1199,8 @@ export const registerCombatReducers = (deps: any) => {
     const location = ctx.db.location.id.find(arg.locationId);
     if (location?.isSafe) return;
     // Respect spawn cap — event spawns don't count against it
-    const nonEventCount = [...ctx.db.enemySpawn.by_location.filter(arg.locationId)]
-      .filter(row => [...ctx.db.eventSpawnEnemy.by_spawn.filter(row.id)].length === 0).length;
+    const nonEventCount = [...ctx.db.enemy_spawn.by_location.filter(arg.locationId)]
+      .filter(row => [...ctx.db.event_spawn_enemy.by_spawn.filter(row.id)].length === 0).length;
     const cap = getLocationSpawnCap(ctx, arg.locationId);
     if (nonEventCount >= cap) return;
     deps.spawnEnemy(ctx, arg.locationId, 1n);
@@ -1214,31 +1214,31 @@ export const registerCombatReducers = (deps: any) => {
       const groupId = effectiveGroupId(character);
       if (groupId) {
         // Each character dismisses only their own result and loot
-        const myResults = [...ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)]
+        const myResults = [...ctx.db.combat_result.by_owner_user.filter(character.ownerUserId)]
           .filter(r => r.groupId && r.groupId === groupId);
         const combatIds = new Set<bigint>();
         for (const row of myResults) {
           combatIds.add(row.combatId);
-          ctx.db.combatResult.id.delete(row.id);
+          ctx.db.combat_result.id.delete(row.id);
         }
         // Delete only this character's loot
         for (const combatId of combatIds) {
-          for (const loot of ctx.db.combatLoot.by_character.filter(character.id)) {
+          for (const loot of ctx.db.combat_loot.by_character.filter(character.id)) {
             if (loot.combatId === combatId) {
-              ctx.db.combatLoot.id.delete(loot.id);
+              ctx.db.combat_loot.id.delete(loot.id);
             }
           }
         }
         return;
       }
       const combatIds = new Set<bigint>();
-      for (const row of ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)) {
+      for (const row of ctx.db.combat_result.by_owner_user.filter(character.ownerUserId)) {
         combatIds.add(row.combatId);
-        ctx.db.combatResult.id.delete(row.id);
+        ctx.db.combat_result.id.delete(row.id);
       }
       for (const combatId of combatIds) {
-        for (const loot of ctx.db.combatLoot.by_combat.filter(combatId)) {
-          ctx.db.combatLoot.id.delete(loot.id);
+        for (const loot of ctx.db.combat_loot.by_combat.filter(combatId)) {
+          ctx.db.combat_loot.id.delete(loot.id);
         }
       }
     }
@@ -1249,11 +1249,11 @@ export const registerCombatReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     let combatId = activeCombatIdForCharacter(ctx, character.id);
     if (!combatId) {
-      const fallback = [...ctx.db.combatParticipant.by_character.filter(character.id)][0];
+      const fallback = [...ctx.db.combat_participant.by_character.filter(character.id)][0];
       combatId = fallback?.combatId ?? null;
     }
     if (!combatId) return failCombat(ctx, character, 'No active combat');
-    const combat = ctx.db.combatEncounter.id.find(combatId);
+    const combat = ctx.db.combat_encounter.id.find(combatId);
     if (!combat) return failCombat(ctx, character, 'Combat not active');
 
     if (combat.groupId && combat.state === 'active') {
@@ -1264,7 +1264,7 @@ export const registerCombatReducers = (deps: any) => {
       }
     }
 
-    const participants = [...ctx.db.combatParticipant.by_combat.filter(combat.id)];
+    const participants = [...ctx.db.combat_participant.by_combat.filter(combat.id)];
     for (const p of participants) {
       const participantChar = ctx.db.character.id.find(p.characterId);
       if (!participantChar) continue;
@@ -1275,7 +1275,7 @@ export const registerCombatReducers = (deps: any) => {
         'combat',
         'Combat was ended by the leader.'
       );
-      ctx.db.combatResult.insert({
+      ctx.db.combat_result.insert({
         id: 0n,
         ownerUserId: participantChar.ownerUserId,
         characterId: participantChar.id,
@@ -1286,15 +1286,15 @@ export const registerCombatReducers = (deps: any) => {
       });
     }
 
-    const spawn = [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
+    const spawn = [...ctx.db.enemy_spawn.by_location.filter(combat.locationId)].find(
       (s) => s.lockedCombatId === combat.id
     );
     if (spawn) {
-      ctx.db.enemySpawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
+      ctx.db.enemy_spawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
     }
 
     clearCombatArtifacts(ctx, combat.id);
-    ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
+    ctx.db.combat_encounter.id.update({ ...combat, state: 'resolved' });
   });
 
   const HP_REGEN_IN = 2n;
@@ -1316,8 +1316,8 @@ export const registerCombatReducers = (deps: any) => {
       const inCombat = activelyInCombat || inCooldown;
       if (character.hp === 0n) {
         if (!inCombat) {
-          for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
-            ctx.db.characterEffect.id.delete(effect.id);
+          for (const effect of ctx.db.character_effect.by_character.filter(character.id)) {
+            ctx.db.character_effect.id.delete(effect.id);
           }
         }
         continue;
@@ -1334,7 +1334,7 @@ export const registerCombatReducers = (deps: any) => {
       let hpRegenBonus = 0n;
       let manaRegenBonus = 0n;
       let staminaRegenBonus = 0n;
-      for (const effect of ctx.db.characterEffect.by_character.filter(character.id)) {
+      for (const effect of ctx.db.character_effect.by_character.filter(character.id)) {
         if (effect.effectType === 'food_health_regen') hpRegenBonus += effect.magnitude;
         else if (effect.effectType === 'food_mana_regen') manaRegenBonus += effect.magnitude;
         else if (effect.effectType === 'food_stamina_regen') staminaRegenBonus += effect.magnitude;
@@ -1368,9 +1368,9 @@ export const registerCombatReducers = (deps: any) => {
 
       // Clean up expired cooldown rows for out-of-combat characters
       if (!inCombat) {
-        for (const cd of ctx.db.abilityCooldown.by_character.filter(character.id)) {
+        for (const cd of ctx.db.ability_cooldown.by_character.filter(character.id)) {
           if (cd.startedAtMicros + cd.durationMicros <= ctx.timestamp.microsSinceUnixEpoch) {
-            ctx.db.abilityCooldown.id.delete(cd.id);
+            ctx.db.ability_cooldown.id.delete(cd.id);
           }
         }
       }
@@ -1380,11 +1380,11 @@ export const registerCombatReducers = (deps: any) => {
     const PET_HP_REGEN_OUT = 3n;
     const PET_HP_REGEN_IN = 2n;
 
-    for (const pet of ctx.db.activePet.iter()) {
+    for (const pet of ctx.db.active_pet.iter()) {
       // Dismiss timed pets when their duration has elapsed
       if (pet.expiresAtMicros !== undefined && pet.expiresAtMicros !== null &&
         ctx.timestamp.microsSinceUnixEpoch >= pet.expiresAtMicros) {
-        ctx.db.activePet.id.delete(pet.id);
+        ctx.db.active_pet.id.delete(pet.id);
         continue;
       }
       if (pet.currentHp === 0n) continue;           // dead pet — skip
@@ -1398,14 +1398,14 @@ export const registerCombatReducers = (deps: any) => {
       const regenAmount = petInCombat ? PET_HP_REGEN_IN : PET_HP_REGEN_OUT;
       const nextHp = pet.currentHp + regenAmount;
 
-      ctx.db.activePet.id.update({
+      ctx.db.active_pet.id.update({
         ...pet,
         currentHp: nextHp > pet.maxHp ? pet.maxHp : nextHp,
       });
     }
 
     // Out-of-combat pet_heal ability ticks
-    for (const pet of ctx.db.activePet.iter()) {
+    for (const pet of ctx.db.active_pet.iter()) {
       if (pet.abilityKey !== 'pet_heal') continue;
       if (pet.combatId !== undefined && pet.combatId !== null) continue; // in combat: handled by combat loop
       if (pet.currentHp === 0n) continue;
@@ -1431,7 +1431,7 @@ export const registerCombatReducers = (deps: any) => {
 
       // Check group members at same location
       if (groupId) {
-        for (const membership of ctx.db.groupMember.by_group.filter(groupId)) {
+        for (const membership of ctx.db.group_member.by_group.filter(groupId)) {
           const member = ctx.db.character.id.find(membership.characterId);
           if (!member || member.hp === 0n || member.locationId !== healPetOwner.locationId) continue;
           if (member.hp >= member.maxHp) continue;
@@ -1456,7 +1456,7 @@ export const registerCombatReducers = (deps: any) => {
 
       if (!healTarget) {
         // Everyone at full HP — disarm until combat exit re-arms (clear nextAbilityAt)
-        ctx.db.activePet.id.update({ ...pet, nextAbilityAt: undefined });
+        ctx.db.active_pet.id.update({ ...pet, nextAbilityAt: undefined });
         continue;
       }
 
@@ -1464,13 +1464,13 @@ export const registerCombatReducers = (deps: any) => {
       const cooldownMicros = (pet.abilityCooldownSeconds ?? 10n) * 1_000_000n;
       if (healTargetIsPet) {
         const newHp = pet.currentHp + healAmount > pet.maxHp ? pet.maxHp : pet.currentHp + healAmount;
-        ctx.db.activePet.id.update({ ...pet, currentHp: newHp, nextAbilityAt: ctx.timestamp.microsSinceUnixEpoch + cooldownMicros });
+        ctx.db.active_pet.id.update({ ...pet, currentHp: newHp, nextAbilityAt: ctx.timestamp.microsSinceUnixEpoch + cooldownMicros });
       } else {
         const newHp = healTarget.hp + healAmount > healTarget.maxHp
           ? healTarget.maxHp
           : healTarget.hp + healAmount;
         ctx.db.character.id.update({ ...healTarget, hp: newHp });
-        ctx.db.activePet.id.update({ ...pet, nextAbilityAt: ctx.timestamp.microsSinceUnixEpoch + cooldownMicros });
+        ctx.db.active_pet.id.update({ ...pet, nextAbilityAt: ctx.timestamp.microsSinceUnixEpoch + cooldownMicros });
       }
 
       const healMsg = `${pet.name} heals ${healTarget.name} for ${healAmount}.`;
@@ -1481,7 +1481,7 @@ export const registerCombatReducers = (deps: any) => {
     }
 
     // Out-of-combat pet_aoe_heal ability ticks
-    for (const pet of ctx.db.activePet.iter()) {
+    for (const pet of ctx.db.active_pet.iter()) {
       if (pet.abilityKey !== 'pet_aoe_heal') continue;
       if (pet.combatId !== undefined && pet.combatId !== null) continue; // in combat: handled by combat loop
       if (pet.currentHp === 0n) continue;
@@ -1504,7 +1504,7 @@ export const registerCombatReducers = (deps: any) => {
 
       // Heal group members at same location
       if (groupId) {
-        for (const membership of ctx.db.groupMember.by_group.filter(groupId)) {
+        for (const membership of ctx.db.group_member.by_group.filter(groupId)) {
           const member = ctx.db.character.id.find(membership.characterId);
           if (!member || member.id === petOwner.id) continue;
           if (member.hp === 0n || member.hp >= member.maxHp) continue;
@@ -1523,7 +1523,7 @@ export const registerCombatReducers = (deps: any) => {
       }
 
       if (healedCount === 0n) {
-        ctx.db.activePet.id.update({ ...pet, nextAbilityAt: undefined });
+        ctx.db.active_pet.id.update({ ...pet, nextAbilityAt: undefined });
         continue;
       }
 
@@ -1534,14 +1534,14 @@ export const registerCombatReducers = (deps: any) => {
       }
 
       const cooldownMicros = (pet.abilityCooldownSeconds ?? 10n) * 1_000_000n;
-      ctx.db.activePet.id.update({ ...pet, currentHp: petHealedHp, nextAbilityAt: ctx.timestamp.microsSinceUnixEpoch + cooldownMicros });
+      ctx.db.active_pet.id.update({ ...pet, currentHp: petHealedHp, nextAbilityAt: ctx.timestamp.microsSinceUnixEpoch + cooldownMicros });
     }
 
     // Watchdog: ensure active combats always have a scheduled tick.
-    for (const combat of ctx.db.combatEncounter.iter()) {
+    for (const combat of ctx.db.combat_encounter.iter()) {
       if (combat.state !== 'active') continue;
       let hasTick = false;
-      for (const tick of ctx.db.combatLoopTick.iter()) {
+      for (const tick of ctx.db.combat_loop_tick.iter()) {
         if (tick.combatId === combat.id) {
           hasTick = true;
           break;
@@ -1552,17 +1552,17 @@ export const registerCombatReducers = (deps: any) => {
       }
     }
 
-    ctx.db.healthRegenTick.insert({
+    ctx.db.health_regen_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + REGEN_TICK_MICROS),
     });
   });
 
   scheduledReducers['tick_effects'] = spacetimedb.reducer('tick_effects', { arg: deps.EffectTick.rowType }, (ctx) => {
-    for (const effect of ctx.db.characterEffect.iter()) {
+    for (const effect of ctx.db.character_effect.iter()) {
       const owner = ctx.db.character.id.find(effect.characterId);
       if (!owner) {
-        ctx.db.characterEffect.id.delete(effect.id);
+        ctx.db.character_effect.id.delete(effect.id);
         continue;
       }
       if (effect.effectType === 'regen' || effect.effectType === 'dot') {
@@ -1583,7 +1583,7 @@ export const registerCombatReducers = (deps: any) => {
         ) {
           deps.recomputeCharacterDerived(ctx, owner);
         }
-        ctx.db.characterEffect.id.delete(effect.id);
+        ctx.db.character_effect.id.delete(effect.id);
         continue;
       }
       const source = effect.sourceAbility ?? 'a lingering effect';
@@ -1628,54 +1628,54 @@ export const registerCombatReducers = (deps: any) => {
         ) {
           deps.recomputeCharacterDerived(ctx, owner);
         }
-        ctx.db.characterEffect.id.delete(effect.id);
+        ctx.db.character_effect.id.delete(effect.id);
       } else {
-        ctx.db.characterEffect.id.update({ ...effect, roundsRemaining: remaining });
+        ctx.db.character_effect.id.update({ ...effect, roundsRemaining: remaining });
       }
     }
 
-    for (const effect of ctx.db.combatEnemyEffect.iter()) {
+    for (const effect of ctx.db.combat_enemy_effect.iter()) {
       if (effect.effectType === 'dot') continue;
       // Stun effects are time-based (magnitude = expiry micros); delete when expired.
       if (effect.effectType === 'stun') {
         if (effect.magnitude <= ctx.timestamp.microsSinceUnixEpoch) {
-          ctx.db.combatEnemyEffect.id.delete(effect.id);
+          ctx.db.combat_enemy_effect.id.delete(effect.id);
         }
         continue;
       }
-      const enemy = ctx.db.combatEnemy.id.find(effect.enemyId);
+      const enemy = ctx.db.combat_enemy.id.find(effect.enemyId);
       if (!enemy) {
-        ctx.db.combatEnemyEffect.id.delete(effect.id);
+        ctx.db.combat_enemy_effect.id.delete(effect.id);
         continue;
       }
       if (effect.roundsRemaining === 0n) {
-        ctx.db.combatEnemyEffect.id.delete(effect.id);
+        ctx.db.combat_enemy_effect.id.delete(effect.id);
         continue;
       }
-      ctx.db.combatEnemyEffect.id.update({
+      ctx.db.combat_enemy_effect.id.update({
         ...effect,
         roundsRemaining: effect.roundsRemaining - 1n,
       });
     }
 
-    ctx.db.effectTick.insert({
+    ctx.db.effect_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + EFFECT_TICK_MICROS),
     });
   });
 
   scheduledReducers['tick_hot'] = spacetimedb.reducer('tick_hot', { arg: deps.HotTick.rowType }, (ctx) => {
-    for (const effect of ctx.db.characterEffect.iter()) {
+    for (const effect of ctx.db.character_effect.iter()) {
       const owner = ctx.db.character.id.find(effect.characterId);
       if (!owner) {
-        ctx.db.characterEffect.id.delete(effect.id);
+        ctx.db.character_effect.id.delete(effect.id);
         continue;
       }
       if (owner.hp === 0n) continue;
       if (effect.effectType !== 'regen' && effect.effectType !== 'dot')
         continue;
       if (effect.roundsRemaining === 0n) {
-        ctx.db.characterEffect.id.delete(effect.id);
+        ctx.db.character_effect.id.delete(effect.id);
         continue;
       }
       const source = effect.sourceAbility ?? 'a lingering effect';
@@ -1720,31 +1720,31 @@ export const registerCombatReducers = (deps: any) => {
       }
       const remaining = effect.roundsRemaining - 1n;
       if (remaining === 0n) {
-        ctx.db.characterEffect.id.delete(effect.id);
+        ctx.db.character_effect.id.delete(effect.id);
       } else {
-        ctx.db.characterEffect.id.update({ ...effect, roundsRemaining: remaining });
+        ctx.db.character_effect.id.update({ ...effect, roundsRemaining: remaining });
       }
     }
 
-    for (const effect of ctx.db.combatEnemyEffect.iter()) {
+    for (const effect of ctx.db.combat_enemy_effect.iter()) {
       if (effect.effectType !== 'dot') continue;
       if (effect.roundsRemaining === 0n) {
-        ctx.db.combatEnemyEffect.id.delete(effect.id);
+        ctx.db.combat_enemy_effect.id.delete(effect.id);
         continue;
       }
-      const combat = ctx.db.combatEncounter.id.find(effect.combatId);
+      const combat = ctx.db.combat_encounter.id.find(effect.combatId);
       if (!combat || combat.state !== 'active') continue;
-      const enemy = ctx.db.combatEnemy.id.find(effect.enemyId);
+      const enemy = ctx.db.combat_enemy.id.find(effect.enemyId);
       if (!enemy) {
-        ctx.db.combatEnemyEffect.id.delete(effect.id);
+        ctx.db.combat_enemy_effect.id.delete(effect.id);
         continue;
       }
-      const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+      const enemyTemplate = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
       const enemyName = enemy.displayName ?? enemyTemplate?.name ?? 'enemy';
       const bonus = sumEnemyEffect(ctx, effect.combatId, 'damage_taken', enemy.id);
       const total = effect.magnitude + bonus;
       const nextHp = enemy.currentHp > total ? enemy.currentHp - total : 0n;
-      ctx.db.combatEnemy.id.update({ ...enemy, currentHp: nextHp });
+      ctx.db.combat_enemy.id.update({ ...enemy, currentHp: nextHp });
       // Life-drain: heal the ownerCharacterId for the same tick amount
       if (effect.ownerCharacterId && total > 0n) {
         const drainTarget = ctx.db.character.id.find(effect.ownerCharacterId);
@@ -1756,7 +1756,7 @@ export const registerCombatReducers = (deps: any) => {
         }
       }
       const source = effect.sourceAbility ?? 'a lingering effect';
-      for (const participant of ctx.db.combatParticipant.by_combat.filter(effect.combatId)) {
+      for (const participant of ctx.db.combat_participant.by_combat.filter(effect.combatId)) {
         const character = ctx.db.character.id.find(participant.characterId);
         if (!character) continue;
         appendPrivateEvent(
@@ -1769,13 +1769,13 @@ export const registerCombatReducers = (deps: any) => {
       }
       const remaining = effect.roundsRemaining - 1n;
       if (remaining === 0n) {
-        ctx.db.combatEnemyEffect.id.delete(effect.id);
+        ctx.db.combat_enemy_effect.id.delete(effect.id);
       } else {
-        ctx.db.combatEnemyEffect.id.update({ ...effect, roundsRemaining: remaining });
+        ctx.db.combat_enemy_effect.id.update({ ...effect, roundsRemaining: remaining });
       }
     }
 
-    ctx.db.hotTick.insert({
+    ctx.db.hot_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + HOT_TICK_MICROS),
     });
@@ -1785,11 +1785,11 @@ export const registerCombatReducers = (deps: any) => {
   scheduledReducers['tick_bard_songs'] = spacetimedb.reducer('tick_bard_songs', { arg: deps.BardSongTick.rowType }, (ctx, { arg }) => {
     const bardCombatId = arg.combatId;
     if (bardCombatId !== undefined) {
-      const combat = ctx.db.combatEncounter.id.find(bardCombatId);
+      const combat = ctx.db.combat_encounter.id.find(bardCombatId);
       if (!combat || combat.state !== 'active') {
         // Combat over — clean up active song rows for this bard
-        for (const song of ctx.db.activeBardSong.by_bard.filter(arg.bardCharacterId)) {
-          ctx.db.activeBardSong.id.delete(song.id);
+        for (const song of ctx.db.active_bard_song.by_bard.filter(arg.bardCharacterId)) {
+          ctx.db.active_bard_song.id.delete(song.id);
         }
         return;
       }
@@ -1798,17 +1798,17 @@ export const registerCombatReducers = (deps: any) => {
     const bard = ctx.db.character.id.find(arg.bardCharacterId);
     if (!bard) return;
 
-    const songs = [...ctx.db.activeBardSong.by_bard.filter(arg.bardCharacterId)];
+    const songs = [...ctx.db.active_bard_song.by_bard.filter(arg.bardCharacterId)];
     if (songs.length === 0) return;
 
     // Gather party members and living enemies (shared across all songs this tick)
     const partyMembers = bardCombatId !== undefined
-      ? [...ctx.db.combatParticipant.by_combat.filter(bardCombatId)]
+      ? [...ctx.db.combat_participant.by_combat.filter(bardCombatId)]
         .map((p: any) => ctx.db.character.id.find(p.characterId))
         .filter(Boolean)
       : partyMembersInLocation(ctx, bard);
     const enemies = bardCombatId !== undefined
-      ? [...ctx.db.combatEnemy.by_combat.filter(bardCombatId)].filter((e: any) => e.currentHp > 0n)
+      ? [...ctx.db.combat_enemy.by_combat.filter(bardCombatId)].filter((e: any) => e.currentHp > 0n)
       : [];
 
     // Process ALL songs (both active and fading) in this tick pass.
@@ -1823,7 +1823,7 @@ export const registerCombatReducers = (deps: any) => {
             const actualDmg = en.currentHp > dmg ? dmg : en.currentHp;
             totalDamage += actualDmg;
             const nextHp = en.currentHp > dmg ? en.currentHp - dmg : 0n;
-            ctx.db.combatEnemy.id.update({ ...en, currentHp: nextHp });
+            ctx.db.combat_enemy.id.update({ ...en, currentHp: nextHp });
           }
           // Small mana drain per pulse
           const freshBardDN = ctx.db.character.id.find(bard.id);
@@ -1892,14 +1892,14 @@ export const registerCombatReducers = (deps: any) => {
 
       // Fading songs fire their final effect and are then removed — no reschedule
       if (song.isFading) {
-        ctx.db.activeBardSong.id.delete(song.id);
+        ctx.db.active_bard_song.id.delete(song.id);
       }
     }
 
     // Reschedule next tick only if at least one non-fading song remains
     const stillActive = songs.filter((s: any) => !s.isFading);
     if (stillActive.length > 0) {
-      ctx.db.bardSongTick.insert({
+      ctx.db.bard_song_tick.insert({
         scheduledId: 0n,
         scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 6_000_000n),
         bardCharacterId: arg.bardCharacterId,
@@ -1910,39 +1910,39 @@ export const registerCombatReducers = (deps: any) => {
 
   scheduledReducers['tick_casts'] = spacetimedb.reducer('tick_casts', { arg: deps.CastTick.rowType }, (ctx) => {
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
-    for (const cast of ctx.db.characterCast.iter()) {
+    for (const cast of ctx.db.character_cast.iter()) {
       if (cast.endsAtMicros > nowMicros) continue;
       const character = ctx.db.character.id.find(cast.characterId);
       if (!character) {
-        ctx.db.characterCast.id.delete(cast.id);
+        ctx.db.character_cast.id.delete(cast.id);
         continue;
       }
       // Check combat state before executing ability
       const castCombatId = activeCombatIdForCharacter(ctx, character.id);
       if (castCombatId) {
-        const participant = [...ctx.db.combatParticipant.by_combat.filter(castCombatId)].find(
+        const participant = [...ctx.db.combat_participant.by_combat.filter(castCombatId)].find(
           (row) => row.characterId === character.id
         );
         if (participant && participant.status !== 'active') {
-          ctx.db.characterCast.id.delete(cast.id);
+          ctx.db.character_cast.id.delete(cast.id);
           continue;
         }
       }
       // Apply cooldown on use, not on success — prevents kill-shot abilities from losing
       // their cooldown when combat ends before the subscription row arrives.
       const cooldown = abilityCooldownMicros(ctx, cast.abilityKey);
-      const existingCooldown = [...ctx.db.abilityCooldown.by_character.filter(character.id)].find(
+      const existingCooldown = [...ctx.db.ability_cooldown.by_character.filter(character.id)].find(
         (row) => row.abilityKey === cast.abilityKey
       );
       if (cooldown > 0n) {
         if (existingCooldown) {
-          ctx.db.abilityCooldown.id.update({
+          ctx.db.ability_cooldown.id.update({
             ...existingCooldown,
             startedAtMicros: nowMicros,
             durationMicros: cooldown,
           });
         } else {
-          ctx.db.abilityCooldown.insert({
+          ctx.db.ability_cooldown.insert({
             id: 0n,
             characterId: character.id,
             abilityKey: cast.abilityKey,
@@ -1962,11 +1962,11 @@ export const registerCombatReducers = (deps: any) => {
         // Ability failed due to validation — revert the cooldown so the player can retry
         if (cooldown > 0n) {
           if (existingCooldown) {
-            ctx.db.abilityCooldown.id.update({ ...existingCooldown });
+            ctx.db.ability_cooldown.id.update({ ...existingCooldown });
           } else {
-            const revertCd = [...ctx.db.abilityCooldown.by_character.filter(character.id)]
+            const revertCd = [...ctx.db.ability_cooldown.by_character.filter(character.id)]
               .find((row) => row.abilityKey === cast.abilityKey);
-            if (revertCd) ctx.db.abilityCooldown.id.delete(revertCd.id);
+            if (revertCd) ctx.db.ability_cooldown.id.delete(revertCd.id);
           }
         }
         const message = String(error).replace(/^SenderError:\s*/i, '');
@@ -1978,10 +1978,10 @@ export const registerCombatReducers = (deps: any) => {
           `Ability failed: ${message}`
         );
       }
-      ctx.db.characterCast.id.delete(cast.id);
+      ctx.db.character_cast.id.delete(cast.id);
     }
 
-    ctx.db.castTick.insert({
+    ctx.db.cast_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 200_000n),
     });
@@ -1997,11 +1997,11 @@ export const registerCombatReducers = (deps: any) => {
       if (p.status !== 'active') continue;
       const character = ctx.db.character.id.find(p.characterId);
       if (character && character.hp === 0n) {
-        ctx.db.combatParticipant.id.update({ ...p, status: 'dead' });
+        ctx.db.combat_participant.id.update({ ...p, status: 'dead' });
         clearCharacterEffectsOnDeath(ctx, character);
-        for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+        for (const entry of ctx.db.aggro_entry.by_combat.filter(combat.id)) {
           if (entry.characterId === character.id && !entry.petId) {
-            ctx.db.aggroEntry.id.delete(entry.id);
+            ctx.db.aggro_entry.id.delete(entry.id);
           }
         }
       }
@@ -2020,15 +2020,15 @@ export const registerCombatReducers = (deps: any) => {
       const fleeChance = calculateFleeChance(dangerMultiplier);
       const fleeRoll = Number((nowMicros + fleeingChar.id * 13n) % 100n);
       if (fleeRoll < fleeChance) {
-        ctx.db.combatParticipant.id.update({ ...p, status: 'fled' });
-        for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+        ctx.db.combat_participant.id.update({ ...p, status: 'fled' });
+        for (const entry of ctx.db.aggro_entry.by_combat.filter(combat.id)) {
           if (entry.characterId === fleeingChar.id && !entry.petId) {
-            ctx.db.aggroEntry.id.delete(entry.id);
+            ctx.db.aggro_entry.id.delete(entry.id);
           }
         }
-        for (const pet of ctx.db.activePet.by_combat.filter(combat.id)) {
+        for (const pet of ctx.db.active_pet.by_combat.filter(combat.id)) {
           if (pet.characterId === fleeingChar.id) {
-            ctx.db.activePet.id.update({
+            ctx.db.active_pet.id.update({
               ...pet,
               combatId: undefined,
               nextAbilityAt: (pet.abilityKey === 'pet_heal' || pet.abilityKey === 'pet_aoe_heal') ? ctx.timestamp.microsSinceUnixEpoch : undefined,
@@ -2044,7 +2044,7 @@ export const registerCombatReducers = (deps: any) => {
           appendGroupEvent(ctx, fleeGroupId, fleeingChar.id, 'combat', `${fleeingChar.name} successfully flees.`);
         }
       } else {
-        ctx.db.combatParticipant.id.update({ ...p, status: 'active' });
+        ctx.db.combat_participant.id.update({ ...p, status: 'active' });
         appendPrivateEvent(ctx, fleeingChar.id, fleeingChar.ownerUserId, 'combat', 'You fail to flee!');
         const fleeGroupId = effectiveGroupId(fleeingChar);
         if (fleeGroupId) {
@@ -2059,23 +2059,23 @@ export const registerCombatReducers = (deps: any) => {
     if (activeParticipants.length !== 0) return false;
     // Reset all enemies to full HP
     for (const enemyRow of enemies) {
-      const tmpl = ctx.db.enemyTemplate.id.find(enemyRow.enemyTemplateId);
+      const tmpl = ctx.db.enemy_template.id.find(enemyRow.enemyTemplateId);
       if (tmpl) {
-        ctx.db.combatEnemy.id.update({ ...enemyRow, currentHp: tmpl.maxHp });
+        ctx.db.combat_enemy.id.update({ ...enemyRow, currentHp: tmpl.maxHp });
       }
     }
     // Return enemies to spawn — restore surviving composition
     const spawnIds = new Set(enemies.map((e: any) => e.spawnId));
     for (const spawnId of spawnIds) {
-      const spawn = ctx.db.enemySpawn.id.find(spawnId);
+      const spawn = ctx.db.enemy_spawn.id.find(spawnId);
       if (spawn) {
-        const savedMembers = [...ctx.db.enemySpawnMember.by_spawn.filter(spawnId)];
+        const savedMembers = [...ctx.db.enemy_spawn_member.by_spawn.filter(spawnId)];
         for (const member of savedMembers) {
-          ctx.db.enemySpawnMember.id.delete(member.id);
+          ctx.db.enemy_spawn_member.id.delete(member.id);
         }
         let count = 0n;
         for (const member of savedMembers) {
-          ctx.db.enemySpawnMember.insert({
+          ctx.db.enemy_spawn_member.insert({
             id: 0n,
             spawnId: spawnId,
             enemyTemplateId: member.enemyTemplateId,
@@ -2085,7 +2085,7 @@ export const registerCombatReducers = (deps: any) => {
         }
         for (const enemy of enemies) {
           if (enemy.spawnId === spawnId && enemy.currentHp > 0n) {
-            ctx.db.enemySpawnMember.insert({
+            ctx.db.enemy_spawn_member.insert({
               id: 0n,
               spawnId: spawnId,
               enemyTemplateId: enemy.enemyTemplateId,
@@ -2095,19 +2095,19 @@ export const registerCombatReducers = (deps: any) => {
           }
         }
         if (count > 0n) {
-          ctx.db.enemySpawn.id.update({
+          ctx.db.enemy_spawn.id.update({
             ...spawn,
             state: 'available',
             lockedCombatId: undefined,
             groupCount: count,
           });
         } else {
-          for (const member of ctx.db.enemySpawnMember.by_spawn.filter(spawn.id)) {
-            ctx.db.enemySpawnMember.id.delete(member.id);
+          for (const member of ctx.db.enemy_spawn_member.by_spawn.filter(spawn.id)) {
+            ctx.db.enemy_spawn_member.id.delete(member.id);
           }
-          ctx.db.enemySpawn.id.delete(spawn.id);
+          ctx.db.enemy_spawn.id.delete(spawn.id);
           const respawnAt = ctx.timestamp.microsSinceUnixEpoch + ENEMY_RESPAWN_MICROS;
-          ctx.db.enemyRespawnTick.insert({
+          ctx.db.enemy_respawn_tick.insert({
             scheduledId: 0n,
             scheduledAt: ScheduleAt.time(respawnAt),
             locationId: spawn.locationId,
@@ -2122,22 +2122,22 @@ export const registerCombatReducers = (deps: any) => {
         `The enemies lose interest and return to their posts.`);
     }
     clearCombatArtifacts(ctx, combat.id);
-    ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
+    ctx.db.combat_encounter.id.update({ ...combat, state: 'resolved' });
     return true;
   };
 
   /** Phase 4: Materialize pending add enemies that have arrived. */
   const processPendingAdds = (ctx: any, combat: any, participants: any[], activeParticipants: any[], enemyName: string, nowMicros: bigint) => {
-    for (const pending of ctx.db.combatPendingAdd.by_combat.filter(combat.id)) {
+    for (const pending of ctx.db.combat_pending_add.by_combat.filter(combat.id)) {
       if (pending.arriveAtMicros > nowMicros) continue;
-      const spawnRow = pending.spawnId ? ctx.db.enemySpawn.id.find(pending.spawnId) : null;
+      const spawnRow = pending.spawnId ? ctx.db.enemy_spawn.id.find(pending.spawnId) : null;
       if (spawnRow) {
         const newEnemy = addEnemyToCombat(deps, ctx, combat, spawnRow, participants, true, pending.enemyRoleTemplateId ?? undefined);
         if (newEnemy && activeParticipants.length > 0) {
-          ctx.db.combatEnemy.id.update({ ...newEnemy, aggroTargetCharacterId: activeParticipants[0].characterId });
+          ctx.db.combat_enemy.id.update({ ...newEnemy, aggroTargetCharacterId: activeParticipants[0].characterId });
         }
       }
-      ctx.db.combatPendingAdd.id.delete(pending.id);
+      ctx.db.combat_pending_add.id.delete(pending.id);
       for (const p of activeParticipants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
@@ -2150,14 +2150,14 @@ export const registerCombatReducers = (deps: any) => {
   const processEnemyAbilities = (ctx: any, combat: any, enemies: any[], activeParticipants: any[], nowMicros: bigint) => {
     for (const enemy of enemies) {
       if (enemy.currentHp === 0n) continue;
-      const template = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
-      const enemyAbilities = template ? [...ctx.db.enemyAbility.by_template.filter(template.id)] : [];
-      const existingCast = [...ctx.db.combatEnemyCast.by_combat.filter(combat.id)].find((row) => row.enemyId === enemy.id);
+      const template = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
+      const enemyAbilities = template ? [...ctx.db.enemy_ability.by_template.filter(template.id)] : [];
+      const existingCast = [...ctx.db.combat_enemy_cast.by_combat.filter(combat.id)].find((row) => row.enemyId === enemy.id);
       if (existingCast && existingCast.endsAtMicros <= nowMicros) {
-        const stunEffectAtCast = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find((e: any) => e.effectType === 'stun');
+        const stunEffectAtCast = [...ctx.db.combat_enemy_effect.by_enemy.filter(enemy.id)].find((e: any) => e.effectType === 'stun');
         const isStunnedNow = stunEffectAtCast && stunEffectAtCast.magnitude > nowMicros;
         if (isStunnedNow) {
-          ctx.db.combatEnemyCast.id.delete(existingCast.id);
+          ctx.db.combat_enemy_cast.id.delete(existingCast.id);
           const eName = template?.name ?? 'Enemy';
           for (const participant of activeParticipants) {
             const character = ctx.db.character.id.find(participant.characterId);
@@ -2173,7 +2173,7 @@ export const registerCombatReducers = (deps: any) => {
             targetCharacterId: existingCast.targetCharacterId,
             targetPetId: existingCast.targetPetId,
           });
-          const cooldownTable = ctx.db.combatEnemyCooldown;
+          const cooldownTable = ctx.db.combat_enemy_cooldown;
           if (cooldownTable) {
             const abilityRow = enemyAbilities.find((row) => row.abilityKey === existingCast.abilityKey);
             const cooldownMicros = enemyAbilityCooldownMicros(existingCast.abilityKey) || (abilityRow?.cooldownSeconds ?? 0n) * 1_000_000n;
@@ -2192,13 +2192,13 @@ export const registerCombatReducers = (deps: any) => {
               });
             }
           }
-          ctx.db.combatEnemyCast.id.delete(existingCast.id);
+          ctx.db.combat_enemy_cast.id.delete(existingCast.id);
         }
       }
-      const stunEffectForCast = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find((e: any) => e.effectType === 'stun');
+      const stunEffectForCast = [...ctx.db.combat_enemy_effect.by_enemy.filter(enemy.id)].find((e: any) => e.effectType === 'stun');
       const isStunned = stunEffectForCast && stunEffectForCast.magnitude > nowMicros;
       if (enemyAbilities.length > 0 && !existingCast && !isStunned) {
-        const cooldownTable = ctx.db.combatEnemyCooldown;
+        const cooldownTable = ctx.db.combat_enemy_cooldown;
         if (!cooldownTable) {
           // cooldown table missing; skip casting to avoid spam
         } else {
@@ -2228,12 +2228,12 @@ export const registerCombatReducers = (deps: any) => {
             const cooldownMicros = enemyAbilityCooldownMicros(ability.abilityKey) || (ability.cooldownSeconds ?? 0n) * 1_000_000n;
             if (!target.petId) {
               if (ability.kind === 'dot') {
-                const alreadyApplied = [...ctx.db.characterEffect.by_character.filter(target.characterId!)].some(
+                const alreadyApplied = [...ctx.db.character_effect.by_character.filter(target.characterId!)].some(
                   (effect) => effect.effectType === 'dot' && effect.sourceAbility === ability.name
                 );
                 if (alreadyApplied) continue;
               } else if (ability.kind === 'debuff') {
-                const alreadyApplied = [...ctx.db.characterEffect.by_character.filter(target.characterId!)].some(
+                const alreadyApplied = [...ctx.db.character_effect.by_character.filter(target.characterId!)].some(
                   (effect) => effect.sourceAbility === ability.name
                 );
                 if (alreadyApplied) continue;
@@ -2247,19 +2247,19 @@ export const registerCombatReducers = (deps: any) => {
             if (ability.targetRule === 'lowest_hp') score += 20;
             if (ability.targetRule === 'aggro') score += 10;
             if (ability.kind === 'heal') {
-              const allies = [...ctx.db.combatEnemy.by_combat.filter(combat.id)]
+              const allies = [...ctx.db.combat_enemy.by_combat.filter(combat.id)]
                 .filter((e: any) => e.currentHp > 0n && e.id !== enemy.id);
               const lowestAlly = allies.reduce((low: any, e: any) => {
-                const tmpl = ctx.db.enemyTemplate.id.find(e.enemyTemplateId);
+                const tmpl = ctx.db.enemy_template.id.find(e.enemyTemplateId);
                 const maxHp = tmpl?.maxHp ?? 100n;
                 const hpPercent = (e.currentHp * 100n) / maxHp;
-                const lowTmpl = low ? ctx.db.enemyTemplate.id.find(low.enemyTemplateId) : null;
+                const lowTmpl = low ? ctx.db.enemy_template.id.find(low.enemyTemplateId) : null;
                 const lowMaxHp = lowTmpl?.maxHp ?? 100n;
                 const lowPercent = low ? (low.currentHp * 100n) / lowMaxHp : 100n;
                 return hpPercent < lowPercent ? e : low;
               }, null as any);
               if (lowestAlly) {
-                const tmpl = ctx.db.enemyTemplate.id.find(lowestAlly.enemyTemplateId);
+                const tmpl = ctx.db.enemy_template.id.find(lowestAlly.enemyTemplateId);
                 const maxHp = tmpl?.maxHp ?? 100n;
                 const hpPercent = Number((lowestAlly.currentHp * 100n) / maxHp);
                 if (hpPercent < 30) {
@@ -2268,7 +2268,7 @@ export const registerCombatReducers = (deps: any) => {
                   score += 40;
                 }
               }
-              const selfTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+              const selfTemplate = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
               const selfMaxHp = selfTemplate?.maxHp ?? 100n;
               const selfHpPercent = Number((enemy.currentHp * 100n) / selfMaxHp);
               if (selfHpPercent < 30) {
@@ -2284,7 +2284,7 @@ export const registerCombatReducers = (deps: any) => {
               }
             }
             if (ability.kind === 'debuff') {
-              const highestThreatEntry = [...ctx.db.aggroEntry.by_combat.filter(combat.id)]
+              const highestThreatEntry = [...ctx.db.aggro_entry.by_combat.filter(combat.id)]
                 .filter((e: any) => e.enemyId === enemy.id && !e.petId)
                 .sort((a: any, b: any) => a.value > b.value ? -1 : a.value < b.value ? 1 : 0)[0];
               if (highestThreatEntry && highestThreatEntry.characterId === target.characterId) {
@@ -2300,7 +2300,7 @@ export const registerCombatReducers = (deps: any) => {
             const chosen = candidates.sort((a, b) => b.score - a.score)[0];
             const roll = Number((nowMicros + enemy.id + combat.id + BigInt(hashString(chosen.ability.abilityKey))) % 100n);
             if (roll < chosen.chance) {
-              ctx.db.combatEnemyCast.insert({
+              ctx.db.combat_enemy_cast.insert({
                 id: 0n,
                 combatId: combat.id,
                 enemyId: enemy.id,
@@ -2309,7 +2309,7 @@ export const registerCombatReducers = (deps: any) => {
                 targetCharacterId: chosen.target.characterId,
                 targetPetId: chosen.target.petId,
               });
-              ctx.db.combatEnemy.id.update({
+              ctx.db.combat_enemy.id.update({
                 ...enemy,
                 nextAutoAttackAt: nowMicros + chosen.castMicros,
                 aggroTargetCharacterId: chosen.target.characterId,
@@ -2326,13 +2326,13 @@ export const registerCombatReducers = (deps: any) => {
     for (const participant of activeParticipants) {
       const character = ctx.db.character.id.find(participant.characterId);
       if (!character) continue;
-      const activeCast = [...ctx.db.characterCast.by_character.filter(character.id)].find((row) => row.endsAtMicros > nowMicros);
+      const activeCast = [...ctx.db.character_cast.by_character.filter(character.id)].find((row) => row.endsAtMicros > nowMicros);
       if (activeCast) continue;
       if (participant.nextAutoAttackAt > nowMicros) continue;
       const preferredEnemy = character.combatTargetEnemyId ? enemies.find((row) => row.id === character.combatTargetEnemyId) : null;
       const currentEnemy = preferredEnemy ?? enemies.find((row) => row.currentHp > 0n) ?? enemies[0] ?? null;
       if (!currentEnemy || currentEnemy.currentHp === 0n) continue;
-      const enemyTemplate = ctx.db.enemyTemplate.id.find(currentEnemy.enemyTemplateId);
+      const enemyTemplate = ctx.db.enemy_template.id.find(currentEnemy.enemyTemplateId);
       const targetName = currentEnemy.displayName ?? enemyTemplate?.name ?? 'enemy';
       const weapon = deps.getEquippedWeaponStats(ctx, character.id);
       const rawWeaponDamage = 5n + character.level + weapon.baseDamage + (weapon.dps / 2n);
@@ -2364,7 +2364,7 @@ export const registerCombatReducers = (deps: any) => {
           crit: (damage) => `Critical hit! You hit ${targetName} for ${damage} damage.`,
         },
         applyHp: (updatedHp) => {
-          ctx.db.combatEnemy.id.update({ ...currentEnemy, currentHp: updatedHp });
+          ctx.db.combat_enemy.id.update({ ...currentEnemy, currentHp: updatedHp });
         },
         groupId: combat.groupId,
         groupActorId: character.id,
@@ -2386,47 +2386,47 @@ export const registerCombatReducers = (deps: any) => {
           : HEALER_CLASSES.has(className) ? HEALER_THREAT_MULTIPLIER
             : className === 'summoner' ? SUMMONER_THREAT_MULTIPLIER : 100n;
         const threat = (finalDamage * threatMult) / 100n;
-        for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+        for (const entry of ctx.db.aggro_entry.by_combat.filter(combat.id)) {
           if (entry.characterId === character.id && entry.enemyId === currentEnemy.id && !entry.petId) {
-            ctx.db.aggroEntry.id.update({ ...entry, value: entry.value + threat });
+            ctx.db.aggro_entry.id.update({ ...entry, value: entry.value + threat });
             break;
           }
         }
         if (attackOutcome === 'hit' || attackOutcome === 'crit') {
-          const freshEnemy = ctx.db.combatEnemy.id.find(currentEnemy.id);
+          const freshEnemy = ctx.db.combat_enemy.id.find(currentEnemy.id);
           applyPerkProcs(ctx, character, 'on_hit', finalDamage, outcomeSeed, combat.id, freshEnemy);
           if (attackOutcome === 'crit') {
-            const freshEnemyForCrit = ctx.db.combatEnemy.id.find(currentEnemy.id);
+            const freshEnemyForCrit = ctx.db.combat_enemy.id.find(currentEnemy.id);
             applyPerkProcs(ctx, character, 'on_crit', finalDamage, outcomeSeed + 1000n, combat.id, freshEnemyForCrit);
           }
         }
-        const postAttackEnemy = ctx.db.combatEnemy.id.find(currentEnemy.id);
+        const postAttackEnemy = ctx.db.combat_enemy.id.find(currentEnemy.id);
         if (postAttackEnemy && postAttackEnemy.currentHp === 0n) {
           applyPerkProcs(ctx, character, 'on_kill', finalDamage, outcomeSeed + 2000n, combat.id, postAttackEnemy);
         }
       }
       // TODO: Check for 'haste' CharacterEffect to reduce weapon speed interval
-      ctx.db.combatParticipant.id.update({ ...participant, nextAutoAttackAt: nowMicros + weapon.speed });
+      ctx.db.combat_participant.id.update({ ...participant, nextAutoAttackAt: nowMicros + weapon.speed });
     }
   };
 
   /** Phase 7: Pet auto-attacks and ability usage. */
   const processPetCombat = (ctx: any, combat: any, livingEnemies: any[], nowMicros: bigint) => {
-    const pets = [...ctx.db.activePet.by_combat.filter(combat.id)];
+    const pets = [...ctx.db.active_pet.by_combat.filter(combat.id)];
     for (let pet of pets) {
       const owner = ctx.db.character.id.find(pet.characterId);
       if (!owner || owner.hp === 0n) {
-        ctx.db.activePet.id.delete(pet.id);
+        ctx.db.active_pet.id.delete(pet.id);
         continue;
       }
-      let target = pet.targetEnemyId ? ctx.db.combatEnemy.id.find(pet.targetEnemyId) : null;
+      let target = pet.targetEnemyId ? ctx.db.combat_enemy.id.find(pet.targetEnemyId) : null;
       if (!target || target.currentHp === 0n) {
-        const preferred = owner.combatTargetEnemyId ? ctx.db.combatEnemy.id.find(owner.combatTargetEnemyId) : null;
+        const preferred = owner.combatTargetEnemyId ? ctx.db.combat_enemy.id.find(owner.combatTargetEnemyId) : null;
         target = preferred ?? livingEnemies[0] ?? null;
       }
       if (!target) {
         if (pet.nextAutoAttackAt && pet.nextAutoAttackAt <= nowMicros) {
-          ctx.db.activePet.id.update({ ...pet, nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL, targetEnemyId: undefined });
+          ctx.db.active_pet.id.update({ ...pet, nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL, targetEnemyId: undefined });
         }
         continue;
       }
@@ -2442,12 +2442,12 @@ export const registerCombatReducers = (deps: any) => {
         if (used) {
           const cooldownMicros = (pet.abilityCooldownSeconds ?? 10n) * 1_000_000n;
           nextAbilityAt = nowMicros + cooldownMicros;
-          pet = ctx.db.activePet.id.find(pet.id) ?? pet;
+          pet = ctx.db.active_pet.id.find(pet.id) ?? pet;
         }
       }
       if (pet.nextAutoAttackAt && pet.nextAutoAttackAt > nowMicros) {
         if (nextAbilityAt !== pet.nextAbilityAt || target.id !== pet.targetEnemyId) {
-          ctx.db.activePet.id.update({ ...pet, nextAbilityAt, targetEnemyId: target.id });
+          ctx.db.active_pet.id.update({ ...pet, nextAbilityAt, targetEnemyId: target.id });
         }
         continue;
       }
@@ -2470,14 +2470,14 @@ export const registerCombatReducers = (deps: any) => {
           hit: (damage) => `${pet.name} hits ${targetName} for ${damage}.`,
         },
         applyHp: (updatedHp) => {
-          ctx.db.combatEnemy.id.update({ ...target, currentHp: updatedHp });
+          ctx.db.combat_enemy.id.update({ ...target, currentHp: updatedHp });
         },
         groupId: combat.groupId,
         groupActorId: owner.id,
       });
       if (finalDamage > 0n) {
         let petEntry: typeof deps.AggroEntry.rowType | null = null;
-        for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+        for (const entry of ctx.db.aggro_entry.by_combat.filter(combat.id)) {
           if (entry.enemyId !== target.id) continue;
           if (entry.petId && entry.petId === pet.id) {
             petEntry = entry;
@@ -2487,9 +2487,9 @@ export const registerCombatReducers = (deps: any) => {
         const tauntBonus = pet.abilityKey === 'pet_taunt' ? 5n : 0n;
         const aggroGain = finalDamage + tauntBonus;
         if (petEntry) {
-          ctx.db.aggroEntry.id.update({ ...petEntry, value: petEntry.value + aggroGain });
+          ctx.db.aggro_entry.id.update({ ...petEntry, value: petEntry.value + aggroGain });
         } else {
-          ctx.db.aggroEntry.insert({
+          ctx.db.aggro_entry.insert({
             id: 0n,
             combatId: combat.id,
             enemyId: target.id,
@@ -2499,7 +2499,7 @@ export const registerCombatReducers = (deps: any) => {
           });
         }
       }
-      ctx.db.activePet.id.update({ ...pet, nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL, nextAbilityAt, targetEnemyId: target.id });
+      ctx.db.active_pet.id.update({ ...pet, nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL, nextAbilityAt, targetEnemyId: target.id });
     }
   };
 
@@ -2510,14 +2510,14 @@ export const registerCombatReducers = (deps: any) => {
   ) => {
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);
-      const currentParticipant = ctx.db.combatParticipant.id.find(p.id);
+      const currentParticipant = ctx.db.combat_participant.id.find(p.id);
       if (!character || !currentParticipant) continue;
       if (character.hp === 0n && currentParticipant.status !== 'dead') {
         markParticipantDead(ctx, currentParticipant, character, enemyName);
       }
     }
     const enemyTemplates = enemies
-      .map((row) => ctx.db.enemyTemplate.id.find(row.enemyTemplateId))
+      .map((row) => ctx.db.enemy_template.id.find(row.enemyTemplateId))
       .filter((row): row is typeof deps.EnemyTemplate.rowType => Boolean(row));
     const totalBaseXp = enemyTemplates.reduce((sum, template) => {
       const base = template.xpReward && template.xpReward > 0n ? template.xpReward : template.level * 20n;
@@ -2542,7 +2542,7 @@ export const registerCombatReducers = (deps: any) => {
         grantFactionStandingForKill(ctx, character, template.id);
         incrementWorldStat(ctx, 'total_enemies_killed', 1n);
         if (combatLoc) {
-          for (const activeEvent of ctx.db.worldEvent.by_status.filter('active')) {
+          for (const activeEvent of ctx.db.world_event.by_status.filter('active')) {
             if (activeEvent.regionId !== combatLoc.regionId) continue;
             const eventSpawnTemplateIds = getEventSpawnTemplateIds(ctx, enemies, enemySpawnIds, activeEvent.id);
             if (!eventSpawnTemplateIds.has(template.id)) continue;
@@ -2553,7 +2553,7 @@ export const registerCombatReducers = (deps: any) => {
     }
     if (combatLoc) {
       for (const template of enemyTemplates) {
-        for (const activeEvent of ctx.db.worldEvent.by_status.filter('active')) {
+        for (const activeEvent of ctx.db.world_event.by_status.filter('active')) {
           if (activeEvent.regionId !== combatLoc.regionId) continue;
           const eventKillTemplateIds = getEventSpawnTemplateIds(ctx, enemies, enemySpawnIds, activeEvent.id);
           if (!eventKillTemplateIds.has(template.id)) continue;
@@ -2573,26 +2573,26 @@ export const registerCombatReducers = (deps: any) => {
     const lootDanger = lootRegion?.dangerMultiplier ?? 100n;
     const essenceTemplateMap = new Map<string, any>();
     for (const threshold of ESSENCE_TIER_THRESHOLDS) {
-      const tmpl = [...ctx.db.itemTemplate.iter()].find((t: any) => t.name === threshold.essenceName);
+      const tmpl = [...ctx.db.item_template.iter()].find((t: any) => t.name === threshold.essenceName);
       if (tmpl) essenceTemplateMap.set(threshold.essenceName, tmpl);
     }
     const modifierTemplateMap = new Map<string, any>();
     for (const def of CRAFTING_MODIFIER_DEFS) {
-      const tmpl = [...ctx.db.itemTemplate.iter()].find((t: any) => t.name === def.name);
+      const tmpl = [...ctx.db.item_template.iter()].find((t: any) => t.name === def.name);
       if (tmpl) modifierTemplateMap.set(def.name, tmpl);
     }
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);
       if (!character) continue;
-      const staleLoot = [...ctx.db.combatLoot.by_character.filter(character.id)];
+      const staleLoot = [...ctx.db.combat_loot.by_character.filter(character.id)];
       const staleCombatIds = new Set(staleLoot.map(row => row.combatId));
       for (const row of staleLoot) {
-        ctx.db.combatLoot.id.delete(row.id);
+        ctx.db.combat_loot.id.delete(row.id);
       }
       for (const oldCombatId of staleCombatIds) {
-        for (const result of ctx.db.combatResult.by_owner_user.filter(character.ownerUserId)) {
+        for (const result of ctx.db.combat_result.by_owner_user.filter(character.ownerUserId)) {
           if (result.combatId === oldCombatId && result.characterId === character.id) {
-            ctx.db.combatResult.id.delete(result.id);
+            ctx.db.combat_result.id.delete(result.id);
           }
         }
       }
@@ -2601,7 +2601,7 @@ export const registerCombatReducers = (deps: any) => {
           ? generateLootTemplates(ctx, template, ctx.timestamp.microsSinceUnixEpoch + character.id, lootDanger)
           : [];
         for (const lootItem of lootTemplates) {
-          ctx.db.combatLoot.insert({
+          ctx.db.combat_loot.insert({
             id: 0n,
             combatId: combat.id,
             ownerUserId: character.ownerUserId,
@@ -2625,7 +2625,7 @@ export const registerCombatReducers = (deps: any) => {
             }
           }
           if (essenceToDrop) {
-            ctx.db.combatLoot.insert({
+            ctx.db.combat_loot.insert({
               id: 0n, combatId: combat.id, ownerUserId: character.ownerUserId,
               characterId: character.id, itemTemplateId: essenceToDrop.id,
               createdAt: ctx.timestamp, qualityTier: undefined, affixDataJson: undefined, isNamed: undefined,
@@ -2647,7 +2647,7 @@ export const registerCombatReducers = (deps: any) => {
             const pickedName = eligibleNames[pickIndex];
             const modifierTemplate = modifierTemplateMap.get(pickedName);
             if (modifierTemplate) {
-              ctx.db.combatLoot.insert({
+              ctx.db.combat_loot.insert({
                 id: 0n, combatId: combat.id, ownerUserId: character.ownerUserId,
                 characterId: character.id, itemTemplateId: modifierTemplate.id,
                 createdAt: ctx.timestamp, qualityTier: undefined, affixDataJson: undefined, isNamed: undefined,
@@ -2675,20 +2675,20 @@ export const registerCombatReducers = (deps: any) => {
           logGroupEvent(ctx, combat.id, character.id, 'reward', `${character.name} gained ${goldReward} gold.`);
         }
       }
-      const resultRow = ctx.db.combatResult.insert({
+      const resultRow = ctx.db.combat_result.insert({
         id: 0n, ownerUserId: character.ownerUserId, characterId: character.id,
         groupId: combat.groupId, combatId: combat.id,
         summary: `Victory against ${summaryName}.${fallenSuffix}`, createdAt: ctx.timestamp,
       });
-      const charLoot = [...ctx.db.combatLoot.by_character.filter(character.id)].filter(row => row.combatId === combat.id);
+      const charLoot = [...ctx.db.combat_loot.by_character.filter(character.id)].filter(row => row.combatId === combat.id);
       if (charLoot.length === 0) {
-        ctx.db.combatResult.id.delete(resultRow.id);
+        ctx.db.combat_result.id.delete(resultRow.id);
       }
     }
     createCorpsesForDead(ctx, deps, participants);
     applyDeathPenalties(ctx, deps, participants, appendPrivateEvent, logGroupEvent, combat.id);
     clearCombatArtifacts(ctx, combat.id);
-    ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
+    ctx.db.combat_encounter.id.update({ ...combat, state: 'resolved' });
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);
       if (!character) continue;
@@ -2719,7 +2719,7 @@ export const registerCombatReducers = (deps: any) => {
       }
       const primaryEnemy = enemies[0];
       if (primaryEnemy) {
-        const template = ctx.db.enemyTemplate.id.find(primaryEnemy.enemyTemplateId);
+        const template = ctx.db.enemy_template.id.find(primaryEnemy.enemyTemplateId);
         if (template) {
           if (template.isBoss) {
             const bossKey = `boss_${template.name.toLowerCase().replace(/\s+/g, '_')}`;
@@ -2744,10 +2744,10 @@ export const registerCombatReducers = (deps: any) => {
       if (enemy.currentHp === 0n) continue;
       let topAggro: typeof deps.AggroEntry.rowType | null = null;
       let topPet: typeof deps.ActivePet.rowType | null = null;
-      for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
+      for (const entry of ctx.db.aggro_entry.by_combat.filter(combat.id)) {
         if (entry.enemyId !== enemy.id) continue;
         if (entry.petId) {
-          const pet = ctx.db.activePet.id.find(entry.petId);
+          const pet = ctx.db.active_pet.id.find(entry.petId);
           if (!pet || pet.currentHp === 0n) continue;
           if (!topAggro || entry.value > topAggro.value) { topAggro = entry; topPet = pet; }
           continue;
@@ -2755,21 +2755,21 @@ export const registerCombatReducers = (deps: any) => {
         if (!activeIds.has(entry.characterId)) continue;
         if (!topAggro || entry.value > topAggro.value) { topAggro = entry; topPet = null; }
       }
-      const enemySnapshot = ctx.db.combatEnemy.id.find(enemy.id);
-      const enemyTemplate = ctx.db.enemyTemplate.id.find(enemy.enemyTemplateId);
+      const enemySnapshot = ctx.db.combat_enemy.id.find(enemy.id);
+      const enemyTemplate = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
       const name = enemySnapshot?.displayName ?? enemyTemplate?.name ?? enemyName;
       const roleTemplateForSpeed = enemySnapshot?.enemyRoleTemplateId
-        ? ctx.db.enemyRoleTemplate.id.find(enemySnapshot.enemyRoleTemplateId)
+        ? ctx.db.enemy_role_template.id.find(enemySnapshot.enemyRoleTemplateId)
         : null;
       const enemyAttackSpeed = getEnemyAttackSpeed(roleTemplateForSpeed?.role ?? 'damage');
       if (topAggro && enemySnapshot && enemySnapshot.currentHp > 0n && enemySnapshot.nextAutoAttackAt <= nowMicros) {
-        const stunEffectForAuto = [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find((effect: any) => effect.effectType === 'stun');
+        const stunEffectForAuto = [...ctx.db.combat_enemy_effect.by_enemy.filter(enemy.id)].find((effect: any) => effect.effectType === 'stun');
         const timeStunned = stunEffectForAuto && stunEffectForAuto.magnitude > nowMicros;
         const skipEffect = !timeStunned
-          ? [...ctx.db.combatEnemyEffect.by_enemy.filter(enemy.id)].find((effect) => effect.effectType === 'skip')
+          ? [...ctx.db.combat_enemy_effect.by_enemy.filter(enemy.id)].find((effect) => effect.effectType === 'skip')
           : null;
         if (timeStunned) {
-          ctx.db.combatEnemy.id.update({ ...enemySnapshot, nextAutoAttackAt: stunEffectForAuto.magnitude });
+          ctx.db.combat_enemy.id.update({ ...enemySnapshot, nextAutoAttackAt: stunEffectForAuto.magnitude });
           const firstActive = activeParticipants[0]?.characterId;
           if (firstActive) logGroupEvent(ctx, combat.id, firstActive, 'combat', `${name} is stunned.`);
           for (const participant of activeParticipants) {
@@ -2778,8 +2778,8 @@ export const registerCombatReducers = (deps: any) => {
             appendPrivateEvent(ctx, character.id, character.ownerUserId, 'combat', `${name} is stunned.`);
           }
         } else if (skipEffect) {
-          ctx.db.combatEnemyEffect.id.delete(skipEffect.id);
-          ctx.db.combatEnemy.id.update({ ...enemySnapshot, nextAutoAttackAt: nowMicros + enemyAttackSpeed });
+          ctx.db.combat_enemy_effect.id.delete(skipEffect.id);
+          ctx.db.combat_enemy.id.update({ ...enemySnapshot, nextAutoAttackAt: nowMicros + enemyAttackSpeed });
           const firstActive = activeParticipants[0]?.characterId;
           if (firstActive) {
             logGroupEvent(ctx, combat.id, firstActive, 'combat', `${name} is staggered and misses a turn.`);
@@ -2792,7 +2792,7 @@ export const registerCombatReducers = (deps: any) => {
         } else if (topPet) {
           const owner = ctx.db.character.id.find(topAggro.characterId);
           if (!owner) {
-            ctx.db.combatEnemy.id.update({ ...enemySnapshot, nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL, aggroTargetCharacterId: undefined });
+            ctx.db.combat_enemy.id.update({ ...enemySnapshot, nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL, aggroTargetCharacterId: undefined });
           } else {
             const targetName = topPet.name;
             const outcomeSeed = nowMicros + enemySnapshot.id + topPet.id;
@@ -2807,15 +2807,15 @@ export const registerCombatReducers = (deps: any) => {
                 block: (damage) => `${targetName} blocks ${name}'s attack for ${damage}.`,
                 hit: (damage) => `${name} hits ${targetName} for ${damage}.`,
               },
-              applyHp: (updatedHp) => { ctx.db.activePet.id.update({ ...topPet, currentHp: updatedHp }); },
+              applyHp: (updatedHp) => { ctx.db.active_pet.id.update({ ...topPet, currentHp: updatedHp }); },
             });
             if (nextHp === 0n) {
-              ctx.db.activePet.id.delete(topPet.id);
-              for (const entry of ctx.db.aggroEntry.by_combat.filter(combat.id)) {
-                if (entry.petId && entry.petId === topPet.id) { ctx.db.aggroEntry.id.delete(entry.id); }
+              ctx.db.active_pet.id.delete(topPet.id);
+              for (const entry of ctx.db.aggro_entry.by_combat.filter(combat.id)) {
+                if (entry.petId && entry.petId === topPet.id) { ctx.db.aggro_entry.id.delete(entry.id); }
               }
             }
-            ctx.db.combatEnemy.id.update({
+            ctx.db.combat_enemy.id.update({
               ...enemySnapshot, nextAutoAttackAt: nowMicros + enemyAttackSpeed,
               aggroTargetCharacterId: topAggro.characterId, aggroTargetPetId: topPet.id,
             });
@@ -2868,12 +2868,12 @@ export const registerCombatReducers = (deps: any) => {
                 if (p.characterId === targetCharacter.id) { markParticipantDead(ctx, p, targetCharacter, name); break; }
               }
             }
-            ctx.db.combatEnemy.id.update({
+            ctx.db.combat_enemy.id.update({
               ...enemySnapshot, nextAutoAttackAt: nowMicros + enemyAttackSpeed,
               aggroTargetCharacterId: targetCharacter.id, aggroTargetPetId: undefined,
             });
           } else {
-            ctx.db.combatEnemy.id.update({
+            ctx.db.combat_enemy.id.update({
               ...enemySnapshot, nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL,
               aggroTargetCharacterId: undefined, aggroTargetPetId: undefined,
             });
@@ -2889,7 +2889,7 @@ export const registerCombatReducers = (deps: any) => {
   ) => {
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);
-      const currentParticipant = ctx.db.combatParticipant.id.find(p.id);
+      const currentParticipant = ctx.db.combat_participant.id.find(p.id);
       if (!currentParticipant) continue;
       if (character && character.hp === 0n && currentParticipant.status !== 'dead') {
         markParticipantDead(ctx, currentParticipant, character, enemyName);
@@ -2900,10 +2900,10 @@ export const registerCombatReducers = (deps: any) => {
     if (killedEnemies.length > 0) {
       const deathCombatLoc = ctx.db.location.id.find(combat.locationId);
       if (deathCombatLoc) {
-        for (const activeEvent of ctx.db.worldEvent.by_status.filter('active')) {
+        for (const activeEvent of ctx.db.world_event.by_status.filter('active')) {
           if (activeEvent.regionId !== deathCombatLoc.regionId) continue;
           for (const killedEnemy of killedEnemies) {
-            const isEventKill = [...ctx.db.eventSpawnEnemy.by_spawn.filter(killedEnemy.spawnId)]
+            const isEventKill = [...ctx.db.event_spawn_enemy.by_spawn.filter(killedEnemy.spawnId)]
               .some(link => link.eventId === activeEvent.id);
             if (!isEventKill) continue;
             for (const p of participants) {
@@ -2920,37 +2920,37 @@ export const registerCombatReducers = (deps: any) => {
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);
       if (!character) continue;
-      const defeatResult = ctx.db.combatResult.insert({
+      const defeatResult = ctx.db.combat_result.insert({
         id: 0n, ownerUserId: character.ownerUserId, characterId: character.id,
         groupId: combat.groupId, combatId: combat.id,
         summary: `Defeat against ${enemyName}.${fallenSuffix}`, createdAt: ctx.timestamp,
       });
-      ctx.db.combatResult.id.delete(defeatResult.id);
+      ctx.db.combat_result.id.delete(defeatResult.id);
     }
     createCorpsesForDead(ctx, deps, participants);
     clearCombatArtifacts(ctx, combat.id);
-    ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
+    ctx.db.combat_encounter.id.update({ ...combat, state: 'resolved' });
     applyDeathPenalties(ctx, deps, participants, appendPrivateEvent);
   };
 
   // ── End Combat Loop Sub-Functions ─────────────────────────────────────
 
   scheduledReducers['combat_loop'] = spacetimedb.reducer('combat_loop', { arg: CombatLoopTick.rowType }, (ctx, { arg }) => {
-    const combat = ctx.db.combatEncounter.id.find(arg.combatId);
+    const combat = ctx.db.combat_encounter.id.find(arg.combatId);
     if (!combat || combat.state !== 'active') return;
 
-    const enemies = [...ctx.db.combatEnemy.by_combat.filter(combat.id)];
+    const enemies = [...ctx.db.combat_enemy.by_combat.filter(combat.id)];
     if (enemies.length === 0) {
       const survivorsBySpawn = new Map<bigint, number>();
-      for (const enemyRow of ctx.db.combatEnemy.by_combat.filter(combat.id)) {
+      for (const enemyRow of ctx.db.combat_enemy.by_combat.filter(combat.id)) {
         if (enemyRow.currentHp === 0n) continue;
         const count = survivorsBySpawn.get(enemyRow.spawnId) ?? 0;
         survivorsBySpawn.set(enemyRow.spawnId, count + 1);
       }
       for (const [spawnId, count] of survivorsBySpawn.entries()) {
-        const spawn = ctx.db.enemySpawn.id.find(spawnId);
+        const spawn = ctx.db.enemy_spawn.id.find(spawnId);
         if (!spawn) continue;
-        ctx.db.enemySpawn.id.update({
+        ctx.db.enemy_spawn.id.update({
           ...spawn,
           state: 'available',
           lockedCombatId: undefined,
@@ -2958,26 +2958,26 @@ export const registerCombatReducers = (deps: any) => {
         });
       }
       clearCombatArtifacts(ctx, combat.id);
-      ctx.db.combatEncounter.id.update({ ...combat, state: 'resolved' });
+      ctx.db.combat_encounter.id.update({ ...combat, state: 'resolved' });
       return;
     }
 
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
 
-    const participants = [...ctx.db.combatParticipant.by_combat.filter(combat.id)];
+    const participants = [...ctx.db.combat_participant.by_combat.filter(combat.id)];
     markNewlyDeadParticipants(ctx, combat, participants);
     resolveFleeAttempts(ctx, combat, participants, nowMicros);
 
-    const refreshedParticipants = [...ctx.db.combatParticipant.by_combat.filter(combat.id)];
+    const refreshedParticipants = [...ctx.db.combat_participant.by_combat.filter(combat.id)];
     const activeParticipants = refreshedParticipants.filter((p) => p.status === 'active');
 
     if (handleLeashEviction(ctx, combat, enemies, participants, activeParticipants)) return;
     const spawnName =
-      [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find(
+      [...ctx.db.enemy_spawn.by_location.filter(combat.locationId)].find(
         (s) => s.lockedCombatId === combat.id
       )?.name ?? 'enemy';
     const enemyTemplate = enemies[0]
-      ? ctx.db.enemyTemplate.id.find(enemies[0].enemyTemplateId)
+      ? ctx.db.enemy_template.id.find(enemies[0].enemyTemplateId)
       : null;
     const enemyName = enemies[0]?.displayName ?? enemyTemplate?.name ?? spawnName;
 
@@ -2986,7 +2986,7 @@ export const registerCombatReducers = (deps: any) => {
     processPlayerAutoAttacks(ctx, combat, enemies, activeParticipants, nowMicros);
 
     const livingEnemies = enemies
-      .map((row) => ctx.db.combatEnemy.id.find(row.id))
+      .map((row) => ctx.db.combat_enemy.id.find(row.id))
       .filter((row): row is typeof deps.CombatEnemy.rowType => Boolean(row) && row.currentHp > 0n);
     const aliveEnemyIds = new Set(livingEnemies.map((row) => row.id));
 
@@ -3014,14 +3014,14 @@ export const registerCombatReducers = (deps: any) => {
 
     // Defeat check: no active participants with hp > 0
     let stillActive = false;
-    for (const p of ctx.db.combatParticipant.by_combat.filter(combat.id)) {
+    for (const p of ctx.db.combat_participant.by_combat.filter(combat.id)) {
       if (p.status !== 'active') continue;
       const character = ctx.db.character.id.find(p.characterId);
       if (character && character.hp > 0n) { stillActive = true; break; }
     }
     if (!stillActive) {
       const defeatEnemyName = enemies[0]?.displayName ??
-        [...ctx.db.enemySpawn.by_location.filter(combat.locationId)].find((s) => s.lockedCombatId === combat.id)?.name ?? 'enemy';
+        [...ctx.db.enemy_spawn.by_location.filter(combat.locationId)].find((s) => s.lockedCombatId === combat.id)?.name ?? 'enemy';
       handleDefeat(ctx, combat, enemies, participants, defeatEnemyName, nowMicros);
       return;
     }

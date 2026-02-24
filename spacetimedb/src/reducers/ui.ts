@@ -21,18 +21,18 @@ export const registerUiReducers = (deps: any) => {
       }
 
       // Find existing layout row for this character
-      const existing = [...ctx.db.uiPanelLayout.by_character.filter(characterId)][0];
+      const existing = [...ctx.db.ui_panel_layout.by_character.filter(characterId)][0];
 
       if (existing) {
         // Update existing row
-        ctx.db.uiPanelLayout.id.update({
+        ctx.db.ui_panel_layout.id.update({
           ...existing,
           panelStatesJson,
           updatedAt: ctx.timestamp,
         });
       } else {
         // Insert new row
-        ctx.db.uiPanelLayout.insert({
+        ctx.db.ui_panel_layout.insert({
           id: 0n,
           characterId,
           panelStatesJson,

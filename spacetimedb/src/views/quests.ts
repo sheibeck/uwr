@@ -7,7 +7,7 @@ export const registerQuestViews = ({ spacetimedb, t, QuestInstance }: ViewDeps) 
     (ctx: any) => {
       const player = ctx.db.player.id.find(ctx.sender);
       if (!player?.activeCharacterId) return [];
-      return [...ctx.db.questInstance.by_character.filter(player.activeCharacterId)];
+      return [...ctx.db.quest_instance.by_character.filter(player.activeCharacterId)];
     }
   );
 };

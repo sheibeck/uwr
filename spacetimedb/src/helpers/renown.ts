@@ -54,7 +54,7 @@ export function awardServerFirst(
 ): bigint {
   // Use single-column index by_category, then manually filter by achievementKey
   const existing: any[] = [];
-  for (const row of ctx.db.renownServerFirst.by_category.filter(category)) {
+  for (const row of ctx.db.renown_server_first.by_category.filter(category)) {
     if (row.achievementKey === achievementKey) {
       existing.push(row);
     }
@@ -64,7 +64,7 @@ export function awardServerFirst(
   const position = BigInt(existing.length + 1);
 
   // Insert server-first record
-  ctx.db.renownServerFirst.insert({
+  ctx.db.renown_server_first.insert({
     id: 0n,
     category,
     achievementKey,
@@ -108,7 +108,7 @@ export function calculatePerkBonuses(ctx: any, characterId: bigint) {
   };
 
   // Query all perks for this character
-  for (const perkRow of ctx.db.renownPerk.by_character.filter(characterId)) {
+  for (const perkRow of ctx.db.renown_perk.by_character.filter(characterId)) {
     // Find the perk definition
     let perkDef: any = null;
     for (const rankNum in RENOWN_PERK_POOLS) {
@@ -140,7 +140,7 @@ export function calculatePerkBonuses(ctx: any, characterId: bigint) {
 
 export function getPerkProcs(ctx: any, characterId: bigint, eventType: string) {
   const procs: any[] = [];
-  for (const perkRow of ctx.db.renownPerk.by_character.filter(characterId)) {
+  for (const perkRow of ctx.db.renown_perk.by_character.filter(characterId)) {
     for (const rankNum in RENOWN_PERK_POOLS) {
       const pool = RENOWN_PERK_POOLS[Number(rankNum)];
       const found = pool.find((p) => p.key === perkRow.perkKey);
@@ -155,7 +155,7 @@ export function getPerkProcs(ctx: any, characterId: bigint, eventType: string) {
 
 export function getPerkBonusByField(ctx: any, characterId: bigint, fieldName: string, characterLevel?: bigint): number {
   let total = 0;
-  for (const perkRow of ctx.db.renownPerk.by_character.filter(characterId)) {
+  for (const perkRow of ctx.db.renown_perk.by_character.filter(characterId)) {
     let perkDef: any = null;
     for (const rankNum in RENOWN_PERK_POOLS) {
       const pool = RENOWN_PERK_POOLS[Number(rankNum)];

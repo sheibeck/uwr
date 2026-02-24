@@ -23,7 +23,7 @@ export const registerNpcInteractionReducers = (deps: any) => {
     }
 
     // Find the dialogue option
-    const option = ctx.db.npcDialogueOption.id.find(optionId);
+    const option = ctx.db.npc_dialogue_option.id.find(optionId);
     if (!option || option.npcId !== npcId) {
       return fail(ctx, character, 'Invalid dialogue option.');
     }
@@ -38,7 +38,7 @@ export const registerNpcInteractionReducers = (deps: any) => {
     if (option.requiredFactionId) {
       const minStanding = option.requiredFactionStanding ?? 0n;
       let hasFaction = false;
-      for (const fs of ctx.db.factionStanding.by_character.filter(character.id)) {
+      for (const fs of ctx.db.faction_standing.by_character.filter(character.id)) {
         if (fs.factionId === option.requiredFactionId && fs.standing >= minStanding) {
           hasFaction = true;
           break;
@@ -96,7 +96,7 @@ export const registerNpcInteractionReducers = (deps: any) => {
     }
 
     // Check item ownership
-    const item = ctx.db.itemInstance.id.find(itemInstanceId);
+    const item = ctx.db.item_instance.id.find(itemInstanceId);
     if (!item || item.ownerCharacterId !== character.id) {
       return fail(ctx, character, 'Item not found in your inventory.');
     }
@@ -107,7 +107,7 @@ export const registerNpcInteractionReducers = (deps: any) => {
     }
 
     // Get item template for value calculation
-    const template = ctx.db.itemTemplate.id.find(item.templateId);
+    const template = ctx.db.item_template.id.find(item.templateId);
     if (!template) {
       return fail(ctx, character, 'Unknown item.');
     }
@@ -120,12 +120,12 @@ export const registerNpcInteractionReducers = (deps: any) => {
     // Delete the item (consume it)
     if (item.quantity > 1n) {
       // Stackable: reduce quantity by 1
-      ctx.db.itemInstance.id.update({
+      ctx.db.item_instance.id.update({
         ...item,
         quantity: item.quantity - 1n,
       });
     } else {
-      ctx.db.itemInstance.id.delete(itemInstanceId);
+      ctx.db.item_instance.id.delete(itemInstanceId);
     }
 
     // Award affinity
@@ -134,7 +134,7 @@ export const registerNpcInteractionReducers = (deps: any) => {
     // Update gift counter
     const affinityRow = getAffinityRow(ctx, character.id, npcId);
     if (affinityRow) {
-      ctx.db.npcAffinity.id.update({
+      ctx.db.npc_affinity.id.update({
         ...affinityRow,
         giftsGiven: affinityRow.giftsGiven + 1n,
       });

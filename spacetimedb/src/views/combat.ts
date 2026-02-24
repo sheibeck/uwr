@@ -7,7 +7,7 @@ export const registerCombatViews = ({ spacetimedb, t, CombatResult, CombatLoot }
     (ctx: any) => {
       const player = ctx.db.player.id.find(ctx.sender);
       if (!player || player.userId == null) return [];
-      return [...ctx.db.combatResult.by_owner_user.filter(player.userId)];
+      return [...ctx.db.combat_result.by_owner_user.filter(player.userId)];
     }
   );
 
@@ -17,7 +17,7 @@ export const registerCombatViews = ({ spacetimedb, t, CombatResult, CombatLoot }
     (ctx: any) => {
       const player = ctx.db.player.id.find(ctx.sender);
       if (!player || player.userId == null || !player.activeCharacterId) return [];
-      return [...ctx.db.combatLoot.by_character.filter(player.activeCharacterId)];
+      return [...ctx.db.combat_loot.by_character.filter(player.activeCharacterId)];
     }
   );
 };

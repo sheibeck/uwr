@@ -28,11 +28,11 @@ export const registerSocialReducers = (deps: any) => {
     for (const row of ctx.db.friend.by_user.filter(userId)) {
       if (row.friendUserId === target.id) return;
     }
-    for (const row of ctx.db.friendRequest.by_from.filter(userId)) {
+    for (const row of ctx.db.friend_request.by_from.filter(userId)) {
       if (row.toUserId === target.id) return;
     }
 
-    ctx.db.friendRequest.insert({
+    ctx.db.friend_request.insert({
       id: 0n,
       fromUserId: userId,
       toUserId: target.id,
@@ -65,7 +65,7 @@ export const registerSocialReducers = (deps: any) => {
           return;
         }
       }
-      for (const row of ctx.db.friendRequest.by_from.filter(requester.ownerUserId)) {
+      for (const row of ctx.db.friend_request.by_from.filter(requester.ownerUserId)) {
         if (row.toUserId === target.ownerUserId) {
           appendPrivateEvent(
             ctx,
@@ -78,7 +78,7 @@ export const registerSocialReducers = (deps: any) => {
         }
       }
 
-      ctx.db.friendRequest.insert({
+      ctx.db.friend_request.insert({
         id: 0n,
         fromUserId: requester.ownerUserId,
         toUserId: target.ownerUserId,
@@ -105,7 +105,7 @@ export const registerSocialReducers = (deps: any) => {
   spacetimedb.reducer('accept_friend_request', { fromUserId: t.u64() }, (ctx, { fromUserId }) => {
     const userId = requirePlayerUserId(ctx);
     let requestId: bigint | null = null;
-    for (const row of ctx.db.friendRequest.by_to.filter(userId)) {
+    for (const row of ctx.db.friend_request.by_to.filter(userId)) {
       if (row.fromUserId === fromUserId) {
         requestId = row.id;
         break;
@@ -113,7 +113,7 @@ export const registerSocialReducers = (deps: any) => {
     }
     if (requestId == null) throw new SenderError('Friend request not found');
 
-    ctx.db.friendRequest.id.delete(requestId);
+    ctx.db.friend_request.id.delete(requestId);
 
     ctx.db.friend.insert({
       id: 0n,
@@ -131,9 +131,9 @@ export const registerSocialReducers = (deps: any) => {
 
   spacetimedb.reducer('reject_friend_request', { fromUserId: t.u64() }, (ctx, { fromUserId }) => {
     const userId = requirePlayerUserId(ctx);
-    for (const row of ctx.db.friendRequest.by_to.filter(userId)) {
+    for (const row of ctx.db.friend_request.by_to.filter(userId)) {
       if (row.fromUserId === fromUserId) {
-        ctx.db.friendRequest.id.delete(row.id);
+        ctx.db.friend_request.id.delete(row.id);
         return;
       }
     }

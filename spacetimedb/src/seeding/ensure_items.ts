@@ -49,9 +49,9 @@ function addRecipeTemplate(ctx: any, args: {
   materialType?: string;
 }) {
   if (!args.output || !args.req1 || !args.req2) return;
-  const existing = [...ctx.db.recipeTemplate.iter()].find((row: any) => row.key === args.key);
+  const existing = [...ctx.db.recipe_template.iter()].find((row: any) => row.key === args.key);
   if (existing) {
-    ctx.db.recipeTemplate.id.update({
+    ctx.db.recipe_template.id.update({
       ...existing,
       key: args.key,
       name: args.name,
@@ -68,7 +68,7 @@ function addRecipeTemplate(ctx: any, args: {
     });
     return;
   }
-  ctx.db.recipeTemplate.insert({
+  ctx.db.recipe_template.insert({
     id: 0n,
     key: args.key,
     name: args.name,
@@ -97,14 +97,14 @@ export function ensureStarterItemTemplates(ctx: any) {
     };
     const existing = findItemTemplateByName(ctx, fullRow.name);
     if (existing) {
-      ctx.db.itemTemplate.id.update({
+      ctx.db.item_template.id.update({
         ...existing,
         ...fullRow,
         id: existing.id,
       });
       return existing;
     }
-    return ctx.db.itemTemplate.insert({
+    return ctx.db.item_template.insert({
       id: 0n,
       ...fullRow,
     });
@@ -290,10 +290,10 @@ export function ensureWorldDropGearTemplates(ctx: any) {
     };
     const existing = findItemTemplateByName(ctx, fullRow.name);
     if (existing) {
-      ctx.db.itemTemplate.id.update({ ...existing, ...fullRow, id: existing.id });
+      ctx.db.item_template.id.update({ ...existing, ...fullRow, id: existing.id });
       return existing;
     }
-    return ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
+    return ctx.db.item_template.insert({ id: 0n, ...fullRow });
   };
 
   for (const item of WORLD_DROP_GEAR_DEFS) {
@@ -327,10 +327,10 @@ export function ensureWorldDropJewelryTemplates(ctx: any) {
     };
     const existing = findItemTemplateByName(ctx, fullRow.name);
     if (existing) {
-      ctx.db.itemTemplate.id.update({ ...existing, ...fullRow, id: existing.id });
+      ctx.db.item_template.id.update({ ...existing, ...fullRow, id: existing.id });
       return existing;
     }
-    return ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
+    return ctx.db.item_template.insert({ id: 0n, ...fullRow });
   };
 
   for (const item of WORLD_DROP_JEWELRY_DEFS) {
@@ -364,10 +364,10 @@ export function ensureBossDropTemplates(ctx: any) {
     };
     const existing = findItemTemplateByName(ctx, fullRow.name);
     if (existing) {
-      ctx.db.itemTemplate.id.update({ ...existing, ...fullRow, id: existing.id });
+      ctx.db.item_template.id.update({ ...existing, ...fullRow, id: existing.id });
       return existing;
     }
-    return ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
+    return ctx.db.item_template.insert({ id: 0n, ...fullRow });
   };
 
   for (const item of BOSS_DROP_DEFS) {
@@ -418,10 +418,10 @@ export function ensureResourceItemTemplates(ctx: any) {
     };
     const existing = findItemTemplateByName(ctx, fullRow.name);
     if (existing) {
-      ctx.db.itemTemplate.id.update({ ...existing, ...fullRow, id: existing.id });
+      ctx.db.item_template.id.update({ ...existing, ...fullRow, id: existing.id });
       return existing;
     }
-    return ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
+    return ctx.db.item_template.insert({ id: 0n, ...fullRow });
   };
 
   for (const resource of RESOURCE_DEFS) {
@@ -455,7 +455,7 @@ export function ensureFoodItemTemplates(ctx: any) {
   for (const food of recipeFoodItems) {
     const existing = findItemTemplateByName(ctx, food.name);
     if (existing) {
-      ctx.db.itemTemplate.id.update({
+      ctx.db.item_template.id.update({
         ...existing,
         description: food.description,
         wellFedDurationMicros: food.wellFedDurationMicros,
@@ -464,7 +464,7 @@ export function ensureFoodItemTemplates(ctx: any) {
       });
       continue;
     }
-    ctx.db.itemTemplate.insert({
+    ctx.db.item_template.insert({
       id: 0n,
       name: food.name,
       slot: 'food',
@@ -545,7 +545,7 @@ export function ensureAbilityTemplates(ctx: any) {
   // Keep one canonical row per ability key so client-side lookups do not
   // pick stale duplicates with old cast/cooldown values.
   const seenByKey = new Map<string, any>();
-  for (const row of ctx.db.abilityTemplate.iter()) {
+  for (const row of ctx.db.ability_template.iter()) {
     const existing = seenByKey.get(row.key);
     if (!existing) {
       seenByKey.set(row.key, row);
@@ -553,7 +553,7 @@ export function ensureAbilityTemplates(ctx: any) {
     }
     const keep = existing.id <= row.id ? existing : row;
     const drop = keep === existing ? row : existing;
-    ctx.db.abilityTemplate.id.delete(drop.id);
+    ctx.db.ability_template.id.delete(drop.id);
     seenByKey.set(row.key, keep);
   }
 
@@ -604,7 +604,7 @@ export function ensureAbilityTemplates(ctx: any) {
     };
     const existing = seenByKey.get(key);
     if (existing) {
-      ctx.db.abilityTemplate.id.update({
+      ctx.db.ability_template.id.update({
         ...existing,
         key,
         name: entry.name,
@@ -659,7 +659,7 @@ export function ensureAbilityTemplates(ctx: any) {
       });
       continue;
     }
-    const inserted = ctx.db.abilityTemplate.insert({
+    const inserted = ctx.db.ability_template.insert({
       id: 0n,
       key,
       name: entry.name,
@@ -732,10 +732,10 @@ export function ensureGearMaterialItemTemplates(ctx: any) {
     };
     const existing = findItemTemplateByName(ctx, mat.name);
     if (existing) {
-      ctx.db.itemTemplate.id.update({ ...existing, ...fullRow, id: existing.id });
+      ctx.db.item_template.id.update({ ...existing, ...fullRow, id: existing.id });
       continue;
     }
-    ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
+    ctx.db.item_template.insert({ id: 0n, ...fullRow });
   }
 }
 
@@ -768,10 +768,10 @@ export function ensureCraftingBaseGearTemplates(ctx: any) {
     };
     const existing = findItemTemplateByName(ctx, fullRow.name);
     if (existing) {
-      ctx.db.itemTemplate.id.update({ ...existing, ...fullRow, id: existing.id });
+      ctx.db.item_template.id.update({ ...existing, ...fullRow, id: existing.id });
       return existing;
     }
-    return ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
+    return ctx.db.item_template.insert({ id: 0n, ...fullRow });
   };
 
   for (const item of CRAFTING_BASE_GEAR_DEFS) {
@@ -848,10 +848,10 @@ export function ensureCraftingModifierItemTemplates(ctx: any) {
     };
     const existing = findItemTemplateByName(ctx, mod.name);
     if (existing) {
-      ctx.db.itemTemplate.id.update({ ...existing, ...fullRow, id: existing.id });
+      ctx.db.item_template.id.update({ ...existing, ...fullRow, id: existing.id });
       continue;
     }
-    ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
+    ctx.db.item_template.insert({ id: 0n, ...fullRow });
   }
 }
 
@@ -894,9 +894,9 @@ export function ensureRecipeScrollItemTemplates(ctx: any) {
     };
     const existing = findItemTemplateByName(ctx, scrollName);
     if (existing) {
-      ctx.db.itemTemplate.id.update({ ...existing, ...fullRow, id: existing.id });
+      ctx.db.item_template.id.update({ ...existing, ...fullRow, id: existing.id });
       continue;
     }
-    ctx.db.itemTemplate.insert({ id: 0n, ...fullRow });
+    ctx.db.item_template.insert({ id: 0n, ...fullRow });
   }
 }

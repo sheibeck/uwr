@@ -21,7 +21,7 @@ export const registerCorpseReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
 
     // Find the CorpseItem row
-    const corpseItem = ctx.db.corpseItem.id.find(args.corpseItemId);
+    const corpseItem = ctx.db.corpse_item.id.find(args.corpseItemId);
     if (!corpseItem) {
       fail(ctx, character, 'Item not found in corpse');
       return;
@@ -47,17 +47,17 @@ export const registerCorpseReducers = (deps: any) => {
     }
 
     // Get item details for message
-    const itemInstance = ctx.db.itemInstance.id.find(corpseItem.itemInstanceId);
-    const itemTemplate = itemInstance ? ctx.db.itemTemplate.id.find(itemInstance.templateId) : null;
+    const itemInstance = ctx.db.item_instance.id.find(corpseItem.itemInstanceId);
+    const itemTemplate = itemInstance ? ctx.db.item_template.id.find(itemInstance.templateId) : null;
     const itemName = itemTemplate?.name ?? 'item';
 
     // Restore ownership to the looting character
     if (itemInstance) {
-      ctx.db.itemInstance.id.update({ ...itemInstance, ownerCharacterId: character.id });
+      ctx.db.item_instance.id.update({ ...itemInstance, ownerCharacterId: character.id });
     }
 
     // Delete the CorpseItem row (item now visible in character's inventory)
-    ctx.db.corpseItem.id.delete(corpseItem.id);
+    ctx.db.corpse_item.id.delete(corpseItem.id);
 
     appendPrivateEvent(
       ctx,
@@ -104,12 +104,12 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Count and delete all CorpseItem rows, restoring item ownership
     let itemCount = 0;
-    for (const corpseItem of ctx.db.corpseItem.by_corpse.filter(corpse.id)) {
-      const itemInstance = ctx.db.itemInstance.id.find(corpseItem.itemInstanceId);
+    for (const corpseItem of ctx.db.corpse_item.by_corpse.filter(corpse.id)) {
+      const itemInstance = ctx.db.item_instance.id.find(corpseItem.itemInstanceId);
       if (itemInstance) {
-        ctx.db.itemInstance.id.update({ ...itemInstance, ownerCharacterId: character.id });
+        ctx.db.item_instance.id.update({ ...itemInstance, ownerCharacterId: character.id });
       }
-      ctx.db.corpseItem.id.delete(corpseItem.id);
+      ctx.db.corpse_item.id.delete(corpseItem.id);
       itemCount += 1;
     }
 
@@ -168,7 +168,7 @@ export const registerCorpseReducers = (deps: any) => {
     }
 
     // Verify caster has Resurrect ability
-    const abilityTemplate = [...ctx.db.abilityTemplate.by_key.filter('cleric_resurrect')][0];
+    const abilityTemplate = [...ctx.db.ability_template.by_key.filter('cleric_resurrect')][0];
     if (!abilityTemplate) {
       fail(ctx, caster, 'Resurrect ability not found');
       return;
@@ -188,14 +188,14 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Clean up expired pending spell casts
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
-    for (const pending of ctx.db.pendingSpellCast.iter()) {
+    for (const pending of ctx.db.pending_spell_cast.iter()) {
       if (nowMicros - pending.createdAtMicros > CONFIRMATION_TIMEOUT) {
-        ctx.db.pendingSpellCast.id.delete(pending.id);
+        ctx.db.pending_spell_cast.id.delete(pending.id);
       }
     }
 
     // Check for existing pending resurrect for this target
-    for (const pending of ctx.db.pendingSpellCast.by_target.filter(target.id)) {
+    for (const pending of ctx.db.pending_spell_cast.by_target.filter(target.id)) {
       if (pending.spellType === 'resurrect') {
         fail(ctx, caster, 'Target already has a pending resurrect');
         return;
@@ -205,7 +205,7 @@ export const registerCorpseReducers = (deps: any) => {
     // Note: Mana will be deducted when target accepts (in accept_resurrect)
 
     // Create PendingSpellCast row
-    ctx.db.pendingSpellCast.insert({
+    ctx.db.pending_spell_cast.insert({
       id: 0n,
       spellType: 'resurrect',
       casterCharacterId: caster.id,
@@ -222,7 +222,7 @@ export const registerCorpseReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
 
     // Find PendingSpellCast row
-    const pending = ctx.db.pendingSpellCast.id.find(args.pendingId);
+    const pending = ctx.db.pending_spell_cast.id.find(args.pendingId);
     if (!pending) {
       fail(ctx, character, 'Pending resurrect not found');
       return;
@@ -243,7 +243,7 @@ export const registerCorpseReducers = (deps: any) => {
     // Verify not expired
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     if (nowMicros - pending.createdAtMicros > CONFIRMATION_TIMEOUT) {
-      ctx.db.pendingSpellCast.id.delete(pending.id);
+      ctx.db.pending_spell_cast.id.delete(pending.id);
       fail(ctx, character, 'Resurrect request expired');
       return;
     }
@@ -262,7 +262,7 @@ export const registerCorpseReducers = (deps: any) => {
           `${character.name} accepted, but the corpse no longer exists.`
         );
       }
-      ctx.db.pendingSpellCast.id.delete(pending.id);
+      ctx.db.pending_spell_cast.id.delete(pending.id);
       fail(ctx, character, 'Corpse no longer exists');
       return;
     }
@@ -270,13 +270,13 @@ export const registerCorpseReducers = (deps: any) => {
     // Find the caster (verify still exists and online)
     const caster = ctx.db.character.id.find(pending.casterCharacterId);
     if (!caster) {
-      ctx.db.pendingSpellCast.id.delete(pending.id);
+      ctx.db.pending_spell_cast.id.delete(pending.id);
       fail(ctx, character, 'Caster no longer online');
       return;
     }
 
     // Check if caster is already casting
-    const existingCast = [...ctx.db.characterCast.by_character.filter(caster.id)][0];
+    const existingCast = [...ctx.db.character_cast.by_character.filter(caster.id)][0];
     if (existingCast && existingCast.endsAtMicros > nowMicros) {
       appendPrivateEvent(
         ctx,
@@ -285,18 +285,18 @@ export const registerCorpseReducers = (deps: any) => {
         'error',
         `${character.name} accepted, but you are already casting.`
       );
-      ctx.db.pendingSpellCast.id.delete(pending.id);
+      ctx.db.pending_spell_cast.id.delete(pending.id);
       fail(ctx, character, 'Caster is already casting');
       return;
     }
     if (existingCast) {
-      ctx.db.characterCast.id.delete(existingCast.id);
+      ctx.db.character_cast.id.delete(existingCast.id);
     }
 
     // Deduct mana cost now that target has accepted (flat 50 mana)
     const manaCost = 50n;
     if (caster.mana < manaCost) {
-      ctx.db.pendingSpellCast.id.delete(pending.id);
+      ctx.db.pending_spell_cast.id.delete(pending.id);
       fail(ctx, character, 'Caster no longer has enough mana');
       return;
     }
@@ -307,7 +307,7 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Start the cast (tick_casts will execute the ability and apply cooldown after cast completes)
     const castMicros = abilityCastMicros(ctx, 'cleric_resurrect');
-    ctx.db.characterCast.insert({
+    ctx.db.character_cast.insert({
       id: 0n,
       characterId: caster.id,
       abilityKey: 'cleric_resurrect',
@@ -317,7 +317,7 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Delete the PendingSpellCast so the confirmation dialog closes
     // tick_casts will execute the ability and apply cooldown after cast completes
-    ctx.db.pendingSpellCast.id.delete(pending.id);
+    ctx.db.pending_spell_cast.id.delete(pending.id);
 
     appendPrivateEvent(
       ctx,
@@ -339,7 +339,7 @@ export const registerCorpseReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
 
     // Find PendingSpellCast row
-    const pending = ctx.db.pendingSpellCast.id.find(args.pendingId);
+    const pending = ctx.db.pending_spell_cast.id.find(args.pendingId);
     if (!pending) {
       fail(ctx, character, 'Pending resurrect not found');
       return;
@@ -361,7 +361,7 @@ export const registerCorpseReducers = (deps: any) => {
     const caster = ctx.db.character.id.find(pending.casterCharacterId);
 
     // Delete the pending row
-    ctx.db.pendingSpellCast.id.delete(pending.id);
+    ctx.db.pending_spell_cast.id.delete(pending.id);
 
     // Notify both players
     if (caster) {
@@ -405,7 +405,7 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Verify caster has Corpse Summon ability
     const abilityKey = `${caster.className.toLowerCase()}_corpse_summon`;
-    const abilityTemplate = [...ctx.db.abilityTemplate.by_key.filter(abilityKey)][0];
+    const abilityTemplate = [...ctx.db.ability_template.by_key.filter(abilityKey)][0];
     if (!abilityTemplate) {
       fail(ctx, caster, 'Corpse Summon ability not found');
       return;
@@ -420,14 +420,14 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Clean up expired pending spell casts
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
-    for (const pending of ctx.db.pendingSpellCast.iter()) {
+    for (const pending of ctx.db.pending_spell_cast.iter()) {
       if (nowMicros - pending.createdAtMicros > CONFIRMATION_TIMEOUT) {
-        ctx.db.pendingSpellCast.id.delete(pending.id);
+        ctx.db.pending_spell_cast.id.delete(pending.id);
       }
     }
 
     // Check for existing pending summon for this target
-    for (const pending of ctx.db.pendingSpellCast.by_target.filter(target.id)) {
+    for (const pending of ctx.db.pending_spell_cast.by_target.filter(target.id)) {
       if (pending.spellType === 'corpse_summon') {
         fail(ctx, caster, 'Target already has a pending corpse summon');
         return;
@@ -437,7 +437,7 @@ export const registerCorpseReducers = (deps: any) => {
     // Note: Mana will be deducted when target accepts (in accept_corpse_summon)
 
     // Create PendingSpellCast row
-    ctx.db.pendingSpellCast.insert({
+    ctx.db.pending_spell_cast.insert({
       id: 0n,
       spellType: 'corpse_summon',
       casterCharacterId: caster.id,
@@ -454,7 +454,7 @@ export const registerCorpseReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
 
     // Find PendingSpellCast row
-    const pending = ctx.db.pendingSpellCast.id.find(args.pendingId);
+    const pending = ctx.db.pending_spell_cast.id.find(args.pendingId);
     if (!pending) {
       fail(ctx, character, 'Pending corpse summon not found');
       return;
@@ -475,7 +475,7 @@ export const registerCorpseReducers = (deps: any) => {
     // Verify not expired
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     if (nowMicros - pending.createdAtMicros > CONFIRMATION_TIMEOUT) {
-      ctx.db.pendingSpellCast.id.delete(pending.id);
+      ctx.db.pending_spell_cast.id.delete(pending.id);
       fail(ctx, character, 'Corpse summon request expired');
       return;
     }
@@ -483,13 +483,13 @@ export const registerCorpseReducers = (deps: any) => {
     // Find the caster (verify still exists and online)
     const caster = ctx.db.character.id.find(pending.casterCharacterId);
     if (!caster) {
-      ctx.db.pendingSpellCast.id.delete(pending.id);
+      ctx.db.pending_spell_cast.id.delete(pending.id);
       fail(ctx, character, 'Caster no longer online');
       return;
     }
 
     // Check if caster is already casting
-    const existingCast = [...ctx.db.characterCast.by_character.filter(caster.id)][0];
+    const existingCast = [...ctx.db.character_cast.by_character.filter(caster.id)][0];
     if (existingCast && existingCast.endsAtMicros > nowMicros) {
       appendPrivateEvent(
         ctx,
@@ -498,18 +498,18 @@ export const registerCorpseReducers = (deps: any) => {
         'error',
         `${character.name} accepted, but you are already casting.`
       );
-      ctx.db.pendingSpellCast.id.delete(pending.id);
+      ctx.db.pending_spell_cast.id.delete(pending.id);
       fail(ctx, character, 'Caster is already casting');
       return;
     }
     if (existingCast) {
-      ctx.db.characterCast.id.delete(existingCast.id);
+      ctx.db.character_cast.id.delete(existingCast.id);
     }
 
     // Deduct mana cost now that target has accepted (flat 60 mana)
     const manaCost = 60n;
     if (caster.mana < manaCost) {
-      ctx.db.pendingSpellCast.id.delete(pending.id);
+      ctx.db.pending_spell_cast.id.delete(pending.id);
       fail(ctx, character, 'Caster no longer has enough mana');
       return;
     }
@@ -523,7 +523,7 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Start the cast (tick_casts will execute the ability and apply cooldown after cast completes)
     const castMicros = abilityCastMicros(ctx, abilityKey);
-    ctx.db.characterCast.insert({
+    ctx.db.character_cast.insert({
       id: 0n,
       characterId: caster.id,
       abilityKey,
@@ -533,7 +533,7 @@ export const registerCorpseReducers = (deps: any) => {
 
     // Delete the PendingSpellCast so the confirmation dialog closes
     // tick_casts will execute the ability and apply cooldown after cast completes
-    ctx.db.pendingSpellCast.id.delete(pending.id);
+    ctx.db.pending_spell_cast.id.delete(pending.id);
 
     appendPrivateEvent(
       ctx,
@@ -555,7 +555,7 @@ export const registerCorpseReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
 
     // Find PendingSpellCast row
-    const pending = ctx.db.pendingSpellCast.id.find(args.pendingId);
+    const pending = ctx.db.pending_spell_cast.id.find(args.pendingId);
     if (!pending) {
       fail(ctx, character, 'Pending corpse summon not found');
       return;
@@ -577,7 +577,7 @@ export const registerCorpseReducers = (deps: any) => {
     const caster = ctx.db.character.id.find(pending.casterCharacterId);
 
     // Delete the pending row
-    ctx.db.pendingSpellCast.id.delete(pending.id);
+    ctx.db.pending_spell_cast.id.delete(pending.id);
 
     // Notify both players
     if (caster) {
@@ -593,7 +593,7 @@ export const registerCorpseReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
 
     // Find a random junk item template
-    const junkTemplates = [...ctx.db.itemTemplate.iter()].filter((row: any) => row.isJunk);
+    const junkTemplates = [...ctx.db.item_template.iter()].filter((row: any) => row.isJunk);
 
     if (junkTemplates.length === 0) {
       fail(ctx, character, 'No junk item templates found');
@@ -605,7 +605,7 @@ export const registerCorpseReducers = (deps: any) => {
     const template = junkTemplates[Number(seed % BigInt(junkTemplates.length))];
 
     // Create an ItemInstance owned by the character
-    const item = ctx.db.itemInstance.insert({
+    const item = ctx.db.item_instance.insert({
       id: 0n,
       templateId: template.id,
       ownerCharacterId: character.id,
@@ -635,7 +635,7 @@ export const registerCorpseReducers = (deps: any) => {
     }
 
     // Insert CorpseItem linking the item to the corpse
-    ctx.db.corpseItem.insert({
+    ctx.db.corpse_item.insert({
       id: 0n,
       corpseId: corpse.id,
       itemInstanceId: item.id,

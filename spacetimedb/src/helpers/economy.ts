@@ -23,17 +23,17 @@ export function mutateStanding(ctx: any, characterId: bigint, factionId: bigint,
     }
   }
 
-  const rows = [...ctx.db.factionStanding.by_character.filter(characterId)];
+  const rows = [...ctx.db.faction_standing.by_character.filter(characterId)];
   const existing = rows.find((row: any) => row.factionId === factionId);
   if (existing) {
-    ctx.db.factionStanding.id.update({ ...existing, standing: existing.standing + effectiveDelta });
+    ctx.db.faction_standing.id.update({ ...existing, standing: existing.standing + effectiveDelta });
   } else {
-    ctx.db.factionStanding.insert({ id: 0n, characterId, factionId, standing: effectiveDelta });
+    ctx.db.faction_standing.insert({ id: 0n, characterId, factionId, standing: effectiveDelta });
   }
 }
 
 export function grantFactionStandingForKill(ctx: any, character: any, enemyTemplateId: bigint) {
-  const template = ctx.db.enemyTemplate.id.find(enemyTemplateId);
+  const template = ctx.db.enemy_template.id.find(enemyTemplateId);
   if (!template?.factionId) return;
   const faction = ctx.db.faction.id.find(template.factionId);
   if (!faction) return;
