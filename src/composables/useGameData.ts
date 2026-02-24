@@ -1,6 +1,6 @@
 import { useSpacetimeDB, useTable as _useTable } from 'spacetimedb/vue';
 import { tables } from '../module_bindings';
-import { ref, type Ref } from 'vue';
+import { ref, shallowRef, watch, type Ref } from 'vue';
 
 // v2 useTable returns Readonly<Ref<readonly Row[]>>. Components expect Ref<Row[]>.
 // This wrapper strips the readonly since consumer code never mutates subscription data.
@@ -50,10 +50,46 @@ export const useGameData = () => {
   const [characterLogoutTicks] = useTable(tables.character_logout_tick);
   const [characterCasts] = useTable(tables.character_cast);
   const [abilityCooldowns] = useTable(tables.ability_cooldown);
-  const [worldEvents] = useTable(tables.event_world);
-  const [locationEvents] = useTable(tables.event_location);
-  const [privateEvents] = useTable(tables.event_private);
-  const [groupEvents] = useTable(tables.event_group);
+  // Event tables use event:true — rows are never stored in the client cache, so useTable
+  // (which calls iter()) always returns empty. Use onInsert callbacks to capture transient inserts.
+  const MAX_CLIENT_EVENTS = 200;
+  const worldEvents = shallowRef<any[]>([]);
+  const locationEvents = shallowRef<any[]>([]);
+  const privateEvents = shallowRef<any[]>([]);
+  const groupEvents = shallowRef<any[]>([]);
+
+  // Register onInsert callbacks when the connection becomes active.
+  // conn from useSpacetimeDB() is a reactive ConnectionState with getConnection().
+  watch(
+    () => conn.isActive,
+    (isActive) => {
+      if (!isActive) return;
+      const dbConn = conn.getConnection();
+      if (!dbConn) return;
+
+      // Subscribe explicitly to event tables (excluded from subscribeToAllTables)
+      dbConn.subscriptionBuilder().subscribe([
+        'SELECT * FROM event_world',
+        'SELECT * FROM event_location',
+        'SELECT * FROM event_private',
+        'SELECT * FROM event_group',
+      ]);
+
+      dbConn.db.event_world.onInsert((_ctx: any, row: any) => {
+        worldEvents.value = [...worldEvents.value.slice(-(MAX_CLIENT_EVENTS - 1)), row];
+      });
+      dbConn.db.event_location.onInsert((_ctx: any, row: any) => {
+        locationEvents.value = [...locationEvents.value.slice(-(MAX_CLIENT_EVENTS - 1)), row];
+      });
+      dbConn.db.event_private.onInsert((_ctx: any, row: any) => {
+        privateEvents.value = [...privateEvents.value.slice(-(MAX_CLIENT_EVENTS - 1)), row];
+      });
+      dbConn.db.event_group.onInsert((_ctx: any, row: any) => {
+        groupEvents.value = [...groupEvents.value.slice(-(MAX_CLIENT_EVENTS - 1)), row];
+      });
+    },
+    { immediate: true }
+  );
   const [groupMembers] = useTable(tables.group_member);
   const [npcDialogs] = useTable(tables.npc_dialog);
   const [questTemplates] = useTable(tables.quest_template);
