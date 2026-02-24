@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import type { CharacterRow } from '../module_bindings';
+import type { CharacterRow } from '../stdb-types';
 
 defineProps<{
   styles: Record<string, Record<string, string | number>>;

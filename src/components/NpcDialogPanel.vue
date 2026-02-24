@@ -146,7 +146,7 @@ import type {
   NpcAffinityRow,
   QuestInstanceRow,
   QuestTemplateRow,
-} from '../module_bindings';
+} from '../stdb-types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;

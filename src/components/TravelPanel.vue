@@ -75,7 +75,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue';
-import type { CharacterRow, LocationRow, RegionRow, TravelCooldownRow, LocationConnectionRow } from '../module_bindings';
+import type { CharacterRow, LocationRow, RegionRow, TravelCooldownRow, LocationConnectionRow } from '../stdb-types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;

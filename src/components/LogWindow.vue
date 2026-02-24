@@ -51,7 +51,7 @@
 
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue';
-import type { CharacterRow } from '../module_bindings';
+import type { CharacterRow } from '../stdb-types';
 
 type EventItem = {
   id: bigint;

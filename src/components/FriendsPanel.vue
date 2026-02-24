@@ -70,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import type { FriendRequestRow, FriendRow } from '../module_bindings';
+import type { FriendRequestRow, FriendRow } from '../stdb-types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;

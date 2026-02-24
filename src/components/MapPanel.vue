@@ -87,7 +87,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { RegionRow, LocationRow, LocationConnectionRow, CharacterRow } from '../module_bindings';
+import type { RegionRow, LocationRow, LocationConnectionRow, CharacterRow } from '../stdb-types';
 
 const props = defineProps<{
   regions: RegionRow[];

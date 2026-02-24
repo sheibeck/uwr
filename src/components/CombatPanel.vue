@@ -112,7 +112,7 @@
 import type {
   CharacterRow,
   CombatEncounterRow,
-} from '../module_bindings';
+} from '../stdb-types';
 import { formatEffectDuration } from '../ui/effectTimers';
 
 const props = defineProps<{

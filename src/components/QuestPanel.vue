@@ -24,7 +24,7 @@ import type {
   NpcRow,
   LocationRow,
   RegionRow,
-} from '../module_bindings';
+} from '../stdb-types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;

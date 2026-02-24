@@ -250,7 +250,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onBeforeUnmount } from 'vue';
-import type { CharacterRow, NpcRow } from '../module_bindings';
+import type { CharacterRow, NpcRow } from '../stdb-types';
 import ContextMenu from './ContextMenu.vue';
 
 type EnemySummary = {

@@ -175,7 +175,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import type { CharacterRow, RegionRow } from '../module_bindings';
+import type { CharacterRow, RegionRow } from '../stdb-types';
 import { CLIENT_EVENT_DEFS } from '../data/worldEventDefs';
 
 const props = defineProps<{

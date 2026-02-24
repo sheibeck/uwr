@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { CharacterRow, LocationRow } from '../module_bindings';
+import type { CharacterRow, LocationRow } from '../stdb-types';
 
 const clientVersion = computed(() => (window as any).__client_version ?? 'dev');
 

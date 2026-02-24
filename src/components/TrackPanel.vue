@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import type { EnemyTemplateRow } from '../module_bindings';
+import type { EnemyTemplateRow } from '../stdb-types';
 
 defineProps<{
   styles: Record<string, any>;

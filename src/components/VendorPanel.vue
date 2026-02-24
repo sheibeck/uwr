@@ -83,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import type { CharacterRow, NpcRow } from '../module_bindings';
+import type { CharacterRow, NpcRow } from '../stdb-types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;

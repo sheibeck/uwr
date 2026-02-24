@@ -88,7 +88,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import type { CharacterRow } from '../module_bindings';
+import type { CharacterRow } from '../stdb-types';
 import ContextMenu from './ContextMenu.vue';
 
 const GEAR_SLOTS = new Set([

@@ -230,7 +230,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import type { FactionRow, FactionStandingRow, CharacterRow, RenownRow, RenownPerkRow, RenownServerFirstRow } from '../module_bindings';
+import type { FactionRow, FactionStandingRow, CharacterRow, RenownRow, RenownPerkRow, RenownServerFirstRow } from '../stdb-types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;

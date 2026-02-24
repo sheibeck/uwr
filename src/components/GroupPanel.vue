@@ -167,7 +167,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import type { CharacterRow, GroupRow } from '../module_bindings';
+import type { CharacterRow, GroupRow } from '../stdb-types';
 import { effectLabel, effectRemainingSeconds, formatEffectDuration } from '../ui/effectTimers';
 import ContextMenu from './ContextMenu.vue';
 

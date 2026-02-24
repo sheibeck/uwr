@@ -60,7 +60,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { CharacterRow } from '../module_bindings';
+import type { CharacterRow } from '../stdb-types';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;

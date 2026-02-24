@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import type { TradeSessionRow } from '../module_bindings';
+import type { TradeSessionRow } from '../stdb-types';
 
 defineProps<{
   styles: Record<string, Record<string, string | number>>;
