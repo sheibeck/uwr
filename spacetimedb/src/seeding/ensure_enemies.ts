@@ -548,9 +548,9 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fVerdantCircle,
     isSocial: false,
   });
-  addRoleTemplate(bogRat, 'bog_rat', 'Bog Rat', 'tank', 'melee', 'thick hide, taunt');
-  addRoleTemplate(bogRat, 'bog_rat_brute', 'Bog Rat Brute', 'tank', 'melee', 'thick hide, taunt');
-  addRoleTemplate(bogRat, 'bog_rat_scavenger', 'Bog Rat Scavenger', 'dps', 'melee', 'gnaw, dart');
+  addRoleTemplate(bogRat, 'bog_rat', 'Bog Rat', 'tank', 'melee', '');
+  addRoleTemplate(bogRat, 'bog_rat_brute', 'Bog Rat Brute', 'tank', 'melee', '');
+  addRoleTemplate(bogRat, 'bog_rat_scavenger', 'Bog Rat Scavenger', 'dps', 'melee', '');
 
   const emberWisp = addEnemyTemplate({
     name: 'Ember Wisp',
@@ -701,9 +701,9 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fVerdantCircle,
     isSocial: true,
   });
-  addRoleTemplate(thicketWolf, 'thicket_wolf', 'Thicket Wolf', 'dps', 'melee', 'pack bite, lunge');
-  addRoleTemplate(thicketWolf, 'thicket_wolf_alpha', 'Thicket Wolf Alpha', 'tank', 'melee', 'alpha bite, howl');
-  addRoleTemplate(thicketWolf, 'thicket_wolf_prowler', 'Thicket Wolf Prowler', 'dps', 'melee', 'lunge, rake');
+  addRoleTemplate(thicketWolf, 'thicket_wolf', 'Thicket Wolf', 'dps', 'melee', '');
+  addRoleTemplate(thicketWolf, 'thicket_wolf_alpha', 'Thicket Wolf Alpha', 'tank', 'melee', '');
+  addRoleTemplate(thicketWolf, 'thicket_wolf_prowler', 'Thicket Wolf Prowler', 'dps', 'melee', '');
 
   const marshCroaker = addEnemyTemplate({
     id: 0n,
@@ -727,8 +727,8 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fVerdantCircle,
     isSocial: false,
   });
-  addRoleTemplate(marshCroaker, 'marsh_croaker', 'Marsh Croaker', 'dps', 'melee', 'tongue lash, croak');
-  addRoleTemplate(marshCroaker, 'marsh_croaker_bully', 'Marsh Croaker Bully', 'tank', 'melee', 'slam, croak');
+  addRoleTemplate(marshCroaker, 'marsh_croaker', 'Marsh Croaker', 'dps', 'melee', '');
+  addRoleTemplate(marshCroaker, 'marsh_croaker_bully', 'Marsh Croaker Bully', 'tank', 'melee', '');
 
   const dustHare = addEnemyTemplate({
     id: 0n,
@@ -1106,8 +1106,8 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fVerdantCircle,
     isSocial: false,
   });
-  addRoleTemplate(ashenRam, 'ashen_ram', 'Ashen Ram', 'tank', 'melee', 'ram charge, shove');
-  addRoleTemplate(ashenRam, 'ashen_ram_runner', 'Ashen Ram Runner', 'dps', 'melee', 'charging gore');
+  addRoleTemplate(ashenRam, 'ashen_ram', 'Ashen Ram', 'tank', 'melee', '');
+  addRoleTemplate(ashenRam, 'ashen_ram_runner', 'Ashen Ram Runner', 'dps', 'melee', '');
 
   const sootboundSentry = addEnemyTemplate({
     id: 0n,
@@ -1384,8 +1384,8 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fVerdantCircle,
     isSocial: true,
   });
-  addRoleTemplate(nightRat, 'night_rat', 'Night Rat', 'dps', 'melee', 'gnaw, dart');
-  addRoleTemplate(nightRat, 'night_rat_scrapper', 'Night Rat Scrapper', 'tank', 'melee', 'gnaw, brace');
+  addRoleTemplate(nightRat, 'night_rat', 'Night Rat', 'dps', 'melee', '');
+  addRoleTemplate(nightRat, 'night_rat_scrapper', 'Night Rat Scrapper', 'tank', 'melee', '');
 
   // 3. Cinder Wraith — Level 3, plains+mountains, night, undead
   // Fills: Cinderwatch (plains L3), Scoria Flats (plains L3), Ironvein Pass (mountains L5 via +/-1)
@@ -1578,8 +1578,8 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fVerdantCircle,
     isSocial: false,
   });
-  addRoleTemplate(moorlandHarrier, 'moorland_harrier', 'Moorland Harrier', 'dps', 'ranged', 'diving strike, screech');
-  addRoleTemplate(moorlandHarrier, 'moorland_harrier_swooper', 'Moorland Harrier Swooper', 'dps', 'melee', 'swoop, rake');
+  addRoleTemplate(moorlandHarrier, 'moorland_harrier', 'Moorland Harrier', 'dps', 'ranged', '');
+  addRoleTemplate(moorlandHarrier, 'moorland_harrier_swooper', 'Moorland Harrier Swooper', 'dps', 'melee', '');
 
   // 2. Barrow Wight — Level 4, undead, plains, night
   const barrowWight = addEnemyTemplate({
@@ -1603,9 +1603,9 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fAshenOrder,
     isSocial: true,
   });
-  addRoleTemplate(barrowWight, 'barrow_wight', 'Barrow Wight', 'tank', 'melee', 'death grip, wail');
-  addRoleTemplate(barrowWight, 'barrow_wight_shade', 'Barrow Wight Shade', 'dps', 'magic', 'shadow bolt, drain');
-  addRoleTemplate(barrowWight, 'barrow_wight_guardian', 'Barrow Wight Guardian', 'tank', 'melee', 'shield wall, slam');
+  addRoleTemplate(barrowWight, 'barrow_wight', 'Barrow Wight', 'tank', 'melee', '');
+  addRoleTemplate(barrowWight, 'barrow_wight_shade', 'Barrow Wight Shade', 'dps', 'magic', '');
+  addRoleTemplate(barrowWight, 'barrow_wight_guardian', 'Barrow Wight Guardian', 'tank', 'melee', '');
 
   // 3. Moor Hag — Level 5, humanoid, swamp+woods, night
   const moorHag = addEnemyTemplate({
@@ -1629,8 +1629,8 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fAshenOrder,
     isSocial: true,
   });
-  addRoleTemplate(moorHag, 'moor_hag', 'Moor Hag', 'support', 'magic', 'curse, hex ward');
-  addRoleTemplate(moorHag, 'moor_hag_cackler', 'Moor Hag Cackler', 'dps', 'magic', 'cackle, blight bolt');
+  addRoleTemplate(moorHag, 'moor_hag', 'Moor Hag', 'support', 'magic', '');
+  addRoleTemplate(moorHag, 'moor_hag_cackler', 'Moor Hag Cackler', 'dps', 'magic', '');
 
   // === Silverpine Forest enemies (levels 4-6) ===
 
@@ -1656,9 +1656,9 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fVerdantCircle,
     isSocial: false,
   });
-  addRoleTemplate(webspinner, 'webspinner', 'Webspinner', 'dps', 'melee', 'venomous bite, web');
-  addRoleTemplate(webspinner, 'webspinner_lurker', 'Webspinner Lurker', 'support', 'melee', 'web trap, ambush');
-  addRoleTemplate(webspinner, 'webspinner_matriarch', 'Webspinner Matriarch', 'tank', 'melee', 'shield cocoon, bite');
+  addRoleTemplate(webspinner, 'webspinner', 'Webspinner', 'dps', 'melee', '');
+  addRoleTemplate(webspinner, 'webspinner_lurker', 'Webspinner Lurker', 'support', 'melee', '');
+  addRoleTemplate(webspinner, 'webspinner_matriarch', 'Webspinner Matriarch', 'tank', 'melee', '');
 
   // 5. Silverpine Sentinel — Level 5, spirit, woods, day
   const silverSentinel = addEnemyTemplate({
@@ -1682,8 +1682,8 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fVerdantCircle,
     isSocial: false,
   });
-  addRoleTemplate(silverSentinel, 'silverpine_sentinel', 'Silverpine Sentinel', 'tank', 'melee', 'root slam, bark shield');
-  addRoleTemplate(silverSentinel, 'silverpine_sentinel_warden', 'Silverpine Sentinel Warden', 'support', 'magic', 'entangle, thorns');
+  addRoleTemplate(silverSentinel, 'silverpine_sentinel', 'Silverpine Sentinel', 'tank', 'melee', '');
+  addRoleTemplate(silverSentinel, 'silverpine_sentinel_warden', 'Silverpine Sentinel Warden', 'support', 'magic', '');
 
   // 6. Moss Troll — Level 6, beast, woods+swamp, any
   const mossTroll = addEnemyTemplate({
@@ -1707,8 +1707,8 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fVerdantCircle,
     isSocial: false,
   });
-  addRoleTemplate(mossTroll, 'moss_troll', 'Moss Troll', 'tank', 'melee', 'crush, regenerate');
-  addRoleTemplate(mossTroll, 'moss_troll_hurler', 'Moss Troll Hurler', 'dps', 'ranged', 'boulder throw, smash');
+  addRoleTemplate(mossTroll, 'moss_troll', 'Moss Troll', 'tank', 'melee', '');
+  addRoleTemplate(mossTroll, 'moss_troll_hurler', 'Moss Troll Hurler', 'dps', 'ranged', '');
 
   // 7. Feral Druid — Level 5, humanoid, woods+plains, day
   const feralDruid = addEnemyTemplate({
@@ -1732,9 +1732,9 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fVerdantCircle,
     isSocial: true,
   });
-  addRoleTemplate(feralDruid, 'feral_druid', 'Feral Druid', 'healer', 'support', 'wild mend, entangle');
-  addRoleTemplate(feralDruid, 'feral_druid_shapeshifter', 'Feral Druid Shapeshifter', 'dps', 'melee', 'claw swipe, frenzy');
-  addRoleTemplate(feralDruid, 'feral_druid_caller', 'Feral Druid Caller', 'support', 'magic', 'beast call, thorns');
+  addRoleTemplate(feralDruid, 'feral_druid', 'Feral Druid', 'healer', 'support', '');
+  addRoleTemplate(feralDruid, 'feral_druid_shapeshifter', 'Feral Druid Shapeshifter', 'dps', 'melee', '');
+  addRoleTemplate(feralDruid, 'feral_druid_caller', 'Feral Druid Caller', 'support', 'magic', '');
 
   // === Ironhold Garrison enemies (levels 6-8) ===
 
@@ -1760,8 +1760,8 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fIronCompact,
     isSocial: true,
   });
-  addRoleTemplate(ironGolem, 'iron_golem', 'Iron Golem', 'tank', 'melee', 'iron fist, bulwark');
-  addRoleTemplate(ironGolem, 'iron_golem_siege', 'Iron Golem Siege', 'dps', 'melee', 'siege slam, cleave');
+  addRoleTemplate(ironGolem, 'iron_golem', 'Iron Golem', 'tank', 'melee', '');
+  addRoleTemplate(ironGolem, 'iron_golem_siege', 'Iron Golem Siege', 'dps', 'melee', '');
 
   // 9. Renegade Knight — Level 7, humanoid, plains+mountains, day
   const renegadeKnight = addEnemyTemplate({
@@ -1785,9 +1785,9 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fFreeBlades,
     isSocial: true,
   });
-  addRoleTemplate(renegadeKnight, 'renegade_knight', 'Renegade Knight', 'tank', 'melee', 'shield charge, riposte');
-  addRoleTemplate(renegadeKnight, 'renegade_knight_berserker', 'Renegade Knight Berserker', 'dps', 'melee', 'wild swing, frenzy');
-  addRoleTemplate(renegadeKnight, 'renegade_knight_captain', 'Renegade Knight Captain', 'support', 'melee', 'rally, command');
+  addRoleTemplate(renegadeKnight, 'renegade_knight', 'Renegade Knight', 'tank', 'melee', '');
+  addRoleTemplate(renegadeKnight, 'renegade_knight_berserker', 'Renegade Knight Berserker', 'dps', 'melee', '');
+  addRoleTemplate(renegadeKnight, 'renegade_knight_captain', 'Renegade Knight Captain', 'support', 'melee', '');
 
   // 10. Plague Cultist — Level 6, humanoid, town+plains, night
   const plagueCultist = addEnemyTemplate({
@@ -1811,9 +1811,9 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fAshenOrder,
     isSocial: true,
   });
-  addRoleTemplate(plagueCultist, 'plague_cultist', 'Plague Cultist', 'dps', 'magic', 'plague bolt, miasma');
-  addRoleTemplate(plagueCultist, 'plague_cultist_preacher', 'Plague Cultist Preacher', 'support', 'magic', 'dark prayer, ward');
-  addRoleTemplate(plagueCultist, 'plague_cultist_fanatic', 'Plague Cultist Fanatic', 'dps', 'melee', 'infected blade, frenzy');
+  addRoleTemplate(plagueCultist, 'plague_cultist', 'Plague Cultist', 'dps', 'magic', '');
+  addRoleTemplate(plagueCultist, 'plague_cultist_preacher', 'Plague Cultist Preacher', 'support', 'magic', '');
+  addRoleTemplate(plagueCultist, 'plague_cultist_fanatic', 'Plague Cultist Fanatic', 'dps', 'melee', '');
 
   // 11. Warforged Hulk — Level 8, construct, mountains+dungeon, any
   const warforgedHulk = addEnemyTemplate({
@@ -1837,8 +1837,8 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fIronCompact,
     isSocial: true,
   });
-  addRoleTemplate(warforgedHulk, 'warforged_hulk', 'Warforged Hulk', 'tank', 'melee', 'iron crush, brace');
-  addRoleTemplate(warforgedHulk, 'warforged_hulk_devastator', 'Warforged Hulk Devastator', 'dps', 'melee', 'devastate, cleave');
+  addRoleTemplate(warforgedHulk, 'warforged_hulk', 'Warforged Hulk', 'tank', 'melee', '');
+  addRoleTemplate(warforgedHulk, 'warforged_hulk_devastator', 'Warforged Hulk Devastator', 'dps', 'melee', '');
 
   // === Dreadspire Ruins enemies (levels 8-12) ===
 
@@ -1864,9 +1864,9 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fAshenOrder,
     isSocial: true,
   });
-  addRoleTemplate(dreadspireWraith, 'dreadspire_wraith', 'Dreadspire Wraith', 'dps', 'magic', 'soul rend, phase shift');
-  addRoleTemplate(dreadspireWraith, 'dreadspire_wraith_anchor', 'Dreadspire Wraith Anchor', 'tank', 'melee', 'spectral chain, drain');
-  addRoleTemplate(dreadspireWraith, 'dreadspire_wraith_howler', 'Dreadspire Wraith Howler', 'support', 'magic', 'terrifying howl, chill');
+  addRoleTemplate(dreadspireWraith, 'dreadspire_wraith', 'Dreadspire Wraith', 'dps', 'magic', '');
+  addRoleTemplate(dreadspireWraith, 'dreadspire_wraith_anchor', 'Dreadspire Wraith Anchor', 'tank', 'melee', '');
+  addRoleTemplate(dreadspireWraith, 'dreadspire_wraith_howler', 'Dreadspire Wraith Howler', 'support', 'magic', '');
 
   // 13. Runebound Golem — Level 10, construct, dungeon, any
   const runeboundGolem = addEnemyTemplate({
@@ -1890,8 +1890,8 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fIronCompact,
     isSocial: true,
   });
-  addRoleTemplate(runeboundGolem, 'runebound_golem', 'Runebound Golem', 'tank', 'melee', 'rune slam, arcane shield');
-  addRoleTemplate(runeboundGolem, 'runebound_golem_shatterer', 'Runebound Golem Shatterer', 'dps', 'melee', 'shatter, rune pulse');
+  addRoleTemplate(runeboundGolem, 'runebound_golem', 'Runebound Golem', 'tank', 'melee', '');
+  addRoleTemplate(runeboundGolem, 'runebound_golem_shatterer', 'Runebound Golem Shatterer', 'dps', 'melee', '');
 
   // 14. Shadow Necromancer — Level 10, humanoid, dungeon, any
   const shadowNecromancer = addEnemyTemplate({
@@ -1915,9 +1915,9 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fAshenOrder,
     isSocial: true,
   });
-  addRoleTemplate(shadowNecromancer, 'shadow_necromancer', 'Shadow Necromancer', 'dps', 'magic', 'death bolt, shadow blast');
-  addRoleTemplate(shadowNecromancer, 'shadow_necromancer_summoner', 'Shadow Necromancer Summoner', 'support', 'magic', 'raise dead, dark ward');
-  addRoleTemplate(shadowNecromancer, 'shadow_necromancer_lich', 'Shadow Necromancer Lich', 'healer', 'support', 'soul siphon, dark mend');
+  addRoleTemplate(shadowNecromancer, 'shadow_necromancer', 'Shadow Necromancer', 'dps', 'magic', '');
+  addRoleTemplate(shadowNecromancer, 'shadow_necromancer_summoner', 'Shadow Necromancer Summoner', 'support', 'magic', '');
+  addRoleTemplate(shadowNecromancer, 'shadow_necromancer_lich', 'Shadow Necromancer Lich', 'healer', 'support', '');
 
   // 15. Abyssal Fiend — Level 11, spirit, dungeon, any
   const abyssalFiend = addEnemyTemplate({
@@ -1941,9 +1941,9 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fAshenOrder,
     isSocial: false,
   });
-  addRoleTemplate(abyssalFiend, 'abyssal_fiend', 'Abyssal Fiend', 'dps', 'magic', 'hellfire, corruption');
-  addRoleTemplate(abyssalFiend, 'abyssal_fiend_tormentor', 'Abyssal Fiend Tormentor', 'dps', 'melee', 'rend, agony');
-  addRoleTemplate(abyssalFiend, 'abyssal_fiend_guardian', 'Abyssal Fiend Guardian', 'tank', 'melee', 'abyssal ward, crush');
+  addRoleTemplate(abyssalFiend, 'abyssal_fiend', 'Abyssal Fiend', 'dps', 'magic', '');
+  addRoleTemplate(abyssalFiend, 'abyssal_fiend_tormentor', 'Abyssal Fiend Tormentor', 'dps', 'melee', '');
+  addRoleTemplate(abyssalFiend, 'abyssal_fiend_guardian', 'Abyssal Fiend Guardian', 'tank', 'melee', '');
 
   // 16. Dread Knight — Level 12, undead, dungeon, any
   const dreadKnight = addEnemyTemplate({
@@ -1967,9 +1967,9 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
     factionId: fAshenOrder,
     isSocial: true,
   });
-  addRoleTemplate(dreadKnight, 'dread_knight', 'Dread Knight', 'tank', 'melee', 'unholy shield, death strike');
-  addRoleTemplate(dreadKnight, 'dread_knight_executioner', 'Dread Knight Executioner', 'dps', 'melee', 'execute, cleave');
-  addRoleTemplate(dreadKnight, 'dread_knight_commander', 'Dread Knight Commander', 'support', 'melee', 'dark rally, command');
+  addRoleTemplate(dreadKnight, 'dread_knight', 'Dread Knight', 'tank', 'melee', '');
+  addRoleTemplate(dreadKnight, 'dread_knight_executioner', 'Dread Knight Executioner', 'dps', 'melee', '');
+  addRoleTemplate(dreadKnight, 'dread_knight_commander', 'Dread Knight Commander', 'support', 'melee', '');
 }
 
 // ---------------------------------------------------------------------------
