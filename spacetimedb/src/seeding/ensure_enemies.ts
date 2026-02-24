@@ -1540,4 +1540,426 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
   });
   addRoleTemplate(gloomwingBat, 'gloomwing_bat', 'Gloomwing Bat', 'dps', 'melee', 'screech, swoop');
   addRoleTemplate(gloomwingBat, 'gloomwing_bat_elder', 'Gloomwing Bat Elder', 'support', 'melee', 'sonic pulse, swoop');
+
+  // ---------------------------------------------------------------------------
+  // NEW REGION ENEMIES — Greyveil Moors, Silverpine Forest, Ironhold Garrison,
+  // Dreadspire Ruins (levels 3-12)
+  // ---------------------------------------------------------------------------
+
+  // === Greyveil Moors enemies (levels 3-5) ===
+
+  // 1. Moorland Harrier — Level 3, beast, plains+swamp, day
+  const moorlandHarrier = addEnemyTemplate({
+    name: 'Moorland Harrier',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'plains,swamp',
+    creatureType: 'beast',
+    timeOfDay: 'day',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 8n,
+    level: 3n,
+    maxHp: 28n,
+    baseDamage: 7n,
+    xpReward: 22n,
+    factionId: fVerdantCircle,
+    isSocial: false,
+  });
+  addRoleTemplate(moorlandHarrier, 'moorland_harrier', 'Moorland Harrier', 'dps', 'ranged', 'diving strike, screech');
+  addRoleTemplate(moorlandHarrier, 'moorland_harrier_swooper', 'Moorland Harrier Swooper', 'dps', 'melee', 'swoop, rake');
+
+  // 2. Barrow Wight — Level 4, undead, plains, night
+  const barrowWight = addEnemyTemplate({
+    name: 'Barrow Wight',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'plains',
+    creatureType: 'undead',
+    timeOfDay: 'night',
+    socialGroup: 'undead',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 11n,
+    level: 4n,
+    maxHp: 34n,
+    baseDamage: 8n,
+    xpReward: 30n,
+    factionId: fAshenOrder,
+    isSocial: true,
+  });
+  addRoleTemplate(barrowWight, 'barrow_wight', 'Barrow Wight', 'tank', 'melee', 'death grip, wail');
+  addRoleTemplate(barrowWight, 'barrow_wight_shade', 'Barrow Wight Shade', 'dps', 'magic', 'shadow bolt, drain');
+  addRoleTemplate(barrowWight, 'barrow_wight_guardian', 'Barrow Wight Guardian', 'tank', 'melee', 'shield wall, slam');
+
+  // 3. Moor Hag — Level 5, humanoid, swamp+woods, night
+  const moorHag = addEnemyTemplate({
+    name: 'Moor Hag',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'swamp,woods',
+    creatureType: 'humanoid',
+    timeOfDay: 'night',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 9n,
+    level: 5n,
+    maxHp: 32n,
+    baseDamage: 7n,
+    xpReward: 36n,
+    factionId: fAshenOrder,
+    isSocial: true,
+  });
+  addRoleTemplate(moorHag, 'moor_hag', 'Moor Hag', 'support', 'magic', 'curse, hex ward');
+  addRoleTemplate(moorHag, 'moor_hag_cackler', 'Moor Hag Cackler', 'dps', 'magic', 'cackle, blight bolt');
+
+  // === Silverpine Forest enemies (levels 4-6) ===
+
+  // 4. Webspinner — Level 4, beast, woods, any
+  const webspinner = addEnemyTemplate({
+    name: 'Webspinner',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods',
+    creatureType: 'beast',
+    timeOfDay: 'any',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 10n,
+    level: 4n,
+    maxHp: 30n,
+    baseDamage: 7n,
+    xpReward: 28n,
+    factionId: fVerdantCircle,
+    isSocial: false,
+  });
+  addRoleTemplate(webspinner, 'webspinner', 'Webspinner', 'dps', 'melee', 'venomous bite, web');
+  addRoleTemplate(webspinner, 'webspinner_lurker', 'Webspinner Lurker', 'support', 'melee', 'web trap, ambush');
+  addRoleTemplate(webspinner, 'webspinner_matriarch', 'Webspinner Matriarch', 'tank', 'melee', 'shield cocoon, bite');
+
+  // 5. Silverpine Sentinel — Level 5, spirit, woods, day
+  const silverSentinel = addEnemyTemplate({
+    name: 'Silverpine Sentinel',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods',
+    creatureType: 'spirit',
+    timeOfDay: 'day',
+    socialGroup: 'spirit',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 14n,
+    level: 5n,
+    maxHp: 44n,
+    baseDamage: 6n,
+    xpReward: 38n,
+    factionId: fVerdantCircle,
+    isSocial: false,
+  });
+  addRoleTemplate(silverSentinel, 'silverpine_sentinel', 'Silverpine Sentinel', 'tank', 'melee', 'root slam, bark shield');
+  addRoleTemplate(silverSentinel, 'silverpine_sentinel_warden', 'Silverpine Sentinel Warden', 'support', 'magic', 'entangle, thorns');
+
+  // 6. Moss Troll — Level 6, beast, woods+swamp, any
+  const mossTroll = addEnemyTemplate({
+    name: 'Moss Troll',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods,swamp',
+    creatureType: 'beast',
+    timeOfDay: 'any',
+    socialGroup: 'beast',
+    socialRadius: 2n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 12n,
+    level: 6n,
+    maxHp: 52n,
+    baseDamage: 9n,
+    xpReward: 44n,
+    factionId: fVerdantCircle,
+    isSocial: false,
+  });
+  addRoleTemplate(mossTroll, 'moss_troll', 'Moss Troll', 'tank', 'melee', 'crush, regenerate');
+  addRoleTemplate(mossTroll, 'moss_troll_hurler', 'Moss Troll Hurler', 'dps', 'ranged', 'boulder throw, smash');
+
+  // 7. Feral Druid — Level 5, humanoid, woods+plains, day
+  const feralDruid = addEnemyTemplate({
+    name: 'Feral Druid',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'woods,plains',
+    creatureType: 'humanoid',
+    timeOfDay: 'day',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 10n,
+    level: 5n,
+    maxHp: 34n,
+    baseDamage: 8n,
+    xpReward: 36n,
+    factionId: fVerdantCircle,
+    isSocial: true,
+  });
+  addRoleTemplate(feralDruid, 'feral_druid', 'Feral Druid', 'healer', 'support', 'wild mend, entangle');
+  addRoleTemplate(feralDruid, 'feral_druid_shapeshifter', 'Feral Druid Shapeshifter', 'dps', 'melee', 'claw swipe, frenzy');
+  addRoleTemplate(feralDruid, 'feral_druid_caller', 'Feral Druid Caller', 'support', 'magic', 'beast call, thorns');
+
+  // === Ironhold Garrison enemies (levels 6-8) ===
+
+  // 8. Iron Golem — Level 7, construct, plains+dungeon, any
+  const ironGolem = addEnemyTemplate({
+    name: 'Iron Golem',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'plains,dungeon',
+    creatureType: 'construct',
+    timeOfDay: 'any',
+    socialGroup: 'construct',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 16n,
+    level: 7n,
+    maxHp: 62n,
+    baseDamage: 10n,
+    xpReward: 52n,
+    factionId: fIronCompact,
+    isSocial: true,
+  });
+  addRoleTemplate(ironGolem, 'iron_golem', 'Iron Golem', 'tank', 'melee', 'iron fist, bulwark');
+  addRoleTemplate(ironGolem, 'iron_golem_siege', 'Iron Golem Siege', 'dps', 'melee', 'siege slam, cleave');
+
+  // 9. Renegade Knight — Level 7, humanoid, plains+mountains, day
+  const renegadeKnight = addEnemyTemplate({
+    name: 'Renegade Knight',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'plains,mountains',
+    creatureType: 'humanoid',
+    timeOfDay: 'day',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 14n,
+    level: 7n,
+    maxHp: 48n,
+    baseDamage: 11n,
+    xpReward: 50n,
+    factionId: fFreeBlades,
+    isSocial: true,
+  });
+  addRoleTemplate(renegadeKnight, 'renegade_knight', 'Renegade Knight', 'tank', 'melee', 'shield charge, riposte');
+  addRoleTemplate(renegadeKnight, 'renegade_knight_berserker', 'Renegade Knight Berserker', 'dps', 'melee', 'wild swing, frenzy');
+  addRoleTemplate(renegadeKnight, 'renegade_knight_captain', 'Renegade Knight Captain', 'support', 'melee', 'rally, command');
+
+  // 10. Plague Cultist — Level 6, humanoid, town+plains, night
+  const plagueCultist = addEnemyTemplate({
+    name: 'Plague Cultist',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'town,plains',
+    creatureType: 'humanoid',
+    timeOfDay: 'night',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 9n,
+    level: 6n,
+    maxHp: 36n,
+    baseDamage: 8n,
+    xpReward: 42n,
+    factionId: fAshenOrder,
+    isSocial: true,
+  });
+  addRoleTemplate(plagueCultist, 'plague_cultist', 'Plague Cultist', 'dps', 'magic', 'plague bolt, miasma');
+  addRoleTemplate(plagueCultist, 'plague_cultist_preacher', 'Plague Cultist Preacher', 'support', 'magic', 'dark prayer, ward');
+  addRoleTemplate(plagueCultist, 'plague_cultist_fanatic', 'Plague Cultist Fanatic', 'dps', 'melee', 'infected blade, frenzy');
+
+  // 11. Warforged Hulk — Level 8, construct, mountains+dungeon, any
+  const warforgedHulk = addEnemyTemplate({
+    name: 'Warforged Hulk',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'mountains,dungeon',
+    creatureType: 'construct',
+    timeOfDay: 'any',
+    socialGroup: 'construct',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 2n,
+    armorClass: 17n,
+    level: 8n,
+    maxHp: 70n,
+    baseDamage: 11n,
+    xpReward: 58n,
+    factionId: fIronCompact,
+    isSocial: true,
+  });
+  addRoleTemplate(warforgedHulk, 'warforged_hulk', 'Warforged Hulk', 'tank', 'melee', 'iron crush, brace');
+  addRoleTemplate(warforgedHulk, 'warforged_hulk_devastator', 'Warforged Hulk Devastator', 'dps', 'melee', 'devastate, cleave');
+
+  // === Dreadspire Ruins enemies (levels 8-12) ===
+
+  // 12. Dreadspire Wraith — Level 9, undead, dungeon, any
+  const dreadspireWraith = addEnemyTemplate({
+    name: 'Dreadspire Wraith',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'dungeon',
+    creatureType: 'undead',
+    timeOfDay: 'any',
+    socialGroup: 'undead',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 12n,
+    level: 9n,
+    maxHp: 56n,
+    baseDamage: 12n,
+    xpReward: 62n,
+    factionId: fAshenOrder,
+    isSocial: true,
+  });
+  addRoleTemplate(dreadspireWraith, 'dreadspire_wraith', 'Dreadspire Wraith', 'dps', 'magic', 'soul rend, phase shift');
+  addRoleTemplate(dreadspireWraith, 'dreadspire_wraith_anchor', 'Dreadspire Wraith Anchor', 'tank', 'melee', 'spectral chain, drain');
+  addRoleTemplate(dreadspireWraith, 'dreadspire_wraith_howler', 'Dreadspire Wraith Howler', 'support', 'magic', 'terrifying howl, chill');
+
+  // 13. Runebound Golem — Level 10, construct, dungeon, any
+  const runeboundGolem = addEnemyTemplate({
+    name: 'Runebound Golem',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'dungeon',
+    creatureType: 'construct',
+    timeOfDay: 'any',
+    socialGroup: 'construct',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 18n,
+    level: 10n,
+    maxHp: 78n,
+    baseDamage: 13n,
+    xpReward: 70n,
+    factionId: fIronCompact,
+    isSocial: true,
+  });
+  addRoleTemplate(runeboundGolem, 'runebound_golem', 'Runebound Golem', 'tank', 'melee', 'rune slam, arcane shield');
+  addRoleTemplate(runeboundGolem, 'runebound_golem_shatterer', 'Runebound Golem Shatterer', 'dps', 'melee', 'shatter, rune pulse');
+
+  // 14. Shadow Necromancer — Level 10, humanoid, dungeon, any
+  const shadowNecromancer = addEnemyTemplate({
+    name: 'Shadow Necromancer',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'dungeon',
+    creatureType: 'humanoid',
+    timeOfDay: 'any',
+    socialGroup: 'humanoid',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 10n,
+    level: 10n,
+    maxHp: 44n,
+    baseDamage: 14n,
+    xpReward: 68n,
+    factionId: fAshenOrder,
+    isSocial: true,
+  });
+  addRoleTemplate(shadowNecromancer, 'shadow_necromancer', 'Shadow Necromancer', 'dps', 'magic', 'death bolt, shadow blast');
+  addRoleTemplate(shadowNecromancer, 'shadow_necromancer_summoner', 'Shadow Necromancer Summoner', 'support', 'magic', 'raise dead, dark ward');
+  addRoleTemplate(shadowNecromancer, 'shadow_necromancer_lich', 'Shadow Necromancer Lich', 'healer', 'support', 'soul siphon, dark mend');
+
+  // 15. Abyssal Fiend — Level 11, spirit, dungeon, any
+  const abyssalFiend = addEnemyTemplate({
+    name: 'Abyssal Fiend',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'dungeon',
+    creatureType: 'spirit',
+    timeOfDay: 'any',
+    socialGroup: 'spirit',
+    socialRadius: 1n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 14n,
+    level: 11n,
+    maxHp: 66n,
+    baseDamage: 15n,
+    xpReward: 76n,
+    factionId: fAshenOrder,
+    isSocial: false,
+  });
+  addRoleTemplate(abyssalFiend, 'abyssal_fiend', 'Abyssal Fiend', 'dps', 'magic', 'hellfire, corruption');
+  addRoleTemplate(abyssalFiend, 'abyssal_fiend_tormentor', 'Abyssal Fiend Tormentor', 'dps', 'melee', 'rend, agony');
+  addRoleTemplate(abyssalFiend, 'abyssal_fiend_guardian', 'Abyssal Fiend Guardian', 'tank', 'melee', 'abyssal ward, crush');
+
+  // 16. Dread Knight — Level 12, undead, dungeon, any
+  const dreadKnight = addEnemyTemplate({
+    name: 'Dread Knight',
+    role: 'base',
+    roleDetail: 'base',
+    abilityProfile: '',
+    terrainTypes: 'dungeon',
+    creatureType: 'undead',
+    timeOfDay: 'any',
+    socialGroup: 'undead',
+    socialRadius: 3n,
+    awareness: 'idle',
+    groupMin: 1n,
+    groupMax: 3n,
+    armorClass: 16n,
+    level: 12n,
+    maxHp: 82n,
+    baseDamage: 16n,
+    xpReward: 84n,
+    factionId: fAshenOrder,
+    isSocial: true,
+  });
+  addRoleTemplate(dreadKnight, 'dread_knight', 'Dread Knight', 'tank', 'melee', 'unholy shield, death strike');
+  addRoleTemplate(dreadKnight, 'dread_knight_executioner', 'Dread Knight Executioner', 'dps', 'melee', 'execute, cleave');
+  addRoleTemplate(dreadKnight, 'dread_knight_commander', 'Dread Knight Commander', 'support', 'melee', 'dark rally, command');
 }
