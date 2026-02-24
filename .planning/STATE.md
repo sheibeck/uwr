@@ -550,10 +550,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 299 | Fix death popup not showing — remove auto-respawn from combat resolution so death modal appears | 2026-02-24 | 22b1a63 | [299-when-i-die-i-m-no-longer-getting-the-pop](./quick/299-when-i-die-i-m-no-longer-getting-the-pop/) |
 | 300 | Expand world with 4 new regions (40 locations), 16 enemy templates, 15 NPCs, 25 quests for levels 1-12 | 2026-02-24 | 60ed4ba | [300-expand-world-with-new-regions-locations-](./quick/300-expand-world-with-new-regions-locations-/) |
 | 301 | Seed 12 named boss enemies with enhanced stats and class-specific magical loot tables across all regions | 2026-02-24 | 715bd3f | [301-seed-named-enemies-with-enhanced-stats-a](./quick/301-seed-named-enemies-with-enhanced-stats-a/) |
+| 302 | unique magical drops for each boss covering all 14 classes | 2026-02-24 | 7560732 | [302-unique-magical-drops-for-each-boss-cover](./quick/302-unique-magical-drops-for-each-boss-cover/) |
 
 ---
 
-Last activity: 2026-02-24 - Seed named enemies with enhanced stats and class-specific magical loot tables (quick-301)
+Last activity: 2026-02-24 - Completed quick task 302: unique magical drops for each boss covering all 14 classes
 
 ## Last Session
 
