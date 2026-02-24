@@ -653,6 +653,17 @@ export const registerCombatReducers = (deps: any) => {
   const findLootTable = (ctx: any, enemyTemplate: any) => {
     const terrain = enemyTemplate.terrainTypes?.split(',')[0]?.trim() ?? 'plains';
     const creatureType = enemyTemplate.creatureType ?? 'beast';
+    // Boss/named enemies: try named-specific loot table first (tier 2)
+    if (enemyTemplate.isBoss) {
+      const namedKey = 'named_' + enemyTemplate.name.toLowerCase().replace(/\s+/g, '_');
+      for (const row of ctx.db.lootTable.iter()) {
+        if (row.tier !== 2n) continue;
+        if (row.terrainType !== namedKey) continue;
+        if (row.creatureType !== creatureType) continue;
+        return row;
+      }
+    }
+    // Normal fallback: tier 1
     let best: any | null = null;
     for (const row of ctx.db.lootTable.iter()) {
       if (row.tier !== 1n) continue;

@@ -4,6 +4,7 @@ import { findItemTemplateByName } from '../helpers/items';
 import { EnemyTemplate } from '../schema/tables';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
+import { NAMED_ENEMY_DEFS } from '../data/named_enemy_defs';
 
 export function ensureLootTables(ctx: any) {
   const junkTemplates = [...ctx.db.itemTemplate.iter()].filter((row) => row.isJunk);
@@ -1962,4 +1963,146 @@ export function ensureEnemyTemplatesAndRoles(ctx: any) {
   addRoleTemplate(dreadKnight, 'dread_knight', 'Dread Knight', 'tank', 'melee', 'unholy shield, death strike');
   addRoleTemplate(dreadKnight, 'dread_knight_executioner', 'Dread Knight Executioner', 'dps', 'melee', 'execute, cleave');
   addRoleTemplate(dreadKnight, 'dread_knight_commander', 'Dread Knight Commander', 'support', 'melee', 'dark rally, command');
+}
+
+// ---------------------------------------------------------------------------
+// NAMED ENEMIES (Boss-tier with unique loot tables)
+// ---------------------------------------------------------------------------
+
+export function ensureNamedEnemies(ctx: any) {
+  const factionIdByName = (name: string): bigint | undefined =>
+    ([...ctx.db.faction.iter()] as any[]).find((r: any) => r.name === name)?.id;
+
+  const addEnemyTemplate = (row: any) => {
+    const existing = findEnemyTemplateByName(ctx, row.name);
+    if (existing) {
+      ctx.db.enemyTemplate.id.update({
+        ...existing,
+        ...row,
+        id: existing.id,
+      });
+      return ctx.db.enemyTemplate.id.find(existing.id) ?? { ...existing, ...row, id: existing.id };
+    }
+    return ctx.db.enemyTemplate.insert({
+      id: 0n,
+      ...row,
+    });
+  };
+
+  const addRoleTemplate = (
+    template: any,
+    roleKey: string,
+    displayName: string,
+    role: string,
+    roleDetail: string,
+    abilityProfile: string
+  ) => {
+    const existing = [...ctx.db.enemyRoleTemplate.by_template.filter(template.id)].find(
+      (row: any) => row.roleKey === roleKey
+    );
+    if (existing) {
+      ctx.db.enemyRoleTemplate.id.update({
+        ...existing,
+        enemyTemplateId: template.id,
+        roleKey,
+        displayName,
+        role,
+        roleDetail,
+        abilityProfile,
+      });
+      return;
+    }
+    ctx.db.enemyRoleTemplate.insert({
+      id: 0n,
+      enemyTemplateId: template.id,
+      roleKey,
+      displayName,
+      role,
+      roleDetail,
+      abilityProfile,
+    });
+  };
+
+  for (const def of NAMED_ENEMY_DEFS) {
+    const factionId = factionIdByName(def.factionName);
+
+    // Seed the enemy template with isBoss=true
+    const template = addEnemyTemplate({
+      name: def.name,
+      role: def.role,
+      roleDetail: def.roleDetail,
+      abilityProfile: def.abilityProfile,
+      terrainTypes: def.terrainTypes,
+      creatureType: def.creatureType,
+      timeOfDay: def.timeOfDay,
+      socialGroup: def.socialGroup,
+      socialRadius: def.socialRadius,
+      awareness: def.awareness,
+      groupMin: def.groupMin,
+      groupMax: def.groupMax,
+      armorClass: def.armorClass,
+      level: def.level,
+      maxHp: def.maxHp,
+      baseDamage: def.baseDamage,
+      xpReward: def.xpReward,
+      factionId,
+      isBoss: true,
+      isSocial: false,
+    });
+
+    // Add role templates
+    for (const roleDef of def.roles) {
+      addRoleTemplate(template, roleDef.roleKey, roleDef.displayName, roleDef.role, roleDef.roleDetail, roleDef.abilityProfile);
+    }
+
+    // Create dedicated named loot table (tier=2n, unique terrainType key)
+    const namedKey = 'named_' + def.name.toLowerCase().replace(/\s+/g, '_');
+    const existingTable = [...ctx.db.lootTable.iter()].find(
+      (row: any) => row.terrainType === namedKey && row.creatureType === def.creatureType && row.tier === 2n
+    );
+    let tableId: bigint;
+    if (existingTable) {
+      ctx.db.lootTable.id.update({
+        ...existingTable,
+        junkChance: def.loot.junkChance,
+        gearChance: def.loot.gearChance,
+        goldMin: def.loot.goldMin,
+        goldMax: def.loot.goldMax,
+      });
+      tableId = existingTable.id;
+    } else {
+      const inserted = ctx.db.lootTable.insert({
+        id: 0n,
+        terrainType: namedKey,
+        creatureType: def.creatureType,
+        tier: 2n,
+        junkChance: def.loot.junkChance,
+        gearChance: def.loot.gearChance,
+        goldMin: def.loot.goldMin,
+        goldMax: def.loot.goldMax,
+      });
+      tableId = inserted.id;
+    }
+
+    // Upsert loot entries
+    for (const entry of def.loot.entries) {
+      const itemTemplate = findItemTemplateByName(ctx, entry.itemName);
+      if (!itemTemplate) continue;
+      const existingEntry = [...ctx.db.lootTableEntry.by_table.filter(tableId)].find(
+        (row: any) => row.itemTemplateId === itemTemplate.id
+      );
+      if (existingEntry) {
+        if (existingEntry.weight !== entry.weight) {
+          ctx.db.lootTableEntry.id.update({ ...existingEntry, weight: entry.weight });
+        }
+      } else {
+        ctx.db.lootTableEntry.insert({
+          id: 0n,
+          lootTableId: tableId,
+          itemTemplateId: itemTemplate.id,
+          weight: entry.weight,
+        });
+      }
+    }
+  }
 }

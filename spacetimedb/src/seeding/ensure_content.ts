@@ -25,7 +25,7 @@ import {
   ensureCraftingModifierItemTemplates,
 } from './ensure_items';
 import { ensureNpcs, ensureQuestTemplates, ensureWorldLayout, ensureEnemyAbilities, ensureDialogueOptions } from './ensure_world';
-import { ensureLootTables, ensureMaterialLootEntries, ensureVendorInventory, ensureLocationEnemyTemplates, ensureEnemyTemplatesAndRoles } from './ensure_enemies';
+import { ensureLootTables, ensureMaterialLootEntries, ensureVendorInventory, ensureLocationEnemyTemplates, ensureEnemyTemplatesAndRoles, ensureNamedEnemies } from './ensure_enemies';
 import {
   DAY_DURATION_MICROS,
   getWorldState,
@@ -115,6 +115,7 @@ export function syncAllContent(ctx: any) {
   ensureLocationEnemyTemplates(ctx);
   ensureLocationRuntimeBootstrap(ctx);
   ensureLootTables(ctx);
+  ensureNamedEnemies(ctx);                // Named enemies with boss loot tables (after loot tables + enemy templates)
   ensureMaterialLootEntries(ctx);         // Phase 13: material + scroll drops (after loot tables + material/scroll templates)
   ensureVendorInventory(ctx);
 }
