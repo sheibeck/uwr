@@ -1237,6 +1237,7 @@ export const EventWorld = table(
   {
     name: 'event_world',
     public: true,
+    event: true,
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -1250,6 +1251,7 @@ export const EventLocation = table(
   {
     name: 'event_location',
     public: true,
+    event: true,
     indexes: [{ accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] }],
   },
   {
@@ -1266,6 +1268,7 @@ export const EventPrivate = table(
   {
     name: 'event_private',
     public: true,
+    event: true,
     indexes: [
       { accessor: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
       { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
@@ -1285,6 +1288,7 @@ export const EventGroup = table(
   {
     name: 'event_group',
     public: true,
+    event: true,
     indexes: [
       { accessor: 'by_group', algorithm: 'btree', columns: ['groupId'] },
       { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },

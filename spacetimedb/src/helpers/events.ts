@@ -6,39 +6,6 @@ export function tableHasRows<T>(iter: IterableIterator<T>): boolean {
   return false;
 }
 
-export const EVENT_TRIM_MAX = 200;
-export const EVENT_TRIM_AGE_MICROS = 3_600_000_000n; // 1 hour
-
-export const trimEventRows = <T extends { id: bigint; createdAt: { microsSinceUnixEpoch: bigint } }>(
-  rows: T[],
-  deleteFn: (id: bigint) => void,
-  nowMicros: bigint
-) => {
-  const cutoff = nowMicros - EVENT_TRIM_AGE_MICROS;
-
-  if (rows.length <= EVENT_TRIM_MAX) {
-    for (const row of rows) {
-      if (row.createdAt.microsSinceUnixEpoch < cutoff) {
-        deleteFn(row.id);
-      }
-    }
-    return;
-  }
-
-  const sorted = [...rows].sort((a, b) => {
-    const diff = a.createdAt.microsSinceUnixEpoch - b.createdAt.microsSinceUnixEpoch;
-    return diff < 0n ? -1 : diff > 0n ? 1 : 0;
-  });
-
-  const excess = sorted.length - EVENT_TRIM_MAX;
-  for (let i = 0; i < sorted.length; i += 1) {
-    const row = sorted[i];
-    if (i < excess || row.createdAt.microsSinceUnixEpoch < cutoff) {
-      deleteFn(row.id);
-    }
-  }
-};
-
 export function requirePlayerUserId(ctx: any): bigint {
   const player = ctx.db.player.id.find(ctx.sender);
   if (!player || player.userId == null) throw new SenderError('Login required');
@@ -64,15 +31,12 @@ export function activeCombatIdForCharacter(ctx: any, characterId: bigint): bigin
 }
 
 export function appendWorldEvent(ctx: any, kind: string, message: string) {
-  const row = ctx.db.event_world.insert({
+  return ctx.db.event_world.insert({
     id: 0n,
     kind,
     message,
     createdAt: ctx.timestamp,
   });
-  const rows = [...ctx.db.event_world.iter()];
-  trimEventRows(rows, (id) => ctx.db.event_world.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
-  return row;
 }
 
 export function appendLocationEvent(
@@ -82,7 +46,7 @@ export function appendLocationEvent(
   message: string,
   excludeCharacterId?: bigint
 ) {
-  const row = ctx.db.event_location.insert({
+  return ctx.db.event_location.insert({
     id: 0n,
     locationId,
     kind,
@@ -90,9 +54,6 @@ export function appendLocationEvent(
     excludeCharacterId,
     createdAt: ctx.timestamp,
   });
-  const rows = [...ctx.db.event_location.by_location.filter(locationId)];
-  trimEventRows(rows, (id) => ctx.db.event_location.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
-  return row;
 }
 
 export function appendPrivateEvent(
@@ -102,7 +63,7 @@ export function appendPrivateEvent(
   kind: string,
   message: string
 ) {
-  const row = ctx.db.event_private.insert({
+  return ctx.db.event_private.insert({
     id: 0n,
     ownerUserId,
     characterId,
@@ -110,9 +71,6 @@ export function appendPrivateEvent(
     message,
     createdAt: ctx.timestamp,
   });
-  const rows = [...ctx.db.event_private.by_owner_user.filter(ownerUserId)];
-  trimEventRows(rows, (id) => ctx.db.event_private.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
-  return row;
 }
 
 export function appendSystemMessage(ctx: any, character: any, message: string) {
@@ -171,7 +129,7 @@ export function appendGroupEvent(
   kind: string,
   message: string
 ) {
-  const row = ctx.db.event_group.insert({
+  return ctx.db.event_group.insert({
     id: 0n,
     groupId,
     characterId,
@@ -179,7 +137,4 @@ export function appendGroupEvent(
     message,
     createdAt: ctx.timestamp,
   });
-  const rows = [...ctx.db.event_group.by_group.filter(groupId)];
-  trimEventRows(rows, (id) => ctx.db.event_group.id.delete(id), ctx.timestamp.microsSinceUnixEpoch);
-  return row;
 }

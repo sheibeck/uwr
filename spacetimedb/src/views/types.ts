@@ -10,8 +10,6 @@ export type ViewDeps = {
   CharacterEffect: any;
   CombatResult: any;
   CombatLoot: any;
-  EventLocation: any;
-  EventPrivate: any;
   NpcDialog: any;
   QuestInstance: any;
   Faction: any;
