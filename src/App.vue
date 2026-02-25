@@ -2270,10 +2270,6 @@ watch(
   ([loggedIn, activeId]) => {
     if (!loggedIn) {
       selectedCharacterId.value = '';
-      // Close all panels
-      for (const id of openPanels.value) {
-        closePanelById(id);
-      }
       return;
     }
     if (activeId && !selectedCharacterId.value) {
