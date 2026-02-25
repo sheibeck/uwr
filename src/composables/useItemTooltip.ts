@@ -1,5 +1,19 @@
 import type { ItemTemplate, ItemAffix } from '../module_bindings/types';
 
+// Weapon speed lookup (mirrors spacetimedb/src/data/combat_constants.ts)
+const WEAPON_SPEED_MICROS: Record<string, bigint> = {
+  dagger:     3_000_000n,
+  rapier:     3_000_000n,
+  sword:      3_500_000n,
+  blade:      3_500_000n,
+  mace:       3_500_000n,
+  axe:        4_000_000n,
+  staff:      5_000_000n,
+  bow:        5_000_000n,
+  greatsword: 5_000_000n,
+};
+const DEFAULT_WEAPON_SPEED_MICROS = 4_000_000n;
+
 export type TooltipStatLine = { label: string; value: string };
 export type TooltipAffixLine = { label: string; value: string; affixName: string };
 
@@ -31,6 +45,8 @@ type BuildTooltipArgs = {
   affixes?: ItemAffix[];
   affixDataJson?: string | null;
   priceOrValue?: TooltipStatLine;
+  /** Character level for combat-accurate weapon damage. Defaults to 1n. */
+  characterLevel?: bigint;
 };
 
 export const formatAffixStatKey = (key: string): string => {
@@ -64,6 +80,7 @@ export const buildItemTooltipData = ({
   affixes,
   affixDataJson,
   priceOrValue,
+  characterLevel,
 }: BuildTooltipArgs): ItemTooltipData => {
   // --- Name ---
   let name = instance?.displayName ?? template?.name ?? 'Unknown';
@@ -114,11 +131,23 @@ export const buildItemTooltipData = ({
   const effectiveDmg = (template?.weaponBaseDamage ?? 0n) + implicitDmgBonus;
   const effectiveDps = (template?.weaponDps ?? 0n) + implicitDpsBonus;
 
+  // --- Weapon combat stats (matches combat.ts: rawWeaponDamage = 5n + level + baseDamage + dps/2n) ---
+  let weaponDamageLines: TooltipStatLine[] = [];
+  if (effectiveDmg > 0n || effectiveDps > 0n) {
+    const level = characterLevel ?? 1n;
+    const rawWeaponDamage = 5n + level + effectiveDmg + (effectiveDps / 2n);
+    const speedMicros = WEAPON_SPEED_MICROS[template?.weaponType ?? ''] ?? DEFAULT_WEAPON_SPEED_MICROS;
+    const actualDps = Number(rawWeaponDamage) / (Number(speedMicros) / 1_000_000);
+    weaponDamageLines = [
+      { label: 'Damage', value: String(rawWeaponDamage) },
+      { label: 'DPS', value: actualDps.toFixed(1) },
+    ];
+  }
+
   // --- Stats ---
   const stats: TooltipStatLine[] = [
     effectiveAc ? { label: 'Armor Class', value: `+${effectiveAc}` } : null,
-    effectiveDmg ? { label: 'Weapon Damage', value: `${effectiveDmg}` } : null,
-    effectiveDps ? { label: 'Weapon DPS', value: `${effectiveDps}` } : null,
+    ...weaponDamageLines,
     template?.strBonus ? { label: 'STR', value: `+${template.strBonus}` } : null,
     template?.dexBonus ? { label: 'DEX', value: `+${template.dexBonus}` } : null,
     template?.chaBonus ? { label: 'CHA', value: `+${template.chaBonus}` } : null,
