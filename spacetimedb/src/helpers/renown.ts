@@ -59,7 +59,8 @@ export function awardServerFirst(
   character: any,
   category: string,
   achievementKey: string,
-  baseRenown: bigint
+  baseRenown: bigint,
+  displayLabel?: string
 ): bigint {
   // Use single-column index by_category, then manually filter by achievementKey
   const existing: any[] = [];
@@ -90,13 +91,13 @@ export function awardServerFirst(
   }
   if (renownAmount < 1n) renownAmount = 1n;
 
-  // Announce top 3
-  if (position <= 3n) {
-    const ordinal = position === 1n ? 'first' : position === 2n ? 'second' : 'third';
+  // Only broadcast actual world firsts (position 1)
+  if (position === 1n) {
+    const label = displayLabel || `${category}: ${achievementKey}`;
     appendWorldEvent(
       ctx,
       'server_first',
-      `${character.name} was ${ordinal} to ${category}: ${achievementKey}!`
+      `${character.name} achieved World First: ${label}!`
     );
   }
 
@@ -231,7 +232,7 @@ export function grantAchievement(ctx: any, character: any, achievementKey: strin
   }
 
   // Award server-first bonus
-  const serverFirstRenown = awardServerFirst(ctx, character, 'achievement', achievementKey, achievementDef.renown);
+  const serverFirstRenown = awardServerFirst(ctx, character, 'achievement', achievementKey, achievementDef.renown, achievementDef.name);
 
   // Award personal-first bonus on top
   const PERSONAL_FIRST_BONUS = 50n;

@@ -2722,7 +2722,7 @@ export const registerCombatReducers = (deps: any) => {
         if (template) {
           if (template.isBoss) {
             const bossKey = `boss_${template.name.toLowerCase().replace(/\s+/g, '_')}`;
-            const serverFirstRenown = awardServerFirst(ctx, character, 'boss_kill', bossKey, RENOWN_GAIN.BOSS_KILL_BASE);
+            const serverFirstRenown = awardServerFirst(ctx, character, 'boss_kill', bossKey, RENOWN_GAIN.BOSS_KILL_BASE, `${template.name} slain`);
             awardRenown(ctx, character, serverFirstRenown, `Defeating ${template.name}`);
           } else {
             const renownAmount = template.level > 0n ? template.level : 1n;
