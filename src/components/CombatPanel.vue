@@ -35,6 +35,7 @@
                   @click="$emit('select-enemy', enemy.id)"
                 >
                   <div :style="styles.combatRow">
+                      <span v-if="enemy.isBoss" style="color: #fbbf24">&#9733; </span>
                       <span :style="[styles.combatValue, styles[enemy.conClass] ?? {}]">
                         {{ enemy.name }} (L{{ enemy.level }})
                       </span>
@@ -131,7 +132,9 @@ const props = defineProps<{
     effects: { id: bigint; label: string; seconds: number; isNegative: boolean; isOwn: boolean }[];
     castProgress: number;
     castLabel: string;
+    isCasting: boolean;
     targetName: string | null;
+    isBoss: boolean;
   }[];
   canAct: boolean;
   accordionState: {

@@ -32,6 +32,7 @@
           @contextmenu.prevent="openEnemyContextMenu($event, enemy)"
         >
           <div :style="{ display: 'flex', alignItems: 'center', gap: '0.3rem' }">
+            <span v-if="enemy.isBoss" style="color: #fbbf24">&#9733; </span>
             <span :style="styles[enemy.conClass] ?? {}">{{ enemy.name }}</span>
             <span :style="{ fontSize: '0.65rem', opacity: 0.55, fontWeight: 'normal' }">L{{ enemy.level }}</span>
           </div>
@@ -154,7 +155,7 @@
           }"
           @click="emit('pull-named-enemy', ne.id)"
         >
-          <span>{{ ne.name }}</span>
+          <span style="color: #fbbf24">&#9733; </span><span>{{ ne.name }}</span>
           <span :style="{ fontSize: '0.7rem', opacity: 0.7 }">Click to engage</span>
         </div>
       </div>
@@ -264,6 +265,7 @@ type EnemySummary = {
   isPulling: boolean;
   pullProgress: number;
   pullType: string | null;
+  isBoss: boolean;
 };
 
 const props = withDefaults(defineProps<{

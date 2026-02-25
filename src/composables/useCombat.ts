@@ -38,6 +38,7 @@ type EnemySummary = {
   isPulling: boolean;
   pullProgress: number;
   pullType: string | null;
+  isBoss: boolean;
 };
 
 type CombatRosterEntry = {
@@ -465,6 +466,7 @@ export const useCombat = ({
           isPulling,
           pullProgress,
           pullType,
+          isBoss: !!(template?.isBoss),
         };
       });
   });
@@ -570,6 +572,7 @@ export const useCombat = ({
         castProgress,
         isCasting: !!cast && castDuration > 0,
         targetName,
+        isBoss: !!(template?.isBoss),
       };
     });
   });
