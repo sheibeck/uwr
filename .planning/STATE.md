@@ -580,10 +580,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 322 | Balance weapon damage — 2H hits harder/slower, starters weaker than world drops | 2026-02-25 | a27000d | [322-balance-weapon-damage-for-2h-vs-1h-speed](./quick/322-balance-weapon-damage-for-2h-vs-1h-speed/) |
 | 323 | Persist action bar panel state across logout/login | 2026-02-25 | 197a1cf | [323-persist-action-bar-panel-state-across-lo](./quick/323-persist-action-bar-panel-state-across-lo/) |
 | 324 | Fix renown multi-rank perk grants and balance renown rewards | 2026-02-25 | 93d226a | [324-fix-renown-multi-rank-perk-grants-and-ba](./quick/324-fix-renown-multi-rank-perk-grants-and-ba/) |
+| 325 | Clean up world first labels and only broadcast firsts not seconds | 2026-02-25 | c0bbd26 | [325-clean-up-world-first-labels-and-only-bro](./quick/325-clean-up-world-first-labels-and-only-bro/) |
 
 ---
 
-Last activity: 2026-02-25 - Completed quick task 324: Fix renown multi-rank perk grants and balance renown rewards
+Last activity: 2026-02-25 - Completed quick task 325: Clean up world first labels and only broadcast firsts not seconds
 
 ## Last Session
 
