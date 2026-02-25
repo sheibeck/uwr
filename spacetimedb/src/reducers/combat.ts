@@ -2,7 +2,7 @@ import { scheduledReducers } from '../schema/tables';
 import { ENEMY_ABILITIES } from '../data/abilities/enemy_abilities';
 import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier } from '../data/combat_scaling';
 import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
-import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, SUMMONER_THREAT_MULTIPLIER, SUMMONER_PET_INITIAL_AGGRO, HEALING_THREAT_PERCENT } from '../data/combat_scaling';
+import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, SUMMONER_THREAT_MULTIPLIER, SUMMONER_PET_INITIAL_AGGRO, HEALING_THREAT_PERCENT, AOE_DAMAGE_MULTIPLIER, getAbilityStatScaling, getAbilityMultiplier } from '../data/combat_scaling';
 import {
   statOffset,
   BLOCK_CHANCE_BASE,
@@ -1306,9 +1306,6 @@ export const registerCombatReducers = (deps: any) => {
   const HOT_TICK_MICROS = 3_000_000n;
 
   scheduledReducers['regen_health'] = spacetimedb.reducer('regen_health', { arg: HealthRegenTick.rowType }, (ctx) => {
-    const tickIndex = ctx.timestamp.microsSinceUnixEpoch / REGEN_TICK_MICROS;
-    const halfTick = tickIndex % 2n === 0n;
-
     for (const character of ctx.db.character.iter()) {
       const activelyInCombat = !!activeCombatIdForCharacter(ctx, character.id);
       const inCooldown = !activelyInCombat && character.lastCombatEndAt !== undefined && character.lastCombatEndAt !== null &&
@@ -1322,8 +1319,6 @@ export const registerCombatReducers = (deps: any) => {
         }
         continue;
       }
-      if (inCombat && !halfTick) continue;
-
       const hpRegen = inCombat ? HP_REGEN_IN : (character.maxHp / 15n || 1n);
       const manaRegen = inCombat ? MANA_REGEN_IN : (character.maxMana > 0n ? character.maxMana / 20n || 1n : 0n);
       const staminaRegen = inCombat ? STAMINA_REGEN_IN : (character.maxStamina / 12n > 3n ? character.maxStamina / 12n : 3n);
@@ -1391,9 +1386,6 @@ export const registerCombatReducers = (deps: any) => {
       if (pet.currentHp >= pet.maxHp) continue;     // full HP — skip
 
       const petInCombat = pet.combatId !== undefined && pet.combatId !== null;
-
-      // In combat: only regen on halfTick (every other 8s tick = every 16s)
-      if (petInCombat && !halfTick) continue;
 
       const regenAmount = petInCombat ? PET_HP_REGEN_IN : PET_HP_REGEN_OUT;
       const nextHp = pet.currentHp + regenAmount;
@@ -1819,7 +1811,14 @@ export const registerCombatReducers = (deps: any) => {
           // AoE sonic damage to all enemies — scales with level + CHA
           let totalDamage = 0n;
           for (const en of enemies) {
-            const dmg = ((8n + bard.level * 2n + bard.cha) * 65n) / 100n;
+            const abilityBase = 2n * 5n;  // Discordant Note power=2
+            const statScale = getAbilityStatScaling(
+              { str: bard.str, dex: bard.dex, cha: bard.cha, wis: bard.wis, int: bard.int },
+              'bard_discordant_note', bard.className, 'hybrid'
+            );
+            const abilityMult = getAbilityMultiplier(0n, 1n);
+            const scaledDmg = ((abilityBase + statScale) * abilityMult) / 100n;
+            const dmg = (scaledDmg * AOE_DAMAGE_MULTIPLIER) / 100n;
             const actualDmg = en.currentHp > dmg ? dmg : en.currentHp;
             totalDamage += actualDmg;
             const nextHp = en.currentHp > dmg ? en.currentHp - dmg : 0n;
