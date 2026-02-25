@@ -954,6 +954,7 @@ const trackOptions = computed(() => {
       if (!pref || pref === 'any') return true;
       return isNight.value ? pref === 'night' : pref === 'day';
     })
+    .filter((template) => !template.isBoss)
     .sort((a, b) => (a.name > b.name ? 1 : a.name < b.name ? -1 : 0));
 });
 

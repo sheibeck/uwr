@@ -513,6 +513,7 @@ export function spawnEnemyWithTemplate(
 
   const template = ctx.db.enemy_template.id.find(templateId);
   if (!template) throw new SenderError('Enemy template not found');
+  if (template.isBoss) throw new SenderError('Named enemies cannot be tracked');
   let allowedHere = false;
   for (const row of ctx.db.location_enemy_template.by_location.filter(locationId)) {
     if (row.enemyTemplateId === templateId) {
