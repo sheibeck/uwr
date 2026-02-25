@@ -571,6 +571,7 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 312 | Fix Cannot read properties of undefined reading columns error in SpacetimeDB client | 2026-02-24 | 1608878 | [312-fix-cannot-read-properties-of-undefined-](./quick/312-fix-cannot-read-properties-of-undefined-/) |
 | 313 | Debug persistent columns undefined error — v2 SDK table lookup mismatch | 2026-02-24 | 5313fa5 | [313-debug-persistent-columns-undefined-error](./quick/313-debug-persistent-columns-undefined-error/) |
 | 314 | Fix race description not showing on character creation screen | 2026-02-24 | 572a475 | [314-fix-race-description-not-showing-on-char](./quick/314-fix-race-description-not-showing-on-char/) |
+| 315 | Replace subscribeToAllTables with scoped domain subscriptions | 2026-02-25 | 9da6ca9 | [315-replace-subscribetoalltables-with-scoped](./quick/315-replace-subscribetoalltables-with-scoped/) |
 
 ---
 
