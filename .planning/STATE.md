@@ -575,10 +575,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 316 | SQL-filtered subscriptions with WHERE clauses for location-scoped data | 2026-02-25 | 3d568da | [316-sql-filtered-subscriptions-with-where-cl](./quick/316-sql-filtered-subscriptions-with-where-cl/) |
 | 317 | Replace SQL string subscriptions with typed query builder | 2026-02-25 | b310953 | [317-replace-sql-string-subscriptions-with-ty](./quick/317-replace-sql-string-subscriptions-with-ty/) |
 | 318 | Verify in-combat regen (already fixed — halfTick removed in quick-313) | 2026-02-25 | deb83d0 | [318-fix-in-combat-healing-ticks-of-7-hp-occu](./quick/318-fix-in-combat-healing-ticks-of-7-hp-occu/) |
+| 320 | Fix Discordant Note to use 65% AoE damage | 2026-02-25 | 7b61079 | [320-fix-discordant-note-to-use-65-aoe-damage](./quick/320-fix-discordant-note-to-use-65-aoe-damage/) |
 
 ---
 
-Last activity: 2026-02-24 - Completed quick task 314: Fix race description not showing on character creation screen
+Last activity: 2026-02-25 - Completed quick task 320: Fix Discordant Note to use 65% AoE damage
 
 ## Last Session
 
