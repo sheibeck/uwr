@@ -613,6 +613,9 @@ import { useCharacterScope } from './composables/useCharacterScope';
 import { useTooltip } from './composables/useTooltip';
 import { useAudio } from './composables/useAudio';
 
+// Location ID ref for WHERE-filtered subscriptions (set by watcher on selectedCharacter below)
+const currentLocationId = ref<bigint | null>(null);
+
 const {
   conn,
   characters,
@@ -690,7 +693,7 @@ const {
   appVersionRows,
   activeBardSongs,
   bankSlots,
-} = useGameData();
+} = useGameData(currentLocationId);
 
 watch(appVersionRows, (rows) => {
   const serverVersion = (rows as Array<{ version: string }>)[0]?.version;
@@ -1252,10 +1255,12 @@ const onTalkNpc = (npcId: bigint) => {
 
 // Clear all target selections when location changes
 // Watch locationId directly for more reliable reactivity
-watch(() => selectedCharacter.value?.locationId, () => {
+watch(() => selectedCharacter.value?.locationId, (locId) => {
   selectedNpcTarget.value = null;
   selectedCharacterTarget.value = null;
   selectedCorpseTarget.value = null;
+  // Sync currentLocationId ref for WHERE-filtered subscriptions in useWorldData
+  currentLocationId.value = locId ?? null;
 });
 
 // Forward-declared callback so usePanelManager (declared later) can be wired in

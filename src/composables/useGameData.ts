@@ -1,5 +1,5 @@
 import { useSpacetimeDB } from 'spacetimedb/vue';
-import { shallowRef, watch } from 'vue';
+import { type Ref, shallowRef, watch } from 'vue';
 import { useCoreData } from './data/useCoreData';
 import { useCombatData } from './data/useCombatData';
 import { useWorldData } from './data/useWorldData';
@@ -8,12 +8,12 @@ import { useCraftingData } from './data/useCraftingData';
 import { useQuestData } from './data/useQuestData';
 import { useWorldEventData } from './data/useWorldEventData';
 
-export const useGameData = () => {
+export const useGameData = (currentLocationId: Ref<bigint | null>) => {
   const conn = useSpacetimeDB();
 
   const core = useCoreData(conn);
   const combat = useCombatData(conn);
-  const world = useWorldData(conn);
+  const world = useWorldData(conn, currentLocationId);
   const social = useSocialData(conn);
   const crafting = useCraftingData(conn);
   const quest = useQuestData(conn);
