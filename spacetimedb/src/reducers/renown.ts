@@ -21,30 +21,40 @@ export const registerRenownReducers = (deps: any) => {
 
     const currentRank = Number(renownRow.currentRank);
 
-    // Lookup perk pool for current rank
-    const perkPool = RENOWN_PERK_POOLS[currentRank];
+    // Find the lowest rank (2..currentRank) that still needs a perk choice
+    const chosenRanks = new Set<number>();
+    for (const existingPerk of ctx.db.renown_perk.by_character.filter(characterId)) {
+      chosenRanks.add(Number(existingPerk.rank));
+    }
+
+    let targetRank: number | null = null;
+    for (let rank = 2; rank <= currentRank; rank++) {
+      if (!chosenRanks.has(rank) && RENOWN_PERK_POOLS[rank]) {
+        targetRank = rank;
+        break;
+      }
+    }
+
+    if (targetRank === null) {
+      throw new SenderError('No perk choices available');
+    }
+
+    const perkPool = RENOWN_PERK_POOLS[targetRank];
     if (!perkPool) {
-      throw new SenderError(`No perk pool for rank ${currentRank}`);
+      throw new SenderError(`No perk pool for rank ${targetRank}`);
     }
 
     // Validate perkKey exists in pool
-    const perk = perkPool.find((p) => p.key === perkKey);
+    const perk = perkPool.find((p: any) => p.key === perkKey);
     if (!perk) {
-      throw new SenderError('Invalid perk choice for your current rank');
-    }
-
-    // Check if already chosen a perk for this rank
-    for (const existingPerk of ctx.db.renown_perk.by_character.filter(characterId)) {
-      if (Number(existingPerk.rank) === currentRank) {
-        throw new SenderError('Perk already chosen for this rank');
-      }
+      throw new SenderError('Invalid perk choice for this rank');
     }
 
     // Insert RenownPerk row
     ctx.db.renown_perk.insert({
       id: 0n,
       characterId,
-      rank: BigInt(currentRank),
+      rank: BigInt(targetRank),
       perkKey,
       chosenAt: ctx.timestamp,
     });

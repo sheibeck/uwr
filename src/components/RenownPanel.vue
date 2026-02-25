@@ -120,7 +120,7 @@
         <!-- Perk Selection Section (visible only if unspent perk) -->
         <div v-if="hasUnspentPerk" :style="{ marginBottom: '16px' }">
           <div :style="{ ...styles.recipeName, marginBottom: '12px' }">
-            Choose a Perk for {{ currentRankName }}
+            Choose a Perk for {{ lowestUnchosenRank ? RENOWN_RANKS.find(r => r.rank === lowestUnchosenRank)?.name ?? `Rank ${lowestUnchosenRank}` : currentRankName }}
           </div>
           <div :style="{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }">
             <div
@@ -452,17 +452,31 @@ const rankProgress = computed(() => {
   return Math.min(100, Math.max(0, (progress / range) * 100));
 });
 
-// Check if character has an unspent perk for current rank
+// Check if character has an unspent perk for ANY rank 2..currentRank
 const hasUnspentPerk = computed(() => {
   if (!props.renownData || currentRankNum.value < 2) return false;
-  // Check if a perk has been chosen for the current rank
-  const existingPerk = props.renownPerks.find(p => Number(p.rank) === currentRankNum.value);
-  return !existingPerk;
+  // Check ALL ranks 2..currentRank for unchosen perks
+  for (let rank = 2; rank <= currentRankNum.value; rank++) {
+    if (!RENOWN_PERK_POOLS[rank]) continue;
+    const existingPerk = props.renownPerks.find(p => Number(p.rank) === rank);
+    if (!existingPerk) return true;
+  }
+  return false;
+});
+
+const lowestUnchosenRank = computed(() => {
+  if (!props.renownData || currentRankNum.value < 2) return null;
+  for (let rank = 2; rank <= currentRankNum.value; rank++) {
+    if (!RENOWN_PERK_POOLS[rank]) continue;
+    const existingPerk = props.renownPerks.find(p => Number(p.rank) === rank);
+    if (!existingPerk) return rank;
+  }
+  return null;
 });
 
 const availablePerks = computed(() => {
-  if (!hasUnspentPerk.value) return [];
-  return RENOWN_PERK_POOLS[currentRankNum.value] ?? [];
+  if (lowestUnchosenRank.value === null) return [];
+  return RENOWN_PERK_POOLS[lowestUnchosenRank.value] ?? [];
 });
 
 const choosePerk = (perkKey: string) => {

@@ -36,12 +36,21 @@ export function awardRenown(ctx: any, character: any, points: bigint, reason: st
   // Log renown gain
   appendSystemMessage(ctx, character, `You earned ${points} renown: ${reason}`);
 
-  // If rank increased, announce it
+  // If rank increased, announce each intermediate rank
   if (newRank > oldRank) {
-    const rankData = RENOWN_RANKS.find((r) => r.rank === newRank);
-    const rankName = rankData ? rankData.name : `Rank ${newRank}`;
-    appendSystemMessage(ctx, character, `You have achieved rank: ${rankName}!`);
-    appendWorldEvent(ctx, 'renown', `${character.name} has achieved the rank of ${rankName}!`);
+    for (let rank = oldRank + 1; rank <= newRank; rank++) {
+      const rankData = RENOWN_RANKS.find((r) => r.rank === rank);
+      const rankName = rankData ? rankData.name : `Rank ${rank}`;
+      appendSystemMessage(ctx, character, `You have achieved rank: ${rankName}!`);
+      // Only broadcast world event for the highest achieved rank (avoid spam)
+      if (rank === newRank) {
+        appendWorldEvent(ctx, 'renown', `${character.name} has achieved the rank of ${rankName}!`);
+      }
+      // Notify about available perk (ranks 2+ have perk pools)
+      if (rank >= 2) {
+        appendSystemMessage(ctx, character, `A new perk is available for rank ${rank}: ${rankName}!`);
+      }
+    }
   }
 }
 
