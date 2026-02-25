@@ -198,6 +198,7 @@ export const useCombat = ({
           template,
           instance: { qualityTier: row.qualityTier },
           priceOrValue: template?.vendorValue ? { label: 'Value', value: `${template.vendorValue} gold` } : undefined,
+          characterLevel: selectedCharacter.value?.level ?? 1n,
         });
         return {
           id: row.id,
@@ -231,6 +232,7 @@ export const useCombat = ({
           },
           affixDataJson: row.affixDataJson,
           priceOrValue: template?.vendorValue ? { label: 'Value', value: `${template.vendorValue} gold` } : undefined,
+          characterLevel: selectedCharacter.value?.level ?? 1n,
         });
         return {
           id: row.id,

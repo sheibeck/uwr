@@ -818,6 +818,7 @@ const vendorItems = computed(() => {
         template,
         instance: { qualityTier: row.qualityTier },
         priceOrValue: row.price ? { label: 'Price', value: `${displayPrice} gold` } : undefined,
+        characterLevel: selectedCharacter.value?.level ?? 1n,
       });
       return {
         id: row.id,

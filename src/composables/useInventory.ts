@@ -95,6 +95,7 @@ export const useInventory = ({
           },
           affixes: instanceAffixes,
           priceOrValue: vendorValue ? { label: 'Value', value: `${vendorValue} gold` } : undefined,
+          characterLevel: selectedCharacter.value?.level ?? 1n,
         });
 
         const slot = template?.slot ?? 'unknown';
@@ -186,6 +187,7 @@ export const useInventory = ({
           : undefined,
         affixes: equippedAffixes,
         priceOrValue: vendorValue ? { label: 'Value', value: `${vendorValue} gold` } : undefined,
+        characterLevel: selectedCharacter.value?.level ?? 1n,
       });
 
       // For empty slots, override name to 'Empty'

@@ -207,7 +207,7 @@ export const useCrafting = ({
         const materialType: string | undefined = (recipe as any).materialType ?? undefined;
         const outputItem = output
           ? {
-              ...buildItemTooltipData({ template: output }),
+              ...buildItemTooltipData({ template: output, characterLevel: selectedCharacter.value?.level ?? 1n }),
               requiredLevel: output.requiredLevel,
             }
           : null;
