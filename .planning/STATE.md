@@ -14,7 +14,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 **Current phase:** 23 — V2 Subscription Optimization (Plans 01-02 complete: event tables converted to event:true, client onInsert wiring done)
 **Next action:** Continue Phase 23 optimization or begin next phase
 **Last session:** 2026-02-25T02:12:41Z
-Last activity: 2026-02-25 - Completed quick task 317: Replace raw SQL subscription strings with typed query builder (toSql + tables) in all 7 domain composables
+Last activity: 2026-02-25 - Completed quick task 318: Verified in-combat regen already fixed (halfTick removed in quick-313)
 
 ---
 
@@ -574,6 +574,7 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 315 | Replace subscribeToAllTables with scoped domain subscriptions | 2026-02-25 | 9da6ca9 | [315-replace-subscribetoalltables-with-scoped](./quick/315-replace-subscribetoalltables-with-scoped/) |
 | 316 | SQL-filtered subscriptions with WHERE clauses for location-scoped data | 2026-02-25 | 3d568da | [316-sql-filtered-subscriptions-with-where-cl](./quick/316-sql-filtered-subscriptions-with-where-cl/) |
 | 317 | Replace SQL string subscriptions with typed query builder | 2026-02-25 | b310953 | [317-replace-sql-string-subscriptions-with-ty](./quick/317-replace-sql-string-subscriptions-with-ty/) |
+| 318 | Verify in-combat regen (already fixed — halfTick removed in quick-313) | 2026-02-25 | deb83d0 | [318-fix-in-combat-healing-ticks-of-7-hp-occu](./quick/318-fix-in-combat-healing-ticks-of-7-hp-occu/) |
 
 ---
 
