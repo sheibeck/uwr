@@ -13,8 +13,8 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 **Last completed phase:** 21.1.1 — Hit/Dodge/Parry Active Stats (stat-derived dodge/parry/hit wired; DEX live defensive stat)
 **Current phase:** 23 — V2 Subscription Optimization (Plans 01-02 complete: event tables converted to event:true, client onInsert wiring done)
 **Next action:** Continue Phase 23 optimization or begin next phase
-**Last session:** 2026-02-25T01:36:39Z
-Last activity: 2026-02-25 - Completed quick task 316: SQL-filtered subscriptions with WHERE clauses for location-scoped data
+**Last session:** 2026-02-25T02:12:41Z
+Last activity: 2026-02-25 - Completed quick task 317: Replace raw SQL subscription strings with typed query builder (toSql + tables) in all 7 domain composables
 
 ---
 
