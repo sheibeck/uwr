@@ -13,7 +13,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 **Last completed phase:** 21.1.1 — Hit/Dodge/Parry Active Stats (stat-derived dodge/parry/hit wired; DEX live defensive stat)
 **Current phase:** 23 — V2 Subscription Optimization (Plans 01-02 complete: event tables converted to event:true, client onInsert wiring done)
 **Next action:** Continue Phase 23 optimization or begin next phase
-**Last session:** 2026-02-25T14:07:25.390Z
+**Last session:** 2026-02-25T15:04:06.227Z
 Last activity: 2026-02-25 - Completed quick task 321: Fix quests/journal showing Unknown for NPC name/location when player is away
 
 ---
