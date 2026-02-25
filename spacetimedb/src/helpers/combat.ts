@@ -20,7 +20,7 @@ import {
   HEALING_THREAT_PERCENT,
 } from '../data/combat_scaling';
 import { effectiveGroupId } from './group';
-import { appendPrivateEvent, appendGroupEvent, logPrivateAndGroup } from './events';
+import { appendPrivateEvent, appendGroupEvent, logPrivateAndGroup, fail } from './events';
 import { getEquippedWeaponStats, hasInventorySpace, addItemToInventory, getEquippedBonuses } from './items';
 import { getGatherableResourceTemplates } from './location';
 import { partyMembersInLocation, recomputeCharacterDerived } from './character';
@@ -326,12 +326,13 @@ export function executeAbility(
   const normalizedClass = normalizeClassName(character.className);
   const abilityRows = [...ctx.db.ability_template.by_key.filter(abilityKey)];
   const ability = abilityRows[0];
-  if (!ability) throw new SenderError('Unknown ability');
+  if (!ability) { fail(ctx, character, 'Unknown ability'); throw new SenderError('Unknown ability'); }
   if (ability.className !== normalizedClass) {
+    fail(ctx, character, 'Ability not available');
     throw new SenderError('Ability not available');
   }
 
-  if (character.level < ability.level) throw new SenderError('Ability not unlocked');
+  if (character.level < ability.level) { fail(ctx, character, 'Ability not unlocked'); throw new SenderError('Ability not unlocked'); }
 
   let staminaFree = false;
   let staminaFreeEffectId: bigint | undefined;
@@ -349,9 +350,9 @@ export function executeAbility(
   // AbilityTemplate has no resourceCostOverride column — only resourceCost (final value).
   const resourceCost = staminaFree && ability.resource === 'stamina' ? 0n : ability.resourceCost;
   if (ability.resource === 'mana') {
-    if (character.mana < resourceCost) throw new SenderError('Not enough mana');
+    if (character.mana < resourceCost) { fail(ctx, character, 'Not enough mana'); throw new SenderError('Not enough mana'); }
   } else if (ability.resource === 'stamina') {
-    if (character.stamina < resourceCost) throw new SenderError('Not enough stamina');
+    if (character.stamina < resourceCost) { fail(ctx, character, 'Not enough stamina'); throw new SenderError('Not enough stamina'); }
   }
 
   const resolvedTargetId = targetCharacterId ?? character.id;
@@ -362,21 +363,24 @@ export function executeAbility(
   const specialTargetingAbilities = ['cleric_resurrect', 'necromancer_corpse_summon', 'summoner_corpse_summon'];
   if (!specialTargetingAbilities.includes(abilityKey) && resolvedTargetId) {
     targetCharacter = ctx.db.character.id.find(resolvedTargetId);
-    if (!targetCharacter) throw new SenderError('Target not found');
+    if (!targetCharacter) { fail(ctx, character, 'Target not found'); throw new SenderError('Target not found'); }
     if (actorGroupId) {
       if (effectiveGroupId(targetCharacter) !== actorGroupId) {
+        fail(ctx, character, 'Target not in your group');
         throw new SenderError('Target not in your group');
       }
       if (targetCharacter.locationId !== character.locationId) {
+        fail(ctx, character, 'Target is not at your location');
         throw new SenderError('Target is not at your location');
       }
     } else if (targetCharacter.id !== character.id) {
+      fail(ctx, character, 'Target must be yourself');
       throw new SenderError('Target must be yourself');
     }
   } else if (specialTargetingAbilities.includes(abilityKey) && resolvedTargetId) {
     // For special abilities, targetCharacterId is the target character - just verify it exists
     targetCharacter = ctx.db.character.id.find(resolvedTargetId);
-    if (!targetCharacter) throw new SenderError('Target not found');
+    if (!targetCharacter) { fail(ctx, character, 'Target not found'); throw new SenderError('Target not found'); }
   }
 
   const combatId = activeCombatIdForCharacter(ctx, character.id);
@@ -430,7 +434,7 @@ export function executeAbility(
     const petMaxHp = hpBase + petLevel * hpPerLevel;
     const petAttackDamage = damageBase + petLevel * damagePerLevel + weaponProxy;
     const inActiveCombat = combatId && combat && combat.state === 'active';
-    if (inActiveCombat && !enemy) throw new SenderError('You have no target to unleash this upon.');
+    if (inActiveCombat && !enemy) { fail(ctx, character, 'You have no target to unleash this upon.'); throw new SenderError('You have no target to unleash this upon.'); }
     const pet = ctx.db.active_pet.insert({
       id: 0n,
       characterId: character.id,
@@ -519,7 +523,7 @@ export function executeAbility(
       perHitMessage?: (damage: bigint, hitIndex: bigint, totalHits: bigint) => string;
     }
   ) => {
-    if (!enemy || !combatId) throw new SenderError('You have no target to unleash this upon.');
+    if (!enemy || !combatId) { fail(ctx, character, 'You have no target to unleash this upon.'); throw new SenderError('You have no target to unleash this upon.'); }
     const hits = options?.hits ?? 1n;
     let armor = enemy.armorClass;
     const armorDebuff = sumEnemyEffect(ctx, combatId, 'armor_down', enemy.id);
@@ -880,7 +884,7 @@ export function executeAbility(
   const runAbility = () => {
     switch (abilityKey) {
       case 'shaman_spirit_mender':
-        if (!targetCharacter) throw new SenderError('Target required');
+        if (!targetCharacter) { fail(ctx, character, 'Target required'); throw new SenderError('Target required'); }
         applyHeal(targetCharacter, 15n, 'Spirit Mender');
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
           `Spirit Mender soothes ${targetCharacter.name}.`
@@ -901,7 +905,7 @@ export function executeAbility(
         });
         return;
       case 'shaman_ancestral_ward':
-        if (!targetCharacter) throw new SenderError('Target required');
+        if (!targetCharacter) { fail(ctx, character, 'Target required'); throw new SenderError('Target required'); }
         addCharacterEffect(ctx, targetCharacter.id, 'ac_bonus', 4n, 4n, 'Ancestral Ward');
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
           `Ancestral Ward shields ${targetCharacter.name}.`
@@ -931,7 +935,7 @@ export function executeAbility(
         });
         return;
       case 'warrior_intimidating_presence':
-        if (!enemy || !combatId) throw new SenderError('You have no target to unleash this upon.');
+        if (!enemy || !combatId) { fail(ctx, character, 'You have no target to unleash this upon.'); throw new SenderError('You have no target to unleash this upon.'); }
         addEnemyEffect(ctx, combatId, enemy.id, 'damage_down', -3n, 3n, 'Intimidating Presence', character.id);
         appendPrivateEvent(
           ctx,
@@ -974,6 +978,7 @@ export function executeAbility(
       case 'bard_requiem_of_ruin': {
         const COMBAT_SONGS = ['bard_discordant_note', 'bard_requiem_of_ruin'];
         if (COMBAT_SONGS.includes(abilityKey) && (!combatId || !combat)) {
+          fail(ctx, character, 'This song can only be sung in combat.');
           throw new SenderError('This song can only be sung in combat.');
         }
         // Mark previous song as fading (only consider non-fading songs to avoid double-fading)
@@ -1135,7 +1140,7 @@ export function executeAbility(
         });
         return;
       case 'enchanter_clarity':
-        if (!targetCharacter) throw new SenderError('Target required');
+        if (!targetCharacter) { fail(ctx, character, 'Target required'); throw new SenderError('Target required'); }
         addCharacterEffect(ctx, targetCharacter.id, 'mana_regen_bonus', 1n, 270n, 'Clarity');
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
           `Clarity increases ${targetCharacter.name}'s mana regeneration rate for 45 minutes.`
@@ -1163,7 +1168,7 @@ export function executeAbility(
         return;
       case 'enchanter_charm': {
         // Spawn a charmed copy of the current enemy as a CombatPet
-        if (!enemy || !combatId) throw new SenderError('You have no target to unleash this upon.');
+        if (!enemy || !combatId) { fail(ctx, character, 'You have no target to unleash this upon.'); throw new SenderError('You have no target to unleash this upon.'); }
         summonPet(
           'Charmed', `a charmed ${enemyName}`,
           [enemyName, 'Echo', 'Mirror'],
@@ -1179,7 +1184,7 @@ export function executeAbility(
         return;
       }
       case 'cleric_mend':
-        if (!targetCharacter) throw new SenderError('Target required');
+        if (!targetCharacter) { fail(ctx, character, 'Target required'); throw new SenderError('Target required'); }
         applyHeal(targetCharacter, 18n, 'Mend');
         return;
       case 'cleric_sanctify':
@@ -1224,7 +1229,7 @@ export function executeAbility(
         );
         return;
       case 'cleric_heal':
-        if (!targetCharacter) throw new SenderError('Target required');
+        if (!targetCharacter) { fail(ctx, character, 'Target required'); throw new SenderError('Target required'); }
         applyHeal(targetCharacter, 15n, 'Heal');
         return;
       case 'cleric_resurrect':
@@ -1292,7 +1297,7 @@ export function executeAbility(
         });
         return;
       case 'wizard_mana_shield':
-        if (!targetCharacter) throw new SenderError('Target required');
+        if (!targetCharacter) { fail(ctx, character, 'Target required'); throw new SenderError('Target required'); }
         addCharacterEffect(ctx, targetCharacter.id, 'ac_bonus', 3n, 3n, 'Mana Shield');
         appendPrivateEvent(
           ctx,
@@ -1382,7 +1387,7 @@ export function executeAbility(
         return;
       }
       case 'rogue_death_mark': {
-        if (!enemy || !combatId) throw new SenderError('You have no target to unleash this upon.');
+        if (!enemy || !combatId) { fail(ctx, character, 'You have no target to unleash this upon.'); throw new SenderError('You have no target to unleash this upon.'); }
         // Debuff: increases damage taken by enemy
         addEnemyEffect(ctx, combatId, enemy.id, 'damage_taken', 5n, 3n, 'Death Mark', character.id);
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
@@ -1411,7 +1416,7 @@ export function executeAbility(
         return;
       }
       case 'paladin_shield_of_faith':
-        if (!targetCharacter) throw new SenderError('Target required');
+        if (!targetCharacter) { fail(ctx, character, 'Target required'); throw new SenderError('Target required'); }
         addCharacterEffect(ctx, targetCharacter.id, 'ac_bonus', 3n, 3n, 'Shield of Faith');
         appendPrivateEvent(
           ctx,
@@ -1503,7 +1508,7 @@ export function executeAbility(
         applyDamage(0n, 0n);
         return;
       case 'ranger_natures_balm':
-        if (!targetCharacter) throw new SenderError('Target required');
+        if (!targetCharacter) { fail(ctx, character, 'Target required'); throw new SenderError('Target required'); }
         addCharacterEffect(ctx, targetCharacter.id, 'regen', 7n, 3n, "Nature's Balm");
         appendPrivateEvent(
           ctx,
@@ -1531,7 +1536,7 @@ export function executeAbility(
         return;
       case 'necromancer_wither': {
         // Life drain DoT: damages enemy AND heals caster per tick via ownerCharacterId
-        if (!enemy || !combatId) throw new SenderError('You have no target to unleash this upon.');
+        if (!enemy || !combatId) { fail(ctx, character, 'You have no target to unleash this upon.'); throw new SenderError('You have no target to unleash this upon.'); }
         const witherDotDamage = 5n + character.level;
         addEnemyEffect(ctx, combatId, enemy.id, 'dot', witherDotDamage, 3n, 'Wither', character.id);
         // Find the just-inserted effect and add ownerCharacterId
@@ -1672,15 +1677,17 @@ export function executeAbility(
         return;
       case 'druid_natures_mark': {
         if (activeCombatIdForCharacter(ctx, character.id)) {
+          fail(ctx, character, 'Cannot use while in combat');
           throw new SenderError('Cannot use while in combat');
         }
         // Re-read character from database to ensure fresh location/state data
         const freshChar = ctx.db.character.id.find(character.id);
         if (!freshChar) {
+          fail(ctx, character, 'Character not found');
           throw new SenderError('Character not found');
         }
         const location = ctx.db.location.id.find(freshChar.locationId);
-        if (!location) throw new SenderError('Location not found');
+        if (!location) { fail(ctx, character, 'Location not found'); throw new SenderError('Location not found'); }
         const region = ctx.db.region.id.find(location.regionId);
         const dm = region?.dangerMultiplier ?? 100n;
         const gatherZoneTier = dm < 130n ? 1 : dm < 190n ? 2 : 3;
@@ -1836,10 +1843,10 @@ export function executeAbility(
         return;
       case 'summoner_redirect': {
         // Pull all enemy aggro off the active pet and onto the summoner.
-        if (!combatId) throw new SenderError('You must be in combat to use Redirect.');
+        if (!combatId) { fail(ctx, character, 'You must be in combat to use Redirect.'); throw new SenderError('You must be in combat to use Redirect.'); }
         const myPets = [...ctx.db.active_pet.by_character.filter(character.id)]
           .filter((p: any) => p.combatId === combatId);
-        if (myPets.length === 0) throw new SenderError('You have no active pet to redirect from.');
+        if (myPets.length === 0) { fail(ctx, character, 'You have no active pet to redirect from.'); throw new SenderError('You have no active pet to redirect from.'); }
         const combatEnemies = [...ctx.db.combat_enemy.by_combat.filter(combatId)];
         let redirected = 0;
         for (const petRow of myPets) {

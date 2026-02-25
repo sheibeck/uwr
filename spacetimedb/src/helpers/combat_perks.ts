@@ -8,7 +8,7 @@ import { SenderError } from 'spacetimedb/server';
 import { getPerkProcs } from './renown';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { addCharacterEffect } from './combat';
-import { appendPrivateEvent, appendGroupEvent } from './events';
+import { appendPrivateEvent, appendGroupEvent, fail } from './events';
 import { getEquippedWeaponStats } from './items';
 import { effectiveGroupId } from './group';
 
@@ -171,6 +171,7 @@ export function executePerkAbility(
   const rawKey = abilityKey.replace(/^perk_/, '');
   const perkDef = findPerkByKey(rawKey);
   if (!perkDef || perkDef.type !== 'active') {
+    fail(ctx, character, 'Invalid perk ability');
     throw new SenderError('Invalid perk ability');
   }
 
@@ -183,6 +184,7 @@ export function executePerkAbility(
     }
   }
   if (!hasPerk) {
+    fail(ctx, character, 'You do not have this perk');
     throw new SenderError('You do not have this perk');
   }
 
@@ -204,6 +206,7 @@ export function executePerkAbility(
   } else if (effect.damagePercent) {
     // Thunderous Blow: deal X% weapon damage to current target -- requires combat
     if (!combatId) {
+      fail(ctx, character, 'Thunderous Blow can only be used in combat');
       throw new SenderError('Thunderous Blow can only be used in combat');
     }
     const enemies = [...ctx.db.combat_enemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n);
@@ -212,6 +215,7 @@ export function executePerkAbility(
       : null;
     const enemy = preferredEnemy ?? enemies[0] ?? null;
     if (!enemy) {
+      fail(ctx, character, 'No target in combat');
       throw new SenderError('No target in combat');
     }
     const weapon = getEquippedWeaponStats(ctx, character.id);
@@ -239,6 +243,7 @@ export function executePerkAbility(
       appendGroupEvent(ctx, actorGroupId, character.id, 'ability', msg);
     }
   } else {
+    fail(ctx, character, 'Unknown active perk effect type');
     throw new SenderError('Unknown active perk effect type');
   }
 }
