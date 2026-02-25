@@ -14,7 +14,7 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 **Current phase:** 23 — V2 Subscription Optimization (Plans 01-02 complete: event tables converted to event:true, client onInsert wiring done)
 **Next action:** Continue Phase 23 optimization or begin next phase
 **Last session:** 2026-02-25T01:36:39Z
-Last activity: 2026-02-25 - Completed Quick-315: Replaced 76 useTable() calls with ~8 batched domain subscription composables
+Last activity: 2026-02-25 - Completed quick task 316: SQL-filtered subscriptions with WHERE clauses for location-scoped data
 
 ---
 
@@ -572,6 +572,7 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 313 | Debug persistent columns undefined error — v2 SDK table lookup mismatch | 2026-02-24 | 5313fa5 | [313-debug-persistent-columns-undefined-error](./quick/313-debug-persistent-columns-undefined-error/) |
 | 314 | Fix race description not showing on character creation screen | 2026-02-24 | 572a475 | [314-fix-race-description-not-showing-on-char](./quick/314-fix-race-description-not-showing-on-char/) |
 | 315 | Replace subscribeToAllTables with scoped domain subscriptions | 2026-02-25 | 9da6ca9 | [315-replace-subscribetoalltables-with-scoped](./quick/315-replace-subscribetoalltables-with-scoped/) |
+| 316 | SQL-filtered subscriptions with WHERE clauses for location-scoped data | 2026-02-25 | 3d568da | [316-sql-filtered-subscriptions-with-where-cl](./quick/316-sql-filtered-subscriptions-with-where-cl/) |
 
 ---
 
