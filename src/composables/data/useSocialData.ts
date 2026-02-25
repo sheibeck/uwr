@@ -1,5 +1,7 @@
 import { shallowRef, watch } from 'vue';
 import { useSpacetimeDB } from 'spacetimedb/vue';
+import { toSql } from 'spacetimedb';
+import { tables } from '../../module_bindings';
 
 type ConnectionState = ReturnType<typeof useSpacetimeDB>;
 
@@ -36,15 +38,15 @@ export function useSocialData(conn: ConnectionState) {
       dbConn.subscriptionBuilder()
         .onApplied(() => refresh(dbConn))
         .subscribe([
-          'SELECT * FROM friend_request',
-          'SELECT * FROM friend',
-          'SELECT * FROM group_invite',
-          'SELECT * FROM group',
-          'SELECT * FROM group_member',
-          'SELECT * FROM trade_session',
-          'SELECT * FROM trade_item',
-          'SELECT * FROM npc_affinity',
-          'SELECT * FROM npc_dialogue_option',
+          toSql(tables.friend_request),
+          toSql(tables.friend),
+          toSql(tables.group_invite),
+          toSql(tables.group),
+          toSql(tables.group_member),
+          toSql(tables.trade_session),
+          toSql(tables.trade_item),
+          toSql(tables.npc_affinity),
+          toSql(tables.npc_dialogue_option),
         ]);
 
       const rebind = (table: any, ref: { value: any[] }, iter: () => Iterable<any>) => {

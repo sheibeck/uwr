@@ -1,5 +1,7 @@
 import { shallowRef, watch } from 'vue';
 import { useSpacetimeDB } from 'spacetimedb/vue';
+import { toSql } from 'spacetimedb';
+import { tables } from '../../module_bindings';
 
 type ConnectionState = ReturnType<typeof useSpacetimeDB>;
 
@@ -32,11 +34,11 @@ export function useWorldEventData(conn: ConnectionState) {
       dbConn.subscriptionBuilder()
         .onApplied(() => refresh(dbConn))
         .subscribe([
-          'SELECT * FROM world_event',
-          'SELECT * FROM event_contribution',
-          'SELECT * FROM event_spawn_enemy',
-          'SELECT * FROM event_spawn_item',
-          'SELECT * FROM event_objective',
+          toSql(tables.world_event),
+          toSql(tables.event_contribution),
+          toSql(tables.event_spawn_enemy),
+          toSql(tables.event_spawn_item),
+          toSql(tables.event_objective),
         ]);
 
       const rebind = (table: any, ref: { value: any[] }, iter: () => Iterable<any>) => {

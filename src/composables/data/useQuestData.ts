@@ -1,5 +1,7 @@
 import { shallowRef, watch } from 'vue';
 import { useSpacetimeDB } from 'spacetimedb/vue';
+import { toSql } from 'spacetimedb';
+import { tables } from '../../module_bindings';
 
 type ConnectionState = ReturnType<typeof useSpacetimeDB>;
 
@@ -26,10 +28,10 @@ export function useQuestData(conn: ConnectionState) {
       dbConn.subscriptionBuilder()
         .onApplied(() => refresh(dbConn))
         .subscribe([
-          'SELECT * FROM quest_template',
-          'SELECT * FROM quest_instance',
-          'SELECT * FROM quest_item',
-          'SELECT * FROM npc_dialog',
+          toSql(tables.quest_template),
+          toSql(tables.quest_instance),
+          toSql(tables.quest_item),
+          toSql(tables.npc_dialog),
         ]);
 
       const rebind = (table: any, ref: { value: any[] }, iter: () => Iterable<any>) => {

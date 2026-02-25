@@ -1,6 +1,7 @@
 import { type Ref, shallowRef, watch } from 'vue';
 import { useSpacetimeDB } from 'spacetimedb/vue';
-import type { SubscriptionHandle } from '../../module_bindings';
+import { toSql } from 'spacetimedb';
+import { tables, type SubscriptionHandle } from '../../module_bindings';
 
 type ConnectionState = ReturnType<typeof useSpacetimeDB>;
 
@@ -55,13 +56,13 @@ export function useWorldData(conn: ConnectionState, currentLocationId: Ref<bigin
       dbConn.subscriptionBuilder()
         .onApplied(() => refreshGlobal(dbConn))
         .subscribe([
-          'SELECT * FROM "enemy_spawn_member"',
-          'SELECT * FROM "enemy_template"',
-          'SELECT * FROM "enemy_role_template"',
-          'SELECT * FROM "enemy_ability"',
-          'SELECT * FROM "vendor_inventory"',
-          'SELECT * FROM "resource_gather"',
-          'SELECT * FROM "corpse_item"',
+          toSql(tables.enemy_spawn_member),
+          toSql(tables.enemy_template),
+          toSql(tables.enemy_role_template),
+          toSql(tables.enemy_ability),
+          toSql(tables.vendor_inventory),
+          toSql(tables.resource_gather),
+          toSql(tables.corpse_item),
         ]);
 
       // --- Rebind callbacks for ALL tables (fire on any insert/update/delete) ---
@@ -103,12 +104,12 @@ export function useWorldData(conn: ConnectionState, currentLocationId: Ref<bigin
       const oldHandle = locationSubHandle;
 
       const queries = [
-        `SELECT * FROM "enemy_spawn" WHERE "locationId" = ${locId}`,
-        `SELECT * FROM "npc" WHERE "locationId" = ${locId}`,
-        `SELECT * FROM "named_enemy" WHERE "locationId" = ${locId}`,
-        `SELECT * FROM "resource_node" WHERE "locationId" = ${locId}`,
-        `SELECT * FROM "corpse" WHERE "locationId" = ${locId}`,
-        `SELECT * FROM "search_result" WHERE "locationId" = ${locId}`,
+        toSql(tables.enemy_spawn.where(r => r.locationId.eq(locId))),
+        toSql(tables.npc.where(r => r.locationId.eq(locId))),
+        toSql(tables.named_enemy.where(r => r.locationId.eq(locId))),
+        toSql(tables.resource_node.where(r => r.locationId.eq(locId))),
+        toSql(tables.corpse.where(r => r.locationId.eq(locId))),
+        toSql(tables.search_result.where(r => r.locationId.eq(locId))),
       ];
 
       // Subscribe to new location FIRST (subscribe-before-unsubscribe)

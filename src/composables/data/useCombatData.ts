@@ -1,5 +1,7 @@
 import { shallowRef, ref, watch } from 'vue';
 import { useSpacetimeDB } from 'spacetimedb/vue';
+import { toSql } from 'spacetimedb';
+import { tables } from '../../module_bindings';
 
 type ConnectionState = ReturnType<typeof useSpacetimeDB>;
 
@@ -46,19 +48,19 @@ export function useCombatData(conn: ConnectionState) {
       dbConn.subscriptionBuilder()
         .onApplied(() => refresh(dbConn))
         .subscribe([
-          'SELECT * FROM combat_encounter',
-          'SELECT * FROM combat_participant',
-          'SELECT * FROM combat_enemy',
-          'SELECT * FROM combat_enemy_effect',
-          'SELECT * FROM combat_enemy_cast',
-          'SELECT * FROM combat_result',
-          'SELECT * FROM combat_loot',
-          'SELECT * FROM pull_state',
-          'SELECT * FROM active_pet',
-          'SELECT * FROM ability_cooldown',
-          'SELECT * FROM character_cast',
-          'SELECT * FROM character_effect',
-          'SELECT * FROM active_bard_song',
+          toSql(tables.combat_encounter),
+          toSql(tables.combat_participant),
+          toSql(tables.combat_enemy),
+          toSql(tables.combat_enemy_effect),
+          toSql(tables.combat_enemy_cast),
+          toSql(tables.combat_result),
+          toSql(tables.combat_loot),
+          toSql(tables.pull_state),
+          toSql(tables.active_pet),
+          toSql(tables.ability_cooldown),
+          toSql(tables.character_cast),
+          toSql(tables.character_effect),
+          toSql(tables.active_bard_song),
         ]);
 
       const rebind = (table: any, ref: { value: any[] }, iter: () => Iterable<any>) => {

@@ -1,5 +1,7 @@
 import { shallowRef, watch } from 'vue';
 import { useSpacetimeDB } from 'spacetimedb/vue';
+import { toSql } from 'spacetimedb';
+import { tables } from '../../module_bindings';
 
 type ConnectionState = ReturnType<typeof useSpacetimeDB>;
 
@@ -68,31 +70,31 @@ export function useCoreData(conn: ConnectionState) {
       dbConn.subscriptionBuilder()
         .onApplied(() => refresh(dbConn))
         .subscribe([
-          'SELECT * FROM player',
-          'SELECT * FROM user',
-          'SELECT * FROM character',
-          'SELECT * FROM world_state',
-          'SELECT * FROM region',
-          'SELECT * FROM location',
-          'SELECT * FROM location_connection',
-          'SELECT * FROM race',
-          'SELECT * FROM faction',
-          'SELECT * FROM faction_standing',
-          'SELECT * FROM ability_template',
-          'SELECT * FROM item_template',
-          'SELECT * FROM item_instance',
-          'SELECT * FROM hotbar_slot',
-          'SELECT * FROM item_cooldown',
-          'SELECT * FROM item_affix',
-          'SELECT * FROM renown',
-          'SELECT * FROM renown_perk',
-          'SELECT * FROM renown_server_first',
-          'SELECT * FROM achievement',
-          'SELECT * FROM app_version',
-          'SELECT * FROM ui_panel_layout',
-          'SELECT * FROM travel_cooldown',
-          'SELECT * FROM character_logout_tick',
-          'SELECT * FROM my_bank_slots',
+          toSql(tables.player),
+          toSql(tables.user),
+          toSql(tables.character),
+          toSql(tables.world_state),
+          toSql(tables.region),
+          toSql(tables.location),
+          toSql(tables.location_connection),
+          toSql(tables.race),
+          toSql(tables.faction),
+          toSql(tables.faction_standing),
+          toSql(tables.ability_template),
+          toSql(tables.item_template),
+          toSql(tables.item_instance),
+          toSql(tables.hotbar_slot),
+          toSql(tables.item_cooldown),
+          toSql(tables.item_affix),
+          toSql(tables.renown),
+          toSql(tables.renown_perk),
+          toSql(tables.renown_server_first),
+          toSql(tables.achievement),
+          toSql(tables.app_version),
+          toSql(tables.ui_panel_layout),
+          toSql(tables.travel_cooldown),
+          toSql(tables.character_logout_tick),
+          toSql(tables.my_bank_slots),
         ]);
 
       // Register reactive callbacks for each table

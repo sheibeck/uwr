@@ -1,5 +1,7 @@
 import { shallowRef, watch } from 'vue';
 import { useSpacetimeDB } from 'spacetimedb/vue';
+import { toSql } from 'spacetimedb';
+import { tables } from '../../module_bindings';
 
 type ConnectionState = ReturnType<typeof useSpacetimeDB>;
 
@@ -24,9 +26,9 @@ export function useCraftingData(conn: ConnectionState) {
       dbConn.subscriptionBuilder()
         .onApplied(() => refresh(dbConn))
         .subscribe([
-          'SELECT * FROM recipe_template',
-          'SELECT * FROM recipe_discovered',
-          'SELECT * FROM pending_spell_cast',
+          toSql(tables.recipe_template),
+          toSql(tables.recipe_discovered),
+          toSql(tables.pending_spell_cast),
         ]);
 
       const rebind = (table: any, ref: { value: any[] }, iter: () => Iterable<any>) => {
