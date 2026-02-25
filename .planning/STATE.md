@@ -1,7 +1,7 @@
 # Project State
 
 **Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
-**Last updated:** 2026-02-24
+**Last updated:** 2026-02-25
 **Status:** Milestone complete
 
 ---
@@ -13,8 +13,8 @@ Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation)
 **Last completed phase:** 21.1.1 — Hit/Dodge/Parry Active Stats (stat-derived dodge/parry/hit wired; DEX live defensive stat)
 **Current phase:** 23 — V2 Subscription Optimization (Plans 01-02 complete: event tables converted to event:true, client onInsert wiring done)
 **Next action:** Continue Phase 23 optimization or begin next phase
-**Last session:** 2026-02-24T21:34:34.300Z
-Last activity: 2026-02-24 - Completed Phase 23 Plan 02: Client event handling switched from useTable to onInsert callbacks
+**Last session:** 2026-02-25T01:36:39Z
+Last activity: 2026-02-25 - Completed Quick-315: Replaced 76 useTable() calls with ~8 batched domain subscription composables
 
 ---
 
