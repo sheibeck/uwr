@@ -490,7 +490,7 @@ export const RENOWN_PERK_POOLS: Record<number, Perk[]> = {
 };
 
 export const RENOWN_GAIN = {
-  BOSS_KILL_BASE: 500n,           // Base renown for boss kills (modified by server-first)
+  BOSS_KILL_BASE: 150n,           // Base renown for boss kills (modified by server-first). Reduced from 500n to prevent rank-jumping.
   QUEST_COMPLETE_BASE: 50n,       // Base renown per quest completion
   ACHIEVEMENT_BASE: 200n,         // Base renown per achievement
   EVENT_PARTICIPATION_BASE: 100n, // Base renown per event participation

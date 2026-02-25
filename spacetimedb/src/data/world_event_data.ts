@@ -55,13 +55,13 @@ export const WORLD_EVENT_DEFINITIONS: Record<string, WorldEventDefinition> = {
       },
       silver: {
         threshold: 5,
-        success: { renown: 150, gold: 300, factionId: 3, factionAmount: 25, itemTemplateKey: null },
-        failure: { renown: 25, gold: 50, factionId: null, factionAmount: 0, itemTemplateKey: null },
+        success: { renown: 75, gold: 300, factionId: 3, factionAmount: 25, itemTemplateKey: null },
+        failure: { renown: 12, gold: 50, factionId: null, factionAmount: 0, itemTemplateKey: null },
       },
       gold: {
         threshold: 15,
-        success: { renown: 400, gold: 750, factionId: 3, factionAmount: 75, itemTemplateKey: null },
-        failure: { renown: 60, gold: 100, factionId: null, factionAmount: 0, itemTemplateKey: null },
+        success: { renown: 150, gold: 750, factionId: 3, factionAmount: 75, itemTemplateKey: null },
+        failure: { renown: 30, gold: 100, factionId: null, factionAmount: 0, itemTemplateKey: null },
       },
     },
     contentLocations: [
@@ -93,13 +93,13 @@ export const WORLD_EVENT_DEFINITIONS: Record<string, WorldEventDefinition> = {
       },
       silver: {
         threshold: 8,
-        success: { renown: 100, gold: 200, factionId: 1, factionAmount: 30, itemTemplateKey: null },
-        failure: { renown: 15, gold: 30, factionId: null, factionAmount: 0, itemTemplateKey: null },
+        success: { renown: 50, gold: 200, factionId: 1, factionAmount: 30, itemTemplateKey: null },
+        failure: { renown: 8, gold: 30, factionId: null, factionAmount: 0, itemTemplateKey: null },
       },
       gold: {
         threshold: 20,
-        success: { renown: 250, gold: 500, factionId: 1, factionAmount: 75, itemTemplateKey: null },
-        failure: { renown: 40, gold: 75, factionId: null, factionAmount: 0, itemTemplateKey: null },
+        success: { renown: 100, gold: 500, factionId: 1, factionAmount: 75, itemTemplateKey: null },
+        failure: { renown: 20, gold: 75, factionId: null, factionAmount: 0, itemTemplateKey: null },
       },
     },
     contentLocations: [
@@ -130,13 +130,13 @@ export const WORLD_EVENT_DEFINITIONS: Record<string, WorldEventDefinition> = {
       },
       silver: {
         threshold: 3,
-        success: { renown: 60, gold: 120, factionId: 1, factionAmount: 10, itemTemplateKey: null },
-        failure: { renown: 10, gold: 20, factionId: null, factionAmount: 0, itemTemplateKey: null },
+        success: { renown: 35, gold: 120, factionId: 1, factionAmount: 10, itemTemplateKey: null },
+        failure: { renown: 5, gold: 20, factionId: null, factionAmount: 0, itemTemplateKey: null },
       },
       gold: {
         threshold: 8,
-        success: { renown: 150, gold: 300, factionId: 1, factionAmount: 30, itemTemplateKey: null },
-        failure: { renown: 25, gold: 50, factionId: null, factionAmount: 0, itemTemplateKey: null },
+        success: { renown: 60, gold: 300, factionId: 1, factionAmount: 30, itemTemplateKey: null },
+        failure: { renown: 12, gold: 50, factionId: null, factionAmount: 0, itemTemplateKey: null },
       },
     },
     contentLocations: [
