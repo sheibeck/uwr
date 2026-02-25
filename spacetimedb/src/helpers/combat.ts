@@ -1012,7 +1012,14 @@ export function executeAbility(
           const activeEnemies = combatId
             ? [...ctx.db.combat_enemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n)
             : [];
-          const burstDmg = ((8n + character.level * 2n + character.cha) * 65n) / 100n;
+          const abilityBase = 2n * 5n;  // Discordant Note power=2
+          const statScale = getAbilityStatScaling(
+            { str: character.str, dex: character.dex, cha: character.cha, wis: character.wis, int: character.int },
+            'bard_discordant_note', character.className, 'hybrid'
+          );
+          const abilityMult = getAbilityMultiplier(0n, 1n);
+          const scaledDmg = ((abilityBase + statScale) * abilityMult) / 100n;
+          const burstDmg = (scaledDmg * AOE_DAMAGE_MULTIPLIER) / 100n;
           let totalDamage = 0n;
           for (const en of activeEnemies) {
             const actualDmg = en.currentHp > burstDmg ? burstDmg : en.currentHp;
@@ -1073,7 +1080,14 @@ export function executeAbility(
         switch (activeSong.songKey) {
           case 'bard_discordant_note':
             for (const tEnemy of bardEnemies) {
-              const dmg = 5n + character.level;
+              const abilityBase = 2n * 5n;  // Discordant Note power=2
+              const statScale = getAbilityStatScaling(
+                { str: character.str, dex: character.dex, cha: character.cha, wis: character.wis, int: character.int },
+                'bard_discordant_note', character.className, 'hybrid'
+              );
+              const abilityMult = getAbilityMultiplier(0n, 1n);
+              const scaledDmg = ((abilityBase + statScale) * abilityMult) / 100n;
+              const dmg = (scaledDmg * AOE_DAMAGE_MULTIPLIER) / 100n;
               const nextHp = tEnemy.currentHp > dmg ? tEnemy.currentHp - dmg : 0n;
               ctx.db.combat_enemy.id.update({ ...tEnemy, currentHp: nextHp });
             }
