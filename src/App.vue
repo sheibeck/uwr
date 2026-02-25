@@ -152,7 +152,7 @@
 
     <!-- Journal Panel (wide) -->
     <FloatingPanel panel-id="journal" title="Journal" wide>
-      <NpcDialogPanel :styles="styles" :npc-dialogs="characterNpcDialogs" :npcs="npcs" :locations="locations" :regions="regions" :npc-affinities="npcAffinities" :selected-character-id="selectedCharacterId ? BigInt(selectedCharacterId) : null" :selected-npc-target="selectedNpcTarget" :quest-instances="characterQuests" :quest-templates="questTemplates" :requested-tab="journalRequestedTab" @tab-change="tab => setPanelTab('journal', tab)" />
+      <NpcDialogPanel :styles="styles" :npc-dialogs="characterNpcDialogs" :npcs="npcs" :all-npcs="allNpcs" :locations="locations" :regions="regions" :npc-affinities="npcAffinities" :selected-character-id="selectedCharacterId ? BigInt(selectedCharacterId) : null" :selected-npc-target="selectedNpcTarget" :quest-instances="characterQuests" :quest-templates="questTemplates" :requested-tab="journalRequestedTab" @tab-change="tab => setPanelTab('journal', tab)" />
     </FloatingPanel>
 
     <!-- Renown Panel -->
@@ -628,6 +628,7 @@ const {
   itemCooldowns,
   locations,
   npcs,
+  allNpcs,
   vendorInventory,
   enemyTemplates,
   enemyRoleTemplates,

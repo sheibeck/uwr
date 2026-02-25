@@ -10,12 +10,14 @@ export function useQuestData(conn: ConnectionState) {
   const questInstances = shallowRef<any[]>([]);
   const questItems = shallowRef<any[]>([]);
   const npcDialogs = shallowRef<any[]>([]);
+  const allNpcs = shallowRef<any[]>([]);
 
   function refresh(dbConn: any) {
     questTemplates.value = [...dbConn.db.quest_template.iter()];
     questInstances.value = [...dbConn.db.quest_instance.iter()];
     questItems.value = [...dbConn.db.quest_item.iter()];
     npcDialogs.value = [...dbConn.db.npc_dialog.iter()];
+    allNpcs.value = [...dbConn.db.npc.iter()];
   }
 
   watch(
@@ -32,6 +34,7 @@ export function useQuestData(conn: ConnectionState) {
           toSql(tables.quest_instance),
           toSql(tables.quest_item),
           toSql(tables.npc_dialog),
+          toSql(tables.npc),
         ]);
 
       const rebind = (table: any, ref: { value: any[] }, iter: () => Iterable<any>) => {
@@ -45,6 +48,7 @@ export function useQuestData(conn: ConnectionState) {
       rebind(dbConn.db.quest_instance, questInstances, () => dbConn.db.quest_instance.iter());
       rebind(dbConn.db.quest_item, questItems, () => dbConn.db.quest_item.iter());
       rebind(dbConn.db.npc_dialog, npcDialogs, () => dbConn.db.npc_dialog.iter());
+      rebind(dbConn.db.npc, allNpcs, () => dbConn.db.npc.iter());
     },
     { immediate: true }
   );
@@ -54,5 +58,6 @@ export function useQuestData(conn: ConnectionState) {
     questInstances,
     questItems,
     npcDialogs,
+    allNpcs,
   };
 }

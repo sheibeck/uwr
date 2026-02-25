@@ -152,6 +152,7 @@ const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   npcDialogs: NpcDialog[];
   npcs: Npc[];
+  allNpcs: Npc[];
   locations: Location[];
   regions: Region[];
   npcAffinities: NpcAffinity[];
@@ -204,7 +205,7 @@ const getAffinityTier = (affinity: number) => {
 const npcFilters = computed(() => {
   const seen = new Map<string, { name: string; tierName: string; tierColor: string }>();
   for (const entry of props.npcDialogs) {
-    const npc = props.npcs.find((row) => row.id.toString() === entry.npcId.toString());
+    const npc = props.allNpcs.find((row) => row.id.toString() === entry.npcId.toString());
     if (npc && !seen.has(npc.id.toString())) {
       // Get affinity for this NPC
       const affinity = props.npcAffinities.find(
@@ -229,7 +230,7 @@ const dialogEntries = computed(() => {
     .filter((entry) => entry.npcId.toString() === selected)
     .sort((a, b) => Number(a.createdAt.microsSinceUnixEpoch - b.createdAt.microsSinceUnixEpoch))
     .map((entry) => {
-      const npc = props.npcs.find((row) => row.id.toString() === entry.npcId.toString());
+      const npc = props.allNpcs.find((row) => row.id.toString() === entry.npcId.toString());
       return {
         key: entry.id.toString(),
         npc: npc ? npc.name : 'NPC',
@@ -240,7 +241,7 @@ const dialogEntries = computed(() => {
 
 const selectedNpcData = computed(() => {
   if (!selectedNpcId.value || !props.selectedCharacterId) return null;
-  const npc = props.npcs.find((row) => row.id.toString() === selectedNpcId.value);
+  const npc = props.allNpcs.find((row) => row.id.toString() === selectedNpcId.value);
   if (!npc) return null;
 
   // Get affinity
@@ -284,7 +285,7 @@ const questRows = computed(() => {
       (row) => row.id.toString() === instance.questTemplateId.toString()
     );
     const npc = template
-      ? props.npcs.find((row) => row.id.toString() === template.npcId.toString())
+      ? props.allNpcs.find((row) => row.id.toString() === template.npcId.toString())
       : null;
     const location = npc
       ? props.locations.find((row) => row.id.toString() === npc.locationId.toString())
