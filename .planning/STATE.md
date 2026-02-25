@@ -577,10 +577,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 318 | Verify in-combat regen (already fixed — halfTick removed in quick-313) | 2026-02-25 | deb83d0 | [318-fix-in-combat-healing-ticks-of-7-hp-occu](./quick/318-fix-in-combat-healing-ticks-of-7-hp-occu/) |
 | 320 | Fix Discordant Note to use 65% AoE damage | 2026-02-25 | 7b61079 | [320-fix-discordant-note-to-use-65-aoe-damage](./quick/320-fix-discordant-note-to-use-65-aoe-damage/) |
 | 321 | Fix quests/journal showing Unknown location when leaving quest giver area | 2026-02-25 | e3e4246 | [321-fix-quests-showing-unknown-location-when](./quick/321-fix-quests-showing-unknown-location-when/) |
+| 322 | Balance weapon damage — 2H hits harder/slower, starters weaker than world drops | 2026-02-25 | a27000d | [322-balance-weapon-damage-for-2h-vs-1h-speed](./quick/322-balance-weapon-damage-for-2h-vs-1h-speed/) |
 
 ---
 
-Last activity: 2026-02-25 - Completed quick task 321: Fix quests/journal showing Unknown location when leaving quest giver area
+Last activity: 2026-02-25 - Completed quick task 322: Balance weapon damage — 2H hits harder/slower, starters weaker than world drops
 
 ## Last Session
 
