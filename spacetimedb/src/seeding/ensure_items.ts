@@ -184,16 +184,18 @@ export function ensureStarterItemTemplates(ctx: any) {
   }
 
   // Starter weapon stats scaled inversely with weapon speed for DPS parity
+  // Formula: rawWeaponDamage = 5 + level + baseDamage + (dps / 2)
+  // Effective DPS = rawWeaponDamage / speed_seconds
   const STARTER_WEAPON_STATS: Record<string, { baseDamage: bigint; dps: bigint }> = {
-    dagger:     { baseDamage: 2n, dps: 4n },  // Fast 3.0s
-    rapier:     { baseDamage: 2n, dps: 4n },  // Fast 3.0s
-    sword:      { baseDamage: 3n, dps: 5n },  // Normal 3.5s
-    blade:      { baseDamage: 3n, dps: 5n },  // Normal 3.5s
-    mace:       { baseDamage: 3n, dps: 5n },  // Normal 3.5s
-    axe:        { baseDamage: 4n, dps: 6n },  // Medium 4.0s
-    staff:      { baseDamage: 4n, dps: 5n },  // Slow 5.0s
-    bow:        { baseDamage: 4n, dps: 5n },  // Slow 5.0s
-    greatsword: { baseDamage: 5n, dps: 6n },  // Slow 5.0s (highest starter per-hit)
+    dagger:     { baseDamage: 2n, dps: 3n },  // Fast 3.0s  — raw: 5+1+2+1 = 9,  DPS: 3.0
+    rapier:     { baseDamage: 2n, dps: 3n },  // Fast 3.0s  — raw: 5+1+2+1 = 9,  DPS: 3.0
+    sword:      { baseDamage: 3n, dps: 4n },  // Normal 3.5s — raw: 5+1+3+2 = 11, DPS: 3.14
+    blade:      { baseDamage: 3n, dps: 4n },  // Normal 3.5s — raw: 5+1+3+2 = 11, DPS: 3.14
+    mace:       { baseDamage: 3n, dps: 4n },  // Normal 3.5s — raw: 5+1+3+2 = 11, DPS: 3.14
+    axe:        { baseDamage: 4n, dps: 5n },  // Medium 4.0s — raw: 5+1+4+2 = 12, DPS: 3.0
+    staff:      { baseDamage: 7n, dps: 8n },  // Slow 5.0s  — raw: 5+1+7+4 = 17, DPS: 3.4 (2H)
+    bow:        { baseDamage: 7n, dps: 8n },  // Slow 5.0s  — raw: 5+1+7+4 = 17, DPS: 3.4 (2H)
+    greatsword: { baseDamage: 8n, dps: 9n },  // Slow 5.0s  — raw: 5+1+8+4 = 18, DPS: 3.6 (2H)
   };
 
   for (const weapon of STARTER_WEAPON_DEFS) {
