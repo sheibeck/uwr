@@ -573,6 +573,7 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 314 | Fix race description not showing on character creation screen | 2026-02-24 | 572a475 | [314-fix-race-description-not-showing-on-char](./quick/314-fix-race-description-not-showing-on-char/) |
 | 315 | Replace subscribeToAllTables with scoped domain subscriptions | 2026-02-25 | 9da6ca9 | [315-replace-subscribetoalltables-with-scoped](./quick/315-replace-subscribetoalltables-with-scoped/) |
 | 316 | SQL-filtered subscriptions with WHERE clauses for location-scoped data | 2026-02-25 | 3d568da | [316-sql-filtered-subscriptions-with-where-cl](./quick/316-sql-filtered-subscriptions-with-where-cl/) |
+| 317 | Replace SQL string subscriptions with typed query builder | 2026-02-25 | b310953 | [317-replace-sql-string-subscriptions-with-ty](./quick/317-replace-sql-string-subscriptions-with-ty/) |
 
 ---
 
