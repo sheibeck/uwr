@@ -100,6 +100,7 @@ export const registerCharacterReducers = (deps: any) => {
     activeCombatIdForCharacter,
     isClassAllowed,
     cleanupDecayedCorpses,
+    fail,
   } = deps;
   const CHARACTER_SWITCH_LOGOUT_DELAY = 30_000_000n;
 
@@ -319,7 +320,8 @@ export const registerCharacterReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const location = ctx.db.location.id.find(character.locationId);
     if (!location || !location.bindStone) {
-      throw new SenderError('No bindstone here');
+      fail(ctx, character, 'No bindstone here');
+      return;
     }
     ctx.db.character.id.update({ ...character, boundLocationId: location.id });
     appendPrivateEvent(
@@ -469,7 +471,8 @@ export const registerCharacterReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     if (character.hp > 0n) return;
     if (activeCombatIdForCharacter(ctx, character.id)) {
-      throw new SenderError('Cannot respawn during combat');
+      fail(ctx, character, 'Cannot respawn during combat');
+      return;
     }
 
     // Clean up decayed corpses opportunistically

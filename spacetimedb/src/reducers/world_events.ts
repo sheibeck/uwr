@@ -5,7 +5,7 @@ import { appendPrivateEvent } from '../helpers/events';
 import { EventDespawnTick } from '../schema/tables';
 
 export function registerWorldEventReducers(deps: any) {
-  const { spacetimedb, t, SenderError } = deps;
+  const { spacetimedb, t, SenderError, fail } = deps;
 
   // fire_world_event — Admin-only reducer to fire a world event by eventKey
   spacetimedb.reducer('fire_world_event', { eventKey: t.string() }, (ctx: any, { eventKey }: { eventKey: string }) => {
@@ -53,23 +53,26 @@ export function registerWorldEventReducers(deps: any) {
       const character = ctx.db.character.id.find(characterId);
       if (!character) throw new SenderError('Character not found');
       if (character.ownerUserId.toHexString() !== ctx.sender.toHexString()) {
-        throw new SenderError('You do not own this character');
+        fail(ctx, character, 'You do not own this character');
+        return;
       }
 
       // Find the EventSpawnItem
       const spawnItem = ctx.db.event_spawn_item.id.find(eventSpawnItemId);
-      if (!spawnItem) throw new SenderError('Event item not found');
-      if (spawnItem.collected) throw new SenderError('Item already collected');
+      if (!spawnItem) { fail(ctx, character, 'Event item not found'); return; }
+      if (spawnItem.collected) { fail(ctx, character, 'Item already collected'); return; }
 
       // Validate character is at the item's location
       if (character.locationId !== spawnItem.locationId) {
-        throw new SenderError('You must be at the item location to collect it');
+        fail(ctx, character, 'You must be at the item location to collect it');
+        return;
       }
 
       // Check event is still active
       const event = ctx.db.world_event.id.find(spawnItem.eventId);
       if (!event || event.status !== 'active') {
-        throw new SenderError('This event is no longer active');
+        fail(ctx, character, 'This event is no longer active');
+        return;
       }
 
       // Mark item collected

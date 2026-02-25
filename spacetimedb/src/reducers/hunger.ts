@@ -10,9 +10,9 @@ export const registerFoodReducers = (deps: any) => {
   const {
     spacetimedb,
     t,
-    SenderError,
     requireCharacterOwnedBy,
     appendPrivateEvent,
+    fail,
   } = deps;
 
   spacetimedb.reducer(
@@ -22,12 +22,12 @@ export const registerFoodReducers = (deps: any) => {
       const character = requireCharacterOwnedBy(ctx, characterId);
 
       const instance = ctx.db.item_instance.id.find(itemInstanceId);
-      if (!instance) throw new SenderError('Item not found');
-      if (instance.ownerCharacterId !== characterId) throw new SenderError('Not your item');
+      if (!instance) { fail(ctx, character, 'Item not found'); return; }
+      if (instance.ownerCharacterId !== characterId) { fail(ctx, character, 'Not your item'); return; }
 
       const template = ctx.db.item_template.id.find(instance.templateId);
-      if (!template) throw new SenderError('Item template not found');
-      if (template.slot !== 'food') throw new SenderError('This item is not food');
+      if (!template) { fail(ctx, character, 'Item template not found'); return; }
+      if (template.slot !== 'food') { fail(ctx, character, 'This item is not food'); return; }
 
       // Consume the item
       if (instance.quantity > 1n) {

@@ -7,6 +7,7 @@ export const registerSocialReducers = (deps: any) => {
     requireCharacterOwnedBy,
     findCharacterByName,
     appendPrivateEvent,
+    fail,
   } = deps;
 
   spacetimedb.reducer('set_display_name', { name: t.string() }, (ctx, { name }) => {
@@ -46,11 +47,12 @@ export const registerSocialReducers = (deps: any) => {
     (ctx, args) => {
       const requester = requireCharacterOwnedBy(ctx, args.characterId);
       const targetName = args.targetName.trim();
-      if (!targetName) throw new SenderError('Target required');
+      if (!targetName) { fail(ctx, requester, 'Target required'); return; }
       const target = findCharacterByName(ctx, targetName);
-      if (!target) throw new SenderError('Target not found');
+      if (!target) { fail(ctx, requester, 'Target not found'); return; }
       if (target.ownerUserId === requester.ownerUserId) {
-        throw new SenderError('Cannot friend yourself');
+        fail(ctx, requester, 'Cannot friend yourself');
+        return;
       }
 
       for (const row of ctx.db.friend.by_user.filter(requester.ownerUserId)) {

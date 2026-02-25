@@ -2,7 +2,6 @@ export const registerQuestReducers = (deps: any) => {
   const {
     spacetimedb,
     t,
-    SenderError,
     requireCharacterOwnedBy,
     appendPrivateEvent,
     fail,
@@ -25,10 +24,10 @@ export const registerQuestReducers = (deps: any) => {
 
       // Find and validate the quest item
       const questItem = ctx.db.quest_item.id.find(args.questItemId);
-      if (!questItem) throw new SenderError('Quest item not found');
-      if (questItem.characterId !== character.id) throw new SenderError('That quest item does not belong to your character');
-      if (!questItem.discovered) throw new SenderError('You have not yet discovered this item');
-      if (questItem.looted) throw new SenderError('You have already looted this item');
+      if (!questItem) { fail(ctx, character, 'Quest item not found'); return; }
+      if (questItem.characterId !== character.id) { fail(ctx, character, 'That quest item does not belong to your character'); return; }
+      if (!questItem.discovered) { fail(ctx, character, 'You have not yet discovered this item'); return; }
+      if (questItem.looted) { fail(ctx, character, 'You have already looted this item'); return; }
 
       // Mark as looted
       ctx.db.quest_item.id.update({ ...questItem, looted: true });
@@ -102,13 +101,13 @@ export const registerQuestReducers = (deps: any) => {
 
       // Find and validate the named enemy
       const namedEnemy = ctx.db.named_enemy.id.find(args.namedEnemyId);
-      if (!namedEnemy) throw new SenderError('Named enemy not found');
-      if (namedEnemy.characterId !== character.id) throw new SenderError('That named enemy does not belong to your character');
-      if (!namedEnemy.isAlive) throw new SenderError('That enemy is not currently alive');
+      if (!namedEnemy) { fail(ctx, character, 'Named enemy not found'); return; }
+      if (namedEnemy.characterId !== character.id) { fail(ctx, character, 'That named enemy does not belong to your character'); return; }
+      if (!namedEnemy.isAlive) { fail(ctx, character, 'That enemy is not currently alive'); return; }
 
       // Find the enemy template
       const enemyTemplate = ctx.db.enemy_template.id.find(namedEnemy.enemyTemplateId);
-      if (!enemyTemplate) throw new SenderError('Enemy template not found');
+      if (!enemyTemplate) { fail(ctx, character, 'Enemy template not found'); return; }
 
       // Mark the named enemy as not alive
       ctx.db.named_enemy.id.update({

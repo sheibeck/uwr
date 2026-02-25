@@ -1,4 +1,3 @@
-import { SenderError } from 'spacetimedb/server';
 import { awardNpcAffinity, getAffinityForNpc, getAffinityRow } from '../helpers/npc_affinity';
 import { appendNpcDialog, appendPrivateEvent, appendSystemMessage, fail, requireCharacterOwnedBy } from '../helpers/events';
 
@@ -15,7 +14,7 @@ export const registerNpcInteractionReducers = (deps: any) => {
     const { npcId, optionId } = args;
 
     const npc = ctx.db.npc.id.find(npcId);
-    if (!npc) throw new SenderError('NPC not found');
+    if (!npc) { fail(ctx, character, 'NPC not found.'); return; }
 
     // Check character is at NPC location
     if (character.locationId !== npc.locationId) {
@@ -88,7 +87,7 @@ export const registerNpcInteractionReducers = (deps: any) => {
     const { npcId, itemInstanceId } = args;
 
     const npc = ctx.db.npc.id.find(npcId);
-    if (!npc) throw new SenderError('NPC not found');
+    if (!npc) { fail(ctx, character, 'NPC not found.'); return; }
 
     // Check location
     if (character.locationId !== npc.locationId) {

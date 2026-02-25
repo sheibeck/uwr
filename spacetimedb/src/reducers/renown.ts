@@ -2,7 +2,7 @@ import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { awardRenown, grantAchievement } from '../helpers/renown';
 
 export const registerRenownReducers = (deps: any) => {
-  const { spacetimedb, t, SenderError, requireAdmin, requireCharacterOwnedBy, appendSystemMessage } = deps;
+  const { spacetimedb, t, requireAdmin, requireCharacterOwnedBy, appendSystemMessage, fail } = deps;
 
   spacetimedb.reducer('choose_perk', { characterId: t.u64(), perkKey: t.string() }, (ctx: any, { characterId, perkKey }: any) => {
     // Auth check
@@ -16,7 +16,8 @@ export const registerRenownReducers = (deps: any) => {
     }
 
     if (!renownRow) {
-      throw new SenderError('No renown record found');
+      fail(ctx, character, 'No renown record found');
+      return;
     }
 
     const currentRank = Number(renownRow.currentRank);
@@ -36,18 +37,21 @@ export const registerRenownReducers = (deps: any) => {
     }
 
     if (targetRank === null) {
-      throw new SenderError('No perk choices available');
+      fail(ctx, character, 'No perk choices available');
+      return;
     }
 
     const perkPool = RENOWN_PERK_POOLS[targetRank];
     if (!perkPool) {
-      throw new SenderError(`No perk pool for rank ${targetRank}`);
+      fail(ctx, character, `No perk pool for rank ${targetRank}`);
+      return;
     }
 
     // Validate perkKey exists in pool
     const perk = perkPool.find((p: any) => p.key === perkKey);
     if (!perk) {
-      throw new SenderError('Invalid perk choice for this rank');
+      fail(ctx, character, 'Invalid perk choice for this rank');
+      return;
     }
 
     // Insert RenownPerk row
@@ -104,7 +108,8 @@ export const registerRenownReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, characterId);
     const granted = grantAchievement(ctx, character, achievementKey);
     if (!granted) {
-      throw new SenderError('Achievement already earned');
+      fail(ctx, character, 'Achievement already earned');
+      return;
     }
   });
 };
