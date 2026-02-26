@@ -1,5 +1,5 @@
 {
-  "model_profile": "quality",
+  "model_profile": "balanced",
   "workflow": {
     "mode": "yolo",
     "depth": "standard",
@@ -17,11 +17,11 @@
     "verifier_enabled": false
   },
   "models": {
-    "profile": "quality",
-    "researcher": "opus",
+    "profile": "balanced",
+    "researcher": "sonnet",
     "planner": "opus",
     "executor": "sonnet",
-    "verifier": "opus"
+    "verifier": "sonnet"
   },
   "git": {
     "enabled": true,
