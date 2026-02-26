@@ -193,7 +193,7 @@
 
     <!-- Bank Panel (wide) -->
     <FloatingPanel panel-id="bank" title="Bank Vault" wide>
-      <BankPanel :styles="styles" :bank-slots="bankSlots" :item-templates="itemTemplates" :item-instances="itemInstances" :selected-character="selectedCharacter" @withdraw="withdrawFromBank" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" />
+      <BankPanel :styles="styles" :bank-slots="bankSlots" :item-templates="itemTemplates" :item-instances="itemInstances" :item-affixes="itemAffixes" :selected-character="selectedCharacter" @withdraw="withdrawFromBank" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" />
     </FloatingPanel>
 
     <!-- Trade Panel (wide) -->

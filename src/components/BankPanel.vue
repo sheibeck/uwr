@@ -39,6 +39,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import ContextMenu from './ContextMenu.vue';
+import { buildItemTooltipData } from '../composables/useItemTooltip';
+import type { ItemAffix } from '../module_bindings/types';
 
 interface BankSlotRow {
   id: bigint;
@@ -72,7 +74,8 @@ const props = defineProps<{
   bankSlots: BankSlotRow[];
   itemTemplates: ItemTemplateRow[];
   itemInstances: ItemInstanceRow[];
-  selectedCharacter: { id: bigint } | null;
+  itemAffixes: ItemAffix[];
+  selectedCharacter: { id: bigint; level?: bigint } | null;
 }>();
 
 const emit = defineEmits<{
@@ -133,6 +136,16 @@ interface ResolvedSlot {
   qualityTier: string | null | undefined;
   stackable: boolean;
   quantity: bigint;
+  description: string;
+  armorType: string;
+  rarity: string;
+  stats: { label: string; value: string }[];
+  affixStats: { label: string; value: string; affixName: string }[];
+  allowedClasses: string;
+  craftQuality?: string;
+  tier: bigint;
+  isNamed: boolean;
+  slot: string;
 }
 
 const resolvedSlots = computed<(ResolvedSlot | null)[]>(() => {
@@ -167,13 +180,28 @@ const resolvedSlots = computed<(ResolvedSlot | null)[]>(() => {
       result.push(null);
       continue;
     }
+    const instanceAffixes = props.itemAffixes.filter(
+      (a) => a.itemInstanceId.toString() === instance.id.toString()
+    );
+    const tooltipData = buildItemTooltipData({
+      template: template as any,
+      instance: {
+        id: instance.id,
+        qualityTier: instance.qualityTier,
+        craftQuality: instance.craftQuality,
+        displayName: instance.displayName,
+        isNamed: instance.isNamed,
+        quantity: instance.quantity,
+      },
+      affixes: instanceAffixes,
+      characterLevel: props.selectedCharacter?.level ?? 1n,
+    });
     result.push({
+      ...tooltipData,
       bankSlotId: bs.id,
       slotIndex: i,
       itemInstanceId: bs.itemInstanceId,
-      name: instance.displayName ?? template.name,
       templateSlot: template.slot,
-      qualityTier: instance.qualityTier ?? template.rarity,
       stackable: template.stackable,
       quantity: instance.quantity,
     });
