@@ -48,6 +48,14 @@
         ></textarea>
       </div>
 
+      <!-- Upload status -->
+      <div
+        v-if="uploadStatus === 'uploading'"
+        :style="{ fontSize: '0.75rem', color: '#888', textAlign: 'right', marginBottom: '6px' }"
+      >
+        Uploading screenshot...
+      </div>
+
       <!-- Action row -->
       <div :style="{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }">
         <button
@@ -70,7 +78,7 @@
             fontWeight: 'bold',
           }"
         >
-          Submit to GitHub
+          {{ isSubmitting ? (uploadStatus === 'uploading' ? 'Uploading screenshot...' : 'Submitting...') : 'Submit to GitHub' }}
         </button>
       </div>
     </div>
@@ -79,6 +87,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+
+// Register an imgur application at https://api.imgur.com/oauth2/addclient
+// Select "OAuth 2 authorization without a callback URL"
+// The Client-ID is safe to embed in client-side code (anonymous uploads only)
+const IMGUR_CLIENT_ID = import.meta.env.VITE_IMGUR_CLIENT_ID ?? '';
 
 const props = defineProps<{
   screenshotDataUrl: string | null;
@@ -91,6 +104,7 @@ const emit = defineEmits<{
 const title = ref('');
 const description = ref('');
 const isSubmitting = ref(false);
+const uploadStatus = ref<'idle' | 'uploading' | 'done' | 'failed'>('idle');
 
 const labelStyle = {
   fontSize: '0.75rem',
@@ -113,22 +127,71 @@ const inputStyle = {
   fontFamily: 'inherit',
 };
 
+/**
+ * Upload a data URL screenshot to imgur via anonymous API.
+ * Returns the imgur image URL on success, or null on failure.
+ */
+async function uploadToImgur(screenshotDataUrl: string): Promise<string | null> {
+  try {
+    // Strip the data:image/png;base64, prefix to get raw base64
+    const base64 = screenshotDataUrl.replace(/^data:image\/\w+;base64,/, '');
+    const formData = new FormData();
+    formData.append('image', base64);
+    formData.append('type', 'base64');
+
+    const response = await fetch('https://api.imgur.com/3/image', {
+      method: 'POST',
+      headers: {
+        Authorization: `Client-ID ${IMGUR_CLIENT_ID}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      console.warn(`Imgur upload failed with status ${response.status}`);
+      return null;
+    }
+
+    const json = await response.json();
+    return json.data?.link ?? null;
+  } catch (err) {
+    console.warn('Imgur upload error:', err);
+    return null;
+  }
+}
+
 const handleSubmit = async () => {
   if (!title.value.trim() || isSubmitting.value) return;
   isSubmitting.value = true;
+
+  // Attempt imgur upload if screenshot exists and Client-ID is configured
+  let imgurUrl: string | null = null;
+  if (props.screenshotDataUrl && IMGUR_CLIENT_ID) {
+    uploadStatus.value = 'uploading';
+    imgurUrl = await uploadToImgur(props.screenshotDataUrl);
+    uploadStatus.value = imgurUrl ? 'done' : 'failed';
+  }
+
+  // Build the screenshot section of the body
+  let screenshotSection: string;
+  if (imgurUrl) {
+    screenshotSection = `**Screenshot:**\n\n![Screenshot](${imgurUrl})`;
+  } else {
+    screenshotSection = `**Screenshot:** _(screenshot was captured but cannot be attached via URL -- please paste from clipboard if needed)_`;
+  }
 
   const body = `**Bug Report**
 
 ${description.value}
 
 ---
-**Screenshot:** _(screenshot was captured but cannot be attached via URL -- please paste from clipboard if needed)_
+${screenshotSection}
 
 _Submitted from in-game bug reporter_`;
 
   const url = `https://github.com/sheibeck/uwr/issues/new?title=${encodeURIComponent(title.value)}&body=${encodeURIComponent(body)}`;
 
-  // Try to copy screenshot to clipboard for easy pasting into the GitHub issue
+  // Try to copy screenshot to clipboard for easy pasting into the GitHub issue (fallback)
   if (props.screenshotDataUrl) {
     try {
       const blob = await (await fetch(props.screenshotDataUrl)).blob();
