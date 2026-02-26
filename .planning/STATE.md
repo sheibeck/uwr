@@ -584,10 +584,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 326 | Gold star for named enemies and exclude from Ranger Track | 2026-02-25 | 95d28e7 | [326-gold-star-for-named-enemies-and-exclude-](./quick/326-gold-star-for-named-enemies-and-exclude-/) |
 | 327 | Replace SenderError with fail() where character context available | 2026-02-25 | c988909 | [327-replace-sendererror-with-fail-where-char](./quick/327-replace-sendererror-with-fail-where-char/) |
 | 328 | Fix weapon Damage and DPS tooltip labels to show accurate values | 2026-02-25 | 3da255f | [328-fix-weapon-damage-and-dps-tooltip-labels](./quick/328-fix-weapon-damage-and-dps-tooltip-labels/) |
+| 329 | Persist selected tab state across logout/login for tabbed panels | 2026-02-26 | 0f982f7 | [329-persist-selected-tab-state-across-logout](./quick/329-persist-selected-tab-state-across-logout/) |
 
 ---
 
-Last activity: 2026-02-25 - Completed quick task 328: Fix weapon Damage and DPS tooltip labels to show accurate values
+Last activity: 2026-02-26 - Completed quick task 329: Persist selected tab state across logout/login for tabbed panels
 
 ## Last Session
 
