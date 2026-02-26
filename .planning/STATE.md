@@ -587,10 +587,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 329 | Persist selected tab state across logout/login for tabbed panels | 2026-02-26 | 0f982f7 | [329-persist-selected-tab-state-across-logout](./quick/329-persist-selected-tab-state-across-logout/) |
 | 330 | Show item description tooltip when hovering banked items | 2026-02-26 | f0feae0 | [330-show-item-description-tooltip-when-hover](./quick/330-show-item-description-tooltip-when-hover/) |
 | 331 | Add bug report button with screenshot and GitHub issue submission | 2026-02-26 | 12fce06 | [331-add-bug-report-button-with-screenshot-an](./quick/331-add-bug-report-button-with-screenshot-an/) |
+| 332 | Auto-upload bug report screenshot to imgur and embed in GitHub issue | 2026-02-26 | 52bb6b3 | [332-auto-upload-bug-report-screenshot-to-img](./quick/332-auto-upload-bug-report-screenshot-to-img/) |
 
 ---
 
-Last activity: 2026-02-26 - Completed quick task 331: Add bug report button with screenshot and GitHub issue submission
+Last activity: 2026-02-26 - Completed quick task 332: Auto-upload bug report screenshot to imgur and embed in GitHub issue
 
 ## Last Session
 
