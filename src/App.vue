@@ -454,6 +454,12 @@
   <!-- Help overlay -->
   <HelpOverlay v-if="showHelp" :styles="styles" @close="showHelp = false" />
 
+  <BugReportModal
+    v-if="showBugReport"
+    :screenshot-data-url="screenshotDataUrl"
+    @close="showBugReport = false; screenshotDataUrl = null"
+  />
+
     <div
       v-if="tooltip.visible"
       :style="{
@@ -587,6 +593,8 @@ import TrackPanel from './components/TrackPanel.vue';
 import RenownPanel from './components/RenownPanel.vue';
 import WorldEventPanel from './components/WorldEventPanel.vue';
 import HelpOverlay from './components/HelpOverlay.vue';
+import BugReportModal from './components/BugReportModal.vue';
+import html2canvas from 'html2canvas';
 import MapPanel from './components/MapPanel.vue';
 import ContextMenu from './components/ContextMenu.vue';
 import FloatingPanel from './components/FloatingPanel.vue';
@@ -1170,6 +1178,8 @@ watch(worldEventRows, (newRows, oldRows) => {
 
 const rankUpNotification = ref<{ rankName: string } | null>(null);
 const showHelp = ref(false);
+const showBugReport = ref(false);
+const screenshotDataUrl = ref<string | null>(null);
 
 // Client-side renown ranks for rank name lookups
 const RENOWN_RANKS_CLIENT = [
@@ -1739,8 +1749,22 @@ _resetPanelsCb.value = resetAllPanels;
 // Provide panel manager for FloatingPanel component
 provide('panelManager', { panels, panelStyle, bringToFront, startDrag, startResize, closePanelById });
 
-// Wrapper to intercept help toggle
-const togglePanel = (panelId: string) => {
+// Wrapper to intercept help / bug report toggles
+const togglePanel = async (panelId: string) => {
+  if (panelId === 'bugReport') {
+    // Capture screenshot before showing modal
+    const appEl = document.getElementById('app');
+    if (appEl) {
+      try {
+        const canvas = await html2canvas(appEl, { useCORS: true, logging: false });
+        screenshotDataUrl.value = canvas.toDataURL('image/png');
+      } catch {
+        screenshotDataUrl.value = null;
+      }
+    }
+    showBugReport.value = !showBugReport.value;
+    return;
+  }
   if (panelId === 'help') {
     showHelp.value = !showHelp.value;
     return;

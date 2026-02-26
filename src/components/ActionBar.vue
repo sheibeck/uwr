@@ -6,6 +6,12 @@
     >
       Help
     </button>
+    <button
+      @click="emit('toggle', 'bugReport')"
+      :style="actionStyle('bugReport')"
+    >
+      Bug Report
+    </button>
     <template v-if="hasActiveCharacter">
       <button
         @click="onCampClick"
@@ -101,7 +107,8 @@ type PanelKey =
   | 'combat'
   | 'help'
   | 'worldEvents'
-  | 'map';
+  | 'map'
+  | 'bugReport';
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
