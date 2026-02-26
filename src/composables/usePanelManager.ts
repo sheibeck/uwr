@@ -470,6 +470,7 @@ export function usePanelManager(
               if (typeof s.w === 'number') panels[id].w = s.w;
               if (typeof s.h === 'number') panels[id].h = s.h;
               if (typeof s.open === 'boolean') panels[id].open = s.open;
+              if (typeof s.tab === 'string') panels[id].tab = s.tab;
             }
           }
           // Always ensure fixed panels start open

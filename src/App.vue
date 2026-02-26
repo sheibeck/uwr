@@ -171,6 +171,8 @@
         :selected-character="selectedCharacter"
         :is-admin="isAdmin"
         :now-micros="nowMicros"
+        :requested-tab="panels.worldEvents?.tab"
+        @tab-change="tab => setPanelTab('worldEvents', tab)"
       />
     </FloatingPanel>
 

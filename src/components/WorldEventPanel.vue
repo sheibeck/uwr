@@ -2,9 +2,9 @@
   <div :style="styles.panelBody">
     <!-- Tab Bar — matches RenownPanel pattern -->
     <div :style="{ display: 'flex', gap: '0', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '8px' }">
-      <button type="button" @click="activeTab = 'active'" :style="tabStyle('active')">Active</button>
-      <button type="button" @click="activeTab = 'history'" :style="tabStyle('history')">History</button>
-      <button v-if="isAdmin" type="button" @click="activeTab = 'admin'" :style="tabStyle('admin')">Admin</button>
+      <button type="button" @click="setTab('active')" :style="tabStyle('active')">Active</button>
+      <button type="button" @click="setTab('history')" :style="tabStyle('history')">History</button>
+      <button v-if="isAdmin" type="button" @click="setTab('admin')" :style="tabStyle('admin')">Admin</button>
     </div>
 
     <!-- Active Tab -->
@@ -174,7 +174,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { Character, Region } from '../module_bindings/types';
 import { CLIENT_EVENT_DEFS } from '../data/worldEventDefs';
 
@@ -187,9 +187,25 @@ const props = defineProps<{
   selectedCharacter: Character | null;
   isAdmin: boolean;
   nowMicros: number;
+  requestedTab?: string | null;
 }>();
 
-const activeTab = ref<'active' | 'history' | 'admin'>('active');
+const emit = defineEmits<{
+  (e: 'tab-change', tab: string): void;
+}>();
+
+type EventTab = 'active' | 'history' | 'admin';
+
+const activeTab = ref<EventTab>((props.requestedTab as EventTab) ?? 'active');
+
+watch(() => props.requestedTab, (tab) => {
+  if (tab) activeTab.value = tab as EventTab;
+});
+
+const setTab = (tab: EventTab) => {
+  activeTab.value = tab;
+  emit('tab-change', tab);
+};
 
 // Tab styling — matches RenownPanel pattern exactly
 const tabStyle = (tab: 'active' | 'history' | 'admin') => ({
