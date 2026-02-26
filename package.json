@@ -12,6 +12,7 @@
     "spacetime:publishprod": "spacetime publish uwr --server maincloud"
   },
   "dependencies": {
+    "html2canvas": "^1.4.1",
     "spacetimedb": "^2.0.1",
     "vue": "^3.5.13"
   },
