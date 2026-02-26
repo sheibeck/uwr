@@ -585,10 +585,11 @@ None currently. Key risk to watch: SpacetimeDB procedures are beta — API may c
 | 327 | Replace SenderError with fail() where character context available | 2026-02-25 | c988909 | [327-replace-sendererror-with-fail-where-char](./quick/327-replace-sendererror-with-fail-where-char/) |
 | 328 | Fix weapon Damage and DPS tooltip labels to show accurate values | 2026-02-25 | 3da255f | [328-fix-weapon-damage-and-dps-tooltip-labels](./quick/328-fix-weapon-damage-and-dps-tooltip-labels/) |
 | 329 | Persist selected tab state across logout/login for tabbed panels | 2026-02-26 | 0f982f7 | [329-persist-selected-tab-state-across-logout](./quick/329-persist-selected-tab-state-across-logout/) |
+| 330 | Show item description tooltip when hovering banked items | 2026-02-26 | f0feae0 | [330-show-item-description-tooltip-when-hover](./quick/330-show-item-description-tooltip-when-hover/) |
 
 ---
 
-Last activity: 2026-02-26 - Completed quick task 329: Persist selected tab state across logout/login for tabbed panels
+Last activity: 2026-02-26 - Completed quick task 330: Show item description tooltip when hovering banked items
 
 ## Last Session
 
