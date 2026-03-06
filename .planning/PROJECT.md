@@ -2,69 +2,69 @@
 
 **Type:** Brownfield expansion
 **Created:** 2026-02-11
-**Current milestone:** RPG Milestone — Progression Systems & LLM Content Engine
+**Current milestone:** v2.0 — The Living World
 
 ---
 
 ## What This Is
 
-UWR is a browser-based multiplayer RPG built on SpacetimeDB (1.12.0) and Vue 3. Players create
-characters, form groups, engage in turn-based combat, and explore a world shaped by collective
-player action. The game is narratively driven in the style of Shadeslinger — charm, wit, and
-biting sarcasm throughout every message, log, and interaction.
+UWR is a browser-based multiplayer RPG built on SpacetimeDB and Vue 3. Players enter a procedurally-generated living world shaped by LLM-driven narrative. Character creation is a guided narrative experience — players choose any fantasy race they can imagine, pick a base archetype (Warrior or Mystic), and receive a unique LLM-generated class. The world itself forms around players as they enter, creating persistent regions that evolve over time. Every interaction flows through a sardonic system-narrator that treats the world as a story unfolding in response to player decisions.
 
-The architecture is two-tier: SpacetimeDB TypeScript backend (server-authoritative) + Vue 3 SPA
-frontend (client). All state lives in SpacetimeDB tables. The client subscribes to reactive state
-via `useTable()`. Backend reducers are the only mutation path.
+The architecture is two-tier: SpacetimeDB TypeScript backend (server-authoritative) + Vue 3 SPA frontend (client). All state lives in SpacetimeDB tables. The client subscribes to reactive state via `useTable()`. Backend reducers are the only mutation path. LLM integration via SpacetimeDB procedures connects to Anthropic's Claude API.
 
 ---
 
 ## Core Value
 
-A world that reacts to its players — every meaningful action shapes what the game becomes.
+A world that writes itself around its players — every character is unique, every region is discovered, and the narrative responds to what players actually do.
 
 ---
 
-## Validated Requirements (Existing Codebase)
+## Validated Requirements (v1.0 — Existing Infrastructure)
 
-These systems are already implemented and working:
+These systems are implemented and carry forward as reusable infrastructure:
 
-| System | Status | Key Files |
-|--------|--------|-----------|
-| Character creation, class selection, leveling, stat progression | ✅ Done | `spacetimedb/src/reducers/characters.ts`, `spacetimedb/src/data/class_stats.ts` |
-| Group formation, invites, fallback roster, disbanding | ✅ Done | `spacetimedb/src/reducers/groups.ts` |
-| Turn-based combat with ability cooldowns, effects, enemy AI | ✅ Done | `spacetimedb/src/reducers/combat.ts`, `spacetimedb/src/data/abilities.ts` |
-| Location-based world with travel between regions | ✅ Done | `spacetimedb/src/index.ts` (Location table) |
-| Inventory, vendor buy/sell, item rarity tiers | ✅ Done | `spacetimedb/src/reducers/items.ts` |
-| Friends list, whispers, group chat, friend requests | ✅ Done | `spacetimedb/src/reducers/social.ts` |
-| Event log system (private, location, group, world scopes) | ✅ Done | `spacetimedb/src/index.ts` (Event* tables) |
-| SpacetimeAuth OIDC authentication | ✅ Done | `src/spacetimeAuth.ts`, `src/main.ts` |
+| System | Status | Carries Forward As |
+|--------|--------|-------------------|
+| SpacetimeDB multiplayer backbone (auth, subscriptions, sync) | Done | Core platform |
+| Chat system (whispers, group chat, friends) | Done | Social layer |
+| Turn-based combat engine (abilities, cooldowns, effects, AI) | Done | Combat foundation (reworked for narrative) |
+| Inventory & equipment systems | Done | Item management |
+| Crafting system architecture | Done | Generation template patterns |
+| Event log system (private, location, group, world scopes) | Done | Narrative delivery channel |
+| Travel & movement | Done | World navigation |
+| Death & corpse system | Done | Consequence mechanics |
+| Config table architecture | Done | Data-driven design pattern |
+| World events framework | Done | World evolution triggers |
+| SpacetimeAuth OIDC | Done | Authentication |
 
 ---
 
-## Active Requirements (This Milestone)
-
-These systems will be designed and built in this milestone:
+## Active Requirements (v2.0 — The Living World)
 
 | System | Priority | Description |
 |--------|----------|-------------|
-| **Race system** | P0 | Race definitions, race-class restrictions, racial stat bonuses |
-| **Hunger system** | P0 | Time-based decay, well-fed buffs, meal crafting resource loop |
-| **Renown / Faction** | P0 | Per-faction reputation tracks, rank unlocks quests and benefits |
-| **World Events** | P1 | Broadcast events + LLM-generated consequences (unlock races, factions, systems) |
-| **LLM Integration** | P1 | SpacetimeDB procedures + Anthropic API: quests, NPC dialogue, event consequences |
-| **Quest system** | P1 | Quest tables, renown-gated unlock logic, completion tracking |
-| **Narrative tone** | P2 | Shadeslinger-style LLM prompts applied to all generated text |
-| **Content data expansion** | P2 | Gear sets, resources, crafting recipes, NPC catalog, enemy variety |
+| **LLM Pipeline** | P0 | SpacetimeDB procedures + Anthropic API: the engine for all generation |
+| **Narrative Character Creation** | P0 | Guided narrative experience: freeform race, Warrior/Mystic archetype, LLM-generated unique class |
+| **Procedural World Generation** | P0 | Player arrival creates persistent, evolving regions. Ripple announcements to other players |
+| **Chat-First UI** | P0 | Primary interface is narrative chat/console. Existing panels become secondary overlays |
+| **Dynamic Skill Generation** | P1 | 3 LLM-generated skills offered per level-up. Unchosen skills may vanish forever |
+| **Narrative Combat** | P1 | Turn-based engine with LLM-described rounds. Combat feels like story, not spreadsheet |
+| **NPC Generation** | P1 | LLM creates NPCs contextual to regions, player actions, world state |
+| **Quest Generation** | P1 | LLM generates quests from world context. Discovery-driven, not menu-driven |
+| **The System (Narrator)** | P0 | Sardonic guide personality throughout all interactions. Witty, slightly mocking, amused |
+| **Legacy Data Migration** | P1 | Clean break from fixed data. Old tables become generation schema templates |
 
 ---
 
-## Out of Scope (This Milestone)
+## Out of Scope (v2.0)
 
 - Mobile app
 - Real-time voice/video chat
-- Full PvP (combat between players)
-- Persistent world map / dungeon instancing
+- Full PvP (player combat)
+- Classic/fixed race and class lists
+- Balanced class design (uniqueness > balance)
+- Dungeon instancing
 
 ---
 
@@ -72,12 +72,14 @@ These systems will be designed and built in this milestone:
 
 | Decision | Rationale | Status |
 |----------|-----------|--------|
-| LLM via SpacetimeDB procedures | Keeps architecture server-authoritative; no external service needed | Pending |
-| Hunger = reward-only (buffs for eating, no starvation penalty) | Player-friendly, not friction-based | Pending |
-| Renown per-faction (not global) | Enables faction conflict, nuanced standing, different unlock paths | Pending |
-| World Events fire LLM to generate consequences | Dynamic world that surprises players over time | Pending |
-| Race added before other systems | Foundation for class gating, hunger modifiers, renown bonuses | Pending |
-| Race as a data row (not enum) | Extensible — new races can be added as World Event unlocks | Pending |
+| LLM via SpacetimeDB procedures | Keeps architecture server-authoritative | Pending |
+| Chat-first UI with panel overlays | Narrative experience is the core interaction model | Pending |
+| Wild class generation (no guardrails) | Uniqueness over balance — every character one-of-a-kind | Pending |
+| Clean break from fixed data | LLM generates everything; old data becomes schema templates | Pending |
+| Persistent + evolving regions | World only grows, but content within regions shifts over time | Pending |
+| Sardonic system narrator | Shadeslinger tone is non-negotiable across all text | Carried from v1.0 |
+| 3 skills per level-up, pick 1 | Unchosen skills may vanish. Discovery and consequence | Pending |
+| Ripple announcements for world growth | Players sense world shifts without knowing specifics | Pending |
 
 ---
 
@@ -94,36 +96,29 @@ These systems will be designed and built in this milestone:
 
 ---
 
-## Critical Files for This Milestone
-
-| File | Role |
-|------|------|
-| `spacetimedb/src/index.ts` | All table definitions (monolithic, ~5800 lines) — new tables added here |
-| `spacetimedb/src/reducers/characters.ts` | Character creation — add race selection here |
-| `spacetimedb/src/reducers/combat.ts` | Combat loop — hunger buffs and racial modifiers apply here |
-| `spacetimedb/src/data/class_stats.ts` | Stat definitions — racial stat modifiers added here |
-| `src/App.vue` | Main orchestrator — race picker UI, hunger bar, renown panel added here |
-| `.planning/codebase/ARCHITECTURE.md` | Existing architecture reference |
-
----
-
-## Milestone Success Criteria
-
-1. Players can select a race at character creation; race affects available classes and base stats
-2. Hunger decays over time; eating grants well-fed buffs that improve combat/progression
-3. Performing faction-relevant actions increases renown; high renown unlocks quests and rewards
-4. World Events fire and produce LLM-generated consequence text visible in the game log
-5. Quests are generated by LLM, gated by renown tier, and completable for rewards
-6. All LLM-generated text uses Shadeslinger narrative tone (sarcastic, charming, witty)
-7. Content catalog expanded: ≥3 gear sets, ≥10 resources, ≥5 NPCs, ≥8 enemy types
-
----
-
 ## Narrative Tone (Non-Negotiable)
 
-All user-visible text — event logs, quest descriptions, NPC dialogue, error messages, flavor text —
-must sound like it was written by a sarcastic fantasy narrator with a deep love of dry humor.
+All user-visible text — event logs, quest descriptions, NPC dialogue, error messages, flavor text, the System's voice — must sound like it was written by a sarcastic fantasy narrator with a deep love of dry humor.
 
 > "Congratulations. You've achieved the bare minimum. The guild acknowledges your existence."
 
+The System is a character. It has opinions. It's amused by you. It's not your friend, but it's not your enemy either. It's the narrator of a story it finds endlessly entertaining.
+
 LLM prompts must include a system message enforcing this tone. No sterile game-copy. Ever.
+
+---
+
+## Milestone Success Criteria (v2.0)
+
+1. Players experience character creation as a narrative conversation with the System
+2. Choosing a freeform race + archetype produces a unique LLM-generated class with description
+3. Players enter a world that generates a region around them based on their character
+4. Other players receive ripple announcements when the world expands
+5. The primary UI is a narrative chat interface with panel overlays for inventory/social
+6. Combat encounters are narrated by the LLM over the turn-based engine
+7. Level-up offers 3 LLM-generated skills; unchosen skills may not return
+8. NPCs and quests are generated contextually by the LLM
+9. All text carries the sardonic System narrator voice
+
+---
+*Last updated: 2026-03-06 after v2.0 milestone pivot*

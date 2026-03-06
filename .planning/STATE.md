@@ -1,20 +1,21 @@
 # Project State
 
-**Milestone:** RPG Milestone — Progression Systems & LLM Content Engine
-**Last updated:** 2026-02-25
-**Status:** Milestone complete
+**Milestone:** v2.0 — The Living World
+**Last updated:** 2026-03-06
+**Status:** Defining requirements
 
 ---
 
 ## Current Position
 
-Phase 1 (Races) complete. Phase 2 (Hunger) complete. Phase 3 (Renown Foundation) complete. Phase 3.1 (Combat Balance) complete. Phase 3.1.1 (Combat Balance Part 2) complete. Phase 3.1.2 (Combat Balance for Enemies) complete. Phase 3.1.3 (Enemy AI and Aggro Management) complete. Phase 4 (Config Table Architecture) complete — all ability metadata migrated to AbilityTemplate DB, legacyDescriptions removed. Phase 6 (Quest System) complete — kill/kill_loot/explore/delivery/boss_kill quest types, passive search on travel, 14 quests seeded. Phase 10 (Travel & Movement Costs) complete — stamina costs, 5-min cross-region cooldown, group validation, TravelPanel UI. Phase 11 (Death & Corpse System) complete — level 5+ corpse creation, inventory drop, loot reducers, resurrection/corpse summon with PendingSpellCast confirmation flow (quick-93); UI plan skipped per user decision. Phase 12 (Overall Renown System) complete — 15 ranks, permanent perks, server-first tracking, tabbed UI, human-verified. Phase 13 (Crafting System) complete — 10 crafting materials, 29 recipes (14 consumable + 15 gear), salvage yields materials, craft_recipe applies deterministic affixes, CraftingPanel filter chips + craftable toggle, human-verified. Phase 13.1 (Dual-Axis Gear System) complete — craftQuality (dented/standard/reinforced/exquisite/mastercraft) separates potency from rarity axis, Essence I/II/III/IV as gear crafting reagents, unified addRecipeTemplate helper, per-material-quality stat bonuses via implicit ItemAffix rows. Phase 14 (Loot & Gear Progression) complete — quality tiers (common→legendary), prefix/suffix affix catalog, danger-based tier rolls, affix budget cap, named legendary drops, salvage, client UI with quality colors and tooltips, human-verified. Phase 15 (Named NPCs) complete — implemented organically via Phase 19 and quick tasks; 7+ NPCs, shops, world placement in place. Phase 18 (World Events System Expansion) complete — admin-fired events, event spawns, Bronze/Silver/Gold contribution tiers, dual success/failure consequences (Ripple), WorldEventPanel with Active + History tabs, banner overlay notifications, admin event panel (quick-191), WorldStatTracker for threshold events. Phase 19 (NPC Interactions) complete — backend affinity/dialogue tables, interaction reducers, multi-step questing via NPC dialogue chains; UI plan skipped per user decision. Phase 20 (Perk Variety Expansion) complete — 30 domain-categorized perks for ranks 2-11, proc/crafting/social perk effects fully functional across all game systems, active ability perks (Second Wind/Thunderous Blow/Wrath of the Fallen) auto-assign to hotbar when chosen and are castable via use_ability reducer.
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-06 — Milestone v2.0 started (pivot to LLM-driven living world)
 
-**Last completed phase:** 21.1.1 — Hit/Dodge/Parry Active Stats (stat-derived dodge/parry/hit wired; DEX live defensive stat)
-**Current phase:** 23 — V2 Subscription Optimization (Plans 01-02 complete: event tables converted to event:true, client onInsert wiring done)
-**Next action:** Continue Phase 23 optimization or begin next phase
-**Last session:** 2026-02-25T15:04:06.227Z
-Last activity: 2026-02-25 - Completed quick task 321: Fix quests/journal showing Unknown for NPC name/location when player is away
+## Previous Milestone (v1.0)
+
+See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (some pending phases superseded by v2.0 pivot).
 
 ---
 
