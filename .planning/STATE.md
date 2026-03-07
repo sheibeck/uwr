@@ -151,8 +151,9 @@ None yet.
 | 336 | Character creation UX fixes (click-to-select, short names, hints) | 2026-03-07 | 3a20c0a, 9a308ce | [336-character-creation-ux-fixes-click-to-sel](./quick/336-character-creation-ux-fixes-click-to-sel/) |
 | 337 | Style ripple messages with distinctive violet treatment | 2026-03-07 | d7d2638 | [337-style-ripple-messages-to-stand-out-more-](./quick/337-style-ripple-messages-to-stand-out-more-/) |
 | 338 | Add clickable color-coded links in look output | 2026-03-07 | dcec09a, ae307a2 | [338-add-clickable-links-in-look-output-for-b](./quick/338-add-clickable-links-in-look-output-for-b/) |
+| 339 | Add bind command to bind at locations with bindstones | 2026-03-07 | 005b5e7 | [339-add-bind-command-to-bind-at-locations-wi](./quick/339-add-bind-command-to-bind-at-locations-wi/) |
 
 ## Session Continuity
 
-Last session: 2026-03-07T23:25:00Z
-Stopped at: Completed quick task 338
+Last session: 2026-03-07T23:31:00Z
+Stopped at: Completed quick task 339
