@@ -1769,6 +1769,52 @@ export const BankSlot = table(
   }
 );
 
+// LLM Pipeline tables (all private — no public: true)
+
+export const LlmConfig = table(
+  { name: 'llm_config' },
+  {
+    id: t.u64().primaryKey(),  // Always 1 (singleton pattern)
+    apiKey: t.string(),
+    updatedAt: t.timestamp(),
+  }
+);
+
+export const LlmRequest = table(
+  {
+    name: 'llm_request',
+    indexes: [
+      { accessor: 'by_player', algorithm: 'btree', columns: ['playerId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    playerId: t.identity(),
+    characterId: t.u64(),
+    domain: t.string(),        // 'character_creation', 'world_gen', 'combat_narration', 'skill_gen'
+    model: t.string(),         // 'claude-sonnet-4-5' or 'claude-haiku-4-5'
+    userPrompt: t.string(),
+    status: t.string(),        // 'pending', 'processing', 'completed', 'error'
+    errorMessage: t.string().optional(),
+    createdAt: t.timestamp(),
+  }
+);
+
+export const LlmBudget = table(
+  {
+    name: 'llm_budget',
+    indexes: [
+      { accessor: 'by_player', algorithm: 'btree', columns: ['playerId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    playerId: t.identity(),
+    callCount: t.u64(),
+    resetDate: t.string(),  // "2026-03-06" UTC date string
+  }
+);
+
 const spacetimedb = schema({
   player: Player,
   user: User,
@@ -1868,6 +1914,9 @@ const spacetimedb = schema({
   active_bard_song: ActiveBardSong,
   bard_song_tick: BardSongTick,
   bank_slot: BankSlot,
+  llm_config: LlmConfig,
+  llm_request: LlmRequest,
+  llm_budget: LlmBudget,
 });
 export default spacetimedb;
 export { spacetimedb };
