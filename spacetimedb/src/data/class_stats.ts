@@ -180,3 +180,49 @@ export function isArmorAllowedForClass(className: string, armorType: string) {
   const allowed = CLASS_ARMOR[normalized] ?? ['cloth'];
   return allowed.includes(normalizeArmorType(armorType));
 }
+
+// Archetype-based fallbacks for LLM-generated classes
+// When a generated className isn't in CLASS_CONFIG, use archetype to determine behavior
+export function getClassConfigByArchetype(archetype: string): { primary: StatKey; secondary?: StatKey } {
+  if (archetype === 'warrior') return { primary: 'str', secondary: 'dex' };
+  return { primary: 'int', secondary: 'wis' }; // mystic
+}
+
+export function isClassParryCapable(className: string, archetype?: string): boolean {
+  const lower = className.toLowerCase();
+  if (PARRY_CLASSES.has(lower)) return true;
+  if (archetype === 'warrior') return true;
+  return false;
+}
+
+export function isClassManaUser(className: string, archetype?: string): boolean {
+  const lower = className.toLowerCase();
+  if (MANA_CLASSES.has(lower) || HYBRID_MANA_CLASSES.has(lower)) return true;
+  if (archetype === 'mystic') return true;
+  if (archetype === 'warrior') return false;
+  return false;
+}
+
+export function getBaseArmorForArchetype(archetype: string): string {
+  if (archetype === 'warrior') return 'chain';
+  return 'cloth'; // mystic
+}
+
+export function computeBaseStatsForGenerated(
+  primaryStat: StatKey,
+  secondaryStat: StatKey | undefined,
+  level: bigint
+): Record<StatKey, bigint> {
+  const stats: Record<StatKey, bigint> = { str: BASE_STAT, dex: BASE_STAT, cha: BASE_STAT, wis: BASE_STAT, int: BASE_STAT };
+  stats[primaryStat] += PRIMARY_BONUS;
+  if (secondaryStat) stats[secondaryStat] += SECONDARY_BONUS;
+  if (level > 1n) {
+    const extraLevels = level - 1n;
+    for (const key of Object.keys(stats) as StatKey[]) {
+      if (key === primaryStat) stats[key] += PRIMARY_GROWTH * extraLevels;
+      else if (key === secondaryStat) stats[key] += SECONDARY_GROWTH * extraLevels;
+      else stats[key] += OTHER_GROWTH * extraLevels;
+    }
+  }
+  return stats;
+}

@@ -122,6 +122,16 @@ export function appendNpcDialog(ctx: any, characterId: bigint, npcId: bigint, te
   });
 }
 
+export function appendCreationEvent(ctx: any, playerId: any, kind: string, message: string) {
+  ctx.db.event_creation.insert({
+    id: 0n,
+    playerId,
+    message,
+    kind,
+    createdAt: ctx.timestamp,
+  });
+}
+
 export function appendGroupEvent(
   ctx: any,
   groupId: bigint,

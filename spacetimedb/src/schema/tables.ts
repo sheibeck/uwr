@@ -1826,6 +1826,56 @@ export const LlmCleanupTick = table(
   }
 );
 
+// Character creation state — tracks multi-step narrative creation flow per player
+export const CharacterCreationState = table(
+  {
+    name: 'character_creation_state',
+    public: true,
+    indexes: [
+      { accessor: 'by_player', algorithm: 'btree', columns: ['playerId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    playerId: t.identity(),
+    step: t.string(),                    // AWAITING_RACE, AWAITING_ARCHETYPE, GENERATING_CLASS, CLASS_REVEALED, AWAITING_NAME, CONFIRMING_GO_BACK, COMPLETE
+    goBackTarget: t.string().optional(), // Which step we're confirming go-back to
+    raceDescription: t.string().optional(),
+    raceName: t.string().optional(),
+    raceNarrative: t.string().optional(),
+    raceBonuses: t.string().optional(),    // JSON: { primary: {stat, value}, secondary: {stat, value}, flavor }
+    archetype: t.string().optional(),      // 'warrior' or 'mystic'
+    className: t.string().optional(),
+    classDescription: t.string().optional(),
+    classStats: t.string().optional(),     // JSON: { primaryStat, secondaryStat, bonusHp, bonusMana, armorProficiency, usesMana }
+    abilities: t.string().optional(),      // JSON: array of 3 generated abilities
+    chosenAbilityIndex: t.u64().optional(),
+    characterName: t.string().optional(),
+    previousStep: t.string().optional(),   // Used to restore step when go-back is declined
+    createdAt: t.timestamp(),
+    updatedAt: t.timestamp(),
+  }
+);
+
+// Pre-character event messaging — uses player identity instead of characterId
+export const EventCreation = table(
+  {
+    name: 'event_creation',
+    public: true,
+    event: true,
+    indexes: [
+      { accessor: 'by_player', algorithm: 'btree', columns: ['playerId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    playerId: t.identity(),
+    message: t.string(),
+    kind: t.string(),       // 'creation', 'creation_warning', 'creation_error'
+    createdAt: t.timestamp(),
+  }
+);
+
 const spacetimedb = schema({
   player: Player,
   user: User,
@@ -1929,6 +1979,8 @@ const spacetimedb = schema({
   llm_request: LlmRequest,
   llm_budget: LlmBudget,
   llm_cleanup_tick: LlmCleanupTick,
+  character_creation_state: CharacterCreationState,
+  event_creation: EventCreation,
 });
 export default spacetimedb;
 export { spacetimedb };
