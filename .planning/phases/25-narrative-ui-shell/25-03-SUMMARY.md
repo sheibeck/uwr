@@ -24,6 +24,7 @@ key-files:
   modified:
     - src/components/NarrativeMessage.vue
     - src/components/NarrativeConsole.vue
+    - src/components/NarrativeHud.vue
     - src/App.vue
     - src/module_bindings/submit_intent_reducer.ts
 
@@ -50,8 +51,8 @@ completed: 2026-03-07
 - **Duration:** 5 min
 - **Started:** 2026-03-07T02:26:09Z
 - **Completed:** 2026-03-07T02:31:22Z
-- **Tasks:** 2 of 2 auto tasks complete (Task 3 is human-verify checkpoint)
-- **Files modified:** 7
+- **Tasks:** 3/3 complete (including human-verify checkpoint)
+- **Files modified:** 8
 
 ## Accomplishments
 - Created useNarrativeAnimation composable with sentence-by-sentence reveal, opacity fade, skip-all, and 10s safety timeout
@@ -67,6 +68,7 @@ Each task was committed atomically:
 
 1. **Task 1: Create useNarrativeAnimation composable and update components** - `011100b` (feat)
 2. **Task 2: Republish module, regenerate bindings, wire submitIntent** - `6273266` (feat)
+3. **Task 3: Human verification** - approved; fix commit `2cdea31` (fix: declaration order and travel panel ID)
 
 ## Files Created/Modified
 - `src/composables/useNarrativeAnimation.ts` - Typewriter animation state machine with sentence splitting, timed reveal, skip, and safety timeout
@@ -94,8 +96,17 @@ Each task was committed atomically:
 
 ---
 
-**Total deviations:** 1 auto-fixed (1 missing critical)
-**Impact on plan:** Context actions wiring was necessary for the action bar to display anything. No scope creep.
+**2. [Rule 1 - Bug] Fixed declaration order and travel panel ID**
+- **Found during:** Task 3 (human verification)
+- **Issue:** useContextActions was called before its dependencies (connectedLocations, hotbarDisplay, isCasting) were declared; NarrativeHud travel button emitted 'travelPanel' instead of 'travel' panel ID
+- **Fix:** Moved useContextActions call after all dependencies; fixed NarrativeHud panel ID to 'travel'
+- **Files modified:** src/App.vue, src/components/NarrativeHud.vue
+- **Committed in:** 2cdea31 (fix commit during verification)
+
+---
+
+**Total deviations:** 2 auto-fixed (1 missing critical, 1 bug)
+**Impact on plan:** Both fixes necessary for correct operation. No scope creep.
 
 ## Issues Encountered
 - SpacetimeDB CLI `--project-path` flag changed to requiring `cd` into the project directory; `--clear-database` changed to `-c` flag. Adapted commands accordingly.
@@ -105,13 +116,13 @@ None - local SpacetimeDB only.
 
 ## Next Phase Readiness
 - All 6 UI requirements (UI-01 through UI-06) addressed across Plans 01-03
-- Human verification checkpoint pending (Task 3)
-- Full narrative UI shell ready for end-to-end testing
+- Human verification passed -- full narrative UI shell working
+- Phase 25 complete, ready for next phase
 
 ---
 ## Self-Check: PASSED
 
-All 4 key files verified present. Both task commits (011100b, 6273266) verified in git log.
+All key files verified present. All task commits (011100b, 6273266, 2cdea31) verified in git log.
 
 ---
 *Phase: 25-narrative-ui-shell*
