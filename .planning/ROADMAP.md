@@ -140,8 +140,7 @@ Plans:
 
 | Requirement | Phase | Category |
 |-------------|-------|----------|
-| LLM-01 | 24 | LLM Pipeline |
-| LLM-02 | 24 | LLM Pipeline |
+| LLM-01 | 24 | 1/3 | In Progress|  | 24 | LLM Pipeline |
 | LLM-03 | 24 | LLM Pipeline |
 | LLM-04 | 24 | LLM Pipeline |
 | LLM-05 | 24 | LLM Pipeline |
