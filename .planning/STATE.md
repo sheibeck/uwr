@@ -149,8 +149,9 @@ None yet.
 | 334 | Enhance look command with rich location overview | 2026-03-07 | 6c70ca3, 7c3e0b2 | [334-narrative-panel-shows-location-descripti](./quick/334-narrative-panel-shows-location-descripti/) |
 | 335 | Fix LLM proxy 401 Unauthorized for non-admin accounts | 2026-03-07 | ea49d5c | [335-fix-llm-proxy-401-unauthorized-for-non-a](./quick/335-fix-llm-proxy-401-unauthorized-for-non-a/) |
 | 336 | Character creation UX fixes (click-to-select, short names, hints) | 2026-03-07 | 3a20c0a, 9a308ce | [336-character-creation-ux-fixes-click-to-sel](./quick/336-character-creation-ux-fixes-click-to-sel/) |
+| 337 | Style ripple messages with distinctive violet treatment | 2026-03-07 | d7d2638 | [337-style-ripple-messages-to-stand-out-more-](./quick/337-style-ripple-messages-to-stand-out-more-/) |
 
 ## Session Continuity
 
-Last session: 2026-03-07T22:50:08Z
-Stopped at: Completed quick task 336
+Last session: 2026-03-07T23:14:33Z
+Stopped at: Completed quick task 337
