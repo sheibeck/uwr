@@ -103,13 +103,32 @@ watch(
   { deep: true, immediate: true }
 );
 
-// Parse message text and make [bracketed keywords] clickable
+// Render text with color-aware clickable brackets (same logic as NarrativeMessage)
 const renderClickableKeywords = (text: string): string => {
-  return text
-    .replace(/\n/g, '<br>')
-    .replace(/\[([^\]]+)\]/g, (match, keyword) => {
-      return `<span style="color: #60a5fa; cursor: pointer; text-decoration: underline; font-weight: 600;" onclick="window.clickNpcKeyword('${keyword.replace(/'/g, "\\'")}')">${match}</span>`;
-    });
+  let result = text.replace(/\n/g, '<br>');
+
+  // Color-tagged brackets -> clickable with custom color
+  result = result.replace(
+    /\{\{color:(#[0-9a-fA-F]{6})\}\}\[([^\]]+)\]\{\{\/color\}\}/g,
+    (_match, color, keyword) => {
+      return `<span style="color: ${color}; cursor: pointer; text-decoration: underline; font-weight: 600;" onclick="window.clickNpcKeyword('${keyword.replace(/'/g, "\\'")}')">[${keyword}]</span>`;
+    }
+  );
+
+  // Remaining color tags (non-bracket content)
+  result = result.replace(
+    /\{\{color:(#[0-9a-fA-F]{6})\}\}(.+?)\{\{\/color\}\}/g,
+    (_match, color, content) => {
+      return `<span style="color: ${color}; font-weight: 600;">${content}</span>`;
+    }
+  );
+
+  // Remaining bare brackets -> clickable with default blue
+  result = result.replace(/\[([^\]]+)\]/g, (_match, keyword) => {
+    return `<span style="color: #60a5fa; cursor: pointer; text-decoration: underline; font-weight: 600;" onclick="window.clickNpcKeyword('${keyword.replace(/'/g, "\\'")}')">[${keyword}]</span>`;
+  });
+
+  return result;
 };
 
 // clickNpcKeyword is registered globally in App.vue — routes through submitIntentReducer

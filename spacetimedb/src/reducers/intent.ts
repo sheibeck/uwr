@@ -103,13 +103,13 @@ export const registerIntentReducers = (deps: any) => {
 
         // 3. Safe area / Bind stone / Crafting
         if (location.isSafe) parts.push('This is a safe area.');
-        if (location.bindStone) parts.push('A bind stone stands here, pulsing with faint energy.');
-        if (location.craftingAvailable) parts.push('A crafting station is available here.');
+        if (location.bindStone) parts.push('{{color:#ffd43b}}[Bind Stone]{{/color}} — A bind stone stands here, pulsing with faint energy.');
+        if (location.craftingAvailable) parts.push('{{color:#f59e0b}}[Crafting Station]{{/color}} — A crafting station is available here.');
 
         // 4. NPCs
         const npcs = [...ctx.db.npc.by_location.filter(character.locationId)];
         if (npcs.length > 0) {
-          const npcNames = npcs.map((n: any) => `[${n.name}]`);
+          const npcNames = npcs.map((n: any) => `{{color:#da77f2}}[${n.name}]{{/color}}`);
           if (npcNames.length === 1) {
             parts.push(`\nYou see ${npcNames[0]} here.`);
           } else {
@@ -122,7 +122,7 @@ export const registerIntentReducers = (deps: any) => {
         const allChars = [...ctx.db.character.by_location.filter(character.locationId)];
         const otherPlayers = allChars.filter((c: any) => c.id !== character.id);
         if (otherPlayers.length > 0) {
-          const playerNames = otherPlayers.map((c: any) => `[${c.name}]`);
+          const playerNames = otherPlayers.map((c: any) => `{{color:#69db7c}}[${c.name}]{{/color}}`);
           if (playerNames.length === 1) {
             parts.push(`\n${playerNames[0]} is here.`);
           } else {
@@ -177,7 +177,7 @@ export const registerIntentReducers = (deps: any) => {
         const exitNames = connections
           .map((c: any) => ctx.db.location.id.find(c.toLocationId))
           .filter(Boolean)
-          .map((l: any) => `[${l.name}]`);
+          .map((l: any) => `{{color:#4dabf7}}[${l.name}]{{/color}}`);
         if (exitNames.length > 0) {
           parts.push(`\nExits: ${exitNames.join(', ')}.`);
         }

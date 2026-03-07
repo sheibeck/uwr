@@ -93,31 +93,46 @@ const animatedSentences = computed(() => {
   return props.animationState.sentences;
 });
 
-// Render {{color:HEX}}text{{/color}} tags as colored spans
-function renderColorTags(text: string): string {
-  return text.replace(
+// Render text with color-aware clickable brackets.
+// Processing order:
+// 1. Newlines -> <br>
+// 2. Color-tagged brackets: {{color:HEX}}[text]{{/color}} -> clickable span with custom color
+// 3. Remaining color tags: {{color:HEX}}text{{/color}} -> colored span (non-clickable)
+// 4. Remaining bare brackets: [text] -> clickable span with default blue
+function renderLinks(text: string): string {
+  let result = text.replace(/\n/g, '<br>');
+
+  // Step 2: Color-tagged brackets -> clickable with custom color
+  result = result.replace(
+    /\{\{color:(#[0-9a-fA-F]{6})\}\}\[([^\]]+)\]\{\{\/color\}\}/g,
+    (_match, color, keyword) => {
+      return `<span style="color: ${color}; cursor: pointer; text-decoration: underline; font-weight: 600;" onclick="window.clickNpcKeyword('${keyword.replace(/'/g, "\\'")}')">[${keyword}]</span>`;
+    }
+  );
+
+  // Step 3: Remaining color tags (non-bracket content)
+  result = result.replace(
     /\{\{color:(#[0-9a-fA-F]{6})\}\}(.+?)\{\{\/color\}\}/g,
     (_match, color, content) => {
       return `<span style="color: ${color}; font-weight: 600;">${content}</span>`;
     }
   );
+
+  // Step 4: Remaining bare brackets -> clickable with default blue
+  result = result.replace(/\[([^\]]+)\]/g, (_match, keyword) => {
+    return `<span style="color: #60a5fa; cursor: pointer; text-decoration: underline; font-weight: 600;" onclick="window.clickNpcKeyword('${keyword.replace(/'/g, "\\'")}')">[${keyword}]</span>`;
+  });
+
+  return result;
 }
 
 // Process a single sentence for keyword highlighting
 function processSentence(sentence: string): string {
-  return renderColorTags(
-    sentence.replace(/\n/g, '<br>')
-  ).replace(/\[([^\]]+)\]/g, (_match, keyword) => {
-    return `<span style="color: #60a5fa; cursor: pointer; text-decoration: underline; font-weight: 600;" onclick="window.clickNpcKeyword('${keyword.replace(/'/g, "\\'")}')">[${keyword}]</span>`;
-  });
+  return renderLinks(sentence);
 }
 
 // Parse message text and make [bracketed keywords] clickable
 const renderedMessage = computed(() => {
-  return renderColorTags(
-    props.event.message.replace(/\n/g, '<br>')
-  ).replace(/\[([^\]]+)\]/g, (match, keyword) => {
-    return `<span style="color: #60a5fa; cursor: pointer; text-decoration: underline; font-weight: 600;" onclick="window.clickNpcKeyword('${keyword.replace(/'/g, "\\'")}')">${match}</span>`;
-  });
+  return renderLinks(props.event.message);
 });
 </script>
