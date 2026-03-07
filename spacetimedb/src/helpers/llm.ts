@@ -1,3 +1,5 @@
+import { TimeDuration } from 'spacetimedb';
+
 // Constants
 export const DAILY_LLM_BUDGET = 50;
 
@@ -67,7 +69,6 @@ export function buildAnthropicRequest(
       },
     ],
     messages: [{ role: 'user', content: userPrompt }],
-    response_format: { type: 'json_object' },
   });
 }
 
@@ -102,4 +103,61 @@ export function parseAnthropicResponse(responseText: string, responseOk: boolean
   } catch {
     return { ok: false, text: '', usage: null, error: 'Failed to parse API response' };
   }
+}
+
+/**
+ * Shared Anthropic API caller for all procedures.
+ * Handles request building, retries, response parsing, and usage logging.
+ * Must be called OUTSIDE a transaction (ctx.http.fetch cannot overlap with ctx.withTx).
+ */
+export function callAnthropicApi(
+  ctx: any,
+  opts: {
+    apiKey: string;
+    model: string;
+    systemPrompt: string;
+    userPrompt: string;
+    maxTokens?: number;
+    label: string; // for logging, e.g. "creation/race", "world-gen"
+    maxAttempts?: number;
+  }
+): { ok: boolean; text: string; usage: { inputTokens: number; outputTokens: number; cacheReadTokens: number } | null; error: string | null } {
+  const { apiKey, model, systemPrompt, userPrompt, maxTokens = 1024, label, maxAttempts = 2 } = opts;
+  const requestBody = buildAnthropicRequest(model, systemPrompt, userPrompt, maxTokens);
+
+  let responseText = '';
+  let responseOk = false;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = ctx.http.fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: requestBody,
+        timeout: TimeDuration.fromMillis(60000),
+      });
+      responseText = response.text();
+      responseOk = response.ok;
+      if (responseOk) break;
+      if (attempt < maxAttempts) {
+        console.error(`[${label}] LLM attempt ${attempt} failed, retrying...`);
+      }
+    } catch (err: any) {
+      console.error(`[${label}] LLM attempt ${attempt} threw: ${err?.message ?? err}`);
+      if (attempt >= maxAttempts) {
+        responseText = '';
+        responseOk = false;
+      }
+    }
+  }
+
+  const parsed = parseAnthropicResponse(responseText, responseOk);
+  if (parsed.usage) {
+    console.log(`[${label}/${model}] LLM usage: input=${parsed.usage.inputTokens}, output=${parsed.usage.outputTokens}, cache_read=${parsed.usage.cacheReadTokens}`);
+  }
+  return parsed;
 }

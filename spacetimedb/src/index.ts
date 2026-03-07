@@ -1,7 +1,7 @@
 import { t, SenderError } from 'spacetimedb/server';
 import { requireAdmin } from './data/admin';
-import { ScheduleAt, Timestamp, TimeDuration } from 'spacetimedb';
-import { buildAnthropicRequest, parseAnthropicResponse, incrementBudget, checkBudget } from './helpers/llm';
+import { ScheduleAt, Timestamp } from 'spacetimedb';
+import { callAnthropicApi, incrementBudget, checkBudget } from './helpers/llm';
 import {
   buildCharacterCreationPrompt,
   buildWorldGenPrompt,
@@ -10,7 +10,6 @@ import {
   buildRaceInterpretationUserPrompt,
   buildClassGenerationUserPrompt,
   buildRegionGenerationUserPrompt,
-  REGION_GENERATION_SCHEMA,
 } from './data/llm_prompts';
 import { pickRippleMessage, pickDiscoveryMessage, computeRegionDanger } from './data/world_gen';
 import { writeGeneratedRegion, buildRegionContext } from './helpers/world_gen';
@@ -464,57 +463,22 @@ spacetimedb.procedure(
 
     // Build system prompt (context will be enriched by downstream phases)
     const systemPrompt = buildPrompt('');
-    const requestBody = buildAnthropicRequest(request.model, systemPrompt, request.userPrompt);
 
     // === PHASE 3: Call Anthropic API (NO transaction open) ===
-    let responseText = '';
-    let responseOk = false;
-    let attempts = 0;
-    const maxAttempts = 2; // Retry once on failure (locked decision)
-
-    while (attempts < maxAttempts) {
-      attempts++;
-      try {
-        const response = ctx.http.fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-          },
-          body: requestBody,
-          timeout: TimeDuration.fromMillis(60000),
-        });
-        responseText = response.text();
-        responseOk = response.ok;
-
-        if (responseOk) break; // Success -- stop retrying
-        if (attempts < maxAttempts) {
-          console.error(`LLM API attempt ${attempts} failed, retrying...`);
-          continue;
-        }
-      } catch (err: any) {
-        console.error(`LLM API attempt ${attempts} threw: ${err?.message ?? err}`);
-        if (attempts >= maxAttempts) {
-          responseText = '';
-          responseOk = false;
-        }
-      }
-    }
+    const parsed = callAnthropicApi(ctx, {
+      apiKey,
+      model: request.model,
+      systemPrompt,
+      userPrompt: request.userPrompt,
+      label: request.domain,
+    });
 
     // === PHASE 4: Parse response and write results (transaction) ===
-    const parsed = parseAnthropicResponse(responseText, responseOk);
-
     ctx.withTx((tx: any) => {
       const req = tx.db.llm_request.id.find(requestId);
       if (!req) return;
 
       if (parsed.ok) {
-        // Log usage for monitoring (visible in spacetime logs)
-        if (parsed.usage) {
-          console.log(`LLM usage [${request.domain}/${request.model}]: input=${parsed.usage.inputTokens}, output=${parsed.usage.outputTokens}, cache_read=${parsed.usage.cacheReadTokens}`);
-        }
-
         // Store the result in the request row for the client to read.
         // Downstream phases will write domain-specific results to their own tables.
         // NOTE: We reuse errorMessage field as resultText since the table is ephemeral.
@@ -613,55 +577,30 @@ spacetimedb.procedure(
     if (!budgetOk || !state || !userPrompt) return 'error';
 
     // === PHASE 2: Call Anthropic API (NO transaction open) ===
-    // Haiku for both — Sonnet HTTP requests fail from SpacetimeDB runtime
     const model = 'claude-haiku-4-5';
-    const requestBody = buildAnthropicRequest(model, systemPrompt, userPrompt, 1024);
+    const parsed = callAnthropicApi(ctx, {
+      apiKey,
+      model,
+      systemPrompt,
+      userPrompt,
+      label: `creation/${generationType}`,
+    });
 
-    let responseText = '';
-    let responseOk = false;
-    const maxAttempts = 2;
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        const response = ctx.http.fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-          },
-          body: requestBody,
-          timeout: TimeDuration.fromMillis(60000),
-        });
-        responseText = response.text();
-        responseOk = response.ok;
-        if (responseOk) break;
-        if (attempt < maxAttempts) {
-          console.error(`Creation LLM attempt ${attempt} failed (${generationType}), retrying...`);
+    if (!parsed.ok && !parsed.text) {
+      // Total fetch failure — revert step so player can retry
+      ctx.withTx((tx: any) => {
+        appendCreationEvent(tx, playerId, 'creation_error',
+          'The System flickers. "Something went wrong in the cosmic machinery. Try again — I assure you, the fault is not mine."');
+        const s = [...tx.db.character_creation_state.by_player.filter(playerId)][0];
+        if (s) {
+          const revertStep = generationType === 'race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
+          tx.db.character_creation_state.id.update({ ...s, step: revertStep, updatedAt: tx.timestamp });
         }
-      } catch (err: any) {
-        console.error(`Creation LLM attempt ${attempt} threw (${generationType}): ${err?.message ?? err}`);
-        if (attempt >= maxAttempts) {
-          ctx.withTx((tx: any) => {
-            appendCreationEvent(tx, playerId, 'creation_error',
-              'The System flickers. "Something went wrong in the cosmic machinery. Try again — I assure you, the fault is not mine."');
-            const s = [...tx.db.character_creation_state.by_player.filter(playerId)][0];
-            if (s) {
-              const revertStep = generationType === 'race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
-              tx.db.character_creation_state.id.update({ ...s, step: revertStep, updatedAt: tx.timestamp });
-            }
-          });
-          return 'error';
-        }
-      }
+      });
+      return 'error';
     }
 
     // === PHASE 3: Parse response and update creation state (transaction) ===
-    const parsed = parseAnthropicResponse(responseText, responseOk);
-
-    if (parsed.usage) {
-      console.log(`Creation LLM usage [${generationType}/${model}]: input=${parsed.usage.inputTokens}, output=${parsed.usage.outputTokens}, cache_read=${parsed.usage.cacheReadTokens}`);
-    }
 
     ctx.withTx((tx: any) => {
       const s = [...tx.db.character_creation_state.by_player.filter(playerId)][0];
@@ -842,45 +781,14 @@ spacetimedb.procedure(
       );
 
       const model = 'claude-haiku-4-5';
-      const requestBody = buildAnthropicRequest(model, systemPrompt, userPrompt, 2048);
-
-      let responseText = '';
-      let responseOk = false;
-      const maxAttempts = 2;
-
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-          const response = ctx.http.fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': apiKey,
-              'anthropic-version': '2023-06-01',
-            },
-            body: requestBody,
-            timeout: TimeDuration.fromMillis(60000),
-          });
-          responseText = response.text();
-          responseOk = response.ok;
-          if (responseOk) break;
-          if (attempt < maxAttempts) {
-            console.error(`World gen LLM attempt ${attempt} failed, retrying...`);
-          }
-        } catch (err: any) {
-          console.error(`World gen LLM attempt ${attempt} threw: ${err?.message ?? err}`);
-          if (attempt >= maxAttempts) {
-            responseText = '';
-            responseOk = false;
-          }
-        }
-      }
-
-      // === PHASE 3: Parse response and write results (transaction) ===
-      const parsed = parseAnthropicResponse(responseText, responseOk);
-
-      if (parsed.usage) {
-        console.log(`World gen LLM usage [${model}]: input=${parsed.usage.inputTokens}, output=${parsed.usage.outputTokens}, cache_read=${parsed.usage.cacheReadTokens}`);
-      }
+      const parsed = callAnthropicApi(ctx, {
+        apiKey,
+        model,
+        systemPrompt,
+        userPrompt,
+        maxTokens: 2048,
+        label: 'world-gen',
+      });
 
       ctx.withTx((tx: any) => {
         // Re-read genState to guard against stale state

@@ -157,43 +157,7 @@ ${CLASS_GENERATION_SCHEMA}`;
 
 // === WORLD GENERATION JSON SCHEMAS ===
 
-export const REGION_GENERATION_SCHEMA = `{
-  "regionName": "string -- evocative name (2-4 words)",
-  "regionDescription": "string -- 2-3 sentences describing the region's atmosphere, history, and personality",
-  "biome": "string -- one of: volcanic, forest, tundra, desert, swamp, mountains, plains, coastal, cavern, ruins",
-  "dominantFaction": "string -- name of the dominant local power or group",
-  "landmarks": ["string -- 2-3 notable landmarks or features"],
-  "threats": ["string -- 2-3 notable threats or dangers"],
-  "locations": [
-    {
-      "name": "string -- location name",
-      "terrainType": "string -- one of: mountains, woods, plains, swamp, dungeon, town, city",
-      "isSafe": "boolean -- true for settlements",
-      "levelOffset": "number -- 0 for base, 1-2 for harder areas",
-      "connectsTo": ["string -- names of other locations in this region it connects to"]
-    }
-  ],
-  "npcs": [
-    {
-      "name": "string -- NPC name",
-      "npcType": "string -- vendor, quest, lore",
-      "locationName": "string -- which location they reside in",
-      "description": "string -- 1-2 sentences",
-      "greeting": "string -- their greeting to visitors"
-    }
-  ],
-  "enemies": [
-    {
-      "name": "string -- enemy type name",
-      "creatureType": "string -- beast, undead, humanoid, elemental, construct, aberration",
-      "role": "string -- melee, ranged, caster",
-      "terrainTypes": "string -- comma-separated terrain types where they appear",
-      "groupMin": "number -- 1-3",
-      "groupMax": "number -- 1-5",
-      "level": "number -- base level, typically 1-3 for starter-adjacent regions"
-    }
-  ]
-}`;
+export const REGION_GENERATION_SCHEMA = `{"regionName":"string","regionDescription":"string (2-3 sentences)","biome":"volcanic|forest|tundra|desert|swamp|mountains|plains|coastal|cavern|ruins","dominantFaction":"string","landmarks":["string"],"threats":["string"],"locations":[{"name":"string","terrainType":"mountains|woods|plains|swamp|dungeon|town|city","isSafe":false,"levelOffset":0,"connectsTo":["string"]}],"npcs":[{"name":"string","npcType":"vendor|quest|lore","locationName":"string","description":"string","greeting":"string"}],"enemies":[{"name":"string","creatureType":"beast|undead|humanoid|elemental|construct|aberration","role":"melee|ranged|caster","terrainTypes":"string","groupMin":1,"groupMax":3,"level":1}]}`;
 
 export function buildRegionGenerationUserPrompt(
   characterRace: string,
@@ -206,15 +170,9 @@ export function buildRegionGenerationUserPrompt(
     ? `Neighboring regions: ${neighborRegions.map(r => `${r.name} (${r.biome}, threats: ${r.threats})`).join('; ')}`
     : 'This region borders the edge of the known world.';
 
-  return `A ${characterRace} ${characterClass} (${characterArchetype}) has wandered beyond the edge of ${sourceRegionName}.
+  return `A ${characterRace} ${characterClass} (${characterArchetype}) wandered beyond ${sourceRegionName}. ${neighborContext}
 
-${neighborContext}
-
-Generate a region that feels thematically linked to this character. The ${characterRace}'s heritage should influence the biome and culture. The ${characterClass} class should influence the atmosphere and threats.
-
-Generate 3-5 locations, 1-2 NPCs, and 2-3 enemy types. All locations share the region description rather than having individual descriptions.
-
-Respond with ONLY valid JSON matching this schema:
+Generate a region linked to this character: 3-5 locations, 1-2 NPCs, 2-3 enemy types. Respond with ONLY valid JSON:
 ${REGION_GENERATION_SCHEMA}`;
 }
 
