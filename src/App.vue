@@ -1251,14 +1251,21 @@ const selectCharacterTarget = (characterId: bigint | null) => {
   selectedCharacterTarget.value = characterId;
 };
 
+// --- NPC Conversation State ---
+// Tracks which NPC the player is actively conversing with (client-side only).
+// While set, typed text routes to talk_to_npc instead of submit_intent.
+const conversationNpcId = ref<bigint | null>(null);
+
 const onTalkNpc = (npcId: bigint) => {
   if (!selectedCharacter.value) return;
 
-  // Find the NPC by ID
   const npc = npcs.value.find(n => n.id === npcId);
   if (!npc) return;
 
-  // Call hailNpc reducer (dialogue appears in Log + Journal, but doesn't auto-open Journal)
+  // Enter conversation mode with this NPC
+  conversationNpcId.value = npcId;
+
+  // Show greeting via hail reducer
   hailNpcReducer({ characterId: selectedCharacter.value.id, npcName: npc.name });
 };
 
@@ -1268,6 +1275,7 @@ watch(() => selectedCharacter.value?.locationId, (locId) => {
   selectedNpcTarget.value = null;
   selectedCharacterTarget.value = null;
   selectedCorpseTarget.value = null;
+  conversationNpcId.value = null; // End NPC conversation on travel
   // Sync currentLocationId ref for WHERE-filtered subscriptions in useWorldData
   currentLocationId.value = locId ?? null;
 });
@@ -1318,8 +1326,39 @@ const onNarrativeSubmit = (text: string) => {
     submitCommand();
     return;
   }
-  // Natural language: route through server-side intent router
   if (!selectedCharacter.value) return;
+  const lower = text.trim().toLowerCase();
+
+  // "talk to [NPC]" / "hail [NPC]" — enter conversation mode and show greeting
+  const talkMatch = lower.match(/^(?:talk|hail|speak)\s+(?:to\s+)?(.+)$/);
+  if (talkMatch) {
+    const npcName = talkMatch[1].trim();
+    const npc = npcsHere.value?.find(n => n.name.toLowerCase() === npcName);
+    if (npc) {
+      conversationNpcId.value = npc.id;
+      // Let it fall through to submit_intent for the greeting
+      submitIntentReducer({ characterId: selectedCharacter.value.id, text: text.trim() });
+      return;
+    }
+  }
+
+  // If in conversation with an NPC, route to talk_to_npc
+  if (conversationNpcId.value) {
+    // End conversation on farewell keywords
+    if (/^(?:bye|farewell|leave|goodbye|end|quit|exit|back)$/i.test(lower)) {
+      conversationNpcId.value = null;
+      submitIntentReducer({ characterId: selectedCharacter.value.id, text: text.trim() });
+      return;
+    }
+    talkToNpcReducer({
+      characterId: selectedCharacter.value.id,
+      npcId: conversationNpcId.value,
+      message: text.trim(),
+    });
+    return;
+  }
+
+  // Natural language: route through server-side intent router
   submitIntentReducer({ characterId: selectedCharacter.value.id, text: text.trim() });
 };
 
@@ -1420,6 +1459,7 @@ const sellAllJunk = () => {
 };
 
 const hailNpcReducer = useReducer(reducers.hailNpc);
+const talkToNpcReducer = useReducer(reducers.talkToNpc);
 const hailNpc = (npcName: string) => {
   if (!selectedCharacter.value) return;
   hailNpcReducer({ characterId: selectedCharacter.value.id, npcName });
