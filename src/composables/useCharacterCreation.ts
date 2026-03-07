@@ -106,8 +106,6 @@ export const useCharacterCreation = ({
   const creationStarted = ref(false);
   // Track whether LLM procedure is currently being called
   const isCreationLlmProcessing = ref(false);
-  // Track which step we last triggered a procedure for (to avoid re-triggering)
-  const lastTriggeredStep = ref<string | null>(null);
 
   // Get the current player's creation state
   const myCreationState = computed(() => {
@@ -175,45 +173,40 @@ export const useCharacterCreation = ({
     }
   }
 
-  // Auto-trigger LLM procedure when step changes to GENERATING_*
-  watch(currentStep, (newStep, oldStep) => {
-    if (!connActive.value || !newStep) return;
-    if (newStep === oldStep) return;
+  // Auto-trigger LLM procedure when creation state step changes to GENERATING_*
+  // Uses direct watch on raw characterCreationStates (bypasses computed chain reactivity issues)
+  watch(characterCreationStates, (states) => {
+    if (isCreationLlmProcessing.value) return; // Already processing, don't double-trigger
 
+    const identity = window.__my_identity;
+    if (!identity || !connActive.value) return;
+
+    const hex = identity.toHexString();
+    const myState = states.find((s: any) => s.playerId?.toHexString?.() === hex);
+    if (!myState) return;
+
+    const step = myState.step;
     const conn = window.__db_conn as DbConnection | undefined;
     if (!conn) return;
 
-    if (newStep === 'GENERATING_RACE' && lastTriggeredStep.value !== 'GENERATING_RACE') {
-      lastTriggeredStep.value = 'GENERATING_RACE';
+    if (step === 'GENERATING_RACE') {
       isCreationLlmProcessing.value = true;
       conn.procedures.generateCreationContent({ generationType: 'race' })
-        .then(() => {
-          isCreationLlmProcessing.value = false;
-        })
+        .then(() => { isCreationLlmProcessing.value = false; })
         .catch((err: any) => {
           console.error('[Creation] Race generation failed:', err);
           isCreationLlmProcessing.value = false;
         });
-    }
-
-    if (newStep === 'GENERATING_CLASS' && lastTriggeredStep.value !== 'GENERATING_CLASS') {
-      lastTriggeredStep.value = 'GENERATING_CLASS';
+    } else if (step === 'GENERATING_CLASS') {
       isCreationLlmProcessing.value = true;
       conn.procedures.generateCreationContent({ generationType: 'class' })
-        .then(() => {
-          isCreationLlmProcessing.value = false;
-        })
+        .then(() => { isCreationLlmProcessing.value = false; })
         .catch((err: any) => {
           console.error('[Creation] Class generation failed:', err);
           isCreationLlmProcessing.value = false;
         });
     }
-
-    // Reset trigger tracking when leaving generating steps
-    if (newStep !== 'GENERATING_RACE' && newStep !== 'GENERATING_CLASS') {
-      lastTriggeredStep.value = null;
-    }
-  });
+  }, { deep: true });
 
   // Submit text input for creation
   function submitCreationInput(text: string) {

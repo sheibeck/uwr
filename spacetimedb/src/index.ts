@@ -676,7 +676,12 @@ spacetimedb.procedure(
       incrementBudget(tx, playerId);
 
       try {
-        const data = JSON.parse(parsed.text);
+        // Strip markdown code fences if present (LLM sometimes wraps JSON in ```json ... ```)
+        let rawText = parsed.text.trim();
+        if (rawText.startsWith('```')) {
+          rawText = rawText.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+        }
+        const data = JSON.parse(rawText);
 
         if (generationType === 'race') {
           // Update state with race data
