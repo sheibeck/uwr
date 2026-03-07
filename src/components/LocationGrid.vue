@@ -197,7 +197,7 @@
           :key="npc.id.toString()"
           :style="{
             ...styles.gridTileNpc,
-            ...(props.conversationNpcId?.toString() === npc.id.toString()
+            ...(props.conversationNpcId === npc.id.toString()
               ? styles.gridTileNpcConversing
               : selectedNpcId?.toString() === npc.id.toString()
                 ? styles.gridTileNpcSelected
@@ -277,7 +277,7 @@ const props = withDefaults(defineProps<{
   connActive: boolean;
   selectedCharacter: Character | null;
   selectedNpcId: bigint | null;
-  conversationNpcId: bigint | null;
+  conversationNpcId: string | null;
   selectedCharacterTargetId: bigint | null;
   selectedCorpseId: bigint | null;
   charactersHere: { character: Character; disconnected: boolean }[];
@@ -426,7 +426,7 @@ const toggleSelectEnemy = (enemyId: bigint) => {
 
 const toggleSelectNpc = (npcId: bigint) => {
   // If already conversing with this NPC, end conversation
-  if (props.conversationNpcId?.toString() === npcId.toString()) {
+  if (props.conversationNpcId === npcId.toString()) {
     emit('end-conversation');
     return;
   }

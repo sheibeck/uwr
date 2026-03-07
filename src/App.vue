@@ -254,7 +254,7 @@
         :conn-active="conn.isActive"
         :selected-character="selectedCharacter"
         :selected-npc-id="selectedNpcTarget"
-        :conversation-npc-id="conversationNpcId"
+        :conversation-npc-id="conversationNpcId?.toString() ?? null"
         :selected-character-target-id="selectedCharacterTarget"
         :selected-corpse-id="selectedCorpseTarget"
         :characters-here="charactersHere"
