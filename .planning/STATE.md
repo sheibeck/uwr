@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 28-03-PLAN.md
-last_updated: "2026-03-07T19:35:32.399Z"
-last_activity: 2026-03-07 — Completed 28-03 Client Skill Choice Integration
+stopped_at: Phase 29 context gathered
+last_updated: "2026-03-07T20:19:02.399Z"
+last_activity: "2026-03-07 - Completed quick task 333: Fix stuck Entering The Realm screen"
 progress:
   total_phases: 7
   completed_phases: 4
@@ -131,6 +131,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-07T19:33:00.000Z
-Stopped at: Completed 28-03-PLAN.md
-Resume file: .planning/phases/28-dynamic-skill-generation/28-03-SUMMARY.md
+Last session: 2026-03-07T20:19:02.390Z
+Stopped at: Phase 29 context gathered
+Resume file: .planning/phases/29-npc-quest-generation/29-CONTEXT.md
