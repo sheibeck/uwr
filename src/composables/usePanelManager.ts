@@ -5,6 +5,7 @@ const ON_DEMAND_PANEL_IDS = [
   'character', 'characterInfo', 'hotbarPanel', 'friends', 'crafting',
   'journal', 'renown', 'worldEvents', 'loot', 'vendor', 'trade',
   'track', 'travelPanel', 'combat', 'map', 'bank',
+  'log', 'travel', 'hotbar', 'group',
 ];
 
 /**
@@ -30,10 +31,11 @@ export function getDefaultLayout(): Record<string, { x: number; y: number; w?: n
   const centerY = 50;
 
   const layout: Record<string, { x: number; y: number; w?: number; h?: number; open?: boolean }> = {
-    log:    { x: 16,     y: 16, w: 500, h: 300, open: true },
-    travel: { x: travelX, y: 16, open: true },
-    hotbar: { x: hotbarX, y: 16, open: true },
-    group:  { x: groupX,  y: 16, open: true },
+    // NarrativeConsole replaces log as base layer; travel/hotbar/group are on-demand
+    log:    { x: 16,     y: 16, w: 500, h: 300, open: false },
+    travel: { x: travelX, y: 16, open: false },
+    hotbar: { x: hotbarX, y: 16, open: false },
+    group:  { x: groupX,  y: 16, open: false },
   };
 
   for (const id of ON_DEMAND_PANEL_IDS) {
@@ -163,11 +165,7 @@ export function usePanelManager(
         }
       }
 
-      // Always ensure fixed panels start open
-      if (panels.group) panels.group.open = true;
-      if (panels.travel) panels.travel.open = true;
-      if (panels.hotbar) panels.hotbar.open = true;
-      if (panels.log) panels.log.open = true;
+      // NarrativeConsole is now the base layer; panels are on-demand
     } catch (e) {
       console.warn('Failed to load panel states from localStorage:', e);
     }
@@ -473,11 +471,7 @@ export function usePanelManager(
               if (typeof s.tab === 'string') panels[id].tab = s.tab;
             }
           }
-          // Always ensure fixed panels start open
-          if (panels.group) panels.group.open = true;
-          if (panels.travel) panels.travel.open = true;
-          if (panels.hotbar) panels.hotbar.open = true;
-          if (panels.log) panels.log.open = true;
+          // NarrativeConsole is now the base layer; panels are on-demand
         } catch (e) {
           console.warn('Failed to parse server panel layout:', e);
         } finally {

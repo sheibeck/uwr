@@ -62,17 +62,22 @@
       </button>
     </div>
 
-    <!-- Log Panel (floating) -->
-    <FloatingPanel panel-id="log" title="Log" wide always-open :closable="false" :body-style="{ ...styles.floatingPanelBody, flex: 1, minHeight: 0, overflow: 'auto' }">
-      <LogWindow
-        :styles="styles"
-        :selected-character="selectedCharacter"
-        :combined-events="combinedEvents"
-        :format-timestamp="formatTimestamp"
-      />
-    </FloatingPanel>
+    <!-- Narrative Console: full-viewport base layer (replaces LogWindow + CommandBar) -->
+    <NarrativeConsole
+      :combined-events="combinedEvents"
+      :selected-character="selectedCharacter"
+      :active-combat="activeCombat"
+      :conn-active="conn.isActive"
+      :context-actions="narrativeContextActions"
+      :is-llm-processing="isNarrativeLlmProcessing"
+      :is-animating="false"
+      :format-timestamp="formatTimestamp"
+      @submit="onNarrativeSubmit"
+      @skip-animation="() => {}"
+      @open-panel="onOpenPanel"
+    />
 
-    <FloatingPanel v-if="selectedCharacter" panel-id="hotbar" title="Hotbar" hotbar always-open :closable="false">
+    <FloatingPanel v-if="selectedCharacter" panel-id="hotbar" title="Hotbar" hotbar>
       <div>
       <button
           v-for="slot in hotbarDisplay"
@@ -216,7 +221,7 @@
       <MapPanel :regions="regions" :locations="locations" :location-connections="locationConnections" :selected-character="selectedCharacter" />
     </FloatingPanel>
 
-    <FloatingPanel panel-id="travel" always-open :closable="false" :body-style="activeCombat ? styles.floatingPanelBodyCombat : styles.floatingPanelBody">
+    <FloatingPanel panel-id="travel" :body-style="activeCombat ? styles.floatingPanelBodyCombat : styles.floatingPanelBody">
       <template #header>
         <div :style="styles.panelHeaderStack">
         <div :style="styles.panelHeaderLocationRow">
@@ -305,7 +310,7 @@
       </template>
     </FloatingPanel>
 
-    <FloatingPanel panel-id="group" compact always-open :closable="false">
+    <FloatingPanel panel-id="group" compact>
       <template #header>
         <span>Group</span>
         <button
@@ -427,29 +432,7 @@
     </div>
   </div>
 
-    <footer :style="styles.footer">
-      <CommandBar
-        :styles="styles"
-        :conn-active="conn.isActive"
-        :has-character="hasCharacter"
-        :command-text="commandText"
-        @update:commandText="commandText = $event"
-        @submit="submitCommand"
-      />
-
-    <ActionBar
-      :styles="styles"
-      :open-panels="openPanels"
-      :has-active-character="Boolean(selectedCharacter)"
-      :combat-locked="lockHotbarEdits"
-      :highlight-inventory="highlightInventory"
-      :has-active-events="hasActiveEvents"
-      @toggle="togglePanel"
-      @camp="goToCamp"
-      @camp-start="addLocalEvent('system', 'You begin to make camp.')"
-      @camp-cancel="addLocalEvent('system', 'You stop making camp.')"
-    />
-    </footer>
+    <!-- ActionBar removed from footer; NarrativeConsole handles input and panel access via HUD -->
 
   <!-- Help overlay -->
   <HelpOverlay v-if="showHelp" :styles="styles" @close="showHelp = false" />
@@ -572,7 +555,7 @@ import { useReducer } from 'spacetimedb/vue';
 import { styles } from './ui/styles';
 import SplashScreen from './components/SplashScreen.vue';
 import AppHeader from './components/AppHeader.vue';
-import LogWindow from './components/LogWindow.vue';
+import NarrativeConsole from './components/NarrativeConsole.vue';
 import CharacterPanel from './components/CharacterPanel.vue';
 import CharacterInfoPanel from './components/CharacterInfoPanel.vue';
 import GroupPanel from './components/GroupPanel.vue';
@@ -584,7 +567,7 @@ import TravelPanel from './components/TravelPanel.vue';
 import LocationGrid from './components/LocationGrid.vue';
 import LootPanel from './components/LootPanel.vue';
 import TradePanel from './components/TradePanel.vue';
-import CommandBar from './components/CommandBar.vue';
+// CommandBar replaced by NarrativeInput inside NarrativeConsole
 import ActionBar from './components/ActionBar.vue';
 import NpcDialogPanel from './components/NpcDialogPanel.vue';
 import VendorPanel from './components/VendorPanel.vue';
@@ -1299,6 +1282,43 @@ const { commandText, submitCommand } = useCommands({
   locations: computed(() => locations.value),
   worldEventRows: computed(() => (worldEventRows.value as any[])),
 });
+
+// --- Narrative Console wiring ---
+// Empty context actions stub (populated in Plan 03 when useContextActions composable is created)
+const narrativeContextActions = computed<any[]>(() => []);
+
+// LLM processing state for the narrative indicator
+const isNarrativeLlmProcessing = ref(false);
+
+// Handle submissions from NarrativeConsole input
+const onNarrativeSubmit = (text: string) => {
+  if (!text.trim()) return;
+  // Slash commands go through existing command system
+  if (text.startsWith('/')) {
+    commandText.value = text;
+    submitCommand();
+    return;
+  }
+  // Natural language: use existing submitCommand which handles say/look/hail etc.
+  // TODO: Switch to submitIntent after Plan 01 deploys and bindings are regenerated
+  commandText.value = text;
+  submitCommand();
+};
+
+// Handle panel opening from NarrativeHud
+const onOpenPanel = (panelId: string) => {
+  togglePanel(panelId);
+};
+
+// Auto-open travel panel when combat starts (CombatPanel is inside travel panel)
+watch(
+  () => activeCombat.value,
+  (combat) => {
+    if (combat) {
+      openPanel('travel');
+    }
+  }
+);
 
 const inviteToGroup = (targetName: string) => {
   if (!selectedCharacter.value || !conn.isActive) return;
