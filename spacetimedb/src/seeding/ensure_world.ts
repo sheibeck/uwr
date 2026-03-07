@@ -2057,6 +2057,36 @@ export function ensureWorldLayout(ctx: any) {
 
   // Cross-region connection: Embermarch Depths <-> Dreadspire Ruins (underground passage)
   connectIfMissing(ashwarden.id, shadowveinDepths.id);
+
+  // === Uncharted boundary locations for procedural world generation ===
+  // These are exploration points at the edges of the seeded world.
+  // Players who travel here trigger procedural region generation.
+
+  const mistsGreyveil = upsertLocationByName({
+    name: 'The Mists Beyond Greyveil',
+    description: 'A wall of shimmering fog marks the edge of the known world. The wind carries whispers of forgotten places beyond.',
+    zone: 'Uncharted',
+    regionId: greyveilMoors.id,
+    levelOffset: 0n,
+    isSafe: true,
+    terrainType: 'uncharted',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  connectIfMissing(greywindPass.id, mistsGreyveil.id);
+
+  const veilBeyondDreadspire = upsertLocationByName({
+    name: 'The Veil Beyond the Abyss',
+    description: 'Beyond the deepest vault, reality thins to gossamer. Something vast and ancient breathes on the other side.',
+    zone: 'Uncharted',
+    regionId: dreadspireRuins.id,
+    levelOffset: 0n,
+    isSafe: true,
+    terrainType: 'uncharted',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  connectIfMissing(abyssalVault.id, veilBeyondDreadspire.id);
 }
 
 export function ensureDialogueOptions(ctx: any) {
