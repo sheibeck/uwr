@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 26 in progress — Narrative Character Creation server foundation
+**Current focus:** Phase 26 complete — Narrative Character Creation fully wired end-to-end
 
 ## Current Position
 
 Phase: 26 of 30 (Narrative Character Creation)
-Plan: 02 of 3 complete (Creation LLM Generation)
-Status: In progress
-Last activity: 2026-03-07 — Completed 26-02 Creation LLM Generation
+Plan: 3 of 3 complete (Client Creation UI)
+Status: Phase complete
+Last activity: 2026-03-07 — Completed 26-03 Client Creation UI
 
-Progress: [█████████░] 87%
+Progress: [██████████] 100%
 
 ## Previous Milestone (v1.0)
 
@@ -55,6 +55,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 | Phase 25 P03 | 5min | 2 tasks | 7 files |
 | Phase 26 P01 | 4min | 2 tasks | 6 files |
 | Phase 26 P02 | 3min | 2 tasks | 3 files |
+| Phase 26 P03 | 47min | 2 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,10 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 26]: Creation LLM procedure bypasses generic pipeline (no characterId), reads API key from llm_config
 - [Phase 26]: Haiku for race interpretation, Sonnet for class generation (model tier selection)
 - [Phase 26]: Error cases revert creation step to allow retry rather than leaving broken state
+- [Phase 26]: Replaced CharacterPanel entirely with NarrativeConsole creation mode
+- [Phase 26]: LLM procedure triggered via direct watch on raw state array (not computed chain)
+- [Phase 26]: Hardened LLM JSON parsing with response_format json_object and brace extraction fallback
+- [Phase 26]: Haiku used for both race and class generation (sufficient quality, faster)
 
 ### Pending Todos
 
@@ -99,6 +104,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-07T03:29:16Z
-Stopped at: Completed 26-02-PLAN.md
-Resume file: .planning/phases/26-narrative-character-creation/26-02-SUMMARY.md
+Last session: 2026-03-07T04:18:48Z
+Stopped at: Completed 26-03-PLAN.md (Phase 26 complete)
+Resume file: .planning/phases/26-narrative-character-creation/26-03-SUMMARY.md
