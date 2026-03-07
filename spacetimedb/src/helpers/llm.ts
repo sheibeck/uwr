@@ -67,6 +67,7 @@ export function buildAnthropicRequest(
       },
     ],
     messages: [{ role: 'user', content: userPrompt }],
+    response_format: { type: 'json_object' },
   });
 }
 

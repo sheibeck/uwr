@@ -479,7 +479,7 @@ spacetimedb.procedure(
             'anthropic-version': '2023-06-01',
           },
           body: requestBody,
-          timeout: TimeDuration.fromMillis(30000),
+          timeout: TimeDuration.fromMillis(60000),
         });
         responseText = response.text();
         responseOk = response.ok;
@@ -609,8 +609,8 @@ spacetimedb.procedure(
     if (!budgetOk || !state || !userPrompt) return 'error';
 
     // === PHASE 2: Call Anthropic API (NO transaction open) ===
-    // Sonnet for class generation (high-stakes), Haiku for race interpretation
-    const model = generationType === 'class' ? 'claude-sonnet-4-5' : 'claude-haiku-4-5';
+    // Haiku for both — Sonnet HTTP requests fail from SpacetimeDB runtime
+    const model = 'claude-haiku-4-5';
     const requestBody = buildAnthropicRequest(model, systemPrompt, userPrompt, 1024);
 
     let responseText = '';
@@ -627,7 +627,7 @@ spacetimedb.procedure(
             'anthropic-version': '2023-06-01',
           },
           body: requestBody,
-          timeout: TimeDuration.fromMillis(30000),
+          timeout: TimeDuration.fromMillis(60000),
         });
         responseText = response.text();
         responseOk = response.ok;
@@ -676,10 +676,15 @@ spacetimedb.procedure(
       incrementBudget(tx, playerId);
 
       try {
-        // Strip markdown code fences if present (LLM sometimes wraps JSON in ```json ... ```)
+        // Extract JSON robustly: strip code fences, find first { to last }, ignore trailing text
         let rawText = parsed.text.trim();
         if (rawText.startsWith('```')) {
           rawText = rawText.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+        }
+        const firstBrace = rawText.indexOf('{');
+        const lastBrace = rawText.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+          rawText = rawText.slice(firstBrace, lastBrace + 1);
         }
         const data = JSON.parse(rawText);
 
