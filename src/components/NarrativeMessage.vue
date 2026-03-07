@@ -65,6 +65,7 @@ const KIND_COLORS: Record<string, string> = {
   blocked: '#ff6b6b',
   creation: '#ffd43b',
   creation_error: '#ff6b6b',
+  creation_warning: '#ffa94d',
   look: '#c8ccd0',
   move: '#adb5bd',
 };

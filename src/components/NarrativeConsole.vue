@@ -101,7 +101,7 @@ watch(
       const key = `${event.scope}-${event.id}`;
       if (seenEventKeys.value.has(key)) continue;
       seenEventKeys.value.add(key);
-      if (event.kind === 'narrative' || event.kind === 'llm' || event.kind === 'creation') {
+      if (event.kind === 'narrative' || event.kind === 'llm' || event.kind === 'creation' || event.kind === 'creation_warning' || event.kind === 'creation_error') {
         startAnimation(key, event.message);
       }
     }

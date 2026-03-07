@@ -1390,7 +1390,7 @@ const onCreationSubmit = (text: string) => {
   if (hasPendingSkills.value && chooseSkillByName(keyword)) {
     return;
   }
-  if (isInCreation.value) {
+  if (isInCreation.value || !selectedCharacter.value) {
     submitCreationInput(keyword);
     return;
   } else if (selectedCharacter.value) {
