@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 29 of 30 (Phases 24-29 complete, Phase 30 remaining)
 Plan: 27-03 just completed (Client World Generation Composable)
 Status: Phases 24-29 complete
-Last activity: 2026-03-07 - Completed quick task 336: Character creation UX fixes
+Last activity: 2026-03-07 - Completed quick task 337: Style ripple messages to stand out more visually
 
 Progress: [██████████] 100%
 
