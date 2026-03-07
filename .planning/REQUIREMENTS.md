@@ -7,12 +7,12 @@
 
 ### LLM Pipeline
 
-- [ ] **LLM-01**: Server can call Anthropic Claude API via SpacetimeDB procedures using raw HTTP
+- [x] **LLM-01**: Server can call Anthropic Claude API via SpacetimeDB procedures using raw HTTP
 - [x] **LLM-02**: API key is stored in a private config table, set by admin reducer
-- [ ] **LLM-03**: LLM requests are tracked in a status table (pending/processing/completed/error)
+- [x] **LLM-03**: LLM requests are tracked in a status table (pending/processing/completed/error)
 - [x] **LLM-04**: Per-player generation budget limits daily LLM calls
 - [x] **LLM-05**: System prompt uses Anthropic prompt caching for cost reduction
-- [ ] **LLM-06**: Game remains playable if LLM calls fail (graceful degradation)
+- [x] **LLM-06**: Game remains playable if LLM calls fail (graceful degradation)
 
 ### Narrative UI
 
@@ -89,12 +89,12 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LLM-01 | Phase 24 | Pending |
+| LLM-01 | Phase 24 | Complete |
 | LLM-02 | Phase 24 | Complete |
-| LLM-03 | Phase 24 | Pending |
+| LLM-03 | Phase 24 | Complete |
 | LLM-04 | Phase 24 | Complete |
 | LLM-05 | Phase 24 | Complete |
-| LLM-06 | Phase 24 | Pending |
+| LLM-06 | Phase 24 | Complete |
 | UI-01 | Phase 25 | Pending |
 | UI-02 | Phase 25 | Pending |
 | UI-03 | Phase 25 | Pending |

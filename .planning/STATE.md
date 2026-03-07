@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 24-01-PLAN.md
+stopped_at: Completed 24-02-PLAN.md
 last_updated: "2026-03-07T01:01:25.107Z"
-last_activity: 2026-03-07 — Completed 24-01 LLM Pipeline Data Foundation
+last_activity: 2026-03-07 — Completed 24-02 LLM Procedure and Validation
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 24 of 30 (LLM Pipeline Foundation)
-Plan: 01 of 3 complete (LLM Pipeline Data Foundation)
+Plan: 02 of 3 complete (LLM Procedure and Validation)
 Status: Executing phase 24
-Last activity: 2026-03-07 — Completed 24-01 LLM Pipeline Data Foundation
+Last activity: 2026-03-07 — Completed 24-02 LLM Procedure and Validation
 
 Progress: [████████░░] 84%
 
@@ -39,15 +39,15 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1 (v2.0)
+- Total plans completed: 2 (v2.0)
 - Average duration: 4min
-- Total execution time: 4min
+- Total execution time: 8min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 24-llm-pipeline-foundation | 1/3 | 4min | 4min |
+| 24-llm-pipeline-foundation | 2/3 | 8min | 4min |
 
 *Updated after each plan completion*
 
@@ -64,6 +64,8 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - LLM config uses singleton table pattern (id=1n) for API key storage
 - Budget tracks UTC date string for simple midnight reset comparison
 - Used registerLlmReducers(deps) pattern for V2 auto-collection compatibility
+- Procedure uses three-phase pattern: withTx(read) -> http.fetch() -> withTx(write) to avoid runtime panics
+- Added procedure to V2 export auto-collection monkey-patch for SpacetimeDB v2 compatibility
 
 ### Pending Todos
 
@@ -79,5 +81,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-07T01:00:27Z
-Stopped at: Completed 24-01-PLAN.md
-Resume file: .planning/phases/24-llm-pipeline-foundation/24-01-SUMMARY.md
+Stopped at: Completed 24-02-PLAN.md
+Resume file: .planning/phases/24-llm-pipeline-foundation/24-02-SUMMARY.md
