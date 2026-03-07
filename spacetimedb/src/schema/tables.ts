@@ -78,6 +78,13 @@ export const Region = table(
     name: t.string(),
     dangerMultiplier: t.u64(),
     regionType: t.string(),
+    // Canonical fact fields for procedural generation (optional for backward compat with seeded regions)
+    biome: t.string().optional(),           // volcanic, forest, tundra, desert, swamp, mountains, plains, coastal, cavern, ruins
+    dominantFaction: t.string().optional(),  // Faction name or description
+    landmarks: t.string().optional(),        // JSON-stringified array of landmark names
+    threats: t.string().optional(),          // JSON-stringified array of threat descriptions
+    generatedByCharacterId: t.u64().optional(), // Who triggered generation
+    isGenerated: t.bool().optional(),        // Distinguish from seeded content
   }
 );
 
@@ -1876,6 +1883,30 @@ export const EventCreation = table(
   }
 );
 
+// World generation state — tracks generation lock and state machine per exploration trigger
+export const WorldGenState = table(
+  {
+    name: 'world_gen_state',
+    public: true,
+    indexes: [
+      { accessor: 'by_player', algorithm: 'btree', columns: ['playerId'] },
+      { accessor: 'by_source_location', algorithm: 'btree', columns: ['sourceLocationId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    playerId: t.identity(),
+    characterId: t.u64(),
+    sourceLocationId: t.u64(),
+    sourceRegionId: t.u64(),
+    step: t.string(),                    // PENDING, GENERATING, COMPLETE, ERROR
+    generatedRegionId: t.u64().optional(),
+    errorMessage: t.string().optional(),
+    createdAt: t.timestamp(),
+    updatedAt: t.timestamp(),
+  }
+);
+
 const spacetimedb = schema({
   player: Player,
   user: User,
@@ -1981,6 +2012,7 @@ const spacetimedb = schema({
   llm_cleanup_tick: LlmCleanupTick,
   character_creation_state: CharacterCreationState,
   event_creation: EventCreation,
+  world_gen_state: WorldGenState,
 });
 export default spacetimedb;
 export { spacetimedb };
