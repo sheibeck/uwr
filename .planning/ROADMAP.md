@@ -91,11 +91,12 @@ Plans:
   3. Other players receive ripple announcements ("The world shifts at the edges...") when new regions appear
   4. Canonical world facts (region names, biomes, landmarks, factions) are stored in structured tables and injected into all subsequent generation prompts for that region
   5. Generation locks prevent duplicate creation of the same region when multiple players trigger generation simultaneously
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 27-01: TBD
-- [ ] 27-02: TBD
+- [ ] 27-01-PLAN.md — Schema extensions (Region canonical facts, WorldGenState table), LLM prompt schema, world gen data, uncharted location seeding
+- [ ] 27-02-PLAN.md — Generation procedure, trigger reducers (creation complete + uncharted arrival), content writing helper, ripple announcements
+- [ ] 27-03-PLAN.md — Client composable (useWorldGeneration), binding regeneration, subscription wiring, end-to-end verification
 
 ### Phase 28: Dynamic Skill Generation
 **Goal**: Level-up becomes a moment of discovery -- players choose from 3 LLM-generated skills that may never be offered again
@@ -188,7 +189,7 @@ Phases execute in numeric order: 24 -> 25 -> 26 -> 27 -> 28 -> 29 -> 30
 | 24 | LLM Pipeline Foundation | 3/3 | Complete | 2026-03-07 |
 | 25 | Narrative UI Shell | 0/3 | Planning complete | - |
 | 26 | Narrative Character Creation | 0/3 | Planning complete | - |
-| 27 | Procedural World Generation | 0/? | Not started | - |
+| 27 | Procedural World Generation | 0/3 | Planning complete | - |
 | 28 | Dynamic Skill Generation | 0/? | Not started | - |
 | 29 | NPC & Quest Generation | 0/? | Not started | - |
 | 30 | Narrative Combat | 0/? | Not started | - |
