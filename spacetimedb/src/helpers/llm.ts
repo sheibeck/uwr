@@ -81,11 +81,9 @@ export function buildOpenAiRequest(
   model: string,
   systemPrompt: string,
   userPrompt: string,
-  maxTokens: number = 1024,
 ): string {
   return JSON.stringify({
     model,
-    max_completion_tokens: maxTokens,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -181,7 +179,7 @@ export function callLlmApi(
 
   const isOpenAi = LLM_PROVIDER === 'openai';
   const requestBody = isOpenAi
-    ? buildOpenAiRequest(model, systemPrompt, userPrompt, maxTokens)
+    ? buildOpenAiRequest(model, systemPrompt, userPrompt)
     : buildAnthropicRequest(model, systemPrompt, userPrompt, maxTokens);
   const url = isOpenAi
     ? 'https://api.openai.com/v1/chat/completions'
