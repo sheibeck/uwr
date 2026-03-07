@@ -227,8 +227,32 @@ Generate a region linked to this character: 3-5 locations, 1-2 NPCs, 2-3 enemy t
 ${REGION_GENERATION_SCHEMA}`;
 }
 
-// Skill generation: Sonnet (1024+ threshold)
-export function buildSkillGenPrompt(context: string): string {
+// === SKILL GENERATION JSON SCHEMA ===
+
+export const SKILL_GENERATION_SCHEMA = `{
+  "skills": [
+    {
+      "name": "string — creative, unique name specific to the character's identity",
+      "description": "string — sardonic System narrator description, 1-2 sentences",
+      "kind": "damage | heal | dot | hot | buff | debuff | shield | taunt | aoe_damage | aoe_heal | summon | cc | drain | execute | utility",
+      "targetRule": "single_enemy | single_ally | self | all_enemies | all_allies | all_party | lowest_hp_ally | lowest_hp_enemy",
+      "resourceType": "mana | stamina | hp | none",
+      "resourceCost": "number — resource cost to use",
+      "castSeconds": "number — cast time in seconds (0 for instant)",
+      "cooldownSeconds": "number — cooldown in seconds",
+      "scaling": "str | dex | int | wis | cha | hybrid | none",
+      "value1": "number — primary power value (damage, heal amount, etc.)",
+      "value2": "number or null — secondary value (DoT ticks, drain heal%, etc.)",
+      "damageType": "physical | arcane | divine | nature | fire | ice | shadow | none — required for damage-dealing kinds",
+      "effectType": "string or null — effect type for buff/debuff/dot/hot kinds (e.g. str_bonus, damage_up, armor_down, stun, regen, dot, damage_shield, etc.)",
+      "effectMagnitude": "number or null — effect strength",
+      "effectDuration": "number or null — effect duration in seconds"
+    }
+  ]
+}`;
+
+// Skill generation system prompt
+export function buildSkillGenSystemPrompt(): string {
   return `${NARRATOR_PREAMBLE}
 
 ## Your Task: Skill Generation
@@ -237,10 +261,51 @@ A character is growing stronger, and you must offer them three new abilities. Ea
 
 Skill names should be evocative and memorable. "Echoing Spite of the Hollow King" is better than "Dark Blast." The description should be sardonic and flavorful. The mechanical stats must conform to the schema but the creative expression is unlimited.
 
-Present exactly three options. Each should feel meaningfully different — not three variations of the same theme. One might be aggressive, one defensive, one utility. Or all three might be wildly unconventional. Surprise them.
+Present exactly three options. Each should feel meaningfully different — not three variations of the same theme. At least 2 of the 3 must be DIFFERENT kinds (e.g., don't offer 3 damage abilities). One might be aggressive, one defensive, one utility. Or all three might be wildly unconventional. Surprise them.
+
+Names should be creative and specific to the character's identity, not generic (no "Fireball", "Ice Bolt", "Power Strike").
+
+Descriptions should be 1-2 sentences of sardonic commentary from The System.
 
 You must always respond with valid JSON matching the schema provided in the user message.
 
-## World Context
-${context}`;
+## Valid Enum Values
+
+**kind:** damage, heal, dot, hot, buff, debuff, shield, taunt, aoe_damage, aoe_heal, summon, cc, drain, execute, utility
+**targetRule:** single_enemy, single_ally, self, all_enemies, all_allies, all_party, lowest_hp_ally, lowest_hp_enemy
+**resourceType:** mana, stamina, hp, none
+**scaling:** str, dex, int, wis, cha, hybrid, none
+**damageType:** physical, arcane, divine, nature, fire, ice, shadow, none
+**effectType (for buff/debuff/dot/hot):** str_bonus, dex_bonus, int_bonus, wis_bonus, cha_bonus, hp_bonus, ac_bonus, damage_up, damage_down, damage_taken, armor_up, armor_down, damage_shield, magic_resist, regen, dot, mana_regen, stamina_regen, health_regen, mana_regen_bonus, stun, root, silence, slow, mesmerize, stamina_free, loot_bonus`;
+}
+
+// Skill generation user prompt — provides character context
+export function buildSkillGenUserPrompt(
+  characterName: string,
+  race: string,
+  className: string,
+  archetype: string,
+  level: bigint,
+  existingAbilities: { name: string; kind: string }[]
+): string {
+  const existingList = existingAbilities.length > 0
+    ? `\n\nExisting abilities (avoid duplicating these):\n${existingAbilities.map(a => `- ${a.name} (${a.kind})`).join('\n')}`
+    : '\n\nThis character has no abilities yet.';
+
+  return `Character: ${characterName}
+Race: ${race}
+Class: ${className}
+Archetype: ${archetype}
+Level: ${level} (the level they just reached)
+${existingList}
+
+Generate 3 abilities appropriate for level ${level}. Make them distinct from existing abilities and from each other. At least 2 of the 3 should be different kinds.
+
+Respond with ONLY valid JSON matching this schema:
+${SKILL_GENERATION_SCHEMA}`;
+}
+
+// Legacy alias for backward compatibility (used by buildSkillGenPrompt callers if any)
+export function buildSkillGenPrompt(context: string): string {
+  return buildSkillGenSystemPrompt();
 }
