@@ -25,7 +25,7 @@ v2.0 transforms UWR from a traditional RPG with fixed content into a living worl
 - [x] **Phase 26: Narrative Character Creation** - Guided conversation with the System to create a unique race, archetype, and LLM-generated class (completed 2026-03-07)
 - [ ] **Phase 27: Procedural World Generation** - Player arrival triggers persistent region creation with canonical world facts and ripple announcements
 - [x] **Phase 28: Dynamic Skill Generation** - Level-up offers 3 LLM-generated skills with schema constraints and power-budget validation (completed 2026-03-07)
-- [ ] **Phase 29: NPC & Quest Generation** - LLM creates contextual NPCs with persistent identity and narrative quests from world state
+- [x] **Phase 29: NPC & Quest Generation** - LLM creates contextual NPCs with persistent identity and narrative quests from world state (completed 2026-03-07)
 - [ ] **Phase 30: Narrative Combat** - Combat rounds narrated by the LLM over the existing turn-based engine
 
 ## Phase Details
@@ -171,7 +171,7 @@ Plans:
 | SKILL-01 | 28 | 3/3 | Complete    | 2026-03-07 | 28 | Dynamic Skills |
 | SKILL-03 | 28 | Dynamic Skills |
 | SKILL-04 | 28 | Dynamic Skills |
-| NPC-01 | 29 | 2/3 | In Progress|  | 29 | NPC & Quest Gen |
+| NPC-01 | 29 | 3/3 | Complete   | 2026-03-07 | 29 | NPC & Quest Gen |
 | NPC-03 | 29 | NPC & Quest Gen |
 | NPC-04 | 29 | NPC & Quest Gen |
 | COMBAT-01 | 30 | Narrative Combat |

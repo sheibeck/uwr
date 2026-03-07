@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 29 of 30 (NPC & Quest Generation)
-Plan: 2 of 3 complete (NPC Conversation Engine & Quest Generation)
-Status: In progress
-Last activity: 2026-03-07 - Completed 29-02: NPC Conversation Engine & Quest Generation
+Plan: 3 of 3 complete (Client NPC Conversation Wiring)
+Status: Completed
+Last activity: 2026-03-07 - Completed 29-03: Client NPC Conversation Wiring
 
-Progress: [█████████░] 96%
+Progress: [██████████] 100%
 
 ## Previous Milestone (v1.0)
 
@@ -63,6 +63,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 | Phase 28 P03 | 12min | 2 tasks | 16 files |
 | Phase 29 P01 | 3min | 2 tasks | 4 files |
 | Phase 29 P02 | 7min | 2 tasks | 6 files |
+| Phase 29 P03 | 4min | 1 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -122,6 +123,9 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 29]: Item reward stats use budget system: level*2+5 base, scaled by quest difficulty
 - [Phase 29]: Conversation cooldown reduced to 30s (LLM budget is real rate limiter)
 - [Phase 29]: Quest completion +10 affinity, abandonment -3 affinity
+- [Phase 29]: Intent handler shows NPC greeting only; full LLM conversation via talk_to_npc reducer from client
+- [Phase 29]: npc_memory is private table (server-only); client does not subscribe
+- [Phase 29]: Old dialogue tree (getAvailableDialogueOptions) deprecated in favor of LLM conversation
 
 ### Pending Todos
 
@@ -142,6 +146,5 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-07T20:54:45Z
-Stopped at: Completed 29-02-PLAN.md
-Resume file: .planning/phases/29-npc-quest-generation/29-03-PLAN.md
+Last session: 2026-03-07T21:01:00Z
+Stopped at: Completed 29-03-PLAN.md (checkpoint: human-verify pending)
