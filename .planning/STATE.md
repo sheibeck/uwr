@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 28 context gathered
-last_updated: "2026-03-07T18:22:53.949Z"
-last_activity: 2026-03-07 — Completed 27-02 Server Generation Procedure & Triggers
+stopped_at: Completed 28-01-PLAN.md
+last_updated: "2026-03-07T20:00:00.000Z"
+last_activity: 2026-03-07 — Completed 28-01 Data-Driven Ability Dispatch
 progress:
   total_phases: 7
   completed_phases: 3
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 27 in progress — Procedural World Generation
+**Current focus:** Phase 28 in progress — Dynamic Skill Generation
 
 ## Current Position
 
-Phase: 27 of 30 (Procedural World Generation)
-Plan: 2 of 3 complete (Server Generation Procedure & Triggers)
+Phase: 28 of 30 (Dynamic Skill Generation)
+Plan: 1 of 3 complete (Data-Driven Ability Dispatch)
 Status: In progress
-Last activity: 2026-03-07 — Completed 27-02 Server Generation Procedure & Triggers
+Last activity: 2026-03-07 — Completed 28-01 Data-Driven Ability Dispatch
 
 Progress: [█████████░] 92%
 
@@ -58,6 +58,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 | Phase 26 P03 | 47min | 2 tasks | 18 files |
 | Phase 27 P01 | 3min | 2 tasks | 4 files |
 | Phase 27 P02 | 4min | 2 tasks | 4 files |
+| Phase 28 P01 | 45min | 2 tasks | 26 files |
 
 ## Accumulated Context
 
@@ -98,6 +99,9 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 27]: Haiku model for world generation (Sonnet HTTP fails from SpacetimeDB runtime)
 - [Phase 27]: Top-level try/catch on generation procedure reverts WorldGenState to ERROR for retry safety
 - [Phase 27]: writeGeneratedRegion creates enemies with EnemyRoleTemplates and EnemyAbilities (required for spawn/combat)
+- [Phase 28]: Kind-based dispatch map replaces 106-case hardcoded switch for unlimited generated abilities
+- [Phase 28]: Enemy ability system retains abilityKey strings (different lifecycle from player abilities)
+- [Phase 28]: Bard/perk routing removed from use_ability reducer (dead code in v2.0 generated classes)
 
 ### Pending Todos
 
@@ -112,6 +116,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-07T18:22:53.938Z
-Stopped at: Phase 28 context gathered
-Resume file: .planning/phases/28-dynamic-skill-generation/28-CONTEXT.md
+Last session: 2026-03-07T20:00:00.000Z
+Stopped at: Completed 28-01-PLAN.md
+Resume file: .planning/phases/28-dynamic-skill-generation/28-01-SUMMARY.md

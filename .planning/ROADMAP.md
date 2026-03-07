@@ -110,7 +110,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 28-01-PLAN.md — Schema restructuring (AbilityTemplate, HotbarSlot, AbilityCooldown, PendingSkill), unified dispatch map, power budget helper
+- [x] 28-01-PLAN.md — Schema restructuring (AbilityTemplate, HotbarSlot, AbilityCooldown, PendingSkill), unified dispatch map, power budget helper
 - [ ] 28-02-PLAN.md — Skill generation prompts, LLM result parsing, level-up trigger, choose_skill reducer
 - [ ] 28-03-PLAN.md — Client integration: bindings, useSkillChoice composable, hotbar/combat migration, HUD indicator
 
