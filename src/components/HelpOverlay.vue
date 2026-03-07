@@ -13,10 +13,10 @@
         <!-- Communicating -->
         <div :style="sectionHeaderStyle">COMMUNICATING</div>
         <div :style="sectionTextStyle">
-          Use the chat input at the bottom of the screen to communicate with other players. Type <b>/say Hello</b> to say something in the local area, or <b>/w character_name Hello</b> to send a private message.
+          Use the chat input at the bottom of the screen to communicate with other players. Type <b>say Hello</b> to say something in the local area, or <b>w character_name Hello</b> to send a private message.
         </div>
         <div :style="sectionTextStyle">
-          Typing <b>/</b> will show a list of available slash commands for communication, emotes, and more.
+          Start typing a command name to see available commands. Commands like <b>look</b>, <b>hail</b>, <b>say</b>, <b>who</b>, etc. work without a slash prefix.
         </div>
         <div :style="sectionTextStyle">
           The log panel is your window into the world. It shows chat messages, combat events, and system notifications. Open it to stay informed about what's happening around you.

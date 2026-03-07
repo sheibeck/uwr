@@ -141,45 +141,45 @@ export const useCommands = ({
     if (!connActive.value || !selectedCharacter.value || !commandText.value.trim()) return;
     const raw = commandText.value.trim();
     const lower = raw.toLowerCase();
-    if (lower.startsWith('/friend ')) {
-      const targetName = raw.slice(8).trim();
+    if (lower.startsWith('/friend ') || lower.startsWith('friend ')) {
+      const targetName = raw.replace(/^\/?friend\s+/i, '').trim();
       if (!targetName) return;
       friendReducer({
         characterId: selectedCharacter.value.id,
         targetName,
       });
     } else if (
-      lower === '/endcombat' ||
-      lower.startsWith('/endcombat ') ||
-      lower === '/end' ||
-      lower === '/endc'
+      lower === '/endcombat' || lower === 'endcombat' ||
+      lower.startsWith('/endcombat ') || lower.startsWith('endcombat ') ||
+      lower === '/end' || lower === 'end' ||
+      lower === '/endc' || lower === 'endc'
     ) {
       endCombatReducer({ characterId: selectedCharacter.value.id });
-    } else if (lower === '/leave') {
+    } else if (lower === '/leave' || lower === 'leave') {
       leaveReducer({ characterId: selectedCharacter.value.id });
-    } else if (lower.startsWith('/promote ')) {
-      const targetName = raw.slice(9).trim();
+    } else if (lower.startsWith('/promote ') || lower.startsWith('promote ')) {
+      const targetName = raw.replace(/^\/?promote\s+/i, '').trim();
       if (!targetName) return;
       promoteReducer({
         characterId: selectedCharacter.value.id,
         targetName,
       });
-    } else if (lower.startsWith('/kick ')) {
-      const targetName = raw.slice(6).trim();
+    } else if (lower.startsWith('/kick ') || lower.startsWith('kick ')) {
+      const targetName = raw.replace(/^\/?kick\s+/i, '').trim();
       if (!targetName) return;
       kickReducer({
         characterId: selectedCharacter.value.id,
         targetName,
       });
-    } else if (lower.startsWith('/invite ')) {
-      const targetName = raw.slice(8).trim();
+    } else if (lower.startsWith('/invite ') || lower.startsWith('invite ')) {
+      const targetName = raw.replace(/^\/?invite\s+/i, '').trim();
       if (!targetName) return;
       inviteReducer({
         characterId: selectedCharacter.value.id,
         targetName,
       });
-    } else if (lower.startsWith('/accept')) {
-      let fromName = raw.slice(7).trim();
+    } else if (lower.startsWith('/accept') || lower.startsWith('accept')) {
+      let fromName = raw.replace(/^\/?accept\s*/i, '').trim();
       if (!fromName && inviteSummaries?.value?.length === 1) {
         fromName = inviteSummaries.value[0].fromName;
       }
@@ -188,8 +188,8 @@ export const useCommands = ({
         characterId: selectedCharacter.value.id,
         fromName,
       });
-    } else if (lower.startsWith('/decline')) {
-      let fromName = raw.slice(8).trim();
+    } else if (lower.startsWith('/decline') || lower.startsWith('decline')) {
+      let fromName = raw.replace(/^\/?decline\s*/i, '').trim();
       if (!fromName && inviteSummaries?.value?.length === 1) {
         fromName = inviteSummaries.value[0].fromName;
       }
@@ -198,8 +198,8 @@ export const useCommands = ({
         characterId: selectedCharacter.value.id,
         fromName,
       });
-    } else if (lower.startsWith('/w ') || lower.startsWith('/whisper ')) {
-      const withoutCmd = raw.replace(/^\/w(hisper)?\s+/i, '');
+    } else if (lower.startsWith('/w ') || lower.startsWith('/whisper ') || lower.startsWith('w ') || lower.startsWith('whisper ')) {
+      const withoutCmd = raw.replace(/^\/?w(hisper)?\s+/i, '');
       const match = withoutCmd.match(/^(\S+)\s+(.+)$/);
       if (!match) return;
       const targetName = match[1];
@@ -244,8 +244,8 @@ export const useCommands = ({
         characterId: selectedCharacter.value.id,
         message,
       });
-    } else if (lower.startsWith('/hail ')) {
-      const npcName = raw.slice(6).trim();
+    } else if (lower.startsWith('/hail ') || lower.startsWith('hail ')) {
+      const npcName = raw.replace(/^\/?hail\s+/i, '').trim();
       if (!npcName) return;
       const npc = npcsHere?.value?.find(
         (row) => row.name.toLowerCase() === npcName.toLowerCase()
@@ -285,10 +285,10 @@ export const useCommands = ({
         characterId: selectedCharacter.value.id,
         message,
       });
-    } else if (lower.startsWith('/group ')) {
+    } else if (lower.startsWith('/group ') || lower.startsWith('group ')) {
       groupMessageReducer({
         characterId: selectedCharacter.value.id,
-        message: raw.slice(7).trim(),
+        message: raw.replace(/^\/?group\s+/i, '').trim(),
       });
     } else if (lower.startsWith('/level ')) {
       const value = Number(raw.slice(7).trim());
@@ -342,7 +342,7 @@ export const useCommands = ({
         const list = activeEvents.map((e: any) => `  ${e.name} (id: ${e.id})`).join('\n');
         addLocalEvent?.('command', `Multiple active events — use console:\n${list}\nwindow.__db_conn.reducers.resolveWorldEvent({ worldEventId: <id>n, outcome: '${outcome}' })`);
       }
-    } else if (lower === '/who') {
+    } else if (lower === '/who' || lower === 'who') {
       // Find all active character IDs from players with an activeCharacterId
       const activeCharIds = new Set<string>();
       for (const p of players?.value ?? []) {

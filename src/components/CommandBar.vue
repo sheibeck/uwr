@@ -57,20 +57,21 @@ const showSuggestions = ref(false);
 const highlighted = ref<string | null>(null);
 
   const commands = [
-    { value: '/look', hint: 'Describe current location' },
-    { value: '/say', hint: 'Talk nearby (targets NPC if selected)' },
-    { value: '/w', hint: 'Whisper to a character' },
-    { value: '/hail', hint: 'Greet an NPC' },
-    { value: '/group', hint: 'Message your group' },
+    { value: 'look', hint: 'Describe current location' },
+    { value: 'say', hint: 'Talk nearby (targets NPC if selected)' },
+    { value: 'w', hint: 'Whisper to a character' },
+    { value: 'hail', hint: 'Greet an NPC' },
+    { value: 'group', hint: 'Message your group' },
+    { value: 'invite', hint: 'Invite to group' },
+    { value: 'friend', hint: 'Send friend request' },
+    { value: 'accept', hint: 'Accept group invite' },
+    { value: 'decline', hint: 'Decline group invite' },
+    { value: 'kick', hint: 'Kick group member' },
+    { value: 'promote', hint: 'Promote group leader' },
+    { value: 'leave', hint: 'Leave current group' },
+    { value: 'endcombat', hint: 'Force end current combat (leader)' },
+    { value: 'who', hint: 'List all online characters' },
     { value: '/level', hint: 'Set your level (testing)' },
-    { value: '/invite', hint: 'Invite to group' },
-    { value: '/friend', hint: 'Send friend request' },
-    { value: '/accept', hint: 'Accept group invite' },
-    { value: '/decline', hint: 'Decline group invite' },
-    { value: '/kick', hint: 'Kick group member' },
-    { value: '/promote', hint: 'Promote group leader' },
-    { value: '/leave', hint: 'Leave current group' },
-    { value: '/endcombat', hint: 'Force end current combat (leader)' },
     { value: '/synccontent', hint: 'Sync server content tables' },
     { value: '/grantrenown', hint: 'Grant test renown points' },
     { value: '/spawncorpse', hint: 'Spawn test corpse with junk item' },
@@ -84,16 +85,23 @@ const highlighted = ref<string | null>(null);
   ];
 
 const shouldShowSuggestions = computed(() => {
+  const trimmed = props.commandText.trim();
   return (
-    props.commandText.trim().startsWith('/') &&
-    filteredCommands.value.length > 0
+    filteredCommands.value.length > 0 &&
+    trimmed.length > 0 &&
+    !trimmed.includes(' ')
   );
 });
 
 const filteredCommands = computed(() => {
   const query = props.commandText.trim().toLowerCase();
-  if (!query.startsWith('/')) return [];
-  return commands.filter((cmd) => cmd.value.startsWith(query));
+  if (!query) return [];
+  // Match both with and without / prefix
+  const bare = query.replace(/^\//, '');
+  return commands.filter((cmd) => {
+    const cmdBare = cmd.value.replace(/^\//, '');
+    return cmdBare.startsWith(bare);
+  });
 });
 
 const onCommandInput = (event: Event) => {

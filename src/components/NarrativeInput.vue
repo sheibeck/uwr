@@ -98,34 +98,40 @@ const adminCommands = [
   { value: '/endevent', hint: 'End active world event' },
   { value: '/setappversion', hint: 'Set app version (admin)' },
   { value: '/recomputeracial', hint: 'Recompute racial bonuses (admin)' },
-  { value: '/endcombat', hint: 'Force end current combat' },
-  { value: '/who', hint: 'List all online characters' },
-  { value: '/look', hint: 'Describe current location' },
-  { value: '/say', hint: 'Talk nearby' },
-  { value: '/w', hint: 'Whisper to a character' },
-  { value: '/hail', hint: 'Greet an NPC' },
-  { value: '/group', hint: 'Message your group' },
-  { value: '/invite', hint: 'Invite to group' },
-  { value: '/friend', hint: 'Send friend request' },
-  { value: '/accept', hint: 'Accept group invite' },
-  { value: '/decline', hint: 'Decline group invite' },
-  { value: '/kick', hint: 'Kick group member' },
-  { value: '/promote', hint: 'Promote group leader' },
-  { value: '/leave', hint: 'Leave current group' },
+  { value: 'endcombat', hint: 'Force end current combat' },
+  { value: 'who', hint: 'List all online characters' },
+  { value: 'look', hint: 'Describe current location' },
+  { value: 'say', hint: 'Talk nearby' },
+  { value: 'w', hint: 'Whisper to a character' },
+  { value: 'hail', hint: 'Greet an NPC' },
+  { value: 'group', hint: 'Message your group' },
+  { value: 'invite', hint: 'Invite to group' },
+  { value: 'friend', hint: 'Send friend request' },
+  { value: 'accept', hint: 'Accept group invite' },
+  { value: 'decline', hint: 'Decline group invite' },
+  { value: 'kick', hint: 'Kick group member' },
+  { value: 'promote', hint: 'Promote group leader' },
+  { value: 'leave', hint: 'Leave current group' },
 ];
 
 const shouldShowSuggestions = computed(() => {
+  const trimmed = inputText.value.trim();
   return (
-    inputText.value.trim().startsWith('/') &&
     filteredCommands.value.length > 0 &&
+    trimmed.length > 0 &&
+    !trimmed.includes(' ') &&
     showSuggestions.value
   );
 });
 
 const filteredCommands = computed(() => {
   const query = inputText.value.trim().toLowerCase();
-  if (!query.startsWith('/')) return [];
-  return adminCommands.filter((cmd) => cmd.value.startsWith(query));
+  if (!query) return [];
+  const bare = query.replace(/^\//, '');
+  return adminCommands.filter((cmd) => {
+    const cmdBare = cmd.value.replace(/^\//, '');
+    return cmdBare.startsWith(bare);
+  });
 });
 
 const onInput = (event: Event) => {

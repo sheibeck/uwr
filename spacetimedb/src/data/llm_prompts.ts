@@ -208,7 +208,7 @@ ${COMBINED_CREATION_SCHEMA}`;
 
 // === WORLD GENERATION JSON SCHEMAS ===
 
-export const REGION_GENERATION_SCHEMA = `{"regionName":"string","regionDescription":"string (2-3 sentences)","biome":"volcanic|forest|tundra|desert|swamp|mountains|plains|coastal|cavern|ruins","dominantFaction":"string","landmarks":["string"],"threats":["string"],"locations":[{"name":"string","terrainType":"mountains|woods|plains|swamp|dungeon|town|city","isSafe":false,"levelOffset":0,"connectsTo":["string"]}],"npcs":[{"name":"string","npcType":"vendor|quest|lore","locationName":"string","description":"string","greeting":"string"}],"enemies":[{"name":"string","creatureType":"beast|undead|humanoid|elemental|construct|aberration","role":"melee|ranged|caster","terrainTypes":"string","groupMin":1,"groupMax":3,"level":1}]}`;
+export const REGION_GENERATION_SCHEMA = `{"regionName":"string","regionDescription":"string (2-3 sentences)","biome":"volcanic|forest|tundra|desert|swamp|mountains|plains|coastal|cavern|ruins","dominantFaction":"string","landmarks":["string"],"threats":["string"],"locations":[{"name":"string","description":"string (unique 2-3 sentence description for THIS specific location — must be different from every other location)","terrainType":"mountains|woods|plains|swamp|dungeon|town|city","isSafe":false,"levelOffset":0,"connectsTo":["string"]}],"npcs":[{"name":"string","npcType":"vendor|quest|lore","locationName":"string","description":"string","greeting":"string"}],"enemies":[{"name":"string","creatureType":"beast|undead|humanoid|elemental|construct|aberration","role":"melee|ranged|caster","terrainTypes":"string","groupMin":1,"groupMax":3,"level":1}]}`;
 
 export function buildRegionGenerationUserPrompt(
   characterRace: string,
@@ -223,7 +223,7 @@ export function buildRegionGenerationUserPrompt(
 
   return `A ${characterRace} ${characterClass} (${characterArchetype}) wandered beyond ${sourceRegionName}. ${neighborContext}
 
-Generate a region linked to this character: 3-5 locations, 1-2 NPCs, 2-3 enemy types. Respond with ONLY valid JSON:
+Generate a region linked to this character: 3-5 locations, 1-2 NPCs, 2-3 enemy types. IMPORTANT: Each location MUST have its own unique description that captures what makes THAT specific place distinct — do NOT reuse or copy the region description for individual locations. Respond with ONLY valid JSON:
 ${REGION_GENERATION_SCHEMA}`;
 }
 

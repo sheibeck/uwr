@@ -76,7 +76,7 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any): any {
     isGenerated: true,
   });
 
-  // 3. Insert Locations (3-5), share the region description
+  // 3. Insert Locations (3-5), each with its own unique description
   const locationsByName: Record<string, any> = {};
   const locations = parsed.locations || [];
   const regionDescription = parsed.regionDescription || `A ${parsed.biome || 'mysterious'} region.`;
@@ -84,10 +84,11 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any): any {
   let firstSafeSet = false;
   for (const loc of locations) {
     const isSafe = loc.isSafe === true;
+    const locationDescription = loc.description || regionDescription;
     const inserted = tx.db.location.insert({
       id: 0n,
       name: loc.name || 'Unknown Location',
-      description: regionDescription,
+      description: locationDescription,
       zone: parsed.regionName || 'Generated',
       regionId: region.id,
       levelOffset: BigInt(loc.levelOffset || 0),
