@@ -1029,7 +1029,21 @@ spacetimedb.reducer('submit_llm_result', {
         let amount = Number(effect.amount) || 0;
         if (amount > 5) amount = 5;
         if (amount < -5) amount = -5;
+        if (amount === 0) continue;
         awardNpcAffinity(ctx, character, npcIdVal, BigInt(amount));
+
+        // Narrative cue for affinity shift
+        let cue: string;
+        if (amount >= 3) {
+          cue = `${npc.name} seems genuinely pleased by your words.`;
+        } else if (amount >= 1) {
+          cue = `${npc.name} regards you with a hint of warmth.`;
+        } else if (amount <= -3) {
+          cue = `${npc.name}'s expression darkens. You've struck a nerve.`;
+        } else {
+          cue = `${npc.name}'s eyes narrow slightly. That didn't land well.`;
+        }
+        appendPrivateEvent(ctx, charId, character.ownerUserId, 'npc', cue);
 
       } else if (effect.type === 'offer_quest') {
         // Validate quest type
