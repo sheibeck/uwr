@@ -225,6 +225,13 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any): any {
       locationId: npcLocation.id,
       description: npc.description || 'A mysterious figure.',
       greeting: npc.greeting || 'Greetings, traveler.',
+      personalityJson: npc.personality ? JSON.stringify(npc.personality) : JSON.stringify({
+        traits: ['reserved'],
+        speechPattern: 'speaks plainly',
+        knowledgeDomains: ['local area'],
+        secrets: [],
+        affinityMultiplier: 1.0,
+      }),
     });
   }
 

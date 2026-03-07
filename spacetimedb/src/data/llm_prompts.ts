@@ -208,7 +208,7 @@ ${COMBINED_CREATION_SCHEMA}`;
 
 // === WORLD GENERATION JSON SCHEMAS ===
 
-export const REGION_GENERATION_SCHEMA = `{"regionName":"string","regionDescription":"string (2-3 sentences)","biome":"volcanic|forest|tundra|desert|swamp|mountains|plains|coastal|cavern|ruins","dominantFaction":"string","landmarks":["string"],"threats":["string"],"locations":[{"name":"string","description":"string (unique 2-3 sentence description for THIS specific location — must be different from every other location)","terrainType":"mountains|woods|plains|swamp|dungeon|town|city","isSafe":false,"levelOffset":0,"connectsTo":["string"]}],"npcs":[{"name":"string","npcType":"vendor|quest|lore","locationName":"string","description":"string","greeting":"string"}],"enemies":[{"name":"string","creatureType":"beast|undead|humanoid|elemental|construct|aberration","role":"melee|ranged|caster","terrainTypes":"string","groupMin":1,"groupMax":3,"level":1}]}`;
+export const REGION_GENERATION_SCHEMA = `{"regionName":"string","regionDescription":"string (2-3 sentences)","biome":"volcanic|forest|tundra|desert|swamp|mountains|plains|coastal|cavern|ruins","dominantFaction":"string","landmarks":["string"],"threats":["string"],"locations":[{"name":"string","description":"string (unique 2-3 sentence description for THIS specific location — must be different from every other location)","terrainType":"mountains|woods|plains|swamp|dungeon|town|city","isSafe":false,"levelOffset":0,"connectsTo":["string"]}],"npcs":[{"name":"string","npcType":"vendor|questgiver|lore|trainer|guard|crafter","locationName":"string","description":"string","greeting":"string","personality":{"traits":["string (2-3 traits e.g. gruff, suspicious, kind)"],"speechPattern":"string (e.g. speaks in short sentences, uses flowery language)","knowledgeDomains":["string (e.g. local herbs, ancient history, trade routes)"],"secrets":["string (1-2 things this NPC knows but only shares with trusted friends)"],"affinityMultiplier":1.0}}],"enemies":[{"name":"string","creatureType":"beast|undead|humanoid|elemental|construct|aberration","role":"melee|ranged|caster","terrainTypes":"string","groupMin":1,"groupMax":3,"level":1}]}`;
 
 export function buildRegionGenerationUserPrompt(
   characterRace: string,
@@ -308,4 +308,141 @@ ${SKILL_GENERATION_SCHEMA}`;
 // Legacy alias for backward compatibility (used by buildSkillGenPrompt callers if any)
 export function buildSkillGenPrompt(context: string): string {
   return buildSkillGenSystemPrompt();
+}
+
+// === NPC CONVERSATION SYSTEM ===
+
+import {
+  CONVERSATION_EFFECTS,
+  QUEST_TYPES,
+  AFFINITY_UNLOCKS,
+} from './mechanical_vocabulary';
+
+// Map affinity tier to the unlocks available at that level (cumulative)
+function getUnlocksForTier(affinityTier: string): string[] {
+  const tierOrder = ['hostile', 'unfriendly', 'neutral', 'friendly', 'trusted', 'bonded'];
+  const tierIndex = tierOrder.indexOf(affinityTier);
+  // Map unlock ranges to tier thresholds
+  const unlocksByMinTier: { unlock: string; minTier: number }[] = [
+    { unlock: 'basic_services', minTier: 2 },      // neutral+
+    { unlock: 'personal_lore', minTier: 3 },        // friendly+
+    { unlock: 'side_quests', minTier: 3 },           // friendly+
+    { unlock: 'rare_items', minTier: 4 },            // trusted+
+    { unlock: 'secret_locations', minTier: 4 },      // trusted+
+    { unlock: 'unique_quests', minTier: 4 },         // trusted+
+    { unlock: 'faction_secrets', minTier: 5 },       // bonded+
+    { unlock: 'unique_abilities', minTier: 5 },      // bonded+
+    { unlock: 'world_secrets', minTier: 5 },         // bonded+
+  ];
+  return unlocksByMinTier
+    .filter(u => tierIndex >= u.minTier)
+    .map(u => u.unlock);
+}
+
+export function buildNpcConversationSystemPrompt(
+  npc: { name: string; npcType: string },
+  region: { name: string; biome?: string; landmarks?: string; threats?: string },
+  location: { name: string },
+  personality: {
+    traits?: string[];
+    speechPattern?: string;
+    knowledgeDomains?: string[];
+    secrets?: string[];
+  },
+  affinityTier: string,
+  memory: any,
+): string {
+  const availableUnlocks = getUnlocksForTier(affinityTier);
+  const secretsSection = personality.secrets && personality.secrets.length > 0
+    ? `- Your secrets (only share at trusted+ affinity): ${personality.secrets.join('; ')}`
+    : '- You have no particular secrets to share.';
+
+  return `${NARRATOR_PREAMBLE}
+
+## Your Role: ${npc.name}
+
+You are now speaking AS this NPC, not as The System. The System narrates the world,
+but right now you ARE ${npc.name}.
+
+### Identity
+- Name: ${npc.name}
+- Role: ${npc.npcType}
+- Location: ${location.name} in ${region.name}${region.biome ? ` (${region.biome})` : ''}
+- Personality: ${personality.traits?.join(', ') || 'reserved'}
+- Speech pattern: ${personality.speechPattern || 'speaks plainly'}
+- Knowledge domains: ${personality.knowledgeDomains?.join(', ') || 'local area'}
+
+### What You Know
+- Your region: ${region.name}${region.biome ? ` (${region.biome})` : ''}, landmarks: ${region.landmarks || 'none known'}, threats: ${region.threats || 'various'}
+${secretsSection}
+
+### What You DO NOT Know
+- Other regions you have never visited
+- The player's private thoughts or inventory details
+- Events in distant parts of the world
+- Game mechanics or system rules
+
+### Relationship with this player
+- Affinity tier: ${affinityTier}
+- Memory of past interactions: ${memory ? JSON.stringify(memory) : 'none (first meeting)'}
+
+### Response Rules
+- Stay in character as ${npc.name}
+- Your tone and speech style match your personality traits
+- At ${affinityTier} affinity, you are willing to: ${availableUnlocks.length > 0 ? availableUnlocks.join(', ') : 'nothing beyond basic interaction'}
+- If context calls for it, include side effects in the effects array
+- NEVER break character to discuss game mechanics directly
+- Keep responses concise -- 2-4 sentences of dialogue, not paragraphs
+- Valid effect types: ${CONVERSATION_EFFECTS.join(', ')}
+- Valid quest types (for offer_quest): ${QUEST_TYPES.join(', ')}
+
+Respond with valid JSON matching the schema in the user message.`;
+}
+
+export const NPC_CONVERSATION_RESPONSE_SCHEMA = `{
+  "dialogue": "string -- what the NPC says, in character",
+  "internalThought": "string -- brief NPC internal reaction (used for memory, not shown to player)",
+  "effects": [
+    {
+      "type": "offer_quest | reveal_location | give_item | affinity_change | warn_danger | open_shop | none",
+
+      "questType": "kill | kill_loot | explore | delivery | boss_kill | gather | escort | interact | discover (for offer_quest only)",
+      "questName": "string (for offer_quest only)",
+      "questDescription": "string -- narrative quest description (for offer_quest only)",
+      "targetCount": "number (for offer_quest only)",
+      "rewardType": "xp | gold | item | ability (for offer_quest only)",
+      "rewardXp": "number (for offer_quest only)",
+      "rewardGold": "number (optional, for offer_quest with gold reward)",
+      "rewardItemName": "string (optional, for offer_quest with item reward)",
+      "rewardItemDesc": "string (optional, for offer_quest with item reward)",
+
+      "amount": "number -5 to +5 (for affinity_change only)",
+
+      "locationName": "string (for reveal_location only)",
+      "locationDescription": "string (for reveal_location only)"
+    }
+  ],
+  "memoryUpdate": {
+    "addTopics": ["string -- new topics discussed"],
+    "addSecret": "string or null -- secret shared, if any"
+  }
+}`;
+
+export function buildNpcConversationUserPrompt(
+  playerMessage: string,
+  activeQuestCount: number,
+  maxQuests: number,
+): string {
+  const questContext = activeQuestCount >= maxQuests
+    ? `The player has ${activeQuestCount}/${maxQuests} active quests (FULL -- do NOT offer new quests).`
+    : `The player has ${activeQuestCount}/${maxQuests} active quests (can accept more).`;
+
+  return `${questContext}
+
+The player says: "${playerMessage}"
+
+Respond in character. If the conversation naturally leads to a side effect (quest offer, location reveal, affinity change, etc.), include it in the effects array. Otherwise, use an empty effects array or a single "none" effect.
+
+Respond with ONLY valid JSON matching this schema:
+${NPC_CONVERSATION_RESPONSE_SCHEMA}`;
 }
