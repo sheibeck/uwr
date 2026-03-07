@@ -254,7 +254,7 @@
         :conn-active="conn.isActive"
         :selected-character="selectedCharacter"
         :selected-npc-id="selectedNpcTarget"
-        :conversation-npc-id="conversationNpcId?.toString() ?? null"
+        :conversation-npc-id="conversationNpcIdStr"
         :selected-character-target-id="selectedCharacterTarget"
         :selected-corpse-id="selectedCorpseTarget"
         :characters-here="charactersHere"
@@ -1257,6 +1257,7 @@ const selectCharacterTarget = (characterId: bigint | null) => {
 // Tracks which NPC the player is actively conversing with (client-side only).
 // While set, typed text routes to talk_to_npc instead of submit_intent.
 const conversationNpcId = ref<bigint | null>(null);
+const conversationNpcIdStr = computed(() => conversationNpcId.value?.toString() ?? null);
 
 const enterConversation = (npcId: bigint, npcName: string) => {
   conversationNpcId.value = npcId;
