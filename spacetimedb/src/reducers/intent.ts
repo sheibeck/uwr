@@ -71,11 +71,11 @@ export const registerIntentReducers = (deps: any) => {
       return;
     }
 
-    // --- EXPLORE: trigger world gen at current uncharted location ---
+    // --- EXPLORE: retry world gen at current uncharted location (only useful after errors) ---
     if (lower === 'explore') {
       const currentLoc = ctx.db.location.id.find(character.locationId);
       if (!currentLoc || currentLoc.terrainType !== 'uncharted') {
-        return fail(ctx, character, 'There is nothing uncharted to explore here. Travel to the edge of the known world first.');
+        return fail(ctx, character, 'There is nothing uncharted to explore here.');
       }
       const existingGen = [...ctx.db.world_gen_state.by_source_location.filter(character.locationId)]
         .find((s: any) => s.step !== 'ERROR');
@@ -87,6 +87,7 @@ export const registerIntentReducers = (deps: any) => {
         return appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
           'This region has already been explored.');
       }
+      // Only reaches here if all existing states are ERROR — retry
       ctx.db.world_gen_state.insert({
         id: 0n,
         playerId: ctx.sender,
@@ -333,6 +334,6 @@ export const registerIntentReducers = (deps: any) => {
 
     // --- SARDONIC FALLBACK ---
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-      `The System regards you with mild contempt. "${raw}" means nothing here. Perhaps try [look], [travel], [explore], [attack], or [hail].`);
+      `The System regards you with mild contempt. "${raw}" means nothing here. Perhaps try [look], [travel], [attack], or [hail].`);
   });
 };

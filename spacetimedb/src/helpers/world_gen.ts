@@ -235,7 +235,7 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any): any {
     const boundary = tx.db.location.insert({
       id: 0n,
       name: `The Edge Beyond ${parsed.regionName || 'the Region'}`,
-      description: 'The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond. Type [explore] to venture into the unknown.',
+      description: 'The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.',
       zone: 'Uncharted',
       regionId: region.id,
       levelOffset: 0n,

@@ -510,6 +510,11 @@ spacetimedb.reducer('prepare_world_gen_llm', { genStateId: t.u64() }, (ctx: any,
       errorMessage: 'Daily LLM budget exceeded',
       updatedAt: ctx.timestamp,
     });
+    const char = ctx.db.character.id.find(genState.characterId);
+    if (char) {
+      appendPrivateEvent(ctx, char.id, char.ownerUserId, 'system',
+        'The System strains but cannot shape this realm right now. Type [explore] to try again later.');
+    }
     throw new SenderError('Daily LLM budget exceeded');
   }
 
