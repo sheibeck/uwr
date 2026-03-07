@@ -9,7 +9,11 @@ import {
   buildSkillGenPrompt,
   buildRaceInterpretationUserPrompt,
   buildClassGenerationUserPrompt,
+  buildRegionGenerationUserPrompt,
+  REGION_GENERATION_SCHEMA,
 } from './data/llm_prompts';
+import { pickRippleMessage, pickDiscoveryMessage, computeRegionDanger } from './data/world_gen';
+import { writeGeneratedRegion, buildRegionContext } from './helpers/world_gen';
 import spacetimedb, {
   scheduledReducers,
   Player, Character,
@@ -756,6 +760,240 @@ spacetimedb.procedure(
     });
 
     return parsed.ok ? 'completed' : 'error';
+  }
+);
+
+// === WORLD GENERATION LLM PROCEDURE ===
+// Generates a new region when a player triggers exploration at an uncharted location.
+// Client calls this procedure after observing WorldGenState with step='PENDING'.
+// Three-phase pattern: withTx(read context) -> http.fetch(Claude) -> withTx(write results)
+spacetimedb.procedure(
+  { name: 'generate_world_region' },
+  { genStateId: t.u64() },
+  t.string(),
+  (ctx: any, { genStateId }: { genStateId: bigint }) => {
+    // === PHASE 1: Read context (transaction) ===
+    let genState: any;
+    let apiKey: string = '';
+    let characterRace: string = 'Unknown';
+    let characterClass: string = 'Unknown';
+    let characterArchetype: string = 'warrior';
+    let sourceRegionName: string = 'the known world';
+    let neighbors: { name: string; biome: string; threats: string }[] = [];
+    let character: any;
+
+    try {
+      ctx.withTx((tx: any) => {
+        // Find and validate WorldGenState
+        genState = tx.db.world_gen_state.id.find(genStateId);
+        if (!genState) throw new SenderError('WorldGenState not found');
+        if (genState.step !== 'PENDING') throw new SenderError('WorldGenState not in PENDING step');
+
+        // Update step to GENERATING
+        tx.db.world_gen_state.id.update({ ...genState, step: 'GENERATING', updatedAt: tx.timestamp });
+
+        // Read character data
+        character = tx.db.character.id.find(genState.characterId);
+        if (character) {
+          characterRace = character.race || 'Unknown';
+          characterClass = character.className || 'Unknown';
+        }
+
+        // Read archetype from creation state
+        const creationStates = [...tx.db.character_creation_state.by_player.filter(genState.playerId)];
+        if (creationStates.length > 0) {
+          characterArchetype = creationStates[0].archetype || 'warrior';
+        }
+
+        // Read source region name
+        const sourceRegion = tx.db.region.id.find(genState.sourceRegionId);
+        if (sourceRegion) {
+          sourceRegionName = sourceRegion.name;
+        }
+
+        // Build neighbor context
+        neighbors = buildRegionContext(tx, genState.sourceRegionId);
+
+        // Budget check
+        const budget = checkBudget(tx, genState.playerId);
+        if (!budget.allowed) {
+          tx.db.world_gen_state.id.update({
+            ...tx.db.world_gen_state.id.find(genStateId),
+            step: 'ERROR',
+            errorMessage: 'Daily LLM budget exceeded',
+            updatedAt: tx.timestamp,
+          });
+          throw new SenderError('Daily LLM budget exceeded');
+        }
+
+        // Read API key
+        const config = tx.db.llm_config.id.find(1n);
+        if (!config || !config.apiKey) throw new SenderError('LLM not configured — set API key first');
+        apiKey = config.apiKey;
+      });
+
+      if (!genState || !apiKey) return 'error';
+
+      // === PHASE 2: Call Anthropic API (NO transaction open) ===
+      const systemPrompt = buildWorldGenPrompt('');
+      const userPrompt = buildRegionGenerationUserPrompt(
+        characterRace, characterClass, characterArchetype,
+        sourceRegionName, neighbors
+      );
+
+      const model = 'claude-haiku-4-5';
+      const requestBody = buildAnthropicRequest(model, systemPrompt, userPrompt, 2048);
+
+      let responseText = '';
+      let responseOk = false;
+      const maxAttempts = 2;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const response = ctx.http.fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': apiKey,
+              'anthropic-version': '2023-06-01',
+            },
+            body: requestBody,
+            timeout: TimeDuration.fromMillis(60000),
+          });
+          responseText = response.text();
+          responseOk = response.ok;
+          if (responseOk) break;
+          if (attempt < maxAttempts) {
+            console.error(`World gen LLM attempt ${attempt} failed, retrying...`);
+          }
+        } catch (err: any) {
+          console.error(`World gen LLM attempt ${attempt} threw: ${err?.message ?? err}`);
+          if (attempt >= maxAttempts) {
+            responseText = '';
+            responseOk = false;
+          }
+        }
+      }
+
+      // === PHASE 3: Parse response and write results (transaction) ===
+      const parsed = parseAnthropicResponse(responseText, responseOk);
+
+      if (parsed.usage) {
+        console.log(`World gen LLM usage [${model}]: input=${parsed.usage.inputTokens}, output=${parsed.usage.outputTokens}, cache_read=${parsed.usage.cacheReadTokens}`);
+      }
+
+      ctx.withTx((tx: any) => {
+        // Re-read genState to guard against stale state
+        const currentGenState = tx.db.world_gen_state.id.find(genStateId);
+        if (!currentGenState || currentGenState.step !== 'GENERATING') return;
+
+        if (!parsed.ok) {
+          console.error(`World gen LLM error: ${parsed.error}`);
+          tx.db.world_gen_state.id.update({
+            ...currentGenState,
+            step: 'ERROR',
+            errorMessage: parsed.error || 'Unknown error',
+            updatedAt: tx.timestamp,
+          });
+          // Notify player of error
+          if (character) {
+            appendPrivateEvent(tx, currentGenState.characterId, character.ownerUserId, 'system',
+              'The System falters. "The world beyond refuses to be remembered right now. Try again."');
+          }
+          return;
+        }
+
+        // Parse JSON robustly: brace extraction fallback
+        let rawText = parsed.text.trim();
+        if (rawText.startsWith('```')) {
+          rawText = rawText.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+        }
+        const firstBrace = rawText.indexOf('{');
+        const lastBrace = rawText.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+          rawText = rawText.slice(firstBrace, lastBrace + 1);
+        }
+
+        let data: any;
+        try {
+          data = JSON.parse(rawText);
+        } catch (parseErr) {
+          console.error(`World gen JSON parse error: ${parseErr}`);
+          tx.db.world_gen_state.id.update({
+            ...currentGenState,
+            step: 'ERROR',
+            errorMessage: 'Failed to parse LLM response as JSON',
+            updatedAt: tx.timestamp,
+          });
+          if (character) {
+            appendPrivateEvent(tx, currentGenState.characterId, character.ownerUserId, 'system',
+              'The System grimaces. "The world tried to form but... it came out wrong. Try again."');
+          }
+          return;
+        }
+
+        // Validate required fields
+        if (!data.regionName || !data.locations || data.locations.length < 1) {
+          tx.db.world_gen_state.id.update({
+            ...currentGenState,
+            step: 'ERROR',
+            errorMessage: 'LLM response missing required fields (regionName, locations)',
+            updatedAt: tx.timestamp,
+          });
+          if (character) {
+            appendPrivateEvent(tx, currentGenState.characterId, character.ownerUserId, 'system',
+              'The System shakes its head. "The world beyond is... incomplete. Try again."');
+          }
+          return;
+        }
+
+        // Write generated region content into game tables
+        const region = writeGeneratedRegion(tx, data, currentGenState);
+
+        // Update WorldGenState to COMPLETE
+        tx.db.world_gen_state.id.update({
+          ...currentGenState,
+          step: 'COMPLETE',
+          generatedRegionId: region.id,
+          updatedAt: tx.timestamp,
+        });
+
+        // Emit ripple announcement (all players see)
+        appendWorldEvent(tx, 'world',
+          pickRippleMessage(sourceRegionName, data.biome || 'plains', tx.timestamp.microsSinceUnixEpoch));
+
+        // Emit personal discovery narrative
+        if (character) {
+          appendPrivateEvent(tx, currentGenState.characterId, character.ownerUserId, 'system',
+            pickDiscoveryMessage(data.regionName, tx.timestamp.microsSinceUnixEpoch));
+        }
+
+        // Increment budget on success
+        incrementBudget(tx, currentGenState.playerId);
+      });
+
+      return parsed.ok ? 'completed' : 'error';
+
+    } catch (err: any) {
+      // Top-level error handler: revert WorldGenState to ERROR
+      console.error(`World gen procedure error: ${err?.message ?? err}`);
+      try {
+        ctx.withTx((tx: any) => {
+          const currentGenState = tx.db.world_gen_state.id.find(genStateId);
+          if (currentGenState && currentGenState.step !== 'ERROR' && currentGenState.step !== 'COMPLETE') {
+            tx.db.world_gen_state.id.update({
+              ...currentGenState,
+              step: 'ERROR',
+              errorMessage: err?.message || 'Unknown procedure error',
+              updatedAt: tx.timestamp,
+            });
+          }
+        });
+      } catch (innerErr: any) {
+        console.error(`World gen error handler failed: ${innerErr?.message ?? innerErr}`);
+      }
+      return 'error';
+    }
   }
 );
 
