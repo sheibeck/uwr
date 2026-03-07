@@ -1256,16 +1256,18 @@ const selectCharacterTarget = (characterId: bigint | null) => {
 // While set, typed text routes to talk_to_npc instead of submit_intent.
 const conversationNpcId = ref<bigint | null>(null);
 
+const enterConversation = (npcId: bigint, npcName: string) => {
+  conversationNpcId.value = npcId;
+  addLocalEvent('system', `You are now conversing with ${npcName}. Type freely to speak. Say "bye" to end the conversation.`, 'private');
+};
+
 const onTalkNpc = (npcId: bigint) => {
   if (!selectedCharacter.value) return;
 
   const npc = npcs.value.find(n => n.id === npcId);
   if (!npc) return;
 
-  // Enter conversation mode with this NPC
-  conversationNpcId.value = npcId;
-
-  // Show greeting via hail reducer
+  enterConversation(npc.id, npc.name);
   hailNpcReducer({ characterId: selectedCharacter.value.id, npcName: npc.name });
 };
 
@@ -1335,8 +1337,7 @@ const onNarrativeSubmit = (text: string) => {
     const npcName = talkMatch[1].trim();
     const npc = npcsHere.value?.find(n => n.name.toLowerCase() === npcName);
     if (npc) {
-      conversationNpcId.value = npc.id;
-      // Let it fall through to submit_intent for the greeting
+      enterConversation(npc.id, npc.name);
       submitIntentReducer({ characterId: selectedCharacter.value.id, text: text.trim() });
       return;
     }
