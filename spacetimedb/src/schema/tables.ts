@@ -585,7 +585,7 @@ export const HotbarSlot = table(
     id: t.u64().primaryKey().autoInc(),
     characterId: t.u64(),
     slot: t.u8(),
-    abilityKey: t.string(),
+    abilityTemplateId: t.u64(),
     assignedAt: t.timestamp(),
   }
 );
@@ -595,34 +595,58 @@ export const AbilityTemplate = table(
     name: 'ability_template',
     public: true,
     indexes: [
-      { accessor: 'by_key', algorithm: 'btree', columns: ['key'] },
-      { accessor: 'by_class', algorithm: 'btree', columns: ['className'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
   },
   {
     id: t.u64().primaryKey().autoInc(),
-    key: t.string(),
+    characterId: t.u64(),
     name: t.string(),
-    className: t.string(),
-    level: t.u64(),
-    resource: t.string(),
+    description: t.string(),
+    kind: t.string(),
+    targetRule: t.string(),
+    resourceType: t.string(),
+    resourceCost: t.u64(),
     castSeconds: t.u64(),
     cooldownSeconds: t.u64(),
-    kind: t.string(),
-    combatState: t.string(),
-    description: t.string(),
-    power: t.u64().optional(),
+    scaling: t.string(),
+    value1: t.u64(),
+    value2: t.u64().optional(),
     damageType: t.string().optional(),
-    statScaling: t.string().optional(),
-    dotPowerSplit: t.f64().optional(),
-    dotDuration: t.u64().optional(),
-    hotPowerSplit: t.f64().optional(),
-    hotDuration: t.u64().optional(),
-    debuffType: t.string().optional(),
-    debuffMagnitude: t.i64().optional(),
-    debuffDuration: t.u64().optional(),
-    aoeTargets: t.string().optional(),
+    effectType: t.string().optional(),
+    effectMagnitude: t.u64().optional(),
+    effectDuration: t.u64().optional(),
+    levelRequired: t.u64(),
+    isGenerated: t.bool(),
+  }
+);
+
+export const PendingSkill = table(
+  {
+    name: 'pending_skill',
+    public: true,
+    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    name: t.string(),
+    description: t.string(),
+    kind: t.string(),
+    targetRule: t.string(),
+    resourceType: t.string(),
     resourceCost: t.u64(),
+    castSeconds: t.u64(),
+    cooldownSeconds: t.u64(),
+    scaling: t.string(),
+    value1: t.u64(),
+    value2: t.u64().optional(),
+    damageType: t.string().optional(),
+    effectType: t.string().optional(),
+    effectMagnitude: t.u64().optional(),
+    effectDuration: t.u64().optional(),
+    levelRequired: t.u64(),
+    createdAt: t.timestamp(),
   }
 );
 
@@ -635,7 +659,7 @@ export const AbilityCooldown = table(
   {
     id: t.u64().primaryKey().autoInc(),
     characterId: t.u64(),
-    abilityKey: t.string(),
+    abilityTemplateId: t.u64(),
     startedAtMicros: t.u64(),
     durationMicros: t.u64(),
   }
@@ -650,7 +674,7 @@ export const CharacterCast = table(
   {
     id: t.u64().primaryKey().autoInc(),
     characterId: t.u64(),
-    abilityKey: t.string(),
+    abilityTemplateId: t.u64(),
     targetCharacterId: t.u64().optional(),
     endsAtMicros: t.u64(),
   }
@@ -2037,6 +2061,7 @@ const spacetimedb = schema({
   event_creation: EventCreation,
   world_gen_state: WorldGenState,
   llm_task: LlmTask,
+  pending_skill: PendingSkill,
 });
 export default spacetimedb;
 export { spacetimedb };

@@ -37,6 +37,7 @@ import spacetimedb, {
   ActiveBardSong, BardSongTick,
   ActivePet,
   LlmCleanupTick,
+  PendingSkill,
 } from './schema/tables';
 export default spacetimedb;
 import { registerReducers } from './reducers';
