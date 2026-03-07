@@ -21,7 +21,7 @@ v2.0 transforms UWR from a traditional RPG with fixed content into a living worl
 - Decimal phases (24.1, 24.2): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 24: LLM Pipeline Foundation** - SpacetimeDB procedure calling Anthropic API with status tracking, cost controls, and graceful degradation (completed 2026-03-07)
-- [ ] **Phase 25: Narrative UI Shell** - Chat-first narrative console with persistent HUD, natural language input, and typewriter animation
+- [x] **Phase 25: Narrative UI Shell** - Chat-first narrative console with persistent HUD, natural language input, and typewriter animation (completed 2026-03-07)
 - [ ] **Phase 26: Narrative Character Creation** - Guided conversation with the System to create a unique race, archetype, and LLM-generated class
 - [ ] **Phase 27: Procedural World Generation** - Player arrival triggers persistent region creation with canonical world facts and ripple announcements
 - [ ] **Phase 28: Dynamic Skill Generation** - Level-up offers 3 LLM-generated skills with schema constraints and power-budget validation
@@ -146,7 +146,7 @@ Plans:
 | LLM-04 | 24 | LLM Pipeline |
 | LLM-05 | 24 | LLM Pipeline |
 | LLM-06 | 24 | LLM Pipeline |
-| UI-01 | 25 | 2/3 | In Progress|  | 25 | Narrative UI |
+| UI-01 | 25 | 3/3 | Complete   | 2026-03-07 | 25 | Narrative UI |
 | UI-03 | 25 | Narrative UI |
 | UI-04 | 25 | Narrative UI |
 | UI-05 | 25 | Narrative UI |
