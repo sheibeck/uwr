@@ -164,6 +164,7 @@ export const QuestTemplate = table(
     indexes: [
       { accessor: 'by_npc', algorithm: 'btree', columns: ['npcId'] },
       { accessor: 'by_enemy', algorithm: 'btree', columns: ['targetEnemyTemplateId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
   },
   {
@@ -180,6 +181,12 @@ export const QuestTemplate = table(
     targetNpcId: t.u64().optional(),           // for delivery quest turn-in target NPC
     targetItemName: t.string().optional(),     // display name of the loot item (kill_loot quests)
     itemDropChance: t.u64().optional(),        // per-kill drop chance as integer percent (e.g., 25 = 25%)
+    description: t.string().optional(),        // LLM-generated narrative quest description
+    rewardType: t.string().optional(),         // 'xp' | 'gold' | 'item' | 'ability'
+    rewardItemName: t.string().optional(),     // LLM-generated item name for item rewards
+    rewardItemDesc: t.string().optional(),     // LLM-generated item flavor text
+    rewardGold: t.u64().optional(),            // Gold reward amount
+    characterId: t.u64().optional(),           // Per-player quest (who it was generated for)
   }
 );
 
@@ -1584,6 +1591,25 @@ export const NpcDialogueVisited = table(
   }
 );
 
+// Per-player-per-NPC summarized conversation memory for LLM context
+export const NpcMemory = table(
+  {
+    name: 'npc_memory',
+    public: true,
+    indexes: [
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_npc', algorithm: 'btree', columns: ['npcId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    npcId: t.u64(),
+    memoryJson: t.string(),     // JSON: { topics: string[], questsCompleted: string[], secretsShared: string[], giftsGiven: string[], lastConversationSummary: string }
+    lastUpdated: t.timestamp(),
+  }
+);
+
 export const WorldEvent = table(
   {
     name: 'world_event',
@@ -1943,7 +1969,7 @@ export const LlmTask = table(
   {
     id: t.u64().primaryKey().autoInc(),
     playerId: t.identity(),
-    domain: t.string(),           // 'creation_race', 'creation_class', 'world_gen', 'generic'
+    domain: t.string(),           // 'creation_race', 'creation_class', 'world_gen', 'npc_conversation', 'generic'
     model: t.string(),
     systemPrompt: t.string(),
     userPrompt: t.string(),
@@ -1968,6 +1994,7 @@ const spacetimedb = schema({
   npc_affinity: NpcAffinity,
   npc_dialogue_option: NpcDialogueOption,
   npc_dialogue_visited: NpcDialogueVisited,
+  npc_memory: NpcMemory,
   quest_template: QuestTemplate,
   quest_instance: QuestInstance,
   hotbar_slot: HotbarSlot,
