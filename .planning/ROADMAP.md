@@ -152,7 +152,7 @@ Plans:
 | UI-04 | 25 | Narrative UI |
 | UI-05 | 25 | Narrative UI |
 | UI-06 | 25 | Narrative UI |
-| CHAR-01 | 26 | 3/3 | Complete   | 2026-03-07 | 26 | Character Creation |
+| CHAR-01 | 26 | 3/3 | Complete    | 2026-03-07 | 26 | Character Creation |
 | CHAR-03 | 26 | Character Creation |
 | CHAR-04 | 26 | Character Creation |
 | CHAR-05 | 26 | Character Creation |
