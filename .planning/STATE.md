@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Phase 29 context gathered
-last_updated: "2026-03-07T20:19:02.399Z"
-last_activity: "2026-03-07 - Completed quick task 334: Enhance look command with rich location overview"
+stopped_at: Completed 27-03-PLAN.md
+last_updated: "2026-03-07T22:30:06.477Z"
+last_activity: "2026-03-07 - Completed 29-03: Client NPC Conversation Wiring"
 progress:
   total_phases: 7
-  completed_phases: 4
-  total_plans: 15
-  completed_plans: 14
+  completed_phases: 6
+  total_plans: 18
+  completed_plans: 18
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 29 in progress — NPC & Quest Generation
+**Current focus:** Phase 27 completed -- Procedural World Generation; Phase 30 remaining
 
 ## Current Position
 
-Phase: 29 of 30 (NPC & Quest Generation)
-Plan: 3 of 3 complete (Client NPC Conversation Wiring)
-Status: Completed
-Last activity: 2026-03-07 - Completed 29-03: Client NPC Conversation Wiring
+Phase: 29 of 30 (Phases 24-29 complete, Phase 30 remaining)
+Plan: 27-03 just completed (Client World Generation Composable)
+Status: Phases 24-29 complete
+Last activity: 2026-03-07 - Completed 27-03: Client World Generation Composable & End-to-End Verification
 
 Progress: [██████████] 100%
 
@@ -64,6 +64,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 | Phase 29 P01 | 3min | 2 tasks | 4 files |
 | Phase 29 P02 | 7min | 2 tasks | 6 files |
 | Phase 29 P03 | 4min | 1 tasks | 11 files |
+| Phase 27 P03 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,8 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 29]: Intent handler shows NPC greeting only; full LLM conversation via talk_to_npc reducer from client
 - [Phase 29]: npc_memory is private table (server-only); client does not subscribe
 - [Phase 29]: Old dialogue tree (getAvailableDialogueOptions) deprecated in favor of LLM conversation
+- [Phase 27]: Client calls prepareWorldGenLlm reducer (not procedure) -- reducer creates LlmTask, useLlmProxy handles HTTP call
+- [Phase 27]: WORLD-03 (evolution hooks) explicitly deferred per CONTEXT.md discretionary guidance
 
 ### Pending Todos
 
@@ -147,5 +150,5 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-07T22:06:00Z
-Stopped at: Completed quick task 334: Enhance look command with rich location overview
+Last session: 2026-03-07T22:30:06.468Z
+Stopped at: Completed 27-03-PLAN.md
