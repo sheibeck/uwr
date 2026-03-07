@@ -71,10 +71,58 @@ export const registerIntentReducers = (deps: any) => {
       return;
     }
 
+    // --- EXPLORE: trigger world gen at current uncharted location ---
+    if (lower === 'explore') {
+      const currentLoc = ctx.db.location.id.find(character.locationId);
+      if (!currentLoc || currentLoc.terrainType !== 'uncharted') {
+        return fail(ctx, character, 'There is nothing uncharted to explore here. Travel to the edge of the known world first.');
+      }
+      const existingGen = [...ctx.db.world_gen_state.by_source_location.filter(character.locationId)]
+        .find((s: any) => s.step !== 'ERROR');
+      if (existingGen) {
+        if (existingGen.step === 'PENDING' || existingGen.step === 'GENERATING') {
+          return appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+            'The world is already taking shape around you. Patience.');
+        }
+        return appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          'This region has already been explored.');
+      }
+      ctx.db.world_gen_state.insert({
+        id: 0n,
+        playerId: ctx.sender,
+        characterId: args.characterId,
+        sourceLocationId: character.locationId,
+        sourceRegionId: currentLoc.regionId,
+        step: 'PENDING',
+        createdAt: ctx.timestamp,
+        updatedAt: ctx.timestamp,
+      });
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+        'The edges of reality ripple around you. The System pauses, as if remembering something it had forgotten...');
+      return;
+    }
+
     // --- TRAVEL: "go <place>", "travel [to] <place>", or single-word location match ---
     const goMatch = lower.match(/^go\s+(.+)$/);
     const travelMatch = lower.match(/^travel\s+(?:to\s+)?(.+)$/);
     const travelTarget = goMatch?.[1] || travelMatch?.[1];
+
+    // Bare "travel" or "go" without target — show available destinations
+    if (lower === 'travel' || lower === 'go') {
+      const connections = [...ctx.db.location_connection.by_from.filter(character.locationId)];
+      const names = connections
+        .map((c: any) => ctx.db.location.id.find(c.toLocationId))
+        .filter(Boolean)
+        .map((l: any) => `[${l.name}]`);
+      if (names.length > 0) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          `You can travel to: ${names.join(', ')}.`);
+      } else {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          'There is nowhere to go from here.');
+      }
+      return;
+    }
 
     if (travelTarget) {
       if (activeCombatIdForCharacter(ctx, character.id)) {
@@ -114,14 +162,33 @@ export const registerIntentReducers = (deps: any) => {
         return fail(ctx, character, `No path leads to "${travelTarget}". ${hint}`);
       }
 
-      // Minimal inline move (skip stamina/cooldown/group-pull for NL MVP)
-      // TODO: Full parity with move_character (stamina cost, travel cooldown, group pull, passive search)
+      // Minimal inline move
       const originId = character.locationId;
       ctx.db.character.id.update({ ...character, locationId: matchedLocation.id });
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'move',
         `You travel to ${matchedLocation.name}. ${matchedLocation.description}`);
       appendLocationEvent(ctx, originId, 'move', `${character.name} departs.`, character.id);
       appendLocationEvent(ctx, matchedLocation.id, 'move', `${character.name} arrives.`, character.id);
+
+      // Trigger world generation if destination is uncharted
+      if (matchedLocation.terrainType === 'uncharted') {
+        const existingGen = [...ctx.db.world_gen_state.by_source_location.filter(matchedLocation.id)]
+          .find((s: any) => s.step !== 'ERROR');
+        if (!existingGen) {
+          ctx.db.world_gen_state.insert({
+            id: 0n,
+            playerId: ctx.sender,
+            characterId: args.characterId,
+            sourceLocationId: matchedLocation.id,
+            sourceRegionId: matchedLocation.regionId,
+            step: 'PENDING',
+            createdAt: ctx.timestamp,
+            updatedAt: ctx.timestamp,
+          });
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+            'The edges of reality ripple around you. The System pauses, as if remembering something it had forgotten...');
+        }
+      }
       return;
     }
 
@@ -229,8 +296,43 @@ export const registerIntentReducers = (deps: any) => {
       return;
     }
 
+    // --- IMPLICIT TRAVEL: bare location name match ---
+    const allConnections = [...ctx.db.location_connection.by_from.filter(character.locationId)];
+    let implicitDest: any = null;
+    for (const conn of allConnections) {
+      const loc = ctx.db.location.id.find(conn.toLocationId);
+      if (!loc) continue;
+      if (loc.name.toLowerCase() === lower) { implicitDest = loc; break; }
+      if (loc.name.toLowerCase().includes(lower) && !implicitDest) { implicitDest = loc; }
+    }
+    if (implicitDest) {
+      if (activeCombatIdForCharacter(ctx, character.id)) {
+        return fail(ctx, character, 'Cannot travel while in combat.');
+      }
+      const originId = character.locationId;
+      ctx.db.character.id.update({ ...character, locationId: implicitDest.id });
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'move',
+        `You travel to ${implicitDest.name}. ${implicitDest.description}`);
+      appendLocationEvent(ctx, originId, 'move', `${character.name} departs.`, character.id);
+      appendLocationEvent(ctx, implicitDest.id, 'move', `${character.name} arrives.`, character.id);
+      if (implicitDest.terrainType === 'uncharted') {
+        const existingGen = [...ctx.db.world_gen_state.by_source_location.filter(implicitDest.id)]
+          .find((s: any) => s.step !== 'ERROR');
+        if (!existingGen) {
+          ctx.db.world_gen_state.insert({
+            id: 0n, playerId: ctx.sender, characterId: args.characterId,
+            sourceLocationId: implicitDest.id, sourceRegionId: implicitDest.regionId,
+            step: 'PENDING', createdAt: ctx.timestamp, updatedAt: ctx.timestamp,
+          });
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+            'The edges of reality ripple around you. The System pauses, as if remembering something it had forgotten...');
+        }
+      }
+      return;
+    }
+
     // --- SARDONIC FALLBACK ---
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-      `The System regards you with mild contempt. "${raw}" means nothing here. Perhaps try "look", "go [place]", "attack", "say [message]", or "hail [name]".`);
+      `The System regards you with mild contempt. "${raw}" means nothing here. Perhaps try [look], [travel], [explore], [attack], or [hail].`);
   });
 };

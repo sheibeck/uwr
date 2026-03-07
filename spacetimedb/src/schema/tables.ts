@@ -1907,6 +1907,29 @@ export const WorldGenState = table(
   }
 );
 
+// Client-driven LLM task: server writes prompts, client calls proxy, client submits result
+export const LlmTask = table(
+  {
+    name: 'llm_task',
+    public: true,
+    indexes: [
+      { accessor: 'by_player', algorithm: 'btree', columns: ['playerId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    playerId: t.identity(),
+    domain: t.string(),           // 'creation_race', 'creation_class', 'world_gen', 'generic'
+    model: t.string(),
+    systemPrompt: t.string(),
+    userPrompt: t.string(),
+    maxTokens: t.u64(),
+    status: t.string(),           // 'pending', 'completed', 'error'
+    contextJson: t.string().optional(), // Domain-specific context (e.g. genStateId, generationType)
+    createdAt: t.timestamp(),
+  }
+);
+
 const spacetimedb = schema({
   player: Player,
   user: User,
@@ -2013,6 +2036,7 @@ const spacetimedb = schema({
   character_creation_state: CharacterCreationState,
   event_creation: EventCreation,
   world_gen_state: WorldGenState,
+  llm_task: LlmTask,
 });
 export default spacetimedb;
 export { spacetimedb };

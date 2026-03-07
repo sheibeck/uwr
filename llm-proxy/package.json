@@ -1,0 +1,19 @@
+{
+  "name": "uwr-llm-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "secret:openai": "wrangler secret put OPENAI_API_KEY",
+    "secret:proxy": "wrangler secret put PROXY_SECRET"
+  },
+  "dependencies": {
+    "hono": "^4.7.0",
+    "openai": "^4.85.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250130.0",
+    "wrangler": "^4.0.0"
+  }
+}

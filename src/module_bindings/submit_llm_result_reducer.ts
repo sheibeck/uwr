@@ -10,7 +10,9 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export const params = {
-  genStateId: __t.u64(),
+export default {
+  taskId: __t.u64(),
+  resultText: __t.string(),
+  success: __t.bool(),
+  errorMessage: __t.option(__t.string()),
 };
-export const returnType = __t.string()

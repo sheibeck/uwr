@@ -1,7 +1,7 @@
 import { t, SenderError } from 'spacetimedb/server';
 import { requireAdmin } from './data/admin';
 import { ScheduleAt, Timestamp } from 'spacetimedb';
-import { callLlmApi, incrementBudget, checkBudget } from './helpers/llm';
+import { incrementBudget, checkBudget } from './helpers/llm';
 import {
   buildCharacterCreationPrompt,
   buildWorldGenPrompt,
@@ -415,307 +415,33 @@ registerViews({
   UiPanelLayout,
 });
 
-// === LLM PROCEDURE ===
-// The LLM procedure -- calls Anthropic API and writes results back.
-// CRITICAL: ctx.http.fetch() and ctx.withTx() CANNOT overlap.
-// Structure: withTx(read) -> fetch() -> withTx(write)
-spacetimedb.procedure(
-  { name: 'call_llm' },
-  { requestId: t.u64() },
-  t.string(),
-  (ctx: any, { requestId }: { requestId: bigint }) => {
-    // === PHASE 1: Read request and API key (transaction) ===
-    let request: any;
-    let apiKey: string = '';
-    let character: any;
+// === LLM TASK PREPARATION ===
+// When creation/world-gen steps trigger, server builds prompts and writes to LlmTask.
+// Client reads prompts, calls the LLM proxy directly, then submits results via reducer.
 
-    ctx.withTx((tx: any) => {
-      request = tx.db.llm_request.id.find(requestId);
-      if (!request) throw new SenderError('Request not found');
-      if (request.status !== 'pending') throw new SenderError('Request already processed');
-
-      // Update status to processing
-      tx.db.llm_request.id.update({ ...request, status: 'processing' });
-
-      // Read API key from private config
-      const config = tx.db.llm_config.id.find(1n);
-      if (!config || !config.apiKey) throw new SenderError('LLM not configured');
-      apiKey = config.apiKey;
-
-      // Load character for error messaging
-      character = tx.db.character.id.find(request.characterId);
-    });
-
-    // === PHASE 2: Resolve system prompt ===
-    const promptBuilders: Record<string, (ctx: string) => string> = {
-      character_creation: buildCharacterCreationPrompt,
-      world_gen: buildWorldGenPrompt,
-      combat_narration: buildCombatNarrationPrompt,
-      skill_gen: buildSkillGenPrompt,
-    };
-    const buildPrompt = promptBuilders[request.domain];
-    if (!buildPrompt) {
-      ctx.withTx((tx: any) => {
-        const req = tx.db.llm_request.id.find(requestId);
-        if (req) tx.db.llm_request.id.update({ ...req, status: 'error', errorMessage: `Unknown domain: ${request.domain}` });
-      });
-      return 'error';
-    }
-
-    // Build system prompt (context will be enriched by downstream phases)
-    const systemPrompt = buildPrompt('');
-
-    // === PHASE 3: Call Anthropic API (NO transaction open) ===
-    const parsed = callLlmApi(ctx, {
-      apiKey,
-      model: request.model,
-      systemPrompt,
-      userPrompt: request.userPrompt,
-      label: request.domain,
-    });
-
-    // === PHASE 4: Parse response and write results (transaction) ===
-    ctx.withTx((tx: any) => {
-      const req = tx.db.llm_request.id.find(requestId);
-      if (!req) return;
-
-      if (parsed.ok) {
-        // Store the result in the request row for the client to read.
-        // Downstream phases will write domain-specific results to their own tables.
-        // NOTE: We reuse errorMessage field as resultText since the table is ephemeral.
-        tx.db.llm_request.id.update({
-          ...req,
-          status: 'completed',
-          errorMessage: parsed.text,  // Stores result text temporarily
-        });
-
-        // Increment budget only on success (locked decision)
-        incrementBudget(tx, request.playerId);
-      } else {
-        // Mark as error with raw details (only visible server-side since table is private)
-        const errorMsg = parsed.error ?? 'Unknown error';
-        console.error(`LLM API error [${request.domain}]: ${errorMsg}`);
-
-        tx.db.llm_request.id.update({
-          ...req,
-          status: 'error',
-          errorMessage: errorMsg,
-        });
-
-        // Send thematic error to player via event system
-        if (character) {
-          const charRow = tx.db.character.id.find(request.characterId);
-          if (charRow) {
-            tx.db.event_private.insert({
-              id: 0n,
-              ownerUserId: charRow.ownerUserId,
-              characterId: charRow.id,
-              kind: 'system',
-              message: 'The System falters momentarily. Try again.',
-              createdAt: tx.timestamp,
-            });
-          }
-        }
-      }
-    });
-
-    return parsed.ok ? 'completed' : 'error';
+// Helper: extract JSON robustly from LLM response text
+function extractJson(raw: string): any {
+  let text = raw.trim();
+  if (text.startsWith('```')) {
+    text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
   }
-);
-
-// === CHARACTER CREATION LLM PROCEDURE ===
-// Bypasses the generic LLM pipeline (which requires characterId).
-// Handles race interpretation and class generation for the creation flow.
-// Client calls this procedure after observing GENERATING_RACE or GENERATING_CLASS step.
-spacetimedb.procedure(
-  { name: 'generate_creation_content' },
-  { generationType: t.string() },
-  t.string(),
-  (ctx: any, { generationType }: { generationType: string }) => {
-    // === PHASE 1: Read creation state, budget, API key (transaction) ===
-    let state: any;
-    let playerId: any;
-    let systemPrompt: string = '';
-    let userPrompt: string = '';
-    let apiKey: string = '';
-    let budgetOk = true;
-
-    ctx.withTx((tx: any) => {
-      // Find creation state for this player
-      const rows = [...tx.db.character_creation_state.by_player.filter(tx.sender)];
-      state = rows[0];
-      if (!state) throw new SenderError('No creation state found');
-      playerId = tx.sender;
-
-      // Budget check
-      const budget = checkBudget(tx, tx.sender);
-      if (!budget.allowed) {
-        appendCreationEvent(tx, tx.sender, 'creation_error',
-          'The System yawns. "You have exhausted my patience — and your daily allowance of cosmic creativity. Come back tomorrow."');
-        budgetOk = false;
-        return;
-      }
-
-      // Read API key from private config
-      const config = tx.db.llm_config.id.find(1n);
-      if (!config || !config.apiKey) throw new SenderError('LLM not configured — set API key first');
-      apiKey = config.apiKey;
-
-      // Build prompts based on generation type
-      if (generationType === 'race') {
-        if (state.step !== 'GENERATING_RACE') throw new SenderError('Invalid step for race generation');
-        systemPrompt = buildCharacterCreationPrompt('Interpreting a new arrival\'s race description.');
-        userPrompt = buildRaceInterpretationUserPrompt(state.raceDescription);
-      } else if (generationType === 'class') {
-        if (state.step !== 'GENERATING_CLASS') throw new SenderError('Invalid step for class generation');
-        systemPrompt = buildCharacterCreationPrompt(`Race: ${state.raceName}. Generating a unique class.`);
-        userPrompt = buildClassGenerationUserPrompt(state.raceName, state.raceNarrative || '', state.archetype);
-      } else {
-        throw new SenderError('Invalid generation type — must be "race" or "class"');
-      }
-    });
-
-    if (!budgetOk || !state || !userPrompt) return 'error';
-
-    // === PHASE 2: Call Anthropic API (NO transaction open) ===
-    const model = 'gpt-5.4';
-    const parsed = callLlmApi(ctx, {
-      apiKey,
-      model,
-      systemPrompt,
-      userPrompt,
-      label: `creation/${generationType}`,
-      maxAttempts: 6,
-    });
-
-    if (!parsed.ok && !parsed.text) {
-      // Total fetch failure — revert step so player can retry
-      ctx.withTx((tx: any) => {
-        appendCreationEvent(tx, playerId, 'creation_error',
-          'The System flickers. "Something went wrong in the cosmic machinery. Try again — I assure you, the fault is not mine."');
-        const s = [...tx.db.character_creation_state.by_player.filter(playerId)][0];
-        if (s) {
-          const revertStep = generationType === 'race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
-          tx.db.character_creation_state.id.update({ ...s, step: revertStep, updatedAt: tx.timestamp });
-        }
-      });
-      return 'error';
-    }
-
-    // === PHASE 3: Parse response and update creation state (transaction) ===
-
-    ctx.withTx((tx: any) => {
-      const s = [...tx.db.character_creation_state.by_player.filter(playerId)][0];
-      if (!s) return;
-
-      if (!parsed.ok) {
-        console.error(`Creation LLM error [${generationType}]: ${parsed.error}`);
-        appendCreationEvent(tx, playerId, 'creation_error',
-          'The System sighs. "The cosmic machinery hiccupped. Describe yourself again — I promise to pay attention this time."');
-        const revertStep = generationType === 'race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
-        tx.db.character_creation_state.id.update({ ...s, step: revertStep, updatedAt: tx.timestamp });
-        return;
-      }
-
-      // Increment budget on success
-      incrementBudget(tx, playerId);
-
-      try {
-        // Extract JSON robustly: strip code fences, find first { to last }, ignore trailing text
-        let rawText = parsed.text.trim();
-        if (rawText.startsWith('```')) {
-          rawText = rawText.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
-        }
-        const firstBrace = rawText.indexOf('{');
-        const lastBrace = rawText.lastIndexOf('}');
-        if (firstBrace !== -1 && lastBrace > firstBrace) {
-          rawText = rawText.slice(firstBrace, lastBrace + 1);
-        }
-        const data = JSON.parse(rawText);
-
-        if (generationType === 'race') {
-          // Update state with race data
-          tx.db.character_creation_state.id.update({
-            ...s,
-            step: 'AWAITING_ARCHETYPE',
-            raceName: data.raceName || 'Unknown',
-            raceNarrative: data.narrative || '',
-            raceBonuses: JSON.stringify(data.bonuses || {}),
-            updatedAt: tx.timestamp,
-          });
-
-          // Emit race confirmation event with archetype choice
-          const bonusText = data.bonuses
-            ? `\n+${data.bonuses.primary?.value || 2} ${(data.bonuses.primary?.stat || 'STR').toUpperCase()}, +${data.bonuses.secondary?.value || 1} ${(data.bonuses.secondary?.stat || 'DEX').toUpperCase()}${data.bonuses.flavor ? `. ${data.bonuses.flavor}` : ''}`
-            : '';
-
-          appendCreationEvent(tx, playerId, 'creation',
-            `${data.narrative || 'An interesting choice.'}\n\n` +
-            `**${data.raceName}**${bonusText}\n\n` +
-            `Now then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.`
-          );
-
-        } else if (generationType === 'class') {
-          // Update state with class + abilities data
-          tx.db.character_creation_state.id.update({
-            ...s,
-            step: 'CLASS_REVEALED',
-            className: data.className || 'Unknown Class',
-            classDescription: data.classDescription || '',
-            classStats: JSON.stringify(data.stats || {}),
-            abilities: JSON.stringify(data.abilities || []),
-            updatedAt: tx.timestamp,
-          });
-
-          // Build class reveal event with stats AND abilities
-          const stats = data.stats || {};
-          const statLine = `Primary: ${(stats.primaryStat || 'str').toUpperCase()}${stats.secondaryStat && stats.secondaryStat !== 'none' ? `, Secondary: ${stats.secondaryStat.toUpperCase()}` : ''}`;
-          const armorLine = `Armor: ${stats.armorProficiency || 'cloth'}`;
-          const resourceLine = stats.usesMana ? `Mana user (+${stats.bonusMana || 0} bonus mana)` : `Physical (+${stats.bonusHp || 0} bonus HP)`;
-
-          let abilityText = '\n\nYour starting abilities:\n';
-          const abilities = data.abilities || [];
-          for (let i = 0; i < abilities.length; i++) {
-            const a = abilities[i];
-            abilityText += `\n[${a.name}] — ${a.description}\n`;
-            abilityText += `  ${a.damageType} damage, ${a.baseDamage} base, ${a.cooldownSeconds}s cooldown`;
-            if (a.manaCost > 0) abilityText += `, ${a.manaCost} mana`;
-            if (a.effect !== 'none') abilityText += `, ${a.effect} (${a.effectDuration}s)`;
-            abilityText += '\n';
-          }
-
-          appendCreationEvent(tx, playerId, 'creation',
-            `${data.classDescription || 'A unique class emerges.'}\n\n` +
-            `**${data.className}**\n${statLine} | ${armorLine} | ${resourceLine}` +
-            abilityText +
-            `\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.`
-          );
-        }
-      } catch (parseErr) {
-        console.error(`Creation LLM JSON parse error [${generationType}]: ${parseErr}`);
-        appendCreationEvent(tx, playerId, 'creation_error',
-          'The System grimaces. "The response from the cosmic machinery was... malformed. Let us try again."');
-        const revertStep = generationType === 'race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
-        tx.db.character_creation_state.id.update({ ...s, step: revertStep, updatedAt: tx.timestamp });
-      }
-    });
-
-    return parsed.ok ? 'completed' : 'error';
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    text = text.slice(firstBrace, lastBrace + 1);
   }
-);
+  return JSON.parse(text);
+}
 
 // Helper: if world gen fails, reset the world_gen_state to PENDING so client retries.
-// Character is kept intact — no deletion.
 function retryWorldGen(tx: any, genState: any, message: string) {
   const char = tx.db.character.id.find(genState.characterId);
-  // Reset world_gen_state to PENDING for automatic retry
   tx.db.world_gen_state.id.update({
     ...tx.db.world_gen_state.id.find(genState.id),
     step: 'PENDING',
     errorMessage: undefined,
     updatedAt: tx.timestamp,
   });
-  // Notify the player
   if (char && char.locationId !== 0n) {
     appendPrivateEvent(tx, genState.characterId, char.ownerUserId, 'system', message);
   } else {
@@ -723,264 +449,328 @@ function retryWorldGen(tx: any, genState: any, message: string) {
   }
 }
 
-// === WORLD GENERATION LLM PROCEDURE ===
-// Generates a new region when a player triggers exploration at an uncharted location.
-// Client calls this procedure after observing WorldGenState with step='PENDING'.
-// Three-phase pattern: withTx(read context) -> http.fetch(Claude) -> withTx(write results)
-spacetimedb.procedure(
-  { name: 'generate_world_region' },
-  { genStateId: t.u64() },
-  t.string(),
-  (ctx: any, { genStateId }: { genStateId: bigint }) => {
-    // === PHASE 1: Read context (transaction) ===
-    let genState: any;
-    let apiKey: string = '';
-    let characterRace: string = 'Unknown';
-    let characterClass: string = 'Unknown';
-    let characterArchetype: string = 'warrior';
-    let sourceRegionName: string = 'the known world';
-    let neighbors: { name: string; biome: string; threats: string }[] = [];
-    let character: any;
+// Reducer: prepare an LLM task for character creation (race or class generation)
+spacetimedb.reducer('prepare_creation_llm', { generationType: t.string() }, (ctx: any, { generationType }: { generationType: string }) => {
+  const rows = [...ctx.db.character_creation_state.by_player.filter(ctx.sender)];
+  const state = rows[0];
+  if (!state) throw new SenderError('No creation state found');
+
+  // Budget check
+  const budget = checkBudget(ctx, ctx.sender);
+  if (!budget.allowed) {
+    appendCreationEvent(ctx, ctx.sender, 'creation_error',
+      'The System yawns. "You have exhausted my patience — and your daily allowance of cosmic creativity. Come back tomorrow."');
+    return;
+  }
+
+  // Concurrency check — one LLM task at a time per player
+  const existingTasks = [...ctx.db.llm_task.by_player.filter(ctx.sender)];
+  if (existingTasks.some((t: any) => t.status === 'pending')) return;
+
+  let systemPrompt: string;
+  let userPrompt: string;
+
+  if (generationType === 'race') {
+    if (state.step !== 'GENERATING_RACE') throw new SenderError('Invalid step for race generation');
+    systemPrompt = buildCharacterCreationPrompt('Interpreting a new arrival\'s race description.');
+    userPrompt = buildRaceInterpretationUserPrompt(state.raceDescription);
+  } else if (generationType === 'class') {
+    if (state.step !== 'GENERATING_CLASS') throw new SenderError('Invalid step for class generation');
+    systemPrompt = buildCharacterCreationPrompt(`Race: ${state.raceName}. Generating a unique class.`);
+    userPrompt = buildClassGenerationUserPrompt(state.raceName, state.raceNarrative || '', state.archetype);
+  } else {
+    throw new SenderError('Invalid generation type — must be "race" or "class"');
+  }
+
+  ctx.db.llm_task.insert({
+    id: 0n,
+    playerId: ctx.sender,
+    domain: `creation_${generationType}`,
+    model: 'gpt-5.4',
+    systemPrompt,
+    userPrompt,
+    maxTokens: 1024n,
+    status: 'pending',
+    contextJson: undefined,
+    createdAt: ctx.timestamp,
+  });
+});
+
+// Reducer: prepare an LLM task for world generation
+spacetimedb.reducer('prepare_world_gen_llm', { genStateId: t.u64() }, (ctx: any, { genStateId }: { genStateId: bigint }) => {
+  const genState = ctx.db.world_gen_state.id.find(genStateId);
+  if (!genState) throw new SenderError('WorldGenState not found');
+  if (genState.step !== 'PENDING') throw new SenderError('WorldGenState not in PENDING step');
+
+  // Budget check
+  const budget = checkBudget(ctx, genState.playerId);
+  if (!budget.allowed) {
+    ctx.db.world_gen_state.id.update({
+      ...genState,
+      step: 'ERROR',
+      errorMessage: 'Daily LLM budget exceeded',
+      updatedAt: ctx.timestamp,
+    });
+    throw new SenderError('Daily LLM budget exceeded');
+  }
+
+  // Concurrency check
+  const existingTasks = [...ctx.db.llm_task.by_player.filter(ctx.sender)];
+  if (existingTasks.some((t: any) => t.status === 'pending' && t.domain === 'world_gen')) return;
+
+  // Update step to GENERATING
+  ctx.db.world_gen_state.id.update({ ...genState, step: 'GENERATING', updatedAt: ctx.timestamp });
+
+  // Read character data
+  const character = ctx.db.character.id.find(genState.characterId);
+  const characterRace = character?.race || 'Unknown';
+  const characterClass = character?.className || 'Unknown';
+
+  // Read archetype from creation state
+  const creationStates = [...ctx.db.character_creation_state.by_player.filter(genState.playerId)];
+  const characterArchetype = creationStates.length > 0 ? (creationStates[0].archetype || 'warrior') : 'warrior';
+
+  // Read source region name
+  const sourceRegion = ctx.db.region.id.find(genState.sourceRegionId);
+  const sourceRegionName = sourceRegion?.name || 'the known world';
+
+  // Build neighbor context
+  const neighbors = buildRegionContext(ctx, genState.sourceRegionId);
+
+  const systemPrompt = buildWorldGenPrompt('');
+  const userPrompt = buildRegionGenerationUserPrompt(
+    characterRace, characterClass, characterArchetype,
+    sourceRegionName, neighbors
+  );
+
+  ctx.db.llm_task.insert({
+    id: 0n,
+    playerId: ctx.sender,
+    domain: 'world_gen',
+    model: 'gpt-5.4',
+    systemPrompt,
+    userPrompt,
+    maxTokens: 2048n,
+    status: 'pending',
+    contextJson: JSON.stringify({ genStateId: genStateId.toString() }),
+    createdAt: ctx.timestamp,
+  });
+});
+
+// Reducer: client submits LLM result after calling the proxy
+spacetimedb.reducer('submit_llm_result', {
+  taskId: t.u64(),
+  resultText: t.string(),
+  success: t.bool(),
+  errorMessage: t.string().optional(),
+}, (ctx: any, { taskId, resultText, success, errorMessage }: { taskId: bigint; resultText: string; success: boolean; errorMessage?: string }) => {
+  const task = ctx.db.llm_task.id.find(taskId);
+  if (!task) throw new SenderError('LLM task not found');
+  if (task.playerId.toHexString() !== ctx.sender.toHexString()) throw new SenderError('Not your task');
+  if (task.status !== 'pending') throw new SenderError('Task already processed');
+
+  // Mark task as completed
+  ctx.db.llm_task.id.update({ ...task, status: success ? 'completed' : 'error' });
+
+  if (!success) {
+    // Handle error based on domain
+    if (task.domain === 'creation_race') {
+      appendCreationEvent(ctx, ctx.sender, 'creation_error',
+        'The System flickers. "Something went wrong in the cosmic machinery. Try again."');
+      const s = [...ctx.db.character_creation_state.by_player.filter(ctx.sender)][0];
+      if (s) ctx.db.character_creation_state.id.update({ ...s, step: 'AWAITING_RACE', updatedAt: ctx.timestamp });
+    } else if (task.domain === 'creation_class') {
+      appendCreationEvent(ctx, ctx.sender, 'creation_error',
+        'The System flickers. "Something went wrong in the cosmic machinery. Try again."');
+      const s = [...ctx.db.character_creation_state.by_player.filter(ctx.sender)][0];
+      if (s) ctx.db.character_creation_state.id.update({ ...s, step: 'AWAITING_ARCHETYPE', updatedAt: ctx.timestamp });
+    } else if (task.domain === 'world_gen') {
+      const context = task.contextJson ? JSON.parse(task.contextJson) : {};
+      const genStateId = BigInt(context.genStateId);
+      const genState = ctx.db.world_gen_state.id.find(genStateId);
+      if (genState) {
+        retryWorldGen(ctx, genState, 'The System falters. "The world refuses to be remembered right now. Try again."');
+      }
+    }
+    return;
+  }
+
+  // Process successful result based on domain
+  if (task.domain === 'creation_race' || task.domain === 'creation_class') {
+    const generationType = task.domain === 'creation_race' ? 'race' : 'class';
+    const s = [...ctx.db.character_creation_state.by_player.filter(ctx.sender)][0];
+    if (!s) return;
+
+    incrementBudget(ctx, ctx.sender);
 
     try {
-      ctx.withTx((tx: any) => {
-        // Find and validate WorldGenState
-        genState = tx.db.world_gen_state.id.find(genStateId);
-        if (!genState) throw new SenderError('WorldGenState not found');
-        if (genState.step !== 'PENDING') throw new SenderError('WorldGenState not in PENDING step');
+      const data = extractJson(resultText);
 
-        // Update step to GENERATING
-        tx.db.world_gen_state.id.update({ ...genState, step: 'GENERATING', updatedAt: tx.timestamp });
-
-        // Read character data
-        character = tx.db.character.id.find(genState.characterId);
-        if (character) {
-          characterRace = character.race || 'Unknown';
-          characterClass = character.className || 'Unknown';
-        }
-
-        // Read archetype from creation state
-        const creationStates = [...tx.db.character_creation_state.by_player.filter(genState.playerId)];
-        if (creationStates.length > 0) {
-          characterArchetype = creationStates[0].archetype || 'warrior';
-        }
-
-        // Read source region name
-        const sourceRegion = tx.db.region.id.find(genState.sourceRegionId);
-        if (sourceRegion) {
-          sourceRegionName = sourceRegion.name;
-        }
-
-        // Build neighbor context
-        neighbors = buildRegionContext(tx, genState.sourceRegionId);
-
-        // Budget check
-        const budget = checkBudget(tx, genState.playerId);
-        if (!budget.allowed) {
-          tx.db.world_gen_state.id.update({
-            ...tx.db.world_gen_state.id.find(genStateId),
-            step: 'ERROR',
-            errorMessage: 'Daily LLM budget exceeded',
-            updatedAt: tx.timestamp,
-          });
-          throw new SenderError('Daily LLM budget exceeded');
-        }
-
-        // Read API key
-        const config = tx.db.llm_config.id.find(1n);
-        if (!config || !config.apiKey) throw new SenderError('LLM not configured — set API key first');
-        apiKey = config.apiKey;
-      });
-
-      if (!genState || !apiKey) return 'error';
-
-      // === PHASE 2: Call Anthropic API (NO transaction open) ===
-      const systemPrompt = buildWorldGenPrompt('');
-      const userPrompt = buildRegionGenerationUserPrompt(
-        characterRace, characterClass, characterArchetype,
-        sourceRegionName, neighbors
-      );
-
-      const model = 'gpt-5.4';
-      const parsed = callLlmApi(ctx, {
-        apiKey,
-        model,
-        systemPrompt,
-        userPrompt,
-        maxTokens: 2048,
-        label: 'world-gen',
-        maxAttempts: 6,
-      });
-
-      ctx.withTx((tx: any) => {
-        // Re-read genState to guard against stale state
-        const currentGenState = tx.db.world_gen_state.id.find(genStateId);
-        if (!currentGenState || currentGenState.step !== 'GENERATING') return;
-
-        if (!parsed.ok) {
-          console.error(`World gen LLM error: ${parsed.error}`);
-          tx.db.world_gen_state.id.update({
-            ...currentGenState,
-            step: 'ERROR',
-            errorMessage: parsed.error || 'Unknown error',
-            updatedAt: tx.timestamp,
-          });
-          // If character has no location (first region), revert to creation so they can retry
-          retryWorldGen(tx, currentGenState,
-            'The System falters. "The world refuses to be remembered right now. Try again."');
-          return;
-        }
-
-        // Parse JSON robustly: brace extraction fallback
-        let rawText = parsed.text.trim();
-        if (rawText.startsWith('```')) {
-          rawText = rawText.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
-        }
-        const firstBrace = rawText.indexOf('{');
-        const lastBrace = rawText.lastIndexOf('}');
-        if (firstBrace !== -1 && lastBrace > firstBrace) {
-          rawText = rawText.slice(firstBrace, lastBrace + 1);
-        }
-
-        let data: any;
-        try {
-          data = JSON.parse(rawText);
-        } catch (parseErr) {
-          console.error(`World gen JSON parse error: ${parseErr}`);
-          tx.db.world_gen_state.id.update({
-            ...currentGenState,
-            step: 'ERROR',
-            errorMessage: 'Failed to parse LLM response as JSON',
-            updatedAt: tx.timestamp,
-          });
-          retryWorldGen(tx, currentGenState,
-            'The System grimaces. "The world tried to form but... it came out wrong. Try again."');
-          return;
-        }
-
-        // Validate required fields
-        if (!data.regionName || !data.locations || data.locations.length < 1) {
-          tx.db.world_gen_state.id.update({
-            ...currentGenState,
-            step: 'ERROR',
-            errorMessage: 'LLM response missing required fields (regionName, locations)',
-            updatedAt: tx.timestamp,
-          });
-          retryWorldGen(tx, currentGenState,
-            'The System shakes its head. "The world beyond is... incomplete. Try again."');
-          return;
-        }
-
-        // Write generated region content into game tables
-        const region = writeGeneratedRegion(tx, data, currentGenState);
-
-        // Update WorldGenState to COMPLETE
-        tx.db.world_gen_state.id.update({
-          ...currentGenState,
-          step: 'COMPLETE',
-          generatedRegionId: region.id,
-          updatedAt: tx.timestamp,
+      if (generationType === 'race') {
+        ctx.db.character_creation_state.id.update({
+          ...s,
+          step: 'AWAITING_ARCHETYPE',
+          raceName: data.raceName || 'Unknown',
+          raceNarrative: data.narrative || '',
+          raceBonuses: JSON.stringify(data.bonuses || {}),
+          updatedAt: ctx.timestamp,
         });
 
-        // Place character in the new region if they have no location (first region)
-        if (character && character.locationId === 0n) {
-          // Find the safe/town location in the generated region, or first location
-          let homeLocation: any = null;
-          for (const loc of tx.db.location.iter()) {
-            if (loc.regionId === region.id && loc.isSafe && loc.terrainType !== 'uncharted') {
-              homeLocation = loc;
-              break;
-            }
-          }
-          if (!homeLocation) {
-            // Fallback: first non-uncharted location in region
-            for (const loc of tx.db.location.iter()) {
-              if (loc.regionId === region.id && loc.terrainType !== 'uncharted') {
-                homeLocation = loc;
-                break;
-              }
-            }
-          }
-          if (homeLocation) {
-            tx.db.character.id.update({
-              ...tx.db.character.id.find(character.id),
-              locationId: homeLocation.id,
-              boundLocationId: homeLocation.id,
-            });
-            // Ensure spawns at the new location
-            ensureSpawnsForLocation(tx, homeLocation.id);
+        const bonusText = data.bonuses
+          ? `\n+${data.bonuses.primary?.value || 2} ${(data.bonuses.primary?.stat || 'STR').toUpperCase()}, +${data.bonuses.secondary?.value || 1} ${(data.bonuses.secondary?.stat || 'DEX').toUpperCase()}${data.bonuses.flavor ? `. ${data.bonuses.flavor}` : ''}`
+          : '';
 
-            // Build arrival narrative for first-time world entry
-            const regionDesc = data.regionDescription || `A ${data.biome || 'mysterious'} region.`;
-            const locationNpcs: string[] = [];
-            for (const npc of tx.db.npc.iter()) {
-              if (npc.locationId === homeLocation.id) {
-                locationNpcs.push(npc.name);
-              }
-            }
-            // Count nearby locations (deduplicate bidirectional connections)
-            const nearbySet = new Set<string>();
-            for (const conn of tx.db.location_connection.by_from.filter(homeLocation.id)) {
-              const loc = tx.db.location.id.find(conn.toLocationId);
-              if (loc && loc.terrainType !== 'uncharted') nearbySet.add(loc.name);
-            }
-            for (const conn of tx.db.location_connection.by_to.filter(homeLocation.id)) {
-              const loc = tx.db.location.id.find(conn.fromLocationId);
-              if (loc && loc.terrainType !== 'uncharted') nearbySet.add(loc.name);
-            }
-            const nearbyLocations = [...nearbySet];
+        appendCreationEvent(ctx, ctx.sender, 'creation',
+          `${data.narrative || 'An interesting choice.'}\n\n` +
+          `**${data.raceName}**${bonusText}\n\n` +
+          `Now then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.`
+        );
 
-            let arrivalMsg = `You open your eyes in ${homeLocation.name}, ${data.regionName}.\n\n${regionDesc}`;
-            if (locationNpcs.length > 0) {
-              arrivalMsg += `\n\nYou notice ${locationNpcs.join(' and ')} nearby. Perhaps they have something to say.`;
-            }
-            if (nearbyLocations.length > 0) {
-              arrivalMsg += `\n\nPaths lead to ${nearbyLocations.join(', ')}. Type /look to examine your surroundings, or /travel to move.`;
-            }
-            appendPrivateEvent(tx, currentGenState.characterId, character.ownerUserId, 'narrative', arrivalMsg);
-          }
-        }
-
-        // Emit ripple announcement (all players see)
-        appendWorldEvent(tx, 'world',
-          pickRippleMessage(sourceRegionName, data.biome || 'plains', tx.timestamp.microsSinceUnixEpoch));
-
-        // Emit personal discovery narrative
-        if (character) {
-          appendPrivateEvent(tx, currentGenState.characterId, character.ownerUserId, 'system',
-            pickDiscoveryMessage(data.regionName, tx.timestamp.microsSinceUnixEpoch));
-        }
-
-        // Increment budget on success
-        incrementBudget(tx, currentGenState.playerId);
-      });
-
-      return parsed.ok ? 'completed' : 'error';
-
-    } catch (err: any) {
-      // Top-level error handler: revert WorldGenState to ERROR
-      console.error(`World gen procedure error: ${err?.message ?? err}`);
-      try {
-        ctx.withTx((tx: any) => {
-          const currentGenState = tx.db.world_gen_state.id.find(genStateId);
-          if (currentGenState && currentGenState.step !== 'ERROR' && currentGenState.step !== 'COMPLETE') {
-            tx.db.world_gen_state.id.update({
-              ...currentGenState,
-              step: 'ERROR',
-              errorMessage: err?.message || 'Unknown procedure error',
-              updatedAt: tx.timestamp,
-            });
-            retryWorldGen(tx, currentGenState,
-              'The System falters. "Something went wrong creating your world. Try again."');
-          }
+      } else if (generationType === 'class') {
+        ctx.db.character_creation_state.id.update({
+          ...s,
+          step: 'CLASS_REVEALED',
+          className: data.className || 'Unknown Class',
+          classDescription: data.classDescription || '',
+          classStats: JSON.stringify(data.stats || {}),
+          abilities: JSON.stringify(data.abilities || []),
+          updatedAt: ctx.timestamp,
         });
-      } catch (innerErr: any) {
-        console.error(`World gen error handler failed: ${innerErr?.message ?? innerErr}`);
+
+        const stats = data.stats || {};
+        const statLine = `Primary: ${(stats.primaryStat || 'str').toUpperCase()}${stats.secondaryStat && stats.secondaryStat !== 'none' ? `, Secondary: ${stats.secondaryStat.toUpperCase()}` : ''}`;
+        const armorLine = `Armor: ${stats.armorProficiency || 'cloth'}`;
+        const resourceLine = stats.usesMana ? `Mana user (+${stats.bonusMana || 0} bonus mana)` : `Physical (+${stats.bonusHp || 0} bonus HP)`;
+
+        let abilityText = '\n\nYour starting abilities:\n';
+        const abilities = data.abilities || [];
+        for (let i = 0; i < abilities.length; i++) {
+          const a = abilities[i];
+          abilityText += `\n[${a.name}] — ${a.description}\n`;
+          abilityText += `  ${a.damageType} damage, ${a.baseDamage} base, ${a.cooldownSeconds}s cooldown`;
+          if (a.manaCost > 0) abilityText += `, ${a.manaCost} mana`;
+          if (a.effect !== 'none') abilityText += `, ${a.effect} (${a.effectDuration}s)`;
+          abilityText += '\n';
+        }
+
+        appendCreationEvent(ctx, ctx.sender, 'creation',
+          `${data.classDescription || 'A unique class emerges.'}\n\n` +
+          `**${data.className}**\n${statLine} | ${armorLine} | ${resourceLine}` +
+          abilityText +
+          `\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.`
+        );
       }
-      return 'error';
+    } catch (parseErr) {
+      console.error(`Creation LLM JSON parse error [${generationType}]: ${parseErr}`);
+      appendCreationEvent(ctx, ctx.sender, 'creation_error',
+        'The System grimaces. "The response from the cosmic machinery was... malformed. Let us try again."');
+      const revertStep = generationType === 'race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
+      ctx.db.character_creation_state.id.update({ ...s, step: revertStep, updatedAt: ctx.timestamp });
     }
+
+  } else if (task.domain === 'world_gen') {
+    const context = task.contextJson ? JSON.parse(task.contextJson) : {};
+    const genStateId = BigInt(context.genStateId);
+    const currentGenState = ctx.db.world_gen_state.id.find(genStateId);
+    if (!currentGenState || currentGenState.step !== 'GENERATING') return;
+
+    let data: any;
+    try {
+      data = extractJson(resultText);
+    } catch (parseErr) {
+      console.error(`World gen JSON parse error: ${parseErr}`);
+      retryWorldGen(ctx, currentGenState,
+        'The System grimaces. "The world tried to form but... it came out wrong. Try again."');
+      return;
+    }
+
+    if (!data.regionName || !data.locations || data.locations.length < 1) {
+      retryWorldGen(ctx, currentGenState,
+        'The System shakes its head. "The world beyond is... incomplete. Try again."');
+      return;
+    }
+
+    // Write generated region content into game tables
+    const region = writeGeneratedRegion(ctx, data, currentGenState);
+
+    // Update WorldGenState to COMPLETE
+    ctx.db.world_gen_state.id.update({
+      ...currentGenState,
+      step: 'COMPLETE',
+      generatedRegionId: region.id,
+      updatedAt: ctx.timestamp,
+    });
+
+    // Place character in the new region if they have no location (first region)
+    const character = ctx.db.character.id.find(currentGenState.characterId);
+    if (character && character.locationId === 0n) {
+      let homeLocation: any = null;
+      for (const loc of ctx.db.location.iter()) {
+        if (loc.regionId === region.id && loc.isSafe && loc.terrainType !== 'uncharted') {
+          homeLocation = loc;
+          break;
+        }
+      }
+      if (!homeLocation) {
+        for (const loc of ctx.db.location.iter()) {
+          if (loc.regionId === region.id && loc.terrainType !== 'uncharted') {
+            homeLocation = loc;
+            break;
+          }
+        }
+      }
+      if (homeLocation) {
+        ctx.db.character.id.update({
+          ...ctx.db.character.id.find(character.id),
+          locationId: homeLocation.id,
+          boundLocationId: homeLocation.id,
+        });
+        ensureSpawnsForLocation(ctx, homeLocation.id);
+
+        const regionDesc = data.regionDescription || `A ${data.biome || 'mysterious'} region.`;
+        const locationNpcs: string[] = [];
+        for (const npc of ctx.db.npc.iter()) {
+          if (npc.locationId === homeLocation.id) {
+            locationNpcs.push(npc.name);
+          }
+        }
+        const nearbySet = new Set<string>();
+        for (const conn of ctx.db.location_connection.by_from.filter(homeLocation.id)) {
+          const loc = ctx.db.location.id.find(conn.toLocationId);
+          if (loc && loc.terrainType !== 'uncharted') nearbySet.add(loc.name);
+        }
+        for (const conn of ctx.db.location_connection.by_to.filter(homeLocation.id)) {
+          const loc = ctx.db.location.id.find(conn.fromLocationId);
+          if (loc && loc.terrainType !== 'uncharted') nearbySet.add(loc.name);
+        }
+        const nearbyLocations = [...nearbySet];
+
+        let arrivalMsg = `You open your eyes in ${homeLocation.name}, ${data.regionName}.\n\n${regionDesc}`;
+        if (locationNpcs.length > 0) {
+          arrivalMsg += `\n\nYou notice ${locationNpcs.join(' and ')} nearby. Perhaps they have something to say.`;
+        }
+        if (nearbyLocations.length > 0) {
+          arrivalMsg += `\n\nPaths lead to ${nearbyLocations.join(', ')}. Try [look] to examine your surroundings, or [travel] to move.`;
+        }
+        appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'narrative', arrivalMsg);
+      }
+    }
+
+    // Read source region name for ripple message
+    const sourceRegion = ctx.db.region.id.find(currentGenState.sourceRegionId);
+    const sourceRegionName = sourceRegion?.name || 'the known world';
+
+    appendWorldEvent(ctx, 'world',
+      pickRippleMessage(sourceRegionName, data.biome || 'plains', ctx.timestamp.microsSinceUnixEpoch));
+
+    if (character) {
+      appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'system',
+        pickDiscoveryMessage(data.regionName, ctx.timestamp.microsSinceUnixEpoch));
+    }
+
+    incrementBudget(ctx, currentGenState.playerId);
   }
-);
+});
 
 spacetimedb.init((ctx) => {
   syncAllContent(ctx);

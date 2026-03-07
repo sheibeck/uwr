@@ -35,6 +35,9 @@ import {
 
 // Import all reducer arg schemas
 import SetAppVersionReducer from "./set_app_version_reducer";
+import PrepareCreationLlmReducer from "./prepare_creation_llm_reducer";
+import PrepareWorldGenLlmReducer from "./prepare_world_gen_llm_reducer";
+import SubmitLlmResultReducer from "./submit_llm_result_reducer";
 import SetDisplayNameReducer from "./set_display_name_reducer";
 import SendFriendRequestReducer from "./send_friend_request_reducer";
 import SendFriendRequestToCharacterReducer from "./send_friend_request_to_character_reducer";
@@ -140,9 +143,6 @@ import StartCreationReducer from "./start_creation_reducer";
 import SubmitCreationInputReducer from "./submit_creation_input_reducer";
 
 // Import all procedure arg schemas
-import * as CallLlmProcedure from "./call_llm_procedure";
-import * as GenerateCreationContentProcedure from "./generate_creation_content_procedure";
-import * as GenerateWorldRegionProcedure from "./generate_world_region_procedure";
 
 // Import all table schema definitions
 import AbilityCooldownRow from "./ability_cooldown_table";
@@ -194,6 +194,7 @@ import ItemAffixRow from "./item_affix_table";
 import ItemCooldownRow from "./item_cooldown_table";
 import ItemInstanceRow from "./item_instance_table";
 import ItemTemplateRow from "./item_template_table";
+import LlmTaskRow from "./llm_task_table";
 import LocationRow from "./location_table";
 import LocationConnectionRow from "./location_connection_table";
 import LootTableRow from "./loot_table_table";
@@ -985,6 +986,20 @@ const tablesSchema = __schema({
       { name: 'item_template_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ItemTemplateRow),
+  llm_task: __table({
+    name: 'llm_task',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_player', algorithm: 'btree', columns: [
+        'playerId',
+      ] },
+    ],
+    constraints: [
+      { name: 'llm_task_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, LlmTaskRow),
   location: __table({
     name: 'location',
     indexes: [
@@ -1624,6 +1639,9 @@ const tablesSchema = __schema({
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("set_app_version", SetAppVersionReducer),
+  __reducerSchema("prepare_creation_llm", PrepareCreationLlmReducer),
+  __reducerSchema("prepare_world_gen_llm", PrepareWorldGenLlmReducer),
+  __reducerSchema("submit_llm_result", SubmitLlmResultReducer),
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("send_friend_request", SendFriendRequestReducer),
   __reducerSchema("send_friend_request_to_character", SendFriendRequestToCharacterReducer),
@@ -1731,9 +1749,6 @@ const reducersSchema = __reducers(
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
 const proceduresSchema = __procedures(
-  __procedureSchema("call_llm", CallLlmProcedure.params, CallLlmProcedure.returnType),
-  __procedureSchema("generate_creation_content", GenerateCreationContentProcedure.params, GenerateCreationContentProcedure.returnType),
-  __procedureSchema("generate_world_region", GenerateWorldRegionProcedure.params, GenerateWorldRegionProcedure.returnType),
 );
 
 /** The remote SpacetimeDB module schema, both runtime and type information. */

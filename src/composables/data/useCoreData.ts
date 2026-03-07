@@ -33,6 +33,7 @@ export function useCoreData(conn: ConnectionState) {
   const bankSlots = shallowRef<any[]>([]);
   const characterCreationStates = shallowRef<any[]>([]);
   const worldGenStates = shallowRef<any[]>([]);
+  const llmTasks = shallowRef<any[]>([]);
 
   function refresh(dbConn: any) {
     players.value = [...dbConn.db.player.iter()];
@@ -62,6 +63,7 @@ export function useCoreData(conn: ConnectionState) {
     bankSlots.value = [...dbConn.db.my_bank_slots.iter()];
     characterCreationStates.value = [...dbConn.db.character_creation_state.iter()];
     worldGenStates.value = [...dbConn.db.world_gen_state.iter()];
+    llmTasks.value = [...dbConn.db.llm_task.iter()];
   }
 
   watch(
@@ -101,6 +103,7 @@ export function useCoreData(conn: ConnectionState) {
           toSql(tables.my_bank_slots),
           toSql(tables.character_creation_state),
           toSql(tables.world_gen_state),
+          toSql(tables.llm_task),
         ]);
 
       // Register reactive callbacks for each table
@@ -138,6 +141,7 @@ export function useCoreData(conn: ConnectionState) {
       rebind(dbConn.db.my_bank_slots, bankSlots, () => dbConn.db.my_bank_slots.iter());
       rebind(dbConn.db.character_creation_state, characterCreationStates, () => dbConn.db.character_creation_state.iter());
       rebind(dbConn.db.world_gen_state, worldGenStates, () => dbConn.db.world_gen_state.iter());
+      rebind(dbConn.db.llm_task, llmTasks, () => dbConn.db.llm_task.iter());
     },
     { immediate: true }
   );
@@ -170,5 +174,6 @@ export function useCoreData(conn: ConnectionState) {
     bankSlots,
     characterCreationStates,
     worldGenStates,
+    llmTasks,
   };
 }

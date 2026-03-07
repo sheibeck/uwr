@@ -10,8 +10,8 @@ export const useWorldGeneration = ({
   connActive,
   worldGenStates,
 }: UseWorldGenerationArgs) => {
-  // Track whether LLM procedure is currently being called
-  const isWorldGenProcessing = ref(false);
+  // Track which genStateId we've already sent a prepare for (to avoid double-fire)
+  const preparedGenStateId = ref<bigint | null>(null);
 
   // Get the current player's active generation state (PENDING or GENERATING)
   const activeGeneration = computed(() => {
@@ -25,45 +25,41 @@ export const useWorldGeneration = ({
     ) ?? null;
   });
 
-  // Auto-trigger LLM procedure when WorldGenState step is PENDING
-  // Uses direct watch on raw worldGenStates (same pattern as useCharacterCreation)
-  watch(worldGenStates, (states) => {
-    if (isWorldGenProcessing.value) return; // Already processing, don't double-trigger
+  const isWorldGenProcessing = computed(() => activeGeneration.value !== null);
 
+  // Auto-trigger LLM task preparation when WorldGenState step is PENDING
+  watch(worldGenStates, (states) => {
     const identity = window.__my_identity;
     if (!identity || !connActive.value) return;
 
     const hex = identity.toHexString();
     const myState = states.find(
-      (s: any) => s.playerId?.toHexString?.() === hex
+      (s: any) => s.playerId?.toHexString?.() === hex && s.step === 'PENDING'
     );
     if (!myState) return;
 
-    if (myState.step === 'PENDING') {
-      isWorldGenProcessing.value = true;
-      const conn = window.__db_conn as DbConnection | undefined;
-      if (!conn) {
-        isWorldGenProcessing.value = false;
-        return;
-      }
+    // Don't re-prepare the same genState
+    if (preparedGenStateId.value === myState.id) return;
+    preparedGenStateId.value = myState.id;
 
-      // Safety timeout: if procedure hangs for >120s, reset so retry can fire
-      const safetyTimer = setTimeout(() => { isWorldGenProcessing.value = false; }, 120_000);
-      conn.procedures.generateWorldRegion({ genStateId: myState.id })
-        .then(() => {
-          clearTimeout(safetyTimer);
-          isWorldGenProcessing.value = false;
-        })
-        .catch((err: any) => {
-          clearTimeout(safetyTimer);
-          console.error('[WorldGen] Generation procedure failed:', err);
-          isWorldGenProcessing.value = false;
-        });
+    const conn = window.__db_conn as DbConnection | undefined;
+    if (!conn) return;
+
+    try {
+      conn.reducers.prepareWorldGenLlm({ genStateId: myState.id });
+    } catch (err: any) {
+      console.error('[WorldGen] Prepare LLM task failed:', err);
+      preparedGenStateId.value = null; // Allow retry
     }
   }, { deep: true });
 
+  // Reset prepared ID when generation completes or errors
+  watch(activeGeneration, (gen) => {
+    if (!gen) preparedGenStateId.value = null;
+  });
+
   return {
-    isWorldGenProcessing: computed(() => isWorldGenProcessing.value),
+    isWorldGenProcessing,
     activeGeneration,
   };
 };

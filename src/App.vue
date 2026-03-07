@@ -577,6 +577,7 @@ import { useCharacters } from './composables/useCharacters';
 import { useEvents } from './composables/useEvents';
 import { useCharacterCreation } from './composables/useCharacterCreation';
 import { useWorldGeneration } from './composables/useWorldGeneration';
+import { useLlmProxy } from './composables/useLlmProxy';
 import { useCommands } from './composables/useCommands';
 import { useContextActions } from './composables/useContextActions';
 import { useCombat } from './composables/useCombat';
@@ -682,6 +683,7 @@ const {
   characterCreationStates,
   creationEvents,
   worldGenStates,
+  llmTasks,
 } = useGameData(currentLocationId);
 
 watch(appVersionRows, (rows) => {
@@ -888,10 +890,16 @@ const {
     creationEvents,
   });
 
-// World generation: auto-trigger procedure when WorldGenState is PENDING
+// World generation: auto-trigger LLM task when WorldGenState is PENDING
 const { isWorldGenProcessing } = useWorldGeneration({
   connActive: computed(() => conn.isActive),
   worldGenStates,
+});
+
+// LLM proxy: watches for pending LlmTask rows, calls proxy, submits results
+useLlmProxy({
+  connActive: computed(() => conn.isActive),
+  llmTasks,
 });
 
 // Auto-start narrative creation for characterless players

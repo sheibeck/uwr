@@ -744,6 +744,20 @@ export const LlmRequest = __t.object("LlmRequest", {
 });
 export type LlmRequest = __Infer<typeof LlmRequest>;
 
+export const LlmTask = __t.object("LlmTask", {
+  id: __t.u64(),
+  playerId: __t.identity(),
+  domain: __t.string(),
+  model: __t.string(),
+  systemPrompt: __t.string(),
+  userPrompt: __t.string(),
+  maxTokens: __t.u64(),
+  status: __t.string(),
+  contextJson: __t.option(__t.string()),
+  createdAt: __t.timestamp(),
+});
+export type LlmTask = __Infer<typeof LlmTask>;
+
 export const Location = __t.object("Location", {
   id: __t.u64(),
   name: __t.string(),

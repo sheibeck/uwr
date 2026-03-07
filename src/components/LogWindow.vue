@@ -112,15 +112,7 @@ const renderClickableKeywords = (text: string): string => {
     });
 };
 
-// Handle clicking on a [keyword] - trigger dialogue advancement
-if (typeof window !== 'undefined') {
-  (window as any).clickNpcKeyword = (keyword: string) => {
-    if (!props.selectedCharacter) return;
-    // Trigger /say with the keyword to advance dialogue
-    window.__db_conn?.reducers.say({
-      characterId: props.selectedCharacter.id,
-      message: keyword,
-    });
-  };
+// clickNpcKeyword is registered globally in App.vue — routes through submitIntentReducer
+// which handles travel, look, say, etc. No need to register it here.
 }
 </script>

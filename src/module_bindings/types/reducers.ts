@@ -7,6 +7,9 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
 import SetAppVersionReducer from "../set_app_version_reducer";
+import PrepareCreationLlmReducer from "../prepare_creation_llm_reducer";
+import PrepareWorldGenLlmReducer from "../prepare_world_gen_llm_reducer";
+import SubmitLlmResultReducer from "../submit_llm_result_reducer";
 import SetDisplayNameReducer from "../set_display_name_reducer";
 import SendFriendRequestReducer from "../send_friend_request_reducer";
 import SendFriendRequestToCharacterReducer from "../send_friend_request_to_character_reducer";
@@ -112,6 +115,9 @@ import StartCreationReducer from "../start_creation_reducer";
 import SubmitCreationInputReducer from "../submit_creation_input_reducer";
 
 export type SetAppVersionParams = __Infer<typeof SetAppVersionReducer>;
+export type PrepareCreationLlmParams = __Infer<typeof PrepareCreationLlmReducer>;
+export type PrepareWorldGenLlmParams = __Infer<typeof PrepareWorldGenLlmReducer>;
+export type SubmitLlmResultParams = __Infer<typeof SubmitLlmResultReducer>;
 export type SetDisplayNameParams = __Infer<typeof SetDisplayNameReducer>;
 export type SendFriendRequestParams = __Infer<typeof SendFriendRequestReducer>;
 export type SendFriendRequestToCharacterParams = __Infer<typeof SendFriendRequestToCharacterReducer>;
