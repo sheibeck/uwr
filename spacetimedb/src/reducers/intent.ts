@@ -1,3 +1,5 @@
+import { getAffinityForNpc } from '../helpers/npc_affinity';
+
 export const registerIntentReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -245,6 +247,57 @@ export const registerIntentReducers = (deps: any) => {
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc',
         `${npc.name} says, "${greeting}"`);
       return;
+    }
+
+    // --- CONSIDER / CON ---
+    const conMatch = raw.match(/^(?:consider|con)\s+(.+)$/i);
+    if (conMatch) {
+      const targetName = conMatch[1].trim().toLowerCase();
+      if (!targetName) return fail(ctx, character, 'Consider whom?');
+
+      // Check NPCs at this location
+      let npc: any = null;
+      for (const row of ctx.db.npc.by_location.filter(character.locationId)) {
+        if (row.name.toLowerCase() === targetName) { npc = row; break; }
+      }
+      if (npc) {
+        const affinity = Number(getAffinityForNpc(ctx, character.id, npc.id));
+        let regard: string;
+        if (affinity >= 100) regard = `${npc.name} is devoted to you. A rare and unshakeable bond.`;
+        else if (affinity >= 75) regard = `${npc.name} considers you a close friend. Trust runs deep here.`;
+        else if (affinity >= 50) regard = `${npc.name} regards you warmly. You have earned their respect.`;
+        else if (affinity >= 25) regard = `${npc.name} recognizes you as a passing acquaintance. There is room to grow.`;
+        else if (affinity >= 0) regard = `${npc.name} regards you with polite indifference. You are a stranger to them.`;
+        else if (affinity >= -25) regard = `${npc.name} eyes you warily. Something about you puts them on edge.`;
+        else if (affinity >= -50) regard = `${npc.name} makes no effort to hide their dislike. Tread carefully.`;
+        else regard = `${npc.name} despises you. Every word you speak deepens their contempt.`;
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', regard);
+        return;
+      }
+
+      // Check enemy spawns at this location
+      const spawns = [...ctx.db.enemy_spawn.by_location.filter(character.locationId)];
+      for (const spawn of spawns) {
+        if (spawn.name.toLowerCase().includes(targetName)) {
+          const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
+          if (!template) continue;
+          const levelDiff = Number(template.level) - Number(character.level);
+          let threat: string;
+          if (levelDiff <= -10) threat = `${spawn.name} would be trivial prey. Hardly worth the effort.`;
+          else if (levelDiff <= -5) threat = `${spawn.name} poses little threat. You could handle this in your sleep.`;
+          else if (levelDiff <= -2) threat = `${spawn.name} is beneath you, but not entirely without teeth.`;
+          else if (levelDiff <= 1) threat = `${spawn.name} appears to be an even match. A fair fight awaits.`;
+          else if (levelDiff <= 4) threat = `${spawn.name} looks dangerous. Proceed with caution.`;
+          else if (levelDiff <= 8) threat = `${spawn.name} radiates menace. This would be a brutal fight — you may not survive.`;
+          else threat = `${spawn.name} would wipe the floor with you. Turn back unless you have a death wish.`;
+
+          if (template.isBoss) threat += ' This creature carries the weight of something ancient and terrible.';
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', threat);
+          return;
+        }
+      }
+
+      return fail(ctx, character, `You see no one named "${conMatch[1].trim()}" here to consider.`);
     }
 
     // --- ATTACK / FIGHT / KILL ---
