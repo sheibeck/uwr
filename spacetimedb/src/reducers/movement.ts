@@ -239,5 +239,32 @@ export const registerMovementReducers = (deps: any) => {
     for (const traveler of travelingCharacters) {
       moveOne(traveler.id);
     }
+
+    // Check if destination is an uncharted location -- trigger world generation
+    const destLocation = ctx.db.location.id.find(args.locationId);
+    if (destLocation && destLocation.terrainType === 'uncharted') {
+      // Check lock: no existing WorldGenState for this location (non-ERROR)
+      const existingGen = [...ctx.db.world_gen_state.by_source_location.filter(args.locationId)]
+        .find((s: any) => s.step !== 'ERROR');
+      if (existingGen && existingGen.step === 'COMPLETE' && existingGen.generatedRegionId) {
+        // Generation already done -- player can see the connected region. No action needed.
+      } else if (!existingGen) {
+        // Trigger new generation
+        ctx.db.world_gen_state.insert({
+          id: 0n,
+          playerId: ctx.sender,
+          characterId: args.characterId,
+          sourceLocationId: args.locationId,
+          sourceRegionId: destLocation.regionId,
+          step: 'PENDING',
+          createdAt: ctx.timestamp,
+          updatedAt: ctx.timestamp,
+        });
+        // Emit narrative loading event
+        appendPrivateEvent(ctx, args.characterId, character.ownerUserId, 'system',
+          'The edges of reality ripple around you. The System pauses, as if remembering something it had forgotten...');
+      }
+      // If existingGen is PENDING or GENERATING, another player is already triggering. Wait.
+    }
   });
 };

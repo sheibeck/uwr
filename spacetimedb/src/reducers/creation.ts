@@ -491,6 +491,35 @@ export const registerCreationReducers = (deps: any) => {
         );
 
         ensureSpawnsForLocation(ctx, startingLocation.id);
+
+        // Trigger initial world generation for this character
+        // Find an uncharted location connected to starting location to use as source
+        const unchartedLocs = [...ctx.db.location_connection.by_from.filter(startingLocation.id)]
+          .map((conn: any) => ctx.db.location.id.find(conn.toLocationId))
+          .filter((loc: any) => loc && loc.terrainType === 'uncharted');
+        const unchartedLocsReverse = [...ctx.db.location_connection.by_to.filter(startingLocation.id)]
+          .map((conn: any) => ctx.db.location.id.find(conn.fromLocationId))
+          .filter((loc: any) => loc && loc.terrainType === 'uncharted');
+        const allUncharted = [...unchartedLocs, ...unchartedLocsReverse].filter(Boolean);
+        if (allUncharted.length > 0) {
+          const sourceUncharted = allUncharted[0];
+          // Check lock: no existing WorldGenState for this sourceLocationId
+          const existingWorldGen = [...ctx.db.world_gen_state.by_source_location.filter(sourceUncharted.id)]
+            .find((s: any) => s.step !== 'ERROR');
+          if (!existingWorldGen) {
+            ctx.db.world_gen_state.insert({
+              id: 0n,
+              playerId: ctx.sender,
+              characterId: character.id,
+              sourceLocationId: sourceUncharted.id,
+              sourceRegionId: startingLocation.regionId,
+              step: 'PENDING',
+              createdAt: ctx.timestamp,
+              updatedAt: ctx.timestamp,
+            });
+          }
+        }
+
         break;
       }
 
