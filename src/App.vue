@@ -1283,16 +1283,7 @@ const { commandText, submitCommand } = useCommands({
 });
 
 // --- Narrative Console wiring ---
-// Context actions derived from game state
-const narrativeContextActions = useContextActions({
-  selectedCharacter,
-  activeCombat,
-  connectedLocations,
-  npcsHere,
-  hotbarDisplay,
-  isCasting,
-  canActInCombat,
-});
+// NOTE: narrativeContextActions is defined later, after all dependencies (connectedLocations, hotbarDisplay, isCasting) are declared
 
 // LLM processing state for the narrative indicator
 const isNarrativeLlmProcessing = ref(false);
@@ -1945,6 +1936,17 @@ const {
   inventoryItems,
   itemTemplates,
   eatFoodFn: eatFood,
+});
+
+// Context actions derived from game state (after all dependencies are declared)
+const narrativeContextActions = useContextActions({
+  selectedCharacter,
+  activeCombat,
+  connectedLocations,
+  npcsHere,
+  hotbarDisplay,
+  isCasting,
+  canActInCombat,
 });
 
 const onAddItemToHotbar = (templateId: bigint, itemName: string) => {

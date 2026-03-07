@@ -77,7 +77,7 @@ const panelButtons = [
   { id: 'map', label: 'Map' },
   { id: 'journal', label: 'Quests' },
   { id: 'friends', label: 'Social' },
-  { id: 'travelPanel', label: 'Travel' },
+  { id: 'travel', label: 'Travel' },
 ];
 
 const hudStyle = {
