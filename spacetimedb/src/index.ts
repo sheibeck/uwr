@@ -1,6 +1,13 @@
 import { t, SenderError } from 'spacetimedb/server';
 import { requireAdmin } from './data/admin';
-import { ScheduleAt, Timestamp } from 'spacetimedb';
+import { ScheduleAt, Timestamp, TimeDuration } from 'spacetimedb';
+import { buildAnthropicRequest, parseAnthropicResponse, incrementBudget } from './helpers/llm';
+import {
+  buildCharacterCreationPrompt,
+  buildWorldGenPrompt,
+  buildCombatNarrationPrompt,
+  buildSkillGenPrompt,
+} from './data/llm_prompts';
 import spacetimedb, {
   scheduledReducers,
   Player, Character,
@@ -271,6 +278,12 @@ _wrapMethod('init', () => '__init__');
 _wrapMethod('clientConnected', () => '__client_connected__');
 _wrapMethod('clientDisconnected', () => '__client_disconnected__');
 _wrapMethod('view', (args) => args[0]?.name);
+_wrapMethod('procedure', (args) => {
+  // procedure(opts, params, ret, fn) — opts is first arg when 4 args
+  if (args.length >= 4 && typeof args[0]?.name === 'string') return args[0].name;
+  // procedure(params, ret, fn) — no name, use counter fallback
+  return undefined;
+});
 
 // Include the view defined in tables.ts (runs before monkey-patch)
 _moduleExports['my_bank_slots'] = myBankSlotsView;
@@ -369,6 +382,149 @@ registerViews({
   FactionStanding,
   UiPanelLayout,
 });
+
+// === LLM PROCEDURE ===
+// The LLM procedure -- calls Anthropic API and writes results back.
+// CRITICAL: ctx.http.fetch() and ctx.withTx() CANNOT overlap.
+// Structure: withTx(read) -> fetch() -> withTx(write)
+spacetimedb.procedure(
+  { name: 'call_llm' },
+  { requestId: t.u64() },
+  t.string(),
+  (ctx: any, { requestId }: { requestId: bigint }) => {
+    // === PHASE 1: Read request and API key (transaction) ===
+    let request: any;
+    let apiKey: string = '';
+    let character: any;
+
+    ctx.withTx((tx: any) => {
+      request = tx.db.llm_request.id.find(requestId);
+      if (!request) throw new SenderError('Request not found');
+      if (request.status !== 'pending') throw new SenderError('Request already processed');
+
+      // Update status to processing
+      tx.db.llm_request.id.update({ ...request, status: 'processing' });
+
+      // Read API key from private config
+      const config = tx.db.llm_config.id.find(1n);
+      if (!config || !config.apiKey) throw new SenderError('LLM not configured');
+      apiKey = config.apiKey;
+
+      // Load character for error messaging
+      character = tx.db.character.id.find(request.characterId);
+    });
+
+    // === PHASE 2: Resolve system prompt ===
+    const promptBuilders: Record<string, (ctx: string) => string> = {
+      character_creation: buildCharacterCreationPrompt,
+      world_gen: buildWorldGenPrompt,
+      combat_narration: buildCombatNarrationPrompt,
+      skill_gen: buildSkillGenPrompt,
+    };
+    const buildPrompt = promptBuilders[request.domain];
+    if (!buildPrompt) {
+      ctx.withTx((tx: any) => {
+        const req = tx.db.llm_request.id.find(requestId);
+        if (req) tx.db.llm_request.id.update({ ...req, status: 'error', errorMessage: `Unknown domain: ${request.domain}` });
+      });
+      return 'error';
+    }
+
+    // Build system prompt (context will be enriched by downstream phases)
+    const systemPrompt = buildPrompt('');
+    const requestBody = buildAnthropicRequest(request.model, systemPrompt, request.userPrompt);
+
+    // === PHASE 3: Call Anthropic API (NO transaction open) ===
+    let responseText = '';
+    let responseOk = false;
+    let attempts = 0;
+    const maxAttempts = 2; // Retry once on failure (locked decision)
+
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        const response = ctx.http.fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: requestBody,
+          timeout: TimeDuration.fromMillis(30000),
+        });
+        responseText = response.text();
+        responseOk = response.ok;
+
+        if (responseOk) break; // Success -- stop retrying
+        if (attempts < maxAttempts) {
+          console.error(`LLM API attempt ${attempts} failed, retrying...`);
+          continue;
+        }
+      } catch (err: any) {
+        console.error(`LLM API attempt ${attempts} threw: ${err?.message ?? err}`);
+        if (attempts >= maxAttempts) {
+          responseText = '';
+          responseOk = false;
+        }
+      }
+    }
+
+    // === PHASE 4: Parse response and write results (transaction) ===
+    const parsed = parseAnthropicResponse(responseText, responseOk);
+
+    ctx.withTx((tx: any) => {
+      const req = tx.db.llm_request.id.find(requestId);
+      if (!req) return;
+
+      if (parsed.ok) {
+        // Log usage for monitoring (visible in spacetime logs)
+        if (parsed.usage) {
+          console.log(`LLM usage [${request.domain}/${request.model}]: input=${parsed.usage.inputTokens}, output=${parsed.usage.outputTokens}, cache_read=${parsed.usage.cacheReadTokens}`);
+        }
+
+        // Store the result in the request row for the client to read.
+        // Downstream phases will write domain-specific results to their own tables.
+        // NOTE: We reuse errorMessage field as resultText since the table is ephemeral.
+        tx.db.llm_request.id.update({
+          ...req,
+          status: 'completed',
+          errorMessage: parsed.text,  // Stores result text temporarily
+        });
+
+        // Increment budget only on success (locked decision)
+        incrementBudget(tx, request.playerId);
+      } else {
+        // Mark as error with raw details (only visible server-side since table is private)
+        const errorMsg = parsed.error ?? 'Unknown error';
+        console.error(`LLM API error [${request.domain}]: ${errorMsg}`);
+
+        tx.db.llm_request.id.update({
+          ...req,
+          status: 'error',
+          errorMessage: errorMsg,
+        });
+
+        // Send thematic error to player via event system
+        if (character) {
+          const charRow = tx.db.character.id.find(request.characterId);
+          if (charRow) {
+            tx.db.event_private.insert({
+              id: 0n,
+              ownerUserId: charRow.ownerUserId,
+              characterId: charRow.id,
+              kind: 'system',
+              message: 'The System falters momentarily. Try again.',
+              createdAt: tx.timestamp,
+            });
+          }
+        }
+      }
+    });
+
+    return parsed.ok ? 'completed' : 'error';
+  }
+);
 
 spacetimedb.init((ctx) => {
   syncAllContent(ctx);
