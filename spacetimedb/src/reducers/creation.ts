@@ -78,10 +78,24 @@ export const registerCreationReducers = (deps: any) => {
     const player = ctx.db.player.id.find(ctx.sender);
     if (!player) throw new SenderError('Player not found');
 
-    // Check if already has a creation state
+    // Check if already has a creation state — resume narratively
     for (const existing of ctx.db.character_creation_state.by_player.filter(ctx.sender)) {
-      // Already has creation state, emit current step info
-      appendCreationEvent(ctx, ctx.sender, 'creation', `You are already in the creation flow at step: ${existing.step}. Continue where you left off.`);
+      const step = existing.step;
+      if (step === 'AWAITING_RACE') {
+        appendCreationEvent(ctx, ctx.sender, 'creation', 'Ah, you again. The void keeps spitting you back. We were discussing what manner of creature you are. Describe your race -- your people, your heritage. I\'m still waiting.');
+      } else if (step === 'GENERATING_RACE' || step === 'GENERATING_CLASS') {
+        appendCreationEvent(ctx, ctx.sender, 'creation', 'The System is still working. Patience is a virtue you clearly lack, but try anyway.');
+      } else if (step === 'AWAITING_ARCHETYPE') {
+        appendCreationEvent(ctx, ctx.sender, 'creation', `Welcome back. You are ${existing.raceName || 'whatever you described'}. Now -- do you walk the path of the [Warrior] or the [Mystic]? Choose.`);
+      } else if (step === 'CLASS_REVEALED') {
+        appendCreationEvent(ctx, ctx.sender, 'creation', `Still here? Good. You were choosing an ability for your ${existing.className || 'class'}. Pick one from the options above.`);
+      } else if (step === 'AWAITING_NAME') {
+        appendCreationEvent(ctx, ctx.sender, 'creation', `Back again. You still need a name. Four characters minimum. Make it count -- you\'ll be stuck with it.`);
+      } else if (step === 'COMPLETE') {
+        appendCreationEvent(ctx, ctx.sender, 'creation', 'Your character has already been created. Go forth and do something interesting.');
+      } else {
+        appendCreationEvent(ctx, ctx.sender, 'creation', 'The System remembers you. Continue where you left off.');
+      }
       return;
     }
 
