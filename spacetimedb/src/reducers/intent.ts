@@ -1,4 +1,5 @@
 import { getAffinityForNpc } from '../helpers/npc_affinity';
+import { getWorldState } from '../helpers/location';
 
 export const registerIntentReducers = (deps: any) => {
   const {
@@ -54,8 +55,24 @@ export const registerIntentReducers = (deps: any) => {
         '  attack — Engage enemies at your location.',
         '  flee — Attempt to escape from combat.',
         '  camp — Rest briefly.',
+        '  time — Check if it is day or night and how long until it changes.',
       ];
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', helpText.join('\n'));
+      return;
+    }
+
+    // --- TIME ---
+    if (lower === 'time') {
+      const ws = getWorldState(ctx);
+      if (ws) {
+        const timeLeft = Number(ws.nextTransitionAtMicros - ctx.timestamp.microsSinceUnixEpoch) / 1_000_000;
+        const mins = Math.floor(timeLeft / 60);
+        const secs = Math.floor(timeLeft % 60);
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          `It is ${ws.isNight ? 'nighttime' : 'daytime'}. ${mins}m ${secs}s until ${ws.isNight ? 'dawn' : 'dusk'}.`);
+      } else {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', 'Time has no meaning here.');
+      }
       return;
     }
 
@@ -76,9 +93,12 @@ export const registerIntentReducers = (deps: any) => {
         parts.push(location.description);
 
         // 2. Day/Night
-        const worldState = ctx.db.world_state.id.find(1n);
+        const worldState = getWorldState(ctx);
         if (worldState) {
-          parts.push(`It is currently ${worldState.isNight ? 'nighttime' : 'daytime'}.`);
+          const timeLeft = Number(worldState.nextTransitionAtMicros - ctx.timestamp.microsSinceUnixEpoch) / 1_000_000;
+          const mins = Math.floor(timeLeft / 60);
+          const secs = Math.floor(timeLeft % 60);
+          parts.push(`It is currently ${worldState.isNight ? 'nighttime' : 'daytime'}. (${mins}m ${secs}s until ${worldState.isNight ? 'dawn' : 'dusk'})`);
         }
 
         // 3. Safe area / Bind stone / Crafting
