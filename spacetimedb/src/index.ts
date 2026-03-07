@@ -56,6 +56,7 @@ import {
   normalizeArmorType,
   normalizeClassName,
   usesMana,
+  computeBaseStatsForGenerated,
   TANK_CLASSES,
   HEALER_CLASSES,
   MANA_MULTIPLIER,
@@ -100,6 +101,7 @@ import {
   fail,
   appendNpcDialog,
   appendGroupEvent,
+  appendCreationEvent,
 } from './helpers/events';
 
 import {
@@ -741,6 +743,8 @@ const reducerDeps = {
   executeCorpseSummon,
   autoRespawnDeadCharacter,
   campCharacter,
+  appendCreationEvent,
+  computeBaseStatsForGenerated,
   startCombatForSpawn: null as any,
 };
 
