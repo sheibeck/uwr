@@ -50,7 +50,7 @@ export const useLlmProxy = ({
     const config = (conn as any).db?.llm_config?.id?.find?.(1n);
     // Config is private — we get the secret from the task's auth context
     // The proxy secret is stored in the browser and sent as bearer token
-    const proxySecret = localStorage.getItem('llm_proxy_secret') || '';
+    const proxySecret = localStorage.getItem('llm_proxy_secret') || import.meta.env.VITE_LLM_PROXY_SECRET || '';
 
     isProcessing.value = true;
     processingTaskId.value = pendingTask.id;
