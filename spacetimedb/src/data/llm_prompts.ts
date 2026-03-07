@@ -94,6 +94,67 @@ You must always respond with valid JSON matching the schema provided in the user
 ${context}`;
 }
 
+// === CHARACTER CREATION JSON SCHEMAS ===
+
+export const RACE_INTERPRETATION_SCHEMA = `{
+  "raceName": "string — short evocative name (2-4 words max)",
+  "narrative": "string — 2-3 sentences of sardonic System commentary about this race",
+  "bonuses": {
+    "primary": { "stat": "str|dex|int|wis|cha", "value": 2 },
+    "secondary": { "stat": "str|dex|int|wis|cha", "value": 1 },
+    "flavor": "string — one unique racial trait description"
+  }
+}`;
+
+export const CLASS_GENERATION_SCHEMA = `{
+  "className": "string — wildly creative class name (not generic fantasy)",
+  "classDescription": "string — 2-3 sentences of sardonic class description",
+  "stats": {
+    "primaryStat": "str|dex|int|wis|cha",
+    "secondaryStat": "str|dex|int|wis|cha|none",
+    "bonusHp": "number (0-20, warrior types get more)",
+    "bonusMana": "number (0-30, mystic types get more)",
+    "armorProficiency": "cloth|leather|chain|plate",
+    "usesMana": "boolean"
+  },
+  "abilities": [
+    {
+      "name": "string — evocative ability name",
+      "description": "string — sardonic description of the ability",
+      "damageType": "physical|fire|ice|lightning|shadow|holy|nature|arcane",
+      "baseDamage": "number (8-15 for level 1)",
+      "cooldownSeconds": "number (4-12)",
+      "manaCost": "number (0-15, 0 for physical non-mana abilities)",
+      "effect": "none|dot|heal|buff|debuff|stun",
+      "effectDuration": "number (0 for none, 2-4 for others)"
+    }
+  ]
+}`;
+
+export function buildRaceInterpretationUserPrompt(playerDescription: string): string {
+  return `The new arrival describes themselves as: "${playerDescription}"
+
+Interpret this description into a race for the world of UWR. Be creative — if they gave you something generic, make it interesting. If they gave you something absurd, lean into it with sardonic delight.
+
+Respond with ONLY valid JSON matching this schema:
+${RACE_INTERPRETATION_SCHEMA}`;
+}
+
+export function buildClassGenerationUserPrompt(raceName: string, raceNarrative: string, archetype: string): string {
+  return `Race: ${raceName}
+Race description: ${raceNarrative}
+Archetype: ${archetype}
+
+Generate a wildly creative and unique class for this ${archetype} ${raceName}. The class name should be evocative and unexpected — not "Fire Mage" but "Ember-Blooded Pyroclast" or "Ash Whisperer of the Burnt Meridian." Go wild with naming and flavor. The class should feel like it was born specifically from THIS race and THIS archetype combination.
+
+Generate exactly 3 starting abilities appropriate for this class at level 1. Each should feel meaningfully different — vary damage types, effects, and playstyles. Names should be creative and memorable.
+
+${archetype === 'warrior' ? 'As a warrior archetype, lean toward physical stats, higher HP, and melee-oriented abilities. Mana costs should be low or zero.' : 'As a mystic archetype, lean toward magical stats, higher mana, and spell-oriented abilities. Embrace magical damage types.'}
+
+Respond with ONLY valid JSON matching this schema:
+${CLASS_GENERATION_SCHEMA}`;
+}
+
 // Skill generation: Sonnet (1024+ threshold)
 export function buildSkillGenPrompt(context: string): string {
   return `${NARRATOR_PREAMBLE}
