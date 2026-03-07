@@ -10,6 +10,7 @@
         :style="[
           actionBtnBase,
           action.disabled ? actionBtnDisabled : {},
+          action.active ? actionBtnActive : {},
           actionCategoryBorder(action.category),
         ]"
         @click="!action.disabled && $emit('submit', action.command)"
@@ -66,6 +67,7 @@ export type ContextAction = {
   command: string;
   disabled?: boolean;
   category?: 'combat' | 'explore' | 'social' | 'ability' | 'utility';
+  active?: boolean;
 };
 
 const props = withDefaults(defineProps<{
@@ -256,6 +258,13 @@ const actionBtnBase = {
 const actionBtnDisabled = {
   opacity: '0.4',
   cursor: 'default',
+};
+
+const actionBtnActive = {
+  background: 'rgba(218, 119, 242, 0.2)',
+  border: '1px solid rgba(218, 119, 242, 0.7)',
+  color: '#da77f2',
+  boxShadow: '0 0 8px rgba(218, 119, 242, 0.3)',
 };
 
 const inputRowStyle = {

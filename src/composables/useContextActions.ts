@@ -7,6 +7,7 @@ export type ContextAction = {
   category: 'combat' | 'explore' | 'social' | 'ability';
   disabled?: boolean;
   detail?: string;
+  active?: boolean;
 };
 
 type HotbarSlotInfo = {
@@ -25,6 +26,7 @@ type UseContextActionsArgs = {
   hotbarDisplay: Ref<HotbarSlotInfo[]>;
   isCasting: Ref<boolean>;
   canActInCombat: Ref<boolean>;
+  conversationNpcId: Ref<bigint | null>;
 };
 
 export function useContextActions(deps: UseContextActionsArgs) {
@@ -68,10 +70,12 @@ export function useContextActions(deps: UseContextActionsArgs) {
 
       // NPCs present
       for (const npc of deps.npcsHere.value) {
+        const isConversing = deps.conversationNpcId.value?.toString() === npc.id.toString();
         result.push({
-          label: `Talk to ${npc.name}`,
-          command: `hail ${npc.name.toLowerCase()}`,
+          label: isConversing ? `End conversation` : `Talk to ${npc.name}`,
+          command: isConversing ? 'bye' : `hail ${npc.name.toLowerCase()}`,
           category: 'social',
+          active: isConversing,
         });
       }
     }

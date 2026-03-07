@@ -2033,6 +2033,7 @@ const narrativeContextActions = useContextActions({
   hotbarDisplay,
   isCasting,
   canActInCombat,
+  conversationNpcId,
 });
 
 const onAddItemToHotbar = (templateId: bigint, itemName: string) => {
