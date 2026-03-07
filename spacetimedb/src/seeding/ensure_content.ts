@@ -6,6 +6,7 @@ import {
   HotTick,
   CastTick,
   InactivityTick,
+  LlmCleanupTick,
 } from '../schema/scheduled_tables';
 import { ensureRaces } from '../data/races';
 import { ensureFactions } from '../data/faction_data';
@@ -86,6 +87,15 @@ export function ensureDayNightTickScheduled(ctx: any) {
 export function ensureInactivityTickScheduled(ctx: any) {
   if (!tableHasRows(ctx.db.inactivity_tick.iter())) {
     ctx.db.inactivity_tick.insert({
+      scheduledId: 0n,
+      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 300_000_000n),
+    });
+  }
+}
+
+export function ensureLlmCleanupScheduled(ctx: any) {
+  if (!tableHasRows(ctx.db.llm_cleanup_tick.iter())) {
+    ctx.db.llm_cleanup_tick.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 300_000_000n),
     });

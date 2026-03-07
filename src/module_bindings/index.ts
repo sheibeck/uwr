@@ -133,8 +133,11 @@ import CollectEventItemReducer from "./collect_event_item_reducer";
 import IncrementEventCounterReducer from "./increment_event_counter_reducer";
 import DepositToBankReducer from "./deposit_to_bank_reducer";
 import WithdrawFromBankReducer from "./withdraw_from_bank_reducer";
+import SetApiKeyReducer from "./set_api_key_reducer";
+import ValidateLlmRequestReducer from "./validate_llm_request_reducer";
 
 // Import all procedure arg schemas
+import * as CallLlmProcedure from "./call_llm_procedure";
 
 // Import all table schema definitions
 import AbilityCooldownRow from "./ability_cooldown_table";
@@ -1665,10 +1668,13 @@ const reducersSchema = __reducers(
   __reducerSchema("increment_event_counter", IncrementEventCounterReducer),
   __reducerSchema("deposit_to_bank", DepositToBankReducer),
   __reducerSchema("withdraw_from_bank", WithdrawFromBankReducer),
+  __reducerSchema("set_api_key", SetApiKeyReducer),
+  __reducerSchema("validate_llm_request", ValidateLlmRequestReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
 const proceduresSchema = __procedures(
+  __procedureSchema("call_llm", CallLlmProcedure.params, CallLlmProcedure.returnType),
 );
 
 /** The remote SpacetimeDB module schema, both runtime and type information. */

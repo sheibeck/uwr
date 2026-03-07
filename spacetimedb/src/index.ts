@@ -30,6 +30,7 @@ import spacetimedb, {
   AppVersion,
   ActiveBardSong, BardSongTick,
   ActivePet,
+  LlmCleanupTick,
 } from './schema/tables';
 export default spacetimedb;
 import { registerReducers } from './reducers';
@@ -225,6 +226,7 @@ import {
   ensureCastTickScheduled,
   ensureDayNightTickScheduled,
   ensureInactivityTickScheduled,
+  ensureLlmCleanupScheduled,
   syncAllContent,
 } from './seeding/ensure_content';
 
@@ -352,6 +354,28 @@ scheduledReducers['sweep_inactivity'] = spacetimedb.reducer('sweep_inactivity', 
 
     campCharacter(ctx, player, character, true);
   }
+});
+
+const LLM_CLEANUP_INTERVAL_MICROS = 300_000_000n; // 5 minutes
+const LLM_ERROR_TTL_MICROS = 300_000_000n; // 5 minutes
+
+scheduledReducers['sweep_llm_errors'] = spacetimedb.reducer('sweep_llm_errors', { arg: LlmCleanupTick.rowType }, (ctx) => {
+  const now = ctx.timestamp.microsSinceUnixEpoch;
+  const cutoff = now - LLM_ERROR_TTL_MICROS;
+
+  // Clean up error and completed requests older than 5 minutes
+  for (const request of [...ctx.db.llm_request.iter()]) {
+    if ((request.status === 'error' || request.status === 'completed') &&
+        request.createdAt.microsSinceUnixEpoch < cutoff) {
+      ctx.db.llm_request.id.delete(request.id);
+    }
+  }
+
+  // Re-schedule next sweep
+  ctx.db.llm_cleanup_tick.insert({
+    scheduledId: 0n,
+    scheduledAt: ScheduleAt.time(now + LLM_CLEANUP_INTERVAL_MICROS),
+  });
 });
 
 spacetimedb.reducer('set_app_version', { version: t.string() }, (ctx, { version }) => {
@@ -535,6 +559,7 @@ spacetimedb.init((ctx) => {
   ensureCastTickScheduled(ctx);
   ensureDayNightTickScheduled(ctx);
   ensureInactivityTickScheduled(ctx);
+  ensureLlmCleanupScheduled(ctx);
 });
 
 spacetimedb.clientConnected((ctx) => {
@@ -558,6 +583,7 @@ spacetimedb.clientConnected((ctx) => {
   ensureCastTickScheduled(ctx);
   ensureDayNightTickScheduled(ctx);
   ensureInactivityTickScheduled(ctx);
+  ensureLlmCleanupScheduled(ctx);
 });
 
 spacetimedb.clientDisconnected((_ctx) => {

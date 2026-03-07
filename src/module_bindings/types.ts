@@ -679,6 +679,40 @@ export const ItemTemplate = __t.object("ItemTemplate", {
 });
 export type ItemTemplate = __Infer<typeof ItemTemplate>;
 
+export const LlmBudget = __t.object("LlmBudget", {
+  id: __t.u64(),
+  playerId: __t.identity(),
+  callCount: __t.u64(),
+  resetDate: __t.string(),
+});
+export type LlmBudget = __Infer<typeof LlmBudget>;
+
+export const LlmCleanupTick = __t.object("LlmCleanupTick", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+});
+export type LlmCleanupTick = __Infer<typeof LlmCleanupTick>;
+
+export const LlmConfig = __t.object("LlmConfig", {
+  id: __t.u64(),
+  apiKey: __t.string(),
+  updatedAt: __t.timestamp(),
+});
+export type LlmConfig = __Infer<typeof LlmConfig>;
+
+export const LlmRequest = __t.object("LlmRequest", {
+  id: __t.u64(),
+  playerId: __t.identity(),
+  characterId: __t.u64(),
+  domain: __t.string(),
+  model: __t.string(),
+  userPrompt: __t.string(),
+  status: __t.string(),
+  errorMessage: __t.option(__t.string()),
+  createdAt: __t.timestamp(),
+});
+export type LlmRequest = __Infer<typeof LlmRequest>;
+
 export const Location = __t.object("Location", {
   id: __t.u64(),
   name: __t.string(),

@@ -1815,6 +1815,17 @@ export const LlmBudget = table(
   }
 );
 
+export const LlmCleanupTick = table(
+  {
+    name: 'llm_cleanup_tick',
+    scheduled: () => scheduledReducers['sweep_llm_errors'],
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+  }
+);
+
 const spacetimedb = schema({
   player: Player,
   user: User,
@@ -1917,6 +1928,7 @@ const spacetimedb = schema({
   llm_config: LlmConfig,
   llm_request: LlmRequest,
   llm_budget: LlmBudget,
+  llm_cleanup_tick: LlmCleanupTick,
 });
 export default spacetimedb;
 export { spacetimedb };

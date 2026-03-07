@@ -13,4 +13,5 @@ export {
   CombatEnemyCast,
   EventDespawnTick,
   InactivityTick,
+  LlmCleanupTick,
 } from './tables';

@@ -105,6 +105,8 @@ import CollectEventItemReducer from "../collect_event_item_reducer";
 import IncrementEventCounterReducer from "../increment_event_counter_reducer";
 import DepositToBankReducer from "../deposit_to_bank_reducer";
 import WithdrawFromBankReducer from "../withdraw_from_bank_reducer";
+import SetApiKeyReducer from "../set_api_key_reducer";
+import ValidateLlmRequestReducer from "../validate_llm_request_reducer";
 
 export type SetAppVersionParams = __Infer<typeof SetAppVersionReducer>;
 export type SetDisplayNameParams = __Infer<typeof SetDisplayNameReducer>;
@@ -205,4 +207,6 @@ export type CollectEventItemParams = __Infer<typeof CollectEventItemReducer>;
 export type IncrementEventCounterParams = __Infer<typeof IncrementEventCounterReducer>;
 export type DepositToBankParams = __Infer<typeof DepositToBankReducer>;
 export type WithdrawFromBankParams = __Infer<typeof WithdrawFromBankReducer>;
+export type SetApiKeyParams = __Infer<typeof SetApiKeyReducer>;
+export type ValidateLlmRequestParams = __Infer<typeof ValidateLlmRequestReducer>;
 
