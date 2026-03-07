@@ -1389,29 +1389,20 @@ const onCreationSubmit = (text: string) => {
   submitCreationInput(text.trim());
 };
 
-// Global keyword click handler — routes to skill choice, creation input, or game intent
+// Global keyword click handler — routes to skill choice, creation input, or delegates to onNarrativeSubmit
 (window as any).clickNpcKeyword = (keyword: string) => {
   console.log('[clickNpcKeyword]', keyword, 'isInCreation:', isInCreation.value, 'hasPendingSkills:', hasPendingSkills.value);
-  // Check if this keyword matches a pending skill name (skill choice takes priority)
+  // 1. Skill choice — click-only (typed skill choice uses different input mode)
   if (hasPendingSkills.value && chooseSkillByName(keyword)) {
     return;
   }
+  // 2. Creation input — click-only (typed creation uses onCreationSubmit)
   if (isInCreation.value || !selectedCharacter.value) {
     submitCreationInput(keyword);
     return;
-  } else if (selectedCharacter.value) {
-    // Handle special location feature clicks
-    if (keyword.toLowerCase() === 'craft') {
-      openPanel('crafting');
-      return;
-    }
-    // Check if keyword matches an NPC name — enter conversation mode
-    const npc = npcsHere.value?.find(n => n.name.toLowerCase() === keyword.toLowerCase());
-    if (npc) {
-      enterConversation(npc.id, npc.name);
-    }
-    submitIntentReducer({ characterId: selectedCharacter.value.id, text: keyword });
   }
+  // 3. Everything else — delegate to the same handler typed input uses
+  onNarrativeSubmit(keyword);
 };
 
 // Handle panel opening from NarrativeHud
