@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 29 of 30 (NPC & Quest Generation)
-Plan: 1 of 3 complete (NPC Data Layer & Conversation Prompts)
+Plan: 2 of 3 complete (NPC Conversation Engine & Quest Generation)
 Status: In progress
-Last activity: 2026-03-07 - Completed 29-01: NPC Data Layer & Conversation Prompts
+Last activity: 2026-03-07 - Completed 29-02: NPC Conversation Engine & Quest Generation
 
-Progress: [█████████░] 93%
+Progress: [█████████░] 96%
 
 ## Previous Milestone (v1.0)
 
@@ -62,6 +62,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 | Phase 28 P02 | 5min | 2 tasks | 5 files |
 | Phase 28 P03 | 12min | 2 tasks | 16 files |
 | Phase 29 P01 | 3min | 2 tasks | 4 files |
+| Phase 29 P02 | 7min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -116,6 +117,11 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 29]: NPC memory arrays capped at 10 entries (topics, secrets, etc.) for bounded prompt size
 - [Phase 29]: Default personality fallback for NPCs with empty personalityJson ensures graceful degradation
 - [Phase 29]: Affinity tier mapping uses NPC_AFFINITY_THRESHOLDS bigint values from mechanical_vocabulary
+- [Phase 29]: gpt-5-mini for NPC conversations (fast turnaround for interactive dialogue)
+- [Phase 29]: Affinity change from LLM clamped to -5..+5 range per conversation
+- [Phase 29]: Item reward stats use budget system: level*2+5 base, scaled by quest difficulty
+- [Phase 29]: Conversation cooldown reduced to 30s (LLM budget is real rate limiter)
+- [Phase 29]: Quest completion +10 affinity, abandonment -3 affinity
 
 ### Pending Todos
 
@@ -136,6 +142,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-07T20:44:22Z
-Stopped at: Completed 29-01-PLAN.md
-Resume file: .planning/phases/29-npc-quest-generation/29-02-PLAN.md
+Last session: 2026-03-07T20:54:45Z
+Stopped at: Completed 29-02-PLAN.md
+Resume file: .planning/phases/29-npc-quest-generation/29-03-PLAN.md

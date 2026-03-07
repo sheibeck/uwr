@@ -171,7 +171,7 @@ Plans:
 | SKILL-01 | 28 | 3/3 | Complete    | 2026-03-07 | 28 | Dynamic Skills |
 | SKILL-03 | 28 | Dynamic Skills |
 | SKILL-04 | 28 | Dynamic Skills |
-| NPC-01 | 29 | 1/3 | In Progress|  | 29 | NPC & Quest Gen |
+| NPC-01 | 29 | 2/3 | In Progress|  | 29 | NPC & Quest Gen |
 | NPC-03 | 29 | NPC & Quest Gen |
 | NPC-04 | 29 | NPC & Quest Gen |
 | COMBAT-01 | 30 | Narrative Combat |
