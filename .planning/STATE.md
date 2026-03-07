@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 25-01-PLAN.md
-last_updated: "2026-03-07T02:23:40.544Z"
-last_activity: 2026-03-07 — Completed 25-01 Intent Router and Context Actions
+stopped_at: Completed 25-02-PLAN.md
+last_updated: "2026-03-07T02:24:59.963Z"
+last_activity: 2026-03-07 — Completed 25-02 Narrative Console Components
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
   percent: 84
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 25 of 30 (Narrative UI Shell)
-Plan: 01 of 3 complete (Intent Router and Context Actions)
+Plan: 02 of 3 complete (Narrative Console Components)
 Status: In progress
-Last activity: 2026-03-07 — Completed 25-01 Intent Router and Context Actions
+Last activity: 2026-03-07 — Completed 25-02 Narrative Console Components
 
 Progress: [████████░░] 84%
 
@@ -51,6 +51,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 
 *Updated after each plan completion*
 | Phase 25 P01 | 4min | 2 tasks | 3 files |
+| Phase 25 P02 | 5min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,8 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - useLlm composable uses direct table subscription rather than event-based fallback
 - [Phase 25]: NL travel uses minimal inline movement (no stamina/cooldown/group-pull) for MVP simplicity
 - [Phase 25]: Attack/ability/flee intents guide to UI rather than duplicating complex combat logic
+- [Phase 25]: NarrativeConsole at z-index 1 as base layer, panels float above
+- [Phase 25]: Travel panel auto-opens on combat start for CombatPanel access
 
 ### Pending Todos
 
@@ -85,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-07T02:23:40.533Z
-Stopped at: Completed 25-01-PLAN.md
+Last session: 2026-03-07T02:24:59.957Z
+Stopped at: Completed 25-02-PLAN.md
 Resume file: None
