@@ -1394,6 +1394,15 @@ const onCreationSubmit = (text: string) => {
     submitCreationInput(keyword);
     return;
   } else if (selectedCharacter.value) {
+    // Handle special location feature clicks
+    if (keyword === 'Bind Stone') {
+      conn.reducers.bindLocation({ characterId: selectedCharacter.value.id });
+      return;
+    }
+    if (keyword === 'Crafting Station') {
+      openPanel('crafting');
+      return;
+    }
     // Check if keyword matches an NPC name — enter conversation mode
     const npc = npcsHere.value?.find(n => n.name.toLowerCase() === keyword.toLowerCase());
     if (npc) {
