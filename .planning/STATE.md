@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 29 of 30 (Phases 24-29 complete, Phase 30 remaining)
 Plan: 27-03 just completed (Client World Generation Composable)
 Status: Phases 24-29 complete
-Last activity: 2026-03-07 - Completed quick task 337: Style ripple messages to stand out more visually
+Last activity: 2026-03-07 - Completed quick task 338: Add clickable color-coded links in look output
 
 Progress: [██████████] 100%
 
@@ -150,8 +150,9 @@ None yet.
 | 335 | Fix LLM proxy 401 Unauthorized for non-admin accounts | 2026-03-07 | ea49d5c | [335-fix-llm-proxy-401-unauthorized-for-non-a](./quick/335-fix-llm-proxy-401-unauthorized-for-non-a/) |
 | 336 | Character creation UX fixes (click-to-select, short names, hints) | 2026-03-07 | 3a20c0a, 9a308ce | [336-character-creation-ux-fixes-click-to-sel](./quick/336-character-creation-ux-fixes-click-to-sel/) |
 | 337 | Style ripple messages with distinctive violet treatment | 2026-03-07 | d7d2638 | [337-style-ripple-messages-to-stand-out-more-](./quick/337-style-ripple-messages-to-stand-out-more-/) |
+| 338 | Add clickable color-coded links in look output | 2026-03-07 | dcec09a, ae307a2 | [338-add-clickable-links-in-look-output-for-b](./quick/338-add-clickable-links-in-look-output-for-b/) |
 
 ## Session Continuity
 
-Last session: 2026-03-07T23:14:33Z
-Stopped at: Completed quick task 337
+Last session: 2026-03-07T23:25:00Z
+Stopped at: Completed quick task 338
