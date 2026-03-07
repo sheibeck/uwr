@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 29 of 30 (Phases 24-29 complete, Phase 30 remaining)
 Plan: 27-03 just completed (Client World Generation Composable)
 Status: Phases 24-29 complete
-Last activity: 2026-03-07 - Completed quick task 335: Fix LLM proxy 401 Unauthorized for non-admin accounts
+Last activity: 2026-03-07 - Completed quick task 336: Character creation UX fixes
 
 Progress: [██████████] 100%
 
@@ -148,8 +148,9 @@ None yet.
 | 333 | Fix stuck Entering The Realm screen | 2026-03-07 | operational | [333-fix-stuck-entering-the-realm-screen](./quick/333-fix-stuck-entering-the-realm-screen/) |
 | 334 | Enhance look command with rich location overview | 2026-03-07 | 6c70ca3, 7c3e0b2 | [334-narrative-panel-shows-location-descripti](./quick/334-narrative-panel-shows-location-descripti/) |
 | 335 | Fix LLM proxy 401 Unauthorized for non-admin accounts | 2026-03-07 | ea49d5c | [335-fix-llm-proxy-401-unauthorized-for-non-a](./quick/335-fix-llm-proxy-401-unauthorized-for-non-a/) |
+| 336 | Character creation UX fixes (click-to-select, short names, hints) | 2026-03-07 | 3a20c0a, 9a308ce | [336-character-creation-ux-fixes-click-to-sel](./quick/336-character-creation-ux-fixes-click-to-sel/) |
 
 ## Session Continuity
 
-Last session: 2026-03-07T22:30:06.468Z
-Stopped at: Completed 27-03-PLAN.md
+Last session: 2026-03-07T22:50:08Z
+Stopped at: Completed quick task 336
