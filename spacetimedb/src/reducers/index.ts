@@ -18,6 +18,7 @@ import { registerSocialReducers } from './social';
 import { registerUiReducers } from './ui';
 import { registerWorldEventReducers } from './world_events';
 import { registerLlmReducers } from './llm';
+import { registerIntentReducers } from './intent';
 
 export const registerReducers = (deps: any) => {
   registerSocialReducers(deps);
@@ -40,4 +41,5 @@ export const registerReducers = (deps: any) => {
   registerWorldEventReducers(deps);
   registerBankReducers(deps);
   registerLlmReducers(deps);
+  registerIntentReducers(deps);
 };
