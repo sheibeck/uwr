@@ -5,7 +5,7 @@ milestone_name: milestone
 status: completed
 stopped_at: Phase 29 context gathered
 last_updated: "2026-03-07T20:19:02.399Z"
-last_activity: "2026-03-07 - Completed quick task 333: Fix stuck Entering The Realm screen"
+last_activity: "2026-03-07 - Completed quick task 334: Enhance look command with rich location overview"
 progress:
   total_phases: 7
   completed_phases: 4
@@ -143,8 +143,9 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 333 | Fix stuck Entering The Realm screen | 2026-03-07 | operational | [333-fix-stuck-entering-the-realm-screen](./quick/333-fix-stuck-entering-the-realm-screen/) |
+| 334 | Enhance look command with rich location overview | 2026-03-07 | 6c70ca3, 7c3e0b2 | [334-narrative-panel-shows-location-descripti](./quick/334-narrative-panel-shows-location-descripti/) |
 
 ## Session Continuity
 
-Last session: 2026-03-07T21:01:00Z
-Stopped at: Completed 29-03-PLAN.md (checkpoint: human-verify pending)
+Last session: 2026-03-07T22:06:00Z
+Stopped at: Completed quick task 334: Enhance look command with rich location overview
