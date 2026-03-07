@@ -1799,7 +1799,7 @@ export const LlmRequest = table(
     playerId: t.identity(),
     characterId: t.u64(),
     domain: t.string(),        // 'character_creation', 'world_gen', 'combat_narration', 'skill_gen'
-    model: t.string(),         // 'claude-sonnet-4-5' or 'claude-haiku-4-5'
+    model: t.string(),         // 'claude-opus-4-6'
     userPrompt: t.string(),
     status: t.string(),        // 'pending', 'processing', 'completed', 'error'
     errorMessage: t.string().optional(),

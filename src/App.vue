@@ -37,7 +37,7 @@
       :active-combat="null"
       :conn-active="conn.isActive"
       :context-actions="[]"
-      :is-llm-processing="isCreationLlmProcessing"
+      :is-llm-processing="isCreationLlmProcessing || isWorldGenProcessing"
       :format-timestamp="formatTimestamp"
       :creation-mode="true"
       @submit="onCreationSubmit"
@@ -889,7 +889,7 @@ const {
   });
 
 // World generation: auto-trigger procedure when WorldGenState is PENDING
-useWorldGeneration({
+const { isWorldGenProcessing } = useWorldGeneration({
   connActive: computed(() => conn.isActive),
   worldGenStates,
 });

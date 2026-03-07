@@ -47,11 +47,15 @@ export const useWorldGeneration = ({
         return;
       }
 
+      // Safety timeout: if procedure hangs for >120s, reset so retry can fire
+      const safetyTimer = setTimeout(() => { isWorldGenProcessing.value = false; }, 120_000);
       conn.procedures.generateWorldRegion({ genStateId: myState.id })
         .then(() => {
+          clearTimeout(safetyTimer);
           isWorldGenProcessing.value = false;
         })
         .catch((err: any) => {
+          clearTimeout(safetyTimer);
           console.error('[WorldGen] Generation procedure failed:', err);
           isWorldGenProcessing.value = false;
         });

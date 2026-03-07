@@ -9,6 +9,7 @@ import {
   buildSkillGenPrompt,
   buildRaceInterpretationUserPrompt,
   buildClassGenerationUserPrompt,
+  buildCombinedCreationUserPrompt,
   buildRegionGenerationUserPrompt,
 } from './data/llm_prompts';
 import { pickRippleMessage, pickDiscoveryMessage, computeRegionDanger } from './data/world_gen';
@@ -577,13 +578,14 @@ spacetimedb.procedure(
     if (!budgetOk || !state || !userPrompt) return 'error';
 
     // === PHASE 2: Call Anthropic API (NO transaction open) ===
-    const model = 'claude-haiku-4-5';
+    const model = 'gpt-4o';
     const parsed = callAnthropicApi(ctx, {
       apiKey,
       model,
       systemPrompt,
       userPrompt,
       label: `creation/${generationType}`,
+      maxAttempts: 3,
     });
 
     if (!parsed.ok && !parsed.text) {
@@ -702,6 +704,25 @@ spacetimedb.procedure(
   }
 );
 
+// Helper: if world gen fails, reset the world_gen_state to PENDING so client retries.
+// Character is kept intact — no deletion.
+function retryWorldGen(tx: any, genState: any, message: string) {
+  const char = tx.db.character.id.find(genState.characterId);
+  // Reset world_gen_state to PENDING for automatic retry
+  tx.db.world_gen_state.id.update({
+    ...tx.db.world_gen_state.id.find(genState.id),
+    step: 'PENDING',
+    errorMessage: undefined,
+    updatedAt: tx.timestamp,
+  });
+  // Notify the player
+  if (char && char.locationId !== 0n) {
+    appendPrivateEvent(tx, genState.characterId, char.ownerUserId, 'system', message);
+  } else {
+    appendCreationEvent(tx, genState.playerId, 'creation_error', message);
+  }
+}
+
 // === WORLD GENERATION LLM PROCEDURE ===
 // Generates a new region when a player triggers exploration at an uncharted location.
 // Client calls this procedure after observing WorldGenState with step='PENDING'.
@@ -780,7 +801,7 @@ spacetimedb.procedure(
         sourceRegionName, neighbors
       );
 
-      const model = 'claude-haiku-4-5';
+      const model = 'gpt-4o';
       const parsed = callAnthropicApi(ctx, {
         apiKey,
         model,
@@ -788,6 +809,7 @@ spacetimedb.procedure(
         userPrompt,
         maxTokens: 2048,
         label: 'world-gen',
+        maxAttempts: 3,
       });
 
       ctx.withTx((tx: any) => {
@@ -803,11 +825,9 @@ spacetimedb.procedure(
             errorMessage: parsed.error || 'Unknown error',
             updatedAt: tx.timestamp,
           });
-          // Notify player of error
-          if (character) {
-            appendPrivateEvent(tx, currentGenState.characterId, character.ownerUserId, 'system',
-              'The System falters. "The world beyond refuses to be remembered right now. Try again."');
-          }
+          // If character has no location (first region), revert to creation so they can retry
+          retryWorldGen(tx, currentGenState,
+            'The System falters. "The world refuses to be remembered right now. Try again."');
           return;
         }
 
@@ -833,10 +853,8 @@ spacetimedb.procedure(
             errorMessage: 'Failed to parse LLM response as JSON',
             updatedAt: tx.timestamp,
           });
-          if (character) {
-            appendPrivateEvent(tx, currentGenState.characterId, character.ownerUserId, 'system',
-              'The System grimaces. "The world tried to form but... it came out wrong. Try again."');
-          }
+          retryWorldGen(tx, currentGenState,
+            'The System grimaces. "The world tried to form but... it came out wrong. Try again."');
           return;
         }
 
@@ -848,10 +866,8 @@ spacetimedb.procedure(
             errorMessage: 'LLM response missing required fields (regionName, locations)',
             updatedAt: tx.timestamp,
           });
-          if (character) {
-            appendPrivateEvent(tx, currentGenState.characterId, character.ownerUserId, 'system',
-              'The System shakes its head. "The world beyond is... incomplete. Try again."');
-          }
+          retryWorldGen(tx, currentGenState,
+            'The System shakes its head. "The world beyond is... incomplete. Try again."');
           return;
         }
 
@@ -865,6 +881,65 @@ spacetimedb.procedure(
           generatedRegionId: region.id,
           updatedAt: tx.timestamp,
         });
+
+        // Place character in the new region if they have no location (first region)
+        if (character && character.locationId === 0n) {
+          // Find the safe/town location in the generated region, or first location
+          let homeLocation: any = null;
+          for (const loc of tx.db.location.iter()) {
+            if (loc.regionId === region.id && loc.isSafe && loc.terrainType !== 'uncharted') {
+              homeLocation = loc;
+              break;
+            }
+          }
+          if (!homeLocation) {
+            // Fallback: first non-uncharted location in region
+            for (const loc of tx.db.location.iter()) {
+              if (loc.regionId === region.id && loc.terrainType !== 'uncharted') {
+                homeLocation = loc;
+                break;
+              }
+            }
+          }
+          if (homeLocation) {
+            tx.db.character.id.update({
+              ...tx.db.character.id.find(character.id),
+              locationId: homeLocation.id,
+              boundLocationId: homeLocation.id,
+            });
+            // Ensure spawns at the new location
+            ensureSpawnsForLocation(tx, homeLocation.id);
+
+            // Build arrival narrative for first-time world entry
+            const regionDesc = data.regionDescription || `A ${data.biome || 'mysterious'} region.`;
+            const locationNpcs: string[] = [];
+            for (const npc of tx.db.npc.iter()) {
+              if (npc.locationId === homeLocation.id) {
+                locationNpcs.push(npc.name);
+              }
+            }
+            // Count nearby locations (deduplicate bidirectional connections)
+            const nearbySet = new Set<string>();
+            for (const conn of tx.db.location_connection.by_from.filter(homeLocation.id)) {
+              const loc = tx.db.location.id.find(conn.toLocationId);
+              if (loc && loc.terrainType !== 'uncharted') nearbySet.add(loc.name);
+            }
+            for (const conn of tx.db.location_connection.by_to.filter(homeLocation.id)) {
+              const loc = tx.db.location.id.find(conn.fromLocationId);
+              if (loc && loc.terrainType !== 'uncharted') nearbySet.add(loc.name);
+            }
+            const nearbyLocations = [...nearbySet];
+
+            let arrivalMsg = `You open your eyes in ${homeLocation.name}, ${data.regionName}.\n\n${regionDesc}`;
+            if (locationNpcs.length > 0) {
+              arrivalMsg += `\n\nYou notice ${locationNpcs.join(' and ')} nearby. Perhaps they have something to say.`;
+            }
+            if (nearbyLocations.length > 0) {
+              arrivalMsg += `\n\nPaths lead to ${nearbyLocations.join(', ')}. Type /look to examine your surroundings, or /travel to move.`;
+            }
+            appendPrivateEvent(tx, currentGenState.characterId, character.ownerUserId, 'narrative', arrivalMsg);
+          }
+        }
 
         // Emit ripple announcement (all players see)
         appendWorldEvent(tx, 'world',
@@ -895,6 +970,8 @@ spacetimedb.procedure(
               errorMessage: err?.message || 'Unknown procedure error',
               updatedAt: tx.timestamp,
             });
+            retryWorldGen(tx, currentGenState,
+              'The System falters. "Something went wrong creating your world. Try again."');
           }
         });
       } catch (innerErr: any) {

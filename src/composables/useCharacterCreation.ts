@@ -189,20 +189,16 @@ export const useCharacterCreation = ({
     const conn = window.__db_conn as DbConnection | undefined;
     if (!conn) return;
 
-    if (step === 'GENERATING_RACE') {
+    if (step === 'GENERATING_RACE' || step === 'GENERATING_CLASS') {
+      const genType = step === 'GENERATING_RACE' ? 'race' : 'class';
       isCreationLlmProcessing.value = true;
-      conn.procedures.generateCreationContent({ generationType: 'race' })
-        .then(() => { isCreationLlmProcessing.value = false; })
+      // Safety timeout: if procedure hangs for >90s, reset the flag
+      const safetyTimer = setTimeout(() => { isCreationLlmProcessing.value = false; }, 90_000);
+      conn.procedures.generateCreationContent({ generationType: genType })
+        .then(() => { clearTimeout(safetyTimer); isCreationLlmProcessing.value = false; })
         .catch((err: any) => {
-          console.error('[Creation] Race generation failed:', err);
-          isCreationLlmProcessing.value = false;
-        });
-    } else if (step === 'GENERATING_CLASS') {
-      isCreationLlmProcessing.value = true;
-      conn.procedures.generateCreationContent({ generationType: 'class' })
-        .then(() => { isCreationLlmProcessing.value = false; })
-        .catch((err: any) => {
-          console.error('[Creation] Class generation failed:', err);
+          clearTimeout(safetyTimer);
+          console.error(`[Creation] ${genType} generation failed:`, err);
           isCreationLlmProcessing.value = false;
         });
     }
@@ -221,28 +217,30 @@ export const useCharacterCreation = ({
     if (newStep === 'COMPLETE') {
       // Character should appear in the characters list soon via subscription
       // Watch for it and auto-select
-      const unwatch = watch(
-        () => characters.value.length,
-        () => {
-          const identity = window.__my_identity;
-          if (!identity) return;
-          // Find the most recently created character owned by current user
-          const myChars = characters.value.filter(
-            (c: any) => c.ownerUserId === userId.value
+      let unwatchFn: (() => void) | null = null;
+      const trySelect = () => {
+        const identity = window.__my_identity;
+        if (!identity) return false;
+        const myChars = characters.value.filter(
+          (c: any) => c.ownerUserId === userId.value
+        );
+        if (myChars.length > 0) {
+          const newest = myChars.reduce((a: any, b: any) =>
+            (a.createdAt?.microsSinceUnixEpoch ?? 0n) > (b.createdAt?.microsSinceUnixEpoch ?? 0n) ? a : b
           );
-          if (myChars.length > 0) {
-            // Pick the newest one
-            const newest = myChars.reduce((a: any, b: any) =>
-              (a.createdAt?.microsSinceUnixEpoch ?? 0n) > (b.createdAt?.microsSinceUnixEpoch ?? 0n) ? a : b
-            );
-            selectedCharacterId.value = newest.id.toString();
-            unwatch();
-          }
-        },
-        { immediate: true }
-      );
-      // Safety: stop watching after 10 seconds
-      setTimeout(() => unwatch(), 10000);
+          selectedCharacterId.value = newest.id.toString();
+          return true;
+        }
+        return false;
+      };
+      // Try immediately, otherwise watch for character to appear
+      if (!trySelect()) {
+        unwatchFn = watch(
+          () => characters.value.length,
+          () => { if (trySelect() && unwatchFn) unwatchFn(); }
+        );
+        setTimeout(() => { if (unwatchFn) unwatchFn(); }, 10000);
+      }
     }
   });
 

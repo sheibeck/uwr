@@ -58,7 +58,10 @@ export const useCharacters = ({
   const selectedCharacter = computed(() => {
     if (!selectedCharacterId.value) return null;
     const id = BigInt(selectedCharacterId.value);
-    return myCharacters.value.find((row) => row.id === id) ?? null;
+    const char = myCharacters.value.find((row) => row.id === id) ?? null;
+    // Character with no location is still awaiting world generation — not ready for game
+    if (char && char.locationId === 0n) return null;
+    return char;
   });
 
   const currentLocation = computed(() => {

@@ -68,9 +68,7 @@ export const registerCreationReducers = (deps: any) => {
     recomputeCharacterDerived,
     grantStarterItems,
     ensureStarterItemTemplates,
-    ensureSpawnsForLocation,
     appendPrivateEvent,
-    appendLocationEvent,
   } = deps;
 
   // start_creation — called when client detects no character and no creation state
@@ -320,16 +318,6 @@ export const registerCreationReducers = (deps: any) => {
 
         // Finalize character creation
         const userId = requirePlayerUserId(ctx);
-        const world = ctx.db.world_state.id.find(1n);
-        if (!world) {
-          appendCreationEvent(ctx, ctx.sender, 'creation_error', 'The world has not yet been initialized. The System is... embarrassed.');
-          return;
-        }
-        const startingLocation = ctx.db.location.id.find(world.startingLocationId);
-        if (!startingLocation) {
-          appendCreationEvent(ctx, ctx.sender, 'creation_error', 'No starting location found. The void has no doors.');
-          return;
-        }
 
         // Parse classStats from creation state
         let primaryStat: string = 'str';
@@ -371,8 +359,8 @@ export const registerCreationReducers = (deps: any) => {
           level: 1n,
           xp: 0n,
           gold: 0n,
-          locationId: startingLocation.id,
-          boundLocationId: startingLocation.id,
+          locationId: 0n,       // Temporary — world gen will place character
+          boundLocationId: 0n,  // Temporary — world gen will set bind stone
           str: classStats.str,
           dex: classStats.dex,
           cha: classStats.cha,
@@ -481,45 +469,21 @@ export const registerCreationReducers = (deps: any) => {
 
         // Emit creation complete events
         appendCreationEvent(ctx, ctx.sender, 'creation', `Welcome to the world, ${candidateName}. Try not to die immediately. It's tedious to watch.`);
-        appendPrivateEvent(ctx, character.id, userId, 'system', `${candidateName} enters the world.`);
-        appendLocationEvent(
-          ctx,
-          startingLocation.id,
-          'system',
-          `${candidateName} steps into the area.`,
-          character.id
-        );
+        appendPrivateEvent(ctx, character.id, userId, 'system',
+          'The world stirs. Beyond the edges of what is known, something ancient begins to remember itself...');
 
-        ensureSpawnsForLocation(ctx, startingLocation.id);
-
-        // Trigger initial world generation for this character
-        // Find any uncharted location in the world (not necessarily adjacent to start)
-        let sourceUncharted: any = null;
-        for (const loc of ctx.db.location.iter()) {
-          if (loc.terrainType === 'uncharted') {
-            // Check lock: no existing WorldGenState for this sourceLocationId
-            const existing = [...ctx.db.world_gen_state.by_source_location.filter(loc.id)]
-              .find((s: any) => s.step !== 'ERROR');
-            if (!existing) {
-              sourceUncharted = loc;
-              break;
-            }
-          }
-        }
-        if (sourceUncharted) {
-          ctx.db.world_gen_state.insert({
-            id: 0n,
-            playerId: ctx.sender,
-            characterId: character.id,
-            sourceLocationId: sourceUncharted.id,
-            sourceRegionId: sourceUncharted.regionId,
-            step: 'PENDING',
-            createdAt: ctx.timestamp,
-            updatedAt: ctx.timestamp,
-          });
-          appendPrivateEvent(ctx, character.id, userId, 'system',
-            'The world stirs. Beyond the edges of what is known, something ancient begins to remember itself...');
-        }
+        // Trigger world generation — this IS the starting experience.
+        // The world gen procedure will create the region and place the character there.
+        ctx.db.world_gen_state.insert({
+          id: 0n,
+          playerId: ctx.sender,
+          characterId: character.id,
+          sourceLocationId: 0n,  // No source — this is the first region
+          sourceRegionId: 0n,    // No source region
+          step: 'PENDING',
+          createdAt: ctx.timestamp,
+          updatedAt: ctx.timestamp,
+        });
 
         break;
       }

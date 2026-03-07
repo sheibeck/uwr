@@ -51,6 +51,10 @@ export function incrementBudget(ctx: any, playerId: any): void {
   });
 }
 
+// === Provider abstraction ===
+// Set to 'openai' or 'anthropic'
+export const LLM_PROVIDER: 'openai' | 'anthropic' = 'openai';
+
 // Build Anthropic Messages API request body
 export function buildAnthropicRequest(
   model: string,
@@ -72,7 +76,24 @@ export function buildAnthropicRequest(
   });
 }
 
-// Parse Anthropic Messages API response. Returns { ok, text, usage, error }.
+// Build OpenAI Chat Completions API request body
+export function buildOpenAiRequest(
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens: number = 1024,
+): string {
+  return JSON.stringify({
+    model,
+    max_tokens: maxTokens,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+  });
+}
+
+// Parse Anthropic Messages API response
 export function parseAnthropicResponse(responseText: string, responseOk: boolean): {
   ok: boolean;
   text: string;
@@ -105,8 +126,42 @@ export function parseAnthropicResponse(responseText: string, responseOk: boolean
   }
 }
 
+// Parse OpenAI Chat Completions API response
+export function parseOpenAiResponse(responseText: string, responseOk: boolean): {
+  ok: boolean;
+  text: string;
+  usage: { inputTokens: number; outputTokens: number; cacheReadTokens: number } | null;
+  error: string | null;
+} {
+  try {
+    const body = JSON.parse(responseText);
+    if (responseOk) {
+      return {
+        ok: true,
+        text: body.choices?.[0]?.message?.content ?? '',
+        usage: {
+          inputTokens: body.usage?.prompt_tokens ?? 0,
+          outputTokens: body.usage?.completion_tokens ?? 0,
+          cacheReadTokens: 0,
+        },
+        error: null,
+      };
+    } else {
+      return {
+        ok: false,
+        text: '',
+        usage: null,
+        error: body.error?.message ?? 'Unknown API error',
+      };
+    }
+  } catch {
+    return { ok: false, text: '', usage: null, error: 'Failed to parse API response' };
+  }
+}
+
 /**
- * Shared Anthropic API caller for all procedures.
+ * Shared LLM API caller for all procedures.
+ * Supports Anthropic and OpenAI backends via LLM_PROVIDER constant.
  * Handles request building, retries, response parsing, and usage logging.
  * Must be called OUTSIDE a transaction (ctx.http.fetch cannot overlap with ctx.withTx).
  */
@@ -118,25 +173,33 @@ export function callAnthropicApi(
     systemPrompt: string;
     userPrompt: string;
     maxTokens?: number;
-    label: string; // for logging, e.g. "creation/race", "world-gen"
+    label: string;
     maxAttempts?: number;
   }
 ): { ok: boolean; text: string; usage: { inputTokens: number; outputTokens: number; cacheReadTokens: number } | null; error: string | null } {
   const { apiKey, model, systemPrompt, userPrompt, maxTokens = 1024, label, maxAttempts = 2 } = opts;
-  const requestBody = buildAnthropicRequest(model, systemPrompt, userPrompt, maxTokens);
+
+  const isOpenAi = LLM_PROVIDER === 'openai';
+  const requestBody = isOpenAi
+    ? buildOpenAiRequest(model, systemPrompt, userPrompt, maxTokens)
+    : buildAnthropicRequest(model, systemPrompt, userPrompt, maxTokens);
+  const url = isOpenAi
+    ? 'https://api.openai.com/v1/chat/completions'
+    : 'https://api.anthropic.com/v1/messages';
+  const headers: Record<string, string> = isOpenAi
+    ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` }
+    : { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' };
 
   let responseText = '';
   let responseOk = false;
 
+  console.log(`[${label}] Starting LLM call, provider=${LLM_PROVIDER}, model=${model}, body_len=${requestBody.length}`);
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const response = ctx.http.fetch('https://api.anthropic.com/v1/messages', {
+      const response = ctx.http.fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-        },
+        headers,
         body: requestBody,
         timeout: TimeDuration.fromMillis(60000),
       });
@@ -155,7 +218,9 @@ export function callAnthropicApi(
     }
   }
 
-  const parsed = parseAnthropicResponse(responseText, responseOk);
+  const parsed = isOpenAi
+    ? parseOpenAiResponse(responseText, responseOk)
+    : parseAnthropicResponse(responseText, responseOk);
   if (parsed.usage) {
     console.log(`[${label}/${model}] LLM usage: input=${parsed.usage.inputTokens}, output=${parsed.usage.outputTokens}, cache_read=${parsed.usage.cacheReadTokens}`);
   }

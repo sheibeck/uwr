@@ -155,6 +155,57 @@ Respond with ONLY valid JSON matching this schema:
 ${CLASS_GENERATION_SCHEMA}`;
 }
 
+// Combined race + class generation in a single call (avoids SpacetimeDB HTTP client issues with sequential requests)
+export const COMBINED_CREATION_SCHEMA = `{
+  "raceName": "string — short evocative name (2-4 words max)",
+  "narrative": "string — 2-3 sentences of sardonic System commentary about this race",
+  "bonuses": {
+    "primary": { "stat": "str|dex|int|wis|cha", "value": 2 },
+    "secondary": { "stat": "str|dex|int|wis|cha", "value": 1 },
+    "flavor": "string — one unique racial trait description"
+  },
+  "className": "string — wildly creative class name (not generic fantasy)",
+  "classDescription": "string — 2-3 sentences of sardonic class description",
+  "stats": {
+    "primaryStat": "str|dex|int|wis|cha",
+    "secondaryStat": "str|dex|int|wis|cha|none",
+    "bonusHp": "number (0-20, warrior types get more)",
+    "bonusMana": "number (0-30, mystic types get more)",
+    "armorProficiency": "cloth|leather|chain|plate",
+    "usesMana": "boolean"
+  },
+  "abilities": [
+    {
+      "name": "string — evocative ability name",
+      "description": "string — sardonic description of the ability",
+      "damageType": "physical|fire|ice|lightning|shadow|holy|nature|arcane",
+      "baseDamage": "number (8-15 for level 1)",
+      "cooldownSeconds": "number (4-12)",
+      "manaCost": "number (0-15, 0 for physical non-mana abilities)",
+      "effect": "none|dot|heal|buff|debuff|stun",
+      "effectDuration": "number (0 for none, 2-4 for others)"
+    }
+  ]
+}`;
+
+export function buildCombinedCreationUserPrompt(playerDescription: string, archetype: string): string {
+  return `The new arrival describes themselves as: "${playerDescription}"
+Archetype chosen: ${archetype}
+
+Do TWO things in a single response:
+
+1. INTERPRET their race description into a race for UWR. Be creative — if generic, make it interesting. If absurd, lean into it with sardonic delight.
+
+2. GENERATE a wildly creative and unique class for this ${archetype} of that race. The class name should be evocative and unexpected — not "Fire Mage" but "Ember-Blooded Pyroclast." The class should feel born from THIS race and THIS archetype.
+
+Generate exactly 3 starting abilities for level 1. Each meaningfully different — vary damage types, effects, playstyles. Names should be creative and memorable.
+
+${archetype === 'warrior' ? 'As a warrior archetype, lean toward physical stats, higher HP, and melee-oriented abilities. Mana costs should be low or zero.' : 'As a mystic archetype, lean toward magical stats, higher mana, and spell-oriented abilities. Embrace magical damage types.'}
+
+Respond with ONLY valid JSON matching this schema:
+${COMBINED_CREATION_SCHEMA}`;
+}
+
 // === WORLD GENERATION JSON SCHEMAS ===
 
 export const REGION_GENERATION_SCHEMA = `{"regionName":"string","regionDescription":"string (2-3 sentences)","biome":"volcanic|forest|tundra|desert|swamp|mountains|plains|coastal|cavern|ruins","dominantFaction":"string","landmarks":["string"],"threats":["string"],"locations":[{"name":"string","terrainType":"mountains|woods|plains|swamp|dungeon|town|city","isSafe":false,"levelOffset":0,"connectsTo":["string"]}],"npcs":[{"name":"string","npcType":"vendor|quest|lore","locationName":"string","description":"string","greeting":"string"}],"enemies":[{"name":"string","creatureType":"beast|undead|humanoid|elemental|construct|aberration","role":"melee|ranged|caster","terrainTypes":"string","groupMin":1,"groupMax":3,"level":1}]}`;

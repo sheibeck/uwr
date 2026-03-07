@@ -35,7 +35,7 @@ export const registerLlmReducers = (deps: any) => {
     }
 
     // 3. Validate model
-    const validModels = ['claude-sonnet-4-5', 'claude-haiku-4-5'];
+    const validModels = ['claude-opus-4-6'];
     if (!validModels.includes(model)) {
       throw new SenderError(`Invalid model: ${model}`);
     }

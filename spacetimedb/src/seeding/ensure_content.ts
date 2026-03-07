@@ -26,12 +26,11 @@ import {
   ensureRecipeScrollItemTemplates,
   ensureCraftingModifierItemTemplates,
 } from './ensure_items';
-import { ensureNpcs, ensureQuestTemplates, ensureWorldLayout, ensureEnemyAbilities, ensureDialogueOptions } from './ensure_world';
-import { ensureLootTables, ensureMaterialLootEntries, ensureVendorInventory, ensureLocationEnemyTemplates, ensureEnemyTemplatesAndRoles, ensureNamedEnemies } from './ensure_enemies';
+// Quest templates and dialogue options removed — world content is now procedurally generated
+import { ensureLootTables, ensureMaterialLootEntries } from './ensure_enemies';
 import {
   DAY_DURATION_MICROS,
   getWorldState,
-  ensureLocationRuntimeBootstrap,
   ensureSpawnsForLocation,
   respawnLocationSpawns
 } from '../helpers/location';
@@ -105,30 +104,35 @@ export function ensureLlmCleanupScheduled(ctx: any) {
 export function syncAllContent(ctx: any) {
   ensureRaces(ctx);
   ensureFactions(ctx);
-  ensureWorldLayout(ctx);
+  ensureWorldState(ctx);
+  // Game mechanics seeding (items, recipes, abilities — not geography)
   ensureStarterItemTemplates(ctx);
   ensureResourceItemTemplates(ctx);
-  ensureGearMaterialItemTemplates(ctx);   // Phase 13: crafting materials (after resource items)
-  ensureCraftingModifierItemTemplates(ctx); // Phase 13: crafting modifier items for affix dialog
+  ensureGearMaterialItemTemplates(ctx);
+  ensureCraftingModifierItemTemplates(ctx);
   ensureFoodItemTemplates(ctx);
   ensureWorldDropGearTemplates(ctx);
   ensureWorldDropJewelryTemplates(ctx);
-  ensureBossDropTemplates(ctx);           // Boss-unique rare drops (must be before ensureNamedEnemies)
-  ensureCraftingBaseGearTemplates(ctx);   // Phase 13: base gear templates for recipe output
+  ensureBossDropTemplates(ctx);
+  ensureCraftingBaseGearTemplates(ctx);
   ensureAbilityTemplates(ctx);
   ensureRecipeTemplates(ctx);
-  ensureGearRecipeTemplates(ctx);         // Phase 13: gear recipes (after material + base gear templates)
-  ensureRecipeScrollItemTemplates(ctx);   // Phase 13: scroll items (after gear recipes)
-  ensureNpcs(ctx);
-  ensureEnemyTemplatesAndRoles(ctx);
-  ensureEnemyAbilities(ctx);
-  ensureQuestTemplates(ctx);              // Must be after enemies are created
-  ensureDialogueOptions(ctx);            // Must be after quests are created
-  ensureLocationEnemyTemplates(ctx);
-  ensureLocationRuntimeBootstrap(ctx);
+  ensureGearRecipeTemplates(ctx);
+  ensureRecipeScrollItemTemplates(ctx);
   ensureLootTables(ctx);
-  ensureNamedEnemies(ctx);                // Named enemies with boss loot tables (after loot tables + enemy templates)
-  ensureMaterialLootEntries(ctx);         // Phase 13: material + scroll drops (after loot tables + material/scroll templates)
-  ensureVendorInventory(ctx);
+  ensureMaterialLootEntries(ctx);
+  // No world geography seeding — regions, locations, NPCs, vendors are all procedurally generated
+}
+
+function ensureWorldState(ctx: any) {
+  const world = ctx.db.world_state.id.find(1n);
+  if (!world) {
+    ctx.db.world_state.insert({
+      id: 1n,
+      startingLocationId: 0n, // No fixed starting location — each character gets a generated one
+      isNight: false,
+      nextTransitionAtMicros: ctx.timestamp.microsSinceUnixEpoch + DAY_DURATION_MICROS,
+    });
+  }
 }
 

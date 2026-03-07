@@ -81,7 +81,9 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any): any {
   const locations = parsed.locations || [];
   const regionDescription = parsed.regionDescription || `A ${parsed.biome || 'mysterious'} region.`;
 
+  let firstSafeSet = false;
   for (const loc of locations) {
+    const isSafe = loc.isSafe === true;
     const inserted = tx.db.location.insert({
       id: 0n,
       name: loc.name || 'Unknown Location',
@@ -89,11 +91,12 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any): any {
       zone: parsed.regionName || 'Generated',
       regionId: region.id,
       levelOffset: BigInt(loc.levelOffset || 0),
-      isSafe: loc.isSafe === true,
+      isSafe,
       terrainType: loc.terrainType || 'plains',
-      bindStone: false,
-      craftingAvailable: false,
+      bindStone: isSafe && !firstSafeSet,    // First safe location gets a bind stone
+      craftingAvailable: isSafe && !firstSafeSet, // and crafting
     });
+    if (isSafe && !firstSafeSet) firstSafeSet = true;
     locationsByName[loc.name] = inserted;
   }
 
@@ -119,9 +122,9 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any): any {
     }
   }
 
-  // 5. Connect the new region's first location to the source location
+  // 5. Connect the new region's first location to the source location (if not first region)
   const locationNames = Object.keys(locationsByName);
-  if (locationNames.length > 0) {
+  if (locationNames.length > 0 && genState.sourceLocationId !== 0n) {
     const firstLocation = locationsByName[locationNames[0]];
     connectLocations(tx, firstLocation.id, genState.sourceLocationId);
   }
