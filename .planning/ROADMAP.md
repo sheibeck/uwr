@@ -74,11 +74,12 @@ Plans:
   3. After choosing Warrior or Mystic archetype, the LLM generates a wildly creative unique class with name, description, and mechanical stats
   4. Going back on a choice triggers a warning that the previously generated content may be lost forever
   5. The player chooses a starting ability from their generated class, and all creation state survives page refresh
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 26-01: TBD
-- [ ] 26-02: TBD
+- [ ] 26-01-PLAN.md — Server schema (CharacterCreationState, EventCreation tables), class lookup fallbacks, and creation state machine reducer
+- [ ] 26-02-PLAN.md — Creation-specific LLM procedure with race interpretation and class generation, JSON prompt schemas
+- [ ] 26-03-PLAN.md — Client integration: bindings, useCharacterCreation composable, App.vue routing, keyword handler, end-to-end verification
 
 ### Phase 27: Procedural World Generation
 **Goal**: The world creates itself around players -- entering the world triggers persistent region generation with coherent, evolving content
@@ -187,7 +188,7 @@ Phases execute in numeric order: 24 -> 25 -> 26 -> 27 -> 28 -> 29 -> 30
 |-------|------|----------------|--------|-----------|
 | 24 | LLM Pipeline Foundation | 3/3 | Complete | 2026-03-07 |
 | 25 | Narrative UI Shell | 0/3 | Planning complete | - |
-| 26 | Narrative Character Creation | 0/? | Not started | - |
+| 26 | Narrative Character Creation | 0/3 | Planning complete | - |
 | 27 | Procedural World Generation | 0/? | Not started | - |
 | 28 | Dynamic Skill Generation | 0/? | Not started | - |
 | 29 | NPC & Quest Generation | 0/? | Not started | - |
