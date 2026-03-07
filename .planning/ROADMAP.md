@@ -40,11 +40,12 @@ v2.0 transforms UWR from a traditional RPG with fixed content into a living worl
   3. Every LLM request shows its lifecycle status (pending/processing/completed/error) in a trackable table
   4. A player who exceeds their daily generation budget receives a clear message and the call is blocked
   5. When the LLM API is unreachable or returns an error, the game remains playable with appropriate fallback behavior
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 24-01: TBD
-- [ ] 24-02: TBD
+- [ ] 24-01-PLAN.md — Server tables, helpers, prompt templates, admin API key reducer
+- [ ] 24-02-PLAN.md — Validation reducer and call_llm procedure with retry and error handling
+- [ ] 24-03-PLAN.md — Client composable, error cleanup scheduler, binding regeneration, end-to-end verification
 
 ### Phase 25: Narrative UI Shell
 **Goal**: Players interact with the game primarily through a narrative chat console with persistent status information
@@ -185,7 +186,7 @@ Phases execute in numeric order: 24 -> 25 -> 26 -> 27 -> 28 -> 29 -> 30
 
 | Phase | Name | Plans Complete | Status | Completed |
 |-------|------|----------------|--------|-----------|
-| 24 | LLM Pipeline Foundation | 0/? | Not started | - |
+| 24 | LLM Pipeline Foundation | 0/3 | Planning complete | - |
 | 25 | Narrative UI Shell | 0/? | Not started | - |
 | 26 | Narrative Character Creation | 0/? | Not started | - |
 | 27 | Procedural World Generation | 0/? | Not started | - |
@@ -195,4 +196,4 @@ Phases execute in numeric order: 24 -> 25 -> 26 -> 27 -> 28 -> 29 -> 30
 
 ---
 *Created: 2026-03-06*
-*Last updated: 2026-03-06*
+*Last updated: 2026-03-07*
