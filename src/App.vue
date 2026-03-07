@@ -1367,6 +1367,12 @@ const onNarrativeSubmit = (text: string) => {
     return;
   }
 
+  // Check if bare text matches an NPC name — enter conversation mode
+  const npcMatch = npcsHere.value?.find(n => n.name.toLowerCase() === lower);
+  if (npcMatch) {
+    enterConversation(npcMatch.id, npcMatch.name);
+  }
+
   // Natural language: route through server-side intent router
   submitIntentReducer({ characterId: selectedCharacter.value.id, text: text.trim() });
 };
@@ -1386,6 +1392,11 @@ const onCreationSubmit = (text: string) => {
   if (isInCreation.value) {
     submitCreationInput(keyword);
   } else if (selectedCharacter.value) {
+    // Check if keyword matches an NPC name — enter conversation mode
+    const npc = npcsHere.value?.find(n => n.name.toLowerCase() === keyword.toLowerCase());
+    if (npc) {
+      enterConversation(npc.id, npc.name);
+    }
     submitIntentReducer({ characterId: selectedCharacter.value.id, text: keyword });
   }
 };

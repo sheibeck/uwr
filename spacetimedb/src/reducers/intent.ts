@@ -39,6 +39,26 @@ export const registerIntentReducers = (deps: any) => {
 
     const lower = raw.toLowerCase();
 
+    // --- HELP ---
+    if (lower === 'help' || lower === 'h' || lower === '?') {
+      const helpText = [
+        'Commands:',
+        '  [look] (l) — Survey your surroundings. Shows location, NPCs, enemies, resources, exits.',
+        '  [look] <name> — Inspect a specific NPC, enemy, or player.',
+        '  go <place> — Travel to a connected location. You can also type the location name directly.',
+        '  [travel] — List available destinations.',
+        '  say <message> — Speak aloud for everyone at your location to hear.',
+        '  whisper <name> <message> — Send a private message to another player.',
+        '  hail <name> — Start a conversation with an NPC.',
+        '  con <name> — Assess the threat level of an enemy or your standing with an NPC.',
+        '  attack — Engage enemies at your location.',
+        '  flee — Attempt to escape from combat.',
+        '  camp — Rest briefly.',
+      ];
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', helpText.join('\n'));
+      return;
+    }
+
     // --- LOOK ---
     const lookMatch = raw.match(/^(?:look|l)(?:\s+(.+))?$/i);
     if (lookMatch) {
@@ -56,7 +76,7 @@ export const registerIntentReducers = (deps: any) => {
         parts.push(location.description);
 
         // 2. Day/Night
-        const worldState = ctx.db.worldState.id.find(0n);
+        const worldState = ctx.db.world_state.id.find(1n);
         if (worldState) {
           parts.push(`It is currently ${worldState.isNight ? 'nighttime' : 'daytime'}.`);
         }
@@ -505,6 +525,16 @@ export const registerIntentReducers = (deps: any) => {
         }
       }
       return;
+    }
+
+    // --- IMPLICIT HAIL: bare NPC name match ---
+    for (const npc of ctx.db.npc.by_location.filter(character.locationId)) {
+      if ((npc as any).name.toLowerCase() === lower || (npc as any).name.toLowerCase().includes(lower)) {
+        const greeting = (npc as any).greeting || `${(npc as any).name} regards you silently.`;
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc',
+          `${(npc as any).name} says, "${greeting}"`);
+        return;
+      }
     }
 
     // --- SARDONIC FALLBACK ---
