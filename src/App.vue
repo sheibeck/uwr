@@ -1347,8 +1347,9 @@ const onNarrativeSubmit = (text: string) => {
   if (conversationNpcId.value) {
     // End conversation on farewell keywords
     if (/^(?:bye|farewell|leave|goodbye|end|quit|exit|back)$/i.test(lower)) {
+      const npc = npcs.value.find(n => n.id === conversationNpcId.value);
       conversationNpcId.value = null;
-      submitIntentReducer({ characterId: selectedCharacter.value.id, text: text.trim() });
+      addLocalEvent('system', `You end your conversation with ${npc?.name || 'the NPC'}.`, 'private');
       return;
     }
     talkToNpcReducer({

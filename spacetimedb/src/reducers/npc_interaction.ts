@@ -68,7 +68,7 @@ export const registerNpcInteractionReducers = (deps: any) => {
 
     // Log player message to NpcDialog
     appendNpcDialog(ctx, character.id, npc.id, `You: "${message}"`);
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', `You say to ${npc.name}: "${message}"`);
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'say', `You say to ${npc.name}: "${message}"`);
 
     // Create LlmTask for client proxy to pick up
     ctx.db.llm_task.insert({
