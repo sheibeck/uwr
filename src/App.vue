@@ -1297,6 +1297,9 @@ const narrativeContextActions = useContextActions({
 // LLM processing state for the narrative indicator
 const isNarrativeLlmProcessing = ref(false);
 
+// submitIntent reducer for natural language routing
+const submitIntentReducer = useReducer(reducers.submitIntent);
+
 // Handle submissions from NarrativeConsole input
 const onNarrativeSubmit = (text: string) => {
   if (!text.trim()) return;
@@ -1306,10 +1309,9 @@ const onNarrativeSubmit = (text: string) => {
     submitCommand();
     return;
   }
-  // Natural language: use existing submitCommand which handles say/look/hail etc.
-  // TODO: Switch to submitIntent after Plan 01 deploys and bindings are regenerated
-  commandText.value = text;
-  submitCommand();
+  // Natural language: route through server-side intent router
+  if (!selectedCharacter.value) return;
+  submitIntentReducer({ characterId: selectedCharacter.value.id, text: text.trim() });
 };
 
 // Handle panel opening from NarrativeHud

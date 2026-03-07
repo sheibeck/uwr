@@ -135,6 +135,7 @@ import DepositToBankReducer from "./deposit_to_bank_reducer";
 import WithdrawFromBankReducer from "./withdraw_from_bank_reducer";
 import SetApiKeyReducer from "./set_api_key_reducer";
 import ValidateLlmRequestReducer from "./validate_llm_request_reducer";
+import SubmitIntentReducer from "./submit_intent_reducer";
 
 // Import all procedure arg schemas
 import * as CallLlmProcedure from "./call_llm_procedure";
@@ -1670,6 +1671,7 @@ const reducersSchema = __reducers(
   __reducerSchema("withdraw_from_bank", WithdrawFromBankReducer),
   __reducerSchema("set_api_key", SetApiKeyReducer),
   __reducerSchema("validate_llm_request", ValidateLlmRequestReducer),
+  __reducerSchema("submit_intent", SubmitIntentReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
