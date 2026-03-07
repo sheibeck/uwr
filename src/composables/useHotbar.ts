@@ -6,33 +6,19 @@ import type {
   CharacterCast,
   Character,
   HotbarSlot,
-  ItemTemplate,
 } from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
 
 type HotbarDisplaySlot = {
   slot: number;
-  abilityKey: string;
+  abilityTemplateId: bigint;
   name: string;
   description: string;
-  resource: string;
+  resourceType: string;
   kind: string;
-  level: bigint;
+  levelRequired: bigint;
   cooldownSeconds: bigint;
   cooldownRemaining: number;
-  itemCount?: number;
-  itemTemplateId?: bigint | null;
-};
-
-type InventoryItemRef = {
-  id: bigint;
-  name: string;
-  slot: string;
-  quantity: bigint;
-  stackable: boolean;
-  usable: boolean;
-  eatable: boolean;
-  templateId: bigint;
 };
 
 type UseHotbarArgs = {
@@ -54,15 +40,15 @@ type UseHotbarArgs = {
   onResurrectRequested?: (corpseId: bigint) => void;
   onCorpseSummonRequested?: (targetCharacterId: bigint) => void;
   addLocalEvent?: (kind: string, message: string) => void;
-  inventoryItems?: Ref<InventoryItemRef[]>;
-  itemTemplates?: Ref<ItemTemplate[]>;
-  eatFoodFn?: (itemInstanceId: bigint) => void;
 };
 
 const toMicros = (seconds: bigint | undefined) => {
   if (!seconds || seconds <= 0n) return 0;
   return Math.round(Number(seconds) * 1_000_000);
 };
+
+// Stable string key from bigint for Map usage
+const idKey = (id: bigint) => id.toString();
 
 export const useHotbar = ({
   connActive,
@@ -83,58 +69,49 @@ export const useHotbar = ({
   onResurrectRequested,
   onCorpseSummonRequested,
   addLocalEvent,
-  inventoryItems,
-  itemTemplates,
-  eatFoodFn,
 }: UseHotbarArgs) => {
   const setHotbarReducer = useReducer(reducers.setHotbarSlot);
   const useAbilityReducer = useReducer(reducers.useAbility);
 
-  const localCast = ref<{ abilityKey: string; startMicros: number; durationMicros: number } | null>(
+  // Local prediction state keyed by abilityTemplateId string
+  const localCast = ref<{ abilityTemplateId: bigint; startMicros: number; durationMicros: number } | null>(
     null
   );
   const localCooldowns = ref(new Map<string, number>());
   const cooldownReceivedAt = ref(new Map<string, number>());
   const hotbarPulseKey = ref<string | null>(null);
 
+  // All abilities owned by this character
   const availableAbilities = computed(() => {
     if (!selectedCharacter.value) return [];
-    const className = selectedCharacter.value.className.toLowerCase();
-    const level = Number(selectedCharacter.value.level);
+    const charId = selectedCharacter.value.id;
     return abilityTemplates.value.filter(
-      (ability) =>
-        ability.className.toLowerCase() === className && Number(ability.level) <= level
+      (ability) => ability.characterId === charId
     );
   });
 
+  // Lookup by id (bigint -> AbilityTemplate)
   const abilityLookup = computed(() => {
     const map = new Map<string, AbilityTemplate>();
     for (const ability of abilityTemplates.value) {
-      map.set(ability.key, ability);
+      map.set(idKey(ability.id), ability);
     }
     return map;
   });
 
   const hotbarAssignments = computed(() => {
-    const slots: { slot: number; abilityKey: string; name: string }[] = [];
+    const slots: { slot: number; abilityTemplateId: bigint; name: string }[] = [];
     for (let i = 1; i <= 10; i += 1) {
-      slots.push({ slot: i, abilityKey: '', name: 'Empty' });
+      slots.push({ slot: i, abilityTemplateId: 0n, name: 'Empty' });
     }
     if (!selectedCharacter.value) return slots;
     for (const row of hotbarSlots.value) {
-      if (row.characterId.toString() !== selectedCharacter.value.id.toString()) continue;
+      if (row.characterId !== selectedCharacter.value.id) continue;
       const target = slots[row.slot - 1];
       if (!target) continue;
-      target.abilityKey = row.abilityKey;
-      if (row.abilityKey.startsWith('item:')) {
-        const templateId = BigInt(row.abilityKey.split(':')[1]);
-        const match = inventoryItems?.value.find(i => i.templateId === templateId);
-        const template = itemTemplates?.value.find(t => t.id === templateId);
-        target.name = match?.name ?? template?.name ?? row.abilityKey;
-      } else {
-        const ability = availableAbilities.value.find((item) => item.key === row.abilityKey);
-        target.name = ability?.name ?? row.abilityKey;
-      }
+      target.abilityTemplateId = row.abilityTemplateId;
+      const ability = abilityLookup.value.get(idKey(row.abilityTemplateId));
+      target.name = ability?.name ?? 'Unknown';
     }
     return slots;
   });
@@ -143,8 +120,8 @@ export const useHotbar = ({
     if (!selectedCharacter.value) return new Map<string, { durationMicros: number; receivedAt: number }>();
     const map = new Map<string, { durationMicros: number; receivedAt: number }>();
     for (const row of abilityCooldowns.value) {
-      if (row.characterId.toString() !== selectedCharacter.value.id.toString()) continue;
-      const key = row.abilityKey;
+      if (row.characterId !== selectedCharacter.value.id) continue;
+      const key = idKey(row.abilityTemplateId);
       const receivedAt = cooldownReceivedAt.value.get(key) ?? Date.now() * 1000;
       map.set(key, { durationMicros: Number(row.durationMicros), receivedAt });
     }
@@ -155,19 +132,16 @@ export const useHotbar = ({
     () => abilityCooldowns.value,
     (rows) => {
       const charId = selectedCharacter.value?.id;
-      if (!charId) return;
+      if (charId == null) return;
       const activeKeys = new Set<string>();
       for (const row of rows) {
-        if (row.characterId.toString() !== charId.toString()) continue;
-        const key = row.abilityKey;
+        if (row.characterId !== charId) continue;
+        const key = idKey(row.abilityTemplateId);
         activeKeys.add(key);
-        // Only record receivedAt the first time this key is seen (for reconnect case)
-        // Do NOT delete localCooldowns here — local runs its full countdown as the primary display
         if (!cooldownReceivedAt.value.has(key)) {
           cooldownReceivedAt.value.set(key, Date.now() * 1000);
         }
       }
-      // Clean up receivedAt entries for rows that no longer exist
       for (const key of cooldownReceivedAt.value.keys()) {
         if (!activeKeys.has(key)) {
           cooldownReceivedAt.value.delete(key);
@@ -184,18 +158,14 @@ export const useHotbar = ({
       const assignment =
         slots.get(slotIndex) ?? {
           slot: slotIndex,
-          abilityKey: '',
+          abilityTemplateId: 0n,
           name: 'Empty',
         };
-      const ability = assignment.abilityKey
-        ? abilityLookup.value.get(assignment.abilityKey)
-        : undefined;
-      const localReadyAt = assignment.abilityKey
-        ? localCooldowns.value.get(assignment.abilityKey) ?? 0
-        : 0;
-      const serverCd = assignment.abilityKey
-        ? cooldownByAbility.value.get(assignment.abilityKey)
-        : undefined;
+      const aid = assignment.abilityTemplateId;
+      const aidStr = idKey(aid);
+      const ability = aid ? abilityLookup.value.get(aidStr) : undefined;
+      const localReadyAt = aid ? localCooldowns.value.get(aidStr) ?? 0 : 0;
+      const serverCd = aid ? cooldownByAbility.value.get(aidStr) : undefined;
       const localRemaining = localReadyAt ? localReadyAt - nowMicros.value : 0;
       const serverRemaining = serverCd
         ? Math.max(0, serverCd.durationMicros - (nowMicros.value - serverCd.receivedAt))
@@ -203,8 +173,8 @@ export const useHotbar = ({
 
       const isLocallyCastingThisAbility = Boolean(
         localCast.value &&
-          assignment.abilityKey &&
-          localCast.value.abilityKey === assignment.abilityKey &&
+          aid &&
+          localCast.value.abilityTemplateId === aid &&
           nowMicros.value < localCast.value.startMicros + localCast.value.durationMicros
       );
       const effectiveLocalRemaining = isLocallyCastingThisAbility ? 0 : localRemaining;
@@ -220,47 +190,34 @@ export const useHotbar = ({
           ? Math.min(cooldownRemainingRaw, configuredCooldownSeconds)
           : Math.min(cooldownRemainingRaw, GCD_SECONDS);
       const resolvedDescription =
-        ability?.description?.trim() || (assignment.abilityKey ? `${assignment.name} ability.` : '');
-
-      // Item slot handling
-      const isItemSlot = assignment.abilityKey.startsWith('item:');
-      let itemCount: number | undefined;
-      let itemTemplateId: bigint | null | undefined;
-      if (isItemSlot) {
-        const templateId = BigInt(assignment.abilityKey.split(':')[1]);
-        itemTemplateId = templateId;
-        const matches = inventoryItems?.value.filter(i => i.templateId === templateId) ?? [];
-        itemCount = matches.reduce((sum, i) => sum + Number(i.quantity), 0);
-      }
+        ability?.description?.trim() || (aid ? `${assignment.name} ability.` : '');
 
       return {
         ...assignment,
         description: resolvedDescription,
-        resource: ability?.resource ?? '',
-        kind: isItemSlot ? 'item' : (ability?.kind ?? ''),
-        level: ability?.level ?? 0n,
-        cooldownSeconds: isItemSlot ? 0n : (ability?.cooldownSeconds ?? 0n),
-        cooldownRemaining: isItemSlot ? 0 : cooldownRemaining,
-        itemCount,
-        itemTemplateId,
+        resourceType: ability?.resourceType ?? '',
+        kind: ability?.kind ?? '',
+        levelRequired: ability?.levelRequired ?? 0n,
+        cooldownSeconds: ability?.cooldownSeconds ?? 0n,
+        cooldownRemaining,
       };
     });
   });
 
-  const setHotbarSlot = (slot: number, abilityKey: string) => {
+  const setHotbarSlot = (slot: number, abilityTemplateId: bigint) => {
     if (!connActive.value || !selectedCharacter.value) return;
     setHotbarReducer({
       characterId: selectedCharacter.value.id,
       slot,
-      abilityKey,
+      abilityTemplateId,
     });
   };
 
-  const useAbility = (abilityKey: string, targetCharacterId?: bigint) => {
-    if (!connActive.value || !selectedCharacter.value || !abilityKey) return;
+  const useAbility = (abilityTemplateId: bigint, targetCharacterId?: bigint) => {
+    if (!connActive.value || !selectedCharacter.value || !abilityTemplateId) return;
     useAbilityReducer({
       characterId: selectedCharacter.value.id,
-      abilityKey,
+      abilityTemplateId,
       targetCharacterId,
     });
   };
@@ -269,20 +226,20 @@ export const useHotbar = ({
     if (!selectedCharacter.value) return null;
     const row =
       characterCasts.value.find(
-        (entry) => entry.characterId.toString() === selectedCharacter.value?.id.toString()
+        (entry) => entry.characterId === selectedCharacter.value?.id
       ) ?? null;
     if (!row) return null;
     return {
       ...row,
-      castingAbilityKey: row.abilityKey,
+      castingAbilityTemplateId: row.abilityTemplateId,
     };
   });
 
-  const activeCastKey = computed(() => localCast.value?.abilityKey ?? castingState.value?.abilityKey ?? '');
+  const activeCastId = computed(() => localCast.value?.abilityTemplateId ?? castingState.value?.abilityTemplateId ?? 0n);
   const activeCastEndsAt = computed(() =>
     castingState.value?.endsAtMicros ? Number(castingState.value.endsAtMicros) : 0
   );
-  const isCasting = computed(() => Boolean(activeCastKey.value));
+  const isCasting = computed(() => Boolean(activeCastId.value));
 
   const castProgress = computed(() => {
     if (!isCasting.value) return 0;
@@ -294,7 +251,7 @@ export const useHotbar = ({
       return clamped / duration;
     }
     if (!activeCastEndsAt.value) return 0;
-    const ability = abilityLookup.value.get(activeCastKey.value ?? '');
+    const ability = activeCastId.value ? abilityLookup.value.get(idKey(activeCastId.value)) : undefined;
     const duration = toMicros(ability?.castSeconds);
     if (!duration) return 1;
     const remaining = activeCastEndsAt.value - nowMicros.value;
@@ -303,13 +260,9 @@ export const useHotbar = ({
   });
 
   const hotbarTooltipItem = (slot: HotbarDisplaySlot) => {
-    if (!slot?.abilityKey) return null;
-    // Item slots don't have ability tooltip data
-    if (slot.abilityKey.startsWith('item:')) return null;
-    const liveAbility = abilityLookup.value.get(slot.abilityKey);
-    const resource = liveAbility?.resource ?? slot.resource ?? '';
-    const power = liveAbility?.power ?? 0n;
-    const level = liveAbility?.level ?? slot.level ?? 0n;
+    if (!slot?.abilityTemplateId) return null;
+    const liveAbility = abilityLookup.value.get(idKey(slot.abilityTemplateId));
+    const resource = liveAbility?.resourceType ?? slot.resourceType ?? '';
     const castSeconds = liveAbility?.castSeconds ?? 0n;
     const cooldownSeconds = liveAbility?.cooldownSeconds ?? slot.cooldownSeconds ?? 0n;
     const resourceCost = liveAbility?.resourceCost ?? 0n;
@@ -325,7 +278,7 @@ export const useHotbar = ({
     const cooldownLabel = cooldownSeconds > 0n ? `${Number(cooldownSeconds)}s` : 'No cooldown';
     const damageType = liveAbility?.damageType;
     const stats = [
-      { label: 'Level', value: slot.level || '-' },
+      { label: 'Level', value: slot.levelRequired || '-' },
       { label: 'Type', value: slot.kind || '-' },
       { label: 'Cost', value: costLabel },
       { label: 'Cast', value: castLabel },
@@ -335,17 +288,18 @@ export const useHotbar = ({
       stats.splice(2, 0, { label: 'Damage', value: damageType });
     }
     return {
-      name: slot.name || slot.abilityKey,
+      name: slot.name || 'Ability',
       stats,
     };
   };
 
-  const runPrediction = (abilityKey: string) => {
-    const ability = abilityLookup.value.get(abilityKey);
+  const runPrediction = (abilityTemplateId: bigint) => {
+    const aidStr = idKey(abilityTemplateId);
+    const ability = abilityLookup.value.get(aidStr);
     const castDurationMicros = toMicros(ability?.castSeconds);
     if (castDurationMicros > 0) {
       localCast.value = {
-        abilityKey,
+        abilityTemplateId,
         startMicros: nowMicros.value,
         durationMicros: castDurationMicros,
       };
@@ -353,44 +307,55 @@ export const useHotbar = ({
     const cooldownMicros = toMicros(ability?.cooldownSeconds);
     if (cooldownMicros > 0) {
       const readyAt = nowMicros.value + castDurationMicros + cooldownMicros;
-      localCooldowns.value.set(abilityKey, readyAt);
+      localCooldowns.value.set(aidStr, readyAt);
     }
-    hotbarPulseKey.value = abilityKey;
+    hotbarPulseKey.value = aidStr;
     window.setTimeout(() => {
-      if (hotbarPulseKey.value === abilityKey) hotbarPulseKey.value = null;
+      if (hotbarPulseKey.value === aidStr) hotbarPulseKey.value = null;
     }, 800);
   };
 
   const onHotbarClick = (slot: HotbarDisplaySlot) => {
-    if (!selectedCharacter.value || !slot?.abilityKey) return;
+    if (!selectedCharacter.value || !slot?.abilityTemplateId) return;
     if (isCasting.value) return;
 
-    // Item slot handler
-    if (slot.abilityKey.startsWith('item:') && slot.itemTemplateId != null) {
-      const templateId = slot.itemTemplateId;
-      const charId = selectedCharacter.value?.id;
-      if (!charId) return;
-      const match = inventoryItems?.value.find(i => i.templateId === templateId && i.quantity > 0n);
-      if (!match) {
-        addLocalEvent?.('blocked', 'No more of that item.');
-        return;
-      }
-      hotbarPulseKey.value = slot.abilityKey;
-      window.setTimeout(() => {
-        if (hotbarPulseKey.value === slot.abilityKey) hotbarPulseKey.value = null;
-      }, 800);
-      if (match.eatable) {
-        eatFoodFn?.(match.id);
-      } else {
-        const conn = window.__db_conn;
-        if (!conn) return;
-        conn.reducers.useItem({ characterId: charId, itemInstanceId: match.id });
-      }
+    const aidStr = idKey(slot.abilityTemplateId);
+    const ability = abilityLookup.value.get(aidStr);
+
+    if (activeCombat.value && !canActInCombat.value && slot.kind !== 'utility') {
+      addLocalEvent?.('blocked', `Cannot act yet — waiting for combat turn.`);
       return;
     }
 
-    if (slot.abilityKey === 'ranger_track') {
-      // Block Track if in group and not the puller
+    // Kind-based combat state checks (replaces old combatState field)
+    // 'utility' kind abilities are out-of-combat only (tracked by server)
+    if (ability?.kind === 'utility' && activeCombat.value) {
+      addLocalEvent?.('blocked', `${ability?.name ?? slot.name} cannot be used during combat.`);
+      return;
+    }
+
+    // Special handling for resurrection kind - requires corpse target
+    if (ability?.kind === 'resurrect') {
+      if (!selectedCorpseTarget?.value) {
+        addLocalEvent?.('blocked', 'You must target a corpse first.');
+        return;
+      }
+      onResurrectRequested?.(selectedCorpseTarget.value);
+      return;
+    }
+
+    // Special handling for corpse_summon kind - requires character target
+    if (ability?.kind === 'corpse_summon') {
+      if (!selectedCharacterTarget?.value) {
+        addLocalEvent?.('blocked', 'You must target a character first.');
+        return;
+      }
+      onCorpseSummonRequested?.(selectedCharacterTarget.value);
+      return;
+    }
+
+    // Track ability: open track panel
+    if (ability?.kind === 'track') {
       if (
         groupId?.value &&
         pullerId?.value !== null &&
@@ -403,49 +368,9 @@ export const useHotbar = ({
       onTrackRequested?.();
       return;
     }
-    if (activeCombat.value && !canActInCombat.value && slot.kind !== 'utility') {
-      addLocalEvent?.('blocked', `Cannot act yet — waiting for combat turn.`);
-      return;
-    }
-    // Use combatState from ability template to determine if ability can be used
-    const ability = abilityLookup.value.get(slot.abilityKey);
-    const combatState = ability?.combatState ?? 'any';
-    if (combatState === 'combat_only' && !activeCombat.value) {
-      addLocalEvent?.('blocked', `${ability?.name ?? slot.name} can only be used in combat.`);
-      return;
-    }
-    if (combatState === 'out_of_combat_only' && activeCombat.value) {
-      addLocalEvent?.('blocked', `${ability?.name ?? slot.name} cannot be used during combat.`);
-      return;
-    }
-
-    // Special handling for resurrection - requires corpse target
-    if (slot.abilityKey === 'cleric_resurrect') {
-      if (!selectedCorpseTarget?.value) {
-        addLocalEvent?.('blocked', 'You must target a corpse first.');
-        return;
-      }
-      // Call initiate_resurrect which creates PendingSpellCast for confirmation
-      onResurrectRequested?.(selectedCorpseTarget.value);
-      return;
-    }
-
-    // Special handling for corpse summon - requires character target (not corpse)
-    if (
-      slot.abilityKey === 'necromancer_corpse_summon' ||
-      slot.abilityKey === 'summoner_corpse_summon'
-    ) {
-      if (!selectedCharacterTarget?.value) {
-        addLocalEvent?.('blocked', 'You must target a character first.');
-        return;
-      }
-      // Call initiate_corpse_summon which creates PendingSpellCast for confirmation
-      onCorpseSummonRequested?.(selectedCharacterTarget.value);
-      return;
-    }
 
     // Client-side resource pre-check (server remains authoritative)
-    const resource = ability?.resource ?? '';
+    const resource = ability?.resourceType ?? '';
     const resourceCostCheck = ability?.resourceCost ?? 0n;
     const char = selectedCharacter.value;
     if (resource === 'mana') {
@@ -460,10 +385,10 @@ export const useHotbar = ({
       }
     }
 
-    runPrediction(slot.abilityKey);
+    runPrediction(slot.abilityTemplateId);
 
     const targetId = defensiveTargetId.value ?? undefined;
-    useAbility(slot.abilityKey, targetId);
+    useAbility(slot.abilityTemplateId, targetId);
   };
 
   watch(
@@ -480,11 +405,6 @@ export const useHotbar = ({
     () => activeCombat.value,
     (newVal, oldVal) => {
       if (!newVal && oldVal) {
-        // Combat just ended — clear active cast, but preserve cooldown predictions.
-        // Clearing predictions here causes a window where kill-shot abilities appear
-        // off cooldown before the server cooldown row arrives in the subscription.
-        // The nowMicros watcher naturally expires predictions, and the 500ms
-        // server-confirmation check cleans up predictions for abilities that failed.
         localCast.value = null;
         hotbarPulseKey.value = null;
       }
@@ -497,10 +417,9 @@ export const useHotbar = ({
       if (localCast.value && now - localCast.value.startMicros >= localCast.value.durationMicros) {
         localCast.value = null;
       }
-      // Safety net: clear orphaned localCast if server has no active cast and local timer expired + buffer
       if (localCast.value && !castingState.value) {
         const elapsed = now - localCast.value.startMicros;
-        const buffer = 2_000_000; // 2 second grace period
+        const buffer = 2_000_000;
         if (elapsed >= localCast.value.durationMicros + buffer) {
           localCast.value = null;
         }
@@ -515,31 +434,24 @@ export const useHotbar = ({
   );
 
   // Clear optimistic cooldowns if server doesn't confirm them (ability failed)
-  // Check every 500ms to give server time to respond
   let lastClearCheck = 0;
   watch(
     () => [abilityCooldowns.value, nowMicros.value, selectedCharacter.value?.id] as const,
     ([serverCooldowns, now, charId]) => {
-      if (!charId || localCooldowns.value.size === 0) return;
-      if (now - lastClearCheck < 500_000) return; // Check every 500ms
+      if (charId == null || localCooldowns.value.size === 0) return;
+      if (now - lastClearCheck < 500_000) return;
       lastClearCheck = now;
 
-      // Just check existence — if the server has a row, the ability fired (even if the row looks expired
-      // by our stale receivedAt). Server-side cleanup deletes expired rows on its own schedule.
-      const serverCooldownKeys = new Set(
+      const serverCooldownIds = new Set(
         serverCooldowns
-          .filter(cd => cd.characterId.toString() === charId.toString())
-          .map(cd => cd.abilityKey)
+          .filter(cd => cd.characterId === charId)
+          .map(cd => idKey(cd.abilityTemplateId))
       );
 
-      // Clear local cooldowns that don't exist on server (ability failed)
       for (const [key, readyAt] of localCooldowns.value.entries()) {
-        if (readyAt > now && !serverCooldownKeys.has(key)) {
-          // Don't clear while this ability is still being cast — server won't have
-          // the AbilityCooldown row until the cast tick fires (after castSeconds).
-          if (localCast.value?.abilityKey === key) continue;
-          if (castingState.value?.abilityKey === key) continue;
-          // Local shows cooldown active, but server doesn't - ability failed
+        if (readyAt > now && !serverCooldownIds.has(key)) {
+          if (localCast.value && idKey(localCast.value.abilityTemplateId) === key) continue;
+          if (castingState.value && idKey(castingState.value.abilityTemplateId) === key) continue;
           localCooldowns.value.delete(key);
         }
       }
@@ -557,7 +469,7 @@ export const useHotbar = ({
     onHotbarClick,
     hotbarPulseKey,
     castingState,
-    activeCastKey,
+    activeCastId,
     isCasting,
     castProgress,
   };

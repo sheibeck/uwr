@@ -11,11 +11,10 @@ export type ContextAction = {
 
 type HotbarSlotInfo = {
   slot: number;
-  abilityKey: string;
+  abilityTemplateId: bigint;
   name: string;
   kind: string;
   cooldownRemaining: number;
-  itemCount?: number;
 };
 
 type UseContextActionsArgs = {
@@ -38,12 +37,11 @@ export function useContextActions(deps: UseContextActionsArgs) {
     if (deps.activeCombat.value) {
       // Combat context: abilities from hotbar
       for (const slot of deps.hotbarDisplay.value) {
-        if (!slot.abilityKey) continue;
+        if (!slot.abilityTemplateId) continue;
         const isDisabled =
           slot.cooldownRemaining > 0 ||
           deps.isCasting.value ||
-          !deps.canActInCombat.value ||
-          (slot.kind === 'item' && (slot.itemCount ?? 0) === 0);
+          !deps.canActInCombat.value;
 
         result.push({
           label: slot.name,

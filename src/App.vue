@@ -77,22 +77,20 @@
           type="button"
           :disabled="
             !conn.isActive ||
-            !slot.abilityKey ||
+            !slot.abilityTemplateId ||
             isCasting ||
             slot.cooldownRemaining > 0 ||
-            (slot.kind === 'item' && (slot.itemCount ?? 0) === 0) ||
             (activeCombat && !canActInCombat && slot.kind !== 'utility')
           "
           :style="[
             styles.hotbarSlot,
-            slot.abilityKey === castingState?.castingAbilityKey ? styles.hotbarSlotActive : {},
-            hotbarPulseKey === slot.abilityKey ? styles.hotbarSlotActive : {},
-            !slot.abilityKey ? styles.hotbarSlotEmpty : {},
-            (slot.kind === 'item' && (slot.itemCount ?? 0) === 0) ? styles.hotbarSlotEmpty : {},
+            slot.abilityTemplateId === castingState?.castingAbilityTemplateId ? styles.hotbarSlotActive : {},
+            hotbarPulseKey === String(slot.abilityTemplateId) ? styles.hotbarSlotActive : {},
+            !slot.abilityTemplateId ? styles.hotbarSlotEmpty : {},
           ]"
-          @click="slot.abilityKey && onHotbarClick(slot)"
+          @click="slot.abilityTemplateId && onHotbarClick(slot)"
           @contextmenu.prevent="
-            slot.abilityKey &&
+            slot.abilityTemplateId &&
             showHotbarContextMenu(
               slot,
               ($event.currentTarget?.getBoundingClientRect().right ?? $event.clientX) + 4,
@@ -101,11 +99,7 @@
           "
         >
           <div
-            v-if="activeSongKey === slot.abilityKey"
-            :style="styles.hotbarSongActiveFill"
-          ></div>
-          <div
-            v-if="isCasting && slot.abilityKey === activeCastKey"
+            v-if="isCasting && slot.abilityTemplateId === activeCastId"
             :style="{
               ...styles.hotbarCastFill,
               width: `${Math.round(castProgress * 100)}%`,
@@ -125,9 +119,6 @@
           </span>
           <span :style="styles.hotbarSlotText">{{ slot.slot }}</span>
           <span :style="styles.hotbarSlotText">{{ slot.name }}</span>
-          <span v-if="slot.kind === 'item' && slot.itemCount != null && slot.itemCount > 0" :style="styles.hotbarSlotCount">
-            x{{ slot.itemCount }}
-          </span>
         </button>
       </div>
     </FloatingPanel>
@@ -499,7 +490,7 @@
       :x="hotbarContextMenu.x"
       :y="hotbarContextMenu.y"
       :title="hotbarContextMenu.name"
-      :items="[{ label: 'Remove from Hotbar', action: () => { setHotbarSlot(hotbarContextMenu.slot, ''); hideHotbarContextMenu(); } }]"
+      :items="[{ label: 'Remove from Hotbar', action: () => { setHotbarSlot(hotbarContextMenu.slot, 0n); hideHotbarContextMenu(); } }]"
       :styles="styles"
       @close="hideHotbarContextMenu"
     >
@@ -1951,7 +1942,7 @@ const {
   onHotbarClick,
   hotbarPulseKey,
   castingState,
-  activeCastKey,
+  activeCastId,
   isCasting,
   castProgress,
   abilityLookup,
@@ -2006,12 +1997,12 @@ const onAddItemToHotbar = (templateId: bigint, itemName: string) => {
   setHotbarSlot(slotNum, `item:${templateId}`);
 };
 
-const onAddAbilityToHotbar = (abilityKey: string, name: string) => {
+const onAddAbilityToHotbar = (abilityTemplateId: bigint, name: string) => {
   const input = window.prompt(`Assign "${name}" to hotbar slot (1-10):`);
   if (input === null) return;
   const slotNum = parseInt(input, 10);
   if (isNaN(slotNum) || slotNum < 1 || slotNum > 10) return;
-  setHotbarSlot(slotNum, abilityKey);
+  setHotbarSlot(slotNum, abilityTemplateId);
 };
 
 const equippedStatBonuses = computed(() => {

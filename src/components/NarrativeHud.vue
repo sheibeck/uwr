@@ -28,6 +28,13 @@
           <span :style="{ color: '#ff6b6b', fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap' }">IN COMBAT</span>
         </div>
 
+        <!-- Pending skill indicator -->
+        <span
+          v-if="hasPendingSkills"
+          :style="skillIndicatorStyle"
+          title="New skill available! Check the console."
+        >NEW SKILL</span>
+
         <!-- Panel buttons -->
         <div :style="{ display: 'flex', gap: '3px' }">
           <button
@@ -56,6 +63,7 @@ const props = defineProps<{
   character: Character | null;
   activeCombat: any | null;
   connActive: boolean;
+  hasPendingSkills?: boolean;
 }>();
 
 defineEmits<{
@@ -143,4 +151,21 @@ const combatDotStyle = {
   background: '#ff6b6b',
   animation: 'combatPulse 1.5s ease-in-out infinite',
 };
+
+const skillIndicatorStyle = {
+  color: '#ffd43b',
+  fontSize: '0.65rem',
+  fontWeight: 700,
+  whiteSpace: 'nowrap' as const,
+  animation: 'skillPulse 2s ease-in-out infinite',
+  cursor: 'default',
+  letterSpacing: '0.05em',
+};
 </script>
+
+<style>
+@keyframes skillPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+</style>

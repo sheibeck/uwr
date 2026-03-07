@@ -88,20 +88,22 @@ export function useTooltip(opts: { abilityLookup: Ref<Map<string, any>> }) {
   };
 
   const hotbarAbilityDescription = (slot: any): string => {
-    const liveAbility = abilityLookup.value.get(slot.abilityKey ?? '');
+    const key = slot.abilityTemplateId ? String(slot.abilityTemplateId) : '';
+    const liveAbility = key ? abilityLookup.value.get(key) : undefined;
     return liveAbility?.description?.trim() || slot.description || `${slot.name} ability.`;
   };
 
   const showHotbarContextMenu = (slot: any, x: number, y: number) => {
-    const ability = abilityLookup.value.get(slot.abilityKey ?? '');
+    const key = slot.abilityTemplateId ? String(slot.abilityTemplateId) : '';
+    const ability = key ? abilityLookup.value.get(key) : undefined;
     hotbarContextMenu.value = {
       visible: true,
       x,
       y,
       slot: slot.slot,
-      name: slot.name || slot.abilityKey,
+      name: slot.name || 'Ability',
       description: hotbarAbilityDescription(slot),
-      resource: ability?.resource ?? '',
+      resource: ability?.resourceType ?? '',
       resourceCost: ability?.resourceCost ?? 0n,
       castSeconds: ability?.castSeconds ?? 0n,
       cooldownSeconds: ability?.cooldownSeconds ?? 0n,

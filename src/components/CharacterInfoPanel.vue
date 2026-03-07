@@ -119,15 +119,15 @@
     </div>
     <div
       v-for="ability in availableAbilities"
-      :key="ability.key"
+      :key="ability.id"
       :style="{ background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '6px 10px', cursor: 'context-menu' }"
       @contextmenu.prevent="showContextMenu($event, ability)"
     >
       <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }">
         <span :style="{ fontWeight: 600, fontSize: '0.85rem' }">{{ ability.name }}</span>
-        <span :style="{ fontSize: '0.75rem', color: '#9ca3af' }">Lv{{ ability.level }}</span>
+        <span :style="{ fontSize: '0.75rem', color: '#9ca3af' }">Lv{{ ability.levelRequired }}</span>
       </div>
-      <div :style="{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }">{{ ability.resource }} &bull; {{ ability.kind }}</div>
+      <div :style="{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }">{{ ability.resourceType }} &bull; {{ ability.kind }}</div>
     </div>
 
     <!-- Renown perks section -->
@@ -234,7 +234,7 @@ const emit = defineEmits<{
   (e: 'show-tooltip', payload: any): void;
   (e: 'move-tooltip', payload: any): void;
   (e: 'hide-tooltip'): void;
-  (e: 'add-ability-to-hotbar', abilityKey: string, name: string): void;
+  (e: 'add-ability-to-hotbar', abilityTemplateId: bigint, name: string): void;
   (e: 'tab-change', tab: string): void;
   (e: 'deposit-to-bank', itemInstanceId: bigint): void;
 }>();
@@ -253,19 +253,19 @@ const setTab = (tab: CharacterTab) => {
 
 const contextMenu = ref<{
   visible: boolean; x: number; y: number;
-  abilityKey: string; name: string; description: string;
-  resource: string; resourceCost: bigint;
+  abilityTemplateId: bigint; name: string; description: string;
+  resourceType: string; resourceCost: bigint;
   castSeconds: bigint; cooldownSeconds: bigint;
 }>({
-  visible: false, x: 0, y: 0, abilityKey: '', name: '', description: '',
-  resource: '', resourceCost: 0n, castSeconds: 0n, cooldownSeconds: 0n,
+  visible: false, x: 0, y: 0, abilityTemplateId: 0n, name: '', description: '',
+  resourceType: '', resourceCost: 0n, castSeconds: 0n, cooldownSeconds: 0n,
 });
 
-const showContextMenu = (event: MouseEvent, ability: { key: string; name: string; description: string; resource: string; resourceCost: bigint; castSeconds: bigint; cooldownSeconds: bigint; kind: string; level: bigint }) => {
+const showContextMenu = (event: MouseEvent, ability: { id: bigint; name: string; description: string; resourceType: string; resourceCost: bigint; castSeconds: bigint; cooldownSeconds: bigint; kind: string; levelRequired: bigint }) => {
   contextMenu.value = {
     visible: true, x: event.clientX, y: event.clientY,
-    abilityKey: ability.key, name: ability.name, description: ability.description,
-    resource: ability.resource, resourceCost: ability.resourceCost,
+    abilityTemplateId: ability.id, name: ability.name, description: ability.description,
+    resourceType: ability.resourceType, resourceCost: ability.resourceCost,
     castSeconds: ability.castSeconds, cooldownSeconds: ability.cooldownSeconds,
   };
 };
@@ -275,7 +275,7 @@ const hideContextMenu = () => {
 };
 
 const onAddToHotbar = () => {
-  emit('add-ability-to-hotbar', contextMenu.value.abilityKey, contextMenu.value.name);
+  emit('add-ability-to-hotbar', contextMenu.value.abilityTemplateId, contextMenu.value.name);
   hideContextMenu();
 };
 </script>
