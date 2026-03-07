@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 25 complete — Narrative UI Shell verified
+**Current focus:** Phase 26 in progress — Narrative Character Creation server foundation
 
 ## Current Position
 
-Phase: 25 of 30 (Narrative UI Shell)
-Plan: 03 of 3 complete (Typewriter Animation and submitIntent Wiring)
-Status: Phase 25 complete
-Last activity: 2026-03-07 — Completed 25-03 Typewriter Animation and submitIntent Wiring
+Phase: 26 of 30 (Narrative Character Creation)
+Plan: 01 of 3 complete (Server-Side Creation Foundation)
+Status: In progress
+Last activity: 2026-03-07 — Completed 26-01 Server-Side Creation Foundation
 
 Progress: [█████████░] 87%
 
@@ -53,6 +53,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 | Phase 25 P01 | 4min | 2 tasks | 3 files |
 | Phase 25 P02 | 5min | 2 tasks | 6 files |
 | Phase 25 P03 | 5min | 2 tasks | 7 files |
+| Phase 26 P01 | 4min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,10 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 25]: NarrativeConsole at z-index 1 as base layer, panels float above
 - [Phase 25]: Travel panel auto-opens on combat start for CombatPanel access
 - [Phase 25]: NarrativeConsole manages animation state internally rather than via props from App.vue
+- [Phase 26]: CharacterCreationState uses playerId (identity) not userId for pre-registration creation flow
+- [Phase 26]: EventCreation table with event: true for identity-based pre-character messaging
+- [Phase 26]: GENERATING_RACE and GENERATING_CLASS are gate steps for Plan 02 LLM procedure calls
+- [Phase 26]: previousStep field on creation state enables go-back decline recovery
 
 ### Pending Todos
 
@@ -90,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-07T02:56:18.037Z
-Stopped at: Phase 26 context gathered
-Resume file: .planning/phases/26-narrative-character-creation/26-CONTEXT.md
+Last session: 2026-03-07T03:23:12Z
+Stopped at: Completed 26-01-PLAN.md
+Resume file: .planning/phases/26-narrative-character-creation/26-01-SUMMARY.md

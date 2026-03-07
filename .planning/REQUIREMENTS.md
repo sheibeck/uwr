@@ -25,13 +25,13 @@
 
 ### Character Creation
 
-- [ ] **CHAR-01**: Player enters a narrative holding space and converses with the System
+- [x] **CHAR-01**: Player enters a narrative holding space and converses with the System
 - [ ] **CHAR-02**: Player describes any fantasy race in freeform text; LLM interprets and normalizes it
-- [ ] **CHAR-03**: Player chooses Warrior or Mystic archetype
+- [x] **CHAR-03**: Player chooses Warrior or Mystic archetype
 - [ ] **CHAR-04**: LLM generates a unique class from race + archetype with wild creativity (no guardrails on naming/theme)
-- [ ] **CHAR-05**: Going back on a decision is warned — "you may never see this class again"
+- [x] **CHAR-05**: Going back on a decision is warned — "you may never see this class again"
 - [ ] **CHAR-06**: Player receives class description with niche overview, then chooses a starting ability
-- [ ] **CHAR-07**: All creation state persists server-side (page refresh doesn't lose progress)
+- [x] **CHAR-07**: All creation state persists server-side (page refresh doesn't lose progress)
 
 ### Procedural World
 
@@ -101,13 +101,13 @@
 | UI-04 | Phase 25 | Complete |
 | UI-05 | Phase 25 | Complete |
 | UI-06 | Phase 25 | Complete |
-| CHAR-01 | Phase 26 | Pending |
+| CHAR-01 | Phase 26 | Complete |
 | CHAR-02 | Phase 26 | Pending |
-| CHAR-03 | Phase 26 | Pending |
+| CHAR-03 | Phase 26 | Complete |
 | CHAR-04 | Phase 26 | Pending |
-| CHAR-05 | Phase 26 | Pending |
+| CHAR-05 | Phase 26 | Complete |
 | CHAR-06 | Phase 26 | Pending |
-| CHAR-07 | Phase 26 | Pending |
+| CHAR-07 | Phase 26 | Complete |
 | WORLD-01 | Phase 27 | Pending |
 | WORLD-02 | Phase 27 | Pending |
 | WORLD-03 | Phase 27 | Pending |
