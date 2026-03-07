@@ -1,12 +1,14 @@
 import { t, SenderError } from 'spacetimedb/server';
 import { requireAdmin } from './data/admin';
 import { ScheduleAt, Timestamp, TimeDuration } from 'spacetimedb';
-import { buildAnthropicRequest, parseAnthropicResponse, incrementBudget } from './helpers/llm';
+import { buildAnthropicRequest, parseAnthropicResponse, incrementBudget, checkBudget } from './helpers/llm';
 import {
   buildCharacterCreationPrompt,
   buildWorldGenPrompt,
   buildCombatNarrationPrompt,
   buildSkillGenPrompt,
+  buildRaceInterpretationUserPrompt,
+  buildClassGenerationUserPrompt,
 } from './data/llm_prompts';
 import spacetimedb, {
   scheduledReducers,
@@ -545,6 +547,201 @@ spacetimedb.procedure(
             });
           }
         }
+      }
+    });
+
+    return parsed.ok ? 'completed' : 'error';
+  }
+);
+
+// === CHARACTER CREATION LLM PROCEDURE ===
+// Bypasses the generic LLM pipeline (which requires characterId).
+// Handles race interpretation and class generation for the creation flow.
+// Client calls this procedure after observing GENERATING_RACE or GENERATING_CLASS step.
+spacetimedb.procedure(
+  { name: 'generate_creation_content' },
+  { generationType: t.string() },
+  t.string(),
+  (ctx: any, { generationType }: { generationType: string }) => {
+    // === PHASE 1: Read creation state, budget, API key (transaction) ===
+    let state: any;
+    let playerId: any;
+    let systemPrompt: string = '';
+    let userPrompt: string = '';
+    let apiKey: string = '';
+    let budgetOk = true;
+
+    ctx.withTx((tx: any) => {
+      // Find creation state for this player
+      const rows = [...tx.db.character_creation_state.by_player.filter(tx.sender)];
+      state = rows[0];
+      if (!state) throw new SenderError('No creation state found');
+      playerId = tx.sender;
+
+      // Budget check
+      const budget = checkBudget(tx, tx.sender);
+      if (!budget.allowed) {
+        appendCreationEvent(tx, tx.sender, 'creation_error',
+          'The System yawns. "You have exhausted my patience — and your daily allowance of cosmic creativity. Come back tomorrow."');
+        budgetOk = false;
+        return;
+      }
+
+      // Read API key from private config
+      const config = tx.db.llm_config.id.find(1n);
+      if (!config || !config.apiKey) throw new SenderError('LLM not configured — set API key first');
+      apiKey = config.apiKey;
+
+      // Build prompts based on generation type
+      if (generationType === 'race') {
+        if (state.step !== 'GENERATING_RACE') throw new SenderError('Invalid step for race generation');
+        systemPrompt = buildCharacterCreationPrompt('Interpreting a new arrival\'s race description.');
+        userPrompt = buildRaceInterpretationUserPrompt(state.raceDescription);
+      } else if (generationType === 'class') {
+        if (state.step !== 'GENERATING_CLASS') throw new SenderError('Invalid step for class generation');
+        systemPrompt = buildCharacterCreationPrompt(`Race: ${state.raceName}. Generating a unique class.`);
+        userPrompt = buildClassGenerationUserPrompt(state.raceName, state.raceNarrative || '', state.archetype);
+      } else {
+        throw new SenderError('Invalid generation type — must be "race" or "class"');
+      }
+    });
+
+    if (!budgetOk || !state || !userPrompt) return 'error';
+
+    // === PHASE 2: Call Anthropic API (NO transaction open) ===
+    // Sonnet for class generation (high-stakes), Haiku for race interpretation
+    const model = generationType === 'class' ? 'claude-sonnet-4-5' : 'claude-haiku-4-5';
+    const requestBody = buildAnthropicRequest(model, systemPrompt, userPrompt, 1024);
+
+    let responseText = '';
+    let responseOk = false;
+    const maxAttempts = 2;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const response = ctx.http.fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: requestBody,
+          timeout: TimeDuration.fromMillis(30000),
+        });
+        responseText = response.text();
+        responseOk = response.ok;
+        if (responseOk) break;
+        if (attempt < maxAttempts) {
+          console.error(`Creation LLM attempt ${attempt} failed (${generationType}), retrying...`);
+        }
+      } catch (err: any) {
+        console.error(`Creation LLM attempt ${attempt} threw (${generationType}): ${err?.message ?? err}`);
+        if (attempt >= maxAttempts) {
+          ctx.withTx((tx: any) => {
+            appendCreationEvent(tx, playerId, 'creation_error',
+              'The System flickers. "Something went wrong in the cosmic machinery. Try again — I assure you, the fault is not mine."');
+            const s = [...tx.db.character_creation_state.by_player.filter(playerId)][0];
+            if (s) {
+              const revertStep = generationType === 'race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
+              tx.db.character_creation_state.id.update({ ...s, step: revertStep, updatedAt: tx.timestamp });
+            }
+          });
+          return 'error';
+        }
+      }
+    }
+
+    // === PHASE 3: Parse response and update creation state (transaction) ===
+    const parsed = parseAnthropicResponse(responseText, responseOk);
+
+    if (parsed.usage) {
+      console.log(`Creation LLM usage [${generationType}/${model}]: input=${parsed.usage.inputTokens}, output=${parsed.usage.outputTokens}, cache_read=${parsed.usage.cacheReadTokens}`);
+    }
+
+    ctx.withTx((tx: any) => {
+      const s = [...tx.db.character_creation_state.by_player.filter(playerId)][0];
+      if (!s) return;
+
+      if (!parsed.ok) {
+        console.error(`Creation LLM error [${generationType}]: ${parsed.error}`);
+        appendCreationEvent(tx, playerId, 'creation_error',
+          'The System sighs. "The cosmic machinery hiccupped. Describe yourself again — I promise to pay attention this time."');
+        const revertStep = generationType === 'race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
+        tx.db.character_creation_state.id.update({ ...s, step: revertStep, updatedAt: tx.timestamp });
+        return;
+      }
+
+      // Increment budget on success
+      incrementBudget(tx, playerId);
+
+      try {
+        const data = JSON.parse(parsed.text);
+
+        if (generationType === 'race') {
+          // Update state with race data
+          tx.db.character_creation_state.id.update({
+            ...s,
+            step: 'AWAITING_ARCHETYPE',
+            raceName: data.raceName || 'Unknown',
+            raceNarrative: data.narrative || '',
+            raceBonuses: JSON.stringify(data.bonuses || {}),
+            updatedAt: tx.timestamp,
+          });
+
+          // Emit race confirmation event with archetype choice
+          const bonusText = data.bonuses
+            ? `\n+${data.bonuses.primary?.value || 2} ${(data.bonuses.primary?.stat || 'STR').toUpperCase()}, +${data.bonuses.secondary?.value || 1} ${(data.bonuses.secondary?.stat || 'DEX').toUpperCase()}${data.bonuses.flavor ? `. ${data.bonuses.flavor}` : ''}`
+            : '';
+
+          appendCreationEvent(tx, playerId, 'creation',
+            `${data.narrative || 'An interesting choice.'}\n\n` +
+            `**${data.raceName}**${bonusText}\n\n` +
+            `Now then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.`
+          );
+
+        } else if (generationType === 'class') {
+          // Update state with class + abilities data
+          tx.db.character_creation_state.id.update({
+            ...s,
+            step: 'CLASS_REVEALED',
+            className: data.className || 'Unknown Class',
+            classDescription: data.classDescription || '',
+            classStats: JSON.stringify(data.stats || {}),
+            abilities: JSON.stringify(data.abilities || []),
+            updatedAt: tx.timestamp,
+          });
+
+          // Build class reveal event with stats AND abilities
+          const stats = data.stats || {};
+          const statLine = `Primary: ${(stats.primaryStat || 'str').toUpperCase()}${stats.secondaryStat && stats.secondaryStat !== 'none' ? `, Secondary: ${stats.secondaryStat.toUpperCase()}` : ''}`;
+          const armorLine = `Armor: ${stats.armorProficiency || 'cloth'}`;
+          const resourceLine = stats.usesMana ? `Mana user (+${stats.bonusMana || 0} bonus mana)` : `Physical (+${stats.bonusHp || 0} bonus HP)`;
+
+          let abilityText = '\n\nYour starting abilities:\n';
+          const abilities = data.abilities || [];
+          for (let i = 0; i < abilities.length; i++) {
+            const a = abilities[i];
+            abilityText += `\n[${a.name}] — ${a.description}\n`;
+            abilityText += `  ${a.damageType} damage, ${a.baseDamage} base, ${a.cooldownSeconds}s cooldown`;
+            if (a.manaCost > 0) abilityText += `, ${a.manaCost} mana`;
+            if (a.effect !== 'none') abilityText += `, ${a.effect} (${a.effectDuration}s)`;
+            abilityText += '\n';
+          }
+
+          appendCreationEvent(tx, playerId, 'creation',
+            `${data.classDescription || 'A unique class emerges.'}\n\n` +
+            `**${data.className}**\n${statLine} | ${armorLine} | ${resourceLine}` +
+            abilityText +
+            `\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.`
+          );
+        }
+      } catch (parseErr) {
+        console.error(`Creation LLM JSON parse error [${generationType}]: ${parseErr}`);
+        appendCreationEvent(tx, playerId, 'creation_error',
+          'The System grimaces. "The response from the cosmic machinery was... malformed. Let us try again."');
+        const revertStep = generationType === 'race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
+        tx.db.character_creation_state.id.update({ ...s, step: revertStep, updatedAt: tx.timestamp });
       }
     });
 

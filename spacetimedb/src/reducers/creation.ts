@@ -207,7 +207,10 @@ export const registerCreationReducers = (deps: any) => {
       }
 
       case 'GENERATING_RACE': {
-        // Waiting for LLM — player shouldn't be submitting input here
+        // Waiting for LLM — player shouldn't be submitting input here.
+        // Client flow: client observes step='GENERATING_RACE' via subscription,
+        // then calls generateCreationContent procedure with generationType='race'.
+        // The procedure handles the LLM call and advances state to AWAITING_ARCHETYPE.
         appendCreationEvent(ctx, ctx.sender, 'creation', 'Patience. I am still contemplating the bizarre thing you described. This takes a moment.');
         break;
       }
@@ -230,7 +233,10 @@ export const registerCreationReducers = (deps: any) => {
       }
 
       case 'GENERATING_CLASS': {
-        // Waiting for LLM — player shouldn't be submitting input here
+        // Waiting for LLM — player shouldn't be submitting input here.
+        // Client flow: client observes step='GENERATING_CLASS' via subscription,
+        // then calls generateCreationContent procedure with generationType='class'.
+        // The procedure handles the LLM call and advances state to CLASS_REVEALED.
         appendCreationEvent(ctx, ctx.sender, 'creation', 'I am crafting something that has never existed before. These things take time. Unlike you, I do not rush.');
         break;
       }
