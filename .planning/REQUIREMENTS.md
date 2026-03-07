@@ -18,7 +18,7 @@
 
 - [ ] **UI-01**: Primary interface is a narrative chat console (evolved from LogWindow)
 - [ ] **UI-02**: Persistent HUD shows HP/mana, location, combat state at all times
-- [ ] **UI-03**: Natural language intent service routes player text to appropriate reducers
+- [x] **UI-03**: Natural language intent service routes player text to appropriate reducers
 - [ ] **UI-04**: Existing panels (inventory, stats, social) accessible as overlays on the narrative console
 - [ ] **UI-05**: LLM-generated text displays with typewriter animation
 - [ ] **UI-06**: "The System is considering..." indicator shows during LLM processing
@@ -97,7 +97,7 @@
 | LLM-06 | Phase 24 | Complete |
 | UI-01 | Phase 25 | Pending |
 | UI-02 | Phase 25 | Pending |
-| UI-03 | Phase 25 | Pending |
+| UI-03 | Phase 25 | Complete |
 | UI-04 | Phase 25 | Pending |
 | UI-05 | Phase 25 | Pending |
 | UI-06 | Phase 25 | Pending |
