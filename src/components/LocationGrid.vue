@@ -197,7 +197,11 @@
           :key="npc.id.toString()"
           :style="{
             ...styles.gridTileNpc,
-            ...(selectedNpcId?.toString() === npc.id.toString() ? styles.gridTileNpcSelected : {}),
+            ...(props.conversationNpcId?.toString() === npc.id.toString()
+              ? styles.gridTileNpcConversing
+              : selectedNpcId?.toString() === npc.id.toString()
+                ? styles.gridTileNpcSelected
+                : {}),
           }"
           @click="toggleSelectNpc(npc.id)"
           @contextmenu.prevent="openNpcContextMenu($event, npc)"
@@ -273,6 +277,7 @@ const props = withDefaults(defineProps<{
   connActive: boolean;
   selectedCharacter: Character | null;
   selectedNpcId: bigint | null;
+  conversationNpcId: bigint | null;
   selectedCharacterTargetId: bigint | null;
   selectedCorpseId: bigint | null;
   charactersHere: { character: Character; disconnected: boolean }[];
@@ -333,6 +338,7 @@ const emit = defineEmits<{
   (e: 'loot-quest-item', questItemId: bigint): void;
   (e: 'pull-named-enemy', namedEnemyId: bigint): void;
   (e: 'open-bank', npcId: bigint): void;
+  (e: 'end-conversation'): void;
 }>();
 
 const selectedEnemyId = ref<bigint | null>(null);
@@ -419,6 +425,11 @@ const toggleSelectEnemy = (enemyId: bigint) => {
 };
 
 const toggleSelectNpc = (npcId: bigint) => {
+  // If already conversing with this NPC, end conversation
+  if (props.conversationNpcId?.toString() === npcId.toString()) {
+    emit('end-conversation');
+    return;
+  }
   // Always select the NPC
   emit('select-npc', npcId);
   // Trigger talk action (opens Journal + calls hailNpc)

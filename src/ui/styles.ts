@@ -1448,6 +1448,12 @@ export const styles = {
     border: '1px solid rgba(130, 200, 130, 0.7)',
     color: '#a0e8a0',
   },
+  gridTileNpcConversing: {
+    background: 'rgba(218, 119, 242, 0.2)',
+    border: '1px solid rgba(218, 119, 242, 0.7)',
+    color: '#da77f2',
+    boxShadow: '0 0 8px rgba(218, 119, 242, 0.3)',
+  },
   gridTileCharacterSelected: {
     background: 'rgba(76, 180, 240, 0.2)',
     border: '1px solid rgba(76, 180, 240, 0.6)',

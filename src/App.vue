@@ -254,6 +254,7 @@
         :conn-active="conn.isActive"
         :selected-character="selectedCharacter"
         :selected-npc-id="selectedNpcTarget"
+        :conversation-npc-id="conversationNpcId"
         :selected-character-target-id="selectedCharacterTarget"
         :selected-corpse-id="selectedCorpseTarget"
         :characters-here="charactersHere"
@@ -285,6 +286,7 @@
         @initiate-corpse-summon="onInitiateCorpseSummon"
         @select-npc="selectNpcTarget"
         @talk-npc="onTalkNpc"
+        @end-conversation="endConversation"
         @select-corpse="selectCorpseTarget"
         @select-character="selectCharacterTarget"
         @loot-quest-item="lootQuestItem"
@@ -1261,6 +1263,12 @@ const enterConversation = (npcId: bigint, npcName: string) => {
   addLocalEvent('system', `You are now conversing with ${npcName}. Type freely to speak. Say "bye" to end the conversation.`, 'private');
 };
 
+const endConversation = () => {
+  const npc = npcs.value.find(n => n.id === conversationNpcId.value);
+  conversationNpcId.value = null;
+  addLocalEvent('system', `You end your conversation with ${npc?.name || 'the NPC'}.`, 'private');
+};
+
 const onTalkNpc = (npcId: bigint) => {
   if (!selectedCharacter.value) return;
 
@@ -1347,9 +1355,7 @@ const onNarrativeSubmit = (text: string) => {
   if (conversationNpcId.value) {
     // End conversation on farewell keywords
     if (/^(?:bye|farewell|leave|goodbye|end|quit|exit|back)$/i.test(lower)) {
-      const npc = npcs.value.find(n => n.id === conversationNpcId.value);
-      conversationNpcId.value = null;
-      addLocalEvent('system', `You end your conversation with ${npc?.name || 'the NPC'}.`, 'private');
+      endConversation();
       return;
     }
     talkToNpcReducer({
