@@ -142,6 +142,7 @@ import SubmitCreationInputReducer from "./submit_creation_input_reducer";
 // Import all procedure arg schemas
 import * as CallLlmProcedure from "./call_llm_procedure";
 import * as GenerateCreationContentProcedure from "./generate_creation_content_procedure";
+import * as GenerateWorldRegionProcedure from "./generate_world_region_procedure";
 
 // Import all table schema definitions
 import AbilityCooldownRow from "./ability_cooldown_table";
@@ -240,6 +241,7 @@ import UiPanelLayoutRow from "./ui_panel_layout_table";
 import UserRow from "./user_table";
 import VendorInventoryRow from "./vendor_inventory_table";
 import WorldEventRow from "./world_event_table";
+import WorldGenStateRow from "./world_gen_state_table";
 import WorldStatTrackerRow from "./world_stat_tracker_table";
 import WorldStateRow from "./world_state_table";
 
@@ -1477,6 +1479,23 @@ const tablesSchema = __schema({
       { name: 'world_event_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldEventRow),
+  world_gen_state: __table({
+    name: 'world_gen_state',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_player', algorithm: 'btree', columns: [
+        'playerId',
+      ] },
+      { name: 'by_source_location', algorithm: 'btree', columns: [
+        'sourceLocationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_gen_state_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldGenStateRow),
   world_stat_tracker: __table({
     name: 'world_stat_tracker',
     indexes: [
@@ -1714,6 +1733,7 @@ const reducersSchema = __reducers(
 const proceduresSchema = __procedures(
   __procedureSchema("call_llm", CallLlmProcedure.params, CallLlmProcedure.returnType),
   __procedureSchema("generate_creation_content", GenerateCreationContentProcedure.params, GenerateCreationContentProcedure.returnType),
+  __procedureSchema("generate_world_region", GenerateWorldRegionProcedure.params, GenerateWorldRegionProcedure.returnType),
 );
 
 /** The remote SpacetimeDB module schema, both runtime and type information. */

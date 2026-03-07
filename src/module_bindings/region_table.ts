@@ -15,4 +15,10 @@ export default __t.row({
   name: __t.string(),
   dangerMultiplier: __t.u64().name("danger_multiplier"),
   regionType: __t.string().name("region_type"),
+  biome: __t.option(__t.string()),
+  dominantFaction: __t.option(__t.string()).name("dominant_faction"),
+  landmarks: __t.option(__t.string()),
+  threats: __t.option(__t.string()),
+  generatedByCharacterId: __t.option(__t.u64()).name("generated_by_character_id"),
+  isGenerated: __t.option(__t.bool()).name("is_generated"),
 });

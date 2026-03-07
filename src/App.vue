@@ -576,6 +576,7 @@ import { useGameData } from './composables/useGameData';
 import { useCharacters } from './composables/useCharacters';
 import { useEvents } from './composables/useEvents';
 import { useCharacterCreation } from './composables/useCharacterCreation';
+import { useWorldGeneration } from './composables/useWorldGeneration';
 import { useCommands } from './composables/useCommands';
 import { useContextActions } from './composables/useContextActions';
 import { useCombat } from './composables/useCombat';
@@ -680,6 +681,7 @@ const {
   bankSlots,
   characterCreationStates,
   creationEvents,
+  worldGenStates,
 } = useGameData(currentLocationId);
 
 watch(appVersionRows, (rows) => {
@@ -885,6 +887,12 @@ const {
     characterCreationStates,
     creationEvents,
   });
+
+// World generation: auto-trigger procedure when WorldGenState is PENDING
+useWorldGeneration({
+  connActive: computed(() => conn.isActive),
+  worldGenStates,
+});
 
 // Auto-start narrative creation for characterless players
 watch(

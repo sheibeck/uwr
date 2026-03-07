@@ -1038,6 +1038,12 @@ export const Region = __t.object("Region", {
   name: __t.string(),
   dangerMultiplier: __t.u64(),
   regionType: __t.string(),
+  biome: __t.option(__t.string()),
+  dominantFaction: __t.option(__t.string()),
+  landmarks: __t.option(__t.string()),
+  threats: __t.option(__t.string()),
+  generatedByCharacterId: __t.option(__t.u64()),
+  isGenerated: __t.option(__t.bool()),
 });
 export type Region = __Infer<typeof Region>;
 
@@ -1186,6 +1192,20 @@ export const WorldEvent = __t.object("WorldEvent", {
   consequenceText: __t.option(__t.string()),
 });
 export type WorldEvent = __Infer<typeof WorldEvent>;
+
+export const WorldGenState = __t.object("WorldGenState", {
+  id: __t.u64(),
+  playerId: __t.identity(),
+  characterId: __t.u64(),
+  sourceLocationId: __t.u64(),
+  sourceRegionId: __t.u64(),
+  step: __t.string(),
+  generatedRegionId: __t.option(__t.u64()),
+  errorMessage: __t.option(__t.string()),
+  createdAt: __t.timestamp(),
+  updatedAt: __t.timestamp(),
+});
+export type WorldGenState = __Infer<typeof WorldGenState>;
 
 export const WorldStatTracker = __t.object("WorldStatTracker", {
   id: __t.u64(),
