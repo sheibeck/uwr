@@ -701,6 +701,17 @@ spacetimedb.reducer('submit_llm_result', {
       updatedAt: ctx.timestamp,
     });
 
+    // Transform the source edge location into a normal passage now that it's been explored
+    const sourceEdge = ctx.db.location.id.find(currentGenState.sourceLocationId);
+    if (sourceEdge && sourceEdge.terrainType === 'uncharted') {
+      ctx.db.location.id.update({
+        ...sourceEdge,
+        terrainType: 'passage',
+        name: `The Passage to ${data.regionName || 'the Beyond'}`,
+        description: `The mists have parted. What was once the edge of the known world is now a well-trodden path between regions. The air still carries a faint shimmer of remembered possibility.`,
+      });
+    }
+
     // Place character in the new region if they have no location (first region)
     const character = ctx.db.character.id.find(currentGenState.characterId);
     if (character && character.locationId === 0n) {

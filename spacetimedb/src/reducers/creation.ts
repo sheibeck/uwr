@@ -268,16 +268,18 @@ export const registerCreationReducers = (deps: any) => {
         }
 
         // Match by case-insensitive substring of ability name
-        const lowerInput = trimmed.toLowerCase();
+        const lowerInput = trimmed.toLowerCase().replace(/\s+/g, ' ');
         let matchIndex = -1;
         for (let i = 0; i < abilities.length; i++) {
-          const abilityName = (abilities[i].name || abilities[i].abilityName || '').toLowerCase();
-          if (abilityName && lowerInput.includes(abilityName)) {
+          const abilityName = (abilities[i].name || abilities[i].abilityName || '').trim().toLowerCase().replace(/\s+/g, ' ');
+          if (!abilityName) continue;
+          // Exact match first
+          if (lowerInput === abilityName) {
             matchIndex = i;
             break;
           }
-          // Also check if the player typed the ability name directly
-          if (abilityName && abilityName.includes(lowerInput)) {
+          // Substring match in either direction
+          if (lowerInput.includes(abilityName) || abilityName.includes(lowerInput)) {
             matchIndex = i;
             break;
           }

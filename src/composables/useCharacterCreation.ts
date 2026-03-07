@@ -174,9 +174,10 @@ export const useCharacterCreation = ({
   }
 
   // Auto-trigger LLM task preparation when creation state step changes to GENERATING_*
-  watch(characterCreationStates, (states) => {
-    if (isCreationLlmProcessing.value) return;
+  // Track which step we've already prepared to avoid double-fire
+  const preparedForStep = ref<string | null>(null);
 
+  watch(characterCreationStates, (states) => {
     const identity = window.__my_identity;
     if (!identity || !connActive.value) return;
 
@@ -185,19 +186,28 @@ export const useCharacterCreation = ({
     if (!myState) return;
 
     const step = myState.step;
-    const conn = window.__db_conn as DbConnection | undefined;
-    if (!conn) return;
 
+    // Set processing flag while in a GENERATING step
     if (step === 'GENERATING_RACE' || step === 'GENERATING_CLASS') {
-      const genType = step === 'GENERATING_RACE' ? 'race' : 'class';
       isCreationLlmProcessing.value = true;
+
+      // Only fire the prepare reducer once per generating step
+      if (preparedForStep.value === step) return;
+      preparedForStep.value = step;
+
+      const conn = window.__db_conn as DbConnection | undefined;
+      if (!conn) return;
+
+      const genType = step === 'GENERATING_RACE' ? 'race' : 'class';
       try {
         conn.reducers.prepareCreationLlm({ generationType: genType });
       } catch (err: any) {
         console.error(`[Creation] ${genType} prepare failed:`, err);
       }
-      // Reset flag after a timeout — the actual LLM call is handled by useLlmProxy
-      setTimeout(() => { isCreationLlmProcessing.value = false; }, 5000);
+    } else {
+      // Step changed away from GENERATING — clear processing flag
+      isCreationLlmProcessing.value = false;
+      preparedForStep.value = null;
     }
   }, { deep: true });
 

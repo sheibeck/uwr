@@ -37,7 +37,7 @@
       :active-combat="null"
       :conn-active="conn.isActive"
       :context-actions="[]"
-      :is-llm-processing="isCreationLlmProcessing || isWorldGenProcessing"
+      :is-llm-processing="isCreationLlmProcessing || isWorldGenProcessing || isLlmProxyProcessing"
       :format-timestamp="formatTimestamp"
       :creation-mode="true"
       @submit="onCreationSubmit"
@@ -897,7 +897,7 @@ const { isWorldGenProcessing } = useWorldGeneration({
 });
 
 // LLM proxy: watches for pending LlmTask rows, calls proxy, submits results
-useLlmProxy({
+const { isProcessing: isLlmProxyProcessing } = useLlmProxy({
   connActive: computed(() => conn.isActive),
   llmTasks,
 });
@@ -1296,11 +1296,20 @@ const { commandText, submitCommand } = useCommands({
 // --- Narrative Console wiring ---
 // NOTE: narrativeContextActions is defined later, after all dependencies (connectedLocations, hotbarDisplay, isCasting) are declared
 
-// LLM processing state for the narrative indicator
-const isNarrativeLlmProcessing = ref(false);
+// LLM processing state for the narrative indicator — driven by actual proxy state
+const isNarrativeLlmProcessing = isLlmProxyProcessing;
 
 // submitIntent reducer for natural language routing
 const submitIntentReducer = useReducer(reducers.submitIntent);
+
+// Auto-look when character is first selected (login/refresh/character switch)
+const autoLookedCharId = ref<bigint | null>(null);
+watch(() => selectedCharacter.value?.id, (charId) => {
+  if (charId && charId !== autoLookedCharId.value) {
+    autoLookedCharId.value = charId;
+    submitIntentReducer({ characterId: charId, text: 'look' });
+  }
+});
 
 // Handle submissions from NarrativeConsole input
 const onNarrativeSubmit = (text: string) => {
