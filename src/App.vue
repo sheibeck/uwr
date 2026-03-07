@@ -29,8 +29,24 @@
       @logout="logout"
     />
 
-  <!-- Character Select Screen: shown when logged in but no character selected -->
-  <div v-if="!selectedCharacter" :style="styles.charSelectScreen">
+  <!-- Narrative Character Creation: shown when logged in, no character, in creation flow -->
+  <div v-if="!selectedCharacter && isInCreation" :style="{ width: '100%', height: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }">
+    <NarrativeConsole
+      :combined-events="creationCombinedEvents"
+      :selected-character="null"
+      :active-combat="null"
+      :conn-active="conn.isActive"
+      :context-actions="[]"
+      :is-llm-processing="isCreationLlmProcessing"
+      :format-timestamp="formatTimestamp"
+      :creation-mode="true"
+      @submit="onCreationSubmit"
+      @open-panel="() => {}"
+    />
+  </div>
+
+  <!-- Character Select Screen: shown when logged in but no character and NOT in creation -->
+  <div v-else-if="!selectedCharacter" :style="styles.charSelectScreen">
     <div :style="styles.charSelectTitle">Select Your Character</div>
     <div :style="styles.charSelectContent">
       <CharacterPanel
@@ -686,6 +702,8 @@ const {
   appVersionRows,
   activeBardSongs,
   bankSlots,
+  characterCreationStates,
+  creationEvents,
 } = useGameData(currentLocationId);
 
 watch(appVersionRows, (rows) => {
@@ -885,6 +903,13 @@ const {
   creationToken,
   selectedRace,
   filteredClassOptions,
+  isInCreation,
+  myCreationState,
+  currentStep: creationStep,
+  creationCombinedEvents,
+  isCreationLlmProcessing,
+  submitCreationInput,
+  autoStartCreation,
 } = useCharacterCreation({
     connActive: computed(() => conn.isActive),
     selectedCharacter,
@@ -892,7 +917,21 @@ const {
     userId,
     characters,
     races,
+    characterCreationStates,
+    creationEvents,
   });
+
+// Auto-start narrative creation for characterless players
+watch(
+  [() => conn.isActive, () => isLoggedIn.value, () => characters.value.length, () => characterCreationStates.value.length],
+  () => {
+    if (!conn.isActive || !isLoggedIn.value) return;
+    if (characters.value.length > 0) return;
+    if (selectedCharacter.value) return;
+    autoStartCreation();
+  },
+  { immediate: true }
+);
 
 const onboardingStep = ref<'inventory' | 'abilities' | null>(null);
 const onboardingHint = computed(() => {
@@ -1303,6 +1342,21 @@ const onNarrativeSubmit = (text: string) => {
   // Natural language: route through server-side intent router
   if (!selectedCharacter.value) return;
   submitIntentReducer({ characterId: selectedCharacter.value.id, text: text.trim() });
+};
+
+// Handle submissions during narrative character creation
+const onCreationSubmit = (text: string) => {
+  if (!text.trim()) return;
+  submitCreationInput(text.trim());
+};
+
+// Global keyword click handler — routes to creation input or game intent
+(window as any).clickNpcKeyword = (keyword: string) => {
+  if (isInCreation.value) {
+    submitCreationInput(keyword);
+  } else if (selectedCharacter.value) {
+    submitIntentReducer({ characterId: selectedCharacter.value.id, text: keyword });
+  }
 };
 
 // Handle panel opening from NarrativeHud

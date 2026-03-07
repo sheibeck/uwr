@@ -7,7 +7,10 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all procedure arg schemas
 import * as CallLlmProcedure from "../call_llm_procedure";
+import * as GenerateCreationContentProcedure from "../generate_creation_content_procedure";
 
 export type CallLlmArgs = __Infer<typeof CallLlmProcedure.params>;
 export type CallLlmResult = __Infer<typeof CallLlmProcedure.returnType>;
+export type GenerateCreationContentArgs = __Infer<typeof GenerateCreationContentProcedure.params>;
+export type GenerateCreationContentResult = __Infer<typeof GenerateCreationContentProcedure.returnType>;
 

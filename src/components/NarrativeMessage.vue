@@ -63,12 +63,14 @@ const KIND_COLORS: Record<string, string> = {
   faction: '#ffd43b',
   avoid: '#adb5bd',
   blocked: '#ff6b6b',
+  creation: '#ffd43b',
+  creation_error: '#ff6b6b',
 };
 
 const kindColor = computed(() => KIND_COLORS[props.event.kind] ?? '#ced4da');
 
 const isNarrative = computed(
-  () => props.event.kind === 'narrative' || props.event.kind === 'llm'
+  () => props.event.kind === 'narrative' || props.event.kind === 'llm' || props.event.kind === 'creation'
 );
 
 const isAnimatingMessage = computed(

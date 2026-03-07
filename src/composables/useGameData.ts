@@ -27,6 +27,7 @@ export const useGameData = (currentLocationId: Ref<bigint | null>) => {
   const locationEvents = shallowRef<any[]>([]);
   const privateEvents = shallowRef<any[]>([]);
   const groupEvents = shallowRef<any[]>([]);
+  const creationEvents = shallowRef<any[]>([]);
 
   watch(
     () => conn.isActive,
@@ -41,6 +42,7 @@ export const useGameData = (currentLocationId: Ref<bigint | null>) => {
         'SELECT * FROM event_location',
         'SELECT * FROM event_private',
         'SELECT * FROM event_group',
+        'SELECT * FROM event_creation',
       ]);
 
       dbConn.db.event_world.onInsert((_ctx: any, row: any) => {
@@ -54,6 +56,9 @@ export const useGameData = (currentLocationId: Ref<bigint | null>) => {
       });
       dbConn.db.event_group.onInsert((_ctx: any, row: any) => {
         groupEvents.value = [...groupEvents.value.slice(-(MAX_CLIENT_EVENTS - 1)), row];
+      });
+      dbConn.db.event_creation.onInsert((_ctx: any, row: any) => {
+        creationEvents.value = [...creationEvents.value.slice(-(MAX_CLIENT_EVENTS - 1)), row];
       });
     },
     { immediate: true }
@@ -72,5 +77,6 @@ export const useGameData = (currentLocationId: Ref<bigint | null>) => {
     locationEvents,
     privateEvents,
     groupEvents,
+    creationEvents,
   };
 };

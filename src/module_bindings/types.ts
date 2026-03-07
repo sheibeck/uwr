@@ -191,6 +191,28 @@ export const CharacterCast = __t.object("CharacterCast", {
 });
 export type CharacterCast = __Infer<typeof CharacterCast>;
 
+export const CharacterCreationState = __t.object("CharacterCreationState", {
+  id: __t.u64(),
+  playerId: __t.identity(),
+  step: __t.string(),
+  goBackTarget: __t.option(__t.string()),
+  raceDescription: __t.option(__t.string()),
+  raceName: __t.option(__t.string()),
+  raceNarrative: __t.option(__t.string()),
+  raceBonuses: __t.option(__t.string()),
+  archetype: __t.option(__t.string()),
+  className: __t.option(__t.string()),
+  classDescription: __t.option(__t.string()),
+  classStats: __t.option(__t.string()),
+  abilities: __t.option(__t.string()),
+  chosenAbilityIndex: __t.option(__t.u64()),
+  characterName: __t.option(__t.string()),
+  previousStep: __t.option(__t.string()),
+  createdAt: __t.timestamp(),
+  updatedAt: __t.timestamp(),
+});
+export type CharacterCreationState = __Infer<typeof CharacterCreationState>;
+
 export const CharacterEffect = __t.object("CharacterEffect", {
   id: __t.u64(),
   characterId: __t.u64(),
@@ -451,6 +473,15 @@ export const EventContribution = __t.object("EventContribution", {
   regionEnteredAt: __t.timestamp(),
 });
 export type EventContribution = __Infer<typeof EventContribution>;
+
+export const EventCreation = __t.object("EventCreation", {
+  id: __t.u64(),
+  playerId: __t.identity(),
+  message: __t.string(),
+  kind: __t.string(),
+  createdAt: __t.timestamp(),
+});
+export type EventCreation = __Infer<typeof EventCreation>;
 
 export const EventDespawnTick = __t.object("EventDespawnTick", {
   scheduledId: __t.u64(),

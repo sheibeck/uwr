@@ -31,6 +31,7 @@ export function useCoreData(conn: ConnectionState) {
   const travelCooldowns = shallowRef<any[]>([]);
   const characterLogoutTicks = shallowRef<any[]>([]);
   const bankSlots = shallowRef<any[]>([]);
+  const characterCreationStates = shallowRef<any[]>([]);
 
   function refresh(dbConn: any) {
     players.value = [...dbConn.db.player.iter()];
@@ -58,6 +59,7 @@ export function useCoreData(conn: ConnectionState) {
     travelCooldowns.value = [...dbConn.db.travel_cooldown.iter()];
     characterLogoutTicks.value = [...dbConn.db.character_logout_tick.iter()];
     bankSlots.value = [...dbConn.db.my_bank_slots.iter()];
+    characterCreationStates.value = [...dbConn.db.character_creation_state.iter()];
   }
 
   watch(
@@ -95,6 +97,7 @@ export function useCoreData(conn: ConnectionState) {
           toSql(tables.travel_cooldown),
           toSql(tables.character_logout_tick),
           toSql(tables.my_bank_slots),
+          toSql(tables.character_creation_state),
         ]);
 
       // Register reactive callbacks for each table
@@ -130,6 +133,7 @@ export function useCoreData(conn: ConnectionState) {
       rebind(dbConn.db.travel_cooldown, travelCooldowns, () => dbConn.db.travel_cooldown.iter());
       rebind(dbConn.db.character_logout_tick, characterLogoutTicks, () => dbConn.db.character_logout_tick.iter());
       rebind(dbConn.db.my_bank_slots, bankSlots, () => dbConn.db.my_bank_slots.iter());
+      rebind(dbConn.db.character_creation_state, characterCreationStates, () => dbConn.db.character_creation_state.iter());
     },
     { immediate: true }
   );
@@ -160,5 +164,6 @@ export function useCoreData(conn: ConnectionState) {
     travelCooldowns,
     characterLogoutTicks,
     bankSlots,
+    characterCreationStates,
   };
 }

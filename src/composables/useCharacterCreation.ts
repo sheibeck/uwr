@@ -1,5 +1,5 @@
 import { computed, ref, watch, type Ref } from 'vue';
-import { reducers } from '../module_bindings';
+import { reducers, type DbConnection } from '../module_bindings';
 import { useReducer } from 'spacetimedb/vue';
 import type { Character, Race } from '../module_bindings/types';
 
@@ -10,6 +10,8 @@ type UseCharacterCreationArgs = {
   userId: Ref<bigint | null>;
   characters: Ref<Character[]>;
   races: Ref<Race[]>;
+  characterCreationStates: Ref<any[]>;
+  creationEvents: Ref<any[]>;
 };
 
 export const useCharacterCreation = ({
@@ -19,7 +21,10 @@ export const useCharacterCreation = ({
   userId,
   characters,
   races,
+  characterCreationStates,
+  creationEvents,
 }: UseCharacterCreationArgs) => {
+  // ── Old form-based creation (kept for CharacterPanel backward compat) ──
   const createCharacterReducer = useReducer(reducers.createCharacter);
   const newCharacter = ref({ name: '', raceId: '', className: '' });
   const createError = ref('');
@@ -95,7 +100,161 @@ export const useCharacterCreation = ({
     }
   );
 
+  // ── Narrative creation flow ──
+
+  // Track whether we've already called startCreation to avoid double-firing
+  const creationStarted = ref(false);
+  // Track whether LLM procedure is currently being called
+  const isCreationLlmProcessing = ref(false);
+  // Track which step we last triggered a procedure for (to avoid re-triggering)
+  const lastTriggeredStep = ref<string | null>(null);
+
+  // Get the current player's creation state
+  const myCreationState = computed(() => {
+    const identity = window.__my_identity;
+    if (!identity) return null;
+    const hex = identity.toHexString();
+    return characterCreationStates.value.find(
+      (s: any) => s.playerId?.toHexString?.() === hex
+    ) ?? null;
+  });
+
+  // Whether the player is actively in narrative creation (has creation state, not complete)
+  const isInCreation = computed(() => {
+    const state = myCreationState.value;
+    return state != null && state.step !== 'COMPLETE';
+  });
+
+  const currentStep = computed(() => myCreationState.value?.step ?? null);
+
+  // Filter creation events for the current player
+  const myCreationEvents = computed(() => {
+    const identity = window.__my_identity;
+    if (!identity) return [];
+    const hex = identity.toHexString();
+    return creationEvents.value
+      .filter((e: any) => e.playerId?.toHexString?.() === hex)
+      .sort((a: any, b: any) => {
+        const aTime = a.createdAt?.microsSinceUnixEpoch ?? 0n;
+        const bTime = b.createdAt?.microsSinceUnixEpoch ?? 0n;
+        if (aTime < bTime) return -1;
+        if (aTime > bTime) return 1;
+        return 0;
+      });
+  });
+
+  // Map creation events to the same shape as combined game events
+  const creationCombinedEvents = computed(() => {
+    return myCreationEvents.value.map((e: any) => ({
+      id: e.id,
+      createdAt: e.createdAt,
+      kind: e.kind ?? 'narrative',
+      message: e.message,
+      scope: 'creation',
+    }));
+  });
+
+  // Auto-trigger start_creation when player has no character and no creation state
+  function autoStartCreation() {
+    if (!connActive.value) return;
+    if (creationStarted.value) return;
+    if (myCreationState.value) return; // Already has creation state
+    if (selectedCharacter.value) return; // Already has character
+    // Check if player has any characters at all
+    if (characters.value.length > 0) return;
+
+    const conn = window.__db_conn as DbConnection | undefined;
+    if (!conn) return;
+
+    creationStarted.value = true;
+    try {
+      conn.reducers.startCreation({});
+    } catch (err) {
+      console.error('[Creation] Failed to start creation:', err);
+      creationStarted.value = false;
+    }
+  }
+
+  // Auto-trigger LLM procedure when step changes to GENERATING_*
+  watch(currentStep, (newStep, oldStep) => {
+    if (!connActive.value || !newStep) return;
+    if (newStep === oldStep) return;
+
+    const conn = window.__db_conn as DbConnection | undefined;
+    if (!conn) return;
+
+    if (newStep === 'GENERATING_RACE' && lastTriggeredStep.value !== 'GENERATING_RACE') {
+      lastTriggeredStep.value = 'GENERATING_RACE';
+      isCreationLlmProcessing.value = true;
+      conn.procedures.generateCreationContent({ generationType: 'race' })
+        .then(() => {
+          isCreationLlmProcessing.value = false;
+        })
+        .catch((err: any) => {
+          console.error('[Creation] Race generation failed:', err);
+          isCreationLlmProcessing.value = false;
+        });
+    }
+
+    if (newStep === 'GENERATING_CLASS' && lastTriggeredStep.value !== 'GENERATING_CLASS') {
+      lastTriggeredStep.value = 'GENERATING_CLASS';
+      isCreationLlmProcessing.value = true;
+      conn.procedures.generateCreationContent({ generationType: 'class' })
+        .then(() => {
+          isCreationLlmProcessing.value = false;
+        })
+        .catch((err: any) => {
+          console.error('[Creation] Class generation failed:', err);
+          isCreationLlmProcessing.value = false;
+        });
+    }
+
+    // Reset trigger tracking when leaving generating steps
+    if (newStep !== 'GENERATING_RACE' && newStep !== 'GENERATING_CLASS') {
+      lastTriggeredStep.value = null;
+    }
+  });
+
+  // Submit text input for creation
+  function submitCreationInput(text: string) {
+    if (!connActive.value) return;
+    const conn = window.__db_conn as DbConnection | undefined;
+    if (!conn) return;
+    conn.reducers.submitCreationInput({ text });
+  }
+
+  // When creation completes (COMPLETE step + character appears), auto-select the new character
+  watch(currentStep, (newStep) => {
+    if (newStep === 'COMPLETE') {
+      // Character should appear in the characters list soon via subscription
+      // Watch for it and auto-select
+      const unwatch = watch(
+        () => characters.value.length,
+        () => {
+          const identity = window.__my_identity;
+          if (!identity) return;
+          // Find the most recently created character owned by current user
+          const myChars = characters.value.filter(
+            (c: any) => c.ownerUserId === userId.value
+          );
+          if (myChars.length > 0) {
+            // Pick the newest one
+            const newest = myChars.reduce((a: any, b: any) =>
+              (a.createdAt?.microsSinceUnixEpoch ?? 0n) > (b.createdAt?.microsSinceUnixEpoch ?? 0n) ? a : b
+            );
+            selectedCharacterId.value = newest.id.toString();
+            unwatch();
+          }
+        },
+        { immediate: true }
+      );
+      // Safety: stop watching after 10 seconds
+      setTimeout(() => unwatch(), 10000);
+    }
+  });
+
   return {
+    // Old form-based creation
     newCharacter,
     isCharacterFormValid,
     createCharacter,
@@ -104,5 +263,13 @@ export const useCharacterCreation = ({
     creationToken,
     selectedRace,
     filteredClassOptions,
+    // Narrative creation flow
+    isInCreation,
+    myCreationState,
+    currentStep,
+    creationCombinedEvents,
+    isCreationLlmProcessing: computed(() => isCreationLlmProcessing.value),
+    submitCreationInput,
+    autoStartCreation,
   };
 };

@@ -1,7 +1,8 @@
 <template>
   <div :style="consoleStyle">
-    <!-- HUD -->
+    <!-- HUD (hidden during character creation) -->
     <NarrativeHud
+      v-if="selectedCharacter"
       :character="selectedCharacter"
       :active-combat="activeCombat"
       :conn-active="connActive"
@@ -10,8 +11,8 @@
 
     <!-- Scroll area -->
     <div :style="scrollAreaStyle" ref="scrollEl" @scroll="checkIfAtBottom">
-      <div v-if="!selectedCharacter" :style="emptyStyle">
-        Select or create a character to begin.
+      <div v-if="!selectedCharacter && combinedEvents.length === 0" :style="emptyStyle">
+        {{ creationMode ? 'The System is awakening...' : 'Select or create a character to begin.' }}
       </div>
       <div v-else-if="combinedEvents.length === 0" :style="emptyStyle">
         The world awaits. Try exploring or speaking to someone nearby.
@@ -77,6 +78,7 @@ const props = defineProps<{
   contextActions: ContextAction[];
   isLlmProcessing: boolean;
   formatTimestamp: (ts: { microsSinceUnixEpoch: bigint }) => string;
+  creationMode?: boolean;
 }>();
 
 defineEmits<{
@@ -97,7 +99,7 @@ watch(
       const key = `${event.scope}-${event.id}`;
       if (seenEventKeys.value.has(key)) continue;
       seenEventKeys.value.add(key);
-      if (event.kind === 'narrative' || event.kind === 'llm') {
+      if (event.kind === 'narrative' || event.kind === 'llm' || event.kind === 'creation') {
         startAnimation(key, event.message);
       }
     }
@@ -145,6 +147,7 @@ watch(
 
 // Context-aware placeholder
 const inputPlaceholder = computed(() => {
+  if (props.creationMode) return 'Describe, choose, or click a [keyword]...';
   if (!props.selectedCharacter) return 'Select a character to begin';
   if (props.activeCombat) return 'Choose your action...';
   return 'What do you do?';

@@ -136,9 +136,12 @@ import WithdrawFromBankReducer from "./withdraw_from_bank_reducer";
 import SetApiKeyReducer from "./set_api_key_reducer";
 import ValidateLlmRequestReducer from "./validate_llm_request_reducer";
 import SubmitIntentReducer from "./submit_intent_reducer";
+import StartCreationReducer from "./start_creation_reducer";
+import SubmitCreationInputReducer from "./submit_creation_input_reducer";
 
 // Import all procedure arg schemas
 import * as CallLlmProcedure from "./call_llm_procedure";
+import * as GenerateCreationContentProcedure from "./generate_creation_content_procedure";
 
 // Import all table schema definitions
 import AbilityCooldownRow from "./ability_cooldown_table";
@@ -149,6 +152,7 @@ import ActivePetRow from "./active_pet_table";
 import AppVersionRow from "./app_version_table";
 import CharacterRow from "./character_table";
 import CharacterCastRow from "./character_cast_table";
+import CharacterCreationStateRow from "./character_creation_state_table";
 import CharacterEffectRow from "./character_effect_table";
 import CharacterLogoutTickRow from "./character_logout_tick_table";
 import CombatEncounterRow from "./combat_encounter_table";
@@ -169,6 +173,7 @@ import EnemySpawnRow from "./enemy_spawn_table";
 import EnemySpawnMemberRow from "./enemy_spawn_member_table";
 import EnemyTemplateRow from "./enemy_template_table";
 import EventContributionRow from "./event_contribution_table";
+import EventCreationRow from "./event_creation_table";
 import EventGroupRow from "./event_group_table";
 import EventLocationRow from "./event_location_table";
 import EventObjectiveRow from "./event_objective_table";
@@ -360,6 +365,20 @@ const tablesSchema = __schema({
       { name: 'character_cast_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CharacterCastRow),
+  character_creation_state: __table({
+    name: 'character_creation_state',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_player', algorithm: 'btree', columns: [
+        'playerId',
+      ] },
+    ],
+    constraints: [
+      { name: 'character_creation_state_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CharacterCreationStateRow),
   character_effect: __table({
     name: 'character_effect',
     indexes: [
@@ -670,6 +689,21 @@ const tablesSchema = __schema({
       { name: 'event_contribution_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EventContributionRow),
+  event_creation: __table({
+    name: 'event_creation',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_player', algorithm: 'btree', columns: [
+        'playerId',
+      ] },
+    ],
+    constraints: [
+      { name: 'event_creation_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+    event: true,
+  }, EventCreationRow),
   event_group: __table({
     name: 'event_group',
     indexes: [
@@ -1672,11 +1706,14 @@ const reducersSchema = __reducers(
   __reducerSchema("set_api_key", SetApiKeyReducer),
   __reducerSchema("validate_llm_request", ValidateLlmRequestReducer),
   __reducerSchema("submit_intent", SubmitIntentReducer),
+  __reducerSchema("start_creation", StartCreationReducer),
+  __reducerSchema("submit_creation_input", SubmitCreationInputReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
 const proceduresSchema = __procedures(
   __procedureSchema("call_llm", CallLlmProcedure.params, CallLlmProcedure.returnType),
+  __procedureSchema("generate_creation_content", GenerateCreationContentProcedure.params, GenerateCreationContentProcedure.returnType),
 );
 
 /** The remote SpacetimeDB module schema, both runtime and type information. */
