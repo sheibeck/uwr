@@ -124,10 +124,12 @@ import AcceptCorpseSummonReducer from "./accept_corpse_summon_reducer";
 import DeclineCorpseSummonReducer from "./decline_corpse_summon_reducer";
 import SpawnCorpseReducer from "./spawn_corpse_reducer";
 import EatFoodReducer from "./eat_food_reducer";
-import ChooseDialogueOptionReducer from "./choose_dialogue_option_reducer";
+import TalkToNpcReducer from "./talk_to_npc_reducer";
 import GiveGiftToNpcReducer from "./give_gift_to_npc_reducer";
 import LootQuestItemReducer from "./loot_quest_item_reducer";
 import PullNamedEnemyReducer from "./pull_named_enemy_reducer";
+import TurnInQuestReducer from "./turn_in_quest_reducer";
+import AbandonQuestReducer from "./abandon_quest_reducer";
 import ChoosePerkReducer from "./choose_perk_reducer";
 import GrantTestRenownReducer from "./grant_test_renown_reducer";
 import GrantTestAchievementReducer from "./grant_test_achievement_reducer";
@@ -220,6 +222,7 @@ import NpcAffinityRow from "./npc_affinity_table";
 import NpcDialogRow from "./npc_dialog_table";
 import NpcDialogueOptionRow from "./npc_dialogue_option_table";
 import NpcDialogueVisitedRow from "./npc_dialogue_visited_table";
+import NpcMemoryRow from "./npc_memory_table";
 import PendingSkillRow from "./pending_skill_table";
 import PendingSpellCastRow from "./pending_spell_cast_table";
 import PlayerRow from "./player_table";
@@ -1137,6 +1140,23 @@ const tablesSchema = __schema({
       { name: 'npc_dialogue_visited_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, NpcDialogueVisitedRow),
+  npc_memory: __table({
+    name: 'npc_memory',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_npc', algorithm: 'btree', columns: [
+        'npcId',
+      ] },
+    ],
+    constraints: [
+      { name: 'npc_memory_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, NpcMemoryRow),
   pending_skill: __table({
     name: 'pending_skill',
     indexes: [
@@ -1253,6 +1273,9 @@ const tablesSchema = __schema({
   quest_template: __table({
     name: 'quest_template',
     indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
@@ -1742,10 +1765,12 @@ const reducersSchema = __reducers(
   __reducerSchema("decline_corpse_summon", DeclineCorpseSummonReducer),
   __reducerSchema("spawn_corpse", SpawnCorpseReducer),
   __reducerSchema("eat_food", EatFoodReducer),
-  __reducerSchema("choose_dialogue_option", ChooseDialogueOptionReducer),
+  __reducerSchema("talk_to_npc", TalkToNpcReducer),
   __reducerSchema("give_gift_to_npc", GiveGiftToNpcReducer),
   __reducerSchema("loot_quest_item", LootQuestItemReducer),
   __reducerSchema("pull_named_enemy", PullNamedEnemyReducer),
+  __reducerSchema("turn_in_quest", TurnInQuestReducer),
+  __reducerSchema("abandon_quest", AbandonQuestReducer),
   __reducerSchema("choose_perk", ChoosePerkReducer),
   __reducerSchema("grant_test_renown", GrantTestRenownReducer),
   __reducerSchema("grant_test_achievement", GrantTestAchievementReducer),

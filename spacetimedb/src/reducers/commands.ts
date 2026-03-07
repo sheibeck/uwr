@@ -1,4 +1,4 @@
-import { getAffinityForNpc, canConverseWithNpc, awardNpcAffinity, getAvailableDialogueOptions } from '../helpers/npc_affinity';
+import { getAffinityForNpc, canConverseWithNpc, awardNpcAffinity } from '../helpers/npc_affinity';
 import { appendSystemMessage, appendWorldEvent } from '../helpers/events';
 import { generateAffixData, buildDisplayName } from '../helpers/items';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
@@ -377,7 +377,7 @@ export const registerCommandReducers = (deps: any) => {
 
           // If already visited and no new children, show "nothing new"
           if (alreadyVisited) {
-            const childOptions = getAvailableDialogueOptions(ctx, character.id, npc.id, option.id);
+            const childOptions: any[] = []; // Old dialogue tree deprecated — LLM conversation replaces it
             if (childOptions.length === 0) {
               const nothingNew = `${npc.name} says, "I have nothing new to add about that."`;
               appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', nothingNew);

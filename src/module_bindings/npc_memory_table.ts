@@ -10,8 +10,10 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default {
-  characterId: __t.u64(),
-  npcId: __t.u64(),
-  optionId: __t.u64(),
-};
+export default __t.row({
+  id: __t.u64().primaryKey(),
+  characterId: __t.u64().name("character_id"),
+  npcId: __t.u64().name("npc_id"),
+  memoryJson: __t.string().name("memory_json"),
+  lastUpdated: __t.timestamp().name("last_updated"),
+});

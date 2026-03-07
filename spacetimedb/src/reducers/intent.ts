@@ -240,23 +240,10 @@ export const registerIntentReducers = (deps: any) => {
       }
       if (!npc) return fail(ctx, character, `No one named "${npcName}" is here.`);
 
-      // Get root dialogue option (empty playerText)
-      let rootOption: any = null;
-      for (const opt of ctx.db.npc_dialogue_option.by_npc.filter(npc.id)) {
-        if (opt.playerText === '' && (opt.parentOptionId === undefined || opt.parentOptionId === null)) {
-          rootOption = opt;
-          break;
-        }
-      }
-
-      if (!rootOption) {
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc',
-          `${npc.name} nods but has nothing to say.`);
-        return;
-      }
-
+      // Display NPC greeting — further conversation goes through talk_to_npc reducer
+      const greeting = npc.greeting || `${npc.name} regards you silently.`;
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc',
-        `${npc.name}: ${rootOption.npcResponse}`);
+        `${npc.name} says, "${greeting}"`);
       return;
     }
 

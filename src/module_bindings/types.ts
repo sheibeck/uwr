@@ -918,6 +918,15 @@ export const NpcDialogueVisited = __t.object("NpcDialogueVisited", {
 });
 export type NpcDialogueVisited = __Infer<typeof NpcDialogueVisited>;
 
+export const NpcMemory = __t.object("NpcMemory", {
+  id: __t.u64(),
+  characterId: __t.u64(),
+  npcId: __t.u64(),
+  memoryJson: __t.string(),
+  lastUpdated: __t.timestamp(),
+});
+export type NpcMemory = __Infer<typeof NpcMemory>;
+
 export const PendingSkill = __t.object("PendingSkill", {
   id: __t.u64(),
   characterId: __t.u64(),
@@ -1021,6 +1030,12 @@ export const QuestTemplate = __t.object("QuestTemplate", {
   targetNpcId: __t.option(__t.u64()),
   targetItemName: __t.option(__t.string()),
   itemDropChance: __t.option(__t.u64()),
+  description: __t.option(__t.string()),
+  rewardType: __t.option(__t.string()),
+  rewardItemName: __t.option(__t.string()),
+  rewardItemDesc: __t.option(__t.string()),
+  rewardGold: __t.option(__t.u64()),
+  characterId: __t.option(__t.u64()),
 });
 export type QuestTemplate = __Infer<typeof QuestTemplate>;
 

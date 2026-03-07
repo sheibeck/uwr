@@ -24,4 +24,10 @@ export default __t.row({
   targetNpcId: __t.option(__t.u64()).name("target_npc_id"),
   targetItemName: __t.option(__t.string()).name("target_item_name"),
   itemDropChance: __t.option(__t.u64()).name("item_drop_chance"),
+  description: __t.option(__t.string()),
+  rewardType: __t.option(__t.string()).name("reward_type"),
+  rewardItemName: __t.option(__t.string()).name("reward_item_name"),
+  rewardItemDesc: __t.option(__t.string()).name("reward_item_desc"),
+  rewardGold: __t.option(__t.u64()).name("reward_gold"),
+  characterId: __t.option(__t.u64()).name("character_id"),
 });
