@@ -1,6 +1,6 @@
 import { ref, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
-import type { Character, Npc, NpcDialogueOption, NpcAffinity, FactionStanding, Player, Location } from '../module_bindings/types';
+import type { Character, Npc, Player, Location } from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
 import { ADMIN_IDENTITY_HEX } from '../data/worldEventDefs';
 
@@ -11,9 +11,6 @@ type UseCommandsArgs = {
   npcsHere?: Ref<Npc[]>;
   onNpcHail?: (npc: Npc) => void;
   selectedNpcTarget?: Ref<bigint | null>;
-  npcDialogueOptions?: Ref<NpcDialogueOption[]>;
-  npcAffinities?: Ref<NpcAffinity[]>;
-  factionStandings?: Ref<FactionStanding[]>;
   selectedCharacterId?: Ref<bigint | null>;
   resetPanels?: () => void;
   addLocalEvent?: (kind: string, message: string) => void;
@@ -30,9 +27,6 @@ export const useCommands = ({
   npcsHere,
   onNpcHail,
   selectedNpcTarget,
-  npcDialogueOptions,
-  npcAffinities,
-  factionStandings,
   selectedCharacterId,
   resetPanels,
   addLocalEvent,
@@ -62,80 +56,7 @@ export const useCommands = ({
   const resolveWorldEventReducer = useReducer(reducers.resolveWorldEvent);
   const setAppVersionReducer = useReducer(reducers.setAppVersion);
   const recomputeRacialAllReducer = useReducer(reducers.recomputeRacialAll);
-  const chooseDialogueOptionReducer = useReducer(reducers.chooseDialogueOption);
   const commandText = ref('');
-
-  // Helper to check if dialogue option is unlocked for character
-  const isDialogueOptionUnlocked = (option: NpcDialogueOption, characterId: bigint): boolean => {
-    // Check affinity requirement
-    const currentAffinity = npcAffinities?.value?.find(
-      (a) => a.characterId.toString() === characterId.toString() && a.npcId.toString() === option.npcId.toString()
-    );
-    const affinityValue = currentAffinity ? Number(currentAffinity.affinity) : 0;
-    if (affinityValue < Number(option.requiredAffinity)) return false;
-
-    // Check faction requirement
-    if (option.requiredFactionId !== null && option.requiredFactionId !== undefined) {
-      const requiredStanding = option.requiredFactionStanding !== null && option.requiredFactionStanding !== undefined
-        ? Number(option.requiredFactionStanding)
-        : 0;
-      const factionRow = factionStandings?.value?.find(
-        (f) => f.characterId.toString() === characterId.toString() &&
-               f.factionId.toString() === option.requiredFactionId!.toString()
-      );
-      const standing = factionRow ? Number(factionRow.standing) : 0;
-      if (standing < requiredStanding) return false;
-    }
-
-    // Check renown requirement
-    if (option.requiredRenownRank !== null && option.requiredRenownRank !== undefined) {
-      // For simplicity, we'll skip renown check here since it requires renown table access
-      // The server will validate this anyway
-    }
-
-    return true;
-  };
-
-  // Helper to find matching dialogue option
-  const findMatchingDialogueOption = (npcId: bigint, userText: string, characterId: bigint): NpcDialogueOption | null => {
-    if (!npcDialogueOptions?.value) return null;
-
-    const normalizedUserText = userText.toLowerCase().trim();
-
-    // Get root options for this NPC (no parent)
-    const rootOptions = npcDialogueOptions.value.filter(
-      (opt) => opt.npcId.toString() === npcId.toString() &&
-               (opt.parentOptionId === null || opt.parentOptionId === undefined)
-    );
-
-    // Filter to unlocked options only
-    const unlockedOptions = rootOptions.filter((opt) => isDialogueOptionUnlocked(opt, characterId));
-
-    // Try exact match first
-    for (const opt of unlockedOptions) {
-      if (opt.playerText.toLowerCase().trim() === normalizedUserText) {
-        return opt;
-      }
-    }
-
-    // Try starts with
-    for (const opt of unlockedOptions) {
-      const optText = opt.playerText.toLowerCase().trim();
-      if (normalizedUserText.startsWith(optText) || optText.startsWith(normalizedUserText)) {
-        return opt;
-      }
-    }
-
-    // Try contains
-    for (const opt of unlockedOptions) {
-      const optText = opt.playerText.toLowerCase().trim();
-      if (normalizedUserText.includes(optText) || optText.includes(normalizedUserText)) {
-        return opt;
-      }
-    }
-
-    return null;
-  };
 
   const submitCommand = () => {
     if (!connActive.value || !selectedCharacter.value || !commandText.value.trim()) return;
@@ -218,28 +139,6 @@ export const useCommands = ({
       });
     } else if (lower.startsWith('/say ')) {
       const message = raw.slice(5).trim();
-
-      // Check if NPC is targeted and try to match dialogue
-      if (selectedNpcTarget?.value && selectedCharacter.value && npcDialogueOptions?.value) {
-        const matchedOption = findMatchingDialogueOption(
-          selectedNpcTarget.value,
-          message,
-          selectedCharacter.value.id
-        );
-
-        if (matchedOption) {
-          // Trigger dialogue option
-          chooseDialogueOptionReducer({
-            characterId: selectedCharacter.value.id,
-            npcId: selectedNpcTarget.value,
-            optionId: matchedOption.id,
-          });
-          commandText.value = '';
-          return;
-        }
-      }
-
-      // Fall through to normal say if no match
       sayReducer({
         characterId: selectedCharacter.value.id,
         message,
@@ -259,28 +158,6 @@ export const useCommands = ({
       });
     } else if (lower.startsWith('say ')) {
       const message = raw.slice(4).trim();
-
-      // Check if NPC is targeted and try to match dialogue
-      if (selectedNpcTarget?.value && selectedCharacter.value && npcDialogueOptions?.value) {
-        const matchedOption = findMatchingDialogueOption(
-          selectedNpcTarget.value,
-          message,
-          selectedCharacter.value.id
-        );
-
-        if (matchedOption) {
-          // Trigger dialogue option
-          chooseDialogueOptionReducer({
-            characterId: selectedCharacter.value.id,
-            npcId: selectedNpcTarget.value,
-            optionId: matchedOption.id,
-          });
-          commandText.value = '';
-          return;
-        }
-      }
-
-      // Fall through to normal say if no match
       sayReducer({
         characterId: selectedCharacter.value.id,
         message,
