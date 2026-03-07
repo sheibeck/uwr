@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 28-02-PLAN.md
-last_updated: "2026-03-07T20:00:00.000Z"
-last_activity: 2026-03-07 — Completed 28-02 Skill Generation Pipeline
+stopped_at: Completed 28-03-PLAN.md
+last_updated: "2026-03-07T19:33:00.000Z"
+last_activity: 2026-03-07 — Completed 28-03 Client Skill Choice Integration
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 12
-  completed_plans: 12
-  percent: 92
+  completed_plans: 13
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 28 of 30 (Dynamic Skill Generation)
-Plan: 2 of 3 complete (Skill Generation Pipeline)
-Status: In progress
-Last activity: 2026-03-07 — Completed 28-02 Skill Generation Pipeline
+Plan: 3 of 3 complete (Client Skill Choice Integration)
+Status: Phase complete
+Last activity: 2026-03-07 — Completed 28-03 Client Skill Choice Integration
 
-Progress: [█████████░] 92%
+Progress: [██████████] 100%
 
 ## Previous Milestone (v1.0)
 
@@ -60,6 +60,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 | Phase 27 P02 | 4min | 2 tasks | 4 files |
 | Phase 28 P01 | 45min | 2 tasks | 26 files |
 | Phase 28 P02 | 5min | 2 tasks | 5 files |
+| Phase 28 P03 | 12min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,9 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 28]: Client triggers prepare_skill_gen after level-up (keeps combat transaction clean)
 - [Phase 28]: Unchosen PendingSkill rows permanently deleted -- no second chances
 - [Phase 28]: Skill names use [brackets] in narrative for keyword click system
+- [Phase 28]: All hotbar/cooldown/cast tracking uses bigint abilityTemplateId instead of string abilityKey
+- [Phase 28]: Item-on-hotbar removed (incompatible with abilityTemplateId u64 schema)
+- [Phase 28]: Kind-based combat state checks replace old combatState field on client
 
 ### Pending Todos
 
@@ -121,6 +125,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-07T20:00:00.000Z
-Stopped at: Completed 28-02-PLAN.md
-Resume file: .planning/phases/28-dynamic-skill-generation/28-02-SUMMARY.md
+Last session: 2026-03-07T19:33:00.000Z
+Stopped at: Completed 28-03-PLAN.md
+Resume file: .planning/phases/28-dynamic-skill-generation/28-03-SUMMARY.md
