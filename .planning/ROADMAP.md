@@ -123,10 +123,12 @@ Plans:
   2. Generated NPCs have persistent identity stored in canonical tables (name, personality, dialogue topics) and behave consistently across interactions
   3. The LLM generates quests from NPC/region/world context that use existing quest types (kill, explore, delivery, etc.) with narrative flavor
   4. Generated quests are accepted, progressed, and completed through the existing quest system with no special handling
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 29-01: TBD
+- [ ] 29-01-PLAN.md — Schema extensions (NpcMemory table, QuestTemplate fields), expanded world gen NPC personality, conversation prompt builder
+- [ ] 29-02-PLAN.md — talk_to_npc reducer, npc_conversation LLM result handler, quest turn-in with item rewards
+- [ ] 29-03-PLAN.md — Client integration: bindings, useNpcConversation composable, intent service update, end-to-end verification
 
 ### Phase 30: Narrative Combat
 **Goal**: Combat encounters feel like a story unfolding -- the LLM narrates each round while the mechanical engine resolves damage and effects instantly
@@ -191,7 +193,7 @@ Phases execute in numeric order: 24 -> 25 -> 26 -> 27 -> 28 -> 29 -> 30
 | 26 | Narrative Character Creation | 0/3 | Planning complete | - |
 | 27 | Procedural World Generation | 0/3 | Planning complete | - |
 | 28 | Dynamic Skill Generation | 0/3 | Planning complete | - |
-| 29 | NPC & Quest Generation | 0/? | Not started | - |
+| 29 | NPC & Quest Generation | 0/3 | Planning complete | - |
 | 30 | Narrative Combat | 0/? | Not started | - |
 
 ---
