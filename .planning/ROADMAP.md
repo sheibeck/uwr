@@ -57,11 +57,12 @@ Plans:
   3. Player can type natural language in the input bar and the intent service routes it to the correct reducer (e.g., "go north" triggers travel)
   4. Existing panels (inventory, stats, social) open as overlays on top of the narrative console
   5. LLM-generated text appears with a typewriter animation, and a "The System is considering..." indicator shows during pending LLM requests
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 25-01: TBD
-- [ ] 25-02: TBD
+- [ ] 25-01-PLAN.md — Server-side submit_intent reducer and useContextActions composable
+- [ ] 25-02-PLAN.md — NarrativeConsole, HUD, input components and App.vue layout restructure
+- [ ] 25-03-PLAN.md — Typewriter animation, LLM indicators, binding regeneration, and full integration verification
 
 ### Phase 26: Narrative Character Creation
 **Goal**: New players experience character creation as a guided narrative conversation with the System, producing a unique LLM-generated class
@@ -185,8 +186,8 @@ Phases execute in numeric order: 24 -> 25 -> 26 -> 27 -> 28 -> 29 -> 30
 
 | Phase | Name | Plans Complete | Status | Completed |
 |-------|------|----------------|--------|-----------|
-| 24 | LLM Pipeline Foundation | 0/3 | Planning complete | - |
-| 25 | Narrative UI Shell | 0/? | Not started | - |
+| 24 | LLM Pipeline Foundation | 3/3 | Complete | 2026-03-07 |
+| 25 | Narrative UI Shell | 0/3 | Planning complete | - |
 | 26 | Narrative Character Creation | 0/? | Not started | - |
 | 27 | Procedural World Generation | 0/? | Not started | - |
 | 28 | Dynamic Skill Generation | 0/? | Not started | - |
