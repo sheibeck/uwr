@@ -9,12 +9,26 @@
       borderLeft: isNarrative ? '2px solid #ffd43b33' : 'none',
       paddingLeft: isNarrative ? '8px' : '0',
     }"
-    v-html="renderedMessage"
-  />
+  >
+    <template v-if="isAnimatingMessage">
+      <span
+        v-for="(sentence, idx) in animatedSentences"
+        :key="idx"
+        :style="{
+          opacity: idx < (animationState?.revealed ?? 0) ? '1' : '0',
+          transition: 'opacity 0.4s ease-in',
+          display: 'inline',
+        }"
+        v-html="processSentence(sentence)"
+      />
+    </template>
+    <span v-else v-html="renderedMessage" />
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import type { AnimationState } from '../composables/useNarrativeAnimation';
 
 type EventItem = {
   id: bigint;
@@ -27,6 +41,7 @@ type EventItem = {
 const props = defineProps<{
   event: EventItem;
   formatTimestamp: (ts: { microsSinceUnixEpoch: bigint }) => string;
+  animationState?: AnimationState;
 }>();
 
 const emit = defineEmits<{
@@ -55,6 +70,24 @@ const kindColor = computed(() => KIND_COLORS[props.event.kind] ?? '#ced4da');
 const isNarrative = computed(
   () => props.event.kind === 'narrative' || props.event.kind === 'llm'
 );
+
+const isAnimatingMessage = computed(
+  () => props.animationState != null && !props.animationState.complete
+);
+
+const animatedSentences = computed(() => {
+  if (!props.animationState) return [];
+  return props.animationState.sentences;
+});
+
+// Process a single sentence for keyword highlighting
+function processSentence(sentence: string): string {
+  return sentence
+    .replace(/\n/g, '<br>')
+    .replace(/\[([^\]]+)\]/g, (_match, keyword) => {
+      return `<span style="color: #60a5fa; cursor: pointer; text-decoration: underline; font-weight: 600;" onclick="window.clickNpcKeyword('${keyword.replace(/'/g, "\\'")}')">[${keyword}]</span>`;
+    });
+}
 
 // Parse message text and make [bracketed keywords] clickable
 const renderedMessage = computed(() => {

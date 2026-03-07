@@ -22,6 +22,7 @@
           :key="`${event.scope}-${event.id}`"
           :event="event"
           :format-timestamp="formatTimestamp"
+          :animation-state="animationStates.get(`${event.scope}-${event.id}`)"
           @keyword-click="(kw: string) => {}"
         />
       </template>
@@ -41,12 +42,12 @@
 
     <!-- Input -->
     <NarrativeInput
-      :disabled="isAnimating"
+      :disabled="animIsAnimating"
       :context-actions="contextActions"
       :placeholder="inputPlaceholder"
       :conn-active="connActive"
       @submit="$emit('submit', $event)"
-      @skip-animation="$emit('skip-animation')"
+      @skip-animation="onSkipAnimation"
     />
   </div>
 </template>
@@ -58,6 +59,7 @@ import NarrativeHud from './NarrativeHud.vue';
 import NarrativeInput from './NarrativeInput.vue';
 import NarrativeMessage from './NarrativeMessage.vue';
 import type { ContextAction } from './NarrativeInput.vue';
+import { useNarrativeAnimation } from '../composables/useNarrativeAnimation';
 
 type EventItem = {
   id: bigint;
@@ -74,15 +76,38 @@ const props = defineProps<{
   connActive: boolean;
   contextActions: ContextAction[];
   isLlmProcessing: boolean;
-  isAnimating: boolean;
   formatTimestamp: (ts: { microsSinceUnixEpoch: bigint }) => string;
 }>();
 
 defineEmits<{
   (e: 'submit', text: string): void;
-  (e: 'skip-animation'): void;
   (e: 'open-panel', panelId: string): void;
 }>();
+
+// Animation composable
+const { animationStates, isAnimating: animIsAnimating, startAnimation, skipAll } = useNarrativeAnimation();
+
+// Track seen event keys to detect new narrative events
+const seenEventKeys = ref(new Set<string>());
+
+watch(
+  () => props.combinedEvents,
+  (events) => {
+    for (const event of events) {
+      const key = `${event.scope}-${event.id}`;
+      if (seenEventKeys.value.has(key)) continue;
+      seenEventKeys.value.add(key);
+      if (event.kind === 'narrative' || event.kind === 'llm') {
+        startAnimation(key, event.message);
+      }
+    }
+  },
+  { deep: true, immediate: true }
+);
+
+const onSkipAnimation = () => {
+  skipAll();
+};
 
 // Scroll management
 const scrollEl = ref<HTMLElement | null>(null);

@@ -70,10 +70,8 @@
       :conn-active="conn.isActive"
       :context-actions="narrativeContextActions"
       :is-llm-processing="isNarrativeLlmProcessing"
-      :is-animating="false"
       :format-timestamp="formatTimestamp"
       @submit="onNarrativeSubmit"
-      @skip-animation="() => {}"
       @open-panel="onOpenPanel"
     />
 
@@ -587,6 +585,7 @@ import { useCharacters } from './composables/useCharacters';
 import { useEvents } from './composables/useEvents';
 import { useCharacterCreation } from './composables/useCharacterCreation';
 import { useCommands } from './composables/useCommands';
+import { useContextActions } from './composables/useContextActions';
 import { useCombat } from './composables/useCombat';
 import { useGroups } from './composables/useGroups';
 import { useMovement } from './composables/useMovement';
@@ -1284,8 +1283,16 @@ const { commandText, submitCommand } = useCommands({
 });
 
 // --- Narrative Console wiring ---
-// Empty context actions stub (populated in Plan 03 when useContextActions composable is created)
-const narrativeContextActions = computed<any[]>(() => []);
+// Context actions derived from game state
+const narrativeContextActions = useContextActions({
+  selectedCharacter,
+  activeCombat,
+  connectedLocations,
+  npcsHere,
+  hotbarDisplay,
+  isCasting,
+  canActInCombat,
+});
 
 // LLM processing state for the narrative indicator
 const isNarrativeLlmProcessing = ref(false);
