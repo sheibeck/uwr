@@ -22,7 +22,7 @@ You are guiding a new arrival into the world. They are nothing yet — a blank s
 
 When interpreting their race description, be creative but grounded. If they describe something absurd, lean into it with sardonic commentary. If they describe something generic, make it interesting despite them.
 
-When generating a class, go wild. The class name should be evocative and unexpected — not "Fire Mage" but "Ember-Blooded Pyroclast" or "Ash Whisperer of the Burnt Meridian." The class description should drip with personality. The mechanical stats must be valid but the flavor is yours.
+When generating a class, be creative but concise. The class name should be 1-2 words, punchy and evocative — not "Fire Mage" and not "Ember-Blooded Pyroclast" either. Good: "Pyroclast", "Ashweaver", "Voidcaller". The class description should drip with personality. The mechanical stats must be valid but the flavor is yours.
 
 You must always respond with valid JSON matching the schema provided in the user message.
 
@@ -107,7 +107,7 @@ export const RACE_INTERPRETATION_SCHEMA = `{
 }`;
 
 export const CLASS_GENERATION_SCHEMA = `{
-  "className": "string — wildly creative class name (not generic fantasy)",
+  "className": "string — 1-2 words, no adjective phrases (e.g. 'Gatebreaker', 'Pyroclast', 'Voidcaller' — NOT 'Mire-Crowned Gatebreaker')",
   "classDescription": "string — 2-3 sentences of sardonic class description",
   "stats": {
     "primaryStat": "str|dex|int|wis|cha",
@@ -119,7 +119,7 @@ export const CLASS_GENERATION_SCHEMA = `{
   },
   "abilities": [
     {
-      "name": "string — evocative ability name",
+      "name": "string — 2-3 words max, punchy action name (e.g. 'Moonsap Strike', 'Void Rend', 'Iron Tide' — NOT 'Grievance of the Blackbriar Choir')",
       "description": "string — sardonic description of the ability",
       "damageType": "physical|fire|ice|lightning|shadow|holy|nature|arcane",
       "baseDamage": "number (8-15 for level 1)",
@@ -145,9 +145,9 @@ export function buildClassGenerationUserPrompt(raceName: string, raceNarrative: 
 Race description: ${raceNarrative}
 Archetype: ${archetype}
 
-Generate a wildly creative and unique class for this ${archetype} ${raceName}. The class name should be evocative and unexpected — not "Fire Mage" but "Ember-Blooded Pyroclast" or "Ash Whisperer of the Burnt Meridian." Go wild with naming and flavor. The class should feel like it was born specifically from THIS race and THIS archetype combination.
+Generate a creative and unique class for this ${archetype} ${raceName}. The class name must be 1-2 words only — no adjective phrases or titles. Good: "Gatebreaker", "Pyroclast", "Voidcaller", "Ashweaver". Bad: "Mire-Crowned Gatebreaker", "Ember-Blooded Pyroclast", "Ash Whisperer of the Burnt Meridian". Keep it punchy and evocative. The class should feel like it was born specifically from THIS race and THIS archetype combination.
 
-Generate exactly 3 starting abilities appropriate for this class at level 1. Each should feel meaningfully different — vary damage types, effects, and playstyles. Names should be creative and memorable.
+Generate exactly 3 starting abilities appropriate for this class at level 1. Each should feel meaningfully different — vary damage types, effects, and playstyles. Ability names must be 2-3 words max — punchy and action-oriented, not narrative phrases. Good: "Void Rend", "Iron Tide", "Ember Lash". Bad: "Grievance of the Blackbriar Choir", "Cathedral of Hollow Leaves".
 
 ${archetype === 'warrior' ? 'As a warrior archetype, lean toward physical stats, higher HP, and melee-oriented abilities. Mana costs should be low or zero.' : 'As a mystic archetype, lean toward magical stats, higher mana, and spell-oriented abilities. Embrace magical damage types.'}
 
@@ -164,7 +164,7 @@ export const COMBINED_CREATION_SCHEMA = `{
     "secondary": { "stat": "str|dex|int|wis|cha", "value": 1 },
     "flavor": "string — one unique racial trait description"
   },
-  "className": "string — wildly creative class name (not generic fantasy)",
+  "className": "string — 1-2 words, no adjective phrases (e.g. 'Gatebreaker', 'Pyroclast', 'Voidcaller' — NOT 'Mire-Crowned Gatebreaker')",
   "classDescription": "string — 2-3 sentences of sardonic class description",
   "stats": {
     "primaryStat": "str|dex|int|wis|cha",
@@ -176,7 +176,7 @@ export const COMBINED_CREATION_SCHEMA = `{
   },
   "abilities": [
     {
-      "name": "string — evocative ability name",
+      "name": "string — 2-3 words max, punchy action name (e.g. 'Moonsap Strike', 'Void Rend', 'Iron Tide' — NOT 'Grievance of the Blackbriar Choir')",
       "description": "string — sardonic description of the ability",
       "damageType": "physical|fire|ice|lightning|shadow|holy|nature|arcane",
       "baseDamage": "number (8-15 for level 1)",
@@ -196,9 +196,9 @@ Do TWO things in a single response:
 
 1. INTERPRET their race description into a race for UWR. Be creative — if generic, make it interesting. If absurd, lean into it with sardonic delight.
 
-2. GENERATE a wildly creative and unique class for this ${archetype} of that race. The class name should be evocative and unexpected — not "Fire Mage" but "Ember-Blooded Pyroclast." The class should feel born from THIS race and THIS archetype.
+2. GENERATE a creative and unique class for this ${archetype} of that race. The class name must be 1-2 words only — no adjective phrases. Good: "Gatebreaker", "Pyroclast", "Voidcaller". Bad: "Mire-Crowned Gatebreaker", "Ember-Blooded Pyroclast". The class should feel born from THIS race and THIS archetype.
 
-Generate exactly 3 starting abilities for level 1. Each meaningfully different — vary damage types, effects, playstyles. Names should be creative and memorable.
+Generate exactly 3 starting abilities for level 1. Each meaningfully different — vary damage types, effects, playstyles. Ability names must be 2-3 words max — punchy and action-oriented, not narrative phrases. Good: "Void Rend", "Iron Tide", "Ember Lash". Bad: "Grievance of the Blackbriar Choir", "Cathedral of Hollow Leaves".
 
 ${archetype === 'warrior' ? 'As a warrior archetype, lean toward physical stats, higher HP, and melee-oriented abilities. Mana costs should be low or zero.' : 'As a mystic archetype, lean toward magical stats, higher mana, and spell-oriented abilities. Embrace magical damage types.'}
 
@@ -232,7 +232,7 @@ ${REGION_GENERATION_SCHEMA}`;
 export const SKILL_GENERATION_SCHEMA = `{
   "skills": [
     {
-      "name": "string — creative, unique name specific to the character's identity",
+      "name": "string — 2-3 words max, punchy action name (NOT narrative phrases like 'Echoing Spite of the Hollow King')",
       "description": "string — sardonic System narrator description, 1-2 sentences",
       "kind": "damage | heal | dot | hot | buff | debuff | shield | taunt | aoe_damage | aoe_heal | summon | cc | drain | execute | utility",
       "targetRule": "single_enemy | single_ally | self | all_enemies | all_allies | all_party | lowest_hp_ally | lowest_hp_enemy",
@@ -259,11 +259,11 @@ export function buildSkillGenSystemPrompt(): string {
 
 A character is growing stronger, and you must offer them three new abilities. Each ability should feel unique to THIS character — informed by their race, class, history, and the world they inhabit. No generic "Fireball" or "Heal" — every skill should feel like it was born from this character's specific journey.
 
-Skill names should be evocative and memorable. "Echoing Spite of the Hollow King" is better than "Dark Blast." The description should be sardonic and flavorful. The mechanical stats must conform to the schema but the creative expression is unlimited.
+Skill names should be 2-3 words max — punchy and action-oriented. "Hollow Spite" is better than both "Dark Blast" and "Echoing Spite of the Hollow King." No narrative phrases. The description should be sardonic and flavorful. The mechanical stats must conform to the schema but the creative expression is unlimited.
 
 Present exactly three options. Each should feel meaningfully different — not three variations of the same theme. At least 2 of the 3 must be DIFFERENT kinds (e.g., don't offer 3 damage abilities). One might be aggressive, one defensive, one utility. Or all three might be wildly unconventional. Surprise them.
 
-Names should be creative and specific to the character's identity, not generic (no "Fireball", "Ice Bolt", "Power Strike").
+Names must be 2-3 words, creative but concise. Not generic ("Fireball") and not narrative-length ("Echoing Spite of the Hollow King"). Good: "Hollow Spite", "Void Rend", "Iron Tide".
 
 Descriptions should be 1-2 sentences of sardonic commentary from The System.
 
