@@ -2,12 +2,17 @@
   <div
     :style="{
       marginBottom: '2px',
+      marginTop: isRipple ? '4px' : '0',
       lineHeight: '1.5',
       fontSize: '0.9rem',
       color: kindColor,
-      fontStyle: isNarrative ? 'italic' : 'normal',
-      borderLeft: isNarrative ? '2px solid #ffd43b33' : 'none',
-      paddingLeft: isNarrative ? '8px' : '0',
+      fontStyle: (isNarrative || isRipple) ? 'italic' : 'normal',
+      borderLeft: isRipple ? '3px solid #b197fc88' : isNarrative ? '2px solid #ffd43b33' : 'none',
+      paddingLeft: isRipple ? '10px' : isNarrative ? '8px' : '0',
+      paddingTop: isRipple ? '4px' : '0',
+      paddingBottom: isRipple ? '4px' : '0',
+      background: isRipple ? 'linear-gradient(90deg, rgba(177, 151, 252, 0.08) 0%, transparent 70%)' : 'none',
+      letterSpacing: isRipple ? '0.3px' : 'normal',
     }"
   >
     <template v-if="isAnimatingMessage">
@@ -68,9 +73,12 @@ const KIND_COLORS: Record<string, string> = {
   creation_warning: '#ffa94d',
   look: '#c8ccd0',
   move: '#adb5bd',
+  world: '#b197fc',
 };
 
 const kindColor = computed(() => KIND_COLORS[props.event.kind] ?? '#ced4da');
+
+const isRipple = computed(() => props.event.kind === 'world');
 
 const isNarrative = computed(
   () => props.event.kind === 'narrative' || props.event.kind === 'llm' || props.event.kind === 'creation'
