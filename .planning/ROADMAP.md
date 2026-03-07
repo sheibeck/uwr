@@ -107,10 +107,12 @@ Plans:
   2. The player picks 1 skill; the other 2 are marked as potentially expired and may not appear again
   3. Every generated skill passes schema validation (valid damage types, effect types, target types from the combat engine's vocabulary)
   4. A power-budget formula rejects skills that are mechanically overpowered or underpowered before they reach the database
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 28-01: TBD
+- [ ] 28-01-PLAN.md — Schema restructuring (AbilityTemplate, HotbarSlot, AbilityCooldown, PendingSkill), unified dispatch map, power budget helper
+- [ ] 28-02-PLAN.md — Skill generation prompts, LLM result parsing, level-up trigger, choose_skill reducer
+- [ ] 28-03-PLAN.md — Client integration: bindings, useSkillChoice composable, hotbar/combat migration, HUD indicator
 
 ### Phase 29: NPC & Quest Generation
 **Goal**: NPCs and quests emerge from the world context -- generated contextually, stored canonically, consumed by existing game systems
@@ -189,7 +191,7 @@ Phases execute in numeric order: 24 -> 25 -> 26 -> 27 -> 28 -> 29 -> 30
 | 25 | Narrative UI Shell | 0/3 | Planning complete | - |
 | 26 | Narrative Character Creation | 0/3 | Planning complete | - |
 | 27 | Procedural World Generation | 0/3 | Planning complete | - |
-| 28 | Dynamic Skill Generation | 0/? | Not started | - |
+| 28 | Dynamic Skill Generation | 0/3 | Planning complete | - |
 | 29 | NPC & Quest Generation | 0/? | Not started | - |
 | 30 | Narrative Combat | 0/? | Not started | - |
 
