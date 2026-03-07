@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 29 of 30 (Phases 24-29 complete, Phase 30 remaining)
 Plan: 27-03 just completed (Client World Generation Composable)
 Status: Phases 24-29 complete
-Last activity: 2026-03-07 - Completed 27-03: Client World Generation Composable & End-to-End Verification
+Last activity: 2026-03-07 - Completed quick task 335: Fix LLM proxy 401 Unauthorized for non-admin accounts
 
 Progress: [██████████] 100%
 
@@ -147,6 +147,7 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 333 | Fix stuck Entering The Realm screen | 2026-03-07 | operational | [333-fix-stuck-entering-the-realm-screen](./quick/333-fix-stuck-entering-the-realm-screen/) |
 | 334 | Enhance look command with rich location overview | 2026-03-07 | 6c70ca3, 7c3e0b2 | [334-narrative-panel-shows-location-descripti](./quick/334-narrative-panel-shows-location-descripti/) |
+| 335 | Fix LLM proxy 401 Unauthorized for non-admin accounts | 2026-03-07 | ea49d5c | [335-fix-llm-proxy-401-unauthorized-for-non-a](./quick/335-fix-llm-proxy-401-unauthorized-for-non-a/) |
 
 ## Session Continuity
 
