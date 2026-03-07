@@ -2695,6 +2695,8 @@ export const registerCombatReducers = (deps: any) => {
         if (reward.leveledUp) {
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', `You reached level ${reward.newLevel}.`);
           logGroupEvent(ctx, combat.id, character.id, 'system', `${character.name} reached level ${reward.newLevel}.`);
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative',
+            'Something stirs within you. New power awaits. The System will present its offerings shortly.');
         }
         continue;
       }
@@ -2710,6 +2712,8 @@ export const registerCombatReducers = (deps: any) => {
       if (reward.leveledUp) {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', `You reached level ${reward.newLevel}.`);
         logGroupEvent(ctx, combat.id, character.id, 'system', `${character.name} reached level ${reward.newLevel}.`);
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative',
+          'Something stirs within you. New power awaits. The System will present its offerings shortly.');
       }
       const primaryEnemy = enemies[0];
       if (primaryEnemy) {

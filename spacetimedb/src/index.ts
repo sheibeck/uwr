@@ -7,6 +7,8 @@ import {
   buildWorldGenPrompt,
   buildCombatNarrationPrompt,
   buildSkillGenPrompt,
+  buildSkillGenSystemPrompt,
+  buildSkillGenUserPrompt,
   buildRaceInterpretationUserPrompt,
   buildClassGenerationUserPrompt,
   buildCombinedCreationUserPrompt,
@@ -14,6 +16,7 @@ import {
 } from './data/llm_prompts';
 import { pickRippleMessage, pickDiscoveryMessage, computeRegionDanger } from './data/world_gen';
 import { writeGeneratedRegion, buildRegionContext } from './helpers/world_gen';
+import { parseSkillGenResult, insertPendingSkills } from './helpers/skill_gen';
 import spacetimedb, {
   scheduledReducers,
   Player, Character,
@@ -553,6 +556,157 @@ spacetimedb.reducer('prepare_world_gen_llm', { genStateId: t.u64() }, (ctx: any,
   });
 });
 
+// Reducer: prepare an LLM task for skill generation (called after level-up)
+spacetimedb.reducer('prepare_skill_gen', { characterId: t.u64() }, (ctx: any, { characterId }: { characterId: bigint }) => {
+  // Validate ownership
+  const character = ctx.db.character.id.find(characterId);
+  if (!character) throw new SenderError('Character not found');
+  const player = ctx.db.player.id.find(ctx.sender);
+  if (!player || !character.ownerUserId || player.userId !== character.ownerUserId) {
+    throw new SenderError('Not your character');
+  }
+
+  // Check character has no existing PendingSkill rows (prevent duplicates)
+  const existingPending = [...ctx.db.pending_skill.by_character.filter(characterId)];
+  if (existingPending.length > 0) {
+    appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
+      'The System is already preparing skill offerings for you. Be patient.');
+    return;
+  }
+
+  // Budget check
+  const budget = checkBudget(ctx, ctx.sender);
+  if (!budget.allowed) {
+    appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
+      'The System yawns. "Your daily allowance of cosmic creativity is spent. Come back tomorrow."');
+    return;
+  }
+
+  // Concurrency check — one LLM task at a time per player for skill_gen
+  const existingTasks = [...ctx.db.llm_task.by_player.filter(ctx.sender)];
+  if (existingTasks.some((t: any) => t.status === 'pending' && t.domain === 'skill_gen')) return;
+
+  // Read existing abilities for diversity context
+  const existingAbilities: { name: string; kind: string }[] = [];
+  for (const ab of ctx.db.ability_template.by_character.filter(characterId)) {
+    existingAbilities.push({ name: ab.name, kind: ab.kind });
+  }
+
+  const systemPrompt = buildSkillGenSystemPrompt();
+  const userPrompt = buildSkillGenUserPrompt(
+    character.name,
+    character.race || 'Unknown',
+    character.className || 'Unknown',
+    character.archetype || 'warrior',
+    character.level,
+    existingAbilities
+  );
+
+  ctx.db.llm_task.insert({
+    id: 0n,
+    playerId: ctx.sender,
+    domain: 'skill_gen',
+    model: 'gpt-5-mini',
+    systemPrompt,
+    userPrompt,
+    maxTokens: 1500n,
+    status: 'pending',
+    contextJson: JSON.stringify({ characterId: characterId.toString() }),
+    createdAt: ctx.timestamp,
+  });
+});
+
+// Reducer: player chooses one of 3 pending skills
+spacetimedb.reducer('choose_skill', { pendingSkillId: t.u64() }, (ctx: any, { pendingSkillId }: { pendingSkillId: bigint }) => {
+  // Find the PendingSkill row
+  const pending = ctx.db.pending_skill.id.find(pendingSkillId);
+  if (!pending) throw new SenderError('Pending skill not found');
+
+  // Validate ownership
+  const character = ctx.db.character.id.find(pending.characterId);
+  if (!character) throw new SenderError('Character not found');
+  const player = ctx.db.player.id.find(ctx.sender);
+  if (!player || !character.ownerUserId || player.userId !== character.ownerUserId) {
+    throw new SenderError('Not your character');
+  }
+
+  // Insert chosen skill into ability_template
+  const abilityRow = ctx.db.ability_template.insert({
+    id: 0n,
+    characterId: pending.characterId,
+    name: pending.name,
+    description: pending.description,
+    kind: pending.kind,
+    targetRule: pending.targetRule,
+    resourceType: pending.resourceType,
+    resourceCost: pending.resourceCost,
+    castSeconds: pending.castSeconds,
+    cooldownSeconds: pending.cooldownSeconds,
+    scaling: pending.scaling,
+    value1: pending.value1,
+    value2: pending.value2,
+    damageType: pending.damageType,
+    effectType: pending.effectType,
+    effectMagnitude: pending.effectMagnitude,
+    effectDuration: pending.effectDuration,
+    levelRequired: pending.levelRequired,
+    isGenerated: true,
+  });
+
+  // Auto-assign to first available hotbar slot (0-5)
+  const existingSlots = [...ctx.db.hotbar_slot.by_character.filter(pending.characterId)];
+  const usedSlots = new Set(existingSlots.map((s: any) => Number(s.slot)));
+  let assignedSlot = -1;
+  for (let i = 0; i <= 5; i++) {
+    if (!usedSlots.has(i)) {
+      assignedSlot = i;
+      break;
+    }
+  }
+  if (assignedSlot === -1) {
+    // All slots full, overwrite slot 0
+    assignedSlot = 0;
+    const slot0 = existingSlots.find((s: any) => Number(s.slot) === 0);
+    if (slot0) {
+      ctx.db.hotbar_slot.id.update({
+        ...slot0,
+        abilityTemplateId: abilityRow.id,
+        assignedAt: ctx.timestamp,
+      });
+    } else {
+      ctx.db.hotbar_slot.insert({
+        id: 0n,
+        characterId: pending.characterId,
+        slot: 0,
+        abilityTemplateId: abilityRow.id,
+        assignedAt: ctx.timestamp,
+      });
+    }
+    appendPrivateEvent(ctx, pending.characterId, character.ownerUserId, 'system',
+      'All hotbar slots were full. The new ability was placed in slot 1, replacing the previous occupant.');
+  } else {
+    ctx.db.hotbar_slot.insert({
+      id: 0n,
+      characterId: pending.characterId,
+      slot: assignedSlot,
+      abilityTemplateId: abilityRow.id,
+      assignedAt: ctx.timestamp,
+    });
+  }
+
+  // Delete ALL PendingSkill rows for this character (chosen + unchosen)
+  const allPending = [...ctx.db.pending_skill.by_character.filter(pending.characterId)];
+  for (const row of allPending) {
+    ctx.db.pending_skill.id.delete(row.id);
+  }
+
+  // Narrative: skill chosen
+  appendPrivateEvent(ctx, pending.characterId, character.ownerUserId, 'narrative',
+    `The System nods. "[${pending.name}] it is. The others scatter like forgotten dreams. You will never see them again."`);
+  appendPrivateEvent(ctx, pending.characterId, character.ownerUserId, 'system',
+    `You learned [${pending.name}] — ${pending.kind}, ${pending.value1} power, ${pending.cooldownSeconds}s cooldown`);
+});
+
 // Reducer: client submits LLM result after calling the proxy
 spacetimedb.reducer('submit_llm_result', {
   taskId: t.u64(),
@@ -586,6 +740,14 @@ spacetimedb.reducer('submit_llm_result', {
       const genState = ctx.db.world_gen_state.id.find(genStateId);
       if (genState) {
         retryWorldGen(ctx, genState, 'The System falters. "The world refuses to be remembered right now. Try again."');
+      }
+    } else if (task.domain === 'skill_gen') {
+      const context = task.contextJson ? JSON.parse(task.contextJson) : {};
+      const charId = BigInt(context.characterId);
+      const character = ctx.db.character.id.find(charId);
+      if (character) {
+        appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
+          'The System flickers. "Your potential eludes crystallization. The power will come... eventually."');
       }
     }
     return;
@@ -776,6 +938,37 @@ spacetimedb.reducer('submit_llm_result', {
     }
 
     incrementBudget(ctx, currentGenState.playerId);
+
+  } else if (task.domain === 'skill_gen') {
+    const context = task.contextJson ? JSON.parse(task.contextJson) : {};
+    const charId = BigInt(context.characterId);
+    const character = ctx.db.character.id.find(charId);
+    if (!character) return;
+
+    const { skills, errors } = parseSkillGenResult(resultText, charId, character.level);
+
+    if (skills.length < 3) {
+      console.error(`Skill gen produced ${skills.length} valid skills: ${errors.join('; ')}`);
+      appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
+        'The System grimaces. "The cosmic machinery sputtered. Your potential remains... unformed. Try again."');
+      return;
+    }
+
+    insertPendingSkills(ctx, charId, skills, character.level);
+    incrementBudget(ctx, ctx.sender);
+
+    // Present the 3 skills with The System's sardonic narration
+    let presentation = `The System regards you with something resembling interest.\n\n`;
+    presentation += `"Level ${character.level}. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:"\n`;
+
+    for (const skill of skills) {
+      presentation += `\n[${skill.name}] -- ${skill.description}\n`;
+      presentation += `  ${skill.kind} | ${skill.resourceCost} ${skill.resourceType} | ${skill.cooldownSeconds}s cooldown | ${skill.value1} power\n`;
+    }
+
+    presentation += `\n"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return."`;
+
+    appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative', presentation);
   }
 });
 
