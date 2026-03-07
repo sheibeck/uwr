@@ -192,15 +192,21 @@ export const useCharacterCreation = ({
     if (step === 'GENERATING_RACE' || step === 'GENERATING_CLASS') {
       const genType = step === 'GENERATING_RACE' ? 'race' : 'class';
       isCreationLlmProcessing.value = true;
-      // Safety timeout: if procedure hangs for >90s, reset the flag
-      const safetyTimer = setTimeout(() => { isCreationLlmProcessing.value = false; }, 90_000);
-      conn.procedures.generateCreationContent({ generationType: genType })
-        .then(() => { clearTimeout(safetyTimer); isCreationLlmProcessing.value = false; })
-        .catch((err: any) => {
-          clearTimeout(safetyTimer);
-          console.error(`[Creation] ${genType} generation failed:`, err);
-          isCreationLlmProcessing.value = false;
-        });
+      // Delay before calling procedure — SpacetimeDB 2.0.1 HTTP client has connection
+      // reuse issues when procedures are called in rapid succession. Class generation
+      // fires ~10s after race completes; adding a delay helps the runtime recover.
+      const delay = step === 'GENERATING_CLASS' ? 3000 : 0;
+      setTimeout(() => {
+        // Safety timeout: if procedure hangs for >90s, reset the flag
+        const safetyTimer = setTimeout(() => { isCreationLlmProcessing.value = false; }, 90_000);
+        conn!.procedures.generateCreationContent({ generationType: genType })
+          .then(() => { clearTimeout(safetyTimer); isCreationLlmProcessing.value = false; })
+          .catch((err: any) => {
+            clearTimeout(safetyTimer);
+            console.error(`[Creation] ${genType} generation failed:`, err);
+            isCreationLlmProcessing.value = false;
+          });
+      }, delay);
     }
   }, { deep: true });
 

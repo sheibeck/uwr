@@ -27,7 +27,7 @@ export function useLlm({ connActive, selectedCharacterId }: UseLlmArgs) {
    * Request an LLM generation.
    *
    * @param domain - The generation domain (e.g. 'character_creation', 'world_gen')
-   * @param model - The model to use ('claude-sonnet-4-5' or 'claude-haiku-4-5')
+   * @param model - The model to use ('gpt-5.4' or 'gpt-5-mini')
    * @param userPrompt - The user's prompt text
    * @returns The result text on success, or null on error
    */

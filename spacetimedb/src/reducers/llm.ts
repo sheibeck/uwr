@@ -35,7 +35,7 @@ export const registerLlmReducers = (deps: any) => {
     }
 
     // 3. Validate model
-    const validModels = ['claude-opus-4-6'];
+    const validModels = ['gpt-5.4', 'gpt-5-mini'];
     if (!validModels.includes(model)) {
       throw new SenderError(`Invalid model: ${model}`);
     }

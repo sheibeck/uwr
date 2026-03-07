@@ -1,7 +1,7 @@
 import { t, SenderError } from 'spacetimedb/server';
 import { requireAdmin } from './data/admin';
 import { ScheduleAt, Timestamp } from 'spacetimedb';
-import { callAnthropicApi, incrementBudget, checkBudget } from './helpers/llm';
+import { callLlmApi, incrementBudget, checkBudget } from './helpers/llm';
 import {
   buildCharacterCreationPrompt,
   buildWorldGenPrompt,
@@ -466,7 +466,7 @@ spacetimedb.procedure(
     const systemPrompt = buildPrompt('');
 
     // === PHASE 3: Call Anthropic API (NO transaction open) ===
-    const parsed = callAnthropicApi(ctx, {
+    const parsed = callLlmApi(ctx, {
       apiKey,
       model: request.model,
       systemPrompt,
@@ -578,14 +578,14 @@ spacetimedb.procedure(
     if (!budgetOk || !state || !userPrompt) return 'error';
 
     // === PHASE 2: Call Anthropic API (NO transaction open) ===
-    const model = 'gpt-4o';
-    const parsed = callAnthropicApi(ctx, {
+    const model = 'gpt-5.4';
+    const parsed = callLlmApi(ctx, {
       apiKey,
       model,
       systemPrompt,
       userPrompt,
       label: `creation/${generationType}`,
-      maxAttempts: 3,
+      maxAttempts: 6,
     });
 
     if (!parsed.ok && !parsed.text) {
@@ -801,15 +801,15 @@ spacetimedb.procedure(
         sourceRegionName, neighbors
       );
 
-      const model = 'gpt-4o';
-      const parsed = callAnthropicApi(ctx, {
+      const model = 'gpt-5.4';
+      const parsed = callLlmApi(ctx, {
         apiKey,
         model,
         systemPrompt,
         userPrompt,
         maxTokens: 2048,
         label: 'world-gen',
-        maxAttempts: 3,
+        maxAttempts: 6,
       });
 
       ctx.withTx((tx: any) => {

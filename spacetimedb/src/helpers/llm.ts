@@ -85,7 +85,7 @@ export function buildOpenAiRequest(
 ): string {
   return JSON.stringify({
     model,
-    max_tokens: maxTokens,
+    max_completion_tokens: maxTokens,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -165,7 +165,7 @@ export function parseOpenAiResponse(responseText: string, responseOk: boolean): 
  * Handles request building, retries, response parsing, and usage logging.
  * Must be called OUTSIDE a transaction (ctx.http.fetch cannot overlap with ctx.withTx).
  */
-export function callAnthropicApi(
+export function callLlmApi(
   ctx: any,
   opts: {
     apiKey: string;
@@ -177,7 +177,7 @@ export function callAnthropicApi(
     maxAttempts?: number;
   }
 ): { ok: boolean; text: string; usage: { inputTokens: number; outputTokens: number; cacheReadTokens: number } | null; error: string | null } {
-  const { apiKey, model, systemPrompt, userPrompt, maxTokens = 1024, label, maxAttempts = 2 } = opts;
+  const { apiKey, model, systemPrompt, userPrompt, maxTokens = 1024, label, maxAttempts = 6 } = opts;
 
   const isOpenAi = LLM_PROVIDER === 'openai';
   const requestBody = isOpenAi
@@ -193,9 +193,11 @@ export function callAnthropicApi(
   let responseText = '';
   let responseOk = false;
 
-  console.log(`[${label}] Starting LLM call, provider=${LLM_PROVIDER}, model=${model}, body_len=${requestBody.length}`);
+  console.log(`[${label}] Starting LLM call, provider=${LLM_PROVIDER}, model=${model}, url=${url}, body_len=${requestBody.length}`);
+  console.log(`[${label}] Headers: ${JSON.stringify(Object.keys(headers))}`);
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(`[${label}] Attempt ${attempt}/${maxAttempts} starting...`);
     try {
       const response = ctx.http.fetch(url, {
         method: 'POST',
@@ -203,14 +205,22 @@ export function callAnthropicApi(
         body: requestBody,
         timeout: TimeDuration.fromMillis(60000),
       });
+      console.log(`[${label}] Attempt ${attempt} got response, ok=${response.ok}, status=${response.status}`);
       responseText = response.text();
       responseOk = response.ok;
-      if (responseOk) break;
-      if (attempt < maxAttempts) {
-        console.error(`[${label}] LLM attempt ${attempt} failed, retrying...`);
+      if (responseOk) {
+        console.log(`[${label}] Attempt ${attempt} success, response_len=${responseText.length}`);
+        break;
+      }
+      console.error(`[${label}] Attempt ${attempt} failed, ok=${responseOk}, body=${responseText.slice(0, 500)}`);
+      if (attempt >= maxAttempts) {
+        console.error(`[${label}] No retries left`);
       }
     } catch (err: any) {
-      console.error(`[${label}] LLM attempt ${attempt} threw: ${err?.message ?? err}`);
+      const errMsg = err?.message ?? String(err);
+      const errStack = err?.stack ?? 'no stack';
+      console.error(`[${label}] Attempt ${attempt} threw: ${errMsg}`);
+      console.error(`[${label}] Stack: ${errStack}`);
       if (attempt >= maxAttempts) {
         responseText = '';
         responseOk = false;
@@ -223,6 +233,9 @@ export function callAnthropicApi(
     : parseAnthropicResponse(responseText, responseOk);
   if (parsed.usage) {
     console.log(`[${label}/${model}] LLM usage: input=${parsed.usage.inputTokens}, output=${parsed.usage.outputTokens}, cache_read=${parsed.usage.cacheReadTokens}`);
+  }
+  if (!parsed.ok) {
+    console.error(`[${label}] Final result: FAILED, error=${parsed.error}, responseText_len=${responseText.length}`);
   }
   return parsed;
 }
