@@ -29,8 +29,8 @@
       @logout="logout"
     />
 
-  <!-- Narrative Character Creation: shown when logged in, no character, in creation flow -->
-  <div v-if="!selectedCharacter && isInCreation" :style="{ width: '100%', height: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }">
+  <!-- Narrative Character Creation: shown when logged in but no character selected -->
+  <div v-if="!selectedCharacter" :style="{ width: '100%', height: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }">
     <NarrativeConsole
       :combined-events="creationCombinedEvents"
       :selected-character="null"
@@ -43,29 +43,6 @@
       @submit="onCreationSubmit"
       @open-panel="() => {}"
     />
-  </div>
-
-  <!-- Character Select Screen: shown when logged in but no character and NOT in creation -->
-  <div v-else-if="!selectedCharacter" :style="styles.charSelectScreen">
-    <div :style="styles.charSelectTitle">Select Your Character</div>
-    <div :style="styles.charSelectContent">
-      <CharacterPanel
-        :styles="styles"
-        :conn-active="conn.isActive"
-        :new-character="newCharacter"
-        :is-character-form-valid="isCharacterFormValid"
-        :create-error="createError"
-        :my-characters="myCharacters"
-        :selected-character-id="selectedCharacterId"
-        :races="races"
-        :selected-race="selectedRace"
-        :filtered-class-options="filteredClassOptions"
-        @update:newCharacter="newCharacter = $event"
-        @create="createCharacter"
-        @delete="deleteCharacter"
-        @select="selectedCharacterId = $event"
-      />
-    </div>
   </div>
 
   <!-- Game World: shown only after a character is selected -->
@@ -570,7 +547,6 @@ import { styles } from './ui/styles';
 import SplashScreen from './components/SplashScreen.vue';
 import AppHeader from './components/AppHeader.vue';
 import NarrativeConsole from './components/NarrativeConsole.vue';
-import CharacterPanel from './components/CharacterPanel.vue';
 import CharacterInfoPanel from './components/CharacterInfoPanel.vue';
 import GroupPanel from './components/GroupPanel.vue';
 import FriendsPanel from './components/FriendsPanel.vue';
@@ -749,7 +725,6 @@ const {
   charactersHere,
   currentGroup,
   groupMembers: groupCharacterMembers,
-  deleteCharacter,
   deselectCharacter,
   bindLocation,
   respawnCharacter,
@@ -895,17 +870,7 @@ const { combinedEvents, addLocalEvent } = useEvents({
 });
 
 const {
-  newCharacter,
-  isCharacterFormValid,
-  createCharacter,
-  hasCharacter,
-  createError,
-  creationToken,
-  selectedRace,
-  filteredClassOptions,
   isInCreation,
-  myCreationState,
-  currentStep: creationStep,
   creationCombinedEvents,
   isCreationLlmProcessing,
   submitCreationInput,
@@ -944,15 +909,6 @@ const highlightInventory = computed(() => onboardingStep.value === 'inventory');
 const dismissOnboarding = () => {
   onboardingStep.value = null;
 };
-
-watch(
-  () => creationToken.value,
-  (token, prev) => {
-    if (token && token !== prev) {
-      onboardingStep.value = 'inventory';
-    }
-  }
-);
 
 const worldStateRow = computed(() => worldState.value[0] ?? null);
 const isNight = computed(() => worldStateRow.value?.isNight ?? false);
@@ -2389,8 +2345,10 @@ watch(
       selectedCharacterId.value = activeId.toString();
       return;
     }
-    // No activeId — the character select screen will show naturally
-    // since selectedCharacter will be null.
+    // No activeId — auto-select first character if any exist
+    if (!selectedCharacterId.value && myCharacters.value.length > 0) {
+      selectedCharacterId.value = myCharacters.value[0].id.toString();
+    }
   }
 );
 
