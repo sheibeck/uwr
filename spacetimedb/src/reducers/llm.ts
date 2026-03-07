@@ -29,7 +29,7 @@ export const registerLlmReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, characterId);
 
     // 2. Validate domain
-    const validDomains = ['character_creation', 'world_gen', 'combat_narration', 'skill_gen'];
+    const validDomains = ['character_creation', 'world_gen', 'combat_narration', 'skill_gen', 'npc_conversation'];
     if (!validDomains.includes(domain)) {
       throw new SenderError(`Invalid domain: ${domain}`);
     }

@@ -28,7 +28,7 @@ export function getAffinityTierName(affinity: number): string {
   return 'Hostile';
 }
 
-export const CONVERSATION_COOLDOWN_MICROS = 3600_000_000n; // 1 hour
+export const CONVERSATION_COOLDOWN_MICROS = 30_000_000n; // 30 seconds
 export const MAX_GIFTS_PER_DAY = 3n;
 export const GIFT_COOLDOWN_MICROS = 86400_000_000n; // 24 hours for gift reset
 

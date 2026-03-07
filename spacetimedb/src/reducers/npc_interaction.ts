@@ -1,80 +1,95 @@
 import { awardNpcAffinity, getAffinityForNpc, getAffinityRow } from '../helpers/npc_affinity';
 import { appendNpcDialog, appendPrivateEvent, appendSystemMessage, fail, requireCharacterOwnedBy } from '../helpers/events';
+import { checkBudget, incrementBudget } from '../helpers/llm';
+import {
+  getOrCreateNpcMemory,
+  getAffinityTierForConversation,
+  getActiveQuestCount,
+  MAX_ACTIVE_QUESTS,
+  parseNpcPersonality,
+} from '../helpers/npc_conversation';
+import {
+  buildNpcConversationSystemPrompt,
+  buildNpcConversationUserPrompt,
+} from '../data/llm_prompts';
 
 export const registerNpcInteractionReducers = (deps: any) => {
   const { spacetimedb, t } = deps;
 
-  // Choose a dialogue option from an NPC's dialogue tree
-  spacetimedb.reducer('choose_dialogue_option', {
+  // Talk to an NPC using free-form text (LLM-driven conversation)
+  spacetimedb.reducer('talk_to_npc', {
     characterId: t.u64(),
     npcId: t.u64(),
-    optionId: t.u64(),
+    message: t.string(),
   }, (ctx: any, args: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const { npcId, optionId } = args;
+    const { npcId, message } = args;
 
     const npc = ctx.db.npc.id.find(npcId);
     if (!npc) { fail(ctx, character, 'NPC not found.'); return; }
 
-    // Check character is at NPC location
+    // Location check
     if (character.locationId !== npc.locationId) {
       return fail(ctx, character, 'You are not near this NPC.');
     }
 
-    // Find the dialogue option
-    const option = ctx.db.npc_dialogue_option.id.find(optionId);
-    if (!option || option.npcId !== npcId) {
-      return fail(ctx, character, 'Invalid dialogue option.');
+    // Combat check
+    if (character.combatTargetEnemyId) {
+      return fail(ctx, character, 'You cannot converse while in combat.');
     }
 
-    // Check affinity requirement
-    const currentAffinity = getAffinityForNpc(ctx, character.id, npcId);
-    if (currentAffinity < option.requiredAffinity) {
-      return fail(ctx, character, 'Your relationship is not strong enough for this conversation.');
+    // Concurrency check — one LLM task at a time per player
+    const existingTasks = [...ctx.db.llm_task.by_player.filter(ctx.sender)];
+    if (existingTasks.some((tk: any) => tk.status === 'pending')) {
+      return fail(ctx, character, 'The System is already considering something. Patience.');
     }
 
-    // Check faction requirement
-    if (option.requiredFactionId) {
-      const minStanding = option.requiredFactionStanding ?? 0n;
-      let hasFaction = false;
-      for (const fs of ctx.db.faction_standing.by_character.filter(character.id)) {
-        if (fs.factionId === option.requiredFactionId && fs.standing >= minStanding) {
-          hasFaction = true;
-          break;
-        }
-      }
-      if (!hasFaction) {
-        return fail(ctx, character, 'Your faction standing is insufficient.');
-      }
+    // Budget check — NPC conversations share the daily LLM budget
+    const budget = checkBudget(ctx, ctx.sender);
+    if (!budget.allowed) {
+      return fail(ctx, character, 'The System grows weary. Return tomorrow.');
     }
 
-    // Check renown requirement
-    if (option.requiredRenownRank) {
-      let renownRow: any = null;
-      for (const r of ctx.db.renown.by_character.filter(character.id)) {
-        renownRow = r;
-        break;
-      }
-      if (!renownRow || renownRow.currentRank < option.requiredRenownRank) {
-        return fail(ctx, character, 'Your renown rank is too low.');
-      }
-    }
+    // Build conversation context
+    const personality = parseNpcPersonality(npc);
+    const location = ctx.db.location.id.find(npc.locationId);
+    const region = location ? ctx.db.region.id.find(location.regionId) : null;
+    const affinity = getAffinityForNpc(ctx, character.id, npcId);
+    const affinityTier = getAffinityTierForConversation(affinity);
+    const memory = getOrCreateNpcMemory(ctx, character.id, npcId);
+    const memoryData = memory.memoryJson ? JSON.parse(memory.memoryJson) : {};
+    const activeQuests = getActiveQuestCount(ctx, character.id);
 
-    // Apply affinity change
-    if (option.affinityChange !== 0n) {
-      awardNpcAffinity(ctx, character, npcId, option.affinityChange);
-    }
+    // Build prompts
+    const systemPrompt = buildNpcConversationSystemPrompt(
+      npc, region || { name: 'Unknown' }, location || { name: 'Unknown' }, personality, affinityTier, memoryData,
+    );
+    const userPrompt = buildNpcConversationUserPrompt(message, activeQuests, MAX_ACTIVE_QUESTS);
 
-    // IMPORTANT: Dialogue goes to Journal (NPC Dialog panel) AND Log (private NPC message)
-    // Log the player's dialogue choice to Journal
-    const playerLine = `You say, "${option.playerText}"`;
-    appendNpcDialog(ctx, character.id, npc.id, playerLine);
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', playerLine);
+    // Log player message to NpcDialog
+    appendNpcDialog(ctx, character.id, npc.id, `You: "${message}"`);
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', `You say to ${npc.name}: "${message}"`);
 
-    // Log the NPC's response to Journal AND Log
-    const npcLine = `${npc.name} says, "${option.npcResponse}"`;
-    appendNpcDialog(ctx, character.id, npc.id, npcLine);
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', npcLine);
+    // Create LlmTask for client proxy to pick up
+    ctx.db.llm_task.insert({
+      id: 0n,
+      playerId: ctx.sender,
+      domain: 'npc_conversation',
+      model: 'gpt-5-mini',
+      systemPrompt,
+      userPrompt,
+      maxTokens: 500n,
+      status: 'pending',
+      contextJson: JSON.stringify({
+        characterId: character.id.toString(),
+        npcId: npc.id.toString(),
+        memoryId: memory.id.toString(),
+      }),
+      createdAt: ctx.timestamp,
+    });
+
+    // Increment budget
+    incrementBudget(ctx, ctx.sender);
   });
 
   // Give an inventory item to an NPC as a gift

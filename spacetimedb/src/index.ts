@@ -17,6 +17,9 @@ import {
 import { pickRippleMessage, pickDiscoveryMessage, computeRegionDanger } from './data/world_gen';
 import { writeGeneratedRegion, buildRegionContext } from './helpers/world_gen';
 import { parseSkillGenResult, insertPendingSkills } from './helpers/skill_gen';
+import { updateNpcMemory, getActiveQuestCount, MAX_ACTIVE_QUESTS } from './helpers/npc_conversation';
+import { awardNpcAffinity } from './helpers/npc_affinity';
+import { QUEST_TYPES } from './data/mechanical_vocabulary';
 import spacetimedb, {
   scheduledReducers,
   Player, Character,
@@ -754,6 +757,17 @@ spacetimedb.reducer('submit_llm_result', {
         appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
           'The System flickers. "Your potential eludes crystallization. The power will come... eventually."');
       }
+    } else if (task.domain === 'npc_conversation') {
+      const context = task.contextJson ? JSON.parse(task.contextJson) : {};
+      const charId = BigInt(context.characterId);
+      const npcIdVal = BigInt(context.npcId);
+      const character = ctx.db.character.id.find(charId);
+      const npc = ctx.db.npc.id.find(npcIdVal);
+      if (character && npc) {
+        appendNpcDialog(ctx, charId, npc.id, `${npc.name} seems distracted.`);
+        appendPrivateEvent(ctx, charId, character.ownerUserId, 'npc',
+          `${npc.name} seems distracted. Try again.`);
+      }
     }
     return;
   }
@@ -974,6 +988,136 @@ spacetimedb.reducer('submit_llm_result', {
     presentation += `\n"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return."`;
 
     appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative', presentation);
+
+  } else if (task.domain === 'npc_conversation') {
+    const context = task.contextJson ? JSON.parse(task.contextJson) : {};
+    const charId = BigInt(context.characterId);
+    const npcIdVal = BigInt(context.npcId);
+    const memoryId = BigInt(context.memoryId);
+    const character = ctx.db.character.id.find(charId);
+    if (!character) return;
+    const npc = ctx.db.npc.id.find(npcIdVal);
+    if (!npc) return;
+
+    // Parse LLM response JSON
+    let data: any;
+    try {
+      data = extractJson(resultText);
+    } catch (parseErr) {
+      console.error(`NPC conversation JSON parse error: ${parseErr}`);
+      appendNpcDialog(ctx, charId, npc.id, `${npc.name} mutters something unintelligible.`);
+      appendPrivateEvent(ctx, charId, character.ownerUserId, 'npc',
+        `${npc.name} mutters something unintelligible. (Try again.)`);
+      return;
+    }
+
+    const dialogue = data.dialogue || '...';
+    const effects = Array.isArray(data.effects) ? data.effects : [];
+    const memoryUpdate = data.memoryUpdate || {};
+    const internalThought = data.internalThought || '';
+
+    // Log NPC dialogue
+    appendNpcDialog(ctx, charId, npc.id, `${npc.name}: "${dialogue}"`);
+    appendPrivateEvent(ctx, charId, character.ownerUserId, 'npc',
+      `${npc.name} says, "${dialogue}"`);
+
+    // Process effects
+    for (const effect of effects) {
+      if (!effect || !effect.type) continue;
+
+      if (effect.type === 'affinity_change') {
+        let amount = Number(effect.amount) || 0;
+        if (amount > 5) amount = 5;
+        if (amount < -5) amount = -5;
+        awardNpcAffinity(ctx, character, npcIdVal, BigInt(amount));
+
+      } else if (effect.type === 'offer_quest') {
+        // Validate quest type
+        let questType = effect.questType || 'kill';
+        if (!(QUEST_TYPES as readonly string[]).includes(questType)) {
+          questType = 'kill';
+        }
+
+        // Check active quest count
+        const activeQuests = getActiveQuestCount(ctx, charId);
+        if (activeQuests >= MAX_ACTIVE_QUESTS) continue;
+
+        // Create QuestTemplate
+        const qt = ctx.db.quest_template.insert({
+          id: 0n,
+          name: effect.questName || 'Unknown Quest',
+          npcId: npcIdVal,
+          targetEnemyTemplateId: 0n,
+          requiredCount: BigInt(effect.targetCount || 1),
+          minLevel: character.level,
+          maxLevel: character.level + 5n,
+          rewardXp: BigInt(effect.rewardXp || Number(character.level) * 15 + 10),
+          questType,
+          description: effect.questDescription,
+          rewardType: effect.rewardType || 'xp',
+          rewardItemName: effect.rewardItemName,
+          rewardItemDesc: effect.rewardItemDesc,
+          rewardGold: effect.rewardGold ? BigInt(effect.rewardGold) : undefined,
+          characterId: charId,
+        });
+
+        // For kill-type quests, try to find an appropriate enemy template at the location
+        if (['kill', 'kill_loot', 'boss_kill'].includes(questType)) {
+          for (const ref of ctx.db.location_enemy_template.by_location.filter(character.locationId)) {
+            ctx.db.quest_template.id.update({
+              ...ctx.db.quest_template.id.find(qt.id)!,
+              targetEnemyTemplateId: ref.enemyTemplateId,
+            });
+            break;
+          }
+        }
+
+        // Create QuestInstance
+        ctx.db.quest_instance.insert({
+          id: 0n,
+          characterId: charId,
+          questTemplateId: qt.id,
+          progress: 0n,
+          completed: false,
+          acceptedAt: ctx.timestamp,
+        });
+
+        appendPrivateEvent(ctx, charId, character.ownerUserId, 'quest',
+          `New quest: ${effect.questName || 'Unknown Quest'}`);
+
+      } else if (effect.type === 'reveal_location') {
+        appendPrivateEvent(ctx, charId, character.ownerUserId, 'npc',
+          `${npc.name} reveals: "${effect.locationName || 'a hidden place'} -- ${effect.locationDescription || 'somewhere interesting.'}"`);
+
+      } else if (effect.type === 'give_item') {
+        appendPrivateEvent(ctx, charId, character.ownerUserId, 'npc',
+          `${npc.name} offers you something... (Item generation deferred.)`);
+
+      } else {
+        // warn_danger, open_shop, none, faction_info, etc. — narrative only
+      }
+    }
+
+    // Update NPC memory
+    const memoryRow = ctx.db.npc_memory.id.find(memoryId);
+    if (memoryRow) {
+      updateNpcMemory(ctx, memoryRow, {
+        addTopics: memoryUpdate.addTopics,
+        addSecret: memoryUpdate.addSecret,
+      }, internalThought);
+    }
+
+    // Update conversation cooldown on affinity row
+    const affinityRow = [...ctx.db.npc_affinity.by_character.filter(charId)]
+      .find((r: any) => r.npcId === npcIdVal);
+    if (affinityRow) {
+      ctx.db.npc_affinity.id.update({
+        ...affinityRow,
+        lastInteraction: ctx.timestamp,
+      });
+    }
+
+    incrementBudget(ctx, ctx.sender);
   }
 });
 
