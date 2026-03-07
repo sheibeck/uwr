@@ -106,7 +106,7 @@ function renderLinks(text: string): string {
   result = result.replace(
     /\{\{color:(#[0-9a-fA-F]{6})\}\}\[([^\]]+)\]\{\{\/color\}\}/g,
     (_match, color, keyword) => {
-      return `<span style="color: ${color}; cursor: pointer; text-decoration: underline; font-weight: 600;" onclick="window.clickNpcKeyword('${keyword.replace(/'/g, "\\'")}')">[${keyword}]</span>`;
+      return `<span style="color: ${color}; cursor: pointer; text-decoration: underline; font-weight: 600;" onclick="window.clickNpcKeyword('${keyword.replace(/'/g, "\\'")}')">&lsqb;${keyword}&rsqb;</span>`;
     }
   );
 

@@ -1340,6 +1340,12 @@ const onNarrativeSubmit = (text: string) => {
   if (!selectedCharacter.value) return;
   const lower = text.trim().toLowerCase();
 
+  // Client-side commands that open panels
+  if (lower === 'craft') {
+    openPanel('crafting');
+    return;
+  }
+
   // "talk to [NPC]" / "hail [NPC]" — enter conversation mode and show greeting
   const talkMatch = lower.match(/^(?:talk|hail|speak)\s+(?:to\s+)?(.+)$/);
   if (talkMatch) {
@@ -1395,11 +1401,7 @@ const onCreationSubmit = (text: string) => {
     return;
   } else if (selectedCharacter.value) {
     // Handle special location feature clicks
-    if (keyword === 'Bind Stone') {
-      conn.reducers.bindLocation({ characterId: selectedCharacter.value.id });
-      return;
-    }
-    if (keyword === 'Crafting Station') {
+    if (keyword.toLowerCase() === 'craft') {
       openPanel('crafting');
       return;
     }

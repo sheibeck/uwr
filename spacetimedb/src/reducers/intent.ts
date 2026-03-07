@@ -104,8 +104,8 @@ export const registerIntentReducers = (deps: any) => {
 
         // 3. Safe area / Bind stone / Crafting
         if (location.isSafe) parts.push('This is a safe area.');
-        if (location.bindStone) parts.push('{{color:#ffd43b}}[Bind Stone]{{/color}} — A bind stone stands here, pulsing with faint energy.');
-        if (location.craftingAvailable) parts.push('{{color:#f59e0b}}[Crafting Station]{{/color}} — A crafting station is available here.');
+        if (location.bindStone) parts.push('A {{color:#ffd43b}}[bind]{{/color}} stone stands here, pulsing with faint energy.');
+        if (location.craftingAvailable) parts.push('A crafting station is available, you can {{color:#f59e0b}}[craft]{{/color}} here.');
 
         // 4. NPCs
         const npcs = [...ctx.db.npc.by_location.filter(character.locationId)];
@@ -579,6 +579,6 @@ export const registerIntentReducers = (deps: any) => {
 
     // --- SARDONIC FALLBACK ---
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-      `The System regards you with mild contempt. "${raw}" means nothing here. Perhaps try [look], [travel], [attack], or [hail].`);
+      `The System regards you with mild contempt. "${raw}" means nothing here. Perhaps try [help].`);
   });
 };
