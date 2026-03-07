@@ -1,0 +1,85 @@
+import { computed, type Ref } from 'vue';
+import type { Character, CombatEncounter, Location, Npc } from '../module_bindings/types';
+
+export type ContextAction = {
+  label: string;
+  command: string;
+  category: 'combat' | 'explore' | 'social' | 'ability';
+  disabled?: boolean;
+  detail?: string;
+};
+
+type HotbarSlotInfo = {
+  slot: number;
+  abilityKey: string;
+  name: string;
+  kind: string;
+  cooldownRemaining: number;
+  itemCount?: number;
+};
+
+type UseContextActionsArgs = {
+  selectedCharacter: Ref<Character | null>;
+  activeCombat: Ref<CombatEncounter | null>;
+  connectedLocations: Ref<Location[]>;
+  npcsHere: Ref<Npc[]>;
+  hotbarDisplay: Ref<HotbarSlotInfo[]>;
+  isCasting: Ref<boolean>;
+  canActInCombat: Ref<boolean>;
+};
+
+export function useContextActions(deps: UseContextActionsArgs) {
+  const actions = computed<ContextAction[]>(() => {
+    const char = deps.selectedCharacter.value;
+    if (!char) return [];
+
+    const result: ContextAction[] = [];
+
+    if (deps.activeCombat.value) {
+      // Combat context: abilities from hotbar
+      for (const slot of deps.hotbarDisplay.value) {
+        if (!slot.abilityKey) continue;
+        const isDisabled =
+          slot.cooldownRemaining > 0 ||
+          deps.isCasting.value ||
+          !deps.canActInCombat.value ||
+          (slot.kind === 'item' && (slot.itemCount ?? 0) === 0);
+
+        result.push({
+          label: slot.name,
+          command: `use ${slot.name.toLowerCase()}`,
+          category: 'ability',
+          disabled: isDisabled,
+          detail: slot.cooldownRemaining > 0 ? `${slot.cooldownRemaining}s` : undefined,
+        });
+      }
+
+      result.push({ label: 'Flee', command: 'flee', category: 'combat' });
+    } else {
+      // Exploration context: adjacent locations
+      for (const loc of deps.connectedLocations.value) {
+        result.push({
+          label: loc.name,
+          command: `go ${loc.name.toLowerCase()}`,
+          category: 'explore',
+        });
+      }
+
+      // Look action
+      result.push({ label: 'Look', command: 'look', category: 'explore' });
+
+      // NPCs present
+      for (const npc of deps.npcsHere.value) {
+        result.push({
+          label: `Talk to ${npc.name}`,
+          command: `hail ${npc.name.toLowerCase()}`,
+          category: 'social',
+        });
+      }
+    }
+
+    return result;
+  });
+
+  return actions;
+}
