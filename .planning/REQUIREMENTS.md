@@ -36,10 +36,10 @@
 ### Procedural World
 
 - [ ] **WORLD-01**: Player entering the world triggers region generation based on race/archetype/class
-- [ ] **WORLD-02**: Generated regions are persistent — they exist on the map forever
+- [x] **WORLD-02**: Generated regions are persistent — they exist on the map forever
 - [ ] **WORLD-03**: Region content evolves over time based on player actions and world state
 - [ ] **WORLD-04**: Other players receive ripple announcements when new regions appear
-- [ ] **WORLD-05**: Canonical world facts stored in structured tables, injected into generation prompts
+- [x] **WORLD-05**: Canonical world facts stored in structured tables, injected into generation prompts
 - [ ] **WORLD-06**: Generation locks prevent duplicate creation of the same region
 
 ### Dynamic Skills
@@ -109,10 +109,10 @@
 | CHAR-06 | Phase 26 | Complete |
 | CHAR-07 | Phase 26 | Complete |
 | WORLD-01 | Phase 27 | Pending |
-| WORLD-02 | Phase 27 | Pending |
+| WORLD-02 | Phase 27 | Complete |
 | WORLD-03 | Phase 27 | Pending |
 | WORLD-04 | Phase 27 | Pending |
-| WORLD-05 | Phase 27 | Pending |
+| WORLD-05 | Phase 27 | Complete |
 | WORLD-06 | Phase 27 | Pending |
 | SKILL-01 | Phase 28 | Pending |
 | SKILL-02 | Phase 28 | Pending |

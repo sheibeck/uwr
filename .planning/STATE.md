@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 27 context gathered
-last_updated: "2026-03-07T04:34:11.516Z"
-last_activity: 2026-03-07 — Completed 26-03 Client Creation UI
+status: in-progress
+stopped_at: Completed 27-01 Server Schema & World Gen Data Layer
+last_updated: "2026-03-07T04:53:46Z"
+last_activity: 2026-03-07 — Completed 27-01 Server Schema & World Gen Data Layer
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
-  percent: 100
+  total_plans: 12
+  completed_plans: 10
+  percent: 83
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 26 complete — Narrative Character Creation fully wired end-to-end
+**Current focus:** Phase 27 in progress — Procedural World Generation
 
 ## Current Position
 
-Phase: 26 of 30 (Narrative Character Creation)
-Plan: 3 of 3 complete (Client Creation UI)
-Status: Phase complete
-Last activity: 2026-03-07 — Completed 26-03 Client Creation UI
+Phase: 27 of 30 (Procedural World Generation)
+Plan: 1 of 3 complete (Server Schema & World Gen Data Layer)
+Status: In progress
+Last activity: 2026-03-07 — Completed 27-01 Server Schema & World Gen Data Layer
 
-Progress: [██████████] 100%
+Progress: [████████░░] 83%
 
 ## Previous Milestone (v1.0)
 
@@ -56,6 +56,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 | Phase 26 P01 | 4min | 2 tasks | 6 files |
 | Phase 26 P02 | 3min | 2 tasks | 3 files |
 | Phase 26 P03 | 47min | 2 tasks | 18 files |
+| Phase 27 P01 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,9 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 26]: LLM procedure triggered via direct watch on raw state array (not computed chain)
 - [Phase 26]: Hardened LLM JSON parsing with response_format json_object and brace extraction fallback
 - [Phase 26]: Haiku used for both race and class generation (sufficient quality, faster)
+- [Phase 27]: Uncharted locations at Greywind Pass and Abyssal Vault as world edge boundary triggers
+- [Phase 27]: Timestamp-based pseudorandom for template selection and danger variance (reducer determinism)
+- [Phase 27]: terrainType 'uncharted' marks boundary locations for procedural generation triggers
 
 ### Pending Todos
 
@@ -104,6 +108,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-07T04:34:11.509Z
-Stopped at: Phase 27 context gathered
-Resume file: .planning/phases/27-procedural-world-generation/27-CONTEXT.md
+Last session: 2026-03-07T04:53:46Z
+Stopped at: Completed 27-01 Server Schema & World Gen Data Layer
+Resume file: .planning/phases/27-procedural-world-generation/27-01-SUMMARY.md

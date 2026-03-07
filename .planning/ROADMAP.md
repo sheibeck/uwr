@@ -159,8 +159,7 @@ Plans:
 | CHAR-05 | 26 | Character Creation |
 | CHAR-06 | 26 | Character Creation |
 | CHAR-07 | 26 | Character Creation |
-| WORLD-01 | 27 | Procedural World |
-| WORLD-02 | 27 | Procedural World |
+| WORLD-01 | 27 | 1/3 | In Progress|  | 27 | Procedural World |
 | WORLD-03 | 27 | Procedural World |
 | WORLD-04 | 27 | Procedural World |
 | WORLD-05 | 27 | Procedural World |
