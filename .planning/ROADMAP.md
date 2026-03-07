@@ -146,7 +146,7 @@ Plans:
 | LLM-04 | 24 | LLM Pipeline |
 | LLM-05 | 24 | LLM Pipeline |
 | LLM-06 | 24 | LLM Pipeline |
-| UI-01 | 25 | 3/3 | Complete   | 2026-03-07 | 25 | Narrative UI |
+| UI-01 | 25 | 3/3 | Complete    | 2026-03-07 | 25 | Narrative UI |
 | UI-03 | 25 | Narrative UI |
 | UI-04 | 25 | Narrative UI |
 | UI-05 | 25 | Narrative UI |
