@@ -65,6 +65,8 @@ const KIND_COLORS: Record<string, string> = {
   blocked: '#ff6b6b',
   creation: '#ffd43b',
   creation_error: '#ff6b6b',
+  look: '#c8ccd0',
+  move: '#adb5bd',
 };
 
 const kindColor = computed(() => KIND_COLORS[props.event.kind] ?? '#ced4da');
@@ -82,21 +84,31 @@ const animatedSentences = computed(() => {
   return props.animationState.sentences;
 });
 
+// Render {{color:HEX}}text{{/color}} tags as colored spans
+function renderColorTags(text: string): string {
+  return text.replace(
+    /\{\{color:(#[0-9a-fA-F]{6})\}\}(.+?)\{\{\/color\}\}/g,
+    (_match, color, content) => {
+      return `<span style="color: ${color}; font-weight: 600;">${content}</span>`;
+    }
+  );
+}
+
 // Process a single sentence for keyword highlighting
 function processSentence(sentence: string): string {
-  return sentence
-    .replace(/\n/g, '<br>')
-    .replace(/\[([^\]]+)\]/g, (_match, keyword) => {
-      return `<span style="color: #60a5fa; cursor: pointer; text-decoration: underline; font-weight: 600;" onclick="window.clickNpcKeyword('${keyword.replace(/'/g, "\\'")}')">[${keyword}]</span>`;
-    });
+  return renderColorTags(
+    sentence.replace(/\n/g, '<br>')
+  ).replace(/\[([^\]]+)\]/g, (_match, keyword) => {
+    return `<span style="color: #60a5fa; cursor: pointer; text-decoration: underline; font-weight: 600;" onclick="window.clickNpcKeyword('${keyword.replace(/'/g, "\\'")}')">[${keyword}]</span>`;
+  });
 }
 
 // Parse message text and make [bracketed keywords] clickable
 const renderedMessage = computed(() => {
-  return props.event.message
-    .replace(/\n/g, '<br>')
-    .replace(/\[([^\]]+)\]/g, (match, keyword) => {
-      return `<span style="color: #60a5fa; cursor: pointer; text-decoration: underline; font-weight: 600;" onclick="window.clickNpcKeyword('${keyword.replace(/'/g, "\\'")}')">${match}</span>`;
-    });
+  return renderColorTags(
+    props.event.message.replace(/\n/g, '<br>')
+  ).replace(/\[([^\]]+)\]/g, (match, keyword) => {
+    return `<span style="color: #60a5fa; cursor: pointer; text-decoration: underline; font-weight: 600;" onclick="window.clickNpcKeyword('${keyword.replace(/'/g, "\\'")}')">${match}</span>`;
+  });
 });
 </script>
