@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 26 of 30 (Narrative Character Creation)
-Plan: 01 of 3 complete (Server-Side Creation Foundation)
+Plan: 02 of 3 complete (Creation LLM Generation)
 Status: In progress
-Last activity: 2026-03-07 — Completed 26-01 Server-Side Creation Foundation
+Last activity: 2026-03-07 — Completed 26-02 Creation LLM Generation
 
 Progress: [█████████░] 87%
 
@@ -54,6 +54,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 | Phase 25 P02 | 5min | 2 tasks | 6 files |
 | Phase 25 P03 | 5min | 2 tasks | 7 files |
 | Phase 26 P01 | 4min | 2 tasks | 6 files |
+| Phase 26 P02 | 3min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,9 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 26]: EventCreation table with event: true for identity-based pre-character messaging
 - [Phase 26]: GENERATING_RACE and GENERATING_CLASS are gate steps for Plan 02 LLM procedure calls
 - [Phase 26]: previousStep field on creation state enables go-back decline recovery
+- [Phase 26]: Creation LLM procedure bypasses generic pipeline (no characterId), reads API key from llm_config
+- [Phase 26]: Haiku for race interpretation, Sonnet for class generation (model tier selection)
+- [Phase 26]: Error cases revert creation step to allow retry rather than leaving broken state
 
 ### Pending Todos
 
@@ -95,6 +99,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-07T03:23:12Z
-Stopped at: Completed 26-01-PLAN.md
-Resume file: .planning/phases/26-narrative-character-creation/26-01-SUMMARY.md
+Last session: 2026-03-07T03:29:16Z
+Stopped at: Completed 26-02-PLAN.md
+Resume file: .planning/phases/26-narrative-character-creation/26-02-SUMMARY.md
