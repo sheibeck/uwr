@@ -11,7 +11,5 @@ import {
 } from "spacetimedb";
 
 export default {
-  characterId: __t.u64(),
-  slot: __t.u8(),
-  abilityTemplateId: __t.u64(),
+  pendingSkillId: __t.u64(),
 };

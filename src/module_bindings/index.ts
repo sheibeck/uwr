@@ -37,6 +37,8 @@ import {
 import SetAppVersionReducer from "./set_app_version_reducer";
 import PrepareCreationLlmReducer from "./prepare_creation_llm_reducer";
 import PrepareWorldGenLlmReducer from "./prepare_world_gen_llm_reducer";
+import PrepareSkillGenReducer from "./prepare_skill_gen_reducer";
+import ChooseSkillReducer from "./choose_skill_reducer";
 import SubmitLlmResultReducer from "./submit_llm_result_reducer";
 import SetDisplayNameReducer from "./set_display_name_reducer";
 import SendFriendRequestReducer from "./send_friend_request_reducer";
@@ -218,6 +220,7 @@ import NpcAffinityRow from "./npc_affinity_table";
 import NpcDialogRow from "./npc_dialog_table";
 import NpcDialogueOptionRow from "./npc_dialogue_option_table";
 import NpcDialogueVisitedRow from "./npc_dialogue_visited_table";
+import PendingSkillRow from "./pending_skill_table";
 import PendingSpellCastRow from "./pending_spell_cast_table";
 import PlayerRow from "./player_table";
 import PullStateRow from "./pull_state_table";
@@ -267,14 +270,11 @@ const tablesSchema = __schema({
   ability_template: __table({
     name: 'ability_template',
     indexes: [
-      { name: 'by_class', algorithm: 'btree', columns: [
-        'className',
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
       ] },
       { name: 'id', algorithm: 'btree', columns: [
         'id',
-      ] },
-      { name: 'by_key', algorithm: 'btree', columns: [
-        'key',
       ] },
     ],
     constraints: [
@@ -1137,6 +1137,20 @@ const tablesSchema = __schema({
       { name: 'npc_dialogue_visited_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, NpcDialogueVisitedRow),
+  pending_skill: __table({
+    name: 'pending_skill',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'pending_skill_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, PendingSkillRow),
   pending_spell_cast: __table({
     name: 'pending_spell_cast',
     indexes: [
@@ -1641,6 +1655,8 @@ const reducersSchema = __reducers(
   __reducerSchema("set_app_version", SetAppVersionReducer),
   __reducerSchema("prepare_creation_llm", PrepareCreationLlmReducer),
   __reducerSchema("prepare_world_gen_llm", PrepareWorldGenLlmReducer),
+  __reducerSchema("prepare_skill_gen", PrepareSkillGenReducer),
+  __reducerSchema("choose_skill", ChooseSkillReducer),
   __reducerSchema("submit_llm_result", SubmitLlmResultReducer),
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("send_friend_request", SendFriendRequestReducer),

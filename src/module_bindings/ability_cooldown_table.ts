@@ -13,7 +13,7 @@ import {
 export default __t.row({
   id: __t.u64().primaryKey(),
   characterId: __t.u64().name("character_id"),
-  abilityKey: __t.string().name("ability_key"),
+  abilityTemplateId: __t.u64().name("ability_template_id"),
   startedAtMicros: __t.u64().name("started_at_micros"),
   durationMicros: __t.u64().name("duration_micros"),
 });

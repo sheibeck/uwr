@@ -6,6 +6,7 @@
       :character="selectedCharacter"
       :active-combat="activeCombat"
       :conn-active="connActive"
+      :has-pending-skills="hasPendingSkills"
       @open-panel="$emit('open-panel', $event)"
     />
 
@@ -79,6 +80,7 @@ const props = defineProps<{
   isLlmProcessing: boolean;
   formatTimestamp: (ts: { microsSinceUnixEpoch: bigint }) => string;
   creationMode?: boolean;
+  hasPendingSkills?: boolean;
 }>();
 
 defineEmits<{

@@ -13,7 +13,7 @@ import {
 export const AbilityCooldown = __t.object("AbilityCooldown", {
   id: __t.u64(),
   characterId: __t.u64(),
-  abilityKey: __t.string(),
+  abilityTemplateId: __t.u64(),
   startedAtMicros: __t.u64(),
   durationMicros: __t.u64(),
 });
@@ -21,28 +21,24 @@ export type AbilityCooldown = __Infer<typeof AbilityCooldown>;
 
 export const AbilityTemplate = __t.object("AbilityTemplate", {
   id: __t.u64(),
-  key: __t.string(),
+  characterId: __t.u64(),
   name: __t.string(),
-  className: __t.string(),
-  level: __t.u64(),
-  resource: __t.string(),
+  description: __t.string(),
+  kind: __t.string(),
+  targetRule: __t.string(),
+  resourceType: __t.string(),
+  resourceCost: __t.u64(),
   castSeconds: __t.u64(),
   cooldownSeconds: __t.u64(),
-  kind: __t.string(),
-  combatState: __t.string(),
-  description: __t.string(),
-  power: __t.option(__t.u64()),
+  scaling: __t.string(),
+  value1: __t.u64(),
+  value2: __t.option(__t.u64()),
   damageType: __t.option(__t.string()),
-  statScaling: __t.option(__t.string()),
-  dotPowerSplit: __t.option(__t.f64()),
-  dotDuration: __t.option(__t.u64()),
-  hotPowerSplit: __t.option(__t.f64()),
-  hotDuration: __t.option(__t.u64()),
-  debuffType: __t.option(__t.string()),
-  debuffMagnitude: __t.option(__t.i64()),
-  debuffDuration: __t.option(__t.u64()),
-  aoeTargets: __t.option(__t.string()),
-  resourceCost: __t.u64(),
+  effectType: __t.option(__t.string()),
+  effectMagnitude: __t.option(__t.u64()),
+  effectDuration: __t.option(__t.u64()),
+  levelRequired: __t.u64(),
+  isGenerated: __t.bool(),
 });
 export type AbilityTemplate = __Infer<typeof AbilityTemplate>;
 
@@ -185,7 +181,7 @@ export type Character = __Infer<typeof Character>;
 export const CharacterCast = __t.object("CharacterCast", {
   id: __t.u64(),
   characterId: __t.u64(),
-  abilityKey: __t.string(),
+  abilityTemplateId: __t.u64(),
   targetCharacterId: __t.option(__t.u64()),
   endsAtMicros: __t.u64(),
 });
@@ -635,7 +631,7 @@ export const HotbarSlot = __t.object("HotbarSlot", {
   id: __t.u64(),
   characterId: __t.u64(),
   slot: __t.u8(),
-  abilityKey: __t.string(),
+  abilityTemplateId: __t.u64(),
   assignedAt: __t.timestamp(),
 });
 export type HotbarSlot = __Infer<typeof HotbarSlot>;
@@ -921,6 +917,29 @@ export const NpcDialogueVisited = __t.object("NpcDialogueVisited", {
   visitedAt: __t.timestamp(),
 });
 export type NpcDialogueVisited = __Infer<typeof NpcDialogueVisited>;
+
+export const PendingSkill = __t.object("PendingSkill", {
+  id: __t.u64(),
+  characterId: __t.u64(),
+  name: __t.string(),
+  description: __t.string(),
+  kind: __t.string(),
+  targetRule: __t.string(),
+  resourceType: __t.string(),
+  resourceCost: __t.u64(),
+  castSeconds: __t.u64(),
+  cooldownSeconds: __t.u64(),
+  scaling: __t.string(),
+  value1: __t.u64(),
+  value2: __t.option(__t.u64()),
+  damageType: __t.option(__t.string()),
+  effectType: __t.option(__t.string()),
+  effectMagnitude: __t.option(__t.u64()),
+  effectDuration: __t.option(__t.u64()),
+  levelRequired: __t.u64(),
+  createdAt: __t.timestamp(),
+});
+export type PendingSkill = __Infer<typeof PendingSkill>;
 
 export const PendingSpellCast = __t.object("PendingSpellCast", {
   id: __t.u64(),

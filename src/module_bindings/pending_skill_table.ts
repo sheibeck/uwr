@@ -29,5 +29,5 @@ export default __t.row({
   effectMagnitude: __t.option(__t.u64()).name("effect_magnitude"),
   effectDuration: __t.option(__t.u64()).name("effect_duration"),
   levelRequired: __t.u64().name("level_required"),
-  isGenerated: __t.bool().name("is_generated"),
+  createdAt: __t.timestamp().name("created_at"),
 });

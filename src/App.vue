@@ -64,6 +64,7 @@
       :context-actions="narrativeContextActions"
       :is-llm-processing="isNarrativeLlmProcessing"
       :format-timestamp="formatTimestamp"
+      :has-pending-skills="hasPendingSkills"
       @submit="onNarrativeSubmit"
       @open-panel="onOpenPanel"
     />
@@ -578,6 +579,7 @@ import { useEvents } from './composables/useEvents';
 import { useCharacterCreation } from './composables/useCharacterCreation';
 import { useWorldGeneration } from './composables/useWorldGeneration';
 import { useLlmProxy } from './composables/useLlmProxy';
+import { useSkillChoice } from './composables/useSkillChoice';
 import { useCommands } from './composables/useCommands';
 import { useContextActions } from './composables/useContextActions';
 import { useCombat } from './composables/useCombat';
@@ -684,6 +686,7 @@ const {
   creationEvents,
   worldGenStates,
   llmTasks,
+  pendingSkills,
 } = useGameData(currentLocationId);
 
 watch(appVersionRows, (rows) => {
@@ -900,6 +903,13 @@ const { isWorldGenProcessing } = useWorldGeneration({
 const { isProcessing: isLlmProxyProcessing } = useLlmProxy({
   connActive: computed(() => conn.isActive),
   llmTasks,
+});
+
+// Skill choice: watches PendingSkill table, auto-triggers skill gen on level-up
+const { myPendingSkills, hasPendingSkills, chooseSkill: chooseSkillByName } = useSkillChoice({
+  selectedCharacter,
+  pendingSkills,
+  connActive: computed(() => conn.isActive),
 });
 
 // Auto-start narrative creation for characterless players
@@ -1331,8 +1341,12 @@ const onCreationSubmit = (text: string) => {
   submitCreationInput(text.trim());
 };
 
-// Global keyword click handler — routes to creation input or game intent
+// Global keyword click handler — routes to skill choice, creation input, or game intent
 (window as any).clickNpcKeyword = (keyword: string) => {
+  // Check if this keyword matches a pending skill name (skill choice takes priority)
+  if (hasPendingSkills.value && chooseSkillByName(keyword)) {
+    return;
+  }
   if (isInCreation.value) {
     submitCreationInput(keyword);
   } else if (selectedCharacter.value) {
