@@ -166,8 +166,7 @@ Plans:
 | WORLD-04 | 27 | Procedural World |
 | WORLD-05 | 27 | Procedural World |
 | WORLD-06 | 27 | Procedural World |
-| SKILL-01 | 28 | Dynamic Skills |
-| SKILL-02 | 28 | Dynamic Skills |
+| SKILL-01 | 28 | 2/3 | In Progress|  | 28 | Dynamic Skills |
 | SKILL-03 | 28 | Dynamic Skills |
 | SKILL-04 | 28 | Dynamic Skills |
 | NPC-01 | 29 | NPC & Quest Gen |

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 28-01-PLAN.md
+stopped_at: Completed 28-02-PLAN.md
 last_updated: "2026-03-07T20:00:00.000Z"
-last_activity: 2026-03-07 — Completed 28-01 Data-Driven Ability Dispatch
+last_activity: 2026-03-07 — Completed 28-02 Skill Generation Pipeline
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
   percent: 92
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 28 of 30 (Dynamic Skill Generation)
-Plan: 1 of 3 complete (Data-Driven Ability Dispatch)
+Plan: 2 of 3 complete (Skill Generation Pipeline)
 Status: In progress
-Last activity: 2026-03-07 — Completed 28-01 Data-Driven Ability Dispatch
+Last activity: 2026-03-07 — Completed 28-02 Skill Generation Pipeline
 
 Progress: [█████████░] 92%
 
@@ -59,6 +59,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 | Phase 27 P01 | 3min | 2 tasks | 4 files |
 | Phase 27 P02 | 4min | 2 tasks | 4 files |
 | Phase 28 P01 | 45min | 2 tasks | 26 files |
+| Phase 28 P02 | 5min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -102,6 +103,10 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 28]: Kind-based dispatch map replaces 106-case hardcoded switch for unlimited generated abilities
 - [Phase 28]: Enemy ability system retains abilityKey strings (different lifecycle from player abilities)
 - [Phase 28]: Bard/perk routing removed from use_ability reducer (dead code in v2.0 generated classes)
+- [Phase 28]: gpt-5-mini for skill generation (fast, sufficient quality for ability stats)
+- [Phase 28]: Client triggers prepare_skill_gen after level-up (keeps combat transaction clean)
+- [Phase 28]: Unchosen PendingSkill rows permanently deleted -- no second chances
+- [Phase 28]: Skill names use [brackets] in narrative for keyword click system
 
 ### Pending Todos
 
@@ -117,5 +122,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-07T20:00:00.000Z
-Stopped at: Completed 28-01-PLAN.md
-Resume file: .planning/phases/28-dynamic-skill-generation/28-01-SUMMARY.md
+Stopped at: Completed 28-02-PLAN.md
+Resume file: .planning/phases/28-dynamic-skill-generation/28-02-SUMMARY.md

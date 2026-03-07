@@ -44,8 +44,8 @@
 
 ### Dynamic Skills
 
-- [ ] **SKILL-01**: Level-up offers 3 LLM-generated skills based on class, race, and history
-- [ ] **SKILL-02**: Player picks 1 skill; unchosen skills may vanish permanently
+- [x] **SKILL-01**: Level-up offers 3 LLM-generated skills based on class, race, and history
+- [x] **SKILL-02**: Player picks 1 skill; unchosen skills may vanish permanently
 - [x] **SKILL-03**: Generated skills use schema-constrained templates (valid damage types, effect types, power ranges)
 - [x] **SKILL-04**: Power-budget validation rejects overpowered/underpowered skills before insertion
 
@@ -114,8 +114,8 @@
 | WORLD-04 | Phase 27 | Complete |
 | WORLD-05 | Phase 27 | Complete |
 | WORLD-06 | Phase 27 | Complete |
-| SKILL-01 | Phase 28 | Pending |
-| SKILL-02 | Phase 28 | Pending |
+| SKILL-01 | Phase 28 | Complete |
+| SKILL-02 | Phase 28 | Complete |
 | SKILL-03 | Phase 28 | Complete |
 | SKILL-04 | Phase 28 | Complete |
 | NPC-01 | Phase 29 | Pending |
