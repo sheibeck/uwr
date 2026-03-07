@@ -40,13 +40,148 @@ export const registerIntentReducers = (deps: any) => {
     const lower = raw.toLowerCase();
 
     // --- LOOK ---
-    if (lower === 'look' || lower === 'l') {
-      const location = ctx.db.location.id.find(character.locationId);
-      if (location) {
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look',
-          `${location.name}: ${location.description}`);
+    const lookMatch = raw.match(/^(?:look|l)(?:\s+(.+))?$/i);
+    if (lookMatch) {
+      const lookTarget = lookMatch[1]?.trim();
+
+      if (!lookTarget) {
+        // Bare "look" — full location overview
+        const location = ctx.db.location.id.find(character.locationId);
+        if (!location) return;
+
+        const parts: string[] = [];
+
+        // 1. Header + description
+        parts.push(location.name);
+        parts.push(location.description);
+
+        // 2. Day/Night
+        const worldState = ctx.db.worldState.id.find(0n);
+        if (worldState) {
+          parts.push(`It is currently ${worldState.isNight ? 'nighttime' : 'daytime'}.`);
+        }
+
+        // 3. Safe area / Bind stone / Crafting
+        if (location.isSafe) parts.push('This is a safe area.');
+        if (location.bindStone) parts.push('A bind stone stands here, pulsing with faint energy.');
+        if (location.craftingAvailable) parts.push('A crafting station is available here.');
+
+        // 4. NPCs
+        const npcs = [...ctx.db.npc.by_location.filter(character.locationId)];
+        if (npcs.length > 0) {
+          const npcNames = npcs.map((n: any) => `[${n.name}]`);
+          if (npcNames.length === 1) {
+            parts.push(`\nYou see ${npcNames[0]} here.`);
+          } else {
+            const last = npcNames.pop();
+            parts.push(`\nYou see ${npcNames.join(', ')}, and ${last} here.`);
+          }
+        }
+
+        // 5. Other players
+        const allChars = [...ctx.db.character.by_location.filter(character.locationId)];
+        const otherPlayers = allChars.filter((c: any) => c.id !== character.id);
+        if (otherPlayers.length > 0) {
+          const playerNames = otherPlayers.map((c: any) => `[${c.name}]`);
+          if (playerNames.length === 1) {
+            parts.push(`\n${playerNames[0]} is here.`);
+          } else {
+            const last = playerNames.pop();
+            parts.push(`\n${playerNames.join(', ')}, and ${last} are here.`);
+          }
+        }
+
+        // 6. Enemies (with con colors)
+        const spawns = [...ctx.db.enemy_spawn.by_location.filter(character.locationId)];
+        const aliveSpawns = spawns.filter((s: any) => s.state === 'available' || s.state === 'engaged' || s.state === 'pulling');
+        if (aliveSpawns.length > 0) {
+          const enemyParts: string[] = [];
+          for (const spawn of aliveSpawns) {
+            const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
+            if (!template) continue;
+            const diff = Number(template.level) - Number(character.level);
+            let color: string;
+            if (diff <= -5) color = '#6b7280';
+            else if (diff <= -3) color = '#b6f7c4';
+            else if (diff <= -1) color = '#8bd3ff';
+            else if (diff === 0) color = '#f8fafc';
+            else if (diff <= 2) color = '#f6d365';
+            else if (diff <= 4) color = '#f59e0b';
+            else color = '#f87171';
+
+            const countSuffix = spawn.groupCount > 1n ? ` x${spawn.groupCount}` : '';
+            enemyParts.push(`{{color:${color}}}[${spawn.name}]${countSuffix} (Lv ${template.level}){{/color}}`);
+          }
+          if (enemyParts.length > 0) {
+            parts.push(`\nEnemies nearby: ${enemyParts.join(', ')}.`);
+          }
+        }
+
+        // 7. Resources
+        const resources = [...ctx.db.resource_node.by_location.filter(character.locationId)]
+          .filter((r: any) => r.state === 'available');
+        if (resources.length > 0) {
+          const resourceCounts = new Map<string, number>();
+          for (const r of resources) {
+            resourceCounts.set(r.name, (resourceCounts.get(r.name) || 0) + 1);
+          }
+          const resourceParts: string[] = [];
+          for (const [name, count] of resourceCounts) {
+            resourceParts.push(count > 1 ? `${name} x${count}` : name);
+          }
+          parts.push(`\nResources: ${resourceParts.join(', ')}.`);
+        }
+
+        // 8. Travel exits
+        const connections = [...ctx.db.location_connection.by_from.filter(character.locationId)];
+        const exitNames = connections
+          .map((c: any) => ctx.db.location.id.find(c.toLocationId))
+          .filter(Boolean)
+          .map((l: any) => `[${l.name}]`);
+        if (exitNames.length > 0) {
+          parts.push(`\nExits: ${exitNames.join(', ')}.`);
+        }
+
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', parts.join('\n'));
+        return;
       }
-      return;
+
+      // "look <target>" — inspect specific target
+      const targetLower = lookTarget.toLowerCase();
+
+      // Check NPCs
+      for (const npc of ctx.db.npc.by_location.filter(character.locationId)) {
+        if ((npc as any).name.toLowerCase() === targetLower || (npc as any).name.toLowerCase().includes(targetLower)) {
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look',
+            `[${(npc as any).name}]: ${(npc as any).description}`);
+          return;
+        }
+      }
+
+      // Check enemies
+      const targetSpawns = [...ctx.db.enemy_spawn.by_location.filter(character.locationId)];
+      for (const spawn of targetSpawns) {
+        if (spawn.name.toLowerCase().includes(targetLower)) {
+          const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
+          if (!template) continue;
+          let desc = `You study ${spawn.name}. Level ${template.level}. ${template.role} ${template.creatureType}.`;
+          if (template.isBoss) desc += ' This creature carries the weight of something ancient and terrible.';
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', desc);
+          return;
+        }
+      }
+
+      // Check other players
+      const locationChars = [...ctx.db.character.by_location.filter(character.locationId)];
+      for (const target of locationChars) {
+        if (target.id !== character.id && target.name.toLowerCase().includes(targetLower)) {
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look',
+            `${target.name}, Level ${target.level} ${target.race} ${target.className}.`);
+          return;
+        }
+      }
+
+      return fail(ctx, character, `You don't see "${lookTarget}" here.`);
     }
 
     // --- INVENTORY ---
