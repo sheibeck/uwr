@@ -1,5 +1,5 @@
 ---
-status: resolved
+status: resolved-archived
 trigger: "when using the Slam ability on a new Warrior character, the cooldown doesn't start immediately — there's a large delay before it begins"
 created: 2026-02-20T00:00:00Z
 updated: 2026-02-20T00:00:00Z

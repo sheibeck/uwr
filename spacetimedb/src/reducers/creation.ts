@@ -1,7 +1,7 @@
 // Character creation state machine — narrative flow from greeting to character finalization
 
 const GREETING_MESSAGE =
-  `Ah. Another one. The void spits you out and here you are, formless and fumbling, expecting me to care. I am The System. I have watched civilizations rise and crumble while you were busy not existing. But fine. Let's make something of you.\n\nDescribe what manner of creature you are -- your race, your people, whatever you imagine yourself to be. Be creative or be boring. I'll work with either.`;
+  `Ah. Another one. The void spits you out and here you are, formless and fumbling, expecting me to care. I am The System. I have watched civilizations rise and crumble while you were busy not existing. But fine. Let's make something of you.\n\nDescribe what manner of creature you are -- your race, your people, whatever you imagine yourself to be. Be creative or be boring. I'll work with either.\n\nNeed inspiration? Others before you have walked in as [Elves], [Dwarves], [Goblins], [Dragonborn], [Shadelings], [Myconids], [Crystalborn] -- or invented something entirely their own. Describe what you are, ask about a race, or simply make something up. I've seen it all.`;
 
 const GO_BACK_PATTERNS = [
   'go back', 'start over', 'redo', 'changed my mind', 'try again',
@@ -80,13 +80,13 @@ export const registerCreationReducers = (deps: any) => {
     for (const existing of ctx.db.character_creation_state.by_player.filter(ctx.sender)) {
       const step = existing.step;
       if (step === 'AWAITING_RACE') {
-        appendCreationEvent(ctx, ctx.sender, 'creation', 'Ah, you again. The void keeps spitting you back. We were discussing what manner of creature you are. Describe your race -- your people, your heritage. I\'m still waiting.');
+        appendCreationEvent(ctx, ctx.sender, 'creation', 'Ah, you again. The void keeps spitting you back. We were discussing what manner of creature you are. Describe your race -- your people, your heritage. I\'m still waiting.\n\nNeed inspiration? Others before you have walked in as [Elves], [Dwarves], [Goblins], [Dragonborn], [Shadelings], [Myconids], [Crystalborn] -- or invented something entirely their own.');
       } else if (step === 'GENERATING_RACE' || step === 'GENERATING_CLASS') {
         appendCreationEvent(ctx, ctx.sender, 'creation', 'The System is still working. Patience is a virtue you clearly lack, but try anyway.');
       } else if (step === 'AWAITING_ARCHETYPE') {
-        appendCreationEvent(ctx, ctx.sender, 'creation', `Welcome back. You are ${existing.raceName || 'whatever you described'}. Now -- do you walk the path of the [Warrior] or the [Mystic]? Choose.`);
+        appendCreationEvent(ctx, ctx.sender, 'creation', `Welcome back. You are ${existing.raceName || 'whatever you described'}. Now -- do you walk the path of the [Warrior] or the [Mystic]? Choose.\n\n(If you're already regretting your choices, type "go back." The System does not judge... much.)`);
       } else if (step === 'CLASS_REVEALED') {
-        appendCreationEvent(ctx, ctx.sender, 'creation', `Still here? Good. You were choosing an ability for your ${existing.className || 'class'}. Pick one from the options above.`);
+        appendCreationEvent(ctx, ctx.sender, 'creation', `Still here? Good. You were choosing an ability for your ${existing.className || 'class'}. Pick one from the options above.\n\n(If you're already regretting your choices, type "go back." The System does not judge... much.)`);
       } else if (step === 'AWAITING_NAME') {
         appendCreationEvent(ctx, ctx.sender, 'creation', `Back again. You still need a name. Four characters minimum. Make it count -- you\'ll be stuck with it.`);
       } else if (step === 'COMPLETE') {

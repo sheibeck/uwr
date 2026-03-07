@@ -800,7 +800,8 @@ spacetimedb.reducer('submit_llm_result', {
         appendCreationEvent(ctx, ctx.sender, 'creation',
           `${data.narrative || 'An interesting choice.'}\n\n` +
           `**${data.raceName}**${bonusText}\n\n` +
-          `Now then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.`
+          `Now then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
+          `\n\n(If you're already regretting your choices, type "go back." The System does not judge... much.)`
         );
 
       } else if (generationType === 'class') {
@@ -834,7 +835,8 @@ spacetimedb.reducer('submit_llm_result', {
           `${data.classDescription || 'A unique class emerges.'}\n\n` +
           `**${data.className}**\n${statLine} | ${armorLine} | ${resourceLine}` +
           abilityText +
-          `\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.`
+          `\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.` +
+          `\n\n(If you're already regretting your choices, type "go back." The System does not judge... much.)`
         );
       }
     } catch (parseErr) {

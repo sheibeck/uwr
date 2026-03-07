@@ -1385,12 +1385,14 @@ const onCreationSubmit = (text: string) => {
 
 // Global keyword click handler — routes to skill choice, creation input, or game intent
 (window as any).clickNpcKeyword = (keyword: string) => {
+  console.log('[clickNpcKeyword]', keyword, 'isInCreation:', isInCreation.value, 'hasPendingSkills:', hasPendingSkills.value);
   // Check if this keyword matches a pending skill name (skill choice takes priority)
   if (hasPendingSkills.value && chooseSkillByName(keyword)) {
     return;
   }
   if (isInCreation.value) {
     submitCreationInput(keyword);
+    return;
   } else if (selectedCharacter.value) {
     // Check if keyword matches an NPC name — enter conversation mode
     const npc = npcsHere.value?.find(n => n.name.toLowerCase() === keyword.toLowerCase());
