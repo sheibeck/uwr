@@ -1,3 +1,53 @@
+import { awardNpcAffinity } from '../helpers/npc_affinity';
+
+function computeQuestRewardStats(playerLevel: bigint, questType: string) {
+  const levelNum = Number(playerLevel);
+  const baseBudget = levelNum * 2 + 5;
+
+  // Quest type multiplier (harder quests = better rewards)
+  const typeMultipliers: Record<string, number> = {
+    kill: 1.0, kill_loot: 1.0, explore: 0.8, gather: 0.8,
+    delivery: 0.9, discover: 0.9, interact: 0.8,
+    boss_kill: 1.3, escort: 1.2,
+  };
+  const typeMult = typeMultipliers[questType] || 1.0;
+  const totalBudget = Math.round(baseBudget * typeMult);
+
+  // Pick slot based on level parity for variety
+  const slots = ['head', 'chest', 'legs', 'feet', 'hands', 'weapon'];
+  const slotIdx = levelNum % slots.length;
+  const slot = slots[slotIdx];
+  const isWeapon = slot === 'weapon';
+
+  // Rarity based on total budget
+  let rarity = 'common';
+  if (totalBudget >= 25) rarity = 'uncommon';
+  if (totalBudget >= 40) rarity = 'rare';
+  if (totalBudget >= 60) rarity = 'epic';
+
+  // Distribute stats
+  const damage = isWeapon ? Math.round(totalBudget * 0.6) : 0;
+  const armor = !isWeapon ? Math.round(totalBudget * 0.4) : 0;
+  const primaryStat = Math.round(totalBudget * 0.15);
+  const secondaryStat = Math.round(totalBudget * 0.1);
+
+  return {
+    slot,
+    armorType: isWeapon ? 'none' : 'medium',
+    rarity,
+    vendorValue: totalBudget * 3,
+    damage,
+    armor,
+    str: isWeapon ? primaryStat : secondaryStat,
+    dex: secondaryStat,
+    int: 0,
+    wis: 0,
+    cha: 0,
+    maxHp: Math.round(totalBudget * 0.2),
+    maxMana: 0,
+  };
+}
+
 export const registerQuestReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -132,4 +182,115 @@ export const registerQuestReducers = (deps: any) => {
         `You engage ${namedEnemy.name}!`);
     }
   );
+
+  // Turn in a completed quest for rewards
+  spacetimedb.reducer('turn_in_quest', {
+    characterId: t.u64(),
+    questInstanceId: t.u64(),
+  }, (ctx: any, args: any) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const qi = ctx.db.quest_instance.id.find(args.questInstanceId);
+    if (!qi) { fail(ctx, character, 'Quest not found.'); return; }
+    if (qi.characterId !== character.id) { fail(ctx, character, 'Not your quest.'); return; }
+    if (!qi.completed) { fail(ctx, character, 'Quest is not yet complete.'); return; }
+
+    // Find the quest template
+    const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
+    if (!qt) { fail(ctx, character, 'Quest template not found.'); return; }
+
+    // Award XP
+    const xpReward = qt.rewardXp || 0n;
+    if (xpReward > 0n) {
+      ctx.db.character.id.update({
+        ...character,
+        xp: character.xp + xpReward,
+      });
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+        `Quest "${qt.name}" complete! +${xpReward} XP`);
+    }
+
+    // Award gold if specified
+    const goldReward = qt.rewardGold || 0n;
+    if (goldReward > 0n) {
+      // Re-read character in case XP update changed it
+      const freshChar = ctx.db.character.id.find(character.id);
+      if (freshChar) {
+        ctx.db.character.id.update({
+          ...freshChar,
+          gold: freshChar.gold + goldReward,
+        });
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+        `+${goldReward} gold from quest reward.`);
+    }
+
+    // Generate item reward if applicable
+    if (qt.rewardType === 'item' && qt.rewardItemName) {
+      const itemStats = computeQuestRewardStats(character.level, qt.questType || 'kill');
+
+      const itemTemplate = ctx.db.item_template.insert({
+        id: 0n,
+        name: qt.rewardItemName,
+        slot: itemStats.slot,
+        armorType: itemStats.armorType,
+        rarity: itemStats.rarity,
+        tier: BigInt(Math.max(1, Math.floor(Number(character.level) / 3))),
+        isJunk: false,
+        vendorValue: BigInt(itemStats.vendorValue),
+        damage: BigInt(itemStats.damage),
+        armor: BigInt(itemStats.armor),
+        str: BigInt(itemStats.str),
+        dex: BigInt(itemStats.dex),
+        int: BigInt(itemStats.int),
+        wis: BigInt(itemStats.wis),
+        cha: BigInt(itemStats.cha),
+        maxHp: BigInt(itemStats.maxHp),
+        maxMana: BigInt(itemStats.maxMana),
+        description: qt.rewardItemDesc || undefined,
+      });
+
+      ctx.db.item_instance.insert({
+        id: 0n,
+        templateId: itemTemplate.id,
+        ownerCharacterId: character.id,
+        quantity: 1n,
+      });
+
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+        `Received: ${qt.rewardItemName}!`);
+    }
+
+    // Award NPC affinity for quest completion
+    if (qt.npcId) {
+      awardNpcAffinity(ctx, character, qt.npcId, 10n);
+    }
+
+    // Delete the completed quest instance (free up quest slot)
+    ctx.db.quest_instance.id.delete(qi.id);
+  });
+
+  // Abandon a quest to free up a quest slot
+  spacetimedb.reducer('abandon_quest', {
+    characterId: t.u64(),
+    questInstanceId: t.u64(),
+  }, (ctx: any, args: any) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const qi = ctx.db.quest_instance.id.find(args.questInstanceId);
+    if (!qi) { fail(ctx, character, 'Quest not found.'); return; }
+    if (qi.characterId !== character.id) { fail(ctx, character, 'Not your quest.'); return; }
+
+    const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
+    const questName = qt ? qt.name : 'Unknown Quest';
+
+    // Delete quest instance
+    ctx.db.quest_instance.id.delete(qi.id);
+
+    // Small affinity penalty with the quest-giving NPC
+    if (qt?.npcId) {
+      awardNpcAffinity(ctx, character, qt.npcId, -3n);
+    }
+
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+      `Quest abandoned: ${questName}. This quest may never be offered again.`);
+  });
 };
