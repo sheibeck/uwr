@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 27-01 Server Schema & World Gen Data Layer
+stopped_at: Completed 27-02 Server Generation Procedure & Triggers
 last_updated: "2026-03-07T04:53:46Z"
-last_activity: 2026-03-07 — Completed 27-01 Server Schema & World Gen Data Layer
+last_activity: 2026-03-07 — Completed 27-02 Server Generation Procedure & Triggers
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 12
-  completed_plans: 10
-  percent: 83
+  completed_plans: 11
+  percent: 92
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 27 of 30 (Procedural World Generation)
-Plan: 1 of 3 complete (Server Schema & World Gen Data Layer)
+Plan: 2 of 3 complete (Server Generation Procedure & Triggers)
 Status: In progress
-Last activity: 2026-03-07 — Completed 27-01 Server Schema & World Gen Data Layer
+Last activity: 2026-03-07 — Completed 27-02 Server Generation Procedure & Triggers
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 92%
 
 ## Previous Milestone (v1.0)
 
@@ -57,6 +57,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 | Phase 26 P02 | 3min | 2 tasks | 3 files |
 | Phase 26 P03 | 47min | 2 tasks | 18 files |
 | Phase 27 P01 | 3min | 2 tasks | 4 files |
+| Phase 27 P02 | 4min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,9 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 27]: Uncharted locations at Greywind Pass and Abyssal Vault as world edge boundary triggers
 - [Phase 27]: Timestamp-based pseudorandom for template selection and danger variance (reducer determinism)
 - [Phase 27]: terrainType 'uncharted' marks boundary locations for procedural generation triggers
+- [Phase 27]: Haiku model for world generation (Sonnet HTTP fails from SpacetimeDB runtime)
+- [Phase 27]: Top-level try/catch on generation procedure reverts WorldGenState to ERROR for retry safety
+- [Phase 27]: writeGeneratedRegion creates enemies with EnemyRoleTemplates and EnemyAbilities (required for spawn/combat)
 
 ### Pending Todos
 
@@ -108,6 +112,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-07T04:53:46Z
-Stopped at: Completed 27-01 Server Schema & World Gen Data Layer
-Resume file: .planning/phases/27-procedural-world-generation/27-01-SUMMARY.md
+Last session: 2026-03-07T05:01:10Z
+Stopped at: Completed 27-02 Server Generation Procedure & Triggers
+Resume file: .planning/phases/27-procedural-world-generation/27-02-SUMMARY.md
