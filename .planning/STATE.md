@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 28 in progress — Dynamic Skill Generation
+**Current focus:** Phase 29 in progress — NPC & Quest Generation
 
 ## Current Position
 
-Phase: 28 of 30 (Dynamic Skill Generation)
-Plan: 3 of 3 complete (Client Skill Choice Integration)
-Status: Phase complete
-Last activity: 2026-03-07 - Completed quick task 333: Fix stuck Entering The Realm screen
+Phase: 29 of 30 (NPC & Quest Generation)
+Plan: 1 of 3 complete (NPC Data Layer & Conversation Prompts)
+Status: In progress
+Last activity: 2026-03-07 - Completed 29-01: NPC Data Layer & Conversation Prompts
 
-Progress: [██████████] 100%
+Progress: [█████████░] 93%
 
 ## Previous Milestone (v1.0)
 
@@ -61,6 +61,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 | Phase 28 P01 | 45min | 2 tasks | 26 files |
 | Phase 28 P02 | 5min | 2 tasks | 5 files |
 | Phase 28 P03 | 12min | 2 tasks | 16 files |
+| Phase 29 P01 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,10 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 28]: All hotbar/cooldown/cast tracking uses bigint abilityTemplateId instead of string abilityKey
 - [Phase 28]: Item-on-hotbar removed (incompatible with abilityTemplateId u64 schema)
 - [Phase 28]: Kind-based combat state checks replace old combatState field on client
+- [Phase 29]: MAX_ACTIVE_QUESTS = 4 per player (balances quest variety vs completion pressure)
+- [Phase 29]: NPC memory arrays capped at 10 entries (topics, secrets, etc.) for bounded prompt size
+- [Phase 29]: Default personality fallback for NPCs with empty personalityJson ensures graceful degradation
+- [Phase 29]: Affinity tier mapping uses NPC_AFFINITY_THRESHOLDS bigint values from mechanical_vocabulary
 
 ### Pending Todos
 
@@ -131,6 +136,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-07T20:19:02.390Z
-Stopped at: Phase 29 context gathered
-Resume file: .planning/phases/29-npc-quest-generation/29-CONTEXT.md
+Last session: 2026-03-07T20:44:22Z
+Stopped at: Completed 29-01-PLAN.md
+Resume file: .planning/phases/29-npc-quest-generation/29-02-PLAN.md

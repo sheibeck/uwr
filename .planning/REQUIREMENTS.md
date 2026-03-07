@@ -51,8 +51,8 @@
 
 ### NPC & Quest Generation
 
-- [ ] **NPC-01**: LLM generates NPCs contextual to the region and world state
-- [ ] **NPC-02**: Generated NPCs have persistent identity (name, personality, dialogue topics) stored canonically
+- [x] **NPC-01**: LLM generates NPCs contextual to the region and world state
+- [x] **NPC-02**: Generated NPCs have persistent identity (name, personality, dialogue topics) stored canonically
 - [ ] **NPC-03**: LLM generates quests from NPC/region/world context
 - [ ] **NPC-04**: Generated quests use existing quest types (kill, explore, delivery, etc.) with LLM-written narrative
 
@@ -118,8 +118,8 @@
 | SKILL-02 | Phase 28 | Complete |
 | SKILL-03 | Phase 28 | Complete |
 | SKILL-04 | Phase 28 | Complete |
-| NPC-01 | Phase 29 | Pending |
-| NPC-02 | Phase 29 | Pending |
+| NPC-01 | Phase 29 | Complete |
+| NPC-02 | Phase 29 | Complete |
 | NPC-03 | Phase 29 | Pending |
 | NPC-04 | Phase 29 | Pending |
 | COMBAT-01 | Phase 30 | Pending |
