@@ -1,212 +1,295 @@
-# Stack Research
+# Technology Stack
 
-**Project:** UWR — Multiplayer Browser RPG (SpacetimeDB 1.12.0, TypeScript)
-**Domain:** SpacetimeDB procedures + Anthropic API integration
-**Researched:** 2026-02-11
+**Project:** UWR v2.0 — The Living World (LLM-driven procedural RPG)
+**Researched:** 2026-03-06
+**Scope:** NEW stack additions only. Existing stack (SpacetimeDB 2.0.1, Vue 3.5.13, Vite 6.4.1) is validated and unchanged.
 
 ---
 
-## SpacetimeDB Procedures HTTP
+## Recommended Stack Additions
 
-SpacetimeDB TypeScript procedures are in **beta** as of 1.12.0. Key capabilities:
+### LLM Integration (Server-Side)
 
-### What `ctx.http.fetch()` provides
-- Makes HTTP requests from within a procedure (server-side, not client-side)
-- Signature mirrors the Fetch API: `ctx.http.fetch(url, options)`
-- Supports GET and POST methods; custom headers for auth tokens (Authorization: Bearer)
-- Returns a response object with `.text()`, `.json()` methods
-- **Cannot be called inside a `withTx()` block** — must happen between transactions
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| Raw HTTP via `ctx.http.fetch()` | SpacetimeDB 2.0.1 built-in | Call Anthropic Messages API | SpacetimeDB procedures use **synchronous** HTTP. The `@anthropic-ai/sdk` (v0.78.0) is async-only and **cannot run inside SpacetimeDB procedures**. Use raw HTTP to `POST https://api.anthropic.com/v1/messages` instead. |
+| Claude Haiku 4.5 | API model `claude-haiku-4-5-20250929` | Primary generation model | $0.25/$1.25 per 1M tokens (input/output). 80x cheaper than Opus. Fast enough for real-time feel. Use for: skill gen, NPC gen, combat narration, quest gen, region descriptions. |
+| Claude Sonnet 4.6 | API model `claude-sonnet-4-6-20260320` | Complex generation fallback | $3/$15 per 1M tokens. Use only for: character class creation (one-time, high-stakes), world-defining region generation. Haiku handles everything else. |
 
-### HTTP call lifecycle in procedures
+**Critical constraint:** SpacetimeDB procedures are synchronous. `ctx.http.fetch()` blocks until the response completes. This means:
+- No streaming responses inside procedures (the full response arrives at once)
+- Timeout management is essential (set `timeout` in RequestOptions)
+- Cannot use `@anthropic-ai/sdk` npm package (it's async/Promise-based)
+- Cannot make HTTP calls while a transaction (`ctx.withTx`) is open
+
+### LLM Integration (Client-Side Streaming — Optional Enhancement)
+
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| `@anthropic-ai/sdk` | ^0.78.0 | Client-side streaming for narrative feel | **Only if** you add a thin proxy/edge function. NOT for direct browser use (API key exposure). Consider this a Phase 2+ enhancement, not MVP. |
+
+**Recommendation:** For MVP, do NOT stream. SpacetimeDB procedures return the full LLM response, which gets written to event log tables. The client receives it via subscription reactivity. This is simpler, secure, and matches the existing LogWindow pattern. Streaming can be layered on later via a typewriter animation effect on the client (no server changes needed).
+
+### Prompt Management (No New Dependencies)
+
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| Template literal functions | TypeScript built-in | Prompt templates | No library needed. Prompts are string templates with variable interpolation. Keep them in `spacetimedb/src/prompts/` as pure functions that return `{role, content}[]` message arrays. |
+
+**Why no prompt library:** Prompt libraries (LangChain, etc.) are async, Node.js-dependent, and massively over-engineered for this use case. You need string templates that produce JSON message arrays for a REST API call. TypeScript template literals do this perfectly.
+
+### Client UI Additions
+
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| No new UI library | -- | Chat-first narrative interface | Build on existing `LogWindow.vue` + `CommandBar.vue`. The existing event log system is already a chat-like interface with scoped messages, timestamps, and styled event kinds. Evolve it, don't replace it. |
+| CSS `@keyframes` / `requestAnimationFrame` | Browser built-in | Typewriter text animation | Fake streaming feel on client side. Characters appear progressively even though the full text arrived at once via subscription. Zero dependencies. |
+| `v-html` with sanitization | Vue built-in | Render narrative markup | Already used in LogWindow. Extend with simple markdown-like formatting for LLM output (bold, italic, color spans). |
+
+**Why no chat UI library:** Syncfusion Chat UI, vue-advanced-chat, etc. are designed for person-to-person messaging with avatars, read receipts, typing indicators. UWR's "chat" is a narrative log from a system narrator -- fundamentally different from a chat app. The existing LogWindow is closer to what's needed than any chat library.
+
+### Caching & Cost Management (No New Dependencies)
+
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| SpacetimeDB tables | Built-in | LLM response cache | Store generated content (classes, skills, NPCs, regions) in tables. These ARE the cache. Once a class is generated, it lives in the `Character` table forever. Once a region is generated, it lives in the `Region` table. No separate cache layer needed. |
+| Anthropic prompt caching | API feature | Reduce repeated system prompt costs | Cache reads cost 0.1x base price. System prompts (narrator voice, world context) are identical across calls -- perfect for prompt caching. Send `cache_control: {"type": "ephemeral"}` on system messages. |
+
+---
+
+## What NOT to Add
+
+| Technology | Why Not |
+|------------|---------|
+| `@anthropic-ai/sdk` (server) | Async-only. Cannot run in synchronous SpacetimeDB procedures. Use raw `ctx.http.fetch()`. |
+| LangChain / LlamaIndex | Massive async frameworks. Overkill for structured prompt templates + one API call. |
+| Any prompt templating library | TypeScript template literals are sufficient. Prompts are just functions returning message arrays. |
+| Redis / Memcached | SpacetimeDB tables ARE the cache. Generated content persists in the database. |
+| Vector database (Pinecone, etc.) | No semantic search needed. Content is generated on-demand, not retrieved from embeddings. |
+| OpenAI / other LLM providers | Anthropic Claude is the chosen provider per PROJECT.md. Don't multi-provider. |
+| Syncfusion Chat UI / vue-advanced-chat | Wrong abstraction. UWR needs a narrative log, not a chat widget. |
+| Server-Sent Events / WebSocket streaming | SpacetimeDB subscriptions already provide real-time reactivity. Adding a separate streaming channel creates architectural complexity for marginal UX gain. |
+| Marked / markdown parser | LLM output should return pre-formatted HTML spans or plain text with simple custom markup. Full markdown parsing is overkill for game narrative text. |
+
+---
+
+## Architecture: LLM Call Flow
+
+```
+Client                    SpacetimeDB                      Anthropic API
+  |                           |                                |
+  |-- reducer call ---------->|                                |
+  |   (e.g. create_class)    |                                |
+  |                           |-- procedure (internal) ------->|
+  |                           |   ctx.http.fetch(anthropic)    |
+  |                           |<-- JSON response --------------|
+  |                           |                                |
+  |                           |-- ctx.withTx() --------------->|
+  |                           |   Insert generated content     |
+  |                           |   into tables                  |
+  |                           |                                |
+  |<-- subscription update ---|                                |
+  |   (table change pushes    |                                |
+  |    to client reactively)  |                                |
+```
+
+**Important pattern:** Reducers call procedures internally. The client calls a reducer (e.g., `createCharacterClass`), the reducer delegates to a procedure for the LLM call, the procedure writes results to tables via `ctx.withTx()`, and the client receives the data via normal SpacetimeDB subscription reactivity.
+
+**Wait -- can reducers call procedures?** No. Reducers and procedures are both top-level entry points. The correct pattern is:
+
+```
+Option A (Recommended): Client calls procedure directly
+  Client -> procedure (HTTP to Anthropic + withTx to write results)
+  Client <- subscription update with generated content
+
+Option B: Two-step via reducer
+  Client -> reducer (validates, sets "generating" flag in table)
+  Client -> procedure (fetches LLM, writes results via withTx)
+  Client <- subscription updates for both steps
+```
+
+Option A is simpler. Use Option B only when you need the reducer's transaction guarantees for validation before spending money on an LLM call.
+
+---
+
+## Raw HTTP Call Pattern (Server-Side)
+
 ```typescript
-spacetimedb.procedure('gen_quest', { questId: t.u64() }, t.unit(), (ctx, { questId }) => {
-  // Step 1: Read state in a transaction
-  let state: { zone: string; level: number } | undefined;
-  ctx.withTx(tx => {
-    const quest = tx.db.quest.questId.find(questId);
-    if (quest) state = { zone: quest.zone, level: quest.level };
-  });
-  if (!state) return {};
+// spacetimedb/src/llm/claude.ts -- thin wrapper around ctx.http.fetch
 
-  // Step 2: HTTP call OUTSIDE any transaction
-  const response = ctx.http.fetch('https://api.anthropic.com/v1/messages', {
+interface ClaudeMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface ClaudeRequest {
+  model: string;
+  max_tokens: number;
+  system: string | Array<{ type: string; text: string; cache_control?: { type: string } }>;
+  messages: ClaudeMessage[];
+}
+
+interface ClaudeResponse {
+  content: Array<{ type: string; text: string }>;
+  usage: { input_tokens: number; output_tokens: number };
+}
+
+export function callClaude(
+  http: HttpClient,
+  apiKey: string,
+  request: ClaudeRequest
+): ClaudeResponse {
+  const response = http.fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ ... }),
-    // Timeout: TimeDuration.fromMillis(8000) — always set this
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(request),
+    timeout: { secs: 30, nanos: 0 },  // TimeDuration format TBD
   });
 
-  // Step 3: Write result in new transaction
-  ctx.withTx(tx => {
-    tx.db.questText.insert({ questId, text: response.text(), status: 'ready' });
-  });
-  return {};
+  if (!response.ok) {
+    throw new Error(`Claude API error ${response.status}: ${response.text()}`);
+  }
+
+  return response.json() as ClaudeResponse;
+}
+```
+
+---
+
+## Prompt Template Pattern (No Library)
+
+```typescript
+// spacetimedb/src/prompts/class_generation.ts
+
+const SYSTEM_NARRATOR = `You are The System — a sardonic, omniscient narrator of a fantasy world.
+You find mortals endlessly amusing. Your tone is dry, witty, and slightly mocking,
+but never cruel. You speak as if narrating a story you find entertaining.`;
+
+export function classGenerationPrompt(race: string, archetype: 'Warrior' | 'Mystic'): ClaudeRequest {
+  return {
+    model: 'claude-haiku-4-5-20250929',
+    max_tokens: 500,
+    system: [
+      { type: 'text', text: SYSTEM_NARRATOR, cache_control: { type: 'ephemeral' } },
+      { type: 'text', text: `Generate a unique class for a ${race} ${archetype}. Return JSON: { "className": "...", "description": "...", "flavor": "..." }` },
+    ],
+    messages: [
+      { role: 'user', content: `I am a ${race}. I walk the path of the ${archetype}.` },
+    ],
+  };
+}
+```
+
+---
+
+## Cost Estimates
+
+| Action | Model | Est. Tokens (in/out) | Cost per Call | Calls per Player Session |
+|--------|-------|---------------------|---------------|-------------------------|
+| Character class gen | Haiku 4.5 | 500/300 | $0.0005 | 1 |
+| Skill generation (3 options) | Haiku 4.5 | 600/400 | $0.0007 | ~5 per session |
+| Region generation | Haiku 4.5 | 800/500 | $0.0008 | 1-2 |
+| Combat narration (per round) | Haiku 4.5 | 400/200 | $0.0004 | ~10 per combat |
+| NPC generation | Haiku 4.5 | 500/400 | $0.0006 | 2-3 |
+| Quest generation | Haiku 4.5 | 700/500 | $0.0008 | 1-2 |
+
+**Estimated cost per player session (1 hour):** ~$0.01-0.02 with Haiku 4.5
+**Estimated cost per 1000 MAU:** ~$200-400/month (assuming 20 sessions/player/month)
+
+**Cost controls:**
+1. Use Haiku for everything except class creation
+2. Enable Anthropic prompt caching (system prompts cached at 0.1x cost)
+3. Rate-limit LLM calls per player (e.g., max 5 skill generations per hour)
+4. Cache generated content in tables -- never regenerate what already exists
+5. Keep prompts concise -- every token costs money
+
+---
+
+## API Key Management
+
+**Problem:** SpacetimeDB procedures need the Anthropic API key, but it can't be hardcoded.
+
+**Solution:** Store the API key in a private SpacetimeDB table, seeded by an admin reducer:
+
+```typescript
+export const Config = table({ name: 'config' }, {
+  key: t.string().primaryKey(),
+  value: t.string(),
+});
+
+// Admin-only reducer to set config
+spacetimedb.reducer('set_config', { key: t.string(), value: t.string() }, (ctx, { key, value }) => {
+  if (!isAdmin(ctx.sender)) throw new SenderError('Not admin');
+  const existing = ctx.db.config.key.find(key);
+  if (existing) ctx.db.config.key.update({ ...existing, value });
+  else ctx.db.config.insert({ key, value });
 });
 ```
 
-### Limitations and constraints
-- **Beta caveat**: API will change in future SpacetimeDB releases. Encapsulate in abstraction layer.
-- **No streaming**: Cannot stream tokens back to clients. Must write complete response to table.
-- **Return values are caller-only**: Table mutations propagate to all subscribers; return values don't.
-- **`withTx` must be idempotent**: The callback may execute multiple times with different states.
-- **No documented max procedure timeout**: Developer must set explicit HTTP timeouts.
-- **No concurrent HTTP calls in one procedure**: Sequential only.
-
-### SpacetimeDB 1.11 → 1.12 changes
-- 1.12.0 is the version in use (`spacetimedb: "^1.12.0"` per STACK.md)
-- Procedures were added in 1.11.x as beta
-- No breaking changes to procedure API between 1.11 and 1.12 documented; verify before upgrading
+The procedure reads the key from the config table via `ctx.withTx()`. The table is private (not `public: true`), so clients never see it.
 
 ---
 
-## Anthropic API (2026)
+## Existing Infrastructure to Leverage (NOT new stack)
 
-### Messages API endpoint
-```
-POST https://api.anthropic.com/v1/messages
-```
-
-### Required headers
-```
-x-api-key: YOUR_API_KEY
-anthropic-version: 2023-06-01
-content-type: application/json
-```
-
-### Request body (minimal)
-```json
-{
-  "model": "claude-haiku-4-5-20251001",
-  "max_tokens": 150,
-  "system": "You are a sarcastic fantasy narrator...",
-  "messages": [
-    { "role": "user", "content": "Generate a quest introduction for..." }
-  ]
-}
-```
-
-### Response structure
-```json
-{
-  "id": "msg_...",
-  "type": "message",
-  "content": [{ "type": "text", "text": "Generated text here" }],
-  "stop_reason": "end_turn",
-  "usage": { "input_tokens": 120, "output_tokens": 87 }
-}
-```
-Extract text: `response.content[0].text`
-
-### Model selection for UWR
-| Use case | Model | Rationale |
-|----------|-------|-----------|
-| NPC ambient dialogue, short barks | `claude-haiku-4-5-20251001` | Fastest (~0.5s TTFT), cheapest ($1/$5 per MTok) |
-| Quest descriptions, faction lore | `claude-sonnet-4-5-20250929` | Quality + reasonable latency (~1.2s TTFT) |
-| Major world events, story moments | `claude-sonnet-4-5-20250929` | Never use Opus in real-time generation |
-
-### Prompt caching
-Add `cache_control: { type: "ephemeral" }` to large static content blocks:
-```json
-{
-  "type": "text",
-  "text": "[Long world lore / tone instructions]",
-  "cache_control": { "type": "ephemeral" }
-}
-```
-- Cache TTL: 5 minutes default, 1 hour for stable content
-- Minimum cacheable: 1024 tokens (Sonnet), 4096 tokens (Haiku)
-- Cache read cost: 10% of normal input price — critical for concurrent players sharing world context
-
-### Pricing (2026-02-11)
-| Model | Input (uncached) | Cache read | Output |
-|-------|-----------------|------------|--------|
-| Haiku 4.5 | $1/MTok | $0.10/MTok | $5/MTok |
-| Sonnet 4.5 | $3/MTok | $0.30/MTok | $15/MTok |
+| Existing System | How It Serves v2.0 |
+|----------------|-------------------|
+| Event log system | Narrative delivery channel. LLM-generated text writes to event logs, client receives via subscription. |
+| LogWindow.vue | Evolves into chat-first narrative UI. Already handles scoped messages, timestamps, styled kinds. |
+| CommandBar.vue | Player input interface. Already parses commands. Extend for narrative inputs. |
+| Config table pattern | Already exists in codebase. Use for API key storage. |
+| `spacetimedb/src/data/` | Prompt templates and generation schemas live here alongside existing game data. |
 
 ---
 
-## Credential Storage
+## Installation (Server-Side)
 
-### The problem
-SpacetimeDB TypeScript backend modules don't have native environment variable support for runtime secrets. The `ANTHROPIC_API_KEY` must reach the module code somehow.
-
-### Options
-
-**Option A: Compile-time constant (simplest, not recommended for production)**
-```typescript
-const ANTHROPIC_API_KEY = 'sk-ant-...';  // Hard-coded in source
+```bash
+# No new server dependencies needed!
+# SpacetimeDB 2.0.1 already includes ctx.http.fetch() in procedures.
+# The Anthropic API is called via raw HTTP -- no SDK required.
 ```
-- Risk: Key is in source code / git history. Never do this for production.
 
-**Option B: SpacetimeDB admin-set config table (recommended)**
-Create a private `Config` table:
-```typescript
-export const Config = table(
-  { name: 'config' },  // NOT public — no `public: true`
-  { key: t.string().primaryKey(), value: t.string() }
-);
+## Installation (Client-Side)
+
+```bash
+# No new client dependencies needed!
+# Chat-first UI is built from existing Vue components.
+# Typewriter animation uses browser-native APIs.
 ```
-Admin populates it via a privileged reducer (or direct db tool). The procedure reads from it:
-```typescript
-const keyRow = ctx.db.config.key.find('anthropic_api_key');
-if (!keyRow) throw new Error('API key not configured');
-const API_KEY = keyRow.value;
-```
-This key is never exposed to clients (table not public, not in any view).
 
-**Option C: Module-level constant via SpacetimeDB module environment (future)**
-SpacetimeDB roadmap includes proper environment variable support. Not available in 1.12.
+**Total new npm dependencies: ZERO.**
 
-### Recommendation for UWR
-Use Option B (Config table). Set the API key once via an admin-only `setConfig` reducer protected by a hardcoded admin identity check. Never log or return the value.
+This is intentional. Every new dependency is a maintenance burden, a bundle size increase, and a potential breaking change. The existing stack plus raw HTTP covers every requirement.
 
 ---
 
-## Cost & Rate Limit Patterns
+## Alternatives Considered
 
-### Estimated cost model (UWR)
-Assumptions: 50 concurrent players, each triggering 1 LLM generation per 5 minutes.
-- 50 * 12 = 600 calls/hour
-- Per call: ~800 input tokens (cached lore: 600 + fresh context: 200) + 150 output tokens
-- Cached input cost (Sonnet): 600 * $0.30/MTok = $0.00018 per call
-- Fresh input cost (Sonnet): 200 * $3/MTok = $0.0006 per call
-- Output cost (Sonnet): 150 * $15/MTok = $0.00225 per call
-- Total per call: ~$0.003
-- Per hour (600 calls): ~$1.80
-- Per month (assumed 8h/day active): ~$432/month at scale
-
-**With deduplication (60% cache hit rate on content):**
-- Effective calls: 240/hour = ~$0.72/hour = ~$173/month
-
-### Rate limits (Anthropic Tier 1)
-- Requests per minute: 50 RPM (Haiku), 50 RPM (Sonnet)
-- Tokens per minute: 50,000 TPM (Haiku), 40,000 TPM (Sonnet)
-- Requests per day: 5,000 (Haiku), 1,000 (Sonnet)
-
-At 600 calls/hour = 10 RPS, you'd blow the RPM limits immediately with Tier 1.
-**Upgrade to Tier 2+ before launch** (requires $40 spend): 1,000 RPM, 200k TPM.
-
-### Circuit breaker implementation
-```typescript
-// Track failures in SpacetimeDB table
-export const LlmCircuit = table({ name: 'llm_circuit' }, {
-  id: t.u64().primaryKey(),
-  failureCount: t.u64(),
-  lastFailureAt: t.timestamp(),
-  isOpen: t.bool(),
-});
-```
-Open circuit if 3+ failures in 60 seconds. Reset after 5 minutes. All calls during open circuit use fallback content.
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| LLM call method | Raw `ctx.http.fetch()` | `@anthropic-ai/sdk` | SDK is async-only; SpacetimeDB procedures are synchronous |
+| Prompt management | TypeScript template functions | LangChain | Massive async framework, Node.js-only, extreme overkill |
+| LLM model | Haiku 4.5 (primary) | Sonnet/Opus | 80x more expensive. Haiku quality is sufficient for game content. |
+| Chat UI | Evolve existing LogWindow | Syncfusion Chat UI | Wrong abstraction (person-to-person chat vs narrative log) |
+| Response caching | SpacetimeDB tables | Redis | Additional infrastructure. Generated content naturally lives in game tables. |
+| Streaming | Typewriter animation (client) | SSE/WebSocket streaming | Adds architectural complexity. Subscription reactivity + client animation achieves same UX. |
+| Structured output | JSON in prompt instructions | Anthropic Structured Outputs beta | Structured Outputs requires beta header and specific models. Simple JSON instructions with Haiku work reliably for game content schemas. |
 
 ---
 
-## Key Findings & Risks
+## Sources
 
-| Finding | Confidence | Impact |
-|---------|-----------|--------|
-| Procedures are beta — API will change | HIGH | Medium — encapsulate carefully |
-| HTTP cannot happen inside `withTx` | HIGH | High — architecture must account for this |
-| Prompt caching is critical for cost control | HIGH | High — implement from day 1 |
-| Rate limits require Tier 2+ at scale | HIGH | High — plan for upgrade before launch |
-| Config table is the best credential pattern | MEDIUM | Medium — no perfect solution in 1.12 |
-| `withTx` callbacks must be idempotent | HIGH | High — double-writes must be safe |
+- [SpacetimeDB Procedures Documentation](https://spacetimedb.com/docs/procedures/) - Procedure API, HTTP fetch, transaction management
+- [SpacetimeDB 2.0.1 Release](https://github.com/clockworklabs/SpacetimeDB/releases/tag/v2.0.1) - Current version with procedure support
+- [Anthropic TypeScript SDK (npm)](https://www.npmjs.com/package/@anthropic-ai/sdk) - v0.78.0, async-only (NOT usable in SpacetimeDB procedures)
+- [Claude API Messages Endpoint](https://docs.anthropic.com/en/api/messages) - Raw HTTP REST API reference
+- [Claude API Pricing](https://platform.claude.com/docs/en/about-claude/pricing) - Haiku $0.25/$1.25, Sonnet $3/$15, Opus $5/$25 per 1M tokens
+- [Anthropic Structured Outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs) - JSON schema compliance (beta)
+- [Anthropic Prompt Caching](https://platform.claude.com/docs/en/about-claude/pricing) - Cache reads at 0.1x base price
+- [LLM Cost Optimization Strategies](https://ai.koombea.com/blog/llm-cost-optimization) - 60-80% cost reduction techniques
+- SpacetimeDB SDK source: `spacetimedb/dist/server/procedures.d.ts`, `http_internal.d.ts` (local, verified)

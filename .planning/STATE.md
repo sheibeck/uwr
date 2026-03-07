@@ -1,599 +1,64 @@
 # Project State
 
-**Milestone:** v2.0 — The Living World
-**Last updated:** 2026-03-06
-**Status:** Defining requirements
+## Project Reference
 
----
+See: .planning/PROJECT.md (updated 2026-03-06)
+
+**Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
+**Current focus:** Phase 24 — LLM Pipeline Foundation
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-06 — Milestone v2.0 started (pivot to LLM-driven living world)
+Phase: 24 of 30 (LLM Pipeline Foundation)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-03-06 — Roadmap created for v2.0 milestone (phases 24-30)
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Previous Milestone (v1.0)
 
-See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (some pending phases superseded by v2.0 pivot).
-
----
-
-## Phase Status
-
-| Phase | Name | Status |
-|-------|------|--------|
-| 1 | Races | Complete (2/2 plans done) |
-| 2 | Hunger | Removed (quick-76) — food buff system preserved as CharacterEffect |
-| 3 | Renown Foundation | Complete (2/2 plans done, human-verified) |
-| 3.1 | Combat Balance | Complete (5/5 plans done: 2 impl + 1 verify + 2 gaps, human-verified) |
-| 3.1.1 | Combat Balance Part 2 | Complete (3/3 plans done: metadata, implementation, verification all approved) |
-| 3.1.2 | Combat Balance for Enemies | Complete (3/3 plans done: metadata, implementation, verification all approved) |
-| 3.1.3 | Enemy AI and Aggro Management | Complete (2/2 plans done: role-based threat, AI scoring + leashing) |
-| 4 | Config Table Architecture | Complete (2/2 plans done: table extension + consumer migration, human-verified) |
-| 5 | LLM Architecture | Pending |
-| 6 | Quest System | Complete (3/3 plans done: backend schema + reducers, passive search + quest seeding, frontend integration + human-verified) |
-| 7 | World Events | Pending (core system built in Phase 18; LLM text + threshold auto-fire + race_unlock pending) |
-| 8 | Narrative Tone Rollout | Pending |
-| 9 | Content Data Expansion | Pending (most targets exceeded: 29+ enemies, 20+ resources, 7+ NPCs, 29 recipes) |
-| 10 | Travel & Movement Costs | Complete (2/2 plans done: backend + UI, human-verified) |
-| 11 | Death & Corpse System | Complete (2/2 plans done: backend foundation + resurrection/corpse summon; UI skipped per user decision) |
-| 12 | Overall Renown System | Complete (3/3 plans done: backend + integration + UI, human-verified) |
-| 13 | Crafting System | Complete (3/3 plans done: data foundation + reducers + UI filter chips/craftable toggle/material display/scroll learning, human-verified) |
-| 13.1 | Dual-Axis Gear System | Complete (2/2 plans done: craftQuality schema + dual-axis craft_recipe reducer + frontend craft quality display) |
-| 14 | Loot & Gear Progression | Complete (4/4 plans done: schema+catalog, loot pipeline, legendary drops+salvage, client UI, human-verified) |
-| 15 | Named NPCs | Complete (implemented organically via Phase 19 and quick tasks — NPC entities, shops, world placement all in place) |
-| 16 | Travelling NPCs | Pending (not yet planned) |
-| 17 | World Bosses | Pending (not yet planned) |
-| 18 | World Events System Expansion | Complete (3/3 plans done: backend WorldEvent/EventContribution/EventSpawnEnemy tables + reducers + WorldEventPanel UI with Active/History tabs and admin event panel) |
-| 19 | NPC Interactions | Complete (2/2 plans done: backend affinity/dialogue + interaction reducers; UI skipped per user decision — multi-step questing via NPC dialogue is sufficient MVP) |
-| 20 | Perk Variety Expansion | Complete (3/3 plans done: perk data foundation + perk logic implementation + active ability perks with hotbar integration) |
-| 21 | Race Expansion | In Progress (Plans 01-03 complete: dual-bonus schema, 15 races seeded, racial columns, level-up stacking, CharacterPanel UI updated) |
-| 21.1 | Stat Systems Off-Stat Hooks | Complete (4/4 plans done: statOffset helper, block system DEX/STR, INT salvage scrolls, CHA hooks, client StatsPanel display, human-verified 2026-02-21) |
-| 21.1.1 | Hit/Dodge/Parry Active Stats | In Progress (Plan 01 complete: stat-derived dodge/parry/hit wired into rollAttackOutcome and resolveAttack; DEX now live defensive stat) |
-| 22 | Class Ability Balancing & Progression | In Progress (Plans 01-03 complete: schema, ability data rewrite, full executeAbility switch for all 16 classes + bard song tick reducer + temp item logout cleanup) |
-| 23 | V2 Subscription Optimization | In Progress (Plans 01-02 complete: event tables converted to event:true, client onInsert wiring done; 2/2 plans done) |
-
----
-
-## Key Decisions Locked
-
-1. LLM generation uses client-triggered procedure pattern (Phase 1 simplicity; server-scheduled in v2)
-2. Race as data rows (`Race.unlocked: bool`), not TypeScript enum — required for World Event unlocks
-3. No hunger penalties — reward-only design confirmed
-4. No faction standing decay — WoW model confirmed
-5. Config table (private) for Anthropic API key storage — no native env var support in SpacetimeDB 1.12
-6. Phase 1 + Phase 3 can execute in parallel; Phase 4 (LLM) requires Phase 3 first consumer
-7. Human availableClasses is '' (empty string) not 'all' — isClassAllowed returns true for empty string (01-01)
-8. Racial bonuses baked into baseStats at character creation, not stored as separate layer (01-01)
-9. Character row stores race as display name string, not raceId — snapshot is self-contained (01-01)
-10. filteredClassOptions returns null (not empty array) for "all classes allowed" — null is explicit "show everything" signal in CharacterPanel (01-02)
-11. Class-clear on race switch runs in onRaceChange using races prop directly, not waiting for Vue recompute — avoids one-tick invalid state window (01-02)
-12. Well Fed buff stored on Hunger row (not CharacterEffect) for direct O(1) combat lookup (02-01)
-13. mana_regen/stamina_regen Well Fed buffs are display-only TODOs — Character table regen paths not yet wired for decay tick context (02-01)
-14. Simple Rations stays as slot=consumable; 4 new Well Fed foods use slot=food to distinguish buff foods from utility consumables (02-01)
-15. HungerBar rendered below StatsPanel in wrapper div — simpler than separate panel toggle, no new panel type needed (02-02)
-16. eatable = slot === 'food' (lowercase compare) cleanly distinguishes Well Fed buff foods from consumable-slot utility items in InventoryPanel (02-02)
-17. Kill-based standing only in Phase 3; quest-completion and tribute standing deferred to future phases (03-01)
-18. Single-column by_character index on FactionStanding only — multi-column indexes broken in SpacetimeDB (03-01)
-19. Standing per kill: +10 to enemy's faction, -5 to rival faction (03-01)
-20. FactionStanding rows initialized eagerly at character creation (4 rows for 4 factions at standing=0) (03-01)
-21. Enemy faction assignments: constructs/sentinels=Iron Compact, animals/nature spirits=Verdant Circle, undead/dark humanoids=Ashen Order, humanoid outlaws=Free Blades (03-01)
-22. FACTION_RANKS defined client-side as constant array with numeric min/max thresholds — no backend lookup needed (03-02)
-23. Standing BigInt converted via Number() before rank threshold comparison; getProgress clamps to 100% for Exalted (Infinity-safe) (03-02)
-24. Combat state restrictions data-driven via AbilityTemplate.combatState field — eliminates hardcoded ability key lists on client/server (quick-6)
-25. Victory/defeat sounds trigger from combinedEvents (persistent log) not activeResult (ephemeral row) for reliability (quick-33)
-26. Server auto-deletes CombatResult rows for no-loot victories and all defeats — already logged as events, no need for lingering rows (quick-33)
-27. Each group member independently manages own loot — no leader-gating on dismiss_combat_results (quick-33)
-28. take_loot cleanup scoped to character's own remaining loot using by_character index, not global combat loot (quick-33)
-29. Combat scaling uses K=1 armor formula (~33% at 50 armor), STR 1.5%/point, crit 5% base + 0.1%/DEX (50% cap), hybrid abilities sum STR+INT at 1n/point (3.1-01)
-30. Magic damage bypasses armor entirely for impactful caster DPS; physical damage uses tuned armor curve (3.1-02)
-31. Weapon-type-specific crit multipliers: fast weapons (daggers/rapiers/staffs) 1.5x, medium (swords/bows/maces) 2.0x, slow (axes) 2.5x (3.1-02)
-32. WIS healing scaling only applies to classes with wis as primary or secondary stat — prevents non-healers from benefiting (3.1-02)
-33. Scheduled reducer per-user data must use public tables, not private tables + views — views don't re-evaluate reliably for scheduled reducer inserts (quick-35)
-34. All abilities with power > 0n use ONLY hybrid formula (no weaponComponent) — fixes double-dipping bug that caused 5-6x damage (3.1-04)
-35. Ability scaling constants tuned: ABILITY_STAT_SCALING_PER_POINT reduced from 2n to 1n, power base multiplier reduced from 10n to 5n — brings abilities to 15-25 damage range, stats contribute ~30-40% (3.1-05)
-36. All per-user tables except Player converted to public with client-side filtering — SpacetimeDB views have unreliable reactivity; only myPlayer view remains (identity-based filtering) (quick-46). **DO NOT revert characterEffect back to myCharacterEffects view** — quick-102/111 kept reverting this, causing recurring debuff display bug. Use tables.characterEffect + client-side relevantEffects filtering (App.vue).
-37. DoT/HoT use 50% scaling rate modifier to prevent double-dipping on multi-tick periodic effects (3.1.1-01)
-38. AoE abilities deal 65% damage per target (tunable 60-70% range); debuffs cost 25% of ability power budget (3.1.1-01)
-39. Enemy ability power scales by level only (no stats): ENEMY_BASE_POWER (10n) + enemyLevel * ENEMY_LEVEL_POWER_SCALING (5n) (3.1.2-01)
-40. Enemy DoT/debuff abilities use same power budget split as players: 50% dotPowerSplit, 25% debuffPowerCost (3.1.2-01)
-41. Enemy AoE abilities have no DoT component (direct damage only) — AoE cannot apply DoTs per user decision (3.1.2-01)
-42. Enemy damage type routing: physical (poison/venom/bite/gore/bleed/stone/bog) vs magic (ember/fire/shadow/hex/curse/searing) routes through armor vs magic resist (3.1.2-01)
-43. Enemy combat balance verified functional with all 6 ability kinds — user noted combat duration concern (battles too short) for potential future survivability tuning pass (3.1.2-03)
-44. Tank threat multiplier 1.5x (conservative start), healer 0.5x, healing generates 50% threat split across enemies — role-based threat system for tank/healer/DPS trinity (3.1.3-01)
-45. Enemy AI scoring is combat-state-aware: healers +100 score when ally <30% HP, buffers +50 in first 10s, debuffers +25 vs highest threat — dynamic priority system (3.1.3-02)
-46. Enemies leash (evade to full HP) when all players flee combat — prevents kiting exploit, spawn resets to 'available' state (3.1.3-02)
-47. Combat duration tuned via centralized constants: BASE_HP (50n), HP_STR_MULTIPLIER (8n), GLOBAL_DAMAGE_MULTIPLIER (85n = 15% reduction), enemy HP ~80% increase — roughly doubles combat length (quick-56)
-48. myPlayer view replaced with client-side identity filtering — completes migration started in quick-46, all per-user tables now use public + client filtering pattern (quick-70)
-49. AbilityTemplate table extended with 11 optional metadata columns at end for automatic SpacetimeDB migration — power, damageType, statScaling, DoT/HoT/debuff/AoE fields (04-01)
-50. statScaling populated from ABILITY_STAT_SCALING mapping (combat_scaling.ts), not from ABILITIES constant — separate data source for stat scaling lookups (04-01)
-51. Ability descriptions preserved via resolveDescription helper: ABILITIES.description with legacyDescriptions fallback — ensures no description data loss during metadata migration (04-01)
-52. All ability metadata consumers migrated to database lookups using ctx.db.abilityTemplate.by_key.filter() pattern — executeAbility, damage/healing, cooldowns all read from DB (04-02)
-53. ABILITY_STAT_SCALING kept for seeding only, not execution — getAbilityStatScaling requires statScaling parameter from DB row, no fallback to constant (04-02)
-54. legacyDescriptions block (85 lines) removed from ensureAbilityTemplates — descriptions already in database, fallback no longer needed (04-02)
-55. btree index .filter() pattern for database lookups — by_key is btree (not unique), must use .filter() not .find() (04-02)
-56. Travel costs are flat stamina per character (5 within-region, 10 cross-region) - no BFS distance calculation, no gold costs, no per-step scaling (10-01)
-57. All-or-nothing group travel validation - entire group move fails if any member lacks stamina, error shows which character is short (10-01)
-58. Per-character cross-region cooldown (5 minutes) - not group-wide, only cross-region travel has cooldown (10-01)
-59. Opportunistic expired cooldown cleanup during cooldown check - prevents TravelCooldown table accumulation (10-01)
-60. Travel UI displays stamina costs as "X sta" format, cross-region destinations shown with amber-colored region name for visual distinction (10-02)
-61. Server clock offset pattern used for accurate countdown timers synchronized with server time (window.__server_clock_offset from quick-55) (10-02)
-62. Unaffordable travel options dimmed with opacity: 0.5 instead of hidden for improved UX feedback (10-02)
-63. Renown rows lazy-initialized on first point award (not at character creation) to avoid cluttering database with inactive character records (12-01)
-64. Server-first tracking uses single-column by_category index with manual achievementKey filtering — multi-column indexes broken per CLAUDE.md (12-01)
-65. Diminishing returns formula for server-first: baseRenown / (2^(position-1)) using BigInt division, minimum 1 renown (12-01)
-66. Perk bonuses aggregated on-demand via calculatePerkBonuses helper (not cached on character stats) — future optimization possible (12-01)
-67. One permanent perk choice per rank enforced via choose_perk duplicate check — no respec mechanism by design (12-01)
-68. Corpse creation level-gated at 5+ to match existing XP penalty threshold (character.level < 5n skips corpse) (11-01)
-69. Same-location corpse combining updates timestamp to newest death for decay calculation (11-01)
-70. ItemInstance ownership never changes during corpse looting — items return by deleting CorpseItem row only (11-01)
-71. Decay cleanup runs opportunistically on respawn (not scheduled reducer) to avoid overhead (11-01)
-72. Empty corpses auto-delete after final item looted for database cleanliness (11-01)
-73. Resurrection 30-second confirmation timeout prevents indefinitely pending actions (11-02)
-74. Mana deducted on accept (not initiate) to prevent griefing via declined prompts (11-02)
-75. Resurrect targets corpse requiring caster at corpse location — prevents remote resurrection (11-02)
-76. Corpse Summon targets character and works from any location for convenience (11-02)
-77. Resurrect teleports character to corpse location, restores 50% HP/mana, leaves corpse intact (11-02)
-78. Corpse Summon merges ALL corpses from all locations into single combined corpse at caster location (11-02)
-79. combatState field added to AbilityMetadata interface for explicit combat restrictions in ability definitions (11-02)
-80. PendingResurrect and PendingCorpseSummon merged into unified PendingSpellCast table with spellType discriminator — eliminates duplicate code, simplifies spell-cast architecture (quick-93)
-81. Corpse Summon moved from Cleric to Necromancer and Summoner at level 6 — better thematic fit for entity-manipulation classes (quick-93)
-82. Resurrection and Corpse Summon changed to flat mana costs (50/60) with 0 cooldown and 10s cast time — resource-gated abilities instead of time-gated (quick-93)
-83. NPC affinity range set to -100 to +100 with 7 tiers (Hostile, Unfriendly, Wary, Stranger, Acquaintance, Friend, Close Friend, Devoted) for granular progression (19-01)
-84. NPC personality traits stored as JSON with affinityMultiplier field (0.8 to 1.2 range) — friendly NPCs build affinity 20% faster, grumpy NPCs 20% slower (19-01)
-85. Conversation cooldown set to 1 hour per-NPC stored on NpcAffinity.lastInteraction timestamp to prevent affinity grinding (19-01)
-86. Dialogue options filtered by affinity, faction standing, and renown rank (all optional) for flexible gating (19-01)
-87. Tier change notifications sent to Log panel only when crossing tier boundary, not on every affinity change to reduce spam (19-01)
-88. questType field defaults via ?? 'kill' in all quest type checks — undefined is backwards-compatible with existing kill quests (06-01)
-89. kill_loot quests skip updateQuestProgressForKill entirely — they advance ONLY via rollKillLootDrop drop roll in combat kill loop (06-01)
-90. rollKillLootDrop is a function declaration inside registerCombatReducers closure so deps is in lexical scope (06-01)
-91. Delivery quest auto-complete in hailNpc does NOT return early — character still sees NPC dialogue tree for follow-up quest branches (06-01)
-92. kill_loot drops create QuestItem with discovered=true and looted=true — items drop directly, no search step needed (06-01)
-93. performPassiveSearch uses BigInt() casts on any-typed ctx fields to satisfy TypeScript strict mode bigint operator requirements (06-02)
-94. Named enemy name field reuses qt.targetItemName as boss display name for boss_kill quests — targetItemName holds the boss name for this quest type (06-02)
-95. Passive search seed = charId XOR nowMicros, with bit-shifted variants (>>8, *7) and (>>16, *13) for 3 independent rolls — deterministic per character per timestamp (06-02)
-96. Quest item cast timer is purely client-side UX — loot_quest_item reducer accepts call immediately, no server-side timer enforcement (06-03)
-97. locationQuestItems/locationNamedEnemies filtered client-side by characterId + locationId + state (discovered/looted/isAlive) before passing to LocationGrid as props (06-03)
-98. Food buffs use food_mana_regen/food_stamina_regen effectTypes (not mana_regen/stamina_regen) so they bypass tick_effects periodic heal handlers and instead boost per-tick regen rate in regen_health (quick-120)
-99. sourceAbility='Well Fed' is canonical food buff identifier — used for group panel display (effectLabel returns sourceAbility when present) and one-at-a-time enforcement (delete by sourceAbility only) (quick-120)
-100. Legendary drop sources use placeholder enemy template names pending Phase 17 World Bosses — Soulrender→Fen Witch, Ironveil→Cinder Sentinel, Whisperwind→Hexbinder, Dreadmaw→Basalt Brute (14-01)
-101. lifeOnHit, cooldownReduction, manaRegen affixes are tier 3+ only (minTier=3) — no power affixes on low-quality gear (14-01)
-102. AFFIX_COUNT_BY_QUALITY: common=0, uncommon=1, rare=2, epic=3, legendary=0 — legendaries use fixed affixes not rolled ones (14-01)
-103. Seed offsets 31n/37n/41n/43n for affix rolling — no collision with existing 11n/19n/23n loot combat offsets (14-02)
-104. JSON serialization bridges affix data from loot generation (combat.ts) to affix row creation (items.ts take_loot) (14-02)
-105. take_loot finds new ItemInstance by templateId + no equippedSlot + no qualityTier filter — the freshly inserted row has no quality yet (14-02)
-106. lifeOnHit, cooldownReduction, manaRegen accumulated in getEquippedBonuses return value but not yet consumed by combat — available for future Tier 3+ combat integration (14-02)
-107. Legendary drop check uses ctx.db.itemTemplate.iter() full scan by name — acceptable for rare boss kills, no name index needed (14-03)
-108. logGroupEvent (combatId param) used for legendary announcement — consistent with all other combat log helpers in same codebase section (14-03)
-109. Gold-only salvage yield (baseGold×tier) — material salvage deferred until Phase 13 crafting materials exist to avoid confusion with freely-gatherable resources (14-03)
-110. Legendary drop inserted after per-participant regular loot loop, before corpse creation — preserves combatResult auto-clean logic ordering (14-03)
-111. Module published with --clear-database when adding non-optional columns to existing tables (qualityTier, affixDataJson, isNamed on combat_loot and item_instance) — SpacetimeDB 1.11 migration limitation (14-04)
-112. affixDataJson on CombatLoot row drives loot panel affix display pre-take; ItemAffix table rows drive inventory tooltip post-take — two different data sources for same affix data (14-04)
-113. rarityEpic color set to #aa44ff (purple), rarityLegendary confirmed as #ff8800 (orange) — overrides old facc15 yellow epic color (14-04)
-114. PerkEffect extended with proc/crafting/social/scaling fields for variety perks — existing stat fields unchanged, all new fields optional for backward compatibility (20-01)
-115. Perk domain categorization: 'combat' | 'crafting' | 'social' — one of each per rank 2-11, ranks 12-15 use 'combat' as default pending capstone redesign (20-01)
-116. Proc chances 2-10% range: bloodthirst 3%, savage_strikes 5%, vampiric_strikes 5%, deathbringer 8%, undying_fury 3% — rare and impactful per design rules (20-01)
-117. Frontend domain color coding: combat=#c55, crafting=#5c5, social=#55c applied as border-left on perk options; domain prefix tags [Combat]/[Crafting]/[Social] in descriptions (20-01)
-118. Proc RNG uses (seed + perkIndex) % 100n deterministic arithmetic — no Math.random(), consistent with rollAttackOutcome pattern (20-02)
-119. gatherDoubleChance and rareGatherChance are mutually exclusive — double check fires first, rare only if double didn't trigger (20-02)
-120. vendorBuyDiscount capped at 50% max, travelCooldownReduction capped at 80% max — prevents exploitative zero-cost/zero-cooldown states (20-02)
-121. NPC affinity bonus only applied for positive baseChange values — hostile interactions don't benefit from Smooth Talker perk (20-02)
-122. XP bonus applied to base XP before awardXp (formerly awardCombatXp) so level diff modifier (xpModifierForDiff) still applies correctly downstream (20-02)
-123. Active perk ability keys use perk_ prefix (e.g., perk_second_wind) to distinguish from class abilities in use_ability routing — enables single-reducer perk casting without AbilityTemplate entries (20-03)
-124. choose_perk auto-inserts HotbarSlot row for active perks; no error if hotbar full, only a management message — non-breaking for players with full hotbars (20-03)
-125. damage_boost CharacterEffect stored for Wrath of the Fallen but not yet consumed by combat loop — consistent with other deferred affixes (cooldownReduction/manaRegen); noted as future integration (20-03)
-126. WorldEvent table has both successConsequenceType AND failureConsequenceType — every event must have a defined consequence for both outcomes, failure darkens world but never breaks playability (18-01)
-127. consequenceText field on WorldEvent written at fire time from eventDef.consequenceTextStub, not at resolve time — ensures permanent historical record even if event definition changes (REQ-034) (18-01)
-128. WorldStatTracker + incrementWorldStat pattern for REQ-032 threshold-triggered events — call incrementWorldStat from combat/quest hooks, no separate event-checking reducer needed (18-01)
-129. EventDespawnTick defined in tables.ts alongside other scheduled tables and re-exported from scheduled_tables.ts — consistent with existing PullTick/CombatLoopTick pattern (18-01)
-130. WorldStatTracker.statKey uses btree index only (not .unique()) — both together caused 'name used for multiple entities' publish error; btree by_stat_key.filter() is the access pattern used in incrementWorldStat (18-02)
-131. incrementWorldStat called once per template in kill loop (not per participant) — world stats are global counters, not per-character; calling per participant in group would over-count kills (18-02)
-132. Pre-capture spawnId Map built before spawn deletion block in combat_loop victory section — EnemySpawn rows are deleted before kill template loop, so spawnId must be captured first for EventSpawnEnemy lookup (18-02)
-133. worldEventRows used as useGameData key (not worldEvents) — worldEvents is already bound to eventWorld (the log table); WorldEvent game table needs a different name to avoid shadowing (18-03)
-134. 10 crafting materials defined in crafting_materials.ts with MATERIAL_AFFIX_MAP for deterministic quality-based affixes — power parity matches affix_catalog.ts dropped gear at uncommon=1n/rare=2n/epic=3n stat magnitude (13-01)
-135. materialType=undefined on all 15 gear RecipeTemplates — Plan 02 craft_recipe reducer accepts any valid crafting material for req1 without type-gating per material (13-01)
-136. Static ResourceNode seeding replaced with getGatherableResourceTemplates terrain pool entries — personal node system (quick-118/119) spawns nodes at runtime via passive search; static rows are obsolete (13-01)
-137. Salvage now yields crafting materials (via getMaterialForSalvage) with SALVAGE_YIELD_BY_TIER 2/2/3 — gold-only salvage from Phase 14 extended with material output, no gold component change (13-01)
-138. CraftingPanel filter state (activeFilter, showOnlyCraftable) owned in useCrafting composable, passed as props to CraftingPanel and updated via update:activeFilter/update:showOnlyCraftable emits — clean unidirectional data flow (13-03)
-139. learnRecipeFromScroll uses window.__db_conn directly in InventoryPanel to avoid adding new emit chain through CharacterInfoPanel for a single non-destructive action (13-03)
-140. isRecipeScroll checks item.name.startsWith('Scroll:') — matches seeded scroll naming convention from Plan 01 ensureRecipeScrollItemTemplates (13-03)
-141. craftQuality (dented/standard/reinforced/exquisite/mastercraft) separates craft potency axis from qualityTier rarity axis (common/uncommon/rare/epic/legendary) on ItemInstance — dual-axis gear quality system (13.1-01)
-142. MATERIAL_AFFIX_MAP inner keys renamed from uncommon/rare/epic to standard/reinforced/exquisite to align with craft quality vocabulary; getCraftedAffixes guards on 'dented' and 'common' for empty affix return (13.1-01)
-143. Essence I/II/III are drop-only binding reagents required as req3 for all 15 gear recipe templates; terrain-tier-gated drops: low=EssenceI(w15), mid=EssenceI(w10)+EssenceII(w15), high=EssenceII(w10)+EssenceIII(w15) (13.1-01)
-144. Copper Ore moved from ensureResourceItemTemplates to ensureGearMaterialItemTemplates — all 13 crafting materials (10 original + 3 Essence) seeded together in one function (13.1-01)
-145. addRecipeTemplate is a single module-level upsert helper replacing both addRecipe (consumables) and addGearRecipe (gear) inline closures — eliminates code duplication in seeding (13.1-01)
-146. craft_recipe reducer now uses materialTierToCraftQuality for craftQuality and hardcodes qualityTier='common' for all crafted gear — rarity and craft quality are fully independent axes (13.1-02)
-147. getCraftedAffixes called with craftQuality (standard/reinforced/exquisite) not qualityTier — outer if(qualityTier!=='common') guard removed so all crafted gear gets craftQuality set (13.1-02)
-148. tierLabel in useInventory derives from craftQuality when instance.craftQuality is set (dented/standard→Tier 1, reinforced→Tier 2, exquisite/mastercraft→Tier 3), overriding qualityTier-based tier number (13.1-02)
-149. template.description priority: DB-stored description takes precedence over foodDescription and computed description in useInventory fallback chain (13.1-02)
-150. Enemy AC is role-driven via ENEMY_ROLE_CONFIG baseArmor/armorPerLevel (tank=14+4L, damage=6+3L, support=5+2L, healer=3+2L); template.armorClass field set to 0n and preserved for potential future per-enemy AC bonus (quick-159)
-151. Essence I/II/III drops moved from terrain-gated seeded loot tables to runtime combat resolution — 25% chance per kill per participant, tier by enemy level (1-5=I, 6-10=II, 11+=III), all terrain types eligible (quick-161)
-152. Rogue damage abilities (shadow_cut, bleed, shadow_strike) use DEX scaling not STR — rogue primary is DEX (12 at L1) vs STR (8 at L1); hybrid STR+INT sum and Shadow Cut DoT power split remain by-design (quick-164)
-153. Enemy combat HP = template.maxHp (individual seeded baseline) + role.baseHpBonus + role.hpBonusPerLevel * level — mirrors armor pattern; HP priority: tank(60/15) > healer(45/12) > support(35/10) > damage(20/8); enemy heal cap reads combatEnemy.maxHp not stale template.maxHp (quick-167)
-152. Essence tier thresholds corrected to 10-level-wide bands matching enemy tier structure; Essence IV added for level 31+ enemies — 1-10=I, 11-20=II, 21-30=III, 31+=IV; Essence IV defined in MATERIAL_DEFS (tier 4n) and seeded as ItemTemplate (vendorValue 24n) (quick-163)
-154. --clear-database is ONLY required for schema changes (adding non-optional columns to existing tables) — NOT for adding new enemy templates, items, abilities, or other data rows; all seeding functions use upsert (find-or-insert + update) patterns via syncAllContent(); plain `spacetime publish` preserves all player data (quick-172)
-155. Enemy abilities consolidated into single source of truth: ENEMY_ABILITIES constant + ENEMY_TEMPLATE_ABILITIES mapping in data/abilities/enemy_abilities.ts. Adding a new enemy ability requires adding one entry to ENEMY_ABILITIES (metadata including targetRule) and one entry to ENEMY_TEMPLATE_ABILITIES (template assignment) — both in the same file. ensureEnemyAbilities() in ensure_world.ts reads from these constants for DB seeding via a loop over ENEMY_TEMPLATE_ABILITIES, eliminating 40 hardcoded upsertEnemyAbility calls (quick-178)
-156. Rare affix budget cap raised from 2n to 4n — rare dropped gear (2 affixes, max 4n total) now matches crafted reinforced gear (2 modifier slots x magnitude 2n each = 4n); previous cap of 2n made rare drops strictly weaker than crafted equivalents (quick-177)
-157. T2 gear (requiredLevel 11+) seeded into mid/high-tier loot tables (mountains/town/city/dungeon) at weight 3n vs T1 weight 6n — T2 gear is rarer than T1 in these zones to maintain tier gradient (quick-177)
-158. BigInt affix magnitudes must be converted to Number before JSON.stringify in generateLootTemplates — BigInt is not JSON-serializable; take_loot already expected number type and calls BigInt() on insert; omitting conversion caused combat_loop PANIC on any non-common gear drop (quick-177)
-159. World drop uses two independent probability axes: rarity (TIER_RARITY_WEIGHTS, seed offset 53n) and quality (TIER_QUALITY_WEIGHTS, seed offset 67n) — both rolled from same seedBase with different offsets to avoid collision; T5 (L41-50) added as distinct tier in both tables (quick-192)
-160. Equip level gate removed from equip_item reducer — gear availability is world-driven, any item found can be equipped regardless of character level; requiredLevel field preserved for display and other uses (quick-192)
-161. materialTierToCraftQuality is fully deterministic: T1→standard, T2→reinforced, T3→exquisite; no seed parameter, no CRAFT_QUALITY_PROBS; craft_recipe calls with one argument (quick-195 supersedes quick-192)
-162. craftQuality on CombatLoot is optional to preserve backward compat — new column enables quality to flow from loot-roll through take_loot to ItemInstance for both common and non-common rarity items (quick-192)
-163. getGatherableResourceTemplates accepts optional zoneTier (default 3) and filters materials where Number(mat.tier) > zoneTier; spawnResourceNode and passive gather derive zoneTier from region.dangerMultiplier (dm<130=T1, dm<190=T2, dm>=190=T3); ensure_enemies.ts seeding omits zoneTier to keep all tiers in loot tables (quick-195)
-164. Essence drop rate reduced from 12% to 6% and modifier reagent from 15% to 10% — expected kills for both crafting components ~16-18 vs natural affixed gear ~20 at T1 L1; essence is the bottleneck by design (quick-196)
-165. Description comes exclusively from server ItemTemplate.description — no client-side fallback strings; blank server description shows blank tooltip (quick-193)
-166. buildItemTooltipData is a pure function (not a reactive composable) in useItemTooltip.ts — single source of truth for all 5 tooltip code paths (inventoryItems, equippedSlots, vendorItems, pendingLoot, crafting outputItem) (quick-193)
-167. SpacetimeDB Row type exports are values (class instances), not TypeScript types — must use Infer<typeof RowType> for type annotations, NOT import type { RowType } (quick-193)
-168. Auto-camp inactivity uses lastSeenAt as fallback when lastActivityAt is null — prevents immediate camping of existing players on first deploy who have never triggered an activity touch (quick-217)
-169. sweep_inactivity skips combat-active players entirely — players in combat are never auto-camped even if 15+ min pass; lastActivityAt touch happens at combat initiation not during combat (quick-217)
-170. Race table schema migrated from 5 fixed stat columns to flexible 4-column system (bonus1Type/bonus1Value/bonus2Type/bonus2Value) — extensible for future bonus types without schema changes (21-01)
-171. Optional Character racial bonus columns set to undefined (not 0n) when race bonus is zero — keeps DB null for absent values, avoids false data in optional fields (21-01)
-172. computeRacialContributions() placed in characters.ts — reusable by Plan 02 level-up racial stacking without a separate helper file (21-01)
-173. racialSpellDamage/racialPhysDamage/racialManaRegen/racialStaminaRegen excluded from recomputeCharacterDerived — read directly by combat/regen code paths, Plan 02 wires these (21-01)
-174. 4 locked races (Dark-Elf, Half-Giant, Cyclops, Satyr) seeded with unlocked=false — completely hidden in UI until admin /unlockrace fires; no per-player unlock granularity (21-01)
-175. Flat additive racial stacking formula: baseValue + (baseValue / 2n) * (level / 2n) — full base at level 1 creation, floor(base/2) increment per even level — simple, predictable, transparent to players (21-02)
-176. Race row lookup by name string in level-up: character.race is a display name, use [...ctx.db.race.iter()].find(r => r.name === character.race) — no FK join needed since character.race is a denormalized snapshot (21-02)
-177. /unlockrace command is one-way (no re-lock): sets Race.unlocked=true globally, broadcasts appendWorldEvent world announcement, gives admin private confirmation — all players see the unlock simultaneously (21-02)
-178. racialSpellDamage/racialPhysDamage wired into single-target hit loop only; AoE path unchanged — AoE racial bonus deferred to future plan, single-target path is the primary use case (21-02)
-179. Stub reducers required immediately when adding scheduled tables — SpacetimeDB validates scheduled.reducer field at publish time, not at runtime; tick_bard_songs stub added to combat.ts before publish (22-01)
-180. travel_discount CharacterEffect applied in BOTH stamina validation AND deduction loops in move_character — must be consistent so the pre-check matches the actual deduction (22-01)
-181. Life-drain DoT heal uses effect.ownerCharacterId directly on CombatEnemyEffect — no separate table needed; ownerCharacterId optional so existing DoTs without it are unaffected (22-01)
-182. Ability levels locked to 1n, 3n, 5n, 7n, 9n, 10n only across all 16 class ability files — no even-level abilities permitted in any class (22-02)
-183. Bard songs use cooldownSeconds: 1n (effectively instant) — songs replace each other on activation, traditional cooldown gating doesn't apply to the song system (22-02)
-184. Normalization corrections applied after data write: shaman 0-cd spam fixed (6n), necromancer wither/soul_rot power raised to L5/L7 floor, ranger rapid_shot corrected from regression, monk tiger_flurry bumped to midpoint (22-02)
-185. Bard song switch deletes previous row immediately; BardSongTick was already scheduled on first song activation and continues self-rescheduling — no new tick needed on song switch (22-03)
-186. monk_centering changed from stamina_free effect to direct stamina restore (+15 to current stamina) — simpler, more predictable resource recovery (22-03)
-187. monk_inner_focus changed from ac_bonus (3/3) to damage_up (3/3) to fit new monk DPS role — tank buff repurposed for offensive identity (22-03)
-188. reaver_dread_aura changed from single-target applyDamage+debuff to explicit AoE loop over all combatEnemy rows — matches plan's "AoE all enemies" spec (22-03)
-189. addCharacterEffect imported directly in reducers/combat.ts (not in registerCombatReducers deps) for use inside tick_bard_songs — cleaner than passing through deps just for this one use (22-03)
-190. isTemporary items deleted in character_logout reducer via by_owner index loop — no separate cleanup table needed, by_owner index makes the filter O(1) per character (22-03)
-191. perHitMessage callback parameters must be typed as bigint (not number) to match the hits?: bigint field — beastmaster_pack_rush and monk_hundred_fists corrected (22-04)
-192. statOffset() uses STAT_BASE=10n; signed bigint arithmetic provides natural negative offsets below 10 — no special casing needed; do NOT store result as u64 in DB, compute inline only (21.1-01)
-193. Five locked shield classes: warrior, paladin, cleric, spellblade, shaman — bard was a legacy error in Wooden Shield allowedClasses; CLASS_ARMOR updated, no equip reducer changes needed (21.1-01)
-194. CHA vendor columns remain u64; formula changed to (cha-10n)*scale clamped at 0n — CHA<10 yields no bonus rather than a penalty, consistent with u64 constraint; CHA_VENDOR_SCALE=10n, CHA_VENDOR_SELL_SCALE=8n (21.1-01)
-195. hitBonus reduces dodge window and parry window independently (not double-dipped) — 30% hit bonus neutralizes up to 30% from each window separately, consistent with additive cursor system (21.1.1-01)
-196. Caps: dodge max 250n (25%), parry max 200n (20%), hitBonus max 300n (30%) on 1000-scale — prevents untouchable builds while allowing meaningful DEX investment (21.1.1-01)
-197. Bow attackers cannot trigger enemy parry — `canParry(className) && weapon.weaponType !== 'bow'`; ranged attacks are unparriable by design (21.1.1-01)
-198. rollAttackOutcome defaults to 50n (5%) for dodge/parry when opts not provided — all other call sites (pet, enemy-pet) unchanged; only player-enemy and enemy-player call sites wired with stat values (21.1.1-01)
-199. HYBRID_MANA_MULTIPLIER=4n vs MANA_MULTIPLIER=6n gives paladin/ranger/reaver ~33% less mana per mana stat point — paladin at L10 has ~53% of wizard mana, appropriate hybrid identity (quick-229)
-200. Paladin gains secondary 'str' in CLASS_CONFIG so manaStatForClass blends WIS(70%)+STR(30%), naturally reducing raw mana stat vs pure WIS casters without special-casing (quick-229)
-201. Stamina abilities must have castSeconds=0n (instant physical exertion); mana abilities must have castSeconds>=1n (focus/channeling required) — enforced system-wide across all 12 ability files (quick-229)
-202. Dead characters auto-respawn to bind point with hp=1n at combat resolution — both defeat and victory-with-deaths paths call autoRespawnDeadCharacter; re-fetch character row after XP award/penalty to avoid stale spread overwriting XP (quick-273)
-203. Event tables use event:true flag for auto-deletion after broadcast to subscribers — eliminates need for server-side trimming (23-01)
-204. Event views removed entirely — event tables cannot be accessed in view functions, data delivered via onInsert callbacks (23-01)
-205. Client event tables consumed via onInsert callbacks + shallowRef arrays (not useTable/iter) — event:true tables never store rows in client cache; 200-entry cap prevents unbounded growth; useEvents composable unchanged (23-02)
-
----
+See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 2026-02-25).
 
 ## Performance Metrics
 
-| Phase | Plan | Duration | Tasks | Files |
-|-------|------|----------|-------|-------|
-| 01-races | 01 | 4min | 3 | 8 |
-| 01-races | 02 | ~15min | 3 | 4 |
-| 02-hunger | 01 | ~35min | 2 | 11 |
-| 02-hunger | 02 | ~15min | 2 | 5 |
-| 03-renown-foundation | 01 | 14min | 2 | 10 |
-| 03-renown-foundation | 02 | ~10min | 2 | 4 |
-| 3.1-combat-balance | 01 | 7min | 2 | 5 |
-| 3.1-combat-balance | 02 | 8min | 2 | 5 |
-| 3.1-combat-balance | 04 | 5min | 1 | 1 |
-| 3.1-combat-balance | 05 | 2min | 1 | 2 |
-| 03.1.1-combat-balance-part-2 | 01 | 3min | 2 | 2 |
-| 03.1.1-combat-balance-part-2 | 02 | 3min | 4 | 2 |
-| 03.1.1-combat-balance-part-2 | 03 | 2min | 1 | 1 |
-| 03.1.2-combat-balance-for-enemies | 01 | 4min | 2 | 2 |
-| 03.1.2-combat-balance-for-enemies | 02 | 5min | 2 | 1 |
-| 03.1.2-combat-balance-for-enemies | 03 | 2min | 1 | 0 |
-| 03.1.3-enemy-ai-and-aggro-management | 01 | 3min | 2 | 4 |
-| 03.1.3-enemy-ai-and-aggro-management | 02 | 4min | 2 | 1 |
-| 04-config-table-architecture | 01 | 3min | 2 | 1 |
-| 04-config-table-architecture | 02 | 4min | 4 | 5 |
-| 10-travel-movement-costs | 01 | 2min | 2 | 3 |
-| 10-travel-movement-costs | 02 | 8min | 3 | 10 |
-| 11-death-corpse-system | 01 | 5min | 3 | 12 |
-| 11-death-corpse-system | 02 | 9min | 2 | 7 |
-| 12-overall-renown-system | 01 | 4min | 2 | 5 |
-| 12-overall-renown-system | 02 | 10min | 2 | 3 |
-| 12-overall-renown-system | 03 | ~25min | 3 | 4 |
-| 19-npc-interactions | 01 | 3min | 2 | 6 |
-| 19-npc-interactions | 02 | 3min | 1 | 14 |
-| Phase quick-99 P01 | 1 | 1 tasks | 1 files |
-| Phase quick-103 P01 | 67 | 1 tasks | 1 files |
-| Phase quick-106 P01 | 4 | 2 tasks | 3 files |
-| 06-quest-system | 01 | 5min | 2 | 6 |
-| 06-quest-system | 02 | 4min | 2 | 4 |
-| 06-quest-system | 03 | ~25min | 3 | 8 |
-| 14-loot-gear-progression | 01 | 2min | 2 | 2 |
-| 14-loot-gear-progression | 02 | 3min | 2 | 3 |
-| 14-loot-gear-progression | 03 | 15min | 2 | 2 |
-| 14-loot-gear-progression | 04 | 6min | 2 | 14 |
-| 20-perk-variety-expansion | 02 | ~25min | 2 | 7 |
-| 20-perk-variety-expansion | 03 | ~15min | 2 | 2 |
-| Phase 18 P01 | 4 | 2 tasks | 4 files |
-| Phase 18 P02 | 20 | 2 tasks | 5 files |
-| Phase 18 P03 | ~5min | 2 tasks | 5 files |
-| 13-crafting-system | 01 | ~8min | 2 | 7 |
-| 13-crafting-system | 03 | ~10min | 3 | 4 |
-| 13.1-dual-axis-gear-system | 01 | ~5min | 2 | 4 |
-| 13.1-dual-axis-gear-system | 02 | ~10min | 2 | 6 |
-| quick-193 | 01 | ~90min | 3 | 8 |
-| Phase quick-197 P01 | 20min | 2 tasks | 2 files |
-| Phase quick-202 P01 | 12min | 3 tasks | 3 files |
-| Phase quick-217 P01 | ~15min | 2 tasks | 8 files |
-| Phase quick-219 P01 | 10 | 2 tasks | 2 files |
-| 21-race-expansion | 01 | 16min | 3 | 12 |
-| 21-race-expansion | 02 | 12min | 3 | 3 |
-| Phase 21-race-expansion P03 | 5 | 1 tasks | 1 files |
-| 22-class-ability-balancing | 01 | ~25min | 4 | 18 |
-| 22-class-ability-balancing | 02 | 14min | 3 | 16 |
-| 22-class-ability-balancing | 03 | 35min | 3 | 3 |
-| 21.1-stat-systems-off-stat-hooks | 01 | 15min | 3 | 3 |
-| Phase 21.1-stat-systems-off-stat-hooks P02 | 18 | 2 tasks | 2 files |
-| Phase 21.1-stat-systems-off-stat-hooks P03 | 25 | 3 tasks | 4 files |
-| 21.1.1-hit-dodge-parry-active-stats | 01 | 12min | 2 | 2 |
-| Phase quick-308 P01 | 3min | 2 tasks | 39 files |
-| Phase 23 P01 | 4min | 2 tasks | 7 files |
-| Phase 23-v2-subscription-optimization P02 | 3min | 2 tasks | 1 files |
+**Velocity:**
+- Total plans completed: 0 (v2.0)
+- Average duration: —
+- Total execution time: —
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| - | - | - | - |
+
+*Updated after each plan completion*
 
 ## Accumulated Context
 
-### Roadmap Evolution
-- Phase 13.1 inserted after Phase 13: Dual-axis gear system (craft quality vs rarity), material consolidation, Essence material, metadata consistency (URGENT)
-- Phase 3.1 inserted after Phase 3: Combat Balance (URGENT)
-- 2026-02-12: Phase 3.1 renamed from "Faction Hits" to "Combat Balance" before planning
-- Phase 21.1.1 inserted after Phase 21.1: Hit/Dodge/Parry Active Stats — wire DEX-derived dodge/parry into combat via opposed roll, parry melee restriction, stat-derived avoidance replacing hardcoded 5% values (URGENT)
-- Phase 3.1.1 inserted after Phase 3.1: Combat balance part 2 (URGENT)
-- 2026-02-12: Phase 3.1.1 planned — DoT/HoT/debuff/AoE balance with power budget approach, 3 plans created
-- Phase 3.1.2 inserted after Phase 3.1.1: Combat balance for Enemies (URGENT)
-- Phase 03.1.3 inserted after Phase 03.1.2: Enemy AI and aggro management (URGENT)
-- Phase 9 added: Config Table Architecture - Consolidate ability and armor configuration into database tables (Technical Debt Reduction)
-- 2026-02-13: Phase 9 moved to Phase 4, existing Phases 4-8 renumbered to 5-9 (Config Tables before LLM for cleaner architecture)
-- 2026-02-14: Phase 10 added: Travel & Movement Costs - Region travel with distance-based costs (short = stamina, long = gold + cooldown), travel restrictions and validation, travel UI improvements
-- 2026-02-14: Phase 11 added: Death & Corpse System - Corpse mechanic for level 5+ characters, equipped items stay while inventory drops to corpse, corpse retrieval mechanics, death penalties and resurrection
-- 2026-02-14: Phase 12 added: Overall Renown System - Character-wide renown separate from factions, renown ranks with unlockable perks, renown gain sources from events/bosses/achievements
-- 2026-02-14: Phase 13 added: Crafting System - Weapons & Armor - Extend recipe system for gear crafting, material requirements and gathering, crafted gear as deterministic progression path
-- 2026-02-14: Phase 14 added: Loot & Gear Progression - Magic item properties and affixes, gear quality tiers (common to legendary), drop tables and rarity system, endgame gear hunting loop
-- 2026-02-14: Phase 15 added: Named NPCs - Unique NPC entities (not templates), NPC dialogue system, NPC-specific shops and services, NPC placement in regions
-- 2026-02-14: Phase 16 added: Travelling NPCs - NPC movement AI between regions, travelling merchant schedules, dynamic NPC location tracking
-- 2026-02-14: Phase 17 added: World Bosses - Elite enemy encounters, unique loot tables for bosses, boss spawn mechanics, group scaling for bosses
-- 2026-02-14: Phase 18 added: World Events System Expansion - Regional event spawning (Ripple system), event types and objectives, faction and overall renown rewards, event participation tracking
-- 2026-02-14: Phase 19 added: NPC Interactions - Deepen relationships, dialogue complexity, affinity systems, and dynamic NPC reactions to player actions
-- 2026-02-14: Phase 20 added: Perk Variety Expansion - Expand renown perk pools with diverse effect types, build-defining capstone perks
-- Phase 21.1 inserted after Phase 21: Stat Systems & Off-Stat Hooks (INSERTED)
-- Phase 23 added: V2 Subscription Optimization — scoped subscriptions, useGameData split, SQL-filtered queries, event table migration
+### Decisions
 
----
+- Clean break from legacy data -- no migration, no parallel systems, no `source` field on tables
+- Client-triggered procedures (reducer validates, client calls procedure for LLM)
+- Schema-constrained generation for mechanical validity
+- Canonical world facts in structured tables for coherence
+- Sardonic System narrator throughout all generated content
+- Haiku 4.5 for real-time generation, Sonnet for high-stakes one-time generation
 
-## Blocked / Risks
+### Pending Todos
 
-None currently. Key risk to watch: SpacetimeDB procedures are beta — API may change on upgrade.
+None yet.
 
----
+### Blockers/Concerns
 
-## Quick Tasks Completed
+- SpacetimeDB procedures are beta -- load test early before building on them
+- Prompt caching minimum thresholds (1024 tokens Sonnet, 4096 tokens Haiku) must be verified
+- **NO PUSHES TO MASTER** -- production auto-deploys from master; all v2.0 work stays local until user approves
+- **NO PUSHES TO MAINCLOUD** -- local SpacetimeDB only until user says otherwise
 
-**113 earlier tasks archived** -- see [ARCHIVE.md](./quick/ARCHIVE.md) for full history.
+## Session Continuity
 
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 114 | Replace login button with >> Login << styled text - amber monospace span with no button chrome, disabled state dims to opacity 0.4, click guard and Enter key handler preserved | 2026-02-16 | b20bcd8 | [114-replace-login-button-with-login-styled-t](./quick/114-replace-login-button-with-login-styled-t/) |
-| 115 | Remove log button from action bar - log panel permanently open since quick-78, removed button, dead emit, and always-true isActive override | 2026-02-16 | 54cfd3a | [115-remove-log-button-from-action-bar-since-](./quick/115-remove-log-button-from-action-bar-since-/) |
-| 116 | Fix backpack full message triggering at 15/20 slots - equipped items were counted toward bag slot capacity; added equippedSlot filter to itemCount in buy_item and take_loot reducers | 2026-02-16 | e488dcd | [116-fix-backpack-full-message-triggering-inc](./quick/116-fix-backpack-full-message-triggering-inc/) |
-| 117 | Add /resetwindows command to reset all panel positions to center of screen - resetAllPanels() in usePanelManager centers all panels and persists via localStorage + server save, wired through useCommands with addLocalEvent confirmation | 2026-02-17 | 7d360fa | [117-add-resetwindows-command-to-reset-all-pa](./quick/117-add-resetwindows-command-to-reset-all-pa/) |
-| 118 | Replace shared resource nodes with personal per-character nodes discovered via passive search - ResourceNode gains optional characterId + by_character index, passive search spawns 2-3 personal nodes on 65% roll, finish_gather deletes personal nodes immediately, client filters to selected character's nodes | 2026-02-17 | 099af04 | [118-replace-shared-resource-nodes-with-perso](./quick/118-replace-shared-resource-nodes-with-perso/) |
-| 119 | Clean up personal resource system - removed ResourceRespawnTick table and respawn_resource reducer, removed shared-node branch in finish_gather, implemented tiered node counts (1/2/3 by roll), updated log message, removed resource badge from SEARCH section | 2026-02-16 | ed5a37a | [119-clean-up-personal-resource-system-remove](./quick/119-clean-up-personal-resource-system-remove/) |
-| 120 | Fix food buff display names, log messages, regen mechanic, and stacking - sourceAbility 'Well Fed' for group panel, BUFF_TYPE_LABELS map for readable log output, food_mana_regen/food_stamina_regen effectTypes boost per-tick regen rate in regen_health, one-food-at-a-time enforced by sourceAbility-only deletion | 2026-02-17 | 74ef58c | [120-fix-food-buff-display-names-regen-mechan](./quick/120-fix-food-buff-display-names-regen-mechan/) |
-| 121 | Update food item descriptions to communicate buff effect before eating - client-side description generation from wellFedBuffType/Magnitude/Duration fields in inventory and vendor tooltips | 2026-02-17 | bc6981a | [121-update-food-item-descriptions-to-clearly](./quick/121-update-food-item-descriptions-to-clearly/) |
-| 123 | Implement chance-based flee mechanic - flee_combat sets 'fleeing' status, combat_loop resolves on next tick with danger-scaled roll (starter ~87%, dungeon ~53%), success removes aggro/pets and logs success, failure reverts to active for retry | 2026-02-17 | a9ca67c | [123-implement-chance-based-flee-mechanic-fle](./quick/123-implement-chance-based-flee-mechanic-fle/) |
-| 125 | Add /createitem <quality> admin command - backend create_test_item reducer picks random gear slot, inserts item with correct affixes for quality tier; client /createitem wired with client-side tier guard | 2026-02-17 | de2bc80 | [125-add-createitem-quality-admin-command-tha](./quick/125-add-createitem-quality-admin-command-tha/) |
-| 126 | Fix beneficial spells ignoring player target - removed utility-only gate in onHotbarClick so heals/buffs/cleanses pass defensiveTargetId for all ability kinds | 2026-02-17 | bfa4a79 | [126-fix-beneficial-spells-ignoring-player-ta](./quick/126-fix-beneficial-spells-ignoring-player-ta/) |
-| 124 | Clean up ROADMAP.md and STATE.md - archived quick-1 through quick-113 to ARCHIVE.md, fixed ROADMAP.md phase statuses (Phase 2 removed, Phases 11/12/14/19 updated), corrected plan checkboxes and dependency graph | 2026-02-17 | 78cbb55 | [124-clean-up-roadmap-md-and-state-md-compres](./quick/124-clean-up-roadmap-md-and-state-md-compres/) |
-| 127 | Location-based group combat - getGroupOrSoloParticipants filters by locationId so only same-location members enter combat; executeAbility throws SenderError for cross-location group targets; moveOne auto-joins arriving members to active group combat with combatParticipant and aggroEntry rows | 2026-02-17 | a892fc3 | [127-implement-location-based-group-combat-on](./quick/127-implement-location-based-group-combat-on/) |
-| 128 | Loot window shows only most recent combat - delete stale CombatLoot rows and orphaned CombatResult rows per-character before inserting new loot, using by_character index | 2026-02-17 | 3637b19 | [128-loot-window-shows-only-most-recent-comba](./quick/128-loot-window-shows-only-most-recent-comba/) |
-| 129 | Seed world-drop gear pool separate from starter items - 25 world-drop items across weapon types and armor slots/tiers, STARTER_ITEM_NAMES exclusion set in loot filter, equipped slot rarity text removed and name shows quality color instead | 2026-02-17 | e64b2b3 | [129-seed-world-drop-item-pool-separate-from-](./quick/129-seed-world-drop-item-pool-separate-from-/) |
-| 130 | Remove starter gear from vendor inventories - STARTER_ITEM_NAMES promoted to module scope with starter accessories added, ensureVendorInventory allEligible filter excludes starters, tier 1 world-drop weapons normalized to 5/7 base/dps, tier 1 armor +1 AC each | 2026-02-17 | ba5d315 | [130-remove-starter-gear-from-vendor-inventor](./quick/130-remove-starter-gear-from-vendor-inventor/) |
-| 131 | Align player right-click context menu - replaced single 'Actions' entry with full inline context menus in LocationGrid (Target/Trade/Message/Invite/Friend/Promote/Kick) and GroupPanel (same set + self-detection); CharacterActionsPanel floating panel removed | 2026-02-17 | c8c953b | [131-align-player-right-click-context-menu-wi](./quick/131-align-player-right-click-context-menu-wi/) |
-| 132 | Verify per-character passive search independence in group travel - confirmed each character gets own performPassiveSearch call with unique charId XOR nowMicros seed; all resource nodes, search results, and quest rolls are already fully independent per character | 2026-02-17 | 0f3b86d | [132-verify-and-fix-per-character-independenc](./quick/132-verify-and-fix-per-character-independenc/) |
-| 133 | Remove rarity text labels from vendor/quartermaster window and inventory context menu - deleted ({{ item.rarity }}) from both VendorPanel item lists, changed InventoryPanel context menu subtitle from qualityTier+slot to slot only; quality communicated by color only | 2026-02-17 | ab12b3e | [133-remove-rarity-text-labels-from-vendor-qu](./quick/133-remove-rarity-text-labels-from-vendor-qu/) |
-| 134 | Fix /createitem and combat loot to never pick starter gear - STARTER_ITEM_NAMES centralized in combat_constants.ts, create_test_item and generateLootTemplates gearEntries both filter !STARTER_ITEM_NAMES.has() at runtime | 2026-02-17 | 32b89a0 | [134-fix-create-test-item-reducer-and-loot-ge](./quick/134-fix-create-test-item-reducer-and-loot-ge/) |
-| 135 | Reduce vendor seed to 10 common-only items and add player-sold items to vendor inventory - allEligible filters rarity=common, picks capped at 3+3+2+2=10, stale removal loop removed, sell_item adds sold item at 2x vendorValue, client passes npcId | 2026-02-17 | b96595e | [135-reduce-vendor-seed-items-to-10-common-on](./quick/135-reduce-vendor-seed-items-to-10-common-on/) |
-| 136 | Stats panel shows effective stats inclusive of all bonuses - equippedStatBonuses computed in App.vue extended to sum gear affix bonuses (strBonus/dexBonus etc. on equipped ItemAffix rows) and CharacterEffect stat buffs (str_bonus/dex_bonus etc.); base value remains in parentheses | 2026-02-17 | a598f91 | [136-stats-panel-shows-effective-stats-inclus](./quick/136-stats-panel-shows-effective-stats-inclus/) |
-| 137 | Add jewelry to world-drop loot tables - 10 templates (6 tier-1 + 4 tier-2 earrings/neck), weight 1n vs 3n-6n for weapons/armor, quality floor bumps common jewelry to uncommon in generateLootTemplates | 2026-02-17 | 5594672 | [137-add-jewelry-to-world-drop-loot-tables-wi](./quick/137-add-jewelry-to-world-drop-loot-tables-wi/) |
-| 138 | Rebalance affix catalog — remove weaponBaseDamage (double-dips with STR scaling), add fierce prefix (strBonus minTier=2), trim HP/AC/MR legendary caps, fix Dreadmaw and Ironveil legendaries, republish module | 2026-02-17 | 1be5623 | [138-rebalance-affix-catalog-remove-weapon-da](./quick/138-rebalance-affix-catalog-remove-weapon-da/) |
-| 139 | Apply quality rarity colors to vendor backpack — changed inventoryItems to use qualityTier instead of rarity for item name coloring in VendorPanel backpack section; added qualityTier to prop type | 2026-02-17 | 5478345 | [139-apply-quality-rarity-colors-to-vendor-st](./quick/139-apply-quality-rarity-colors-to-vendor-st/) |
-| 140 | Remove mighty prefix — fierce is now sole STR weapon prefix (minTier=1, [1,2,3,4]); updated Dreadmaw legendary to use fierce/Fierce; republished with --clear-database to flush stale mighty ItemAffix rows | 2026-02-17 | d335989 | — |
-| 141 | Fix item tooltip rarity color, tier, and armor type display — tooltipRarityColor helper maps qualityTier to hex color on title; description uses qualityTier instead of template rarity in useInventory/useCombat; armorType "none" hidden for weapons, weaponType shown instead | 2026-02-17 | 0966b68 | [140-fix-item-tooltip-to-show-correct-rarity-](./quick/140-fix-item-tooltip-to-show-correct-rarity-/) |
-| 141b | Investigated sell_item non-common listing — no rarity filter on VendorInventory insert; root cause: alreadyListed templateId check blocks higher-quality sold items when same template already seeded; module republished | 2026-02-17 | 305fbae | [141-fix-sell-item-to-list-non-common-player-](./quick/141-fix-sell-item-to-list-non-common-player-/) |
-| 142 | Fix jewelry quality floor and add cloaks — all 10 earring/pendant templates changed to rarity 'uncommon'; 5 cloak templates added (slot='neck', armorClassBonus 1n/2n, common); quality floor conditioned on armorClassBonus===0n; 'neck' removed from JEWELRY_SLOTS; affix catalog Whisperwind slot 'cloak'→'neck'; accessory affix slots remove 'cloak'; module republished | 2026-02-17 | 7e16d3e | [142-fix-jewelry-quality-floor-and-add-cloaks](./quick/142-fix-jewelry-quality-floor-and-add-cloaks/) |
-| 143 | Affix budget cap for rare items + danger-based quality tier rolls + Tier N tooltip label — rare items capped at +2 total affix magnitude; rollQualityTier uses zone dangerMultiplier (<=120=common, 121-170=uncommon, 171-250=rare, 251-400=epic) with 12% tier-up chance; client tooltips show Tier 1-5 derived from qualityTier string | 2026-02-17 | b3d9678 | [143-rebalance-affix-budget-for-rare-items-an](./quick/143-rebalance-affix-budget-for-rare-items-an/) |
-| 144 | Robust cast bars + cooldown timers + auto cache busting — activeCombat watcher clears localCast/localCooldowns/predictedCooldownReadyAt on combat end; 2s grace orphan-clear safety net; useCombat clears effectTimers/enemyCastTimers on combat change; nowMicros ticks at 100ms; Vite versionPlugin writes dist/version.json; main.ts polls /version.json every 60s and auto-reloads on mismatch | 2026-02-17 | 82a37d7 | [144-robust-cast-bar-cooldown-timers-and-auto](./quick/144-robust-cast-bar-cooldown-timers-and-auto/) |
-| 145 | Add /createitem to autocomplete + implement /who command — CommandBar.vue gets /createitem and /who entries; useCommands /who handler reads players.activeCharacterId to find online characters, joins to characters + locations tables, outputs formatted list (name, level, class, location) to Log panel via addLocalEvent | 2026-02-17 | 0ee0990 | [145-add-createitem-to-autocomplete-list-and-](./quick/145-add-createitem-to-autocomplete-list-and-/) |
-| 146 | Orphan safety nets for pull, gather, and quest-item cast bars — pull bar: missing-row guard + duration+2s grace clear; gather bar: interruption detector (1s grace), combat-start clear, and orphan safety net; quest item cast: looted-detection watcher on questItems prop, 5s absolute orphan timeout | 2026-02-17 | addbd36 | [146-robust-pull-gather-and-quest-item-cast-b](./quick/146-robust-pull-gather-and-quest-item-cast-b/) |
-| 148 | Apply gatherSpeedBonus to gather cast duration — start_gather_resource reads gatherSpeedBonus via getPerkBonusByField, reduces RESOURCE_GATHER_CAST_MICROS proportionally with 500ms minimum; Efficient Hands/Master Harvester/Resourceful perks now functional; Phase 20 VERIFICATION.md updated to remove false "gathering is instant" claim | 2026-02-17 | 4e80639 | [148-fix-gatherspeedbonus-to-apply-to-gather-](./quick/148-fix-gatherspeedbonus-to-apply-to-gather-/) |
-| 149 | Fix undying_fury buff proc and damage_boost combat consumption — undying_fury effect gains buffType/buffMagnitude/buffDurationSeconds fields; applyPerkProcs gains buffType branch calling addCharacterEffect; auto-attack damage now applies damage_boost CharacterEffect multiplier; both Wrath of the Fallen (active) and undying_fury (proc) now produce measurable damage increase | 2026-02-18 | 863010a | [149-fix-undying-fury-buff-proc-and-damage-bo](./quick/149-fix-undying-fury-buff-proc-and-damage-bo/) |
-| 150 | Disable legendary items by commenting them out since they aren't tied to actual bosses yet — LEGENDARIES array (Soulrender/Ironveil/Whisperwind/Dreadmaw) commented out in affix_catalog.ts with empty placeholder export; legendary drop check block commented out in combat.ts pending World Bosses phase | 2026-02-18 | ed179f5 | [150-disable-legendary-items-by-commenting-th](./quick/150-disable-legendary-items-by-commenting-th/) |
-| 151 | Centralize admin system — ADMIN_IDENTITIES moved from world_event_data.ts to dedicated data/admin.ts with requireAdmin helper; 8 admin/test reducers now guarded: /synccontent, create_test_item, create_recipe_scroll, level_character, spawn_corpse, end_combat, grant_test_renown, grant_test_achievement | 2026-02-18 | 6cd910b | [151-centralize-admin-system-into-dedicated-m](./quick/151-centralize-admin-system-into-dedicated-m/) |
-| 152 | Set default panel layout for new players — getDefaultLayout() computes viewport-aware positions (log top-left, travel top-right, hotbar/group left-aligned chain); /resetwindows restores same layout instead of centering all panels | 2026-02-17 | 99cf383 | [152-set-default-panel-layout-for-new-players](./quick/152-set-default-panel-layout-for-new-players/) |
-| 153 | Fix Sanctify generating two log messages — guarded enemy-name override in use_ability reducer with !args.targetCharacterId check so friendly-targeted abilities skip the combat enemy name lookup; single correct log line now emitted | 2026-02-18 | dcc06f9 | [153-fix-sanctify-generating-two-log-messages](./quick/153-fix-sanctify-generating-two-log-messages/) |
-| 154 | Fix group panel harvest messages — added 5th groupMessage arg to logPrivateAndGroup in start_gather_resource so group members see "{character.name} begins gathering {node}." instead of "You begin gathering {node}."; matches finish_gather and take_loot patterns | 2026-02-18 | e160b43 | [154-fix-group-panel-harvest-messages-to-show](./quick/154-fix-group-panel-harvest-messages-to-show/) |
-| 156 | Realign armor AC and weapon damage across starter and T1 tiers — STARTER_ARMOR cloth 2/1/1, leather 3/2/2, chain 4/3/2, plate 5/4/3; T1 drops starter+1 on all slots; T1 other-slot items (helm/bracers/gauntlets/girdle/cloaks) set to per-armor-type values; starter weapons 3/5 base/dps, T1 weapons 4/6; module republished via upsert | 2026-02-18 | 8b2a41e | [156-realign-armor-ac-values-across-all-tiers](./quick/156-realign-armor-ac-values-across-all-tiers/) |
-| 158 | craft_recipe applies per-material-quality stat bonuses via implicit ItemAffix rows — getCraftQualityStatBonus helper (standard=0, reinforced=+1, exquisite=+2, mastercraft=+3); armor inserts craft_quality_ac affix; weapons insert craft_quality_dmg + craft_quality_dps affixes; getEquippedWeaponStats sums weapon affixes; client tooltips show effective stats with implicit bonuses filtered from label list | 2026-02-18 | 4b4cf41 | [158-craft-recipe-reducer-applies-per-materia](./quick/158-craft-recipe-reducer-applies-per-materia/) |
-| 159 | Enemy AC now role-driven via ENEMY_ROLE_CONFIG baseArmor/armorPerLevel: tank=14+4L, damage=6+3L, support=5+2L, healer=3+2L; computeEnemyStats updated; all 29 enemy template armorClass values set to 0n | 2026-02-18 | fb58e4e | [159-enemy-armor-class-should-account-for-rol](./quick/159-enemy-armor-class-should-account-for-rol/) |
-| 160 | Audit and realign world-drop gear — T2 weapons fixed to 5/7 base/dps; Silken Robe AC=4, Ranger Jerkin AC=5, no stat bonuses on T2 base templates; added 10 T2 armor pieces (all 4 types x chest/legs/boots) + 5 T2 weapons; added 14 T1 other-slot templates (cloth/leather/chain/plate x head/wrists/hands/belt); module republished | 2026-02-18 | ededb33 | [160-audit-and-realign-ensure-items-ts-world-](./quick/160-audit-and-realign-ensure-items-ts-world-/) |
-| 161 | Rework essence drops — runtime 25% per-kill drop in combat.ts loot loop (tier by enemy level: 1-5=I, 6-10=II, 11+=III); removed all 6 terrain-gated essence blocks from ensureMaterialLootEntries; all zones now eligible | 2026-02-18 | d973957 | [161-rework-essence-drops-remove-terrain-gati](./quick/161-rework-essence-drops-remove-terrain-gati/) |
-| 162 | Log panel always visible — removed v-if="panels.log.open" from Log panel div in App.vue; panel now always renders in game view (Group/Hotbar/Location were already always visible) | 2026-02-18 | — | [162-when-i-create-a-new-character-the-log-pa](./quick/162-when-i-create-a-new-character-the-log-pa/) |
-| 163 | Fix essence tier thresholds to 10-level-wide bands and add Essence IV — crafting_materials.ts gets essence_iv entry (tier 4n), ensure_items.ts seeds Essence IV (vendorValue 24n), combat.ts now uses 1-10=I/11-20=II/21-30=III/31+=IV thresholds | 2026-02-18 | 4df1c5c | [163-fix-essence-tiers-1-10-i-11-20-ii-21-30-](./quick/163-fix-essence-tiers-1-10-i-11-20-ii-21-30-/) |
-| 164 | Fix rogue damage ability stat scaling from STR (dump stat, 8 at L1) to DEX (primary stat, 12 at L1) — rogue_shadow_cut/bleed/shadow_strike changed to 'dex' in ABILITY_STAT_SCALING; narrows Shadow Cut damage gap from ~60% to ~15-20% vs hybrid classes; module republished | 2026-02-18 | df5cb7d | [164-investigate-shadowcut-damage-vs-reaver-s](./quick/164-investigate-shadowcut-damage-vs-reaver-s/) |
-| 165 | Audit and fix all class ability stat scaling — 17 entries corrected (enchanter int→cha, paladin hybrid→wis, ranger/monk/beastmaster/bard str/wis/cha→hybrid); hybrid formula updated from hardcoded STR+INT to 60% primary + 40% secondary via CLASS_CONFIG; module republished | 2026-02-18 | 065758d | [165-audit-and-fix-all-class-ability-stat-sca](./quick/165-audit-and-fix-all-class-ability-stat-sca/) |
-| 166 | Centralize all crafting metadata — vendorValue+gatherEntries on MaterialDef; CONSUMABLE_RECIPES (14) + GEAR_RECIPES (15) + GEAR_RECIPE_NAMES + ESSENCE_TIER_THRESHOLDS exported from crafting_materials.ts; ensure_items/location/combat refactored to import from single source of truth; no behavioral changes | 2026-02-18 | 4014ea0 | [166-pass-through-the-entire-crafting-system-](./quick/166-pass-through-the-entire-crafting-system-/) |
-| 167 | Role-based HP bonus for enemies mirroring armor pattern — ENEMY_ROLE_CONFIG renamed baseHp/hpPerLevel→baseHpBonus/hpBonusPerLevel; HP priority reordered tank(60/15)>healer(45/12)>support(35/10)>damage(20/8); computeEnemyStats now uses template.maxHp+bonus formula; enemy heal cap fixed to use combatEnemy.maxHp instead of stale template value | 2026-02-18 | dfd1ea3 | [167-role-based-hp-bonus-for-enemies-mirrorin](./quick/167-role-based-hp-bonus-for-enemies-mirrorin/) |
-| 168 | Add recipe hover tooltip to crafting panel — hovering a recipe card shows the output item's full tooltip (rarity color, stats, description, allowed classes); outputItem field added to useCrafting recipe entries; mouseenter/mousemove/mouseleave handlers emit show/move/hide-tooltip from CraftingPanel; App.vue wires to shared tooltip pipeline | 2026-02-18 | c9d119e | [168-add-recipe-hover-tooltip-to-crafting-pan](./quick/168-add-recipe-hover-tooltip-to-crafting-pan/) |
-| 169 | Zero-offset locations spawn enemies at exact target level — spawnEnemy uses exactMatch flag (levelOffset===0n) to set minLevel===maxLevel===adjustedTarget; ensureAvailableSpawn uses maxDiff=0n for zero-offset locations; starter areas (Lanternford, Ashfall Road, Bell Farm) now only spawn level 1 enemies | 2026-02-18 | ea3e39e | [169-locations-with-0-level-offset-spawn-enem](./quick/169-locations-with-0-level-offset-spawn-enem/) |
-| 170 | Audit and fix night spawn coverage — 8 new night enemy templates (Dusk Moth L1 plains, Night Rat L1 plains, Nightfang Viper L1 swamp, Gloomwing Bat L1 woods+mountains, Cinder Wraith L3 plains+mountains, Shadow Prowler L4 woods, Bog Specter L4 swamp, Ashveil Phantom L5 mountains); each with 2 role templates and 1 enemy ability; fills all gaps so every non-safe non-dungeon location has level-appropriate night enemies | 2026-02-18 | 46ee85f | [170-audit-and-fix-night-spawn-coverage-ensur](./quick/170-audit-and-fix-night-spawn-coverage-ensur/) |
-| 171 | Death overlay renders on top of everything — deathOverlay zIndex bumped from 70 to 9999; was buried under floating panels (up to ~5000) and resurrect confirmation (9000) | 2026-02-18 | 7eb274d | [171-death-splash-screen-shows-on-top-of-ever](./quick/171-death-splash-screen-shows-on-top-of-ever/) |
-| 172 | Confirmed --clear-database is NOT required when adding new enemies — all seeding (ensureEnemyTemplatesAndRoles, addRoleTemplate, ensureEnemyAbilities, ensureLocationEnemyTemplates) uses upsert find-or-insert patterns; plain `spacetime publish` is sufficient for content-only changes; --clear-database only needed for schema changes (non-optional column additions) | 2026-02-18 | — | [172-investigate-whether-clear-database-is-re](./quick/172-investigate-whether-clear-database-is-re/) |
-| 173 | Add modifier reagent acquisition paths — MODIFIER_REAGENT_THRESHOLDS added to crafting_materials.ts (level 1-10/11-20/21+ bands); 9 modifier reagents seeded into creature-type-affinity mid/high-tier loot tables; 15% runtime combat drop per kill (level-gated); 30% bonus salvage yield; two full acquisition paths for all 9 reagents needed by crafting dialog | 2026-02-18 | 2c6430c | [173-now-that-we-ve-re-oriented-our-crafting-](./quick/173-now-that-we-ve-re-oriented-our-crafting-/) |
-| 175 | Convert 4 insert-only seeding functions to upsert pattern — ensureResourceItemTemplates (3 loops), ensureGearMaterialItemTemplates, ensureCraftingModifierItemTemplates, ensureRecipeScrollItemTemplates all converted from skip-if-exists to find-or-insert+update; adding new resources/materials/modifiers/scrolls now works on plain spacetime publish without --clear-database | 2026-02-18 | df869dd | [175-let-s-make-sure-we-can-add-resources-and](./quick/175-let-s-make-sure-we-can-add-resources-and/) |
-| 174 | Flee cast bar — clicking Flee starts a 3-second client-side timer (localFlee ref + setTimeout); flee_combat reducer fires after 3s; CombatPanel shows amber fill bar + "Cancel" button text during cast; re-clicking cancels and clears timer; watcher auto-clears localFlee when combat ends | 2026-02-18 | 35ba79b | [174-flee-cast-bar-3-second-cast-time-before-](./quick/174-flee-cast-bar-3-second-cast-time-before-/) |
-| 176 | Fix newly added night enemies not logging special ability names — 8 missing ENEMY_ABILITIES definitions added (moth_dust, plague_bite, spectral_flame, shadow_pounce, drowning_grasp, soul_rend, venom_fang, sonic_screech); quick-170 enemies now execute their special abilities with correct combat log names instead of falling through to auto-attack | 2026-02-18 | ed1d519 | [176-fix-newly-added-enemies-not-logging-spec](./quick/176-fix-newly-added-enemies-not-logging-spec/) |
-| 177 | Validate and fix gear drop parity — rare affix budget raised from 2n to 4n (matches crafted reinforced), T2 gear added to mid/high-tier loot tables (mountains/town/city/dungeon, weight 3n), pre-existing BigInt JSON serialization panic fixed in combat_loop generateLootTemplates | 2026-02-18 | ee95c9d | [177-validate-that-gear-that-can-drop-from-en](./quick/177-validate-that-gear-that-can-drop-from-en/) |
-| 178 | Consolidate enemy ability definitions — ENEMY_ABILITIES now has targetRule on all 41 entries, ENEMY_TEMPLATE_ABILITIES maps 35 templates to ability keys; ensureEnemyAbilities() replaced 40 hardcoded upsert calls with a loop over ENEMY_TEMPLATE_ABILITIES; adding a new enemy ability now requires editing only enemy_abilities.ts | 2026-02-18 | ff1b808 | [178-can-we-consolidate-our-enemy-abilities-i](./quick/178-can-we-consolidate-our-enemy-abilities-i/) |
-| 181 | Consolidate ENEMY_ABILITIES to single source of truth — removed duplicate block from ability_catalog.ts, updated imports in helpers/combat.ts, reducers/combat.ts, and index.ts; added description field to all 41 entries; combat log messages now append flavour text for all 5 ability kinds (dot/debuff/heal/aoe_damage/buff) | 2026-02-18 | 298c222 | [181-consolidate-enemy-abilities-out-of-abili](./quick/181-consolidate-enemy-abilities-out-of-abili/) |
-| 182 | Rewrite all 41 enemy ability descriptions as combat log continuations — short (6-12 words), active voice, present tense, no enemy/ability name repetition, no "A"/"The" openers; each reads naturally after structured prefix in combat log | 2026-02-18 | bcc6eeb | [182-update-enemy-ability-descriptions-to-rea](./quick/182-update-enemy-ability-descriptions-to-rea/) |
-| 183 | Fix version.json polling URL to use Vite BASE_URL — changed hardcoded /version.json to import.meta.env.BASE_URL + 'version.json' in src/main.ts; fixes 404 on GitHub Pages (/uwr/ deployment) where file lives at /uwr/version.json; dev mode unaffected (BASE_URL defaults to /) | 2026-02-18 | bab1585 | [183-fix-version-json-url-to-use-base-url-uwr](./quick/183-fix-version-json-url-to-use-base-url-uwr/) |
-| 184 | Restore Discover Recipes button to CraftingPanel — added button above filter chips with styles.ghostButton, disabled when !craftingAvailable or combatLocked, emits 'research' event; App.vue wired @research="onResearchRecipes"; onResearchRecipes and the research_recipes reducer were already intact | 2026-02-18 | e7bb5e7 | [184-restore-discover-recipes-button-in-craft](./quick/184-restore-discover-recipes-button-in-craft/) |
-| 185 | Fix version check causing infinite browser reloads — single BUILD_VERSION constant in vite.config.ts shared by define block and versionPlugin.closeBundle; previously two separate Date.now() calls produced different timestamps so CLIENT_VERSION never matched version.json | 2026-02-18 | e3156af | [185-fix-version-check-to-only-reload-browser](./quick/185-fix-version-check-to-only-reload-browser/) |
-| 186 | Filter gear recipes from Discover Recipes button — added isGearRecipe guard in research_recipes loop that skips recipeType != 'consumable'; 15 gear recipes (weapon/armor/accessory) excluded from auto-discovery while 14 consumable recipes remain freely discoverable; gear recipe paths via salvage/scroll unchanged | 2026-02-18 | 14ef3ac | [186-filter-gear-recipes-from-discover-recipe](./quick/186-filter-gear-recipes-from-discover-recipe/) |
-| 187 | Centralize backpack slot capacity into MAX_INVENTORY_SLOTS = 50 — constant defined in helpers/items.ts, exported via index.ts reducerDeps, replacing all 7 server-side hardcoded >= 20 capacity checks (5 in items reducer, 2 in commands reducer); client maxInventorySlots changed from 20 to 50 in useInventory.ts | 2026-02-18 | b34f6a9 | [187-make-backpack-slot-count-a-centralized-c](./quick/187-make-backpack-slot-count-a-centralized-c/) |
-| 188 | Scale HP and mana crafting modifier magnitudes — MODIFIER_MAGNITUDE_BY_ESSENCE lookup (hpBonus/manaBonus: 5n/8n/15n per lesser/essence/greater); getModifierMagnitude helper with stat-specific override + ESSENCE_MAGNITUDE fallback; craft_recipe uses per-stat modMagnitude in modifier loop; primary stats unchanged at 1n/2n/3n | 2026-02-18 | 071ef2b | [188-scale-hp-and-mana-crafting-modifier-bonu](./quick/188-scale-hp-and-mana-modifier-magnitude-i/) |
-| 189 | Consolidate client-side HP/mana modifier magnitudes into single getModifierMagnitude helper in useCrafting.ts — MODIFIER_MAGNITUDE_BY_ESSENCE + exported getModifierMagnitude(essenceName, statKey); CraftingModal.vue deletes inline HP_MANA_MAGNITUDE and delegates getMagnitudeForStat to imported helper; single source of truth for crafting modifier display | 2026-02-18 | eb8e3b9 | [189-consolidate-hp-mana-modifier-magnitude-i](./quick/189-consolidate-hp-mana-modifier-magnitude-i/) |
-| 180 | Validate and balance affixed T1 gear drop chances — found critical bug: getMaxTierForLevel() hard-capped all T1 enemies to common (0% affixed drops); replaced with level-scaled uncommon chance: uncommonChance = min(35, level*5 + dangerBonus) where dangerBonus = max(0, floor((danger-120)/10)); gives ~5% at L1 ramping to ~15-35% at L8-10 with danger zone bonus | 2026-02-18 | c61eba7 | [180-validate-and-balance-affixed-t1-gear-dro](./quick/180-validate-and-balance-affixed-t1-gear-dro/) |
-| 190 | Comprehensive codebase re-org: remove dead code from server data files (dead ABILITIES import in index.ts, empty LEGENDARIES/QUALITY_TIER_COLORS/QUALITY_TIER_NUMBER in affix_catalog.ts, dead materialTierToQuality in crafting_materials.ts, commented legendary drop block in combat.ts), delete stale App.vue.backup, and consolidate rarity/craft quality color maps from 5 definitions to 1 in src/ui/colors.ts | 2026-02-19 | 6afdcca | [190-codebase-re-org-audit-all-duplicated-dat](./quick/190-codebase-re-org-audit-all-duplicated-dat/) |
-| 191 | Admin-only third tab in WorldEventPanel for firing and resolving world events from the UI — src/data/worldEventDefs.ts with CLIENT_EVENT_DEFS and ADMIN_IDENTITY_HEX; Admin tab (v-if isAdmin) shows 3 event defs with Start Event buttons and active events with End Event (Failure) buttons; isAdmin computed in App.vue from window.__my_identity | 2026-02-19 | 76059c2 | [191-admin-world-events-tab-in-eventspanel-wi](./quick/191-admin-world-events-tab-in-eventspanel-wi/) |
-| 194 | Fix salvage reagent drops to only yield modifier reagents matching item's actual affix statKeys — affixStatKeys set collected from ItemAffix rows, CRAFTING_MODIFIER_DEFS filtered to filteredModDefs, roll and pick only when filteredModDefs.length > 0; common items (no affixes) never drop reagents | 2026-02-18 | c03cb31 | [194-fix-salvage-to-only-yield-modifier-reage](./quick/194-fix-salvage-to-only-yield-modifier-reage/) |
-| 192 | Align gear and crafting progression to world-tier spec — TIER_RARITY_WEIGHTS/TIER_QUALITY_WEIGHTS named config constants (T1-T5), rollQualityForDrop for independent quality axis (seed 67n), getWorldTier with T5 support, craftQuality column on CombatLoot, quality flows from loot-roll to ItemInstance via take_loot/take_all_loot, equip level gate removed, CRAFT_QUALITY_PROBS for probabilistic crafting quality | 2026-02-19 | 9ff573d | [192-align-gear-and-crafting-progression-to-w](./quick/192-align-gear-and-crafting-progression-to-w/) |
-| 195 | Revert crafting quality to deterministic and tier-gate gather pool — materialTierToCraftQuality fully deterministic (T1→standard, T2→reinforced, T3→exquisite), CRAFT_QUALITY_PROBS removed, craftSeed removed from craft_recipe; getGatherableResourceTemplates zoneTier parameter filters materials by zone dangerMultiplier | 2026-02-18 | df5a5a3 | [195-revert-crafting-quality-to-deterministic](./quick/195-revert-crafting-quality-to-deterministic/) |
-| 196 | Lower essence drop from 12% to 6% and modifier reagent from 15% to 10% — brings expected kills for both components to ~16-18 vs natural affixed gear at ~20 kills T1 L1; essence is bottleneck by design | 2026-02-18 | 73a573d | [196-simplify-essence-drops-to-3-tiers-by-wor](./quick/196-simplify-essence-drops-to-3-tiers-by-wor/) |
-| 193 | Add unique descriptions to all 142 item template seeds on the server and unify all 5 client tooltip code paths into a single buildItemTooltipData pure function in useItemTooltip.ts — eliminates duplicate WELL_FED_BUFF_LABELS maps and client-side description fallback logic | 2026-02-19 | 57f1a9f | [193-add-descriptions-to-all-item-templates-r](./quick/193-add-descriptions-to-all-item-templates-r/) |
-| 198 | Replace 60-second setInterval polling loop with SpacetimeDB subscription-based version check — AppVersion table (public), set_app_version admin reducer with upsert, window.__client_version exposed for App.vue watch, versionPlugin removed from vite.config.ts (no more dist/version.json emitted); run spacetime publish + generate to activate | 2026-02-19 | a660fa3 | [198-replace-polling-version-check-with-space](./quick/198-replace-polling-version-check-with-space/) |
-| 199 | Fix ability resource consumption — stamina/mana now deducted AFTER ability fires successfully via arrow-function wrapper around switch-case; failing abilities (no combat target, wrong state) no longer drain resources; updated immersive failure messages in combat.ts and items.ts | 2026-02-19 | 0784442 | [199-don-t-consume-ability-resource-when-comb](./quick/199-don-t-consume-ability-resource-when-comb/) |
-| 200 | Add build version number as small muted text after Connected/Disconnected status in AppHeader — clientVersion computed ref reads window.__client_version ?? 'dev'; span styled at fontSize 0.7rem, opacity 0.45, marginLeft 6px | 2026-02-18 | afe213d | [200-add-current-version-number-in-small-text](./quick/200-add-current-version-number-in-small-text/) |
-| 201 | Extend ConsumableRecipeDef with description/outputSlot/outputVendorValue/foodBuff fields and populate all 14 CONSUMABLE_RECIPES entries; replace standalone Bandage upsert + craftItems array + ensureFoodItemTemplates inline list with loops over CONSUMABLE_RECIPES — crafting_materials.ts is now single source of truth for all consumable metadata | 2026-02-18 | 6258787 | [201-add-descriptions-to-consumable-recipes-a](./quick/201-add-descriptions-to-consumable-recipes-a/) |
-| 202 | Extract all inline item data from ensure_items.ts into item_defs.ts (9 typed constants: ARMOR_ALLOWED_CLASSES, STARTER_ARMOR_DESCS, STARTER_WEAPON_DEFS, STARTER_ACCESSORY_DEFS, JUNK_DEFS, RESOURCE_DEFS, WORLD_DROP_GEAR_DEFS, WORLD_DROP_JEWELRY_DEFS, CRAFTING_BASE_GEAR_DEFS); add Healer's Porridge as 15th CONSUMABLE_RECIPES entry; ensure_items.ts now contains only imports, upsert helpers, and for-loops | 2026-02-19 | 51543ef | [202-refactor-ensure-items-ts-extract-all-inli](./quick/202-refactor-ensure-items-ts-extract-all-inli/) |
-| 203 | Remove Generate build version step, env block, and Notify SpacetimeDB curl step from GitHub Actions workflow; add /setappversion admin command in useCommands.ts (ADMIN_IDENTITY_HEX guard + setAppVersion reducer call) + autocomplete entry in CommandBar.vue | 2026-02-18 | 211a3f5 | [203-remove-yaml-version-call-to-spacetimedb-](./quick/203-remove-yaml-version-call-to-spacetimedb-/) |
-| 204 | Replace EventSpawnEnemy->EnemySpawn kill credit chain with definition-based WORLD_EVENT_DEFINITIONS lookup — EnemySpawn rows deleted on kill and safe-town blocks respawn makes chain permanently stale; Set<bigint> of template IDs from contentLocations used for membership check | 2026-02-18 | 3b3fe9f | [204-fix-world-event-kill-credit-not-register](./quick/204-fix-world-event-kill-credit-not-register/) |
-| 205 | Wire EventDespawnTick to auto-resolve time-based world events — fireWorldEvent schedules eventDespawnTick row at deadlineAtMicros when > 0n; despawn_event_content reducer now calls resolveWorldEvent(ctx, event, 'failure') so status, consequences, and rewards are applied on auto-expiry; resolveWorldEvent's status guard prevents double-resolve | 2026-02-19 | 5445f3e | [205-when-an-event-timer-ends-automatically-e](./quick/205-when-an-event-timer-ends-automatically-e/) |
-| 206 | Re-insert pulled CombatEnemy rows as EnemySpawnMembers on leash restore — second loop after savedMembers re-insertion iterates enemies[] and re-inserts EnemySpawnMember for each enemy whose spawnId matches; increments count so groupCount reflects the full original composition (e.g. 5 rats not 4) after all-flee events | 2026-02-18 | fdf46d1 | [206-restore-event-enemy-to-spawn-group-after](./quick/206-restore-event-enemy-to-spawn-group-after/) |
-| 207 | Preserve un-pulled EnemySpawnMember rows on player death — removed delete-all-members loop from player-death spawn restore block; remainingMemberCount counts existing un-pulled rows before re-inserting pulled survivors; roleTemplateId uses ?? 0n fallback; groupCount = un-pulled survivors + pulled survivors with hp > 0 | 2026-02-18 | 9988410 | [207-restore-surviving-enemies-to-spawn-group](./quick/207-restore-surviving-enemies-to-spawn-group/) |
-| 208 | WorldEventPanel time-remaining countdown now ticks every second by consuming nowMicros prop (updated every 100ms by App.vue setInterval) instead of calling Date.now() inline — Vue reactivity re-renders timeRemaining() on each tick without requiring server data change | 2026-02-19 | 4fda3db | [208-the-time-remaining-in-the-active-events-](./quick/208-the-time-remaining-in-the-active-events-/) |
-| 209 | Move event kill credit to victory path so all kill types (auto-attack and ability) award contribution — removed per-kill credit from auto-attack guard; added contribution (per participant × per enemy template) and kill_count objective increment (once per enemy) in the victory section alongside updateQuestProgressForKill | 2026-02-18 | 3a2c7f3 | — |
-| 210 | Fix quest XP not triggering level-up — both kill quest and delivery quest turn-ins in hailNpc now route XP through awardXp (passing character.level as enemyLevel for 100% modifier), which runs the while-loop level check, recomputes derived stats, and emits level-up events | 2026-02-19 | 3845054 | [210-when-i-complete-a-quest-and-the-xp-pushe](./quick/210-when-i-complete-a-quest-and-the-xp-pushe/) |
-| 211 | Fix infinite reload loop in version check watcher — sessionStorage guard prevents repeated reloads when server AppVersion is stale after a new deploy; guard cleared when versions match so future updates still trigger one reload | 2026-02-19 | 75a882a | — |
-| 212 | Award event kill credit on player death for enemies killed mid-combat — player-death path now loops through enemies with currentHp===0n and awards contribution per participant + advances kill_count objective once per killed enemy; victory path only fires when all enemies die so this was a blind spot | 2026-02-19 | 9917e62 | — |
-| 213 | Rename awardCombatXp to awardXp — pure identifier rename across helpers/combat.ts (definition), reducers/commands.ts (import + 2 calls), reducers/combat.ts (2 deps calls), index.ts (import + deps entry); function was already called from quest reducers making the combat-specific name misleading | 2026-02-19 | 09b62ab | [213-rename-awardcombatxp-to-awardxp-since-th](./quick/213-rename-awardcombatxp-to-awardxp-since-th/) |
-| 214 | Fix cooldown display stuck at max for cast-time abilities — abilityCooldowns watcher used lastClearCheck=0 causing it to fire at T+100ms before server sets AbilityCooldown (only set after tick_casts fires post-cast); added localCast and castingState continue guards to skip clearing while ability is being cast, preserving hasPrediction=true and keeping countdown immune to server clock skew | 2026-02-18 | 8003750 | [214-cast-cooldown-prediction-clearing](./quick/214-cast-cooldown-prediction-clearing/) |
-| 215 | Healing ability power now scales by class primary/secondary stat via getAbilityStatScaling — calculateHealingPower updated to accept characterStats + statScaling, applyHeal threads caster stats through both HoT and direct heal paths; WIS-tagged heals scale for healers, 'none'-tagged flat heals unchanged; mirrors damage scaling exactly | 2026-02-19 | a4dcbce | [215-healing-effects-from-abilities-should-sc](./quick/215-healing-effects-from-abilities-should-sc/) |
-| 216 | Fix two regressions from quick-215: (1) mana/stamina deduction re-fetches latest character row from DB before update so healed HP is not overwritten by stale pre-heal snapshot; (2) removed redundant addCharacterEffect regen call from shaman_spirit_mender since applyHeal now handles HoT internally via hotPowerSplit | 2026-02-19 | 08c80ea | [216-fix-regression-from-quick-215-direct-hea](./quick/216-fix-regression-from-quick-215-direct-hea/) |
-| 217 | Auto-camp players inactive for 15+ minutes — lastActivityAt optional timestamp on Player table, InactivityTick scheduled table fires sweep_inactivity every 5 min, activity touch on move_character/start_combat/start_tracked_combat/start_pull/use_ability/submit_command/say, sweep skips combat-active players, fires location event + group cleanup + private notification on auto-camp | 2026-02-19 | 7c8081b | [217-if-a-player-is-completely-inactive-for-1](./quick/217-if-a-player-is-completely-inactive-for-1/) |
-| 218 | Add Phase 21 to ROADMAP.md — Class Ability Balancing & Progression: full audit and design of all class abilities levels 1-10, unlock curve redesign, class identity pillars, backend mechanic gap-filling; phase section includes goal, ABILITY-01–06 requirements, scope, and 5 success criteria checkboxes | 2026-02-20 | caf5dd3 | [218-add-phase-for-class-ability-balancing-an](./quick/218-add-phase-for-class-ability-balancing-an/) |
-| 219 | Insert Phase 21 Race Expansion into ROADMAP.md (before Class Ability Balancing, now Phase 22) — 11 new fantasy races (7 unlocked: Goblin, Troll, Dwarf, Gnome, Halfling, Half-Elf, Orc; 4 locked: Dark-Elf, Half-Giant, Cyclops, Satyr), dual-bonus system per race covering stats/spell damage/mana regen/etc., level-up racial bonus mechanic at even levels, enhanced existing 4 starter races; renumbered old Phase 21 to Phase 22 | 2026-02-20 | b467fb8 | [219-add-phase-for-race-expansion-with-new-fa](./quick/219-add-phase-for-race-expansion-with-new-fa/) |
-| 220 | Pet summon cast time + mana cost — beastmaster/necromancer/summoner get 5s cast time; necromancer and summoner mana tripled; beastmaster_call_beast and necromancer_bone_servant removed from combatOnlyKeys | 2026-02-21 | fe6ba10 | [220-now-that-pets-can-be-cast-out-of-combat-](./quick/220-now-that-pets-can-be-cast-out-of-combat-/) |
-| 221 | Fix mana regen +1 racial bonus not applying — gear manaRegen affix bonuses were silently dropped from regen tick (now added via getEquippedBonuses); added recompute_racial_all admin reducer to repair legacy characters where racialManaRegen is null | 2026-02-21 | 280961f | [221-fix-mana-regen-plus-one-racial-bonus-not](./quick/221-fix-mana-regen-plus-one-racial-bonus-not/) |
-| 222 | Summoner aggro mechanics — pet single-target taunt only (removed AoE loop), SUMMONER_THREAT_MULTIPLIER raised 25n → 75n so summoner gets targeted more often | 2026-02-21 | c307a3b | [222-revisit-summoner-aggro-mechanics-pet-sin](./quick/222-revisit-summoner-aggro-mechanics-pet-sin/) |
-| 223 | Fix players being dumped to login screen — (1) removed eager sessionStorage guard-clear in version watcher (allowed repeated reload cycles on SpacetimeDB reconnect); (2) replaced getStoredIdToken() in isLoggedIn computed with hasToken ref captured once at setup (prevented OIDC token expiry from booting players mid-session) | 2026-02-21 | 8f5fbbb | [223-fix-players-being-dumped-to-login-screen](./quick/223-fix-players-being-dumped-to-login-screen/) |
-| 225 | Sort races alphabetically on character creation screen | 2026-02-21 | 8d9d9eb | [225-sort-races-alphabetically-on-character-c](./quick/225-sort-races-alphabetically-on-character-c/) |
-| 226 | Persist panel open/closed state across sessions — (1) added markDirty() after loadFromStorage() to block server sync overwriting restored open states; (2) removed explicit closePanelById loop from goToCamp() — panels are v-if="selectedCharacter" so they hide naturally, and the loop was overwriting localStorage with closed state before relog | 2026-02-21 | 151b197 | [226-persist-panel-open-closed-state-across-s](./quick/226-persist-panel-open-closed-state-across-s/) |
-| 227 | Reduce 3-resource node frequency on location search — 3-node threshold raised 80→90 (10% of finds), 2-node threshold raised 65→70 (20% of finds) | 2026-02-21 | 4a92008 | [227-reduce-frequency-of-finding-3-resources-](./quick/227-reduce-frequency-of-finding-3-resources-/) |
-| 228 | Pack Rush hits at 65% power per strike — added hitMultiplier?: bigint to applyDamage options, applied in hit loop; beastmaster_pack_rush passes hitMultiplier: 65n alongside hits: 2n, matching AOE_DAMAGE_MULTIPLIER | 2026-02-21 | 8d2262e | [228-pack-rush-hits-at-65-power-per-strike-li](./quick/228-pack-rush-hits-at-65-power-per-strike-li/) |
-| 229 | Paladin hybrid mana/stamina pools + reaver stamina Blood Rend — HYBRID_MANA_MULTIPLIER=4n (vs 6n for full casters), HYBRID_MANA_CLASSES={paladin,ranger,reaver}, paladin secondary str, holy_strike+radiant_smite+blood_rend moved to stamina, all mana abilities >= 1s castSeconds, all stamina abilities = 0s | 2026-02-21 | dfc88fc | [229-paladin-hybrid-mana-stamina-pools-reaver](./quick/229-paladin-hybrid-mana-stamina-pools-reaver/) |
-| 231 | Fix hybrid mana multiplier not applied at character creation — create_character was hardcoding * 6n instead of using HYBRID_MANA_MULTIPLIER; added MANA_MULTIPLIER/HYBRID_MANA_MULTIPLIER/HYBRID_MANA_CLASSES/normalizeClassName to reducerDeps in index.ts, destructured in characters.ts, replaced hardcoded 6n with conditional manaMultiplier | 2026-02-21 | 128e8bf | [231-fix-hybrid-mana-multiplier-not-applied-a](./quick/231-fix-hybrid-mana-multiplier-not-applied-a/) |
-| 230 | Replace AbilityCooldown readyAtMicros with startedAtMicros+durationMicros to eliminate server clock skew — schema updated, all 6 server write/read points in combat.ts and items.ts updated, bindings regenerated, useHotbar drops predictedCooldownReadyAt/COOLDOWN_SKEW_SUPPRESS_MICROS in favour of receivedAt tracking, App.vue drops serverClockOffset entirely | 2026-02-21 | 442df45 | [230-replace-abilitycooldown-readyatmicros-wi](./quick/230-replace-abilitycooldown-readyatmicros-wi/) |
-| 232 | Consolidate derived stat computation into recomputeCharacterDerived — create_character no longer computes maxHp/maxMana/hitChance/armorClass etc inline; inserts with 0n placeholders, calls recomputeCharacterDerived, then full-heals new character; 9 unused constants removed from deps destructuring | 2026-02-21 | b76329e | [232-consolidate-maxmana-and-derived-stat-cal](./quick/232-consolidate-maxmana-and-derived-stat-cal/) |
-| 233 | Hotbar ability tooltip now shows resource cost (mana: 4+level*2+power, stamina: 2+power/2, other: Free), cast time (Xs or Instant), and cooldown (Xs or No cooldown) — three new stat lines appended to hotbarTooltipItem stats array in useHotbar.ts | 2026-02-21 | 0eac176 | [233-hotbar-ability-tooltip-shows-cost-cast-t](./quick/233-hotbar-ability-tooltip-shows-cost-cast-t/) |
-| 234 | Ensure all healer/support enemies have a meaningful ability — frost_mend+ember_mend (healer enemies), ember_daze/dust_cloud/wisp_drain/soot_pulse (support enemies with no abilities), moth_dust/sonic_screech wired to Dusk Moth/Gloomwing Bat; fixed all_allies targetRule in pickEnemyTarget so warchief_rally/bolster_defenses actually buff all allies | 2026-02-21 | fde441d | [234-ensure-all-healer-and-support-enemies-ha](./quick/234-ensure-all-healer-and-support-enemies-ha/) |
-| 235 | Hotbar right-click shows persistent ability description popup; hover now shows stats-only (no description) — abilityPopup ref + showAbilityPopup/hideAbilityPopup in App.vue, @contextmenu.prevent on hotbar buttons, global click-to-dismiss via document listener, description removed from hotbarTooltipItem return | 2026-02-21 | 5124b05 | [235-hotbar-right-click-shows-ability-descrip](./quick/235-hotbar-right-click-shows-ability-descrip/) |
-| 236 | Fix class abilities with magic damage type incorrectly set to none — audited all 16 class ability files; all 50 damageType: 'none' entries verified as correctly classified (heals, buffs, shields, stances, summons, utilities, debuff-only); no changes needed | 2026-02-21 | a978cd8 | [236-fix-class-abilities-with-magic-damage-ty](./quick/236-fix-class-abilities-with-magic-damage-ty/) |
-| 237 | Fix enemy ability targeting to respect pet aggro — pickEnemyTarget now returns { characterId?, petId? } and includes pet aggro entries in candidate pool; CombatEnemyCast gains targetPetId; executeEnemyAbility routes damage to pet when targetPetId set; summoner threat loop guards !entry.petId so own hits don't update pet's aggro entry | 2026-02-21 | 87fc0c0 | [237-fix-enemy-ability-targeting-to-respect-p](./quick/237-fix-enemy-ability-targeting-to-respect-p/) |
-| 238 | Refactor enemy groups to individual spawns with faction-based cross-spawn aggro — spawnEnemy loops N times creating individual EnemySpawn rows (groupCount=1 each); PULL_ALLOW_EXTERNAL_ADDS=true; candidates filter uses factionId equality; danger-tiered spawn caps (6/9/12); removed group multiplier display from LocationGrid; day/night respawn uses per-location cap | 2026-02-21 | ee34b52 | [238-refactor-enemy-groups-to-individual-spaw](./quick/238-refactor-enemy-groups-to-individual-spaw/) |
-| 240 | Add pet HP regen inside existing regen_health reducer — pets regen 3 HP/tick out of combat, 2 HP/tick in combat (every 16s via halfTick gate); skips dead and full-HP pets; no new scheduled table needed | 2026-02-21 | e57b3eb | [240-pets-should-also-have-a-health-regen-jus](./quick/240-pets-should-also-have-a-health-regen-jus/) |
-| 241 | Loot panel border pulses amber/gold for ~3.5s when new loot arrives — lootPanelPulsing ref + pendingLoot watcher (fires on count increase only); @keyframes lootBorderPulse (4 cycles × 0.9s); cleared on re-trigger | 2026-02-21 | db9a88e | [241-loot-window-border-pulse-glow-when-updat](./quick/241-loot-window-border-pulse-glow-when-updat/) |
-| 242 | Enemy nameplate shows full name, smaller level indicator, remove members from context menu — useCombat derives fullName from template+role; LocationGrid renders name + small muted L5 badge; Members block removed from openEnemyContextMenu | 2026-02-21 | 36a53f9 | [242-enemy-nameplate-shows-full-name-smaller-](./quick/242-enemy-nameplate-shows-full-name-smaller-/) |
-| 243 | Client-side mana/stamina pre-check in onHotbarClick — guards before reducer call using same cost formulas as hotbarTooltipItem; shows "Not enough mana/stamina" locally and returns early; eliminates server round-trip for rejection | 2026-02-21 | cfe6952 | [243-client-side-mana-check-before-cast-to-pr](./quick/243-client-side-mana-check-before-cast-to-pr/) |
-| 245 | Fix Hollomere infestation event to spawn 5 individual rats instead of 1 — spawnEventContent loop now creates one EnemySpawn (groupCount=1n) + EnemySpawnMember + EventSpawnEnemy per enemy spec count; fixes all 3 events: hollowmere_rat_infestation (5 rats), hollowmere_siege (4 lurkers), ashen_awakening (3 jackals) | 2026-02-21 | 337751a | [245-fix-hollomere-infestation-event-to-spawn](./quick/245-fix-hollomere-infestation-event-to-spawn/) |
-| 246 | Return surviving adds to location on flee or death — wipe/flee path in combat_loop now loops all unique spawnIds from enemies array (not just primary spawn); re-inserts surviving members and resets each spawn to state='available'; dead enemies stay depleted | 2026-02-21 | de6f285 | [246-return-surviving-adds-to-location-on-fle](./quick/246-return-surviving-adds-to-location-on-fle/) |
-| 247 | Enforce 90s Primal Titan expiry — petDurationSeconds added to AbilityMetadata; expiresAtMicros added to ActivePet schema; summonPet accepts durationSeconds param; primal_titan passes 90n; regen_health tick auto-dismisses expired pets | 2026-02-21 | c7adc73 | [247-primal-titan-90s-expiry](./quick/247-primal-titan-90s-expiry/) |
-| 248 | Fire and water elementals spawn with no initial aggro — restricted AggroEntry insertion in summonPet to pet_taunt ability only; earth elemental still gets initial aggro as tank; fire/water elementals start with no aggro so enemies keep targeting the summoner | 2026-02-21 | 715659a | [248-fire-and-water-elementals-spawn-with-no-](./quick/248-fire-and-water-elementals-spawn-with-no-/) |
-| 249 | Fix mana cost mismatch — server read ability.resourceCostOverride (not a DB column) so always fell back to formula; now uses ability.resourceCost (pre-baked at seed time with override applied); client and server now agree on cost | 2026-02-21 | bd1c221 | [249-fix-mana-cost-mismatch-between-client-pr](./quick/249-fix-mana-cost-mismatch-between-client-pr/) |
-| 250 | Implement water elemental pet_heal ability — in-combat path heals lowest-HP active participant for 10+level*5 HP; out-of-combat loop in regen_health ticks at abilityCooldownSeconds interval; pet armed immediately on combat exit; disarms when all party at max HP | 2026-02-21 | df2f0fc | [250-implement-water-elemental-pet-heal-abili](./quick/250-implement-water-elemental-pet-heal-abili/) |
-| 251 | Respawn bypasses region travel cooldown and clears it — confirmed respawn_character sets locationId directly (no cooldown check); added cooldown clear on respawn so player can travel cross-region immediately after death to retrieve corpse | 2026-02-21 | 4e858e7 | [251-validate-respawn-at-bind-point-bypasses-](./quick/251-validate-respawn-at-bind-point-bypasses-/) |
-| 252 | Primal Titan AoE heal, all-enemy aggro on summon, and 90s countdown timer — pet_aoe_heal implemented in executePetAbility (heals all party members); summonPet inserts AggroEntry + sets aggroTargetPetId on every combat enemy for pet_aoe_heal pets; out-of-combat AoE heal tick added to regen_health; GroupPanel shows (Xs) countdown for timed pets via expiresAtMicros field | 2026-02-21 | 9ad922a | [252-primal-titan-aoe-heal-all-enemy-aggro-on](./quick/252-primal-titan-aoe-heal-all-enemy-aggro-on/) |
-| 253 | Fix respawn_enemy overcapping — reducer called spawnEnemy unconditionally; night transitions refill to cap so pending respawn ticks afterward pushed locations over the limit; now checks currentCount >= cap and skips spawn if full | 2026-02-21 | 69e3a3a | [253-fix-respawn-enemy-ignores-spawn-cap](./quick/253-fix-respawn-enemy-ignores-spawn-cap/) |
-| 254 | Event spawns exempt from location spawn cap and day/night unspawn — added isEventSpawn() helper using EventSpawnEnemy.by_spawn index; applied in respawnLocationSpawns (skip delete + exclude from count), ensureLocationRuntimeBootstrap, ensureSpawnsForLocation, and respawn_enemy | 2026-02-21 | e0413e4 | [254-event-spawns-dont-count-against-location](./quick/254-event-spawns-dont-count-against-location/) |
-| 255 | Water elemental now heals itself — pet_heal's candidate loop was participant-only; added pet self-check after the participant scan using currentHp/maxHp ratio; healTargetIsPet flag dispatches to activePet.id.update when the pet wins the lowest-ratio comparison | 2026-02-21 | ac427f9 | [255-water-elemental-is-not-healing-itself](./quick/255-water-elemental-is-not-healing-itself/) |
-| 256 | Primal Titan pet_aoe_heal now heals the pet itself — after the participant loop in the pet_aoe_heal case, added a self-heal block: checks pet.currentHp < maxHp, applies same formula (10 + level*5), clamps to maxHp, updates via activePet.id.update; healedCount++ keeps early-return guard consistent | 2026-02-21 | b35e007 | [256-primal-titan-pet-aoe-heal-should-also-he](./quick/256-primal-titan-pet-aoe-heal-should-also-he/) |
-| 257 | Modifier reagent nodes capped at 1 per location, quantity 1 — spawnResourceNode checks CRAFTING_MODIFIER_DEFS; returns early if any non-depleted modifier reagent already exists at location; sets quantity=1 instead of 2-6 for all modifier reagents | 2026-02-21 | 2930a7d | [257-modifier-reagent-nodes-capped-at-1-per-l](./quick/257-modifier-reagent-nodes-capped-at-1-per-l/) |
-| 258 | Pet health bar not updating in UI when pet heals itself — out-of-combat pet_heal and pet_aoe_heal loops never wrote currentHp back to ActivePet; added pet as heal candidate in pet_heal (healTargetIsPet flag) and self-heal block in pet_aoe_heal, both with combined activePet.id.update calls | 2026-02-21 | d883212 | [258-pet-health-bar-not-updating-in-ui-when-p](./quick/258-pet-health-bar-not-updating-in-ui-when-p/) |
-| 259 | Reduce rare crafting reagent spawn rate — CRAFTING_MODIFIER_WEIGHT_MULTIPLIER was broken (floor(1×0.5)=0 clamped back to 1, so multiplier did nothing); fix: scale all base pool weights and MATERIAL_DEFS gatherEntries weights ×5, leaving modifier weights at 1n; dungeon modifier share drops from 23% (3/13) to 5.7% (3/53) | 2026-02-21 | e19f4ac | [259-reduce-rare-crafting-reagent-spawn-rate-](./quick/259-reduce-rare-crafting-reagent-spawn-rate-/) |
-| 260 | Daytime transition spawning too many enemies — spawnEnemy inserts one row per group member but respawnLocationSpawns/ensureLocationRuntimeBootstrap only did count+=1 per call; cap loop terminated based on call count not DB rows; fix: added countNonEventSpawns() helper querying live DB, both functions now recount after each spawnEnemy call | 2026-02-21 | 4ab0c23 | [260-daytime-transition-spawning-too-many-ene](./quick/260-daytime-transition-spawning-too-many-ene/) |
-| 261 | Water elemental in-combat self-heal not updating HP — pet tick loop spread stale `pet` object after executePetAbility wrote healed currentHp to DB, overwriting the heal; fix: changed loop to `let pet`, re-fetch via activePet.id.find after ability fires so both early-exit and normal spreads use current DB row | 2026-02-21 | 230f7a6 | [261-water-elemental-in-combat-self-heal-not-](./quick/261-water-elemental-in-combat-self-heal-not-/) |
-| 262 | Water elemental summoned out of combat does not begin healing party — summonPet set nextAbilityAt=undefined when inActiveCombat=false; regen_health loop skips pets with undefined nextAbilityAt; fix: arm pet_heal/pet_aoe_heal pets at summon time with nextAbilityAt=nowMicros regardless of combat state | 2026-02-21 | ec03779 | [262-water-elemental-summoned-out-of-combat-d](./quick/262-water-elemental-summoned-out-of-combat-d/) |
-| 263 | Corpse drop on death level 5+ — createCorpse sets ItemInstance.ownerCharacterId=0n (sentinel) for each corpse item, removing them from character's inventory (useInventory.ts filters by character.id); loot_corpse_item and loot_all_corpse restore ownerCharacterId to the looting character before deleting CorpseItem rows | 2026-02-21 | 4948aa7 | [263-corpse-drop-on-death-level-5-transfer-in](./quick/263-corpse-drop-on-death-level-5-transfer-in/) |
-| 264 | Remove groupCount from pull logic — adds now come only from location's available social spawn pool; removed initialGroupCount/groupAddsAvailable/takeSpawnMember group block from reserveAdds(); maxAdds=candidates.length; all delayed/immediate adds mark their EnemySpawn row as engaged so other groups cannot pull them | 2026-02-21 | 021a1cb | [264-remove-groupcount-from-pull-logic-adds-c](./quick/264-remove-groupcount-from-pull-logic-adds-c/) |
-| 265 | Fix adds never showing aggro target — addEnemyToCombat used p.id as AggroEntry.characterId but pending-add call site passes CombatParticipant rows (p.id = participant row ID, not character ID); fix uses p.characterId ?? p.id; also captures return value and sets aggroTargetCharacterId immediately on add arrival for instant UI display | 2026-02-21 | 021a1cb | [265-fix-adds-never-showing-aggro-target-adde](./quick/265-fix-adds-never-showing-aggro-target-adde/) |
-| 266 | Social add kills not decrementing spawn group count — addEnemyToCombat called with consumeSpawnCount=false for pending adds, so takeSpawnMember never ran; spawn groupCount stayed > 0 and victory path reset add's spawn to 'available' instead of deleting it; fix: consumeSpawnCount=true so the spawn member is consumed and groupCount reaches 0 on kill | 2026-02-21 | 350696d | [266-social-add-kills-not-decrementing-spawn-](./quick/266-social-add-kills-not-decrementing-spawn-/) |
-| 267 | Character creation validation errors — Create button no longer silently disabled; createCharacter() collects all errors into array ("name ≥4 chars", "must select race/class") and shows them above the submit button; server minimum raised from 2 to 4 chars | 2026-02-21 | 51785a7 | [267-character-creation-validation-errors-for](./quick/267-character-creation-validation-errors-for/) |
-| 268 | setappversion does not trigger reload on out-of-date clients — watch(appVersionRows) was shallow; SpacetimeDB mutates the array in-place on row update so reference never changed; fix: added deep:true to watcher; also clears sessionStorage reload guard when versions match so repeated deploys in same session work | 2026-02-21 | 359f149 | [268-setappversion-does-not-trigger-reload-on](./quick/268-setappversion-does-not-trigger-reload-on/) |
-| 269 | Bard song re-activation guard and 6s off-cooldown — clicking an active bard song again stops it (deletes ActiveBardSong, logs "You stop singing X.") and applies a 6s AbilityCooldown; same-song re-click no longer fires burst DD; switching to a different song unchanged | 2026-02-21 | 72e8d0e | [269-bard-song-re-activation-guard-and-6s-off](./quick/269-bard-song-re-activation-guard-and-6s-off/) |
-| 270 | Bard song cooldown refactor and out-of-combat support — stop/switch both 3s (was 6s stop, no switch cooldown); switching songs applies 3s cooldown to old song; support songs (melody_of_mending, chorus_of_vigor, march_of_wayfarers) castable out of combat via optional combatId in ActiveBardSong/BardSongTick; tick uses partyMembersInLocation when no combat | 2026-02-21 | fa631df | [270-bard-song-cooldown-refactor-and-out-of-c](./quick/270-bard-song-cooldown-refactor-and-out-of-c/) |
-| 271 | Fix bard song spam / remove Discordant Note burst / UI indicators — fixed [0] song lookup to .find(!isFading) in guard + executeAbilityAction + bard_finale to prevent duplicate ActiveBardSong rows when a fading song exists; removed initial burst from bard_discordant_note (only Battle Hymn bursts); green fill overlay on active-song hotbar slot; ♪ prefix on song buff in group window | 2026-02-21 | 35041ce | [271-fix-bard-song-stacking-remove-dn-burst-a](./quick/271-fix-bard-song-stacking-remove-dn-burst-a/) |
-| 272 | Discordant Note damage log message in red — tick_bard_songs bard_discordant_note case now accumulates clamped actualDmg per enemy and logs "Discordant Note deals X damage to all enemies." with kind 'damage' (red) via logPrivateAndGroup so bard and group both see it | 2026-02-22 | f9582de | [272-discordant-note-damage-log-message-in-re](./quick/272-discordant-note-damage-log-message-in-re/) |
-| 273 | Fix player death not teleporting to bind point — combat_loop defeat/victory paths never auto-teleported dead characters; added autoRespawnDeadCharacter helper (clears effects/cooldowns, moves to boundLocationId, sets hp/mana/stamina=1n, logs awakening message) called from both paths | 2026-02-22 | 81be09c | [273-fix-player-death-not-teleporting-to-bind](./quick/273-fix-player-death-not-teleporting-to-bind/) |
-| 274 | Melody of Mending costs mana per tick — 3 mana drain per tick in tick_bard_songs, clamps to 0, song continues even on empty mana | 2026-02-22 | d969da1 | [274-melody-of-mending-costs-mana-per-tick-li](./quick/274-melody-of-mending-costs-mana-per-tick-li/) |
-| 275 | Discordant Note initial damage tick on cast — fires immediate burst (8+level*2+cha, 3 mana drain) matching the 6s tick formula; log via logPrivateAndGroup; Battle Hymn burst unchanged | 2026-02-22 | 412f002 | [275-discordant-note-missing-initial-damage-t](./quick/275-discordant-note-missing-initial-damage-t/) |
-| 276 | Replace Battle Hymn with Requiem of Ruin — level 9 bard song renamed bard_requiem_of_ruin; every 6s tick applies damage_taken debuff (magnitude 3n, rounds 1n) to all active enemies; initial cast fires first debuff immediately; updated across bard_abilities.ts, helpers/combat.ts, reducers/combat.ts, items.ts, App.vue | 2026-02-22 | be06f43 | [276-replace-battle-hymn-with-requiem-of-ruin](./quick/276-replace-battle-hymn-with-requiem-of-ruin/) |
-| 277 | Add consumable and food items to hotbar — right-click inventory item shows "Add to Hotbar", stores item:<templateId> in HotbarSlot.abilityKey; useHotbar resolves name/count from inventoryItems, calls use_item or eatFood on click; slot shows xN count badge and disables at 0; no backend schema changes | 2026-02-22 | c7238bd | [277-add-consumable-and-food-items-to-hotbar](./quick/277-add-consumable-and-food-items-to-hotbar/) |
-| 278 | Remove Hotbar panel button from ActionBar; add Abilities tab to CharacterInfoPanel listing class abilities (filtered by level) + active renown perks with right-click → "What does this do?" + "Add to Hotbar"; update onboarding hint to reference Character > Abilities tab | 2026-02-22 | d4e4622 | [278-remove-hotbar-panel-add-abilities-tab-to](./quick/278-remove-hotbar-panel-add-abilities-tab-to/) |
-| 279 | Fix new character onboarding hint — position: fixed, z-index 500 (above all panels), flex-row layout to reduce height, exact hint text: "Open the Character panel, equip your gear from the Inventory tab, then add an ability to your hotbar from the Abilities tab." | 2026-02-22 | 30bbe32 | [279-fix-new-character-hint-z-index-reduce-he](./quick/279-fix-new-character-hint-z-index-reduce-he/) |
-| 280 | Overhaul right-click context menus — Abilities tab: show description inline at top, only "Add to Hotbar" action (removed "What does this do?"); Hotbar slot: show description inline + "Remove from Hotbar" action that clears slot via setHotbarSlot(slot, '') | 2026-02-22 | b42f1cb | [280-ability-right-click-shows-description-th](./quick/280-ability-right-click-shows-description-th/) |
-| 281 | Abilities tab right-click shows full ability info — name header, Cost/Cast/Cooldown stat rows, description, then Add to Hotbar button; prop type extended with castSeconds/cooldownSeconds/resourceCost/damageType; renown perk rows use zeroed stub | 2026-02-22 | 2272ab0 | [281-abilities-tab-right-click-shows-full-abi](./quick/281-abilities-tab-right-click-shows-full-abi/) |
-| 282 | Fix onboarding hint z-index to 9000 (above all panels); add CSS onboardingButtonPulse orange glow animation; Character button pulses while onboarding active; Inventory+Abilities tabs pulse orange; hint auto-dismisses only when Abilities tab is opened | 2026-02-22 | 483f10e | [282-fix-onboarding-hint-z-index-to-top-pulse](./quick/282-fix-onboarding-hint-z-index-to-top-pulse/) |
-| 283 | Unify right-click context menus — added default slot to ContextMenu.vue; migrated CharacterInfoPanel ability popup and App.vue hotbar popup to use shared ContextMenu component with proper backdrop, blur, rounded corners matching InventoryPanel | 2026-02-22 | 746c992 | [283-unify-right-click-context-menu-look-and](./quick/283-unify-right-click-context-menu-look-and/) |
-| 284 | Hotbar keyboard shortcuts 1-9 fire slots 1-9, 0 fires slot 10; document-level keydown listener skips when INPUT/TEXTAREA/contentEditable focused so command bar typing is unaffected; calls onHotbarClick so all cooldown/cast/resource guards apply | 2026-02-22 | 0d45c84 | [284-hotbar-keyboard-shortcuts-1-10-to-fire-a](./quick/284-hotbar-keyboard-shortcuts-1-10-to-fire-a/) |
-| 285 | Add Thurwick banker NPC to Hollowmere with account-wide bank vault — BankSlot table (ownerUserId, slot 0-39) + my_bank_slots view; deposit_to_bank/withdraw_from_bank reducers; BankPanel.vue 40-slot grid matching inventory style; double-click inventory→bank and bank→inventory; "Access Bank" NPC context menu; log entry on full | 2026-02-22 | 0004b63 | [285-add-banker-npc-to-hollowmere-with-accoun](./quick/285-add-banker-npc-to-hollowmere-with-accoun/) |
-| 286 | Gray out remote group members, show location name, prevent targeting | 2026-02-23 | b3fde89 | [286-group-members-gray-out-when-in-different](./quick/286-group-members-gray-out-when-in-different/) |
-| 287 | Death corpse log message about retrieving belongings within 30 days | 2026-02-23 | 1ca89b0 | [287-death-corpse-log-message-about-retrievin](./quick/287-death-corpse-log-message-about-retrievin/) |
-| 288 | Refactor combat.ts — extract helpers to combat_rewards.ts, decompose combat_loop into 10 named sub-functions, remove duplication (-261 lines) | 2026-02-23 | 4e252d8 | [288-refactor-combat-ts-for-cleaner-maintaina](./quick/288-refactor-combat-ts-for-cleaner-maintaina/) |
-| 289 | Reorganize combat helpers into 4 cohesive files: combat.ts (2442), combat_rewards.ts (405), combat_perks.ts (256), combat_enemies.ts (86) | 2026-02-23 | 8fc236e | [289-reorganize-combat-helper-files-into-sens](./quick/289-reorganize-combat-helper-files-into-sens/) |
-| 290 | Split reducers/items.ts (1956→1082) into 4 files: items.ts, items_crafting.ts (441), items_gathering.ts (204), items_trading.ts (282) | 2026-02-23 | 5eeb675 | [290-review-and-reorganize-large-files-in-spa](./quick/290-review-and-reorganize-large-files-in-spa/) |
-| 291 | Frontend reorg: extract FloatingPanel.vue, useCharacterScope, useTooltip, useAudio from App.vue (2670→2369 lines) | 2026-02-23 | 09169be | [291-reorganize-frontend-src-reduce-duplicate](./quick/291-reorganize-frontend-src-reduce-duplicate/) |
-| 292 | Friendly spell casts persist through combat state transitions; only combat_only casts cancelled | 2026-02-23 | 4b121d3 | [292-friendly-spell-casts-should-not-be-cance](./quick/292-friendly-spell-casts-should-not-be-cance/) |
-| 293 | Fix panels TDZ crash — relocate usePanelManager() before eager watch access in App.vue | 2026-02-23 | b7ae15c | [293-fix-panels-before-initialization-referen](./quick/293-fix-panels-before-initialization-referen/) |
-| 294 | Add ±15% damage/healing variance to all combat paths (auto-attacks, abilities, healing, enemies) | 2026-02-23 | d3c1dcf | [294-add-damage-rng-variance-to-auto-attacks-](./quick/294-add-damage-rng-variance-to-auto-attacks-/) |
-| 295 | Weapon speed/base damage system — 4 tiers (fast 3s, normal 3.5s, medium 4s, slow 5s) with inverse damage scaling for balanced DPS | 2026-02-23 | a4b5f9a | [295-weapon-speed-and-base-damage-system-mean](./quick/295-weapon-speed-and-base-damage-system-mean/) |
-| 296 | Two-handed weapons (staff/bow/greatsword at 5.0s), speed rebalance, off-hand auto-unequip enforcement | 2026-02-23 | 4872ad3 | [296-two-handed-weapons-system-staff-bow-grea](./quick/296-two-handed-weapons-system-staff-bow-grea/) |
-| 297 | Expand class weapon proficiencies — casters get dagger, ranger all types, warrior/reaver get axe, spellblade gets greatsword | 2026-02-23 | abc207d | [297-expand-class-weapon-proficiencies-caster](./quick/297-expand-class-weapon-proficiencies-caster/) |
-| 298 | Enemy attack speed by role — damage 3.5s, tank 5.0s, healer/support 4.0s; per-hit damage rebalanced inversely | 2026-02-23 | 9eac843 | [298-enemy-attack-speed-by-role-damage-3-5s-t](./quick/298-enemy-attack-speed-by-role-damage-3-5s-t/) |
-| 299 | Fix death popup not showing — remove auto-respawn from combat resolution so death modal appears | 2026-02-24 | 22b1a63 | [299-when-i-die-i-m-no-longer-getting-the-pop](./quick/299-when-i-die-i-m-no-longer-getting-the-pop/) |
-| 300 | Expand world with 4 new regions (40 locations), 16 enemy templates, 15 NPCs, 25 quests for levels 1-12 | 2026-02-24 | 60ed4ba | [300-expand-world-with-new-regions-locations-](./quick/300-expand-world-with-new-regions-locations-/) |
-| 301 | Seed 12 named boss enemies with enhanced stats and class-specific magical loot tables across all regions | 2026-02-24 | 715bd3f | [301-seed-named-enemies-with-enhanced-stats-a](./quick/301-seed-named-enemies-with-enhanced-stats-a/) |
-| 302 | unique magical drops for each boss covering all 14 classes | 2026-02-24 | 7560732 | [302-unique-magical-drops-for-each-boss-cover](./quick/302-unique-magical-drops-for-each-boss-cover/) |
-| 303 | deepdive into in combat regen of health and look for anything that could be an issue | 2026-02-24 | 60d80c6 | [303-deepdive-into-in-combat-regen-of-health-](./quick/303-deepdive-into-in-combat-regen-of-health-/) |
-| 304 | 3s combat cooldown before out-of-combat regen, increase stamina regen by 1 | 2026-02-24 | c6e11b6 | [304-3s-combat-cooldown-before-out-of-combat-](./quick/304-3s-combat-cooldown-before-out-of-combat-/) |
-| 305 | Wire up all 12 named boss abilities + clean misleading abilityProfile text on ability-less enemies | 2026-02-24 | e6ffdbc | [305-wire-up-all-enemy-abilities-across-all-e](./quick/305-wire-up-all-enemy-abilities-across-all-e/) |
-| 306 | Wire abilities to L5+ region enemies — 19 new abilities, 17 enemies wired | 2026-02-24 | e34fe65 | [306-wire-abilities-to-higher-level-region-en](./quick/306-wire-abilities-to-higher-level-region-en/) |
-| 307 | migrate spacetimedb from 1.12 to 2.0 | 2026-02-24 | 7d27784 | [307-migrate-spacetimedb-from-1-12-to-2-0](./quick/307-migrate-spacetimedb-from-1-12-to-2-0/) |
-| 308 | Continue quick task 307 — fix 7 v2-specific TS errors, commit 33 v2 module_bindings | 2026-02-24 | 9c16337 | [308-continue-quick-task-307](./quick/308-continue-quick-task-307/) |
-| 309 | Fix client_connected reducer undefined id — v2 schema keys must be camelCase | 2026-02-24 | 735d1da | [309-fix-client-connected-reducer-undefined-i](./quick/309-fix-client-connected-reducer-undefined-i/) |
-| 310 | Remove v1 shims, fix useTable crash — PascalCase→camelCase table keys, clean stdb-types comment | 2026-02-24 | c5e3dfd | [310-remove-v1-shims-and-fix-usetable-error-n](./quick/310-remove-v1-shims-and-fix-usetable-error-n/) |
-| 311 | Remove stdb-types.ts shim — rename XxxRow to Xxx across 36 files, import from module_bindings/types | 2026-02-24 | 4e127cd | [311-remove-stdb-types-ts-shim-rename-all-xxx](./quick/311-remove-stdb-types-ts-shim-rename-all-xxx/) |
-| 312 | Fix Cannot read properties of undefined reading columns error in SpacetimeDB client | 2026-02-24 | 1608878 | [312-fix-cannot-read-properties-of-undefined-](./quick/312-fix-cannot-read-properties-of-undefined-/) |
-| 313 | Debug persistent columns undefined error — v2 SDK table lookup mismatch | 2026-02-24 | 5313fa5 | [313-debug-persistent-columns-undefined-error](./quick/313-debug-persistent-columns-undefined-error/) |
-| 314 | Fix race description not showing on character creation screen | 2026-02-24 | 572a475 | [314-fix-race-description-not-showing-on-char](./quick/314-fix-race-description-not-showing-on-char/) |
-| 315 | Replace subscribeToAllTables with scoped domain subscriptions | 2026-02-25 | 9da6ca9 | [315-replace-subscribetoalltables-with-scoped](./quick/315-replace-subscribetoalltables-with-scoped/) |
-| 316 | SQL-filtered subscriptions with WHERE clauses for location-scoped data | 2026-02-25 | 3d568da | [316-sql-filtered-subscriptions-with-where-cl](./quick/316-sql-filtered-subscriptions-with-where-cl/) |
-| 317 | Replace SQL string subscriptions with typed query builder | 2026-02-25 | b310953 | [317-replace-sql-string-subscriptions-with-ty](./quick/317-replace-sql-string-subscriptions-with-ty/) |
-| 318 | Verify in-combat regen (already fixed — halfTick removed in quick-313) | 2026-02-25 | deb83d0 | [318-fix-in-combat-healing-ticks-of-7-hp-occu](./quick/318-fix-in-combat-healing-ticks-of-7-hp-occu/) |
-| 320 | Fix Discordant Note to use 65% AoE damage | 2026-02-25 | 7b61079 | [320-fix-discordant-note-to-use-65-aoe-damage](./quick/320-fix-discordant-note-to-use-65-aoe-damage/) |
-| 321 | Fix quests/journal showing Unknown location when leaving quest giver area | 2026-02-25 | e3e4246 | [321-fix-quests-showing-unknown-location-when](./quick/321-fix-quests-showing-unknown-location-when/) |
-| 322 | Balance weapon damage — 2H hits harder/slower, starters weaker than world drops | 2026-02-25 | a27000d | [322-balance-weapon-damage-for-2h-vs-1h-speed](./quick/322-balance-weapon-damage-for-2h-vs-1h-speed/) |
-| 323 | Persist action bar panel state across logout/login | 2026-02-25 | 197a1cf | [323-persist-action-bar-panel-state-across-lo](./quick/323-persist-action-bar-panel-state-across-lo/) |
-| 324 | Fix renown multi-rank perk grants and balance renown rewards | 2026-02-25 | 93d226a | [324-fix-renown-multi-rank-perk-grants-and-ba](./quick/324-fix-renown-multi-rank-perk-grants-and-ba/) |
-| 325 | Clean up world first labels and only broadcast firsts not seconds | 2026-02-25 | c0bbd26 | [325-clean-up-world-first-labels-and-only-bro](./quick/325-clean-up-world-first-labels-and-only-bro/) |
-| 326 | Gold star for named enemies and exclude from Ranger Track | 2026-02-25 | 95d28e7 | [326-gold-star-for-named-enemies-and-exclude-](./quick/326-gold-star-for-named-enemies-and-exclude-/) |
-| 327 | Replace SenderError with fail() where character context available | 2026-02-25 | c988909 | [327-replace-sendererror-with-fail-where-char](./quick/327-replace-sendererror-with-fail-where-char/) |
-| 328 | Fix weapon Damage and DPS tooltip labels to show accurate values | 2026-02-25 | 3da255f | [328-fix-weapon-damage-and-dps-tooltip-labels](./quick/328-fix-weapon-damage-and-dps-tooltip-labels/) |
-| 329 | Persist selected tab state across logout/login for tabbed panels | 2026-02-26 | 0f982f7 | [329-persist-selected-tab-state-across-logout](./quick/329-persist-selected-tab-state-across-logout/) |
-| 330 | Show item description tooltip when hovering banked items | 2026-02-26 | f0feae0 | [330-show-item-description-tooltip-when-hover](./quick/330-show-item-description-tooltip-when-hover/) |
-| 331 | Add bug report button with screenshot and GitHub issue submission | 2026-02-26 | 12fce06 | [331-add-bug-report-button-with-screenshot-an](./quick/331-add-bug-report-button-with-screenshot-an/) |
-| 332 | Auto-upload bug report screenshot to imgur and embed in GitHub issue | 2026-02-26 | 52bb6b3 | [332-auto-upload-bug-report-screenshot-to-img](./quick/332-auto-upload-bug-report-screenshot-to-img/) |
-
----
-
-Last activity: 2026-02-26 - Completed quick task 332: Auto-upload bug report screenshot to imgur and embed in GitHub issue
-
-## Last Session
-
-Last activity: 2026-02-21 - Enriched hotbar slot tooltip with resource cost, cast time, and cooldown (quick-233): hotbarTooltipItem now returns 6 stat lines including computed Cost/Cast/Cooldown from AbilityTemplateRow fields
+Last session: 2026-03-06
+Stopped at: Roadmap created, ready to plan Phase 24
+Resume file: None

@@ -89,48 +89,48 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LLM-01 | — | Pending |
-| LLM-02 | — | Pending |
-| LLM-03 | — | Pending |
-| LLM-04 | — | Pending |
-| LLM-05 | — | Pending |
-| LLM-06 | — | Pending |
-| UI-01 | — | Pending |
-| UI-02 | — | Pending |
-| UI-03 | — | Pending |
-| UI-04 | — | Pending |
-| UI-05 | — | Pending |
-| UI-06 | — | Pending |
-| CHAR-01 | — | Pending |
-| CHAR-02 | — | Pending |
-| CHAR-03 | — | Pending |
-| CHAR-04 | — | Pending |
-| CHAR-05 | — | Pending |
-| CHAR-06 | — | Pending |
-| CHAR-07 | — | Pending |
-| WORLD-01 | — | Pending |
-| WORLD-02 | — | Pending |
-| WORLD-03 | — | Pending |
-| WORLD-04 | — | Pending |
-| WORLD-05 | — | Pending |
-| WORLD-06 | — | Pending |
-| SKILL-01 | — | Pending |
-| SKILL-02 | — | Pending |
-| SKILL-03 | — | Pending |
-| SKILL-04 | — | Pending |
-| NPC-01 | — | Pending |
-| NPC-02 | — | Pending |
-| NPC-03 | — | Pending |
-| NPC-04 | — | Pending |
-| COMBAT-01 | — | Pending |
-| COMBAT-02 | — | Pending |
-| COMBAT-03 | — | Pending |
+| LLM-01 | Phase 24 | Pending |
+| LLM-02 | Phase 24 | Pending |
+| LLM-03 | Phase 24 | Pending |
+| LLM-04 | Phase 24 | Pending |
+| LLM-05 | Phase 24 | Pending |
+| LLM-06 | Phase 24 | Pending |
+| UI-01 | Phase 25 | Pending |
+| UI-02 | Phase 25 | Pending |
+| UI-03 | Phase 25 | Pending |
+| UI-04 | Phase 25 | Pending |
+| UI-05 | Phase 25 | Pending |
+| UI-06 | Phase 25 | Pending |
+| CHAR-01 | Phase 26 | Pending |
+| CHAR-02 | Phase 26 | Pending |
+| CHAR-03 | Phase 26 | Pending |
+| CHAR-04 | Phase 26 | Pending |
+| CHAR-05 | Phase 26 | Pending |
+| CHAR-06 | Phase 26 | Pending |
+| CHAR-07 | Phase 26 | Pending |
+| WORLD-01 | Phase 27 | Pending |
+| WORLD-02 | Phase 27 | Pending |
+| WORLD-03 | Phase 27 | Pending |
+| WORLD-04 | Phase 27 | Pending |
+| WORLD-05 | Phase 27 | Pending |
+| WORLD-06 | Phase 27 | Pending |
+| SKILL-01 | Phase 28 | Pending |
+| SKILL-02 | Phase 28 | Pending |
+| SKILL-03 | Phase 28 | Pending |
+| SKILL-04 | Phase 28 | Pending |
+| NPC-01 | Phase 29 | Pending |
+| NPC-02 | Phase 29 | Pending |
+| NPC-03 | Phase 29 | Pending |
+| NPC-04 | Phase 29 | Pending |
+| COMBAT-01 | Phase 30 | Pending |
+| COMBAT-02 | Phase 30 | Pending |
+| COMBAT-03 | Phase 30 | Pending |
 
 **Coverage:**
-- v2.0 requirements: 35 total
-- Mapped to phases: 0
-- Unmapped: 35
+- v2.0 requirements: 36 total
+- Mapped to phases: 36
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-06*
-*Last updated: 2026-03-06 after initial definition*
+*Last updated: 2026-03-06 after roadmap creation (phases 24-30)*
