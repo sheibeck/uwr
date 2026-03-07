@@ -55,6 +55,7 @@ export const registerIntentReducers = (deps: any) => {
         '  attack — Engage enemies at your location.',
         '  flee — Attempt to escape from combat.',
         '  camp — Rest briefly.',
+        '  [bind] — Bind to this location\'s bindstone. You will respawn here on death.',
         '  time — Check if it is day or night and how long until it changes.',
       ];
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', helpText.join('\n'));
@@ -245,6 +246,25 @@ export const registerIntentReducers = (deps: any) => {
       }
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
         'You make camp and rest briefly. The world continues without you.');
+      return;
+    }
+
+    // --- BIND ---
+    if (lower === 'bind') {
+      if (activeCombatIdForCharacter(ctx, character.id)) {
+        return fail(ctx, character, 'You cannot bind while in combat.');
+      }
+      const location = ctx.db.location.id.find(character.locationId);
+      if (!location || !location.bindStone) {
+        return fail(ctx, character, 'There is no bindstone here.');
+      }
+      if (character.boundLocationId === location.id) {
+        return appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          'You are already bound here.');
+      }
+      ctx.db.character.id.update({ ...character, boundLocationId: location.id });
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+        `You bind your soul to the stone at ${location.name}. You will return here should you fall.`);
       return;
     }
 
