@@ -167,15 +167,16 @@ export const registerCorpseReducers = (deps: any) => {
       return;
     }
 
-    // Verify caster has Resurrect ability
-    const abilityTemplate = [...ctx.db.ability_template.by_key.filter('cleric_resurrect')][0];
+    // Verify caster has a heal-type ability that could serve as resurrect (level 6+)
+    const abilityTemplate = [...ctx.db.ability_template.by_character.filter(caster.id)]
+      .find((a: any) => a.kind === 'heal' && a.name.toLowerCase().includes('resurrect'));
     if (!abilityTemplate) {
       fail(ctx, caster, 'Resurrect ability not found');
       return;
     }
 
-    if (caster.className.toLowerCase() !== 'cleric' || caster.level < 6n) {
-      fail(ctx, caster, `You must be a level 6+ cleric to resurrect (you are: ${caster.className} level ${caster.level})`);
+    if (caster.level < 6n) {
+      fail(ctx, caster, `You must be level 6+ to resurrect (you are level ${caster.level})`);
       return;
     }
 
@@ -306,11 +307,14 @@ export const registerCorpseReducers = (deps: any) => {
     });
 
     // Start the cast (tick_casts will execute the ability and apply cooldown after cast completes)
-    const castMicros = abilityCastMicros(ctx, 'cleric_resurrect');
+    // Look up the resurrect ability from caster's abilities
+    const resAbility = [...ctx.db.ability_template.by_character.filter(caster.id)]
+      .find((a: any) => a.kind === 'heal' && a.name.toLowerCase().includes('resurrect'));
+    const castMicros = resAbility ? abilityCastMicros(ctx, resAbility.id) : 3_000_000n;
     ctx.db.character_cast.insert({
       id: 0n,
       characterId: caster.id,
-      abilityKey: 'cleric_resurrect',
+      abilityTemplateId: resAbility?.id ?? 0n,
       targetCharacterId: character.id,
       endsAtMicros: nowMicros + castMicros,
     });
@@ -403,10 +407,10 @@ export const registerCorpseReducers = (deps: any) => {
       return;
     }
 
-    // Verify caster has Corpse Summon ability
-    const abilityKey = `${caster.className.toLowerCase()}_corpse_summon`;
-    const abilityTemplate = [...ctx.db.ability_template.by_key.filter(abilityKey)][0];
-    if (!abilityTemplate) {
+    // Verify caster has a summon-type ability that could serve as corpse summon
+    const corpseSummonAbility = [...ctx.db.ability_template.by_character.filter(caster.id)]
+      .find((a: any) => a.kind === 'summon' && a.name.toLowerCase().includes('corpse'));
+    if (!corpseSummonAbility) {
       fail(ctx, caster, 'Corpse Summon ability not found');
       return;
     }
@@ -518,15 +522,14 @@ export const registerCorpseReducers = (deps: any) => {
       mana: caster.mana - manaCost,
     });
 
-    // Get the correct ability key based on caster class
-    const abilityKey = `${caster.className.toLowerCase()}_corpse_summon`;
-
-    // Start the cast (tick_casts will execute the ability and apply cooldown after cast completes)
-    const castMicros = abilityCastMicros(ctx, abilityKey);
+    // Look up corpse summon ability from caster's abilities
+    const summonAbility = [...ctx.db.ability_template.by_character.filter(caster.id)]
+      .find((a: any) => a.kind === 'summon' && a.name.toLowerCase().includes('corpse'));
+    const castMicros = summonAbility ? abilityCastMicros(ctx, summonAbility.id) : 3_000_000n;
     ctx.db.character_cast.insert({
       id: 0n,
       characterId: caster.id,
-      abilityKey,
+      abilityTemplateId: summonAbility?.id ?? 0n,
       targetCharacterId: character.id,
       endsAtMicros: nowMicros + castMicros,
     });

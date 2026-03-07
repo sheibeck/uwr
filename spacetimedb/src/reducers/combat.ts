@@ -1,5 +1,4 @@
 import { scheduledReducers } from '../schema/tables';
-import { ENEMY_ABILITIES } from '../data/abilities/enemy_abilities';
 import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier } from '../data/combat_scaling';
 import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
 import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, SUMMONER_THREAT_MULTIPLIER, SUMMONER_PET_INITIAL_AGGRO, HEALING_THREAT_PERCENT, AOE_DAMAGE_MULTIPLIER, getAbilityStatScaling, getAbilityMultiplier } from '../data/combat_scaling';
@@ -269,8 +268,6 @@ export const registerCombatReducers = (deps: any) => {
     hasShieldEquipped,
     canParry,
     EnemyRespawnTick,
-    enemyAbilityCastMicros,
-    enemyAbilityCooldownMicros,
     PullState,
     PullTick,
     logPrivateAndGroup,
@@ -370,10 +367,9 @@ export const registerCombatReducers = (deps: any) => {
         });
       }
       for (const cast of ctx.db.character_cast.by_character.filter(characterId)) {
-        const abilityRows = [...ctx.db.ability_template.by_key.filter(cast.abilityKey)];
-        const ability = abilityRows[0];
-        // Only cancel combat-only casts; friendly/utility casts persist through combat transitions
-        if (!ability || ability.combatState === 'combat_only') {
+        const ability = ctx.db.ability_template.id.find(cast.abilityTemplateId);
+        // Only cancel combat-only casts (utility kind); friendly/utility casts persist through combat transitions
+        if (!ability || ability.kind === 'utility') {
           ctx.db.character_cast.id.delete(cast.id);
         }
       }
@@ -1929,9 +1925,9 @@ export const registerCombatReducers = (deps: any) => {
       }
       // Apply cooldown on use, not on success — prevents kill-shot abilities from losing
       // their cooldown when combat ends before the subscription row arrives.
-      const cooldown = abilityCooldownMicros(ctx, cast.abilityKey);
+      const cooldown = abilityCooldownMicros(ctx, cast.abilityTemplateId);
       const existingCooldown = [...ctx.db.ability_cooldown.by_character.filter(character.id)].find(
-        (row) => row.abilityKey === cast.abilityKey
+        (row) => row.abilityTemplateId === cast.abilityTemplateId
       );
       if (cooldown > 0n) {
         if (existingCooldown) {
@@ -1944,7 +1940,7 @@ export const registerCombatReducers = (deps: any) => {
           ctx.db.ability_cooldown.insert({
             id: 0n,
             characterId: character.id,
-            abilityKey: cast.abilityKey,
+            abilityTemplateId: cast.abilityTemplateId,
             startedAtMicros: nowMicros,
             durationMicros: cooldown,
           });
@@ -1954,7 +1950,7 @@ export const registerCombatReducers = (deps: any) => {
         deps.executeAbilityAction(ctx, {
           actorType: 'character',
           actorId: character.id,
-          abilityKey: cast.abilityKey,
+          abilityTemplateId: cast.abilityTemplateId,
           targetCharacterId: cast.targetCharacterId,
         });
       } catch (error) {
@@ -1964,7 +1960,7 @@ export const registerCombatReducers = (deps: any) => {
             ctx.db.ability_cooldown.id.update({ ...existingCooldown });
           } else {
             const revertCd = [...ctx.db.ability_cooldown.by_character.filter(character.id)]
-              .find((row) => row.abilityKey === cast.abilityKey);
+              .find((row) => row.abilityTemplateId === cast.abilityTemplateId);
             if (revertCd) ctx.db.ability_cooldown.id.delete(revertCd.id);
           }
         }
@@ -2175,7 +2171,7 @@ export const registerCombatReducers = (deps: any) => {
           const cooldownTable = ctx.db.combat_enemy_cooldown;
           if (cooldownTable) {
             const abilityRow = enemyAbilities.find((row) => row.abilityKey === existingCast.abilityKey);
-            const cooldownMicros = enemyAbilityCooldownMicros(existingCast.abilityKey) || (abilityRow?.cooldownSeconds ?? 0n) * 1_000_000n;
+            const cooldownMicros = (abilityRow?.cooldownSeconds ?? 0n) * 1_000_000n;
             if (cooldownMicros > 0n) {
               for (const row of cooldownTable.by_enemy.filter(enemy.id)) {
                 if (row.abilityKey === existingCast.abilityKey) {
@@ -2222,9 +2218,8 @@ export const registerCombatReducers = (deps: any) => {
             }
             const target = pickEnemyTarget(ability.targetRule, activeParticipants, ctx, combat.id, enemy.id);
             if (!target) continue;
-            const meta = ENEMY_ABILITIES[ability.abilityKey as keyof typeof ENEMY_ABILITIES];
-            const castMicros = enemyAbilityCastMicros(ability.abilityKey) || (ability.castSeconds ?? 0n) * 1_000_000n;
-            const cooldownMicros = enemyAbilityCooldownMicros(ability.abilityKey) || (ability.cooldownSeconds ?? 0n) * 1_000_000n;
+            const castMicros = (ability.castSeconds ?? 0n) * 1_000_000n;
+            const cooldownMicros = (ability.cooldownSeconds ?? 0n) * 1_000_000n;
             if (!target.petId) {
               if (ability.kind === 'dot') {
                 const alreadyApplied = [...ctx.db.character_effect.by_character.filter(target.characterId!)].some(
@@ -2238,9 +2233,9 @@ export const registerCombatReducers = (deps: any) => {
                 if (alreadyApplied) continue;
               }
             }
-            const baseWeight = meta?.aiWeight ?? DEFAULT_AI_WEIGHT;
-            const baseChance = meta?.aiChance ?? DEFAULT_AI_CHANCE;
-            const randomness = meta?.aiRandomness ?? DEFAULT_AI_RANDOMNESS;
+            const baseWeight = DEFAULT_AI_WEIGHT;
+            const baseChance = DEFAULT_AI_CHANCE;
+            const randomness = DEFAULT_AI_RANDOMNESS;
             let score = baseWeight;
             if (ability.kind === 'dot') score += 10;
             if (ability.targetRule === 'lowest_hp') score += 20;

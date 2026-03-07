@@ -8,7 +8,6 @@ import {
 } from '../helpers/location';
 import { NPC_PERSONALITIES } from '../data/npc_data';
 import { NPC_DIALOGUE_OPTIONS } from '../data/dialogue_data';
-import { ENEMY_ABILITIES, ENEMY_TEMPLATE_ABILITIES } from '../data/abilities/enemy_abilities';
 
 export function ensureNpcs(ctx: any) {
   const upsertNpcByName = (args: {
@@ -944,78 +943,6 @@ export function ensureQuestTemplates(ctx: any) {
     targetItemName: 'Dark Tome',
     itemDropChance: 15n,
   });
-}
-
-export function ensureEnemyAbilities(ctx: any) {
-  const upsertEnemyAbility = (
-    templateName: string,
-    abilityKey: string,
-    name: string,
-    kind: string,
-    castSeconds: bigint,
-    cooldownSeconds: bigint,
-    targetRule: string
-  ) => {
-    const template = findEnemyTemplateByName(ctx, templateName);
-    if (!template) return;
-    const existing = [...ctx.db.enemy_ability.by_template.filter(template.id)].find(
-      (row) => row.abilityKey === abilityKey
-    );
-    if (existing) {
-      ctx.db.enemy_ability.id.update({
-        ...existing,
-        enemyTemplateId: template.id,
-        abilityKey,
-        name,
-        kind,
-        castSeconds,
-        cooldownSeconds,
-        targetRule,
-      });
-      return;
-    }
-    ctx.db.enemy_ability.insert({
-      id: 0n,
-      enemyTemplateId: template.id,
-      abilityKey,
-      name,
-      kind,
-      castSeconds,
-      cooldownSeconds,
-      targetRule,
-    });
-  };
-
-  // Upsert current abilities from the map
-  for (const [templateName, abilityKeys] of Object.entries(ENEMY_TEMPLATE_ABILITIES)) {
-    for (const abilityKey of abilityKeys) {
-      const ability = ENEMY_ABILITIES[abilityKey as keyof typeof ENEMY_ABILITIES];
-      if (!ability) continue;
-      upsertEnemyAbility(
-        templateName,
-        abilityKey,
-        ability.name,
-        ability.kind,
-        ability.castSeconds,
-        ability.cooldownSeconds,
-        ability.targetRule,
-      );
-    }
-  }
-
-  // Clean up stale DB rows for abilities that were removed from the map.
-  // Iterates all enemy templates: if a template has DB ability rows that are
-  // no longer listed in ENEMY_TEMPLATE_ABILITIES, delete them.
-  for (const template of ctx.db.enemy_template.iter()) {
-    const allowedKeys = new Set(
-      ENEMY_TEMPLATE_ABILITIES[template.name as keyof typeof ENEMY_TEMPLATE_ABILITIES] ?? []
-    );
-    for (const row of ctx.db.enemy_ability.by_template.filter(template.id)) {
-      if (!allowedKeys.has(row.abilityKey)) {
-        ctx.db.enemy_ability.id.delete(row.id);
-      }
-    }
-  }
 }
 
 export function ensureWorldLayout(ctx: any) {

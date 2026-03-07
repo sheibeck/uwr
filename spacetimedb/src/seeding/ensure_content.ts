@@ -19,7 +19,6 @@ import {
   ensureResourceItemTemplates,
   ensureFoodItemTemplates,
   ensureRecipeTemplates,
-  ensureAbilityTemplates,
   ensureGearMaterialItemTemplates,
   ensureCraftingBaseGearTemplates,
   ensureGearRecipeTemplates,
@@ -115,7 +114,7 @@ export function syncAllContent(ctx: any) {
   ensureWorldDropJewelryTemplates(ctx);
   ensureBossDropTemplates(ctx);
   ensureCraftingBaseGearTemplates(ctx);
-  ensureAbilityTemplates(ctx);
+  // Ability templates are now generated dynamically per character (no seeding needed)
   ensureRecipeTemplates(ctx);
   ensureGearRecipeTemplates(ctx);
   ensureRecipeScrollItemTemplates(ctx);

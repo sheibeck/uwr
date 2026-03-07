@@ -70,7 +70,6 @@ import {
   HYBRID_MANA_MULTIPLIER,
   HYBRID_MANA_CLASSES,
 } from './data/class_stats';
-import { GLOBAL_COOLDOWN_MICROS } from './data/ability_catalog';
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from './data/xp';
 import { RACE_DATA, ensureRaces } from './data/races';
 import { ensureFactions } from './data/faction_data';
@@ -132,8 +131,6 @@ import {
   hasShieldEquipped,
   abilityCooldownMicros,
   abilityCastMicros,
-  enemyAbilityCastMicros,
-  enemyAbilityCooldownMicros,
   rollAttackOutcome,
   abilityDamageFromWeapon,
   addCharacterEffect,
@@ -244,13 +241,11 @@ import {
   ensureResourceItemTemplates,
   ensureFoodItemTemplates,
   ensureRecipeTemplates,
-  ensureAbilityTemplates,
 } from './seeding/ensure_items';
 
 import {
   ensureNpcs,
   ensureQuestTemplates,
-  ensureEnemyAbilities,
   ensureWorldLayout,
 } from './seeding/ensure_world';
 
@@ -893,7 +888,6 @@ const reducerDeps = {
   scheduleCombatTick,
   recomputeCharacterDerived,
   executeAbilityAction,
-  executePerkAbility,
   isClassAllowed,
   RACE_DATA,
   isArmorAllowedForClass,
@@ -912,8 +906,6 @@ const reducerDeps = {
   normalizeClassName,
   abilityCooldownMicros,
   abilityCastMicros,
-  enemyAbilityCastMicros,
-  enemyAbilityCooldownMicros,
   grantStarterItems,
   areLocationsConnected,
   sumCharacterEffect,
@@ -932,12 +924,10 @@ const reducerDeps = {
   ensureFoodItemTemplates,
   ensureLootTables,
   ensureVendorInventory,
-  ensureAbilityTemplates,
   ensureRecipeTemplates,
   ensureNpcs,
   ensureQuestTemplates,
   ensureEnemyTemplatesAndRoles,
-  ensureEnemyAbilities,
   ensureWorldLayout,
   ensureLocationEnemyTemplates,
   ensureLocationRuntimeBootstrap,

@@ -1,5 +1,4 @@
 import { buildDisplayName } from '../helpers/items';
-import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { getPerkBonusByField } from '../helpers/renown';
 import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
 
@@ -17,7 +16,6 @@ export const registerItemReducers = (deps: any) => {
     isArmorAllowedForClass,
     recomputeCharacterDerived,
     executeAbilityAction,
-    executePerkAbility,
     appendPrivateEvent,
     appendGroupEvent,
     abilityCooldownMicros,
@@ -25,7 +23,6 @@ export const registerItemReducers = (deps: any) => {
     activeCombatIdForCharacter,
     addItemToInventory,
     logPrivateAndGroup,
-    requirePullerOrLog,
     getInventorySlotCount,
     MAX_INVENTORY_SLOTS,
     ensureStarterItemTemplates,
@@ -611,7 +608,7 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer(
     'set_hotbar_slot',
-    { characterId: t.u64(), slot: t.u8(), abilityKey: t.string() },
+    { characterId: t.u64(), slot: t.u8(), abilityTemplateId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       if (args.slot < 1 || args.slot > 10) return failItem(ctx, character, 'Invalid hotbar slot');
@@ -619,23 +616,23 @@ export const registerItemReducers = (deps: any) => {
         (row) => row.slot === args.slot
       );
       if (existing) {
-        if (!args.abilityKey) {
+        if (!args.abilityTemplateId) {
           ctx.db.hotbar_slot.id.delete(existing.id);
           return;
         }
         ctx.db.hotbar_slot.id.update({
           ...existing,
-          abilityKey: args.abilityKey.trim(),
+          abilityTemplateId: args.abilityTemplateId,
           assignedAt: ctx.timestamp,
         });
         return;
       }
-      if (!args.abilityKey) return;
+      if (!args.abilityTemplateId) return;
       ctx.db.hotbar_slot.insert({
         id: 0n,
         characterId: character.id,
         slot: args.slot,
-        abilityKey: args.abilityKey.trim(),
+        abilityTemplateId: args.abilityTemplateId,
         assignedAt: ctx.timestamp,
       });
     }
@@ -643,78 +640,53 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer(
     'use_ability',
-    { characterId: t.u64(), abilityKey: t.string(), targetCharacterId: t.u64().optional() },
+    { characterId: t.u64(), abilityTemplateId: t.u64(), targetCharacterId: t.u64().optional() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       const _player = ctx.db.player.id.find(ctx.sender);
       if (_player) {
         ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
       }
-      const abilityKey = args.abilityKey.trim();
-      if (!abilityKey) return failItem(ctx, character, 'Ability required');
+      if (!args.abilityTemplateId) return failItem(ctx, character, 'Ability required');
+
+      // Look up ability by ID and validate ownership
+      const ability = ctx.db.ability_template.id.find(args.abilityTemplateId);
+      if (!ability) return failItem(ctx, character, 'Unknown ability');
+      if (ability.characterId !== character.id) return failItem(ctx, character, 'Ability not available');
+
       const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
       const existingCooldown = [...ctx.db.ability_cooldown.by_character.filter(character.id)].find(
-        (row) => row.abilityKey === abilityKey
+        (row) => row.abilityTemplateId === args.abilityTemplateId
       );
       if (existingCooldown && existingCooldown.startedAtMicros + existingCooldown.durationMicros > nowMicros) {
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'ability',
-          'Ability is on cooldown.'
-        );
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', 'Ability is on cooldown.');
         return;
       }
-      const abilityRow = [...ctx.db.ability_template.by_key.filter(abilityKey)][0];
-      const combatState = abilityRow?.combatState ?? 'any';
-      const castMicros = abilityCastMicros(ctx, abilityKey);
+
+      // Combat state checks: utility abilities only work out of combat
       const combatId = activeCombatIdForCharacter(ctx, character.id);
-      if (combatState === 'combat_only' && !combatId) {
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'ability',
-          'You must be engaged in battle to use this ability.'
-        );
+      if (ability.kind === 'utility' && combatId) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+          'This ability can only be used when you are at peace.');
         return;
       }
-      if (combatState === 'out_of_combat_only' && combatId) {
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'ability',
-          'This ability can only be used when you are at peace.'
-        );
-        return;
-      }
+
       if (combatId) {
         const participant = [...ctx.db.combat_participant.by_combat.filter(combatId)].find(
           (row) => row.characterId === character.id
         );
         if (!participant || participant.status !== 'active') {
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'ability',
-            'Cannot cast right now.'
-          );
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', 'Cannot cast right now.');
           return;
         }
       }
+
+      // Handle cast time
+      const castMicros = abilityCastMicros(ctx, args.abilityTemplateId);
       if (castMicros > 0n) {
         const existingCast = [...ctx.db.character_cast.by_character.filter(character.id)][0];
         if (existingCast && existingCast.endsAtMicros > nowMicros) {
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'ability',
-            'Already casting.'
-          );
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', 'Already casting.');
           return;
         }
         if (existingCast) {
@@ -723,103 +695,17 @@ export const registerItemReducers = (deps: any) => {
         ctx.db.character_cast.insert({
           id: 0n,
           characterId: character.id,
-          abilityKey,
+          abilityTemplateId: args.abilityTemplateId,
           targetCharacterId: args.targetCharacterId,
           endsAtMicros: nowMicros + castMicros,
         });
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'ability',
-          `Casting ${abilityKey.replace(/_/g, ' ')}...`
-        );
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+          `Casting ${ability.name}...`);
         return;
-      }
-      // Block ranger_track for non-pullers in groups
-      if (abilityKey === 'ranger_track') {
-        const pullerResult = requirePullerOrLog(ctx, character, fail, 'You must be the puller to use this ability.');
-        if (!pullerResult.ok) return;
-      }
-      // Route perk_ abilities to perk ability handler
-      if (abilityKey.startsWith('perk_')) {
-        try {
-          executePerkAbility(ctx, character, abilityKey);
-          // Record cooldown for perk ability using cooldownSeconds from perk data
-          // Look up perk cooldown from perk data
-          let perkCooldownMicros = 300_000_000n; // default 5 min
-          const perkRawKey = abilityKey.replace(/^perk_/, '');
-          for (const rankNum in RENOWN_PERK_POOLS) {
-            const pool = RENOWN_PERK_POOLS[Number(rankNum)];
-            const found = pool.find((p) => p.key === perkRawKey);
-            if (found && found.effect.cooldownSeconds) {
-              perkCooldownMicros = BigInt(found.effect.cooldownSeconds) * 1_000_000n;
-              break;
-            }
-          }
-          if (existingCooldown) {
-            ctx.db.ability_cooldown.id.update({
-              ...existingCooldown,
-              startedAtMicros: nowMicros,
-              durationMicros: perkCooldownMicros,
-            });
-          } else {
-            ctx.db.ability_cooldown.insert({
-              id: 0n,
-              characterId: character.id,
-              abilityKey,
-              startedAtMicros: nowMicros,
-              durationMicros: perkCooldownMicros,
-            });
-          }
-        } catch (error) {
-          const message = String(error).replace(/^SenderError:\s*/i, '');
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', 'Ability failed: ' + message);
-        }
-        return;
-      }
-
-      // Bard song turn-off: clicking the active song again stops it and applies a 6s cooldown
-      const BARD_SONG_KEYS = ['bard_discordant_note', 'bard_melody_of_mending', 'bard_chorus_of_vigor', 'bard_march_of_wayfarers', 'bard_requiem_of_ruin'];
-      if (BARD_SONG_KEYS.includes(abilityKey)) {
-        const activeSong = [...ctx.db.active_bard_song.by_bard.filter(character.id)].find((r: any) => !r.isFading);
-        if (activeSong && activeSong.songKey === abilityKey) {
-          ctx.db.active_bard_song.id.delete(activeSong.id);
-          const songDisplayNames: Record<string, string> = {
-            bard_discordant_note: 'Discordant Note',
-            bard_melody_of_mending: 'Melody of Mending',
-            bard_chorus_of_vigor: 'Chorus of Vigor',
-            bard_march_of_wayfarers: 'March of Wayfarers',
-            bard_requiem_of_ruin: 'Requiem of Ruin',
-          };
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
-            `You stop singing ${songDisplayNames[abilityKey] ?? abilityKey}.`
-          );
-          const offCooldownMicros = 3_000_000n;
-          if (existingCooldown) {
-            ctx.db.ability_cooldown.id.update({ ...existingCooldown, startedAtMicros: nowMicros, durationMicros: offCooldownMicros });
-          } else {
-            ctx.db.ability_cooldown.insert({ id: 0n, characterId: character.id, abilityKey, startedAtMicros: nowMicros, durationMicros: offCooldownMicros });
-          }
-          return;
-        }
-        // SWITCH: different song clicked while one is active — apply 3s cooldown to the old song
-        if (activeSong && activeSong.songKey !== abilityKey) {
-          const prevSongKey = activeSong.songKey;
-          const prevCooldown = [...ctx.db.ability_cooldown.by_character.filter(character.id)]
-            .find((r: any) => r.abilityKey === prevSongKey);
-          if (prevCooldown) {
-            ctx.db.ability_cooldown.id.update({ ...prevCooldown, startedAtMicros: nowMicros, durationMicros: 3_000_000n });
-          } else {
-            ctx.db.ability_cooldown.insert({ id: 0n, characterId: character.id, abilityKey: prevSongKey, startedAtMicros: nowMicros, durationMicros: 3_000_000n });
-          }
-          // Fall through to executeAbilityAction for the new song
-        }
       }
 
       try {
-        // Resolve target name and emit "You use" message BEFORE execution so it appears before damage in the log
-        const combatId = activeCombatIdForCharacter(ctx, character.id);
+        // Resolve target name and emit "You use" message BEFORE execution
         let targetName = args.targetCharacterId
           ? ctx.db.character.id.find(args.targetCharacterId)?.name ?? 'your target'
           : 'yourself';
@@ -834,21 +720,13 @@ export const registerItemReducers = (deps: any) => {
             targetName = template?.name ?? 'enemy';
           }
         }
-        const BARD_SONG_KEYS = ['bard_discordant_note', 'bard_melody_of_mending', 'bard_chorus_of_vigor', 'bard_march_of_wayfarers', 'bard_requiem_of_ruin'];
-        if (!BARD_SONG_KEYS.includes(abilityKey)) {
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'ability',
-            `You use ${abilityKey.replace(/_/g, ' ')} on ${targetName}.`
-          );
-        }
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+          `You use ${ability.name} on ${targetName}.`);
 
         const executed = executeAbilityAction(ctx, {
           actorType: 'character',
           actorId: character.id,
-          abilityKey,
+          abilityTemplateId: args.abilityTemplateId,
           targetCharacterId: args.targetCharacterId,
         });
         if (!executed) {
@@ -856,7 +734,7 @@ export const registerItemReducers = (deps: any) => {
           return;
         }
         // Apply cooldown only after ability completes successfully
-        const cooldown = abilityCooldownMicros(ctx, abilityKey);
+        const cooldown = abilityCooldownMicros(ctx, args.abilityTemplateId);
         if (cooldown > 0n) {
           if (existingCooldown) {
             ctx.db.ability_cooldown.id.update({
@@ -868,7 +746,7 @@ export const registerItemReducers = (deps: any) => {
             ctx.db.ability_cooldown.insert({
               id: 0n,
               characterId: character.id,
-              abilityKey,
+              abilityTemplateId: args.abilityTemplateId,
               startedAtMicros: nowMicros,
               durationMicros: cooldown,
             });
@@ -876,13 +754,8 @@ export const registerItemReducers = (deps: any) => {
         }
       } catch (error) {
         const message = String(error).replace(/^SenderError:\s*/i, '');
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'ability',
-          `Ability failed: ${message}`
-        );
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+          `Ability failed: ${message}`);
       }
     }
   );
