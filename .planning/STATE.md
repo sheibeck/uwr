@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 369: Fix double gathering messages
+Last activity: 2026-03-08 - Completed quick task 370: Replace LLM combat intro with static messages
 
 Progress: [█████████░] 88%
 
@@ -207,8 +207,9 @@ None yet.
 | 367 | Add gathering timer bar for gatherables | 2026-03-08 | 27852bf, 22d985c | [367-add-gathering-timer-bar-for-gatherables-](./quick/367-add-gathering-timer-bar-for-gatherables-/) |
 | 368 | Fix auto-attack damage and clarify combat messages | 2026-03-08 | ddc40d2 | [368-fix-autoattack-damage-and-clarify-combat](./quick/368-fix-autoattack-damage-and-clarify-combat/) |
 | 369 | Fix double gathering messages (deduplicate) | 2026-03-08 | 264eea2 | [369-fix-double-gathering-messages-deduplicat](./quick/369-fix-double-gathering-messages-deduplicat/) |
+| 370 | Replace LLM combat intro with static messages | 2026-03-08 | 4278a02 | [370-replace-llm-combat-intro-with-static-mes](./quick/370-replace-llm-combat-intro-with-static-mes/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T19:56:00Z
-Stopped at: Completed quick-369 (Fix double gathering messages)
+Last session: 2026-03-08T20:02:00Z
+Stopped at: Completed quick-370 (Replace LLM combat intro with static messages)
