@@ -1,19 +1,19 @@
 <template>
   <div
     :style="{
-      marginBottom: '2px',
-      marginTop: isCombatHeader ? '12px' : isRipple ? '4px' : '0',
+      marginBottom: isLook ? '8px' : '2px',
+      marginTop: isCombatHeader ? '12px' : isRipple ? '4px' : isLook ? '8px' : '0',
       lineHeight: '1.5',
       fontSize: isCombatHeader ? '1rem' : '0.9rem',
       color: kindColor,
       fontStyle: (isNarrative || isRipple || isCombatResolving) ? 'italic' : 'normal',
       fontWeight: isCombatHeader ? 'bold' : 'normal',
       fontFamily: isCombatStatus ? '&quot;Courier New&quot;, monospace' : 'inherit',
-      borderLeft: isRipple ? '3px solid #b197fc88' : isNarrative ? '2px solid #ffd43b33' : 'none',
-      paddingLeft: isRipple ? '10px' : isNarrative ? '8px' : '0',
-      paddingTop: isRipple ? '4px' : '0',
-      paddingBottom: isCombatHeader ? '6px' : isRipple ? '4px' : '0',
-      background: isRipple ? 'linear-gradient(90deg, rgba(177, 151, 252, 0.08) 0%, transparent 70%)' : 'none',
+      borderLeft: isRipple ? '3px solid #b197fc88' : isLook ? '2px solid #c8ccd044' : isNarrative ? '2px solid #ffd43b33' : 'none',
+      paddingLeft: isRipple ? '10px' : isLook ? '10px' : isNarrative ? '8px' : '0',
+      paddingTop: isRipple ? '4px' : isLook ? '4px' : '0',
+      paddingBottom: isCombatHeader ? '6px' : isRipple ? '4px' : isLook ? '4px' : '0',
+      background: isRipple ? 'linear-gradient(90deg, rgba(177, 151, 252, 0.08) 0%, transparent 70%)' : isLook ? 'linear-gradient(90deg, rgba(200, 204, 208, 0.06) 0%, transparent 70%)' : 'none',
       letterSpacing: isCombatHeader ? '2px' : isRipple ? '0.3px' : 'normal',
       textAlign: isCombatHeader ? 'center' : 'left',
       animation: isCombatResolving ? 'narrativePulse 1.5s ease-in-out infinite' : 'none',
@@ -88,6 +88,8 @@ const KIND_COLORS: Record<string, string> = {
 const kindColor = computed(() => KIND_COLORS[props.event.kind] ?? '#ced4da');
 
 const isRipple = computed(() => props.event.kind === 'world');
+
+const isLook = computed(() => props.event.kind === 'look');
 
 const isNarrative = computed(
   () => props.event.kind === 'narrative' || props.event.kind === 'llm' || props.event.kind === 'creation' || props.event.kind === 'combat_narration'
