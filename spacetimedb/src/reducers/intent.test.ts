@@ -9,6 +9,10 @@ vi.mock('../helpers/location', () => ({
   getWorldState: (ctx: any) => ctx.db.world_state.id.find(1n),
 }));
 
+vi.mock('../helpers/search', () => ({
+  performPassiveSearch: () => {},
+}));
+
 import { buildLookOutput } from './intent';
 
 // Mock db that simulates SpacetimeDB table operations

@@ -1,5 +1,6 @@
-import { getAffinityForNpc } from '../helpers/npc_affinity';
+import { getAffinityForNpc, awardNpcAffinity } from '../helpers/npc_affinity';
 import { getWorldState } from '../helpers/location';
+import { performPassiveSearch } from '../helpers/search';
 
 /**
  * Build the full LOOK output for a character at their current location.
@@ -101,6 +102,16 @@ export function buildLookOutput(ctx: any, character: any): string[] {
     parts.push(`\nResources: ${resourceParts.join(', ')}.`);
   }
 
+  // 7.5 Quest items (discovered but not yet looted)
+  const questItems = [...ctx.db.quest_item.by_location.filter(character.locationId)]
+    .filter((qi: any) => qi.characterId === character.id && qi.discovered && !qi.looted);
+  if (questItems.length > 0) {
+    const qiParts = questItems.map((qi: any) =>
+      `{{color:#fbbf24}}[Loot ${qi.name}]{{/color}}`
+    );
+    parts.push(`\nQuest items: ${qiParts.join(', ')}.`);
+  }
+
   // 8. Travel exits
   const connections = [...ctx.db.location_connection.by_from.filter(character.locationId)];
   const exitNames = connections
@@ -174,6 +185,7 @@ export const registerIntentReducers = (deps: any) => {
         '  [shop] — Browse a vendor\'s wares (at locations with a vendor).',
         '  [craft] — View and craft known recipes (at crafting stations).',
         '  [loot] — Check for lootable remains nearby.',
+        '  [quests] — View your active quests and progress.',
         '  deposit <item> — Deposit an item to your bank.',
         '  sell <item> — Sell an item to a vendor.',
         '  camp — Rest briefly.',
@@ -559,6 +571,157 @@ export const registerIntentReducers = (deps: any) => {
       return;
     }
 
+    // --- LOOT <item name> (quest items) ---
+    if (lower.startsWith('loot ')) {
+      const itemName = raw.substring(5).trim();
+      if (!itemName) return fail(ctx, character, 'Loot what?');
+
+      // Check for quest items at current location
+      const questItemsAtLoc = [...ctx.db.quest_item.by_location.filter(character.locationId)]
+        .filter((qi: any) => qi.characterId === character.id && qi.discovered && !qi.looted);
+      const match = questItemsAtLoc.find((qi: any) => qi.name.toLowerCase() === itemName.toLowerCase()
+        || qi.name.toLowerCase().includes(itemName.toLowerCase()));
+      if (match) {
+        // Mark as looted
+        ctx.db.quest_item.id.update({ ...match, looted: true });
+
+        // Find and update matching quest instance progress
+        for (const qi of ctx.db.quest_instance.by_character.filter(character.id)) {
+          if (qi.completed) continue;
+          if (qi.questTemplateId === match.questTemplateId) {
+            ctx.db.quest_instance.id.update({ ...qi, progress: 1n, completed: true });
+            const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
+            if (qt) {
+              const npc = ctx.db.npc.id.find(qt.npcId);
+              const giver = npc ? npc.name : 'the quest giver';
+              appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+                `Quest complete: ${qt.name}. Return to ${giver}.`);
+            }
+            break;
+          }
+        }
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest', `You found ${match.name}!`);
+        return;
+      }
+      // Fall through to fail
+      return fail(ctx, character, `Nothing called "${itemName}" to loot here.`);
+    }
+
+    // --- QUESTS ---
+    if (lower === 'quests' || lower === 'quest') {
+      const instances = [...ctx.db.quest_instance.by_character.filter(character.id)];
+      if (instances.length === 0) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          'You have no active quests. Speak with NPCs to discover what needs doing.');
+        return;
+      }
+
+      const questParts: string[] = [`Active Quests (${instances.length}/4):`];
+
+      for (const qi of instances) {
+        const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
+        if (!qt) continue;
+        const npc = ctx.db.npc.id.find(qt.npcId);
+        const giverName = npc ? npc.name : 'Unknown';
+        const location = npc ? ctx.db.location.id.find(npc.locationId) : null;
+        const locName = location ? location.name : 'Unknown';
+
+        // Quest type description
+        const typeDesc: Record<string, string> = {
+          kill: 'Slay', kill_loot: 'Hunt and collect', explore: 'Explore',
+          delivery: 'Deliver', boss_kill: 'Defeat', gather: 'Gather',
+          escort: 'Escort', interact: 'Interact', discover: 'Discover',
+        };
+        const verb = typeDesc[(qt.questType ?? 'kill')] || 'Complete';
+
+        const progressStr = `${qi.progress}/${qt.requiredCount}`;
+        let statusLine: string;
+        if (qi.completed) {
+          statusLine = `  {{color:#22c55e}}COMPLETE{{/color}} — Return to {{color:#da77f2}}[${giverName}]{{/color}} at ${locName} to {{color:#22c55e}}[Turn In ${qt.name}]{{/color}}`;
+        } else {
+          statusLine = `  ${verb}: ${progressStr}`;
+          if (qt.targetItemName) statusLine += ` (${qt.targetItemName})`;
+        }
+
+        questParts.push(`\n{{color:#fbbf24}}${qt.name}{{/color}}`);
+        if (qt.description) questParts.push(`  ${qt.description}`);
+        questParts.push(`  Given by: {{color:#da77f2}}[${giverName}]{{/color}} at ${locName}`);
+        questParts.push(statusLine);
+        questParts.push(`  {{color:#6b7280}}[Abandon ${qt.name}]{{/color}}`);
+      }
+
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', questParts.join('\n'));
+      return;
+    }
+
+    // --- TURN IN <quest name> ---
+    if (lower.startsWith('turn in ')) {
+      const questName = raw.substring(8).trim();
+      if (!questName) return fail(ctx, character, 'Turn in which quest?');
+
+      for (const qi of ctx.db.quest_instance.by_character.filter(character.id)) {
+        const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
+        if (!qt) continue;
+        if (qt.name.toLowerCase() !== questName.toLowerCase()) continue;
+        if (!qi.completed) {
+          return fail(ctx, character, `"${qt.name}" is not yet complete.`);
+        }
+        // Check if character is at the NPC's location
+        const npc = ctx.db.npc.id.find(qt.npcId);
+        if (npc && npc.locationId !== character.locationId) {
+          return fail(ctx, character, `You must return to ${npc.name} at ${ctx.db.location.id.find(npc.locationId)?.name || 'their location'} to turn in this quest.`);
+        }
+
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+          `You present your completed quest "${qt.name}" to ${npc?.name || 'the quest giver'}.`);
+
+        // Award XP
+        const xpReward = qt.rewardXp || 0n;
+        if (xpReward > 0n) {
+          const freshChar = ctx.db.character.id.find(character.id)!;
+          ctx.db.character.id.update({ ...freshChar, xp: freshChar.xp + xpReward });
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+            `Quest "${qt.name}" complete! +${xpReward} XP`);
+        }
+        // Award gold
+        const goldReward = qt.rewardGold || 0n;
+        if (goldReward > 0n) {
+          const freshChar2 = ctx.db.character.id.find(character.id)!;
+          ctx.db.character.id.update({ ...freshChar2, gold: freshChar2.gold + goldReward });
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest', `+${goldReward} gold from quest reward.`);
+        }
+        // Award NPC affinity
+        if (qt.npcId) {
+          awardNpcAffinity(ctx, ctx.db.character.id.find(character.id)!, qt.npcId, 10n);
+        }
+        // Delete quest instance
+        ctx.db.quest_instance.id.delete(qi.id);
+        return;
+      }
+      return fail(ctx, character, `No quest found called "${questName}".`);
+    }
+
+    // --- ABANDON <quest name> ---
+    if (lower.startsWith('abandon ')) {
+      const questName = raw.substring(8).trim();
+      if (!questName) return fail(ctx, character, 'Abandon which quest?');
+
+      for (const qi of ctx.db.quest_instance.by_character.filter(character.id)) {
+        const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
+        if (!qt) continue;
+        if (qt.name.toLowerCase() !== questName.toLowerCase()) continue;
+
+        ctx.db.quest_instance.id.delete(qi.id);
+        if (qt.npcId) {
+          awardNpcAffinity(ctx, character, qt.npcId, -3n);
+        }
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+          `Quest abandoned: ${qt.name}. This quest may never be offered again.`);
+        return;
+      }
+      return fail(ctx, character, `No quest found called "${questName}".`);
+    }
+
     // --- DEPOSIT [item] ---
     if (lower.startsWith('deposit ')) {
       const itemNameTarget = raw.substring(8).trim();
@@ -833,6 +996,9 @@ export const registerIntentReducers = (deps: any) => {
       appendLocationEvent(ctx, originId, 'move', `${character.name} departs.`, character.id);
       appendLocationEvent(ctx, matchedLocation.id, 'move', `${character.name} arrives.`, character.id);
 
+      // Spawn personal resource nodes + quest items at destination
+      performPassiveSearch(ctx, character, matchedLocation.id, appendPrivateEvent);
+
       // Auto-look: show full location overview after travel
       const arrivedChar = ctx.db.character.id.find(character.id);
       if (arrivedChar) {
@@ -1047,6 +1213,19 @@ export const registerIntentReducers = (deps: any) => {
         `You travel to ${implicitDest.name}. ${implicitDest.description}`);
       appendLocationEvent(ctx, originId, 'move', `${character.name} departs.`, character.id);
       appendLocationEvent(ctx, implicitDest.id, 'move', `${character.name} arrives.`, character.id);
+
+      // Spawn personal resource nodes + quest items at destination
+      performPassiveSearch(ctx, character, implicitDest.id, appendPrivateEvent);
+
+      // Auto-look after implicit travel
+      const arrivedImplicit = ctx.db.character.id.find(character.id);
+      if (arrivedImplicit) {
+        const lookParts = buildLookOutput(ctx, arrivedImplicit);
+        if (lookParts.length > 0) {
+          appendPrivateEvent(ctx, arrivedImplicit.id, arrivedImplicit.ownerUserId, 'look', lookParts.join('\n'));
+        }
+      }
+
       if (implicitDest.terrainType === 'uncharted') {
         const existingGen = [...ctx.db.world_gen_state.by_source_location.filter(implicitDest.id)]
           .find((s: any) => s.step !== 'ERROR');
