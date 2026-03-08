@@ -1518,7 +1518,91 @@ const onCreationSubmit = (text: string) => {
     }
   }
 
-  // 4. Everything else — delegate to the same handler typed input uses
+  // 5. Inventory action keywords (from clicking options in inventory/backpack output)
+  if (kwLower.startsWith('unequip ')) {
+    const itemName = kw.substring(8).trim();
+    const slot = equippedSlots.value.find(
+      (s: any) => s.name !== 'Empty' && s.name.toLowerCase() === itemName.toLowerCase()
+    );
+    if (slot) {
+      unequipItem(slot.slot);
+      addLocalEvent('system', `You unequip ${slot.name}.`, 'private');
+      return;
+    }
+  }
+  if (kwLower.startsWith('equip ')) {
+    const itemName = kw.substring(6).trim();
+    const item = inventoryItems.value.find(
+      (i: any) => i.name.toLowerCase() === itemName.toLowerCase()
+    );
+    if (item && item.equipable) {
+      equipItem(item.instanceId);
+      addLocalEvent('system', `You equip ${item.name}.`, 'private');
+      return;
+    }
+  }
+  if (kwLower.startsWith('bank ')) {
+    const itemName = kw.substring(5).trim();
+    const item = inventoryItems.value.find(
+      (i: any) => i.name.toLowerCase() === itemName.toLowerCase()
+    );
+    if (item) {
+      depositToBank(item.instanceId);
+      addLocalEvent('system', `You deposit ${item.name} to your bank.`, 'private');
+      return;
+    }
+  }
+  if (kwLower.startsWith('use ')) {
+    const itemName = kw.substring(4).trim();
+    const item = inventoryItems.value.find(
+      (i: any) => i.name.toLowerCase() === itemName.toLowerCase()
+    );
+    if (item) {
+      if (item.eatable) {
+        eatFood(item.instanceId);
+      } else if (item.usable) {
+        useItem(item.instanceId);
+      }
+      addLocalEvent('system', `You use ${item.name}.`, 'private');
+      return;
+    }
+  }
+
+  // 6. Inventory item name click — show unequip confirmation for equipped items
+  const clickedEquipped = equippedSlots.value.find(
+    (s: any) => s.name !== 'Empty' && s.name.toLowerCase() === kwLower
+  );
+  if (clickedEquipped) {
+    addLocalEvent('system', `Unequip ${clickedEquipped.name}? Click [Unequip ${clickedEquipped.name}] to confirm.`, 'private');
+    return;
+  }
+
+  // 7. Backpack item name click — show context-aware options
+  const clickedBackpack = inventoryItems.value.find(
+    (i: any) => i.name.toLowerCase() === kwLower
+  );
+  if (clickedBackpack) {
+    const options: string[] = [];
+    if (clickedBackpack.equipable) {
+      options.push(`[Equip ${clickedBackpack.name}]`);
+    }
+    // Check for banker NPC at current location
+    const hasBanker = npcsHere.value?.some((npc: any) => npc.npcType === 'banker');
+    if (hasBanker) {
+      options.push(`[Bank ${clickedBackpack.name}]`);
+    }
+    if (clickedBackpack.usable || clickedBackpack.eatable) {
+      options.push(`[Use ${clickedBackpack.name}]`);
+    }
+    if (options.length > 0) {
+      addLocalEvent('system', `${clickedBackpack.name}: ${options.join('  ')}`, 'private');
+    } else {
+      addLocalEvent('system', `${clickedBackpack.name} — no actions available.`, 'private');
+    }
+    return;
+  }
+
+  // 8. Everything else — delegate to the same handler typed input uses
   onNarrativeSubmit(keyword);
 };
 
