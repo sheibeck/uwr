@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 374: Quest abandonment confirmation with NPC warning
+Last activity: 2026-03-08 - Completed quick task 375: Fix combat ability list display and damage logging
 
 Progress: [█████████░] 88%
 
@@ -212,8 +212,9 @@ None yet.
 | 372 | Auto-end NPC conversation on game actions | 2026-03-08 | 5301c54 | [372-auto-end-npc-conversation-when-clicking-](./quick/372-auto-end-npc-conversation-when-clicking-/) |
 | 373 | Add sourceLocationId to delivery quests | 2026-03-08 | 9322810, a2e32b3 | [373-add-sourcelocationid-to-delivery-quests-](./quick/373-add-sourcelocationid-to-delivery-quests-/) |
 | 374 | Quest abandonment confirmation with NPC warning | 2026-03-08 | 155400d | [374-quest-abandonment-confirmation-with-npc-](./quick/374-quest-abandonment-confirmation-with-npc-/) |
+| 375 | Fix combat ability list display and damage logging | 2026-03-08 | f028d50, 3be2806 | [375-fix-combat-ability-list-display-and-dama](./quick/375-fix-combat-ability-list-display-and-dama/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T20:40:00Z
-Stopped at: Completed quick-374 (Quest abandonment confirmation with NPC warning)
+Last session: 2026-03-08T20:48:00Z
+Stopped at: Completed quick-375 (Fix combat ability list display and damage logging)
