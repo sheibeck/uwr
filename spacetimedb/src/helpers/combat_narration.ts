@@ -90,6 +90,9 @@ export function shouldNarrateRound(
 /**
  * Attempt to trigger LLM narration for a combat round.
  * Handles budget rotation, qualification check, and LlmTask creation.
+ *
+ * Budget is charged once per combat (on intro only). Outro narration
+ * (victory/defeat) is free — it still checks budget but does not decrement it.
  */
 export function triggerCombatNarration(
   ctx: any,
@@ -138,8 +141,10 @@ export function triggerCombatNarration(
 
   if (!budget.allowed) return;
 
-  // Increment budget for the charged player
-  incrementBudget(ctx, chargedPlayerIdentity);
+  // Only charge budget for intro narration (1 credit per combat, not 2)
+  if (events.narrativeType === 'intro') {
+    incrementBudget(ctx, chargedPlayerIdentity);
+  }
 
   // Build context for the system prompt
   const contextParts: string[] = [];
