@@ -3,8 +3,8 @@
     <!-- Flee button -->
     <button
       type="button"
-      :disabled="isCastingAny || hasSubmittedAction"
-      :style="[btnBase, fleeBtnStyle, (isCastingAny || hasSubmittedAction) ? btnDisabled : {}]"
+      :disabled="isCastingAny"
+      :style="[btnBase, fleeBtnStyle, isCastingAny ? btnDisabled : {}]"
       @click="$emit('flee')"
     >Flee</button>
 
@@ -13,12 +13,12 @@
       v-for="ability in abilities"
       :key="String(ability.id)"
       type="button"
-      :disabled="isCastingAny || ability.isOnCooldown || hasSubmittedAction"
+      :disabled="isCastingAny || ability.isOnCooldown"
       :style="[
         btnBase,
         isCastingAny && castingAbilityId === ability.id ? btnCasting : {},
         ability.isOnCooldown ? btnCooldown : {},
-        (isCastingAny || ability.isOnCooldown || hasSubmittedAction) ? btnDisabled : {},
+        (isCastingAny || ability.isOnCooldown) ? btnDisabled : {},
       ]"
       @click="$emit('use-ability', ability.id)"
     >
@@ -44,17 +44,6 @@
 
     <!-- Spacer -->
     <div :style="{ flex: 1 }" />
-
-    <!-- Round timer / submitted status -->
-    <div v-if="hasSubmittedAction" :style="statusTextStyle">
-      Action locked in...
-    </div>
-    <div
-      v-else-if="roundState === 'action_select' && roundTimeRemaining > 0"
-      :style="[timerStyle, roundTimeRemaining <= 3 ? timerPulseStyle : {}]"
-    >
-      {{ roundTimeRemaining }}s
-    </div>
   </div>
 </template>
 
@@ -77,9 +66,6 @@ const props = defineProps<{
   abilities: CombatAbility[];
   castingAbilityId: bigint | null;
   castProgress: number;
-  roundTimeRemaining: number;
-  roundState: string | null;
-  hasSubmittedAction: boolean;
 }>();
 
 defineEmits<{
@@ -172,23 +158,4 @@ const cooldownNumStyle = {
   zIndex: 2,
 };
 
-const statusTextStyle = {
-  color: '#69db7c',
-  fontSize: '0.75rem',
-  fontStyle: 'italic' as const,
-  whiteSpace: 'nowrap' as const,
-};
-
-const timerStyle = {
-  color: '#ffd43b',
-  fontSize: '0.9rem',
-  fontWeight: 'bold' as const,
-  fontFamily: "'Courier New', monospace",
-  whiteSpace: 'nowrap' as const,
-};
-
-const timerPulseStyle = {
-  color: '#ff6b6b',
-  animation: 'narrativePulse 0.5s ease-in-out infinite',
-};
 </script>

@@ -29,17 +29,6 @@
         />
       </template>
 
-      <!-- Combat round timer / status indicators -->
-      <div v-if="roundState === 'action_select' && !hasSubmittedAction && (roundTimeRemaining ?? 0) > 0" :style="timerStyle">
-        {{ roundTimeRemaining }}s
-      </div>
-      <div v-else-if="hasSubmittedAction && roundState === 'action_select'" :style="submittedStyle">
-        Action locked in. Awaiting resolution...
-      </div>
-      <div v-else-if="roundState === 'resolving'" :style="resolvingStyle">
-        Round resolving...
-      </div>
-
       <!-- LLM processing indicator -->
       <div v-if="isLlmProcessing" :style="consideringStyle">
         The System is considering your fate...
@@ -64,9 +53,6 @@
       :combat-enemies="combatEnemies"
       :casting-ability-id="castingAbilityId"
       :cast-progress="castProgress"
-      :round-time-remaining="roundTimeRemaining ?? 0"
-      :round-state="roundState ?? null"
-      :has-submitted-action="hasSubmittedAction ?? false"
       @submit="$emit('submit', $event)"
       @skip-animation="onSkipAnimation"
       @flee="$emit('flee')"
@@ -103,9 +89,6 @@ const props = defineProps<{
   formatTimestamp: (ts: { microsSinceUnixEpoch: bigint }) => string;
   creationMode?: boolean;
   hasPendingSkills?: boolean;
-  roundTimeRemaining?: number;
-  roundState?: string | null;
-  hasSubmittedAction?: boolean;
   isInCombat?: boolean;
   combatAbilities?: any[];
   combatEnemies?: any[];
@@ -216,28 +199,6 @@ const emptyStyle = {
 };
 
 const consideringStyle = {
-  color: '#ffd43b',
-  fontStyle: 'italic',
-  padding: '4px 0',
-  animation: 'narrativePulse 1.5s ease-in-out infinite',
-};
-
-const timerStyle = computed(() => ({
-  color: (props.roundTimeRemaining ?? 0) <= 3 ? '#ff6b6b' : '#ffd43b',
-  fontSize: '1.1rem',
-  fontWeight: 'bold',
-  padding: '4px 0',
-  fontFamily: "'Courier New', monospace",
-  animation: (props.roundTimeRemaining ?? 0) <= 3 ? 'narrativePulse 0.5s ease-in-out infinite' : 'none',
-}));
-
-const submittedStyle = {
-  color: '#69db7c',
-  fontStyle: 'italic',
-  padding: '4px 0',
-};
-
-const resolvingStyle = {
   color: '#ffd43b',
   fontStyle: 'italic',
   padding: '4px 0',

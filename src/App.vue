@@ -65,9 +65,6 @@
       :is-llm-processing="isNarrativeLlmProcessing"
       :format-timestamp="formatTimestamp"
       :has-pending-skills="hasPendingSkills"
-      :round-time-remaining="roundTimeRemaining"
-      :round-state="roundState"
-      :has-submitted-action="hasSubmittedAction"
       :is-in-combat="isInCombat"
       :combat-abilities="combatAbilitiesForBar"
       :combat-enemies="combatEnemiesList"
@@ -981,22 +978,8 @@ const {
   takeLoot,
   takeAllLoot,
   dismissResults,
-  submitAction,
-  submitAbility,
-  submitAutoAttack,
-  submitFlee,
-  currentRound,
-  roundState,
-  myAction,
-  hasSubmittedAction,
-  roundTimeRemaining,
+  useAbilityRealtime,
   isInCombat,
-  actionPromptMessage,
-  roundSummaryMessage,
-  combatStatusMessage,
-  roundHeaderMessage,
-  roundEndMessage,
-  actionPromptData,
 } = useCombat({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
@@ -1019,9 +1002,6 @@ const {
   nowMicros,
   characters,
   factions,
-  combatRounds,
-  combatActions,
-  combatNarratives,
   hotbarSlots,
   abilityTemplates,
   abilityCooldowns,
@@ -1039,75 +1019,7 @@ const {
   combatRoster,
 });
 
-// Phase-aware combat event injection into narrative stream
-const lastInjectedRoundStart = ref<string | null>(null);
-const lastInjectedSubmit = ref<string | null>(null);
-
-// Round START: when action_select begins for a new round
-watch([roundState, currentRound], ([state, round]) => {
-  if (state !== 'action_select' || !round) return;
-  const roundKey = `${round.roundNumber}-${activeCombat.value?.id}`;
-  if (lastInjectedRoundStart.value === roundKey) return;
-  lastInjectedRoundStart.value = roundKey;
-
-  const roundNum = Number(round.roundNumber ?? 0);
-
-  // Round header
-  if (roundHeaderMessage.value) {
-    addLocalEvent('combat_round_header', roundHeaderMessage.value, 'private');
-  }
-  // Status bars every round start
-  if (combatStatusMessage.value) {
-    addLocalEvent('combat_status', combatStatusMessage.value, 'private');
-  }
-  // Action prompt removed — CombatActionBar handles this visually now
-});
-
-// Action submitted feedback
-watch(hasSubmittedAction, (submitted) => {
-  if (!submitted || !currentRound.value) return;
-  const roundKey = `${currentRound.value.roundNumber}-${activeCombat.value?.id}`;
-  if (lastInjectedSubmit.value === roundKey) return;
-  lastInjectedSubmit.value = roundKey;
-  const actionDesc = myAction.value?.actionType === 'flee' ? 'Flee' :
-    myAction.value?.actionType === 'ability' ? 'Ability' : 'Action';
-  addLocalEvent('combat_status', `${actionDesc} submitted.`, 'private');
-});
-
-// Round RESOLVED: show summary bars + round end marker
-watch(roundState, (state) => {
-  if (state === 'resolved' && roundSummaryMessage.value) {
-    addLocalEvent('combat_status', roundSummaryMessage.value, 'private');
-  }
-  if (state === 'resolved' && roundEndMessage.value) {
-    addLocalEvent('combat_round_header', roundEndMessage.value, 'private');
-  }
-});
-
-// Combat START: inject initial header + bars
-watch(() => activeCombat.value?.id?.toString(), (newId, oldId) => {
-  if (newId && newId !== oldId) {
-    lastInjectedRoundStart.value = null;
-    lastInjectedSubmit.value = null;
-    setTimeout(() => {
-      // Inject combat start header if no round yet
-      if (!currentRound.value && combatStatusMessage.value) {
-        addLocalEvent('combat_round_header', '\u2550\u2550\u2550 COMBAT BEGINS \u2550\u2550\u2550', 'private');
-        addLocalEvent('combat_status', combatStatusMessage.value, 'private');
-      }
-    }, 500);
-  }
-  lastInjectedRoundStart.value = null;
-  lastInjectedSubmit.value = null;
-});
-
-// Combat END: clean up tracking refs (narration or system message serves as ending)
-watch(() => activeCombat.value, (combat, oldCombat) => {
-  if (!combat && oldCombat) {
-    lastInjectedRoundStart.value = null;
-    lastInjectedSubmit.value = null;
-  }
-});
+// (Round-based combat event injection removed -- real-time combat has no round UI)
 
 const showDeathModal = computed(() => {
   return Boolean(selectedCharacter.value && selectedCharacter.value.hp === 0n && !activeCombat.value);
@@ -1526,11 +1438,11 @@ const onCreationSubmit = (text: string) => {
     }
   }
 
-  // Round-based combat actions (only when in combat and action_select phase)
-  if (isInCombat.value && roundState.value === 'action_select' && !hasSubmittedAction.value) {
+  // Real-time combat actions (when in combat)
+  if (isInCombat.value) {
     // Flee
     if (kwLower === 'flee') {
-      submitFlee();
+      flee();
       return;
     }
     // Ability name match — check all character abilities
@@ -1540,7 +1452,7 @@ const onCreationSubmit = (text: string) => {
     );
     if (charAbility) {
       const enemy = combatEnemiesList.value.find((e: any) => e.hp > 0n);
-      if (enemy) submitAbility(charAbility.id, enemy.id);
+      if (enemy) useAbilityRealtime(charAbility.id, enemy.id);
       return;
     }
     // Enemy name match — set as target (for future ability usage)
@@ -2248,7 +2160,7 @@ const combatAbilitiesForBar = computed(() => {
 // Combat action bar event handlers
 const onCombatFlee = () => {
   if (!isInCombat.value) return;
-  submitFlee();
+  flee();
 };
 
 const onCombatUseAbility = (abilityId: bigint) => {
@@ -2260,7 +2172,7 @@ const onCombatUseAbility = (abilityId: bigint) => {
     : null;
   const enemy = targeted ?? combatEnemiesList.value.find((e: any) => e.hp > 0n);
   if (enemy) {
-    submitAbility(abilityId, enemy.id);
+    useAbilityRealtime(abilityId, enemy.id);
   }
 };
 

@@ -10,9 +10,6 @@
         :abilities="combatAbilities"
         :casting-ability-id="castingAbilityId"
         :cast-progress="castProgress"
-        :round-time-remaining="roundTimeRemaining"
-        :round-state="roundState"
-        :has-submitted-action="hasSubmittedAction"
         @flee="$emit('flee')"
         @use-ability="(id: bigint) => $emit('use-ability', id)"
       />
@@ -112,9 +109,6 @@ const props = withDefaults(defineProps<{
   combatEnemies?: CombatEnemyEntry[];
   castingAbilityId?: bigint | null;
   castProgress?: number;
-  roundTimeRemaining?: number;
-  roundState?: string | null;
-  hasSubmittedAction?: boolean;
 }>(), {
   placeholder: 'What do you do?',
   isInCombat: false,
@@ -122,9 +116,6 @@ const props = withDefaults(defineProps<{
   combatEnemies: () => [],
   castingAbilityId: null,
   castProgress: 0,
-  roundTimeRemaining: 0,
-  roundState: null,
-  hasSubmittedAction: false,
 });
 
 const emit = defineEmits<{

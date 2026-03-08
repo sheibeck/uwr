@@ -1,4 +1,4 @@
-import { computed, ref, watch, onUnmounted, type Ref } from 'vue';
+import { computed, watch, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
 import type {
   Character,
@@ -80,10 +80,6 @@ type UseCombatArgs = {
   nowMicros: Ref<number>;
   characters: Ref<Character[]>;
   factions: Ref<Faction[]>;
-  // Round-based combat tables
-  combatRounds: Ref<any[]>;
-  combatActions: Ref<any[]>;
-  combatNarratives: Ref<any[]>;  // Reserved for narrative rendering in NarrativeConsole
   hotbarSlots: Ref<HotbarSlot[]>;
   abilityTemplates: Ref<AbilityTemplate[]>;
   abilityCooldowns: Ref<AbilityCooldown[]>;
@@ -136,9 +132,6 @@ export const useCombat = ({
   nowMicros,
   characters,
   factions,
-  combatRounds,
-  combatActions,
-  combatNarratives: _combatNarratives, // eslint-disable-line @typescript-eslint/no-unused-vars
   hotbarSlots,
   abilityTemplates,
   abilityCooldowns,
@@ -160,7 +153,7 @@ export const useCombat = ({
   const dismissResultsReducer = useReducer(reducers.dismissCombatResults);
   const takeLootReducer = useReducer(reducers.takeLoot);
   const takeAllLootReducer = useReducer(reducers.takeAllLoot);
-  const submitCombatActionReducer = useReducer(reducers.submitCombatAction);
+  const useAbilityRealtimeReducer = useReducer(reducers.useAbilityRealtime);
 
   // ---- Core combat state ----
 
@@ -184,297 +177,18 @@ export const useCombat = ({
     return activeCombat.value.state === 'active';
   });
 
-  // ---- Round-based combat state ----
+  // ---- Real-time ability use ----
 
-  const currentRound = computed(() => {
-    if (!activeCombat.value) return null;
-    const combatId = activeCombat.value.id.toString();
-    const rounds = combatRounds.value.filter(
-      (r: any) => r.combatId.toString() === combatId
-    );
-    if (rounds.length === 0) return null;
-    // Find the non-resolved round, or the highest round number
-    const active = rounds.find((r: any) => r.state !== 'resolved');
-    if (active) return active;
-    return rounds.reduce((latest: any, current: any) =>
-      Number(current.roundNumber) > Number(latest.roundNumber) ? current : latest
-    );
-  });
-
-  const roundState = computed<string | null>(() => {
-    return currentRound.value?.state ?? null;
-  });
-
-  const myAction = computed(() => {
-    if (!activeCombat.value || !selectedCharacter.value || !currentRound.value) return null;
-    const combatId = activeCombat.value.id.toString();
-    const charId = selectedCharacter.value.id.toString();
-    const roundNum = currentRound.value.roundNumber.toString();
-    return combatActions.value.find(
-      (a: any) =>
-        a.combatId.toString() === combatId &&
-        a.characterId.toString() === charId &&
-        a.roundNumber.toString() === roundNum
-    ) ?? null;
-  });
-
-  const hasSubmittedAction = computed(() => myAction.value !== null);
-
-  // Round timer countdown using requestAnimationFrame
-  const roundTimeRemaining = ref(0);
-  let rafId: number | null = null;
-
-  const updateTimer = () => {
-    if (!currentRound.value || roundState.value !== 'action_select') {
-      roundTimeRemaining.value = 0;
-      rafId = requestAnimationFrame(updateTimer);
-      return;
-    }
-    const expiresAtMicros = Number(currentRound.value.timerExpiresAtMicros);
-    const nowUs = Date.now() * 1000;
-    const remainingUs = expiresAtMicros - nowUs;
-    roundTimeRemaining.value = Math.max(0, Math.round(remainingUs / 1_000_000));
-    rafId = requestAnimationFrame(updateTimer);
-  };
-
-  // Start/stop timer loop based on combat state
-  watch(
-    () => activeCombat.value?.id?.toString() ?? null,
-    (id) => {
-      if (id && !rafId) {
-        rafId = requestAnimationFrame(updateTimer);
-      } else if (!id && rafId) {
-        cancelAnimationFrame(rafId);
-        rafId = null;
-        roundTimeRemaining.value = 0;
-      }
-    },
-    { immediate: true }
-  );
-
-  onUnmounted(() => {
-    if (rafId) cancelAnimationFrame(rafId);
-  });
-
-  // ---- Action submission functions ----
-
-  const submitAction = (
-    actionType: string,
-    abilityTemplateId?: bigint,
-    targetEnemyId?: bigint,
-    targetCharacterId?: bigint
-  ) => {
+  const useAbilityRealtime = (abilityTemplateId: bigint, targetEnemyId?: bigint) => {
     if (!connActive.value || !selectedCharacter.value) return;
-    submitCombatActionReducer({
+    useAbilityRealtimeReducer({
       characterId: selectedCharacter.value.id,
-      actionType,
-      abilityTemplateId: abilityTemplateId ?? undefined,
-      targetEnemyId: targetEnemyId ?? undefined,
-      targetCharacterId: targetCharacterId ?? undefined,
+      abilityTemplateId,
+      targetEnemyId: targetEnemyId ?? activeEnemy.value?.id ?? undefined,
     });
   };
 
-  const submitAbility = (abilityTemplateId: bigint, targetEnemyId: bigint) => {
-    submitAction('ability', abilityTemplateId, targetEnemyId);
-  };
-
-  const submitFlee = () => {
-    submitAction('flee');
-  };
-
-  // ---- Action prompt building ----
-
-  const actionPromptMessage = computed<string | null>(() => {
-    if (!activeCombat.value || roundState.value !== 'action_select' || hasSubmittedAction.value) {
-      return null;
-    }
-    const charId = selectedCharacter.value?.id;
-    if (!charId) return null;
-
-    const lines: string[] = [];
-    lines.push('Choose your action (auto-attack is automatic):');
-    lines.push('');
-
-    // Character abilities (all known abilities, not just hotbar)
-    const charAbilities = abilityTemplates.value.filter(
-      (t) => t.characterId?.toString() === charId.toString()
-    );
-    for (const template of charAbilities) {
-      const cooldown = abilityCooldowns.value.find(
-        (c) =>
-          c.characterId?.toString() === charId.toString() &&
-          c.abilityTemplateId.toString() === template.id.toString()
-      );
-      const cdRemaining = cooldown
-        ? Math.max(0, Math.ceil((Number(cooldown.startedAtMicros) + Number(cooldown.durationMicros) - nowMicros.value) / 1_000_000))
-        : 0;
-      const manaCost = template.resourceCost ? ` (${template.resourceCost} ${template.resourceType ?? 'mana'})` : '';
-      if (cdRemaining > 0) {
-        lines.push(`  ~~${template.name}~~ (${cdRemaining}s)${manaCost}`);
-      } else {
-        lines.push(`  [${template.name}]${manaCost}`);
-      }
-    }
-
-    lines.push(`  [Flee]`);
-    lines.push('');
-
-    // Target list: living enemies
-    const combatId = activeCombat.value.id.toString();
-    const livingEnemies = combatEnemies.value.filter(
-      (e) => e.combatId.toString() === combatId && e.currentHp > 0n
-    );
-    if (livingEnemies.length > 0) {
-      lines.push('Targets:');
-      for (const enemy of livingEnemies) {
-        const template = enemyTemplates.value.find(
-          (t) => t.id.toString() === enemy.enemyTemplateId.toString()
-        );
-        const name = enemy.displayName ?? template?.name ?? 'Enemy';
-        const level = template?.level ?? 1n;
-        lines.push(`  [${name}] (L${level})`);
-      }
-    }
-
-    return lines.join('\n');
-  });
-
-  // ---- Round summary building ----
-
-  const roundSummaryMessage = computed<string | null>(() => {
-    if (!activeCombat.value) return null;
-    // Build summary after a round resolves
-    const round = currentRound.value;
-    if (!round || round.state !== 'resolved') return null;
-
-    const combatId = activeCombat.value.id.toString();
-    const BAR_WIDTH = 18;
-    const lines: string[] = [];
-    lines.push(`--- Round ${round.roundNumber} Results ---`);
-
-    // Enemy HP bars
-    const enemies = combatEnemies.value.filter(
-      (e) => e.combatId.toString() === combatId
-    );
-    for (const enemy of enemies) {
-      const template = enemyTemplates.value.find(
-        (t) => t.id.toString() === enemy.enemyTemplateId.toString()
-      );
-      const name = enemy.displayName ?? template?.name ?? 'Enemy';
-      const level = template?.level ?? 1n;
-      const hp = Number(enemy.currentHp);
-      const maxHp = Number(enemy.maxHp);
-      const pct = maxHp > 0 ? hp / maxHp : 0;
-      const filled = Math.round(pct * BAR_WIDTH);
-      const empty = BAR_WIDTH - filled;
-      const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty);
-      const color = pct > 0.5 ? '#69db7c' : pct > 0.25 ? '#ffd43b' : '#ff6b6b';
-      lines.push(`{{color:${color}}}${bar}{{/color}} ${hp}/${maxHp} HP  [${name}] (L${level})`);
-    }
-
-    lines.push('---');
-
-    // Player HP bars
-    const roster = combatParticipants.value.filter(
-      (p) => p.combatId.toString() === combatId
-    );
-    const myCharId = selectedCharacter.value?.id?.toString();
-    for (const participant of roster) {
-      const character = characters.value.find(
-        (c) => c.id.toString() === participant.characterId.toString()
-      );
-      if (!character) continue;
-      const hp = Number(character.hp);
-      const maxHp = Number(character.maxHp);
-      const pct = maxHp > 0 ? hp / maxHp : 0;
-      const filled = Math.round(pct * BAR_WIDTH);
-      const empty = BAR_WIDTH - filled;
-      const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty);
-      const color = pct > 0.5 ? '#69db7c' : pct > 0.25 ? '#ffd43b' : '#ff6b6b';
-      const isYou = character.id.toString() === myCharId;
-      const nameDisplay = isYou ? character.name : `[${character.name}]`;
-      lines.push(`{{color:${color}}}${bar}{{/color}} ${hp}/${maxHp} HP  ${nameDisplay}`);
-
-      // Mana bar for characters with mana > 0
-      const mana = Number(character.mana ?? 0n);
-      const maxMana = Number(character.maxMana ?? 1n);
-      if (maxMana > 1 && mana >= 0) {
-        const manaPct = maxMana > 0 ? mana / maxMana : 0;
-        const manaFilled = Math.round(manaPct * BAR_WIDTH);
-        const manaEmpty = BAR_WIDTH - manaFilled;
-        const manaBar = '\u2588'.repeat(manaFilled) + '\u2591'.repeat(manaEmpty);
-        lines.push(`{{color:#4dabf7}}${manaBar}{{/color}} ${mana}/${maxMana} MP`);
-      }
-    }
-
-    return lines.join('\n');
-  });
-
-  // Current HP status bars (for combat start, before any round resolves)
-  const combatStatusMessage = computed<string | null>(() => {
-    if (!activeCombat.value) return null;
-    const combatId = activeCombat.value.id.toString();
-    const BAR_WIDTH = 18;
-    const lines: string[] = [];
-
-    // Enemy HP bars
-    const enemies = combatEnemies.value.filter(
-      (e) => e.combatId.toString() === combatId
-    );
-    for (const enemy of enemies) {
-      const template = enemyTemplates.value.find(
-        (t) => t.id.toString() === enemy.enemyTemplateId.toString()
-      );
-      const name = enemy.displayName ?? template?.name ?? 'Enemy';
-      const level = template?.level ?? 1n;
-      const hp = Number(enemy.currentHp);
-      const maxHp = Number(enemy.maxHp);
-      const pct = maxHp > 0 ? hp / maxHp : 0;
-      const filled = Math.round(pct * BAR_WIDTH);
-      const empty = BAR_WIDTH - filled;
-      const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty);
-      const color = pct > 0.5 ? '#69db7c' : pct > 0.25 ? '#ffd43b' : '#ff6b6b';
-      lines.push(`{{color:${color}}}${bar}{{/color}} ${hp}/${maxHp} HP  [${name}] (L${level})`);
-    }
-
-    lines.push('---');
-
-    // Player HP bars
-    const roster = combatParticipants.value.filter(
-      (p) => p.combatId.toString() === combatId
-    );
-    const myCharId = selectedCharacter.value?.id?.toString();
-    for (const participant of roster) {
-      const character = characters.value.find(
-        (c) => c.id.toString() === participant.characterId.toString()
-      );
-      if (!character) continue;
-      const hp = Number(character.hp);
-      const maxHp = Number(character.maxHp);
-      const pct = maxHp > 0 ? hp / maxHp : 0;
-      const filled = Math.round(pct * BAR_WIDTH);
-      const empty = BAR_WIDTH - filled;
-      const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty);
-      const color = pct > 0.5 ? '#69db7c' : pct > 0.25 ? '#ffd43b' : '#ff6b6b';
-      const isYou = character.id.toString() === myCharId;
-      const nameDisplay = isYou ? character.name : `[${character.name}]`;
-      lines.push(`{{color:${color}}}${bar}{{/color}} ${hp}/${maxHp} HP  ${nameDisplay}`);
-
-      const mana = Number(character.mana ?? 0n);
-      const maxMana = Number(character.maxMana ?? 1n);
-      if (maxMana > 1 && mana >= 0) {
-        const manaPct = maxMana > 0 ? mana / maxMana : 0;
-        const manaFilled = Math.round(manaPct * BAR_WIDTH);
-        const manaEmpty = BAR_WIDTH - manaFilled;
-        const manaBar = '\u2588'.repeat(manaFilled) + '\u2591'.repeat(manaEmpty);
-        lines.push(`{{color:#4dabf7}}${manaBar}{{/color}} ${mana}/${maxMana} MP`);
-      }
-    }
-
-    return lines.join('\n');
-  });
-
-  // ---- Existing combat state (kept for backward compatibility) ----
+  // ---- Existing combat state ----
 
   const activeResult = computed(() => {
     if (!selectedCharacter.value || activeCombat.value) return null;
@@ -1011,20 +725,6 @@ export const useCombat = ({
     }
   );
 
-  // ---- Round header/footer messages ----
-
-  const roundHeaderMessage = computed<string | null>(() => {
-    if (!currentRound.value) return null;
-    const roundNum = Number(currentRound.value.roundNumber);
-    return `\u2550\u2550\u2550 ROUND ${roundNum} \u2550\u2550\u2550`;
-  });
-
-  const roundEndMessage = computed<string | null>(() => {
-    if (roundState.value !== 'resolved' || !currentRound.value) return null;
-    const roundNum = Number(currentRound.value.roundNumber);
-    return `\u2500\u2500\u2500 Round ${roundNum} complete \u2500\u2500\u2500`;
-  });
-
   return {
     activeCombat,
     activeResult,
@@ -1053,47 +753,7 @@ export const useCombat = ({
     dismissResults,
     takeLoot,
     takeAllLoot,
-    // Round-based combat
-    submitAction,
-    submitAbility,
-    submitFlee,
-    currentRound,
-    roundState,
-    myAction,
-    hasSubmittedAction,
-    roundTimeRemaining,
-    actionPromptMessage,
-    roundSummaryMessage,
-    combatStatusMessage,
+    useAbilityRealtime,
     isInCombat,
-    roundHeaderMessage,
-    roundEndMessage,
-    actionPromptData: computed(() => {
-      if (!activeCombat.value || roundState.value !== 'action_select' || hasSubmittedAction.value) return null;
-      const charId = selectedCharacter.value?.id;
-      if (!charId) return null;
-      const charAbilities = abilityTemplates.value.filter(
-        (t: any) => t.characterId?.toString() === charId.toString()
-      );
-      const abilities = charAbilities.map((template: any) => {
-        const cooldown = abilityCooldowns.value.find(
-          (c: any) => c.characterId?.toString() === charId.toString() && c.abilityTemplateId.toString() === template.id.toString()
-        );
-        const cdRemaining = cooldown
-          ? Math.max(0, Math.ceil((Number(cooldown.startedAtMicros) + Number(cooldown.durationMicros) - nowMicros.value) / 1_000_000))
-          : 0;
-        const manaCost = template.resourceCost ? `(${template.resourceCost} ${template.resourceType ?? 'mana'})` : '';
-        return { name: template.name, onCooldown: cdRemaining > 0, cooldownSecs: cdRemaining, manaCost };
-      });
-      const combatId = activeCombat.value.id.toString();
-      const livingEnemies = combatEnemies.value.filter(
-        (e: any) => e.combatId.toString() === combatId && e.currentHp > 0n
-      );
-      const targets = livingEnemies.map((enemy: any) => {
-        const template = enemyTemplates.value.find((t: any) => t.id.toString() === enemy.enemyTemplateId.toString());
-        return { name: enemy.displayName ?? template?.name ?? 'Enemy', level: template?.level ?? 1n };
-      });
-      return { abilities, targets };
-    }),
   };
 };
