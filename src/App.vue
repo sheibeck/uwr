@@ -1686,7 +1686,6 @@ const onCreationSubmit = (text: string) => {
           startMicros: nowMicros.value,
           durationMicros: 8_000_000,
         };
-        addLocalEvent('system', `You begin gathering ${resourceName}...`, 'private');
         startGatherReducer({
           characterId: selectedCharacter.value.id,
           nodeId: (node as any).id,
@@ -2283,8 +2282,6 @@ const startGather = (nodeId: bigint) => {
     startMicros: nowMicros.value,
     durationMicros: 8_000_000,
   };
-  const nodeName = resourceNodesHere.value.find(n => n.id.toString() === nodeId.toString())?.name ?? 'resource';
-  addLocalEvent('system', `You begin gathering ${nodeName}...`, 'private');
   startGatherReducer({ characterId: selectedCharacter.value.id, nodeId });
 };
 
@@ -2732,8 +2729,6 @@ watch(
   () => nowMicros.value,
   (now) => {
     if (localGather.value && now - localGather.value.startMicros >= localGather.value.durationMicros) {
-      const nodeName = resourceNodesHere.value.find(n => n.id.toString() === localGather.value!.nodeId.toString())?.name ?? 'resource';
-      addLocalEvent('reward', `You gathered ${nodeName}.`, 'private');
       localGather.value = null;
     }
   }
