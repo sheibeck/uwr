@@ -152,6 +152,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase quick-346]: Auto-attack is unconditional every round; abilities/flee are bonus actions on top
 - [Phase quick-347]: Combat UI reverted to dedicated action bar with ability buttons + enemy HUD; inline bracket-keyword prompts removed
 - [Phase quick-348]: Round-based combat fully removed; real-time combat_loop restored with weapon-speed auto-attacks and immediate ability execution
+- [Phase quick-349]: LLM intro narration gates combat_loop start (12s fallback); post-combat summaries are pure narrative without game numbers
 
 ### Pending Todos
 
@@ -183,8 +184,9 @@ None yet.
 | 346 | Auto-attacks happen every round automatically | 2026-03-08 | 5644cfd, e2069b7 | [346-auto-attacks-happen-every-round-automati](./quick/346-auto-attacks-happen-every-round-automati/) |
 | 347 | Revert narrative combat to real-time combat action bar | 2026-03-08 | 70546b2, 23b8d39 | [347-revert-narrative-combat-to-real-time-com](./quick/347-revert-narrative-combat-to-real-time-com/) |
 | 348 | Remove rounds, restore real-time combat | 2026-03-08 | e09539e, 02076ff | [348-remove-rounds-and-inline-combat-hud-rest](./quick/348-remove-rounds-and-inline-combat-hud-rest/) |
+| 349 | Fix real-time combat bugs and add intro narration | 2026-03-08 | 0121aad | [349-fix-real-time-combat-bugs-no-such-reduce](./quick/349-fix-real-time-combat-bugs-no-such-reduce/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T14:15:06.105Z
-Stopped at: Completed quick-348 (Remove rounds, restore real-time combat)
+Last session: 2026-03-08T14:32:00Z
+Stopped at: Completed quick-349 (Fix real-time combat bugs and add intro narration)
