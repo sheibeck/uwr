@@ -2105,11 +2105,6 @@ export const registerCombatReducers = (deps: any) => {
             }
           }
         }
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-          lootTemplates.length > 0
-            ? `Loot generated: ${lootTemplates.map(li => li.template.name).join(', ')}`
-            : `No loot dropped from ${template?.name ?? 'enemy'}.`
-        );
         const lootTable = template ? findLootTable(ctx, template) : null;
         const baseGoldReward = lootTable
           ? rollGold(ctx.timestamp.microsSinceUnixEpoch + character.id * 3n + template.id, lootTable.goldMin, lootTable.goldMax) + template.level
@@ -2125,12 +2120,30 @@ export const registerCombatReducers = (deps: any) => {
           logGroupEvent(ctx, combat.id, character.id, 'reward', `${character.name} gained ${goldReward} gold.`);
         }
       }
+      // Announce all loot as clickable links
+      const charLoot = [...ctx.db.combat_loot.by_character.filter(character.id)].filter(row => row.combatId === combat.id);
+      if (charLoot.length > 0) {
+        const RARITY_COLORS: Record<string, string> = {
+          common: '#ffffff', uncommon: '#22c55e', rare: '#3b82f6', epic: '#aa44ff', legendary: '#ff8800',
+        };
+        const lootLines: string[] = ['Loot dropped:'];
+        for (const lootRow of charLoot) {
+          const tmpl = ctx.db.item_template.id.find(lootRow.itemTemplateId);
+          if (!tmpl) continue;
+          const rarity = (lootRow.qualityTier || tmpl.rarity || 'common').toLowerCase();
+          const color = RARITY_COLORS[rarity] || '#ffffff';
+          lootLines.push(`  {{color:${color}}}[Take ${tmpl.name}]{{/color}}`);
+        }
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward', lootLines.join('\n'));
+      } else {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+          `No loot dropped from ${summaryName}.`);
+      }
       const resultRow = ctx.db.combat_result.insert({
         id: 0n, ownerUserId: character.ownerUserId, characterId: character.id,
         groupId: combat.groupId, combatId: combat.id,
         summary: `Victory against ${summaryName}.${fallenSuffix}`, createdAt: ctx.timestamp,
       });
-      const charLoot = [...ctx.db.combat_loot.by_character.filter(character.id)].filter(row => row.combatId === combat.id);
       if (charLoot.length === 0) {
         ctx.db.combat_result.id.delete(resultRow.id);
       }

@@ -523,30 +523,20 @@ export const registerIntentReducers = (deps: any) => {
       const RARITY_COLORS: Record<string, string> = {
         common: '#ffffff', uncommon: '#22c55e', rare: '#3b82f6', epic: '#aa44ff', legendary: '#ff8800',
       };
-      const corpses = [...ctx.db.corpse.by_location.filter(character.locationId)];
-      if (corpses.length === 0) {
+      const lootRows = [...ctx.db.combat_loot.by_character.filter(character.id)];
+      if (lootRows.length === 0) {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
           'There is nothing to loot here.');
         return;
       }
 
-      const parts: string[] = ['Loot nearby:'];
-      for (const corpse of corpses) {
-        const corpseChar = ctx.db.character.id.find(corpse.characterId);
-        const corpseName = corpseChar ? `${corpseChar.name}'s remains` : 'Remains';
-        const items = [...ctx.db.corpse_item.by_corpse.filter(corpse.id)];
-        if (items.length === 0) continue;
-        parts.push(`${corpseName}:`);
-        for (const ci of items) {
-          const instance = ctx.db.item_instance.id.find(ci.itemInstanceId);
-          if (!instance) continue;
-          const template = ctx.db.item_template.id.find(instance.templateId);
-          if (!template) continue;
-          const itemName = instance.displayName || template.name;
-          const rarity = (instance.qualityTier || template.rarity || 'common').toLowerCase();
-          const color = RARITY_COLORS[rarity] || '#ffffff';
-          parts.push(`  {{color:${color}}}[Take ${itemName}]{{/color}}`);
-        }
+      const parts: string[] = ['Loot available:'];
+      for (const lootRow of lootRows) {
+        const template = ctx.db.item_template.id.find(lootRow.itemTemplateId);
+        if (!template) continue;
+        const rarity = (lootRow.qualityTier || template.rarity || 'common').toLowerCase();
+        const color = RARITY_COLORS[rarity] || '#ffffff';
+        parts.push(`  {{color:${color}}}[Take ${template.name}]{{/color}}`);
       }
 
       if (parts.length === 1) {
