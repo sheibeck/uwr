@@ -50,6 +50,26 @@ export function buildRegionContext(
 }
 
 /**
+ * Find the "home" location for a generated region — the first safe, non-uncharted location.
+ * This is the location that gets bindStone, crafting, and required NPCs.
+ * Falls back to first non-uncharted location if no safe locations exist.
+ */
+export function findHomeLocation(locationsByName: Record<string, any>): any | null {
+  const locationNames = Object.keys(locationsByName);
+  // First pass: safe + non-uncharted
+  for (const name of locationNames) {
+    const loc = locationsByName[name];
+    if (loc.isSafe && loc.terrainType !== 'uncharted') return loc;
+  }
+  // Fallback: any non-uncharted
+  for (const name of locationNames) {
+    const loc = locationsByName[name];
+    if (loc.terrainType !== 'uncharted') return loc;
+  }
+  return null;
+}
+
+/**
  * Write all generated region content into game tables.
  * Takes parsed LLM JSON and the WorldGenState row, returns the inserted Region row.
  */
@@ -239,6 +259,38 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any): any {
         affinityMultiplier: 1.0,
       }),
     });
+  }
+
+  // 8b. Ensure home location has vendor + banker NPCs (safety net for LLM omissions)
+  const homeLocation = findHomeLocation(locationsByName);
+  if (homeLocation) {
+    const npcsAtHome = [...tx.db.npc.by_location.filter(homeLocation.id)];
+    const hasVendor = npcsAtHome.some((n: any) => n.npcType === 'vendor');
+    const hasBanker = npcsAtHome.some((n: any) => n.npcType === 'banker');
+
+    if (!hasVendor) {
+      tx.db.npc.insert({
+        id: 0n,
+        name: 'The Reluctant Merchant',
+        npcType: 'vendor',
+        locationId: homeLocation.id,
+        description: 'A merchant who seems mildly annoyed by the concept of commerce.',
+        greeting: 'Fine. I suppose you want to buy something. Let us get this over with.',
+        personalityJson: JSON.stringify({ traits: ['reluctant', 'sardonic'], speechPattern: 'speaks with weary resignation', knowledgeDomains: ['trade goods'], secrets: [], affinityMultiplier: 1.0 }),
+      });
+    }
+
+    if (!hasBanker) {
+      tx.db.npc.insert({
+        id: 0n,
+        name: 'The Ledger Keeper',
+        npcType: 'banker',
+        locationId: homeLocation.id,
+        description: 'A meticulous figure who guards your valuables with obsessive precision.',
+        greeting: 'Your assets are safe. They are always safe. I do not make mistakes.',
+        personalityJson: JSON.stringify({ traits: ['meticulous', 'protective'], speechPattern: 'speaks in clipped precise sentences', knowledgeDomains: ['banking', 'valuables'], secrets: [], affinityMultiplier: 1.0 }),
+      });
+    }
   }
 
   // 9. Seed 1 uncharted boundary location at the edge of the new region
