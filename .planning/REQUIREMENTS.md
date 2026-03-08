@@ -60,7 +60,7 @@
 
 - [x] **COMBAT-01**: Combat rounds are narrated by the LLM over the existing turn-based engine
 - [x] **COMBAT-02**: Mechanical state changes (damage, healing, effects) happen instantly; narrative arrives async
-- [ ] **COMBAT-03**: The System narrator maintains sardonic voice during combat descriptions
+- [x] **COMBAT-03**: The System narrator maintains sardonic voice during combat descriptions
 
 ## Future Requirements
 
@@ -124,7 +124,7 @@
 | NPC-04 | Phase 29 | Complete |
 | COMBAT-01 | Phase 30 | Complete |
 | COMBAT-02 | Phase 30 | Complete |
-| COMBAT-03 | Phase 30 | Pending |
+| COMBAT-03 | Phase 30 | Complete |
 
 **Coverage:**
 - v2.0 requirements: 36 total

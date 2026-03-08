@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 30-01-PLAN.md (Round-Based Combat Engine)
-last_updated: "2026-03-08T01:55:11Z"
-last_activity: "2026-03-08 - Completed Phase 30 Plan 01: Round-Based Combat Engine"
+stopped_at: Completed 30-02-PLAN.md (Combat Narration Layer)
+last_updated: "2026-03-08T02:04:20Z"
+last_activity: "2026-03-08 - Completed Phase 30 Plan 02: Combat Narration Layer"
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 22
-  completed_plans: 19
-  percent: 86
+  completed_plans: 20
+  percent: 90
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
-Plan: 30-01 just completed (Round-Based Combat Engine)
-Status: Phase 30 in progress (1/4 plans complete)
-Last activity: 2026-03-08 - Completed Phase 30 Plan 01: Round-Based Combat Engine
+Plan: 30-02 just completed (Combat Narration Layer)
+Status: Phase 30 in progress (2/4 plans complete)
+Last activity: 2026-03-08 - Completed Phase 30 Plan 02: Combat Narration Layer
 
-Progress: [████████░░] 86%
+Progress: [█████████░] 90%
 
 ## Previous Milestone (v1.0)
 
@@ -66,6 +66,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 | Phase 29 P03 | 4min | 1 tasks | 11 files |
 | Phase 27 P03 | 2min | 2 tasks | 4 files |
 | Phase 30 P01 | 9min | 2 tasks | 7 files |
+| Phase 30 P02 | 5min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,10 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 30]: Players can change submitted action before round locks (upsert pattern)
 - [Phase 30]: Legacy combat_loop remains registered for backward compatibility during transition
 - [Phase 30]: Flee is a round action choice resolved during resolution, not immediate status change
+- [Phase 30]: HP snapshot diffing for narration events (avoids deep resolveRound instrumentation)
+- [Phase 30]: gpt-5-mini for combat narration (fast, 400 max tokens, 2-4 sentences)
+- [Phase 30]: Budget rotation via round-robin across combat participants
+- [Phase 30]: Silent failure for combat_narration LLM errors (combat uninterrupted)
 
 ### Pending Todos
 
@@ -163,5 +168,5 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-08T01:55:11Z
-Stopped at: Completed 30-01-PLAN.md (Round-Based Combat Engine)
+Last session: 2026-03-08T02:04:20Z
+Stopped at: Completed 30-02-PLAN.md (Combat Narration Layer)

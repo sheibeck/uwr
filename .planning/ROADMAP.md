@@ -177,8 +177,7 @@ Plans:
 | NPC-01 | 29 | 3/3 | Complete   | 2026-03-07 | 29 | NPC & Quest Gen |
 | NPC-03 | 29 | NPC & Quest Gen |
 | NPC-04 | 29 | NPC & Quest Gen |
-| COMBAT-01 | 30 | Narrative Combat |
-| COMBAT-02 | 30 | Narrative Combat |
+| COMBAT-01 | 30 | 2/4 | In Progress|  | 30 | Narrative Combat |
 | COMBAT-03 | 30 | Narrative Combat |
 
 **Mapped: 36/36 -- no orphans, no duplicates.**
