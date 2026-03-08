@@ -19,6 +19,7 @@ function determineGoBackTarget(currentStep: string): string | null {
     case 'AWAITING_ARCHETYPE': return 'AWAITING_RACE';
     case 'GENERATING_CLASS': return 'AWAITING_ARCHETYPE';
     case 'CLASS_REVEALED': return 'AWAITING_ARCHETYPE';
+    case 'CONFIRMING': return 'AWAITING_NAME';
     default: return null;
   }
 }
@@ -46,6 +47,8 @@ function clearDataFromStep(state: any, targetStep: string): any {
     updated.abilities = undefined;
     updated.chosenAbilityIndex = undefined;
     updated.characterName = undefined;
+  } else if (targetStep === 'AWAITING_NAME') {
+    updated.characterName = undefined;
   }
   return updated;
 }
@@ -55,6 +58,18 @@ function parseArchetype(text: string): string | null {
   if (lower.includes('warrior')) return 'warrior';
   if (lower.includes('mystic')) return 'mystic';
   return null;
+}
+
+function buildConfirmationSummary(state: any): string {
+  let abilityName = 'Unknown';
+  if (state.abilities && state.chosenAbilityIndex != null) {
+    try {
+      const abilities = JSON.parse(state.abilities);
+      const chosen = abilities[Number(state.chosenAbilityIndex)];
+      if (chosen) abilityName = chosen.name || chosen.abilityName || 'Unknown';
+    } catch { /* ignore */ }
+  }
+  return `The Keeper reviews the chronicle of your becoming:\n\nRace: ${state.raceName || 'Unknown'}\nClass: ${state.className || 'Unknown'}\nAbility: ${abilityName}\nName: ${state.characterName}\n\nIs this the soul you wish to carry into the world? Type [Confirm] to seal your fate, or [Start Over] to begin anew.`;
 }
 
 export const registerCreationReducers = (deps: any) => {
@@ -70,6 +85,185 @@ export const registerCreationReducers = (deps: any) => {
     ensureStarterItemTemplates,
     appendPrivateEvent,
   } = deps;
+
+  function finalizeCharacter(ctx: any, state: any, player: any) {
+    const userId = requirePlayerUserId(ctx);
+    const characterName = state.characterName;
+
+    // Parse classStats from creation state
+    let primaryStat: string = 'str';
+    let secondaryStat: string | undefined;
+    let weaponProficiencies: string | undefined;
+    let armorProficiencies: string | undefined;
+    if (state.classStats) {
+      try {
+        const cs = JSON.parse(state.classStats);
+        primaryStat = cs.primaryStat || 'str';
+        secondaryStat = cs.secondaryStat || undefined;
+        if (Array.isArray(cs.weaponProficiencies) && cs.weaponProficiencies.length > 0) {
+          weaponProficiencies = cs.weaponProficiencies.join(',');
+        }
+        if (Array.isArray(cs.armorProficiencies) && cs.armorProficiencies.length > 0) {
+          armorProficiencies = cs.armorProficiencies.join(',');
+        }
+      } catch {
+        if (state.archetype === 'mystic') {
+          primaryStat = 'int';
+          secondaryStat = 'wis';
+        } else {
+          primaryStat = 'str';
+          secondaryStat = 'dex';
+        }
+      }
+    } else if (state.archetype) {
+      if (state.archetype === 'mystic') {
+        primaryStat = 'int';
+        secondaryStat = 'wis';
+      } else {
+        primaryStat = 'str';
+        secondaryStat = 'dex';
+      }
+    }
+    if (!weaponProficiencies) {
+      weaponProficiencies = state.archetype === 'mystic'
+        ? 'staff,wand,dagger'
+        : 'sword,axe,mace,greatsword,dagger';
+    }
+    if (!armorProficiencies) {
+      armorProficiencies = state.archetype === 'mystic'
+        ? 'cloth,leather'
+        : 'cloth,leather,chain,plate';
+    }
+    if (!armorProficiencies.split(',').includes('cloth')) {
+      armorProficiencies = 'cloth,' + armorProficiencies;
+    }
+
+    const classStats = computeBaseStatsForGenerated(primaryStat, secondaryStat, 1n);
+
+    const character = ctx.db.character.insert({
+      id: 0n,
+      ownerUserId: userId,
+      name: characterName,
+      race: state.raceName || 'Unknown',
+      className: state.className || (state.archetype === 'mystic' ? 'Mystic' : 'Warrior'),
+      level: 1n,
+      xp: 0n,
+      gold: 0n,
+      locationId: 0n,
+      boundLocationId: 0n,
+      str: classStats.str,
+      dex: classStats.dex,
+      cha: classStats.cha,
+      wis: classStats.wis,
+      int: classStats.int,
+      hp: 0n,
+      maxHp: 0n,
+      mana: 0n,
+      maxMana: 0n,
+      stamina: 0n,
+      maxStamina: 0n,
+      hitChance: 0n,
+      dodgeChance: 0n,
+      parryChance: 0n,
+      critMelee: 0n,
+      critRanged: 0n,
+      critDivine: 0n,
+      critArcane: 0n,
+      armorClass: 0n,
+      perception: 0n,
+      search: 0n,
+      ccPower: 0n,
+      vendorBuyMod: 0n,
+      vendorSellMod: 0n,
+      createdAt: ctx.timestamp,
+      weaponProficiencies,
+      armorProficiencies,
+    });
+
+    recomputeCharacterDerived(ctx, character);
+
+    const recomputed = ctx.db.character.id.find(character.id);
+    if (recomputed) {
+      ctx.db.character.id.update({
+        ...recomputed,
+        hp: recomputed.maxHp,
+        mana: recomputed.maxMana,
+        stamina: recomputed.maxStamina,
+      });
+    }
+
+    grantStarterItems(ctx, character, ensureStarterItemTemplates);
+
+    for (const faction of ctx.db.faction.iter()) {
+      ctx.db.faction_standing.insert({
+        id: 0n,
+        characterId: character.id,
+        factionId: faction.id,
+        standing: 0n,
+      });
+    }
+
+    if (state.abilities && state.chosenAbilityIndex != null) {
+      try {
+        const abilities = JSON.parse(state.abilities);
+        const chosen = abilities[Number(state.chosenAbilityIndex)];
+        if (chosen) {
+          const abilityRow = ctx.db.ability_template.insert({
+            id: 0n,
+            name: chosen.name || chosen.abilityName || 'Unknown Ability',
+            description: chosen.description || '',
+            characterId: character.id,
+            kind: chosen.kind || chosen.type || 'damage',
+            targetRule: chosen.targetRule || 'single_enemy',
+            resourceType: chosen.resourceType || (state.archetype === 'mystic' ? 'mana' : 'stamina'),
+            resourceCost: BigInt(chosen.resourceCost || 10),
+            castSeconds: BigInt(chosen.castSeconds || 0),
+            cooldownSeconds: BigInt(chosen.cooldownSeconds || 6),
+            value1: BigInt(chosen.value1 || chosen.damage || chosen.healAmount || 15),
+            value2: chosen.value2 != null ? BigInt(chosen.value2) : undefined,
+            scaling: chosen.scaling || primaryStat,
+            effectType: chosen.effectType || undefined,
+            effectMagnitude: chosen.effectMagnitude != null ? BigInt(chosen.effectMagnitude) : undefined,
+            effectDuration: chosen.effectDuration != null ? BigInt(chosen.effectDuration) : undefined,
+            levelRequired: 1n,
+            isGenerated: true,
+          });
+
+          ctx.db.hotbar_slot.insert({
+            id: 0n,
+            characterId: character.id,
+            slot: 0n,
+            abilityTemplateId: abilityRow.id,
+          });
+        }
+      } catch {
+        // Ability creation failed — not blocking
+      }
+    }
+
+    ctx.db.player.id.update({ ...player, activeCharacterId: character.id });
+
+    ctx.db.character_creation_state.id.update({
+      ...state,
+      step: 'COMPLETE',
+      updatedAt: ctx.timestamp,
+    });
+
+    appendCreationEvent(ctx, ctx.sender, 'creation', `Welcome to the world, ${characterName}. Try not to die immediately. It's tedious to watch.`);
+    appendPrivateEvent(ctx, character.id, userId, 'system',
+      'The world stirs. Beyond the edges of what is known, something ancient begins to remember itself...');
+
+    ctx.db.world_gen_state.insert({
+      id: 0n,
+      playerId: ctx.sender,
+      characterId: character.id,
+      sourceLocationId: 0n,
+      sourceRegionId: 0n,
+      step: 'PENDING',
+      createdAt: ctx.timestamp,
+      updatedAt: ctx.timestamp,
+    });
+  }
 
   // start_creation — called when client detects no character and no creation state
   spacetimedb.reducer('start_creation', {}, (ctx: any, _: any) => {
@@ -89,6 +283,8 @@ export const registerCreationReducers = (deps: any) => {
         appendCreationEvent(ctx, ctx.sender, 'creation', `Still here? Good. You were choosing an ability for your ${existing.className || 'class'}. Pick one from the options above.\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`);
       } else if (step === 'AWAITING_NAME') {
         appendCreationEvent(ctx, ctx.sender, 'creation', `Back again. You still need a name. Four characters minimum. Make it count -- you\'ll be stuck with it.`);
+      } else if (step === 'CONFIRMING') {
+        appendCreationEvent(ctx, ctx.sender, 'creation', buildConfirmationSummary(existing));
       } else if (step === 'COMPLETE') {
         appendCreationEvent(ctx, ctx.sender, 'creation', 'Your character has already been created. Go forth and do something interesting.');
       } else {
@@ -180,7 +376,7 @@ export const registerCreationReducers = (deps: any) => {
     }
 
     // Go-back detection (not allowed during AWAITING_NAME or COMPLETE)
-    if (state.step !== 'AWAITING_NAME' && state.step !== 'COMPLETE' && state.step !== 'GENERATING_RACE' && state.step !== 'GENERATING_CLASS' && isGoBackIntent(trimmed)) {
+    if (state.step !== 'AWAITING_NAME' && state.step !== 'CONFIRMING' && state.step !== 'COMPLETE' && state.step !== 'GENERATING_RACE' && state.step !== 'GENERATING_CLASS' && isGoBackIntent(trimmed)) {
       const goBackTarget = determineGoBackTarget(state.step);
       if (goBackTarget) {
         const thingBeingLost = state.className
@@ -326,201 +522,49 @@ export const registerCreationReducers = (deps: any) => {
           }
         }
 
-        // Finalize character creation
-        const userId = requirePlayerUserId(ctx);
-
-        // Parse classStats from creation state
-        let primaryStat: string = 'str';
-        let secondaryStat: string | undefined;
-        let weaponProficiencies: string | undefined;
-        let armorProficiencies: string | undefined;
-        if (state.classStats) {
-          try {
-            const cs = JSON.parse(state.classStats);
-            primaryStat = cs.primaryStat || 'str';
-            secondaryStat = cs.secondaryStat || undefined;
-            // Parse proficiencies from LLM-generated classStats (arrays -> comma-separated strings)
-            if (Array.isArray(cs.weaponProficiencies) && cs.weaponProficiencies.length > 0) {
-              weaponProficiencies = cs.weaponProficiencies.join(',');
-            }
-            if (Array.isArray(cs.armorProficiencies) && cs.armorProficiencies.length > 0) {
-              armorProficiencies = cs.armorProficiencies.join(',');
-            }
-          } catch {
-            // Fall back to archetype defaults
-            if (state.archetype === 'mystic') {
-              primaryStat = 'int';
-              secondaryStat = 'wis';
-            } else {
-              primaryStat = 'str';
-              secondaryStat = 'dex';
-            }
-          }
-        } else if (state.archetype) {
-          if (state.archetype === 'mystic') {
-            primaryStat = 'int';
-            secondaryStat = 'wis';
-          } else {
-            primaryStat = 'str';
-            secondaryStat = 'dex';
-          }
-        }
-        // Archetype fallback if LLM didn't provide proficiencies
-        if (!weaponProficiencies) {
-          weaponProficiencies = state.archetype === 'mystic'
-            ? 'staff,wand,dagger'
-            : 'sword,axe,mace,greatsword,dagger';
-        }
-        if (!armorProficiencies) {
-          armorProficiencies = state.archetype === 'mystic'
-            ? 'cloth,leather'
-            : 'cloth,leather,chain,plate';
-        }
-        // Ensure cloth is always included (base tier armor everyone can wear)
-        if (!armorProficiencies.split(',').includes('cloth')) {
-          armorProficiencies = 'cloth,' + armorProficiencies;
-        }
-
-        const classStats = computeBaseStatsForGenerated(primaryStat, secondaryStat, 1n);
-
-        // Build character row
-        const character = ctx.db.character.insert({
-          id: 0n,
-          ownerUserId: userId,
-          name: candidateName,
-          race: state.raceName || 'Unknown',
-          className: state.className || (state.archetype === 'mystic' ? 'Mystic' : 'Warrior'),
-          level: 1n,
-          xp: 0n,
-          gold: 0n,
-          locationId: 0n,       // Temporary — world gen will place character
-          boundLocationId: 0n,  // Temporary — world gen will set bind stone
-          str: classStats.str,
-          dex: classStats.dex,
-          cha: classStats.cha,
-          wis: classStats.wis,
-          int: classStats.int,
-          hp: 0n,
-          maxHp: 0n,
-          mana: 0n,
-          maxMana: 0n,
-          stamina: 0n,
-          maxStamina: 0n,
-          hitChance: 0n,
-          dodgeChance: 0n,
-          parryChance: 0n,
-          critMelee: 0n,
-          critRanged: 0n,
-          critDivine: 0n,
-          critArcane: 0n,
-          armorClass: 0n,
-          perception: 0n,
-          search: 0n,
-          ccPower: 0n,
-          vendorBuyMod: 0n,
-          vendorSellMod: 0n,
-          createdAt: ctx.timestamp,
-          weaponProficiencies,
-          armorProficiencies,
-        });
-
-        // Compute derived stats
-        recomputeCharacterDerived(ctx, character);
-
-        // Set to full hp/mana/stamina
-        const recomputed = ctx.db.character.id.find(character.id);
-        if (recomputed) {
-          ctx.db.character.id.update({
-            ...recomputed,
-            hp: recomputed.maxHp,
-            mana: recomputed.maxMana,
-            stamina: recomputed.maxStamina,
-          });
-        }
-
-        // Grant starter items
-        grantStarterItems(ctx, character, ensureStarterItemTemplates);
-
-        // Initialize faction standings
-        for (const faction of ctx.db.faction.iter()) {
-          ctx.db.faction_standing.insert({
-            id: 0n,
-            characterId: character.id,
-            factionId: faction.id,
-            standing: 0n,
-          });
-        }
-
-        // Create chosen ability if abilities data exists
-        if (state.abilities && state.chosenAbilityIndex != null) {
-          try {
-            const abilities = JSON.parse(state.abilities);
-            const chosen = abilities[Number(state.chosenAbilityIndex)];
-            if (chosen) {
-              // Insert ability template for this character's unique ability
-              const abilityRow = ctx.db.ability_template.insert({
-                id: 0n,
-                name: chosen.name || chosen.abilityName || 'Unknown Ability',
-                description: chosen.description || '',
-                characterId: character.id,
-                kind: chosen.kind || chosen.type || 'damage',
-                targetRule: chosen.targetRule || 'single_enemy',
-                resourceType: chosen.resourceType || (state.archetype === 'mystic' ? 'mana' : 'stamina'),
-                resourceCost: BigInt(chosen.resourceCost || 10),
-                castSeconds: BigInt(chosen.castSeconds || 0),
-                cooldownSeconds: BigInt(chosen.cooldownSeconds || 6),
-                value1: BigInt(chosen.value1 || chosen.damage || chosen.healAmount || 15),
-                value2: chosen.value2 != null ? BigInt(chosen.value2) : undefined,
-                scaling: chosen.scaling || primaryStat,
-                effectType: chosen.effectType || undefined,
-                effectMagnitude: chosen.effectMagnitude != null ? BigInt(chosen.effectMagnitude) : undefined,
-                effectDuration: chosen.effectDuration != null ? BigInt(chosen.effectDuration) : undefined,
-                levelRequired: 1n,
-                isGenerated: true,
-              });
-
-              // Add to hotbar slot 1
-              ctx.db.hotbar_slot.insert({
-                id: 0n,
-                characterId: character.id,
-                slot: 0n,
-                abilityTemplateId: abilityRow.id,
-              });
-            }
-          } catch {
-            // Ability creation failed — not blocking, character is still created
-          }
-        }
-
-        // Set active character on player
-        ctx.db.player.id.update({ ...player, activeCharacterId: character.id });
-
-        // Mark creation state as complete
-        ctx.db.character_creation_state.id.update({
+        // Store validated name and advance to confirmation step
+        const updatedState = {
           ...state,
           characterName: candidateName,
-          step: 'COMPLETE',
+          step: 'CONFIRMING',
           updatedAt: ctx.timestamp,
-        });
+        };
+        ctx.db.character_creation_state.id.update(updatedState);
 
-        // Emit creation complete events
-        appendCreationEvent(ctx, ctx.sender, 'creation', `Welcome to the world, ${candidateName}. Try not to die immediately. It's tedious to watch.`);
-        appendPrivateEvent(ctx, character.id, userId, 'system',
-          'The world stirs. Beyond the edges of what is known, something ancient begins to remember itself...');
+        appendCreationEvent(ctx, ctx.sender, 'creation', buildConfirmationSummary(updatedState));
+        break;
+      }
 
-        // Trigger world generation — this IS the starting experience.
-        // The world gen procedure will create the region and place the character there.
-        ctx.db.world_gen_state.insert({
-          id: 0n,
-          playerId: ctx.sender,
-          characterId: character.id,
-          sourceLocationId: 0n,  // No source — this is the first region
-          sourceRegionId: 0n,    // No source region
-          step: 'PENDING',
-          createdAt: ctx.timestamp,
-          updatedAt: ctx.timestamp,
-        });
-
+      case 'CONFIRMING': {
+        const lowerInput = trimmed.toLowerCase();
+        if (lowerInput === 'confirm') {
+          // Re-check name uniqueness at confirmation time (in case someone took it)
+          for (const char of ctx.db.character.iter()) {
+            if (char.name.toLowerCase() === (state.characterName || '').toLowerCase()) {
+              appendCreationEvent(ctx, ctx.sender, 'creation_error', `The name "${state.characterName}" was taken while you were deliberating. The Keeper is unsurprised. Go back and choose another.`);
+              // Reset to AWAITING_NAME so they can pick a new name
+              ctx.db.character_creation_state.id.update({
+                ...state,
+                characterName: undefined,
+                step: 'AWAITING_NAME',
+                updatedAt: ctx.timestamp,
+              });
+              return;
+            }
+          }
+          finalizeCharacter(ctx, state, player);
+        } else if (lowerInput === 'start over' || GO_BACK_PATTERNS.some(p => lowerInput.includes(p))) {
+          const cleaned = clearDataFromStep(state, 'AWAITING_RACE');
+          ctx.db.character_creation_state.id.update({
+            ...cleaned,
+            characterName: undefined,
+            step: 'AWAITING_RACE',
+            updatedAt: ctx.timestamp,
+          });
+          appendCreationEvent(ctx, ctx.sender, 'creation', 'Very well. The slate is wiped clean. Let us begin again. Describe your race -- what manner of creature are you?');
+        } else {
+          appendCreationEvent(ctx, ctx.sender, 'creation_error', 'I asked a simple question. [Confirm] to proceed, or [Start Over] to begin anew. This is not the time for creativity.');
+        }
         break;
       }
 

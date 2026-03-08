@@ -1898,7 +1898,7 @@ export const CharacterCreationState = table(
   {
     id: t.u64().primaryKey().autoInc(),
     playerId: t.identity(),
-    step: t.string(),                    // AWAITING_RACE, AWAITING_ARCHETYPE, GENERATING_CLASS, CLASS_REVEALED, AWAITING_NAME, CONFIRMING_GO_BACK, COMPLETE
+    step: t.string(),                    // AWAITING_RACE, AWAITING_ARCHETYPE, GENERATING_CLASS, CLASS_REVEALED, AWAITING_NAME, CONFIRMING, CONFIRMING_GO_BACK, COMPLETE
     goBackTarget: t.string().optional(), // Which step we're confirming go-back to
     raceDescription: t.string().optional(),
     raceName: t.string().optional(),
