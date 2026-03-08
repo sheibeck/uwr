@@ -78,7 +78,7 @@ const KIND_COLORS: Record<string, string> = {
   look: '#c8ccd0',
   move: '#adb5bd',
   world: '#b197fc',
-  combat_narration: '#ffd43b',   // gold/amber for LLM narration from The System
+  combat_narration: '#ffd43b',   // gold/amber for LLM narration from The Keeper
   combat_prompt: '#e9ecef',      // white for action selection prompts
   combat_status: '#adb5bd',      // gray for round summary with HP bars
   combat_round_header: '#ffa94d', // orange for round headers (distinctive)

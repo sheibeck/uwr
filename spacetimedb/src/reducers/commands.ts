@@ -143,7 +143,7 @@ export const registerCommandReducers = (deps: any) => {
           appendLocationEvent(ctx, character.locationId, 'system',
             `${character.name} reached level ${xpResult.newLevel}.`);
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative',
-            'Something stirs within you. New power awaits. The System will present its offerings shortly.');
+            'Something stirs within you. New power awaits. The Keeper will present its offerings shortly.');
         }
 
         // Award affinity (show in faction/gold color)
@@ -185,7 +185,7 @@ export const registerCommandReducers = (deps: any) => {
         appendLocationEvent(ctx, character.locationId, 'system',
           `${character.name} reached level ${deliveryXpResult.newLevel}.`);
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative',
-          'Something stirs within you. New power awaits. The System will present its offerings shortly.');
+          'Something stirs within you. New power awaits. The Keeper will present its offerings shortly.');
       }
       appendNpcDialog(ctx, character.id, npc.id,
         `${npc.name} says, "Ah, you've brought it. Thank you."`);

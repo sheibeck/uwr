@@ -924,7 +924,7 @@ export const registerIntentReducers = (deps: any) => {
         updatedAt: ctx.timestamp,
       });
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-        'The edges of reality ripple around you. The System pauses, as if remembering something it had forgotten...');
+        'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...');
       return;
     }
 
@@ -1024,7 +1024,7 @@ export const registerIntentReducers = (deps: any) => {
             updatedAt: ctx.timestamp,
           });
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-            'The edges of reality ripple around you. The System pauses, as if remembering something it had forgotten...');
+            'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...');
         }
       }
       return;
@@ -1236,7 +1236,7 @@ export const registerIntentReducers = (deps: any) => {
             step: 'PENDING', createdAt: ctx.timestamp, updatedAt: ctx.timestamp,
           });
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-            'The edges of reality ripple around you. The System pauses, as if remembering something it had forgotten...');
+            'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...');
         }
       }
       return;
@@ -1254,6 +1254,6 @@ export const registerIntentReducers = (deps: any) => {
 
     // --- SARDONIC FALLBACK ---
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-      `The System regards you with mild contempt. "${raw}" means nothing here. Perhaps try [help].`);
+      `The Keeper regards you with mild contempt. "${raw}" means nothing here. Perhaps try [help].`);
   });
 };

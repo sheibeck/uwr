@@ -13,7 +13,7 @@
     <!-- Scroll area -->
     <div :style="scrollAreaStyle" ref="scrollEl" @scroll="checkIfAtBottom">
       <div v-if="!selectedCharacter && combinedEvents.length === 0 && !isLlmProcessing" :style="emptyStyle">
-        {{ creationMode ? 'The System is awakening...' : 'Select or create a character to begin.' }}
+        {{ creationMode ? 'The Keeper is awakening...' : 'Select or create a character to begin.' }}
       </div>
       <div v-else-if="combinedEvents.length === 0" :style="emptyStyle">
         The world awaits. Try exploring or speaking to someone nearby.
@@ -31,7 +31,7 @@
 
       <!-- LLM processing indicator -->
       <div v-if="isLlmProcessing" :style="consideringStyle">
-        The System is considering your fate...
+        The Keeper is considering your fate...
       </div>
     </div>
 

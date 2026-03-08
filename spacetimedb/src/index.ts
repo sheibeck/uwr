@@ -458,7 +458,7 @@ spacetimedb.reducer('prepare_creation_llm', { generationType: t.string() }, (ctx
   const budget = checkBudget(ctx, ctx.sender);
   if (!budget.allowed) {
     appendCreationEvent(ctx, ctx.sender, 'creation_error',
-      'The System yawns. "You have exhausted my patience — and your daily allowance of cosmic creativity. Come back tomorrow."');
+      'The Keeper yawns. "You have exhausted my patience — and your daily allowance of cosmic creativity. Come back tomorrow."');
     return;
   }
 
@@ -513,7 +513,7 @@ spacetimedb.reducer('prepare_world_gen_llm', { genStateId: t.u64() }, (ctx: any,
     const char = ctx.db.character.id.find(genState.characterId);
     if (char) {
       appendPrivateEvent(ctx, char.id, char.ownerUserId, 'system',
-        'The System strains but cannot shape this realm right now. Type [explore] to try again later.');
+        'The Keeper strains but cannot shape this realm right now. Type [explore] to try again later.');
     }
     throw new SenderError('Daily LLM budget exceeded');
   }
@@ -575,7 +575,7 @@ spacetimedb.reducer('prepare_skill_gen', { characterId: t.u64() }, (ctx: any, { 
   const existingPending = [...ctx.db.pending_skill.by_character.filter(characterId)];
   if (existingPending.length > 0) {
     appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
-      'The System is already preparing skill offerings for you. Be patient.');
+      'The Keeper is already preparing skill offerings for you. Be patient.');
     return;
   }
 
@@ -583,7 +583,7 @@ spacetimedb.reducer('prepare_skill_gen', { characterId: t.u64() }, (ctx: any, { 
   const budget = checkBudget(ctx, ctx.sender);
   if (!budget.allowed) {
     appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
-      'The System yawns. "Your daily allowance of cosmic creativity is spent. Come back tomorrow."');
+      'The Keeper yawns. "Your daily allowance of cosmic creativity is spent. Come back tomorrow."');
     return;
   }
 
@@ -707,7 +707,7 @@ spacetimedb.reducer('choose_skill', { pendingSkillId: t.u64() }, (ctx: any, { pe
 
   // Narrative: skill chosen
   appendPrivateEvent(ctx, pending.characterId, character.ownerUserId, 'narrative',
-    `The System nods. "[${pending.name}] it is. The others scatter like forgotten dreams. You will never see them again."`);
+    `The Keeper nods. "[${pending.name}] it is. The others scatter like forgotten dreams. You will never see them again."`);
   appendPrivateEvent(ctx, pending.characterId, character.ownerUserId, 'system',
     `You learned [${pending.name}] — ${pending.kind}, ${pending.value1} power, ${pending.cooldownSeconds}s cooldown`);
 });
@@ -731,12 +731,12 @@ spacetimedb.reducer('submit_llm_result', {
     // Handle error based on domain
     if (task.domain === 'creation_race') {
       appendCreationEvent(ctx, ctx.sender, 'creation_error',
-        'The System flickers. "Something went wrong in the cosmic machinery. Try again."');
+        'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."');
       const s = [...ctx.db.character_creation_state.by_player.filter(ctx.sender)][0];
       if (s) ctx.db.character_creation_state.id.update({ ...s, step: 'AWAITING_RACE', updatedAt: ctx.timestamp });
     } else if (task.domain === 'creation_class') {
       appendCreationEvent(ctx, ctx.sender, 'creation_error',
-        'The System flickers. "Something went wrong in the cosmic machinery. Try again."');
+        'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."');
       const s = [...ctx.db.character_creation_state.by_player.filter(ctx.sender)][0];
       if (s) ctx.db.character_creation_state.id.update({ ...s, step: 'AWAITING_ARCHETYPE', updatedAt: ctx.timestamp });
     } else if (task.domain === 'world_gen') {
@@ -744,7 +744,7 @@ spacetimedb.reducer('submit_llm_result', {
       const genStateId = BigInt(context.genStateId);
       const genState = ctx.db.world_gen_state.id.find(genStateId);
       if (genState) {
-        retryWorldGen(ctx, genState, 'The System falters. "The world refuses to be remembered right now. Try again."');
+        retryWorldGen(ctx, genState, 'The Keeper falters. "The world refuses to be remembered right now. Try again."');
       }
     } else if (task.domain === 'skill_gen') {
       const context = task.contextJson ? JSON.parse(task.contextJson) : {};
@@ -752,7 +752,7 @@ spacetimedb.reducer('submit_llm_result', {
       const character = ctx.db.character.id.find(charId);
       if (character) {
         appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
-          'The System flickers. "Your potential eludes crystallization. The power will come... eventually."');
+          'The Keeper flickers. "Your potential eludes crystallization. The power will come... eventually."');
       }
     } else if (task.domain === 'npc_conversation') {
       const context = task.contextJson ? JSON.parse(task.contextJson) : {};
@@ -801,7 +801,7 @@ spacetimedb.reducer('submit_llm_result', {
           `${data.narrative || 'An interesting choice.'}\n\n` +
           `**${data.raceName}**${bonusText}\n\n` +
           `Now then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
-          `\n\n(If you're already regretting your choices, type "go back." The System does not judge... much.)`
+          `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`
         );
 
       } else if (generationType === 'class') {
@@ -839,13 +839,13 @@ spacetimedb.reducer('submit_llm_result', {
           `**${data.className}**\n${statLine} | ${armorLine}${weaponLine ? ` | ${weaponLine}` : ''} | ${resourceLine}` +
           abilityText +
           `\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.` +
-          `\n\n(If you're already regretting your choices, type "go back." The System does not judge... much.)`
+          `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`
         );
       }
     } catch (parseErr) {
       console.error(`Creation LLM JSON parse error [${generationType}]: ${parseErr}`);
       appendCreationEvent(ctx, ctx.sender, 'creation_error',
-        'The System grimaces. "The response from the cosmic machinery was... malformed. Let us try again."');
+        'The Keeper grimaces. "The response from the cosmic machinery was... malformed. Let us try again."');
       const revertStep = generationType === 'race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
       ctx.db.character_creation_state.id.update({ ...s, step: revertStep, updatedAt: ctx.timestamp });
     }
@@ -862,13 +862,13 @@ spacetimedb.reducer('submit_llm_result', {
     } catch (parseErr) {
       console.error(`World gen JSON parse error: ${parseErr}`);
       retryWorldGen(ctx, currentGenState,
-        'The System grimaces. "The world tried to form but... it came out wrong. Try again."');
+        'The Keeper grimaces. "The world tried to form but... it came out wrong. Try again."');
       return;
     }
 
     if (!data.regionName || !data.locations || data.locations.length < 1) {
       retryWorldGen(ctx, currentGenState,
-        'The System shakes its head. "The world beyond is... incomplete. Try again."');
+        'The Keeper shakes its head. "The world beyond is... incomplete. Try again."');
       return;
     }
 
@@ -974,15 +974,15 @@ spacetimedb.reducer('submit_llm_result', {
     if (skills.length < 3) {
       console.error(`Skill gen produced ${skills.length} valid skills: ${errors.join('; ')}`);
       appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
-        'The System grimaces. "The cosmic machinery sputtered. Your potential remains... unformed. Try again."');
+        'The Keeper grimaces. "The cosmic machinery sputtered. Your potential remains... unformed. Try again."');
       return;
     }
 
     insertPendingSkills(ctx, charId, skills, character.level);
     incrementBudget(ctx, ctx.sender);
 
-    // Present the 3 skills with The System's sardonic narration
-    let presentation = `The System regards you with something resembling interest.\n\n`;
+    // Present the 3 skills with The Keeper's sardonic narration
+    let presentation = `The Keeper of Knowledge regards you with something resembling interest.\n\n`;
     presentation += `"Level ${character.level}. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:"\n`;
 
     for (const skill of skills) {

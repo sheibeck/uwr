@@ -41,13 +41,13 @@ export const registerNpcInteractionReducers = (deps: any) => {
     // Concurrency check — one LLM task at a time per player
     const existingTasks = [...ctx.db.llm_task.by_player.filter(ctx.sender)];
     if (existingTasks.some((tk: any) => tk.status === 'pending')) {
-      return fail(ctx, character, 'The System is already considering something. Patience.');
+      return fail(ctx, character, 'The Keeper is already considering something. Patience.');
     }
 
     // Budget check — NPC conversations share the daily LLM budget
     const budget = checkBudget(ctx, ctx.sender);
     if (!budget.allowed) {
-      return fail(ctx, character, 'The System grows weary. Return tomorrow.');
+      return fail(ctx, character, 'The Keeper grows weary. Return tomorrow.');
     }
 
     // Build conversation context

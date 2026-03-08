@@ -1,7 +1,7 @@
 // Character creation state machine — narrative flow from greeting to character finalization
 
 const GREETING_MESSAGE =
-  `Ah. Another one. The void spits you out and here you are, formless and fumbling, expecting me to care. I am The System. I have watched civilizations rise and crumble while you were busy not existing. But fine. Let's make something of you.\n\nDescribe what manner of creature you are -- your race, your people, whatever you imagine yourself to be. Be creative or be boring. I'll work with either.\n\nNeed inspiration? Others before you have walked in as [Elves], [Dwarves], [Goblins], [Dragonborn], [Shadelings], [Myconids], [Crystalborn] -- or invented something entirely their own. Describe what you are, ask about a race, or simply make something up. I've seen it all.`;
+  `Ah. Another one. The void spits you out and here you are, formless and fumbling, expecting me to care. I am The Keeper of Knowledge. I have watched civilizations rise and crumble while you were busy not existing. But fine. Let's make something of you.\n\nDescribe what manner of creature you are -- your race, your people, whatever you imagine yourself to be. Be creative or be boring. I'll work with either.\n\nNeed inspiration? Others before you have walked in as [Elves], [Dwarves], [Goblins], [Dragonborn], [Shadelings], [Myconids], [Crystalborn] -- or invented something entirely their own. Describe what you are, ask about a race, or simply make something up. I've seen it all.`;
 
 const GO_BACK_PATTERNS = [
   'go back', 'start over', 'redo', 'changed my mind', 'try again',
@@ -82,17 +82,17 @@ export const registerCreationReducers = (deps: any) => {
       if (step === 'AWAITING_RACE') {
         appendCreationEvent(ctx, ctx.sender, 'creation', 'Ah, you again. The void keeps spitting you back. We were discussing what manner of creature you are. Describe your race -- your people, your heritage. I\'m still waiting.\n\nNeed inspiration? Others before you have walked in as [Elves], [Dwarves], [Goblins], [Dragonborn], [Shadelings], [Myconids], [Crystalborn] -- or invented something entirely their own.');
       } else if (step === 'GENERATING_RACE' || step === 'GENERATING_CLASS') {
-        appendCreationEvent(ctx, ctx.sender, 'creation', 'The System is still working. Patience is a virtue you clearly lack, but try anyway.');
+        appendCreationEvent(ctx, ctx.sender, 'creation', 'The Keeper is still working. Patience is a virtue you clearly lack, but try anyway.');
       } else if (step === 'AWAITING_ARCHETYPE') {
-        appendCreationEvent(ctx, ctx.sender, 'creation', `Welcome back. You are ${existing.raceName || 'whatever you described'}. Now -- do you walk the path of the [Warrior] or the [Mystic]? Choose.\n\n(If you're already regretting your choices, type "go back." The System does not judge... much.)`);
+        appendCreationEvent(ctx, ctx.sender, 'creation', `Welcome back. You are ${existing.raceName || 'whatever you described'}. Now -- do you walk the path of the [Warrior] or the [Mystic]? Choose.\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`);
       } else if (step === 'CLASS_REVEALED') {
-        appendCreationEvent(ctx, ctx.sender, 'creation', `Still here? Good. You were choosing an ability for your ${existing.className || 'class'}. Pick one from the options above.\n\n(If you're already regretting your choices, type "go back." The System does not judge... much.)`);
+        appendCreationEvent(ctx, ctx.sender, 'creation', `Still here? Good. You were choosing an ability for your ${existing.className || 'class'}. Pick one from the options above.\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`);
       } else if (step === 'AWAITING_NAME') {
         appendCreationEvent(ctx, ctx.sender, 'creation', `Back again. You still need a name. Four characters minimum. Make it count -- you\'ll be stuck with it.`);
       } else if (step === 'COMPLETE') {
         appendCreationEvent(ctx, ctx.sender, 'creation', 'Your character has already been created. Go forth and do something interesting.');
       } else {
-        appendCreationEvent(ctx, ctx.sender, 'creation', 'The System remembers you. Continue where you left off.');
+        appendCreationEvent(ctx, ctx.sender, 'creation', 'The Keeper remembers you. Continue where you left off.');
       }
       return;
     }
@@ -214,7 +214,7 @@ export const registerCreationReducers = (deps: any) => {
           step: 'GENERATING_RACE',
           updatedAt: ctx.timestamp,
         });
-        appendCreationEvent(ctx, ctx.sender, 'creation', 'The System is considering your... unique... heritage.');
+        appendCreationEvent(ctx, ctx.sender, 'creation', 'The Keeper is considering your... unique... heritage.');
         break;
       }
 
@@ -240,7 +240,7 @@ export const registerCreationReducers = (deps: any) => {
           updatedAt: ctx.timestamp,
         });
         const archetypeLabel = archetype === 'warrior' ? 'Warrior' : 'Mystic';
-        appendCreationEvent(ctx, ctx.sender, 'creation', `${archetypeLabel}. Interesting. The System is forging something... unique for you. Stand by.`);
+        appendCreationEvent(ctx, ctx.sender, 'creation', `${archetypeLabel}. Interesting. The Keeper is forging something... unique for you. Stand by.`);
         break;
       }
 
@@ -256,14 +256,14 @@ export const registerCreationReducers = (deps: any) => {
       case 'CLASS_REVEALED': {
         // Player is choosing an ability from the 3 presented
         if (!state.abilities) {
-          appendCreationEvent(ctx, ctx.sender, 'creation_error', 'Something went wrong -- no abilities are available. The System is displeased.');
+          appendCreationEvent(ctx, ctx.sender, 'creation_error', 'Something went wrong -- no abilities are available. The Keeper is displeased.');
           return;
         }
         let abilities: any[];
         try {
           abilities = JSON.parse(state.abilities);
         } catch {
-          appendCreationEvent(ctx, ctx.sender, 'creation_error', 'The System encountered a disturbance parsing your abilities. Try again.');
+          appendCreationEvent(ctx, ctx.sender, 'creation_error', 'The Keeper encountered a disturbance parsing your abilities. Try again.');
           return;
         }
 
@@ -310,7 +310,7 @@ export const registerCreationReducers = (deps: any) => {
           return;
         }
         if (/\s/.test(candidateName)) {
-          appendCreationEvent(ctx, ctx.sender, 'creation_error', 'One word only. No spaces. The System does not have time for your elaborate titles.');
+          appendCreationEvent(ctx, ctx.sender, 'creation_error', 'One word only. No spaces. The Keeper does not have time for your elaborate titles.');
           return;
         }
         if (!/^[a-zA-Z]+$/.test(candidateName)) {
@@ -530,7 +530,7 @@ export const registerCreationReducers = (deps: any) => {
       }
 
       default: {
-        appendCreationEvent(ctx, ctx.sender, 'creation_error', `The System is confused. Unknown creation step: ${state.step}. This shouldn't happen.`);
+        appendCreationEvent(ctx, ctx.sender, 'creation_error', `The Keeper is confused. Unknown creation step: ${state.step}. This shouldn't happen.`);
         break;
       }
     }

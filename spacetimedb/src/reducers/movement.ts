@@ -262,7 +262,7 @@ export const registerMovementReducers = (deps: any) => {
         });
         // Emit narrative loading event
         appendPrivateEvent(ctx, args.characterId, character.ownerUserId, 'system',
-          'The edges of reality ripple around you. The System pauses, as if remembering something it had forgotten...');
+          'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...');
       }
       // If existingGen is PENDING or GENERATING, another player is already triggering. Wait.
     }

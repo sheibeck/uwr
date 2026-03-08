@@ -1021,7 +1021,7 @@ const {
 
 // (Round-based combat event injection removed -- real-time combat has no round UI)
 
-// Gate combat UI until intro narration completes ("The System settles in to watch.")
+// Gate combat UI until intro narration completes ("The world grows still around you.")
 const combatIntroSeen = ref(false);
 let lastCombatId: string | null = null;
 
@@ -1048,7 +1048,7 @@ watch(
     // Only check events that arrived after combat started
     for (let i = combatEventBaseline; i < newLen; i++) {
       const evt = userPrivateEvents.value[i];
-      if (evt && evt.kind === 'system' && evt.message === 'The System settles in to watch.') {
+      if (evt && evt.kind === 'system' && evt.message === 'The world grows still around you.') {
         combatIntroSeen.value = true;
         break;
       }

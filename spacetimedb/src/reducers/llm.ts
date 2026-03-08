@@ -43,7 +43,7 @@ export const registerLlmReducers = (deps: any) => {
     // 4. Check API key is configured
     const config = ctx.db.llm_config.id.find(1n);
     if (!config || !config.apiKey) {
-      fail(ctx, character, 'The System is... absent. It seems no one has given it a voice yet.');
+      fail(ctx, character, 'The Keeper is... absent. It seems no one has given it a voice yet.');
       return;
     }
 
@@ -51,14 +51,14 @@ export const registerLlmReducers = (deps: any) => {
     const existingRequests = [...ctx.db.llm_request.by_player.filter(ctx.sender)];
     const activeRequest = existingRequests.find((r: any) => r.status === 'pending' || r.status === 'processing');
     if (activeRequest) {
-      fail(ctx, character, 'The System is already considering something for you. Patience.');
+      fail(ctx, character, 'The Keeper is already considering something for you. Patience.');
       return;
     }
 
     // 6. Check budget (transactional -- safe from race conditions here in the reducer)
     const budget = checkBudget(ctx, ctx.sender);
     if (!budget.allowed) {
-      fail(ctx, character, 'The System grows weary of your demands. Return tomorrow.');
+      fail(ctx, character, 'The Keeper grows weary of your demands. Return tomorrow.');
       return;
     }
 
