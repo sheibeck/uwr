@@ -701,10 +701,10 @@ export const registerIntentReducers = (deps: any) => {
       return fail(ctx, character, `No quest found called "${questName}".`);
     }
 
-    // --- ABANDON <quest name> ---
-    if (lower.startsWith('abandon ')) {
-      const questName = raw.substring(8).trim();
-      if (!questName) return fail(ctx, character, 'Abandon which quest?');
+    // --- CONFIRM ABANDON <quest name> --- (must be before 'abandon' to avoid prefix match)
+    if (lower.startsWith('confirm abandon ')) {
+      const questName = raw.substring(16).trim();
+      if (!questName) return fail(ctx, character, 'Confirm abandon which quest?');
 
       for (const qi of ctx.db.quest_instance.by_character.filter(character.id)) {
         const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
@@ -716,10 +716,42 @@ export const registerIntentReducers = (deps: any) => {
           awardNpcAffinity(ctx, character, qt.npcId, -3n);
         }
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
-          `Quest abandoned: ${qt.name}. This quest may never be offered again.`);
+          `Quest abandoned: {{color:#ef4444}}${qt.name}{{/color}}. This quest may never be offered again.`);
         return;
       }
       return fail(ctx, character, `No quest found called "${questName}".`);
+    }
+
+    // --- ABANDON <quest name> --- (shows warning, requires confirmation)
+    if (lower.startsWith('abandon ')) {
+      const questName = raw.substring(8).trim();
+      if (!questName) return fail(ctx, character, 'Abandon which quest?');
+
+      for (const qi of ctx.db.quest_instance.by_character.filter(character.id)) {
+        const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
+        if (!qt) continue;
+        if (qt.name.toLowerCase() !== questName.toLowerCase()) continue;
+
+        let warning = `{{color:#f59e0b}}--- Abandon ${qt.name}? ---{{/color}}\n`;
+        if (qt.npcId) {
+          const npc = ctx.db.npc.id.find(qt.npcId);
+          if (npc) {
+            warning += `Your relationship with {{color:#60a5fa}}${npc.name}{{/color}} will suffer.\n`;
+          }
+        }
+        warning += `This quest may never be offered again.\n\n`;
+        warning += `{{color:#ef4444}}[Confirm Abandon ${qt.name}]{{/color}}  {{color:#22c55e}}[Keep Quest]{{/color}}`;
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest', warning);
+        return;
+      }
+      return fail(ctx, character, `No quest found called "${questName}".`);
+    }
+
+    // --- KEEP QUEST --- (cancel abandonment)
+    if (lower === 'keep quest') {
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+        'You decide to continue your quest.');
+      return;
     }
 
     // --- DEPOSIT [item] ---
