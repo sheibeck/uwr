@@ -14,6 +14,7 @@ import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { addCharacterEffect, addEnemyEffect, createFirstRound, scheduleRoundTimer } from '../helpers/combat';
+import { triggerCombatNarration, type RoundEventSummary } from '../helpers/combat_narration';
 import { applyPerkProcs } from '../helpers/combat_perks';
 import { partyMembersInLocation } from '../helpers/character';
 import { getLocationSpawnCap } from '../helpers/location';
@@ -230,6 +231,36 @@ export const startCombatForSpawn = (
 
   // Create first round for round-based combat
   createFirstRound(ctx, combat.id, !!groupId);
+
+  // Trigger intro narration
+  const firstRounds = [...ctx.db.combat_round.by_combat.filter(combat.id)];
+  const firstRound = firstRounds.find((r: any) => r.roundNumber === 1n);
+  if (firstRound) {
+    const combatEnemies = [...ctx.db.combat_enemy.by_combat.filter(combat.id)];
+    const enemyNames = combatEnemies.map((e: any) => e.displayName);
+    const playerNames = participants.map((p: any) => p.name);
+    const location = ctx.db.location.id.find(leader.locationId);
+    const introEvents: RoundEventSummary = {
+      combatId: combat.id,
+      roundNumber: 1n,
+      narrativeType: 'intro',
+      playerActions: [],
+      enemyActions: [],
+      effectsApplied: [],
+      effectsExpired: [],
+      deaths: [],
+      nearDeathNames: [],
+      hasCrit: false,
+      hasKill: false,
+      hasNearDeath: false,
+      participantHpSummary: [],
+      locationName: location?.name || 'an unknown place',
+      enemyNames,
+      playerNames,
+    };
+    triggerCombatNarration(ctx, combat, firstRound, introEvents);
+  }
+
   return combat;
 };
 
@@ -3044,6 +3075,15 @@ export const registerCombatReducers = (deps: any) => {
     const participants = [...ctx.db.combat_participant.by_combat.filter(combatId)];
     const enemies = [...ctx.db.combat_enemy.by_combat.filter(combatId)];
 
+    // ── Snapshot pre-resolution HP for narration event detection ──
+    const preEnemyHp = new Map<bigint, bigint>();
+    for (const e of enemies) preEnemyHp.set(e.id, e.currentHp);
+    const prePlayerHp = new Map<bigint, bigint>();
+    for (const p of participants) {
+      const c = ctx.db.character.id.find(p.characterId);
+      if (c) prePlayerHp.set(c.id, c.hp);
+    }
+
     // Mark newly dead participants
     markNewlyDeadParticipants(ctx, combat, participants);
 
@@ -3196,10 +3236,130 @@ export const registerCombatReducers = (deps: any) => {
       }
     }
 
+    // ── Build narration event summary from state diffs ──
+    const location = ctx.db.location.id.find(combat.locationId);
+    const buildRoundEvents = (narrativeType: 'round' | 'victory' | 'defeat'): RoundEventSummary => {
+      const playerActions: RoundEventSummary['playerActions'] = [];
+      const enemyActions: RoundEventSummary['enemyActions'] = [];
+      const deaths: string[] = [];
+      const nearDeathNames: string[] = [];
+      let hasCrit = false;
+      let hasKill = false;
+      let hasNearDeath = false;
+
+      // Reconstruct player actions from submitted CombatActions
+      const roundActions = [...ctx.db.combat_action.by_combat.filter(combatId)]
+        .filter((a: any) => a.roundNumber === round.roundNumber);
+      for (const action of roundActions) {
+        const character = ctx.db.character.id.find(action.characterId);
+        if (!character) continue;
+        const preHp = prePlayerHp.get(character.id) ?? character.hp;
+        const pa: RoundEventSummary['playerActions'][0] = {
+          characterName: character.name,
+          actionType: action.actionType,
+        };
+        if (action.actionType === 'flee') {
+          const participant = [...ctx.db.combat_participant.by_combat.filter(combatId)]
+            .find((p: any) => p.characterId === character.id);
+          pa.fled = true;
+          pa.fleeSuccess = participant?.status === 'fled';
+        } else if (action.actionType === 'ability' && action.abilityTemplateId) {
+          const ability = ctx.db.ability_template.id.find(action.abilityTemplateId);
+          pa.abilityName = ability?.name;
+          if (action.targetEnemyId) {
+            const targetEnemy = ctx.db.combat_enemy.id.find(action.targetEnemyId);
+            pa.targetName = targetEnemy?.displayName;
+            const preTgtHp = preEnemyHp.get(action.targetEnemyId) ?? 0n;
+            const postTgtHp = targetEnemy?.currentHp ?? 0n;
+            if (preTgtHp > postTgtHp) pa.damageDealt = preTgtHp - postTgtHp;
+          }
+        } else {
+          // auto-attack
+          if (action.targetEnemyId) {
+            const targetEnemy = ctx.db.combat_enemy.id.find(action.targetEnemyId);
+            pa.targetName = targetEnemy?.displayName;
+            const preTgtHp = preEnemyHp.get(action.targetEnemyId) ?? 0n;
+            const postTgtHp = targetEnemy?.currentHp ?? 0n;
+            if (preTgtHp > postTgtHp) pa.damageDealt = preTgtHp - postTgtHp;
+          }
+        }
+        playerActions.push(pa);
+      }
+
+      // Check enemy HP changes for enemy action summaries
+      for (const enemy of finalEnemies) {
+        const preHp = preEnemyHp.get(enemy.id) ?? enemy.maxHp;
+        const postHp = enemy.currentHp;
+        if (preHp > 0n && postHp === 0n) {
+          deaths.push(enemy.displayName);
+          hasKill = true;
+        }
+      }
+
+      // Check player deaths and near-deaths
+      const hpSummary: RoundEventSummary['participantHpSummary'] = [];
+      for (const p of participants) {
+        const character = ctx.db.character.id.find(p.characterId);
+        if (!character) continue;
+        const preHp = prePlayerHp.get(character.id) ?? character.hp;
+        if (preHp > 0n && character.hp === 0n) {
+          deaths.push(character.name);
+        }
+        if (character.hp > 0n && character.maxHp > 0n) {
+          if (character.hp * 4n <= character.maxHp) {
+            nearDeathNames.push(character.name);
+            hasNearDeath = true;
+          }
+        }
+        hpSummary.push({ name: character.name, hp: character.hp, maxHp: character.maxHp, isEnemy: false });
+      }
+
+      // Enemy HP summary
+      for (const enemy of finalEnemies) {
+        if (enemy.currentHp > 0n) {
+          hpSummary.push({ name: enemy.displayName, hp: enemy.currentHp, maxHp: enemy.maxHp, isEnemy: true });
+          if (enemy.currentHp * 4n <= enemy.maxHp) {
+            nearDeathNames.push(enemy.displayName);
+            hasNearDeath = true;
+          }
+        }
+      }
+
+      // Enemy names and player names for prompt context
+      const allEnemyNames = finalEnemies.map((e: any) => e.displayName);
+      const allPlayerNames = participants.map((p: any) => {
+        const c = ctx.db.character.id.find(p.characterId);
+        return c?.name || 'Unknown';
+      });
+
+      return {
+        combatId,
+        roundNumber: round.roundNumber,
+        narrativeType,
+        playerActions,
+        enemyActions,
+        effectsApplied: [],
+        effectsExpired: [],
+        deaths,
+        nearDeathNames,
+        hasCrit,
+        hasKill,
+        hasNearDeath,
+        participantHpSummary: hpSummary,
+        locationName: location?.name || 'an unknown place',
+        enemyNames: allEnemyNames,
+        playerNames: allPlayerNames,
+      };
+    };
+
     // ── Victory check ──
     if (livingEnemiesFinal.length === 0) {
       const freshActive = [...ctx.db.combat_participant.by_combat.filter(combatId)]
         .filter((p: any) => p.status === 'active');
+      // Trigger victory narration before cleanup
+      const updatedRound = ctx.db.combat_round.id.find(round.id);
+      const victoryEvents = buildRoundEvents('victory');
+      triggerCombatNarration(ctx, combat, updatedRound || round, victoryEvents);
       handleVictory(ctx, combat, finalEnemies, participants, freshActive, enemyName, nowMicros);
       ctx.db.combat_round.id.update({
         ...ctx.db.combat_round.id.find(round.id),
@@ -3216,6 +3376,10 @@ export const registerCombatReducers = (deps: any) => {
       if (character && character.hp > 0n) { stillActive = true; break; }
     }
     if (!stillActive) {
+      // Trigger defeat narration before cleanup
+      const updatedRound = ctx.db.combat_round.id.find(round.id);
+      const defeatEvents = buildRoundEvents('defeat');
+      triggerCombatNarration(ctx, combat, updatedRound || round, defeatEvents);
       handleDefeat(ctx, combat, finalEnemies, participants, enemyName, nowMicros);
       ctx.db.combat_round.id.update({
         ...ctx.db.combat_round.id.find(round.id),
@@ -3224,9 +3388,16 @@ export const registerCombatReducers = (deps: any) => {
       return;
     }
 
+    // ── Trigger mid-round narration for key events ──
+    const updatedRound = ctx.db.combat_round.id.find(round.id);
+    const roundEvents = buildRoundEvents('round');
+    triggerCombatNarration(ctx, combat, updatedRound || round, roundEvents);
+
     // ── Mark round resolved, create next round ──
+    // Re-fetch round after possible narrationCount increment
+    const latestRound = ctx.db.combat_round.id.find(round.id);
     ctx.db.combat_round.id.update({
-      ...ctx.db.combat_round.id.find(round.id),
+      ...latestRound,
       state: 'resolved',
     });
 
@@ -3240,7 +3411,7 @@ export const registerCombatReducers = (deps: any) => {
       roundNumber: nextRoundNumber,
       state: 'action_select',
       timerExpiresAtMicros: timerExpires,
-      narrationCount: round.narrationCount,
+      narrationCount: latestRound?.narrationCount ?? round.narrationCount,
     });
   };
 

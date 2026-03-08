@@ -19,6 +19,7 @@ import { writeGeneratedRegion, buildRegionContext } from './helpers/world_gen';
 import { parseSkillGenResult, insertPendingSkills } from './helpers/skill_gen';
 import { updateNpcMemory, getActiveQuestCount, MAX_ACTIVE_QUESTS } from './helpers/npc_conversation';
 import { awardNpcAffinity } from './helpers/npc_affinity';
+import { handleCombatNarrationResult } from './helpers/combat_narration';
 import { QUEST_TYPES } from './data/mechanical_vocabulary';
 import spacetimedb, {
   scheduledReducers,
@@ -772,6 +773,9 @@ spacetimedb.reducer('submit_llm_result', {
         appendPrivateEvent(ctx, charId, character.ownerUserId, 'npc',
           `${npc.name} seems distracted. Try again.`);
       }
+    } else if (task.domain === 'combat_narration') {
+      // Silent failure -- combat continues without narration
+      handleCombatNarrationResult(ctx, task, '', false);
     }
     return;
   }
@@ -1138,6 +1142,10 @@ spacetimedb.reducer('submit_llm_result', {
     }
 
     incrementBudget(ctx, ctx.sender);
+
+  } else if (task.domain === 'combat_narration') {
+    handleCombatNarrationResult(ctx, task, resultText, true);
+    // Budget already incremented in triggerCombatNarration -- no double increment
   }
 });
 
