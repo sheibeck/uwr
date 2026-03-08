@@ -65,7 +65,7 @@
       :is-llm-processing="isNarrativeLlmProcessing"
       :format-timestamp="formatTimestamp"
       :has-pending-skills="hasPendingSkills"
-      :is-in-combat="isInCombat"
+      :is-in-combat="combatUiVisible"
       :combat-abilities="combatAbilitiesForBar"
       :combat-enemies="combatEnemiesList"
       :casting-ability-id="activeCastId"
@@ -1020,6 +1020,37 @@ const {
 });
 
 // (Round-based combat event injection removed -- real-time combat has no round UI)
+
+// Gate combat UI until intro narration completes ("The System settles in to watch.")
+const combatIntroSeen = ref(false);
+let lastCombatId: string | null = null;
+
+watch(isInCombat, (inCombat) => {
+  if (!inCombat) {
+    combatIntroSeen.value = false;
+    lastCombatId = null;
+  }
+});
+
+// Watch private events for the intro narration completion signal
+watch(
+  () => userPrivateEvents.value.length,
+  () => {
+    if (combatIntroSeen.value || !isInCombat.value) return;
+    const combatId = activeCombat.value?.id?.toString();
+    if (!combatId) return;
+    // Check if we've seen "The System settles in to watch." in recent private events
+    for (const evt of userPrivateEvents.value) {
+      if (evt.kind === 'system' && evt.message === 'The System settles in to watch.') {
+        combatIntroSeen.value = true;
+        break;
+      }
+    }
+  },
+  { immediate: true }
+);
+
+const combatUiVisible = computed(() => isInCombat.value && combatIntroSeen.value);
 
 const showDeathModal = computed(() => {
   return Boolean(selectedCharacter.value && selectedCharacter.value.hp === 0n && !activeCombat.value);
@@ -2180,8 +2211,8 @@ const onCombatTargetEnemy = (enemyId: bigint) => {
   setCombatTarget(enemyId);
 };
 
-// Auto-target first enemy when combat begins
-watch(isInCombat, (inCombat) => {
+// Auto-target first enemy when combat UI becomes visible (after intro narration)
+watch(combatUiVisible, (inCombat) => {
   if (!inCombat || !selectedCharacter.value) return;
   // Only auto-target if no enemy is currently targeted
   const currentTarget = selectedCharacter.value.combatTargetEnemyId;

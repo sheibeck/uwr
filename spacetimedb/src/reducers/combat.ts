@@ -2738,7 +2738,7 @@ export const registerCombatReducers = (deps: any) => {
         processEnemyAutoAttackForRound(ctx, combat, enemy, template, participants, refreshedActive, nowMicros);
       }
       // Schedule next enemy auto-attack
-      const speed = deps.getEnemyAttackSpeed(template);
+      const speed = deps.getEnemyAttackSpeed(template.role ?? 'damage');
       ctx.db.combat_enemy.id.update({
         ...ctx.db.combat_enemy.id.find(enemy.id)!,
         nextAutoAttackAt: nowMicros + speed,
