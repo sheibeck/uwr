@@ -204,7 +204,7 @@
       <MapPanel :regions="regions" :locations="locations" :location-connections="locationConnections" :selected-character="selectedCharacter" />
     </FloatingPanel>
 
-    <FloatingPanel panel-id="travel" :body-style="activeCombat ? styles.floatingPanelBodyCombat : styles.floatingPanelBody">
+    <FloatingPanel panel-id="travel" :body-style="styles.floatingPanelBody">
       <template #header>
         <div :style="styles.panelHeaderStack">
         <div :style="styles.panelHeaderLocationRow">
@@ -232,23 +232,6 @@
           :title="timeTooltip"
         />
       </template>
-      <template v-if="activeCombat">
-        <CombatPanel
-          :styles="styles"
-          :conn-active="conn.isActive"
-          :selected-character="selectedCharacter"
-          :active-combat="activeCombat"
-          :combat-enemies="combatEnemiesList"
-          :can-act="canActInCombat"
-          :accordion-state="accordionState"
-          :is-flee-casting="isFleeCasting"
-          :flee-progress="fleeProgress"
-          @select-enemy="setCombatTarget"
-          @flee="handleFlee"
-          @accordion-toggle="updateAccordionState"
-        />
-      </template>
-      <template v-else>
       <LocationGrid
         :styles="styles"
         :conn-active="conn.isActive"
@@ -292,7 +275,6 @@
         @loot-quest-item="lootQuestItem"
         @pull-named-enemy="pullNamedEnemy"
       />
-      </template>
     </FloatingPanel>
 
     <FloatingPanel panel-id="group" compact>
@@ -546,7 +528,7 @@ import GroupPanel from './components/GroupPanel.vue';
 import FriendsPanel from './components/FriendsPanel.vue';
 import CraftingPanel from './components/CraftingPanel.vue';
 import CraftingModal from './components/CraftingModal.vue';
-import CombatPanel from './components/CombatPanel.vue';
+// CombatPanel removed -- combat UI now lives entirely in the narrative stream
 import TravelPanel from './components/TravelPanel.vue';
 import LocationGrid from './components/LocationGrid.vue';
 import LootPanel from './components/LootPanel.vue';
@@ -1428,16 +1410,6 @@ const onCreationSubmit = (text: string) => {
 const onOpenPanel = (panelId: string) => {
   togglePanel(panelId);
 };
-
-// Auto-open travel panel when combat starts (CombatPanel is inside travel panel)
-watch(
-  () => activeCombat.value,
-  (combat) => {
-    if (combat) {
-      openPanel('travel');
-    }
-  }
-);
 
 const inviteToGroup = (targetName: string) => {
   if (!selectedCharacter.value || !conn.isActive) return;

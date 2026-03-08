@@ -7,6 +7,7 @@
       fontSize: '0.9rem',
       color: kindColor,
       fontStyle: (isNarrative || isRipple) ? 'italic' : 'normal',
+      fontFamily: isCombatStatus ? '&quot;Courier New&quot;, monospace' : 'inherit',
       borderLeft: isRipple ? '3px solid #b197fc88' : isNarrative ? '2px solid #ffd43b33' : 'none',
       paddingLeft: isRipple ? '10px' : isNarrative ? '8px' : '0',
       paddingTop: isRipple ? '4px' : '0',
@@ -74,6 +75,9 @@ const KIND_COLORS: Record<string, string> = {
   look: '#c8ccd0',
   move: '#adb5bd',
   world: '#b197fc',
+  combat_narration: '#ffd43b',   // gold/amber for LLM narration from The System
+  combat_prompt: '#e9ecef',      // white for action selection prompts
+  combat_status: '#adb5bd',      // gray for round summary with HP bars
 };
 
 const kindColor = computed(() => KIND_COLORS[props.event.kind] ?? '#ced4da');
@@ -81,8 +85,10 @@ const kindColor = computed(() => KIND_COLORS[props.event.kind] ?? '#ced4da');
 const isRipple = computed(() => props.event.kind === 'world');
 
 const isNarrative = computed(
-  () => props.event.kind === 'narrative' || props.event.kind === 'llm' || props.event.kind === 'creation'
+  () => props.event.kind === 'narrative' || props.event.kind === 'llm' || props.event.kind === 'creation' || props.event.kind === 'combat_narration'
 );
+
+const isCombatStatus = computed(() => props.event.kind === 'combat_status');
 
 const isAnimatingMessage = computed(
   () => props.animationState != null && !props.animationState.complete
