@@ -147,7 +147,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 30]: Combat event kinds: combat_narration (gold italic typewriter), combat_prompt (white clickable), combat_status (gray monospace)
 - [Phase quick-342]: CombatHud panel deleted; combat UI fully inline via addLocalEvent injection into narrative stream
 - [Phase quick-343]: Round lifecycle markers use phase-aware watchers with deduplicated round keys for clean event injection
-- [Phase quick-344]: Status bars only on Round 1; round summary carries HP for subsequent rounds
+- [Phase quick-344]: Status bars shown at every round start (not just Round 1)
 - [Phase quick-345]: Per-round LLM narration removed; compact mechanical summaries via HP snapshot diffs instead
 - [Phase quick-346]: Auto-attack is unconditional every round; abilities/flee are bonus actions on top
 

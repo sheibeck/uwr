@@ -1048,8 +1048,8 @@ watch([roundState, currentRound], ([state, round]) => {
   if (roundHeaderMessage.value) {
     addLocalEvent('combat_round_header', roundHeaderMessage.value, 'private');
   }
-  // Status bars only for Round 1 (subsequent rounds already have HP from round summary)
-  if (roundNum <= 1 && combatStatusMessage.value) {
+  // Status bars every round start
+  if (combatStatusMessage.value) {
     addLocalEvent('combat_status', combatStatusMessage.value, 'private');
   }
   // Action prompt

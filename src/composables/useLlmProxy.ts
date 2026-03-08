@@ -29,6 +29,7 @@ export const useLlmProxy = ({
 }) => {
   const isProcessing = ref(false);
   const processingTaskId = ref<bigint | null>(null);
+  const submittedTaskIds = new Set<string>();
 
   watch(llmTasks, async (tasks) => {
     if (isProcessing.value || !connActive.value) return;
@@ -37,9 +38,9 @@ export const useLlmProxy = ({
     if (!identity) return;
     const hex = identity.toHexString();
 
-    // Find pending task for this player
+    // Find pending task for this player (skip already-submitted tasks)
     const pendingTask = tasks.find(
-      (t) => t.playerId?.toHexString?.() === hex && t.status === 'pending'
+      (t) => t.playerId?.toHexString?.() === hex && t.status === 'pending' && !submittedTaskIds.has(t.id.toString())
     );
     if (!pendingTask) return;
 
@@ -54,6 +55,7 @@ export const useLlmProxy = ({
 
     isProcessing.value = true;
     processingTaskId.value = pendingTask.id;
+    submittedTaskIds.add(pendingTask.id.toString());
 
     try {
       const response = await fetch(`${LLM_PROXY_URL}/api/llm`, {
@@ -101,6 +103,14 @@ export const useLlmProxy = ({
       processingTaskId.value = null;
     }
   }, { deep: true });
+
+  // Clean up submitted IDs for tasks no longer in the list
+  watch(llmTasks, (tasks) => {
+    const currentIds = new Set(tasks.map(t => t.id.toString()));
+    for (const id of submittedTaskIds) {
+      if (!currentIds.has(id)) submittedTaskIds.delete(id);
+    }
+  });
 
   return {
     isProcessing: computed(() => isProcessing.value),
