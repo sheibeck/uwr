@@ -2272,7 +2272,10 @@ export const registerCombatReducers = (deps: any) => {
 
     const weapon = deps.getEquippedWeaponStats(ctx, character.id);
     const bonuses = getEquippedBonuses(ctx, character.id);
-    const baseDamage = (weapon.baseDamage ?? 0n) + (bonuses.str ?? 0n);
+    const weaponLabel = weapon.name || 'fists';
+    // Auto-attack damage: weapon base + DPS contribution + level scaling + STR
+    // DPS/2 adds weapon quality; level adds progression; STR adds stat scaling
+    const baseDamage = (weapon.baseDamage ?? 0n) + (weapon.dps ?? 0n) / 2n + (character.level ?? 1n) + (bonuses.str ?? 0n);
     const template = ctx.db.enemy_template.id.find(targetEnemy.enemyTemplateId);
     const eName = targetEnemy.displayName ?? template?.name ?? 'enemy';
     const groupId = effectiveGroupId(character);
@@ -2290,12 +2293,12 @@ export const registerCombatReducers = (deps: any) => {
       logTargetId: character.id,
       logOwnerId: character.ownerUserId,
       messages: {
-        dodge: `${eName} dodges your attack.`,
-        miss: `You miss ${eName}.`,
-        parry: `${eName} parries your attack.`,
-        block: (d: bigint) => `${eName} blocks your attack, taking ${d} damage.`,
-        hit: (d: bigint) => `You hit ${eName} for ${d} damage.`,
-        crit: (d: bigint) => `Critical hit on ${eName} for ${d} damage!`,
+        dodge: `${eName} dodges your ${weaponLabel} swing.`,
+        miss: `Your ${weaponLabel} misses ${eName}.`,
+        parry: `${eName} parries your ${weaponLabel} swing.`,
+        block: (d: bigint) => `${eName} blocks your ${weaponLabel} swing, taking ${d} damage.`,
+        hit: (d: bigint) => `Your ${weaponLabel} hits ${eName} for ${d} damage.`,
+        crit: (d: bigint) => `Your ${weaponLabel} crits ${eName} for ${d} damage!`,
       },
       applyHp: (nextHp: bigint) => {
         ctx.db.combat_enemy.id.update({ ...targetEnemy, currentHp: nextHp });
@@ -2310,12 +2313,12 @@ export const registerCombatReducers = (deps: any) => {
       groupId: groupId ?? undefined,
       groupActorId: character.id,
       groupMessages: groupId ? {
-        dodge: `${eName} dodges ${character.name}'s attack.`,
-        miss: `${character.name} misses ${eName}.`,
-        parry: `${eName} parries ${character.name}'s attack.`,
-        block: (d: bigint) => `${eName} blocks ${character.name}'s attack (${d} damage).`,
-        hit: (d: bigint) => `${character.name} hits ${eName} for ${d} damage.`,
-        crit: (d: bigint) => `${character.name} crits ${eName} for ${d} damage!`,
+        dodge: `${eName} dodges ${character.name}'s ${weaponLabel} swing.`,
+        miss: `${character.name}'s ${weaponLabel} misses ${eName}.`,
+        parry: `${eName} parries ${character.name}'s ${weaponLabel} swing.`,
+        block: (d: bigint) => `${eName} blocks ${character.name}'s ${weaponLabel} swing (${d} damage).`,
+        hit: (d: bigint) => `${character.name}'s ${weaponLabel} hits ${eName} for ${d} damage.`,
+        crit: (d: bigint) => `${character.name}'s ${weaponLabel} crits ${eName} for ${d} damage!`,
       } : undefined,
     });
 
@@ -2425,7 +2428,7 @@ export const registerCombatReducers = (deps: any) => {
       const owner = ctx.db.character.id.find(pet.characterId);
       if (owner) {
         appendPrivateEvent(ctx, owner.id, owner.ownerUserId, 'damage',
-          `${enemy.displayName} hits ${pet.name} for ${rawDmg} damage.${nextHp === 0n ? ` ${pet.name} falls!` : ''}`);
+          `${enemy.displayName} strikes ${pet.name} for ${rawDmg} damage.${nextHp === 0n ? ` ${pet.name} falls!` : ''}`);
       }
       if (nextHp === 0n) ctx.db.active_pet.id.delete(pet.id);
       return;
@@ -2459,12 +2462,12 @@ export const registerCombatReducers = (deps: any) => {
       logTargetId: character.id,
       logOwnerId: character.ownerUserId,
       messages: {
-        dodge: `You dodge ${eName}'s attack.`,
-        miss: `${eName} misses you.`,
-        parry: `You parry ${eName}'s attack.`,
-        block: (d: bigint) => `You block ${eName}'s attack, taking ${d} damage.`,
-        hit: (d: bigint) => `${eName} hits you for ${d} damage.`,
-        crit: (d: bigint) => `${eName} crits you for ${d} damage!`,
+        dodge: `You dodge ${eName}'s strike.`,
+        miss: `${eName}'s strike misses you.`,
+        parry: `You parry ${eName}'s strike.`,
+        block: (d: bigint) => `You block ${eName}'s strike, taking ${d} damage.`,
+        hit: (d: bigint) => `${eName} strikes you for ${d} damage.`,
+        crit: (d: bigint) => `${eName} lands a crushing blow for ${d} damage!`,
       },
       applyHp: (nextHp: bigint) => {
         ctx.db.character.id.update({ ...character, hp: nextHp });
@@ -2476,12 +2479,12 @@ export const registerCombatReducers = (deps: any) => {
       groupId: groupId ?? undefined,
       groupActorId: character.id,
       groupMessages: groupId ? {
-        dodge: `${character.name} dodges ${eName}'s attack.`,
-        miss: `${eName} misses ${character.name}.`,
-        parry: `${character.name} parries ${eName}'s attack.`,
-        block: (d: bigint) => `${character.name} blocks ${eName}'s attack (${d}).`,
-        hit: (d: bigint) => `${eName} hits ${character.name} for ${d} damage.`,
-        crit: (d: bigint) => `${eName} crits ${character.name} for ${d}!`,
+        dodge: `${character.name} dodges ${eName}'s strike.`,
+        miss: `${eName}'s strike misses ${character.name}.`,
+        parry: `${character.name} parries ${eName}'s strike.`,
+        block: (d: bigint) => `${character.name} blocks ${eName}'s strike (${d}).`,
+        hit: (d: bigint) => `${eName} strikes ${character.name} for ${d} damage.`,
+        crit: (d: bigint) => `${eName} lands a crushing blow on ${character.name} for ${d}!`,
       } : undefined,
     });
   };
