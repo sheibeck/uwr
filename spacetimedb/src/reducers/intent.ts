@@ -504,13 +504,35 @@ export const registerIntentReducers = (deps: any) => {
 
       // Check for enemies at this location via enemy_spawn
       const spawns = [...ctx.db.enemy_spawn.by_location.filter(character.locationId)];
-      const activeSpawn = spawns.find((s: any) => s.currentCount > 0n);
-      if (!activeSpawn) {
+      const aliveSpawns = spawns.filter((s: any) => s.state === 'available' || s.state === 'pulling');
+      if (aliveSpawns.length === 0) {
         return fail(ctx, character, 'There is nothing to fight here.');
       }
 
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-        'You see enemies nearby. Click an enemy spawn or use the action bar to engage.');
+      const targetName = attackMatch[1]?.trim().toLowerCase();
+      let targetSpawn: any = null;
+
+      if (targetName) {
+        // Match by name
+        for (const spawn of aliveSpawns) {
+          if (spawn.name.toLowerCase() === targetName) { targetSpawn = spawn; break; }
+          if (spawn.name.toLowerCase().includes(targetName) && !targetSpawn) { targetSpawn = spawn; }
+        }
+        if (!targetSpawn) {
+          const names = aliveSpawns.map((s: any) => `[${s.name}]`).join(', ');
+          return fail(ctx, character, `No enemy named "${attackMatch[1].trim()}" here. Nearby: ${names}.`);
+        }
+      } else {
+        // No target specified — pick the first available
+        targetSpawn = aliveSpawns[0];
+      }
+
+      const template = ctx.db.enemy_template.id.find(targetSpawn.enemyTemplateId);
+      const enemyName = targetSpawn.name;
+      const levelStr = template ? ` (L${template.level})` : '';
+
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'combat_prompt',
+        `You prepare to engage ${enemyName}${levelStr}. Approach carefully or charge in?\n\n  [Careful Pull] — Measured approach, longer pull time\n  [Charge In] — Rush in immediately`);
       return;
     }
 

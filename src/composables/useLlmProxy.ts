@@ -77,6 +77,7 @@ export const useLlmProxy = ({
           taskId: pendingTask.id,
           resultText: data.text,
           success: true,
+          errorMessage: undefined,
         });
       } else {
         console.error('[LLM Proxy] Error:', data.error);

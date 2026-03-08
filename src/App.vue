@@ -979,6 +979,8 @@ const {
   hasSubmittedAction,
   roundTimeRemaining,
   isInCombat,
+  actionPromptMessage,
+  roundSummaryMessage,
 } = useCombat({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
@@ -1019,6 +1021,34 @@ const {
   selectedCharacter,
   activeCombat,
   combatRoster,
+});
+
+// Inject round-based combat prompts and summaries into narrative stream
+let lastPromptRound: string | null = null;
+let lastSummaryRound: string | null = null;
+
+watch(actionPromptMessage, (msg) => {
+  if (!msg) return;
+  const roundKey = currentRound.value ? `${activeCombat.value?.id}-${currentRound.value.roundNumber}` : null;
+  if (roundKey && roundKey === lastPromptRound) return; // Already injected for this round
+  lastPromptRound = roundKey;
+  addLocalEvent('combat_prompt', msg, 'private');
+});
+
+watch(roundSummaryMessage, (msg) => {
+  if (!msg) return;
+  const roundKey = currentRound.value ? `${activeCombat.value?.id}-${currentRound.value.roundNumber}` : null;
+  if (roundKey && roundKey === lastSummaryRound) return;
+  lastSummaryRound = roundKey;
+  addLocalEvent('combat_status', msg, 'private');
+});
+
+// Reset round tracking when combat ends
+watch(activeCombat, (combat) => {
+  if (!combat) {
+    lastPromptRound = null;
+    lastSummaryRound = null;
+  }
 });
 
 const showDeathModal = computed(() => {
@@ -1390,7 +1420,7 @@ const onCreationSubmit = (text: string) => {
   submitCreationInput(text.trim());
 };
 
-// Global keyword click handler — routes to skill choice, creation input, or delegates to onNarrativeSubmit
+// Global keyword click handler — routes to skill choice, creation input, combat actions, or delegates to onNarrativeSubmit
 (window as any).clickNpcKeyword = (keyword: string) => {
   console.log('[clickNpcKeyword]', keyword, 'isInCreation:', isInCreation.value, 'hasPendingSkills:', hasPendingSkills.value);
   // 1. Skill choice — click-only (typed skill choice uses different input mode)
@@ -1402,7 +1432,85 @@ const onCreationSubmit = (text: string) => {
     submitCreationInput(keyword);
     return;
   }
-  // 3. Everything else — delegate to the same handler typed input uses
+
+  // 3. Combat keyword routing
+  const kw = keyword.trim();
+  const kwLower = kw.toLowerCase();
+
+  // Pull type selection (from attack intent prompt)
+  if (kwLower === 'careful pull') {
+    // Find the first available enemy at current location to pull
+    const spawn = availableEnemies.value.find(e => !e.isPulling);
+    if (spawn) startPull(spawn.id, 'careful');
+    return;
+  }
+  if (kwLower === 'charge in') {
+    const spawn = availableEnemies.value.find(e => !e.isPulling);
+    if (spawn) startPull(spawn.id, 'body');
+    return;
+  }
+
+  // Round-based combat actions (only when in combat and action_select phase)
+  if (isInCombat.value && roundState.value === 'action_select' && !hasSubmittedAction.value) {
+    // Auto-attack
+    if (kwLower === 'auto-attack') {
+      const enemy = combatEnemiesList.value.find((e: any) => e.hp > 0n);
+      if (enemy) submitAutoAttack(enemy.id);
+      return;
+    }
+    // Flee
+    if (kwLower === 'flee') {
+      submitFlee();
+      return;
+    }
+    // Ability name match — check hotbar abilities
+    const charId = selectedCharacter.value.id;
+    const charHotbar = hotbarSlots.value.filter(
+      (s: any) => s.characterId.toString() === charId.toString()
+    );
+    for (const slot of charHotbar) {
+      if (!slot.abilityTemplateId) continue;
+      const template = abilityTemplates.value.find(
+        (t: any) => t.id.toString() === slot.abilityTemplateId.toString()
+      );
+      if (template && template.name.toLowerCase() === kwLower) {
+        const enemy = combatEnemiesList.value.find((e: any) => e.hp > 0n);
+        if (enemy) submitAbility(slot.abilityTemplateId, enemy.id);
+        return;
+      }
+    }
+    // Enemy name match — set as target (for future ability usage)
+    const matchedEnemy = combatEnemiesList.value.find(
+      (e: any) => e.name.toLowerCase() === kwLower && e.hp > 0n
+    );
+    if (matchedEnemy) {
+      setCombatTarget(matchedEnemy.id);
+      return;
+    }
+  }
+
+  // Loot keywords
+  if (kwLower === 'take all loot') {
+    takeAllLoot();
+    return;
+  }
+  if (kwLower === 'dismiss') {
+    dismissResults();
+    return;
+  }
+  if (kwLower.startsWith('take ')) {
+    // "Take [ItemName]" — find matching loot item
+    const itemName = kw.substring(5).trim();
+    const lootItem = pendingLoot.value.find(
+      (l: any) => l.name?.toLowerCase() === itemName.toLowerCase()
+    );
+    if (lootItem) {
+      takeLoot(lootItem.id);
+      return;
+    }
+  }
+
+  // 4. Everything else — delegate to the same handler typed input uses
   onNarrativeSubmit(keyword);
 };
 
