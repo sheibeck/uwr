@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 366: Fix travel/look double description and improve look styling
+Last activity: 2026-03-08 - Completed quick task 367: Add gathering timer bar for gatherables
 
 Progress: [█████████░] 88%
 
@@ -204,8 +204,9 @@ None yet.
 | 364 | Text block progress bars for gathering and looting | 2026-03-08 | 1a92b80 | [364-when-gathering-resources-show-a-progress](./quick/364-when-gathering-resources-show-a-progress/) |
 | 365 | Replace System narrator with Keeper of Knowledge | 2026-03-08 | a23309f, 43d05bd | [365-replace-system-narrator-with-keeper-of-k](./quick/365-replace-system-narrator-with-keeper-of-k/) |
 | 366 | Fix travel/look double description and look styling | 2026-03-08 | 945f299, fe90a14 | [366-fix-travel-look-double-description-and-i](./quick/366-fix-travel-look-double-description-and-i/) |
+| 367 | Add gathering timer bar for gatherables | 2026-03-08 | 27852bf, 22d985c | [367-add-gathering-timer-bar-for-gatherables-](./quick/367-add-gathering-timer-bar-for-gatherables-/) |
 
 ## Session Continuity
 
 Last session: 2026-03-08T19:35:00Z
-Stopped at: Completed quick-366 (Fix travel/look double description and look styling)
+Stopped at: Completed quick-367 (Add gathering timer bar for gatherables)
