@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 361: Fix loot links + combat UI timing
+Last activity: 2026-03-08 - Completed quick task 363: Quest management and viewing narratively
 
 Progress: [█████████░] 88%
 
@@ -200,8 +200,9 @@ None yet.
 | 360 | Convert existing systems to narrative UI | 2026-03-08 | 1015e52, 8b7457a | [360-convert-existing-systems-to-narrative-ui](./quick/360-convert-existing-systems-to-narrative-ui/) |
 | 361 | Fix loot links not clickable + combat UI timing | 2026-03-08 | e8653d5, e660472 | [361-fix-loot-links-not-clickable-in-combat-n](./quick/361-fix-loot-links-not-clickable-in-combat-n/) |
 | 362 | Ensure new characters spawn in safe location with all services | 2026-03-08 | 9a9fd33, 8959e53 | [362-ensure-new-characters-spawn-in-safe-loca](./quick/362-ensure-new-characters-spawn-in-safe-loca/) |
+| 363 | Quest management and viewing narratively | 2026-03-08 | b2a0756, 05a8048 | [363-quest-management-and-viewing-narratively](./quick/363-quest-management-and-viewing-narratively/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T18:31:00Z
-Stopped at: Completed quick-362 (Ensure new characters spawn in safe location with all services)
+Last session: 2026-03-08T18:48:00Z
+Stopped at: Completed quick-363 (Quest management and viewing narratively)
