@@ -424,8 +424,16 @@ export function removeItemFromInventory(
 
 export function grantStarterItems(ctx: any, character: any, ensureStarterItemTemplates: (ctx: any) => void) {
   ensureStarterItemTemplates(ctx);
-  // v2.0: all starters get cloth armor (cloth is always in proficiencies).
-  const armorSet = STARTER_ARMOR.cloth;
+  // v2.0: pick the highest armor tier the character can wear
+  const ARMOR_TIER_ORDER = ['plate', 'chain', 'leather', 'cloth'] as const;
+  let armorTier = 'cloth';
+  if (character.armorProficiencies) {
+    const profs = character.armorProficiencies.split(',');
+    for (const tier of ARMOR_TIER_ORDER) {
+      if (profs.includes(tier)) { armorTier = tier; break; }
+    }
+  }
+  const armorSet = STARTER_ARMOR[armorTier] ?? STARTER_ARMOR.cloth;
   // v2.0: pick starter weapon matching character's weapon proficiencies
   let weapon = STARTER_WEAPONS[normalizeClassName(character.className)] ?? null;
   if (!weapon && character.weaponProficiencies) {
