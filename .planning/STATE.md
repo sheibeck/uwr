@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: in-progress
-stopped_at: Completed 30-02-PLAN.md (Combat Narration Layer)
-last_updated: "2026-03-08T02:04:20Z"
+status: executing
+stopped_at: Completed 30-03-PLAN.md (Narrative Combat UI)
+last_updated: "2026-03-08T02:10:49.654Z"
 last_activity: "2026-03-08 - Completed Phase 30 Plan 02: Combat Narration Layer"
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 22
-  completed_plans: 20
+  completed_plans: 21
   percent: 90
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
-Plan: 30-02 just completed (Combat Narration Layer)
-Status: Phase 30 in progress (2/4 plans complete)
-Last activity: 2026-03-08 - Completed Phase 30 Plan 02: Combat Narration Layer
+Plan: 30-03 just completed (Narrative Combat UI)
+Status: Phase 30 in progress (3/4 plans complete)
+Last activity: 2026-03-08 - Completed Phase 30 Plan 03: Narrative Combat UI
 
-Progress: [█████████░] 90%
+Progress: [█████████░] 88%
 
 ## Previous Milestone (v1.0)
 
@@ -67,6 +67,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 | Phase 27 P03 | 2min | 2 tasks | 4 files |
 | Phase 30 P01 | 9min | 2 tasks | 7 files |
 | Phase 30 P02 | 5min | 2 tasks | 4 files |
+| Phase 30 P03 | 8min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -141,6 +142,9 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 30]: gpt-5-mini for combat narration (fast, 400 max tokens, 2-4 sentences)
 - [Phase 30]: Budget rotation via round-robin across combat participants
 - [Phase 30]: Silent failure for combat_narration LLM errors (combat uninterrupted)
+- [Phase 30]: CombatPanel deleted entirely -- all combat UI now lives in narrative stream
+- [Phase 30]: Context action bar returns empty during active combat (abilities shown inline via bracket keywords)
+- [Phase 30]: Combat event kinds: combat_narration (gold italic typewriter), combat_prompt (white clickable), combat_status (gray monospace)
 
 ### Pending Todos
 
@@ -168,5 +172,5 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-08T02:04:20Z
-Stopped at: Completed 30-02-PLAN.md (Combat Narration Layer)
+Last session: 2026-03-08T02:10:49.638Z
+Stopped at: Completed 30-03-PLAN.md (Narrative Combat UI)
