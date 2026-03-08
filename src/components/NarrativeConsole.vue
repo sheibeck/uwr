@@ -29,6 +29,24 @@
         />
       </template>
 
+      <!-- Gathering progress bar -->
+      <div v-if="gatheringState && gatheringState.progress > 0 && gatheringState.progress < 1"
+        :style="{ marginBottom: '2px', lineHeight: '1.5', fontSize: '0.9rem', color: '#adb5bd' }">
+        <span>Gathering {{ gatheringState.name }}...</span>
+        <div :style="{ fontSize: '0.75rem', color: 'rgba(76, 125, 240, 0.9)', fontFamily: 'monospace', letterSpacing: '-1px' }">
+          {{ progressBar(gatheringState.progress) }}
+        </div>
+      </div>
+
+      <!-- Quest item looting progress bar -->
+      <div v-if="questItemCastState && questItemCastState.progress > 0 && questItemCastState.progress < 1"
+        :style="{ marginBottom: '2px', lineHeight: '1.5', fontSize: '0.9rem', color: '#adb5bd' }">
+        <span>Looting {{ questItemCastState.name }}...</span>
+        <div :style="{ fontSize: '0.75rem', color: 'rgba(251, 191, 36, 0.9)', fontFamily: 'monospace', letterSpacing: '-1px' }">
+          {{ progressBar(questItemCastState.progress) }}
+        </div>
+      </div>
+
       <!-- LLM processing indicator -->
       <div v-if="isLlmProcessing" :style="consideringStyle">
         The Keeper is considering your fate...
@@ -94,6 +112,8 @@ const props = defineProps<{
   combatEnemies?: any[];
   castingAbilityId?: bigint | null;
   castProgress?: number;
+  gatheringState?: { name: string; progress: number } | null;
+  questItemCastState?: { name: string; progress: number } | null;
 }>();
 
 defineEmits<{
@@ -103,6 +123,11 @@ defineEmits<{
   (e: 'use-ability', abilityId: bigint): void;
   (e: 'target-enemy', enemyId: bigint): void;
 }>();
+
+const progressBar = (progress: number, width = 20): string => {
+  const filled = Math.round(progress * width);
+  return '\u2588'.repeat(filled) + '\u2591'.repeat(width - filled);
+};
 
 // Animation composable
 const { animationStates, isAnimating: animIsAnimating, startAnimation, skipAll } = useNarrativeAnimation();

@@ -306,6 +306,7 @@ const emit = defineEmits<{
   (e: 'select-corpse', corpseId: bigint | null): void;
   (e: 'select-character', characterId: bigint | null): void;
   (e: 'loot-quest-item', questItemId: bigint): void;
+  (e: 'quest-item-cast-update', name: string, progress: number): void;
   (e: 'pull-named-enemy', namedEnemyId: bigint): void;
   (e: 'open-bank', npcId: bigint): void;
   (e: 'end-conversation'): void;
@@ -333,11 +334,13 @@ const startQuestItemCast = (qi: { id: bigint; name: string }) => {
     const progress = Math.min(1, elapsed / CAST_MS);
     if (questItemCast.value) {
       questItemCast.value.progress = progress;
+      emit('quest-item-cast-update', qi.name, progress);
     }
     if (progress >= 1) {
       clearInterval(timer);
       const id = questItemCast.value?.id;
       questItemCast.value = null;
+      emit('quest-item-cast-update', qi.name, -1);
       if (id != null) {
         emit('loot-quest-item', id);
       }
@@ -370,6 +373,7 @@ watch(
         clearInterval(questItemCast.value.timer);
       }
       questItemCast.value = null;
+      emit('quest-item-cast-update', '', -1);
     }
   },
   { deep: true }
