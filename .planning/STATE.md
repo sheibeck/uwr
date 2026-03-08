@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed quick-344 (Fix combat narrative flow)
 last_updated: "2026-03-08T04:22:34.640Z"
-last_activity: "2026-03-08 - Completed Phase 30 Plan 03: Narrative Combat UI"
+last_activity: "2026-03-08 - Completed quick task 346: Auto-attacks happen every round automatically"
 progress:
   total_phases: 7
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed Phase 30 Plan 03: Narrative Combat UI
+Last activity: 2026-03-08 - Completed quick task 346: Auto-attacks happen every round automatically
 
 Progress: [█████████░] 88%
 
