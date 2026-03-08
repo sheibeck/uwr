@@ -1650,6 +1650,18 @@ const onCreationSubmit = (text: string) => {
     if (hasVendor) {
       options.push(`[Sell ${clickedBackpack.name}]`);
     }
+    // Proficiency hint for non-equippable gear
+    if (isGear && !clickedBackpack.equipable && !clickedBackpack.isJunk) {
+      const isWeaponSlot = clickedBackpack.slot === 'mainHand' || clickedBackpack.slot === 'offHand';
+      if (isWeaponSlot) {
+        options.unshift('(Weapon proficiency mismatch)');
+      } else {
+        const armorType = clickedBackpack.armorType;
+        if (armorType && armorType !== 'none') {
+          options.unshift(`(Requires ${armorType} proficiency)`);
+        }
+      }
+    }
     if (options.length > 0) {
       addLocalEvent('system', `${clickedBackpack.name}: ${options.join('  ')}`, 'private');
     } else {
