@@ -305,8 +305,16 @@ export const registerCreationReducers = (deps: any) => {
       case 'AWAITING_NAME': {
         // Validate name
         const candidateName = trimmed;
-        if (candidateName.length < 4) {
-          appendCreationEvent(ctx, ctx.sender, 'creation_error', 'Four characters minimum. Even the shortest-lived creatures deserve a proper name.');
+        if (candidateName.length < 3 || candidateName.length > 20) {
+          appendCreationEvent(ctx, ctx.sender, 'creation_error', 'Names must be between 3 and 20 characters. Choose something... pronounceable.');
+          return;
+        }
+        if (/\s/.test(candidateName)) {
+          appendCreationEvent(ctx, ctx.sender, 'creation_error', 'One word only. No spaces. The System does not have time for your elaborate titles.');
+          return;
+        }
+        if (!/^[a-zA-Z]+$/.test(candidateName)) {
+          appendCreationEvent(ctx, ctx.sender, 'creation_error', 'Letters only. No numbers, no symbols, no hieroglyphics. Just a name.');
           return;
         }
 
