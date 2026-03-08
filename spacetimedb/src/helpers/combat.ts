@@ -1209,4 +1209,43 @@ export function scheduleCombatTick(ctx: any, combatId: bigint) {
   });
 }
 
+import {
+  ROUND_TIMER_MICROS,
+  SOLO_TIMER_MICROS,
+  EFFECT_ROUND_CONVERSION_MICROS,
+  MIN_EFFECT_ROUNDS,
+} from '../data/combat_constants';
+
+/** Convert time-based duration (microseconds) to round count. */
+export function convertDurationToRounds(durationMicros: bigint): bigint {
+  const rounds = durationMicros / EFFECT_ROUND_CONVERSION_MICROS;
+  return rounds < MIN_EFFECT_ROUNDS ? MIN_EFFECT_ROUNDS : rounds;
+}
+
+/** Schedule a RoundTimerTick for the given combat round. */
+export function scheduleRoundTimer(ctx: any, combatId: bigint, roundNumber: bigint, isGroup: boolean) {
+  const timerDuration = isGroup ? ROUND_TIMER_MICROS : SOLO_TIMER_MICROS;
+  const expiresAt = ctx.timestamp.microsSinceUnixEpoch + timerDuration;
+  ctx.db.round_timer_tick.insert({
+    scheduledId: 0n,
+    scheduledAt: ScheduleAt.time(expiresAt),
+    combatId,
+    roundNumber,
+  });
+  return expiresAt;
+}
+
+/** Create the first CombatRound for a new combat encounter. */
+export function createFirstRound(ctx: any, combatId: bigint, isGroup: boolean) {
+  const timerExpires = scheduleRoundTimer(ctx, combatId, 1n, isGroup);
+  ctx.db.combat_round.insert({
+    id: 0n,
+    combatId,
+    roundNumber: 1n,
+    state: 'action_select',
+    timerExpiresAtMicros: timerExpires,
+    narrationCount: 0n,
+  });
+}
+
 

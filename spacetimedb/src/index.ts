@@ -29,6 +29,7 @@ import spacetimedb, {
   NpcDialog, QuestInstance,
   Faction, FactionStanding, UiPanelLayout,
   CombatParticipant, CombatLoopTick,
+  CombatRound, CombatAction, CombatNarrative, RoundTimerTick,
   PullState, PullTick,
   HealthRegenTick, EffectTick, HotTick, CastTick,
   DayNightTick, DisconnectLogoutTick, CharacterLogoutTick,
@@ -156,6 +157,9 @@ import {
   GROUP_SIZE_BIAS_RANGE,
   GROUP_SIZE_BIAS_MAX,
   scheduleCombatTick,
+  convertDurationToRounds,
+  scheduleRoundTimer,
+  createFirstRound,
 } from './helpers/combat';
 
 import {
@@ -1205,6 +1209,7 @@ const reducerDeps = {
   GroupInvite,
   CombatParticipant,
   CombatLoopTick,
+  RoundTimerTick,
   PullState,
   PullTick,
   HealthRegenTick,

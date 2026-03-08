@@ -13,7 +13,7 @@ import {
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
-import { addCharacterEffect, addEnemyEffect } from '../helpers/combat';
+import { addCharacterEffect, addEnemyEffect, createFirstRound, scheduleRoundTimer } from '../helpers/combat';
 import { applyPerkProcs } from '../helpers/combat_perks';
 import { partyMembersInLocation } from '../helpers/character';
 import { getLocationSpawnCap } from '../helpers/location';
@@ -163,7 +163,7 @@ export const startCombatForSpawn = (
   participants: any[],
   groupId: bigint | null
 ) => {
-  const { appendPrivateEvent, scheduleCombatTick } = deps;
+  const { appendPrivateEvent } = deps;
   const combat = ctx.db.combat_encounter.insert({
     id: 0n,
     locationId: leader.locationId,
@@ -228,7 +228,8 @@ export const startCombatForSpawn = (
     }
   }
 
-  scheduleCombatTick(ctx, combat.id);
+  // Create first round for round-based combat
+  createFirstRound(ctx, combat.id, !!groupId);
   return combat;
 };
 
@@ -274,6 +275,8 @@ export const registerCombatReducers = (deps: any) => {
     fail,
     grantFactionStandingForKill,
     calculateFleeChance,
+    RoundTimerTick,
+    getEquippedWeaponStats,
   } = deps;
   const failCombat = (ctx: any, character: any, message: string) =>
     fail(ctx, character, message, 'combat');
@@ -335,6 +338,20 @@ export const registerCombatReducers = (deps: any) => {
         if (row.combatId !== combatId) continue;
         loopTable.id.delete(row.scheduledId);
       }
+    }
+    // Clean up round-based combat artifacts
+    const roundTimerTable = ctx.db.round_timer_tick;
+    if (roundTimerTable && roundTimerTable.iter) {
+      for (const row of roundTimerTable.iter()) {
+        if (row.combatId !== combatId) continue;
+        roundTimerTable.id.delete(row.scheduledId);
+      }
+    }
+    for (const row of ctx.db.combat_action.by_combat.filter(combatId)) {
+      ctx.db.combat_action.id.delete(row.id);
+    }
+    for (const row of ctx.db.combat_round.by_combat.filter(combatId)) {
+      ctx.db.combat_round.id.delete(row.id);
     }
     const participantIds: bigint[] = [];
     for (const row of ctx.db.combat_participant.by_combat.filter(combatId)) {
@@ -1169,6 +1186,20 @@ export const registerCombatReducers = (deps: any) => {
     const combat = ctx.db.combat_encounter.id.find(combatId);
     if (!combat || combat.state !== 'active') return failCombat(ctx, character, 'Combat not active');
 
+    // In round-based combat, flee is submitted as an action
+    const round = getCurrentRound(ctx, combatId);
+    if (round && round.state === 'action_select') {
+      upsertCombatAction(ctx, combatId, character.id, round.roundNumber, 'flee');
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'combat', 'You prepare to flee...');
+      const groupId = effectiveGroupId(character);
+      if (groupId) {
+        appendGroupEvent(ctx, groupId, character.id, 'combat', `${character.name} prepares to flee.`);
+      }
+      checkAllSubmittedAndResolve(ctx, combatId, round, deps);
+      return;
+    }
+
+    // Fallback for non-round-based combat (legacy)
     for (const participant of ctx.db.combat_participant.by_combat.filter(combat.id)) {
       if (participant.characterId !== character.id) continue;
       if (participant.status !== 'active') return;
@@ -2930,6 +2961,687 @@ export const registerCombatReducers = (deps: any) => {
     ctx.db.combat_encounter.id.update({ ...combat, state: 'resolved' });
     applyDeathPenalties(ctx, deps, participants, appendPrivateEvent);
   };
+
+  // ── Round-Based Combat Functions ──────────────────────────────────────
+
+  /** Get the current (latest non-resolved) CombatRound for a combat. */
+  const getCurrentRound = (ctx: any, combatId: bigint) => {
+    const rounds = [...ctx.db.combat_round.by_combat.filter(combatId)];
+    // Return the round with the highest roundNumber that isn't resolved
+    let best: any = null;
+    for (const r of rounds) {
+      if (r.state === 'resolved') continue;
+      if (!best || r.roundNumber > best.roundNumber) best = r;
+    }
+    // If all resolved, return the highest resolved round (for reference)
+    if (!best && rounds.length > 0) {
+      for (const r of rounds) {
+        if (!best || r.roundNumber > best.roundNumber) best = r;
+      }
+    }
+    return best;
+  };
+
+  /** Upsert a combat action for a character in the current round. */
+  const upsertCombatAction = (
+    ctx: any, combatId: bigint, characterId: bigint, roundNumber: bigint,
+    actionType: string, abilityTemplateId?: bigint, targetEnemyId?: bigint, targetCharacterId?: bigint
+  ) => {
+    const existing = [...ctx.db.combat_action.by_character.filter(characterId)]
+      .find((a: any) => a.combatId === combatId && a.roundNumber === roundNumber);
+    if (existing) {
+      ctx.db.combat_action.id.update({
+        ...existing,
+        actionType,
+        abilityTemplateId: abilityTemplateId ?? undefined,
+        targetEnemyId: targetEnemyId ?? undefined,
+        targetCharacterId: targetCharacterId ?? undefined,
+        submittedAt: ctx.timestamp,
+      });
+    } else {
+      ctx.db.combat_action.insert({
+        id: 0n, combatId, characterId, roundNumber, actionType,
+        abilityTemplateId: abilityTemplateId ?? undefined,
+        targetEnemyId: targetEnemyId ?? undefined,
+        targetCharacterId: targetCharacterId ?? undefined,
+        submittedAt: ctx.timestamp,
+      });
+    }
+  };
+
+  /** Check if all active participants have submitted actions; if so, resolve. */
+  const checkAllSubmittedAndResolve = (ctx: any, combatId: bigint, round: any, deps: any) => {
+    const participants = [...ctx.db.combat_participant.by_combat.filter(combatId)]
+      .filter((p: any) => p.status === 'active');
+    const actions = [...ctx.db.combat_action.by_combat.filter(combatId)]
+      .filter((a: any) => a.roundNumber === round.roundNumber);
+    const allSubmitted = participants.every((p: any) =>
+      actions.some((a: any) => a.characterId === p.characterId)
+    );
+    if (allSubmitted) {
+      // Cancel the timer
+      const timerTable = ctx.db.round_timer_tick;
+      if (timerTable && timerTable.iter) {
+        for (const row of timerTable.iter()) {
+          if (row.combatId === combatId && row.roundNumber === round.roundNumber) {
+            timerTable.id.delete(row.scheduledId);
+          }
+        }
+      }
+      resolveRound(ctx, combatId, round, deps);
+    }
+  };
+
+  /** Core round resolution function. Replaces the old combat_loop tick for round-based combat. */
+  const resolveRound = (ctx: any, combatId: bigint, round: any, deps: any) => {
+    const combat = ctx.db.combat_encounter.id.find(combatId);
+    if (!combat || combat.state !== 'active') return;
+
+    // Transition to resolving
+    ctx.db.combat_round.id.update({ ...round, state: 'resolving' });
+
+    const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
+    const participants = [...ctx.db.combat_participant.by_combat.filter(combatId)];
+    const enemies = [...ctx.db.combat_enemy.by_combat.filter(combatId)];
+
+    // Mark newly dead participants
+    markNewlyDeadParticipants(ctx, combat, participants);
+
+    const activeParticipants = [...ctx.db.combat_participant.by_combat.filter(combatId)]
+      .filter((p: any) => p.status === 'active');
+
+    // Collect submitted actions for this round
+    const actions = [...ctx.db.combat_action.by_combat.filter(combatId)]
+      .filter((a: any) => a.roundNumber === round.roundNumber);
+
+    // Fill in auto-attack defaults for participants who didn't submit
+    for (const p of activeParticipants) {
+      if (!actions.some((a: any) => a.characterId === p.characterId)) {
+        // Default to auto-attack against current target or first enemy
+        const character = ctx.db.character.id.find(p.characterId);
+        const targetId = character?.combatTargetEnemyId ??
+          enemies.find((e: any) => e.currentHp > 0n)?.id;
+        upsertCombatAction(ctx, combatId, p.characterId, round.roundNumber,
+          'auto_attack', undefined, targetId);
+      }
+    }
+
+    // Re-fetch actions after defaults
+    const allActions = [...ctx.db.combat_action.by_combat.filter(combatId)]
+      .filter((a: any) => a.roundNumber === round.roundNumber);
+
+    // ── Process player actions ──
+    for (const action of allActions) {
+      const character = ctx.db.character.id.find(action.characterId);
+      if (!character || character.hp === 0n) continue;
+      const participant = [...ctx.db.combat_participant.by_combat.filter(combatId)]
+        .find((p: any) => p.characterId === action.characterId);
+      if (!participant || participant.status !== 'active') continue;
+
+      if (action.actionType === 'flee') {
+        // Resolve flee attempt
+        const fleeChance = calculateFleeChance(ctx, character);
+        const roll = Number((nowMicros + character.id * 17n) % 100n);
+        if (roll < fleeChance) {
+          // Success
+          ctx.db.combat_participant.id.update({ ...participant, status: 'fled' });
+          logPrivateAndGroup(ctx, character, 'combat', 'You successfully flee from combat!',
+            `${character.name} flees from combat.`);
+        } else {
+          logPrivateAndGroup(ctx, character, 'combat',
+            'Your flee attempt fails! You lose your action this round.',
+            `${character.name} fails to flee.`);
+        }
+      } else if (action.actionType === 'ability' && action.abilityTemplateId) {
+        // Execute ability
+        const ability = ctx.db.ability_template.id.find(action.abilityTemplateId);
+        if (!ability || ability.characterId !== character.id) continue;
+
+        // Check cooldown
+        const cd = [...ctx.db.ability_cooldown.by_character.filter(character.id)]
+          .find((row: any) => row.abilityTemplateId === action.abilityTemplateId);
+        if (cd && cd.startedAtMicros + cd.durationMicros > nowMicros) {
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+            `${ability.name} is on cooldown. Auto-attacking instead.`);
+          // Fall through to auto-attack
+          processPlayerAutoAttackForRound(ctx, combat, character, participant, enemies, nowMicros);
+          continue;
+        }
+
+        // Execute the ability via the existing engine
+        try {
+          executeAbilityAction(ctx, {
+            actorType: 'player',
+            actorId: character.id,
+            combatId,
+            abilityKey: ability.name,
+            targetEnemyId: action.targetEnemyId,
+            targetCharacterId: action.targetCharacterId,
+            abilityTemplateId: action.abilityTemplateId,
+          });
+          // Set cooldown
+          const cooldownDuration = abilityCooldownMicros(ctx, action.abilityTemplateId);
+          if (cooldownDuration > 0n) {
+            // Remove existing cooldown if any
+            for (const cdRow of ctx.db.ability_cooldown.by_character.filter(character.id)) {
+              if (cdRow.abilityTemplateId === action.abilityTemplateId) {
+                ctx.db.ability_cooldown.id.delete(cdRow.id);
+              }
+            }
+            ctx.db.ability_cooldown.insert({
+              id: 0n,
+              characterId: character.id,
+              abilityTemplateId: action.abilityTemplateId,
+              startedAtMicros: nowMicros,
+              durationMicros: cooldownDuration,
+            });
+          }
+        } catch (_e) {
+          // If ability fails, fall through to auto-attack
+          processPlayerAutoAttackForRound(ctx, combat, character, participant, enemies, nowMicros);
+        }
+      } else {
+        // Auto-attack
+        processPlayerAutoAttackForRound(ctx, combat, character, participant, enemies, nowMicros);
+      }
+    }
+
+    // ── Process enemy actions ──
+    const refreshedEnemies = [...ctx.db.combat_enemy.by_combat.filter(combatId)];
+    const refreshedActive = [...ctx.db.combat_participant.by_combat.filter(combatId)]
+      .filter((p: any) => p.status === 'active');
+
+    for (const enemy of refreshedEnemies) {
+      if (enemy.currentHp === 0n) continue;
+      const template = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
+      if (!template) continue;
+
+      const actionCount = template.isBoss ? 2 : 1;
+      for (let i = 0; i < actionCount; i++) {
+        // Try ability first
+        const usedAbility = tryEnemyAbilityForRound(ctx, combat, enemy, template, refreshedActive, nowMicros);
+        if (!usedAbility || i > 0) {
+          // Auto-attack (bosses always get an auto-attack as second action)
+          processEnemyAutoAttackForRound(ctx, combat, enemy, template, participants, refreshedActive, nowMicros);
+        }
+      }
+    }
+
+    // ── Process pet combat ──
+    const livingEnemiesAfterActions = [...ctx.db.combat_enemy.by_combat.filter(combatId)]
+      .filter((e: any) => e.currentHp > 0n);
+    processPetCombat(ctx, combat, livingEnemiesAfterActions, nowMicros);
+
+    // ── Tick effects once per round ──
+    tickEffectsForRound(ctx, combatId, participants);
+
+    // ── Process pending adds ──
+    const postEffectActive = [...ctx.db.combat_participant.by_combat.filter(combatId)]
+      .filter((p: any) => p.status === 'active');
+    const enemyName = refreshedEnemies[0]?.displayName ?? 'enemy';
+    processPendingAdds(ctx, combat, participants, postEffectActive, enemyName, nowMicros);
+
+    // ── Retarget characters whose target died ──
+    const finalEnemies = [...ctx.db.combat_enemy.by_combat.filter(combatId)];
+    const livingEnemiesFinal = finalEnemies.filter((e: any) => e.currentHp > 0n);
+    const aliveEnemyIds = new Set(livingEnemiesFinal.map((e: any) => e.id));
+    for (const p of participants) {
+      const character = ctx.db.character.id.find(p.characterId);
+      if (!character) continue;
+      if (character.combatTargetEnemyId && !aliveEnemyIds.has(character.combatTargetEnemyId)) {
+        ctx.db.character.id.update({
+          ...character,
+          combatTargetEnemyId: livingEnemiesFinal[0]?.id ?? undefined,
+        });
+      }
+    }
+
+    // ── Victory check ──
+    if (livingEnemiesFinal.length === 0) {
+      const freshActive = [...ctx.db.combat_participant.by_combat.filter(combatId)]
+        .filter((p: any) => p.status === 'active');
+      handleVictory(ctx, combat, finalEnemies, participants, freshActive, enemyName, nowMicros);
+      ctx.db.combat_round.id.update({
+        ...ctx.db.combat_round.id.find(round.id),
+        state: 'resolved',
+      });
+      return;
+    }
+
+    // ── Defeat check ──
+    let stillActive = false;
+    for (const p of ctx.db.combat_participant.by_combat.filter(combatId)) {
+      if (p.status !== 'active') continue;
+      const character = ctx.db.character.id.find(p.characterId);
+      if (character && character.hp > 0n) { stillActive = true; break; }
+    }
+    if (!stillActive) {
+      handleDefeat(ctx, combat, finalEnemies, participants, enemyName, nowMicros);
+      ctx.db.combat_round.id.update({
+        ...ctx.db.combat_round.id.find(round.id),
+        state: 'resolved',
+      });
+      return;
+    }
+
+    // ── Mark round resolved, create next round ──
+    ctx.db.combat_round.id.update({
+      ...ctx.db.combat_round.id.find(round.id),
+      state: 'resolved',
+    });
+
+    // Create next round
+    const isGroup = !!combat.groupId;
+    const nextRoundNumber = round.roundNumber + 1n;
+    const timerExpires = scheduleRoundTimer(ctx, combatId, nextRoundNumber, isGroup);
+    ctx.db.combat_round.insert({
+      id: 0n,
+      combatId,
+      roundNumber: nextRoundNumber,
+      state: 'action_select',
+      timerExpiresAtMicros: timerExpires,
+      narrationCount: round.narrationCount,
+    });
+  };
+
+  /** Process a single player auto-attack during round resolution. */
+  const processPlayerAutoAttackForRound = (
+    ctx: any, combat: any, character: any, participant: any,
+    enemies: any[], nowMicros: bigint
+  ) => {
+    const livingEnemies = enemies
+      .map((e: any) => ctx.db.combat_enemy.id.find(e.id))
+      .filter((e: any) => e && e.currentHp > 0n);
+    if (livingEnemies.length === 0) return;
+
+    const targetEnemy = character.combatTargetEnemyId
+      ? livingEnemies.find((e: any) => e.id === character.combatTargetEnemyId) ?? livingEnemies[0]
+      : livingEnemies[0];
+
+    const weapon = deps.getEquippedWeaponStats(ctx, character.id);
+    const bonuses = getEquippedBonuses(ctx, character.id);
+    const baseDamage = weapon.damage + (bonuses.str ?? 0n);
+    const template = ctx.db.enemy_template.id.find(targetEnemy.enemyTemplateId);
+    const eName = targetEnemy.displayName ?? template?.name ?? 'enemy';
+    const groupId = effectiveGroupId(character);
+    const seed = nowMicros + character.id * 37n + targetEnemy.id;
+    const shieldEquipped = hasShieldEquipped(ctx, character.id);
+
+    resolveAttack(ctx, {
+      seed,
+      baseDamage,
+      targetArmor: targetEnemy.armorClass ?? 0n,
+      canBlock: false,
+      canParry: false,
+      canDodge: false,
+      currentHp: targetEnemy.currentHp,
+      logTargetId: character.id,
+      logOwnerId: character.ownerUserId,
+      messages: {
+        dodge: `${eName} dodges your attack.`,
+        miss: `You miss ${eName}.`,
+        parry: `${eName} parries your attack.`,
+        block: (d: bigint) => `${eName} blocks your attack, taking ${d} damage.`,
+        hit: (d: bigint) => `You hit ${eName} for ${d} damage.`,
+        crit: (d: bigint) => `Critical hit on ${eName} for ${d} damage!`,
+      },
+      applyHp: (nextHp: bigint) => {
+        ctx.db.combat_enemy.id.update({ ...targetEnemy, currentHp: nextHp });
+        if (nextHp === 0n) {
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'combat',
+            `${eName} falls!`);
+        }
+      },
+      characterDex: character.dex,
+      weaponName: weapon.name,
+      weaponType: weapon.type,
+      groupId: groupId ?? undefined,
+      groupActorId: character.id,
+      groupMessages: groupId ? {
+        dodge: `${eName} dodges ${character.name}'s attack.`,
+        miss: `${character.name} misses ${eName}.`,
+        parry: `${eName} parries ${character.name}'s attack.`,
+        block: (d: bigint) => `${eName} blocks ${character.name}'s attack (${d} damage).`,
+        hit: (d: bigint) => `${character.name} hits ${eName} for ${d} damage.`,
+        crit: (d: bigint) => `${character.name} crits ${eName} for ${d} damage!`,
+      } : undefined,
+    });
+
+    // Generate aggro
+    const aggroTable = ctx.db.aggro_entry;
+    const existingAggro = [...aggroTable.by_combat.filter(combat.id)]
+      .find((e: any) => e.enemyId === targetEnemy.id && e.characterId === character.id && !e.petId);
+    if (existingAggro) {
+      aggroTable.id.update({ ...existingAggro, value: existingAggro.value + baseDamage });
+    }
+  };
+
+  /** Try to use an enemy ability for the round; returns true if ability was used. */
+  const tryEnemyAbilityForRound = (
+    ctx: any, combat: any, enemy: any, template: any,
+    activeParticipants: any[], nowMicros: bigint
+  ): boolean => {
+    const enemyAbilities = [...ctx.db.enemy_ability.by_template.filter(template.id)];
+    if (enemyAbilities.length === 0) return false;
+
+    // Check for stun
+    const stunEffect = [...ctx.db.combat_enemy_effect.by_enemy.filter(enemy.id)]
+      .find((e: any) => e.effectType === 'stun');
+    if (stunEffect && stunEffect.roundsRemaining > 0n) return false;
+
+    const cooldownTable = ctx.db.combat_enemy_cooldown;
+    if (!cooldownTable) return false;
+
+    // Score and pick an ability (same AI as existing processEnemyAbilities)
+    type Candidate = { ability: any; target: any; score: number };
+    const candidates: Candidate[] = [];
+    for (const ability of enemyAbilities) {
+      const cooldown = [...cooldownTable.by_enemy.filter(enemy.id)]
+        .find((row: any) => row.abilityKey === ability.abilityKey);
+      if (cooldown && cooldown.readyAtMicros > nowMicros) continue;
+      // Clean up expired cooldowns
+      if (cooldown && cooldown.readyAtMicros <= nowMicros) {
+        for (const row of cooldownTable.by_enemy.filter(enemy.id)) {
+          if (row.abilityKey === ability.abilityKey) cooldownTable.id.delete(row.id);
+        }
+      }
+      const target = pickEnemyTarget(ability.targetRule, activeParticipants, ctx, combat.id, enemy.id);
+      if (!target) continue;
+
+      // Skip duplicate effects
+      if (!target.petId && ability.kind === 'dot') {
+        const alreadyApplied = [...ctx.db.character_effect.by_character.filter(target.characterId!)]
+          .some((effect: any) => effect.effectType === 'dot' && effect.sourceAbility === ability.name);
+        if (alreadyApplied) continue;
+      }
+
+      let score = DEFAULT_AI_WEIGHT;
+      if (ability.kind === 'dot') score += 10;
+      if (ability.targetRule === 'lowest_hp') score += 20;
+      if (ability.kind === 'heal') score += 30;
+      if (ability.kind === 'buff') score += 15;
+      const hash = hashString(`${ability.abilityKey}:${combat.id}:${enemy.id}`);
+      score += (hash % (DEFAULT_AI_RANDOMNESS * 2)) - DEFAULT_AI_RANDOMNESS;
+      candidates.push({ ability, target, score });
+    }
+
+    if (candidates.length === 0) return false;
+    const chosen = candidates.sort((a, b) => b.score - a.score)[0];
+    const roll = Number((nowMicros + enemy.id + combat.id) % 100n);
+    if (roll >= DEFAULT_AI_CHANCE) return false;
+
+    // Execute the ability immediately (round resolution, no cast time)
+    executeAbilityAction(ctx, {
+      actorType: 'enemy',
+      actorId: enemy.id,
+      combatId: combat.id,
+      abilityKey: chosen.ability.abilityKey,
+      targetCharacterId: chosen.target.characterId,
+      targetPetId: chosen.target.petId,
+    });
+
+    // Set cooldown
+    const cooldownMicros = (chosen.ability.cooldownSeconds ?? 0n) * 1_000_000n;
+    if (cooldownMicros > 0n) {
+      for (const row of cooldownTable.by_enemy.filter(enemy.id)) {
+        if (row.abilityKey === chosen.ability.abilityKey) cooldownTable.id.delete(row.id);
+      }
+      cooldownTable.insert({
+        id: 0n, combatId: combat.id, enemyId: enemy.id,
+        abilityKey: chosen.ability.abilityKey, readyAtMicros: nowMicros + cooldownMicros,
+      });
+    }
+    return true;
+  };
+
+  /** Process a single enemy auto-attack during round resolution. */
+  const processEnemyAutoAttackForRound = (
+    ctx: any, combat: any, enemy: any, template: any,
+    participants: any[], activeParticipants: any[], nowMicros: bigint
+  ) => {
+    if (activeParticipants.length === 0) return;
+    const target = pickEnemyTarget('aggro', activeParticipants, ctx, combat.id, enemy.id);
+    if (!target) return;
+
+    if (target.petId) {
+      // Attack pet
+      const pet = ctx.db.active_pet.id.find(target.petId);
+      if (!pet || pet.currentHp === 0n) return;
+      const rawDmg = enemy.attackDamage ?? template.baseDamage ?? 5n;
+      const nextHp = pet.currentHp > rawDmg ? pet.currentHp - rawDmg : 0n;
+      ctx.db.active_pet.id.update({ ...pet, currentHp: nextHp });
+      const owner = ctx.db.character.id.find(pet.characterId);
+      if (owner) {
+        appendPrivateEvent(ctx, owner.id, owner.ownerUserId, 'damage',
+          `${enemy.displayName} hits ${pet.name} for ${rawDmg} damage.${nextHp === 0n ? ` ${pet.name} falls!` : ''}`);
+      }
+      if (nextHp === 0n) ctx.db.active_pet.id.delete(pet.id);
+      return;
+    }
+
+    const character = ctx.db.character.id.find(target.characterId!);
+    if (!character || character.hp === 0n) return;
+    const participant = [...ctx.db.combat_participant.by_combat.filter(combat.id)]
+      .find((p: any) => p.characterId === character.id);
+    if (!participant || participant.status !== 'active') return;
+
+    const groupId = effectiveGroupId(character);
+    const eName = enemy.displayName ?? template?.name ?? 'enemy';
+    const baseDamage = enemy.attackDamage ?? template.baseDamage ?? 5n;
+    const seed = nowMicros + enemy.id * 41n + character.id;
+    const shieldEquipped = hasShieldEquipped(ctx, character.id);
+
+    const result = resolveAttack(ctx, {
+      seed,
+      baseDamage,
+      targetArmor: character.armorClass ?? 0n,
+      canBlock: shieldEquipped,
+      blockChanceBasis: shieldEquipped ? (character.dex ?? 0n) : undefined,
+      blockMitigationPercent: shieldEquipped ? (50n + (character.str ?? 0n) / 5n) : undefined,
+      canParry: canParry(character.className),
+      canDodge: true,
+      dodgeChanceBasis: character.dodgeChance ?? 50n,
+      parryChanceBasis: character.parryChance ?? 50n,
+      attackerHitBonus: 0n,
+      currentHp: character.hp,
+      logTargetId: character.id,
+      logOwnerId: character.ownerUserId,
+      messages: {
+        dodge: `You dodge ${eName}'s attack.`,
+        miss: `${eName} misses you.`,
+        parry: `You parry ${eName}'s attack.`,
+        block: (d: bigint) => `You block ${eName}'s attack, taking ${d} damage.`,
+        hit: (d: bigint) => `${eName} hits you for ${d} damage.`,
+        crit: (d: bigint) => `${eName} crits you for ${d} damage!`,
+      },
+      applyHp: (nextHp: bigint) => {
+        ctx.db.character.id.update({ ...character, hp: nextHp });
+        if (nextHp === 0n) {
+          markParticipantDead(ctx, participant, character, eName);
+        }
+      },
+      targetCharacterId: character.id,
+      groupId: groupId ?? undefined,
+      groupActorId: character.id,
+      groupMessages: groupId ? {
+        dodge: `${character.name} dodges ${eName}'s attack.`,
+        miss: `${eName} misses ${character.name}.`,
+        parry: `${character.name} parries ${eName}'s attack.`,
+        block: (d: bigint) => `${character.name} blocks ${eName}'s attack (${d}).`,
+        hit: (d: bigint) => `${eName} hits ${character.name} for ${d} damage.`,
+        crit: (d: bigint) => `${eName} crits ${character.name} for ${d}!`,
+      } : undefined,
+    });
+  };
+
+  /** Tick all effects once per round (replaces EffectTick/HotTick). */
+  const tickEffectsForRound = (ctx: any, combatId: bigint, participants: any[]) => {
+    // Tick character effects (DoTs, HoTs, buffs)
+    for (const p of participants) {
+      const effects = [...ctx.db.character_effect.by_character.filter(p.characterId)];
+      for (const effect of effects) {
+        const character = ctx.db.character.id.find(p.characterId);
+        if (!character) continue;
+
+        if (effect.effectType === 'regen' && character.hp > 0n) {
+          const healed = character.hp + effect.magnitude > character.maxHp
+            ? character.maxHp : character.hp + effect.magnitude;
+          ctx.db.character.id.update({ ...character, hp: healed });
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+            `${effect.sourceAbility ?? 'Regeneration'} heals you for ${effect.magnitude}.`);
+        } else if (effect.effectType === 'dot' && character.hp > 0n) {
+          const dmg = effect.magnitude > 0n ? effect.magnitude : -effect.magnitude;
+          const nextHp = character.hp > dmg ? character.hp - dmg : 0n;
+          ctx.db.character.id.update({ ...character, hp: nextHp });
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage',
+            `${effect.sourceAbility ?? 'DoT'} deals ${dmg} damage to you.`);
+          if (nextHp === 0n) {
+            const participant = [...ctx.db.combat_participant.by_combat.filter(combatId)]
+              .find((cp: any) => cp.characterId === character.id);
+            if (participant) markParticipantDead(ctx, participant, character, effect.sourceAbility ?? 'an effect');
+          }
+        }
+
+        // Decrement duration
+        const newRounds = effect.roundsRemaining > 0n ? effect.roundsRemaining - 1n : 0n;
+        if (newRounds <= 0n) {
+          // Remove hp_bonus before deleting
+          if (effect.effectType === 'hp_bonus') {
+            const c = ctx.db.character.id.find(p.characterId);
+            if (c) {
+              const nextMax = c.maxHp > effect.magnitude ? c.maxHp - effect.magnitude : 0n;
+              const nextHp = c.hp > nextMax ? nextMax : c.hp;
+              ctx.db.character.id.update({ ...c, maxHp: nextMax, hp: nextHp });
+            }
+          }
+          ctx.db.character_effect.id.delete(effect.id);
+        } else {
+          ctx.db.character_effect.id.update({ ...effect, roundsRemaining: newRounds });
+        }
+      }
+    }
+
+    // Tick enemy effects (DoTs on enemies)
+    for (const effect of ctx.db.combat_enemy_effect.by_combat.filter(combatId)) {
+      const enemy = ctx.db.combat_enemy.id.find(effect.enemyId);
+      if (!enemy || enemy.currentHp === 0n) {
+        ctx.db.combat_enemy_effect.id.delete(effect.id);
+        continue;
+      }
+
+      if (effect.effectType === 'dot') {
+        const dmg = effect.magnitude > 0n ? effect.magnitude : -effect.magnitude;
+        const nextHp = enemy.currentHp > dmg ? enemy.currentHp - dmg : 0n;
+        ctx.db.combat_enemy.id.update({ ...enemy, currentHp: nextHp });
+
+        // Notify participants
+        for (const p of participants) {
+          const character = ctx.db.character.id.find(p.characterId);
+          if (character) {
+            appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage',
+              `${effect.sourceAbility ?? 'DoT'} deals ${dmg} to ${enemy.displayName}.`);
+          }
+        }
+
+        // Life drain: heal the caster
+        if (effect.ownerCharacterId) {
+          const caster = ctx.db.character.id.find(effect.ownerCharacterId);
+          if (caster && caster.hp > 0n) {
+            const healAmt = dmg / 2n > 0n ? dmg / 2n : 1n;
+            const newHp = caster.hp + healAmt > caster.maxHp ? caster.maxHp : caster.hp + healAmt;
+            ctx.db.character.id.update({ ...caster, hp: newHp });
+          }
+        }
+      }
+
+      // Stun: decrement rounds
+      if (effect.effectType === 'stun') {
+        const newRounds = effect.roundsRemaining > 0n ? effect.roundsRemaining - 1n : 0n;
+        if (newRounds <= 0n) {
+          ctx.db.combat_enemy_effect.id.delete(effect.id);
+        } else {
+          ctx.db.combat_enemy_effect.id.update({ ...effect, roundsRemaining: newRounds });
+        }
+        continue;
+      }
+
+      // Decrement duration for non-stun effects
+      const newRounds = effect.roundsRemaining > 0n ? effect.roundsRemaining - 1n : 0n;
+      if (newRounds <= 0n) {
+        ctx.db.combat_enemy_effect.id.delete(effect.id);
+      } else {
+        ctx.db.combat_enemy_effect.id.update({ ...effect, roundsRemaining: newRounds });
+      }
+    }
+  };
+
+  // ── Submit Combat Action Reducer ────────────────────────────────────────
+
+  spacetimedb.reducer('submit_combat_action', {
+    characterId: t.u64(),
+    actionType: t.string(),
+    abilityTemplateId: t.u64().optional(),
+    targetEnemyId: t.u64().optional(),
+    targetCharacterId: t.u64().optional(),
+  }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const combatId = activeCombatIdForCharacter(ctx, character.id);
+    if (!combatId) return failCombat(ctx, character, 'Not in combat');
+
+    const round = getCurrentRound(ctx, combatId);
+    if (!round || round.state !== 'action_select') {
+      return failCombat(ctx, character, 'Not in action selection phase');
+    }
+
+    // Validate action type
+    const validActions = ['ability', 'auto_attack', 'flee'];
+    if (!validActions.includes(args.actionType)) {
+      return failCombat(ctx, character, 'Invalid action type');
+    }
+
+    // Validate ability if specified
+    if (args.actionType === 'ability') {
+      if (!args.abilityTemplateId) return failCombat(ctx, character, 'Ability required');
+      const ability = ctx.db.ability_template.id.find(args.abilityTemplateId);
+      if (!ability || ability.characterId !== character.id) {
+        return failCombat(ctx, character, 'Ability not available');
+      }
+      // Check cooldown
+      const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
+      const cd = [...ctx.db.ability_cooldown.by_character.filter(character.id)]
+        .find((row: any) => row.abilityTemplateId === args.abilityTemplateId);
+      if (cd && cd.startedAtMicros + cd.durationMicros > nowMicros) {
+        return failCombat(ctx, character, `${ability.name} is on cooldown`);
+      }
+    }
+
+    upsertCombatAction(ctx, combatId, character.id, round.roundNumber,
+      args.actionType, args.abilityTemplateId, args.targetEnemyId, args.targetCharacterId);
+
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+      args.actionType === 'flee' ? 'You prepare to flee...' :
+      args.actionType === 'ability' ? `Action set: ${ctx.db.ability_template.id.find(args.abilityTemplateId!)?.name ?? 'ability'}` :
+      'Action set: auto-attack');
+
+    checkAllSubmittedAndResolve(ctx, combatId, round, deps);
+  });
+
+  // ── Resolve Round Timer (scheduled reducer) ─────────────────────────────
+
+  if (RoundTimerTick) {
+    scheduledReducers['resolve_round_timer'] = spacetimedb.reducer(
+      'resolve_round_timer', { arg: RoundTimerTick.rowType }, (ctx, { arg }) => {
+        const combat = ctx.db.combat_encounter.id.find(arg.combatId);
+        if (!combat || combat.state !== 'active') return;
+
+        const round = getCurrentRound(ctx, arg.combatId);
+        if (!round || round.roundNumber !== arg.roundNumber || round.state !== 'action_select') return;
+
+        // Timer expired: resolve with defaults for anyone who hasn't submitted
+        resolveRound(ctx, arg.combatId, round, deps);
+      }
+    );
+  }
 
   // ── End Combat Loop Sub-Functions ─────────────────────────────────────
 
