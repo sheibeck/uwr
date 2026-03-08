@@ -70,6 +70,8 @@
       :combat-enemies="combatEnemiesList"
       :casting-ability-id="activeCastId"
       :cast-progress="castProgress"
+      :gathering-state="activeGatheringInfo"
+      :quest-item-cast-state="localQuestItemCast"
       @submit="onNarrativeSubmit"
       @open-panel="onOpenPanel"
       @flee="onCombatFlee"
@@ -281,6 +283,7 @@
         @select-corpse="selectCorpseTarget"
         @select-character="selectCharacterTarget"
         @loot-quest-item="lootQuestItem"
+        @quest-item-cast-update="onQuestItemCastUpdate"
         @pull-named-enemy="pullNamedEnemy"
       />
     </FloatingPanel>
@@ -1678,6 +1681,12 @@ const onCreationSubmit = (text: string) => {
         n.state === 'available'
       );
       if (node && selectedCharacter.value && conn.isActive) {
+        localGather.value = {
+          nodeId: (node as any).id,
+          startMicros: nowMicros.value,
+          durationMicros: 8_000_000,
+        };
+        addLocalEvent('system', `You begin gathering ${resourceName}...`, 'private');
         startGatherReducer({
           characterId: selectedCharacter.value.id,
           nodeId: (node as any).id,
@@ -2246,6 +2255,27 @@ const resourceNodesHere = computed(() => {
     });
 });
 
+const activeGatheringInfo = computed(() => {
+  if (!localGather.value) return null;
+  const nodeId = localGather.value.nodeId;
+  const node = resourceNodesHere.value.find(n => n.id.toString() === nodeId.toString());
+  if (!node) return null;
+  return {
+    name: node.name,
+    progress: node.progress,
+  };
+});
+
+const localQuestItemCast = ref<{ name: string; progress: number } | null>(null);
+
+const onQuestItemCastUpdate = (name: string, progress: number) => {
+  if (progress >= 1 || progress < 0) {
+    localQuestItemCast.value = null;
+  } else {
+    localQuestItemCast.value = { name, progress };
+  }
+};
+
 const startGather = (nodeId: bigint) => {
   if (!selectedCharacter.value || !conn.isActive) return;
   localGather.value = {
@@ -2253,6 +2283,8 @@ const startGather = (nodeId: bigint) => {
     startMicros: nowMicros.value,
     durationMicros: 8_000_000,
   };
+  const nodeName = resourceNodesHere.value.find(n => n.id.toString() === nodeId.toString())?.name ?? 'resource';
+  addLocalEvent('system', `You begin gathering ${nodeName}...`, 'private');
   startGatherReducer({ characterId: selectedCharacter.value.id, nodeId });
 };
 
@@ -2700,10 +2732,8 @@ watch(
   () => nowMicros.value,
   (now) => {
     if (localGather.value && now - localGather.value.startMicros >= localGather.value.durationMicros) {
-      localGather.value = null;
-    }
-    // Orphan safety net: if localGather exceeds duration + 2s grace, force clear
-    if (localGather.value && now - localGather.value.startMicros >= localGather.value.durationMicros + 2_000_000) {
+      const nodeName = resourceNodesHere.value.find(n => n.id.toString() === localGather.value!.nodeId.toString())?.name ?? 'resource';
+      addLocalEvent('reward', `You gathered ${nodeName}.`, 'private');
       localGather.value = null;
     }
   }
