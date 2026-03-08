@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed quick-355 (Add weapon/armor type proficiencies to dynamic class creation)
-last_updated: "2026-03-08T16:43:06Z"
-last_activity: "2026-03-08 - Completed quick task 355: Add weapon/armor type proficiencies to dynamic class creation"
+stopped_at: Completed quick-356 (Narrative inventory and backpack commands)
+last_updated: "2026-03-08T17:01:00Z"
+last_activity: "2026-03-08 - Completed quick task 356: Narrative inventory and backpack commands"
 progress:
   total_phases: 7
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 355: Add weapon/armor type proficiencies to dynamic class creation
+Last activity: 2026-03-08 - Completed quick task 356: Narrative inventory and backpack commands
 
 Progress: [█████████░] 88%
 
@@ -193,8 +193,9 @@ None yet.
 | 353 | Remove hardcoded class data, derive mana from abilities | 2026-03-08 | d6cecc3, 54d329f | [353-remove-hardcoded-class-data-derive-mana-](./quick/353-remove-hardcoded-class-data-derive-mana-/) |
 | 354 | Consolidate combat narration to 1 LLM credit per combat | 2026-03-08 | 4e13cd7 | [354-use-gpt-5-mini-for-combat-narration-and-](./quick/354-use-gpt-5-mini-for-combat-narration-and-/) |
 | 355 | Add weapon/armor type proficiencies to dynamic class creation | 2026-03-08 | cfb7a09, a3dc5f9 | [355-add-weapon-armor-type-proficiencies-to-d](./quick/355-add-weapon-armor-type-proficiencies-to-d/) |
+| 356 | Narrative inventory and backpack commands | 2026-03-08 | 5271f0e, baf4ee0 | [356-narrative-inventory-and-backpack-command](./quick/356-narrative-inventory-and-backpack-command/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T16:43:06Z
-Stopped at: Completed quick-355 (Add weapon/armor type proficiencies to dynamic class creation)
+Last session: 2026-03-08T16:58:07Z
+Stopped at: Completed quick-356 (Narrative inventory and backpack commands)
