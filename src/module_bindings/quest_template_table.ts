@@ -21,6 +21,7 @@ export default __t.row({
   rewardXp: __t.u64().name("reward_xp"),
   questType: __t.option(__t.string()).name("quest_type"),
   targetLocationId: __t.option(__t.u64()).name("target_location_id"),
+  sourceLocationId: __t.option(__t.u64()).name("source_location_id"),
   targetNpcId: __t.option(__t.u64()).name("target_npc_id"),
   targetItemName: __t.option(__t.string()).name("target_item_name"),
   itemDropChance: __t.option(__t.u64()).name("item_drop_chance"),

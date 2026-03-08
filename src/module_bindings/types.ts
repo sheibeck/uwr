@@ -1062,6 +1062,7 @@ export const QuestTemplate = __t.object("QuestTemplate", {
   rewardXp: __t.u64(),
   questType: __t.option(__t.string()),
   targetLocationId: __t.option(__t.u64()),
+  sourceLocationId: __t.option(__t.u64()),
   targetNpcId: __t.option(__t.u64()),
   targetItemName: __t.option(__t.string()),
   itemDropChance: __t.option(__t.u64()),
