@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 371: Deterministic quest item spawning for delivery+explore
+Last activity: 2026-03-08 - Completed quick task 372: Auto-end NPC conversation on game actions
 
 Progress: [█████████░] 88%
 
@@ -209,8 +209,9 @@ None yet.
 | 369 | Fix double gathering messages (deduplicate) | 2026-03-08 | 264eea2 | [369-fix-double-gathering-messages-deduplicat](./quick/369-fix-double-gathering-messages-deduplicat/) |
 | 370 | Replace LLM combat intro with static messages | 2026-03-08 | 4278a02 | [370-replace-llm-combat-intro-with-static-mes](./quick/370-replace-llm-combat-intro-with-static-mes/) |
 | 371 | Deterministic quest item spawning for delivery+explore | 2026-03-08 | 306e008 | [371-dynamic-quest-item-spawning-for-gatherab](./quick/371-dynamic-quest-item-spawning-for-gatherab/) |
+| 372 | Auto-end NPC conversation on game actions | 2026-03-08 | 5301c54 | [372-auto-end-npc-conversation-when-clicking-](./quick/372-auto-end-npc-conversation-when-clicking-/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T20:16:00Z
-Stopped at: Completed quick-371 (Deterministic quest item spawning for delivery+explore)
+Last session: 2026-03-08T20:23:00Z
+Stopped at: Completed quick-372 (Auto-end NPC conversation on game actions)
