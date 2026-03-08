@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed quick-343 (Clear Combat Round Flow)
-last_updated: "2026-03-08T04:06:15.514Z"
+stopped_at: Completed quick-344 (Fix combat narrative flow)
+last_updated: "2026-03-08T04:22:34.640Z"
 last_activity: "2026-03-08 - Completed Phase 30 Plan 03: Narrative Combat UI"
 progress:
   total_phases: 7
@@ -147,6 +147,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 30]: Combat event kinds: combat_narration (gold italic typewriter), combat_prompt (white clickable), combat_status (gray monospace)
 - [Phase quick-342]: CombatHud panel deleted; combat UI fully inline via addLocalEvent injection into narrative stream
 - [Phase quick-343]: Round lifecycle markers use phase-aware watchers with deduplicated round keys for clean event injection
+- [Phase quick-344]: Status bars only on Round 1; round summary carries HP for subsequent rounds
 
 ### Pending Todos
 
@@ -173,8 +174,9 @@ None yet.
 | 340 | Unify typed and clicked command routing | 2026-03-07 | 4c22d63 | [340-unify-typed-and-clicked-command-routing-](./quick/340-unify-typed-and-clicked-command-routing-/) |
 | 342 | Inline combat status bars in narrative panel | 2026-03-08 | 5e15c30 | [342-inline-combat-status-bars-in-narrative-p](./quick/342-inline-combat-status-bars-in-narrative-p/) |
 | 343 | Clear combat round flow with distinct headers | 2026-03-08 | b076d1d, 0b4e903 | [343-clear-combat-round-flow-with-distinct-he](./quick/343-clear-combat-round-flow-with-distinct-he/) |
+| 344 | Fix combat narrative flow - ordering, timing, LLM accuracy | 2026-03-08 | 95b89be, d7741cf | [344-fix-combat-narrative-flow-ordering-timin](./quick/344-fix-combat-narrative-flow-ordering-timin/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T04:06:11.351Z
-Stopped at: Completed quick-343 (Clear Combat Round Flow)
+Last session: 2026-03-08T04:22:34.632Z
+Stopped at: Completed quick-344 (Fix combat narrative flow)
