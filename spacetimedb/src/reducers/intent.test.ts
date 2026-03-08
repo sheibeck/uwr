@@ -145,4 +145,87 @@ describe('buildLookOutput', () => {
     expect(joined).toContain('Forest');
     expect(joined).toContain('Exits:');
   });
+
+  it('includes discovered quest items at character location', () => {
+    const db = createMockDb({
+      location: [{ id: 1n, name: 'Cave', description: 'A dark cave.', isSafe: false, bindStone: false, craftingAvailable: false }],
+      world_state: [{ id: 1n, isNight: false, nextTransitionAtMicros: 2000000000000n }],
+      npc: [],
+      character: [],
+      enemy_spawn: [],
+      resource_node: [],
+      location_connection: [],
+      quest_item: [
+        { id: 1n, characterId: 10n, questTemplateId: 1n, locationId: 1n, name: 'Ancient Relic', discovered: true, looted: false },
+      ],
+    });
+
+    const ctx = {
+      db,
+      timestamp: { microsSinceUnixEpoch: 1000000000000n },
+    };
+
+    const character = { id: 10n, locationId: 1n, level: 1n };
+    const parts = buildLookOutput(ctx, character);
+    const joined = parts.join('\n');
+
+    expect(joined).toContain('Quest items');
+    expect(joined).toContain('Loot Ancient Relic');
+  });
+
+  it('does not show looted or undiscovered quest items', () => {
+    const db = createMockDb({
+      location: [{ id: 1n, name: 'Cave', description: 'A dark cave.', isSafe: false, bindStone: false, craftingAvailable: false }],
+      world_state: [{ id: 1n, isNight: false, nextTransitionAtMicros: 2000000000000n }],
+      npc: [],
+      character: [],
+      enemy_spawn: [],
+      resource_node: [],
+      location_connection: [],
+      quest_item: [
+        { id: 1n, characterId: 10n, questTemplateId: 1n, locationId: 1n, name: 'Looted Item', discovered: true, looted: true },
+        { id: 2n, characterId: 10n, questTemplateId: 2n, locationId: 1n, name: 'Hidden Item', discovered: false, looted: false },
+        { id: 3n, characterId: 99n, questTemplateId: 1n, locationId: 1n, name: 'Other Player Item', discovered: true, looted: false },
+      ],
+    });
+
+    const ctx = {
+      db,
+      timestamp: { microsSinceUnixEpoch: 1000000000000n },
+    };
+
+    const character = { id: 10n, locationId: 1n, level: 1n };
+    const parts = buildLookOutput(ctx, character);
+    const joined = parts.join('\n');
+
+    expect(joined).not.toContain('Quest items');
+    expect(joined).not.toContain('Looted Item');
+    expect(joined).not.toContain('Hidden Item');
+    expect(joined).not.toContain('Other Player Item');
+  });
+
+  it('still works when no quest_item table data exists', () => {
+    const db = createMockDb({
+      location: [{ id: 1n, name: 'Town', description: 'A town.', isSafe: true, bindStone: false, craftingAvailable: false }],
+      world_state: [{ id: 1n, isNight: false, nextTransitionAtMicros: 2000000000000n }],
+      npc: [],
+      character: [],
+      enemy_spawn: [],
+      resource_node: [],
+      location_connection: [],
+      quest_item: [],
+    });
+
+    const ctx = {
+      db,
+      timestamp: { microsSinceUnixEpoch: 1000000000000n },
+    };
+
+    const character = { id: 10n, locationId: 1n, level: 1n };
+    const parts = buildLookOutput(ctx, character);
+
+    expect(parts.length).toBeGreaterThan(0);
+    expect(parts[0]).toBe('Town');
+    expect(parts.join('\n')).not.toContain('Quest items');
+  });
 });
