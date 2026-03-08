@@ -1065,7 +1065,6 @@ watch(hasSubmittedAction, (submitted) => {
   if (lastInjectedSubmit.value === roundKey) return;
   lastInjectedSubmit.value = roundKey;
   const actionDesc = myAction.value?.actionType === 'flee' ? 'Flee' :
-    myAction.value?.actionType === 'auto_attack' ? 'Auto-attack' :
     myAction.value?.actionType === 'ability' ? 'Ability' : 'Action';
   addLocalEvent('combat_status', `${actionDesc} submitted.`, 'private');
 });
@@ -1524,12 +1523,6 @@ const onCreationSubmit = (text: string) => {
 
   // Round-based combat actions (only when in combat and action_select phase)
   if (isInCombat.value && roundState.value === 'action_select' && !hasSubmittedAction.value) {
-    // Auto-attack
-    if (kwLower === 'auto-attack') {
-      const enemy = combatEnemiesList.value.find((e: any) => e.hp > 0n);
-      if (enemy) submitAutoAttack(enemy.id);
-      return;
-    }
     // Flee
     if (kwLower === 'flee') {
       submitFlee();

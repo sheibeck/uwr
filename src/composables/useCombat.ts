@@ -278,10 +278,6 @@ export const useCombat = ({
     submitAction('ability', abilityTemplateId, targetEnemyId);
   };
 
-  const submitAutoAttack = (targetEnemyId: bigint) => {
-    submitAction('auto_attack', undefined, targetEnemyId);
-  };
-
   const submitFlee = () => {
     submitAction('flee');
   };
@@ -296,7 +292,7 @@ export const useCombat = ({
     if (!charId) return null;
 
     const lines: string[] = [];
-    lines.push('Choose your action:');
+    lines.push('Choose your action (auto-attack is automatic):');
     lines.push('');
 
     // Character abilities (all known abilities, not just hotbar)
@@ -320,7 +316,6 @@ export const useCombat = ({
       }
     }
 
-    lines.push(`  [Auto-attack]`);
     lines.push(`  [Flee]`);
     lines.push('');
 
@@ -1061,7 +1056,6 @@ export const useCombat = ({
     // Round-based combat
     submitAction,
     submitAbility,
-    submitAutoAttack,
     submitFlee,
     currentRound,
     roundState,
