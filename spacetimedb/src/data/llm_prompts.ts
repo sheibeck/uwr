@@ -446,3 +446,124 @@ Respond in character. If the conversation naturally leads to a side effect (ques
 Respond with ONLY valid JSON matching this schema:
 ${NPC_CONVERSATION_RESPONSE_SCHEMA}`;
 }
+
+// === COMBAT NARRATION PROMPTS ===
+
+export const COMBAT_NARRATION_SCHEMA = `{ "narrative": "string -- 2-4 sentences narrating the combat events with sardonic System voice" }`;
+
+import type { RoundEventSummary } from '../helpers/combat_narration';
+
+/**
+ * Build a user prompt describing a combat round's events for LLM narration.
+ */
+export function buildCombatRoundUserPrompt(events: RoundEventSummary): string {
+  const lines: string[] = [];
+  lines.push(`Round ${events.roundNumber} of combat:`);
+
+  if (events.playerActions.length > 0) {
+    lines.push('Players acted:');
+    for (const a of events.playerActions) {
+      if (a.fled) {
+        lines.push(`- ${a.characterName} ${a.fleeSuccess ? 'successfully fled from combat' : 'attempted to flee but failed'}`);
+      } else if (a.missed) {
+        lines.push(`- ${a.characterName} attacked ${a.targetName || 'an enemy'} but missed`);
+      } else if (a.abilityName) {
+        let line = `- ${a.characterName} used ${a.abilityName} on ${a.targetName || 'an enemy'}`;
+        if (a.damageDealt !== undefined && a.damageDealt > 0n) line += `, dealing ${a.damageDealt} damage`;
+        if (a.healingDone !== undefined && a.healingDone > 0n) line += `, healing for ${a.healingDone}`;
+        if (a.wasCrit) line += ' (CRITICAL HIT!)';
+        lines.push(line);
+      } else {
+        let line = `- ${a.characterName} auto-attacked ${a.targetName || 'an enemy'}`;
+        if (a.damageDealt !== undefined && a.damageDealt > 0n) line += ` for ${a.damageDealt} damage`;
+        if (a.wasCrit) line += ' (CRITICAL HIT!)';
+        lines.push(line);
+      }
+    }
+  }
+
+  if (events.enemyActions.length > 0) {
+    lines.push('Enemies acted:');
+    for (const a of events.enemyActions) {
+      let line = `- ${a.enemyName}`;
+      if (a.abilityName) {
+        line += ` used ${a.abilityName} on ${a.targetName || 'a player'}`;
+      } else {
+        line += ` attacked ${a.targetName || 'a player'}`;
+      }
+      if (a.damageDealt !== undefined && a.damageDealt > 0n) line += `, dealing ${a.damageDealt} damage`;
+      if (a.healingDone !== undefined && a.healingDone > 0n) line += `, healing for ${a.healingDone}`;
+      if (a.wasCrit) line += ' (CRITICAL HIT!)';
+      lines.push(line);
+    }
+  }
+
+  if (events.effectsApplied.length > 0) lines.push(`Effects applied: ${events.effectsApplied.join(', ')}`);
+  if (events.effectsExpired.length > 0) lines.push(`Effects expired: ${events.effectsExpired.join(', ')}`);
+  if (events.deaths.length > 0) lines.push(`Deaths this round: ${events.deaths.join(', ')}`);
+
+  if (events.participantHpSummary.length > 0) {
+    const survivors = events.participantHpSummary
+      .filter(p => p.hp > 0n)
+      .map(p => `${p.name}: ${p.hp}/${p.maxHp} HP${p.isEnemy ? ' (enemy)' : ''}`)
+      .join(', ');
+    if (survivors) lines.push(`Survivors: ${survivors}`);
+  }
+
+  lines.push('');
+  lines.push(`Respond with JSON: ${COMBAT_NARRATION_SCHEMA}`);
+
+  return lines.join('\n');
+}
+
+/**
+ * Build a user prompt for combat intro narration.
+ */
+export function buildCombatIntroUserPrompt(
+  enemyNames: string[],
+  playerNames: string[],
+  locationName: string,
+): string {
+  return `Combat begins at ${locationName}.
+Players: ${playerNames.join(', ') || 'a lone adventurer'}
+Enemies: ${enemyNames.join(', ') || 'unknown creatures'}
+
+Set the scene for this combat encounter. Describe the tension as battle begins. Be sardonic and brief -- 2-4 sentences.
+
+Respond with JSON: ${COMBAT_NARRATION_SCHEMA}`;
+}
+
+/**
+ * Build a user prompt for combat victory/defeat narration.
+ */
+export function buildCombatOutroUserPrompt(
+  events: RoundEventSummary,
+  isVictory: boolean,
+): string {
+  const outcome = isVictory ? 'VICTORY' : 'DEFEAT';
+  const lines: string[] = [];
+  lines.push(`Combat ends in ${outcome}.`);
+
+  if (events.deaths.length > 0) {
+    lines.push(`Fallen: ${events.deaths.join(', ')}`);
+  }
+
+  if (events.participantHpSummary.length > 0) {
+    const survivors = events.participantHpSummary
+      .filter(p => p.hp > 0n)
+      .map(p => `${p.name}: ${p.hp}/${p.maxHp} HP`)
+      .join(', ');
+    if (survivors) lines.push(`Survivors: ${survivors}`);
+  }
+
+  if (isVictory) {
+    lines.push('Narrate the victory. The players have prevailed. Be sardonic about their triumph -- 2-4 sentences.');
+  } else {
+    lines.push('Narrate the defeat. The players have fallen. Be darkly amused at their demise -- 2-4 sentences.');
+  }
+
+  lines.push('');
+  lines.push(`Respond with JSON: ${COMBAT_NARRATION_SCHEMA}`);
+
+  return lines.join('\n');
+}
