@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 30-03-PLAN.md (Narrative Combat UI)
-last_updated: "2026-03-08T02:10:49.654Z"
-last_activity: "2026-03-08 - Completed Phase 30 Plan 02: Combat Narration Layer"
+stopped_at: Completed quick-342 (Inline Combat Status Bars)
+last_updated: "2026-03-08T03:52:49.244Z"
+last_activity: "2026-03-08 - Completed Phase 30 Plan 03: Narrative Combat UI"
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 22
   completed_plans: 21
-  percent: 90
+  percent: 88
 ---
 
 # Project State
@@ -145,6 +145,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 30]: CombatPanel deleted entirely -- all combat UI now lives in narrative stream
 - [Phase 30]: Context action bar returns empty during active combat (abilities shown inline via bracket keywords)
 - [Phase 30]: Combat event kinds: combat_narration (gold italic typewriter), combat_prompt (white clickable), combat_status (gray monospace)
+- [Phase quick-342]: CombatHud panel deleted; combat UI fully inline via addLocalEvent injection into narrative stream
 
 ### Pending Todos
 
@@ -169,8 +170,9 @@ None yet.
 | 338 | Add clickable color-coded links in look output | 2026-03-07 | dcec09a, ae307a2 | [338-add-clickable-links-in-look-output-for-b](./quick/338-add-clickable-links-in-look-output-for-b/) |
 | 339 | Add bind command to bind at locations with bindstones | 2026-03-07 | 005b5e7 | [339-add-bind-command-to-bind-at-locations-wi](./quick/339-add-bind-command-to-bind-at-locations-wi/) |
 | 340 | Unify typed and clicked command routing | 2026-03-07 | 4c22d63 | [340-unify-typed-and-clicked-command-routing-](./quick/340-unify-typed-and-clicked-command-routing-/) |
+| 342 | Inline combat status bars in narrative panel | 2026-03-08 | 5e15c30 | [342-inline-combat-status-bars-in-narrative-p](./quick/342-inline-combat-status-bars-in-narrative-p/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T02:10:49.638Z
-Stopped at: Completed 30-03-PLAN.md (Narrative Combat UI)
+Last session: 2026-03-08T03:52:44.466Z
+Stopped at: Completed quick-342 (Inline Combat Status Bars)
