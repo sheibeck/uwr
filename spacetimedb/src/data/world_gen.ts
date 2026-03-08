@@ -9,8 +9,8 @@ export const RIPPLE_TEMPLATES = [
 ];
 
 export const DISCOVERY_TEMPLATES = [
-  'You have wandered beyond the edge of the known world. The System takes a breath and remembers... {regionName}.',
-  'The mists part. You are the first to remember {regionName}. The System notes this with something almost like interest.',
+  'You have wandered beyond the edge of the known world. The Keeper of Knowledge pauses, then remembers... {regionName}.',
+  'The mists part. You are the first to remember {regionName}. The Keeper notes this with something almost like interest.',
   'You step into {regionName}. It has always been here. You were simply the first to notice.',
 ];
 

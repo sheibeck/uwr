@@ -273,14 +273,14 @@ export function handleCombatNarrationResult(
     appendPrivateEvent(ctx, charId, character.ownerUserId, 'combat_narration', prefix + narrative);
   }
 
-  // Intro flavor: add a System settling-in message and start combat loop
+  // Intro flavor: add a world settling-in message and start combat loop
   if (narrativeType === 'intro') {
     for (const charIdStr of participantCharacterIds) {
       const charId = BigInt(charIdStr);
       const character = ctx.db.character.id.find(charId);
       if (!character) continue;
       appendPrivateEvent(ctx, charId, character.ownerUserId, 'system',
-        'The System settles in to watch.');
+        'The world grows still around you.');
     }
 
     // Start combat loop now that intro narration is displayed
@@ -301,6 +301,6 @@ export function sendNarrationSkippedMessage(
     const character = ctx.db.character.id.find(p.characterId);
     if (!character) continue;
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-      'The System has lost interest in your skirmish.');
+      'The Keeper of Knowledge has lost interest in your skirmish.');
   }
 }
