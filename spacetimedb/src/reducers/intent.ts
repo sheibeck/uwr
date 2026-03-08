@@ -46,6 +46,8 @@ export const registerIntentReducers = (deps: any) => {
         'Commands:',
         '  [look] (l) — Survey your surroundings. Shows location, NPCs, enemies, resources, exits.',
         '  [look] <name> — Inspect a specific NPC, enemy, or player.',
+        '  [inventory] (inv, i) — View your equipped gear with stats.',
+        '  [backpack] (bp, bag) — View your unequipped items.',
         '  go <place> — Travel to a connected location. You can also type the location name directly.',
         '  [travel] — List available destinations.',
         '  say <message> — Speak aloud for everyone at your location to hear.',
@@ -227,8 +229,121 @@ export const registerIntentReducers = (deps: any) => {
 
     // --- INVENTORY ---
     if (lower === 'inventory' || lower === 'inv' || lower === 'i') {
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-        'You rummage through your pack.');
+      const RARITY_COLORS: Record<string, string> = {
+        common: '#ffffff', uncommon: '#22c55e', rare: '#3b82f6', epic: '#aa44ff', legendary: '#ff8800',
+      };
+      const SLOT_LABELS: Record<string, string> = {
+        head: 'Head', chest: 'Chest', wrists: 'Wrists', hands: 'Hands',
+        belt: 'Belt', legs: 'Legs', boots: 'Boots', earrings: 'Earrings',
+        neck: 'Neck', cloak: 'Cloak', mainHand: 'Main Hand', offHand: 'Off Hand',
+      };
+      const SLOT_ORDER = ['head', 'chest', 'wrists', 'hands', 'belt', 'legs', 'boots', 'earrings', 'neck', 'cloak', 'mainHand', 'offHand'];
+
+      const charItems = [...ctx.db.item_instance.by_owner.filter(character.id)];
+      const parts: string[] = ['Equipment:'];
+
+      for (const slotKey of SLOT_ORDER) {
+        const label = SLOT_LABELS[slotKey] || slotKey;
+        const instance = charItems.find((i: any) => i.equippedSlot === slotKey);
+        if (!instance) {
+          parts.push(`  ${label}: (empty)`);
+          continue;
+        }
+        const template = ctx.db.item_template.id.find(instance.templateId);
+        if (!template) {
+          parts.push(`  ${label}: (empty)`);
+          continue;
+        }
+        const itemName = instance.displayName || template.name;
+        const rarity = (instance.qualityTier || template.rarity || 'common').toLowerCase();
+        const color = RARITY_COLORS[rarity] || '#ffffff';
+
+        // Build stat summary
+        const statParts: string[] = [];
+        const statMap: [string, bigint][] = [
+          ['STR', template.strBonus], ['DEX', template.dexBonus], ['INT', template.intBonus],
+          ['WIS', template.wisBonus], ['CHA', template.chaBonus], ['HP', template.hpBonus],
+          ['Mana', template.manaBonus], ['AC', template.armorClassBonus], ['MR', template.magicResistanceBonus],
+        ];
+        for (const [name, val] of statMap) {
+          if (val && val > 0n) statParts.push(`${name} +${val}`);
+        }
+        if (template.weaponBaseDamage && template.weaponBaseDamage > 0n) {
+          statParts.push(`${template.weaponBaseDamage} dmg`);
+        }
+        const statsStr = statParts.length > 0 ? ` — ${statParts.join(', ')}` : '';
+
+        parts.push(`  ${label}: {{color:${color}}}[${itemName}]{{/color}}${statsStr}`);
+      }
+
+      parts.push(`\nGold: ${character.gold ?? 0n}`);
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', parts.join('\n'));
+      return;
+    }
+
+    // --- BACKPACK ---
+    if (lower === 'backpack' || lower === 'bp' || lower === 'bag') {
+      const RARITY_COLORS: Record<string, string> = {
+        common: '#ffffff', uncommon: '#22c55e', rare: '#3b82f6', epic: '#aa44ff', legendary: '#ff8800',
+      };
+      const RARITY_SORT: Record<string, number> = {
+        legendary: 0, epic: 1, rare: 2, uncommon: 3, common: 4,
+      };
+      const MAX_SLOTS = 50;
+
+      const charItems = [...ctx.db.item_instance.by_owner.filter(character.id)];
+      const unequipped = charItems.filter((i: any) => !i.equippedSlot);
+      const parts: string[] = [`Backpack (${unequipped.length}/${MAX_SLOTS}):`];
+
+      if (unequipped.length === 0) {
+        parts.push('  Your backpack is empty.');
+      } else {
+        // Build item entries with template data for sorting
+        const entries: { text: string; raritySort: number; name: string }[] = [];
+        for (const instance of unequipped) {
+          const template = ctx.db.item_template.id.find(instance.templateId);
+          if (!template) continue;
+          const itemName = instance.displayName || template.name;
+          const rarity = (instance.qualityTier || template.rarity || 'common').toLowerCase();
+          const color = RARITY_COLORS[rarity] || '#ffffff';
+
+          // Stats
+          const statParts: string[] = [];
+          const statMap: [string, bigint][] = [
+            ['STR', template.strBonus], ['DEX', template.dexBonus], ['INT', template.intBonus],
+            ['WIS', template.wisBonus], ['CHA', template.chaBonus], ['HP', template.hpBonus],
+            ['Mana', template.manaBonus], ['AC', template.armorClassBonus], ['MR', template.magicResistanceBonus],
+          ];
+          for (const [name, val] of statMap) {
+            if (val && val > 0n) statParts.push(`${name} +${val}`);
+          }
+          if (template.weaponBaseDamage && template.weaponBaseDamage > 0n) {
+            statParts.push(`${template.weaponBaseDamage} dmg`);
+          }
+          const statsStr = statParts.length > 0 ? ` — ${statParts.join(', ')}` : '';
+          const slotStr = template.slot ? ` — ${template.slot}` : '';
+          const qtyStr = instance.quantity > 1n ? ` x${instance.quantity}` : '';
+
+          let line = `  {{color:${color}}}[${itemName}]{{/color}}${slotStr}${statsStr}${qtyStr}`;
+          if (template.description) {
+            line += `\n    ${template.description}`;
+          }
+
+          entries.push({
+            text: line,
+            raritySort: RARITY_SORT[rarity] ?? 5,
+            name: itemName.toLowerCase(),
+          });
+        }
+
+        // Sort by rarity (legendary first) then name
+        entries.sort((a, b) => a.raritySort !== b.raritySort ? a.raritySort - b.raritySort : a.name.localeCompare(b.name));
+        for (const entry of entries) {
+          parts.push(entry.text);
+        }
+      }
+
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', parts.join('\n'));
       return;
     }
 
