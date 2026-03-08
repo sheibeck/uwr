@@ -74,24 +74,9 @@
           @contextmenu.prevent="openResourceContextMenu($event, node)"
         >
           <span>{{ node.name }}</span>
-          <div
-            v-if="node.isGathering && node.progress > 0"
-            :style="{
-              width: '100%',
-              height: '3px',
-              background: 'rgba(76, 125, 240, 0.3)',
-              borderRadius: '2px',
-              overflow: 'hidden',
-              marginTop: '0.2rem',
-            }"
-          >
-            <div
-              :style="{
-                width: `${Math.round(node.progress * 100)}%`,
-                height: '100%',
-                background: 'rgba(76, 125, 240, 0.8)',
-              }"
-            ></div>
+          <div v-if="node.isGathering && node.progress > 0"
+            :style="{ fontSize: '0.7rem', color: 'rgba(76, 125, 240, 0.9)', fontFamily: 'monospace', marginTop: '0.15rem', letterSpacing: '-1px' }">
+            {{ progressBar(node.progress) }}
           </div>
         </div>
       </div>
@@ -114,24 +99,9 @@
           @click="startQuestItemCast(qi)"
         >
           <span>{{ qi.name }}</span>
-          <div
-            v-if="questItemCast?.id?.toString() === qi.id.toString() && questItemCast.progress > 0"
-            :style="{
-              width: '100%',
-              height: '3px',
-              background: 'rgba(251, 191, 36, 0.3)',
-              borderRadius: '2px',
-              overflow: 'hidden',
-              marginTop: '0.2rem',
-            }"
-          >
-            <div
-              :style="{
-                width: `${Math.round(questItemCast.progress * 100)}%`,
-                height: '100%',
-                background: 'rgba(251, 191, 36, 0.8)',
-              }"
-            ></div>
+          <div v-if="questItemCast?.id?.toString() === qi.id.toString() && questItemCast.progress > 0"
+            :style="{ fontSize: '0.7rem', color: 'rgba(251, 191, 36, 0.9)', fontFamily: 'monospace', marginTop: '0.15rem', letterSpacing: '-1px' }">
+            {{ progressBar(questItemCast.progress) }}
           </div>
           <span v-else :style="{ fontSize: '0.7rem', opacity: 0.7 }">Click to loot (3s cast)</span>
         </div>
@@ -340,6 +310,11 @@ const emit = defineEmits<{
   (e: 'open-bank', npcId: bigint): void;
   (e: 'end-conversation'): void;
 }>();
+
+const progressBar = (progress: number, width = 20): string => {
+  const filled = Math.round(progress * width);
+  return '\u2588'.repeat(filled) + '\u2591'.repeat(width - filled);
+};
 
 const selectedEnemyId = ref<bigint | null>(null);
 
