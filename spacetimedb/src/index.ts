@@ -987,14 +987,7 @@ spacetimedb.reducer('submit_llm_result', {
 
     for (const skill of skills) {
       presentation += `\n[${skill.name}] -- ${skill.description}\n`;
-      const kindLabel: Record<string, string> = {
-        damage: 'damage', heal: 'healing', dot: 'damage/tick', hot: 'healing/tick',
-        buff: 'potency', debuff: 'potency', shield: 'shield', taunt: 'threat',
-        aoe_damage: 'damage', aoe_heal: 'healing', summon: 'power', cc: 'potency',
-        drain: 'drain', execute: 'damage', utility: 'potency',
-      };
-      const label = kindLabel[skill.kind] || 'power';
-      presentation += `  ${skill.kind} | ${skill.resourceCost} ${skill.resourceType} | ${skill.cooldownSeconds}s cooldown | ${skill.value1} ${label}\n`;
+      presentation += `  ${skill.kind} | ${skill.resourceCost} ${skill.resourceType} | ${skill.cooldownSeconds}s cooldown | ${skill.value1} power\n`;
     }
 
     presentation += `\n"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return."`;
