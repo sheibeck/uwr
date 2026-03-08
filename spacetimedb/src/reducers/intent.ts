@@ -56,6 +56,13 @@ export const registerIntentReducers = (deps: any) => {
         '  con <name> — Assess the threat level of an enemy or your standing with an NPC.',
         '  attack — Engage enemies at your location.',
         '  flee — Attempt to escape from combat.',
+        '  [stats] — View your character stats.',
+        '  [bank] — Access your bank vault (at locations with a banker).',
+        '  [shop] — Browse a vendor\'s wares (at locations with a vendor).',
+        '  [craft] — View and craft known recipes (at crafting stations).',
+        '  [loot] — Check for lootable remains nearby.',
+        '  deposit <item> — Deposit an item to your bank.',
+        '  sell <item> — Sell an item to a vendor.',
         '  camp — Rest briefly.',
         '  [bind] — Bind to this location\'s bindstone. You will respawn here on death.',
         '  time — Check if it is day or night and how long until it changes.',
@@ -119,6 +126,12 @@ export const registerIntentReducers = (deps: any) => {
             const last = npcNames.pop();
             parts.push(`\nYou see ${npcNames.join(', ')}, and ${last} here.`);
           }
+          if (npcs.some((n: any) => n.npcType === 'banker')) {
+            parts.push('A {{color:#ffd43b}}[bank]{{/color}} is available here.');
+          }
+          if (npcs.some((n: any) => n.npcType === 'vendor')) {
+            parts.push('A {{color:#f59e0b}}[shop]{{/color}} is available here.');
+          }
         }
 
         // 5. Other players
@@ -170,7 +183,7 @@ export const registerIntentReducers = (deps: any) => {
           }
           const resourceParts: string[] = [];
           for (const [name, count] of resourceCounts) {
-            resourceParts.push(count > 1 ? `${name} x${count}` : name);
+            resourceParts.push(count > 1 ? `{{color:#22c55e}}[Gather ${name}]{{/color}} x${count}` : `{{color:#22c55e}}[Gather ${name}]{{/color}}`);
           }
           parts.push(`\nResources: ${resourceParts.join(', ')}.`);
         }
@@ -349,8 +362,344 @@ export const registerIntentReducers = (deps: any) => {
 
     // --- STATS ---
     if (lower === 'stats') {
+      const parts: string[] = [];
+      parts.push(`Character Stats: ${character.name}, Level ${character.level} ${character.race} ${character.className}`);
+      parts.push(`  HP: ${character.hp}/${character.maxHp}  Mana: ${character.mana}/${character.maxMana}  Stamina: ${character.stamina}/${character.maxStamina}`);
+      parts.push(`  XP: ${character.xp}  Gold: ${character.gold ?? 0n}`);
+      parts.push('');
+      parts.push('  Base Stats:');
+      parts.push(`    STR ${character.str}  DEX ${character.dex}  INT ${character.int}  WIS ${character.wis}  CHA ${character.cha}`);
+      parts.push('');
+      parts.push('  Combat:');
+      parts.push(`    Armor Class: ${character.armorClass}  Magic Resist: ${character.magicResistance}`);
+      parts.push(`    Attack Power: ${character.attackPower}  Spell Power: ${character.spellPower}`);
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', parts.join('\n'));
+      return;
+    }
+
+    // --- BANK ---
+    if (lower === 'bank') {
+      const RARITY_COLORS: Record<string, string> = {
+        common: '#ffffff', uncommon: '#22c55e', rare: '#3b82f6', epic: '#aa44ff', legendary: '#ff8800',
+      };
+      const MAX_BANK_SLOTS = 40;
+      const npcsAtLoc = [...ctx.db.npc.by_location.filter(character.locationId)];
+      const banker = npcsAtLoc.find((n: any) => n.npcType === 'banker');
+      if (!banker) return fail(ctx, character, 'There is no bank here.');
+
+      const userId = requirePlayerUserId(ctx);
+      const bankSlots = [...ctx.db.bank_slot.by_owner.filter(userId)];
+      const parts: string[] = [`Bank Vault (${bankSlots.length}/${MAX_BANK_SLOTS}):`];
+
+      if (bankSlots.length === 0) {
+        parts.push('  Your vault is empty.');
+      } else {
+        for (const slot of bankSlots) {
+          const instance = ctx.db.item_instance.id.find(slot.itemInstanceId);
+          if (!instance) continue;
+          const template = ctx.db.item_template.id.find(instance.templateId);
+          if (!template) continue;
+          const itemName = instance.displayName || template.name;
+          const rarity = (instance.qualityTier || template.rarity || 'common').toLowerCase();
+          const color = RARITY_COLORS[rarity] || '#ffffff';
+
+          const statParts: string[] = [];
+          const statMap: [string, bigint][] = [
+            ['STR', template.strBonus], ['DEX', template.dexBonus], ['INT', template.intBonus],
+            ['WIS', template.wisBonus], ['CHA', template.chaBonus], ['HP', template.hpBonus],
+            ['Mana', template.manaBonus], ['AC', template.armorClassBonus], ['MR', template.magicResistanceBonus],
+          ];
+          for (const [name, val] of statMap) {
+            if (val && val > 0n) statParts.push(`${name} +${val}`);
+          }
+          if (template.weaponBaseDamage && template.weaponBaseDamage > 0n) {
+            statParts.push(`${template.weaponBaseDamage} dmg`);
+          }
+          const statsStr = statParts.length > 0 ? ` — ${statParts.join(', ')}` : '';
+          const qtyStr = (instance.quantity ?? 1n) > 1n ? ` x${instance.quantity}` : '';
+          parts.push(`  {{color:${color}}}[Withdraw ${itemName}]{{/color}}${statsStr}${qtyStr}`);
+        }
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', parts.join('\n'));
+      return;
+    }
+
+    // --- SHOP / VENDOR / STORE ---
+    if (lower === 'shop' || lower === 'vendor' || lower === 'store') {
+      const RARITY_COLORS: Record<string, string> = {
+        common: '#ffffff', uncommon: '#22c55e', rare: '#3b82f6', epic: '#aa44ff', legendary: '#ff8800',
+      };
+      const npcsAtLoc = [...ctx.db.npc.by_location.filter(character.locationId)];
+      const vendorNpc = npcsAtLoc.find((n: any) => n.npcType === 'vendor');
+      if (!vendorNpc) return fail(ctx, character, 'There is no shop here.');
+
+      const vendorInv = [...ctx.db.vendor_inventory.by_vendor.filter(vendorNpc.id)];
+      const parts: string[] = [`${vendorNpc.name}'s Wares:`];
+
+      if (vendorInv.length === 0) {
+        parts.push('  Nothing for sale.');
+      } else {
+        for (const vi of vendorInv) {
+          const template = ctx.db.item_template.id.find(vi.itemTemplateId);
+          if (!template) continue;
+          const rarity = (vi.qualityTier || template.rarity || 'common').toLowerCase();
+          const color = RARITY_COLORS[rarity] || '#ffffff';
+
+          const statParts: string[] = [];
+          const statMap: [string, bigint][] = [
+            ['STR', template.strBonus], ['DEX', template.dexBonus], ['INT', template.intBonus],
+            ['WIS', template.wisBonus], ['CHA', template.chaBonus], ['HP', template.hpBonus],
+            ['Mana', template.manaBonus], ['AC', template.armorClassBonus], ['MR', template.magicResistanceBonus],
+          ];
+          for (const [name, val] of statMap) {
+            if (val && val > 0n) statParts.push(`${name} +${val}`);
+          }
+          if (template.weaponBaseDamage && template.weaponBaseDamage > 0n) {
+            statParts.push(`${template.weaponBaseDamage} dmg`);
+          }
+          const statsStr = statParts.length > 0 ? ` (${statParts.join(', ')})` : '';
+          parts.push(`  {{color:${color}}}[Buy ${template.name}]{{/color}} — ${vi.price} gold${statsStr}`);
+        }
+      }
+      parts.push(`\nYour gold: ${character.gold ?? 0n}`);
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', parts.join('\n'));
+      return;
+    }
+
+    // --- CRAFT / RECIPES ---
+    if (lower === 'craft' || lower === 'recipes') {
+      const location = ctx.db.location.id.find(character.locationId);
+      if (!location || !location.craftingAvailable) {
+        return fail(ctx, character, 'There is no crafting station here.');
+      }
+
+      const discovered = [...ctx.db.recipe_discovered.by_character.filter(character.id)];
+      const parts: string[] = ['Crafting Station — Known Recipes:'];
+
+      if (discovered.length === 0) {
+        parts.push('  No recipes discovered yet. Try {{color:#f59e0b}}[Research Recipes]{{/color}} to discover recipes from your materials.');
+      } else {
+        for (const disc of discovered) {
+          const recipe = ctx.db.recipe_template.id.find(disc.recipeTemplateId);
+          if (!recipe) continue;
+
+          // Check materials
+          const reqParts: string[] = [];
+          let hasMats = true;
+          const req1 = ctx.db.item_template.id.find(recipe.req1TemplateId);
+          const req1Count = [...ctx.db.item_instance.by_owner.filter(character.id)]
+            .filter((i: any) => i.templateId === recipe.req1TemplateId && !i.equippedSlot)
+            .reduce((sum: bigint, i: any) => sum + (i.quantity ?? 1n), 0n);
+          if (req1) reqParts.push(`${req1.name} x${recipe.req1Count}`);
+          if (req1Count < recipe.req1Count) hasMats = false;
+
+          const req2 = ctx.db.item_template.id.find(recipe.req2TemplateId);
+          const req2Count = [...ctx.db.item_instance.by_owner.filter(character.id)]
+            .filter((i: any) => i.templateId === recipe.req2TemplateId && !i.equippedSlot)
+            .reduce((sum: bigint, i: any) => sum + (i.quantity ?? 1n), 0n);
+          if (req2) reqParts.push(`${req2.name} x${recipe.req2Count}`);
+          if (req2Count < recipe.req2Count) hasMats = false;
+
+          if (recipe.req3TemplateId != null) {
+            const req3 = ctx.db.item_template.id.find(recipe.req3TemplateId);
+            const req3Count = [...ctx.db.item_instance.by_owner.filter(character.id)]
+              .filter((i: any) => i.templateId === recipe.req3TemplateId && !i.equippedSlot)
+              .reduce((sum: bigint, i: any) => sum + (i.quantity ?? 1n), 0n);
+            if (req3) reqParts.push(`${req3.name} x${recipe.req3Count ?? 0n}`);
+            if (req3Count < (recipe.req3Count ?? 0n)) hasMats = false;
+          }
+
+          const status = hasMats ? '(ready)' : '(missing materials)';
+          parts.push(`  {{color:#f59e0b}}[Craft ${recipe.name}]{{/color}} — requires: ${reqParts.join(', ')} ${status}`);
+        }
+      }
+      parts.push(`  {{color:#f59e0b}}[Research Recipes]{{/color}} — discover new recipes from your materials`);
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', parts.join('\n'));
+      return;
+    }
+
+    // --- LOOT ---
+    if (lower === 'loot') {
+      const RARITY_COLORS: Record<string, string> = {
+        common: '#ffffff', uncommon: '#22c55e', rare: '#3b82f6', epic: '#aa44ff', legendary: '#ff8800',
+      };
+      const corpses = [...ctx.db.corpse.by_location.filter(character.locationId)];
+      if (corpses.length === 0) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          'There is nothing to loot here.');
+        return;
+      }
+
+      const parts: string[] = ['Loot nearby:'];
+      for (const corpse of corpses) {
+        const corpseChar = ctx.db.character.id.find(corpse.characterId);
+        const corpseName = corpseChar ? `${corpseChar.name}'s remains` : 'Remains';
+        const items = [...ctx.db.corpse_item.by_corpse.filter(corpse.id)];
+        if (items.length === 0) continue;
+        parts.push(`${corpseName}:`);
+        for (const ci of items) {
+          const instance = ctx.db.item_instance.id.find(ci.itemInstanceId);
+          if (!instance) continue;
+          const template = ctx.db.item_template.id.find(instance.templateId);
+          if (!template) continue;
+          const itemName = instance.displayName || template.name;
+          const rarity = (instance.qualityTier || template.rarity || 'common').toLowerCase();
+          const color = RARITY_COLORS[rarity] || '#ffffff';
+          parts.push(`  {{color:${color}}}[Take ${itemName}]{{/color}}`);
+        }
+      }
+
+      if (parts.length === 1) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          'There is nothing to loot here.');
+      } else {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', parts.join('\n'));
+      }
+      return;
+    }
+
+    // --- DEPOSIT [item] ---
+    if (lower.startsWith('deposit ')) {
+      const itemNameTarget = raw.substring(8).trim();
+      if (!itemNameTarget) return fail(ctx, character, 'Deposit what?');
+
+      const npcsAtLoc = [...ctx.db.npc.by_location.filter(character.locationId)];
+      const banker = npcsAtLoc.find((n: any) => n.npcType === 'banker');
+      if (!banker) return fail(ctx, character, 'There is no bank here.');
+
+      const userId = requirePlayerUserId(ctx);
+
+      // Find matching unequipped item in character inventory by name
+      const charItems = [...ctx.db.item_instance.by_owner.filter(character.id)];
+      let matchedInstance: any = null;
+      let matchedTemplate: any = null;
+      for (const inst of charItems) {
+        if (inst.equippedSlot) continue;
+        const tmpl = ctx.db.item_template.id.find(inst.templateId);
+        if (!tmpl) continue;
+        const name = inst.displayName || tmpl.name;
+        if (name.toLowerCase() === itemNameTarget.toLowerCase()) {
+          matchedInstance = inst;
+          matchedTemplate = tmpl;
+          break;
+        }
+      }
+      if (!matchedInstance || !matchedTemplate) {
+        return fail(ctx, character, `You don't have "${itemNameTarget}" in your backpack.`);
+      }
+
+      // Check for existing stack in bank to merge into
+      const existingSlots = [...ctx.db.bank_slot.by_owner.filter(userId)];
+      const MAX_BANK_SLOTS = 40n;
+      if (matchedTemplate.stackable) {
+        const existingBankStack = existingSlots
+          .map((s: any) => ({ bankSlot: s, item: ctx.db.item_instance.id.find(s.itemInstanceId) }))
+          .find(({ item }: any) => item && item.templateId === matchedInstance.templateId);
+
+        if (existingBankStack) {
+          ctx.db.item_instance.id.update({
+            ...existingBankStack.item,
+            quantity: ((existingBankStack.item as any).quantity ?? 1n) + (matchedInstance.quantity ?? 1n),
+          });
+          ctx.db.item_instance.id.delete(matchedInstance.id);
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+            `You deposit ${matchedTemplate.name} into the bank.`);
+          return;
+        }
+      }
+
+      if (BigInt(existingSlots.length) >= MAX_BANK_SLOTS) {
+        return fail(ctx, character, 'Bank is full (40 slots maximum).');
+      }
+
+      const usedSlots = new Set(existingSlots.map((s: any) => Number(s.slot)));
+      let freeSlot = -1;
+      for (let i = 0; i < 40; i++) {
+        if (!usedSlots.has(i)) { freeSlot = i; break; }
+      }
+      if (freeSlot === -1) return fail(ctx, character, 'Bank is full.');
+
+      ctx.db.item_instance.id.update({
+        ...matchedInstance,
+        ownerCharacterId: 0n,
+        equippedSlot: undefined,
+      });
+      ctx.db.bank_slot.insert({
+        id: 0n,
+        ownerUserId: userId,
+        slot: BigInt(freeSlot),
+        itemInstanceId: matchedInstance.id,
+      });
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-        'You reflect on your capabilities.');
+        `You deposit ${matchedTemplate.name} into the bank.`);
+      return;
+    }
+
+    // --- SELL [item] ---
+    if (lower.startsWith('sell ')) {
+      const itemNameTarget = raw.substring(5).trim();
+      if (!itemNameTarget) return fail(ctx, character, 'Sell what?');
+
+      const npcsAtLoc = [...ctx.db.npc.by_location.filter(character.locationId)];
+      const vendorNpc = npcsAtLoc.find((n: any) => n.npcType === 'vendor');
+      if (!vendorNpc) return fail(ctx, character, 'There is no vendor here.');
+
+      // Find matching unequipped item in character inventory by name
+      const charItems = [...ctx.db.item_instance.by_owner.filter(character.id)];
+      let matchedInstance: any = null;
+      let matchedTemplate: any = null;
+      for (const inst of charItems) {
+        if (inst.equippedSlot) continue;
+        const tmpl = ctx.db.item_template.id.find(inst.templateId);
+        if (!tmpl) continue;
+        const name = inst.displayName || tmpl.name;
+        if (name.toLowerCase() === itemNameTarget.toLowerCase()) {
+          matchedInstance = inst;
+          matchedTemplate = tmpl;
+          break;
+        }
+      }
+      if (!matchedInstance || !matchedTemplate) {
+        return fail(ctx, character, `You don't have "${itemNameTarget}" in your backpack.`);
+      }
+
+      const baseValue = BigInt(matchedTemplate.vendorValue ?? 0) * BigInt(matchedInstance.quantity ?? 1);
+      let value = baseValue;
+      // Apply CHA vendor sell bonus
+      if (character.vendorSellMod > 0n) {
+        value = (value * (1000n + character.vendorSellMod)) / 1000n;
+      }
+
+      // Clean up any affixes before deleting
+      for (const affix of ctx.db.item_affix.by_instance.filter(matchedInstance.id)) {
+        ctx.db.item_affix.id.delete(affix.id);
+      }
+      const soldTemplateId = matchedInstance.templateId;
+      const soldVendorValue = matchedTemplate.vendorValue ?? 0n;
+      const soldQualityTier = matchedInstance.qualityTier ?? undefined;
+      ctx.db.item_instance.id.delete(matchedInstance.id);
+      ctx.db.character.id.update({
+        ...character,
+        gold: (character.gold ?? 0n) + value,
+      });
+
+      // Add sold item to vendor's inventory
+      const alreadyListed = [...ctx.db.vendor_inventory.by_vendor.filter(vendorNpc.id)].find(
+        (row: any) => row.itemTemplateId === soldTemplateId && (row.qualityTier ?? undefined) === soldQualityTier
+      );
+      if (!alreadyListed) {
+        const resalePrice = soldVendorValue > 0n ? soldVendorValue * 2n : 10n;
+        ctx.db.vendor_inventory.insert({
+          id: 0n,
+          npcId: vendorNpc.id,
+          itemTemplateId: soldTemplateId,
+          price: resalePrice,
+          qualityTier: soldQualityTier,
+        });
+      }
+
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+        `You sell ${matchedTemplate.name} for ${value} gold.`);
       return;
     }
 
