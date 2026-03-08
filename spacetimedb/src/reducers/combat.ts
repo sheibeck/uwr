@@ -2512,6 +2512,15 @@ export const registerCombatReducers = (deps: any) => {
               ctx.db.character.id.update({ ...c, maxHp: nextMax, hp: nextHp });
             }
           }
+          // Log expiry for combat-relevant effects (skip food/travel to avoid spam)
+          const EXPIRY_LOG_TYPES = ['regen', 'dot', 'damage_up', 'armor_up', 'ac_bonus', 'damage_shield', 'hp_bonus', 'magic_resist', 'stamina_free', 'stun', 'armor_down'];
+          if (EXPIRY_LOG_TYPES.includes(effect.effectType)) {
+            const expiryChar = ctx.db.character.id.find(p.characterId);
+            if (expiryChar) {
+              appendPrivateEvent(ctx, expiryChar.id, expiryChar.ownerUserId, 'system',
+                `${effect.sourceAbility ?? effect.effectType} has worn off.`);
+            }
+          }
           ctx.db.character_effect.id.delete(effect.id);
         } else {
           ctx.db.character_effect.id.update({ ...effect, roundsRemaining: newRounds });
@@ -2556,6 +2565,12 @@ export const registerCombatReducers = (deps: any) => {
       if (effect.effectType === 'stun') {
         const newRounds = effect.roundsRemaining > 0n ? effect.roundsRemaining - 1n : 0n;
         if (newRounds <= 0n) {
+          // Notify all participants that enemy stun faded
+          for (const p of participants) {
+            const pc = ctx.db.character.id.find(p.characterId);
+            if (pc) appendPrivateEvent(ctx, pc.id, pc.ownerUserId, 'system',
+              `${effect.sourceAbility ?? 'Stun'} on ${enemy.displayName} fades.`);
+          }
           ctx.db.combat_enemy_effect.id.delete(effect.id);
         } else {
           ctx.db.combat_enemy_effect.id.update({ ...effect, roundsRemaining: newRounds });
@@ -2566,6 +2581,12 @@ export const registerCombatReducers = (deps: any) => {
       // Decrement duration for non-stun effects
       const newRounds = effect.roundsRemaining > 0n ? effect.roundsRemaining - 1n : 0n;
       if (newRounds <= 0n) {
+        // Notify all participants that enemy effect faded
+        for (const p of participants) {
+          const pc = ctx.db.character.id.find(p.characterId);
+          if (pc) appendPrivateEvent(ctx, pc.id, pc.ownerUserId, 'system',
+            `${effect.sourceAbility ?? effect.effectType} on ${enemy.displayName} fades.`);
+        }
         ctx.db.combat_enemy_effect.id.delete(effect.id);
       } else {
         ctx.db.combat_enemy_effect.id.update({ ...effect, roundsRemaining: newRounds });
