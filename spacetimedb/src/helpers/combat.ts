@@ -214,9 +214,11 @@ export function addCharacterEffect(
       if (effectType === 'regen') {
         const healed = character.hp + magnitude > character.maxHp ? character.maxHp : character.hp + magnitude;
         ctx.db.character.id.update({ ...character, hp: healed });
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'heal', `${sourceAbility} heals you for ${magnitude}.`);
       } else {
         const nextHp = character.hp > magnitude ? character.hp - magnitude : 0n;
         ctx.db.character.id.update({ ...character, hp: nextHp });
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage', `${sourceAbility} burns you for ${magnitude} damage.`);
       }
     }
   }
@@ -472,6 +474,9 @@ export function resolveAbility(
       const char = ctx.db.character.id.find(actor.id);
       if (char) logPrivate(char.id, char.ownerUserId, 'damage', `Your ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage.`);
       logGroup('damage', `${actor.name}'s ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage.`);
+    } else if (actor.type === 'enemy' && targetCharacterId) {
+      const target = ctx.db.character.id.find(targetCharacterId);
+      if (target) logPrivate(target.id, target.ownerUserId, 'damage', `${actor.name}'s ${ability.name} hits you for ${dealt} damage.`);
     }
     return;
   }
@@ -530,6 +535,9 @@ export function resolveAbility(
       const char = ctx.db.character.id.find(actor.id);
       if (char) logPrivate(char.id, char.ownerUserId, 'damage', `Your ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage.`);
       logGroup('damage', `${actor.name}'s ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage.`);
+    } else if (actor.type === 'enemy' && targetCharacterId) {
+      const target = ctx.db.character.id.find(targetCharacterId);
+      if (target) logPrivate(target.id, target.ownerUserId, 'damage', `${actor.name}'s ${ability.name} hits you for ${dealt} damage and applies a burning effect.`);
     }
     return;
   }
@@ -577,6 +585,12 @@ export function resolveAbility(
       const char = ctx.db.character.id.find(actor.id);
       if (char) logPrivate(char.id, char.ownerUserId, 'ability', `You use ${ability.name}.`);
       logGroup('ability', `${actor.name} uses ${ability.name}.`);
+    } else if (actor.type === 'enemy' && combatId) {
+      for (const p of ctx.db.combat_participant.by_combat.filter(combatId)) {
+        if (p.status !== 'active') continue;
+        const pc = ctx.db.character.id.find(p.characterId);
+        if (pc) logPrivate(pc.id, pc.ownerUserId, 'ability', `${actor.name} uses ${ability.name}.`);
+      }
     }
     return;
   }
@@ -599,6 +613,9 @@ export function resolveAbility(
       const char = ctx.db.character.id.find(actor.id);
       if (char) logPrivate(char.id, char.ownerUserId, 'ability', `Your ${ability.name} afflicts ${getEnemyName(enemy)}.`);
       logGroup('ability', `${actor.name}'s ${ability.name} afflicts ${getEnemyName(enemy)}.`);
+    } else if (actor.type === 'enemy' && targetCharacterId) {
+      const target = ctx.db.character.id.find(targetCharacterId);
+      if (target) logPrivate(target.id, target.ownerUserId, 'ability', `${actor.name}'s ${ability.name} weakens you.`);
     }
     return;
   }
@@ -615,6 +632,12 @@ export function resolveAbility(
       const char = ctx.db.character.id.find(actor.id);
       if (char) logPrivate(char.id, char.ownerUserId, 'ability', `${ability.name} shields ${shieldTarget.name}.`);
       logGroup('ability', `${actor.name}'s ${ability.name} shields ${shieldTarget.name}.`);
+    } else if (actor.type === 'enemy' && combatId) {
+      for (const p of ctx.db.combat_participant.by_combat.filter(combatId)) {
+        if (p.status !== 'active') continue;
+        const pc = ctx.db.character.id.find(p.characterId);
+        if (pc) logPrivate(pc.id, pc.ownerUserId, 'ability', `${actor.name} shields itself with ${ability.name}.`);
+      }
     }
     return;
   }
@@ -747,6 +770,9 @@ export function resolveAbility(
       const char = ctx.db.character.id.find(actor.id);
       if (char) logPrivate(char.id, char.ownerUserId, 'ability', `Your ${ability.name} ${ccType}s ${getEnemyName(enemy)}.`);
       logGroup('ability', `${actor.name}'s ${ability.name} ${ccType}s ${getEnemyName(enemy)}.`);
+    } else if (actor.type === 'enemy' && targetCharacterId) {
+      const target = ctx.db.character.id.find(targetCharacterId);
+      if (target) logPrivate(target.id, target.ownerUserId, 'ability', `${actor.name}'s ${ability.name} stuns you!`);
     }
     return;
   }
@@ -768,6 +794,9 @@ export function resolveAbility(
         logPrivate(char.id, char.ownerUserId, 'damage', `Your ${ability.name} drains ${getEnemyName(enemy)} for ${dealt} damage, healing you for ${healAmount}.`);
         logGroup('damage', `${actor.name}'s ${ability.name} drains ${getEnemyName(enemy)} for ${dealt} damage.`);
       }
+    } else if (actor.type === 'enemy' && targetCharacterId) {
+      const target = ctx.db.character.id.find(targetCharacterId);
+      if (target) logPrivate(target.id, target.ownerUserId, 'damage', `${actor.name}'s ${ability.name} drains you for ${dealt} damage.`);
     }
     return;
   }
@@ -787,6 +816,10 @@ export function resolveAbility(
       const bonusMsg = multiplier > 1n ? ' (EXECUTE!)' : '';
       if (char) logPrivate(char.id, char.ownerUserId, 'damage', `Your ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage${bonusMsg}.`);
       logGroup('damage', `${actor.name}'s ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage${bonusMsg}.`);
+    } else if (actor.type === 'enemy' && targetCharacterId) {
+      const target = ctx.db.character.id.find(targetCharacterId);
+      const bonusMsg = multiplier > 1n ? ' (EXECUTE!)' : '';
+      if (target) logPrivate(target.id, target.ownerUserId, 'damage', `${actor.name}'s ${ability.name} hits you for ${dealt} damage${bonusMsg}.`);
     }
     return;
   }
