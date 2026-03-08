@@ -114,7 +114,8 @@ export const CLASS_GENERATION_SCHEMA = `{
     "secondaryStat": "str|dex|int|wis|cha|none",
     "bonusHp": "number (0-20, warrior types get more)",
     "bonusMana": "number (0-30, mystic types get more)",
-    "armorProficiency": "cloth|leather|chain|plate",
+    "weaponProficiencies": ["array of 2-4 allowed weapon types from: dagger, rapier, sword, blade, mace, axe, bow, staff, greatsword, wand — pick types that fit the class fantasy"],
+    "armorProficiencies": ["array of 1-2 allowed armor types from: cloth, leather, chain, plate — warriors get heavier, mystics get lighter"],
     "usesMana": "boolean"
   },
   "abilities": [
@@ -149,7 +150,9 @@ Generate a creative and unique class for this ${archetype} ${raceName}. The clas
 
 Generate exactly 3 starting abilities appropriate for this class at level 1. Each should feel meaningfully different — vary damage types, effects, and playstyles. Ability names must be 2-3 words max — punchy and action-oriented, not narrative phrases. Good: "Void Rend", "Iron Tide", "Ember Lash". Bad: "Grievance of the Blackbriar Choir", "Cathedral of Hollow Leaves".
 
-${archetype === 'warrior' ? 'As a warrior archetype, lean toward physical stats, higher HP, and melee-oriented abilities. Mana costs should be low or zero.' : 'As a mystic archetype, lean toward magical stats, higher mana, and spell-oriented abilities. Embrace magical damage types.'}
+${archetype === 'warrior' ? 'As a warrior archetype, lean toward physical stats, higher HP, and melee-oriented abilities. Mana costs should be low or zero. Pick heavier armor (chain/plate) and melee weapons (sword, axe, mace, greatsword).' : 'As a mystic archetype, lean toward magical stats, higher mana, and spell-oriented abilities. Embrace magical damage types. Pick lighter armor (cloth/leather) and magical weapons (staff, wand, dagger).'}
+
+Pick weapon and armor proficiencies that match the class fantasy. Warriors favor melee weapons and heavier armor; mystics favor staves/wands and lighter armor. Hybrid classes can mix.
 
 Respond with ONLY valid JSON matching this schema:
 ${CLASS_GENERATION_SCHEMA}`;
@@ -171,7 +174,8 @@ export const COMBINED_CREATION_SCHEMA = `{
     "secondaryStat": "str|dex|int|wis|cha|none",
     "bonusHp": "number (0-20, warrior types get more)",
     "bonusMana": "number (0-30, mystic types get more)",
-    "armorProficiency": "cloth|leather|chain|plate",
+    "weaponProficiencies": ["array of 2-4 allowed weapon types from: dagger, rapier, sword, blade, mace, axe, bow, staff, greatsword, wand — pick types that fit the class fantasy"],
+    "armorProficiencies": ["array of 1-2 allowed armor types from: cloth, leather, chain, plate — warriors get heavier, mystics get lighter"],
     "usesMana": "boolean"
   },
   "abilities": [
@@ -200,7 +204,9 @@ Do TWO things in a single response:
 
 Generate exactly 3 starting abilities for level 1. Each meaningfully different — vary damage types, effects, playstyles. Ability names must be 2-3 words max — punchy and action-oriented, not narrative phrases. Good: "Void Rend", "Iron Tide", "Ember Lash". Bad: "Grievance of the Blackbriar Choir", "Cathedral of Hollow Leaves".
 
-${archetype === 'warrior' ? 'As a warrior archetype, lean toward physical stats, higher HP, and melee-oriented abilities. Mana costs should be low or zero.' : 'As a mystic archetype, lean toward magical stats, higher mana, and spell-oriented abilities. Embrace magical damage types.'}
+${archetype === 'warrior' ? 'As a warrior archetype, lean toward physical stats, higher HP, and melee-oriented abilities. Mana costs should be low or zero. Pick heavier armor (chain/plate) and melee weapons (sword, axe, mace, greatsword).' : 'As a mystic archetype, lean toward magical stats, higher mana, and spell-oriented abilities. Embrace magical damage types. Pick lighter armor (cloth/leather) and magical weapons (staff, wand, dagger).'}
+
+Pick weapon and armor proficiencies that match the class fantasy. Warriors favor melee weapons and heavier armor; mystics favor staves/wands and lighter armor. Hybrid classes can mix.
 
 Respond with ONLY valid JSON matching this schema:
 ${COMBINED_CREATION_SCHEMA}`;

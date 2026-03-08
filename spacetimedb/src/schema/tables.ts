@@ -339,6 +339,8 @@ export const Character = table(
     racialPerceptionBonus: t.u64().optional(),
     racialLootBonus: t.u64().optional(),
     lastCombatEndAt: t.u64().optional(),
+    weaponProficiencies: t.string().optional(),
+    armorProficiencies: t.string().optional(),
   }
 );
 
