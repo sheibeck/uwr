@@ -1033,21 +1033,27 @@ watch(isInCombat, (inCombat) => {
 });
 
 // Watch private events for the intro narration completion signal
+// Only check NEW events (not historical ones from previous combats)
+let combatEventBaseline = 0;
+watch(isInCombat, (inCombat) => {
+  if (inCombat) {
+    // Record current event count as baseline — only check events arriving AFTER this
+    combatEventBaseline = userPrivateEvents.value.length;
+  }
+});
 watch(
   () => userPrivateEvents.value.length,
-  () => {
+  (newLen) => {
     if (combatIntroSeen.value || !isInCombat.value) return;
-    const combatId = activeCombat.value?.id?.toString();
-    if (!combatId) return;
-    // Check if we've seen "The System settles in to watch." in recent private events
-    for (const evt of userPrivateEvents.value) {
-      if (evt.kind === 'system' && evt.message === 'The System settles in to watch.') {
+    // Only check events that arrived after combat started
+    for (let i = combatEventBaseline; i < newLen; i++) {
+      const evt = userPrivateEvents.value[i];
+      if (evt && evt.kind === 'system' && evt.message === 'The System settles in to watch.') {
         combatIntroSeen.value = true;
         break;
       }
     }
-  },
-  { immediate: true }
+  }
 );
 
 const combatUiVisible = computed(() => isInCombat.value && combatIntroSeen.value);
