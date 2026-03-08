@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed quick-344 (Fix combat narrative flow)
-last_updated: "2026-03-08T04:22:34.640Z"
-last_activity: "2026-03-08 - Completed quick task 347: Revert narrative combat to real-time combat action bar"
+stopped_at: Completed quick-348 (Remove rounds, restore real-time combat)
+last_updated: "2026-03-08T14:15:11.509Z"
+last_activity: "2026-03-08 - Completed quick task 346: Auto-attacks happen every round automatically"
 progress:
   total_phases: 7
   completed_phases: 6
@@ -151,6 +151,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase quick-345]: Per-round LLM narration removed; compact mechanical summaries via HP snapshot diffs instead
 - [Phase quick-346]: Auto-attack is unconditional every round; abilities/flee are bonus actions on top
 - [Phase quick-347]: Combat UI reverted to dedicated action bar with ability buttons + enemy HUD; inline bracket-keyword prompts removed
+- [Phase quick-348]: Round-based combat fully removed; real-time combat_loop restored with weapon-speed auto-attacks and immediate ability execution
 
 ### Pending Todos
 
@@ -181,8 +182,9 @@ None yet.
 | 345 | Improve narrative combat flow - compact mechanical summaries | 2026-03-08 | d6c7f23 | [345-improve-narrative-combat-flow-design-and](./quick/345-improve-narrative-combat-flow-design-and/) |
 | 346 | Auto-attacks happen every round automatically | 2026-03-08 | 5644cfd, e2069b7 | [346-auto-attacks-happen-every-round-automati](./quick/346-auto-attacks-happen-every-round-automati/) |
 | 347 | Revert narrative combat to real-time combat action bar | 2026-03-08 | 70546b2, 23b8d39 | [347-revert-narrative-combat-to-real-time-com](./quick/347-revert-narrative-combat-to-real-time-com/) |
+| 348 | Remove rounds, restore real-time combat | 2026-03-08 | e09539e, 02076ff | [348-remove-rounds-and-inline-combat-hud-rest](./quick/348-remove-rounds-and-inline-combat-hud-rest/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T13:31:38Z
-Stopped at: Completed quick-347 (Revert narrative combat to real-time combat action bar)
+Last session: 2026-03-08T14:15:06.105Z
+Stopped at: Completed quick-348 (Remove rounds, restore real-time combat)
