@@ -1,4 +1,4 @@
-import { computed, watch, type Ref } from 'vue';
+import { computed, ref, watch, onUnmounted, type Ref } from 'vue';
 import { reducers } from '../module_bindings';
 import type {
   Character,
@@ -18,6 +18,9 @@ import type {
   ItemTemplate,
   Faction,
   PullState,
+  AbilityTemplate,
+  AbilityCooldown,
+  HotbarSlot,
 } from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
 import {
@@ -77,6 +80,13 @@ type UseCombatArgs = {
   nowMicros: Ref<number>;
   characters: Ref<Character[]>;
   factions: Ref<Faction[]>;
+  // Round-based combat tables
+  combatRounds: Ref<any[]>;
+  combatActions: Ref<any[]>;
+  combatNarratives: Ref<any[]>;  // Reserved for narrative rendering in NarrativeConsole
+  hotbarSlots: Ref<HotbarSlot[]>;
+  abilityTemplates: Ref<AbilityTemplate[]>;
+  abilityCooldowns: Ref<AbilityCooldown[]>;
 };
 
 const timestampToMicros = (timestamp: any) => {
@@ -126,6 +136,12 @@ export const useCombat = ({
   nowMicros,
   characters,
   factions,
+  combatRounds,
+  combatActions,
+  combatNarratives: _combatNarratives, // eslint-disable-line @typescript-eslint/no-unused-vars
+  hotbarSlots,
+  abilityTemplates,
+  abilityCooldowns,
 }: UseCombatArgs) => {
   const effectTimers = new Map<
     string,
@@ -135,8 +151,6 @@ export const useCombat = ({
     string,
     { startMicros: number; durationMicros: number; endsAtMicros: number }
   >();
-  // Records the nowMicros value when each pull row first arrived — same frame as nowMicros,
-  // so elapsed = nowMicros.value - startMicros needs no server/client clock sync.
   const pullArrivalTimes = new Map<string, number>();
   const startCombatReducer = useReducer(reducers.startCombat);
   const startPullReducer = useReducer(reducers.startPull);
@@ -146,6 +160,9 @@ export const useCombat = ({
   const dismissResultsReducer = useReducer(reducers.dismissCombatResults);
   const takeLootReducer = useReducer(reducers.takeLoot);
   const takeAllLootReducer = useReducer(reducers.takeAllLoot);
+  const submitCombatActionReducer = useReducer(reducers.submitCombatAction);
+
+  // ---- Core combat state ----
 
   const activeCombat = computed(() => {
     if (!selectedCharacter.value) return null;
@@ -161,6 +178,236 @@ export const useCombat = ({
     }
     return null;
   });
+
+  const isInCombat = computed(() => {
+    if (!activeCombat.value) return false;
+    return activeCombat.value.state === 'active';
+  });
+
+  // ---- Round-based combat state ----
+
+  const currentRound = computed(() => {
+    if (!activeCombat.value) return null;
+    const combatId = activeCombat.value.id.toString();
+    const rounds = combatRounds.value.filter(
+      (r: any) => r.combatId.toString() === combatId
+    );
+    if (rounds.length === 0) return null;
+    // Find the non-resolved round, or the highest round number
+    const active = rounds.find((r: any) => r.state !== 'resolved');
+    if (active) return active;
+    return rounds.reduce((latest: any, current: any) =>
+      Number(current.roundNumber) > Number(latest.roundNumber) ? current : latest
+    );
+  });
+
+  const roundState = computed<string | null>(() => {
+    return currentRound.value?.state ?? null;
+  });
+
+  const myAction = computed(() => {
+    if (!activeCombat.value || !selectedCharacter.value || !currentRound.value) return null;
+    const combatId = activeCombat.value.id.toString();
+    const charId = selectedCharacter.value.id.toString();
+    const roundNum = currentRound.value.roundNumber.toString();
+    return combatActions.value.find(
+      (a: any) =>
+        a.combatId.toString() === combatId &&
+        a.characterId.toString() === charId &&
+        a.roundNumber.toString() === roundNum
+    ) ?? null;
+  });
+
+  const hasSubmittedAction = computed(() => myAction.value !== null);
+
+  // Round timer countdown using requestAnimationFrame
+  const roundTimeRemaining = ref(0);
+  let rafId: number | null = null;
+
+  const updateTimer = () => {
+    if (!currentRound.value || roundState.value !== 'action_select') {
+      roundTimeRemaining.value = 0;
+      rafId = requestAnimationFrame(updateTimer);
+      return;
+    }
+    const expiresAtMicros = Number(currentRound.value.timerExpiresAtMicros);
+    const nowUs = Date.now() * 1000;
+    const remainingUs = expiresAtMicros - nowUs;
+    roundTimeRemaining.value = Math.max(0, Math.round(remainingUs / 1_000_000));
+    rafId = requestAnimationFrame(updateTimer);
+  };
+
+  // Start/stop timer loop based on combat state
+  watch(
+    () => activeCombat.value?.id?.toString() ?? null,
+    (id) => {
+      if (id && !rafId) {
+        rafId = requestAnimationFrame(updateTimer);
+      } else if (!id && rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+        roundTimeRemaining.value = 0;
+      }
+    },
+    { immediate: true }
+  );
+
+  onUnmounted(() => {
+    if (rafId) cancelAnimationFrame(rafId);
+  });
+
+  // ---- Action submission functions ----
+
+  const submitAction = (
+    actionType: string,
+    abilityTemplateId?: bigint,
+    targetEnemyId?: bigint,
+    targetCharacterId?: bigint
+  ) => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    submitCombatActionReducer({
+      characterId: selectedCharacter.value.id,
+      actionType,
+      abilityTemplateId: abilityTemplateId ?? undefined,
+      targetEnemyId: targetEnemyId ?? undefined,
+      targetCharacterId: targetCharacterId ?? undefined,
+    });
+  };
+
+  const submitAbility = (abilityTemplateId: bigint, targetEnemyId: bigint) => {
+    submitAction('ability', abilityTemplateId, targetEnemyId);
+  };
+
+  const submitAutoAttack = (targetEnemyId: bigint) => {
+    submitAction('auto_attack', undefined, targetEnemyId);
+  };
+
+  const submitFlee = () => {
+    submitAction('flee');
+  };
+
+  // ---- Action prompt building ----
+
+  const actionPromptMessage = computed<string | null>(() => {
+    if (!activeCombat.value || roundState.value !== 'action_select' || hasSubmittedAction.value) {
+      return null;
+    }
+    const charId = selectedCharacter.value?.id;
+    if (!charId) return null;
+
+    const lines: string[] = [];
+    const timer = roundTimeRemaining.value;
+    lines.push(`Choose your action (${timer}s remaining):`);
+    lines.push('');
+
+    // Hotbar abilities
+    const charHotbar = hotbarSlots.value.filter(
+      (s) => s.characterId.toString() === charId.toString()
+    );
+    for (const slot of charHotbar) {
+      if (!slot.abilityTemplateId) continue;
+      const template = abilityTemplates.value.find(
+        (t) => t.id.toString() === slot.abilityTemplateId.toString()
+      );
+      if (!template) continue;
+      const cooldown = abilityCooldowns.value.find(
+        (c) =>
+          c.characterId?.toString() === charId.toString() &&
+          c.abilityTemplateId.toString() === slot.abilityTemplateId.toString()
+      );
+      const cdRemaining = cooldown
+        ? Math.max(0, Math.ceil((Number(cooldown.startedAtMicros) + Number(cooldown.durationMicros) - nowMicros.value) / 1_000_000))
+        : 0;
+      const manaCost = template.resourceCost ? ` (${template.resourceCost} ${template.resourceType ?? 'mana'})` : '';
+      if (cdRemaining > 0) {
+        lines.push(`  ~~${template.name}~~ (${cdRemaining}s)${manaCost}`);
+      } else {
+        lines.push(`  [${template.name}]${manaCost}`);
+      }
+    }
+
+    lines.push(`  [Auto-attack]`);
+    lines.push(`  [Flee]`);
+    lines.push('');
+
+    // Target list: living enemies
+    const combatId = activeCombat.value.id.toString();
+    const livingEnemies = combatEnemies.value.filter(
+      (e) => e.combatId.toString() === combatId && e.currentHp > 0n
+    );
+    if (livingEnemies.length > 0) {
+      lines.push('Targets:');
+      for (const enemy of livingEnemies) {
+        const template = enemyTemplates.value.find(
+          (t) => t.id.toString() === enemy.enemyTemplateId.toString()
+        );
+        const name = enemy.displayName ?? template?.name ?? 'Enemy';
+        const level = template?.level ?? 1n;
+        lines.push(`  [${name}] (L${level})`);
+      }
+    }
+
+    return lines.join('\n');
+  });
+
+  // ---- Round summary building ----
+
+  const roundSummaryMessage = computed<string | null>(() => {
+    if (!activeCombat.value) return null;
+    // Build summary after a round resolves
+    const round = currentRound.value;
+    if (!round || round.state !== 'resolved') return null;
+
+    const combatId = activeCombat.value.id.toString();
+    const BAR_WIDTH = 18;
+    const lines: string[] = [];
+    lines.push(`--- Round ${round.roundNumber} ---`);
+
+    // Enemy HP bars
+    const enemies = combatEnemies.value.filter(
+      (e) => e.combatId.toString() === combatId
+    );
+    for (const enemy of enemies) {
+      const template = enemyTemplates.value.find(
+        (t) => t.id.toString() === enemy.enemyTemplateId.toString()
+      );
+      const name = enemy.displayName ?? template?.name ?? 'Enemy';
+      const level = template?.level ?? 1n;
+      const hp = Number(enemy.currentHp);
+      const maxHp = Number(enemy.maxHp);
+      const pct = maxHp > 0 ? hp / maxHp : 0;
+      const filled = Math.round(pct * BAR_WIDTH);
+      const empty = BAR_WIDTH - filled;
+      const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty);
+      const color = pct > 0.5 ? '#69db7c' : pct > 0.25 ? '#ffd43b' : '#ff6b6b';
+      lines.push(`{{color:${color}}}[${bar}]{{/color}} ${hp}/${maxHp} HP  ${name} (L${level})`);
+    }
+
+    lines.push('---');
+
+    // Player HP bars
+    const roster = combatParticipants.value.filter(
+      (p) => p.combatId.toString() === combatId
+    );
+    for (const participant of roster) {
+      const character = characters.value.find(
+        (c) => c.id.toString() === participant.characterId.toString()
+      );
+      if (!character) continue;
+      const hp = Number(character.hp);
+      const maxHp = Number(character.maxHp);
+      const pct = maxHp > 0 ? hp / maxHp : 0;
+      const filled = Math.round(pct * BAR_WIDTH);
+      const empty = BAR_WIDTH - filled;
+      const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty);
+      const color = pct > 0.5 ? '#69db7c' : pct > 0.25 ? '#ffd43b' : '#ff6b6b';
+      lines.push(`{{color:${color}}}[${bar}]{{/color}} ${hp}/${maxHp} HP  ${character.name}`);
+    }
+
+    return lines.join('\n');
+  });
+
+  // ---- Existing combat state (kept for backward compatibility) ----
 
   const activeResult = computed(() => {
     if (!selectedCharacter.value || activeCombat.value) return null;
@@ -213,13 +460,12 @@ export const useCombat = ({
     const allLoot = combatLoot.value;
     const filtered = allLoot.filter((row) => row.characterId.toString() === characterId);
 
-    // Diagnostic logging
     if (allLoot.length > 0 || filtered.length > 0) {
       console.log('[LOOT DEBUG] combatLoot rows:', allLoot.length, 'filtered for char:', filtered.length, 'characterId:', characterId);
     }
 
     return filtered
-      .slice(0, 10)  // Cap at 10 items
+      .slice(0, 10)
       .map((row) => {
         const template = itemTemplates.value.find(
           (item) => item.id.toString() === row.itemTemplateId.toString()
@@ -338,7 +584,7 @@ export const useCombat = ({
     if (cast) {
       const pretty = cast.abilityKey
         .replace(/_/g, ' ')
-        .replace(/\b\w/g, (match) => match.toUpperCase());
+        .replace(/\b\w/g, (match: string) => match.toUpperCase());
       return `Casting ${pretty}`;
     }
     return 'Auto-attacking';
@@ -413,7 +659,6 @@ export const useCombat = ({
           ? factions.value.find(f => f.id.toString() === template.factionId!.toString())?.name ?? ''
           : '';
 
-        // Find matching pull state
         const pull = pullStates.value.find(
           (p) => p.enemySpawnId.toString() === spawn.id.toString() && p.state === 'pending'
         );
@@ -421,7 +666,6 @@ export const useCombat = ({
         let pullProgress = 0;
         let pullType: string | null = null;
 
-        // Safety net: if isPulling but no pull row, treat as not pulling
         if (isPulling && !pull) {
           isPulling = false;
         }
@@ -429,8 +673,6 @@ export const useCombat = ({
         if (isPulling && pull) {
           pullType = pull.pullType;
           const pullDurationMicros = pull.pullType === 'careful' ? 2_000_000 : 1_000_000;
-          // Record arrival time the first time we see this pull row (in nowMicros frame,
-          // so elapsed calculation stays in the same reference frame — no server clock sync needed).
           const spawnKey = spawn.id.toString();
           if (!pullArrivalTimes.has(spawnKey)) {
             pullArrivalTimes.set(spawnKey, nowMicros.value);
@@ -439,14 +681,12 @@ export const useCombat = ({
           const elapsed = nowMicros.value - startMicros;
           pullProgress = Math.min(1, Math.max(0, elapsed / pullDurationMicros));
 
-          // Orphan safety net: if elapsed exceeds duration + 2s grace, stop showing bar
           if (elapsed > pullDurationMicros + 2_000_000) {
             isPulling = false;
             pullProgress = 0;
             pullArrivalTimes.delete(spawnKey);
           }
         } else {
-          // Clean up arrival time if no longer pulling
           pullArrivalTimes.delete(spawn.id.toString());
         }
 
@@ -625,6 +865,8 @@ export const useCombat = ({
     });
   });
 
+  // ---- Action functions ----
+
   const startCombat = (enemySpawnId: bigint) => {
     if (!connActive.value || !selectedCharacter.value) return;
     startCombatReducer({ characterId: selectedCharacter.value.id, enemySpawnId });
@@ -730,5 +972,18 @@ export const useCombat = ({
     dismissResults,
     takeLoot,
     takeAllLoot,
+    // Round-based combat
+    submitAction,
+    submitAbility,
+    submitAutoAttack,
+    submitFlee,
+    currentRound,
+    roundState,
+    myAction,
+    hasSubmittedAction,
+    roundTimeRemaining,
+    actionPromptMessage,
+    roundSummaryMessage,
+    isInCombat,
   };
 };

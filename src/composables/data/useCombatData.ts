@@ -19,6 +19,9 @@ export function useCombatData(conn: ConnectionState) {
   const characterCasts = shallowRef<any[]>([]);
   const characterEffects = shallowRef<any[]>([]);
   const activeBardSongs = shallowRef<any[]>([]);
+  const combatRounds = shallowRef<any[]>([]);
+  const combatActions = shallowRef<any[]>([]);
+  const combatNarratives = shallowRef<any[]>([]);
   // aggro_entry is private in v2, not subscribable
   const aggroEntries = ref([] as any[]);
 
@@ -36,6 +39,9 @@ export function useCombatData(conn: ConnectionState) {
     characterCasts.value = [...dbConn.db.character_cast.iter()];
     characterEffects.value = [...dbConn.db.character_effect.iter()];
     activeBardSongs.value = [...dbConn.db.active_bard_song.iter()];
+    combatRounds.value = [...dbConn.db.combat_round.iter()];
+    combatActions.value = [...dbConn.db.combat_action.iter()];
+    combatNarratives.value = [...dbConn.db.combat_narrative.iter()];
   }
 
   watch(
@@ -61,6 +67,9 @@ export function useCombatData(conn: ConnectionState) {
           toSql(tables.character_cast),
           toSql(tables.character_effect),
           toSql(tables.active_bard_song),
+          toSql(tables.combat_round),
+          toSql(tables.combat_action),
+          toSql(tables.combat_narrative),
         ]);
 
       const rebind = (table: any, ref: { value: any[] }, iter: () => Iterable<any>) => {
@@ -83,6 +92,9 @@ export function useCombatData(conn: ConnectionState) {
       rebind(dbConn.db.character_cast, characterCasts, () => dbConn.db.character_cast.iter());
       rebind(dbConn.db.character_effect, characterEffects, () => dbConn.db.character_effect.iter());
       rebind(dbConn.db.active_bard_song, activeBardSongs, () => dbConn.db.active_bard_song.iter());
+      rebind(dbConn.db.combat_round, combatRounds, () => dbConn.db.combat_round.iter());
+      rebind(dbConn.db.combat_action, combatActions, () => dbConn.db.combat_action.iter());
+      rebind(dbConn.db.combat_narrative, combatNarratives, () => dbConn.db.combat_narrative.iter());
     },
     { immediate: true }
   );
@@ -101,6 +113,9 @@ export function useCombatData(conn: ConnectionState) {
     characterCasts,
     characterEffects,
     activeBardSongs,
+    combatRounds,
+    combatActions,
+    combatNarratives,
     aggroEntries,
   };
 }

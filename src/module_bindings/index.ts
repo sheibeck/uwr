@@ -114,6 +114,7 @@ import SetCombatTargetReducer from "./set_combat_target_reducer";
 import FleeCombatReducer from "./flee_combat_reducer";
 import DismissCombatResultsReducer from "./dismiss_combat_results_reducer";
 import EndCombatReducer from "./end_combat_reducer";
+import SubmitCombatActionReducer from "./submit_combat_action_reducer";
 import LootCorpseItemReducer from "./loot_corpse_item_reducer";
 import LootAllCorpseReducer from "./loot_all_corpse_reducer";
 import InitiateResurrectReducer from "./initiate_resurrect_reducer";
@@ -160,15 +161,18 @@ import CharacterCastRow from "./character_cast_table";
 import CharacterCreationStateRow from "./character_creation_state_table";
 import CharacterEffectRow from "./character_effect_table";
 import CharacterLogoutTickRow from "./character_logout_tick_table";
+import CombatActionRow from "./combat_action_table";
 import CombatEncounterRow from "./combat_encounter_table";
 import CombatEnemyRow from "./combat_enemy_table";
 import CombatEnemyCastRow from "./combat_enemy_cast_table";
 import CombatEnemyCooldownRow from "./combat_enemy_cooldown_table";
 import CombatEnemyEffectRow from "./combat_enemy_effect_table";
 import CombatLootRow from "./combat_loot_table";
+import CombatNarrativeRow from "./combat_narrative_table";
 import CombatParticipantRow from "./combat_participant_table";
 import CombatPendingAddRow from "./combat_pending_add_table";
 import CombatResultRow from "./combat_result_table";
+import CombatRoundRow from "./combat_round_table";
 import CommandRow from "./command_table";
 import CorpseRow from "./corpse_table";
 import CorpseItemRow from "./corpse_item_table";
@@ -410,6 +414,23 @@ const tablesSchema = __schema({
       { name: 'character_logout_tick_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
     ],
   }, CharacterLogoutTickRow),
+  combat_action: __table({
+    name: 'combat_action',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'by_combat', algorithm: 'btree', columns: [
+        'combatId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_action_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CombatActionRow),
   combat_encounter: __table({
     name: 'combat_encounter',
     indexes: [
@@ -509,6 +530,20 @@ const tablesSchema = __schema({
       { name: 'combat_loot_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatLootRow),
+  combat_narrative: __table({
+    name: 'combat_narrative',
+    indexes: [
+      { name: 'by_combat', algorithm: 'btree', columns: [
+        'combatId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_narrative_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CombatNarrativeRow),
   combat_participant: __table({
     name: 'combat_participant',
     indexes: [
@@ -560,6 +595,20 @@ const tablesSchema = __schema({
       { name: 'combat_result_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CombatResultRow),
+  combat_round: __table({
+    name: 'combat_round',
+    indexes: [
+      { name: 'by_combat', algorithm: 'btree', columns: [
+        'combatId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_round_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CombatRoundRow),
   command: __table({
     name: 'command',
     indexes: [
@@ -1755,6 +1804,7 @@ const reducersSchema = __reducers(
   __reducerSchema("flee_combat", FleeCombatReducer),
   __reducerSchema("dismiss_combat_results", DismissCombatResultsReducer),
   __reducerSchema("end_combat", EndCombatReducer),
+  __reducerSchema("submit_combat_action", SubmitCombatActionReducer),
   __reducerSchema("loot_corpse_item", LootCorpseItemReducer),
   __reducerSchema("loot_all_corpse", LootAllCorpseReducer),
   __reducerSchema("initiate_resurrect", InitiateResurrectReducer),

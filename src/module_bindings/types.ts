@@ -228,6 +228,19 @@ export const CharacterLogoutTick = __t.object("CharacterLogoutTick", {
 });
 export type CharacterLogoutTick = __Infer<typeof CharacterLogoutTick>;
 
+export const CombatAction = __t.object("CombatAction", {
+  id: __t.u64(),
+  combatId: __t.u64(),
+  characterId: __t.u64(),
+  roundNumber: __t.u64(),
+  actionType: __t.string(),
+  abilityTemplateId: __t.option(__t.u64()),
+  targetEnemyId: __t.option(__t.u64()),
+  targetCharacterId: __t.option(__t.u64()),
+  submittedAt: __t.timestamp(),
+});
+export type CombatAction = __Infer<typeof CombatAction>;
+
 export const CombatEncounter = __t.object("CombatEncounter", {
   id: __t.u64(),
   locationId: __t.u64(),
@@ -311,6 +324,16 @@ export const CombatLoot = __t.object("CombatLoot", {
 });
 export type CombatLoot = __Infer<typeof CombatLoot>;
 
+export const CombatNarrative = __t.object("CombatNarrative", {
+  id: __t.u64(),
+  combatId: __t.u64(),
+  roundNumber: __t.u64(),
+  narrativeText: __t.string(),
+  narrativeType: __t.string(),
+  createdAt: __t.timestamp(),
+});
+export type CombatNarrative = __Infer<typeof CombatNarrative>;
+
 export const CombatParticipant = __t.object("CombatParticipant", {
   id: __t.u64(),
   combatId: __t.u64(),
@@ -340,6 +363,16 @@ export const CombatResult = __t.object("CombatResult", {
   createdAt: __t.timestamp(),
 });
 export type CombatResult = __Infer<typeof CombatResult>;
+
+export const CombatRound = __t.object("CombatRound", {
+  id: __t.u64(),
+  combatId: __t.u64(),
+  roundNumber: __t.u64(),
+  state: __t.string(),
+  timerExpiresAtMicros: __t.u64(),
+  narrationCount: __t.u64(),
+});
+export type CombatRound = __Infer<typeof CombatRound>;
 
 export const Command = __t.object("Command", {
   id: __t.u64(),
@@ -1152,6 +1185,14 @@ export const ResourceNode = __t.object("ResourceNode", {
   respawnAtMicros: __t.option(__t.u64()),
 });
 export type ResourceNode = __Infer<typeof ResourceNode>;
+
+export const RoundTimerTick = __t.object("RoundTimerTick", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  combatId: __t.u64(),
+  roundNumber: __t.u64(),
+});
+export type RoundTimerTick = __Infer<typeof RoundTimerTick>;
 
 export const SearchResult = __t.object("SearchResult", {
   id: __t.u64(),
