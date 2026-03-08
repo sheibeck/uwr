@@ -32,16 +32,13 @@ export function performPassiveSearch(
     foundResources = true;
   }
 
-  // Roll 2: Quest items (40% chance) — only if character has active explore quest targeting this location
-  // Use a different bit mix for independent roll
-  const questRollRaw: bigint = ((seed >> 8n) ^ (seed * 7n)) % 100n;
-  const questRoll: bigint = questRollRaw < 0n ? questRollRaw + 100n : questRollRaw;
-
+  // Quest items: always spawn for delivery/explore quests at target location
   for (const qi of ctx.db.quest_instance.by_character.filter(character.id)) {
     if (qi.completed) continue;
     const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
     if (!qt) continue;
-    if ((qt.questType ?? 'kill') !== 'explore') continue;
+    const qtype = qt.questType ?? 'kill';
+    if (qtype !== 'explore' && qtype !== 'delivery') continue;
     if (qt.targetLocationId !== locationId) continue;
 
     // Check if character already has a discovered (but not looted) quest item for this quest here
@@ -54,23 +51,20 @@ export function performPassiveSearch(
     }
     if (alreadyHasItem) continue;
 
-    if (questRoll < 40n) {
-      // Create a quest item node at this location
-      const newItem = ctx.db.quest_item.insert({
-        id: 0n,
-        characterId: character.id,
-        questTemplateId: qt.id,
-        locationId,
-        name: qt.targetItemName ?? 'Hidden Object',
-        discovered: true,
-        looted: false,
-      });
-      foundQuestItem = true;
-      questItemId = newItem.id;
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
-        `Your search reveals something: ${qt.targetItemName ?? 'a hidden object'}!`);
-    }
-    break; // Only one explore quest roll per location entry
+    // Create a quest item node at this location (deterministic — no RNG)
+    const newItem = ctx.db.quest_item.insert({
+      id: 0n,
+      characterId: character.id,
+      questTemplateId: qt.id,
+      locationId,
+      name: qt.targetItemName ?? 'Hidden Object',
+      discovered: true,
+      looted: false,
+    });
+    foundQuestItem = true;
+    questItemId = newItem.id;
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+      `Your search reveals something: ${qt.targetItemName ?? 'a hidden object'}!`);
   }
 
   // Roll 3: Named enemy (20% chance) — only if a named enemy is configured for this location
