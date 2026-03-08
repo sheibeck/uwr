@@ -68,8 +68,16 @@
       :round-time-remaining="roundTimeRemaining"
       :round-state="roundState"
       :has-submitted-action="hasSubmittedAction"
+      :is-in-combat="isInCombat"
+      :combat-abilities="combatAbilitiesForBar"
+      :combat-enemies="combatEnemiesList"
+      :casting-ability-id="activeCastId"
+      :cast-progress="castProgress"
       @submit="onNarrativeSubmit"
       @open-panel="onOpenPanel"
+      @flee="onCombatFlee"
+      @use-ability="onCombatUseAbility"
+      @target-enemy="onCombatTargetEnemy"
     />
 
     <FloatingPanel v-if="selectedCharacter" panel-id="hotbar" title="Hotbar" hotbar>
@@ -1052,10 +1060,7 @@ watch([roundState, currentRound], ([state, round]) => {
   if (combatStatusMessage.value) {
     addLocalEvent('combat_status', combatStatusMessage.value, 'private');
   }
-  // Action prompt
-  if (actionPromptMessage.value) {
-    addLocalEvent('combat_prompt', actionPromptMessage.value, 'private');
-  }
+  // Action prompt removed — CombatActionBar handles this visually now
 });
 
 // Action submitted feedback
@@ -2208,6 +2213,75 @@ const narrativeContextActions = useContextActions({
   isCasting,
   canActInCombat,
   conversationNpcId,
+});
+
+// --- Combat Action Bar data ---
+const combatAbilitiesForBar = computed(() => {
+  if (!selectedCharacter.value || !isInCombat.value) return [];
+  const charId = selectedCharacter.value.id;
+  const charAbilities = abilityTemplates.value.filter(
+    (t) => t.characterId?.toString() === charId.toString()
+  );
+  return charAbilities.map((template) => {
+    const cooldown = abilityCooldowns.value.find(
+      (c) =>
+        c.characterId?.toString() === charId.toString() &&
+        c.abilityTemplateId.toString() === template.id.toString()
+    );
+    const cdRemaining = cooldown
+      ? Math.max(0, Math.ceil((Number(cooldown.startedAtMicros) + Number(cooldown.durationMicros) - nowMicros.value) / 1_000_000))
+      : 0;
+    return {
+      id: template.id,
+      name: template.name,
+      kind: template.kind,
+      resourceType: template.resourceType,
+      resourceCost: template.resourceCost,
+      castSeconds: template.castSeconds,
+      cooldownSeconds: cdRemaining > 0 ? Math.max(cdRemaining, Number(template.cooldownSeconds)) : Number(template.cooldownSeconds),
+      cooldownRemaining: cdRemaining,
+      isOnCooldown: cdRemaining > 0,
+    };
+  });
+});
+
+// Combat action bar event handlers
+const onCombatFlee = () => {
+  if (!isInCombat.value) return;
+  submitFlee();
+};
+
+const onCombatUseAbility = (abilityId: bigint) => {
+  if (!isInCombat.value || !selectedCharacter.value) return;
+  // Find a living targeted enemy, or first living enemy
+  const targetEnemyId = selectedCharacter.value.combatTargetEnemyId;
+  const targeted = targetEnemyId
+    ? combatEnemiesList.value.find((e: any) => e.id.toString() === targetEnemyId.toString() && e.hp > 0n)
+    : null;
+  const enemy = targeted ?? combatEnemiesList.value.find((e: any) => e.hp > 0n);
+  if (enemy) {
+    submitAbility(abilityId, enemy.id);
+  }
+};
+
+const onCombatTargetEnemy = (enemyId: bigint) => {
+  setCombatTarget(enemyId);
+};
+
+// Auto-target first enemy when combat begins
+watch(isInCombat, (inCombat) => {
+  if (!inCombat || !selectedCharacter.value) return;
+  // Only auto-target if no enemy is currently targeted
+  const currentTarget = selectedCharacter.value.combatTargetEnemyId;
+  const hasTarget = currentTarget && combatEnemiesList.value.some(
+    (e: any) => e.id.toString() === currentTarget.toString() && e.hp > 0n
+  );
+  if (!hasTarget && combatEnemiesList.value.length > 0) {
+    const firstLiving = combatEnemiesList.value.find((e: any) => e.hp > 0n);
+    if (firstLiving) {
+      setCombatTarget(firstLiving.id);
+    }
+  }
 });
 
 const onAddItemToHotbar = (templateId: bigint, itemName: string) => {

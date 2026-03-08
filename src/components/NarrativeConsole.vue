@@ -59,8 +59,19 @@
       :context-actions="contextActions"
       :placeholder="inputPlaceholder"
       :conn-active="connActive"
+      :is-in-combat="isInCombat"
+      :combat-abilities="combatAbilities"
+      :combat-enemies="combatEnemies"
+      :casting-ability-id="castingAbilityId"
+      :cast-progress="castProgress"
+      :round-time-remaining="roundTimeRemaining ?? 0"
+      :round-state="roundState ?? null"
+      :has-submitted-action="hasSubmittedAction ?? false"
       @submit="$emit('submit', $event)"
       @skip-animation="onSkipAnimation"
+      @flee="$emit('flee')"
+      @use-ability="(id: bigint) => $emit('use-ability', id)"
+      @target-enemy="(id: bigint) => $emit('target-enemy', id)"
     />
   </div>
 </template>
@@ -95,11 +106,19 @@ const props = defineProps<{
   roundTimeRemaining?: number;
   roundState?: string | null;
   hasSubmittedAction?: boolean;
+  isInCombat?: boolean;
+  combatAbilities?: any[];
+  combatEnemies?: any[];
+  castingAbilityId?: bigint | null;
+  castProgress?: number;
 }>();
 
 defineEmits<{
   (e: 'submit', text: string): void;
   (e: 'open-panel', panelId: string): void;
+  (e: 'flee'): void;
+  (e: 'use-ability', abilityId: bigint): void;
+  (e: 'target-enemy', enemyId: bigint): void;
 }>();
 
 // Animation composable
@@ -180,14 +199,14 @@ const consoleStyle = {
   fontFamily: "'Courier New', monospace",
 };
 
-const scrollAreaStyle = {
+const scrollAreaStyle = computed(() => ({
   flex: '1',
   overflowY: 'auto' as const,
   paddingTop: '52px',
-  paddingBottom: '90px',
+  paddingBottom: props.isInCombat ? '150px' : '90px',
   paddingLeft: '16px',
   paddingRight: '16px',
-};
+}));
 
 const emptyStyle = {
   color: '#868e96',

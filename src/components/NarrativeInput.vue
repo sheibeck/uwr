@@ -1,7 +1,25 @@
 <template>
   <div :style="containerStyle">
-    <!-- Context action bar -->
-    <div v-if="contextActions.length > 0" :style="actionBarStyle">
+    <!-- Combat UI: Enemy HUD + Action Bar (during active combat) -->
+    <template v-if="isInCombat">
+      <EnemyHud
+        :enemies="combatEnemies"
+        @target-enemy="(id: bigint) => $emit('target-enemy', id)"
+      />
+      <CombatActionBar
+        :abilities="combatAbilities"
+        :casting-ability-id="castingAbilityId"
+        :cast-progress="castProgress"
+        :round-time-remaining="roundTimeRemaining"
+        :round-state="roundState"
+        :has-submitted-action="hasSubmittedAction"
+        @flee="$emit('flee')"
+        @use-ability="(id: bigint) => $emit('use-ability', id)"
+      />
+    </template>
+
+    <!-- Context action bar (outside combat) -->
+    <div v-else-if="contextActions.length > 0" :style="actionBarStyle">
       <button
         v-for="action in contextActions"
         :key="action.command"
@@ -61,6 +79,9 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import CombatActionBar from './CombatActionBar.vue';
+import type { CombatAbility } from './CombatActionBar.vue';
+import EnemyHud from './EnemyHud.vue';
 
 export type ContextAction = {
   label: string;
@@ -70,18 +91,48 @@ export type ContextAction = {
   active?: boolean;
 };
 
+type CombatEnemyEntry = {
+  id: bigint;
+  name: string;
+  level: bigint;
+  hp: bigint;
+  maxHp: bigint;
+  conClass: string;
+  isTarget: boolean;
+  isBoss: boolean;
+};
+
 const props = withDefaults(defineProps<{
   disabled: boolean;
   contextActions: ContextAction[];
   placeholder: string;
   connActive: boolean;
+  isInCombat?: boolean;
+  combatAbilities?: CombatAbility[];
+  combatEnemies?: CombatEnemyEntry[];
+  castingAbilityId?: bigint | null;
+  castProgress?: number;
+  roundTimeRemaining?: number;
+  roundState?: string | null;
+  hasSubmittedAction?: boolean;
 }>(), {
   placeholder: 'What do you do?',
+  isInCombat: false,
+  combatAbilities: () => [],
+  combatEnemies: () => [],
+  castingAbilityId: null,
+  castProgress: 0,
+  roundTimeRemaining: 0,
+  roundState: null,
+  hasSubmittedAction: false,
 });
 
 const emit = defineEmits<{
   (e: 'submit', text: string): void;
   (e: 'skip-animation'): void;
+  (e: 'flee'): void;
+  (e: 'use-ability', abilityId: bigint): void;
+  (e: 'target-enemy', enemyId: bigint): void;
 }>();
 
 const inputEl = ref<HTMLInputElement | null>(null);
