@@ -249,12 +249,15 @@ export function handleCombatNarrationResult(
     createdAt: ctx.timestamp,
   });
 
+  // Prefix round narrations with round number for temporal context
+  const prefix = narrativeType === 'round' ? `[Round ${roundNumber}] ` : '';
+
   // Broadcast to all participant characters
   for (const charIdStr of participantCharacterIds) {
     const charId = BigInt(charIdStr);
     const character = ctx.db.character.id.find(charId);
     if (!character) continue;
-    appendPrivateEvent(ctx, charId, character.ownerUserId, 'combat_narration', narrative);
+    appendPrivateEvent(ctx, charId, character.ownerUserId, 'combat_narration', prefix + narrative);
   }
 
   // Intro flavor: add a System settling-in message

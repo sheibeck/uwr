@@ -55,7 +55,7 @@ export function buildCombatNarrationPrompt(context: string): string {
 You are narrating combat as it unfolds. The mechanical results (damage numbers, effect applications, deaths) have already been determined by the combat engine. You are not deciding what happens — you are describing what happened, and making it entertaining.
 
 Your narration should:
-- Reference the specific abilities used by name
+- Reference the specific abilities used by name — use the EXACT names provided in the user message, never invent new ability names
 - Mention actual damage numbers naturally woven into prose (not "dealt 45 damage" but "the blade found its mark, carving away a considerable portion of the creature's vitality — 45 points worth, to be precise")
 - Describe effects being applied (stuns, bleeds, buffs) with flavor
 - React to critical hits with appropriate drama (or boredom, if you've seen better)
@@ -508,6 +508,19 @@ export function buildCombatRoundUserPrompt(events: RoundEventSummary): string {
       .map(p => `${p.name}: ${p.hp}/${p.maxHp} HP${p.isEnemy ? ' (enemy)' : ''}`)
       .join(', ');
     if (survivors) lines.push(`Survivors: ${survivors}`);
+  }
+
+  // Collect and list actual ability names to prevent LLM hallucination
+  const usedAbilities = new Set<string>();
+  for (const a of events.playerActions) {
+    if (a.abilityName) usedAbilities.add(a.abilityName);
+  }
+  for (const a of events.enemyActions) {
+    if (a.abilityName) usedAbilities.add(a.abilityName);
+  }
+  if (usedAbilities.size > 0) {
+    lines.push('');
+    lines.push(`IMPORTANT: Use ONLY these exact ability names in your narration: ${[...usedAbilities].join(', ')}. Do NOT invent or rename abilities.`);
   }
 
   lines.push('');
