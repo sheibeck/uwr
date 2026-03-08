@@ -2603,13 +2603,10 @@ export const registerCombatReducers = (deps: any) => {
     // Execute immediately
     try {
       executeAbilityAction(ctx, {
-        actorType: 'player',
+        actorType: 'character',
         actorId: character.id,
-        combatId,
-        abilityKey: ability.name,
-        targetEnemyId: args.targetEnemyId,
-        targetCharacterId: args.targetCharacterId,
         abilityTemplateId: args.abilityTemplateId,
+        targetCharacterId: args.targetCharacterId,
       });
       // Set cooldown
       const cooldownDuration = abilityCooldownMicros(ctx, args.abilityTemplateId);

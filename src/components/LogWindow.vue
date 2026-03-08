@@ -133,5 +133,4 @@ const renderClickableKeywords = (text: string): string => {
 
 // clickNpcKeyword is registered globally in App.vue — routes through submitIntentReducer
 // which handles travel, look, say, etc. No need to register it here.
-}
 </script>
