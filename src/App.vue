@@ -1397,19 +1397,28 @@ const onNarrativeSubmit = (text: string) => {
     }
   }
 
-  // If in conversation with an NPC, route to talk_to_npc
+  // If in conversation with an NPC, route to talk_to_npc UNLESS it's a game action
   if (conversationNpcId.value) {
     // End conversation on farewell keywords
     if (/^(?:bye|farewell|leave|goodbye|end|quit|exit|back)$/i.test(lower)) {
       endConversation();
       return;
     }
-    talkToNpcReducer({
-      characterId: selectedCharacter.value.id,
-      npcId: conversationNpcId.value,
-      message: text.trim(),
-    });
-    return;
+    // Detect game action commands that should break out of conversation
+    // These come from context action buttons or typed commands
+    const isGameAction = /^(?:go |look$|attack |gather |craft |bind$|inventory$|backpack$|quests?$|bank$|vendor$|shop$|buy |sell |who$)/i.test(lower);
+    if (isGameAction) {
+      endConversation();
+      // Fall through to normal command processing below
+    } else {
+      // Free-form text stays in conversation
+      talkToNpcReducer({
+        characterId: selectedCharacter.value.id,
+        npcId: conversationNpcId.value,
+        message: text.trim(),
+      });
+      return;
+    }
   }
 
   // Check if bare text matches an NPC name — enter conversation mode
@@ -1439,6 +1448,11 @@ const onCreationSubmit = (text: string) => {
   if (isInCreation.value || !selectedCharacter.value) {
     submitCreationInput(keyword);
     return;
+  }
+
+  // Auto-end NPC conversation when clicking any game action link
+  if (conversationNpcId.value) {
+    endConversation();
   }
 
   // 3. Combat keyword routing
