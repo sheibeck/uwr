@@ -1374,10 +1374,7 @@ const onNarrativeSubmit = (text: string) => {
   const lower = text.trim().toLowerCase();
 
   // Client-side commands that open panels
-  if (lower === 'craft') {
-    openPanel('crafting');
-    return;
-  }
+  // 'craft' now routes to server-side intent handler (no panel)
 
   // "talk to [NPC]" / "hail [NPC]" — enter conversation mode and show greeting
   const talkMatch = lower.match(/^(?:talk|hail|speak)\s+(?:to\s+)?(.+)$/);
@@ -1602,7 +1599,91 @@ const onCreationSubmit = (text: string) => {
     return;
   }
 
-  // 8. Everything else — delegate to the same handler typed input uses
+  // 8. Withdraw keyword (from bank display)
+  if (kwLower.startsWith('withdraw ')) {
+    const itemName = kw.substring(9).trim();
+    if (selectedCharacter.value) {
+      for (const slot of bankSlots.value) {
+        const instance = itemInstances.value.find((i: any) => i.id?.toString() === (slot as any).itemInstanceId?.toString());
+        if (!instance) continue;
+        const template = itemTemplates.value.find((t: any) => t.id?.toString() === (instance as any).templateId?.toString());
+        if (!template) continue;
+        const name = ((instance as any).displayName || (template as any).name);
+        if (name.toLowerCase() === itemName.toLowerCase()) {
+          withdrawFromBank((slot as any).id);
+          addLocalEvent('system', `Withdrawing ${name} from bank...`, 'private');
+          return;
+        }
+      }
+    }
+    addLocalEvent('system', `Could not find "${itemName}" in your bank.`, 'private');
+    return;
+  }
+
+  // 9. Buy keyword (from vendor display)
+  if (kwLower.startsWith('buy ')) {
+    const itemName = kw.substring(4).trim();
+    const vendorNpc = npcsHere.value?.find((npc: any) => npc.npcType === 'vendor');
+    if (!vendorNpc) {
+      addLocalEvent('system', 'No vendor here.', 'private');
+      return;
+    }
+    const vendorInv = vendorInventory.value.filter((vi: any) => vi.npcId?.toString() === vendorNpc.id?.toString());
+    for (const vi of vendorInv) {
+      const template = itemTemplates.value.find((t: any) => t.id?.toString() === (vi as any).itemTemplateId?.toString());
+      if (template && (template as any).name.toLowerCase() === itemName.toLowerCase()) {
+        activeVendorId.value = vendorNpc.id;
+        buyItem((vi as any).itemTemplateId);
+        return;
+      }
+    }
+    addLocalEvent('system', `"${itemName}" is not for sale here.`, 'private');
+    return;
+  }
+
+  // 10. Research Recipes keyword
+  if (kwLower === 'research recipes') {
+    if (selectedCharacter.value && conn.isActive) {
+      researchRecipes();
+    }
+    return;
+  }
+
+  // 11. Craft keyword (from crafting display)
+  if (kwLower.startsWith('craft ')) {
+    const recipeName = kw.substring(6).trim();
+    const recipe = recipeTemplates.value.find((r: any) => r.name.toLowerCase() === recipeName.toLowerCase());
+    if (recipe && selectedCharacter.value && conn.isActive) {
+      craftRecipe((recipe as any).id);
+    } else {
+      addLocalEvent('system', `Unknown recipe: "${recipeName}".`, 'private');
+    }
+    return;
+  }
+
+  // 12. Gather keyword (from look resource display)
+  if (kwLower.startsWith('gather ')) {
+    const resourceName = kw.substring(7).trim();
+    const charLoc = selectedCharacter.value?.locationId;
+    if (charLoc) {
+      const node = resourceNodes.value.find((n: any) =>
+        n.locationId?.toString() === charLoc?.toString() &&
+        n.name.toLowerCase() === resourceName.toLowerCase() &&
+        n.state === 'available'
+      );
+      if (node && selectedCharacter.value && conn.isActive) {
+        startGatherReducer({
+          characterId: selectedCharacter.value.id,
+          nodeId: (node as any).id,
+        });
+        return;
+      }
+    }
+    addLocalEvent('system', `No ${resourceName} available to gather here.`, 'private');
+    return;
+  }
+
+  // 13. Everything else — delegate to the same handler typed input uses
   onNarrativeSubmit(keyword);
 };
 
