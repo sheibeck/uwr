@@ -1,13 +1,13 @@
 // Combat constants used across multiple modules
 // Separated to avoid circular dependencies
 
-// Legacy tick-based combat loop interval (kept for backward compat, not used in round-based combat)
+// Real-time combat loop interval
 export const COMBAT_LOOP_INTERVAL_MICROS = 1_000_000n;
 
-// Round-based combat timing
-export const ROUND_TIMER_MICROS = 10_000_000n;              // 10 seconds for group combat
-export const SOLO_TIMER_MICROS = 6_000_000n;                // 6 seconds for solo combat
-export const EFFECT_ROUND_CONVERSION_MICROS = 4_000_000n;   // 1 round ~ 4 seconds for duration conversion
+// Legacy round-based constants (kept for helper function signatures; not actively used)
+export const ROUND_TIMER_MICROS = 30_000_000n;
+export const SOLO_TIMER_MICROS = 30_000_000n;
+export const EFFECT_ROUND_CONVERSION_MICROS = 4_000_000n;
 export const MIN_EFFECT_ROUNDS = 1n;
 export const MAX_COMBAT_NARRATIONS = 3n;                     // cap narrations per encounter
 export const NARRATION_BUDGET_THRESHOLD = 10n;               // skip narration when budget below this

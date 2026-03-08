@@ -185,13 +185,15 @@ export function triggerCombatNarration(
     createdAt: ctx.timestamp,
   });
 
-  // Increment narration count on the round
-  const currentRound = ctx.db.combat_round.id.find(round.id);
-  if (currentRound) {
-    ctx.db.combat_round.id.update({
-      ...currentRound,
-      narrationCount: (currentRound.narrationCount ?? 0n) + 1n,
-    });
+  // Increment narration count on the round (only if a real round row exists)
+  if (round.id) {
+    const currentRound = ctx.db.combat_round.id.find(round.id);
+    if (currentRound) {
+      ctx.db.combat_round.id.update({
+        ...currentRound,
+        narrationCount: (currentRound.narrationCount ?? 0n) + 1n,
+      });
+    }
   }
 }
 

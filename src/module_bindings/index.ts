@@ -114,7 +114,7 @@ import SetCombatTargetReducer from "./set_combat_target_reducer";
 import FleeCombatReducer from "./flee_combat_reducer";
 import DismissCombatResultsReducer from "./dismiss_combat_results_reducer";
 import EndCombatReducer from "./end_combat_reducer";
-import SubmitCombatActionReducer from "./submit_combat_action_reducer";
+import UseAbilityRealtimeReducer from "./use_ability_realtime_reducer";
 import LootCorpseItemReducer from "./loot_corpse_item_reducer";
 import LootAllCorpseReducer from "./loot_all_corpse_reducer";
 import InitiateResurrectReducer from "./initiate_resurrect_reducer";
@@ -1804,7 +1804,7 @@ const reducersSchema = __reducers(
   __reducerSchema("flee_combat", FleeCombatReducer),
   __reducerSchema("dismiss_combat_results", DismissCombatResultsReducer),
   __reducerSchema("end_combat", EndCombatReducer),
-  __reducerSchema("submit_combat_action", SubmitCombatActionReducer),
+  __reducerSchema("use_ability_realtime", UseAbilityRealtimeReducer),
   __reducerSchema("loot_corpse_item", LootCorpseItemReducer),
   __reducerSchema("loot_all_corpse", LootAllCorpseReducer),
   __reducerSchema("initiate_resurrect", InitiateResurrectReducer),

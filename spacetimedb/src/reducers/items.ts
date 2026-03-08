@@ -1,7 +1,6 @@
 import { buildDisplayName } from '../helpers/items';
 import { getPerkBonusByField } from '../helpers/renown';
 import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
-import { ScheduleAt } from 'spacetimedb';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -681,61 +680,7 @@ export const registerItemReducers = (deps: any) => {
           return;
         }
 
-        // In round-based combat, redirect ability use to action submission
-        const rounds = [...ctx.db.combat_round.by_combat.filter(combatId)];
-        const currentRound = rounds.filter((r: any) => r.state !== 'resolved')
-          .sort((a: any, b: any) => a.roundNumber > b.roundNumber ? -1 : 1)[0];
-        if (currentRound && currentRound.state === 'action_select') {
-          // Upsert the action
-          const existing = [...ctx.db.combat_action.by_character.filter(character.id)]
-            .find((a: any) => a.combatId === combatId && a.roundNumber === currentRound.roundNumber);
-          if (existing) {
-            ctx.db.combat_action.id.update({
-              ...existing,
-              actionType: 'ability',
-              abilityTemplateId: args.abilityTemplateId,
-              targetEnemyId: character.combatTargetEnemyId ?? undefined,
-              targetCharacterId: args.targetCharacterId ?? undefined,
-              submittedAt: ctx.timestamp,
-            });
-          } else {
-            ctx.db.combat_action.insert({
-              id: 0n, combatId, characterId: character.id,
-              roundNumber: currentRound.roundNumber,
-              actionType: 'ability',
-              abilityTemplateId: args.abilityTemplateId,
-              targetEnemyId: character.combatTargetEnemyId ?? undefined,
-              targetCharacterId: args.targetCharacterId ?? undefined,
-              submittedAt: ctx.timestamp,
-            });
-          }
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-            `Action set: ${ability.name}`);
-          // Check if all submitted -> resolve
-          const allParticipants = [...ctx.db.combat_participant.by_combat.filter(combatId)]
-            .filter((p: any) => p.status === 'active');
-          const allActions = [...ctx.db.combat_action.by_combat.filter(combatId)]
-            .filter((a: any) => a.roundNumber === currentRound.roundNumber);
-          if (allParticipants.every((p: any) => allActions.some((a: any) => a.characterId === p.characterId))) {
-            // Cancel timer and resolve
-            const timerTable = ctx.db.round_timer_tick;
-            if (timerTable && timerTable.iter) {
-              for (const row of timerTable.iter()) {
-                if (row.combatId === combatId && row.roundNumber === currentRound.roundNumber) {
-                  timerTable.id.delete(row.scheduledId);
-                }
-              }
-            }
-            // Trigger resolution via scheduling an immediate timer tick
-            ctx.db.round_timer_tick.insert({
-              scheduledId: 0n,
-              scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch),
-              combatId,
-              roundNumber: currentRound.roundNumber,
-            });
-          }
-          return;
-        }
+        // Real-time combat: ability will be executed immediately via cast system below
       }
 
       // Handle cast time
