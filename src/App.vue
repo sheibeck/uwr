@@ -1042,12 +1042,14 @@ watch([roundState, currentRound], ([state, round]) => {
   if (lastInjectedRoundStart.value === roundKey) return;
   lastInjectedRoundStart.value = roundKey;
 
+  const roundNum = Number(round.roundNumber ?? 0);
+
   // Round header
   if (roundHeaderMessage.value) {
     addLocalEvent('combat_round_header', roundHeaderMessage.value, 'private');
   }
-  // Status bars
-  if (combatStatusMessage.value) {
+  // Status bars only for Round 1 (subsequent rounds already have HP from round summary)
+  if (roundNum <= 1 && combatStatusMessage.value) {
     addLocalEvent('combat_status', combatStatusMessage.value, 'private');
   }
   // Action prompt
@@ -1095,10 +1097,9 @@ watch(() => activeCombat.value?.id?.toString(), (newId, oldId) => {
   lastInjectedSubmit.value = null;
 });
 
-// Combat END
+// Combat END: clean up tracking refs (narration or system message serves as ending)
 watch(() => activeCombat.value, (combat, oldCombat) => {
   if (!combat && oldCombat) {
-    addLocalEvent('combat_round_header', '\u2550\u2550\u2550 COMBAT ENDED \u2550\u2550\u2550', 'private');
     lastInjectedRoundStart.value = null;
     lastInjectedSubmit.value = null;
   }
