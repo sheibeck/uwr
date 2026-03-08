@@ -196,8 +196,9 @@ None yet.
 | 356 | Narrative inventory and backpack commands | 2026-03-08 | 5271f0e, baf4ee0 | [356-narrative-inventory-and-backpack-command](./quick/356-narrative-inventory-and-backpack-command/) |
 | 357 | Enforce single-word names, no special chars, no duplicates | 2026-03-08 | 491e38b | [357-enforce-single-word-names-with-no-specia](./quick/357-enforce-single-word-names-with-no-specia/) |
 | 358 | Fix equipment proficiency for dynamic classes + tier-appropriate starter gear | 2026-03-08 | 55a15d3, 47649a5 | [358-fix-equipment-proficiency-for-dynamic-cl](./quick/358-fix-equipment-proficiency-for-dynamic-cl/) |
+| 359 | Broaden archetype descriptions in LLM class generation prompts | 2026-03-08 | 6dcd512 | [359-improve-archetype-descriptions-in-llm-cl](./quick/359-improve-archetype-descriptions-in-llm-cl/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T17:19:21Z
-Stopped at: Completed quick-358 (Fix equipment proficiency for dynamic classes)
+Last session: 2026-03-08T17:24:57Z
+Stopped at: Completed quick-359 (Broaden archetype descriptions)
