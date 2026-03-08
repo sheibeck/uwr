@@ -1,6 +1,7 @@
 import { TRAVEL_CONFIG } from '../data/travel_config';
 import { performPassiveSearch } from '../helpers/search';
 import { getPerkBonusByField } from '../helpers/renown';
+import { buildLookOutput } from './intent';
 
 export const registerMovementReducers = (deps: any) => {
   const {
@@ -149,12 +150,21 @@ export const registerMovementReducers = (deps: any) => {
         row.id,
         row.ownerUserId,
         'move',
-        `You travel to ${location.name}. ${location.description}`
+        `You travel to ${location.name}.`
       );
       appendLocationEvent(ctx, originLocationId, 'move', `${row.name} departs.`, row.id);
       appendLocationEvent(ctx, location.id, 'move', `${row.name} arrives.`, row.id);
       ensureSpawnsForLocation(ctx, location.id);
       performPassiveSearch(ctx, ctx.db.character.id.find(charId)!, location.id, appendPrivateEvent);
+
+      // Auto-look: show full location overview after travel
+      const arrivedChar = ctx.db.character.id.find(charId);
+      if (arrivedChar) {
+        const lookParts = buildLookOutput(ctx, arrivedChar);
+        if (lookParts.length > 0) {
+          appendPrivateEvent(ctx, arrivedChar.id, arrivedChar.ownerUserId, 'look', lookParts.join('\n'));
+        }
+      }
 
       // AUTO-REGISTER for active world events in destination region
       // Region entry creates EventContribution row with count=0 (rewards only if count > 0)

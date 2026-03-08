@@ -3,6 +3,7 @@ import { appendSystemMessage, appendWorldEvent } from '../helpers/events';
 import { generateAffixData, buildDisplayName } from '../helpers/items';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { detectPrimarySecondary } from '../data/class_stats';
+import { buildLookOutput } from './intent';
 
 // Compute all racial contributions at a target level (same logic as awardXp / computeRacialAtLevel).
 function computeRacialAtLevelForAdmin(raceRow: any, level: bigint) {
@@ -256,15 +257,9 @@ export const registerCommandReducers = (deps: any) => {
     if (!trimmed) return fail(ctx, character, 'Command is empty');
 
     if (trimmed.toLowerCase() === '/look' || trimmed.toLowerCase() === 'look') {
-      const location = ctx.db.location.id.find(character.locationId);
-      if (location) {
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          requirePlayerUserId(ctx),
-          'look',
-          `${location.name}: ${location.description}`
-        );
+      const lookParts = buildLookOutput(ctx, character);
+      if (lookParts.length > 0) {
+        appendPrivateEvent(ctx, character.id, requirePlayerUserId(ctx), 'look', lookParts.join('\n'));
       }
       return;
     }

@@ -992,7 +992,7 @@ export const registerIntentReducers = (deps: any) => {
       const originId = character.locationId;
       ctx.db.character.id.update({ ...character, locationId: matchedLocation.id });
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'move',
-        `You travel to ${matchedLocation.name}. ${matchedLocation.description}`);
+        `You travel to ${matchedLocation.name}.`);
       appendLocationEvent(ctx, originId, 'move', `${character.name} departs.`, character.id);
       appendLocationEvent(ctx, matchedLocation.id, 'move', `${character.name} arrives.`, character.id);
 
@@ -1210,7 +1210,7 @@ export const registerIntentReducers = (deps: any) => {
       const originId = character.locationId;
       ctx.db.character.id.update({ ...character, locationId: implicitDest.id });
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'move',
-        `You travel to ${implicitDest.name}. ${implicitDest.description}`);
+        `You travel to ${implicitDest.name}.`);
       appendLocationEvent(ctx, originId, 'move', `${character.name} departs.`, character.id);
       appendLocationEvent(ctx, implicitDest.id, 'move', `${character.name} arrives.`, character.id);
 
