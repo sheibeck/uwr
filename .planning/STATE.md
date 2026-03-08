@@ -201,8 +201,9 @@ None yet.
 | 361 | Fix loot links not clickable + combat UI timing | 2026-03-08 | e8653d5, e660472 | [361-fix-loot-links-not-clickable-in-combat-n](./quick/361-fix-loot-links-not-clickable-in-combat-n/) |
 | 362 | Ensure new characters spawn in safe location with all services | 2026-03-08 | 9a9fd33, 8959e53 | [362-ensure-new-characters-spawn-in-safe-loca](./quick/362-ensure-new-characters-spawn-in-safe-loca/) |
 | 363 | Quest management and viewing narratively | 2026-03-08 | b2a0756, 05a8048 | [363-quest-management-and-viewing-narratively](./quick/363-quest-management-and-viewing-narratively/) |
+| 364 | Text block progress bars for gathering and looting | 2026-03-08 | 1a92b80 | [364-when-gathering-resources-show-a-progress](./quick/364-when-gathering-resources-show-a-progress/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T18:48:00Z
-Stopped at: Completed quick-363 (Quest management and viewing narratively)
+Last session: 2026-03-08T18:59:00Z
+Stopped at: Completed quick-364 (Text block progress bars for gathering and looting)
