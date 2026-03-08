@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 378: Add comprehensive combat logging for abilities
+Last activity: 2026-03-08 - Completed quick task 379: Fix enemy loot items not equippable / no actions
 
 Progress: [█████████░] 88%
 
@@ -216,8 +216,9 @@ None yet.
 | 376 | Fix delivery quest sourceLocationId to use neighbor | 2026-03-08 | 4554bd7, aac5f44 | [376-fix-delivery-quest-sourcelocationid-to-u](./quick/376-fix-delivery-quest-sourcelocationid-to-u/) |
 | 377 | Add character creation confirmation step | 2026-03-08 | 3398731 | [377-add-character-creation-confirmation-step](./quick/377-add-character-creation-confirmation-step/) |
 | 378 | Add comprehensive combat logging for abilities | 2026-03-08 | 70dd575, b3b0c7e | [378-add-comprehensive-combat-logging-for-abi](./quick/378-add-comprehensive-combat-logging-for-abi/) |
+| 379 | Fix enemy loot items not equippable / no actions | 2026-03-08 | 03077ad, dc606c7 | [379-fix-enemy-loot-items-not-equippable-no-a](./quick/379-fix-enemy-loot-items-not-equippable-no-a/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T21:00:00Z
-Stopped at: Completed quick-378 (Add comprehensive combat logging for abilities)
+Last session: 2026-03-08T21:33:00Z
+Stopped at: Completed quick-379 (Fix enemy loot items not equippable / no actions)
