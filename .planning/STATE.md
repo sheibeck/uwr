@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 358: Fix equipment proficiency for dynamic classes
+Last activity: 2026-03-08 - Completed quick task 361: Fix loot links + combat UI timing
 
 Progress: [█████████░] 88%
 
@@ -198,8 +198,9 @@ None yet.
 | 358 | Fix equipment proficiency for dynamic classes + tier-appropriate starter gear | 2026-03-08 | 55a15d3, 47649a5 | [358-fix-equipment-proficiency-for-dynamic-cl](./quick/358-fix-equipment-proficiency-for-dynamic-cl/) |
 | 359 | Broaden archetype descriptions in LLM class generation prompts | 2026-03-08 | 6dcd512 | [359-improve-archetype-descriptions-in-llm-cl](./quick/359-improve-archetype-descriptions-in-llm-cl/) |
 | 360 | Convert existing systems to narrative UI | 2026-03-08 | 1015e52, 8b7457a | [360-convert-existing-systems-to-narrative-ui](./quick/360-convert-existing-systems-to-narrative-ui/) |
+| 361 | Fix loot links not clickable + combat UI timing | 2026-03-08 | e8653d5, e660472 | [361-fix-loot-links-not-clickable-in-combat-n](./quick/361-fix-loot-links-not-clickable-in-combat-n/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T17:59:00Z
-Stopped at: Completed quick-360 (Convert existing systems to narrative UI)
+Last session: 2026-03-08T18:15:00Z
+Stopped at: Completed quick-361 (Fix loot links not clickable + combat UI timing)
