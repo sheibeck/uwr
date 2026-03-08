@@ -1,6 +1,6 @@
 import { scheduledReducers } from '../schema/tables';
 import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier } from '../data/combat_scaling';
-import { TANK_CLASSES, HEALER_CLASSES } from '../data/class_stats';
+// Class-specific sets removed in v2.0 — threat derives from character data
 import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, SUMMONER_THREAT_MULTIPLIER, SUMMONER_PET_INITIAL_AGGRO, HEALING_THREAT_PERCENT, AOE_DAMAGE_MULTIPLIER, getAbilityStatScaling, getAbilityMultiplier } from '../data/combat_scaling';
 import {
   statOffset,
@@ -309,7 +309,6 @@ export const registerCombatReducers = (deps: any) => {
     effectiveGroupId,
     requirePullerOrLog,
     hasShieldEquipped,
-    canParry,
     EnemyRespawnTick,
     PullState,
     PullTick,
@@ -2438,7 +2437,7 @@ export const registerCombatReducers = (deps: any) => {
       canBlock: shieldEquipped,
       blockChanceBasis: shieldEquipped ? (character.dex ?? 0n) : undefined,
       blockMitigationPercent: shieldEquipped ? (50n + (character.str ?? 0n) / 5n) : undefined,
-      canParry: canParry(character.className),
+      canParry: true, // v2.0: all player characters can parry
       canDodge: true,
       dodgeChanceBasis: character.dodgeChance ?? 50n,
       parryChanceBasis: character.parryChance ?? 50n,

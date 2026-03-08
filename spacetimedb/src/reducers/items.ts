@@ -13,7 +13,6 @@ export const registerItemReducers = (deps: any) => {
     requirePlayerUserId,
     requireCharacterOwnedBy,
     isClassAllowed,
-    isArmorAllowedForClass,
     recomputeCharacterDerived,
     executeAbilityAction,
     appendPrivateEvent,
@@ -466,9 +465,7 @@ export const registerItemReducers = (deps: any) => {
         const isWeaponSlot = template.slot === 'mainHand' || template.slot === 'offHand';
         return failItem(ctx, character, isWeaponSlot ? 'Weapon type not allowed for this class' : 'Class cannot use this item');
       }
-      if (template.armorType !== 'none' && !isArmorAllowedForClass(character.className, template.armorType)) {
-        return failItem(ctx, character, 'Armor type not allowed for this class');
-      }
+      // v2.0: armor proficiency no longer class-gated — all characters can equip any armor type
       if (!EQUIPMENT_SLOTS.has(template.slot)) return failItem(ctx, character, 'Invalid slot');
 
       // --- Two-handed weapon enforcement ---

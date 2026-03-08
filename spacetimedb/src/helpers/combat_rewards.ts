@@ -7,7 +7,7 @@
  */
 
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from '../data/xp';
-import { computeBaseStats } from '../data/class_stats';
+import { computeBaseStatsForGenerated, detectPrimarySecondary } from '../data/class_stats';
 import { recomputeCharacterDerived } from './character';
 import { appendPrivateEvent as appendPrivateEventHelper } from './events';
 
@@ -335,7 +335,8 @@ export function awardXp(
     return { xpGained: gained, leveledUp: false };
   }
 
-  const newBase = computeBaseStats(character.className, newLevel);
+  const { primary, secondary } = detectPrimarySecondary(character);
+  const newBase = computeBaseStatsForGenerated(primary, secondary, newLevel);
 
   // Look up the character's race row by name (character.race is a display name string, not an ID).
   const raceRow = [...ctx.db.race.iter()].find((r: any) => r.name === character.race);

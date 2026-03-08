@@ -1,6 +1,6 @@
 import { SenderError } from 'spacetimedb/server';
 import { Character } from '../schema/tables';
-import { CLASS_ARMOR, normalizeClassName } from '../data/class_stats';
+import { normalizeClassName } from '../data/class_stats';
 import { PREFIXES, SUFFIXES, AFFIX_COUNT_BY_QUALITY } from '../data/affix_catalog';
 import { getWeaponSpeed } from '../data/combat_scaling';
 import { DEFAULT_WEAPON_SPEED_MICROS, TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
@@ -424,10 +424,11 @@ export function removeItemFromInventory(
 
 export function grantStarterItems(ctx: any, character: any, ensureStarterItemTemplates: (ctx: any) => void) {
   ensureStarterItemTemplates(ctx);
-  const armorType = CLASS_ARMOR[normalizeClassName(character.className)]?.[0] ?? 'cloth';
-  const armorSet = STARTER_ARMOR[armorType] ?? STARTER_ARMOR.cloth;
+  // v2.0: all starters get cloth armor. Actual armor proficiency is handled by equipment restrictions.
+  const armorSet = STARTER_ARMOR.cloth;
+  // v2.0: use class name lookup for weapon, fall back to Training Sword for generated classes
   const weapon = STARTER_WEAPONS[normalizeClassName(character.className)] ?? {
-    name: 'Training Staff',
+    name: 'Training Sword',
     slot: 'mainHand',
   };
 
@@ -441,18 +442,5 @@ export function grantStarterItems(ctx: any, character: any, ensureStarterItemTem
   const weaponTemplate = findItemTemplateByName(ctx, weapon.name);
   if (weaponTemplate) {
     addItemToInventory(ctx, character.id, weaponTemplate.id, 1n);
-  }
-
-  const SHIELD_CLASSES = new Set(['warrior', 'paladin', 'cleric', 'shaman']);
-  if (SHIELD_CLASSES.has(normalizeClassName(character.className))) {
-    // Don't grant shield if the class starter weapon is two-handed
-    const weaponEntry = STARTER_WEAPONS[normalizeClassName(character.className)];
-    const starterWeaponDef = weaponEntry ? STARTER_WEAPON_DEFS.find(w => w.name === weaponEntry.name) : null;
-    if (!starterWeaponDef || !isTwoHandedWeapon(starterWeaponDef.weaponType)) {
-      const shieldTemplate = findItemTemplateByName(ctx, 'Wooden Shield');
-      if (shieldTemplate) {
-        addItemToInventory(ctx, character.id, shieldTemplate.id, 1n);
-      }
-    }
   }
 }

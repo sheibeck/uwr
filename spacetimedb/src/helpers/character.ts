@@ -6,11 +6,8 @@ import {
   HP_STR_MULTIPLIER,
   BASE_MANA,
   MANA_MULTIPLIER,
-  HYBRID_MANA_MULTIPLIER,
-  HYBRID_MANA_CLASSES,
-  baseArmorForClass,
-  manaStatForClass,
-  usesMana,
+  characterUsesResource,
+  bestCasterStat,
   normalizeClassName,
 } from '../data/class_stats';
 import { getEquippedBonuses } from './items';
@@ -88,13 +85,11 @@ export function recomputeCharacterDerived(ctx: any, character: any) {
   const racialPerceptionBonus = character.racialPerceptionBonus ?? 0n;
   const racialMaxStamina = character.racialMaxStamina ?? 0n;
 
-  const manaStat = manaStatForClass(character.className, totalStats);
   const maxHp = BASE_HP + totalStats.str * HP_STR_MULTIPLIER + gear.hpBonus + racialMaxHp;
-  const manaMultiplier = HYBRID_MANA_CLASSES.has(normalizeClassName(character.className))
-    ? HYBRID_MANA_MULTIPLIER
-    : MANA_MULTIPLIER;
-  const maxMana = usesMana(character.className)
-    ? BASE_MANA + manaStat * manaMultiplier + gear.manaBonus + racialMaxMana
+  const hasManaAbilities = characterUsesResource(ctx, character.id, 'mana');
+  const manaStat = hasManaAbilities ? bestCasterStat(totalStats) : 0n;
+  const maxMana = hasManaAbilities
+    ? BASE_MANA + manaStat * MANA_MULTIPLIER + gear.manaBonus + racialMaxMana
     : 0n;
   const maxStamina = 19n + racialMaxStamina + character.level + (character.level >= 50n ? 1n : 0n);
 
@@ -112,7 +107,8 @@ export function recomputeCharacterDerived(ctx: any, character: any) {
     if (effect.effectType === 'ac_bonus') acBonus += BigInt(effect.magnitude);
   }
 
-  const armorClass = baseArmorForClass(character.className) + gear.armorClassBonus + acBonus + racialArmorBonus;
+  // Default base armor of 2n (cloth equivalent). Actual armor comes from equipped gear + effects.
+  const armorClass = 2n + gear.armorClassBonus + acBonus + racialArmorBonus;
   const perception = totalStats.wis * 25n + racialPerceptionBonus;
   const search = totalStats.int * 25n;
   const ccPower = totalStats.cha * 15n;

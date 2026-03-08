@@ -91,7 +91,7 @@ export const registerCharacterReducers = (deps: any) => {
     appendLocationEvent,
     campCharacter,
     ensureSpawnsForLocation,
-    computeBaseStats,
+    computeBaseStatsForGenerated,
     recomputeCharacterDerived,
     ScheduleAt,
     CharacterLogoutTick,
@@ -227,7 +227,8 @@ export const registerCharacterReducers = (deps: any) => {
       const startingLocation = ctx.db.location.id.find(world.startingLocationId);
       if (!startingLocation) throw new SenderError('Starting location not initialized');
 
-      const classStats = computeBaseStats(className, 1n);
+      // Legacy create_character: default to str primary for unknown classes
+      const classStats = computeBaseStatsForGenerated('str', undefined, 1n);
       const racial = computeRacialContributions(raceRow);
       const baseStats = {
         str: classStats.str + racial.str,

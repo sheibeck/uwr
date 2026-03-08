@@ -2,6 +2,7 @@ import { getAffinityForNpc, canConverseWithNpc, awardNpcAffinity } from '../help
 import { appendSystemMessage, appendWorldEvent } from '../helpers/events';
 import { generateAffixData, buildDisplayName } from '../helpers/items';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
+import { detectPrimarySecondary } from '../data/class_stats';
 
 // Compute all racial contributions at a target level (same logic as awardXp / computeRacialAtLevel).
 function computeRacialAtLevelForAdmin(raceRow: any, level: bigint) {
@@ -75,7 +76,7 @@ export const registerCommandReducers = (deps: any) => {
     appendLocationEvent,
     appendGroupEvent,
     fail,
-    computeBaseStats,
+    computeBaseStatsForGenerated,
     recomputeCharacterDerived,
     xpRequiredForLevel,
     MAX_LEVEL,
@@ -630,7 +631,8 @@ export const registerCommandReducers = (deps: any) => {
       }
     }
 
-    const newBase = computeBaseStats(character.className, target);
+    const { primary, secondary } = detectPrimarySecondary(character);
+    const newBase = computeBaseStatsForGenerated(primary, secondary, target);
 
     // Compute racial at target level using the same formula as awardXp
     const racial = raceRow ? computeRacialAtLevelForAdmin(raceRow, target) : null;

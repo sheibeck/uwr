@@ -35,9 +35,24 @@ import { applyArmorMitigation, applyVariance, scaleByPercent } from './combat_en
 
 const GLOBAL_COOLDOWN_MICROS = 1_500_000n;
 
-// Class sets for threat calculation
-const TANK_CLASSES = new Set(['warrior', 'paladin']);
-const HEALER_CLASSES = new Set(['cleric', 'shaman']);
+// Helper: check if character has healing abilities (for threat reduction)
+function hasHealingAbilities(ctx: any, characterId: bigint): boolean {
+  for (const ability of ctx.db.ability_template.by_character.filter(characterId)) {
+    if (ability.kind === 'heal' || ability.kind === 'group_heal') return true;
+  }
+  return false;
+}
+
+// Helper: check if character has a shield equipped (for tank threat)
+function hasShieldForThreat(ctx: any, characterId: bigint): boolean {
+  for (const instance of ctx.db.item_instance.by_owner.filter(characterId)) {
+    if (instance.equippedSlot === 'offHand') {
+      const template = ctx.db.item_template.id.find(instance.templateId);
+      if (template && template.armorType === 'shield') return true;
+    }
+  }
+  return false;
+}
 
 // Helper to get active combat for character
 function activeCombatIdForCharacter(ctx: any, characterId: bigint): bigint | null {
@@ -400,15 +415,14 @@ export function resolveAbility(
     const nextHp = enemy.currentHp > finalDamage ? enemy.currentHp - finalDamage : 0n;
     ctx.db.combat_enemy.id.update({ ...enemy, currentHp: nextHp });
 
-    // Update aggro
+    // Update aggro — derive threat multiplier from character data, not class name
     for (const entry of ctx.db.aggro_entry.by_combat.filter(combatId)) {
       if (entry.characterId === actor.id && entry.enemyId === enemy.id && !entry.petId) {
-        const className = actor.type === 'character'
-          ? (ctx.db.character.id.find(actor.id)?.className?.toLowerCase() ?? '')
-          : '';
-        const threatMult = TANK_CLASSES.has(className) ? TANK_THREAT_MULTIPLIER
-          : HEALER_CLASSES.has(className) ? HEALER_THREAT_MULTIPLIER
-            : className === 'summoner' ? SUMMONER_THREAT_MULTIPLIER : 100n;
+        let threatMult = 100n;
+        if (actor.type === 'character') {
+          if (hasShieldForThreat(ctx, actor.id)) threatMult = TANK_THREAT_MULTIPLIER;
+          else if (hasHealingAbilities(ctx, actor.id)) threatMult = HEALER_THREAT_MULTIPLIER;
+        }
         ctx.db.aggro_entry.id.update({ ...entry, value: entry.value + (finalDamage * threatMult) / 100n });
         break;
       }
