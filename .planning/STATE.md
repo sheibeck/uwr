@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 364: Text block progress bars for gathering and looting
+Last activity: 2026-03-08 - Completed quick task 365: Replace System narrator with Keeper of Knowledge
 
 Progress: [█████████░] 88%
 
@@ -77,7 +77,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - Client-triggered procedures (reducer validates, client calls procedure for LLM)
 - Schema-constrained generation for mechanical validity
 - Canonical world facts in structured tables for coherence
-- Sardonic System narrator throughout all generated content
+- Sardonic Keeper of Knowledge narrator throughout all generated content (replaced "The System" in quick-365)
 - Haiku 4.5 for real-time generation, Sonnet for high-stakes one-time generation
 - LLM config uses singleton table pattern (id=1n) for API key storage
 - Budget tracks UTC date string for simple midnight reset comparison
@@ -202,8 +202,9 @@ None yet.
 | 362 | Ensure new characters spawn in safe location with all services | 2026-03-08 | 9a9fd33, 8959e53 | [362-ensure-new-characters-spawn-in-safe-loca](./quick/362-ensure-new-characters-spawn-in-safe-loca/) |
 | 363 | Quest management and viewing narratively | 2026-03-08 | b2a0756, 05a8048 | [363-quest-management-and-viewing-narratively](./quick/363-quest-management-and-viewing-narratively/) |
 | 364 | Text block progress bars for gathering and looting | 2026-03-08 | 1a92b80 | [364-when-gathering-resources-show-a-progress](./quick/364-when-gathering-resources-show-a-progress/) |
+| 365 | Replace System narrator with Keeper of Knowledge | 2026-03-08 | a23309f, 43d05bd | [365-replace-system-narrator-with-keeper-of-k](./quick/365-replace-system-narrator-with-keeper-of-k/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T18:59:00Z
-Stopped at: Completed quick-364 (Text block progress bars for gathering and looting)
+Last session: 2026-03-08T19:02:00Z
+Stopped at: Completed quick-365 (Replace System narrator with Keeper of Knowledge)
