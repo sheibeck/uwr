@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 375: Fix combat ability list display and damage logging
+Last activity: 2026-03-08 - Completed quick task 376: Fix delivery quest sourceLocationId to use neighbor
 
 Progress: [█████████░] 88%
 
@@ -213,8 +213,9 @@ None yet.
 | 373 | Add sourceLocationId to delivery quests | 2026-03-08 | 9322810, a2e32b3 | [373-add-sourcelocationid-to-delivery-quests-](./quick/373-add-sourcelocationid-to-delivery-quests-/) |
 | 374 | Quest abandonment confirmation with NPC warning | 2026-03-08 | 155400d | [374-quest-abandonment-confirmation-with-npc-](./quick/374-quest-abandonment-confirmation-with-npc-/) |
 | 375 | Fix combat ability list display and damage logging | 2026-03-08 | f028d50, 3be2806 | [375-fix-combat-ability-list-display-and-dama](./quick/375-fix-combat-ability-list-display-and-dama/) |
+| 376 | Fix delivery quest sourceLocationId to use neighbor | 2026-03-08 | 4554bd7, aac5f44 | [376-fix-delivery-quest-sourcelocationid-to-u](./quick/376-fix-delivery-quest-sourcelocationid-to-u/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T20:48:00Z
-Stopped at: Completed quick-375 (Fix combat ability list display and damage logging)
+Last session: 2026-03-08T20:55:00Z
+Stopped at: Completed quick-376 (Fix delivery quest sourceLocationId to use neighbor)
