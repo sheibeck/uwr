@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 357: Enforce single-word names, no special chars, no duplicates
+Last activity: 2026-03-08 - Completed quick task 358: Fix equipment proficiency for dynamic classes
 
 Progress: [█████████░] 88%
 
@@ -194,9 +194,10 @@ None yet.
 | 354 | Consolidate combat narration to 1 LLM credit per combat | 2026-03-08 | 4e13cd7 | [354-use-gpt-5-mini-for-combat-narration-and-](./quick/354-use-gpt-5-mini-for-combat-narration-and-/) |
 | 355 | Add weapon/armor type proficiencies to dynamic class creation | 2026-03-08 | cfb7a09, a3dc5f9 | [355-add-weapon-armor-type-proficiencies-to-d](./quick/355-add-weapon-armor-type-proficiencies-to-d/) |
 | 356 | Narrative inventory and backpack commands | 2026-03-08 | 5271f0e, baf4ee0 | [356-narrative-inventory-and-backpack-command](./quick/356-narrative-inventory-and-backpack-command/) |
-| 357 | Enforce single-word names, no special chars, no duplicates | 2026-03-08 | pending | [357-enforce-single-word-names-with-no-specia](./quick/357-enforce-single-word-names-with-no-specia/) |
+| 357 | Enforce single-word names, no special chars, no duplicates | 2026-03-08 | 491e38b | [357-enforce-single-word-names-with-no-specia](./quick/357-enforce-single-word-names-with-no-specia/) |
+| 358 | Fix equipment proficiency for dynamic classes + tier-appropriate starter gear | 2026-03-08 | 55a15d3, 47649a5 | [358-fix-equipment-proficiency-for-dynamic-cl](./quick/358-fix-equipment-proficiency-for-dynamic-cl/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T17:06:43Z
-Stopped at: Completed quick-357 (Enforce single-word names)
+Last session: 2026-03-08T17:19:21Z
+Stopped at: Completed quick-358 (Fix equipment proficiency for dynamic classes)
