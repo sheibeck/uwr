@@ -2343,19 +2343,7 @@ export const registerCombatReducers = (deps: any) => {
     const actions = [...ctx.db.combat_action.by_combat.filter(combatId)]
       .filter((a: any) => a.roundNumber === round.roundNumber);
 
-    // Fill in auto-attack defaults for participants who didn't submit
-    for (const p of activeParticipants) {
-      if (!actions.some((a: any) => a.characterId === p.characterId)) {
-        // Default to auto-attack against current target or first enemy
-        const character = ctx.db.character.id.find(p.characterId);
-        const targetId = character?.combatTargetEnemyId ??
-          enemies.find((e: any) => e.currentHp > 0n)?.id;
-        upsertCombatAction(ctx, combatId, p.characterId, round.roundNumber,
-          'auto_attack', undefined, targetId);
-      }
-    }
-
-    // Re-fetch actions after defaults
+    // All actions submitted this round (no defaults needed — auto-attack is unconditional)
     const allActions = [...ctx.db.combat_action.by_combat.filter(combatId)]
       .filter((a: any) => a.roundNumber === round.roundNumber);
 
@@ -2391,9 +2379,7 @@ export const registerCombatReducers = (deps: any) => {
           .find((row: any) => row.abilityTemplateId === action.abilityTemplateId);
         if (cd && cd.startedAtMicros + cd.durationMicros > nowMicros) {
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
-            `${ability.name} is on cooldown. Auto-attacking instead.`);
-          // Fall through to auto-attack
-          processPlayerAutoAttackForRound(ctx, combat, character, participant, enemies, nowMicros);
+            `${ability.name} is on cooldown.`);
           continue;
         }
 
@@ -2426,13 +2412,26 @@ export const registerCombatReducers = (deps: any) => {
             });
           }
         } catch (_e) {
-          // If ability fails, fall through to auto-attack
-          processPlayerAutoAttackForRound(ctx, combat, character, participant, enemies, nowMicros);
+          // Ability failed — auto-attack still happens from unconditional loop below
         }
-      } else {
-        // Auto-attack
-        processPlayerAutoAttackForRound(ctx, combat, character, participant, enemies, nowMicros);
       }
+    }
+
+    // ── Every active player auto-attacks every round ──
+    for (const p of activeParticipants) {
+      const character = ctx.db.character.id.find(p.characterId);
+      if (!character || character.hp === 0n) continue;
+      const participant = [...ctx.db.combat_participant.by_combat.filter(combatId)]
+        .find((pp: any) => pp.characterId === character.id);
+      if (!participant || participant.status !== 'active') continue;
+      // Skip auto-attack for players who successfully fled this round
+      const action = allActions.find((a: any) => a.characterId === character.id);
+      if (action?.actionType === 'flee') {
+        const fledParticipant = [...ctx.db.combat_participant.by_combat.filter(combatId)]
+          .find((pp: any) => pp.characterId === character.id);
+        if (fledParticipant?.status === 'fled') continue;
+      }
+      processPlayerAutoAttackForRound(ctx, combat, character, participant, enemies, nowMicros);
     }
 
     // ── Process enemy actions ──
@@ -2515,15 +2514,6 @@ export const registerCombatReducers = (deps: any) => {
         } else if (action.actionType === 'ability' && action.abilityTemplateId) {
           const ability = ctx.db.ability_template.id.find(action.abilityTemplateId);
           pa.abilityName = ability?.name;
-          if (action.targetEnemyId) {
-            const targetEnemy = ctx.db.combat_enemy.id.find(action.targetEnemyId);
-            pa.targetName = targetEnemy?.displayName;
-            const preTgtHp = preEnemyHp.get(action.targetEnemyId) ?? 0n;
-            const postTgtHp = targetEnemy?.currentHp ?? 0n;
-            if (preTgtHp > postTgtHp) pa.damageDealt = preTgtHp - postTgtHp;
-          }
-        } else {
-          // auto-attack
           if (action.targetEnemyId) {
             const targetEnemy = ctx.db.combat_enemy.id.find(action.targetEnemyId);
             pa.targetName = targetEnemy?.displayName;
@@ -2660,20 +2650,6 @@ export const registerCombatReducers = (deps: any) => {
           }
         } else {
           summaryLines.push(`${character.name} uses [${abilityName}].`);
-        }
-      } else {
-        // auto-attack
-        if (action.targetEnemyId) {
-          const enemy = ctx.db.combat_enemy.id.find(action.targetEnemyId);
-          const eName = enemy?.displayName ?? 'enemy';
-          const preHp = preEnemyHp.get(action.targetEnemyId) ?? 0n;
-          const postHp = enemy?.currentHp ?? 0n;
-          const dmg = preHp > postHp ? preHp - postHp : 0n;
-          if (dmg > 0n) {
-            summaryLines.push(`${character.name} attacks ${eName} -- {{color:#ff6b6b}}${dmg} damage{{/color}}.`);
-          } else {
-            summaryLines.push(`${character.name} attacks ${eName}.`);
-          }
         }
       }
     }
@@ -3082,7 +3058,7 @@ export const registerCombatReducers = (deps: any) => {
     }
 
     // Validate action type
-    const validActions = ['ability', 'auto_attack', 'flee'];
+    const validActions = ['ability', 'flee'];
     if (!validActions.includes(args.actionType)) {
       return failCombat(ctx, character, 'Invalid action type');
     }
@@ -3108,8 +3084,7 @@ export const registerCombatReducers = (deps: any) => {
 
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
       args.actionType === 'flee' ? 'You prepare to flee...' :
-      args.actionType === 'ability' ? `Action set: ${ctx.db.ability_template.id.find(args.abilityTemplateId!)?.name ?? 'ability'}` :
-      'Action set: auto-attack');
+      `Action set: ${ctx.db.ability_template.id.find(args.abilityTemplateId!)?.name ?? 'ability'} (+ auto-attack)`);
 
     checkAllSubmittedAndResolve(ctx, combatId, round, deps);
   });
