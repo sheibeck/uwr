@@ -149,6 +149,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase quick-343]: Round lifecycle markers use phase-aware watchers with deduplicated round keys for clean event injection
 - [Phase quick-344]: Status bars only on Round 1; round summary carries HP for subsequent rounds
 - [Phase quick-345]: Per-round LLM narration removed; compact mechanical summaries via HP snapshot diffs instead
+- [Phase quick-346]: Auto-attack is unconditional every round; abilities/flee are bonus actions on top
 
 ### Pending Todos
 
@@ -177,8 +178,9 @@ None yet.
 | 343 | Clear combat round flow with distinct headers | 2026-03-08 | b076d1d, 0b4e903 | [343-clear-combat-round-flow-with-distinct-he](./quick/343-clear-combat-round-flow-with-distinct-he/) |
 | 344 | Fix combat narrative flow - ordering, timing, LLM accuracy | 2026-03-08 | 95b89be, d7741cf | [344-fix-combat-narrative-flow-ordering-timin](./quick/344-fix-combat-narrative-flow-ordering-timin/) |
 | 345 | Improve narrative combat flow - compact mechanical summaries | 2026-03-08 | d6c7f23 | [345-improve-narrative-combat-flow-design-and](./quick/345-improve-narrative-combat-flow-design-and/) |
+| 346 | Auto-attacks happen every round automatically | 2026-03-08 | 5644cfd, e2069b7 | [346-auto-attacks-happen-every-round-automati](./quick/346-auto-attacks-happen-every-round-automati/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T04:31:26Z
-Stopped at: Completed quick-345 (Improve narrative combat flow)
+Last session: 2026-03-08T04:42:15Z
+Stopped at: Completed quick-346 (Auto-attacks every round automatically)
