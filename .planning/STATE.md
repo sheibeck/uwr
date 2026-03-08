@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 367: Add gathering timer bar for gatherables
+Last activity: 2026-03-08 - Completed quick task 368: Fix auto-attack damage and clarify combat messages
 
 Progress: [█████████░] 88%
 
@@ -205,8 +205,9 @@ None yet.
 | 365 | Replace System narrator with Keeper of Knowledge | 2026-03-08 | a23309f, 43d05bd | [365-replace-system-narrator-with-keeper-of-k](./quick/365-replace-system-narrator-with-keeper-of-k/) |
 | 366 | Fix travel/look double description and look styling | 2026-03-08 | 945f299, fe90a14 | [366-fix-travel-look-double-description-and-i](./quick/366-fix-travel-look-double-description-and-i/) |
 | 367 | Add gathering timer bar for gatherables | 2026-03-08 | 27852bf, 22d985c | [367-add-gathering-timer-bar-for-gatherables-](./quick/367-add-gathering-timer-bar-for-gatherables-/) |
+| 368 | Fix auto-attack damage and clarify combat messages | 2026-03-08 | ddc40d2 | [368-fix-autoattack-damage-and-clarify-combat](./quick/368-fix-autoattack-damage-and-clarify-combat/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T19:35:00Z
-Stopped at: Completed quick-367 (Add gathering timer bar for gatherables)
+Last session: 2026-03-08T19:52:00Z
+Stopped at: Completed quick-368 (Fix auto-attack damage and clarify combat messages)
