@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed quick-348 (Remove rounds, restore real-time combat)
 last_updated: "2026-03-08T14:15:11.509Z"
-last_activity: "2026-03-08 - Completed quick task 346: Auto-attacks happen every round automatically"
+last_activity: "2026-03-08 - Completed quick task 353: Remove hardcoded class data, derive mana from abilities"
 progress:
   total_phases: 7
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 346: Auto-attacks happen every round automatically
+Last activity: 2026-03-08 - Completed quick task 353: Remove hardcoded class data, derive mana from abilities
 
 Progress: [█████████░] 88%
 
@@ -154,6 +154,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase quick-348]: Round-based combat fully removed; real-time combat_loop restored with weapon-speed auto-attacks and immediate ability execution
 - [Phase quick-349]: LLM intro narration gates combat_loop start (12s fallback); post-combat summaries are pure narrative without game numbers
 - [Phase quick-350]: Fixed combat_loop PANIC (template vs role string); combat UI gated until "The System settles in to watch." event
+- [Phase quick-353]: All hardcoded class data removed; mana from ability_template resourceType; threat from shield/heal abilities; all characters can parry; armor not class-gated
 
 ### Pending Todos
 
@@ -189,8 +190,9 @@ None yet.
 | 350 | Fix combat_loop PANIC and gate combat UI until intro | 2026-03-08 | e576182 | [350-fix-combat-loop-panic-on-role-trim-and-d](./quick/350-fix-combat-loop-panic-on-role-trim-and-d/) |
 | 351 | Fix ability uses not showing in narrative | 2026-03-08 | 508344a | [351-fix-ability-uses-not-showing-in-narrativ](./quick/351-fix-ability-uses-not-showing-in-narrativ/) |
 | 352 | Fix zero mana/stamina for generated classes + stamina bar | 2026-03-08 | a7dd07f | [352-fix-zero-mana-stamina-on-characters-crea](./quick/352-fix-zero-mana-stamina-on-characters-crea/) |
+| 353 | Remove hardcoded class data, derive mana from abilities | 2026-03-08 | d6cecc3, 54d329f | [353-remove-hardcoded-class-data-derive-mana-](./quick/353-remove-hardcoded-class-data-derive-mana-/) |
 
 ## Session Continuity
 
 Last session: 2026-03-08T16:02:26Z
-Stopped at: Completed quick-352 (Fix zero mana/stamina for generated classes)
+Stopped at: Completed quick-353 (Remove hardcoded class data, derive mana from abilities)
