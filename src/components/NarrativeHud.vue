@@ -14,9 +14,14 @@
           <span :style="barLabel">{{ character.hp }}/{{ character.maxHp }}</span>
         </div>
         <!-- Mana Bar -->
-        <div :style="barContainer">
+        <div v-if="character.maxMana > 0n" :style="barContainer">
           <div :style="{ ...barFill, background: '#1864ab', width: manaPercent + '%' }" />
           <span :style="barLabel">{{ character.mana }}/{{ character.maxMana }}</span>
+        </div>
+        <!-- Stamina Bar -->
+        <div v-if="character.maxStamina > 0n" :style="barContainer">
+          <div :style="{ ...barFill, background: '#e67700', width: staminaPercent + '%' }" />
+          <span :style="barLabel">{{ character.stamina }}/{{ character.maxStamina }}</span>
         </div>
       </div>
 
@@ -78,6 +83,11 @@ const hpPercent = computed(() => {
 const manaPercent = computed(() => {
   if (!props.character || props.character.maxMana === 0n) return 0;
   return Number((props.character.mana * 100n) / props.character.maxMana);
+});
+
+const staminaPercent = computed(() => {
+  if (!props.character || props.character.maxStamina === 0n) return 0;
+  return Number((props.character.stamina * 100n) / props.character.maxStamina);
 });
 
 const panelButtons = [

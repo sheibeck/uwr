@@ -147,7 +147,12 @@ export function computeBaseStats(className: string, level: bigint) {
 }
 
 export function usesMana(className: string) {
-  return MANA_CLASSES.has(normalizeClassName(className));
+  // v2.0: all classes use mana — generated classes won't be in the legacy set
+  // Only pure-melee legacy classes (warrior, rogue, monk, beastmaster) don't use mana
+  const NO_MANA_CLASSES = new Set(['warrior', 'rogue', 'monk', 'beastmaster']);
+  const normalized = normalizeClassName(className);
+  if (NO_MANA_CLASSES.has(normalized)) return false;
+  return true; // All generated classes + known casters use mana
 }
 
 export function canParry(className: string) {
@@ -156,9 +161,17 @@ export function canParry(className: string) {
 
 export function manaStatForClass(className: string, stats: Record<StatKey, bigint>) {
   if (!usesMana(className)) return 0n;
-  const config = getClassConfig(className);
-  if (!config.secondary) return stats[config.primary];
-  return (stats[config.primary] * 70n + stats[config.secondary] * 30n) / 100n;
+  const normalized = normalizeClassName(className);
+  const config = CLASS_CONFIG[normalized];
+  if (config) {
+    // Known class — use configured primary/secondary
+    if (!config.secondary) return stats[config.primary];
+    return (stats[config.primary] * 70n + stats[config.secondary] * 30n) / 100n;
+  }
+  // v2.0 generated class — use highest stat as mana stat
+  const highest = (['int', 'wis', 'cha', 'dex', 'str'] as StatKey[])
+    .reduce((best, key) => stats[key] > stats[best] ? key : best);
+  return stats[highest];
 }
 
 export function normalizeArmorType(armorType: string) {

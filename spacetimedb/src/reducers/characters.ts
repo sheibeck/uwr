@@ -151,6 +151,17 @@ export const registerCharacterReducers = (deps: any) => {
 
     ctx.db.player.id.update({ ...player, activeCharacterId: character.id });
 
+    // Recompute derived stats on character selection (ensures mana/stamina/etc. are correct)
+    recomputeCharacterDerived(ctx, character);
+    // Set current hp/mana/stamina to max if they're at 0 (fixes legacy characters with missing resources)
+    const refreshed = ctx.db.character.id.find(character.id);
+    if (refreshed && refreshed.mana === 0n && refreshed.maxMana > 0n) {
+      ctx.db.character.id.update({ ...refreshed, mana: refreshed.maxMana });
+    }
+    if (refreshed && refreshed.stamina === 0n && refreshed.maxStamina > 0n) {
+      ctx.db.character.id.update({ ...ctx.db.character.id.find(character.id)!, stamina: refreshed.maxStamina });
+    }
+
     const userId = requirePlayerUserId(ctx);
     appendPrivateEvent(ctx, character.id, userId, 'presence', 'You are online.');
     const friends = friendUserIds(ctx, userId);
