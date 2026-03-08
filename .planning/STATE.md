@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed quick-354 (Consolidate combat narration to 1 LLM credit per combat)
-last_updated: "2026-03-08T14:15:11.509Z"
-last_activity: "2026-03-08 - Completed quick task 354: Consolidate combat narration to 1 LLM credit per combat"
+stopped_at: Completed quick-355 (Add weapon/armor type proficiencies to dynamic class creation)
+last_updated: "2026-03-08T16:43:06Z"
+last_activity: "2026-03-08 - Completed quick task 355: Add weapon/armor type proficiencies to dynamic class creation"
 progress:
   total_phases: 7
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 354: Consolidate combat narration to 1 LLM credit per combat
+Last activity: 2026-03-08 - Completed quick task 355: Add weapon/armor type proficiencies to dynamic class creation
 
 Progress: [█████████░] 88%
 
@@ -192,8 +192,9 @@ None yet.
 | 352 | Fix zero mana/stamina for generated classes + stamina bar | 2026-03-08 | a7dd07f | [352-fix-zero-mana-stamina-on-characters-crea](./quick/352-fix-zero-mana-stamina-on-characters-crea/) |
 | 353 | Remove hardcoded class data, derive mana from abilities | 2026-03-08 | d6cecc3, 54d329f | [353-remove-hardcoded-class-data-derive-mana-](./quick/353-remove-hardcoded-class-data-derive-mana-/) |
 | 354 | Consolidate combat narration to 1 LLM credit per combat | 2026-03-08 | 4e13cd7 | [354-use-gpt-5-mini-for-combat-narration-and-](./quick/354-use-gpt-5-mini-for-combat-narration-and-/) |
+| 355 | Add weapon/armor type proficiencies to dynamic class creation | 2026-03-08 | cfb7a09, a3dc5f9 | [355-add-weapon-armor-type-proficiencies-to-d](./quick/355-add-weapon-armor-type-proficiencies-to-d/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T16:02:26Z
-Stopped at: Completed quick-354 (Consolidate combat narration to 1 LLM credit per combat)
+Last session: 2026-03-08T16:43:06Z
+Stopped at: Completed quick-355 (Add weapon/armor type proficiencies to dynamic class creation)
