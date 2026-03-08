@@ -374,7 +374,11 @@ export const registerCreationReducers = (deps: any) => {
         if (!armorProficiencies) {
           armorProficiencies = state.archetype === 'mystic'
             ? 'cloth,leather'
-            : 'leather,chain,plate';
+            : 'cloth,leather,chain,plate';
+        }
+        // Ensure cloth is always included (base tier armor everyone can wear)
+        if (!armorProficiencies.split(',').includes('cloth')) {
+          armorProficiencies = 'cloth,' + armorProficiencies;
         }
 
         const classStats = computeBaseStatsForGenerated(primaryStat, secondaryStat, 1n);

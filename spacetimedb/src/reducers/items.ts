@@ -461,24 +461,32 @@ export const registerItemReducers = (deps: any) => {
       // REMOVED per world-tier spec: gear availability is world-driven, not character-level-gated.
       // Any item found in the world can be equipped by any character.
       // if (character.level < template.requiredLevel) return failItem(ctx, character, 'Level too low');
-      if (!isClassAllowed(template.allowedClasses, character.className)) {
+      // Equipment proficiency checks:
+      // If character has dynamic proficiencies (v2.0 generated classes), use those.
+      // Otherwise fall back to legacy allowedClasses check on the template.
+      const hasDynamicProf = character.weaponProficiencies || character.armorProficiencies;
+      if (hasDynamicProf) {
+        // Weapon proficiency check
         const isWeaponSlot = template.slot === 'mainHand' || template.slot === 'offHand';
-        return failItem(ctx, character, isWeaponSlot ? 'Weapon type not allowed for this class' : 'Class cannot use this item');
-      }
-      // Weapon proficiency check
-      const isWeaponSlot = template.slot === 'mainHand' || template.slot === 'offHand';
-      if (isWeaponSlot && character.weaponProficiencies && template.weaponType) {
-        const allowed = character.weaponProficiencies.split(',');
-        if (!allowed.includes(template.weaponType)) {
-          return failItem(ctx, character, 'Your class cannot wield this weapon type');
+        if (isWeaponSlot && character.weaponProficiencies && template.weaponType) {
+          const allowed = character.weaponProficiencies.split(',');
+          if (!allowed.includes(template.weaponType)) {
+            return failItem(ctx, character, 'Your class cannot wield this weapon type');
+          }
         }
-      }
-      // Armor proficiency check
-      const isArmorSlot = ['head', 'chest', 'legs', 'boots', 'hands', 'wrists', 'belt'].includes(template.slot);
-      if (isArmorSlot && character.armorProficiencies && template.armorType) {
-        const allowed = character.armorProficiencies.split(',');
-        if (!allowed.includes(template.armorType)) {
-          return failItem(ctx, character, 'Your class cannot wear this armor type');
+        // Armor proficiency check
+        const isArmorSlot = ['head', 'chest', 'legs', 'boots', 'hands', 'wrists', 'belt'].includes(template.slot);
+        if (isArmorSlot && character.armorProficiencies && template.armorType) {
+          const allowed = character.armorProficiencies.split(',');
+          if (!allowed.includes(template.armorType)) {
+            return failItem(ctx, character, 'Your class cannot wear this armor type');
+          }
+        }
+      } else {
+        // Legacy class-based check for pre-v2.0 characters
+        if (!isClassAllowed(template.allowedClasses, character.className)) {
+          const isWeaponSlot = template.slot === 'mainHand' || template.slot === 'offHand';
+          return failItem(ctx, character, isWeaponSlot ? 'Weapon type not allowed for this class' : 'Class cannot use this item');
         }
       }
       if (!EQUIPMENT_SLOTS.has(template.slot)) return failItem(ctx, character, 'Invalid slot');

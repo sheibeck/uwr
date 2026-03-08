@@ -424,13 +424,26 @@ export function removeItemFromInventory(
 
 export function grantStarterItems(ctx: any, character: any, ensureStarterItemTemplates: (ctx: any) => void) {
   ensureStarterItemTemplates(ctx);
-  // v2.0: all starters get cloth armor. Actual armor proficiency is handled by equipment restrictions.
+  // v2.0: all starters get cloth armor (cloth is always in proficiencies).
   const armorSet = STARTER_ARMOR.cloth;
-  // v2.0: use class name lookup for weapon, fall back to Training Sword for generated classes
-  const weapon = STARTER_WEAPONS[normalizeClassName(character.className)] ?? {
-    name: 'Training Sword',
-    slot: 'mainHand',
-  };
+  // v2.0: pick starter weapon matching character's weapon proficiencies
+  let weapon = STARTER_WEAPONS[normalizeClassName(character.className)] ?? null;
+  if (!weapon && character.weaponProficiencies) {
+    const profList = character.weaponProficiencies.split(',');
+    // Map weaponType -> starter weapon name
+    const TYPE_TO_STARTER: Record<string, string> = {
+      sword: 'Training Sword', mace: 'Training Mace', staff: 'Training Staff',
+      bow: 'Training Bow', dagger: 'Training Dagger', axe: 'Training Axe',
+      blade: 'Training Blade', rapier: 'Training Rapier', greatsword: 'Training Greatsword',
+    };
+    for (const prof of profList) {
+      if (TYPE_TO_STARTER[prof]) {
+        weapon = { name: TYPE_TO_STARTER[prof], slot: 'mainHand' };
+        break;
+      }
+    }
+  }
+  if (!weapon) weapon = { name: 'Training Sword', slot: 'mainHand' };
 
   const armorNames = [armorSet.chest.name, armorSet.legs.name, armorSet.boots.name];
   for (const name of armorNames) {

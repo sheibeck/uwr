@@ -101,19 +101,34 @@ export const useInventory = ({
         const slot = template?.slot ?? 'unknown';
         const stackable = template?.stackable ?? false;
         const quantity = instance.quantity ?? 1n;
-        const normalizedClass = selectedCharacter.value?.className?.toLowerCase() ?? '';
-        const allowedClasses = (template?.allowedClasses ?? '')
-          .split(',')
-          .map((entry) => entry.trim().toLowerCase())
-          .filter(Boolean);
-        const classAllowed =
-          allowedClasses.length === 0 ||
-          allowedClasses.includes('any') ||
-          allowedClasses.includes(normalizedClass);
+        const char = selectedCharacter.value;
+        const hasDynamicProf = char?.weaponProficiencies || char?.armorProficiencies;
+        let classAllowed = true;
+        if (hasDynamicProf) {
+          // v2.0: use proficiency-based checks
+          const isWeaponSlot = slot === 'mainHand' || slot === 'offHand';
+          const isArmorSlot = ['head', 'chest', 'legs', 'boots', 'hands', 'wrists', 'belt'].includes(slot);
+          if (isWeaponSlot && char?.weaponProficiencies && template?.weaponType) {
+            classAllowed = char.weaponProficiencies.split(',').includes(template.weaponType);
+          } else if (isArmorSlot && char?.armorProficiencies && template?.armorType) {
+            classAllowed = char.armorProficiencies.split(',').includes(template.armorType);
+          }
+        } else {
+          // Legacy: class name check
+          const normalizedClass = char?.className?.toLowerCase() ?? '';
+          const allowedClasses = (template?.allowedClasses ?? '')
+            .split(',')
+            .map((entry: string) => entry.trim().toLowerCase())
+            .filter(Boolean);
+          classAllowed =
+            allowedClasses.length === 0 ||
+            allowedClasses.includes('any') ||
+            allowedClasses.includes(normalizedClass);
+        }
         const equipable =
           EQUIPMENT_SLOTS.includes(slot as (typeof EQUIPMENT_SLOTS)[number]) &&
           !isJunk &&
-          (!selectedCharacter.value || selectedCharacter.value.level >= (template?.requiredLevel ?? 1n)) &&
+          (!char || char.level >= (template?.requiredLevel ?? 1n)) &&
           classAllowed;
         const itemKey = (template?.name ?? '').toLowerCase().replace(/\s+/g, '_');
         const usableKeys = new Set([
