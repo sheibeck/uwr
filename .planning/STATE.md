@@ -199,8 +199,9 @@ None yet.
 | 359 | Broaden archetype descriptions in LLM class generation prompts | 2026-03-08 | 6dcd512 | [359-improve-archetype-descriptions-in-llm-cl](./quick/359-improve-archetype-descriptions-in-llm-cl/) |
 | 360 | Convert existing systems to narrative UI | 2026-03-08 | 1015e52, 8b7457a | [360-convert-existing-systems-to-narrative-ui](./quick/360-convert-existing-systems-to-narrative-ui/) |
 | 361 | Fix loot links not clickable + combat UI timing | 2026-03-08 | e8653d5, e660472 | [361-fix-loot-links-not-clickable-in-combat-n](./quick/361-fix-loot-links-not-clickable-in-combat-n/) |
+| 362 | Ensure new characters spawn in safe location with all services | 2026-03-08 | 9a9fd33, 8959e53 | [362-ensure-new-characters-spawn-in-safe-loca](./quick/362-ensure-new-characters-spawn-in-safe-loca/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T18:15:00Z
-Stopped at: Completed quick-361 (Fix loot links not clickable + combat UI timing)
+Last session: 2026-03-08T18:31:00Z
+Stopped at: Completed quick-362 (Ensure new characters spawn in safe location with all services)
