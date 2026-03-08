@@ -403,6 +403,7 @@ ${secretsSection}
 - Keep responses concise -- 2-4 sentences of dialogue, not paragraphs
 - Valid effect types: ${CONVERSATION_EFFECTS.join(', ')}
 - Valid quest types (for offer_quest): ${QUEST_TYPES.join(', ')}
+- For delivery quests: include sourceLocationName — a nearby location where items should be picked up. This MUST be different from the NPC's current location (${location.name}). Use a location name from the region if you know one.
 
 Respond with valid JSON matching the schema in the user message.`;
 }
@@ -425,6 +426,7 @@ export const NPC_CONVERSATION_RESPONSE_SCHEMA = `{
       "rewardItemDesc": "string (optional, for offer_quest with item reward)",
       "targetItemName": "string -- name of item to pick up/find (for delivery/explore quests)",
       "targetNpcName": "string -- name of NPC to deliver to (for delivery quests)",
+      "sourceLocationName": "string -- name of location where items should be picked up (for delivery quests, must be DIFFERENT from current NPC location)",
 
       "amount": "number -5 to +5 (for affinity_change only)",
 
@@ -442,13 +444,18 @@ export function buildNpcConversationUserPrompt(
   playerMessage: string,
   activeQuestCount: number,
   maxQuests: number,
+  nearbyLocationNames?: string[],
 ): string {
   const questContext = activeQuestCount >= maxQuests
     ? `The player has ${activeQuestCount}/${maxQuests} active quests (FULL -- do NOT offer new quests).`
     : `The player has ${activeQuestCount}/${maxQuests} active quests (can accept more).`;
 
-  return `${questContext}
+  const nearbyContext = nearbyLocationNames && nearbyLocationNames.length > 0
+    ? `\nNearby locations: ${nearbyLocationNames.join(', ')}`
+    : '';
 
+  return `${questContext}
+${nearbyContext}
 The player says: "${playerMessage}"
 
 Respond in character. If the conversation naturally leads to a side effect (quest offer, location reveal, affinity change, etc.), include it in the effects array. Otherwise, use an empty effects array or a single "none" effect.
