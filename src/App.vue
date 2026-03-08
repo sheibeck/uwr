@@ -981,6 +981,8 @@ const {
   isInCombat,
   actionPromptMessage,
   roundSummaryMessage,
+  combatStatusMessage,
+  actionPromptData,
 } = useCombat({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
@@ -1023,32 +1025,43 @@ const {
   combatRoster,
 });
 
-// Inject round-based combat prompts and summaries into narrative stream
-let lastPromptRound: string | null = null;
-let lastSummaryRound: string | null = null;
+// Inline combat event injection: inject status bars and action prompts into narrative stream
+const lastInjectedPromptRound = ref<string | null>(null);
 
+// When a round resolves, inject the round summary
+watch(roundState, (state) => {
+  if (state === 'resolved' && roundSummaryMessage.value) {
+    addLocalEvent('combat_status', roundSummaryMessage.value, 'private');
+  }
+});
+
+// When action_select starts, inject the action prompt (once per round)
 watch(actionPromptMessage, (msg) => {
   if (!msg) return;
-  const roundKey = currentRound.value ? `${activeCombat.value?.id}-${currentRound.value.roundNumber}` : null;
-  if (roundKey && roundKey === lastPromptRound) return; // Already injected for this round
-  lastPromptRound = roundKey;
+  const roundKey = `${currentRound.value?.roundNumber}-${activeCombat.value?.id}`;
+  if (lastInjectedPromptRound.value === roundKey) return;
+  lastInjectedPromptRound.value = roundKey;
   addLocalEvent('combat_prompt', msg, 'private');
 });
 
-watch(roundSummaryMessage, (msg) => {
-  if (!msg) return;
-  const roundKey = currentRound.value ? `${activeCombat.value?.id}-${currentRound.value.roundNumber}` : null;
-  if (roundKey && roundKey === lastSummaryRound) return;
-  lastSummaryRound = roundKey;
-  addLocalEvent('combat_status', msg, 'private');
-});
-
-// Reset round tracking when combat ends
-watch(activeCombat, (combat) => {
-  if (!combat) {
-    lastPromptRound = null;
-    lastSummaryRound = null;
+// When combat starts, inject initial HP status bars
+watch(() => activeCombat.value?.id?.toString(), (newId, oldId) => {
+  if (newId && newId !== oldId) {
+    // Inject initial status bars after a short delay to let combat data populate
+    setTimeout(() => {
+      if (combatStatusMessage.value) {
+        addLocalEvent('combat_status', combatStatusMessage.value, 'private');
+      }
+      // Also inject the prompt if we're already in action_select
+      if (actionPromptMessage.value) {
+        const roundKey = `${currentRound.value?.roundNumber}-${activeCombat.value?.id}`;
+        lastInjectedPromptRound.value = roundKey;
+        addLocalEvent('combat_prompt', actionPromptMessage.value, 'private');
+      }
+    }, 500);
   }
+  // Reset prompt tracking on new combat
+  lastInjectedPromptRound.value = null;
 });
 
 const showDeathModal = computed(() => {
@@ -1497,6 +1510,7 @@ const onCreationSubmit = (text: string) => {
     );
     if (matchedEnemy) {
       setCombatTarget(matchedEnemy.id);
+      addLocalEvent('system', `Targeting ${kw}`, 'private');
       return;
     }
   }

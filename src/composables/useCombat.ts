@@ -375,7 +375,7 @@ export const useCombat = ({
       const empty = BAR_WIDTH - filled;
       const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty);
       const color = pct > 0.5 ? '#69db7c' : pct > 0.25 ? '#ffd43b' : '#ff6b6b';
-      lines.push(`{{color:${color}}}[${bar}]{{/color}} ${hp}/${maxHp} HP  ${name} (L${level})`);
+      lines.push(`{{color:${color}}}${bar}{{/color}} ${hp}/${maxHp} HP  [${name}] (L${level})`);
     }
 
     lines.push('---');
@@ -384,6 +384,7 @@ export const useCombat = ({
     const roster = combatParticipants.value.filter(
       (p) => p.combatId.toString() === combatId
     );
+    const myCharId = selectedCharacter.value?.id?.toString();
     for (const participant of roster) {
       const character = characters.value.find(
         (c) => c.id.toString() === participant.characterId.toString()
@@ -396,7 +397,84 @@ export const useCombat = ({
       const empty = BAR_WIDTH - filled;
       const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty);
       const color = pct > 0.5 ? '#69db7c' : pct > 0.25 ? '#ffd43b' : '#ff6b6b';
-      lines.push(`{{color:${color}}}[${bar}]{{/color}} ${hp}/${maxHp} HP  ${character.name}`);
+      const isYou = character.id.toString() === myCharId;
+      const nameDisplay = isYou ? character.name : `[${character.name}]`;
+      lines.push(`{{color:${color}}}${bar}{{/color}} ${hp}/${maxHp} HP  ${nameDisplay}`);
+
+      // Mana bar for characters with mana > 0
+      const mana = Number(character.mana ?? 0n);
+      const maxMana = Number(character.maxMana ?? 1n);
+      if (maxMana > 1 && mana >= 0) {
+        const manaPct = maxMana > 0 ? mana / maxMana : 0;
+        const manaFilled = Math.round(manaPct * BAR_WIDTH);
+        const manaEmpty = BAR_WIDTH - manaFilled;
+        const manaBar = '\u2588'.repeat(manaFilled) + '\u2591'.repeat(manaEmpty);
+        lines.push(`{{color:#4dabf7}}${manaBar}{{/color}} ${mana}/${maxMana} MP`);
+      }
+    }
+
+    return lines.join('\n');
+  });
+
+  // Current HP status bars (for combat start, before any round resolves)
+  const combatStatusMessage = computed<string | null>(() => {
+    if (!activeCombat.value) return null;
+    const combatId = activeCombat.value.id.toString();
+    const BAR_WIDTH = 18;
+    const lines: string[] = [];
+
+    // Enemy HP bars
+    const enemies = combatEnemies.value.filter(
+      (e) => e.combatId.toString() === combatId
+    );
+    for (const enemy of enemies) {
+      const template = enemyTemplates.value.find(
+        (t) => t.id.toString() === enemy.enemyTemplateId.toString()
+      );
+      const name = enemy.displayName ?? template?.name ?? 'Enemy';
+      const level = template?.level ?? 1n;
+      const hp = Number(enemy.currentHp);
+      const maxHp = Number(enemy.maxHp);
+      const pct = maxHp > 0 ? hp / maxHp : 0;
+      const filled = Math.round(pct * BAR_WIDTH);
+      const empty = BAR_WIDTH - filled;
+      const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty);
+      const color = pct > 0.5 ? '#69db7c' : pct > 0.25 ? '#ffd43b' : '#ff6b6b';
+      lines.push(`{{color:${color}}}${bar}{{/color}} ${hp}/${maxHp} HP  [${name}] (L${level})`);
+    }
+
+    lines.push('---');
+
+    // Player HP bars
+    const roster = combatParticipants.value.filter(
+      (p) => p.combatId.toString() === combatId
+    );
+    const myCharId = selectedCharacter.value?.id?.toString();
+    for (const participant of roster) {
+      const character = characters.value.find(
+        (c) => c.id.toString() === participant.characterId.toString()
+      );
+      if (!character) continue;
+      const hp = Number(character.hp);
+      const maxHp = Number(character.maxHp);
+      const pct = maxHp > 0 ? hp / maxHp : 0;
+      const filled = Math.round(pct * BAR_WIDTH);
+      const empty = BAR_WIDTH - filled;
+      const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty);
+      const color = pct > 0.5 ? '#69db7c' : pct > 0.25 ? '#ffd43b' : '#ff6b6b';
+      const isYou = character.id.toString() === myCharId;
+      const nameDisplay = isYou ? character.name : `[${character.name}]`;
+      lines.push(`{{color:${color}}}${bar}{{/color}} ${hp}/${maxHp} HP  ${nameDisplay}`);
+
+      const mana = Number(character.mana ?? 0n);
+      const maxMana = Number(character.maxMana ?? 1n);
+      if (maxMana > 1 && mana >= 0) {
+        const manaPct = maxMana > 0 ? mana / maxMana : 0;
+        const manaFilled = Math.round(manaPct * BAR_WIDTH);
+        const manaEmpty = BAR_WIDTH - manaFilled;
+        const manaBar = '\u2588'.repeat(manaFilled) + '\u2591'.repeat(manaEmpty);
+        lines.push(`{{color:#4dabf7}}${manaBar}{{/color}} ${mana}/${maxMana} MP`);
+      }
     }
 
     return lines.join('\n');
@@ -979,6 +1057,34 @@ export const useCombat = ({
     roundTimeRemaining,
     actionPromptMessage,
     roundSummaryMessage,
+    combatStatusMessage,
     isInCombat,
+    actionPromptData: computed(() => {
+      if (!activeCombat.value || roundState.value !== 'action_select' || hasSubmittedAction.value) return null;
+      const charId = selectedCharacter.value?.id;
+      if (!charId) return null;
+      const charAbilities = abilityTemplates.value.filter(
+        (t: any) => t.characterId?.toString() === charId.toString()
+      );
+      const abilities = charAbilities.map((template: any) => {
+        const cooldown = abilityCooldowns.value.find(
+          (c: any) => c.characterId?.toString() === charId.toString() && c.abilityTemplateId.toString() === template.id.toString()
+        );
+        const cdRemaining = cooldown
+          ? Math.max(0, Math.ceil((Number(cooldown.startedAtMicros) + Number(cooldown.durationMicros) - nowMicros.value) / 1_000_000))
+          : 0;
+        const manaCost = template.resourceCost ? `(${template.resourceCost} ${template.resourceType ?? 'mana'})` : '';
+        return { name: template.name, onCooldown: cdRemaining > 0, cooldownSecs: cdRemaining, manaCost };
+      });
+      const combatId = activeCombat.value.id.toString();
+      const livingEnemies = combatEnemies.value.filter(
+        (e: any) => e.combatId.toString() === combatId && e.currentHp > 0n
+      );
+      const targets = livingEnemies.map((enemy: any) => {
+        const template = enemyTemplates.value.find((t: any) => t.id.toString() === enemy.enemyTemplateId.toString());
+        return { name: enemy.displayName ?? template?.name ?? 'Enemy', level: template?.level ?? 1n };
+      });
+      return { abilities, targets };
+    }),
   };
 };
