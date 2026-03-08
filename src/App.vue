@@ -1025,38 +1025,34 @@ const {
 // (Round-based combat event injection removed -- real-time combat has no round UI)
 
 // Gate combat UI until intro narration completes ("The world grows still around you.")
+// NOTE: The intro event arrives in the SAME reducer transaction as combat_encounter/combat_participant,
+// so SpacetimeDB delivers all updates in one batch. We must scan ALL existing events (not just "new" ones)
+// because the baseline-offset pattern misses events already in the batch.
 const combatIntroSeen = ref(false);
-let lastCombatId: string | null = null;
 
 watch(isInCombat, (inCombat) => {
   if (!inCombat) {
     combatIntroSeen.value = false;
-    lastCombatId = null;
+    return;
   }
+  // Check immediately — events may already be in the batch
+  checkForIntroEvent();
 });
 
-// Watch private events for the intro narration completion signal
-// Only check NEW events (not historical ones from previous combats)
-let combatEventBaseline = 0;
-watch(isInCombat, (inCombat) => {
-  if (inCombat) {
-    // Record current event count as baseline — only check events arriving AFTER this
-    combatEventBaseline = userPrivateEvents.value.length;
-  }
-});
-watch(
-  () => userPrivateEvents.value.length,
-  (newLen) => {
-    if (combatIntroSeen.value || !isInCombat.value) return;
-    // Only check events that arrived after combat started
-    for (let i = combatEventBaseline; i < newLen; i++) {
-      const evt = userPrivateEvents.value[i];
-      if (evt && evt.kind === 'system' && evt.message === 'The world grows still around you.') {
-        combatIntroSeen.value = true;
-        break;
-      }
+function checkForIntroEvent() {
+  if (combatIntroSeen.value || !isInCombat.value) return;
+  for (const evt of userPrivateEvents.value) {
+    if (evt.kind === 'system' && evt.message === 'The world grows still around you.') {
+      combatIntroSeen.value = true;
+      return;
     }
   }
+}
+
+// Also watch for late-arriving events (e.g., if subscription delivers in multiple batches)
+watch(
+  () => userPrivateEvents.value.length,
+  () => checkForIntroEvent()
 );
 
 const combatUiVisible = computed(() => isInCombat.value && combatIntroSeen.value);
