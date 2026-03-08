@@ -1080,6 +1080,36 @@ spacetimedb.reducer('submit_llm_result', {
           characterId: charId,
         });
 
+        // Set location fields for delivery/explore quests
+        if (['delivery', 'explore'].includes(questType)) {
+          const npcLocation = npc.locationId;
+          if (questType === 'delivery') {
+            ctx.db.quest_template.id.update({
+              ...ctx.db.quest_template.id.find(qt.id)!,
+              sourceLocationId: npcLocation,
+              targetItemName: effect.targetItemName || effect.questName || 'Package',
+            });
+          } else if (questType === 'explore') {
+            ctx.db.quest_template.id.update({
+              ...ctx.db.quest_template.id.find(qt.id)!,
+              targetLocationId: npcLocation,
+              targetItemName: effect.targetItemName || effect.questName || 'Hidden Object',
+            });
+          }
+        }
+
+        // For delivery quests, resolve targetNpcId if LLM provides a target NPC name
+        if (questType === 'delivery' && effect.targetNpcName) {
+          const targetNpc = [...ctx.db.npc.iter()].find(n => n.name === effect.targetNpcName);
+          if (targetNpc) {
+            ctx.db.quest_template.id.update({
+              ...ctx.db.quest_template.id.find(qt.id)!,
+              targetNpcId: targetNpc.id,
+              targetLocationId: targetNpc.locationId,
+            });
+          }
+        }
+
         // For kill-type quests, try to find an appropriate enemy template at the location
         if (['kill', 'kill_loot', 'boss_kill'].includes(questType)) {
           for (const ref of ctx.db.location_enemy_template.by_location.filter(character.locationId)) {

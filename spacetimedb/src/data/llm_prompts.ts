@@ -423,6 +423,8 @@ export const NPC_CONVERSATION_RESPONSE_SCHEMA = `{
       "rewardGold": "number (optional, for offer_quest with gold reward)",
       "rewardItemName": "string (optional, for offer_quest with item reward)",
       "rewardItemDesc": "string (optional, for offer_quest with item reward)",
+      "targetItemName": "string -- name of item to pick up/find (for delivery/explore quests)",
+      "targetNpcName": "string -- name of NPC to deliver to (for delivery quests)",
 
       "amount": "number -5 to +5 (for affinity_change only)",
 

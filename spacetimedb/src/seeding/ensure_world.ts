@@ -365,6 +365,7 @@ export function ensureQuestTemplates(ctx: any) {
     rewardXp: bigint;
     questType?: string;
     targetLocationName?: string;
+    sourceLocationName?: string;
     targetNpcName?: string;
     targetItemName?: string;
     itemDropChance?: bigint;
@@ -373,6 +374,9 @@ export function ensureQuestTemplates(ctx: any) {
     const enemy = args.enemyName ? findEnemyTemplateByName(ctx, args.enemyName) : null;
     const targetLocation = args.targetLocationName
       ? [...ctx.db.location.iter()].find((row) => row.name === args.targetLocationName)
+      : null;
+    const sourceLocation = args.sourceLocationName
+      ? [...ctx.db.location.iter()].find((row) => row.name === args.sourceLocationName)
       : null;
     const targetNpc = args.targetNpcName
       ? [...ctx.db.npc.iter()].find((row) => row.name === args.targetNpcName)
@@ -392,6 +396,7 @@ export function ensureQuestTemplates(ctx: any) {
         rewardXp: args.rewardXp,
         questType: args.questType ?? 'kill',
         targetLocationId: targetLocation?.id,
+        sourceLocationId: sourceLocation?.id,
         targetNpcId: targetNpc?.id,
         targetItemName: args.targetItemName,
         itemDropChance: args.itemDropChance,
@@ -409,6 +414,7 @@ export function ensureQuestTemplates(ctx: any) {
       rewardXp: args.rewardXp,
       questType: args.questType ?? 'kill',
       targetLocationId: targetLocation?.id,
+      sourceLocationId: sourceLocation?.id,
       targetNpcId: targetNpc?.id,
       targetItemName: args.targetItemName,
       itemDropChance: args.itemDropChance,
@@ -533,6 +539,8 @@ export function ensureQuestTemplates(ctx: any) {
     rewardXp: 80n,
     questType: 'delivery',
     targetNpcName: 'Scout Thessa',
+    sourceLocationName: 'Hollowmere',
+    targetItemName: 'Sealed Letter',
   });
 
   // Warden Kael — kill_loot + explore
@@ -606,6 +614,8 @@ export function ensureQuestTemplates(ctx: any) {
     rewardXp: 110n,
     questType: 'delivery',
     targetNpcName: 'Keeper Mordane',
+    sourceLocationName: 'Cinderwatch',
+    targetItemName: 'Intelligence Report',
   });
 
   // Ashwalker Ren — kill_loot + boss_kill
@@ -724,6 +734,8 @@ export function ensureQuestTemplates(ctx: any) {
     rewardXp: 90n,
     questType: 'delivery',
     targetNpcName: 'Hermit Dunstan',
+    sourceLocationName: 'Barrowfield',
+    targetItemName: 'Sealed Scroll',
   });
   upsertQuestByName({
     name: 'Moorland Survey',
@@ -869,6 +881,8 @@ export function ensureQuestTemplates(ctx: any) {
     rewardXp: 150n,
     questType: 'delivery',
     targetNpcName: 'Deserter Callum',
+    sourceLocationName: 'Quarantine Ward',
+    targetItemName: 'Medical Records',
   });
 
   // === Dreadspire Ruins quests (group content, higher rewards) ===
