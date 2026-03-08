@@ -187,8 +187,9 @@ None yet.
 | 348 | Remove rounds, restore real-time combat | 2026-03-08 | e09539e, 02076ff | [348-remove-rounds-and-inline-combat-hud-rest](./quick/348-remove-rounds-and-inline-combat-hud-rest/) |
 | 349 | Fix real-time combat bugs and add intro narration | 2026-03-08 | 0121aad | [349-fix-real-time-combat-bugs-no-such-reduce](./quick/349-fix-real-time-combat-bugs-no-such-reduce/) |
 | 350 | Fix combat_loop PANIC and gate combat UI until intro | 2026-03-08 | e576182 | [350-fix-combat-loop-panic-on-role-trim-and-d](./quick/350-fix-combat-loop-panic-on-role-trim-and-d/) |
+| 351 | Fix ability uses not showing in narrative | 2026-03-08 | 508344a | [351-fix-ability-uses-not-showing-in-narrativ](./quick/351-fix-ability-uses-not-showing-in-narrativ/) |
 
 ## Session Continuity
 
-Last session: 2026-03-08T15:48:38Z
-Stopped at: Completed quick-350 (Fix combat_loop PANIC and gate combat UI until intro narration)
+Last session: 2026-03-08T15:58:54Z
+Stopped at: Completed quick-351 (Fix ability uses not showing in narrative)
