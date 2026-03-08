@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 363: Quest management and viewing narratively
+Last activity: 2026-03-08 - Completed quick task 364: Text block progress bars for gathering and looting
 
 Progress: [█████████░] 88%
 
