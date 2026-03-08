@@ -6,11 +6,9 @@
 import { MAX_COMBAT_NARRATIONS, NARRATION_BUDGET_THRESHOLD } from '../data/combat_constants';
 import { checkBudget, incrementBudget } from './llm';
 import { appendPrivateEvent } from './events';
-import { scheduleCombatTick } from './combat';
 import {
   buildCombatNarrationPrompt,
   buildCombatRoundUserPrompt,
-  buildCombatIntroUserPrompt,
   buildCombatOutroUserPrompt,
 } from '../data/llm_prompts';
 
@@ -91,8 +89,8 @@ export function shouldNarrateRound(
  * Attempt to trigger LLM narration for a combat round.
  * Handles budget rotation, qualification check, and LlmTask creation.
  *
- * Budget is charged once per combat (on intro only). Outro narration
- * (victory/defeat) is free — it still checks budget but does not decrement it.
+ * Budget is charged once per combat (on outro only). Intro uses static messages.
+ * Mid-combat round narrations are free if budget allows.
  */
 export function triggerCombatNarration(
   ctx: any,
@@ -141,8 +139,8 @@ export function triggerCombatNarration(
 
   if (!budget.allowed) return;
 
-  // Only charge budget for intro narration (1 credit per combat, not 2)
-  if (events.narrativeType === 'intro') {
+  // Only charge budget for outro narration (1 credit per combat total)
+  if (events.narrativeType === 'victory' || events.narrativeType === 'defeat') {
     incrementBudget(ctx, chargedPlayerIdentity);
   }
 
@@ -157,13 +155,7 @@ export function triggerCombatNarration(
   // Build prompts
   const systemPrompt = buildCombatNarrationPrompt(contextString);
   let userPrompt: string;
-  if (events.narrativeType === 'intro') {
-    userPrompt = buildCombatIntroUserPrompt(
-      events.enemyNames || [],
-      events.playerNames || [],
-      events.locationName || 'an unknown place',
-    );
-  } else if (events.narrativeType === 'victory' || events.narrativeType === 'defeat') {
+  if (events.narrativeType === 'victory' || events.narrativeType === 'defeat') {
     userPrompt = buildCombatOutroUserPrompt(events, events.narrativeType === 'victory');
   } else {
     userPrompt = buildCombatRoundUserPrompt(events);
@@ -222,12 +214,6 @@ export function handleCombatNarrationResult(
   const participantCharacterIds: string[] = context.participantCharacterIds || [];
 
   if (!success) {
-    // For intro narration failure, start combat anyway
-    if (narrativeType === 'intro') {
-      if (combatId > 0n) {
-        scheduleCombatTick(ctx, combatId);
-      }
-    }
     return;
   }
 
@@ -273,19 +259,7 @@ export function handleCombatNarrationResult(
     appendPrivateEvent(ctx, charId, character.ownerUserId, 'combat_narration', prefix + narrative);
   }
 
-  // Intro flavor: add a world settling-in message and start combat loop
-  if (narrativeType === 'intro') {
-    for (const charIdStr of participantCharacterIds) {
-      const charId = BigInt(charIdStr);
-      const character = ctx.db.character.id.find(charId);
-      if (!character) continue;
-      appendPrivateEvent(ctx, charId, character.ownerUserId, 'system',
-        'The world grows still around you.');
-    }
-
-    // Start combat loop now that intro narration is displayed
-    scheduleCombatTick(ctx, combatId);
-  }
+  // Note: intro narration now uses static messages (no LLM), so no intro handling here
 }
 
 /**

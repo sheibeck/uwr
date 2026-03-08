@@ -10,7 +10,7 @@ import {
   BLOCK_MITIGATION_STR_PER_POINT,
   WIS_PULL_BONUS_PER_POINT,
 } from '../data/combat_scaling';
-import { STARTER_ITEM_NAMES, COMBAT_INTRO_TIMEOUT_MICROS } from '../data/combat_constants';
+import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ScheduleAt } from 'spacetimedb';
 import { scheduleCombatTick } from '../helpers/combat';
 import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
@@ -231,46 +231,27 @@ export const startCombatForSpawn = (
     }
   }
 
-  // Trigger LLM intro narration
-  const location = ctx.db.location.id.find(leader.locationId);
-  const enemyNames = [...ctx.db.combat_enemy.by_combat.filter(combat.id)]
-    .map((e: any) => e.displayName);
-  const playerNames = participants.map((p: any) => p.name);
-  const hpSummary: RoundEventSummary['participantHpSummary'] = [];
-  for (const p of participants) {
-    hpSummary.push({ name: p.name, hp: p.hp, maxHp: p.maxHp, isEnemy: false });
-  }
-  for (const e of ctx.db.combat_enemy.by_combat.filter(combat.id)) {
-    hpSummary.push({ name: e.displayName, hp: e.currentHp, maxHp: e.maxHp, isEnemy: true });
-  }
-  const introEvents: RoundEventSummary = {
-    combatId: combat.id,
-    roundNumber: 0n,
-    narrativeType: 'intro',
-    playerActions: [],
-    enemyActions: [],
-    effectsApplied: [],
-    effectsExpired: [],
-    deaths: [],
-    nearDeathNames: [],
-    hasCrit: false,
-    hasKill: false,
-    hasNearDeath: false,
-    participantHpSummary: hpSummary,
-    locationName: location?.name || 'an unknown place',
-    enemyNames,
-    playerNames,
-  };
-  triggerCombatNarration(ctx, combat, { narrationCount: 0n, roundNumber: 0n }, introEvents);
+  // Static combat intro messages -- sardonic Keeper of Knowledge voice
+  const COMBAT_INTRO_MESSAGES = [
+    'The world holds its breath. Or perhaps it simply does not care. Either way, steel is about to meet flesh.',
+    'Another battle. The Keeper yawns, but watches nonetheless -- one must have hobbies.',
+    'The air thickens with the promise of violence. How delightfully predictable.',
+    'And so it begins again. The eternal dance of the ambitious and the soon-to-be-deceased.',
+    'The world pauses to witness what will almost certainly be a disappointing spectacle.',
+  ];
 
-  // Schedule fallback combat tick in case LLM intro never completes
-  // (handleCombatNarrationResult will schedule an immediate tick on intro success)
-  const fallbackAt = ctx.timestamp.microsSinceUnixEpoch + COMBAT_INTRO_TIMEOUT_MICROS;
-  ctx.db.combat_loop_tick.insert({
-    scheduledId: 0n,
-    scheduledAt: ScheduleAt.time(fallbackAt),
-    combatId: combat.id,
-  });
+  // Deterministic selection using combat ID
+  const introIndex = Number(combat.id % BigInt(COMBAT_INTRO_MESSAGES.length));
+  const introMessage = COMBAT_INTRO_MESSAGES[introIndex];
+
+  // Broadcast static intro to all participants
+  for (const p of participants) {
+    appendPrivateEvent(ctx, p.id, p.ownerUserId, 'combat_narration', introMessage);
+    appendPrivateEvent(ctx, p.id, p.ownerUserId, 'system', 'The world grows still around you.');
+  }
+
+  // Start combat immediately -- no LLM delay
+  scheduleCombatTick(ctx, combat.id);
 
   return combat;
 };

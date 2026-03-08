@@ -537,9 +537,7 @@ export function buildCombatRoundUserPrompt(events: RoundEventSummary): string {
   return lines.join('\n');
 }
 
-/**
- * Build a user prompt for combat intro narration.
- */
+/** @deprecated No longer used -- combat intro uses static messages */
 export function buildCombatIntroUserPrompt(
   enemyNames: string[],
   playerNames: string[],
@@ -565,6 +563,10 @@ export function buildCombatOutroUserPrompt(
   const lines: string[] = [];
   lines.push(`Combat ends in ${outcome}.`);
 
+  if (events.locationName) lines.push(`Setting: ${events.locationName}`);
+  if (events.enemyNames?.length) lines.push(`Enemies faced: ${events.enemyNames.join(', ')}`);
+  if (events.playerNames?.length) lines.push(`Combatants: ${events.playerNames.join(', ')}`);
+
   if (events.deaths.length > 0) {
     lines.push(`Fallen: ${events.deaths.join(', ')}`);
   }
@@ -582,6 +584,8 @@ export function buildCombatOutroUserPrompt(
   } else {
     lines.push('Write a brief narrative summary of the combat. Do NOT include any game mechanics, numbers, HP values, mana, damage amounts, or stats. Just describe what happened in a narrative/literary style. Be darkly amused at their demise -- 2-4 sentences.');
   }
+
+  lines.push('Do NOT start the narrative with the location name. The location is context for your narration, not the opening word. Vary your openings.');
 
   lines.push('');
   lines.push(`Respond with JSON: ${COMBAT_NARRATION_SCHEMA}`);
