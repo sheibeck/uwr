@@ -65,6 +65,9 @@
       :is-llm-processing="isNarrativeLlmProcessing"
       :format-timestamp="formatTimestamp"
       :has-pending-skills="hasPendingSkills"
+      :round-time-remaining="roundTimeRemaining"
+      :round-state="roundState"
+      :has-submitted-action="hasSubmittedAction"
       @submit="onNarrativeSubmit"
       @open-panel="onOpenPanel"
     />
@@ -976,12 +979,15 @@ const {
   submitFlee,
   currentRound,
   roundState,
+  myAction,
   hasSubmittedAction,
   roundTimeRemaining,
   isInCombat,
   actionPromptMessage,
   roundSummaryMessage,
   combatStatusMessage,
+  roundHeaderMessage,
+  roundEndMessage,
   actionPromptData,
 } = useCombat({
   connActive: computed(() => conn.isActive),
@@ -1025,43 +1031,77 @@ const {
   combatRoster,
 });
 
-// Inline combat event injection: inject status bars and action prompts into narrative stream
-const lastInjectedPromptRound = ref<string | null>(null);
+// Phase-aware combat event injection into narrative stream
+const lastInjectedRoundStart = ref<string | null>(null);
+const lastInjectedSubmit = ref<string | null>(null);
 
-// When a round resolves, inject the round summary
+// Round START: when action_select begins for a new round
+watch([roundState, currentRound], ([state, round]) => {
+  if (state !== 'action_select' || !round) return;
+  const roundKey = `${round.roundNumber}-${activeCombat.value?.id}`;
+  if (lastInjectedRoundStart.value === roundKey) return;
+  lastInjectedRoundStart.value = roundKey;
+
+  // Round header
+  if (roundHeaderMessage.value) {
+    addLocalEvent('combat_round_header', roundHeaderMessage.value, 'private');
+  }
+  // Status bars
+  if (combatStatusMessage.value) {
+    addLocalEvent('combat_status', combatStatusMessage.value, 'private');
+  }
+  // Action prompt
+  if (actionPromptMessage.value) {
+    addLocalEvent('combat_prompt', actionPromptMessage.value, 'private');
+  }
+});
+
+// Action submitted feedback
+watch(hasSubmittedAction, (submitted) => {
+  if (!submitted || !currentRound.value) return;
+  const roundKey = `${currentRound.value.roundNumber}-${activeCombat.value?.id}`;
+  if (lastInjectedSubmit.value === roundKey) return;
+  lastInjectedSubmit.value = roundKey;
+  const actionDesc = myAction.value?.actionType === 'flee' ? 'Flee' :
+    myAction.value?.actionType === 'auto_attack' ? 'Auto-attack' :
+    myAction.value?.actionType === 'ability' ? 'Ability' : 'Action';
+  addLocalEvent('combat_status', `${actionDesc} submitted.`, 'private');
+});
+
+// Round RESOLVED: show summary bars + round end marker
 watch(roundState, (state) => {
   if (state === 'resolved' && roundSummaryMessage.value) {
     addLocalEvent('combat_status', roundSummaryMessage.value, 'private');
   }
+  if (state === 'resolved' && roundEndMessage.value) {
+    addLocalEvent('combat_round_header', roundEndMessage.value, 'private');
+  }
 });
 
-// When action_select starts, inject the action prompt (once per round)
-watch(actionPromptMessage, (msg) => {
-  if (!msg) return;
-  const roundKey = `${currentRound.value?.roundNumber}-${activeCombat.value?.id}`;
-  if (lastInjectedPromptRound.value === roundKey) return;
-  lastInjectedPromptRound.value = roundKey;
-  addLocalEvent('combat_prompt', msg, 'private');
-});
-
-// When combat starts, inject initial HP status bars
+// Combat START: inject initial header + bars
 watch(() => activeCombat.value?.id?.toString(), (newId, oldId) => {
   if (newId && newId !== oldId) {
-    // Inject initial status bars after a short delay to let combat data populate
+    lastInjectedRoundStart.value = null;
+    lastInjectedSubmit.value = null;
     setTimeout(() => {
-      if (combatStatusMessage.value) {
+      // Inject combat start header if no round yet
+      if (!currentRound.value && combatStatusMessage.value) {
+        addLocalEvent('combat_round_header', '\u2550\u2550\u2550 COMBAT BEGINS \u2550\u2550\u2550', 'private');
         addLocalEvent('combat_status', combatStatusMessage.value, 'private');
-      }
-      // Also inject the prompt if we're already in action_select
-      if (actionPromptMessage.value) {
-        const roundKey = `${currentRound.value?.roundNumber}-${activeCombat.value?.id}`;
-        lastInjectedPromptRound.value = roundKey;
-        addLocalEvent('combat_prompt', actionPromptMessage.value, 'private');
       }
     }, 500);
   }
-  // Reset prompt tracking on new combat
-  lastInjectedPromptRound.value = null;
+  lastInjectedRoundStart.value = null;
+  lastInjectedSubmit.value = null;
+});
+
+// Combat END
+watch(() => activeCombat.value, (combat, oldCombat) => {
+  if (!combat && oldCombat) {
+    addLocalEvent('combat_round_header', '\u2550\u2550\u2550 COMBAT ENDED \u2550\u2550\u2550', 'private');
+    lastInjectedRoundStart.value = null;
+    lastInjectedSubmit.value = null;
+  }
 });
 
 const showDeathModal = computed(() => {
