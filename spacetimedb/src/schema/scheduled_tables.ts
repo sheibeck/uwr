@@ -14,4 +14,5 @@ export {
   EventDespawnTick,
   InactivityTick,
   LlmCleanupTick,
+  RoundTimerTick,
 } from './tables';

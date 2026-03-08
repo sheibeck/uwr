@@ -1957,6 +1957,75 @@ export const WorldGenState = table(
   }
 );
 
+// Round-based combat tables
+
+export const CombatRound = table(
+  {
+    name: 'combat_round',
+    public: true,
+    indexes: [{ accessor: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    combatId: t.u64(),
+    roundNumber: t.u64(),
+    state: t.string(),              // 'action_select', 'resolving', 'resolved'
+    timerExpiresAtMicros: t.u64(),
+    narrationCount: t.u64(),        // Total narrations triggered so far in this combat
+  }
+);
+
+export const CombatAction = table(
+  {
+    name: 'combat_action',
+    public: true,
+    indexes: [
+      { accessor: 'by_combat', algorithm: 'btree', columns: ['combatId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    combatId: t.u64(),
+    characterId: t.u64(),
+    roundNumber: t.u64(),
+    actionType: t.string(),         // 'ability', 'auto_attack', 'flee'
+    abilityTemplateId: t.u64().optional(),
+    targetEnemyId: t.u64().optional(),
+    targetCharacterId: t.u64().optional(),
+    submittedAt: t.timestamp(),
+  }
+);
+
+export const CombatNarrative = table(
+  {
+    name: 'combat_narrative',
+    public: true,
+    indexes: [{ accessor: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    combatId: t.u64(),
+    roundNumber: t.u64(),
+    narrativeText: t.string(),
+    narrativeType: t.string(),      // 'intro', 'round', 'victory', 'defeat'
+    createdAt: t.timestamp(),
+  }
+);
+
+export const RoundTimerTick = table(
+  {
+    name: 'round_timer_tick',
+    scheduled: () => scheduledReducers['resolve_round_timer'],
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    combatId: t.u64(),
+    roundNumber: t.u64(),
+  }
+);
+
 // Client-driven LLM task: server writes prompts, client calls proxy, client submits result
 export const LlmTask = table(
   {
@@ -2089,6 +2158,10 @@ const spacetimedb = schema({
   world_gen_state: WorldGenState,
   llm_task: LlmTask,
   pending_skill: PendingSkill,
+  combat_round: CombatRound,
+  combat_action: CombatAction,
+  combat_narrative: CombatNarrative,
+  round_timer_tick: RoundTimerTick,
 });
 export default spacetimedb;
 export { spacetimedb };
