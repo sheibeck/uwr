@@ -12,6 +12,7 @@ export const MIN_EFFECT_ROUNDS = 1n;
 export const MAX_COMBAT_NARRATIONS = 3n;                     // cap narrations per encounter
 export const NARRATION_BUDGET_THRESHOLD = 10n;               // skip narration when budget below this
 export const AUTO_ATTACK_INTERVAL = 5_000_000n; // Used for enemies, pets, and pull delay — NOT player auto-attacks
+export const COMBAT_INTRO_TIMEOUT_MICROS = 12_000_000n; // Fallback if LLM intro never completes (12 seconds)
 
 /** Weapon auto-attack intervals by type (microseconds).
  *  Fast weapons swing more often but deal less per hit.

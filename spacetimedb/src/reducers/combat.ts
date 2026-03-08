@@ -10,7 +10,9 @@ import {
   BLOCK_MITIGATION_STR_PER_POINT,
   WIS_PULL_BONUS_PER_POINT,
 } from '../data/combat_scaling';
-import { STARTER_ITEM_NAMES } from '../data/combat_constants';
+import { STARTER_ITEM_NAMES, COMBAT_INTRO_TIMEOUT_MICROS } from '../data/combat_constants';
+import { ScheduleAt } from 'spacetimedb';
+import { scheduleCombatTick } from '../helpers/combat';
 import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { addCharacterEffect, addEnemyEffect } from '../helpers/combat';
@@ -229,8 +231,46 @@ export const startCombatForSpawn = (
     }
   }
 
-  // Start real-time combat loop
-  scheduleCombatTick(ctx, combat.id);
+  // Trigger LLM intro narration
+  const location = ctx.db.location.id.find(leader.locationId);
+  const enemyNames = [...ctx.db.combat_enemy.by_combat.filter(combat.id)]
+    .map((e: any) => e.displayName);
+  const playerNames = participants.map((p: any) => p.name);
+  const hpSummary: RoundEventSummary['participantHpSummary'] = [];
+  for (const p of participants) {
+    hpSummary.push({ name: p.name, hp: p.hp, maxHp: p.maxHp, isEnemy: false });
+  }
+  for (const e of ctx.db.combat_enemy.by_combat.filter(combat.id)) {
+    hpSummary.push({ name: e.displayName, hp: e.currentHp, maxHp: e.maxHp, isEnemy: true });
+  }
+  const introEvents: RoundEventSummary = {
+    combatId: combat.id,
+    roundNumber: 0n,
+    narrativeType: 'intro',
+    playerActions: [],
+    enemyActions: [],
+    effectsApplied: [],
+    effectsExpired: [],
+    deaths: [],
+    nearDeathNames: [],
+    hasCrit: false,
+    hasKill: false,
+    hasNearDeath: false,
+    participantHpSummary: hpSummary,
+    locationName: location?.name || 'an unknown place',
+    enemyNames,
+    playerNames,
+  };
+  triggerCombatNarration(ctx, combat, { narrationCount: 0n, roundNumber: 0n }, introEvents);
+
+  // Schedule fallback combat tick in case LLM intro never completes
+  // (handleCombatNarrationResult will schedule an immediate tick on intro success)
+  const fallbackAt = ctx.timestamp.microsSinceUnixEpoch + COMBAT_INTRO_TIMEOUT_MICROS;
+  ctx.db.combat_loop_tick.insert({
+    scheduledId: 0n,
+    scheduledAt: ScheduleAt.time(fallbackAt),
+    combatId: combat.id,
+  });
 
   return combat;
 };

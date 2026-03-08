@@ -6,6 +6,7 @@
 import { MAX_COMBAT_NARRATIONS, NARRATION_BUDGET_THRESHOLD } from '../data/combat_constants';
 import { checkBudget, incrementBudget } from './llm';
 import { appendPrivateEvent } from './events';
+import { scheduleCombatTick } from './combat';
 import {
   buildCombatNarrationPrompt,
   buildCombatRoundUserPrompt,
@@ -216,7 +217,12 @@ export function handleCombatNarrationResult(
   const participantCharacterIds: string[] = context.participantCharacterIds || [];
 
   if (!success) {
-    // Silent failure -- combat continues without narration
+    // For intro narration failure, start combat anyway
+    if (narrativeType === 'intro') {
+      if (combatId > 0n) {
+        scheduleCombatTick(ctx, combatId);
+      }
+    }
     return;
   }
 
@@ -262,7 +268,7 @@ export function handleCombatNarrationResult(
     appendPrivateEvent(ctx, charId, character.ownerUserId, 'combat_narration', prefix + narrative);
   }
 
-  // Intro flavor: add a System settling-in message
+  // Intro flavor: add a System settling-in message and start combat loop
   if (narrativeType === 'intro') {
     for (const charIdStr of participantCharacterIds) {
       const charId = BigInt(charIdStr);
@@ -271,6 +277,9 @@ export function handleCombatNarrationResult(
       appendPrivateEvent(ctx, charId, character.ownerUserId, 'system',
         'The System settles in to watch.');
     }
+
+    // Start combat loop now that intro narration is displayed
+    scheduleCombatTick(ctx, combatId);
   }
 }
 

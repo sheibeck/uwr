@@ -561,18 +561,18 @@ export function buildCombatOutroUserPrompt(
     lines.push(`Fallen: ${events.deaths.join(', ')}`);
   }
 
+  // Only include survivor names (no HP numbers) for narrative context
   if (events.participantHpSummary.length > 0) {
-    const survivors = events.participantHpSummary
-      .filter(p => p.hp > 0n)
-      .map(p => `${p.name}: ${p.hp}/${p.maxHp} HP`)
-      .join(', ');
-    if (survivors) lines.push(`Survivors: ${survivors}`);
+    const survivorNames = events.participantHpSummary
+      .filter(p => p.hp > 0n && !p.isEnemy)
+      .map(p => p.name);
+    if (survivorNames.length > 0) lines.push(`Survivors: ${survivorNames.join(', ')}`);
   }
 
   if (isVictory) {
-    lines.push('Narrate the victory. The players have prevailed. Be sardonic about their triumph -- 2-4 sentences.');
+    lines.push('Write a brief narrative summary of the combat. Do NOT include any game mechanics, numbers, HP values, mana, damage amounts, or stats. Just describe what happened in a narrative/literary style. Be sardonic about their triumph -- 2-4 sentences.');
   } else {
-    lines.push('Narrate the defeat. The players have fallen. Be darkly amused at their demise -- 2-4 sentences.');
+    lines.push('Write a brief narrative summary of the combat. Do NOT include any game mechanics, numbers, HP values, mana, damage amounts, or stats. Just describe what happened in a narrative/literary style. Be darkly amused at their demise -- 2-4 sentences.');
   }
 
   lines.push('');
