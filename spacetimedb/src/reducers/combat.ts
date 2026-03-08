@@ -2238,6 +2238,8 @@ export const registerCombatReducers = (deps: any) => {
   // (getCurrentRound, upsertCombatAction, checkAllSubmittedAndResolve, resolveRound all removed)
 
   /** Process a single player auto-attack during round resolution. */
+  // NOTE: Ability damage is logged separately via executeAbility -> resolveAbility -> appendPrivateEvent
+  // in spacetimedb/src/helpers/combat.ts. This function only handles weapon auto-attacks.
   const processPlayerAutoAttackForRound = (
     ctx: any, combat: any, character: any, participant: any,
     enemies: any[], nowMicros: bigint
