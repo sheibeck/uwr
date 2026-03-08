@@ -300,20 +300,15 @@ export const useCombat = ({
     lines.push(`Choose your action (${timer}s remaining):`);
     lines.push('');
 
-    // Hotbar abilities
-    const charHotbar = hotbarSlots.value.filter(
-      (s) => s.characterId.toString() === charId.toString()
+    // Character abilities (all known abilities, not just hotbar)
+    const charAbilities = abilityTemplates.value.filter(
+      (t) => t.characterId?.toString() === charId.toString()
     );
-    for (const slot of charHotbar) {
-      if (!slot.abilityTemplateId) continue;
-      const template = abilityTemplates.value.find(
-        (t) => t.id.toString() === slot.abilityTemplateId.toString()
-      );
-      if (!template) continue;
+    for (const template of charAbilities) {
       const cooldown = abilityCooldowns.value.find(
         (c) =>
           c.characterId?.toString() === charId.toString() &&
-          c.abilityTemplateId.toString() === slot.abilityTemplateId.toString()
+          c.abilityTemplateId.toString() === template.id.toString()
       );
       const cdRemaining = cooldown
         ? Math.max(0, Math.ceil((Number(cooldown.startedAtMicros) + Number(cooldown.durationMicros) - nowMicros.value) / 1_000_000))

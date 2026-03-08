@@ -134,7 +134,13 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any): any {
   const enemies = parsed.enemies || [];
   const enemyTemplateRows: any[] = [];
   for (const enemy of enemies) {
-    const level = BigInt(enemy.level || 1);
+    // Clamp enemy level to region danger range: baseLevel ± 1
+    const baseLevel = dangerMultiplier / 100n;
+    const minLevel = baseLevel > 1n ? baseLevel - 1n : 1n;
+    const maxLevel = baseLevel + 1n > 1n ? baseLevel + 1n : 2n;
+    let level = BigInt(enemy.level || 1);
+    if (level < minLevel) level = minLevel;
+    if (level > maxLevel) level = maxLevel;
     const maxHp = level * 25n + 50n;
     const baseDamage = level * 3n + 5n;
     const xpReward = level * 15n + 10n;

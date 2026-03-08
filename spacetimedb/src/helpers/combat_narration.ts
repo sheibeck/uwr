@@ -112,9 +112,15 @@ export function triggerCombatNarration(
   if (!character) return;
 
   // Find the player identity for budget checking
-  const player = ctx.db.player.userId.find(character.ownerUserId);
-  if (!player) return;
-  const chargedPlayerIdentity = player.id; // player.id is the identity
+  // Player table has no userId index, so iterate to find matching player
+  let chargedPlayerIdentity: any = null;
+  for (const p of ctx.db.player.iter()) {
+    if (p.userId === character.ownerUserId) {
+      chargedPlayerIdentity = p.id;
+      break;
+    }
+  }
+  if (!chargedPlayerIdentity) return;
 
   // Budget check
   const budget = checkBudget(ctx, chargedPlayerIdentity);

@@ -1288,6 +1288,7 @@ const selectCharacterTarget = (characterId: bigint | null) => {
 // Tracks which NPC the player is actively conversing with (client-side only).
 // While set, typed text routes to talk_to_npc instead of submit_intent.
 const conversationNpcId = ref<bigint | null>(null);
+const pendingPullTargetId = ref<bigint | null>(null);
 const conversationNpcIdStr = computed(() => conversationNpcId.value?.toString() ?? null);
 
 const enterConversation = (npcId: bigint, npcName: string) => {
@@ -1439,15 +1440,32 @@ const onCreationSubmit = (text: string) => {
 
   // Pull type selection (from attack intent prompt)
   if (kwLower === 'careful pull') {
-    // Find the first available enemy at current location to pull
-    const spawn = availableEnemies.value.find(e => !e.isPulling);
+    const spawn = pendingPullTargetId.value
+      ? availableEnemies.value.find(e => e.id === pendingPullTargetId.value)
+      : availableEnemies.value.find(e => !e.isPulling);
     if (spawn) startPull(spawn.id, 'careful');
+    pendingPullTargetId.value = null;
     return;
   }
   if (kwLower === 'charge in') {
-    const spawn = availableEnemies.value.find(e => !e.isPulling);
+    const spawn = pendingPullTargetId.value
+      ? availableEnemies.value.find(e => e.id === pendingPullTargetId.value)
+      : availableEnemies.value.find(e => !e.isPulling);
     if (spawn) startPull(spawn.id, 'body');
+    pendingPullTargetId.value = null;
     return;
+  }
+
+  // Enemy name click (outside combat) — route to attack intent
+  if (!isInCombat.value) {
+    const clickedSpawn = availableEnemies.value.find(
+      (e: any) => e.name?.toLowerCase() === kwLower
+    );
+    if (clickedSpawn) {
+      pendingPullTargetId.value = clickedSpawn.id;
+      onNarrativeSubmit(`attack ${kw}`);
+      return;
+    }
   }
 
   // Round-based combat actions (only when in combat and action_select phase)
@@ -1463,21 +1481,15 @@ const onCreationSubmit = (text: string) => {
       submitFlee();
       return;
     }
-    // Ability name match — check hotbar abilities
+    // Ability name match — check all character abilities
     const charId = selectedCharacter.value.id;
-    const charHotbar = hotbarSlots.value.filter(
-      (s: any) => s.characterId.toString() === charId.toString()
+    const charAbility = abilityTemplates.value.find(
+      (t: any) => t.characterId?.toString() === charId.toString() && t.name.toLowerCase() === kwLower
     );
-    for (const slot of charHotbar) {
-      if (!slot.abilityTemplateId) continue;
-      const template = abilityTemplates.value.find(
-        (t: any) => t.id.toString() === slot.abilityTemplateId.toString()
-      );
-      if (template && template.name.toLowerCase() === kwLower) {
-        const enemy = combatEnemiesList.value.find((e: any) => e.hp > 0n);
-        if (enemy) submitAbility(slot.abilityTemplateId, enemy.id);
-        return;
-      }
+    if (charAbility) {
+      const enemy = combatEnemiesList.value.find((e: any) => e.hp > 0n);
+      if (enemy) submitAbility(charAbility.id, enemy.id);
+      return;
     }
     // Enemy name match — set as target (for future ability usage)
     const matchedEnemy = combatEnemiesList.value.find(

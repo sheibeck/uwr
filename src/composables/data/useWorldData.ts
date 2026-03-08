@@ -121,6 +121,8 @@ export function useWorldData(conn: ConnectionState, currentLocationId: Ref<bigin
           if (oldHandle) {
             oldHandle.unsubscribe();
           }
+          // Delayed refresh to catch rows that arrive after onApplied
+          setTimeout(() => refreshLocationScoped(dbConn), 500);
         })
         .subscribe(queries);
     },

@@ -1587,20 +1587,7 @@ export const registerCombatReducers = (deps: any) => {
       ctx.db.active_pet.id.update({ ...pet, currentHp: petHealedHp, nextAbilityAt: ctx.timestamp.microsSinceUnixEpoch + cooldownMicros });
     }
 
-    // Watchdog: ensure active combats always have a scheduled tick.
-    for (const combat of ctx.db.combat_encounter.iter()) {
-      if (combat.state !== 'active') continue;
-      let hasTick = false;
-      for (const tick of ctx.db.combat_loop_tick.iter()) {
-        if (tick.combatId === combat.id) {
-          hasTick = true;
-          break;
-        }
-      }
-      if (!hasTick) {
-        scheduleCombatTick(ctx, combat.id);
-      }
-    }
+    // Old combat_loop watchdog disabled — round-based system uses RoundTimerTick instead
 
     ctx.db.health_regen_tick.insert({
       scheduledId: 0n,
@@ -1609,6 +1596,8 @@ export const registerCombatReducers = (deps: any) => {
   });
 
   scheduledReducers['tick_effects'] = spacetimedb.reducer('tick_effects', { arg: deps.EffectTick.rowType }, (ctx) => {
+    // Old real-time effect ticking disabled — effects tick per-round in resolveRound
+    return;
     for (const effect of ctx.db.character_effect.iter()) {
       const owner = ctx.db.character.id.find(effect.characterId);
       if (!owner) {
@@ -1715,6 +1704,8 @@ export const registerCombatReducers = (deps: any) => {
   });
 
   scheduledReducers['tick_hot'] = spacetimedb.reducer('tick_hot', { arg: deps.HotTick.rowType }, (ctx) => {
+    // Old real-time HoT ticking disabled — HoTs tick per-round in resolveRound
+    return;
     for (const effect of ctx.db.character_effect.iter()) {
       const owner = ctx.db.character.id.find(effect.characterId);
       if (!owner) {
@@ -1966,6 +1957,8 @@ export const registerCombatReducers = (deps: any) => {
   });
 
   scheduledReducers['tick_casts'] = spacetimedb.reducer('tick_casts', { arg: deps.CastTick.rowType }, (ctx) => {
+    // Old real-time cast ticking disabled — casts resolve per-round in resolveRound
+    return;
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     for (const cast of ctx.db.character_cast.iter()) {
       if (cast.endsAtMicros > nowMicros) continue;
@@ -3431,7 +3424,7 @@ export const registerCombatReducers = (deps: any) => {
 
     const weapon = deps.getEquippedWeaponStats(ctx, character.id);
     const bonuses = getEquippedBonuses(ctx, character.id);
-    const baseDamage = weapon.damage + (bonuses.str ?? 0n);
+    const baseDamage = (weapon.baseDamage ?? 0n) + (bonuses.str ?? 0n);
     const template = ctx.db.enemy_template.id.find(targetEnemy.enemyTemplateId);
     const eName = targetEnemy.displayName ?? template?.name ?? 'enemy';
     const groupId = effectiveGroupId(character);
@@ -3817,8 +3810,8 @@ export const registerCombatReducers = (deps: any) => {
   // ── End Combat Loop Sub-Functions ─────────────────────────────────────
 
   scheduledReducers['combat_loop'] = spacetimedb.reducer('combat_loop', { arg: CombatLoopTick.rowType }, (ctx, { arg }) => {
-    const combat = ctx.db.combat_encounter.id.find(arg.combatId);
-    if (!combat || combat.state !== 'active') return;
+    // Old tick-based combat loop disabled — round-based system handles combat now
+    return;
 
     const enemies = [...ctx.db.combat_enemy.by_combat.filter(combat.id)];
     if (enemies.length === 0) {
