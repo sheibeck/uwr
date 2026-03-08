@@ -324,11 +324,20 @@ export const registerCreationReducers = (deps: any) => {
         // Parse classStats from creation state
         let primaryStat: string = 'str';
         let secondaryStat: string | undefined;
+        let weaponProficiencies: string | undefined;
+        let armorProficiencies: string | undefined;
         if (state.classStats) {
           try {
             const cs = JSON.parse(state.classStats);
             primaryStat = cs.primaryStat || 'str';
             secondaryStat = cs.secondaryStat || undefined;
+            // Parse proficiencies from LLM-generated classStats (arrays -> comma-separated strings)
+            if (Array.isArray(cs.weaponProficiencies) && cs.weaponProficiencies.length > 0) {
+              weaponProficiencies = cs.weaponProficiencies.join(',');
+            }
+            if (Array.isArray(cs.armorProficiencies) && cs.armorProficiencies.length > 0) {
+              armorProficiencies = cs.armorProficiencies.join(',');
+            }
           } catch {
             // Fall back to archetype defaults
             if (state.archetype === 'mystic') {
@@ -347,6 +356,17 @@ export const registerCreationReducers = (deps: any) => {
             primaryStat = 'str';
             secondaryStat = 'dex';
           }
+        }
+        // Archetype fallback if LLM didn't provide proficiencies
+        if (!weaponProficiencies) {
+          weaponProficiencies = state.archetype === 'mystic'
+            ? 'staff,wand,dagger'
+            : 'sword,axe,mace,greatsword,dagger';
+        }
+        if (!armorProficiencies) {
+          armorProficiencies = state.archetype === 'mystic'
+            ? 'cloth,leather'
+            : 'leather,chain,plate';
         }
 
         const classStats = computeBaseStatsForGenerated(primaryStat, secondaryStat, 1n);
@@ -388,6 +408,8 @@ export const registerCreationReducers = (deps: any) => {
           vendorBuyMod: 0n,
           vendorSellMod: 0n,
           createdAt: ctx.timestamp,
+          weaponProficiencies,
+          armorProficiencies,
         });
 
         // Compute derived stats

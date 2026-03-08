@@ -817,7 +817,10 @@ spacetimedb.reducer('submit_llm_result', {
 
         const stats = data.stats || {};
         const statLine = `Primary: ${(stats.primaryStat || 'str').toUpperCase()}${stats.secondaryStat && stats.secondaryStat !== 'none' ? `, Secondary: ${stats.secondaryStat.toUpperCase()}` : ''}`;
-        const armorLine = `Armor: ${stats.armorProficiency || 'cloth'}`;
+        const weaponLine = Array.isArray(stats.weaponProficiencies) && stats.weaponProficiencies.length > 0
+          ? `Weapons: ${stats.weaponProficiencies.join(', ')}` : '';
+        const armorLine = Array.isArray(stats.armorProficiencies) && stats.armorProficiencies.length > 0
+          ? `Armor: ${stats.armorProficiencies.join(', ')}` : `Armor: ${stats.armorProficiency || 'cloth'}`;
         const resourceLine = stats.usesMana ? `Mana user (+${stats.bonusMana || 0} bonus mana)` : `Physical (+${stats.bonusHp || 0} bonus HP)`;
 
         let abilityText = '\n\nYour starting abilities:\n';
@@ -833,7 +836,7 @@ spacetimedb.reducer('submit_llm_result', {
 
         appendCreationEvent(ctx, ctx.sender, 'creation',
           `${data.classDescription || 'A unique class emerges.'}\n\n` +
-          `**${data.className}**\n${statLine} | ${armorLine} | ${resourceLine}` +
+          `**${data.className}**\n${statLine} | ${armorLine}${weaponLine ? ` | ${weaponLine}` : ''} | ${resourceLine}` +
           abilityText +
           `\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.` +
           `\n\n(If you're already regretting your choices, type "go back." The System does not judge... much.)`
