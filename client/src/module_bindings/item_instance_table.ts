@@ -12,13 +12,13 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  templateId: __t.u64(),
-  ownerCharacterId: __t.u64(),
-  equippedSlot: __t.option(__t.string()),
+  templateId: __t.u64().name("template_id"),
+  ownerCharacterId: __t.u64().name("owner_character_id"),
+  equippedSlot: __t.option(__t.string()).name("equipped_slot"),
   quantity: __t.u64(),
-  qualityTier: __t.option(__t.string()),
-  craftQuality: __t.option(__t.string()),
-  displayName: __t.option(__t.string()),
-  isNamed: __t.option(__t.bool()),
-  isTemporary: __t.option(__t.bool()),
+  qualityTier: __t.option(__t.string()).name("quality_tier"),
+  craftQuality: __t.option(__t.string()).name("craft_quality"),
+  displayName: __t.option(__t.string()).name("display_name"),
+  isNamed: __t.option(__t.bool()).name("is_named"),
+  isTemporary: __t.option(__t.bool()).name("is_temporary"),
 });

@@ -68,4 +68,6 @@ export default __t.row({
   racialPerceptionBonus: __t.option(__t.u64()).name("racial_perception_bonus"),
   racialLootBonus: __t.option(__t.u64()).name("racial_loot_bonus"),
   lastCombatEndAt: __t.option(__t.u64()).name("last_combat_end_at"),
+  weaponProficiencies: __t.option(__t.string()).name("weapon_proficiencies"),
+  armorProficiencies: __t.option(__t.string()).name("armor_proficiencies"),
 });

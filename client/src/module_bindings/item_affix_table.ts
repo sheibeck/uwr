@@ -12,10 +12,10 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  itemInstanceId: __t.u64(),
-  affixType: __t.string(),
-  affixKey: __t.string(),
-  affixName: __t.string(),
-  statKey: __t.string(),
+  itemInstanceId: __t.u64().name("item_instance_id"),
+  affixType: __t.string().name("affix_type"),
+  affixKey: __t.string().name("affix_key"),
+  affixName: __t.string().name("affix_name"),
+  statKey: __t.string().name("stat_key"),
   magnitude: __t.i64(),
 });

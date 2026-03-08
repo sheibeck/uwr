@@ -12,8 +12,8 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  combatId: __t.u64(),
-  enemyId: __t.u64(),
-  abilityKey: __t.string(),
-  readyAtMicros: __t.u64(),
+  combatId: __t.u64().name("combat_id"),
+  enemyId: __t.u64().name("enemy_id"),
+  abilityKey: __t.string().name("ability_key"),
+  readyAtMicros: __t.u64().name("ready_at_micros"),
 });

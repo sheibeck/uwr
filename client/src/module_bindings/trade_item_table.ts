@@ -12,8 +12,8 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  tradeId: __t.u64(),
-  fromCharacterId: __t.u64(),
-  itemInstanceId: __t.u64(),
+  tradeId: __t.u64().name("trade_id"),
+  fromCharacterId: __t.u64().name("from_character_id"),
+  itemInstanceId: __t.u64().name("item_instance_id"),
   quantity: __t.u64(),
 });

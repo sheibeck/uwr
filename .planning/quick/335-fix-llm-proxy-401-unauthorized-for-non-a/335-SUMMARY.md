@@ -13,7 +13,7 @@ Non-admin users got 401 Unauthorized when triggering LLM calls (character creati
 ## Fix
 Added `import.meta.env.VITE_LLM_PROXY_SECRET` as fallback in `useLlmProxy.ts:53`. The proxy secret is a shared app-level secret (not per-user auth), so baking it into the client build via env var is appropriate.
 
-Also added `VITE_LLM_PROXY_SECRET=unwritten-realms-proxy-secret` to `.env.local`.
+Also added `VITE_LLM_PROXY_SECRET=unwritten-realms-proxy-secret` to `.env.local` (required newline fix — initial append lacked trailing newline on previous line).
 
 ## Files Modified
 - `src/composables/useLlmProxy.ts` — added env var fallback for proxy secret

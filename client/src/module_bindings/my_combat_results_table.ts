@@ -12,10 +12,10 @@ import {
 
 export default __t.row({
   id: __t.u64(),
-  ownerUserId: __t.u64(),
-  characterId: __t.u64(),
-  groupId: __t.option(__t.u64()),
-  combatId: __t.u64(),
+  ownerUserId: __t.u64().name("owner_user_id"),
+  characterId: __t.u64().name("character_id"),
+  groupId: __t.option(__t.u64()).name("group_id"),
+  combatId: __t.u64().name("combat_id"),
   summary: __t.string(),
-  createdAt: __t.timestamp(),
+  createdAt: __t.timestamp().name("created_at"),
 });

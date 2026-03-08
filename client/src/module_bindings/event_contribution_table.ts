@@ -12,8 +12,8 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  eventId: __t.u64(),
-  characterId: __t.u64(),
+  eventId: __t.u64().name("event_id"),
+  characterId: __t.u64().name("character_id"),
   count: __t.u64(),
-  regionEnteredAt: __t.timestamp(),
+  regionEnteredAt: __t.timestamp().name("region_entered_at"),
 });

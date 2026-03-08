@@ -12,14 +12,14 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
-  groupId: __t.option(__t.u64()),
-  locationId: __t.u64(),
-  enemySpawnId: __t.u64(),
-  pullType: __t.string(),
+  characterId: __t.u64().name("character_id"),
+  groupId: __t.option(__t.u64()).name("group_id"),
+  locationId: __t.u64().name("location_id"),
+  enemySpawnId: __t.u64().name("enemy_spawn_id"),
+  pullType: __t.string().name("pull_type"),
   state: __t.string(),
   outcome: __t.option(__t.string()),
-  delayedAdds: __t.option(__t.u64()),
-  delayedAddsAtMicros: __t.option(__t.u64()),
-  createdAt: __t.timestamp(),
+  delayedAdds: __t.option(__t.u64()).name("delayed_adds"),
+  delayedAddsAtMicros: __t.option(__t.u64()).name("delayed_adds_at_micros"),
+  createdAt: __t.timestamp().name("created_at"),
 });

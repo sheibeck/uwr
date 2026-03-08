@@ -12,11 +12,11 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  enemyTemplateId: __t.u64(),
-  abilityKey: __t.string(),
+  enemyTemplateId: __t.u64().name("enemy_template_id"),
+  abilityKey: __t.string().name("ability_key"),
   name: __t.string(),
   kind: __t.string(),
-  castSeconds: __t.u64(),
-  cooldownSeconds: __t.u64(),
-  targetRule: __t.string(),
+  castSeconds: __t.u64().name("cast_seconds"),
+  cooldownSeconds: __t.u64().name("cooldown_seconds"),
+  targetRule: __t.string().name("target_rule"),
 });

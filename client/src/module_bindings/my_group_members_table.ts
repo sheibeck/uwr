@@ -12,10 +12,10 @@ import {
 
 export default __t.row({
   id: __t.u64(),
-  groupId: __t.u64(),
-  characterId: __t.u64(),
-  ownerUserId: __t.u64(),
+  groupId: __t.u64().name("group_id"),
+  characterId: __t.u64().name("character_id"),
+  ownerUserId: __t.u64().name("owner_user_id"),
   role: __t.string(),
-  followLeader: __t.bool(),
-  joinedAt: __t.timestamp(),
+  followLeader: __t.bool().name("follow_leader"),
+  joinedAt: __t.timestamp().name("joined_at"),
 });

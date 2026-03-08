@@ -12,9 +12,9 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
-  effectType: __t.string(),
+  characterId: __t.u64().name("character_id"),
+  effectType: __t.string().name("effect_type"),
   magnitude: __t.i64(),
-  roundsRemaining: __t.u64(),
-  sourceAbility: __t.option(__t.string()),
+  roundsRemaining: __t.u64().name("rounds_remaining"),
+  sourceAbility: __t.option(__t.string()).name("source_ability"),
 });

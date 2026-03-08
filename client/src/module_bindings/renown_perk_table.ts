@@ -12,8 +12,8 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
+  characterId: __t.u64().name("character_id"),
   rank: __t.u64(),
-  perkKey: __t.string(),
-  chosenAt: __t.timestamp(),
+  perkKey: __t.string().name("perk_key"),
+  chosenAt: __t.timestamp().name("chosen_at"),
 });

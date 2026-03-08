@@ -12,6 +12,6 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  fromLocationId: __t.u64(),
-  toLocationId: __t.u64(),
+  fromLocationId: __t.u64().name("from_location_id"),
+  toLocationId: __t.u64().name("to_location_id"),
 });

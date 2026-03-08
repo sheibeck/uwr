@@ -12,9 +12,9 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  spellType: __t.string(),
-  casterCharacterId: __t.u64(),
-  targetCharacterId: __t.u64(),
-  corpseId: __t.option(__t.u64()),
-  createdAtMicros: __t.u64(),
+  spellType: __t.string().name("spell_type"),
+  casterCharacterId: __t.u64().name("caster_character_id"),
+  targetCharacterId: __t.u64().name("target_character_id"),
+  corpseId: __t.option(__t.u64()).name("corpse_id"),
+  createdAtMicros: __t.u64().name("created_at_micros"),
 });

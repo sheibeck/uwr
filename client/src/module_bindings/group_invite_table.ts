@@ -12,8 +12,8 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  groupId: __t.u64(),
-  fromCharacterId: __t.u64(),
-  toCharacterId: __t.u64(),
-  createdAt: __t.timestamp(),
+  groupId: __t.u64().name("group_id"),
+  fromCharacterId: __t.u64().name("from_character_id"),
+  toCharacterId: __t.u64().name("to_character_id"),
+  createdAt: __t.timestamp().name("created_at"),
 });

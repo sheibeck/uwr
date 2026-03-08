@@ -12,8 +12,8 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
-  npcId: __t.u64(),
-  dialogueOptionId: __t.u64(),
-  visitedAt: __t.timestamp(),
+  characterId: __t.u64().name("character_id"),
+  npcId: __t.u64().name("npc_id"),
+  dialogueOptionId: __t.u64().name("dialogue_option_id"),
+  visitedAt: __t.timestamp().name("visited_at"),
 });

@@ -12,7 +12,7 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
-  nodeId: __t.u64(),
-  endsAtMicros: __t.u64(),
+  characterId: __t.u64().name("character_id"),
+  nodeId: __t.u64().name("node_id"),
+  endsAtMicros: __t.u64().name("ends_at_micros"),
 });

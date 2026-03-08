@@ -12,8 +12,8 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  combatId: __t.u64(),
-  characterId: __t.u64(),
+  combatId: __t.u64().name("combat_id"),
+  characterId: __t.u64().name("character_id"),
   status: __t.string(),
-  nextAutoAttackAt: __t.u64(),
+  nextAutoAttackAt: __t.u64().name("next_auto_attack_at"),
 });

@@ -12,9 +12,9 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  locationId: __t.u64(),
+  locationId: __t.u64().name("location_id"),
   message: __t.string(),
   kind: __t.string(),
-  excludeCharacterId: __t.option(__t.u64()),
-  createdAt: __t.timestamp(),
+  excludeCharacterId: __t.option(__t.u64()).name("exclude_character_id"),
+  createdAt: __t.timestamp().name("created_at"),
 });

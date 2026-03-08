@@ -12,7 +12,7 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
-  locationId: __t.u64(),
-  createdAt: __t.timestamp(),
+  characterId: __t.u64().name("character_id"),
+  locationId: __t.u64().name("location_id"),
+  createdAt: __t.timestamp().name("created_at"),
 });

@@ -12,9 +12,9 @@ import {
 
 export default __t.row({
   id: __t.u64(),
-  groupId: __t.u64(),
-  characterId: __t.u64(),
+  groupId: __t.u64().name("group_id"),
+  characterId: __t.u64().name("character_id"),
   message: __t.string(),
   kind: __t.string(),
-  createdAt: __t.timestamp(),
+  createdAt: __t.timestamp().name("created_at"),
 });

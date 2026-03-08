@@ -13,11 +13,11 @@ import {
 export default __t.row({
   id: __t.u64().primaryKey(),
   name: __t.string(),
-  npcType: __t.string(),
-  locationId: __t.u64(),
+  npcType: __t.string().name("npc_type"),
+  locationId: __t.u64().name("location_id"),
   description: __t.string(),
   greeting: __t.string(),
-  factionId: __t.option(__t.u64()),
-  personalityJson: __t.option(__t.string()),
-  baseMood: __t.option(__t.string()),
+  factionId: __t.option(__t.u64()).name("faction_id"),
+  personalityJson: __t.option(__t.string()).name("personality_json"),
+  baseMood: __t.option(__t.string()).name("base_mood"),
 });

@@ -13,5 +13,5 @@ import {
 export default {
   characterId: __t.u64(),
   slot: __t.u8(),
-  abilityKey: __t.string(),
+  abilityTemplateId: __t.u64(),
 };

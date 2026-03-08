@@ -12,7 +12,7 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  startingLocationId: __t.u64(),
-  isNight: __t.bool(),
-  nextTransitionAtMicros: __t.u64(),
+  startingLocationId: __t.u64().name("starting_location_id"),
+  isNight: __t.bool().name("is_night"),
+  nextTransitionAtMicros: __t.u64().name("next_transition_at_micros"),
 });

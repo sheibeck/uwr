@@ -12,11 +12,11 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
+  characterId: __t.u64().name("character_id"),
   name: __t.string(),
-  enemyTemplateId: __t.u64(),
-  locationId: __t.u64(),
-  isAlive: __t.bool(),
-  lastKilledAt: __t.option(__t.timestamp()),
-  respawnMinutes: __t.u64(),
+  enemyTemplateId: __t.u64().name("enemy_template_id"),
+  locationId: __t.u64().name("location_id"),
+  isAlive: __t.bool().name("is_alive"),
+  lastKilledAt: __t.option(__t.timestamp()).name("last_killed_at"),
+  respawnMinutes: __t.u64().name("respawn_minutes"),
 });

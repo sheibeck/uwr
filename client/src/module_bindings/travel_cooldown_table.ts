@@ -12,6 +12,6 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  characterId: __t.u64(),
-  readyAtMicros: __t.u64(),
+  characterId: __t.u64().name("character_id"),
+  readyAtMicros: __t.u64().name("ready_at_micros"),
 });

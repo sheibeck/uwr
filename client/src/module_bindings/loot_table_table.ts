@@ -12,11 +12,11 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  terrainType: __t.string(),
-  creatureType: __t.string(),
+  terrainType: __t.string().name("terrain_type"),
+  creatureType: __t.string().name("creature_type"),
   tier: __t.u64(),
-  junkChance: __t.u64(),
-  gearChance: __t.u64(),
-  goldMin: __t.u64(),
-  goldMax: __t.u64(),
+  junkChance: __t.u64().name("junk_chance"),
+  gearChance: __t.u64().name("gear_chance"),
+  goldMin: __t.u64().name("gold_min"),
+  goldMax: __t.u64().name("gold_max"),
 });

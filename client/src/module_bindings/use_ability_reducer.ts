@@ -12,6 +12,6 @@ import {
 
 export default {
   characterId: __t.u64(),
-  abilityKey: __t.string(),
+  abilityTemplateId: __t.u64(),
   targetCharacterId: __t.option(__t.u64()),
 };

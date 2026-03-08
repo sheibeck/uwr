@@ -12,12 +12,12 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
-  locationId: __t.u64(),
-  groupId: __t.option(__t.u64()),
-  leaderCharacterId: __t.option(__t.u64()),
+  locationId: __t.u64().name("location_id"),
+  groupId: __t.option(__t.u64()).name("group_id"),
+  leaderCharacterId: __t.option(__t.u64()).name("leader_character_id"),
   state: __t.string(),
-  addCount: __t.u64(),
-  pendingAddCount: __t.u64(),
-  pendingAddAtMicros: __t.option(__t.u64()),
-  createdAt: __t.timestamp(),
+  addCount: __t.u64().name("add_count"),
+  pendingAddCount: __t.u64().name("pending_add_count"),
+  pendingAddAtMicros: __t.option(__t.u64()).name("pending_add_at_micros"),
+  createdAt: __t.timestamp().name("created_at"),
 });
