@@ -39,7 +39,12 @@ export function performPassiveSearch(
     if (!qt) continue;
     const qtype = qt.questType ?? 'kill';
     if (qtype !== 'explore' && qtype !== 'delivery') continue;
-    if (qt.targetLocationId !== locationId) continue;
+    // Delivery quests: item spawns at sourceLocationId (pickup location)
+    // Explore quests: item spawns at targetLocationId (destination)
+    const spawnLocationId = qtype === 'delivery'
+      ? (qt.sourceLocationId ?? qt.targetLocationId)
+      : qt.targetLocationId;
+    if (spawnLocationId !== locationId) continue;
 
     // Check if character already has a discovered (but not looted) quest item for this quest here
     let alreadyHasItem = false;

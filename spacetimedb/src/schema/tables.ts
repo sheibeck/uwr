@@ -178,6 +178,7 @@ export const QuestTemplate = table(
     rewardXp: t.u64(),
     questType: t.string().optional(),          // 'kill' | 'kill_loot' | 'explore' | 'delivery' | 'boss_kill'; undefined = 'kill'
     targetLocationId: t.u64().optional(),      // for explore/delivery quests
+    sourceLocationId: t.u64().optional(),      // for delivery quests: where to PICK UP the item (quest giver's location)
     targetNpcId: t.u64().optional(),           // for delivery quest turn-in target NPC
     targetItemName: t.string().optional(),     // display name of the loot item (kill_loot quests)
     itemDropChance: t.u64().optional(),        // per-kill drop chance as integer percent (e.g., 25 = 25%)
