@@ -2,18 +2,21 @@
   <div
     :style="{
       marginBottom: '2px',
-      marginTop: isRipple ? '4px' : '0',
+      marginTop: isCombatHeader ? '12px' : isRipple ? '4px' : '0',
       lineHeight: '1.5',
-      fontSize: '0.9rem',
+      fontSize: isCombatHeader ? '1rem' : '0.9rem',
       color: kindColor,
-      fontStyle: (isNarrative || isRipple) ? 'italic' : 'normal',
+      fontStyle: (isNarrative || isRipple || isCombatResolving) ? 'italic' : 'normal',
+      fontWeight: isCombatHeader ? 'bold' : 'normal',
       fontFamily: isCombatStatus ? '&quot;Courier New&quot;, monospace' : 'inherit',
       borderLeft: isRipple ? '3px solid #b197fc88' : isNarrative ? '2px solid #ffd43b33' : 'none',
       paddingLeft: isRipple ? '10px' : isNarrative ? '8px' : '0',
       paddingTop: isRipple ? '4px' : '0',
-      paddingBottom: isRipple ? '4px' : '0',
+      paddingBottom: isCombatHeader ? '6px' : isRipple ? '4px' : '0',
       background: isRipple ? 'linear-gradient(90deg, rgba(177, 151, 252, 0.08) 0%, transparent 70%)' : 'none',
-      letterSpacing: isRipple ? '0.3px' : 'normal',
+      letterSpacing: isCombatHeader ? '2px' : isRipple ? '0.3px' : 'normal',
+      textAlign: isCombatHeader ? 'center' : 'left',
+      animation: isCombatResolving ? 'narrativePulse 1.5s ease-in-out infinite' : 'none',
     }"
   >
     <template v-if="isAnimatingMessage">
@@ -78,6 +81,8 @@ const KIND_COLORS: Record<string, string> = {
   combat_narration: '#ffd43b',   // gold/amber for LLM narration from The System
   combat_prompt: '#e9ecef',      // white for action selection prompts
   combat_status: '#adb5bd',      // gray for round summary with HP bars
+  combat_round_header: '#ffa94d', // orange for round headers (distinctive)
+  combat_resolving: '#ffd43b',    // gold pulsing for resolving state
 };
 
 const kindColor = computed(() => KIND_COLORS[props.event.kind] ?? '#ced4da');
@@ -89,6 +94,10 @@ const isNarrative = computed(
 );
 
 const isCombatStatus = computed(() => props.event.kind === 'combat_status');
+
+const isCombatHeader = computed(() => props.event.kind === 'combat_round_header');
+
+const isCombatResolving = computed(() => props.event.kind === 'combat_resolving');
 
 const isAnimatingMessage = computed(
   () => props.animationState != null && !props.animationState.complete

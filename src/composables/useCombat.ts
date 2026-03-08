@@ -296,8 +296,7 @@ export const useCombat = ({
     if (!charId) return null;
 
     const lines: string[] = [];
-    const timer = roundTimeRemaining.value;
-    lines.push(`Choose your action (${timer}s remaining):`);
+    lines.push('Choose your action:');
     lines.push('');
 
     // Character abilities (all known abilities, not just hotbar)
@@ -356,7 +355,7 @@ export const useCombat = ({
     const combatId = activeCombat.value.id.toString();
     const BAR_WIDTH = 18;
     const lines: string[] = [];
-    lines.push(`--- Round ${round.roundNumber} ---`);
+    lines.push(`--- Round ${round.roundNumber} Results ---`);
 
     // Enemy HP bars
     const enemies = combatEnemies.value.filter(
@@ -1017,6 +1016,20 @@ export const useCombat = ({
     }
   );
 
+  // ---- Round header/footer messages ----
+
+  const roundHeaderMessage = computed<string | null>(() => {
+    if (!currentRound.value) return null;
+    const roundNum = Number(currentRound.value.roundNumber);
+    return `\u2550\u2550\u2550 ROUND ${roundNum} \u2550\u2550\u2550`;
+  });
+
+  const roundEndMessage = computed<string | null>(() => {
+    if (roundState.value !== 'resolved' || !currentRound.value) return null;
+    const roundNum = Number(currentRound.value.roundNumber);
+    return `\u2500\u2500\u2500 Round ${roundNum} complete \u2500\u2500\u2500`;
+  });
+
   return {
     activeCombat,
     activeResult,
@@ -1059,6 +1072,8 @@ export const useCombat = ({
     roundSummaryMessage,
     combatStatusMessage,
     isInCombat,
+    roundHeaderMessage,
+    roundEndMessage,
     actionPromptData: computed(() => {
       if (!activeCombat.value || roundState.value !== 'action_select' || hasSubmittedAction.value) return null;
       const charId = selectedCharacter.value?.id;
