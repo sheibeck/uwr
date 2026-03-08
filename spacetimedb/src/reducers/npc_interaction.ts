@@ -60,11 +60,18 @@ export const registerNpcInteractionReducers = (deps: any) => {
     const memoryData = memory.memoryJson ? JSON.parse(memory.memoryJson) : {};
     const activeQuests = getActiveQuestCount(ctx, character.id);
 
+    // Collect nearby location names for LLM context
+    const connections = [...ctx.db.location_connection.by_from.filter(character.locationId)];
+    const nearbyLocationNames = connections
+      .map((c: any) => ctx.db.location.id.find(c.toLocationId))
+      .filter(Boolean)
+      .map((l: any) => l!.name);
+
     // Build prompts
     const systemPrompt = buildNpcConversationSystemPrompt(
       npc, region || { name: 'Unknown' }, location || { name: 'Unknown' }, personality, affinityTier, memoryData,
     );
-    const userPrompt = buildNpcConversationUserPrompt(message, activeQuests, MAX_ACTIVE_QUESTS);
+    const userPrompt = buildNpcConversationUserPrompt(message, activeQuests, MAX_ACTIVE_QUESTS, nearbyLocationNames);
 
     // Log player message to NpcDialog
     appendNpcDialog(ctx, character.id, npc.id, `You: "${message}"`);

@@ -1084,9 +1084,35 @@ spacetimedb.reducer('submit_llm_result', {
         if (['delivery', 'explore'].includes(questType)) {
           const npcLocation = npc.locationId;
           if (questType === 'delivery') {
+            // Resolve sourceLocationId: must be DIFFERENT from NPC's location
+            const npcLoc = ctx.db.location.id.find(npc.locationId);
+            const regionLocations = npcLoc
+              ? [...ctx.db.location.iter()].filter(l => l.regionId === npcLoc.regionId)
+              : [];
+
+            let sourceLocId: bigint | undefined;
+            // Try LLM-provided sourceLocationName (case-insensitive match)
+            if (effect.sourceLocationName) {
+              const match = regionLocations.find((l: any) =>
+                l.name.toLowerCase() === effect.sourceLocationName.toLowerCase() && l.id !== npc.locationId
+              );
+              if (match) sourceLocId = match.id;
+            }
+            // Fallback: pick a random connected location that is NOT the NPC's location
+            if (!sourceLocId) {
+              const connections = [...ctx.db.location_connection.by_from.filter(npc.locationId)];
+              const neighbors = connections
+                .map((c: any) => c.toLocationId)
+                .filter((id: bigint) => id !== npc.locationId);
+              if (neighbors.length > 0) {
+                const idx = Number(ctx.timestamp.microsSinceUnixEpoch % BigInt(neighbors.length));
+                sourceLocId = neighbors[idx];
+              }
+            }
+
             ctx.db.quest_template.id.update({
               ...ctx.db.quest_template.id.find(qt.id)!,
-              sourceLocationId: npcLocation,
+              sourceLocationId: sourceLocId || npcLocation,
               targetItemName: effect.targetItemName || effect.questName || 'Package',
             });
           } else if (questType === 'explore') {
