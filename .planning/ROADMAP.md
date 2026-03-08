@@ -141,7 +141,7 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 30-01-PLAN.md — Round-based combat engine: new schema tables (CombatRound, CombatAction, CombatNarrative, RoundTimerTick), rewrite combat_loop to resolve_round
+- [x] 30-01-PLAN.md — Round-based combat engine: new schema tables (CombatRound, CombatAction, CombatNarrative, RoundTimerTick), rewrite combat_loop to resolve_round
 - [ ] 30-02-PLAN.md — LLM narration integration: narration qualification, combat prompts, submit_llm_result handler, budget rotation
 - [ ] 30-03-PLAN.md — Client combat UI: useCombat rework, narrative stream rendering, CombatPanel deletion, action prompts with clickable abilities
 - [ ] 30-04-PLAN.md — Final wiring: bindings regeneration, App.vue integration, intent service, end-to-end human verification
@@ -196,7 +196,7 @@ Phases execute in numeric order: 24 -> 25 -> 26 -> 27 -> 28 -> 29 -> 30
 | 27 | Procedural World Generation | 0/3 | Planning complete | - |
 | 28 | Dynamic Skill Generation | 0/3 | Planning complete | - |
 | 29 | NPC & Quest Generation | 0/3 | Planning complete | - |
-| 30 | Narrative Combat | 0/4 | Planning complete | - |
+| 30 | Narrative Combat | 1/4 | In Progress | - |
 
 ---
 *Created: 2026-03-06*

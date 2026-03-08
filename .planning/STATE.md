@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 30 context gathered
-last_updated: "2026-03-08T00:28:33.485Z"
-last_activity: "2026-03-07 - Completed quick task 340: Unify typed and clicked command routing"
+status: in-progress
+stopped_at: Completed 30-01-PLAN.md (Round-Based Combat Engine)
+last_updated: "2026-03-08T01:55:11Z"
+last_activity: "2026-03-08 - Completed Phase 30 Plan 01: Round-Based Combat Engine"
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 18
-  completed_plans: 18
-  percent: 100
+  total_plans: 22
+  completed_plans: 19
+  percent: 86
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: 29 of 30 (Phases 24-29 complete, Phase 30 remaining)
-Plan: 27-03 just completed (Client World Generation Composable)
-Status: Phases 24-29 complete
-Last activity: 2026-03-07 - Completed quick task 340: Unify typed and clicked command routing
+Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
+Plan: 30-01 just completed (Round-Based Combat Engine)
+Status: Phase 30 in progress (1/4 plans complete)
+Last activity: 2026-03-08 - Completed Phase 30 Plan 01: Round-Based Combat Engine
 
-Progress: [██████████] 100%
+Progress: [████████░░] 86%
 
 ## Previous Milestone (v1.0)
 
@@ -65,6 +65,7 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 | Phase 29 P02 | 7min | 2 tasks | 6 files |
 | Phase 29 P03 | 4min | 1 tasks | 11 files |
 | Phase 27 P03 | 2min | 2 tasks | 4 files |
+| Phase 30 P01 | 9min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,12 @@ See MILESTONES.md for full v1.0 delivery summary. Phases 1-23 complete (shipped 
 - [Phase 29]: Old dialogue tree (getAvailableDialogueOptions) deprecated in favor of LLM conversation
 - [Phase 27]: Client calls prepareWorldGenLlm reducer (not procedure) -- reducer creates LlmTask, useLlmProxy handles HTTP call
 - [Phase 27]: WORLD-03 (evolution hooks) explicitly deferred per CONTEXT.md discretionary guidance
+- [Phase 30]: Boss enemies get 2 actions per round (1 ability + 1 auto-attack); standard enemies get 1
+- [Phase 30]: Solo combat uses 6s timer, group combat uses 10s timer
+- [Phase 30]: Effect duration conversion: 1 round ~ 4 seconds equivalent (durationMicros / 4_000_000n)
+- [Phase 30]: Players can change submitted action before round locks (upsert pattern)
+- [Phase 30]: Legacy combat_loop remains registered for backward compatibility during transition
+- [Phase 30]: Flee is a round action choice resolved during resolution, not immediate status change
 
 ### Pending Todos
 
@@ -156,5 +163,5 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-08T00:28:33.478Z
-Stopped at: Phase 30 context gathered
+Last session: 2026-03-08T01:55:11Z
+Stopped at: Completed 30-01-PLAN.md (Round-Based Combat Engine)
