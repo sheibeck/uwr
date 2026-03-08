@@ -1584,6 +1584,35 @@ const onCreationSubmit = (text: string) => {
     }
   }
 
+  if (kwLower.startsWith('salvage ')) {
+    const itemName = kw.substring(8).trim();
+    const item = inventoryItems.value.find(
+      (i: any) => i.name.toLowerCase() === itemName.toLowerCase()
+    );
+    if (item) {
+      salvageItem(item.instanceId);
+      addLocalEvent('system', `You salvage ${item.name}.`, 'private');
+      return;
+    }
+  }
+  if (kwLower.startsWith('sell ')) {
+    const itemName = kw.substring(5).trim();
+    const item = inventoryItems.value.find(
+      (i: any) => i.name.toLowerCase() === itemName.toLowerCase()
+    );
+    if (item) {
+      const vendorNpc = npcsHere.value?.find((npc: any) => npc.npcType === 'vendor');
+      if (vendorNpc) {
+        activeVendorId.value = vendorNpc.id;
+        sellItem(item.instanceId);
+        addLocalEvent('system', `You sell ${item.name}.`, 'private');
+      } else {
+        addLocalEvent('system', 'No vendor here to sell to.', 'private');
+      }
+      return;
+    }
+  }
+
   // 6. Inventory item name click — show unequip confirmation for equipped items
   const clickedEquipped = equippedSlots.value.find(
     (s: any) => s.name !== 'Empty' && s.name.toLowerCase() === kwLower
@@ -1599,6 +1628,8 @@ const onCreationSubmit = (text: string) => {
   );
   if (clickedBackpack) {
     const options: string[] = [];
+    const GEAR_SLOTS = new Set(['head','chest','wrists','hands','belt','legs','boots','earrings','neck','cloak','mainHand','offHand']);
+    const isGear = GEAR_SLOTS.has(clickedBackpack.slot);
     if (clickedBackpack.equipable) {
       options.push(`[Equip ${clickedBackpack.name}]`);
     }
@@ -1609,6 +1640,15 @@ const onCreationSubmit = (text: string) => {
     }
     if (clickedBackpack.usable || clickedBackpack.eatable) {
       options.push(`[Use ${clickedBackpack.name}]`);
+    }
+    // Salvage option for gear items (not junk)
+    if (isGear && !clickedBackpack.isJunk) {
+      options.push(`[Salvage ${clickedBackpack.name}]`);
+    }
+    // Sell option when vendor is present
+    const hasVendor = npcsHere.value?.some((npc: any) => npc.npcType === 'vendor');
+    if (hasVendor) {
+      options.push(`[Sell ${clickedBackpack.name}]`);
     }
     if (options.length > 0) {
       addLocalEvent('system', `${clickedBackpack.name}: ${options.join('  ')}`, 'private');
