@@ -73,11 +73,12 @@ Plans:
   3. Backend has no duplicated sell/combat/economy logic -- shared helpers exist and all call sites use them
   4. Frontend has no redundant components doing the same thing (legacy panels alongside narrative equivalents removed)
   5. Import graph is clean -- no broken or circular imports after all removals
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 32-01: TBD
-- [ ] 32-02: TBD
+- [ ] 32-01-PLAN.md -- Extract mechanical rules to domain-specific files, rewire all importers
+- [ ] 32-02-PLAN.md -- Delete legacy backend files, seeding system, deduplicate logic, remove dead reducers
+- [ ] 32-03-PLAN.md -- Delete legacy frontend panels, clean App.vue, remove orphaned composables
 
 ### Phase 33: Combat Improvements
 **Goal**: Players see complete, informative combat feedback and encounter balanced difficulty
@@ -164,7 +165,7 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37
 | 1-23 | v1.0 | All | Complete | 2026-02-25 |
 | 24-30 | v2.0 | 22/22 | Complete | 2026-03-09 |
 | 31. Test Infrastructure | 3/3 | Complete    | 2026-03-09 | - |
-| 32. Dead Code Removal | v2.1 | 0/? | Not started | - |
+| 32. Dead Code Removal | v2.1 | 0/3 | Planned | - |
 | 33. Combat Improvements | v2.1 | 0/? | Not started | - |
 | 34. Narrative UI Integration | v2.1 | 0/? | Not started | - |
 | 35. Dynamic Equipment Generation | v2.1 | 0/? | Not started | - |
@@ -172,4 +173,4 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37
 | 37. UX Polish | v2.1 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-09 after phase 31 planning*
+*Last updated: 2026-03-09 after phase 32 planning*
