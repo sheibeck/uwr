@@ -287,7 +287,7 @@ export const registerCombatReducers = (deps: any) => {
     CombatPendingAdd,
     getGroupOrSoloParticipants,
     effectiveGroupId,
-    requirePullerOrLog,
+
     hasShieldEquipped,
     EnemyRespawnTick,
     PullState,
@@ -858,9 +858,9 @@ export const registerCombatReducers = (deps: any) => {
     }
     const locationId = character.locationId;
 
-    const pullerCheck = requirePullerOrLog(ctx, character, fail, 'Only the group puller can start combat.');
-    if (!pullerCheck.ok) return;
-    let groupId: bigint | null = pullerCheck.groupId;
+    // Anyone in a group can start combat (puller restriction removed)
+    const membership = [...ctx.db.group_member.by_character.filter(character.id)][0];
+    let groupId: bigint | null = membership ? membership.groupId : null;
 
     // Determine participants (virtual solo group)
     const participants: typeof deps.Character.rowType[] = getGroupOrSoloParticipants(ctx, character);
@@ -898,9 +898,9 @@ export const registerCombatReducers = (deps: any) => {
         return failCombat(ctx, character, 'Already in combat');
       }
       const locationId = character.locationId;
-      const pullerCheck = requirePullerOrLog(ctx, character, fail, 'Only the group puller can start combat.');
-      if (!pullerCheck.ok) return;
-      let groupId: bigint | null = pullerCheck.groupId;
+      // Anyone in a group can start combat (puller restriction removed)
+      const membership = [...ctx.db.group_member.by_character.filter(character.id)][0];
+      let groupId: bigint | null = membership ? membership.groupId : null;
       const participants: typeof deps.Character.rowType[] = getGroupOrSoloParticipants(ctx, character);
       if (participants.length === 0) return failCombat(ctx, character, 'No participants available');
       for (const p of participants) {
@@ -935,9 +935,9 @@ export const registerCombatReducers = (deps: any) => {
         return failCombat(ctx, character, 'Invalid pull type');
       }
 
-      const pullerCheck = requirePullerOrLog(ctx, character, fail, 'Only the group puller can pull.');
-      if (!pullerCheck.ok) return;
-      let groupId: bigint | null = pullerCheck.groupId;
+      // Anyone in a group can pull (puller restriction removed)
+      const membership = [...ctx.db.group_member.by_character.filter(character.id)][0];
+      let groupId: bigint | null = membership ? membership.groupId : null;
 
       for (const pull of ctx.db.pull_state.by_character.filter(character.id)) {
         if (pull.state === 'pending') {
@@ -2484,14 +2484,14 @@ export const registerCombatReducers = (deps: any) => {
           const healed = character.hp + effect.magnitude > character.maxHp
             ? character.maxHp : character.hp + effect.magnitude;
           ctx.db.character.id.update({ ...character, hp: healed });
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
-            `${effect.sourceAbility ?? 'Regeneration'} heals you for ${effect.magnitude}.`);
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'heal',
+            `${effect.sourceAbility ?? 'Regeneration'} soothes you for ${effect.magnitude} HP.`);
         } else if (effect.effectType === 'dot' && character.hp > 0n) {
           const dmg = effect.magnitude > 0n ? effect.magnitude : -effect.magnitude;
           const nextHp = character.hp > dmg ? character.hp - dmg : 0n;
           ctx.db.character.id.update({ ...character, hp: nextHp });
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage',
-            `${effect.sourceAbility ?? 'DoT'} deals ${dmg} damage to you.`);
+            `You suffer ${dmg} damage from ${effect.sourceAbility ?? 'a lingering effect'}.`);
           if (nextHp === 0n) {
             const participant = [...ctx.db.combat_participant.by_combat.filter(combatId)]
               .find((cp: any) => cp.characterId === character.id);
