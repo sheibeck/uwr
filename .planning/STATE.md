@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
 status: executing
-stopped_at: Completed 31-02-PLAN.md
-last_updated: "2026-03-09T15:53:26.363Z"
-last_activity: 2026-03-09 -- Completed 31-02 combat regression tests
+stopped_at: Completed 31-03-PLAN.md (Phase 31 complete)
+last_updated: "2026-03-09T15:54:00.000Z"
+last_activity: 2026-03-09 -- Completed phase 31 test infrastructure (all 3 plans)
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 85
+  completed_plans: 3
+  percent: 86
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 ## Current Position
 
 Phase: 31 of 37 (Test Infrastructure)
-Plan: 3 of 3
-Status: Executing
-Last activity: 2026-03-09 -- Completed 31-02 combat regression tests
+Plan: 3 of 3 (COMPLETE)
+Status: Phase Complete
+Last activity: 2026-03-09 -- Completed 31-03 items/equipment-gen/intent-routing tests
 
 Progress: [█████████░] 85%
 
@@ -48,6 +48,8 @@ See MILESTONES.md for full delivery summaries.
 - v2.1: COMB-08 (group info readability) assigned to Phase 37 (UX Polish) rather than Phase 33 (Combat) -- it is purely visual, not combat logic
 - [Phase 31]: by_owner index maps to ownerId by default in shared mock DB
 - [Phase 31]: Integration flow tests compose pure helpers + mock DB rather than testing resolveAbility directly
+- [Phase 31]: Mock item data uses dual ownerId/ownerCharacterId to bridge mock index mapping with production insert
+- [Phase 31]: Intent routing tests isolate regex patterns rather than testing full dispatch
 
 ### Pending Todos
 
@@ -61,5 +63,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T15:53:21.426Z
-Stopped at: Completed 31-02-PLAN.md
+Last session: 2026-03-09T15:54:00Z
+Stopped at: Completed 31-03-PLAN.md (Phase 31 complete)
