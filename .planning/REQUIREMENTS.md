@@ -32,7 +32,7 @@ Requirements for v2.1 Project Cleanup milestone. Each maps to roadmap phases.
 - [ ] **COMB-03**: Combat log shows buff/debuff application with stat, magnitude, and duration
 - [ ] **COMB-04**: Combat log shows buff/debuff expiration
 - [ ] **COMB-05**: Enemy HUD displays active DoT/HoT/debuff indicators with remaining duration
-- [ ] **COMB-06**: Multi-enemy pull system verified working (engage multiple groups simultaneously)
+- [x] **COMB-06**: Multi-enemy pull system verified working (engage multiple groups simultaneously)
 - [ ] **COMB-07**: Combat balance pass — tuned damage/healing constants validated via tests
 - [ ] **COMB-08**: Group info panel has readable font size and layout
 
@@ -112,7 +112,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | COMB-03 | Phase 33 | Pending |
 | COMB-04 | Phase 33 | Pending |
 | COMB-05 | Phase 33 | Pending |
-| COMB-06 | Phase 33 | Pending |
+| COMB-06 | Phase 33 | Complete |
 | COMB-07 | Phase 33 | Pending |
 | COMB-08 | Phase 37 | Pending |
 | NARR-01 | Phase 34 | Pending |

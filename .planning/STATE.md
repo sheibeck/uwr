@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
 status: executing
-stopped_at: Completed quick-392-PLAN.md
-last_updated: "2026-03-09T21:19:43.215Z"
-last_activity: 2026-03-09 -- Completed 32-03 legacy frontend panels cleanup
+stopped_at: Completed 33-02-PLAN.md
+last_updated: "2026-03-09T23:30:03.272Z"
+last_activity: "2026-03-09 - Completed quick task 392: Restore quest formatting, add rich styling to renown/factions/events"
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 9
+  completed_plans: 7
   percent: 88
 ---
 
@@ -59,6 +59,8 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 32]: Replaced syncAllContent in init with targeted ensureRaces + ensureWorldState + ensureStarterItemTemplates
 - [Phase 32]: Extracted computeSellValue to helpers/economy.ts to deduplicate vendor sell price calculation
 - [Phase quick-392]: Removed client-side quests handler to restore server-side rich formatting
+- [Phase 33]: Replaced requirePullerOrLog with direct group_member lookup for simpler group ID resolution
+- [Phase 33]: Mid-combat pull adds enemies via addEnemyToCombat; kept set_group_puller reducer to avoid schema changes
 
 ### Pending Todos
 
@@ -78,5 +80,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T21:19:42.272Z
-Stopped at: Completed quick-392-PLAN.md
+Last session: 2026-03-09T23:30:03.266Z
+Stopped at: Completed 33-02-PLAN.md
