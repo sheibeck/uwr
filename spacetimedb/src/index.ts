@@ -14,7 +14,7 @@ import {
   buildCombinedCreationUserPrompt,
   buildRegionGenerationUserPrompt,
 } from './data/llm_prompts';
-import { pickRippleMessage, pickDiscoveryMessage, computeRegionDanger } from './data/world_gen';
+import { pickRippleMessage, pickDiscoveryMessage, computeRegionDanger } from './helpers/world_gen';
 import { writeGeneratedRegion, buildRegionContext } from './helpers/world_gen';
 import { parseSkillGenResult, insertPendingSkills } from './helpers/skill_gen';
 import { updateNpcMemory, getActiveQuestCount, getActiveQuestCountForNpc, MAX_ACTIVE_QUESTS, MAX_QUESTS_PER_NPC } from './helpers/npc_conversation';
@@ -72,7 +72,7 @@ import {
 } from './data/class_stats';
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from './data/xp';
 import { RACE_DATA, ensureRaces } from './data/races';
-import { ensureFactions } from './data/faction_data';
+// ensureFactions removed -- factions are now generated through play
 import {
   calculateCritChance,
   getCritMultiplier,
@@ -228,14 +228,8 @@ import {
   executeCorpseSummon,
 } from './helpers/corpse';
 
+import { initScheduledTables } from './helpers/scheduling';
 import {
-  ensureHealthRegenScheduled,
-  ensureEffectTickScheduled,
-  ensureHotTickScheduled,
-  ensureCastTickScheduled,
-  ensureDayNightTickScheduled,
-  ensureInactivityTickScheduled,
-  ensureLlmCleanupScheduled,
   syncAllContent,
 } from './seeding/ensure_content';
 
@@ -1333,14 +1327,7 @@ spacetimedb.reducer('submit_llm_result', {
 
 spacetimedb.init((ctx) => {
   syncAllContent(ctx);
-
-  ensureHealthRegenScheduled(ctx);
-  ensureEffectTickScheduled(ctx);
-  ensureHotTickScheduled(ctx);
-  ensureCastTickScheduled(ctx);
-  ensureDayNightTickScheduled(ctx);
-  ensureInactivityTickScheduled(ctx);
-  ensureLlmCleanupScheduled(ctx);
+  initScheduledTables(ctx);
 });
 
 spacetimedb.clientConnected((ctx) => {
@@ -1479,6 +1466,7 @@ const reducerDeps = {
   ensureLocationEnemyTemplates,
   ensureLocationRuntimeBootstrap,
   syncAllContent,
+  initScheduledTables,
   spawnResourceNode,
   awardXp,
   xpRequiredForLevel,

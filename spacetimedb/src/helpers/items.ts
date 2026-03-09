@@ -4,7 +4,7 @@ import { normalizeClassName } from '../data/class_stats';
 import { PREFIXES, SUFFIXES, AFFIX_COUNT_BY_QUALITY } from '../data/affix_catalog';
 import { getWeaponSpeed } from '../data/combat_scaling';
 import { DEFAULT_WEAPON_SPEED_MICROS, TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
-import { STARTER_WEAPON_DEFS } from '../data/item_defs';
+import { STARTER_WEAPON_DEFS } from '../data/equipment_rules';
 
 export const EQUIPMENT_SLOTS = new Set([
   'head',

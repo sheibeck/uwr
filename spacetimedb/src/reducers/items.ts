@@ -991,10 +991,5 @@ export const registerItemReducers = (deps: any) => {
     ensureQuestTemplates(ctx);
   });
 
-  spacetimedb.reducer('sync_all_content', (ctx) => {
-    requirePlayerUserId(ctx);
-    syncAllContent(ctx);
-  });
-
 
 };

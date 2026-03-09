@@ -13,7 +13,7 @@ import {
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ScheduleAt } from 'spacetimedb';
 import { scheduleCombatTick } from '../helpers/combat';
-import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
+import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_rules';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { addCharacterEffect, addEnemyEffect } from '../helpers/combat';
 import { applyPerkProcs } from '../helpers/combat_perks';

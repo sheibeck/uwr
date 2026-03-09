@@ -1,6 +1,6 @@
 import { scheduledReducers } from '../schema/tables';
 import { getPerkBonusByField } from '../helpers/renown';
-import { CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
+import { CRAFTING_MODIFIER_DEFS } from '../data/crafting_rules';
 
 export const registerItemGatheringReducers = (deps: any) => {
   const {

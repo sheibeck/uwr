@@ -1,5 +1,5 @@
 import { buildDisplayName, findItemTemplateByName } from '../helpers/items';
-import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, MATERIAL_DEFS, materialTierToCraftQuality, getCraftQualityStatBonus, CRAFTING_MODIFIER_DEFS, AFFIX_SLOTS_BY_QUALITY, ESSENCE_MAGNITUDE, ESSENCE_QUALITY_GATE, getModifierMagnitude } from '../data/crafting_materials';
+import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, MATERIAL_DEFS, materialTierToCraftQuality, getCraftQualityStatBonus, CRAFTING_MODIFIER_DEFS, AFFIX_SLOTS_BY_QUALITY, ESSENCE_MAGNITUDE, ESSENCE_QUALITY_GATE, getModifierMagnitude } from '../data/crafting_rules';
 import { statOffset, INT_SALVAGE_BONUS_PER_POINT, SALVAGE_SCROLL_CHANCE_BASE } from '../data/combat_scaling.js';
 
 export const registerItemCraftingReducers = (deps: any) => {

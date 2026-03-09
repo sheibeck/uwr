@@ -96,6 +96,7 @@ export const registerCommandReducers = (deps: any) => {
     ensureLootTables,
     ensureVendorInventory,
     syncAllContent,
+    initScheduledTables,
     addItemToInventory,
     MAX_INVENTORY_SLOTS,
   } = deps;
@@ -268,6 +269,7 @@ export const registerCommandReducers = (deps: any) => {
       requireAdmin(ctx);
       const userId = requirePlayerUserId(ctx);
       syncAllContent(ctx);
+      initScheduledTables(ctx);
       appendPrivateEvent(
         ctx,
         character.id,

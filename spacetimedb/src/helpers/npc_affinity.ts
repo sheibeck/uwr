@@ -1,4 +1,4 @@
-import { CONVERSATION_COOLDOWN_MICROS } from '../data/npc_data';
+import { CONVERSATION_COOLDOWN_MICROS } from '../data/npc_rules';
 import { appendSystemMessage } from './events';
 import { getPerkBonusByField } from './renown';
 import { statOffset, CHA_AFFINITY_BONUS_PER_POINT } from '../data/combat_scaling.js';

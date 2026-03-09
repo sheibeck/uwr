@@ -3,7 +3,7 @@ import { Timestamp } from 'spacetimedb';
 import { findItemTemplateByName } from './items';
 import { GROUP_SIZE_DANGER_BASE, GROUP_SIZE_BIAS_RANGE, GROUP_SIZE_BIAS_MAX } from '../data/combat_constants';
 import { EnemySpawn, EnemyTemplate } from '../schema/tables';
-import { MATERIAL_DEFS, CRAFTING_MODIFIER_DEFS, CRAFTING_MODIFIER_WEIGHT_MULTIPLIER } from '../data/crafting_materials';
+import { MATERIAL_DEFS, CRAFTING_MODIFIER_DEFS, CRAFTING_MODIFIER_WEIGHT_MULTIPLIER } from '../data/crafting_rules';
 
 export const DAY_DURATION_MICROS = 1_200_000_000n;
 export const NIGHT_DURATION_MICROS = 600_000_000n;
