@@ -21,14 +21,6 @@
         {{ campCountdown !== null ? `Camp (${campCountdown}s)` : 'Camp' }}
       </button>
       <button
-        @click="emit('toggle', 'characterInfo')"
-        :style="actionStyle('characterInfo')"
-        :class="{ 'onboarding-pulse': props.highlightInventory }"
-        :disabled="isLocked('characterInfo')"
-      >
-        Character (C)
-      </button>
-      <button
         @click="emit('toggle', 'crafting')"
         :style="actionStyle('crafting')"
         :disabled="isLocked('crafting')"
@@ -95,7 +87,6 @@ import { ref, computed, watch, onUnmounted } from 'vue';
 
 type PanelKey =
   | 'character'
-  | 'characterInfo'
   | 'friends'
   | 'group'
   | 'crafting'
@@ -162,7 +153,7 @@ const campButtonStyle = computed(() => ({
 }));
 
 const actionStyle = (panel: string) => {
-  const highlight = panel === 'characterInfo' && props.highlightInventory;
+  const highlight = false;
   const isActive = props.openPanels.has(panel);
   return {
     ...props.styles.actionButton,

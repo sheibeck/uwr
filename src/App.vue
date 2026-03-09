@@ -133,11 +133,6 @@
       </div>
     </FloatingPanel>
 
-    <!-- Character Info Panel (wide) -->
-    <FloatingPanel panel-id="characterInfo" title="Character" wide>
-      <CharacterInfoPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :equipped-slots="equippedSlots" :inventory-items="inventoryItems" :inventory-count="inventoryCount" :max-inventory-slots="maxInventorySlots" :combat-locked="lockInventoryEdits" :stat-bonuses="equippedStatBonuses" :locations="locations" :regions="regions" :races="races" :available-abilities="availableAbilities" :renown-perks="characterRenownPerks" @equip="equipItem" @unequip="unequipItem" @use-item="useItem" @eat-food="eatFood" @delete-item="deleteItem" @split-stack="(id: bigint, qty: bigint) => splitStack(id, qty)" @organize="organizeInventory" @salvage-item="salvageItem" @add-to-hotbar="onAddItemToHotbar" @add-ability-to-hotbar="onAddAbilityToHotbar" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" :onboarding="highlightInventory" :requested-tab="panels.characterInfo?.tab" @tab-change="onCharacterTabChange" :bank-open="panels.bank?.open ?? false" @deposit-to-bank="depositToBank" />
-    </FloatingPanel>
-
     <!-- Friends Panel -->
     <FloatingPanel panel-id="friends" title="Friends">
       <FriendsPanel :styles="styles" :conn-active="conn.isActive" :is-logged-in="isLoggedIn" :friend-email="friendEmail" :incoming-requests="incomingRequests" :outgoing-requests="outgoingRequests" :friends="myFriends" :email-by-user-id="emailByUserId" @update:friendEmail="friendEmail = $event" @send-request="sendRequest" @accept="acceptRequest" @reject="rejectRequest" @remove="removeFriend" />
@@ -534,7 +529,7 @@ import { styles } from './ui/styles';
 import SplashScreen from './components/SplashScreen.vue';
 import AppHeader from './components/AppHeader.vue';
 import NarrativeConsole from './components/NarrativeConsole.vue';
-import CharacterInfoPanel from './components/CharacterInfoPanel.vue';
+// CharacterInfoPanel removed — stats/abilities/character now accessible via chat commands (quick-383)
 import GroupPanel from './components/GroupPanel.vue';
 import FriendsPanel from './components/FriendsPanel.vue';
 import CraftingPanel from './components/CraftingPanel.vue';
@@ -2602,12 +2597,7 @@ const updateAccordionState = (payload: { key: AccordionKey; open: boolean }) => 
   persistAccordionState();
 };
 
-const onCharacterTabChange = (tab: string) => {
-  setPanelTab('characterInfo', tab);
-  if (onboardingStep.value !== null && tab === 'abilities') {
-    onboardingStep.value = null;
-  }
-};
+// onCharacterTabChange removed — CharacterInfoPanel replaced by chat commands (quick-383)
 
 const handleHotbarKeydown = (e: KeyboardEvent) => {
   // Skip if any text input or textarea has focus

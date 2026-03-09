@@ -2,7 +2,7 @@ import { computed, reactive, ref, watch, Ref } from 'vue';
 
 // Panel IDs that open on demand — default to screen center
 const ON_DEMAND_PANEL_IDS = [
-  'character', 'characterInfo', 'hotbarPanel', 'friends', 'crafting',
+  'character', 'hotbarPanel', 'friends', 'crafting',
   'journal', 'renown', 'worldEvents', 'loot', 'vendor', 'trade',
   'track', 'travelPanel', 'combat', 'map', 'bank',
   'log', 'travel', 'hotbar', 'group',

@@ -91,7 +91,6 @@ const staminaPercent = computed(() => {
 });
 
 const panelButtons = [
-  { id: 'characterInfo', label: 'Inv' },
   { id: 'map', label: 'Map' },
   { id: 'journal', label: 'Quests' },
   { id: 'friends', label: 'Social' },
