@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-09 - Completed quick task 385: Preserve exact race names in character creator
+Last activity: 2026-03-09 - Completed quick task 386: Group member UI with buffs/debuffs display
 
 Progress: [█████████░] 88%
 
@@ -223,8 +223,9 @@ None yet.
 | 383 | Replace CharacterInfoPanel with chat commands | 2026-03-09 | 006003b, 98cbb1d | [383-replace-characterinfopanel-with-chat-com](./quick/383-replace-characterinfopanel-with-chat-com/) |
 | 384 | Add [choose ability] links in abilities command | 2026-03-09 | a72cdbc | [384-add-choose-ability-links-in-abilities-co](./quick/384-add-choose-ability-links-in-abilities-co/) |
 | 385 | Preserve exact race names in character creation | 2026-03-09 | 7928d7b, df9d9f1, 043bc23 | [385-preserve-exact-race-names-in-character-c](./quick/385-preserve-exact-race-names-in-character-c/) |
+| 386 | Add group member UI with buffs/debuffs display | 2026-03-09 | aa79052, 82dd1a8 | [386-add-group-member-ui-with-buffs-debuffs-d](./quick/386-add-group-member-ui-with-buffs-debuffs-d/) |
 
 ## Session Continuity
 
-Last session: 2026-03-09T01:10:00Z
-Stopped at: Completed quick-385 (Preserve exact race names in character creation)
+Last session: 2026-03-09T01:18:00Z
+Stopped at: Completed quick-386 (Group member UI with buffs/debuffs display)
