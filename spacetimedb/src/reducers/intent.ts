@@ -391,33 +391,54 @@ export const registerIntentReducers = (deps: any) => {
       }
       parts.push('');
 
-      // Look up race
-      let raceFound = false;
-      for (const r of ctx.db.race.iter()) {
-        if (r.name.toLowerCase() === character.race.toLowerCase()) {
-          raceFound = true;
-          parts.push(`Race: ${r.name}`);
-          if (r.description) parts.push(r.description);
-          parts.push('');
-          parts.push('Racial Bonuses:');
-          parts.push(`  ${fmtLabel(r.bonus1Type)}: ${fmtVal(r.bonus1Type, r.bonus1Value)}`);
-          parts.push(`  ${fmtLabel(r.bonus2Type)}: ${fmtVal(r.bonus2Type, r.bonus2Value)}`);
-          if (r.penaltyType && r.penaltyValue) {
-            parts.push(`  ${fmtLabel(r.penaltyType)}: ${fmtPenalty(r.penaltyType, r.penaltyValue)}`);
+      // Look up race — try race_definition first (v2.0 generated races), fall back to legacy race table
+      const raceLower = character.race.toLowerCase();
+      const raceDefs = [...ctx.db.race_definition.by_name.filter(raceLower)];
+      if (raceDefs.length > 0) {
+        const rd = raceDefs[0];
+        parts.push(`Race: ${rd.name}`);
+        if (rd.narrative) parts.push(rd.narrative);
+        parts.push('');
+        try {
+          const bonuses = JSON.parse(rd.bonusesJson);
+          if (bonuses.primary) {
+            parts.push('Racial Bonuses:');
+            parts.push(`  ${fmtLabel(bonuses.primary.stat)}: ${fmtVal(bonuses.primary.stat, BigInt(bonuses.primary.value))}`);
+            if (bonuses.secondary) {
+              parts.push(`  ${fmtLabel(bonuses.secondary.stat)}: ${fmtVal(bonuses.secondary.stat, BigInt(bonuses.secondary.value))}`);
+            }
+            if (bonuses.flavor) parts.push(`  ${bonuses.flavor}`);
           }
-          parts.push('');
-          const evenLevels = Number(character.level) / 2 | 0;
-          parts.push('Level Bonus (every 2 levels):');
-          parts.push(`  ${fmtLabel(r.levelBonusType)}: ${fmtVal(r.levelBonusType, r.levelBonusValue)} per even level`);
-          if (evenLevels > 0) {
-            parts.push(`  Total at level ${character.level}: ${fmtVal(r.levelBonusType, r.levelBonusValue * BigInt(evenLevels))}`);
+        } catch { /* bonusesJson parse error - show name only */ }
+      } else {
+        // Fallback to old race table (legacy races)
+        let raceFound = false;
+        for (const r of ctx.db.race.iter()) {
+          if (r.name.toLowerCase() === raceLower) {
+            raceFound = true;
+            parts.push(`Race: ${r.name}`);
+            if (r.description) parts.push(r.description);
+            parts.push('');
+            parts.push('Racial Bonuses:');
+            parts.push(`  ${fmtLabel(r.bonus1Type)}: ${fmtVal(r.bonus1Type, r.bonus1Value)}`);
+            parts.push(`  ${fmtLabel(r.bonus2Type)}: ${fmtVal(r.bonus2Type, r.bonus2Value)}`);
+            if (r.penaltyType && r.penaltyValue) {
+              parts.push(`  ${fmtLabel(r.penaltyType)}: ${fmtPenalty(r.penaltyType, r.penaltyValue)}`);
+            }
+            parts.push('');
+            const evenLevels = Number(character.level) / 2 | 0;
+            parts.push('Level Bonus (every 2 levels):');
+            parts.push(`  ${fmtLabel(r.levelBonusType)}: ${fmtVal(r.levelBonusType, r.levelBonusValue)} per even level`);
+            if (evenLevels > 0) {
+              parts.push(`  Total at level ${character.level}: ${fmtVal(r.levelBonusType, r.levelBonusValue * BigInt(evenLevels))}`);
+            }
+            break;
           }
-          break;
         }
-      }
-      if (!raceFound) {
-        parts.push(`Race: ${character.race}`);
-        parts.push('Race data unavailable.');
+        if (!raceFound) {
+          parts.push(`Race: ${character.race}`);
+          parts.push('Race data unavailable.');
+        }
       }
 
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', parts.join('\n'));
