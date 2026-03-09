@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
 status: executing
-stopped_at: Completed 31-01-PLAN.md
-last_updated: "2026-03-09T15:47:16.722Z"
-last_activity: 2026-03-09 -- Completed 31-01 test infrastructure foundation
+stopped_at: Completed 31-02-PLAN.md
+last_updated: "2026-03-09T15:53:26.363Z"
+last_activity: 2026-03-09 -- Completed 31-02 combat regression tests
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 84
+  completed_plans: 2
+  percent: 85
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 ## Current Position
 
 Phase: 31 of 37 (Test Infrastructure)
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Executing
-Last activity: 2026-03-09 -- Completed 31-01 test infrastructure foundation
+Last activity: 2026-03-09 -- Completed 31-02 combat regression tests
 
-Progress: [████████░░] 84%
+Progress: [█████████░] 85%
 
 ## Previous Milestones
 
@@ -47,6 +47,7 @@ See MILESTONES.md for full delivery summaries.
 
 - v2.1: COMB-08 (group info readability) assigned to Phase 37 (UX Polish) rather than Phase 33 (Combat) -- it is purely visual, not combat logic
 - [Phase 31]: by_owner index maps to ownerId by default in shared mock DB
+- [Phase 31]: Integration flow tests compose pure helpers + mock DB rather than testing resolveAbility directly
 
 ### Pending Todos
 
@@ -60,5 +61,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T15:46:09Z
-Stopped at: Completed 31-01-PLAN.md
+Last session: 2026-03-09T15:53:21.426Z
+Stopped at: Completed 31-02-PLAN.md
