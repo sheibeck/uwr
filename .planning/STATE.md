@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
 status: executing
-stopped_at: Completed 32-02-PLAN.md
-last_updated: "2026-03-09T19:29:03.542Z"
+stopped_at: Completed quick-392-PLAN.md
+last_updated: "2026-03-09T21:19:43.215Z"
 last_activity: 2026-03-09 -- Completed 32-03 legacy frontend panels cleanup
 progress:
   total_phases: 7
@@ -58,6 +58,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 32]: Relocated ensureStarterItemTemplates to helpers/items.ts -- still needed by grantStarterItems for character creation
 - [Phase 32]: Replaced syncAllContent in init with targeted ensureRaces + ensureWorldState + ensureStarterItemTemplates
 - [Phase 32]: Extracted computeSellValue to helpers/economy.ts to deduplicate vendor sell price calculation
+- [Phase quick-392]: Removed client-side quests handler to restore server-side rich formatting
 
 ### Pending Todos
 
@@ -71,5 +72,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T19:24:18.705Z
-Stopped at: Completed 32-02-PLAN.md
+Last session: 2026-03-09T21:19:42.272Z
+Stopped at: Completed quick-392-PLAN.md
