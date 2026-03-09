@@ -1,4 +1,5 @@
 import { awardNpcAffinity } from '../helpers/npc_affinity';
+import { recordQuestCompletion } from '../helpers/npc_conversation';
 
 function computeQuestRewardStats(playerLevel: bigint, questType: string) {
   const levelNum = Number(playerLevel);
@@ -263,6 +264,8 @@ export const registerQuestReducers = (deps: any) => {
     // Award NPC affinity for quest completion
     if (qt.npcId) {
       awardNpcAffinity(ctx, character, qt.npcId, 10n);
+      // Record quest name in NPC memory for narrative continuity and follow-up chains
+      recordQuestCompletion(ctx, character.id, qt.npcId, qt.name);
     }
 
     // Delete the completed quest instance (free up quest slot)

@@ -17,7 +17,7 @@ import {
 import { pickRippleMessage, pickDiscoveryMessage, computeRegionDanger } from './data/world_gen';
 import { writeGeneratedRegion, buildRegionContext } from './helpers/world_gen';
 import { parseSkillGenResult, insertPendingSkills } from './helpers/skill_gen';
-import { updateNpcMemory, getActiveQuestCount, MAX_ACTIVE_QUESTS } from './helpers/npc_conversation';
+import { updateNpcMemory, getActiveQuestCount, getActiveQuestCountForNpc, MAX_ACTIVE_QUESTS, MAX_QUESTS_PER_NPC } from './helpers/npc_conversation';
 import { awardNpcAffinity } from './helpers/npc_affinity';
 import { handleCombatNarrationResult } from './helpers/combat_narration';
 import { QUEST_TYPES } from './data/mechanical_vocabulary';
@@ -1057,14 +1057,28 @@ spacetimedb.reducer('submit_llm_result', {
           questType = 'kill';
         }
 
-        // Check active quest count
+        // Check active quest count (global cap)
         const activeQuests = getActiveQuestCount(ctx, charId);
         if (activeQuests >= MAX_ACTIVE_QUESTS) continue;
+
+        // Per-NPC cap enforcement (safety net — LLM prompt already discourages this)
+        if (getActiveQuestCountForNpc(ctx, charId, npcIdVal) >= MAX_QUESTS_PER_NPC) continue;
+
+        // Duplicate quest name prevention: skip if same NPC+character already has this quest name
+        const questName = effect.questName || 'Unknown Quest';
+        let isDuplicate = false;
+        for (const existingQt of ctx.db.quest_template.by_npc.filter(npcIdVal)) {
+          if (existingQt.characterId === charId && existingQt.name === questName) {
+            isDuplicate = true;
+            break;
+          }
+        }
+        if (isDuplicate) continue;
 
         // Create QuestTemplate
         const qt = ctx.db.quest_template.insert({
           id: 0n,
-          name: effect.questName || 'Unknown Quest',
+          name: questName,
           npcId: npcIdVal,
           targetEnemyTemplateId: 0n,
           requiredCount: BigInt(effect.targetCount || 1),
@@ -1136,14 +1150,76 @@ spacetimedb.reducer('submit_llm_result', {
           }
         }
 
-        // For kill-type quests, try to find an appropriate enemy template at the location
+        // For kill-type quests, resolve targetEnemyName from LLM against real enemy templates
         if (['kill', 'kill_loot', 'boss_kill'].includes(questType)) {
-          for (const ref of ctx.db.location_enemy_template.by_location.filter(character.locationId)) {
+          let resolvedEnemyTemplateId: bigint | null = null;
+
+          if (effect.targetEnemyName) {
+            const targetName = effect.targetEnemyName.toLowerCase();
+
+            // Search current location + connected locations for matching enemy template
+            const searchLocIds: bigint[] = [character.locationId];
+            for (const conn of ctx.db.location_connection.by_from.filter(character.locationId)) {
+              searchLocIds.push(conn.toLocationId);
+            }
+
+            for (const locId of searchLocIds) {
+              if (resolvedEnemyTemplateId) break;
+              for (const ref of ctx.db.location_enemy_template.by_location.filter(locId)) {
+                const et = ctx.db.enemy_template.id.find(ref.enemyTemplateId);
+                if (et && et.name.toLowerCase() === targetName) {
+                  resolvedEnemyTemplateId = et.id;
+                  break;
+                }
+              }
+            }
+
+            // LLM invented a new enemy — create template with sensible defaults
+            if (!resolvedEnemyTemplateId) {
+              const charLevel = Number(character.level);
+              const newEt = ctx.db.enemy_template.insert({
+                id: 0n,
+                name: effect.targetEnemyName,
+                role: 'melee',
+                roleDetail: 'standard',
+                abilityProfile: 'basic',
+                terrainTypes: 'any',
+                creatureType: effect.targetEnemyName.toLowerCase().includes('undead') ? 'undead' : 'beast',
+                timeOfDay: 'any',
+                socialGroup: 'loner',
+                socialRadius: 0n,
+                awareness: 'normal',
+                groupMin: 1n,
+                groupMax: 1n,
+                armorClass: BigInt(8 + charLevel),
+                level: character.level,
+                maxHp: BigInt(20 + charLevel * 8),
+                baseDamage: BigInt(3 + charLevel * 2),
+                xpReward: BigInt(charLevel * 10 + 15),
+              });
+              // Link to character's current location
+              ctx.db.location_enemy_template.insert({
+                id: 0n,
+                locationId: character.locationId,
+                enemyTemplateId: newEt.id,
+              });
+              resolvedEnemyTemplateId = newEt.id;
+            }
+          }
+
+          // Fallback: grab first enemy at the location if no targetEnemyName
+          if (!resolvedEnemyTemplateId) {
+            for (const ref of ctx.db.location_enemy_template.by_location.filter(character.locationId)) {
+              resolvedEnemyTemplateId = ref.enemyTemplateId;
+              break;
+            }
+          }
+
+          if (resolvedEnemyTemplateId) {
             ctx.db.quest_template.id.update({
               ...ctx.db.quest_template.id.find(qt.id)!,
-              targetEnemyTemplateId: ref.enemyTemplateId,
+              targetEnemyTemplateId: resolvedEnemyTemplateId,
             });
-            break;
           }
         }
 
