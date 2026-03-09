@@ -136,6 +136,7 @@ export const registerIntentReducers = (deps: any) => {
     activeCombatIdForCharacter,
     areLocationsConnected,
     fail,
+    ScheduleAt,
   } = deps;
 
   spacetimedb.reducer('submit_intent', { characterId: t.u64(), text: t.string() }, (ctx: any, args: any) => {
@@ -189,7 +190,7 @@ export const registerIntentReducers = (deps: any) => {
         '  [quests] — View your active quests and progress.',
         '  deposit <item> — Deposit an item to your bank.',
         '  sell <item> — Sell an item to a vendor.',
-        '  camp — Rest briefly.',
+        '  camp — Make camp and log out after 10 seconds.',
         '  [bind] — Bind to this location\'s bindstone. You will respawn here on death.',
         '  time — Check if it is day or night and how long until it changes.',
       ];
@@ -1049,6 +1050,17 @@ export const registerIntentReducers = (deps: any) => {
       }
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
         'You make camp and rest briefly. The world continues without you.');
+
+      // Schedule logout after 10 seconds
+      const CAMP_LOGOUT_DELAY = 10_000_000n; // 10 seconds in microseconds
+      const logoutAtMicros = ctx.timestamp.microsSinceUnixEpoch + CAMP_LOGOUT_DELAY;
+      ctx.db.character_logout_tick.insert({
+        scheduledId: 0n,
+        scheduledAt: ScheduleAt.time(logoutAtMicros),
+        characterId: character.id,
+        ownerUserId: character.ownerUserId,
+        logoutAtMicros,
+      });
       return;
     }
 
