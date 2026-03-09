@@ -156,7 +156,7 @@ const abbreviate = (label: string) => {
 // Styles
 const barStyle = {
   position: 'fixed' as const,
-  top: '44px',
+  top: '36px',
   left: '0',
   right: '0',
   zIndex: 9999,

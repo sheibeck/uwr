@@ -6,25 +6,6 @@
         {{ character.name }} Lv {{ character.level }}
       </div>
 
-      <!-- Center: HP + Mana bars -->
-      <div :style="{ display: 'flex', gap: '8px', alignItems: 'center' }">
-        <!-- HP Bar -->
-        <div :style="barContainer">
-          <div :style="{ ...barFill, background: '#c92a2a', width: hpPercent + '%' }" />
-          <span :style="barLabel">{{ character.hp }}/{{ character.maxHp }}</span>
-        </div>
-        <!-- Mana Bar -->
-        <div v-if="character.maxMana > 0n" :style="barContainer">
-          <div :style="{ ...barFill, background: '#1864ab', width: manaPercent + '%' }" />
-          <span :style="barLabel">{{ character.mana }}/{{ character.maxMana }}</span>
-        </div>
-        <!-- Stamina Bar -->
-        <div v-if="character.maxStamina > 0n" :style="barContainer">
-          <div :style="{ ...barFill, background: '#e67700', width: staminaPercent + '%' }" />
-          <span :style="barLabel">{{ character.stamina }}/{{ character.maxStamina }}</span>
-        </div>
-      </div>
-
       <!-- Right: Combat + Panel buttons -->
       <div :style="{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }">
         <!-- Combat indicator -->
@@ -61,10 +42,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
 import type { Character } from '../module_bindings/types';
 
-const props = defineProps<{
+defineProps<{
   character: Character | null;
   activeCombat: any | null;
   connActive: boolean;
@@ -74,21 +54,6 @@ const props = defineProps<{
 defineEmits<{
   (e: 'open-panel', panelId: string): void;
 }>();
-
-const hpPercent = computed(() => {
-  if (!props.character || props.character.maxHp === 0n) return 0;
-  return Number((props.character.hp * 100n) / props.character.maxHp);
-});
-
-const manaPercent = computed(() => {
-  if (!props.character || props.character.maxMana === 0n) return 0;
-  return Number((props.character.mana * 100n) / props.character.maxMana);
-});
-
-const staminaPercent = computed(() => {
-  if (!props.character || props.character.maxStamina === 0n) return 0;
-  return Number((props.character.stamina * 100n) / props.character.maxStamina);
-});
 
 const panelButtons = [
   { id: 'map', label: 'Map' },
@@ -102,7 +67,7 @@ const hudStyle = {
   top: '0',
   left: '0',
   right: '0',
-  height: '44px',
+  height: '36px',
   zIndex: 10000,
   background: '#12121a',
   borderBottom: '1px solid #2a2a3a',
@@ -110,36 +75,6 @@ const hudStyle = {
   alignItems: 'center',
   padding: '0 12px',
   gap: '16px',
-};
-
-const barContainer = {
-  position: 'relative' as const,
-  width: '120px',
-  height: '14px',
-  background: '#2a2a3a',
-  borderRadius: '3px',
-  overflow: 'hidden',
-};
-
-const barFill = {
-  position: 'absolute' as const,
-  top: '0',
-  left: '0',
-  height: '100%',
-  transition: 'width 0.3s ease',
-  borderRadius: '3px',
-};
-
-const barLabel = {
-  position: 'absolute' as const,
-  inset: '0',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  color: '#fff',
-  fontSize: '0.6rem',
-  fontWeight: 600,
-  textShadow: '0 1px 2px rgba(0,0,0,0.8)',
 };
 
 const panelBtnStyle = {
