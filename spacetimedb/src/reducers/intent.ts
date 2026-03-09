@@ -1,6 +1,6 @@
 import { getAffinityForNpc, awardNpcAffinity } from '../helpers/npc_affinity';
 import { getWorldState } from '../helpers/location';
-import { performPassiveSearch } from '../helpers/search';
+import { performTravel } from '../helpers/travel';
 
 /**
  * Build the full LOOK output for a character at their current location.
@@ -1175,45 +1175,18 @@ export const registerIntentReducers = (deps: any) => {
         return fail(ctx, character, `No path leads to "${travelTarget}". ${hint}`);
       }
 
-      // Minimal inline move
-      const originId = character.locationId;
-      ctx.db.character.id.update({ ...character, locationId: matchedLocation.id });
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'move',
-        `You travel to ${matchedLocation.name}.`);
-      appendLocationEvent(ctx, originId, 'move', `${character.name} departs.`, character.id);
-      appendLocationEvent(ctx, matchedLocation.id, 'move', `${character.name} arrives.`, character.id);
-
-      // Spawn personal resource nodes + quest items at destination
-      performPassiveSearch(ctx, character, matchedLocation.id, appendPrivateEvent);
-
-      // Auto-look: show full location overview after travel
-      const arrivedChar = ctx.db.character.id.find(character.id);
-      if (arrivedChar) {
-        const lookParts = buildLookOutput(ctx, arrivedChar);
-        if (lookParts.length > 0) {
-          appendPrivateEvent(ctx, arrivedChar.id, arrivedChar.ownerUserId, 'look', lookParts.join('\n'));
-        }
-      }
-
-      // Trigger world generation if destination is uncharted
-      if (matchedLocation.terrainType === 'uncharted') {
-        const existingGen = [...ctx.db.world_gen_state.by_source_location.filter(matchedLocation.id)]
-          .find((s: any) => s.step !== 'ERROR');
-        if (!existingGen) {
-          ctx.db.world_gen_state.insert({
-            id: 0n,
-            playerId: ctx.sender,
-            characterId: args.characterId,
-            sourceLocationId: matchedLocation.id,
-            sourceRegionId: matchedLocation.regionId,
-            step: 'PENDING',
-            createdAt: ctx.timestamp,
-            updatedAt: ctx.timestamp,
-          });
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-            'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...');
-        }
-      }
+      performTravel(ctx, {
+        appendSystemMessage: deps.appendSystemMessage,
+        appendPrivateEvent,
+        appendLocationEvent,
+        appendGroupEvent: deps.appendGroupEvent,
+        areLocationsConnected,
+        activeCombatIdForCharacter,
+        ensureSpawnsForLocation: deps.ensureSpawnsForLocation,
+        isGroupLeaderOrSolo: deps.isGroupLeaderOrSolo,
+        effectiveGroupId: deps.effectiveGroupId,
+        getEquippedWeaponStats: deps.getEquippedWeaponStats,
+      }, character, matchedLocation.id);
       return;
     }
 
@@ -1391,41 +1364,18 @@ export const registerIntentReducers = (deps: any) => {
       if (loc.name.toLowerCase().includes(lower) && !implicitDest) { implicitDest = loc; }
     }
     if (implicitDest) {
-      if (activeCombatIdForCharacter(ctx, character.id)) {
-        return fail(ctx, character, 'Cannot travel while in combat.');
-      }
-      const originId = character.locationId;
-      ctx.db.character.id.update({ ...character, locationId: implicitDest.id });
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'move',
-        `You travel to ${implicitDest.name}.`);
-      appendLocationEvent(ctx, originId, 'move', `${character.name} departs.`, character.id);
-      appendLocationEvent(ctx, implicitDest.id, 'move', `${character.name} arrives.`, character.id);
-
-      // Spawn personal resource nodes + quest items at destination
-      performPassiveSearch(ctx, character, implicitDest.id, appendPrivateEvent);
-
-      // Auto-look after implicit travel
-      const arrivedImplicit = ctx.db.character.id.find(character.id);
-      if (arrivedImplicit) {
-        const lookParts = buildLookOutput(ctx, arrivedImplicit);
-        if (lookParts.length > 0) {
-          appendPrivateEvent(ctx, arrivedImplicit.id, arrivedImplicit.ownerUserId, 'look', lookParts.join('\n'));
-        }
-      }
-
-      if (implicitDest.terrainType === 'uncharted') {
-        const existingGen = [...ctx.db.world_gen_state.by_source_location.filter(implicitDest.id)]
-          .find((s: any) => s.step !== 'ERROR');
-        if (!existingGen) {
-          ctx.db.world_gen_state.insert({
-            id: 0n, playerId: ctx.sender, characterId: args.characterId,
-            sourceLocationId: implicitDest.id, sourceRegionId: implicitDest.regionId,
-            step: 'PENDING', createdAt: ctx.timestamp, updatedAt: ctx.timestamp,
-          });
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-            'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...');
-        }
-      }
+      performTravel(ctx, {
+        appendSystemMessage: deps.appendSystemMessage,
+        appendPrivateEvent,
+        appendLocationEvent,
+        appendGroupEvent: deps.appendGroupEvent,
+        areLocationsConnected,
+        activeCombatIdForCharacter,
+        ensureSpawnsForLocation: deps.ensureSpawnsForLocation,
+        isGroupLeaderOrSolo: deps.isGroupLeaderOrSolo,
+        effectiveGroupId: deps.effectiveGroupId,
+        getEquippedWeaponStats: deps.getEquippedWeaponStats,
+      }, character, implicitDest.id);
       return;
     }
 
