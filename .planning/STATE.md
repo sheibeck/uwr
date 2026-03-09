@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
 status: in-progress
-stopped_at: Completed 32-01-PLAN.md
+stopped_at: Completed 32-03-PLAN.md
 last_updated: "2026-03-09T19:03:14.000Z"
 last_activity: 2026-03-09 -- Completed 32-01 extract rules and rewire imports
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 3
   percent: 88
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 ## Current Position
 
 Phase: 32 of 37 (Dead Code Removal)
-Plan: 1 of 3 (32-01 complete)
+Plan: 3 of 3 (32-03 complete)
 Status: In Progress
-Last activity: 2026-03-09 -- Completed 32-01 extract rules and rewire imports
+Last activity: 2026-03-09 -- Completed 32-03 legacy frontend panels cleanup
 
 Progress: [████████░░] 88%
 
@@ -53,6 +53,8 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 32]: Kept CONSUMABLE_RECIPES/GEAR_RECIPES in crafting_materials.ts -- only seeding imports them
 - [Phase 32]: Removed sync_all_content reducer from items.ts -- admin /synccontent serves same purpose
 - [Phase 32]: Kept syncAllContent in init alongside initScheduledTables for backward compatibility
+- [Phase 32]: Kept useCharacterCreation.ts with narrative creation flow -- only old form-based code was dead
+- [Phase 32]: Deleted 5 additional orphaned components beyond planned 4 (CharacterActionsPanel, HotbarPanel, PanelShell, CommandBar, LogWindow)
 
 ### Pending Todos
 
@@ -67,4 +69,4 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-09T19:03:14.000Z
-Stopped at: Completed 32-01-PLAN.md
+Stopped at: Completed 32-03-PLAN.md
