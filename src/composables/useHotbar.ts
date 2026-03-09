@@ -274,7 +274,8 @@ export const useHotbar = ({
     } else {
       costLabel = 'Free';
     }
-    const castLabel = castSeconds > 0n ? `${Number(castSeconds)}s` : 'Instant';
+    const effectiveCast = resource === 'mana' && castSeconds < 1n ? 1n : castSeconds;
+    const castLabel = effectiveCast > 0n ? `${Number(effectiveCast)}s` : 'Instant';
     const cooldownLabel = cooldownSeconds > 0n ? `${Number(cooldownSeconds)}s` : 'No cooldown';
     const damageType = liveAbility?.damageType;
     const stats = [

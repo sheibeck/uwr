@@ -246,7 +246,7 @@ export const SKILL_GENERATION_SCHEMA = `{
       "targetRule": "single_enemy | single_ally | self | all_enemies | all_allies | all_party | lowest_hp_ally | lowest_hp_enemy",
       "resourceType": "mana | stamina | hp | none",
       "resourceCost": "number — resource cost to use",
-      "castSeconds": "number — cast time in seconds (0 for instant)",
+      "castSeconds": "number — cast time in seconds. Mana abilities MUST have castSeconds >= 1. Only stamina abilities can be instant (0).",
       "cooldownSeconds": "number — cooldown in seconds",
       "scaling": "str | dex | int | wis | cha | hybrid | none",
       "value1": "number — primary power value (damage, heal amount, etc.)",
@@ -274,6 +274,21 @@ Present exactly three options. Each should feel meaningfully different — not t
 Names must be 2-3 words, creative but concise. Not generic ("Fireball") and not narrative-length ("Echoing Spite of the Hollow King"). Good: "Hollow Spite", "Void Rend", "Iron Tide".
 
 Descriptions should be 1-2 sentences of sardonic commentary from The Keeper.
+
+## CRITICAL — Kind must match mechanics
+
+The "kind" field MUST match what the ability actually does mechanically:
+- If it deals damage over time, sears, burns, bleeds, poisons → kind MUST be "dot", NOT "damage"
+- If it heals over time, regenerates → kind MUST be "hot", NOT "heal"
+- If it buffs stats → kind MUST be "buff", NOT "damage"
+- "damage" is ONLY for single-hit direct damage with no lingering effect
+- DoT abilities MUST include effectType: "dot", effectDuration (in seconds), and effectMagnitude (damage per tick)
+
+## CRITICAL — Cast times
+
+- Mana abilities MUST have castSeconds >= 1. Powerful mana abilities should have 2-3s cast times.
+- Only stamina-based physical abilities may be instant (castSeconds: 0).
+- Longer cast times = more powerful abilities. A 3s cast should hit harder than a 1s cast.
 
 You must always respond with valid JSON matching the schema provided in the user message.
 

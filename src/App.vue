@@ -418,7 +418,7 @@
               ? `${hotbarContextMenu.resourceCost} stamina`
               : 'Free'
         }}</span></div>
-        <div>Cast: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ hotbarContextMenu.castSeconds > 0n ? `${Number(hotbarContextMenu.castSeconds)}s` : 'Instant' }}</span></div>
+        <div>Cast: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ (() => { const cs = hotbarContextMenu.castSeconds; const effective = hotbarContextMenu.resource === 'mana' && cs < 1n ? 1n : cs; return effective > 0n ? `${Number(effective)}s` : 'Instant'; })() }}</span></div>
         <div>Cooldown: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ hotbarContextMenu.cooldownSeconds > 0n ? `${Number(hotbarContextMenu.cooldownSeconds)}s` : 'None' }}</span></div>
       </div>
     </ContextMenu>

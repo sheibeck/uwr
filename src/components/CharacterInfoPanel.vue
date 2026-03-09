@@ -188,7 +188,7 @@
               : 'Free'
         }}</span>
       </div>
-      <div>Cast: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ contextMenu.castSeconds > 0n ? `${Number(contextMenu.castSeconds)}s` : 'Instant' }}</span></div>
+      <div>Cast: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ (() => { const cs = contextMenu.castSeconds; const effective = contextMenu.resourceType === 'mana' && cs < 1n ? 1n : cs; return effective > 0n ? `${Number(effective)}s` : 'Instant'; })() }}</span></div>
       <div>Cooldown: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ contextMenu.cooldownSeconds > 0n ? `${Number(contextMenu.cooldownSeconds)}s` : 'None' }}</span></div>
     </div>
   </ContextMenu>

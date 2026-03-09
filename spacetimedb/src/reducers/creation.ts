@@ -1,7 +1,7 @@
 // Character creation state machine — narrative flow from greeting to character finalization
 
 const GREETING_MESSAGE =
-  `Ah. Another one. The void spits you out and here you are, formless and fumbling, expecting me to care. I am The Keeper of Knowledge. I have watched civilizations rise and crumble while you were busy not existing. But fine. Let's make something of you.\n\nDescribe what manner of creature you are -- your race, your people, whatever you imagine yourself to be. Be creative or be boring. I'll work with either.\n\nNeed inspiration? Others before you have walked in as [Elves], [Dwarves], [Goblins], [Dragonborn], [Shadelings], [Myconids], [Crystalborn] -- or invented something entirely their own. Describe what you are, ask about a race, or simply make something up. I've seen it all.`;
+  `Ah. Another one. The void spits you out and here you are, formless and fumbling, expecting me to care. I am The Keeper of Knowledge. I have watched civilizations rise and crumble while you were busy not existing. But fine. Let's make something of you.\n\nDescribe what manner of creature you are -- your race, your people, whatever you imagine yourself to be. Be creative or be boring. I'll work with either.\n\nNeed inspiration? Others before you have walked in as an [Elf], [Dwarf], [Goblin], [Dragonborn], [Shadeling], [Myconid], [Crystalborn], [Cyclops], [Troll], [Dark-Elf], [Halfling] -- or invented something entirely their own. Describe what you are, ask about a race, or simply make something up. I've seen it all.`;
 
 const GO_BACK_PATTERNS = [
   'go back', 'start over', 'redo', 'changed my mind', 'try again',
@@ -217,7 +217,7 @@ export const registerCreationReducers = (deps: any) => {
             targetRule: chosen.targetRule || 'single_enemy',
             resourceType: chosen.resourceType || (state.archetype === 'mystic' ? 'mana' : 'stamina'),
             resourceCost: BigInt(chosen.resourceCost || 10),
-            castSeconds: BigInt(chosen.castSeconds || 0),
+            castSeconds: (() => { const cs = BigInt(chosen.castSeconds || 0); const rt = chosen.resourceType || (state.archetype === 'mystic' ? 'mana' : 'stamina'); return rt === 'mana' && cs < 1n ? 1n : cs; })(),
             cooldownSeconds: BigInt(chosen.cooldownSeconds || 6),
             value1: BigInt(chosen.value1 || chosen.damage || chosen.healAmount || 15),
             value2: chosen.value2 != null ? BigInt(chosen.value2) : undefined,
@@ -274,7 +274,7 @@ export const registerCreationReducers = (deps: any) => {
     for (const existing of ctx.db.character_creation_state.by_player.filter(ctx.sender)) {
       const step = existing.step;
       if (step === 'AWAITING_RACE') {
-        appendCreationEvent(ctx, ctx.sender, 'creation', 'Ah, you again. The void keeps spitting you back. We were discussing what manner of creature you are. Describe your race -- your people, your heritage. I\'m still waiting.\n\nNeed inspiration? Others before you have walked in as [Elves], [Dwarves], [Goblins], [Dragonborn], [Shadelings], [Myconids], [Crystalborn] -- or invented something entirely their own.');
+        appendCreationEvent(ctx, ctx.sender, 'creation', 'Ah, you again. The void keeps spitting you back. We were discussing what manner of creature you are. Describe your race -- your people, your heritage. I\'m still waiting.\n\nNeed inspiration? Others before you have walked in as an [Elf], [Dwarf], [Goblin], [Dragonborn], [Shadeling], [Myconid], [Crystalborn], [Cyclops], [Troll], [Dark-Elf], [Halfling] -- or invented something entirely their own.');
       } else if (step === 'GENERATING_RACE' || step === 'GENERATING_CLASS') {
         appendCreationEvent(ctx, ctx.sender, 'creation', 'The Keeper is still working. Patience is a virtue you clearly lack, but try anyway.');
       } else if (step === 'AWAITING_ARCHETYPE') {

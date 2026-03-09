@@ -169,9 +169,19 @@ export function processGeneratedSkill(skill: SkillFields, level: number | bigint
     }
   );
 
+  // Enforce mana cast time floor: mana abilities must have castSeconds >= 1
+  let castSeconds = sanitized.castSeconds;
+  if (sanitized.resourceType === 'mana') {
+    const castVal = Number(castSeconds ?? 0);
+    if (castVal < 1) {
+      castSeconds = 1;
+    }
+  }
+
   return {
     ...sanitized,
     value1: clamped.value1,
     effectMagnitude: clamped.effectMagnitude,
+    castSeconds,
   };
 }
