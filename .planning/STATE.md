@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-09 - Completed quick task 387: Cleanup command list, remove slash prefix, camp logout
+Last activity: 2026-03-09 - Completed quick task 388: Remove character bars from top HUD
 
 Progress: [█████████░] 88%
 
@@ -225,8 +225,9 @@ None yet.
 | 385 | Preserve exact race names in character creation | 2026-03-09 | 7928d7b, df9d9f1, 043bc23 | [385-preserve-exact-race-names-in-character-c](./quick/385-preserve-exact-race-names-in-character-c/) |
 | 386 | Add group member UI with buffs/debuffs display | 2026-03-09 | aa79052, 82dd1a8 | [386-add-group-member-ui-with-buffs-debuffs-d](./quick/386-add-group-member-ui-with-buffs-debuffs-d/) |
 | 387 | Cleanup command list, remove slash prefix, camp logout | 2026-03-09 | c0f1798, 833024a | [387-cleanup-command-list-remove-slash-requir](./quick/387-cleanup-command-list-remove-slash-requir/) |
+| 388 | Remove character bars from top HUD | 2026-03-09 | 3409e47 | [388-remove-character-bars-from-top-since-the](./quick/388-remove-character-bars-from-top-since-the/) |
 
 ## Session Continuity
 
-Last session: 2026-03-09T01:41:00Z
-Stopped at: Completed quick-387 (Cleanup command list, camp logout)
+Last session: 2026-03-09T01:48:00Z
+Stopped at: Completed quick-388 (Remove character bars from top HUD)
