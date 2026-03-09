@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 32 - Dead Code Removal
+**Current focus:** Phase 33 - Combat Improvements
 
 ## Current Position
 
-Phase: 32 of 37 (Dead Code Removal)
-Plan: 3 of 3 (32-03 complete)
+Phase: 33 of 37 (Combat Improvements)
+Plan: 1 of 3 (33-01 complete)
 Status: In Progress
-Last activity: 2026-03-09 - Completed quick task 392: Restore quest formatting, add rich styling to renown/factions/events
+Last activity: 2026-03-09 - Completed 33-01: Combat log narrative messages and balance tuning
 
 Progress: [████████░░] 88%
 
@@ -61,6 +61,10 @@ See MILESTONES.md for full delivery summaries.
 - [Phase quick-392]: Removed client-side quests handler to restore server-side rich formatting
 - [Phase 33]: Replaced requirePullerOrLog with direct group_member lookup for simpler group ID resolution
 - [Phase 33]: Mid-combat pull adds enemies via addEnemyToCombat; kept set_group_puller reducer to avoid schema changes
+- [Phase 33-01]: ABILITY_DAMAGE_SCALER at 50n as primary combat duration lever -- auto-attacks unaffected
+- [Phase 33-01]: MANA_COST_MULTIPLIER at 150n to differentiate mana vs stamina economy
+- [Phase 33-01]: Mana cast time floor enforced at resolution time, not generation time
+- [Phase 33-01]: Buff/debuff event kinds separate from damage/heal for independent color control
 
 ### Pending Todos
 
@@ -80,5 +84,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T23:30:03.266Z
-Stopped at: Completed 33-02-PLAN.md
+Last session: 2026-03-09T23:31:00Z
+Stopped at: Completed 33-01-PLAN.md

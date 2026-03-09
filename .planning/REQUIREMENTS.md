@@ -27,13 +27,13 @@ Requirements for v2.1 Project Cleanup milestone. Each maps to roadmap phases.
 
 ### Combat
 
-- [ ] **COMB-01**: Combat log shows DoT tick damage per tick with effect name
-- [ ] **COMB-02**: Combat log shows HoT tick healing per tick with effect name
-- [ ] **COMB-03**: Combat log shows buff/debuff application with stat, magnitude, and duration
-- [ ] **COMB-04**: Combat log shows buff/debuff expiration
+- [x] **COMB-01**: Combat log shows DoT tick damage per tick with effect name
+- [x] **COMB-02**: Combat log shows HoT tick healing per tick with effect name
+- [x] **COMB-03**: Combat log shows buff/debuff application with stat, magnitude, and duration
+- [x] **COMB-04**: Combat log shows buff/debuff expiration
 - [ ] **COMB-05**: Enemy HUD displays active DoT/HoT/debuff indicators with remaining duration
 - [x] **COMB-06**: Multi-enemy pull system verified working (engage multiple groups simultaneously)
-- [ ] **COMB-07**: Combat balance pass — tuned damage/healing constants validated via tests
+- [x] **COMB-07**: Combat balance pass — tuned damage/healing constants validated via tests
 - [ ] **COMB-08**: Group info panel has readable font size and layout
 
 ### Narrative UI
@@ -107,13 +107,13 @@ Deferred to future release. Tracked but not in current roadmap.
 | CLEAN-04 | Phase 32 | Complete |
 | CLEAN-05 | Phase 32 | Complete |
 | CLEAN-06 | Phase 32 | Complete |
-| COMB-01 | Phase 33 | Pending |
-| COMB-02 | Phase 33 | Pending |
-| COMB-03 | Phase 33 | Pending |
-| COMB-04 | Phase 33 | Pending |
+| COMB-01 | Phase 33 | Complete |
+| COMB-02 | Phase 33 | Complete |
+| COMB-03 | Phase 33 | Complete |
+| COMB-04 | Phase 33 | Complete |
 | COMB-05 | Phase 33 | Pending |
 | COMB-06 | Phase 33 | Complete |
-| COMB-07 | Phase 33 | Pending |
+| COMB-07 | Phase 33 | Complete |
 | COMB-08 | Phase 37 | Pending |
 | NARR-01 | Phase 34 | Pending |
 | NARR-02 | Phase 34 | Pending |

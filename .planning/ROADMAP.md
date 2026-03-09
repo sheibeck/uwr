@@ -167,7 +167,7 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37
 | 24-30 | v2.0 | 22/22 | Complete | 2026-03-09 |
 | 31. Test Infrastructure | 3/3 | Complete    | 2026-03-09 | - |
 | 32. Dead Code Removal | 3/3 | Complete    | 2026-03-09 | - |
-| 33. Combat Improvements | 1/3 | In Progress|  | - |
+| 33. Combat Improvements | 2/3 | In Progress|  | - |
 | 34. Narrative UI Integration | v2.1 | 0/? | Not started | - |
 | 35. Dynamic Equipment Generation | v2.1 | 0/? | Not started | - |
 | 36. Ability Expansion | v2.1 | 0/? | Not started | - |
