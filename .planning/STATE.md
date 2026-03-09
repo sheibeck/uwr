@@ -169,8 +169,8 @@ None yet.
 
 ### Quick Tasks Completed
 
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
+| # | Description | Date | Commit | Status | Directory |
+|---|-------------|------|--------|--------|-----------|
 | 333 | Fix stuck Entering The Realm screen | 2026-03-07 | operational | [333-fix-stuck-entering-the-realm-screen](./quick/333-fix-stuck-entering-the-realm-screen/) |
 | 334 | Enhance look command with rich location overview | 2026-03-07 | 6c70ca3, 7c3e0b2 | [334-narrative-panel-shows-location-descripti](./quick/334-narrative-panel-shows-location-descripti/) |
 | 335 | Fix LLM proxy 401 Unauthorized for non-admin accounts | 2026-03-07 | ea49d5c | [335-fix-llm-proxy-401-unauthorized-for-non-a](./quick/335-fix-llm-proxy-401-unauthorized-for-non-a/) |
@@ -219,7 +219,7 @@ None yet.
 | 379 | Fix enemy loot items not equippable / no actions | 2026-03-08 | 03077ad, dc606c7 | [379-fix-enemy-loot-items-not-equippable-no-a](./quick/379-fix-enemy-loot-items-not-equippable-no-a/) |
 | 380 | Block user input during LLM generation | 2026-03-08 | cca0763 | [380-block-user-input-during-llm-generation-w](./quick/380-block-user-input-during-llm-generation-w/) |
 | 381 | Remove LLM combat narration entirely | 2026-03-09 | 5be0a4f | [381-remove-llm-combat-narration-entirely-too](./quick/381-remove-llm-combat-narration-entirely-too/) |
-| 382 | Shore up quest system: NPC quest limits, enemy alignment, dedup | 2026-03-09 | 76e2e2c, 169ff90 | [382-shore-up-quest-system-npc-quest-limits-d](./quick/382-shore-up-quest-system-npc-quest-limits-d/) |
+| 382 | Shore up quest system: NPC quest limits, enemy alignment, dedup | 2026-03-09 | 73ccde6 | Verified | [382-shore-up-quest-system-npc-quest-limits-d](./quick/382-shore-up-quest-system-npc-quest-limits-d/) |
 
 ## Session Continuity
 
