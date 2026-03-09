@@ -47,7 +47,7 @@
           @focus="showSuggestions = true"
           @blur="onBlur"
         />
-        <!-- Slash command suggestions (admin only) -->
+        <!-- Command suggestions -->
         <div v-if="shouldShowSuggestions" :style="suggestionsStyle">
           <button
             v-for="cmd in filteredCommands"
@@ -131,31 +131,39 @@ const inputText = ref('');
 const showSuggestions = ref(false);
 const highlighted = ref<string | null>(null);
 
-const adminCommands = [
-  { value: '/level', hint: 'Set your level (testing)' },
-  { value: '/grantrenown', hint: 'Grant test renown points' },
-  { value: '/spawncorpse', hint: 'Spawn test corpse with junk item' },
-  { value: '/createitem', hint: 'Create test item by quality tier' },
-  { value: '/createscroll', hint: 'Create recipe scroll' },
-  { value: '/synccontent', hint: 'Sync server content tables' },
-  { value: '/resetwindows', hint: 'Reset all panel positions' },
-  { value: '/endevent', hint: 'End active world event' },
-  { value: '/setappversion', hint: 'Set app version (admin)' },
-  { value: '/recomputeracial', hint: 'Recompute racial bonuses (admin)' },
-  { value: 'endcombat', hint: 'Force end current combat' },
-  { value: 'who', hint: 'List all online characters' },
+const playerCommands = [
   { value: 'look', hint: 'Describe current location' },
+  { value: 'consider', hint: "Assess a target's threat level" },
+  { value: 'attack', hint: 'Engage enemies' },
+  { value: 'flee', hint: 'Escape combat' },
+  { value: 'hail', hint: 'Greet an NPC' },
   { value: 'say', hint: 'Talk nearby' },
   { value: 'w', hint: 'Whisper to a character' },
-  { value: 'hail', hint: 'Greet an NPC' },
+  { value: 'whisper', hint: 'Whisper to a character' },
   { value: 'group', hint: 'Message your group' },
   { value: 'invite', hint: 'Invite to group' },
-  { value: 'friend', hint: 'Send friend request' },
   { value: 'accept', hint: 'Accept group invite' },
   { value: 'decline', hint: 'Decline group invite' },
   { value: 'kick', hint: 'Kick group member' },
   { value: 'promote', hint: 'Promote group leader' },
   { value: 'leave', hint: 'Leave current group' },
+  { value: 'who', hint: 'List online characters' },
+  { value: 'friend', hint: 'Send friend request' },
+  { value: 'camp', hint: 'Log out your character' },
+  { value: 'endcombat', hint: 'Force end combat' },
+  { value: 'time', hint: 'Check day/night cycle' },
+  { value: 'stats', hint: 'View character stats' },
+  { value: 'abilities', hint: 'View your abilities' },
+  { value: 'character', hint: 'View race and class info' },
+  { value: 'inventory', hint: 'View equipped gear' },
+  { value: 'backpack', hint: 'View unequipped items' },
+  { value: 'quests', hint: 'View active quests' },
+  { value: 'travel', hint: 'List destinations' },
+  { value: 'bind', hint: 'Bind to location' },
+  { value: 'loot', hint: 'Check for loot' },
+  { value: 'bank', hint: 'Access bank vault' },
+  { value: 'shop', hint: 'Browse vendor wares' },
+  { value: 'craft', hint: 'View recipes' },
 ];
 
 const shouldShowSuggestions = computed(() => {
@@ -172,7 +180,7 @@ const filteredCommands = computed(() => {
   const query = inputText.value.trim().toLowerCase();
   if (!query) return [];
   const bare = query.replace(/^\//, '');
-  return adminCommands.filter((cmd) => {
+  return playerCommands.filter((cmd) => {
     const cmdBare = cmd.value.replace(/^\//, '');
     return cmdBare.startsWith(bare);
   });

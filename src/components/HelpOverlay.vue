@@ -16,7 +16,7 @@
           Use the chat input at the bottom of the screen to communicate with other players. Type <b>say Hello</b> to say something in the local area, or <b>w character_name Hello</b> to send a private message.
         </div>
         <div :style="sectionTextStyle">
-          Start typing a command name to see available commands. Commands like <b>look</b>, <b>hail</b>, <b>say</b>, <b>who</b>, etc. work without a slash prefix.
+          Start typing a command name to see available commands.
         </div>
         <div :style="sectionTextStyle">
           The log panel is your window into the world. It shows chat messages, combat events, and system notifications. Open it to stay informed about what's happening around you.
@@ -77,7 +77,7 @@
           All panels can be moved by dragging their header and resized from edges/corners.
         </div>
         <div :style="sectionTextStyle">
-          Type commands in the command bar at the bottom (start with / for slash commands).
+          Type commands in the command bar at the bottom. Start typing to see available commands.
         </div>
         <div :style="sectionTextStyle">
           Open the Log panel to see combat events, chat, and system messages.
