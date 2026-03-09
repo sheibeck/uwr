@@ -1369,6 +1369,8 @@ watch(() => selectedCharacter.value?.id, (charId) => {
 // Handle submissions from NarrativeConsole input
 const onNarrativeSubmit = (text: string) => {
   if (!text.trim()) return;
+  // Block all input while LLM is generating a response
+  if (isNarrativeLlmProcessing.value) return;
   // Slash commands go through existing command system
   if (text.startsWith('/')) {
     commandText.value = text;
@@ -1435,6 +1437,8 @@ const onCreationSubmit = (text: string) => {
 
 // Global keyword click handler — routes to skill choice, creation input, combat actions, or delegates to onNarrativeSubmit
 (window as any).clickNpcKeyword = (keyword: string) => {
+  // Block all input while LLM is generating a response
+  if (isNarrativeLlmProcessing.value) return;
   console.log('[clickNpcKeyword]', keyword, 'isInCreation:', isInCreation.value, 'hasPendingSkills:', hasPendingSkills.value);
   // 1. Skill choice — click-only (typed skill choice uses different input mode)
   if (hasPendingSkills.value && chooseSkillByName(keyword)) {

@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-08 - Completed quick task 379: Fix enemy loot items not equippable / no actions
+Last activity: 2026-03-08 - Completed quick task 380: Block user input during LLM generation
 
 Progress: [█████████░] 88%
 
@@ -217,6 +217,7 @@ None yet.
 | 377 | Add character creation confirmation step | 2026-03-08 | 3398731 | [377-add-character-creation-confirmation-step](./quick/377-add-character-creation-confirmation-step/) |
 | 378 | Add comprehensive combat logging for abilities | 2026-03-08 | 70dd575, b3b0c7e | [378-add-comprehensive-combat-logging-for-abi](./quick/378-add-comprehensive-combat-logging-for-abi/) |
 | 379 | Fix enemy loot items not equippable / no actions | 2026-03-08 | 03077ad, dc606c7 | [379-fix-enemy-loot-items-not-equippable-no-a](./quick/379-fix-enemy-loot-items-not-equippable-no-a/) |
+| 380 | Block user input during LLM generation | 2026-03-08 | | [380-block-user-input-during-llm-generation-w](./quick/380-block-user-input-during-llm-generation-w/) |
 
 ## Session Continuity
 

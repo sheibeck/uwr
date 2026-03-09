@@ -62,7 +62,7 @@
 
     <!-- Input -->
     <NarrativeInput
-      :disabled="animIsAnimating"
+      :disabled="animIsAnimating || isLlmProcessing"
       :context-actions="contextActions"
       :placeholder="inputPlaceholder"
       :conn-active="connActive"
@@ -190,6 +190,7 @@ watch(
 
 // Context-aware placeholder
 const inputPlaceholder = computed(() => {
+  if (props.isLlmProcessing) return 'Awaiting response...';
   if (props.creationMode) return 'Describe, choose, or click a [keyword]...';
   if (!props.selectedCharacter) return 'Select a character to begin';
   if (props.activeCombat) return 'Choose your action...';

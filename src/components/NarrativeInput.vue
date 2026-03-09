@@ -39,7 +39,7 @@
           ref="inputEl"
           type="text"
           :placeholder="placeholder"
-          :disabled="disabled && !connActive"
+          :disabled="disabled || !connActive"
           :value="inputText"
           :style="inputStyle"
           @input="onInput"
@@ -66,7 +66,7 @@
       </div>
       <button
         type="button"
-        :disabled="!connActive || (!inputText.trim() && !disabled)"
+        :disabled="!connActive || disabled || !inputText.trim()"
         :style="sendBtnStyle"
         @click="handleSubmit"
       >Send</button>
