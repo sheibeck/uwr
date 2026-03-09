@@ -3,6 +3,8 @@ import { reducers } from '../module_bindings';
 import type { Character, Npc, Player, Location } from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
 import { ADMIN_IDENTITY_HEX } from '../data/worldEventDefs';
+import { RENOWN_RANKS } from '../../spacetimedb/src/data/renown_data';
+import { FACTION_STANDING_THRESHOLDS } from '../../spacetimedb/src/data/mechanical_vocabulary';
 
 type UseCommandsArgs = {
   connActive: Ref<boolean>;
@@ -18,6 +20,14 @@ type UseCommandsArgs = {
   characters?: Ref<Character[]>;
   locations?: Ref<Location[]>;
   worldEventRows?: Ref<any[]>;
+  eventObjectives?: Ref<any[]>;
+  factions?: Ref<any[]>;
+  factionStandings?: Ref<any[]>;
+  renownRows?: Ref<any[]>;
+  renownPerks?: Ref<any[]>;
+  questInstances?: Ref<any[]>;
+  questTemplates?: Ref<any[]>;
+  regions?: Ref<any[]>;
 };
 
 export const useCommands = ({
@@ -34,6 +44,14 @@ export const useCommands = ({
   characters,
   locations,
   worldEventRows,
+  eventObjectives,
+  factions,
+  factionStandings,
+  renownRows,
+  renownPerks,
+  questInstances,
+  questTemplates,
+  regions,
 }: UseCommandsArgs) => {
   const submitCommandReducer = useReducer(reducers.submitCommand);
   const sayReducer = useReducer(reducers.say);
@@ -264,6 +282,110 @@ export const useCommands = ({
       }
       recomputeRacialAllReducer();
       addLocalEvent?.('command', 'Recomputing racial bonuses for all characters...');
+    } else if (lower === 'renown' || lower === '/renown') {
+      // Display renown status in narrative console
+      const charId = selectedCharacter.value.id;
+      const renown = (renownRows?.value ?? []).find((r: any) => r.characterId.toString() === charId.toString());
+      const points = renown ? BigInt(renown.points) : 0n;
+      const rankNum = renown ? Number(renown.currentRank) : 1;
+      const rankInfo = RENOWN_RANKS.find(r => r.rank === rankNum);
+      const nextRank = RENOWN_RANKS.find(r => r.rank === rankNum + 1);
+      const perks = (renownPerks?.value ?? []).filter((p: any) => p.characterId.toString() === charId.toString());
+
+      let msg = `{{color:#fbbf24}}Renown Status{{/color}}\n\nRank ${rankNum}: {{color:#fbbf24}}${rankInfo?.name ?? 'Unknown'}{{/color}} (${points} points)`;
+      if (nextRank) {
+        const needed = BigInt(nextRank.threshold) - points;
+        const progress = nextRank.threshold > 0 ? Number(points) / nextRank.threshold : 0;
+        const filled = Math.round(progress * 10);
+        const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(10 - filled);
+        msg += `\nNext rank: {{color:#fbbf24}}${nextRank.name}{{/color}} (${needed > 0n ? needed : 0n} points needed)`;
+        msg += `\n  [${bar}] ${Math.round(progress * 100)}%`;
+      } else {
+        msg += `\n{{color:#22c55e}}Max rank achieved!{{/color}}`;
+      }
+      if (perks.length > 0) {
+        msg += '\n\nActive Perks:';
+        for (const p of perks) {
+          msg += `\n  Rank ${p.rank}: {{color:#da77f2}}${p.perkKey}{{/color}}`;
+        }
+      }
+      addLocalEvent?.('look', msg);
+    } else if (lower === 'factions' || lower === '/factions' || lower === 'faction' || lower === '/faction') {
+      // Display faction standings in narrative console
+      const charId = selectedCharacter.value.id;
+      const standings = (factionStandings?.value ?? []).filter((fs: any) => fs.characterId.toString() === charId.toString());
+      const factionList = factions?.value ?? [];
+
+      if (standings.length === 0) {
+        addLocalEvent?.('look', '{{color:#fbbf24}}Faction Standings{{/color}}\n\nNo faction standings yet.');
+      } else {
+        const thresholds = Object.entries(FACTION_STANDING_THRESHOLDS).sort((a, b) => Number(b[1]) - Number(a[1]));
+        const getLabel = (standing: bigint) => {
+          for (const [label, min] of thresholds) {
+            if (standing >= min) return label.charAt(0).toUpperCase() + label.slice(1);
+          }
+          return 'Hated';
+        };
+        const colorForLabel = (label: string): string => {
+          const l = label.toLowerCase();
+          if (l === 'exalted' || l === 'revered') return '#22c55e';
+          if (l === 'honored' || l === 'friendly') return '#66d9ef';
+          if (l === 'neutral') return '#c8ccd0';
+          if (l === 'unfriendly' || l === 'hostile') return '#ff8c42';
+          return '#ff6b6b'; // hated
+        };
+        let msg = '{{color:#fbbf24}}Faction Standings{{/color}}\n';
+        for (const fs of standings) {
+          const faction = factionList.find((f: any) => f.id.toString() === fs.factionId.toString());
+          const name = faction?.name ?? `Faction ${fs.factionId}`;
+          const standing = BigInt(fs.standing);
+          const label = getLabel(standing);
+          const labelColor = colorForLabel(label);
+          msg += `\n  {{color:#fbbf24}}${name}{{/color}}: {{color:${labelColor}}}${label}{{/color}} (${standing})`;
+        }
+        addLocalEvent?.('look', msg);
+      }
+    } else if (lower === 'events' || lower === '/events') {
+      // Display world events in narrative console
+      const allEvents = worldEventRows?.value ?? [];
+      const activeEvents = allEvents.filter((e: any) => e.status === 'active');
+      const recentResolved = allEvents
+        .filter((e: any) => e.status === 'success' || e.status === 'failure')
+        .sort((a: any, b: any) => {
+          const aT = a.resolvedAt?.microsSinceUnixEpoch ?? 0n;
+          const bT = b.resolvedAt?.microsSinceUnixEpoch ?? 0n;
+          return aT > bT ? -1 : aT < bT ? 1 : 0;
+        })
+        .slice(0, 5);
+      const objectives = eventObjectives?.value ?? [];
+      const regionList = regions?.value ?? [];
+
+      let msg = '{{color:#fbbf24}}World Events{{/color}}\n';
+      if (activeEvents.length === 0) {
+        msg += '\nNo active events.';
+      } else {
+        msg += '\n--- Active ---';
+        for (const ev of activeEvents) {
+          const region = regionList.find((r: any) => r.id.toString() === ev.regionId?.toString());
+          msg += `\n  {{color:#fbbf24}}${ev.name}{{/color}}`;
+          if (region) msg += ` ({{color:#da77f2}}${region.name}{{/color}})`;
+          const evObjs = objectives.filter((o: any) => o.eventId.toString() === ev.id.toString());
+          for (const obj of evObjs) {
+            msg += `\n    ${obj.objectiveType}: {{color:#66d9ef}}${obj.currentCount}/${obj.targetCount}{{/color}}`;
+          }
+        }
+      }
+      if (recentResolved.length > 0) {
+        msg += '\n\n--- Recent History ---';
+        for (const ev of recentResolved) {
+          const outcome = ev.status === 'success'
+            ? '{{color:#22c55e}}SUCCESS{{/color}}'
+            : '{{color:#ff6b6b}}FAILURE{{/color}}';
+          msg += `\n  {{color:#b197fc}}${ev.name}{{/color}}: ${outcome}`;
+          if (ev.consequenceText) msg += ` — {{color:#6b7280}}${ev.consequenceText}{{/color}}`;
+        }
+      }
+      addLocalEvent?.('look', msg);
     } else {
       submitCommandReducer({
         characterId: selectedCharacter.value.id,
