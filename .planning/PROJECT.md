@@ -2,7 +2,7 @@
 
 **Type:** Brownfield expansion
 **Created:** 2026-02-11
-**Current milestone:** Planning next milestone
+**Current milestone:** v2.1 Project Cleanup
 
 ---
 
@@ -45,7 +45,26 @@ A world that writes itself around its players — every character is unique, eve
 
 ### Active
 
-(None yet — define with `/gsd:new-milestone`)
+- [ ] Technical debt cleanup (dead code removal, v1.0 legacy purge, deduplication)
+- [ ] Unit test coverage for backend and frontend
+- [ ] Architecture refactoring (clean separation, reduce coupling)
+- [ ] Narrative rework gaps (sell items, hotbars, event system)
+- [ ] Combat improvements (balance, log completeness, DoT/HoT indicators, multi-enemy pull)
+- [ ] Ability type expansion (cover all current game systems)
+- [ ] UX polish (group info sizing, global font scale, combat UI indicators)
+
+## Current Milestone: v2.1 Project Cleanup
+
+**Goal:** Stabilize, polish, and complete the v2.0 foundation — remove dead code, add tests, wire remaining v1.0 systems into narrative UI, and fix combat gaps.
+
+**Target features:**
+- Dead code removal and v1.0 legacy purge
+- Unit test coverage across backend and frontend
+- Code deduplication and architecture refactoring
+- Sell items, hotbars, and event system in narrative UI
+- Combat log completeness, DoT/HoT/debuff indicators on enemies, multi-pull verification
+- Ability types expanded to cover all game systems
+- Group info readability, global font size control
 
 ### Out of Scope
 
@@ -112,4 +131,4 @@ Keeper of Knowledge narrator replaced generic "System" narrator in quick-365.
 | Deployment | GitHub Pages (frontend) + SpacetimeDB maincloud (backend) |
 
 ---
-*Last updated: 2026-03-09 after v2.0 milestone*
+*Last updated: 2026-03-09 after v2.1 milestone started*

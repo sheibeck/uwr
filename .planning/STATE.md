@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
-milestone: none
-milestone_name: none
-status: idle
-stopped_at: v2.0 milestone archived
-last_updated: "2026-03-09T13:00:00Z"
-last_activity: "2026-03-09 - Archived v2.0 The Living World milestone"
+milestone: v2.1
+milestone_name: Project Cleanup
+status: defining_requirements
+stopped_at: Defining requirements
+last_updated: "2026-03-09T14:00:00Z"
+last_activity: "2026-03-09 — Milestone v2.1 started"
 progress:
   total_phases: 0
   completed_phases: 0
@@ -21,7 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Planning next milestone
+**Current focus:** v2.1 Project Cleanup
+
+## Current Position
+
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-09 — Milestone v2.1 started
 
 ## Previous Milestones
 
@@ -49,4 +56,4 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-09
-Stopped at: v2.0 milestone archived, ready for /gsd:new-milestone
+Stopped at: Milestone v2.1 started, defining requirements
