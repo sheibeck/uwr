@@ -83,6 +83,8 @@ const KIND_COLORS: Record<string, string> = {
   combat_status: '#adb5bd',      // gray for round summary with HP bars
   combat_round_header: '#ffa94d', // orange for round headers (distinctive)
   combat_resolving: '#ffd43b',    // gold pulsing for resolving state
+  buff: '#74c0fc',                // blue for buff application
+  debuff: '#ffa94d',              // orange for debuff application
 };
 
 const kindColor = computed(() => KIND_COLORS[props.event.kind] ?? '#ced4da');

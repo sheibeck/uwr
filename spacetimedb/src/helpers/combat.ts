@@ -206,19 +206,34 @@ export function addCharacterEffect(
     roundsRemaining,
     sourceAbility,
   });
+  // Emit buff/debuff application event
+  const BUFF_TYPES = ['regen', 'damage_up', 'armor_up', 'ac_bonus', 'damage_shield', 'hp_bonus', 'magic_resist', 'stamina_free'];
+  const DEBUFF_TYPES = ['dot', 'armor_down', 'stun'];
+  const character = ctx.db.character.id.find(characterId);
+  if (character) {
+    if (BUFF_TYPES.includes(effectType) && effectType !== 'regen') {
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'buff',
+        `${sourceAbility} grants ${effectType}${magnitude > 0n ? ' +' + magnitude : ''} for ${roundsRemaining} rounds.`);
+    } else if (DEBUFF_TYPES.includes(effectType) && effectType !== 'dot') {
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'debuff',
+        `${sourceAbility} afflicts you with ${effectType} for ${roundsRemaining} rounds.`);
+    }
+  }
+
   // Apply the first tick immediately for DoTs and HoTs so the effect is felt on cast.
   // Subsequent ticks are handled by the global tick_hot scheduler (every 3s).
   if (effectType === 'regen' || effectType === 'dot') {
-    const character = ctx.db.character.id.find(characterId);
     if (character && character.hp > 0n) {
       if (effectType === 'regen') {
         const healed = character.hp + magnitude > character.maxHp ? character.maxHp : character.hp + magnitude;
         ctx.db.character.id.update({ ...character, hp: healed });
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'heal', `${sourceAbility} heals you for ${magnitude}.`);
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'heal',
+          `${sourceAbility} soothes you for ${magnitude} HP.`);
       } else {
         const nextHp = character.hp > magnitude ? character.hp - magnitude : 0n;
         ctx.db.character.id.update({ ...character, hp: nextHp });
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage', `${sourceAbility} burns you for ${magnitude} damage.`);
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage',
+          `You suffer ${magnitude} damage from ${sourceAbility}.`);
       }
     }
   }

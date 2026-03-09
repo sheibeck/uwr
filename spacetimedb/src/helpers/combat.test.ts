@@ -543,3 +543,82 @@ describe('combat flow: block reduces incoming damage', () => {
     expect(mitigated).toBe(60n);
   });
 });
+
+// ============================================================================
+// Narrative combat log messages (Phase 33-01)
+// ============================================================================
+
+describe('addCharacterEffect narrative messages', () => {
+  let ctx: ReturnType<typeof createMockCtx>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ctx = createMockCtx({
+      seed: {
+        character: [{
+          id: 1n,
+          ownerUserId: 100n,
+          hp: 80n,
+          maxHp: 100n,
+        }],
+        character_effect: [],
+      },
+    });
+  });
+
+  it('DoT first tick emits narrative damage message with source ability name', () => {
+    addCharacterEffect(ctx, 1n, 'dot', 10n, 3n, 'Poison Strike');
+    expect(appendPrivateEvent).toHaveBeenCalledWith(
+      ctx, 1n, 100n, 'damage',
+      expect.stringContaining('You suffer')
+    );
+    expect(appendPrivateEvent).toHaveBeenCalledWith(
+      ctx, 1n, 100n, 'damage',
+      expect.stringContaining('Poison Strike')
+    );
+  });
+
+  it('HoT first tick emits narrative heal message with source ability name', () => {
+    addCharacterEffect(ctx, 1n, 'regen', 15n, 3n, 'Mend');
+    expect(appendPrivateEvent).toHaveBeenCalledWith(
+      ctx, 1n, 100n, 'heal',
+      expect.stringContaining('soothes you for')
+    );
+    expect(appendPrivateEvent).toHaveBeenCalledWith(
+      ctx, 1n, 100n, 'heal',
+      expect.stringContaining('Mend')
+    );
+  });
+
+  it('buff application (damage_up) emits buff event with stat, magnitude, and duration', () => {
+    addCharacterEffect(ctx, 1n, 'damage_up', 5n, 3n, 'Battle Cry');
+    expect(appendPrivateEvent).toHaveBeenCalledWith(
+      ctx, 1n, 100n, 'buff',
+      expect.stringMatching(/Battle Cry.*damage_up.*3/)
+    );
+  });
+
+  it('buff application (armor_up) emits buff event', () => {
+    addCharacterEffect(ctx, 1n, 'armor_up', 10n, 5n, 'Shield Wall');
+    expect(appendPrivateEvent).toHaveBeenCalledWith(
+      ctx, 1n, 100n, 'buff',
+      expect.stringMatching(/Shield Wall.*armor_up.*5/)
+    );
+  });
+
+  it('debuff application (armor_down) emits debuff event', () => {
+    addCharacterEffect(ctx, 1n, 'armor_down', 5n, 3n, 'Sunder');
+    expect(appendPrivateEvent).toHaveBeenCalledWith(
+      ctx, 1n, 100n, 'debuff',
+      expect.stringMatching(/Sunder.*armor_down.*3/)
+    );
+  });
+
+  it('debuff application (stun) emits debuff event', () => {
+    addCharacterEffect(ctx, 1n, 'stun', 0n, 2n, 'Bash');
+    expect(appendPrivateEvent).toHaveBeenCalledWith(
+      ctx, 1n, 100n, 'debuff',
+      expect.stringMatching(/Bash.*stun.*2/)
+    );
+  });
+});

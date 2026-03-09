@@ -926,9 +926,7 @@ export const registerCombatReducers = (deps: any) => {
       if (activeGather) {
         return failCombat(ctx, character, 'Cannot pull while gathering');
       }
-      if (activeCombatIdForCharacter(ctx, character.id)) {
-        return failCombat(ctx, character, 'Already in combat');
-      }
+      // Mid-combat pulling allowed — resolve_pull handles adding to existing fight
       const locationId = character.locationId;
       const pullType = args.pullType.trim().toLowerCase();
       if (pullType !== 'careful' && pullType !== 'body') {
@@ -2516,8 +2514,9 @@ export const registerCombatReducers = (deps: any) => {
           if (EXPIRY_LOG_TYPES.includes(effect.effectType)) {
             const expiryChar = ctx.db.character.id.find(p.characterId);
             if (expiryChar) {
+              const effectLabel = effect.effectType === 'regen' ? 'regeneration' : effect.effectType === 'dot' ? 'damage over time' : effect.effectType === 'damage_up' ? 'damage boost' : effect.effectType === 'armor_up' ? 'armor boost' : effect.effectType === 'ac_bonus' ? 'AC bonus' : effect.effectType === 'damage_shield' ? 'damage shield' : effect.effectType === 'hp_bonus' ? 'HP bonus' : effect.effectType === 'magic_resist' ? 'magic resistance' : effect.effectType === 'stamina_free' ? 'free stamina' : effect.effectType === 'stun' ? 'stun' : effect.effectType === 'armor_down' ? 'armor reduction' : effect.effectType;
               appendPrivateEvent(ctx, expiryChar.id, expiryChar.ownerUserId, 'system',
-                `${effect.sourceAbility ?? effect.effectType} has worn off.`);
+                `The effect of ${effect.sourceAbility ?? effect.effectType} (${effectLabel}) has worn off.`);
             }
           }
           ctx.db.character_effect.id.delete(effect.id);
@@ -2545,7 +2544,7 @@ export const registerCombatReducers = (deps: any) => {
           const character = ctx.db.character.id.find(p.characterId);
           if (character) {
             appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage',
-              `${effect.sourceAbility ?? 'DoT'} deals ${dmg} to ${enemy.displayName}.`);
+              `${effect.sourceAbility ?? 'A lingering effect'} sears ${enemy.displayName} for ${dmg}.`);
           }
         }
 
