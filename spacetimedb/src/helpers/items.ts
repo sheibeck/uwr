@@ -4,7 +4,13 @@ import { normalizeClassName } from '../data/class_stats';
 import { PREFIXES, SUFFIXES, AFFIX_COUNT_BY_QUALITY } from '../data/affix_catalog';
 import { getWeaponSpeed } from '../data/combat_scaling';
 import { DEFAULT_WEAPON_SPEED_MICROS, TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
-import { STARTER_WEAPON_DEFS } from '../data/equipment_rules';
+import {
+  ARMOR_ALLOWED_CLASSES,
+  STARTER_WEAPON_DEFS,
+  STARTER_ARMOR_DESCS,
+  STARTER_ACCESSORY_DEFS,
+  JUNK_DEFS,
+} from '../data/equipment_rules';
 
 export const EQUIPMENT_SLOTS = new Set([
   'head',
@@ -463,5 +469,168 @@ export function grantStarterItems(ctx: any, character: any, ensureStarterItemTem
   const weaponTemplate = findItemTemplateByName(ctx, weapon.name);
   if (weaponTemplate) {
     addItemToInventory(ctx, character.id, weaponTemplate.id, 1n);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ENSURE STARTER ITEM TEMPLATES
+// Relocated from seeding/ensure_items.ts -- still needed by grantStarterItems
+// to ensure starter armor/weapon/accessory/junk templates exist in the database.
+// ---------------------------------------------------------------------------
+
+export function ensureStarterItemTemplates(ctx: any) {
+  const upsertItemTemplateByName = (row: any) => {
+    const fullRow = {
+      wellFedDurationMicros: 0n,
+      wellFedBuffType: '',
+      wellFedBuffMagnitude: 0n,
+      weaponType: '',
+      magicResistanceBonus: 0n,
+      ...row,
+    };
+    const existing = findItemTemplateByName(ctx, fullRow.name);
+    if (existing) {
+      ctx.db.item_template.id.update({
+        ...existing,
+        ...fullRow,
+        id: existing.id,
+      });
+      return existing;
+    }
+    return ctx.db.item_template.insert({
+      id: 0n,
+      ...fullRow,
+    });
+  };
+
+  for (const [armorType, pieces] of Object.entries(STARTER_ARMOR)) {
+    const armorDesc = STARTER_ARMOR_DESCS[armorType] ?? '';
+    upsertItemTemplateByName({
+      name: pieces.chest.name,
+      slot: 'chest',
+      armorType,
+      rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 2n,
+      requiredLevel: 1n,
+      allowedClasses: ARMOR_ALLOWED_CLASSES[armorType] ?? 'any',
+      description: armorDesc,
+      strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n,
+      hpBonus: 0n, manaBonus: 0n,
+      armorClassBonus: pieces.chest.ac,
+      weaponBaseDamage: 0n, weaponDps: 0n,
+      stackable: false,
+    });
+    upsertItemTemplateByName({
+      name: pieces.legs.name,
+      slot: 'legs',
+      armorType,
+      rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 2n,
+      requiredLevel: 1n,
+      allowedClasses: ARMOR_ALLOWED_CLASSES[armorType] ?? 'any',
+      description: armorDesc,
+      strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n,
+      hpBonus: 0n, manaBonus: 0n,
+      armorClassBonus: pieces.legs.ac,
+      weaponBaseDamage: 0n, weaponDps: 0n,
+      stackable: false,
+    });
+    upsertItemTemplateByName({
+      name: pieces.boots.name,
+      slot: 'boots',
+      armorType,
+      rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 2n,
+      requiredLevel: 1n,
+      allowedClasses: ARMOR_ALLOWED_CLASSES[armorType] ?? 'any',
+      description: armorDesc,
+      strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n,
+      hpBonus: 0n, manaBonus: 0n,
+      armorClassBonus: pieces.boots.ac,
+      weaponBaseDamage: 0n, weaponDps: 0n,
+      stackable: false,
+    });
+  }
+
+  const STARTER_WEAPON_STATS: Record<string, { baseDamage: bigint; dps: bigint }> = {
+    dagger: { baseDamage: 2n, dps: 3n }, rapier: { baseDamage: 2n, dps: 3n },
+    sword: { baseDamage: 3n, dps: 4n }, blade: { baseDamage: 3n, dps: 4n },
+    mace: { baseDamage: 3n, dps: 4n }, axe: { baseDamage: 4n, dps: 5n },
+    staff: { baseDamage: 7n, dps: 8n }, bow: { baseDamage: 7n, dps: 8n },
+    greatsword: { baseDamage: 8n, dps: 9n },
+  };
+
+  for (const weapon of STARTER_WEAPON_DEFS) {
+    const stats = STARTER_WEAPON_STATS[weapon.weaponType] ?? { baseDamage: 3n, dps: 5n };
+    upsertItemTemplateByName({
+      name: weapon.name,
+      slot: 'mainHand',
+      armorType: 'none',
+      rarity: 'common',
+      tier: 1n,
+      isJunk: false,
+      vendorValue: 3n,
+      requiredLevel: 1n,
+      allowedClasses: weapon.allowed,
+      description: weapon.description,
+      strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n,
+      hpBonus: 0n, manaBonus: 0n,
+      armorClassBonus: 0n, magicResistanceBonus: 0n,
+      weaponBaseDamage: stats.baseDamage,
+      weaponDps: stats.dps,
+      weaponType: weapon.weaponType,
+      stackable: false,
+    });
+  }
+
+  for (const template of STARTER_ACCESSORY_DEFS) {
+    upsertItemTemplateByName({
+      name: template.name,
+      slot: template.slot,
+      armorType: 'none',
+      rarity: template.rarity,
+      tier: 1n,
+      isJunk: false,
+      vendorValue: template.rarity === 'uncommon' ? 8n : 5n,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      description: template.description,
+      strBonus: template.stat.strBonus ?? 0n,
+      dexBonus: template.stat.dexBonus ?? 0n,
+      chaBonus: template.stat.chaBonus ?? 0n,
+      wisBonus: template.stat.wisBonus ?? 0n,
+      intBonus: template.stat.intBonus ?? 0n,
+      hpBonus: template.stat.hpBonus ?? 0n,
+      manaBonus: template.stat.manaBonus ?? 0n,
+      armorClassBonus: 0n,
+      weaponBaseDamage: 0n, weaponDps: 0n,
+      stackable: false,
+    });
+  }
+
+  for (const junk of JUNK_DEFS) {
+    upsertItemTemplateByName({
+      name: junk.name,
+      slot: 'junk',
+      armorType: 'none',
+      rarity: 'common',
+      tier: 1n,
+      isJunk: true,
+      vendorValue: junk.vendorValue,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      description: junk.description,
+      strBonus: 0n, dexBonus: 0n, chaBonus: 0n, wisBonus: 0n, intBonus: 0n,
+      hpBonus: 0n, manaBonus: 0n,
+      armorClassBonus: 0n,
+      weaponBaseDamage: 0n, weaponDps: 0n,
+      stackable: true,
+    });
   }
 }

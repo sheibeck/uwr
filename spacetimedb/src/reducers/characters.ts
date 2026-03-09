@@ -1,81 +1,5 @@
 import { scheduledReducers } from '../schema/tables';
 
-// Compute all racial contributions for a character at a given level.
-// Applies creation bonuses (bonus1 + bonus2 + penalty) once,
-// then adds levelBonusType * levelBonusValue for each even level up to `level`.
-function computeRacialAtLevel(raceRow: any, level: bigint) {
-  const evenLevels = level / 2n; // BigInt floor division
-
-  const result = {
-    str: 0n, dex: 0n, int: 0n, wis: 0n, cha: 0n,
-    racialSpellDamage: 0n, racialPhysDamage: 0n,
-    racialMaxHp: 0n, racialMaxMana: 0n,
-    racialManaRegen: 0n, racialStaminaRegen: 0n,
-    racialCritBonus: 0n, racialArmorBonus: 0n, racialDodgeBonus: 0n,
-    racialHpRegen: 0n, racialMaxStamina: 0n,
-    racialTravelCostIncrease: 0n, racialTravelCostDiscount: 0n,
-    racialHitBonus: 0n, racialParryBonus: 0n,
-    racialFactionBonus: 0n, racialMagicResist: 0n, racialPerceptionBonus: 0n,
-    racialLootBonus: 0n,
-  };
-
-  function applyType(bonusType: string, value: bigint) {
-    switch (bonusType) {
-      case 'stat_str': result.str += value; break;
-      case 'stat_dex': result.dex += value; break;
-      case 'stat_int': result.int += value; break;
-      case 'stat_wis': result.wis += value; break;
-      case 'stat_cha': result.cha += value; break;
-      case 'spell_damage': result.racialSpellDamage += value; break;
-      case 'phys_damage': result.racialPhysDamage += value; break;
-      case 'max_hp': result.racialMaxHp += value; break;
-      case 'max_mana': result.racialMaxMana += value; break;
-      case 'mana_regen': result.racialManaRegen += value; break;
-      case 'stamina_regen': result.racialStaminaRegen += value; break;
-      case 'crit_chance': result.racialCritBonus += value; break;
-      case 'armor': result.racialArmorBonus += value; break;
-      case 'dodge': result.racialDodgeBonus += value; break;
-      case 'hp_regen': result.racialHpRegen += value; break;
-      case 'max_stamina': result.racialMaxStamina += value; break;
-      case 'hit_chance': result.racialHitBonus += value; break;
-      case 'parry': result.racialParryBonus += value; break;
-      case 'faction_bonus': result.racialFactionBonus += value; break;
-      case 'magic_resist': result.racialMagicResist += value; break;
-      case 'perception': result.racialPerceptionBonus += value; break;
-      case 'travel_cost_increase': result.racialTravelCostIncrease += value; break;
-      case 'travel_cost_discount': result.racialTravelCostDiscount += value; break;
-      case 'loot_bonus': result.racialLootBonus += value; break;
-    }
-  }
-
-  // One-time creation bonuses
-  applyType(raceRow.bonus1Type, raceRow.bonus1Value);
-  applyType(raceRow.bonus2Type, raceRow.bonus2Value);
-
-  // One-time creation penalty (subtract for stats, add for travel modifiers)
-  if (raceRow.penaltyType && raceRow.penaltyValue) {
-    const pt = raceRow.penaltyType as string;
-    const pv = raceRow.penaltyValue as bigint;
-    if (pt === 'travel_cost_increase' || pt === 'travel_cost_discount') {
-      applyType(pt, pv);
-    } else {
-      applyType(pt, -pv);
-    }
-  }
-
-  // Per-even-level incremental bonus
-  if (evenLevels > 0n) {
-    applyType(raceRow.levelBonusType, raceRow.levelBonusValue * evenLevels);
-  }
-
-  return result;
-}
-
-// Convenience wrapper for creation (level 1 = 0 even levels = creation bonuses only)
-function computeRacialContributions(raceRow: any) {
-  return computeRacialAtLevel(raceRow, 1n);
-}
-
 export const registerCharacterReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -91,14 +15,10 @@ export const registerCharacterReducers = (deps: any) => {
     appendLocationEvent,
     campCharacter,
     ensureSpawnsForLocation,
-    computeBaseStatsForGenerated,
     recomputeCharacterDerived,
     ScheduleAt,
     CharacterLogoutTick,
-    grantStarterItems,
-    ensureStarterItemTemplates,
     activeCombatIdForCharacter,
-    isClassAllowed,
     cleanupDecayedCorpses,
     fail,
   } = deps;
@@ -198,135 +118,6 @@ export const registerCharacterReducers = (deps: any) => {
     if (character) campCharacter(ctx, player, character);
     else ctx.db.player.id.update({ ...player, activeCharacterId: undefined, lastActivityAt: undefined });
   });
-
-  spacetimedb.reducer(
-    'create_character',
-    { name: t.string(), raceId: t.u64(), className: t.string() },
-    (ctx, { name, raceId, className }) => {
-      const trimmed = name.trim();
-      if (trimmed.length < 4) throw new SenderError('Character name must be at least 4 characters');
-      const userId = requirePlayerUserId(ctx);
-      for (const row of ctx.db.character.iter()) {
-        if (row.name.toLowerCase() === trimmed.toLowerCase()) {
-          throw new SenderError('Character name already exists');
-        }
-      }
-
-      // Race validation
-      const raceRow = ctx.db.race.id.find(raceId);
-      if (!raceRow) throw new SenderError('Invalid race');
-      if (!raceRow.unlocked) throw new SenderError('Race not yet unlocked');
-
-      // Class restriction check — reuses isClassAllowed from index.ts
-      if (!isClassAllowed(raceRow.availableClasses, className)) {
-        throw new SenderError(`${className} is not available for ${raceRow.name}`);
-      }
-
-      const world = ctx.db.world_state.id.find(1n);
-      if (!world) throw new SenderError('World not initialized');
-      const startingLocation = ctx.db.location.id.find(world.startingLocationId);
-      if (!startingLocation) throw new SenderError('Starting location not initialized');
-
-      // Legacy create_character: default to str primary for unknown classes
-      const classStats = computeBaseStatsForGenerated('str', undefined, 1n);
-      const racial = computeRacialContributions(raceRow);
-      const baseStats = {
-        str: classStats.str + racial.str,
-        dex: classStats.dex + racial.dex,
-        cha: classStats.cha + racial.cha,
-        wis: classStats.wis + racial.wis,
-        int: classStats.int + racial.int,
-      };
-      const character = ctx.db.character.insert({
-        id: 0n,
-        ownerUserId: userId,
-        name: trimmed,
-        race: raceRow.name,
-        className: className.trim(),
-        level: 1n,
-        xp: 0n,
-        gold: 0n,
-        locationId: startingLocation.id,
-        boundLocationId: startingLocation.id,
-        // base stats — identity data, needed for recomputeCharacterDerived
-        str: baseStats.str,
-        dex: baseStats.dex,
-        cha: baseStats.cha,
-        wis: baseStats.wis,
-        int: baseStats.int,
-        // derived stats — placeholder zeros, recomputeCharacterDerived will set these
-        hp: 0n,
-        maxHp: 0n,
-        mana: 0n,
-        maxMana: 0n,
-        stamina: 0n,
-        maxStamina: 0n,
-        hitChance: 0n,
-        dodgeChance: 0n,
-        parryChance: 0n,
-        critMelee: 0n,
-        critRanged: 0n,
-        critDivine: 0n,
-        critArcane: 0n,
-        armorClass: 0n,
-        perception: 0n,
-        search: 0n,
-        ccPower: 0n,
-        vendorBuyMod: 0n,
-        vendorSellMod: 0n,
-        createdAt: ctx.timestamp,
-        // racial columns (identity data)
-        racialSpellDamage: racial.racialSpellDamage > 0n ? racial.racialSpellDamage : undefined,
-        racialPhysDamage: racial.racialPhysDamage > 0n ? racial.racialPhysDamage : undefined,
-        racialMaxHp: racial.racialMaxHp > 0n ? racial.racialMaxHp : undefined,
-        racialMaxMana: racial.racialMaxMana > 0n ? racial.racialMaxMana : undefined,
-        racialManaRegen: racial.racialManaRegen > 0n ? racial.racialManaRegen : undefined,
-        racialStaminaRegen: racial.racialStaminaRegen > 0n ? racial.racialStaminaRegen : undefined,
-        racialCritBonus: racial.racialCritBonus > 0n ? racial.racialCritBonus : undefined,
-        racialArmorBonus: racial.racialArmorBonus > 0n ? racial.racialArmorBonus : undefined,
-        racialDodgeBonus: racial.racialDodgeBonus > 0n ? racial.racialDodgeBonus : undefined,
-        racialHpRegen: racial.racialHpRegen > 0n ? racial.racialHpRegen : undefined,
-        racialMaxStamina: racial.racialMaxStamina > 0n ? racial.racialMaxStamina : undefined,
-        racialTravelCostIncrease: racial.racialTravelCostIncrease > 0n ? racial.racialTravelCostIncrease : undefined,
-        racialTravelCostDiscount: racial.racialTravelCostDiscount > 0n ? racial.racialTravelCostDiscount : undefined,
-        racialHitBonus: racial.racialHitBonus > 0n ? racial.racialHitBonus : undefined,
-        racialParryBonus: racial.racialParryBonus > 0n ? racial.racialParryBonus : undefined,
-        racialFactionBonus: racial.racialFactionBonus > 0n ? racial.racialFactionBonus : undefined,
-        racialMagicResist: racial.racialMagicResist > 0n ? racial.racialMagicResist : undefined,
-        racialPerceptionBonus: racial.racialPerceptionBonus > 0n ? racial.racialPerceptionBonus : undefined,
-        racialLootBonus: racial.racialLootBonus > 0n ? racial.racialLootBonus : undefined,
-      });
-
-      // Compute all derived stats (maxHp, maxMana, maxStamina, hitChance, armorClass, etc.)
-      // using the single source of truth — no duplication of formulas here.
-      recomputeCharacterDerived(ctx, character);
-
-      // New characters start at full hp/mana/stamina — read back the recomputed max values.
-      const recomputed = ctx.db.character.id.find(character.id);
-      if (recomputed) {
-        ctx.db.character.id.update({
-          ...recomputed,
-          hp: recomputed.maxHp,
-          mana: recomputed.maxMana,
-          stamina: recomputed.maxStamina,
-        });
-      }
-
-      grantStarterItems(ctx, character, ensureStarterItemTemplates);
-
-      // Initialize FactionStanding for all factions at 0
-      for (const faction of ctx.db.faction.iter()) {
-        ctx.db.faction_standing.insert({
-          id: 0n,
-          characterId: character.id,
-          factionId: faction.id,
-          standing: 0n,
-        });
-      }
-
-      appendPrivateEvent(ctx, character.id, userId, 'system', `${character.name} enters the world.`);
-    }
-  );
 
   spacetimedb.reducer('bind_location', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
@@ -493,9 +284,7 @@ export const registerCharacterReducers = (deps: any) => {
     for (const effect of ctx.db.character_effect.by_character.filter(character.id)) {
       ctx.db.character_effect.id.delete(effect.id);
     }
-    // Clear travel cooldown on respawn — death is penalty enough; player needs to be able
-    // to travel cross-region immediately after respawn (e.g. to retrieve their corpse).
-    // This also intentionally bypasses any active cooldown for the bind-point teleport itself.
+    // Clear travel cooldown on respawn
     for (const cd of ctx.db.travel_cooldown.by_character.filter(character.id)) {
       ctx.db.travel_cooldown.id.delete(cd.id);
     }

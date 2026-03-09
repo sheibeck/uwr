@@ -24,20 +24,6 @@ export const registerItemReducers = (deps: any) => {
     logPrivateAndGroup,
     getInventorySlotCount,
     MAX_INVENTORY_SLOTS,
-    ensureStarterItemTemplates,
-    ensureResourceItemTemplates,
-    ensureLootTables,
-    ensureVendorInventory,
-    ensureAbilityTemplates,
-    ensureRecipeTemplates,
-    ensureNpcs,
-    ensureQuestTemplates,
-    ensureEnemyTemplatesAndRoles,
-    ensureEnemyAbilities,
-    ensureWorldLayout,
-    ensureLocationEnemyTemplates,
-    ensureLocationRuntimeBootstrap,
-    syncAllContent,
     fail,
   } = deps;
 
@@ -949,46 +935,6 @@ export const registerItemReducers = (deps: any) => {
       'system',
       `You use ${template.name}, but nothing happens.`
     );
-  });
-
-  spacetimedb.reducer('sync_equipment_tables', (ctx) => {
-    requirePlayerUserId(ctx);
-    ensureStarterItemTemplates(ctx);
-    ensureVendorInventory(ctx);
-  });
-
-  spacetimedb.reducer('sync_loot_tables', (ctx) => {
-    requirePlayerUserId(ctx);
-    ensureLootTables(ctx);
-  });
-
-  spacetimedb.reducer('sync_enemy_content', (ctx) => {
-    requirePlayerUserId(ctx);
-    ensureEnemyTemplatesAndRoles(ctx);
-    ensureEnemyAbilities(ctx);
-    ensureLocationEnemyTemplates(ctx);
-  });
-
-  spacetimedb.reducer('sync_world_layout', (ctx) => {
-    requirePlayerUserId(ctx);
-    ensureWorldLayout(ctx);
-    ensureLocationRuntimeBootstrap(ctx);
-  });
-
-  spacetimedb.reducer('sync_ability_templates', (ctx) => {
-    requirePlayerUserId(ctx);
-    ensureAbilityTemplates(ctx);
-  });
-
-  spacetimedb.reducer('sync_recipe_templates', (ctx) => {
-    requirePlayerUserId(ctx);
-    ensureRecipeTemplates(ctx);
-  });
-
-  spacetimedb.reducer('sync_npc_quest_content', (ctx) => {
-    requirePlayerUserId(ctx);
-    ensureNpcs(ctx);
-    ensureQuestTemplates(ctx);
   });
 
 

@@ -82,20 +82,8 @@ export const registerCommandReducers = (deps: any) => {
     xpRequiredForLevel,
     MAX_LEVEL,
     awardXp,
-    ensureWorldLayout,
     ensureStarterItemTemplates,
-    ensureResourceItemTemplates,
-    ensureAbilityTemplates,
-    ensureRecipeTemplates,
-    ensureNpcs,
-    ensureQuestTemplates,
-    ensureEnemyTemplatesAndRoles,
-    ensureEnemyAbilities,
-    ensureLocationEnemyTemplates,
     ensureLocationRuntimeBootstrap,
-    ensureLootTables,
-    ensureVendorInventory,
-    syncAllContent,
     initScheduledTables,
     addItemToInventory,
     MAX_INVENTORY_SLOTS,
@@ -268,7 +256,8 @@ export const registerCommandReducers = (deps: any) => {
     if (trimmed.toLowerCase() === '/synccontent') {
       requireAdmin(ctx);
       const userId = requirePlayerUserId(ctx);
-      syncAllContent(ctx);
+      ensureStarterItemTemplates(ctx);
+      ensureLocationRuntimeBootstrap(ctx);
       initScheduledTables(ctx);
       appendPrivateEvent(
         ctx,

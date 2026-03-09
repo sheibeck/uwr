@@ -123,6 +123,7 @@ import {
   hasInventorySpace,
   removeItemFromInventory,
   grantStarterItems,
+  ensureStarterItemTemplates,
   MAX_INVENTORY_SLOTS,
 } from './helpers/items';
 
@@ -228,30 +229,16 @@ import {
   executeCorpseSummon,
 } from './helpers/corpse';
 
-import { initScheduledTables } from './helpers/scheduling';
 import {
-  syncAllContent,
-} from './seeding/ensure_content';
-
-import {
-  ensureStarterItemTemplates,
-  ensureResourceItemTemplates,
-  ensureFoodItemTemplates,
-  ensureRecipeTemplates,
-} from './seeding/ensure_items';
-
-import {
-  ensureNpcs,
-  ensureQuestTemplates,
-  ensureWorldLayout,
-} from './seeding/ensure_world';
-
-import {
-  ensureLootTables,
-  ensureVendorInventory,
-  ensureLocationEnemyTemplates,
-  ensureEnemyTemplatesAndRoles,
-} from './seeding/ensure_enemies';
+  initScheduledTables,
+  ensureHealthRegenScheduled,
+  ensureEffectTickScheduled,
+  ensureHotTickScheduled,
+  ensureCastTickScheduled,
+  ensureDayNightTickScheduled,
+  ensureInactivityTickScheduled,
+  ensureLlmCleanupScheduled,
+} from './helpers/scheduling';
 
 import { myBankSlotsView } from './schema/tables';
 
@@ -1326,7 +1313,20 @@ spacetimedb.reducer('submit_llm_result', {
 });
 
 spacetimedb.init((ctx) => {
-  syncAllContent(ctx);
+  // Ensure races exist (mechanical data, not seeded content)
+  ensureRaces(ctx);
+  // Ensure world_state row exists
+  const world = ctx.db.world_state.id.find(1n);
+  if (!world) {
+    ctx.db.world_state.insert({
+      id: 1n,
+      startingLocationId: 0n,
+      isNight: false,
+      nextTransitionAtMicros: ctx.timestamp.microsSinceUnixEpoch + DAY_DURATION_MICROS,
+    });
+  }
+  // Ensure starter item templates exist
+  ensureStarterItemTemplates(ctx);
   initScheduledTables(ctx);
 });
 
@@ -1454,18 +1454,7 @@ const reducerDeps = {
   getItemCount,
   getGatherableResourceTemplates,
   ensureStarterItemTemplates,
-  ensureResourceItemTemplates,
-  ensureFoodItemTemplates,
-  ensureLootTables,
-  ensureVendorInventory,
-  ensureRecipeTemplates,
-  ensureNpcs,
-  ensureQuestTemplates,
-  ensureEnemyTemplatesAndRoles,
-  ensureWorldLayout,
-  ensureLocationEnemyTemplates,
   ensureLocationRuntimeBootstrap,
-  syncAllContent,
   initScheduledTables,
   spawnResourceNode,
   awardXp,
