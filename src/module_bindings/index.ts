@@ -50,7 +50,6 @@ import LoginEmailReducer from "./login_email_reducer";
 import LogoutReducer from "./logout_reducer";
 import SetActiveCharacterReducer from "./set_active_character_reducer";
 import ClearActiveCharacterReducer from "./clear_active_character_reducer";
-import CreateCharacterReducer from "./create_character_reducer";
 import BindLocationReducer from "./bind_location_reducer";
 import DeleteCharacterReducer from "./delete_character_reducer";
 import RespawnCharacterReducer from "./respawn_character_reducer";
@@ -69,14 +68,6 @@ import ConsolidateStacksReducer from "./consolidate_stacks_reducer";
 import SetHotbarSlotReducer from "./set_hotbar_slot_reducer";
 import UseAbilityReducer from "./use_ability_reducer";
 import UseItemReducer from "./use_item_reducer";
-import SyncEquipmentTablesReducer from "./sync_equipment_tables_reducer";
-import SyncLootTablesReducer from "./sync_loot_tables_reducer";
-import SyncEnemyContentReducer from "./sync_enemy_content_reducer";
-import SyncWorldLayoutReducer from "./sync_world_layout_reducer";
-import SyncAbilityTemplatesReducer from "./sync_ability_templates_reducer";
-import SyncRecipeTemplatesReducer from "./sync_recipe_templates_reducer";
-import SyncNpcQuestContentReducer from "./sync_npc_quest_content_reducer";
-import SyncAllContentReducer from "./sync_all_content_reducer";
 import ResearchRecipesReducer from "./research_recipes_reducer";
 import CraftRecipeReducer from "./craft_recipe_reducer";
 import LearnRecipeScrollReducer from "./learn_recipe_scroll_reducer";
@@ -958,6 +949,9 @@ const tablesSchema = __schema({
   group_member: __table({
     name: 'group_member',
     indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
       { name: 'by_group', algorithm: 'btree', columns: [
         'groupId',
       ] },
@@ -1755,7 +1749,6 @@ const reducersSchema = __reducers(
   __reducerSchema("logout", LogoutReducer),
   __reducerSchema("set_active_character", SetActiveCharacterReducer),
   __reducerSchema("clear_active_character", ClearActiveCharacterReducer),
-  __reducerSchema("create_character", CreateCharacterReducer),
   __reducerSchema("bind_location", BindLocationReducer),
   __reducerSchema("delete_character", DeleteCharacterReducer),
   __reducerSchema("respawn_character", RespawnCharacterReducer),
@@ -1774,14 +1767,6 @@ const reducersSchema = __reducers(
   __reducerSchema("set_hotbar_slot", SetHotbarSlotReducer),
   __reducerSchema("use_ability", UseAbilityReducer),
   __reducerSchema("use_item", UseItemReducer),
-  __reducerSchema("sync_equipment_tables", SyncEquipmentTablesReducer),
-  __reducerSchema("sync_loot_tables", SyncLootTablesReducer),
-  __reducerSchema("sync_enemy_content", SyncEnemyContentReducer),
-  __reducerSchema("sync_world_layout", SyncWorldLayoutReducer),
-  __reducerSchema("sync_ability_templates", SyncAbilityTemplatesReducer),
-  __reducerSchema("sync_recipe_templates", SyncRecipeTemplatesReducer),
-  __reducerSchema("sync_npc_quest_content", SyncNpcQuestContentReducer),
-  __reducerSchema("sync_all_content", SyncAllContentReducer),
   __reducerSchema("research_recipes", ResearchRecipesReducer),
   __reducerSchema("craft_recipe", CraftRecipeReducer),
   __reducerSchema("learn_recipe_scroll", LearnRecipeScrollReducer),

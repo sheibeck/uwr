@@ -708,6 +708,7 @@ export const GroupMember = table(
     indexes: [
       { accessor: 'by_owner_user', algorithm: 'btree', columns: ['ownerUserId'] },
       { accessor: 'by_group', algorithm: 'btree', columns: ['groupId'] },
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
     ],
   },
   {
