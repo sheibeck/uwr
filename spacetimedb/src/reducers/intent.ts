@@ -411,7 +411,7 @@ export const registerIntentReducers = (deps: any) => {
 
     // --- ABILITIES ---
     if (lower === 'abilities' || lower === 'ab') {
-      const abilities = [...ctx.db.abilityTemplate.by_character.filter(character.id)];
+      const abilities = [...ctx.db.ability_template.by_character.filter(character.id)];
       const hasPending = [...ctx.db.pending_skill.by_character.filter(character.id)].length > 0;
       const levelsWithAbilities = new Set(abilities.map((a: any) => Number(a.levelRequired)));
       const missedLevels: number[] = [];
