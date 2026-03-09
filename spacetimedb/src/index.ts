@@ -475,7 +475,7 @@ spacetimedb.reducer('prepare_creation_llm', { generationType: t.string() }, (ctx
     // Check for existing race definition (case-insensitive)
     const nameLower = (state.raceDescription || '').trim().toLowerCase();
     let existingRace: any = null;
-    for (const rd of ctx.db.raceDefinition.by_name.filter(nameLower)) {
+    for (const rd of ctx.db.race_definition.by_name.filter(nameLower)) {
       existingRace = rd;
       break;
     }
@@ -843,12 +843,12 @@ spacetimedb.reducer('submit_llm_result', {
         const raceLower = (data.raceName || '').trim().toLowerCase();
         if (raceLower) {
           let alreadySaved = false;
-          for (const existing of ctx.db.raceDefinition.by_name.filter(raceLower)) {
+          for (const existing of ctx.db.race_definition.by_name.filter(raceLower)) {
             alreadySaved = true;
             break;
           }
           if (!alreadySaved) {
-            ctx.db.raceDefinition.insert({
+            ctx.db.race_definition.insert({
               id: 0n,
               name: data.raceName,
               nameLower: raceLower,
