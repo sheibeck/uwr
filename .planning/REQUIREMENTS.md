@@ -1,7 +1,7 @@
 # Requirements: UWR
 
 **Defined:** 2026-03-09
-**Core Value:** A world that writes itself around its players — every character is unique, every region is discovered, and the narrative responds to what players actually do.
+**Core Value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
 
 ## v2.1 Requirements
 
@@ -95,49 +95,49 @@ Deferred to future release. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TEST-01 | — | Pending |
-| TEST-02 | — | Pending |
-| TEST-03 | — | Pending |
-| TEST-04 | — | Pending |
-| TEST-05 | — | Pending |
-| TEST-06 | — | Pending |
-| CLEAN-01 | — | Pending |
-| CLEAN-02 | — | Pending |
-| CLEAN-03 | — | Pending |
-| CLEAN-04 | — | Pending |
-| CLEAN-05 | — | Pending |
-| CLEAN-06 | — | Pending |
-| COMB-01 | — | Pending |
-| COMB-02 | — | Pending |
-| COMB-03 | — | Pending |
-| COMB-04 | — | Pending |
-| COMB-05 | — | Pending |
-| COMB-06 | — | Pending |
-| COMB-07 | — | Pending |
-| COMB-08 | — | Pending |
-| NARR-01 | — | Pending |
-| NARR-02 | — | Pending |
-| NARR-03 | — | Pending |
-| NARR-04 | — | Pending |
-| NARR-05 | — | Pending |
-| EQUIP-01 | — | Pending |
-| EQUIP-02 | — | Pending |
-| EQUIP-03 | — | Pending |
-| EQUIP-04 | — | Pending |
-| EQUIP-05 | — | Pending |
-| ABIL-01 | — | Pending |
-| ABIL-02 | — | Pending |
-| ABIL-03 | — | Pending |
-| ABIL-04 | — | Pending |
-| UX-01 | — | Pending |
-| UX-02 | — | Pending |
-| UX-03 | — | Pending |
+| TEST-01 | Phase 31 | Pending |
+| TEST-02 | Phase 31 | Pending |
+| TEST-03 | Phase 31 | Pending |
+| TEST-04 | Phase 31 | Pending |
+| TEST-05 | Phase 31 | Pending |
+| TEST-06 | Phase 31 | Pending |
+| CLEAN-01 | Phase 32 | Pending |
+| CLEAN-02 | Phase 32 | Pending |
+| CLEAN-03 | Phase 32 | Pending |
+| CLEAN-04 | Phase 32 | Pending |
+| CLEAN-05 | Phase 32 | Pending |
+| CLEAN-06 | Phase 32 | Pending |
+| COMB-01 | Phase 33 | Pending |
+| COMB-02 | Phase 33 | Pending |
+| COMB-03 | Phase 33 | Pending |
+| COMB-04 | Phase 33 | Pending |
+| COMB-05 | Phase 33 | Pending |
+| COMB-06 | Phase 33 | Pending |
+| COMB-07 | Phase 33 | Pending |
+| COMB-08 | Phase 37 | Pending |
+| NARR-01 | Phase 34 | Pending |
+| NARR-02 | Phase 34 | Pending |
+| NARR-03 | Phase 34 | Pending |
+| NARR-04 | Phase 34 | Pending |
+| NARR-05 | Phase 34 | Pending |
+| EQUIP-01 | Phase 35 | Pending |
+| EQUIP-02 | Phase 35 | Pending |
+| EQUIP-03 | Phase 35 | Pending |
+| EQUIP-04 | Phase 35 | Pending |
+| EQUIP-05 | Phase 35 | Pending |
+| ABIL-01 | Phase 36 | Pending |
+| ABIL-02 | Phase 36 | Pending |
+| ABIL-03 | Phase 36 | Pending |
+| ABIL-04 | Phase 36 | Pending |
+| UX-01 | Phase 37 | Pending |
+| UX-02 | Phase 37 | Pending |
+| UX-03 | Phase 37 | Pending |
 
 **Coverage:**
 - v2.1 requirements: 37 total
-- Mapped to phases: 0
-- Unmapped: 37 ⚠️
+- Mapped to phases: 37
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-09*
-*Last updated: 2026-03-09 after initial definition*
+*Last updated: 2026-03-09 after roadmap creation*
