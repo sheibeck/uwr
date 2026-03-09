@@ -1092,6 +1092,16 @@ export const Race = __t.object("Race", {
 });
 export type Race = __Infer<typeof Race>;
 
+export const RaceDefinition = __t.object("RaceDefinition", {
+  id: __t.u64(),
+  name: __t.string(),
+  nameLower: __t.string(),
+  narrative: __t.string(),
+  bonusesJson: __t.string(),
+  createdAt: __t.timestamp(),
+});
+export type RaceDefinition = __Infer<typeof RaceDefinition>;
+
 export const RecipeDiscovered = __t.object("RecipeDiscovered", {
   id: __t.u64(),
   characterId: __t.u64(),

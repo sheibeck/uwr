@@ -236,6 +236,7 @@ import QuestInstanceRow from "./quest_instance_table";
 import QuestItemRow from "./quest_item_table";
 import QuestTemplateRow from "./quest_template_table";
 import RaceRow from "./race_table";
+import RaceDefinitionRow from "./race_definition_table";
 import RecipeDiscoveredRow from "./recipe_discovered_table";
 import RecipeTemplateRow from "./recipe_template_table";
 import RegionRow from "./region_table";
@@ -1350,6 +1351,20 @@ const tablesSchema = __schema({
       { name: 'race_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, RaceRow),
+  race_definition: __table({
+    name: 'race_definition',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'by_name', algorithm: 'btree', columns: [
+        'nameLower',
+      ] },
+    ],
+    constraints: [
+      { name: 'race_definition_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RaceDefinitionRow),
   recipe_discovered: __table({
     name: 'recipe_discovered',
     indexes: [
