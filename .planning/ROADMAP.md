@@ -37,7 +37,7 @@ See `.planning/milestones/v2.0-ROADMAP.md` for full details.
 **Milestone Goal:** Stabilize, polish, and complete the v2.0 foundation -- remove dead code, add tests, wire remaining v1.0 systems into narrative UI, and fix combat gaps.
 
 - [x] **Phase 31: Test Infrastructure** - Unified mock DB, combat regression tests, and test coverage across core systems (completed 2026-03-09)
-- [ ] **Phase 32: Dead Code Removal** - Purge v1.0 legacy files, extract implicit rules, deduplicate code, clean imports
+- [x] **Phase 32: Dead Code Removal** - Purge v1.0 legacy files, extract implicit rules, deduplicate code, clean imports (completed 2026-03-09)
 - [ ] **Phase 33: Combat Improvements** - Complete combat logging, enemy effect indicators, balance tuning, multi-pull verification
 - [ ] **Phase 34: Narrative UI Integration** - Sell commands, hotbar in narrative UI, event feed styling
 - [ ] **Phase 35: Dynamic Equipment Generation** - Level-scaled equipment drops replacing hardcoded gear definitions
@@ -165,7 +165,7 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37
 | 1-23 | v1.0 | All | Complete | 2026-02-25 |
 | 24-30 | v2.0 | 22/22 | Complete | 2026-03-09 |
 | 31. Test Infrastructure | 3/3 | Complete    | 2026-03-09 | - |
-| 32. Dead Code Removal | 2/3 | In Progress|  | - |
+| 32. Dead Code Removal | 3/3 | Complete   | 2026-03-09 | - |
 | 33. Combat Improvements | v2.1 | 0/? | Not started | - |
 | 34. Narrative UI Integration | v2.1 | 0/? | Not started | - |
 | 35. Dynamic Equipment Generation | v2.1 | 0/? | Not started | - |

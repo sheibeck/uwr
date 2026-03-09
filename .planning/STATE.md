@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
-status: in-progress
-stopped_at: Completed 32-03-PLAN.md
-last_updated: "2026-03-09T19:03:14.000Z"
-last_activity: 2026-03-09 -- Completed 32-01 extract rules and rewire imports
+status: executing
+stopped_at: Completed 32-02-PLAN.md
+last_updated: "2026-03-09T19:24:18.711Z"
+last_activity: 2026-03-09 -- Completed 32-03 legacy frontend panels cleanup
 progress:
   total_phases: 7
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 2
+  total_plans: 6
+  completed_plans: 6
   percent: 88
 ---
 
@@ -55,6 +55,9 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 32]: Kept syncAllContent in init alongside initScheduledTables for backward compatibility
 - [Phase 32]: Kept useCharacterCreation.ts with narrative creation flow -- only old form-based code was dead
 - [Phase 32]: Deleted 5 additional orphaned components beyond planned 4 (CharacterActionsPanel, HotbarPanel, PanelShell, CommandBar, LogWindow)
+- [Phase 32]: Relocated ensureStarterItemTemplates to helpers/items.ts -- still needed by grantStarterItems for character creation
+- [Phase 32]: Replaced syncAllContent in init with targeted ensureRaces + ensureWorldState + ensureStarterItemTemplates
+- [Phase 32]: Extracted computeSellValue to helpers/economy.ts to deduplicate vendor sell price calculation
 
 ### Pending Todos
 
@@ -68,5 +71,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T19:03:14.000Z
-Stopped at: Completed 32-03-PLAN.md
+Last session: 2026-03-09T19:24:18.705Z
+Stopped at: Completed 32-02-PLAN.md

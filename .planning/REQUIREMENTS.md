@@ -18,11 +18,11 @@ Requirements for v2.1 Project Cleanup milestone. Each maps to roadmap phases.
 
 ### Cleanup
 
-- [ ] **CLEAN-01**: All v1.0 legacy files identified in MEMORY.md are removed (seeded data, old components)
+- [x] **CLEAN-01**: All v1.0 legacy files identified in MEMORY.md are removed (seeded data, old components)
 - [x] **CLEAN-02**: Implicit mechanical rules from item_defs.ts are extracted to mechanical_vocabulary.ts before deletion
-- [ ] **CLEAN-03**: Backend code is deduplicated (shared helpers extracted for sell logic, combat utilities)
+- [x] **CLEAN-03**: Backend code is deduplicated (shared helpers extracted for sell logic, combat utilities)
 - [x] **CLEAN-04**: Frontend code is deduplicated (redundant components consolidated)
-- [ ] **CLEAN-05**: Dead reducers and unused table accessors are removed
+- [x] **CLEAN-05**: Dead reducers and unused table accessors are removed
 - [x] **CLEAN-06**: Import graph is clean — no broken or circular imports after cleanup
 
 ### Combat
@@ -101,11 +101,11 @@ Deferred to future release. Tracked but not in current roadmap.
 | TEST-04 | Phase 31 | Complete |
 | TEST-05 | Phase 31 | Complete |
 | TEST-06 | Phase 31 | Complete |
-| CLEAN-01 | Phase 32 | Pending |
+| CLEAN-01 | Phase 32 | Complete |
 | CLEAN-02 | Phase 32 | Complete |
-| CLEAN-03 | Phase 32 | Pending |
+| CLEAN-03 | Phase 32 | Complete |
 | CLEAN-04 | Phase 32 | Complete |
-| CLEAN-05 | Phase 32 | Pending |
+| CLEAN-05 | Phase 32 | Complete |
 | CLEAN-06 | Phase 32 | Complete |
 | COMB-01 | Phase 33 | Pending |
 | COMB-02 | Phase 33 | Pending |
