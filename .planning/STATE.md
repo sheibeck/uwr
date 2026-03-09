@@ -228,8 +228,9 @@ None yet.
 | 388 | Remove character bars from top HUD | 2026-03-09 | 3409e47 | [388-remove-character-bars-from-top-since-the](./quick/388-remove-character-bars-from-top-since-the/) |
 | 389 | Fix combat HP tracking - enemy damage not reducing player HP | 2026-03-09 | 3a21f93 | [389-fix-combat-hp-tracking-damage-not-reduci](./quick/389-fix-combat-hp-tracking-damage-not-reduci/) |
 | 390 | Verify travel system with narrative UI enforcement | 2026-03-09 | 22f9d46, a55fe47 | [390-verify-travel-system-with-narrative-ui-e](./quick/390-verify-travel-system-with-narrative-ui-e/) |
+| 391 | Fix race data unavailable in character command | 2026-03-09 | 04d3530, ab10b23 | [391-fix-race-data-unavailable-in-character-c](./quick/391-fix-race-data-unavailable-in-character-c/) |
 
 ## Session Continuity
 
-Last session: 2026-03-09T03:42:00Z
-Stopped at: Completed quick-390 (Verify travel system with narrative UI enforcement)
+Last session: 2026-03-09T03:49:00Z
+Stopped at: Completed quick-391 (Fix race data unavailable in character command)
