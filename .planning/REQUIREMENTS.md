@@ -9,12 +9,12 @@ Requirements for v2.1 Project Cleanup milestone. Each maps to roadmap phases.
 
 ### Testing
 
-- [ ] **TEST-01**: Backend has unified mock DB test infrastructure (single reusable pattern)
+- [x] **TEST-01**: Backend has unified mock DB test infrastructure (single reusable pattern)
 - [ ] **TEST-02**: Combat engine has regression tests covering damage, healing, effects, death
 - [ ] **TEST-03**: Item/inventory reducers have unit tests covering equip, unequip, sell, drop
 - [ ] **TEST-04**: Intent routing has tests covering command parsing and dispatch
 - [ ] **TEST-05**: Equipment generation has tests covering rarity rolling, affix generation, stat scaling
-- [ ] **TEST-06**: Event logging has tests verifying all event types are emitted correctly
+- [x] **TEST-06**: Event logging has tests verifying all event types are emitted correctly
 
 ### Cleanup
 
@@ -95,12 +95,12 @@ Deferred to future release. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TEST-01 | Phase 31 | Pending |
+| TEST-01 | Phase 31 | Complete |
 | TEST-02 | Phase 31 | Pending |
 | TEST-03 | Phase 31 | Pending |
 | TEST-04 | Phase 31 | Pending |
 | TEST-05 | Phase 31 | Pending |
-| TEST-06 | Phase 31 | Pending |
+| TEST-06 | Phase 31 | Complete |
 | CLEAN-01 | Phase 32 | Pending |
 | CLEAN-02 | Phase 32 | Pending |
 | CLEAN-03 | Phase 32 | Pending |
