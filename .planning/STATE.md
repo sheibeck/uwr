@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 30 of 30 (Phases 24-29 complete, Phase 30 in progress)
 Plan: 30-03 just completed (Narrative Combat UI)
 Status: Phase 30 in progress (3/4 plans complete)
-Last activity: 2026-03-09 - Completed quick task 389: Fix combat HP tracking - enemy damage not reducing player HP
+Last activity: 2026-03-09 - Completed quick task 390: Verify travel system with narrative UI enforcement
 
 Progress: [█████████░] 88%
 
@@ -227,8 +227,9 @@ None yet.
 | 387 | Cleanup command list, remove slash prefix, camp logout | 2026-03-09 | c0f1798, 833024a | [387-cleanup-command-list-remove-slash-requir](./quick/387-cleanup-command-list-remove-slash-requir/) |
 | 388 | Remove character bars from top HUD | 2026-03-09 | 3409e47 | [388-remove-character-bars-from-top-since-the](./quick/388-remove-character-bars-from-top-since-the/) |
 | 389 | Fix combat HP tracking - enemy damage not reducing player HP | 2026-03-09 | 3a21f93 | [389-fix-combat-hp-tracking-damage-not-reduci](./quick/389-fix-combat-hp-tracking-damage-not-reduci/) |
+| 390 | Verify travel system with narrative UI enforcement | 2026-03-09 | 22f9d46, a55fe47 | [390-verify-travel-system-with-narrative-ui-e](./quick/390-verify-travel-system-with-narrative-ui-e/) |
 
 ## Session Continuity
 
-Last session: 2026-03-09T01:55:00Z
-Stopped at: Completed quick-389 (Fix combat HP tracking - damage not reducing player HP)
+Last session: 2026-03-09T03:42:00Z
+Stopped at: Completed quick-390 (Verify travel system with narrative UI enforcement)
