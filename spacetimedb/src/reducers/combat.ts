@@ -16,7 +16,6 @@ import { scheduleCombatTick } from '../helpers/combat';
 import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_materials';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { addCharacterEffect, addEnemyEffect } from '../helpers/combat';
-import { triggerCombatNarration, type RoundEventSummary } from '../helpers/combat_narration';
 import { applyPerkProcs } from '../helpers/combat_perks';
 import { partyMembersInLocation } from '../helpers/character';
 import { getLocationSpawnCap } from '../helpers/location';
@@ -2648,46 +2647,7 @@ export const registerCombatReducers = (deps: any) => {
     }
   });
 
-  // ── Post-Combat Summary ─────────────────────────────────────────────
-
-  const triggerPostCombatSummary = (
-    ctx: any, combat: any, enemies: any[], participants: any[],
-    outcome: 'victory' | 'defeat'
-  ) => {
-    const location = ctx.db.location.id.find(combat.locationId);
-    const enemyNames = enemies.map((e: any) => e.displayName);
-    const playerNames = participants.map((p: any) => {
-      const c = ctx.db.character.id.find(p.characterId);
-      return c?.name || 'Unknown';
-    });
-    const hpSummary: RoundEventSummary['participantHpSummary'] = [];
-    for (const p of participants) {
-      const c = ctx.db.character.id.find(p.characterId);
-      if (c) hpSummary.push({ name: c.name, hp: c.hp, maxHp: c.maxHp, isEnemy: false });
-    }
-    for (const e of enemies) {
-      hpSummary.push({ name: e.displayName, hp: e.currentHp, maxHp: e.maxHp, isEnemy: true });
-    }
-    const events: RoundEventSummary = {
-      combatId: combat.id,
-      roundNumber: 0n,
-      narrativeType: outcome,
-      playerActions: [],
-      enemyActions: [],
-      effectsApplied: [],
-      effectsExpired: [],
-      deaths: enemies.filter((e: any) => e.currentHp === 0n).map((e: any) => e.displayName),
-      nearDeathNames: [],
-      hasCrit: false,
-      hasKill: outcome === 'victory',
-      hasNearDeath: false,
-      participantHpSummary: hpSummary,
-      locationName: location?.name || 'an unknown place',
-      enemyNames,
-      playerNames,
-    };
-    triggerCombatNarration(ctx, combat, { narrationCount: 0n, roundNumber: 0n }, events);
-  };
+  // ── Post-Combat Summary (removed — LLM narration too slow) ──
 
   // ── Resolve Round Timer (kept registered but no-ops -- tables still exist) ──
 
@@ -2784,7 +2744,6 @@ export const registerCombatReducers = (deps: any) => {
 
     // Victory check
     if (livingEnemies.length === 0) {
-      triggerPostCombatSummary(ctx, combat, enemies, participants, 'victory');
       handleVictory(ctx, combat, enemies, participants, activeParticipants, enemyName, nowMicros);
       return;
     }
@@ -2797,7 +2756,6 @@ export const registerCombatReducers = (deps: any) => {
       if (character && character.hp > 0n) { stillActive = true; break; }
     }
     if (!stillActive) {
-      triggerPostCombatSummary(ctx, combat, enemies, participants, 'defeat');
       handleDefeat(ctx, combat, enemies, participants, enemyName, nowMicros);
       return;
     }
