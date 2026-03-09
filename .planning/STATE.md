@@ -221,8 +221,9 @@ None yet.
 | 381 | Remove LLM combat narration entirely | 2026-03-09 | 5be0a4f | [381-remove-llm-combat-narration-entirely-too](./quick/381-remove-llm-combat-narration-entirely-too/) |
 | 382 | Shore up quest system: NPC quest limits, enemy alignment, dedup | 2026-03-09 | 73ccde6 | Verified | [382-shore-up-quest-system-npc-quest-limits-d](./quick/382-shore-up-quest-system-npc-quest-limits-d/) |
 | 383 | Replace CharacterInfoPanel with chat commands | 2026-03-09 | 006003b, 98cbb1d | [383-replace-characterinfopanel-with-chat-com](./quick/383-replace-characterinfopanel-with-chat-com/) |
+| 384 | Add [choose ability] links in abilities command | 2026-03-09 | a72cdbc | [384-add-choose-ability-links-in-abilities-co](./quick/384-add-choose-ability-links-in-abilities-co/) |
 
 ## Session Continuity
 
-Last session: 2026-03-09T00:54:00Z
-Stopped at: Completed quick-383 (Replace CharacterInfoPanel with chat commands)
+Last session: 2026-03-09T01:02:00Z
+Stopped at: Completed quick-384 (Add [choose ability] links in abilities command)
