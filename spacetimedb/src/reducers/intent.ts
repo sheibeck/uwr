@@ -1,6 +1,7 @@
 import { getAffinityForNpc, awardNpcAffinity } from '../helpers/npc_affinity';
 import { performTravel } from '../helpers/travel';
 import { buildLookOutput } from '../helpers/look';
+import { computeSellValue } from '../helpers/economy';
 
 // Re-export for any existing consumers that import from intent.ts
 export { buildLookOutput } from '../helpers/look';
@@ -905,11 +906,7 @@ export const registerIntentReducers = (deps: any) => {
       }
 
       const baseValue = BigInt(matchedTemplate.vendorValue ?? 0) * BigInt(matchedInstance.quantity ?? 1);
-      let value = baseValue;
-      // Apply CHA vendor sell bonus
-      if (character.vendorSellMod > 0n) {
-        value = (value * (1000n + character.vendorSellMod)) / 1000n;
-      }
+      const value = computeSellValue(baseValue, character.vendorSellMod ?? 0n);
 
       // Clean up any affixes before deleting
       for (const affix of ctx.db.item_affix.by_instance.filter(matchedInstance.id)) {

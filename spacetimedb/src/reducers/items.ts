@@ -1,6 +1,7 @@
 import { buildDisplayName } from '../helpers/items';
 import { getPerkBonusByField } from '../helpers/renown';
 import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
+import { computeSellValue } from '../helpers/economy';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -173,9 +174,7 @@ export const registerItemReducers = (deps: any) => {
         sellBonusMsg = ` (${vendorSellBonus}% perk bonus)`;
       }
       // Apply CHA vendor sell bonus (character.vendorSellMod is on 1000-scale)
-      if (character.vendorSellMod > 0n) {
-        value = (value * (1000n + character.vendorSellMod)) / 1000n;
-      }
+      value = computeSellValue(value, character.vendorSellMod ?? 0n);
       // Capture template info before deletion
       const soldTemplateId = instance.templateId;
       const soldVendorValue = template.vendorValue ?? 0n;
