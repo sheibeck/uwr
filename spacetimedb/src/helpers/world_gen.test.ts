@@ -12,48 +12,7 @@ vi.mock('../data/world_gen', () => ({
 }));
 
 import { writeGeneratedRegion, findHomeLocation } from './world_gen';
-
-// Mock db that simulates SpacetimeDB table operations
-function createMockDb() {
-  const tables: Record<string, any[]> = {};
-  let nextId = 1n;
-
-  const handler = {
-    get: (_: any, tableName: string) => ({
-      insert: (row: any) => {
-        const r = { ...row, id: row.id === 0n ? nextId++ : row.id };
-        (tables[tableName] ??= []).push(r);
-        return r;
-      },
-      id: {
-        find: (id: bigint) => (tables[tableName] ?? []).find((r: any) => r.id === id),
-        update: (row: any) => {
-          const arr = tables[tableName] ?? [];
-          const idx = arr.findIndex((r: any) => r.id === row.id);
-          if (idx >= 0) arr[idx] = row;
-        },
-        delete: (id: bigint) => {
-          const arr = tables[tableName] ?? [];
-          const idx = arr.findIndex((r: any) => r.id === id);
-          if (idx >= 0) arr.splice(idx, 1);
-        },
-      },
-      iter: () => tables[tableName] ?? [],
-      by_location: {
-        filter: (locId: bigint) => (tables[tableName] ?? []).filter((r: any) => r.locationId === locId),
-      },
-      by_from: {
-        filter: (id: bigint) => (tables[tableName] ?? []).filter((r: any) => r.fromLocationId === id),
-      },
-      by_to: {
-        filter: (id: bigint) => (tables[tableName] ?? []).filter((r: any) => r.toLocationId === id),
-      },
-      _rows: () => tables[tableName] ?? [],
-    }),
-  };
-
-  return new Proxy({} as any, handler);
-}
+import { createMockDb } from './test-utils';
 
 function createMockTx() {
   const db = createMockDb();

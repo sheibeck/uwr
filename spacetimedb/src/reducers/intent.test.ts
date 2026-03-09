@@ -14,42 +14,7 @@ vi.mock('../helpers/search', () => ({
 }));
 
 import { buildLookOutput } from '../helpers/look';
-
-// Mock db that simulates SpacetimeDB table operations
-function createMockDb(data: Record<string, any[]> = {}) {
-  const tables: Record<string, any[]> = {};
-  for (const [k, v] of Object.entries(data)) {
-    tables[k] = [...v];
-  }
-
-  return new Proxy({} as any, {
-    get: (_: any, tableName: string) => ({
-      insert: (row: any) => {
-        (tables[tableName] ??= []).push(row);
-        return row;
-      },
-      id: {
-        find: (id: bigint) => (tables[tableName] ?? []).find((r: any) => r.id === id),
-      },
-      iter: () => tables[tableName] ?? [],
-      by_location: {
-        filter: (locId: bigint) => (tables[tableName] ?? []).filter((r: any) => r.locationId === locId),
-      },
-      by_from: {
-        filter: (id: bigint) => (tables[tableName] ?? []).filter((r: any) => r.fromLocationId === id),
-      },
-      by_to: {
-        filter: (id: bigint) => (tables[tableName] ?? []).filter((r: any) => r.toLocationId === id),
-      },
-      by_character: {
-        filter: (id: bigint) => (tables[tableName] ?? []).filter((r: any) => r.characterId === id),
-      },
-      by_owner: {
-        filter: (id: bigint) => (tables[tableName] ?? []).filter((r: any) => r.ownerId === id),
-      },
-    }),
-  });
-}
+import { createMockDb } from '../helpers/test-utils';
 
 describe('buildLookOutput', () => {
   it('returns array containing location name and description', () => {
