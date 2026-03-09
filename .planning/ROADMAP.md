@@ -56,11 +56,12 @@ See `.planning/milestones/v2.0-ROADMAP.md` for full details.
   3. Item/inventory tests verify equip, unequip, sell (with perk bonuses), and drop flows
   4. Intent routing tests verify command parsing dispatches to correct handlers for all registered commands
   5. Equipment generation tests verify rarity rolling, affix selection, and stat scaling produce valid items
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 31-01: TBD
-- [ ] 31-02: TBD
+- [ ] 31-01-PLAN.md -- Shared mock DB utility, refactor existing tests, event logging tests
+- [ ] 31-02-PLAN.md -- Combat regression tests (formulas, effects, attack outcomes)
+- [ ] 31-03-PLAN.md -- Item/inventory tests, equipment generation tests, intent routing tests
 
 ### Phase 32: Dead Code Removal
 **Goal**: Codebase is smaller, cleaner, and free of v1.0 legacy artifacts -- every remaining file is actively used
@@ -162,7 +163,7 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37
 |-------|-----------|----------------|--------|-----------|
 | 1-23 | v1.0 | All | Complete | 2026-02-25 |
 | 24-30 | v2.0 | 22/22 | Complete | 2026-03-09 |
-| 31. Test Infrastructure | v2.1 | 0/? | Not started | - |
+| 31. Test Infrastructure | v2.1 | 0/3 | Not started | - |
 | 32. Dead Code Removal | v2.1 | 0/? | Not started | - |
 | 33. Combat Improvements | v2.1 | 0/? | Not started | - |
 | 34. Narrative UI Integration | v2.1 | 0/? | Not started | - |
@@ -171,4 +172,4 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37
 | 37. UX Polish | v2.1 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-09 after v2.1 roadmap creation*
+*Last updated: 2026-03-09 after phase 31 planning*
