@@ -18,6 +18,9 @@ import {
   SUMMONER_THREAT_MULTIPLIER,
   SUMMONER_PET_INITIAL_AGGRO,
   HEALING_THREAT_PERCENT,
+  ABILITY_DAMAGE_SCALER,
+  MANA_COST_MULTIPLIER,
+  MANA_MIN_CAST_SECONDS,
 } from '../data/combat_scaling';
 import { effectiveGroupId } from './group';
 import { appendPrivateEvent, appendGroupEvent, logPrivateAndGroup, fail } from './events';
@@ -72,8 +75,12 @@ export {
   GROUP_SIZE_BIAS_MAX,
 };
 
-export function abilityResourceCost(level: bigint, power: bigint) {
-  return 4n + level * 2n + power;
+export function abilityResourceCost(level: bigint, power: bigint, resourceType?: string) {
+  let cost = 4n + level * 2n + power;
+  if (resourceType === 'mana') {
+    cost = (cost * MANA_COST_MULTIPLIER) / 100n;
+  }
+  return cost;
 }
 
 export function staminaResourceCost(power: bigint) {
@@ -452,11 +459,20 @@ export function resolveAbility(
     return applyEnemyAbilityDamage(ctx, target, rawDamage, dmgType, actor.name, ability.name);
   };
 
-  // Helper to calculate stat-scaled power
+  // Helper to calculate stat-scaled power (with ABILITY_DAMAGE_SCALER applied)
   const scaledPower = (): bigint => {
     const statScale = getAbilityStatScaling(actor.stats, '', '', ability.scaling);
-    const abilityMult = getAbilityMultiplier(ability.castSeconds, ability.cooldownSeconds);
-    return ((ability.value1 * 5n + statScale) * abilityMult) / 100n;
+    // Enforce mana minimum cast time at resolution
+    let effectiveCast = ability.castSeconds;
+    if (ability.resourceType === 'mana' && effectiveCast < MANA_MIN_CAST_SECONDS) {
+      effectiveCast = MANA_MIN_CAST_SECONDS;
+    }
+    const abilityMult = getAbilityMultiplier(effectiveCast, ability.cooldownSeconds);
+    let power = ((ability.value1 * 5n + statScale) * abilityMult) / 100n;
+    // Apply ability damage scaler to roughly halve ability damage
+    power = (power * ABILITY_DAMAGE_SCALER) / 100n;
+    if (power < 1n) power = 1n;
+    return power;
   };
 
   // Log helpers

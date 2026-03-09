@@ -85,6 +85,21 @@ describe('abilityResourceCost', () => {
     // 4 + 0 + 5 = 9
     expect(abilityResourceCost(0n, 5n)).toBe(9n);
   });
+
+  it('backward compatible without resourceType', () => {
+    // Same as before: 4 + 1*2 + 10 = 16
+    expect(abilityResourceCost(1n, 10n)).toBe(16n);
+  });
+
+  it('applies MANA_COST_MULTIPLIER for mana resourceType', () => {
+    // Base: 4 + 1*2 + 10 = 16. Mana: 16 * 150 / 100 = 24
+    expect(abilityResourceCost(1n, 10n, 'mana')).toBe(24n);
+  });
+
+  it('does not apply multiplier for stamina resourceType', () => {
+    // Base: 4 + 1*2 + 10 = 16. No multiplier for stamina.
+    expect(abilityResourceCost(1n, 10n, 'stamina')).toBe(16n);
+  });
 });
 
 // ============================================================================

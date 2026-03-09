@@ -73,6 +73,25 @@ export const MAGIC_RESIST_SCALING = 3n;
 export const GLOBAL_DAMAGE_MULTIPLIER = 85n;
 
 /**
+ * Scales all ability damage. 50n = abilities deal 50% damage.
+ * Adjust to tune combat duration. Applied after stat scaling and ability multiplier.
+ * Does NOT affect auto-attack damage or healing.
+ */
+export const ABILITY_DAMAGE_SCALER = 50n;
+
+/**
+ * Mana cost multiplier vs base formula. 150n = 150% on 100n scale.
+ * Design: mana abilities are more plentiful but costlier per-cast than stamina.
+ */
+export const MANA_COST_MULTIPLIER = 150n;
+
+/**
+ * Floor cast time for mana-type abilities. Enforced at resolution, not generation.
+ * Prevents instant-cast mana spells from being too efficient.
+ */
+export const MANA_MIN_CAST_SECONDS = 1n;
+
+/**
  * DoT/HoT stat scaling reduction factor (50% of direct damage scaling)
  * Prevents double-dipping: DoTs tick multiple times, so per-tick scaling is halved
  * User decision: DoTs use reduced scaling rate compared to direct damage

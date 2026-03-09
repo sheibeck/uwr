@@ -19,6 +19,9 @@ import {
   STAT_BASE,
   WEAPON_CRIT_MULTIPLIERS,
   HEALING_WIS_SCALING_PER_1000,
+  ABILITY_DAMAGE_SCALER,
+  MANA_COST_MULTIPLIER,
+  MANA_MIN_CAST_SECONDS,
 } from './combat_scaling';
 
 // ============================================================================
@@ -273,5 +276,60 @@ describe('statOffset', () => {
   it('scales with bonusPerPoint', () => {
     expect(statOffset(12n, 2n)).toBe(4n);
     expect(statOffset(12n, 10n)).toBe(20n);
+  });
+});
+
+// ============================================================================
+// Combat Balance Constants (Phase 33-01)
+// ============================================================================
+
+describe('ABILITY_DAMAGE_SCALER', () => {
+  it('exists and is 50n (halves ability damage)', () => {
+    expect(ABILITY_DAMAGE_SCALER).toBe(50n);
+  });
+
+  it('reduces damage when applied', () => {
+    const baseDamage = 200n;
+    const scaled = (baseDamage * ABILITY_DAMAGE_SCALER) / 100n;
+    expect(scaled).toBe(100n); // 200 * 50 / 100 = 100
+  });
+
+  it('enforces minimum damage of 1n after scaling', () => {
+    const tinyDamage = 1n;
+    let scaled = (tinyDamage * ABILITY_DAMAGE_SCALER) / 100n;
+    if (scaled < 1n) scaled = 1n;
+    expect(scaled).toBeGreaterThanOrEqual(1n);
+  });
+});
+
+describe('MANA_COST_MULTIPLIER', () => {
+  it('exists and is 150n (50% more expensive)', () => {
+    expect(MANA_COST_MULTIPLIER).toBe(150n);
+  });
+
+  it('increases mana cost by 50%', () => {
+    const baseCost = 10n;
+    const manaCost = (baseCost * MANA_COST_MULTIPLIER) / 100n;
+    expect(manaCost).toBe(15n); // 10 * 150 / 100 = 15
+  });
+});
+
+describe('MANA_MIN_CAST_SECONDS', () => {
+  it('exists and is > 0n', () => {
+    expect(MANA_MIN_CAST_SECONDS).toBeGreaterThan(0n);
+  });
+
+  it('is 1n (minimum cast time floor for mana abilities)', () => {
+    expect(MANA_MIN_CAST_SECONDS).toBe(1n);
+  });
+});
+
+describe('getAbilityMultiplier with ABILITY_DAMAGE_SCALER', () => {
+  it('scaled result is roughly half of unscaled', () => {
+    const unscaled = getAbilityMultiplier(3n, 10n); // 100 + 30 + 5 = 135
+    const scaled = (unscaled * ABILITY_DAMAGE_SCALER) / 100n;
+    // 135 * 50 / 100 = 67
+    expect(scaled).toBe(67n);
+    expect(scaled).toBeLessThan(unscaled);
   });
 });
