@@ -1,0 +1,143 @@
+# Requirements: UWR
+
+**Defined:** 2026-03-09
+**Core Value:** A world that writes itself around its players — every character is unique, every region is discovered, and the narrative responds to what players actually do.
+
+## v2.1 Requirements
+
+Requirements for v2.1 Project Cleanup milestone. Each maps to roadmap phases.
+
+### Testing
+
+- [ ] **TEST-01**: Backend has unified mock DB test infrastructure (single reusable pattern)
+- [ ] **TEST-02**: Combat engine has regression tests covering damage, healing, effects, death
+- [ ] **TEST-03**: Item/inventory reducers have unit tests covering equip, unequip, sell, drop
+- [ ] **TEST-04**: Intent routing has tests covering command parsing and dispatch
+- [ ] **TEST-05**: Equipment generation has tests covering rarity rolling, affix generation, stat scaling
+- [ ] **TEST-06**: Event logging has tests verifying all event types are emitted correctly
+
+### Cleanup
+
+- [ ] **CLEAN-01**: All v1.0 legacy files identified in MEMORY.md are removed (seeded data, old components)
+- [ ] **CLEAN-02**: Implicit mechanical rules from item_defs.ts are extracted to mechanical_vocabulary.ts before deletion
+- [ ] **CLEAN-03**: Backend code is deduplicated (shared helpers extracted for sell logic, combat utilities)
+- [ ] **CLEAN-04**: Frontend code is deduplicated (redundant components consolidated)
+- [ ] **CLEAN-05**: Dead reducers and unused table accessors are removed
+- [ ] **CLEAN-06**: Import graph is clean — no broken or circular imports after cleanup
+
+### Combat
+
+- [ ] **COMB-01**: Combat log shows DoT tick damage per tick with effect name
+- [ ] **COMB-02**: Combat log shows HoT tick healing per tick with effect name
+- [ ] **COMB-03**: Combat log shows buff/debuff application with stat, magnitude, and duration
+- [ ] **COMB-04**: Combat log shows buff/debuff expiration
+- [ ] **COMB-05**: Enemy HUD displays active DoT/HoT/debuff indicators with remaining duration
+- [ ] **COMB-06**: Multi-enemy pull system verified working (engage multiple groups simultaneously)
+- [ ] **COMB-07**: Combat balance pass — tuned damage/healing constants validated via tests
+- [ ] **COMB-08**: Group info panel has readable font size and layout
+
+### Narrative UI
+
+- [ ] **NARR-01**: User can sell items via narrative command (`sell <item>`)
+- [ ] **NARR-02**: User can sell in bulk via narrative command (`sell all junk`, `sell 3 <item>`)
+- [ ] **NARR-03**: Hotbar displays inline in narrative combat HUD with ability slots and cooldown state
+- [ ] **NARR-04**: User can manage hotbar via narrative commands (`hotbar set 1 <ability>`, `hotbar swap 1 3`)
+- [ ] **NARR-05**: Event feed entries are styled by kind (combat=red, reward=gold, system=gray, social=blue)
+
+### Equipment
+
+- [ ] **EQUIP-01**: Equipment drops are dynamically generated based on enemy level, world tier, and rarity rolls
+- [ ] **EQUIP-02**: Generated equipment has level-scaled stats (AC, damage) computed from formulas not hardcoded
+- [ ] **EQUIP-03**: Quest reward equipment is dynamically generated matching quest difficulty
+- [ ] **EQUIP-04**: Hardcoded WORLD_DROP_GEAR_DEFS replaced by dynamic generation function
+- [ ] **EQUIP-05**: Generated equipment uses existing affix system (prefix/suffix) for names and stat bonuses
+
+### Abilities
+
+- [ ] **ABIL-01**: Ability kinds in mechanical_vocabulary.ts cover all current game systems (combat, crafting, gathering, travel, social)
+- [ ] **ABIL-02**: Missing ability kinds (resurrect, corpse_summon, track, group_heal) are added to server dispatch
+- [ ] **ABIL-03**: Skill generation system can produce non-combat abilities (craft_boost, gather_boost, travel_speed, haggle)
+- [ ] **ABIL-04**: Client ability dispatch handles all new ability kinds without special-casing
+
+### UX
+
+- [ ] **UX-01**: User can increase/decrease global font size of the entire app
+- [ ] **UX-02**: Font size preference persists across sessions (localStorage)
+- [ ] **UX-03**: Group info panel text is sized for readability
+
+## v2.2 Requirements
+
+Deferred to future release. Tracked but not in current roadmap.
+
+### Advanced Equipment
+
+- **EQUIP-06**: Equipment set bonuses (wearing matching pieces grants extra stats)
+- **EQUIP-07**: Equipment upgrade/enhancement system (improve existing gear)
+
+### Advanced Narrative
+
+- **NARR-06**: Keeper-narrated sell transactions (sardonic commentary on trades)
+- **NARR-07**: Equipment comparison via narrative command (`compare <item>`)
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| LLM-generated item names per drop | Too slow/expensive; existing affix name composition is fast and thematic |
+| Drag-and-drop hotbar | Fights text-first narrative UI design philosophy |
+| Floating damage numbers | Visual noise in text console UI |
+| Tooltip-heavy item UI | Breaks on mobile, fights text-first design |
+| Auto-equip / gear score | Removes player agency about stat priorities |
+| Streaming LLM tokens | Already ruled out; typewriter animation sufficient |
+| Equipment comparison popup | Modal pattern interrupts narrative flow |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| TEST-01 | — | Pending |
+| TEST-02 | — | Pending |
+| TEST-03 | — | Pending |
+| TEST-04 | — | Pending |
+| TEST-05 | — | Pending |
+| TEST-06 | — | Pending |
+| CLEAN-01 | — | Pending |
+| CLEAN-02 | — | Pending |
+| CLEAN-03 | — | Pending |
+| CLEAN-04 | — | Pending |
+| CLEAN-05 | — | Pending |
+| CLEAN-06 | — | Pending |
+| COMB-01 | — | Pending |
+| COMB-02 | — | Pending |
+| COMB-03 | — | Pending |
+| COMB-04 | — | Pending |
+| COMB-05 | — | Pending |
+| COMB-06 | — | Pending |
+| COMB-07 | — | Pending |
+| COMB-08 | — | Pending |
+| NARR-01 | — | Pending |
+| NARR-02 | — | Pending |
+| NARR-03 | — | Pending |
+| NARR-04 | — | Pending |
+| NARR-05 | — | Pending |
+| EQUIP-01 | — | Pending |
+| EQUIP-02 | — | Pending |
+| EQUIP-03 | — | Pending |
+| EQUIP-04 | — | Pending |
+| EQUIP-05 | — | Pending |
+| ABIL-01 | — | Pending |
+| ABIL-02 | — | Pending |
+| ABIL-03 | — | Pending |
+| ABIL-04 | — | Pending |
+| UX-01 | — | Pending |
+| UX-02 | — | Pending |
+| UX-03 | — | Pending |
+
+**Coverage:**
+- v2.1 requirements: 37 total
+- Mapped to phases: 0
+- Unmapped: 37 ⚠️
+
+---
+*Requirements defined: 2026-03-09*
+*Last updated: 2026-03-09 after initial definition*
