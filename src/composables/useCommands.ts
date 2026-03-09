@@ -294,8 +294,8 @@ export const useCommands = ({
 
       let msg = `{{color:#fbbf24}}Renown Status{{/color}}\n\nRank ${rankNum}: {{color:#fbbf24}}${rankInfo?.name ?? 'Unknown'}{{/color}} (${points} points)`;
       if (nextRank) {
-        const needed = BigInt(nextRank.threshold) - points;
-        const progress = nextRank.threshold > 0 ? Number(points) / nextRank.threshold : 0;
+        const needed = nextRank.threshold - points;
+        const progress = nextRank.threshold > 0n ? Number(points) / Number(nextRank.threshold) : 0;
         const filled = Math.round(progress * 10);
         const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(10 - filled);
         msg += `\nNext rank: {{color:#fbbf24}}${nextRank.name}{{/color}} (${needed > 0n ? needed : 0n} points needed)`;
