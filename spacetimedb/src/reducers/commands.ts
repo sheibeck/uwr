@@ -3,7 +3,7 @@ import { appendSystemMessage, appendWorldEvent } from '../helpers/events';
 import { generateAffixData, buildDisplayName } from '../helpers/items';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { detectPrimarySecondary } from '../data/class_stats';
-import { buildLookOutput } from '../helpers/look';
+
 
 // Compute all racial contributions at a target level (same logic as awardXp / computeRacialAtLevel).
 function computeRacialAtLevelForAdmin(raceRow: any, level: bigint) {
@@ -245,14 +245,6 @@ export const registerCommandReducers = (deps: any) => {
     const trimmed = args.text.trim();
     if (!trimmed) return fail(ctx, character, 'Command is empty');
 
-    if (trimmed.toLowerCase() === '/look' || trimmed.toLowerCase() === 'look') {
-      const lookParts = buildLookOutput(ctx, character);
-      if (lookParts.length > 0) {
-        appendPrivateEvent(ctx, character.id, requirePlayerUserId(ctx), 'look', lookParts.join('\n'));
-      }
-      return;
-    }
-
     if (trimmed.toLowerCase() === '/synccontent') {
       requireAdmin(ctx);
       const userId = requirePlayerUserId(ctx);
@@ -299,12 +291,6 @@ export const registerCommandReducers = (deps: any) => {
           `Race not found: "${raceName}". Check spelling (case-insensitive).`
         );
       }
-      return;
-    }
-
-    const hailMatch = trimmed.match(/^hail[,\s]+(.+)$/i);
-    if (hailMatch) {
-      hailNpc(ctx, character, hailMatch[1]);
       return;
     }
 
