@@ -1,5 +1,24 @@
 # Milestones
 
+## v2.0 The Living World (Shipped: 2026-03-09)
+
+**Phases completed:** 7 phases, 22 plans + 60 quick tasks (333-391)
+**Timeline:** 3 days (2026-03-06 to 2026-03-09)
+**Commits:** 297 | **Files changed:** 446 | **Lines:** +46,424 / -11,171
+**Codebase:** 52,576 LOC (TypeScript + Vue)
+**Git range:** `8fd2d1f..f730591`
+
+**Key accomplishments:**
+1. LLM Pipeline Foundation — SpacetimeDB procedure-based Anthropic API integration with budget controls, status tracking, and graceful degradation
+2. Narrative UI Shell — Chat-first narrative console replacing traditional RPG panels, with persistent HUD and natural language intent routing
+3. Narrative Character Creation — Freeform race description + archetype selection produces unique LLM-generated class through guided conversation with the Keeper of Knowledge
+4. Procedural World Generation — Player arrival triggers persistent region creation with canonical world facts, ripple announcements, and generation locks
+5. Dynamic Skill Generation — Level-up offers 3 LLM-generated skills with schema-constrained templates and power-budget validation; unchosen skills vanish
+6. NPC & Quest Generation — Contextual NPCs with persistent memory/affinity and narrative quests generated from world state
+7. Narrative Combat — Real-time combat with LLM intro narration, fully inline narrative UI, and data-driven ability dispatch (replaced 106-case hardcoded switch)
+
+---
+
 ## v1.0 — RPG Milestone: Progression Systems & LLM Content Engine
 
 **Status:** Complete (2026-02-25)
