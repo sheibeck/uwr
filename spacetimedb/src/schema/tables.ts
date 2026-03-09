@@ -1917,6 +1917,23 @@ export const CharacterCreationState = table(
   }
 );
 
+// Race definitions — persists generated race data for reuse across players
+export const RaceDefinition = table(
+  {
+    name: 'race_definition',
+    public: true,
+    indexes: [{ accessor: 'by_name', algorithm: 'btree', columns: ['nameLower'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    name: t.string(),           // Exact race name as displayed (e.g. "Cyclops")
+    nameLower: t.string(),      // Lowercase for lookup (e.g. "cyclops")
+    narrative: t.string(),      // Keeper's sardonic commentary
+    bonusesJson: t.string(),    // JSON: { primary: {stat, value}, secondary: {stat, value}, flavor }
+    createdAt: t.timestamp(),
+  }
+);
+
 // Pre-character event messaging — uses player identity instead of characterId
 export const EventCreation = table(
   {
@@ -2157,6 +2174,7 @@ const spacetimedb = schema({
   llm_budget: LlmBudget,
   llm_cleanup_tick: LlmCleanupTick,
   character_creation_state: CharacterCreationState,
+  race_definition: RaceDefinition,
   event_creation: EventCreation,
   world_gen_state: WorldGenState,
   llm_task: LlmTask,

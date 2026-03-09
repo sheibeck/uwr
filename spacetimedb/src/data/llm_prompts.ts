@@ -99,7 +99,7 @@ ${context}`;
 // === CHARACTER CREATION JSON SCHEMAS ===
 
 export const RACE_INTERPRETATION_SCHEMA = `{
-  "raceName": "string — short evocative name (2-4 words max)",
+  "raceName": "string -- use the EXACT name the player provided. Do NOT expand, embellish, or add adjectives. If they said 'Cyclops', the raceName is 'Cyclops'. If they said 'fire goblin', the raceName is 'Fire Goblin' (just capitalize). Only invent a name if the player gave a vague description like 'some kind of shadow creature' rather than a specific race name.",
   "narrative": "string — 2-3 sentences of sardonic Keeper commentary about this race",
   "bonuses": {
     "primary": { "stat": "str|dex|int|wis|cha", "value": 2 },
@@ -137,7 +137,7 @@ export const CLASS_GENERATION_SCHEMA = `{
 export function buildRaceInterpretationUserPrompt(playerDescription: string): string {
   return `The new arrival describes themselves as: "${playerDescription}"
 
-Interpret this description into a race for the world of UWR. Be creative — if they gave you something generic, make it interesting. If they gave you something absurd, lean into it with sardonic delight.
+Interpret this description into a race for the world of UWR. Be creative with the narrative and bonuses, but PRESERVE THE EXACT RACE NAME the player gave. If they said "Cyclops", the raceName MUST be "Cyclops" -- not "Stone-Eyed Cyclops" or "Ancient Cyclops" or any variation. Only invent a new name if the player gave a vague description rather than a specific race name (e.g. "some kind of shadow creature" -> you may name it "Shadeveil" or similar).
 
 Respond with ONLY valid JSON matching this schema:
 ${RACE_INTERPRETATION_SCHEMA}`;
