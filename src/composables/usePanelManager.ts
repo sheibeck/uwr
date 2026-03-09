@@ -4,7 +4,7 @@ import { computed, reactive, ref, watch, Ref } from 'vue';
 const ON_DEMAND_PANEL_IDS = [
   'character', 'hotbarPanel', 'friends', 'crafting',
   'journal', 'renown', 'worldEvents', 'loot', 'vendor', 'trade',
-  'track', 'travelPanel', 'combat', 'map', 'bank',
+  'track', 'combat', 'map', 'bank',
   'log', 'travel', 'hotbar', 'group',
 ];
 

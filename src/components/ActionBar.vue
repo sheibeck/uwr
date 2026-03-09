@@ -53,9 +53,9 @@
         ></span>
       </button>
       <button
-        @click="emit('toggle', 'travelPanel')"
-        :style="actionStyle('travelPanel')"
-        :disabled="isLocked('travelPanel')"
+        @click="emit('toggle', 'travel')"
+        :style="actionStyle('travel')"
+        :disabled="isLocked('travel')"
       >
         Travel (T)
       </button>
@@ -94,7 +94,6 @@ type PanelKey =
   | 'renown'
   | 'loot'
   | 'travel'
-  | 'travelPanel'
   | 'combat'
   | 'help'
   | 'worldEvents'

@@ -205,11 +205,6 @@
       <TrackPanel :styles="styles" :options="trackOptions" @select="selectTrackedTarget" />
     </FloatingPanel>
 
-    <!-- Travel Panel -->
-    <FloatingPanel panel-id="travelPanel" title="Travel">
-      <TravelPanel :styles="styles" :conn-active="conn.isActive" :selected-character="selectedCharacter" :locations="connectedLocations" :regions="regions" :travel-cooldowns="travelCooldowns" :all-locations="locations" :location-connections="locationConnections" @move="moveTo" />
-    </FloatingPanel>
-
     <!-- Map Panel -->
     <FloatingPanel panel-id="map" title="Map">
       <MapPanel :regions="regions" :locations="locations" :location-connections="locationConnections" :selected-character="selectedCharacter" />
@@ -541,7 +536,7 @@ import FriendsPanel from './components/FriendsPanel.vue';
 import CraftingPanel from './components/CraftingPanel.vue';
 import CraftingModal from './components/CraftingModal.vue';
 // CombatPanel removed -- combat UI now lives entirely in the narrative stream
-import TravelPanel from './components/TravelPanel.vue';
+// TravelPanel removed -- travel UI uses LocationGrid in the travel FloatingPanel
 import LocationGrid from './components/LocationGrid.vue';
 import LootPanel from './components/LootPanel.vue';
 import TradePanel from './components/TradePanel.vue';
@@ -2654,7 +2649,7 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
           setTimeout(() => { journalRequestedTab.value = null; }, 100);
         }
         return;
-      case 't': case 'T': togglePanel('travelPanel'); return;
+      case 't': case 'T': togglePanel('travel'); return;
       case 'l': case 'L': togglePanel('loot'); return;
       case 'm': case 'M': togglePanel('map'); return;
     }
