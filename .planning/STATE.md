@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
-status: completed
-stopped_at: Phase 32 context gathered
-last_updated: "2026-03-09T18:27:08.994Z"
-last_activity: 2026-03-09 -- Completed 31-03 items/equipment-gen/intent-routing tests
+status: in-progress
+stopped_at: Completed 32-01-PLAN.md
+last_updated: "2026-03-09T19:03:14.000Z"
+last_activity: 2026-03-09 -- Completed 32-01 extract rules and rewire imports
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 3
-  completed_plans: 3
-  percent: 85
+  completed_plans: 1
+  percent: 88
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 31 - Test Infrastructure
+**Current focus:** Phase 32 - Dead Code Removal
 
 ## Current Position
 
-Phase: 31 of 37 (Test Infrastructure)
-Plan: 3 of 3 (COMPLETE)
-Status: Phase Complete
-Last activity: 2026-03-09 -- Completed 31-03 items/equipment-gen/intent-routing tests
+Phase: 32 of 37 (Dead Code Removal)
+Plan: 1 of 3 (32-01 complete)
+Status: In Progress
+Last activity: 2026-03-09 -- Completed 32-01 extract rules and rewire imports
 
-Progress: [█████████░] 85%
+Progress: [████████░░] 88%
 
 ## Previous Milestones
 
@@ -50,6 +50,9 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 31]: Integration flow tests compose pure helpers + mock DB rather than testing resolveAbility directly
 - [Phase 31]: Mock item data uses dual ownerId/ownerCharacterId to bridge mock index mapping with production insert
 - [Phase 31]: Intent routing tests isolate regex patterns rather than testing full dispatch
+- [Phase 32]: Kept CONSUMABLE_RECIPES/GEAR_RECIPES in crafting_materials.ts -- only seeding imports them
+- [Phase 32]: Removed sync_all_content reducer from items.ts -- admin /synccontent serves same purpose
+- [Phase 32]: Kept syncAllContent in init alongside initScheduledTables for backward compatibility
 
 ### Pending Todos
 
@@ -63,5 +66,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T18:27:08.989Z
-Stopped at: Phase 32 context gathered
+Last session: 2026-03-09T19:03:14.000Z
+Stopped at: Completed 32-01-PLAN.md
