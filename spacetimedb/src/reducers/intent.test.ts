@@ -13,7 +13,7 @@ vi.mock('../helpers/search', () => ({
   performPassiveSearch: () => {},
 }));
 
-import { buildLookOutput } from './intent';
+import { buildLookOutput } from '../helpers/look';
 
 // Mock db that simulates SpacetimeDB table operations
 function createMockDb(data: Record<string, any[]> = {}) {

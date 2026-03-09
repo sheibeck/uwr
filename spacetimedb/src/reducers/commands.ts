@@ -3,7 +3,7 @@ import { appendSystemMessage, appendWorldEvent } from '../helpers/events';
 import { generateAffixData, buildDisplayName } from '../helpers/items';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { detectPrimarySecondary } from '../data/class_stats';
-import { buildLookOutput } from './intent';
+import { buildLookOutput } from '../helpers/look';
 
 // Compute all racial contributions at a target level (same logic as awardXp / computeRacialAtLevel).
 function computeRacialAtLevelForAdmin(raceRow: any, level: bigint) {

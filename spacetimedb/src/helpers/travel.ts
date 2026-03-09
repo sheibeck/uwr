@@ -1,7 +1,7 @@
 import { TRAVEL_CONFIG } from '../data/travel_config';
 import { performPassiveSearch } from './search';
 import { getPerkBonusByField } from './renown';
-import { buildLookOutput } from '../reducers/intent';
+import { buildLookOutput } from './look';
 
 /**
  * Shared travel logic used by both move_character reducer and narrative intent handler.
