@@ -1,223 +1,167 @@
-# Features Research
+# Feature Landscape
 
-**Project:** UWR — Multiplayer Browser RPG (SpacetimeDB 1.12.0, TypeScript)
-**Domain:** Hunger, Faction/Renown, World Events, Quest, Race systems
-**Researched:** 2026-02-11
+**Domain:** Browser RPG — v2.1 cleanup, narrative integration, combat polish, dynamic equipment
+**Researched:** 2026-03-09
+**Confidence:** HIGH (based on existing codebase analysis + established RPG patterns)
 
----
+## Table Stakes
 
-## Hunger Systems (Game Design Patterns)
+Features users expect in an RPG with the systems UWR already has. Missing = product feels incomplete or broken.
 
-### Core principle: Reward, not punishment
-UWR's decision to make hunger reward-only (buffs for eating, no starvation penalty) is validated by modern game design. WoW's "Well Fed" buff from food is universally praised; the original "hungry" debuff was broadly disliked and removed. Players engage with food buffs willingly; they resent mandatory maintenance mechanics.
+| Feature | Why Expected | Complexity | Dependencies | Notes |
+|---------|--------------|------------|-------------|-------|
+| Sell items via narrative command | Players at vendors need to sell; `sell <item>` works in intent router but sell-all-junk and bulk operations are only in legacy UI | Low | Existing `sell_item`, `sell_all_junk` reducers | Wire `sell all junk` and quantity selling into intent router |
+| Hotbar visible in narrative UI | Players need quick access to abilities during combat; HotbarPanel.vue exists but floats outside narrative flow | Med | Existing `hotbar_slot` table, `set_hotbar_slot` reducer, HotbarPanel.vue | Integrate as inline combat HUD element, not a separate floating panel |
+| Combat log completeness | Players cannot understand combat without seeing DoT ticks, HoT ticks, debuff applications, buff expirations | Med | Existing `appendPrivateEvent`, `appendGroupEvent` in combat.ts | Many code paths silently apply effects without logging |
+| DoT/HoT indicators on enemies | Players fighting enemies with active effects have no visual indication of what debuffs/buffs are active | Med | Existing `combat_enemy_effect` table | Client renders effect badges on enemy entries |
+| Debuff/buff indicators on self | Players need to see their own active effects during combat | Low | Existing `character_effect` table, already partially shown | Ensure all effect types display with remaining duration |
+| Equipment drops scaled to level | Killing enemies should yield gear appropriate to player level; currently drops come from hardcoded loot tables with static item_defs | High | Existing `rollQualityTier`, `generateAffixData`, `buildDisplayName`, loot table system | Core gap: items are seeded not dynamically generated per encounter level |
+| Dead code removal | 52K+ LOC with v1.0 legacy UI components, old seeded data, unused reducers creating confusion | Med | Audit of files in `seeding/`, `data/`, old Vue components | MEMORY.md lists specific files to delete |
 
-### Proven patterns
-**World of Warcraft Well Fed system:**
-- Food grants a 1-hour stat buff (e.g., +20 Agility for grilled fish)
-- Different foods grant different stats → drives crafting choice (cook the food your class needs)
-- Multiple buff tiers correlate with food difficulty: simple campfire food < raid-quality feasts
-- Communal feast mechanic: one player places a feast, whole group gets buffed → social interaction
+## Differentiators
 
-**Meal tiers for UWR:**
-| Tier | Example name | Source | Buff strength | Duration |
-|------|-------------|--------|--------------|----------|
-| 1 | Trail Rations | Vendor buy | +2% damage | 30 min |
-| 2 | Grilled Marsh Boar | Simple crafting | +5% damage, +3% defense | 45 min |
-| 3 | Ranger's Stew | Resource crafting | +10% damage, +5% crit | 60 min |
-| 4 | Feast of the Fallen | Rare ingredients | +15% all stats | 90 min |
+Features that set the product apart. Not expected by default, but create memorable experiences.
 
-**Hunger decay design:**
-- Hunger starts at 100 (full) and decays over time (e.g., 1 point per 2 minutes real time)
-- Below 50: "Peckish" state — no penalty, no buff
-- At 100 (just eaten): "Well Fed" — buff active
-- Well Fed buff lasts N minutes after eating regardless of hunger level (like WoW)
-- No "starving" state with penalties — design decision confirmed
+| Feature | Value Proposition | Complexity | Dependencies | Notes |
+|---------|-------------------|------------|-------------|-------|
+| Power-scaled dynamic equipment generation | Generate equipment templates on-the-fly using enemy level, world tier, and rarity rolls — every drop feels unique rather than pulling from a fixed pool | High | Existing `rollQualityTier`, `rollQualityForDrop`, `generateAffixData`, tier weight tables | Foundation is 80% built. Gap is creating item_template rows dynamically instead of selecting from seeded WORLD_DROP_GEAR_DEFS |
+| Narrative event feed integration | World events, location events, and private events flow through the Keeper's narrative console with distinct visual treatment per event kind | Med | Existing event tables (`event_world`, `event_location`, `event_private`, `event_group`) | Style events by kind: combat=red, reward=gold, system=gray, social=blue |
+| Global font scale control | Accessibility: let players adjust the narrative console font size — critical for readability in a text-heavy RPG | Low | CSS custom properties, localStorage | Simple --font-scale CSS variable approach |
+| Multi-enemy pull verification | Combat encounters with multiple enemy groups combine correctly with group composition and danger scaling verified | Med | Existing combat encounter creation, `enemy_spawn` system | Testing/verification task |
+| Narrative sell experience | The Keeper narrates transactions with sardonic character instead of dry "You sell X for Y gold" | Low | Existing sell reducer, Keeper narrator pattern | Template-based narration, no LLM needed |
+| Ability type expansion for non-combat systems | Generated abilities cover crafting, gathering, travel, social — not just combat | High | `ABILITY_KINDS` in mechanical_vocabulary.ts, skill generation system | New kinds: 'craft_boost', 'gather_boost', 'travel_speed', 'haggle' |
 
-**Implementation in SpacetimeDB:**
-- `Hunger` table with `characterId`, `currentHunger`, `lastDecayAt`, `wellFedUntil`
-- Scheduled table `HungerDecay` fires every 5 minutes to tick down hunger
-- `eat_food` reducer consumes food item, sets `wellFedUntil = ctx.timestamp + bufDuration`
-- Combat reducer checks `wellFedUntil > ctx.timestamp` to apply well-fed stat bonuses
+## Anti-Features
 
----
+Features to explicitly NOT build.
 
-## Faction / Reputation Systems
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| LLM-generated item names per drop | Too slow (latency per drop), too expensive (API costs scale with kill rate), descriptions lack mechanical consistency | Use existing affix name composition (`buildDisplayName`): "Fierce Iron Shortsword of Precision" is fast, deterministic, thematic |
+| Drag-and-drop hotbar management | Adds complexity to a text-first narrative UI; fights the design philosophy | Text commands: `hotbar set 1 ability_name` or `hotbar swap 1 3` fits the console model |
+| Floating damage numbers animation | Visual noise in a text console UI; belongs in a graphical RPG | Log damage inline in combat narrative with color coding |
+| Tooltip-heavy item UI | Hover tooltips break on mobile, fight text-first design | Inline details: `look at Fierce Iron Shortsword` shows stats in the narrative console |
+| Equipment comparison popup | Modal pattern interrupts narrative flow | Inline: `compare Fierce Shortsword` shows side-by-side in console |
+| Auto-equip / gear score system | Removes player agency about stat priorities | Players choose what to equip based on their build; respects player intelligence |
+| Streaming LLM tokens | Already ruled out in PROJECT.md | Keep typewriter animation for LLM responses |
 
-### Core concepts (WoW-inspired, broadly validated)
+## Feature Dependencies
 
-**Faction definition:**
-- A named organization with distinct identity, goals, and aesthetic
-- Has ranks (Hostile → Neutral → Friendly → Honored → Revered → Exalted)
-- Players gain/lose standing through quests, kills, crafting, world events
-
-**Standing mechanics:**
-- Standing is stored per-player per-faction: `FactionStanding { characterId, factionId, standing: i64 }`
-- Standing is points-based (e.g., 0-999 = Neutral, 1000-2999 = Friendly, 3000-5999 = Honored, 6000-8999 = Revered, 9000+ = Exalted)
-- Negative standing possible (Unfriendly → Hostile)
-- Actions grant standing: completing a faction quest (+250), killing a faction enemy (+10), offering tribute (+50)
-
-**Decay rules (contested — design choice for UWR):**
-- WoW: NO decay — once Exalted, always Exalted → players feel rewarded for grinding
-- Some games: Slow decay to keep players engaged → feels like a chore
-- **Recommendation for UWR**: No decay, but add "floor" mechanics (hostile factions don't go below -5000 automatically)
-
-**Rank rewards:**
-| Rank | Standing | Unlock |
-|------|----------|--------|
-| Neutral | 0 | Faction vendor available |
-| Friendly | 1000 | Tier 1 faction quests, vendor discounts |
-| Honored | 3000 | Tier 2 quests, faction gear |
-| Revered | 6000 | Tier 3 quests, unique cosmetics |
-| Exalted | 9000 | Faction title, endgame gear, secret quest |
-
-**Faction suggestions for UWR (aligned with RPG world building):**
-1. **The Iron Compact** — merchants, smiths, artifact traders (rewards: gear, crafting blueprints)
-2. **The Verdant Circle** — nature spirits, druids, harvesters (rewards: food recipes, harvest bonuses)
-3. **The Ashen Order** — scholars, mages, lore-keepers (rewards: ability upgrades, lore entries)
-4. **The Hollow Crown** — undead remnants, cursed warriors (rewards: dark abilities, rare drops)
-5. **The Free Blades** — mercenaries, combat specialists (rewards: combat gear, group bonuses)
-
-**Cross-faction conflict:**
-- Actions that increase standing with one faction should sometimes decrease standing with a rival
-- The Verdant Circle and The Iron Compact are rivals (exploitation vs. preservation)
-- Adds meaningful choices to faction grinding
-
----
-
-## World Events & Dynamic World
-
-### What World Events are
-Server-wide broadcasts that change game state, unlock content, or react to collective player actions. The "Ripple" system from Shadeslinger is the primary design reference.
-
-### Trigger categories
-1. **Time-triggered**: Events fire on schedule (e.g., "Festival of Blades" every in-game month)
-2. **Threshold-triggered**: Total server stat reaches a threshold (e.g., 10,000 enemies killed → event fires)
-3. **Player-triggered**: A high-renown player action triggers a world event (completing the Faction Champion quest)
-4. **Admin-triggered**: GMs manually fire events for live events
-
-### Consequence categories
-1. **Unlock new race**: The Hollowed race becomes playable after enough Hollow Crown standing is achieved server-wide
-2. **Unlock new faction**: A previously hidden faction reveals itself
-3. **Unlock new system**: A new game mechanic becomes available (e.g., group crafting tables appear)
-4. **Change world state**: A zone's enemies change, a vendor's stock shifts, a new boss spawns
-5. **Narrative lore reveal**: LLM generates a journal entry or town crier announcement
-
-### Event visibility
-- World events appear in the event log (`EventWorld` table in UWR)
-- All players subscribed to the world event log see the consequence text
-- LLM generates consequence flavor text ("The world cracks. Something old stirs beneath the ash.")
-
-### World Event table schema (recommendation)
-```typescript
-WorldEvent {
-  id: u64 PK autoInc
-  eventType: string       // 'race_unlock', 'faction_reveal', 'system_unlock', etc.
-  targetId: string        // Which race/faction/system is affected
-  triggerCondition: string // Description of what triggered it
-  consequenceText: string  // LLM-generated narrative text (may be pending initially)
-  status: string          // 'pending_generation' | 'active' | 'resolved'
-  firedAt: timestamp
-}
+```
+Dead code removal ─────────────────> All other features (clean foundation first)
+                                      |
+Equipment drops from combat ──────> Power-scaled dynamic equipment generation
+  (currently hardcoded loot tables)   (generate item_templates on the fly)
+                                      |
+Sell items via narrative command ──> Narrative sell experience
+  (basic command wiring)              (Keeper-narrated transactions)
+                                      |
+Hotbar visible in narrative UI ───> Combat log completeness
+  (see abilities to use them)         (see results of using them)
+                                      |
+DoT/HoT indicators on enemies ───> Combat log completeness
+  (visual + textual feedback)         (both needed for combat clarity)
+                                      |
+Global font scale control           (independent, can ship anytime)
+                                      |
+Multi-enemy pull verification       (independent testing task)
+                                      |
+Narrative event feed integration    (independent, enhances all systems)
 ```
 
-### LLM integration for events
-- When event fires: write row with `status: 'pending_generation'`
-- Procedure generates consequence text, updates row to `status: 'active'`
-- All clients subscribed to `world_events` see the row update
-- Event log renders consequence text to all players
+## MVP Recommendation
 
----
+Prioritize for v2.1 in this order:
 
-## Quest Systems with Reputation Gating
+1. **Dead code removal** — Must come first. Removing ~15 files of seeded data, old Vue components, and unused reducers reduces cognitive load for all subsequent work. MEMORY.md already identifies specific files to delete.
 
-### Quest structure (validated pattern)
-```
-Quest {
-  id: u64 PK
-  title: string
-  description: string (LLM-generated)
-  factionId: string
-  requiredStanding: i64    // Minimum faction standing to unlock
-  objectives: Objective[]  // JSON or separate table
-  rewardXp: u32
-  rewardGold: u32
-  rewardStanding: i64      // Standing gained on completion
-  rewardItemTemplateId: u64 (optional)
-}
-```
+2. **Combat log completeness** — Table stakes. Players cannot play effectively without understanding what happened. Add missing log entries for: DoT tick damage, HoT tick healing, buff application/expiration, debuff application/expiration, CC effects (stun/root/silence), shield absorption, pet actions.
 
-### Reputation-gating pattern
-1. Quest definition includes `requiredStanding` per faction
-2. Client view `available_quests` filters `quest.requiredStanding <= player.factionStanding`
-3. Player can see locked quests (with standing requirement shown) to motivate grinding
-4. Completing a quest grants `rewardStanding` to the associated faction
+3. **DoT/HoT/debuff indicators on enemies** — Table stakes companion to combat logging. Client reads `combat_enemy_effect` rows and renders badges showing active effect name + remaining duration.
 
-### Shadeslinger-style quest delivery
-- Quest text uses Shadeslinger tone (sarcastic, charming narrator)
-- NPC "givers" deliver quests with brief, witty dialogue
-- LLM generates both quest body and NPC intro line for variety
-- Pre-written fallback content for each quest type/faction combination
+4. **Sell items + hotbar in narrative UI** — Table stakes. Both systems exist in reducers but lack narrative UI wiring. Sell: extend intent router to handle `sell all junk`, `sell 3 Rat Tail`. Hotbar: render as inline combat HUD showing numbered ability slots with cooldown state.
 
-### Quest types
-| Type | Objective | Example |
-|------|-----------|---------|
-| Kill | Defeat N enemies | "Something in the swamp is making a racket. Silence it." |
-| Retrieve | Collect N items | "The merchant lost her ledger. It's somewhere wet and unpleasant." |
-| Escort | Complete N group combats | "The caravan won't move itself. Unfortunately." |
-| Discover | Travel to a location | "The Order wants eyes on the northern ruins. Yours are apparently acceptable." |
-| Craft | Create a specific item | "Forge the blade. Try not to lose a finger." |
+5. **Narrative event feed integration** — Differentiator. Style event entries by kind in the narrative console. Low effort, high polish impact.
 
----
+6. **Global font scale control** — Low-effort differentiator. CSS `--font-scale` variable + localStorage persistence + settings control.
 
-## Race Systems & Class Restrictions
+7. **Power-scaled dynamic equipment generation** — Differentiator, high complexity. Foundation is solid (rarity rolling, affix generation, quality tiers all exist). Gap: generating `item_template` rows dynamically from formulas rather than selecting from seeded `WORLD_DROP_GEAR_DEFS`.
 
-### Race design goals
-- Races are flavor + mechanical differentiation
-- Race determines which classes are available at character creation
-- Races grant passive bonuses that scale through the game
-- New races unlock via World Events (e.g., The Hollowed unlocks after Hollow Crown event)
+**Defer to v2.2:**
+- **Ability type expansion for non-combat systems** — Requires new ability kinds in mechanical vocabulary, new dispatch handlers, integration with crafting/gathering/travel. Too much scope for a cleanup milestone.
 
-### Race-class restriction pattern (WoW, FFXIV model)
-A `race_class_availability` table or inline lookup defines which classes each race can take:
-```typescript
-const RACE_CLASS_MAP: Record<string, string[]> = {
-  'human':     ['warrior', 'mage', 'rogue', 'priest', 'ranger'],
-  'eldrin':    ['mage', 'priest', 'ranger', 'druid'],
-  'ironclad':  ['warrior', 'paladin', 'smith'],
-  'wyldfang':  ['rogue', 'ranger', 'beastmaster', 'druid'],
-  'hollowed':  ['necromancer', 'warrior', 'shadow_priest'],  // World event unlock
-};
-```
+## Complexity Analysis
 
-### Racial bonuses (passive stats, not abilities)
-| Race | Flavor | Bonus |
-|------|--------|-------|
-| Human | Adaptable survivors | +5% XP gain, +1 to all stats |
-| Eldrin | Ancient scholars | +15% spell damage, +10% mana regen |
-| Ironclad | Living constructs | +20% physical defense, immune to stagger |
-| Wyldfang | Feral hunters | +15% attack speed, +10% crit chance |
-| Hollowed | Cursed undead | +20% dark damage, +10% health drain |
+### Dynamic Equipment Generation (the hardest feature)
 
-### Race as a data row (not enum)
-Recommended approach: races are rows in a `Race` table, not TypeScript enums. This allows:
-- Adding new races via World Events without code deploys
-- Races can have dynamic `unlocked: bool` field toggled by world events
-- Client filters to only show `unlocked: true` races at character creation
+**What exists (80% of infrastructure):**
+- `rollQualityTier()` — rarity (common/uncommon/rare/epic) based on creature level, seed, danger
+- `rollQualityForDrop()` — craftsmanship (standard/reinforced/exquisite) independently
+- `generateAffixData()` — picks prefix/suffix affixes from catalog based on slot, quality, seed
+- `buildDisplayName()` — composes "Prefix BaseItem Suffix" names
+- `WORLD_DROP_GEAR_DEFS` / `WORLD_DROP_JEWELRY_DEFS` — static item definitions per tier
+- `getWorldTier()` — maps level to tier (1-5)
+- `TIER_RARITY_WEIGHTS` / `TIER_QUALITY_WEIGHTS` — probability tables per tier
+- `ARMOR_ALLOWED_CLASSES` — class restrictions per armor type
 
-### Character creation flow with races
-1. Player opens character creation
-2. Client queries `Race` table (subscribed) — shows only `unlocked: true` races
-3. Player selects race → client filters available classes to `RACE_CLASS_MAP[raceId]`
-4. Player selects class → creates character with `raceId` field
-5. Backend `create_character` reducer validates race-class combination
-6. Character gets base stats = class stats + race modifiers
+**What's missing (20% gap):**
+- A function to generate a new `item_template` row with level-scaled stats (AC, damage, DPS) rather than selecting from a fixed pool
+- Stat scaling formulas: how does a T3 chest piece's AC compare to T2? Currently hardcoded per def
+- Base item name pool: deterministic names per slot+armorType+tier (can reuse existing names)
 
----
+**Recommended approach:**
+Create `generateItemTemplate(ctx, slot, armorType, tier, level, seed)` that:
+1. Computes base stats from formulas (AC = `BASE_ARMOR_VALUES[type]` * tier_multiplier, damage = level-scaled)
+2. Picks a base name from a name pool keyed by slot+type+tier
+3. Sets `allowedClasses` from `ARMOR_ALLOWED_CLASSES`
+4. Inserts a new `item_template` row
+5. Returns the template for affix generation and instance creation
 
-## Key Recommendations
+Estimated: ~200-300 lines of new code, mostly formula tuning.
 
-1. **Hunger**: Implement as scheduled tick (every 5 min) + `eat_food` reducer. Well Fed buff stored as timestamp. No starvation penalty.
-2. **Faction**: Start with 3-4 factions. Standing is `i64` per player per faction. No decay. Rival faction standing changes add meaningful tradeoffs.
-3. **Races**: Store as `Race` table rows with `unlocked: bool`. Start with 4 unlocked races, leave "locked" races in data for World Event reveals.
-4. **World Events**: Threshold + admin triggers. LLM generates consequence text asynchronously. Consequences write to `WorldEvent` table, broadcast via subscription.
-5. **Quests**: Faction-gated by standing threshold. LLM generates text when quest becomes available. Pre-written fallbacks required.
+### Combat Log Gaps (medium complexity)
+
+**Missing log entries identified in code review:**
+- DoT tick damage per tick
+- HoT tick healing per tick
+- Buff/debuff application (which stat, magnitude, duration)
+- Buff/debuff expiration
+- Shield absorption amount
+- CC application and CC break events
+- Pet attack and pet damage taken events
+
+Estimated: ~100-150 lines of `appendPrivateEvent` / `appendGroupEvent` calls at existing code points.
+
+### Narrative UI Integration (low-medium complexity)
+
+**Sell integration:**
+- Intent router already handles `sell <item>` (line 880 of intent.ts)
+- Missing: `sell all junk`, `sell N <item>`, quantity parsing
+- Estimated: ~30-50 lines in intent.ts
+
+**Hotbar integration:**
+- HotbarPanel.vue exists as floating panel
+- Need: inline rendering in narrative combat HUD
+- Hotbar slots already in `hotbar_slot` table with `by_character` index
+- `useHotbar.ts` composable exists
+- Estimated: ~50-100 lines of Vue template + style work
+
+**Event feed styling:**
+- Events already flow through narrative console as plain text
+- Need: CSS class per event kind, color differentiation
+- Estimated: ~30-50 lines of CSS + minimal template changes
+
+## Sources
+
+- Codebase: `spacetimedb/src/helpers/items.ts` (equipment bonuses, affix application, inventory management)
+- Codebase: `spacetimedb/src/data/item_defs.ts` (all static item definitions, world drop gear/jewelry)
+- Codebase: `spacetimedb/src/data/affix_catalog.ts` (prefix/suffix system, magnitude scaling)
+- Codebase: `spacetimedb/src/data/mechanical_vocabulary.ts` (all game mechanics vocabulary)
+- Codebase: `spacetimedb/src/data/combat_scaling.ts` (damage formulas, stat scaling, weapon mechanics)
+- Codebase: `spacetimedb/src/helpers/combat_rewards.ts` (XP, death penalties, spawn reset)
+- Codebase: `spacetimedb/src/reducers/intent.ts` (sell command handling at line 880)
+- Codebase: `spacetimedb/src/reducers/items.ts` (sell_item, sell_all_junk, set_hotbar_slot reducers)
+- Codebase: `spacetimedb/src/helpers/events.ts` (event logging infrastructure, all append* functions)
+- Codebase: `spacetimedb/src/reducers/items_trading.ts` (trade system for reference)
+- Project: `.planning/PROJECT.md` (v2.1 scope, architectural decisions)
+- Project: `MEMORY.md` (v2.0 architecture, dead code list, execution plan)

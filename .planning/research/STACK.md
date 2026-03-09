@@ -1,295 +1,191 @@
 # Technology Stack
 
-**Project:** UWR v2.0 — The Living World (LLM-driven procedural RPG)
-**Researched:** 2026-03-06
-**Scope:** NEW stack additions only. Existing stack (SpacetimeDB 2.0.1, Vue 3.5.13, Vite 6.4.1) is validated and unchanged.
+**Project:** UWR v2.1 Project Cleanup
+**Researched:** 2026-03-09
+**Focus:** Stack additions for dynamic equipment generation, combat balance, UI scaling, and unit testing
+
+## Verdict: No New Dependencies Required
+
+The v2.1 milestone is a cleanup and polish milestone. Every feature in scope can be built with the existing stack plus proper configuration of what is already installed. Adding libraries would contradict the milestone's purpose.
 
 ---
 
-## Recommended Stack Additions
+## Existing Stack (Validated, Do Not Change)
 
-### LLM Integration (Server-Side)
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| SpacetimeDB | 1.12.0 | Backend runtime |
+| TypeScript | 5.6.2 | Language |
+| Vue 3 | 3.5.13 | Frontend framework |
+| Vite | 6.4.1 | Build tool |
+| spacetimedb npm | ^2.0.1 | SDK (both client and server) |
+| Vitest | ^3.2.1 | Backend test runner (already in spacetimedb/package.json) |
+| Cloudflare Workers + Hono | (llm-proxy/) | LLM proxy |
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Raw HTTP via `ctx.http.fetch()` | SpacetimeDB 2.0.1 built-in | Call Anthropic Messages API | SpacetimeDB procedures use **synchronous** HTTP. The `@anthropic-ai/sdk` (v0.78.0) is async-only and **cannot run inside SpacetimeDB procedures**. Use raw HTTP to `POST https://api.anthropic.com/v1/messages` instead. |
-| Claude Haiku 4.5 | API model `claude-haiku-4-5-20250929` | Primary generation model | $0.25/$1.25 per 1M tokens (input/output). 80x cheaper than Opus. Fast enough for real-time feel. Use for: skill gen, NPC gen, combat narration, quest gen, region descriptions. |
-| Claude Sonnet 4.6 | API model `claude-sonnet-4-6-20260320` | Complex generation fallback | $3/$15 per 1M tokens. Use only for: character class creation (one-time, high-stakes), world-defining region generation. Haiku handles everything else. |
+---
 
-**Critical constraint:** SpacetimeDB procedures are synchronous. `ctx.http.fetch()` blocks until the response completes. This means:
-- No streaming responses inside procedures (the full response arrives at once)
-- Timeout management is essential (set `timeout` in RequestOptions)
-- Cannot use `@anthropic-ai/sdk` npm package (it's async/Promise-based)
-- Cannot make HTTP calls while a transaction (`ctx.withTx`) is open
+## What Each v2.1 Feature Needs
 
-### LLM Integration (Client-Side Streaming — Optional Enhancement)
+### 1. Dynamic Equipment Generation (Power-Scaled Loot Drops, Quest Rewards)
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `@anthropic-ai/sdk` | ^0.78.0 | Client-side streaming for narrative feel | **Only if** you add a thin proxy/edge function. NOT for direct browser use (API key exposure). Consider this a Phase 2+ enhancement, not MVP. |
+**Needs:** Nothing new. The system already exists.
 
-**Recommendation:** For MVP, do NOT stream. SpacetimeDB procedures return the full LLM response, which gets written to event log tables. The client receives it via subscription reactivity. This is simpler, secure, and matches the existing LogWindow pattern. Streaming can be layered on later via a typewriter animation effect on the client (no server changes needed).
+`helpers/items.ts` already contains:
+- `rollQualityTier()` with tier-based rarity weights and danger multiplier scaling
+- `rollQualityForDrop()` with quality (craftsmanship) axis
+- `generateAffixData()` with prefix/suffix selection from `affix_catalog.ts`
+- `buildDisplayName()` for composed item names
+- `getWorldTier()` mapping level bands to tiers (T1-T5)
+- Full `TIER_RARITY_WEIGHTS` and `TIER_QUALITY_WEIGHTS` tables
 
-### Prompt Management (No New Dependencies)
+The mechanical vocabulary in `mechanical_vocabulary.ts` already defines:
+- All equipment slots, armor types, weapon types
+- Quality tiers (common through legendary)
+- Craft qualities (dented through mastercraft)
+- Affix stats and types
+- Material tiers and affinities
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Template literal functions | TypeScript built-in | Prompt templates | No library needed. Prompts are string templates with variable interpolation. Keep them in `spacetimedb/src/prompts/` as pure functions that return `{role, content}[]` message arrays. |
+**What v2.1 work actually involves:** Wiring the existing generation functions into combat victory rewards and quest completion handlers. This is reducer-level integration work, not library work. The loot tables, affix system, and power scaling formulas already exist as pure functions.
 
-**Why no prompt library:** Prompt libraries (LangChain, etc.) are async, Node.js-dependent, and massively over-engineered for this use case. You need string templates that produce JSON message arrays for a REST API call. TypeScript template literals do this perfectly.
+**Confidence:** HIGH -- read the source directly.
 
-### Client UI Additions
+### 2. Combat Balance Tooling
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| No new UI library | -- | Chat-first narrative interface | Build on existing `LogWindow.vue` + `CommandBar.vue`. The existing event log system is already a chat-like interface with scoped messages, timestamps, and styled event kinds. Evolve it, don't replace it. |
-| CSS `@keyframes` / `requestAnimationFrame` | Browser built-in | Typewriter text animation | Fake streaming feel on client side. Characters appear progressively even though the full text arrived at once via subscription. Zero dependencies. |
-| `v-html` with sanitization | Vue built-in | Render narrative markup | Already used in LogWindow. Extend with simple markdown-like formatting for LLM output (bold, italic, color spans). |
+**Needs:** Nothing new.
 
-**Why no chat UI library:** Syncfusion Chat UI, vue-advanced-chat, etc. are designed for person-to-person messaging with avatars, read receipts, typing indicators. UWR's "chat" is a narrative log from a system narrator -- fundamentally different from a chat app. The existing LogWindow is closer to what's needed than any chat library.
+Combat balance is about tuning constants that already exist in:
+- `data/combat_scaling.ts` -- weapon crit multipliers, stat scaling rates, crit caps
+- `data/combat_constants.ts` -- weapon speeds, two-handed types
+- `mechanical_vocabulary.ts` -- threat config, global damage multiplier, AoE scaling
+- `helpers/items.ts` -- tier rarity/quality weight tables
 
-### Caching & Cost Management (No New Dependencies)
+Balance "tooling" for this project means:
+1. Unit tests that assert expected damage ranges at key level breakpoints
+2. Pure functions that compute expected DPS given stat/gear inputs (testable without DB)
+3. Possibly a dev-mode reducer or admin command to spawn test encounters
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| SpacetimeDB tables | Built-in | LLM response cache | Store generated content (classes, skills, NPCs, regions) in tables. These ARE the cache. Once a class is generated, it lives in the `Character` table forever. Once a region is generated, it lives in the `Region` table. No separate cache layer needed. |
-| Anthropic prompt caching | API feature | Reduce repeated system prompt costs | Cache reads cost 0.1x base price. System prompts (narrator voice, world context) are identical across calls -- perfect for prompt caching. Send `cache_control: {"type": "ephemeral"}` on system messages. |
+No dashboard, no visualization library, no analytics pipeline. This is a small multiplayer RPG with a handful of players, not a live-service game needing Grafana.
+
+**Confidence:** HIGH -- scope is clear from PROJECT.md.
+
+### 3. UI Scaling (Global Font Size)
+
+**Needs:** Nothing new.
+
+The current UI uses inline JS style objects (`src/ui/styles.ts`) with `rem` units extensively. A global font size control means:
+1. Add a CSS custom property on `:root` (e.g., `--base-font-size`) or change `html { font-size }` dynamically
+2. Store preference in `localStorage`
+3. Expose a slider in settings
+
+Since the styles already use `rem` units, changing the root font size scales everything automatically. This is vanilla CSS + a Vue reactive ref. No library needed.
+
+**Do NOT add:** css-vars-ponyfill, any CSS-in-JS library, any UI component library. The existing inline style approach works and consistency matters more than switching paradigms mid-project.
+
+**Confidence:** HIGH -- verified styles use rem units.
+
+### 4. Unit Testing Infrastructure
+
+**Needs:** Vitest is already installed. Needs configuration and test files, not new dependencies.
+
+Current state:
+- `spacetimedb/package.json` has `vitest: ^3.2.1` in devDependencies with `"test": "vitest run"` script
+- Two test files exist: `world_gen.test.ts` and `intent.test.ts`
+- Tests use a Proxy-based mock DB pattern that simulates SpacetimeDB table operations
+- No `vitest.config.ts` exists (uses defaults, which work)
+- No frontend tests exist
+
+**Backend testing approach (keep the existing Proxy pattern):**
+The existing Proxy-based `createMockDb()` pattern is the right approach for SpacetimeDB. Since reducers interact with `ctx.db` which is a Proxy object in the runtime, mocking it with another Proxy gives realistic behavior. Do NOT introduce a real SpacetimeDB test instance -- the WASM runtime is not designed for unit testing.
+
+**Frontend testing:**
+Do NOT add frontend unit tests in v2.1. Rationale:
+- The frontend is thin -- it reads `useTable()` data and calls reducers. Logic lives in the backend.
+- Vue component testing requires `@vue/test-utils`, `jsdom`/`happy-dom`, and mocking the entire SpacetimeDB connection. High setup cost, low value for a UI that is mostly rendering subscription data.
+- The v2.1 scope explicitly focuses on backend cleanup, dead code removal, and combat fixes. Frontend tests add scope creep.
+- If frontend tests are later needed, add `@vue/test-utils` + `happy-dom` at that time.
+
+**Backend testing plan:**
+- Extract pure functions from reducers (damage calculation, loot rolls, stat computation) into testable helpers
+- Test those helpers with the existing mock DB pattern
+- Add a `vitest.config.ts` only if needed (default config finds `*.test.ts` files fine)
+
+**Confidence:** HIGH -- existing tests run, pattern is established.
 
 ---
 
 ## What NOT to Add
 
-| Technology | Why Not |
+| Temptation | Why Not |
 |------------|---------|
-| `@anthropic-ai/sdk` (server) | Async-only. Cannot run in synchronous SpacetimeDB procedures. Use raw `ctx.http.fetch()`. |
-| LangChain / LlamaIndex | Massive async frameworks. Overkill for structured prompt templates + one API call. |
-| Any prompt templating library | TypeScript template literals are sufficient. Prompts are just functions returning message arrays. |
-| Redis / Memcached | SpacetimeDB tables ARE the cache. Generated content persists in the database. |
-| Vector database (Pinecone, etc.) | No semantic search needed. Content is generated on-demand, not retrieved from embeddings. |
-| OpenAI / other LLM providers | Anthropic Claude is the chosen provider per PROJECT.md. Don't multi-provider. |
-| Syncfusion Chat UI / vue-advanced-chat | Wrong abstraction. UWR needs a narrative log, not a chat widget. |
-| Server-Sent Events / WebSocket streaming | SpacetimeDB subscriptions already provide real-time reactivity. Adding a separate streaming channel creates architectural complexity for marginal UX gain. |
-| Marked / markdown parser | LLM output should return pre-formatted HTML spans or plain text with simple custom markup. Full markdown parsing is overkill for game narrative text. |
+| Zod / io-ts for LLM response validation | Mechanical vocabulary already constrains valid values. Schema validation happens via TypeScript types. Adding a runtime validator adds a dependency for something `includes()` checks handle. |
+| Lodash / Ramda | No utility library needed. The codebase uses native array methods throughout. |
+| Chart.js / D3 for balance visualization | Over-engineering. Log output + unit test assertions are sufficient for balance tuning. |
+| @vue/test-utils + happy-dom | Not in v2.1 scope. Frontend is thin. Add when needed. |
+| Tailwind / UnoCSS | Would require rewriting all inline styles. Consistency > convenience. |
+| Pinia state management | SpacetimeDB subscriptions via `useTable()` ARE the state management. Adding Pinia would duplicate state. |
+| Any ORM or query builder | SpacetimeDB has its own table API. No ORM applies. |
+| ESLint / Prettier | Good idea eventually, but adding linting to a 52K LOC codebase mid-cleanup creates noise. Do this as a separate initiative. |
 
 ---
 
-## Architecture: LLM Call Flow
+## Configuration Changes (No New Packages)
 
-```
-Client                    SpacetimeDB                      Anthropic API
-  |                           |                                |
-  |-- reducer call ---------->|                                |
-  |   (e.g. create_class)    |                                |
-  |                           |-- procedure (internal) ------->|
-  |                           |   ctx.http.fetch(anthropic)    |
-  |                           |<-- JSON response --------------|
-  |                           |                                |
-  |                           |-- ctx.withTx() --------------->|
-  |                           |   Insert generated content     |
-  |                           |   into tables                  |
-  |                           |                                |
-  |<-- subscription update ---|                                |
-  |   (table change pushes    |                                |
-  |    to client reactively)  |                                |
-```
+### Optional: vitest.config.ts for backend
 
-**Important pattern:** Reducers call procedures internally. The client calls a reducer (e.g., `createCharacterClass`), the reducer delegates to a procedure for the LLM call, the procedure writes results to tables via `ctx.withTx()`, and the client receives the data via normal SpacetimeDB subscription reactivity.
-
-**Wait -- can reducers call procedures?** No. Reducers and procedures are both top-level entry points. The correct pattern is:
-
-```
-Option A (Recommended): Client calls procedure directly
-  Client -> procedure (HTTP to Anthropic + withTx to write results)
-  Client <- subscription update with generated content
-
-Option B: Two-step via reducer
-  Client -> reducer (validates, sets "generating" flag in table)
-  Client -> procedure (fetches LLM, writes results via withTx)
-  Client <- subscription updates for both steps
-```
-
-Option A is simpler. Use Option B only when you need the reducer's transaction guarantees for validation before spending money on an LLM call.
-
----
-
-## Raw HTTP Call Pattern (Server-Side)
+Only create if needed for custom behavior. Current defaults work.
 
 ```typescript
-// spacetimedb/src/llm/claude.ts -- thin wrapper around ctx.http.fetch
+// spacetimedb/vitest.config.ts (only if needed)
+import { defineConfig } from 'vitest/config';
 
-interface ClaudeMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-interface ClaudeRequest {
-  model: string;
-  max_tokens: number;
-  system: string | Array<{ type: string; text: string; cache_control?: { type: string } }>;
-  messages: ClaudeMessage[];
-}
-
-interface ClaudeResponse {
-  content: Array<{ type: string; text: string }>;
-  usage: { input_tokens: number; output_tokens: number };
-}
-
-export function callClaude(
-  http: HttpClient,
-  apiKey: string,
-  request: ClaudeRequest
-): ClaudeResponse {
-  const response = http.fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(request),
-    timeout: { secs: 30, nanos: 0 },  // TimeDuration format TBD
-  });
-
-  if (!response.ok) {
-    throw new Error(`Claude API error ${response.status}: ${response.text()}`);
-  }
-
-  return response.json() as ClaudeResponse;
-}
-```
-
----
-
-## Prompt Template Pattern (No Library)
-
-```typescript
-// spacetimedb/src/prompts/class_generation.ts
-
-const SYSTEM_NARRATOR = `You are The System — a sardonic, omniscient narrator of a fantasy world.
-You find mortals endlessly amusing. Your tone is dry, witty, and slightly mocking,
-but never cruel. You speak as if narrating a story you find entertaining.`;
-
-export function classGenerationPrompt(race: string, archetype: 'Warrior' | 'Mystic'): ClaudeRequest {
-  return {
-    model: 'claude-haiku-4-5-20250929',
-    max_tokens: 500,
-    system: [
-      { type: 'text', text: SYSTEM_NARRATOR, cache_control: { type: 'ephemeral' } },
-      { type: 'text', text: `Generate a unique class for a ${race} ${archetype}. Return JSON: { "className": "...", "description": "...", "flavor": "..." }` },
-    ],
-    messages: [
-      { role: 'user', content: `I am a ${race}. I walk the path of the ${archetype}.` },
-    ],
-  };
-}
-```
-
----
-
-## Cost Estimates
-
-| Action | Model | Est. Tokens (in/out) | Cost per Call | Calls per Player Session |
-|--------|-------|---------------------|---------------|-------------------------|
-| Character class gen | Haiku 4.5 | 500/300 | $0.0005 | 1 |
-| Skill generation (3 options) | Haiku 4.5 | 600/400 | $0.0007 | ~5 per session |
-| Region generation | Haiku 4.5 | 800/500 | $0.0008 | 1-2 |
-| Combat narration (per round) | Haiku 4.5 | 400/200 | $0.0004 | ~10 per combat |
-| NPC generation | Haiku 4.5 | 500/400 | $0.0006 | 2-3 |
-| Quest generation | Haiku 4.5 | 700/500 | $0.0008 | 1-2 |
-
-**Estimated cost per player session (1 hour):** ~$0.01-0.02 with Haiku 4.5
-**Estimated cost per 1000 MAU:** ~$200-400/month (assuming 20 sessions/player/month)
-
-**Cost controls:**
-1. Use Haiku for everything except class creation
-2. Enable Anthropic prompt caching (system prompts cached at 0.1x cost)
-3. Rate-limit LLM calls per player (e.g., max 5 skill generations per hour)
-4. Cache generated content in tables -- never regenerate what already exists
-5. Keep prompts concise -- every token costs money
-
----
-
-## API Key Management
-
-**Problem:** SpacetimeDB procedures need the Anthropic API key, but it can't be hardcoded.
-
-**Solution:** Store the API key in a private SpacetimeDB table, seeded by an admin reducer:
-
-```typescript
-export const Config = table({ name: 'config' }, {
-  key: t.string().primaryKey(),
-  value: t.string(),
-});
-
-// Admin-only reducer to set config
-spacetimedb.reducer('set_config', { key: t.string(), value: t.string() }, (ctx, { key, value }) => {
-  if (!isAdmin(ctx.sender)) throw new SenderError('Not admin');
-  const existing = ctx.db.config.key.find(key);
-  if (existing) ctx.db.config.key.update({ ...existing, value });
-  else ctx.db.config.insert({ key, value });
+export default defineConfig({
+  test: {
+    include: ['src/**/*.test.ts'],
+  },
 });
 ```
 
-The procedure reads the key from the config table via `ctx.withTx()`. The table is private (not `public: true`), so clients never see it.
+### Font scaling CSS
 
----
-
-## Existing Infrastructure to Leverage (NOT new stack)
-
-| Existing System | How It Serves v2.0 |
-|----------------|-------------------|
-| Event log system | Narrative delivery channel. LLM-generated text writes to event logs, client receives via subscription. |
-| LogWindow.vue | Evolves into chat-first narrative UI. Already handles scoped messages, timestamps, styled kinds. |
-| CommandBar.vue | Player input interface. Already parses commands. Extend for narrative inputs. |
-| Config table pattern | Already exists in codebase. Use for API key storage. |
-| `spacetimedb/src/data/` | Prompt templates and generation schemas live here alongside existing game data. |
-
----
-
-## Installation (Server-Side)
-
-```bash
-# No new server dependencies needed!
-# SpacetimeDB 2.0.1 already includes ctx.http.fetch() in procedures.
-# The Anthropic API is called via raw HTTP -- no SDK required.
+```css
+/* Add to index.html or App.vue global styles */
+:root {
+  --base-font-size: 16px;
+}
+html {
+  font-size: var(--base-font-size);
+}
 ```
 
-## Installation (Client-Side)
-
-```bash
-# No new client dependencies needed!
-# Chat-first UI is built from existing Vue components.
-# Typewriter animation uses browser-native APIs.
+```typescript
+// In a composable or settings handler
+function setFontSize(px: number) {
+  document.documentElement.style.setProperty('--base-font-size', `${px}px`);
+  localStorage.setItem('uwr-font-size', String(px));
+}
 ```
-
-**Total new npm dependencies: ZERO.**
-
-This is intentional. Every new dependency is a maintenance burden, a bundle size increase, and a potential breaking change. The existing stack plus raw HTTP covers every requirement.
 
 ---
 
 ## Alternatives Considered
 
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| LLM call method | Raw `ctx.http.fetch()` | `@anthropic-ai/sdk` | SDK is async-only; SpacetimeDB procedures are synchronous |
-| Prompt management | TypeScript template functions | LangChain | Massive async framework, Node.js-only, extreme overkill |
-| LLM model | Haiku 4.5 (primary) | Sonnet/Opus | 80x more expensive. Haiku quality is sufficient for game content. |
-| Chat UI | Evolve existing LogWindow | Syncfusion Chat UI | Wrong abstraction (person-to-person chat vs narrative log) |
-| Response caching | SpacetimeDB tables | Redis | Additional infrastructure. Generated content naturally lives in game tables. |
-| Streaming | Typewriter animation (client) | SSE/WebSocket streaming | Adds architectural complexity. Subscription reactivity + client animation achieves same UX. |
-| Structured output | JSON in prompt instructions | Anthropic Structured Outputs beta | Structured Outputs requires beta header and specific models. Simple JSON instructions with Haiku work reliably for game content schemas. |
+| Category | Decision | Alternative | Why Not |
+|----------|----------|-------------|---------|
+| Test runner | Vitest (already installed) | Jest | Vitest already works, native ESM support matches the SpacetimeDB TS project |
+| Test mocking | Proxy-based createMockDb | Real SpacetimeDB instance | WASM runtime not designed for test harnesses; Proxy mock is fast and reliable |
+| Font scaling | CSS custom property on :root | CSS zoom / transform scale | zoom is non-standard; transform breaks layout; rem-based scaling is the correct approach |
+| Equipment generation | Existing pure functions in helpers/items.ts | LLM-generated items | LLM is too slow and expensive for loot drops; deterministic functions with affix system already provide variety |
+| Balance tooling | Unit tests + constant tuning | Admin dashboard | Overkill for current player count; unit tests are faster feedback loop |
 
 ---
 
 ## Sources
 
-- [SpacetimeDB Procedures Documentation](https://spacetimedb.com/docs/procedures/) - Procedure API, HTTP fetch, transaction management
-- [SpacetimeDB 2.0.1 Release](https://github.com/clockworklabs/SpacetimeDB/releases/tag/v2.0.1) - Current version with procedure support
-- [Anthropic TypeScript SDK (npm)](https://www.npmjs.com/package/@anthropic-ai/sdk) - v0.78.0, async-only (NOT usable in SpacetimeDB procedures)
-- [Claude API Messages Endpoint](https://docs.anthropic.com/en/api/messages) - Raw HTTP REST API reference
-- [Claude API Pricing](https://platform.claude.com/docs/en/about-claude/pricing) - Haiku $0.25/$1.25, Sonnet $3/$15, Opus $5/$25 per 1M tokens
-- [Anthropic Structured Outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs) - JSON schema compliance (beta)
-- [Anthropic Prompt Caching](https://platform.claude.com/docs/en/about-claude/pricing) - Cache reads at 0.1x base price
-- [LLM Cost Optimization Strategies](https://ai.koombea.com/blog/llm-cost-optimization) - 60-80% cost reduction techniques
-- SpacetimeDB SDK source: `spacetimedb/dist/server/procedures.d.ts`, `http_internal.d.ts` (local, verified)
+- `spacetimedb/package.json` -- confirmed vitest ^3.2.1 installed
+- `spacetimedb/src/helpers/items.ts` -- confirmed equipment generation functions exist (rollQualityTier, generateAffixData, etc.)
+- `spacetimedb/src/data/mechanical_vocabulary.ts` -- confirmed full item/equipment vocabulary
+- `spacetimedb/src/data/combat_scaling.ts` -- confirmed combat balance constants
+- `spacetimedb/src/helpers/world_gen.test.ts` -- confirmed Proxy mock DB pattern
+- `spacetimedb/src/reducers/intent.test.ts` -- confirmed test infrastructure works
+- `src/ui/styles.ts` -- confirmed rem-based inline styles
+- `.planning/PROJECT.md` -- confirmed v2.1 scope and existing stack
