@@ -5,7 +5,11 @@ import {
   getOrCreateNpcMemory,
   getAffinityTierForConversation,
   getActiveQuestCount,
+  getActiveQuestCountForNpc,
+  getCompletedQuestNamesForNpc,
+  getNearbyEnemyContext,
   MAX_ACTIVE_QUESTS,
+  MAX_QUESTS_PER_NPC,
   parseNpcPersonality,
 } from '../helpers/npc_conversation';
 import {
@@ -67,11 +71,21 @@ export const registerNpcInteractionReducers = (deps: any) => {
       .filter(Boolean)
       .map((l: any) => l!.name);
 
+    // Collect enriched quest context
+    const completedQuestNames = getCompletedQuestNamesForNpc(ctx, character.id, npcId);
+    const activeQuestFromThisNpc = getActiveQuestCountForNpc(ctx, character.id, npcId) >= MAX_QUESTS_PER_NPC;
+    const nearbyEnemies = getNearbyEnemyContext(ctx, character.locationId);
+    const recentQuestNames = completedQuestNames.slice(-5);
+
     // Build prompts
     const systemPrompt = buildNpcConversationSystemPrompt(
       npc, region || { name: 'Unknown' }, location || { name: 'Unknown' }, personality, affinityTier, memoryData,
+      completedQuestNames, activeQuestFromThisNpc,
     );
-    const userPrompt = buildNpcConversationUserPrompt(message, activeQuests, MAX_ACTIVE_QUESTS, nearbyLocationNames);
+    const userPrompt = buildNpcConversationUserPrompt(
+      message, activeQuests, MAX_ACTIVE_QUESTS, nearbyLocationNames,
+      nearbyEnemies, recentQuestNames,
+    );
 
     // Log player message to NpcDialog
     appendNpcDialog(ctx, character.id, npc.id, `You: "${message}"`);

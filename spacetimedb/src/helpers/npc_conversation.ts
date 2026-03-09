@@ -118,6 +118,101 @@ export function getActiveQuestCount(ctx: any, characterId: bigint): number {
   return count;
 }
 
+/** Maximum number of active quests per NPC per player */
+export const MAX_QUESTS_PER_NPC = 1;
+
+/**
+ * Count non-completed QuestInstance rows where the quest_template's npcId matches.
+ */
+export function getActiveQuestCountForNpc(ctx: any, characterId: bigint, npcId: bigint): number {
+  let count = 0;
+  for (const qi of ctx.db.quest_instance.by_character.filter(characterId)) {
+    if (qi.completed) continue;
+    const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
+    if (qt && qt.npcId === npcId) count++;
+  }
+  return count;
+}
+
+/**
+ * Extract completed quest names from NpcMemory for a character+NPC pair.
+ */
+export function getCompletedQuestNamesForNpc(ctx: any, characterId: bigint, npcId: bigint): string[] {
+  const memory = getOrCreateNpcMemory(ctx, characterId, npcId);
+  try {
+    const data = JSON.parse(memory.memoryJson);
+    return Array.isArray(data.questsCompleted) ? data.questsCompleted : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Collect enemy templates from the character's current location AND connected locations.
+ * Returns up to 15 entries with name, level, and location name.
+ */
+export function getNearbyEnemyContext(
+  ctx: any,
+  locationId: bigint,
+): { name: string; level: number; location: string }[] {
+  const results: { name: string; level: number; location: string }[] = [];
+
+  // Collect location IDs: current + connected
+  const locationIds: bigint[] = [locationId];
+  for (const conn of ctx.db.location_connection.by_from.filter(locationId)) {
+    locationIds.push(conn.toLocationId);
+  }
+
+  for (const locId of locationIds) {
+    if (results.length >= 15) break;
+    const loc = ctx.db.location.id.find(locId);
+    if (!loc) continue;
+    for (const ref of ctx.db.location_enemy_template.by_location.filter(locId)) {
+      if (results.length >= 15) break;
+      const et = ctx.db.enemy_template.id.find(ref.enemyTemplateId);
+      if (et) {
+        results.push({ name: et.name, level: Number(et.level), location: loc.name });
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Record a completed quest name in NPC memory for narrative continuity.
+ * Deduplicates and caps at 10 entries.
+ */
+export function recordQuestCompletion(ctx: any, characterId: bigint, npcId: bigint, questName: string): void {
+  const memoryRow = getOrCreateNpcMemory(ctx, characterId, npcId);
+  let memory: ReturnType<typeof emptyMemory>;
+  try {
+    memory = JSON.parse(memoryRow.memoryJson);
+  } catch {
+    memory = emptyMemory();
+  }
+
+  if (!Array.isArray(memory.questsCompleted)) {
+    memory.questsCompleted = [];
+  }
+
+  // Deduplicate
+  if (!memory.questsCompleted.includes(questName)) {
+    memory.questsCompleted.push(questName);
+  }
+
+  // Cap at 10, drop oldest
+  if (memory.questsCompleted.length > 10) {
+    memory.questsCompleted = memory.questsCompleted.slice(memory.questsCompleted.length - 10);
+  }
+
+  ctx.db.npc_memory.id.update({
+    ...memoryRow,
+    memoryJson: JSON.stringify(memory),
+    lastUpdated: ctx.timestamp,
+  });
+}
+
 /**
  * Safely parse personalityJson from an Npc row.
  * Returns a default personality object if the field is empty, null, or invalid JSON.

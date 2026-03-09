@@ -359,6 +359,8 @@ export function buildNpcConversationSystemPrompt(
   },
   affinityTier: string,
   memory: any,
+  completedQuestNames: string[] = [],
+  activeQuestFromThisNpc: boolean = false,
 ): string {
   const availableUnlocks = getUnlocksForTier(affinityTier);
   const secretsSection = personality.secrets && personality.secrets.length > 0
@@ -394,6 +396,10 @@ ${secretsSection}
 - Affinity tier: ${affinityTier}
 - Memory of past interactions: ${memory ? JSON.stringify(memory) : 'none (first meeting)'}
 
+### Quest History with this player
+${completedQuestNames.length > 0 ? `Previously completed quests from you: ${completedQuestNames.join(', ')}. You can reference these for narrative continuity and offer follow-up quests that build on past adventures.` : 'No quests completed together yet.'}
+${activeQuestFromThisNpc ? `\nYou have already given this player a task that is not yet complete. Do NOT offer another quest. Instead, reference the outstanding work if the topic comes up — remind them they have unfinished business with you.` : ''}
+
 ### Response Rules
 - Stay in character as ${npc.name}
 - Your tone and speech style match your personality traits
@@ -427,6 +433,7 @@ export const NPC_CONVERSATION_RESPONSE_SCHEMA = `{
       "targetItemName": "string -- name of item to pick up/find (for delivery/explore quests)",
       "targetNpcName": "string -- name of NPC to deliver to (for delivery quests)",
       "sourceLocationName": "string -- name of location where items should be picked up (for delivery quests, must be DIFFERENT from current NPC location)",
+      "targetEnemyName": "string -- exact name of an existing enemy to target (for kill/kill_loot/boss_kill quests, prefer enemies listed above)",
 
       "amount": "number -5 to +5 (for affinity_change only)",
 
@@ -445,6 +452,8 @@ export function buildNpcConversationUserPrompt(
   activeQuestCount: number,
   maxQuests: number,
   nearbyLocationNames?: string[],
+  nearbyEnemies: { name: string; level: number; location: string }[] = [],
+  recentQuestNames: string[] = [],
 ): string {
   const questContext = activeQuestCount >= maxQuests
     ? `The player has ${activeQuestCount}/${maxQuests} active quests (FULL -- do NOT offer new quests).`
@@ -454,11 +463,21 @@ export function buildNpcConversationUserPrompt(
     ? `\nNearby locations: ${nearbyLocationNames.join(', ')}`
     : '';
 
+  const enemyContext = nearbyEnemies.length > 0
+    ? `\nEnemies in the area: ${nearbyEnemies.map(e => `${e.name} (level ${e.level}, at ${e.location})`).join('; ')}`
+    : '';
+
+  const throttleContext = recentQuestNames.length > 0
+    ? `\nRecently completed quests: ${recentQuestNames.join(', ')}. Avoid offering quests with the same name or very similar objectives.`
+    : '';
+
   return `${questContext}
-${nearbyContext}
+${nearbyContext}${enemyContext}${throttleContext}
 The player says: "${playerMessage}"
 
 Respond in character. If the conversation naturally leads to a side effect (quest offer, location reveal, affinity change, etc.), include it in the effects array. Otherwise, use an empty effects array or a single "none" effect.
+
+For kill quests, prefer targeting enemies listed above. You may invent a new enemy type ONLY if the narrative strongly demands it.
 
 Respond with ONLY valid JSON matching this schema:
 ${NPC_CONVERSATION_RESPONSE_SCHEMA}`;
