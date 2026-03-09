@@ -471,6 +471,41 @@ spacetimedb.reducer('prepare_creation_llm', { generationType: t.string() }, (ctx
 
   if (generationType === 'race') {
     if (state.step !== 'GENERATING_RACE') throw new SenderError('Invalid step for race generation');
+
+    // Check for existing race definition (case-insensitive)
+    const nameLower = (state.raceDescription || '').trim().toLowerCase();
+    let existingRace: any = null;
+    for (const rd of ctx.db.raceDefinition.by_name.filter(nameLower)) {
+      existingRace = rd;
+      break;
+    }
+
+    if (existingRace) {
+      // Reuse existing race definition — skip LLM entirely
+      ctx.db.character_creation_state.id.update({
+        ...state,
+        step: 'AWAITING_ARCHETYPE',
+        raceName: existingRace.name,
+        raceNarrative: existingRace.narrative,
+        raceBonuses: existingRace.bonusesJson,
+        updatedAt: ctx.timestamp,
+      });
+
+      let bonuses: any = {};
+      try { bonuses = JSON.parse(existingRace.bonusesJson); } catch {}
+      const bonusText = bonuses.primary
+        ? `\n+${bonuses.primary.value || 2} ${(bonuses.primary.stat || 'STR').toUpperCase()}, +${bonuses.secondary?.value || 1} ${(bonuses.secondary?.stat || 'DEX').toUpperCase()}${bonuses.flavor ? `. ${bonuses.flavor}` : ''}`
+        : '';
+
+      appendCreationEvent(ctx, ctx.sender, 'creation',
+        `${existingRace.narrative || 'An interesting choice.'}\n\n` +
+        `**${existingRace.name}**${bonusText}\n\n` +
+        `Now then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
+        `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`
+      );
+      return;
+    }
+
     systemPrompt = buildCharacterCreationPrompt('Interpreting a new arrival\'s race description.');
     userPrompt = buildRaceInterpretationUserPrompt(state.raceDescription);
   } else if (generationType === 'class') {
@@ -803,6 +838,26 @@ spacetimedb.reducer('submit_llm_result', {
           `Now then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
           `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`
         );
+
+        // Persist race definition for reuse by future players
+        const raceLower = (data.raceName || '').trim().toLowerCase();
+        if (raceLower) {
+          let alreadySaved = false;
+          for (const existing of ctx.db.raceDefinition.by_name.filter(raceLower)) {
+            alreadySaved = true;
+            break;
+          }
+          if (!alreadySaved) {
+            ctx.db.raceDefinition.insert({
+              id: 0n,
+              name: data.raceName,
+              nameLower: raceLower,
+              narrative: data.narrative || '',
+              bonusesJson: JSON.stringify(data.bonuses || {}),
+              createdAt: ctx.timestamp,
+            });
+          }
+        }
 
       } else if (generationType === 'class') {
         ctx.db.character_creation_state.id.update({
