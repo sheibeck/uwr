@@ -168,8 +168,7 @@ export const registerIntentReducers = (deps: any) => {
     if (lower === 'help' || lower === 'h' || lower === '?') {
       const helpText = [
         'Commands:',
-        '  [look] (l) — Survey your surroundings. Shows location, NPCs, enemies, resources, exits.',
-        '  [look] <name> — Inspect a specific NPC, enemy, or player.',
+        '  [look] (l) — Survey your surroundings, or [look] <name> to inspect a specific target.',
         '  [inventory] (inv, i) — View your equipped gear with stats.',
         '  [backpack] (bp, bag) — View your unequipped items.',
         '  go <place> — Travel to a connected location. You can also type the location name directly.',
@@ -177,7 +176,7 @@ export const registerIntentReducers = (deps: any) => {
         '  say <message> — Speak aloud for everyone at your location to hear.',
         '  whisper <name> <message> — Send a private message to another player.',
         '  hail <name> — Start a conversation with an NPC.',
-        '  con <name> — Assess the threat level of an enemy or your standing with an NPC.',
+        '  [consider] (con) <name> — Assess the threat level of an enemy or your standing with an NPC.',
         '  attack — Engage enemies at your location.',
         '  flee — Attempt to escape from combat.',
         '  [stats] — View your full character stats and combat values.',
