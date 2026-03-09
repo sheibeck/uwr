@@ -149,21 +149,6 @@
       <CraftingPanel :styles="styles" :selected-character="selectedCharacter" :crafting-available="currentLocationCraftingAvailable" :combat-locked="lockCrafting" :recipes="craftingFilteredRecipes" :recipe-types="craftingRecipeTypes" :active-filter="craftingActiveFilter" :show-only-craftable="craftingShowOnlyCraftable" @update:active-filter="craftingActiveFilter = $event" @update:show-only-craftable="craftingShowOnlyCraftable = $event" @open-modal="onOpenCraftModal" @research="onResearchRecipes" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" />
     </FloatingPanel>
 
-    <!-- World Events Panel -->
-    <FloatingPanel panel-id="worldEvents" title="World Events">
-      <WorldEventPanel
-        :styles="styles"
-        :world-event-rows="worldEventRows"
-        :event-contributions="eventContributions"
-        :event-objectives="eventObjectives"
-        :regions="regions"
-        :selected-character="selectedCharacter"
-        :is-admin="isAdmin"
-        :now-micros="nowMicros"
-        :requested-tab="panels.worldEvents?.tab"
-        @tab-change="tab => setPanelTab('worldEvents', tab)"
-      />
-    </FloatingPanel>
 
     <!-- World Event Banner Overlay -->
     <div v-if="activeBanner" :style="styles.worldEventBanner">
@@ -200,79 +185,6 @@
       <MapPanel :regions="regions" :locations="locations" :location-connections="locationConnections" :selected-character="selectedCharacter" />
     </FloatingPanel>
 
-    <FloatingPanel panel-id="travel" :body-style="styles.floatingPanelBody">
-      <template #header>
-        <div :style="styles.panelHeaderStack">
-        <div :style="styles.panelHeaderLocationRow">
-          <div :style="styles.panelHeaderLocation">{{ currentLocationName }}</div>
-          <div
-            v-if="currentLocation?.bindStone"
-            :style="styles.bindStoneIcon"
-            title="Bind here"
-            @click="bindLocation"
-          ></div>
-          <div
-            v-if="currentLocation?.craftingAvailable"
-            :style="styles.craftingIcon"
-            title="Crafting stations available"
-          ></div>
-        </div>
-        <div :style="styles.panelHeaderRegion">
-          <span :style="currentRegionConStyle">{{ currentRegionName }}</span>
-          <span :style="currentRegionConStyle"> L{{ currentRegionLevel }}</span>
-        </div>
-        <div :style="styles.panelHeaderTypes">{{ currentTypeLine }}</div>
-        </div>
-        <div
-          :style="[styles.timeIndicator, isNight ? styles.timeIndicatorNight : null]"
-          :title="timeTooltip"
-        />
-      </template>
-      <LocationGrid
-        :styles="styles"
-        :conn-active="conn.isActive"
-        :selected-character="selectedCharacter"
-        :selected-npc-id="selectedNpcTarget"
-        :conversation-npc-id="conversationNpcIdStr"
-        :selected-character-target-id="selectedCharacterTarget"
-        :selected-corpse-id="selectedCorpseTarget"
-        :characters-here="charactersHere"
-        :npcs-here="npcsHere"
-        :corpses-here="corpsesHere"
-        :enemy-spawns="availableEnemies"
-        :resource-nodes="resourceNodesHere"
-        :quest-items="locationQuestItems"
-        :named-enemies="locationNamedEnemies"
-        :can-engage="!!selectedCharacter && (!selectedCharacter.groupId || pullerId === selectedCharacter.id)"
-        :my-friend-user-ids="myFriendUserIds"
-        :group-member-ids="groupMemberIdStrings"
-        :is-leader="isLeader"
-        :leader-id="leaderId"
-        @pull="(payload) => startPull(payload.enemyId, payload.pullType)"
-        @gather-resource="startGather"
-        @hail="hailNpc"
-        @open-vendor="openVendor"
-        @open-bank="openBank"
-        @player-invite="inviteToGroup"
-        @player-kick="kickMember"
-        @player-friend="sendFriendRequest"
-        @player-promote="promoteLeader"
-        @player-trade="startTrade"
-        @player-message="sendWhisperTo"
-        @gift-npc="openGiftOverlay"
-        @loot-all-corpse="onLootAllCorpse"
-        @initiate-resurrect="onInitiateResurrect"
-        @initiate-corpse-summon="onInitiateCorpseSummon"
-        @select-npc="selectNpcTarget"
-        @talk-npc="onTalkNpc"
-        @end-conversation="endConversation"
-        @select-corpse="selectCorpseTarget"
-        @select-character="selectCharacterTarget"
-        @loot-quest-item="lootQuestItem"
-        @quest-item-cast-update="onQuestItemCastUpdate"
-        @pull-named-enemy="pullNamedEnemy"
-      />
-    </FloatingPanel>
 
     <FloatingPanel panel-id="group" compact>
       <template #header>
@@ -534,7 +446,6 @@ import ActionBar from './components/ActionBar.vue';
 import VendorPanel from './components/VendorPanel.vue';
 import BankPanel from './components/BankPanel.vue';
 import TrackPanel from './components/TrackPanel.vue';
-import WorldEventPanel from './components/WorldEventPanel.vue';
 import HelpOverlay from './components/HelpOverlay.vue';
 import BugReportModal from './components/BugReportModal.vue';
 import html2canvas from 'html2canvas';
@@ -1328,6 +1239,14 @@ const { commandText, submitCommand } = useCommands({
   characters: computed(() => characters.value),
   locations: computed(() => locations.value),
   worldEventRows: computed(() => (worldEventRows.value as any[])),
+  eventObjectives: computed(() => (eventObjectives.value as any[])),
+  factions: computed(() => (factions.value as any[])),
+  factionStandings: computed(() => (factionStandings.value as any[])),
+  renownRows: computed(() => (renownRows.value as any[])),
+  renownPerks: computed(() => (renownPerks.value as any[])),
+  questInstances: computed(() => (questInstances.value as any[])),
+  questTemplates: computed(() => (questTemplates.value as any[])),
+  regions: computed(() => (regions.value as any[])),
 });
 
 // --- Narrative Console wiring ---
@@ -1353,8 +1272,9 @@ const onNarrativeSubmit = (text: string) => {
   if (!text.trim()) return;
   // Block all input while LLM is generating a response
   if (isNarrativeLlmProcessing.value) return;
-  // Slash commands go through existing command system
-  if (text.startsWith('/')) {
+  // Slash commands and known info commands go through existing command system
+  const infoCommands = ['renown', 'factions', 'faction', 'events'];
+  if (text.startsWith('/') || infoCommands.includes(text.trim().toLowerCase())) {
     commandText.value = text;
     submitCommand();
     return;
@@ -1829,7 +1749,6 @@ const talkToNpcReducer = useReducer(reducers.talkToNpc);
 const hailNpc = (npcName: string) => {
   if (!selectedCharacter.value) return;
   hailNpcReducer({ characterId: selectedCharacter.value.id, npcName });
-  openPanel('journal');
 };
 
 // Gift overlay state and logic
@@ -2610,10 +2529,7 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
           openPanel('characterInfo');
         }
         return;
-      case 'r': case 'R': togglePanel('renown'); return;
       case 'c': case 'C': togglePanel('characterInfo'); return;
-      case 'e': case 'E': togglePanel('worldEvents'); return;
-      case 't': case 'T': togglePanel('travel'); return;
       case 'l': case 'L': togglePanel('loot'); return;
       case 'm': case 'M': togglePanel('map'); return;
     }
