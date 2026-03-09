@@ -180,7 +180,9 @@ export const registerIntentReducers = (deps: any) => {
         '  con <name> — Assess the threat level of an enemy or your standing with an NPC.',
         '  attack — Engage enemies at your location.',
         '  flee — Attempt to escape from combat.',
-        '  [stats] — View your character stats.',
+        '  [stats] — View your full character stats and combat values.',
+      '  [abilities] (ab) — View your abilities with descriptions and costs.',
+      '  [character] (char) — View your race and class info with bonuses.',
         '  [bank] — Access your bank vault (at locations with a banker).',
         '  [shop] — Browse a vendor\'s wares (at locations with a vendor).',
         '  [craft] — View and craft known recipes (at crafting stations).',
@@ -385,17 +387,139 @@ export const registerIntentReducers = (deps: any) => {
 
     // --- STATS ---
     if (lower === 'stats') {
+      const fmtPct = (v: bigint) => (Number(v) / 10).toFixed(2) + '%';
       const parts: string[] = [];
-      parts.push(`Character Stats: ${character.name}, Level ${character.level} ${character.race} ${character.className}`);
+      parts.push(`=== ${character.name} — Level ${character.level} ${character.race} ${character.className} ===`);
+      parts.push('');
+      parts.push('Resources:');
       parts.push(`  HP: ${character.hp}/${character.maxHp}  Mana: ${character.mana}/${character.maxMana}  Stamina: ${character.stamina}/${character.maxStamina}`);
       parts.push(`  XP: ${character.xp}  Gold: ${character.gold ?? 0n}`);
       parts.push('');
-      parts.push('  Base Stats:');
-      parts.push(`    STR ${character.str}  DEX ${character.dex}  INT ${character.int}  WIS ${character.wis}  CHA ${character.cha}`);
+      parts.push('Base Stats:');
+      parts.push(`  STR ${character.str}  DEX ${character.dex}  INT ${character.int}  WIS ${character.wis}  CHA ${character.cha}`);
       parts.push('');
-      parts.push('  Combat:');
-      parts.push(`    Armor Class: ${character.armorClass}  Magic Resist: ${character.magicResistance}`);
-      parts.push(`    Attack Power: ${character.attackPower}  Spell Power: ${character.spellPower}`);
+      parts.push('Combat:');
+      parts.push(`  Hit: ${fmtPct(character.hitChance)}  Dodge: ${fmtPct(character.dodgeChance)}  Parry: ${fmtPct(character.parryChance)}`);
+      parts.push(`  Crit (Melee): ${fmtPct(character.critMelee)}  Crit (Ranged): ${fmtPct(character.critRanged)}`);
+      parts.push(`  Crit (Divine): ${fmtPct(character.critDivine)}  Crit (Arcane): ${fmtPct(character.critArcane)}`);
+      parts.push(`  Armor Class: ${character.armorClass}  Perception: ${character.perception}`);
+      parts.push(`  CC Power: ${fmtPct(character.ccPower)}`);
+      parts.push(`  Vendor Buy: -${fmtPct(character.vendorBuyMod)}  Vendor Sell: +${fmtPct(character.vendorSellMod)}`);
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', parts.join('\n'));
+      return;
+    }
+
+    // --- ABILITIES ---
+    if (lower === 'abilities' || lower === 'ab') {
+      const abilities = [...ctx.db.abilityTemplate.by_character.filter(character.id)];
+      if (abilities.length === 0) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', 'You have no abilities yet.');
+        return;
+      }
+      abilities.sort((a: any, b: any) => Number(a.levelRequired) - Number(b.levelRequired));
+      const parts: string[] = [`=== Abilities (${abilities.length}) ===`, ''];
+      for (const ab of abilities) {
+        parts.push(`${ab.name} (Lv ${ab.levelRequired})`);
+        if (ab.description) parts.push(`  ${ab.description}`);
+        parts.push(`  ${ab.kind} — ${ab.resourceType}: ${ab.resourceCost} — Cast: ${ab.castSeconds}s — CD: ${ab.cooldownSeconds}s`);
+        parts.push('');
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', parts.join('\n'));
+      return;
+    }
+
+    // --- CHARACTER ---
+    if (lower === 'character' || lower === 'char') {
+      const fmtLabel = (type: string): string => {
+        switch (type) {
+          case 'stat_str': return 'STR';
+          case 'stat_dex': return 'DEX';
+          case 'stat_int': return 'INT';
+          case 'stat_wis': return 'WIS';
+          case 'stat_cha': return 'CHA';
+          case 'spell_damage': return 'Spell Damage';
+          case 'phys_damage': return 'Phys Damage';
+          case 'max_hp': return 'Max HP';
+          case 'max_mana': return 'Max Mana';
+          case 'mana_regen': return 'Mana Regen';
+          case 'stamina_regen': return 'Stamina Regen';
+          case 'crit_chance': return 'Crit';
+          case 'armor': return 'Armor';
+          case 'dodge': return 'Dodge';
+          case 'hp_regen': return 'HP Regen';
+          case 'max_stamina': return 'Max Stamina';
+          case 'hit_chance': return 'Hit';
+          case 'parry': return 'Parry';
+          case 'faction_bonus': return 'Faction Gain';
+          case 'magic_resist': return 'Magic Resist';
+          case 'perception': return 'Perception';
+          case 'travel_cost_discount': return 'Travel Discount';
+          case 'travel_cost_increase': return 'Travel Cost';
+          case 'loot_bonus': return 'Resource Find';
+          default: return type;
+        }
+      };
+      const fmtVal = (type: string, value: bigint): string => {
+        const v = Number(value);
+        switch (type) {
+          case 'crit_chance': case 'dodge': case 'hit_chance': case 'parry': case 'magic_resist':
+            return `+${(v / 10).toFixed(2).replace(/\.?0+$/, '')}%`;
+          case 'faction_bonus': case 'loot_bonus':
+            return `+${v}%`;
+          case 'travel_cost_discount':
+            return `-${v} stamina`;
+          case 'travel_cost_increase':
+            return `+${v} stamina`;
+          default:
+            return `+${v}`;
+        }
+      };
+      const fmtPenalty = (type: string, value: bigint): string => {
+        const v = Number(value);
+        if (type === 'travel_cost_increase') return `+${v} stamina`;
+        if (type === 'travel_cost_discount') return `-${v} stamina`;
+        return `-${v}`;
+      };
+
+      const parts: string[] = [`=== ${character.name} ===`, ''];
+      parts.push(`Class: ${character.className}`);
+      if (character.weaponProficiencies) {
+        parts.push(`Weapon Proficiencies: ${character.weaponProficiencies}`);
+      }
+      if (character.armorProficiencies) {
+        parts.push(`Armor Proficiencies: ${character.armorProficiencies}`);
+      }
+      parts.push('');
+
+      // Look up race
+      let raceFound = false;
+      for (const r of ctx.db.race.iter()) {
+        if (r.name.toLowerCase() === character.race.toLowerCase()) {
+          raceFound = true;
+          parts.push(`Race: ${r.name}`);
+          if (r.description) parts.push(r.description);
+          parts.push('');
+          parts.push('Racial Bonuses:');
+          parts.push(`  ${fmtLabel(r.bonus1Type)}: ${fmtVal(r.bonus1Type, r.bonus1Value)}`);
+          parts.push(`  ${fmtLabel(r.bonus2Type)}: ${fmtVal(r.bonus2Type, r.bonus2Value)}`);
+          if (r.penaltyType && r.penaltyValue) {
+            parts.push(`  ${fmtLabel(r.penaltyType)}: ${fmtPenalty(r.penaltyType, r.penaltyValue)}`);
+          }
+          parts.push('');
+          const evenLevels = Number(character.level) / 2 | 0;
+          parts.push('Level Bonus (every 2 levels):');
+          parts.push(`  ${fmtLabel(r.levelBonusType)}: ${fmtVal(r.levelBonusType, r.levelBonusValue)} per even level`);
+          if (evenLevels > 0) {
+            parts.push(`  Total at level ${character.level}: ${fmtVal(r.levelBonusType, r.levelBonusValue * BigInt(evenLevels))}`);
+          }
+          break;
+        }
+      }
+      if (!raceFound) {
+        parts.push(`Race: ${character.race}`);
+        parts.push('Race data unavailable.');
+      }
+
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', parts.join('\n'));
       return;
     }
