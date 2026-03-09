@@ -6,22 +6,42 @@
       :style="[rowStyle, enemy.isTarget ? targetRowStyle : {}]"
       @click="$emit('target-enemy', enemy.id)"
     >
-      <!-- Name + Level -->
-      <div :style="[nameStyle, { color: conColor(enemy.conClass) }]">
-        <span v-if="enemy.isBoss" :style="bossTagStyle">BOSS</span>
-        {{ enemy.name }}
-        <span :style="levelStyle">L{{ enemy.level }}</span>
+      <!-- Name + Level + HP bar row -->
+      <div :style="enemyMainRow">
+        <div :style="[nameStyle, { color: conColor(enemy.conClass) }]">
+          <span v-if="enemy.isBoss" :style="bossTagStyle">BOSS</span>
+          {{ enemy.name }}
+          <span :style="levelStyle">L{{ enemy.level }}</span>
+        </div>
+        <!-- HP bar -->
+        <div :style="hpBarContainer">
+          <div :style="[hpBarFill, { width: hpPercent(enemy) + '%', background: hpColor(enemy) }]" />
+          <span :style="hpBarLabel">{{ enemy.hp }}/{{ enemy.maxHp }}</span>
+        </div>
       </div>
-      <!-- HP bar -->
-      <div :style="hpBarContainer">
-        <div :style="[hpBarFill, { width: hpPercent(enemy) + '%', background: hpColor(enemy) }]" />
-        <span :style="hpBarLabel">{{ enemy.hp }}/{{ enemy.maxHp }}</span>
+      <!-- Effect tags -->
+      <div v-if="enemy.effects && enemy.effects.length > 0" :style="effectTagContainerStyle">
+        <span
+          v-for="effect in sortedEffects(enemy.effects)"
+          :key="String(effect.id)"
+          :style="[effectTagBaseStyle, { color: effectTagColor(effect), borderColor: effectTagColor(effect) }]"
+        >
+          {{ effect.label.toUpperCase() }} {{ effect.seconds }}s
+        </span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+type EffectEntry = {
+  id: bigint;
+  label: string;
+  seconds: number;
+  isNegative: boolean;
+  isOwn: boolean;
+};
+
 type EnemyEntry = {
   id: bigint;
   name: string;
@@ -31,6 +51,7 @@ type EnemyEntry = {
   conClass: string;
   isTarget: boolean;
   isBoss: boolean;
+  effects?: EffectEntry[];
 };
 
 defineProps<{
@@ -40,6 +61,21 @@ defineProps<{
 defineEmits<{
   (e: 'target-enemy', enemyId: bigint): void;
 }>();
+
+const sortedEffects = (effects: EffectEntry[]): EffectEntry[] => {
+  return [...effects].sort((a, b) => {
+    // Own effects first
+    if (a.isOwn !== b.isOwn) return a.isOwn ? -1 : 1;
+    // Then by seconds descending
+    return b.seconds - a.seconds;
+  });
+};
+
+const effectTagColor = (effect: EffectEntry): string => {
+  if (effect.isOwn) return '#ffd43b'; // yellow — player's own effects
+  if (effect.isNegative) return '#ff6b6b'; // red — DoTs and debuffs
+  return '#69db7c'; // green — HoTs and buffs
+};
 
 const conColorMap: Record<string, string> = {
   conRed: '#ff6b6b',
@@ -75,14 +111,19 @@ const containerStyle = {
 
 const rowStyle = {
   display: 'flex',
-  alignItems: 'center',
-  gap: '8px',
+  flexDirection: 'column' as const,
   padding: '2px 6px',
   borderRadius: '3px',
   cursor: 'pointer',
   border: '1px solid transparent',
   transition: 'border-color 0.15s, box-shadow 0.15s',
   minHeight: '24px',
+};
+
+const enemyMainRow = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
 };
 
 const targetRowStyle = {
@@ -146,5 +187,23 @@ const hpBarLabel = {
   color: '#e9ecef',
   fontWeight: 600 as const,
   textShadow: '0 0 3px rgba(0,0,0,0.8)',
+};
+
+const effectTagContainerStyle = {
+  display: 'flex',
+  flexWrap: 'wrap' as const,
+  gap: '3px',
+  marginTop: '2px',
+  maxWidth: '100%',
+};
+
+const effectTagBaseStyle = {
+  fontSize: '0.6rem',
+  fontWeight: 600,
+  padding: '1px 4px',
+  borderRadius: '3px',
+  border: '1px solid',
+  lineHeight: '1.2',
+  whiteSpace: 'nowrap' as const,
 };
 </script>

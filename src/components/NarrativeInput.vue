@@ -97,6 +97,7 @@ type CombatEnemyEntry = {
   conClass: string;
   isTarget: boolean;
   isBoss: boolean;
+  effects: { id: bigint; label: string; seconds: number; isNegative: boolean; isOwn: boolean }[];
 };
 
 const props = withDefaults(defineProps<{
