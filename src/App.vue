@@ -72,11 +72,17 @@
       :cast-progress="castProgress"
       :gathering-state="activeGatheringInfo"
       :quest-item-cast-state="localQuestItemCast"
+      :group-members="groupCharacterMembers"
+      :character-effects="relevantEffects"
+      :defensive-target-id="defensiveTargetId"
+      :now-micros="nowMicros"
+      :leader-id="leaderId"
       @submit="onNarrativeSubmit"
       @open-panel="onOpenPanel"
       @flee="onCombatFlee"
       @use-ability="onCombatUseAbility"
       @target-enemy="onCombatTargetEnemy"
+      @target="setDefensiveTarget"
     />
 
     <FloatingPanel v-if="selectedCharacter" panel-id="hotbar" title="Hotbar" hotbar>

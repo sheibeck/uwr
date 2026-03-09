@@ -10,6 +10,18 @@
       @open-panel="$emit('open-panel', $event)"
     />
 
+    <!-- Group member bar (below HUD, shown when character exists) -->
+    <GroupMemberBar
+      v-if="selectedCharacter"
+      :character="selectedCharacter"
+      :group-members="groupMembers"
+      :character-effects="characterEffects"
+      :defensive-target-id="defensiveTargetId"
+      :now-micros="nowMicros"
+      :leader-id="leaderId"
+      @target="$emit('target', $event)"
+    />
+
     <!-- Scroll area -->
     <div :style="scrollAreaStyle" ref="scrollEl" @scroll="checkIfAtBottom">
       <div v-if="!selectedCharacter && combinedEvents.length === 0 && !isLlmProcessing" :style="emptyStyle">
@@ -83,6 +95,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 import type { Character } from '../module_bindings/types';
+import GroupMemberBar from './GroupMemberBar.vue';
 import NarrativeHud from './NarrativeHud.vue';
 import NarrativeInput from './NarrativeInput.vue';
 import NarrativeMessage from './NarrativeMessage.vue';
@@ -114,6 +127,11 @@ const props = defineProps<{
   castProgress?: number;
   gatheringState?: { name: string; progress: number } | null;
   questItemCastState?: { name: string; progress: number } | null;
+  groupMembers?: Character[];
+  characterEffects?: any[];
+  defensiveTargetId?: bigint | null;
+  nowMicros?: number;
+  leaderId?: bigint | null;
 }>();
 
 defineEmits<{
@@ -122,6 +140,7 @@ defineEmits<{
   (e: 'flee'): void;
   (e: 'use-ability', abilityId: bigint): void;
   (e: 'target-enemy', enemyId: bigint): void;
+  (e: 'target', characterId: bigint): void;
 }>();
 
 const progressBar = (progress: number, width = 20): string => {
@@ -211,7 +230,7 @@ const consoleStyle = {
 const scrollAreaStyle = computed(() => ({
   flex: '1',
   overflowY: 'auto' as const,
-  paddingTop: '52px',
+  paddingTop: '107px',
   paddingBottom: props.isInCombat ? '150px' : '90px',
   paddingLeft: '16px',
   paddingRight: '16px',
