@@ -890,7 +890,7 @@ const { isProcessing: isLlmProxyProcessing } = useLlmProxy({
 });
 
 // Skill choice: watches PendingSkill table, auto-triggers skill gen on level-up
-const { myPendingSkills, hasPendingSkills, chooseSkill: chooseSkillByName } = useSkillChoice({
+const { myPendingSkills, hasPendingSkills, chooseSkill: chooseSkillByName, requestSkillGen } = useSkillChoice({
   selectedCharacter,
   pendingSkills,
   connActive: computed(() => conn.isActive),
@@ -1758,7 +1758,15 @@ const onCreationSubmit = (text: string) => {
     return;
   }
 
-  // 13. Everything else — delegate to the same handler typed input uses
+  // 13. Choose ability keyword (from abilities command)
+  if (kwLower === 'choose ability') {
+    if (selectedCharacter.value && conn.isActive) {
+      requestSkillGen();
+    }
+    return;
+  }
+
+  // 14. Everything else — delegate to the same handler typed input uses
   onNarrativeSubmit(keyword);
 };
 

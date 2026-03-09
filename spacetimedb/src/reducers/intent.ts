@@ -412,18 +412,38 @@ export const registerIntentReducers = (deps: any) => {
     // --- ABILITIES ---
     if (lower === 'abilities' || lower === 'ab') {
       const abilities = [...ctx.db.abilityTemplate.by_character.filter(character.id)];
+      const hasPending = [...ctx.db.pending_skill.by_character.filter(character.id)].length > 0;
+      const levelsWithAbilities = new Set(abilities.map((a: any) => Number(a.levelRequired)));
+      const missedLevels: number[] = [];
+      for (let lvl = 1; lvl <= Number(character.level); lvl++) {
+        if (!levelsWithAbilities.has(lvl)) missedLevels.push(lvl);
+      }
+
+      const parts: string[] = [];
       if (abilities.length === 0) {
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', 'You have no abilities yet.');
-        return;
-      }
-      abilities.sort((a: any, b: any) => Number(a.levelRequired) - Number(b.levelRequired));
-      const parts: string[] = [`=== Abilities (${abilities.length}) ===`, ''];
-      for (const ab of abilities) {
-        parts.push(`${ab.name} (Lv ${ab.levelRequired})`);
-        if (ab.description) parts.push(`  ${ab.description}`);
-        parts.push(`  ${ab.kind} — ${ab.resourceType}: ${ab.resourceCost} — Cast: ${ab.castSeconds}s — CD: ${ab.cooldownSeconds}s`);
+        parts.push('You have no abilities yet.');
+      } else {
+        abilities.sort((a: any, b: any) => Number(a.levelRequired) - Number(b.levelRequired));
+        parts.push(`=== Abilities (${abilities.length}) ===`);
         parts.push('');
+        for (const ab of abilities) {
+          parts.push(`${ab.name} (Lv ${ab.levelRequired})`);
+          if (ab.description) parts.push(`  ${ab.description}`);
+          parts.push(`  ${ab.kind} — ${ab.resourceType}: ${ab.resourceCost} — Cast: ${ab.castSeconds}s — CD: ${ab.cooldownSeconds}s`);
+          parts.push('');
+        }
       }
+
+      if (missedLevels.length > 0) {
+        parts.push('');
+        if (hasPending) {
+          parts.push('You have pending ability choices. Select one of the offered skills first.');
+        } else {
+          parts.push(`Missed ability selections: Level ${missedLevels.join(', Level ')}`);
+          parts.push('[choose ability] — The Keeper will present new offerings');
+        }
+      }
+
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', parts.join('\n'));
       return;
     }
