@@ -465,18 +465,24 @@ export function resolveAbility(
   const dmgType = ability.damageType ?? 'physical';
 
   if (kind === 'damage') {
-    // Direct damage to single enemy target
-    const enemy = findEnemyTarget();
-    if (!enemy || !combatId) { throw new SenderError('No target'); }
-    const power = scaledPower();
-    const dealt = applyDamageToEnemy(enemy, power, dmgType);
-    if (actor.type === 'character') {
+    if (actor.type === 'enemy') {
+      // Enemy damage ability targets a player character
+      if (!targetCharacterId) return;
+      const target = ctx.db.character.id.find(targetCharacterId);
+      if (!target || target.hp === 0n) return;
+      const power = scaledPower();
+      const dealt = applyDamageToCharacter(target, power, dmgType);
+      logPrivate(target.id, target.ownerUserId, 'damage', `${actor.name}'s ${ability.name} hits you for ${dealt} damage.`);
+      if (target.groupId) appendGroupEvent(ctx, target.groupId, target.id, 'damage', `${actor.name}'s ${ability.name} hits ${target.name} for ${dealt} damage.`);
+    } else {
+      // Player/pet damage ability targets an enemy
+      const enemy = findEnemyTarget();
+      if (!enemy || !combatId) { throw new SenderError('No target'); }
+      const power = scaledPower();
+      const dealt = applyDamageToEnemy(enemy, power, dmgType);
       const char = ctx.db.character.id.find(actor.id);
       if (char) logPrivate(char.id, char.ownerUserId, 'damage', `Your ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage.`);
       logGroup('damage', `${actor.name}'s ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage.`);
-    } else if (actor.type === 'enemy' && targetCharacterId) {
-      const target = ctx.db.character.id.find(targetCharacterId);
-      if (target) logPrivate(target.id, target.ownerUserId, 'damage', `${actor.name}'s ${ability.name} hits you for ${dealt} damage.`);
     }
     return;
   }
@@ -520,24 +526,34 @@ export function resolveAbility(
 
   if (kind === 'dot') {
     // Damage over time: initial hit + DoT effect
-    const enemy = findEnemyTarget();
-    if (!enemy || !combatId) { throw new SenderError('No target'); }
     const power = scaledPower();
     const directDamage = power / 2n; // 50% direct
     const dotTotal = power - directDamage; // 50% DoT
     const duration = ability.effectDuration ?? 3n;
     const dotPerTick = duration > 0n ? dotTotal / duration : dotTotal;
-    const dealt = applyDamageToEnemy(enemy, directDamage, dmgType);
-    if (dotPerTick > 0n) {
-      addEnemyEffect(ctx, combatId, enemy.id, 'dot', dotPerTick, duration, ability.name, actor.id);
-    }
-    if (actor.type === 'character') {
+
+    if (actor.type === 'enemy') {
+      // Enemy DoT targets a player character
+      if (!targetCharacterId) return;
+      const target = ctx.db.character.id.find(targetCharacterId);
+      if (!target || target.hp === 0n) return;
+      const dealt = applyDamageToCharacter(target, directDamage, dmgType);
+      if (dotPerTick > 0n) {
+        addCharacterEffect(ctx, targetCharacterId, 'dot', dotPerTick, duration, ability.name);
+      }
+      logPrivate(target.id, target.ownerUserId, 'damage', `${actor.name}'s ${ability.name} hits you for ${dealt} damage and applies a burning effect.`);
+      if (target.groupId) appendGroupEvent(ctx, target.groupId, target.id, 'damage', `${actor.name}'s ${ability.name} hits ${target.name} for ${dealt}.`);
+    } else {
+      // Player/pet DoT targets an enemy
+      const enemy = findEnemyTarget();
+      if (!enemy || !combatId) { throw new SenderError('No target'); }
+      const dealt = applyDamageToEnemy(enemy, directDamage, dmgType);
+      if (dotPerTick > 0n) {
+        addEnemyEffect(ctx, combatId, enemy.id, 'dot', dotPerTick, duration, ability.name, actor.id);
+      }
       const char = ctx.db.character.id.find(actor.id);
       if (char) logPrivate(char.id, char.ownerUserId, 'damage', `Your ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage.`);
       logGroup('damage', `${actor.name}'s ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage.`);
-    } else if (actor.type === 'enemy' && targetCharacterId) {
-      const target = ctx.db.character.id.find(targetCharacterId);
-      if (target) logPrivate(target.id, target.ownerUserId, 'damage', `${actor.name}'s ${ability.name} hits you for ${dealt} damage and applies a burning effect.`);
     }
     return;
   }
@@ -596,26 +612,34 @@ export function resolveAbility(
   }
 
   if (kind === 'debuff') {
-    // Apply negative effect to enemy
-    const enemy = findEnemyTarget();
-    if (!enemy || !combatId) { throw new SenderError('No target'); }
     const eType = ability.effectType ?? 'armor_down';
     const eMag = ability.effectMagnitude ?? 3n;
     const eDur = ability.effectDuration ?? 3n;
-    // Optional direct damage reduced by debuff power cost
     const power = scaledPower();
     const directDamage = (power * 75n) / 100n; // 75% direct, 25% budget to debuff
-    if (directDamage > 0n) {
-      applyDamageToEnemy(enemy, directDamage, dmgType);
-    }
-    addEnemyEffect(ctx, combatId, enemy.id, eType, eMag, eDur, ability.name, actor.id);
-    if (actor.type === 'character') {
+
+    if (actor.type === 'enemy') {
+      // Enemy debuff targets a player character
+      if (!targetCharacterId) return;
+      const target = ctx.db.character.id.find(targetCharacterId);
+      if (!target || target.hp === 0n) return;
+      if (directDamage > 0n) {
+        applyDamageToCharacter(target, directDamage, dmgType);
+      }
+      addCharacterEffect(ctx, targetCharacterId, eType, eMag, eDur, ability.name);
+      logPrivate(target.id, target.ownerUserId, 'ability', `${actor.name}'s ${ability.name} weakens you.`);
+      if (target.groupId) appendGroupEvent(ctx, target.groupId, target.id, 'ability', `${actor.name}'s ${ability.name} weakens ${target.name}.`);
+    } else {
+      // Player/pet debuff targets an enemy
+      const enemy = findEnemyTarget();
+      if (!enemy || !combatId) { throw new SenderError('No target'); }
+      if (directDamage > 0n) {
+        applyDamageToEnemy(enemy, directDamage, dmgType);
+      }
+      addEnemyEffect(ctx, combatId, enemy.id, eType, eMag, eDur, ability.name, actor.id);
       const char = ctx.db.character.id.find(actor.id);
       if (char) logPrivate(char.id, char.ownerUserId, 'ability', `Your ${ability.name} afflicts ${getEnemyName(enemy)}.`);
       logGroup('ability', `${actor.name}'s ${ability.name} afflicts ${getEnemyName(enemy)}.`);
-    } else if (actor.type === 'enemy' && targetCharacterId) {
-      const target = ctx.db.character.id.find(targetCharacterId);
-      if (target) logPrivate(target.id, target.ownerUserId, 'ability', `${actor.name}'s ${ability.name} weakens you.`);
     }
     return;
   }
