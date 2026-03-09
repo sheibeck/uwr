@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 Phase: 32 of 37 (Dead Code Removal)
 Plan: 3 of 3 (32-03 complete)
 Status: In Progress
-Last activity: 2026-03-09 -- Completed 32-03 legacy frontend panels cleanup
+Last activity: 2026-03-09 - Completed quick task 392: Restore quest formatting, add rich styling to renown/factions/events
 
 Progress: [████████░░] 88%
 
@@ -69,6 +69,12 @@ None.
 - SpacetimeDB procedures are beta -- load test early before building on them
 - **NO PUSHES TO MASTER** -- production auto-deploys from master; all work stays local until user approves
 - **NO PUSHES TO MAINCLOUD** -- local SpacetimeDB only until user says otherwise
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 392 | Restore quest formatting, add rich styling to renown/factions/events | 2026-03-09 | c279d2e | [392-restore-quest-formatting-and-add-matchin](./quick/392-restore-quest-formatting-and-add-matchin/) |
 
 ## Session Continuity
 
