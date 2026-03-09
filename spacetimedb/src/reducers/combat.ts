@@ -1009,12 +1009,25 @@ export const registerCombatReducers = (deps: any) => {
       ctx.db.pull_state.id.delete(pull.id);
       return;
     }
-    if (activeCombatIdForCharacter(ctx, character.id)) {
-      if (spawn.state === 'pulling') {
-        ctx.db.enemy_spawn.id.update({ ...spawn, state: 'available' });
+    const existingCombatId = activeCombatIdForCharacter(ctx, character.id);
+    if (existingCombatId) {
+      // Mid-combat pull: add new enemies to existing combat
+      const combat = ctx.db.combat_encounter.id.find(existingCombatId);
+      if (combat) {
+        const existingParticipants = [...ctx.db.combat_participant.by_combat.filter(existingCombatId)]
+          .map((p: any) => ctx.db.character.id.find(p.characterId))
+          .filter(Boolean);
+
+        addEnemyToCombat(deps, ctx, combat, spawn, existingParticipants);
+
+        logPrivateAndGroup(ctx, character, 'combat',
+          `You pull ${spawn.name} into the existing fight!`,
+          `${character.name} pulls ${spawn.name} into the fight!`);
+
+        ctx.db.pull_state.id.update({ ...pull, state: 'resolved', outcome: 'success' });
+        return;
       }
-      ctx.db.pull_state.id.delete(pull.id);
-      return;
+      // Combat disappeared between check and lookup — fall through to start fresh
     }
 
     const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
