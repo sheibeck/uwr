@@ -149,16 +149,6 @@
       <CraftingPanel :styles="styles" :selected-character="selectedCharacter" :crafting-available="currentLocationCraftingAvailable" :combat-locked="lockCrafting" :recipes="craftingFilteredRecipes" :recipe-types="craftingRecipeTypes" :active-filter="craftingActiveFilter" :show-only-craftable="craftingShowOnlyCraftable" @update:active-filter="craftingActiveFilter = $event" @update:show-only-craftable="craftingShowOnlyCraftable = $event" @open-modal="onOpenCraftModal" @research="onResearchRecipes" @show-tooltip="showTooltip" @move-tooltip="moveTooltip" @hide-tooltip="hideTooltip" />
     </FloatingPanel>
 
-    <!-- Journal Panel (wide) -->
-    <FloatingPanel panel-id="journal" title="Journal" wide>
-      <NpcDialogPanel :styles="styles" :npc-dialogs="characterNpcDialogs" :npcs="npcs" :all-npcs="allNpcs" :locations="locations" :regions="regions" :npc-affinities="npcAffinities" :selected-character-id="selectedCharacterId ? BigInt(selectedCharacterId) : null" :selected-npc-target="selectedNpcTarget" :quest-instances="characterQuests" :quest-templates="questTemplates" :requested-tab="journalRequestedTab" @tab-change="tab => setPanelTab('journal', tab)" />
-    </FloatingPanel>
-
-    <!-- Renown Panel -->
-    <FloatingPanel panel-id="renown" title="Renown">
-      <RenownPanel :styles="styles" :factions="factions" :faction-standings="characterFactionStandings" :selected-character="selectedCharacter" :renown-data="characterRenown" :renown-perks="characterRenownPerks" :server-firsts="renownServerFirsts" :conn-active="!!conn.isActive" :requested-tab="panels.renown?.tab" @tab-change="tab => setPanelTab('renown', tab)" @choose-perk="handleChoosePerk" />
-    </FloatingPanel>
-
     <!-- World Events Panel -->
     <FloatingPanel panel-id="worldEvents" title="World Events">
       <WorldEventPanel
@@ -540,13 +530,10 @@ import CraftingModal from './components/CraftingModal.vue';
 import LocationGrid from './components/LocationGrid.vue';
 import LootPanel from './components/LootPanel.vue';
 import TradePanel from './components/TradePanel.vue';
-// CommandBar replaced by NarrativeInput inside NarrativeConsole
 import ActionBar from './components/ActionBar.vue';
-import NpcDialogPanel from './components/NpcDialogPanel.vue';
 import VendorPanel from './components/VendorPanel.vue';
 import BankPanel from './components/BankPanel.vue';
 import TrackPanel from './components/TrackPanel.vue';
-import RenownPanel from './components/RenownPanel.vue';
 import WorldEventPanel from './components/WorldEventPanel.vue';
 import HelpOverlay from './components/HelpOverlay.vue';
 import BugReportModal from './components/BugReportModal.vue';
@@ -1183,7 +1170,6 @@ const pullNamedEnemy = (namedEnemyId: bigint) => {
   db.reducers.pullNamedEnemy({ characterId: selectedCharacter.value.id, namedEnemyId });
 };
 
-// characterFactionStandings, characterRenown, characterRenownPerks provided by useCharacterScope
 
 // World Events: hasActiveEvents computed and banner overlay
 const hasActiveEvents = computed(() => (worldEventRows.value as any[])?.some((e: any) => e.status === 'active') ?? false);
@@ -1845,9 +1831,6 @@ const hailNpc = (npcName: string) => {
   hailNpcReducer({ characterId: selectedCharacter.value.id, npcName });
   openPanel('journal');
 };
-
-// Requested tab for journal panel (used by Q keyboard shortcut)
-const journalRequestedTab = ref<'journal' | 'quests' | null>(null);
 
 // Gift overlay state and logic
 const giftTargetNpcId = ref<bigint | null>(null);
@@ -2627,28 +2610,9 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
           openPanel('characterInfo');
         }
         return;
-      case 'j': case 'J':
-        if (panels.journal?.open) {
-          closePanelById('journal');
-        } else {
-          journalRequestedTab.value = panels.journal?.tab ?? null;
-          openPanel('journal');
-          setTimeout(() => { journalRequestedTab.value = null; }, 100);
-        }
-        return;
       case 'r': case 'R': togglePanel('renown'); return;
       case 'c': case 'C': togglePanel('characterInfo'); return;
       case 'e': case 'E': togglePanel('worldEvents'); return;
-      case 'q': case 'Q':
-        if (panels.journal?.open) {
-          closePanelById('journal');
-        } else {
-          journalRequestedTab.value = 'quests';
-          setPanelTab('journal', 'quests');
-          openPanel('journal');
-          setTimeout(() => { journalRequestedTab.value = null; }, 100);
-        }
-        return;
       case 't': case 'T': togglePanel('travel'); return;
       case 'l': case 'L': togglePanel('loot'); return;
       case 'm': case 'M': togglePanel('map'); return;
@@ -2890,35 +2854,6 @@ const goToCamp = () => {
   deselectCharacter();
 };
 
-const handleChoosePerk = (perkKey: string) => {
-  console.log('[handleChoosePerk] Called with perkKey:', perkKey);
-  console.log('[handleChoosePerk] selectedCharacter:', selectedCharacter.value);
-  console.log('[handleChoosePerk] window.__db_conn:', window.__db_conn);
-
-  if (!selectedCharacter.value) {
-    console.error('[handleChoosePerk] No selected character!');
-    return;
-  }
-  if (!window.__db_conn) {
-    console.error('[handleChoosePerk] No database connection!');
-    return;
-  }
-
-  console.log('[handleChoosePerk] Calling choosePerk reducer with:', {
-    characterId: selectedCharacter.value.id,
-    perkKey,
-  });
-
-  try {
-    window.__db_conn.reducers.choosePerk({
-      characterId: selectedCharacter.value.id,
-      perkKey,
-    });
-    console.log('[handleChoosePerk] Reducer called successfully');
-  } catch (error) {
-    console.error('[handleChoosePerk] Error calling reducer:', error);
-  }
-};
 </script>
 
 <style>
