@@ -220,8 +220,9 @@ None yet.
 | 380 | Block user input during LLM generation | 2026-03-08 | cca0763 | [380-block-user-input-during-llm-generation-w](./quick/380-block-user-input-during-llm-generation-w/) |
 | 381 | Remove LLM combat narration entirely | 2026-03-09 | 5be0a4f | [381-remove-llm-combat-narration-entirely-too](./quick/381-remove-llm-combat-narration-entirely-too/) |
 | 382 | Shore up quest system: NPC quest limits, enemy alignment, dedup | 2026-03-09 | 73ccde6 | Verified | [382-shore-up-quest-system-npc-quest-limits-d](./quick/382-shore-up-quest-system-npc-quest-limits-d/) |
+| 383 | Replace CharacterInfoPanel with chat commands | 2026-03-09 | 006003b, 98cbb1d | [383-replace-characterinfopanel-with-chat-com](./quick/383-replace-characterinfopanel-with-chat-com/) |
 
 ## Session Continuity
 
-Last session: 2026-03-09T00:37:55Z
-Stopped at: Completed quick-382 (Shore up quest system: NPC quest limits, enemy alignment, dedup)
+Last session: 2026-03-09T00:54:00Z
+Stopped at: Completed quick-383 (Replace CharacterInfoPanel with chat commands)
