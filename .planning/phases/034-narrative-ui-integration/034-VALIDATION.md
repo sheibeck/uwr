@@ -2,8 +2,8 @@
 phase: 34
 slug: narrative-ui-integration
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-10
 ---
 
@@ -21,6 +21,7 @@ created: 2026-03-10
 | **Config file** | spacetimedb/vitest.config.ts |
 | **Quick run command** | `cd spacetimedb && npx vitest run --reporter=verbose` |
 | **Full suite command** | `cd spacetimedb && npx vitest run --reporter=verbose` |
+| **Client test command** | `cd C:/projects/uwr && npx vitest run src/composables/useHotbar.test.ts --reporter=verbose` |
 | **Estimated runtime** | ~15 seconds |
 
 ---
@@ -38,20 +39,24 @@ created: 2026-03-10
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 34-01-01 | 01 | 1 | NARR-01 | unit | `npx vitest run` | ❌ W0 | ⬜ pending |
-| 34-01-02 | 01 | 1 | NARR-02 | unit | `npx vitest run` | ❌ W0 | ⬜ pending |
-| 34-02-01 | 02 | 1 | NARR-03 | unit | `npx vitest run` | ❌ W0 | ⬜ pending |
-| 34-02-02 | 02 | 1 | NARR-04 | unit | `npx vitest run` | ❌ W0 | ⬜ pending |
-| 34-03-01 | 03 | 1 | NARR-05 | manual | visual inspection | N/A | ⬜ pending |
+| 34-01-01 | 01 | 1 | NARR-01, NARR-02 | unit | `npx vitest run src/reducers/intent.test.ts` | tdd inline | pending |
+| 34-01-02 | 01 | 1 | NARR-05 | unit | `npx vitest run src/components/NarrativeMessage.test.ts` | tdd inline | pending |
+| 34-02-01 | 02 | 2 | NARR-04 | unit | `npx vitest run src/reducers/items.test.ts` | tdd inline | pending |
+| 34-03-01 | 03 | 3 | NARR-03 | unit | `npx vitest run src/composables/useHotbar.test.ts` | tdd inline | pending |
+| 34-03-02 | 03 | 3 | NARR-03 | manual | visual inspection | N/A | pending |
 
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+*Status: pending / green / red / flaky*
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `spacetimedb/tests/sell.test.ts` — stubs for NARR-01, NARR-02
-- [ ] `spacetimedb/tests/hotbar.test.ts` — stubs for NARR-03, NARR-04
+Tests are written inline via `tdd="true"` tasks in each plan. No separate Wave 0 stubs needed.
+
+- `spacetimedb/src/reducers/intent.test.ts` — sell command tests (Plan 01 Task 1)
+- `spacetimedb/src/reducers/items.test.ts` — hotbar reducer tests (Plan 02 Task 2)
+- `src/components/NarrativeMessage.test.ts` — KIND_COLORS key assertions (Plan 01 Task 2)
+- `src/composables/useHotbar.test.ts` — hotbar composable behavioral tests (Plan 03 Task 1)
 
 *Existing vitest infrastructure covers framework needs.*
 
@@ -61,19 +66,19 @@ created: 2026-03-10
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Event feed color coding | NARR-05 | Visual CSS styling | Verify combat=red, reward=gold, system=gray, social=blue in browser |
 | Hotbar always visible | NARR-03 | UI layout | Verify hotbar renders outside combat |
 | Arrow navigation between hotbars | NARR-03 | UI interaction | Click arrows, verify hotbar switches |
+| Cooldown overlay rendering | NARR-03 | Visual CSS | Verify cooldown fill animates on slots |
 
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or tdd inline tests
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covered by tdd inline tasks
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending
