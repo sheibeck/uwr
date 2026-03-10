@@ -18,7 +18,8 @@ import {
 // ---------------------------------------------------------------------------
 // Power budget per ability kind
 // ---------------------------------------------------------------------------
-const BASE_BUDGET: Record<string, { base: number; perLevel: number; minMult: number; maxMult: number }> = {
+export const BASE_BUDGET: Record<string, { base: number; perLevel: number; minMult: number; maxMult: number }> = {
+  // Original 15 kinds
   damage:     { base: 12, perLevel: 5, minMult: 0.7, maxMult: 1.3 },
   heal:       { base: 10, perLevel: 4, minMult: 0.7, maxMult: 1.3 },
   dot:        { base: 8,  perLevel: 3, minMult: 0.7, maxMult: 1.4 },
@@ -34,6 +35,19 @@ const BASE_BUDGET: Record<string, { base: number; perLevel: number; minMult: num
   drain:      { base: 10, perLevel: 4, minMult: 0.7, maxMult: 1.3 },
   execute:    { base: 15, perLevel: 6, minMult: 0.7, maxMult: 1.3 },
   utility:    { base: 5,  perLevel: 2, minMult: 0.5, maxMult: 2.0 },
+  // Extended kinds (v2.1+)
+  group_heal:   { base: 6,  perLevel: 2, minMult: 0.6, maxMult: 1.2 },
+  song:         { base: 4,  perLevel: 1, minMult: 0.5, maxMult: 1.5 },
+  aura:         { base: 3,  perLevel: 1, minMult: 0.5, maxMult: 2.0 },
+  travel:       { base: 5,  perLevel: 2, minMult: 0.5, maxMult: 2.0 },
+  fear:         { base: 2,  perLevel: 1, minMult: 0.5, maxMult: 1.5 },
+  bandage:      { base: 8,  perLevel: 3, minMult: 0.7, maxMult: 1.3 },
+  potion:       { base: 10, perLevel: 4, minMult: 0.7, maxMult: 1.3 },
+  food_summon:  { base: 5,  perLevel: 2, minMult: 0.5, maxMult: 2.0 },
+  resurrect:    { base: 1,  perLevel: 0, minMult: 1.0, maxMult: 1.0 },
+  craft_boost:  { base: 5,  perLevel: 2, minMult: 0.5, maxMult: 2.0 },
+  gather_boost: { base: 5,  perLevel: 2, minMult: 0.5, maxMult: 2.0 },
+  pet_command:  { base: 5,  perLevel: 2, minMult: 0.5, maxMult: 2.0 },
 };
 
 // ---------------------------------------------------------------------------

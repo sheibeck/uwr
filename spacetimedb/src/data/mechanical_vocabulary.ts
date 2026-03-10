@@ -82,6 +82,19 @@ export const ABILITY_KINDS = [
   'drain',         // Deal damage and heal caster for portion
   'execute',       // Bonus damage to low-HP targets
   'utility',       // Non-combat effect (out-of-combat only)
+  // Extended ability kinds (v2.1+)
+  'song',          // Toggle-on/off party-wide persistent effect
+  'aura',          // Passive area effect radiating from caster
+  'travel',        // Movement speed boost or location reveal
+  'fear',          // CC debuff preventing enemy from acting (flee)
+  'bandage',       // Consumable-like heal with long cooldown
+  'potion',        // Consumable-like buff/heal with long cooldown
+  'food_summon',   // Create consumable food items
+  'resurrect',     // Revive a dead party member at low HP
+  'group_heal',    // Heal all party members (less than aoe_heal)
+  'craft_boost',   // Temporarily boost next crafting action quality
+  'gather_boost',  // Temporarily boost next gathering action yield
+  'pet_command',   // Issue command to active summoned pet
 ] as const;
 export type AbilityKind = (typeof ABILITY_KINDS)[number];
 
