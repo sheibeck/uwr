@@ -24,6 +24,18 @@
       @target="$emit('target', $event)"
     />
 
+    <!-- Persistent hotbar strip (always visible when character selected) -->
+    <NarrativeHotbar
+      v-if="selectedCharacter"
+      :slots="hotbarSlots ?? []"
+      :active-hotbar-name="activeHotbarName ?? 'main'"
+      :hotbar-list="hotbarList ?? []"
+      @use-slot="emit('use-hotbar-slot', $event)"
+      @prev-hotbar="emit('prev-hotbar')"
+      @next-hotbar="emit('next-hotbar')"
+      @list-hotbars="emit('submit', 'hotbars')"
+    />
+
     <!-- Scroll area -->
     <div :style="scrollAreaStyle" ref="scrollEl" @scroll="checkIfAtBottom">
       <div v-if="!selectedCharacter && combinedEvents.length === 0 && !isLlmProcessing" :style="emptyStyle">
@@ -99,6 +111,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import type { Character } from '../module_bindings/types';
 import GroupMemberBar from './GroupMemberBar.vue';
 import NarrativeHud from './NarrativeHud.vue';
+import NarrativeHotbar from './NarrativeHotbar.vue';
 import NarrativeInput from './NarrativeInput.vue';
 import NarrativeMessage from './NarrativeMessage.vue';
 import type { ContextAction } from './NarrativeInput.vue';
@@ -110,6 +123,21 @@ type EventItem = {
   kind: string;
   message: string;
   scope: string;
+};
+
+type HotbarDisplaySlot = {
+  slot: number;
+  abilityTemplateId: bigint;
+  name: string;
+  cooldownRemaining: number;
+  cooldownSeconds: bigint;
+};
+
+type HotbarEntry = {
+  id: bigint;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
 };
 
 const props = defineProps<{
@@ -135,9 +163,12 @@ const props = defineProps<{
   defensiveTargetId?: bigint | null;
   nowMicros?: number;
   leaderId?: bigint | null;
+  hotbarSlots?: HotbarDisplaySlot[];
+  activeHotbarName?: string;
+  hotbarList?: HotbarEntry[];
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'submit', text: string): void;
   (e: 'open-panel', panelId: string): void;
   (e: 'flee'): void;
@@ -145,7 +176,22 @@ defineEmits<{
   (e: 'target-enemy', enemyId: bigint): void;
   (e: 'target', characterId: bigint): void;
   (e: 'level-up-click'): void;
+  (e: 'use-hotbar-slot', slot: HotbarDisplaySlot): void;
+  (e: 'prev-hotbar'): void;
+  (e: 'next-hotbar'): void;
+  (e: 'combat-started'): void;
 }>();
+
+// Flee reminder: when combat starts (isInCombat transitions false -> true),
+// emit combat-started so the parent can inject a sardonic hint into the feed.
+watch(
+  () => props.isInCombat,
+  (inCombat, wasInCombat) => {
+    if (inCombat && !wasInCombat) {
+      emit('combat-started');
+    }
+  }
+);
 
 const progressBar = (progress: number, width = 20): string => {
   const filled = Math.round(progress * width);
@@ -234,8 +280,8 @@ const consoleStyle = {
 const scrollAreaStyle = computed(() => ({
   flex: '1',
   overflowY: 'auto' as const,
-  paddingTop: '107px',
-  paddingBottom: props.isInCombat ? '150px' : '90px',
+  paddingTop: props.selectedCharacter ? '147px' : '107px',
+  paddingBottom: props.isInCombat ? '150px' : '50px',
   paddingLeft: '16px',
   paddingRight: '16px',
 }));

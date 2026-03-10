@@ -15,23 +15,6 @@
       />
     </template>
 
-    <!-- Context action bar (outside combat) -->
-    <div v-else-if="contextActions.length > 0" :style="actionBarStyle">
-      <button
-        v-for="action in contextActions"
-        :key="action.command"
-        type="button"
-        :disabled="action.disabled"
-        :style="[
-          actionBtnBase,
-          action.disabled ? actionBtnDisabled : {},
-          action.active ? actionBtnActive : {},
-          actionCategoryBorder(action.category),
-        ]"
-        @click="!action.disabled && $emit('submit', action.command)"
-      >{{ action.label }}</button>
-    </div>
-
     <!-- Input row -->
     <div :style="inputRowStyle">
       <div :style="inputWrapperStyle">
@@ -151,6 +134,8 @@ const playerCommands = [
   { value: 'friend', hint: 'Send friend request' },
   { value: 'group', hint: 'Message your group' },
   { value: 'hail', hint: 'Greet an NPC' },
+  { value: 'hotbar', hint: 'Manage hotbars (add/set/swap/switch)' },
+  { value: 'hotbars', hint: 'List all hotbars' },
   { value: 'inventory', hint: 'View equipped gear' },
   { value: 'invite', hint: 'Invite to group' },
   { value: 'kick', hint: 'Kick group member' },
@@ -162,6 +147,7 @@ const playerCommands = [
   { value: 'quests', hint: 'View active quests' },
   { value: 'renown', hint: 'View renown rank and perks' },
   { value: 'say', hint: 'Talk nearby' },
+  { value: 'sell', hint: 'Sell items to vendor' },
   { value: 'shop', hint: 'Browse vendor wares' },
   { value: 'stats', hint: 'View character stats' },
   { value: 'time', hint: 'Check day/night cycle' },

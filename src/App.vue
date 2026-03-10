@@ -78,6 +78,9 @@
       :defensive-target-id="defensiveTargetId"
       :now-micros="nowMicros"
       :leader-id="leaderId"
+      :hotbar-slots="hotbarDisplay"
+      :active-hotbar-name="activeHotbar?.name ?? 'main'"
+      :hotbar-list="hotbarList"
       @submit="onNarrativeSubmit"
       @open-panel="onOpenPanel"
       @flee="onCombatFlee"
@@ -85,6 +88,10 @@
       @target-enemy="onCombatTargetEnemy"
       @target="setDefensiveTarget"
       @level-up-click="onLevelUpClick"
+      @use-hotbar-slot="onHotbarClick"
+      @prev-hotbar="prevHotbar"
+      @next-hotbar="nextHotbar"
+      @combat-started="onCombatStarted"
     />
 
     <FloatingPanel v-if="selectedCharacter" panel-id="hotbar" title="Hotbar" hotbar>
@@ -2338,6 +2345,10 @@ const {
   hotbarDisplay,
   hotbarTooltipItem,
   setHotbarSlot,
+  hotbarList,
+  activeHotbar,
+  prevHotbar,
+  nextHotbar,
   useAbility,
   onHotbarClick,
   hotbarPulseKey,
@@ -2442,6 +2453,11 @@ const onCombatUseAbility = (abilityId: bigint) => {
 
 const onCombatTargetEnemy = (enemyId: bigint) => {
   setCombatTarget(enemyId);
+};
+
+// Flee reminder: sardonic hint injected into the narrative feed when combat starts
+const onCombatStarted = () => {
+  addLocalEvent('system', "Remember: discretion is the better part of valor. Type 'flee' to exercise it.", 'private');
 };
 
 // Auto-target first enemy when combat UI becomes visible (after intro narration)
