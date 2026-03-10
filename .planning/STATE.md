@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
 status: executing
-stopped_at: Completed 33-02-PLAN.md
-last_updated: "2026-03-09T23:30:03.272Z"
-last_activity: "2026-03-09 - Completed quick task 392: Restore quest formatting, add rich styling to renown/factions/events"
+stopped_at: Completed 33-05-PLAN.md
+last_updated: "2026-03-10T02:40:12.862Z"
+last_activity: "2026-03-09 - Completed 33-01: Combat log narrative messages and balance tuning"
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 9
-  completed_plans: 7
+  total_plans: 11
+  completed_plans: 9
   percent: 88
 ---
 
@@ -65,6 +65,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 33-01]: MANA_COST_MULTIPLIER at 150n to differentiate mana vs stamina economy
 - [Phase 33-01]: Mana cast time floor enforced at resolution time, not generation time
 - [Phase 33-01]: Buff/debuff event kinds separate from damage/heal for independent color control
+- [Phase 33-05]: Combat enemy targeting takes priority over pull in clickNpcKeyword: combatEnemiesList checked first, then availableEnemies for mid-combat pull
 
 ### Pending Todos
 
@@ -84,5 +85,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T23:31:00Z
-Stopped at: Completed 33-01-PLAN.md
+Last session: 2026-03-10T02:40:08.190Z
+Stopped at: Completed 33-05-PLAN.md
