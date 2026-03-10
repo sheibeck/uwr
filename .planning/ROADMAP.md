@@ -145,10 +145,13 @@ Plans:
   6. Renown perks use the dynamic ability system with LLM-driven selection at rank-up
   7. Abilities track source (Class, Renown, Race) for display and filtering
   8. Client ability dispatch renders and activates all new ability kinds without hardcoded special cases
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 36-01: TBD
+- [ ] 36-01-PLAN.md -- Vocabulary expansion (new ABILITY_KINDS), schema (source/abilityKey columns), BASE_BUDGET entries
+- [ ] 36-02-PLAN.md -- Heritage bonus every-level fix, race ability data definitions
+- [ ] 36-03-PLAN.md -- Server dispatch for all new kinds, pure buff/debuff fix, LLM skill gen expansion, race ability granting
+- [ ] 36-04-PLAN.md -- Renown perks as dynamic abilities, PendingRenownPerk table, LLM perk generation flow
 
 ### Phase 37: UX Polish
 **Goal**: Players can customize text size for comfortable reading across all UI elements
@@ -177,8 +180,8 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37
 | 33. Combat Improvements | 4/5 | In Progress|  | - |
 | 34. Narrative UI Integration | v2.1 | 0/3 | Not started | - |
 | 35. Dynamic Equipment Generation | v2.1 | 0/? | Not started | - |
-| 36. Ability Expansion | v2.1 | 0/? | Not started | - |
+| 36. Ability Expansion | v2.1 | 0/4 | Not started | - |
 | 37. UX Polish | v2.1 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-10 after phase 34 planning*
+*Last updated: 2026-03-10 after phase 36 planning*
