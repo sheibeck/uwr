@@ -280,6 +280,7 @@ export const registerCombatReducers = (deps: any) => {
     applyVariance,
     abilityCooldownMicros,
     abilityCastMicros,
+    ensureCastTickScheduled,
     executeAbilityAction,
     rollAttackOutcome,
     EnemyAbility,
@@ -1733,8 +1734,6 @@ export const registerCombatReducers = (deps: any) => {
   });
 
   scheduledReducers['tick_casts'] = spacetimedb.reducer('tick_casts', { arg: deps.CastTick.rowType }, (ctx) => {
-    // Old real-time cast ticking disabled — casts resolve per-round in resolveRound
-    return;
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     for (const cast of ctx.db.character_cast.iter()) {
       if (cast.endsAtMicros > nowMicros) continue;
@@ -2656,6 +2655,8 @@ export const registerCombatReducers = (deps: any) => {
       });
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
         `Casting ${ability.name}...`);
+      // Ensure cast tick chain is running to process this cast
+      ensureCastTickScheduled(ctx);
       return;
     }
 

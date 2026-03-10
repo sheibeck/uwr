@@ -1440,6 +1440,7 @@ const reducerDeps = {
   normalizeClassName,
   abilityCooldownMicros,
   abilityCastMicros,
+  ensureCastTickScheduled,
   grantStarterItems,
   areLocationsConnected,
   sumCharacterEffect,
