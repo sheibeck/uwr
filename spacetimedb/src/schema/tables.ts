@@ -650,6 +650,8 @@ export const AbilityTemplate = table(
     effectDuration: t.u64().optional(),
     levelRequired: t.u64(),
     isGenerated: t.bool(),
+    source: t.string().optional(),      // 'Class' | 'Renown' | 'Race' (null defaults to 'Class')
+    abilityKey: t.string().optional(),  // stable key for race/renown abilities (e.g. 'race_troll_regen')
   }
 );
 
