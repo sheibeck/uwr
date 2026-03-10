@@ -133,14 +133,18 @@ Plans:
 - [ ] 35-02: TBD
 
 ### Phase 36: Ability Expansion
-**Goal**: The ability system covers all game systems -- players can discover crafting, gathering, travel, and social abilities
+**Goal**: The ability system covers all game systems with diverse ability types, pure buffs/debuffs, functional race abilities, per-level heritage bonuses, and renown perks unified into the dynamic ability system
 **Depends on**: Phase 32 (mechanical vocabulary complete), Phase 33 (combat dispatch stable)
-**Requirements**: ABIL-01, ABIL-02, ABIL-03, ABIL-04
+**Requirements**: ABIL-01, ABIL-02, ABIL-03, ABIL-04, ABIL-05, ABIL-06, ABIL-07, ABIL-08, ABIL-09, ABIL-10, ABIL-11
 **Success Criteria** (what must be TRUE):
-  1. mechanical_vocabulary.ts includes ability kinds for combat, crafting, gathering, travel, and social systems
-  2. Server dispatch handles all new ability kinds (resurrect, corpse_summon, track, group_heal, craft_boost, gather_boost, travel_speed, haggle)
-  3. Skill generation at level-up can produce non-combat abilities appropriate to the player's class and context
-  4. Client ability dispatch renders and activates all new ability kinds without hardcoded special cases
+  1. mechanical_vocabulary.ts includes ability kinds for combat, crafting, gathering, travel, social, songs, auras, pets, fear, and summoning
+  2. Server dispatch handles all new ability kinds without hardcoded special cases
+  3. Pure buff abilities (stat boosts, haste) and pure debuff abilities (slow, fear) work without damage components and are castable outside combat
+  4. Race abilities are functional in-game (minor passive/active effects, not just narrative text)
+  5. Heritage bonuses apply every level and are shown during character creation and level-up
+  6. Renown perks use the dynamic ability system with LLM-driven selection at rank-up
+  7. Abilities track source (Class, Renown, Race) for display and filtering
+  8. Client ability dispatch renders and activates all new ability kinds without hardcoded special cases
 **Plans**: TBD
 
 Plans:

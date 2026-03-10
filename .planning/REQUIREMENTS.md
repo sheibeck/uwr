@@ -54,10 +54,17 @@ Requirements for v2.1 Project Cleanup milestone. Each maps to roadmap phases.
 
 ### Abilities
 
-- [ ] **ABIL-01**: Ability kinds in mechanical_vocabulary.ts cover all current game systems (combat, crafting, gathering, travel, social)
-- [ ] **ABIL-02**: Missing ability kinds (resurrect, corpse_summon, track, group_heal) are added to server dispatch
-- [ ] **ABIL-03**: Skill generation system can produce non-combat abilities (craft_boost, gather_boost, travel_speed, haggle)
+- [ ] **ABIL-01**: Ability kinds in mechanical_vocabulary.ts cover all current game systems (combat, crafting, gathering, travel, social, songs, auras, pets, fear, summoning)
+- [ ] **ABIL-02**: Missing ability kinds (resurrect, corpse_summon, track, group_heal, songs, auras, travel, pets, fear, bandages, potions, food_summon) are added to server dispatch
+- [ ] **ABIL-03**: Skill generation system can produce non-combat abilities (craft_boost, gather_boost, travel_speed, haggle, buff-only, debuff-only)
 - [ ] **ABIL-04**: Client ability dispatch handles all new ability kinds without special-casing
+- [ ] **ABIL-05**: Pure buff abilities (haste, stat buffs) and pure debuff abilities (slow, fear) exist without damage components — castable outside combat on self or party
+- [ ] **ABIL-06**: Race abilities are functional in-game (not just narrative flavor text) — minor passive or active effects on longer cooldowns
+- [ ] **ABIL-07**: Heritage bonuses apply every level (not every other level as in v1.0) and are shown during character creation and level-up
+- [ ] **ABIL-08**: Renown perks use the dynamic ability system — same source system as class abilities
+- [ ] **ABIL-09**: Renown rank-up triggers LLM-driven perk selection flow (header notification, perk choice UI similar to level-up)
+- [ ] **ABIL-10**: Abilities track their source (Class, Renown, Race) for UI display and filtering
+- [ ] **ABIL-11**: LLM has constraint rules for generating renown perks (different from class abilities)
 
 ### UX
 
@@ -129,13 +136,20 @@ Deferred to future release. Tracked but not in current roadmap.
 | ABIL-02 | Phase 36 | Pending |
 | ABIL-03 | Phase 36 | Pending |
 | ABIL-04 | Phase 36 | Pending |
+| ABIL-05 | Phase 36 | Pending |
+| ABIL-06 | Phase 36 | Pending |
+| ABIL-07 | Phase 36 | Pending |
+| ABIL-08 | Phase 36 | Pending |
+| ABIL-09 | Phase 36 | Pending |
+| ABIL-10 | Phase 36 | Pending |
+| ABIL-11 | Phase 36 | Pending |
 | UX-01 | Phase 37 | Pending |
 | UX-02 | Phase 37 | Pending |
 | UX-03 | Phase 37 | Pending |
 
 **Coverage:**
-- v2.1 requirements: 37 total
-- Mapped to phases: 37
+- v2.1 requirements: 44 total
+- Mapped to phases: 44
 - Unmapped: 0
 
 ---
