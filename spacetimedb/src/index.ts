@@ -16,6 +16,7 @@ import {
   buildRegionGenerationUserPrompt,
   buildSkillGenResponseFormat,
 } from './data/llm_prompts';
+import { RENOWN_PERK_POOLS } from './data/renown_data';
 import { pickRippleMessage, pickDiscoveryMessage, computeRegionDanger } from './helpers/world_gen';
 import { writeGeneratedRegion, buildRegionContext } from './helpers/world_gen';
 import { parseSkillGenResult, insertPendingSkills } from './helpers/skill_gen';
@@ -48,6 +49,7 @@ import spacetimedb, {
   ActivePet,
   LlmCleanupTick,
   PendingSkill,
+  PendingRenownPerk,
 } from './schema/tables';
 export default spacetimedb;
 import { registerReducers } from './reducers';
@@ -189,6 +191,7 @@ import {
   findCharacterByName,
   autoRespawnDeadCharacter,
   campCharacter,
+  grantRaceAbility,
 } from './helpers/character';
 
 import {
@@ -1529,6 +1532,106 @@ spacetimedb.reducer('submit_llm_result', {
   } else if (task.domain === 'combat_narration') {
     handleCombatNarrationResult(ctx, task, resultText, true);
     // Budget already incremented in triggerCombatNarration -- no double increment
+
+  } else if (task.domain === 'renown_perk_gen') {
+    const context = task.contextJson ? JSON.parse(task.contextJson) : {};
+    const charId = BigInt(context.characterId);
+    const rank = Number(context.rank) || 2;
+    const character = ctx.db.character.id.find(charId);
+    if (!character) return;
+
+    // Parse LLM response
+    let perks: any[] = [];
+    try {
+      const data = extractJson(resultText);
+      if (Array.isArray(data.perks)) {
+        perks = data.perks.filter((p: any) =>
+          p && typeof p.name === 'string' && typeof p.description === 'string' &&
+          (typeof p.kind === 'string' || typeof p.perkEffectJson === 'string')
+        );
+      }
+    } catch (_err) {
+      perks = [];
+    }
+
+    if (perks.length < 3) {
+      // Fall back to static RENOWN_PERK_POOLS for this rank
+      const pool = RENOWN_PERK_POOLS[rank];
+      if (pool && pool.length > 0) {
+        const staticPerks = pool.slice(0, 3);
+        for (const perk of staticPerks) {
+          const isActive = perk.type === 'active';
+          ctx.db.pending_renown_perk.insert({
+            id: 0n,
+            characterId: charId,
+            rank: BigInt(rank),
+            name: perk.name,
+            description: perk.description,
+            kind: isActive ? 'utility' : '',
+            targetRule: 'self',
+            resourceType: isActive ? 'stamina' : 'none',
+            resourceCost: 0n,
+            castSeconds: 0n,
+            cooldownSeconds: isActive ? BigInt((perk.effect as any).cooldownSeconds ?? 300) : 0n,
+            scaling: 'none',
+            value1: 0n,
+            perkEffectJson: isActive ? undefined : JSON.stringify(perk.effect),
+            perkDomain: perk.domain,
+            createdAt: ctx.timestamp,
+          });
+        }
+        appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
+          'The Keeper shrugs. "The cosmos provided some... standard options for your consideration."');
+      }
+      incrementBudget(ctx, ctx.sender);
+      return;
+    }
+
+    // Insert up to 3 valid perk options
+    const perksToInsert = perks.slice(0, 3);
+    for (const perk of perksToInsert) {
+      ctx.db.pending_renown_perk.insert({
+        id: 0n,
+        characterId: charId,
+        rank: BigInt(rank),
+        name: String(perk.name || 'Unknown Perk'),
+        description: String(perk.description || ''),
+        kind: String(perk.kind || ''),
+        targetRule: String(perk.targetRule || 'self'),
+        resourceType: String(perk.resourceType || 'none'),
+        resourceCost: BigInt(Number(perk.resourceCost) || 0),
+        castSeconds: BigInt(Number(perk.castSeconds) || 0),
+        cooldownSeconds: BigInt(Number(perk.cooldownSeconds) || 0),
+        scaling: String(perk.scaling || 'none'),
+        value1: BigInt(Number(perk.value1) || 0),
+        value2: perk.value2 != null ? BigInt(Number(perk.value2)) : undefined,
+        damageType: perk.damageType || undefined,
+        effectType: perk.effectType || undefined,
+        effectMagnitude: perk.effectMagnitude != null ? BigInt(Number(perk.effectMagnitude)) : undefined,
+        effectDuration: perk.effectDuration != null ? BigInt(Number(perk.effectDuration)) : undefined,
+        perkEffectJson: perk.perkEffectJson || undefined,
+        perkDomain: perk.perkDomain || 'combat',
+        createdAt: ctx.timestamp,
+      });
+    }
+
+    incrementBudget(ctx, ctx.sender);
+
+    // Present options to the player
+    let presentation = `Your renown has grown. The world takes notice.\n\n`;
+    presentation += `The Keeper of Knowledge regards you with something resembling mild respect.\n\n`;
+    presentation += `"Rank ${rank}. The world owes you something. Choose your due:"\n`;
+    for (const perk of perksToInsert) {
+      presentation += `\n[${perk.name}] -- ${perk.description}\n`;
+      if (perk.kind && perk.kind.trim()) {
+        presentation += `  Active ability | ${perk.resourceCost || 0} ${perk.resourceType || 'none'} | ${perk.cooldownSeconds || 0}s cooldown\n`;
+      } else {
+        presentation += `  Passive bonus\n`;
+      }
+    }
+    presentation += `\n"Choose wisely. Your reputation preceded you here. Don't let it down."`;
+
+    appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative', presentation);
   }
 });
 
@@ -1708,6 +1811,7 @@ const reducerDeps = {
   executeCorpseSummon,
   autoRespawnDeadCharacter,
   campCharacter,
+  grantRaceAbility,
   appendCreationEvent,
   computeBaseStatsForGenerated,
   startCombatForSpawn: null as any,

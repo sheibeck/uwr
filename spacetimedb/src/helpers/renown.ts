@@ -1,5 +1,6 @@
 import { RENOWN_RANKS, RENOWN_PERK_POOLS, calculateRankFromPoints, ACHIEVEMENT_DEFINITIONS } from '../data/renown_data';
 import { appendSystemMessage, appendWorldEvent } from './events';
+import { buildRenownPerkSystemPrompt, buildRenownPerkUserPrompt } from '../data/llm_prompts';
 
 export function awardRenown(ctx: any, character: any, points: bigint, reason: string) {
   // Get or lazy-create Renown row
@@ -49,8 +50,92 @@ export function awardRenown(ctx: any, character: any, points: bigint, reason: st
       // Notify about available perk (ranks 2+ have perk pools)
       if (rank >= 2) {
         appendSystemMessage(ctx, character, `A new perk is available for rank ${rank}: ${rankName}!`);
+        // Trigger LLM perk generation for this rank
+        triggerRenownPerkGeneration(ctx, character, rank);
       }
     }
+  }
+}
+
+/**
+ * Trigger LLM-driven renown perk generation at rank-up.
+ * Falls back to static RENOWN_PERK_POOLS if LLM budget is insufficient.
+ */
+function triggerRenownPerkGeneration(ctx: any, character: any, rank: number) {
+  // Gather character context
+  const player = ctx.db.player.id.find(character.ownerUserId);
+  if (!player) return;
+
+  // Collect existing renown perks for diversity context
+  const existingPerks: { name: string; perkKey: string }[] = [];
+  for (const perkRow of ctx.db.renown_perk.by_character.filter(character.id)) {
+    existingPerks.push({ name: perkRow.perkKey, perkKey: perkRow.perkKey });
+  }
+
+  // Get character race/class info
+  const raceName = character.raceName ?? 'Unknown';
+  const className = character.className ?? 'Unknown';
+
+  // Try to insert an LLM task for perk generation
+  try {
+    const systemPrompt = buildRenownPerkSystemPrompt();
+    const userPrompt = buildRenownPerkUserPrompt(character.name, className, raceName, rank, existingPerks);
+
+    ctx.db.llm_task.insert({
+      id: 0n,
+      playerId: player.id,
+      domain: 'renown_perk_gen',
+      model: 'gpt-5-mini',
+      systemPrompt,
+      userPrompt,
+      maxTokens: 1200n,
+      status: 'pending',
+      contextJson: JSON.stringify({
+        characterId: String(character.id),
+        rank,
+        className,
+        raceName,
+      }),
+      createdAt: ctx.timestamp,
+      completedAt: undefined,
+      resultText: undefined,
+      errorMessage: undefined,
+    });
+  } catch (_err) {
+    // LLM task insertion failed (budget or other issue) — fall back to static pool
+    insertStaticRenownPerkOptions(ctx, character.id, rank);
+  }
+}
+
+/**
+ * Static fallback: insert 3 options from RENOWN_PERK_POOLS for the given rank.
+ * Used when LLM budget is exhausted or task insertion fails.
+ */
+function insertStaticRenownPerkOptions(ctx: any, characterId: bigint, rank: number) {
+  const pool = RENOWN_PERK_POOLS[rank];
+  if (!pool || pool.length === 0) return;
+
+  const perks = pool.slice(0, 3);
+  for (const perk of perks) {
+    const isActive = perk.type === 'active';
+    ctx.db.pending_renown_perk.insert({
+      id: 0n,
+      characterId,
+      rank: BigInt(rank),
+      name: perk.name,
+      description: perk.description,
+      kind: isActive ? 'utility' : '',
+      targetRule: 'self',
+      resourceType: isActive ? 'stamina' : 'none',
+      resourceCost: 0n,
+      castSeconds: 0n,
+      cooldownSeconds: isActive ? BigInt((perk.effect as any).cooldownSeconds ?? 300) : 0n,
+      scaling: 'none',
+      value1: 0n,
+      perkEffectJson: isActive ? undefined : JSON.stringify(perk.effect),
+      perkDomain: perk.domain,
+      createdAt: ctx.timestamp,
+    });
   }
 }
 

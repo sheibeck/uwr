@@ -244,7 +244,7 @@ export const SKILL_GENERATION_SCHEMA = `{
     {
       "name": "string — 2-3 words max, punchy action name (NOT narrative phrases like 'Echoing Spite of the Hollow King')",
       "description": "string — sardonic Keeper narrator description, 1-2 sentences",
-      "kind": "damage | heal | dot | hot | buff | debuff | shield | taunt | aoe_damage | aoe_heal | summon | cc | drain | execute | utility",
+      "kind": "damage | heal | dot | hot | buff | debuff | shield | taunt | aoe_damage | aoe_heal | summon | cc | drain | execute | utility | song | aura | travel | fear | bandage | potion | food_summon | resurrect | group_heal | craft_boost | gather_boost | pet_command",
       "targetRule": "single_enemy | single_ally | self | all_enemies | all_allies | all_party | lowest_hp_ally | lowest_hp_enemy",
       "resourceType": "mana | stamina | hp | none",
       "resourceCost": "number — resource cost to use",
@@ -302,7 +302,7 @@ You must always respond with valid JSON matching the schema provided in the user
 
 ## Valid Enum Values
 
-**kind:** damage, heal, dot, hot, buff, debuff, shield, taunt, aoe_damage, aoe_heal, summon, cc, drain, execute, utility
+**kind:** damage, heal, dot, hot, buff, debuff, shield, taunt, aoe_damage, aoe_heal, summon, cc, drain, execute, utility, song, aura, travel, fear, bandage, potion, food_summon, resurrect, group_heal, craft_boost, gather_boost, pet_command
 **targetRule:** single_enemy, single_ally, self, all_enemies, all_allies, all_party, lowest_hp_ally, lowest_hp_enemy
 **resourceType:** mana, stamina, hp, none
 **scaling:** str, dex, int, wis, cha, hybrid, none
@@ -360,8 +360,8 @@ export function buildSkillGenResponseFormat(): object {
                 description: { type: 'string', description: 'Sardonic Keeper narrator description, 1-2 sentences' },
                 kind: {
                   type: 'string',
-                  enum: ['damage', 'heal', 'dot', 'hot', 'buff', 'debuff', 'shield', 'taunt', 'aoe_damage', 'aoe_heal', 'summon', 'cc', 'drain', 'execute', 'utility'],
-                  description: 'damage=single-hit direct damage, dot=damage over time (burning, bleeding, poisoning), hot=heal over time, heal=instant heal, buff=apply positive effect, debuff=apply negative effect, shield=absorb barrier, taunt=force target, aoe_damage=multi-target damage, aoe_heal=multi-target heal, cc=crowd control, drain=damage+self-heal, execute=bonus vs low HP, utility=non-combat',
+                  enum: ['damage', 'heal', 'dot', 'hot', 'buff', 'debuff', 'shield', 'taunt', 'aoe_damage', 'aoe_heal', 'summon', 'cc', 'drain', 'execute', 'utility', 'song', 'aura', 'travel', 'fear', 'bandage', 'potion', 'food_summon', 'resurrect', 'group_heal', 'craft_boost', 'gather_boost', 'pet_command'],
+                  description: 'damage=single-hit direct damage, dot=damage over time (burning, bleeding, poisoning), hot=heal over time, heal=instant heal, buff=apply positive effect, debuff=apply negative effect, shield=absorb barrier, taunt=force target, aoe_damage=multi-target damage, aoe_heal=multi-target heal, cc=crowd control, drain=damage+self-heal, execute=bonus vs low HP, utility=non-combat, song=toggle party-wide persistent buff (bards), aura=passive area effect from caster, travel=movement speed/reveal buff, fear=CC causing enemy to flee/stun, bandage=self-heal consumable-like (long cooldown), potion=self-heal/buff consumable-like (long cooldown), food_summon=conjure food items for buffs, resurrect=revive dead party member, group_heal=heal all party members, craft_boost=boost next crafting quality, gather_boost=boost next gathering yield, pet_command=command active pet',
                 },
                 targetRule: {
                   type: 'string',
@@ -402,6 +402,93 @@ export function buildSkillGenResponseFormat(): object {
       },
     },
   };
+}
+
+// === RENOWN PERK GENERATION ===
+
+export const RENOWN_PERK_GENERATION_SCHEMA = `{
+  "perks": [
+    {
+      "name": "string — 2-3 words, punchy reputation-flavored name (e.g. 'Merchant's Favor', 'Whisper Network')",
+      "description": "string — sardonic Keeper narrator description, 1-2 sentences",
+      "kind": "string — ability kind (damage|heal|buff|debuff|utility|etc) OR empty string for a passive bonus perk",
+      "targetRule": "string — single_enemy|single_ally|self|all_enemies|all_allies|all_party",
+      "resourceType": "string — mana|stamina|hp|none",
+      "resourceCost": "number — resource cost (0 for passive)",
+      "castSeconds": "number — cast time (0 for passive or instant stamina abilities; mana abilities must be >= 1)",
+      "cooldownSeconds": "number — cooldown in seconds (0 for passive)",
+      "scaling": "string — str|dex|int|wis|cha|hybrid|none",
+      "value1": "number — primary power value (0 for pure passive)",
+      "value2": "number or null",
+      "damageType": "string or null — physical|fire|ice|shadow|holy|nature|arcane|none",
+      "effectType": "string or null — for buff/debuff/dot/hot",
+      "effectMagnitude": "number or null",
+      "effectDuration": "number or null — in seconds (9-12 for meaningful buffs/debuffs)",
+      "perkEffectJson": "string or null — JSON object for passive bonuses: {maxHp, str, dex, int, wis, cha, armorClass, gatherDoubleChance, gatherSpeedBonus, craftQualityBonus, rareGatherChance, npcAffinityGainBonus, vendorBuyDiscount, vendorSellBonus, travelCooldownReduction, goldFindBonus, xpBonus}. Only for passive perks (kind='').",
+      "perkDomain": "string — combat|crafting|social"
+    }
+  ]
+}`;
+
+/**
+ * Build the system prompt for renown perk generation.
+ * Renown perks differ from class abilities — they reflect reputation and influence,
+ * not raw combat power.
+ */
+export function buildRenownPerkSystemPrompt(): string {
+  return `${NARRATOR_PREAMBLE}
+
+## Your Task: Renown Perk Generation
+
+A character has gained enough renown to choose a new perk. Renown perks are not combat abilities born from training — they are the rewards of reputation, influence, and accumulated deeds. They reflect what the world owes you.
+
+Perk names should be 2-3 words, evocative of reputation and social standing. "Merchant's Favor", "Whisper Network", "Iron Reputation". Not "Fireball". Not "Shadow Slash".
+
+## CRITICAL CONSTRAINTS for renown perks:
+
+1. **Favor utility, social, and economic effects over raw combat power.** A renown perk might give vendor discounts, faster travel, NPC relationship bonuses, gathering luck, or crafting quality boosts.
+
+2. **At least 1 of the 3 options MUST be a passive bonus** (set kind to "" and fill perkEffectJson with a JSON object of stat/bonus fields). Passive perks use no resource, have no cast time or cooldown — they just work.
+
+3. **Combat perks from renown should be minor enhancements or utility**, not primary damage abilities. A small self-buff, a defensive cooldown, or a social/exploration utility makes more sense than another damage nuke. If you generate a combat perk, make it feel earned through reputation — not just a stronger version of what a warrior would learn.
+
+4. **Perks should feel earned through reputation.** Think about what fame and connections get you: merchants whisper about you, guards wave you through, enemies hesitate. The mechanical effect should match this flavor.
+
+5. **No duplicates with existing perks.** The existing perks listed in the user message are already chosen — do NOT repeat them or generate thematic clones.
+
+6. **Present all three as meaningfully different.** One might be utility/social, one might be a passive stat bonus, one might be a minor active ability. Variety is required.
+
+You must always respond with valid JSON matching the schema provided in the user message.`;
+}
+
+/**
+ * Build the user prompt for renown perk generation.
+ */
+export function buildRenownPerkUserPrompt(
+  characterName: string,
+  className: string,
+  raceName: string,
+  rank: number,
+  existingPerks: { name: string; perkKey?: string }[]
+): string {
+  const existingList = existingPerks.length > 0
+    ? `\n\nExisting renown perks (do NOT duplicate):\n${existingPerks.map(p => `- ${p.name}`).join('\n')}`
+    : '\n\nThis character has no renown perks yet.';
+
+  return `Character: ${characterName}
+Class: ${className}
+Race: ${raceName}
+New Renown Rank: ${rank}
+${existingList}
+
+Generate exactly 3 renown perk options for rank ${rank}. Remember:
+- At least 1 must be a passive bonus (kind="" with perkEffectJson)
+- Favor utility/social/economic effects
+- Combat perks should feel like reputation benefits, not combat training
+- All 3 should be meaningfully different from each other and from existing perks
+
+Respond with ONLY valid JSON matching this schema:
+${RENOWN_PERK_GENERATION_SCHEMA}`;
 }
 
 // === NPC CONVERSATION SYSTEM ===
