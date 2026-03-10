@@ -22,20 +22,22 @@
       v-for="slot in slots"
       :key="slot.slot"
       type="button"
-      :style="[slotBtnStyle, slot.abilityTemplateId ? slotAssignedStyle : slotEmptyStyle]"
-      :title="slot.abilityTemplateId ? `${slot.name}${slot.cooldownRemaining > 0 ? ` (${slot.cooldownRemaining}s)` : ''}` : `Slot ${slot.slot} — empty`"
-      :disabled="slot.cooldownRemaining > 0"
+      :style="[slotBtnStyle, slot.abilityTemplateId ? slotAssignedStyle : slotEmptyStyle, slot.isCasting ? slotCastingStyle : {}]"
+      :title="slot.abilityTemplateId ? `${slot.name}${slot.isCasting ? ' (casting...)' : slot.cooldownRemaining > 0 ? ` (${slot.cooldownRemaining}s)` : ''}` : `Slot ${slot.slot} — empty`"
+      :disabled="slot.cooldownRemaining > 0 || slot.isCasting"
       @click="slot.abilityTemplateId && $emit('use-slot', slot)"
     >
       <!-- Slot number (top-left corner) -->
       <span :style="slotNumStyle">{{ slot.slot }}</span>
+      <!-- Casting overlay: pulsing blue glow -->
+      <div v-if="slot.isCasting" :style="castingFillStyle" />
       <!-- Cooldown overlay: fills from right to left as cooldown drains -->
       <div
-        v-if="slot.cooldownRemaining > 0 && slot.cooldownSeconds > 0"
+        v-if="!slot.isCasting && slot.cooldownRemaining > 0 && slot.cooldownSeconds > 0"
         :style="[cooldownFillStyle, { width: Math.round((slot.cooldownRemaining / Number(slot.cooldownSeconds)) * 100) + '%' }]"
       />
       <!-- Ability name label -->
-      <span :style="slotLabelStyle">{{ slot.abilityTemplateId ? abbreviate(slot.name) : '' }}</span>
+      <span :style="slotLabelStyle">{{ slot.isCasting ? 'Casting…' : slot.abilityTemplateId ? abbreviate(slot.name) : '' }}</span>
       <!-- Cooldown number -->
       <span v-if="slot.cooldownRemaining > 0" :style="cooldownNumStyle">{{ slot.cooldownRemaining }}s</span>
     </button>
@@ -60,6 +62,7 @@ type HotbarDisplaySlot = {
   name: string;
   cooldownRemaining: number;
   cooldownSeconds: bigint;
+  isCasting?: boolean;
 };
 
 type HotbarEntry = {
@@ -84,8 +87,8 @@ defineEmits<{
 
 const abbreviate = (name: string): string => {
   if (!name || name === 'Empty') return '';
-  if (name.length <= 7) return name;
-  return name.slice(0, 6) + '…';
+  if (name.length <= 10) return name;
+  return name.slice(0, 9) + '…';
 };
 
 // Names of the prev/next hotbar for tooltip hints
@@ -155,7 +158,7 @@ const nameLabelStyle = {
 const slotBtnStyle = {
   position: 'relative' as const,
   height: '32px',
-  width: '44px',
+  width: '64px',
   flexShrink: 0 as const,
   borderRadius: '3px',
   fontSize: '0.65rem',
@@ -180,6 +183,19 @@ const slotEmptyStyle = {
   cursor: 'default',
 };
 
+const slotCastingStyle = {
+  borderColor: '#4dabf7',
+  boxShadow: '0 0 8px rgba(77, 171, 247, 0.5)',
+};
+
+const castingFillStyle = {
+  position: 'absolute' as const,
+  inset: '0',
+  background: 'rgba(77, 171, 247, 0.3)',
+  animation: 'hotbarCastPulse 0.8s ease-in-out infinite',
+  zIndex: 0 as const,
+};
+
 const slotNumStyle = {
   position: 'absolute' as const,
   top: '1px',
@@ -197,7 +213,7 @@ const slotLabelStyle = {
   textAlign: 'center' as const,
   lineHeight: '1.1',
   paddingTop: '6px',
-  maxWidth: '40px',
+  maxWidth: '60px',
   wordBreak: 'break-word' as const,
   overflowWrap: 'break-word' as const,
 };
@@ -207,7 +223,7 @@ const cooldownFillStyle = {
   top: '0',
   right: '0',
   height: '100%',
-  background: 'rgba(0, 0, 0, 0.55)',
+  background: 'rgba(200, 60, 60, 0.45)',
   transition: 'width 0.5s linear',
   zIndex: 0 as const,
 };
@@ -225,3 +241,10 @@ const cooldownNumStyle = {
   zIndex: 2 as const,
 };
 </script>
+
+<style>
+@keyframes hotbarCastPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+</style>

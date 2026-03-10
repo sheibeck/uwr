@@ -1,5 +1,12 @@
 <template>
   <div :style="containerStyle">
+    <!-- Enemy HUD (during active combat) -->
+    <EnemyHud
+      v-if="isInCombat"
+      :enemies="combatEnemies"
+      @target-enemy="(id: bigint) => $emit('target-enemy', id)"
+    />
+
     <!-- Hotbar strip (always visible when character selected) -->
     <NarrativeHotbar
       v-if="showHotbar"
@@ -11,21 +18,6 @@
       @next-hotbar="emit('next-hotbar')"
       @list-hotbars="emit('list-hotbars')"
     />
-
-    <!-- Combat UI: Enemy HUD + Action Bar (during active combat) -->
-    <template v-if="isInCombat">
-      <EnemyHud
-        :enemies="combatEnemies"
-        @target-enemy="(id: bigint) => $emit('target-enemy', id)"
-      />
-      <CombatActionBar
-        :abilities="combatAbilities"
-        :casting-ability-id="castingAbilityId"
-        :cast-progress="castProgress"
-        @flee="$emit('flee')"
-        @use-ability="(id: bigint) => $emit('use-ability', id)"
-      />
-    </template>
 
     <!-- Input row -->
     <div :style="inputRowStyle">
@@ -71,18 +63,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import CombatActionBar from './CombatActionBar.vue';
-import type { CombatAbility } from './CombatActionBar.vue';
 import EnemyHud from './EnemyHud.vue';
 import NarrativeHotbar from './NarrativeHotbar.vue';
-
-export type ContextAction = {
-  label: string;
-  command: string;
-  disabled?: boolean;
-  category?: 'combat' | 'explore' | 'social' | 'ability' | 'utility';
-  active?: boolean;
-};
 
 type CombatEnemyEntry = {
   id: bigint;
@@ -98,14 +80,10 @@ type CombatEnemyEntry = {
 
 const props = withDefaults(defineProps<{
   disabled: boolean;
-  contextActions: ContextAction[];
   placeholder: string;
   connActive: boolean;
   isInCombat?: boolean;
-  combatAbilities?: CombatAbility[];
   combatEnemies?: CombatEnemyEntry[];
-  castingAbilityId?: bigint | null;
-  castProgress?: number;
   hotbarSlots?: any[];
   activeHotbarName?: string;
   hotbarList?: any[];
@@ -113,10 +91,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   placeholder: 'What do you do?',
   isInCombat: false,
-  combatAbilities: () => [],
   combatEnemies: () => [],
-  castingAbilityId: null,
-  castProgress: 0,
   hotbarSlots: () => [],
   activeHotbarName: 'main',
   hotbarList: () => [],
@@ -126,8 +101,6 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'submit', text: string): void;
   (e: 'skip-animation'): void;
-  (e: 'flee'): void;
-  (e: 'use-ability', abilityId: bigint): void;
   (e: 'target-enemy', enemyId: bigint): void;
   (e: 'use-hotbar-slot', slot: any): void;
   (e: 'prev-hotbar'): void;
@@ -278,20 +251,6 @@ const onKeydown = (event: KeyboardEvent) => {
   }
 };
 
-const actionCategoryBorder = (category?: string) => {
-  switch (category) {
-    case 'combat':
-    case 'ability':
-      return { borderColor: '#5c2a2a' };
-    case 'explore':
-      return { borderColor: '#2a5c2a' };
-    case 'social':
-      return { borderColor: '#2a2a5c' };
-    default:
-      return {};
-  }
-};
-
 // Styles
 const containerStyle = {
   position: 'fixed' as const,
@@ -301,36 +260,6 @@ const containerStyle = {
   zIndex: 10000,
   background: '#12121a',
   borderTop: '1px solid #2a2a3a',
-};
-
-const actionBarStyle = {
-  padding: '4px 12px',
-  display: 'flex',
-  gap: '4px',
-  overflowX: 'auto' as const,
-};
-
-const actionBtnBase = {
-  background: '#1a1a2e',
-  border: '1px solid #2a2a3a',
-  color: '#adb5bd',
-  padding: '3px 8px',
-  borderRadius: '3px',
-  fontSize: '0.75rem',
-  whiteSpace: 'nowrap' as const,
-  cursor: 'pointer',
-};
-
-const actionBtnDisabled = {
-  opacity: '0.4',
-  cursor: 'default',
-};
-
-const actionBtnActive = {
-  background: 'rgba(218, 119, 242, 0.2)',
-  border: '1px solid rgba(218, 119, 242, 0.7)',
-  color: '#da77f2',
-  boxShadow: '0 0 8px rgba(218, 119, 242, 0.3)',
 };
 
 const inputRowStyle = {

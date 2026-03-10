@@ -68,6 +68,7 @@ import SplitStackReducer from "./split_stack_reducer";
 import ConsolidateStacksReducer from "./consolidate_stacks_reducer";
 import CreateHotbarReducer from "./create_hotbar_reducer";
 import SwitchHotbarReducer from "./switch_hotbar_reducer";
+import DeleteHotbarReducer from "./delete_hotbar_reducer";
 import SwapHotbarSlotsReducer from "./swap_hotbar_slots_reducer";
 import SetHotbarSlotReducer from "./set_hotbar_slot_reducer";
 import UseAbilityReducer from "./use_ability_reducer";
@@ -1789,6 +1790,7 @@ const reducersSchema = __reducers(
   __reducerSchema("consolidate_stacks", ConsolidateStacksReducer),
   __reducerSchema("create_hotbar", CreateHotbarReducer),
   __reducerSchema("switch_hotbar", SwitchHotbarReducer),
+  __reducerSchema("delete_hotbar", DeleteHotbarReducer),
   __reducerSchema("swap_hotbar_slots", SwapHotbarSlotsReducer),
   __reducerSchema("set_hotbar_slot", SetHotbarSlotReducer),
   __reducerSchema("use_ability", UseAbilityReducer),

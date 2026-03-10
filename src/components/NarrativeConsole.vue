@@ -77,22 +77,16 @@
     <!-- Input -->
     <NarrativeInput
       :disabled="animIsAnimating || isLlmProcessing"
-      :context-actions="contextActions"
       :placeholder="inputPlaceholder"
       :conn-active="connActive"
       :is-in-combat="isInCombat"
-      :combat-abilities="combatAbilities"
       :combat-enemies="combatEnemies"
-      :casting-ability-id="castingAbilityId"
-      :cast-progress="castProgress"
       :show-hotbar="!!selectedCharacter"
       :hotbar-slots="hotbarSlots ?? []"
       :active-hotbar-name="activeHotbarName ?? 'main'"
       :hotbar-list="hotbarList ?? []"
       @submit="$emit('submit', $event)"
       @skip-animation="onSkipAnimation"
-      @flee="$emit('flee')"
-      @use-ability="(id: bigint) => $emit('use-ability', id)"
       @target-enemy="(id: bigint) => $emit('target-enemy', id)"
       @use-hotbar-slot="emit('use-hotbar-slot', $event)"
       @prev-hotbar="emit('prev-hotbar')"
@@ -109,7 +103,6 @@ import GroupMemberBar from './GroupMemberBar.vue';
 import NarrativeHud from './NarrativeHud.vue';
 import NarrativeInput from './NarrativeInput.vue';
 import NarrativeMessage from './NarrativeMessage.vue';
-import type { ContextAction } from './NarrativeInput.vue';
 import { useNarrativeAnimation } from '../composables/useNarrativeAnimation';
 
 type EventItem = {
@@ -140,17 +133,13 @@ const props = defineProps<{
   selectedCharacter: Character | null;
   activeCombat: any | null;
   connActive: boolean;
-  contextActions: ContextAction[];
   isLlmProcessing: boolean;
   formatTimestamp: (ts: { microsSinceUnixEpoch: bigint }) => string;
   creationMode?: boolean;
   hasPendingSkills?: boolean;
   pendingLevels?: number;
   isInCombat?: boolean;
-  combatAbilities?: any[];
   combatEnemies?: any[];
-  castingAbilityId?: bigint | null;
-  castProgress?: number;
   gatheringState?: { name: string; progress: number } | null;
   questItemCastState?: { name: string; progress: number } | null;
   groupMembers?: Character[];
@@ -166,8 +155,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'submit', text: string): void;
   (e: 'open-panel', panelId: string): void;
-  (e: 'flee'): void;
-  (e: 'use-ability', abilityId: bigint): void;
   (e: 'target-enemy', enemyId: bigint): void;
   (e: 'target', characterId: bigint): void;
   (e: 'level-up-click'): void;
@@ -276,7 +263,7 @@ const scrollAreaStyle = computed(() => ({
   flex: '1',
   overflowY: 'auto' as const,
   paddingTop: '107px',
-  paddingBottom: props.isInCombat ? '190px' : '100px',
+  paddingBottom: props.isInCombat ? '150px' : '100px',
   paddingLeft: '16px',
   paddingRight: '16px',
 }));
