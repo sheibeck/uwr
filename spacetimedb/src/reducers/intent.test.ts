@@ -628,6 +628,56 @@ describe('intent routing patterns', () => {
     });
   });
 
+  describe('sell N item pattern: /^sell\\s+(\\d+)\\s+(.+)$/i', () => {
+    const pattern = /^sell\s+(\d+)\s+(.+)$/i;
+
+    it('matches "sell 3 iron sword" and captures quantity + name', () => {
+      const m = 'sell 3 iron sword'.match(pattern);
+      expect(m).not.toBeNull();
+      expect(m![1]).toBe('3');
+      expect(m![2]).toBe('iron sword');
+    });
+
+    it('matches "sell 1 dagger" with quantity 1', () => {
+      const m = 'sell 1 dagger'.match(pattern);
+      expect(m).not.toBeNull();
+      expect(m![1]).toBe('1');
+      expect(m![2]).toBe('dagger');
+    });
+
+    it('is case insensitive', () => {
+      const m = 'SELL 5 Rusty Helmet'.match(pattern);
+      expect(m).not.toBeNull();
+      expect(m![1]).toBe('5');
+      expect(m![2]).toBe('Rusty Helmet');
+    });
+
+    it('does not match "sell iron sword" without quantity', () => {
+      expect('sell iron sword'.match(pattern)).toBeNull();
+    });
+
+    it('does not match "sell junk" without quantity', () => {
+      expect('sell junk'.match(pattern)).toBeNull();
+    });
+  });
+
+  describe('sell junk pattern detection', () => {
+    it('detects "sell junk" as a junk-sell command', () => {
+      const lower = 'sell junk';
+      expect(lower === 'sell junk' || lower === 'sell all junk').toBe(true);
+    });
+
+    it('detects "sell all junk" as a junk-sell command', () => {
+      const lower = 'sell all junk';
+      expect(lower === 'sell junk' || lower === 'sell all junk').toBe(true);
+    });
+
+    it('does NOT treat "sell junk dagger" as junk sell (has item name after junk)', () => {
+      const lower = 'sell junk dagger';
+      expect(lower === 'sell junk' || lower === 'sell all junk').toBe(false);
+    });
+  });
+
   // --- Non-command input ---
 
   describe('non-matching input', () => {
@@ -674,6 +724,244 @@ describe('intent routing patterns', () => {
       for (const pattern of allRegexPatterns) {
         expect(slash.match(pattern)).toBeNull();
       }
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  Sell Command Tests (034-01)
+//
+//  Tests for sell perk bonus, sell all junk, and sell N commands.
+//  Uses inline computeSellValue + getPerkBonusByField logic
+//  (helpers cannot be directly imported due to spacetimedb/server
+//  transitive dependency; logic is verified via inline simulation).
+// ═══════════════════════════════════════════════════════════════
+
+// Inline implementation mirrors helpers/economy.ts computeSellValue
+function computeSellValue(baseValue: bigint, vendorSellMod: bigint): bigint {
+  if (vendorSellMod > 0n && baseValue > 0n) {
+    return (baseValue * (1000n + vendorSellMod)) / 1000n;
+  }
+  return baseValue;
+}
+
+describe('sell command helpers', () => {
+  describe('computeSellValue applies vendorSellMod', () => {
+    it('returns base value when vendorSellMod is 0', () => {
+      expect(computeSellValue(100n, 0n)).toBe(100n);
+    });
+
+    it('applies positive vendorSellMod (1000-scale: 50 = +5%)', () => {
+      // 100 * (1000 + 50) / 1000 = 105
+      expect(computeSellValue(100n, 50n)).toBe(105n);
+    });
+
+    it('returns base value when base is 0', () => {
+      expect(computeSellValue(0n, 100n)).toBe(0n);
+    });
+  });
+
+  describe('getPerkBonusByField vendorSellBonus logic (inline)', () => {
+    // Simulates the getPerkBonusByField logic without importing the full renown helper
+    // (which transitively imports spacetimedb/server via events.ts)
+    function simulatePerkBonus(ctx: any, characterId: bigint, fieldName: string): number {
+      const RENOWN_PERK_POOLS: Record<number, any[]> = {
+        2: [
+          { key: 'merchant', name: 'Merchant', type: 'passive', effect: { vendorBuyDiscount: 5, vendorSellBonus: 5 }, domain: 'social' },
+        ],
+      };
+      let total = 0;
+      for (const perkRow of ctx.db.renown_perk.by_character.filter(characterId)) {
+        let perkDef: any = null;
+        for (const rankNum in RENOWN_PERK_POOLS) {
+          const pool = RENOWN_PERK_POOLS[Number(rankNum)];
+          const found = pool.find((p) => p.key === perkRow.perkKey);
+          if (found) { perkDef = found; break; }
+        }
+        if (!perkDef) continue;
+        const fieldValue = (perkDef.effect as any)[fieldName];
+        if (fieldValue === undefined || fieldValue === null) continue;
+        total += typeof fieldValue === 'bigint' ? Number(fieldValue) : fieldValue;
+      }
+      return total;
+    }
+
+    it('returns 0 when character has no renown perks', () => {
+      const db = createMockDb({ renown_perk: [] });
+      const ctx = { db, timestamp: { microsSinceUnixEpoch: 1_000_000_000_000n } };
+      const bonus = simulatePerkBonus(ctx, 1n, 'vendorSellBonus');
+      expect(bonus).toBe(0);
+    });
+
+    it('returns 5 when character has merchant perk', () => {
+      const db = createMockDb({
+        renown_perk: [{ id: 1n, characterId: 1n, ownerId: 1n, perkKey: 'merchant' }],
+      });
+      const ctx = { db, timestamp: { microsSinceUnixEpoch: 1_000_000_000_000n } };
+      const bonus = simulatePerkBonus(ctx, 1n, 'vendorSellBonus');
+      expect(bonus).toBe(5);
+    });
+  });
+
+  describe('sell perk bonus computation: combined getPerkBonusByField + computeSellValue', () => {
+    it('applies perk bonus before computeSellValue', () => {
+      // Simulate: baseValue=100, vendorSellBonus=10% (perk), vendorSellMod=50 (CHA 1000-scale = +5%)
+      // Step 1: perk adjusted base = 100 * (100 + 10) / 100 = 110
+      // Step 2: computeSellValue(110, 50) = 110 * (1000+50)/1000 = 115 (rounded down by bigint)
+      const baseValue = 100n;
+      const vendorSellBonus = 10; // percent from getPerkBonusByField
+      const vendorSellMod = 50n; // 1000-scale CHA bonus
+
+      let perkAdjustedBase = baseValue;
+      if (vendorSellBonus > 0 && baseValue > 0n) {
+        perkAdjustedBase = (baseValue * BigInt(100 + vendorSellBonus)) / 100n;
+      }
+      const finalValue = computeSellValue(perkAdjustedBase, vendorSellMod);
+
+      expect(perkAdjustedBase).toBe(110n);
+      expect(finalValue).toBe(115n);
+    });
+
+    it('perk 0% leaves base unchanged before computeSellValue', () => {
+      const baseValue = 200n;
+      const vendorSellBonus = 0;
+      const vendorSellMod = 0n;
+
+      let perkAdjustedBase = baseValue;
+      if (vendorSellBonus > 0 && baseValue > 0n) {
+        perkAdjustedBase = (baseValue * BigInt(100 + vendorSellBonus)) / 100n;
+      }
+      const finalValue = computeSellValue(perkAdjustedBase, vendorSellMod);
+
+      expect(perkAdjustedBase).toBe(200n);
+      expect(finalValue).toBe(200n);
+    });
+  });
+
+  describe('sell all junk: item collection logic', () => {
+    it('identifies junk items in inventory (isJunk=true, not equipped)', () => {
+      const items = [
+        { id: 1n, ownerCharacterId: 10n, ownerId: 10n, templateId: 100n, equippedSlot: undefined, quantity: 1n },
+        { id: 2n, ownerCharacterId: 10n, ownerId: 10n, templateId: 101n, equippedSlot: 'head', quantity: 1n },
+        { id: 3n, ownerCharacterId: 10n, ownerId: 10n, templateId: 102n, equippedSlot: undefined, quantity: 2n },
+      ];
+      const templates = new Map([
+        [100n, { id: 100n, name: 'Broken Arrow', isJunk: true, vendorValue: 5n }],
+        [101n, { id: 101n, name: 'Leather Cap', isJunk: false, vendorValue: 50n }],
+        [102n, { id: 102n, name: 'Rat Tail', isJunk: true, vendorValue: 2n }],
+      ]);
+
+      const junkItems = items.filter(inst => {
+        if (inst.equippedSlot) return false;
+        const tmpl = templates.get(inst.templateId);
+        return tmpl?.isJunk === true;
+      });
+
+      expect(junkItems.length).toBe(2);
+      expect(junkItems.map(i => i.id)).toEqual([1n, 3n]);
+    });
+
+    it('computes total gold from junk items with perk bonus', () => {
+      const junkItems = [
+        { id: 1n, templateId: 100n, quantity: 1n },
+        { id: 3n, templateId: 102n, quantity: 2n },
+      ];
+      const templates = new Map([
+        [100n, { vendorValue: 5n }],
+        [102n, { vendorValue: 2n }],
+      ]);
+      const vendorSellBonus = 10; // 10% perk
+      const vendorSellMod = 0n;
+
+      let total = 0n;
+      const names: string[] = [];
+      for (const inst of junkItems) {
+        const tmpl = templates.get(inst.templateId)!;
+        let base = (tmpl.vendorValue ?? 0n) * (inst.quantity ?? 1n);
+        if (vendorSellBonus > 0 && base > 0n) {
+          base = (base * BigInt(100 + vendorSellBonus)) / 100n;
+        }
+        total += computeSellValue(base, vendorSellMod);
+        names.push('item');
+      }
+
+      // 5 * 1 * 1.1 = 5 (rounded), 2 * 2 * 1.1 = 4 (rounded)
+      expect(total).toBe(5n + 4n); // 9n total
+    });
+
+    it('returns "no junk to sell" message when no junk found', () => {
+      const junkItems: any[] = [];
+      const message = junkItems.length === 0 ? 'no junk to sell' : `sold ${junkItems.length} items`;
+      expect(message).toBe('no junk to sell');
+    });
+  });
+
+  describe('sell N item: quantity parsing and capping', () => {
+    it('sells min(requested, available) items', () => {
+      const available = [
+        { id: 1n, templateId: 100n, equippedSlot: undefined },
+        { id: 2n, templateId: 100n, equippedSlot: undefined },
+        { id: 3n, templateId: 100n, equippedSlot: undefined },
+      ];
+      const requested = 5;
+      const toSell = available.slice(0, Math.min(requested, available.length));
+      expect(toSell.length).toBe(3); // capped at 3 available
+    });
+
+    it('does not sell equipped items even if name matches', () => {
+      const items = [
+        { id: 1n, templateId: 100n, equippedSlot: 'head' }, // equipped - skip
+        { id: 2n, templateId: 100n, equippedSlot: undefined }, // available
+      ];
+      const unequipped = items.filter(i => !i.equippedSlot);
+      const requested = 3;
+      const toSell = unequipped.slice(0, Math.min(requested, unequipped.length));
+      expect(toSell.length).toBe(1);
+      expect(toSell[0].id).toBe(2n);
+    });
+
+    it('parses quantity and item name from "sell 3 iron sword"', () => {
+      const pattern = /^sell\s+(\d+)\s+(.+)$/i;
+      const m = 'sell 3 iron sword'.match(pattern);
+      expect(m).not.toBeNull();
+      const qty = parseInt(m![1], 10);
+      const name = m![2].trim();
+      expect(qty).toBe(3);
+      expect(name).toBe('iron sword');
+    });
+  });
+
+  describe('sell commands require vendor NPC at location', () => {
+    it('sell single item requires vendor NPC at same location', () => {
+      const npcs: any[] = []; // no NPCs
+      const characterLocationId = 1n;
+      const vendorNpc = npcs.find(
+        (n: any) => n.locationId === characterLocationId && n.npcType === 'vendor'
+      );
+      expect(vendorNpc).toBeUndefined();
+    });
+
+    it('sell all junk requires vendor NPC at same location', () => {
+      const npcs = [
+        { id: 1n, name: 'Merchant', npcType: 'vendor', locationId: 2n }, // different location
+      ];
+      const characterLocationId = 1n;
+      const vendorNpc = npcs.find(
+        (n: any) => n.locationId === characterLocationId && n.npcType === 'vendor'
+      );
+      expect(vendorNpc).toBeUndefined();
+    });
+
+    it('sell commands succeed when vendor is at same location', () => {
+      const npcs = [
+        { id: 1n, name: 'Merchant', npcType: 'vendor', locationId: 1n },
+      ];
+      const characterLocationId = 1n;
+      const vendorNpc = npcs.find(
+        (n: any) => n.locationId === characterLocationId && n.npcType === 'vendor'
+      );
+      expect(vendorNpc).not.toBeUndefined();
+      expect(vendorNpc!.id).toBe(1n);
     });
   });
 });

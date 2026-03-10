@@ -2,6 +2,7 @@ import { getAffinityForNpc, awardNpcAffinity } from '../helpers/npc_affinity';
 import { performTravel } from '../helpers/travel';
 import { buildLookOutput } from '../helpers/look';
 import { computeSellValue } from '../helpers/economy';
+import { getPerkBonusByField } from '../helpers/renown';
 
 // Re-export for any existing consumers that import from intent.ts
 export { buildLookOutput } from '../helpers/look';
@@ -886,12 +887,111 @@ export const registerIntentReducers = (deps: any) => {
 
     // --- SELL [item] ---
     if (lower.startsWith('sell ')) {
-      const itemNameTarget = raw.substring(5).trim();
-      if (!itemNameTarget) return fail(ctx, character, 'Sell what?');
+      const sellArg = raw.substring(5).trim();
+      if (!sellArg) return fail(ctx, character, 'Sell what?');
 
       const npcsAtLoc = [...ctx.db.npc.by_location.filter(character.locationId)];
       const vendorNpc = npcsAtLoc.find((n: any) => n.npcType === 'vendor');
       if (!vendorNpc) return fail(ctx, character, 'There is no vendor here.');
+
+      // --- SELL ALL JUNK / SELL JUNK ---
+      const lowerArg = sellArg.toLowerCase();
+      if (lowerArg === 'junk' || lowerArg === 'all junk') {
+        const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
+        let total = 0n;
+        const soldNames: string[] = [];
+        for (const inst of ctx.db.item_instance.by_owner.filter(character.id)) {
+          if (inst.equippedSlot) continue;
+          const tmpl = ctx.db.item_template.id.find(inst.templateId);
+          if (!tmpl || !tmpl.isJunk) continue;
+          let base = (tmpl.vendorValue ?? 0n) * (inst.quantity ?? 1n);
+          if (vendorSellBonus > 0 && base > 0n) {
+            base = (base * BigInt(100 + vendorSellBonus)) / 100n;
+          }
+          const itemValue = computeSellValue(base, character.vendorSellMod ?? 0n);
+          total += itemValue;
+          soldNames.push(inst.displayName || tmpl.name);
+          for (const affix of ctx.db.item_affix.by_instance.filter(inst.id)) {
+            ctx.db.item_affix.id.delete(affix.id);
+          }
+          ctx.db.item_instance.id.delete(inst.id);
+        }
+        if (soldNames.length === 0) {
+          return fail(ctx, character, 'You have no junk to sell.');
+        }
+        ctx.db.character.id.update({ ...character, gold: (character.gold ?? 0n) + total });
+        const preview = soldNames.slice(0, 3);
+        const extra = soldNames.length > 3 ? ` and ${soldNames.length - 3} more` : '';
+        const bonusMsg = vendorSellBonus > 0 ? ` (${vendorSellBonus}% perk bonus)` : '';
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+          `You sell ${soldNames.length} junk item(s) for ${total} gold${bonusMsg}: ${preview.join(', ')}${extra}.`);
+        return;
+      }
+
+      // --- SELL N <item> ---
+      const sellNMatch = sellArg.match(/^(\d+)\s+(.+)$/i);
+      if (sellNMatch) {
+        const quantity = Math.max(1, parseInt(sellNMatch[1], 10));
+        const itemNameTarget = sellNMatch[2].trim();
+        const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
+
+        const matchingItems: any[] = [];
+        for (const inst of ctx.db.item_instance.by_owner.filter(character.id)) {
+          if (inst.equippedSlot) continue;
+          const tmpl = ctx.db.item_template.id.find(inst.templateId);
+          if (!tmpl) continue;
+          const name = inst.displayName || tmpl.name;
+          if (name.toLowerCase().includes(itemNameTarget.toLowerCase())) {
+            matchingItems.push({ inst, tmpl });
+          }
+        }
+        if (matchingItems.length === 0) {
+          return fail(ctx, character, `You don't have "${itemNameTarget}" in your backpack.`);
+        }
+
+        const toSell = matchingItems.slice(0, quantity);
+        let totalGold = 0n;
+        let soldTemplateName = '';
+        for (const { inst, tmpl } of toSell) {
+          let base = BigInt(tmpl.vendorValue ?? 0) * BigInt(inst.quantity ?? 1);
+          if (vendorSellBonus > 0 && base > 0n) {
+            base = (base * BigInt(100 + vendorSellBonus)) / 100n;
+          }
+          const itemValue = computeSellValue(base, character.vendorSellMod ?? 0n);
+          totalGold += itemValue;
+          soldTemplateName = tmpl.name;
+          // Add to vendor inventory
+          const soldTemplateId = inst.templateId;
+          const soldVendorValue = tmpl.vendorValue ?? 0n;
+          const soldQualityTier = inst.qualityTier ?? undefined;
+          const alreadyListed = [...ctx.db.vendor_inventory.by_vendor.filter(vendorNpc.id)].find(
+            (row: any) => row.itemTemplateId === soldTemplateId && (row.qualityTier ?? undefined) === soldQualityTier
+          );
+          if (!alreadyListed) {
+            const resalePrice = soldVendorValue > 0n ? soldVendorValue * 2n : 10n;
+            ctx.db.vendor_inventory.insert({
+              id: 0n,
+              npcId: vendorNpc.id,
+              itemTemplateId: soldTemplateId,
+              price: resalePrice,
+              qualityTier: soldQualityTier,
+            });
+          }
+          for (const affix of ctx.db.item_affix.by_instance.filter(inst.id)) {
+            ctx.db.item_affix.id.delete(affix.id);
+          }
+          ctx.db.item_instance.id.delete(inst.id);
+        }
+        ctx.db.character.id.update({ ...character, gold: (character.gold ?? 0n) + totalGold });
+        const bonusMsg = vendorSellBonus > 0 ? ` (${vendorSellBonus}% perk bonus)` : '';
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+          `You sell ${toSell.length}x ${soldTemplateName} for ${totalGold} gold${bonusMsg}.`);
+        return;
+      }
+
+      // --- SELL <item> (single) ---
+      const itemNameTarget = sellArg;
+      const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
 
       // Find matching unequipped item in character inventory by name
       const charItems = [...ctx.db.item_instance.by_owner.filter(character.id)];
@@ -912,7 +1012,12 @@ export const registerIntentReducers = (deps: any) => {
         return fail(ctx, character, `You don't have "${itemNameTarget}" in your backpack.`);
       }
 
-      const baseValue = BigInt(matchedTemplate.vendorValue ?? 0) * BigInt(matchedInstance.quantity ?? 1);
+      let baseValue = BigInt(matchedTemplate.vendorValue ?? 0) * BigInt(matchedInstance.quantity ?? 1);
+      let sellBonusMsg = '';
+      if (vendorSellBonus > 0 && baseValue > 0n) {
+        baseValue = (baseValue * BigInt(100 + vendorSellBonus)) / 100n;
+        sellBonusMsg = ` (${vendorSellBonus}% perk bonus)`;
+      }
       const value = computeSellValue(baseValue, character.vendorSellMod ?? 0n);
 
       // Clean up any affixes before deleting
@@ -944,7 +1049,7 @@ export const registerIntentReducers = (deps: any) => {
       }
 
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-        `You sell ${matchedTemplate.name} for ${value} gold.`);
+        `You sell ${matchedTemplate.name} for ${value} gold.${sellBonusMsg}`);
       return;
     }
 

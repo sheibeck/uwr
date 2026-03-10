@@ -218,12 +218,19 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer('sell_all_junk', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
     let total = 0n;
+    let count = 0;
     for (const instance of ctx.db.item_instance.by_owner.filter(character.id)) {
       if (instance.equippedSlot) continue;
       const template = ctx.db.item_template.id.find(instance.templateId);
       if (!template || !template.isJunk) continue;
-      total += (template.vendorValue ?? 0n) * (instance.quantity ?? 1n);
+      let base = (template.vendorValue ?? 0n) * (instance.quantity ?? 1n);
+      if (vendorSellBonus > 0 && base > 0n) {
+        base = (base * BigInt(100 + vendorSellBonus)) / 100n;
+      }
+      total += computeSellValue(base, character.vendorSellMod ?? 0n);
+      count++;
       ctx.db.item_instance.id.delete(instance.id);
     }
     if (total > 0n) {
@@ -232,12 +239,13 @@ export const registerItemReducers = (deps: any) => {
         gold: (character.gold ?? 0n) + total,
       });
     }
+    const bonusMsg = vendorSellBonus > 0 ? ` (${vendorSellBonus}% perk bonus)` : '';
     appendPrivateEvent(
       ctx,
       character.id,
       character.ownerUserId,
       'reward',
-      `You sell all junk for ${total} gold.`
+      `You sell ${count} junk item(s) for ${total} gold${bonusMsg}.`
     );
   });
 
