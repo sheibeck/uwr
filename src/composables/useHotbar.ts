@@ -77,6 +77,7 @@ export const useHotbar = ({
   const useAbilityReducer = useReducer(reducers.useAbility);
   const createHotbarReducer = useReducer(reducers.createHotbar);
   const switchHotbarReducer = useReducer(reducers.switchHotbar);
+  const deleteHotbarReducer = useReducer(reducers.deleteHotbar);
 
   // Multi-hotbar: sorted list of hotbars for the selected character
   const hotbarList = computed<Hotbar[]>(() => {
@@ -227,6 +228,7 @@ export const useHotbar = ({
         levelRequired: ability?.levelRequired ?? 0n,
         cooldownSeconds: ability?.cooldownSeconds ?? 0n,
         cooldownRemaining,
+        isCasting: isLocallyCastingThisAbility,
       };
     });
   });
@@ -239,6 +241,11 @@ export const useHotbar = ({
   const switchHotbar = (hotbarName: string) => {
     if (!connActive.value || !selectedCharacter.value) return;
     switchHotbarReducer({ characterId: selectedCharacter.value.id, hotbarName });
+  };
+
+  const deleteHotbar = (hotbarName: string) => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    deleteHotbarReducer({ characterId: selectedCharacter.value.id, hotbarName });
   };
 
   const prevHotbar = () => {
@@ -525,6 +532,7 @@ export const useHotbar = ({
     setHotbarSlot,
     createHotbar,
     switchHotbar,
+    deleteHotbar,
     prevHotbar,
     nextHotbar,
     useAbility,

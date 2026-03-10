@@ -76,10 +76,12 @@ export const registerIntentReducers = (deps: any) => {
         '  sell <item> — Sell an item to a vendor.',
         '  [shop] — Browse a vendor\'s wares (at locations with a vendor).',
         '  [hotbars] — List all your hotbars with slot contents.',
-        '  hotbar add <name> — Create a new named hotbar.',
-        '  hotbar <name> — Switch active hotbar.',
-        '  hotbar set <slot> <ability> — Assign ability to a hotbar slot.',
-        '  hotbar swap <slot1> <slot2> — Swap two hotbar slots.',
+        '  {{color:#c9a227}}hotbar add {name}{{/color}} — Create a new named hotbar (max 10).',
+        '  {{color:#c9a227}}hotbar delete {name}{{/color}} — Delete a hotbar and all its slots.',
+        '  {{color:#c9a227}}hotbar {name}{{/color}} — Switch to a hotbar by name.',
+        '  {{color:#c9a227}}hotbar set {slot} {ability}{{/color}} — Assign ability to slot 1–10 of active hotbar.',
+        '  {{color:#c9a227}}hotbar swap {slot1} {slot2}{{/color}} — Swap two hotbar slots.',
+        '  {{color:#c9a227}}hotbar clear {slot}{{/color}} — Remove ability from a hotbar slot.',
         '  [stats] — View your full character stats and combat values.',
         '  time — Check if it is day or night and how long until it changes.',
         '  [travel] — List available destinations.',
@@ -1068,20 +1070,21 @@ export const registerIntentReducers = (deps: any) => {
         return;
       }
       const sorted = [...allHotbars].sort((a: any, b: any) => a.sortOrder - b.sortOrder);
-      const lines: string[] = ['Your hotbars:'];
+      const lines: string[] = ['{{color:#c9a227}}— Hotbars —{{/color}}'];
       for (const hb of sorted) {
-        const activeTag = hb.isActive ? ' [active]' : '';
+        const activeTag = hb.isActive ? ' {{color:#22c55e}}(active){{/color}}' : '';
         const slots = [...ctx.db.hotbar_slot.by_hotbar.filter(hb.id)];
         const slotParts = slots
           .sort((a: any, b: any) => a.slot - b.slot)
           .map((s: any) => {
             const tmpl = ctx.db.ability_template.id.find(s.abilityTemplateId);
             const name = tmpl ? tmpl.name : `#${s.abilityTemplateId}`;
-            return `${s.slot}:[${name}]`;
+            return `{{color:#868e96}}${s.slot}:{{/color}}[${name}]`;
           });
-        const slotStr = slotParts.length > 0 ? ` — ${slotParts.join(', ')}` : ' — (empty)';
-        lines.push(`[${hb.name}]${activeTag}${slotStr}`);
+        const slotStr = slotParts.length > 0 ? `\n    ${slotParts.join('  ')}` : '\n    {{color:#868e96}}(empty){{/color}}';
+        lines.push(`  [hotbar ${hb.name}]${activeTag}${slotStr}`);
       }
+      lines.push('{{color:#868e96}}Click a hotbar name to switch. hotbar add {name} to create.{{/color}}');
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', lines.join('\n'));
       return;
     }
@@ -1097,7 +1100,7 @@ export const registerIntentReducers = (deps: any) => {
       const slots = [...ctx.db.hotbar_slot.by_hotbar.filter(activeHotbar.id)];
       if (slots.length === 0) {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-          `Hotbar "${activeHotbar.name}" is empty. Use [hotbar set <slot> <ability>] to assign abilities.`);
+          `{{color:#c9a227}}— ${activeHotbar.name} —{{/color}} {{color:#22c55e}}(active){{/color}}\n  {{color:#868e96}}(empty) — Use hotbar set {slot} {ability} to assign abilities.{{/color}}`);
         return;
       }
       const slotParts = slots
@@ -1105,10 +1108,10 @@ export const registerIntentReducers = (deps: any) => {
         .map((s: any) => {
           const tmpl = ctx.db.ability_template.id.find(s.abilityTemplateId);
           const name = tmpl ? tmpl.name : `#${s.abilityTemplateId}`;
-          return `${s.slot}:[${name}]`;
+          return `  {{color:#868e96}}${s.slot}:{{/color}} [${name}]`;
         });
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-        `Hotbar "${activeHotbar.name}" [active]: ${slotParts.join(', ')}`);
+        `{{color:#c9a227}}— ${activeHotbar.name} —{{/color}} {{color:#22c55e}}(active){{/color}}\n${slotParts.join('\n')}`);
       return;
     }
 
@@ -1132,15 +1135,59 @@ export const registerIntentReducers = (deps: any) => {
         createdAt: ctx.timestamp,
       });
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-        `Hotbar "${newName}" created and set as active.`);
+        `{{color:#22c55e}}Created hotbar "${newName}" and set as active.{{/color}}`);
       return;
     }
 
-    // "hotbar set <slot> <ability>" — assign ability to slot on active hotbar
-    const hotbarSetMatch = lower.match(/^hotbar\s+set\s+(\d+)\s+(.+)$/i);
-    if (hotbarSetMatch) {
-      const slot = parseInt(hotbarSetMatch[1], 10);
-      const abilityName = raw.substring(raw.toLowerCase().indexOf(hotbarSetMatch[2])).trim();
+    // "hotbar delete <name>" — remove a named hotbar and all its slots
+    const hotbarDeleteMatch = lower.match(/^hotbar\s+delete\s+(.+)$/i);
+    if (hotbarDeleteMatch) {
+      const targetName = raw.substring('hotbar delete '.length).trim();
+      const allHotbars = [...ctx.db.hotbar.by_character.filter(character.id)];
+      const target = allHotbars.find((h: any) => h.name.toLowerCase() === targetName.toLowerCase());
+      if (!target) return fail(ctx, character, `No hotbar named "${targetName}" found.`);
+      if (allHotbars.length <= 1) return fail(ctx, character, 'Cannot delete your only hotbar.');
+      // Delete all slots belonging to this hotbar
+      for (const s of [...ctx.db.hotbar_slot.by_hotbar.filter(target.id)]) {
+        ctx.db.hotbar_slot.id.delete(s.id);
+      }
+      ctx.db.hotbar.id.delete(target.id);
+      // If was active, switch to the first remaining hotbar
+      if (target.isActive) {
+        const remaining = allHotbars.filter((h: any) => h.id !== target.id);
+        if (remaining.length > 0) {
+          ctx.db.hotbar.id.update({ ...remaining[0], isActive: true });
+        }
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+        `{{color:#22c55e}}Deleted hotbar "${target.name}".{{/color}}`);
+      return;
+    }
+
+    // "hotbar clear <slot>" — remove ability from a hotbar slot
+    const hotbarClearMatch = lower.match(/^hotbar\s+clear\s+(\d+)$/i);
+    if (hotbarClearMatch) {
+      const slot = parseInt(hotbarClearMatch[1], 10);
+      if (slot < 1 || slot > 10) return fail(ctx, character, 'Hotbar slot must be 1–10.');
+      const activeHotbar = [...ctx.db.hotbar.by_character.filter(character.id)].find((h: any) => h.isActive);
+      if (!activeHotbar) return fail(ctx, character, 'You have no active hotbar.');
+      const existing = [...ctx.db.hotbar_slot.by_hotbar.filter(activeHotbar.id)].find((s: any) => s.slot === slot);
+      if (!existing) return fail(ctx, character, `Slot ${slot} is already empty.`);
+      ctx.db.hotbar_slot.id.delete(existing.id);
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+        `{{color:#22c55e}}Cleared{{/color}} slot {{color:#c9a227}}${slot}{{/color}} on hotbar "${activeHotbar.name}".`);
+      return;
+    }
+
+    // "hotbar set <slot> <ability>" or "hotbar set <ability> <slot>" — assign ability to slot
+    const hotbarSetMatch1 = lower.match(/^hotbar\s+set\s+(\d+)\s+(.+)$/i);
+    const hotbarSetMatch2 = lower.match(/^hotbar\s+set\s+(.+?)\s+(\d+)$/i);
+    if (hotbarSetMatch1 || hotbarSetMatch2) {
+      const slotStr = hotbarSetMatch1 ? hotbarSetMatch1[1] : hotbarSetMatch2![2];
+      const abilityStr = hotbarSetMatch1 ? hotbarSetMatch1[2] : hotbarSetMatch2![1];
+      const slot = parseInt(slotStr, 10);
+      // Extract original-case ability name from raw input
+      const abilityName = raw.substring(raw.toLowerCase().indexOf(abilityStr), raw.toLowerCase().indexOf(abilityStr) + abilityStr.length).trim();
       if (slot < 1 || slot > 10) return fail(ctx, character, 'Hotbar slot must be 1–10.');
       const abilities = [...ctx.db.ability_template.by_character.filter(character.id)];
       const matched = abilities.find((a: any) => a.name.toLowerCase() === abilityName.toLowerCase())
@@ -1163,7 +1210,7 @@ export const registerIntentReducers = (deps: any) => {
         });
       }
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-        `[${matched.name}] assigned to slot ${slot} on hotbar "${hotbar.name}".`);
+        `{{color:#22c55e}}[${matched.name}]{{/color}} assigned to slot {{color:#c9a227}}${slot}{{/color}} on hotbar "${hotbar.name}".`);
       return;
     }
 
@@ -1207,22 +1254,36 @@ export const registerIntentReducers = (deps: any) => {
       }
 
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-        `Hotbar slots ${slot1} and ${slot2} swapped.`);
+        `{{color:#22c55e}}Swapped{{/color}} slots {{color:#c9a227}}${slot1}{{/color}} and {{color:#c9a227}}${slot2}{{/color}} on hotbar "${activeHotbar.name}".`);
       return;
     }
 
-    // "hotbar <name>" — switch active hotbar (must come AFTER add/set/swap checks)
-    const hotbarSwitchMatch = lower.match(/^hotbar\s+(?!add\s|set\s|swap\s)(.+)$/i);
+    // "hotbar set" or "hotbar swap" with bad args — show usage instead of falling through
+    if (lower.match(/^hotbar\s+set\b/i)) {
+      return fail(ctx, character, 'Usage: hotbar set {slot} {ability} — e.g. hotbar set 1 fireball');
+    }
+    if (lower.match(/^hotbar\s+swap\b/i)) {
+      return fail(ctx, character, 'Usage: hotbar swap {slot1} {slot2} — e.g. hotbar swap 1 2');
+    }
+    if (lower.match(/^hotbar\s+clear\b/i)) {
+      return fail(ctx, character, 'Usage: hotbar clear {slot} — e.g. hotbar clear 3');
+    }
+    if (lower.match(/^hotbar\s+delete\b/i)) {
+      return fail(ctx, character, 'Usage: hotbar delete {name} — e.g. hotbar delete buffs');
+    }
+
+    // "hotbar <name>" — switch active hotbar (must come AFTER add/set/swap/delete checks)
+    const hotbarSwitchMatch = lower.match(/^hotbar\s+(?!add\s|set\b|swap\b|clear\b|delete\s)(.+)$/i);
     if (hotbarSwitchMatch) {
       const targetName = hotbarSwitchMatch[1].trim();
       const allHotbars = [...ctx.db.hotbar.by_character.filter(character.id)];
       const target = allHotbars.find((h: any) => h.name.toLowerCase() === targetName.toLowerCase());
-      if (!target) return fail(ctx, character, `No hotbar named "${targetName}" found.`);
+      if (!target) return fail(ctx, character, `No hotbar named "${targetName}" found. Type [hotbars] to see your hotbars.`);
       for (const h of allHotbars) {
         ctx.db.hotbar.id.update({ ...h, isActive: h.id === target.id });
       }
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-        `Switched to hotbar "${target.name}".`);
+        `{{color:#22c55e}}Switched to hotbar "${target.name}".{{/color}}`);
       return;
     }
 

@@ -673,6 +673,32 @@ export const registerItemReducers = (deps: any) => {
   );
 
   spacetimedb.reducer(
+    'delete_hotbar',
+    { characterId: t.u64(), hotbarName: t.string() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const all = [...ctx.db.hotbar.by_character.filter(character.id)];
+      const target = all.find((h: any) => h.name.toLowerCase() === args.hotbarName.toLowerCase());
+      if (!target) return failItem(ctx, character, `No hotbar named "${args.hotbarName}" found.`);
+      if (all.length <= 1) return failItem(ctx, character, 'Cannot delete your only hotbar.');
+      // Delete all slots belonging to this hotbar
+      for (const s of [...ctx.db.hotbar_slot.by_hotbar.filter(target.id)]) {
+        ctx.db.hotbar_slot.id.delete(s.id);
+      }
+      ctx.db.hotbar.id.delete(target.id);
+      // If was active, activate the first remaining hotbar
+      if (target.isActive) {
+        const remaining = all.filter((h: any) => h.id !== target.id);
+        if (remaining.length > 0) {
+          ctx.db.hotbar.id.update({ ...remaining[0], isActive: true });
+        }
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+        `Hotbar "${target.name}" deleted.`);
+    }
+  );
+
+  spacetimedb.reducer(
     'swap_hotbar_slots',
     { characterId: t.u64(), slot1: t.u8(), slot2: t.u8() },
     (ctx, args) => {
