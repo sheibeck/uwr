@@ -175,6 +175,7 @@ import {
 import {
   awardXp,
   applyDeathXpPenalty,
+  computeRacialAtLevelFromRow,
 } from './helpers/combat_rewards';
 
 import {
@@ -791,6 +792,142 @@ spacetimedb.reducer('choose_skill', { pendingSkillId: t.u64() }, (ctx: any, { pe
     `The Keeper nods. "[${pending.name}] it is. The others scatter like forgotten dreams. You will never see them again."`);
   appendPrivateEvent(ctx, pending.characterId, character.ownerUserId, 'system',
     `You learned [${pending.name}] — ${pending.kind}, ${pending.value1} power, ${pending.cooldownSeconds}s cooldown`);
+});
+
+// Reducer: player manually applies one pending level-up
+spacetimedb.reducer('apply_level_up', { characterId: t.u64() }, (ctx: any, { characterId }: { characterId: bigint }) => {
+  // Validate ownership
+  const character = ctx.db.character.id.find(characterId);
+  if (!character) throw new SenderError('Character not found');
+  const player = ctx.db.player.id.find(ctx.sender);
+  if (!player || !character.ownerUserId || player.userId !== character.ownerUserId) {
+    throw new SenderError('Not your character');
+  }
+
+  // Check there are pending levels to apply
+  const currentPending = character.pendingLevels ?? 0n;
+  if (currentPending <= 0n) {
+    appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
+      'You have no pending levels to apply.');
+    return;
+  }
+
+  // Block level-up during active combat
+  const activeCombatId = activeCombatIdForCharacter(ctx, characterId);
+  if (activeCombatId !== null) {
+    appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
+      'You cannot level up during combat. Finish the fight first.');
+    return;
+  }
+
+  // Process exactly ONE level
+  const newLevel = character.level + 1n;
+
+  // Compute new base stats
+  const { primary, secondary } = detectPrimarySecondary(character);
+  const newBase = computeBaseStatsForGenerated(primary, secondary, newLevel);
+
+  // Compute racial bonuses at new level
+  const raceRow = [...ctx.db.race.iter()].find((r: any) => r.name === character.race);
+  const racial = raceRow ? computeRacialAtLevelFromRow(raceRow, newLevel) : null;
+
+  const updated = {
+    ...character,
+    level: newLevel,
+    pendingLevels: currentPending - 1n,
+    str: newBase.str + (racial?.str ?? 0n),
+    dex: newBase.dex + (racial?.dex ?? 0n),
+    cha: newBase.cha + (racial?.cha ?? 0n),
+    wis: newBase.wis + (racial?.wis ?? 0n),
+    int: newBase.int + (racial?.int ?? 0n),
+    racialSpellDamage: racial?.racialSpellDamage || undefined,
+    racialPhysDamage: racial?.racialPhysDamage || undefined,
+    racialMaxHp: racial?.racialMaxHp || undefined,
+    racialMaxMana: racial?.racialMaxMana || undefined,
+    racialManaRegen: racial?.racialManaRegen || undefined,
+    racialStaminaRegen: racial?.racialStaminaRegen || undefined,
+    racialCritBonus: racial?.racialCritBonus || undefined,
+    racialArmorBonus: racial?.racialArmorBonus || undefined,
+    racialDodgeBonus: racial?.racialDodgeBonus || undefined,
+    racialHpRegen: racial?.racialHpRegen || undefined,
+    racialMaxStamina: racial?.racialMaxStamina || undefined,
+    racialTravelCostIncrease: racial?.racialTravelCostIncrease || undefined,
+    racialTravelCostDiscount: racial?.racialTravelCostDiscount || undefined,
+    racialHitBonus: racial?.racialHitBonus || undefined,
+    racialParryBonus: racial?.racialParryBonus || undefined,
+    racialFactionBonus: racial?.racialFactionBonus || undefined,
+    racialMagicResist: racial?.racialMagicResist || undefined,
+    racialPerceptionBonus: racial?.racialPerceptionBonus || undefined,
+    racialLootBonus: racial?.racialLootBonus || undefined,
+  };
+  ctx.db.character.id.update(updated);
+  recomputeCharacterDerived(ctx, updated);
+
+  // Notify racial bonus on even levels
+  if (newLevel % 2n === 0n && raceRow) {
+    appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
+      `Your ${raceRow.name} heritage grows stronger at level ${newLevel}.`);
+  }
+
+  // Level-up announcement
+  appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
+    `You have reached level ${newLevel}!`);
+
+  const remaining = currentPending - 1n;
+  if (remaining > 0n) {
+    appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
+      `You have ${remaining} more level(s) to claim.`);
+  }
+
+  // Auto-trigger skill generation (same as prepare_skill_gen)
+  const existingPending = [...ctx.db.pending_skill.by_character.filter(characterId)];
+  if (existingPending.length > 0) {
+    appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
+      'The Keeper is already preparing skill offerings for you.');
+    return;
+  }
+
+  const budget = checkBudget(ctx, ctx.sender);
+  if (!budget.allowed) {
+    appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
+      'The Keeper yawns. "Your daily allowance of cosmic creativity is spent. Come back tomorrow."');
+    return;
+  }
+
+  const existingTasks = [...ctx.db.llm_task.by_player.filter(ctx.sender)];
+  if (existingTasks.some((task: any) => task.status === 'pending' && task.domain === 'skill_gen')) return;
+
+  const existingAbilities: { name: string; kind: string }[] = [];
+  for (const ab of ctx.db.ability_template.by_character.filter(characterId)) {
+    existingAbilities.push({ name: ab.name, kind: ab.kind });
+  }
+
+  const systemPrompt = buildSkillGenSystemPrompt();
+  const userPrompt = buildSkillGenUserPrompt(
+    updated.name,
+    updated.race || 'Unknown',
+    updated.className || 'Unknown',
+    (updated as any).archetype || 'warrior',
+    newLevel,
+    existingAbilities
+  );
+
+  ctx.db.llm_task.insert({
+    id: 0n,
+    playerId: ctx.sender,
+    domain: 'skill_gen',
+    model: 'gpt-5-mini',
+    systemPrompt,
+    userPrompt,
+    maxTokens: 1500n,
+    status: 'pending',
+    contextJson: JSON.stringify({ characterId: characterId.toString() }),
+    responseFormatJson: JSON.stringify(buildSkillGenResponseFormat()),
+    createdAt: ctx.timestamp,
+  });
+
+  appendPrivateEvent(ctx, characterId, character.ownerUserId, 'narrative',
+    'Something stirs within you. The Keeper stirs to present new abilities for your consideration.');
 });
 
 // Reducer: client submits LLM result after calling the proxy

@@ -343,6 +343,7 @@ export const Character = table(
     lastCombatEndAt: t.u64().optional(),
     weaponProficiencies: t.string().optional(),
     armorProficiencies: t.string().optional(),
+    pendingLevels: t.u64().default(0n),
   }
 );
 

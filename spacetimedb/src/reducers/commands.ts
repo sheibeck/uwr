@@ -128,12 +128,10 @@ export const registerCommandReducers = (deps: any) => {
         const xpResult = awardXp(ctx, character, character.level, quest.rewardXp);
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward', `You gain ${xpResult.xpGained} XP.`);
         if (xpResult.leveledUp) {
+          const pending = xpResult.pendingLevels ?? 1n;
+          const levelText = pending > 1n ? `You have ${pending} level(s) pending!` : 'You have a level pending!';
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-            `You reached level ${xpResult.newLevel}!`);
-          appendLocationEvent(ctx, character.locationId, 'system',
-            `${character.name} reached level ${xpResult.newLevel}.`);
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative',
-            'Something stirs within you. New power awaits. The Keeper will present its offerings shortly.');
+            `${levelText} Click the [Level Up] indicator when ready.`);
         }
 
         // Award affinity (show in faction/gold color)
@@ -170,12 +168,10 @@ export const registerCommandReducers = (deps: any) => {
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
         `You gain ${deliveryXpResult.xpGained} XP.`);
       if (deliveryXpResult.leveledUp) {
+        const pending = deliveryXpResult.pendingLevels ?? 1n;
+        const levelText = pending > 1n ? `You have ${pending} level(s) pending!` : 'You have a level pending!';
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-          `You reached level ${deliveryXpResult.newLevel}!`);
-        appendLocationEvent(ctx, character.locationId, 'system',
-          `${character.name} reached level ${deliveryXpResult.newLevel}.`);
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative',
-          'Something stirs within you. New power awaits. The Keeper will present its offerings shortly.');
+          `${levelText} Click the [Level Up] indicator when ready.`);
       }
       appendNpcDialog(ctx, character.id, npc.id,
         `${npc.name} says, "Ah, you've brought it. Thank you."`);

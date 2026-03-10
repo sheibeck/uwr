@@ -2155,10 +2155,11 @@ export const registerCombatReducers = (deps: any) => {
           logGroupEvent(ctx, combat.id, character.id, 'reward', `${character.name} gained ${reward.xpGained} XP (reduced for defeat).`);
         }
         if (reward.leveledUp) {
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', `You reached level ${reward.newLevel}.`);
-          logGroupEvent(ctx, combat.id, character.id, 'system', `${character.name} reached level ${reward.newLevel}.`);
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative',
-            'Something stirs within you. New power awaits. The Keeper will present its offerings shortly.');
+          const pending = reward.pendingLevels ?? 1n;
+          const levelText = pending > 1n ? `${character.name} has ${pending} level(s) pending.` : `${character.name} has a level pending.`;
+          logGroupEvent(ctx, combat.id, character.id, 'system', levelText);
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+            `You have ${pending > 1n ? `${pending} level(s)` : 'a level'} pending! Click [Level Up] when ready.`);
         }
         continue;
       }
@@ -2172,10 +2173,11 @@ export const registerCombatReducers = (deps: any) => {
         logGroupEvent(ctx, combat.id, character.id, 'reward', `${character.name} gained ${reward.xpGained} XP.`);
       }
       if (reward.leveledUp) {
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', `You reached level ${reward.newLevel}.`);
-        logGroupEvent(ctx, combat.id, character.id, 'system', `${character.name} reached level ${reward.newLevel}.`);
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative',
-          'Something stirs within you. New power awaits. The Keeper will present its offerings shortly.');
+        const pending = reward.pendingLevels ?? 1n;
+        const levelText = pending > 1n ? `${character.name} has ${pending} level(s) pending.` : `${character.name} has a level pending.`;
+        logGroupEvent(ctx, combat.id, character.id, 'system', levelText);
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          `You have ${pending > 1n ? `${pending} level(s)` : 'a level'} pending! Click [Level Up] when ready.`);
       }
       const primaryEnemy = enemies[0];
       if (primaryEnemy) {

@@ -251,7 +251,7 @@ export const resetSpawnAfterCombat = (
 
 // Compute all racial contributions for a character at a given level.
 // Creation bonuses (bonus1+bonus2+penalty) applied once; levelBonus per even level.
-function computeRacialAtLevelFromRow(raceRow: any, level: bigint) {
+export function computeRacialAtLevelFromRow(raceRow: any, level: bigint) {
   const evenLevels = level / 2n;
   const r = {
     str: 0n, dex: 0n, int: 0n, wis: 0n, cha: 0n,
@@ -325,71 +325,30 @@ export function awardXp(
   if (gained <= 0n) return { xpGained: 0n, leveledUp: false };
 
   const newXp = character.xp + gained;
-  let newLevel = character.level;
+
+  // Calculate how many levels were earned (but don't apply them)
+  let newLevel: bigint = character.level as bigint;
   while (newLevel < MAX_LEVEL && newXp >= xpRequiredForLevel(newLevel + 1n)) {
     newLevel += 1n;
   }
 
-  if (newLevel === character.level) {
+  const levelsEarned: bigint = newLevel - (character.level as bigint);
+
+  if (levelsEarned === 0n) {
+    // No level-up — just update XP
     ctx.db.character.id.update({ ...character, xp: newXp });
     return { xpGained: gained, leveledUp: false };
   }
 
-  const { primary, secondary } = detectPrimarySecondary(character);
-  const newBase = computeBaseStatsForGenerated(primary, secondary, newLevel);
-
-  // Look up the character's race row by name (character.race is a display name string, not an ID).
-  const raceRow = [...ctx.db.race.iter()].find((r: any) => r.name === character.race);
-
-  // Compute total racial contributions at the new level:
-  //   - Creation bonuses (bonus1 + bonus2 + penalty): applied once
-  //   - Level bonus (levelBonusType x levelBonusValue): applied per even level
-  const racial = raceRow ? computeRacialAtLevelFromRow(raceRow, newLevel) : null;
-
-  const updated = {
+  // Levels were earned: increment pendingLevels, update XP only — do NOT apply level or stats
+  const currentPending = character.pendingLevels ?? 0n;
+  ctx.db.character.id.update({
     ...character,
-    level: newLevel,
     xp: newXp,
-    str: newBase.str + (racial?.str ?? 0n),
-    dex: newBase.dex + (racial?.dex ?? 0n),
-    cha: newBase.cha + (racial?.cha ?? 0n),
-    wis: newBase.wis + (racial?.wis ?? 0n),
-    int: newBase.int + (racial?.int ?? 0n),
-    racialSpellDamage: racial?.racialSpellDamage || undefined,
-    racialPhysDamage: racial?.racialPhysDamage || undefined,
-    racialMaxHp: racial?.racialMaxHp || undefined,
-    racialMaxMana: racial?.racialMaxMana || undefined,
-    racialManaRegen: racial?.racialManaRegen || undefined,
-    racialStaminaRegen: racial?.racialStaminaRegen || undefined,
-    racialCritBonus: racial?.racialCritBonus || undefined,
-    racialArmorBonus: racial?.racialArmorBonus || undefined,
-    racialDodgeBonus: racial?.racialDodgeBonus || undefined,
-    racialHpRegen: racial?.racialHpRegen || undefined,
-    racialMaxStamina: racial?.racialMaxStamina || undefined,
-    racialTravelCostIncrease: racial?.racialTravelCostIncrease || undefined,
-    racialTravelCostDiscount: racial?.racialTravelCostDiscount || undefined,
-    racialHitBonus: racial?.racialHitBonus || undefined,
-    racialParryBonus: racial?.racialParryBonus || undefined,
-    racialFactionBonus: racial?.racialFactionBonus || undefined,
-    racialMagicResist: racial?.racialMagicResist || undefined,
-    racialPerceptionBonus: racial?.racialPerceptionBonus || undefined,
-    racialLootBonus: racial?.racialLootBonus || undefined,
-  };
-  ctx.db.character.id.update(updated);
-  recomputeCharacterDerived(ctx, updated);
+    pendingLevels: currentPending + levelsEarned,
+  });
 
-  // Notify on even-level racial bonus re-application
-  if (newLevel % 2n === 0n && raceRow) {
-    appendPrivateEventHelper(
-      ctx,
-      character.id,
-      character.ownerUserId,
-      'system',
-      `Your ${raceRow.name} heritage grows stronger at level ${newLevel}.`
-    );
-  }
-
-  return { xpGained: gained, leveledUp: true, newLevel };
+  return { xpGained: gained, leveledUp: true, pendingLevels: currentPending + levelsEarned };
 }
 
 export function applyDeathXpPenalty(ctx: any, character: any) {
