@@ -87,8 +87,9 @@ None.
 | 394 | Apply gold formatting to all narrative command headers and add inv descriptions | 2026-03-10 | 91ce26f | [394-apply-gold-formatting-to-all-narrative-c](./quick/394-apply-gold-formatting-to-all-narrative-c/) |
 | 395 | Remove slash prefix from non-admin commands, add clickable who names and group status | 2026-03-10 | 4ea2b89 | [395-remove-slash-prefix-from-non-admin-comma](./quick/395-remove-slash-prefix-from-non-admin-comma/) |
 | 396 | Fix debuff targeting (buff+debuff effectType hits caster) and HoT double-heal | 2026-03-10 | 1c01d75 | [396-fix-combat-targeting-debuffs-hit-caster-](./quick/396-fix-combat-targeting-debuffs-hit-caster-/) |
+| 397 | Rebalance combat so solo player can reliably defeat equal-level enemies | 2026-03-10 | fddbf32 | [397-rebalance-combat-so-solo-player-can-reli](./quick/397-rebalance-combat-so-solo-player-can-reli/) |
 
 ## Session Continuity
 
-Last session: 2026-03-10T05:30:00Z
-Stopped at: Completed quick-396
+Last session: 2026-03-10T06:00:00Z
+Stopped at: Completed quick-397
