@@ -145,13 +145,14 @@ Plans:
   6. Renown perks use the dynamic ability system with LLM-driven selection at rank-up
   7. Abilities track source (Class, Renown, Race) for display and filtering
   8. Client ability dispatch renders and activates all new ability kinds without hardcoded special cases
-**Plans**: 4 plans
+**Plans**: 5 plans
 
 Plans:
 - [ ] 36-01-PLAN.md -- Vocabulary expansion (new ABILITY_KINDS), schema (source/abilityKey columns), BASE_BUDGET entries
 - [ ] 36-02-PLAN.md -- Heritage bonus every-level fix, race ability data definitions
 - [ ] 36-03-PLAN.md -- Server dispatch for all new kinds, pure buff/debuff fix, LLM skill gen expansion, race ability granting
 - [ ] 36-04-PLAN.md -- Renown perks as dynamic abilities, PendingRenownPerk table, LLM perk generation flow
+- [ ] 36-05-PLAN.md -- Client-side renown perk choice UI (header notification, perk selection in console)
 
 ### Phase 37: UX Polish
 **Goal**: Players can customize text size for comfortable reading across all UI elements
