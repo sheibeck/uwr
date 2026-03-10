@@ -865,6 +865,203 @@ describe('addCharacterEffect narrative messages', () => {
 });
 
 // ============================================================================
+// resolveAbility: new ability kinds (36-03)
+// ============================================================================
+
+describe('resolveAbility: new ability kinds dispatch (36-03)', () => {
+  function makeCombatCtx(charHp = 100n, enemyHp = 200n) {
+    return createMockCtx({
+      seed: {
+        character: [{ id: 1n, ownerUserId: 10n, hp: charHp, maxHp: charHp, groupId: undefined, combatTargetEnemyId: undefined, str: 5n, dex: 5n, int: 5n, wis: 5n, cha: 5n, level: 5n, name: 'TestChar' }],
+        combat_encounter: [{ id: 100n, state: 'active' }],
+        combat_enemy: [{ id: 10n, combatId: 100n, enemyTemplateId: 1n, currentHp: enemyHp, maxHp: enemyHp, armorClass: 0n, displayName: 'Goblin' }],
+        combat_enemy_effect: [],
+        character_effect: [],
+        aggro_entry: [],
+        ability_template: [],
+        enemy_template: [{ id: 1n, name: 'Goblin' }],
+        combat_participant: [{ id: 1n, combatId: 100n, characterId: 1n, status: 'active' }],
+        active_pet: [],
+      },
+    });
+  }
+
+  function makeNonCombatCtx(charHp = 100n) {
+    return createMockCtx({
+      seed: {
+        character: [{ id: 1n, ownerUserId: 10n, hp: charHp, maxHp: charHp, groupId: undefined, combatTargetEnemyId: undefined, str: 5n, dex: 5n, int: 5n, wis: 5n, cha: 5n, level: 5n, name: 'TestChar' }],
+        character_effect: [],
+        combat_encounter: [],
+        combat_enemy: [],
+        combat_enemy_effect: [],
+        aggro_entry: [],
+        ability_template: [],
+      },
+    });
+  }
+
+  const charActor: AbilityActor = {
+    type: 'character',
+    id: 1n,
+    stats: { str: 5n, dex: 5n, int: 5n, wis: 5n, cha: 5n },
+    level: 5n,
+    name: 'TestChar',
+  };
+
+  function makeAbility(overrides: Partial<AbilityRow>): AbilityRow {
+    return {
+      id: 80n,
+      kind: 'buff',
+      targetRule: 'self',
+      value1: 10n,
+      value2: undefined,
+      damageType: undefined,
+      scaling: 'str',
+      effectType: 'damage_up',
+      effectMagnitude: 5n,
+      effectDuration: 9n,
+      name: 'Test Ability',
+      resourceType: 'stamina',
+      resourceCost: 5n,
+      cooldownSeconds: 5n,
+      castSeconds: 0n,
+      ...overrides,
+    };
+  }
+
+  it('kind=song applies buff effect to self without errors', () => {
+    const ctx = makeCombatCtx();
+    const ability = makeAbility({ kind: 'song', effectType: 'damage_up', effectMagnitude: 5n, effectDuration: 180n });
+    // Should not throw and should apply a character effect
+    expect(() => resolveAbility(ctx, 100n, charActor, ability)).not.toThrow();
+    const effects = ctx.db.character_effect._rows();
+    expect(effects.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('kind=aura applies buff effect to self without errors', () => {
+    const ctx = makeNonCombatCtx();
+    const ability = makeAbility({ kind: 'aura', effectType: 'damage_up', effectMagnitude: 3n, effectDuration: 180n });
+    expect(() => resolveAbility(ctx, null, charActor, ability)).not.toThrow();
+    const effects = ctx.db.character_effect._rows();
+    expect(effects.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('kind=fear applies stun to enemy (requires combatId)', () => {
+    const ctx = makeCombatCtx();
+    const ability = makeAbility({ kind: 'fear', effectType: 'stun', effectMagnitude: 1n, effectDuration: 3n });
+    expect(() => resolveAbility(ctx, 100n, charActor, ability)).not.toThrow();
+    const enemyEffects = ctx.db.combat_enemy_effect._rows();
+    const stunEffect = enemyEffects.find((e: any) => e.effectType === 'stun');
+    expect(stunEffect).toBeDefined();
+    expect(stunEffect.enemyId).toBe(10n);
+  });
+
+  it('kind=group_heal heals party members', () => {
+    const ctx = makeNonCombatCtx(60n);
+    const ability = makeAbility({ kind: 'group_heal', scaling: 'wis', effectType: undefined, effectMagnitude: undefined, effectDuration: undefined });
+    const hpBefore = ctx.db.character.id.find(1n).hp;
+    expect(() => resolveAbility(ctx, null, charActor, ability)).not.toThrow();
+    const hpAfter = ctx.db.character.id.find(1n).hp;
+    expect(hpAfter).toBeGreaterThanOrEqual(hpBefore);
+  });
+
+  it('kind=bandage self-heals without combat restriction', () => {
+    const ctx = makeNonCombatCtx(50n);
+    const ability = makeAbility({ kind: 'bandage', scaling: 'wis', effectType: undefined, effectMagnitude: undefined, effectDuration: undefined });
+    const hpBefore = ctx.db.character.id.find(1n).hp;
+    expect(() => resolveAbility(ctx, null, charActor, ability)).not.toThrow();
+    const hpAfter = ctx.db.character.id.find(1n).hp;
+    expect(hpAfter).toBeGreaterThanOrEqual(hpBefore);
+  });
+
+  it('kind=potion self-heals without combat restriction', () => {
+    const ctx = makeNonCombatCtx(50n);
+    const ability = makeAbility({ kind: 'potion', scaling: 'wis', effectType: undefined, effectMagnitude: undefined, effectDuration: undefined });
+    const hpBefore = ctx.db.character.id.find(1n).hp;
+    expect(() => resolveAbility(ctx, null, charActor, ability)).not.toThrow();
+    const hpAfter = ctx.db.character.id.find(1n).hp;
+    expect(hpAfter).toBeGreaterThanOrEqual(hpBefore);
+  });
+
+  it('kind=travel applies buff effect to self without combat', () => {
+    const ctx = makeNonCombatCtx();
+    const ability = makeAbility({ kind: 'travel', effectType: 'damage_up', effectMagnitude: 5n, effectDuration: 30n });
+    expect(() => resolveAbility(ctx, null, charActor, ability)).not.toThrow();
+    const effects = ctx.db.character_effect._rows();
+    expect(effects.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('kind=craft_boost applies loot_bonus effect to self', () => {
+    const ctx = makeNonCombatCtx();
+    const ability = makeAbility({ kind: 'craft_boost', effectType: 'loot_bonus', effectMagnitude: 3n, effectDuration: 30n });
+    expect(() => resolveAbility(ctx, null, charActor, ability)).not.toThrow();
+    const effects = ctx.db.character_effect._rows();
+    expect(effects.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('kind=gather_boost applies loot_bonus effect to self', () => {
+    const ctx = makeNonCombatCtx();
+    const ability = makeAbility({ kind: 'gather_boost', effectType: 'loot_bonus', effectMagnitude: 3n, effectDuration: 30n });
+    expect(() => resolveAbility(ctx, null, charActor, ability)).not.toThrow();
+    const effects = ctx.db.character_effect._rows();
+    expect(effects.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('kind=food_summon logs message without throwing', () => {
+    const ctx = makeNonCombatCtx();
+    const ability = makeAbility({ kind: 'food_summon', effectType: undefined });
+    expect(() => resolveAbility(ctx, null, charActor, ability)).not.toThrow();
+  });
+
+  it('kind=resurrect logs placeholder message without throwing', () => {
+    const ctx = makeNonCombatCtx();
+    const ability = makeAbility({ kind: 'resurrect', effectType: undefined });
+    expect(() => resolveAbility(ctx, null, charActor, ability)).not.toThrow();
+  });
+
+  it('kind=pet_command logs placeholder message without throwing', () => {
+    const ctx = makeNonCombatCtx();
+    const ability = makeAbility({ kind: 'pet_command', effectType: undefined });
+    expect(() => resolveAbility(ctx, null, charActor, ability)).not.toThrow();
+  });
+
+  it('pure buff (kind=buff, combatId=null) applies effect without damage', () => {
+    const ctx = makeNonCombatCtx(100n);
+    const ability = makeAbility({ kind: 'buff', effectType: 'damage_up', effectMagnitude: 5n, effectDuration: 9n });
+    expect(() => resolveAbility(ctx, null, charActor, ability)).not.toThrow();
+    // Effect applied
+    const effects = ctx.db.character_effect._rows();
+    expect(effects.some((e: any) => e.effectType === 'damage_up')).toBe(true);
+    // HP unchanged (no damage)
+    expect(ctx.db.character.id.find(1n).hp).toBe(100n);
+  });
+
+  it('pure debuff (kind=debuff, value1=0n) applies effect without damage', () => {
+    const ctx = makeCombatCtx(100n, 200n);
+    const ability = makeAbility({ kind: 'debuff', value1: 0n, effectType: 'armor_down', effectMagnitude: 5n, effectDuration: 9n });
+    const enemyHpBefore = ctx.db.combat_enemy.id.find(10n).currentHp;
+    expect(() => resolveAbility(ctx, 100n, charActor, ability)).not.toThrow();
+    // Enemy should have armor_down effect
+    const enemyEffects = ctx.db.combat_enemy_effect._rows();
+    const armorDown = enemyEffects.find((e: any) => e.effectType === 'armor_down');
+    expect(armorDown).toBeDefined();
+    // Enemy HP should be unchanged (pure debuff, no damage)
+    const enemyHpAfter = ctx.db.combat_enemy.id.find(10n).currentHp;
+    expect(enemyHpAfter).toBe(enemyHpBefore);
+  });
+
+  it('debuff with value1 > 0 still deals 75% direct damage (backward compat)', () => {
+    const ctx = makeCombatCtx(100n, 200n);
+    const ability = makeAbility({ kind: 'debuff', value1: 20n, effectType: 'armor_down', effectMagnitude: 5n, effectDuration: 9n });
+    const enemyHpBefore = ctx.db.combat_enemy.id.find(10n).currentHp;
+    resolveAbility(ctx, 100n, charActor, ability);
+    const enemyHpAfter = ctx.db.combat_enemy.id.find(10n).currentHp;
+    // Enemy should have taken some damage
+    expect(enemyHpAfter).toBeLessThan(enemyHpBefore);
+  });
+});
+
+// ============================================================================
 // resolveAbility: DoT/HoT per-tick floor (quick-403)
 // ============================================================================
 

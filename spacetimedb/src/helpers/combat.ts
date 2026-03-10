@@ -569,7 +569,8 @@ export function resolveAbility(
     const directDamage = power / 2n; // 50% direct
     const dotTotal = power - directDamage; // 50% DoT
     const duration = ability.effectDuration ?? 3n;
-    let dotPerTick = duration > 0n ? dotTotal / duration : dotTotal;
+    // Each tick hits for the full dotTotal — DoTs reward patience with higher total output
+    let dotPerTick = dotTotal;
     if (dotPerTick < 1n && dotTotal > 0n) dotPerTick = 1n;
 
     if (actor.type === 'enemy') {
@@ -607,7 +608,8 @@ export function resolveAbility(
     const directHeal = power / 2n;
     const hotTotal = power - directHeal;
     const duration = ability.effectDuration ?? 3n;
-    let hotPerTick = duration > 0n ? hotTotal / duration : hotTotal;
+    // Each tick heals for the full hotTotal — HoTs reward patience with higher total output
+    let hotPerTick = hotTotal;
     if (hotPerTick < 1n && hotTotal > 0n) hotPerTick = 1n;
     // Apply direct heal
     const varied = applyVariance(calculateHealingPower(directHeal, actor.stats), nowMicros + actor.id + healTarget.id);
@@ -680,7 +682,8 @@ export function resolveAbility(
     const eMag = ability.effectMagnitude ?? 3n;
     const eDur = ability.effectDuration ?? 3n;
     const power = scaledPower();
-    const directDamage = (power * 75n) / 100n; // 75% direct, 25% budget to debuff
+    const isPureDebuff = ability.value1 === 0n;
+    const directDamage = isPureDebuff ? 0n : (power * 75n) / 100n; // 75% direct, 25% budget to debuff
 
     if (actor.type === 'enemy') {
       // Enemy debuff targets a player character
@@ -918,6 +921,151 @@ export function resolveAbility(
       const char = ctx.db.character.id.find(actor.id);
       if (char) logPrivate(char.id, char.ownerUserId, 'ability', `You use ${ability.name}.`);
       logGroup('ability', `${actor.name} uses ${ability.name}.`);
+    }
+    return;
+  }
+
+  // ======= NEW ABILITY KINDS (v2.1) =======
+
+  if (kind === 'song' || kind === 'aura') {
+    // Toggle party-wide persistent effect (song) or passive aura radiating from caster (aura)
+    const eType = ability.effectType ?? 'damage_up';
+    const eMag = ability.effectMagnitude ?? 3n;
+    const eDur = ability.effectDuration ?? 180n; // default 3 minutes
+    if (actor.type === 'character') {
+      const char = ctx.db.character.id.find(actor.id);
+      if (!char) return;
+      // Songs can apply to party members if in group; auras apply to self
+      if (kind === 'song' && (ability.targetRule === 'all_allies' || ability.targetRule === 'all_party')) {
+        const members = getPartyMembers();
+        for (const member of members) {
+          addCharacterEffect(ctx, member.id, eType, eMag, eDur, ability.name);
+        }
+      } else {
+        addCharacterEffect(ctx, char.id, eType, eMag, eDur, ability.name);
+      }
+      logPrivate(char.id, char.ownerUserId, 'ability', `You begin ${ability.name}.`);
+      logGroup('ability', `${actor.name} begins ${ability.name}.`);
+    }
+    return;
+  }
+
+  if (kind === 'fear') {
+    // CC debuff on enemy — apply stun/flee to target enemy
+    const enemy = findEnemyTarget();
+    if (!enemy || !combatId) { throw new SenderError('Must be in combat to use fear'); }
+    const ccType = ability.effectType ?? 'stun';
+    const ccDuration = ability.effectDuration ?? 4n;
+    addEnemyEffect(ctx, combatId, enemy.id, ccType, 1n, ccDuration, ability.name, actor.id);
+    if (actor.type === 'character') {
+      const char = ctx.db.character.id.find(actor.id);
+      if (char) logPrivate(char.id, char.ownerUserId, 'ability', `${actor.name}'s ${ability.name} fills ${getEnemyName(enemy)} with dread.`);
+      logGroup('ability', `${actor.name}'s ${ability.name} fills ${getEnemyName(enemy)} with dread.`);
+    }
+    return;
+  }
+
+  if (kind === 'group_heal') {
+    // Heal all party members at caster's location
+    const members = getPartyMembers();
+    const power = scaledPower();
+    const healAmount = calculateHealingPower(power, actor.stats);
+    const scaled = (healAmount * HEALING_POWER_SCALER) / 100n > 0n ? (healAmount * HEALING_POWER_SCALER) / 100n : 1n;
+    for (const member of members) {
+      const current = ctx.db.character.id.find(member.id);
+      if (!current || current.hp >= current.maxHp) continue;
+      const varied = applyVariance(scaled, nowMicros + actor.id + member.id);
+      const nextHp = current.hp + varied > current.maxHp ? current.maxHp : current.hp + varied;
+      ctx.db.character.id.update({ ...current, hp: nextHp });
+      logPrivate(current.id, current.ownerUserId, 'heal', `${ability.name} restores ${varied} health.`);
+    }
+    if (actor.type === 'character') {
+      const char = ctx.db.character.id.find(actor.id);
+      if (char) logPrivate(char.id, char.ownerUserId, 'heal', `${ability.name} heals the party.`);
+      logGroup('heal', `${actor.name}'s ${ability.name} heals the party.`);
+    }
+    return;
+  }
+
+  if (kind === 'bandage' || kind === 'potion') {
+    // Self-heal with optional buff effect — no combat restriction
+    if (actor.type !== 'character') return;
+    const char = ctx.db.character.id.find(actor.id);
+    if (!char) return;
+    const power = scaledPower();
+    const healAmount = calculateHealingPower(power, actor.stats);
+    const scaled = (healAmount * HEALING_POWER_SCALER) / 100n > 0n ? (healAmount * HEALING_POWER_SCALER) / 100n : 1n;
+    const varied = applyVariance(scaled, nowMicros + actor.id);
+    const nextHp = char.hp + varied > char.maxHp ? char.maxHp : char.hp + varied;
+    ctx.db.character.id.update({ ...char, hp: nextHp });
+    logPrivate(char.id, char.ownerUserId, 'heal', `${ability.name} restores ${varied} health.`);
+    // Optional buff effect (e.g. potion might apply a buff)
+    if (ability.effectType) {
+      addCharacterEffect(ctx, char.id, ability.effectType, ability.effectMagnitude ?? 3n, ability.effectDuration ?? 9n, ability.name);
+    }
+    logGroup('heal', `${actor.name} uses ${ability.name}, healing for ${varied}.`);
+    return;
+  }
+
+  if (kind === 'travel') {
+    // Apply travel-related buff to self — no combat restriction
+    const eType = ability.effectType ?? 'damage_up';
+    const eMag = ability.effectMagnitude ?? 3n;
+    const eDur = ability.effectDuration ?? 30n;
+    if (actor.type === 'character') {
+      const char = ctx.db.character.id.find(actor.id);
+      if (!char) return;
+      addCharacterEffect(ctx, char.id, eType, eMag, eDur, ability.name);
+      logPrivate(char.id, char.ownerUserId, 'ability', `You activate ${ability.name}.`);
+      logGroup('ability', `${actor.name} activates ${ability.name}.`);
+    }
+    return;
+  }
+
+  if (kind === 'craft_boost' || kind === 'gather_boost') {
+    // Apply loot_bonus or similar effect to self — no combat restriction
+    const eType = ability.effectType ?? 'loot_bonus';
+    const eMag = ability.effectMagnitude ?? 3n;
+    const eDur = ability.effectDuration ?? 30n;
+    if (actor.type === 'character') {
+      const char = ctx.db.character.id.find(actor.id);
+      if (!char) return;
+      addCharacterEffect(ctx, char.id, eType, eMag, eDur, ability.name);
+      logPrivate(char.id, char.ownerUserId, 'ability', `You activate ${ability.name}.`);
+      logGroup('ability', `${actor.name} activates ${ability.name}.`);
+    }
+    return;
+  }
+
+  if (kind === 'food_summon') {
+    // Placeholder — log "You conjure sustenance" and apply a buff effect. No item creation needed this phase.
+    if (actor.type === 'character') {
+      const char = ctx.db.character.id.find(actor.id);
+      if (!char) return;
+      if (ability.effectType) {
+        addCharacterEffect(ctx, char.id, ability.effectType, ability.effectMagnitude ?? 3n, ability.effectDuration ?? 30n, ability.name);
+      }
+      logPrivate(char.id, char.ownerUserId, 'ability', `You conjure sustenance with ${ability.name}.`);
+      logGroup('ability', `${actor.name} conjures sustenance with ${ability.name}.`);
+    }
+    return;
+  }
+
+  if (kind === 'resurrect') {
+    // Placeholder — full resurrection mechanics deferred
+    if (actor.type === 'character') {
+      const char = ctx.db.character.id.find(actor.id);
+      if (char) logPrivate(char.id, char.ownerUserId, 'ability', `You channel ${ability.name} — resurrection mechanics are not yet implemented.`);
+    }
+    return;
+  }
+
+  if (kind === 'pet_command') {
+    // Placeholder — full pet system deferred
+    if (actor.type === 'character') {
+      const char = ctx.db.character.id.find(actor.id);
+      if (char) logPrivate(char.id, char.ownerUserId, 'ability', `You use ${ability.name} to command your pet.`);
+      logGroup('ability', `${actor.name} commands their pet with ${ability.name}.`);
     }
     return;
   }
