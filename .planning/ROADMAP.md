@@ -90,12 +90,14 @@ Plans:
   3. Enemy HUD shows active DoT, HoT, and debuff icons with remaining duration countdown
   4. Player can engage multiple enemy groups simultaneously without combat state corruption
   5. Damage and healing constants are tuned and validated by passing test assertions
-**Plans**: 3 plans
+**Plans**: 5 plans
 
 Plans:
 - [ ] 33-01-PLAN.md -- Combat log narrative messages, buff/debuff lifecycle events, balance tuning
 - [ ] 33-02-PLAN.md -- Multi-enemy pull fixes, remove puller role restriction
 - [ ] 33-03-PLAN.md -- Enemy HUD effect indicators with color coding and duration countdown
+- [ ] 33-04-PLAN.md -- Gap closure: fix CREATION_ABILITY_SCHEMA field mismatch (effect -> kind)
+- [ ] 33-05-PLAN.md -- Gap closure: enable mid-combat pull via narrative enemy clicks
 
 ### Phase 34: Narrative UI Integration
 **Goal**: Players can sell items and manage hotbars entirely through the narrative console with styled event feedback
@@ -167,11 +169,11 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37
 | 24-30 | v2.0 | 22/22 | Complete | 2026-03-09 |
 | 31. Test Infrastructure | 3/3 | Complete    | 2026-03-09 | - |
 | 32. Dead Code Removal | 3/3 | Complete    | 2026-03-09 | - |
-| 33. Combat Improvements | 2/3 | In Progress|  | - |
+| 33. Combat Improvements | 2/5 | In Progress|  | - |
 | 34. Narrative UI Integration | v2.1 | 0/? | Not started | - |
 | 35. Dynamic Equipment Generation | v2.1 | 0/? | Not started | - |
 | 36. Ability Expansion | v2.1 | 0/? | Not started | - |
 | 37. UX Polish | v2.1 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-09 after phase 33 planning*
+*Last updated: 2026-03-10 after phase 33 gap closure planning*
