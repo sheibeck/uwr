@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
 status: executing
-stopped_at: Completed 33-05-PLAN.md
-last_updated: "2026-03-10T02:40:12.862Z"
+stopped_at: Completed 33-04-PLAN.md
+last_updated: "2026-03-10T02:41:06.415Z"
 last_activity: "2026-03-09 - Completed 33-01: Combat log narrative messages and balance tuning"
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 11
-  completed_plans: 9
+  completed_plans: 10
   percent: 88
 ---
 
@@ -66,6 +66,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 33-01]: Mana cast time floor enforced at resolution time, not generation time
 - [Phase 33-01]: Buff/debuff event kinds separate from damage/heal for independent color control
 - [Phase 33-05]: Combat enemy targeting takes priority over pull in clickNpcKeyword: combatEnemiesList checked first, then availableEnemies for mid-combat pull
+- [Phase 33-combat-improvements]: CREATION_ABILITY_SCHEMA now uses 'kind' field matching SKILL_GENERATION_SCHEMA; backward compat via chosen.effect fallback for cached creation states
 
 ### Pending Todos
 
@@ -85,5 +86,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-10T02:40:08.190Z
-Stopped at: Completed 33-05-PLAN.md
+Last session: 2026-03-10T02:41:06.409Z
+Stopped at: Completed 33-04-PLAN.md
