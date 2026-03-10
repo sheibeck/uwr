@@ -66,11 +66,14 @@ export function pickDiscoveryMessage(
  * Compute danger multiplier for a newly generated region.
  * Increases by 50-100 from source region's danger, caps at 800.
  * Uses timestamp-derived pseudorandom for determinism in reducers.
+ * When isStarter=true, returns exactly 100n to ensure level 1 enemies.
  */
 export function computeRegionDanger(
   sourceRegionDanger: bigint,
-  timestampMicros: bigint
+  timestampMicros: bigint,
+  isStarter: boolean = false
 ): bigint {
+  if (isStarter) return 100n;
   const increase = Number(timestampMicros % 51n) + 50;
   const newDanger = Number(sourceRegionDanger) + increase;
   return BigInt(Math.min(newDanger, 800));
@@ -152,11 +155,13 @@ export function findHomeLocation(locationsByName: Record<string, any>): any | nu
  */
 export function writeGeneratedRegion(tx: any, parsed: any, genState: any): any {
   // 1. Compute danger multiplier from source region
+  const isStarter = genState.sourceRegionId === 0n;
   const sourceRegion = tx.db.region.id.find(genState.sourceRegionId);
   const sourceRegionDanger = sourceRegion?.dangerMultiplier ?? 100n;
   const dangerMultiplier = computeRegionDanger(
     sourceRegionDanger,
-    tx.timestamp.microsSinceUnixEpoch
+    tx.timestamp.microsSinceUnixEpoch,
+    isStarter
   );
 
   // 2. Insert Region with canonical facts
@@ -232,9 +237,10 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any): any {
   const enemyTemplateRows: any[] = [];
   for (const enemy of enemies) {
     // Clamp enemy level to region danger range: baseLevel ± 1
+    // In starter regions (baseLevel=1), force all enemies to exactly level 1
     const baseLevel = dangerMultiplier / 100n;
-    const minLevel = baseLevel > 1n ? baseLevel - 1n : 1n;
-    const maxLevel = baseLevel + 1n > 1n ? baseLevel + 1n : 2n;
+    const minLevel = baseLevel <= 1n ? 1n : baseLevel - 1n;
+    const maxLevel = baseLevel <= 1n ? 1n : baseLevel + 1n;
     let level = BigInt(enemy.level || 1);
     if (level < minLevel) level = minLevel;
     if (level > maxLevel) level = maxLevel;

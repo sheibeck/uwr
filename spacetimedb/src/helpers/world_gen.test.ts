@@ -7,11 +7,7 @@ vi.mock('./location', () => ({
   },
 }));
 
-vi.mock('../data/world_gen', () => ({
-  computeRegionDanger: (_sourceDanger: bigint, _timestamp: bigint) => 100n,
-}));
-
-import { writeGeneratedRegion, findHomeLocation } from './world_gen';
+import { writeGeneratedRegion, findHomeLocation, computeRegionDanger } from './world_gen';
 import { createMockDb } from './test-utils';
 
 function createMockTx() {
@@ -131,5 +127,72 @@ describe('writeGeneratedRegion', () => {
     expect(safeLocation).toBeDefined();
     expect(safeLocation.bindStone).toBe(true);
     expect(safeLocation.craftingAvailable).toBe(true);
+  });
+});
+
+describe('computeRegionDanger', () => {
+  it('returns a value 50-100 greater than source danger for non-starter regions', () => {
+    const sourceDanger = 100n;
+    const result = computeRegionDanger(sourceDanger, 1000000n, false);
+    expect(result).toBeGreaterThanOrEqual(150n);
+    expect(result).toBeLessThanOrEqual(200n);
+  });
+
+  it('returns exactly 100n for starter regions regardless of timestamp', () => {
+    expect(computeRegionDanger(100n, 1000000n, true)).toBe(100n);
+    expect(computeRegionDanger(150n, 9999999n, true)).toBe(100n);
+    expect(computeRegionDanger(200n, 0n, true)).toBe(100n);
+  });
+
+  it('caps danger at 800n for non-starter regions', () => {
+    const result = computeRegionDanger(800n, 1000000n, false);
+    expect(result).toBe(800n);
+  });
+});
+
+describe('writeGeneratedRegion - starter region behavior', () => {
+  function createMockTx() {
+    const db = createMockDb();
+    return {
+      db,
+      timestamp: { microsSinceUnixEpoch: 1000000000000n },
+    };
+  }
+
+  it('starter region (sourceRegionId=0n) gets dangerMultiplier=100n', () => {
+    const tx = createMockTx();
+    // No source region seeded (sourceRegionId=0n means first region)
+    const parsed = baseParsedData();
+    const starterGenState = { id: 1n, sourceRegionId: 0n, sourceLocationId: 0n, characterId: 10n };
+    const region = writeGeneratedRegion(tx, parsed, starterGenState);
+    expect(region.dangerMultiplier).toBe(100n);
+  });
+
+  it('starter region enemies are all clamped to level 1', () => {
+    const tx = createMockTx();
+    const parsed = baseParsedData({
+      enemies: [
+        { name: 'Wolf', creatureType: 'beast', role: 'melee', terrainTypes: 'woods', groupMin: 1, groupMax: 2, level: 3 },
+        { name: 'Bandit', creatureType: 'humanoid', role: 'melee', terrainTypes: 'plains', groupMin: 1, groupMax: 1, level: 2 },
+      ],
+    });
+    const starterGenState = { id: 1n, sourceRegionId: 0n, sourceLocationId: 0n, characterId: 10n };
+    writeGeneratedRegion(tx, parsed, starterGenState);
+
+    const enemies = tx.db.enemy_template._rows();
+    expect(enemies.length).toBe(2);
+    for (const enemy of enemies) {
+      expect(enemy.level).toBe(1n);
+    }
+  });
+
+  it('non-starter region (sourceRegionId != 0n) gets increased danger', () => {
+    const tx = createMockTx();
+    tx.db.region.insert({ id: 100n, name: 'Source', dangerMultiplier: 100n });
+    const parsed = baseParsedData();
+    const region = writeGeneratedRegion(tx, parsed, baseGenState());
+    // Danger should be 150-200 (increase of 50-100)
+    expect(region.dangerMultiplier).toBeGreaterThanOrEqual(150n);
+    expect(region.dangerMultiplier).toBeLessThanOrEqual(200n);
   });
 });
