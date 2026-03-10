@@ -1417,6 +1417,14 @@ const onCreationSubmit = (text: string) => {
       addLocalEvent('system', `Targeting ${kw}`, 'private');
       return;
     }
+    // Mid-combat pull: if clicked enemy is available (not in fight), initiate pull
+    const pullableSpawn = availableEnemies.value.find(
+      (e: any) => e.name?.toLowerCase() === kwLower
+    );
+    if (pullableSpawn) {
+      startPull(pullableSpawn.id, 'body');
+      return;
+    }
   }
 
   // Loot keywords
