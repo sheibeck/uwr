@@ -39,6 +39,7 @@ import PrepareCreationLlmReducer from "./prepare_creation_llm_reducer";
 import PrepareWorldGenLlmReducer from "./prepare_world_gen_llm_reducer";
 import PrepareSkillGenReducer from "./prepare_skill_gen_reducer";
 import ChooseSkillReducer from "./choose_skill_reducer";
+import ApplyLevelUpReducer from "./apply_level_up_reducer";
 import SubmitLlmResultReducer from "./submit_llm_result_reducer";
 import SetDisplayNameReducer from "./set_display_name_reducer";
 import SendFriendRequestReducer from "./send_friend_request_reducer";
@@ -1738,6 +1739,7 @@ const reducersSchema = __reducers(
   __reducerSchema("prepare_world_gen_llm", PrepareWorldGenLlmReducer),
   __reducerSchema("prepare_skill_gen", PrepareSkillGenReducer),
   __reducerSchema("choose_skill", ChooseSkillReducer),
+  __reducerSchema("apply_level_up", ApplyLevelUpReducer),
   __reducerSchema("submit_llm_result", SubmitLlmResultReducer),
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("send_friend_request", SendFriendRequestReducer),

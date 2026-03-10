@@ -70,4 +70,5 @@ export default __t.row({
   lastCombatEndAt: __t.option(__t.u64()).name("last_combat_end_at"),
   weaponProficiencies: __t.option(__t.string()).name("weapon_proficiencies"),
   armorProficiencies: __t.option(__t.string()).name("armor_proficiencies"),
+  pendingLevels: __t.u64().name("pending_levels"),
 });

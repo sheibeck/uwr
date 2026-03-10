@@ -177,6 +177,7 @@ export const Character = __t.object("Character", {
   lastCombatEndAt: __t.option(__t.u64()),
   weaponProficiencies: __t.option(__t.string()),
   armorProficiencies: __t.option(__t.string()),
+  pendingLevels: __t.u64(),
 });
 export type Character = __Infer<typeof Character>;
 

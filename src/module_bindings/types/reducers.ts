@@ -11,6 +11,7 @@ import PrepareCreationLlmReducer from "../prepare_creation_llm_reducer";
 import PrepareWorldGenLlmReducer from "../prepare_world_gen_llm_reducer";
 import PrepareSkillGenReducer from "../prepare_skill_gen_reducer";
 import ChooseSkillReducer from "../choose_skill_reducer";
+import ApplyLevelUpReducer from "../apply_level_up_reducer";
 import SubmitLlmResultReducer from "../submit_llm_result_reducer";
 import SetDisplayNameReducer from "../set_display_name_reducer";
 import SendFriendRequestReducer from "../send_friend_request_reducer";
@@ -115,6 +116,7 @@ export type PrepareCreationLlmParams = __Infer<typeof PrepareCreationLlmReducer>
 export type PrepareWorldGenLlmParams = __Infer<typeof PrepareWorldGenLlmReducer>;
 export type PrepareSkillGenParams = __Infer<typeof PrepareSkillGenReducer>;
 export type ChooseSkillParams = __Infer<typeof ChooseSkillReducer>;
+export type ApplyLevelUpParams = __Infer<typeof ApplyLevelUpReducer>;
 export type SubmitLlmResultParams = __Infer<typeof SubmitLlmResultReducer>;
 export type SetDisplayNameParams = __Infer<typeof SetDisplayNameReducer>;
 export type SendFriendRequestParams = __Infer<typeof SendFriendRequestReducer>;
