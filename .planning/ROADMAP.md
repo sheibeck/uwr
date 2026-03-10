@@ -41,7 +41,7 @@ See `.planning/milestones/v2.0-ROADMAP.md` for full details.
 - [ ] **Phase 33: Combat Improvements** - Complete combat logging, enemy effect indicators, balance tuning, multi-pull verification
 - [ ] **Phase 34: Narrative UI Integration** - Sell commands, hotbar in narrative UI, event feed styling
 - [ ] **Phase 35: Dynamic Equipment Generation** - Level-scaled equipment drops replacing hardcoded gear definitions
-- [ ] **Phase 36: Ability Expansion** - Extend ability kinds to cover all game systems with server and client dispatch
+- [x] **Phase 36: Ability Expansion** - Extend ability kinds to cover all game systems with server and client dispatch (completed 2026-03-10)
 - [ ] **Phase 37: UX Polish** - Global font scaling and group info readability
 
 ## Phase Details
@@ -181,7 +181,7 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37
 | 33. Combat Improvements | 4/5 | In Progress|  | - |
 | 34. Narrative UI Integration | v2.1 | 0/3 | Not started | - |
 | 35. Dynamic Equipment Generation | v2.1 | 0/? | Not started | - |
-| 36. Ability Expansion | 4/5 | In Progress|  | - |
+| 36. Ability Expansion | 5/5 | Complete   | 2026-03-10 | - |
 | 37. UX Polish | v2.1 | 0/? | Not started | - |
 
 ---
