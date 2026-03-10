@@ -1,10 +1,13 @@
-import { computed, watch, type ComputedRef, type Ref } from 'vue';
+import { computed, type ComputedRef, type Ref } from 'vue';
 import type { DbConnection } from '../module_bindings';
 import type { PendingSkill, Character } from '../module_bindings/types';
 
 /**
  * Watches PendingSkill table for the current character, provides skill choice
- * actions, and auto-triggers skill generation on level-up.
+ * actions, and exposes pending level-up state.
+ *
+ * NOTE: Auto-trigger of skill gen on level-up has been removed — the
+ * apply_level_up reducer now handles skill generation server-side.
  */
 export function useSkillChoice({
   selectedCharacter,
@@ -28,6 +31,10 @@ export function useSkillChoice({
 
   const hasPendingSkills = computed(() => myPendingSkills.value.length > 0);
 
+  // Pending level-up state
+  const pendingLevels = computed(() => selectedCharacter.value?.pendingLevels ?? 0n);
+  const hasPendingLevels = computed(() => pendingLevels.value > 0n);
+
   // Choose a skill by clicking its name (case-insensitive match)
   function chooseSkill(skillName: string): boolean {
     const skill = myPendingSkills.value.find(
@@ -40,7 +47,7 @@ export function useSkillChoice({
     return true;
   }
 
-  // Trigger skill generation for a level-up
+  // Trigger skill generation for a level-up (manual fallback)
   function requestSkillGen() {
     if (!characterId.value) return;
     const conn = window.__db_conn as DbConnection | undefined;
@@ -48,26 +55,21 @@ export function useSkillChoice({
     conn.reducers.prepareSkillGen({ characterId: characterId.value });
   }
 
-  // Auto-trigger skill gen when level increases and no pending skills exist
-  watch(
-    () => selectedCharacter.value?.level,
-    (newLevel, oldLevel) => {
-      if (
-        newLevel != null &&
-        oldLevel != null &&
-        newLevel > oldLevel &&
-        !hasPendingSkills.value &&
-        connActive.value
-      ) {
-        requestSkillGen();
-      }
-    }
-  );
+  // Apply one pending level-up
+  function applyLevelUp() {
+    if (!characterId.value) return;
+    const conn = window.__db_conn as DbConnection | undefined;
+    if (!conn) return;
+    conn.reducers.applyLevelUp({ characterId: characterId.value });
+  }
 
   return {
     myPendingSkills,
     hasPendingSkills,
+    pendingLevels,
+    hasPendingLevels,
     chooseSkill,
     requestSkillGen,
+    applyLevelUp,
   };
 }

@@ -1,9 +1,9 @@
 <template>
   <div :style="hudStyle">
     <template v-if="character">
-      <!-- Left: Name + Level -->
+      <!-- Left: Name + Level + Race + Class -->
       <div :style="{ color: '#e9ecef', fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap' }">
-        {{ character.name }} Lv {{ character.level }}
+        {{ character.name }} Lv {{ character.level }} - {{ character.race }} {{ character.className }}
       </div>
 
       <!-- Right: Combat + Panel buttons -->
@@ -13,6 +13,14 @@
           <span :style="combatDotStyle" />
           <span :style="{ color: '#ff6b6b', fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap' }">IN COMBAT</span>
         </div>
+
+        <!-- Level up indicator -->
+        <span
+          v-if="(pendingLevels ?? 0) > 0"
+          :style="levelUpIndicatorStyle"
+          title="You have levels pending! Click to level up."
+          @click="$emit('level-up-click')"
+        >LEVEL UP{{ (pendingLevels ?? 0) > 1 ? ` (${pendingLevels})` : '' }}</span>
 
         <!-- Pending skill indicator -->
         <span
@@ -49,10 +57,12 @@ defineProps<{
   activeCombat: any | null;
   connActive: boolean;
   hasPendingSkills?: boolean;
+  pendingLevels?: number;
 }>();
 
 defineEmits<{
   (e: 'open-panel', panelId: string): void;
+  (e: 'level-up-click'): void;
 }>();
 
 const panelButtons = [
@@ -101,6 +111,16 @@ const skillIndicatorStyle = {
   whiteSpace: 'nowrap' as const,
   animation: 'skillPulse 2s ease-in-out infinite',
   cursor: 'default',
+  letterSpacing: '0.05em',
+};
+
+const levelUpIndicatorStyle = {
+  color: '#ffa500',
+  fontSize: '0.65rem',
+  fontWeight: 700,
+  whiteSpace: 'nowrap' as const,
+  animation: 'skillPulse 2s ease-in-out infinite',
+  cursor: 'pointer',
   letterSpacing: '0.05em',
 };
 </script>

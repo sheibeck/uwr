@@ -7,7 +7,9 @@
       :active-combat="activeCombat"
       :conn-active="connActive"
       :has-pending-skills="hasPendingSkills"
+      :pending-levels="pendingLevels"
       @open-panel="$emit('open-panel', $event)"
+      @level-up-click="$emit('level-up-click')"
     />
 
     <!-- Group member bar (below HUD, shown when character exists) -->
@@ -120,6 +122,7 @@ const props = defineProps<{
   formatTimestamp: (ts: { microsSinceUnixEpoch: bigint }) => string;
   creationMode?: boolean;
   hasPendingSkills?: boolean;
+  pendingLevels?: number;
   isInCombat?: boolean;
   combatAbilities?: any[];
   combatEnemies?: any[];
@@ -141,6 +144,7 @@ defineEmits<{
   (e: 'use-ability', abilityId: bigint): void;
   (e: 'target-enemy', enemyId: bigint): void;
   (e: 'target', characterId: bigint): void;
+  (e: 'level-up-click'): void;
 }>();
 
 const progressBar = (progress: number, width = 20): string => {

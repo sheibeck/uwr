@@ -65,6 +65,7 @@
       :is-llm-processing="isNarrativeLlmProcessing"
       :format-timestamp="formatTimestamp"
       :has-pending-skills="hasPendingSkills"
+      :pending-levels="Number(pendingLevels)"
       :is-in-combat="combatUiVisible"
       :combat-abilities="combatAbilitiesForBar"
       :combat-enemies="combatEnemiesList"
@@ -83,6 +84,7 @@
       @use-ability="onCombatUseAbility"
       @target-enemy="onCombatTargetEnemy"
       @target="setDefensiveTarget"
+      @level-up-click="onLevelUpClick"
     />
 
     <FloatingPanel v-if="selectedCharacter" panel-id="hotbar" title="Hotbar" hotbar>
@@ -788,8 +790,8 @@ const { isProcessing: isLlmProxyProcessing } = useLlmProxy({
   llmTasks,
 });
 
-// Skill choice: watches PendingSkill table, auto-triggers skill gen on level-up
-const { myPendingSkills, hasPendingSkills, chooseSkill: chooseSkillByName, requestSkillGen } = useSkillChoice({
+// Skill choice: watches PendingSkill table, exposes pending level-up state
+const { myPendingSkills, hasPendingSkills, pendingLevels, hasPendingLevels, chooseSkill: chooseSkillByName, requestSkillGen, applyLevelUp } = useSkillChoice({
   selectedCharacter,
   pendingSkills,
   connActive: computed(() => conn.isActive),
@@ -1369,6 +1371,20 @@ const onCreationSubmit = (text: string) => {
   const kw = keyword.trim();
   const kwLower = kw.toLowerCase();
 
+  // Level up keyword — show confirmation or execute
+  if (kwLower === 'level up') {
+    if (hasPendingLevels.value) {
+      onLevelUpClick();
+    }
+    return;
+  }
+  if (kwLower === 'confirm level up') {
+    if (hasPendingLevels.value) {
+      applyLevelUp();
+    }
+    return;
+  }
+
   // Pull type selection (from attack intent prompt)
   if (kwLower === 'careful pull') {
     const spawn = pendingPullTargetId.value
@@ -1681,14 +1697,6 @@ const onCreationSubmit = (text: string) => {
     return;
   }
 
-  // 13. Choose ability keyword (from abilities command)
-  if (kwLower === 'choose ability') {
-    if (selectedCharacter.value && conn.isActive) {
-      requestSkillGen();
-    }
-    return;
-  }
-
   // 13.5a Whisper click with no message — show hint (trailing space means intent but no message yet)
   if ((kwLower.startsWith('whisper ') || kwLower.startsWith('w ')) && kw.trim().split(/\s+/).length === 2) {
     const targetName = kw.trim().split(/\s+/)[1];
@@ -1720,6 +1728,17 @@ const onCreationSubmit = (text: string) => {
 // Handle panel opening from NarrativeHud
 const onOpenPanel = (panelId: string) => {
   togglePanel(panelId);
+};
+
+// Handle LEVEL UP indicator click — show confirmation in narrative console
+const onLevelUpClick = () => {
+  if (!hasPendingLevels.value) return;
+  const pending = Number(pendingLevels.value);
+  const pendingText = pending > 1 ? `${pending} levels pending` : '1 level pending';
+  addLocalEvent('narrative',
+    `Ready to level up? (${pendingText}) The Keeper will guide you through ability selection. This involves narration and may take a moment. Click [Confirm Level Up] to proceed.`,
+    'private'
+  );
 };
 
 const inviteToGroup = (targetName: string) => {
