@@ -64,6 +64,8 @@
       :is-llm-processing="isNarrativeLlmProcessing"
       :format-timestamp="formatTimestamp"
       :has-pending-skills="hasPendingSkills"
+      :has-pending-renown-perks="hasPendingRenownPerks"
+      :pending-renown-perks="myPendingRenownPerks"
       :pending-levels="Number(pendingLevels)"
       :is-in-combat="combatUiVisible"
       :combat-enemies="combatEnemiesList"
@@ -463,6 +465,7 @@ import { useCharacterCreation } from './composables/useCharacterCreation';
 import { useWorldGeneration } from './composables/useWorldGeneration';
 import { useLlmProxy } from './composables/useLlmProxy';
 import { useSkillChoice } from './composables/useSkillChoice';
+import { useRenownPerks } from './composables/useRenownPerks';
 import { useCommands } from './composables/useCommands';
 import { useContextActions } from './composables/useContextActions';
 import { useCombat } from './composables/useCombat';
@@ -574,6 +577,7 @@ const {
   worldGenStates,
   llmTasks,
   pendingSkills,
+  pendingRenownPerks,
 } = useGameData(currentLocationId);
 
 watch(appVersionRows, (rows) => {
@@ -796,6 +800,13 @@ const { isProcessing: isLlmProxyProcessing } = useLlmProxy({
 const { myPendingSkills, hasPendingSkills, pendingLevels, hasPendingLevels, chooseSkill: chooseSkillByName, requestSkillGen, applyLevelUp } = useSkillChoice({
   selectedCharacter,
   pendingSkills,
+  connActive: computed(() => conn.isActive),
+});
+
+// Renown perks: watches PendingRenownPerk table, exposes perk choice actions
+const { myPendingRenownPerks, hasPendingRenownPerks, pendingRenownRank, chooseRenownPerk: chooseRenownPerkByName } = useRenownPerks({
+  selectedCharacter,
+  pendingRenownPerks,
   connActive: computed(() => conn.isActive),
 });
 
@@ -1356,6 +1367,10 @@ const onCreationSubmit = (text: string) => {
   console.log('[clickNpcKeyword]', keyword, 'isInCreation:', isInCreation.value, 'hasPendingSkills:', hasPendingSkills.value);
   // 1. Skill choice — click-only (typed skill choice uses different input mode)
   if (hasPendingSkills.value && chooseSkillByName(keyword)) {
+    return;
+  }
+  // 1b. Renown perk choice — click-only
+  if (hasPendingRenownPerks.value && chooseRenownPerkByName(keyword)) {
     return;
   }
   // 2. Creation input — click-only (typed creation uses onCreationSubmit)

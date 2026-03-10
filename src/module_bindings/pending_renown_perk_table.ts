@@ -13,6 +13,7 @@ import {
 export default __t.row({
   id: __t.u64().primaryKey(),
   characterId: __t.u64().name("character_id"),
+  rank: __t.u64(),
   name: __t.string(),
   description: __t.string(),
   kind: __t.string(),
@@ -28,8 +29,7 @@ export default __t.row({
   effectType: __t.option(__t.string()).name("effect_type"),
   effectMagnitude: __t.option(__t.u64()).name("effect_magnitude"),
   effectDuration: __t.option(__t.u64()).name("effect_duration"),
-  levelRequired: __t.u64().name("level_required"),
-  isGenerated: __t.bool().name("is_generated"),
-  source: __t.option(__t.string()),
-  abilityKey: __t.option(__t.string()).name("ability_key"),
+  perkEffectJson: __t.option(__t.string()).name("perk_effect_json"),
+  perkDomain: __t.option(__t.string()).name("perk_domain"),
+  createdAt: __t.timestamp().name("created_at"),
 });

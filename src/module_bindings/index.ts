@@ -128,6 +128,7 @@ import PullNamedEnemyReducer from "./pull_named_enemy_reducer";
 import TurnInQuestReducer from "./turn_in_quest_reducer";
 import AbandonQuestReducer from "./abandon_quest_reducer";
 import ChoosePerkReducer from "./choose_perk_reducer";
+import ChooseRenownPerkReducer from "./choose_renown_perk_reducer";
 import GrantTestRenownReducer from "./grant_test_renown_reducer";
 import GrantTestAchievementReducer from "./grant_test_achievement_reducer";
 import SavePanelLayoutReducer from "./save_panel_layout_reducer";
@@ -224,6 +225,7 @@ import NpcDialogRow from "./npc_dialog_table";
 import NpcDialogueOptionRow from "./npc_dialogue_option_table";
 import NpcDialogueVisitedRow from "./npc_dialogue_visited_table";
 import NpcMemoryRow from "./npc_memory_table";
+import PendingRenownPerkRow from "./pending_renown_perk_table";
 import PendingSkillRow from "./pending_skill_table";
 import PendingSpellCastRow from "./pending_spell_cast_table";
 import PlayerRow from "./player_table";
@@ -1224,6 +1226,20 @@ const tablesSchema = __schema({
       { name: 'npc_memory_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, NpcMemoryRow),
+  pending_renown_perk: __table({
+    name: 'pending_renown_perk',
+    indexes: [
+      { name: 'by_character', algorithm: 'btree', columns: [
+        'characterId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'pending_renown_perk_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, PendingRenownPerkRow),
   pending_skill: __table({
     name: 'pending_skill',
     indexes: [
@@ -1850,6 +1866,7 @@ const reducersSchema = __reducers(
   __reducerSchema("turn_in_quest", TurnInQuestReducer),
   __reducerSchema("abandon_quest", AbandonQuestReducer),
   __reducerSchema("choose_perk", ChoosePerkReducer),
+  __reducerSchema("choose_renown_perk", ChooseRenownPerkReducer),
   __reducerSchema("grant_test_renown", GrantTestRenownReducer),
   __reducerSchema("grant_test_achievement", GrantTestAchievementReducer),
   __reducerSchema("save_panel_layout", SavePanelLayoutReducer),

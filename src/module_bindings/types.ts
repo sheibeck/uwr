@@ -39,6 +39,8 @@ export const AbilityTemplate = __t.object("AbilityTemplate", {
   effectDuration: __t.option(__t.u64()),
   levelRequired: __t.u64(),
   isGenerated: __t.bool(),
+  source: __t.option(__t.string()),
+  abilityKey: __t.option(__t.string()),
 });
 export type AbilityTemplate = __Infer<typeof AbilityTemplate>;
 
@@ -974,6 +976,31 @@ export const NpcMemory = __t.object("NpcMemory", {
   lastUpdated: __t.timestamp(),
 });
 export type NpcMemory = __Infer<typeof NpcMemory>;
+
+export const PendingRenownPerk = __t.object("PendingRenownPerk", {
+  id: __t.u64(),
+  characterId: __t.u64(),
+  rank: __t.u64(),
+  name: __t.string(),
+  description: __t.string(),
+  kind: __t.string(),
+  targetRule: __t.string(),
+  resourceType: __t.string(),
+  resourceCost: __t.u64(),
+  castSeconds: __t.u64(),
+  cooldownSeconds: __t.u64(),
+  scaling: __t.string(),
+  value1: __t.u64(),
+  value2: __t.option(__t.u64()),
+  damageType: __t.option(__t.string()),
+  effectType: __t.option(__t.string()),
+  effectMagnitude: __t.option(__t.u64()),
+  effectDuration: __t.option(__t.u64()),
+  perkEffectJson: __t.option(__t.string()),
+  perkDomain: __t.option(__t.string()),
+  createdAt: __t.timestamp(),
+});
+export type PendingRenownPerk = __Infer<typeof PendingRenownPerk>;
 
 export const PendingSkill = __t.object("PendingSkill", {
   id: __t.u64(),
