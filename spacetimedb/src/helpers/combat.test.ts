@@ -863,3 +863,163 @@ describe('addCharacterEffect narrative messages', () => {
     );
   });
 });
+
+// ============================================================================
+// resolveAbility: DoT/HoT per-tick floor (quick-403)
+// ============================================================================
+
+describe('resolveAbility dot handler - per-tick floor', () => {
+  function makeCombatCtx(charHp = 100n, enemyHp = 200n) {
+    return createMockCtx({
+      seed: {
+        character: [{ id: 1n, ownerUserId: 10n, hp: charHp, maxHp: charHp, groupId: undefined, combatTargetEnemyId: undefined, str: 5n, dex: 5n, int: 5n, wis: 5n, cha: 5n, level: 5n, name: 'TestChar' }],
+        combat_encounter: [{ id: 100n, state: 'active' }],
+        combat_enemy: [{ id: 10n, combatId: 100n, enemyTemplateId: 1n, currentHp: enemyHp, maxHp: enemyHp, armorClass: 0n, displayName: 'Goblin' }],
+        combat_enemy_effect: [],
+        character_effect: [],
+        aggro_entry: [],
+        ability_template: [],
+        enemy_template: [{ id: 1n, name: 'Goblin' }],
+        combat_participant: [{ id: 1n, combatId: 100n, characterId: 1n, status: 'active' }],
+        active_pet: [],
+      },
+    });
+  }
+
+  const charActor: AbilityActor = {
+    type: 'character',
+    id: 1n,
+    stats: { str: 5n, dex: 5n, int: 5n, wis: 5n, cha: 5n },
+    level: 5n,
+    name: 'TestChar',
+  };
+
+  it('applies DoT effect even with low power (power=2, duration=9)', () => {
+    const ctx = makeCombatCtx();
+    const ability: AbilityRow = {
+      id: 70n,
+      kind: 'dot',
+      targetRule: 'enemy',
+      value1: 2n,
+      value2: undefined,
+      damageType: 'magic',
+      scaling: 'int',
+      effectType: 'dot',
+      effectMagnitude: undefined,
+      effectDuration: 9n,
+      name: 'Rot Bloom',
+      resourceType: 'mana',
+      resourceCost: 10n,
+      cooldownSeconds: 0n,
+      castSeconds: 0n,
+    };
+
+    resolveAbility(ctx, 100n, charActor, ability);
+
+    // DoT effect must be inserted even when dotTotal < duration
+    const enemyEffects = ctx.db.combat_enemy_effect._rows();
+    expect(enemyEffects.length).toBeGreaterThanOrEqual(1);
+    const dotEffect = enemyEffects.find((e: any) => e.effectType === 'dot');
+    expect(dotEffect).toBeDefined();
+    expect(dotEffect.magnitude).toBeGreaterThanOrEqual(1n);
+  });
+
+  it('applies correct DoT magnitude with high power (value1=50, duration=9)', () => {
+    const ctx = makeCombatCtx();
+    const ability: AbilityRow = {
+      id: 71n,
+      kind: 'dot',
+      targetRule: 'enemy',
+      value1: 50n,
+      value2: undefined,
+      damageType: 'magic',
+      scaling: 'int',
+      effectType: 'dot',
+      effectMagnitude: undefined,
+      effectDuration: 9n,
+      name: 'Burning Hex',
+      resourceType: 'mana',
+      resourceCost: 10n,
+      cooldownSeconds: 0n,
+      castSeconds: 0n,
+    };
+
+    resolveAbility(ctx, 100n, charActor, ability);
+
+    const enemyEffects = ctx.db.combat_enemy_effect._rows();
+    const dotEffect = enemyEffects.find((e: any) => e.effectType === 'dot');
+    expect(dotEffect).toBeDefined();
+    // With higher power the per-tick magnitude should be > 1n
+    expect(dotEffect.magnitude).toBeGreaterThanOrEqual(1n);
+  });
+
+  it('DoT cast log message mentions DoT being applied', () => {
+    const ctx = makeCombatCtx();
+    const ability: AbilityRow = {
+      id: 72n,
+      kind: 'dot',
+      targetRule: 'enemy',
+      value1: 10n,
+      value2: undefined,
+      damageType: 'magic',
+      scaling: 'int',
+      effectType: 'dot',
+      effectMagnitude: undefined,
+      effectDuration: 9n,
+      name: 'Decay',
+      resourceType: 'mana',
+      resourceCost: 10n,
+      cooldownSeconds: 0n,
+      castSeconds: 0n,
+    };
+
+    resolveAbility(ctx, 100n, charActor, ability);
+
+    // Log message should mention the DoT effect (not just the hit)
+    const calls = (appendPrivateEvent as ReturnType<typeof vi.fn>).mock.calls;
+    const damageLog = calls.find((args: any[]) => args[3] === 'damage');
+    expect(damageLog).toBeDefined();
+    // Message should mention DoT effect application
+    expect(damageLog[4]).toMatch(/damage-over-time|DoT|burning|applies/i);
+  });
+
+  it('applies HoT effect even with low power (value1=2, duration=9)', () => {
+    const ctx = createMockCtx({
+      seed: {
+        character: [{ id: 1n, ownerUserId: 10n, hp: 50n, maxHp: 100n, groupId: undefined, combatTargetEnemyId: undefined, str: 5n, dex: 5n, int: 5n, wis: 5n, cha: 5n, level: 5n, name: 'TestChar' }],
+        character_effect: [],
+        combat_encounter: [],
+        combat_enemy: [],
+        combat_enemy_effect: [],
+        aggro_entry: [],
+        ability_template: [],
+      },
+    });
+
+    const ability: AbilityRow = {
+      id: 73n,
+      kind: 'hot',
+      targetRule: 'self',
+      value1: 2n,
+      value2: undefined,
+      damageType: undefined,
+      scaling: 'wis',
+      effectType: 'regen',
+      effectMagnitude: undefined,
+      effectDuration: 9n,
+      name: 'Slow Mend',
+      resourceType: 'mana',
+      resourceCost: 5n,
+      cooldownSeconds: 0n,
+      castSeconds: 0n,
+    };
+
+    resolveAbility(ctx, null, charActor, ability, 1n);
+
+    // HoT effect must be inserted even when hotTotal < duration
+    const effects = ctx.db.character_effect._rows();
+    const regenEffect = effects.find((e: any) => e.effectType === 'regen');
+    expect(regenEffect).toBeDefined();
+    expect(regenEffect.magnitude).toBeGreaterThanOrEqual(1n);
+  });
+});

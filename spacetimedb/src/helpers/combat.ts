@@ -569,7 +569,8 @@ export function resolveAbility(
     const directDamage = power / 2n; // 50% direct
     const dotTotal = power - directDamage; // 50% DoT
     const duration = ability.effectDuration ?? 3n;
-    const dotPerTick = duration > 0n ? dotTotal / duration : dotTotal;
+    let dotPerTick = duration > 0n ? dotTotal / duration : dotTotal;
+    if (dotPerTick < 1n && dotTotal > 0n) dotPerTick = 1n;
 
     if (actor.type === 'enemy') {
       // Enemy DoT targets a player character
@@ -591,8 +592,8 @@ export function resolveAbility(
         addEnemyEffect(ctx, combatId, enemy.id, 'dot', dotPerTick, duration, ability.name, actor.id);
       }
       const char = ctx.db.character.id.find(actor.id);
-      if (char) logPrivate(char.id, char.ownerUserId, 'damage', `Your ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage.`);
-      logGroup('damage', `${actor.name}'s ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage.`);
+      if (char) logPrivate(char.id, char.ownerUserId, 'damage', `Your ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage and applies a damage-over-time effect.`);
+      logGroup('damage', `${actor.name}'s ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage and applies a damage-over-time effect.`);
     }
     return;
   }
@@ -606,7 +607,8 @@ export function resolveAbility(
     const directHeal = power / 2n;
     const hotTotal = power - directHeal;
     const duration = ability.effectDuration ?? 3n;
-    const hotPerTick = duration > 0n ? hotTotal / duration : hotTotal;
+    let hotPerTick = duration > 0n ? hotTotal / duration : hotTotal;
+    if (hotPerTick < 1n && hotTotal > 0n) hotPerTick = 1n;
     // Apply direct heal
     const varied = applyVariance(calculateHealingPower(directHeal, actor.stats), nowMicros + actor.id + healTarget.id);
     const nextHp = healTarget.hp + varied > healTarget.maxHp ? healTarget.maxHp : healTarget.hp + varied;
