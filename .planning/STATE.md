@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 Phase: 33 of 37 (Combat Improvements)
 Plan: 1 of 3 (33-01 complete)
 Status: In Progress
-Last activity: 2026-03-10 - Completed quick task 399: Add hotbar delete command
+Last activity: 2026-03-10 - Completed quick task 400: Add enemies and players commands
 
 Progress: [████████░░] 88%
 
@@ -94,6 +94,7 @@ None.
 | 397 | Rebalance combat so solo player can reliably defeat equal-level enemies | 2026-03-10 | fddbf32 | [397-rebalance-combat-so-solo-player-can-reli](./quick/397-rebalance-combat-so-solo-player-can-reli/) |
 | 398 | Deferred level-up: pendingLevels counter, apply_level_up reducer, HUD indicator + confirmation flow | 2026-03-10 | cefaa2a | [398-delayed-level-up-save-level-ups-for-manu](./quick/398-delayed-level-up-save-level-ups-for-manu/) |
 | 399 | Add hotbar delete command | 2026-03-10 | 744d550 | [399-add-a-hotbar-delete-command](./quick/399-add-a-hotbar-delete-command/) |
+| 400 | Add enemies and players commands to narrative input | 2026-03-10 | e113ae3 | [400-add-enemies-and-players-commands](./quick/400-add-enemies-and-players-commands/) |
 
 ## Session Continuity
 
