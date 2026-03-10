@@ -325,7 +325,8 @@ export const registerIntentReducers = (deps: any) => {
         parts.push(`{{color:#fbbf24}}Abilities (${abilities.length}){{/color}}`);
         parts.push('');
         for (const ab of abilities) {
-          parts.push(`{{color:#fbbf24}}${ab.name}{{/color}} (Lv ${ab.levelRequired})`);
+          const sourceLabel = ab.source ? `[${ab.source}] ` : '';
+          parts.push(`{{color:#fbbf24}}${sourceLabel}${ab.name}{{/color}} (Lv ${ab.levelRequired})`);
           if (ab.description) parts.push(`  ${ab.description}`);
           parts.push(`  ${ab.kind} — ${ab.resourceType}: ${ab.resourceCost} — Cast: ${ab.castSeconds}s — CD: ${ab.cooldownSeconds}s`);
           parts.push('');

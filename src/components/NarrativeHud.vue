@@ -34,6 +34,13 @@
           title="New skill available! Check the console."
         >NEW SKILL</span>
 
+        <!-- Renown perk indicator -->
+        <span
+          v-if="hasPendingRenownPerks"
+          :style="renownPerkIndicatorStyle"
+          title="Renown rank-up reward available! Check the console."
+        >RENOWN PERK</span>
+
         <!-- Panel buttons -->
         <div :style="{ display: 'flex', gap: '3px' }">
           <button
@@ -62,6 +69,7 @@ defineProps<{
   activeCombat: any | null;
   connActive: boolean;
   hasPendingSkills?: boolean;
+  hasPendingRenownPerks?: boolean;
   pendingLevels?: number;
 }>();
 
@@ -111,6 +119,16 @@ const combatDotStyle = {
 
 const skillIndicatorStyle = {
   color: '#ffd43b',
+  fontSize: '0.65rem',
+  fontWeight: 700,
+  whiteSpace: 'nowrap' as const,
+  animation: 'skillPulse 2s ease-in-out infinite',
+  cursor: 'default',
+  letterSpacing: '0.05em',
+};
+
+const renownPerkIndicatorStyle = {
+  color: '#fd7e14',
   fontSize: '0.65rem',
   fontWeight: 700,
   whiteSpace: 'nowrap' as const,

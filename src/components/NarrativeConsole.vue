@@ -7,6 +7,7 @@
       :active-combat="activeCombat"
       :conn-active="connActive"
       :has-pending-skills="hasPendingSkills"
+      :has-pending-renown-perks="hasPendingRenownPerks"
       :pending-levels="pendingLevels"
       @open-panel="$emit('open-panel', $event)"
       @level-up-click="$emit('level-up-click')"
@@ -58,6 +59,33 @@
         <span>Looting {{ questItemCastState.name }}...</span>
         <div :style="{ fontSize: '0.75rem', color: 'rgba(251, 191, 36, 0.9)', fontFamily: 'monospace', letterSpacing: '-1px' }">
           {{ progressBar(questItemCastState.progress) }}
+        </div>
+      </div>
+
+      <!-- Pending renown perk choices -->
+      <div
+        v-if="pendingRenownPerks && pendingRenownPerks.length > 0"
+        :style="{ marginBottom: '8px', lineHeight: '1.6', fontSize: '0.9rem', color: '#fd7e14', borderLeft: '2px solid #fd7e14', paddingLeft: '8px' }"
+      >
+        <div :style="{ fontWeight: 700, marginBottom: '4px' }">
+          Your growing reputation has unlocked new perks for Renown Rank {{ pendingRenownPerks[0].rank }}. Choose one:
+        </div>
+        <div
+          v-for="perk in pendingRenownPerks"
+          :key="perk.id.toString()"
+          :style="{ marginBottom: '4px', color: '#e9ecef' }"
+        >
+          <span
+            :style="{ color: '#fd7e14', cursor: 'pointer', fontWeight: 600 }"
+            @click="onPerkClick(perk.name)"
+          >[{{ perk.name }}]</span>
+          <span> -- {{ perk.description }}</span>
+          <span v-if="perk.kind" :style="{ color: '#adb5bd', fontSize: '0.8rem' }">
+            ({{ perk.kind }}<span v-if="perk.cooldownSeconds > 0n">, {{ Number(perk.cooldownSeconds) }}s cd</span>)
+          </span>
+          <span v-else-if="perk.perkEffectJson" :style="{ color: '#adb5bd', fontSize: '0.8rem' }">
+            (passive bonus)
+          </span>
         </div>
       </div>
 
@@ -137,6 +165,8 @@ const props = defineProps<{
   formatTimestamp: (ts: { microsSinceUnixEpoch: bigint }) => string;
   creationMode?: boolean;
   hasPendingSkills?: boolean;
+  hasPendingRenownPerks?: boolean;
+  pendingRenownPerks?: any[];
   pendingLevels?: number;
   isInCombat?: boolean;
   combatEnemies?: any[];
@@ -178,6 +208,11 @@ watch(
 const progressBar = (progress: number, width = 20): string => {
   const filled = Math.round(progress * width);
   return '\u2588'.repeat(filled) + '\u2591'.repeat(width - filled);
+};
+
+// Delegate perk click to the global clickNpcKeyword handler (registered in App.vue)
+const onPerkClick = (perkName: string) => {
+  (window as any).clickNpcKeyword?.(perkName);
 };
 
 // Animation composable
