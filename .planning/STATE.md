@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
 status: executing
-stopped_at: Completed 36-04-PLAN.md
-last_updated: "2026-03-10T20:47:29.296Z"
+stopped_at: Completed 36-03-PLAN.md
+last_updated: "2026-03-10T20:51:03.780Z"
 last_activity: "2026-03-10 - Completed quick task 404: Sardonic welcome message"
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 19
-  completed_plans: 15
+  completed_plans: 16
   percent: 88
 ---
 
@@ -77,6 +77,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 36]: All 15 race abilities use 'self' target, 300s cooldown, with kinds from ABILITY_KINDS vocabulary (buff/hot/utility)
 - [Phase 36-04]: Extracted chooseRenownPerkLogic to renown_perk.ts for testability — same pattern as skill_gen helpers
 - [Phase 36-04]: Passive renown perks go to renown_perk table to preserve getPerkBonusByField compatibility; active perks go to ability_template with source=Renown
+- [Phase 36]: fear kind requires combatId (consistent with cc/taunt); song/aura self-buff; grantRaceAbility uses RACE_DATA guard for custom races
 
 ### Pending Todos
 
@@ -108,5 +109,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-10T20:47:29.287Z
-Stopped at: Completed 36-04-PLAN.md
+Last session: 2026-03-10T20:50:48.572Z
+Stopped at: Completed 36-03-PLAN.md

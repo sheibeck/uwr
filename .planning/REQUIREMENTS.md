@@ -55,10 +55,10 @@ Requirements for v2.1 Project Cleanup milestone. Each maps to roadmap phases.
 ### Abilities
 
 - [x] **ABIL-01**: Ability kinds in mechanical_vocabulary.ts cover all current game systems (combat, crafting, gathering, travel, social, songs, auras, pets, fear, summoning)
-- [ ] **ABIL-02**: Missing ability kinds (resurrect, corpse_summon, track, group_heal, songs, auras, travel, pets, fear, bandages, potions, food_summon) are added to server dispatch
-- [ ] **ABIL-03**: Skill generation system can produce non-combat abilities (craft_boost, gather_boost, travel_speed, haggle, buff-only, debuff-only)
-- [ ] **ABIL-04**: Client ability dispatch handles all new ability kinds without special-casing
-- [ ] **ABIL-05**: Pure buff abilities (haste, stat buffs) and pure debuff abilities (slow, fear) exist without damage components — castable outside combat on self or party
+- [x] **ABIL-02**: Missing ability kinds (resurrect, corpse_summon, track, group_heal, songs, auras, travel, pets, fear, bandages, potions, food_summon) are added to server dispatch
+- [x] **ABIL-03**: Skill generation system can produce non-combat abilities (craft_boost, gather_boost, travel_speed, haggle, buff-only, debuff-only)
+- [x] **ABIL-04**: Client ability dispatch handles all new ability kinds without special-casing
+- [x] **ABIL-05**: Pure buff abilities (haste, stat buffs) and pure debuff abilities (slow, fear) exist without damage components — castable outside combat on self or party
 - [x] **ABIL-06**: Race abilities are functional in-game (not just narrative flavor text) — minor passive or active effects on longer cooldowns
 - [x] **ABIL-07**: Heritage bonuses apply every level (not every other level as in v1.0) and are shown during character creation and level-up
 - [x] **ABIL-08**: Renown perks use the dynamic ability system — same source system as class abilities
@@ -133,10 +133,10 @@ Deferred to future release. Tracked but not in current roadmap.
 | EQUIP-04 | Phase 35 | Pending |
 | EQUIP-05 | Phase 35 | Pending |
 | ABIL-01 | Phase 36 | Complete |
-| ABIL-02 | Phase 36 | Pending |
-| ABIL-03 | Phase 36 | Pending |
-| ABIL-04 | Phase 36 | Pending |
-| ABIL-05 | Phase 36 | Pending |
+| ABIL-02 | Phase 36 | Complete |
+| ABIL-03 | Phase 36 | Complete |
+| ABIL-04 | Phase 36 | Complete |
+| ABIL-05 | Phase 36 | Complete |
 | ABIL-06 | Phase 36 | Complete |
 | ABIL-07 | Phase 36 | Complete |
 | ABIL-08 | Phase 36 | Complete |
