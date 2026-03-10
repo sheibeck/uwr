@@ -77,6 +77,31 @@ function switchHotbar(ctx: any, character: any, hotbarName: string): string | un
   return undefined;
 }
 
+/** Delete a hotbar by name (case-insensitive). Returns error string or undefined. */
+function deleteHotbar(ctx: any, character: any, hotbarName: string): string | undefined {
+  const all = [...ctx.db.hotbar.by_character.filter(character.id)];
+  const target = all.find((h: any) => h.name.toLowerCase() === hotbarName.toLowerCase());
+  if (!target) {
+    return `No hotbar named "${hotbarName}" found.`;
+  }
+  if (all.length <= 1) {
+    return 'Cannot delete your only hotbar.';
+  }
+  // Delete all slots belonging to this hotbar
+  for (const s of [...ctx.db.hotbar_slot.by_hotbar.filter(target.id)]) {
+    ctx.db.hotbar_slot.id.delete(s.id);
+  }
+  ctx.db.hotbar.id.delete(target.id);
+  // If was active, activate the first remaining hotbar
+  if (target.isActive) {
+    const remaining = all.filter((h: any) => h.id !== target.id);
+    if (remaining.length > 0) {
+      ctx.db.hotbar.id.update({ ...remaining[0], isActive: true });
+    }
+  }
+  return undefined;
+}
+
 /** Swap two slots on the active hotbar. Returns error string or undefined. */
 function swapHotbarSlots(ctx: any, character: any, slot1: number, slot2: number): string | undefined {
   const activeHotbar = [...ctx.db.hotbar.by_character.filter(character.id)].find((h: any) => h.isActive);
@@ -348,6 +373,76 @@ describe('ensureDefaultHotbar helper', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+//  delete_hotbar logic tests
+// ═══════════════════════════════════════════════════════════════
+
+describe('delete_hotbar logic', () => {
+  it('removes the hotbar row and all its hotbar_slot rows', () => {
+    const ctx = createMockCtx({ sender: SENDER });
+    const character = makeCharacter();
+    createHotbar(ctx, character, 'main');
+    const buffs = createHotbar(ctx, character, 'buffs') as any;
+    // Insert a slot in buffs hotbar
+    ctx.db.hotbar_slot.insert({
+      id: 0n, characterId: CHARACTER_ID, hotbarId: buffs.id,
+      slot: 1, abilityTemplateId: 100n, assignedAt: ctx.timestamp,
+    });
+    const err = deleteHotbar(ctx, character, 'buffs');
+    expect(err).toBeUndefined();
+    const remaining = [...ctx.db.hotbar.by_character.filter(CHARACTER_ID)];
+    expect(remaining.length).toBe(1);
+    expect(remaining[0].name).toBe('main');
+    const slots = [...ctx.db.hotbar_slot.by_hotbar.filter(buffs.id)];
+    expect(slots.length).toBe(0);
+  });
+
+  it('returns error when hotbar name not found', () => {
+    const ctx = createMockCtx({ sender: SENDER });
+    const character = makeCharacter();
+    createHotbar(ctx, character, 'main');
+    createHotbar(ctx, character, 'buffs');
+    const err = deleteHotbar(ctx, character, 'nonexistent');
+    expect(typeof err).toBe('string');
+    expect(err).toContain('nonexistent');
+  });
+
+  it('returns error when trying to delete the last remaining hotbar', () => {
+    const ctx = createMockCtx({ sender: SENDER });
+    const character = makeCharacter();
+    createHotbar(ctx, character, 'main');
+    const err = deleteHotbar(ctx, character, 'main');
+    expect(typeof err).toBe('string');
+    expect(err).toContain('only hotbar');
+  });
+
+  it('sets another hotbar as active when deleting the active hotbar', () => {
+    const ctx = createMockCtx({ sender: SENDER });
+    const character = makeCharacter();
+    createHotbar(ctx, character, 'main');
+    createHotbar(ctx, character, 'buffs'); // buffs is active after creation
+    const err = deleteHotbar(ctx, character, 'buffs');
+    expect(err).toBeUndefined();
+    const remaining = [...ctx.db.hotbar.by_character.filter(CHARACTER_ID)];
+    expect(remaining.length).toBe(1);
+    expect(remaining[0].name).toBe('main');
+    // main should now be active
+    expect(remaining[0].isActive).toBe(true);
+  });
+
+  it('is case-insensitive when matching hotbar name', () => {
+    const ctx = createMockCtx({ sender: SENDER });
+    const character = makeCharacter();
+    createHotbar(ctx, character, 'Main');
+    createHotbar(ctx, character, 'Buffs');
+    const err = deleteHotbar(ctx, character, 'BUFFS');
+    expect(err).toBeUndefined();
+    const remaining = [...ctx.db.hotbar.by_character.filter(CHARACTER_ID)];
+    expect(remaining.length).toBe(1);
+    expect(remaining[0].name).toBe('Main');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
 //  Intent routing pattern tests for hotbar commands
 // ═══════════════════════════════════════════════════════════════
 
@@ -434,10 +529,36 @@ describe('intent hotbar command patterns', () => {
     });
   });
 
+  describe('hotbar delete <name> pattern', () => {
+    const deletePattern = /^hotbar\s+delete\s+(.+)$/i;
+
+    it('matches "hotbar delete buffs" and captures name', () => {
+      const m = 'hotbar delete buffs'.match(deletePattern);
+      expect(m).not.toBeNull();
+      expect(m![1]).toBe('buffs');
+    });
+
+    it('matches "hotbar delete my dps bar" and captures multi-word name', () => {
+      const m = 'hotbar delete my dps bar'.match(deletePattern);
+      expect(m).not.toBeNull();
+      expect(m![1]).toBe('my dps bar');
+    });
+
+    it('does not match bare "hotbar delete"', () => {
+      expect('hotbar delete'.match(deletePattern)).toBeNull();
+    });
+
+    it('is case-insensitive', () => {
+      const m = 'HOTBAR DELETE Buffs'.match(deletePattern);
+      expect(m).not.toBeNull();
+      expect(m![1]).toBe('Buffs');
+    });
+  });
+
   describe('hotbar <name> (switch) pattern', () => {
-    // Must not match: "hotbar add X", "hotbar set X Y", "hotbar swap X Y"
+    // Must not match: "hotbar add X", "hotbar set X Y", "hotbar swap X Y", "hotbar delete X"
     // Must match: "hotbar buffs", "hotbar main", "hotbar dps"
-    const switchPattern = /^hotbar\s+(?!add\s|set\s|swap\s)(.+)$/i;
+    const switchPattern = /^hotbar\s+(?!add\s|set\b|swap\b|clear\b|delete\s)(.+)$/i;
 
     it('matches "hotbar buffs" for switch', () => {
       const m = 'hotbar buffs'.match(switchPattern);
@@ -455,6 +576,10 @@ describe('intent hotbar command patterns', () => {
 
     it('does not match "hotbar swap 1 3"', () => {
       expect('hotbar swap 1 3'.match(switchPattern)).toBeNull();
+    });
+
+    it('does not match "hotbar delete buffs"', () => {
+      expect('hotbar delete buffs'.match(switchPattern)).toBeNull();
     });
 
     it('matches "hotbar main" for switch', () => {
