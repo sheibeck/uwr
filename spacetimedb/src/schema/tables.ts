@@ -587,15 +587,35 @@ export const CombatLoot = table(
   }
 );
 
-export const HotbarSlot = table(
+export const Hotbar = table(
   {
-    name: 'hotbar_slot',
+    name: 'hotbar',
     public: true,
     indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
   },
   {
     id: t.u64().primaryKey().autoInc(),
     characterId: t.u64(),
+    name: t.string(),
+    sortOrder: t.u8(),
+    isActive: t.bool(),
+    createdAt: t.timestamp(),
+  }
+);
+
+export const HotbarSlot = table(
+  {
+    name: 'hotbar_slot',
+    public: true,
+    indexes: [
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_hotbar', algorithm: 'btree', columns: ['hotbarId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    hotbarId: t.u64(),
     slot: t.u8(),
     abilityTemplateId: t.u64(),
     assignedAt: t.timestamp(),
@@ -2090,6 +2110,7 @@ const spacetimedb = schema({
   npc_memory: NpcMemory,
   quest_template: QuestTemplate,
   quest_instance: QuestInstance,
+  hotbar: Hotbar,
   hotbar_slot: HotbarSlot,
   ability_template: AbilityTemplate,
   ability_cooldown: AbilityCooldown,
