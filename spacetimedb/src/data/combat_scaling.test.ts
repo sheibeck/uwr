@@ -142,13 +142,14 @@ describe('calculateHealingPower', () => {
 
 describe('applyMagicResistMitigation', () => {
   it('applies full damage with 0 magic resist (minus global multiplier)', () => {
-    // Formula: (damage * 100) / (100 + 0*3) * 85 / 100 = damage * 85 / 100
+    // Formula: (damage * 100) / (100 + 0*3) * GLOBAL / 100
+    // With GLOBAL=100: damage * 100/100 = damage
     const result = applyMagicResistMitigation(100n, 0n);
-    expect(result).toBe((100n * GLOBAL_DAMAGE_MULTIPLIER) / 100n); // 85n
+    expect(result).toBe((100n * GLOBAL_DAMAGE_MULTIPLIER) / 100n);
   });
 
   it('reduces damage proportional to magic resist', () => {
-    // MR=10: (100 * 100) / (100 + 30) = 10000/130 = 76 -> * 85/100 = 64
+    // MR=10: (100 * 100) / (100 + 30) = 10000/130 = 76 -> * GLOBAL/100
     const result = applyMagicResistMitigation(100n, 10n);
     const resistReduced = (100n * 100n) / (100n + 10n * MAGIC_RESIST_SCALING);
     const expected = (resistReduced * GLOBAL_DAMAGE_MULTIPLIER) / 100n;
@@ -161,8 +162,9 @@ describe('applyMagicResistMitigation', () => {
   });
 
   it('handles high damage correctly', () => {
+    // With GLOBAL=100: 1000 * 100/100 = 1000
     const result = applyMagicResistMitigation(1000n, 0n);
-    expect(result).toBe(850n);
+    expect(result).toBe((1000n * GLOBAL_DAMAGE_MULTIPLIER) / 100n);
   });
 });
 
@@ -303,14 +305,14 @@ describe('ABILITY_DAMAGE_SCALER', () => {
 });
 
 describe('MANA_COST_MULTIPLIER', () => {
-  it('exists and is 150n (50% more expensive)', () => {
-    expect(MANA_COST_MULTIPLIER).toBe(150n);
+  it('exists and is 200n (double the base cost)', () => {
+    expect(MANA_COST_MULTIPLIER).toBe(200n);
   });
 
-  it('increases mana cost by 50%', () => {
+  it('doubles mana cost', () => {
     const baseCost = 10n;
     const manaCost = (baseCost * MANA_COST_MULTIPLIER) / 100n;
-    expect(manaCost).toBe(15n); // 10 * 150 / 100 = 15
+    expect(manaCost).toBe(20n); // 10 * 200 / 100 = 20
   });
 });
 
@@ -319,8 +321,8 @@ describe('MANA_MIN_CAST_SECONDS', () => {
     expect(MANA_MIN_CAST_SECONDS).toBeGreaterThan(0n);
   });
 
-  it('is 1n (minimum cast time floor for mana abilities)', () => {
-    expect(MANA_MIN_CAST_SECONDS).toBe(1n);
+  it('is 3n (minimum cast time floor for mana abilities)', () => {
+    expect(MANA_MIN_CAST_SECONDS).toBe(3n);
   });
 });
 

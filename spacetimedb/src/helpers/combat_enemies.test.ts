@@ -8,7 +8,7 @@ import {
   getEnemyAttackSpeed,
   ENEMY_ROLE_CONFIG,
 } from './combat_enemies';
-import { GLOBAL_DAMAGE_MULTIPLIER } from '../data/combat_scaling';
+import { GLOBAL_DAMAGE_MULTIPLIER, calculateStatScaledAutoAttack } from '../data/combat_scaling';
 
 // ============================================================================
 // applyArmorMitigation
@@ -30,9 +30,12 @@ describe('applyArmorMitigation', () => {
   });
 
   it('100 armor gives ~50% physical reduction before global', () => {
-    // (100*100)/(100+100) = 50 -> * 85/100 = 42
+    // (100*100)/(100+100) = 50 -> * GLOBAL/100
+    // With GLOBAL=100: 50 * 100/100 = 50
+    const armorReduced = (100n * 100n) / (100n + 100n);
+    const expected = (armorReduced * GLOBAL_DAMAGE_MULTIPLIER) / 100n;
     const result = applyArmorMitigation(100n, 100n);
-    expect(result).toBe(42n);
+    expect(result).toBe(expected);
   });
 
   it('floors at 1n for tiny damage vs massive armor', () => {
@@ -40,8 +43,9 @@ describe('applyArmorMitigation', () => {
   });
 
   it('handles large damage values correctly', () => {
+    // With GLOBAL=100: 1000 * 100/100 = 1000
     const result = applyArmorMitigation(1000n, 0n);
-    expect(result).toBe(850n);
+    expect(result).toBe((1000n * GLOBAL_DAMAGE_MULTIPLIER) / 100n);
   });
 });
 
@@ -198,5 +202,94 @@ describe('getEnemyAttackSpeed', () => {
 
   it('falls back to damage role attack speed for unknown', () => {
     expect(getEnemyAttackSpeed('unknown')).toBe(ENEMY_ROLE_CONFIG.damage.attackSpeedMicros);
+  });
+});
+
+// ============================================================================
+// Balance Assertions — regression guard for solo-winnable math
+// ============================================================================
+
+describe('balance assertions', () => {
+  // World gen formula post-rebalance: level * 12n + 20n HP, level * 2n + 2n armor
+  const makeWorldGenTemplate = (level: bigint) => ({
+    level,
+    maxHp: level * 12n + 20n,
+    armorClass: level * 2n + 2n,
+    role: 'damage',
+  });
+
+  it('level 1 damage-role enemy has HP in range 35-60', () => {
+    const stats = computeEnemyStats(makeWorldGenTemplate(1n), null, []);
+    expect(stats.maxHp).toBeGreaterThanOrEqual(35n);
+    expect(stats.maxHp).toBeLessThanOrEqual(60n);
+  });
+
+  it('level 1 damage-role enemy attack damage is in range 5-10', () => {
+    const stats = computeEnemyStats(makeWorldGenTemplate(1n), null, []);
+    expect(stats.attackDamage).toBeGreaterThanOrEqual(5n);
+    expect(stats.attackDamage).toBeLessThanOrEqual(10n);
+  });
+
+  it('level 1 tank-role enemy has HP in range 35-80', () => {
+    const template = { ...makeWorldGenTemplate(1n), role: 'tank' };
+    const stats = computeEnemyStats(template, null, []);
+    expect(stats.maxHp).toBeGreaterThanOrEqual(35n);
+    expect(stats.maxHp).toBeLessThanOrEqual(80n);
+  });
+
+  it('player with sword (baseDamage 6, STR 14) deals damage after enemy armor', () => {
+    // Warrior STR=14, sword baseDamage=6
+    const playerRaw = calculateStatScaledAutoAttack(6n, 14n);
+    const enemyStats = computeEnemyStats(makeWorldGenTemplate(1n), null, []);
+    const playerDamagePerHit = applyArmorMitigation(playerRaw, enemyStats.armorClass);
+    // Player should deal at least 3 damage per hit (not rounded to 0 or 1)
+    expect(playerDamagePerHit).toBeGreaterThanOrEqual(3n);
+  });
+
+  it('player time-to-kill enemy is under 60 seconds solo', () => {
+    // Warrior STR=14, sword baseDamage=6, attack speed 3.5s
+    const playerRaw = calculateStatScaledAutoAttack(6n, 14n);
+    const enemyStats = computeEnemyStats(makeWorldGenTemplate(1n), null, []);
+    const playerDamagePerHit = applyArmorMitigation(playerRaw, enemyStats.armorClass);
+    const playerDps = (playerDamagePerHit * 1_000_000n) / 3_500_000n; // DPS scaled
+    // Time to kill = enemyHp / playerDps (in seconds, scaled by 1_000_000)
+    const ttk = (enemyStats.maxHp * 1_000_000n) / playerDps; // microseconds-like
+    // Player should kill in under 60 seconds
+    expect(ttk).toBeLessThanOrEqual(60_000_000n);
+  });
+
+  it('player survives longer than it takes them to kill enemy (player wins)', () => {
+    // Player: STR=14, sword baseDamage=6, HP=162 (50 + 14*8), starter armor ~5
+    const PLAYER_HP = 162n;
+    const PLAYER_ARMOR = 5n;
+    const playerRaw = calculateStatScaledAutoAttack(6n, 14n);
+    const enemyStats = computeEnemyStats(makeWorldGenTemplate(1n), null, []);
+
+    const playerDamagePerHit = applyArmorMitigation(playerRaw, enemyStats.armorClass);
+    const enemyDamagePerHit = applyArmorMitigation(enemyStats.attackDamage, PLAYER_ARMOR);
+
+    // Scale by attack speed (in units of 3.5s intervals)
+    const playerDpsScaled = (playerDamagePerHit * 1_000_000n) / 3_500_000n;
+    const enemyDpsScaled = (enemyDamagePerHit * 1_000_000n) / enemyStats.attackSpeedMicros;
+
+    // Time to kill (in 1M units = seconds)
+    const playerTtk = (enemyStats.maxHp * 1_000_000n) / playerDpsScaled;
+    const enemyTtk = (PLAYER_HP * 1_000_000n) / enemyDpsScaled;
+
+    // Player should kill enemy before dying
+    expect(playerTtk).toBeLessThan(enemyTtk);
+  });
+
+  it('level 5 enemies are significantly harder than level 1 (1.5x+ HP)', () => {
+    const l1 = computeEnemyStats(makeWorldGenTemplate(1n), null, []);
+    const l5 = computeEnemyStats(makeWorldGenTemplate(5n), null, []);
+    // Level 5 HP should be at least 1.5x level 1 HP
+    expect(l5.maxHp * 10n).toBeGreaterThan(l1.maxHp * 15n);
+  });
+
+  it('level 5 enemy deals more damage than level 1 enemy', () => {
+    const l1 = computeEnemyStats(makeWorldGenTemplate(1n), null, []);
+    const l5 = computeEnemyStats(makeWorldGenTemplate(5n), null, []);
+    expect(l5.attackDamage).toBeGreaterThan(l1.attackDamage);
   });
 });
