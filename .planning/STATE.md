@@ -95,8 +95,9 @@ None.
 | 398 | Deferred level-up: pendingLevels counter, apply_level_up reducer, HUD indicator + confirmation flow | 2026-03-10 | cefaa2a | [398-delayed-level-up-save-level-ups-for-manu](./quick/398-delayed-level-up-save-level-ups-for-manu/) |
 | 399 | Add hotbar delete command | 2026-03-10 | 744d550 | [399-add-a-hotbar-delete-command](./quick/399-add-a-hotbar-delete-command/) |
 | 400 | Add enemies and players commands to narrative input | 2026-03-10 | e113ae3 | [400-add-enemies-and-players-commands](./quick/400-add-enemies-and-players-commands/) |
+| 401 | Rebalance abilities to ~20 damage at level 1 (ABILITY_DAMAGE_SCALER=30n, HEALING_POWER_SCALER=65n) | 2026-03-10 | eb96aff | [401-rebalance-abilities-20-dmg-at-level1](./quick/401-rebalance-abilities-20-dmg-at-level1/) |
 
 ## Session Continuity
 
-Last session: 2026-03-10T14:14:30.657Z
-Stopped at: Completed 034-02-PLAN.md
+Last session: 2026-03-10T16:05:32Z
+Stopped at: Completed quick task 401: Rebalance abilities to ~20 damage at level 1
