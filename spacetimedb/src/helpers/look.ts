@@ -11,7 +11,7 @@ export function buildLookOutput(ctx: any, character: any): string[] {
   const parts: string[] = [];
 
   // 1. Header + description
-  parts.push(location.name);
+  parts.push(`{{color:#fbbf24}}${location.name}{{/color}}`);
   parts.push(location.description);
 
   // 2. Day/Night
