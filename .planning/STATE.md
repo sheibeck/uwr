@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 Phase: 33 of 37 (Combat Improvements)
 Plan: 1 of 3 (33-01 complete)
 Status: In Progress
-Last activity: 2026-03-10 - Completed quick task 398: Delayed level up with HUD indicator and race/class display
+Last activity: 2026-03-10 - Completed quick task 399: Add hotbar delete command
 
 Progress: [████████░░] 88%
 
@@ -93,6 +93,7 @@ None.
 | 396 | Fix debuff targeting (buff+debuff effectType hits caster) and HoT double-heal | 2026-03-10 | 1c01d75 | [396-fix-combat-targeting-debuffs-hit-caster-](./quick/396-fix-combat-targeting-debuffs-hit-caster-/) |
 | 397 | Rebalance combat so solo player can reliably defeat equal-level enemies | 2026-03-10 | fddbf32 | [397-rebalance-combat-so-solo-player-can-reli](./quick/397-rebalance-combat-so-solo-player-can-reli/) |
 | 398 | Deferred level-up: pendingLevels counter, apply_level_up reducer, HUD indicator + confirmation flow | 2026-03-10 | cefaa2a | [398-delayed-level-up-save-level-ups-for-manu](./quick/398-delayed-level-up-save-level-ups-for-manu/) |
+| 399 | Add hotbar delete command | 2026-03-10 | 744d550 | [399-add-a-hotbar-delete-command](./quick/399-add-a-hotbar-delete-command/) |
 
 ## Session Continuity
 
