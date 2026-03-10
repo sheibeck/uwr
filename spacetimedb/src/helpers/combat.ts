@@ -475,7 +475,7 @@ export function resolveAbility(
       effectiveCast = MANA_MIN_CAST_SECONDS;
     }
     const abilityMult = getAbilityMultiplier(effectiveCast, ability.cooldownSeconds);
-    let power = ((ability.value1 * 5n + statScale) * abilityMult) / 100n;
+    let power = ((ability.value1 * 3n + statScale) * abilityMult) / 100n;
     // Apply ability damage scaler to roughly halve ability damage
     power = (power * ABILITY_DAMAGE_SCALER) / 100n;
     if (power < 1n) power = 1n;

@@ -95,8 +95,8 @@ describe('abilityResourceCost', () => {
   });
 
   it('applies MANA_COST_MULTIPLIER for mana resourceType', () => {
-    // Base: 4 + 1*2 + 10 = 16. Mana: 16 * 200 / 100 = 32
-    expect(abilityResourceCost(1n, 10n, 'mana')).toBe(32n);
+    // Base: 4 + 1*2 + 10 = 16. Mana: 16 * 350 / 100 = 56
+    expect(abilityResourceCost(1n, 10n, 'mana')).toBe(56n);
   });
 
   it('does not apply multiplier for stamina resourceType', () => {

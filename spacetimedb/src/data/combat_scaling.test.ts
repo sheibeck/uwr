@@ -20,6 +20,7 @@ import {
   WEAPON_CRIT_MULTIPLIERS,
   HEALING_WIS_SCALING_PER_1000,
   ABILITY_DAMAGE_SCALER,
+  HEALING_POWER_SCALER,
   MANA_COST_MULTIPLIER,
   MANA_MIN_CAST_SECONDS,
 } from './combat_scaling';
@@ -286,14 +287,14 @@ describe('statOffset', () => {
 // ============================================================================
 
 describe('ABILITY_DAMAGE_SCALER', () => {
-  it('exists and is 50n (halves ability damage)', () => {
-    expect(ABILITY_DAMAGE_SCALER).toBe(50n);
+  it('exists and is 30n (reduces ability damage to ~30%)', () => {
+    expect(ABILITY_DAMAGE_SCALER).toBe(30n);
   });
 
   it('reduces damage when applied', () => {
     const baseDamage = 200n;
     const scaled = (baseDamage * ABILITY_DAMAGE_SCALER) / 100n;
-    expect(scaled).toBe(100n); // 200 * 50 / 100 = 100
+    expect(scaled).toBe(60n); // 200 * 30 / 100 = 60
   });
 
   it('enforces minimum damage of 1n after scaling', () => {
@@ -304,15 +305,27 @@ describe('ABILITY_DAMAGE_SCALER', () => {
   });
 });
 
-describe('MANA_COST_MULTIPLIER', () => {
-  it('exists and is 200n (double the base cost)', () => {
-    expect(MANA_COST_MULTIPLIER).toBe(200n);
+describe('HEALING_POWER_SCALER', () => {
+  it('exists and is 65n', () => {
+    expect(HEALING_POWER_SCALER).toBe(65n);
   });
 
-  it('doubles mana cost', () => {
+  it('scales healing when applied', () => {
+    const baseHeal = 100n;
+    const scaled = (baseHeal * HEALING_POWER_SCALER) / 100n;
+    expect(scaled).toBe(65n); // 100 * 65 / 100 = 65
+  });
+});
+
+describe('MANA_COST_MULTIPLIER', () => {
+  it('exists and is 350n (3.5x the base cost)', () => {
+    expect(MANA_COST_MULTIPLIER).toBe(350n);
+  });
+
+  it('scales mana cost by 3.5x', () => {
     const baseCost = 10n;
     const manaCost = (baseCost * MANA_COST_MULTIPLIER) / 100n;
-    expect(manaCost).toBe(20n); // 10 * 200 / 100 = 20
+    expect(manaCost).toBe(35n); // 10 * 350 / 100 = 35
   });
 });
 
@@ -327,11 +340,66 @@ describe('MANA_MIN_CAST_SECONDS', () => {
 });
 
 describe('getAbilityMultiplier with ABILITY_DAMAGE_SCALER', () => {
-  it('scaled result is roughly half of unscaled', () => {
+  it('scaled result is roughly 30% of unscaled', () => {
     const unscaled = getAbilityMultiplier(3n, 10n); // 100 + 30 + 5 = 135
     const scaled = (unscaled * ABILITY_DAMAGE_SCALER) / 100n;
-    // 135 * 50 / 100 = 67
-    expect(scaled).toBe(67n);
+    // 135 * 30 / 100 = 40
+    expect(scaled).toBe(40n);
     expect(scaled).toBeLessThan(unscaled);
+  });
+});
+
+// ============================================================================
+// Level 1 ability balance targets (Quick-401)
+// All three ability types should land in [15, 25] damage/heal at level 1
+// ============================================================================
+
+describe('Level 1 ability balance targets', () => {
+  // Level 1 character stats (from STAT_FORMULAS): primary=12, secondary=10, others=8
+  const level1Stats = { str: 12n, dex: 8n, cha: 8n, wis: 12n, int: 12n };
+
+  // Midpoint value1 for damage abilities at level 1 (base=12, perLevel=5): midpoint=17
+  // Midpoint value1 for heal abilities at level 1 (base=10, perLevel=4): midpoint=14
+
+  it('mana damage ability (value1=17, INT=12, cast=3, cd=0) produces scaledPower in [15, 25]', () => {
+    // statScale = INT * 1 = 12
+    // abilityMult = 100 + 3*10 + 0 = 130 (also enforces MANA_MIN_CAST_SECONDS=3 so cast=3 already meets floor)
+    // power = ((17*3 + 12) * 130) / 100 = (63 * 130) / 100 = 8190 / 100 = 81
+    // scaled = (81 * ABILITY_DAMAGE_SCALER) / 100
+    const statScale = level1Stats.int * 1n; // 12
+    const abilityMult = getAbilityMultiplier(3n, 0n); // 130
+    const power = ((17n * 3n + statScale) * abilityMult) / 100n; // 81
+    const scaledPower = (power * ABILITY_DAMAGE_SCALER) / 100n;
+    expect(scaledPower).toBeGreaterThanOrEqual(15n);
+    expect(scaledPower).toBeLessThanOrEqual(25n);
+  });
+
+  it('melee DD ability (value1=17, STR=12, cast=0, cd=0) produces scaledPower in [15, 25]', () => {
+    // statScale = STR * 1 = 12
+    // abilityMult = 100 + 0 + 0 = 100
+    // power = ((17*3 + 12) * 100) / 100 = 63
+    // scaled = (63 * ABILITY_DAMAGE_SCALER) / 100
+    const statScale = level1Stats.str * 1n; // 12
+    const abilityMult = getAbilityMultiplier(0n, 0n); // 100
+    const power = ((17n * 3n + statScale) * abilityMult) / 100n; // 63
+    const scaledPower = (power * ABILITY_DAMAGE_SCALER) / 100n;
+    expect(scaledPower).toBeGreaterThanOrEqual(15n);
+    expect(scaledPower).toBeLessThanOrEqual(25n);
+  });
+
+  it('direct heal ability (value1=14, WIS=12, cast=3, cd=0) produces final heal in [15, 25]', () => {
+    // scaledPower step: statScale=12, abilityMult=130
+    // power = ((14*3 + 12) * 130) / 100 = (54 * 130) / 100 = 7020 / 100 = 70
+    // scaledPower = (70 * ABILITY_DAMAGE_SCALER) / 100
+    // calculateHealingPower(scaledPower, stats) = scaledPower + WIS * 1
+    // finalHeal = (healAmount * HEALING_POWER_SCALER) / 100
+    const statScale = level1Stats.wis * 1n; // 12
+    const abilityMult = getAbilityMultiplier(3n, 0n); // 130
+    const power = ((14n * 3n + statScale) * abilityMult) / 100n; // 70
+    const scaledPower = (power * ABILITY_DAMAGE_SCALER) / 100n;
+    const healAmount = calculateHealingPower(scaledPower, level1Stats); // scaledPower + wis
+    const finalHeal = (healAmount * HEALING_POWER_SCALER) / 100n;
+    expect(finalHeal).toBeGreaterThanOrEqual(15n);
+    expect(finalHeal).toBeLessThanOrEqual(25n);
   });
 });

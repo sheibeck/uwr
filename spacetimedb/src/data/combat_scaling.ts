@@ -73,17 +73,19 @@ export const MAGIC_RESIST_SCALING = 3n;
 export const GLOBAL_DAMAGE_MULTIPLIER = 100n;
 
 /**
- * Scales all ability damage. 50n = abilities deal 50% damage.
+ * Scales all ability damage. 30n = abilities deal 30% of raw calculated value.
+ * Tuned so level 1 abilities produce ~20 damage before armor mitigation.
+ * Mana ability (value1=17, INT=12, cast=3): ~24. Melee DD (value1=17, STR=12): ~18.
  * Adjust to tune combat duration. Applied after stat scaling and ability multiplier.
  * Does NOT affect auto-attack damage or healing.
  */
-export const ABILITY_DAMAGE_SCALER = 50n;
+export const ABILITY_DAMAGE_SCALER = 30n;
 
 /**
  * Mana cost multiplier vs base formula. 200n = 200% on 100n scale.
  * Design: mana abilities are plentiful but expensive per-cast.
  */
-export const MANA_COST_MULTIPLIER = 200n;
+export const MANA_COST_MULTIPLIER = 350n;
 
 /**
  * Floor cast time for mana-type abilities. Enforced at resolution, not generation.
@@ -93,11 +95,12 @@ export const MANA_COST_MULTIPLIER = 200n;
 export const MANA_MIN_CAST_SECONDS = 3n;
 
 /**
- * Scales direct healing power. 50n = heals restore 50% of calculated amount.
- * Matches ABILITY_DAMAGE_SCALER philosophy — keeps heals in line with damage.
+ * Scales direct healing power. 65n = heals restore 65% of calculated amount.
+ * Tuned so level 1 direct heal (value1=14, WIS=12) produces ~19 HP restored.
+ * Higher than ABILITY_DAMAGE_SCALER to compensate for WIS additive bonus in calculateHealingPower.
  * Does NOT affect HoT tick amounts (those are already balanced by tick interval).
  */
-export const HEALING_POWER_SCALER = 50n;
+export const HEALING_POWER_SCALER = 65n;
 
 /**
  * DoT/HoT stat scaling reduction factor (50% of direct damage scaling)
