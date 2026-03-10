@@ -5,6 +5,7 @@ import type {
   AbilityTemplate,
   CharacterCast,
   Character,
+  Hotbar,
   HotbarSlot,
 } from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
@@ -24,6 +25,7 @@ type HotbarDisplaySlot = {
 type UseHotbarArgs = {
   connActive: Ref<boolean>;
   selectedCharacter: Ref<Character | null>;
+  hotbars: Ref<Hotbar[]>;
   hotbarSlots: Ref<HotbarSlot[]>;
   abilityTemplates: Ref<AbilityTemplate[]>;
   abilityCooldowns: Ref<AbilityCooldown[]>;
@@ -53,6 +55,7 @@ const idKey = (id: bigint) => id.toString();
 export const useHotbar = ({
   connActive,
   selectedCharacter,
+  hotbars,
   hotbarSlots,
   abilityTemplates,
   abilityCooldowns,
@@ -72,6 +75,23 @@ export const useHotbar = ({
 }: UseHotbarArgs) => {
   const setHotbarReducer = useReducer(reducers.setHotbarSlot);
   const useAbilityReducer = useReducer(reducers.useAbility);
+  const createHotbarReducer = useReducer(reducers.createHotbar);
+  const switchHotbarReducer = useReducer(reducers.switchHotbar);
+
+  // Multi-hotbar: sorted list of hotbars for the selected character
+  const hotbarList = computed<Hotbar[]>(() => {
+    if (!selectedCharacter.value) return [];
+    const charId = selectedCharacter.value.id;
+    return hotbars.value
+      .filter((h) => h.characterId === charId)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+  });
+
+  // Active hotbar: first with isActive=true, or first in sorted list
+  const activeHotbar = computed<Hotbar | null>(() => {
+    if (!hotbarList.value.length) return null;
+    return hotbarList.value.find((h) => h.isActive) ?? hotbarList.value[0];
+  });
 
   // Local prediction state keyed by abilityTemplateId string
   const localCast = ref<{ abilityTemplateId: bigint; startMicros: number; durationMicros: number } | null>(
@@ -105,8 +125,15 @@ export const useHotbar = ({
       slots.push({ slot: i, abilityTemplateId: 0n, name: 'Empty' });
     }
     if (!selectedCharacter.value) return slots;
+    // If character has hotbars, use the active hotbar's slots (by hotbarId)
+    // Backward compat: if no hotbars exist yet, fall back to by_character filter
+    const activeHotbarId = activeHotbar.value?.id ?? null;
     for (const row of hotbarSlots.value) {
-      if (row.characterId !== selectedCharacter.value.id) continue;
+      if (activeHotbarId !== null) {
+        if (row.hotbarId !== activeHotbarId) continue;
+      } else {
+        if (row.characterId !== selectedCharacter.value.id) continue;
+      }
       const target = slots[row.slot - 1];
       if (!target) continue;
       target.abilityTemplateId = row.abilityTemplateId;
@@ -203,6 +230,34 @@ export const useHotbar = ({
       };
     });
   });
+
+  const createHotbar = (name: string) => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    createHotbarReducer({ characterId: selectedCharacter.value.id, name });
+  };
+
+  const switchHotbar = (hotbarName: string) => {
+    if (!connActive.value || !selectedCharacter.value) return;
+    switchHotbarReducer({ characterId: selectedCharacter.value.id, hotbarName });
+  };
+
+  const prevHotbar = () => {
+    const list = hotbarList.value;
+    const active = activeHotbar.value;
+    if (!active || list.length <= 1) return;
+    const idx = list.findIndex((h) => h.id === active.id);
+    const prevIdx = idx <= 0 ? list.length - 1 : idx - 1;
+    switchHotbar(list[prevIdx].name);
+  };
+
+  const nextHotbar = () => {
+    const list = hotbarList.value;
+    const active = activeHotbar.value;
+    if (!active || list.length <= 1) return;
+    const idx = list.findIndex((h) => h.id === active.id);
+    const nextIdx = idx < 0 || idx >= list.length - 1 ? 0 : idx + 1;
+    switchHotbar(list[nextIdx].name);
+  };
 
   const setHotbarSlot = (slot: number, abilityTemplateId: bigint) => {
     if (!connActive.value || !selectedCharacter.value) return;
@@ -460,12 +515,18 @@ export const useHotbar = ({
   );
 
   return {
+    hotbarList,
+    activeHotbar,
     hotbarAssignments,
     availableAbilities,
     abilityLookup,
     hotbarDisplay,
     hotbarTooltipItem,
     setHotbarSlot,
+    createHotbar,
+    switchHotbar,
+    prevHotbar,
+    nextHotbar,
     useAbility,
     onHotbarClick,
     hotbarPulseKey,

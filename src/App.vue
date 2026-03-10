@@ -530,6 +530,7 @@ const {
   npcDialogs,
   questTemplates,
   questInstances,
+  hotbars,
   hotbarSlots,
   abilityTemplates,
   abilityCooldowns,
@@ -2348,6 +2349,7 @@ const {
 } = useHotbar({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
+  hotbars,
   hotbarSlots,
   abilityTemplates,
   abilityCooldowns,

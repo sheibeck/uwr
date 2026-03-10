@@ -19,6 +19,7 @@ export function useCoreData(conn: ConnectionState) {
   const abilityTemplates = shallowRef<any[]>([]);
   const itemTemplates = shallowRef<any[]>([]);
   const itemInstances = shallowRef<any[]>([]);
+  const hotbars = shallowRef<any[]>([]);
   const hotbarSlots = shallowRef<any[]>([]);
   const itemCooldowns = shallowRef<any[]>([]);
   const itemAffixes = shallowRef<any[]>([]);
@@ -50,6 +51,7 @@ export function useCoreData(conn: ConnectionState) {
     abilityTemplates.value = [...dbConn.db.ability_template.iter()];
     itemTemplates.value = [...dbConn.db.item_template.iter()];
     itemInstances.value = [...dbConn.db.item_instance.iter()];
+    hotbars.value = [...dbConn.db.hotbar.iter()];
     hotbarSlots.value = [...dbConn.db.hotbar_slot.iter()];
     itemCooldowns.value = [...dbConn.db.item_cooldown.iter()];
     itemAffixes.value = [...dbConn.db.item_affix.iter()];
@@ -91,6 +93,7 @@ export function useCoreData(conn: ConnectionState) {
           toSql(tables.ability_template),
           toSql(tables.item_template),
           toSql(tables.item_instance),
+          toSql(tables.hotbar),
           toSql(tables.hotbar_slot),
           toSql(tables.item_cooldown),
           toSql(tables.item_affix),
@@ -130,6 +133,7 @@ export function useCoreData(conn: ConnectionState) {
       rebind(dbConn.db.ability_template, abilityTemplates, () => dbConn.db.ability_template.iter());
       rebind(dbConn.db.item_template, itemTemplates, () => dbConn.db.item_template.iter());
       rebind(dbConn.db.item_instance, itemInstances, () => dbConn.db.item_instance.iter());
+      rebind(dbConn.db.hotbar, hotbars, () => dbConn.db.hotbar.iter());
       rebind(dbConn.db.hotbar_slot, hotbarSlots, () => dbConn.db.hotbar_slot.iter());
       rebind(dbConn.db.item_cooldown, itemCooldowns, () => dbConn.db.item_cooldown.iter());
       rebind(dbConn.db.item_affix, itemAffixes, () => dbConn.db.item_affix.iter());
@@ -164,6 +168,7 @@ export function useCoreData(conn: ConnectionState) {
     abilityTemplates,
     itemTemplates,
     itemInstances,
+    hotbars,
     hotbarSlots,
     itemCooldowns,
     itemAffixes,
