@@ -279,6 +279,7 @@ export const registerCombatReducers = (deps: any) => {
     applyArmorMitigation,
     applyVariance,
     abilityCooldownMicros,
+    abilityCastMicros,
     executeAbilityAction,
     rollAttackOutcome,
     EnemyAbility,
