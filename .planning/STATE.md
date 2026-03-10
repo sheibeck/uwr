@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 Phase: 33 of 37 (Combat Improvements)
 Plan: 1 of 3 (33-01 complete)
 Status: In Progress
-Last activity: 2026-03-10 - Completed quick task 400: Add enemies and players commands
+Last activity: 2026-03-10 - Completed quick tasks 399-402
 
 Progress: [████████░░] 88%
 
@@ -96,8 +96,9 @@ None.
 | 399 | Add hotbar delete command | 2026-03-10 | 744d550 | [399-add-a-hotbar-delete-command](./quick/399-add-a-hotbar-delete-command/) |
 | 400 | Add enemies and players commands to narrative input | 2026-03-10 | e113ae3 | [400-add-enemies-and-players-commands](./quick/400-add-enemies-and-players-commands/) |
 | 401 | Rebalance abilities to ~20 damage at level 1 (ABILITY_DAMAGE_SCALER=30n, HEALING_POWER_SCALER=65n) | 2026-03-10 | eb96aff | [401-rebalance-abilities-20-dmg-at-level1](./quick/401-rebalance-abilities-20-dmg-at-level1/) |
+| 402 | Show level up link in header, walk through 1 level at a time | 2026-03-10 | 49802c7 | [402-level-up-header-link-and-multi-level](./quick/402-level-up-header-link-and-multi-level/) |
 
 ## Session Continuity
 
 Last session: 2026-03-10T16:05:32Z
-Stopped at: Completed quick task 401: Rebalance abilities to ~20 damage at level 1
+Stopped at: Completed quick tasks 399-402
