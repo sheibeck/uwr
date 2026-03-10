@@ -13,6 +13,7 @@ import {
 import { getEquippedBonuses } from './items';
 import { effectiveGroupId } from './group';
 import { statOffset, CHA_VENDOR_SCALE, CHA_VENDOR_SELL_SCALE } from '../data/combat_scaling.js';
+import { RACE_DATA } from '../data/races';
 
 export function getGroupParticipants(ctx: any, character: any, sameLocation: boolean = true) {
   const groupId = effectiveGroupId(character);
@@ -218,6 +219,46 @@ export function findCharacterByName(ctx: any, name: string) {
     }
   }
   return found;
+}
+
+/**
+ * Grant a race ability to a character at creation.
+ * - Only grants for races present in RACE_DATA (LLM-generated custom races are skipped).
+ * - Idempotent: checks for existing ability with same abilityKey before inserting.
+ */
+export function grantRaceAbility(ctx: any, character: any, raceData: any): void {
+  // Only grant for races that exist in RACE_DATA (skip LLM-generated custom races)
+  const isKnownRace = RACE_DATA.some(r => r.name === raceData.name);
+  if (!isKnownRace) return;
+
+  // Idempotency: check if character already has an ability with this abilityKey
+  for (const existing of ctx.db.ability_template.by_character.filter(character.id)) {
+    if (existing.abilityKey === raceData.abilityKey) return;
+  }
+
+  ctx.db.ability_template.insert({
+    id: 0n,
+    characterId: character.id,
+    name: raceData.abilityName,
+    description: raceData.abilityDescription,
+    kind: raceData.abilityKind,
+    targetRule: raceData.abilityTargetRule,
+    resourceType: 'none',
+    resourceCost: 0n,
+    castSeconds: 0n,
+    cooldownSeconds: raceData.abilityCooldownSeconds,
+    scaling: 'none',
+    value1: raceData.abilityValue,
+    value2: undefined,
+    damageType: undefined,
+    effectType: undefined,
+    effectMagnitude: undefined,
+    effectDuration: undefined,
+    levelRequired: 1n,
+    isGenerated: false,
+    source: 'Race',
+    abilityKey: raceData.abilityKey,
+  });
 }
 
 export function autoRespawnDeadCharacter(ctx: any, character: any): void {

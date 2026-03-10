@@ -86,6 +86,8 @@ export const registerCreationReducers = (deps: any) => {
     grantStarterItems,
     ensureStarterItemTemplates,
     appendPrivateEvent,
+    grantRaceAbility,
+    RACE_DATA,
   } = deps;
 
   function finalizeCharacter(ctx: any, state: any, player: any) {
@@ -196,6 +198,13 @@ export const registerCreationReducers = (deps: any) => {
     }
 
     grantStarterItems(ctx, character, ensureStarterItemTemplates);
+
+    // Grant race ability if this race has one in RACE_DATA
+    const characterRace = state.raceName || character.race;
+    const raceAbilityData = RACE_DATA?.find((r: any) => r.name === characterRace);
+    if (raceAbilityData && grantRaceAbility) {
+      grantRaceAbility(ctx, character, raceAbilityData);
+    }
 
     for (const faction of ctx.db.faction.iter()) {
       ctx.db.faction_standing.insert({
