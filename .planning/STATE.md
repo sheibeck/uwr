@@ -83,8 +83,9 @@ None.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 392 | Restore quest formatting, add rich styling to renown/factions/events | 2026-03-09 | c279d2e | [392-restore-quest-formatting-and-add-matchin](./quick/392-restore-quest-formatting-and-add-matchin/) |
+| 393 | Pin starter region danger to L1, share starter regions by race | 2026-03-10 | b8ee016 | [393-weight-level-1-enemies-in-starting-regio](./quick/393-weight-level-1-enemies-in-starting-regio/) |
 
 ## Session Continuity
 
-Last session: 2026-03-10T02:41:06.409Z
-Stopped at: Completed 33-04-PLAN.md
+Last session: 2026-03-10T03:48:31Z
+Stopped at: Completed quick-393
