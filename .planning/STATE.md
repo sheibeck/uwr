@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
 status: executing
-stopped_at: Completed quick-404-01-PLAN.md
-last_updated: "2026-03-10T19:04:16.320Z"
+stopped_at: Completed 36-01-PLAN.md
+last_updated: "2026-03-10T20:36:08.480Z"
 last_activity: "2026-03-10 - Completed quick task 404: Sardonic welcome message"
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 14
-  completed_plans: 12
+  total_plans: 19
+  completed_plans: 13
   percent: 88
 ---
 
@@ -71,6 +71,8 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 034]: sell intent commands apply getPerkBonusByField before computeSellValue for correct stacking order
 - [Phase 034]: ensureDefaultHotbar creates 'main' hotbar lazily on first use
 - [Phase 034]: hotbar switch pattern uses negative lookahead to avoid conflicts with subcommands
+- [Phase 36-ability-expansion]: Exported BASE_BUDGET from skill_budget.ts to enable cross-module test coverage
+- [Phase 36-ability-expansion]: AbilityTemplate schema change (source/abilityKey columns) requires --clear-database on next local publish
 
 ### Pending Todos
 
@@ -102,5 +104,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-10T19:04:16.312Z
-Stopped at: Completed quick-404-01-PLAN.md
+Last session: 2026-03-10T20:36:08.471Z
+Stopped at: Completed 36-01-PLAN.md

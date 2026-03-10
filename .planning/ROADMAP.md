@@ -181,7 +181,7 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37
 | 33. Combat Improvements | 4/5 | In Progress|  | - |
 | 34. Narrative UI Integration | v2.1 | 0/3 | Not started | - |
 | 35. Dynamic Equipment Generation | v2.1 | 0/? | Not started | - |
-| 36. Ability Expansion | v2.1 | 0/4 | Not started | - |
+| 36. Ability Expansion | 1/5 | In Progress|  | - |
 | 37. UX Polish | v2.1 | 0/? | Not started | - |
 
 ---
