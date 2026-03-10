@@ -2,8 +2,13 @@
   <div :style="hudStyle">
     <template v-if="character">
       <!-- Left: Name + Level + Race + Class -->
-      <div :style="{ color: '#e9ecef', fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap' }">
-        {{ character.name }} Lv {{ character.level }} - {{ character.race }} {{ character.className }}
+      <div :style="{ color: '#e9ecef', fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }">
+        <span>{{ character.name }} Lv {{ character.level }} - {{ character.race }} {{ character.className }}</span>
+        <span
+          v-if="(pendingLevels ?? 0) > 0"
+          :style="levelUpLinkStyle"
+          @click="$emit('level-up-click')"
+        >[level up{{ (pendingLevels ?? 0) > 1 ? ` x${pendingLevels}` : '' }}]</span>
       </div>
 
       <!-- Right: Combat + Panel buttons -->
@@ -112,6 +117,14 @@ const skillIndicatorStyle = {
   animation: 'skillPulse 2s ease-in-out infinite',
   cursor: 'default',
   letterSpacing: '0.05em',
+};
+
+const levelUpLinkStyle = {
+  color: '#ffa500',
+  fontSize: '0.8rem',
+  fontWeight: 600,
+  cursor: 'pointer',
+  marginLeft: '8px',
 };
 
 const levelUpIndicatorStyle = {
