@@ -61,6 +61,7 @@ export const registerIntentReducers = (deps: any) => {
         '  [consider] (con) <name> — Assess the threat level of an enemy or your standing with an NPC.',
         '  [craft] — View and craft known recipes (at crafting stations).',
         '  deposit <item> — Deposit an item to your bank.',
+        '  [enemies] (mobs) — List all enemies at your location with levels and threat.',
         '  [events] — View active and recent world events.',
         '  [factions] — View your faction standings.',
         '  flee — Attempt to escape from combat.',
@@ -70,6 +71,7 @@ export const registerIntentReducers = (deps: any) => {
         '  [inventory] (inv, i) — View your equipped gear with stats.',
         '  [look] (l) — Survey your surroundings, or [look] <name> to inspect a specific target.',
         '  [loot] — Check for lootable remains nearby.',
+        '  [players] (who) — List all players at your location.',
         '  [quests] — View your active quests and progress.',
         '  [renown] — View your renown rank, progress, and perks.',
         '  say <message> — Speak aloud for everyone at your location to hear.',
@@ -666,6 +668,57 @@ export const registerIntentReducers = (deps: any) => {
       }
       // Fall through to fail
       return fail(ctx, character, `Nothing called "${itemName}" to loot here.`);
+    }
+
+    // --- ENEMIES ---
+    if (lower === 'enemies' || lower === 'mobs') {
+      const spawns = [...ctx.db.enemy_spawn.by_location.filter(character.locationId)];
+      const aliveSpawns = spawns.filter((s: any) =>
+        s.state === 'available' || s.state === 'engaged' || s.state === 'pulling'
+      );
+      if (aliveSpawns.length === 0) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', 'No enemies nearby.');
+        return;
+      }
+      const parts: string[] = ['{{color:#fbbf24}}Enemies at this location:{{/color}}'];
+      for (const spawn of aliveSpawns) {
+        const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
+        if (!template) continue;
+        const diff = Number(template.level) - Number(character.level);
+        let color: string;
+        if (diff <= -5) color = '#6b7280';
+        else if (diff <= -3) color = '#b6f7c4';
+        else if (diff <= -1) color = '#8bd3ff';
+        else if (diff === 0) color = '#f8fafc';
+        else if (diff <= 2) color = '#f6d365';
+        else if (diff <= 4) color = '#f59e0b';
+        else color = '#f87171';
+        const countSuffix = spawn.groupCount > 1n ? ` x${spawn.groupCount}` : '';
+        let line = `  {{color:${color}}}[${spawn.name}]${countSuffix} (Lv ${template.level}) - ${template.role} ${template.creatureType}`;
+        if (template.isBoss) line += ' [BOSS]';
+        if (spawn.state === 'engaged') line += ' [In Combat]';
+        if (spawn.state === 'pulling') line += ' [Pulling]';
+        line += '{{/color}}';
+        parts.push(line);
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', parts.join('\n'));
+      return;
+    }
+
+    // --- PLAYERS ---
+    if (lower === 'players' || lower === 'who') {
+      const allChars = [...ctx.db.character.by_location.filter(character.locationId)];
+      const others = allChars.filter((c: any) => c.id !== character.id);
+      if (others.length === 0) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', 'No other players nearby.');
+        return;
+      }
+      const parts: string[] = ['{{color:#fbbf24}}Players at this location:{{/color}}'];
+      for (const other of others) {
+        parts.push(`  {{color:#69db7c}}[${other.name}]{{/color}} — Level ${other.level} ${other.race} ${other.className}`);
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', parts.join('\n'));
+      return;
     }
 
     // --- QUESTS ---
