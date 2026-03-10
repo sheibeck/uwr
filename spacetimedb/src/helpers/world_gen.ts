@@ -246,7 +246,7 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any, starte
     let level = BigInt(enemy.level || 1);
     if (level < minLevel) level = minLevel;
     if (level > maxLevel) level = maxLevel;
-    const maxHp = level * 25n + 50n;
+    const maxHp = level * 12n + 20n;
     const baseDamage = level * 3n + 5n;
     const xpReward = level * 15n + 10n;
     const role = enemy.role || 'melee';
@@ -265,7 +265,7 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any, starte
       awareness: 'normal',
       groupMin: BigInt(enemy.groupMin || 1),
       groupMax: BigInt(enemy.groupMax || 3),
-      armorClass: level * 2n + 5n,
+      armorClass: level * 2n + 2n,
       level,
       maxHp,
       baseDamage,

@@ -66,11 +66,11 @@ export const MAGIC_RESIST_SCALING = 3n;
 /**
  * Global damage reduction percentage (on 100n scale)
  * Applied to ALL damage after armor/resist mitigation
+ * 100n = no reduction (pass-through)
  * 85n = 85% of damage dealt (15% reduction)
  * Easy lever to tune overall combat duration
- * Set to 100n to disable (100% = no reduction)
  */
-export const GLOBAL_DAMAGE_MULTIPLIER = 85n;
+export const GLOBAL_DAMAGE_MULTIPLIER = 100n;
 
 /**
  * Scales all ability damage. 50n = abilities deal 50% damage.
@@ -80,16 +80,24 @@ export const GLOBAL_DAMAGE_MULTIPLIER = 85n;
 export const ABILITY_DAMAGE_SCALER = 50n;
 
 /**
- * Mana cost multiplier vs base formula. 150n = 150% on 100n scale.
- * Design: mana abilities are more plentiful but costlier per-cast than stamina.
+ * Mana cost multiplier vs base formula. 200n = 200% on 100n scale.
+ * Design: mana abilities are plentiful but expensive per-cast.
  */
-export const MANA_COST_MULTIPLIER = 150n;
+export const MANA_COST_MULTIPLIER = 200n;
 
 /**
  * Floor cast time for mana-type abilities. Enforced at resolution, not generation.
  * Prevents instant-cast mana spells from being too efficient.
+ * 3n = all mana abilities take at least 3 seconds to cast.
  */
-export const MANA_MIN_CAST_SECONDS = 1n;
+export const MANA_MIN_CAST_SECONDS = 3n;
+
+/**
+ * Scales direct healing power. 50n = heals restore 50% of calculated amount.
+ * Matches ABILITY_DAMAGE_SCALER philosophy — keeps heals in line with damage.
+ * Does NOT affect HoT tick amounts (those are already balanced by tick interval).
+ */
+export const HEALING_POWER_SCALER = 50n;
 
 /**
  * DoT/HoT stat scaling reduction factor (50% of direct damage scaling)
@@ -125,6 +133,20 @@ export const ENEMY_BASE_POWER = 10n;
  * Level 1 = 15, Level 5 = 35, Level 10 = 60
  */
 export const ENEMY_LEVEL_POWER_SCALING = 5n;
+
+/**
+ * DoT/HoT tick interval in seconds. Damage/heal effects apply every N combat ticks.
+ * Combat loop runs at 1s intervals, so 3n = damage ticks every 3 seconds.
+ * Lower = more frequent ticks (faster effect damage), higher = slower ticks.
+ */
+export const EFFECT_TICK_SECONDS = 3n;
+
+/**
+ * DoT life drain percentage on 100n scale.
+ * DoT casters heal for this percentage of DoT tick damage.
+ * 50n = 50% of DoT damage healed back to caster.
+ */
+export const DOT_LIFE_DRAIN_PERCENT = 50n;
 
 /** Tank threat multiplier (150n = 1.5x on 100n scale) */
 export const TANK_THREAT_MULTIPLIER = 150n;
