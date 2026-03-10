@@ -75,6 +75,11 @@ export const registerIntentReducers = (deps: any) => {
         '  say <message> — Speak aloud for everyone at your location to hear.',
         '  sell <item> — Sell an item to a vendor.',
         '  [shop] — Browse a vendor\'s wares (at locations with a vendor).',
+        '  [hotbars] — List all your hotbars with slot contents.',
+        '  hotbar add <name> — Create a new named hotbar.',
+        '  hotbar <name> — Switch active hotbar.',
+        '  hotbar set <slot> <ability> — Assign ability to a hotbar slot.',
+        '  hotbar swap <slot1> <slot2> — Swap two hotbar slots.',
         '  [stats] — View your full character stats and combat values.',
         '  time — Check if it is day or night and how long until it changes.',
         '  [travel] — List available destinations.',
@@ -1050,6 +1055,174 @@ export const registerIntentReducers = (deps: any) => {
 
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
         `You sell ${matchedTemplate.name} for ${value} gold.${sellBonusMsg}`);
+      return;
+    }
+
+    // --- HOTBAR COMMANDS ---
+    // "hotbars" — list all hotbars with slot contents
+    if (lower === 'hotbars') {
+      const allHotbars = [...ctx.db.hotbar.by_character.filter(character.id)];
+      if (allHotbars.length === 0) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          'You have no hotbars. Type [hotbar add main] to create one.');
+        return;
+      }
+      const sorted = [...allHotbars].sort((a: any, b: any) => a.sortOrder - b.sortOrder);
+      const lines: string[] = ['Your hotbars:'];
+      for (const hb of sorted) {
+        const activeTag = hb.isActive ? ' [active]' : '';
+        const slots = [...ctx.db.hotbar_slot.by_hotbar.filter(hb.id)];
+        const slotParts = slots
+          .sort((a: any, b: any) => a.slot - b.slot)
+          .map((s: any) => {
+            const tmpl = ctx.db.ability_template.id.find(s.abilityTemplateId);
+            const name = tmpl ? tmpl.name : `#${s.abilityTemplateId}`;
+            return `${s.slot}:[${name}]`;
+          });
+        const slotStr = slotParts.length > 0 ? ` — ${slotParts.join(', ')}` : ' — (empty)';
+        lines.push(`[${hb.name}]${activeTag}${slotStr}`);
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', lines.join('\n'));
+      return;
+    }
+
+    // "hotbar" (bare) — show active hotbar contents
+    if (lower === 'hotbar') {
+      const activeHotbar = [...ctx.db.hotbar.by_character.filter(character.id)].find((h: any) => h.isActive);
+      if (!activeHotbar) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          'You have no active hotbar. Type [hotbar add main] to create one.');
+        return;
+      }
+      const slots = [...ctx.db.hotbar_slot.by_hotbar.filter(activeHotbar.id)];
+      if (slots.length === 0) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          `Hotbar "${activeHotbar.name}" is empty. Use [hotbar set <slot> <ability>] to assign abilities.`);
+        return;
+      }
+      const slotParts = slots
+        .sort((a: any, b: any) => a.slot - b.slot)
+        .map((s: any) => {
+          const tmpl = ctx.db.ability_template.id.find(s.abilityTemplateId);
+          const name = tmpl ? tmpl.name : `#${s.abilityTemplateId}`;
+          return `${s.slot}:[${name}]`;
+        });
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+        `Hotbar "${activeHotbar.name}" [active]: ${slotParts.join(', ')}`);
+      return;
+    }
+
+    // "hotbar add <name>" — create a new named hotbar
+    const hotbarAddMatch = lower.match(/^hotbar\s+add\s+(.+)$/i);
+    if (hotbarAddMatch) {
+      const newName = raw.substring('hotbar add '.length).trim();
+      const existing = [...ctx.db.hotbar.by_character.filter(character.id)];
+      if (existing.length >= 10) {
+        return fail(ctx, character, 'You already have 10 hotbars (maximum).');
+      }
+      for (const h of existing) {
+        ctx.db.hotbar.id.update({ ...h, isActive: false });
+      }
+      ctx.db.hotbar.insert({
+        id: 0n,
+        characterId: character.id,
+        name: newName,
+        sortOrder: existing.length,
+        isActive: true,
+        createdAt: ctx.timestamp,
+      });
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+        `Hotbar "${newName}" created and set as active.`);
+      return;
+    }
+
+    // "hotbar set <slot> <ability>" — assign ability to slot on active hotbar
+    const hotbarSetMatch = lower.match(/^hotbar\s+set\s+(\d+)\s+(.+)$/i);
+    if (hotbarSetMatch) {
+      const slot = parseInt(hotbarSetMatch[1], 10);
+      const abilityName = raw.substring(raw.toLowerCase().indexOf(hotbarSetMatch[2])).trim();
+      if (slot < 1 || slot > 10) return fail(ctx, character, 'Hotbar slot must be 1–10.');
+      const abilities = [...ctx.db.ability_template.by_character.filter(character.id)];
+      const matched = abilities.find((a: any) => a.name.toLowerCase() === abilityName.toLowerCase())
+        ?? abilities.find((a: any) => a.name.toLowerCase().includes(abilityName.toLowerCase()));
+      if (!matched) return fail(ctx, character, `No ability matching "${abilityName}" found.`);
+      const activeHotbar = [...ctx.db.hotbar.by_character.filter(character.id)].find((h: any) => h.isActive);
+      const hotbar = activeHotbar ?? (() => {
+        return ctx.db.hotbar.insert({
+          id: 0n, characterId: character.id, name: 'main',
+          sortOrder: 0, isActive: true, createdAt: ctx.timestamp,
+        });
+      })();
+      const existingSlot = [...ctx.db.hotbar_slot.by_hotbar.filter(hotbar.id)].find((s: any) => s.slot === slot);
+      if (existingSlot) {
+        ctx.db.hotbar_slot.id.update({ ...existingSlot, abilityTemplateId: matched.id, assignedAt: ctx.timestamp });
+      } else {
+        ctx.db.hotbar_slot.insert({
+          id: 0n, characterId: character.id, hotbarId: hotbar.id,
+          slot, abilityTemplateId: matched.id, assignedAt: ctx.timestamp,
+        });
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+        `[${matched.name}] assigned to slot ${slot} on hotbar "${hotbar.name}".`);
+      return;
+    }
+
+    // "hotbar swap <slot1> <slot2>" — swap two slots on active hotbar
+    const hotbarSwapMatch = lower.match(/^hotbar\s+swap\s+(\d+)\s+(\d+)$/i);
+    if (hotbarSwapMatch) {
+      const slot1 = parseInt(hotbarSwapMatch[1], 10);
+      const slot2 = parseInt(hotbarSwapMatch[2], 10);
+      const activeHotbar = [...ctx.db.hotbar.by_character.filter(character.id)].find((h: any) => h.isActive);
+      if (!activeHotbar) return fail(ctx, character, 'You have no active hotbar.');
+      const hotbarSlots = [...ctx.db.hotbar_slot.by_hotbar.filter(activeHotbar.id)];
+      const s1 = hotbarSlots.find((s: any) => s.slot === slot1);
+      const s2 = hotbarSlots.find((s: any) => s.slot === slot2);
+      const id1 = s1?.abilityTemplateId ?? 0n;
+      const id2 = s2?.abilityTemplateId ?? 0n;
+
+      if (s1) {
+        if (id2 === 0n) {
+          ctx.db.hotbar_slot.id.delete(s1.id);
+        } else {
+          ctx.db.hotbar_slot.id.update({ ...s1, abilityTemplateId: id2, assignedAt: ctx.timestamp });
+        }
+      } else if (id2 !== 0n) {
+        ctx.db.hotbar_slot.insert({
+          id: 0n, characterId: character.id, hotbarId: activeHotbar.id,
+          slot: slot1, abilityTemplateId: id2, assignedAt: ctx.timestamp,
+        });
+      }
+
+      if (s2) {
+        if (id1 === 0n) {
+          ctx.db.hotbar_slot.id.delete(s2.id);
+        } else {
+          ctx.db.hotbar_slot.id.update({ ...s2, abilityTemplateId: id1, assignedAt: ctx.timestamp });
+        }
+      } else if (id1 !== 0n) {
+        ctx.db.hotbar_slot.insert({
+          id: 0n, characterId: character.id, hotbarId: activeHotbar.id,
+          slot: slot2, abilityTemplateId: id1, assignedAt: ctx.timestamp,
+        });
+      }
+
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+        `Hotbar slots ${slot1} and ${slot2} swapped.`);
+      return;
+    }
+
+    // "hotbar <name>" — switch active hotbar (must come AFTER add/set/swap checks)
+    const hotbarSwitchMatch = lower.match(/^hotbar\s+(?!add\s|set\s|swap\s)(.+)$/i);
+    if (hotbarSwitchMatch) {
+      const targetName = hotbarSwitchMatch[1].trim();
+      const allHotbars = [...ctx.db.hotbar.by_character.filter(character.id)];
+      const target = allHotbars.find((h: any) => h.name.toLowerCase() === targetName.toLowerCase());
+      if (!target) return fail(ctx, character, `No hotbar named "${targetName}" found.`);
+      for (const h of allHotbars) {
+        ctx.db.hotbar.id.update({ ...h, isActive: h.id === target.id });
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+        `Switched to hotbar "${target.name}".`);
       return;
     }
 

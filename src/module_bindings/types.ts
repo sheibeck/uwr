@@ -663,9 +663,20 @@ export const HotTick = __t.object("HotTick", {
 });
 export type HotTick = __Infer<typeof HotTick>;
 
+export const Hotbar = __t.object("Hotbar", {
+  id: __t.u64(),
+  characterId: __t.u64(),
+  name: __t.string(),
+  sortOrder: __t.u8(),
+  isActive: __t.bool(),
+  createdAt: __t.timestamp(),
+});
+export type Hotbar = __Infer<typeof Hotbar>;
+
 export const HotbarSlot = __t.object("HotbarSlot", {
   id: __t.u64(),
   characterId: __t.u64(),
+  hotbarId: __t.u64(),
   slot: __t.u8(),
   abilityTemplateId: __t.u64(),
   assignedAt: __t.timestamp(),

@@ -13,8 +13,8 @@ import {
 export default __t.row({
   id: __t.u64().primaryKey(),
   characterId: __t.u64().name("character_id"),
-  hotbarId: __t.u64().name("hotbar_id"),
-  slot: __t.u8(),
-  abilityTemplateId: __t.u64().name("ability_template_id"),
-  assignedAt: __t.timestamp().name("assigned_at"),
+  name: __t.string(),
+  sortOrder: __t.u8().name("sort_order"),
+  isActive: __t.bool().name("is_active"),
+  createdAt: __t.timestamp().name("created_at"),
 });

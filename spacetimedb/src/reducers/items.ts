@@ -619,14 +619,125 @@ export const registerItemReducers = (deps: any) => {
     }
   });
 
+  // ---------------------------------------------------------------------------
+  // Hotbar helpers
+  // ---------------------------------------------------------------------------
+
+  function ensureDefaultHotbar(ctx: any, character: any): any {
+    const existing = [...ctx.db.hotbar.by_character.filter(character.id)];
+    if (existing.length > 0) {
+      const active = existing.find((h: any) => h.isActive);
+      return active ?? existing[0];
+    }
+    return ctx.db.hotbar.insert({
+      id: 0n,
+      characterId: character.id,
+      name: 'main',
+      sortOrder: 0,
+      isActive: true,
+      createdAt: ctx.timestamp,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Hotbar reducers
+  // ---------------------------------------------------------------------------
+
+  spacetimedb.reducer(
+    'create_hotbar',
+    { characterId: t.u64(), name: t.string() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const existing = [...ctx.db.hotbar.by_character.filter(character.id)];
+      if (existing.length >= 10) {
+        return failItem(ctx, character, 'You already have 10 hotbars (maximum).');
+      }
+      for (const h of existing) {
+        ctx.db.hotbar.id.update({ ...h, isActive: false });
+      }
+      ctx.db.hotbar.insert({
+        id: 0n,
+        characterId: character.id,
+        name: args.name,
+        sortOrder: existing.length,
+        isActive: true,
+        createdAt: ctx.timestamp,
+      });
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+        `Hotbar "${args.name}" created and set as active.`);
+    }
+  );
+
+  spacetimedb.reducer(
+    'switch_hotbar',
+    { characterId: t.u64(), hotbarName: t.string() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const all = [...ctx.db.hotbar.by_character.filter(character.id)];
+      const target = all.find((h: any) => h.name.toLowerCase() === args.hotbarName.toLowerCase());
+      if (!target) {
+        return failItem(ctx, character, `No hotbar named "${args.hotbarName}" found.`);
+      }
+      for (const h of all) {
+        ctx.db.hotbar.id.update({ ...h, isActive: h.id === target.id });
+      }
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+        `Switched to hotbar "${target.name}".`);
+    }
+  );
+
+  spacetimedb.reducer(
+    'swap_hotbar_slots',
+    { characterId: t.u64(), slot1: t.u8(), slot2: t.u8() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const activeHotbar = ensureDefaultHotbar(ctx, character);
+      const hotbarSlots = [...ctx.db.hotbar_slot.by_hotbar.filter(activeHotbar.id)];
+      const s1 = hotbarSlots.find((s: any) => s.slot === args.slot1);
+      const s2 = hotbarSlots.find((s: any) => s.slot === args.slot2);
+      const id1 = s1?.abilityTemplateId ?? 0n;
+      const id2 = s2?.abilityTemplateId ?? 0n;
+
+      if (s1) {
+        if (id2 === 0n) {
+          ctx.db.hotbar_slot.id.delete(s1.id);
+        } else {
+          ctx.db.hotbar_slot.id.update({ ...s1, abilityTemplateId: id2, assignedAt: ctx.timestamp });
+        }
+      } else if (id2 !== 0n) {
+        ctx.db.hotbar_slot.insert({
+          id: 0n, characterId: character.id, hotbarId: activeHotbar.id,
+          slot: args.slot1, abilityTemplateId: id2, assignedAt: ctx.timestamp,
+        });
+      }
+
+      if (s2) {
+        if (id1 === 0n) {
+          ctx.db.hotbar_slot.id.delete(s2.id);
+        } else {
+          ctx.db.hotbar_slot.id.update({ ...s2, abilityTemplateId: id1, assignedAt: ctx.timestamp });
+        }
+      } else if (id1 !== 0n) {
+        ctx.db.hotbar_slot.insert({
+          id: 0n, characterId: character.id, hotbarId: activeHotbar.id,
+          slot: args.slot2, abilityTemplateId: id1, assignedAt: ctx.timestamp,
+        });
+      }
+
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+        `Hotbar slots ${args.slot1} and ${args.slot2} swapped.`);
+    }
+  );
+
   spacetimedb.reducer(
     'set_hotbar_slot',
     { characterId: t.u64(), slot: t.u8(), abilityTemplateId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       if (args.slot < 1 || args.slot > 10) return failItem(ctx, character, 'Invalid hotbar slot');
-      const existing = [...ctx.db.hotbar_slot.by_character.filter(character.id)].find(
-        (row) => row.slot === args.slot
+      const activeHotbar = ensureDefaultHotbar(ctx, character);
+      const existing = [...ctx.db.hotbar_slot.by_hotbar.filter(activeHotbar.id)].find(
+        (row: any) => row.slot === args.slot
       );
       if (existing) {
         if (!args.abilityTemplateId) {
@@ -644,6 +755,7 @@ export const registerItemReducers = (deps: any) => {
       ctx.db.hotbar_slot.insert({
         id: 0n,
         characterId: character.id,
+        hotbarId: activeHotbar.id,
         slot: args.slot,
         abilityTemplateId: args.abilityTemplateId,
         assignedAt: ctx.timestamp,

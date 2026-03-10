@@ -10,11 +10,7 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.row({
-  id: __t.u64().primaryKey(),
-  characterId: __t.u64().name("character_id"),
-  hotbarId: __t.u64().name("hotbar_id"),
-  slot: __t.u8(),
-  abilityTemplateId: __t.u64().name("ability_template_id"),
-  assignedAt: __t.timestamp().name("assigned_at"),
-});
+export default {
+  characterId: __t.u64(),
+  hotbarName: __t.string(),
+};
