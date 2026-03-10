@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
 status: executing
-stopped_at: Completed 36-02-PLAN.md
-last_updated: "2026-03-10T20:38:31.332Z"
+stopped_at: Completed 36-04-PLAN.md
+last_updated: "2026-03-10T20:47:29.296Z"
 last_activity: "2026-03-10 - Completed quick task 404: Sardonic welcome message"
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 19
-  completed_plans: 14
+  completed_plans: 15
   percent: 88
 ---
 
@@ -75,6 +75,8 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 36-ability-expansion]: AbilityTemplate schema change (source/abilityKey columns) requires --clear-database on next local publish
 - [Phase 36]: levelBonusValue halved (round-up odd) in RACE_DATA — power parity with v1.0 every-2-level formula at level 20
 - [Phase 36]: All 15 race abilities use 'self' target, 300s cooldown, with kinds from ABILITY_KINDS vocabulary (buff/hot/utility)
+- [Phase 36-04]: Extracted chooseRenownPerkLogic to renown_perk.ts for testability — same pattern as skill_gen helpers
+- [Phase 36-04]: Passive renown perks go to renown_perk table to preserve getPerkBonusByField compatibility; active perks go to ability_template with source=Renown
 
 ### Pending Todos
 
@@ -106,5 +108,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-10T20:38:20.804Z
-Stopped at: Completed 36-02-PLAN.md
+Last session: 2026-03-10T20:47:29.287Z
+Stopped at: Completed 36-04-PLAN.md

@@ -61,10 +61,10 @@ Requirements for v2.1 Project Cleanup milestone. Each maps to roadmap phases.
 - [ ] **ABIL-05**: Pure buff abilities (haste, stat buffs) and pure debuff abilities (slow, fear) exist without damage components — castable outside combat on self or party
 - [x] **ABIL-06**: Race abilities are functional in-game (not just narrative flavor text) — minor passive or active effects on longer cooldowns
 - [x] **ABIL-07**: Heritage bonuses apply every level (not every other level as in v1.0) and are shown during character creation and level-up
-- [ ] **ABIL-08**: Renown perks use the dynamic ability system — same source system as class abilities
-- [ ] **ABIL-09**: Renown rank-up triggers LLM-driven perk selection flow (header notification, perk choice UI similar to level-up)
+- [x] **ABIL-08**: Renown perks use the dynamic ability system — same source system as class abilities
+- [x] **ABIL-09**: Renown rank-up triggers LLM-driven perk selection flow (header notification, perk choice UI similar to level-up)
 - [x] **ABIL-10**: Abilities track their source (Class, Renown, Race) for UI display and filtering
-- [ ] **ABIL-11**: LLM has constraint rules for generating renown perks (different from class abilities)
+- [x] **ABIL-11**: LLM has constraint rules for generating renown perks (different from class abilities)
 
 ### UX
 
@@ -139,10 +139,10 @@ Deferred to future release. Tracked but not in current roadmap.
 | ABIL-05 | Phase 36 | Pending |
 | ABIL-06 | Phase 36 | Complete |
 | ABIL-07 | Phase 36 | Complete |
-| ABIL-08 | Phase 36 | Pending |
-| ABIL-09 | Phase 36 | Pending |
+| ABIL-08 | Phase 36 | Complete |
+| ABIL-09 | Phase 36 | Complete |
 | ABIL-10 | Phase 36 | Complete |
-| ABIL-11 | Phase 36 | Pending |
+| ABIL-11 | Phase 36 | Complete |
 | UX-01 | Phase 37 | Pending |
 | UX-02 | Phase 37 | Pending |
 | UX-03 | Phase 37 | Pending |
