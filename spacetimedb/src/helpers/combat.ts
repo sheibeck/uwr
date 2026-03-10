@@ -21,6 +21,7 @@ import {
   ABILITY_DAMAGE_SCALER,
   MANA_COST_MULTIPLIER,
   MANA_MIN_CAST_SECONDS,
+  HEALING_POWER_SCALER,
 } from '../data/combat_scaling';
 import { effectiveGroupId } from './group';
 import { appendPrivateEvent, appendGroupEvent, logPrivateAndGroup, fail } from './events';
@@ -232,9 +233,10 @@ export function addCharacterEffect(
     }
   }
 
-  // Apply the first tick immediately for DoTs and HoTs so the effect is felt on cast.
-  // Subsequent ticks are handled by the global tick_hot scheduler (every 3s).
-  if (effectType === 'regen' || effectType === 'dot') {
+  // Apply the first tick immediately for DoTs so the effect is felt on cast.
+  // Regen (HoT) does NOT get an immediate tick here — the resolveAbility 'hot' handler
+  // already applies a direct heal. Subsequent regen ticks are handled by tick_hot scheduler.
+  if (effectType === 'dot') {
     if (character && character.hp > 0n) {
       if (effectType === 'regen') {
         const healed = character.hp + magnitude > character.maxHp ? character.maxHp : character.hp + magnitude;
@@ -530,7 +532,8 @@ export function resolveAbility(
     if (!healTarget) return;
     const power = scaledPower();
     const healAmount = calculateHealingPower(power, actor.stats);
-    const varied = applyVariance(healAmount, nowMicros + actor.id + healTarget.id);
+    const scaled = (healAmount * HEALING_POWER_SCALER) / 100n > 0n ? (healAmount * HEALING_POWER_SCALER) / 100n : 1n;
+    const varied = applyVariance(scaled, nowMicros + actor.id + healTarget.id);
     const nextHp = healTarget.hp + varied > healTarget.maxHp ? healTarget.maxHp : healTarget.hp + varied;
     ctx.db.character.id.update({ ...healTarget, hp: nextHp });
     const msg = `${ability.name} restores ${varied} health to ${healTarget.name}.`;
@@ -623,6 +626,29 @@ export function resolveAbility(
     const eType = ability.effectType ?? 'damage_up';
     const eMag = ability.effectMagnitude ?? 3n;
     const eDur = ability.effectDuration ?? 3n;
+
+    // Guard: LLM may generate kind='buff' with a debuff-type effectType (e.g. armor_down, stun).
+    // Redirect these to the enemy targeting path so debuffs land on enemies, not the caster.
+    const DEBUFF_EFFECT_TYPES = ['armor_down', 'stun', 'dot', 'damage_down', 'slow', 'root', 'silence', 'mesmerize'];
+    if (DEBUFF_EFFECT_TYPES.includes(eType)) {
+      if (actor.type === 'character') {
+        const enemy = findEnemyTarget();
+        if (!enemy || !combatId) { throw new SenderError('No target'); }
+        addEnemyEffect(ctx, combatId, enemy.id, eType, eMag, eDur, ability.name, actor.id);
+        const char = ctx.db.character.id.find(actor.id);
+        if (char) logPrivate(char.id, char.ownerUserId, 'ability', `Your ${ability.name} afflicts ${getEnemyName(enemy)}.`);
+        logGroup('ability', `${actor.name}'s ${ability.name} afflicts ${getEnemyName(enemy)}.`);
+      } else if (actor.type === 'enemy') {
+        // Enemy "buff" with debuff effectType — target a player character
+        if (!targetCharacterId) return;
+        const target = ctx.db.character.id.find(targetCharacterId);
+        if (!target || target.hp === 0n) return;
+        addCharacterEffect(ctx, targetCharacterId, eType, eMag, eDur, ability.name);
+        logPrivate(target.id, target.ownerUserId, 'ability', `${actor.name}'s ${ability.name} weakens you.`);
+      }
+      return;
+    }
+
     if (ability.targetRule === 'all_allies' || ability.targetRule === 'all_party') {
       const members = getPartyMembers();
       for (const member of members) {
