@@ -64,6 +64,7 @@ export const registerIntentReducers = (deps: any) => {
         '  [factions] — View your faction standings.',
         '  flee — Attempt to escape from combat.',
         '  go <place> — Travel to a connected location. You can also type the location name directly.',
+        '  [group] — View group status, members, and pending invites.',
         '  [hail] <name> — Start a conversation with an NPC.',
         '  [inventory] (inv, i) — View your equipped gear with stats.',
         '  [look] (l) — Survey your surroundings, or [look] <name> to inspect a specific target.',

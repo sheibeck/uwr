@@ -329,7 +329,7 @@ export const registerGroupReducers = (deps: any) => {
         target.id,
         target.ownerUserId,
         'group',
-        `${inviter.name} invited you to a group.`
+        `${inviter.name} invited you to a group. Type [accept ${inviter.name}] to join or [decline ${inviter.name}] to refuse.`
       );
     }
   );
