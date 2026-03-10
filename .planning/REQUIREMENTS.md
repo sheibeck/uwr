@@ -41,7 +41,7 @@ Requirements for v2.1 Project Cleanup milestone. Each maps to roadmap phases.
 - [x] **NARR-01**: User can sell items via narrative command (`sell <item>`)
 - [x] **NARR-02**: User can sell in bulk via narrative command (`sell all junk`, `sell 3 <item>`)
 - [ ] **NARR-03**: Hotbar displays inline in narrative combat HUD with ability slots and cooldown state
-- [ ] **NARR-04**: User can manage hotbar via narrative commands (`hotbar set 1 <ability>`, `hotbar swap 1 3`)
+- [x] **NARR-04**: User can manage hotbar via narrative commands (`hotbar set 1 <ability>`, `hotbar swap 1 3`)
 - [x] **NARR-05**: Event feed entries are styled by kind (combat=red, reward=gold, system=gray, social=blue)
 
 ### Equipment
@@ -118,7 +118,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | NARR-01 | Phase 34 | Complete |
 | NARR-02 | Phase 34 | Complete |
 | NARR-03 | Phase 34 | Pending |
-| NARR-04 | Phase 34 | Pending |
+| NARR-04 | Phase 34 | Complete |
 | NARR-05 | Phase 34 | Complete |
 | EQUIP-01 | Phase 35 | Pending |
 | EQUIP-02 | Phase 35 | Pending |
