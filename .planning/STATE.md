@@ -5,7 +5,7 @@ milestone_name: Project Cleanup
 status: executing
 stopped_at: Completed 33-04-PLAN.md
 last_updated: "2026-03-10T02:41:06.415Z"
-last_activity: "2026-03-10 - Completed quick task 394: Apply gold formatting to all narrative command windows and show item descriptions in inventory"
+last_activity: "2026-03-10 - Completed quick task 395: Remove slash prefix from non-admin commands, add clickable who names and group status"
 progress:
   total_phases: 7
   completed_phases: 2
@@ -85,8 +85,9 @@ None.
 | 392 | Restore quest formatting, add rich styling to renown/factions/events | 2026-03-09 | c279d2e | [392-restore-quest-formatting-and-add-matchin](./quick/392-restore-quest-formatting-and-add-matchin/) |
 | 393 | Pin starter region danger to L1, share starter regions by race | 2026-03-10 | b8ee016 | [393-weight-level-1-enemies-in-starting-regio](./quick/393-weight-level-1-enemies-in-starting-regio/) |
 | 394 | Apply gold formatting to all narrative command headers and add inv descriptions | 2026-03-10 | 91ce26f | [394-apply-gold-formatting-to-all-narrative-c](./quick/394-apply-gold-formatting-to-all-narrative-c/) |
+| 395 | Remove slash prefix from non-admin commands, add clickable who names and group status | 2026-03-10 | 4ea2b89 | [395-remove-slash-prefix-from-non-admin-comma](./quick/395-remove-slash-prefix-from-non-admin-comma/) |
 
 ## Session Continuity
 
-Last session: 2026-03-10T04:10:00Z
-Stopped at: Completed quick-394
+Last session: 2026-03-10T05:00:00Z
+Stopped at: Completed quick-395
