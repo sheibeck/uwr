@@ -28,38 +28,6 @@
         Crafting
       </button>
       <button
-        @click="emit('toggle', 'journal')"
-        :style="actionStyle('journal')"
-        :disabled="isLocked('journal')"
-      >
-        Journal (J)
-      </button>
-      <button
-        @click="emit('toggle', 'renown')"
-        :style="actionStyle('renown')"
-        :disabled="isLocked('renown')"
-      >
-        Renown (R)
-      </button>
-      <button
-        @click="emit('toggle', 'worldEvents')"
-        :style="{ ...actionStyle('worldEvents'), position: 'relative' }"
-      >
-        Events (E)
-        <span
-          v-if="hasActiveEvents"
-          :style="{ position: 'absolute', top: '2px', right: '2px', width: '8px', height: '8px',
-                    background: '#facc15', borderRadius: '50%', display: 'block' }"
-        ></span>
-      </button>
-      <button
-        @click="emit('toggle', 'travel')"
-        :style="actionStyle('travel')"
-        :disabled="isLocked('travel')"
-      >
-        Travel (T)
-      </button>
-      <button
         @click="emit('toggle', 'loot')"
         :style="actionStyle('loot')"
       >
@@ -90,13 +58,9 @@ type PanelKey =
   | 'friends'
   | 'group'
   | 'crafting'
-  | 'journal'
-  | 'renown'
   | 'loot'
-  | 'travel'
   | 'combat'
   | 'help'
-  | 'worldEvents'
   | 'map'
   | 'bugReport';
 
@@ -106,7 +70,6 @@ const props = defineProps<{
   hasActiveCharacter: boolean;
   combatLocked: boolean;
   highlightInventory: boolean;
-  hasActiveEvents: boolean;
 }>();
 
 const emit = defineEmits<{

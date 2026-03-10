@@ -178,10 +178,21 @@ export function processGeneratedSkill(skill: SkillFields, level: number | bigint
     }
   }
 
+  // Enforce effect duration floor: dot/hot/buff/debuff need at least 9s (3 ticks at 3s rounds)
+  let effectDuration = sanitized.effectDuration;
+  const durKinds = new Set(['dot', 'hot', 'buff', 'debuff']);
+  if (durKinds.has(sanitized.kind as string) && effectDuration != null) {
+    const durVal = Number(effectDuration);
+    if (durVal > 0 && durVal < 9) {
+      effectDuration = 9;
+    }
+  }
+
   return {
     ...sanitized,
     value1: clamped.value1,
     effectMagnitude: clamped.effectMagnitude,
     castSeconds,
+    effectDuration,
   };
 }

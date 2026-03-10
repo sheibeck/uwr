@@ -57,9 +57,7 @@ defineEmits<{
 
 const panelButtons = [
   { id: 'map', label: 'Map' },
-  { id: 'journal', label: 'Quests' },
   { id: 'friends', label: 'Social' },
-  { id: 'travel', label: 'Travel' },
 ];
 
 const hudStyle = {

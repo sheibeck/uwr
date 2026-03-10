@@ -21,4 +21,5 @@ export default __t.row({
   threats: __t.option(__t.string()),
   generatedByCharacterId: __t.option(__t.u64()).name("generated_by_character_id"),
   isGenerated: __t.option(__t.bool()).name("is_generated"),
+  starterForRace: __t.option(__t.string()).name("starter_for_race"),
 });

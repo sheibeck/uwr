@@ -13,6 +13,7 @@ export type LlmTask = {
   maxTokens: bigint;
   status: string;
   contextJson?: string;
+  responseFormatJson?: string;
   createdAt: any;
 };
 
@@ -69,6 +70,7 @@ export const useLlmProxy = ({
           systemPrompt: pendingTask.systemPrompt,
           userPrompt: pendingTask.userPrompt,
           maxTokens: Number(pendingTask.maxTokens),
+          ...(pendingTask.responseFormatJson ? { response_format: JSON.parse(pendingTask.responseFormatJson) } : {}),
         }),
       });
 

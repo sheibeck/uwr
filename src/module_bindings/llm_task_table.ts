@@ -20,5 +20,6 @@ export default __t.row({
   maxTokens: __t.u64().name("max_tokens"),
   status: __t.string(),
   contextJson: __t.option(__t.string()).name("context_json"),
+  responseFormatJson: __t.option(__t.string()).name("response_format_json"),
   createdAt: __t.timestamp().name("created_at"),
 });

@@ -35,9 +35,10 @@ app.post('/api/llm', async (c) => {
     systemPrompt: string;
     userPrompt: string;
     maxTokens?: number;
+    response_format?: { type: string; json_schema?: any };
   }>();
 
-  const { model, systemPrompt, userPrompt } = body;
+  const { model, systemPrompt, userPrompt, response_format } = body;
 
   if (!model || !systemPrompt || !userPrompt) {
     return c.json({ ok: false, error: 'Missing required fields: model, systemPrompt, userPrompt' }, 400);
@@ -46,13 +47,17 @@ app.post('/api/llm', async (c) => {
   const openai = new OpenAI({ apiKey: c.env.OPENAI_API_KEY });
 
   try {
-    const completion = await openai.chat.completions.create({
+    const createParams: any = {
       model,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-    });
+    };
+    if (response_format) {
+      createParams.response_format = response_format;
+    }
+    const completion = await openai.chat.completions.create(createParams);
 
     const text = completion.choices?.[0]?.message?.content ?? '';
     const usage = completion.usage;

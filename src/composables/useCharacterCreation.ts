@@ -74,16 +74,19 @@ export const useCharacterCreation = ({
   });
 
   // Auto-trigger start_creation when player has no character and no creation state
+  // Also re-triggers if creation state exists but no events arrived (race condition:
+  // event subscription wasn't ready when the initial creation event was emitted)
   function autoStartCreation() {
     if (!connActive.value) return;
-    if (creationStarted.value) return;
-    if (myCreationState.value) return; // Already has creation state
     if (selectedCharacter.value) return; // Already has character
-    // Check if player has any characters at all
     if (characters.value.length > 0) return;
 
     const conn = window.__db_conn as DbConnection | undefined;
     if (!conn) return;
+
+    if (myCreationState.value && myCreationEvents.value.length > 0) return; // Already running with events
+
+    if (creationStarted.value && !myCreationState.value) return; // Already called, waiting for state
 
     creationStarted.value = true;
     try {

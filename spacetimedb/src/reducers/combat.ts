@@ -1,14 +1,12 @@
 import { scheduledReducers } from '../schema/tables';
-import { calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier } from '../data/combat_scaling';
-// Class-specific sets removed in v2.0 — threat derives from character data
-import { TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, SUMMONER_THREAT_MULTIPLIER, SUMMONER_PET_INITIAL_AGGRO, HEALING_THREAT_PERCENT, AOE_DAMAGE_MULTIPLIER, getAbilityStatScaling, getAbilityMultiplier } from '../data/combat_scaling';
 import {
-  statOffset,
-  BLOCK_CHANCE_BASE,
-  BLOCK_CHANCE_DEX_PER_POINT,
-  BLOCK_MITIGATION_BASE,
-  BLOCK_MITIGATION_STR_PER_POINT,
-  WIS_PULL_BONUS_PER_POINT,
+  calculateStatScaledAutoAttack, calculateCritChance, getCritMultiplier,
+  TANK_THREAT_MULTIPLIER, HEALER_THREAT_MULTIPLIER, SUMMONER_THREAT_MULTIPLIER,
+  SUMMONER_PET_INITIAL_AGGRO, HEALING_THREAT_PERCENT, AOE_DAMAGE_MULTIPLIER,
+  getAbilityStatScaling, getAbilityMultiplier,
+  statOffset, BLOCK_CHANCE_BASE, BLOCK_CHANCE_DEX_PER_POINT,
+  BLOCK_MITIGATION_BASE, BLOCK_MITIGATION_STR_PER_POINT, WIS_PULL_BONUS_PER_POINT,
+  EFFECT_TICK_SECONDS, DOT_LIFE_DRAIN_PERCENT,
 } from '../data/combat_scaling';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ScheduleAt } from 'spacetimedb';
@@ -2487,21 +2485,25 @@ export const registerCombatReducers = (deps: any) => {
   };
 
   /** Tick all effects once per round (replaces EffectTick/HotTick). */
-  const tickEffectsForRound = (ctx: any, combatId: bigint, participants: any[]) => {
+  const tickEffectsForRound = (ctx: any, combatId: bigint, participants: any[], _nowMicros: bigint) => {
     // Tick character effects (DoTs, HoTs, buffs)
+    // Duration decrements every 1s tick, but damage/heal only applies every EFFECT_TICK_SECONDS
     for (const p of participants) {
       const effects = [...ctx.db.character_effect.by_character.filter(p.characterId)];
       for (const effect of effects) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
 
-        if (effect.effectType === 'regen' && character.hp > 0n) {
+        // Only apply DoT/HoT damage on tick boundaries (every 3s)
+        const isDamageTick = effect.roundsRemaining % EFFECT_TICK_SECONDS === 0n;
+
+        if (effect.effectType === 'regen' && character.hp > 0n && isDamageTick) {
           const healed = character.hp + effect.magnitude > character.maxHp
             ? character.maxHp : character.hp + effect.magnitude;
           ctx.db.character.id.update({ ...character, hp: healed });
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'heal',
             `${effect.sourceAbility ?? 'Regeneration'} soothes you for ${effect.magnitude} HP.`);
-        } else if (effect.effectType === 'dot' && character.hp > 0n) {
+        } else if (effect.effectType === 'dot' && character.hp > 0n && isDamageTick) {
           const dmg = effect.magnitude > 0n ? effect.magnitude : -effect.magnitude;
           const nextHp = character.hp > dmg ? character.hp - dmg : 0n;
           ctx.db.character.id.update({ ...character, hp: nextHp });
@@ -2551,7 +2553,8 @@ export const registerCombatReducers = (deps: any) => {
         continue;
       }
 
-      if (effect.effectType === 'dot') {
+      // Only apply DoT damage on tick boundaries (every 3s)
+      if (effect.effectType === 'dot' && effect.roundsRemaining % EFFECT_TICK_SECONDS === 0n) {
         const dmg = effect.magnitude > 0n ? effect.magnitude : -effect.magnitude;
         const nextHp = enemy.currentHp > dmg ? enemy.currentHp - dmg : 0n;
         ctx.db.combat_enemy.id.update({ ...enemy, currentHp: nextHp });
@@ -2569,7 +2572,7 @@ export const registerCombatReducers = (deps: any) => {
         if (effect.ownerCharacterId) {
           const caster = ctx.db.character.id.find(effect.ownerCharacterId);
           if (caster && caster.hp > 0n) {
-            const healAmt = dmg / 2n > 0n ? dmg / 2n : 1n;
+            const healAmt = (dmg * DOT_LIFE_DRAIN_PERCENT) / 100n > 0n ? (dmg * DOT_LIFE_DRAIN_PERCENT) / 100n : 1n;
             const newHp = caster.hp + healAmt > caster.maxHp ? caster.maxHp : caster.hp + healAmt;
             ctx.db.character.id.update({ ...caster, hp: newHp });
           }
@@ -2768,8 +2771,8 @@ export const registerCombatReducers = (deps: any) => {
       .filter((e: any) => e.currentHp > 0n);
     processPetCombat(ctx, combat, livingEnemies, nowMicros);
 
-    // Tick effects every tick (effects with roundsRemaining will expire in N ticks ~= N seconds)
-    tickEffectsForRound(ctx, combat.id, participants);
+    // Tick effects — damage/heal ticks every 3s, duration decrements every 1s
+    tickEffectsForRound(ctx, combat.id, participants, nowMicros);
 
     // Retarget characters whose target died
     const aliveEnemyIds = new Set(livingEnemies.map((e: any) => e.id));

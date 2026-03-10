@@ -785,6 +785,7 @@ export const LlmTask = __t.object("LlmTask", {
   maxTokens: __t.u64(),
   status: __t.string(),
   contextJson: __t.option(__t.string()),
+  responseFormatJson: __t.option(__t.string()),
   createdAt: __t.timestamp(),
 });
 export type LlmTask = __Infer<typeof LlmTask>;
@@ -1138,6 +1139,7 @@ export const Region = __t.object("Region", {
   threats: __t.option(__t.string()),
   generatedByCharacterId: __t.option(__t.u64()),
   isGenerated: __t.option(__t.bool()),
+  starterForRace: __t.option(__t.string()),
 });
 export type Region = __Infer<typeof Region>;
 
