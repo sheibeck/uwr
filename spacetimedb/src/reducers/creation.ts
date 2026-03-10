@@ -1,3 +1,5 @@
+import { ensureDefaultHotbar } from '../helpers/items';
+
 // Character creation state machine — narrative flow from greeting to character finalization
 
 const GREETING_MESSAGE =
@@ -230,11 +232,14 @@ export const registerCreationReducers = (deps: any) => {
             isGenerated: true,
           });
 
+          const hotbar = ensureDefaultHotbar(ctx, character.id);
           ctx.db.hotbar_slot.insert({
             id: 0n,
             characterId: character.id,
+            hotbarId: hotbar.id,
             slot: 0n,
             abilityTemplateId: abilityRow.id,
+            assignedAt: ctx.timestamp,
           });
         }
       } catch {

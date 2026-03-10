@@ -479,6 +479,26 @@ export function grantStarterItems(ctx: any, character: any, ensureStarterItemTem
 // to ensure starter armor/weapon/accessory/junk templates exist in the database.
 // ---------------------------------------------------------------------------
 
+/**
+ * Returns the active hotbar for a character, creating a default "main" hotbar if none exists.
+ * Used by any code that inserts hotbar slots to ensure hotbarId is always set.
+ */
+export function ensureDefaultHotbar(ctx: any, characterId: bigint): any {
+  const existing = [...ctx.db.hotbar.by_character.filter(characterId)];
+  if (existing.length > 0) {
+    const active = existing.find((h: any) => h.isActive);
+    return active ?? existing[0];
+  }
+  return ctx.db.hotbar.insert({
+    id: 0n,
+    characterId,
+    name: 'main',
+    sortOrder: 0,
+    isActive: true,
+    createdAt: ctx.timestamp,
+  });
+}
+
 export function ensureStarterItemTemplates(ctx: any) {
   const upsertItemTemplateByName = (row: any) => {
     const fullRow = {

@@ -1,5 +1,6 @@
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { awardRenown, grantAchievement } from '../helpers/renown';
+import { ensureDefaultHotbar } from '../helpers/items';
 
 export const registerRenownReducers = (deps: any) => {
   const { spacetimedb, t, requireAdmin, requireCharacterOwnedBy, appendSystemMessage, fail } = deps;
@@ -65,10 +66,10 @@ export const registerRenownReducers = (deps: any) => {
 
     // Auto-assign active ability perks to the hotbar
     if (perk.type === 'active' && perk.effect.perkAbilityKey) {
-      const abilityKey = perk.effect.perkAbilityKey;
-      // Find all used hotbar slots for this character
+      const hotbar = ensureDefaultHotbar(ctx, characterId);
+      // Find all used hotbar slots for this character's active hotbar
       const usedSlots = new Set<number>();
-      for (const slot of ctx.db.hotbar_slot.by_character.filter(characterId)) {
+      for (const slot of ctx.db.hotbar_slot.by_hotbar.filter(hotbar.id)) {
         usedSlots.add(Number(slot.slot));
       }
       // Find first empty slot 0-11
@@ -80,14 +81,23 @@ export const registerRenownReducers = (deps: any) => {
         }
       }
       if (emptySlot !== null) {
+        // Look up the ability template by perkAbilityKey
+        let abilityTemplateId = 0n;
+        for (const at of ctx.db.ability_template.iter()) {
+          if (at.key === perk.effect.perkAbilityKey) {
+            abilityTemplateId = at.id;
+            break;
+          }
+        }
         ctx.db.hotbar_slot.insert({
           id: 0n,
           characterId,
+          hotbarId: hotbar.id,
           slot: emptySlot,
-          abilityKey,
+          abilityTemplateId,
           assignedAt: ctx.timestamp,
         });
-        appendSystemMessage(ctx, character, `${perk.name} added to hotbar slot ${emptySlot}.`);
+        appendSystemMessage(ctx, character, `${perk.name} added to hotbar slot ${emptySlot + 1}.`);
       } else {
         appendSystemMessage(ctx, character, `${perk.name} granted! Manage your hotbar to use it.`);
       }

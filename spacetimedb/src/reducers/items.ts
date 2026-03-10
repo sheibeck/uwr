@@ -1,4 +1,4 @@
-import { buildDisplayName } from '../helpers/items';
+import { buildDisplayName, ensureDefaultHotbar } from '../helpers/items';
 import { getPerkBonusByField } from '../helpers/renown';
 import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
 import { computeSellValue } from '../helpers/economy';
@@ -623,21 +623,7 @@ export const registerItemReducers = (deps: any) => {
   // Hotbar helpers
   // ---------------------------------------------------------------------------
 
-  function ensureDefaultHotbar(ctx: any, character: any): any {
-    const existing = [...ctx.db.hotbar.by_character.filter(character.id)];
-    if (existing.length > 0) {
-      const active = existing.find((h: any) => h.isActive);
-      return active ?? existing[0];
-    }
-    return ctx.db.hotbar.insert({
-      id: 0n,
-      characterId: character.id,
-      name: 'main',
-      sortOrder: 0,
-      isActive: true,
-      createdAt: ctx.timestamp,
-    });
-  }
+  // ensureDefaultHotbar imported from helpers/items.ts
 
   // ---------------------------------------------------------------------------
   // Hotbar reducers
@@ -691,7 +677,7 @@ export const registerItemReducers = (deps: any) => {
     { characterId: t.u64(), slot1: t.u8(), slot2: t.u8() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
-      const activeHotbar = ensureDefaultHotbar(ctx, character);
+      const activeHotbar = ensureDefaultHotbar(ctx, character.id);
       const hotbarSlots = [...ctx.db.hotbar_slot.by_hotbar.filter(activeHotbar.id)];
       const s1 = hotbarSlots.find((s: any) => s.slot === args.slot1);
       const s2 = hotbarSlots.find((s: any) => s.slot === args.slot2);
@@ -735,7 +721,7 @@ export const registerItemReducers = (deps: any) => {
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
       if (args.slot < 1 || args.slot > 10) return failItem(ctx, character, 'Invalid hotbar slot');
-      const activeHotbar = ensureDefaultHotbar(ctx, character);
+      const activeHotbar = ensureDefaultHotbar(ctx, character.id);
       const existing = [...ctx.db.hotbar_slot.by_hotbar.filter(activeHotbar.id)].find(
         (row: any) => row.slot === args.slot
       );

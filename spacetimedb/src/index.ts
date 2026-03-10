@@ -2,6 +2,7 @@ import { t, SenderError } from 'spacetimedb/server';
 import { requireAdmin } from './data/admin';
 import { ScheduleAt, Timestamp } from 'spacetimedb';
 import { incrementBudget, checkBudget } from './helpers/llm';
+import { ensureDefaultHotbar } from './helpers/items';
 import {
   buildCharacterCreationPrompt,
   buildWorldGenPrompt,
@@ -741,7 +742,8 @@ spacetimedb.reducer('choose_skill', { pendingSkillId: t.u64() }, (ctx: any, { pe
   });
 
   // Auto-assign to first available hotbar slot (0-5)
-  const existingSlots = [...ctx.db.hotbar_slot.by_character.filter(pending.characterId)];
+  const defaultHotbar = ensureDefaultHotbar(ctx, pending.characterId);
+  const existingSlots = [...ctx.db.hotbar_slot.by_hotbar.filter(defaultHotbar.id)];
   const usedSlots = new Set(existingSlots.map((s: any) => Number(s.slot)));
   let assignedSlot = -1;
   for (let i = 0; i <= 5; i++) {
@@ -764,6 +766,7 @@ spacetimedb.reducer('choose_skill', { pendingSkillId: t.u64() }, (ctx: any, { pe
       ctx.db.hotbar_slot.insert({
         id: 0n,
         characterId: pending.characterId,
+        hotbarId: defaultHotbar.id,
         slot: 0,
         abilityTemplateId: abilityRow.id,
         assignedAt: ctx.timestamp,
@@ -775,6 +778,7 @@ spacetimedb.reducer('choose_skill', { pendingSkillId: t.u64() }, (ctx: any, { pe
     ctx.db.hotbar_slot.insert({
       id: 0n,
       characterId: pending.characterId,
+      hotbarId: defaultHotbar.id,
       slot: assignedSlot,
       abilityTemplateId: abilityRow.id,
       assignedAt: ctx.timestamp,
