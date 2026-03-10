@@ -684,6 +684,37 @@ export const PendingSkill = table(
   }
 );
 
+export const PendingRenownPerk = table(
+  {
+    name: 'pending_renown_perk',
+    public: true,
+    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    rank: t.u64(),
+    name: t.string(),
+    description: t.string(),
+    kind: t.string(),                     // ability kind or empty for passive
+    targetRule: t.string(),
+    resourceType: t.string(),
+    resourceCost: t.u64(),
+    castSeconds: t.u64(),
+    cooldownSeconds: t.u64(),
+    scaling: t.string(),
+    value1: t.u64(),
+    value2: t.u64().optional(),
+    damageType: t.string().optional(),
+    effectType: t.string().optional(),
+    effectMagnitude: t.u64().optional(),
+    effectDuration: t.u64().optional(),
+    perkEffectJson: t.string().optional(), // JSON passive bonus for non-ability perks
+    perkDomain: t.string().optional(),     // 'combat' | 'crafting' | 'social'
+    createdAt: t.timestamp(),
+  }
+);
+
 export const AbilityCooldown = table(
   {
     name: 'ability_cooldown',
@@ -2176,6 +2207,7 @@ const spacetimedb = schema({
   travel_cooldown: TravelCooldown,
   renown: Renown,
   renown_perk: RenownPerk,
+  pending_renown_perk: PendingRenownPerk,
   renown_server_first: RenownServerFirst,
   achievement: Achievement,
   corpse: Corpse,

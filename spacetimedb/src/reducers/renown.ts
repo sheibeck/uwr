@@ -1,6 +1,7 @@
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { awardRenown, grantAchievement } from '../helpers/renown';
 import { ensureDefaultHotbar } from '../helpers/items';
+import { chooseRenownPerkLogic } from './renown_perk';
 
 export const registerRenownReducers = (deps: any) => {
   const { spacetimedb, t, requireAdmin, requireCharacterOwnedBy, appendSystemMessage, fail } = deps;
@@ -105,6 +106,17 @@ export const registerRenownReducers = (deps: any) => {
 
     // Log message
     appendSystemMessage(ctx, character, `You have chosen the perk: ${perk.name}`);
+  });
+
+  spacetimedb.reducer('choose_renown_perk', { characterId: t.u64(), perkId: t.u64() }, (ctx: any, { characterId, perkId }: any) => {
+    // Auth check
+    const character = requireCharacterOwnedBy(ctx, characterId);
+    if (!character) return;
+
+    const result = chooseRenownPerkLogic(ctx, { characterId, perkId });
+    if (!result.success) {
+      fail(ctx, character, result.error || 'Invalid perk choice');
+    }
   });
 
   spacetimedb.reducer('grant_test_renown', { characterId: t.u64(), points: t.u64() }, (ctx: any, { characterId, points }: any) => {
