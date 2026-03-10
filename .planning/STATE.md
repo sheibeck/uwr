@@ -5,7 +5,7 @@ milestone_name: Project Cleanup
 status: executing
 stopped_at: Completed 33-04-PLAN.md
 last_updated: "2026-03-10T02:41:06.415Z"
-last_activity: "2026-03-09 - Completed 33-01: Combat log narrative messages and balance tuning"
+last_activity: "2026-03-10 - Completed quick task 394: Apply gold formatting to all narrative command windows and show item descriptions in inventory"
 progress:
   total_phases: 7
   completed_phases: 2
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 Phase: 33 of 37 (Combat Improvements)
 Plan: 1 of 3 (33-01 complete)
 Status: In Progress
-Last activity: 2026-03-09 - Completed 33-01: Combat log narrative messages and balance tuning
+Last activity: 2026-03-10 - Completed quick task 394: Apply gold formatting to all narrative command windows and show item descriptions in inventory
 
 Progress: [████████░░] 88%
 
