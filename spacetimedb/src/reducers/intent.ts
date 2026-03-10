@@ -162,7 +162,7 @@ export const registerIntentReducers = (deps: any) => {
       const SLOT_ORDER = ['head', 'chest', 'wrists', 'hands', 'belt', 'legs', 'boots', 'earrings', 'neck', 'cloak', 'mainHand', 'offHand'];
 
       const charItems = [...ctx.db.item_instance.by_owner.filter(character.id)];
-      const parts: string[] = ['Equipment:'];
+      const parts: string[] = ['{{color:#fbbf24}}Equipment:{{/color}}'];
 
       for (const slotKey of SLOT_ORDER) {
         const label = SLOT_LABELS[slotKey] || slotKey;
@@ -196,9 +196,12 @@ export const registerIntentReducers = (deps: any) => {
         const statsStr = statParts.length > 0 ? ` — ${statParts.join(', ')}` : '';
 
         parts.push(`  ${label}: {{color:${color}}}[${itemName}]{{/color}}${statsStr}`);
+        if (template.description) {
+          parts.push(`    ${template.description}`);
+        }
       }
 
-      parts.push(`\nGold: ${character.gold ?? 0n}`);
+      parts.push(`\n{{color:#fbbf24}}Gold:{{/color}} ${character.gold ?? 0n}`);
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', parts.join('\n'));
       return;
     }
@@ -273,16 +276,16 @@ export const registerIntentReducers = (deps: any) => {
     if (lower === 'stats') {
       const fmtPct = (v: bigint) => (Number(v) / 10).toFixed(2) + '%';
       const parts: string[] = [];
-      parts.push(`=== ${character.name} — Level ${character.level} ${character.race} ${character.className} ===`);
+      parts.push(`{{color:#fbbf24}}${character.name} — Level ${character.level} ${character.race} ${character.className}{{/color}}`);
       parts.push('');
-      parts.push('Resources:');
+      parts.push('{{color:#fbbf24}}Resources:{{/color}}');
       parts.push(`  HP: ${character.hp}/${character.maxHp}  Mana: ${character.mana}/${character.maxMana}  Stamina: ${character.stamina}/${character.maxStamina}`);
       parts.push(`  XP: ${character.xp}  Gold: ${character.gold ?? 0n}`);
       parts.push('');
-      parts.push('Base Stats:');
+      parts.push('{{color:#fbbf24}}Base Stats:{{/color}}');
       parts.push(`  STR ${character.str}  DEX ${character.dex}  INT ${character.int}  WIS ${character.wis}  CHA ${character.cha}`);
       parts.push('');
-      parts.push('Combat:');
+      parts.push('{{color:#fbbf24}}Combat:{{/color}}');
       parts.push(`  Hit: ${fmtPct(character.hitChance)}  Dodge: ${fmtPct(character.dodgeChance)}  Parry: ${fmtPct(character.parryChance)}`);
       parts.push(`  Crit (Melee): ${fmtPct(character.critMelee)}  Crit (Ranged): ${fmtPct(character.critRanged)}`);
       parts.push(`  Crit (Divine): ${fmtPct(character.critDivine)}  Crit (Arcane): ${fmtPct(character.critArcane)}`);
@@ -308,10 +311,10 @@ export const registerIntentReducers = (deps: any) => {
         parts.push('You have no abilities yet.');
       } else {
         abilities.sort((a: any, b: any) => Number(a.levelRequired) - Number(b.levelRequired));
-        parts.push(`=== Abilities (${abilities.length}) ===`);
+        parts.push(`{{color:#fbbf24}}Abilities (${abilities.length}){{/color}}`);
         parts.push('');
         for (const ab of abilities) {
-          parts.push(`${ab.name} (Lv ${ab.levelRequired})`);
+          parts.push(`{{color:#fbbf24}}${ab.name}{{/color}} (Lv ${ab.levelRequired})`);
           if (ab.description) parts.push(`  ${ab.description}`);
           parts.push(`  ${ab.kind} — ${ab.resourceType}: ${ab.resourceCost} — Cast: ${ab.castSeconds}s — CD: ${ab.cooldownSeconds}s`);
           parts.push('');
@@ -324,7 +327,7 @@ export const registerIntentReducers = (deps: any) => {
           parts.push('You have pending ability choices. Select one of the offered skills first.');
         } else {
           parts.push(`Missed ability selections: Level ${missedLevels.join(', Level ')}`);
-          parts.push('[choose ability] — The Keeper will present new offerings');
+          parts.push('{{color:#fbbf24}}[choose ability]{{/color}} — The Keeper will present new offerings');
         }
       }
 
@@ -385,7 +388,7 @@ export const registerIntentReducers = (deps: any) => {
         return `-${v}`;
       };
 
-      const parts: string[] = [`=== ${character.name} ===`, ''];
+      const parts: string[] = [`{{color:#fbbf24}}${character.name}{{/color}}`, ''];
       parts.push(`Class: ${character.className}`);
       if (character.weaponProficiencies) {
         parts.push(`Weapon Proficiencies: ${character.weaponProficiencies}`);
@@ -406,7 +409,7 @@ export const registerIntentReducers = (deps: any) => {
         try {
           const bonuses = JSON.parse(rd.bonusesJson);
           if (bonuses.primary) {
-            parts.push('Racial Bonuses:');
+            parts.push('{{color:#fbbf24}}Racial Bonuses:{{/color}}');
             parts.push(`  ${fmtLabel(bonuses.primary.stat)}: ${fmtVal(bonuses.primary.stat, BigInt(bonuses.primary.value))}`);
             if (bonuses.secondary) {
               parts.push(`  ${fmtLabel(bonuses.secondary.stat)}: ${fmtVal(bonuses.secondary.stat, BigInt(bonuses.secondary.value))}`);
@@ -423,7 +426,7 @@ export const registerIntentReducers = (deps: any) => {
             parts.push(`Race: ${r.name}`);
             if (r.description) parts.push(r.description);
             parts.push('');
-            parts.push('Racial Bonuses:');
+            parts.push('{{color:#fbbf24}}Racial Bonuses:{{/color}}');
             parts.push(`  ${fmtLabel(r.bonus1Type)}: ${fmtVal(r.bonus1Type, r.bonus1Value)}`);
             parts.push(`  ${fmtLabel(r.bonus2Type)}: ${fmtVal(r.bonus2Type, r.bonus2Value)}`);
             if (r.penaltyType && r.penaltyValue) {
@@ -431,7 +434,7 @@ export const registerIntentReducers = (deps: any) => {
             }
             parts.push('');
             const evenLevels = Number(character.level) / 2 | 0;
-            parts.push('Level Bonus (every 2 levels):');
+            parts.push('{{color:#fbbf24}}Level Bonus (every 2 levels):{{/color}}');
             parts.push(`  ${fmtLabel(r.levelBonusType)}: ${fmtVal(r.levelBonusType, r.levelBonusValue)} per even level`);
             if (evenLevels > 0) {
               parts.push(`  Total at level ${character.level}: ${fmtVal(r.levelBonusType, r.levelBonusValue * BigInt(evenLevels))}`);
