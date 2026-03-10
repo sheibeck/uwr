@@ -107,8 +107,13 @@ export function abilityCooldownMicros(ctx: any, abilityTemplateId: bigint) {
 
 export function abilityCastMicros(ctx: any, abilityTemplateId: bigint) {
   const ability = ctx.db.ability_template.id.find(abilityTemplateId);
-  if (ability?.castSeconds) return ability.castSeconds * 1_000_000n;
-  return 0n;
+  if (!ability) return 0n;
+  let castSeconds = ability.castSeconds ?? 0n;
+  // Enforce mana cast time floor
+  if (ability.resourceType === 'mana' && castSeconds < MANA_MIN_CAST_SECONDS) {
+    castSeconds = MANA_MIN_CAST_SECONDS;
+  }
+  return castSeconds > 0n ? castSeconds * 1_000_000n : 0n;
 }
 
 export function enemyAbilityCastMicros(ctx: any, enemyAbilityId: bigint) {

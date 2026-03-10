@@ -2630,7 +2630,31 @@ export const registerCombatReducers = (deps: any) => {
       return failCombat(ctx, character, `${ability.name} is on cooldown`);
     }
 
-    // Execute immediately
+    // Check if already casting
+    const existingCast = [...ctx.db.character_cast.by_character.filter(character.id)][0];
+    if (existingCast && existingCast.endsAtMicros > nowMicros) {
+      return failCombat(ctx, character, 'Already casting');
+    }
+
+    // Determine cast time (with mana floor applied)
+    const castMicros = abilityCastMicros(ctx, args.abilityTemplateId);
+
+    if (castMicros > 0n) {
+      // Has cast time — insert character_cast row, tick_casts will execute when done
+      if (existingCast) ctx.db.character_cast.id.delete(existingCast.id);
+      ctx.db.character_cast.insert({
+        id: 0n,
+        characterId: character.id,
+        abilityTemplateId: args.abilityTemplateId,
+        targetCharacterId: args.targetCharacterId,
+        endsAtMicros: nowMicros + castMicros,
+      });
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+        `Casting ${ability.name}...`);
+      return;
+    }
+
+    // No cast time — execute immediately
     try {
       executeAbilityAction(ctx, {
         actorType: 'character',
