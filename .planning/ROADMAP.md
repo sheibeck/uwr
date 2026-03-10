@@ -100,20 +100,21 @@ Plans:
 - [ ] 33-05-PLAN.md -- Gap closure: enable mid-combat pull via narrative enemy clicks
 
 ### Phase 34: Narrative UI Integration
-**Goal**: Players can sell items and manage hotbars entirely through the narrative console with styled event feedback
+**Goal**: Players can sell items, manage multiple named hotbars, and use abilities outside combat entirely through the narrative console with styled event feedback
 **Depends on**: Phase 32 (dead code removed, shared helpers exist)
 **Requirements**: NARR-01, NARR-02, NARR-03, NARR-04, NARR-05
 **Success Criteria** (what must be TRUE):
   1. Player can type `sell <item>` and the item is sold with correct gold calculation including perk bonuses
   2. Player can type `sell all junk` or `sell 3 <item>` for bulk sales with a summary of what was sold
-  3. Hotbar is visible in the narrative combat HUD showing ability slots with cooldown timers
-  4. Player can type `hotbar set 1 <ability>` and `hotbar swap 1 3` to manage ability slots
+  3. Hotbar is visible at all times (not just combat) showing ability slots with cooldown timers
+  4. Player can create multiple named hotbars, switch between them with arrows, and manage slots via commands
   5. Event feed entries are color-coded by kind (combat=red, reward=gold, system=gray, social=blue)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 34-01: TBD
-- [ ] 34-02: TBD
+- [ ] 34-01-PLAN.md -- Fix sell perk bonus, add sell all junk and sell N commands, complete event colors
+- [ ] 34-02-PLAN.md -- Hotbar schema (Hotbar parent table), server reducers, intent commands
+- [ ] 34-03-PLAN.md -- Persistent hotbar UI, multi-hotbar navigation, remove bottom action bar
 
 ### Phase 35: Dynamic Equipment Generation
 **Goal**: Equipment drops are unique, level-appropriate, and dynamically generated -- no more selecting from a static pool
@@ -170,10 +171,10 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37
 | 31. Test Infrastructure | 3/3 | Complete    | 2026-03-09 | - |
 | 32. Dead Code Removal | 3/3 | Complete    | 2026-03-09 | - |
 | 33. Combat Improvements | 4/5 | In Progress|  | - |
-| 34. Narrative UI Integration | v2.1 | 0/? | Not started | - |
+| 34. Narrative UI Integration | v2.1 | 0/3 | Not started | - |
 | 35. Dynamic Equipment Generation | v2.1 | 0/? | Not started | - |
 | 36. Ability Expansion | v2.1 | 0/? | Not started | - |
 | 37. UX Polish | v2.1 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-10 after phase 33 gap closure planning*
+*Last updated: 2026-03-10 after phase 34 planning*
