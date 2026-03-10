@@ -61,16 +61,12 @@
       :selected-character="selectedCharacter"
       :active-combat="activeCombat"
       :conn-active="conn.isActive"
-      :context-actions="narrativeContextActions"
       :is-llm-processing="isNarrativeLlmProcessing"
       :format-timestamp="formatTimestamp"
       :has-pending-skills="hasPendingSkills"
       :pending-levels="Number(pendingLevels)"
       :is-in-combat="combatUiVisible"
-      :combat-abilities="combatAbilitiesForBar"
       :combat-enemies="combatEnemiesList"
-      :casting-ability-id="activeCastId"
-      :cast-progress="castProgress"
       :gathering-state="activeGatheringInfo"
       :quest-item-cast-state="localQuestItemCast"
       :group-members="groupCharacterMembers"
@@ -83,8 +79,6 @@
       :hotbar-list="hotbarList"
       @submit="onNarrativeSubmit"
       @open-panel="onOpenPanel"
-      @flee="onCombatFlee"
-      @use-ability="onCombatUseAbility"
       @target-enemy="onCombatTargetEnemy"
       @target="setDefensiveTarget"
       @level-up-click="onLevelUpClick"
@@ -1748,6 +1742,25 @@ const onLevelUpClick = () => {
     'private'
   );
 };
+
+// Auto re-prompt when pending levels remain after a level-up completes
+watch(pendingLevels, (newVal, oldVal) => {
+  // Detect: value decreased (level was applied) but still > 0 (more remain)
+  if (newVal > 0n && oldVal !== undefined && newVal < oldVal) {
+    // Delay to let the skill choice / narration from current level settle
+    setTimeout(() => {
+      // Re-check in case user leveled up again in the meantime
+      if (pendingLevels.value > 0n) {
+        const remaining = Number(pendingLevels.value);
+        const pendingText = remaining > 1 ? `${remaining} levels pending` : '1 level pending';
+        addLocalEvent('narrative',
+          `You have more levels to apply! (${pendingText}) Click [Confirm Level Up] to continue.`,
+          'private'
+        );
+      }
+    }, 2000); // 2s delay to let current level-up narration appear first
+  }
+});
 
 const inviteToGroup = (targetName: string) => {
   if (!selectedCharacter.value || !conn.isActive) return;
