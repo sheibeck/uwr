@@ -256,9 +256,10 @@ export const registerCreationReducers = (deps: any) => {
       updatedAt: ctx.timestamp,
     });
 
-    appendCreationEvent(ctx, ctx.sender, 'creation', `Welcome to the world, ${characterName}. Try not to die immediately. It's tedious to watch.`);
+    appendCreationEvent(ctx, ctx.sender, 'creation', `Go on then, ${characterName}. The void grows bored of you standing here.`);
     appendPrivateEvent(ctx, character.id, userId, 'system',
-      'The world stirs. Beyond the edges of what is known, something ancient begins to remember itself...');
+      `A few things you should probably know before you get yourself killed:\n\nType [bag] to open your pack -- you have starter gear in there. Equip it, or don't; the enemies won't wait for you to feel ready. Your hotbar already holds your starting ability -- click it in combat, or just type its name. To see who else exists in this forsaken place, type [look]; to bother one of them, type [hail <name>]. NPCs have opinions about you that improve the longer you don't annoy them -- they may eventually share quests, training, or items. Type [look] again when you want to move somewhere, then click a path or type the direction. And when combat inevitably goes sideways, [flee] exists for a reason. No shame in it. You can always come back and die more slowly.`
+    );
 
     ctx.db.world_gen_state.insert({
       id: 0n,
