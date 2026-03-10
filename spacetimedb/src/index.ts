@@ -867,10 +867,12 @@ spacetimedb.reducer('apply_level_up', { characterId: t.u64() }, (ctx: any, { cha
   ctx.db.character.id.update(updated);
   recomputeCharacterDerived(ctx, updated);
 
-  // Notify racial bonus on even levels
-  if (newLevel % 2n === 0n && raceRow) {
+  // Notify racial bonus every level
+  if (raceRow) {
+    const bonusAmount = raceRow.levelBonusValue;
+    const bonusLabel = raceRow.levelBonusType.replace(/_/g, ' ');
     appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
-      `Your ${raceRow.name} heritage grows stronger at level ${newLevel}.`);
+      `Your ${raceRow.name} heritage grows stronger — +${bonusAmount} ${bonusLabel} at level ${newLevel}.`);
   }
 
   // Level-up announcement

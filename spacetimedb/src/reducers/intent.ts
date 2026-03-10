@@ -444,11 +444,19 @@ export const registerIntentReducers = (deps: any) => {
               parts.push(`  ${fmtLabel(r.penaltyType)}: ${fmtPenalty(r.penaltyType, r.penaltyValue)}`);
             }
             parts.push('');
-            const evenLevels = Number(character.level) / 2 | 0;
-            parts.push('{{color:#fbbf24}}Level Bonus (every 2 levels):{{/color}}');
-            parts.push(`  ${fmtLabel(r.levelBonusType)}: ${fmtVal(r.levelBonusType, r.levelBonusValue)} per even level`);
-            if (evenLevels > 0) {
-              parts.push(`  Total at level ${character.level}: ${fmtVal(r.levelBonusType, r.levelBonusValue * BigInt(evenLevels))}`);
+            parts.push('{{color:#fbbf24}}Level Bonus (every level):{{/color}}');
+            parts.push(`  ${fmtLabel(r.levelBonusType)}: ${fmtVal(r.levelBonusType, r.levelBonusValue)} per level`);
+            if (character.level > 0n) {
+              parts.push(`  Total at level ${character.level}: ${fmtVal(r.levelBonusType, r.levelBonusValue * BigInt(character.level))}`);
+            }
+            if ((r as any).abilityName) {
+              const ra = r as any;
+              parts.push('');
+              parts.push('{{color:#fbbf24}}Race Ability:{{/color}}');
+              parts.push(`  ${ra.abilityName}`);
+              if (ra.abilityDescription) parts.push(`  ${ra.abilityDescription}`);
+              const cdMins = Number(ra.abilityCooldownSeconds) / 60;
+              parts.push(`  Cooldown: ${cdMins} min`);
             }
             break;
           }
