@@ -24,18 +24,6 @@
       @target="$emit('target', $event)"
     />
 
-    <!-- Persistent hotbar strip (always visible when character selected) -->
-    <NarrativeHotbar
-      v-if="selectedCharacter"
-      :slots="hotbarSlots ?? []"
-      :active-hotbar-name="activeHotbarName ?? 'main'"
-      :hotbar-list="hotbarList ?? []"
-      @use-slot="emit('use-hotbar-slot', $event)"
-      @prev-hotbar="emit('prev-hotbar')"
-      @next-hotbar="emit('next-hotbar')"
-      @list-hotbars="emit('submit', 'hotbars')"
-    />
-
     <!-- Scroll area -->
     <div :style="scrollAreaStyle" ref="scrollEl" @scroll="checkIfAtBottom">
       <div v-if="!selectedCharacter && combinedEvents.length === 0 && !isLlmProcessing" :style="emptyStyle">
@@ -97,11 +85,19 @@
       :combat-enemies="combatEnemies"
       :casting-ability-id="castingAbilityId"
       :cast-progress="castProgress"
+      :show-hotbar="!!selectedCharacter"
+      :hotbar-slots="hotbarSlots ?? []"
+      :active-hotbar-name="activeHotbarName ?? 'main'"
+      :hotbar-list="hotbarList ?? []"
       @submit="$emit('submit', $event)"
       @skip-animation="onSkipAnimation"
       @flee="$emit('flee')"
       @use-ability="(id: bigint) => $emit('use-ability', id)"
       @target-enemy="(id: bigint) => $emit('target-enemy', id)"
+      @use-hotbar-slot="emit('use-hotbar-slot', $event)"
+      @prev-hotbar="emit('prev-hotbar')"
+      @next-hotbar="emit('next-hotbar')"
+      @list-hotbars="emit('submit', 'hotbars')"
     />
   </div>
 </template>
@@ -111,7 +107,6 @@ import { computed, nextTick, ref, watch } from 'vue';
 import type { Character } from '../module_bindings/types';
 import GroupMemberBar from './GroupMemberBar.vue';
 import NarrativeHud from './NarrativeHud.vue';
-import NarrativeHotbar from './NarrativeHotbar.vue';
 import NarrativeInput from './NarrativeInput.vue';
 import NarrativeMessage from './NarrativeMessage.vue';
 import type { ContextAction } from './NarrativeInput.vue';
@@ -280,8 +275,8 @@ const consoleStyle = {
 const scrollAreaStyle = computed(() => ({
   flex: '1',
   overflowY: 'auto' as const,
-  paddingTop: props.selectedCharacter ? '147px' : '107px',
-  paddingBottom: props.isInCombat ? '150px' : '50px',
+  paddingTop: '107px',
+  paddingBottom: props.isInCombat ? '190px' : '100px',
   paddingLeft: '16px',
   paddingRight: '16px',
 }));

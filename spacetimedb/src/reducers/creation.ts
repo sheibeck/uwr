@@ -180,6 +180,7 @@ export const registerCreationReducers = (deps: any) => {
       createdAt: ctx.timestamp,
       weaponProficiencies,
       armorProficiencies,
+      pendingLevels: 0n,
     });
 
     recomputeCharacterDerived(ctx, character);

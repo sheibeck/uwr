@@ -1,5 +1,17 @@
 <template>
   <div :style="containerStyle">
+    <!-- Hotbar strip (always visible when character selected) -->
+    <NarrativeHotbar
+      v-if="showHotbar"
+      :slots="hotbarSlots"
+      :active-hotbar-name="activeHotbarName"
+      :hotbar-list="hotbarList"
+      @use-slot="emit('use-hotbar-slot', $event)"
+      @prev-hotbar="emit('prev-hotbar')"
+      @next-hotbar="emit('next-hotbar')"
+      @list-hotbars="emit('list-hotbars')"
+    />
+
     <!-- Combat UI: Enemy HUD + Action Bar (during active combat) -->
     <template v-if="isInCombat">
       <EnemyHud
@@ -62,6 +74,7 @@ import { computed, ref } from 'vue';
 import CombatActionBar from './CombatActionBar.vue';
 import type { CombatAbility } from './CombatActionBar.vue';
 import EnemyHud from './EnemyHud.vue';
+import NarrativeHotbar from './NarrativeHotbar.vue';
 
 export type ContextAction = {
   label: string;
@@ -93,6 +106,10 @@ const props = withDefaults(defineProps<{
   combatEnemies?: CombatEnemyEntry[];
   castingAbilityId?: bigint | null;
   castProgress?: number;
+  hotbarSlots?: any[];
+  activeHotbarName?: string;
+  hotbarList?: any[];
+  showHotbar?: boolean;
 }>(), {
   placeholder: 'What do you do?',
   isInCombat: false,
@@ -100,6 +117,10 @@ const props = withDefaults(defineProps<{
   combatEnemies: () => [],
   castingAbilityId: null,
   castProgress: 0,
+  hotbarSlots: () => [],
+  activeHotbarName: 'main',
+  hotbarList: () => [],
+  showHotbar: false,
 });
 
 const emit = defineEmits<{
@@ -108,6 +129,10 @@ const emit = defineEmits<{
   (e: 'flee'): void;
   (e: 'use-ability', abilityId: bigint): void;
   (e: 'target-enemy', enemyId: bigint): void;
+  (e: 'use-hotbar-slot', slot: any): void;
+  (e: 'prev-hotbar'): void;
+  (e: 'next-hotbar'): void;
+  (e: 'list-hotbars'): void;
 }>();
 
 const inputEl = ref<HTMLInputElement | null>(null);

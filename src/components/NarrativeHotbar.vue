@@ -109,12 +109,7 @@ const nextHotbarName = computed(() => {
 
 // ── Styles ───────────────────────────────────────────────────────
 const hotbarStyle = {
-  position: 'fixed' as const,
-  top: '107px',
-  left: '0',
-  right: '0',
   height: '40px',
-  zIndex: 9998,
   background: '#12121a',
   borderBottom: '1px solid #2a2a3a',
   display: 'flex',
