@@ -96,6 +96,25 @@ You must always respond with valid JSON matching the schema provided in the user
 ${context}`;
 }
 
+// === SHARED ABILITY SCHEMA (used by both character creation and skill generation) ===
+
+const CREATION_ABILITY_SCHEMA = `{
+      "name": "string -- 2-3 words max, punchy action name",
+      "description": "string -- sardonic description of the ability",
+      "kind": "damage|dot|heal|hot|buff|debuff|stun",
+      "damageType": "physical|fire|ice|lightning|shadow|holy|nature|arcane|none",
+      "targetRule": "single_enemy|single_ally|self",
+      "resourceType": "mana|stamina|none",
+      "resourceCost": "number (0-15, 0 for physical non-mana abilities)",
+      "castSeconds": "number -- cast time in seconds. Mana abilities MUST be >= 1 (use 1-3). Only stamina/physical abilities can be 0 (instant).",
+      "cooldownSeconds": "number (4-12)",
+      "scaling": "str|dex|int|wis|cha",
+      "value1": "number (8-15 for level 1, primary power value)",
+      "effectType": "string or null -- for dot/hot/buff/debuff kinds (e.g. dot, regen, str_bonus, armor_down, stun). null for damage/heal.",
+      "effectMagnitude": "number or null -- effect strength per tick. null for damage/heal.",
+      "effectDuration": "number or null -- duration in seconds. Combat rounds are 3s, so dot/hot/buff/debuff need 9-12 for 3-4 ticks. Stun uses 3. null for damage/heal."
+    }`;
+
 // === CHARACTER CREATION JSON SCHEMAS ===
 
 export const RACE_INTERPRETATION_SCHEMA = `{
@@ -121,16 +140,7 @@ export const CLASS_GENERATION_SCHEMA = `{
     "usesMana": "boolean"
   },
   "abilities": [
-    {
-      "name": "string — 2-3 words max, punchy action name (e.g. 'Moonsap Strike', 'Void Rend', 'Iron Tide' — NOT 'Grievance of the Blackbriar Choir')",
-      "description": "string — sardonic description of the ability",
-      "damageType": "physical|fire|ice|lightning|shadow|holy|nature|arcane",
-      "baseDamage": "number (8-15 for level 1)",
-      "cooldownSeconds": "number (4-12)",
-      "manaCost": "number (0-15, 0 for physical non-mana abilities)",
-      "effect": "none|dot|heal|buff|debuff|stun",
-      "effectDuration": "number (0 for none, 2-4 for others)"
-    }
+    ${CREATION_ABILITY_SCHEMA}
   ]
 }`;
 
@@ -182,15 +192,7 @@ export const COMBINED_CREATION_SCHEMA = `{
   },
   "abilities": [
     {
-      "name": "string — 2-3 words max, punchy action name (e.g. 'Moonsap Strike', 'Void Rend', 'Iron Tide' — NOT 'Grievance of the Blackbriar Choir')",
-      "description": "string — sardonic description of the ability",
-      "damageType": "physical|fire|ice|lightning|shadow|holy|nature|arcane",
-      "baseDamage": "number (8-15 for level 1)",
-      "cooldownSeconds": "number (4-12)",
-      "manaCost": "number (0-15, 0 for physical non-mana abilities)",
-      "effect": "none|dot|heal|buff|debuff|stun",
-      "effectDuration": "number (0 for none, 2-4 for others)"
-    }
+    ${CREATION_ABILITY_SCHEMA}
   ]
 }`;
 
@@ -254,7 +256,7 @@ export const SKILL_GENERATION_SCHEMA = `{
       "damageType": "physical | arcane | divine | nature | fire | ice | shadow | none — required for damage-dealing kinds",
       "effectType": "string or null — effect type for buff/debuff/dot/hot kinds (e.g. str_bonus, damage_up, armor_down, stun, regen, dot, damage_shield, etc.)",
       "effectMagnitude": "number or null — effect strength",
-      "effectDuration": "number or null — effect duration in seconds"
+      "effectDuration": "number or null — effect duration in seconds. Rounds are 3s so dot/hot/buff/debuff need 9-12s (3-4 ticks). Only cc uses short durations."
     }
   ]
 }`;
@@ -273,7 +275,7 @@ Present exactly three options. Each should feel meaningfully different — not t
 
 Names must be 2-3 words, creative but concise. Not generic ("Fireball") and not narrative-length ("Echoing Spite of the Hollow King"). Good: "Hollow Spite", "Void Rend", "Iron Tide".
 
-Descriptions should be 1-2 sentences of sardonic commentary from The Keeper.
+Descriptions should be 1-2 sentences of sardonic commentary from The Keeper. Weave the cast time into the description naturally — instant abilities should feel snappy ("a quick slash"), while longer cast times should convey the buildup ("after a moment of concentration" for 1-2s, "a lengthy incantation" for 3s+).
 
 ## CRITICAL — Kind must match mechanics
 
@@ -283,6 +285,12 @@ The "kind" field MUST match what the ability actually does mechanically:
 - If it buffs stats → kind MUST be "buff", NOT "damage"
 - "damage" is ONLY for single-hit direct damage with no lingering effect
 - DoT abilities MUST include effectType: "dot", effectDuration (in seconds), and effectMagnitude (damage per tick)
+
+## CRITICAL — Effect durations
+
+Combat rounds are 3 seconds long. Effects tick once per round. An effectDuration of 2s only lasts 1 tick — almost useless.
+- dot, hot, debuff, buff effects MUST have effectDuration of 9-12 seconds (3-4 ticks) to be meaningful.
+- Short durations (1-3s) are ONLY for stun/root/cc where brief is intentional.
 
 ## CRITICAL — Cast times
 
@@ -331,6 +339,69 @@ ${SKILL_GENERATION_SCHEMA}`;
 // Legacy alias for backward compatibility (used by buildSkillGenPrompt callers if any)
 export function buildSkillGenPrompt(context: string): string {
   return buildSkillGenSystemPrompt();
+}
+
+// OpenAI structured output response_format for skill generation
+export function buildSkillGenResponseFormat(): object {
+  return {
+    type: 'json_schema',
+    json_schema: {
+      name: 'skill_generation',
+      strict: true,
+      schema: {
+        type: 'object',
+        properties: {
+          skills: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: '2-3 words max, punchy action name' },
+                description: { type: 'string', description: 'Sardonic Keeper narrator description, 1-2 sentences' },
+                kind: {
+                  type: 'string',
+                  enum: ['damage', 'heal', 'dot', 'hot', 'buff', 'debuff', 'shield', 'taunt', 'aoe_damage', 'aoe_heal', 'summon', 'cc', 'drain', 'execute', 'utility'],
+                  description: 'damage=single-hit direct damage, dot=damage over time (burning, bleeding, poisoning), hot=heal over time, heal=instant heal, buff=apply positive effect, debuff=apply negative effect, shield=absorb barrier, taunt=force target, aoe_damage=multi-target damage, aoe_heal=multi-target heal, cc=crowd control, drain=damage+self-heal, execute=bonus vs low HP, utility=non-combat',
+                },
+                targetRule: {
+                  type: 'string',
+                  enum: ['single_enemy', 'single_ally', 'self', 'all_enemies', 'all_allies', 'all_party', 'lowest_hp_ally', 'lowest_hp_enemy'],
+                },
+                resourceType: {
+                  type: 'string',
+                  enum: ['mana', 'stamina', 'hp', 'none'],
+                },
+                resourceCost: { type: 'number', description: 'Resource cost to use' },
+                castSeconds: { type: 'number', description: 'Cast time in seconds. MANDATORY: if resourceType is mana, castSeconds MUST be >= 1 (use 1-3). Only stamina/none abilities may use 0. Powerful spells should use 2-3.' },
+                cooldownSeconds: { type: 'number', description: 'Cooldown in seconds' },
+                scaling: {
+                  type: 'string',
+                  enum: ['str', 'dex', 'int', 'wis', 'cha', 'hybrid', 'none'],
+                },
+                value1: { type: 'number', description: 'Primary power value (damage, heal amount, etc.)' },
+                value2: { type: ['number', 'null'], description: 'Secondary value (DoT ticks, drain heal%, etc.)' },
+                damageType: {
+                  type: 'string',
+                  enum: ['physical', 'arcane', 'divine', 'nature', 'fire', 'ice', 'shadow', 'none'],
+                  description: 'Required for damage-dealing kinds',
+                },
+                effectType: {
+                  type: ['string', 'null'],
+                  description: 'Effect type for buff/debuff/dot/hot kinds (e.g. str_bonus, dot, damage_up, stun, regen)',
+                },
+                effectMagnitude: { type: ['number', 'null'], description: 'Effect strength' },
+                effectDuration: { type: ['number', 'null'], description: 'Effect duration in seconds. Combat rounds are 3s, so dot/hot/buff/debuff MUST use 9-12s (3-4 ticks). Only cc (stun/root) should use short durations.' },
+              },
+              required: ['name', 'description', 'kind', 'targetRule', 'resourceType', 'resourceCost', 'castSeconds', 'cooldownSeconds', 'scaling', 'value1', 'value2', 'damageType', 'effectType', 'effectMagnitude', 'effectDuration'],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ['skills'],
+        additionalProperties: false,
+      },
+    },
+  };
 }
 
 // === NPC CONVERSATION SYSTEM ===
