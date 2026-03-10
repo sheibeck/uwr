@@ -88,8 +88,9 @@ None.
 | 395 | Remove slash prefix from non-admin commands, add clickable who names and group status | 2026-03-10 | 4ea2b89 | [395-remove-slash-prefix-from-non-admin-comma](./quick/395-remove-slash-prefix-from-non-admin-comma/) |
 | 396 | Fix debuff targeting (buff+debuff effectType hits caster) and HoT double-heal | 2026-03-10 | 1c01d75 | [396-fix-combat-targeting-debuffs-hit-caster-](./quick/396-fix-combat-targeting-debuffs-hit-caster-/) |
 | 397 | Rebalance combat so solo player can reliably defeat equal-level enemies | 2026-03-10 | fddbf32 | [397-rebalance-combat-so-solo-player-can-reli](./quick/397-rebalance-combat-so-solo-player-can-reli/) |
+| 398 | Deferred level-up: pendingLevels counter, apply_level_up reducer, HUD indicator + confirmation flow | 2026-03-10 | cefaa2a | [398-delayed-level-up-save-level-ups-for-manu](./quick/398-delayed-level-up-save-level-ups-for-manu/) |
 
 ## Session Continuity
 
 Last session: 2026-03-10T06:00:00Z
-Stopped at: Completed quick-397
+Stopped at: Completed quick-398
