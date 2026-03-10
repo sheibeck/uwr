@@ -85,6 +85,7 @@ export const Region = table(
     threats: t.string().optional(),          // JSON-stringified array of threat descriptions
     generatedByCharacterId: t.u64().optional(), // Who triggered generation
     isGenerated: t.bool().optional(),        // Distinguish from seeded content
+    starterForRace: t.string().optional(),   // Race name (lowercase) this region was generated as starter for
   }
 );
 
@@ -2066,6 +2067,7 @@ export const LlmTask = table(
     maxTokens: t.u64(),
     status: t.string(),           // 'pending', 'completed', 'error'
     contextJson: t.string().optional(), // Domain-specific context (e.g. genStateId, generationType)
+    responseFormatJson: t.string().optional(), // OpenAI structured output schema (JSON stringified)
     createdAt: t.timestamp(),
   }
 );

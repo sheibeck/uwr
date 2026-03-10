@@ -13,6 +13,7 @@ import {
   buildClassGenerationUserPrompt,
   buildCombinedCreationUserPrompt,
   buildRegionGenerationUserPrompt,
+  buildSkillGenResponseFormat,
 } from './data/llm_prompts';
 import { pickRippleMessage, pickDiscoveryMessage, computeRegionDanger } from './helpers/world_gen';
 import { writeGeneratedRegion, buildRegionContext } from './helpers/world_gen';
@@ -534,6 +535,69 @@ spacetimedb.reducer('prepare_world_gen_llm', { genStateId: t.u64() }, (ctx: any,
     throw new SenderError('Daily LLM budget exceeded');
   }
 
+  // If this is a starter region request, check if another character of the same race already generated one
+  if (genState.sourceRegionId === 0n) {
+    const character = ctx.db.character.id.find(genState.characterId);
+    const raceLower = (character?.race || '').toLowerCase();
+    if (raceLower) {
+      let existingStarterRegion: any = null;
+      for (const region of ctx.db.region.iter()) {
+        if (region.starterForRace && region.starterForRace.toLowerCase() === raceLower) {
+          existingStarterRegion = region;
+          break;
+        }
+      }
+      if (existingStarterRegion) {
+        // Find the home location in the existing starter region
+        let homeLocation: any = null;
+        for (const loc of ctx.db.location.iter()) {
+          if (loc.regionId === existingStarterRegion.id && loc.isSafe && loc.terrainType !== 'uncharted') {
+            homeLocation = loc;
+            break;
+          }
+        }
+        if (!homeLocation) {
+          for (const loc of ctx.db.location.iter()) {
+            if (loc.regionId === existingStarterRegion.id && loc.terrainType !== 'uncharted') {
+              homeLocation = loc;
+              break;
+            }
+          }
+        }
+        if (homeLocation && character) {
+          // Place character in the existing starter region
+          ctx.db.character.id.update({
+            ...ctx.db.character.id.find(character.id),
+            locationId: homeLocation.id,
+            boundLocationId: homeLocation.id,
+          });
+          ensureSpawnsForLocation(ctx, homeLocation.id);
+
+          // Mark world gen complete
+          ctx.db.world_gen_state.id.update({
+            ...genState,
+            step: 'COMPLETE',
+            generatedRegionId: existingStarterRegion.id,
+            updatedAt: ctx.timestamp,
+          });
+
+          // Send arrival narrative
+          const locationNpcs: string[] = [];
+          for (const npc of ctx.db.npc.by_location.filter(homeLocation.id)) {
+            locationNpcs.push(npc.name);
+          }
+          let arrivalMsg = `You open your eyes in ${homeLocation.name}, ${existingStarterRegion.name}.`;
+          if (locationNpcs.length > 0) {
+            arrivalMsg += `\n\nYou notice ${locationNpcs.join(' and ')} nearby. Perhaps they have something to say.`;
+          }
+          arrivalMsg += `\n\nTry [look] to examine your surroundings, or [travel] to move.`;
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative', arrivalMsg);
+          return;
+        }
+      }
+    }
+  }
+
   // Concurrency check
   const existingTasks = [...ctx.db.llm_task.by_player.filter(ctx.sender)];
   if (existingTasks.some((t: any) => t.status === 'pending' && t.domain === 'world_gen')) return;
@@ -633,6 +697,7 @@ spacetimedb.reducer('prepare_skill_gen', { characterId: t.u64() }, (ctx: any, { 
     maxTokens: 1500n,
     status: 'pending',
     contextJson: JSON.stringify({ characterId: characterId.toString() }),
+    responseFormatJson: JSON.stringify(buildSkillGenResponseFormat()),
     createdAt: ctx.timestamp,
   });
 });
@@ -864,9 +929,15 @@ spacetimedb.reducer('submit_llm_result', {
         for (let i = 0; i < abilities.length; i++) {
           const a = abilities[i];
           abilityText += `\n[${a.name}] — ${a.description}\n`;
-          abilityText += `  ${a.damageType} damage, ${a.baseDamage} base, ${a.cooldownSeconds}s cooldown`;
-          if (a.manaCost > 0) abilityText += `, ${a.manaCost} mana`;
-          if (a.effect !== 'none') abilityText += `, ${a.effect} (${a.effectDuration}s)`;
+          const castTime = a.castSeconds > 0 ? `${a.castSeconds}s cast` : 'instant';
+          const baseValue = a.value1 ?? a.baseDamage ?? '?';
+          const cost = a.resourceCost ?? a.manaCost ?? 0;
+          const resType = a.resourceType ?? (cost > 0 ? 'mana' : '');
+          const kindLabel = a.kind ?? a.effect ?? 'damage';
+          abilityText += `  ${a.damageType ?? 'physical'} ${kindLabel}, ${baseValue} base, ${castTime}, ${a.cooldownSeconds}s cooldown`;
+          if (cost > 0) abilityText += `, ${cost} ${resType}`;
+          const effectKind = a.effectType ?? a.effect;
+          if (effectKind && effectKind !== 'none') abilityText += `, ${effectKind} (${a.effectDuration ?? '?'}s)`;
           abilityText += '\n';
         }
 
@@ -909,7 +980,12 @@ spacetimedb.reducer('submit_llm_result', {
     }
 
     // Write generated region content into game tables
-    const region = writeGeneratedRegion(ctx, data, currentGenState);
+    // For starter regions (sourceRegionId=0n), mark region with race so same-race chars reuse it
+    const genCharacter = ctx.db.character.id.find(currentGenState.characterId);
+    const starterRace = currentGenState.sourceRegionId === 0n && genCharacter?.race
+      ? genCharacter.race.toLowerCase()
+      : undefined;
+    const region = writeGeneratedRegion(ctx, data, currentGenState, starterRace);
 
     // Update WorldGenState to COMPLETE
     ctx.db.world_gen_state.id.update({
@@ -1023,7 +1099,8 @@ spacetimedb.reducer('submit_llm_result', {
 
     for (const skill of skills) {
       presentation += `\n[${skill.name}] -- ${skill.description}\n`;
-      presentation += `  ${skill.kind} | ${skill.resourceCost} ${skill.resourceType} | ${skill.cooldownSeconds}s cooldown | ${skill.value1} power\n`;
+      const castLabel = skill.castSeconds > 0n ? `${skill.castSeconds}s cast` : 'instant';
+      presentation += `  ${skill.kind} | ${skill.resourceCost} ${skill.resourceType} | ${castLabel} | ${skill.cooldownSeconds}s cooldown | ${skill.value1} power\n`;
     }
 
     presentation += `\n"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return."`;

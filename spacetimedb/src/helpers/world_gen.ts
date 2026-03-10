@@ -152,8 +152,9 @@ export function findHomeLocation(locationsByName: Record<string, any>): any | nu
 /**
  * Write all generated region content into game tables.
  * Takes parsed LLM JSON and the WorldGenState row, returns the inserted Region row.
+ * Optional starterRace: when provided, marks the region as the starter for that race.
  */
-export function writeGeneratedRegion(tx: any, parsed: any, genState: any): any {
+export function writeGeneratedRegion(tx: any, parsed: any, genState: any, starterRace?: string): any {
   // 1. Compute danger multiplier from source region
   const isStarter = genState.sourceRegionId === 0n;
   const sourceRegion = tx.db.region.id.find(genState.sourceRegionId);
@@ -176,6 +177,7 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any): any {
     threats: parsed.threats ? JSON.stringify(parsed.threats) : undefined,
     generatedByCharacterId: genState.characterId,
     isGenerated: true,
+    starterForRace: starterRace ?? undefined,
   });
 
   // 3. Insert Locations (3-5), each with its own unique description
