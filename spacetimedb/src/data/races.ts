@@ -11,6 +11,13 @@ export const RACE_DATA: Array<{
   levelBonusType: string;
   levelBonusValue: bigint;
   unlocked: boolean;
+  abilityName: string;
+  abilityDescription: string;
+  abilityKind: string;
+  abilityTargetRule: string;
+  abilityCooldownSeconds: bigint;
+  abilityValue: bigint;
+  abilityKey: string;
 }> = [
     // Starter races (4, all unlocked)
     {
@@ -19,8 +26,16 @@ export const RACE_DATA: Array<{
       availableClasses: '',
       bonus1Type: 'stat_cha', bonus1Value: 3n,
       bonus2Type: 'perception', bonus2Value: 25n,
+      // levelBonusValue halved: 1n -> 1n (already minimum, keep at 1n)
       levelBonusType: 'faction_bonus', levelBonusValue: 1n,
       unlocked: true,
+      abilityName: 'Diplomatic Poise',
+      abilityDescription: 'Draw on your adaptable nature to bolster your resolve, briefly buffing your charisma and faction standing.',
+      abilityKind: 'buff',
+      abilityTargetRule: 'self',
+      abilityCooldownSeconds: 300n,
+      abilityValue: 5n,
+      abilityKey: 'race_human_diplomatic_poise',
     },
     {
       name: 'Eldrin',
@@ -29,8 +44,16 @@ export const RACE_DATA: Array<{
       bonus1Type: 'spell_damage', bonus1Value: 4n,
       bonus2Type: 'max_mana', bonus2Value: 15n,
       penaltyType: 'stat_str', penaltyValue: 1n,
-      levelBonusType: 'max_mana', levelBonusValue: 2n,
+      // levelBonusValue halved: 2n -> 1n (at level 20: 1*20=20, same as old 2*10=20)
+      levelBonusType: 'max_mana', levelBonusValue: 1n,
       unlocked: true,
+      abilityName: 'Arcane Attunement',
+      abilityDescription: 'Channel your ancestral connection to magic, temporarily increasing spell damage output.',
+      abilityKind: 'buff',
+      abilityTargetRule: 'self',
+      abilityCooldownSeconds: 300n,
+      abilityValue: 10n,
+      abilityKey: 'race_eldrin_arcane_attunement',
     },
     {
       name: 'Ironclad',
@@ -38,8 +61,16 @@ export const RACE_DATA: Array<{
       availableClasses: 'warrior,paladin,monk,beastmaster,spellblade,ranger,shaman',
       bonus1Type: 'phys_damage', bonus1Value: 3n,
       bonus2Type: 'armor', bonus2Value: 2n,
-      levelBonusType: 'parry', levelBonusValue: 5n,
+      // levelBonusValue halved: 5n -> 3n (round up from 2.5)
+      levelBonusType: 'parry', levelBonusValue: 3n,
       unlocked: true,
+      abilityName: 'Iron Bulwark',
+      abilityDescription: 'Fortify your stance with industrial discipline, granting a temporary armor and parry boost.',
+      abilityKind: 'buff',
+      abilityTargetRule: 'self',
+      abilityCooldownSeconds: 300n,
+      abilityValue: 8n,
+      abilityKey: 'race_ironclad_iron_bulwark',
     },
     {
       name: 'Wyldfang',
@@ -47,8 +78,16 @@ export const RACE_DATA: Array<{
       availableClasses: 'rogue,ranger,monk,beastmaster,druid,shaman',
       bonus1Type: 'stat_dex', bonus1Value: 1n,
       bonus2Type: 'crit_chance', bonus2Value: 500n,
-      levelBonusType: 'crit_chance', levelBonusValue: 50n,
+      // levelBonusValue halved: 50n -> 25n
+      levelBonusType: 'crit_chance', levelBonusValue: 25n,
       unlocked: true,
+      abilityName: 'Predator\'s Instinct',
+      abilityDescription: 'Tap into primal hunting instincts, surging your critical strike chance for a short burst.',
+      abilityKind: 'buff',
+      abilityTargetRule: 'self',
+      abilityCooldownSeconds: 300n,
+      abilityValue: 200n,
+      abilityKey: 'race_wyldfang_predators_instinct',
     },
     // New unlocked races (7)
     {
@@ -58,8 +97,16 @@ export const RACE_DATA: Array<{
       bonus1Type: 'mana_regen', bonus1Value: 2n,
       bonus2Type: 'perception', bonus2Value: 25n,
       penaltyType: 'stat_dex', penaltyValue: 1n,
+      // levelBonusValue halved: 1n -> 1n (already minimum)
       levelBonusType: 'loot_bonus', levelBonusValue: 1n,
       unlocked: true,
+      abilityName: 'Scavenger\'s Eye',
+      abilityDescription: 'Your cunning eye spots hidden value, temporarily boosting loot quality from your next encounter.',
+      abilityKind: 'utility',
+      abilityTargetRule: 'self',
+      abilityCooldownSeconds: 300n,
+      abilityValue: 3n,
+      abilityKey: 'race_goblin_scavengers_eye',
     },
     {
       name: 'Troll',
@@ -68,8 +115,16 @@ export const RACE_DATA: Array<{
       bonus1Type: 'max_hp', bonus1Value: 20n,
       bonus2Type: 'hp_regen', bonus2Value: 2n,
       penaltyType: 'stat_dex', penaltyValue: 2n,
-      levelBonusType: 'max_hp', levelBonusValue: 2n,
+      // levelBonusValue halved: 2n -> 1n
+      levelBonusType: 'max_hp', levelBonusValue: 1n,
       unlocked: true,
+      abilityName: 'Troll Regeneration',
+      abilityDescription: 'Activate rapid tissue regrowth, applying a powerful heal-over-time effect.',
+      abilityKind: 'hot',
+      abilityTargetRule: 'self',
+      abilityCooldownSeconds: 300n,
+      abilityValue: 15n,
+      abilityKey: 'race_troll_regeneration',
     },
     {
       name: 'Dwarf',
@@ -78,8 +133,16 @@ export const RACE_DATA: Array<{
       bonus1Type: 'max_hp', bonus1Value: 12n,
       bonus2Type: 'max_stamina', bonus2Value: 5n,
       penaltyType: 'travel_cost_increase', penaltyValue: 1n,
+      // levelBonusValue halved: 1n -> 1n (already minimum)
       levelBonusType: 'armor', levelBonusValue: 1n,
       unlocked: true,
+      abilityName: 'Stonehide',
+      abilityDescription: 'Call upon dwarven endurance to harden your skin, temporarily boosting armor significantly.',
+      abilityKind: 'buff',
+      abilityTargetRule: 'self',
+      abilityCooldownSeconds: 300n,
+      abilityValue: 6n,
+      abilityKey: 'race_dwarf_stonehide',
     },
     {
       name: 'Gnome',
@@ -88,8 +151,16 @@ export const RACE_DATA: Array<{
       bonus1Type: 'mana_regen', bonus1Value: 1n,
       bonus2Type: 'max_mana', bonus2Value: 20n,
       penaltyType: 'stat_str', penaltyValue: 1n,
-      levelBonusType: 'max_mana', levelBonusValue: 2n,
+      // levelBonusValue halved: 2n -> 1n
+      levelBonusType: 'max_mana', levelBonusValue: 1n,
       unlocked: true,
+      abilityName: 'Mana Surge',
+      abilityDescription: 'Overcharge your arcane circuits for a burst, temporarily restoring mana over time.',
+      abilityKind: 'hot',
+      abilityTargetRule: 'self',
+      abilityCooldownSeconds: 300n,
+      abilityValue: 20n,
+      abilityKey: 'race_gnome_mana_surge',
     },
     {
       name: 'Halfling',
@@ -97,8 +168,16 @@ export const RACE_DATA: Array<{
       availableClasses: 'rogue,ranger,bard,druid,monk,enchanter',
       bonus1Type: 'stat_dex', bonus1Value: 1n,
       bonus2Type: 'dodge', bonus2Value: 10n,
-      levelBonusType: 'dodge', levelBonusValue: 5n,
+      // levelBonusValue halved: 5n -> 3n (round up from 2.5)
+      levelBonusType: 'dodge', levelBonusValue: 3n,
       unlocked: true,
+      abilityName: 'Lucky Dodge',
+      abilityDescription: 'Channel halfling luck to become briefly evasive, sharply boosting dodge chance.',
+      abilityKind: 'buff',
+      abilityTargetRule: 'self',
+      abilityCooldownSeconds: 300n,
+      abilityValue: 150n,
+      abilityKey: 'race_halfling_lucky_dodge',
     },
     {
       name: 'Half-Elf',
@@ -106,8 +185,16 @@ export const RACE_DATA: Array<{
       availableClasses: '',
       bonus1Type: 'stat_str', bonus1Value: 1n,
       bonus2Type: 'stat_int', bonus2Value: 1n,
-      levelBonusType: 'hit_chance', levelBonusValue: 50n,
+      // levelBonusValue halved: 50n -> 25n
+      levelBonusType: 'hit_chance', levelBonusValue: 25n,
       unlocked: true,
+      abilityName: 'Focused Aim',
+      abilityDescription: 'Draw on both human adaptability and elven precision to temporarily boost hit chance.',
+      abilityKind: 'buff',
+      abilityTargetRule: 'self',
+      abilityCooldownSeconds: 300n,
+      abilityValue: 150n,
+      abilityKey: 'race_half_elf_focused_aim',
     },
     {
       name: 'Orc',
@@ -116,8 +203,16 @@ export const RACE_DATA: Array<{
       bonus1Type: 'stat_str', bonus1Value: 1n,
       bonus2Type: 'max_hp', bonus2Value: 8n,
       penaltyType: 'stat_wis', penaltyValue: 1n,
+      // levelBonusValue halved: 1n -> 1n (already minimum)
       levelBonusType: 'phys_damage', levelBonusValue: 1n,
       unlocked: true,
+      abilityName: 'Blood Frenzy',
+      abilityDescription: 'Enter a primal berserker state, temporarily boosting physical damage output.',
+      abilityKind: 'buff',
+      abilityTargetRule: 'self',
+      abilityCooldownSeconds: 300n,
+      abilityValue: 8n,
+      abilityKey: 'race_orc_blood_frenzy',
     },
     // New locked races (4)
     {
@@ -127,8 +222,16 @@ export const RACE_DATA: Array<{
       bonus1Type: 'spell_damage', bonus1Value: 4n,
       bonus2Type: 'dodge', bonus2Value: 10n,
       penaltyType: 'stat_str', penaltyValue: 1n,
+      // levelBonusValue halved: 1n -> 1n (already minimum)
       levelBonusType: 'spell_damage', levelBonusValue: 1n,
       unlocked: false,
+      abilityName: 'Shadow Veil',
+      abilityDescription: 'Wrap yourself in shadow magic, temporarily boosting spell damage with dark energy.',
+      abilityKind: 'buff',
+      abilityTargetRule: 'self',
+      abilityCooldownSeconds: 300n,
+      abilityValue: 12n,
+      abilityKey: 'race_dark_elf_shadow_veil',
     },
     {
       name: 'Half-Giant',
@@ -137,8 +240,16 @@ export const RACE_DATA: Array<{
       bonus1Type: 'max_hp', bonus1Value: 25n,
       bonus2Type: 'phys_damage', bonus2Value: 3n,
       penaltyType: 'stat_dex', penaltyValue: 3n,
-      levelBonusType: 'max_hp', levelBonusValue: 3n,
+      // levelBonusValue halved: 3n -> 2n (round up from 1.5)
+      levelBonusType: 'max_hp', levelBonusValue: 2n,
       unlocked: false,
+      abilityName: 'Giant\'s Wrath',
+      abilityDescription: 'Channel titanic fury into a combat surge, temporarily boosting physical damage.',
+      abilityKind: 'buff',
+      abilityTargetRule: 'self',
+      abilityCooldownSeconds: 300n,
+      abilityValue: 15n,
+      abilityKey: 'race_half_giant_giants_wrath',
     },
     {
       name: 'Cyclops',
@@ -147,8 +258,16 @@ export const RACE_DATA: Array<{
       bonus1Type: 'phys_damage', bonus1Value: 6n,
       bonus2Type: 'hit_chance', bonus2Value: 300n,
       penaltyType: 'stat_dex', penaltyValue: 2n,
+      // levelBonusValue halved: 1n -> 1n (already minimum)
       levelBonusType: 'phys_damage', levelBonusValue: 1n,
       unlocked: false,
+      abilityName: 'True Sight',
+      abilityDescription: 'Focus your singular eye to achieve perfect aim, drastically boosting hit chance.',
+      abilityKind: 'buff',
+      abilityTargetRule: 'self',
+      abilityCooldownSeconds: 300n,
+      abilityValue: 300n,
+      abilityKey: 'race_cyclops_true_sight',
     },
     {
       name: 'Satyr',
@@ -157,8 +276,16 @@ export const RACE_DATA: Array<{
       bonus1Type: 'spell_damage', bonus1Value: 3n,
       bonus2Type: 'stamina_regen', bonus2Value: 1n,
       penaltyType: 'travel_cost_discount', penaltyValue: 1n,
-      levelBonusType: 'magic_resist', levelBonusValue: 50n,
+      // levelBonusValue halved: 50n -> 25n
+      levelBonusType: 'magic_resist', levelBonusValue: 25n,
       unlocked: false,
+      abilityName: 'Primal Ward',
+      abilityDescription: 'Invoke wild magic protection, temporarily boosting magic resistance.',
+      abilityKind: 'buff',
+      abilityTargetRule: 'self',
+      abilityCooldownSeconds: 300n,
+      abilityValue: 100n,
+      abilityKey: 'race_satyr_primal_ward',
     },
   ];
 

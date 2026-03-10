@@ -250,9 +250,8 @@ export const resetSpawnAfterCombat = (
 };
 
 // Compute all racial contributions for a character at a given level.
-// Creation bonuses (bonus1+bonus2+penalty) applied once; levelBonus per even level.
+// Creation bonuses (bonus1+bonus2+penalty) applied once; levelBonus every level.
 export function computeRacialAtLevelFromRow(raceRow: any, level: bigint) {
-  const evenLevels = level / 2n;
   const r = {
     str: 0n, dex: 0n, int: 0n, wis: 0n, cha: 0n,
     racialSpellDamage: 0n, racialPhysDamage: 0n,
@@ -304,8 +303,8 @@ export function computeRacialAtLevelFromRow(raceRow: any, level: bigint) {
       applyType(pt, -pv);
     }
   }
-  if (evenLevels > 0n) {
-    applyType(raceRow.levelBonusType, raceRow.levelBonusValue * evenLevels);
+  if (level > 0n) {
+    applyType(raceRow.levelBonusType, raceRow.levelBonusValue * level);
   }
   return r;
 }
