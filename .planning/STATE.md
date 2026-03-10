@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 Phase: 33 of 37 (Combat Improvements)
 Plan: 1 of 3 (33-01 complete)
 Status: In Progress
-Last activity: 2026-03-10 - Completed quick tasks 396-397: Fix combat targeting bugs and rebalance combat
+Last activity: 2026-03-10 - Completed quick task 398: Delayed level up with HUD indicator and race/class display
 
 Progress: [████████░░] 88%
 
