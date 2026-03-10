@@ -28,6 +28,7 @@ type UseCommandsArgs = {
   questInstances?: Ref<any[]>;
   questTemplates?: Ref<any[]>;
   regions?: Ref<any[]>;
+  groups?: Ref<any[]>;
 };
 
 export const useCommands = ({
@@ -52,6 +53,7 @@ export const useCommands = ({
   questInstances,
   questTemplates,
   regions,
+  groups,
 }: UseCommandsArgs) => {
   const submitCommandReducer = useReducer(reducers.submitCommand);
   const sayReducer = useReducer(reducers.say);
@@ -180,6 +182,40 @@ export const useCommands = ({
         characterId: selectedCharacter.value.id,
         message,
       });
+    } else if (lower === '/group' || lower === 'group') {
+      // Bare group command — show group status
+      const char = selectedCharacter.value;
+      const groupId = char.groupId;
+      if (!groupId) {
+        const invites = inviteSummaries?.value ?? [];
+        if (invites.length > 0) {
+          let msg = '{{color:#fbbf24}}Group Invites:{{/color}}\n';
+          for (const inv of invites) {
+            msg += `  ${inv.fromName} — [accept ${inv.fromName}] [decline ${inv.fromName}]\n`;
+          }
+          addLocalEvent?.('look', msg);
+        } else {
+          addLocalEvent?.('look', 'You are not in a group. Use [invite <name>] to start one.');
+        }
+      } else {
+        const group = groups?.value?.find((g: any) => g.id?.toString() === groupId.toString());
+        const leaderCharId = group?.leaderCharacterId;
+        const members = (characters?.value ?? []).filter((c: any) => c.groupId?.toString() === groupId.toString());
+        let msg = '{{color:#fbbf24}}Group:{{/color}}\n';
+        for (const m of members as any[]) {
+          const leaderTag = m.id === leaderCharId ? ' {{color:#fbbf24}}(Leader){{/color}}' : '';
+          msg += `  [${m.name}] Lv ${m.level} ${m.className}${leaderTag}\n`;
+        }
+        msg += '\n[leave] — Leave the group';
+        const invites = inviteSummaries?.value ?? [];
+        if (invites.length > 0) {
+          msg += '\n\n{{color:#fbbf24}}Pending Invites:{{/color}}';
+          for (const inv of invites) {
+            msg += `\n  ${inv.fromName} — [accept ${inv.fromName}] [decline ${inv.fromName}]`;
+          }
+        }
+        addLocalEvent?.('look', msg);
+      }
     } else if (lower.startsWith('/group ') || lower.startsWith('group ')) {
       groupMessageReducer({
         characterId: selectedCharacter.value.id,
@@ -259,7 +295,7 @@ export const useCommands = ({
         }
         const lines = activeChars.map(c => {
           const locName = locationMap.get(c.locationId.toString()) ?? 'Unknown';
-          return `  ${c.name} — Level ${c.level} ${c.className} — ${locName}`;
+          return `  [${c.name}] — Level ${c.level} ${c.className} — ${locName}`;
         });
         addLocalEvent?.('command', `Online characters (${activeChars.length}):\n${lines.join('\n')}`);
       }

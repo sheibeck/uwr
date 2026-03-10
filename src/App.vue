@@ -796,8 +796,10 @@ const { myPendingSkills, hasPendingSkills, chooseSkill: chooseSkillByName, reque
 });
 
 // Auto-start narrative creation for characterless players
+// Watches creationEvents length to re-trigger if state exists but events were lost
+// (race condition: event subscription not ready when creation event was emitted)
 watch(
-  [() => conn.isActive, () => isLoggedIn.value, () => characters.value.length, () => characterCreationStates.value.length],
+  [() => conn.isActive, () => isLoggedIn.value, () => characters.value.length, () => characterCreationStates.value.length, () => creationEvents.value.length],
   () => {
     if (!conn.isActive || !isLoggedIn.value) return;
     if (characters.value.length > 0) return;
@@ -1247,6 +1249,7 @@ const { commandText, submitCommand } = useCommands({
   questInstances: computed(() => (questInstances.value as any[])),
   questTemplates: computed(() => (questTemplates.value as any[])),
   regions: computed(() => (regions.value as any[])),
+  groups: computed(() => (groups.value as any[])),
 });
 
 // --- Narrative Console wiring ---
@@ -1272,9 +1275,14 @@ const onNarrativeSubmit = (text: string) => {
   if (!text.trim()) return;
   // Block all input while LLM is generating a response
   if (isNarrativeLlmProcessing.value) return;
-  // Slash commands and known info commands go through existing command system
-  const infoCommands = ['renown', 'factions', 'faction', 'events'];
-  if (text.startsWith('/') || infoCommands.includes(text.trim().toLowerCase())) {
+  // Slash commands and known player commands go through existing command system
+  const clientHandledCommands = [
+    'who', 'accept', 'decline', 'leave', 'invite', 'kick', 'promote',
+    'whisper', 'w', 'friend', 'endcombat', 'end', 'endc', 'group',
+    'renown', 'factions', 'faction', 'events',
+  ];
+  const firstWord = text.trim().toLowerCase().split(/\s/)[0];
+  if (text.startsWith('/') || clientHandledCommands.includes(firstWord)) {
     commandText.value = text;
     submitCommand();
     return;
@@ -1678,6 +1686,30 @@ const onCreationSubmit = (text: string) => {
     if (selectedCharacter.value && conn.isActive) {
       requestSkillGen();
     }
+    return;
+  }
+
+  // 13.5a Whisper click with no message — show hint (trailing space means intent but no message yet)
+  if ((kwLower.startsWith('whisper ') || kwLower.startsWith('w ')) && kw.trim().split(/\s+/).length === 2) {
+    const targetName = kw.trim().split(/\s+/)[1];
+    addLocalEvent('system', `Type: whisper ${targetName} <your message>`, 'private');
+    return;
+  }
+
+  // 13.5 Player name click — show social context menu
+  const clickedPlayer = characters.value?.find(
+    (c: any) => c.name.toLowerCase() === kwLower && c.id !== selectedCharacter.value?.id
+  );
+  if (clickedPlayer) {
+    const options: string[] = [];
+    const sameGroup = (clickedPlayer as any).groupId && selectedCharacter.value?.groupId &&
+      (clickedPlayer as any).groupId.toString() === selectedCharacter.value.groupId.toString();
+    if (!sameGroup) {
+      options.push(`[invite ${(clickedPlayer as any).name}]`);
+    }
+    options.push(`[whisper ${(clickedPlayer as any).name} ]`);
+    options.push(`[consider ${(clickedPlayer as any).name}]`);
+    addLocalEvent('system', `${(clickedPlayer as any).name}: ${options.join('  ')}`, 'private');
     return;
   }
 
