@@ -284,6 +284,10 @@ export const registerCharacterReducers = (deps: any) => {
     for (const effect of ctx.db.character_effect.by_character.filter(character.id)) {
       ctx.db.character_effect.id.delete(effect.id);
     }
+    // Clear any pending casts on respawn
+    for (const cast of ctx.db.character_cast.by_character.filter(character.id)) {
+      ctx.db.character_cast.id.delete(cast.id);
+    }
     // Clear travel cooldown on respawn
     for (const cd of ctx.db.travel_cooldown.by_character.filter(character.id)) {
       ctx.db.travel_cooldown.id.delete(cd.id);

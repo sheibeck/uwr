@@ -328,6 +328,10 @@ export const registerCombatReducers = (deps: any) => {
       }
       ctx.db.character_effect.id.delete(effect.id);
     }
+    // Clear any pending casts
+    for (const cast of ctx.db.character_cast.by_character.filter(character.id)) {
+      ctx.db.character_cast.id.delete(cast.id);
+    }
   };
 
   const markParticipantDead = (
