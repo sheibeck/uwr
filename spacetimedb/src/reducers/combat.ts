@@ -2156,10 +2156,11 @@ export const registerCombatReducers = (deps: any) => {
         }
         if (reward.leveledUp) {
           const pending = reward.pendingLevels ?? 1n;
-          const levelText = pending > 1n ? `${character.name} has ${pending} level(s) pending.` : `${character.name} has a level pending.`;
+          const targetLevel = character.level + 1n;
+          const levelText = pending > 1n ? `${character.name} has ${pending} levels pending (next: level ${targetLevel})!` : `${character.name} is ready to advance to level ${targetLevel}!`;
           logGroupEvent(ctx, combat.id, character.id, 'system', levelText);
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-            `You have ${pending > 1n ? `${pending} level(s)` : 'a level'} pending! Click [Level Up] when ready.`);
+            pending > 1n ? `You have ${pending} levels pending (next: level ${targetLevel})! Click [Level Up] when ready.` : `You can advance to level ${targetLevel}! Click [Level Up] when ready.`);
         }
         continue;
       }
@@ -2174,10 +2175,11 @@ export const registerCombatReducers = (deps: any) => {
       }
       if (reward.leveledUp) {
         const pending = reward.pendingLevels ?? 1n;
-        const levelText = pending > 1n ? `${character.name} has ${pending} level(s) pending.` : `${character.name} has a level pending.`;
+        const targetLevel = character.level + 1n;
+        const levelText = pending > 1n ? `${character.name} has ${pending} levels pending (next: level ${targetLevel})!` : `${character.name} is ready to advance to level ${targetLevel}!`;
         logGroupEvent(ctx, combat.id, character.id, 'system', levelText);
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-          `You have ${pending > 1n ? `${pending} level(s)` : 'a level'} pending! Click [Level Up] when ready.`);
+          pending > 1n ? `You have ${pending} levels pending (next: level ${targetLevel})! Click [Level Up] when ready.` : `You can advance to level ${targetLevel}! Click [Level Up] when ready.`);
       }
       const primaryEnemy = enemies[0];
       if (primaryEnemy) {

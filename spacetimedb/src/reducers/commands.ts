@@ -129,7 +129,8 @@ export const registerCommandReducers = (deps: any) => {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward', `You gain ${xpResult.xpGained} XP.`);
         if (xpResult.leveledUp) {
           const pending = xpResult.pendingLevels ?? 1n;
-          const levelText = pending > 1n ? `You have ${pending} level(s) pending!` : 'You have a level pending!';
+          const targetLevel = character.level + 1n;
+          const levelText = pending > 1n ? `You have ${pending} levels pending (next: level ${targetLevel})!` : `You can advance to level ${targetLevel}!`;
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
             `${levelText} Click the [Level Up] indicator when ready.`);
         }
@@ -169,7 +170,8 @@ export const registerCommandReducers = (deps: any) => {
         `You gain ${deliveryXpResult.xpGained} XP.`);
       if (deliveryXpResult.leveledUp) {
         const pending = deliveryXpResult.pendingLevels ?? 1n;
-        const levelText = pending > 1n ? `You have ${pending} level(s) pending!` : 'You have a level pending!';
+        const targetLevel = character.level + 1n;
+        const levelText = pending > 1n ? `You have ${pending} levels pending (next: level ${targetLevel})!` : `You can advance to level ${targetLevel}!`;
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
           `${levelText} Click the [Level Up] indicator when ready.`);
       }
