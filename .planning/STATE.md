@@ -5,7 +5,7 @@ milestone_name: Project Cleanup
 status: executing
 stopped_at: "Checkpoint: 36-05 human-verify (tasks 1-2 complete)"
 last_updated: "2026-03-10T21:02:02.620Z"
-last_activity: "2026-03-10 - Completed quick task 404: Sardonic welcome message"
+last_activity: "2026-03-11 - Completed quick task 405: Fix level-up pending text showing target level"
 progress:
   total_phases: 7
   completed_phases: 3
@@ -108,8 +108,9 @@ None.
 | 402 | Show level up link in header, walk through 1 level at a time | 2026-03-10 | 49802c7 | [402-level-up-header-link-and-multi-level](./quick/402-level-up-header-link-and-multi-level/) |
 | 403 | Fix DoT abilities: apply periodic ticks and show DoT indicator on enemies | 2026-03-10 | 29cf266 | [403-fix-dot-abilities-apply-periodic-ticks-a](./quick/403-fix-dot-abilities-apply-periodic-ticks-a/) |
 | 404 | Auto-populate ability to hotbar on creation, rewrite sardonic welcome message | 2026-03-10 | d1aa05d | [404-auto-populate-ability-to-hotbar-on-creat](./quick/404-auto-populate-ability-to-hotbar-on-creat/) |
+| 405 | Fix level-up pending text to show target level number (e.g., "advance to level 2") | 2026-03-11 | 65054d0 | [405-fix-level-up-pending-text-showing-wrong-](./quick/405-fix-level-up-pending-text-showing-wrong-/) |
 
 ## Session Continuity
 
-Last session: 2026-03-10T21:02:02.613Z
+Last session: 2026-03-11T01:10:55Z
 Stopped at: Checkpoint: 36-05 human-verify (tasks 1-2 complete)
