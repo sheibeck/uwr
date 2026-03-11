@@ -247,7 +247,7 @@ export const registerCreationReducers = (deps: any) => {
             id: 0n,
             characterId: character.id,
             hotbarId: hotbar.id,
-            slot: 0n,
+            slot: 1,
             abilityTemplateId: abilityRow.id,
             assignedAt: ctx.timestamp,
           });

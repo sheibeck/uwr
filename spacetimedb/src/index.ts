@@ -744,24 +744,24 @@ spacetimedb.reducer('choose_skill', { pendingSkillId: t.u64() }, (ctx: any, { pe
     isGenerated: true,
   });
 
-  // Auto-assign to first available hotbar slot (0-5)
+  // Auto-assign to first available hotbar slot (1-6, client uses 1-based slots)
   const defaultHotbar = ensureDefaultHotbar(ctx, pending.characterId);
   const existingSlots = [...ctx.db.hotbar_slot.by_hotbar.filter(defaultHotbar.id)];
   const usedSlots = new Set(existingSlots.map((s: any) => Number(s.slot)));
   let assignedSlot = -1;
-  for (let i = 0; i <= 5; i++) {
+  for (let i = 1; i <= 6; i++) {
     if (!usedSlots.has(i)) {
       assignedSlot = i;
       break;
     }
   }
   if (assignedSlot === -1) {
-    // All slots full, overwrite slot 0
-    assignedSlot = 0;
-    const slot0 = existingSlots.find((s: any) => Number(s.slot) === 0);
-    if (slot0) {
+    // All slots full, overwrite slot 1
+    assignedSlot = 1;
+    const slot1 = existingSlots.find((s: any) => Number(s.slot) === 1);
+    if (slot1) {
       ctx.db.hotbar_slot.id.update({
-        ...slot0,
+        ...slot1,
         abilityTemplateId: abilityRow.id,
         assignedAt: ctx.timestamp,
       });
@@ -770,7 +770,7 @@ spacetimedb.reducer('choose_skill', { pendingSkillId: t.u64() }, (ctx: any, { pe
         id: 0n,
         characterId: pending.characterId,
         hotbarId: defaultHotbar.id,
-        slot: 0,
+        slot: 1,
         abilityTemplateId: abilityRow.id,
         assignedAt: ctx.timestamp,
       });

@@ -18,6 +18,9 @@ export const RACE_DATA: Array<{
   abilityCooldownSeconds: bigint;
   abilityValue: bigint;
   abilityKey: string;
+  abilityEffectType?: string;
+  abilityEffectMagnitude?: bigint;
+  abilityEffectDuration?: bigint;
 }> = [
     // Starter races (4, all unlocked)
     {
@@ -36,6 +39,9 @@ export const RACE_DATA: Array<{
       abilityCooldownSeconds: 300n,
       abilityValue: 5n,
       abilityKey: 'race_human_diplomatic_poise',
+      abilityEffectType: 'faction_bonus',
+      abilityEffectMagnitude: 5n,
+      abilityEffectDuration: 30n,
     },
     {
       name: 'Eldrin',
@@ -54,6 +60,9 @@ export const RACE_DATA: Array<{
       abilityCooldownSeconds: 300n,
       abilityValue: 10n,
       abilityKey: 'race_eldrin_arcane_attunement',
+      abilityEffectType: 'damage_up',
+      abilityEffectMagnitude: 10n,
+      abilityEffectDuration: 30n,
     },
     {
       name: 'Ironclad',
@@ -71,6 +80,9 @@ export const RACE_DATA: Array<{
       abilityCooldownSeconds: 300n,
       abilityValue: 8n,
       abilityKey: 'race_ironclad_iron_bulwark',
+      abilityEffectType: 'armor_up',
+      abilityEffectMagnitude: 8n,
+      abilityEffectDuration: 30n,
     },
     {
       name: 'Wyldfang',
@@ -88,6 +100,9 @@ export const RACE_DATA: Array<{
       abilityCooldownSeconds: 300n,
       abilityValue: 200n,
       abilityKey: 'race_wyldfang_predators_instinct',
+      abilityEffectType: 'crit_up',
+      abilityEffectMagnitude: 200n,
+      abilityEffectDuration: 20n,
     },
     // New unlocked races (7)
     {
@@ -107,6 +122,9 @@ export const RACE_DATA: Array<{
       abilityCooldownSeconds: 300n,
       abilityValue: 3n,
       abilityKey: 'race_goblin_scavengers_eye',
+      abilityEffectType: 'loot_bonus',
+      abilityEffectMagnitude: 3n,
+      abilityEffectDuration: 60n,
     },
     {
       name: 'Troll',
@@ -143,6 +161,9 @@ export const RACE_DATA: Array<{
       abilityCooldownSeconds: 300n,
       abilityValue: 6n,
       abilityKey: 'race_dwarf_stonehide',
+      abilityEffectType: 'armor_up',
+      abilityEffectMagnitude: 6n,
+      abilityEffectDuration: 30n,
     },
     {
       name: 'Gnome',
@@ -178,6 +199,9 @@ export const RACE_DATA: Array<{
       abilityCooldownSeconds: 300n,
       abilityValue: 150n,
       abilityKey: 'race_halfling_lucky_dodge',
+      abilityEffectType: 'dodge',
+      abilityEffectMagnitude: 150n,
+      abilityEffectDuration: 30n,
     },
     {
       name: 'Half-Elf',
@@ -195,6 +219,9 @@ export const RACE_DATA: Array<{
       abilityCooldownSeconds: 300n,
       abilityValue: 150n,
       abilityKey: 'race_half_elf_focused_aim',
+      abilityEffectType: 'hit_up',
+      abilityEffectMagnitude: 150n,
+      abilityEffectDuration: 30n,
     },
     {
       name: 'Orc',
@@ -213,6 +240,9 @@ export const RACE_DATA: Array<{
       abilityCooldownSeconds: 300n,
       abilityValue: 8n,
       abilityKey: 'race_orc_blood_frenzy',
+      abilityEffectType: 'damage_up',
+      abilityEffectMagnitude: 8n,
+      abilityEffectDuration: 30n,
     },
     // New locked races (4)
     {
@@ -232,6 +262,9 @@ export const RACE_DATA: Array<{
       abilityCooldownSeconds: 300n,
       abilityValue: 12n,
       abilityKey: 'race_dark_elf_shadow_veil',
+      abilityEffectType: 'damage_up',
+      abilityEffectMagnitude: 12n,
+      abilityEffectDuration: 30n,
     },
     {
       name: 'Half-Giant',
@@ -250,6 +283,9 @@ export const RACE_DATA: Array<{
       abilityCooldownSeconds: 300n,
       abilityValue: 15n,
       abilityKey: 'race_half_giant_giants_wrath',
+      abilityEffectType: 'damage_up',
+      abilityEffectMagnitude: 15n,
+      abilityEffectDuration: 20n,
     },
     {
       name: 'Cyclops',
@@ -268,6 +304,9 @@ export const RACE_DATA: Array<{
       abilityCooldownSeconds: 300n,
       abilityValue: 300n,
       abilityKey: 'race_cyclops_true_sight',
+      abilityEffectType: 'hit_up',
+      abilityEffectMagnitude: 300n,
+      abilityEffectDuration: 20n,
     },
     {
       name: 'Satyr',
@@ -286,6 +325,9 @@ export const RACE_DATA: Array<{
       abilityCooldownSeconds: 300n,
       abilityValue: 100n,
       abilityKey: 'race_satyr_primal_ward',
+      abilityEffectType: 'magic_resist',
+      abilityEffectMagnitude: 100n,
+      abilityEffectDuration: 30n,
     },
   ];
 

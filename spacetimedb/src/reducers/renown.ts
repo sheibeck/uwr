@@ -73,9 +73,9 @@ export const registerRenownReducers = (deps: any) => {
       for (const slot of ctx.db.hotbar_slot.by_hotbar.filter(hotbar.id)) {
         usedSlots.add(Number(slot.slot));
       }
-      // Find first empty slot 0-11
+      // Find first empty slot 1-10 (client uses 1-based slots)
       let emptySlot: number | null = null;
-      for (let i = 0; i <= 11; i++) {
+      for (let i = 1; i <= 10; i++) {
         if (!usedSlots.has(i)) {
           emptySlot = i;
           break;
