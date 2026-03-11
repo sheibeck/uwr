@@ -1751,7 +1751,9 @@ const onOpenPanel = (panelId: string) => {
 const onLevelUpClick = () => {
   if (!hasPendingLevels.value) return;
   const pending = Number(pendingLevels.value);
-  const pendingText = pending > 1 ? `${pending} levels pending` : '1 level pending';
+  const currentLevel = Number(selectedCharacter.value?.level ?? 0n);
+  const targetLevel = currentLevel + 1;
+  const pendingText = pending > 1 ? `${pending} levels pending, next: level ${targetLevel}` : `advance to level ${targetLevel}`;
   addLocalEvent('narrative',
     `Ready to level up? (${pendingText}) The Keeper will guide you through ability selection. This involves narration and may take a moment. Click [Confirm Level Up] to proceed.`,
     'private'
@@ -1767,7 +1769,9 @@ watch(pendingLevels, (newVal, oldVal) => {
       // Re-check in case user leveled up again in the meantime
       if (pendingLevels.value > 0n) {
         const remaining = Number(pendingLevels.value);
-        const pendingText = remaining > 1 ? `${remaining} levels pending` : '1 level pending';
+        const currentLevel = Number(selectedCharacter.value?.level ?? 0n);
+        const targetLevel = currentLevel + 1;
+        const pendingText = remaining > 1 ? `${remaining} levels pending, next: level ${targetLevel}` : `advance to level ${targetLevel}`;
         addLocalEvent('narrative',
           `You have more levels to apply! (${pendingText}) Click [Confirm Level Up] to continue.`,
           'private'
