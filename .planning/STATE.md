@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 Phase: 33 of 37 (Combat Improvements)
 Plan: 1 of 3 (33-01 complete)
 Status: In Progress
-Last activity: 2026-03-10 - Completed quick task 404: Sardonic welcome message
+Last activity: 2026-03-11 - Completed quick task 405: Fix level-up pending text showing wrong level number
 
 Progress: [████████░░] 88%
 
