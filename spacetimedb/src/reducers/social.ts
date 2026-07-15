@@ -1,3 +1,71 @@
+/**
+ * Core logic for accepting a friend request. Extracted for unit testing.
+ *
+ * Guarantees no duplicate `friend` rows are created even when a reciprocal
+ * request exists (A→B and B→A) or the friendship already exists:
+ *  - deletes the accepted request
+ *  - deletes any reciprocal pending request so it can't be accepted again
+ *  - inserts each friendship direction only if it does not already exist
+ *
+ * Returns true if the request was found and processed, false otherwise.
+ */
+export function acceptFriendRequestLogic(ctx: any, userId: bigint, fromUserId: bigint): boolean {
+  let requestId: bigint | null = null;
+  for (const row of ctx.db.friend_request.by_to.filter(userId)) {
+    if (row.fromUserId === fromUserId) {
+      requestId = row.id;
+      break;
+    }
+  }
+  if (requestId == null) return false;
+
+  ctx.db.friend_request.id.delete(requestId);
+
+  // Clear any reciprocal pending request so it can't later be accepted
+  // into a second, duplicate friendship.
+  for (const row of ctx.db.friend_request.by_from.filter(userId)) {
+    if (row.toUserId === fromUserId) {
+      ctx.db.friend_request.id.delete(row.id);
+    }
+  }
+
+  // Insert friend rows idempotently — only create a direction that does
+  // not already exist to avoid duplicate friend entries.
+  let hasForward = false;
+  for (const row of ctx.db.friend.by_user.filter(userId)) {
+    if (row.friendUserId === fromUserId) {
+      hasForward = true;
+      break;
+    }
+  }
+  if (!hasForward) {
+    ctx.db.friend.insert({
+      id: 0n,
+      userId,
+      friendUserId: fromUserId,
+      createdAt: ctx.timestamp,
+    });
+  }
+
+  let hasReverse = false;
+  for (const row of ctx.db.friend.by_user.filter(fromUserId)) {
+    if (row.friendUserId === userId) {
+      hasReverse = true;
+      break;
+    }
+  }
+  if (!hasReverse) {
+    ctx.db.friend.insert({
+      id: 0n,
+      userId: fromUserId,
+      friendUserId: userId,
+      createdAt: ctx.timestamp,
+    });
+  }
+
+  return true;
+}
+
 export const registerSocialReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -106,29 +174,8 @@ export const registerSocialReducers = (deps: any) => {
 
   spacetimedb.reducer('accept_friend_request', { fromUserId: t.u64() }, (ctx, { fromUserId }) => {
     const userId = requirePlayerUserId(ctx);
-    let requestId: bigint | null = null;
-    for (const row of ctx.db.friend_request.by_to.filter(userId)) {
-      if (row.fromUserId === fromUserId) {
-        requestId = row.id;
-        break;
-      }
-    }
-    if (requestId == null) throw new SenderError('Friend request not found');
-
-    ctx.db.friend_request.id.delete(requestId);
-
-    ctx.db.friend.insert({
-      id: 0n,
-      userId,
-      friendUserId: fromUserId,
-      createdAt: ctx.timestamp,
-    });
-    ctx.db.friend.insert({
-      id: 0n,
-      userId: fromUserId,
-      friendUserId: userId,
-      createdAt: ctx.timestamp,
-    });
+    const ok = acceptFriendRequestLogic(ctx, userId, fromUserId);
+    if (!ok) throw new SenderError('Friend request not found');
   });
 
   spacetimedb.reducer('reject_friend_request', { fromUserId: t.u64() }, (ctx, { fromUserId }) => {
