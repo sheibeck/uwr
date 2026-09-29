@@ -51,7 +51,7 @@ A world that writes itself around its players — every character is unique, eve
 
 ### Active
 
-- [ ] LLM engine migrated from OpenAI to Claude (Sonnet 5.5 + Haiku 4.5), with the lowest possible latency for real-time narrative — v2.2
+- [ ] LLM engine migrated from OpenAI to Claude Sonnet 5.5 for every LLM call, with the lowest possible latency for real-time narrative — v2.2
 - [ ] SpacetimeDB procedures call Claude directly (retire llm-proxy) if the 2.10 spike proves reliable; otherwise a backend LLM service authenticated via Workload Identity Federation — v2.2
 - [ ] No LLM credentials in the browser — v2.2
 
@@ -82,7 +82,7 @@ A world that writes itself around its players — every character is unique, eve
 **Goal:** Replace OpenAI with Claude as the engine behind all narrative generation, with the lowest possible response latency for real-time storytelling.
 
 **Target features:**
-- Model swap: Claude Sonnet 5.5 (`claude-sonnet-5-5`) replaces gpt-5.4 (character creation, world gen); Claude Haiku 4.5 (`claude-haiku-4-5`) replaces gpt-5-mini (skill gen, NPC conversation, combat narration, renown)
+- Model swap: Claude Sonnet 5.5 (`claude-sonnet-5-5`) replaces both gpt-5.4 and gpt-5-mini for every LLM call (character creation, world gen, skill gen, NPC conversation, combat narration, renown). No Haiku. Model ID centralized in one constants module
 - Structured outputs mapped to Claude (`output_config.format`); token usage, pricing and per-player budget recalibrated for Claude
 - Architecture, direct first with fallback: spike SpacetimeDB 2.10 procedures calling Claude via `ctx.http.fetch`. If reliable and fast, move LLM calls into procedures and retire `llm-proxy/`, the client polling composable and the localStorage proxy secret. If still buggy, keep a backend LLM service authenticated to Anthropic via Workload Identity Federation
 - Latency levers researched and applied: prompt caching, streaming (Out of Scope item under review), effort settings, hop count
@@ -120,7 +120,8 @@ Keeper of Knowledge narrator replaced generic "System" narrator in quick-365.
 | Kind-based ability dispatch map | Replaces hardcoded switch for unlimited generated abilities | ✓ Good — scales to any ability |
 | Real-time combat (not round-based) | Round-based felt sluggish; reverted after experiment | ✓ Good — immediate feedback |
 | Platform upgrade before feature work (Phase 38) | SpacetimeDB 2.0.1 and tooling had fallen far behind | ✓ Good — SpacetimeDB 2.10.1, TS 6, Vite 8, Vitest 5, pnpm-only; build + 990 tests green |
-| Haiku/gpt-5-mini for fast generation | Sonnet HTTP fails from SpacetimeDB runtime; fast models sufficient | ⚠️ Revisit — moving to Sonnet 5.5 + Haiku 4.5 in the LLM milestone |
+| Haiku/gpt-5-mini for fast generation | Sonnet HTTP fails from SpacetimeDB runtime; fast models sufficient | Superseded (v2.2) — see next row |
+| Sonnet 5.5 for every LLM call, no Haiku (v2.2, 2026-09-29) | User decision. Haiku 4.5 may retire as early as 2026-10-15; its 4096-token minimum cacheable prefix defeats prompt caching on short prompts; one model means one request builder and one rate-limit pool | — Pending — effort must be set explicitly (`low`) for latency; cost about 2x Haiku per token |
 | Shared proxy-based mock DB for tests (v2.1) | One mock implementation instead of per-file copies | ✓ Good — 990 tests on one utility |
 | Park phases 33-37 in Backlog (v2.1) | Re-imagining core concepts before more feature work | — Pending — promote with /gsd-review-backlog |
 | Skip DB backups before migrations (v2.1) | Greenfield; no production data worth preserving locally | ✓ Good — upgrade went forward cleanly |
@@ -145,7 +146,7 @@ Keeper of Knowledge narrator replaced generic "System" narrator in quick-365.
 | Backend language | TypeScript 6.0 |
 | Frontend framework | Vue 3.5.43 + Vite 8.3.1 |
 | Authentication | SpacetimeAuth OIDC |
-| LLM provider | OpenAI (gpt-5.4, gpt-5-mini) via client proxy; migrating to Claude next milestone |
+| LLM provider | OpenAI (gpt-5.4, gpt-5-mini) via client proxy; migrating to Claude Sonnet 5.5 in v2.2 |
 | LLM proxy | Cloudflare Workers + Hono + OpenAI SDK |
 | Package manager | pnpm 11 (standalone projects: root, spacetimedb/, llm-proxy/) |
 | Deployment | GitHub Pages (frontend) + SpacetimeDB maincloud (backend) |
