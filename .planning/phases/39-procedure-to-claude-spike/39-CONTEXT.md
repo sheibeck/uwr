@@ -42,6 +42,13 @@ Out of scope here:
     - a per-database spend cap (the maincloud database starts at $0)
     - never `--clear-database`
   - Phase 41 still proves the real executor on maincloud.
+- **Maincloud database and publish grant (user, 2026-09-29):**
+  - The user created the maincloud database **`uwr-spike-925iv`** (identity `c200d8595d7376690d03566fdd8e9a30038dfac72f1ea53dfa594ad0a4068fd8`, empty).
+  - The user then said, verbatim: "I give you permission to publish to uwr-spike db in maincloud".
+  - Therefore **Claude publishes the spike module to `uwr-spike-925iv` through the guard**, never with clear or delete flags.
+  - Deleting `uwr-spike-925iv` stays with the user.
+  - The production `uwr` database is never touched, on any server.
+  - This is a scoped exception to the "never auto-publish to maincloud" rule.
 - *(Superseded)* **Maincloud is out of this phase (user decision, 2026-09-29):**
   - The gate is evaluated on local results only.
   - Maincloud behavior is proven in Phase 41, when the real executor ships. The user publishes manually; Claude never publishes to maincloud.

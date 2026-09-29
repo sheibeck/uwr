@@ -77,15 +77,15 @@ Phases 33-37 parked in the Backlog as 999.1-999.5. See `.planning/milestones/v2.
   1. Operator can run a throwaway procedure on local SpacetimeDB 2.10 that reaches a public URL, then `GET /v1/models`, then a small `claude-sonnet-5-5` call, and each step's result plus the server logs (including the cause if the 2.0.1-style failure still reproduces) are written to the spike record
   2. The spike record shows structured-output calls using the real skill and region schemas measured at effort `low` and `medium` (latency, success, whether the region schema compiles, whether a thinking-off variant composes with structured output), and the observed failure shape of a forced timeout and of a bad key, including whether response headers such as `retry-after` and `request-id` are visible to the procedure
   3. The spike record shows scheduled-dispatch latency (p50/p95), whether `ctx.sender` is usable inside a scheduled procedure, and reducer and combat-tick latency with 6-8 concurrent in-flight calls compared against a no-call baseline
-  4. A written go/no-go decision record names the executor by applying the gate to measurements from a separate maincloud `uwr-spike` database:
+  4. A written go/no-go decision record names the executor by applying the gate to measurements from a separate maincloud spike database:
      - every non-drill call succeeds
      - dispatch p95 is under about 250 ms
      - reducer/tick p95 stays under 2x baseline
-     The user publishes and later deletes that database manually. The local results (strict verdict incomplete; ping failed and ticks passed on an unrepresentative, shared low-end machine) are recorded as provisional context. This was revised on 2026-09-29, when the user decided maincloud decides.
+     The database is `uwr-spike-925iv`. Claude publishes the spike module to it through the harness guard, under a scoped grant the user gave on 2026-09-29. The user deletes it at cleanup. The production `uwr` database is never touched. The local results (strict verdict incomplete; ping failed and ticks passed on an unrepresentative, shared low-end machine) are recorded as provisional context. This was revised on 2026-09-29, when the user decided maincloud decides.
 **Gate outcome**: go selects the scheduled-procedure executor for Phase 41 (and retires `llm-proxy/` in Phase 42); no-go selects the backend-service-with-WIF executor for Phase 41. Nothing in Phases 40, 42, 43 or 44 changes shape either way.
 **Also captured while the harness is up** (feeds later phases, not gate inputs): cache read on a repeated prefix, whether an in-flight call survives a publish, and current-path baseline latency. The Anthropic key used is supplied by the operator, never committed and never logged.
 **Testing**: Reusable measurement helpers (percentile math, gate evaluation) are unit tested. The throwaway procedure stays isolated from the production module and is not shipped.
-**Plans**: 8/10 plans executed
+**Plans**: 8/11 plans executed
 
 Plans:
 **Wave 1**
@@ -117,13 +117,17 @@ Plans:
 
 - [x] 39-08-PLAN.md — Concurrency load at 8 in flight with step-down, baseline2 control, memory
 
-**Wave 8** *(blocked on Wave 7 completion)*
+**Wave 9** *(blocked on Wave 7 completion)*
 
-- [ ] 39-09-PLAN.md — [checkpoint] Verdict, spike record, user confirmation, decision log in PROJECT.md and STATE.md
+- [ ] 39-11-PLAN.md — Maincloud leg: target-aware guard (only uwr-spike-925iv), guarded publish, ladder, dispatch/sender, sanity pair, load 8/4/2, baseline2, key placeholder
 
-**Wave 9** *(blocked on Wave 8 completion)*
+**Wave 10** *(blocked on Wave 9 completion)*
 
-- [ ] 39-10-PLAN.md — Cleanup: drop local uwr-spike, delete spike module and harness, restore registration files to the start SHA
+- [ ] 39-09-PLAN.md — [checkpoint] Verdicts (local provisional, maincloud decisive), side-by-side spike record, user confirmation, decision log in PROJECT.md and STATE.md
+
+**Wave 11** *(blocked on Wave 10 completion)*
+
+- [ ] 39-10-PLAN.md — [checkpoint] Cleanup: user deletes maincloud uwr-spike-925iv, drop local uwr-spike, delete spike module and harness, restore registration files to the start SHA
 
 ### Phase 40: Claude Request Layer and Job Seam
 
