@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
-current_phase: 33
-current_phase_name: Combat Improvements
+current_phase: 38
+current_phase_name: Platform Upgrade
 status: executing
-stopped_at: "Checkpoint: 36-05 human-verify (tasks 1-2 complete)"
-last_updated: "2026-09-29T15:27:50.729Z"
-last_activity: 2026-03-11
-last_activity_desc: "Completed quick task 405: Fix level-up pending text showing wrong level number"
+stopped_at: Completed 38-01-PLAN.md
+last_updated: "2026-09-29T15:37:18.793Z"
+last_activity: 2026-09-29
+last_activity_desc: Phase 38 execution started
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 3
-  total_plans: 19
-  completed_plans: 17
-  percent: 88
+  total_plans: 27
+  completed_plans: 18
+  percent: 38
 ---
 
 # Project State
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 33 - Combat Improvements
+**Current focus:** Phase 38 — Platform Upgrade
 
 ## Current Position
 
-Phase: 33 of 37 (Combat Improvements)
-Plan: 1 of 3 (33-01 complete)
+Phase: 38 (Platform Upgrade) — EXECUTING
+Plan: 2 of 8
 Status: Ready to execute
-Last activity: 2026-03-11 - Completed quick task 405: Fix level-up pending text showing wrong level number
+Last activity: 2026-09-29 — Phase 38 execution started
 
-Progress: [████████░░] 88%
+Progress: [███████░░░] 67%
 
 ## Previous Milestones
 
@@ -83,6 +83,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 36]: fear kind requires combatId (consistent with cc/taunt); song/aura self-buff; grantRaceAbility uses RACE_DATA guard for custom races
 - [Phase 36-05]: Used onPerkClick() method instead of window in Vue template — window is not in template scope
 - [Phase 36-05]: Ability source label uses [Source] prefix format in abilities command — covers Race, Renown sources
+- [Phase ?]: [Phase 38-01]: buildLookOutput tests updated to color-tagged names (look.ts unchanged); 2.10 onDisconnect errors logged via console.warn through src/connectionLogging.ts; orphaned CharacterInfoPanel cluster left for follow-up deletion
 
 ### Roadmap Evolution
 
@@ -120,5 +121,13 @@ See MILESTONES.md for full delivery summaries.
 
 ## Session Continuity
 
-Last session: 2026-03-11T01:10:55Z
-Stopped at: Checkpoint: 36-05 human-verify (tasks 1-2 complete)
+**Resume file:** None
+
+Last session: 2026-09-29T15:37:18.769Z
+Stopped at: Completed 38-01-PLAN.md
+
+## Performance Metrics
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 38 P01 | 15min | 3 tasks | 20 files |
