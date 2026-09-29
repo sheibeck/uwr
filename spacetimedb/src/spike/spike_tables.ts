@@ -1,5 +1,5 @@
 // Throwaway spike tables (phase 39). Deleted at phase end.
-// Imports only from 'spacetimedb/server' so there is no circularity with schema/tables.ts.
+// Imports only from 'spacetimedb/server' so the schema module can import this file without a cycle.
 import { table, t } from 'spacetimedb/server';
 
 // Private schedule table, bound to the spike_run_job procedure through onSchedule.
