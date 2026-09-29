@@ -10,7 +10,7 @@ import { buildRequest, parseResponse, timeoutMsFor, validateSpec, type SpikeSpec
 // Operator CLI identity (from `spacetime login show`). data/admin.ts is deliberately not modified.
 export const CLI_IDENTITY = 'c200252497b98fff5aab75f8fbc675956b5a12a5b85042ab355d3a05c6ab7d6e';
 // Change between publishes for the survive-publish test (a byte-different module).
-export const SPIKE_BUILD_TAG = 'a';
+export const SPIKE_BUILD_TAG = 'b';
 // Hard spend ceiling in micro-USD ($2.40). A code constant: no reducer or table can change it.
 export const SPEND_CAP_MICRO_USD = 2_400_000n;
 
