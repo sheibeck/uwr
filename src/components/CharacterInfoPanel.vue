@@ -119,15 +119,15 @@
     </div>
     <div
       v-for="ability in availableAbilities"
-      :key="ability.id"
+      :key="ability.key"
       :style="{ background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '6px 10px', cursor: 'context-menu' }"
       @contextmenu.prevent="showContextMenu($event, ability)"
     >
       <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }">
         <span :style="{ fontWeight: 600, fontSize: '0.85rem' }">{{ ability.name }}</span>
-        <span :style="{ fontSize: '0.75rem', color: '#9ca3af' }">Lv{{ ability.levelRequired }}</span>
+        <span :style="{ fontSize: '0.75rem', color: '#9ca3af' }">Lv{{ ability.level }}</span>
       </div>
-      <div :style="{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }">{{ ability.resourceType }} &bull; {{ ability.kind }}</div>
+      <div :style="{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }">{{ ability.resource }} &bull; {{ ability.kind }}</div>
     </div>
 
     <!-- Renown perks section -->
@@ -188,7 +188,7 @@
               : 'Free'
         }}</span>
       </div>
-      <div>Cast: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ (() => { const cs = contextMenu.castSeconds; const effective = contextMenu.resourceType === 'mana' && cs < 1n ? 1n : cs; return effective > 0n ? `${Number(effective)}s` : 'Instant'; })() }}</span></div>
+      <div>Cast: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ (() => { const cs = contextMenu.castSeconds; const effective = contextMenu.resource === 'mana' && cs < 1n ? 1n : cs; return effective > 0n ? `${Number(effective)}s` : 'Instant'; })() }}</span></div>
       <div>Cooldown: <span :style="{ color: 'rgba(230,232,239,0.9)' }">{{ contextMenu.cooldownSeconds > 0n ? `${Number(contextMenu.cooldownSeconds)}s` : 'None' }}</span></div>
     </div>
   </ContextMenu>
@@ -200,6 +200,8 @@ import InventoryPanel from './InventoryPanel.vue';
 import StatsPanel from './StatsPanel.vue';
 import RacialProfilePanel from './RacialProfilePanel.vue';
 import ContextMenu from './ContextMenu.vue';
+
+type CharacterInfoPanelAbility = { key: string; name: string; description: string; resource: string; kind: string; level: bigint; castSeconds: bigint; cooldownSeconds: bigint; resourceCost: bigint; damageType?: string | null };
 
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
@@ -215,7 +217,7 @@ const props = defineProps<{
   locations: any[];
   regions: any[];
   races: any[];
-  availableAbilities: { key: string; name: string; description: string; resource: string; kind: string; level: bigint; castSeconds: bigint; cooldownSeconds: bigint; resourceCost: bigint; damageType?: string | null }[];
+  availableAbilities: CharacterInfoPanelAbility[];
   renownPerks: { id: bigint; characterId: bigint; rank: bigint; perkKey: string }[];
   onboarding?: boolean;
   requestedTab?: string | null;
@@ -234,7 +236,7 @@ const emit = defineEmits<{
   (e: 'show-tooltip', payload: any): void;
   (e: 'move-tooltip', payload: any): void;
   (e: 'hide-tooltip'): void;
-  (e: 'add-ability-to-hotbar', abilityTemplateId: bigint, name: string): void;
+  (e: 'add-ability-to-hotbar', abilityKey: string, name: string): void;
   (e: 'tab-change', tab: string): void;
   (e: 'deposit-to-bank', itemInstanceId: bigint): void;
 }>();
@@ -253,19 +255,19 @@ const setTab = (tab: CharacterTab) => {
 
 const contextMenu = ref<{
   visible: boolean; x: number; y: number;
-  abilityTemplateId: bigint; name: string; description: string;
-  resourceType: string; resourceCost: bigint;
+  abilityKey: string; name: string; description: string;
+  resource: string; resourceCost: bigint;
   castSeconds: bigint; cooldownSeconds: bigint;
 }>({
-  visible: false, x: 0, y: 0, abilityTemplateId: 0n, name: '', description: '',
-  resourceType: '', resourceCost: 0n, castSeconds: 0n, cooldownSeconds: 0n,
+  visible: false, x: 0, y: 0, abilityKey: '', name: '', description: '',
+  resource: '', resourceCost: 0n, castSeconds: 0n, cooldownSeconds: 0n,
 });
 
-const showContextMenu = (event: MouseEvent, ability: { id: bigint; name: string; description: string; resourceType: string; resourceCost: bigint; castSeconds: bigint; cooldownSeconds: bigint; kind: string; levelRequired: bigint }) => {
+const showContextMenu = (event: MouseEvent, ability: CharacterInfoPanelAbility) => {
   contextMenu.value = {
     visible: true, x: event.clientX, y: event.clientY,
-    abilityTemplateId: ability.id, name: ability.name, description: ability.description,
-    resourceType: ability.resourceType, resourceCost: ability.resourceCost,
+    abilityKey: ability.key, name: ability.name, description: ability.description,
+    resource: ability.resource, resourceCost: ability.resourceCost,
     castSeconds: ability.castSeconds, cooldownSeconds: ability.cooldownSeconds,
   };
 };
@@ -275,7 +277,7 @@ const hideContextMenu = () => {
 };
 
 const onAddToHotbar = () => {
-  emit('add-ability-to-hotbar', contextMenu.value.abilityTemplateId, contextMenu.value.name);
+  emit('add-ability-to-hotbar', contextMenu.value.abilityKey, contextMenu.value.name);
   hideContextMenu();
 };
 </script>

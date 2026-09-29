@@ -10,7 +10,7 @@ import type {
 } from '../module_bindings/types';
 import { useReducer } from 'spacetimedb/vue';
 
-type HotbarDisplaySlot = {
+export type HotbarDisplaySlot = {
   slot: number;
   abilityTemplateId: bigint;
   name: string;
@@ -20,6 +20,7 @@ type HotbarDisplaySlot = {
   levelRequired: bigint;
   cooldownSeconds: bigint;
   cooldownRemaining: number;
+  isCasting?: boolean;
 };
 
 type UseHotbarArgs = {

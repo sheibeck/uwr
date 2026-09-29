@@ -17,11 +17,11 @@
     <GroupMemberBar
       v-if="selectedCharacter"
       :character="selectedCharacter"
-      :group-members="groupMembers"
-      :character-effects="characterEffects"
-      :defensive-target-id="defensiveTargetId"
-      :now-micros="nowMicros"
-      :leader-id="leaderId"
+      :group-members="groupMembers ?? []"
+      :character-effects="characterEffects ?? []"
+      :defensive-target-id="defensiveTargetId ?? null"
+      :now-micros="nowMicros ?? 0"
+      :leader-id="leaderId ?? null"
       @target="$emit('target', $event)"
     />
 
@@ -40,7 +40,7 @@
           :event="event"
           :format-timestamp="formatTimestamp"
           :animation-state="animationStates.get(`${event.scope}-${event.id}`)"
-          @keyword-click="(kw: string) => {}"
+          @keyword-click="() => {}"
         />
       </template>
 
@@ -127,6 +127,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 import type { Character } from '../module_bindings/types';
+import type { HotbarDisplaySlot } from '../composables/useHotbar';
 import GroupMemberBar from './GroupMemberBar.vue';
 import NarrativeHud from './NarrativeHud.vue';
 import NarrativeInput from './NarrativeInput.vue';
@@ -139,14 +140,6 @@ type EventItem = {
   kind: string;
   message: string;
   scope: string;
-};
-
-type HotbarDisplaySlot = {
-  slot: number;
-  abilityTemplateId: bigint;
-  name: string;
-  cooldownRemaining: number;
-  cooldownSeconds: bigint;
 };
 
 type HotbarEntry = {

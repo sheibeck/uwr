@@ -132,9 +132,6 @@ export const useCombat = ({
   nowMicros,
   characters,
   factions,
-  hotbarSlots,
-  abilityTemplates,
-  abilityCooldowns,
 }: UseCombatArgs) => {
   const effectTimers = new Map<
     string,
@@ -185,6 +182,7 @@ export const useCombat = ({
       characterId: selectedCharacter.value.id,
       abilityTemplateId,
       targetEnemyId: targetEnemyId ?? activeEnemy.value?.id ?? undefined,
+      targetCharacterId: undefined,
     });
   };
 

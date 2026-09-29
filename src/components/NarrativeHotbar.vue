@@ -55,15 +55,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-
-type HotbarDisplaySlot = {
-  slot: number;
-  abilityTemplateId: bigint;
-  name: string;
-  cooldownRemaining: number;
-  cooldownSeconds: bigint;
-  isCasting?: boolean;
-};
+import type { HotbarDisplaySlot } from '../composables/useHotbar';
 
 type HotbarEntry = {
   id: bigint;
