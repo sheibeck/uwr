@@ -15,12 +15,22 @@ REAL=0
 
 SECRET=""
 if [ -f "$DEV_VARS" ]; then
-  SECRET="$(grep -E '^PROXY_SECRET=' "$DEV_VARS" | head -n1 | cut -d= -f2- | tr -d '\r' | sed -e 's/^"//' -e 's/"$//' || true)"
+  # Tolerates `export`, spaces around `=`, CRLF, and single or double quotes.
+  # Inline trailing comments are not supported (would be ambiguous with secret chars).
+  SECRET="$(grep -E '^[[:space:]]*(export[[:space:]]+)?PROXY_SECRET[[:space:]]*=' "$DEV_VARS" | head -n1 \
+    | sed -E 's/^[^=]*=[[:space:]]*//' | tr -d '\r' | sed -E 's/[[:space:]]+$//' \
+    | sed -e "s/^[\"']//" -e "s/[\"']\$//" || true)"
 fi
 if [ -z "$SECRET" ]; then
   echo "PROXY_SECRET missing in .dev.vars"
   exit 2
 fi
+case "$SECRET" in
+  \"* | \'* | *\" | *\')
+    echo "PROXY_SECRET in .dev.vars has unbalanced or nested quotes; fix the value"
+    exit 2
+    ;;
+esac
 
 HDR_FILE="$(mktemp)"
 BODY_FILE="$(mktemp)"
