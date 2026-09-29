@@ -2,10 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
+current_phase: 33
+current_phase_name: Combat Improvements
 status: executing
 stopped_at: "Checkpoint: 36-05 human-verify (tasks 1-2 complete)"
-last_updated: "2026-03-10T21:02:02.620Z"
-last_activity: "2026-03-11 - Completed quick task 405: Fix level-up pending text showing target level"
+last_updated: "2026-09-29T15:27:50.729Z"
+last_activity: 2026-03-11
+last_activity_desc: "Completed quick task 405: Fix level-up pending text showing wrong level number"
 progress:
   total_phases: 7
   completed_phases: 3
@@ -27,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 
 Phase: 33 of 37 (Combat Improvements)
 Plan: 1 of 3 (33-01 complete)
-Status: In Progress
+Status: Ready to execute
 Last activity: 2026-03-11 - Completed quick task 405: Fix level-up pending text showing wrong level number
 
 Progress: [████████░░] 88%

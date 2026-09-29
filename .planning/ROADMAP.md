@@ -197,11 +197,13 @@ Plans:
 - [ ] 37-01: TBD
 
 ### Phase 38: Platform Upgrade
+
 **Goal**: The project runs on current, supported versions of SpacetimeDB and all frameworks, with no behaviour regressions, before further feature work
 **Depends on**: Nothing (runs next, ahead of 33-35 and 37)
 **Requirements**: TBD
 **Research**: `.planning/notes/platform-upgrade-research.md`
 **Success Criteria** (what must be TRUE):
+
   1. SpacetimeDB CLI, server SDK, and client SDK are on 2.10.x; bindings regenerated; module publishes locally without `--clear-database`
   2. Client connection error handling works under the 2.10 `onDisconnect`/`onConnectError` change; scheduled-table logic does not rely on strict execution order
   3. Tooling upgraded: TypeScript pinned to ~6.0 (not 7), vue-tsc 3, Vite 8, plugin-vue 6, Vitest 5 (root and `spacetimedb/`), Vue 3.5 latest
@@ -209,16 +211,37 @@ Plans:
   5. pnpm is the single package manager: `pnpm-lock.yaml` regenerated, stray root `package-lock.json` removed, `engines.node >=22.12` declared
   6. `pnpm build` and all test suites pass; the game runs locally end to end
   7. Stale SpacetimeDB rules in CLAUDE.md (tested-with 1.11.x, index `name:`, multi-column index warning) updated to match 2.10
+
 **Plans**: 8 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 38-01-PLAN.md — Wave 0A: fix buildLookOutput tests, root test script, 2.10 connection logging (SC-2), HotbarDisplaySlot unification, vue-tsc clean outside App.vue
 - [ ] 38-02-PLAN.md — Wave 0B: App.vue vue-tsc clean (14 real errors, 92 unused), restores number-key hotbar shortcuts
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 38-03-PLAN.md — SpacetimeDB 2.10.1: verified data/config backup, CLI install, SDKs via pnpm (spacetimedb/ + root), regenerate bindings, local publish with --break-clients
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 38-04-PLAN.md — Vitest 5 in spacetimedb/ + scheduled-table concurrency audit (SC-2)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 38-05-PLAN.md — llm-proxy: smoke script + baseline, pnpm conversion, hono/openai 7/wrangler/workers-types 5, real /api/llm call
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 38-06-PLAN.md — Root toolchain: Vue 3.5.43, then TS ~6.0.3 + vue-tsc 3, then Vite 8 + plugin-vue 6 + Vitest 5; retire root pnpm-workspace.yaml
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 38-07-PLAN.md — engines >=22.12, pnpm-only assertions, README/PROJECT tech refresh, CLAUDE.md + AGENTS.md 2.10 rules
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 38-08-PLAN.md — Consolidated SC gate, local stack bring-up, human end-to-end verification
 
 ## Progress
@@ -238,7 +261,6 @@ Phase 38 (Platform Upgrade) runs next, then remaining phases in numeric order: 3
 | 36. Ability Expansion | 5/5 | Complete   | 2026-03-10 | - |
 | 37. UX Polish | v2.1 | 0/? | Not started | - |
 | 38. Platform Upgrade | v2.1 | 0/? | Not started | - |
-
 
 ---
 *Last updated: 2026-09-29 after adding phase 38 (platform upgrade)*
