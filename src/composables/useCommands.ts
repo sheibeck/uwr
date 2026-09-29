@@ -37,8 +37,6 @@ export const useCommands = ({
   inviteSummaries,
   npcsHere,
   onNpcHail,
-  selectedNpcTarget,
-  selectedCharacterId,
   resetPanels,
   addLocalEvent,
   players,
@@ -50,8 +48,6 @@ export const useCommands = ({
   factionStandings,
   renownRows,
   renownPerks,
-  questInstances,
-  questTemplates,
   regions,
   groups,
 }: UseCommandsArgs) => {

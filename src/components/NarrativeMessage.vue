@@ -53,7 +53,7 @@ const props = defineProps<{
   animationState?: AnimationState;
 }>();
 
-const emit = defineEmits<{
+defineEmits<{
   (e: 'keyword-click', keyword: string): void;
 }>();
 

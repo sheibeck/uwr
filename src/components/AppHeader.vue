@@ -74,7 +74,7 @@ const props = defineProps<{
   authError: string;
 }>();
 
-const emit = defineEmits<{
+defineEmits<{
   (e: 'login'): void;
   (e: 'logout'): void;
 }>();

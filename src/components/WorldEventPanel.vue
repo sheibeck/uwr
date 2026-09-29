@@ -265,7 +265,7 @@ const objectivesForEvent = (eventId: any) =>
   (props.eventObjectives as any[]).filter((o: any) => o.eventId.toString() === eventId.toString());
 
 // Progress percent for kill_count objective
-const progressPercent = (event: any, obj: any): number => {
+const progressPercent = (_event: any, obj: any): number => {
   const current = Number(obj.currentCount);
   const target = Number(obj.targetCount);
   if (target === 0) return 0;

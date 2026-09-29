@@ -346,12 +346,6 @@ const sortedMembers = computed(() => {
   return [...mine, ...others];
 });
 
-const pullerName = computed(() => {
-  if (!props.pullerId) return props.selectedCharacter?.name ?? '';
-  const puller = props.groupMembers.find((member) => member.id === props.pullerId);
-  return puller?.name ?? props.selectedCharacter?.name ?? '';
-});
-
 const petsFor = (characterId: bigint) =>
   props.combatPets.filter((pet) => pet.ownerCharacterId === characterId);
 

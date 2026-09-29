@@ -21,7 +21,6 @@ const ON_DEMAND_PANEL_IDS = [
  */
 export function getDefaultLayout(): Record<string, { x: number; y: number; w?: number; h?: number; open?: boolean }> {
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1920;
-  const vh = typeof window !== 'undefined' ? window.innerHeight : 1080;
 
   const travelX = Math.max(400, vw - 320 - 16);
   const hotbarX = travelX - 160 - 8;
@@ -274,7 +273,7 @@ export function usePanelManager(
       // Collect all panels with their current zIndex, sort by zIndex ascending
       const entries = Object.entries(panels).sort((a, b) => a[1].zIndex - b[1].zIndex);
       // Reassign z-indexes starting from 10
-      entries.forEach(([pid, state], idx) => {
+      entries.forEach(([, state], idx) => {
         state.zIndex = 10 + idx;
       });
       topZ.value = 10 + entries.length;

@@ -12,7 +12,6 @@ import type { PendingSkill, Character } from '../module_bindings/types';
 export function useSkillChoice({
   selectedCharacter,
   pendingSkills,
-  connActive,
 }: {
   selectedCharacter: Ref<Character | null>;
   pendingSkills: Ref<PendingSkill[]>;

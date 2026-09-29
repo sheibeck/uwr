@@ -72,7 +72,7 @@
 <script setup lang="ts">
 import type { FriendRequest, Friend } from '../module_bindings/types';
 
-const props = defineProps<{
+defineProps<{
   styles: Record<string, Record<string, string | number>>;
   connActive: boolean;
   isLoggedIn: boolean;

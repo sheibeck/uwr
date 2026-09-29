@@ -53,17 +53,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue';
 
-type PanelKey =
-  | 'character'
-  | 'friends'
-  | 'group'
-  | 'crafting'
-  | 'loot'
-  | 'combat'
-  | 'help'
-  | 'map'
-  | 'bugReport';
-
 const props = defineProps<{
   styles: Record<string, Record<string, string | number>>;
   openPanels: Set<string>;
