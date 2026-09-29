@@ -97,11 +97,13 @@
           :key="slot.slot"
           type="button"
           :disabled="
-            !conn.isActive ||
-            !slot.abilityTemplateId ||
-            isCasting ||
-            slot.cooldownRemaining > 0 ||
-            (activeCombat && !canActInCombat && slot.kind !== 'utility')
+            Boolean(
+              !conn.isActive ||
+              !slot.abilityTemplateId ||
+              isCasting ||
+              slot.cooldownRemaining > 0 ||
+              (activeCombat && !canActInCombat && slot.kind !== 'utility')
+            )
           "
           :style="[
             styles.hotbarSlot,
@@ -114,8 +116,8 @@
             slot.abilityTemplateId &&
             showHotbarContextMenu(
               slot,
-              ($event.currentTarget?.getBoundingClientRect().right ?? $event.clientX) + 4,
-              ($event.currentTarget?.getBoundingClientRect().top ?? $event.clientY)
+              (eventTargetRect($event)?.right ?? $event.clientX) + 4,
+              (eventTargetRect($event)?.top ?? $event.clientY)
             )
           "
         >
@@ -302,8 +304,8 @@
           :key="item.id.toString()"
           :style="{ padding: '10px', background: 'rgba(76, 125, 240, 0.15)', border: '1px solid rgba(76, 125, 240, 0.3)', borderRadius: '4px', cursor: 'pointer' }"
           @click="giveGift(item.id)"
-          @mouseenter="$event.currentTarget.style.background = 'rgba(76, 125, 240, 0.25)'"
-          @mouseleave="$event.currentTarget.style.background = 'rgba(76, 125, 240, 0.15)'"
+          @mouseenter="setHoverBackground($event, 'rgba(76, 125, 240, 0.25)')"
+          @mouseleave="setHoverBackground($event, 'rgba(76, 125, 240, 0.15)')"
         >
           <div :style="{ fontSize: '0.9rem', fontWeight: 600 }">{{ item.name }}</div>
           <div v-if="item.quantity > 1n" :style="{ fontSize: '0.75rem', opacity: 0.7 }">Quantity: {{ item.quantity }}</div>
@@ -779,7 +781,6 @@ const {
     selectedCharacterId,
     userId,
     characters,
-    races,
     characterCreationStates,
     creationEvents,
   });
@@ -858,8 +859,8 @@ const trackOptions = computed(() => {
     .filter((template) => {
       const allowed = (template.terrainTypes ?? '')
         .split(',')
-        .map((entry) => entry.trim().toLowerCase())
-        .filter((entry) => entry.length > 0);
+        .map((entry: string) => entry.trim().toLowerCase())
+        .filter((entry: string) => entry.length > 0);
       if (allowed.length === 0) return true;
       return allowed.includes(terrain);
     })
@@ -2417,9 +2418,6 @@ const {
     initiateCorpseSummonReducer({ casterCharacterId: selectedCharacter.value.id, targetCharacterId });
   },
   addLocalEvent,
-  inventoryItems,
-  itemTemplates,
-  eatFoodFn: eatFood,
 });
 
 // Context actions derived from game state (after all dependencies are declared)
@@ -2508,22 +2506,6 @@ watch(combatUiVisible, (inCombat) => {
   }
 });
 
-const onAddItemToHotbar = (templateId: bigint, itemName: string) => {
-  const input = window.prompt(`Assign "${itemName}" to hotbar slot (1-10):`);
-  if (input === null) return;
-  const slotNum = parseInt(input, 10);
-  if (isNaN(slotNum) || slotNum < 1 || slotNum > 10) return;
-  setHotbarSlot(slotNum, `item:${templateId}`);
-};
-
-const onAddAbilityToHotbar = (abilityTemplateId: bigint, name: string) => {
-  const input = window.prompt(`Assign "${name}" to hotbar slot (1-10):`);
-  if (input === null) return;
-  const slotNum = parseInt(input, 10);
-  if (isNaN(slotNum) || slotNum < 1 || slotNum > 10) return;
-  setHotbarSlot(slotNum, abilityTemplateId);
-};
-
 const equippedStatBonuses = computed(() => {
   if (!selectedCharacter.value) {
     return { str: 0n, dex: 0n, cha: 0n, wis: 0n, int: 0n };
@@ -2569,9 +2551,16 @@ const equippedStatBonuses = computed(() => {
 });
 
 
+const eventTargetRect = (e: MouseEvent): DOMRect | undefined =>
+  (e.currentTarget as HTMLElement | null)?.getBoundingClientRect();
+
+const setHoverBackground = (e: MouseEvent, background: string): void => {
+  const el = e.currentTarget as HTMLElement | null;
+  if (el) el.style.background = background;
+};
+
 const selectTrackedTarget = (templateId: bigint) => {
   if (!selectedCharacter.value) return;
-  useAbility('ranger_track', selectedCharacter.value.id);
   startTrackedCombat(templateId);
   closePanelById('track');
 };
@@ -2654,7 +2643,7 @@ const handleHotbarKeydown = (e: KeyboardEvent) => {
   if (slotIndex === null) return;
 
   const slot = hotbarDisplay.value[slotIndex - 1];
-  if (!slot?.abilityKey) return;
+  if (!slot?.abilityTemplateId) return;
   onHotbarClick(slot);
 };
 
