@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 39
 current_phase_name: Procedure-to-Claude Spike
 status: executing
-stopped_at: Completed 39-04-PLAN.md
-last_updated: "2026-09-29T20:20:48.702Z"
+stopped_at: Completed 39-05-PLAN.md
+last_updated: "2026-09-29T20:27:04.314Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 39 execution started
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 10
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-29)
 ## Current Position
 
 Phase: 39 (Procedure-to-Claude Spike) — EXECUTING
-Plan: 5 of 10
+Plan: 6 of 10
 Status: Ready to execute
 Last activity: 2026-09-29 — Phase 39 execution started
 
-Progress: [████░░░░░░] 40%
+Progress: [█████░░░░░] 50%
 
 ## Previous Milestones
 
@@ -53,6 +53,8 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: Phase 39-02: spike spend cap is a code constant (2.4M micro-USD); spike_reset preserves spend counters; missing spike_state fails closed
 - [Phase ?]: [39-03] Spike key read via util.parseEnv (not process.env); readLogs slices whole log; only probeUwrClean may read uwr, via a fixed argument list
 - [Phase ?]: Phase 39-04: runConcurrent async wrapper plus startConcurrent live handle; canary key remains in llm_config row 1 until real key stored in Plan 06
+- [Phase ?]: 39-05: ctx.sender in a scheduled procedure is the module identity (no connection id); requesting player must be carried in the job row
+- [Phase ?]: 39-05: ctx.http.fetch throws on timeout (platform) but returns 401 on a bad key; request-id visible, retry-after not observed
 
 ### Roadmap Evolution
 
@@ -100,8 +102,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-29T20:20:48.679Z
-Stopped at: Completed 39-04-PLAN.md
+Last session: 2026-09-29T20:27:04.291Z
+Stopped at: Completed 39-05-PLAN.md
 
 ## Performance Metrics
 
@@ -119,6 +121,7 @@ Stopped at: Completed 39-04-PLAN.md
 | Phase 39 P02 | 25min | 3 tasks | 7 files |
 | Phase 39 P03 | 25min | 3 tasks | 10 files |
 | Phase 39 P04 | 25min | 3 tasks | 3 files |
+| Phase 39 P05 | 20min | 2 tasks | 4 files |
 
 ## Operator Next Steps
 
