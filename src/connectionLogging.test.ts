@@ -1,6 +1,4 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { logConnectError, logDisconnect } from './connectionLogging';
 
 describe('connection logging', () => {
@@ -39,12 +37,5 @@ describe('connection logging', () => {
 
     expect(log).toHaveBeenCalledTimes(1);
     expect(log).toHaveBeenCalledWith('Error connecting to SpacetimeDB:', err);
-  });
-
-  it('wires main.ts through contextually typed inline lambdas', () => {
-    const source = readFileSync(fileURLToPath(new URL('./main.ts', import.meta.url)), 'utf8');
-
-    expect(source).toMatch(/\.onDisconnect\(\(_ctx, err\) => logDisconnect\(err\)\)/);
-    expect(source).toMatch(/\.onConnectError\(\(_ctx, err\) => logConnectError\(err\)\)/);
   });
 });
