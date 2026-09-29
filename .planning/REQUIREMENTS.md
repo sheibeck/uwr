@@ -17,7 +17,7 @@
   - scheduled-dispatch latency
   - `ctx.sender` in scheduled procedures
   - reducer and combat-tick latency with 6–8 concurrent in-flight calls
-- [ ] **SPIKE-04**: A written go/no-go decision record picks the executor.
+- [x] **SPIKE-04**: A written go/no-go decision record picks the executor.
   - Gate:
     - every non-drill call succeeds on local SpacetimeDB
     - dispatch p95 < ~250 ms
@@ -118,7 +118,7 @@ Filled by roadmap creation (2026-09-29). Each requirement maps to exactly one ph
 | SPIKE-01 | Phase 39 | Pending |
 | SPIKE-02 | Phase 39 | Pending |
 | SPIKE-03 | Phase 39 | Pending |
-| SPIKE-04 | Phase 39 | Pending |
+| SPIKE-04 | Phase 39 | Complete |
 | CLAUDE-01 | Phase 40 | Pending |
 | CLAUDE-02 | Phase 40 | Pending |
 | CLAUDE-03 | Phase 40 | Pending |
@@ -154,11 +154,13 @@ Filled by roadmap creation (2026-09-29). Each requirement maps to exactly one ph
 | QUAL-04 | Phase 40 | Pending |
 
 **Coverage:**
+
 - v2.2 requirements: 37 total
 - Mapped to phases: 37
 - Unmapped: 0
 
 **By phase:**
+
 - Phase 39 (Procedure-to-Claude Spike): 4 (SPIKE-01 to SPIKE-04)
 - Phase 40 (Claude Request Layer and Job Seam): 8 (CLAUDE-01 to CLAUDE-04, PIPE-03, PIPE-08, SEC-01, QUAL-04)
 - Phase 41 (Executor and Domain Cutover): 11 (PIPE-01, PIPE-02, PIPE-04 to PIPE-07, PIPE-09, SEC-04, COST-01, COST-02, OPS-01)
