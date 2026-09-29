@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 39
 current_phase_name: Procedure-to-Claude Spike
 status: executing
-stopped_at: Completed 39-05-PLAN.md
-last_updated: "2026-09-29T20:27:04.314Z"
+stopped_at: Completed 39-06-PLAN.md
+last_updated: "2026-09-29T21:59:09.631Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 39 execution started
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 10
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-29)
 ## Current Position
 
 Phase: 39 (Procedure-to-Claude Spike) — EXECUTING
-Plan: 6 of 10
+Plan: 7 of 10
 Status: Ready to execute
 Last activity: 2026-09-29 — Phase 39 execution started
 
-Progress: [█████░░░░░] 50%
+Progress: [██████░░░░] 60%
 
 ## Previous Milestones
 
@@ -55,6 +55,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: Phase 39-04: runConcurrent async wrapper plus startConcurrent live handle; canary key remains in llm_config row 1 until real key stored in Plan 06
 - [Phase ?]: 39-05: ctx.sender in a scheduled procedure is the module identity (no connection id); requesting player must be carried in the job row
 - [Phase ?]: 39-05: ctx.http.fetch throws on timeout (platform) but returns 401 on a bad key; request-id visible, retry-after not observed
+- [Phase ?]: 39-06: paid ladder rungs 2 and 3 all ok on attempt 1 (10/10 models, 30/30 Sonnet 5.5); est spend 2280 micro-USD; no re-run needed
 
 ### Roadmap Evolution
 
@@ -102,8 +103,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-29T20:27:04.291Z
-Stopped at: Completed 39-05-PLAN.md
+Last session: 2026-09-29T21:59:09.609Z
+Stopped at: Completed 39-06-PLAN.md
 
 ## Performance Metrics
 
@@ -122,6 +123,7 @@ Stopped at: Completed 39-05-PLAN.md
 | Phase 39 P03 | 25min | 3 tasks | 10 files |
 | Phase 39 P04 | 25min | 3 tasks | 3 files |
 | Phase 39 P05 | 20min | 2 tasks | 4 files |
+| Phase 39 P06 | 25min | 3 tasks | 2 files |
 
 ## Operator Next Steps
 
