@@ -5,6 +5,13 @@ import {
   summarize,
   ratioCheck,
   evaluateGate,
+  classifyFailure,
+  CLAUDE_PRICE_MICRO_USD_PER_TOKEN,
+  estimateCostMicroUsd,
+  reserveCostMicroUsd,
+  settleCostMicroUsd,
+  redactSecrets,
+  findSecretLeaks,
   type GateInput,
   type LevelStats,
 } from './measurement';
@@ -392,5 +399,173 @@ describe('evaluateGate: gate verdict branches', () => {
     const r = evaluateGate(healthy({ dispatch: { p95Ms: 40, samples: 10 } }));
     expect(r.verdict).toBe('incomplete');
     expect(r.checks.length).toBeGreaterThanOrEqual(5);
+  });
+});
+
+// ============================================================================
+// failure classes
+// ============================================================================
+
+describe('failure classes: classifyFailure', () => {
+  const base = { threw: false, status: 200 as number | null };
+
+  it('a missing result row is a platform failure', () => {
+    expect(classifyFailure({ ...base, status: null, rowMissing: true })).toBe('platform');
+  });
+
+  it('a thrown fetch is a platform failure', () => {
+    expect(classifyFailure({ threw: true, status: null })).toBe('platform');
+  });
+
+  it('429, 500, 502, 503, 504 and 529 are upstream failures', () => {
+    for (const status of [429, 500, 502, 503, 504, 529]) {
+      expect(classifyFailure({ threw: false, status })).toBe('upstream');
+    }
+  });
+
+  it('401 and 403 are auth failures', () => {
+    expect(classifyFailure({ threw: false, status: 401 })).toBe('auth');
+    expect(classifyFailure({ threw: false, status: 403 })).toBe('auth');
+  });
+
+  it('400, 404 and 413 are request failures', () => {
+    for (const status of [400, 404, 413]) {
+      expect(classifyFailure({ threw: false, status })).toBe('request');
+    }
+  });
+
+  it('status 200 with contentOk false is a content failure', () => {
+    expect(classifyFailure({ threw: false, status: 200, contentOk: false })).toBe('content');
+  });
+
+  it('status 200 with contentOk true or undefined is not a failure', () => {
+    expect(classifyFailure({ threw: false, status: 200, contentOk: true })).toBeNull();
+    expect(classifyFailure({ threw: false, status: 200 })).toBeNull();
+  });
+
+  it('capBlocked is a spend_cap outcome regardless of status', () => {
+    expect(classifyFailure({ threw: false, status: null, capBlocked: true })).toBe('spend_cap');
+  });
+
+  it('no response and no throw is still a platform failure', () => {
+    expect(classifyFailure({ threw: false, status: null })).toBe('platform');
+  });
+});
+
+// ============================================================================
+// cost (in-module spend cap math)
+// ============================================================================
+
+describe('cost: estimate, reserve and settle', () => {
+  it('prices match Sonnet 5.5 in micro-USD per token', () => {
+    expect(CLAUDE_PRICE_MICRO_USD_PER_TOKEN).toEqual({ input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 });
+  });
+
+  it('estimates from the four usage counts (11500 micro-USD)', () => {
+    expect(estimateCostMicroUsd({ input: 1000, output: 500, cacheWrite: 1000, cacheRead: 10000 })).toBe(11500);
+  });
+
+  it('rounds a fractional estimate up to an integer', () => {
+    // 1 cache-read token = 0.2 micro-USD -> 1
+    expect(estimateCostMicroUsd({ input: 0, output: 0, cacheWrite: 0, cacheRead: 1 })).toBe(1);
+    expect(estimateCostMicroUsd({ input: 0, output: 0, cacheWrite: 0, cacheRead: 0 })).toBe(0);
+  });
+
+  it('reserves from max_tokens and request size (2810 micro-USD)', () => {
+    expect(reserveCostMicroUsd(256, 300)).toBe(2810);
+  });
+
+  it('a larger request or max_tokens never lowers the reservation', () => {
+    expect(reserveCostMicroUsd(256, 3000)).toBeGreaterThan(reserveCostMicroUsd(256, 300));
+    expect(reserveCostMicroUsd(1024, 300)).toBeGreaterThan(reserveCostMicroUsd(256, 300));
+  });
+
+  it('settle keeps the reservation when the fetch threw', () => {
+    expect(settleCostMicroUsd({ threw: true, status: null, usage: null, reservedMicroUsd: 2810 })).toBe(2810);
+  });
+
+  it('settle uses actual usage when present', () => {
+    const usage = { input: 1000, output: 500, cacheWrite: 1000, cacheRead: 10000 };
+    expect(settleCostMicroUsd({ threw: false, status: 200, usage, reservedMicroUsd: 99999 })).toBe(11500);
+  });
+
+  it('settle is 0 for a non-200 response without usage', () => {
+    expect(settleCostMicroUsd({ threw: false, status: 401, usage: null, reservedMicroUsd: 2810 })).toBe(0);
+  });
+});
+
+// ============================================================================
+// secrets
+// ============================================================================
+
+// Fake keys are assembled at runtime so no key-shaped literal exists in source.
+const PREFIX = ['sk', '-ant-'].join('');
+const fakeKey = (filler = 'Ab1_-'.repeat(8)) => [PREFIX, 'api03-', filler].join('');
+
+describe('secrets: redactSecrets and findSecretLeaks', () => {
+  it('redacts a key-shaped string', () => {
+    const key = fakeKey();
+    const out = redactSecrets(`Authorization failed for ${key} at 12:00`);
+    expect(out).not.toContain(key);
+    expect(out).toContain('[REDACTED]');
+    expect(out).toContain('at 12:00');
+  });
+
+  it('redacts every key-shaped occurrence', () => {
+    const out = redactSecrets(`${fakeKey()} and ${fakeKey('Z9'.repeat(12))}`);
+    expect(out.split('[REDACTED]').length - 1).toBe(2);
+    expect(out).not.toMatch(new RegExp(PREFIX + '[A-Za-z0-9_-]{20,}'));
+  });
+
+  it('redacts supplied needles of 8 or more characters', () => {
+    const out = redactSecrets('value=supersecretvalue!', ['supersecretvalue']);
+    expect(out).toBe('value=[REDACTED]!');
+  });
+
+  it('escapes regex metacharacters in needles', () => {
+    const out = redactSecrets('x a.b*c+d?e y', ['a.b*c+d?e']);
+    expect(out).toBe('x [REDACTED] y');
+  });
+
+  it('ignores needles shorter than 8 characters', () => {
+    expect(redactSecrets('short abc here', ['abc'])).toBe('short abc here');
+  });
+
+  it('leaves clean text unchanged', () => {
+    expect(redactSecrets('nothing to see')).toBe('nothing to see');
+  });
+
+  it('counts pattern hits and needle hits', () => {
+    const text = `${fakeKey()} then needle-value-123 and needle-value-123`;
+    const r = findSecretLeaks(text, { needles: ['needle-value-123'] });
+    expect(r.patternHits).toBe(1);
+    expect(r.needleHits).toBe(2);
+    expect(r.total).toBe(3);
+  });
+
+  it('returns zero for clean text', () => {
+    expect(findSecretLeaks('all clear', { needles: ['abcdefghij'] }).total).toBe(0);
+  });
+
+  it('strictPrefix flags any occurrence of the bare prefix', () => {
+    const text = `header ${PREFIX}CANARY-short end`;
+    expect(findSecretLeaks(text).patternHits).toBe(0);
+    expect(findSecretLeaks(text, { strictPrefix: true }).patternHits).toBe(1);
+  });
+
+  it('strictPrefix also catches full keys', () => {
+    expect(findSecretLeaks(fakeKey(), { strictPrefix: true }).patternHits).toBe(1);
+  });
+
+  it('needles shorter than 8 characters are ignored', () => {
+    expect(findSecretLeaks('abc abc abc', { needles: ['abc'] }).needleHits).toBe(0);
+  });
+
+  it('is repeatable across calls (no stale global regex state)', () => {
+    const text = fakeKey();
+    expect(findSecretLeaks(text).patternHits).toBe(1);
+    expect(findSecretLeaks(text).patternHits).toBe(1);
+    expect(redactSecrets(text)).toBe('[REDACTED]');
+    expect(redactSecrets(text)).toBe('[REDACTED]');
   });
 });
