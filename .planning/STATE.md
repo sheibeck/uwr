@@ -81,9 +81,14 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 36-05]: Used onPerkClick() method instead of window in Vue template — window is not in template scope
 - [Phase 36-05]: Ability source label uses [Source] prefix format in abilities command — covers Race, Renown sources
 
+### Roadmap Evolution
+
+- Phase 38 added: Platform Upgrade (SpacetimeDB 2.0.1 -> 2.10.x, tooling, llm-proxy deps, pnpm-only). Runs next, ahead of 33-35 and 37. Research: `.planning/notes/platform-upgrade-research.md`
+
 ### Pending Todos
 
-None.
+- `todos/pending/2026-09-29-spike-procedure-http-to-retire-llm-proxy.md` — test whether 2.10 procedure HTTP can replace llm-proxy
+- `todos/pending/2026-09-29-migrate-client-table-handles-to-camelcase.md` — optional cleanup of deprecated snake_case table aliases
 
 ### Blockers/Concerns
 
