@@ -1,10 +1,10 @@
 ---
-phase: 034-narrative-ui-integration
+phase: 34-narrative-ui-integration
 plan: "02"
 subsystem: narrative-ui
 tags: [hotbar, multi-hotbar, schema-change, tdd]
 dependency_graph:
-  requires: [034-01]
+  requires: [34-01]
   provides: [hotbar-parent-table, create-hotbar-reducer, switch-hotbar-reducer, swap-hotbar-slots-reducer, hotbar-intent-commands]
   affects: [spacetimedb/src/schema/tables.ts, spacetimedb/src/reducers/items.ts, spacetimedb/src/reducers/intent.ts, src/module_bindings/]
 tech_stack:

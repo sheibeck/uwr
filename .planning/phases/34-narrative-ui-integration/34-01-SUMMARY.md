@@ -1,5 +1,5 @@
 ---
-phase: 034-narrative-ui-integration
+phase: 34-narrative-ui-integration
 plan: "01"
 subsystem: narrative-ui
 tags: [sell-commands, perk-bonus, event-colors, tdd]

@@ -1,7 +1,7 @@
 ---
 status: testing
-phase: 034-narrative-ui-integration
-source: [034-01-SUMMARY.md, 034-02-SUMMARY.md, 034-03-PLAN.md]
+phase: 34-narrative-ui-integration
+source: [34-01-SUMMARY.md, 34-02-SUMMARY.md, 34-03-PLAN.md]
 started: 2026-03-10T12:00:00Z
 updated: 2026-03-10T12:00:00Z
 ---
