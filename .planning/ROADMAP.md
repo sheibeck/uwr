@@ -209,10 +209,17 @@ Plans:
   5. pnpm is the single package manager: `pnpm-lock.yaml` regenerated, stray root `package-lock.json` removed, `engines.node >=22.12` declared
   6. `pnpm build` and all test suites pass; the game runs locally end to end
   7. Stale SpacetimeDB rules in CLAUDE.md (tested-with 1.11.x, index `name:`, multi-column index warning) updated to match 2.10
-**Plans**: TBD
+**Plans**: 8 plans
 
 Plans:
-- [ ] 38-01: TBD
+- [ ] 38-01-PLAN.md — Wave 0A: fix buildLookOutput tests, root test script, 2.10 connection logging (SC-2), HotbarDisplaySlot unification, vue-tsc clean outside App.vue
+- [ ] 38-02-PLAN.md — Wave 0B: App.vue vue-tsc clean (14 real errors, 92 unused), restores number-key hotbar shortcuts
+- [ ] 38-03-PLAN.md — SpacetimeDB 2.10.1: verified data/config backup, CLI install, SDKs via pnpm (spacetimedb/ + root), regenerate bindings, local publish with --break-clients
+- [ ] 38-04-PLAN.md — Vitest 5 in spacetimedb/ + scheduled-table concurrency audit (SC-2)
+- [ ] 38-05-PLAN.md — llm-proxy: smoke script + baseline, pnpm conversion, hono/openai 7/wrangler/workers-types 5, real /api/llm call
+- [ ] 38-06-PLAN.md — Root toolchain: Vue 3.5.43, then TS ~6.0.3 + vue-tsc 3, then Vite 8 + plugin-vue 6 + Vitest 5; retire root pnpm-workspace.yaml
+- [ ] 38-07-PLAN.md — engines >=22.12, pnpm-only assertions, README/PROJECT tech refresh, CLAUDE.md + AGENTS.md 2.10 rules
+- [ ] 38-08-PLAN.md — Consolidated SC gate, local stack bring-up, human end-to-end verification
 
 ## Progress
 
