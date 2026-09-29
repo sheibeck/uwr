@@ -43,7 +43,7 @@ See `.planning/milestones/v2.0-ROADMAP.md` for full details.
 - [ ] **Phase 35: Dynamic Equipment Generation** - Level-scaled equipment drops replacing hardcoded gear definitions
 - [x] **Phase 36: Ability Expansion** - Extend ability kinds to cover all game systems with server and client dispatch (completed 2026-03-10)
 - [ ] **Phase 37: UX Polish** - Global font scaling and group info readability
-- [x] **Phase 38: Platform Upgrade** - SpacetimeDB 2.10, TS 6 / Vite 8 / Vitest 5 tooling, llm-proxy deps, pnpm-only lockfile (runs next) (completed 2026-09-29)
+- [x] **Phase 38: Platform Upgrade** - SpacetimeDB 2.10, TS 6 / Vite 8 / Vitest 5 tooling, llm-proxy deps, pnpm-only lockfile (completed 2026-09-29)
 
 ## Phase Details
 
@@ -247,7 +247,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phase 38 (Platform Upgrade) runs next, then remaining phases in numeric order: 38 -> 33 -> 34 -> 35 -> 37
+Phase 38 (Platform Upgrade) complete 2026-09-29. Remaining phases in numeric order: 33 -> 34 -> 35 -> 36 (verification only) -> 37
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|

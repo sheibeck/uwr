@@ -21,10 +21,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-09)
+See: .planning/PROJECT.md (updated 2026-09-29)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 38 — Platform Upgrade
+**Current focus:** Phase 33 — Combat Improvements
 
 ## Current Position
 
@@ -98,12 +98,16 @@ See MILESTONES.md for full delivery summaries.
 
 ### Pending Todos
 
+- `todos/pending/2026-09-29-new-milestone-llm-reliability.md` — **NEXT MILESTONE (after v2.1 is archived):** fix the LLM pipeline (OpenAI credits/provider, procedure HTTP vs llm-proxy)
+
 - `todos/pending/2026-09-29-spike-procedure-http-to-retire-llm-proxy.md` — test whether 2.10 procedure HTTP can replace llm-proxy
 - `todos/pending/2026-09-29-migrate-client-table-handles-to-camelcase.md` — optional cleanup of deprecated snake_case table aliases
 
 ### Blockers/Concerns
 
-- SpacetimeDB procedures are beta -- load test early before building on them
+- [Phase 38] Live LLM calls fail: the OpenAI account behind llm-proxy/.dev.vars returns 429 "no credits" -- deferred to the LLM milestone by user decision
+- [Phase 38] First maincloud publish after the 2.10 upgrade will re-create the 14 views and need --break-clients (no data loss) -- user-run only
+- [Phase 38] Lockfiles moved to pnpm-only -- check any external host's package-manager detection before the next push
 - **NO PUSHES TO MASTER** -- production auto-deploys from master; all work stays local until user approves
 - **NO PUSHES TO MAINCLOUD** -- local SpacetimeDB only until user says otherwise
 
@@ -131,7 +135,7 @@ See MILESTONES.md for full delivery summaries.
 **Resume file:** None
 
 Last session: 2026-09-29T17:18:25.411Z
-Stopped at: Completed 38-08-PLAN.md
+Stopped at: Phase 38 complete, ready to plan Phase 33 (then 34, 35, 36-verify, 37; then v2.1 audit/complete; then LLM milestone)
 
 ## Performance Metrics
 

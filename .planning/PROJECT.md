@@ -104,6 +104,7 @@ Keeper of Knowledge narrator replaced generic "System" narrator in quick-365.
 | 3 skills per level-up, pick 1 | Unchosen skills vanish — discovery and consequence | ✓ Good — creates tension |
 | Kind-based ability dispatch map | Replaces hardcoded switch for unlimited generated abilities | ✓ Good — scales to any ability |
 | Real-time combat (not round-based) | Round-based felt sluggish; reverted after experiment | ✓ Good — immediate feedback |
+| Platform upgrade before feature work (Phase 38) | SpacetimeDB 2.0.1 and tooling had fallen far behind | ✓ Good — SpacetimeDB 2.10.1, TS 6, Vite 8, Vitest 5, pnpm-only; build + 990 tests green |
 | Haiku/gpt-5-mini for fast generation | Sonnet HTTP fails from SpacetimeDB runtime; fast models sufficient | ✓ Good — fast enough |
 | NPC memory arrays capped at 10 | Bounded prompt size for LLM conversations | ✓ Good — keeps costs down |
 
@@ -111,7 +112,7 @@ Keeper of Knowledge narrator replaced generic "System" narrator in quick-365.
 
 ## Constraints
 
-- SpacetimeDB procedures can't make HTTP calls locally (ctx.http.fetch broken)
+- SpacetimeDB procedures can't make HTTP calls locally (ctx.http.fetch broken) -- observed on 2.0.1, likely its 500 ms HTTP timeout; retest on 2.10 in the LLM milestone
 - LLM budget limits daily generation per player
 - No pushes to master without user approval (production auto-deploys)
 - No pushes to maincloud without user approval
@@ -132,4 +133,4 @@ Keeper of Knowledge narrator replaced generic "System" narrator in quick-365.
 | Deployment | GitHub Pages (frontend) + SpacetimeDB maincloud (backend) |
 
 ---
-*Last updated: 2026-03-09 after v2.1 milestone started*
+*Last updated: 2026-09-29 after Phase 38*
