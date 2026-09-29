@@ -5,15 +5,15 @@ milestone_name: Project Cleanup
 current_phase: 38
 current_phase_name: Platform Upgrade
 status: executing
-stopped_at: Completed 38-05-PLAN.md
-last_updated: "2026-09-29T16:37:46.166Z"
+stopped_at: Completed 38-06-PLAN.md
+last_updated: "2026-09-29T16:55:35.531Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 38 execution started
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 27
-  completed_plans: 22
+  completed_plans: 23
   percent: 38
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 ## Current Position
 
 Phase: 38 (Platform Upgrade) — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8
 Status: Ready to execute
 Last activity: 2026-09-29 — Phase 38 execution started
 
-Progress: [████████░░] 81%
+Progress: [█████████░] 85%
 
 ## Previous Milestones
 
@@ -89,6 +89,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 38-03]: Backup skipped per user instruction (greenfield); published local DB on 2.10.1 with --break-clients only, view-only migration, row counts unchanged
 - [Phase 38-04]: Vitest 5.0.2 in spacetimedb/; all 16 scheduled reducers audited order-independent (no code change)
 - [Phase 38-05]: llm-proxy real /api/llm call deferred (OpenAI 429 no credits); smoke health/401/400 pass on hono 4.13.10, openai 7.23.0, wrangler 4.143.0
+- [Phase 38]: 38-06: root TypeScript pinned ~6.0.3 with vue-tsc 3.3.11; Vite 8.3.1/plugin-vue 6.0.9/Vitest 5.0.2; root pnpm-workspace.yaml removed (esbuild gone); no code changes needed
 
 ### Roadmap Evolution
 
@@ -128,8 +129,8 @@ See MILESTONES.md for full delivery summaries.
 
 **Resume file:** None
 
-Last session: 2026-09-29T16:37:46.142Z
-Stopped at: Completed 38-05-PLAN.md
+Last session: 2026-09-29T16:55:35.447Z
+Stopped at: Completed 38-06-PLAN.md
 
 ## Performance Metrics
 
@@ -140,3 +141,4 @@ Stopped at: Completed 38-05-PLAN.md
 | Phase 38 P03 | 25min | 3 tasks | 21 files |
 | Phase 38 P04 | 10min | 2 tasks | 2 files |
 | Phase 38 P05 | 25min | 2 tasks | 5 files |
+| Phase 38 P06 | 15min | 3 tasks | 3 files |
