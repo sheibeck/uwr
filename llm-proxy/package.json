@@ -2,6 +2,9 @@
   "name": "uwr-llm-proxy",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",

@@ -10,9 +10,9 @@ A browser-based multiplayer RPG built on SpacetimeDB and Vue 3. Players create c
 
 | Layer | Technology |
 |-------|-----------|
-| Backend runtime | SpacetimeDB 1.12.0 (TypeScript SDK) |
-| Backend language | TypeScript 5.6.2 |
-| Frontend framework | Vue 3.5.13 + Vite 6.4.1 |
+| Backend runtime | SpacetimeDB 2.10.1 (TypeScript SDK) |
+| Backend language | TypeScript 6.0 |
+| Frontend framework | Vue 3.5.43 + Vite 8.3.1 |
 | Authentication | SpacetimeAuth OIDC |
 | LLM provider | Anthropic Claude API (via SpacetimeDB procedures) |
 | Deployment | GitHub Pages (frontend) + SpacetimeDB maincloud (backend) |
@@ -53,8 +53,8 @@ uwr/
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 18+
-- [pnpm](https://pnpm.io/) (`npm install -g pnpm`)
+- [Node.js](https://nodejs.org/) 22.12+
+- [pnpm](https://pnpm.io/) 11+ (`npm install -g pnpm`)
 - [SpacetimeDB CLI](https://spacetimedb.com/install) (`spacetime` command available in PATH)
 
 ### 1. Clone and install dependencies
@@ -63,6 +63,8 @@ uwr/
 git clone https://github.com/sheibeck/uwr.git
 cd uwr
 pnpm install
+pnpm --dir spacetimedb install   # standalone pnpm project (server module + tests)
+pnpm --dir llm-proxy install     # standalone pnpm project (Cloudflare Workers LLM proxy)
 ```
 
 ### 2. Configure environment

@@ -2,6 +2,9 @@
   "name": "uwr",
   "version": "1.0.0",
   "description": "",
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "build": "spacetime build",
     "publish": "spacetime publish",

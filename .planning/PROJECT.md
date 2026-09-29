@@ -122,12 +122,13 @@ Keeper of Knowledge narrator replaced generic "System" narrator in quick-365.
 
 | Layer | Technology |
 |-------|-----------|
-| Backend runtime | SpacetimeDB 1.12.0 (TypeScript SDK) |
-| Backend language | TypeScript 5.6.2 |
-| Frontend framework | Vue 3.5.13 + Vite 6.4.1 |
+| Backend runtime | SpacetimeDB 2.10.1 (TypeScript SDK) |
+| Backend language | TypeScript 6.0 |
+| Frontend framework | Vue 3.5.43 + Vite 8.3.1 |
 | Authentication | SpacetimeAuth OIDC |
 | LLM provider | Anthropic Claude API (via client proxy) |
 | LLM proxy | Cloudflare Workers + Hono + OpenAI SDK |
+| Package manager | pnpm 11 (standalone projects: root, spacetimedb/, llm-proxy/) |
 | Deployment | GitHub Pages (frontend) + SpacetimeDB maincloud (backend) |
 
 ---
