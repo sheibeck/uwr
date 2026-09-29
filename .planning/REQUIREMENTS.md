@@ -114,38 +114,38 @@ Deferred to future release. Tracked but not in current roadmap.
 | CLEAN-04 | Phase 32 | Complete |
 | CLEAN-05 | Phase 32 | Complete |
 | CLEAN-06 | Phase 32 | Complete |
-| COMB-01 | Phase 33 | Complete |
-| COMB-02 | Phase 33 | Complete |
-| COMB-03 | Phase 33 | Complete |
-| COMB-04 | Phase 33 | Complete |
-| COMB-05 | Phase 33 | Pending |
-| COMB-06 | Phase 33 | Complete |
-| COMB-07 | Phase 33 | Complete |
-| COMB-08 | Phase 37 | Pending |
-| NARR-01 | Phase 34 | Complete |
-| NARR-02 | Phase 34 | Complete |
-| NARR-03 | Phase 34 | Pending |
-| NARR-04 | Phase 34 | Complete |
-| NARR-05 | Phase 34 | Complete |
-| EQUIP-01 | Phase 35 | Pending |
-| EQUIP-02 | Phase 35 | Pending |
-| EQUIP-03 | Phase 35 | Pending |
-| EQUIP-04 | Phase 35 | Pending |
-| EQUIP-05 | Phase 35 | Pending |
-| ABIL-01 | Phase 36 | Complete |
-| ABIL-02 | Phase 36 | Complete |
-| ABIL-03 | Phase 36 | Complete |
-| ABIL-04 | Phase 36 | Complete |
-| ABIL-05 | Phase 36 | Complete |
-| ABIL-06 | Phase 36 | Complete |
-| ABIL-07 | Phase 36 | Complete |
-| ABIL-08 | Phase 36 | Complete |
-| ABIL-09 | Phase 36 | Complete |
-| ABIL-10 | Phase 36 | Complete |
-| ABIL-11 | Phase 36 | Complete |
-| UX-01 | Phase 37 | Pending |
-| UX-02 | Phase 37 | Pending |
-| UX-03 | Phase 37 | Pending |
+| COMB-01 | Backlog 999.1 (was 33) | Complete |
+| COMB-02 | Backlog 999.1 (was 33) | Complete |
+| COMB-03 | Backlog 999.1 (was 33) | Complete |
+| COMB-04 | Backlog 999.1 (was 33) | Complete |
+| COMB-05 | Backlog 999.1 (was 33) | Pending |
+| COMB-06 | Backlog 999.1 (was 33) | Complete |
+| COMB-07 | Backlog 999.1 (was 33) | Complete |
+| COMB-08 | Backlog 999.5 (was 37) | Pending |
+| NARR-01 | Backlog 999.2 (was 34) | Complete |
+| NARR-02 | Backlog 999.2 (was 34) | Complete |
+| NARR-03 | Backlog 999.2 (was 34) | Pending |
+| NARR-04 | Backlog 999.2 (was 34) | Complete |
+| NARR-05 | Backlog 999.2 (was 34) | Complete |
+| EQUIP-01 | Backlog 999.3 (was 35) | Pending |
+| EQUIP-02 | Backlog 999.3 (was 35) | Pending |
+| EQUIP-03 | Backlog 999.3 (was 35) | Pending |
+| EQUIP-04 | Backlog 999.3 (was 35) | Pending |
+| EQUIP-05 | Backlog 999.3 (was 35) | Pending |
+| ABIL-01 | Backlog 999.4 (was 36) | Complete |
+| ABIL-02 | Backlog 999.4 (was 36) | Complete |
+| ABIL-03 | Backlog 999.4 (was 36) | Complete |
+| ABIL-04 | Backlog 999.4 (was 36) | Complete |
+| ABIL-05 | Backlog 999.4 (was 36) | Complete |
+| ABIL-06 | Backlog 999.4 (was 36) | Complete |
+| ABIL-07 | Backlog 999.4 (was 36) | Complete |
+| ABIL-08 | Backlog 999.4 (was 36) | Complete |
+| ABIL-09 | Backlog 999.4 (was 36) | Complete |
+| ABIL-10 | Backlog 999.4 (was 36) | Complete |
+| ABIL-11 | Backlog 999.4 (was 36) | Complete |
+| UX-01 | Backlog 999.5 (was 37) | Pending |
+| UX-02 | Backlog 999.5 (was 37) | Pending |
+| UX-03 | Backlog 999.5 (was 37) | Pending |
 
 **Coverage:**
 - v2.1 requirements: 44 total
@@ -154,4 +154,4 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ---
 *Requirements defined: 2026-03-09*
-*Last updated: 2026-03-09 after roadmap creation*
+*Last updated: 2026-09-29 after parking phases 33-37 (Backlog 999.1-999.5)*

@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
-current_phase: 33
-current_phase_name: Combat Improvements
-status: planning
+current_phase: null
+current_phase_name: null
+status: milestone_ready_to_complete
 stopped_at: Completed 38-08-PLAN.md
 last_updated: "2026-09-29T17:33:58.115Z"
 last_activity: 2026-09-29
-last_activity_desc: Phase 38 complete, transitioned to Phase 33
+last_activity_desc: Parked phases 33-37 in the Backlog (999.1-999.5)
 progress:
   total_phases: 8
   completed_phases: 4
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-29)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 33 — Combat Improvements
+**Current focus:** Re-imagining core project concepts. v2.1's active phases (31, 32, 38) are complete; 33-37 parked in Backlog (999.1-999.5)
 
 ## Current Position
 
-Phase: 33 — Combat Improvements
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-09-29 — Phase 38 complete, transitioned to Phase 33
+Phase: — (all active v2.1 phases complete; 33-37 parked in Backlog 999.1-999.5)
+Plan: —
+Status: Milestone v2.1 ready to audit/complete; next milestone to be defined after re-imagining core concepts
+Last activity: 2026-09-29 — Parked phases 33-37 in the Backlog
 
 Progress: [█████████░] 93%
 
@@ -94,6 +94,8 @@ See MILESTONES.md for full delivery summaries.
 
 ### Roadmap Evolution
 
+- 2026-09-29: Phases 33-37 parked in Backlog as 999.1-999.5 (user decision: put on hold while re-imagining core concepts). Promote with /gsd-review-backlog.
+
 - Phase 38 added: Platform Upgrade (SpacetimeDB 2.0.1 -> 2.10.x, tooling, llm-proxy deps, pnpm-only). Runs next, ahead of 33-35 and 37. Research: `.planning/notes/platform-upgrade-research.md`
 
 ### Pending Todos
@@ -135,7 +137,7 @@ See MILESTONES.md for full delivery summaries.
 **Resume file:** None
 
 Last session: 2026-09-29T17:18:25.411Z
-Stopped at: Phase 38 complete, ready to plan Phase 33 (then 34, 35, 36-verify, 37; then v2.1 audit/complete; then LLM milestone)
+Stopped at: Phases 33-37 parked in Backlog (999.1-999.5) on 2026-09-29 while core concepts are re-imagined. Next: complete/archive v2.1 (31, 32, 38), then explore and define the next milestone (LLM seed todo exists)
 
 ## Performance Metrics
 

@@ -4,7 +4,7 @@
 
 - ✅ **v1.0 MVP** -- Phases 1-23 (shipped 2026-02-25)
 - ✅ **v2.0 The Living World** -- Phases 24-30 (shipped 2026-03-09)
-- 🚧 **v2.1 Project Cleanup** -- Phases 31-38 (in progress)
+- 🚧 **v2.1 Project Cleanup** -- Phases 31, 32, 38 (33-37 parked in Backlog)
 
 ## Phases
 
@@ -38,11 +38,6 @@ See `.planning/milestones/v2.0-ROADMAP.md` for full details.
 
 - [x] **Phase 31: Test Infrastructure** - Unified mock DB, combat regression tests, and test coverage across core systems (completed 2026-03-09)
 - [x] **Phase 32: Dead Code Removal** - Purge v1.0 legacy files, extract implicit rules, deduplicate code, clean imports (completed 2026-03-09)
-- [ ] **Phase 33: Combat Improvements** - Complete combat logging, enemy effect indicators, balance tuning, multi-pull verification
-- [ ] **Phase 34: Narrative UI Integration** - Sell commands, hotbar in narrative UI, event feed styling
-- [ ] **Phase 35: Dynamic Equipment Generation** - Level-scaled equipment drops replacing hardcoded gear definitions
-- [x] **Phase 36: Ability Expansion** - Extend ability kinds to cover all game systems with server and client dispatch (completed 2026-03-10)
-- [ ] **Phase 37: UX Polish** - Global font scaling and group info readability
 - [x] **Phase 38: Platform Upgrade** - SpacetimeDB 2.10, TS 6 / Vite 8 / Vitest 5 tooling, llm-proxy deps, pnpm-only lockfile (completed 2026-09-29)
 
 ## Phase Details
@@ -88,113 +83,6 @@ Plans:
 - [ ] 32-01-PLAN.md -- Extract mechanical rules to domain-specific files, rewire all importers
 - [ ] 32-02-PLAN.md -- Delete legacy backend files, seeding system, deduplicate logic, remove dead reducers
 - [ ] 32-03-PLAN.md -- Delete legacy frontend panels, clean App.vue, remove orphaned composables
-
-### Phase 33: Combat Improvements
-
-**Goal**: Players see complete, informative combat feedback and encounter balanced difficulty
-**Depends on**: Phase 31 (combat tests enable safe rebalancing), Phase 32 (clean codebase)
-**Requirements**: COMB-01, COMB-02, COMB-03, COMB-04, COMB-05, COMB-06, COMB-07
-**Success Criteria** (what must be TRUE):
-
-  1. Player sees per-tick damage/healing entries in the combat log with effect name and amount for every DoT and HoT
-  2. Player sees buff/debuff application and expiration entries in the combat log with stat, magnitude, and duration
-  3. Enemy HUD shows active DoT, HoT, and debuff icons with remaining duration countdown
-  4. Player can engage multiple enemy groups simultaneously without combat state corruption
-  5. Damage and healing constants are tuned and validated by passing test assertions
-
-**Plans**: 5 plans
-
-Plans:
-
-- [ ] 33-01-PLAN.md -- Combat log narrative messages, buff/debuff lifecycle events, balance tuning
-- [ ] 33-02-PLAN.md -- Multi-enemy pull fixes, remove puller role restriction
-- [ ] 33-03-PLAN.md -- Enemy HUD effect indicators with color coding and duration countdown
-- [ ] 33-04-PLAN.md -- Gap closure: fix CREATION_ABILITY_SCHEMA field mismatch (effect -> kind)
-- [ ] 33-05-PLAN.md -- Gap closure: enable mid-combat pull via narrative enemy clicks
-
-### Phase 34: Narrative UI Integration
-
-**Goal**: Players can sell items, manage multiple named hotbars, and use abilities outside combat entirely through the narrative console with styled event feedback
-**Depends on**: Phase 32 (dead code removed, shared helpers exist)
-**Requirements**: NARR-01, NARR-02, NARR-03, NARR-04, NARR-05
-**Success Criteria** (what must be TRUE):
-
-  1. Player can type `sell <item>` and the item is sold with correct gold calculation including perk bonuses
-  2. Player can type `sell all junk` or `sell 3 <item>` for bulk sales with a summary of what was sold
-  3. Hotbar is visible at all times (not just combat) showing ability slots with cooldown timers
-  4. Player can create multiple named hotbars, switch between them with arrows, and manage slots via commands
-  5. Event feed entries are color-coded by kind (combat=red, reward=gold, system=gray, social=blue)
-
-**Plans**: 3 plans
-
-Plans:
-
-- [ ] 34-01-PLAN.md -- Fix sell perk bonus, add sell all junk and sell N commands, complete event colors
-- [ ] 34-02-PLAN.md -- Hotbar schema (Hotbar parent table), server reducers, intent commands
-- [ ] 34-03-PLAN.md -- Persistent hotbar UI, multi-hotbar navigation, remove bottom action bar
-
-### Phase 35: Dynamic Equipment Generation
-
-**Goal**: Equipment drops are unique, level-appropriate, and dynamically generated -- no more selecting from a static pool
-**Depends on**: Phase 32 (mechanical vocabulary extracted), Phase 33 (combat math stabilized)
-**Requirements**: EQUIP-01, EQUIP-02, EQUIP-03, EQUIP-04, EQUIP-05
-**Success Criteria** (what must be TRUE):
-
-  1. Defeating an enemy drops equipment with stats scaled to enemy level and world tier
-  2. Generated equipment stats (AC, damage, bonuses) are computed from formulas, not looked up from hardcoded tables
-  3. Quest reward equipment is dynamically generated matching the quest difficulty tier
-  4. The static WORLD_DROP_GEAR_DEFS constant is gone, replaced by a generation function
-  5. Generated equipment names use the existing prefix/suffix affix system
-
-**Plans**: TBD
-
-Plans:
-
-- [ ] 35-01: TBD
-- [ ] 35-02: TBD
-
-### Phase 36: Ability Expansion
-
-**Goal**: The ability system covers all game systems with diverse ability types, pure buffs/debuffs, functional race abilities, per-level heritage bonuses, and renown perks unified into the dynamic ability system
-**Depends on**: Phase 32 (mechanical vocabulary complete), Phase 33 (combat dispatch stable)
-**Requirements**: ABIL-01, ABIL-02, ABIL-03, ABIL-04, ABIL-05, ABIL-06, ABIL-07, ABIL-08, ABIL-09, ABIL-10, ABIL-11
-**Success Criteria** (what must be TRUE):
-
-  1. mechanical_vocabulary.ts includes ability kinds for combat, crafting, gathering, travel, social, songs, auras, pets, fear, and summoning
-  2. Server dispatch handles all new ability kinds without hardcoded special cases
-  3. Pure buff abilities (stat boosts, haste) and pure debuff abilities (slow, fear) work without damage components and are castable outside combat
-  4. Race abilities are functional in-game (minor passive/active effects, not just narrative text)
-  5. Heritage bonuses apply every level and are shown during character creation and level-up
-  6. Renown perks use the dynamic ability system with LLM-driven selection at rank-up
-  7. Abilities track source (Class, Renown, Race) for display and filtering
-  8. Client ability dispatch renders and activates all new ability kinds without hardcoded special cases
-
-**Plans**: 5 plans
-
-Plans:
-
-- [ ] 36-01-PLAN.md -- Vocabulary expansion (new ABILITY_KINDS), schema (source/abilityKey columns), BASE_BUDGET entries
-- [ ] 36-02-PLAN.md -- Heritage bonus every-level fix, race ability data definitions
-- [ ] 36-03-PLAN.md -- Server dispatch for all new kinds, pure buff/debuff fix, LLM skill gen expansion, race ability granting
-- [ ] 36-04-PLAN.md -- Renown perks as dynamic abilities, PendingRenownPerk table, LLM perk generation flow
-- [ ] 36-05-PLAN.md -- Client-side renown perk choice UI (header notification, perk selection in console)
-
-### Phase 37: UX Polish
-
-**Goal**: Players can customize text size for comfortable reading across all UI elements
-**Depends on**: Nothing (independent of other phases)
-**Requirements**: UX-01, UX-02, UX-03, COMB-08
-**Success Criteria** (what must be TRUE):
-
-  1. Player can increase and decrease the global font size of the entire application
-  2. Font size preference persists across browser sessions via localStorage
-  3. Group info panel text is sized for readability at all font scale settings
-
-**Plans**: TBD
-
-Plans:
-
-- [ ] 37-01: TBD
 
 ### Phase 38: Platform Upgrade
 
@@ -247,7 +135,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phase 38 (Platform Upgrade) complete 2026-09-29. Remaining phases in numeric order: 33 -> 34 -> 35 -> 36 (verification only) -> 37
+All active v2.1 phases are complete (31, 32, 38). Phases 33-37 were parked in the Backlog (999.1-999.5) on 2026-09-29 while core concepts are re-imagined.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -255,12 +143,141 @@ Phase 38 (Platform Upgrade) complete 2026-09-29. Remaining phases in numeric ord
 | 24-30 | v2.0 | 22/22 | Complete | 2026-03-09 |
 | 31. Test Infrastructure | 3/3 | Complete    | 2026-03-09 | - |
 | 32. Dead Code Removal | 3/3 | Complete    | 2026-03-09 | - |
-| 33. Combat Improvements | 4/5 | In Progress|  | - |
-| 34. Narrative UI Integration | v2.1 | 0/3 | Not started | - |
-| 35. Dynamic Equipment Generation | v2.1 | 0/? | Not started | - |
-| 36. Ability Expansion | 5/5 | Complete   | 2026-03-10 | - |
-| 37. UX Polish | v2.1 | 0/? | Not started | - |
 | 38. Platform Upgrade | v2.1 | 8/8 | Complete    | 2026-09-29 |
 
+## Backlog
+
+### Phase 999.1: Combat Improvements (BACKLOG)
+
+**Parked:** 2026-09-29 from v2.1 Phase 33 — on hold while core project concepts are re-imagined. Artifacts kept in `.planning/phases/999.1-*/` (files retain their original `33-` prefixes).
+**State when parked:** all 5 plans' code landed; 33-03 (enemy HUD effect tags, commit 4dacfd1b) has no SUMMARY; 33-VERIFICATION.md is `human_needed` and predates gap plans 33-04/33-05 — needs 33-03 reconcile + re-verification
+
+**Goal**: Players see complete, informative combat feedback and encounter balanced difficulty
+**Originally depended on**: Phase 31 (combat tests enable safe rebalancing), Phase 32 (clean codebase) (backlog items are unsequenced)
+**Requirements**: COMB-01, COMB-02, COMB-03, COMB-04, COMB-05, COMB-06, COMB-07
+**Success Criteria** (what must be TRUE):
+
+  1. Player sees per-tick damage/healing entries in the combat log with effect name and amount for every DoT and HoT
+  2. Player sees buff/debuff application and expiration entries in the combat log with stat, magnitude, and duration
+  3. Enemy HUD shows active DoT, HoT, and debuff icons with remaining duration countdown
+  4. Player can engage multiple enemy groups simultaneously without combat state corruption
+  5. Damage and healing constants are tuned and validated by passing test assertions
+
+**Plans**: 5 plans
+
+Plans:
+
+- [ ] 33-01-PLAN.md -- Combat log narrative messages, buff/debuff lifecycle events, balance tuning
+- [ ] 33-02-PLAN.md -- Multi-enemy pull fixes, remove puller role restriction
+- [ ] 33-03-PLAN.md -- Enemy HUD effect indicators with color coding and duration countdown
+- [ ] 33-04-PLAN.md -- Gap closure: fix CREATION_ABILITY_SCHEMA field mismatch (effect -> kind)
+- [ ] 33-05-PLAN.md -- Gap closure: enable mid-combat pull via narrative enemy clicks
+
+Promote with /gsd-review-backlog when ready.
+
+### Phase 999.2: Narrative UI Integration (BACKLOG)
+
+**Parked:** 2026-09-29 from v2.1 Phase 34 — on hold while core project concepts are re-imagined. Artifacts kept in `.planning/phases/999.2-*/` (files retain their original `34-` prefixes).
+**State when parked:** 34-01 and 34-02 summarized; 34-03 code landed (commits 0e809ea4, dcbaad24, e041231a, d29430ba, eb05ef49) without a SUMMARY; no CONTEXT.md; 34-UAT.md never run — needs 34-03 reconcile + verification
+
+**Goal**: Players can sell items, manage multiple named hotbars, and use abilities outside combat entirely through the narrative console with styled event feedback
+**Originally depended on**: Phase 32 (dead code removed, shared helpers exist) (backlog items are unsequenced)
+**Requirements**: NARR-01, NARR-02, NARR-03, NARR-04, NARR-05
+**Success Criteria** (what must be TRUE):
+
+  1. Player can type `sell <item>` and the item is sold with correct gold calculation including perk bonuses
+  2. Player can type `sell all junk` or `sell 3 <item>` for bulk sales with a summary of what was sold
+  3. Hotbar is visible at all times (not just combat) showing ability slots with cooldown timers
+  4. Player can create multiple named hotbars, switch between them with arrows, and manage slots via commands
+  5. Event feed entries are color-coded by kind (combat=red, reward=gold, system=gray, social=blue)
+
+**Plans**: 3 plans
+
+Plans:
+
+- [ ] 34-01-PLAN.md -- Fix sell perk bonus, add sell all junk and sell N commands, complete event colors
+- [ ] 34-02-PLAN.md -- Hotbar schema (Hotbar parent table), server reducers, intent commands
+- [ ] 34-03-PLAN.md -- Persistent hotbar UI, multi-hotbar navigation, remove bottom action bar
+
+Promote with /gsd-review-backlog when ready.
+
+### Phase 999.3: Dynamic Equipment Generation (BACKLOG)
+
+**Parked:** 2026-09-29 from v2.1 Phase 35 — on hold while core project concepts are re-imagined. Artifacts kept in `.planning/phases/999.3-*/` (files retain their original `35-` prefixes).
+**State when parked:** not started (no context, research or plans)
+
+**Goal**: Equipment drops are unique, level-appropriate, and dynamically generated -- no more selecting from a static pool
+**Originally depended on**: Phase 32 (mechanical vocabulary extracted), Phase 33 (combat math stabilized) (backlog items are unsequenced)
+**Requirements**: EQUIP-01, EQUIP-02, EQUIP-03, EQUIP-04, EQUIP-05
+**Success Criteria** (what must be TRUE):
+
+  1. Defeating an enemy drops equipment with stats scaled to enemy level and world tier
+  2. Generated equipment stats (AC, damage, bonuses) are computed from formulas, not looked up from hardcoded tables
+  3. Quest reward equipment is dynamically generated matching the quest difficulty tier
+  4. The static WORLD_DROP_GEAR_DEFS constant is gone, replaced by a generation function
+  5. Generated equipment names use the existing prefix/suffix affix system
+
+**Plans**: TBD
+
+Plans:
+
+- [ ] 35-01: TBD
+- [ ] 35-02: TBD
+
+Promote with /gsd-review-backlog when ready.
+
+### Phase 999.4: Ability Expansion (BACKLOG)
+
+**Parked:** 2026-09-29 from v2.1 Phase 36 — on hold while core project concepts are re-imagined. Artifacts kept in `.planning/phases/999.4-*/` (files retain their original `36-` prefixes).
+**State when parked:** all 5 plans executed and summarized; never verified (stopped at the 36-05 human-verify checkpoint); renown-perk flow depends on working LLM calls
+
+**Goal**: The ability system covers all game systems with diverse ability types, pure buffs/debuffs, functional race abilities, per-level heritage bonuses, and renown perks unified into the dynamic ability system
+**Originally depended on**: Phase 32 (mechanical vocabulary complete), Phase 33 (combat dispatch stable) (backlog items are unsequenced)
+**Requirements**: ABIL-01, ABIL-02, ABIL-03, ABIL-04, ABIL-05, ABIL-06, ABIL-07, ABIL-08, ABIL-09, ABIL-10, ABIL-11
+**Success Criteria** (what must be TRUE):
+
+  1. mechanical_vocabulary.ts includes ability kinds for combat, crafting, gathering, travel, social, songs, auras, pets, fear, and summoning
+  2. Server dispatch handles all new ability kinds without hardcoded special cases
+  3. Pure buff abilities (stat boosts, haste) and pure debuff abilities (slow, fear) work without damage components and are castable outside combat
+  4. Race abilities are functional in-game (minor passive/active effects, not just narrative text)
+  5. Heritage bonuses apply every level and are shown during character creation and level-up
+  6. Renown perks use the dynamic ability system with LLM-driven selection at rank-up
+  7. Abilities track source (Class, Renown, Race) for display and filtering
+  8. Client ability dispatch renders and activates all new ability kinds without hardcoded special cases
+
+**Plans**: 5 plans
+
+Plans:
+
+- [ ] 36-01-PLAN.md -- Vocabulary expansion (new ABILITY_KINDS), schema (source/abilityKey columns), BASE_BUDGET entries
+- [ ] 36-02-PLAN.md -- Heritage bonus every-level fix, race ability data definitions
+- [ ] 36-03-PLAN.md -- Server dispatch for all new kinds, pure buff/debuff fix, LLM skill gen expansion, race ability granting
+- [ ] 36-04-PLAN.md -- Renown perks as dynamic abilities, PendingRenownPerk table, LLM perk generation flow
+- [ ] 36-05-PLAN.md -- Client-side renown perk choice UI (header notification, perk selection in console)
+
+Promote with /gsd-review-backlog when ready.
+
+### Phase 999.5: UX Polish (BACKLOG)
+
+**Parked:** 2026-09-29 from v2.1 Phase 37 — on hold while core project concepts are re-imagined. Artifacts kept in `.planning/phases/999.5-*/` (files retain their original `37-` prefixes).
+**State when parked:** not started (no context, research or plans)
+
+**Goal**: Players can customize text size for comfortable reading across all UI elements
+**Originally depended on**: Nothing (independent of other phases) (backlog items are unsequenced)
+**Requirements**: UX-01, UX-02, UX-03, COMB-08
+**Success Criteria** (what must be TRUE):
+
+  1. Player can increase and decrease the global font size of the entire application
+  2. Font size preference persists across browser sessions via localStorage
+  3. Group info panel text is sized for readability at all font scale settings
+
+**Plans**: TBD
+
+Plans:
+
+- [ ] 37-01: TBD
+
+Promote with /gsd-review-backlog when ready.
+
 ---
-*Last updated: 2026-09-29 after adding phase 38 (platform upgrade)*
+*Last updated: 2026-09-29 after parking phases 33-37 in the Backlog*
