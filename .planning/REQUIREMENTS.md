@@ -17,7 +17,7 @@
   - scheduled-dispatch latency
   - `ctx.sender` in scheduled procedures
   - reducer and combat-tick latency with 6–8 concurrent in-flight calls
-- [x] **SPIKE-04**: A written go/no-go decision record picks the executor.
+- [ ] **SPIKE-04**: A written go/no-go decision record picks the executor.
   - Gate:
     - every non-drill call succeeds on local SpacetimeDB
     - dispatch p95 < ~250 ms
@@ -118,7 +118,7 @@ Filled by roadmap creation (2026-09-29). Each requirement maps to exactly one ph
 | SPIKE-01 | Phase 39 | Pending |
 | SPIKE-02 | Phase 39 | Pending |
 | SPIKE-03 | Phase 39 | Pending |
-| SPIKE-04 | Phase 39 | Complete |
+| SPIKE-04 | Phase 39 | Pending |
 | CLAUDE-01 | Phase 40 | Pending |
 | CLAUDE-02 | Phase 40 | Pending |
 | CLAUDE-03 | Phase 40 | Pending |
