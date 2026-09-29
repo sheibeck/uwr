@@ -212,7 +212,7 @@ Plans:
   6. `pnpm build` and all test suites pass; the game runs locally end to end
   7. Stale SpacetimeDB rules in CLAUDE.md (tested-with 1.11.x, index `name:`, multi-column index warning) updated to match 2.10
 
-**Plans**: 7/8 plans executed
+**Plans**: 8/8 plans executed
 
 Plans:
 **Wave 1**
@@ -242,7 +242,7 @@ Plans:
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 38-08-PLAN.md — Consolidated SC gate, local stack bring-up, human end-to-end verification
+- [x] 38-08-PLAN.md — Consolidated SC gate, local stack bring-up, human end-to-end verification
 
 ## Progress
 
@@ -260,7 +260,7 @@ Phase 38 (Platform Upgrade) runs next, then remaining phases in numeric order: 3
 | 35. Dynamic Equipment Generation | v2.1 | 0/? | Not started | - |
 | 36. Ability Expansion | 5/5 | Complete   | 2026-03-10 | - |
 | 37. UX Polish | v2.1 | 0/? | Not started | - |
-| 38. Platform Upgrade | v2.1 | 7/8 | In Progress|  |
+| 38. Platform Upgrade | v2.1 | 8/8 | In Progress|  |
 
 ---
 *Last updated: 2026-09-29 after adding phase 38 (platform upgrade)*
