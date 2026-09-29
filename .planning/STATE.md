@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Project Cleanup
+status: Awaiting next milestone
+stopped_at: "v2.1 archived and tagged. Next: /gsd-new-milestone LLM (context in .planning/MILESTONE-CONTEXT.md)"
+last_updated: "2026-09-29T17:48:53.514Z"
+last_activity: 2026-09-29
+last_activity_desc: Milestone v2.1 completed and archived
+progress:
+  total_phases: 3
+  completed_phases: 3
+  total_plans: 14
+  completed_plans: 14
+  percent: 100
 current_phase: null
 current_phase_name: null
-status: milestone_ready_to_complete
-stopped_at: Completed 38-08-PLAN.md
-last_updated: "2026-09-29T17:33:58.115Z"
-last_activity: 2026-09-29
-last_activity_desc: Parked phases 33-37 in the Backlog (999.1-999.5)
-progress:
-  total_phases: 8
-  completed_phases: 4
-  total_plans: 27
-  completed_plans: 25
-  percent: 50
 ---
 
 # Project State
@@ -24,21 +24,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-29)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Re-imagining core project concepts. v2.1's active phases (31, 32, 38) are complete; 33-37 parked in Backlog (999.1-999.5)
+**Current focus:** Planning next milestone: LLM (migrate OpenAI to Claude). Context captured in .planning/MILESTONE-CONTEXT.md
 
 ## Current Position
 
-Phase: — (all active v2.1 phases complete; 33-37 parked in Backlog 999.1-999.5)
+Phase: Milestone v2.1 complete
 Plan: —
-Status: Milestone v2.1 ready to audit/complete; next milestone to be defined after re-imagining core concepts
-Last activity: 2026-09-29 — Parked phases 33-37 in the Backlog
-
-Progress: [█████████░] 93%
+Status: Awaiting next milestone
+Last activity: 2026-09-29 — Milestone v2.1 completed and archived
 
 ## Previous Milestones
 
 - v1.0 RPG Milestone -- Phases 1-23 (shipped 2026-02-25)
 - v2.0 The Living World -- Phases 24-30 (shipped 2026-03-09)
+- v2.1 Project Cleanup -- Phases 31, 32, 38 (shipped 2026-09-29; 33-37 parked in Backlog 999.1-999.5)
 
 See MILESTONES.md for full delivery summaries.
 
@@ -46,51 +45,7 @@ See MILESTONES.md for full delivery summaries.
 
 ### Decisions
 
-(Archived with v2.0 milestone. See .planning/milestones/v2.0-ROADMAP.md for full decision log.)
-
-- v2.1: COMB-08 (group info readability) assigned to Phase 37 (UX Polish) rather than Phase 33 (Combat) -- it is purely visual, not combat logic
-- [Phase 31]: by_owner index maps to ownerId by default in shared mock DB
-- [Phase 31]: Integration flow tests compose pure helpers + mock DB rather than testing resolveAbility directly
-- [Phase 31]: Mock item data uses dual ownerId/ownerCharacterId to bridge mock index mapping with production insert
-- [Phase 31]: Intent routing tests isolate regex patterns rather than testing full dispatch
-- [Phase 32]: Kept CONSUMABLE_RECIPES/GEAR_RECIPES in crafting_materials.ts -- only seeding imports them
-- [Phase 32]: Removed sync_all_content reducer from items.ts -- admin /synccontent serves same purpose
-- [Phase 32]: Kept syncAllContent in init alongside initScheduledTables for backward compatibility
-- [Phase 32]: Kept useCharacterCreation.ts with narrative creation flow -- only old form-based code was dead
-- [Phase 32]: Deleted 5 additional orphaned components beyond planned 4 (CharacterActionsPanel, HotbarPanel, PanelShell, CommandBar, LogWindow)
-- [Phase 32]: Relocated ensureStarterItemTemplates to helpers/items.ts -- still needed by grantStarterItems for character creation
-- [Phase 32]: Replaced syncAllContent in init with targeted ensureRaces + ensureWorldState + ensureStarterItemTemplates
-- [Phase 32]: Extracted computeSellValue to helpers/economy.ts to deduplicate vendor sell price calculation
-- [Phase quick-392]: Removed client-side quests handler to restore server-side rich formatting
-- [Phase 33]: Replaced requirePullerOrLog with direct group_member lookup for simpler group ID resolution
-- [Phase 33]: Mid-combat pull adds enemies via addEnemyToCombat; kept set_group_puller reducer to avoid schema changes
-- [Phase 33-01]: ABILITY_DAMAGE_SCALER at 50n as primary combat duration lever -- auto-attacks unaffected
-- [Phase 33-01]: MANA_COST_MULTIPLIER at 150n to differentiate mana vs stamina economy
-- [Phase 33-01]: Mana cast time floor enforced at resolution time, not generation time
-- [Phase 33-01]: Buff/debuff event kinds separate from damage/heal for independent color control
-- [Phase 33-05]: Combat enemy targeting takes priority over pull in clickNpcKeyword: combatEnemiesList checked first, then availableEnemies for mid-combat pull
-- [Phase 33-combat-improvements]: CREATION_ABILITY_SCHEMA now uses 'kind' field matching SKILL_GENERATION_SCHEMA; backward compat via chosen.effect fallback for cached creation states
-- [Phase 034]: Extracted KIND_COLORS to NarrativeMessage.colors.ts -- Vue SFC script setup cannot export named symbols
-- [Phase 034]: sell intent commands apply getPerkBonusByField before computeSellValue for correct stacking order
-- [Phase 034]: ensureDefaultHotbar creates 'main' hotbar lazily on first use
-- [Phase 034]: hotbar switch pattern uses negative lookahead to avoid conflicts with subcommands
-- [Phase 36-ability-expansion]: Exported BASE_BUDGET from skill_budget.ts to enable cross-module test coverage
-- [Phase 36-ability-expansion]: AbilityTemplate schema change (source/abilityKey columns) requires --clear-database on next local publish
-- [Phase 36]: levelBonusValue halved (round-up odd) in RACE_DATA — power parity with v1.0 every-2-level formula at level 20
-- [Phase 36]: All 15 race abilities use 'self' target, 300s cooldown, with kinds from ABILITY_KINDS vocabulary (buff/hot/utility)
-- [Phase 36-04]: Extracted chooseRenownPerkLogic to renown_perk.ts for testability — same pattern as skill_gen helpers
-- [Phase 36-04]: Passive renown perks go to renown_perk table to preserve getPerkBonusByField compatibility; active perks go to ability_template with source=Renown
-- [Phase 36]: fear kind requires combatId (consistent with cc/taunt); song/aura self-buff; grantRaceAbility uses RACE_DATA guard for custom races
-- [Phase 36-05]: Used onPerkClick() method instead of window in Vue template — window is not in template scope
-- [Phase 36-05]: Ability source label uses [Source] prefix format in abilities command — covers Race, Renown sources
-- [Phase 38-01]: buildLookOutput tests updated to color-tagged names (look.ts unchanged); 2.10 onDisconnect errors logged via console.warn through src/connectionLogging.ts; orphaned CharacterInfoPanel cluster left for follow-up deletion
-- [Phase 38-02]: Number-key hotbar shortcuts restored (guard on abilityTemplateId); dead ranger_track useAbility call removed (both flagged for 38-08 human check)
-- [Phase 38-02]: App.vue unused composable destructures reduced to bare calls; unused useReducer bindings deleted
-- [Phase 38-03]: Backup skipped per user instruction (greenfield); published local DB on 2.10.1 with --break-clients only, view-only migration, row counts unchanged
-- [Phase 38-04]: Vitest 5.0.2 in spacetimedb/; all 16 scheduled reducers audited order-independent (no code change)
-- [Phase 38-05]: llm-proxy real /api/llm call deferred (OpenAI 429 no credits); smoke health/401/400 pass on hono 4.13.10, openai 7.23.0, wrangler 4.143.0
-- [Phase 38]: 38-06: root TypeScript pinned ~6.0.3 with vue-tsc 3.3.11; Vite 8.3.1/plugin-vue 6.0.9/Vitest 5.0.2; root pnpm-workspace.yaml removed (esbuild gone); no code changes needed
-- [Phase 38-08]: Phase 38 approved by user; real /api/llm 200 deferred to new LLM milestone (credits/provider + llm-proxy architecture)
+(Archived with v2.1 milestone. See .planning/milestones/v2.1-ROADMAP.md for the full decision log. Key decisions are in PROJECT.md.)
 
 ### Roadmap Evolution
 
@@ -115,29 +70,27 @@ See MILESTONES.md for full delivery summaries.
 
 ### Quick Tasks Completed
 
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 392 | Restore quest formatting, add rich styling to renown/factions/events | 2026-03-09 | c279d2e | [392-restore-quest-formatting-and-add-matchin](./quick/392-restore-quest-formatting-and-add-matchin/) |
-| 393 | Pin starter region danger to L1, share starter regions by race | 2026-03-10 | b8ee016 | [393-weight-level-1-enemies-in-starting-regio](./quick/393-weight-level-1-enemies-in-starting-regio/) |
-| 394 | Apply gold formatting to all narrative command headers and add inv descriptions | 2026-03-10 | 91ce26f | [394-apply-gold-formatting-to-all-narrative-c](./quick/394-apply-gold-formatting-to-all-narrative-c/) |
-| 395 | Remove slash prefix from non-admin commands, add clickable who names and group status | 2026-03-10 | 4ea2b89 | [395-remove-slash-prefix-from-non-admin-comma](./quick/395-remove-slash-prefix-from-non-admin-comma/) |
-| 396 | Fix debuff targeting (buff+debuff effectType hits caster) and HoT double-heal | 2026-03-10 | 1c01d75 | [396-fix-combat-targeting-debuffs-hit-caster-](./quick/396-fix-combat-targeting-debuffs-hit-caster-/) |
-| 397 | Rebalance combat so solo player can reliably defeat equal-level enemies | 2026-03-10 | fddbf32 | [397-rebalance-combat-so-solo-player-can-reli](./quick/397-rebalance-combat-so-solo-player-can-reli/) |
-| 398 | Deferred level-up: pendingLevels counter, apply_level_up reducer, HUD indicator + confirmation flow | 2026-03-10 | cefaa2a | [398-delayed-level-up-save-level-ups-for-manu](./quick/398-delayed-level-up-save-level-ups-for-manu/) |
-| 399 | Add hotbar delete command | 2026-03-10 | 744d550 | [399-add-a-hotbar-delete-command](./quick/399-add-a-hotbar-delete-command/) |
-| 400 | Add enemies and players commands to narrative input | 2026-03-10 | e113ae3 | [400-add-enemies-and-players-commands](./quick/400-add-enemies-and-players-commands/) |
-| 401 | Rebalance abilities to ~20 damage at level 1 (ABILITY_DAMAGE_SCALER=30n, HEALING_POWER_SCALER=65n) | 2026-03-10 | eb96aff | [401-rebalance-abilities-20-dmg-at-level1](./quick/401-rebalance-abilities-20-dmg-at-level1/) |
-| 402 | Show level up link in header, walk through 1 level at a time | 2026-03-10 | 49802c7 | [402-level-up-header-link-and-multi-level](./quick/402-level-up-header-link-and-multi-level/) |
-| 403 | Fix DoT abilities: apply periodic ticks and show DoT indicator on enemies | 2026-03-10 | 29cf266 | [403-fix-dot-abilities-apply-periodic-ticks-a](./quick/403-fix-dot-abilities-apply-periodic-ticks-a/) |
-| 404 | Auto-populate ability to hotbar on creation, rewrite sardonic welcome message | 2026-03-10 | d1aa05d | [404-auto-populate-ability-to-hotbar-on-creat](./quick/404-auto-populate-ability-to-hotbar-on-creat/) |
-| 405 | Fix level-up pending text to show target level number (e.g., "advance to level 2") | 2026-03-11 | 65054d0 | [405-fix-level-up-pending-text-showing-wrong-](./quick/405-fix-level-up-pending-text-showing-wrong-/) |
+(v2.1 quick tasks 392-405 archived in .planning/milestones/v2.1-ROADMAP.md.)
+
+## Deferred Items
+
+Items acknowledged and deferred at milestone close on 2026-09-29:
+
+| Category | Item | Status |
+|----------|------|--------|
+| verification | Phase 999.1 (was 33): 33-VERIFICATION.md | human_needed (parked phase) |
+| uat | Phase 999.2 (was 34): 34-UAT.md | testing, 12 pending scenarios (parked phase) |
+| debug | slam-cooldown-delay-new-warrior | resolved-archived |
+| quick_task | Historical quick tasks 1-405 (404 flagged) | legacy format with no status field, not actually open |
+| todo | 5 pending todos (2 are LLM milestone seeds) | carried forward |
+| requirements | COMB-05, COMB-08, NARR-03, EQUIP-01-05, UX-01-03 | carried with parked Backlog phases 999.1-999.5 |
 
 ## Session Continuity
 
 **Resume file:** None
 
 Last session: 2026-09-29T17:18:25.411Z
-Stopped at: Phases 33-37 parked in Backlog (999.1-999.5) on 2026-09-29 while core concepts are re-imagined. Next: complete/archive v2.1 (31, 32, 38), then explore and define the next milestone (LLM seed todo exists)
+Stopped at: v2.1 archived and tagged on 2026-09-29. Next: /clear, then /gsd-new-milestone LLM (context in .planning/MILESTONE-CONTEXT.md)
 
 ## Performance Metrics
 
@@ -151,3 +104,7 @@ Stopped at: Phases 33-37 parked in Backlog (999.1-999.5) on 2026-09-29 while cor
 | Phase 38 P06 | 15min | 3 tasks | 3 files |
 | Phase 38 P07 | 15min | 2 tasks | 7 files |
 | Phase 38 P08 | 20min | 2 tasks | 0 files |
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
