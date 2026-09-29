@@ -41,11 +41,19 @@ export interface LevelStats {
   tickLateP95Ms: number | null;
   pingSamples: number;
   tickSamples: number;
+  /**
+   * Informational: min(level, observed server-side concurrency cap) that the tick
+   * window was filtered against. The gate math does not read it.
+   */
+  effectiveInFlight?: number;
 }
 
 export interface GateInput {
   reliability: {
+    /** Calls that count toward the minimum-reliability-calls requirement (paid ladder rung 3 only). */
     calls: number;
+    /** Every non-drill paid call that had to succeed; shown in the check when present (defaults to calls). */
+    totalCalls?: number;
     failures: number;
     platformFailures: number;
     upstreamFailures: number;
@@ -194,7 +202,7 @@ export function evaluateGate(input: GateInput): GateResult {
   checks.push({
     name: 'reliability',
     pass: reliabilityPass,
-    measured: `${reliability.failures}/${reliability.calls} failed`,
+    measured: `${reliability.failures}/${reliability.totalCalls ?? reliability.calls} failed`,
     threshold: '0 failures',
   });
 

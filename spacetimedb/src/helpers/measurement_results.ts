@@ -102,6 +102,9 @@ export interface ResultsDoc {
     floorAdjusted: GateResult;
     noiseFloorMs: number;
     computedAt: string;
+    /** Observed server-side procedure concurrency cap and the per-level label meanings used. */
+    observedServerCap?: number | null;
+    levelLabels?: LevelLabels[];
     confirmation?: { outcome: string; reason: string; at: string };
   };
 }
@@ -143,12 +146,73 @@ function p95OrNull(xs: number[]): number | null {
   return xs.length === 0 ? null : percentile(xs, 95);
 }
 
+/**
+ * Highest server-side in-flight count seen on any load-level tick sample, or null
+ * when no level has a tick sample. Plan 39-08 found the runtime runs at most 4
+ * procedure calls at once, so asking for 8 in flight yields a server count of 4.
+ */
+export function observedServerCap(doc: ResultsDoc): number | null {
+  let cap: number | null = null;
+  for (const level of arr(doc.load?.levels)) {
+    for (const t of arr(level.window?.tick)) {
+      if (cap === null || t.inFlight > cap) cap = t.inFlight;
+    }
+  }
+  return cap;
+}
+
+/**
+ * Concurrency a level can actually reach: min(level, observed server cap). Falls
+ * back to the level when the cap is unknown or not positive. Counting only; the
+ * gate thresholds are not involved.
+ */
+export function effectiveInFlight(level: number, cap: number | null): number {
+  if (cap === null || cap <= 0) return level;
+  return Math.min(level, cap);
+}
+
+export interface LevelLabels {
+  level: number;
+  effectiveInFlight: number;
+  observedServerCap: number | null;
+  /** Ping samples are labelled with the harness-side count of outstanding calls. */
+  pingLabel: 'client_outstanding';
+  pingMin: number;
+  pingSamples: number;
+  /** Tick samples are labelled with spike_state.inFlight, the server-side running count. */
+  tickLabel: 'server_in_flight';
+  tickMin: number;
+  tickSamples: number;
+}
+
+/** Per level: both label meanings, the minimum each window is filtered at, and the resulting sample counts. */
+export function levelLabels(doc: ResultsDoc): LevelLabels[] {
+  const cap = observedServerCap(doc);
+  return arr(doc.load?.levels).map((l) => {
+    const effective = effectiveInFlight(l.inFlight, cap);
+    const pingMin = minInFlightForLevel(l.inFlight);
+    const tickMin = minInFlightForLevel(effective);
+    return {
+      level: l.inFlight,
+      effectiveInFlight: effective,
+      observedServerCap: cap,
+      pingLabel: 'client_outstanding' as const,
+      pingMin,
+      pingSamples: arr(l.window?.pingMs).filter((s) => s.inFlight >= pingMin).length,
+      tickLabel: 'server_in_flight' as const,
+      tickMin,
+      tickSamples: arr(l.window?.tick).filter((s) => s.inFlight >= tickMin).length,
+    };
+  });
+}
+
 function windowStats(
   w: LatencyWindow | undefined,
-  keep: (inFlight: number) => boolean,
+  keepPing: (inFlight: number) => boolean,
+  keepTick: (inFlight: number) => boolean = keepPing,
 ): { pingP95Ms: number | null; tickLateP95Ms: number | null; pingSamples: number; tickSamples: number } {
-  const ping = arr(w?.pingMs).filter((s) => keep(s.inFlight)).map((s) => s.ms);
-  const tick = arr(w?.tick).filter((s) => keep(s.inFlight)).map((s) => s.lateMs);
+  const ping = arr(w?.pingMs).filter((s) => keepPing(s.inFlight)).map((s) => s.ms);
+  const tick = arr(w?.tick).filter((s) => keepTick(s.inFlight)).map((s) => s.lateMs);
   return {
     pingP95Ms: p95OrNull(ping),
     tickLateP95Ms: p95OrNull(tick),
@@ -171,6 +235,12 @@ export function gateInputFromResults(doc: ResultsDoc, thresholds?: GateInput['th
   const capBlocked = reliabilitySamples.filter((s) => s.failureClass === 'spend_cap').length;
   const counted = reliabilitySamples.filter((s) => s.failureClass !== 'spend_cap');
   const failed = counted.filter((s) => !s.ok);
+  // The minimum-calls requirement is met by paid ladder rung 3 alone; public-URL,
+  // no-op dispatch, matrix, cache and load samples do not add to it. Every
+  // non-drill call still has to succeed (failed / totalCalls above).
+  const ladderCalls = arr(doc.ladder?.reliability).filter(
+    (s) => s.class === 'reliability' && s.failureClass !== 'spend_cap',
+  );
 
   const dispatchMs = arr(doc.dispatch?.samples)
     .map((s) => s.dispatchLateUs)
@@ -179,14 +249,25 @@ export function gateInputFromResults(doc: ResultsDoc, thresholds?: GateInput['th
 
   const baseline = windowStats(doc.load?.baseline, (n) => n === 0);
 
+  // Pings are labelled with the client-side outstanding count and need the level's
+  // own minimum. Ticks are labelled with the server-side running count, which the
+  // runtime caps, so they are filtered against the effective concurrency instead.
+  const cap = observedServerCap(doc);
   const loads = arr(doc.load?.levels).map((l) => {
-    const min = minInFlightForLevel(l.inFlight);
-    return { inFlight: l.inFlight, ...windowStats(l.window, (n) => n >= min) };
+    const pingMin = minInFlightForLevel(l.inFlight);
+    const effective = effectiveInFlight(l.inFlight, cap);
+    const tickMin = minInFlightForLevel(effective);
+    return {
+      inFlight: l.inFlight,
+      ...windowStats(l.window, (n) => n >= pingMin, (n) => n >= tickMin),
+      effectiveInFlight: effective,
+    };
   });
 
   const input: GateInput = {
     reliability: {
-      calls: counted.length,
+      calls: ladderCalls.length,
+      totalCalls: counted.length,
       failures: failed.length,
       platformFailures: failed.filter((s) => s.failureClass === 'platform').length,
       upstreamFailures: failed.filter((s) => s.failureClass === 'upstream').length,
