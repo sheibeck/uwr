@@ -212,7 +212,7 @@ Plans:
   6. `pnpm build` and all test suites pass; the game runs locally end to end
   7. Stale SpacetimeDB rules in CLAUDE.md (tested-with 1.11.x, index `name:`, multi-column index warning) updated to match 2.10
 
-**Plans**: 2/8 plans executed
+**Plans**: 3/8 plans executed
 
 Plans:
 **Wave 1**
@@ -222,7 +222,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 38-03-PLAN.md — SpacetimeDB 2.10.1: verified data/config backup, CLI install, SDKs via pnpm (spacetimedb/ + root), regenerate bindings, local publish with --break-clients
+- [x] 38-03-PLAN.md — SpacetimeDB 2.10.1: verified data/config backup, CLI install, SDKs via pnpm (spacetimedb/ + root), regenerate bindings, local publish with --break-clients
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -260,7 +260,7 @@ Phase 38 (Platform Upgrade) runs next, then remaining phases in numeric order: 3
 | 35. Dynamic Equipment Generation | v2.1 | 0/? | Not started | - |
 | 36. Ability Expansion | 5/5 | Complete   | 2026-03-10 | - |
 | 37. UX Polish | v2.1 | 0/? | Not started | - |
-| 38. Platform Upgrade | v2.1 | 2/8 | In Progress|  |
+| 38. Platform Upgrade | v2.1 | 3/8 | In Progress|  |
 
 ---
 *Last updated: 2026-09-29 after adding phase 38 (platform upgrade)*
