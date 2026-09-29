@@ -9,11 +9,11 @@
     "secret:proxy": "wrangler secret put PROXY_SECRET"
   },
   "dependencies": {
-    "hono": "^4.7.0",
-    "openai": "^4.85.0"
+    "hono": "^4.13.0",
+    "openai": "^7.0.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250130.0",
-    "wrangler": "^4.0.0"
+    "@cloudflare/workers-types": "^5.20260926.1",
+    "wrangler": "^4.140.0"
   }
 }
