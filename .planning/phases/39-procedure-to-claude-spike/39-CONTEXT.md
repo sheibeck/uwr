@@ -30,7 +30,19 @@ Out of scope here:
   - This measures the real module size, cold-start and V8 cost, and imports the real prompt code.
   - The local `uwr` database is never touched.
   - `pnpm spacetime:publish` (which targets `uwr`) must not be used for the spike.
-- **Maincloud is out of this phase (user decision, 2026-09-29):**
+- **REVISED 2026-09-29 (user decision, supersedes the next bullet): maincloud decides the gate.**
+  - Why: the local ping numbers are unrepresentative. The machine is low-end and was shared with another LLM build. Local ping p95 failed at every load level while server-side tick lateness passed, and the level-4 window was short on samples (147 of 200), so the local strict verdict is `incomplete`.
+  - What changes:
+    - Local results are recorded as **provisional context**.
+    - A maincloud leg runs against a **separate maincloud database `uwr-spike`**, published and later deleted **manually by the user**. The production `uwr` database is never touched.
+    - The go/no-go gate is evaluated on the **maincloud** numbers.
+  - Same rules as before:
+    - key storage through the leak-proof runner
+    - leak scans
+    - a per-database spend cap (the maincloud database starts at $0)
+    - never `--clear-database`
+  - Phase 41 still proves the real executor on maincloud.
+- *(Superseded)* **Maincloud is out of this phase (user decision, 2026-09-29):**
   - The gate is evaluated on local results only.
   - Maincloud behavior is proven in Phase 41, when the real executor ships. The user publishes manually; Claude never publishes to maincloud.
   - The ROADMAP and SPIKE-04 are already updated to match.

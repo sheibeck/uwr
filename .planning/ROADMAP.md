@@ -69,7 +69,7 @@ Phases 33-37 parked in the Backlog as 999.1-999.5. See `.planning/milestones/v2.
 
 ### Phase 39: Procedure-to-Claude Spike
 
-**Goal**: The operator knows, from measured evidence on local SpacetimeDB, whether SpacetimeDB 2.10 procedures can call Claude reliably without hurting combat ticks and reducers, and which executor the rest of the milestone will build
+**Goal**: The operator knows, from measured evidence on maincloud (with local results as context), whether SpacetimeDB 2.10 procedures can call Claude reliably without hurting combat ticks and reducers, and which executor the rest of the milestone will build
 **Depends on**: Nothing (first phase of v2.2; follows Phase 38)
 **Requirements**: SPIKE-01, SPIKE-02, SPIKE-03, SPIKE-04
 **Success Criteria** (what must be TRUE):
@@ -77,11 +77,11 @@ Phases 33-37 parked in the Backlog as 999.1-999.5. See `.planning/milestones/v2.
   1. Operator can run a throwaway procedure on local SpacetimeDB 2.10 that reaches a public URL, then `GET /v1/models`, then a small `claude-sonnet-5-5` call, and each step's result plus the server logs (including the cause if the 2.0.1-style failure still reproduces) are written to the spike record
   2. The spike record shows structured-output calls using the real skill and region schemas measured at effort `low` and `medium` (latency, success, whether the region schema compiles, whether a thinking-off variant composes with structured output), and the observed failure shape of a forced timeout and of a bad key, including whether response headers such as `retry-after` and `request-id` are visible to the procedure
   3. The spike record shows scheduled-dispatch latency (p50/p95), whether `ctx.sender` is usable inside a scheduled procedure, and reducer and combat-tick latency with 6-8 concurrent in-flight calls compared against a no-call baseline
-  4. A written go/no-go decision record names the executor by applying the gate on local SpacetimeDB:
+  4. A written go/no-go decision record names the executor by applying the gate to measurements from a separate maincloud `uwr-spike` database:
      - every non-drill call succeeds
      - dispatch p95 is under about 250 ms
      - reducer/tick p95 stays under 2x baseline
-     Maincloud is not part of this gate. Per the user's decision on 2026-09-29, it is proven in Phase 41.
+     The user publishes and later deletes that database manually. The local results (strict verdict incomplete; ping failed and ticks passed on an unrepresentative, shared low-end machine) are recorded as provisional context. This was revised on 2026-09-29, when the user decided maincloud decides.
 **Gate outcome**: go selects the scheduled-procedure executor for Phase 41 (and retires `llm-proxy/` in Phase 42); no-go selects the backend-service-with-WIF executor for Phase 41. Nothing in Phases 40, 42, 43 or 44 changes shape either way.
 **Also captured while the harness is up** (feeds later phases, not gate inputs): cache read on a repeated prefix, whether an in-flight call survives a publish, and current-path baseline latency. The Anthropic key used is supplied by the operator, never committed and never logged.
 **Testing**: Reusable measurement helpers (percentile math, gate evaluation) are unit tested. The throwaway procedure stays isolated from the production module and is not shipped.

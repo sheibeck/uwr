@@ -19,10 +19,10 @@
   - reducer and combat-tick latency with 6–8 concurrent in-flight calls
 - [ ] **SPIKE-04**: A written go/no-go decision record picks the executor.
   - Gate:
-    - every non-drill call succeeds on local SpacetimeDB
+    - every non-drill call succeeds
     - dispatch p95 < ~250 ms
     - reducer and tick p95 < 2× baseline
-  - Local only. Per the user's decision on 2026-09-29, maincloud behavior is proven in Phase 41 when the real executor ships, with a manual publish by the user.
+  - The gate is evaluated on a separate maincloud `uwr-spike` database, which the user publishes and deletes manually (revised 2026-09-29). Local results are provisional context, because the local machine is unrepresentative.
 
 ### Claude Request Layer
 
