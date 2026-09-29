@@ -212,7 +212,7 @@ Plans:
   6. `pnpm build` and all test suites pass; the game runs locally end to end
   7. Stale SpacetimeDB rules in CLAUDE.md (tested-with 1.11.x, index `name:`, multi-column index warning) updated to match 2.10
 
-**Plans**: 4/8 plans executed
+**Plans**: 5/8 plans executed
 
 Plans:
 **Wave 1**
@@ -230,7 +230,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 38-05-PLAN.md — llm-proxy: smoke script + baseline, pnpm conversion, hono/openai 7/wrangler/workers-types 5, real /api/llm call
+- [x] 38-05-PLAN.md — llm-proxy: smoke script + baseline, pnpm conversion, hono/openai 7/wrangler/workers-types 5, real /api/llm call
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -260,7 +260,7 @@ Phase 38 (Platform Upgrade) runs next, then remaining phases in numeric order: 3
 | 35. Dynamic Equipment Generation | v2.1 | 0/? | Not started | - |
 | 36. Ability Expansion | 5/5 | Complete   | 2026-03-10 | - |
 | 37. UX Polish | v2.1 | 0/? | Not started | - |
-| 38. Platform Upgrade | v2.1 | 4/8 | In Progress|  |
+| 38. Platform Upgrade | v2.1 | 5/8 | In Progress|  |
 
 ---
 *Last updated: 2026-09-29 after adding phase 38 (platform upgrade)*

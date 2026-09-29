@@ -5,15 +5,15 @@ milestone_name: Project Cleanup
 current_phase: 38
 current_phase_name: Platform Upgrade
 status: executing
-stopped_at: Completed 38-04-PLAN.md
-last_updated: "2026-09-29T16:30:09.974Z"
+stopped_at: Completed 38-05-PLAN.md
+last_updated: "2026-09-29T16:37:46.166Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 38 execution started
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 27
-  completed_plans: 21
+  completed_plans: 22
   percent: 38
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 ## Current Position
 
 Phase: 38 (Platform Upgrade) — EXECUTING
-Plan: 5 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-09-29 — Phase 38 execution started
 
-Progress: [████████░░] 78%
+Progress: [████████░░] 81%
 
 ## Previous Milestones
 
@@ -88,6 +88,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [Phase 38-02]: App.vue unused composable destructures reduced to bare calls; unused useReducer bindings deleted
 - [Phase ?]: [38-03] Backup skipped per user instruction (greenfield); published local DB on 2.10.1 with --break-clients only, view-only migration, row counts unchanged
 - [Phase ?]: 38-04: Vitest 5.0.2 in spacetimedb/; all 16 scheduled reducers audited order-independent (no code change)
+- [Phase ?]: 38-05: llm-proxy real /api/llm call deferred (OpenAI 429 no credits); smoke health/401/400 pass on hono 4.13.10, openai 7.23.0, wrangler 4.143.0
 
 ### Roadmap Evolution
 
@@ -127,8 +128,8 @@ See MILESTONES.md for full delivery summaries.
 
 **Resume file:** None
 
-Last session: 2026-09-29T16:30:09.877Z
-Stopped at: Completed 38-04-PLAN.md
+Last session: 2026-09-29T16:37:46.142Z
+Stopped at: Completed 38-05-PLAN.md
 
 ## Performance Metrics
 
@@ -138,3 +139,4 @@ Stopped at: Completed 38-04-PLAN.md
 | Phase 38 P02 | 30min | 2 tasks | 1 files |
 | Phase 38 P03 | 25min | 3 tasks | 21 files |
 | Phase 38 P04 | 10min | 2 tasks | 2 files |
+| Phase 38 P05 | 25min | 2 tasks | 5 files |
