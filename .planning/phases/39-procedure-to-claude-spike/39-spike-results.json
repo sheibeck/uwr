@@ -56,5 +56,18 @@
     ],
     "warmups": 5,
     "notes": "Worker hop only (client -> local wrangler dev -> stubbed provider response); a lower bound of today's path, to be composed with the reducer and push legs in the record. 4000-char system prompt, 1500-char user prompt, sequential requests, 5 warmups. Not a gate input."
+  },
+  "environment": {
+    "spacetime": "2.10.1",
+    "sdk": "2.10.1",
+    "node": "v22.23.2",
+    "os": "Windows_NT 10.0.19045",
+    "model": "claude-sonnet-5-5",
+    "buildTags": [
+      "a"
+    ],
+    "serverPid": 14384,
+    "cliSenderMatchesGate": true,
+    "startedAt": "2026-09-29T20:18:38.559Z"
   }
 }
