@@ -83,12 +83,12 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 36]: fear kind requires combatId (consistent with cc/taunt); song/aura self-buff; grantRaceAbility uses RACE_DATA guard for custom races
 - [Phase 36-05]: Used onPerkClick() method instead of window in Vue template — window is not in template scope
 - [Phase 36-05]: Ability source label uses [Source] prefix format in abilities command — covers Race, Renown sources
-- [Phase ?]: [Phase 38-01]: buildLookOutput tests updated to color-tagged names (look.ts unchanged); 2.10 onDisconnect errors logged via console.warn through src/connectionLogging.ts; orphaned CharacterInfoPanel cluster left for follow-up deletion
-- [Phase ?]: [Phase 38-02]: Number-key hotbar shortcuts restored (guard on abilityTemplateId); dead ranger_track useAbility call removed (both flagged for 38-08 human check)
-- [Phase ?]: [Phase 38-02]: App.vue unused composable destructures reduced to bare calls; unused useReducer bindings deleted
-- [Phase ?]: [38-03] Backup skipped per user instruction (greenfield); published local DB on 2.10.1 with --break-clients only, view-only migration, row counts unchanged
-- [Phase ?]: 38-04: Vitest 5.0.2 in spacetimedb/; all 16 scheduled reducers audited order-independent (no code change)
-- [Phase ?]: 38-05: llm-proxy real /api/llm call deferred (OpenAI 429 no credits); smoke health/401/400 pass on hono 4.13.10, openai 7.23.0, wrangler 4.143.0
+- [Phase 38-01]: buildLookOutput tests updated to color-tagged names (look.ts unchanged); 2.10 onDisconnect errors logged via console.warn through src/connectionLogging.ts; orphaned CharacterInfoPanel cluster left for follow-up deletion
+- [Phase 38-02]: Number-key hotbar shortcuts restored (guard on abilityTemplateId); dead ranger_track useAbility call removed (both flagged for 38-08 human check)
+- [Phase 38-02]: App.vue unused composable destructures reduced to bare calls; unused useReducer bindings deleted
+- [Phase 38-03]: Backup skipped per user instruction (greenfield); published local DB on 2.10.1 with --break-clients only, view-only migration, row counts unchanged
+- [Phase 38-04]: Vitest 5.0.2 in spacetimedb/; all 16 scheduled reducers audited order-independent (no code change)
+- [Phase 38-05]: llm-proxy real /api/llm call deferred (OpenAI 429 no credits); smoke health/401/400 pass on hono 4.13.10, openai 7.23.0, wrangler 4.143.0
 
 ### Roadmap Evolution
 
