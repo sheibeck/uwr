@@ -5,15 +5,15 @@ milestone_name: Project Cleanup
 current_phase: 38
 current_phase_name: Platform Upgrade
 status: executing
-stopped_at: Completed 38-03-PLAN.md
-last_updated: "2026-09-29T16:24:59.002Z"
+stopped_at: Completed 38-04-PLAN.md
+last_updated: "2026-09-29T16:30:09.974Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 38 execution started
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 27
-  completed_plans: 20
+  completed_plans: 21
   percent: 38
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 ## Current Position
 
 Phase: 38 (Platform Upgrade) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Ready to execute
 Last activity: 2026-09-29 — Phase 38 execution started
 
-Progress: [███████░░░] 74%
+Progress: [████████░░] 78%
 
 ## Previous Milestones
 
@@ -87,6 +87,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [Phase 38-02]: Number-key hotbar shortcuts restored (guard on abilityTemplateId); dead ranger_track useAbility call removed (both flagged for 38-08 human check)
 - [Phase ?]: [Phase 38-02]: App.vue unused composable destructures reduced to bare calls; unused useReducer bindings deleted
 - [Phase ?]: [38-03] Backup skipped per user instruction (greenfield); published local DB on 2.10.1 with --break-clients only, view-only migration, row counts unchanged
+- [Phase ?]: 38-04: Vitest 5.0.2 in spacetimedb/; all 16 scheduled reducers audited order-independent (no code change)
 
 ### Roadmap Evolution
 
@@ -126,8 +127,8 @@ See MILESTONES.md for full delivery summaries.
 
 **Resume file:** None
 
-Last session: 2026-09-29T16:24:58.977Z
-Stopped at: Completed 38-03-PLAN.md
+Last session: 2026-09-29T16:30:09.877Z
+Stopped at: Completed 38-04-PLAN.md
 
 ## Performance Metrics
 
@@ -136,3 +137,4 @@ Stopped at: Completed 38-03-PLAN.md
 | Phase 38 P01 | 15min | 3 tasks | 20 files |
 | Phase 38 P02 | 30min | 2 tasks | 1 files |
 | Phase 38 P03 | 25min | 3 tasks | 21 files |
+| Phase 38 P04 | 10min | 2 tasks | 2 files |
