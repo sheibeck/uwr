@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 39
 current_phase_name: Procedure-to-Claude Spike
 status: executing
-stopped_at: Completed 39-08-PLAN.md
-last_updated: "2026-09-29T22:26:48.908Z"
+stopped_at: Completed 39-11-PLAN.md
+last_updated: "2026-09-29T23:56:51.141Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 39 execution started
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 10
-  completed_plans: 8
+  total_plans: 11
+  completed_plans: 9
   percent: 0
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-29)
 ## Current Position
 
 Phase: 39 (Procedure-to-Claude Spike) — EXECUTING
-Plan: 9 of 10
+Plan: 10 of 10
 Status: Ready to execute
 Last activity: 2026-09-29 — Phase 39 execution started
 
-Progress: [████████░░] 80%
+Progress: [████████░░] 82%
 
 ## Previous Milestones
 
@@ -58,6 +58,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 39-06: paid ladder rungs 2 and 3 all ok on attempt 1 (10/10 models, 30/30 Sonnet 5.5); est spend 2280 micro-USD; no re-run needed
 - [Phase ?]: 39-07: region JSON Schema compiles (no staged workaround needed); thinking-off composes with output_config.format; client-called procedure does not block its own connection; publish waits for the in-flight call
 - [Phase ?]: 39-08: server-side procedure concurrency is capped at 4 (in-flight never above 4 with 8 enqueued); level 8 has no ticks at in-flight >= 6
+- [Phase ?]: 39-11: gate results profile and SPIKE_TARGET maincloud opt-in; maincloud (cap 8, all levels pass, spend 1.147M micro-USD) measured on uwr-spike-925iv; real key replaced by placeholder
 
 ### Roadmap Evolution
 
@@ -105,8 +106,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-29T22:26:48.884Z
-Stopped at: Completed 39-08-PLAN.md
+Last session: 2026-09-29T23:56:51.119Z
+Stopped at: Completed 39-11-PLAN.md
 
 ## Performance Metrics
 
@@ -128,6 +129,7 @@ Stopped at: Completed 39-08-PLAN.md
 | Phase 39 P06 | 25min | 3 tasks | 2 files |
 | Phase 39 P07 | 45min | 2 tasks | 4 files |
 | Phase 39 P08 | 30min | 2 tasks | 2 files |
+| Phase 39 P11 | 30min | 3 tasks | 10 files |
 
 ## Operator Next Steps
 
