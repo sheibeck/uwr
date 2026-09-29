@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 39
 current_phase_name: Procedure-to-Claude Spike
 status: executing
-stopped_at: Completed 39-03-PLAN.md
-last_updated: "2026-09-29T20:13:06.873Z"
+stopped_at: Completed 39-04-PLAN.md
+last_updated: "2026-09-29T20:20:48.702Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 39 execution started
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 10
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-29)
 ## Current Position
 
 Phase: 39 (Procedure-to-Claude Spike) — EXECUTING
-Plan: 4 of 10
+Plan: 5 of 10
 Status: Ready to execute
 Last activity: 2026-09-29 — Phase 39 execution started
 
-Progress: [███░░░░░░░] 30%
+Progress: [████░░░░░░] 40%
 
 ## Previous Milestones
 
@@ -52,6 +52,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: Phase 39-01: measurement gate is strict (dispatch p95 < 250 ms, load p95 < 2.0x baseline); thin data returns incomplete; go_with_cap cap = max(2, highest passing level)
 - [Phase ?]: Phase 39-02: spike spend cap is a code constant (2.4M micro-USD); spike_reset preserves spend counters; missing spike_state fails closed
 - [Phase ?]: [39-03] Spike key read via util.parseEnv (not process.env); readLogs slices whole log; only probeUwrClean may read uwr, via a fixed argument list
+- [Phase ?]: Phase 39-04: runConcurrent async wrapper plus startConcurrent live handle; canary key remains in llm_config row 1 until real key stored in Plan 06
 
 ### Roadmap Evolution
 
@@ -99,8 +100,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-29T20:13:06.849Z
-Stopped at: Completed 39-03-PLAN.md
+Last session: 2026-09-29T20:20:48.679Z
+Stopped at: Completed 39-04-PLAN.md
 
 ## Performance Metrics
 
@@ -117,6 +118,7 @@ Stopped at: Completed 39-03-PLAN.md
 | Phase 39 P01 | 12min | 3 tasks | 4 files |
 | Phase 39 P02 | 25min | 3 tasks | 7 files |
 | Phase 39 P03 | 25min | 3 tasks | 10 files |
+| Phase 39 P04 | 25min | 3 tasks | 3 files |
 
 ## Operator Next Steps
 
