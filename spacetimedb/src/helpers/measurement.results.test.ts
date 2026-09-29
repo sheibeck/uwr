@@ -165,9 +165,9 @@ describe('results model: minInFlightForLevel', () => {
 describe('results model: collectCallSamples', () => {
   it('walks every section that holds paid or measured calls', () => {
     const doc = makeFixture();
-    // 10 + 10 + 30 ladder, 4 drills, 50 + 3 dispatch, 20 + 20 cells, 3 thinking-off,
+    // 10 + 10 + 30 ladder, 4 drills, 50 + 3 dispatch, 10 + 10 cells, 3 thinking-off,
     // 2 probes, 2 cache, 2 + 2 extras, 24 load calls
-    expect(collectCallSamples(doc).length).toBe(10 + 10 + 30 + 4 + 53 + 40 + 3 + 2 + 2 + 4 + 24);
+    expect(collectCallSamples(doc).length).toBe(10 + 10 + 30 + 4 + 53 + 20 + 3 + 2 + 2 + 4 + 24);
   });
 
   it('returns an empty list for an empty document', () => {
