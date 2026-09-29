@@ -5,10 +5,13 @@ import { fileURLToPath } from 'node:url';
 import { evaluateGate, findSecretLeaks, GATE_DEFAULTS } from './measurement';
 import {
   collectCallSamples,
+  effectiveInFlight,
   floorAdjustedNoiseFloorMs,
   gateInputFromResults,
+  levelLabels,
   measuredNoiseDriftMs,
   minInFlightForLevel,
+  observedServerCap,
   validateResults,
   type CallSample,
   type LatencyWindow,
@@ -234,6 +237,42 @@ describe('results model: gateInputFromResults', () => {
     expect(input.reliability.capBlocked).toBe(1);
   });
 
+  it('the 30-call minimum counts ladder.reliability only, not other reliability-class samples', () => {
+    const doc = makeFixture();
+    doc.ladder!.reliability = many(25);
+    doc.ladder!.publicUrl = many(10); // class reliability, must not count toward the minimum
+    doc.dispatch!.samples = many(50, { dispatchLateUs: 40_000 });
+    doc.structured!.cells = [...cells('skill', 5), ...cells('region', 5)].map((s) => ({
+      ...s,
+      class: 'reliability' as const,
+    }));
+    const input = gateInputFromResults(doc);
+    expect(input.reliability.calls).toBe(25);
+    expect(input.reliability.totalCalls).toBe(25 + 10 + 50 + 20);
+    const r = evaluateGate(input);
+    expect(r.verdict).toBe('incomplete');
+    expect(String(r.checks.find((c) => c.name === 'samples')?.measured)).toContain('reliability 25/30');
+  });
+
+  it('every non-drill reliability-class call still has to succeed, wherever it ran', () => {
+    const doc = makeFixture();
+    doc.load!.levels[0].calls = many(24, { class: 'reliability' });
+    doc.load!.levels[0].calls[3] = sample({ ok: false, failureClass: 'upstream', status: 529 });
+    const input = gateInputFromResults(doc);
+    expect(input.reliability.calls).toBe(30);
+    expect(input.reliability.totalCalls).toBe(54);
+    expect(input.reliability.failures).toBe(1);
+    const r = evaluateGate(input);
+    expect(r.verdict).toBe('no_go');
+    expect(r.checks.find((c) => c.name === 'reliability')?.measured).toBe('1/54 failed');
+  });
+
+  it('drill calls stay out of both counts', () => {
+    const input = gateInputFromResults(makeFixture());
+    expect(input.reliability.calls).toBe(30);
+    expect(input.reliability.totalCalls).toBe(30);
+  });
+
   it('computes dispatch p95 in ms from dispatchLateUs of dispatch.samples only', () => {
     const doc = makeFixture();
     const input = gateInputFromResults(doc);
@@ -301,6 +340,146 @@ describe('results model: gateInputFromResults', () => {
 // ============================================================================
 // noise drift
 // ============================================================================
+
+// ============================================================================
+// effective concurrency (server-side cap) and tick filtering
+// ============================================================================
+
+/** Ping label = client outstanding count; tick label = server in-flight count. */
+function splitWindow(
+  label: string,
+  pingInFlight: number,
+  tickInFlight: number,
+  pings: number,
+  ticks: number,
+): LatencyWindow {
+  return {
+    label,
+    serverPid: 1234,
+    pingMs: Array.from({ length: pings }, (_, i) => ({ ms: 3 + (i % 3), inFlight: pingInFlight })),
+    tick: Array.from({ length: ticks }, (_, i) => ({ lateMs: 2 + (i % 3), inFlight: tickInFlight })),
+  };
+}
+
+describe('results model: effective concurrency', () => {
+  it('observedServerCap is the highest server in-flight label over all load tick samples', () => {
+    const doc = makeFixture();
+    expect(observedServerCap(doc)).toBe(8);
+    doc.load!.levels = [
+      { inFlight: 8, calls: [], window: splitWindow('l8', 8, 4, 500, 140), extended: true },
+      { inFlight: 2, calls: [], window: splitWindow('l2', 2, 2, 240, 68), extended: true },
+    ];
+    expect(observedServerCap(doc)).toBe(4);
+  });
+
+  it('observedServerCap is null with no load levels or no tick samples', () => {
+    const doc = makeFixture();
+    doc.load!.levels = [];
+    expect(observedServerCap(doc)).toBeNull();
+    delete doc.load;
+    expect(observedServerCap(doc)).toBeNull();
+    const doc2 = makeFixture();
+    doc2.load!.levels[0].window.tick = [];
+    expect(observedServerCap(doc2)).toBeNull();
+  });
+
+  it('effectiveInFlight is min(level, cap), and the level itself when the cap is unknown or not positive', () => {
+    expect(effectiveInFlight(8, 4)).toBe(4);
+    expect(effectiveInFlight(4, 4)).toBe(4);
+    expect(effectiveInFlight(2, 4)).toBe(2);
+    expect(effectiveInFlight(8, 8)).toBe(8);
+    expect(effectiveInFlight(8, null)).toBe(8);
+    expect(effectiveInFlight(8, 0)).toBe(8);
+  });
+
+  it('level 8 with a server cap of 4 filters ticks at server in-flight >= 3 and pings at client outstanding >= 6', () => {
+    const doc = makeFixture();
+    const w = splitWindow('l8', 8, 4, 500, 138);
+    w.tick.push(
+      { lateMs: 9, inFlight: 3 },
+      { lateMs: 9, inFlight: 3 },
+      { lateMs: 500, inFlight: 2 },
+      { lateMs: 500, inFlight: 0 },
+    );
+    w.pingMs.push({ ms: 900, inFlight: 5 });
+    doc.load!.levels = [{ inFlight: 8, calls: [], window: w, extended: true }];
+    const level = gateInputFromResults(doc).loads[0];
+    expect(level.inFlight).toBe(8);
+    expect(level.tickSamples).toBe(140); // 138 at 4 plus 2 at 3; the samples at 2 and 0 are excluded
+    expect(level.pingSamples).toBe(500); // the outstanding-5 ping is excluded
+    expect(level.effectiveInFlight).toBe(4);
+    expect(level.tickLateP95Ms).toBeLessThan(500);
+  });
+
+  it('with no cap effect the level uses its own minimum (unchanged behaviour)', () => {
+    const doc = makeFixture(); // ticks labelled 8, so the cap is 8
+    const level = gateInputFromResults(doc).loads[0];
+    expect(level.effectiveInFlight).toBe(8);
+    expect(level.tickSamples).toBe(40);
+  });
+
+  it('level 4 and level 2 are not relaxed by a cap of 4', () => {
+    const doc = makeFixture();
+    doc.load!.levels = [
+      { inFlight: 8, calls: [], window: splitWindow('l8', 8, 4, 500, 140), extended: true },
+      { inFlight: 4, calls: [], window: splitWindow('l4', 4, 4, 200, 60), extended: true },
+      { inFlight: 2, calls: [], window: splitWindow('l2', 2, 2, 240, 68), extended: true },
+    ];
+    const loads = gateInputFromResults(doc).loads;
+    expect(loads.map((l) => l.effectiveInFlight)).toEqual([4, 4, 2]);
+    expect(loads[1].tickSamples).toBe(60);
+    expect(loads[2].tickSamples).toBe(68);
+  });
+
+  it('a level-8 window with ticks only at server in-flight 4 is evaluated instead of empty', () => {
+    const doc = makeFixture();
+    doc.load!.levels = [{ inFlight: 8, calls: [], window: splitWindow('l8', 8, 4, 500, 140), extended: true }];
+    const r = evaluateGate(gateInputFromResults(doc));
+    expect(r.checks.find((c) => c.name === 'tick_p95@8')?.measured).not.toBeNull();
+    expect(r.checks.find((c) => c.name === 'samples')?.pass).toBe(true);
+  });
+
+  it('thresholds are untouched: a tick p95 at 2x baseline still fails strictly', () => {
+    const doc = makeFixture(); // baseline tick p95 3
+    const w = splitWindow('l8', 8, 4, 500, 140);
+    w.tick = Array.from({ length: 140 }, () => ({ lateMs: 6, inFlight: 4 }));
+    doc.load!.levels = [{ inFlight: 8, calls: [], window: w, extended: true }];
+    const r = evaluateGate(gateInputFromResults(doc));
+    expect(r.checks.find((c) => c.name === 'tick_p95@8')?.pass).toBe(false); // 6 is not < 2 * 3
+  });
+
+  it('levelLabels records both label meanings per level', () => {
+    const doc = makeFixture();
+    doc.load!.levels = [
+      { inFlight: 8, calls: [], window: splitWindow('l8', 8, 4, 500, 140), extended: true },
+      { inFlight: 2, calls: [], window: splitWindow('l2', 2, 2, 240, 68), extended: true },
+    ];
+    expect(levelLabels(doc)).toEqual([
+      {
+        level: 8,
+        effectiveInFlight: 4,
+        observedServerCap: 4,
+        pingLabel: 'client_outstanding',
+        pingMin: 6,
+        pingSamples: 500,
+        tickLabel: 'server_in_flight',
+        tickMin: 3,
+        tickSamples: 140,
+      },
+      {
+        level: 2,
+        effectiveInFlight: 2,
+        observedServerCap: 4,
+        pingLabel: 'client_outstanding',
+        pingMin: 2,
+        pingSamples: 240,
+        tickLabel: 'server_in_flight',
+        tickMin: 2,
+        tickSamples: 68,
+      },
+    ]);
+  });
+});
 
 describe('results model: noise drift', () => {
   it('is null when baseline or baseline2 is missing', () => {

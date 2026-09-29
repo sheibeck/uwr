@@ -302,6 +302,22 @@ describe('evaluateGate: gate verdict branches', () => {
     expect(check(r, 'region_schema')?.pass).toBe(true);
   });
 
+  it('reliability check reports failures over totalCalls when given, while the 30-call minimum uses calls only', () => {
+    const r = evaluateGate(
+      healthy({
+        reliability: { calls: 30, totalCalls: 152, failures: 0, platformFailures: 0, upstreamFailures: 0 },
+      }),
+    );
+    expect(r.verdict).toBe('go');
+    expect(check(r, 'reliability')?.measured).toBe('0/152 failed');
+    const thin = evaluateGate(
+      healthy({
+        reliability: { calls: 29, totalCalls: 152, failures: 0, platformFailures: 0, upstreamFailures: 0 },
+      }),
+    );
+    expect(thin.verdict).toBe('incomplete');
+  });
+
   it('incomplete when reliability calls are 29', () => {
     const r = evaluateGate(
       healthy({ reliability: { calls: 29, failures: 0, platformFailures: 0, upstreamFailures: 0 } }),
