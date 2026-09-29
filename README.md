@@ -112,7 +112,17 @@ Run this whenever the backend schema or reducers change:
 pnpm spacetime:generate
 ```
 
-### 6. Start the frontend dev server
+### 6. Start the LLM proxy
+
+LLM features (character creation, NPC conversations, narration) go through a local Cloudflare Worker. It needs `llm-proxy/.dev.vars` with `OPENAI_API_KEY` and `PROXY_SECRET`:
+
+```bash
+cd llm-proxy && pnpm exec wrangler dev --port 8787 --ip 127.0.0.1
+```
+
+In the browser, set `localStorage.llm_proxy_secret` to the same `PROXY_SECRET`. `bash llm-proxy/scripts/smoke.sh` checks the proxy is healthy.
+
+### 7. Start the frontend dev server
 
 ```bash
 pnpm dev
