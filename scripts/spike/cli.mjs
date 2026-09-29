@@ -6,6 +6,13 @@
 // flags, any database other than uwr-spike and any bindings directory other than
 // scripts/spike/bindings. The one exception is probeUwrClean(), a fixed read-only
 // query, which is checked against an exact argument list instead.
+//
+// Two targets (config.ts): the local uwr-spike database (default) and, only with the
+// explicit opt-in SPIKE_TARGET=maincloud, the single maincloud database uwr-spike-925iv.
+// Local target: any argument that mentions maincloud is refused. Maincloud target: the
+// only publish allowed is the exact argument list from publishArgs(), delete is refused
+// outright, and call/logs/sql/describe must name server maincloud and that one database.
+// The production database uwr is never reachable on either target.
 
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -14,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { parseEnv } from 'node:util';
 
 import { redactSecrets } from '../../spacetimedb/src/helpers/measurement.ts';
-import { BINDINGS_DIR, ENV_LOCAL, SPIKE_DB, SPIKE_PING_URL, SPIKE_SERVER } from './config.ts';
+import { BINDINGS_DIR, ENV_LOCAL, TARGET } from './config.ts';
 
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -37,9 +44,13 @@ export const CLI_TABLE = {
   logs: { noConfig: true, dbPositional: true, valueOpts: ['-s', '--server', '-n', '--num-lines', '--format', '-l', '--level'] },
   sql: { noConfig: true, dbPositional: true, valueOpts: ['-s', '--server', '--format', '--confirmed'] },
   delete: { noConfig: true, dbPositional: true, valueOpts: ['-s', '--server'] },
+  describe: { noConfig: true, dbPositional: true, valueOpts: ['-s', '--server'] },
 };
 
-const FORBIDDEN_FLAGS = ['--clear-database', '--delete-data', '-c'];
+// Subcommands that talk to a server and therefore must always name --server explicitly.
+const SERVER_COMMANDS = ['publish', 'call', 'logs', 'sql', 'describe', 'delete'];
+
+const FORBIDDEN_FLAGS = ['--clear-database', '--delete-data', '-c', '--anonymous', '--break-clients', '--parent', '--organization'];
 
 function samePath(a, b) {
   const norm = (p) => path.resolve(REPO_ROOT, p).replace(/[\\/]+$/, '').toLowerCase();
@@ -47,14 +58,15 @@ function samePath(a, b) {
 }
 
 /**
- * Throws unless the argument list targets only the local uwr-spike database and, for
+ * Throws unless the argument list targets only the given target's spike database and, for
  * generate, only scripts/spike/bindings. Never mutates or prints the arguments.
  */
-export function assertAllowedArgs(args) {
+export function assertAllowedArgs(args, target = TARGET) {
   if (!Array.isArray(args) || args.some((a) => typeof a !== 'string')) {
     throw new Error('spike guard: arguments must be an array of strings');
   }
-  if (args.some((a) => a.toLowerCase().includes('maincloud'))) {
+  const onMaincloud = target.name === 'maincloud';
+  if (!onMaincloud && args.some((a) => a.toLowerCase().includes('maincloud'))) {
     throw new Error('spike guard: maincloud is never allowed');
   }
   for (const a of args) {
@@ -67,6 +79,17 @@ export function assertAllowedArgs(args) {
   const entry = CLI_TABLE[sub];
   if (!entry) throw new Error('spike guard: subcommand not allowed: ' + JSON.stringify(sub));
 
+  if (onMaincloud && sub === 'delete') {
+    throw new Error('spike guard: deleting a maincloud database is a user action');
+  }
+  if (onMaincloud && sub === 'publish') {
+    const exact = publishArgs(target);
+    if (args.length !== exact.length || args.some((a, k) => a !== exact[k])) {
+      throw new Error('spike guard: the only maincloud publish allowed is the exact publishArgs() list');
+    }
+    return;
+  }
+
   if ((sub === 'publish' || sub === 'call') && args.some((a) => a === '-y' || a === '--yes' || a.startsWith('--yes='))) {
     throw new Error('spike guard: -y/--yes is not allowed for ' + sub);
   }
@@ -74,6 +97,7 @@ export function assertAllowedArgs(args) {
   // Walk the remaining tokens: collect positionals, validate --server / --out-dir values.
   const positionals = [];
   let outDir = null;
+  let serverSeen = false;
   let i = 1;
   while (i < args.length) {
     const tok = args[i];
@@ -94,7 +118,8 @@ export function assertAllowedArgs(args) {
         i += 1;
       }
       if (name === '--server' || name === '-s') {
-        if (value !== SPIKE_SERVER) throw new Error('spike guard: --server must be ' + SPIKE_SERVER);
+        if (value !== target.server) throw new Error('spike guard: --server must be ' + target.server);
+        serverSeen = true;
       }
       if (name === '--out-dir' || name === '-o') outDir = value;
       if (name === '--uproject-dir') throw new Error('spike guard: --uproject-dir is not allowed');
@@ -108,13 +133,16 @@ export function assertAllowedArgs(args) {
     if (outDir === null || !samePath(outDir, BINDINGS_DIR)) {
       throw new Error('spike guard: generate --out-dir must be ' + BINDINGS_DIR);
     }
-    if (positionals.length > 0 && positionals[0] !== SPIKE_DB) {
-      throw new Error('spike guard: generate database must be ' + SPIKE_DB);
+    if (positionals.length > 0 && positionals[0] !== target.db) {
+      throw new Error('spike guard: generate database must be ' + target.db);
     }
     return;
   }
-  if (positionals[0] !== SPIKE_DB) {
-    throw new Error('spike guard: ' + sub + ' database must be ' + SPIKE_DB);
+  if (positionals[0] !== target.db) {
+    throw new Error('spike guard: ' + sub + ' database must be ' + target.db);
+  }
+  if (SERVER_COMMANDS.includes(sub) && !serverSeen) {
+    throw new Error('spike guard: ' + sub + ' must name --server ' + target.server);
   }
 }
 
@@ -159,27 +187,42 @@ function spawn(args, { needles, timeoutMs, raw }) {
 // Argument builders and operations (all target uwr-spike on the local server)
 // ---------------------------------------------------------------------------
 
-export function publishArgs() {
-  return ['publish', SPIKE_DB, '-p', 'spacetimedb', '--server', SPIKE_SERVER, '--no-config'];
+/**
+ * Publish argument list. Maincloud appends --yes=remote, whose only effect is skipping the
+ * "publish to a non-local server?" prompt; stdin is ignored, so any other prompt aborts.
+ */
+export function publishArgs(target = TARGET) {
+  const base = ['publish', target.db, '-p', 'spacetimedb', '--server', target.server, '--no-config'];
+  return target.name === 'maincloud' ? [...base, '--yes=remote'] : base;
 }
 
 export function generateArgs() {
   return ['generate', '--lang', 'typescript', '--out-dir', BINDINGS_DIR, '-p', 'spacetimedb', '--no-config'];
 }
 
-export function callArgs(fn, jsonArgs = []) {
-  return ['call', '--server', SPIKE_SERVER, '--no-config', SPIKE_DB, fn, ...jsonArgs];
+export function callArgs(fn, jsonArgs = [], target = TARGET) {
+  return ['call', '--server', target.server, '--no-config', target.db, fn, ...jsonArgs];
 }
 
-export function logsArgs() {
-  return ['logs', '--server', SPIKE_SERVER, '--no-config', SPIKE_DB];
+export function logsArgs(target = TARGET) {
+  return ['logs', '--server', target.server, '--no-config', target.db];
 }
 
-export function deleteArgs() {
-  return ['delete', '--server', SPIKE_SERVER, '--no-config', '-y', SPIKE_DB];
+export function sqlArgs(query, target = TARGET) {
+  return ['sql', '--server', target.server, '--no-config', target.db, query];
 }
 
-/** Publish the working tree module to uwr-spike (no -y, no clear flag). */
+export function describeArgs(target = TARGET) {
+  return ['describe', '--json', '--server', target.server, '--no-config', '-y', target.db];
+}
+
+/** Local only: deleting a maincloud database is the user's action, never the harness's. */
+export function deleteArgs(target = TARGET) {
+  if (target.name === 'maincloud') throw new Error('spike guard: deleting a maincloud database is a user action');
+  return ['delete', '--server', target.server, '--no-config', '-y', target.db];
+}
+
+/** Publish the working tree module to the target spike database (no clear flag, no -y). */
 export function publishSpike(opts = {}) {
   return runSpacetime(publishArgs(), opts);
 }
@@ -205,19 +248,25 @@ export function readLogs(n = 50, { raw = false, needles = [] } = {}) {
   return { status: r.status, lines: lines.slice(-n), stderr: r.stderr };
 }
 
-export function deleteSpikeDb() {
-  return runSpacetime(deleteArgs());
+export function deleteSpikeDb(target = TARGET) {
+  return runSpacetime(deleteArgs(target));
 }
 
 // Exact argument list of the single allowed read-only touch of the production database.
-const PROBE_UWR_ARGS = ['sql', '--server', SPIKE_SERVER, '--no-config', 'uwr', 'SELECT * FROM spike_state'];
+// Pinned to the local server with a literal: it never follows the selected target.
+const PROBE_UWR_ARGS = ['sql', '--server', 'local', '--no-config', 'uwr', 'SELECT * FROM spike_state'];
+
+export function probeUwrArgs() {
+  return [...PROBE_UWR_ARGS];
+}
 
 /**
  * Read-only check that the production database has no spike tables. Bypasses the
  * database positional check only for this exact query. clean=true when the query
  * errors or reports an unknown table; clean=false when rows or headers come back.
  */
-export function probeUwrClean() {
+export function probeUwrClean(target = TARGET) {
+  if (target.name !== 'local') throw new Error('spike guard: the production probe runs only against the local server');
   const r = spawn(PROBE_UWR_ARGS, { needles: [], timeoutMs: 60000, raw: false });
   const text = (r.stdout + '\n' + r.stderr).toLowerCase();
   if (r.status !== 0) {
@@ -227,9 +276,13 @@ export function probeUwrClean() {
   return { clean: false, detail: 'query succeeded: spike_state exists in uwr' };
 }
 
-export async function serverUp() {
+export async function serverUp(target = TARGET) {
+  if (target.name === 'maincloud') {
+    // No ping URL on maincloud: the guarded describe answers whether the database is reachable.
+    return runSpacetime(describeArgs(target), { timeoutMs: 60000 }).status === 0;
+  }
   try {
-    const res = await fetch(SPIKE_PING_URL, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(target.pingUrl, { signal: AbortSignal.timeout(3000) });
     return res.status === 200;
   } catch {
     return false;
@@ -269,6 +322,7 @@ function emit(r) {
 
 async function main(argv) {
   const [cmd, arg] = argv;
+  console.log('target: ' + TARGET.name + ' database: ' + TARGET.db);
   switch (cmd) {
     case 'publish': {
       const r = publishSpike();
@@ -294,6 +348,27 @@ async function main(argv) {
       console.log(match ?? 'no spike_whoami log line found');
       return match ? 0 : 1;
     }
+    case 'describe': {
+      const r = runSpacetime(describeArgs(), { timeoutMs: 120000 });
+      console.log('describe exit status: ' + r.status);
+      if (r.status !== 0) {
+        emit(r);
+        return r.status ?? 1;
+      }
+      const ids = [...new Set(r.stdout.match(/spike_[a-z0-9_]+/g) ?? [])].sort();
+      console.log(ids.join('\n'));
+      const missing = ['spike_result', 'spike_state', 'spike_run_job'].filter((n) => !ids.includes(n));
+      if (missing.length > 0) {
+        console.log('missing: ' + missing.join(', '));
+        return 4;
+      }
+      return 0;
+    }
+    case 'state': {
+      const r = runSpacetime(sqlArgs('SELECT * FROM spike_state'), { timeoutMs: 120000 });
+      emit(r);
+      return r.status ?? 1;
+    }
     case 'delete': {
       const r = deleteSpikeDb();
       emit(r);
@@ -310,7 +385,7 @@ async function main(argv) {
       return up ? 0 : 1;
     }
     default:
-      console.error('usage: cli.mjs publish|generate|logs [n]|whoami|delete|probe-uwr|server-up');
+      console.error('usage: cli.mjs publish|generate|logs [n]|whoami|describe|state|delete|probe-uwr|server-up');
       return 2;
   }
 }

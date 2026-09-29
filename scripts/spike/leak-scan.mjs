@@ -6,6 +6,10 @@
 //
 //   node scripts/spike/leak-scan.mjs [--require-server]
 //
+// Target: SPIKE_TARGET picks the server-logs source (local uwr-spike, or the maincloud
+// database with the explicit opt-in). Under maincloud the raw log is counted in-process
+// and only a scrubbed copy is written to scripts/spike/out/maincloud-logs.txt.
+//
 // Needles: the real key from spacetimedb/.env.local (when loadable) and the value of
 // the LEAK_NEEDLE environment variable (when set).
 // Exit: 0 clean, 1 hits, 3 --require-server given and the server is unreachable.
@@ -15,8 +19,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { findSecretLeaks } from '../../spacetimedb/src/helpers/measurement.ts';
-import { OUT_DIR, RECORD_PATH, RESULTS_PATH } from './config.ts';
-import { REPO_ROOT, loadAnthropicKey, readLogs, serverUp } from './cli.mjs';
+import { LOCAL_RESULTS_PATH, MAINCLOUD_RESULTS_PATH, OUT_DIR, RECORD_PATH, TARGET } from './config.ts';
+import { REPO_ROOT, loadAnthropicKey, readLogs, scrub, serverUp } from './cli.mjs';
 
 const requireServer = process.argv.includes('--require-server');
 
@@ -78,18 +82,29 @@ function scanFiles(files, strict) {
 }
 
 // ---- server-logs -----------------------------------------------------------
+const logLabel = 'server-logs (' + TARGET.name + ')';
 const up = await serverUp();
 if (!up && requireServer) {
-  console.log('server-logs: skipped (server unreachable)');
+  console.log(logLabel + ': skipped (server unreachable)');
   console.log('LEAK-SCAN: SERVER REQUIRED BUT UNREACHABLE');
   process.exit(3);
 }
 if (!up) {
-  report('server-logs', 'skipped (server unreachable)');
+  report(logLabel, 'skipped (server unreachable)');
 } else {
   const logs = readLogs(5000, { raw: true });
-  if (logs.status !== 0) report('server-logs', 'skipped (uwr-spike database has no readable log)');
-  else report('server-logs', 'scanned', scanText(logs.lines.join('\n'), true));
+  if (logs.status !== 0) {
+    report(logLabel, 'skipped (' + TARGET.db + ' has no readable log)');
+  } else {
+    const rawText = logs.lines.join('\n');
+    report(logLabel, 'scanned', scanText(rawText, true));
+    if (TARGET.name === 'maincloud') {
+      // Only the scrubbed copy ever touches the disk; the raw log stays in memory.
+      const outDir = path.resolve(REPO_ROOT, OUT_DIR);
+      fs.mkdirSync(outDir, { recursive: true });
+      fs.writeFileSync(path.join(outDir, 'maincloud-logs.txt'), scrub(rawText, needles) + '\n');
+    }
+  }
 }
 
 // ---- data-logs -------------------------------------------------------------
@@ -114,7 +129,7 @@ if (!localAppData) {
 }
 
 // ---- results / record / out ------------------------------------------------
-for (const [name, rel] of [['results', RESULTS_PATH], ['record', RECORD_PATH]]) {
+for (const [name, rel] of [['results-local', LOCAL_RESULTS_PATH], ['results-maincloud', MAINCLOUD_RESULTS_PATH], ['record', RECORD_PATH]]) {
   const p = path.resolve(REPO_ROOT, rel);
   if (!fs.existsSync(p)) report(name, 'skipped (absent)');
   else report(name, 'scanned', scanText(readAll(p), true));
