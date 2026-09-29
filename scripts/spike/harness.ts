@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { classifyFailure, redactSecrets, reserveCostMicroUsd } from '../../spacetimedb/src/helpers/measurement.ts';
-import type { CallSample, SampleClass } from '../../spacetimedb/src/helpers/measurement_results';
+import type { CallSample, LatencyWindow, SampleClass } from '../../spacetimedb/src/helpers/measurement_results';
 import { MAX_TOKENS, timeoutMsFor, type SpikeSpec } from '../../spacetimedb/src/spike/spike_bodies.ts';
 import { DbConnection } from './bindings/index.ts';
 import { readLogs } from './cli.mjs';
@@ -555,6 +555,38 @@ export function captureFailureDiagnostics(label: string): string[] {
   );
   out.push('curl: ' + clean(cu.stdout, 100) + (cu.stderr ? ' err=' + clean(cu.stderr, 200) : ''));
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Idle latency window
+// ---------------------------------------------------------------------------
+
+/**
+ * Idle ping and tick window with no calls in flight. Turns the tick probe on (it self-reschedules at
+ * COMBAT_LOOP_INTERVAL_MICROS), labels the phase, waits 2 s, pings every 50 ms for at least 65 s and
+ * then continues in 10 s steps until both minimums are met or maxMs elapses.
+ */
+export async function measureIdleWindow(
+  s: Spike,
+  label: string,
+  o: { minPing?: number; minTicks?: number; maxMs?: number } = {},
+): Promise<{ window: LatencyWindow; memory: ReturnType<typeof memorySnapshot> }> {
+  const minPing = o.minPing ?? 1000;
+  const minTicks = o.minTicks ?? 55;
+  const maxMs = o.maxMs ?? 120_000;
+  await resetProbe(s, true);
+  await setPhase(s, label);
+  await sleep(2000);
+  const start = performance.now();
+  const pingMs: LatencySample[] = await pingLoop(s, { durationMs: 65_000, intervalMs: 50, outstanding: () => 0 });
+  while (performance.now() - start < maxMs) {
+    if (pingMs.length >= minPing && collectTicks(s, label).length >= minTicks) break;
+    pingMs.push(...(await pingLoop(s, { durationMs: 10_000, intervalMs: 50, outstanding: () => 0 })));
+  }
+  const tick = collectTicks(s, label);
+  const memory = memorySnapshot(label);
+  await resetProbe(s, false);
+  return { window: { label, serverPid: serverPid(), pingMs, tick }, memory };
 }
 
 // ---------------------------------------------------------------------------
