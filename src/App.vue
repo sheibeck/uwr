@@ -446,10 +446,8 @@ import CraftingPanel from './components/CraftingPanel.vue';
 import CraftingModal from './components/CraftingModal.vue';
 // CombatPanel removed -- combat UI now lives entirely in the narrative stream
 // TravelPanel removed -- travel UI uses LocationGrid in the travel FloatingPanel
-import LocationGrid from './components/LocationGrid.vue';
 import LootPanel from './components/LootPanel.vue';
 import TradePanel from './components/TradePanel.vue';
-import ActionBar from './components/ActionBar.vue';
 import VendorPanel from './components/VendorPanel.vue';
 import BankPanel from './components/BankPanel.vue';
 import TrackPanel from './components/TrackPanel.vue';
@@ -459,7 +457,6 @@ import html2canvas from 'html2canvas';
 import MapPanel from './components/MapPanel.vue';
 import ContextMenu from './components/ContextMenu.vue';
 import FloatingPanel from './components/FloatingPanel.vue';
-import { ADMIN_IDENTITY_HEX } from './data/worldEventDefs';
 import { useGameData } from './composables/useGameData';
 import { useCharacters } from './composables/useCharacters';
 import { useEvents } from './composables/useEvents';
@@ -501,10 +498,8 @@ const {
   itemInstances,
   recipeTemplates,
   recipeDiscovered,
-  itemCooldowns,
   locations,
   npcs,
-  allNpcs,
   vendorInventory,
   enemyTemplates,
   enemyRoleTemplates,
@@ -518,7 +513,6 @@ const {
   activePets,
   combatEnemyEffects,
   combatEnemyCasts,
-  aggroEntries,
   combatResults,
   combatLoot,
   groups,
@@ -547,32 +541,20 @@ const {
   characterLogoutTicks,
   tradeSessions,
   tradeItems,
-  races,
   factions,
   factionStandings,
   panelLayouts,
-  travelCooldowns,
   renownRows,
   renownPerks,
-  renownServerFirsts,
-  achievements,
-  npcAffinities,
-  npcDialogueOptions,
-  corpses,
-  corpseItems,
   pendingSpellCasts,
   questItems,
   namedEnemies,
   searchResults,
   itemAffixes,
   worldEventRows,
-  eventContributions,
   eventObjectives,
   appVersionRows,
   activeBardSongs,
-  combatRounds,
-  combatActions,
-  combatNarratives,
   bankSlots,
   characterCreationStates,
   creationEvents,
@@ -604,10 +586,6 @@ watch(appVersionRows, (rows) => {
 
 const { player, userId, userEmail, sessionStartedAt } = usePlayer({ players, users });
 
-const isAdmin = computed(() => {
-  const identity = window.__my_identity;
-  return identity?.toHexString() === ADMIN_IDENTITY_HEX;
-});
 
 const { isLoggedIn, isPendingLogin, login, logout, authMessage, authError } = useAuth({
   connActive: computed(() => conn.isActive),
@@ -622,11 +600,8 @@ const {
   myCharacters,
   selectedCharacter,
   currentLocation,
-  charactersHere,
   currentGroup,
   groupMembers: groupCharacterMembers,
-  deselectCharacter,
-  bindLocation,
   respawnCharacter,
 } = useCharacters({
   connActive: computed(() => conn.isActive),
@@ -646,38 +621,6 @@ const npcsHere = computed(() => {
   return npcs.value.filter((npc) => npc.locationId.toString() === locationId);
 });
 
-const corpsesHere = computed(() => {
-  if (!selectedCharacter.value || !corpses.value) return [];
-  const locationId = selectedCharacter.value.locationId;
-
-  // Get all active player user IDs (online check)
-  const activePlayerUserIds = new Set<bigint>();
-  for (const player of players.value ?? []) {
-    if (player.activeCharacterId) {
-      const char = characters.value?.find(c => c.id === player.activeCharacterId);
-      if (char) activePlayerUserIds.add(char.ownerUserId);
-    }
-  }
-
-  return corpses.value
-    .filter(c => c.locationId === locationId)
-    .filter(c => {
-      // Only show corpses for online players
-      const corpseChar = characters.value?.find(ch => ch.id === c.characterId);
-      return corpseChar && activePlayerUserIds.has(corpseChar.ownerUserId);
-    })
-    .map(c => {
-      const corpseChar = characters.value?.find(ch => ch.id === c.characterId);
-      const itemCount = (corpseItems.value ?? []).filter(ci => ci.corpseId === c.id).length;
-      return {
-        id: c.id,
-        characterName: corpseChar?.name ?? 'Unknown',
-        characterId: c.characterId,
-        isOwn: c.characterId === selectedCharacter.value!.id,
-        itemCount,
-      };
-    });
-});
 
 const activeVendorId = ref<bigint | null>(null);
 const activeVendor = computed(() => {
@@ -798,14 +741,14 @@ const { isProcessing: isLlmProxyProcessing } = useLlmProxy({
 });
 
 // Skill choice: watches PendingSkill table, exposes pending level-up state
-const { myPendingSkills, hasPendingSkills, pendingLevels, hasPendingLevels, chooseSkill: chooseSkillByName, requestSkillGen, applyLevelUp } = useSkillChoice({
+const { hasPendingSkills, pendingLevels, hasPendingLevels, chooseSkill: chooseSkillByName, applyLevelUp } = useSkillChoice({
   selectedCharacter,
   pendingSkills,
   connActive: computed(() => conn.isActive),
 });
 
 // Renown perks: watches PendingRenownPerk table, exposes perk choice actions
-const { myPendingRenownPerks, hasPendingRenownPerks, pendingRenownRank, chooseRenownPerk: chooseRenownPerkByName } = useRenownPerks({
+const { myPendingRenownPerks, hasPendingRenownPerks, chooseRenownPerk: chooseRenownPerkByName } = useRenownPerks({
   selectedCharacter,
   pendingRenownPerks,
   connActive: computed(() => conn.isActive),
@@ -832,24 +775,12 @@ const onboardingHint = computed(() => {
   }
   return '';
 });
-const highlightInventory = computed(() => onboardingStep.value === 'inventory');
 const dismissOnboarding = () => {
   onboardingStep.value = null;
 };
 
 const worldStateRow = computed(() => worldState.value[0] ?? null);
 const isNight = computed(() => worldStateRow.value?.isNight ?? false);
-const timeIconLabel = computed(() => (isNight.value ? 'Moon' : 'Sun'));
-const timeTooltip = computed(() => {
-  const nextAt = worldStateRow.value?.nextTransitionAtMicros ?? 0n;
-  const remainingMicros = Number(nextAt) - nowMicros.value;
-  const remainingSeconds = Math.max(0, Math.floor(remainingMicros / 1_000_000));
-  const minutes = Math.floor(remainingSeconds / 60)
-    .toString()
-    .padStart(2, '0');
-  const seconds = (remainingSeconds % 60).toString().padStart(2, '0');
-  return `${isNight.value ? 'Nighttime' : 'Daytime'} · ${minutes}:${seconds} remaining`;
-});
 
 const trackOptions = computed(() => {
   if (!currentLocation.value) return [];
@@ -877,15 +808,10 @@ const trackOptions = computed(() => {
 const {
   activeCombat,
   activeEnemy,
-  activeEnemySpawn,
   combatEnemiesList,
   availableEnemies,
   combatRoster,
-  activeResult,
-  activeLoot,
   pendingLoot,
-  hasOtherLootForResult,
-  startCombat,
   startPull,
   startTrackedCombat,
   setCombatTarget,
@@ -924,8 +850,6 @@ const {
 
 const {
   canActInCombat,
-  combatLocked,
-  lockInventoryEdits,
   lockHotbarEdits,
   lockCrafting,
 } = useCombatLock({
@@ -1052,27 +976,10 @@ const relevantEffects = computed(() => {
 });
 
 // Active (non-fading) bard song key for the selected character — used to highlight hotbar slot
-const activeSongKey = computed<string | null>(() => {
-  if (!selectedCharacter.value) return null;
-  const charIdStr = selectedCharacter.value.id.toString();
-  const active = (activeBardSongs.value as any[]).find(
-    (s) => s.bardCharacterId.toString() === charIdStr && !s.isFading
-  );
-  return active?.songKey ?? null;
-});
 
 const {
-  characterNpcDialogs,
-  characterQuests,
-  characterQuestItems,
-  characterNamedEnemies,
-  characterSearchResult,
-  characterFactionStandings,
   characterRenown,
-  characterRenownPerks,
   characterPanelLayouts,
-  locationQuestItems,
-  locationNamedEnemies,
 } = useCharacterScope({
   selectedCharacter,
   npcDialogs,
@@ -1087,21 +994,10 @@ const {
 });
 
 // Reducer call handlers for quest interactions
-const lootQuestItem = (questItemId: bigint) => {
-  const db = window.__db_conn;
-  if (!selectedCharacter.value || !db) return;
-  db.reducers.lootQuestItem({ characterId: selectedCharacter.value.id, questItemId });
-};
 
-const pullNamedEnemy = (namedEnemyId: bigint) => {
-  const db = window.__db_conn;
-  if (!selectedCharacter.value || !db) return;
-  db.reducers.pullNamedEnemy({ characterId: selectedCharacter.value.id, namedEnemyId });
-};
 
 
 // World Events: hasActiveEvents computed and banner overlay
-const hasActiveEvents = computed(() => (worldEventRows.value as any[])?.some((e: any) => e.status === 'active') ?? false);
 
 const activeBanner = ref<string | null>(null);
 let bannerTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1185,28 +1081,18 @@ const {
 
 // NPC targeting state (must be declared before useCommands)
 const selectedNpcTarget = ref<bigint | null>(null);
-const selectNpcTarget = (npcId: bigint | null) => {
-  selectedNpcTarget.value = npcId;
-};
 
 // Corpse targeting state
 const selectedCorpseTarget = ref<bigint | null>(null);
-const selectCorpseTarget = (corpseId: bigint | null) => {
-  selectedCorpseTarget.value = corpseId;
-};
 
 // Character targeting state (for character-targeted spells like corpse summon)
 const selectedCharacterTarget = ref<bigint | null>(null);
-const selectCharacterTarget = (characterId: bigint | null) => {
-  selectedCharacterTarget.value = characterId;
-};
 
 // --- NPC Conversation State ---
 // Tracks which NPC the player is actively conversing with (client-side only).
 // While set, typed text routes to talk_to_npc instead of submit_intent.
 const conversationNpcId = ref<bigint | null>(null);
 const pendingPullTargetId = ref<bigint | null>(null);
-const conversationNpcIdStr = computed(() => conversationNpcId.value?.toString() ?? null);
 
 const enterConversation = (npcId: bigint, npcName: string) => {
   conversationNpcId.value = npcId;
@@ -1219,15 +1105,6 @@ const endConversation = () => {
   addLocalEvent('system', `You end your conversation with ${npc?.name || 'the NPC'}.`, 'private');
 };
 
-const onTalkNpc = (npcId: bigint) => {
-  if (!selectedCharacter.value) return;
-
-  const npc = npcs.value.find(n => n.id === npcId);
-  if (!npc) return;
-
-  enterConversation(npc.id, npc.name);
-  hailNpcReducer({ characterId: selectedCharacter.value.id, npcName: npc.name });
-};
 
 // Clear all target selections when location changes
 // Watch locationId directly for more reliable reactivity
@@ -1782,10 +1659,6 @@ watch(pendingLevels, (newVal, oldVal) => {
   }
 });
 
-const inviteToGroup = (targetName: string) => {
-  if (!selectedCharacter.value || !conn.isActive) return;
-  inviteToGroupReducer({ characterId: selectedCharacter.value.id, targetName });
-};
 
 const sendFriendRequest = (targetName: string) => {
   if (!selectedCharacter.value || !conn.isActive) return;
@@ -1796,14 +1669,7 @@ const sendWhisperTo = (targetName: string) => {
   commandText.value = `/w ${targetName} `;
 };
 
-const openVendor = (npcId: bigint) => {
-  openPanel('vendor');
-  activeVendorId.value = npcId;
-};
 
-const openBank = (_npcId: bigint) => {
-  openPanel('bank');
-};
 
 const depositToBank = (instanceId: bigint) => {
   if (!conn.isActive || !selectedCharacter.value) return;
@@ -1844,12 +1710,7 @@ const sellAllJunk = () => {
   sellAllReducer({ characterId: selectedCharacter.value.id });
 };
 
-const hailNpcReducer = useReducer(reducers.hailNpc);
 const talkToNpcReducer = useReducer(reducers.talkToNpc);
-const hailNpc = (npcName: string) => {
-  if (!selectedCharacter.value) return;
-  hailNpcReducer({ characterId: selectedCharacter.value.id, npcName });
-};
 
 // Gift overlay state and logic
 const giftTargetNpcId = ref<bigint | null>(null);
@@ -1879,9 +1740,6 @@ const giftableItems = computed(() => {
     .sort((a, b) => a.name.localeCompare(b.name));
 });
 
-const openGiftOverlay = (npcId: bigint) => {
-  giftTargetNpcId.value = npcId;
-};
 
 const giveGiftReducer = useReducer(reducers.giveGiftToNpc);
 const giveGift = (itemInstanceId: bigint) => {
@@ -1895,24 +1753,11 @@ const giveGift = (itemInstanceId: bigint) => {
 };
 
 // Corpse loot handlers
-const lootAllCorpseReducer = useReducer(reducers.lootAllCorpse);
-const onLootAllCorpse = (corpseId: bigint) => {
-  if (!conn.isActive || !selectedCharacter.value) return;
-  lootAllCorpseReducer({ characterId: selectedCharacter.value.id, corpseId });
-};
 
 // Resurrection and corpse summon handlers
 const initiateResurrectReducer = useReducer(reducers.initiateResurrect);
-const onInitiateResurrect = (corpseId: bigint) => {
-  if (!conn.isActive || !selectedCharacter.value) return;
-  initiateResurrectReducer({ casterCharacterId: selectedCharacter.value.id, corpseId });
-};
 
 const initiateCorpseSummonReducer = useReducer(reducers.initiateCorpseSummon);
-const onInitiateCorpseSummon = (targetCharacterId: bigint) => {
-  if (!conn.isActive || !selectedCharacter.value) return;
-  initiateCorpseSummonReducer({ casterCharacterId: selectedCharacter.value.id, targetCharacterId });
-};
 
 // Confirmation dialog for resurrection/corpse summon
 const pendingPrompt = ref<{
@@ -2004,7 +1849,7 @@ const {
   users,
 });
 
-const { moveTo } = useMovement({
+useMovement({
   connActive: computed(() => conn.isActive),
   selectedCharacter,
 });
@@ -2020,91 +1865,14 @@ const connectedLocations = computed(() => {
   return locations.value.filter((loc) => connectedIds.has(loc.id.toString()));
 });
 
-const activeEnemyTargetName = computed(() => {
-  if (!activeCombat.value) return '';
-  const combatId = activeCombat.value.id.toString();
-  const activeIds = new Set(
-    combatParticipants.value
-      .filter((row) => row.combatId.toString() === combatId && row.status === 'active')
-      .map((row) => row.characterId.toString())
-  );
-  if (!activeIds.size) return '';
-  let topEntry: (typeof aggroEntries.value)[number] | null = null;
-  for (const entry of aggroEntries.value) {
-    if (entry.combatId.toString() !== combatId) continue;
-    if (!activeIds.has(entry.characterId.toString())) continue;
-    if (!topEntry || entry.value > topEntry.value) topEntry = entry;
-  }
-  if (topEntry) {
-    const target = characters.value.find(
-      (row) => row.id.toString() === topEntry!.characterId.toString()
-    );
-    return target?.name ?? '';
-  }
-  const fallback = combatParticipants.value.find(
-    (row) => row.combatId.toString() === combatId && row.status === 'active'
-  );
-  if (!fallback) return '';
-  const target = characters.value.find((row) => row.id.toString() === fallback.characterId.toString());
-  return target?.name ?? '';
-});
 
-const currentRegionName = computed(() => {
-  if (!currentLocation.value) return 'Unknown Region';
-  const region = regions.value.find(
-    (row) => row.id.toString() === currentLocation.value?.regionId.toString()
-  );
-  return region?.name ?? 'Unknown Region';
-});
 
-const currentLocationName = computed(() => {
-  if (!currentLocation.value) return 'Unknown';
-  return currentLocation.value.name ?? 'Unknown';
-});
 
-const conStyleForDiff = (diff: number) => {
-  if (diff <= -5) return styles.conGray;
-  if (diff <= -3) return styles.conLightGreen;
-  if (diff <= -1) return styles.conBlue;
-  if (diff === 0) return styles.conWhite;
-  if (diff <= 2) return styles.conYellow;
-  if (diff <= 4) return styles.conOrange;
-  return styles.conRed;
-};
 
-const currentRegionLevel = computed(() => {
-  if (!currentLocation.value) return 1;
-  const region = regions.value.find(
-    (row) => row.id.toString() === currentLocation.value?.regionId.toString()
-  );
-  if (!region) return 1;
-  const multiplier = Number(region.dangerMultiplier ?? 100n);
-  const scaled = Math.floor((1 * multiplier) / 100);
-  const offset = Number(currentLocation.value.levelOffset ?? 0n);
-  return Math.max(1, scaled + offset);
-});
 
-const currentRegionConStyle = computed(() => {
-  if (!selectedCharacter.value) return styles.conWhite;
-  const diff = currentRegionLevel.value - Number(selectedCharacter.value.level);
-  return conStyleForDiff(diff);
-});
 
-const currentTypeLine = computed(() => {
-  if (!currentLocation.value) return 'Unknown Region · Unknown Location';
-  const region = regions.value.find(
-    (row) => row.id.toString() === currentLocation.value?.regionId.toString()
-  );
-  const regionType = region?.regionType
-    ? `${region.regionType[0].toUpperCase()}${region.regionType.slice(1)}`
-    : 'Unknown';
-  const locationType = currentLocation.value.terrainType
-    ? `${currentLocation.value.terrainType[0].toUpperCase()}${currentLocation.value.terrainType.slice(1)}`
-    : 'Unknown';
-  return `${regionType} · ${locationType}`;
-});
 
-const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipItem, unequipItem, useItem, splitStack, organizeInventory, salvageItem } =
+const { equippedSlots, inventoryItems, equipItem, unequipItem, useItem, salvageItem } =
   useInventory({
     connActive: computed(() => conn.isActive),
     selectedCharacter,
@@ -2113,19 +1881,11 @@ const { equippedSlots, inventoryItems, inventoryCount, maxInventorySlots, equipI
     itemAffixes,
   });
 
-const deleteItem = (itemInstanceId: bigint) => {
-  if (!selectedCharacter.value || !conn.isActive) return;
-  // Confirmation already handled in InventoryPanel context menu
-  deleteItemReducer({ characterId: selectedCharacter.value.id, itemInstanceId });
-};
 
 const startGatherReducer = useReducer(reducers.startGatherResource);
-const deleteItemReducer = useReducer(reducers.deleteItem);
-const inviteToGroupReducer = useReducer(reducers.inviteToGroup);
 const friendRequestReducer = useReducer(reducers.sendFriendRequestToCharacter);
 
 const {
-  recipes: craftingRecipes,
   filteredRecipes: craftingFilteredRecipes,
   recipeTypes: craftingRecipeTypes,
   activeFilter: craftingActiveFilter,
@@ -2152,10 +1912,6 @@ const onResearchRecipes = () => {
   researchRecipes();
 };
 
-const onCraftRecipe = (recipeId: bigint) => {
-  if (lockCrafting.value) return;
-  craftRecipe(recipeId);
-};
 
 const onOpenCraftModal = (recipe: any) => {
   if (lockCrafting.value) return;
@@ -2166,20 +1922,10 @@ const myFriendUserIds = computed(() =>
   friends.value.map((f) => f.friendUserId.toString())
 );
 
-const groupMemberIdStrings = computed(() =>
-  groupCharacterMembers.value.map((m) => m.id.toString())
-);
 
-const tradeOtherCharacter = computed(() => {
-  if (!otherCharacterId.value) return null;
-  return characters.value.find(
-    (row) => row.id.toString() === otherCharacterId.value?.toString()
-  ) ?? null;
-});
 
 const {
   activeTrade,
-  otherCharacterId,
   myItems: tradeInventory,
   myOffer,
   otherOffer,
@@ -2204,7 +1950,6 @@ const {
 const savePanelLayoutReducer = useReducer(reducers.savePanelLayout);
 const {
   panels,
-  openPanels,
   togglePanel: togglePanelInternal,
   openPanel,
   closePanel: closePanelById,
@@ -2339,23 +2084,7 @@ const activeGatheringInfo = computed(() => {
 
 const localQuestItemCast = ref<{ name: string; progress: number } | null>(null);
 
-const onQuestItemCastUpdate = (name: string, progress: number) => {
-  if (progress >= 1 || progress < 0) {
-    localQuestItemCast.value = null;
-  } else {
-    localQuestItemCast.value = { name, progress };
-  }
-};
 
-const startGather = (nodeId: bigint) => {
-  if (!selectedCharacter.value || !conn.isActive) return;
-  localGather.value = {
-    nodeId,
-    startMicros: nowMicros.value,
-    durationMicros: 8_000_000,
-  };
-  startGatherReducer({ characterId: selectedCharacter.value.id, nodeId });
-};
 
 const buyReducer = useReducer(reducers.buyItem);
 const sellReducer = useReducer(reducers.sellItem);
@@ -2373,16 +2102,12 @@ const eatFood = (itemInstanceId: bigint) => {
 };
 
 const {
-  hotbarAssignments,
-  availableAbilities,
   hotbarDisplay,
-  hotbarTooltipItem,
   setHotbarSlot,
   hotbarList,
   activeHotbar,
   prevHotbar,
   nextHotbar,
-  useAbility,
   onHotbarClick,
   hotbarPulseKey,
   castingState,
@@ -2421,7 +2146,7 @@ const {
 });
 
 // Context actions derived from game state (after all dependencies are declared)
-const narrativeContextActions = useContextActions({
+useContextActions({
   selectedCharacter,
   activeCombat,
   connectedLocations,
@@ -2433,53 +2158,9 @@ const narrativeContextActions = useContextActions({
 });
 
 // --- Combat Action Bar data ---
-const combatAbilitiesForBar = computed(() => {
-  if (!selectedCharacter.value || !isInCombat.value) return [];
-  const charId = selectedCharacter.value.id;
-  const charAbilities = abilityTemplates.value.filter(
-    (t) => t.characterId?.toString() === charId.toString()
-  );
-  return charAbilities.map((template) => {
-    const cooldown = abilityCooldowns.value.find(
-      (c) =>
-        c.characterId?.toString() === charId.toString() &&
-        c.abilityTemplateId.toString() === template.id.toString()
-    );
-    const cdRemaining = cooldown
-      ? Math.max(0, Math.ceil((Number(cooldown.startedAtMicros) + Number(cooldown.durationMicros) - nowMicros.value) / 1_000_000))
-      : 0;
-    return {
-      id: template.id,
-      name: template.name,
-      kind: template.kind,
-      resourceType: template.resourceType,
-      resourceCost: template.resourceCost,
-      castSeconds: template.castSeconds,
-      cooldownSeconds: cdRemaining > 0 ? Math.max(cdRemaining, Number(template.cooldownSeconds)) : Number(template.cooldownSeconds),
-      cooldownRemaining: cdRemaining,
-      isOnCooldown: cdRemaining > 0,
-    };
-  });
-});
 
 // Combat action bar event handlers
-const onCombatFlee = () => {
-  if (!isInCombat.value) return;
-  flee();
-};
 
-const onCombatUseAbility = (abilityId: bigint) => {
-  if (!isInCombat.value || !selectedCharacter.value) return;
-  // Find a living targeted enemy, or first living enemy
-  const targetEnemyId = selectedCharacter.value.combatTargetEnemyId;
-  const targeted = targetEnemyId
-    ? combatEnemiesList.value.find((e: any) => e.id.toString() === targetEnemyId.toString() && e.hp > 0n)
-    : null;
-  const enemy = targeted ?? combatEnemiesList.value.find((e: any) => e.hp > 0n);
-  if (enemy) {
-    useAbilityRealtime(abilityId, enemy.id);
-  }
-};
 
 const onCombatTargetEnemy = (enemyId: bigint) => {
   setCombatTarget(enemyId);
@@ -2506,49 +2187,6 @@ watch(combatUiVisible, (inCombat) => {
   }
 });
 
-const equippedStatBonuses = computed(() => {
-  if (!selectedCharacter.value) {
-    return { str: 0n, dex: 0n, cha: 0n, wis: 0n, int: 0n };
-  }
-  const bonus = { str: 0n, dex: 0n, cha: 0n, wis: 0n, int: 0n };
-  const equippedInstanceIds = new Set<string>();
-  for (const instance of itemInstances.value) {
-    if (instance.ownerCharacterId.toString() !== selectedCharacter.value.id.toString()) continue;
-    if (!instance.equippedSlot) continue;
-    equippedInstanceIds.add(instance.id.toString());
-    const template = itemTemplates.value.find(
-      (row) => row.id.toString() === instance.templateId.toString()
-    );
-    if (!template) continue;
-    bonus.str += template.strBonus ?? 0n;
-    bonus.dex += template.dexBonus ?? 0n;
-    bonus.cha += template.chaBonus ?? 0n;
-    bonus.wis += template.wisBonus ?? 0n;
-    bonus.int += template.intBonus ?? 0n;
-  }
-  // Add affix bonuses from equipped items
-  for (const affix of itemAffixes.value) {
-    if (!equippedInstanceIds.has(affix.itemInstanceId.toString())) continue;
-    const mag = BigInt(affix.magnitude);
-    if (affix.statKey === 'strBonus') bonus.str += mag;
-    else if (affix.statKey === 'dexBonus') bonus.dex += mag;
-    else if (affix.statKey === 'intBonus') bonus.int += mag;
-    else if (affix.statKey === 'wisBonus') bonus.wis += mag;
-    else if (affix.statKey === 'chaBonus') bonus.cha += mag;
-  }
-  // Add active CharacterEffect stat buffs for selected character
-  const charId = selectedCharacter.value.id.toString();
-  for (const effect of characterEffects.value) {
-    if (effect.characterId.toString() !== charId) continue;
-    const mag = BigInt(effect.magnitude);
-    if (effect.effectType === 'str_bonus') bonus.str += mag;
-    else if (effect.effectType === 'dex_bonus') bonus.dex += mag;
-    else if (effect.effectType === 'cha_bonus') bonus.cha += mag;
-    else if (effect.effectType === 'wis_bonus') bonus.wis += mag;
-    else if (effect.effectType === 'int_bonus') bonus.int += mag;
-  }
-  return bonus;
-});
 
 
 const eventTargetRect = (e: MouseEvent): DOMRect | undefined =>
@@ -2596,15 +2234,7 @@ const loadAccordionState = () => {
   }
 };
 
-const persistAccordionState = () => {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem('accordionState', JSON.stringify(accordionState));
-};
 
-const updateAccordionState = (payload: { key: AccordionKey; open: boolean }) => {
-  accordionState[payload.key] = payload.open;
-  persistAccordionState();
-};
 
 // onCharacterTabChange removed — CharacterInfoPanel replaced by chat commands (quick-383)
 
@@ -2725,7 +2355,6 @@ onBeforeUnmount(() => {
   if (uiTimer) clearInterval(uiTimer);
 });
 
-const showCombatStack = computed(() => combatLocked.value);
 const showRightPanel = computed(() => false);
 
 const localGather = ref<{ nodeId: bigint; startMicros: number; durationMicros: number } | null>(
@@ -2734,30 +2363,7 @@ const localGather = ref<{ nodeId: bigint; startMicros: number; durationMicros: n
 
 const localFlee = ref<{ startMicros: number; durationMicros: number; timer: number } | null>(null);
 
-const isFleeCasting = computed(() => localFlee.value !== null);
-const fleeProgress = computed(() => {
-  if (!localFlee.value) return 0;
-  return Math.min(1, Math.max(0, (nowMicros.value - localFlee.value.startMicros) / localFlee.value.durationMicros));
-});
 
-const handleFlee = () => {
-  if (!selectedCharacter.value || !conn.isActive || !activeCombat.value) return;
-  // If already casting flee, cancel it
-  if (localFlee.value) {
-    clearTimeout(localFlee.value.timer);
-    localFlee.value = null;
-    return;
-  }
-  const timer = window.setTimeout(() => {
-    flee();
-    localFlee.value = null;
-  }, 3000);
-  localFlee.value = {
-    startMicros: nowMicros.value,
-    durationMicros: 3_000_000,
-    timer,
-  };
-};
 
 watch(
   () => selectedCharacter.value?.id,
@@ -2806,7 +2412,7 @@ watch(
 // Clear localFlee when combat ends (flee cast auto-cancelled if combat resolves)
 watch(
   () => activeCombat.value,
-  (newVal, oldVal) => {
+  (newVal) => {
     if (!newVal && localFlee.value) {
       clearTimeout(localFlee.value.timer);
       localFlee.value = null;
@@ -2816,7 +2422,7 @@ watch(
 
 // Rank-up notification watcher
 let lastRenownRank = 0;
-watch(characterRenown, (newVal, oldVal) => {
+watch(characterRenown, (newVal) => {
   if (!newVal) { lastRenownRank = 0; return; }
   const newRank = Number(newVal.currentRank);
   if (newRank > lastRenownRank && lastRenownRank > 0) {
@@ -2835,7 +2441,6 @@ const {
   showTooltip,
   moveTooltip,
   hideTooltip,
-  showAbilityPopup,
   hideAbilityPopup,
   showHotbarContextMenu,
   hideHotbarContextMenu,
@@ -2864,9 +2469,6 @@ const formatTimestamp = (ts: { microsSinceUnixEpoch: bigint }) => {
   return new Date(millis).toLocaleTimeString();
 };
 
-const goToCamp = () => {
-  deselectCharacter();
-};
 
 </script>
 
