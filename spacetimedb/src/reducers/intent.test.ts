@@ -37,7 +37,7 @@ describe('buildLookOutput', () => {
     const parts = buildLookOutput(ctx, character);
 
     expect(parts.length).toBeGreaterThan(0);
-    expect(parts[0]).toBe('Test Town');
+    expect(parts[0]).toBe('{{color:#fbbf24}}Test Town{{/color}}');
     expect(parts[1]).toBe('A lovely town.');
     expect(parts.some((p: string) => p.includes('safe area'))).toBe(true);
   });
@@ -194,7 +194,7 @@ describe('buildLookOutput', () => {
     const parts = buildLookOutput(ctx, character);
 
     expect(parts.length).toBeGreaterThan(0);
-    expect(parts[0]).toBe('Town');
+    expect(parts[0]).toBe('{{color:#fbbf24}}Town{{/color}}');
     expect(parts.join('\n')).not.toContain('Quest items');
   });
 });

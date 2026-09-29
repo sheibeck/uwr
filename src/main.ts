@@ -2,7 +2,8 @@ import { createApp, h } from 'vue';
 import App from './App.vue';
 import { Identity } from 'spacetimedb';
 import { SpacetimeDBProvider } from 'spacetimedb/vue';
-import { DbConnection, ErrorContext } from './module_bindings/index.ts';
+import { DbConnection } from './module_bindings/index.ts';
+import { logConnectError, logDisconnect } from './connectionLogging';
 import { getStoredIdToken, handleSpacetimeAuthCallback } from './auth/spacetimeAuth';
 
 const HOST = import.meta.env.VITE_SPACETIMEDB_HOST ?? 'ws://localhost:3000';
@@ -17,14 +18,6 @@ const onConnect = (conn: DbConnection, identity: Identity, _token: string) => {
   );
 };
 
-const onDisconnect = (_ctx: ErrorContext, _err?: Error) => {
-  console.log('Disconnected from SpacetimeDB');
-};
-
-const onConnectError = (_ctx: ErrorContext, err: Error) => {
-  console.log('Error connecting to SpacetimeDB:', err);
-};
-
 const bootstrap = async () => {
   try {
     await handleSpacetimeAuthCallback();
@@ -37,8 +30,8 @@ const bootstrap = async () => {
     .withDatabaseName(DB_NAME)
     .withToken(getStoredIdToken() || undefined)
     .onConnect(onConnect)
-    .onDisconnect(onDisconnect)
-    .onConnectError(onConnectError);
+    .onDisconnect((_ctx, err) => logDisconnect(err))
+    .onConnectError((_ctx, err) => logConnectError(err));
 
   createApp({
     render: () => h(SpacetimeDBProvider, { connectionBuilder }, () => h(App)),
