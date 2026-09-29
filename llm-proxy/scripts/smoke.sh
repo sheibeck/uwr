@@ -41,10 +41,6 @@ unset SECRET
 
 FAILED=0
 
-redact() {
-  sed -E -e 's/[A-Za-z]+-[A-Za-z0-9_-]{16,}/REDACTED/g' -e 's/\*{3,}[A-Za-z0-9]*/REDACTED/g'
-}
-
 check() { # name expected actual
   if [ "$2" = "$3" ]; then
     echo "PASS $1 ($3)"
@@ -82,8 +78,7 @@ if [ "$REAL" = "1" ]; then
     echo "PASS real-call ($STATUS)"
   else
     echo "FAIL real-call (expected 200 with ok:true, got $STATUS)"
-    ERR="$(sed -n 's/.*"error":"\([^"]*\)".*/\1/p' "$BODY_FILE" | redact | head -c 400)"
-    echo "  status=$STATUS error=$ERR"
+    echo "  (upstream error body suppressed; inspect the wrangler dev output for details)"
     FAILED=1
   fi
 fi
