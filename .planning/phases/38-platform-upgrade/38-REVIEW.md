@@ -2,72 +2,37 @@
 phase: 38-platform-upgrade
 reviewed: 2026-09-29T00:00:00Z
 depth: standard
-files_reviewed: 26
+files_reviewed: 2
 files_reviewed_list:
-  - llm-proxy/package.json
-  - llm-proxy/pnpm-workspace.yaml
   - llm-proxy/scripts/smoke.sh
-  - spacetimedb/package.json
-  - spacetimedb/pnpm-workspace.yaml
-  - spacetimedb/src/reducers/intent.test.ts
-  - src/App.vue
-  - src/components/ActionBar.vue
-  - src/components/AppHeader.vue
-  - src/components/CharacterInfoPanel.vue
-  - src/components/FriendsPanel.vue
-  - src/components/GroupPanel.vue
-  - src/components/NarrativeConsole.vue
-  - src/components/NarrativeHotbar.vue
-  - src/components/NarrativeMessage.vue
-  - src/components/WorldEventPanel.vue
-  - src/composables/useCombat.ts
-  - src/composables/useCommands.ts
-  - src/composables/useHotbar.ts
-  - src/composables/useLlmProxy.ts
-  - src/composables/usePanelManager.ts
-  - src/composables/useSkillChoice.ts
   - src/connectionLogging.test.ts
-  - src/connectionLogging.ts
-  - src/main.ts
-  - package.json
 findings:
   critical: 0
-  warning: 3
+  warning: 0
   info: 5
-  total: 8
-status: issues_found
+  total: 5
+status: clean
 ---
 
-# Phase 38: Code Review Report
+# Phase 38: Code Review Report (iteration 2, re-review after fixes)
 
 **Reviewed:** 2026-09-29
 **Depth:** standard
-**Files Reviewed:** 26
-**Status:** issues_found
+**Files Reviewed:** 2 (scope limited to the files changed by fix commits `1086c11f`, `f25cf670`, `af7f7f39`; the other 24 files from the prior review are unchanged)
+**Status:** clean (no Critical or Warning findings; Info-only counts as clean for the fix loop)
 
 ## Summary
 
-The Wave 0 cleanup is behavior-preserving apart from the two user-approved changes: number-key shortcuts were restored and the dead `ranger_track` call was removed. No removed binding or composable call had a side effect. The findings below are robustness and maintainability issues, not correctness regressions.
+WR-01, WR-02 and WR-03 are all resolved, and the fixes introduced no new Critical or Warning issues.
 
-## Warnings
+- **WR-01 (resolved).** The `redact()` helper and the code that printed the upstream `error` body are gone. A failed `--real` call now prints only the status code and a fixed hint. No path prints `$SECRET`, the header file, or the response body. Every `check`/`echo` prints only static text or the HTTP status. `SECRET` is written only to the header temp file (mode 600, passed to curl with `-H @file`, so it never appears in argv). It is unset immediately afterward, and the EXIT trap removes both temp files. The two early `exit 2` messages are static.
+- **WR-02 (resolved).** The parser now tolerates leading whitespace, `export`, spaces around `=`, CRLF, trailing whitespace, and single or double quotes. `=` inside the secret is preserved. A `case` guard exits 2 with a clear, non-leaking message if a quote still sits at either end. I ran the script offline against a `.dev.vars` line of the form `  export PROXY_SECRET = 'a=b"c'  <CRLF>`. It parsed cleanly and reached the network checks, which fail with 000 against a dead port as expected. `bash -n` passes. Limitations, all acceptable and none leaking: inline trailing comments are unsupported (documented in the script), and an internal quote, as in `"x"y"`, passes the guard once the outer pair is stripped.
+- **WR-03 (resolved).** The main.ts source-regex test and its two now-unused imports were removed. The three remaining tests are still meaningful:
+  - They assert `logDisconnect()` uses `console.log` only, `logDisconnect(err)` uses `console.warn` with the error and no `console.log`, and `logConnectError(err)` calls `console.log` exactly as before.
+  - They pin the 2.10 disconnect-with-error routing behavior against the real helpers, and they restore mocks in `afterEach`.
+  - The main.ts wiring (`src/main.ts:33-34`) is still guarded by the `vue-tsc -b` type check.
 
-### WR-01: smoke.sh prints upstream error text with only heuristic redaction
-
-**File:** `llm-proxy/scripts/smoke.sh:73-76` (redact at 34-36)
-**Issue:** When a `--real` call fails, the script prints the proxy's `error` body, which is the OpenAI SDK error message passed through by `llm-proxy/src/index.ts`. Redaction is just two regexes tuned to `sk-<16+ chars>` and `***`. An OpenAI 401 message such as `Incorrect API key provided: sk-proj-abc1********xyz9` is only redacted from the `****` onward, so the `sk-proj-abc1` key prefix still reaches the terminal or CI log. That is an OPENAI_API_KEY fragment rather than the `.dev.vars` PROXY_SECRET, but it still breaks the "never echo secrets" intent.
-**Fix:** Don't print the upstream message. Print the status and a fixed hint instead, e.g. `echo "FAIL real-call (expected 200 with ok:true, got $STATUS)"` followed by `echo "  (upstream body suppressed; inspect wrangler dev output)"`. If a message is kept, allowlist known-safe error classes rather than redacting.
-
-### WR-02: smoke.sh `.dev.vars` parsing is brittle and fails confusingly
-
-**File:** `llm-proxy/scripts/smoke.sh:19-21`
-**Issue:** The parser only matches `^PROXY_SECRET=`. It does not handle `export PROXY_SECRET=...`, spaces around `=`, single-quoted values (only double quotes are stripped), or trailing inline comments. A single-quoted value keeps its quotes, so the "auth OK" checks send the wrong bearer and the validation check reports the misleading `FAIL validation (expected 400, got 401)`. This does not leak anything.
-**Fix:** Strip single quotes as well as double quotes (`sed -e "s/^[\"']//" -e "s/[\"']$//"`), and fail fast if the value still starts with a quote. Optionally tolerate `^[[:space:]]*(export[[:space:]]+)?PROXY_SECRET[[:space:]]*=`.
-
-### WR-03: A unit test asserts on the source text of main.ts
-
-**File:** `src/connectionLogging.test.ts:44-49`
-**Issue:** The test `wires main.ts through contextually typed inline lambdas` reads `main.ts` and regex-matches the exact lambda text. Any harmless reformat breaks it: renaming `_ctx`, adding a line break, or switching to a named handler. It verifies neither the runtime wiring nor type safety, and `vue-tsc -b` already enforces the type guarantee.
-**Fix:** Delete this test and rely on the type check. Alternatively, export a small `attachConnectionLogging(builder)` helper from `connectionLogging.ts` and test it with a fake builder.
+Info items IN-01 through IN-05 were intentionally out of fix scope and are carried forward unchanged.
 
 ## Info
 
