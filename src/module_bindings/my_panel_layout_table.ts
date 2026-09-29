@@ -11,7 +11,7 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  id: __t.u64(),
+  id: __t.u64().primaryKey(),
   characterId: __t.u64().name("character_id"),
   panelStatesJson: __t.string().name("panel_states_json"),
   updatedAt: __t.timestamp().name("updated_at"),

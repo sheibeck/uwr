@@ -11,7 +11,7 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  id: __t.u64(),
+  id: __t.u64().primaryKey(),
   groupId: __t.u64().name("group_id"),
   characterId: __t.u64().name("character_id"),
   message: __t.string(),

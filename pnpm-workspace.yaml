@@ -1,0 +1,3 @@
+# Temporary: Vite 6 and Vitest 4 pull in esbuild (postinstall). Remove this file in 38-06 once Vite 8 and Vitest 5 no longer depend on it.
+allowBuilds:
+  esbuild: true

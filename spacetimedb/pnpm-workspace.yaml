@@ -1,0 +1,4 @@
+# Standalone pnpm project, deliberately not a workspace member, so root TypeScript never becomes visible here (it would switch on spacetime build's tsc gate).
+# esbuild arrives via vitest -> vite and has a postinstall script, which pnpm 11 refuses unless approved.
+allowBuilds:
+  esbuild: true

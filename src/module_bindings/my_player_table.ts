@@ -11,7 +11,7 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  id: __t.identity(),
+  id: __t.identity().primaryKey(),
   createdAt: __t.timestamp().name("created_at"),
   lastSeenAt: __t.timestamp().name("last_seen_at"),
   displayName: __t.option(__t.string()).name("display_name"),

@@ -11,7 +11,7 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  id: __t.u64(),
+  id: __t.u64().primaryKey(),
   ownerUserId: __t.u64().name("owner_user_id"),
   characterId: __t.u64().name("character_id"),
   groupId: __t.option(__t.u64()).name("group_id"),

@@ -11,7 +11,7 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  id: __t.u64(),
+  id: __t.u64().primaryKey(),
   characterId: __t.u64().name("character_id"),
   questTemplateId: __t.u64().name("quest_template_id"),
   progress: __t.u64(),
