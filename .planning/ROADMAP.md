@@ -68,14 +68,18 @@ Phases 33-37 parked in the Backlog as 999.1-999.5. See `.planning/milestones/v2.
 ## Phase Details
 
 ### Phase 39: Procedure-to-Claude Spike
-**Goal**: The operator knows, from measured evidence on local and maincloud, whether SpacetimeDB 2.10 procedures can call Claude reliably without hurting combat ticks and reducers, and which executor the rest of the milestone will build
+**Goal**: The operator knows, from measured evidence on local SpacetimeDB, whether SpacetimeDB 2.10 procedures can call Claude reliably without hurting combat ticks and reducers, and which executor the rest of the milestone will build
 **Depends on**: Nothing (first phase of v2.2; follows Phase 38)
 **Requirements**: SPIKE-01, SPIKE-02, SPIKE-03, SPIKE-04
 **Success Criteria** (what must be TRUE):
   1. Operator can run a throwaway procedure on local SpacetimeDB 2.10 that reaches a public URL, then `GET /v1/models`, then a small `claude-sonnet-5-5` call, and each step's result plus the server logs (including the cause if the 2.0.1-style failure still reproduces) are written to the spike record
   2. The spike record shows structured-output calls using the real skill and region schemas measured at effort `low` and `medium` (latency, success, whether the region schema compiles, whether a thinking-off variant composes with structured output), and the observed failure shape of a forced timeout and of a bad key, including whether response headers such as `retry-after` and `request-id` are visible to the procedure
   3. The spike record shows scheduled-dispatch latency (p50/p95), whether `ctx.sender` is usable inside a scheduled procedure, and reducer and combat-tick latency with 6-8 concurrent in-flight calls compared against a no-call baseline
-  4. A written go/no-go decision record names the executor by applying the gate: local and maincloud both succeed, dispatch p95 is under about 250 ms, and reducer/tick p95 stays under 2x baseline. The maincloud leg is a manual user action (the user publishes the spike to maincloud and runs it), and the record is not final until those results are entered
+  4. A written go/no-go decision record names the executor by applying the gate on local SpacetimeDB:
+     - every non-drill call succeeds
+     - dispatch p95 is under about 250 ms
+     - reducer/tick p95 stays under 2x baseline
+     Maincloud is not part of this gate. Per the user's decision on 2026-09-29, it is proven in Phase 41.
 **Gate outcome**: go selects the scheduled-procedure executor for Phase 41 (and retires `llm-proxy/` in Phase 42); no-go selects the backend-service-with-WIF executor for Phase 41. Nothing in Phases 40, 42, 43 or 44 changes shape either way.
 **Also captured while the harness is up** (feeds later phases, not gate inputs): cache read on a repeated prefix, whether an in-flight call survives a publish, and current-path baseline latency. The Anthropic key used is supplied by the operator, never committed and never logged.
 **Testing**: Reusable measurement helpers (percentile math, gate evaluation) are unit tested. The throwaway procedure stays isolated from the production module and is not shipped.
@@ -104,7 +108,8 @@ Phases 33-37 parked in the Backlog as 999.1-999.5. See `.planning/milestones/v2.
   3. A player who refreshes or closes the tab mid-generation finds the result applied on return, and never sees duplicates
   4. Transient failures (429 with `retry-after`, 529, 5xx, timeout) retry by rescheduling a bounded number of times, non-retryable failures (auth, spend cap, refusal, 400) fail fast, and creation and world gen never auto-retry without player action. A failed or stuck job is swept, its generation lock released, its reserved budget refunded, and the player sees an in-voice Keeper message
   5. With calls in flight, combat ticks and reducers stay responsive under the global in-flight cap, and combat narration never blocks combat and is dropped if it arrives late
-  6. Each call's four usage counts (input, output, cache-write, cache-read tokens) are recorded per route, the per-player daily budget is cost-weighted with a call-count backstop, reserved at enqueue and settled on result, and the Anthropic key exists only in private `llm_config`, never in logs (redaction test), with a key-setup and `--clear-database` recovery runbook written
+  6. Maincloud proof, deferred from the Phase 39 spike: after the user manually publishes to maincloud, a live smoke-test call and one real action per domain succeed there. The Phase 39 gate thresholds are re-checked on maincloud; a failure there reopens the executor decision.
+  7. Each call's four usage counts (input, output, cache-write, cache-read tokens) are recorded per route, the per-player daily budget is cost-weighted with a call-count backstop, reserved at enqueue and settled on result, and the Anthropic key exists only in private `llm_config`, never in logs (redaction test), with a key-setup and `--clear-database` recovery runbook written
 **Executor branches** (success criteria hold for either):
   - **Go (scheduled procedure)**: the reducer inserts an `llm_job` row and a schedule row in its own transaction. Scheduled procedure `llm_run` claims the job, calls `https://api.anthropic.com/v1/messages` via `ctx.http.fetch` outside any transaction, persists the paid response and usage in a second transaction, then applies it in a third, so an apply failure re-runs from stored text with no second billed call. Retry reschedules with backoff, the key comes from private `llm_config` via admin `set_api_key`, and the in-flight cap (start 4 to 6) is set from Phase 39 data
   - **No-go (backend service)**: `llm-service/` hosted on Cloud Run, authenticated to Anthropic via Workload Identity Federation, claims and completes jobs through service-only views and reducers under an allowlisted service identity. Job tables stay in SpacetimeDB and the service reuses Phase 40's request builder. Planned in detail only if Phase 39 records no-go. SEC-04 then reads as "no static Anthropic key in the module, and the service-identity secret is covered by the runbook"

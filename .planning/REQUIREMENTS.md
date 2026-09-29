@@ -19,10 +19,10 @@
   - reducer and combat-tick latency with 6–8 concurrent in-flight calls
 - [ ] **SPIKE-04**: A written go/no-go decision record picks the executor.
   - Gate:
-    - local and maincloud succeed
+    - every non-drill call succeeds on local SpacetimeDB
     - dispatch p95 < ~250 ms
     - reducer and tick p95 < 2× baseline
-  - The maincloud leg is run manually by the user.
+  - Local only. Per the user's decision on 2026-09-29, maincloud behavior is proven in Phase 41 when the real executor ships, with a manual publish by the user.
 
 ### Claude Request Layer
 
