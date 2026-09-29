@@ -50,6 +50,45 @@
 
 ---
 
+## Milestone: v2.1 — Project Cleanup
+
+**Shipped:** 2026-09-29
+**Phases:** 3 (31, 32, 38) | **Plans:** 14 | **Quick tasks:** 392-405
+
+### What Was Built
+- A shared proxy-based mock DB, 101 combat regression tests, and 130 inventory, equipment-gen and intent-routing tests
+- A v1.0 legacy purge: mechanical rules extracted, 11 legacy backend files, 9 orphaned Vue components and 1,916 lines of dead frontend code deleted
+- A platform upgrade to SpacetimeDB 2.10.1, TS 6, Vite 8, Vitest 5 and pnpm-only, with 990 tests green
+- Work inside phases 33, 34 and 36 before they were parked: combat log and pull fixes, sell commands and hotbars, ability expansion, race abilities and renown perks
+
+### What Worked
+- Test infrastructure first (Phase 31) made the dead-code purge (Phase 32) and the platform upgrade (Phase 38) safe to run
+- Phase 38 upgraded in waves, one layer at a time (types clean, then SpacetimeDB, then Vitest, then proxy, then root toolchain). Almost no code changes were needed.
+- Parking phases 33-37 in the Backlog kept requirements and history intact while the core concepts are rethought
+
+### What Was Inefficient
+- The milestone ran about 6.5 months from start to close. Phases 33-37 stalled partway, which left 11 requirements pending at close.
+- No formal milestone audit was run before closing
+- The OpenAI account ran out of credits, which blocked live LLM verification at the end of Phase 38
+- Docs drifted: PROJECT.md claimed "Anthropic Claude API" while the code called OpenAI
+
+### Patterns Established
+- Backlog 999.x phases for parked work, promoted later with /gsd-review-backlog
+- Skip backups for greenfield migrations (user preference)
+- A consolidated success-criteria gate plus human end-to-end verification as the last plan of a large phase
+
+### Key Lessons
+1. Keep SUMMARY.md `one_liner` fields filled in. Phase 38 summaries lacked them, and milestone tooling produced a bogus accomplishment. This is a repeat of the v2.0 lesson.
+2. Check the docs against the code at milestone boundaries (the provider mismatch lasted a whole milestone)
+3. Close milestones promptly. A milestone left open for months collects scope that gets parked instead of shipped.
+
+### Cost Observations
+- Model mix: opus (planner), sonnet (executor/verifier); in-game LLM on gpt-5.4 and gpt-5-mini until credits ran out
+- Sessions: not tracked
+- Notable: the next milestone moves in-game generation to Claude Sonnet 5.5 and Haiku 4.5
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -58,9 +97,12 @@
 |-----------|----------|--------|------------|
 | v1.0 | ~30 | 23 | Established GSD workflow, phase/plan pattern |
 | v2.0 | ~10 | 7 | Heavy quick task usage (60), LLM integration patterns |
+| v2.1 | n/a | 3 (+5 parked) | Test-first cleanup, wave-based platform upgrade, Backlog parking |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. Quick tasks handle polish and bug fixes more efficiently than full phases
 2. Clean breaks from legacy systems avoid migration debt
 3. Data-driven patterns (config tables, dispatch maps) scale better than hardcoded switches
+4. Tests before large removals or upgrades make them safe (v2.1 Phases 31 → 32/38)
+5. SUMMARY.md one_liner fields must be filled in for milestone tooling (v2.0, v2.1)
