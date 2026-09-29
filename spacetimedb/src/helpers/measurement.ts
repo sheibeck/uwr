@@ -272,3 +272,137 @@ export function evaluateGate(input: GateInput): GateResult {
   if (loads.some((l) => l.inFlight <= 2)) return result('no_go', null);
   return result('incomplete', null);
 }
+
+// ---------------------------------------------------------------------------
+// Failure classification
+// ---------------------------------------------------------------------------
+
+/**
+ * Classify one call outcome. Returns null for a success.
+ * - platform: fetch threw, result row missing, or no response at all
+ * - upstream: HTTP 429 or any 5xx (including 529 overloaded)
+ * - auth: 401 / 403
+ * - request: other 4xx (400, 404, 413, ...)
+ * - content: HTTP 200 but the body failed the content checks
+ * - spend_cap: blocked locally before any request was made
+ */
+export function classifyFailure(o: {
+  threw: boolean;
+  status: number | null;
+  rowMissing?: boolean;
+  contentOk?: boolean;
+  capBlocked?: boolean;
+}): FailureClass | null {
+  if (o.capBlocked) return 'spend_cap';
+  if (o.rowMissing) return 'platform';
+  if (o.threw) return 'platform';
+  const s = o.status;
+  if (s === null) return 'platform';
+  if (s === 200) return o.contentOk === false ? 'content' : null;
+  if (s === 429 || s >= 500) return 'upstream';
+  if (s === 401 || s === 403) return 'auth';
+  if (s >= 400) return 'request';
+  return 'platform';
+}
+
+// ---------------------------------------------------------------------------
+// Spend-cap cost math (micro-USD)
+// ---------------------------------------------------------------------------
+
+/** Sonnet 5.5 list prices: $ per MTok equals micro-USD per token. */
+export const CLAUDE_PRICE_MICRO_USD_PER_TOKEN = {
+  input: 2,
+  output: 10,
+  cacheWrite: 2.5,
+  cacheRead: 0.2,
+} as const;
+
+export interface Usage {
+  input: number;
+  output: number;
+  cacheWrite: number;
+  cacheRead: number;
+}
+
+/** Cost of a completed call from its four usage counts, rounded up. */
+export function estimateCostMicroUsd(u: Usage): number {
+  const p = CLAUDE_PRICE_MICRO_USD_PER_TOKEN;
+  return Math.ceil(
+    u.input * p.input + u.output * p.output + u.cacheWrite * p.cacheWrite + u.cacheRead * p.cacheRead,
+  );
+}
+
+/**
+ * Conservative up-front reservation: 3 request characters per input token,
+ * charged at the cache-write price, plus the full max_tokens at the output price.
+ */
+export function reserveCostMicroUsd(maxTokens: number, requestChars: number): number {
+  const p = CLAUDE_PRICE_MICRO_USD_PER_TOKEN;
+  const inputTokens = Math.ceil(requestChars / 3);
+  return Math.ceil(inputTokens * p.cacheWrite + maxTokens * p.output);
+}
+
+/**
+ * Replace a reservation with the real cost. A thrown fetch keeps the
+ * reservation (billing unknown, never under-count); otherwise actual usage
+ * when present; otherwise 0 (an error response without usage is not billed).
+ */
+export function settleCostMicroUsd(o: {
+  threw: boolean;
+  status: number | null;
+  usage: Usage | null;
+  reservedMicroUsd: number;
+}): number {
+  if (o.threw) return o.reservedMicroUsd;
+  if (o.usage) return estimateCostMicroUsd(o.usage);
+  return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Secret guards
+// ---------------------------------------------------------------------------
+
+// Built from fragments at runtime so this source never holds a key-shaped literal.
+const KEY_PREFIX = ['sk', '-ant-'].join('');
+const KEY_TAIL = ['[A-Za-z0-9', '_', '-]{20,}'].join('');
+const MIN_NEEDLE_LENGTH = 8;
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function usableNeedles(needles: readonly string[] | undefined): string[] {
+  return (needles ?? []).filter((n) => n.length >= MIN_NEEDLE_LENGTH);
+}
+
+/**
+ * Replace every key-shaped string and every supplied needle (8+ chars) with
+ * [REDACTED]. Safe to call repeatedly; holds no regex state between calls.
+ */
+export function redactSecrets(text: string, needles?: readonly string[]): string {
+  let out = text.replace(new RegExp(escapeRegExp(KEY_PREFIX) + KEY_TAIL, 'g'), '[REDACTED]');
+  for (const n of usableNeedles(needles)) {
+    out = out.replace(new RegExp(escapeRegExp(n), 'g'), '[REDACTED]');
+  }
+  return out;
+}
+
+/**
+ * Count secret occurrences. patternHits counts key-shaped strings, or every
+ * bare key prefix when strictPrefix is true. needleHits counts occurrences of
+ * each needle of 8+ characters.
+ */
+export function findSecretLeaks(
+  text: string,
+  opts: { needles?: readonly string[]; strictPrefix?: boolean } = {},
+): { patternHits: number; needleHits: number; total: number } {
+  const pattern = opts.strictPrefix
+    ? new RegExp(escapeRegExp(KEY_PREFIX), 'g')
+    : new RegExp(escapeRegExp(KEY_PREFIX) + KEY_TAIL, 'g');
+  const patternHits = (text.match(pattern) ?? []).length;
+  let needleHits = 0;
+  for (const n of usableNeedles(opts.needles)) {
+    needleHits += (text.match(new RegExp(escapeRegExp(n), 'g')) ?? []).length;
+  }
+  return { patternHits, needleHits, total: patternHits + needleHits };
+}
