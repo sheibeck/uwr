@@ -55,9 +55,46 @@ Task IDs are filled in by the planner. The requirement-level map, taken from 39-
 | SPIKE-03 | Dispatch p95 over 50 no-ops; `ctx.sender` findings; baseline vs load ping and tick p95 | live + evidence | `results.dispatch`, `results.sender`, `results.load[]` populated; verdict recomputed | ❌ W3 | ⬜ pending |
 | SPIKE-04 | Results file is well-formed with no key material, and the recorded verdict equals `evaluateGate`, recomputed from the raw samples | unit (kept) | `pnpm --dir spacetimedb exec vitest run src/helpers/measurement.results.test.ts` | ❌ W0 | ⬜ pending |
 | SPIKE-04 | Decision logged | doc check | `grep -c "Decision" .planning/phases/39-procedure-to-claude-spike/39-SPIKE-RECORD.md`; `grep -n "Phase 39" .planning/PROJECT.md .planning/STATE.md` | ❌ W4 | ⬜ pending |
-| Cleanup | Production files reverted; no spike remnants | shell | `git diff <start-sha> --stat -- spacetimedb/src/index.ts spacetimedb/src/schema/tables.ts` is empty; `git grep -il spike -- spacetimedb/src` is empty; `pnpm --dir spacetimedb test`; `spacetime list` shows no `uwr-spike` | ❌ W4 | ⬜ pending |
+| Cleanup | Production files reverted; no spike remnants | shell | `git diff <start-sha> --stat -- spacetimedb/src/index.ts spacetimedb/src/schema/tables.ts` is empty; whole-src diff against the start SHA (spike dir and kept helpers excluded) is empty; the cleanup identifier-pattern grep (see note below) over `spacetimedb/src` is empty; `pnpm --dir spacetimedb test`; `spacetime describe --json uwr-spike --server local --no-config -y` fails while `probe-uwr` succeeds | ❌ W4 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+
+### Task-level map (filled by the planner)
+
+| Task | Requirement | Automated verify |
+|------|-------------|------------------|
+| 39-01 T1 | SPIKE-04 | `pnpm --dir spacetimedb exec vitest run src/helpers/measurement.test.ts` (`-t percentile`, `-t gate`) |
+| 39-01 T2 | SPIKE-04 | `pnpm --dir spacetimedb exec vitest run src/helpers/measurement.test.ts` (`-t "failure classes"`, `-t cost`, `-t secrets`) |
+| 39-01 T3 | SPIKE-04 | `pnpm --dir spacetimedb exec vitest run src/helpers/measurement.results.test.ts` |
+| 39-02 T1 | SPIKE-02 | `pnpm --dir spacetimedb exec vitest run src/spike/spike_bodies.test.ts` |
+| 39-02 T2 | SPIKE-01/03 | `pnpm --dir spacetimedb exec vitest run src/spike/` |
+| 39-02 T3 | SPIKE-01 | `pnpm --dir spacetimedb run build && pnpm --dir spacetimedb test` |
+| 39-03 T1 | SPIKE-01 | `node --check` on the three scripts + `node scripts/spike/leak-scan.mjs` |
+| 39-03 T2 | SPIKE-04 | `pnpm exec vitest run --config scripts/spike/vitest.spike.config.ts scripts/spike/guards.live.ts` |
+| 39-03 T3 | (non-gate baseline) | `git diff --quiet -- llm-proxy/src/index.ts` + results `hop` check + leak scan |
+| 39-04 T1 | SPIKE-01 | `node scripts/spike/cli.mjs server-up && node scripts/spike/cli.mjs probe-uwr` + bindings present |
+| 39-04 T2 | SPIKE-03 | `... vitest ... scripts/spike/smoke.live.ts` |
+| 39-04 T3 | SPIKE-01 | `... vitest ... scripts/spike/canary.live.ts && node scripts/spike/leak-scan.mjs --require-server` |
+| 39-05 T1 | SPIKE-01/02/03 | `... vitest ... scripts/spike/free.live.ts` + leak scan |
+| 39-05 T2 | SPIKE-03 | `... vitest ... scripts/spike/baseline.live.ts` + leak scan |
+| 39-06 T1 | manual (key) | `node scripts/spike/set-key.mjs --dry-run` |
+| 39-06 T2 | SPIKE-01 | `node scripts/spike/set-key.mjs --dry-run && node scripts/spike/leak-scan.mjs --require-server` |
+| 39-06 T3 | SPIKE-01 | `... vitest ... scripts/spike/ladder.live.ts` + leak scan |
+| 39-07 T1 | SPIKE-02 | `... vitest ... scripts/spike/structured.live.ts` + leak scan |
+| 39-07 T2 | SPIKE-02 (also captured) | `pnpm --dir spacetimedb exec vitest run src/spike/` + `... extras.live.ts` + leak scan |
+| 39-08 T1 | SPIKE-03 | `SPIKE_LOAD_DRY_RUN=1 ... scripts/spike/load.live.ts` |
+| 39-08 T2 | SPIKE-03 | `... load.live.ts && ... measurement.results.test.ts && leak scan` |
+| 39-09 T1 | SPIKE-04 | `... verdict.live.ts && ... measurement.results.test.ts && leak scan` |
+| 39-09 T2 | manual (verdict) | user reply recorded |
+| 39-09 T3 | SPIKE-04 | results test (confirmation present, strict verdict reproducible) + leak scan + `Phase 39` in PROJECT.md and STATE.md; spike dirs still present |
+| 39-10 T1 | cleanup | confirmation present, `probe-uwr` clean, `spacetime describe` of `uwr-spike` fails |
+| 39-10 T2 | cleanup | start-SHA diffs empty (two files + whole src minus kept helpers and spike dir), identifier-pattern grep empty, dirs gone, llm-proxy/bindings unchanged, build + full suite |
+
+Note: the cleanup gate (39-10 T2) uses a case-sensitive identifier pattern, not the bare-word `-il spike` grep. The bare word already matches the unrelated, pre-existing `summoner_conjured_spike: 'int'` key in `spacetimedb/src/data/combat_scaling.ts`, so that grep could never pass. The pattern, run as `git grep --untracked -nE '<pattern>' -- spacetimedb/src`, is:
+
+`[Ss]pike[_A-Z/]|SPIKE_|registerSpike|llm_spike|uwr-spike|runSpec|validateSpec|buildRequest|parseResponse|toAnthropicSchema|cutBeforeJsonInstruction|_JSON_SCHEMA|BAD_KEY_VALUE|MAX_TOKENS|DEFAULT_TIMEOUT_MS|ANTHROPIC_VERSION|MODELS_URL|CLI_IDENTITY|SPEND_CAP_MICRO_USD|c200252497b98fff`
+
+On 2026-09-29 it matched all 52 identifier forms from 39-02 and 39-07 (tables, procedures, reducers, types, exports, import paths, the build tag, the CLI identity and the registration call) and nothing in the tree. The kept helpers are checked against the same pattern in 39-01 T3, and also contain no occurrence of the word at all (per-file `grep -ci spike` gates in 39-01). The kept `measurement.results.test.ts` locates the results file by the `39-` folder prefix and `-results.json` suffix.
 
 ---
 
