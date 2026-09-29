@@ -92,8 +92,8 @@ spacetime logs <db-name>
 
 # SpacetimeDB TypeScript SDK
 
-> **Tested with:** SpacetimeDB runtime 1.11.x, npm `spacetimedb` 1.11.x  
-> **Last updated:** 2026-01-06
+> **Tested with:** SpacetimeDB runtime 2.10.x, npm `spacetimedb` 2.10.x  
+> **Last updated:** 2026-09-29
 
 ---
 
@@ -152,7 +152,7 @@ const [items, isLoading] = useTable(tables.item);
 | `const id = table.insert(...)` | `const row = table.insert(...)` | `.insert()` returns ROW, not ID |
 | `.unique()` + explicit index | Just use `.unique()` | "name is used for multiple entities" |
 | Import spacetimedb from index.ts | Import from schema.ts | "Cannot access before initialization" |
-| Multi-column index `.filter()` | **⚠️ BROKEN** — use single-column | PANIC or silent empty results |
+| Multi-column index `.filter()` on an SDK older than 2.7 | Use 2.7+ (this repo: 2.10.x) and filter on a prefix of the index columns | PANIC or silent empty results (pre-2.7 only) |
 | `.iter()` in views | Use index lookups only | Views can't scan tables |
 | `ctx.db` in procedures | `ctx.withTx(tx => tx.db...)` | Procedures need explicit transactions |
 | `ctx.myTable` in procedure tx | `tx.db.myTable` | Wrong context variable |
@@ -181,14 +181,14 @@ import { schema, table, t } from 'spacetimedb/server';
 export const Task = table({ name: 'task' }, {
   id: t.u64().primaryKey().autoInc(),
   ownerId: t.identity(),
-  indexes: [{ name: 'by_owner', algorithm: 'btree', columns: ['ownerId'] }]  // ❌ WRONG!
+  indexes: [{ accessor: 'by_owner', algorithm: 'btree', columns: ['ownerId'] }]  // ❌ WRONG!
 });
 
 // ✅ RIGHT — indexes in OPTIONS (first argument)
 export const Task = table({ 
   name: 'task',
   public: true,
-  indexes: [{ name: 'by_owner', algorithm: 'btree', columns: ['ownerId'] }]
+  indexes: [{ accessor: 'by_owner', algorithm: 'btree', columns: ['ownerId'] }]
 }, {
   id: t.u64().primaryKey().autoInc(),
   ownerId: t.identity(),
@@ -241,8 +241,8 @@ export const spacetimedb = schema(Table1, Table2, Table3);
 ### Naming convention
 - **Tables**: camelCase in `ctx.db` even if snake_case in schema
   - `table({ name: 'my_table' })` → `ctx.db.myTable`
-- **Indexes**: exact declared name
-  - `indexes: [{ name: 'by_owner' }]` → `ctx.db.myTable.by_owner`
+- **Indexes**: accessed by their declared `accessor` (required since 2.0.4)
+  - `indexes: [{ accessor: 'by_owner' }]` → `ctx.db.myTable.by_owner`
 
 ### Filter vs Find
 ```typescript
@@ -253,12 +253,14 @@ const rows = [...ctx.db.task.by_owner.filter(ownerId)];
 const row = ctx.db.player.identity.find(ctx.sender);
 ```
 
-### ⚠️ Multi-column indexes are BROKEN
-```typescript
-// ❌ DON'T — causes PANIC
-ctx.db.scores.by_player_level.filter(playerId);
+### Multi-column indexes (fixed in 2.7 / 2.8)
+Prefix scans on a multi-column btree index work since 2.7.0, and composite range scans since 2.8.0. Older SDKs panicked or returned empty results, which is why earlier notes said to avoid them.
 
-// ✅ DO — use single-column index + manual filter
+```typescript
+// ✅ Prefix scan on a two-column index (2.7.0+)
+const rows = [...ctx.db.scores.by_player_level.filter(playerId)];
+
+// ✅ Also fine: single-column index + manual filter
 for (const row of ctx.db.scores.by_player.filter(playerId)) {
   if (row.level === targetLevel) { /* ... */ }
 }
@@ -302,6 +304,7 @@ spacetimedb.clientDisconnected((ctx) => {
 ### Snake_case to camelCase conversion
 - Server: `spacetimedb.reducer('do_something', ...)` 
 - Client: `conn.reducers.doSomething({ ... })`
+- Generated client table handles are camelCase since 2.7.0 (`conn.db.abilityCooldown`); snake_case handles (`conn.db.ability_cooldown`) remain as deprecated aliases. Optional row fields are generated as `foo?:` since 2.6.1.
 
 ### Object syntax required
 ```typescript
@@ -320,7 +323,7 @@ conn.reducers.doSomething({ param: 'value' });
 // Scheduled table MUST use scheduledId and scheduledAt columns
 export const CleanupJob = table({ 
   name: 'cleanup_job', 
-  scheduled: 'run_cleanup'  // reducer name
+  scheduled: () => runCleanup,  // function form (2.x); string reducer names are not accepted
 }, {
   scheduledId: t.u64().primaryKey().autoInc(),
   scheduledAt: t.scheduleAt(),
@@ -328,7 +331,7 @@ export const CleanupJob = table({
 });
 
 // Scheduled reducer receives full row as arg
-spacetimedb.reducer('run_cleanup', { arg: CleanupJob.rowType }, (ctx, { arg }) => {
+export const runCleanup = spacetimedb.reducer('run_cleanup', { arg: CleanupJob.rowType }, (ctx, { arg }) => {
   // arg.scheduledId, arg.targetId available
   // Row is auto-deleted after reducer completes
 });
@@ -399,7 +402,7 @@ if (scheduleAt.tag === 'Time') {
 // Private table with index on ownerId
 export const PrivateData = table(
   { name: 'private_data',
-    indexes: [{ name: 'by_owner', algorithm: 'btree', columns: ['ownerId'] }]
+    indexes: [{ accessor: 'by_owner', algorithm: 'btree', columns: ['ownerId'] }]
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -505,7 +508,7 @@ const isOwner = row.ownerId.toHexString() === myIdentity.toHexString();
 ```
 src/schema.ts   → Tables, export spacetimedb
 src/index.ts    → Reducers, lifecycle, import schema
-package.json    → { "type": "module", "dependencies": { "spacetimedb": "^1.11.0" } }
+package.json    → { "type": "module", "dependencies": { "spacetimedb": "^2.10.1" } }
 tsconfig.json   → Standard config
 ```
 
@@ -525,11 +528,11 @@ src/config.ts        → MODULE_NAME, SPACETIMEDB_URI
 
 ---
 
-## 10) Procedures (Beta)
+## 10) Procedures
 
 **Procedures are for side effects (HTTP requests, etc.) that reducers can't do.**
 
-⚠️ Procedures are currently in beta. API may change.
+Procedures and `ctx.http` are stable since SpacetimeDB 2.5.0; `ctx.sender` inside procedures is correct since 2.6.1.
 
 ### Defining a procedure
 ```typescript
