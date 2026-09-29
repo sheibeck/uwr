@@ -1,168 +1,332 @@
 # Project Research Summary
 
-**Project:** UWR v2.1 -- Project Cleanup
-**Domain:** Browser RPG (SpacetimeDB + Vue 3), cleanup/polish milestone
-**Researched:** 2026-03-09
-**Confidence:** HIGH
+**Project:** UWR v2.2 LLM — Claude Engine
+**Domain:** Server-authoritative multiplayer narrative RPG (SpacetimeDB 2.10.1 TS module + Vue 3), migrating LLM generation from OpenAI-via-browser-proxy to Anthropic Claude
+**Researched:** 2026-09-29
+**Confidence:** MEDIUM-HIGH. Anthropic and SpacetimeDB API facts are HIGH. V8 concurrency, procedure HTTP error semantics and all latency numbers are unmeasured until the spike.
+
+## Decisions that override the research files
+
+1. **One model: `claude-sonnet-5-5` for every call. No Haiku anywhere.**
+   - Superseded:
+     - per-model tiering
+     - the two-model `MODEL_CAPS` matrix
+     - heavy/light budget pools split by model
+     - the Haiku 4096-token cache floor and retirement risk
+     - "omit effort on Haiku" branching
+   - Kept:
+     - The model ID lives in one constants module (`data/llm_models.ts`).
+     - Per-route settings (effort, `max_tokens`, timeout, schema) live in `data/llm_routes.ts`.
+2. **Direct first, fallback second.**
+   - Phase 1 is a go/no-go spike of scheduled SpacetimeDB procedures calling Claude via `ctx.http.fetch`. Local is automatic. The maincloud leg is a manual user publish.
+   - Pass: procedure executor, and retire `llm-proxy/`, `useLlmProxy` and the localStorage secret.
+   - Fail: backend service (contingent). Don't plan it in detail unless the spike fails.
+3. Every phase ships unit tests.
 
 ## Executive Summary
 
-UWR v2.1 is a cleanup and polish milestone for an existing browser RPG built on SpacetimeDB (TypeScript backend) and Vue 3 (SPA client). The codebase is 52K+ lines with significant technical debt from v1.0/v2.0: duplicated logic between intent router and reducers, zero unit tests on the 2,767-line combat engine, 7+ data files marked for deletion that are still imported by 18+ consumers, and a legacy panel UI running alongside the newer narrative console. No new dependencies are needed -- the existing stack (SpacetimeDB 1.12, Vue 3, Vite, Vitest) covers every v2.1 feature.
+UWR needs a server-owned LLM pipeline.
 
-The recommended approach is test-first, cleanup-second, features-third. The single highest-risk area is the combat engine: it has no tests, touches every game system, and multiple v2.1 features (rebalancing, logging, equipment generation) modify it. Building test infrastructure first -- specifically a unified mock DB utility and pure-function extraction from combat.ts -- enables safe changes everywhere else. Dead code removal comes second because it reduces the surface area for all subsequent work, but it must be done methodically (one file at a time, import-traced, compile-verified) due to the stale deletion list and dynamic reducer references.
+- **Today:** every call takes about five hops through the player's browser tab (reducer, public `llm_task`, subscription push, Cloudflare Worker, OpenAI, `submit_llm_result`).
+- **Target:**
+  - A reducer inserts a private job row and a schedule row in its own transaction.
+  - A scheduled procedure calls `https://api.anthropic.com/v1/messages` with raw `ctx.http.fetch`. No SDK can run in the module.
+  - The result is applied server-side. Clients only subscribe to results and a status view.
+- **Why:** this is mainly a security, reliability and simplicity win. Results survive tab close, there are no double-tab calls and no browser secret. Hop removal saves only about 0.1 to 0.5 s against waits of 2 to 60 s. The real latency levers are effort, output size, caching, staged generation and speculative pre-generation.
 
-The hardest feature is dynamic equipment generation, but 80% of the infrastructure already exists (rarity rolling, affix generation, quality tiers, tier weight tables). The gap is a ~200-300 line function to generate item_template rows from formulas rather than selecting from a static pool. This must wait until mechanical constraints from the existing item_defs.ts are extracted into mechanical_vocabulary.ts and validated server-side. Everything else (sell integration, hotbar, font scaling, combat logging) is low-to-medium complexity wiring work.
+**Sonnet 5.5 rules for the request builder:**
+
+- It thinks by default at effort `high`, so set `output_config.effort` explicitly (start `low`).
+- `max_tokens` is required, and thinking counts against it.
+- These are all 400s: `thinking:{type:"disabled"}`, `budget_tokens`, non-default `temperature`/`top_p`/`top_k`, prefill, forced `tool_choice`.
+- Parse the first `text` block, not `content[0]`.
+- Check `stop_reason` (`max_tokens`, `refusal`) before parsing.
+- JSON routes use `output_config.format` with a static, subset-linted schema. The v2.0 validators stay as the real enforcement, because schemas can't express ranges.
+- Sonnet's 512-token cache minimum makes caching viable on a shared Keeper preamble. The Haiku plan couldn't do that.
+
+**Cost:** about 2x per token for the former gpt-5-mini routes (NPC chat, combat narration, skills, renown). A call at 4K in / 1.5K out is about $0.023, so an all-Sonnet 50-call day is about $1.15 per player. The flat 50-call budget must become cost-weighted, with a global ceiling and kill switch.
+
+**Main risks:**
+
+- **Platform:** a blocking `ctx.http.fetch` parks a V8 worker per call, and the pool never shrinks (SpacetimeDB #4697). With all-Sonnet traffic there are no fast calls to make this a non-issue.
+  - Mitigate with a global in-flight cap (start 4 to 6) and tight per-route timeouts.
+  - The spike must measure reducer and combat-tick latency under concurrent calls.
+- **Undiagnosed 2.0.1 failure:** it was never confirmed as a timeout, and could be a DNS/egress filter. The spike must read logs and run a three-rung ladder.
+
+## Reconciling disagreements
+
+| Topic | Conflict | Recommendation |
+|---|---|---|
+| **Fallback shape** | STACK: procedure keeps `ctx.http.fetch` but targets Cloud Run with a bearer secret. ARCHITECTURE: "DB is the queue", where an allowlisted service identity subscribes and writes back through service-only reducers. | **Use ARCHITECTURE's D2 (DB as queue).** See the D2 rationale below. |
+| **Queue table** | STACK: convert `llm_task` to a schedule table. ARCHITECTURE: new private `llm_job` + `llm_dispatch`. | **New tables** (`llm_job`, `llm_dispatch`, `llm_spend`, `llm_call_log`). This avoids altering populated tables and `--clear-database`, which also wipes the key. Drop the old tables in a second publish, after purging their rows. |
+| **Transactions** | PITFALLS: 2. ARCHITECTURE: 3 (claim, fetch, persist+settle, apply). | **Use 3.** Persisting the paid response first lets an apply failure re-run from stored text with no second billed call. The job row is the state machine, because scheduled procedures delete the schedule row before running. |
+| **Hop value** | FEATURES leans on it; the other two files estimate 0.1 to 0.5 s. | Treat hops as a reliability and security win. Don't promise latency from hops or caching. Take a real baseline in the spike. |
+| **Caching** | Layered 1 h bible TTL vs skip for one-shot routes vs "cost lever only". | Cache the bible and per-route block. Use 5 min TTL, or 1 h on the bible if traffic is sparse. Put volatile content last. Adopt per route only where `cache_read_input_tokens > 0`. Keep one static schema per route. |
+| **Budget pools and model branching** | FEATURES: heavy/light pools, per-model builder. | Superseded. Use one cost-weighted per-player daily spend in micro-USD (reserve then settle), plus a global ceiling and kill switch, plus a call-count backstop. Keep a test that no forbidden keys appear in any request body. |
+| **Server-side `fallbacks` beta** | ARCHITECTURE: off-by-default route flag. STACK: skip. | Skip. It adds a beta header and doesn't retry `general_harms`. Handle refusal with an in-voice line and let the player rephrase. |
+
+**D2 rationale:**
+
+- STACK's variant still pins a V8 thread per call. That is the exact risk that would trigger the fallback.
+- STACK's variant needs a public URL, because loopback is blocked and local dev would need a tunnel.
+- STACK's variant fails if procedure HTTP itself is the problem.
+- D2 works against local SpacetimeDB and keeps credentials out of the browser.
+- D2 is the only shape that enables streaming.
+- D2's cost is one long-lived service-identity secret with a tiny blast radius (claim and complete queued jobs only).
+- Host on Cloud Run, where WIF has an ambient OIDC token. Cloudflare Workers can't get a workload identity, so Workers means a static API key, not WIF.
+
+## Security and correctness defects (fix regardless of path)
+
+1. **Public `llm_task` leaks prompts.**
+   - The table is `public: true` and stores full `systemPrompt`/`userPrompt`. Any client can read every player's prompts, including NPC secrets, memory and other players' free text.
+   - The new job table must be private. Clients get only a per-player status view (`my_llm_jobs`, index lookup, no prompts).
+   - Add a test that `llm_config` and `llm_job` are not public.
+2. **Client-trusted `submit_llm_result`.**
+   - Any player can submit hand-written "LLM output" for their own task, and it gets applied (classes, abilities, regions, NPC memory, affinity).
+   - Delete the reducer in the cutover phase.
+   - If D2 is used, gate write-back to an allowlisted service identity.
+3. **Renown insert bug.**
+   - `helpers/renown.ts:84` inserts `completedAt`, `resultText` and `errorMessage`, which are not `LlmTask` columns.
+   - The `try/catch` swallows it and falls back to the static perk pool, so LLM renown perks likely never fire.
+   - Fix it in Phase 2 with a regression test.
+4. **`maxTokens` never exercised.** The proxy never forwarded it, so the 400/500/1024/1500/2048 values have never run. Re-derive them from measured output, with thinking included.
+5. **Budget races.** Budget increments at enqueue for NPC but at result for the other routes, with no reservation. Replace with reserve then settle.
+6. **Browser credentials.**
+   - `localStorage.llm_proxy_secret` and `VITE_LLM_PROXY_*` persist after the code is deleted.
+   - Ship a one-time `removeItem` and grep `dist/`.
+
+## Streaming decision
+
+Procedures can't stream. `ctx.http.fetch` is synchronous and returns a fully buffered `SyncResponse`. JSON domains can't show partial output anyway. NPC chat and combat narration are short and already animated by the typewriter.
+
+**Recommendation: keep "Streaming LLM responses" in Out of Scope for v2.2.** Revisit only if the spike fails and the D2 backend is built anyway, or if measured NPC-chat latency is unacceptable. In that case NPC and combat prose could stream through throttled progress rows. Record the decision in PROJECT.md either way.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new dependencies. The existing stack handles all v2.1 requirements. See [STACK.md](STACK.md) for full analysis.
+No new npm dependencies on the primary path.
 
-**Core technologies (all existing):**
-- **SpacetimeDB 1.12.0**: Backend runtime -- server-authoritative, table subscriptions drive all client state
-- **Vue 3 + Vite**: SPA client -- thin layer that renders useTable() data and calls reducers
-- **Vitest 3.2.1**: Already installed, two test files exist with Proxy-based mock DB pattern
-- **Cloudflare Workers + Hono**: LLM proxy -- unchanged for v2.1
+- The key stays in the private `llm_config` singleton, set by admin `set_api_key`.
+- Use a dedicated Console workspace with spend and rate limits, and a single-workspace service-account key with expiry.
+- WIF isn't obtainable from a module, so direct path means a scoped API key.
 
-**Explicitly rejected:** Zod, Lodash, Chart.js, @vue/test-utils, Tailwind, Pinia, ESLint. Each has a specific rationale in STACK.md. The key principle: SpacetimeDB subscriptions ARE the state management, and the existing inline style approach should not be replaced mid-milestone.
+**Core technologies:**
+
+- Anthropic Messages API (`anthropic-version: 2023-06-01`, `x-api-key`) via raw `ctx.http.fetch`.
+- `claude-sonnet-5-5`: $2/$10 per MTok, cache read $0.20, 512-token cache minimum, retirement not before 2027-09-28.
+- `effort: "low"`, sweeping `low` vs `medium`. `thinking:{type:"between_tools"}` is an untested thinking-off variant. Check in the spike that it composes with `output_config.format`.
+- `output_config.format` schema mapping:
+  - drop `name` and `strict`
+  - `['number','null']` becomes `anyOf`
+  - no min/max/length/recursion
+  - `additionalProperties:false`
+- SpacetimeDB 2.10.1 scheduled procedures: `procedure({name, onSchedule}, ..., t.unit(), fn)`. The `name` is required by the repo's `_wrapMethod`. Use `ctx.withTx` and an explicit `TimeDuration` (default 30 s, max 180 s).
+- Fallback only: `@anthropic-ai/sdk ^0.129`, Hono, Cloud Run + WIF, Node 22.
 
 ### Expected Features
 
-See [FEATURES.md](FEATURES.md) for full landscape with complexity estimates.
-
 **Must have (table stakes):**
-- Sell items via narrative command -- reducers exist but intent router duplicates logic and misses perk bonuses
-- Combat log completeness -- DoT ticks, HoT ticks, buff/debuff apply/expire, shield absorption all missing
-- DoT/HoT/debuff indicators on enemies -- combat_enemy_effect table exists, client needs rendering
-- Hotbar visible in narrative UI -- composable exists, legacy panel uses outdated API
-- Equipment drops scaled to level -- generation functions exist, gap is dynamic item_template creation
-- Dead code removal -- 15+ files identified, but deletion list is stale vs. current imports
 
-**Should have (differentiators):**
-- Power-scaled dynamic equipment generation -- unique drops per encounter, 80% infrastructure built
-- Narrative event feed styling -- color-coded events by kind (combat/reward/system/social)
-- Global font scale control -- CSS custom property + rem-based scaling, low effort
-- Narrative sell experience -- Keeper-narrated transactions
+- central models/routes constants
+- one pure builder/parser
+- structured outputs with validators retained
+- stop-reason handling
+- error taxonomy (401/402/403 alert, 429 with or without `retry-after`, spend-cap no retry, 529/5xx one rescheduled retry)
+- per-route timeouts
+- graceful degradation with locks released and budget uncharged on failure
+- cost-weighted budget from all four usage fields, plus a global cap and kill switch
+- private job table and call log
+- admin live smoke test (also schema warm-up)
+- key status
+- sweeper
+- results survive refresh
+- prompt layering with cache logging
+- staged in-voice progress lines
+- droppable combat narration
+- golden-set tone eval
 
-**Defer to v2.2:**
-- Ability type expansion for non-combat systems -- new kinds (craft_boost, gather_boost, travel_speed) require vocabulary + dispatch + tests, too much scope for cleanup milestone
+**Should have (after core validates):**
+
+- staged generation (world gen stage 1 region, start location and first NPC, then stage 2 the rest; class identity and first ability first)
+- speculative class generation (Warrior and Mystic in parallel)
+- shared canon cache block
+- coalesced combat narration
+- `/llm stats`
+
+**Defer (v2.3+):**
+
+- streaming (conditional on D2)
+- level-up skill pre-generation
+- Batch API
+- speculative neighbor-region generation (contradicts "world built through play")
 
 ### Architecture Approach
 
-Two-tier architecture: SpacetimeDB tables/reducers as source of truth, Vue 3 SPA as reactive renderer. All mutations flow through reducers. Client subscribes via useTable(). No optimistic UI. See [ARCHITECTURE.md](ARCHITECTURE.md) for component map.
+- `enqueueLlmJob` runs in the triggering reducer's transaction. It does budget reserve, per-player, same-target (`by_source_location`) and global in-flight caps, then inserts `llm_job` and `llm_dispatch`.
+- The executor claims the job, builds the request from fresh state, calls Claude, persists the result and usage, then `applyLlmResult` (extracted from the ~700-line `submit_llm_result`) applies it.
+- Retry means re-inserting a schedule row with backoff, because procedures can't sleep. The sweeper re-runs apply from stored text.
 
-**Key patterns to follow:**
-1. **Extract-and-delegate** -- duplicated logic (sell in intent.ts vs. sell_item reducer) must be extracted to shared helpers
-2. **Server-authoritative kind dispatch** -- all ability kinds resolve through resolveAbility() on server, client calls useAbility uniformly (remove client-side kind interception in useHotbar.ts)
-3. **Event-driven UI** -- server emits granular events, client renders them; no optimistic state
+**Major components:**
 
-**Files to create:** `helpers/economy.ts` (shared sell logic), `composables/useSettings.ts` (font scale)
-**Files to potentially delete:** `HotbarPanel.vue` (legacy, uses outdated abilityKey API)
+1. `helpers/claude_request.ts` (pure): build, parse, classify. Shared with any fallback backend.
+2. `helpers/llm_queue.ts`: enqueue, reserve/settle, caps, dedupe, claim.
+3. `reducers/llm_procedures.ts`: the `llm_run` scheduled procedure.
+4. `helpers/llm_apply.ts`: per-domain apply/failure.
+5. `data/llm_routes.ts`, `data/llm_models.ts`, `data/keeper_bible.ts`.
+6. `views/llm.ts` + `useLlmStatus.ts`: replaces `useLlmProxy`.
 
 ### Critical Pitfalls
 
-See [PITFALLS.md](PITFALLS.md) for all 13 pitfalls with prevention strategies.
-
-1. **Deleting still-imported data files** -- 18+ server files and 1+ client file import from the "dead" data files. Trace ALL imports (both snake_case and camelCase) before any deletion. Migrate consumers first, delete one file at a time, compile-verify each.
-2. **Breaking combat during rebalancing** -- 2,767-line file with zero tests and cascading formula dependencies. Write combat tests BEFORE any constant changes. Extract pure functions for isolated testing.
-3. **Dynamic equipment producing invalid items** -- item_defs.ts encodes implicit rules (armor class restrictions, stat ranges, slot vocabulary) not yet in mechanical_vocabulary.ts. Extract rules first, validate server-side, extend existing affix system.
-4. **Test mock divergence from SpacetimeDB** -- two independent mock implementations exist. Unify into shared test-utils.ts before writing new tests. Prioritize pure function tests that need no mocking.
-5. **Combat logging revealing hidden bugs** -- adding log entries will expose incorrect effect calculations. Budget 2x time for "log + investigate + fix" per effect type.
+1. **Spike misdiagnosis (DNS/SSRF/egress).** Run a three-rung ladder on local and maincloud: public URL, `GET /v1/models`, tiny Sonnet POST. Also run `nslookup`, record versions, and read logs for `errno: 21`.
+2. **Blocking fetch pins a V8 instance per call.** Use an in-flight cap of 4 to 6 and explicit timeouts. Spike-test tick punctuality, same-connection reducer latency and memory at 8 concurrent calls. The client must never await an LLM procedure.
+3. **Transaction boundaries and lost jobs.**
+   - No fetch in `withTx`, and no async `withTx`.
+   - Scheduled procedures delete the schedule row first.
+   - Publish mid-flight can kill a call.
+   - Anthropic has no idempotency key.
+   - Use the job row as state machine, a status-guarded apply, persist-then-apply and a sweeper.
+   - Never auto-retry creation or world gen without player action.
+4. **OpenAI-shaped requests and Sonnet parameter rules.** Raw HTTP doesn't strip unsupported schema keywords the way the SDK does. Unit-test body snapshots and add a schema linter.
+5. **Budget and key handling.**
+   - Sum all four usage fields, since thinking counts as output.
+   - Charge in one place.
+   - `--clear-database` wipes the key, so write a runbook.
+   - Redaction test: never log headers or bodies.
+   - Set the key from an env var, not shell args.
+6. **Tone drift and injection.** Build a golden set of about 25 prompts (5 adversarial). Use delimiter tags around player text, and an in-voice refusal line.
 
 ## Implications for Roadmap
 
-Based on combined research, here is the recommended phase structure. The ordering is driven by dependency chains and risk mitigation.
+Suggested phases: 6.
 
-### Phase 1: Test Infrastructure
-**Rationale:** Every subsequent phase needs safe change validation. Combat rebalancing, dead code removal, and equipment generation all risk breaking existing behavior. Tests must come first.
-**Delivers:** Unified mock DB utility (merged from 2 existing implementations), pure function extraction from combat.ts, combat regression test suite covering damage formulas, crit calculation, stat scaling, DoT/HoT tick values.
-**Addresses:** Foundation for all features; directly prevents Pitfalls #2 (combat breakage), #6 (mock divergence), #7 (hidden effect bugs)
-**Avoids:** Pitfall #6 -- unify mocks before proliferating test files with independent mock implementations
+### Phase 1: Procedure + Claude Spike (go/no-go gate)
 
-### Phase 2: Dead Code Removal
-**Rationale:** Reduces 52K+ LOC surface area before any feature work. Every subsequent phase benefits from less confusion and fewer stale imports. Must come after test infrastructure so removal can be verified.
-**Delivers:** Removal of legacy v1.0 components, unused seeded data files, obsolete reducers. Clean import graph.
-**Addresses:** Dead code removal (table stakes), partial HotbarPanel.vue cleanup
-**Avoids:** Pitfalls #1 (still-imported files), #3 (dynamically-referenced code), #11 (client imports from server data), #13 (stale bindings)
+- **Rationale:** everything depends on whether procedure HTTP to Anthropic is reliable and leaves the tick loop healthy.
+- **Delivers:** throwaway `spike/llm_spike.ts` plus a decision record. It covers:
+  - the ladder on local, then a manual maincloud leg
+  - Sonnet at `low` and `medium` with real skill and region schemas
+  - `between_tools` combined with structured output
+  - a forced timeout and a bad key (failure shape, header exposure for `retry-after`/`request-id`)
+  - dispatch latency (`ScheduleAt.time(now)`) and `ctx.sender` in scheduled procedures
+  - 6 to 8 concurrent 10 to 15 s calls alongside a ping reducer and combat tick
+  - publish mid-flight
+  - cache read on a repeated prefix
+  - current-path baseline latency
+- **Gate:** go if local and maincloud succeed, dispatch p95 is under about 250 ms, and reducer/tick p95 is under about 2x baseline at the chosen cap. Otherwise Phase 3D.
+- **Avoids:** pitfalls 1, 2, 3.
+- **Research flag:** YES.
 
-### Phase 3: Combat Improvements
-**Rationale:** Combat is the core gameplay loop. Log completeness and balance fixes must precede equipment generation (which feeds into combat rewards). Tests from Phase 1 enable safe constant changes.
-**Delivers:** Complete combat logging (DoT/HoT ticks, buff/debuff apply/expire, shield absorption, CC events), enemy effect display on client, balance constant tuning with test verification, multi-enemy pull verification.
-**Addresses:** Combat log completeness (table stakes), DoT/HoT indicators (table stakes), multi-enemy pull verification (differentiator)
-**Avoids:** Pitfalls #2 (rebalancing without tests), #7 (hidden effect bugs), #12 (multi-pull edge cases)
+### Phase 2: Claude Layer + Executor-Agnostic Seam
 
-### Phase 4: Narrative UI Integration
-**Rationale:** With dead code removed and combat stabilized, wire remaining legacy panel features into the narrative console. Extract shared logic to eliminate duplication.
-**Delivers:** Sell via narrative command (with shared economy helper), hotbar management in narrative UI, event feed styling by kind. Intent routes added before UI migration.
-**Addresses:** Sell items (table stakes), hotbar in narrative UI (table stakes), narrative event feed (differentiator), narrative sell experience (differentiator)
-**Avoids:** Pitfall #5 (losing functionality during UI migration)
+- **Rationale:** invariant to the gate outcome.
+- **Delivers:**
+  - constants modules
+  - layered prompts with player text in delimiter tags
+  - `claude_request.ts`
+  - schema migration and linter
+  - new private tables
+  - `llm_queue.ts`
+  - `llm_apply.ts` extraction
+  - `my_llm_jobs` view
+  - sweeper extension
+  - the renown bug fix
+  - `createMockProcCtx` test utilities (fake `ctx.http`, and `withTx` that rejects promises and can re-invoke)
+- **Avoids:** pitfalls 4, 8, 9, 12, 13, 15.
+- **Research flag:** skip, except verify that `REGION_GENERATION_SCHEMA` compiles.
 
-### Phase 5: Dynamic Equipment Generation
-**Rationale:** Depends on stable combat math (Phase 3) and clean codebase (Phase 2). The 80% existing infrastructure means this is primarily a formula-writing and validation task, not a greenfield build.
-**Delivers:** generateItemTemplate() function for on-the-fly equipment creation, level-scaled stat formulas, server-side validation against mechanical vocabulary, integration with combat victory rewards.
-**Addresses:** Equipment drops scaled to level (table stakes), power-scaled dynamic equipment (differentiator)
-**Avoids:** Pitfall #4 (invalid/overpowered items)
+### Phase 3: Procedure Executor and Domain Cutover (3B); or backend service D2 (3D, contingent)
 
-### Phase 6: UX Polish
-**Rationale:** Independent of all other phases. Low risk. Can ship at any point but logically fits as final polish.
-**Delivers:** Global font scale control (CSS custom property + localStorage + settings UI), any remaining visual polish.
-**Addresses:** Global font scale (differentiator)
-**Avoids:** Pitfall #9 (font scaling breaking layout) -- audit CSS units before implementing
+- **Delivers (3B):**
+  - `llm_run` with 3 transactions
+  - in-flight cap
+  - reschedule-based retry
+  - key handling and `llm_status`
+  - redaction test
+  - domain cutover order: NPC, combat narration, skills + renown, creation, world gen
+  - reducers enqueue in-transaction, so there are no client `prepare_*` calls
+  - purge old table rows (publish 1)
+- **Delivers (3D):** `llm-service/` on Cloud Run with WIF, an allowlist, and service-only reducers and views.
+- **Avoids:** pitfalls 3, 4, 5, 6, 11, 12.
+- **Research flag:** YES for 3B backpressure if the spike is marginal. 3D needs full research only if triggered.
+
+### Phase 4: Client Cutover and Deletion
+
+- **Delivers:**
+  - `useLlmStatus`
+  - delete `useLlmProxy.ts`, `useLlm.ts`, `llm-proxy/`, `submit_llm_result`, `validate_llm_request`
+  - drop the `llm_task`/`llm_request` tables (publish 2)
+  - remove the env vars
+  - update README and run-local skill
+  - one-time `localStorage` cleanup and `dist/` grep
+  - regenerate bindings
+- **Closes:** both security defects.
+- **Avoids:** pitfalls 14 and 5.
+- **Research flag:** skip.
+
+### Phase 5: Latency Tuning and Budget Calibration
+
+- **Delivers:**
+  - effort sweep
+  - `max_tokens` from measured p99 x 1.5
+  - cache verification and TTL choice
+  - structured-output vs prompt-JSON A/B on NPC and combat
+  - staged world and class generation
+  - staged progress lines
+  - speculative class generation if the reveal is over about 10 s
+  - recalibrated cost budget, global cap and kill switch
+- **Research flag:** YES.
+
+### Phase 6: Live Verification and Tone Eval
+
+- **Delivers:**
+  - operator-approved live run of every domain with per-route latency percentiles
+  - failure drills: truncation, refusal, 401, 429, 529, spend-cap, timeout
+  - owner-approved golden set
+  - usage reconciled against the Console
+  - key runbook (`--clear-database`, separate local and maincloud keys)
+  - streaming decision recorded
+- **Research flag:** skip.
 
 ### Phase Ordering Rationale
 
-- **Tests before changes:** Phase 1 enables safe work in Phases 2-5. Without tests, combat rebalancing and dead code removal are high-risk guesswork.
-- **Cleanup before features:** Phase 2 removes noise and stale code so Phases 3-5 operate on a clean codebase with accurate import graphs.
-- **Combat before equipment:** Phase 3 stabilizes the combat math that Phase 5's equipment generation feeds into. Equipment stat formulas must be tuned against a known-good combat engine.
-- **Narrative integration is independent:** Phase 4 touches different files (intent.ts, economy helper, Vue components) than Phases 3 and 5. It could run in parallel with Phase 3 if resources allowed.
-- **Polish last:** Phase 6 is purely cosmetic and can ship whenever convenient.
+- The spike gates only the executor, so a failure has low recovery cost.
+- Deletion is separate and uses two publishes, avoiding `--clear-database` and key loss.
+- Measurement precedes optimization.
+- The security defects are closed by architecture in phases 3 and 4. The renown bug is fixed in Phase 2.
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 1 (Test Infrastructure):** The unified mock DB needs careful design to cover all index types (btree, unique, named). Review both existing test files to enumerate all mock patterns needed.
-- **Phase 5 (Dynamic Equipment):** Stat scaling formulas (AC per tier, damage per level) need to be derived from existing item_defs.ts data points. This is reverse-engineering work, not library research.
-
-Phases with standard patterns (skip research-phase):
-- **Phase 2 (Dead Code Removal):** Mechanical process -- trace imports, migrate consumers, delete, compile. No unknowns.
-- **Phase 4 (Narrative UI Integration):** Pattern is established (extract helper, add intent route, wire UI). Architecture research already mapped every file change.
-- **Phase 6 (UX Polish):** CSS custom properties on :root is a well-documented pattern. Styles already use rem units.
+- Needs research: Phases 1, 5, and Phase 3 (conditional).
+- Standard patterns: Phases 2, 4, 6.
 
 ## Confidence Assessment
 
-| Area | Confidence | Notes |
-|------|------------|-------|
-| Stack | HIGH | Direct codebase analysis. No new dependencies needed -- nothing to research. |
-| Features | HIGH | Every feature traced to existing code with line-number specificity. Complexity estimates grounded in LOC counts. |
-| Architecture | HIGH | Component map built from actual import graph. Patterns derived from existing codebase conventions. |
-| Pitfalls | HIGH | Pitfalls sourced from real code analysis (import tracing, file sizes, existing test patterns). Not speculative. |
+| Area | Level | Notes |
+|---|---|---|
+| Stack | HIGH | Official docs, installed typings, claude-api skill. LOW spots: procedure HTTP throw semantics, `between_tools` with `output_config.format`. |
+| Features | MEDIUM | API facts HIGH. Latency targets, pool sizes and per-call costs are estimates. Haiku recommendations are superseded. |
+| Architecture | MEDIUM-HIGH | Typings verified. V8 concurrency is MEDIUM. Dispatch latency and scheduled-procedure identity are UNKNOWN. |
+| Pitfalls | MEDIUM-HIGH | Anthropic side HIGH. Several SpacetimeDB issue fix versions are unconfirmed (#4954, #4663, #5220). |
 
-**Overall confidence:** HIGH -- All research was conducted against the actual codebase, not external documentation or community patterns. The project is an existing system being cleaned up, not a greenfield build with unknowns.
+**Overall: MEDIUM-HIGH.**
 
 ### Gaps to Address
 
-- **Stat scaling formulas for dynamic equipment:** The existing item_defs.ts has hardcoded stats per item. The formulas to compute those stats from (level, tier, slot, armor_type) don't exist yet. Phase 5 planning must derive these formulas by analyzing the existing data points.
-- **Combat effect correctness:** Pitfall #7 warns that adding combat logs will reveal hidden bugs. The actual bug count is unknown until logging is added. Phase 3 should budget buffer time for discovered issues.
-- **Client-side import from server data files:** Only one case is confirmed (useCrafting.ts -> crafting_materials.ts), but others may exist. Phase 2 planning should do a comprehensive cross-boundary import audit.
-- **HotbarPanel.vue disposition:** Research identified it as legacy (uses outdated abilityKey API) but a firm delete-vs-update decision needs to be made during Phase 4 planning.
+- Why 2.0.1 failed locally: read logs in the spike.
+- V8 pool growth and tick impact under all-Sonnet concurrency: measure, then set the in-flight cap from data.
+- Whether `ctx.http.fetch` responses expose headers (`retry-after`, `request-id`).
+- Whether an in-flight procedure survives `spacetime publish`.
+- Whether `REGION_GENERATION_SCHEMA` compiles, or needs staged schemas.
+- Sonnet latency per route at each effort level. No numbers exist yet.
+- Initial cost-budget and global-ceiling values are guesses.
+- Whether dropping `llm_task` forces `--clear-database`. That would be a manual user action and would wipe the key.
+- The maincloud leg is always manual.
 
 ## Sources
 
-### Primary (HIGH confidence -- direct codebase analysis)
-- `spacetimedb/src/helpers/items.ts` -- equipment generation functions (467 LOC)
-- `spacetimedb/src/helpers/combat.ts` -- combat engine (1,322 LOC)
-- `spacetimedb/src/reducers/combat.ts` -- combat reducers (2,767 LOC)
-- `spacetimedb/src/data/mechanical_vocabulary.ts` -- game mechanics vocabulary
-- `spacetimedb/src/data/combat_scaling.ts` -- damage formulas, stat scaling
-- `spacetimedb/src/data/item_defs.ts` -- static item definitions (294 LOC)
-- `spacetimedb/src/reducers/intent.ts` -- text command routing (1,297 LOC)
-- `spacetimedb/src/helpers/world_gen.test.ts` -- existing test pattern (176 LOC)
-- `spacetimedb/src/reducers/intent.test.ts` -- existing test pattern (235 LOC)
-- `src/ui/styles.ts` -- inline style system with rem units
-- `.planning/PROJECT.md` -- v2.1 scope definition
-- `MEMORY.md` -- v2.0 architecture rules and deletion list
+The four research files (STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md), `.planning/PROJECT.md`, and the Anthropic docs, SpacetimeDB docs and installed typings, GitHub issues and repo files they cite. Primary sources are HIGH, GitHub issue summaries are MEDIUM, and the Cloudflare OIDC request plus all latency and cost estimates are LOW.
 
 ---
-*Research completed: 2026-03-09*
+*Research completed: 2026-09-29*
 *Ready for roadmap: yes*
