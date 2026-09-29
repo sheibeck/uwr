@@ -48,8 +48,16 @@ When all four are up, give: the Vite URL, the three ports, and how to stop.
 
 ## Stopping
 
-Stop the background tasks you started (TaskStop on each), then confirm the ports are free.
-If processes linger (wrangler leaves `workerd.exe` and node children; spacetime leaves
-`spacetimedb-standalone.exe`), find the PIDs with
-`netstat -ano | grep -E ":(3000|8787|5173) .*LISTENING"` and stop only those PIDs
-(`taskkill //PID <pid> //T //F`). Never kill processes you didn't start without asking.
+On Windows, TaskStop on the background shells does NOT stop the child processes. Expect
+all of these to survive and always clean them up:
+`spacetimedb-standalone.exe`, `workerd.exe` (two of them), the pnpm/wrangler `node.exe`
+processes whose command line contains `llm-proxy`/`wrangler`, and the `node.exe` running
+`vite.js` from this repo.
+
+1. TaskStop each background task you started.
+2. List the survivors with their command lines (PowerShell):
+   `Get-CimInstance Win32_Process | Where-Object { $_.Name -in 'spacetimedb-standalone.exe','workerd.exe' -or ($_.Name -eq 'node.exe' -and $_.CommandLine -match 'uwr.*(wrangler|vite)') }`
+3. `Stop-Process -Id <pid> -Force` only for processes that belong to this repo's launch.
+4. Confirm `netstat -ano | grep -E ":(3000|8787|5173) .*LISTENING"` prints nothing.
+
+Never kill processes you didn't start without asking.
