@@ -58,7 +58,7 @@
   - `llm-proxy/`, `useLlmProxy` and the proxy env vars are removed.
   - Existing `localStorage.llm_proxy_secret` values are cleared once.
   - The built bundle greps clean.
-- [ ] **SEC-04**: The Anthropic API key is held only in SpacetimeDB (private `llm_config`) and is never logged. Key setup and `--clear-database` recovery are documented in a runbook.
+- [ ] **SEC-04**: The Anthropic credential is held server-side only and is never logged. On go, the API key lives in the private SpacetimeDB `llm_config` table. On no-go, the backend service uses WIF and there is no static Anthropic key; its service-identity secret is covered by the runbook. Key setup and `--clear-database` recovery are documented in a runbook.
 - [ ] **SEC-05**: The old `llm_task`/`llm_request` tables and dead v2.0 pipeline code are removed without `--clear-database`, using a two-publish removal.
 
 ### Cost
@@ -111,15 +111,63 @@ Deferred. Tracked but not in the v2.2 roadmap.
 
 ## Traceability
 
-Filled by roadmap creation.
+Filled by roadmap creation (2026-09-29). Each requirement maps to exactly one phase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| SPIKE-01 | Phase 39 | Pending |
+| SPIKE-02 | Phase 39 | Pending |
+| SPIKE-03 | Phase 39 | Pending |
+| SPIKE-04 | Phase 39 | Pending |
+| CLAUDE-01 | Phase 40 | Pending |
+| CLAUDE-02 | Phase 40 | Pending |
+| CLAUDE-03 | Phase 40 | Pending |
+| CLAUDE-04 | Phase 40 | Pending |
+| PIPE-01 | Phase 41 | Pending |
+| PIPE-02 | Phase 41 | Pending |
+| PIPE-03 | Phase 40 | Pending |
+| PIPE-04 | Phase 41 | Pending |
+| PIPE-05 | Phase 41 | Pending |
+| PIPE-06 | Phase 41 | Pending |
+| PIPE-07 | Phase 41 | Pending |
+| PIPE-08 | Phase 40 | Pending |
+| PIPE-09 | Phase 41 | Pending |
+| SEC-01 | Phase 40 | Pending |
+| SEC-02 | Phase 42 | Pending |
+| SEC-03 | Phase 42 | Pending |
+| SEC-04 | Phase 41 | Pending |
+| SEC-05 | Phase 42 | Pending |
+| COST-01 | Phase 41 | Pending |
+| COST-02 | Phase 41 | Pending |
+| COST-03 | Phase 43 | Pending |
+| LAT-01 | Phase 43 | Pending |
+| LAT-02 | Phase 43 | Pending |
+| LAT-03 | Phase 43 | Pending |
+| LAT-04 | Phase 43 | Pending |
+| LAT-05 | Phase 43 | Pending |
+| LAT-06 | Phase 43 | Pending |
+| OPS-01 | Phase 41 | Pending |
+| OPS-02 | Phase 43 | Pending |
+| QUAL-01 | Phase 44 | Pending |
+| QUAL-02 | Phase 44 | Pending |
+| QUAL-03 | Phase 44 | Pending |
+| QUAL-04 | Phase 40 | Pending |
 
 **Coverage:**
 - v2.2 requirements: 37 total
-- Mapped to phases: 0 (pending roadmap)
+- Mapped to phases: 37
+- Unmapped: 0
+
+**By phase:**
+- Phase 39 (Procedure-to-Claude Spike): 4 (SPIKE-01 to SPIKE-04)
+- Phase 40 (Claude Request Layer and Job Seam): 8 (CLAUDE-01 to CLAUDE-04, PIPE-03, PIPE-08, SEC-01, QUAL-04)
+- Phase 41 (Executor and Domain Cutover): 11 (PIPE-01, PIPE-02, PIPE-04 to PIPE-07, PIPE-09, SEC-04, COST-01, COST-02, OPS-01)
+- Phase 42 (Client Cutover and Legacy Removal): 3 (SEC-02, SEC-03, SEC-05)
+- Phase 43 (Latency Tuning, Staged Generation and Budget): 8 (LAT-01 to LAT-06, COST-03, OPS-02)
+- Phase 44 (Live Verification and Tone Eval): 3 (QUAL-01 to QUAL-03)
+
+Note: QUAL-04 (every phase ships unit tests) is mapped to Phase 40, where the offline mock procedure context is built, but it binds every phase.
 
 ---
 *Requirements defined: 2026-09-29*
-*Last updated: 2026-09-29 after requirements scoping*
+*Last updated: 2026-09-29 after roadmap creation (traceability filled)*

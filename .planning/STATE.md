@@ -6,7 +6,7 @@ status: planning
 last_updated: "2026-09-29T17:56:27.446Z"
 last_activity: 2026-09-29
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-29)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Planning next milestone: LLM (migrate OpenAI to Claude). Context captured in .planning/MILESTONE-CONTEXT.md
+**Current focus:** Phase 39 (Procedure-to-Claude Spike), the go/no-go gate for v2.2 LLM — Claude Engine. Roadmap: Phases 39-44.
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-09-29 — Milestone v2.2 started
+Phase: 39 (Procedure-to-Claude Spike), phase 1 of 6 in v2.2 (Phases 39-44)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-09-29 — Roadmap created for v2.2 (37/37 requirements mapped)
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Previous Milestones
 
@@ -47,6 +49,8 @@ See MILESTONES.md for full delivery summaries.
 
 - 2026-09-29: Phases 33-37 parked in Backlog as 999.1-999.5 (user decision: put on hold while re-imagining core concepts). Promote with /gsd-review-backlog.
 
+- 2026-09-29: v2.2 roadmap created: Phases 39-44 (39 Spike, 40 Claude Layer and Job Seam, 41 Executor and Domain Cutover, 42 Client Cutover and Legacy Removal, 43 Latency Tuning and Budget, 44 Live Verification and Tone Eval). Numbering continues from 38; 33-37 are consumed by parked Backlog 999.1-999.5, which stay untouched.
+
 - Phase 38 added: Platform Upgrade (SpacetimeDB 2.0.1 -> 2.10.x, tooling, llm-proxy deps, pnpm-only). Runs next, ahead of 33-35 and 37. Research: `.planning/notes/platform-upgrade-research.md`
 
 ### Pending Todos
@@ -58,7 +62,9 @@ See MILESTONES.md for full delivery summaries.
 
 ### Blockers/Concerns
 
-- [Phase 38] Live LLM calls fail: the OpenAI account behind llm-proxy/.dev.vars returns 429 "no credits" -- deferred to the LLM milestone by user decision
+- [Phase 38] Live LLM calls fail: the OpenAI account behind llm-proxy/.dev.vars returns 429 "no credits" -- deferred to the LLM milestone by user decision; v2.2 replaces the OpenAI path with Claude
+- [v2.2] Maincloud legs of SPIKE-04 (Phase 39) and QUAL-02 (Phase 44) are manual user actions; the Phase 39 go/no-go decision is not final until the user supplies the maincloud results
+- [v2.2] `--clear-database` wipes the private `llm_config` Anthropic key; avoid unless a schema change requires it (runbook lands in Phase 41)
 - [Phase 38] First maincloud publish after the 2.10 upgrade will re-create the 14 views and need --break-clients (no data loss) -- user-run only
 - [Phase 38] Lockfiles moved to pnpm-only -- check any external host's package-manager detection before the next push
 - **NO PUSHES TO MASTER** -- production auto-deploys from master; all work stays local until user approves
@@ -86,7 +92,7 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 **Resume file:** None
 
 Last session: 2026-09-29T17:18:25.411Z
-Stopped at: v2.1 archived and tagged on 2026-09-29. Next: /clear, then /gsd-new-milestone LLM (context in .planning/MILESTONE-CONTEXT.md)
+Stopped at: v2.2 roadmap created (Phases 39-44). Next: review and approve the roadmap, then /gsd-plan-phase 39 (or /gsd-discuss-phase 39 first)
 
 ## Performance Metrics
 
@@ -103,4 +109,6 @@ Stopped at: v2.1 archived and tagged on 2026-09-29. Next: /clear, then /gsd-new-
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Review and approve the v2.2 roadmap (.planning/ROADMAP.md)
+- Then run /gsd-plan-phase 39 (spike; research flagged) to plan the go/no-go gate
+- Have an Anthropic API key ready for the spike (supply via environment variable, never commit it)
