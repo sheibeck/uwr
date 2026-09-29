@@ -2,7 +2,7 @@
 
 **Type:** Brownfield expansion
 **Created:** 2026-02-11
-**Current milestone:** None. v2.1 shipped 2026-09-29; the LLM milestone (OpenAI → Claude) is being defined
+**Current milestone:** v2.2 LLM — Claude Engine (started 2026-09-29)
 
 ---
 
@@ -51,8 +51,9 @@ A world that writes itself around its players — every character is unique, eve
 
 ### Active
 
-- [ ] LLM engine migrated from OpenAI to Claude (Sonnet 5.5 + Haiku 4.5), with the lowest possible latency for real-time narrative (next milestone)
-- [ ] Backend LLM service authenticates to Anthropic via Workload Identity Federation instead of API keys (next milestone, pending research)
+- [ ] LLM engine migrated from OpenAI to Claude (Sonnet 5.5 + Haiku 4.5), with the lowest possible latency for real-time narrative — v2.2
+- [ ] SpacetimeDB procedures call Claude directly (retire llm-proxy) if the 2.10 spike proves reliable; otherwise a backend LLM service authenticated via Workload Identity Federation — v2.2
+- [ ] No LLM credentials in the browser — v2.2
 
 ### Parked (Backlog 999.1-999.5, on hold while core concepts are re-imagined)
 
@@ -76,12 +77,19 @@ A world that writes itself around its players — every character is unique, eve
 
 **Shipped:** v2.1 Project Cleanup (2026-09-29). The v2.0 foundation now has test coverage and no v1.0 legacy code, and runs on SpacetimeDB 2.10.1 with current tooling. Live LLM calls are currently broken: the OpenAI account returns 429 "no credits".
 
-## Next Milestone Goals
+## Current Milestone: v2.2 LLM — Claude Engine
 
-**LLM: migrate from OpenAI to Claude.** Context is captured in `.planning/MILESTONE-CONTEXT.md`.
-- Replace gpt-5.4 with Claude Sonnet 5.5 and gpt-5-mini with Claude Haiku 4.5
-- Research the fastest LLM architecture for real-time narrative: proxy vs procedure HTTP vs hybrid, streaming, prompt caching
-- Keep a backend LLM service; evaluate Workload Identity Federation for its Anthropic credentials
+**Goal:** Replace OpenAI with Claude as the engine behind all narrative generation, with the lowest possible response latency for real-time storytelling.
+
+**Target features:**
+- Model swap: Claude Sonnet 5.5 (`claude-sonnet-5-5`) replaces gpt-5.4 (character creation, world gen); Claude Haiku 4.5 (`claude-haiku-4-5`) replaces gpt-5-mini (skill gen, NPC conversation, combat narration, renown)
+- Structured outputs mapped to Claude (`output_config.format`); token usage, pricing and per-player budget recalibrated for Claude
+- Architecture, direct first with fallback: spike SpacetimeDB 2.10 procedures calling Claude via `ctx.http.fetch`. If reliable and fast, move LLM calls into procedures and retire `llm-proxy/`, the client polling composable and the localStorage proxy secret. If still buggy, keep a backend LLM service authenticated to Anthropic via Workload Identity Federation
+- Latency levers researched and applied: prompt caching, streaming (Out of Scope item under review), effort settings, hop count
+- No LLM credentials in browser storage
+- Live end-to-end verification with a real Claude call
+
+**Key context:** A previous attempt at procedure HTTP (2.0.1) failed, likely due to its 500 ms HTTP timeout (2.10 defaults to 30 s, max 180 s). Loopback/private IPs are blocked from procedures. WIF needs an OIDC token that a WASM procedure likely cannot mint, so the direct path probably means an API key held server-side in SpacetimeDB.
 
 ---
 
@@ -102,7 +110,7 @@ Keeper of Knowledge narrator replaced generic "System" narrator in quick-365.
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| LLM via client-side proxy (not procedures) | SpacetimeDB procedure HTTP broken locally | ⚠️ Revisit — LLM milestone researches the fastest architecture |
+| LLM via client-side proxy (not procedures) | SpacetimeDB procedure HTTP broken locally | ⚠️ Revisit — v2.2 spikes procedures calling Claude directly first; backend + WIF is the fallback |
 | Chat-first UI with panel overlays | Narrative experience is core interaction model | ✓ Good — all systems narrative now |
 | Wild class generation (no guardrails) | Uniqueness over balance — every character one-of-a-kind | ✓ Good — produces creative results |
 | Clean break from fixed data | LLM generates everything; old data becomes schema templates | ✓ Good — 106-case switch eliminated |
@@ -161,4 +169,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-29 after v2.1 milestone*
+*Last updated: 2026-09-29 at v2.2 milestone start*

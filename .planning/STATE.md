@@ -1,20 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.1
-milestone_name: Project Cleanup
-status: Awaiting next milestone
-stopped_at: "v2.1 archived and tagged. Next: /gsd-new-milestone LLM (context in .planning/MILESTONE-CONTEXT.md)"
-last_updated: "2026-09-29T17:48:53.514Z"
+milestone: v2.2
+milestone_name: LLM — Claude Engine
+status: planning
+last_updated: "2026-09-29T17:56:27.446Z"
 last_activity: 2026-09-29
-last_activity_desc: Milestone v2.1 completed and archived
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 14
-  completed_plans: 14
-  percent: 100
-current_phase: null
-current_phase_name: null
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -28,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-09-29)
 
 ## Current Position
 
-Phase: Milestone v2.1 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-09-29 — Milestone v2.1 completed and archived
+Status: Defining requirements
+Last activity: 2026-09-29 — Milestone v2.2 started
 
 ## Previous Milestones
 
