@@ -14,7 +14,7 @@ import type { CallSample, LatencyWindow, SampleClass } from '../../spacetimedb/s
 import { MAX_TOKENS, timeoutMsFor, type SpikeSpec } from '../../spacetimedb/src/spike/spike_bodies.ts';
 import { DbConnection } from './bindings/index.ts';
 import { readLogs } from './cli.mjs';
-import { SPIKE_DB, SPIKE_WS_URI } from './config.ts';
+import { SPIKE_DB, SPIKE_WS_URI, TARGET } from './config.ts';
 import type { ResultsStore } from './results-store.ts';
 
 // ---------------------------------------------------------------------------
@@ -448,6 +448,8 @@ export async function pingLoop(
     until?: Promise<unknown>;
     intervalMs?: number;
     outstanding?: () => number;
+    /** When given, every sample is also pushed here as it is taken, so callers can count pings live. */
+    sink?: LatencySample[];
   },
 ): Promise<LatencySample[]> {
   const intervalMs = o.intervalMs ?? 50;
@@ -461,6 +463,7 @@ export async function pingLoop(
     const inFlight = o.outstanding ? o.outstanding() : 0;
     const ms = await ping(s, nonce++);
     out.push({ ms, inFlight });
+    o.sink?.push({ ms, inFlight });
     next += intervalMs;
     const wait = next - performance.now();
     if (wait > 0) await sleep(wait);
@@ -478,8 +481,9 @@ export function collectTicks(s: Spike, phase: string): { lateMs: number; inFligh
 // Process, logs and diagnostics
 // ---------------------------------------------------------------------------
 
-/** PID listening on 127.0.0.1:3000, or null. */
+/** PID listening on 127.0.0.1:3000, or null (always null on maincloud: no host process access). */
 export function serverPid(): number | null {
+  if (TARGET.name === 'maincloud') return null;
   const r = spawnSync('netstat', ['-ano'], { encoding: 'utf8', shell: false });
   for (const line of (r.stdout ?? '').split(/\r?\n/)) {
     if (/:3000\s+\S+\s+LISTENING/i.test(line)) {
@@ -490,7 +494,11 @@ export function serverPid(): number | null {
   return null;
 }
 
-export function memorySnapshot(label: string): { label: string; pid: number; workingSetMb: number; threads: number; at: string } {
+export type MemoryRow = { label: string; pid: number; workingSetMb: number; threads: number; at: string };
+
+/** Working set of the local server process; null on maincloud (there is no host process access). */
+export function memorySnapshot(label: string): MemoryRow | null {
+  if (TARGET.name === 'maincloud') return null;
   const pid = serverPid();
   const selector = pid !== null ? `Get-Process -Id ${pid}` : 'Get-Process spacetimedb-standalone | Select-Object -First 1';
   const r = spawnSync(
@@ -528,7 +536,9 @@ export function captureFailureDiagnostics(label: string): string[] {
   out.push(...logs.lines.map((l: string) => 'log: ' + clean(l, 400)));
 
   const local = process.env.LOCALAPPDATA;
-  if (local) {
+  if (TARGET.name === 'maincloud') {
+    out.push('datalog: skipped (maincloud target)');
+  } else if (local) {
     const dir = path.join(local, 'SpacetimeDB', 'data', 'logs');
     try {
       const files = fs

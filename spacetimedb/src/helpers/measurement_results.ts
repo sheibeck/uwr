@@ -95,6 +95,8 @@ export interface ResultsDoc {
     levels: { inFlight: number; calls: CallSample[]; window: LatencyWindow; extended: boolean }[];
     baseline2?: LatencyWindow;
     memory: { label: string; pid: number; workingSetMb: number; threads: number; at: string }[];
+    /** Why memory is empty (for example, no host process access on a hosted database). */
+    memoryNote?: string;
   };
   serverLogs?: { label: string; lines: string[] }[];
   verdict?: {
@@ -179,7 +181,7 @@ export interface LevelLabels {
   pingLabel: 'client_outstanding';
   pingMin: number;
   pingSamples: number;
-  /** Tick samples are labelled with spike_state.inFlight, the server-side running count. */
+  /** Tick samples are labelled with the module's server-side running count. */
   tickLabel: 'server_in_flight';
   tickMin: number;
   tickSamples: number;
@@ -321,21 +323,35 @@ const isObj = (v: unknown): v is Record<string, unknown> =>
 /** Cells per (route, effort) required for a structured route in a final file. */
 const MIN_RUNS_PER_CELL = 5;
 
+/** 'full' requires every section; 'gate' requires only what the go/no-go gate reads. */
+export type ResultsProfile = 'full' | 'gate';
+
 /**
  * Check a results document. Returns a list of problems ([] when valid).
  * - final: false only type-checks the fields that are present (a section may be
  *   missing, or hold only some of its fields) and still requires canary.hits 0.
  * - final: true additionally requires every section with its minimum sample counts.
+ * - profile 'gate' (final mode) requires only: environment; ladder 10/10/30; dispatch
+ *   50; sender; structured.regionCompile with a probe, one skill-route cell and a
+ *   thinkingOff array; load with baseline, baseline2 and levels 8, 4 and 2; serverLogs;
+ *   verdict. Other sections are type-checked when present and never required.
+ *   Default profile is 'full'.
  */
-export function validateResults(doc: unknown, opts: { final: boolean }): string[] {
+export function validateResults(
+  doc: unknown,
+  opts: { final: boolean; profile?: ResultsProfile },
+): string[] {
   const problems: string[] = [];
+  const gate = opts.profile === 'gate';
   const final = opts.final;
+  // Sections the gate profile does not require: presence and minimum rules apply to the full profile only.
+  const finalFull = final && !gate;
   if (!isObj(doc)) return ['results must be an object'];
   if (doc.schemaVersion !== 1) problems.push('schemaVersion must be 1');
 
-  const section = (name: string, v: unknown): Record<string, unknown> | null => {
+  const section = (name: string, v: unknown, required: boolean = final): Record<string, unknown> | null => {
     if (v === undefined) {
-      if (final) problems.push(`${name} missing`);
+      if (required) problems.push(`${name} missing`);
       return null;
     }
     if (!isObj(v)) {
@@ -345,9 +361,9 @@ export function validateResults(doc: unknown, opts: { final: boolean }): string[
     return v;
   };
 
-  const samples = (name: string, v: unknown, min: number) => {
+  const samples = (name: string, v: unknown, min: number, required: boolean = final) => {
     if (v === undefined) {
-      if (final) problems.push(`${name} missing`);
+      if (required) problems.push(`${name} missing`);
       return;
     }
     if (!Array.isArray(v)) {
@@ -359,27 +375,27 @@ export function validateResults(doc: unknown, opts: { final: boolean }): string[
         problems.push(`${name}[${i}] is not a valid call sample`);
       }
     });
-    if (final && v.length < min) problems.push(`${name} has ${v.length} samples, needs ${min}`);
+    if (required && v.length < min) problems.push(`${name} has ${v.length} samples, needs ${min}`);
   };
 
-  const numbers = (name: string, v: unknown, min: number) => {
+  const numbers = (name: string, v: unknown, min: number, required: boolean = final) => {
     if (v === undefined) {
-      if (final) problems.push(`${name} missing`);
+      if (required) problems.push(`${name} missing`);
       return;
     }
     if (!Array.isArray(v) || v.some((x) => typeof x !== 'number')) {
       problems.push(`${name} must be an array of numbers`);
       return;
     }
-    if (final && v.length < min) problems.push(`${name} has ${v.length} samples, needs ${min}`);
+    if (required && v.length < min) problems.push(`${name} has ${v.length} samples, needs ${min}`);
   };
 
   section('environment', doc.environment);
 
-  const hop = section('hop', doc.hop);
-  if (hop) numbers('hop.samplesMs', hop.samplesMs, 20);
+  const hop = section('hop', doc.hop, finalFull);
+  if (hop) numbers('hop.samplesMs', hop.samplesMs, 20, finalFull);
 
-  const canary = section('canary', doc.canary);
+  const canary = section('canary', doc.canary, finalFull);
   if (canary) {
     if (canary.hits !== 0) problems.push(`canary.hits must be 0, got ${String(canary.hits)}`);
   }
@@ -391,10 +407,10 @@ export function validateResults(doc: unknown, opts: { final: boolean }): string[
     samples('ladder.reliability', ladder.reliability, 30);
   }
 
-  const drills = section('drills', doc.drills);
+  const drills = section('drills', doc.drills, finalFull);
   if (drills) {
-    samples('drills.timeout', drills.timeout, 2);
-    samples('drills.badKey', drills.badKey, 2);
+    samples('drills.timeout', drills.timeout, 2, finalFull);
+    samples('drills.badKey', drills.badKey, 2, finalFull);
   }
 
   const dispatch = section('dispatch', doc.dispatch);
@@ -409,10 +425,10 @@ export function validateResults(doc: unknown, opts: { final: boolean }): string[
     section('sender.direct', sender.direct);
   }
 
-  const pushLegs = section('pushLegs', doc.pushLegs);
+  const pushLegs = section('pushLegs', doc.pushLegs, finalFull);
   if (pushLegs) {
-    numbers('pushLegs.echoMs', pushLegs.echoMs, 0);
-    numbers('pushLegs.noopProcedureE2eMs', pushLegs.noopProcedureE2eMs, 0);
+    numbers('pushLegs.echoMs', pushLegs.echoMs, 0, finalFull);
+    numbers('pushLegs.noopProcedureE2eMs', pushLegs.noopProcedureE2eMs, 0, finalFull);
   }
 
   const structured = section('structured', doc.structured);
@@ -420,8 +436,22 @@ export function validateResults(doc: unknown, opts: { final: boolean }): string[
     const rc = section('structured.regionCompile', structured.regionCompile);
     if (rc && typeof rc.compiles !== 'boolean') problems.push('structured.regionCompile.compiles must be a boolean');
     samples('structured.cells', structured.cells, 0);
-    samples('structured.thinkingOff', structured.thinkingOff, 3);
-    if (final && Array.isArray(structured.cells)) {
+    samples('structured.thinkingOff', structured.thinkingOff, gate ? 0 : 3);
+    if (final && gate) {
+      // Gate profile: the region probe count and one skill-route cell replace the per-cell matrix.
+      if (rc) {
+        if (!Array.isArray(rc.probes) || rc.probes.length < 1) {
+          problems.push('structured.regionCompile.probes needs at least 1 probe');
+        }
+      }
+      if (
+        !Array.isArray(structured.cells) ||
+        !(structured.cells as CallSample[]).some((c) => typeof c?.route === 'string' && c.route.startsWith('skill'))
+      ) {
+        problems.push('structured.cells has no skill route cell');
+      }
+    }
+    if (finalFull && Array.isArray(structured.cells)) {
       // Each family (skill, region) needs at least one route, and every route in
       // the family needs 5 runs at each effort. Region routes include staged pairs.
       const cells = structured.cells as CallSample[];
@@ -440,15 +470,15 @@ export function validateResults(doc: unknown, opts: { final: boolean }): string[
     }
   }
 
-  section('headers', doc.headers);
+  section('headers', doc.headers, finalFull);
 
-  const cache = section('cache', doc.cache);
-  if (cache) samples('cache.pair', cache.pair, 2);
+  const cache = section('cache', doc.cache, finalFull);
+  if (cache) samples('cache.pair', cache.pair, 2, finalFull);
 
-  const extras = section('extras', doc.extras);
+  const extras = section('extras', doc.extras, finalFull);
   if (extras) {
-    section('extras.directCall4954', extras.directCall4954);
-    section('extras.publishSurvival', extras.publishSurvival);
+    section('extras.directCall4954', extras.directCall4954, finalFull);
+    section('extras.publishSurvival', extras.publishSurvival, finalFull);
   }
 
   const load = section('load', doc.load);
@@ -459,8 +489,12 @@ export function validateResults(doc: unknown, opts: { final: boolean }): string[
       if (final) problems.push('load.levels missing');
     } else if (!Array.isArray(load.levels)) {
       problems.push('load.levels must be an array');
-    } else if (final && !load.levels.some((l) => isObj(l) && l.inFlight === 8)) {
-      problems.push('load.levels needs a level with inFlight 8');
+    } else if (final) {
+      for (const n of gate ? [8, 4, 2] : [8]) {
+        if (!load.levels.some((l) => isObj(l) && l.inFlight === n)) {
+          problems.push(`load.levels needs a level with inFlight ${n}`);
+        }
+      }
     }
   }
 

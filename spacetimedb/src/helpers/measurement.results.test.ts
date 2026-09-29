@@ -16,6 +16,7 @@ import {
   type CallSample,
   type LatencyWindow,
   type ResultsDoc,
+  type ResultsProfile,
 } from './measurement_results';
 
 // ============================================================================
@@ -613,28 +614,187 @@ describe('results model: validateResults', () => {
 });
 
 // ============================================================================
-// Recorded results file (skips until the file exists)
+// validateResults: gate profile (hosted-database results file)
 // ============================================================================
 
-function locateRecordedResults(): string | null {
-  const phasesDir = fileURLToPath(new URL('../../../.planning/phases', import.meta.url));
-  if (!existsSync(phasesDir)) return null;
-  for (const dir of readdirSync(phasesDir)) {
-    if (!dir.startsWith('39-')) continue;
-    const file = readdirSync(join(phasesDir, dir)).find((f) => f.endsWith('-results.json'));
-    if (file) return join(phasesDir, dir, file);
-  }
-  return null;
+/** Only the sections the gate reads: no hop, canary, drills, push legs, headers, cache or extras. */
+function makeGateFixture(): ResultsDoc {
+  const doc = makeFixture();
+  delete doc.hop;
+  delete doc.canary;
+  delete doc.drills;
+  delete doc.pushLegs;
+  delete doc.headers;
+  delete doc.cache;
+  delete doc.extras;
+  delete doc.load!.baselineEarly;
+  doc.environment!.serverPid = null;
+  doc.structured = {
+    regionCompile: {
+      compiles: true,
+      errorMessage: null,
+      probes: many(1, { class: 'exploratory', route: 'region', effort: 'low' }),
+      staged: { attempted: false, compiles: false, errorMessages: [] },
+    },
+    cells: many(1, { class: 'reliability', route: 'skill', effort: 'low' }),
+    thinkingOff: [],
+    thinkingOffComposable: null,
+  };
+  doc.load!.levels = [8, 4, 2].map((n) => ({
+    inFlight: n,
+    calls: many(6, { class: 'exploratory' }),
+    window: window('load' + n, n, 3, 2, 1200, 40),
+    extended: false,
+  }));
+  doc.load!.memory = [];
+  doc.load!.memoryNote = 'unavailable: no host process access';
+  return doc;
 }
 
-const recordedPath = locateRecordedResults();
+function makeGateFinalFixture(): ResultsDoc {
+  const doc = makeGateFixture();
+  const strict = evaluateGate(gateInputFromResults(doc));
+  const noiseFloorMs = floorAdjustedNoiseFloorMs(doc);
+  const floorAdjusted = evaluateGate(gateInputFromResults(doc, { noiseFloorMs }));
+  doc.verdict = { strict, floorAdjusted, noiseFloorMs, computedAt: '2026-09-29T01:00:00Z' };
+  return doc;
+}
 
-describe.skipIf(recordedPath === null)('recorded results file', () => {
-  const text = recordedPath ? readFileSync(recordedPath, 'utf8') : '{}';
+describe('results model: validateResults gate profile', () => {
+  it('accepts a gate-only final document under the gate profile', () => {
+    expect(validateResults(makeGateFinalFixture(), { final: true, profile: 'gate' })).toEqual([]);
+  });
+
+  it('accepts the same document as partial under the gate profile', () => {
+    expect(validateResults(makeGateFixture(), { final: false, profile: 'gate' })).toEqual([]);
+  });
+
+  it('the same document has problems under the default (full) profile', () => {
+    expect(validateResults(makeGateFinalFixture(), { final: true }).length).toBeGreaterThan(0);
+    expect(validateResults(makeGateFinalFixture(), { final: true, profile: 'full' }).length).toBeGreaterThan(0);
+  });
+
+  it('a full fixture is also valid under the gate profile', () => {
+    expect(validateResults(makeFinalFixture(), { final: true }).length).toBe(0);
+    const doc = makeFinalFixture();
+    doc.load!.levels.push(
+      { inFlight: 4, calls: [], window: window('l4', 4, 3, 2, 300, 40), extended: false },
+      { inFlight: 2, calls: [], window: window('l2', 2, 3, 2, 300, 40), extended: false },
+    );
+    expect(validateResults(doc, { final: true, profile: 'gate' })).toEqual([]);
+  });
+
+  const gateProblems: [string, (d: ResultsDoc) => void][] = [
+    ['ladder.reliability 29', (d) => d.ladder!.reliability.pop()],
+    ['ladder.models 9', (d) => d.ladder!.models.pop()],
+    ['ladder.publicUrl 9', (d) => d.ladder!.publicUrl.pop()],
+    ['dispatch.samples 49', (d) => d.dispatch!.samples.pop()],
+    ['missing level 8', (d) => (d.load!.levels = d.load!.levels.filter((l) => l.inFlight !== 8))],
+    ['missing level 4', (d) => (d.load!.levels = d.load!.levels.filter((l) => l.inFlight !== 4))],
+    ['missing level 2', (d) => (d.load!.levels = d.load!.levels.filter((l) => l.inFlight !== 2))],
+    ['no regionCompile probe', (d) => (d.structured!.regionCompile.probes = [])],
+    ['no skill-route cell', (d) => (d.structured!.cells = [])],
+    ['no thinkingOff array', (d) => delete (d.structured as Partial<NonNullable<ResultsDoc['structured']>>).thinkingOff],
+    ['regionCompile.compiles not boolean', (d) => ((d.structured!.regionCompile as { compiles: unknown }).compiles = 'yes')],
+    ['missing baseline2', (d) => delete d.load!.baseline2],
+    ['missing environment', (d) => delete d.environment],
+    ['missing sender', (d) => delete d.sender],
+    ['missing serverLogs', (d) => delete d.serverLogs],
+    ['missing verdict in final mode', (d) => delete d.verdict],
+  ];
+  for (const [name, mutate] of gateProblems) {
+    it(`final gate profile: ${name} yields a problem`, () => {
+      const doc = makeGateFinalFixture();
+      mutate(doc);
+      expect(validateResults(doc, { final: true, profile: 'gate' }).length).toBeGreaterThan(0);
+    });
+  }
+
+  it('a canary hit above 0 is still a problem when a canary section is present', () => {
+    const doc = makeGateFinalFixture();
+    doc.canary = { hits: 1, locationsScanned: 1, fetchReachedAnthropic: false, statusSeen: null };
+    expect(validateResults(doc, { final: true, profile: 'gate' }).length).toBeGreaterThan(0);
+    expect(validateResults(doc, { final: false, profile: 'gate' }).length).toBeGreaterThan(0);
+  });
+
+  it('sections the gate does not require are type-checked when present', () => {
+    const doc = makeGateFinalFixture();
+    (doc as { drills: unknown }).drills = { timeout: 'x', badKey: [] };
+    expect(validateResults(doc, { final: true, profile: 'gate' }).length).toBeGreaterThan(0);
+  });
+
+  it('sections the gate does not require carry no minimum counts under the gate profile', () => {
+    const doc = makeGateFinalFixture();
+    doc.drills = { timeout: many(1, { class: 'drill', ok: false, failureClass: 'platform' }), badKey: [] };
+    doc.cache = { pair: [], cacheReadObserved: false };
+    expect(validateResults(doc, { final: true, profile: 'gate' })).toEqual([]);
+  });
+
+  it('memory may be empty with a note on the gate profile', () => {
+    const doc = makeGateFinalFixture();
+    expect(doc.load!.memory).toEqual([]);
+    expect(doc.load!.memoryNote).toContain('unavailable');
+    expect(validateResults(doc, { final: true, profile: 'gate' })).toEqual([]);
+  });
+});
+
+// ============================================================================
+// Recorded results files (one suite per file; skips until a file exists)
+// ============================================================================
+
+interface RecordedFile {
+  path: string;
+  name: string;
+  profile: ResultsProfile;
+}
+
+/** The gate profile applies to a hosted-database results file; every other file uses the full profile. */
+function profileForFile(name: string): ResultsProfile {
+  return name.includes('maincloud') ? 'gate' : 'full';
+}
+
+/** Every file ending -results.json in every 39- folder. */
+function locateRecordedResults(): RecordedFile[] {
+  const phasesDir = fileURLToPath(new URL('../../../.planning/phases', import.meta.url));
+  if (!existsSync(phasesDir)) return [];
+  const found: RecordedFile[] = [];
+  for (const dir of readdirSync(phasesDir)) {
+    if (!dir.startsWith('39-')) continue;
+    for (const f of readdirSync(join(phasesDir, dir)).filter((n) => n.endsWith('-results.json')).sort()) {
+      found.push({ path: join(phasesDir, dir, f), name: f, profile: profileForFile(f) });
+    }
+  }
+  return found;
+}
+
+describe('recorded results discovery', () => {
+  it('picks the gate profile only for names that contain maincloud', () => {
+    expect(profileForFile('39-maincloud-results.json')).toBe('gate');
+    expect(profileForFile('39-local-results.json')).toBe('full');
+    expect(profileForFile('anything-results.json')).toBe('full');
+  });
+
+  it('returns every -results.json file of every 39- folder, not just the first', () => {
+    const found = locateRecordedResults();
+    for (const f of found) {
+      expect(f.name.endsWith('-results.json')).toBe(true);
+      expect(f.profile).toBe(profileForFile(f.name));
+    }
+    expect(new Set(found.map((f) => f.path)).size).toBe(found.length);
+  });
+});
+
+const recordedFiles = locateRecordedResults();
+
+// describe.each rejects an empty table, so the recorded-file suites are registered only when files exist.
+const recordedCases = recordedFiles.map((f) => [f.name, f] as const);
+
+describe.runIf(recordedCases.length > 0).each(recordedCases.length > 0 ? recordedCases : [['none', null as unknown as RecordedFile] as const])('recorded results file %s', (_name, file) => {
+  const text = readFileSync(file.path, 'utf8');
   const doc = JSON.parse(text) as ResultsDoc;
 
   it('is structurally valid (final when a verdict exists, partial otherwise)', () => {
-    expect(validateResults(doc, { final: doc.verdict !== undefined })).toEqual([]);
+    expect(validateResults(doc, { final: doc.verdict !== undefined, profile: file.profile })).toEqual([]);
   });
 
   it('contains no key-prefixed strings at all', () => {
