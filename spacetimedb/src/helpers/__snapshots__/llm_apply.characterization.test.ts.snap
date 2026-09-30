@@ -293,14 +293,6 @@ exports[`submit_llm_result creation replies: Phase 41 clamped > Phase 41: clampe
       "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+20 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 23 base, instant, 6s cooldown, 15 stamina, dot (9s)\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
   ]
 }"
 `;
@@ -326,14 +318,6 @@ exports[`submit_llm_result creation replies: Phase 41 clamped > Phase 41: clampe
       "kind": "creation",
       "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+3 STR, +1 DEX\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "race_definition": [
@@ -374,14 +358,6 @@ exports[`submit_llm_result creation_class success > Phase 41: a null ability ent
       "message": "A unique class emerges.\\n\\n**Half Built**\\nPrimary: STR, Secondary: DEX | Armor: cloth | Physical (+0 bonus HP)\\n\\nYour starting abilities:\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
   ]
 }"
 `;
@@ -410,14 +386,6 @@ exports[`submit_llm_result creation_class success > Phase 41: an empty object st
       "kind": "creation",
       "message": "A unique class emerges.\\n\\n**Unknown Class**\\nPrimary: STR, Secondary: DEX | Armor: cloth | Physical (+0 bonus HP)\\n\\nYour starting abilities:\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ]
 }"
@@ -449,14 +417,6 @@ exports[`submit_llm_result creation_class success > Phase 41: legacy ability fie
       "message": "Glows unpleasantly.\\n\\n**Cinder Mystic**\\nPrimary: INT | Armor: cloth | Mana user (+15 bonus mana)\\n\\nYour starting abilities:\\n\\n[Spark] — A spark.\\n  physical damage, 15 base, 1s cast, 4s cooldown, 15 mana\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
   ]
 }"
 `;
@@ -481,14 +441,6 @@ exports[`submit_llm_result creation_class success > QUIRK: malformed JSON increm
       "kind": "creation_error",
       "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ]
 }"
@@ -519,14 +471,6 @@ exports[`submit_llm_result creation_class success > applies a valid reply: CLASS
       "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+10 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\n[Ash Veil] — A curtain of soot.\\n  physical shield, 10 base, 2s cast, 12s cooldown, 10 mana\\n\\n[Old Style] — A legacy-shaped ability.\\n  physical damage, 15 base, instant, 4s cooldown, 10 stamina\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
   ]
 }"
 `;
@@ -553,14 +497,6 @@ exports[`submit_llm_result creation_race success > Phase 41: a reply without rac
       "message": "Nothing much.\\n\\n**Unknown**\\n+2 STR, +1 DEX\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
   ]
 }"
 `;
@@ -583,14 +519,6 @@ exports[`submit_llm_result creation_race success > QUIRK: malformed JSON increme
       "kind": "creation_error",
       "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ]
 }"
@@ -617,14 +545,6 @@ exports[`submit_llm_result creation_race success > accepts a reply with prose ar
       "kind": "creation",
       "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "race_definition": [
@@ -663,14 +583,6 @@ exports[`submit_llm_result creation_race success > accepts a reply wrapped in a 
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "race_definition": [
     {
       "bonusesJson": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1},\\"flavor\\":\\"Ember-warm.\\"}",
@@ -705,14 +617,6 @@ exports[`submit_llm_result creation_race success > applies a valid reply: state,
       "kind": "creation",
       "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "race_definition": [
@@ -751,14 +655,6 @@ exports[`submit_llm_result creation_race success > does not add a second race_de
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "race_definition": [
     {
       "bonusesJson": "{}",
@@ -767,50 +663,6 @@ exports[`submit_llm_result creation_race success > does not add a second race_de
       "name": "ashkin",
       "nameLower": "ashkin",
       "narrative": "old"
-    }
-  ]
-}"
-`;
-
-exports[`submit_llm_result creation_race success > increments an existing budget row instead of adding a second one 1`] = `
-"{
-  "character_creation_state": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "id": "2n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "raceBonuses": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1},\\"flavor\\":\\"Ember-warm.\\"}",
-      "raceName": "Ashkin",
-      "raceNarrative": "Born of cinders and spite.",
-      "step": "AWAITING_ARCHETYPE",
-      "updatedAt": "ts:1700000000000000n"
-    }
-  ],
-  "event_creation": [
-    {
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "creation",
-      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "5n",
-      "id": "5n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
-  "race_definition": [
-    {
-      "bonusesJson": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1},\\"flavor\\":\\"Ember-warm.\\"}",
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "name": "Ashkin",
-      "nameLower": "ashkin",
-      "narrative": "Born of cinders and spite."
     }
   ]
 }"
@@ -1211,14 +1063,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > QUIRK: two off
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -1356,14 +1200,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > a completed qu
       "kind": "quest",
       "message": "New quest: Fresh Work",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "location": [
@@ -1519,14 +1355,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > a type without
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -1670,14 +1498,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > an invalid que
       "kind": "quest",
       "message": "New quest: Rats in the Cellar",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "location": [
@@ -1832,14 +1652,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > boss_kill ques
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -1983,14 +1795,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest
       "kind": "quest",
       "message": "New quest: Bread Run",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "location": [
@@ -2144,14 +1948,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -2292,14 +2088,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -2427,14 +2215,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest
       "kind": "quest",
       "message": "New quest: Parcel",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "location": [
@@ -2575,14 +2355,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > explore quest 
       "kind": "quest",
       "message": "New quest: Find the Well",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "location": [
@@ -2747,14 +2519,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > kill quest for
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -2908,14 +2672,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > kill quest res
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -3059,14 +2815,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > kill quest wit
       "kind": "quest",
       "message": "New quest: Rats in the Cellar",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "location": [
@@ -3213,14 +2961,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > kill quest wit
       "kind": "quest",
       "message": "New quest: Rats in the Cellar",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "location": [
@@ -3375,14 +3115,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > kill_loot ques
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -3520,14 +3252,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > skips an offer
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -3649,14 +3373,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > skips an offer
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "location": [
@@ -3824,14 +3540,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > skips an offer
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -3969,14 +3677,6 @@ exports[`submit_llm_result npc_conversation success > QUIRK: a negative affinity
       "kind": "npc",
       "message": "Marta's expression darkens. You've struck a nerve.",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "npc": [
@@ -4119,14 +3819,6 @@ exports[`submit_llm_result npc_conversation success > accepts a code-fenced repl
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -4211,14 +3903,6 @@ exports[`submit_llm_result npc_conversation success > affinity change -1 lands a
       "kind": "npc",
       "message": "Marta's eyes narrow slightly. That didn't land well.",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "npc": [
@@ -4307,14 +3991,6 @@ exports[`submit_llm_result npc_conversation success > affinity change -3 lands a
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -4401,14 +4077,6 @@ exports[`submit_llm_result npc_conversation success > affinity change -50 lands 
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -4485,14 +4153,6 @@ exports[`submit_llm_result npc_conversation success > affinity change 1 lands as
       "kind": "npc",
       "message": "Marta regards you with a hint of warmth.",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "npc": [
@@ -4574,14 +4234,6 @@ exports[`submit_llm_result npc_conversation success > affinity change 3 lands as
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -4661,14 +4313,6 @@ exports[`submit_llm_result npc_conversation success > affinity change 50 lands a
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -4738,14 +4382,6 @@ exports[`submit_llm_result npc_conversation success > an affinity_change with 0 
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "npc": [
@@ -4818,14 +4454,6 @@ exports[`submit_llm_result npc_conversation success > an affinity_change with mi
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -4894,14 +4522,6 @@ exports[`submit_llm_result npc_conversation success > an affinity_change with no
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "npc": [
@@ -4982,14 +4602,6 @@ exports[`submit_llm_result npc_conversation success > creates the affinity row o
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -5062,14 +4674,6 @@ exports[`submit_llm_result npc_conversation success > does not duplicate a known
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -5138,14 +4742,6 @@ exports[`submit_llm_result npc_conversation success > falls back to "..." when t
       "kind": "npc",
       "message": "Marta says, \\"...\\"",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "npc": [
@@ -5240,14 +4836,6 @@ exports[`submit_llm_result npc_conversation success > logs the dialogue, runs th
       "kind": "npc",
       "message": "Marta offers you something... (Item generation deferred.)",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "npc": [
@@ -5359,14 +4947,6 @@ exports[`submit_llm_result npc_conversation success > skips the memory update an
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -5418,14 +4998,6 @@ exports[`submit_llm_result renown_perk_gen success > Phase 41: the rank-2 static
       "kind": "narrative",
       "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "pending_renown_perk": [
@@ -5516,14 +5088,6 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: a missing rank defau
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "pending_renown_perk": [
     {
       "castSeconds": "0n",
@@ -5602,14 +5166,6 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: a rank without a sta
       "xp": "0n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "pending_renown_perk": [],
   "renown_perk": []
 }"
@@ -5641,14 +5197,6 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: a zero rank defaults
       "kind": "narrative",
       "message": "Your renown has grown. The world takes notice.\\n\\nThe Keeper of Knowledge regards you with something resembling mild respect.\\n\\n\\"Rank 2. The world owes you something. Choose your due:\\"\\n\\n[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus\\n\\n[C] -- C description.\\n  Passive bonus\\n\\n\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\"",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "pending_renown_perk": [
@@ -5739,14 +5287,6 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: fewer than three VAL
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "pending_renown_perk": [
     {
       "castSeconds": "0n",
@@ -5833,14 +5373,6 @@ exports[`submit_llm_result renown_perk_gen success > an empty perks array takes 
       "kind": "narrative",
       "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "pending_renown_perk": [
@@ -5931,14 +5463,6 @@ exports[`submit_llm_result renown_perk_gen success > inserts three valid perks f
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "pending_renown_perk": [
     {
       "castSeconds": "0n",
@@ -6024,14 +5548,6 @@ exports[`submit_llm_result renown_perk_gen success > only the first three valid 
       "kind": "narrative",
       "message": "Your renown has grown. The world takes notice.\\n\\nThe Keeper of Knowledge regards you with something resembling mild respect.\\n\\n\\"Rank 2. The world owes you something. Choose your due:\\"\\n\\n[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus\\n\\n[C] -- C description.\\n  Passive bonus\\n\\n\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\"",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "pending_renown_perk": [
@@ -6120,14 +5636,6 @@ exports[`submit_llm_result renown_perk_gen success > perks that is not an array 
       "kind": "narrative",
       "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "pending_renown_perk": [
@@ -6224,14 +5732,6 @@ exports[`submit_llm_result renown_perk_gen success > static fallback for an acti
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "pending_renown_perk": [
     {
       "castSeconds": "0n",
@@ -6317,14 +5817,6 @@ exports[`submit_llm_result renown_perk_gen success > unparseable text takes the 
       "kind": "narrative",
       "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "pending_renown_perk": [
@@ -6413,14 +5905,6 @@ exports[`submit_llm_result renown_perk_gen success > uses the rank from the task
       "kind": "narrative",
       "message": "Your renown has grown. The world takes notice.\\n\\nThe Keeper of Knowledge regards you with something resembling mild respect.\\n\\n\\"Rank 5. The world owes you something. Choose your due:\\"\\n\\n[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus\\n\\n[C] -- C description.\\n  Passive bonus\\n\\n\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\"",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "pending_renown_perk": [
@@ -6572,14 +6056,6 @@ exports[`submit_llm_result skill_gen success > QUIRK: only the first three skill
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "pending_skill": [
     {
       "castSeconds": "0n",
@@ -6669,14 +6145,6 @@ exports[`submit_llm_result skill_gen success > accepts the Claude structured-out
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "pending_skill": [
     {
       "castSeconds": "0n",
@@ -6760,14 +6228,6 @@ exports[`submit_llm_result skill_gen success > applies the v2.0 validators on th
       "ownerUserId": "7n"
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "pending_skill": [
     {
       "castSeconds": "0n",
@@ -6849,14 +6309,6 @@ exports[`submit_llm_result skill_gen success > inserts three pending skills, pre
       "kind": "narrative",
       "message": "The Keeper of Knowledge regards you with something resembling interest.\\n\\n\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\"\\n\\n[Cinder Cut] -- Cinder Cut description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[Ash Ward] -- Ash Ward description.\\n  shield | 5 mana | 1s cast | 6s cooldown | 15 power\\n\\n[Ember Pulse] -- Ember Pulse description.\\n  heal | 5 stamina | instant | 6s cooldown | 15 power\\n\\n\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\"",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "pending_skill": [
@@ -7214,14 +6666,6 @@ exports[`submit_llm_result world_gen success > QUIRK: a missing character still 
       "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "location": [
     {
       "bindStone": true,
@@ -7484,308 +6928,6 @@ exports[`submit_llm_result world_gen success > QUIRK: a state in step PENDING re
 }"
 `;
 
-exports[`submit_llm_result world_gen success > QUIRK: charges the budget to the generation state player, not the sender 1`] = `
-"{
-  "character": [
-    {
-      "boundLocationId": "1n",
-      "cha": "10n",
-      "className": "Emberblade",
-      "gold": "0n",
-      "id": "10n",
-      "level": "1n",
-      "locationId": "1n",
-      "name": "Tester",
-      "ownerUserId": "7n",
-      "race": "Ashkin",
-      "xp": "0n"
-    }
-  ],
-  "enemy_ability": [
-    {
-      "abilityKey": "slash",
-      "castSeconds": "0n",
-      "cooldownSeconds": "6n",
-      "enemyTemplateId": "1n",
-      "id": "1n",
-      "kind": "damage",
-      "name": "Slash",
-      "targetRule": "single_enemy"
-    },
-    {
-      "abilityKey": "bolt",
-      "castSeconds": "2n",
-      "cooldownSeconds": "6n",
-      "enemyTemplateId": "2n",
-      "id": "2n",
-      "kind": "damage",
-      "name": "Bolt",
-      "targetRule": "single_enemy"
-    }
-  ],
-  "enemy_role_template": [
-    {
-      "abilityProfile": "melee",
-      "displayName": "Ember Wolf",
-      "enemyTemplateId": "1n",
-      "id": "1n",
-      "role": "melee",
-      "roleDetail": "melee",
-      "roleKey": "melee"
-    },
-    {
-      "abilityProfile": "caster",
-      "displayName": "Slag Caster",
-      "enemyTemplateId": "2n",
-      "id": "2n",
-      "role": "caster",
-      "roleDetail": "caster",
-      "roleKey": "caster"
-    }
-  ],
-  "enemy_template": [
-    {
-      "abilityProfile": "melee",
-      "armorClass": "4n",
-      "awareness": "normal",
-      "baseDamage": "8n",
-      "creatureType": "beast",
-      "groupMax": "2n",
-      "groupMin": "1n",
-      "id": "1n",
-      "level": "1n",
-      "maxHp": "32n",
-      "name": "Ember Wolf",
-      "role": "melee",
-      "roleDetail": "melee",
-      "socialGroup": "Ember Wolf",
-      "socialRadius": "0n",
-      "terrainTypes": "plains",
-      "timeOfDay": "any",
-      "xpReward": "25n"
-    },
-    {
-      "abilityProfile": "caster",
-      "armorClass": "4n",
-      "awareness": "normal",
-      "baseDamage": "8n",
-      "creatureType": "humanoid",
-      "groupMax": "1n",
-      "groupMin": "1n",
-      "id": "2n",
-      "level": "1n",
-      "maxHp": "32n",
-      "name": "Slag Caster",
-      "role": "caster",
-      "roleDetail": "caster",
-      "socialGroup": "Slag Caster",
-      "socialRadius": "0n",
-      "terrainTypes": "mountains",
-      "timeOfDay": "any",
-      "xpReward": "25n"
-    }
-  ],
-  "event_private": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa and Old Brann and The Ledger Keeper nearby. Perhaps someone here has something to say.\\n\\nPaths lead to Slag Road. Try [look] to examine your surroundings, or [travel] to move.",
-      "ownerUserId": "7n"
-    },
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "2n",
-      "kind": "system",
-      "message": "You step into Cinderfall. It has always been here. You were simply the first to notice.",
-      "ownerUserId": "7n"
-    }
-  ],
-  "event_world": [
-    {
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "world",
-      "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      "resetDate": "2023-11-14"
-    }
-  ],
-  "location": [
-    {
-      "bindStone": true,
-      "craftingAvailable": true,
-      "description": "A sheltered town.",
-      "id": "1n",
-      "isSafe": true,
-      "levelOffset": "0n",
-      "name": "Ember Hollow",
-      "regionId": "1n",
-      "terrainType": "town",
-      "zone": "Cinderfall"
-    },
-    {
-      "bindStone": false,
-      "craftingAvailable": false,
-      "description": "A cracked road.",
-      "id": "2n",
-      "isSafe": false,
-      "levelOffset": "0n",
-      "name": "Slag Road",
-      "regionId": "1n",
-      "terrainType": "plains",
-      "zone": "Cinderfall"
-    },
-    {
-      "bindStone": false,
-      "craftingAvailable": false,
-      "description": "A smoking crater.",
-      "id": "3n",
-      "isSafe": false,
-      "levelOffset": "1n",
-      "name": "Ashen Pit",
-      "regionId": "1n",
-      "terrainType": "mountains",
-      "zone": "Cinderfall"
-    },
-    {
-      "bindStone": false,
-      "craftingAvailable": false,
-      "description": "The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.",
-      "id": "4n",
-      "isSafe": true,
-      "levelOffset": "0n",
-      "name": "The Edge Beyond Cinderfall",
-      "regionId": "1n",
-      "terrainType": "uncharted",
-      "zone": "Uncharted"
-    }
-  ],
-  "location_connection": [
-    {
-      "fromLocationId": "1n",
-      "id": "1n",
-      "toLocationId": "2n"
-    },
-    {
-      "fromLocationId": "2n",
-      "id": "2n",
-      "toLocationId": "1n"
-    },
-    {
-      "fromLocationId": "2n",
-      "id": "3n",
-      "toLocationId": "3n"
-    },
-    {
-      "fromLocationId": "3n",
-      "id": "4n",
-      "toLocationId": "2n"
-    },
-    {
-      "fromLocationId": "3n",
-      "id": "5n",
-      "toLocationId": "4n"
-    },
-    {
-      "fromLocationId": "4n",
-      "id": "6n",
-      "toLocationId": "3n"
-    }
-  ],
-  "location_enemy_template": [
-    {
-      "enemyTemplateId": "1n",
-      "id": "1n",
-      "locationId": "2n"
-    },
-    {
-      "enemyTemplateId": "1n",
-      "id": "2n",
-      "locationId": "3n"
-    },
-    {
-      "enemyTemplateId": "2n",
-      "id": "3n",
-      "locationId": "2n"
-    },
-    {
-      "enemyTemplateId": "2n",
-      "id": "4n",
-      "locationId": "3n"
-    }
-  ],
-  "npc": [
-    {
-      "description": "A soot-streaked trader.",
-      "gender": "female",
-      "greeting": "Buy something.",
-      "id": "1n",
-      "locationId": "1n",
-      "name": "Vessa",
-      "npcType": "vendor",
-      "personalityJson": "{\\"traits\\":[\\"brisk\\"],\\"speechPattern\\":\\"clipped\\",\\"knowledgeDomains\\":[\\"trade\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
-    },
-    {
-      "description": "A mysterious figure.",
-      "gender": "female",
-      "greeting": "Greetings, traveler.",
-      "id": "2n",
-      "locationId": "1n",
-      "name": "Old Brann",
-      "npcType": "lore",
-      "personalityJson": "{\\"traits\\":[\\"reserved\\"],\\"speechPattern\\":\\"speaks plainly\\",\\"knowledgeDomains\\":[\\"local area\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
-    },
-    {
-      "description": "A meticulous figure who guards your valuables with obsessive precision.",
-      "gender": "female",
-      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
-      "id": "3n",
-      "locationId": "1n",
-      "name": "The Ledger Keeper",
-      "npcType": "banker",
-      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
-    }
-  ],
-  "region": [
-    {
-      "biome": "volcanic",
-      "dangerMultiplier": "100n",
-      "dominantFaction": "Ash Court",
-      "generatedByCharacterId": "10n",
-      "id": "1n",
-      "isGenerated": true,
-      "landmarks": "[\\"The Slag Spire\\"]",
-      "name": "Cinderfall",
-      "regionType": "generated",
-      "starterForRace": "ashkin",
-      "threats": "[\\"ember wolves\\"]"
-    }
-  ],
-  "world_gen_state": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1600000000000000n",
-      "generatedRegionId": "1n",
-      "id": "5n",
-      "playerId": "identity:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      "sourceLocationId": "0n",
-      "sourceRegionId": "0n",
-      "step": "COMPLETE",
-      "updatedAt": "ts:1700000000000000n"
-    }
-  ]
-}"
-`;
-
 exports[`submit_llm_result world_gen success > a missing regionName ends in ERROR with the "incomplete" message 1`] = `
 "{
   "character": [
@@ -7953,14 +7095,6 @@ exports[`submit_llm_result world_gen success > accepts a code-fenced reply 1`] =
       "id": "1n",
       "kind": "world",
       "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "location": [
@@ -8499,14 +7633,6 @@ exports[`submit_llm_result world_gen success > non-starter region: raises danger
       "message": "A new land has been remembered beyond Old Reach... the air carries hints of ashen."
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "location": [
     {
       "description": "The mists have parted. What was once the edge of the known world is now a well-trodden path between regions. The air still carries a faint shimmer of remembered possibility.",
@@ -8834,14 +7960,6 @@ exports[`submit_llm_result world_gen success > places the character in a non-saf
       "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
     }
   ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
   "location": [
     {
       "bindStone": false,
@@ -9141,14 +8259,6 @@ exports[`submit_llm_result world_gen success > starter region: writes region, lo
       "id": "1n",
       "kind": "world",
       "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "location": [

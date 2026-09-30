@@ -1,14 +1,14 @@
 /**
  * Executor-agnostic apply logic for LLM results.
  *
- * Extracted verbatim from the submit_llm_result reducer (Phase 40, plan 08).
+ * Extracted from the removed client-trusted result reducer in Phase 40.
  * Every function acts for the STORED requester (job.playerId), never for the
  * caller identity: in a scheduled procedure (Phase 41) the caller is the module
  * identity, so reading the sender from the context here would be a spoofing bug.
  *
- * Quirks are preserved on purpose (see submit_llm_result.characterization.test.ts):
- * creation increments the budget before parsing, skill_gen with fewer than three
- * skills does not increment it, and NPC budget is charged again at result.
+ * Quirks are preserved on purpose and pinned in llm_apply.characterization.test.ts.
+ * Spend is owned by the executor's reservation and settlement (Phase 41), so this
+ * layer writes no call counts.
  *
  * Phase 41 (plan 03) hardened this layer against real model output: creation
  * replies are clamped (creation_validate), every model-supplied number that becomes
@@ -16,7 +16,6 @@
  * static fallback is the shared bigint-safe insertStaticRenownPerkOptions, and a
  * terminal renown_perk_gen failure delivers the static options instead of nothing.
  */
-import { incrementBudget } from './llm';
 import {
   appendWorldEvent,
   appendPrivateEvent,
@@ -186,8 +185,6 @@ export function applyCreationResult(ctx: any, job: ApplyJob, resultText: string)
   const generationType = job.domain === 'creation_race' ? 'race' : 'class';
   const s = creationStateForJob(ctx, job);
   if (!s) return;
-
-  incrementBudget(ctx, job.playerId);
 
   try {
     const raw = extractJson(resultText);
@@ -401,8 +398,6 @@ export function applyWorldGenResult(ctx: any, job: ApplyJob, resultText: string)
     appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'system',
       pickDiscoveryMessage(data.regionName, ctx.timestamp.microsSinceUnixEpoch));
   }
-
-  incrementBudget(ctx, currentGenState.playerId);
 }
 
 /** skill_gen success. */
@@ -431,7 +426,6 @@ export function applySkillGenResult(ctx: any, job: ApplyJob, resultText: string)
   }
 
   insertPendingSkills(ctx, charId, skills, offerLevel);
-  incrementBudget(ctx, job.playerId);
 
   // Present the 3 skills with The Keeper's sardonic narration
   let presentation = `The Keeper of Knowledge regards you with something resembling interest.\n\n`;
@@ -728,8 +722,6 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
       lastInteraction: ctx.timestamp,
     });
   }
-
-  incrementBudget(ctx, job.playerId);
 }
 
 /** combat_narration success. */
@@ -833,7 +825,6 @@ export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: strin
       appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
         'The Keeper shrugs. "The cosmos provided some... standard options for your consideration."');
     }
-    incrementBudget(ctx, job.playerId);
     return;
   }
 
@@ -866,8 +857,6 @@ export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: strin
       createdAt: ctx.timestamp,
     });
   }
-
-  incrementBudget(ctx, job.playerId);
 
   // Present options to the player
   let presentation = `Your renown has grown. The world takes notice.\n\n`;

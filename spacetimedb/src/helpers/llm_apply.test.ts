@@ -1,8 +1,8 @@
 /**
  * Tests for helpers/llm_apply.ts (Phase 40, Plan 08).
  *
- * The behavior of every domain is pinned by the untouched characterization suite
- * (submit_llm_result.characterization.test.ts). These tests cover what that suite
+ * The behavior of every domain is pinned by the characterization suite
+ * (llm_apply.characterization.test.ts). These tests cover what that suite
  * cannot: the apply functions act for the STORED player (job.playerId) even when the
  * caller identity is the module identity (the Phase 41 scheduled-procedure case),
  * toApplyJob maps both row shapes, an unknown domain is a no-op, extractJson, and
@@ -36,7 +36,6 @@ import { serializePerkEffect } from './renown';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
 
 const T0 = 1_700_000_000_000_000n;
-const TODAY = '2023-11-14';
 
 const alice = { toHexString: () => 'a'.repeat(64) };
 const moduleIdentity = { toHexString: () => 'c'.repeat(64) };
@@ -77,15 +76,6 @@ const creationState = (step: string) => ({
 });
 
 const job = (domain: string, contextJson?: string) => ({ domain, playerId: alice, contextJson });
-
-/** Rows in the budget table must all belong to alice, none to the module identity. */
-function expectBudgetOnlyForAlice(ctx: any, callCount: bigint) {
-  const budgets = rows(ctx, 'llm_budget');
-  expect(budgets).toHaveLength(1);
-  expect(budgets[0].playerId).toBe(alice);
-  expect(budgets[0]).toMatchObject({ callCount, resetDate: TODAY });
-  expect(budgets.some((b: any) => b.playerId === moduleIdentity)).toBe(false);
-}
 
 let errorSpy: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
@@ -155,7 +145,7 @@ describe('creation jobs are tied to their state row and GENERATING step', () => 
 });
 
 describe('sender independence (effects land on job.playerId, not the caller)', () => {
-  it('applyCreationResult creation_race updates alice state, event and budget only', () => {
+  it('applyCreationResult creation_race updates alice state and event only', () => {
     const ctx = moduleCtx({ character_creation_state: [creationState('GENERATING_RACE')] });
     applyCreationResult(
       ctx,
@@ -170,7 +160,6 @@ describe('sender independence (effects land on job.playerId, not the caller)', (
     const events = rows(ctx, 'event_creation');
     expect(events).toHaveLength(1);
     expect(events[0].playerId).toBe(alice);
-    expectBudgetOnlyForAlice(ctx, 1n);
   });
 
   it('applyCreationResult does nothing when the stored player has no creation state', () => {
@@ -181,7 +170,6 @@ describe('sender independence (effects land on job.playerId, not the caller)', (
     applyCreationResult(ctx, job('creation_race'), JSON.stringify({ raceName: 'Ashkin' }));
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('GENERATING_RACE');
     expect(rows(ctx, 'event_creation')).toHaveLength(0);
-    expect(rows(ctx, 'llm_budget')).toHaveLength(0);
   });
 
   it('applyLlmFailure creation_class reverts alice state and writes alice event', () => {
@@ -191,10 +179,9 @@ describe('sender independence (effects land on job.playerId, not the caller)', (
     const events = rows(ctx, 'event_creation');
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ playerId: alice, kind: 'creation_error' });
-    expect(rows(ctx, 'llm_budget')).toHaveLength(0);
   });
 
-  it('applySkillGenResult with three skills charges alice', () => {
+  it('applySkillGenResult with three skills inserts the pending skills', () => {
     const skill = (name: string) => ({
       name,
       description: `${name} description.`,
@@ -219,10 +206,9 @@ describe('sender independence (effects land on job.playerId, not the caller)', (
       JSON.stringify({ skills: [skill('One'), skill('Two'), skill('Three')] }),
     );
     expect(rows(ctx, 'pending_skill')).toHaveLength(3);
-    expectBudgetOnlyForAlice(ctx, 1n);
   });
 
-  it('applyRenownPerkResult with three perks charges alice', () => {
+  it('applyRenownPerkResult with three perks inserts the pending perks', () => {
     const perk = (name: string) => ({
       name,
       description: `${name} description.`,
@@ -237,13 +223,13 @@ describe('sender independence (effects land on job.playerId, not the caller)', (
       JSON.stringify({ perks: [perk('A'), perk('B'), perk('C')] }),
     );
     expect(rows(ctx, 'pending_renown_perk')).toHaveLength(3);
-    expectBudgetOnlyForAlice(ctx, 1n);
   });
 
   it('applyLlmResult routes to the domain function for the stored player', () => {
     const ctx = moduleCtx({ character_creation_state: [creationState('GENERATING_RACE')] });
     applyLlmResult(ctx, job('creation_race'), JSON.stringify({ raceName: 'Ashkin' }));
-    expectBudgetOnlyForAlice(ctx, 1n);
+    expect(rows(ctx, 'character_creation_state')[0]).toMatchObject({ playerId: alice, step: 'AWAITING_ARCHETYPE' });
+    expect(rows(ctx, 'event_creation')[0].playerId).toBe(alice);
   });
 });
 
@@ -395,7 +381,6 @@ describe('Phase 41: renown static fallback and failure path', () => {
       const events = rows(ctx, 'event_private');
       expect(events).toHaveLength(1);
       expect(events[0].message).toContain(KEEPER);
-      expectBudgetOnlyForAlice(ctx, 1n);
     },
   );
 
@@ -418,7 +403,6 @@ describe('Phase 41: renown static fallback and failure path', () => {
     expect(rows(ctx, 'pending_renown_perk')).toHaveLength(3);
     events = rows(ctx, 'event_private');
     expect(events).toHaveLength(1);
-    expect(rows(ctx, 'llm_budget')).toHaveLength(0);
   });
 
   it('applyLlmFailure for a different rank still inserts (idempotence is per rank)', () => {
@@ -566,6 +550,13 @@ describe('static guards', () => {
     ])('does not flag %j', (src) => {
       expect(readsSender(src)).toBe(false);
     });
+  });
+
+  it('llm_apply.ts has no call-count writes (no legacy helper import, no old counter table)', () => {
+    const source = readFileSync(fileURLToPath(new URL('./llm_apply.ts', import.meta.url)), 'utf8');
+    expect(source).not.toMatch(/from\s+['"]\.\/llm['"]/);
+    expect(source).not.toContain('incrementBudget');
+    expect(source).not.toContain('llm_budget');
   });
 
   it('submit_llm_result in index.ts is a thin wrapper', () => {

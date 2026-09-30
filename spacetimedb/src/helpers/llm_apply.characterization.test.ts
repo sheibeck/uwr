@@ -40,10 +40,8 @@ vi.mock('spacetimedb/server', async () =>
 
 const T0 = 1_700_000_000_000_000n; // 2023-11-14T22:13:20Z
 const T_OLD = 1_600_000_000_000_000n;
-const TODAY = '2023-11-14';
 
 const alice = { toHexString: () => 'a'.repeat(64) };
-const bob = { toHexString: () => 'b'.repeat(64) };
 
 const ts = (micros: bigint) => ({ microsSinceUnixEpoch: micros });
 
@@ -281,7 +279,6 @@ describe('submit_llm_result failure path: creation and skill_gen', () => {
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_RACE');
     expect(rows(ctx, 'event_creation')).toHaveLength(1);
     expect(rows(ctx, 'event_creation')[0].kind).toBe('creation_error');
-    expect(rows(ctx, 'llm_budget')).toHaveLength(0);
   });
 
   // Deliberate change (review WR-B03): a creation failure only acts on a state still at its
@@ -333,7 +330,6 @@ describe('submit_llm_result failure path: creation and skill_gen', () => {
     expect(ev).toHaveLength(1);
     expect(ev[0]).toMatchObject({ characterId: 10n, ownerUserId: 7n, kind: 'narrative' });
     expect(ev[0].message).toContain('The cosmos provided some... standard options');
-    expect(rows(ctx, 'llm_budget')).toHaveLength(0);
   });
 });
 
@@ -361,19 +357,6 @@ describe('submit_llm_result creation_race success', () => {
     expect(rows(ctx, 'event_creation')[0].message).toContain('+2 STR, +1 DEX. Ember-warm.');
     expect(rows(ctx, 'race_definition')).toHaveLength(1);
     expect(rows(ctx, 'race_definition')[0]).toMatchObject({ name: 'Ashkin', nameLower: 'ashkin' });
-    expect(rows(ctx, 'llm_budget')).toEqual([
-      { id: 1n, playerId: alice, callCount: 1n, resetDate: TODAY },
-    ]);
-  });
-
-  it('increments an existing budget row instead of adding a second one', () => {
-    const ctx = newCtx({
-      ...seed(),
-      llm_budget: [{ id: 5n, playerId: alice, callCount: 4n, resetDate: TODAY }],
-    });
-    exec(ctx, applyJob('creation_race'), { resultText: JSON.stringify(RACE_JSON) });
-    expect(rows(ctx, 'llm_budget')).toHaveLength(1);
-    expect(rows(ctx, 'llm_budget')[0].callCount).toBe(5n);
   });
 
   it('accepts a reply wrapped in a markdown code fence', () => {
@@ -422,7 +405,6 @@ describe('submit_llm_result creation_race success', () => {
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_RACE');
     expect(rows(ctx, 'event_creation')[0]).toMatchObject({ kind: 'creation_error' });
     expect(rows(ctx, 'event_creation')[0].message).toContain('malformed');
-    expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
     expect(rows(ctx, 'race_definition')).toHaveLength(0);
   });
 
@@ -462,7 +444,6 @@ describe('submit_llm_result creation_class success', () => {
     expect(msg).toContain('Primary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+10 bonus HP)');
     expect(msg).toContain('[Ember Slash]');
     expect(msg).toContain('[Old Style]');
-    expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
   });
 
   it('Phase 41: legacy ability field names are not read (vocabulary defaults apply) on a mana-user class line', () => {
@@ -512,7 +493,6 @@ describe('submit_llm_result creation_class success', () => {
     exec(ctx, applyJob('creation_class'), { resultText: 'not json at all' });
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
     expect(rows(ctx, 'event_creation')[0].kind).toBe('creation_error');
-    expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
   });
 
   it('Phase 41: a null ability entry is dropped, not fatal (the old midway throw and revert is gone)', () => {
@@ -524,7 +504,6 @@ describe('submit_llm_result creation_class success', () => {
     expect(state.abilities).toBe('[]');
     expect(rows(ctx, 'event_creation')).toHaveLength(1);
     expect(rows(ctx, 'event_creation')[0].kind).toBe('creation');
-    expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
   });
 });
 
@@ -551,7 +530,6 @@ describe('submit_llm_result skill_gen success', () => {
     expect(ev[0]).toMatchObject({ characterId: 10n, ownerUserId: 7n, kind: 'narrative' });
     expect(ev[0].message).toContain('Level 3. How quaint.');
     expect(ev[0].message).toContain('[Cinder Cut]');
-    expect(rows(ctx, 'llm_budget')[0]).toMatchObject({ playerId: alice, callCount: 1n });
   });
 
   it('applies the v2.0 validators on the way in (over-budget value, unknown kind, mana cast floor)', () => {
@@ -599,7 +577,6 @@ describe('submit_llm_result skill_gen success', () => {
     const ctx = newCtx(seed());
     exec(ctx, applyJob('skill_gen', CTX_CHAR), { resultText: JSON.stringify({ skills: [skill('Only One'), skill('Only Two')] }) });
     expect(rows(ctx, 'pending_skill')).toHaveLength(0);
-    expect(rows(ctx, 'llm_budget')).toHaveLength(0);
     expect(rows(ctx, 'event_private')).toHaveLength(1);
     expect(rows(ctx, 'event_private')[0].message).toContain('The cosmic machinery sputtered');
   });
@@ -621,7 +598,6 @@ describe('submit_llm_result skill_gen success', () => {
     const ctx = newCtx(seed());
     exec(ctx, applyJob('skill_gen', CTX_CHAR), { resultText: 'sorry, no skills today' });
     expect(rows(ctx, 'pending_skill')).toHaveLength(0);
-    expect(rows(ctx, 'llm_budget')).toHaveLength(0);
     expect(rows(ctx, 'event_private')[0].message).toContain('sputtered');
   });
 
@@ -810,7 +786,6 @@ describe('submit_llm_result world_gen success', () => {
     expect(priv[0].message).toContain('You open your eyes in Ember Hollow, Cinderfall.');
     expect(priv[0].message).toContain('You notice Vessa and Old Brann and The Ledger Keeper nearby.');
     expect(rows(ctx, 'event_world')).toHaveLength(1);
-    expect(rows(ctx, 'llm_budget')).toEqual([{ id: 1n, playerId: alice, callCount: 1n, resetDate: TODAY }]);
   });
 
   it('non-starter region: raises danger from the source, clamps enemy levels, turns the uncharted edge into a passage', () => {
@@ -860,13 +835,6 @@ describe('submit_llm_result world_gen success', () => {
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
   });
 
-  it('QUIRK: charges the budget to the generation state player, not the sender', () => {
-    const ctx = newCtx(worldSeed({ gen: { playerId: bob } }));
-    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_JSON) });
-    expect(rows(ctx, 'llm_budget')).toHaveLength(1);
-    expect(rows(ctx, 'llm_budget')[0].playerId).toBe(bob);
-  });
-
   it('QUIRK: a missing character still gets the region written, but no private events and no starter mark', () => {
     const ctx = newCtx(worldSeed({ char: null }));
     exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_JSON) });
@@ -874,7 +842,6 @@ describe('submit_llm_result world_gen success', () => {
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
     expect(rows(ctx, 'event_private')).toHaveLength(0);
     expect(rows(ctx, 'event_world')).toHaveLength(1);
-    expect(rows(ctx, 'llm_budget')).toHaveLength(1);
   });
 
   it('accepts a code-fenced reply', () => {
@@ -890,7 +857,6 @@ describe('submit_llm_result world_gen success', () => {
       exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_JSON) });
       expect(rows(ctx, 'world_gen_state')[0].step).toBe(step);
       expect(rows(ctx, 'region')).toHaveLength(0);
-      expect(rows(ctx, 'llm_budget')).toHaveLength(0);
     },
   );
 
@@ -907,7 +873,6 @@ describe('submit_llm_result world_gen success', () => {
     expect(rows(ctx, 'event_creation')[0].message).toContain('came out wrong');
     expect(rows(ctx, 'event_creation')[0].message).toContain('Type [explore] to try again.');
     expect(rows(ctx, 'region')).toHaveLength(0);
-    expect(rows(ctx, 'llm_budget')).toHaveLength(0);
   });
 
   it('invalid JSON fails through a private system event for a placed character', () => {
@@ -930,7 +895,6 @@ describe('submit_llm_result world_gen success', () => {
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('ERROR');
     expect(rows(ctx, 'event_creation')[0].message).toContain('incomplete');
     expect(rows(ctx, 'region')).toHaveLength(0);
-    expect(rows(ctx, 'llm_budget')).toHaveLength(0);
   });
 });
 
@@ -945,7 +909,6 @@ describe('submit_llm_result npc_conversation failure path', () => {
     expect(rows(ctx, 'npc_dialog')).toHaveLength(1);
     expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta seems distracted.');
     expect(rows(ctx, 'event_private')[0]).toMatchObject({ kind: 'npc', message: 'Marta seems distracted. Try again.' });
-    expect(rows(ctx, 'llm_budget')).toHaveLength(0);
   });
 
   it('does not repeat an identical dialog line logged within the last minute (private event still written)', () => {
@@ -1003,7 +966,6 @@ describe('submit_llm_result npc_conversation success', () => {
     expect(rows(ctx, 'npc_memory')[0].lastUpdated).toEqual(ts(T0));
     expect(rows(ctx, 'npc_affinity')[0].affinity).toBe(3n);
     expect(rows(ctx, 'npc_affinity')[0].lastInteraction).toEqual(ts(T0));
-    expect(rows(ctx, 'llm_budget')[0]).toMatchObject({ playerId: alice, callCount: 1n });
   });
 
   it('does not duplicate a known memory topic and keeps the old summary when there is no new thought', () => {
@@ -1070,7 +1032,6 @@ describe('submit_llm_result npc_conversation success', () => {
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: JSON.stringify({ effects: 'lots', memoryUpdate: null }) });
     expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta: "..."');
     expect(rows(ctx, 'event_private')).toHaveLength(1);
-    expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
   });
 
   it('accepts a code-fenced reply', () => {
@@ -1087,7 +1048,6 @@ describe('submit_llm_result npc_conversation success', () => {
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ memoryUpdate: { addTopics: ['x'] } }) });
     expect(rows(ctx, 'npc_memory')).toHaveLength(0);
     expect(rows(ctx, 'npc_affinity')).toHaveLength(0);
-    expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
   });
 
   it('QUIRK: invalid JSON writes the "unintelligible" messages with NO budget increment and no memory change', () => {
@@ -1095,7 +1055,6 @@ describe('submit_llm_result npc_conversation success', () => {
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: 'Marta hums a tune' });
     expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta mutters something unintelligible.');
     expect(rows(ctx, 'event_private')[0].message).toBe('Marta mutters something unintelligible. (Try again.)');
-    expect(rows(ctx, 'llm_budget')).toHaveLength(0);
     expect(rows(ctx, 'npc_memory')[0].lastUpdated).toEqual(ts(T_OLD));
     expect(rows(ctx, 'npc_affinity')[0].lastInteraction).toEqual(ts(T_OLD));
   });
@@ -1352,7 +1311,6 @@ describe('submit_llm_result combat_narration', () => {
     exec(ctx, job(JSON.stringify({ combatId: '77', roundNumber: '1' })), { resultText: 'A quiet round.' });
     expect(rows(ctx, 'combat_narrative')).toHaveLength(1);
     expect(rows(ctx, 'event_private')).toHaveLength(0);
-    expect(rows(ctx, 'llm_budget')).toHaveLength(0);
   });
 });
 
@@ -1409,7 +1367,6 @@ describe('submit_llm_result renown_perk_gen success', () => {
     expect(msg).toContain('"Rank 2. The world owes you something. Choose your due:"');
     expect(msg).toContain('Active ability | 10 stamina | 300s cooldown');
     expect(msg).toContain('Passive bonus');
-    expect(rows(ctx, 'llm_budget')[0]).toMatchObject({ playerId: alice, callCount: 1n });
   });
 
   it('only the first three valid perks are inserted', () => {
@@ -1443,7 +1400,6 @@ describe('submit_llm_result renown_perk_gen success', () => {
     expect(perks.map((p: any) => p.name)).toEqual(['Bloodthirst', "Prospector's Luck", "Wanderer's Pace"]);
     expect(perks.every((p: any) => p.rank === 4n && p.kind === '')).toBe(true);
     expect(rows(ctx, 'event_private')[0].message).toContain('The cosmos provided some... standard options');
-    expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
   });
 
   it.each([
@@ -1454,7 +1410,6 @@ describe('submit_llm_result renown_perk_gen success', () => {
     const ctx = newCtx(seed());
     exec(ctx, job(RENOWN_CTX('4')), { resultText });
     expect(rows(ctx, 'pending_renown_perk')).toHaveLength(3);
-    expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
   });
 
   it('static fallback for an active-first pool (rank 6) inserts the active perk as a utility ability', () => {
@@ -1476,7 +1431,6 @@ describe('submit_llm_result renown_perk_gen success', () => {
       RENOWN_PERK_POOLS[2].slice(0, 3).map((p) => serializePerkEffect(p.effect)),
     );
     expect(rows(ctx, 'event_private')[0].message).toContain('The cosmos provided some... standard options');
-    expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
   });
 
   it.each([3, 5, 9, 11])('Phase 41: the rank-%s static fallback inserts three options with serialized effects', (rank) => {
@@ -1497,7 +1451,6 @@ describe('submit_llm_result renown_perk_gen success', () => {
     exec(ctx, job(RENOWN_CTX('99')), { resultText: 'nothing' });
     expect(rows(ctx, 'pending_renown_perk')).toHaveLength(0);
     expect(rows(ctx, 'event_private')).toHaveLength(0);
-    expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
   });
 
   it('returns silently when the character is gone (no budget increment)', () => {

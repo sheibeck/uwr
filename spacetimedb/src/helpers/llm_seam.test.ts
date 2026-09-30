@@ -342,9 +342,9 @@ describe('reference driver: renown rank-up end to end (offline)', () => {
     runJobOnce(proc, jobId, renownInput);
 
     expect(rows(proc, 'pending_renown_perk').every((p) => p.characterId === 1n)).toBe(true);
-    const budgets = rows(proc, 'llm_budget');
-    expect(budgets).toHaveLength(1);
-    expect(budgets[0].playerId).toBe(alice);
+    const budgets = rows(proc, 'llm_player_budget');
+    expect(budgets.length).toBeGreaterThan(0);
+    expect(budgets.every((b) => b.playerId === alice)).toBe(true);
     expect(rows(proc, 'llm_call_log')[0].playerId).toBe(alice);
   });
 
@@ -379,8 +379,6 @@ describe('reference driver: renown rank-up end to end (offline)', () => {
     expect(proc.http.calls).toHaveLength(1);
     expect(rows(proc, 'pending_renown_perk')).toHaveLength(3);
     expect(rows(proc, 'llm_call_log')).toHaveLength(1);
-    expect(rows(proc, 'llm_budget')).toHaveLength(1);
-    expect(rows(proc, 'llm_budget')[0].callCount).toBe(1n);
     const jobs = rows(proc, 'llm_job');
     expect(jobs).toHaveLength(1);
     expect(jobs[0].status).toBe('completed');
@@ -420,7 +418,6 @@ describe('reference driver: failure classes (offline)', () => {
     expect(job.attempt).toBe(1n);
     expect(job.finishedAt).toBeUndefined();
     expect(rows(proc, 'pending_renown_perk')).toHaveLength(0);
-    expect(rows(proc, 'llm_budget')).toHaveLength(0);
     const logs = rows(proc, 'llm_call_log');
     expect(logs).toHaveLength(1);
     expect(logs[0].outcome).toBe('timeout');
