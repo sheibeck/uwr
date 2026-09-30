@@ -58,23 +58,50 @@ The planner fills in task IDs. The requirement-level map comes from 40-RESEARCH.
 | SEC-01 | Recorder test: the new `llm_*` tables are private, and the public `llm_*` set is exactly `['llm_task']`. The view returns only the caller's rows, has six keys and no payload columns, and never uses `.iter()`. Keeper messages are non-empty | unit | `pnpm --dir spacetimedb exec vitest run src/schema/llm_privacy.test.ts src/views/llm.test.ts` | ❌ W0 | ⬜ pending |
 | SEC-01 (toolchain) | `spacetime generate` into a temporary directory produces no `llm_job_table.ts`, `llm_call_log_table.ts` or `llm_config_table.ts`, and does produce `my_llm_jobs_table.ts` | script (phase gate) | `spacetime generate --lang typescript --out-dir <tmp> -p spacetimedb`, then `ls <tmp>` checks | ❌ phase gate | ⬜ pending |
 | QUAL-04 | `createMockProcCtx` behavior: scripted fetch, timeout throw, sync-only `withTx`, rollback, re-invoke, no `ctx.db`, clock. A reference driver re-invokes `withTx` to persist and apply | unit | `pnpm --dir spacetimedb exec vitest run src/helpers/test-utils.test.ts src/helpers/llm_seam.test.ts` | ❌ W0 (extends the existing test-utils tests) | ⬜ pending |
-| Extraction (behavior unchanged) | Characterization tests per domain and per failure path. Static guards: `submit_llm_result` is a thin wrapper, and `llm_apply.ts` never uses `ctx.sender` | unit | `pnpm --dir spacetimedb exec vitest run src/helpers/llm_apply.test.ts` | ❌ W0 | ⬜ pending |
+| Extraction (behavior unchanged) | Characterization tests per domain and per failure path, written against the unchanged reducer and run unmodified after the move. Static guards: `submit_llm_result` is a thin wrapper, and `llm_apply.ts` never reads the sender | unit | `CI=true pnpm --dir spacetimedb exec vitest run src/helpers/submit_llm_result.characterization.test.ts src/helpers/llm_apply.test.ts` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
 ### Task-level map (filled by the planner)
 
-| Task | Requirement | Automated verify |
-|------|-------------|------------------|
-| _planner fills_ | | |
+All commands run from the repo root. `vitest` below means `pnpm --dir spacetimedb exec vitest run`.
+
+| Task | Wave | Requirement | Automated verify |
+|------|------|-------------|------------------|
+| 40-01 T1 createMockProcCtx + index mappings | 1 | QUAL-04 | `vitest src/helpers/test-utils.test.ts` |
+| 40-01 T2 schema recorder + reducer capture | 1 | QUAL-04, SEC-01, PIPE-08 (column validator) | `vitest src/helpers/schema_recorder.test.ts` |
+| 40-02 T1 subset linter | 1 | CLAUDE-03 | `vitest src/helpers/schema_lint.test.ts` |
+| 40-02 T2 JSON Schemas | 1 | CLAUDE-03 | `vitest src/data/llm_schemas.test.ts src/helpers/schema_lint.test.ts` |
+| 40-02 T3 model constant, route table, model-literal guard | 1 | CLAUDE-01 | `vitest src/data/llm_routes.test.ts src/data/model_literals.test.ts` |
+| 40-03 T1 Keeper Bible draft | 2 | CLAUDE-04 | `vitest src/data/keeper_bible.test.ts` |
+| 40-03 T2 player-text neutralizer and wrappers | 2 | CLAUDE-04 | `vitest src/data/llm_layers.test.ts` |
+| 40-03 T3 route blocks and volatile builders | 2 | CLAUDE-04 | `vitest src/data/llm_layers.test.ts src/data/keeper_bible.test.ts` |
+| 40-04 T1 private llm_job / llm_call_log + privacy test | 2 | SEC-01 | `vitest src/schema/llm_privacy.test.ts` then `spacetime build -p spacetimedb` |
+| 40-04 T2 enqueueLlmJob, dedupe, call log | 2 | PIPE-03, SEC-01 | `vitest src/helpers/llm_queue.test.ts src/schema/llm_privacy.test.ts` |
+| 40-05 T1 characterization: wrapper, creation, skill_gen | 2 | QUAL-04 (extraction safety) | `vitest src/helpers/submit_llm_result.characterization.test.ts` |
+| 40-05 T2 characterization: world_gen, npc, combat, renown | 2 | QUAL-04 (extraction safety) | `vitest src/helpers/submit_llm_result.characterization.test.ts` |
+| 40-05 T3 validator retention on model output | 2 | CLAUDE-03 | `vitest src/helpers/skill_gen.test.ts src/helpers/world_gen.test.ts` |
+| 40-06 T1 request builder, headers, body guard | 3 | CLAUDE-02, CLAUDE-01, CLAUDE-04 (cache layout) | `vitest src/helpers/claude_request.test.ts` |
+| 40-06 T2 parser, classifier, fixtures | 3 | CLAUDE-02 | `vitest src/helpers/claude_request.test.ts` |
+| 40-07 T1 keeperMessageForJob + my_llm_jobs view | 3 | SEC-01 | `vitest src/views/llm.test.ts` then `spacetime build -p spacetimedb` |
+| 40-07 T2 renown fix (RED then GREEN) | 3 | PIPE-08, PIPE-03 | `vitest src/helpers/renown_llm.test.ts src/reducers/renown.test.ts src/data/model_literals.test.ts` |
+| 40-08 T1 llm_apply.ts verbatim copy + sender independence | 3 | QUAL-04, SEC-01 | `vitest src/helpers/llm_apply.test.ts src/helpers/submit_llm_result.characterization.test.ts` |
+| 40-08 T2 thin submit_llm_result wrapper | 3 | QUAL-04 | `CI=true vitest src/helpers/submit_llm_result.characterization.test.ts src/helpers/llm_apply.test.ts` then `spacetime build -p spacetimedb` |
+| 40-09 T1 reference-driver seam test | 4 | QUAL-04, SEC-01, PIPE-08 | `vitest src/helpers/llm_seam.test.ts` |
+| 40-09 T2 phase gate, local publish, bindings, toolchain privacy | 4 | SEC-01 (toolchain) | `pnpm --dir spacetimedb test && spacetime build -p spacetimedb && test -f src/module_bindings/my_llm_jobs_table.ts && test ! -f src/module_bindings/llm_job_table.ts && test ! -f src/module_bindings/llm_call_log_table.ts && test ! -f src/module_bindings/llm_config_table.ts` |
+| 40-10 T1 Keeper Bible tone sign-off (checkpoint:human-verify) | 5 | CLAUDE-04 | `vitest src/data/keeper_bible.test.ts` before presenting; the approval itself is manual |
+| 40-10 T2 apply edits and re-test | 5 | CLAUDE-04 | `vitest src/data/keeper_bible.test.ts src/data/llm_layers.test.ts src/helpers/claude_request.test.ts && pnpm --dir spacetimedb test && spacetime build -p spacetimedb` |
+
+Sampling continuity: every task has an automated command; no three consecutive tasks lack one.
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `spacetimedb/src/helpers/test-utils.ts`: add `createMockProcCtx`, and add `by_dedupe_key`, `by_status` and `by_job` to `INDEX_TO_COLUMN`. Extend `test-utils.test.ts`, including a positive control showing the new index accessors return rows
-- [ ] A test-only schema recorder (a shared `vi.hoisted` recorder plus `expectRowMatchesTable`), so pure modules never import `spacetimedb/server` in vitest
-- [ ] `spacetimedb/src/helpers/__fixtures__/claude/*.json`: Claude response fixtures (ok, truncated, refusal, 400, 401, 403, 429 with and without `retry-after`, spend-limit 429 and 400, 500, 529, empty output, unexpected stop)
+- [ ] `spacetimedb/src/helpers/test-utils.ts`: add `createMockProcCtx`, and add `by_dedupe_key`, `by_status` and `by_job` to `INDEX_TO_COLUMN`. Extend `test-utils.test.ts`, including a positive control showing the new index accessors return rows (Plan 40-01 Task 1)
+- [ ] A test-only schema recorder, `spacetimedb/src/helpers/schema_recorder.ts` (`createRecordingServerMock`, `rowColumnProblems`, `capturedReducer`, `snapshotDb`), so tests can load `schema/tables.ts` and `index.ts` without the real server package (Plan 40-01 Task 2)
+- [ ] `spacetimedb/src/helpers/__fixtures__/claude/*.json`: Claude response fixtures (ok, truncated, refusal, 400, 401, 403, 429 with and without `retry-after`, spend-limit 429 and 400, 500, 529, empty output, unexpected stop) (Plan 40-06 Task 2)
+- [ ] Characterization tests of the unchanged `submit_llm_result` before extraction (Plan 40-05)
 - [ ] The new test files in the map above (none exist yet)
 - [ ] Framework install: none (Vitest 5.0.2 is already present)
 

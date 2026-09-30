@@ -143,7 +143,33 @@ Plans:
   5. A renown rank-up enqueues a valid job instead of hitting the swallowed insert error in `helpers/renown.ts` (a regression test fails on the old shape), and LLM code paths run offline in tests through a mock procedure context with fake `ctx.http` and a `withTx` that rejects promises and can be re-invoked
 
 **Testing**: This phase is mostly tests. Body snapshots for every route, schema linter cases, parser cases for each stop reason, prompt-layering and delimiter tests, privacy and dedupe tests, the renown regression test and the mock procedure context utilities.
-**Plans**: TBD
+**Plans**: 10 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 40-01-PLAN.md — Offline test seam: createMockProcCtx, new mock index mappings, schema recorder and reducer capture
+- [ ] 40-02-PLAN.md — Model constant, route table, real JSON Schemas, subset linter, repository model-literal guard
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 40-03-PLAN.md — Keeper Bible draft and layered prompts with player-text isolation
+- [ ] 40-04-PLAN.md — Private llm_job and llm_call_log tables, privacy test, dedupe-aware enqueueLlmJob
+- [ ] 40-05-PLAN.md — Characterization tests of the unchanged submit_llm_result and validator retention
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 40-06-PLAN.md — Pure Sonnet 5.5 request builder, response parser and failure classifier with fixtures
+- [ ] 40-07-PLAN.md — Own-jobs status view (my_llm_jobs) and the renown rank-up fix (PIPE-08 regression)
+- [ ] 40-08-PLAN.md — Extract the apply logic into helpers/llm_apply.ts; submit_llm_result becomes a thin wrapper
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 40-09-PLAN.md — Reference-driver seam test, phase gate, local publish (no clear), bindings regeneration
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 40-10-PLAN.md — Keeper Bible tone sign-off (checkpoint:human-verify)
 
 ### Phase 41: Executor and Domain Cutover
 
