@@ -196,3 +196,71 @@ describe('writeGeneratedRegion - starter region behavior', () => {
     expect(region.dangerMultiplier).toBeLessThanOrEqual(200n);
   });
 });
+
+describe('validator retention on model output', () => {
+  function createMockTx() {
+    const db = createMockDb();
+    return { db, timestamp: { microsSinceUnixEpoch: 1000000000000n } };
+  }
+
+  function enemyLevels(tx: any): bigint[] {
+    return tx.db.enemy_template._rows().map((e: any) => e.level);
+  }
+
+  it('clamps enemy levels far above and far below the danger band of a non-starter region into the band', () => {
+    const tx = createMockTx();
+    tx.db.region.insert({ id: 100n, name: 'Source', dangerMultiplier: 500n });
+    const parsed = baseParsedData({
+      enemies: [
+        { name: 'Titan', creatureType: 'beast', role: 'melee', level: 99 },
+        { name: 'Sapling', creatureType: 'beast', role: 'melee', level: -7 },
+        { name: 'Native', creatureType: 'beast', role: 'melee' },
+      ],
+    });
+    const region = writeGeneratedRegion(tx, parsed, baseGenState());
+    const base = region.dangerMultiplier / 100n;
+    const [tooHigh, tooLow, defaulted] = enemyLevels(tx);
+    // Source danger 500 plus 50-100, so the band sits well above level 2
+    expect(base).toBeGreaterThanOrEqual(5n);
+    expect(tooHigh).toBe(base + 1n);
+    expect(tooLow).toBe(base - 1n);
+    expect(defaulted >= base - 1n && defaulted <= base + 1n).toBe(true);
+    for (const level of enemyLevels(tx)) {
+      expect(level >= base - 1n && level <= base + 1n).toBe(true);
+    }
+  });
+
+  it('derives enemy stats from the clamped level, not from the model-provided level', () => {
+    const tx = createMockTx();
+    tx.db.region.insert({ id: 100n, name: 'Source', dangerMultiplier: 500n });
+    const parsed = baseParsedData({ enemies: [{ name: 'Titan', creatureType: 'beast', role: 'melee', level: 99 }] });
+    writeGeneratedRegion(tx, parsed, baseGenState());
+    const [enemy] = tx.db.enemy_template._rows();
+    expect(enemy.maxHp).toBe(enemy.level * 12n + 20n);
+    expect(enemy.baseDamage).toBe(enemy.level * 3n + 5n);
+    expect(enemy.xpReward).toBe(enemy.level * 15n + 10n);
+  });
+
+  it('a starter region keeps every enemy at level 1, including extreme and missing levels', () => {
+    const tx = createMockTx();
+    const parsed = baseParsedData({
+      enemies: [
+        { name: 'Titan', creatureType: 'beast', role: 'melee', level: 99 },
+        { name: 'Sapling', creatureType: 'beast', role: 'melee', level: -4 },
+        { name: 'Native', creatureType: 'beast', role: 'melee' },
+      ],
+    });
+    const region = writeGeneratedRegion(tx, parsed, { id: 1n, sourceRegionId: 0n, sourceLocationId: 0n, characterId: 10n });
+    expect(region.dangerMultiplier).toBe(100n);
+    expect(enemyLevels(tx)).toEqual([1n, 1n, 1n]);
+  });
+
+  it('caps the region danger at 800 so enemy levels never exceed 9', () => {
+    const tx = createMockTx();
+    tx.db.region.insert({ id: 100n, name: 'Source', dangerMultiplier: 800n });
+    const parsed = baseParsedData({ enemies: [{ name: 'Titan', creatureType: 'beast', role: 'melee', level: 99 }] });
+    const region = writeGeneratedRegion(tx, parsed, baseGenState());
+    expect(region.dangerMultiplier).toBe(800n);
+    expect(enemyLevels(tx)).toEqual([9n]);
+  });
+});
