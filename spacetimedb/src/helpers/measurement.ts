@@ -389,7 +389,9 @@ export function reserveCostMicroUsd(maxTokens: number, requestChars: number): nu
 /**
  * Replace a reservation with the real cost. A thrown fetch keeps the
  * reservation (billing unknown, never under-count); otherwise actual usage
- * when present; otherwise 0 (an error response without usage is not billed).
+ * when present. A 200 (or no status at all) whose usage did not parse was
+ * still billed, so it also keeps the reservation. Any other status without
+ * usage is an error response and settles to 0.
  */
 export function settleCostMicroUsd(o: {
   threw: boolean;
@@ -399,6 +401,7 @@ export function settleCostMicroUsd(o: {
 }): number {
   if (o.threw) return o.reservedMicroUsd;
   if (o.usage) return estimateCostMicroUsd(o.usage);
+  if (o.status === 200 || o.status === null) return o.reservedMicroUsd;
   return 0;
 }
 

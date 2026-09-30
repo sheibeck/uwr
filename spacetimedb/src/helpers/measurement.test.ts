@@ -541,6 +541,11 @@ describe('cost: estimate, reserve and settle', () => {
   it('settle is 0 for a non-200 response without usage', () => {
     expect(settleCostMicroUsd({ threw: false, status: 401, usage: null, reservedMicroUsd: 2810 })).toBe(0);
   });
+
+  it('settle keeps the reservation for a 200 whose usage did not parse, and when there is no status', () => {
+    expect(settleCostMicroUsd({ threw: false, status: 200, usage: null, reservedMicroUsd: 2810 })).toBe(2810);
+    expect(settleCostMicroUsd({ threw: false, status: null, usage: null, reservedMicroUsd: 2810 })).toBe(2810);
+  });
 });
 
 // ============================================================================
