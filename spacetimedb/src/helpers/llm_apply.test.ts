@@ -323,8 +323,21 @@ describe('renown active perks are validated and clamped like generated skills', 
     expect(msg).not.toContain('The cosmos provided some... standard options');
   });
 
+  it('a buff perk with an unknown effectType is kept, defaulted to damage_up and clamped, so the billed reply is used (WR-B03)', () => {
+    const ctx = moduleCtx({ character: [characterRow()] });
+    apply(ctx, [
+      active('Iron Reputation', { kind: 'buff', targetRule: 'self', effectType: 'defense_up', effectMagnitude: 999, effectDuration: 12 }),
+      passive('B'),
+      passive('C'),
+    ]);
+
+    const perks = rows(ctx, 'pending_renown_perk');
+    expect(perks.map((p: any) => p.name)).toEqual(['Iron Reputation', 'B', 'C']);
+    expect(perks[0]).toMatchObject({ kind: 'buff', effectType: 'damage_up', effectMagnitude: 9n, effectDuration: 12n });
+    expect(rows(ctx, 'event_private')[0].message).not.toContain('The cosmos provided some... standard options');
+  });
+
   it.each([
-    ['an unknown effectType', { effectType: 'instant_win', effectMagnitude: 3, effectDuration: 12 }],
     ['an unknown kind', { kind: 'annihilate' }],
     ['an unknown targetRule', { targetRule: 'everyone_everywhere' }],
     ['an unknown resourceType', { resourceType: 'souls' }],
@@ -349,8 +362,14 @@ describe('renown active perks are validated and clamped like generated skills', 
   });
 
   it('validateRenownActivePerk returns null for an invalid enum and the clamped perk otherwise', () => {
-    expect(validateRenownActivePerk(active('X', { effectType: 'nope' }), 3n)).toBeNull();
+    expect(validateRenownActivePerk(active('X', { scaling: 'luck' }), 3n)).toBeNull();
     expect(validateRenownActivePerk(active('X'), 3n)).toMatchObject({ value1: 36n, castSeconds: 1 });
+  });
+
+  it('validateRenownActivePerk defaults an unknown effectType to damage_up and keeps a valid one (WR-B03)', () => {
+    expect(validateRenownActivePerk(active('X', { effectType: 'nope' }), 3n)).toMatchObject({ effectType: 'damage_up' });
+    expect(validateRenownActivePerk(active('X', { effectType: 'armor_up' }), 3n)).toMatchObject({ effectType: 'armor_up' });
+    expect(validateRenownActivePerk(active('X'), 3n)!.effectType).toBeUndefined();
   });
 });
 

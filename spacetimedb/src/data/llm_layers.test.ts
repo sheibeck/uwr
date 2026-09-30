@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { KEEPER_BIBLE } from './keeper_bible';
 import { LLM_ROUTE_NAMES, type LlmRoute } from './llm_routes';
+import { EFFECT_TYPES } from './mechanical_vocabulary';
 import type { RoundEventSummary } from '../helpers/combat_narration';
 import {
   ROUTE_BLOCKS,
@@ -397,6 +398,12 @@ describe('route blocks and volatile builders', () => {
       expect(ROUTE_BLOCKS.skill_gen).toMatch(/9-12 seconds/);
       expect(ROUTE_BLOCKS.skill_gen).toMatch(/castSeconds >= 1/);
       expect(ROUTE_BLOCKS.skill_gen).toMatch(/kind must match mechanics/);
+    });
+
+    it('renown_perk_gen lists every valid effectType, like skill_gen (WR-B03)', () => {
+      const line = `- effectType (for buff, debuff, dot, hot): ${EFFECT_TYPES.join(', ')}`;
+      expect(ROUTE_BLOCKS.renown_perk_gen).toContain(line);
+      expect(ROUTE_BLOCKS.skill_gen).toContain(line);
     });
 
     it('renown_perk_gen keeps the at-least-one-passive rule', () => {

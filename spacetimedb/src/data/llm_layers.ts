@@ -328,6 +328,7 @@ Valid values:
 - resourceType: ${RESOURCE_LIST}
 - scaling: ${SCALING_LIST}
 - damageType: ${ALL_DAMAGE_TYPES}
+- effectType (for buff, debuff, dot, hot): ${EFFECT_LIST}
 
 Reply with the JSON object only.`;
 

@@ -894,6 +894,7 @@ Valid values:
 - resourceType: mana, stamina, hp, none
 - scaling: str, dex, int, wis, cha, hybrid, none
 - damageType: physical, arcane, divine, nature, fire, ice, shadow, none
+- effectType (for buff, debuff, dot, hot): str_bonus, dex_bonus, int_bonus, wis_bonus, cha_bonus, hp_bonus, ac_bonus, damage_up, damage_down, damage_taken, armor_up, armor_down, damage_shield, magic_resist, regen, dot, mana_regen, stamina_regen, health_regen, mana_regen_bonus, stun, root, silence, slow, mesmerize, stamina_free, food_health_regen, food_mana_regen, food_stamina_regen, faction_bonus, faction_standing_bonus, loot_bonus, on_hit, on_crit, on_kill, on_damage_taken
 
 Reply with the JSON object only.",
       "type": "text",
