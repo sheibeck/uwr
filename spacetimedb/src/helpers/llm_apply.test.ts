@@ -22,6 +22,7 @@ vi.mock('spacetimedb/server', async () =>
 
 import {
   applyCreationResult,
+  failWorldGen,
   applyLlmFailure,
   applyLlmResult,
   applySkillGenResult,
@@ -443,5 +444,94 @@ describe('static guards', () => {
     expect(text).toContain('applyLlmFailure(');
     expect(text).not.toContain('domain ===');
     expect(text).not.toContain('extractJson(');
+  });
+});
+
+describe('Phase 41 (plan 14): world-gen failures end in ERROR, never PENDING', () => {
+  const genRow = (over: Record<string, unknown> = {}) => ({
+    id: 5n,
+    playerId: alice,
+    characterId: 10n,
+    sourceLocationId: 0n,
+    sourceRegionId: 0n,
+    step: 'GENERATING',
+    createdAt: ts(T0 - 1000n),
+    updatedAt: ts(T0 - 1000n),
+    ...over,
+  });
+  const worldJob = { domain: 'world_gen', playerId: alice, contextJson: JSON.stringify({ genStateId: '5' }) } as any;
+
+  it('failWorldGen sets ERROR, stores the in-voice message and appends the [explore] line for a placed character', () => {
+    const ctx = moduleCtx({ character: [characterRow()], world_gen_state: [genRow()] });
+    failWorldGen(ctx, rows(ctx, 'world_gen_state')[0], 'The Keeper falters.');
+    expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({ step: 'ERROR', errorMessage: 'The Keeper falters.' });
+    const events = rows(ctx, 'event_private');
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      kind: 'system',
+      characterId: 10n,
+      message: 'The Keeper falters. Type [explore] to try again.',
+    });
+    expect(rows(ctx, 'event_creation')).toHaveLength(0);
+  });
+
+  it('failWorldGen routes the line to a creation_error event for a character not yet placed', () => {
+    const ctx = moduleCtx({
+      character: [{ ...characterRow(), locationId: 0n }],
+      world_gen_state: [genRow()],
+    });
+    failWorldGen(ctx, rows(ctx, 'world_gen_state')[0], 'The Keeper falters.');
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('ERROR');
+    expect(rows(ctx, 'event_creation')).toHaveLength(1);
+    expect(rows(ctx, 'event_creation')[0]).toMatchObject({
+      kind: 'creation_error',
+      playerId: alice,
+      message: 'The Keeper falters. Type [explore] to try again.',
+    });
+    expect(rows(ctx, 'event_private')).toHaveLength(0);
+  });
+
+  it('a failed world_gen job (call failure, sweeper expiry) ends in ERROR through applyLlmFailure', () => {
+    const ctx = moduleCtx({ character: [characterRow()], world_gen_state: [genRow()] });
+    applyLlmFailure(ctx, worldJob);
+    const state = rows(ctx, 'world_gen_state')[0];
+    expect(state.step).toBe('ERROR');
+    expect(state.errorMessage).toContain('The Keeper falters.');
+    expect(rows(ctx, 'event_private')[0].message).toMatch(/Type \[explore\] to try again\.$/);
+  });
+
+  it('a parse failure and an incomplete region both end in ERROR with the [explore] line', () => {
+    for (const reply of ['not json at all', JSON.stringify({ regionName: 'Only A Name' })]) {
+      const ctx = moduleCtx({ character: [characterRow()], world_gen_state: [genRow()] });
+      applyLlmResult(ctx, worldJob, reply);
+      expect(rows(ctx, 'world_gen_state')[0].step).toBe('ERROR');
+      expect(rows(ctx, 'region')).toHaveLength(0);
+      expect(rows(ctx, 'event_private')[0].message).toMatch(/Type \[explore\] to try again\.$/);
+    }
+  });
+
+  it('the failure text is in-voice: no digits, no budget words, the Keeper is "his", never "its"', () => {
+    const replies = ['not json at all', JSON.stringify({ regionName: 'Only A Name' })];
+    const messages: string[] = [];
+    for (const reply of replies) {
+      const ctx = moduleCtx({ character: [characterRow()], world_gen_state: [genRow()] });
+      applyLlmResult(ctx, worldJob, reply);
+      messages.push(rows(ctx, 'world_gen_state')[0].errorMessage);
+    }
+    const ctx = moduleCtx({ character: [characterRow()], world_gen_state: [genRow()] });
+    applyLlmFailure(ctx, worldJob);
+    messages.push(rows(ctx, 'world_gen_state')[0].errorMessage);
+    for (const m of messages) {
+      expect(m).not.toMatch(/\d/);
+      expect(m).not.toMatch(/budget|limit|daily/i);
+      expect(m).not.toMatch(/\b(its|they|them)\b/i);
+    }
+  });
+
+  it('llm_apply.ts has no retryWorldGen and never writes a PENDING world-gen step', () => {
+    const source = readFileSync(fileURLToPath(new URL('./llm_apply.ts', import.meta.url)), 'utf-8');
+    expect(source).not.toContain('retryWorldGen');
+    expect(source).not.toContain("step: 'PENDING'");
+    expect(source).toContain('export function failWorldGen');
   });
 });

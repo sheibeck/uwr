@@ -816,7 +816,7 @@ function offer(over: Record<string, any> = {}) {
 // ---------------------------------------------------------------------------
 
 describe('submit_llm_result world_gen failure path', () => {
-  it('resets the state to PENDING and tells a placed character through a private system event', () => {
+  it('sets the state to ERROR and tells a placed character through a private system event', () => {
     const ctx = newCtx({
       llm_task: [llmTask('world_gen', GEN_CTX)],
       world_gen_state: [genState({ step: 'GENERATING', errorMessage: 'stale' })],
@@ -824,25 +824,30 @@ describe('submit_llm_result world_gen failure path', () => {
     });
     exec(ctx, { success: false });
     expect(rows(ctx, 'llm_task')[0].status).toBe('error');
-    expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({ step: 'PENDING', errorMessage: undefined });
+    expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({
+      step: 'ERROR',
+      errorMessage: 'The Keeper falters. "The world refuses to be remembered right now."',
+    });
     expect(rows(ctx, 'event_private')).toHaveLength(1);
     expect(rows(ctx, 'event_private')[0]).toMatchObject({ kind: 'system', characterId: 10n, ownerUserId: 7n });
+    expect(rows(ctx, 'event_private')[0].message).toContain(' Type [explore] to try again.');
     expect(rows(ctx, 'event_creation')).toHaveLength(0);
   });
 
   it('routes the message to the creation events when the character has no location yet', () => {
     const ctx = newCtx(worldSeed());
     exec(ctx, { success: false });
-    expect(rows(ctx, 'world_gen_state')[0].step).toBe('PENDING');
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('ERROR');
     expect(rows(ctx, 'event_creation')).toHaveLength(1);
     expect(rows(ctx, 'event_creation')[0]).toMatchObject({ kind: 'creation_error', playerId: alice });
+    expect(rows(ctx, 'event_creation')[0].message).toContain(' Type [explore] to try again.');
     expect(rows(ctx, 'event_private')).toHaveLength(0);
   });
 
   it('routes to the creation events when the character row is gone', () => {
     const ctx = newCtx(worldSeed({ char: null }));
     exec(ctx, { success: false });
-    expect(rows(ctx, 'world_gen_state')[0].step).toBe('PENDING');
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('ERROR');
     expect(rows(ctx, 'event_creation')).toHaveLength(1);
   });
 
@@ -974,20 +979,21 @@ describe('submit_llm_result world_gen success', () => {
     expect(nonEmptyTables(ctx)).toEqual(['llm_task']);
   });
 
-  it('invalid JSON retries: state PENDING, creation_error for a character without a location, no budget', () => {
+  it('invalid JSON fails the generation: state ERROR, creation_error for a character without a location, no budget', () => {
     const ctx = newCtx(worldSeed());
     exec(ctx, { resultText: 'the world did not say anything useful' });
     expect(rows(ctx, 'llm_task')[0].status).toBe('completed');
-    expect(rows(ctx, 'world_gen_state')[0].step).toBe('PENDING');
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('ERROR');
     expect(rows(ctx, 'event_creation')[0].message).toContain('came out wrong');
+    expect(rows(ctx, 'event_creation')[0].message).toContain('Type [explore] to try again.');
     expect(rows(ctx, 'region')).toHaveLength(0);
     expect(rows(ctx, 'llm_budget')).toHaveLength(0);
   });
 
-  it('invalid JSON retries through a private system event for a placed character', () => {
+  it('invalid JSON fails through a private system event for a placed character', () => {
     const ctx = newCtx(worldSeed({ char: { locationId: 100n } }));
     exec(ctx, { resultText: '{ not json' });
-    expect(rows(ctx, 'world_gen_state')[0].step).toBe('PENDING');
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('ERROR');
     expect(rows(ctx, 'event_private')).toHaveLength(1);
     expect(rows(ctx, 'event_private')[0].kind).toBe('system');
     expect(rows(ctx, 'event_creation')).toHaveLength(0);
@@ -998,10 +1004,10 @@ describe('submit_llm_result world_gen success', () => {
     ['an empty regionName', { ...REGION_JSON, regionName: '' }],
     ['an empty locations array', { ...REGION_JSON, locations: [] }],
     ['no locations key', { ...REGION_JSON, locations: undefined }],
-  ])('%s takes the retry path with the "incomplete" message', (_label, reply) => {
+  ])('%s ends in ERROR with the "incomplete" message', (_label, reply) => {
     const ctx = newCtx(worldSeed());
     exec(ctx, { resultText: JSON.stringify(reply) });
-    expect(rows(ctx, 'world_gen_state')[0].step).toBe('PENDING');
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('ERROR');
     expect(rows(ctx, 'event_creation')[0].message).toContain('incomplete');
     expect(rows(ctx, 'region')).toHaveLength(0);
     expect(rows(ctx, 'llm_budget')).toHaveLength(0);

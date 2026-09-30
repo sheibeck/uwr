@@ -1,6 +1,10 @@
 // World generation helpers: build region context and write generated content into game tables
 
-import { connectLocations } from './location';
+import { connectLocations, ensureSpawnsForLocation } from './location';
+import type { WorldGenInput } from '../data/llm_layers';
+import { appendCreationEvent, appendPrivateEvent } from './events';
+import { enqueueLlmJob, llmRefusalMessage, SOURCE_KEYS } from './llm_queue';
+import { archetypeForPlayer, encodeRouteInput } from './llm_inputs';
 
 // ---------------------------------------------------------------------------
 // Relocated from data/world_gen.ts -- these are active generation functions
@@ -127,6 +131,132 @@ export function buildRegionContext(
   }
 
   return results;
+}
+
+export type WorldGenStartOutcome = 'reused' | 'enqueued' | 'duplicate' | 'refused';
+
+/** The in-voice reason stored on a refused state. world_gen_state is public: no budget or provider detail. */
+const WORLD_GEN_REFUSED_MESSAGE = 'The Keeper strains but cannot shape this realm right now.';
+
+/**
+ * Start generation for a freshly inserted (PENDING) world_gen_state, in the caller's
+ * transaction (Phase 41, plan 14, PIPE-01):
+ *  - a starter state (sourceRegionId 0n) reuses an existing starter region for the character's
+ *    race at no cost ('reused');
+ *  - otherwise one world_gen job and its dispatch are enqueued and the state becomes GENERATING
+ *    ('enqueued', or 'duplicate' when a job for this state is already active);
+ *  - a refused enqueue (budget or per-player cap) puts the state in ERROR with an in-voice
+ *    message and tells the player to [explore] again later ('refused').
+ * World generation never retries itself: only the player's explore starts a new job.
+ */
+export function startWorldGeneration(ctx: any, genState: any): WorldGenStartOutcome {
+  const character = ctx.db.character.id.find(genState.characterId);
+
+  if (genState.sourceRegionId === 0n && character && reuseStarterRegion(ctx, genState, character)) {
+    return 'reused';
+  }
+
+  const sourceRegion = ctx.db.region.id.find(genState.sourceRegionId);
+  const input: WorldGenInput = {
+    worldContext: '',
+    characterRace: character?.race ?? 'Unknown',
+    characterClass: character?.className ?? 'Unknown',
+    characterArchetype: archetypeForPlayer(ctx, genState.playerId),
+    sourceRegionName: sourceRegion?.name ?? 'the known world',
+    neighborRegions: buildRegionContext(ctx, genState.sourceRegionId),
+  };
+
+  const result = enqueueLlmJob(ctx, {
+    route: 'world_gen',
+    playerId: genState.playerId,
+    characterId: genState.characterId,
+    sourceKey: SOURCE_KEYS.worldGen(genState.id),
+    request: { genStateId: genState.id.toString(), input: encodeRouteInput(input) },
+  });
+
+  const current = ctx.db.world_gen_state.id.find(genState.id) ?? genState;
+
+  if (result.refused) {
+    ctx.db.world_gen_state.id.update({
+      ...current,
+      step: 'ERROR',
+      errorMessage: WORLD_GEN_REFUSED_MESSAGE,
+      updatedAt: ctx.timestamp,
+    });
+    const line = `${WORLD_GEN_REFUSED_MESSAGE} Type [explore] to try again later.`;
+    if (character && character.locationId !== 0n) {
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', line);
+    } else {
+      appendCreationEvent(ctx, genState.playerId, 'creation_error', line);
+    }
+    return 'refused';
+  }
+
+  ctx.db.world_gen_state.id.update({ ...current, step: 'GENERATING', updatedAt: ctx.timestamp });
+  return result.created ? 'enqueued' : 'duplicate';
+}
+
+/**
+ * The starter-region reuse branch: when another character of the same race already generated a
+ * starter region, place this character in its home location and complete the state with no
+ * model call. Returns true when the character was placed.
+ */
+function reuseStarterRegion(ctx: any, genState: any, character: any): boolean {
+  const raceLower = (character.race || '').toLowerCase();
+  if (!raceLower) return false;
+
+  let existingStarterRegion: any = null;
+  for (const region of ctx.db.region.iter()) {
+    if (region.starterForRace && region.starterForRace.toLowerCase() === raceLower) {
+      existingStarterRegion = region;
+      break;
+    }
+  }
+  if (!existingStarterRegion) return false;
+
+  // Home location: first safe, charted location; else any charted location.
+  let homeLocation: any = null;
+  for (const loc of ctx.db.location.iter()) {
+    if (loc.regionId === existingStarterRegion.id && loc.isSafe && loc.terrainType !== 'uncharted') {
+      homeLocation = loc;
+      break;
+    }
+  }
+  if (!homeLocation) {
+    for (const loc of ctx.db.location.iter()) {
+      if (loc.regionId === existingStarterRegion.id && loc.terrainType !== 'uncharted') {
+        homeLocation = loc;
+        break;
+      }
+    }
+  }
+  if (!homeLocation) return false;
+
+  ctx.db.character.id.update({
+    ...ctx.db.character.id.find(character.id),
+    locationId: homeLocation.id,
+    boundLocationId: homeLocation.id,
+  });
+  ensureSpawnsForLocation(ctx, homeLocation.id);
+
+  ctx.db.world_gen_state.id.update({
+    ...genState,
+    step: 'COMPLETE',
+    generatedRegionId: existingStarterRegion.id,
+    updatedAt: ctx.timestamp,
+  });
+
+  const locationNpcs: string[] = [];
+  for (const npc of ctx.db.npc.by_location.filter(homeLocation.id)) {
+    locationNpcs.push(npc.name);
+  }
+  let arrivalMsg = `You open your eyes in ${homeLocation.name}, ${existingStarterRegion.name}.`;
+  if (locationNpcs.length > 0) {
+    arrivalMsg += `\n\nYou notice ${locationNpcs.join(' and ')} nearby. Perhaps they have something to say.`;
+  }
+  arrivalMsg += `\n\nTry [look] to examine your surroundings, or [travel] to move.`;
+  appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative', arrivalMsg);
+  return true;
 }
 
 /**

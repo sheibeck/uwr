@@ -8302,62 +8302,6 @@ exports[`submit_llm_result skill_gen success > unparseable text writes the grima
 }"
 `;
 
-exports[`submit_llm_result world_gen failure path > resets the state to PENDING and tells a placed character through a private system event 1`] = `
-"{
-  "character": [
-    {
-      "boundLocationId": "100n",
-      "cha": "10n",
-      "className": "Emberblade",
-      "gold": "0n",
-      "id": "10n",
-      "level": "3n",
-      "locationId": "100n",
-      "name": "Tester",
-      "ownerUserId": "7n",
-      "race": "Ashkin",
-      "xp": "0n"
-    }
-  ],
-  "event_private": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "system",
-      "message": "The Keeper falters. \\"The world refuses to be remembered right now. Try again.\\"",
-      "ownerUserId": "7n"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
-  "world_gen_state": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1600000000000000n",
-      "id": "5n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "sourceLocationId": "0n",
-      "sourceRegionId": "0n",
-      "step": "PENDING",
-      "updatedAt": "ts:1700000000000000n"
-    }
-  ]
-}"
-`;
-
 exports[`submit_llm_result world_gen failure path > routes the message to the creation events when the character has no location yet 1`] = `
 "{
   "character": [
@@ -8380,7 +8324,7 @@ exports[`submit_llm_result world_gen failure path > routes the message to the cr
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper falters. \\"The world refuses to be remembered right now. Try again.\\"",
+      "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -8402,11 +8346,12 @@ exports[`submit_llm_result world_gen failure path > routes the message to the cr
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper falters. \\"The world refuses to be remembered right now.\\"",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
       "sourceRegionId": "0n",
-      "step": "PENDING",
+      "step": "ERROR",
       "updatedAt": "ts:1700000000000000n"
     }
   ]
@@ -8421,7 +8366,7 @@ exports[`submit_llm_result world_gen failure path > routes to the creation event
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper falters. \\"The world refuses to be remembered right now. Try again.\\"",
+      "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -8443,11 +8388,69 @@ exports[`submit_llm_result world_gen failure path > routes to the creation event
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper falters. \\"The world refuses to be remembered right now.\\"",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
       "sourceRegionId": "0n",
-      "step": "PENDING",
+      "step": "ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result world_gen failure path > sets the state to ERROR and tells a placed character through a private system event 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "system",
+      "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
+      "ownerUserId": "7n"
+    }
+  ],
+  "llm_task": [
+    {
+      "contextJson": "{\\"genStateId\\":\\"5\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "world_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "error",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper falters. \\"The world refuses to be remembered right now.\\"",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "ERROR",
       "updatedAt": "ts:1700000000000000n"
     }
   ]
@@ -9205,7 +9208,7 @@ exports[`submit_llm_result world_gen success > QUIRK: charges the budget to the 
 }"
 `;
 
-exports[`submit_llm_result world_gen success > a missing regionName takes the retry path with the "incomplete" message 1`] = `
+exports[`submit_llm_result world_gen success > a missing regionName ends in ERROR with the "incomplete" message 1`] = `
 "{
   "character": [
     {
@@ -9227,7 +9230,7 @@ exports[`submit_llm_result world_gen success > a missing regionName takes the re
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper shakes its head. \\"The world beyond is... incomplete. Try again.\\"",
+      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -9249,11 +9252,12 @@ exports[`submit_llm_result world_gen success > a missing regionName takes the re
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
       "sourceRegionId": "0n",
-      "step": "PENDING",
+      "step": "ERROR",
       "updatedAt": "ts:1700000000000000n"
     }
   ]
@@ -9573,7 +9577,7 @@ exports[`submit_llm_result world_gen success > accepts a code-fenced reply 1`] =
 }"
 `;
 
-exports[`submit_llm_result world_gen success > an empty locations array takes the retry path with the "incomplete" message 1`] = `
+exports[`submit_llm_result world_gen success > an empty locations array ends in ERROR with the "incomplete" message 1`] = `
 "{
   "character": [
     {
@@ -9595,7 +9599,7 @@ exports[`submit_llm_result world_gen success > an empty locations array takes th
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper shakes its head. \\"The world beyond is... incomplete. Try again.\\"",
+      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -9617,18 +9621,19 @@ exports[`submit_llm_result world_gen success > an empty locations array takes th
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
       "sourceRegionId": "0n",
-      "step": "PENDING",
+      "step": "ERROR",
       "updatedAt": "ts:1700000000000000n"
     }
   ]
 }"
 `;
 
-exports[`submit_llm_result world_gen success > an empty regionName takes the retry path with the "incomplete" message 1`] = `
+exports[`submit_llm_result world_gen success > an empty regionName ends in ERROR with the "incomplete" message 1`] = `
 "{
   "character": [
     {
@@ -9650,7 +9655,7 @@ exports[`submit_llm_result world_gen success > an empty regionName takes the ret
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper shakes its head. \\"The world beyond is... incomplete. Try again.\\"",
+      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -9672,18 +9677,75 @@ exports[`submit_llm_result world_gen success > an empty regionName takes the ret
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
       "sourceRegionId": "0n",
-      "step": "PENDING",
+      "step": "ERROR",
       "updatedAt": "ts:1700000000000000n"
     }
   ]
 }"
 `;
 
-exports[`submit_llm_result world_gen success > invalid JSON retries through a private system event for a placed character 1`] = `
+exports[`submit_llm_result world_gen success > invalid JSON fails the generation: state ERROR, creation_error for a character without a location, no budget 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\" Type [explore] to try again.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_task": [
+    {
+      "contextJson": "{\\"genStateId\\":\\"5\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "world_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\"",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result world_gen success > invalid JSON fails through a private system event for a placed character 1`] = `
 "{
   "character": [
     {
@@ -9706,7 +9768,7 @@ exports[`submit_llm_result world_gen success > invalid JSON retries through a pr
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "system",
-      "message": "The Keeper grimaces. \\"The world tried to form but... it came out wrong. Try again.\\"",
+      "message": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\" Type [explore] to try again.",
       "ownerUserId": "7n"
     }
   ],
@@ -9728,18 +9790,19 @@ exports[`submit_llm_result world_gen success > invalid JSON retries through a pr
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\"",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
       "sourceRegionId": "0n",
-      "step": "PENDING",
+      "step": "ERROR",
       "updatedAt": "ts:1700000000000000n"
     }
   ]
 }"
 `;
 
-exports[`submit_llm_result world_gen success > invalid JSON retries: state PENDING, creation_error for a character without a location, no budget 1`] = `
+exports[`submit_llm_result world_gen success > no locations key ends in ERROR with the "incomplete" message 1`] = `
 "{
   "character": [
     {
@@ -9761,7 +9824,7 @@ exports[`submit_llm_result world_gen success > invalid JSON retries: state PENDI
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper grimaces. \\"The world tried to form but... it came out wrong. Try again.\\"",
+      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -9783,66 +9846,12 @@ exports[`submit_llm_result world_gen success > invalid JSON retries: state PENDI
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
       "sourceRegionId": "0n",
-      "step": "PENDING",
-      "updatedAt": "ts:1700000000000000n"
-    }
-  ]
-}"
-`;
-
-exports[`submit_llm_result world_gen success > no locations key takes the retry path with the "incomplete" message 1`] = `
-"{
-  "character": [
-    {
-      "boundLocationId": "0n",
-      "cha": "10n",
-      "className": "Emberblade",
-      "gold": "0n",
-      "id": "10n",
-      "level": "1n",
-      "locationId": "0n",
-      "name": "Tester",
-      "ownerUserId": "7n",
-      "race": "Ashkin",
-      "xp": "0n"
-    }
-  ],
-  "event_creation": [
-    {
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "creation_error",
-      "message": "The Keeper shakes its head. \\"The world beyond is... incomplete. Try again.\\"",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
-  "world_gen_state": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1600000000000000n",
-      "id": "5n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "sourceLocationId": "0n",
-      "sourceRegionId": "0n",
-      "step": "PENDING",
+      "step": "ERROR",
       "updatedAt": "ts:1700000000000000n"
     }
   ]

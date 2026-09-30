@@ -68,19 +68,23 @@ export function extractJson(raw: string): any {
   return JSON.parse(text);
 }
 
-// Helper: if world gen fails, reset the world_gen_state to PENDING so client retries.
-export function retryWorldGen(tx: any, genState: any, message: string) {
+// Helper: a world-gen failure parks the state in ERROR with an in-voice message and tells the
+// player how to retry. The state never goes back to PENDING (that meant "call again", an
+// unbounded automatic retry): only the player's [explore] starts a new job. world_gen_state is a
+// public table, so errorMessage carries only the in-voice Keeper line, never a provider detail.
+export function failWorldGen(tx: any, genState: any, message: string) {
   const char = tx.db.character.id.find(genState.characterId);
   tx.db.world_gen_state.id.update({
     ...tx.db.world_gen_state.id.find(genState.id),
-    step: 'PENDING',
-    errorMessage: undefined,
+    step: 'ERROR',
+    errorMessage: message,
     updatedAt: tx.timestamp,
   });
+  const line = message + ' Type [explore] to try again.';
   if (char && char.locationId !== 0n) {
-    appendPrivateEvent(tx, genState.characterId, char.ownerUserId, 'system', message);
+    appendPrivateEvent(tx, genState.characterId, char.ownerUserId, 'system', line);
   } else {
-    appendCreationEvent(tx, genState.playerId, 'creation_error', message);
+    appendCreationEvent(tx, genState.playerId, 'creation_error', line);
   }
 }
 
@@ -101,7 +105,7 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
     const genStateId = BigInt(context.genStateId);
     const genState = ctx.db.world_gen_state.id.find(genStateId);
     if (genState) {
-      retryWorldGen(ctx, genState, 'The Keeper falters. "The world refuses to be remembered right now. Try again."');
+      failWorldGen(ctx, genState, 'The Keeper falters. "The world refuses to be remembered right now."');
     }
   } else if (job.domain === 'skill_gen') {
     const context = job.contextJson ? JSON.parse(job.contextJson) : {};
@@ -261,14 +265,14 @@ export function applyWorldGenResult(ctx: any, job: ApplyJob, resultText: string)
     data = extractJson(resultText);
   } catch (parseErr) {
     console.error(`World gen JSON parse error: ${parseErr}`);
-    retryWorldGen(ctx, currentGenState,
-      'The Keeper grimaces. "The world tried to form but... it came out wrong. Try again."');
+    failWorldGen(ctx, currentGenState,
+      'The Keeper grimaces. "The world tried to form but... it came out wrong."');
     return;
   }
 
   if (!data.regionName || !data.locations || data.locations.length < 1) {
-    retryWorldGen(ctx, currentGenState,
-      'The Keeper shakes its head. "The world beyond is... incomplete. Try again."');
+    failWorldGen(ctx, currentGenState,
+      'The Keeper shakes his head. "The world beyond is... incomplete."');
     return;
   }
 
