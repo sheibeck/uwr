@@ -1,0 +1,189 @@
+// ============================================================================
+// LLM job queue helpers (Phase 40, pure module: duck-typed ctx)
+// ============================================================================
+//
+// enqueueLlmJob runs inside the triggering reducer's transaction. Reducers
+// serialize, so the in-transaction dedupe lookup plus insert cannot race: two
+// tabs on one identity produce exactly one job per action.
+//
+// Validation failures throw a plain Error: they are server programming errors
+// (unknown route, oversized context), not client-caused sender errors, and this
+// helper has no character context to report through.
+//
+// No runtime import from the server entry point, schema/tables, events or
+// location, so this module loads in plain Node vitest.
+// ============================================================================
+
+import { isLlmRoute, type LlmRoute } from '../data/llm_routes';
+import { CLAUDE_MODEL } from '../data/llm_models';
+import { redactSecrets } from './measurement';
+
+export const LLM_JOB_STATUSES = [
+  'pending',
+  'in_flight',
+  'received',
+  'completed',
+  'failed',
+  'expired',
+] as const;
+export type LlmJobStatus = (typeof LLM_JOB_STATUSES)[number];
+
+export const LLM_ACTIVE_JOB_STATUSES = ['pending', 'in_flight', 'received'] as const;
+export const LLM_TERMINAL_JOB_STATUSES = ['completed', 'failed', 'expired'] as const;
+
+export function isActiveJobStatus(status: unknown): boolean {
+  return (LLM_ACTIVE_JOB_STATUSES as readonly unknown[]).includes(status);
+}
+
+export const LLM_REQUEST_JSON_MAX_CHARS = 64_000;
+export const LLM_ERROR_MESSAGE_MAX_CHARS = 400;
+
+/** JSON array string: no delimiter can collide across fields. */
+export function buildDedupeKey(
+  playerId: { toHexString(): string },
+  route: LlmRoute,
+  sourceKey: string,
+): string {
+  return JSON.stringify([playerId.toHexString(), route, sourceKey]);
+}
+
+const join = (...parts: Array<string | number | bigint>): string =>
+  parts.map((p) => String(p)).join(':');
+
+/** Per-domain source keys: what makes two enqueues "the same action". */
+export const SOURCE_KEYS = Object.freeze({
+  /** One creation-state row, one generation type. */
+  creation: (creationStateId: bigint, generationType: 'race' | 'class'): string =>
+    join(creationStateId, generationType),
+  worldGen: (genStateId: bigint): string => join(genStateId),
+  skillGen: (characterId: bigint, level: bigint | number): string => join(characterId, level),
+  renownPerk: (characterId: bigint, rank: bigint | number): string => join(characterId, rank),
+  /**
+   * `turn` is a caller-supplied conversation-turn marker. Phase 41 passes the
+   * npc_memory lastUpdated micros (0 when there is no memory), so the key
+   * changes after each applied reply.
+   */
+  npcConversation: (characterId: bigint, npcId: bigint, turn: bigint | number): string =>
+    join(characterId, npcId, turn),
+  combatNarration: (combatId: bigint, roundNumber: bigint | number, narrativeType: string): string =>
+    join(combatId, roundNumber, narrativeType),
+  smokeTest: (): string => 'smoke',
+});
+
+/** JSON.stringify that turns bigint into its decimal string. */
+export function serializeRequest(request: Record<string, unknown>): string {
+  return JSON.stringify(request, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+}
+
+export interface EnqueueArgs {
+  route: LlmRoute;
+  playerId: any;
+  characterId?: bigint;
+  sourceKey: string;
+  request: Record<string, unknown>;
+}
+
+/**
+ * Insert a pending llm_job unless an active job (pending, in_flight, received)
+ * already exists for the same identity, route and source key. Terminal jobs
+ * never block a new one.
+ */
+export function enqueueLlmJob(ctx: any, a: EnqueueArgs): { job: any; created: boolean } {
+  if (!isLlmRoute(a.route)) throw new Error(`Unknown LLM route: ${String(a.route)}`);
+  if (typeof a.playerId?.toHexString !== 'function') {
+    throw new Error('enqueueLlmJob requires a playerId identity');
+  }
+  if (typeof a.sourceKey !== 'string' || a.sourceKey.length === 0) {
+    throw new Error('enqueueLlmJob requires a non-empty sourceKey');
+  }
+  if (a.request === null || typeof a.request !== 'object') {
+    throw new Error('enqueueLlmJob requires a request object');
+  }
+
+  const requestJson = serializeRequest(a.request);
+  if (requestJson.length > LLM_REQUEST_JSON_MAX_CHARS) {
+    throw new Error('LLM request context too large');
+  }
+
+  const dedupeKey = buildDedupeKey(a.playerId, a.route, a.sourceKey);
+  for (const existing of ctx.db.llm_job.by_dedupe_key.filter(dedupeKey)) {
+    if (isActiveJobStatus(existing.status)) return { job: existing, created: false };
+  }
+
+  const job = ctx.db.llm_job.insert({
+    id: 0n,
+    playerId: a.playerId,
+    characterId: a.characterId ?? 0n,
+    route: a.route,
+    dedupeKey,
+    status: 'pending',
+    attempt: 0n,
+    requestJson,
+    inputTokens: 0n,
+    outputTokens: 0n,
+    cacheWriteTokens: 0n,
+    cacheReadTokens: 0n,
+    createdAt: ctx.timestamp,
+  });
+  return { job, created: true };
+}
+
+/**
+ * The player identity that owns a character. The player table has no userId
+ * index, so iterate. Prefers the player whose activeCharacterId is the
+ * character, else the first player with the owner userId, else null.
+ */
+export function resolveCharacterPlayerId(ctx: any, character: any): any | null {
+  let first: any = null;
+  for (const p of ctx.db.player.iter()) {
+    if (p.userId !== character.ownerUserId) continue;
+    if (p.activeCharacterId === character.id) return p.id;
+    if (first === null) first = p.id;
+  }
+  return first;
+}
+
+export interface LlmCallLogEntry {
+  jobId: bigint;
+  playerId: any;
+  route: LlmRoute;
+  attempt: bigint;
+  httpStatus: number;
+  outcome: string;
+  stopReason?: string;
+  requestId?: string;
+  errorMessage?: string;
+  latencyMs: number;
+  usage?: { input: number; output: number; cacheWrite: number; cacheRead: number };
+}
+
+// Counters arrive as JS numbers (possibly fractional or negative); u64 columns need whole bigints.
+const toU64 = (n: number | undefined): bigint => BigInt(Math.max(0, Math.round(n ?? 0)));
+
+/** Append one llm_call_log row. Error text is redacted, then capped by code points. */
+export function logLlmCall(ctx: any, e: LlmCallLogEntry): any {
+  const row: Record<string, unknown> = {
+    id: 0n,
+    jobId: e.jobId,
+    playerId: e.playerId,
+    route: e.route,
+    model: CLAUDE_MODEL,
+    outcome: e.outcome,
+    attempt: e.attempt,
+    httpStatus: toU64(e.httpStatus),
+    latencyMs: toU64(e.latencyMs),
+    inputTokens: toU64(e.usage?.input),
+    outputTokens: toU64(e.usage?.output),
+    cacheWriteTokens: toU64(e.usage?.cacheWrite),
+    cacheReadTokens: toU64(e.usage?.cacheRead),
+    createdAt: ctx.timestamp,
+  };
+  if (e.stopReason !== undefined) row.stopReason = e.stopReason;
+  if (e.requestId !== undefined) row.requestId = e.requestId;
+  if (e.errorMessage !== undefined) {
+    row.errorMessage = [...redactSecrets(e.errorMessage)]
+      .slice(0, LLM_ERROR_MESSAGE_MAX_CHARS)
+      .join('');
+  }
+  return ctx.db.llm_call_log.insert(row);
+}
