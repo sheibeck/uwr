@@ -143,12 +143,12 @@ Plans:
   5. A renown rank-up enqueues a valid job instead of hitting the swallowed insert error in `helpers/renown.ts` (a regression test fails on the old shape), and LLM code paths run offline in tests through a mock procedure context with fake `ctx.http` and a `withTx` that rejects promises and can be re-invoked
 
 **Testing**: This phase is mostly tests. Body snapshots for every route, schema linter cases, parser cases for each stop reason, prompt-layering and delimiter tests, privacy and dedupe tests, the renown regression test and the mock procedure context utilities.
-**Plans**: 10 plans
+**Plans**: 1/10 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 40-01-PLAN.md — Offline test seam: createMockProcCtx, new mock index mappings, schema recorder and reducer capture
+- [x] 40-01-PLAN.md — Offline test seam: createMockProcCtx, new mock index mappings, schema recorder and reducer capture
 - [ ] 40-02-PLAN.md — Model constant, route table, real JSON Schemas, subset linter, repository model-literal guard
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -256,7 +256,7 @@ Phases execute in numeric order: 39 → 40 → 41 → 42 → 43 → 44
 | 24-30 | v2.0 | 22/22 | Complete | 2026-03-09 |
 | 31, 32, 38 | v2.1 | 14/14 | Complete | 2026-09-29 |
 | 39. Procedure-to-Claude Spike | v2.2 | 11/11 | Complete    | 2026-09-29 |
-| 40. Claude Request Layer and Job Seam | v2.2 | 0/TBD | Not started | - |
+| 40. Claude Request Layer and Job Seam | v2.2 | 1/10 | In Progress|  |
 | 41. Executor and Domain Cutover | v2.2 | 0/TBD | Not started | - |
 | 42. Client Cutover and Legacy Removal | v2.2 | 0/TBD | Not started | - |
 | 43. Latency Tuning, Staged Generation and Budget | v2.2 | 0/TBD | Not started | - |
@@ -401,6 +401,7 @@ Promote with /gsd-review-backlog when ready.
 **Goal:** Rebuild the client UX to match the "UWR Ledger Screens" design, which uses the Nocturne design system. This is a complete UX overhaul. Captured 2026-09-29.
 
 **Source design (import via the claude_design MCP):**
+
 - MCP endpoint: `https://api.anthropic.com/v1/design/mcp`. Authenticate with `/design-login`.
 - Project: https://claude.ai/design/p/1a7a975f-7b14-488b-9a38-188bc56294cf?file=UWR+Ledger+Screens.dc.html (the whole project is readable).
 - Focus file and implementation target: `UWR Ledger Screens.dc.html`.
@@ -410,6 +411,7 @@ Promote with /gsd-review-backlog when ready.
   - `support.js`
 
 **Notes:**
+
 - It overlaps parked 999.2 (Narrative UI Integration) and 999.5 (UX Polish, including UX-01–03 and COMB-08). Reconcile or supersede those when this is promoted.
 - It is unsequenced relative to the v2.2 LLM milestone. Phase 43 adds staged reveals and Keeper progress lines to the console, so check for UI conflicts if both are active.
 
