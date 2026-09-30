@@ -94,6 +94,17 @@ These are Phase 43. Removing the `llm_task`/`llm_request` tables, `submit_llm_re
   - Maincloud last. One final `checkpoint:human-action`: the user publishes when ready and runs the smoke test plus one action per domain from a checklist Claude writes. Claude records the results and re-checks the Phase 39 gate thresholds against what the user observes. A failure there reopens the executor decision.
   - Claude never publishes to, or calls, maincloud.
 
+### Research-driven decisions (2026-09-30, from 41-RESEARCH.md Open Questions)
+- **The CLI identity becomes an admin.** The user approved this. Add the CLI/database-owner identity `c2002524…` (full hex in 41-RESEARCH.md) to `ADMIN_IDENTITIES` in `data/admin.ts`. Then the key script, the smoke test and the live-proof script can run from the CLI. This also grants gameplay admin, such as `grant_test_*`.
+- **Skill offers can be re-requested.** The user approved this. Add a small player reducer `request_skill_offer`. It enqueues in the same transaction, with the same dedupe key and budget, and is allowed only when no offer or skill_gen job is pending. This recovers from a terminal skill_gen failure now that `prepare_skill_gen` is deleted.
+- **World-gen failure goes to ERROR, and exploring retries.** The user approved this. `retryWorldGen` no longer resets to `PENDING`, which was an unbounded client-driven retry. Instead, failure sets `ERROR` with a Keeper line. Exploring again retries, and the first region gets a small retry path from the player's own `ERROR` starter state, for example by extending the `explore` intent. Update the pinned `retryWorldGen` tests deliberately.
+- **Thrown timeouts:** the phase spend ledger is charged conservatively and keeps the reservation. The player is never charged for a call whose billing is unknown.
+- **Per-player active-job cap:** at most 3 active non-narration jobs per player. A request beyond that is refused with an in-voice "already considering something" line.
+- **Combat narration covers only the victory/defeat outro.** Combat is real-time, so there is no round hook. Enqueue from `handleVictory`/`handleDefeat`, and build the summary before `clearCombatArtifacts`. The late-drop rule is the 20 s age check, applied at claim and at persist. Mid-fight narration would need a new event model and is out of scope.
+- **Retention:** terminal `llm_job` rows are kept; retention policy is Phase 43.
+- **The maincloud gate re-check is partly measured and partly qualitative.** Dispatch p95, reliability and the region schema are measured from `llm_call_log`, with a new `dispatchLateMs` column. Ping and tick responsiveness are checked qualitatively by the user during the manual proof.
+- **Cost estimate:** keep `reserveCostMicroUsd` as is (chars ÷ 3). It is more conservative than CONTEXT's ÷ 3.25. Pricing was verified with the claude-api skill: $2 input, $10 output, $2.50 cache write and $0.20 cache read per MTok.
+
 ### Claude's Discretion
 - Exact table, column and index names:
   - the dispatch table (suggested `llm_dispatch`)
