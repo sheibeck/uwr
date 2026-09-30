@@ -98,26 +98,4 @@ export const registerLlmReducers = (deps: any) => {
       ctx.db.character.id.update({ ...character, pendingLevels: (character.pendingLevels ?? 0n) + levels });
     }
   );
-
-  // Admin-only and idempotent: empties the four legacy LLM tables (old tasks, requests, call counts and the
-  // old cleanup tick). Exists only between the two publishes; it is deleted together with the tables.
-  // Reaches the tables only through this fixed name list and logs counts, never row content.
-  spacetimedb.reducer('purge_legacy_llm', {}, (ctx: any) => {
-    requireAdmin(ctx);
-    const legacy: Array<[string, string]> = [
-      ['llm_task', 'id'],
-      ['llm_request', 'id'],
-      ['llm_budget', 'id'],
-      ['llm_cleanup_tick', 'scheduledId'],
-    ];
-    const counts: string[] = [];
-    for (const [name, key] of legacy) {
-      const table = ctx.db[name];
-      const keys: bigint[] = [];
-      for (const row of table.iter()) keys.push(row[key]);
-      for (const k of keys) table[key].delete(k);
-      counts.push(`${name}=${keys.length}`);
-    }
-    console.log(`legacy llm purge: ${counts.join(' ')}`);
-  });
 };

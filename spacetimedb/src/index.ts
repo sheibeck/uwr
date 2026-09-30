@@ -26,7 +26,6 @@ import spacetimedb, {
   AppVersion,
   ActiveBardSong, BardSongTick,
   ActivePet,
-  LlmCleanupTick,
   PendingSkill,
   PendingRenownPerk,
 } from './schema/tables';
@@ -328,9 +327,6 @@ scheduledReducers['sweep_inactivity'] = spacetimedb.reducer('sweep_inactivity', 
     campCharacter(ctx, player, character, true);
   }
 });
-
-// Drains any remaining legacy tick row. Does nothing else and inserts no tick; removed with its table in the second publish.
-scheduledReducers['sweep_llm_errors'] = spacetimedb.reducer('sweep_llm_errors', { arg: LlmCleanupTick.rowType }, (_ctx) => {});
 
 spacetimedb.reducer('set_app_version', { version: t.string() }, (ctx, { version }) => {
   requireAdmin(ctx);

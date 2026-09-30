@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
-import { ScheduleAt } from 'spacetimedb';
 import { createMockCtx as createLenientMockCtx } from '../helpers/test-utils';
 import { capturedReducer, createRecordingServerMock } from '../helpers/schema_recorder';
 import { findSecretLeaks } from '../helpers/measurement';
@@ -337,73 +336,5 @@ describe('grant_test_pending_level', () => {
   it('rejects an unknown character', () => {
     const ctx = adminCtx(seed());
     expect(() => reducer('grant_test_pending_level')(ctx, { characterId: 404n, levels: 1n })).toThrow('Character not found');
-  });
-});
-
-describe('purge_legacy_llm', () => {
-  const player = ident('some-player');
-  const at = { microsSinceUnixEpoch: 1n };
-  const seed = () => ({
-    llm_task: [1n, 2n, 3n].map((id) => ({
-      id,
-      playerId: player,
-      domain: 'world_gen',
-      model: 'legacy',
-      systemPrompt: '',
-      userPrompt: '',
-      maxTokens: 1n,
-      status: 'pending',
-    })),
-    llm_request: [1n, 2n].map((id) => ({
-      id,
-      playerId: player,
-      characterId: 1n,
-      domain: 'world_gen',
-      model: 'legacy',
-      userPrompt: '',
-      status: 'error',
-      createdAt: at,
-    })),
-    llm_budget: [{ id: 1n, playerId: player, callCount: 4n, resetDate: '2026-01-01' }],
-    llm_cleanup_tick: [{ scheduledId: 7n, scheduledAt: ScheduleAt.time(5n) }],
-    llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: at }],
-    llm_job: [{ id: 1n, playerId: player, route: 'world_gen', status: 'queued' }],
-  });
-  const LEGACY = ['llm_task', 'llm_request', 'llm_budget', 'llm_cleanup_tick'];
-
-  it('is registered, and the old task purge is not', () => {
-    expect(capturedReducer('purge_legacy_llm')).toBeTypeOf('function');
-    expect(capturedReducer('purge_llm_tasks')).toBeUndefined();
-  });
-
-  it('rejects a non-admin with "Admin only" and leaves every row', () => {
-    const ctx = createMockCtx({ sender: stranger, seed: seed() });
-    expect(() => reducer('purge_legacy_llm')(ctx, {})).toThrow('Admin only');
-    expect(rows(ctx, 'llm_task')).toHaveLength(3);
-    expect(rows(ctx, 'llm_request')).toHaveLength(2);
-    expect(rows(ctx, 'llm_budget')).toHaveLength(1);
-    expect(rows(ctx, 'llm_cleanup_tick')).toHaveLength(1);
-    expect(output.lines).toEqual([]);
-  });
-
-  it('empties the four legacy tables, leaves llm_config and llm_job alone, and logs counts only', () => {
-    const ctx = adminCtx(seed());
-    const before = { config: jsonOf(rows(ctx, 'llm_config')), job: jsonOf(rows(ctx, 'llm_job')) };
-    reducer('purge_legacy_llm')(ctx, {});
-    for (const name of LEGACY) expect(rows(ctx, name), name).toHaveLength(0);
-    expect(jsonOf(rows(ctx, 'llm_config'))).toBe(before.config);
-    expect(jsonOf(rows(ctx, 'llm_job'))).toBe(before.job);
-    expect(output.lines).toEqual(['legacy llm purge: llm_task=3 llm_request=2 llm_budget=1 llm_cleanup_tick=1']);
-    expect(findSecretLeaks(output.lines.join('\n'), { needles: [FAKE_KEY], strictPrefix: true }).total).toBe(0);
-  });
-
-  it('is idempotent: a second call deletes nothing, does not throw and logs zero counts', () => {
-    const ctx = adminCtx(seed());
-    reducer('purge_legacy_llm')(ctx, {});
-    output.lines.length = 0;
-    expect(() => reducer('purge_legacy_llm')(ctx, {})).not.toThrow();
-    for (const name of LEGACY) expect(rows(ctx, name), name).toHaveLength(0);
-    expect(rows(ctx, 'llm_config')).toHaveLength(1);
-    expect(output.lines).toEqual(['legacy llm purge: llm_task=0 llm_request=0 llm_budget=0 llm_cleanup_tick=0']);
   });
 });

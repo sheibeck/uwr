@@ -136,7 +136,7 @@ describe('llm_* table privacy (SEC-01)', () => {
     await import('./tables');
     const llm = recordedTables().filter((r) => typeof r.name === 'string' && r.name.startsWith('llm_'));
     // Guard against the filter matching nothing.
-    expect(llm.length).toBeGreaterThanOrEqual(12);
+    expect(llm.length).toBeGreaterThanOrEqual(11);
     for (const rec of llm.filter((r) => r.name !== 'llm_task')) {
       expect(rec.opts.public, rec.name).not.toBe(true);
     }

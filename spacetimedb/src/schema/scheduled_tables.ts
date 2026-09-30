@@ -13,6 +13,5 @@ export {
   CombatEnemyCast,
   EventDespawnTick,
   InactivityTick,
-  LlmCleanupTick,
   RoundTimerTick,
 } from './tables';

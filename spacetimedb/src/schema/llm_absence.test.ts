@@ -4,19 +4,19 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 // @ts-ignore
 import { fileURLToPath } from 'node:url';
-import { ScheduleAt } from 'spacetimedb';
-import { capturedReducer } from '../helpers/schema_recorder';
+import { capturedReducer, recordedTable, recordedTables, strictTableSpec } from '../helpers/schema_recorder';
 import { createMockCtx } from '../helpers/test-utils';
 import * as scheduling from '../helpers/scheduling';
 
 // ============================================================================
-// Publish-1 absence guards (Phase 42, Plan 03)
+// Publish-2 absence guards (Phase 42, Plan 06)
 // ============================================================================
 //
-// Publish 1 removes every reader and writer of the four legacy llm tables while
-// the tables stay defined. These tests load the real module graph through the
-// recording mock and prove that nothing re-arms the legacy cleanup tick, and that
-// the removed reducers are not registered.
+// Publish 2 drops the four legacy llm tables, the drained sweep reducer and the
+// purge reducer. These tests load the real module graph through the recording
+// mock and check absence at the schema level (recorder, schema definition,
+// scheduledReducers). The mock db returns [] for an unknown table, so a row
+// check alone would pass vacuously.
 // ============================================================================
 
 vi.mock('spacetimedb/server', async () =>
@@ -29,49 +29,51 @@ beforeAll(async () => {
 
 const rows = (ctx: any, table: string): any[] => ctx.db[table]._rows();
 
-describe('the legacy cleanup tick is never re-armed', () => {
-  it('helpers/scheduling exports no legacy cleanup ensure helper', () => {
-    const names = Object.keys(scheduling);
-    expect(names.filter((n) => /cleanup/i.test(n))).toEqual([]);
-    expect(names).toContain('initScheduledTables');
+const LEGACY_TABLES = ['llm_task', 'llm_request', 'llm_budget', 'llm_cleanup_tick'];
+
+describe('the legacy cleanup tick, its sweep and the purge are gone', () => {
+  it('purge_legacy_llm and sweep_llm_errors are not registered; neighbours are', () => {
+    expect(capturedReducer('purge_legacy_llm')).toBeUndefined();
+    expect(capturedReducer('sweep_llm_errors')).toBeUndefined();
+    // Non-vacuity: the module graph did load.
+    expect(capturedReducer('set_api_key')).toBeTypeOf('function');
+    expect(capturedReducer('request_skill_offer')).toBeTypeOf('function');
   });
 
-  it('initScheduledTables inserts no llm_cleanup_tick row and still arms the sweep tick', () => {
-    const ctx = createMockCtx();
+  it('the recorder has no llm_cleanup_tick table and the schema definition has no such key', async () => {
+    expect(recordedTable('llm_cleanup_tick')).toBeUndefined();
+    expect(strictTableSpec('llm_cleanup_tick')).toBeUndefined();
+    const mod: any = await import('./tables');
+    expect(Object.keys(mod.default.__defs)).not.toContain('llm_cleanup_tick');
+    expect(recordedTables().length).toBeGreaterThan(10);
+  });
+
+  it('scheduledReducers holds no entry for the sweep', async () => {
+    const mod: any = await import('./tables');
+    expect(Object.keys(mod.scheduledReducers)).not.toContain('sweep_llm_errors');
+    // Non-vacuity: other scheduled reducers are registered.
+    expect(Object.keys(mod.scheduledReducers)).toContain('combat_loop');
+  });
+
+  it('the scheduled_tables module exports no cleanup tick', async () => {
+    const mod: any = await import('./scheduled_tables');
+    expect(Object.keys(mod).filter((n) => /cleanup/i.test(n))).toEqual([]);
+    expect(Object.keys(mod)).toContain('RoundTimerTick');
+  });
+
+  it('initScheduledTables still arms llm_sweep_tick and touches no dropped table', () => {
+    const ctx = createMockCtx({ strict: true });
+    // A strict mock throws on any table missing from the recorded schema.
     scheduling.initScheduledTables(ctx);
-    expect(rows(ctx, 'llm_cleanup_tick')).toEqual([]);
     expect(rows(ctx, 'llm_sweep_tick')).toHaveLength(1);
   });
 
-  it('the client-connected handler inserts no llm_cleanup_tick row and leaves a sweep tick', () => {
+  it('the client-connected handler leaves a sweep tick', () => {
     const handler = capturedReducer('__client_connected__');
     expect(handler, 'client-connected handler captured').toBeTypeOf('function');
     const ctx = createMockCtx();
     handler!(ctx);
-    expect(rows(ctx, 'llm_cleanup_tick')).toEqual([]);
     expect(rows(ctx, 'llm_sweep_tick')).toHaveLength(1);
-  });
-
-  it('the legacy sweep reducer is a drain: it reads no llm_request row and inserts no tick', () => {
-    const drain = capturedReducer('sweep_llm_errors');
-    expect(drain, 'sweep_llm_errors still registered (the tick table points at it)').toBeTypeOf('function');
-    const old = {
-      id: 1n,
-      playerId: { toHexString: () => 'p' },
-      characterId: 1n,
-      domain: 'world_gen',
-      model: 'legacy',
-      userPrompt: '',
-      status: 'error',
-      createdAt: { microsSinceUnixEpoch: 1n },
-    };
-    const ctx = createMockCtx({
-      seed: { llm_request: [old] },
-      timestampMicros: 9_000_000_000_000n,
-    });
-    drain!(ctx, { scheduledId: 1n, scheduledAt: ScheduleAt.time(1n) });
-    expect(rows(ctx, 'llm_request')).toEqual([old]);
-    expect(rows(ctx, 'llm_cleanup_tick')).toEqual([]);
   });
 });
 
@@ -128,7 +130,7 @@ describe('no client-trusted result reducer and no reader of the legacy tables', 
     // Non-vacuity: neighbouring reducers are captured.
     expect(capturedReducer('request_skill_offer')).toBeTypeOf('function');
     expect(capturedReducer('set_api_key')).toBeTypeOf('function');
-    expect(capturedReducer('purge_legacy_llm')).toBeTypeOf('function');
+    expect(capturedReducer('purge_legacy_llm')).toBeUndefined();
   });
 
   it('no production file reads or writes llm_task, llm_request, llm_budget or llm_cleanup_tick through a db accessor', () => {
@@ -147,9 +149,9 @@ describe('no client-trusted result reducer and no reader of the legacy tables', 
     expect(offenders).toEqual([]);
   });
 
-  it('the four legacy tables are still defined for publish 1', () => {
+  it('the task, request and budget tables are still defined (dropped in the next task)', () => {
     const tables = readFileSync(new URL('./tables.ts', import.meta.url), 'utf8');
-    for (const name of ['llm_task', 'llm_request', 'llm_budget', 'llm_cleanup_tick']) {
+    for (const name of ['llm_task', 'llm_request', 'llm_budget']) {
       expect(tables).toContain(`name: '${name}'`);
     }
   });

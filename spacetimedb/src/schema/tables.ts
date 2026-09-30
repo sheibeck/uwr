@@ -1933,17 +1933,6 @@ export const LlmBudget = table(
   }
 );
 
-export const LlmCleanupTick = table(
-  {
-    name: 'llm_cleanup_tick',
-    scheduled: () => scheduledReducers['sweep_llm_errors'],
-  },
-  {
-    scheduledId: t.u64().primaryKey().autoInc(),
-    scheduledAt: t.scheduleAt(),
-  }
-);
-
 // Character creation state — tracks multi-step narrative creation flow per player
 export const CharacterCreationState = table(
   {
@@ -2377,7 +2366,6 @@ const spacetimedb = schema({
   llm_config: LlmConfig,
   llm_request: LlmRequest,
   llm_budget: LlmBudget,
-  llm_cleanup_tick: LlmCleanupTick,
   character_creation_state: CharacterCreationState,
   race_definition: RaceDefinition,
   event_creation: EventCreation,
