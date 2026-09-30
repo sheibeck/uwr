@@ -81,7 +81,7 @@ No command in this plan targeted maincloud. Every spacetime command named `--ser
 
 ## Server state at the end
 
-The local SpacetimeDB server is left RUNNING for Plans 42-06 and 42-07: background task `b0fqqbk8m`, listener PID 13620 on 127.0.0.1:3000. It may stop if the parent shell exits; Plan 42-07 restarts it if needed.
+The local SpacetimeDB server was left running when the plan finished (background task `b0fqqbk8m`, listener PID 13620 on 127.0.0.1:3000), but the background task later exited with code 1 after the agent session ended (ping now returns no response, nothing listening on :3000). This is the expected parent-shell behavior. All data stays on disk; Plans 42-06 and 42-07 must restart it with `spacetime start --non-interactive --listen-addr 127.0.0.1:3000` (run-local skill) before publishing.
 
 ## Deviations from Plan
 
