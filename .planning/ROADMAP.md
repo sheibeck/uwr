@@ -194,7 +194,61 @@ Plans:
 **Domain cutover order**: NPC chat, combat narration, skills plus renown, creation, world gen. Reducers enqueue in-transaction (no client `prepare_*` calls), and client call sites are adjusted as each domain moves so no domain is left half-wired. Old `llm_task` rows are purged at the end (code-only publish, first of the two publishes for SEC-05; table removal happens in Phase 42).
 **Interim cost guard**: until COST-03 lands in Phase 43, live spend is bounded by the per-player daily budget plus a spend limit on the dedicated Anthropic Console workspace named in the runbook.
 **Testing**: Unit tests for enqueue-in-transaction per domain, claim/persist/apply transitions and re-run from stored text, each error class and its retry or fail-fast path, sweeper refund and lock release, in-flight cap, late combat narration drop, reserve/settle math from all four usage fields, key redaction and admin-only gating, all through the Phase 40 mock procedure context.
-**Plans**: TBD
+**Plans**: 17 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 41-01-PLAN.md — Foundation: llm_limits constants, five private tables and new job/call-log columns, CLI identity as admin, test-seam extensions
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 41-02-PLAN.md — Cost-weighted budget module: per-player UTC-day reservation, call backstop, $2 phase ledger, idempotent release and settle
+- [ ] 41-03-PLAN.md — Apply hardening: toBigIntSafe, creation reply clamps, bigint-safe renown fallback, renown failure fallback, pinned tests flipped deliberately
+- [ ] 41-04-PLAN.md — Pure executor helpers: retry and deferral timing, dispatch and sweep-tick scheduling, route-input snapshots, needle-aware classifier
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 41-05-PLAN.md — enqueueLlmJob reserves, caps, dispatches and refuses in one transaction; renown caller finished
+- [ ] 41-06-PLAN.md — Executor body runLlmJob: guard, claim with in-flight cap, call, persist with retry and settlement, apply with stored-text re-run, redaction
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 41-07-PLAN.md — Scheduled procedure llm_run and scheduled sweeper llm_sweep (expire, re-apply, orphan dispatch, refunds, lock release)
+- [ ] 41-08-PLAN.md — Admin tooling: set_api_key status, llm_smoke_test, grant_test_pending_level, admin_llm_status view
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 41-09-PLAN.md — Key script scripts/llm/set-key.mjs (HTTP API, no argv) and runbook docs/runbooks/llm-key.md
+- [ ] 41-10-PLAN.md — Cutover 1: NPC chat; first local publish and bindings
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 41-11-PLAN.md — Cutover 2: combat narration as a victory/defeat outro before cleanup
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [ ] 41-12-PLAN.md — Cutover 3: skills plus renown; request_skill_offer and [skills]; skill-gen prepare deleted
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
+- [ ] 41-13-PLAN.md — Cutover 4: character creation; creation prepare deleted
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
+- [ ] 41-14-PLAN.md — Cutover 5: world gen; failures to ERROR, explore retries (first region too); world-gen prepare deleted
+
+**Wave 10** *(blocked on Wave 9 completion)*
+
+- [ ] 41-15-PLAN.md — Purge legacy task rows, final static checks, spend-guarded live-proof harness with a dry run
+
+**Wave 11** *(blocked on Wave 10 completion)*
+
+- [ ] 41-16-PLAN.md — [checkpoint] User sets the key; local smoke test and one real action per domain under the $2 cap
+
+**Wave 12** *(blocked on Wave 11 completion)*
+
+- [ ] 41-17-PLAN.md — [checkpoint] Maincloud checklist; user runs it or defers (human_needed); gate re-check
 
 ### Phase 42: Client Cutover and Legacy Removal
 
