@@ -174,6 +174,44 @@ export function archetypeForPlayer(ctx: any, playerId: any): string {
   return 'warrior';
 }
 
+const ARCHETYPES = new Set(['warrior', 'mystic']);
+const archetypeOf = (row: any): string | null =>
+  typeof row?.archetype === 'string' && ARCHETYPES.has(row.archetype) ? row.archetype : null;
+
+/**
+ * The archetype a CHARACTER was created with. Character has no archetype column, and the
+ * creation state belongs to the identity that created the character, which is often not the
+ * identity asking now (a second device or a new token has its own identity and no creation
+ * state). So the lookup goes by the character, in this order:
+ *   1. the creation state, of any identity of the character's user, that finalized this
+ *      character (its characterName is the character's name; names are unique);
+ *   2. any creation state of the user's identities that holds an archetype, `preferPlayerId`'s
+ *      own first (when it is one of the user's identities);
+ *   3. the class resource: a character with mana is a mystic;
+ *   4. 'warrior'.
+ * The player table has no userId index, so it is iterated (small; only on an enqueue).
+ */
+export function archetypeForCharacter(ctx: any, character: any, preferPlayerId?: any): string {
+  const identities: any[] = [];
+  for (const p of ctx.db.player.iter()) {
+    if (p.userId != null && p.userId === character.ownerUserId) identities.push(p.id);
+  }
+  // The asking identity's state is preferred, but only when it is one of the user's identities.
+  const preferHex = typeof preferPlayerId?.toHexString === 'function' ? preferPlayerId.toHexString() : null;
+  identities.sort((a: any, b: any) => Number(b.toHexString() === preferHex) - Number(a.toHexString() === preferHex));
+
+  const states: any[] = [];
+  for (const id of identities) {
+    for (const row of ctx.db.character_creation_state.by_player.filter(id)) states.push(row);
+  }
+  const named = states.find((s: any) => s.characterName === character.name && archetypeOf(s));
+  if (named) return archetypeOf(named)!;
+  const any = states.find((s: any) => archetypeOf(s));
+  if (any) return archetypeOf(any)!;
+  if (typeof character.maxMana === 'bigint' && character.maxMana > 0n) return 'mystic';
+  return 'warrior';
+}
+
 /**
  * The route input for a job: the stored snapshot, the fixed smoke input, or
  * (for a Phase 40 renown job) the input rebuilt from its legacy keys plus the

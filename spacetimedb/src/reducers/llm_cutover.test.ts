@@ -586,6 +586,24 @@ describe('skills and renown cutover (PIPE-01, PIPE-05)', () => {
     expect((resolveRouteInput(ctx, job) as any).archetype).toBe('mystic');
   });
 
+  it('a skill offer asked from a second device (another identity, no creation state) keeps the mystic archetype (WR-B04)', () => {
+    const bob = { toHexString: () => 'b'.repeat(64) };
+    const ctx = newCtx(
+      {
+        ...levelSeed(3n, 0n),
+        player: [{ id: alice, userId: 7n, activeCharacterId: 1n }, { id: bob, userId: 7n, activeCharacterId: 1n }],
+        character_creation_state: [
+          { id: 1n, playerId: alice, step: 'COMPLETE', archetype: 'mystic', characterName: 'Aldric', createdAt: { microsSinceUnixEpoch: T0 }, updatedAt: { microsSinceUnixEpoch: T0 } },
+        ],
+      },
+      bob,
+    );
+    requestOffer(ctx);
+    const job = expectEnqueued(ctx, 'skill_gen');
+    expect(job.playerId).toBe(bob);
+    expect((resolveRouteInput(ctx, job) as any).archetype).toBe('mystic');
+  });
+
   it('apply_level_up with an offer already pending enqueues nothing and says so', () => {
     const seeded = levelSeed(1n, 1n);
     seeded.pending_skill = [pendingSkillRow(1n)];

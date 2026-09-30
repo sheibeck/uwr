@@ -4,7 +4,7 @@ import { connectLocations, ensureSpawnsForLocation } from './location';
 import type { WorldGenInput } from '../data/llm_layers';
 import { appendCreationEvent, appendPrivateEvent } from './events';
 import { enqueueLlmJob, llmRefusalMessage, SOURCE_KEYS } from './llm_queue';
-import { archetypeForPlayer, encodeRouteInput } from './llm_inputs';
+import { archetypeForCharacter, archetypeForPlayer, encodeRouteInput } from './llm_inputs';
 import { resolveNpcGender, npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
 
@@ -163,7 +163,9 @@ export function startWorldGeneration(ctx: any, genState: any): WorldGenStartOutc
     worldContext: '',
     characterRace: character?.race ?? 'Unknown',
     characterClass: character?.className ?? 'Unknown',
-    characterArchetype: archetypeForPlayer(ctx, genState.playerId),
+    characterArchetype: character
+      ? archetypeForCharacter(ctx, character, genState.playerId)
+      : archetypeForPlayer(ctx, genState.playerId),
     sourceRegionName: sourceRegion?.name ?? 'the known world',
     neighborRegions: buildRegionContext(ctx, genState.sourceRegionId),
   };

@@ -28,7 +28,7 @@
 
 import type { SkillGenInput } from '../data/llm_layers';
 import { enqueueLlmJob, hasActiveJobForCharacter, llmRefusalMessage, SOURCE_KEYS } from './llm_queue';
-import { encodeRouteInput, archetypeForPlayer } from './llm_inputs';
+import { encodeRouteInput, archetypeForCharacter } from './llm_inputs';
 
 export type SkillOfferEligibility = { ok: true } | { ok: false; message: string };
 
@@ -77,7 +77,7 @@ export function enqueueSkillOffer(ctx: any, character: any, playerId: any) {
     characterName: character.name,
     race: character.race || 'Unknown',
     className: character.className || 'Unknown',
-    archetype: archetypeForPlayer(ctx, playerId),
+    archetype: archetypeForCharacter(ctx, character, playerId),
     level: character.level,
     existingAbilities,
   };

@@ -9,6 +9,7 @@ import {
   resolveRouteInput,
   smokeInputFor,
   archetypeForPlayer,
+  archetypeForCharacter,
   ROUTE_BIGINT_PATHS,
 } from './llm_inputs';
 
@@ -268,6 +269,49 @@ describe('smokeInputFor', () => {
     const a = smokeInputFor('skill_gen') as any;
     a.className = 'mutated';
     expect((smokeInputFor('skill_gen') as any).className).toBe('Wanderer');
+  });
+});
+
+// WR-B04: the archetype belongs to the character, not to whichever identity is asking.
+describe('archetypeForCharacter', () => {
+  const alice = { toHexString: () => 'a'.repeat(64) };
+  const bob = { toHexString: () => 'b'.repeat(64) };
+  const character = (over: Record<string, unknown> = {}) => ({ id: 1n, ownerUserId: 7n, name: 'Mirel', ...over });
+  const state = (playerId: any, over: Record<string, unknown> = {}) => ({ id: 0n, playerId, step: 'COMPLETE', ...over });
+  const ctxWith = (seed: Record<string, any[]>) =>
+    createMockCtx({ seed: { player: [{ id: alice, userId: 7n }, { id: bob, userId: 7n }], ...seed } });
+
+  it('a second identity of the same user (no creation state of its own) gets the creator identity archetype', () => {
+    const ctx = ctxWith({ character_creation_state: [state(alice, { id: 1n, archetype: 'mystic', characterName: 'Mirel' })] });
+    expect(archetypeForCharacter(ctx, character(), bob)).toBe('mystic');
+  });
+
+  it("prefers the state that finalized this character over another identity's state", () => {
+    const ctx = ctxWith({
+      character_creation_state: [
+        state(bob, { id: 1n, archetype: 'warrior', characterName: 'Other' }),
+        state(alice, { id: 2n, archetype: 'mystic', characterName: 'Mirel' }),
+      ],
+    });
+    expect(archetypeForCharacter(ctx, character(), bob)).toBe('mystic');
+  });
+
+  it("never reads a creation state of another user's identity", () => {
+    const carol = { toHexString: () => 'c'.repeat(64) };
+    const ctx = createMockCtx({
+      seed: {
+        player: [{ id: alice, userId: 7n }, { id: carol, userId: 9n }],
+        character_creation_state: [state(carol, { id: 1n, archetype: 'mystic', characterName: 'Mirel' })],
+      },
+    });
+    expect(archetypeForCharacter(ctx, character(), carol)).toBe('warrior');
+  });
+
+  it('falls back to the class resource (mana means mystic), then to warrior', () => {
+    const ctx = ctxWith({});
+    expect(archetypeForCharacter(ctx, character({ maxMana: 40n }), bob)).toBe('mystic');
+    expect(archetypeForCharacter(ctx, character({ maxMana: 0n }), bob)).toBe('warrior');
+    expect(archetypeForCharacter(ctx, character(), bob)).toBe('warrior');
   });
 });
 
