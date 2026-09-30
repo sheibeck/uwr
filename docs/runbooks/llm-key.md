@@ -36,7 +36,12 @@ The module adds its own guards on top:
 
 Exit codes of `set-key.mjs`: 0 stored and confirmed, 1 store failed or unconfirmed, 2 key missing or unexpected format.
 
-If the confirmation never appears, or the HTTP call is rejected (401 or 403): the CLI token may not authenticate as the admin identity over HTTP. Fallback: run `spacetime call uwr set_api_key --server local` interactively yourself, knowing the key is then briefly in that process's argument list. Do this only on your own machine, never in a shared terminal, and do not paste the command anywhere.
+If the confirmation never appears, or the HTTP call is rejected (401 or 403), the CLI token most likely does not authenticate as the admin identity. There is no manual fallback that handles the key: `spacetime call` takes reducer arguments on its command line, which would put the key in the process list and in your shell history (PowerShell saves it to disk). Diagnose the identity instead; none of these steps touches the key:
+
+1. Run `spacetime login show` (never with `--token`) and note the identity it reports.
+2. Compare it with `ADMIN_IDENTITIES` in `spacetimedb/src/data/admin.ts`. If it is not listed, you are logged in as a different identity: log in again with the admin account (`spacetime logout`, then `spacetime login`).
+3. Re-run `node scripts/llm/set-key.mjs --dry-run`, then `node scripts/llm/set-key.mjs`.
+4. If it still fails, check `spacetime logs uwr --server local` for the reducer error (the key is never logged) and stop there; do not try another way of passing the key.
 
 ## Rotation
 
@@ -45,7 +50,7 @@ If the confirmation never appears, or the HTTP call is rejected (401 or 403): th
 3. Run `spacetime call uwr llm_smoke_test --server local` and wait for six `ok` results.
 4. Revoke the old key in the Anthropic Console.
 
-In-flight calls finish on the old key (the executor reads the key when it claims a job). After a rotation `keyValid` reads false ("unverified") until the smoke test passes.
+In-flight calls finish on the old key (the executor reads the key when it claims a job). Their results never change the key status: a check is recorded only for the key that is current when the reply arrives, so revoking the old key right away cannot mark the new key invalid. After a rotation `keyValid` reads false ("unverified") until the smoke test passes.
 
 ## Recovery after --clear-database
 
@@ -67,7 +72,8 @@ A local `--clear-database` wipes `llm_config`, `llm_admin_state` and the `llm_sp
 
 ## Never do this
 
-- Never put the key in a command argument, in `spacetime call` arguments, in chat, in a commit, in a screenshot, or in shared `spacetime logs` output.
+- Never put the key in a command argument, in `spacetime call` arguments, in chat, in a commit, in a screenshot, or in shared `spacetime logs` output. `set-key.mjs` is the only supported way to store it.
+- If a key ever did end up on a command line, treat it as leaked: rotate it (see Rotation) and clear your shell history, including the PowerShell history file at `(Get-PSReadLineOption).HistorySavePath` and the current session's history (`Clear-History`).
 - Never let an agent run the key script against maincloud (the `--target maincloud --confirm-maincloud` form is yours alone).
 - Never `SELECT *` from `llm_config`; it holds the key.
 - Never print the output of `spacetime login show --token`.

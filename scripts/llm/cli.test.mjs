@@ -237,6 +237,29 @@ describe('static safety checks', () => {
   });
 });
 
+describe('key runbook (docs/runbooks/llm-key.md)', () => {
+  const runbook = fs.readFileSync(path.join(REPO_ROOT, 'docs', 'runbooks', 'llm-key.md'), 'utf8');
+  const neverStart = runbook.indexOf('## Never do this');
+  const neverEnd = runbook.indexOf('\n## ', neverStart + 1);
+  const outsideNever = runbook.slice(0, neverStart) + runbook.slice(neverEnd);
+
+  it('has a "Never do this" section that forbids the key in spacetime call arguments', () => {
+    expect(neverStart).toBeGreaterThan(0);
+    expect(runbook.slice(neverStart, neverEnd)).toContain('`spacetime call` arguments');
+  });
+
+  it('never tells the user to pass the key on a command line (no set_api_key call, no argv fallback)', () => {
+    expect(outsideNever).not.toMatch(/spacetime call\s+\S+\s+set_api_key/);
+    expect(outsideNever).not.toMatch(/argument list/i);
+    // The only supported way to store the key is the script.
+    expect(outsideNever).toContain('node scripts/llm/set-key.mjs');
+  });
+
+  it('never tells the user to print the CLI token', () => {
+    expect(outsideNever).not.toMatch(/login show --token/);
+  });
+});
+
 describe('log-line contract', () => {
   it('the set_api_key reducer still emits the prefix the script matches', () => {
     const reducerSrc = fs.readFileSync(path.join(REPO_ROOT, 'spacetimedb', 'src', 'reducers', 'llm.ts'), 'utf8');
