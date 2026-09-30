@@ -7649,7 +7649,8 @@ exports[`submit_llm_result skill_gen success > QUIRK: a skill missing name or ki
       "systemPrompt": "",
       "userPrompt": ""
     }
-  ]
+  ],
+  "pending_skill": []
 }"
 `;
 
@@ -7693,7 +7694,8 @@ exports[`submit_llm_result skill_gen success > QUIRK: fewer than three skills wr
       "systemPrompt": "",
       "userPrompt": ""
     }
-  ]
+  ],
+  "pending_skill": []
 }"
 `;
 
@@ -8137,7 +8139,7 @@ exports[`submit_llm_result skill_gen success > inserts three pending skills, pre
 }"
 `;
 
-exports[`submit_llm_result skill_gen success > replaces previously pending skills for the character (retry safety) 1`] = `
+exports[`submit_llm_result skill_gen success > keeps an offer that is already pending for the character and inserts nothing 1`] = `
 "{
   "character": [
     {
@@ -8152,24 +8154,6 @@ exports[`submit_llm_result skill_gen success > replaces previously pending skill
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
-    }
-  ],
-  "event_private": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "narrative",
-      "message": "The Keeper of Knowledge regards you with something resembling interest.\\n\\n\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\"\\n\\n[A] -- A description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[B] -- B description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[C] -- C description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\"",
-      "ownerUserId": "7n"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
     }
   ],
   "llm_task": [
@@ -8189,6 +8173,22 @@ exports[`submit_llm_result skill_gen success > replaces previously pending skill
   "pending_skill": [
     {
       "castSeconds": "1n",
+      "characterId": "10n",
+      "cooldownSeconds": "1n",
+      "createdAt": "ts:1600000000000000n",
+      "description": "old",
+      "id": "50n",
+      "kind": "damage",
+      "levelRequired": "3n",
+      "name": "Stale",
+      "resourceCost": "1n",
+      "resourceType": "mana",
+      "scaling": "none",
+      "targetRule": "single_enemy",
+      "value1": "1n"
+    },
+    {
+      "castSeconds": "1n",
       "characterId": "99n",
       "cooldownSeconds": "1n",
       "createdAt": "ts:1600000000000000n",
@@ -8202,57 +8202,6 @@ exports[`submit_llm_result skill_gen success > replaces previously pending skill
       "scaling": "none",
       "targetRule": "single_enemy",
       "value1": "1n"
-    },
-    {
-      "castSeconds": "0n",
-      "characterId": "10n",
-      "cooldownSeconds": "6n",
-      "createdAt": "ts:1700000000000000n",
-      "damageType": "physical",
-      "description": "A description.",
-      "id": "52n",
-      "kind": "damage",
-      "levelRequired": "3n",
-      "name": "A",
-      "resourceCost": "5n",
-      "resourceType": "stamina",
-      "scaling": "str",
-      "targetRule": "single_enemy",
-      "value1": "18n"
-    },
-    {
-      "castSeconds": "0n",
-      "characterId": "10n",
-      "cooldownSeconds": "6n",
-      "createdAt": "ts:1700000000000000n",
-      "damageType": "physical",
-      "description": "B description.",
-      "id": "53n",
-      "kind": "damage",
-      "levelRequired": "3n",
-      "name": "B",
-      "resourceCost": "5n",
-      "resourceType": "stamina",
-      "scaling": "str",
-      "targetRule": "single_enemy",
-      "value1": "18n"
-    },
-    {
-      "castSeconds": "0n",
-      "characterId": "10n",
-      "cooldownSeconds": "6n",
-      "createdAt": "ts:1700000000000000n",
-      "damageType": "physical",
-      "description": "C description.",
-      "id": "54n",
-      "kind": "damage",
-      "levelRequired": "3n",
-      "name": "C",
-      "resourceCost": "5n",
-      "resourceType": "stamina",
-      "scaling": "str",
-      "targetRule": "single_enemy",
-      "value1": "18n"
     }
   ]
 }"
@@ -8298,7 +8247,8 @@ exports[`submit_llm_result skill_gen success > unparseable text writes the grima
       "systemPrompt": "",
       "userPrompt": ""
     }
-  ]
+  ],
+  "pending_skill": []
 }"
 `;
 

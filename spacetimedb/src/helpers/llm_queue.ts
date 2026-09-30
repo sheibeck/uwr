@@ -48,6 +48,24 @@ export function isActiveJobStatus(status: unknown): boolean {
   return (LLM_ACTIVE_JOB_STATUSES as readonly unknown[]).includes(status);
 }
 
+/**
+ * Every active job (pending, in_flight, received), read through the by_status index. The active
+ * set is small, so this is how a caller finds a job by character or by request field without
+ * depending on which identity enqueued it.
+ */
+export function activeLlmJobs(ctx: any): any[] {
+  const out: any[] = [];
+  for (const status of LLM_ACTIVE_JOB_STATUSES) {
+    for (const job of ctx.db.llm_job.by_status.filter(status)) out.push(job);
+  }
+  return out;
+}
+
+/** True when an active job for `route` is tied to `characterId` (any identity). */
+export function hasActiveJobForCharacter(ctx: any, route: LlmRoute, characterId: bigint): boolean {
+  return activeLlmJobs(ctx).some((j: any) => j.route === route && j.characterId === characterId);
+}
+
 export const LLM_REQUEST_JSON_MAX_CHARS = 64_000;
 export const LLM_ERROR_MESSAGE_MAX_CHARS = 400;
 /** stopReason and requestId are short provider tokens; cap them (by code points) after redaction. */

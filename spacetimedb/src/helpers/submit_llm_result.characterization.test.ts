@@ -653,7 +653,9 @@ describe('submit_llm_result skill_gen success', () => {
     expect(pending[0].effectType).toBeUndefined();
   });
 
-  it('replaces previously pending skills for the character (retry safety)', () => {
+  // Deliberate change (review CR-B02): a result never overwrites an offer the player may be
+  // looking at. The old "retry safety" delete silently lost an earned offer.
+  it('keeps an offer that is already pending for the character and inserts nothing', () => {
     const ctx = newCtx({
       ...seed(),
       pending_skill: [
@@ -663,7 +665,7 @@ describe('submit_llm_result skill_gen success', () => {
     });
     exec(ctx, { resultText: JSON.stringify({ skills: [skill('A'), skill('B'), skill('C')] }) }, { skipSchemaCheck: true });
     const names = rows(ctx, 'pending_skill').map((p: any) => p.name).sort();
-    expect(names).toEqual(['A', 'B', 'C', 'OtherChar']);
+    expect(names).toEqual(['OtherChar', 'Stale']);
   });
 
   it('QUIRK: fewer than three skills writes the grimace message with NO budget increment and NO pending rows', () => {

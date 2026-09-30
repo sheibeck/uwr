@@ -574,6 +574,71 @@ describe('skills and renown cutover (PIPE-01, PIPE-05)', () => {
     expect(systemLines(ctx)).toContain('Your offering awaits your choice.');
   });
 
+  // CR-B02: claiming two levels quickly used to queue one job per level; both were billed and the
+  // later apply overwrote the earlier offer, losing the level 2 offer for good.
+  describe('two levels claimed quickly (CR-B02)', () => {
+    const threeSkills = JSON.stringify({
+      skills: ['Ember Lash', 'Soot Veil', 'Cinder Mend'].map((name) => ({
+        name,
+        description: 'A plain description of ' + name + '.',
+        kind: 'damage',
+        targetRule: 'single_enemy',
+        resourceType: 'mana',
+        resourceCost: 5,
+        castSeconds: 1,
+        cooldownSeconds: 6,
+        scaling: 'int',
+        value1: 10,
+        damageType: 'fire',
+      })),
+    });
+    const applyJob = (ctx: any, job: any) =>
+      applySkillGenResult(ctx, { domain: 'skill_gen', playerId: job.playerId, contextJson: job.requestJson } as any, threeSkills);
+
+    it('the second level-up queues nothing and says the offer is being prepared; the one job is for level 2', () => {
+      const ctx = newCtx(levelSeed(1n, 2n));
+      levelUp(ctx);
+      levelUp(ctx);
+
+      expect(rows(ctx, 'character')[0].level).toBe(3n);
+      const job = expectEnqueued(ctx, 'skill_gen');
+      expect(JSON.parse(job.requestJson).level).toBe('2');
+      expect(systemLines(ctx)).toContain('The Keeper is already preparing your offering. Be patient.');
+    });
+
+    it('the offer applied after the character reached level 3 is labelled and gated at level 2, and [skills] then offers level 3', () => {
+      const ctx = newCtx(levelSeed(1n, 2n));
+      levelUp(ctx);
+      levelUp(ctx);
+      const job = expectEnqueued(ctx, 'skill_gen');
+
+      applyJob(ctx, job);
+      job.status = 'completed';
+      const pending = rows(ctx, 'pending_skill');
+      expect(pending).toHaveLength(3);
+      for (const p of pending) expect(p.levelRequired).toBe(2n);
+      expect(eventsOfKind(ctx, 'narrative').slice(-1)[0]).toContain('"Level 2.');
+
+      // Choosing it leaves an ability at level 2; the level 3 offer is still available.
+      rows(ctx, 'pending_skill').length = 0;
+      ctx.db.ability_template.insert({ ...abilityRow(2n), id: 0n });
+      intent(ctx, 'skills');
+      const jobs = rows(ctx, 'llm_job');
+      expect(jobs).toHaveLength(2);
+      expect(JSON.parse(jobs[1].requestJson).level).toBe('3');
+    });
+
+    it('a result never overwrites an offer that is already pending', () => {
+      const ctx = newCtx(levelSeed(3n, 0n));
+      requestOffer(ctx);
+      const job = expectEnqueued(ctx, 'skill_gen');
+      ctx.db.pending_skill.insert({ ...pendingSkillRow(3n), id: 0n, name: 'Kept' });
+
+      applyJob(ctx, job);
+      expect(rows(ctx, 'pending_skill').map((p: any) => p.name)).toEqual(['Kept']);
+    });
+  });
+
   it('request_skill_offer enqueues one job for a level 3 character; a repeat gets the dedupe line and no second job', () => {
     const ctx = newCtx(levelSeed(3n, 0n));
     requestOffer(ctx);

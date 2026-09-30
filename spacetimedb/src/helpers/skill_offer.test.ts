@@ -230,12 +230,40 @@ describe('requestSkillOffer', () => {
     expect(rows(ctx, 'llm_job')).toHaveLength(2);
   });
 
-  it('a different level gets its own job even while the previous level job is active', () => {
+  // CR-B02 (deliberate change): one offer at a time. Two jobs for consecutive levels were both
+  // billed, and the later apply overwrote the earlier offer, losing an earned level for good.
+  it.each(['pending', 'in_flight', 'received'])('a %s skill_gen job for an earlier level blocks a new request (one offer at a time)', (status) => {
     const ctx = newCtx();
     requestSkillOffer(ctx, characterOf(ctx), alice);
+    rows(ctx, 'llm_job')[0].status = status;
     ctx.db.character.id.update({ ...characterOf(ctx), level: 4n });
+    expect(canRequestSkillOffer(ctx, characterOf(ctx))).toEqual({ ok: false, message: SKILL_OFFER_MESSAGES.duplicate });
     const out = requestSkillOffer(ctx, characterOf(ctx), alice);
-    expect(out.kind).toBe('narrative');
+    expect(out).toEqual({ kind: 'system', text: SKILL_OFFER_MESSAGES.duplicate });
+    expect(rows(ctx, 'llm_job')).toHaveLength(1);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(1);
+  });
+
+  it('an active skill_gen job enqueued by another identity of the same user also blocks', () => {
+    const bob = { toHexString: () => 'b'.repeat(64) };
+    const ctx = newCtx();
+    requestSkillOffer(ctx, characterOf(ctx), alice);
+    const out = requestSkillOffer(ctx, characterOf(ctx), bob);
+    expect(out).toEqual({ kind: 'system', text: SKILL_OFFER_MESSAGES.duplicate });
+    expect(rows(ctx, 'llm_job')).toHaveLength(1);
+  });
+
+  it('an active skill_gen job for another character does not block', () => {
+    const ctx = newCtx();
+    requestSkillOffer(ctx, characterOf(ctx), alice);
+    Object.assign(rows(ctx, 'llm_job')[0], { characterId: 2n, dedupeKey: JSON.stringify([alice.toHexString(), 'skill_gen', '2:3']) });
+    expect(requestSkillOffer(ctx, characterOf(ctx), alice).kind).toBe('narrative');
     expect(rows(ctx, 'llm_job')).toHaveLength(2);
+  });
+
+  it('the job records the level it was queued for', () => {
+    const ctx = newCtx();
+    requestSkillOffer(ctx, characterOf(ctx), alice);
+    expect(JSON.parse(rows(ctx, 'llm_job')[0].requestJson).level).toBe('3');
   });
 });

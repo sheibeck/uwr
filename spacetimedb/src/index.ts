@@ -574,7 +574,7 @@ spacetimedb.reducer('apply_level_up', { characterId: t.u64() }, (ctx: any, { cha
       `You have ${remaining} more level(s) to claim.`);
   }
 
-  // Queue the skill offer for the new level (own transaction; one job per character and level)
+  // Queue the skill offer for the new level (same transaction; one offer at a time per character)
   const offer = requestSkillOffer(ctx, updated, ctx.sender);
   appendPrivateEvent(ctx, characterId, character.ownerUserId, offer.kind, offer.text);
 });

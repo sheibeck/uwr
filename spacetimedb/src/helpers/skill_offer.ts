@@ -9,9 +9,14 @@
 //
 //   1. level 2 or higher;
 //   2. no pending skill choices waiting;
-//   3. no generated ability already taken at the character's current level;
-//   4. no active skill_gen job for that level (the enqueue dedupe on the key
-//      character + level merges it).
+//   3. no active skill_gen job for the character at ANY level (one offer at a
+//      time: two jobs for consecutive levels would both be billed and the later
+//      apply would overwrite the earlier offer);
+//   4. no generated ability already taken at the character's current level.
+//
+// The job carries the level it was queued for and the apply step labels the
+// offer with that level, so claiming two levels quickly offers level N first;
+// once it is chosen, [skills] at level N+1 offers the next one.
 //
 // A job that ended failed or expired, or that produced fewer than three skills,
 // leaves none of the four blocking, so a failed offer is recoverable with
@@ -22,7 +27,7 @@
 // ============================================================================
 
 import type { SkillGenInput } from '../data/llm_layers';
-import { enqueueLlmJob, llmRefusalMessage, SOURCE_KEYS } from './llm_queue';
+import { enqueueLlmJob, hasActiveJobForCharacter, llmRefusalMessage, SOURCE_KEYS } from './llm_queue';
 import { encodeRouteInput, archetypeForPlayer } from './llm_inputs';
 
 export type SkillOfferEligibility = { ok: true } | { ok: false; message: string };
@@ -41,13 +46,17 @@ export const SKILL_OFFER_MESSAGES = Object.freeze({
   askAgain: ' Ask again with [skills] later.',
 });
 
-/** Whether the character may be offered new skills now (rules 1 to 3; rule 4 is the enqueue dedupe). */
+/** Whether the character may be offered new skills now (rules 1 to 4). */
 export function canRequestSkillOffer(ctx: any, character: any): SkillOfferEligibility {
   const level = character.level ?? 0n;
   if (level < 2n) return { ok: false, message: SKILL_OFFER_MESSAGES.tooLow };
 
   for (const _row of ctx.db.pending_skill.by_character.filter(character.id)) {
     return { ok: false, message: SKILL_OFFER_MESSAGES.pending };
+  }
+
+  if (hasActiveJobForCharacter(ctx, 'skill_gen', character.id)) {
+    return { ok: false, message: SKILL_OFFER_MESSAGES.duplicate };
   }
 
   for (const ability of ctx.db.ability_template.by_character.filter(character.id)) {
@@ -77,7 +86,8 @@ export function enqueueSkillOffer(ctx: any, character: any, playerId: any) {
     playerId,
     characterId: character.id,
     sourceKey: SOURCE_KEYS.skillGen(character.id, character.level),
-    request: { characterId: character.id.toString(), input: encodeRouteInput(input) },
+    // `level` is the level this offer is for; the apply step labels the offer with it.
+    request: { characterId: character.id.toString(), level: character.level.toString(), input: encodeRouteInput(input) },
   });
 }
 

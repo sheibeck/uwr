@@ -382,7 +382,16 @@ export function applySkillGenResult(ctx: any, job: ApplyJob, resultText: string)
   const character = ctx.db.character.id.find(charId);
   if (!character) return;
 
-  const { skills, errors } = parseSkillGenResult(resultText, charId, character.level);
+  // The offer is for the level the job was queued for, not the character's level now.
+  const offerLevel = toBigIntSafe(context.level, { min: 1n, max: 1_000_000n, fallback: character.level });
+
+  // Never overwrite an offer the player may be looking at: keep the existing one.
+  if ([...ctx.db.pending_skill.by_character.filter(charId)].length > 0) {
+    console.error(`Skill gen result for character ${charId} dropped: an offer is already pending`);
+    return;
+  }
+
+  const { skills, errors } = parseSkillGenResult(resultText, charId, offerLevel);
 
   if (skills.length < 3) {
     console.error(`Skill gen produced ${skills.length} valid skills: ${errors.join('; ')}`);
@@ -391,12 +400,12 @@ export function applySkillGenResult(ctx: any, job: ApplyJob, resultText: string)
     return;
   }
 
-  insertPendingSkills(ctx, charId, skills, character.level);
+  insertPendingSkills(ctx, charId, skills, offerLevel);
   incrementBudget(ctx, job.playerId);
 
   // Present the 3 skills with The Keeper's sardonic narration
   let presentation = `The Keeper of Knowledge regards you with something resembling interest.\n\n`;
-  presentation += `"Level ${character.level}. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:"\n`;
+  presentation += `"Level ${offerLevel}. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:"\n`;
 
   for (const skill of skills) {
     presentation += `\n[${skill.name}] -- ${skill.description}\n`;
