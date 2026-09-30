@@ -269,7 +269,7 @@ Plans:
 
 **Housekeeping**: README and the run-local skill stop referencing `llm-proxy`. Publishes are local only.
 **Testing**: Unit tests for the `useLlmStatus` state mapping, the one-time `localStorage` cleanup, and the absence of forbidden reducers and tables. The full existing suite and `pnpm build` stay green after the deletions.
-**Plans**: 1/7 plans executed
+**Plans**: 2/7 plans executed
 **UI hint**: yes
 
 Plans:
@@ -277,7 +277,7 @@ Plans:
 **Wave 1**
 
 - [x] 42-01-PLAN.md — Apply characterization converted to call applyLlmResult/applyLlmFailure directly; dead call-count writes and v2.0 prompt builders removed
-- [ ] 42-02-PLAN.md — Shared Keeper indicator lines, useLlmStatus mapping, one-time llm_proxy_secret cleanup in main.ts, dist bundle guard
+- [x] 42-02-PLAN.md — Shared Keeper indicator lines, useLlmStatus mapping, one-time llm_proxy_secret cleanup in main.ts, dist bundle guard
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -341,7 +341,7 @@ Phases execute in numeric order: 39 → 40 → 41 → 42 → 43 → 44
 | 39. Procedure-to-Claude Spike | v2.2 | 11/11 | Complete    | 2026-09-29 |
 | 40. Claude Request Layer and Job Seam | v2.2 | 10/10 | Complete    | 2026-09-30 |
 | 41. Executor and Domain Cutover | v2.2 | 18/18 | In Progress|  |
-| 42. Client Cutover and Legacy Removal | v2.2 | 1/7 | In Progress|  |
+| 42. Client Cutover and Legacy Removal | v2.2 | 2/7 | In Progress|  |
 | 43. Latency Tuning, Staged Generation and Budget | v2.2 | 0/TBD | Not started | - |
 | 44. Live Verification and Tone Eval | v2.2 | 0/TBD | Not started | - |
 
