@@ -143,7 +143,7 @@ Plans:
   5. A renown rank-up enqueues a valid job instead of hitting the swallowed insert error in `helpers/renown.ts` (a regression test fails on the old shape), and LLM code paths run offline in tests through a mock procedure context with fake `ctx.http` and a `withTx` that rejects promises and can be re-invoked
 
 **Testing**: This phase is mostly tests. Body snapshots for every route, schema linter cases, parser cases for each stop reason, prompt-layering and delimiter tests, privacy and dedupe tests, the renown regression test and the mock procedure context utilities.
-**Plans**: 7/10 plans executed
+**Plans**: 8/10 plans executed
 
 Plans:
 **Wave 1**
@@ -161,7 +161,7 @@ Plans:
 
 - [x] 40-06-PLAN.md — Pure Sonnet 5.5 request builder, response parser and failure classifier with fixtures
 - [x] 40-07-PLAN.md — Own-jobs status view (my_llm_jobs) and the renown rank-up fix (PIPE-08 regression)
-- [ ] 40-08-PLAN.md — Extract the apply logic into helpers/llm_apply.ts; submit_llm_result becomes a thin wrapper
+- [x] 40-08-PLAN.md — Extract the apply logic into helpers/llm_apply.ts; submit_llm_result becomes a thin wrapper
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -256,7 +256,7 @@ Phases execute in numeric order: 39 → 40 → 41 → 42 → 43 → 44
 | 24-30 | v2.0 | 22/22 | Complete | 2026-03-09 |
 | 31, 32, 38 | v2.1 | 14/14 | Complete | 2026-09-29 |
 | 39. Procedure-to-Claude Spike | v2.2 | 11/11 | Complete    | 2026-09-29 |
-| 40. Claude Request Layer and Job Seam | v2.2 | 7/10 | In Progress|  |
+| 40. Claude Request Layer and Job Seam | v2.2 | 8/10 | In Progress|  |
 | 41. Executor and Domain Cutover | v2.2 | 0/TBD | Not started | - |
 | 42. Client Cutover and Legacy Removal | v2.2 | 0/TBD | Not started | - |
 | 43. Latency Tuning, Staged Generation and Budget | v2.2 | 0/TBD | Not started | - |
