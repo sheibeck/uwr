@@ -4,17 +4,17 @@ milestone: v2.2
 milestone_name: LLM — Claude Engine
 current_phase: 40
 current_phase_name: Claude Request Layer and Job Seam
-status: executing
-stopped_at: Completed 40-09-PLAN.md
-last_updated: "2026-09-30T03:24:33.945Z"
+status: verifying
+stopped_at: Completed 40-10-PLAN.md
+last_updated: "2026-09-30T10:00:04.075Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 40 execution started
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 21
-  completed_plans: 20
-  percent: 17
+  completed_plans: 21
+  percent: 33
 ---
 
 # Project State
@@ -30,10 +30,10 @@ See: .planning/PROJECT.md (updated 2026-09-29)
 
 Phase: 40 (Claude Request Layer and Job Seam) — EXECUTING
 Plan: 10 of 10
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-09-29 — Phase 40 execution started
 
-Progress: [██████████] 95% (1/6 phases)
+Progress: [██████████] 100% (1/6 phases)
 
 ## Previous Milestones
 
@@ -70,6 +70,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 40-07: perkEffectJson bigint values serialized as plain JSON numbers (safe range) so stored JSON matches the perk prompt shape; index.ts copy of the fallback still has the bigint defect (Phase 41)
 - [Phase ?]: 40-08: submit_llm_result apply logic extracted verbatim to helpers/llm_apply.ts keyed on job.playerId; renown bigint throw preserved for Phase 41
 - [Phase ?]: 40-09: seam test excludes only llm_config from the leak scan and normalizes auto-increment ids when comparing re-invoked-tx end state; local publish needed no --break-clients and no clear
+- [Phase ?]: [40-10] Keeper Bible tone approved by the user (verbatim 'Approved', 2026-09-30) with no edits; 7,421 chars (~2,283 tokens); full suite must be run per file on this host due to memory exhaustion
 
 ### Roadmap Evolution
 
@@ -117,8 +118,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-30T03:24:33.922Z
-Stopped at: Completed 40-09-PLAN.md
+Last session: 2026-09-30T10:00:04.052Z
+Stopped at: Completed 40-10-PLAN.md
 
 ## Performance Metrics
 
@@ -152,6 +153,7 @@ Stopped at: Completed 40-09-PLAN.md
 | Phase 40 P07 | 30min | 2 tasks | 7 files |
 | Phase 40 P08 | 30min | 2 tasks | 3 files |
 | Phase 40 P09 | 35min | 2 tasks | 4 files |
+| Phase 40 P10 | 10min | 2 tasks | 0 files |
 
 ## Operator Next Steps
 
