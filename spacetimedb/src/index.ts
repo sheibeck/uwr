@@ -7,15 +7,12 @@ import {
   buildCharacterCreationPrompt,
   buildWorldGenPrompt,
   buildCombatNarrationPrompt,
-  buildSkillGenPrompt,
-  buildSkillGenSystemPrompt,
-  buildSkillGenUserPrompt,
   buildRaceInterpretationUserPrompt,
   buildClassGenerationUserPrompt,
   buildCombinedCreationUserPrompt,
   buildRegionGenerationUserPrompt,
-  buildSkillGenResponseFormat,
 } from './data/llm_prompts';
+import { requestSkillOffer } from './helpers/skill_offer';
 import { computeRegionDanger } from './helpers/world_gen';
 import { buildRegionContext } from './helpers/world_gen';
 import { applyLlmResult, applyLlmFailure, toApplyJob } from './helpers/llm_apply';
@@ -612,65 +609,15 @@ spacetimedb.reducer('prepare_world_gen_llm', { genStateId: t.u64() }, (ctx: any,
   });
 });
 
-// Reducer: prepare an LLM task for skill generation (called after level-up)
-spacetimedb.reducer('prepare_skill_gen', { characterId: t.u64() }, (ctx: any, { characterId }: { characterId: bigint }) => {
-  // Validate ownership
-  const character = ctx.db.character.id.find(characterId);
-  if (!character) throw new SenderError('Character not found');
-  const player = ctx.db.player.id.find(ctx.sender);
-  if (!player || !character.ownerUserId || player.userId !== character.ownerUserId) {
-    throw new SenderError('Not your character');
-  }
-
-  // Check character has no existing PendingSkill rows (prevent duplicates)
-  const existingPending = [...ctx.db.pending_skill.by_character.filter(characterId)];
-  if (existingPending.length > 0) {
-    appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
-      'The Keeper is already preparing skill offerings for you. Be patient.');
+// Reducer: the player asks the Keeper for a new skill offer (recovers a failed or missed offer)
+spacetimedb.reducer('request_skill_offer', { characterId: t.u64() }, (ctx: any, { characterId }: { characterId: bigint }) => {
+  const character = requireCharacterOwnedBy(ctx, characterId);
+  const offer = requestSkillOffer(ctx, character, ctx.sender);
+  if (offer.kind === 'system') {
+    fail(ctx, character, offer.text);
     return;
   }
-
-  // Budget check
-  const budget = checkBudget(ctx, ctx.sender);
-  if (!budget.allowed) {
-    appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
-      'The Keeper yawns. "Your daily allowance of cosmic creativity is spent. Come back tomorrow."');
-    return;
-  }
-
-  // Concurrency check — one LLM task at a time per player for skill_gen
-  const existingTasks = [...ctx.db.llm_task.by_player.filter(ctx.sender)];
-  if (existingTasks.some((t: any) => t.status === 'pending' && t.domain === 'skill_gen')) return;
-
-  // Read existing abilities for diversity context
-  const existingAbilities: { name: string; kind: string }[] = [];
-  for (const ab of ctx.db.ability_template.by_character.filter(characterId)) {
-    existingAbilities.push({ name: ab.name, kind: ab.kind });
-  }
-
-  const systemPrompt = buildSkillGenSystemPrompt();
-  const userPrompt = buildSkillGenUserPrompt(
-    character.name,
-    character.race || 'Unknown',
-    character.className || 'Unknown',
-    character.archetype || 'warrior',
-    character.level,
-    existingAbilities
-  );
-
-  ctx.db.llm_task.insert({
-    id: 0n,
-    playerId: ctx.sender,
-    domain: 'skill_gen',
-    model: 'gpt-5-mini',
-    systemPrompt,
-    userPrompt,
-    maxTokens: 1500n,
-    status: 'pending',
-    contextJson: JSON.stringify({ characterId: characterId.toString() }),
-    responseFormatJson: JSON.stringify(buildSkillGenResponseFormat()),
-    createdAt: ctx.timestamp,
-  });
+  appendPrivateEvent(ctx, characterId, character.ownerUserId, 'narrative', offer.text);
 });
 
 // Reducer: player chooses one of 3 pending skills
@@ -854,55 +801,9 @@ spacetimedb.reducer('apply_level_up', { characterId: t.u64() }, (ctx: any, { cha
       `You have ${remaining} more level(s) to claim.`);
   }
 
-  // Auto-trigger skill generation (same as prepare_skill_gen)
-  const existingPending = [...ctx.db.pending_skill.by_character.filter(characterId)];
-  if (existingPending.length > 0) {
-    appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
-      'The Keeper is already preparing skill offerings for you.');
-    return;
-  }
-
-  const budget = checkBudget(ctx, ctx.sender);
-  if (!budget.allowed) {
-    appendPrivateEvent(ctx, characterId, character.ownerUserId, 'system',
-      'The Keeper yawns. "Your daily allowance of cosmic creativity is spent. Come back tomorrow."');
-    return;
-  }
-
-  const existingTasks = [...ctx.db.llm_task.by_player.filter(ctx.sender)];
-  if (existingTasks.some((task: any) => task.status === 'pending' && task.domain === 'skill_gen')) return;
-
-  const existingAbilities: { name: string; kind: string }[] = [];
-  for (const ab of ctx.db.ability_template.by_character.filter(characterId)) {
-    existingAbilities.push({ name: ab.name, kind: ab.kind });
-  }
-
-  const systemPrompt = buildSkillGenSystemPrompt();
-  const userPrompt = buildSkillGenUserPrompt(
-    updated.name,
-    updated.race || 'Unknown',
-    updated.className || 'Unknown',
-    (updated as any).archetype || 'warrior',
-    newLevel,
-    existingAbilities
-  );
-
-  ctx.db.llm_task.insert({
-    id: 0n,
-    playerId: ctx.sender,
-    domain: 'skill_gen',
-    model: 'gpt-5-mini',
-    systemPrompt,
-    userPrompt,
-    maxTokens: 1500n,
-    status: 'pending',
-    contextJson: JSON.stringify({ characterId: characterId.toString() }),
-    responseFormatJson: JSON.stringify(buildSkillGenResponseFormat()),
-    createdAt: ctx.timestamp,
-  });
-
-  appendPrivateEvent(ctx, characterId, character.ownerUserId, 'narrative',
-    'Something stirs within you. The Keeper stirs to present new abilities for your consideration.');
+  // Queue the skill offer for the new level (own transaction; one job per character and level)
+  const offer = requestSkillOffer(ctx, updated, ctx.sender);
+  appendPrivateEvent(ctx, characterId, character.ownerUserId, offer.kind, offer.text);
 });
 
 // Reducer: client submits LLM result after calling the proxy

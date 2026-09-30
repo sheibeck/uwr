@@ -3,6 +3,7 @@ import { performTravel } from '../helpers/travel';
 import { buildLookOutput } from '../helpers/look';
 import { computeSellValue } from '../helpers/economy';
 import { getPerkBonusByField } from '../helpers/renown';
+import { requestSkillOffer } from '../helpers/skill_offer';
 
 // Re-export for any existing consumers that import from intent.ts
 export { buildLookOutput } from '../helpers/look';
@@ -77,6 +78,7 @@ export const registerIntentReducers = (deps: any) => {
         '  say <message> — Speak aloud for everyone at your location to hear.',
         '  sell <item> — Sell an item to a vendor.',
         '  [shop] — Browse a vendor\'s wares (at locations with a vendor).',
+        '  [skills] — Ask the Keeper for a new ability offer (level 2 and up).',
         '  [hotbars] — List all your hotbars with slot contents.',
         '  {{color:#c9a227}}hotbar add {name}{{/color}} — Create a new named hotbar (max 10).',
         '  {{color:#c9a227}}hotbar delete {name}{{/color}} — Delete a hotbar and all its slots.',
@@ -1387,6 +1389,13 @@ export const registerIntentReducers = (deps: any) => {
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
         `You bind your soul to the stone at ${location.name}. You will return here should you fall.`);
       return;
+    }
+
+    // --- SKILLS: ask the Keeper for a new skill offer (same rules as level-up) ---
+    if (lower === 'skills') {
+      const offer = requestSkillOffer(ctx, character, ctx.sender);
+      if (offer.kind === 'system') return fail(ctx, character, offer.text);
+      return appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative', offer.text);
     }
 
     // --- EXPLORE: retry world gen at current uncharted location (only useful after errors) ---

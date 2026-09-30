@@ -109,7 +109,7 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
     const character = ctx.db.character.id.find(charId);
     if (character) {
       appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
-        'The Keeper flickers. "Your potential eludes crystallization. The power will come... eventually."');
+        'The Keeper flickers. "Your potential eludes crystallization. Type [skills] when you want me to try again."');
     }
   } else if (job.domain === 'npc_conversation') {
     const context = job.contextJson ? JSON.parse(job.contextJson) : {};
@@ -381,7 +381,7 @@ export function applySkillGenResult(ctx: any, job: ApplyJob, resultText: string)
   if (skills.length < 3) {
     console.error(`Skill gen produced ${skills.length} valid skills: ${errors.join('; ')}`);
     appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
-      'The Keeper grimaces. "The cosmic machinery sputtered. Your potential remains... unformed. Try again."');
+      'The Keeper grimaces. "The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again."');
     return;
   }
 

@@ -1372,7 +1372,7 @@ exports[`submit_llm_result failure path: creation and skill_gen > skill_gen fail
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper flickers. \\"Your potential eludes crystallization. The power will come... eventually.\\"",
+      "message": "The Keeper flickers. \\"Your potential eludes crystallization. Type [skills] when you want me to try again.\\"",
       "ownerUserId": "7n"
     }
   ],
@@ -7632,7 +7632,7 @@ exports[`submit_llm_result skill_gen success > QUIRK: a skill missing name or ki
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Try again.\\"",
+      "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\"",
       "ownerUserId": "7n"
     }
   ],
@@ -7676,7 +7676,7 @@ exports[`submit_llm_result skill_gen success > QUIRK: fewer than three skills wr
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Try again.\\"",
+      "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\"",
       "ownerUserId": "7n"
     }
   ],
@@ -8281,7 +8281,7 @@ exports[`submit_llm_result skill_gen success > unparseable text writes the grima
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Try again.\\"",
+      "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\"",
       "ownerUserId": "7n"
     }
   ],

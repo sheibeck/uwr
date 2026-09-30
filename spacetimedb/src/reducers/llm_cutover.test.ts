@@ -15,6 +15,8 @@ import { createMockCtx, createMockProcCtx } from '../helpers/test-utils';
 import { enqueueCombatOutroNarration } from '../helpers/combat_narration';
 import { runLlmJob } from '../helpers/llm_executor';
 import { llmRefusalMessage } from '../helpers/llm_queue';
+import { applyLlmFailure, applySkillGenResult } from '../helpers/llm_apply';
+import { insertLlmDispatch } from '../helpers/llm_schedule';
 import { resolveRouteInput } from '../helpers/llm_inputs';
 import { utcDay } from '../helpers/llm_budget';
 import { buildRouteLayers } from '../data/llm_layers';
@@ -36,7 +38,7 @@ const handlers: Record<string, (...args: any[]) => any> = {};
 
 beforeAll(async () => {
   await import('../index');
-  for (const name of ['talk_to_npc']) {
+  for (const name of ['talk_to_npc', 'apply_level_up', 'request_skill_offer', 'submit_intent', 'grant_test_renown']) {
     const h = capturedReducer(name);
     if (typeof h !== 'function') {
       throw new Error(
@@ -461,5 +463,285 @@ describe('combat outro narration (PIPE-07)', () => {
     expect(job.errorCode).toBe('late');
     expect(rows(proc, 'event_private').filter((e: any) => e.kind === 'combat_narration')).toHaveLength(0);
     expect(rows(proc, 'combat_narrative')).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Skills and renown (41-12)
+// ---------------------------------------------------------------------------
+
+describe('skills and renown cutover (PIPE-01, PIPE-05)', () => {
+  const levelSeed = (level = 2n, pendingLevels = 1n, over: Record<string, unknown> = {}): Seed => ({
+    ...playerSeed(),
+    ...worldSeed(),
+    ...characterSeed({ level, pendingLevels, str: 10n, dex: 10n, cha: 10n, wis: 10n, int: 10n, hp: 50n, maxHp: 50n, ...over }),
+    ability_template: [],
+    pending_skill: [],
+    character_creation_state: [],
+  });
+
+  const pendingSkillRow = (levelRequired = 3n) => ({
+    id: 1n,
+    characterId: 1n,
+    name: 'A',
+    description: 'x',
+    kind: 'damage',
+    targetRule: 'enemy',
+    resourceType: 'mana',
+    resourceCost: 1n,
+    castSeconds: 0n,
+    cooldownSeconds: 1n,
+    scaling: 'int',
+    value1: 1n,
+    levelRequired,
+    createdAt: { microsSinceUnixEpoch: T0 },
+  });
+
+  const abilityRow = (levelRequired = 3n) => ({
+    id: 1n,
+    characterId: 1n,
+    name: 'A',
+    description: 'x',
+    kind: 'damage',
+    targetRule: 'enemy',
+    resourceType: 'mana',
+    resourceCost: 1n,
+    castSeconds: 0n,
+    cooldownSeconds: 1n,
+    scaling: 'int',
+    value1: 1n,
+    levelRequired,
+    isGenerated: true,
+  });
+
+  const levelUp = (ctx: any) => handlers.apply_level_up(ctx, { characterId: 1n });
+  const requestOffer = (ctx: any, characterId = 1n) => handlers.request_skill_offer(ctx, { characterId });
+  const intent = (ctx: any, text: string) => handlers.submit_intent(ctx, { characterId: 1n, text });
+  const eventsOfKind = (ctx: any, kind: string): string[] =>
+    rows(ctx, 'event_private').filter((e: any) => e.kind === kind).map((e: any) => e.message);
+
+  it('prepare_skill_gen is no longer a reducer', () => {
+    expect(capturedReducer('prepare_skill_gen')).toBeUndefined();
+  });
+
+  it('apply_level_up raises the level and enqueues exactly one skill_gen job and one dispatch, no legacy task', () => {
+    const ctx = newCtx(levelSeed(1n, 1n));
+    levelUp(ctx);
+
+    expect(rows(ctx, 'character')[0].level).toBe(2n);
+    const job = expectEnqueued(ctx, 'skill_gen');
+    expect(job.playerId).toBe(alice);
+    expect(job.characterId).toBe(1n);
+    expect(JSON.parse(job.dedupeKey)).toEqual([alice.toHexString(), 'skill_gen', '1:2']);
+    expect((resolveRouteInput(ctx, job) as any).level).toBe(2n);
+    expect(eventsOfKind(ctx, 'narrative')).toEqual([
+      'Something stirs within you. The Keeper stirs to present new abilities for your consideration.',
+    ]);
+  });
+
+  it("apply_level_up takes the archetype from the player's creation state, not always warrior", () => {
+    const ctx = newCtx({
+      ...levelSeed(1n, 1n),
+      character_creation_state: [
+        { id: 1n, playerId: alice, step: 'COMPLETE', archetype: 'mystic', createdAt: { microsSinceUnixEpoch: T0 }, updatedAt: { microsSinceUnixEpoch: T0 } },
+      ],
+    });
+    levelUp(ctx);
+    const job = expectEnqueued(ctx, 'skill_gen');
+    expect((resolveRouteInput(ctx, job) as any).archetype).toBe('mystic');
+  });
+
+  it('apply_level_up with an offer already pending enqueues nothing and says so', () => {
+    const seeded = levelSeed(1n, 1n);
+    seeded.pending_skill = [pendingSkillRow(1n)];
+    const ctx = newCtx(seeded);
+    levelUp(ctx);
+    expectNothingReserved(ctx);
+    expect(systemLines(ctx)).toContain('Your offering awaits your choice.');
+  });
+
+  it('request_skill_offer enqueues one job for a level 3 character; a repeat gets the dedupe line and no second job', () => {
+    const ctx = newCtx(levelSeed(3n, 0n));
+    requestOffer(ctx);
+    expectEnqueued(ctx, 'skill_gen');
+    requestOffer(ctx);
+    expectEnqueued(ctx, 'skill_gen');
+    expect(systemLines(ctx)).toEqual(['The Keeper is already preparing your offering. Be patient.']);
+  });
+
+  it("request_skill_offer rejects another player's character", () => {
+    const ctx = newCtx({
+      ...levelSeed(3n, 0n),
+      ...characterSeed({ ownerUserId: 99n, level: 3n }),
+    });
+    expect(() => requestOffer(ctx)).toThrow('Not your character');
+    expectNothingReserved(ctx);
+  });
+
+  it('request_skill_offer will not farm: pending choices, a generated ability at this level, or level 1 all write nothing', () => {
+    const pendingSeed = levelSeed(3n, 0n);
+    pendingSeed.pending_skill = [pendingSkillRow(3n)];
+    const a = newCtx(pendingSeed);
+    requestOffer(a);
+    expectNothingReserved(a);
+    expect(systemLines(a)).toEqual(['Your offering awaits your choice.']);
+
+    const takenSeed = levelSeed(3n, 0n);
+    takenSeed.ability_template = [abilityRow(3n)];
+    const b = newCtx(takenSeed);
+    requestOffer(b);
+    expectNothingReserved(b);
+    expect(systemLines(b)).toHaveLength(1);
+
+    const c = newCtx(levelSeed(1n, 0n));
+    requestOffer(c);
+    expectNothingReserved(c);
+    expect(systemLines(c)).toHaveLength(1);
+  });
+
+  it('a refused skill offer (daily cost) creates no job and says how to ask again', () => {
+    const ctx = newCtx(levelSeed(3n, 0n));
+    ctx.db.llm_player_budget.insert({
+      id: 0n,
+      playerId: alice,
+      dayUtc: utcDay(ctx.timestamp),
+      reservedMicroUsd: 0n,
+      spentMicroUsd: LLM_PLAYER_DAILY_COST_MICRO_USD,
+      calls: 1n,
+    });
+    requestOffer(ctx);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    expect(systemLines(ctx)).toEqual([llmRefusalMessage('daily_cost') + ' Ask again with [skills] later.']);
+  });
+
+  it('submit_intent "skills" behaves like request_skill_offer', () => {
+    const ctx = newCtx(levelSeed(3n, 0n));
+    intent(ctx, 'skills');
+    expectEnqueued(ctx, 'skill_gen');
+    intent(ctx, 'Skills');
+    expectEnqueued(ctx, 'skill_gen');
+    expect(systemLines(ctx)).toEqual(['The Keeper is already preparing your offering. Be patient.']);
+  });
+
+  it('a skill_gen failure tells the player to type [skills], and doing so enqueues a fresh job for the same level', () => {
+    const ctx = newCtx(levelSeed(3n, 0n));
+    requestOffer(ctx);
+    const first = expectEnqueued(ctx, 'skill_gen');
+
+    // The job fails for good; the executor runs the failure handling.
+    first.status = 'failed';
+    applyLlmFailure(ctx, { domain: 'skill_gen', playerId: alice, contextJson: first.requestJson } as any);
+    const narrative = eventsOfKind(ctx, 'narrative');
+    expect(narrative[narrative.length - 1]).toContain('[skills]');
+
+    intent(ctx, 'skills');
+    expect(rows(ctx, 'llm_job')).toHaveLength(2);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(2);
+    expect(rows(ctx, 'llm_job')[1].dedupeKey).toBe(first.dedupeKey);
+    expect(rows(ctx, 'llm_job')[1].status).toBe('pending');
+  });
+
+  it('a short skill offer (fewer than three valid skills) also names [skills]', () => {
+    const ctx = newCtx(levelSeed(3n, 0n));
+    applySkillGenResult(
+      ctx,
+      { domain: 'skill_gen', playerId: alice, contextJson: JSON.stringify({ characterId: '1' }) } as any,
+      '{"skills":[]}',
+    );
+    const narrative = eventsOfKind(ctx, 'narrative');
+    expect(narrative).toHaveLength(1);
+    expect(narrative[0]).toContain('[skills]');
+    expect(rows(ctx, 'pending_skill')).toHaveLength(0);
+  });
+
+  it('the help text lists [skills]', () => {
+    const ctx = newCtx(levelSeed(3n, 0n));
+    intent(ctx, 'help');
+    expect(systemLines(ctx).join('\n')).toContain('[skills]');
+  });
+
+  // Renown (enqueue finished in 41-05): proven here through the admin reducer and the executor.
+  const CLI_ADMIN = { toHexString: () => 'c200252497b98fff5aab75f8fbc675956b5a12a5b85042ab355d3a05c6ab7d6e' };
+
+  it('a renown rank-up through grant_test_renown enqueues one renown_perk_gen job with a dispatch row', () => {
+    const ctx = newCtx(
+      { ...levelSeed(3n, 0n), player: [{ id: CLI_ADMIN, userId: 7n, activeCharacterId: 1n }] },
+      CLI_ADMIN,
+    );
+    handlers.grant_test_renown(ctx, { characterId: 1n, points: 100n });
+    const job = expectEnqueued(ctx, 'renown_perk_gen');
+    expect(job.playerId).toBe(CLI_ADMIN);
+    expect(JSON.parse(job.requestJson).rank).toBe(2);
+    expect(rows(ctx, 'pending_renown_perk')).toHaveLength(0);
+  });
+
+  const FAKE_KEY = ['sk', '-ant-', 'api03-', 'SKILLSKEY'.repeat(4)].join('');
+  const perk = (name: string) => ({
+    name,
+    description: 'A plain description of ' + name + '.',
+    kind: '',
+    targetRule: 'self',
+    resourceType: 'none',
+    resourceCost: 0,
+    castSeconds: 0,
+    cooldownSeconds: 0,
+    scaling: 'none',
+    value1: 0,
+    value2: null,
+    damageType: null,
+    effectType: null,
+    effectMagnitude: null,
+    effectDuration: null,
+    perkEffectJson: '{"maxHp":25}',
+    perkDomain: 'combat',
+  });
+
+  it('a Phase 40 renown job with no input snapshot is resolved from its legacy keys and applied by the executor', () => {
+    const okJson = JSON.parse(
+      readFileSync(new URL('../helpers/__fixtures__/claude/ok_json.json', import.meta.url), 'utf-8'),
+    );
+    okJson.body.content = [{ type: 'text', text: JSON.stringify({ perks: [perk('One'), perk('Two'), perk('Three')] }) }];
+    const proc = createMockProcCtx({
+      seed: {
+        player: [{ id: alice, userId: 7n, activeCharacterId: 1n }],
+        character: [{ id: 1n, ownerUserId: 7n, name: 'Aldric', race: 'Kobold', className: 'Ashweaver' }],
+        llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: { microsSinceUnixEpoch: T0 } }],
+      },
+      timestampMicros: T0,
+      responses: [okJson],
+      strict: true,
+    });
+    const job = proc.db.llm_job.insert({
+      id: 0n,
+      playerId: alice,
+      characterId: 1n,
+      route: 'renown_perk_gen',
+      dedupeKey: '["phase40"]',
+      status: 'pending',
+      attempt: 0n,
+      requestJson: JSON.stringify({ characterId: '1', rank: 2, className: 'Ashweaver', raceName: 'Kobold', existingPerks: [] }),
+      inputTokens: 0n,
+      outputTokens: 0n,
+      cacheWriteTokens: 0n,
+      cacheReadTokens: 0n,
+      createdAt: { microsSinceUnixEpoch: T0 },
+      reservedMicroUsd: 0n,
+      costMicroUsd: 0n,
+      budgetDay: '',
+      applyAttempts: 0n,
+    });
+    const dispatch = proc.ctx.withTx((tx: any) => insertLlmDispatch(tx, job.id, T0));
+
+    const outcome = runLlmJob(proc.ctx, dispatch, {
+      nowMs: () => Number(proc.clock.now() / 1000n),
+      log: () => {},
+    });
+
+    expect(outcome).toBe('completed');
+    expect(rows(proc, 'llm_job')[0].status).toBe('completed');
+    const perks = rows(proc, 'pending_renown_perk');
+    expect(perks.map((p: any) => p.name).sort()).toEqual(['One', 'Three', 'Two']);
+    expect(perks.every((p: any) => p.characterId === 1n && p.rank === 2n)).toBe(true);
   });
 });
