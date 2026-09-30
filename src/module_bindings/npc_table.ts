@@ -20,4 +20,5 @@ export default __t.row({
   factionId: __t.option(__t.u64()).name("faction_id"),
   personalityJson: __t.option(__t.string()).name("personality_json"),
   baseMood: __t.option(__t.string()).name("base_mood"),
+  gender: __t.string(),
 });

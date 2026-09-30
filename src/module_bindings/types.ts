@@ -1043,6 +1043,7 @@ export const Npc = __t.object("Npc", {
   factionId: __t.option(__t.u64()),
   personalityJson: __t.option(__t.string()),
   baseMood: __t.option(__t.string()),
+  gender: __t.string(),
 });
 export type Npc = __Infer<typeof Npc>;
 
