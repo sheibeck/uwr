@@ -414,14 +414,38 @@ function usableNeedles(needles: readonly string[] | undefined): string[] {
 
 /**
  * Replace every key-shaped string and every supplied needle (8+ chars) with
- * [REDACTED]. Safe to call repeatedly; holds no regex state between calls.
+ * [REDACTED]. Every match is located against the original text first and
+ * overlapping matches are merged, so a needle that is a fragment of another
+ * needle (or of a key) can never leave part of a secret behind. Safe to call
+ * repeatedly; holds no regex state between calls.
  */
 export function redactSecrets(text: string, needles?: readonly string[]): string {
-  let out = text.replace(new RegExp(escapeRegExp(KEY_PREFIX) + KEY_TAIL, 'g'), '[REDACTED]');
-  for (const n of usableNeedles(needles)) {
-    out = out.replace(new RegExp(escapeRegExp(n), 'g'), '[REDACTED]');
+  const ranges: [number, number][] = [];
+  for (const m of text.matchAll(new RegExp(escapeRegExp(KEY_PREFIX) + KEY_TAIL, 'g'))) {
+    ranges.push([m.index, m.index + m[0].length]);
   }
-  return out;
+  for (const n of new Set(usableNeedles(needles))) {
+    for (let i = text.indexOf(n); i !== -1; i = text.indexOf(n, i + 1)) {
+      ranges.push([i, i + n.length]);
+    }
+  }
+  if (ranges.length === 0) return text;
+  ranges.sort((a, b) => a[0] - b[0] || b[1] - a[1]);
+  let out = '';
+  let pos = 0;
+  let curEnd = -1;
+  for (const [start, end] of ranges) {
+    if (start < curEnd) {
+      // Overlaps the range being replaced: extend it if needed, emit nothing more.
+      if (end > curEnd) curEnd = end;
+      continue;
+    }
+    if (curEnd >= 0) pos = curEnd;
+    out += text.slice(pos, start) + '[REDACTED]';
+    pos = start;
+    curEnd = end;
+  }
+  return out + text.slice(curEnd);
 }
 
 /**

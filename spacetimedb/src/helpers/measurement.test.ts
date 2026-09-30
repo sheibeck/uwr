@@ -567,6 +567,29 @@ describe('secrets: redactSecrets and findSecretLeaks', () => {
     expect(redactSecrets('nothing to see')).toBe('nothing to see');
   });
 
+  it('leaves no residue when needles overlap, whatever their order', () => {
+    const secret = 'abcdefghijklmnopqrstuvwx';
+    const fragment = 'abcdefghij'; // prefix of the secret
+    const tail = 'mnopqrstuvwx'; // suffix of the secret
+    for (const needles of [[fragment, secret], [secret, fragment], [tail, secret], [fragment, tail, secret]]) {
+      const out = redactSecrets(`token=${secret}!`, needles);
+      expect(out).toBe('token=[REDACTED]!');
+    }
+  });
+
+  it('merges partially overlapping needles into one redaction', () => {
+    // Neither needle contains the other: they overlap on "efghijkl".
+    const out = redactSecrets('x abcdefghijklmnopqrst y', ['abcdefghijkl', 'efghijklmnopqrst']);
+    expect(out).toBe('x [REDACTED] y');
+  });
+
+  it('redacts a needle that overlaps a key-shaped string without leaving key residue', () => {
+    const key = fakeKey();
+    const needle = key.slice(4, 20); // fragment from inside the key
+    const out = redactSecrets(`v=${key}.`, [needle]);
+    expect(out).toBe('v=[REDACTED].');
+  });
+
   it('counts pattern hits and needle hits', () => {
     const text = `${fakeKey()} then needle-value-123 and needle-value-123`;
     const r = findSecretLeaks(text, { needles: ['needle-value-123'] });
