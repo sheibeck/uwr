@@ -9,7 +9,10 @@ import { capturedViews, createRecordingServerMock } from '../helpers/schema_reco
 import { keeperMessageForJob, publicErrorBucket } from '../helpers/llm_status';
 import { LLM_JOB_STATUSES } from '../helpers/llm_queue';
 import { LLM_ROUTE_NAMES } from '../data/llm_routes';
-import { registerLlmViews, projectMyLlmJob, MY_LLM_JOB_KEYS } from './llm';
+import { findSecretLeaks } from '../helpers/measurement';
+import { ADMIN_IDENTITIES } from '../data/admin';
+import { LLM_PHASE_SPEND_CAP_MICRO_USD } from '../data/llm_limits';
+import { registerLlmViews, projectMyLlmJob, MY_LLM_JOB_KEYS, projectAdminLlmStatus, ADMIN_LLM_STATUS_KEYS } from './llm';
 import { registerViews } from './index';
 
 // vi.mock is hoisted; the recording mock supplies a chainable `t` and captures view registrations.
@@ -79,14 +82,22 @@ function noScanDb(seed: Record<string, any[]>) {
   });
 }
 
-function registeredView() {
+function registeredViews() {
   const { t, schema } = createRecordingServerMock();
   const spacetimedb = schema({});
   const before = capturedViews().length;
   registerLlmViews({ spacetimedb, t } as any);
   const added = capturedViews().slice(before);
-  expect(added).toHaveLength(1);
-  return added[0];
+  expect(added.map((v) => v.opts?.name)).toEqual(['my_llm_jobs', 'admin_llm_status']);
+  return added;
+}
+
+function registeredView() {
+  return registeredViews()[0];
+}
+
+function registeredAdminView() {
+  return registeredViews()[1];
 }
 
 const seed = () => ({
@@ -252,8 +263,149 @@ describe('my_llm_jobs view', () => {
   });
 });
 
+// ============================================================================
+// admin_llm_status
+// ============================================================================
+
+const CLI_ADMIN_HEX = 'c200252497b98fff5aab75f8fbc675956b5a12a5b85042ab355d3a05c6ab7d6e';
+const adminIdent = ident(CLI_ADMIN_HEX);
+// Fake key built from fragments so no key-shaped literal sits in the source.
+const FAKE_KEY = ['sk', 'ant', 'api03', 'ADMINVIEWFAKE0123456789abcdef'].join('-');
+const ts = (micros: bigint) => ({ microsSinceUnixEpoch: micros });
+const jsonText = (v: unknown) => JSON.stringify(v, (_k, val) => (typeof val === 'bigint' ? val.toString() : val));
+
+function adminSeed(over: Record<string, any[]> = {}): Record<string, any[]> {
+  return {
+    llm_admin_state: [
+      {
+        id: 1n,
+        keySet: true,
+        keyLength: 108n,
+        keyUpdatedAt: ts(100n),
+        keyVerifiedAt: ts(200n),
+        keyLastCheckOk: true,
+        lastSmokeAt: ts(300n),
+        lastSmokeJson: '{"smoke_test":{"ok":true}}',
+      },
+    ],
+    llm_spend: [{ id: 1n, spentMicroUsd: 1234n, reservedMicroUsd: 567n, calls: 8n, updatedAt: ts(400n) }],
+    llm_job: [
+      job(1n, alice, { status: 'in_flight' }),
+      job(2n, bob, { status: 'in_flight' }),
+      job(3n, alice, { status: 'pending' }),
+    ],
+    llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: ts(100n) }],
+    ...over,
+  };
+}
+
+describe('admin_llm_status view', () => {
+  it('is registered as public (privacy comes from the sender check)', () => {
+    expect(registeredAdminView().opts).toEqual({ name: 'admin_llm_status', public: true });
+  });
+
+  it('the CLI admin identity used here is a real admin', () => {
+    expect(ADMIN_IDENTITIES.has(CLI_ADMIN_HEX)).toBe(true);
+  });
+
+  it('returns [] to a non-admin even with state, ledger and jobs seeded', () => {
+    const v = registeredAdminView();
+    expect(v.fn({ sender: alice, db: noScanDb(adminSeed()) })).toEqual([]);
+    expect(v.fn({ sender: bob, db: noScanDb(adminSeed()) })).toEqual([]);
+  });
+
+  it('returns the defaults to an admin with no state or ledger yet', () => {
+    const v = registeredAdminView();
+    const rows = v.fn({ sender: adminIdent, db: noScanDb({}) });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual({
+      keySet: false,
+      keyLength: 0n,
+      keyValid: false,
+      keyUpdatedAt: undefined,
+      keyVerifiedAt: undefined,
+      lastSmokeAt: undefined,
+      lastSmokeJson: '{}',
+      phaseSpentMicroUsd: 0n,
+      phaseReservedMicroUsd: 0n,
+      phaseCalls: 0n,
+      phaseCapMicroUsd: 2_000_000n,
+      inFlight: 0n,
+    });
+  });
+
+  it('returns the state, ledger totals and in-flight count to an admin', () => {
+    const v = registeredAdminView();
+    const rows = v.fn({ sender: adminIdent, db: noScanDb(adminSeed()) });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      keySet: true,
+      keyLength: 108n,
+      keyValid: true,
+      keyUpdatedAt: ts(100n),
+      keyVerifiedAt: ts(200n),
+      lastSmokeAt: ts(300n),
+      lastSmokeJson: '{"smoke_test":{"ok":true}}',
+      phaseSpentMicroUsd: 1234n,
+      phaseReservedMicroUsd: 567n,
+      phaseCalls: 8n,
+      phaseCapMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD,
+      inFlight: 2n,
+    });
+  });
+
+  it('is not valid when verified before the key was last set, when the last check failed, or when never verified', () => {
+    const v = registeredAdminView();
+    const state = adminSeed().llm_admin_state[0];
+    const valid = (patch: Record<string, unknown>) =>
+      v.fn({ sender: adminIdent, db: noScanDb(adminSeed({ llm_admin_state: [{ ...state, ...patch }] })) })[0].keyValid;
+    expect(valid({})).toBe(true);
+    expect(valid({ keyVerifiedAt: ts(50n) })).toBe(false);
+    expect(valid({ keyLastCheckOk: false })).toBe(false);
+    expect(valid({ keyVerifiedAt: undefined })).toBe(false);
+    expect(valid({ keySet: false })).toBe(false);
+  });
+
+  it('exposes exactly the twelve documented keys', () => {
+    const v = registeredAdminView();
+    const row = v.fn({ sender: adminIdent, db: noScanDb(adminSeed()) })[0];
+    expect(ADMIN_LLM_STATUS_KEYS).toHaveLength(12);
+    expect(Object.keys(row).sort()).toEqual([...ADMIN_LLM_STATUS_KEYS].sort());
+    expect(Object.keys(projectAdminLlmStatus(undefined, undefined, 0)).sort()).toEqual([...ADMIN_LLM_STATUS_KEYS].sort());
+  });
+
+  it('never returns a key seeded in the key table, or any fragment of it', () => {
+    const v = registeredAdminView();
+    const rows = v.fn({ sender: adminIdent, db: noScanDb(adminSeed()) });
+    const text = jsonText(rows);
+    expect(findSecretLeaks(text, { needles: [FAKE_KEY], strictPrefix: true }).total).toBe(0);
+    expect(text).not.toContain(FAKE_KEY.slice(0, 20));
+    // Positive control: the seeded key is really present in the mock db, so the check above is a real negative.
+    const db: any = createMockDb(adminSeed(), { strict: true });
+    expect(db.llm_config.id.find(1n).apiKey).toBe(FAKE_KEY);
+  });
+
+  it('counts only in_flight jobs through the index, never scanning a table', () => {
+    const v = registeredAdminView();
+    const many = Array.from({ length: 5 }, (_, i) => job(BigInt(10 + i), alice, { status: 'in_flight' }));
+    const rows = v.fn({
+      sender: adminIdent,
+      db: noScanDb(adminSeed({ llm_job: [...many, job(99n, bob, { status: 'completed' })] })),
+    });
+    expect(rows[0].inFlight).toBe(5n);
+  });
+
+  it('the source never names the key table', () => {
+    const src: string = readFileSync(fileURLToPath(new URL('./llm.ts', import.meta.url)), 'utf8');
+    const keyTable = ['llm', 'config'].join('_');
+    expect(src).not.toContain(keyTable);
+    expect(src).not.toMatch(/apiKey/);
+    expect(src).toContain('ADMIN_IDENTITIES.has(');
+  });
+});
+
 describe('registerViews wiring', () => {
-  it('registers my_llm_jobs through registerViews', () => {
+  it('registers my_llm_jobs and admin_llm_status through registerViews', () => {
     const { t, schema } = createRecordingServerMock();
     const spacetimedb = schema({});
     const before = capturedViews().length;
@@ -270,5 +422,6 @@ describe('registerViews wiring', () => {
     const names = capturedViews().slice(before).map((v) => v.opts?.name);
     expect(names).toContain('my_llm_jobs');
     expect(names.filter((n) => n === 'my_llm_jobs')).toHaveLength(1);
+    expect(names.filter((n) => n === 'admin_llm_status')).toHaveLength(1);
   });
 });
