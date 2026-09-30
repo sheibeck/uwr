@@ -184,7 +184,6 @@ describe('enqueueSkillOffer', () => {
     const jobs = rows(ctx, 'llm_job');
     expect(jobs).toHaveLength(1);
     expect(rows(ctx, 'llm_dispatch')).toHaveLength(1);
-    expect(rows(ctx, 'llm_task')).toHaveLength(0);
     expect(jobs[0]).toMatchObject({ route: 'skill_gen', characterId: 1n, playerId: alice, status: 'pending' });
     expect(JSON.parse(jobs[0].dedupeKey)).toEqual([alice.toHexString(), 'skill_gen', '1:3']);
     expect(rowColumnProblems('llm_job', jobs[0])).toEqual([]);

@@ -69,7 +69,6 @@ describe('startCreationGeneration: race', () => {
     const jobs = rows(ctx, 'llm_job');
     expect(jobs).toHaveLength(1);
     expect(rows(ctx, 'llm_dispatch')).toHaveLength(1);
-    expect(rows(ctx, 'llm_task')).toHaveLength(0);
     expect(jobs[0]).toMatchObject({ route: 'creation_race', playerId: alice, characterId: 0n, status: 'pending' });
     expect(JSON.parse(jobs[0].dedupeKey)).toEqual([alice.toHexString(), 'creation_race', '1:race']);
     expect(rowColumnProblems('llm_job', jobs[0])).toEqual([]);

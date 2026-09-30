@@ -1,7 +1,7 @@
 /**
  * Per-domain cutover tests (Phase 41): each triggering reducer, called through the REAL handler
  * captured from `spacetimedb/src/index.ts`, must enqueue exactly one job (plus its dispatch row)
- * in its own transaction and must not touch the legacy `llm_task` table. Plans 41-11 to 41-15
+ * in its own transaction (the job is the only record of the request). Plans 41-11 to 41-15
  * add their domains to this file, reusing the harness below (seed builders, `expectEnqueued`).
  *
  * The mock db is strict (unknown tables and index accessors throw, like the real database) and
@@ -83,8 +83,8 @@ function allRowsMatchSchema(ctx: any, tables: string[]): string[] {
 }
 
 /**
- * Asserts the reducer left exactly one job for `route`, exactly one dispatch row for it, and no
- * legacy `llm_task` rows; returns the job.
+ * Asserts the reducer left exactly one job for `route` and exactly one dispatch row for it;
+ * returns the job.
  */
 export function expectEnqueued(ctx: any, route: string, expectedJobs = 1): any {
   const jobs = rows(ctx, 'llm_job').filter((j: any) => j.route === route);
@@ -95,7 +95,6 @@ export function expectEnqueued(ctx: any, route: string, expectedJobs = 1): any {
   for (const job of jobs) {
     expect(dispatch.filter((d: any) => d.jobId === job.id)).toHaveLength(1);
   }
-  expect(rows(ctx, 'llm_task')).toHaveLength(0);
   expect(allRowsMatchSchema(ctx, ['llm_job', 'llm_dispatch'])).toEqual([]);
   return jobs[jobs.length - 1];
 }
@@ -105,7 +104,6 @@ function expectNothingReserved(ctx: any) {
   expect(rows(ctx, 'llm_job')).toHaveLength(0);
   expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
   expect(rows(ctx, 'llm_sweep_tick')).toHaveLength(0);
-  expect(rows(ctx, 'llm_task')).toHaveLength(0);
   for (const day of rows(ctx, 'llm_player_budget')) expect(day.reservedMicroUsd).toBe(0n);
   for (const led of rows(ctx, 'llm_spend')) expect(led.reservedMicroUsd).toBe(0n);
 }
@@ -292,7 +290,6 @@ describe('talk_to_npc (NPC chat cutover)', () => {
     expect(rows(ctx, 'llm_job')).toHaveLength(2);
     expect(rows(ctx, 'llm_dispatch')).toHaveLength(2);
     expect(rows(ctx, 'llm_job')[1].dedupeKey).not.toBe(first.dedupeKey);
-    expect(rows(ctx, 'llm_task')).toHaveLength(0);
     expect(systemLines(ctx)).toEqual([]);
     expect(rows(ctx, 'npc_dialog').map((d: any) => d.text)).toEqual([
       'You: "Hello there"',
@@ -1017,7 +1014,6 @@ describe('submit_creation_input (creation cutover, PIPE-01 / PIPE-04)', () => {
 
     expect(rows(ctx, 'llm_job')).toHaveLength(0);
     expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
-    expect(rows(ctx, 'llm_task')).toHaveLength(0);
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
     const messages = creationEvents(ctx).map((e: any) => e.message);
     expect(messages).toHaveLength(1);

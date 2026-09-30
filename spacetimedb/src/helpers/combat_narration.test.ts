@@ -102,7 +102,6 @@ describe('enqueueCombatOutroNarration: the enqueue', () => {
     expect(jobs).toHaveLength(1);
     expect(rows(ctx, 'llm_dispatch')).toHaveLength(1);
     expect(rows(ctx, 'llm_dispatch')[0].jobId).toBe(jobs[0].id);
-    expect(rows(ctx, 'llm_task')).toHaveLength(0);
     expect(jobs[0].route).toBe('combat_narration');
     expect(jobs[0].playerId).toBe(alice);
     expect(jobs[0].characterId).toBe(1n);

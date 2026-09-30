@@ -100,7 +100,6 @@ describe('renown rank-up enqueues a job (PIPE-08)', () => {
       }),
     });
     expect(rowColumnProblems('llm_job', job)).toEqual([]);
-    expect(rows(ctx, 'llm_task')).toHaveLength(0);
     expect(rows(ctx, 'pending_renown_perk')).toHaveLength(0);
   });
 

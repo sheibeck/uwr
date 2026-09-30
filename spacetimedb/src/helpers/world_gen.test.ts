@@ -357,7 +357,6 @@ describe('startWorldGeneration', () => {
 
     expect(rows(ctx, 'llm_job')).toHaveLength(0);
     expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
-    expect(rows(ctx, 'llm_task')).toHaveLength(0);
     expect(rows(ctx, 'character')[0]).toMatchObject({ locationId: 21n, boundLocationId: 21n });
     expect(stateOf(ctx)).toMatchObject({ step: 'COMPLETE', generatedRegionId: 1n });
     expect(spawnCalls).toEqual([21n]);
@@ -388,7 +387,6 @@ describe('startWorldGeneration', () => {
     const jobs = rows(ctx, 'llm_job');
     expect(jobs).toHaveLength(1);
     expect(rows(ctx, 'llm_dispatch')).toHaveLength(1);
-    expect(rows(ctx, 'llm_task')).toHaveLength(0);
     expect(jobs[0]).toMatchObject({ route: 'world_gen', playerId: alice, characterId: 10n, status: 'pending' });
     expect(JSON.parse(jobs[0].dedupeKey)).toEqual([alice.toHexString(), 'world_gen', '5']);
     expect(rowColumnProblems('llm_job', jobs[0])).toEqual([]);
