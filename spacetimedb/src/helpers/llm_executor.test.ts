@@ -197,10 +197,11 @@ describe('module-identity guard (T-41-02)', () => {
   it("returns 'not_module' with no write and no call when the sender is not the module identity", () => {
     const proc = makeProc([], { sender: CLIENT_ID, databaseIdentity: MODULE_ID });
     const jobId = enqueue(proc, 'npc_conversation');
+    const arg = takeDispatch(proc, jobId);
     const before = snapshotDb(proc.db);
     const deps = makeDeps(proc);
 
-    const outcome = run(proc, jobId, deps);
+    const outcome = runLlmJob(proc.ctx, arg, deps);
 
     expect(outcome).toBe('not_module');
     expect(snapshotDb(proc.db)).toBe(before);
