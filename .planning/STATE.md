@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: LLM — Claude Engine
-current_phase: 41
-current_phase_name: Executor and Domain Cutover
-status: executing
-stopped_at: Completed 41-17-PLAN.md (live proof and maincloud proof deferred by user)
+current_phase: 42
+current_phase_name: Client Cutover and Legacy Removal
+status: ready_to_execute
+stopped_at: Phase 42 planned (7 plans, 5 waves); Phase 41 verification deferred (human_needed)
 last_updated: "2026-09-30T18:33:28.979Z"
 last_activity: 2026-09-30
 last_activity_desc: Completed 41-16 and 41-17 (live proof and maincloud proof deferred, human_needed)
@@ -24,13 +24,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-30)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 41 — Executor and Domain Cutover
+**Current focus:** Phase 42 — Client Cutover and Legacy Removal
 
 ## Current Position
 
-Phase: 41 (Executor and Domain Cutover) — EXECUTING
-Plan: 18/18 plans have summaries (41-16 and 41-17 closed as deferred by the user)
-Status: All Phase 41 plans executed; live proof and maincloud proof are DEFERRED (human_needed). Next: phase-level code review and verification (verification must report both proofs as outstanding, not passed)
+Phase: 42 (Client Cutover and Legacy Removal) — READY TO EXECUTE
+Plan: 0/7 (7 plans in 5 waves; plans verified by the plan checker)
+Status: Phase 42 planned. Phase 41 is complete apart from the deferred live and maincloud proofs (resume with /gsd-verify-work 41). Next: execute Phase 42
 Last activity: 2026-09-30 — Completed 41-16 and 41-17 (deferrals recorded)
 
 Progress: [███░░░░░░░] 33% (2/6 phases)
