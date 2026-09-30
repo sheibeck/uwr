@@ -103,6 +103,22 @@ export const SOURCE_KEYS = Object.freeze({
   smokeTest: (): string => 'smoke',
 });
 
+/**
+ * True for an admin smoke job: its stored request is `{ smoke: true }` and it is
+ * never tied to a character (characterId 0n). Smoke jobs never touch game state
+ * and never reach the player-facing indicator. A job tied to a character is never
+ * a smoke job, so the request is only parsed for character-less jobs.
+ */
+export function isSmokeJob(job: { characterId?: unknown; requestJson?: unknown } | null | undefined): boolean {
+  if (!job) return false;
+  if (job.characterId !== undefined && job.characterId !== 0n) return false;
+  try {
+    return (JSON.parse(String(job.requestJson ?? '')) as { smoke?: unknown } | null)?.smoke === true;
+  } catch {
+    return false;
+  }
+}
+
 /** JSON.stringify that turns bigint into its decimal string. */
 export function serializeRequest(request: Record<string, unknown>): string {
   return JSON.stringify(request, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));

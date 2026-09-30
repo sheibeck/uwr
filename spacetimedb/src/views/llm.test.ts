@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { createMockDb } from '../helpers/test-utils';
 import { capturedViews, createRecordingServerMock } from '../helpers/schema_recorder';
 import { keeperMessageForJob, publicErrorBucket } from '../helpers/llm_status';
-import { LLM_JOB_STATUSES } from '../helpers/llm_queue';
+import { LLM_JOB_STATUSES, isSmokeJob } from '../helpers/llm_queue';
 import { LLM_ROUTE_NAMES } from '../data/llm_routes';
 import { findSecretLeaks } from '../helpers/measurement';
 import { ADMIN_IDENTITIES } from '../data/admin';
@@ -247,6 +247,36 @@ describe('my_llm_jobs view', () => {
     expect(byId(BigInt(FAILURE_CLASSES.indexOf('auth') + 1))).toBe('unavailable');
     expect(byId(BigInt(FAILURE_CLASSES.indexOf('billing') + 1))).toBe('unavailable');
     expect(byId(BigInt(FAILURE_CLASSES.indexOf('refusal') + 1))).toBe('declined');
+  });
+
+  it('drops admin smoke jobs on real routes so they never light the player indicator (WR-01)', () => {
+    const v = registeredView();
+    const smoke = (id: bigint, route: string, status: string) =>
+      job(id, alice, { route, status, characterId: 0n, requestJson: '{"smoke":true}' });
+    const jobs = [
+      smoke(10n, 'world_gen', 'in_flight'),
+      smoke(11n, 'creation_race', 'pending'),
+      smoke(12n, 'skill_gen', 'received'),
+      smoke(13n, 'renown_perk_gen', 'completed'),
+      smoke(14n, 'smoke_test', 'in_flight'),
+      // A real world_gen job for the same player is still returned.
+      job(20n, alice, { route: 'world_gen', status: 'in_flight', characterId: 0n, requestJson: '{"genStateId":"4"}' }),
+      job(21n, alice, { route: 'skill_gen', status: 'pending' }),
+    ];
+    const rows = v.fn({ sender: alice, db: noScanDb({ llm_job: jobs }) });
+    expect(rows.map((r: any) => r.id).sort()).toEqual([20n, 21n]);
+  });
+
+  it('isSmokeJob matches only the character-less { smoke: true } request', () => {
+    expect(isSmokeJob({ characterId: 0n, requestJson: '{"smoke":true}' })).toBe(true);
+    expect(isSmokeJob({ requestJson: '{"smoke":true}' })).toBe(true);
+    expect(isSmokeJob({ characterId: 5n, requestJson: '{"smoke":true}' })).toBe(false);
+    expect(isSmokeJob({ characterId: 0n, requestJson: '{"smoke":"yes"}' })).toBe(false);
+    expect(isSmokeJob({ characterId: 0n, requestJson: '{"genStateId":"1"}' })).toBe(false);
+    expect(isSmokeJob({ characterId: 0n, requestJson: 'not json' })).toBe(false);
+    expect(isSmokeJob({ characterId: 0n, requestJson: 'null' })).toBe(false);
+    expect(isSmokeJob(null)).toBe(false);
+    expect(isSmokeJob(undefined)).toBe(false);
   });
 
   it('projectMyLlmJob keeps only the six keys from a full row', () => {

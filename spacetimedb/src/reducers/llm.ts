@@ -1,4 +1,4 @@
-import { enqueueLlmJob, SOURCE_KEYS, isActiveJobStatus, serializeRequest } from '../helpers/llm_queue';
+import { enqueueLlmJob, SOURCE_KEYS, isActiveJobStatus, isSmokeJob, serializeRequest } from '../helpers/llm_queue';
 import { patchAdminState } from '../helpers/llm_admin_state';
 import { getPhaseLedger, reservationMicroUsd } from '../helpers/llm_budget';
 import { LLM_SMOKE_ROUTES, LLM_PHASE_SPEND_CAP_MICRO_USD } from '../data/llm_limits';
@@ -10,12 +10,7 @@ export const LLM_KEY_SET_LOG_PREFIX = 'llm key set, len=';
 const SMOKE_REQUEST = { smoke: true } as const;
 
 function isActiveSmokeJob(job: any): boolean {
-  if (!isActiveJobStatus(job.status)) return false;
-  try {
-    return (JSON.parse(String(job.requestJson ?? '')) as { smoke?: unknown } | null)?.smoke === true;
-  } catch {
-    return false;
-  }
+  return isActiveJobStatus(job.status) && isSmokeJob(job);
 }
 
 export const registerLlmReducers = (deps: any) => {

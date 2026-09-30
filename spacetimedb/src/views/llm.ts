@@ -1,6 +1,7 @@
 import type { ViewDeps } from './types';
 import { keeperMessageForJob, publicErrorBucket } from '../helpers/llm_status';
 import { isKeyValid } from '../helpers/llm_admin_state';
+import { isSmokeJob } from '../helpers/llm_queue';
 import { ADMIN_IDENTITIES } from '../data/admin';
 import { LLM_ADMIN_STATE_ID, LLM_SPEND_ID, LLM_PHASE_SPEND_CAP_MICRO_USD } from '../data/llm_limits';
 
@@ -90,7 +91,11 @@ export const registerLlmViews = ({ spacetimedb, t }: ViewDeps) => {
   spacetimedb.view(
     { name: 'my_llm_jobs', public: true },
     t.array(MyLlmJob),
-    (ctx: any) => [...ctx.db.llm_job.by_player.filter(ctx.sender)].map(projectMyLlmJob)
+    // Admin smoke jobs run on real routes (world_gen, skill_gen, ...) but are never player work,
+    // so they are dropped here and never light the player indicator.
+    (ctx: any) => [...ctx.db.llm_job.by_player.filter(ctx.sender)]
+      .filter((job: any) => !isSmokeJob(job))
+      .map(projectMyLlmJob)
   );
 
   const AdminLlmStatus = t.row('AdminLlmStatusRow', {
