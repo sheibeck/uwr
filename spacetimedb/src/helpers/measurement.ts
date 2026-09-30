@@ -11,7 +11,18 @@
 // ---------------------------------------------------------------------------
 // Gate thresholds (locked in the phase context; all comparisons are strict)
 // ---------------------------------------------------------------------------
-export const GATE_DEFAULTS = {
+export interface GateThresholds {
+  dispatchP95Ms: number;
+  ratio: number;
+  noiseFloorMs: number;
+  goMinInFlight: number;
+  minReliabilityCalls: number;
+  minDispatchSamples: number;
+  minPingSamples: number;
+  minTickSamples: number;
+}
+
+export const GATE_DEFAULTS: Readonly<GateThresholds> = {
   dispatchP95Ms: 250,
   ratio: 2,
   noiseFloorMs: 0,
@@ -20,7 +31,7 @@ export const GATE_DEFAULTS = {
   minDispatchSamples: 50,
   minPingSamples: 200,
   minTickSamples: 30,
-} as const;
+};
 
 export type Verdict = 'go' | 'go_with_cap' | 'no_go' | 'incomplete';
 export type FailureClass = 'platform' | 'upstream' | 'auth' | 'request' | 'content' | 'spend_cap';
@@ -68,7 +79,7 @@ export interface GateInput {
     tickSamples: number;
   };
   loads: LevelStats[];
-  thresholds?: Partial<typeof GATE_DEFAULTS>;
+  thresholds?: Partial<GateThresholds>;
 }
 
 export interface GateCheck {
@@ -83,7 +94,7 @@ export interface GateResult {
   cap: number | null;
   checks: GateCheck[];
   flags: string[];
-  thresholds: typeof GATE_DEFAULTS;
+  thresholds: GateThresholds;
 }
 
 // ---------------------------------------------------------------------------
@@ -158,7 +169,7 @@ export function ratioCheck(
  * passing level, minimum 2; nothing passing with a level of <= 2 tested -> no_go).
  */
 export function evaluateGate(input: GateInput): GateResult {
-  const t = { ...GATE_DEFAULTS, ...(input.thresholds ?? {}) } as typeof GATE_DEFAULTS;
+  const t: GateThresholds = { ...GATE_DEFAULTS, ...(input.thresholds ?? {}) };
   const checks: GateCheck[] = [];
   const flags: string[] = [];
 
