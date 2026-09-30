@@ -227,10 +227,42 @@ describe('extractJson', () => {
   });
 });
 
+/** Pure: does this source read the caller identity from ctx/tx (property, bracket or destructuring)? */
+function readsSender(text: string): boolean {
+  return (
+    /\b(?:ctx|tx)\s*\.\s*sender\b/.test(text) ||
+    /\b(?:ctx|tx)\s*\[\s*['"`]sender['"`]\s*\]/.test(text) ||
+    /\{[^}]*\bsender\b[^}]*\}\s*=\s*(?:ctx|tx)\b/.test(text)
+  );
+}
+
 describe('static guards', () => {
   it('llm_apply.ts never reads the sender from ctx or tx', () => {
     const source = readFileSync(fileURLToPath(new URL('./llm_apply.ts', import.meta.url)), 'utf8');
-    expect(source.match(/\b(ctx|tx)\s*\.\s*sender\b/g)).toBeNull();
+    expect(readsSender(source)).toBe(false);
+  });
+
+  describe('readsSender (synthetic)', () => {
+    it.each([
+      'const who = ctx.sender;',
+      'tx . sender',
+      "ctx['sender']",
+      'tx["sender"]',
+      'const { sender } = ctx;',
+      'const { db, sender } = tx;',
+      'const {\n  sender,\n} = ctx;',
+    ])('flags %j', (src) => {
+      expect(readsSender(src)).toBe(true);
+    });
+
+    it.each([
+      'job.playerId',
+      'const sender = job.playerId;',
+      'senderName = ctx.db.player.id.find(job.playerId)',
+      '// the sender is never read from the context',
+    ])('does not flag %j', (src) => {
+      expect(readsSender(src)).toBe(false);
+    });
   });
 
   it('submit_llm_result in index.ts is a thin wrapper', () => {

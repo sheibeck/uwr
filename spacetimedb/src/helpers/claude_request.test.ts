@@ -394,12 +394,23 @@ describe('buildClaudeHeaders', () => {
     expect(() => buildClaudeHeaders('')).toThrow(/apiKey/);
   });
 
-  it.each(LLM_ROUTE_NAMES)('%s: the body never contains the key', (route) => {
+  it.each(LLM_ROUTE_NAMES)('%s: the key is in the headers only, never in the body', (route) => {
     const key = fakeKey();
-    buildClaudeHeaders(key);
+    const headers = buildClaudeHeaders(key);
     const { bodyText } = buildFor(route, hostile);
+    // The header carries the key (so the check below is about a real key, not an empty string)...
+    expect(headers['x-api-key']).toBe(key);
+    expect(Object.values(headers)).toContain(key);
+    // ...and the body carries neither the key nor the header name.
     expect(bodyText).not.toContain(key);
     expect(bodyText).not.toContain('x-api-key');
+  });
+
+  it('the body check can fail: a body that embeds the key is detected', () => {
+    const key = fakeKey();
+    const leaky = JSON.stringify({ system: `use ${key}` });
+    expect(leaky.includes(key)).toBe(true);
+    expect(buildFor('combat_narration', hostile).bodyText.includes(key)).toBe(false);
   });
 });
 

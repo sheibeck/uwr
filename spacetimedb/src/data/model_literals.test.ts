@@ -121,6 +121,50 @@ function scanRepo(): Record<string, string> {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Spend-safety fetch guard
+// ---------------------------------------------------------------------------
+
+/** Test-support modules that legitimately define a fake fetch; they are never bundled into the module. */
+const FETCH_GUARD_EXEMPT = new Set(['spacetimedb/src/helpers/test-utils.ts']);
+
+const FETCH_PATTERNS: RegExp[] = [
+  /\bfetch\s*\(/, // http.fetch(, ctx.http.fetch (, a global fetch(
+  /\[\s*['"`]fetch['"`]\s*\]/, // ctx.http["fetch"](
+  /\b(?:ctx|tx)\s*(?:\.\s*http\b|\[\s*['"`]http['"`]\s*\])/, // reaching http through the context at all
+  /\{[^}]*\bhttp\b[^}]*\}\s*=\s*(?:ctx|tx)\b/, // const { http } = ctx
+];
+
+/** Pure: does this source text reach the outbound fetch by any common spelling? */
+function usesFetch(text: string): boolean {
+  return FETCH_PATTERNS.some((re) => re.test(text));
+}
+
+describe('usesFetch (synthetic)', () => {
+  it.each([
+    'ctx.http.fetch(url)',
+    'ctx.http.fetch (url)',
+    'const { http } = ctx;\nhttp.fetch (url);',
+    'ctx["http"].fetch(url)',
+    "ctx['http']['fetch'](url)",
+    'await fetch(url)',
+    'globalThis.fetch(url)',
+    'const { fetch } = ctx.http;',
+    'tx.http',
+  ])('flags %j', (src) => {
+    expect(usesFetch(src)).toBe(true);
+  });
+
+  it.each([
+    'const fetchedAt = ctx.timestamp;',
+    'classify the response after a fetch failed',
+    'const prefetched = 1;',
+    'ctx.db.llm_job.insert(row)',
+  ])('does not flag %j', (src) => {
+    expect(usesFetch(src)).toBe(false);
+  });
+});
+
 describe('repository model-literal guard', () => {
   const files = scanRepo();
 
@@ -138,10 +182,11 @@ describe('repository model-literal guard', () => {
     expect(matches).toEqual(['claude-sonnet-5-5']);
   });
 
-  it('no production module under spacetimedb/src calls http.fetch( (spend safety, until the Phase 41 executor)', () => {
+  it('no production module under spacetimedb/src can reach fetch (spend safety, until the Phase 41 executor)', () => {
     const offenders = Object.entries(files)
       .filter(([path]) => path.startsWith('spacetimedb/src/'))
-      .filter(([, text]) => text.includes('http.fetch('))
+      .filter(([path]) => !FETCH_GUARD_EXEMPT.has(path))
+      .filter(([, text]) => usesFetch(text))
       .map(([path]) => path);
     expect(offenders).toEqual([]);
   });
