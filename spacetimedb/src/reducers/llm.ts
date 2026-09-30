@@ -100,14 +100,26 @@ export const registerLlmReducers = (deps: any) => {
     }
   );
 
-  // Admin-only: delete every row of the legacy public llm_task table (Phase 41 cutover). Idempotent.
-  // No server code creates task rows any more; the table and submit_llm_result go in Phase 42.
-  spacetimedb.reducer('purge_llm_tasks', {}, (ctx: any) => {
+  // Admin-only and idempotent: empties the four legacy LLM tables (old tasks, requests, call counts and the
+  // old cleanup tick). Exists only between the two publishes; it is deleted together with the tables.
+  // Reaches the tables only through this fixed name list and logs counts, never row content.
+  spacetimedb.reducer('purge_legacy_llm', {}, (ctx: any) => {
     requireAdmin(ctx);
-    const ids: bigint[] = [];
-    for (const row of ctx.db.llm_task.iter()) ids.push(row.id);
-    for (const id of ids) ctx.db.llm_task.id.delete(id);
-    console.log(`llm_task purge: ${ids.length} rows`);
+    const legacy: Array<[string, string]> = [
+      ['llm_task', 'id'],
+      ['llm_request', 'id'],
+      ['llm_budget', 'id'],
+      ['llm_cleanup_tick', 'scheduledId'],
+    ];
+    const counts: string[] = [];
+    for (const [name, key] of legacy) {
+      const table = ctx.db[name];
+      const keys: bigint[] = [];
+      for (const row of table.iter()) keys.push(row[key]);
+      for (const k of keys) table[key].delete(k);
+      counts.push(`${name}=${keys.length}`);
+    }
+    console.log(`legacy llm purge: ${counts.join(' ')}`);
   });
 
   // Validate and create a pending LLM request.

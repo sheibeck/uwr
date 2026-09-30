@@ -64,15 +64,6 @@ export function ensureInactivityTickScheduled(ctx: any) {
   }
 }
 
-export function ensureLlmCleanupScheduled(ctx: any) {
-  if (!tableHasRows(ctx.db.llm_cleanup_tick.iter())) {
-    ctx.db.llm_cleanup_tick.insert({
-      scheduledId: 0n,
-      scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 300_000_000n),
-    });
-  }
-}
-
 /**
  * Initialize all scheduled table ticks.
  * Replaces the scheduled-table portion of the former syncAllContent().
@@ -84,6 +75,5 @@ export function initScheduledTables(ctx: any) {
   ensureCastTickScheduled(ctx);
   ensureDayNightTickScheduled(ctx);
   ensureInactivityTickScheduled(ctx);
-  ensureLlmCleanupScheduled(ctx);
   ensureLlmSweepScheduled(ctx);
 }
