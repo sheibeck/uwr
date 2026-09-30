@@ -16,13 +16,12 @@ import { fileURLToPath } from 'node:url';
 // pinned below with their exact count. The allowlist is shrinkable: Phase 41
 // removes each entry as its domain moves to the new layer, and the guard fails
 // if an allowlisted site loses its literal without the entry being removed.
+// One dead site is left (a comment on a legacy table); Plan 42-06 removes it with the table.
 // ============================================================================
 
 /** Repo-relative posix path -> exact number of model literals in that file. */
 const LEGACY_MODEL_LITERALS: Record<string, number> = {
-  'spacetimedb/src/reducers/llm.ts': 2,
   'spacetimedb/src/schema/tables.ts': 1, // stale comment in the dead LlmRequest table, Phase 42
-  'src/composables/useLlm.ts': 2, // dead client composable, Phase 42
 };
 
 const MODEL_LITERAL = /\b(?:gpt-\d[0-9a-z.-]*|claude-(?:sonnet|opus|haiku|fable|mythos|instant|\d)[0-9a-z.-]*)/gi;

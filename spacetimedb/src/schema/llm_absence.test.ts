@@ -1,4 +1,9 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
+// This tsconfig has no @types/node; vitest runs the file in Node, so the built-ins resolve at runtime.
+// @ts-ignore
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+// @ts-ignore
+import { fileURLToPath } from 'node:url';
 import { ScheduleAt } from 'spacetimedb';
 import { capturedReducer } from '../helpers/schema_recorder';
 import { createMockCtx } from '../helpers/test-utils';
@@ -67,5 +72,37 @@ describe('the legacy cleanup tick is never re-armed', () => {
     drain!(ctx, { scheduledId: 1n, scheduledAt: ScheduleAt.time(1n) });
     expect(rows(ctx, 'llm_request')).toEqual([old]);
     expect(rows(ctx, 'llm_cleanup_tick')).toEqual([]);
+  });
+});
+
+const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url)); // spacetimedb/src/schema -> repo root
+
+function walkClient(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === 'module_bindings' || entry.name === 'node_modules') continue;
+    const full = dir + entry.name + (entry.isDirectory() ? '/' : '');
+    if (entry.isDirectory()) walkClient(full, out);
+    else if (/\.(ts|vue|js)$/.test(entry.name) && !/\.test\.[a-z]+$/.test(entry.name)) out.push(full);
+  }
+  return out;
+}
+
+describe('the old request-validation path is gone', () => {
+  it('the validation reducer is not registered', () => {
+    expect(capturedReducer('validate_llm_request')).toBeUndefined();
+    // Non-vacuity: the module graph did load.
+    expect(capturedReducer('request_skill_offer')).toBeTypeOf('function');
+  });
+
+  it('the legacy helper module and the client composable do not exist', () => {
+    expect(existsSync(new URL('../helpers/llm.ts', import.meta.url))).toBe(false);
+    expect(existsSync(REPO_ROOT + 'src/composables/useLlm.ts')).toBe(false);
+  });
+
+  it('no client file outside module_bindings names the validation reducer', () => {
+    const files = walkClient(REPO_ROOT + 'src/');
+    expect(files.length).toBeGreaterThan(10);
+    const offenders = files.filter((f) => /validateLlmRequest|validate_llm_request/.test(readFileSync(f, 'utf8')));
+    expect(offenders).toEqual([]);
   });
 });

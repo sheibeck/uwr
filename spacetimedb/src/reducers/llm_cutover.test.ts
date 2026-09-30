@@ -1721,13 +1721,11 @@ describe('the legacy task table is no longer written or reached (41-15)', () => 
     expect(offenders).toEqual([]);
   });
 
-  it('the model-literal allowlist holds exactly the three Phase 42 sites', () => {
+  it('the model-literal allowlist holds only the dead table comment until the tables drop', () => {
     const text = readFileSync(new URL('../data/model_literals.test.ts', import.meta.url), 'utf-8');
     const block = /const LEGACY_MODEL_LITERALS[^{]*\{([\s\S]*?)\n\};/.exec(text);
     expect(block).not.toBeNull();
     const keys = [...block![1].matchAll(/^\s*'([^']+)'\s*:/gm)].map((m) => m[1]).sort();
-    expect(keys).toEqual(
-      ['spacetimedb/src/reducers/llm.ts', 'spacetimedb/src/schema/tables.ts', 'src/composables/useLlm.ts'].sort(),
-    );
+    expect(keys).toEqual(['spacetimedb/src/schema/tables.ts']);
   });
 });

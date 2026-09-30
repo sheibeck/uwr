@@ -29,7 +29,6 @@ import {
   LLM_SPEND_ID,
 } from '../data/llm_limits';
 import { reserveCostMicroUsd } from './measurement';
-import { utcDateString } from './llm';
 
 export type LlmBudgetMode = 'player' | 'phase_only';
 export type LlmBudgetRefusal = 'daily_cost' | 'daily_calls' | 'phase_cap';
@@ -43,6 +42,13 @@ const MICROS_PER_DAY = 86_400_000_000n;
 // ---------------------------------------------------------------------------
 // Estimation
 // ---------------------------------------------------------------------------
+
+/** UTC date string (YYYY-MM-DD) of a SpacetimeDB timestamp. */
+export function utcDateString(timestamp: any): string {
+  const ms = Number(timestamp.microsSinceUnixEpoch / 1000n);
+  const d = new Date(ms);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
 
 /** UTC day (YYYY-MM-DD) of a SpacetimeDB timestamp. */
 export function utcDay(timestamp: any): string {
