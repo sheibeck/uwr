@@ -895,6 +895,146 @@ describe('classifyClaudeError', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Needle-aware redaction and never-throwing classification (IN-03, IN-04)
+// ---------------------------------------------------------------------------
+
+describe('needles (IN-04)', () => {
+  // 24 characters, no sk-ant prefix: the key pattern alone cannot see it.
+  const needle = ['Qz9', 'Lm2', 'Xv7', 'Bn4', 'Tr8', 'Yk5', 'Wp3', 'Hd6'].join('');
+  const countOf = (text: string) => findSecretLeaks(text, { needles: [needle] }).needleHits;
+
+  const echoing = (status: number, extra: Record<string, unknown> = {}) =>
+    respond({
+      status,
+      body: { type: 'error', error: { type: 'authentication_error', message: `key ${needle} rejected`, ...extra } },
+    });
+
+  it('the needle is 24 characters with no key prefix, so the key pattern alone cannot see it', () => {
+    expect(needle).toHaveLength(24);
+    expect(needle.startsWith('sk-')).toBe(false);
+  });
+
+  it('a 401 whose body echoes the needle stores no needle occurrence when needles are passed', () => {
+    const f = expectFailure(classifyClaudeResponse('skill_gen', echoing(401), { needles: [needle] }));
+    expect(f.class).toBe('auth');
+    expect(f.message).toContain('[REDACTED]');
+    expect(countOf(f.message)).toBe(0);
+  });
+
+  it('the same call without needles still returns a message (why the executor passes the key)', () => {
+    const f = expectFailure(classifyClaudeResponse('skill_gen', echoing(401)));
+    expect(typeof f.message).toBe('string');
+    expect(f.message.length).toBeGreaterThan(0);
+    expect(countOf(f.message)).toBeGreaterThan(0);
+  });
+
+  it('redacts every occurrence, in every classification path that carries a message', () => {
+    const bodies: [number, unknown][] = [
+      [400, { error: { type: 'invalid_request_error', message: `${needle} and again ${needle}` } }],
+      [429, { error: { type: 'rate_limit_error', message: needle } }],
+      [500, { error: { type: 'api_error', message: `oops ${needle}` } }],
+      [529, `plain text ${needle}`],
+    ];
+    for (const [status, body] of bodies) {
+      const f = expectFailure(classifyClaudeResponse('skill_gen', respond({ status, body: body as any }), { needles: [needle] }));
+      expect(countOf(f.message), String(status)).toBe(0);
+    }
+  });
+
+  it('redacts a needle echoed through a refusal explanation on a 200', () => {
+    const reply = {
+      status: 200,
+      body: {
+        stop_reason: 'refusal',
+        stop_details: { category: 'policy', explanation: `saw ${needle}` },
+        content: [],
+        usage: { input_tokens: 1, output_tokens: 1 },
+      },
+    };
+    const f = expectFailure(classifyClaudeResponse('skill_gen', respond(reply), { needles: [needle] }));
+    expect(f.class).toBe('refusal');
+    expect(countOf(f.message)).toBe(0);
+  });
+
+  it('a thrown error whose message contains the needle stores no needle occurrence', () => {
+    const f = expectFailure(classifyClaudeError(new Error(`connect failed for ${needle}`), { needles: [needle] }));
+    expect(f.class).toBe('network');
+    expect(countOf(f.message)).toBe(0);
+    const g = expectFailure(classifyClaudeError(new Error(`timed out ${needle}`), { needles: [needle] }));
+    expect(g.class).toBe('timeout');
+    expect(countOf(g.message)).toBe(0);
+  });
+
+  it('ignores empty and very short needles instead of blanking the message', () => {
+    const f = expectFailure(classifyClaudeResponse('skill_gen', echoing(401), { needles: ['', 'a'] }));
+    expect(f.message).toContain('rejected');
+  });
+
+  it('still redacts the key pattern when needles are given', () => {
+    const key = fakeKey();
+    const f = expectFailure(classifyClaudeError(new Error(`bad ${key} and ${needle}`), { needles: [needle] }));
+    expect(findSecretLeaks(f.message, { strictPrefix: true }).total).toBe(0);
+    expect(countOf(f.message)).toBe(0);
+  });
+});
+
+describe('classifyClaudeResponse never throws (IN-03)', () => {
+  it('a response whose text() throws is a retryable network failure carrying the status', () => {
+    const res = {
+      status: 200,
+      headers: new Headers(),
+      text: () => {
+        throw new Error('stream reset');
+      },
+    };
+    const f = expectFailure(classifyClaudeResponse('skill_gen', res));
+    expect(f.class).toBe('network');
+    expect(f.retryable).toBe(true);
+    expect(f.httpStatus).toBe(200);
+    expect(f.message).toContain('stream reset');
+  });
+
+  it('keeps the status of a failing HTTP response whose body cannot be read', () => {
+    const res = {
+      status: 503,
+      headers: new Headers(),
+      text: () => {
+        throw new Error('socket closed');
+      },
+    };
+    const f = expectFailure(classifyClaudeResponse('skill_gen', res));
+    expect(f.class).toBe('network');
+    expect(f.httpStatus).toBe(503);
+  });
+
+  it('redacts the needle out of the read-failure message', () => {
+    const secret = ['Mn3', 'Pq8', 'Rs2', 'Tu6', 'Vw9', 'Xy4', 'Za5', 'Bc7'].join('');
+    const res = {
+      status: 200,
+      headers: new Headers(),
+      text: () => {
+        throw new Error(`read failed near ${secret}`);
+      },
+    };
+    const f = expectFailure(classifyClaudeResponse('skill_gen', res, { needles: [secret] }));
+    expect(findSecretLeaks(f.message, { needles: [secret] }).total).toBe(0);
+  });
+
+  it('a body read that throws a non-Error, or an unprintable value, is still classified', () => {
+    for (const thrown of ['just a string', 42, null, undefined, Object.create(null)]) {
+      const res = {
+        status: 200,
+        headers: new Headers(),
+        text: () => {
+          throw thrown;
+        },
+      };
+      expect(expectFailure(classifyClaudeResponse('skill_gen', res)).class).toBe('network');
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Retry table and purity
 // ---------------------------------------------------------------------------
 

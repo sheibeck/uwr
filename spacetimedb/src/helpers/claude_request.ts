@@ -266,9 +266,19 @@ const isRetryable = (c: ClaudeFailureClass): boolean => RETRYABLE_CLASSES.includ
 
 const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
 
+/**
+ * Options for the classifiers. `needles` are exact strings (the live API key,
+ * in any form the caller knows) that are redacted from every failure message,
+ * on top of the key-shaped pattern, so a body that echoes the key without its
+ * usual prefix still stores nothing.
+ */
+export interface ClassifyOptions {
+  needles?: readonly string[];
+}
+
 /** Redact secrets first (so a cut can never leave half a key), then cap by code point. */
-function safeMessage(raw: string): string {
-  const redacted = redactSecrets(String(raw)).replace(LONE_SURROGATE, '�');
+function safeMessage(raw: string, needles?: readonly string[]): string {
+  const redacted = redactSecrets(String(raw), needles).replace(LONE_SURROGATE, '�');
   return Array.from(redacted).slice(0, CLAUDE_MESSAGE_MAX_CHARS).join('');
 }
 
@@ -335,12 +345,13 @@ function fail(
   cls: ClaudeFailureClass,
   message: string,
   extra: Partial<Omit<Extract<ClaudeResult, { ok: false }>, 'ok' | 'class' | 'retryable' | 'message'>> = {},
+  needles?: readonly string[],
 ): ClaudeResult {
   const result: Extract<ClaudeResult, { ok: false }> = {
     ok: false,
     class: cls,
     retryable: isRetryable(cls),
-    message: safeMessage(message),
+    message: safeMessage(message, needles),
   };
   for (const [k, v] of Object.entries(extra)) {
     if (v !== undefined) (result as Record<string, unknown>)[k] = v;
@@ -350,7 +361,7 @@ function fail(
 
 const SPEND_LIMIT_400 = /you have reached your specified .*api usage limits/i;
 
-function classifyHttpFailure(res: ResponseLike, text: string): ClaudeResult {
+function classifyHttpFailure(res: ResponseLike, text: string, needles?: readonly string[]): ClaudeResult {
   const status = res.status;
   const parsed = tryParse(text);
   const body = parsed.ok ? parsed.value : undefined;
@@ -372,12 +383,17 @@ function classifyHttpFailure(res: ResponseLike, text: string): ClaudeResult {
 
   const retryAfterSeconds = isRetryable(cls) ? parseRetryAfter(res.headers) : undefined;
   const detail = [errorType, errorMessage].filter(Boolean).join(': ') || (parsed.ok ? 'no error detail' : 'non-JSON body');
-  return fail(cls, `HTTP ${status} ${detail}`, {
-    httpStatus: status,
-    errorType,
-    retryAfterSeconds,
-    requestId: requestIdOf(res.headers, body),
-  });
+  return fail(
+    cls,
+    `HTTP ${status} ${detail}`,
+    {
+      httpStatus: status,
+      errorType,
+      retryAfterSeconds,
+      requestId: requestIdOf(res.headers, body),
+    },
+    needles,
+  );
 }
 
 function requiredKeys(route: LlmRoute): string[] {
@@ -388,16 +404,36 @@ function requiredKeys(route: LlmRoute): string[] {
 }
 
 /**
- * Classify an HTTP response. Never throws for any body shape. For a 200 it
- * branches on stop_reason first, then reads the FIRST text block by type.
+ * Classify an HTTP response. Never throws for any body shape, including a body
+ * whose read throws (a network failure). For a 200 it branches on stop_reason
+ * first, then reads the FIRST text block by type. `opts.needles` are redacted
+ * from every failure message.
  */
-export function classifyClaudeResponse(route: LlmRoute, res: ResponseLike): ClaudeResult {
-  const text = res.text();
-  if (!(res.status >= 200 && res.status < 300)) return classifyHttpFailure(res, text);
+export function classifyClaudeResponse(route: LlmRoute, res: ResponseLike, opts?: ClassifyOptions): ClaudeResult {
+  const needles = opts?.needles;
+  let text: string;
+  try {
+    text = res.text();
+  } catch (err) {
+    let detail: string;
+    try {
+      detail = err instanceof Error ? err.message : String(err);
+    } catch {
+      detail = 'unprintable error';
+    }
+    return fail(
+      'network',
+      `response body could not be read: ${detail}`,
+      { httpStatus: typeof res.status === 'number' ? res.status : undefined },
+      needles,
+    );
+  }
+  if (!(res.status >= 200 && res.status < 300)) return classifyHttpFailure(res, text, needles);
+  const failWith: typeof fail = (cls, message, extra) => fail(cls, message, extra, needles);
 
   const parsed = tryParse(text);
   if (!parsed.ok || !isPlainObject(parsed.value)) {
-    return fail('server', `HTTP ${res.status} response body was not a JSON object`, {
+    return failWith('server', `HTTP ${res.status} response body was not a JSON object`, {
       httpStatus: res.status,
       requestId: requestIdOf(res.headers, undefined),
     });
@@ -411,7 +447,7 @@ export function classifyClaudeResponse(route: LlmRoute, res: ResponseLike): Clau
     const details = isPlainObject(body.stop_details) ? body.stop_details : {};
     const category = typeof details.category === 'string' ? details.category : undefined;
     const explanation = typeof details.explanation === 'string' ? details.explanation : '';
-    return fail('refusal', `model refused${category ? ` (${category})` : ''}${explanation ? `: ${explanation}` : ''}`, {
+    return failWith('refusal', `model refused${category ? ` (${category})` : ''}${explanation ? `: ${explanation}` : ''}`, {
       stopReason,
       stopCategory: category,
       usage,
@@ -419,13 +455,13 @@ export function classifyClaudeResponse(route: LlmRoute, res: ResponseLike): Clau
     });
   }
   if (stopReason === 'max_tokens') {
-    return fail('truncated', 'output hit max_tokens before completing', { stopReason, usage, requestId });
+    return failWith('truncated', 'output hit max_tokens before completing', { stopReason, usage, requestId });
   }
   // Allowlist: only end_turn is a complete answer. tool_use, pause_turn, stop_sequence,
   // model_context_window_exceeded, any future reason and a MISSING stop_reason (a
   // non-streaming 200 always carries one) all mean the text may be truncated or wrong.
   if (stopReason !== 'end_turn') {
-    return fail(
+    return failWith(
       'unexpected_stop',
       stopReason === undefined ? 'response had no stop_reason' : `unexpected stop_reason ${stopReason}`,
       { stopReason, usage, requestId },
@@ -434,7 +470,7 @@ export function classifyClaudeResponse(route: LlmRoute, res: ResponseLike): Clau
 
   const block = findFirstTextBlock(body.content);
   if (!block || block.text.trim() === '') {
-    return fail('empty_output', 'response had no non-empty text block', {
+    return failWith('empty_output', 'response had no non-empty text block', {
       stopReason,
       usage,
       requestId,
@@ -448,14 +484,14 @@ export function classifyClaudeResponse(route: LlmRoute, res: ResponseLike): Clau
 
   const json = tryParse(block.text);
   if (!json.ok) {
-    return fail('invalid_json', 'text block was not strict JSON', { stopReason: finalStop, usage, requestId });
+    return failWith('invalid_json', 'text block was not strict JSON', { stopReason: finalStop, usage, requestId });
   }
   if (!isPlainObject(json.value)) {
-    return fail('schema_mismatch', 'JSON was not an object', { stopReason: finalStop, usage, requestId });
+    return failWith('schema_mismatch', 'JSON was not an object', { stopReason: finalStop, usage, requestId });
   }
   const missing = requiredKeys(route).filter((k) => !(k in (json.value as Record<string, unknown>)));
   if (missing.length > 0) {
-    return fail('schema_mismatch', `JSON is missing required key(s): ${missing.join(', ')}`, {
+    return failWith('schema_mismatch', `JSON is missing required key(s): ${missing.join(', ')}`, {
       stopReason: finalStop,
       usage,
       requestId,
@@ -464,8 +500,11 @@ export function classifyClaudeResponse(route: LlmRoute, res: ResponseLike): Clau
   return { ok: true, text: block.text, json: json.value, stopReason: finalStop, usage, requestId };
 }
 
-/** Classify a thrown fetch error: a timeout, or any other transport failure (network). */
-export function classifyClaudeError(err: unknown): ClaudeResult {
+/**
+ * Classify a thrown fetch error: a timeout, or any other transport failure (network).
+ * `opts.needles` are redacted from the stored message.
+ */
+export function classifyClaudeError(err: unknown, opts?: ClassifyOptions): ClaudeResult {
   let message: string;
   try {
     message = err instanceof Error ? err.message : String(err);
@@ -473,5 +512,5 @@ export function classifyClaudeError(err: unknown): ClaudeResult {
     message = 'unprintable error';
   }
   const cls: ClaudeFailureClass = /time(d)?\s?out/i.test(message) ? 'timeout' : 'network';
-  return fail(cls, `fetch failed: ${message}`);
+  return fail(cls, `fetch failed: ${message}`, {}, opts?.needles);
 }
