@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 41
 current_phase_name: Executor and Domain Cutover
 status: executing
-stopped_at: Completed 41-13-PLAN.md
-last_updated: "2026-09-30T16:55:26.148Z"
+stopped_at: Completed 41-14-PLAN.md
+last_updated: "2026-09-30T17:13:55.349Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 41 execution started
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 38
-  completed_plans: 34
+  total_plans: 39
+  completed_plans: 35
   percent: 33
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 41 (Executor and Domain Cutover) — EXECUTING
-Plan: 14 of 17
+Plan: 15 of 17
 Status: Ready to execute
 Last activity: 2026-09-30 — Phase 41 execution started
 
-Progress: [█████████░] 89% (2/6 phases)
+Progress: [█████████░] 90% (2/6 phases)
 
 ## Previous Milestones
 
@@ -88,6 +88,8 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 41-11: combat narration is a victory/defeat outro only, enqueued before clearCombatArtifacts; never throws, refusal is silent
 - [Phase ?]: 41-12: Skill offers go through one helper (requestSkillOffer) shared by level-up, request_skill_offer and [skills]; eligibility = level>=2, no pending skills, no generated ability at current level, dedupe on character+level; failure lines name [skills]
 - [Phase ?]: 41-13: creation progress lines post only when a job was enqueued; refusal reverts the step and posts creation_error; client isCreationLlmProcessing derives from GENERATING_* step
+- [Phase ?]: [Phase 41-14]: World-gen failure goes to ERROR (failWorldGen), never PENDING; only the player's explore retries, including the first region (fresh starter state for a character at location 0 whose starter state is ERROR)
+- [Phase ?]: [Phase 41-14]: startWorldGeneration returns reused|enqueued|duplicate|refused; the ripple line posts only on enqueued or duplicate; a refusal sets ERROR with a fixed in-voice errorMessage (world_gen_state is public)
 
 ### Roadmap Evolution
 
@@ -142,8 +144,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-30T16:55:26.122Z
-Stopped at: Completed 41-13-PLAN.md
+Last session: 2026-09-30T17:13:04.626Z
+Stopped at: Completed 41-14-PLAN.md
 
 ## Performance Metrics
 
@@ -191,6 +193,7 @@ Stopped at: Completed 41-13-PLAN.md
 | Phase 41 P11 | 12min | 2 tasks | 5 files |
 | Phase 41 P12 | 25min | 3 tasks | 13 files |
 | Phase 41 P13 | ~25min | 2 tasks | 11 files |
+| Phase 41 P14 | 25min | 3 tasks | 17 files |
 
 ## Operator Next Steps
 
