@@ -34,7 +34,7 @@ export function useCoreData(conn: ConnectionState) {
   const bankSlots = shallowRef<any[]>([]);
   const characterCreationStates = shallowRef<any[]>([]);
   const worldGenStates = shallowRef<any[]>([]);
-  const llmTasks = shallowRef<any[]>([]);
+  const llmJobs = shallowRef<any[]>([]);
   const pendingSkills = shallowRef<any[]>([]);
   const pendingRenownPerks = shallowRef<any[]>([]);
 
@@ -65,9 +65,9 @@ export function useCoreData(conn: ConnectionState) {
     travelCooldowns.value = [...dbConn.db.travel_cooldown.iter()];
     characterLogoutTicks.value = [...dbConn.db.character_logout_tick.iter()];
     bankSlots.value = [...dbConn.db.my_bank_slots.iter()];
+    llmJobs.value = [...dbConn.db.my_llm_jobs.iter()];
     characterCreationStates.value = [...dbConn.db.character_creation_state.iter()];
     worldGenStates.value = [...dbConn.db.world_gen_state.iter()];
-    llmTasks.value = [...dbConn.db.llm_task.iter()];
     pendingSkills.value = [...dbConn.db.pending_skill.iter()];
     pendingRenownPerks.value = [...dbConn.db.pending_renown_perk.iter()];
   }
@@ -110,7 +110,7 @@ export function useCoreData(conn: ConnectionState) {
           toSql(tables.my_bank_slots),
           toSql(tables.character_creation_state),
           toSql(tables.world_gen_state),
-          toSql(tables.llm_task),
+          toSql(tables.my_llm_jobs),
           toSql(tables.pending_skill),
           toSql(tables.pending_renown_perk),
         ]);
@@ -151,7 +151,8 @@ export function useCoreData(conn: ConnectionState) {
       rebind(dbConn.db.my_bank_slots, bankSlots, () => dbConn.db.my_bank_slots.iter());
       rebind(dbConn.db.character_creation_state, characterCreationStates, () => dbConn.db.character_creation_state.iter());
       rebind(dbConn.db.world_gen_state, worldGenStates, () => dbConn.db.world_gen_state.iter());
-      rebind(dbConn.db.llm_task, llmTasks, () => dbConn.db.llm_task.iter());
+      // my_llm_jobs is a view without a primary key: a status change arrives as delete plus insert
+      rebind(dbConn.db.my_llm_jobs, llmJobs, () => dbConn.db.my_llm_jobs.iter());
       rebind(dbConn.db.pending_skill, pendingSkills, () => dbConn.db.pending_skill.iter());
       rebind(dbConn.db.pending_renown_perk, pendingRenownPerks, () => dbConn.db.pending_renown_perk.iter());
     },
@@ -187,7 +188,7 @@ export function useCoreData(conn: ConnectionState) {
     bankSlots,
     characterCreationStates,
     worldGenStates,
-    llmTasks,
+    llmJobs,
     pendingSkills,
     pendingRenownPerks,
   };

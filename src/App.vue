@@ -37,7 +37,8 @@
       :active-combat="null"
       :conn-active="conn.isActive"
       :context-actions="[]"
-      :is-llm-processing="isCreationLlmProcessing || isWorldGenProcessing || isLlmProxyProcessing"
+      :is-llm-processing="isLlmInputLocked"
+      :llm-indicator-line="llmIndicatorLine"
       :format-timestamp="formatTimestamp"
       :creation-mode="true"
       @submit="onCreationSubmit"
@@ -62,6 +63,7 @@
       :active-combat="activeCombat"
       :conn-active="conn.isActive"
       :is-llm-processing="isNarrativeLlmProcessing"
+      :llm-indicator-line="llmIndicatorLine"
       :format-timestamp="formatTimestamp"
       :has-pending-skills="hasPendingSkills"
       :has-pending-renown-perks="hasPendingRenownPerks"
@@ -462,7 +464,7 @@ import { useCharacters } from './composables/useCharacters';
 import { useEvents } from './composables/useEvents';
 import { useCharacterCreation } from './composables/useCharacterCreation';
 import { useWorldGeneration } from './composables/useWorldGeneration';
-import { useLlmProxy } from './composables/useLlmProxy';
+import { useLlmStatus, resolveDisplayedLine } from './composables/useLlmStatus';
 import { useSkillChoice } from './composables/useSkillChoice';
 import { useRenownPerks } from './composables/useRenownPerks';
 import { useCommands } from './composables/useCommands';
@@ -559,7 +561,7 @@ const {
   characterCreationStates,
   creationEvents,
   worldGenStates,
-  llmTasks,
+  llmJobs,
   pendingSkills,
   pendingRenownPerks,
 } = useGameData(currentLocationId);
@@ -734,11 +736,14 @@ const { isWorldGenProcessing } = useWorldGeneration({
   worldGenStates,
 });
 
-// LLM proxy: watches for pending LlmTask rows, calls proxy, submits results
-const { isProcessing: isLlmProxyProcessing } = useLlmProxy({
-  connActive: computed(() => conn.isActive),
-  llmTasks,
-});
+// LLM status: the Keeper line comes from the player's own my_llm_jobs rows. Only character
+// creation and world generation lock the input; NPC, skill, renown and combat-narration jobs
+// run in the background and never lock it.
+const { status: llmStatus } = useLlmStatus({ llmJobs });
+const isLlmInputLocked = computed(() => isCreationLlmProcessing.value || isWorldGenProcessing.value);
+const llmIndicatorLine = computed(() =>
+  resolveDisplayedLine(llmStatus.value.indicatorLine, isLlmInputLocked.value)
+);
 
 // Skill choice: watches PendingSkill table, exposes pending level-up state
 const { hasPendingSkills, pendingLevels, hasPendingLevels, chooseSkill: chooseSkillByName, applyLevelUp } = useSkillChoice({
@@ -1148,8 +1153,8 @@ const { commandText, submitCommand } = useCommands({
 // --- Narrative Console wiring ---
 // NOTE: narrativeContextActions is defined later, after all dependencies (connectedLocations, hotbarDisplay, isCasting) are declared
 
-// LLM processing state for the narrative indicator — driven by actual proxy state
-const isNarrativeLlmProcessing = isLlmProxyProcessing;
+// Input lock for the narrative console: creation and world-gen state rows only
+const isNarrativeLlmProcessing = isLlmInputLocked;
 
 // submitIntent reducer for natural language routing
 const submitIntentReducer = useReducer(reducers.submitIntent);

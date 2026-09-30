@@ -90,9 +90,13 @@
       </div>
 
       <!-- LLM processing indicator -->
-      <div v-if="isLlmProcessing" :style="consideringStyle">
-        The Keeper is considering your fate...
-      </div>
+      <div
+        v-if="llmIndicatorLine"
+        class="llm-indicator"
+        role="status"
+        aria-live="polite"
+        :style="consideringStyle"
+      >{{ llmIndicatorLine }}</div>
     </div>
 
     <!-- Jump to bottom button -->
@@ -155,6 +159,7 @@ const props = defineProps<{
   activeCombat: any | null;
   connActive: boolean;
   isLlmProcessing: boolean;
+  llmIndicatorLine?: string | null;
   formatTimestamp: (ts: { microsSinceUnixEpoch: bigint }) => string;
   creationMode?: boolean;
   hasPendingSkills?: boolean;
@@ -331,5 +336,9 @@ const jumpBtnStyle = {
 @keyframes narrativePulse {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
+}
+/* The pulse is set inline (consideringStyle), so the override needs !important */
+@media (prefers-reduced-motion: reduce) {
+  .llm-indicator { animation: none !important; }
 }
 </style>
