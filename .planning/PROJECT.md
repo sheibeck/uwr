@@ -97,6 +97,26 @@ A world that writes itself around its players — every character is unique, eve
 - An offline mock procedure context makes every LLM path testable without network. 1454 tests pass.
 - Live call sites still use the legacy `llm_task` path until Phase 41 moves each domain over.
 
+**Phase 41 (Executor and Domain Cutover)** is code-complete as of 2026-09-30. Verification is human_needed, because the user deferred the live proofs.
+
+- Every LLM action runs on the server through the scheduled procedure `llm_run`. That covers creation, world gen, skills, NPC chat, the combat victory/defeat outro and renown.
+  - Each action is enqueued inside its own reducer's transaction. Enqueueing reserves budget and writes a dispatch row.
+  - The procedure claims the job under a global in-flight cap of 4, then calls Claude with no transaction open.
+  - It persists the result with retry by class and settles the cost.
+  - Apply runs from the stored text, and a failure produces an in-voice Keeper line.
+- `llm_sweep` runs every 30 s. It expires stuck jobs, refunds reservations and releases stranded generation locks.
+- Budget: $1 and 200 calls per player per day, plus a $2 phase ledger. Phase 43 replaces the ledger with a $10/day global ceiling and a kill switch.
+- Admin controls: `set_api_key` (set via `scripts/llm/set-key.mjs`, with the key sent only in the HTTP body), `llm_smoke_test` and the `admin_llm_status` view. Runbook: `docs/runbooks/llm-key.md`.
+- The `prepare_*` reducers and their client calls are deleted. The browser no longer takes part in any LLM call; Phase 42 removes the idle `useLlmProxy`, `llm_task` and `submit_llm_result`.
+- In-game pronoun rule (user decision, 2026-09-30):
+  - The Keeper is "he".
+  - Every NPC has a stored gender, male or female, and is "he" or "she".
+  - The player's own character is always "you".
+  - Beasts may be "it".
+- The code review ran 3 rounds and 15 findings were fixed. One Phase 36 defect is recorded as a todo: renown passive perks have no effect.
+- Tests: server 2161, client 2245.
+- The local live proof and the maincloud checklist are deferred to the user, and Phase 44 picks them up.
+
 ## Current Milestone: v2.2 LLM — Claude Engine
 
 **Goal:** Replace OpenAI with Claude as the engine behind all narrative generation, with the lowest possible response latency for real-time storytelling.
@@ -191,4 +211,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-30 after Phase 40*
+*Last updated: 2026-09-30 after Phase 41*
