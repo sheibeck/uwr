@@ -4,6 +4,7 @@ import { Identity } from 'spacetimedb';
 import { SpacetimeDBProvider } from 'spacetimedb/vue';
 import { DbConnection } from './module_bindings/index.ts';
 import { logConnectError, logDisconnect } from './connectionLogging';
+import { clearLegacyLlmCredential } from './legacyCredentials';
 import { getStoredIdToken, handleSpacetimeAuthCallback } from './auth/spacetimeAuth';
 
 const HOST = import.meta.env.VITE_SPACETIMEDB_HOST ?? 'ws://localhost:3000';
@@ -19,6 +20,8 @@ const onConnect = (conn: DbConnection, identity: Identity, _token: string) => {
 };
 
 const bootstrap = async () => {
+  clearLegacyLlmCredential();
+
   try {
     await handleSpacetimeAuthCallback();
   } catch (err) {
