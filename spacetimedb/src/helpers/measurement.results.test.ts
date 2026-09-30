@@ -717,6 +717,22 @@ describe('results model: validateResults gate profile', () => {
     });
   }
 
+  it('malformed cell elements are reported as problems instead of throwing (full profile)', () => {
+    for (const bad of [null, 42, 'route']) {
+      const doc = makeFinalFixture();
+      (doc.structured!.cells as unknown[]).push(bad);
+      let problems: string[] = [];
+      expect(() => {
+        problems = validateResults(doc, { final: true });
+      }).not.toThrow();
+      expect(problems.some((p) => p.startsWith('structured.cells['))).toBe(true);
+    }
+    // A structurally valid sample with a non-string route must not throw either.
+    const doc = makeFinalFixture();
+    (doc.structured!.cells as unknown[]).push({ ...sample(), route: 5 });
+    expect(() => validateResults(doc, { final: true })).not.toThrow();
+  });
+
   it('a canary hit above 0 is still a problem when a canary section is present', () => {
     const doc = makeGateFinalFixture();
     doc.canary = { hits: 1, locationsScanned: 1, fetchReachedAnthropic: false, statusSeen: null };

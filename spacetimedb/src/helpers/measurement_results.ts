@@ -454,9 +454,12 @@ export function validateResults(
     if (finalFull && Array.isArray(structured.cells)) {
       // Each family (skill, region) needs at least one route, and every route in
       // the family needs 5 runs at each effort. Region routes include staged pairs.
-      const cells = structured.cells as CallSample[];
+      // Elements are not guaranteed valid here (samples() only reports them), so guard each access.
+      const cells = (structured.cells as unknown[]).filter(
+        (c): c is CallSample => isObj(c) && typeof c.route === 'string',
+      );
       for (const family of ['skill', 'region']) {
-        const routes = [...new Set(cells.filter((c) => c.route?.startsWith(family)).map((c) => c.route as string))];
+        const routes = [...new Set(cells.filter((c) => (c.route as string).startsWith(family)).map((c) => c.route as string))];
         if (routes.length === 0) problems.push(`structured.cells has no ${family} route`);
         for (const route of routes) {
           for (const effort of ['low', 'medium']) {
