@@ -157,11 +157,14 @@ export function createMockCtx(opts: {
   timestampMicros?: bigint;
   /** Opt-in strict db (see MockDbOptions). Default false: existing tests behave as before. */
   strict?: boolean;
+  /** The module identity, distinct from the sender (lets tests prove a module-identity guard). */
+  databaseIdentity?: any;
 } = {}) {
   return {
     db: createMockDb(opts.seed ?? {}, { strict: opts.strict }),
     timestamp: { microsSinceUnixEpoch: opts.timestampMicros ?? 1_000_000_000_000n },
     sender: opts.sender ?? { toHexString: () => 'mock-identity-hex' },
+    databaseIdentity: opts.databaseIdentity ?? { toHexString: () => 'module-identity-hex' },
   };
 }
 
@@ -174,9 +177,15 @@ export type MockReply = {
   statusText?: string;
   headers?: Record<string, string>;
   body?: string | object;
+  /** Advance the mock clock by this many micros before fetch returns (models call latency). */
+  advanceMicros?: bigint;
 };
 
-export type MockThrow = { throw: 'timeout' | Error };
+export type MockThrow = {
+  throw: 'timeout' | Error;
+  /** Advance the mock clock by this many micros before fetch throws. */
+  advanceMicros?: bigint;
+};
 
 export type MockFetchCall = {
   url: string;
@@ -194,6 +203,8 @@ export type MockProcCtxOptions = {
   withTxReinvoke?: number;
   /** Opt-in strict db (see MockDbOptions). Default false. */
   strict?: boolean;
+  /** The module identity. Defaults to the sender (unchanged behavior). */
+  databaseIdentity?: any;
 };
 
 /**
@@ -260,7 +271,7 @@ export function createMockProcCtx(opts: MockProcCtxOptions = {}) {
   const ctx = {
     sender: moduleIdentity,
     identity: moduleIdentity,
-    databaseIdentity: moduleIdentity,
+    databaseIdentity: opts.databaseIdentity ?? moduleIdentity,
     connectionId: null as any,
     get timestamp() {
       return { microsSinceUnixEpoch: now };
@@ -277,6 +288,7 @@ export function createMockProcCtx(opts: MockProcCtxOptions = {}) {
         });
         const next = queue.shift();
         if (!next) throw new Error('mock fetch: no scripted response left');
+        now += next.advanceMicros ?? 0n;
         if ('throw' in next) {
           throw next.throw === 'timeout' ? new Error('operation timed out') : next.throw;
         }

@@ -165,6 +165,15 @@ describe('createMockCtx', () => {
     const ctx = createMockCtx({ timestampMicros: 5_000_000n });
     expect(ctx.timestamp.microsSinceUnixEpoch).toBe(5_000_000n);
   });
+
+  it('exposes a default module databaseIdentity and accepts a distinct one', () => {
+    expect(createMockCtx().databaseIdentity.toHexString()).toBe('module-identity-hex');
+    const sender = { toHexString: () => 'sender-hex' };
+    const module = { toHexString: () => 'module-hex' };
+    const ctx = createMockCtx({ sender, databaseIdentity: module });
+    expect(ctx.sender).toBe(sender);
+    expect(ctx.databaseIdentity).toBe(module);
+  });
 });
 
 describe('createMockDb new index mappings', () => {
@@ -234,6 +243,45 @@ describe('createMockProcCtx', () => {
     });
     expect(seen).toBe(105n);
     expect(p.clock.now()).toBe(105n);
+  });
+
+  it('databaseIdentity defaults to the sender and can differ from it', () => {
+    const plain = createMockProcCtx();
+    expect(plain.ctx.databaseIdentity).toBe(plain.ctx.sender);
+    const a = { toHexString: () => 'a' };
+    const b = { toHexString: () => 'b' };
+    const forged = createMockProcCtx({ sender: a, databaseIdentity: b });
+    expect(forged.ctx.sender).toBe(a);
+    expect(forged.ctx.databaseIdentity).toBe(b);
+    expect(forged.ctx.identity).toBe(a);
+  });
+
+  it('a reply with advanceMicros moves the clock forward by exactly that much by the time fetch returns', () => {
+    const p = createMockProcCtx({
+      timestampMicros: 1_000n,
+      responses: [{ status: 200, body: 'ok', advanceMicros: 5_000_000n }, { status: 200, body: 'ok' }],
+    });
+    p.ctx.http.fetch('https://x/1');
+    expect(p.clock.now()).toBe(1_000n + 5_000_000n);
+    let seen = 0n;
+    p.ctx.withTx((tx) => {
+      seen = tx.timestamp.microsSinceUnixEpoch;
+    });
+    expect(seen).toBe(1_000n + 5_000_000n);
+    // A reply without the field leaves the clock unchanged.
+    p.ctx.http.fetch('https://x/2');
+    expect(p.clock.now()).toBe(1_000n + 5_000_000n);
+  });
+
+  it('a throw with advanceMicros advances the clock before it throws', () => {
+    const p = createMockProcCtx({
+      timestampMicros: 0n,
+      responses: [{ throw: 'timeout', advanceMicros: 30_000_000n }, { throw: 'timeout' }],
+    });
+    expect(() => p.ctx.http.fetch('https://x')).toThrow(/timed out/);
+    expect(p.clock.now()).toBe(30_000_000n);
+    expect(() => p.ctx.http.fetch('https://x')).toThrow(/timed out/);
+    expect(p.clock.now()).toBe(30_000_000n);
   });
 
   it('fetch with no scripted responses throws "no scripted response"', () => {
