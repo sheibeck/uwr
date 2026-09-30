@@ -394,10 +394,10 @@ describe('reference driver: renown rank-up end to end (offline)', () => {
     runJobOnce(a, enqueueRenownJob(a), renownInput);
     const b = makeProc([threePerkReply()], { withTxReinvoke: 1 });
     runJobOnce(b, enqueueRenownJob(b), renownInput);
-    // Auto-increment ids are not restored on a re-invoked transaction (gaps are normal), so
-    // compare everything else.
+    // Auto-increment ids (including the llm_dispatch and llm_sweep_tick scheduledId) are not
+    // restored on a re-invoked transaction (gaps are normal), so compare everything else.
     const normalize = (proc: Proc): string =>
-      snapshotDb(proc.db).replace(/"(id|jobId)":"\d+n"/g, '"$1":"N"');
+      snapshotDb(proc.db).replace(/"(id|jobId|scheduledId)":"\d+n"/g, '"$1":"N"');
     expect(normalize(b)).toBe(normalize(a));
   });
 });

@@ -2,8 +2,17 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { createMockCtx as createLenientMockCtx } from './test-utils';
 import { rowColumnProblems } from './schema_recorder';
 import { buildDedupeKey } from './llm_queue';
+import { encodeRouteInput, resolveRouteInput } from './llm_inputs';
+import { utcDay } from './llm_budget';
+import { scheduledMicros } from './llm_schedule';
+import { appendPrivateEvent } from './events';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
-import { awardRenown, triggerRenownPerkGeneration } from './renown';
+import { LLM_PLAYER_DAILY_COST_MICRO_USD, LLM_PHASE_SPEND_CAP_MICRO_USD } from '../data/llm_limits';
+import {
+  awardRenown,
+  triggerRenownPerkGeneration,
+  RENOWN_STATIC_OPTIONS_MESSAGE,
+} from './renown';
 
 // ============================================================================
 // PIPE-08 regression: a renown rank-up must reach the llm_job queue.
@@ -77,6 +86,13 @@ describe('renown rank-up enqueues a job (PIPE-08)', () => {
       className: 'Ashweaver',
       raceName: 'Kobold',
       existingPerks: [],
+      input: encodeRouteInput({
+        characterName: 'Aldric',
+        className: 'Ashweaver',
+        raceName: 'Kobold',
+        rank: 2,
+        existingPerks: [],
+      }),
     });
     expect(rowColumnProblems('llm_job', job)).toEqual([]);
     expect(rows(ctx, 'llm_task')).toHaveLength(0);
@@ -117,6 +133,135 @@ describe('renown rank-up enqueues a job (PIPE-08)', () => {
     expect(rows(ctx, 'llm_job')).toHaveLength(1);
     triggerRenownPerkGeneration(ctx, character(), 3);
     expect(rows(ctx, 'llm_job')).toHaveLength(2);
+  });
+});
+
+describe('renown enqueue: snapshot, dispatch and refusal fallback (41-05)', () => {
+  const eventMock = vi.mocked(appendPrivateEvent);
+  const line = () =>
+    eventMock.mock.calls.filter((c) => c[4] === RENOWN_STATIC_OPTIONS_MESSAGE);
+
+  it('the snapshot resolves to the same input the executor builds, and one dispatch row exists', () => {
+    const ctx = seededCtx();
+    triggerRenownPerkGeneration(ctx, character(), 2);
+    const job = rows(ctx, 'llm_job')[0];
+    expect(resolveRouteInput(ctx, job)).toEqual({
+      characterName: 'Aldric',
+      className: 'Ashweaver',
+      raceName: 'Kobold',
+      rank: 2,
+      existingPerks: [],
+    });
+    const dispatch = rows(ctx, 'llm_dispatch');
+    expect(dispatch).toHaveLength(1);
+    expect(dispatch[0].jobId).toBe(job.id);
+    expect(scheduledMicros(dispatch[0].scheduledAt)).toBe(ctx.timestamp.microsSinceUnixEpoch);
+    expect(job.reservedMicroUsd > 0n).toBe(true);
+    expect(job.budgetDay).toBe(utcDay(ctx.timestamp));
+    expect(rows(ctx, 'llm_sweep_tick')).toHaveLength(1);
+    expect(rows(ctx, 'pending_renown_perk')).toHaveLength(0);
+  });
+
+  it('a refusal at the daily cost limit inserts the static rank 2 options and one Keeper line, and no job, dispatch or reservation', () => {
+    const ctx = seededCtx();
+    // The day row is seeded against the identity the mock resolves for the player.
+    ctx.db.llm_player_budget.insert({
+      id: 0n,
+      playerId: alice,
+      dayUtc: utcDay(ctx.timestamp),
+      reservedMicroUsd: 0n,
+      spentMicroUsd: LLM_PLAYER_DAILY_COST_MICRO_USD,
+      calls: 1n,
+    });
+    eventMock.mockClear();
+    triggerRenownPerkGeneration(ctx, character(), 2);
+
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    expect(rows(ctx, 'llm_sweep_tick')).toHaveLength(0);
+    expect(rows(ctx, 'llm_spend')).toHaveLength(0);
+    const day = rows(ctx, 'llm_player_budget');
+    expect(day).toHaveLength(1);
+    expect(day[0].reservedMicroUsd).toBe(0n);
+    expect(day[0].calls).toBe(1n);
+
+    const pending = rows(ctx, 'pending_renown_perk');
+    expect(pending).toHaveLength(3);
+    expect(pending.every((p: any) => p.rank === 2n && p.characterId === 1n)).toBe(true);
+    for (const p of pending) expect(rowColumnProblems('pending_renown_perk', p)).toEqual([]);
+    expect(line()).toHaveLength(1);
+    expect(line()[0][1]).toBe(1n);
+  });
+
+  it('a refusal at the phase cap falls back to static options too', () => {
+    const ctx = seededCtx();
+    ctx.db.llm_spend.insert({
+      id: 1n,
+      spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD,
+      reservedMicroUsd: 0n,
+      calls: 0n,
+      updatedAt: ctx.timestamp,
+    });
+    eventMock.mockClear();
+    triggerRenownPerkGeneration(ctx, character(), 2);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    expect(rows(ctx, 'llm_player_budget')).toHaveLength(0);
+    expect(rows(ctx, 'llm_spend')[0].reservedMicroUsd).toBe(0n);
+    expect(rows(ctx, 'pending_renown_perk')).toHaveLength(3);
+    expect(line()).toHaveLength(1);
+  });
+
+  it('a rank with no static pool inserts nothing and posts no line', () => {
+    const noPool = Object.keys(RENOWN_PERK_POOLS)
+      .map(Number)
+      .find((r) => RENOWN_PERK_POOLS[r].length === 0);
+    const rank = noPool ?? 99;
+    const ctx = seededCtx();
+    ctx.db.llm_spend.insert({
+      id: 1n,
+      spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD,
+      reservedMicroUsd: 0n,
+      calls: 0n,
+      updatedAt: ctx.timestamp,
+    });
+    eventMock.mockClear();
+    triggerRenownPerkGeneration(ctx, character(), rank);
+    expect(rows(ctx, 'pending_renown_perk')).toHaveLength(0);
+    expect(line()).toHaveLength(0);
+  });
+
+  it('a dedupe hit inserts nothing further and posts nothing', () => {
+    const ctx = seededCtx();
+    triggerRenownPerkGeneration(ctx, character(), 2);
+    eventMock.mockClear();
+    const jobs = rows(ctx, 'llm_job').length;
+    const dispatches = rows(ctx, 'llm_dispatch').length;
+    const reserved = rows(ctx, 'llm_spend')[0].reservedMicroUsd;
+    triggerRenownPerkGeneration(ctx, character(), 2);
+    expect(rows(ctx, 'llm_job')).toHaveLength(jobs);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(dispatches);
+    expect(rows(ctx, 'llm_spend')[0].reservedMicroUsd).toBe(reserved);
+    expect(rows(ctx, 'pending_renown_perk')).toHaveLength(0);
+    expect(eventMock).not.toHaveBeenCalled();
+  });
+
+  it('an earned renown job is never refused as busy when the player already holds three capped jobs', () => {
+    const day = '1970-01-12';
+    const active = (id: bigint, route: string) => ({
+      id,
+      playerId: alice,
+      route,
+      dedupeKey: `seed-${id}`,
+      status: 'pending',
+      budgetDay: day,
+    });
+    const ctx = seededCtx({
+      llm_job: [active(11n, 'npc_conversation'), active(12n, 'skill_gen'), active(13n, 'creation_race')],
+    });
+    triggerRenownPerkGeneration(ctx, character(), 2);
+    expect(rows(ctx, 'llm_job')).toHaveLength(4);
+    expect(rows(ctx, 'pending_renown_perk')).toHaveLength(0);
   });
 });
 

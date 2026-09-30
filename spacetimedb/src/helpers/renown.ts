@@ -1,6 +1,12 @@
 import { RENOWN_RANKS, RENOWN_PERK_POOLS, calculateRankFromPoints, ACHIEVEMENT_DEFINITIONS } from '../data/renown_data';
-import { appendSystemMessage, appendWorldEvent } from './events';
+import type { RenownPerkInput } from '../data/llm_layers';
+import { appendPrivateEvent, appendSystemMessage, appendWorldEvent } from './events';
 import { enqueueLlmJob, resolveCharacterPlayerId, SOURCE_KEYS } from './llm_queue';
+import { encodeRouteInput } from './llm_inputs';
+
+/** Keeper line posted when static perk options stand in for a generated offer. */
+export const RENOWN_STATIC_OPTIONS_MESSAGE =
+  'The Keeper shrugs. "The cosmos provided some... standard options for your consideration."';
 
 export function awardRenown(ctx: any, character: any, points: bigint, reason: string) {
   // Get or lazy-create Renown row
@@ -59,9 +65,12 @@ export function awardRenown(ctx: any, character: any, points: bigint, reason: st
 
 /**
  * Rank-up hook: enqueue a renown_perk_gen job for the character's owning player.
- * The job stays pending until the Phase 41 executor processes it. When no player
- * identity resolves for the character, the static RENOWN_PERK_POOLS options are
- * inserted instead so an earned perk offer is never silently dropped.
+ * The request snapshots the route input (`input`, read by the executor) next to
+ * the legacy keys applyRenownPerkResult reads. When no player identity resolves,
+ * or the enqueue is refused (budget or phase cap; an earned offer is never
+ * refused as busy), the static RENOWN_PERK_POOLS options are inserted with a
+ * Keeper line instead, so an earned perk offer is never silently dropped. A
+ * dedupe hit (an active job for the same rank) does nothing.
  *
  * Enqueue errors are programming errors and are deliberately not swallowed
  * (the swallowed insert was the PIPE-08 defect).
@@ -79,7 +88,17 @@ export function triggerRenownPerkGeneration(ctx: any, character: any, rank: numb
     existingPerks.push({ name: perkRow.perkKey, perkKey: perkRow.perkKey });
   }
 
-  enqueueLlmJob(ctx, {
+  const className = character.className ?? 'Unknown';
+  const raceName = character.race ?? 'Unknown';
+  const input: RenownPerkInput = {
+    characterName: character.name,
+    className,
+    raceName,
+    rank,
+    existingPerks,
+  };
+
+  const result = enqueueLlmJob(ctx, {
     route: 'renown_perk_gen',
     playerId,
     characterId: character.id,
@@ -87,11 +106,18 @@ export function triggerRenownPerkGeneration(ctx: any, character: any, rank: numb
     request: {
       characterId: character.id,
       rank,
-      className: character.className ?? 'Unknown',
-      raceName: character.race ?? 'Unknown',
+      className,
+      raceName,
       existingPerks,
+      input: encodeRouteInput(input),
     },
   });
+
+  if (result.refused) {
+    if (insertStaticRenownPerkOptions(ctx, character.id, rank) > 0) {
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative', RENOWN_STATIC_OPTIONS_MESSAGE);
+    }
+  }
 }
 
 /**
