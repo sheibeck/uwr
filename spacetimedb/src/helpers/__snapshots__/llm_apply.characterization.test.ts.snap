@@ -36,20 +36,6 @@ exports[`submit_llm_result combat_narration > QUIRK: JSON without a narrative fi
       "message": "[Round 2] {\\"note\\":\\"no narrative here\\"}",
       "ownerUserId": "7n"
     }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"combatId\\":\\"77\\",\\"roundNumber\\":\\"2\\",\\"narrativeType\\":\\"round\\",\\"participantCharacterIds\\":[\\"10\\",\\"11\\"]}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "combat_narration",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
   ]
 }"
 `;
@@ -79,20 +65,6 @@ exports[`submit_llm_result combat_narration > a context without participants sto
       "narrativeText": "A quiet round.",
       "narrativeType": "round",
       "roundNumber": "1n"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"combatId\\":\\"77\\",\\"roundNumber\\":\\"1\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "combat_narration",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ]
 }"
@@ -134,20 +106,6 @@ exports[`submit_llm_result combat_narration > a victory narration is not round-p
       "message": "The wolf falls.",
       "ownerUserId": "7n"
     }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"combatId\\":\\"77\\",\\"roundNumber\\":\\"0\\",\\"narrativeType\\":\\"victory\\",\\"participantCharacterIds\\":[\\"10\\"]}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "combat_narration",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
   ]
 }"
 `;
@@ -168,20 +126,6 @@ exports[`submit_llm_result combat_narration > an empty reply stores nothing 1`] 
       "race": "Ashkin",
       "xp": "0n"
     }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"combatId\\":\\"77\\",\\"roundNumber\\":\\"2\\",\\"narrativeType\\":\\"round\\",\\"participantCharacterIds\\":[\\"10\\",\\"11\\"]}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "combat_narration",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
   ]
 }"
 `;
@@ -201,20 +145,6 @@ exports[`submit_llm_result combat_narration > failure changes nothing but the ta
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"combatId\\":\\"77\\",\\"roundNumber\\":\\"2\\",\\"narrativeType\\":\\"round\\",\\"participantCharacterIds\\":[\\"10\\",\\"11\\"]}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "combat_narration",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ]
 }"
@@ -256,20 +186,6 @@ exports[`submit_llm_result combat_narration > success accepts a code-fenced JSON
       "message": "[Round 2] Sparks fly.",
       "ownerUserId": "7n"
     }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"combatId\\":\\"77\\",\\"roundNumber\\":\\"2\\",\\"narrativeType\\":\\"round\\",\\"participantCharacterIds\\":[\\"10\\",\\"11\\"]}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "combat_narration",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
   ]
 }"
 `;
@@ -309,20 +225,6 @@ exports[`submit_llm_result combat_narration > success with a JSON narrative stor
       "kind": "combat_narration",
       "message": "[Round 2] Steel meets bone.",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"combatId\\":\\"77\\",\\"roundNumber\\":\\"2\\",\\"narrativeType\\":\\"round\\",\\"participantCharacterIds\\":[\\"10\\",\\"11\\"]}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "combat_narration",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ]
 }"
@@ -364,20 +266,6 @@ exports[`submit_llm_result combat_narration > success with raw prose falls back 
       "message": "[Round 2] The wolf lunges and misses badly.",
       "ownerUserId": "7n"
     }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"combatId\\":\\"77\\",\\"roundNumber\\":\\"2\\",\\"narrativeType\\":\\"round\\",\\"participantCharacterIds\\":[\\"10\\",\\"11\\"]}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "combat_narration",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
   ]
 }"
 `;
@@ -413,19 +301,6 @@ exports[`submit_llm_result creation replies: Phase 41 clamped > Phase 41: clampe
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
     }
-  ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_class",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
   ]
 }"
 `;
@@ -459,19 +334,6 @@ exports[`submit_llm_result creation replies: Phase 41 clamped > Phase 41: clampe
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_race",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "race_definition": [
@@ -520,19 +382,6 @@ exports[`submit_llm_result creation_class success > Phase 41: a null ability ent
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
     }
-  ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_class",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
   ]
 }"
 `;
@@ -569,19 +418,6 @@ exports[`submit_llm_result creation_class success > Phase 41: an empty object st
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_class",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ]
 }"
@@ -621,19 +457,6 @@ exports[`submit_llm_result creation_class success > Phase 41: legacy ability fie
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
     }
-  ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_class",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
   ]
 }"
 `;
@@ -666,19 +489,6 @@ exports[`submit_llm_result creation_class success > QUIRK: malformed JSON increm
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_class",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ]
 }"
@@ -717,19 +527,6 @@ exports[`submit_llm_result creation_class success > applies a valid reply: CLASS
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
     }
-  ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_class",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
   ]
 }"
 `;
@@ -764,19 +561,6 @@ exports[`submit_llm_result creation_race success > Phase 41: a reply without rac
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
     }
-  ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_race",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
   ]
 }"
 `;
@@ -807,19 +591,6 @@ exports[`submit_llm_result creation_race success > QUIRK: malformed JSON increme
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_race",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ]
 }"
@@ -854,19 +625,6 @@ exports[`submit_llm_result creation_race success > accepts a reply with prose ar
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_race",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "race_definition": [
@@ -913,19 +671,6 @@ exports[`submit_llm_result creation_race success > accepts a reply wrapped in a 
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_race",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "race_definition": [
     {
       "bonusesJson": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1},\\"flavor\\":\\"Ember-warm.\\"}",
@@ -968,19 +713,6 @@ exports[`submit_llm_result creation_race success > applies a valid reply: state,
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_race",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "race_definition": [
@@ -1027,19 +759,6 @@ exports[`submit_llm_result creation_race success > does not add a second race_de
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_race",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "race_definition": [
     {
       "bonusesJson": "{}",
@@ -1084,19 +803,6 @@ exports[`submit_llm_result creation_race success > increments an existing budget
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_race",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "race_definition": [
     {
       "bonusesJson": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1},\\"flavor\\":\\"Ember-warm.\\"}",
@@ -1112,20 +818,7 @@ exports[`submit_llm_result creation_race success > increments an existing budget
 
 exports[`submit_llm_result creation_race success > with no creation state returns silently: no event and no budget increment 1`] = `
 "{
-  "character_creation_state": [],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_race",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ]
+  "character_creation_state": []
 }"
 `;
 
@@ -1155,20 +848,6 @@ exports[`submit_llm_result failure path: creation and skill_gen > Phase 41: reno
       "kind": "narrative",
       "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"2\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "renown_perk_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "pending_renown_perk": [
@@ -1250,19 +929,6 @@ exports[`submit_llm_result failure path: creation and skill_gen > creation_class
       "message": "The Keeper flickers. \\"Something went wrong in the cosmic machinery. Try again.\\"",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
-  ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_class",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
   ]
 }"
 `;
@@ -1286,59 +952,19 @@ exports[`submit_llm_result failure path: creation and skill_gen > creation_race 
       "message": "The Keeper flickers. \\"Something went wrong in the cosmic machinery. Try again.\\"",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
-  ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_race",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
   ]
 }"
 `;
 
 exports[`submit_llm_result failure path: creation and skill_gen > creation_race failure without a creation state posts nothing 1`] = `
 "{
-  "character_creation_state": [],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_race",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ]
+  "character_creation_state": []
 }"
 `;
 
 exports[`submit_llm_result failure path: creation and skill_gen > skill_gen failure for a missing character writes nothing but the task status 1`] = `
 "{
-  "character": [],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "skill_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ]
+  "character": []
 }"
 `;
 
@@ -1367,20 +993,6 @@ exports[`submit_llm_result failure path: creation and skill_gen > skill_gen fail
       "kind": "narrative",
       "message": "The Keeper flickers. \\"Your potential eludes crystallization. Type [skills] when you want me to try again.\\"",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "skill_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ]
 }"
@@ -1411,20 +1023,6 @@ exports[`submit_llm_result npc_conversation failure path > does not repeat an id
       "kind": "npc",
       "message": "Marta seems distracted. Try again.",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "npc": [
@@ -1497,20 +1095,6 @@ exports[`submit_llm_result npc_conversation failure path > logs "seems distracte
       "ownerUserId": "7n"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -1571,20 +1155,6 @@ exports[`submit_llm_result npc_conversation failure path > writes nothing but th
       "xp": "0n"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "npc": []
 }"
 `;
@@ -1592,20 +1162,6 @@ exports[`submit_llm_result npc_conversation failure path > writes nothing but th
 exports[`submit_llm_result npc_conversation failure path > writes nothing but the task status when the character is gone 1`] = `
 "{
   "character": [],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -1661,20 +1217,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > QUIRK: two off
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "location": [
@@ -1822,20 +1364,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > a completed qu
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "location": [
@@ -1999,20 +1527,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > a type without
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -2164,20 +1678,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > an invalid que
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "location": [
@@ -2340,20 +1840,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > boss_kill ques
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -2505,20 +1991,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "location": [
@@ -2680,20 +2152,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -2842,20 +2300,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -2991,20 +2435,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "location": [
@@ -3153,20 +2583,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > explore quest 
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "location": [
@@ -3339,20 +2755,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > kill quest for
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -3514,20 +2916,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > kill quest res
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -3679,20 +3067,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > kill quest wit
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "location": [
@@ -3847,20 +3221,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > kill quest wit
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "location": [
@@ -4023,20 +3383,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > kill_loot ques
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -4182,20 +3528,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > skips an offer
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -4325,20 +3657,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > skips an offer
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "location": [
@@ -4514,20 +3832,6 @@ exports[`submit_llm_result npc_conversation offer_quest effects > skips an offer
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "location": [
     {
       "id": "100n",
@@ -4675,20 +3979,6 @@ exports[`submit_llm_result npc_conversation success > QUIRK: a negative affinity
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -4757,20 +4047,6 @@ exports[`submit_llm_result npc_conversation success > QUIRK: invalid JSON writes
       "kind": "npc",
       "message": "Marta mutters something unintelligible. (Try again.)",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "npc": [
@@ -4849,20 +4125,6 @@ exports[`submit_llm_result npc_conversation success > accepts a code-fenced repl
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "npc": [
@@ -4959,20 +4221,6 @@ exports[`submit_llm_result npc_conversation success > affinity change -1 lands a
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -5065,20 +4313,6 @@ exports[`submit_llm_result npc_conversation success > affinity change -3 lands a
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "npc": [
@@ -5175,20 +4409,6 @@ exports[`submit_llm_result npc_conversation success > affinity change -50 lands 
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -5273,20 +4493,6 @@ exports[`submit_llm_result npc_conversation success > affinity change 1 lands as
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "npc": [
@@ -5376,20 +4582,6 @@ exports[`submit_llm_result npc_conversation success > affinity change 3 lands as
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -5477,20 +4669,6 @@ exports[`submit_llm_result npc_conversation success > affinity change 50 lands a
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -5568,20 +4746,6 @@ exports[`submit_llm_result npc_conversation success > an affinity_change with 0 
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "npc": [
@@ -5662,20 +4826,6 @@ exports[`submit_llm_result npc_conversation success > an affinity_change with mi
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -5752,20 +4902,6 @@ exports[`submit_llm_result npc_conversation success > an affinity_change with no
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "npc": [
@@ -5854,20 +4990,6 @@ exports[`submit_llm_result npc_conversation success > creates the affinity row o
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -5948,20 +5070,6 @@ exports[`submit_llm_result npc_conversation success > does not duplicate a known
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -6038,20 +5146,6 @@ exports[`submit_llm_result npc_conversation success > falls back to "..." when t
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "npc": [
@@ -6156,20 +5250,6 @@ exports[`submit_llm_result npc_conversation success > logs the dialogue, runs th
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -6231,20 +5311,6 @@ exports[`submit_llm_result npc_conversation success > returns silently when the 
       "xp": "0n"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "npc": []
 }"
 `;
@@ -6252,20 +5318,6 @@ exports[`submit_llm_result npc_conversation success > returns silently when the 
 exports[`submit_llm_result npc_conversation success > returns silently when the character is gone 1`] = `
 "{
   "character": [],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "npc": [
     {
       "description": "A baker.",
@@ -6313,20 +5365,6 @@ exports[`submit_llm_result npc_conversation success > skips the memory update an
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"npcId\\":\\"20\\",\\"memoryId\\":\\"30\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "npc_conversation",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "npc": [
@@ -6388,20 +5426,6 @@ exports[`submit_llm_result renown_perk_gen success > Phase 41: the rank-2 static
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"2\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "renown_perk_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "pending_renown_perk": [
@@ -6500,20 +5524,6 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: a missing rank defau
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "renown_perk_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "pending_renown_perk": [
     {
       "castSeconds": "0n",
@@ -6600,20 +5610,6 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: a rank without a sta
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"99\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "renown_perk_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "pending_renown_perk": [],
   "renown_perk": []
 }"
@@ -6653,20 +5649,6 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: a zero rank defaults
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"0\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "renown_perk_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "pending_renown_perk": [
@@ -6765,20 +5747,6 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: fewer than three VAL
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"4\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "renown_perk_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "pending_renown_perk": [
     {
       "castSeconds": "0n",
@@ -6873,20 +5841,6 @@ exports[`submit_llm_result renown_perk_gen success > an empty perks array takes 
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"4\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "renown_perk_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "pending_renown_perk": [
@@ -6985,20 +5939,6 @@ exports[`submit_llm_result renown_perk_gen success > inserts three valid perks f
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"2\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "renown_perk_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "pending_renown_perk": [
     {
       "castSeconds": "0n",
@@ -7092,20 +6032,6 @@ exports[`submit_llm_result renown_perk_gen success > only the first three valid 
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"2\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "renown_perk_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "pending_renown_perk": [
@@ -7204,20 +6130,6 @@ exports[`submit_llm_result renown_perk_gen success > perks that is not an array 
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"4\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "renown_perk_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "pending_renown_perk": [
     {
       "castSeconds": "0n",
@@ -7280,21 +6192,7 @@ exports[`submit_llm_result renown_perk_gen success > perks that is not an array 
 
 exports[`submit_llm_result renown_perk_gen success > returns silently when the character is gone (no budget increment) 1`] = `
 "{
-  "character": [],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"2\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "renown_perk_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ]
+  "character": []
 }"
 `;
 
@@ -7332,20 +6230,6 @@ exports[`submit_llm_result renown_perk_gen success > static fallback for an acti
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"6\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "renown_perk_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "pending_renown_perk": [
@@ -7441,20 +6325,6 @@ exports[`submit_llm_result renown_perk_gen success > unparseable text takes the 
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"4\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "renown_perk_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "pending_renown_perk": [
@@ -7553,20 +6423,6 @@ exports[`submit_llm_result renown_perk_gen success > uses the rank from the task
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "renown_perk_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "pending_renown_perk": [
     {
       "castSeconds": "0n",
@@ -7654,20 +6510,6 @@ exports[`submit_llm_result skill_gen success > QUIRK: a skill missing name or ki
       "ownerUserId": "7n"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "skill_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "pending_skill": []
 }"
 `;
@@ -7697,20 +6539,6 @@ exports[`submit_llm_result skill_gen success > QUIRK: fewer than three skills wr
       "kind": "narrative",
       "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\"",
       "ownerUserId": "7n"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "skill_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "pending_skill": []
@@ -7750,20 +6578,6 @@ exports[`submit_llm_result skill_gen success > QUIRK: only the first three skill
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "skill_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "pending_skill": [
@@ -7824,21 +6638,7 @@ exports[`submit_llm_result skill_gen success > QUIRK: only the first three skill
 
 exports[`submit_llm_result skill_gen success > a missing character returns silently (only the task status changes) 1`] = `
 "{
-  "character": [],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "skill_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ]
+  "character": []
 }"
 `;
 
@@ -7875,20 +6675,6 @@ exports[`submit_llm_result skill_gen success > accepts the Claude structured-out
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "skill_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "pending_skill": [
@@ -7982,20 +6768,6 @@ exports[`submit_llm_result skill_gen success > applies the v2.0 validators on th
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "skill_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "pending_skill": [
     {
       "castSeconds": "0n",
@@ -8087,20 +6859,6 @@ exports[`submit_llm_result skill_gen success > inserts three pending skills, pre
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "skill_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "pending_skill": [
     {
       "castSeconds": "0n",
@@ -8174,20 +6932,6 @@ exports[`submit_llm_result skill_gen success > keeps an offer that is already pe
       "xp": "0n"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "skill_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "pending_skill": [
     {
       "castSeconds": "1n",
@@ -8252,20 +6996,6 @@ exports[`submit_llm_result skill_gen success > unparseable text writes the grima
       "ownerUserId": "7n"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "skill_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "pending_skill": []
 }"
 `;
@@ -8296,20 +7026,6 @@ exports[`submit_llm_result world_gen failure path > routes the message to the cr
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "world_gen_state": [
     {
       "characterId": "10n",
@@ -8336,20 +7052,6 @@ exports[`submit_llm_result world_gen failure path > routes to the creation event
       "kind": "creation_error",
       "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "world_gen_state": [
@@ -8395,20 +7097,6 @@ exports[`submit_llm_result world_gen failure path > sets the state to ERROR and 
       "ownerUserId": "7n"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "world_gen_state": [
     {
       "characterId": "10n",
@@ -8427,20 +7115,6 @@ exports[`submit_llm_result world_gen failure path > sets the state to ERROR and 
 
 exports[`submit_llm_result world_gen failure path > writes nothing but the task status when the generation state is gone 1`] = `
 "{
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "world_gen_state": []
 }"
 `;
@@ -8546,20 +7220,6 @@ exports[`submit_llm_result world_gen success > QUIRK: a missing character still 
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "location": [
@@ -8745,20 +7405,6 @@ exports[`submit_llm_result world_gen success > QUIRK: a state in step COMPLETE r
       "xp": "0n"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "world_gen_state": [
     {
       "characterId": "10n",
@@ -8791,20 +7437,6 @@ exports[`submit_llm_result world_gen success > QUIRK: a state in step ERROR retu
       "xp": "0n"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "world_gen_state": [
     {
       "characterId": "10n",
@@ -8835,20 +7467,6 @@ exports[`submit_llm_result world_gen success > QUIRK: a state in step PENDING re
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "world_gen_state": [
@@ -8999,20 +7617,6 @@ exports[`submit_llm_result world_gen success > QUIRK: charges the budget to the 
       "id": "1n",
       "playerId": "identity:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "location": [
@@ -9208,20 +7812,6 @@ exports[`submit_llm_result world_gen success > a missing regionName ends in ERRO
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "world_gen_state": [
     {
       "characterId": "10n",
@@ -9371,20 +7961,6 @@ exports[`submit_llm_result world_gen success > accepts a code-fenced reply 1`] =
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "location": [
@@ -9580,20 +8156,6 @@ exports[`submit_llm_result world_gen success > an empty locations array ends in 
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "world_gen_state": [
     {
       "characterId": "10n",
@@ -9636,20 +8198,6 @@ exports[`submit_llm_result world_gen success > an empty regionName ends in ERROR
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "world_gen_state": [
     {
       "characterId": "10n",
@@ -9690,20 +8238,6 @@ exports[`submit_llm_result world_gen success > invalid JSON fails the generation
       "kind": "creation_error",
       "message": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\" Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "world_gen_state": [
@@ -9749,20 +8283,6 @@ exports[`submit_llm_result world_gen success > invalid JSON fails through a priv
       "ownerUserId": "7n"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "world_gen_state": [
     {
       "characterId": "10n",
@@ -9803,20 +8323,6 @@ exports[`submit_llm_result world_gen success > no locations key ends in ERROR wi
       "kind": "creation_error",
       "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "world_gen_state": [
@@ -9999,20 +8505,6 @@ exports[`submit_llm_result world_gen success > non-starter region: raises danger
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "location": [
@@ -10350,20 +8842,6 @@ exports[`submit_llm_result world_gen success > places the character in a non-saf
       "resetDate": "2023-11-14"
     }
   ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "location": [
     {
       "bindStone": false,
@@ -10534,20 +9012,6 @@ exports[`submit_llm_result world_gen success > places the character in a non-saf
 
 exports[`submit_llm_result world_gen success > returns silently when the generation state is gone 1`] = `
 "{
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ],
   "world_gen_state": []
 }"
 `;
@@ -10685,20 +9149,6 @@ exports[`submit_llm_result world_gen success > starter region: writes region, lo
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"genStateId\\":\\"5\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "world_gen",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
     }
   ],
   "location": [
@@ -10868,80 +9318,6 @@ exports[`submit_llm_result world_gen success > starter region: writes region, lo
 }"
 `;
 
-exports[`submit_llm_result wrapper > marks an unrecognized domain completed on success and touches nothing else 1`] = `
-"{
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "generic",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ]
-}"
-`;
+exports[`submit_llm_result wrapper > marks an unrecognized domain completed on success and touches nothing else 1`] = `"{}"`;
 
-exports[`submit_llm_result wrapper > marks an unrecognized domain error on failure and touches nothing else 1`] = `
-"{
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "generic",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ]
-}"
-`;
-
-exports[`submit_llm_result wrapper > throws "LLM task not found" for an unknown task id 1`] = `
-"{
-  "llm_task": []
-}"
-`;
-
-exports[`submit_llm_result wrapper > throws "Not your task" when another player calls it and leaves the task pending 1`] = `
-"{
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_race",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "pending",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ]
-}"
-`;
-
-exports[`submit_llm_result wrapper > throws "Task already processed" for a completed task 1`] = `
-"{
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_race",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ]
-}"
-`;
+exports[`submit_llm_result wrapper > marks an unrecognized domain error on failure and touches nothing else 1`] = `"{}"`;

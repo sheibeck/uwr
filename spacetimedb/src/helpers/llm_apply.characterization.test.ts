@@ -1,16 +1,16 @@
 /**
- * CHARACTERIZATION TESTS for the `submit_llm_result` reducer (Phase 40, Plan 05).
+ * CHARACTERIZATION TESTS for the LLM apply layer (Phase 40 plan 05, converted in Phase 42).
  *
- * These tests call the REAL reducer handler from `spacetimedb/src/index.ts`
- * (captured through the schema recorder) and pin its CURRENT behavior with
- * full-database snapshots, including quirks. They are written BEFORE the apply
- * logic moves (Plan 40-08) and must pass unmodified afterwards.
+ * These tests call `applyLlmResult` and `applyLlmFailure` from `./llm_apply` directly and pin
+ * their CURRENT behavior with full-database snapshots, including quirks. They began as the
+ * Phase 40 characterization of the removed client-trusted reducer; Phase 42 (planning note 1)
+ * converted them to drive the apply layer itself so the coverage survives that removal.
  *
  * Rules for editing this file:
  *  - Pin what the code does, never what it should do. A quirk stays a quirk.
  *  - Do not touch production code to make a case easier to test.
  *  - Snapshots are deterministic: fixed timestamp, Math.random stubbed, one
- *    shared identity object for seeding and for `sender` (the mock DB compares
+ *    shared identity object for seeding and for `job.playerId` (the mock DB compares
  *    identities with ===).
  *
  * Phase 41 (plan 03) deliberately changed the pinned behavior in the cases whose title
@@ -18,14 +18,14 @@
  * longer throws for bigint effects, and a terminal renown failure inserts the static
  * options. Every other case still pins what the code does, unchanged.
  *
- * Known limits of the mock DB that these tests inherit (and that 40-08 inherits
- * with them): the `by_name` index accessor is mapped to the column `name`, so the
- * real `race_definition.by_name` (column `nameLower`) is exercised through a row
- * whose `name` equals the lowercase race name.
+ * Known limits of the mock DB that these tests inherit: the `by_name` index accessor is
+ * mapped to the column `name`, so the real `race_definition.by_name` (column `nameLower`)
+ * is exercised through a row whose `name` equals the lowercase race name.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
-import { capturedReducer, rowColumnProblems, snapshotDb } from './schema_recorder';
+import { rowColumnProblems, snapshotDb } from './schema_recorder';
 import { createMockCtx } from './test-utils';
+import { applyLlmResult, applyLlmFailure, type ApplyJob } from './llm_apply';
 import { serializePerkEffect } from './renown';
 import { clampToBudget } from './skill_budget';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
@@ -47,17 +47,10 @@ const bob = { toHexString: () => 'b'.repeat(64) };
 
 const ts = (micros: bigint) => ({ microsSinceUnixEpoch: micros });
 
-let handler: ((...args: any[]) => any) | undefined;
-
+// Load the real module graph through the recording mock: the recorder then knows every table,
+// which `insertProblems` needs to check inserted rows against the declared columns.
 beforeAll(async () => {
   await import('../index');
-  handler = capturedReducer('submit_llm_result');
-  if (typeof handler !== 'function') {
-    throw new Error(
-      "capturedReducer('submit_llm_result') is not a function: the schema recorder could not " +
-        'capture the reducer from index.ts. STOP and report; never edit production code to fix this.',
-    );
-  }
 }, 120_000);
 
 let randomSpy: ReturnType<typeof vi.spyOn>;
@@ -118,30 +111,20 @@ function dump(ctx: any): string {
   return JSON.stringify(JSON.parse(snapshotDb(ctx.db)), null, 2);
 }
 
-function callSubmit(
-  ctx: any,
-  args: { taskId?: bigint; resultText?: string; success?: boolean; errorMessage?: string } = {},
-) {
-  return handler!(ctx, {
-    taskId: 1n,
-    resultText: '',
-    success: true,
-    errorMessage: undefined,
-    ...args,
-  });
-}
-
 /**
- * Call the real handler, assert every inserted row matches the recorded schema
- * (the PIPE-08 bug class), and snapshot the whole database.
+ * Apply a stored job: success calls `applyLlmResult`, failure calls `applyLlmFailure`. Assert
+ * every inserted row matches the recorded schema (the PIPE-08 bug class), and snapshot the
+ * whole database.
  */
 function exec(
   ctx: any,
-  args: Parameters<typeof callSubmit>[1] = {},
+  job: ApplyJob,
+  args: { resultText?: string; success?: boolean } = {},
   opts: { skipSchemaCheck?: boolean } = {},
 ) {
   const before = tableLengths(ctx);
-  callSubmit(ctx, args);
+  if (args.success === false) applyLlmFailure(ctx, job);
+  else applyLlmResult(ctx, job, args.resultText ?? '');
   if (!opts.skipSchemaCheck) expect(insertProblems(ctx, before)).toEqual([]);
   expect(dump(ctx)).toMatchSnapshot();
 }
@@ -150,20 +133,8 @@ function exec(
 // Fixtures
 // ---------------------------------------------------------------------------
 
-function llmTask(domain: string, contextJson?: string, over: Record<string, any> = {}) {
-  return {
-    id: 1n,
-    playerId: alice,
-    domain,
-    model: 'gpt-5-mini',
-    systemPrompt: '',
-    userPrompt: '',
-    maxTokens: 1500n,
-    status: 'pending',
-    contextJson,
-    createdAt: ts(T_OLD),
-    ...over,
-  };
+function applyJob(domain: string, contextJson?: string, over: { playerId?: any } = {}): ApplyJob {
+  return { domain, playerId: over.playerId ?? alice, contextJson };
 }
 
 function characterRow(over: Record<string, any> = {}) {
@@ -280,53 +251,20 @@ function skill(name: string, over: Record<string, any> = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Wrapper: the three guards and the status write
+// Unrecognized domain
 // ---------------------------------------------------------------------------
 
 describe('submit_llm_result wrapper', () => {
-  it('throws "LLM task not found" for an unknown task id', () => {
-    const ctx = newCtx({});
-    expect(() => callSubmit(ctx, { taskId: 99n })).toThrow(/LLM task not found/);
-    expect(dump(ctx)).toMatchSnapshot();
-  });
-
-  it('throws "Not your task" when another player calls it and leaves the task pending', () => {
-    const ctx = newCtx({ llm_task: [llmTask('creation_race')] }, bob);
-    expect(() => callSubmit(ctx)).toThrow(/Not your task/);
-    expect(rows(ctx, 'llm_task')[0].status).toBe('pending');
-    expect(dump(ctx)).toMatchSnapshot();
-  });
-
-  it('throws "Task already processed" for a completed task', () => {
-    const ctx = newCtx({ llm_task: [llmTask('creation_race', undefined, { status: 'completed' })] });
-    expect(() => callSubmit(ctx)).toThrow(/Task already processed/);
-    expect(rows(ctx, 'llm_task')[0].status).toBe('completed');
-    expect(dump(ctx)).toMatchSnapshot();
-  });
-
-  it('throws "Task already processed" for an errored task', () => {
-    const ctx = newCtx({ llm_task: [llmTask('creation_race', undefined, { status: 'error' })] });
-    expect(() => callSubmit(ctx, { success: false })).toThrow(/Task already processed/);
-    expect(rows(ctx, 'llm_task')[0].status).toBe('error');
-  });
-
-  it('checks existence, then ownership, then status (a completed task of another player is "Not your task")', () => {
-    const ctx = newCtx({ llm_task: [llmTask('creation_race', undefined, { status: 'completed' })] }, bob);
-    expect(() => callSubmit(ctx)).toThrow(/Not your task/);
-  });
-
   it('marks an unrecognized domain completed on success and touches nothing else', () => {
-    const ctx = newCtx({ llm_task: [llmTask('generic')] });
-    exec(ctx, { resultText: '{"anything":true}' });
-    expect(rows(ctx, 'llm_task')[0].status).toBe('completed');
-    expect(nonEmptyTables(ctx)).toEqual(['llm_task']);
+    const ctx = newCtx({});
+    exec(ctx, applyJob('generic'), { resultText: '{"anything":true}' });
+    expect(nonEmptyTables(ctx)).toEqual([]);
   });
 
   it('marks an unrecognized domain error on failure and touches nothing else', () => {
-    const ctx = newCtx({ llm_task: [llmTask('generic')] });
-    exec(ctx, { success: false, errorMessage: 'proxy timeout' });
-    expect(rows(ctx, 'llm_task')[0].status).toBe('error');
-    expect(nonEmptyTables(ctx)).toEqual(['llm_task']);
+    const ctx = newCtx({});
+    exec(ctx, applyJob('generic'), { success: false });
+    expect(nonEmptyTables(ctx)).toEqual([]);
   });
 });
 
@@ -337,11 +275,9 @@ describe('submit_llm_result wrapper', () => {
 describe('submit_llm_result failure path: creation and skill_gen', () => {
   it('creation_race failure appends creation_error and reverts the step to AWAITING_RACE', () => {
     const ctx = newCtx({
-      llm_task: [llmTask('creation_race')],
       character_creation_state: [creationState('GENERATING_RACE')],
     });
-    exec(ctx, { success: false, errorMessage: 'boom' });
-    expect(rows(ctx, 'llm_task')[0].status).toBe('error');
+    exec(ctx, applyJob('creation_race'), { success: false });
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_RACE');
     expect(rows(ctx, 'event_creation')).toHaveLength(1);
     expect(rows(ctx, 'event_creation')[0].kind).toBe('creation_error');
@@ -351,28 +287,26 @@ describe('submit_llm_result failure path: creation and skill_gen', () => {
   // Deliberate change (review WR-B03): a creation failure only acts on a state still at its
   // GENERATING step. With no such state there is nothing to revert and nothing to say.
   it('creation_race failure without a creation state posts nothing', () => {
-    const ctx = newCtx({ llm_task: [llmTask('creation_race')] });
-    exec(ctx, { success: false });
+    const ctx = newCtx({});
+    exec(ctx, applyJob('creation_race'), { success: false });
     expect(rows(ctx, 'event_creation')).toHaveLength(0);
     expect(rows(ctx, 'character_creation_state')).toHaveLength(0);
   });
 
   it('creation_class failure appends creation_error and reverts the step to AWAITING_ARCHETYPE', () => {
     const ctx = newCtx({
-      llm_task: [llmTask('creation_class')],
       character_creation_state: [creationState('GENERATING_CLASS')],
     });
-    exec(ctx, { success: false });
+    exec(ctx, applyJob('creation_class'), { success: false });
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
     expect(rows(ctx, 'event_creation')[0].kind).toBe('creation_error');
   });
 
   it('skill_gen failure writes an in-voice private narrative for the character owner', () => {
     const ctx = newCtx({
-      llm_task: [llmTask('skill_gen', CTX_CHAR)],
       character: [characterRow()],
     });
-    exec(ctx, { success: false });
+    exec(ctx, applyJob('skill_gen', CTX_CHAR), { success: false });
     const ev = rows(ctx, 'event_private');
     expect(ev).toHaveLength(1);
     expect(ev[0]).toMatchObject({ characterId: 10n, ownerUserId: 7n, kind: 'narrative' });
@@ -380,21 +314,19 @@ describe('submit_llm_result failure path: creation and skill_gen', () => {
   });
 
   it('skill_gen failure for a missing character writes nothing but the task status', () => {
-    const ctx = newCtx({ llm_task: [llmTask('skill_gen', CTX_CHAR)] });
-    exec(ctx, { success: false });
-    expect(nonEmptyTables(ctx)).toEqual(['llm_task']);
+    const ctx = newCtx({});
+    exec(ctx, applyJob('skill_gen', CTX_CHAR), { success: false });
+    expect(nonEmptyTables(ctx)).toEqual([]);
   });
 
   // Phase 41 (plan 03): a terminal renown failure no longer does nothing. The static options
   // for the rank are inserted and the Keeper says so, so an earned offer is never lost.
   it('Phase 41: renown_perk_gen failure inserts the static options for the rank and one Keeper line', () => {
     const ctx = newCtx({
-      llm_task: [llmTask('renown_perk_gen', JSON.stringify({ characterId: '10', rank: '2' }))],
       character: [characterRow()],
     });
-    exec(ctx, { success: false });
-    expect(rows(ctx, 'llm_task')[0].status).toBe('error');
-    expect(nonEmptyTables(ctx)).toEqual(['character', 'event_private', 'llm_task', 'pending_renown_perk']);
+    exec(ctx, applyJob('renown_perk_gen', JSON.stringify({ characterId: '10', rank: '2' })), { success: false });
+    expect(nonEmptyTables(ctx)).toEqual(['character', 'event_private', 'pending_renown_perk']);
     expect(rows(ctx, 'pending_renown_perk')).toHaveLength(3);
     expect(rows(ctx, 'pending_renown_perk').every((p: any) => p.characterId === 10n && p.rank === 2n)).toBe(true);
     const ev = rows(ctx, 'event_private');
@@ -411,15 +343,13 @@ describe('submit_llm_result failure path: creation and skill_gen', () => {
 
 describe('submit_llm_result creation_race success', () => {
   const seed = () => ({
-    llm_task: [llmTask('creation_race')],
     character_creation_state: [creationState('GENERATING_RACE')],
   });
 
   it('applies a valid reply: state, creation event, race_definition and the budget', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: JSON.stringify(RACE_JSON) });
+    exec(ctx, applyJob('creation_race'), { resultText: JSON.stringify(RACE_JSON) });
 
-    expect(rows(ctx, 'llm_task')[0].status).toBe('completed');
     const state = rows(ctx, 'character_creation_state')[0];
     expect(state).toMatchObject({
       step: 'AWAITING_ARCHETYPE',
@@ -441,20 +371,20 @@ describe('submit_llm_result creation_race success', () => {
       ...seed(),
       llm_budget: [{ id: 5n, playerId: alice, callCount: 4n, resetDate: TODAY }],
     });
-    exec(ctx, { resultText: JSON.stringify(RACE_JSON) });
+    exec(ctx, applyJob('creation_race'), { resultText: JSON.stringify(RACE_JSON) });
     expect(rows(ctx, 'llm_budget')).toHaveLength(1);
     expect(rows(ctx, 'llm_budget')[0].callCount).toBe(5n);
   });
 
   it('accepts a reply wrapped in a markdown code fence', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: '```json\n' + JSON.stringify(RACE_JSON) + '\n```' });
+    exec(ctx, applyJob('creation_race'), { resultText: '```json\n' + JSON.stringify(RACE_JSON) + '\n```' });
     expect(rows(ctx, 'character_creation_state')[0].raceName).toBe('Ashkin');
   });
 
   it('accepts a reply with prose around the JSON object (brace extraction)', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: 'Here you go: ' + JSON.stringify(RACE_JSON) + ' Enjoy.' });
+    exec(ctx, applyJob('creation_race'), { resultText: 'Here you go: ' + JSON.stringify(RACE_JSON) + ' Enjoy.' });
     expect(rows(ctx, 'character_creation_state')[0].raceName).toBe('Ashkin');
   });
 
@@ -466,7 +396,7 @@ describe('submit_llm_result creation_race success', () => {
         { id: 9n, name: 'ashkin', nameLower: 'ashkin', narrative: 'old', bonusesJson: '{}', createdAt: ts(T_OLD) },
       ],
     });
-    exec(ctx, { resultText: JSON.stringify(RACE_JSON) });
+    exec(ctx, applyJob('creation_race'), { resultText: JSON.stringify(RACE_JSON) });
     expect(rows(ctx, 'race_definition')).toHaveLength(1);
     expect(rows(ctx, 'race_definition')[0].narrative).toBe('old');
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
@@ -474,7 +404,7 @@ describe('submit_llm_result creation_race success', () => {
 
   it('Phase 41: a reply without raceName stores "Unknown" with default bonuses, prints "**Unknown**" and saves no definition', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: JSON.stringify({ narrative: 'Nothing much.' }) });
+    exec(ctx, applyJob('creation_race'), { resultText: JSON.stringify({ narrative: 'Nothing much.' }) });
     expect(rows(ctx, 'character_creation_state')[0].raceName).toBe('Unknown');
     expect(JSON.parse(rows(ctx, 'character_creation_state')[0].raceBonuses)).toEqual({
       primary: { stat: 'str', value: 2 },
@@ -488,8 +418,7 @@ describe('submit_llm_result creation_race success', () => {
 
   it('QUIRK: malformed JSON increments the budget BEFORE parsing, reverts the step and reports the error', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: 'the cosmos declined to answer' });
-    expect(rows(ctx, 'llm_task')[0].status).toBe('completed');
+    exec(ctx, applyJob('creation_race'), { resultText: 'the cosmos declined to answer' });
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_RACE');
     expect(rows(ctx, 'event_creation')[0]).toMatchObject({ kind: 'creation_error' });
     expect(rows(ctx, 'event_creation')[0].message).toContain('malformed');
@@ -498,10 +427,9 @@ describe('submit_llm_result creation_race success', () => {
   });
 
   it('with no creation state returns silently: no event and no budget increment', () => {
-    const ctx = newCtx({ llm_task: [llmTask('creation_race')] });
-    exec(ctx, { resultText: JSON.stringify(RACE_JSON) });
-    expect(rows(ctx, 'llm_task')[0].status).toBe('completed');
-    expect(nonEmptyTables(ctx)).toEqual(['llm_task']);
+    const ctx = newCtx({});
+    exec(ctx, applyJob('creation_race'), { resultText: JSON.stringify(RACE_JSON) });
+    expect(nonEmptyTables(ctx)).toEqual([]);
   });
 });
 
@@ -511,7 +439,6 @@ describe('submit_llm_result creation_race success', () => {
 
 describe('submit_llm_result creation_class success', () => {
   const seed = () => ({
-    llm_task: [llmTask('creation_class')],
     character_creation_state: [
       creationState('GENERATING_CLASS', { raceName: 'Ashkin', raceNarrative: 'Born of cinders.' }),
     ],
@@ -519,7 +446,7 @@ describe('submit_llm_result creation_class success', () => {
 
   it('applies a valid reply: CLASS_REVEALED, stats, abilities, presentation event, budget', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: JSON.stringify(CLASS_JSON) });
+    exec(ctx, applyJob('creation_class'), { resultText: JSON.stringify(CLASS_JSON) });
 
     const state = rows(ctx, 'character_creation_state')[0];
     expect(state).toMatchObject({
@@ -540,7 +467,6 @@ describe('submit_llm_result creation_class success', () => {
 
   it('Phase 41: legacy ability field names are not read (vocabulary defaults apply) on a mana-user class line', () => {
     const ctx = newCtx({
-      llm_task: [llmTask('creation_class')],
       character_creation_state: [
         creationState('GENERATING_CLASS', { raceName: 'Ashkin', raceNarrative: 'Born of cinders.', archetype: 'mystic' }),
       ],
@@ -553,7 +479,7 @@ describe('submit_llm_result creation_class success', () => {
         { name: 'Spark', description: 'A spark.', baseDamage: 6, manaCost: 3, effect: 'stun', castSeconds: 1, cooldownSeconds: 4 },
       ],
     };
-    exec(ctx, { resultText: JSON.stringify(legacy) });
+    exec(ctx, applyJob('creation_class'), { resultText: JSON.stringify(legacy) });
     const msg = rows(ctx, 'event_creation')[0].message as string;
     expect(msg).toContain('Primary: INT | Armor: cloth | Mana user (+15 bonus mana)');
     // baseDamage, manaCost and effect are ignored: kind defaults to damage, value1 to 15, the
@@ -564,7 +490,7 @@ describe('submit_llm_result creation_class success', () => {
 
   it('Phase 41: an empty object stores "Unknown Class" with default stats and prints "**Unknown Class**"', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: '{}' });
+    exec(ctx, applyJob('creation_class'), { resultText: '{}' });
     const state = rows(ctx, 'character_creation_state')[0];
     expect(state.step).toBe('CLASS_REVEALED');
     expect(state.className).toBe('Unknown Class');
@@ -583,7 +509,7 @@ describe('submit_llm_result creation_class success', () => {
 
   it('QUIRK: malformed JSON increments the budget BEFORE parsing and reverts to AWAITING_ARCHETYPE', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: 'not json at all' });
+    exec(ctx, applyJob('creation_class'), { resultText: 'not json at all' });
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
     expect(rows(ctx, 'event_creation')[0].kind).toBe('creation_error');
     expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
@@ -591,7 +517,7 @@ describe('submit_llm_result creation_class success', () => {
 
   it('Phase 41: a null ability entry is dropped, not fatal (the old midway throw and revert is gone)', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: JSON.stringify({ className: 'Half Built', abilities: [null] }) });
+    exec(ctx, applyJob('creation_class'), { resultText: JSON.stringify({ className: 'Half Built', abilities: [null] }) });
     const state = rows(ctx, 'character_creation_state')[0];
     expect(state.step).toBe('CLASS_REVEALED');
     expect(state.className).toBe('Half Built');
@@ -608,14 +534,13 @@ describe('submit_llm_result creation_class success', () => {
 
 describe('submit_llm_result skill_gen success', () => {
   const seed = () => ({
-    llm_task: [llmTask('skill_gen', CTX_CHAR)],
     character: [characterRow({ level: 3n })],
   });
 
   it('inserts three pending skills, presents them and increments the budget', () => {
     const ctx = newCtx(seed());
     const reply = { skills: [skill('Cinder Cut'), skill('Ash Ward', { kind: 'shield', resourceType: 'mana', castSeconds: 0 }), skill('Ember Pulse', { kind: 'heal', targetRule: 'self', scaling: 'wis' })] };
-    exec(ctx, { resultText: JSON.stringify(reply) });
+    exec(ctx, applyJob('skill_gen', CTX_CHAR), { resultText: JSON.stringify(reply) });
 
     const pending = rows(ctx, 'pending_skill');
     expect(pending).toHaveLength(3);
@@ -638,7 +563,7 @@ describe('submit_llm_result skill_gen success', () => {
         skill('Instant Mana', { resourceType: 'mana', castSeconds: 0 }),
       ],
     };
-    exec(ctx, { resultText: JSON.stringify(reply) });
+    exec(ctx, applyJob('skill_gen', CTX_CHAR), { resultText: JSON.stringify(reply) });
     const pending = rows(ctx, 'pending_skill');
     expect(pending[0].value1).toBeLessThan(9999n);
     expect(pending[1].kind).toBe('damage');
@@ -648,7 +573,7 @@ describe('submit_llm_result skill_gen success', () => {
   it('accepts the Claude structured-output shape with explicit nulls', () => {
     const ctx = newCtx(seed());
     const reply = { skills: [skill('A'), skill('B'), skill('C')] };
-    exec(ctx, { resultText: JSON.stringify(reply) });
+    exec(ctx, applyJob('skill_gen', CTX_CHAR), { resultText: JSON.stringify(reply) });
     const pending = rows(ctx, 'pending_skill');
     expect(pending).toHaveLength(3);
     expect(pending[0].value2).toBeUndefined();
@@ -665,15 +590,14 @@ describe('submit_llm_result skill_gen success', () => {
         { id: 51n, characterId: 99n, name: 'OtherChar', description: 'keep', kind: 'damage', targetRule: 'single_enemy', resourceType: 'mana', resourceCost: 1n, castSeconds: 1n, cooldownSeconds: 1n, scaling: 'none', value1: 1n, levelRequired: 3n, createdAt: ts(T_OLD) },
       ],
     });
-    exec(ctx, { resultText: JSON.stringify({ skills: [skill('A'), skill('B'), skill('C')] }) }, { skipSchemaCheck: true });
+    exec(ctx, applyJob('skill_gen', CTX_CHAR), { resultText: JSON.stringify({ skills: [skill('A'), skill('B'), skill('C')] }) }, { skipSchemaCheck: true });
     const names = rows(ctx, 'pending_skill').map((p: any) => p.name).sort();
     expect(names).toEqual(['OtherChar', 'Stale']);
   });
 
   it('QUIRK: fewer than three skills writes the grimace message with NO budget increment and NO pending rows', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: JSON.stringify({ skills: [skill('Only One'), skill('Only Two')] }) });
-    expect(rows(ctx, 'llm_task')[0].status).toBe('completed');
+    exec(ctx, applyJob('skill_gen', CTX_CHAR), { resultText: JSON.stringify({ skills: [skill('Only One'), skill('Only Two')] }) });
     expect(rows(ctx, 'pending_skill')).toHaveLength(0);
     expect(rows(ctx, 'llm_budget')).toHaveLength(0);
     expect(rows(ctx, 'event_private')).toHaveLength(1);
@@ -682,29 +606,29 @@ describe('submit_llm_result skill_gen success', () => {
 
   it('QUIRK: a skill missing name or kind is skipped, dropping the batch under three (grimace)', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: JSON.stringify({ skills: [skill('A'), skill('B'), { ...skill('C'), kind: '' }] }) });
+    exec(ctx, applyJob('skill_gen', CTX_CHAR), { resultText: JSON.stringify({ skills: [skill('A'), skill('B'), { ...skill('C'), kind: '' }] }) });
     expect(rows(ctx, 'pending_skill')).toHaveLength(0);
     expect(rows(ctx, 'event_private')[0].message).toContain('sputtered');
   });
 
   it('QUIRK: only the first three skills are considered', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: JSON.stringify({ skills: [skill('A'), skill('B'), skill('C'), skill('D')] }) });
+    exec(ctx, applyJob('skill_gen', CTX_CHAR), { resultText: JSON.stringify({ skills: [skill('A'), skill('B'), skill('C'), skill('D')] }) });
     expect(rows(ctx, 'pending_skill').map((p: any) => p.name)).toEqual(['A', 'B', 'C']);
   });
 
   it('unparseable text writes the grimace message with no budget increment', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: 'sorry, no skills today' });
+    exec(ctx, applyJob('skill_gen', CTX_CHAR), { resultText: 'sorry, no skills today' });
     expect(rows(ctx, 'pending_skill')).toHaveLength(0);
     expect(rows(ctx, 'llm_budget')).toHaveLength(0);
     expect(rows(ctx, 'event_private')[0].message).toContain('sputtered');
   });
 
   it('a missing character returns silently (only the task status changes)', () => {
-    const ctx = newCtx({ llm_task: [llmTask('skill_gen', CTX_CHAR)] });
-    exec(ctx, { resultText: JSON.stringify({ skills: [skill('A'), skill('B'), skill('C')] }) });
-    expect(nonEmptyTables(ctx)).toEqual(['llm_task']);
+    const ctx = newCtx({});
+    exec(ctx, applyJob('skill_gen', CTX_CHAR), { resultText: JSON.stringify({ skills: [skill('A'), skill('B'), skill('C')] }) });
+    expect(nonEmptyTables(ctx)).toEqual([]);
   });
 });
 
@@ -752,7 +676,6 @@ const REGION_JSON = {
 
 function worldSeed(over: { gen?: Record<string, any>; char?: Record<string, any> | null } = {}): Seed {
   return {
-    llm_task: [llmTask('world_gen', GEN_CTX)],
     world_gen_state: [genState(over.gen)],
     character: over.char === null ? [] : [characterRow({ locationId: 0n, boundLocationId: 0n, level: 1n, ...over.char })],
   };
@@ -770,7 +693,6 @@ const EMPTY_MEMORY = JSON.stringify({
 function npcSeed(...extra: Seed[]): Seed {
   return mergeSeeds(
     {
-      llm_task: [llmTask('npc_conversation', NPC_CTX)],
       character: [characterRow()],
       npc: [
         { id: 20n, name: 'Marta', npcType: 'lore', locationId: 100n, description: 'A baker.', greeting: 'Hello.', personalityJson: JSON.stringify({ affinityMultiplier: 1.0 }) },
@@ -822,12 +744,10 @@ function offer(over: Record<string, any> = {}) {
 describe('submit_llm_result world_gen failure path', () => {
   it('sets the state to ERROR and tells a placed character through a private system event', () => {
     const ctx = newCtx({
-      llm_task: [llmTask('world_gen', GEN_CTX)],
-      world_gen_state: [genState({ step: 'GENERATING', errorMessage: 'stale' })],
+      world_gen_state: [genState({ step: 'GENERATING' })],
       character: [characterRow({ locationId: 100n })],
     });
-    exec(ctx, { success: false });
-    expect(rows(ctx, 'llm_task')[0].status).toBe('error');
+    exec(ctx, applyJob('world_gen', GEN_CTX), { success: false });
     expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({
       step: 'ERROR',
       errorMessage: 'The Keeper falters. "The world refuses to be remembered right now."',
@@ -840,7 +760,7 @@ describe('submit_llm_result world_gen failure path', () => {
 
   it('routes the message to the creation events when the character has no location yet', () => {
     const ctx = newCtx(worldSeed());
-    exec(ctx, { success: false });
+    exec(ctx, applyJob('world_gen', GEN_CTX), { success: false });
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('ERROR');
     expect(rows(ctx, 'event_creation')).toHaveLength(1);
     expect(rows(ctx, 'event_creation')[0]).toMatchObject({ kind: 'creation_error', playerId: alice });
@@ -850,31 +770,30 @@ describe('submit_llm_result world_gen failure path', () => {
 
   it('routes to the creation events when the character row is gone', () => {
     const ctx = newCtx(worldSeed({ char: null }));
-    exec(ctx, { success: false });
+    exec(ctx, applyJob('world_gen', GEN_CTX), { success: false });
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('ERROR');
     expect(rows(ctx, 'event_creation')).toHaveLength(1);
   });
 
   it('writes nothing but the task status when the generation state is gone', () => {
-    const ctx = newCtx({ llm_task: [llmTask('world_gen', GEN_CTX)] });
-    exec(ctx, { success: false });
-    expect(nonEmptyTables(ctx)).toEqual(['llm_task']);
+    const ctx = newCtx({});
+    exec(ctx, applyJob('world_gen', GEN_CTX), { success: false });
+    expect(nonEmptyTables(ctx)).toEqual([]);
   });
 
   it('QUIRK: a context without genStateId throws (the whole call rolls back in production)', () => {
-    const ctx = newCtx({ llm_task: [llmTask('world_gen', '{}')] });
-    expect(() => callSubmit(ctx, { success: false })).toThrow();
-    const ctx2 = newCtx({ llm_task: [llmTask('world_gen', '{}')] });
-    expect(() => callSubmit(ctx2, { success: true, resultText: '{}' })).toThrow();
+    const ctx = newCtx({});
+    expect(() => applyLlmFailure(ctx, applyJob('world_gen', '{}'))).toThrow();
+    const ctx2 = newCtx({});
+    expect(() => applyLlmResult(ctx2, applyJob('world_gen', '{}'), '{}')).toThrow();
   });
 });
 
 describe('submit_llm_result world_gen success', () => {
   it('starter region: writes region, locations, NPCs, enemies, completes the state and places the character', () => {
     const ctx = newCtx(worldSeed());
-    exec(ctx, { resultText: JSON.stringify(REGION_JSON) });
+    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_JSON) });
 
-    expect(rows(ctx, 'llm_task')[0].status).toBe('completed');
     const region = rows(ctx, 'region')[0];
     expect(region).toMatchObject({ name: 'Cinderfall', dangerMultiplier: 100n, isGenerated: true, starterForRace: 'ashkin', generatedByCharacterId: 10n });
     expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({ step: 'COMPLETE', generatedRegionId: region.id });
@@ -896,7 +815,6 @@ describe('submit_llm_result world_gen success', () => {
 
   it('non-starter region: raises danger from the source, clamps enemy levels, turns the uncharted edge into a passage', () => {
     const ctx = newCtx({
-      llm_task: [llmTask('world_gen', GEN_CTX)],
       world_gen_state: [genState({ sourceRegionId: 100n, sourceLocationId: 50n })],
       character: [characterRow({ locationId: 50n })],
       region: [{ id: 100n, name: 'Old Reach', dangerMultiplier: 300n }],
@@ -910,7 +828,7 @@ describe('submit_llm_result world_gen success', () => {
         { name: 'Just Right', role: 'melee', level: 3 },
       ],
     };
-    exec(ctx, { resultText: JSON.stringify(reply) });
+    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(reply) });
 
     const region = rows(ctx, 'region').find((r: any) => r.name === 'Cinderfall');
     expect(region.dangerMultiplier).toBeGreaterThanOrEqual(350n);
@@ -936,7 +854,7 @@ describe('submit_llm_result world_gen success', () => {
       locations: REGION_JSON.locations.map((l) => ({ ...l, isSafe: false })),
       npcs: [],
     };
-    exec(ctx, { resultText: JSON.stringify(reply) });
+    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(reply) });
     const home = rows(ctx, 'location')[0];
     expect(rows(ctx, 'character')[0].locationId).toBe(home.id);
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
@@ -944,14 +862,14 @@ describe('submit_llm_result world_gen success', () => {
 
   it('QUIRK: charges the budget to the generation state player, not the sender', () => {
     const ctx = newCtx(worldSeed({ gen: { playerId: bob } }));
-    exec(ctx, { resultText: JSON.stringify(REGION_JSON) });
+    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_JSON) });
     expect(rows(ctx, 'llm_budget')).toHaveLength(1);
     expect(rows(ctx, 'llm_budget')[0].playerId).toBe(bob);
   });
 
   it('QUIRK: a missing character still gets the region written, but no private events and no starter mark', () => {
     const ctx = newCtx(worldSeed({ char: null }));
-    exec(ctx, { resultText: JSON.stringify(REGION_JSON) });
+    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_JSON) });
     expect(rows(ctx, 'region')[0].starterForRace).toBeUndefined();
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
     expect(rows(ctx, 'event_private')).toHaveLength(0);
@@ -961,7 +879,7 @@ describe('submit_llm_result world_gen success', () => {
 
   it('accepts a code-fenced reply', () => {
     const ctx = newCtx(worldSeed());
-    exec(ctx, { resultText: '```json\n' + JSON.stringify(REGION_JSON) + '\n```' });
+    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: '```json\n' + JSON.stringify(REGION_JSON) + '\n```' });
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
   });
 
@@ -969,8 +887,7 @@ describe('submit_llm_result world_gen success', () => {
     'QUIRK: a state in step %s returns silently (only the task status changes)',
     (step) => {
       const ctx = newCtx(worldSeed({ gen: { step } }));
-      exec(ctx, { resultText: JSON.stringify(REGION_JSON) });
-      expect(rows(ctx, 'llm_task')[0].status).toBe('completed');
+      exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_JSON) });
       expect(rows(ctx, 'world_gen_state')[0].step).toBe(step);
       expect(rows(ctx, 'region')).toHaveLength(0);
       expect(rows(ctx, 'llm_budget')).toHaveLength(0);
@@ -978,15 +895,14 @@ describe('submit_llm_result world_gen success', () => {
   );
 
   it('returns silently when the generation state is gone', () => {
-    const ctx = newCtx({ llm_task: [llmTask('world_gen', GEN_CTX)] });
-    exec(ctx, { resultText: JSON.stringify(REGION_JSON) });
-    expect(nonEmptyTables(ctx)).toEqual(['llm_task']);
+    const ctx = newCtx({});
+    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_JSON) });
+    expect(nonEmptyTables(ctx)).toEqual([]);
   });
 
   it('invalid JSON fails the generation: state ERROR, creation_error for a character without a location, no budget', () => {
     const ctx = newCtx(worldSeed());
-    exec(ctx, { resultText: 'the world did not say anything useful' });
-    expect(rows(ctx, 'llm_task')[0].status).toBe('completed');
+    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: 'the world did not say anything useful' });
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('ERROR');
     expect(rows(ctx, 'event_creation')[0].message).toContain('came out wrong');
     expect(rows(ctx, 'event_creation')[0].message).toContain('Type [explore] to try again.');
@@ -996,7 +912,7 @@ describe('submit_llm_result world_gen success', () => {
 
   it('invalid JSON fails through a private system event for a placed character', () => {
     const ctx = newCtx(worldSeed({ char: { locationId: 100n } }));
-    exec(ctx, { resultText: '{ not json' });
+    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: '{ not json' });
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('ERROR');
     expect(rows(ctx, 'event_private')).toHaveLength(1);
     expect(rows(ctx, 'event_private')[0].kind).toBe('system');
@@ -1010,7 +926,7 @@ describe('submit_llm_result world_gen success', () => {
     ['no locations key', { ...REGION_JSON, locations: undefined }],
   ])('%s ends in ERROR with the "incomplete" message', (_label, reply) => {
     const ctx = newCtx(worldSeed());
-    exec(ctx, { resultText: JSON.stringify(reply) });
+    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(reply) });
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('ERROR');
     expect(rows(ctx, 'event_creation')[0].message).toContain('incomplete');
     expect(rows(ctx, 'region')).toHaveLength(0);
@@ -1025,8 +941,7 @@ describe('submit_llm_result world_gen success', () => {
 describe('submit_llm_result npc_conversation failure path', () => {
   it('logs "seems distracted" to the NPC dialog and the private events', () => {
     const ctx = newCtx(npcSeed());
-    exec(ctx, { success: false });
-    expect(rows(ctx, 'llm_task')[0].status).toBe('error');
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { success: false });
     expect(rows(ctx, 'npc_dialog')).toHaveLength(1);
     expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta seems distracted.');
     expect(rows(ctx, 'event_private')[0]).toMatchObject({ kind: 'npc', message: 'Marta seems distracted. Try again.' });
@@ -1039,21 +954,21 @@ describe('submit_llm_result npc_conversation failure path', () => {
         npc_dialog: [{ id: 3n, characterId: 10n, npcId: 20n, text: 'Marta seems distracted.', createdAt: ts(T0 - 5_000_000n) }],
       }),
     );
-    exec(ctx, { success: false });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { success: false });
     expect(rows(ctx, 'npc_dialog')).toHaveLength(1);
     expect(rows(ctx, 'event_private')).toHaveLength(1);
   });
 
   it('writes nothing but the task status when the NPC is gone', () => {
-    const ctx = newCtx({ llm_task: [llmTask('npc_conversation', NPC_CTX)], character: [characterRow()] });
-    exec(ctx, { success: false });
-    expect(nonEmptyTables(ctx)).toEqual(['character', 'llm_task']);
+    const ctx = newCtx({ character: [characterRow()] });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { success: false });
+    expect(nonEmptyTables(ctx)).toEqual(['character']);
   });
 
   it('writes nothing but the task status when the character is gone', () => {
-    const ctx = newCtx({ llm_task: [llmTask('npc_conversation', NPC_CTX)], npc: npcSeed().npc });
-    exec(ctx, { success: false });
-    expect(nonEmptyTables(ctx)).toEqual(['llm_task', 'npc']);
+    const ctx = newCtx({ npc: npcSeed().npc });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { success: false });
+    expect(nonEmptyTables(ctx)).toEqual(['npc']);
   });
 });
 
@@ -1075,9 +990,8 @@ describe('submit_llm_result npc_conversation success', () => {
       memoryUpdate: { addTopics: ['bread', 'the mill'], addSecret: 'the cellar is haunted' },
       internalThought: 'The traveler likes bread.',
     });
-    exec(ctx, { resultText: reply });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: reply });
 
-    expect(rows(ctx, 'llm_task')[0].status).toBe('completed');
     expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta: "The bread is warm today."');
     const msgs = rows(ctx, 'event_private').map((e: any) => e.message);
     expect(msgs[0]).toBe('Marta says, "The bread is warm today."');
@@ -1104,7 +1018,7 @@ describe('submit_llm_result npc_conversation success', () => {
       },
     ];
     const ctx = newCtx(seed);
-    exec(ctx, { resultText: npcReply({ memoryUpdate: { addTopics: ['bread', 'rain'] } }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ memoryUpdate: { addTopics: ['bread', 'rain'] } }) });
     const memory = JSON.parse(rows(ctx, 'npc_memory')[0].memoryJson);
     expect(memory.topics).toEqual(['bread', 'rain']);
     expect(memory.lastConversationSummary).toBe('old');
@@ -1119,14 +1033,14 @@ describe('submit_llm_result npc_conversation success', () => {
     [-50, -5n, 'expression darkens'],
   ])('affinity change %i lands as %s (clamped to +/-5) with the matching cue', (amount, expected, cue) => {
     const ctx = newCtx(npcSeed());
-    exec(ctx, { resultText: npcReply({ effects: [{ type: 'affinity_change', amount }] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [{ type: 'affinity_change', amount }] }) });
     expect(rows(ctx, 'npc_affinity')[0].affinity).toBe(expected);
     expect(rows(ctx, 'event_private').some((e: any) => (e.message as string).includes(cue))).toBe(true);
   });
 
   it('QUIRK: a negative affinity change that crosses a tier still logs an "improved to" system message', () => {
     const ctx = newCtx(npcSeed());
-    exec(ctx, { resultText: npcReply({ effects: [{ type: 'affinity_change', amount: -4 }] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [{ type: 'affinity_change', amount: -4 }] }) });
     const sys = rows(ctx, 'event_private').filter((e: any) => e.kind === 'system');
     expect(sys).toHaveLength(1);
     expect(sys[0].message).toBe('Your relationship with Marta improved to Wary.');
@@ -1136,7 +1050,7 @@ describe('submit_llm_result npc_conversation success', () => {
     'an affinity_change with %s is skipped with no cue',
     (_label, amount) => {
       const ctx = newCtx(npcSeed());
-      exec(ctx, { resultText: npcReply({ effects: [{ type: 'affinity_change', amount }] }) });
+      exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [{ type: 'affinity_change', amount }] }) });
       expect(rows(ctx, 'npc_affinity')[0].affinity).toBe(0n);
       expect(rows(ctx, 'event_private')).toHaveLength(1);
     },
@@ -1146,14 +1060,14 @@ describe('submit_llm_result npc_conversation success', () => {
     const seed = npcSeed();
     seed.npc_affinity = [];
     const ctx = newCtx(seed);
-    exec(ctx, { resultText: npcReply({ effects: [{ type: 'affinity_change', amount: 2 }] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [{ type: 'affinity_change', amount: 2 }] }) });
     expect(rows(ctx, 'npc_affinity')).toHaveLength(1);
     expect(rows(ctx, 'npc_affinity')[0]).toMatchObject({ characterId: 10n, npcId: 20n, affinity: 2n, conversationCount: 1n });
   });
 
   it('falls back to "..." when the reply has no dialogue and ignores a non-array effects field', () => {
     const ctx = newCtx(npcSeed());
-    exec(ctx, { resultText: JSON.stringify({ effects: 'lots', memoryUpdate: null }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: JSON.stringify({ effects: 'lots', memoryUpdate: null }) });
     expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta: "..."');
     expect(rows(ctx, 'event_private')).toHaveLength(1);
     expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
@@ -1161,7 +1075,7 @@ describe('submit_llm_result npc_conversation success', () => {
 
   it('accepts a code-fenced reply', () => {
     const ctx = newCtx(npcSeed());
-    exec(ctx, { resultText: '```json\n' + npcReply() + '\n```' });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: '```json\n' + npcReply() + '\n```' });
     expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta: "The bread is warm today."');
   });
 
@@ -1170,7 +1084,7 @@ describe('submit_llm_result npc_conversation success', () => {
     seed.npc_memory = [];
     seed.npc_affinity = [];
     const ctx = newCtx(seed);
-    exec(ctx, { resultText: npcReply({ memoryUpdate: { addTopics: ['x'] } }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ memoryUpdate: { addTopics: ['x'] } }) });
     expect(rows(ctx, 'npc_memory')).toHaveLength(0);
     expect(rows(ctx, 'npc_affinity')).toHaveLength(0);
     expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
@@ -1178,8 +1092,7 @@ describe('submit_llm_result npc_conversation success', () => {
 
   it('QUIRK: invalid JSON writes the "unintelligible" messages with NO budget increment and no memory change', () => {
     const ctx = newCtx(npcSeed());
-    exec(ctx, { resultText: 'Marta hums a tune' });
-    expect(rows(ctx, 'llm_task')[0].status).toBe('completed');
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: 'Marta hums a tune' });
     expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta mutters something unintelligible.');
     expect(rows(ctx, 'event_private')[0].message).toBe('Marta mutters something unintelligible. (Try again.)');
     expect(rows(ctx, 'llm_budget')).toHaveLength(0);
@@ -1188,22 +1101,22 @@ describe('submit_llm_result npc_conversation success', () => {
   });
 
   it('returns silently when the character is gone', () => {
-    const ctx = newCtx({ llm_task: [llmTask('npc_conversation', NPC_CTX)], npc: npcSeed().npc });
-    exec(ctx, { resultText: npcReply() });
-    expect(nonEmptyTables(ctx)).toEqual(['llm_task', 'npc']);
+    const ctx = newCtx({ npc: npcSeed().npc });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply() });
+    expect(nonEmptyTables(ctx)).toEqual(['npc']);
   });
 
   it('returns silently when the NPC is gone', () => {
-    const ctx = newCtx({ llm_task: [llmTask('npc_conversation', NPC_CTX)], character: [characterRow()] });
-    exec(ctx, { resultText: npcReply() });
-    expect(nonEmptyTables(ctx)).toEqual(['character', 'llm_task']);
+    const ctx = newCtx({ character: [characterRow()] });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply() });
+    expect(nonEmptyTables(ctx)).toEqual(['character']);
   });
 });
 
 describe('submit_llm_result npc_conversation offer_quest effects', () => {
   it('kill quest for an unknown enemy creates the enemy template, links it here and creates the instance', () => {
     const ctx = newCtx(npcSeed(WORLD_LOCS));
-    exec(ctx, {
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), {
       resultText: npcReply({
         effects: [offer({ targetEnemyName: 'Cellar Undead Rat', targetCount: 3, questDescription: 'Clear the cellar.', rewardXp: 80 })],
       }),
@@ -1223,7 +1136,7 @@ describe('submit_llm_result npc_conversation offer_quest effects', () => {
 
   it('kill quest resolves an existing enemy template by name (case-insensitive) at a connected location', () => {
     const ctx = newCtx(npcSeed(WORLD_LOCS, WOLF_TEMPLATE));
-    exec(ctx, { resultText: npcReply({ effects: [offer({ questName: 'Wolf Trouble', targetEnemyName: 'WOLF' })] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questName: 'Wolf Trouble', targetEnemyName: 'WOLF' })] }) });
     expect(rows(ctx, 'enemy_template')).toHaveLength(1);
     expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(60n);
     expect(rows(ctx, 'quest_instance')).toHaveLength(1);
@@ -1236,27 +1149,27 @@ describe('submit_llm_result npc_conversation offer_quest effects', () => {
         location_enemy_template: [{ id: 70n, locationId: 100n, enemyTemplateId: 60n }],
       }),
     );
-    exec(ctx, { resultText: npcReply({ effects: [offer()] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer()] }) });
     expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(60n);
   });
 
   it('kill quest with no name and no enemy here keeps targetEnemyTemplateId 0', () => {
     const ctx = newCtx(npcSeed(WORLD_LOCS));
-    exec(ctx, { resultText: npcReply({ effects: [offer()] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer()] }) });
     expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(0n);
     expect(rows(ctx, 'quest_instance')).toHaveLength(1);
   });
 
   it('an invalid quest type falls back to kill', () => {
     const ctx = newCtx(npcSeed(WORLD_LOCS, WOLF_TEMPLATE));
-    exec(ctx, { resultText: npcReply({ effects: [offer({ questType: 'dance', targetEnemyName: 'Wolf' })] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questType: 'dance', targetEnemyName: 'Wolf' })] }) });
     expect(rows(ctx, 'quest_template')[0].questType).toBe('kill');
     expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(60n);
   });
 
   it.each(['kill_loot', 'boss_kill'])('%s quests resolve the enemy like kill quests', (questType) => {
     const ctx = newCtx(npcSeed(WORLD_LOCS, WOLF_TEMPLATE));
-    exec(ctx, { resultText: npcReply({ effects: [offer({ questType, targetEnemyName: 'wolf' })] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questType, targetEnemyName: 'wolf' })] }) });
     expect(rows(ctx, 'quest_template')[0]).toMatchObject({ questType, targetEnemyTemplateId: 60n });
   });
 
@@ -1266,7 +1179,7 @@ describe('submit_llm_result npc_conversation offer_quest effects', () => {
         npc: [{ id: 21n, name: 'Tobin', npcType: 'lore', locationId: 101n, description: '', greeting: '' }],
       }),
     );
-    exec(ctx, {
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), {
       resultText: npcReply({
         effects: [offer({ questType: 'delivery', questName: 'Bread Run', sourceLocationName: 'old mill', targetNpcName: 'Tobin', targetItemName: 'Warm Bread', rewardType: 'gold', rewardGold: 12 })],
       }),
@@ -1284,39 +1197,39 @@ describe('submit_llm_result npc_conversation offer_quest effects', () => {
 
   it('delivery quest without a usable source name picks a connected neighbor of the NPC', () => {
     const ctx = newCtx(npcSeed(WORLD_LOCS));
-    exec(ctx, { resultText: npcReply({ effects: [offer({ questType: 'delivery', questName: 'Parcel' })] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questType: 'delivery', questName: 'Parcel' })] }) });
     expect(rows(ctx, 'quest_template')[0]).toMatchObject({ sourceLocationId: 101n, targetItemName: 'Parcel' });
     expect(rows(ctx, 'quest_template')[0].targetNpcId).toBeUndefined();
   });
 
   it('delivery quest whose source name is the NPC own location still picks a neighbor', () => {
     const ctx = newCtx(npcSeed(WORLD_LOCS));
-    exec(ctx, { resultText: npcReply({ effects: [offer({ questType: 'delivery', sourceLocationName: 'Market Square' })] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questType: 'delivery', sourceLocationName: 'Market Square' })] }) });
     expect(rows(ctx, 'quest_template')[0].sourceLocationId).toBe(101n);
   });
 
   it('delivery quest with no neighbors falls back to the NPC own location', () => {
     const ctx = newCtx(npcSeed({ location: WORLD_LOCS.location }));
-    exec(ctx, { resultText: npcReply({ effects: [offer({ questType: 'delivery' })] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questType: 'delivery' })] }) });
     expect(rows(ctx, 'quest_template')[0].sourceLocationId).toBe(100n);
   });
 
   it('explore quest targets the NPC location', () => {
     const ctx = newCtx(npcSeed(WORLD_LOCS));
-    exec(ctx, { resultText: npcReply({ effects: [offer({ questType: 'explore', questName: 'Find the Well' })] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questType: 'explore', questName: 'Find the Well' })] }) });
     expect(rows(ctx, 'quest_template')[0]).toMatchObject({ questType: 'explore', targetLocationId: 100n, targetItemName: 'Find the Well' });
   });
 
   it('a type without special handling (gather) only creates the template and instance, with default rewards', () => {
     const ctx = newCtx(npcSeed(WORLD_LOCS));
-    exec(ctx, { resultText: npcReply({ effects: [offer({ questType: 'gather', questName: undefined })] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questType: 'gather', questName: undefined })] }) });
     expect(rows(ctx, 'quest_template')[0]).toMatchObject({ name: 'Unknown Quest', questType: 'gather', requiredCount: 1n, rewardXp: 55n, rewardType: 'xp' });
     expect(rows(ctx, 'event_private').map((e: any) => e.message)).toContain('New quest: Unknown Quest');
   });
 
   it('QUIRK: two offers in one reply create only the first (the per-NPC cap of 1 counts the new quest)', () => {
     const ctx = newCtx(npcSeed(WORLD_LOCS));
-    exec(ctx, { resultText: npcReply({ effects: [offer({ questName: 'First' }), offer({ questName: 'Second' })] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questName: 'First' }), offer({ questName: 'Second' })] }) });
     expect(rows(ctx, 'quest_template').map((q: any) => q.name)).toEqual(['First']);
     expect(rows(ctx, 'quest_instance')).toHaveLength(1);
   });
@@ -1329,7 +1242,7 @@ describe('submit_llm_result npc_conversation offer_quest effects', () => {
         quest_instance: others.map((q, i) => ({ id: 300n + BigInt(i), characterId: 10n, questTemplateId: q.id, progress: 0n, completed: false, acceptedAt: ts(T_OLD) })),
       }),
     );
-    exec(ctx, { resultText: npcReply({ effects: [offer()] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer()] }) });
     expect(rows(ctx, 'quest_template')).toHaveLength(4);
     expect(rows(ctx, 'quest_instance')).toHaveLength(4);
     expect(rows(ctx, 'event_private').map((e: any) => e.message).some((m: string) => m.startsWith('New quest'))).toBe(false);
@@ -1342,7 +1255,7 @@ describe('submit_llm_result npc_conversation offer_quest effects', () => {
         quest_instance: [{ id: 301n, characterId: 10n, questTemplateId: 201n, progress: 0n, completed: false, acceptedAt: ts(T_OLD) }],
       }),
     );
-    exec(ctx, { resultText: npcReply({ effects: [offer()] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer()] }) });
     expect(rows(ctx, 'quest_template')).toHaveLength(1);
     expect(rows(ctx, 'quest_instance')).toHaveLength(1);
   });
@@ -1354,7 +1267,7 @@ describe('submit_llm_result npc_conversation offer_quest effects', () => {
         quest_instance: [{ id: 301n, characterId: 10n, questTemplateId: 201n, progress: 3n, completed: true, acceptedAt: ts(T_OLD) }],
       }),
     );
-    exec(ctx, { resultText: npcReply({ effects: [offer()] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer()] }) });
     expect(rows(ctx, 'quest_template')).toHaveLength(1);
     expect(rows(ctx, 'quest_instance')).toHaveLength(1);
   });
@@ -1366,7 +1279,7 @@ describe('submit_llm_result npc_conversation offer_quest effects', () => {
         quest_instance: [{ id: 301n, characterId: 10n, questTemplateId: 201n, progress: 3n, completed: true, acceptedAt: ts(T_OLD) }],
       }),
     );
-    exec(ctx, { resultText: npcReply({ effects: [offer({ questName: 'Fresh Work' })] }) });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questName: 'Fresh Work' })] }) });
     expect(rows(ctx, 'quest_template').map((q: any) => q.name)).toEqual(['Done', 'Fresh Work']);
   });
 });
@@ -1377,23 +1290,22 @@ describe('submit_llm_result npc_conversation offer_quest effects', () => {
 
 describe('submit_llm_result combat_narration', () => {
   const COMBAT_CTX = JSON.stringify({ combatId: '77', roundNumber: '2', narrativeType: 'round', participantCharacterIds: ['10', '11'] });
-  const seed = (ctxJson = COMBAT_CTX): Seed => ({
-    llm_task: [llmTask('combat_narration', ctxJson)],
+  const job = (ctxJson = COMBAT_CTX) => applyJob('combat_narration', ctxJson);
+  const seed = (): Seed => ({
     character: [characterRow()],
   });
 
   it('failure changes nothing but the task status (silent)', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { success: false });
-    expect(rows(ctx, 'llm_task')[0].status).toBe('error');
+    exec(ctx, job(), { success: false });
     expect(rows(ctx, 'combat_narrative')).toHaveLength(0);
     expect(rows(ctx, 'event_private')).toHaveLength(0);
-    expect(nonEmptyTables(ctx)).toEqual(['character', 'llm_task']);
+    expect(nonEmptyTables(ctx)).toEqual(['character']);
   });
 
   it('success with a JSON narrative stores the row and broadcasts a round-prefixed private event to known participants', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: JSON.stringify({ narrative: 'Steel meets bone.' }) });
+    exec(ctx, job(), { resultText: JSON.stringify({ narrative: 'Steel meets bone.' }) });
     expect(rows(ctx, 'combat_narrative')).toEqual([
       { id: 1n, combatId: 77n, roundNumber: 2n, narrativeText: 'Steel meets bone.', narrativeType: 'round', createdAt: ts(T0) },
     ]);
@@ -1404,40 +1316,40 @@ describe('submit_llm_result combat_narration', () => {
 
   it('success accepts a code-fenced JSON narrative', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: '```json\n{"narrative":"Sparks fly."}\n```' });
+    exec(ctx, job(), { resultText: '```json\n{"narrative":"Sparks fly."}\n```' });
     expect(rows(ctx, 'combat_narrative')[0].narrativeText).toBe('Sparks fly.');
   });
 
   it('success with raw prose falls back to the trimmed text as the narrative', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: '   The wolf lunges and misses badly.  \n' });
+    exec(ctx, job(), { resultText: '   The wolf lunges and misses badly.  \n' });
     expect(rows(ctx, 'combat_narrative')[0].narrativeText).toBe('The wolf lunges and misses badly.');
     expect(rows(ctx, 'event_private')[0].message).toBe('[Round 2] The wolf lunges and misses badly.');
   });
 
   it('QUIRK: JSON without a narrative field stores the JSON text itself as the narrative', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: '{"note":"no narrative here"}' });
+    exec(ctx, job(), { resultText: '{"note":"no narrative here"}' });
     expect(rows(ctx, 'combat_narrative')[0].narrativeText).toBe('{"note":"no narrative here"}');
   });
 
   it('an empty reply stores nothing', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: '   ' });
+    exec(ctx, job(), { resultText: '   ' });
     expect(rows(ctx, 'combat_narrative')).toHaveLength(0);
     expect(rows(ctx, 'event_private')).toHaveLength(0);
   });
 
   it('a victory narration is not round-prefixed', () => {
-    const ctx = newCtx(seed(JSON.stringify({ combatId: '77', roundNumber: '0', narrativeType: 'victory', participantCharacterIds: ['10'] })));
-    exec(ctx, { resultText: JSON.stringify({ narrative: 'The wolf falls.' }) });
+    const ctx = newCtx(seed());
+    exec(ctx, job(JSON.stringify({ combatId: '77', roundNumber: '0', narrativeType: 'victory', participantCharacterIds: ['10'] })), { resultText: JSON.stringify({ narrative: 'The wolf falls.' }) });
     expect(rows(ctx, 'combat_narrative')[0]).toMatchObject({ narrativeType: 'victory', roundNumber: 0n });
     expect(rows(ctx, 'event_private')[0].message).toBe('The wolf falls.');
   });
 
   it('a context without participants stores the row and broadcasts nothing; the budget is never touched', () => {
-    const ctx = newCtx(seed(JSON.stringify({ combatId: '77', roundNumber: '1' })));
-    exec(ctx, { resultText: 'A quiet round.' });
+    const ctx = newCtx(seed());
+    exec(ctx, job(JSON.stringify({ combatId: '77', roundNumber: '1' })), { resultText: 'A quiet round.' });
     expect(rows(ctx, 'combat_narrative')).toHaveLength(1);
     expect(rows(ctx, 'event_private')).toHaveLength(0);
     expect(rows(ctx, 'llm_budget')).toHaveLength(0);
@@ -1450,8 +1362,8 @@ describe('submit_llm_result combat_narration', () => {
 
 describe('submit_llm_result renown_perk_gen success', () => {
   const RENOWN_CTX = (rank: string | number = '2') => JSON.stringify({ characterId: '10', rank: String(rank) });
-  const seed = (ctxJson = RENOWN_CTX()): Seed => ({
-    llm_task: [llmTask('renown_perk_gen', ctxJson)],
+  const job = (ctxJson = RENOWN_CTX()) => applyJob('renown_perk_gen', ctxJson);
+  const seed = (): Seed => ({
     character: [characterRow()],
   });
 
@@ -1485,7 +1397,7 @@ describe('submit_llm_result renown_perk_gen success', () => {
 
   it('inserts three valid perks for the rank, presents them and increments the budget', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: JSON.stringify({ perks: [active('Second Wind'), passive('Thick Skin'), passive('Deft Hands', { perkDomain: undefined })] }) });
+    exec(ctx, job(), { resultText: JSON.stringify({ perks: [active('Second Wind'), passive('Thick Skin'), passive('Deft Hands', { perkDomain: undefined })] }) });
 
     const perks = rows(ctx, 'pending_renown_perk');
     expect(perks.map((p: any) => p.name)).toEqual(['Second Wind', 'Thick Skin', 'Deft Hands']);
@@ -1502,13 +1414,13 @@ describe('submit_llm_result renown_perk_gen success', () => {
 
   it('only the first three valid perks are inserted', () => {
     const ctx = newCtx(seed());
-    exec(ctx, { resultText: JSON.stringify({ perks: [passive('A'), passive('B'), passive('C'), passive('D')] }) });
+    exec(ctx, job(), { resultText: JSON.stringify({ perks: [passive('A'), passive('B'), passive('C'), passive('D')] }) });
     expect(rows(ctx, 'pending_renown_perk').map((p: any) => p.name)).toEqual(['A', 'B', 'C']);
   });
 
   it('uses the rank from the task context', () => {
-    const ctx = newCtx(seed(RENOWN_CTX('5')));
-    exec(ctx, { resultText: JSON.stringify({ perks: [passive('A'), passive('B'), passive('C')] }) });
+    const ctx = newCtx(seed());
+    exec(ctx, job(RENOWN_CTX('5')), { resultText: JSON.stringify({ perks: [passive('A'), passive('B'), passive('C')] }) });
     expect(rows(ctx, 'pending_renown_perk').every((p: any) => p.rank === 5n)).toBe(true);
     expect(rows(ctx, 'event_private')[0].message).toContain('Rank 5.');
   });
@@ -1516,15 +1428,15 @@ describe('submit_llm_result renown_perk_gen success', () => {
   it.each([['missing', JSON.stringify({ characterId: '10' })], ['zero', RENOWN_CTX('0')]])(
     'QUIRK: a %s rank defaults to 2',
     (_label, ctxJson) => {
-      const ctx = newCtx(seed(ctxJson));
-      exec(ctx, { resultText: JSON.stringify({ perks: [passive('A'), passive('B'), passive('C')] }) });
+      const ctx = newCtx(seed());
+      exec(ctx, job(ctxJson), { resultText: JSON.stringify({ perks: [passive('A'), passive('B'), passive('C')] }) });
       expect(rows(ctx, 'pending_renown_perk')[0].rank).toBe(2n);
     },
   );
 
   it('QUIRK: fewer than three VALID perks (one lacks a description) falls back to the static pool for the rank', () => {
-    const ctx = newCtx(seed(RENOWN_CTX('4')));
-    exec(ctx, {
+    const ctx = newCtx(seed());
+    exec(ctx, job(RENOWN_CTX('4')), {
       resultText: JSON.stringify({ perks: [passive('A'), passive('B'), { name: 'No description', kind: 'heal' }, { description: 'no name', kind: 'heal' }] }),
     });
     const perks = rows(ctx, 'pending_renown_perk');
@@ -1539,23 +1451,23 @@ describe('submit_llm_result renown_perk_gen success', () => {
     ['perks that is not an array', JSON.stringify({ perks: 'many' })],
     ['an empty perks array', JSON.stringify({ perks: [] })],
   ])('%s takes the static fallback (rank 4) and increments the budget', (_label, resultText) => {
-    const ctx = newCtx(seed(RENOWN_CTX('4')));
-    exec(ctx, { resultText });
+    const ctx = newCtx(seed());
+    exec(ctx, job(RENOWN_CTX('4')), { resultText });
     expect(rows(ctx, 'pending_renown_perk')).toHaveLength(3);
     expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
   });
 
   it('static fallback for an active-first pool (rank 6) inserts the active perk as a utility ability', () => {
-    const ctx = newCtx(seed(RENOWN_CTX('6')));
-    exec(ctx, { resultText: 'nothing' });
+    const ctx = newCtx(seed());
+    exec(ctx, job(RENOWN_CTX('6')), { resultText: 'nothing' });
     const perks = rows(ctx, 'pending_renown_perk');
     expect(perks[0]).toMatchObject({ kind: 'utility', resourceType: 'stamina', perkEffectJson: undefined });
     expect(perks[1].kind).toBe('');
   });
 
   it('Phase 41: the rank-2 static fallback inserts serialized options (bigint effects no longer throw)', () => {
-    const ctx = newCtx(seed(RENOWN_CTX('2')));
-    exec(ctx, { resultText: 'nothing' });
+    const ctx = newCtx(seed());
+    exec(ctx, job(RENOWN_CTX('2')), { resultText: 'nothing' });
     const perks = rows(ctx, 'pending_renown_perk');
     expect(perks.map((p: any) => p.name)).toEqual(['Iron Will', 'Keen Eye', 'Smooth Talker']);
     // maxHp: 25n serializes as the number 25 (the shape the perk prompt documents).
@@ -1568,8 +1480,8 @@ describe('submit_llm_result renown_perk_gen success', () => {
   });
 
   it.each([3, 5, 9, 11])('Phase 41: the rank-%s static fallback inserts three options with serialized effects', (rank) => {
-    const ctx = newCtx(seed(RENOWN_CTX(String(rank))));
-    callSubmit(ctx, { resultText: 'nothing' });
+    const ctx = newCtx(seed());
+    applyLlmResult(ctx, job(RENOWN_CTX(String(rank))), 'nothing');
     const perks = rows(ctx, 'pending_renown_perk');
     expect(perks).toHaveLength(3);
     expect(perks.every((p: any) => p.rank === BigInt(rank))).toBe(true);
@@ -1581,17 +1493,17 @@ describe('submit_llm_result renown_perk_gen success', () => {
   });
 
   it('QUIRK: a rank without a static pool inserts nothing and writes no message, but still increments the budget', () => {
-    const ctx = newCtx(seed(RENOWN_CTX('99')));
-    exec(ctx, { resultText: 'nothing' });
+    const ctx = newCtx(seed());
+    exec(ctx, job(RENOWN_CTX('99')), { resultText: 'nothing' });
     expect(rows(ctx, 'pending_renown_perk')).toHaveLength(0);
     expect(rows(ctx, 'event_private')).toHaveLength(0);
     expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
   });
 
   it('returns silently when the character is gone (no budget increment)', () => {
-    const ctx = newCtx({ llm_task: [llmTask('renown_perk_gen', RENOWN_CTX())] });
-    exec(ctx, { resultText: JSON.stringify({ perks: [passive('A'), passive('B'), passive('C')] }) });
-    expect(nonEmptyTables(ctx)).toEqual(['llm_task']);
+    const ctx = newCtx({});
+    exec(ctx, applyJob('renown_perk_gen', RENOWN_CTX()), { resultText: JSON.stringify({ perks: [passive('A'), passive('B'), passive('C')] }) });
+    expect(nonEmptyTables(ctx)).toEqual([]);
   });
 });
 
@@ -1602,11 +1514,10 @@ describe('submit_llm_result renown_perk_gen success', () => {
 describe('submit_llm_result creation replies: Phase 41 clamped', () => {
   it('Phase 41: clamped - a race reply with out-of-range bonuses is stored and shown clamped', () => {
     const ctx = newCtx({
-      llm_task: [llmTask('creation_race')],
       character_creation_state: [creationState('GENERATING_RACE')],
     });
     const reply = { ...RACE_JSON, bonuses: { primary: { stat: 'str', value: 99 }, secondary: { stat: 'nonsense', value: -5 } } };
-    exec(ctx, { resultText: JSON.stringify(reply) });
+    exec(ctx, applyJob('creation_race'), { resultText: JSON.stringify(reply) });
     const stored = JSON.parse(rows(ctx, 'character_creation_state')[0].raceBonuses);
     expect(stored.primary).toEqual({ stat: 'str', value: 3 });
     // 'nonsense' is not a stat: the secondary defaults to 'dex'; -5 is raised to the minimum 1.
@@ -1618,7 +1529,6 @@ describe('submit_llm_result creation replies: Phase 41 clamped', () => {
 
   it('Phase 41: clamped - a class reply with over-budget ability values is stored clamped', () => {
     const ctx = newCtx({
-      llm_task: [llmTask('creation_class')],
       character_creation_state: [creationState('GENERATING_CLASS')],
     });
     const reply = {
@@ -1626,7 +1536,7 @@ describe('submit_llm_result creation replies: Phase 41 clamped', () => {
       stats: { ...CLASS_JSON.stats, bonusHp: 9999 },
       abilities: [{ ...CLASS_JSON.abilities[0], value1: 99999, kind: 'nonsense', resourceCost: 9999 }],
     };
-    exec(ctx, { resultText: JSON.stringify(reply) });
+    exec(ctx, applyJob('creation_class'), { resultText: JSON.stringify(reply) });
     const state = rows(ctx, 'character_creation_state')[0];
     // kind 'nonsense' becomes 'damage'; value1 is capped at the level-1 damage budget maximum;
     // a stamina cost is capped at 15.
