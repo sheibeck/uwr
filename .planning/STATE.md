@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 40
 current_phase_name: Claude Request Layer and Job Seam
 status: executing
-stopped_at: Completed 40-08-PLAN.md
-last_updated: "2026-09-30T03:14:06.342Z"
+stopped_at: Completed 40-09-PLAN.md
+last_updated: "2026-09-30T03:24:33.945Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 40 execution started
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 21
-  completed_plans: 19
+  completed_plans: 20
   percent: 17
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-29)
 ## Current Position
 
 Phase: 40 (Claude Request Layer and Job Seam) — EXECUTING
-Plan: 9 of 10
+Plan: 10 of 10
 Status: Ready to execute
 Last activity: 2026-09-29 — Phase 40 execution started
 
-Progress: [█████████░] 90% (1/6 phases)
+Progress: [██████████] 95% (1/6 phases)
 
 ## Previous Milestones
 
@@ -69,6 +69,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [40-06] RETRYABLE_CLASSES is a frozen array (rate_limit, overloaded, server, timeout, network); spend-cap 429 recognised by error_code alone; retryAfterSeconds only for retryable classes from a numeric header
 - [Phase ?]: 40-07: perkEffectJson bigint values serialized as plain JSON numbers (safe range) so stored JSON matches the perk prompt shape; index.ts copy of the fallback still has the bigint defect (Phase 41)
 - [Phase ?]: 40-08: submit_llm_result apply logic extracted verbatim to helpers/llm_apply.ts keyed on job.playerId; renown bigint throw preserved for Phase 41
+- [Phase ?]: 40-09: seam test excludes only llm_config from the leak scan and normalizes auto-increment ids when comparing re-invoked-tx end state; local publish needed no --break-clients and no clear
 
 ### Roadmap Evolution
 
@@ -116,8 +117,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-30T03:14:06.315Z
-Stopped at: Completed 40-08-PLAN.md
+Last session: 2026-09-30T03:24:33.922Z
+Stopped at: Completed 40-09-PLAN.md
 
 ## Performance Metrics
 
@@ -150,6 +151,7 @@ Stopped at: Completed 40-08-PLAN.md
 | Phase 40 P06 | 15min | 2 tasks | 35 files |
 | Phase 40 P07 | 30min | 2 tasks | 7 files |
 | Phase 40 P08 | 30min | 2 tasks | 3 files |
+| Phase 40 P09 | 35min | 2 tasks | 4 files |
 
 ## Operator Next Steps
 
