@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 41
 current_phase_name: Executor and Domain Cutover
 status: executing
-stopped_at: Completed 41-05-PLAN.md
-last_updated: "2026-09-30T15:01:02.899Z"
+stopped_at: Completed 41-06-PLAN.md
+last_updated: "2026-09-30T15:25:36.942Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 41 execution started
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 38
-  completed_plans: 26
+  completed_plans: 27
   percent: 33
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 41 (Executor and Domain Cutover) — EXECUTING
-Plan: 6 of 17
+Plan: 7 of 17
 Status: Ready to execute
 Last activity: 2026-09-30 — Phase 41 execution started
 
-Progress: [███████░░░] 68% (2/6 phases)
+Progress: [███████░░░] 71% (2/6 phases)
 
 ## Previous Milestones
 
@@ -78,6 +78,8 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [41-04] Retry jitter is up to 20% of the base, added on the retry-after core; defer delay is 500 ms + [0,250); jitter is a deterministic hash of job id and a second seed
 - [Phase ?]: [41-04] Route inputs are snapshotted in requestJson and revived per declared bigint path only (never by an in-band tag), so model-written NPC memory is never reinterpreted
 - [Phase ?]: 41-05: cap-exempt routes are combat_narration and renown_perk_gen (never refused busy); only narration is uncounted
+- [Phase ?]: 41-06: claimLlmJob exported; runLlmJob composes guard, claim, call, persist, apply; unreadable-body replies treated as unknown billing (ledger charged reservation, player nothing)
+- [Phase ?]: 41-06: smoke jobs record failed entries in llm_admin_state and never call applyLlmFailure; smoke resultText stored redacted
 
 ### Roadmap Evolution
 
@@ -132,8 +134,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-30T15:01:02.844Z
-Stopped at: Completed 41-05-PLAN.md
+Last session: 2026-09-30T15:25:36.853Z
+Stopped at: Completed 41-06-PLAN.md
 
 ## Performance Metrics
 
@@ -173,6 +175,7 @@ Stopped at: Completed 41-05-PLAN.md
 | Phase 41 P03 | 45min | 2 tasks | 9 files |
 | Phase 41 P04 | 12min | 3 tasks | 8 files |
 | Phase 41 P05 | 20min | 2 tasks | 5 files |
+| Phase 41 P06 | 70min | 2 tasks | 5 files |
 
 ## Operator Next Steps
 
