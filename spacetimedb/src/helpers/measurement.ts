@@ -162,6 +162,24 @@ export function ratioCheck(
 // ---------------------------------------------------------------------------
 
 /**
+ * Merge overrides over the defaults. An explicit undefined keeps the default; any
+ * other non-finite value (NaN, Infinity, a non-number) throws, because a comparison
+ * against it is always false and would silently disable a completeness or hard check.
+ */
+function resolveThresholds(overrides: Partial<GateThresholds> | undefined): GateThresholds {
+  const t: GateThresholds = { ...GATE_DEFAULTS };
+  for (const key of Object.keys(GATE_DEFAULTS) as (keyof GateThresholds)[]) {
+    const v: unknown = overrides?.[key];
+    if (v === undefined) continue;
+    if (typeof v !== 'number' || !Number.isFinite(v)) {
+      throw new RangeError(`evaluateGate: threshold ${key} must be a finite number, got ${String(v)}`);
+    }
+    t[key] = v;
+  }
+  return t;
+}
+
+/**
  * Evaluate the executor gate. A verdict is only issued on a complete data set:
  * thin data returns 'incomplete' (never 'go'). Order: completeness, hard
  * failures (reliability, dispatch, region schema), then the concurrency
@@ -169,7 +187,7 @@ export function ratioCheck(
  * passing level, minimum 2; nothing passing with a level of <= 2 tested -> no_go).
  */
 export function evaluateGate(input: GateInput): GateResult {
-  const t: GateThresholds = { ...GATE_DEFAULTS, ...(input.thresholds ?? {}) };
+  const t = resolveThresholds(input.thresholds);
   const checks: GateCheck[] = [];
   const flags: string[] = [];
 

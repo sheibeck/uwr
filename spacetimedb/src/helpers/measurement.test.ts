@@ -397,6 +397,22 @@ describe('evaluateGate: gate verdict branches', () => {
     expect(r.thresholds.ratio).toBe(2);
   });
 
+  it('an explicit undefined override keeps the default, so thin data is still incomplete', () => {
+    const thin = healthy({
+      reliability: { calls: 5, failures: 0, platformFailures: 0, upstreamFailures: 0 },
+      thresholds: { minReliabilityCalls: undefined },
+    });
+    const r = evaluateGate(thin);
+    expect(r.thresholds.minReliabilityCalls).toBe(GATE_DEFAULTS.minReliabilityCalls);
+    expect(r.verdict).toBe('incomplete');
+  });
+
+  it('a non-finite threshold override throws instead of disabling a check', () => {
+    for (const bad of [NaN, Infinity, -Infinity, '30' as unknown as number]) {
+      expect(() => evaluateGate(healthy({ thresholds: { minReliabilityCalls: bad } }))).toThrow(RangeError);
+    }
+  });
+
   it('lists every check with measured and threshold values', () => {
     const r = evaluateGate(healthy({ loads: [level(8), level(4)] }));
     const names = r.checks.map((c) => c.name);
