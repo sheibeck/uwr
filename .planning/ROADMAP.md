@@ -194,7 +194,7 @@ Plans:
 **Domain cutover order**: NPC chat, combat narration, skills plus renown, creation, world gen. Reducers enqueue in-transaction (no client `prepare_*` calls), and client call sites are adjusted as each domain moves so no domain is left half-wired. Old `llm_task` rows are purged at the end (code-only publish, first of the two publishes for SEC-05; table removal happens in Phase 42).
 **Interim cost guard**: until COST-03 lands in Phase 43, live spend is bounded by the per-player daily budget plus a spend limit on the dedicated Anthropic Console workspace named in the runbook.
 **Testing**: Unit tests for enqueue-in-transaction per domain, claim/persist/apply transitions and re-run from stored text, each error class and its retry or fail-fast path, sweeper refund and lock release, in-flight cap, late combat narration drop, reserve/settle math from all four usage fields, key redaction and admin-only gating, all through the Phase 40 mock procedure context.
-**Plans**: 7/17 plans executed
+**Plans**: 8/17 plans executed
 
 Plans:
 **Wave 1**
@@ -215,7 +215,7 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [x] 41-07-PLAN.md — Scheduled procedure llm_run and scheduled sweeper llm_sweep (expire, re-apply, orphan dispatch, refunds, lock release)
-- [ ] 41-08-PLAN.md — Admin tooling: set_api_key status, llm_smoke_test, grant_test_pending_level, admin_llm_status view
+- [x] 41-08-PLAN.md — Admin tooling: set_api_key status, llm_smoke_test, grant_test_pending_level, admin_llm_status view
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -311,7 +311,7 @@ Phases execute in numeric order: 39 → 40 → 41 → 42 → 43 → 44
 | 31, 32, 38 | v2.1 | 14/14 | Complete | 2026-09-29 |
 | 39. Procedure-to-Claude Spike | v2.2 | 11/11 | Complete    | 2026-09-29 |
 | 40. Claude Request Layer and Job Seam | v2.2 | 10/10 | Complete    | 2026-09-30 |
-| 41. Executor and Domain Cutover | v2.2 | 7/17 | In Progress|  |
+| 41. Executor and Domain Cutover | v2.2 | 8/17 | In Progress|  |
 | 42. Client Cutover and Legacy Removal | v2.2 | 0/TBD | Not started | - |
 | 43. Latency Tuning, Staged Generation and Budget | v2.2 | 0/TBD | Not started | - |
 | 44. Live Verification and Tone Eval | v2.2 | 0/TBD | Not started | - |
