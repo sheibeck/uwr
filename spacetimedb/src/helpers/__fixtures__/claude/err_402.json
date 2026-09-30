@@ -1,0 +1,14 @@
+{
+  "status": 402,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "type": "error",
+    "error": {
+      "type": "billing_error",
+      "message": "Your credit balance is too low to access the Anthropic API."
+    },
+    "request_id": "req_011CTest402"
+  }
+}

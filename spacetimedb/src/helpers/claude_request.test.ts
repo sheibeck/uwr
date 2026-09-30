@@ -1,4 +1,11 @@
 import { describe, it, expect } from 'vitest';
+// This tsconfig has no @types/node; vitest runs the file in Node, so the built-ins resolve at runtime.
+// @ts-ignore
+import { readFileSync, readdirSync } from 'node:fs';
+// @ts-ignore
+import { join } from 'node:path';
+// @ts-ignore
+import { fileURLToPath } from 'node:url';
 import { CLAUDE_MODEL, ANTHROPIC_VERSION } from '../data/llm_models';
 import { LLM_ROUTES, LLM_ROUTE_NAMES, type LlmRoute } from '../data/llm_routes';
 import { KEEPER_BIBLE } from '../data/keeper_bible';
@@ -8,10 +15,20 @@ import {
   buildClaudeRequest,
   buildClaudeHeaders,
   assertValidClaudeBody,
+  classifyClaudeResponse,
+  classifyClaudeError,
+  findFirstTextBlock,
+  extractUsage,
   ALLOWED_TOP_LEVEL_KEYS,
   FORBIDDEN_BODY_KEYS,
   MAX_CACHE_BREAKPOINTS,
+  RETRYABLE_CLASSES,
+  CLAUDE_MESSAGE_MAX_CHARS,
+  type ClaudeFailureClass,
+  type ClaudeResult,
 } from './claude_request';
+import { makeSyncResponse, type MockReply } from './test-utils';
+import { findSecretLeaks } from './measurement';
 
 // ---------------------------------------------------------------------------
 // Fixtures shared with Plan 40-03's layer tests (benign and hostile inputs)
@@ -383,5 +400,473 @@ describe('buildClaudeHeaders', () => {
     const { bodyText } = buildFor(route, hostile);
     expect(bodyText).not.toContain(key);
     expect(bodyText).not.toContain('x-api-key');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Response fixtures
+// ---------------------------------------------------------------------------
+
+const FIXTURE_DIR = fileURLToPath(new URL('./__fixtures__/claude/', import.meta.url));
+
+function loadFixture(name: string): MockReply {
+  return JSON.parse(readFileSync(join(FIXTURE_DIR, `${name}.json`), 'utf8')) as MockReply;
+}
+
+const respond = (reply: MockReply) => makeSyncResponse(reply);
+const classifyFixture = (route: LlmRoute, name: string): ClaudeResult => classifyClaudeResponse(route, respond(loadFixture(name)));
+
+function expectFailure(r: ClaudeResult): Extract<ClaudeResult, { ok: false }> {
+  if (r.ok) throw new Error('expected a failure result');
+  return r;
+}
+
+function expectOk(r: ClaudeResult): Extract<ClaudeResult, { ok: true }> {
+  if (!r.ok) throw new Error(`expected ok, got ${r.class}: ${r.message}`);
+  return r;
+}
+
+/** [fixture, route, expected class or 'ok'] */
+const CASES: [string, LlmRoute, ClaudeFailureClass | 'ok'][] = [
+  ['ok_json', 'skill_gen', 'ok'],
+  ['ok_text', 'combat_narration', 'ok'],
+  ['ok_thinking_first', 'skill_gen', 'ok'],
+  ['text_not_first', 'npc_conversation', 'ok'],
+  ['missing_cache_usage', 'combat_narration', 'ok'],
+  ['fenced_json', 'skill_gen', 'invalid_json'],
+  ['missing_required_key', 'skill_gen', 'schema_mismatch'],
+  ['json_array', 'skill_gen', 'schema_mismatch'],
+  ['max_tokens', 'skill_gen', 'truncated'],
+  ['refusal', 'skill_gen', 'refusal'],
+  ['pause_turn', 'combat_narration', 'unexpected_stop'],
+  ['tool_use', 'combat_narration', 'unexpected_stop'],
+  ['stop_sequence', 'combat_narration', 'unexpected_stop'],
+  ['empty_content', 'skill_gen', 'empty_output'],
+  ['thinking_only', 'skill_gen', 'empty_output'],
+  ['whitespace_text', 'combat_narration', 'empty_output'],
+  ['non_json_200', 'skill_gen', 'server'],
+  ['err_400', 'skill_gen', 'bad_request'],
+  ['err_400_spend_limit', 'skill_gen', 'billing'],
+  ['err_401', 'skill_gen', 'auth'],
+  ['err_402', 'skill_gen', 'billing'],
+  ['err_403', 'skill_gen', 'auth'],
+  ['err_404', 'skill_gen', 'bad_request'],
+  ['err_413', 'skill_gen', 'bad_request'],
+  ['err_429_retry_after', 'skill_gen', 'rate_limit'],
+  ['err_429_no_retry_after', 'skill_gen', 'rate_limit'],
+  ['err_429_spend_cap', 'skill_gen', 'billing'],
+  ['err_500', 'skill_gen', 'server'],
+  ['err_502_html', 'skill_gen', 'server'],
+  ['err_504', 'skill_gen', 'server'],
+  ['err_529', 'skill_gen', 'overloaded'],
+];
+
+const RETRYABLE = ['rate_limit', 'overloaded', 'server', 'timeout', 'network'];
+
+describe('claude response fixtures', () => {
+  it('has a fixture file for every case and no case without a file', () => {
+    const files = (readdirSync(FIXTURE_DIR) as string[]).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''));
+    expect(files.length).toBeGreaterThanOrEqual(31);
+    expect([...files].sort()).toEqual(CASES.map(([n]) => n).sort());
+  });
+
+  it('every fixture has status, headers and body, and no key-shaped string', () => {
+    for (const [name] of CASES) {
+      const raw = readFileSync(join(FIXTURE_DIR, `${name}.json`), 'utf8');
+      const fx = JSON.parse(raw);
+      expect(typeof fx.status, name).toBe('number');
+      expect(typeof fx.headers, name).toBe('object');
+      expect('body' in fx, name).toBe(true);
+      expect(findSecretLeaks(raw, { strictPrefix: true }).total, name).toBe(0);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// classifyClaudeResponse
+// ---------------------------------------------------------------------------
+
+describe('classifyClaudeResponse', () => {
+  it.each(CASES)('%s on %s classifies as %s', (name, route, expected) => {
+    const r = classifyFixture(route, name);
+    if (expected === 'ok') {
+      expect(r.ok).toBe(true);
+    } else {
+      const f = expectFailure(r);
+      expect(f.class).toBe(expected);
+      expect(f.retryable).toBe(RETRYABLE.includes(expected));
+      expect(typeof f.message).toBe('string');
+      expect(Array.from(f.message).length).toBeLessThanOrEqual(CLAUDE_MESSAGE_MAX_CHARS);
+    }
+  });
+
+  describe('successful responses', () => {
+    it('ok JSON route returns text, parsed json, stop reason, all four usage fields and the header request id', () => {
+      const r = expectOk(classifyFixture('skill_gen', 'ok_json'));
+      expect(r.stopReason).toBe('end_turn');
+      expect(r.usage).toEqual({ input: 116, output: 562, cacheWrite: 0, cacheRead: 3727 });
+      expect(r.requestId).toBe('req_011CTestOkFixture');
+      expect(typeof r.text).toBe('string');
+      expect(r.json).toEqual(JSON.parse(r.text));
+      expect((r.json as any).skills).toHaveLength(3);
+    });
+
+    it('ok text route returns text and no json', () => {
+      const r = expectOk(classifyFixture('combat_narration', 'ok_text'));
+      expect(r.text).toContain('The rat considers you');
+      expect('json' in r).toBe(false);
+    });
+
+    it('text routes never JSON-parse: fenced JSON on a text route is ok text', () => {
+      const r = expectOk(classifyFixture('npc_conversation', 'fenced_json'));
+      expect(r.text.startsWith('```json')).toBe(true);
+      expect('json' in r).toBe(false);
+    });
+
+    it('a json route given prose classifies as invalid_json', () => {
+      expect(expectFailure(classifyFixture('skill_gen', 'ok_text')).class).toBe('invalid_json');
+    });
+
+    it('a thinking-first response is ok and yields the text block', () => {
+      const r = expectOk(classifyFixture('skill_gen', 'ok_thinking_first'));
+      expect((r.json as any).skills[0].name).toBe('Cleaving Blow');
+    });
+
+    it('finds a text block that is not first (reads the first text block, not the first block)', () => {
+      const r = expectOk(classifyFixture('npc_conversation', 'text_not_first'));
+      expect(r.text).toBe('Third block, first text.');
+    });
+
+    it('missing cache usage fields become 0', () => {
+      const r = expectOk(classifyFixture('combat_narration', 'missing_cache_usage'));
+      expect(r.usage).toEqual({ input: 10, output: 20, cacheWrite: 0, cacheRead: 0 });
+    });
+
+    it('a missing usage object gives four zeros', () => {
+      const reply = loadFixture('ok_text');
+      delete (reply.body as any).usage;
+      expect(expectOk(classifyClaudeResponse('combat_narration', respond(reply))).usage).toEqual({
+        input: 0,
+        output: 0,
+        cacheWrite: 0,
+        cacheRead: 0,
+      });
+    });
+  });
+
+  describe('failures on a 200', () => {
+    it('refusal keeps usage and the stop category (the call was billed)', () => {
+      const f = expectFailure(classifyFixture('skill_gen', 'refusal'));
+      expect(f.class).toBe('refusal');
+      expect(f.retryable).toBe(false);
+      expect(f.stopReason).toBe('refusal');
+      expect(f.stopCategory).toBe('general_harms');
+      expect(f.usage).toEqual({ input: 116, output: 562, cacheWrite: 0, cacheRead: 3727 });
+      expect(f.requestId).toBe('req_011CTestOkFixture');
+    });
+
+    it('max_tokens is truncated, not retryable, and keeps usage', () => {
+      const f = expectFailure(classifyFixture('skill_gen', 'max_tokens'));
+      expect(f.class).toBe('truncated');
+      expect(f.retryable).toBe(false);
+      expect(f.stopReason).toBe('max_tokens');
+      expect(f.usage?.output).toBe(562);
+    });
+
+    it.each(['pause_turn', 'tool_use', 'stop_sequence'])('%s is unexpected_stop with the stop reason and usage', (name) => {
+      const f = expectFailure(classifyFixture('combat_narration', name));
+      expect(f.class).toBe('unexpected_stop');
+      expect(f.stopReason).toBe(name);
+      expect(f.usage?.input).toBe(116);
+    });
+
+    it('empty content, a thinking-only response and whitespace text are empty_output', () => {
+      for (const name of ['empty_content', 'thinking_only', 'whitespace_text']) {
+        expect(expectFailure(classifyFixture('combat_narration', name)).class, name).toBe('empty_output');
+      }
+    });
+
+    it('stop_reason is checked before the text block: max_tokens with no text is truncated, not empty_output', () => {
+      const reply = loadFixture('max_tokens');
+      (reply.body as any).content = [];
+      expect(expectFailure(classifyClaudeResponse('skill_gen', respond(reply))).class).toBe('truncated');
+    });
+
+    it('a JSON object missing a required key names the key', () => {
+      const f = expectFailure(classifyFixture('skill_gen', 'missing_required_key'));
+      expect(f.message).toContain('skills');
+    });
+
+    it('a non-JSON 200 body is server', () => {
+      const f = expectFailure(classifyFixture('skill_gen', 'non_json_200'));
+      expect(f.class).toBe('server');
+      expect(f.retryable).toBe(true);
+      expect(f.httpStatus).toBe(200);
+    });
+  });
+
+  describe('HTTP failures', () => {
+    it('401 and 403 are auth and not retryable', () => {
+      for (const name of ['err_401', 'err_403']) {
+        const f = expectFailure(classifyFixture('skill_gen', name));
+        expect(f.class).toBe('auth');
+        expect(f.retryable).toBe(false);
+      }
+    });
+
+    it('402, the spend-limit 400 and the spend-cap 429 are billing and not retryable', () => {
+      for (const name of ['err_402', 'err_400_spend_limit', 'err_429_spend_cap']) {
+        const f = expectFailure(classifyFixture('skill_gen', name));
+        expect(f.class, name).toBe('billing');
+        expect(f.retryable, name).toBe(false);
+        expect(f.retryAfterSeconds, name).toBeUndefined();
+      }
+    });
+
+    it('a plain 400 is bad_request with its error type and status', () => {
+      const f = expectFailure(classifyFixture('skill_gen', 'err_400'));
+      expect(f.class).toBe('bad_request');
+      expect(f.httpStatus).toBe(400);
+      expect(f.errorType).toBe('invalid_request_error');
+      expect(f.retryable).toBe(false);
+    });
+
+    it('404 and 413 are bad_request', () => {
+      expect(expectFailure(classifyFixture('skill_gen', 'err_404')).class).toBe('bad_request');
+      expect(expectFailure(classifyFixture('skill_gen', 'err_413')).class).toBe('bad_request');
+    });
+
+    it('429 with retry-after is rate_limit, retryable, with the header value in seconds', () => {
+      const f = expectFailure(classifyFixture('skill_gen', 'err_429_retry_after'));
+      expect(f.class).toBe('rate_limit');
+      expect(f.retryable).toBe(true);
+      expect(f.retryAfterSeconds).toBe(17);
+    });
+
+    it('429 without retry-after is rate_limit with retryAfterSeconds undefined', () => {
+      const f = expectFailure(classifyFixture('skill_gen', 'err_429_no_retry_after'));
+      expect(f.class).toBe('rate_limit');
+      expect(f.retryable).toBe(true);
+      expect(f.retryAfterSeconds).toBeUndefined();
+    });
+
+    it('an HTTP-date retry-after is treated as absent', () => {
+      const reply = loadFixture('err_429_retry_after');
+      reply.headers = { ...reply.headers, 'retry-after': 'Wed, 21 Oct 2026 07:28:00 GMT' };
+      expect(expectFailure(classifyClaudeResponse('skill_gen', respond(reply))).retryAfterSeconds).toBeUndefined();
+    });
+
+    it('529 is overloaded; 500, 504 and an HTML 502 are server; all retryable', () => {
+      expect(expectFailure(classifyFixture('skill_gen', 'err_529')).class).toBe('overloaded');
+      for (const name of ['err_500', 'err_504', 'err_502_html']) {
+        const f = expectFailure(classifyFixture('skill_gen', name));
+        expect(f.class, name).toBe('server');
+        expect(f.retryable, name).toBe(true);
+      }
+    });
+
+    it('an unlisted 5xx is server and an unlisted 4xx is bad_request', () => {
+      expect(expectFailure(classifyClaudeResponse('skill_gen', respond({ status: 503, body: '' }))).class).toBe('server');
+      expect(expectFailure(classifyClaudeResponse('skill_gen', respond({ status: 409, body: {} }))).class).toBe('bad_request');
+    });
+
+    it('the HTML 502 body is not echoed into the message', () => {
+      const f = expectFailure(classifyFixture('skill_gen', 'err_502_html'));
+      expect(f.message).not.toContain('<html>');
+      expect(f.httpStatus).toBe(502);
+    });
+  });
+
+  describe('request id', () => {
+    it('comes from the request-id header when present', () => {
+      const reply = loadFixture('err_400');
+      reply.headers = { ...reply.headers, 'request-id': 'req_from_header' };
+      expect(expectFailure(classifyClaudeResponse('skill_gen', respond(reply))).requestId).toBe('req_from_header');
+    });
+
+    it('falls back to the error body request_id', () => {
+      const f = expectFailure(classifyFixture('skill_gen', 'err_401'));
+      expect(f.requestId).toBe('req_011CTest401');
+    });
+
+    it('is undefined when neither is present', () => {
+      expect(expectFailure(classifyFixture('skill_gen', 'err_502_html')).requestId).toBeUndefined();
+    });
+  });
+
+  describe('messages are redacted and capped', () => {
+    it('redacts a key-shaped string in an HTTP error message', () => {
+      const key = fakeKey();
+      const f = expectFailure(
+        classifyClaudeResponse(
+          'skill_gen',
+          respond({ status: 401, body: { type: 'error', error: { type: 'authentication_error', message: `bad key ${key} supplied` } } }),
+        ),
+      );
+      expect(f.message).toContain('[REDACTED]');
+      expect(f.message).not.toContain(key);
+      expect(findSecretLeaks(f.message, { strictPrefix: true }).total).toBe(0);
+    });
+
+    it('redacts a key-shaped string in a refusal explanation', () => {
+      const reply = loadFixture('refusal');
+      (reply.body as any).stop_details.explanation = `echoed ${fakeKey()}`;
+      const f = expectFailure(classifyClaudeResponse('skill_gen', respond(reply)));
+      expect(f.message).toContain('[REDACTED]');
+      expect(findSecretLeaks(f.message, { strictPrefix: true }).total).toBe(0);
+    });
+
+    it('caps a 1000-character message at 400 code points', () => {
+      const f = expectFailure(
+        classifyClaudeResponse(
+          'skill_gen',
+          respond({ status: 400, body: { type: 'error', error: { type: 'invalid_request_error', message: 'x'.repeat(1000) } } }),
+        ),
+      );
+      expect(Array.from(f.message)).toHaveLength(CLAUDE_MESSAGE_MAX_CHARS);
+    });
+
+    it.each([0, 1, 2, 3])('never splits a surrogate pair at the cap (padding %i)', (pad) => {
+      const message = 'a'.repeat(pad) + '\u{1F600}'.repeat(500);
+      const f = expectFailure(
+        classifyClaudeResponse(
+          'skill_gen',
+          respond({ status: 400, body: { type: 'error', error: { type: 'invalid_request_error', message } } }),
+        ),
+      );
+      expect(Array.from(f.message)).toHaveLength(CLAUDE_MESSAGE_MAX_CHARS);
+      expect(f.message).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/);
+    });
+
+    it('does not leave half a key when the key straddles the cap', () => {
+      const key = fakeKey();
+      const message = 'y'.repeat(360) + key + 'tail';
+      const f = expectFailure(
+        classifyClaudeResponse(
+          'skill_gen',
+          respond({ status: 400, body: { type: 'error', error: { type: 'invalid_request_error', message } } }),
+        ),
+      );
+      expect(findSecretLeaks(f.message, { strictPrefix: true }).total).toBe(0);
+      expect(f.message).not.toContain(key.slice(0, 12));
+    });
+  });
+
+  describe('robustness (never throws, never ok on a malformed body)', () => {
+    const odd: unknown[] = ['null', '[]', '"a string"', '42', '{}', '{"content":"nope"}', '{"content":[null,1,{"type":"text"}]}', ''];
+
+    it.each(odd)('200 with body %j', (raw) => {
+      const r = classifyClaudeResponse('skill_gen', respond({ status: 200, body: raw as string }));
+      expect(r.ok).toBe(false);
+    });
+
+    it.each(odd)('500 with body %j', (raw) => {
+      const f = expectFailure(classifyClaudeResponse('skill_gen', respond({ status: 500, body: raw as string })));
+      expect(f.class).toBe('server');
+    });
+
+    it('a non-string error message does not throw', () => {
+      const f = expectFailure(
+        classifyClaudeResponse('skill_gen', respond({ status: 400, body: { error: { type: 'invalid_request_error', message: 42 } } })),
+      );
+      expect(f.class).toBe('bad_request');
+    });
+
+    it('a text block without a text field is empty_output', () => {
+      const f = expectFailure(
+        classifyClaudeResponse('combat_narration', respond({ status: 200, body: { stop_reason: 'end_turn', content: [{ type: 'text' }] } })),
+      );
+      expect(f.class).toBe('empty_output');
+    });
+  });
+
+  describe('helpers', () => {
+    it('findFirstTextBlock skips non-text blocks and returns undefined when there is none', () => {
+      expect(findFirstTextBlock([{ type: 'thinking' }, { type: 'text', text: 'hi' }])).toEqual({ type: 'text', text: 'hi' });
+      expect(findFirstTextBlock([{ type: 'thinking' }])).toBeUndefined();
+      expect(findFirstTextBlock('nope')).toBeUndefined();
+      expect(findFirstTextBlock(undefined)).toBeUndefined();
+    });
+
+    it('extractUsage defaults every counter to 0 and rejects junk values', () => {
+      expect(extractUsage({})).toEqual({ input: 0, output: 0, cacheWrite: 0, cacheRead: 0 });
+      expect(extractUsage({ usage: { input_tokens: -5, output_tokens: 'many', cache_read_input_tokens: NaN } })).toEqual({
+        input: 0,
+        output: 0,
+        cacheWrite: 0,
+        cacheRead: 0,
+      });
+      expect(extractUsage(null)).toEqual({ input: 0, output: 0, cacheWrite: 0, cacheRead: 0 });
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// classifyClaudeError
+// ---------------------------------------------------------------------------
+
+describe('classifyClaudeError', () => {
+  it.each(['operation timed out', 'Timeout while waiting', 'request TIMED OUT after 30s', 'timeout'])(
+    'a thrown %j is timeout and retryable',
+    (message) => {
+      const f = expectFailure(classifyClaudeError(new Error(message)));
+      expect(f.class).toBe('timeout');
+      expect(f.retryable).toBe(true);
+      expect(f.httpStatus).toBeUndefined();
+    },
+  );
+
+  it.each([new Error('getaddrinfo ENOTFOUND api.anthropic.com'), 'connection reset', 42, null, undefined, { code: 'ECONNRESET' }])(
+    'a thrown %j is network and retryable',
+    (thrown) => {
+      const f = expectFailure(classifyClaudeError(thrown));
+      expect(f.class).toBe('network');
+      expect(f.retryable).toBe(true);
+    },
+  );
+
+  it('does not throw for an unprintable thrown value', () => {
+    const unprintable = Object.create(null);
+    expect(expectFailure(classifyClaudeError(unprintable)).class).toBe('network');
+  });
+
+  it('redacts and caps the message', () => {
+    const f = expectFailure(classifyClaudeError(new Error(`bad ${fakeKey()} ${'z'.repeat(1000)}`)));
+    expect(f.message).toContain('[REDACTED]');
+    expect(findSecretLeaks(f.message, { strictPrefix: true }).total).toBe(0);
+    expect(Array.from(f.message).length).toBeLessThanOrEqual(CLAUDE_MESSAGE_MAX_CHARS);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Retry table and purity
+// ---------------------------------------------------------------------------
+
+describe('RETRYABLE_CLASSES', () => {
+  it('is exactly rate_limit, overloaded, server, timeout, network', () => {
+    expect([...RETRYABLE_CLASSES].sort()).toEqual(['network', 'overloaded', 'rate_limit', 'server', 'timeout']);
+  });
+
+  it('is frozen', () => {
+    expect(Object.isFrozen(RETRYABLE_CLASSES)).toBe(true);
+  });
+});
+
+describe('claude_request.ts source', () => {
+  const source: string = readFileSync(fileURLToPath(new URL('./claude_request.ts', import.meta.url)), 'utf8');
+
+  it('imports only the four allowed pure modules', () => {
+    const specs = [...source.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]).sort();
+    expect(specs).toEqual(['../data/keeper_bible', '../data/llm_models', '../data/llm_routes', './measurement']);
+  });
+
+  it('never indexes the first content block by position and holds no model literal or thinking config', () => {
+    expect(source).not.toContain('content[0]');
+    expect(source).not.toMatch(/claude-(sonnet|opus|haiku)/);
+    expect(source).not.toContain('spacetimedb/server');
+  });
+
+  it('the api key header appears exactly once', () => {
+    expect(source.match(/x-api-key/g)).toHaveLength(1);
   });
 });

@@ -1,0 +1,16 @@
+{
+  "status": 429,
+  "headers": {
+    "content-type": "application/json",
+    "retry-after": "17",
+    "request-id": "req_011CTest429Retry"
+  },
+  "body": {
+    "type": "error",
+    "error": {
+      "type": "rate_limit_error",
+      "message": "This request would exceed your rate limit."
+    },
+    "request_id": "req_011CTest429Retry"
+  }
+}

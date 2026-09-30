@@ -1,0 +1,14 @@
+{
+  "status": 504,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "type": "error",
+    "error": {
+      "type": "timeout_error",
+      "message": "Request timed out."
+    },
+    "request_id": "req_011CTest504"
+  }
+}

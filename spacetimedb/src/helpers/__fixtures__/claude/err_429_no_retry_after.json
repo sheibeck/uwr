@@ -1,0 +1,14 @@
+{
+  "status": 429,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "type": "error",
+    "error": {
+      "type": "rate_limit_error",
+      "message": "Number of request tokens has exceeded your per-minute rate limit."
+    },
+    "request_id": "req_011CTest429None"
+  }
+}

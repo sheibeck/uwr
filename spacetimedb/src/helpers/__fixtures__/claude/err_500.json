@@ -1,0 +1,14 @@
+{
+  "status": 500,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "type": "error",
+    "error": {
+      "type": "api_error",
+      "message": "An unexpected error has occurred internal to Anthropic systems."
+    },
+    "request_id": "req_011CTest500"
+  }
+}

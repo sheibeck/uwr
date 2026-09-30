@@ -1,0 +1,14 @@
+{
+  "status": 413,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "type": "error",
+    "error": {
+      "type": "request_too_large",
+      "message": "Request exceeds the maximum allowed number of bytes."
+    },
+    "request_id": "req_011CTest413"
+  }
+}

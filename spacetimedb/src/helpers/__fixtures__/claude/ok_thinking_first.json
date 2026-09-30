@@ -1,0 +1,36 @@
+{
+  "status": 200,
+  "headers": {
+    "content-type": "application/json",
+    "request-id": "req_011CTestOkFixture"
+  },
+  "body": {
+    "id": "msg_01Fixture",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-5-5",
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "",
+        "signature": "sig-fixture"
+      },
+      {
+        "type": "text",
+        "text": "{\"skills\":[{\"name\":\"Cleaving Blow\",\"description\":\"A plain description of Cleaving Blow.\",\"kind\":\"damage\",\"targetRule\":\"single_enemy\",\"resourceType\":\"stamina\",\"resourceCost\":8,\"castSeconds\":0,\"cooldownSeconds\":6,\"scaling\":\"str\",\"value1\":14,\"value2\":null,\"damageType\":\"physical\",\"effectType\":null,\"effectMagnitude\":null,\"effectDuration\":null},{\"name\":\"Rending Cut\",\"description\":\"A plain description of Rending Cut.\",\"kind\":\"dot\",\"targetRule\":\"single_enemy\",\"resourceType\":\"stamina\",\"resourceCost\":8,\"castSeconds\":0,\"cooldownSeconds\":6,\"scaling\":\"str\",\"value1\":14,\"value2\":null,\"damageType\":\"physical\",\"effectType\":null,\"effectMagnitude\":null,\"effectDuration\":null},{\"name\":\"Iron Guard\",\"description\":\"A plain description of Iron Guard.\",\"kind\":\"shield\",\"targetRule\":\"single_enemy\",\"resourceType\":\"stamina\",\"resourceCost\":8,\"castSeconds\":0,\"cooldownSeconds\":6,\"scaling\":\"str\",\"value1\":14,\"value2\":null,\"damageType\":\"physical\",\"effectType\":null,\"effectMagnitude\":null,\"effectDuration\":null}]}"
+      }
+    ],
+    "stop_reason": "end_turn",
+    "stop_details": null,
+    "usage": {
+      "input_tokens": 116,
+      "output_tokens": 562,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 3727,
+      "cache_creation": {
+        "ephemeral_5m_input_tokens": 0,
+        "ephemeral_1h_input_tokens": 0
+      }
+    }
+  }
+}

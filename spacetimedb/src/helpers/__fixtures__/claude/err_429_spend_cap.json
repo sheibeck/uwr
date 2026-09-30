@@ -1,0 +1,17 @@
+{
+  "status": 429,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "type": "error",
+    "error": {
+      "type": "rate_limit_error",
+      "message": "You have exceeded your spend limit.",
+      "details": {
+        "error_code": "enforced_spend_limit_reached"
+      }
+    },
+    "request_id": "req_011CTest429Cap"
+  }
+}

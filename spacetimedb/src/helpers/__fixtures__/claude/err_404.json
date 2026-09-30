@@ -1,0 +1,14 @@
+{
+  "status": 404,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "type": "error",
+    "error": {
+      "type": "not_found_error",
+      "message": "The requested resource was not found."
+    },
+    "request_id": "req_011CTest404"
+  }
+}

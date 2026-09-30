@@ -18,7 +18,7 @@
 import { CLAUDE_MODEL, ANTHROPIC_VERSION } from '../data/llm_models';
 import { LLM_ROUTES, LLM_EFFORTS, type LlmRoute } from '../data/llm_routes';
 import { KEEPER_BIBLE } from '../data/keeper_bible';
-// (measurement import is added with the response classifier)
+import { redactSecrets, type Usage } from './measurement';
 
 // ----------------------------------------------------------------------------
 // Request body
@@ -207,3 +207,264 @@ export function buildClaudeHeaders(apiKey: string): Record<string, string> {
   };
 }
 
+// ----------------------------------------------------------------------------
+// Response classification
+// ----------------------------------------------------------------------------
+
+export type ClaudeFailureClass =
+  | 'auth'
+  | 'billing'
+  | 'rate_limit'
+  | 'overloaded'
+  | 'server'
+  | 'bad_request'
+  | 'timeout'
+  | 'network'
+  | 'truncated'
+  | 'refusal'
+  | 'invalid_json'
+  | 'schema_mismatch'
+  | 'empty_output'
+  | 'unexpected_stop';
+
+export type ClaudeResult =
+  | {
+      ok: true;
+      text: string;
+      json?: unknown;
+      stopReason: string;
+      usage: Usage;
+      requestId?: string;
+    }
+  | {
+      ok: false;
+      class: ClaudeFailureClass;
+      retryable: boolean;
+      retryAfterSeconds?: number;
+      httpStatus?: number;
+      errorType?: string;
+      stopReason?: string;
+      stopCategory?: string;
+      usage?: Usage;
+      requestId?: string;
+      /** Redacted and capped at CLAUDE_MESSAGE_MAX_CHARS code points. */
+      message: string;
+    };
+
+/** Transient classes a caller may retry. Everything else needs a code, key or budget change. */
+export const RETRYABLE_CLASSES: readonly ClaudeFailureClass[] = Object.freeze([
+  'rate_limit',
+  'overloaded',
+  'server',
+  'timeout',
+  'network',
+] as ClaudeFailureClass[]);
+
+export const CLAUDE_MESSAGE_MAX_CHARS = 400;
+
+const isRetryable = (c: ClaudeFailureClass): boolean => RETRYABLE_CLASSES.includes(c);
+
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+
+/** Redact secrets first (so a cut can never leave half a key), then cap by code point. */
+function safeMessage(raw: string): string {
+  const redacted = redactSecrets(String(raw)).replace(LONE_SURROGATE, '�');
+  return Array.from(redacted).slice(0, CLAUDE_MESSAGE_MAX_CHARS).join('');
+}
+
+/** First content block whose type is 'text'. Never the first block by position: a thinking block may come first. */
+export function findFirstTextBlock(content: unknown): { type: 'text'; text: string } | undefined {
+  if (!Array.isArray(content)) return undefined;
+  for (const block of content) {
+    if (isPlainObject(block) && block.type === 'text') {
+      return { type: 'text', text: typeof block.text === 'string' ? block.text : '' };
+    }
+  }
+  return undefined;
+}
+
+const count = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 0);
+
+/** The four usage counters; a missing field (cache fields are often absent) is 0. */
+export function extractUsage(body: unknown): Usage {
+  const u = isPlainObject(body) && isPlainObject(body.usage) ? body.usage : {};
+  return {
+    input: count(u.input_tokens),
+    output: count(u.output_tokens),
+    cacheWrite: count(u.cache_creation_input_tokens),
+    cacheRead: count(u.cache_read_input_tokens),
+  };
+}
+
+type ResponseLike = { status: number; headers: { get(name: string): string | null }; text(): string };
+
+function parseRetryAfter(headers: ResponseLike['headers']): number | undefined {
+  let raw: string | null = null;
+  try {
+    raw = headers.get('retry-after');
+  } catch {
+    return undefined;
+  }
+  if (raw === null || raw === undefined) return undefined;
+  const trimmed = String(raw).trim();
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) return undefined; // HTTP-date form or junk: treat as absent
+  return Number(trimmed);
+}
+
+function requestIdOf(headers: ResponseLike['headers'], body: unknown): string | undefined {
+  let fromHeader: string | null = null;
+  try {
+    fromHeader = headers.get('request-id');
+  } catch {
+    fromHeader = null;
+  }
+  if (fromHeader) return fromHeader;
+  if (isPlainObject(body) && typeof body.request_id === 'string' && body.request_id) return body.request_id;
+  return undefined;
+}
+
+function tryParse(text: string): { ok: true; value: unknown } | { ok: false } {
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch {
+    return { ok: false };
+  }
+}
+
+function fail(
+  cls: ClaudeFailureClass,
+  message: string,
+  extra: Partial<Omit<Extract<ClaudeResult, { ok: false }>, 'ok' | 'class' | 'retryable' | 'message'>> = {},
+): ClaudeResult {
+  const result: Extract<ClaudeResult, { ok: false }> = {
+    ok: false,
+    class: cls,
+    retryable: isRetryable(cls),
+    message: safeMessage(message),
+  };
+  for (const [k, v] of Object.entries(extra)) {
+    if (v !== undefined) (result as Record<string, unknown>)[k] = v;
+  }
+  return result;
+}
+
+const SPEND_LIMIT_400 = /you have reached your specified .*api usage limits/i;
+
+function classifyHttpFailure(res: ResponseLike, text: string): ClaudeResult {
+  const status = res.status;
+  const parsed = tryParse(text);
+  const body = parsed.ok ? parsed.value : undefined;
+  const err = isPlainObject(body) && isPlainObject(body.error) ? body.error : undefined;
+  const errorType = err && typeof err.type === 'string' ? err.type : undefined;
+  const errorMessage = err && err.message !== undefined ? String(err.message) : '';
+  const errorCode =
+    err && isPlainObject(err.details) && typeof err.details.error_code === 'string' ? err.details.error_code : undefined;
+
+  let cls: ClaudeFailureClass;
+  if (status === 401 || status === 403) cls = 'auth';
+  else if (status === 402) cls = 'billing';
+  else if (status === 400) cls = SPEND_LIMIT_400.test(errorMessage) ? 'billing' : 'bad_request';
+  else if (status === 429) cls = errorCode === 'enforced_spend_limit_reached' ? 'billing' : 'rate_limit';
+  else if (status === 529) cls = 'overloaded';
+  else if (status >= 500) cls = 'server';
+  else if (status >= 400) cls = 'bad_request';
+  else cls = 'server'; // a status this API never returns for a request we made
+
+  const retryAfterSeconds = isRetryable(cls) ? parseRetryAfter(res.headers) : undefined;
+  const detail = [errorType, errorMessage].filter(Boolean).join(': ') || (parsed.ok ? 'no error detail' : 'non-JSON body');
+  return fail(cls, `HTTP ${status} ${detail}`, {
+    httpStatus: status,
+    errorType,
+    retryAfterSeconds,
+    requestId: requestIdOf(res.headers, body),
+  });
+}
+
+function requiredKeys(route: LlmRoute): string[] {
+  const out = LLM_ROUTES[route].output;
+  if (out.kind !== 'json') return [];
+  const req = (out.schema as { required?: unknown }).required;
+  return Array.isArray(req) ? req.filter((k): k is string => typeof k === 'string') : [];
+}
+
+/**
+ * Classify an HTTP response. Never throws for any body shape. For a 200 it
+ * branches on stop_reason first, then reads the FIRST text block by type.
+ */
+export function classifyClaudeResponse(route: LlmRoute, res: ResponseLike): ClaudeResult {
+  const text = res.text();
+  if (!(res.status >= 200 && res.status < 300)) return classifyHttpFailure(res, text);
+
+  const parsed = tryParse(text);
+  if (!parsed.ok || !isPlainObject(parsed.value)) {
+    return fail('server', `HTTP ${res.status} response body was not a JSON object`, {
+      httpStatus: res.status,
+      requestId: requestIdOf(res.headers, undefined),
+    });
+  }
+  const body = parsed.value;
+  const requestId = requestIdOf(res.headers, body);
+  const usage = extractUsage(body);
+  const stopReason = typeof body.stop_reason === 'string' ? body.stop_reason : undefined;
+
+  if (stopReason === 'refusal') {
+    const details = isPlainObject(body.stop_details) ? body.stop_details : {};
+    const category = typeof details.category === 'string' ? details.category : undefined;
+    const explanation = typeof details.explanation === 'string' ? details.explanation : '';
+    return fail('refusal', `model refused${category ? ` (${category})` : ''}${explanation ? `: ${explanation}` : ''}`, {
+      stopReason,
+      stopCategory: category,
+      usage,
+      requestId,
+    });
+  }
+  if (stopReason === 'max_tokens') {
+    return fail('truncated', 'output hit max_tokens before completing', { stopReason, usage, requestId });
+  }
+  if (stopReason === 'tool_use' || stopReason === 'pause_turn' || stopReason === 'stop_sequence') {
+    return fail('unexpected_stop', `unexpected stop_reason ${stopReason}`, { stopReason, usage, requestId });
+  }
+
+  const block = findFirstTextBlock(body.content);
+  if (!block || block.text.trim() === '') {
+    return fail('empty_output', 'response had no non-empty text block', {
+      stopReason,
+      usage,
+      requestId,
+    });
+  }
+
+  const finalStop = stopReason ?? 'end_turn';
+  if (LLM_ROUTES[route].output.kind !== 'json') {
+    return { ok: true, text: block.text, stopReason: finalStop, usage, requestId };
+  }
+
+  const json = tryParse(block.text);
+  if (!json.ok) {
+    return fail('invalid_json', 'text block was not strict JSON', { stopReason: finalStop, usage, requestId });
+  }
+  if (!isPlainObject(json.value)) {
+    return fail('schema_mismatch', 'JSON was not an object', { stopReason: finalStop, usage, requestId });
+  }
+  const missing = requiredKeys(route).filter((k) => !(k in (json.value as Record<string, unknown>)));
+  if (missing.length > 0) {
+    return fail('schema_mismatch', `JSON is missing required key(s): ${missing.join(', ')}`, {
+      stopReason: finalStop,
+      usage,
+      requestId,
+    });
+  }
+  return { ok: true, text: block.text, json: json.value, stopReason: finalStop, usage, requestId };
+}
+
+/** Classify a thrown fetch error: a timeout, or any other transport failure (network). */
+export function classifyClaudeError(err: unknown): ClaudeResult {
+  let message: string;
+  try {
+    message = err instanceof Error ? err.message : String(err);
+  } catch {
+    message = 'unprintable error';
+  }
+  const cls: ClaudeFailureClass = /time(d)?\s?out/i.test(message) ? 'timeout' : 'network';
+  return fail(cls, `fetch failed: ${message}`);
+}
