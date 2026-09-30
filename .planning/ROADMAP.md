@@ -269,8 +269,32 @@ Plans:
 
 **Housekeeping**: README and the run-local skill stop referencing `llm-proxy`. Publishes are local only.
 **Testing**: Unit tests for the `useLlmStatus` state mapping, the one-time `localStorage` cleanup, and the absence of forbidden reducers and tables. The full existing suite and `pnpm build` stay green after the deletions.
-**Plans**: TBD
+**Plans**: 7 plans
 **UI hint**: yes
+
+Plans:
+
+**Wave 1**
+
+- [ ] 42-01-PLAN.md — Apply characterization converted to call applyLlmResult/applyLlmFailure directly; dead call-count writes and v2.0 prompt builders removed
+- [ ] 42-02-PLAN.md — Shared Keeper indicator lines, useLlmStatus mapping, one-time llm_proxy_secret cleanup in main.ts, dist bundle guard
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 42-03-PLAN.md — Publish-1 server code: cleanup tick stopped, purge_legacy_llm, submit_llm_result and validate_llm_request removed, legacy tables reader-free
+- [ ] 42-04-PLAN.md — Client cutover to my_llm_jobs (indicator, input lock), useLlmProxy, llm-proxy/ and client/ removed, README and run-local skill updated
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 42-05-PLAN.md — Local publish 1 (--break-clients), bindings regenerated, bundle guard, purge to COUNT 0, key still set
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 42-06-PLAN.md — Publish-2 code: legacy tables, drained sweep and purge dropped; absence, privacy and allowlist tests flipped
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 42-07-PLAN.md — Local publish 2 (no clear), final bindings and gates, server stopped, user checklist (proxy, env vars, maincloud two-publish) and llm_job retention todo
 
 ### Phase 43: Latency Tuning, Staged Generation and Budget
 

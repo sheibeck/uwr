@@ -71,6 +71,30 @@ The planner fills in the task IDs. The requirement-level map below comes from 42
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
+### Task mapping (filled by the planner, 2026-09-30)
+
+| Behavior row (above) | Plan and task |
+|----------------------|---------------|
+| SEC-02 recorder absence of the removed reducers | 42-03 Tasks 1-3 (`llm_absence.test.ts`), 42-06 Task 1 (purge and sweep absent) |
+| SEC-02 bindings scan (no removed reducer files, no `resultText` argument) | 42-05 Task 1 (after publish 1), 42-07 Task 1 (after publish 2) |
+| SEC-02 characterization converted, not deleted | 42-01 Tasks 1-2 |
+| SEC-02 re-publish and re-generate are no-ops | 42-05 Task 2 (publish 1), 42-07 Task 2 (publish 2) |
+| SEC-03 `clearLegacyLlmCredential` and the `main.ts` guard | 42-02 Task 2 |
+| SEC-03 client source scan, `llm-proxy/` and `client/` gone, no whole-object `import.meta.env` | 42-04 Task 2 |
+| SEC-03 `auditBundle` unit tests | 42-02 Task 3 (plus the calibration run) |
+| SEC-03 real built bundle is clean | 42-05 Task 2, 42-07 Task 2 |
+| SEC-03 `selectLlmIndicator` and `resolveDisplayedLine` | 42-02 Task 2 |
+| SEC-03 indicator lines: parity, voice, pronoun guard | 42-02 Task 1 |
+| SEC-03 client wiring source guards | 42-04 Task 1 (docs guards: 42-04 Task 3) |
+| SEC-05 recorder table absence, public `llm_*` set `[]` | 42-06 Tasks 1-2 |
+| SEC-05 purge reducer (admin only, counts only, idempotent, `scheduledId`) | 42-03 Task 1 (deleted again in 42-06 Task 1) |
+| SEC-05 no cleanup-tick re-arm | 42-03 Task 1 (strict re-check in 42-06 Task 1) |
+| SEC-05 model-literal allowlist empty, `llm-proxy/src` not scanned | 42-03 Task 2 (one entry left), 42-06 Task 2 (empty) |
+| SEC-05 intermediate state between the publishes | 42-03 Task 3 (server scan), 42-04 Task 2 (client scan), 42-05 Task 2 (gates) |
+| SEC-05 publish order, describe, key survives, no clear | 42-05 Tasks 1-2, 42-07 Tasks 1-2 |
+
+Note: a refused local publish stops the executor and goes to the user (orchestrator hard rule, which supersedes the CONTEXT clause that allowed a local clear).
+
 ---
 
 ## Wave 0 Requirements
