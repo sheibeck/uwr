@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 41
 current_phase_name: Executor and Domain Cutover
 status: executing
-stopped_at: Completed 41-09-PLAN.md
-last_updated: "2026-09-30T16:00:55.784Z"
+stopped_at: Completed 41-10-PLAN.md
+last_updated: "2026-09-30T16:12:40.585Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 41 execution started
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 38
-  completed_plans: 30
+  completed_plans: 31
   percent: 33
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 41 (Executor and Domain Cutover) — EXECUTING
-Plan: 10 of 17
+Plan: 11 of 17
 Status: Ready to execute
 Last activity: 2026-09-30 — Phase 41 execution started
 
-Progress: [████████░░] 79% (2/6 phases)
+Progress: [████████░░] 82% (2/6 phases)
 
 ## Previous Milestones
 
@@ -83,6 +83,8 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [41-07] llm_sweep inserts its next tick unconditionally and first (like sweep_llm_errors); sweeper never runs a success apply, re-dispatches received jobs; report counters increment after status and money are written
 - [Phase ?]: 41-08: key script must match log line 'llm key set, len=<n>'; admin_llm_status row type is AdminLlmStatusRow (SDK derives AdminLlmStatus from the view name); llm_smoke_test is all-or-nothing against the phase cap
 - [Phase ?]: 41-09: key script transports the key via HTTP call endpoint body (not argv); maincloud needs --target maincloud plus --confirm-maincloud; storeKey flow lives in scripts/llm/cli.mjs
+- [Phase ?]: 41-10: talk_to_npc enqueues via enqueueLlmJob keyed on npc_memory.lastUpdated (per-turn dedupe); the player line is echoed only after a created job
+- [Phase ?]: 41-10: local publish needed --clear-database (llm_job.next_attempt_at needs a default); bindings regenerated with no diff
 
 ### Roadmap Evolution
 
@@ -137,8 +139,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-30T16:00:55.720Z
-Stopped at: Completed 41-09-PLAN.md
+Last session: 2026-09-30T16:12:40.558Z
+Stopped at: Completed 41-10-PLAN.md
 
 ## Performance Metrics
 
@@ -182,6 +184,7 @@ Stopped at: Completed 41-09-PLAN.md
 | Phase 41 P07 | 35min | 2 tasks | 7 files |
 | Phase 41 P08 | 25min | 2 tasks | 10 files |
 | Phase 41 P09 | 15min | 2 tasks | 4 files |
+| Phase 41 P10 | 20min | 2 tasks | 3 files |
 
 ## Operator Next Steps
 
