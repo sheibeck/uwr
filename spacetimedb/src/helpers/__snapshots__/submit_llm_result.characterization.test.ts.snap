@@ -1131,6 +1131,7 @@ exports[`submit_llm_result creation_race success > with no creation state return
 
 exports[`submit_llm_result failure path: creation and skill_gen > Phase 41: renown_perk_gen failure inserts the static options for the rank and one Keeper line 1`] = `
 "{
+  "ability_template": [],
   "character": [
     {
       "boundLocationId": "100n",
@@ -1225,7 +1226,8 @@ exports[`submit_llm_result failure path: creation and skill_gen > Phase 41: reno
       "targetRule": "self",
       "value1": "0n"
     }
-  ]
+  ],
+  "renown_perk": []
 }"
 `;
 
@@ -6354,6 +6356,7 @@ exports[`submit_llm_result npc_conversation success > skips the memory update an
 
 exports[`submit_llm_result renown_perk_gen success > Phase 41: the rank-2 static fallback inserts serialized options (bigint effects no longer throw) 1`] = `
 "{
+  "ability_template": [],
   "character": [
     {
       "boundLocationId": "100n",
@@ -6456,12 +6459,14 @@ exports[`submit_llm_result renown_perk_gen success > Phase 41: the rank-2 static
       "targetRule": "self",
       "value1": "0n"
     }
-  ]
+  ],
+  "renown_perk": []
 }"
 `;
 
 exports[`submit_llm_result renown_perk_gen success > QUIRK: a missing rank defaults to 2 1`] = `
 "{
+  "ability_template": [],
   "character": [
     {
       "boundLocationId": "100n",
@@ -6564,12 +6569,14 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: a missing rank defau
       "targetRule": "self",
       "value1": "0n"
     }
-  ]
+  ],
+  "renown_perk": []
 }"
 `;
 
 exports[`submit_llm_result renown_perk_gen success > QUIRK: a rank without a static pool inserts nothing and writes no message, but still increments the budget 1`] = `
 "{
+  "ability_template": [],
   "character": [
     {
       "boundLocationId": "100n",
@@ -6606,12 +6613,15 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: a rank without a sta
       "systemPrompt": "",
       "userPrompt": ""
     }
-  ]
+  ],
+  "pending_renown_perk": [],
+  "renown_perk": []
 }"
 `;
 
 exports[`submit_llm_result renown_perk_gen success > QUIRK: a zero rank defaults to 2 1`] = `
 "{
+  "ability_template": [],
   "character": [
     {
       "boundLocationId": "100n",
@@ -6714,12 +6724,14 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: a zero rank defaults
       "targetRule": "self",
       "value1": "0n"
     }
-  ]
+  ],
+  "renown_perk": []
 }"
 `;
 
 exports[`submit_llm_result renown_perk_gen success > QUIRK: fewer than three VALID perks (one lacks a description) falls back to the static pool for the rank 1`] = `
 "{
+  "ability_template": [],
   "character": [
     {
       "boundLocationId": "100n",
@@ -6822,12 +6834,14 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: fewer than three VAL
       "targetRule": "self",
       "value1": "0n"
     }
-  ]
+  ],
+  "renown_perk": []
 }"
 `;
 
 exports[`submit_llm_result renown_perk_gen success > an empty perks array takes the static fallback (rank 4) and increments the budget 1`] = `
 "{
+  "ability_template": [],
   "character": [
     {
       "boundLocationId": "100n",
@@ -6930,12 +6944,14 @@ exports[`submit_llm_result renown_perk_gen success > an empty perks array takes 
       "targetRule": "self",
       "value1": "0n"
     }
-  ]
+  ],
+  "renown_perk": []
 }"
 `;
 
 exports[`submit_llm_result renown_perk_gen success > inserts three valid perks for the rank, presents them and increments the budget 1`] = `
 "{
+  "ability_template": [],
   "character": [
     {
       "boundLocationId": "100n",
@@ -7037,12 +7053,14 @@ exports[`submit_llm_result renown_perk_gen success > inserts three valid perks f
       "targetRule": "self",
       "value1": "0n"
     }
-  ]
+  ],
+  "renown_perk": []
 }"
 `;
 
 exports[`submit_llm_result renown_perk_gen success > only the first three valid perks are inserted 1`] = `
 "{
+  "ability_template": [],
   "character": [
     {
       "boundLocationId": "100n",
@@ -7145,12 +7163,14 @@ exports[`submit_llm_result renown_perk_gen success > only the first three valid 
       "targetRule": "self",
       "value1": "0n"
     }
-  ]
+  ],
+  "renown_perk": []
 }"
 `;
 
 exports[`submit_llm_result renown_perk_gen success > perks that is not an array takes the static fallback (rank 4) and increments the budget 1`] = `
 "{
+  "ability_template": [],
   "character": [
     {
       "boundLocationId": "100n",
@@ -7253,7 +7273,8 @@ exports[`submit_llm_result renown_perk_gen success > perks that is not an array 
       "targetRule": "self",
       "value1": "0n"
     }
-  ]
+  ],
+  "renown_perk": []
 }"
 `;
 
@@ -7279,6 +7300,7 @@ exports[`submit_llm_result renown_perk_gen success > returns silently when the c
 
 exports[`submit_llm_result renown_perk_gen success > static fallback for an active-first pool (rank 6) inserts the active perk as a utility ability 1`] = `
 "{
+  "ability_template": [],
   "character": [
     {
       "boundLocationId": "100n",
@@ -7380,12 +7402,14 @@ exports[`submit_llm_result renown_perk_gen success > static fallback for an acti
       "targetRule": "self",
       "value1": "0n"
     }
-  ]
+  ],
+  "renown_perk": []
 }"
 `;
 
 exports[`submit_llm_result renown_perk_gen success > unparseable text takes the static fallback (rank 4) and increments the budget 1`] = `
 "{
+  "ability_template": [],
   "character": [
     {
       "boundLocationId": "100n",
@@ -7488,12 +7512,14 @@ exports[`submit_llm_result renown_perk_gen success > unparseable text takes the 
       "targetRule": "self",
       "value1": "0n"
     }
-  ]
+  ],
+  "renown_perk": []
 }"
 `;
 
 exports[`submit_llm_result renown_perk_gen success > uses the rank from the task context 1`] = `
 "{
+  "ability_template": [],
   "character": [
     {
       "boundLocationId": "100n",
@@ -7596,7 +7622,8 @@ exports[`submit_llm_result renown_perk_gen success > uses the rank from the task
       "targetRule": "self",
       "value1": "0n"
     }
-  ]
+  ],
+  "renown_perk": []
 }"
 `;
 
