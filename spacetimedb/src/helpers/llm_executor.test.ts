@@ -21,6 +21,7 @@ import { insertLlmDispatch, scheduledMicros } from './llm_schedule';
 import { applyLlmFailure, applyLlmResult } from './llm_apply';
 import { runLlmJob, claimLlmJob, BILLED_FAILURE_CLASSES, type ExecutorDeps } from './llm_executor';
 import { sweepLlmJobs } from './llm_sweeper';
+import { isKeyValid } from './llm_admin_state';
 import { retryDelayMs, msToMicros } from './llm_retry';
 import { awardRenown } from './renown';
 import { appendPrivateEvent } from './events';
@@ -1574,6 +1575,80 @@ describe('smoke jobs never touch game state', () => {
     const state = rows(proc, 'llm_admin_state')[0];
     expect(state.keyLastCheckOk).toBe(false);
     expect(JSON.parse(state.lastSmokeJson).smoke_test.class).toBe('billing');
+  });
+
+  // WR-A03: a key rotated while a call is in flight. The reply tells nothing about the new key.
+  describe('a key rotated mid-call records no key check', () => {
+    const NEW_KEY = ['sk', '-ant-', 'api03-', 'ROTATEDKEY'.repeat(4)].join('');
+    /** What set_api_key writes, done while the call is out (the key and its version change). */
+    const rotateDuringCall = (proc: Proc) => {
+      const originalFetch = proc.ctx.http.fetch.bind(proc.ctx.http);
+      proc.ctx.http.fetch = (url: string, init: any) => {
+        const res = originalFetch(url, init);
+        proc.clock.advance(1_000_000n);
+        proc.ctx.withTx((tx: any) => {
+          const cfg = tx.db.llm_config.id.find(1n);
+          tx.db.llm_config.id.update({ ...cfg, apiKey: NEW_KEY, updatedAt: tx.timestamp });
+          const st = tx.db.llm_admin_state.id.find(1n);
+          tx.db.llm_admin_state.id.update({
+            ...st,
+            keySet: true,
+            keyUpdatedAt: tx.timestamp,
+            keyVerifiedAt: undefined,
+            keyLastCheckOk: false,
+          });
+        });
+        return res;
+      };
+    };
+    const adminSeed = (over: Record<string, unknown> = {}) => ({
+      llm_admin_state: [{ id: 1n, keySet: true, keyLength: 108n, keyLastCheckOk: false, lastSmokeJson: '{}', ...over }],
+    });
+
+    it('an old-key smoke success does not mark the new, unproven key valid', () => {
+      const proc = makeProc([reply('ok_text')], { seed: adminSeed() });
+      const jobId = enqueue(proc, 'smoke_test', { request: { smoke: true }, budget: 'phase_only' });
+      rotateDuringCall(proc);
+
+      expect(run(proc, jobId)).toBe('completed');
+      const state = rows(proc, 'llm_admin_state')[0];
+      expect(state.keyLastCheckOk).toBe(false);
+      expect(state.keyVerifiedAt).toBeUndefined();
+      expect(isKeyValid(state)).toBe(false);
+      // The smoke result itself is still recorded.
+      expect(JSON.parse(state.lastSmokeJson).smoke_test.ok).toBe(true);
+    });
+
+    it('an old-key 401 (the old key was revoked) does not mark the new key invalid', () => {
+      const proc = makeProc([reply('err_401')], { seed: adminSeed() });
+      const jobId = enqueue(proc, 'npc_conversation');
+      rotateDuringCall(proc);
+      // The new key is proven by a smoke run that finished while the old call was out.
+      const originalFetch = proc.ctx.http.fetch;
+      proc.ctx.http.fetch = (url: string, init: any) => {
+        const res = originalFetch(url, init);
+        proc.ctx.withTx((tx: any) => {
+          const st = tx.db.llm_admin_state.id.find(1n);
+          tx.db.llm_admin_state.id.update({ ...st, keyLastCheckOk: true, keyVerifiedAt: tx.timestamp });
+        });
+        return res;
+      };
+
+      expect(run(proc, jobId)).toBe('failed');
+      const state = rows(proc, 'llm_admin_state')[0];
+      expect(state.keyLastCheckOk).toBe(true);
+      expect(isKeyValid(state)).toBe(true);
+    });
+
+    it('with the same key, a 401 still clears the key check and a smoke success still verifies it', () => {
+      const bad = makeProc([reply('err_401')], { seed: adminSeed({ keyLastCheckOk: true, keyVerifiedAt: { microsSinceUnixEpoch: T0 } }) });
+      run(bad, enqueue(bad, 'npc_conversation'));
+      expect(rows(bad, 'llm_admin_state')[0].keyLastCheckOk).toBe(false);
+
+      const good = makeProc([reply('ok_text')], { seed: adminSeed() });
+      run(good, enqueue(good, 'smoke_test', { request: { smoke: true }, budget: 'phase_only' }));
+      expect(rows(good, 'llm_admin_state')[0].keyLastCheckOk).toBe(true);
+    });
   });
 
   it('a smoke_test never retries: a 529 is terminal', () => {

@@ -115,6 +115,8 @@ export type Claim =
       playerId: any;
       createdAtMicros: bigint;
       dispatchLateMs: number;
+      /** llm_config.updatedAt of the key this attempt used; a key check is recorded only while it is still current. */
+      keyVersionMicros: bigint | null;
     };
 
 /** A job is a smoke job when its stored request says so; smoke jobs never touch game state. */
@@ -127,6 +129,12 @@ function isSmokeRequest(requestJson: unknown): boolean {
 }
 
 const EMPTY_SMOKE_COUNTS = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0, costMicroUsd: 0n } as const;
+
+/** The version of the stored key: when it was last set (null when the row has no timestamp). */
+function keyVersionOf(cfg: any): bigint | null {
+  const v = cfg?.updatedAt?.microsSinceUnixEpoch;
+  return typeof v === 'bigint' ? v : null;
+}
 
 /** Posts the in-voice failure message for a job that just became terminal, inside the caller's transaction. */
 type Notify = (failed: any) => void;
@@ -270,6 +278,7 @@ export function claimLlmJob(ctx: any, arg: DispatchArg, deps: ExecutorDeps): Cla
       playerId: job.playerId,
       createdAtMicros: job.createdAt.microsSinceUnixEpoch,
       dispatchLateMs: Number(lateMicros / 1000n),
+      keyVersionMicros: keyVersionOf(cfg),
     };
   });
 }
@@ -386,6 +395,11 @@ function persistAttempt(ctx: any, c: RunClaim, a: AttemptOutcome, deps: Executor
       return { kind: 'stale' };
     }
 
+    // A key rotated while this call was in flight: the result says nothing about the new key,
+    // so it must not mark the new key valid (smoke success) or invalid (auth or billing).
+    const cfgNow = tx.db.llm_config.id.find(1n);
+    const sameKey = !!cfgNow && keyVersionOf(cfgNow) === c.keyVersionMicros;
+
     const base = {
       ...job,
       inputTokens: job.inputTokens + counts.input,
@@ -447,7 +461,7 @@ function persistAttempt(ctx: any, c: RunClaim, a: AttemptOutcome, deps: Executor
           smokeEntry(true, amount, c.route === 'smoke_test' ? result.text : undefined),
           needles,
         );
-        if (c.route === 'smoke_test') markKeyCheck(tx, true);
+        if (c.route === 'smoke_test' && sameKey) markKeyCheck(tx, true);
         logCall(amount);
         return { kind: 'completed' };
       }
@@ -486,7 +500,7 @@ function persistAttempt(ctx: any, c: RunClaim, a: AttemptOutcome, deps: Executor
     const patch = releaseLlmReservation(tx, job, { refundCall: true });
     const failed = { ...base, ...patch, status: 'failed', errorCode: result.class, finishedAt: tx.timestamp };
     tx.db.llm_job.id.update(failed);
-    if (result.class === 'auth' || result.class === 'billing') markKeyCheck(tx, false);
+    if (sameKey && (result.class === 'auth' || result.class === 'billing')) markKeyCheck(tx, false);
     logCall(cost);
     return failedResult(failed, cost);
   });

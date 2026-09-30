@@ -8,7 +8,8 @@
 // "Valid" is proven by a smoke test, not by the key being set: keyLastCheckOk
 // and a keyVerifiedAt at or after keyUpdatedAt (a rotated key is unproven until
 // the next smoke run). The executor clears keyLastCheckOk on any auth or billing
-// failure and the smoke_test route sets it on success.
+// failure and the smoke_test route sets it on success, but only when the attempt
+// used the key that is still current (a rotation mid-call records nothing).
 //
 // Imports only data modules and ./measurement, so it loads in plain Node vitest.
 // ============================================================================
