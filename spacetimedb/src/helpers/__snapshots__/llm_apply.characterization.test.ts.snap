@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`submit_llm_result combat_narration > QUIRK: JSON without a narrative field stores the JSON text itself as the narrative 1`] = `
+exports[`llm apply combat_narration > QUIRK: JSON without a narrative field stores the JSON text itself as the narrative 1`] = `
 "{
   "character": [
     {
@@ -40,7 +40,7 @@ exports[`submit_llm_result combat_narration > QUIRK: JSON without a narrative fi
 }"
 `;
 
-exports[`submit_llm_result combat_narration > a context without participants stores the row and broadcasts nothing; the budget is never touched 1`] = `
+exports[`llm apply combat_narration > a context without participants stores the row and broadcasts nothing 1`] = `
 "{
   "character": [
     {
@@ -70,7 +70,7 @@ exports[`submit_llm_result combat_narration > a context without participants sto
 }"
 `;
 
-exports[`submit_llm_result combat_narration > a victory narration is not round-prefixed 1`] = `
+exports[`llm apply combat_narration > a victory narration is not round-prefixed 1`] = `
 "{
   "character": [
     {
@@ -110,7 +110,7 @@ exports[`submit_llm_result combat_narration > a victory narration is not round-p
 }"
 `;
 
-exports[`submit_llm_result combat_narration > an empty reply stores nothing 1`] = `
+exports[`llm apply combat_narration > an empty reply stores nothing 1`] = `
 "{
   "character": [
     {
@@ -130,7 +130,7 @@ exports[`submit_llm_result combat_narration > an empty reply stores nothing 1`] 
 }"
 `;
 
-exports[`submit_llm_result combat_narration > failure changes nothing but the task status (silent) 1`] = `
+exports[`llm apply combat_narration > failure changes nothing (silent) 1`] = `
 "{
   "character": [
     {
@@ -150,7 +150,7 @@ exports[`submit_llm_result combat_narration > failure changes nothing but the ta
 }"
 `;
 
-exports[`submit_llm_result combat_narration > success accepts a code-fenced JSON narrative 1`] = `
+exports[`llm apply combat_narration > success accepts a code-fenced JSON narrative 1`] = `
 "{
   "character": [
     {
@@ -190,7 +190,7 @@ exports[`submit_llm_result combat_narration > success accepts a code-fenced JSON
 }"
 `;
 
-exports[`submit_llm_result combat_narration > success with a JSON narrative stores the row and broadcasts a round-prefixed private event to known participants 1`] = `
+exports[`llm apply combat_narration > success with a JSON narrative stores the row and broadcasts a round-prefixed private event to known participants 1`] = `
 "{
   "character": [
     {
@@ -230,7 +230,7 @@ exports[`submit_llm_result combat_narration > success with a JSON narrative stor
 }"
 `;
 
-exports[`submit_llm_result combat_narration > success with raw prose falls back to the trimmed text as the narrative 1`] = `
+exports[`llm apply combat_narration > success with raw prose falls back to the trimmed text as the narrative 1`] = `
 "{
   "character": [
     {
@@ -270,7 +270,7 @@ exports[`submit_llm_result combat_narration > success with raw prose falls back 
 }"
 `;
 
-exports[`submit_llm_result creation replies: Phase 41 clamped > Phase 41: clamped - a class reply with over-budget ability values is stored clamped 1`] = `
+exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a class reply with over-budget ability values is stored clamped 1`] = `
 "{
   "character_creation_state": [
     {
@@ -297,7 +297,7 @@ exports[`submit_llm_result creation replies: Phase 41 clamped > Phase 41: clampe
 }"
 `;
 
-exports[`submit_llm_result creation replies: Phase 41 clamped > Phase 41: clamped - a race reply with out-of-range bonuses is stored and shown clamped 1`] = `
+exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a race reply with out-of-range bonuses is stored and shown clamped 1`] = `
 "{
   "character_creation_state": [
     {
@@ -333,7 +333,7 @@ exports[`submit_llm_result creation replies: Phase 41 clamped > Phase 41: clampe
 }"
 `;
 
-exports[`submit_llm_result creation_class success > Phase 41: a null ability entry is dropped, not fatal (the old midway throw and revert is gone) 1`] = `
+exports[`llm apply creation_class success > Phase 41: a null ability entry is dropped, not fatal (the old midway throw and revert is gone) 1`] = `
 "{
   "character_creation_state": [
     {
@@ -362,7 +362,7 @@ exports[`submit_llm_result creation_class success > Phase 41: a null ability ent
 }"
 `;
 
-exports[`submit_llm_result creation_class success > Phase 41: an empty object stores "Unknown Class" with default stats and prints "**Unknown Class**" 1`] = `
+exports[`llm apply creation_class success > Phase 41: an empty object stores "Unknown Class" with default stats and prints "**Unknown Class**" 1`] = `
 "{
   "character_creation_state": [
     {
@@ -391,7 +391,7 @@ exports[`submit_llm_result creation_class success > Phase 41: an empty object st
 }"
 `;
 
-exports[`submit_llm_result creation_class success > Phase 41: legacy ability field names are not read (vocabulary defaults apply) on a mana-user class line 1`] = `
+exports[`llm apply creation_class success > Phase 41: legacy ability field names are not read (vocabulary defaults apply) on a mana-user class line 1`] = `
 "{
   "character_creation_state": [
     {
@@ -421,32 +421,7 @@ exports[`submit_llm_result creation_class success > Phase 41: legacy ability fie
 }"
 `;
 
-exports[`submit_llm_result creation_class success > QUIRK: malformed JSON increments the budget BEFORE parsing and reverts to AWAITING_ARCHETYPE 1`] = `
-"{
-  "character_creation_state": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "id": "2n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "raceName": "Ashkin",
-      "raceNarrative": "Born of cinders.",
-      "step": "AWAITING_ARCHETYPE",
-      "updatedAt": "ts:1700000000000000n"
-    }
-  ],
-  "event_creation": [
-    {
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "creation_error",
-      "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ]
-}"
-`;
-
-exports[`submit_llm_result creation_class success > applies a valid reply: CLASS_REVEALED, stats, abilities, presentation event, budget 1`] = `
+exports[`llm apply creation_class success > applies a valid reply: CLASS_REVEALED, stats, abilities, presentation event 1`] = `
 "{
   "character_creation_state": [
     {
@@ -475,7 +450,32 @@ exports[`submit_llm_result creation_class success > applies a valid reply: CLASS
 }"
 `;
 
-exports[`submit_llm_result creation_race success > Phase 41: a reply without raceName stores "Unknown" with default bonuses, prints "**Unknown**" and saves no definition 1`] = `
+exports[`llm apply creation_class success > malformed JSON reverts to AWAITING_ARCHETYPE 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders.",
+      "step": "AWAITING_ARCHETYPE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply creation_race success > Phase 41: a reply without raceName stores "Unknown" with default bonuses, prints "**Unknown**" and saves no definition 1`] = `
 "{
   "character_creation_state": [
     {
@@ -501,30 +501,7 @@ exports[`submit_llm_result creation_race success > Phase 41: a reply without rac
 }"
 `;
 
-exports[`submit_llm_result creation_race success > QUIRK: malformed JSON increments the budget BEFORE parsing, reverts the step and reports the error 1`] = `
-"{
-  "character_creation_state": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "id": "2n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "step": "AWAITING_RACE",
-      "updatedAt": "ts:1700000000000000n"
-    }
-  ],
-  "event_creation": [
-    {
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "creation_error",
-      "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ]
-}"
-`;
-
-exports[`submit_llm_result creation_race success > accepts a reply with prose around the JSON object (brace extraction) 1`] = `
+exports[`llm apply creation_race success > accepts a reply with prose around the JSON object (brace extraction) 1`] = `
 "{
   "character_creation_state": [
     {
@@ -560,7 +537,7 @@ exports[`submit_llm_result creation_race success > accepts a reply with prose ar
 }"
 `;
 
-exports[`submit_llm_result creation_race success > accepts a reply wrapped in a markdown code fence 1`] = `
+exports[`llm apply creation_race success > accepts a reply wrapped in a markdown code fence 1`] = `
 "{
   "character_creation_state": [
     {
@@ -596,7 +573,7 @@ exports[`submit_llm_result creation_race success > accepts a reply wrapped in a 
 }"
 `;
 
-exports[`submit_llm_result creation_race success > applies a valid reply: state, creation event, race_definition and the budget 1`] = `
+exports[`llm apply creation_race success > applies a valid reply: state, creation event and race_definition 1`] = `
 "{
   "character_creation_state": [
     {
@@ -632,7 +609,7 @@ exports[`submit_llm_result creation_race success > applies a valid reply: state,
 }"
 `;
 
-exports[`submit_llm_result creation_race success > does not add a second race_definition when one already exists for the race 1`] = `
+exports[`llm apply creation_race success > does not add a second race_definition when one already exists for the race 1`] = `
 "{
   "character_creation_state": [
     {
@@ -668,13 +645,36 @@ exports[`submit_llm_result creation_race success > does not add a second race_de
 }"
 `;
 
-exports[`submit_llm_result creation_race success > with no creation state returns silently: no event and no budget increment 1`] = `
+exports[`llm apply creation_race success > malformed JSON reverts the step and reports the error 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "step": "AWAITING_RACE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply creation_race success > with no creation state returns silently: no event 1`] = `
 "{
   "character_creation_state": []
 }"
 `;
 
-exports[`submit_llm_result failure path: creation and skill_gen > Phase 41: renown_perk_gen failure inserts the static options for the rank and one Keeper line 1`] = `
+exports[`llm apply failure path: creation and skill_gen > Phase 41: renown_perk_gen failure inserts the static options for the rank and one Keeper line 1`] = `
 "{
   "ability_template": [],
   "character": [
@@ -762,7 +762,7 @@ exports[`submit_llm_result failure path: creation and skill_gen > Phase 41: reno
 }"
 `;
 
-exports[`submit_llm_result failure path: creation and skill_gen > creation_class failure appends creation_error and reverts the step to AWAITING_ARCHETYPE 1`] = `
+exports[`llm apply failure path: creation and skill_gen > creation_class failure appends creation_error and reverts the step to AWAITING_ARCHETYPE 1`] = `
 "{
   "character_creation_state": [
     {
@@ -785,7 +785,7 @@ exports[`submit_llm_result failure path: creation and skill_gen > creation_class
 }"
 `;
 
-exports[`submit_llm_result failure path: creation and skill_gen > creation_race failure appends creation_error and reverts the step to AWAITING_RACE 1`] = `
+exports[`llm apply failure path: creation and skill_gen > creation_race failure appends creation_error and reverts the step to AWAITING_RACE 1`] = `
 "{
   "character_creation_state": [
     {
@@ -808,19 +808,19 @@ exports[`submit_llm_result failure path: creation and skill_gen > creation_race 
 }"
 `;
 
-exports[`submit_llm_result failure path: creation and skill_gen > creation_race failure without a creation state posts nothing 1`] = `
+exports[`llm apply failure path: creation and skill_gen > creation_race failure without a creation state posts nothing 1`] = `
 "{
   "character_creation_state": []
 }"
 `;
 
-exports[`submit_llm_result failure path: creation and skill_gen > skill_gen failure for a missing character writes nothing but the task status 1`] = `
+exports[`llm apply failure path: creation and skill_gen > skill_gen failure for a missing character writes nothing 1`] = `
 "{
   "character": []
 }"
 `;
 
-exports[`submit_llm_result failure path: creation and skill_gen > skill_gen failure writes an in-voice private narrative for the character owner 1`] = `
+exports[`llm apply failure path: creation and skill_gen > skill_gen failure writes an in-voice private narrative for the character owner 1`] = `
 "{
   "character": [
     {
@@ -850,7 +850,7 @@ exports[`submit_llm_result failure path: creation and skill_gen > skill_gen fail
 }"
 `;
 
-exports[`submit_llm_result npc_conversation failure path > does not repeat an identical dialog line logged within the last minute (private event still written) 1`] = `
+exports[`llm apply npc_conversation failure path > does not repeat an identical dialog line logged within the last minute (private event still written) 1`] = `
 "{
   "character": [
     {
@@ -920,7 +920,7 @@ exports[`submit_llm_result npc_conversation failure path > does not repeat an id
 }"
 `;
 
-exports[`submit_llm_result npc_conversation failure path > logs "seems distracted" to the NPC dialog and the private events 1`] = `
+exports[`llm apply npc_conversation failure path > logs "seems distracted" to the NPC dialog and the private events 1`] = `
 "{
   "character": [
     {
@@ -990,7 +990,7 @@ exports[`submit_llm_result npc_conversation failure path > logs "seems distracte
 }"
 `;
 
-exports[`submit_llm_result npc_conversation failure path > writes nothing but the task status when the NPC is gone 1`] = `
+exports[`llm apply npc_conversation failure path > writes nothing when the NPC is gone 1`] = `
 "{
   "character": [
     {
@@ -1011,7 +1011,7 @@ exports[`submit_llm_result npc_conversation failure path > writes nothing but th
 }"
 `;
 
-exports[`submit_llm_result npc_conversation failure path > writes nothing but the task status when the character is gone 1`] = `
+exports[`llm apply npc_conversation failure path > writes nothing when the character is gone 1`] = `
 "{
   "character": [],
   "npc": [
@@ -1028,7 +1028,7 @@ exports[`submit_llm_result npc_conversation failure path > writes nothing but th
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > QUIRK: two offers in one reply create only the first (the per-NPC cap of 1 counts the new quest) 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > QUIRK: two offers in one reply create only the first (the per-NPC cap of 1 counts the new quest) 1`] = `
 "{
   "character": [
     {
@@ -1167,7 +1167,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > QUIRK: two off
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > a completed quest does not count against the caps 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > a completed quest does not count against the caps 1`] = `
 "{
   "character": [
     {
@@ -1320,7 +1320,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > a completed qu
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > a type without special handling (gather) only creates the template and instance, with default rewards 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > a type without special handling (gather) only creates the template and instance, with default rewards 1`] = `
 "{
   "character": [
     {
@@ -1458,7 +1458,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > a type without
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > an invalid quest type falls back to kill 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > an invalid quest type falls back to kill 1`] = `
 "{
   "character": [
     {
@@ -1610,7 +1610,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > an invalid que
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > boss_kill quests resolve the enemy like kill quests 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > boss_kill quests resolve the enemy like kill quests 1`] = `
 "{
   "character": [
     {
@@ -1762,7 +1762,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > boss_kill ques
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest resolves the source location by name and the target NPC by name 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > delivery quest resolves the source location by name and the target NPC by name 1`] = `
 "{
   "character": [
     {
@@ -1913,7 +1913,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest whose source name is the NPC own location still picks a neighbor 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > delivery quest whose source name is the NPC own location still picks a neighbor 1`] = `
 "{
   "character": [
     {
@@ -2053,7 +2053,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest with no neighbors falls back to the NPC own location 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > delivery quest with no neighbors falls back to the NPC own location 1`] = `
 "{
   "character": [
     {
@@ -2182,7 +2182,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest without a usable source name picks a connected neighbor of the NPC 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > delivery quest without a usable source name picks a connected neighbor of the NPC 1`] = `
 "{
   "character": [
     {
@@ -2322,7 +2322,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > delivery quest
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > explore quest targets the NPC location 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > explore quest targets the NPC location 1`] = `
 "{
   "character": [
     {
@@ -2462,7 +2462,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > explore quest 
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > kill quest for an unknown enemy creates the enemy template, links it here and creates the instance 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > kill quest for an unknown enemy creates the enemy template, links it here and creates the instance 1`] = `
 "{
   "character": [
     {
@@ -2630,7 +2630,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > kill quest for
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > kill quest resolves an existing enemy template by name (case-insensitive) at a connected location 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > kill quest resolves an existing enemy template by name (case-insensitive) at a connected location 1`] = `
 "{
   "character": [
     {
@@ -2782,7 +2782,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > kill quest res
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > kill quest with no name and no enemy here keeps targetEnemyTemplateId 0 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > kill quest with no name and no enemy here keeps targetEnemyTemplateId 0 1`] = `
 "{
   "character": [
     {
@@ -2921,7 +2921,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > kill quest wit
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > kill quest without a target name falls back to the first enemy at the character location 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > kill quest without a target name falls back to the first enemy at the character location 1`] = `
 "{
   "character": [
     {
@@ -3073,7 +3073,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > kill quest wit
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > kill_loot quests resolve the enemy like kill quests 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > kill_loot quests resolve the enemy like kill quests 1`] = `
 "{
   "character": [
     {
@@ -3225,7 +3225,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > kill_loot ques
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > skips an offer that repeats a quest name this NPC already gave this character (completed) 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > skips an offer that repeats a quest name this NPC already gave this character (completed) 1`] = `
 "{
   "character": [
     {
@@ -3348,7 +3348,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > skips an offer
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > skips an offer when the character already has the maximum active quests (4) 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > skips an offer when the character already has the maximum active quests (4) 1`] = `
 "{
   "character": [
     {
@@ -3513,7 +3513,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > skips an offer
 }"
 `;
 
-exports[`submit_llm_result npc_conversation offer_quest effects > skips an offer when this NPC already has an active quest for the character (per-NPC cap) 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > skips an offer when this NPC already has an active quest for the character (per-NPC cap) 1`] = `
 "{
   "character": [
     {
@@ -3636,7 +3636,7 @@ exports[`submit_llm_result npc_conversation offer_quest effects > skips an offer
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > QUIRK: a negative affinity change that crosses a tier still logs an "improved to" system message 1`] = `
+exports[`llm apply npc_conversation success > QUIRK: a negative affinity change that crosses a tier still logs an "improved to" system message 1`] = `
 "{
   "character": [
     {
@@ -3722,7 +3722,7 @@ exports[`submit_llm_result npc_conversation success > QUIRK: a negative affinity
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > QUIRK: invalid JSON writes the "unintelligible" messages with NO budget increment and no memory change 1`] = `
+exports[`llm apply npc_conversation success > QUIRK: invalid JSON writes the "unintelligible" messages and no memory change 1`] = `
 "{
   "character": [
     {
@@ -3792,7 +3792,7 @@ exports[`submit_llm_result npc_conversation success > QUIRK: invalid JSON writes
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > accepts a code-fenced reply 1`] = `
+exports[`llm apply npc_conversation success > accepts a code-fenced reply 1`] = `
 "{
   "character": [
     {
@@ -3862,7 +3862,7 @@ exports[`submit_llm_result npc_conversation success > accepts a code-fenced repl
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > affinity change -1 lands as -1n (clamped to +/-5) with the matching cue 1`] = `
+exports[`llm apply npc_conversation success > affinity change -1 lands as -1n (clamped to +/-5) with the matching cue 1`] = `
 "{
   "character": [
     {
@@ -3948,7 +3948,7 @@ exports[`submit_llm_result npc_conversation success > affinity change -1 lands a
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > affinity change -3 lands as -3n (clamped to +/-5) with the matching cue 1`] = `
+exports[`llm apply npc_conversation success > affinity change -3 lands as -3n (clamped to +/-5) with the matching cue 1`] = `
 "{
   "character": [
     {
@@ -4034,7 +4034,7 @@ exports[`submit_llm_result npc_conversation success > affinity change -3 lands a
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > affinity change -50 lands as -5n (clamped to +/-5) with the matching cue 1`] = `
+exports[`llm apply npc_conversation success > affinity change -50 lands as -5n (clamped to +/-5) with the matching cue 1`] = `
 "{
   "character": [
     {
@@ -4120,7 +4120,7 @@ exports[`submit_llm_result npc_conversation success > affinity change -50 lands 
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > affinity change 1 lands as 1n (clamped to +/-5) with the matching cue 1`] = `
+exports[`llm apply npc_conversation success > affinity change 1 lands as 1n (clamped to +/-5) with the matching cue 1`] = `
 "{
   "character": [
     {
@@ -4199,7 +4199,7 @@ exports[`submit_llm_result npc_conversation success > affinity change 1 lands as
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > affinity change 3 lands as 3n (clamped to +/-5) with the matching cue 1`] = `
+exports[`llm apply npc_conversation success > affinity change 3 lands as 3n (clamped to +/-5) with the matching cue 1`] = `
 "{
   "character": [
     {
@@ -4278,7 +4278,7 @@ exports[`submit_llm_result npc_conversation success > affinity change 3 lands as
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > affinity change 50 lands as 5n (clamped to +/-5) with the matching cue 1`] = `
+exports[`llm apply npc_conversation success > affinity change 50 lands as 5n (clamped to +/-5) with the matching cue 1`] = `
 "{
   "character": [
     {
@@ -4357,7 +4357,7 @@ exports[`submit_llm_result npc_conversation success > affinity change 50 lands a
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > an affinity_change with 0 is skipped with no cue 1`] = `
+exports[`llm apply npc_conversation success > an affinity_change with 0 is skipped with no cue 1`] = `
 "{
   "character": [
     {
@@ -4427,7 +4427,7 @@ exports[`submit_llm_result npc_conversation success > an affinity_change with 0 
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > an affinity_change with missing amount is skipped with no cue 1`] = `
+exports[`llm apply npc_conversation success > an affinity_change with missing amount is skipped with no cue 1`] = `
 "{
   "character": [
     {
@@ -4497,7 +4497,7 @@ exports[`submit_llm_result npc_conversation success > an affinity_change with mi
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > an affinity_change with not a number is skipped with no cue 1`] = `
+exports[`llm apply npc_conversation success > an affinity_change with not a number is skipped with no cue 1`] = `
 "{
   "character": [
     {
@@ -4567,7 +4567,7 @@ exports[`submit_llm_result npc_conversation success > an affinity_change with no
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > creates the affinity row on first contact 1`] = `
+exports[`llm apply npc_conversation success > creates the affinity row on first contact 1`] = `
 "{
   "character": [
     {
@@ -4647,7 +4647,7 @@ exports[`submit_llm_result npc_conversation success > creates the affinity row o
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > does not duplicate a known memory topic and keeps the old summary when there is no new thought 1`] = `
+exports[`llm apply npc_conversation success > does not duplicate a known memory topic and keeps the old summary when there is no new thought 1`] = `
 "{
   "character": [
     {
@@ -4717,7 +4717,7 @@ exports[`submit_llm_result npc_conversation success > does not duplicate a known
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > falls back to "..." when the reply has no dialogue and ignores a non-array effects field 1`] = `
+exports[`llm apply npc_conversation success > falls back to "..." when the reply has no dialogue and ignores a non-array effects field 1`] = `
 "{
   "character": [
     {
@@ -4787,7 +4787,7 @@ exports[`submit_llm_result npc_conversation success > falls back to "..." when t
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > logs the dialogue, runs the narrative effects, updates memory and the cooldown, increments the budget 1`] = `
+exports[`llm apply npc_conversation success > logs the dialogue, runs the narrative effects, updates memory and the cooldown 1`] = `
 "{
   "character": [
     {
@@ -4882,7 +4882,7 @@ exports[`submit_llm_result npc_conversation success > logs the dialogue, runs th
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > returns silently when the NPC is gone 1`] = `
+exports[`llm apply npc_conversation success > returns silently when the NPC is gone 1`] = `
 "{
   "character": [
     {
@@ -4903,7 +4903,7 @@ exports[`submit_llm_result npc_conversation success > returns silently when the 
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > returns silently when the character is gone 1`] = `
+exports[`llm apply npc_conversation success > returns silently when the character is gone 1`] = `
 "{
   "character": [],
   "npc": [
@@ -4920,7 +4920,7 @@ exports[`submit_llm_result npc_conversation success > returns silently when the 
 }"
 `;
 
-exports[`submit_llm_result npc_conversation success > skips the memory update and cooldown when those rows are missing but still charges the budget 1`] = `
+exports[`llm apply npc_conversation success > skips the memory update and cooldown when those rows are missing 1`] = `
 "{
   "character": [
     {
@@ -4972,7 +4972,7 @@ exports[`submit_llm_result npc_conversation success > skips the memory update an
 }"
 `;
 
-exports[`submit_llm_result renown_perk_gen success > Phase 41: the rank-2 static fallback inserts serialized options (bigint effects no longer throw) 1`] = `
+exports[`llm apply renown_perk_gen success > Phase 41: the rank-2 static fallback inserts serialized options (bigint effects no longer throw) 1`] = `
 "{
   "ability_template": [],
   "character": [
@@ -5060,7 +5060,7 @@ exports[`submit_llm_result renown_perk_gen success > Phase 41: the rank-2 static
 }"
 `;
 
-exports[`submit_llm_result renown_perk_gen success > QUIRK: a missing rank defaults to 2 1`] = `
+exports[`llm apply renown_perk_gen success > QUIRK: a missing rank defaults to 2 1`] = `
 "{
   "ability_template": [],
   "character": [
@@ -5148,7 +5148,7 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: a missing rank defau
 }"
 `;
 
-exports[`submit_llm_result renown_perk_gen success > QUIRK: a rank without a static pool inserts nothing and writes no message, but still increments the budget 1`] = `
+exports[`llm apply renown_perk_gen success > QUIRK: a rank without a static pool inserts nothing and writes no message 1`] = `
 "{
   "ability_template": [],
   "character": [
@@ -5171,7 +5171,7 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: a rank without a sta
 }"
 `;
 
-exports[`submit_llm_result renown_perk_gen success > QUIRK: a zero rank defaults to 2 1`] = `
+exports[`llm apply renown_perk_gen success > QUIRK: a zero rank defaults to 2 1`] = `
 "{
   "ability_template": [],
   "character": [
@@ -5259,7 +5259,7 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: a zero rank defaults
 }"
 `;
 
-exports[`submit_llm_result renown_perk_gen success > QUIRK: fewer than three VALID perks (one lacks a description) falls back to the static pool for the rank 1`] = `
+exports[`llm apply renown_perk_gen success > QUIRK: fewer than three VALID perks (one lacks a description) falls back to the static pool for the rank 1`] = `
 "{
   "ability_template": [],
   "character": [
@@ -5347,7 +5347,7 @@ exports[`submit_llm_result renown_perk_gen success > QUIRK: fewer than three VAL
 }"
 `;
 
-exports[`submit_llm_result renown_perk_gen success > an empty perks array takes the static fallback (rank 4) and increments the budget 1`] = `
+exports[`llm apply renown_perk_gen success > an empty perks array takes the static fallback (rank 4) 1`] = `
 "{
   "ability_template": [],
   "character": [
@@ -5435,7 +5435,7 @@ exports[`submit_llm_result renown_perk_gen success > an empty perks array takes 
 }"
 `;
 
-exports[`submit_llm_result renown_perk_gen success > inserts three valid perks for the rank, presents them and increments the budget 1`] = `
+exports[`llm apply renown_perk_gen success > inserts three valid perks for the rank and presents them 1`] = `
 "{
   "ability_template": [],
   "character": [
@@ -5522,7 +5522,7 @@ exports[`submit_llm_result renown_perk_gen success > inserts three valid perks f
 }"
 `;
 
-exports[`submit_llm_result renown_perk_gen success > only the first three valid perks are inserted 1`] = `
+exports[`llm apply renown_perk_gen success > only the first three valid perks are inserted 1`] = `
 "{
   "ability_template": [],
   "character": [
@@ -5610,7 +5610,7 @@ exports[`submit_llm_result renown_perk_gen success > only the first three valid 
 }"
 `;
 
-exports[`submit_llm_result renown_perk_gen success > perks that is not an array takes the static fallback (rank 4) and increments the budget 1`] = `
+exports[`llm apply renown_perk_gen success > perks that is not an array takes the static fallback (rank 4) 1`] = `
 "{
   "ability_template": [],
   "character": [
@@ -5698,13 +5698,13 @@ exports[`submit_llm_result renown_perk_gen success > perks that is not an array 
 }"
 `;
 
-exports[`submit_llm_result renown_perk_gen success > returns silently when the character is gone (no budget increment) 1`] = `
+exports[`llm apply renown_perk_gen success > returns silently when the character is gone 1`] = `
 "{
   "character": []
 }"
 `;
 
-exports[`submit_llm_result renown_perk_gen success > static fallback for an active-first pool (rank 6) inserts the active perk as a utility ability 1`] = `
+exports[`llm apply renown_perk_gen success > static fallback for an active-first pool (rank 6) inserts the active perk as a utility ability 1`] = `
 "{
   "ability_template": [],
   "character": [
@@ -5791,7 +5791,7 @@ exports[`submit_llm_result renown_perk_gen success > static fallback for an acti
 }"
 `;
 
-exports[`submit_llm_result renown_perk_gen success > unparseable text takes the static fallback (rank 4) and increments the budget 1`] = `
+exports[`llm apply renown_perk_gen success > unparseable text takes the static fallback (rank 4) 1`] = `
 "{
   "ability_template": [],
   "character": [
@@ -5879,7 +5879,7 @@ exports[`submit_llm_result renown_perk_gen success > unparseable text takes the 
 }"
 `;
 
-exports[`submit_llm_result renown_perk_gen success > uses the rank from the task context 1`] = `
+exports[`llm apply renown_perk_gen success > uses the rank from the job context 1`] = `
 "{
   "ability_template": [],
   "character": [
@@ -5967,7 +5967,7 @@ exports[`submit_llm_result renown_perk_gen success > uses the rank from the task
 }"
 `;
 
-exports[`submit_llm_result skill_gen success > QUIRK: a skill missing name or kind is skipped, dropping the batch under three (grimace) 1`] = `
+exports[`llm apply skill_gen success > QUIRK: a skill missing name or kind is skipped, dropping the batch under three (grimace) 1`] = `
 "{
   "character": [
     {
@@ -5998,7 +5998,7 @@ exports[`submit_llm_result skill_gen success > QUIRK: a skill missing name or ki
 }"
 `;
 
-exports[`submit_llm_result skill_gen success > QUIRK: fewer than three skills writes the grimace message with NO budget increment and NO pending rows 1`] = `
+exports[`llm apply skill_gen success > QUIRK: fewer than three skills writes the grimace message and NO pending rows 1`] = `
 "{
   "character": [
     {
@@ -6029,7 +6029,7 @@ exports[`submit_llm_result skill_gen success > QUIRK: fewer than three skills wr
 }"
 `;
 
-exports[`submit_llm_result skill_gen success > QUIRK: only the first three skills are considered 1`] = `
+exports[`llm apply skill_gen success > QUIRK: only the first three skills are considered 1`] = `
 "{
   "character": [
     {
@@ -6112,13 +6112,13 @@ exports[`submit_llm_result skill_gen success > QUIRK: only the first three skill
 }"
 `;
 
-exports[`submit_llm_result skill_gen success > a missing character returns silently (only the task status changes) 1`] = `
+exports[`llm apply skill_gen success > a missing character returns silently 1`] = `
 "{
   "character": []
 }"
 `;
 
-exports[`submit_llm_result skill_gen success > accepts the Claude structured-output shape with explicit nulls 1`] = `
+exports[`llm apply skill_gen success > accepts the Claude structured-output shape with explicit nulls 1`] = `
 "{
   "character": [
     {
@@ -6201,7 +6201,7 @@ exports[`submit_llm_result skill_gen success > accepts the Claude structured-out
 }"
 `;
 
-exports[`submit_llm_result skill_gen success > applies the v2.0 validators on the way in (over-budget value, unknown kind, mana cast floor) 1`] = `
+exports[`llm apply skill_gen success > applies the v2.0 validators on the way in (over-budget value, unknown kind, mana cast floor) 1`] = `
 "{
   "character": [
     {
@@ -6284,7 +6284,7 @@ exports[`submit_llm_result skill_gen success > applies the v2.0 validators on th
 }"
 `;
 
-exports[`submit_llm_result skill_gen success > inserts three pending skills, presents them and increments the budget 1`] = `
+exports[`llm apply skill_gen success > inserts three pending skills and presents them 1`] = `
 "{
   "character": [
     {
@@ -6367,7 +6367,7 @@ exports[`submit_llm_result skill_gen success > inserts three pending skills, pre
 }"
 `;
 
-exports[`submit_llm_result skill_gen success > keeps an offer that is already pending for the character and inserts nothing 1`] = `
+exports[`llm apply skill_gen success > keeps an offer that is already pending for the character and inserts nothing 1`] = `
 "{
   "character": [
     {
@@ -6421,7 +6421,7 @@ exports[`submit_llm_result skill_gen success > keeps an offer that is already pe
 }"
 `;
 
-exports[`submit_llm_result skill_gen success > unparseable text writes the grimace message with no budget increment 1`] = `
+exports[`llm apply skill_gen success > unparseable text writes the grimace message 1`] = `
 "{
   "character": [
     {
@@ -6452,7 +6452,7 @@ exports[`submit_llm_result skill_gen success > unparseable text writes the grima
 }"
 `;
 
-exports[`submit_llm_result world_gen failure path > routes the message to the creation events when the character has no location yet 1`] = `
+exports[`llm apply world_gen failure path > routes the message to the creation events when the character has no location yet 1`] = `
 "{
   "character": [
     {
@@ -6494,7 +6494,7 @@ exports[`submit_llm_result world_gen failure path > routes the message to the cr
 }"
 `;
 
-exports[`submit_llm_result world_gen failure path > routes to the creation events when the character row is gone 1`] = `
+exports[`llm apply world_gen failure path > routes to the creation events when the character row is gone 1`] = `
 "{
   "character": [],
   "event_creation": [
@@ -6522,7 +6522,7 @@ exports[`submit_llm_result world_gen failure path > routes to the creation event
 }"
 `;
 
-exports[`submit_llm_result world_gen failure path > sets the state to ERROR and tells a placed character through a private system event 1`] = `
+exports[`llm apply world_gen failure path > sets the state to ERROR and tells a placed character through a private system event 1`] = `
 "{
   "character": [
     {
@@ -6565,13 +6565,13 @@ exports[`submit_llm_result world_gen failure path > sets the state to ERROR and 
 }"
 `;
 
-exports[`submit_llm_result world_gen failure path > writes nothing but the task status when the generation state is gone 1`] = `
+exports[`llm apply world_gen failure path > writes nothing when the generation state is gone 1`] = `
 "{
   "world_gen_state": []
 }"
 `;
 
-exports[`submit_llm_result world_gen success > QUIRK: a missing character still gets the region written, but no private events and no starter mark 1`] = `
+exports[`llm apply world_gen success > QUIRK: a missing character still gets the region written, but no private events and no starter mark 1`] = `
 "{
   "character": [],
   "enemy_ability": [
@@ -6832,7 +6832,7 @@ exports[`submit_llm_result world_gen success > QUIRK: a missing character still 
 }"
 `;
 
-exports[`submit_llm_result world_gen success > QUIRK: a state in step COMPLETE returns silently (only the task status changes) 1`] = `
+exports[`llm apply world_gen success > QUIRK: a state in step COMPLETE returns silently 1`] = `
 "{
   "character": [
     {
@@ -6864,7 +6864,7 @@ exports[`submit_llm_result world_gen success > QUIRK: a state in step COMPLETE r
 }"
 `;
 
-exports[`submit_llm_result world_gen success > QUIRK: a state in step ERROR returns silently (only the task status changes) 1`] = `
+exports[`llm apply world_gen success > QUIRK: a state in step ERROR returns silently 1`] = `
 "{
   "character": [
     {
@@ -6896,7 +6896,7 @@ exports[`submit_llm_result world_gen success > QUIRK: a state in step ERROR retu
 }"
 `;
 
-exports[`submit_llm_result world_gen success > QUIRK: a state in step PENDING returns silently (only the task status changes) 1`] = `
+exports[`llm apply world_gen success > QUIRK: a state in step PENDING returns silently 1`] = `
 "{
   "character": [
     {
@@ -6928,7 +6928,7 @@ exports[`submit_llm_result world_gen success > QUIRK: a state in step PENDING re
 }"
 `;
 
-exports[`submit_llm_result world_gen success > a missing regionName ends in ERROR with the "incomplete" message 1`] = `
+exports[`llm apply world_gen success > a missing regionName ends in ERROR with the "incomplete" message 1`] = `
 "{
   "character": [
     {
@@ -6970,7 +6970,7 @@ exports[`submit_llm_result world_gen success > a missing regionName ends in ERRO
 }"
 `;
 
-exports[`submit_llm_result world_gen success > accepts a code-fenced reply 1`] = `
+exports[`llm apply world_gen success > accepts a code-fenced reply 1`] = `
 "{
   "character": [
     {
@@ -7264,7 +7264,7 @@ exports[`submit_llm_result world_gen success > accepts a code-fenced reply 1`] =
 }"
 `;
 
-exports[`submit_llm_result world_gen success > an empty locations array ends in ERROR with the "incomplete" message 1`] = `
+exports[`llm apply world_gen success > an empty locations array ends in ERROR with the "incomplete" message 1`] = `
 "{
   "character": [
     {
@@ -7306,7 +7306,7 @@ exports[`submit_llm_result world_gen success > an empty locations array ends in 
 }"
 `;
 
-exports[`submit_llm_result world_gen success > an empty regionName ends in ERROR with the "incomplete" message 1`] = `
+exports[`llm apply world_gen success > an empty regionName ends in ERROR with the "incomplete" message 1`] = `
 "{
   "character": [
     {
@@ -7348,7 +7348,7 @@ exports[`submit_llm_result world_gen success > an empty regionName ends in ERROR
 }"
 `;
 
-exports[`submit_llm_result world_gen success > invalid JSON fails the generation: state ERROR, creation_error for a character without a location, no budget 1`] = `
+exports[`llm apply world_gen success > invalid JSON fails the generation: state ERROR, creation_error for a character without a location 1`] = `
 "{
   "character": [
     {
@@ -7390,7 +7390,7 @@ exports[`submit_llm_result world_gen success > invalid JSON fails the generation
 }"
 `;
 
-exports[`submit_llm_result world_gen success > invalid JSON fails through a private system event for a placed character 1`] = `
+exports[`llm apply world_gen success > invalid JSON fails through a private system event for a placed character 1`] = `
 "{
   "character": [
     {
@@ -7433,7 +7433,7 @@ exports[`submit_llm_result world_gen success > invalid JSON fails through a priv
 }"
 `;
 
-exports[`submit_llm_result world_gen success > no locations key ends in ERROR with the "incomplete" message 1`] = `
+exports[`llm apply world_gen success > no locations key ends in ERROR with the "incomplete" message 1`] = `
 "{
   "character": [
     {
@@ -7475,7 +7475,7 @@ exports[`submit_llm_result world_gen success > no locations key ends in ERROR wi
 }"
 `;
 
-exports[`submit_llm_result world_gen success > non-starter region: raises danger from the source, clamps enemy levels, turns the uncharted edge into a passage 1`] = `
+exports[`llm apply world_gen success > non-starter region: raises danger from the source, clamps enemy levels, turns the uncharted edge into a passage 1`] = `
 "{
   "character": [
     {
@@ -7832,7 +7832,7 @@ exports[`submit_llm_result world_gen success > non-starter region: raises danger
 }"
 `;
 
-exports[`submit_llm_result world_gen success > places the character in a non-safe home location when the region has no safe one 1`] = `
+exports[`llm apply world_gen success > places the character in a non-safe home location when the region has no safe one 1`] = `
 "{
   "character": [
     {
@@ -8128,13 +8128,13 @@ exports[`submit_llm_result world_gen success > places the character in a non-saf
 }"
 `;
 
-exports[`submit_llm_result world_gen success > returns silently when the generation state is gone 1`] = `
+exports[`llm apply world_gen success > returns silently when the generation state is gone 1`] = `
 "{
   "world_gen_state": []
 }"
 `;
 
-exports[`submit_llm_result world_gen success > starter region: writes region, locations, NPCs, enemies, completes the state and places the character 1`] = `
+exports[`llm apply world_gen success > starter region: writes region, locations, NPCs, enemies, completes the state and places the character 1`] = `
 "{
   "character": [
     {
@@ -8428,6 +8428,6 @@ exports[`submit_llm_result world_gen success > starter region: writes region, lo
 }"
 `;
 
-exports[`submit_llm_result wrapper > marks an unrecognized domain completed on success and touches nothing else 1`] = `"{}"`;
+exports[`llm apply: unrecognized domain > an unrecognized domain does nothing on failure 1`] = `"{}"`;
 
-exports[`submit_llm_result wrapper > marks an unrecognized domain error on failure and touches nothing else 1`] = `"{}"`;
+exports[`llm apply: unrecognized domain > an unrecognized domain does nothing on success 1`] = `"{}"`;

@@ -252,14 +252,14 @@ function skill(name: string, over: Record<string, any> = {}) {
 // Unrecognized domain
 // ---------------------------------------------------------------------------
 
-describe('submit_llm_result wrapper', () => {
-  it('marks an unrecognized domain completed on success and touches nothing else', () => {
+describe('llm apply: unrecognized domain', () => {
+  it('an unrecognized domain does nothing on success', () => {
     const ctx = newCtx({});
     exec(ctx, applyJob('generic'), { resultText: '{"anything":true}' });
     expect(nonEmptyTables(ctx)).toEqual([]);
   });
 
-  it('marks an unrecognized domain error on failure and touches nothing else', () => {
+  it('an unrecognized domain does nothing on failure', () => {
     const ctx = newCtx({});
     exec(ctx, applyJob('generic'), { success: false });
     expect(nonEmptyTables(ctx)).toEqual([]);
@@ -270,7 +270,7 @@ describe('submit_llm_result wrapper', () => {
 // Failure paths (success: false), Task 1 domains
 // ---------------------------------------------------------------------------
 
-describe('submit_llm_result failure path: creation and skill_gen', () => {
+describe('llm apply failure path: creation and skill_gen', () => {
   it('creation_race failure appends creation_error and reverts the step to AWAITING_RACE', () => {
     const ctx = newCtx({
       character_creation_state: [creationState('GENERATING_RACE')],
@@ -310,7 +310,7 @@ describe('submit_llm_result failure path: creation and skill_gen', () => {
     expect(ev[0].message).toContain('Your potential eludes crystallization');
   });
 
-  it('skill_gen failure for a missing character writes nothing but the task status', () => {
+  it('skill_gen failure for a missing character writes nothing', () => {
     const ctx = newCtx({});
     exec(ctx, applyJob('skill_gen', CTX_CHAR), { success: false });
     expect(nonEmptyTables(ctx)).toEqual([]);
@@ -337,12 +337,12 @@ describe('submit_llm_result failure path: creation and skill_gen', () => {
 // creation_race success
 // ---------------------------------------------------------------------------
 
-describe('submit_llm_result creation_race success', () => {
+describe('llm apply creation_race success', () => {
   const seed = () => ({
     character_creation_state: [creationState('GENERATING_RACE')],
   });
 
-  it('applies a valid reply: state, creation event, race_definition and the budget', () => {
+  it('applies a valid reply: state, creation event and race_definition', () => {
     const ctx = newCtx(seed());
     exec(ctx, applyJob('creation_race'), { resultText: JSON.stringify(RACE_JSON) });
 
@@ -399,7 +399,7 @@ describe('submit_llm_result creation_race success', () => {
     expect(rows(ctx, 'race_definition')).toHaveLength(0);
   });
 
-  it('QUIRK: malformed JSON increments the budget BEFORE parsing, reverts the step and reports the error', () => {
+  it('malformed JSON reverts the step and reports the error', () => {
     const ctx = newCtx(seed());
     exec(ctx, applyJob('creation_race'), { resultText: 'the cosmos declined to answer' });
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_RACE');
@@ -408,7 +408,7 @@ describe('submit_llm_result creation_race success', () => {
     expect(rows(ctx, 'race_definition')).toHaveLength(0);
   });
 
-  it('with no creation state returns silently: no event and no budget increment', () => {
+  it('with no creation state returns silently: no event', () => {
     const ctx = newCtx({});
     exec(ctx, applyJob('creation_race'), { resultText: JSON.stringify(RACE_JSON) });
     expect(nonEmptyTables(ctx)).toEqual([]);
@@ -419,14 +419,14 @@ describe('submit_llm_result creation_race success', () => {
 // creation_class success
 // ---------------------------------------------------------------------------
 
-describe('submit_llm_result creation_class success', () => {
+describe('llm apply creation_class success', () => {
   const seed = () => ({
     character_creation_state: [
       creationState('GENERATING_CLASS', { raceName: 'Ashkin', raceNarrative: 'Born of cinders.' }),
     ],
   });
 
-  it('applies a valid reply: CLASS_REVEALED, stats, abilities, presentation event, budget', () => {
+  it('applies a valid reply: CLASS_REVEALED, stats, abilities, presentation event', () => {
     const ctx = newCtx(seed());
     exec(ctx, applyJob('creation_class'), { resultText: JSON.stringify(CLASS_JSON) });
 
@@ -488,7 +488,7 @@ describe('submit_llm_result creation_class success', () => {
     expect(rows(ctx, 'event_creation')[0].message).toContain('**Unknown Class**');
   });
 
-  it('QUIRK: malformed JSON increments the budget BEFORE parsing and reverts to AWAITING_ARCHETYPE', () => {
+  it('malformed JSON reverts to AWAITING_ARCHETYPE', () => {
     const ctx = newCtx(seed());
     exec(ctx, applyJob('creation_class'), { resultText: 'not json at all' });
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
@@ -511,12 +511,12 @@ describe('submit_llm_result creation_class success', () => {
 // skill_gen success
 // ---------------------------------------------------------------------------
 
-describe('submit_llm_result skill_gen success', () => {
+describe('llm apply skill_gen success', () => {
   const seed = () => ({
     character: [characterRow({ level: 3n })],
   });
 
-  it('inserts three pending skills, presents them and increments the budget', () => {
+  it('inserts three pending skills and presents them', () => {
     const ctx = newCtx(seed());
     const reply = { skills: [skill('Cinder Cut'), skill('Ash Ward', { kind: 'shield', resourceType: 'mana', castSeconds: 0 }), skill('Ember Pulse', { kind: 'heal', targetRule: 'self', scaling: 'wis' })] };
     exec(ctx, applyJob('skill_gen', CTX_CHAR), { resultText: JSON.stringify(reply) });
@@ -573,7 +573,7 @@ describe('submit_llm_result skill_gen success', () => {
     expect(names).toEqual(['OtherChar', 'Stale']);
   });
 
-  it('QUIRK: fewer than three skills writes the grimace message with NO budget increment and NO pending rows', () => {
+  it('QUIRK: fewer than three skills writes the grimace message and NO pending rows', () => {
     const ctx = newCtx(seed());
     exec(ctx, applyJob('skill_gen', CTX_CHAR), { resultText: JSON.stringify({ skills: [skill('Only One'), skill('Only Two')] }) });
     expect(rows(ctx, 'pending_skill')).toHaveLength(0);
@@ -594,14 +594,14 @@ describe('submit_llm_result skill_gen success', () => {
     expect(rows(ctx, 'pending_skill').map((p: any) => p.name)).toEqual(['A', 'B', 'C']);
   });
 
-  it('unparseable text writes the grimace message with no budget increment', () => {
+  it('unparseable text writes the grimace message', () => {
     const ctx = newCtx(seed());
     exec(ctx, applyJob('skill_gen', CTX_CHAR), { resultText: 'sorry, no skills today' });
     expect(rows(ctx, 'pending_skill')).toHaveLength(0);
     expect(rows(ctx, 'event_private')[0].message).toContain('sputtered');
   });
 
-  it('a missing character returns silently (only the task status changes)', () => {
+  it('a missing character returns silently', () => {
     const ctx = newCtx({});
     exec(ctx, applyJob('skill_gen', CTX_CHAR), { resultText: JSON.stringify({ skills: [skill('A'), skill('B'), skill('C')] }) });
     expect(nonEmptyTables(ctx)).toEqual([]);
@@ -717,7 +717,7 @@ function offer(over: Record<string, any> = {}) {
 // world_gen
 // ---------------------------------------------------------------------------
 
-describe('submit_llm_result world_gen failure path', () => {
+describe('llm apply world_gen failure path', () => {
   it('sets the state to ERROR and tells a placed character through a private system event', () => {
     const ctx = newCtx({
       world_gen_state: [genState({ step: 'GENERATING' })],
@@ -751,7 +751,7 @@ describe('submit_llm_result world_gen failure path', () => {
     expect(rows(ctx, 'event_creation')).toHaveLength(1);
   });
 
-  it('writes nothing but the task status when the generation state is gone', () => {
+  it('writes nothing when the generation state is gone', () => {
     const ctx = newCtx({});
     exec(ctx, applyJob('world_gen', GEN_CTX), { success: false });
     expect(nonEmptyTables(ctx)).toEqual([]);
@@ -765,7 +765,7 @@ describe('submit_llm_result world_gen failure path', () => {
   });
 });
 
-describe('submit_llm_result world_gen success', () => {
+describe('llm apply world_gen success', () => {
   it('starter region: writes region, locations, NPCs, enemies, completes the state and places the character', () => {
     const ctx = newCtx(worldSeed());
     exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_JSON) });
@@ -851,7 +851,7 @@ describe('submit_llm_result world_gen success', () => {
   });
 
   it.each(['COMPLETE', 'PENDING', 'ERROR'])(
-    'QUIRK: a state in step %s returns silently (only the task status changes)',
+    'QUIRK: a state in step %s returns silently',
     (step) => {
       const ctx = newCtx(worldSeed({ gen: { step } }));
       exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_JSON) });
@@ -866,7 +866,7 @@ describe('submit_llm_result world_gen success', () => {
     expect(nonEmptyTables(ctx)).toEqual([]);
   });
 
-  it('invalid JSON fails the generation: state ERROR, creation_error for a character without a location, no budget', () => {
+  it('invalid JSON fails the generation: state ERROR, creation_error for a character without a location', () => {
     const ctx = newCtx(worldSeed());
     exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: 'the world did not say anything useful' });
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('ERROR');
@@ -902,7 +902,7 @@ describe('submit_llm_result world_gen success', () => {
 // npc_conversation
 // ---------------------------------------------------------------------------
 
-describe('submit_llm_result npc_conversation failure path', () => {
+describe('llm apply npc_conversation failure path', () => {
   it('logs "seems distracted" to the NPC dialog and the private events', () => {
     const ctx = newCtx(npcSeed());
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { success: false });
@@ -922,21 +922,21 @@ describe('submit_llm_result npc_conversation failure path', () => {
     expect(rows(ctx, 'event_private')).toHaveLength(1);
   });
 
-  it('writes nothing but the task status when the NPC is gone', () => {
+  it('writes nothing when the NPC is gone', () => {
     const ctx = newCtx({ character: [characterRow()] });
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { success: false });
     expect(nonEmptyTables(ctx)).toEqual(['character']);
   });
 
-  it('writes nothing but the task status when the character is gone', () => {
+  it('writes nothing when the character is gone', () => {
     const ctx = newCtx({ npc: npcSeed().npc });
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { success: false });
     expect(nonEmptyTables(ctx)).toEqual(['npc']);
   });
 });
 
-describe('submit_llm_result npc_conversation success', () => {
-  it('logs the dialogue, runs the narrative effects, updates memory and the cooldown, increments the budget', () => {
+describe('llm apply npc_conversation success', () => {
+  it('logs the dialogue, runs the narrative effects, updates memory and the cooldown', () => {
     const ctx = newCtx(npcSeed());
     const reply = npcReply({
       effects: [
@@ -1040,7 +1040,7 @@ describe('submit_llm_result npc_conversation success', () => {
     expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta: "The bread is warm today."');
   });
 
-  it('skips the memory update and cooldown when those rows are missing but still charges the budget', () => {
+  it('skips the memory update and cooldown when those rows are missing', () => {
     const seed = npcSeed();
     seed.npc_memory = [];
     seed.npc_affinity = [];
@@ -1050,7 +1050,7 @@ describe('submit_llm_result npc_conversation success', () => {
     expect(rows(ctx, 'npc_affinity')).toHaveLength(0);
   });
 
-  it('QUIRK: invalid JSON writes the "unintelligible" messages with NO budget increment and no memory change', () => {
+  it('QUIRK: invalid JSON writes the "unintelligible" messages and no memory change', () => {
     const ctx = newCtx(npcSeed());
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: 'Marta hums a tune' });
     expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta mutters something unintelligible.');
@@ -1072,7 +1072,7 @@ describe('submit_llm_result npc_conversation success', () => {
   });
 });
 
-describe('submit_llm_result npc_conversation offer_quest effects', () => {
+describe('llm apply npc_conversation offer_quest effects', () => {
   it('kill quest for an unknown enemy creates the enemy template, links it here and creates the instance', () => {
     const ctx = newCtx(npcSeed(WORLD_LOCS));
     exec(ctx, applyJob('npc_conversation', NPC_CTX), {
@@ -1247,14 +1247,14 @@ describe('submit_llm_result npc_conversation offer_quest effects', () => {
 // combat_narration
 // ---------------------------------------------------------------------------
 
-describe('submit_llm_result combat_narration', () => {
+describe('llm apply combat_narration', () => {
   const COMBAT_CTX = JSON.stringify({ combatId: '77', roundNumber: '2', narrativeType: 'round', participantCharacterIds: ['10', '11'] });
   const job = (ctxJson = COMBAT_CTX) => applyJob('combat_narration', ctxJson);
   const seed = (): Seed => ({
     character: [characterRow()],
   });
 
-  it('failure changes nothing but the task status (silent)', () => {
+  it('failure changes nothing (silent)', () => {
     const ctx = newCtx(seed());
     exec(ctx, job(), { success: false });
     expect(rows(ctx, 'combat_narrative')).toHaveLength(0);
@@ -1306,7 +1306,7 @@ describe('submit_llm_result combat_narration', () => {
     expect(rows(ctx, 'event_private')[0].message).toBe('The wolf falls.');
   });
 
-  it('a context without participants stores the row and broadcasts nothing; the budget is never touched', () => {
+  it('a context without participants stores the row and broadcasts nothing', () => {
     const ctx = newCtx(seed());
     exec(ctx, job(JSON.stringify({ combatId: '77', roundNumber: '1' })), { resultText: 'A quiet round.' });
     expect(rows(ctx, 'combat_narrative')).toHaveLength(1);
@@ -1318,7 +1318,7 @@ describe('submit_llm_result combat_narration', () => {
 // renown_perk_gen
 // ---------------------------------------------------------------------------
 
-describe('submit_llm_result renown_perk_gen success', () => {
+describe('llm apply renown_perk_gen success', () => {
   const RENOWN_CTX = (rank: string | number = '2') => JSON.stringify({ characterId: '10', rank: String(rank) });
   const job = (ctxJson = RENOWN_CTX()) => applyJob('renown_perk_gen', ctxJson);
   const seed = (): Seed => ({
@@ -1353,7 +1353,7 @@ describe('submit_llm_result renown_perk_gen success', () => {
     ...over,
   });
 
-  it('inserts three valid perks for the rank, presents them and increments the budget', () => {
+  it('inserts three valid perks for the rank and presents them', () => {
     const ctx = newCtx(seed());
     exec(ctx, job(), { resultText: JSON.stringify({ perks: [active('Second Wind'), passive('Thick Skin'), passive('Deft Hands', { perkDomain: undefined })] }) });
 
@@ -1375,7 +1375,7 @@ describe('submit_llm_result renown_perk_gen success', () => {
     expect(rows(ctx, 'pending_renown_perk').map((p: any) => p.name)).toEqual(['A', 'B', 'C']);
   });
 
-  it('uses the rank from the task context', () => {
+  it('uses the rank from the job context', () => {
     const ctx = newCtx(seed());
     exec(ctx, job(RENOWN_CTX('5')), { resultText: JSON.stringify({ perks: [passive('A'), passive('B'), passive('C')] }) });
     expect(rows(ctx, 'pending_renown_perk').every((p: any) => p.rank === 5n)).toBe(true);
@@ -1406,7 +1406,7 @@ describe('submit_llm_result renown_perk_gen success', () => {
     ['unparseable text', 'no perks for you'],
     ['perks that is not an array', JSON.stringify({ perks: 'many' })],
     ['an empty perks array', JSON.stringify({ perks: [] })],
-  ])('%s takes the static fallback (rank 4) and increments the budget', (_label, resultText) => {
+  ])('%s takes the static fallback (rank 4)', (_label, resultText) => {
     const ctx = newCtx(seed());
     exec(ctx, job(RENOWN_CTX('4')), { resultText });
     expect(rows(ctx, 'pending_renown_perk')).toHaveLength(3);
@@ -1446,14 +1446,14 @@ describe('submit_llm_result renown_perk_gen success', () => {
     for (const p of perks) if (p.perkEffectJson !== undefined) expect(() => JSON.parse(p.perkEffectJson)).not.toThrow();
   });
 
-  it('QUIRK: a rank without a static pool inserts nothing and writes no message, but still increments the budget', () => {
+  it('QUIRK: a rank without a static pool inserts nothing and writes no message', () => {
     const ctx = newCtx(seed());
     exec(ctx, job(RENOWN_CTX('99')), { resultText: 'nothing' });
     expect(rows(ctx, 'pending_renown_perk')).toHaveLength(0);
     expect(rows(ctx, 'event_private')).toHaveLength(0);
   });
 
-  it('returns silently when the character is gone (no budget increment)', () => {
+  it('returns silently when the character is gone', () => {
     const ctx = newCtx({});
     exec(ctx, applyJob('renown_perk_gen', RENOWN_CTX()), { resultText: JSON.stringify({ perks: [passive('A'), passive('B'), passive('C')] }) });
     expect(nonEmptyTables(ctx)).toEqual([]);
@@ -1464,7 +1464,7 @@ describe('submit_llm_result renown_perk_gen success', () => {
 // Phase 41: creation replies are clamped server-side (creation_validate)
 // ---------------------------------------------------------------------------
 
-describe('submit_llm_result creation replies: Phase 41 clamped', () => {
+describe('llm apply creation replies: Phase 41 clamped', () => {
   it('Phase 41: clamped - a race reply with out-of-range bonuses is stored and shown clamped', () => {
     const ctx = newCtx({
       character_creation_state: [creationState('GENERATING_RACE')],
