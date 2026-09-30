@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 40
 current_phase_name: Claude Request Layer and Job Seam
 status: executing
-stopped_at: Completed 40-02-PLAN.md
-last_updated: "2026-09-30T02:24:30.132Z"
+stopped_at: Completed 40-03-PLAN.md
+last_updated: "2026-09-30T02:34:01.299Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 40 execution started
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 21
-  completed_plans: 13
+  completed_plans: 14
   percent: 17
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-29)
 ## Current Position
 
 Phase: 40 (Claude Request Layer and Job Seam) — EXECUTING
-Plan: 3 of 10
+Plan: 4 of 10
 Status: Ready to execute
 Last activity: 2026-09-29 — Phase 40 execution started
 
-Progress: [██████░░░░] 62% (1/6 phases)
+Progress: [███████░░░] 67% (1/6 phases)
 
 ## Previous Milestones
 
@@ -62,6 +62,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 39]: Phase 39: LLM executor = scheduled procedure (in-flight cap at most 8). Maincloud uwr-spike-925iv strict gate verdict go (floor-adjusted identical): dispatch p95 3.0 ms, 0/164 reliability failures, region schema compiles, ping and tick p95 at 0.96x-1.03x of baseline at 8/4/2 in flight, observed cap 8 (local 4). Local results provisional (strict incomplete). Jobs must carry the player identity (ctx.sender is the module identity). Confirmed by user 2026-09-29 ("confirm-strict"); llm-proxy retired in Phase 42; Phase 41 proves the real executor on maincloud
 - [Phase 39]: [39-10] Maincloud DB uwr-spike-925iv kept briefly by the user, then deleted by the user on 2026-09-29 (describe returns 404)
 - [Phase ?]: 40-01: schema_recorder loads real index.ts under a recording spacetimedb/server mock with no production edit; createMockProcCtx has no ctx.db and a module-identity sender
+- [Phase ?]: 40-03: Keeper Bible 7,421 chars (~2,283 tokens); player text capped 1000 code points, truncated not rejected, all <,> escaped; combat_narration route is plain prose; NPC reply shape copied into llm_layers.ts
 
 ### Roadmap Evolution
 
@@ -109,8 +110,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-30T02:24:30.095Z
-Stopped at: Completed 40-02-PLAN.md
+Last session: 2026-09-30T02:34:01.276Z
+Stopped at: Completed 40-03-PLAN.md
 
 ## Performance Metrics
 
@@ -137,6 +138,7 @@ Stopped at: Completed 40-02-PLAN.md
 | Phase 39 P10 | 20min | 3 tasks | 27 files |
 | Phase 40 P01 | 15min | 2 tasks | 4 files |
 | Phase 40 P02 | 25min | 3 tasks | 9 files |
+| Phase 40 P03 | 30min | 3 tasks | 4 files |
 
 ## Operator Next Steps
 
