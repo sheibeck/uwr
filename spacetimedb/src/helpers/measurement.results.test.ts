@@ -2,7 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { evaluateGate, findSecretLeaks, GATE_DEFAULTS } from './measurement';
+import {
+  evaluateGate,
+  findSecretLeaks,
+  GATE_DEFAULTS,
+  percentile,
+  type GateInput,
+  type GateThresholds,
+} from './measurement';
 import {
   collectCallSamples,
   effectiveInFlight,
@@ -739,8 +746,15 @@ describe('results model: validateResults gate profile', () => {
 });
 
 // ============================================================================
-// Recorded results files (one suite per file; skips until a file exists)
+// Recorded results files (frozen evidence for the executor decision)
 // ============================================================================
+//
+// The two recorded files are frozen evidence and their verdicts were decided under
+// the rules below. To keep the recorded decision reproducible when the live gate
+// defaults or derivation rules change later, the reproduction here does not read
+// GATE_DEFAULTS, minInFlightForLevel, observedServerCap or floorAdjustedNoiseFloorMs.
+// It pins the decision-time thresholds and filters locally and only reuses the
+// generic pieces (sample collection, percentile, the gate evaluator).
 
 interface RecordedFile {
   path: string;
@@ -753,19 +767,148 @@ function profileForFile(name: string): ResultsProfile {
   return name.includes('maincloud') ? 'gate' : 'full';
 }
 
-/** Every file ending -results.json in every 39- folder. */
+/** Every file ending -results.json in every 39- folder (directories only). */
 function locateRecordedResults(): RecordedFile[] {
   const phasesDir = fileURLToPath(new URL('../../../.planning/phases', import.meta.url));
   if (!existsSync(phasesDir)) return [];
   const found: RecordedFile[] = [];
-  for (const dir of readdirSync(phasesDir)) {
-    if (!dir.startsWith('39-')) continue;
-    for (const f of readdirSync(join(phasesDir, dir)).filter((n) => n.endsWith('-results.json')).sort()) {
-      found.push({ path: join(phasesDir, dir, f), name: f, profile: profileForFile(f) });
+  for (const entry of readdirSync(phasesDir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !entry.name.startsWith('39-')) continue;
+    const dir = join(phasesDir, entry.name);
+    for (const f of readdirSync(dir).filter((n: string) => n.endsWith('-results.json')).sort()) {
+      found.push({ path: join(dir, f), name: f, profile: profileForFile(f) });
     }
   }
   return found;
 }
+
+/** Gate thresholds in force when the recorded verdicts were decided (matches verdict.*.thresholds in both files). */
+const DECISION_THRESHOLDS: GateThresholds = {
+  dispatchP95Ms: 250,
+  ratio: 2,
+  noiseFloorMs: 0,
+  goMinInFlight: 6,
+  minReliabilityCalls: 30,
+  minDispatchSamples: 50,
+  minPingSamples: 200,
+  minTickSamples: 30,
+};
+
+/** Decision-time floor for the floor-adjusted verdict: max(25 ms, measured baseline drift). */
+const DECISION_MIN_NOISE_FLOOR_MS = 25;
+
+/** Decision-time per-level filter: samples need at least 75% of the level's in-flight count, minimum 2. */
+function decisionMinInFlight(level: number): number {
+  return Math.max(2, Math.ceil(level * 0.75));
+}
+
+function decisionWindowStats(
+  w: LatencyWindow | undefined,
+  keepPing: (inFlight: number) => boolean,
+  keepTick: (inFlight: number) => boolean,
+) {
+  const ping = (w?.pingMs ?? []).filter((s) => keepPing(s.inFlight)).map((s) => s.ms);
+  const tick = (w?.tick ?? []).filter((s) => keepTick(s.inFlight)).map((s) => s.lateMs);
+  return {
+    pingP95Ms: ping.length === 0 ? null : percentile(ping, 95),
+    tickLateP95Ms: tick.length === 0 ? null : percentile(tick, 95),
+    pingSamples: ping.length,
+    tickSamples: tick.length,
+  };
+}
+
+/** Highest server-side in-flight count seen on any load-level tick sample. */
+function decisionServerCap(doc: ResultsDoc): number | null {
+  let cap: number | null = null;
+  for (const level of doc.load?.levels ?? []) {
+    for (const t of level.window?.tick ?? []) {
+      if (cap === null || t.inFlight > cap) cap = t.inFlight;
+    }
+  }
+  return cap;
+}
+
+/** Baseline drift over ping and tick, unfiltered (baseline vs baseline2). */
+function decisionNoiseFloorMs(doc: ResultsDoc): number {
+  const all = () => true;
+  const a = decisionWindowStats(doc.load?.baseline, all, all);
+  const b = decisionWindowStats(doc.load?.baseline2, all, all);
+  const diffs: number[] = [];
+  if (a.pingP95Ms !== null && b.pingP95Ms !== null) diffs.push(Math.abs(b.pingP95Ms - a.pingP95Ms));
+  if (a.tickLateP95Ms !== null && b.tickLateP95Ms !== null) diffs.push(Math.abs(b.tickLateP95Ms - a.tickLateP95Ms));
+  return Math.max(DECISION_MIN_NOISE_FLOOR_MS, diffs.length === 0 ? 0 : Math.max(...diffs));
+}
+
+/** Decision-time gate input: every rule that shapes the input is pinned here, not imported. */
+function decisionGateInput(doc: ResultsDoc, thresholds: GateThresholds): GateInput {
+  const reliabilitySamples = collectCallSamples(doc).filter((s) => s.class === 'reliability');
+  const capBlocked = reliabilitySamples.filter((s) => s.failureClass === 'spend_cap').length;
+  const counted = reliabilitySamples.filter((s) => s.failureClass !== 'spend_cap');
+  const failed = counted.filter((s) => !s.ok);
+  const ladderCalls = (doc.ladder?.reliability ?? []).filter(
+    (s) => s.class === 'reliability' && s.failureClass !== 'spend_cap',
+  );
+  const dispatchMs = (doc.dispatch?.samples ?? [])
+    .map((s) => s.dispatchLateUs)
+    .filter((v): v is number => typeof v === 'number')
+    .map((us) => us / 1000);
+
+  const cap = decisionServerCap(doc);
+  const loads = (doc.load?.levels ?? []).map((l) => {
+    const pingMin = decisionMinInFlight(l.inFlight);
+    const effective = cap === null || cap <= 0 ? l.inFlight : Math.min(l.inFlight, cap);
+    const tickMin = decisionMinInFlight(effective);
+    return {
+      inFlight: l.inFlight,
+      ...decisionWindowStats(l.window, (n) => n >= pingMin, (n) => n >= tickMin),
+    };
+  });
+
+  return {
+    reliability: {
+      calls: ladderCalls.length,
+      totalCalls: counted.length,
+      failures: failed.length,
+      platformFailures: failed.filter((s) => s.failureClass === 'platform').length,
+      upstreamFailures: failed.filter((s) => s.failureClass === 'upstream').length,
+      capBlocked,
+    },
+    dispatch: {
+      p95Ms: dispatchMs.length === 0 ? null : percentile(dispatchMs, 95),
+      samples: dispatchMs.length,
+    },
+    regionSchema: {
+      compiles: doc.structured?.regionCompile?.compiles === true,
+      stagedWorkaroundDocumented: doc.structured?.regionCompile?.staged?.compiles === true,
+    },
+    baseline: decisionWindowStats(doc.load?.baseline, (n) => n === 0, (n) => n === 0),
+    loads,
+    thresholds,
+  };
+}
+
+interface RecordedDecision {
+  strict: { verdict: string; cap: number | null };
+  floorAdjusted: { verdict: string; cap: number | null };
+  noiseFloorMs: number;
+  observedServerCap: number;
+}
+
+/** The decided outcome of each known recorded file. A frozen table: never derive these from live code. */
+const RECORDED_DECISIONS: Record<string, RecordedDecision> = {
+  '39-spike-results.json': {
+    strict: { verdict: 'incomplete', cap: null },
+    floorAdjusted: { verdict: 'incomplete', cap: null },
+    noiseFloorMs: 171.76529999999184,
+    observedServerCap: 4,
+  },
+  '39-maincloud-results.json': {
+    strict: { verdict: 'go', cap: null },
+    floorAdjusted: { verdict: 'go', cap: null },
+    noiseFloorMs: 25,
+    observedServerCap: 8,
+  },
+};
 
 describe('recorded results discovery', () => {
   it('picks the gate profile only for names that contain maincloud', () => {
@@ -782,38 +925,75 @@ describe('recorded results discovery', () => {
     }
     expect(new Set(found.map((f) => f.path)).size).toBe(found.length);
   });
+
+  it('finds every known recorded file (fails loudly if the phase folder moved or a file is gone)', () => {
+    const names = locateRecordedResults().map((f) => f.name);
+    for (const known of Object.keys(RECORDED_DECISIONS)) {
+      expect(names, `recorded results file ${known} not found under .planning/phases/39-*`).toContain(known);
+    }
+  });
 });
 
-const recordedFiles = locateRecordedResults();
+describe('decision-time thresholds are pinned', () => {
+  it('match the thresholds stored in each recorded file', () => {
+    for (const f of locateRecordedResults()) {
+      const doc = JSON.parse(readFileSync(f.path, 'utf8')) as ResultsDoc;
+      if (!doc.verdict) continue;
+      expect(doc.verdict.strict.thresholds).toEqual(DECISION_THRESHOLDS);
+      expect(doc.verdict.floorAdjusted.thresholds).toEqual({
+        ...DECISION_THRESHOLDS,
+        noiseFloorMs: doc.verdict.noiseFloorMs,
+      });
+    }
+  });
 
-// describe.each rejects an empty table, so the recorded-file suites are registered only when files exist.
+  it('pin the decision-time level filter', () => {
+    expect([8, 4, 2].map(decisionMinInFlight)).toEqual([6, 3, 2]);
+  });
+});
+
+// One suite per known or discovered file. describe.each rejects an empty table, so a placeholder row
+// is used when nothing was found; the discovery test above fails in that case.
+const recordedFiles = locateRecordedResults();
 const recordedCases = recordedFiles.map((f) => [f.name, f] as const);
 
-describe.runIf(recordedCases.length > 0).each(recordedCases.length > 0 ? recordedCases : [['none', null as unknown as RecordedFile] as const])('recorded results file %s', (_name, file) => {
-  const text = readFileSync(file.path, 'utf8');
-  const doc = JSON.parse(text) as ResultsDoc;
+describe.each(recordedCases.length > 0 ? recordedCases : [['none', null as unknown as RecordedFile] as const])(
+  'recorded results file %s',
+  (_name, file) => {
+    if (file === null) {
+      it('exists', () => {
+        throw new Error('no recorded results files found under .planning/phases/39-*');
+      });
+      return;
+    }
+    const text = readFileSync(file.path, 'utf8');
+    const doc = JSON.parse(text) as ResultsDoc;
+    const pinned = RECORDED_DECISIONS[file.name];
 
-  it('is structurally valid (final when a verdict exists, partial otherwise)', () => {
-    expect(validateResults(doc, { final: doc.verdict !== undefined, profile: file.profile })).toEqual([]);
-  });
+    it('is structurally valid (final when a verdict exists, partial otherwise)', () => {
+      expect(validateResults(doc, { final: doc.verdict !== undefined, profile: file.profile })).toEqual([]);
+    });
 
-  it('contains no key-prefixed strings at all', () => {
-    expect(findSecretLeaks(text, { strictPrefix: true }).total).toBe(0);
-  });
+    it('contains no key-prefixed strings at all', () => {
+      expect(findSecretLeaks(text, { strictPrefix: true }).total).toBe(0);
+    });
 
-  it('reproduces the recorded strict verdict from raw samples', () => {
-    if (!doc.verdict) return;
-    const recomputed = evaluateGate(gateInputFromResults(doc));
-    expect(recomputed.verdict).toBe(doc.verdict.strict.verdict);
-    expect(recomputed.cap).toBe(doc.verdict.strict.cap);
-  });
+    it.skipIf(pinned === undefined)('reproduces the recorded strict verdict from raw samples', () => {
+      const recomputed = evaluateGate(decisionGateInput(doc, DECISION_THRESHOLDS));
+      expect(recomputed.verdict).toBe(pinned.strict.verdict);
+      expect(recomputed.cap).toBe(pinned.strict.cap);
+    });
 
-  it('reproduces the recorded floor-adjusted verdict from raw samples', () => {
-    if (!doc.verdict) return;
-    const noiseFloorMs = floorAdjustedNoiseFloorMs(doc);
-    expect(doc.verdict.noiseFloorMs).toBe(noiseFloorMs);
-    const recomputed = evaluateGate(gateInputFromResults(doc, { noiseFloorMs }));
-    expect(recomputed.verdict).toBe(doc.verdict.floorAdjusted.verdict);
-    expect(recomputed.cap).toBe(doc.verdict.floorAdjusted.cap);
-  });
-});
+    it.skipIf(pinned === undefined)('reproduces the recorded floor-adjusted verdict from raw samples', () => {
+      const noiseFloorMs = decisionNoiseFloorMs(doc);
+      expect(noiseFloorMs).toBeCloseTo(pinned.noiseFloorMs, 9);
+      const recomputed = evaluateGate(decisionGateInput(doc, { ...DECISION_THRESHOLDS, noiseFloorMs }));
+      expect(recomputed.verdict).toBe(pinned.floorAdjusted.verdict);
+      expect(recomputed.cap).toBe(pinned.floorAdjusted.cap);
+    });
+
+    it.skipIf(pinned === undefined)('observed server cap matches the recorded evidence', () => {
+      expect(decisionServerCap(doc)).toBe(pinned.observedServerCap);
+    });
+  },
+);
