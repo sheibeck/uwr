@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 41
 current_phase_name: Executor and Domain Cutover
 status: executing
-stopped_at: Completed 41-06-PLAN.md
-last_updated: "2026-09-30T15:25:36.942Z"
+stopped_at: Completed 41-07-PLAN.md
+last_updated: "2026-09-30T15:44:19.849Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 41 execution started
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 38
-  completed_plans: 27
+  completed_plans: 28
   percent: 33
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 41 (Executor and Domain Cutover) — EXECUTING
-Plan: 7 of 17
+Plan: 8 of 17
 Status: Ready to execute
 Last activity: 2026-09-30 — Phase 41 execution started
 
-Progress: [███████░░░] 71% (2/6 phases)
+Progress: [███████░░░] 74% (2/6 phases)
 
 ## Previous Milestones
 
@@ -80,6 +80,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 41-05: cap-exempt routes are combat_narration and renown_perk_gen (never refused busy); only narration is uncounted
 - [Phase ?]: 41-06: claimLlmJob exported; runLlmJob composes guard, claim, call, persist, apply; unreadable-body replies treated as unknown billing (ledger charged reservation, player nothing)
 - [Phase ?]: 41-06: smoke jobs record failed entries in llm_admin_state and never call applyLlmFailure; smoke resultText stored redacted
+- [Phase ?]: [41-07] llm_sweep inserts its next tick unconditionally and first (like sweep_llm_errors); sweeper never runs a success apply, re-dispatches received jobs; report counters increment after status and money are written
 
 ### Roadmap Evolution
 
@@ -134,8 +135,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-30T15:25:36.853Z
-Stopped at: Completed 41-06-PLAN.md
+Last session: 2026-09-30T15:44:19.812Z
+Stopped at: Completed 41-07-PLAN.md
 
 ## Performance Metrics
 
@@ -176,6 +177,7 @@ Stopped at: Completed 41-06-PLAN.md
 | Phase 41 P04 | 12min | 3 tasks | 8 files |
 | Phase 41 P05 | 20min | 2 tasks | 5 files |
 | Phase 41 P06 | 70min | 2 tasks | 5 files |
+| Phase 41 P07 | 35min | 2 tasks | 7 files |
 
 ## Operator Next Steps
 
