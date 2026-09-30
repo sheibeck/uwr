@@ -786,14 +786,6 @@ export const LlmAdminState = __t.object("LlmAdminState", {
 });
 export type LlmAdminState = __Infer<typeof LlmAdminState>;
 
-export const LlmBudget = __t.object("LlmBudget", {
-  id: __t.u64(),
-  playerId: __t.identity(),
-  callCount: __t.u64(),
-  resetDate: __t.string(),
-});
-export type LlmBudget = __Infer<typeof LlmBudget>;
-
 export const LlmCallLog = __t.object("LlmCallLog", {
   id: __t.u64(),
   jobId: __t.u64(),
@@ -816,12 +808,6 @@ export const LlmCallLog = __t.object("LlmCallLog", {
   dispatchLateMs: __t.u64(),
 });
 export type LlmCallLog = __Infer<typeof LlmCallLog>;
-
-export const LlmCleanupTick = __t.object("LlmCleanupTick", {
-  scheduledId: __t.u64(),
-  scheduledAt: __t.scheduleAt(),
-});
-export type LlmCleanupTick = __Infer<typeof LlmCleanupTick>;
 
 export const LlmConfig = __t.object("LlmConfig", {
   id: __t.u64(),
@@ -876,19 +862,6 @@ export const LlmPlayerBudget = __t.object("LlmPlayerBudget", {
 });
 export type LlmPlayerBudget = __Infer<typeof LlmPlayerBudget>;
 
-export const LlmRequest = __t.object("LlmRequest", {
-  id: __t.u64(),
-  playerId: __t.identity(),
-  characterId: __t.u64(),
-  domain: __t.string(),
-  model: __t.string(),
-  userPrompt: __t.string(),
-  status: __t.string(),
-  errorMessage: __t.option(__t.string()),
-  createdAt: __t.timestamp(),
-});
-export type LlmRequest = __Infer<typeof LlmRequest>;
-
 export const LlmSpend = __t.object("LlmSpend", {
   id: __t.u64(),
   spentMicroUsd: __t.u64(),
@@ -903,21 +876,6 @@ export const LlmSweepTick = __t.object("LlmSweepTick", {
   scheduledAt: __t.scheduleAt(),
 });
 export type LlmSweepTick = __Infer<typeof LlmSweepTick>;
-
-export const LlmTask = __t.object("LlmTask", {
-  id: __t.u64(),
-  playerId: __t.identity(),
-  domain: __t.string(),
-  model: __t.string(),
-  systemPrompt: __t.string(),
-  userPrompt: __t.string(),
-  maxTokens: __t.u64(),
-  status: __t.string(),
-  contextJson: __t.option(__t.string()),
-  responseFormatJson: __t.option(__t.string()),
-  createdAt: __t.timestamp(),
-});
-export type LlmTask = __Infer<typeof LlmTask>;
 
 export const Location = __t.object("Location", {
   id: __t.u64(),

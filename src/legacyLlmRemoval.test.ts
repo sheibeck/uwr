@@ -195,30 +195,29 @@ describe('docs', () => {
 });
 
 // ---------------------------------------------------------------------------
-// generated bindings after publish 1 (Plan 42-05)
+// generated bindings after publish 2 (Plan 42-07; flips the publish-1 pin from 42-05)
 // ---------------------------------------------------------------------------
 
-describe('generated bindings after publish 1', () => {
+describe('generated bindings after publish 2', () => {
   const bindingsDir = `${ROOT}src/module_bindings`;
   const names = readdirSync(bindingsDir);
+  const REMOVED_FILE =
+    /llm_task|llm_request|llm_budget|llm_cleanup_tick|submit_llm_result|validate_llm_request|purge_llm_tasks|purge_legacy_llm|sweep_llm_errors/;
 
-  it('has no reducer file for submitting results, validating requests or the old purge', () => {
-    const removed = names.filter((name) =>
-      /^(submit_llm_result|validate_llm_request|purge_llm_tasks)_reducer\.ts$/.test(name)
-    );
-    expect(removed).toEqual([]);
+  it('has no table or reducer file for the legacy tables, the removed reducers, the sweep or the purge', () => {
+    expect(names.filter((name) => REMOVED_FILE.test(name))).toEqual([]);
   });
 
-  it('index.ts names none of the removed reducers', () => {
+  it('index.ts names none of the removed tables or reducers', () => {
     const index = readFileSync(`${bindingsDir}/index.ts`, 'utf8');
     expect(index).not.toMatch(
-      /submitLlmResult|submit_llm_result|validateLlmRequest|validate_llm_request|purgeLlmTasks|purge_llm_tasks/
+      /llmTask|llm_task|purgeLegacyLlm|purge_legacy_llm|submitLlmResult|submit_llm_result|validateLlmRequest|validate_llm_request/
     );
   });
 
-  it('has the publish-1 purge reducer and the player job view (Plan 42-07 flips the purge)', () => {
-    expect(names).toContain('purge_legacy_llm_reducer.ts');
+  it('keeps the player job view and the admin key-status view', () => {
     expect(names).toContain('my_llm_jobs_table.ts');
+    expect(names).toContain('admin_llm_status_table.ts');
   });
 
   it('no generated reducer takes a resultText argument', () => {

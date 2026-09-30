@@ -138,7 +138,6 @@ import WithdrawFromBankReducer from "./withdraw_from_bank_reducer";
 import SetApiKeyReducer from "./set_api_key_reducer";
 import LlmSmokeTestReducer from "./llm_smoke_test_reducer";
 import GrantTestPendingLevelReducer from "./grant_test_pending_level_reducer";
-import PurgeLegacyLlmReducer from "./purge_legacy_llm_reducer";
 import SubmitIntentReducer from "./submit_intent_reducer";
 import StartCreationReducer from "./start_creation_reducer";
 import SubmitCreationInputReducer from "./submit_creation_input_reducer";
@@ -200,7 +199,6 @@ import ItemAffixRow from "./item_affix_table";
 import ItemCooldownRow from "./item_cooldown_table";
 import ItemInstanceRow from "./item_instance_table";
 import ItemTemplateRow from "./item_template_table";
-import LlmTaskRow from "./llm_task_table";
 import LocationRow from "./location_table";
 import LocationConnectionRow from "./location_connection_table";
 import LootTableRow from "./loot_table_table";
@@ -1059,20 +1057,6 @@ const tablesSchema = __schema({
       { name: 'item_template_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ItemTemplateRow),
-  llmTask: __table({
-    name: 'llm_task',
-    indexes: [
-      { accessor: 'id', name: 'llm_task_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
-      { accessor: 'by_player', name: 'llm_task_player_id_idx_btree', algorithm: 'btree', columns: [
-        'playerId',
-      ] },
-    ],
-    constraints: [
-      { name: 'llm_task_id_key', constraint: 'unique', columns: ['id'] },
-    ],
-  }, LlmTaskRow),
   location: __table({
     name: 'location',
     indexes: [
@@ -1891,7 +1875,6 @@ const reducersSchema = __reducers(
   __reducerSchema("set_api_key", SetApiKeyReducer),
   __reducerSchema("llm_smoke_test", LlmSmokeTestReducer),
   __reducerSchema("grant_test_pending_level", GrantTestPendingLevelReducer),
-  __reducerSchema("purge_legacy_llm", PurgeLegacyLlmReducer),
   __reducerSchema("submit_intent", SubmitIntentReducer),
   __reducerSchema("start_creation", StartCreationReducer),
   __reducerSchema("submit_creation_input", SubmitCreationInputReducer),
@@ -1993,8 +1976,6 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "item_instance": Omit<typeof tablesSchema.schemaType.tables["itemInstance"], "accessorName"> & { readonly accessorName: "item_instance" };
     /** @deprecated Use `itemTemplate` instead. This alias will be removed in the next major version. */
     readonly "item_template": Omit<typeof tablesSchema.schemaType.tables["itemTemplate"], "accessorName"> & { readonly accessorName: "item_template" };
-    /** @deprecated Use `llmTask` instead. This alias will be removed in the next major version. */
-    readonly "llm_task": Omit<typeof tablesSchema.schemaType.tables["llmTask"], "accessorName"> & { readonly accessorName: "llm_task" };
     /** @deprecated Use `locationConnection` instead. This alias will be removed in the next major version. */
     readonly "location_connection": Omit<typeof tablesSchema.schemaType.tables["locationConnection"], "accessorName"> & { readonly accessorName: "location_connection" };
     /** @deprecated Use `lootTable` instead. This alias will be removed in the next major version. */
@@ -2156,7 +2137,6 @@ const tableAccessorAliases = {
   "item_cooldown": "itemCooldown",
   "item_instance": "itemInstance",
   "item_template": "itemTemplate",
-  "llm_task": "llmTask",
   "location_connection": "locationConnection",
   "loot_table": "lootTable",
   "named_enemy": "namedEnemy",
@@ -2316,8 +2296,6 @@ export type DbView = __DbViewBase & {
   readonly "item_instance": __DbViewBase["itemInstance"];
   /** @deprecated Use `itemTemplate` instead. This alias will be removed in the next major version. */
   readonly "item_template": __DbViewBase["itemTemplate"];
-  /** @deprecated Use `llmTask` instead. This alias will be removed in the next major version. */
-  readonly "llm_task": __DbViewBase["llmTask"];
   /** @deprecated Use `locationConnection` instead. This alias will be removed in the next major version. */
   readonly "location_connection": __DbViewBase["locationConnection"];
   /** @deprecated Use `lootTable` instead. This alias will be removed in the next major version. */
@@ -2510,8 +2488,6 @@ export type Tables = __TablesBase & {
   readonly "item_instance": __TablesBase["itemInstance"];
   /** @deprecated Use `itemTemplate` instead. This alias will be removed in the next major version. */
   readonly "item_template": __TablesBase["itemTemplate"];
-  /** @deprecated Use `llmTask` instead. This alias will be removed in the next major version. */
-  readonly "llm_task": __TablesBase["llmTask"];
   /** @deprecated Use `locationConnection` instead. This alias will be removed in the next major version. */
   readonly "location_connection": __TablesBase["locationConnection"];
   /** @deprecated Use `lootTable` instead. This alias will be removed in the next major version. */
