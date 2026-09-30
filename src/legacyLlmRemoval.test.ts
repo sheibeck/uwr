@@ -66,12 +66,29 @@ describe('client wiring', () => {
   it('NarrativeConsole shows an accessible indicator from the prop', () => {
     expect(consoleSrc).toMatch(/llmIndicatorLine\?:\s*string\s*\|\s*null;/);
     const div = consoleSrc.match(/<div[^>]*class="llm-indicator"[^>]*>/s)?.[0] ?? '';
-    expect(div).toContain('v-if="llmIndicatorLine"');
     expect(div).toContain('role="status"');
     expect(div).toContain('aria-live="polite"');
-    expect(div).toContain(':style="consideringStyle"');
-    expect(consoleSrc).toContain('{{ llmIndicatorLine }}');
+    expect(div).toContain(':style="llmIndicatorLine ? consideringStyle : indicatorIdleStyle"');
+    expect(consoleSrc).toContain('{{ llmIndicatorLine ?? \'\' }}');
     expect(consoleSrc).not.toContain('considering your fate');
+  });
+
+  it('the role="status" live region is always mounted; only its text changes (WR-03)', () => {
+    const div = consoleSrc.match(/<div[^>]*class="llm-indicator"[^>]*>/s)?.[0] ?? '';
+    expect(div).not.toMatch(/\bv-(if|else-if|else|show)\b/);
+    // Its parent is the unconditional scroll area, so nothing above it unmounts the region either.
+    const scrollArea = consoleSrc.match(/<div :style="scrollAreaStyle"[^>]*>/)?.[0] ?? '';
+    expect(scrollArea).not.toBe('');
+    expect(scrollArea).not.toMatch(/\bv-(if|else-if|else|show)\b/);
+    const regionAt = consoleSrc.indexOf(div);
+    expect(regionAt).toBeGreaterThan(consoleSrc.indexOf(scrollArea));
+    expect(regionAt).toBeLessThan(consoleSrc.indexOf('<!-- Jump to bottom button -->'));
+    expect(countMatches(consoleSrc, /role="status"/)).toBe(1);
+    // The idle style hides the empty region visually without removing it.
+    const idle = consoleSrc.match(/const indicatorIdleStyle = \{[^}]*\}/s)?.[0] ?? '';
+    expect(idle).toContain("position: 'absolute'");
+    expect(idle).toContain("clip: 'rect(0, 0, 0, 0)'");
+    expect(idle).not.toMatch(/display:\s*'none'|visibility:\s*'hidden'/);
   });
 
   it('NarrativeConsole keeps the pulse, adds a reduced-motion rule and the same input lock', () => {

@@ -89,14 +89,14 @@
         </div>
       </div>
 
-      <!-- LLM processing indicator -->
+      <!-- LLM processing indicator. The live region stays mounted and only its text changes,
+           so screen readers announce the first line too (a region inserted with its text is often silent). -->
       <div
-        v-if="llmIndicatorLine"
         class="llm-indicator"
         role="status"
         aria-live="polite"
-        :style="consideringStyle"
-      >{{ llmIndicatorLine }}</div>
+        :style="llmIndicatorLine ? consideringStyle : indicatorIdleStyle"
+      >{{ llmIndicatorLine ?? '' }}</div>
     </div>
 
     <!-- Jump to bottom button -->
@@ -313,6 +313,19 @@ const consideringStyle = {
   fontStyle: 'italic',
   padding: '4px 0',
   animation: 'narrativePulse 1.5s ease-in-out infinite',
+};
+
+/** The empty live region: kept in the DOM for screen readers, takes no space and is not visible. */
+const indicatorIdleStyle = {
+  position: 'absolute' as const,
+  width: '1px',
+  height: '1px',
+  padding: '0',
+  margin: '-1px',
+  overflow: 'hidden',
+  clip: 'rect(0, 0, 0, 0)',
+  whiteSpace: 'nowrap' as const,
+  border: '0',
 };
 
 const jumpBtnStyle = {
