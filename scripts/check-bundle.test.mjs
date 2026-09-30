@@ -406,3 +406,33 @@ describe('CLI', () => {
     expect(run.stdout).toMatch(/proxy-env: assets\/app\.js @0 \(code\)/);
   });
 });
+
+// WR-04: the guard only protects a deploy if the build runs it and a failing guard fails the build.
+describe('build wiring', () => {
+  const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+
+  it('pnpm build runs the guard as its last step, chained with && so a failure fails the build', () => {
+    const build = pkg.scripts.build;
+    const steps = build.split('&&').map((s) => s.trim());
+    expect(steps[steps.length - 1]).toBe('node scripts/check-bundle.mjs');
+    expect(steps.indexOf('vite build')).toBeGreaterThanOrEqual(0);
+    expect(steps.indexOf('vite build')).toBeLessThan(steps.length - 1);
+    // No separator that would swallow the guard's exit code.
+    expect(build).not.toMatch(/\|\||;|\|/);
+  });
+
+  it('the guard runs with its default dist/ and prints no bundle text (no --explain in the build)', () => {
+    expect(pkg.scripts.build).not.toContain('--explain');
+  });
+
+  it('README lists the guard under Available Scripts and in the manual deploy steps', () => {
+    const scripts = readme.slice(readme.indexOf('## Available Scripts'), readme.indexOf('## Deployment'));
+    expect(scripts).toContain('node scripts/check-bundle.mjs');
+    expect(scripts).toMatch(/pnpm build\s+#[^\n]*bundle credential guard/);
+    const pages = readme.slice(readme.indexOf('### Frontend — GitHub Pages'));
+    expect(pages).toContain('scripts/check-bundle.mjs');
+    expect(pages).toMatch(/do NOT deploy/);
+  });
+});

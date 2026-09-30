@@ -127,8 +127,11 @@ App runs at `http://localhost:5173/uwr`.
 
 ```bash
 pnpm dev                  # Start frontend dev server (http://localhost:5173/uwr)
-pnpm build                # Type-check and build frontend for production → ./dist
+pnpm build                # Type-check, build frontend for production → ./dist, then run the bundle credential guard
 pnpm preview              # Serve the production build locally
+
+node scripts/check-bundle.mjs            # Bundle credential guard alone (run by pnpm build; fails on any credential in dist/)
+node scripts/check-bundle.mjs --explain  # Same, plus rule id, file and byte offset per hit (never the matched text)
 
 pnpm spacetime:generate   # Regenerate src/module_bindings/ from backend schema
 pnpm spacetime:publish    # Publish backend module to local SpacetimeDB
@@ -168,9 +171,14 @@ spacetime publish uwr --clear-database -y --project-path spacetimedb
 The frontend deploys automatically via GitHub Actions on push to `master`. To deploy manually:
 
 ```bash
-pnpm build
+pnpm build   # ends with the bundle credential guard; a non-zero exit means do NOT deploy
 # push dist/ contents to gh-pages branch, or use your CI/CD pipeline
 ```
+
+`pnpm build` fails if `scripts/check-bundle.mjs` finds an LLM credential, a provider key or a
+proxy host in `dist/`. Never deploy a `dist/` whose build failed or that was built without the
+guard (for example by calling `vite build` directly). A CI deploy must run `pnpm build`, not
+`vite build`.
 
 Set the `BUILD_VERSION` environment variable during CI to stamp the build:
 
