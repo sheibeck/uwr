@@ -13,6 +13,11 @@
  *    shared identity object for seeding and for `sender` (the mock DB compares
  *    identities with ===).
  *
+ * Phase 41 (plan 03) deliberately changed the pinned behavior in the cases whose title
+ * starts with "Phase 41": creation replies are clamped, the renown static fallback no
+ * longer throws for bigint effects, and a terminal renown failure inserts the static
+ * options. Every other case still pins what the code does, unchanged.
+ *
  * Known limits of the mock DB that these tests inherit (and that 40-08 inherits
  * with them): the `by_name` index accessor is mapped to the column `name`, so the
  * real `race_definition.by_name` (column `nameLower`) is exercised through a row
@@ -21,6 +26,9 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import { capturedReducer, rowColumnProblems, snapshotDb } from './schema_recorder';
 import { createMockCtx } from './test-utils';
+import { serializePerkEffect } from './renown';
+import { clampToBudget } from './skill_budget';
+import { RENOWN_PERK_POOLS } from '../data/renown_data';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
@@ -375,14 +383,23 @@ describe('submit_llm_result failure path: creation and skill_gen', () => {
     expect(nonEmptyTables(ctx)).toEqual(['llm_task']);
   });
 
-  it('renown_perk_gen failure changes nothing but the task status', () => {
+  // Phase 41 (plan 03): a terminal renown failure no longer does nothing. The static options
+  // for the rank are inserted and the Keeper says so, so an earned offer is never lost.
+  it('Phase 41: renown_perk_gen failure inserts the static options for the rank and one Keeper line', () => {
     const ctx = newCtx({
       llm_task: [llmTask('renown_perk_gen', JSON.stringify({ characterId: '10', rank: '2' }))],
       character: [characterRow()],
     });
     exec(ctx, { success: false });
     expect(rows(ctx, 'llm_task')[0].status).toBe('error');
-    expect(nonEmptyTables(ctx)).toEqual(['character', 'llm_task']);
+    expect(nonEmptyTables(ctx)).toEqual(['character', 'event_private', 'llm_task', 'pending_renown_perk']);
+    expect(rows(ctx, 'pending_renown_perk')).toHaveLength(3);
+    expect(rows(ctx, 'pending_renown_perk').every((p: any) => p.characterId === 10n && p.rank === 2n)).toBe(true);
+    const ev = rows(ctx, 'event_private');
+    expect(ev).toHaveLength(1);
+    expect(ev[0]).toMatchObject({ characterId: 10n, ownerUserId: 7n, kind: 'narrative' });
+    expect(ev[0].message).toContain('The cosmos provided some... standard options');
+    expect(rows(ctx, 'llm_budget')).toHaveLength(0);
   });
 });
 
@@ -453,12 +470,17 @@ describe('submit_llm_result creation_race success', () => {
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
   });
 
-  it('QUIRK: a reply without raceName stores "Unknown", prints "**undefined**" and saves no definition', () => {
+  it('Phase 41: a reply without raceName stores "Unknown" with default bonuses, prints "**Unknown**" and saves no definition', () => {
     const ctx = newCtx(seed());
     exec(ctx, { resultText: JSON.stringify({ narrative: 'Nothing much.' }) });
     expect(rows(ctx, 'character_creation_state')[0].raceName).toBe('Unknown');
-    expect(rows(ctx, 'character_creation_state')[0].raceBonuses).toBe('{}');
-    expect(rows(ctx, 'event_creation')[0].message).toContain('**undefined**');
+    expect(JSON.parse(rows(ctx, 'character_creation_state')[0].raceBonuses)).toEqual({
+      primary: { stat: 'str', value: 2 },
+      secondary: { stat: 'dex', value: 1 },
+    });
+    const msg = rows(ctx, 'event_creation')[0].message as string;
+    expect(msg).toContain('**Unknown**');
+    expect(msg).toContain('+2 STR, +1 DEX');
     expect(rows(ctx, 'race_definition')).toHaveLength(0);
   });
 
@@ -507,14 +529,20 @@ describe('submit_llm_result creation_class success', () => {
     expect(JSON.parse(state.classStats).primaryStat).toBe('str');
     expect(JSON.parse(state.abilities)).toHaveLength(3);
     const msg = rows(ctx, 'event_creation')[0].message as string;
-    expect(msg).toContain('Primary: STR, Secondary: DEX | Armor: leather, mail | Weapons: sword, dagger | Physical (+10 bonus HP)');
+    // Phase 41: 'mail' is not a vocabulary armor type, so the validator drops it.
+    expect(msg).toContain('Primary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+10 bonus HP)');
     expect(msg).toContain('[Ember Slash]');
     expect(msg).toContain('[Old Style]');
     expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
   });
 
-  it('accepts legacy ability field names and a mana-user class line', () => {
-    const ctx = newCtx(seed());
+  it('Phase 41: legacy ability field names are not read (vocabulary defaults apply) on a mana-user class line', () => {
+    const ctx = newCtx({
+      llm_task: [llmTask('creation_class')],
+      character_creation_state: [
+        creationState('GENERATING_CLASS', { raceName: 'Ashkin', raceNarrative: 'Born of cinders.', archetype: 'mystic' }),
+      ],
+    });
     const legacy = {
       className: 'Cinder Mystic',
       classDescription: 'Glows unpleasantly.',
@@ -526,18 +554,29 @@ describe('submit_llm_result creation_class success', () => {
     exec(ctx, { resultText: JSON.stringify(legacy) });
     const msg = rows(ctx, 'event_creation')[0].message as string;
     expect(msg).toContain('Primary: INT | Armor: cloth | Mana user (+15 bonus mana)');
-    expect(msg).toContain('physical stun, 6 base, 1s cast, 4s cooldown, 3 mana, stun (?s)');
+    // baseDamage, manaCost and effect are ignored: kind defaults to damage, value1 to 15, the
+    // mana cost to 15, and no effect line is printed.
+    expect(msg).toContain('physical damage, 15 base, 1s cast, 4s cooldown, 15 mana');
+    expect(msg).not.toContain('stun');
   });
 
-  it('QUIRK: an empty object stores "Unknown Class" and prints "**undefined**"', () => {
+  it('Phase 41: an empty object stores "Unknown Class" with default stats and prints "**Unknown Class**"', () => {
     const ctx = newCtx(seed());
     exec(ctx, { resultText: '{}' });
     const state = rows(ctx, 'character_creation_state')[0];
     expect(state.step).toBe('CLASS_REVEALED');
     expect(state.className).toBe('Unknown Class');
-    expect(state.classStats).toBe('{}');
+    expect(JSON.parse(state.classStats)).toEqual({
+      primaryStat: 'str',
+      secondaryStat: 'dex',
+      bonusHp: 0,
+      bonusMana: 0,
+      usesMana: false,
+      weaponProficiencies: [],
+      armorProficiencies: [],
+    });
     expect(state.abilities).toBe('[]');
-    expect(rows(ctx, 'event_creation')[0].message).toContain('**undefined**');
+    expect(rows(ctx, 'event_creation')[0].message).toContain('**Unknown Class**');
   });
 
   it('QUIRK: malformed JSON increments the budget BEFORE parsing and reverts to AWAITING_ARCHETYPE', () => {
@@ -548,14 +587,15 @@ describe('submit_llm_result creation_class success', () => {
     expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
   });
 
-  it('QUIRK: an error midway through the success block (null ability) reverts the state update, fields and all', () => {
+  it('Phase 41: a null ability entry is dropped, not fatal (the old midway throw and revert is gone)', () => {
     const ctx = newCtx(seed());
     exec(ctx, { resultText: JSON.stringify({ className: 'Half Built', abilities: [null] }) });
     const state = rows(ctx, 'character_creation_state')[0];
-    expect(state.step).toBe('AWAITING_ARCHETYPE');
-    expect(state.className).toBeUndefined();
+    expect(state.step).toBe('CLASS_REVEALED');
+    expect(state.className).toBe('Half Built');
+    expect(state.abilities).toBe('[]');
     expect(rows(ctx, 'event_creation')).toHaveLength(1);
-    expect(rows(ctx, 'event_creation')[0].kind).toBe('creation_error');
+    expect(rows(ctx, 'event_creation')[0].kind).toBe('creation');
     expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
   });
 });
@@ -1503,9 +1543,31 @@ describe('submit_llm_result renown_perk_gen success', () => {
     expect(perks[1].kind).toBe('');
   });
 
-  it('QUIRK: the rank-2 static fallback throws (JSON.stringify of a bigint effect), so nothing sticks in production', () => {
+  it('Phase 41: the rank-2 static fallback inserts serialized options (bigint effects no longer throw)', () => {
     const ctx = newCtx(seed(RENOWN_CTX('2')));
-    expect(() => callSubmit(ctx, { resultText: 'nothing' })).toThrow(/BigInt/);
+    exec(ctx, { resultText: 'nothing' });
+    const perks = rows(ctx, 'pending_renown_perk');
+    expect(perks.map((p: any) => p.name)).toEqual(['Iron Will', 'Keen Eye', 'Smooth Talker']);
+    // maxHp: 25n serializes as the number 25 (the shape the perk prompt documents).
+    expect(perks[0].perkEffectJson).toBe('{"maxHp":25,"str":1}');
+    expect(perks.map((p: any) => p.perkEffectJson)).toEqual(
+      RENOWN_PERK_POOLS[2].slice(0, 3).map((p) => serializePerkEffect(p.effect)),
+    );
+    expect(rows(ctx, 'event_private')[0].message).toContain('The cosmos provided some... standard options');
+    expect(rows(ctx, 'llm_budget')[0].callCount).toBe(1n);
+  });
+
+  it.each([3, 5, 9, 11])('Phase 41: the rank-%s static fallback inserts three options with serialized effects', (rank) => {
+    const ctx = newCtx(seed(RENOWN_CTX(String(rank))));
+    callSubmit(ctx, { resultText: 'nothing' });
+    const perks = rows(ctx, 'pending_renown_perk');
+    expect(perks).toHaveLength(3);
+    expect(perks.every((p: any) => p.rank === BigInt(rank))).toBe(true);
+    const pool = RENOWN_PERK_POOLS[rank].slice(0, 3);
+    expect(perks.map((p: any) => p.perkEffectJson)).toEqual(
+      pool.map((p) => (p.type === 'active' ? undefined : serializePerkEffect(p.effect))),
+    );
+    for (const p of perks) if (p.perkEffectJson !== undefined) expect(() => JSON.parse(p.perkEffectJson)).not.toThrow();
   });
 
   it('QUIRK: a rank without a static pool inserts nothing and writes no message, but still increments the budget', () => {
@@ -1524,11 +1586,11 @@ describe('submit_llm_result renown_perk_gen success', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 41: validator gap (creation replies are not clamped server-side)
+// Phase 41: creation replies are clamped server-side (creation_validate)
 // ---------------------------------------------------------------------------
 
-describe('submit_llm_result creation replies: Phase 41 validator gap', () => {
-  it('Phase 41: validator gap - a race reply with out-of-range bonuses is stored and shown unclamped', () => {
+describe('submit_llm_result creation replies: Phase 41 clamped', () => {
+  it('Phase 41: clamped - a race reply with out-of-range bonuses is stored and shown clamped', () => {
     const ctx = newCtx({
       llm_task: [llmTask('creation_race')],
       character_creation_state: [creationState('GENERATING_RACE')],
@@ -1536,12 +1598,15 @@ describe('submit_llm_result creation replies: Phase 41 validator gap', () => {
     const reply = { ...RACE_JSON, bonuses: { primary: { stat: 'str', value: 99 }, secondary: { stat: 'nonsense', value: -5 } } };
     exec(ctx, { resultText: JSON.stringify(reply) });
     const stored = JSON.parse(rows(ctx, 'character_creation_state')[0].raceBonuses);
-    expect(stored.primary.value).toBe(99);
-    expect(stored.secondary).toEqual({ stat: 'nonsense', value: -5 });
-    expect(rows(ctx, 'race_definition')[0].bonusesJson).toContain('99');
+    expect(stored.primary).toEqual({ stat: 'str', value: 3 });
+    // 'nonsense' is not a stat: the secondary defaults to 'dex'; -5 is raised to the minimum 1.
+    expect(stored.secondary).toEqual({ stat: 'dex', value: 1 });
+    expect(rows(ctx, 'race_definition')[0].bonusesJson).not.toContain('99');
+    expect(JSON.parse(rows(ctx, 'race_definition')[0].bonusesJson).primary.value).toBe(3);
+    expect(rows(ctx, 'event_creation')[0].message).toContain('+3 STR, +1 DEX');
   });
 
-  it('Phase 41: validator gap - a class reply with over-budget ability values is stored unclamped', () => {
+  it('Phase 41: clamped - a class reply with over-budget ability values is stored clamped', () => {
     const ctx = newCtx({
       llm_task: [llmTask('creation_class')],
       character_creation_state: [creationState('GENERATING_CLASS')],
@@ -1549,11 +1614,15 @@ describe('submit_llm_result creation replies: Phase 41 validator gap', () => {
     const reply = {
       ...CLASS_JSON,
       stats: { ...CLASS_JSON.stats, bonusHp: 9999 },
-      abilities: [{ ...CLASS_JSON.abilities[0], value1: 99999, kind: 'nonsense' }],
+      abilities: [{ ...CLASS_JSON.abilities[0], value1: 99999, kind: 'nonsense', resourceCost: 9999 }],
     };
     exec(ctx, { resultText: JSON.stringify(reply) });
     const state = rows(ctx, 'character_creation_state')[0];
-    expect(JSON.parse(state.abilities)[0]).toMatchObject({ value1: 99999, kind: 'nonsense' });
-    expect(JSON.parse(state.classStats).bonusHp).toBe(9999);
+    // kind 'nonsense' becomes 'damage'; value1 is capped at the level-1 damage budget maximum;
+    // a stamina cost is capped at 15.
+    const budgetMax = Number(clampToBudget('damage', 1, { value1: 99999 }).value1);
+    expect(JSON.parse(state.abilities)[0]).toMatchObject({ value1: budgetMax, kind: 'damage', resourceCost: 15 });
+    expect(budgetMax).toBeLessThan(99999);
+    expect(JSON.parse(state.classStats).bonusHp).toBe(20);
   });
 });

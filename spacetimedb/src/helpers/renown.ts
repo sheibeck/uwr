@@ -101,7 +101,7 @@ export function triggerRenownPerkGeneration(ctx: any, character: any, rank: numb
  * perkEffectJson is not parsed anywhere downstream: chosen passives are looked up by
  * perkKey in RENOWN_PERK_POOLS, so this is a readable record only.
  */
-function serializePerkEffect(effect: unknown): string {
+export function serializePerkEffect(effect: unknown): string {
   return JSON.stringify(effect, (_k, v) => {
     if (typeof v !== 'bigint') return v;
     return v >= BigInt(Number.MIN_SAFE_INTEGER) && v <= BigInt(Number.MAX_SAFE_INTEGER)
@@ -112,11 +112,21 @@ function serializePerkEffect(effect: unknown): string {
 
 /**
  * Static fallback: insert 3 options from RENOWN_PERK_POOLS for the given rank.
- * Used when no player identity resolves for the character.
+ * Used when no player identity resolves for the character, when the model reply is
+ * unusable, and when a renown_perk_gen job fails terminally, so an earned perk offer
+ * is never silently dropped.
+ *
+ * Idempotent per character and rank: when the character already has a pending option
+ * for the rank, nothing is inserted. Returns the number of rows inserted.
  */
-function insertStaticRenownPerkOptions(ctx: any, characterId: bigint, rank: number) {
+export function insertStaticRenownPerkOptions(ctx: any, characterId: bigint, rank: number): number {
   const pool = RENOWN_PERK_POOLS[rank];
-  if (!pool || pool.length === 0) return;
+  if (!pool || pool.length === 0) return 0;
+
+  const rankBig = BigInt(rank);
+  for (const existing of ctx.db.pending_renown_perk.by_character.filter(characterId)) {
+    if (existing.rank === rankBig) return 0;
+  }
 
   const perks = pool.slice(0, 3);
   for (const perk of perks) {
@@ -124,7 +134,7 @@ function insertStaticRenownPerkOptions(ctx: any, characterId: bigint, rank: numb
     ctx.db.pending_renown_perk.insert({
       id: 0n,
       characterId,
-      rank: BigInt(rank),
+      rank: rankBig,
       name: perk.name,
       description: perk.description,
       kind: isActive ? 'utility' : '',
@@ -140,6 +150,7 @@ function insertStaticRenownPerkOptions(ctx: any, characterId: bigint, rank: numb
       createdAt: ctx.timestamp,
     });
   }
+  return perks.length;
 }
 
 export function awardServerFirst(

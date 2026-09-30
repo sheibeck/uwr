@@ -26,9 +26,12 @@ import {
   applyLlmResult,
   applySkillGenResult,
   applyRenownPerkResult,
+  applyNpcConversationResult,
   extractJson,
   toApplyJob,
 } from './llm_apply';
+import { serializePerkEffect } from './renown';
+import { RENOWN_PERK_POOLS } from '../data/renown_data';
 
 const T0 = 1_700_000_000_000_000n;
 const TODAY = '2023-11-14';
@@ -224,6 +227,161 @@ describe('extractJson', () => {
 
   it('throws on invalid text', () => {
     expect(() => extractJson('no json here')).toThrow();
+  });
+});
+
+describe('Phase 41: renown static fallback and failure path', () => {
+  const renownJob = (rank: string | number = '2', characterId = '10') =>
+    job('renown_perk_gen', JSON.stringify({ characterId, rank: String(rank) }));
+  const KEEPER = 'The cosmos provided some... standard options';
+
+  it.each([2, 3, 5, 9, 11])(
+    'applyRenownPerkResult with fewer than 3 valid perks inserts the rank-%s static options with serialized effects',
+    (rank) => {
+      const ctx = moduleCtx({ character: [characterRow()] });
+      expect(() =>
+        applyRenownPerkResult(ctx, renownJob(rank), JSON.stringify({ perks: [{ name: 'Only one' }] })),
+      ).not.toThrow();
+      const perks = rows(ctx, 'pending_renown_perk');
+      expect(perks).toHaveLength(3);
+      const pool = RENOWN_PERK_POOLS[rank].slice(0, 3);
+      expect(perks.map((p: any) => p.name)).toEqual(pool.map((p) => p.name));
+      expect(perks.map((p: any) => p.perkEffectJson)).toEqual(
+        pool.map((p) => (p.type === 'active' ? undefined : serializePerkEffect(p.effect))),
+      );
+      const events = rows(ctx, 'event_private');
+      expect(events).toHaveLength(1);
+      expect(events[0].message).toContain(KEEPER);
+      expectBudgetOnlyForAlice(ctx, 1n);
+    },
+  );
+
+  it('serializePerkEffect turns safe bigints into numbers and huge ones into strings', () => {
+    expect(serializePerkEffect({ maxHp: 25n, str: 1n })).toBe('{"maxHp":25,"str":1}');
+    expect(serializePerkEffect({ big: 2n ** 70n })).toBe(`{"big":"${(2n ** 70n).toString()}"}`);
+  });
+
+  it('applyLlmFailure inserts the static options once and posts one Keeper line', () => {
+    const ctx = moduleCtx({ character: [characterRow()] });
+    applyLlmFailure(ctx, renownJob('2'));
+    expect(rows(ctx, 'pending_renown_perk')).toHaveLength(3);
+    expect(rows(ctx, 'pending_renown_perk').every((p: any) => p.characterId === 10n && p.rank === 2n)).toBe(true);
+    let events = rows(ctx, 'event_private');
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ characterId: 10n, ownerUserId: 7n, kind: 'narrative' });
+    expect(events[0].message).toContain(KEEPER);
+
+    applyLlmFailure(ctx, renownJob('2'));
+    expect(rows(ctx, 'pending_renown_perk')).toHaveLength(3);
+    events = rows(ctx, 'event_private');
+    expect(events).toHaveLength(1);
+    expect(rows(ctx, 'llm_budget')).toHaveLength(0);
+  });
+
+  it('applyLlmFailure for a different rank still inserts (idempotence is per rank)', () => {
+    const ctx = moduleCtx({ character: [characterRow()] });
+    applyLlmFailure(ctx, renownJob('2'));
+    applyLlmFailure(ctx, renownJob('3'));
+    expect(rows(ctx, 'pending_renown_perk')).toHaveLength(6);
+  });
+
+  it('applyLlmFailure does not duplicate options already inserted by the LLM apply path', () => {
+    const ctx = moduleCtx({ character: [characterRow()] });
+    applyRenownPerkResult(ctx, renownJob('4'), 'unusable');
+    expect(rows(ctx, 'pending_renown_perk')).toHaveLength(3);
+    applyLlmFailure(ctx, renownJob('4'));
+    expect(rows(ctx, 'pending_renown_perk')).toHaveLength(3);
+    expect(rows(ctx, 'event_private')).toHaveLength(1);
+  });
+
+  it('applyLlmFailure does nothing when the character no longer exists', () => {
+    const ctx = moduleCtx({});
+    applyLlmFailure(ctx, renownJob('2'));
+    expect(rows(ctx, 'pending_renown_perk')).toHaveLength(0);
+    expect(rows(ctx, 'event_private')).toHaveLength(0);
+  });
+
+  it('applyLlmFailure does nothing for a rank without a static pool or an unreadable context', () => {
+    const ctx = moduleCtx({ character: [characterRow()] });
+    const before = snapshotDb(ctx.db);
+    applyLlmFailure(ctx, renownJob('99'));
+    applyLlmFailure(ctx, job('renown_perk_gen', 'not json'));
+    applyLlmFailure(ctx, job('renown_perk_gen', undefined));
+    expect(snapshotDb(ctx.db)).toBe(before);
+  });
+});
+
+describe('Phase 41: model numbers never throw', () => {
+  it('an LLM perk with a fractional cooldown, an infinite value and a non-numeric magnitude stores clamped bigints', () => {
+    const ctx = moduleCtx({ character: [characterRow()] });
+    const perk = (name: string, over: Record<string, any> = {}) => ({
+      name,
+      description: `${name} description.`,
+      kind: 'heal',
+      ...over,
+    });
+    const reply = JSON.stringify({
+      perks: [
+        // Infinity is not valid JSON, so it arrives as a huge or string value in practice.
+        perk('A', { cooldownSeconds: 12.5, value1: '1e999', effectMagnitude: 'x', value2: 3.9, castSeconds: -4 }),
+        perk('B', { resourceCost: 1e30, effectDuration: 'NaN' }),
+        perk('C', { perkEffectJson: { not: 'a string' }, damageType: 5 }),
+      ],
+    });
+    const renown = job('renown_perk_gen', JSON.stringify({ characterId: '10', rank: '2' }));
+    expect(() => applyRenownPerkResult(ctx, renown, reply)).not.toThrow();
+    const [a, b, c] = rows(ctx, 'pending_renown_perk');
+    expect(a).toMatchObject({ cooldownSeconds: 12n, value1: 0n, effectMagnitude: 0n, value2: 3n, castSeconds: 0n });
+    expect(b).toMatchObject({ resourceCost: 1_000_000n, effectDuration: 0n });
+    expect(c.perkEffectJson).toBeUndefined();
+    expect(c.damageType).toBeUndefined();
+  });
+
+  const npcSeed = () => ({
+    character: [characterRow()],
+    npc: [{ id: 20n, name: 'Marta', npcType: 'lore', locationId: 100n, description: 'A baker.', greeting: 'Hello.', personalityJson: '{}' }],
+    npc_memory: [{ id: 30n, characterId: 10n, npcId: 20n, memoryJson: '{}', lastUpdated: ts(1_600_000_000_000_000n) }],
+    npc_affinity: [
+      { id: 40n, characterId: 10n, npcId: 20n, affinity: 0n, lastInteraction: ts(1_600_000_000_000_000n), giftsGiven: 0n, conversationCount: 0n },
+    ],
+  });
+  const npcJob = job('npc_conversation', JSON.stringify({ characterId: '10', npcId: '20', memoryId: '30' }));
+  const questReply = (effect: Record<string, any>) =>
+    JSON.stringify({
+      dialogue: 'Hi.',
+      effects: [{ type: 'offer_quest', questName: 'Q', questType: 'gather', ...effect }],
+      memoryUpdate: {},
+      internalThought: '',
+    });
+
+  it('a fractional targetCount and a non-numeric rewardXp store requiredCount 2n and the level-based default', () => {
+    const ctx = moduleCtx(npcSeed());
+    expect(() =>
+      applyNpcConversationResult(ctx, npcJob, questReply({ targetCount: 2.9, rewardXp: 'NaN', rewardGold: 'lots' })),
+    ).not.toThrow();
+    // characterRow level is 3n: default reward 3 * 15 + 10 = 55
+    expect(rows(ctx, 'quest_template')[0]).toMatchObject({ requiredCount: 2n, rewardXp: 55n, rewardGold: 0n });
+    expect(rows(ctx, 'quest_instance')).toHaveLength(1);
+  });
+
+  it('out-of-range quest numbers are clamped and in-range integers are kept', () => {
+    const ctx = moduleCtx(npcSeed());
+    applyNpcConversationResult(ctx, npcJob, questReply({ targetCount: 99999, rewardXp: 1e12, rewardGold: 250 }));
+    expect(rows(ctx, 'quest_template')[0]).toMatchObject({ requiredCount: 1000n, rewardXp: 1_000_000n, rewardGold: 250n });
+  });
+
+  it('a zero or negative targetCount becomes 1 and a zero rewardXp keeps the default', () => {
+    const ctx = moduleCtx(npcSeed());
+    applyNpcConversationResult(ctx, npcJob, questReply({ targetCount: -3, rewardXp: 0 }));
+    expect(rows(ctx, 'quest_template')[0]).toMatchObject({ requiredCount: 1n, rewardXp: 55n });
+    expect(rows(ctx, 'quest_template')[0].rewardGold).toBeUndefined();
+  });
+
+  it('a fractional affinity amount is truncated instead of throwing', () => {
+    const ctx = moduleCtx(npcSeed());
+    const r = JSON.stringify({ dialogue: 'Hi.', effects: [{ type: 'affinity_change', amount: 2.5 }], memoryUpdate: {}, internalThought: '' });
+    expect(() => applyNpcConversationResult(ctx, npcJob, r)).not.toThrow();
+    expect(rows(ctx, 'npc_affinity')[0].affinity).toBe(2n);
   });
 });
 

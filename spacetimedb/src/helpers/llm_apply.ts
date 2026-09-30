@@ -8,9 +8,13 @@
  *
  * Quirks are preserved on purpose (see submit_llm_result.characterization.test.ts):
  * creation increments the budget before parsing, skill_gen with fewer than three
- * skills does not increment it, NPC budget is charged again at result, renown
- * failure does nothing, and the static renown fallback serializes perk.effect
- * with plain JSON.stringify (a bigint throw pinned for a Phase 41 fix).
+ * skills does not increment it, and NPC budget is charged again at result.
+ *
+ * Phase 41 (plan 03) hardened this layer against real model output: creation
+ * replies are clamped (creation_validate), every model-supplied number that becomes
+ * a bigint goes through toBigIntSafe (a throw rolls back the whole apply), the renown
+ * static fallback is the shared bigint-safe insertStaticRenownPerkOptions, and a
+ * terminal renown_perk_gen failure delivers the static options instead of nothing.
  */
 import { incrementBudget } from './llm';
 import {
@@ -31,7 +35,9 @@ import {
 } from './npc_conversation';
 import { awardNpcAffinity } from './npc_affinity';
 import { handleCombatNarrationResult } from './combat_narration';
-import { RENOWN_PERK_POOLS } from '../data/renown_data';
+import { insertStaticRenownPerkOptions } from './renown';
+import { toBigIntSafe } from './safe_numbers';
+import { validateRaceReply, validateClassReply } from './creation_validate';
 import { QUEST_TYPES } from '../data/mechanical_vocabulary';
 
 /** The fields of a stored job the apply step needs. Works for llm_task and llm_job rows. */
@@ -119,6 +125,23 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
   } else if (job.domain === 'combat_narration') {
     // Silent failure -- combat continues without narration
     handleCombatNarrationResult(ctx, job, '', false);
+  } else if (job.domain === 'renown_perk_gen') {
+    // An earned perk offer is never lost: fall back to the static options for the rank.
+    let charId: bigint;
+    let rank: number;
+    try {
+      const context = job.contextJson ? JSON.parse(job.contextJson) : {};
+      charId = BigInt(context.characterId);
+      rank = Number(context.rank) || 2;
+    } catch (_err) {
+      return;
+    }
+    const character = ctx.db.character.id.find(charId);
+    if (!character) return;
+    if (insertStaticRenownPerkOptions(ctx, charId, rank) > 0) {
+      appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
+        'The Keeper shrugs. "The cosmos provided some... standard options for your consideration."');
+    }
   }
 }
 
@@ -131,31 +154,35 @@ export function applyCreationResult(ctx: any, job: ApplyJob, resultText: string)
   incrementBudget(ctx, job.playerId);
 
   try {
-    const data = extractJson(resultText);
+    const raw = extractJson(resultText);
 
     if (generationType === 'race') {
+      // Clamp, never reject: everything below is built from the validated reply only.
+      const race = validateRaceReply(raw);
+      const { primary, secondary, flavor } = race.bonuses;
       ctx.db.character_creation_state.id.update({
         ...s,
         step: 'AWAITING_ARCHETYPE',
-        raceName: data.raceName || 'Unknown',
-        raceNarrative: data.narrative || '',
-        raceBonuses: JSON.stringify(data.bonuses || {}),
+        raceName: race.raceName,
+        raceNarrative: race.narrative,
+        raceBonuses: JSON.stringify(race.bonuses),
         updatedAt: ctx.timestamp,
       });
 
-      const bonusText = data.bonuses
-        ? `\n+${data.bonuses.primary?.value || 2} ${(data.bonuses.primary?.stat || 'STR').toUpperCase()}, +${data.bonuses.secondary?.value || 1} ${(data.bonuses.secondary?.stat || 'DEX').toUpperCase()}${data.bonuses.flavor ? `. ${data.bonuses.flavor}` : ''}`
-        : '';
+      const bonusText =
+        `\n+${primary.value} ${primary.stat.toUpperCase()}, +${secondary.value} ${secondary.stat.toUpperCase()}${flavor ? `. ${flavor}` : ''}`;
 
       appendCreationEvent(ctx, job.playerId, 'creation',
-        `${data.narrative || 'An interesting choice.'}\n\n` +
-        `**${data.raceName}**${bonusText}\n\n` +
+        `${race.narrative || 'An interesting choice.'}\n\n` +
+        `**${race.raceName}**${bonusText}\n\n` +
         `Now then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
         `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`
       );
 
-      // Persist race definition for reuse by future players
-      const raceLower = (data.raceName || '').trim().toLowerCase();
+      // Persist race definition for reuse by future players. A reply that named no race
+      // (validated to the placeholder 'Unknown') is not saved for reuse.
+      const namedRace = typeof raw?.raceName === 'string' && raw.raceName.trim() !== '';
+      const raceLower = namedRace ? race.raceName.toLowerCase() : '';
       if (raceLower) {
         let alreadySaved = false;
         for (const existing of ctx.db.race_definition.by_name.filter(raceLower)) {
@@ -165,54 +192,49 @@ export function applyCreationResult(ctx: any, job: ApplyJob, resultText: string)
         if (!alreadySaved) {
           ctx.db.race_definition.insert({
             id: 0n,
-            name: data.raceName,
+            name: race.raceName,
             nameLower: raceLower,
-            narrative: data.narrative || '',
-            bonusesJson: JSON.stringify(data.bonuses || {}),
+            narrative: race.narrative,
+            bonusesJson: JSON.stringify(race.bonuses),
             createdAt: ctx.timestamp,
           });
         }
       }
 
     } else if (generationType === 'class') {
+      // Clamp, never reject: everything below is built from the validated reply only.
+      const cls = validateClassReply(raw, s.archetype ?? 'warrior');
       ctx.db.character_creation_state.id.update({
         ...s,
         step: 'CLASS_REVEALED',
-        className: data.className || 'Unknown Class',
-        classDescription: data.classDescription || '',
-        classStats: JSON.stringify(data.stats || {}),
-        abilities: JSON.stringify(data.abilities || []),
+        className: cls.className,
+        classDescription: cls.classDescription,
+        classStats: JSON.stringify(cls.stats),
+        abilities: JSON.stringify(cls.abilities),
         updatedAt: ctx.timestamp,
       });
 
-      const stats = data.stats || {};
-      const statLine = `Primary: ${(stats.primaryStat || 'str').toUpperCase()}${stats.secondaryStat && stats.secondaryStat !== 'none' ? `, Secondary: ${stats.secondaryStat.toUpperCase()}` : ''}`;
-      const weaponLine = Array.isArray(stats.weaponProficiencies) && stats.weaponProficiencies.length > 0
+      const stats = cls.stats;
+      const statLine = `Primary: ${stats.primaryStat.toUpperCase()}${stats.secondaryStat !== 'none' ? `, Secondary: ${stats.secondaryStat.toUpperCase()}` : ''}`;
+      const weaponLine = stats.weaponProficiencies.length > 0
         ? `Weapons: ${stats.weaponProficiencies.join(', ')}` : '';
-      const armorLine = Array.isArray(stats.armorProficiencies) && stats.armorProficiencies.length > 0
-        ? `Armor: ${stats.armorProficiencies.join(', ')}` : `Armor: ${stats.armorProficiency || 'cloth'}`;
-      const resourceLine = stats.usesMana ? `Mana user (+${stats.bonusMana || 0} bonus mana)` : `Physical (+${stats.bonusHp || 0} bonus HP)`;
+      const armorLine = stats.armorProficiencies.length > 0
+        ? `Armor: ${stats.armorProficiencies.join(', ')}` : 'Armor: cloth';
+      const resourceLine = stats.usesMana ? `Mana user (+${stats.bonusMana} bonus mana)` : `Physical (+${stats.bonusHp} bonus HP)`;
 
       let abilityText = '\n\nYour starting abilities:\n';
-      const abilities = data.abilities || [];
-      for (let i = 0; i < abilities.length; i++) {
-        const a = abilities[i];
+      for (const a of cls.abilities) {
         abilityText += `\n[${a.name}] — ${a.description}\n`;
         const castTime = a.castSeconds > 0 ? `${a.castSeconds}s cast` : 'instant';
-        const baseValue = a.value1 ?? a.baseDamage ?? '?';
-        const cost = a.resourceCost ?? a.manaCost ?? 0;
-        const resType = a.resourceType ?? (cost > 0 ? 'mana' : '');
-        const kindLabel = a.kind ?? a.effect ?? 'damage';
-        abilityText += `  ${a.damageType ?? 'physical'} ${kindLabel}, ${baseValue} base, ${castTime}, ${a.cooldownSeconds}s cooldown`;
-        if (cost > 0) abilityText += `, ${cost} ${resType}`;
-        const effectKind = a.effectType ?? a.effect;
-        if (effectKind && effectKind !== 'none') abilityText += `, ${effectKind} (${a.effectDuration ?? '?'}s)`;
+        abilityText += `  ${a.damageType} ${a.kind}, ${a.value1} base, ${castTime}, ${a.cooldownSeconds}s cooldown`;
+        if (a.resourceCost > 0) abilityText += `, ${a.resourceCost} ${a.resourceType}`;
+        if (a.effectType && a.effectType !== 'none') abilityText += `, ${a.effectType} (${a.effectDuration ?? '?'}s)`;
         abilityText += '\n';
       }
 
       appendCreationEvent(ctx, job.playerId, 'creation',
-        `${data.classDescription || 'A unique class emerges.'}\n\n` +
-        `**${data.className}**\n${statLine} | ${armorLine}${weaponLine ? ` | ${weaponLine}` : ''} | ${resourceLine}` +
+        `${cls.classDescription || 'A unique class emerges.'}\n\n` +
+        `**${cls.className}**\n${statLine} | ${armorLine}${weaponLine ? ` | ${weaponLine}` : ''} | ${resourceLine}` +
         abilityText +
         `\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.` +
         `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`
@@ -419,7 +441,7 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
     if (!effect || !effect.type) continue;
 
     if (effect.type === 'affinity_change') {
-      let amount = Number(effect.amount) || 0;
+      let amount = Math.trunc(Number(effect.amount)) || 0;
       if (amount > 5) amount = 5;
       if (amount < -5) amount = -5;
       if (amount === 0) continue;
@@ -463,22 +485,28 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
       }
       if (isDuplicate) continue;
 
-      // Create QuestTemplate
+      // Create QuestTemplate. Model-supplied numbers never throw: a fractional or non-finite
+      // value is floored or replaced, and a zero reward keeps the level-based default.
+      const defaultRewardXp = BigInt(Number(character.level) * 15 + 10);
+      const suppliedXp = toBigIntSafe(effect.rewardXp, { min: 0n, max: 1_000_000n, fallback: defaultRewardXp });
+      const questRewardXp = suppliedXp === 0n ? defaultRewardXp : suppliedXp;
       const qt = ctx.db.quest_template.insert({
         id: 0n,
         name: questName,
         npcId: npcIdVal,
         targetEnemyTemplateId: 0n,
-        requiredCount: BigInt(effect.targetCount || 1),
+        requiredCount: toBigIntSafe(effect.targetCount, { min: 1n, max: 1_000n, fallback: 1n }),
         minLevel: character.level,
         maxLevel: character.level + 5n,
-        rewardXp: BigInt(effect.rewardXp || Number(character.level) * 15 + 10),
+        rewardXp: questRewardXp,
         questType,
         description: effect.questDescription,
         rewardType: effect.rewardType || 'xp',
         rewardItemName: effect.rewardItemName,
         rewardItemDesc: effect.rewardItemDesc,
-        rewardGold: effect.rewardGold ? BigInt(effect.rewardGold) : undefined,
+        rewardGold: effect.rewardGold
+          ? toBigIntSafe(effect.rewardGold, { min: 0n, max: 1_000_000n, fallback: 0n })
+          : undefined,
         characterId: charId,
       });
 
@@ -688,31 +716,8 @@ export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: strin
   }
 
   if (perks.length < 3) {
-    // Fall back to static RENOWN_PERK_POOLS for this rank
-    const pool = RENOWN_PERK_POOLS[rank];
-    if (pool && pool.length > 0) {
-      const staticPerks = pool.slice(0, 3);
-      for (const perk of staticPerks) {
-        const isActive = perk.type === 'active';
-        ctx.db.pending_renown_perk.insert({
-          id: 0n,
-          characterId: charId,
-          rank: BigInt(rank),
-          name: perk.name,
-          description: perk.description,
-          kind: isActive ? 'utility' : '',
-          targetRule: 'self',
-          resourceType: isActive ? 'stamina' : 'none',
-          resourceCost: 0n,
-          castSeconds: 0n,
-          cooldownSeconds: isActive ? BigInt((perk.effect as any).cooldownSeconds ?? 300) : 0n,
-          scaling: 'none',
-          value1: 0n,
-          perkEffectJson: isActive ? undefined : JSON.stringify(perk.effect),
-          perkDomain: perk.domain,
-          createdAt: ctx.timestamp,
-        });
-      }
+    // Fall back to the static RENOWN_PERK_POOLS options for this rank (bigint-safe serializer).
+    if (insertStaticRenownPerkOptions(ctx, charId, rank) > 0) {
       appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
         'The Keeper shrugs. "The cosmos provided some... standard options for your consideration."');
     }
@@ -720,8 +725,10 @@ export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: strin
     return;
   }
 
-  // Insert up to 3 valid perk options
+  // Insert up to 3 valid perk options. Every model-supplied number goes through toBigIntSafe.
   const perksToInsert = perks.slice(0, 3);
+  const perkInt = (v: unknown) => toBigIntSafe(v, { min: 0n, max: 1_000_000n, fallback: 0n });
+  const optStr = (v: unknown) => (typeof v === 'string' && v !== '' ? v : undefined);
   for (const perk of perksToInsert) {
     ctx.db.pending_renown_perk.insert({
       id: 0n,
@@ -732,18 +739,18 @@ export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: strin
       kind: String(perk.kind || ''),
       targetRule: String(perk.targetRule || 'self'),
       resourceType: String(perk.resourceType || 'none'),
-      resourceCost: BigInt(Number(perk.resourceCost) || 0),
-      castSeconds: BigInt(Number(perk.castSeconds) || 0),
-      cooldownSeconds: BigInt(Number(perk.cooldownSeconds) || 0),
+      resourceCost: perkInt(perk.resourceCost),
+      castSeconds: perkInt(perk.castSeconds),
+      cooldownSeconds: perkInt(perk.cooldownSeconds),
       scaling: String(perk.scaling || 'none'),
-      value1: BigInt(Number(perk.value1) || 0),
-      value2: perk.value2 != null ? BigInt(Number(perk.value2)) : undefined,
-      damageType: perk.damageType || undefined,
-      effectType: perk.effectType || undefined,
-      effectMagnitude: perk.effectMagnitude != null ? BigInt(Number(perk.effectMagnitude)) : undefined,
-      effectDuration: perk.effectDuration != null ? BigInt(Number(perk.effectDuration)) : undefined,
-      perkEffectJson: perk.perkEffectJson || undefined,
-      perkDomain: perk.perkDomain || 'combat',
+      value1: perkInt(perk.value1),
+      value2: perk.value2 != null ? perkInt(perk.value2) : undefined,
+      damageType: optStr(perk.damageType),
+      effectType: optStr(perk.effectType),
+      effectMagnitude: perk.effectMagnitude != null ? perkInt(perk.effectMagnitude) : undefined,
+      effectDuration: perk.effectDuration != null ? perkInt(perk.effectDuration) : undefined,
+      perkEffectJson: optStr(perk.perkEffectJson),
+      perkDomain: String(perk.perkDomain || 'combat'),
       createdAt: ctx.timestamp,
     });
   }
@@ -756,7 +763,7 @@ export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: strin
   presentation += `"Rank ${rank}. The world owes you something. Choose your due:"\n`;
   for (const perk of perksToInsert) {
     presentation += `\n[${perk.name}] -- ${perk.description}\n`;
-    if (perk.kind && perk.kind.trim()) {
+    if (String(perk.kind || '').trim()) {
       presentation += `  Active ability | ${perk.resourceCost || 0} ${perk.resourceType || 'none'} | ${perk.cooldownSeconds || 0}s cooldown\n`;
     } else {
       presentation += `  Passive bonus\n`;

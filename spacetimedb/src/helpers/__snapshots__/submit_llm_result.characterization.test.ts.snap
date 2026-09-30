@@ -382,14 +382,14 @@ exports[`submit_llm_result combat_narration > success with raw prose falls back 
 }"
 `;
 
-exports[`submit_llm_result creation replies: Phase 41 validator gap > Phase 41: validator gap - a class reply with over-budget ability values is stored unclamped 1`] = `
+exports[`submit_llm_result creation replies: Phase 41 clamped > Phase 41: clamped - a class reply with over-budget ability values is stored clamped 1`] = `
 "{
   "character_creation_state": [
     {
-      "abilities": "[{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"nonsense\\",\\"damageType\\":\\"fire\\",\\"value1\\":99999,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"resourceCost\\":5,\\"resourceType\\":\\"stamina\\",\\"effectType\\":\\"dot\\",\\"effectDuration\\":9}]",
+      "abilities": "[{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"stamina\\",\\"resourceCost\\":15,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"value1\\":23,\\"effectType\\":\\"dot\\",\\"effectDuration\\":9}]",
       "classDescription": "A duelist who fights like a grudge.",
       "className": "Emberblade",
-      "classStats": "{\\"primaryStat\\":\\"str\\",\\"secondaryStat\\":\\"dex\\",\\"bonusHp\\":9999,\\"bonusMana\\":0,\\"armorProficiency\\":\\"leather\\",\\"armorProficiencies\\":[\\"leather\\",\\"mail\\"],\\"weaponProficiencies\\":[\\"sword\\",\\"dagger\\"],\\"usesMana\\":false}",
+      "classStats": "{\\"primaryStat\\":\\"str\\",\\"secondaryStat\\":\\"dex\\",\\"bonusHp\\":20,\\"bonusMana\\":0,\\"usesMana\\":false,\\"weaponProficiencies\\":[\\"sword\\",\\"dagger\\"],\\"armorProficiencies\\":[\\"leather\\"]}",
       "createdAt": "ts:1600000000000000n",
       "id": "2n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -402,7 +402,7 @@ exports[`submit_llm_result creation replies: Phase 41 validator gap > Phase 41: 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather, mail | Weapons: sword, dagger | Physical (+9999 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire nonsense, 99999 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+20 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 23 base, instant, 6s cooldown, 15 stamina, dot (9s)\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -430,14 +430,14 @@ exports[`submit_llm_result creation replies: Phase 41 validator gap > Phase 41: 
 }"
 `;
 
-exports[`submit_llm_result creation replies: Phase 41 validator gap > Phase 41: validator gap - a race reply with out-of-range bonuses is stored and shown unclamped 1`] = `
+exports[`submit_llm_result creation replies: Phase 41 clamped > Phase 41: clamped - a race reply with out-of-range bonuses is stored and shown clamped 1`] = `
 "{
   "character_creation_state": [
     {
       "createdAt": "ts:1600000000000000n",
       "id": "2n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "raceBonuses": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":99},\\"secondary\\":{\\"stat\\":\\"nonsense\\",\\"value\\":-5}}",
+      "raceBonuses": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":3},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1}}",
       "raceName": "Ashkin",
       "raceNarrative": "Born of cinders and spite.",
       "step": "AWAITING_ARCHETYPE",
@@ -449,7 +449,7 @@ exports[`submit_llm_result creation replies: Phase 41 validator gap > Phase 41: 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+99 STR, +-5 NONSENSE\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+3 STR, +1 DEX\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -476,7 +476,7 @@ exports[`submit_llm_result creation replies: Phase 41 validator gap > Phase 41: 
   ],
   "race_definition": [
     {
-      "bonusesJson": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":99},\\"secondary\\":{\\"stat\\":\\"nonsense\\",\\"value\\":-5}}",
+      "bonusesJson": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":3},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1}}",
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "name": "Ashkin",
@@ -487,14 +487,14 @@ exports[`submit_llm_result creation replies: Phase 41 validator gap > Phase 41: 
 }"
 `;
 
-exports[`submit_llm_result creation_class success > QUIRK: an empty object stores "Unknown Class" and prints "**undefined**" 1`] = `
+exports[`submit_llm_result creation_class success > Phase 41: a null ability entry is dropped, not fatal (the old midway throw and revert is gone) 1`] = `
 "{
   "character_creation_state": [
     {
       "abilities": "[]",
       "classDescription": "",
-      "className": "Unknown Class",
-      "classStats": "{}",
+      "className": "Half Built",
+      "classStats": "{\\"primaryStat\\":\\"str\\",\\"secondaryStat\\":\\"dex\\",\\"bonusHp\\":0,\\"bonusMana\\":0,\\"usesMana\\":false,\\"weaponProficiencies\\":[],\\"armorProficiencies\\":[]}",
       "createdAt": "ts:1600000000000000n",
       "id": "2n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -509,7 +509,7 @@ exports[`submit_llm_result creation_class success > QUIRK: an empty object store
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "A unique class emerges.\\n\\n**undefined**\\nPrimary: STR | Armor: cloth | Physical (+0 bonus HP)\\n\\nYour starting abilities:\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "A unique class emerges.\\n\\n**Half Built**\\nPrimary: STR, Secondary: DEX | Armor: cloth | Physical (+0 bonus HP)\\n\\nYour starting abilities:\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -537,16 +537,20 @@ exports[`submit_llm_result creation_class success > QUIRK: an empty object store
 }"
 `;
 
-exports[`submit_llm_result creation_class success > QUIRK: an error midway through the success block (null ability) reverts the state update, fields and all 1`] = `
+exports[`submit_llm_result creation_class success > Phase 41: an empty object stores "Unknown Class" with default stats and prints "**Unknown Class**" 1`] = `
 "{
   "character_creation_state": [
     {
+      "abilities": "[]",
+      "classDescription": "",
+      "className": "Unknown Class",
+      "classStats": "{\\"primaryStat\\":\\"str\\",\\"secondaryStat\\":\\"dex\\",\\"bonusHp\\":0,\\"bonusMana\\":0,\\"usesMana\\":false,\\"weaponProficiencies\\":[],\\"armorProficiencies\\":[]}",
       "createdAt": "ts:1600000000000000n",
       "id": "2n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "raceName": "Ashkin",
       "raceNarrative": "Born of cinders.",
-      "step": "AWAITING_ARCHETYPE",
+      "step": "CLASS_REVEALED",
       "updatedAt": "ts:1700000000000000n"
     }
   ],
@@ -554,8 +558,59 @@ exports[`submit_llm_result creation_class success > QUIRK: an error midway throu
     {
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
-      "kind": "creation_error",
-      "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
+      "kind": "creation",
+      "message": "A unique class emerges.\\n\\n**Unknown Class**\\nPrimary: STR, Secondary: DEX | Armor: cloth | Physical (+0 bonus HP)\\n\\nYour starting abilities:\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_class",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result creation_class success > Phase 41: legacy ability field names are not read (vocabulary defaults apply) on a mana-user class line 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "abilities": "[{\\"name\\":\\"Spark\\",\\"description\\":\\"A spark.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"physical\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"mana\\",\\"resourceCost\\":15,\\"castSeconds\\":1,\\"cooldownSeconds\\":4,\\"value1\\":15}]",
+      "archetype": "mystic",
+      "classDescription": "Glows unpleasantly.",
+      "className": "Cinder Mystic",
+      "classStats": "{\\"primaryStat\\":\\"int\\",\\"secondaryStat\\":\\"none\\",\\"bonusHp\\":0,\\"bonusMana\\":15,\\"usesMana\\":true,\\"weaponProficiencies\\":[],\\"armorProficiencies\\":[]}",
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders.",
+      "step": "CLASS_REVEALED",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "Glows unpleasantly.\\n\\n**Cinder Mystic**\\nPrimary: INT | Armor: cloth | Mana user (+15 bonus mana)\\n\\nYour starting abilities:\\n\\n[Spark] — A spark.\\n  physical damage, 15 base, 1s cast, 4s cooldown, 15 mana\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -629,64 +684,14 @@ exports[`submit_llm_result creation_class success > QUIRK: malformed JSON increm
 }"
 `;
 
-exports[`submit_llm_result creation_class success > accepts legacy ability field names and a mana-user class line 1`] = `
-"{
-  "character_creation_state": [
-    {
-      "abilities": "[{\\"name\\":\\"Spark\\",\\"description\\":\\"A spark.\\",\\"baseDamage\\":6,\\"manaCost\\":3,\\"effect\\":\\"stun\\",\\"castSeconds\\":1,\\"cooldownSeconds\\":4}]",
-      "classDescription": "Glows unpleasantly.",
-      "className": "Cinder Mystic",
-      "classStats": "{\\"primaryStat\\":\\"int\\",\\"secondaryStat\\":\\"none\\",\\"usesMana\\":true,\\"bonusMana\\":15,\\"armorProficiency\\":\\"cloth\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "id": "2n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "raceName": "Ashkin",
-      "raceNarrative": "Born of cinders.",
-      "step": "CLASS_REVEALED",
-      "updatedAt": "ts:1700000000000000n"
-    }
-  ],
-  "event_creation": [
-    {
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "creation",
-      "message": "Glows unpleasantly.\\n\\n**Cinder Mystic**\\nPrimary: INT | Armor: cloth | Mana user (+15 bonus mana)\\n\\nYour starting abilities:\\n\\n[Spark] — A spark.\\n  physical stun, 6 base, 1s cast, 4s cooldown, 3 mana, stun (?s)\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
-  "llm_budget": [
-    {
-      "callCount": "1n",
-      "id": "1n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "resetDate": "2023-11-14"
-    }
-  ],
-  "llm_task": [
-    {
-      "createdAt": "ts:1600000000000000n",
-      "domain": "creation_class",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "completed",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ]
-}"
-`;
-
 exports[`submit_llm_result creation_class success > applies a valid reply: CLASS_REVEALED, stats, abilities, presentation event, budget 1`] = `
 "{
   "character_creation_state": [
     {
-      "abilities": "[{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"value1\\":12,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"resourceCost\\":5,\\"resourceType\\":\\"stamina\\",\\"effectType\\":\\"dot\\",\\"effectDuration\\":9},{\\"name\\":\\"Ash Veil\\",\\"description\\":\\"A curtain of soot.\\",\\"kind\\":\\"shield\\",\\"value1\\":10,\\"castSeconds\\":2,\\"cooldownSeconds\\":12,\\"resourceCost\\":8,\\"resourceType\\":\\"mana\\"},{\\"name\\":\\"Old Style\\",\\"description\\":\\"A legacy-shaped ability.\\",\\"baseDamage\\":7,\\"manaCost\\":4,\\"effect\\":\\"stun\\",\\"castSeconds\\":0,\\"cooldownSeconds\\":3}]",
+      "abilities": "[{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"stamina\\",\\"resourceCost\\":5,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"value1\\":12,\\"effectType\\":\\"dot\\",\\"effectDuration\\":9},{\\"name\\":\\"Ash Veil\\",\\"description\\":\\"A curtain of soot.\\",\\"kind\\":\\"shield\\",\\"damageType\\":\\"physical\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"mana\\",\\"resourceCost\\":10,\\"castSeconds\\":2,\\"cooldownSeconds\\":12,\\"value1\\":10},{\\"name\\":\\"Old Style\\",\\"description\\":\\"A legacy-shaped ability.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"physical\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"stamina\\",\\"resourceCost\\":10,\\"castSeconds\\":0,\\"cooldownSeconds\\":4,\\"value1\\":15}]",
       "classDescription": "A duelist who fights like a grudge.",
       "className": "Emberblade",
-      "classStats": "{\\"primaryStat\\":\\"str\\",\\"secondaryStat\\":\\"dex\\",\\"bonusHp\\":10,\\"bonusMana\\":0,\\"armorProficiency\\":\\"leather\\",\\"armorProficiencies\\":[\\"leather\\",\\"mail\\"],\\"weaponProficiencies\\":[\\"sword\\",\\"dagger\\"],\\"usesMana\\":false}",
+      "classStats": "{\\"primaryStat\\":\\"str\\",\\"secondaryStat\\":\\"dex\\",\\"bonusHp\\":10,\\"bonusMana\\":0,\\"usesMana\\":false,\\"weaponProficiencies\\":[\\"sword\\",\\"dagger\\"],\\"armorProficiencies\\":[\\"leather\\"]}",
       "createdAt": "ts:1600000000000000n",
       "id": "2n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -701,7 +706,7 @@ exports[`submit_llm_result creation_class success > applies a valid reply: CLASS
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather, mail | Weapons: sword, dagger | Physical (+10 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\n[Ash Veil] — A curtain of soot.\\n  physical shield, 10 base, 2s cast, 12s cooldown, 8 mana\\n\\n[Old Style] — A legacy-shaped ability.\\n  physical stun, 7 base, instant, 3s cooldown, 4 mana, stun (?s)\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+10 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\n[Ash Veil] — A curtain of soot.\\n  physical shield, 10 base, 2s cast, 12s cooldown, 10 mana\\n\\n[Old Style] — A legacy-shaped ability.\\n  physical damage, 15 base, instant, 4s cooldown, 10 stamina\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -729,14 +734,14 @@ exports[`submit_llm_result creation_class success > applies a valid reply: CLASS
 }"
 `;
 
-exports[`submit_llm_result creation_race success > QUIRK: a reply without raceName stores "Unknown", prints "**undefined**" and saves no definition 1`] = `
+exports[`submit_llm_result creation_race success > Phase 41: a reply without raceName stores "Unknown" with default bonuses, prints "**Unknown**" and saves no definition 1`] = `
 "{
   "character_creation_state": [
     {
       "createdAt": "ts:1600000000000000n",
       "id": "2n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "raceBonuses": "{}",
+      "raceBonuses": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1}}",
       "raceName": "Unknown",
       "raceNarrative": "Nothing much.",
       "step": "AWAITING_ARCHETYPE",
@@ -748,7 +753,7 @@ exports[`submit_llm_result creation_race success > QUIRK: a reply without raceNa
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Nothing much.\\n\\n**undefined**\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Nothing much.\\n\\n**Unknown**\\n+2 STR, +1 DEX\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -1124,6 +1129,106 @@ exports[`submit_llm_result creation_race success > with no creation state return
 }"
 `;
 
+exports[`submit_llm_result failure path: creation and skill_gen > Phase 41: renown_perk_gen failure inserts the static options for the rank and one Keeper line 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "narrative",
+      "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
+      "ownerUserId": "7n"
+    }
+  ],
+  "llm_task": [
+    {
+      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"2\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "renown_perk_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "error",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ],
+  "pending_renown_perk": [
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "0n",
+      "createdAt": "ts:1700000000000000n",
+      "description": "+25 max HP, +1 Strength",
+      "id": "1n",
+      "kind": "",
+      "name": "Iron Will",
+      "perkDomain": "combat",
+      "perkEffectJson": "{\\"maxHp\\":25,\\"str\\":1}",
+      "rank": "2n",
+      "resourceCost": "0n",
+      "resourceType": "none",
+      "scaling": "none",
+      "targetRule": "self",
+      "value1": "0n"
+    },
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "0n",
+      "createdAt": "ts:1700000000000000n",
+      "description": "10% chance to gather double resources",
+      "id": "2n",
+      "kind": "",
+      "name": "Keen Eye",
+      "perkDomain": "crafting",
+      "perkEffectJson": "{\\"gatherDoubleChance\\":10}",
+      "rank": "2n",
+      "resourceCost": "0n",
+      "resourceType": "none",
+      "scaling": "none",
+      "targetRule": "self",
+      "value1": "0n"
+    },
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "0n",
+      "createdAt": "ts:1700000000000000n",
+      "description": "+15% NPC affinity gain from conversations",
+      "id": "3n",
+      "kind": "",
+      "name": "Smooth Talker",
+      "perkDomain": "social",
+      "perkEffectJson": "{\\"npcAffinityGainBonus\\":15}",
+      "rank": "2n",
+      "resourceCost": "0n",
+      "resourceType": "none",
+      "scaling": "none",
+      "targetRule": "self",
+      "value1": "0n"
+    }
+  ]
+}"
+`;
+
 exports[`submit_llm_result failure path: creation and skill_gen > creation_class failure appends creation_error and reverts the step to AWAITING_ARCHETYPE 1`] = `
 "{
   "character_creation_state": [
@@ -1212,40 +1317,6 @@ exports[`submit_llm_result failure path: creation and skill_gen > creation_race 
     {
       "createdAt": "ts:1600000000000000n",
       "domain": "creation_race",
-      "id": "1n",
-      "maxTokens": "1500n",
-      "model": "gpt-5-mini",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "status": "error",
-      "systemPrompt": "",
-      "userPrompt": ""
-    }
-  ]
-}"
-`;
-
-exports[`submit_llm_result failure path: creation and skill_gen > renown_perk_gen failure changes nothing but the task status 1`] = `
-"{
-  "character": [
-    {
-      "boundLocationId": "100n",
-      "cha": "10n",
-      "className": "Emberblade",
-      "gold": "0n",
-      "id": "10n",
-      "level": "3n",
-      "locationId": "100n",
-      "name": "Tester",
-      "ownerUserId": "7n",
-      "race": "Ashkin",
-      "xp": "0n"
-    }
-  ],
-  "llm_task": [
-    {
-      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"2\\"}",
-      "createdAt": "ts:1600000000000000n",
-      "domain": "renown_perk_gen",
       "id": "1n",
       "maxTokens": "1500n",
       "model": "gpt-5-mini",
@@ -6287,6 +6358,114 @@ exports[`submit_llm_result npc_conversation success > skips the memory update an
     }
   ],
   "npc_memory": []
+}"
+`;
+
+exports[`submit_llm_result renown_perk_gen success > Phase 41: the rank-2 static fallback inserts serialized options (bigint effects no longer throw) 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "narrative",
+      "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
+      "ownerUserId": "7n"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"2\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "renown_perk_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ],
+  "pending_renown_perk": [
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "0n",
+      "createdAt": "ts:1700000000000000n",
+      "description": "+25 max HP, +1 Strength",
+      "id": "1n",
+      "kind": "",
+      "name": "Iron Will",
+      "perkDomain": "combat",
+      "perkEffectJson": "{\\"maxHp\\":25,\\"str\\":1}",
+      "rank": "2n",
+      "resourceCost": "0n",
+      "resourceType": "none",
+      "scaling": "none",
+      "targetRule": "self",
+      "value1": "0n"
+    },
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "0n",
+      "createdAt": "ts:1700000000000000n",
+      "description": "10% chance to gather double resources",
+      "id": "2n",
+      "kind": "",
+      "name": "Keen Eye",
+      "perkDomain": "crafting",
+      "perkEffectJson": "{\\"gatherDoubleChance\\":10}",
+      "rank": "2n",
+      "resourceCost": "0n",
+      "resourceType": "none",
+      "scaling": "none",
+      "targetRule": "self",
+      "value1": "0n"
+    },
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "0n",
+      "createdAt": "ts:1700000000000000n",
+      "description": "+15% NPC affinity gain from conversations",
+      "id": "3n",
+      "kind": "",
+      "name": "Smooth Talker",
+      "perkDomain": "social",
+      "perkEffectJson": "{\\"npcAffinityGainBonus\\":15}",
+      "rank": "2n",
+      "resourceCost": "0n",
+      "resourceType": "none",
+      "scaling": "none",
+      "targetRule": "self",
+      "value1": "0n"
+    }
+  ]
 }"
 `;
 
