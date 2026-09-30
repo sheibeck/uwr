@@ -27,6 +27,7 @@ import {
   applyLlmResult,
   applySkillGenResult,
   applyRenownPerkResult,
+  validateRenownActivePerk,
   applyNpcConversationResult,
   extractJson,
   toApplyJob,
@@ -231,6 +232,69 @@ describe('extractJson', () => {
   });
 });
 
+// WR-B02: an active renown perk becomes a combat ability, so it gets the skill_budget treatment.
+describe('renown active perks are validated and clamped like generated skills', () => {
+  const renownJob = () => job('renown_perk_gen', JSON.stringify({ characterId: '10', rank: '2' }));
+  const passive = (name: string) => ({ name, description: `${name}.`, kind: '', perkEffectJson: '{"maxHp":10}' });
+  const active = (name: string, over: Record<string, unknown> = {}) => ({
+    name,
+    description: `${name}.`,
+    kind: 'damage',
+    targetRule: 'single_enemy',
+    resourceType: 'mana',
+    resourceCost: 0,
+    castSeconds: 0,
+    cooldownSeconds: 0,
+    scaling: 'int',
+    value1: 5000,
+    damageType: 'fire',
+    ...over,
+  });
+  const apply = (ctx: any, perks: any[]) => applyRenownPerkResult(ctx, renownJob(), JSON.stringify({ perks }));
+
+  it('a one-shot reply (value1 5000, no cost, no cooldown, instant mana) is clamped to the damage budget at the character level with a 1 s cast', () => {
+    const ctx = moduleCtx({ character: [characterRow()] });
+    apply(ctx, [active('Sunfall'), passive('B'), passive('C')]);
+
+    const perks = rows(ctx, 'pending_renown_perk');
+    expect(perks.map((p: any) => p.name)).toEqual(['Sunfall', 'B', 'C']);
+    // damage at level 3: midpoint 12 + 5 * 3 = 27, max ceil(27 * 1.3) = 36
+    expect(perks[0]).toMatchObject({ kind: 'damage', value1: 36n, castSeconds: 1n, resourceType: 'mana', damageType: 'fire' });
+    const msg = rows(ctx, 'event_private')[0].message as string;
+    expect(msg).not.toContain('The cosmos provided some... standard options');
+  });
+
+  it.each([
+    ['an unknown effectType', { effectType: 'instant_win', effectMagnitude: 3, effectDuration: 12 }],
+    ['an unknown kind', { kind: 'annihilate' }],
+    ['an unknown targetRule', { targetRule: 'everyone_everywhere' }],
+    ['an unknown resourceType', { resourceType: 'souls' }],
+    ['an unknown damageType', { damageType: 'plasma' }],
+  ])('a perk with %s is dropped, so the static options cover the rank', (_label, over) => {
+    const ctx = moduleCtx({ character: [characterRow()] });
+    apply(ctx, [active('Bad', over), passive('B'), passive('C')]);
+
+    const perks = rows(ctx, 'pending_renown_perk');
+    expect(perks.map((p: any) => p.name)).toEqual(RENOWN_PERK_POOLS[2].slice(0, 3).map((p) => p.name));
+    expect(rows(ctx, 'event_private')[0].message).toContain('The cosmos provided some... standard options');
+  });
+
+  it('a valid effectType keeps the perk and clamps its magnitude', () => {
+    const ctx = moduleCtx({ character: [characterRow()] });
+    apply(ctx, [active('Ember Ward', { kind: 'buff', targetRule: 'self', effectType: 'damage_up', effectMagnitude: 999, effectDuration: 3 }), passive('B'), passive('C')]);
+    const perk = rows(ctx, 'pending_renown_perk')[0];
+    expect(perk.effectType).toBe('damage_up');
+    // buff at level 3: midpoint 5 + 2 * 3 = 11, max ceil(16.5) = 17, effect max ceil(17 * 0.5) = 9
+    expect(perk.effectMagnitude).toBe(9n);
+    expect(perk.effectDuration).toBe(9n); // buff durations are floored at 9 s
+  });
+
+  it('validateRenownActivePerk returns null for an invalid enum and the clamped perk otherwise', () => {
+    expect(validateRenownActivePerk(active('X', { effectType: 'nope' }), 3n)).toBeNull();
+    expect(validateRenownActivePerk(active('X'), 3n)).toMatchObject({ value1: 36n, castSeconds: 1 });
+  });
+});
+
 describe('Phase 41: renown static fallback and failure path', () => {
   const renownJob = (rank: string | number = '2', characterId = '10') =>
     job('renown_perk_gen', JSON.stringify({ characterId, rank: String(rank) }));
@@ -332,7 +396,9 @@ describe('Phase 41: model numbers never throw', () => {
     const renown = job('renown_perk_gen', JSON.stringify({ characterId: '10', rank: '2' }));
     expect(() => applyRenownPerkResult(ctx, renown, reply)).not.toThrow();
     const [a, b, c] = rows(ctx, 'pending_renown_perk');
-    expect(a).toMatchObject({ cooldownSeconds: 12n, value1: 0n, effectMagnitude: 0n, value2: 3n, castSeconds: 0n });
+    // Unusable numbers fall back to 0 and are then clamped into the heal budget at level 3
+    // (WR-B02: value1 min 15, effect magnitude min 7), never thrown.
+    expect(a).toMatchObject({ cooldownSeconds: 12n, value1: 15n, effectMagnitude: 7n, value2: 3n, castSeconds: 0n });
     expect(b).toMatchObject({ resourceCost: 1_000_000n, effectDuration: 0n });
     expect(c.perkEffectJson).toBeUndefined();
     expect(c.damageType).toBeUndefined();

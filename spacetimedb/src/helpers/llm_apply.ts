@@ -26,6 +26,7 @@ import {
 import { pickRippleMessage, pickDiscoveryMessage, writeGeneratedRegion } from './world_gen';
 import { ensureSpawnsForLocation } from './location';
 import { parseSkillGenResult, insertPendingSkills } from './skill_gen';
+import { processGeneratedSkill, validateSkillFields, type SkillFields } from './skill_budget';
 import {
   updateNpcMemory,
   getActiveQuestCount,
@@ -708,6 +709,52 @@ export function applyCombatNarrationResult(ctx: any, job: ApplyJob, resultText: 
   // Budget already incremented in triggerCombatNarration -- no double increment
 }
 
+/**
+ * An active renown perk (non-empty kind) becomes a combat ability when chosen, so it goes through
+ * the same skill_budget validator and clamps as a generated skill at the character's level:
+ * every enum (kind, targetRule, resourceType, scaling, damageType, effectType) must be in the
+ * mechanical vocabulary, value1 and effectMagnitude are clamped to the kind's budget, and a mana
+ * perk casts for at least 1 s. Returns the perk with the clamped fields, or null when any enum is
+ * invalid (the perk is dropped, and with fewer than three the static options cover the rank).
+ */
+export function validateRenownActivePerk(perk: any, level: bigint): any | null {
+  const optStr = (v: unknown) => (typeof v === 'string' && v !== '' ? v : undefined);
+  const num = (v: unknown, fallback: number) => Number(toBigIntSafe(v, { min: 0n, max: 1_000_000n, fallback: BigInt(fallback) }));
+  const fields: SkillFields = {
+    kind: String(perk.kind).trim(),
+    targetRule: String(perk.targetRule || 'self'),
+    resourceType: String(perk.resourceType || 'none'),
+    scaling: String(perk.scaling || 'none'),
+    damageType: optStr(perk.damageType),
+    effectType: optStr(perk.effectType),
+    value1: num(perk.value1, 0),
+    value2: perk.value2 != null ? num(perk.value2, 0) : undefined,
+    effectMagnitude: perk.effectMagnitude != null ? num(perk.effectMagnitude, 0) : undefined,
+    effectDuration: perk.effectDuration != null ? num(perk.effectDuration, 0) : undefined,
+    resourceCost: num(perk.resourceCost, 0),
+    castSeconds: num(perk.castSeconds, 0),
+    cooldownSeconds: num(perk.cooldownSeconds, 0),
+  };
+  if (!validateSkillFields(fields).valid) return null;
+  const processed = processGeneratedSkill(fields, level);
+  return {
+    ...perk,
+    kind: processed.kind,
+    targetRule: processed.targetRule,
+    resourceType: processed.resourceType,
+    scaling: processed.scaling,
+    damageType: processed.damageType,
+    effectType: processed.effectType,
+    value1: processed.value1,
+    value2: processed.value2,
+    effectMagnitude: processed.effectMagnitude,
+    effectDuration: processed.effectDuration,
+    resourceCost: processed.resourceCost,
+    castSeconds: processed.castSeconds,
+    cooldownSeconds: processed.cooldownSeconds,
+  };
+}
+
 /** renown_perk_gen success. */
 export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: string): void {
   const context = job.contextJson ? JSON.parse(job.contextJson) : {};
@@ -729,6 +776,12 @@ export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: strin
   } catch (_err) {
     perks = [];
   }
+
+  // Active perks are validated and clamped like generated skills; an invalid one is dropped.
+  const perkLevel: bigint = typeof character.level === 'bigint' && character.level > 0n ? character.level : 1n;
+  perks = perks
+    .map((p: any) => (typeof p.kind === 'string' && p.kind.trim() !== '' ? validateRenownActivePerk(p, perkLevel) : p))
+    .filter((p: any) => p !== null);
 
   if (perks.length < 3) {
     // Fall back to the static RENOWN_PERK_POOLS options for this rank (bigint-safe serializer).
