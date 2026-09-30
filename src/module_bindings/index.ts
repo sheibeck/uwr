@@ -35,7 +35,6 @@ import {
 
 // Import all reducer arg schemas
 import SetAppVersionReducer from "./set_app_version_reducer";
-import PrepareCreationLlmReducer from "./prepare_creation_llm_reducer";
 import PrepareWorldGenLlmReducer from "./prepare_world_gen_llm_reducer";
 import RequestSkillOfferReducer from "./request_skill_offer_reducer";
 import ChooseSkillReducer from "./choose_skill_reducer";
@@ -1791,7 +1790,6 @@ const tablesSchema = __schema({
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("set_app_version", SetAppVersionReducer),
-  __reducerSchema("prepare_creation_llm", PrepareCreationLlmReducer),
   __reducerSchema("prepare_world_gen_llm", PrepareWorldGenLlmReducer),
   __reducerSchema("request_skill_offer", RequestSkillOfferReducer),
   __reducerSchema("choose_skill", ChooseSkillReducer),

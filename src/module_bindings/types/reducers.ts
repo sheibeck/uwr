@@ -7,7 +7,6 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
 import SetAppVersionReducer from "../set_app_version_reducer";
-import PrepareCreationLlmReducer from "../prepare_creation_llm_reducer";
 import PrepareWorldGenLlmReducer from "../prepare_world_gen_llm_reducer";
 import RequestSkillOfferReducer from "../request_skill_offer_reducer";
 import ChooseSkillReducer from "../choose_skill_reducer";
@@ -119,7 +118,6 @@ import StartCreationReducer from "../start_creation_reducer";
 import SubmitCreationInputReducer from "../submit_creation_input_reducer";
 
 export type SetAppVersionParams = __Infer<typeof SetAppVersionReducer>;
-export type PrepareCreationLlmParams = __Infer<typeof PrepareCreationLlmReducer>;
 export type PrepareWorldGenLlmParams = __Infer<typeof PrepareWorldGenLlmReducer>;
 export type RequestSkillOfferParams = __Infer<typeof RequestSkillOfferReducer>;
 export type ChooseSkillParams = __Infer<typeof ChooseSkillReducer>;
