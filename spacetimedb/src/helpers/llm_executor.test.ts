@@ -1165,6 +1165,37 @@ describe('retry by class (PIPE-04)', () => {
     expect(proc.http.calls).toHaveLength(1);
   });
 
+  // WR-A05: a 2xx whose body is not JSON was run (and billed) by Anthropic: the ledger is charged.
+  it('a 200 with a non-JSON body on npc_conversation retries and charges the ledger the reservation, player untouched', () => {
+    const proc = makeProc([reply('non_json_200')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const reserved = jobOf(proc, jobId).reservedMicroUsd;
+    expect(run(proc, jobId)).toBe('retry');
+    expect(jobOf(proc, jobId).errorCode).toBe('server');
+    expect(ledger(proc).spentMicroUsd).toBe(reserved);
+    expect(jobOf(proc, jobId).reservedMicroUsd).toBe(reserved);
+    expect(playerDay(proc).spentMicroUsd).toBe(0n);
+    expect(callLogs(proc, jobId).map((l) => [l.httpStatus, l.costMicroUsd])).toEqual([[200n, reserved]]);
+  });
+
+  it('a 200 with a non-JSON body on creation_race fails at once with the ledger charged and the player not', () => {
+    const proc = makeProc([reply('non_json_200')]);
+    const jobId = enqueue(proc, 'creation_race', { sourceKey: SOURCE_KEYS.creation(1n, 'race') });
+    const reserved = jobOf(proc, jobId).reservedMicroUsd;
+    expect(run(proc, jobId)).toBe('failed');
+    expect(ledger(proc).spentMicroUsd).toBe(reserved);
+    expect(ledger(proc).reservedMicroUsd).toBe(0n);
+    expect(playerDay(proc).spentMicroUsd).toBe(0n);
+    expect(playerDay(proc).calls).toBe(0n);
+  });
+
+  it('a non-2xx server error (500) is not billed: the ledger stays at zero', () => {
+    const proc = makeProc([reply('err_500')]);
+    const jobId = enqueue(proc, 'creation_race', { sourceKey: SOURCE_KEYS.creation(1n, 'race') });
+    expect(run(proc, jobId)).toBe('failed');
+    expect(ledger(proc).spentMicroUsd).toBe(0n);
+  });
+
   it('world_gen 529 at attempt 1: failed, no dispatch (a failure there waits for the player)', () => {
     const proc = makeProc([reply('err_529')]);
     const jobId = enqueue(proc, 'world_gen', { sourceKey: SOURCE_KEYS.worldGen(1n) });

@@ -320,7 +320,7 @@ interface AttemptOutcome {
   result: ClaudeResult;
   httpStatus: number;
   latencyMs: number;
-  /** A thrown call, or a reply whose body could not be read: Anthropic may have billed it. */
+  /** A thrown call, a reply whose body could not be read, or a 2xx with no usable body: Anthropic may have billed it. */
   unknownBilling: boolean;
 }
 
@@ -661,11 +661,15 @@ export function runLlmJob(ctx: any, arg: DispatchArg, deps?: Partial<ExecutorDep
     result = classifyClaudeError(err, { needles: [c.apiKey] });
   }
   const latencyMs = Math.max(0, Math.round(d.nowMs() - startedMs));
+  // A 2xx means Anthropic ran the request; a body that then could not be used and carries no
+  // usage (truncated or corrupt in transit) was almost certainly billed, so it is unknown billing
+  // too (the Phase 39 settle rule: a 200 whose usage did not parse keeps the reservation).
+  const billedButUnparsed = !result.ok && httpStatus >= 200 && httpStatus < 300 && !result.usage;
   const attemptOutcome: AttemptOutcome = {
     result,
     httpStatus,
     latencyMs,
-    unknownBilling: threw || (!result.ok && result.class === 'network'),
+    unknownBilling: threw || (!result.ok && result.class === 'network') || billedButUnparsed,
   };
 
   const persisted = persistAttempt(ctx, c, attemptOutcome, d);
