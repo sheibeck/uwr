@@ -83,6 +83,20 @@ A world that writes itself around its players — every character is unique, eve
 - Decision, confirmed by the user: Phase 41 builds the scheduled-procedure executor with an in-flight cap of at most 8, and `llm-proxy/` is retired in Phase 42.
 - Evidence is in `.planning/phases/39-procedure-to-claude-spike/39-SPIKE-RECORD.md`.
 
+**Phase 40 (Claude Request Layer and Job Seam)** is complete as of 2026-09-30.
+
+- Every future Claude call now goes through one tested layer:
+  - one model constant (`claude-sonnet-5-5`) and an 8-route table
+  - 5 structured-output JSON Schemas, checked by a subset linter
+  - a pure request builder and response classifier
+  - the user-approved Keeper Bible as the cached system prefix
+
+  Player text is escaped and wrapped in `<player_input>` tags.
+- Private `llm_job` and `llm_call_log` tables, with a dedupe-aware `enqueueLlmJob` and a `my_llm_jobs` own-jobs view that shows only coarse error buckets.
+- `submit_llm_result`'s apply logic now lives in `helpers/llm_apply.ts`, keyed on the stored player. Renown rank-ups enqueue a valid job.
+- An offline mock procedure context makes every LLM path testable without network. 1454 tests pass.
+- Live call sites still use the legacy `llm_task` path until Phase 41 moves each domain over.
+
 ## Current Milestone: v2.2 LLM — Claude Engine
 
 **Goal:** Replace OpenAI with Claude as the engine behind all narrative generation, with the lowest possible response latency for real-time storytelling.
@@ -177,4 +191,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-29 after Phase 39*
+*Last updated: 2026-09-30 after Phase 40*
