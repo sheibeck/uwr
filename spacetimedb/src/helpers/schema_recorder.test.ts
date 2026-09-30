@@ -25,61 +25,72 @@ describe('schema recorder: tables.ts', () => {
     expect(cfg!.cols.apiKey.optional).toBe(false);
   });
 
-  it('records llm_task options, index and per-column flags', async () => {
+  it('records llm_job options, indexes and per-column flags', async () => {
     await import('../schema/tables');
-    const task = recordedTable('llm_task');
-    expect(task).toBeDefined();
-    expect(task!.opts.public).toBe(true);
-    expect(task!.opts.indexes).toEqual([
+    const job = recordedTable('llm_job');
+    expect(job).toBeDefined();
+    expect(job!.opts.public).not.toBe(true);
+    expect(job!.opts.indexes).toEqual([
       { accessor: 'by_player', algorithm: 'btree', columns: ['playerId'] },
+      { accessor: 'by_dedupe_key', algorithm: 'btree', columns: ['dedupeKey'] },
+      { accessor: 'by_status', algorithm: 'btree', columns: ['status'] },
     ]);
-    expect(task!.cols.id.primaryKey).toBe(true);
-    expect(task!.cols.id.autoInc).toBe(true);
-    expect(task!.cols.contextJson.optional).toBe(true);
-    expect(task!.cols.systemPrompt.optional).toBe(false);
-    expect(task!.cols.playerId.kind).toBe('identity');
+    expect(job!.cols.id.primaryKey).toBe(true);
+    expect(job!.cols.id.autoInc).toBe(true);
+    expect(job!.cols.resultText.optional).toBe(true);
+    expect(job!.cols.requestJson.optional).toBe(false);
+    expect(job!.cols.playerId.kind).toBe('identity');
     expect(recordedTables().length).toBeGreaterThan(10);
   });
 });
 
 describe('rowColumnProblems', () => {
-  // Shape copied from helpers/renown.ts (the legacy, broken llm_task insert).
-  const legacyRenownRow = {
+  // An llm_job-shaped row: every required column, the optional ones omitted.
+  const validJobRow = {
     id: 0n,
     playerId: { toHexString: () => 'p' },
-    domain: 'renown_perk_gen',
-    model: 'gpt-5-mini',
-    systemPrompt: 's',
-    userPrompt: 'u',
-    maxTokens: 1200n,
+    characterId: 1n,
+    route: 'world_gen',
+    dedupeKey: '["k",1]',
     status: 'pending',
-    contextJson: '{}',
+    attempt: 0n,
+    requestJson: '{}',
+    inputTokens: 0n,
+    outputTokens: 0n,
+    cacheWriteTokens: 0n,
+    cacheReadTokens: 0n,
     createdAt: { microsSinceUnixEpoch: 1n },
+    reservedMicroUsd: 0n,
+    costMicroUsd: 0n,
+    budgetDay: '',
+    applyAttempts: 0n,
+    ledgerChargedMicroUsd: 0n,
+  };
+  const withExtras = {
+    ...validJobRow,
     completedAt: undefined,
-    resultText: undefined,
-    errorMessage: undefined,
+    promptText: 'p',
+    modelName: 'm',
   };
 
-  it('flags the three non-columns of the legacy renown insert (PIPE-08 bug class)', async () => {
+  it('flags three made-up columns on an llm_job-shaped row (PIPE-08 bug class)', async () => {
     await import('../schema/tables');
-    expect(rowColumnProblems('llm_task', legacyRenownRow).sort()).toEqual([
+    expect(rowColumnProblems('llm_job', withExtras).sort()).toEqual([
       'unknown column completedAt',
-      'unknown column errorMessage',
-      'unknown column resultText',
+      'unknown column modelName',
+      'unknown column promptText',
     ]);
   });
 
   it('returns [] for a complete valid row', async () => {
     await import('../schema/tables');
-    const { completedAt, resultText, errorMessage, ...valid } = legacyRenownRow;
-    expect(rowColumnProblems('llm_task', valid)).toEqual([]);
+    expect(rowColumnProblems('llm_job', validJobRow)).toEqual([]);
   });
 
   it('reports a missing required column but tolerates omitted optional and autoInc ones', async () => {
     await import('../schema/tables');
-    const { completedAt, resultText, errorMessage, id, contextJson, userPrompt, ...rest } =
-      legacyRenownRow;
-    expect(rowColumnProblems('llm_task', rest)).toEqual(['missing column userPrompt']);
+    const { id, requestJson, ...rest } = validJobRow; // id is autoInc; resultText and other optionals are already absent
+    expect(rowColumnProblems('llm_job', rest)).toEqual(['missing column requestJson']);
   });
 
   it('reports an unrecorded table as unknown', async () => {

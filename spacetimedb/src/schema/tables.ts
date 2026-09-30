@@ -1898,41 +1898,6 @@ export const LlmConfig = table(
   }
 );
 
-export const LlmRequest = table(
-  {
-    name: 'llm_request',
-    indexes: [
-      { accessor: 'by_player', algorithm: 'btree', columns: ['playerId'] },
-    ],
-  },
-  {
-    id: t.u64().primaryKey().autoInc(),
-    playerId: t.identity(),
-    characterId: t.u64(),
-    domain: t.string(),        // 'character_creation', 'world_gen', 'combat_narration', 'skill_gen'
-    model: t.string(),         // 'claude-opus-4-6'
-    userPrompt: t.string(),
-    status: t.string(),        // 'pending', 'processing', 'completed', 'error'
-    errorMessage: t.string().optional(),
-    createdAt: t.timestamp(),
-  }
-);
-
-export const LlmBudget = table(
-  {
-    name: 'llm_budget',
-    indexes: [
-      { accessor: 'by_player', algorithm: 'btree', columns: ['playerId'] },
-    ],
-  },
-  {
-    id: t.u64().primaryKey().autoInc(),
-    playerId: t.identity(),
-    callCount: t.u64(),
-    resetDate: t.string(),  // "2026-03-06" UTC date string
-  }
-);
-
 // Character creation state — tracks multi-step narrative creation flow per player
 export const CharacterCreationState = table(
   {
@@ -2093,30 +2058,6 @@ export const RoundTimerTick = table(
   }
 );
 
-// Client-driven LLM task: server writes prompts, client calls proxy, client submits result
-export const LlmTask = table(
-  {
-    name: 'llm_task',
-    public: true,
-    indexes: [
-      { accessor: 'by_player', algorithm: 'btree', columns: ['playerId'] },
-    ],
-  },
-  {
-    id: t.u64().primaryKey().autoInc(),
-    playerId: t.identity(),
-    domain: t.string(),           // 'creation_race', 'creation_class', 'world_gen', 'npc_conversation', 'generic'
-    model: t.string(),
-    systemPrompt: t.string(),
-    userPrompt: t.string(),
-    maxTokens: t.u64(),
-    status: t.string(),           // 'pending', 'completed', 'error'
-    contextJson: t.string().optional(), // Domain-specific context (e.g. genStateId, generationType)
-    responseFormatJson: t.string().optional(), // OpenAI structured output schema (JSON stringified)
-    createdAt: t.timestamp(),
-  }
-);
-
 // Server-side Claude job queue (Phase 40). PRIVATE: no `public` flag. Clients never read jobs;
 // results reach players through domain tables. requestJson holds ids plus player text or an
 // event summary; never a built prompt, header or key.
@@ -2216,7 +2157,7 @@ export const LlmSweepTick = table(
   }
 );
 
-// Per-player-per-UTC-day budget (replaces LlmBudget's call count, which stays as dead code until Phase 42).
+// Per-player-per-UTC-day budget: cost-weighted (reserved and spent micro-USD) with a call-count backstop.
 export const LlmPlayerBudget = table(
   {
     name: 'llm_player_budget',
@@ -2364,13 +2305,10 @@ const spacetimedb = schema({
   bard_song_tick: BardSongTick,
   bank_slot: BankSlot,
   llm_config: LlmConfig,
-  llm_request: LlmRequest,
-  llm_budget: LlmBudget,
   character_creation_state: CharacterCreationState,
   race_definition: RaceDefinition,
   event_creation: EventCreation,
   world_gen_state: WorldGenState,
-  llm_task: LlmTask,
   llm_job: LlmJob,
   llm_call_log: LlmCallLog,
   llm_dispatch: LlmDispatch,

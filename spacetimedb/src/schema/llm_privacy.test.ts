@@ -122,22 +122,32 @@ describe('llm_* table privacy (SEC-01)', () => {
     }
   });
 
-  it('the set of public llm_* tables is exactly [llm_task] (Phase 42 tightens it to [])', async () => {
+  it('the set of public llm_* tables is empty', async () => {
     await import('./tables');
     const publicLlm = recordedTables()
       .filter((r) => typeof r.name === 'string' && r.name.startsWith('llm_'))
       .filter((r) => r.opts.public === true)
       .map((r) => r.name)
       .sort();
-    expect(publicLlm).toEqual(['llm_task']);
+    expect(publicLlm).toEqual([]);
   });
 
-  it('every llm_* table other than the legacy llm_task is private', async () => {
+  it('all 8 llm_* tables are private', async () => {
     await import('./tables');
     const llm = recordedTables().filter((r) => typeof r.name === 'string' && r.name.startsWith('llm_'));
-    // Guard against the filter matching nothing.
-    expect(llm.length).toBeGreaterThanOrEqual(11);
-    for (const rec of llm.filter((r) => r.name !== 'llm_task')) {
+    // Guard against the filter matching nothing or a stray table appearing.
+    expect(llm.map((r) => r.name).sort()).toEqual([
+      'llm_admin_state',
+      'llm_call_log',
+      'llm_config',
+      'llm_dispatch',
+      'llm_job',
+      'llm_player_budget',
+      'llm_spend',
+      'llm_sweep_tick',
+    ]);
+    expect(llm).toHaveLength(8);
+    for (const rec of llm) {
       expect(rec.opts.public, rec.name).not.toBe(true);
     }
   });
@@ -146,7 +156,7 @@ describe('llm_* table privacy (SEC-01)', () => {
     const mod: any = await import('./tables');
     const defs = mod.default.__defs;
     expect(Object.keys(defs)).toEqual(
-      expect.arrayContaining(['llm_job', 'llm_call_log', 'llm_config', 'llm_task', ...NEW_TABLES]),
+      expect.arrayContaining(['llm_job', 'llm_call_log', 'llm_config', ...NEW_TABLES]),
     );
   });
 

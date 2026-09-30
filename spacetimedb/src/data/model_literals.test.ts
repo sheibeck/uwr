@@ -12,16 +12,13 @@ import { fileURLToPath } from 'node:url';
 // ============================================================================
 //
 // spacetimedb/src/data/llm_models.ts is the ONLY file allowed to define a Claude
-// model ID. Legacy sites that still carry an OpenAI (or stale Claude) literal are
-// pinned below with their exact count. The allowlist is shrinkable: Phase 41
-// removes each entry as its domain moves to the new layer, and the guard fails
-// if an allowlisted site loses its literal without the entry being removed.
-// One dead site is left (a comment on a legacy table); Plan 42-06 removes it with the table.
+// model ID. The legacy-site allowlist reached zero in Phase 42 and is kept so the
+// guard can pin an exception again (exact count per file) if one is ever needed;
+// the guard fails if an allowlisted site loses its literal without the entry being removed.
 // ============================================================================
 
 /** Repo-relative posix path -> exact number of model literals in that file. */
 const LEGACY_MODEL_LITERALS: Record<string, number> = {
-  'spacetimedb/src/schema/tables.ts': 1, // stale comment in the dead LlmRequest table, Phase 42
 };
 
 const MODEL_LITERAL = /\b(?:gpt-\d[0-9a-z.-]*|claude-(?:sonnet|opus|haiku|fable|mythos|instant|\d)[0-9a-z.-]*)/gi;
@@ -82,7 +79,7 @@ describe('auditModelLiterals (synthetic)', () => {
 // ---------------------------------------------------------------------------
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url)); // spacetimedb/src/data -> repo root
-const SCAN_ROOTS = ['spacetimedb/src', 'src', 'llm-proxy/src'];
+const SCAN_ROOTS = ['spacetimedb/src', 'src'];
 const EXCLUDED_DIRS = new Set(['node_modules', 'module_bindings', 'dist', '__fixtures__', '__snapshots__']);
 const EXTENSIONS = ['.ts', '.vue', '.js'];
 const MODELS_FILE = 'spacetimedb/src/data/llm_models.ts';
