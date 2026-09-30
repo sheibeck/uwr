@@ -1,4 +1,11 @@
 import { describe, it, expect } from 'vitest';
+// The tsconfig has no @types/node; vitest runs the file in Node, so the built-ins resolve at runtime.
+// @ts-ignore
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+// @ts-ignore
+import { join, relative, sep } from 'node:path';
+// @ts-ignore
+import { fileURLToPath } from 'node:url';
 import {
   RACE_SCHEMA,
   CLASS_SCHEMA,
@@ -19,9 +26,6 @@ import {
   ARMOR_TYPES,
   WEAPON_TYPES,
 } from './mechanical_vocabulary';
-// Legacy builder, imported ONLY for the equivalence test below. It exports no schema
-// identifier that clashes with llm_schemas (the clashing names are string constants there).
-import { buildSkillGenResponseFormat } from './llm_prompts';
 
 const ALL: Array<[string, any]> = [
   ['RACE_SCHEMA', RACE_SCHEMA],
@@ -157,39 +161,44 @@ describe('enums are subsets of the mechanical vocabulary', () => {
 });
 
 // ----------------------------------------------------------------------------
-// Legacy equivalence (Phase 41 deletes this test together with the legacy builder)
+// The v2.0 prompt builders are gone and stay gone
 // ----------------------------------------------------------------------------
 
-/**
- * Normalize a schema for comparison: drop string `description` annotations, rewrite
- * array-valued `type` that lists 'null' as an anyOf of the single types, sort enums.
- * A property NAMED description has an object value and is kept.
- */
-function normalize(node: any): any {
-  if (Array.isArray(node)) return node.map(normalize);
-  if (node && typeof node === 'object') {
-    const out: any = {};
-    for (const [k, v] of Object.entries(node)) {
-      if (k === 'description' && typeof v === 'string') continue;
-      if (k === 'enum' && Array.isArray(v)) {
-        out[k] = [...v].sort();
-        continue;
-      }
-      out[k] = normalize(v);
-    }
-    if (Array.isArray(out.type)) {
-      const { type, ...rest } = out;
-      return { anyOf: (type as string[]).map((ty) => (ty === 'null' ? { type: 'null' } : { type: ty, ...rest })) };
-    }
-    return out;
+const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url)); // spacetimedb/src/data -> repo root
+const PROMPT_MODULE_SCAN_ROOTS = ['spacetimedb/src', 'src'];
+const PROMPT_MODULE_EXCLUDED_DIRS = new Set(['node_modules', 'module_bindings', 'dist']);
+
+function sourceFiles(dir: string, out: string[]): void {
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return; // a scan root that does not exist is simply empty
   }
-  return node;
+  for (const name of names) {
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) {
+      if (!PROMPT_MODULE_EXCLUDED_DIRS.has(name)) sourceFiles(full, out);
+    } else if (name.endsWith('.ts') || name.endsWith('.vue')) {
+      out.push(full);
+    }
+  }
 }
 
-describe('legacy skill schema equivalence', () => {
-  it('SKILL_GENERATION_SCHEMA equals the mapped buildSkillGenResponseFormat() schema', () => {
-    const legacy = (buildSkillGenResponseFormat() as any).json_schema.schema;
-    expect(normalize(SKILL_GENERATION_SCHEMA)).toEqual(normalize(legacy));
+describe('removed v2.0 prompt builders', () => {
+  it('the legacy prompt module no longer exists', () => {
+    expect(existsSync(join(REPO_ROOT, 'spacetimedb/src/data/llm_prompts.ts'))).toBe(false);
+  });
+
+  it('no source file imports the legacy prompt module', () => {
+    const files: string[] = [];
+    for (const root of PROMPT_MODULE_SCAN_ROOTS) sourceFiles(join(REPO_ROOT, root), files);
+    expect(files.length).toBeGreaterThan(50); // the scan really walked the tree
+    const importsLegacy = /(?:from\s+|import\s*\(\s*)['"][^'"]*llm_prompts['"]/;
+    const offenders = files
+      .filter((f) => importsLegacy.test(readFileSync(f, 'utf8')))
+      .map((f) => relative(REPO_ROOT, f).split(sep).join('/'));
+    expect(offenders).toEqual([]);
   });
 });
 

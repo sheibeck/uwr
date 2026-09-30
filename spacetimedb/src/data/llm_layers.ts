@@ -512,8 +512,7 @@ ${existing}
 Generate exactly 3 renown perk options for rank ${rank}.`;
 }
 
-// Affinity tier -> the unlocks available at that level (cumulative). Mirrors the
-// legacy private helper in llm_prompts.ts, which stays untouched until Phase 41.
+// Affinity tier -> the unlocks available at that level (cumulative).
 const AFFINITY_TIER_ORDER = ['hostile', 'unfriendly', 'neutral', 'friendly', 'trusted', 'bonded'];
 const UNLOCKS_BY_MIN_TIER: { unlock: string; minTier: number }[] = [
   { unlock: 'basic_services', minTier: 2 },

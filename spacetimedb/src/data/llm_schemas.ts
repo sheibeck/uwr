@@ -12,10 +12,6 @@
 //
 // Structured-output subset: no numeric/string bounds, no array-valued `type`,
 // nullable fields are `anyOf: [X, { type: 'null' }]`. See helpers/schema_lint.ts.
-//
-// NOTE: REGION_GENERATION_SCHEMA and SKILL_GENERATION_SCHEMA deliberately reuse
-// the identifiers that also exist as legacy strings in llm_prompts.ts. Never
-// import both into one module without aliasing.
 // ============================================================================
 
 import {
