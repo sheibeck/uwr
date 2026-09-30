@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 42
 current_phase_name: Client Cutover and Legacy Removal
 status: executing
-stopped_at: Completed 42-02-PLAN.md
-last_updated: "2026-09-30T23:00:18.352Z"
+stopped_at: Completed 42-03-PLAN.md
+last_updated: "2026-09-30T23:09:47.141Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 42 execution started
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 47
-  completed_plans: 41
+  completed_plans: 42
   percent: 50
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 42 (Client Cutover and Legacy Removal) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-09-30 — Phase 42 execution started
 
-Progress: [█████████░] 87% (2/6 phases)
+Progress: [█████████░] 89% (2/6 phases)
 
 ## Previous Milestones
 
@@ -95,6 +95,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [41-18] NPC gender: male/female clamp (model value, text pronouns, FNV-1a name hash); npc.gender column default '' needed only --break-clients locally (no clear); Bible: Keeper is he, people he or she, beasts may be it, player is you; npcGender(row) is the only reader
 - [Phase ?]: [42-01] Apply-layer characterization drives applyLlmResult/applyLlmFailure directly; llm_apply.ts writes no old call counts; llm_prompts.ts deleted and kept deleted by test
 - [Phase ?]: [42-02] Indicator lines module is import-free (strings only to the browser); cleanup literal sits inside removeItem(...) for the bundle guard's one allowed span; guard output is rule id, path, offset and string/comment/code class only; calibration on pre-cutover dist: exit 1 with proxy-key-name, proxy-secret, proxy-url
+- [Phase ?]: [42-03] purge_legacy_llm is admin-only, counts-only and idempotent over a fixed four-table list; sweep_llm_errors stays registered as an empty drain until the tables drop in 42-06; client-connected absence test ran the real handler
 
 ### Roadmap Evolution
 
@@ -160,8 +161,8 @@ Phase 41 is code-complete and verified at code level (41-VERIFICATION.md: human_
 
 **Resume file:** None
 
-Last session: 2026-09-30T23:00:18.319Z
-Stopped at: Completed 42-02-PLAN.md
+Last session: 2026-09-30T23:09:47.116Z
+Stopped at: Completed 42-03-PLAN.md
 
 ## Performance Metrics
 
@@ -216,6 +217,7 @@ Stopped at: Completed 42-02-PLAN.md
 | Phase 41 P17 | ~15min | 3 tasks (Task 2 deferred by user) | 2 files |
 | Phase 42 P01 | 55min | 3 tasks | 10 files |
 | Phase 42 P02 | 40min | 3 tasks | 9 files |
+| Phase 42 P03 | 35min | 3 tasks | 12 files |
 
 ## Operator Next Steps
 

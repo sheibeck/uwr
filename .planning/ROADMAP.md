@@ -269,7 +269,7 @@ Plans:
 
 **Housekeeping**: README and the run-local skill stop referencing `llm-proxy`. Publishes are local only.
 **Testing**: Unit tests for the `useLlmStatus` state mapping, the one-time `localStorage` cleanup, and the absence of forbidden reducers and tables. The full existing suite and `pnpm build` stay green after the deletions.
-**Plans**: 2/7 plans executed
+**Plans**: 3/7 plans executed
 **UI hint**: yes
 
 Plans:
@@ -281,7 +281,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 42-03-PLAN.md — Publish-1 server code: cleanup tick stopped, purge_legacy_llm, submit_llm_result and validate_llm_request removed, legacy tables reader-free
+- [x] 42-03-PLAN.md — Publish-1 server code: cleanup tick stopped, purge_legacy_llm, submit_llm_result and validate_llm_request removed, legacy tables reader-free
 - [ ] 42-04-PLAN.md — Client cutover to my_llm_jobs (indicator, input lock), useLlmProxy, llm-proxy/ and client/ removed, README and run-local skill updated
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -341,7 +341,7 @@ Phases execute in numeric order: 39 → 40 → 41 → 42 → 43 → 44
 | 39. Procedure-to-Claude Spike | v2.2 | 11/11 | Complete    | 2026-09-29 |
 | 40. Claude Request Layer and Job Seam | v2.2 | 10/10 | Complete    | 2026-09-30 |
 | 41. Executor and Domain Cutover | v2.2 | 18/18 | In Progress|  |
-| 42. Client Cutover and Legacy Removal | v2.2 | 2/7 | In Progress|  |
+| 42. Client Cutover and Legacy Removal | v2.2 | 3/7 | In Progress|  |
 | 43. Latency Tuning, Staged Generation and Budget | v2.2 | 0/TBD | Not started | - |
 | 44. Live Verification and Tone Eval | v2.2 | 0/TBD | Not started | - |
 
