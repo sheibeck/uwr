@@ -54,10 +54,10 @@ files_reviewed_list:
   - src/composables/useSkillChoice.ts
   - src/composables/useWorldGeneration.ts
 findings:
-  critical: 0
-  warning: 0
-  info: 0
-  total: 0
+  critical: 2
+  warning: 9
+  info: 14
+  total: 25
 status: issues_found
 ---
 
