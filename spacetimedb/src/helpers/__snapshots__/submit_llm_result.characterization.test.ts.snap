@@ -1,0 +1,1607 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`submit_llm_result creation_class success > QUIRK: an empty object stores "Unknown Class" and prints "**undefined**" 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "abilities": "[]",
+      "classDescription": "",
+      "className": "Unknown Class",
+      "classStats": "{}",
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders.",
+      "step": "CLASS_REVEALED",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "A unique class emerges.\\n\\n**undefined**\\nPrimary: STR | Armor: cloth | Physical (+0 bonus HP)\\n\\nYour starting abilities:\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_class",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result creation_class success > QUIRK: an error midway through the success block (null ability) reverts the state update, fields and all 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders.",
+      "step": "AWAITING_ARCHETYPE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_class",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result creation_class success > QUIRK: malformed JSON increments the budget BEFORE parsing and reverts to AWAITING_ARCHETYPE 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders.",
+      "step": "AWAITING_ARCHETYPE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_class",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result creation_class success > accepts legacy ability field names and a mana-user class line 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "abilities": "[{\\"name\\":\\"Spark\\",\\"description\\":\\"A spark.\\",\\"baseDamage\\":6,\\"manaCost\\":3,\\"effect\\":\\"stun\\",\\"castSeconds\\":1,\\"cooldownSeconds\\":4}]",
+      "classDescription": "Glows unpleasantly.",
+      "className": "Cinder Mystic",
+      "classStats": "{\\"primaryStat\\":\\"int\\",\\"secondaryStat\\":\\"none\\",\\"usesMana\\":true,\\"bonusMana\\":15,\\"armorProficiency\\":\\"cloth\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders.",
+      "step": "CLASS_REVEALED",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "Glows unpleasantly.\\n\\n**Cinder Mystic**\\nPrimary: INT | Armor: cloth | Mana user (+15 bonus mana)\\n\\nYour starting abilities:\\n\\n[Spark] — A spark.\\n  physical stun, 6 base, 1s cast, 4s cooldown, 3 mana, stun (?s)\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_class",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result creation_class success > applies a valid reply: CLASS_REVEALED, stats, abilities, presentation event, budget 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "abilities": "[{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"value1\\":12,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"resourceCost\\":5,\\"resourceType\\":\\"stamina\\",\\"effectType\\":\\"dot\\",\\"effectDuration\\":9},{\\"name\\":\\"Ash Veil\\",\\"description\\":\\"A curtain of soot.\\",\\"kind\\":\\"shield\\",\\"value1\\":10,\\"castSeconds\\":2,\\"cooldownSeconds\\":12,\\"resourceCost\\":8,\\"resourceType\\":\\"mana\\"},{\\"name\\":\\"Old Style\\",\\"description\\":\\"A legacy-shaped ability.\\",\\"baseDamage\\":7,\\"manaCost\\":4,\\"effect\\":\\"stun\\",\\"castSeconds\\":0,\\"cooldownSeconds\\":3}]",
+      "classDescription": "A duelist who fights like a grudge.",
+      "className": "Emberblade",
+      "classStats": "{\\"primaryStat\\":\\"str\\",\\"secondaryStat\\":\\"dex\\",\\"bonusHp\\":10,\\"bonusMana\\":0,\\"armorProficiency\\":\\"leather\\",\\"armorProficiencies\\":[\\"leather\\",\\"mail\\"],\\"weaponProficiencies\\":[\\"sword\\",\\"dagger\\"],\\"usesMana\\":false}",
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders.",
+      "step": "CLASS_REVEALED",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather, mail | Weapons: sword, dagger | Physical (+10 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\n[Ash Veil] — A curtain of soot.\\n  physical shield, 10 base, 2s cast, 12s cooldown, 8 mana\\n\\n[Old Style] — A legacy-shaped ability.\\n  physical stun, 7 base, instant, 3s cooldown, 4 mana, stun (?s)\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_class",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result creation_race success > QUIRK: a reply without raceName stores "Unknown", prints "**undefined**" and saves no definition 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceBonuses": "{}",
+      "raceName": "Unknown",
+      "raceNarrative": "Nothing much.",
+      "step": "AWAITING_ARCHETYPE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "Nothing much.\\n\\n**undefined**\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_race",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result creation_race success > QUIRK: malformed JSON increments the budget BEFORE parsing, reverts the step and reports the error 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "step": "AWAITING_RACE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_race",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result creation_race success > accepts a reply with prose around the JSON object (brace extraction) 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceBonuses": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1},\\"flavor\\":\\"Ember-warm.\\"}",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders and spite.",
+      "step": "AWAITING_ARCHETYPE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_race",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ],
+  "race_definition": [
+    {
+      "bonusesJson": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1},\\"flavor\\":\\"Ember-warm.\\"}",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "name": "Ashkin",
+      "nameLower": "ashkin",
+      "narrative": "Born of cinders and spite."
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result creation_race success > accepts a reply wrapped in a markdown code fence 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceBonuses": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1},\\"flavor\\":\\"Ember-warm.\\"}",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders and spite.",
+      "step": "AWAITING_ARCHETYPE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_race",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ],
+  "race_definition": [
+    {
+      "bonusesJson": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1},\\"flavor\\":\\"Ember-warm.\\"}",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "name": "Ashkin",
+      "nameLower": "ashkin",
+      "narrative": "Born of cinders and spite."
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result creation_race success > applies a valid reply: state, creation event, race_definition and the budget 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceBonuses": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1},\\"flavor\\":\\"Ember-warm.\\"}",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders and spite.",
+      "step": "AWAITING_ARCHETYPE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_race",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ],
+  "race_definition": [
+    {
+      "bonusesJson": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1},\\"flavor\\":\\"Ember-warm.\\"}",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "name": "Ashkin",
+      "nameLower": "ashkin",
+      "narrative": "Born of cinders and spite."
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result creation_race success > does not add a second race_definition when one already exists for the race 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceBonuses": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1},\\"flavor\\":\\"Ember-warm.\\"}",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders and spite.",
+      "step": "AWAITING_ARCHETYPE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_race",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ],
+  "race_definition": [
+    {
+      "bonusesJson": "{}",
+      "createdAt": "ts:1600000000000000n",
+      "id": "9n",
+      "name": "ashkin",
+      "nameLower": "ashkin",
+      "narrative": "old"
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result creation_race success > increments an existing budget row instead of adding a second one 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceBonuses": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1},\\"flavor\\":\\"Ember-warm.\\"}",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders and spite.",
+      "step": "AWAITING_ARCHETYPE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "5n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_race",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ],
+  "race_definition": [
+    {
+      "bonusesJson": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1},\\"flavor\\":\\"Ember-warm.\\"}",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "name": "Ashkin",
+      "nameLower": "ashkin",
+      "narrative": "Born of cinders and spite."
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result creation_race success > with no creation state returns silently: no event and no budget increment 1`] = `
+"{
+  "character_creation_state": [],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_race",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result failure path: creation and skill_gen > creation_class failure appends creation_error and reverts the step to AWAITING_ARCHETYPE 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "step": "AWAITING_ARCHETYPE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper flickers. \\"Something went wrong in the cosmic machinery. Try again.\\"",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_class",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "error",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result failure path: creation and skill_gen > creation_race failure appends creation_error and reverts the step to AWAITING_RACE 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "step": "AWAITING_RACE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper flickers. \\"Something went wrong in the cosmic machinery. Try again.\\"",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_race",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "error",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result failure path: creation and skill_gen > creation_race failure without a creation state still appends the creation_error event 1`] = `
+"{
+  "character_creation_state": [],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper flickers. \\"Something went wrong in the cosmic machinery. Try again.\\"",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_race",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "error",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result failure path: creation and skill_gen > renown_perk_gen failure changes nothing but the task status 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "llm_task": [
+    {
+      "contextJson": "{\\"characterId\\":\\"10\\",\\"rank\\":\\"2\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "renown_perk_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "error",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result failure path: creation and skill_gen > skill_gen failure for a missing character writes nothing but the task status 1`] = `
+"{
+  "character": [],
+  "llm_task": [
+    {
+      "contextJson": "{\\"characterId\\":\\"10\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "skill_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "error",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result failure path: creation and skill_gen > skill_gen failure writes an in-voice private narrative for the character owner 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "narrative",
+      "message": "The Keeper flickers. \\"Your potential eludes crystallization. The power will come... eventually.\\"",
+      "ownerUserId": "7n"
+    }
+  ],
+  "llm_task": [
+    {
+      "contextJson": "{\\"characterId\\":\\"10\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "skill_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "error",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result skill_gen success > QUIRK: a skill missing name or kind is skipped, dropping the batch under three (grimace) 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "narrative",
+      "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Try again.\\"",
+      "ownerUserId": "7n"
+    }
+  ],
+  "llm_task": [
+    {
+      "contextJson": "{\\"characterId\\":\\"10\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "skill_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result skill_gen success > QUIRK: fewer than three skills writes the grimace message with NO budget increment and NO pending rows 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "narrative",
+      "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Try again.\\"",
+      "ownerUserId": "7n"
+    }
+  ],
+  "llm_task": [
+    {
+      "contextJson": "{\\"characterId\\":\\"10\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "skill_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result skill_gen success > QUIRK: only the first three skills are considered 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "narrative",
+      "message": "The Keeper of Knowledge regards you with something resembling interest.\\n\\n\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\"\\n\\n[A] -- A description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[B] -- B description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[C] -- C description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\"",
+      "ownerUserId": "7n"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "contextJson": "{\\"characterId\\":\\"10\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "skill_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ],
+  "pending_skill": [
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "6n",
+      "createdAt": "ts:1700000000000000n",
+      "damageType": "physical",
+      "description": "A description.",
+      "id": "1n",
+      "kind": "damage",
+      "levelRequired": "3n",
+      "name": "A",
+      "resourceCost": "5n",
+      "resourceType": "stamina",
+      "scaling": "str",
+      "targetRule": "single_enemy",
+      "value1": "18n"
+    },
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "6n",
+      "createdAt": "ts:1700000000000000n",
+      "damageType": "physical",
+      "description": "B description.",
+      "id": "2n",
+      "kind": "damage",
+      "levelRequired": "3n",
+      "name": "B",
+      "resourceCost": "5n",
+      "resourceType": "stamina",
+      "scaling": "str",
+      "targetRule": "single_enemy",
+      "value1": "18n"
+    },
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "6n",
+      "createdAt": "ts:1700000000000000n",
+      "damageType": "physical",
+      "description": "C description.",
+      "id": "3n",
+      "kind": "damage",
+      "levelRequired": "3n",
+      "name": "C",
+      "resourceCost": "5n",
+      "resourceType": "stamina",
+      "scaling": "str",
+      "targetRule": "single_enemy",
+      "value1": "18n"
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result skill_gen success > a missing character returns silently (only the task status changes) 1`] = `
+"{
+  "character": [],
+  "llm_task": [
+    {
+      "contextJson": "{\\"characterId\\":\\"10\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "skill_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result skill_gen success > accepts the Claude structured-output shape with explicit nulls 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "narrative",
+      "message": "The Keeper of Knowledge regards you with something resembling interest.\\n\\n\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\"\\n\\n[A] -- A description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[B] -- B description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[C] -- C description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\"",
+      "ownerUserId": "7n"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "contextJson": "{\\"characterId\\":\\"10\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "skill_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ],
+  "pending_skill": [
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "6n",
+      "createdAt": "ts:1700000000000000n",
+      "damageType": "physical",
+      "description": "A description.",
+      "id": "1n",
+      "kind": "damage",
+      "levelRequired": "3n",
+      "name": "A",
+      "resourceCost": "5n",
+      "resourceType": "stamina",
+      "scaling": "str",
+      "targetRule": "single_enemy",
+      "value1": "18n"
+    },
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "6n",
+      "createdAt": "ts:1700000000000000n",
+      "damageType": "physical",
+      "description": "B description.",
+      "id": "2n",
+      "kind": "damage",
+      "levelRequired": "3n",
+      "name": "B",
+      "resourceCost": "5n",
+      "resourceType": "stamina",
+      "scaling": "str",
+      "targetRule": "single_enemy",
+      "value1": "18n"
+    },
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "6n",
+      "createdAt": "ts:1700000000000000n",
+      "damageType": "physical",
+      "description": "C description.",
+      "id": "3n",
+      "kind": "damage",
+      "levelRequired": "3n",
+      "name": "C",
+      "resourceCost": "5n",
+      "resourceType": "stamina",
+      "scaling": "str",
+      "targetRule": "single_enemy",
+      "value1": "18n"
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result skill_gen success > applies the v2.0 validators on the way in (over-budget value, unknown kind, mana cast floor) 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "narrative",
+      "message": "The Keeper of Knowledge regards you with something resembling interest.\\n\\n\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\"\\n\\n[Overkill] -- Overkill description.\\n  damage | 5 stamina | instant | 6s cooldown | 36 power\\n\\n[Mystery] -- Mystery description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[Instant Mana] -- Instant Mana description.\\n  damage | 5 mana | 1s cast | 6s cooldown | 18 power\\n\\n\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\"",
+      "ownerUserId": "7n"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "contextJson": "{\\"characterId\\":\\"10\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "skill_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ],
+  "pending_skill": [
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "6n",
+      "createdAt": "ts:1700000000000000n",
+      "damageType": "physical",
+      "description": "Overkill description.",
+      "id": "1n",
+      "kind": "damage",
+      "levelRequired": "3n",
+      "name": "Overkill",
+      "resourceCost": "5n",
+      "resourceType": "stamina",
+      "scaling": "str",
+      "targetRule": "single_enemy",
+      "value1": "36n"
+    },
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "6n",
+      "createdAt": "ts:1700000000000000n",
+      "damageType": "physical",
+      "description": "Mystery description.",
+      "id": "2n",
+      "kind": "damage",
+      "levelRequired": "3n",
+      "name": "Mystery",
+      "resourceCost": "5n",
+      "resourceType": "stamina",
+      "scaling": "str",
+      "targetRule": "single_enemy",
+      "value1": "18n"
+    },
+    {
+      "castSeconds": "1n",
+      "characterId": "10n",
+      "cooldownSeconds": "6n",
+      "createdAt": "ts:1700000000000000n",
+      "damageType": "physical",
+      "description": "Instant Mana description.",
+      "id": "3n",
+      "kind": "damage",
+      "levelRequired": "3n",
+      "name": "Instant Mana",
+      "resourceCost": "5n",
+      "resourceType": "mana",
+      "scaling": "str",
+      "targetRule": "single_enemy",
+      "value1": "18n"
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result skill_gen success > inserts three pending skills, presents them and increments the budget 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "narrative",
+      "message": "The Keeper of Knowledge regards you with something resembling interest.\\n\\n\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\"\\n\\n[Cinder Cut] -- Cinder Cut description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[Ash Ward] -- Ash Ward description.\\n  shield | 5 mana | 1s cast | 6s cooldown | 15 power\\n\\n[Ember Pulse] -- Ember Pulse description.\\n  heal | 5 stamina | instant | 6s cooldown | 15 power\\n\\n\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\"",
+      "ownerUserId": "7n"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "contextJson": "{\\"characterId\\":\\"10\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "skill_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ],
+  "pending_skill": [
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "6n",
+      "createdAt": "ts:1700000000000000n",
+      "damageType": "physical",
+      "description": "Cinder Cut description.",
+      "id": "1n",
+      "kind": "damage",
+      "levelRequired": "3n",
+      "name": "Cinder Cut",
+      "resourceCost": "5n",
+      "resourceType": "stamina",
+      "scaling": "str",
+      "targetRule": "single_enemy",
+      "value1": "18n"
+    },
+    {
+      "castSeconds": "1n",
+      "characterId": "10n",
+      "cooldownSeconds": "6n",
+      "createdAt": "ts:1700000000000000n",
+      "damageType": "physical",
+      "description": "Ash Ward description.",
+      "id": "2n",
+      "kind": "shield",
+      "levelRequired": "3n",
+      "name": "Ash Ward",
+      "resourceCost": "5n",
+      "resourceType": "mana",
+      "scaling": "str",
+      "targetRule": "single_enemy",
+      "value1": "15n"
+    },
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "6n",
+      "createdAt": "ts:1700000000000000n",
+      "damageType": "physical",
+      "description": "Ember Pulse description.",
+      "id": "3n",
+      "kind": "heal",
+      "levelRequired": "3n",
+      "name": "Ember Pulse",
+      "resourceCost": "5n",
+      "resourceType": "stamina",
+      "scaling": "wis",
+      "targetRule": "self",
+      "value1": "15n"
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result skill_gen success > replaces previously pending skills for the character (retry safety) 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "narrative",
+      "message": "The Keeper of Knowledge regards you with something resembling interest.\\n\\n\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\"\\n\\n[A] -- A description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[B] -- B description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[C] -- C description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\"",
+      "ownerUserId": "7n"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "contextJson": "{\\"characterId\\":\\"10\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "skill_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ],
+  "pending_skill": [
+    {
+      "castSeconds": "1n",
+      "characterId": "99n",
+      "cooldownSeconds": "1n",
+      "createdAt": "ts:1600000000000000n",
+      "description": "keep",
+      "id": "51n",
+      "kind": "damage",
+      "levelRequired": "3n",
+      "name": "OtherChar",
+      "resourceCost": "1n",
+      "resourceType": "mana",
+      "scaling": "none",
+      "targetRule": "single_enemy",
+      "value1": "1n"
+    },
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "6n",
+      "createdAt": "ts:1700000000000000n",
+      "damageType": "physical",
+      "description": "A description.",
+      "id": "52n",
+      "kind": "damage",
+      "levelRequired": "3n",
+      "name": "A",
+      "resourceCost": "5n",
+      "resourceType": "stamina",
+      "scaling": "str",
+      "targetRule": "single_enemy",
+      "value1": "18n"
+    },
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "6n",
+      "createdAt": "ts:1700000000000000n",
+      "damageType": "physical",
+      "description": "B description.",
+      "id": "53n",
+      "kind": "damage",
+      "levelRequired": "3n",
+      "name": "B",
+      "resourceCost": "5n",
+      "resourceType": "stamina",
+      "scaling": "str",
+      "targetRule": "single_enemy",
+      "value1": "18n"
+    },
+    {
+      "castSeconds": "0n",
+      "characterId": "10n",
+      "cooldownSeconds": "6n",
+      "createdAt": "ts:1700000000000000n",
+      "damageType": "physical",
+      "description": "C description.",
+      "id": "54n",
+      "kind": "damage",
+      "levelRequired": "3n",
+      "name": "C",
+      "resourceCost": "5n",
+      "resourceType": "stamina",
+      "scaling": "str",
+      "targetRule": "single_enemy",
+      "value1": "18n"
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result skill_gen success > unparseable text writes the grimace message with no budget increment 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "narrative",
+      "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Try again.\\"",
+      "ownerUserId": "7n"
+    }
+  ],
+  "llm_task": [
+    {
+      "contextJson": "{\\"characterId\\":\\"10\\"}",
+      "createdAt": "ts:1600000000000000n",
+      "domain": "skill_gen",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result wrapper > marks an unrecognized domain completed on success and touches nothing else 1`] = `
+"{
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "generic",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result wrapper > marks an unrecognized domain error on failure and touches nothing else 1`] = `
+"{
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "generic",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "error",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result wrapper > throws "LLM task not found" for an unknown task id 1`] = `
+"{
+  "llm_task": []
+}"
+`;
+
+exports[`submit_llm_result wrapper > throws "Not your task" when another player calls it and leaves the task pending 1`] = `
+"{
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_race",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "pending",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result wrapper > throws "Task already processed" for a completed task 1`] = `
+"{
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_race",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
