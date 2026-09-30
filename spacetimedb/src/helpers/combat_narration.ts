@@ -1,16 +1,18 @@
 /**
- * Combat narration helpers: qualification logic, LLM task creation, result handling.
- * Wires the LLM narration pipeline into the round-based combat engine.
+ * Combat narration (Phase 41, PIPE-07): a victory or defeat outro only.
+ *
+ * Combat is real-time (no round hook), so narration is enqueued once per fight from
+ * handleVictory / handleDefeat, BEFORE the combat artifacts (participant rows) are cleared.
+ * The outro summary is snapshotted into the job's request, so the executor never reads combat
+ * state later. Narration is lowest priority and can never touch combat: enqueueCombatOutroNarration
+ * catches every error, a refusal (daily cost, daily calls, phase cap) is skipped silently, and the
+ * executor drops a narration that is older than 20 s. handleCombatNarrationResult applies a reply.
  */
 
-import { MAX_COMBAT_NARRATIONS, NARRATION_BUDGET_THRESHOLD } from '../data/combat_constants';
-import { checkBudget, incrementBudget } from './llm';
 import { appendPrivateEvent } from './events';
-import {
-  buildCombatNarrationPrompt,
-  buildCombatRoundUserPrompt,
-  buildCombatOutroUserPrompt,
-} from '../data/llm_prompts';
+import { enqueueLlmJob, resolveCharacterPlayerId, SOURCE_KEYS } from './llm_queue';
+import { encodeRouteInput } from './llm_inputs';
+import { redactSecrets } from './measurement';
 
 // ── Types ──
 
@@ -52,146 +54,102 @@ export type RoundEventSummary = {
   playerNames?: string[];
 };
 
-// ── Qualification ──
+// ── Outro enqueue ──
+
+/** A participant at or below this share of max HP (percent) counts as near death. */
+const NEAR_DEATH_PERCENT = 10n;
 
 /**
- * Determine if a round qualifies for LLM narration.
- * - intro/victory/defeat always narrate if budget allows
- * - mid-combat rounds only narrate on key events (crit, kill, near-death) and within narration cap
+ * Snapshot of a finished fight for the outro prompt. Reads characters fresh (their HP is final
+ * once handleVictory / handleDefeat has marked the dead) and the location by id.
  */
-export function shouldNarrateRound(
-  narrativeType: 'intro' | 'round' | 'victory' | 'defeat',
-  narrationCount: bigint,
-  remainingBudget: number,
-  hasCrit: boolean,
-  hasKill: boolean,
-  hasNearDeath: boolean,
-): boolean {
-  // No budget at all -- skip
-  if (remainingBudget <= 0) return false;
-
-  // Intro, victory, defeat always qualify if budget allows
-  if (narrativeType !== 'round') return true;
-
-  // Mid-combat: cap check
-  if (narrationCount >= MAX_COMBAT_NARRATIONS) return false;
-
-  // Mid-combat: budget threshold check
-  if (BigInt(remainingBudget) < NARRATION_BUDGET_THRESHOLD) return false;
-
-  // Mid-combat: only on key events
-  return hasCrit || hasKill || hasNearDeath;
-}
-
-// ── Trigger ──
-
-/**
- * Attempt to trigger LLM narration for a combat round.
- * Handles budget rotation, qualification check, and LlmTask creation.
- *
- * Budget is charged once per combat (on outro only). Intro uses static messages.
- * Mid-combat round narrations are free if budget allows.
- */
-export function triggerCombatNarration(
+export function buildCombatOutroSummary(
   ctx: any,
   combat: any,
-  round: any,
-  events: RoundEventSummary,
+  participants: any[],
+  enemies: any[],
+  narrativeType: 'victory' | 'defeat',
+): RoundEventSummary {
+  const deaths: string[] = [];
+  const nearDeathNames: string[] = [];
+  const playerNames: string[] = [];
+  const participantHpSummary: RoundEventSummary['participantHpSummary'] = [];
+
+  for (const p of participants) {
+    const character = ctx.db.character.id.find(p.characterId);
+    if (!character) continue;
+    playerNames.push(character.name);
+    participantHpSummary.push({ name: character.name, hp: character.hp, maxHp: character.maxHp, isEnemy: false });
+    if (character.hp === 0n) deaths.push(character.name);
+    else if (character.hp * 100n <= character.maxHp * NEAR_DEATH_PERCENT) nearDeathNames.push(character.name);
+  }
+
+  const enemyNames: string[] = [];
+  for (const e of enemies) {
+    enemyNames.push(e.displayName);
+    participantHpSummary.push({ name: e.displayName, hp: e.currentHp, maxHp: e.maxHp, isEnemy: true });
+    if (e.currentHp === 0n) deaths.push(e.displayName);
+  }
+
+  const location = ctx.db.location.id.find(combat.locationId);
+  return {
+    combatId: combat.id,
+    roundNumber: 0n,
+    narrativeType,
+    playerActions: [],
+    enemyActions: [],
+    effectsApplied: [],
+    effectsExpired: [],
+    deaths,
+    nearDeathNames,
+    hasCrit: false,
+    hasKill: deaths.length > 0,
+    hasNearDeath: nearDeathNames.length > 0,
+    participantHpSummary,
+    locationName: location?.name,
+    enemyNames,
+    playerNames,
+  };
+}
+
+/**
+ * Enqueue the outro narration for a finished fight. Never throws and never changes combat: any
+ * error is logged (redacted) and swallowed, a refused enqueue (budget) is skipped silently, and
+ * nothing is written unless a leader's player resolves. Charged to the combat leader's player
+ * (else the first participant's).
+ */
+export function enqueueCombatOutroNarration(
+  ctx: any,
+  combat: any,
+  participants: any[],
+  enemies: any[],
+  narrativeType: 'victory' | 'defeat',
 ): void {
-  const narrationCount = round.narrationCount ?? 0n;
+  try {
+    const leaderId = combat.leaderCharacterId ?? participants[0]?.characterId;
+    if (leaderId === undefined) return;
+    const leader = ctx.db.character.id.find(leaderId);
+    if (!leader) return;
+    const playerId = resolveCharacterPlayerId(ctx, leader);
+    if (!playerId) return;
 
-  // Get all active combat participants for budget rotation
-  const participants = [...ctx.db.combat_participant.by_combat.filter(combat.id)]
-    .filter((p: any) => p.status === 'active' || p.status === 'dead' || p.status === 'fled');
-  if (participants.length === 0) return;
-
-  // Round-robin: charge index cycles through participants
-  const chargeIndex = Number(narrationCount % BigInt(participants.length));
-  const chargedParticipant = participants[chargeIndex];
-  if (!chargedParticipant) return;
-
-  const character = ctx.db.character.id.find(chargedParticipant.characterId);
-  if (!character) return;
-
-  // Find the player identity for budget checking
-  // Player table has no userId index, so iterate to find matching player
-  let chargedPlayerIdentity: any = null;
-  for (const p of ctx.db.player.iter()) {
-    if (p.userId === character.ownerUserId) {
-      chargedPlayerIdentity = p.id;
-      break;
-    }
-  }
-  if (!chargedPlayerIdentity) return;
-
-  // Budget check
-  const budget = checkBudget(ctx, chargedPlayerIdentity);
-
-  // Qualification check
-  if (!shouldNarrateRound(
-    events.narrativeType,
-    narrationCount,
-    budget.remaining,
-    events.hasCrit,
-    events.hasKill,
-    events.hasNearDeath,
-  )) return;
-
-  if (!budget.allowed) return;
-
-  // Only charge budget for outro narration (1 credit per combat total)
-  if (events.narrativeType === 'victory' || events.narrativeType === 'defeat') {
-    incrementBudget(ctx, chargedPlayerIdentity);
-  }
-
-  // Build context for the system prompt
-  const contextParts: string[] = [];
-  if (events.locationName) contextParts.push(`Location: ${events.locationName}`);
-  if (events.playerNames?.length) contextParts.push(`Players: ${events.playerNames.join(', ')}`);
-  if (events.enemyNames?.length) contextParts.push(`Enemies: ${events.enemyNames.join(', ')}`);
-  contextParts.push(`Round: ${events.roundNumber}`);
-  const contextString = contextParts.join('\n');
-
-  // Build prompts
-  const systemPrompt = buildCombatNarrationPrompt(contextString);
-  let userPrompt: string;
-  if (events.narrativeType === 'victory' || events.narrativeType === 'defeat') {
-    userPrompt = buildCombatOutroUserPrompt(events, events.narrativeType === 'victory');
-  } else {
-    userPrompt = buildCombatRoundUserPrompt(events);
-  }
-
-  // Collect participant character IDs for broadcast on result
-  const participantCharacterIds = participants.map((p: any) => String(p.characterId));
-
-  // Insert LlmTask
-  ctx.db.llm_task.insert({
-    id: 0n,
-    playerId: chargedPlayerIdentity,
-    domain: 'combat_narration',
-    model: 'gpt-5-mini',
-    systemPrompt,
-    userPrompt,
-    maxTokens: 400n,
-    status: 'pending',
-    contextJson: JSON.stringify({
-      combatId: String(events.combatId),
-      roundNumber: String(events.roundNumber),
-      narrativeType: events.narrativeType,
-      participantCharacterIds,
-    }),
-    createdAt: ctx.timestamp,
-  });
-
-  // Increment narration count on the round (only if a real round row exists)
-  if (round.id) {
-    const currentRound = ctx.db.combat_round.id.find(round.id);
-    if (currentRound) {
-      ctx.db.combat_round.id.update({
-        ...currentRound,
-        narrationCount: (currentRound.narrationCount ?? 0n) + 1n,
-      });
-    }
+    const summary = buildCombatOutroSummary(ctx, combat, participants, enemies, narrativeType);
+    // A refusal (result.refused) is deliberately ignored: narration is skipped silently.
+    enqueueLlmJob(ctx, {
+      route: 'combat_narration',
+      playerId,
+      characterId: leader.id,
+      sourceKey: SOURCE_KEYS.combatNarration(combat.id, 0, narrativeType),
+      request: {
+        combatId: combat.id.toString(),
+        roundNumber: '0',
+        narrativeType,
+        participantCharacterIds: participants.map((p: any) => p.characterId.toString()),
+        input: encodeRouteInput(summary),
+      },
+    });
+  } catch (e) {
+    console.error('combat narration skipped: ' + redactSecrets(String(e)));
   }
 }
 
