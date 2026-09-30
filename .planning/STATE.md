@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 41
 current_phase_name: Executor and Domain Cutover
 status: executing
-stopped_at: Completed 41-02-PLAN.md
-last_updated: "2026-09-30T14:24:29.351Z"
+stopped_at: Completed 41-03-PLAN.md
+last_updated: "2026-09-30T14:38:53.112Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 41 execution started
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 38
-  completed_plans: 23
+  completed_plans: 24
   percent: 33
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 41 (Executor and Domain Cutover) — EXECUTING
-Plan: 3 of 17
+Plan: 4 of 17
 Status: Ready to execute
 Last activity: 2026-09-30 — Phase 41 execution started
 
-Progress: [██████░░░░] 61% (2/6 phases)
+Progress: [██████░░░░] 63% (2/6 phases)
 
 ## Previous Milestones
 
@@ -73,6 +73,8 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [40-10] Keeper Bible tone approved by the user (verbatim 'Approved', 2026-09-30) with no edits; 7,421 chars (~2,283 tokens); full suite must be run per file on this host due to memory exhaustion
 - [Phase ?]: [41-01] Retry lifetime bound pinned by test (worst retrying route 303.2 s < 10 min pending expiry); llm_dispatch/llm_sweep_tick unbound until 41-07; CLI identity is an admin (user-approved, set pinned by admin.test.ts)
 - [Phase ?]: 41-02: reservations use existing chars/3 reserveCostMicroUsd helper (more conservative than chars/3.25); refusal order daily_calls, daily_cost, phase_cap; unknown billing charges ledger only
+- [Phase ?]: [41-03] insertStaticRenownPerkOptions returns rows inserted and is idempotent per character+rank; Keeper line only when rows were inserted
+- [Phase ?]: [41-03] Creation replies clamp-and-default (never reject); legacy ability field names no longer read; nameless race not saved as race_definition
 
 ### Roadmap Evolution
 
@@ -127,8 +129,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-30T14:24:29.265Z
-Stopped at: Completed 41-02-PLAN.md
+Last session: 2026-09-30T14:38:53.083Z
+Stopped at: Completed 41-03-PLAN.md
 
 ## Performance Metrics
 
@@ -165,6 +167,7 @@ Stopped at: Completed 41-02-PLAN.md
 | Phase 40 P10 | 10min | 2 tasks | 0 files |
 | Phase 41 P01 | 10min | 3 tasks | 10 files |
 | Phase 41 P02 | 15min | 2 tasks | 2 files |
+| Phase 41 P03 | 45min | 2 tasks | 9 files |
 
 ## Operator Next Steps
 
