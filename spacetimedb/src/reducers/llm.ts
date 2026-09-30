@@ -100,6 +100,16 @@ export const registerLlmReducers = (deps: any) => {
     }
   );
 
+  // Admin-only: delete every row of the legacy public llm_task table (Phase 41 cutover). Idempotent.
+  // No server code creates task rows any more; the table and submit_llm_result go in Phase 42.
+  spacetimedb.reducer('purge_llm_tasks', {}, (ctx: any) => {
+    requireAdmin(ctx);
+    const ids: bigint[] = [];
+    for (const row of ctx.db.llm_task.iter()) ids.push(row.id);
+    for (const id of ids) ctx.db.llm_task.id.delete(id);
+    console.log(`llm_task purge: ${ids.length} rows`);
+  });
+
   // Validate and create a pending LLM request.
   // Client calls this FIRST, then watches for the pending request, then calls the procedure.
   spacetimedb.reducer('validate_llm_request', {

@@ -139,6 +139,7 @@ import WithdrawFromBankReducer from "./withdraw_from_bank_reducer";
 import SetApiKeyReducer from "./set_api_key_reducer";
 import LlmSmokeTestReducer from "./llm_smoke_test_reducer";
 import GrantTestPendingLevelReducer from "./grant_test_pending_level_reducer";
+import PurgeLlmTasksReducer from "./purge_llm_tasks_reducer";
 import ValidateLlmRequestReducer from "./validate_llm_request_reducer";
 import SubmitIntentReducer from "./submit_intent_reducer";
 import StartCreationReducer from "./start_creation_reducer";
@@ -1893,6 +1894,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_api_key", SetApiKeyReducer),
   __reducerSchema("llm_smoke_test", LlmSmokeTestReducer),
   __reducerSchema("grant_test_pending_level", GrantTestPendingLevelReducer),
+  __reducerSchema("purge_llm_tasks", PurgeLlmTasksReducer),
   __reducerSchema("validate_llm_request", ValidateLlmRequestReducer),
   __reducerSchema("submit_intent", SubmitIntentReducer),
   __reducerSchema("start_creation", StartCreationReducer),

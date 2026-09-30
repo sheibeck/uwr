@@ -338,3 +338,39 @@ describe('grant_test_pending_level', () => {
     expect(() => reducer('grant_test_pending_level')(ctx, { characterId: 404n, levels: 1n })).toThrow('Character not found');
   });
 });
+
+describe('purge_llm_tasks', () => {
+  const taskRow = (id: bigint) => ({
+    id,
+    playerId: admin,
+    domain: 'world_gen',
+    model: 'legacy',
+    systemPrompt: '',
+    userPrompt: '',
+    maxTokens: 1n,
+    status: 'pending',
+  });
+  const seed = () => ({ llm_task: [taskRow(1n), taskRow(2n), taskRow(3n)] });
+
+  it('rejects a non-admin with "Admin only" and leaves every row', () => {
+    const ctx = createMockCtx({ sender: stranger, seed: seed() });
+    expect(() => reducer('purge_llm_tasks')(ctx, {})).toThrow('Admin only');
+    expect(rows(ctx, 'llm_task')).toHaveLength(3);
+  });
+
+  it('deletes every legacy task row and logs the count', () => {
+    const ctx = adminCtx(seed());
+    reducer('purge_llm_tasks')(ctx, {});
+    expect(rows(ctx, 'llm_task')).toHaveLength(0);
+    expect(output.lines).toEqual(['llm_task purge: 3 rows']);
+  });
+
+  it('is idempotent: a second call deletes nothing and does not throw', () => {
+    const ctx = adminCtx(seed());
+    reducer('purge_llm_tasks')(ctx, {});
+    output.lines.length = 0;
+    expect(() => reducer('purge_llm_tasks')(ctx, {})).not.toThrow();
+    expect(rows(ctx, 'llm_task')).toHaveLength(0);
+    expect(output.lines).toEqual(['llm_task purge: 0 rows']);
+  });
+});

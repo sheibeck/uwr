@@ -1273,3 +1273,70 @@ describe('deleted prepare reducers: no client call site remains', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Final "nothing left on the old path" state (41-15)
+// ---------------------------------------------------------------------------
+
+describe('the legacy task table is no longer written or reached (41-15)', () => {
+  const walkTs = (dir: URL, out: string[] = []): string[] => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === 'node_modules') continue;
+      const child = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir);
+      if (entry.isDirectory()) walkTs(child, out);
+      else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')) out.push(fileURLToPath(child));
+    }
+    return out;
+  };
+
+  // Built from fragments so this file does not match its own pattern.
+  const TABLE = ['llm', 'task'].join('_');
+  const INSERT = new RegExp(String.raw`\b${TABLE}\s*\.\s*insert\s*\(`);
+
+  it('no non-test file under spacetimedb/src inserts into the legacy task table', () => {
+    const files = walkTs(new URL('../', import.meta.url));
+    expect(files.length).toBeGreaterThan(50);
+    const offenders = files.filter((f) => INSERT.test(readFileSync(f, 'utf-8')));
+    expect(offenders).toEqual([]);
+  });
+
+  it('the pattern catches the forms it is meant to catch', () => {
+    expect(INSERT.test(`ctx.db.${TABLE}.insert({})`)).toBe(true);
+    expect(INSERT.test(`ctx.db.${TABLE} .insert ({})`)).toBe(true);
+    expect(INSERT.test(`ctx.db.${TABLE}.id.update(row)`)).toBe(false);
+  });
+
+  it('no file under src/ outside src/module_bindings references any of the three deleted prepare reducers', () => {
+    const names = [
+      ['prepare', 'Skill', 'Gen'],
+      ['prepare', 'Creation', 'Llm'],
+      ['prepare', 'WorldGen', 'Llm'],
+    ].flatMap((parts) => [parts.join(''), parts.map((p) => p.toLowerCase()).join('_')]);
+    const walkSrc = (dir: URL, out: string[] = []): string[] => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === 'module_bindings' || entry.name === 'node_modules') continue;
+        const child = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir);
+        if (entry.isDirectory()) walkSrc(child, out);
+        else if (/\.(ts|vue|js)$/.test(entry.name)) out.push(fileURLToPath(child));
+      }
+      return out;
+    };
+    const files = walkSrc(new URL('../../../src/', import.meta.url));
+    expect(files.length).toBeGreaterThan(10);
+    const offenders = files.filter((f) => {
+      const text = readFileSync(f, 'utf-8');
+      return names.some((n) => text.includes(n));
+    });
+    expect(offenders).toEqual([]);
+  });
+
+  it('the model-literal allowlist holds exactly the three Phase 42 sites', () => {
+    const text = readFileSync(new URL('../data/model_literals.test.ts', import.meta.url), 'utf-8');
+    const block = /const LEGACY_MODEL_LITERALS[^{]*\{([\s\S]*?)\n\};/.exec(text);
+    expect(block).not.toBeNull();
+    const keys = [...block![1].matchAll(/^\s*'([^']+)'\s*:/gm)].map((m) => m[1]).sort();
+    expect(keys).toEqual(
+      ['spacetimedb/src/reducers/llm.ts', 'spacetimedb/src/schema/tables.ts', 'src/composables/useLlm.ts'].sort(),
+    );
+  });
+});
