@@ -1,0 +1,973 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`lint and determinism > CLASS_SCHEMA serialization is deterministic and matches the snapshot 1`] = `
+"{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "className",
+    "classDescription",
+    "stats",
+    "abilities"
+  ],
+  "properties": {
+    "className": {
+      "type": "string",
+      "description": "1-2 words, no adjective phrases (e.g. 'Gatebreaker', 'Pyroclast', 'Voidcaller' -- NOT 'Mire-Crowned Gatebreaker')"
+    },
+    "classDescription": {
+      "type": "string",
+      "description": "2-3 sentences of sardonic class description"
+    },
+    "stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primaryStat",
+        "secondaryStat",
+        "bonusHp",
+        "bonusMana",
+        "weaponProficiencies",
+        "armorProficiencies",
+        "usesMana"
+      ],
+      "properties": {
+        "primaryStat": {
+          "type": "string",
+          "enum": [
+            "str",
+            "dex",
+            "int",
+            "wis",
+            "cha"
+          ]
+        },
+        "secondaryStat": {
+          "type": "string",
+          "enum": [
+            "str",
+            "dex",
+            "int",
+            "wis",
+            "cha",
+            "none"
+          ]
+        },
+        "bonusHp": {
+          "type": "number",
+          "description": "0-20, warrior types get more"
+        },
+        "bonusMana": {
+          "type": "number",
+          "description": "0-30, mystic types get more"
+        },
+        "weaponProficiencies": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "dagger",
+              "rapier",
+              "sword",
+              "blade",
+              "mace",
+              "axe",
+              "bow",
+              "staff",
+              "greatsword",
+              "wand"
+            ]
+          },
+          "description": "2-4 allowed weapon types that fit the class fantasy"
+        },
+        "armorProficiencies": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "cloth",
+              "leather",
+              "chain",
+              "plate"
+            ]
+          },
+          "description": "1-2 allowed armor types; warriors get heavier, mystics get lighter"
+        },
+        "usesMana": {
+          "type": "boolean"
+        }
+      }
+    },
+    "abilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "description",
+          "kind",
+          "damageType",
+          "targetRule",
+          "resourceType",
+          "resourceCost",
+          "castSeconds",
+          "cooldownSeconds",
+          "value1",
+          "scaling",
+          "effectType",
+          "effectMagnitude",
+          "effectDuration"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "2-3 words max, punchy action name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Sardonic description of the ability"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "damage",
+              "heal",
+              "dot",
+              "hot",
+              "buff",
+              "debuff",
+              "shield",
+              "taunt",
+              "aoe_damage",
+              "aoe_heal",
+              "summon",
+              "cc",
+              "drain",
+              "execute",
+              "utility",
+              "song",
+              "aura",
+              "travel",
+              "fear",
+              "bandage",
+              "potion",
+              "food_summon",
+              "resurrect",
+              "group_heal",
+              "craft_boost",
+              "gather_boost",
+              "pet_command"
+            ]
+          },
+          "damageType": {
+            "type": "string",
+            "enum": [
+              "physical",
+              "arcane",
+              "divine",
+              "nature",
+              "fire",
+              "ice",
+              "shadow",
+              "none"
+            ]
+          },
+          "targetRule": {
+            "type": "string",
+            "enum": [
+              "single_enemy",
+              "single_ally",
+              "self"
+            ]
+          },
+          "resourceType": {
+            "type": "string",
+            "enum": [
+              "mana",
+              "stamina",
+              "none"
+            ]
+          },
+          "resourceCost": {
+            "type": "number",
+            "description": "Mana abilities: 10-30, stamina abilities: 5-15, 0 for 'none' resource type"
+          },
+          "castSeconds": {
+            "type": "number",
+            "description": "Cast time in seconds. Mana abilities MUST be >= 1 (use 1-3). Only stamina/physical abilities can be 0 (instant)."
+          },
+          "cooldownSeconds": {
+            "type": "number",
+            "description": "4-12"
+          },
+          "value1": {
+            "type": "number",
+            "description": "8-15 for level 1, primary power value"
+          },
+          "scaling": {
+            "type": "string",
+            "enum": [
+              "str",
+              "dex",
+              "int",
+              "wis",
+              "cha"
+            ]
+          },
+          "effectType": {
+            "description": "For dot/hot/buff/debuff kinds (e.g. dot, regen, str_bonus, armor_down, stun). null for damage/heal.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effectMagnitude": {
+            "description": "Effect strength per tick. null for damage/heal.",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effectDuration": {
+            "description": "Duration in seconds. Combat rounds are 3s, so dot/hot/buff/debuff need 9-12 for 3-4 ticks. Stun uses 3. null for damage/heal.",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "description": "Exactly 3 abilities"
+    }
+  }
+}"
+`;
+
+exports[`lint and determinism > RACE_SCHEMA serialization is deterministic and matches the snapshot 1`] = `
+"{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "raceName",
+    "narrative",
+    "bonuses"
+  ],
+  "properties": {
+    "raceName": {
+      "type": "string",
+      "description": "Use the EXACT race name the player gave. Do NOT expand, embellish, or add adjectives. If they said 'Cyclops', the raceName is 'Cyclops'. If they said 'fire goblin', the raceName is 'Fire Goblin' (just capitalize). Only invent a name if the player gave a vague description like 'some kind of shadow creature' rather than a specific race name."
+    },
+    "narrative": {
+      "type": "string",
+      "description": "2-3 sentences of sardonic Keeper commentary about this race"
+    },
+    "bonuses": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary",
+        "secondary",
+        "flavor"
+      ],
+      "properties": {
+        "primary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stat",
+            "value"
+          ],
+          "properties": {
+            "stat": {
+              "type": "string",
+              "enum": [
+                "str",
+                "dex",
+                "int",
+                "wis",
+                "cha"
+              ]
+            },
+            "value": {
+              "type": "integer",
+              "description": "Typically 2"
+            }
+          }
+        },
+        "secondary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stat",
+            "value"
+          ],
+          "properties": {
+            "stat": {
+              "type": "string",
+              "enum": [
+                "str",
+                "dex",
+                "int",
+                "wis",
+                "cha"
+              ]
+            },
+            "value": {
+              "type": "integer",
+              "description": "Typically 1"
+            }
+          }
+        },
+        "flavor": {
+          "type": "string",
+          "description": "One unique racial trait description"
+        }
+      }
+    }
+  }
+}"
+`;
+
+exports[`lint and determinism > REGION_GENERATION_SCHEMA serialization is deterministic and matches the snapshot 1`] = `
+"{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "regionName",
+    "regionDescription",
+    "biome",
+    "dominantFaction",
+    "landmarks",
+    "threats",
+    "locations",
+    "npcs",
+    "enemies"
+  ],
+  "properties": {
+    "regionName": {
+      "type": "string"
+    },
+    "regionDescription": {
+      "type": "string"
+    },
+    "biome": {
+      "type": "string",
+      "enum": [
+        "volcanic",
+        "forest",
+        "tundra",
+        "desert",
+        "swamp",
+        "mountains",
+        "plains",
+        "coastal",
+        "cavern",
+        "ruins"
+      ]
+    },
+    "dominantFaction": {
+      "type": "string"
+    },
+    "landmarks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "threats": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "locations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "description",
+          "terrainType",
+          "isSafe",
+          "levelOffset",
+          "connectsTo"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "terrainType": {
+            "type": "string",
+            "enum": [
+              "mountains",
+              "woods",
+              "plains",
+              "swamp",
+              "dungeon",
+              "town",
+              "city"
+            ]
+          },
+          "isSafe": {
+            "type": "boolean"
+          },
+          "levelOffset": {
+            "type": "integer"
+          },
+          "connectsTo": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "npcs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "npcType",
+          "locationName",
+          "description",
+          "greeting",
+          "personality"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "npcType": {
+            "type": "string",
+            "enum": [
+              "vendor",
+              "questgiver",
+              "lore",
+              "trainer",
+              "guard",
+              "crafter",
+              "banker"
+            ]
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "greeting": {
+            "type": "string"
+          },
+          "personality": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "traits",
+              "speechPattern",
+              "knowledgeDomains",
+              "secrets",
+              "affinityMultiplier"
+            ],
+            "properties": {
+              "traits": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "speechPattern": {
+                "type": "string"
+              },
+              "knowledgeDomains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "secrets": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "affinityMultiplier": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    "enemies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "creatureType",
+          "role",
+          "terrainTypes",
+          "groupMin",
+          "groupMax",
+          "level"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "creatureType": {
+            "type": "string",
+            "enum": [
+              "beast",
+              "undead",
+              "humanoid",
+              "elemental",
+              "construct",
+              "aberration"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "melee",
+              "ranged",
+              "caster"
+            ]
+          },
+          "terrainTypes": {
+            "type": "string"
+          },
+          "groupMin": {
+            "type": "integer"
+          },
+          "groupMax": {
+            "type": "integer"
+          },
+          "level": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}"
+`;
+
+exports[`lint and determinism > RENOWN_PERK_SCHEMA serialization is deterministic and matches the snapshot 1`] = `
+"{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "perks"
+  ],
+  "properties": {
+    "perks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "description",
+          "kind",
+          "targetRule",
+          "resourceType",
+          "resourceCost",
+          "castSeconds",
+          "cooldownSeconds",
+          "scaling",
+          "value1",
+          "value2",
+          "damageType",
+          "effectType",
+          "effectMagnitude",
+          "effectDuration",
+          "perkEffectJson",
+          "perkDomain"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "2-3 words, punchy reputation-flavored name (e.g. 'Merchant's Favor', 'Whisper Network')"
+          },
+          "description": {
+            "type": "string",
+            "description": "Sardonic Keeper narrator description, 1-2 sentences"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "",
+              "damage",
+              "heal",
+              "dot",
+              "hot",
+              "buff",
+              "debuff",
+              "shield",
+              "taunt",
+              "aoe_damage",
+              "aoe_heal",
+              "summon",
+              "cc",
+              "drain",
+              "execute",
+              "utility",
+              "song",
+              "aura",
+              "travel",
+              "fear",
+              "bandage",
+              "potion",
+              "food_summon",
+              "resurrect",
+              "group_heal",
+              "craft_boost",
+              "gather_boost",
+              "pet_command"
+            ],
+            "description": "Ability kind, OR empty string for a passive bonus perk"
+          },
+          "targetRule": {
+            "type": "string",
+            "enum": [
+              "single_enemy",
+              "single_ally",
+              "self",
+              "all_enemies",
+              "all_allies",
+              "all_party"
+            ]
+          },
+          "resourceType": {
+            "type": "string",
+            "enum": [
+              "mana",
+              "stamina",
+              "hp",
+              "none"
+            ]
+          },
+          "resourceCost": {
+            "type": "number",
+            "description": "Resource cost (mana: 10-30, stamina: 5-15, 0 for passive/none)"
+          },
+          "castSeconds": {
+            "type": "number",
+            "description": "Cast time (0 for passive or instant stamina abilities; mana abilities must be >= 1)"
+          },
+          "cooldownSeconds": {
+            "type": "number",
+            "description": "Cooldown in seconds (0 for passive)"
+          },
+          "scaling": {
+            "type": "string",
+            "enum": [
+              "str",
+              "dex",
+              "int",
+              "wis",
+              "cha",
+              "hybrid",
+              "none"
+            ]
+          },
+          "value1": {
+            "type": "number",
+            "description": "Primary power value (0 for pure passive)"
+          },
+          "value2": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "damageType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "physical",
+                  "arcane",
+                  "divine",
+                  "nature",
+                  "fire",
+                  "ice",
+                  "shadow",
+                  "none"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effectType": {
+            "description": "For buff/debuff/dot/hot",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effectMagnitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effectDuration": {
+            "description": "In seconds (9-12 for meaningful buffs/debuffs)",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perkEffectJson": {
+            "description": "JSON object string for passive bonuses: {maxHp, str, dex, int, wis, cha, armorClass, gatherDoubleChance, gatherSpeedBonus, craftQualityBonus, rareGatherChance, npcAffinityGainBonus, vendorBuyDiscount, vendorSellBonus, travelCooldownReduction, goldFindBonus, xpBonus}. Only for passive perks (kind is empty).",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perkDomain": {
+            "type": "string",
+            "enum": [
+              "combat",
+              "crafting",
+              "social"
+            ]
+          }
+        }
+      }
+    }
+  }
+}"
+`;
+
+exports[`lint and determinism > SKILL_GENERATION_SCHEMA serialization is deterministic and matches the snapshot 1`] = `
+"{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "skills"
+  ],
+  "properties": {
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "description",
+          "kind",
+          "targetRule",
+          "resourceType",
+          "resourceCost",
+          "castSeconds",
+          "cooldownSeconds",
+          "scaling",
+          "value1",
+          "value2",
+          "damageType",
+          "effectType",
+          "effectMagnitude",
+          "effectDuration"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "2-3 words max, punchy action name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Sardonic Keeper narrator description, 1-2 sentences"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "damage",
+              "heal",
+              "dot",
+              "hot",
+              "buff",
+              "debuff",
+              "shield",
+              "taunt",
+              "aoe_damage",
+              "aoe_heal",
+              "summon",
+              "cc",
+              "drain",
+              "execute",
+              "utility",
+              "song",
+              "aura",
+              "travel",
+              "fear",
+              "bandage",
+              "potion",
+              "food_summon",
+              "resurrect",
+              "group_heal",
+              "craft_boost",
+              "gather_boost",
+              "pet_command"
+            ],
+            "description": "damage=single-hit direct damage, dot=damage over time (burning, bleeding, poisoning), hot=heal over time, heal=instant heal, buff=apply positive effect, debuff=apply negative effect, shield=absorb barrier, taunt=force target, aoe_damage=multi-target damage, aoe_heal=multi-target heal, cc=crowd control, drain=damage+self-heal, execute=bonus vs low HP, utility=non-combat, song=toggle party-wide persistent buff (bards), aura=passive area effect from caster, travel=movement speed/reveal buff, fear=CC causing enemy to flee/stun, bandage=self-heal consumable-like (long cooldown), potion=self-heal/buff consumable-like (long cooldown), food_summon=conjure food items for buffs, resurrect=revive dead party member, group_heal=heal all party members, craft_boost=boost next crafting quality, gather_boost=boost next gathering yield, pet_command=command active pet"
+          },
+          "targetRule": {
+            "type": "string",
+            "enum": [
+              "single_enemy",
+              "single_ally",
+              "self",
+              "all_enemies",
+              "all_allies",
+              "all_party",
+              "lowest_hp_ally",
+              "lowest_hp_enemy"
+            ]
+          },
+          "resourceType": {
+            "type": "string",
+            "enum": [
+              "mana",
+              "stamina",
+              "hp",
+              "none"
+            ]
+          },
+          "resourceCost": {
+            "type": "number",
+            "description": "Resource cost (mana: 10-30, stamina: 5-15, 0 for none)"
+          },
+          "castSeconds": {
+            "type": "number",
+            "description": "Cast time in seconds. MANDATORY: if resourceType is mana, castSeconds MUST be >= 1 (use 1-3). Only stamina/none abilities may use 0. Powerful spells should use 2-3."
+          },
+          "cooldownSeconds": {
+            "type": "number",
+            "description": "Cooldown in seconds"
+          },
+          "scaling": {
+            "type": "string",
+            "enum": [
+              "str",
+              "dex",
+              "int",
+              "wis",
+              "cha",
+              "hybrid",
+              "none"
+            ]
+          },
+          "value1": {
+            "type": "number",
+            "description": "Primary power value (damage, heal amount, etc.)"
+          },
+          "value2": {
+            "description": "Secondary value (DoT ticks, drain heal%, etc.)",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "damageType": {
+            "type": "string",
+            "enum": [
+              "physical",
+              "arcane",
+              "divine",
+              "nature",
+              "fire",
+              "ice",
+              "shadow",
+              "none"
+            ],
+            "description": "Required for damage-dealing kinds"
+          },
+          "effectType": {
+            "description": "Effect type for buff/debuff/dot/hot kinds (e.g. str_bonus, dot, damage_up, stun, regen)",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effectMagnitude": {
+            "description": "Effect strength",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effectDuration": {
+            "description": "Effect duration in seconds. Combat rounds are 3s, so dot/hot/buff/debuff MUST use 9-12s (3-4 ticks). Only cc (stun/root) should use short durations.",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}"
+`;
