@@ -727,7 +727,7 @@ export function resolveAbility(
       for (const p of ctx.db.combat_participant.by_combat.filter(combatId)) {
         if (p.status !== 'active') continue;
         const pc = ctx.db.character.id.find(p.characterId);
-        if (pc) logPrivate(pc.id, pc.ownerUserId, 'ability', `${actor.name} shields itself with ${ability.name}.`);
+        if (pc) logPrivate(pc.id, pc.ownerUserId, 'ability', `${actor.name} is shielded by ${ability.name}.`);
       }
     }
     return;
@@ -1065,7 +1065,7 @@ export function resolveAbility(
     if (actor.type === 'character') {
       const char = ctx.db.character.id.find(actor.id);
       if (char) logPrivate(char.id, char.ownerUserId, 'ability', `You use ${ability.name} to command your pet.`);
-      logGroup('ability', `${actor.name} commands their pet with ${ability.name}.`);
+      logGroup('ability', `${actor.name} commands a pet with ${ability.name}.`);
     }
     return;
   }

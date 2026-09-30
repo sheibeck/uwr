@@ -203,7 +203,7 @@ export const registerGroupReducers = (deps: any) => {
       const target = findCharacterByName(ctx, args.targetName.trim());
       if (!target) return failGroup(ctx, leader, 'Target not found');
       if (target.groupId !== leader.groupId) return failGroup(ctx, leader, 'Target not in your group');
-      if (target.id === leader.id) return failGroup(ctx, leader, 'Leader cannot kick themselves');
+      if (target.id === leader.id) return failGroup(ctx, leader, 'You cannot kick yourself.');
 
       for (const member of ctx.db.group_member.by_group.filter(group.id)) {
         if (member.characterId === target.id) {

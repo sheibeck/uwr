@@ -1795,7 +1795,7 @@ watch([pendingSpellCasts, selectedCharacter], () => {
       type: 'corpse_summon',
       pendingId: summon.id,
       casterName: caster?.name ?? 'Someone',
-      message: `${caster?.name ?? 'Someone'} wants to summon your corpses to their location. Accept?`,
+      message: `${caster?.name ?? 'Someone'} wants to summon your corpses. Accept?`,
     };
     return;
   }

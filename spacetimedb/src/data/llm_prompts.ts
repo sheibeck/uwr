@@ -145,7 +145,7 @@ export const CLASS_GENERATION_SCHEMA = `{
 }`;
 
 export function buildRaceInterpretationUserPrompt(playerDescription: string): string {
-  return `The new arrival describes themselves as: "${playerDescription}"
+  return `The new arrival describes the character as: "${playerDescription}"
 
 Interpret this description into a race for the world of UWR. Be creative with the narrative and bonuses, but PRESERVE THE EXACT RACE NAME the player gave. If they said "Cyclops", the raceName MUST be "Cyclops" -- not "Stone-Eyed Cyclops" or "Ancient Cyclops" or any variation. Only invent a new name if the player gave a vague description rather than a specific race name (e.g. "some kind of shadow creature" -> you may name it "Shadeveil" or similar).
 
@@ -197,7 +197,7 @@ export const COMBINED_CREATION_SCHEMA = `{
 }`;
 
 export function buildCombinedCreationUserPrompt(playerDescription: string, archetype: string): string {
-  return `The new arrival describes themselves as: "${playerDescription}"
+  return `The new arrival describes the character as: "${playerDescription}"
 Archetype chosen: ${archetype}
 
 Do TWO things in a single response:

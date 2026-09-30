@@ -118,7 +118,7 @@ function reuseRace(ctx: any, state: any, existingRace: any): void {
     'creation',
     `${existingRace.narrative || 'An interesting choice.'}\n\n` +
       `**${existingRace.name}**${bonusText}\n\n` +
-      `Now then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
+      `Now then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
       `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`,
   );
 }

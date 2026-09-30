@@ -116,6 +116,8 @@ describe('startCreationGeneration: race', () => {
     expect(events[0].message).toContain('**a quiet people of the salt marshes**');
     expect(events[0].message).toContain('+2 WIS, +1 CON. Tide-wise');
     expect(events[0].message).toContain('[Warrior]');
+    expect(events[0].message).toContain('Now then. Every creature must choose a path, and you are no exception.');
+    expect(events[0].message).not.toContain('choose its path');
   });
 
   it('matches the description case-insensitively and ignoring surrounding spaces', () => {

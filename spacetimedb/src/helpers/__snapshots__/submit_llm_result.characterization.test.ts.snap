@@ -449,7 +449,7 @@ exports[`submit_llm_result creation replies: Phase 41 clamped > Phase 41: clampe
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+3 STR, +1 DEX\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+3 STR, +1 DEX\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -753,7 +753,7 @@ exports[`submit_llm_result creation_race success > Phase 41: a reply without rac
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Nothing much.\\n\\n**Unknown**\\n+2 STR, +1 DEX\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Nothing much.\\n\\n**Unknown**\\n+2 STR, +1 DEX\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -844,7 +844,7 @@ exports[`submit_llm_result creation_race success > accepts a reply with prose ar
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -901,7 +901,7 @@ exports[`submit_llm_result creation_race success > accepts a reply wrapped in a 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -958,7 +958,7 @@ exports[`submit_llm_result creation_race success > applies a valid reply: state,
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -1015,7 +1015,7 @@ exports[`submit_llm_result creation_race success > does not add a second race_de
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
@@ -1072,7 +1072,7 @@ exports[`submit_llm_result creation_race success > increments an existing budget
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
