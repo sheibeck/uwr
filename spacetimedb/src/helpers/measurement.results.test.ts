@@ -512,6 +512,17 @@ describe('results model: noise drift', () => {
     expect(floorAdjustedNoiseFloorMs(doc)).toBe(40);
   });
 
+  it('ignores stray non-zero in-flight samples in either baseline, like the gate baseline does', () => {
+    const doc = makeFixture();
+    const before = measuredNoiseDriftMs(doc);
+    // Enough outliers (well over 5% of each window) to move a p95 if they were counted.
+    for (let i = 0; i < 300; i++) doc.load!.baseline2!.pingMs.push({ ms: 900, inFlight: 3 });
+    for (let i = 0; i < 30; i++) doc.load!.baseline2!.tick.push({ lateMs: 900, inFlight: 3 });
+    for (let i = 0; i < 300; i++) doc.load!.baseline!.pingMs.push({ ms: 700, inFlight: 2 });
+    expect(measuredNoiseDriftMs(doc)).toBe(before);
+    expect(floorAdjustedNoiseFloorMs(doc)).toBe(25);
+  });
+
   it('floor falls back to 25 when drift is missing', () => {
     const doc = makeFixture();
     delete doc.load!.baseline2;

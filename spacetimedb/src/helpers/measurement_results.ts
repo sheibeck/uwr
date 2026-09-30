@@ -208,6 +208,9 @@ export function levelLabels(doc: ResultsDoc): LevelLabels[] {
   });
 }
 
+/** Baseline windows only count samples taken with nothing in flight; the gate and the drift share this rule. */
+const isBaselineSample = (inFlight: number): boolean => inFlight === 0;
+
 function windowStats(
   w: LatencyWindow | undefined,
   keepPing: (inFlight: number) => boolean,
@@ -249,7 +252,7 @@ export function gateInputFromResults(doc: ResultsDoc, thresholds?: GateInput['th
     .filter((v): v is number => typeof v === 'number')
     .map((us) => us / 1000);
 
-  const baseline = windowStats(doc.load?.baseline, (n) => n === 0);
+  const baseline = windowStats(doc.load?.baseline, isBaselineSample);
 
   // Pings are labelled with the client-side outstanding count and need the level's
   // own minimum. Ticks are labelled with the server-side running count, which the
@@ -296,9 +299,8 @@ export function measuredNoiseDriftMs(doc: ResultsDoc): number | null {
   const a = doc.load?.baseline;
   const b = doc.load?.baseline2;
   if (!a || !b) return null;
-  const all = () => true;
-  const sa = windowStats(a, all);
-  const sb = windowStats(b, all);
+  const sa = windowStats(a, isBaselineSample);
+  const sb = windowStats(b, isBaselineSample);
   const diffs: number[] = [];
   if (sa.pingP95Ms !== null && sb.pingP95Ms !== null) diffs.push(Math.abs(sb.pingP95Ms - sa.pingP95Ms));
   if (sa.tickLateP95Ms !== null && sb.tickLateP95Ms !== null) {
