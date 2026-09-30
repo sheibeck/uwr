@@ -5,7 +5,7 @@ milestone_name: LLM — Claude Engine
 current_phase: 40
 current_phase_name: Claude Request Layer and Job Seam
 status: planning
-stopped_at: Completed 39-10-PLAN.md
+stopped_at: Phase 39 complete, ready to plan Phase 40
 last_updated: "2026-09-30T00:40:49.854Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 39 complete, transitioned to Phase 40
@@ -24,7 +24,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-29)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 39 — Procedure-to-Claude Spike
+**Current focus:** Phase 40 — Claude Request Layer and Job Seam
 
 ## Current Position
 
@@ -33,7 +33,7 @@ Plan: Not started
 Status: Ready to plan
 Last activity: 2026-09-29 — Phase 39 complete, transitioned to Phase 40
 
-Progress: [██████████] 100%
+Progress: [██░░░░░░░░] 17% (1/6 phases)
 
 ## Previous Milestones
 
@@ -109,7 +109,7 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 **Resume file:** None
 
 Last session: 2026-09-30T00:31:49.722Z
-Stopped at: Completed 39-10-PLAN.md
+Stopped at: Phase 39 complete (GO: scheduled-procedure executor, cap <= 8; code review clean), ready to plan Phase 40
 
 ## Performance Metrics
 
