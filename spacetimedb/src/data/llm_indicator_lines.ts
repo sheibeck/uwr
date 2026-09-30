@@ -51,6 +51,25 @@ export const LLM_INDICATOR_SILENT_ROUTES: readonly string[] = Object.freeze([
   'smoke_test',
 ]);
 
+/**
+ * Console scoping. my_llm_jobs is per identity, so each console shows only the routes that
+ * belong to what the player is doing there:
+ * - the character-creation console shows creation work and the starter world generation;
+ * - the game console shows everything except creation work (a creation job left running
+ *   never shows "considering your fate" over a character already in play).
+ */
+export const LLM_CREATION_CONSOLE_ROUTES: readonly string[] = Object.freeze([
+  'creation_race',
+  'creation_class',
+  'world_gen',
+]);
+
+/** Routes the game console never shows: they belong to the creation console only. */
+export const LLM_CREATION_ONLY_ROUTES: readonly string[] = Object.freeze([
+  'creation_race',
+  'creation_class',
+]);
+
 /** Job statuses that count as in progress. Mirrors LLM_ACTIVE_JOB_STATUSES on the server. */
 export const LLM_INDICATOR_ACTIVE_STATUSES: readonly string[] = Object.freeze([
   'pending',

@@ -10,6 +10,8 @@ import {
   LLM_INDICATOR_PRIORITY,
   LLM_INDICATOR_SILENT_ROUTES,
   LLM_INDICATOR_ACTIVE_STATUSES,
+  LLM_CREATION_CONSOLE_ROUTES,
+  LLM_CREATION_ONLY_ROUTES,
 } from './llm_indicator_lines';
 import { LLM_ROUTE_NAMES } from './llm_routes';
 import { KEEPER_BANNED_PHRASES } from './keeper_bible';
@@ -99,6 +101,30 @@ describe('LLM_INDICATOR_PRIORITY and LLM_INDICATOR_SILENT_ROUTES', () => {
     const all = [...LLM_INDICATOR_PRIORITY, ...LLM_INDICATOR_SILENT_ROUTES];
     expect(new Set(all).size).toBe(all.length);
     expect([...all].sort()).toEqual([...LLM_ROUTE_NAMES].sort());
+  });
+});
+
+describe('console scoping routes (WR-02)', () => {
+  it('the creation console shows creation work and world generation only', () => {
+    expect([...LLM_CREATION_CONSOLE_ROUTES]).toEqual(['creation_race', 'creation_class', 'world_gen']);
+  });
+
+  it('creation-only routes are the creation console routes minus world_gen', () => {
+    expect([...LLM_CREATION_ONLY_ROUTES]).toEqual(['creation_race', 'creation_class']);
+    for (const route of LLM_CREATION_ONLY_ROUTES) expect(LLM_CREATION_CONSOLE_ROUTES).toContain(route);
+    expect(LLM_CREATION_ONLY_ROUTES).not.toContain('world_gen');
+  });
+
+  it('every scoped route is a real, non-silent route', () => {
+    for (const route of [...LLM_CREATION_CONSOLE_ROUTES, ...LLM_CREATION_ONLY_ROUTES]) {
+      expect(LLM_ROUTE_NAMES as readonly string[]).toContain(route);
+      expect(LLM_INDICATOR_LINES[route]).not.toBeNull();
+    }
+  });
+
+  it('is frozen', () => {
+    expect(Object.isFrozen(LLM_CREATION_CONSOLE_ROUTES)).toBe(true);
+    expect(Object.isFrozen(LLM_CREATION_ONLY_ROUTES)).toBe(true);
   });
 });
 

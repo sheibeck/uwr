@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   resolveDisplayedLine,
+  routeInConsoleScope,
   selectLlmIndicator,
   useLlmStatus,
   type LlmJobStatusRow,
@@ -212,6 +213,65 @@ describe('useLlmStatus', () => {
 
     llmJobs.value = [row(1n, 'world_gen', 'completed')];
     expect(status.value).toEqual(INACTIVE);
+  });
+});
+
+describe('console scoping (WR-02)', () => {
+  it('the creation console shows only creation and world-gen routes', () => {
+    for (const route of ['creation_race', 'creation_class', 'world_gen']) {
+      expect(routeInConsoleScope(route, 'creation')).toBe(true);
+    }
+    for (const route of ['skill_gen', 'renown_perk_gen', 'npc_conversation', 'combat_narration', 'unknown_route']) {
+      expect(routeInConsoleScope(route, 'creation')).toBe(false);
+    }
+  });
+
+  it('the game console shows everything except creation routes', () => {
+    for (const route of ['world_gen', 'skill_gen', 'renown_perk_gen', 'npc_conversation', 'unknown_route']) {
+      expect(routeInConsoleScope(route, 'game')).toBe(true);
+    }
+    expect(routeInConsoleScope('creation_race', 'game')).toBe(false);
+    expect(routeInConsoleScope('creation_class', 'game')).toBe(false);
+  });
+
+  it('a background renown job from another character never shows in the creation console', () => {
+    const rows = [row(1n, 'renown_perk_gen', 'in_flight')];
+    expect(selectLlmIndicator(rows, 'creation')).toEqual(INACTIVE);
+    expect(selectLlmIndicator(rows, 'game').indicatorLine).toBe(LLM_INDICATOR_LINES.renown_perk_gen);
+  });
+
+  it('an NPC chat or skill job never shows in the creation console', () => {
+    const rows = [row(1n, 'npc_conversation', 'pending'), row(2n, 'skill_gen', 'received')];
+    expect(selectLlmIndicator(rows, 'creation')).toEqual(INACTIVE);
+  });
+
+  it('a creation job never shows in the game console', () => {
+    const rows = [row(1n, 'creation_race', 'in_flight'), row(2n, 'npc_conversation', 'pending')];
+    expect(selectLlmIndicator(rows, 'game').route).toBe('npc_conversation');
+    expect(selectLlmIndicator([row(3n, 'creation_class', 'pending')], 'game')).toEqual(INACTIVE);
+    expect(selectLlmIndicator(rows, 'creation').route).toBe('creation_race');
+  });
+
+  it('world_gen shows in both consoles (starter region at creation, explore in game)', () => {
+    const rows = [row(1n, 'world_gen', 'in_flight')];
+    expect(selectLlmIndicator(rows, 'creation').route).toBe('world_gen');
+    expect(selectLlmIndicator(rows, 'game').route).toBe('world_gen');
+  });
+
+  it('without a scope every route is considered (unchanged behavior)', () => {
+    const rows = [row(1n, 'creation_race', 'pending'), row(2n, 'renown_perk_gen', 'pending')];
+    expect(selectLlmIndicator(rows).route).toBe('creation_race');
+  });
+
+  it('useLlmStatus exposes a creation and a game status that recompute from the same ref', () => {
+    const llmJobs = ref<readonly LlmJobStatusRow[]>([row(1n, 'skill_gen', 'pending')]);
+    const { creationStatus, gameStatus } = useLlmStatus({ llmJobs });
+    expect(creationStatus.value).toEqual(INACTIVE);
+    expect(gameStatus.value.route).toBe('skill_gen');
+
+    llmJobs.value = [row(2n, 'creation_class', 'pending')];
+    expect(creationStatus.value.route).toBe('creation_class');
+    expect(gameStatus.value).toEqual(INACTIVE);
   });
 });
 

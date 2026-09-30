@@ -1,5 +1,7 @@
 import { computed, type ComputedRef, type Ref } from 'vue';
 import {
+  LLM_CREATION_CONSOLE_ROUTES,
+  LLM_CREATION_ONLY_ROUTES,
   LLM_INDICATOR_ACTIVE_STATUSES,
   LLM_INDICATOR_FALLBACK_LINE,
   LLM_INDICATOR_LINES,
@@ -43,13 +45,31 @@ function createdMicros(row: LlmJobStatusRow): bigint {
 }
 
 /**
+ * Which console the line is for. my_llm_jobs is per identity (no character id), so the scope
+ * is by route: the creation console shows only creation and world-gen work, the game console
+ * shows everything except creation work.
+ */
+export type LlmConsoleScope = 'creation' | 'game';
+
+/** True when a job on `route` belongs in the `scope` console. */
+export function routeInConsoleScope(route: string, scope: LlmConsoleScope): boolean {
+  return scope === 'creation'
+    ? LLM_CREATION_CONSOLE_ROUTES.includes(route)
+    : !LLM_CREATION_ONLY_ROUTES.includes(route);
+}
+
+/**
  * Pick the single indicator line for the player's jobs.
  *
- * Active = status pending, in_flight or received, and the route is not silent. Exactly one row
- * wins: the highest-priority route (an unknown route ranks 7th, after every known one and uses
- * the fallback line), then the oldest createdAt, then the lowest id.
+ * Active = status pending, in_flight or received, and the route is not silent. With a scope,
+ * rows whose route does not belong in that console are skipped. Exactly one row wins: the
+ * highest-priority route (an unknown route ranks 7th, after every known one and uses the
+ * fallback line), then the oldest createdAt, then the lowest id.
  */
-export function selectLlmIndicator(rows: readonly LlmJobStatusRow[]): LlmIndicatorState {
+export function selectLlmIndicator(
+  rows: readonly LlmJobStatusRow[],
+  scope?: LlmConsoleScope,
+): LlmIndicatorState {
   const unknownRank = LLM_INDICATOR_PRIORITY.length;
   let best: LlmJobStatusRow | null = null;
   let bestLine: string | null = null;
@@ -57,6 +77,7 @@ export function selectLlmIndicator(rows: readonly LlmJobStatusRow[]): LlmIndicat
 
   for (const row of rows) {
     if (!LLM_INDICATOR_ACTIVE_STATUSES.includes(row.status)) continue;
+    if (scope !== undefined && !routeInConsoleScope(row.route, scope)) continue;
 
     const known = Object.prototype.hasOwnProperty.call(LLM_INDICATOR_LINES, row.route);
     const line = known ? LLM_INDICATOR_LINES[row.route] : LLM_INDICATOR_FALLBACK_LINE;
@@ -92,11 +113,19 @@ export function resolveDisplayedLine(statusLine: string | null, inputLocked: boo
   return statusLine ?? (inputLocked ? LLM_INDICATOR_FALLBACK_LINE : null);
 }
 
-/** Thin reactive wrapper over selectLlmIndicator. */
+/** Thin reactive wrapper over selectLlmIndicator, one status per console scope. */
 export function useLlmStatus({
   llmJobs,
 }: {
   llmJobs: Ref<readonly LlmJobStatusRow[]>;
-}): { status: ComputedRef<LlmIndicatorState> } {
-  return { status: computed(() => selectLlmIndicator(llmJobs.value)) };
+}): {
+  status: ComputedRef<LlmIndicatorState>;
+  creationStatus: ComputedRef<LlmIndicatorState>;
+  gameStatus: ComputedRef<LlmIndicatorState>;
+} {
+  return {
+    status: computed(() => selectLlmIndicator(llmJobs.value)),
+    creationStatus: computed(() => selectLlmIndicator(llmJobs.value, 'creation')),
+    gameStatus: computed(() => selectLlmIndicator(llmJobs.value, 'game')),
+  };
 }

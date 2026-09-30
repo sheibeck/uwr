@@ -36,12 +36,21 @@ describe('client wiring', () => {
     expect(app).toMatch(
       /const isLlmInputLocked = computed\(\(\) => isCreationLlmProcessing\.value \|\| isWorldGenProcessing\.value\);/
     );
-    expect(app).toContain('resolveDisplayedLine(llmStatus.value.indicatorLine, isLlmInputLocked.value)');
+    expect(app).toContain('resolveDisplayedLine(creationLlmStatus.value.indicatorLine, isLlmInputLocked.value)');
+    expect(app).toContain('resolveDisplayedLine(gameLlmStatus.value.indicatorLine, isLlmInputLocked.value)');
     expect(app).toMatch(/const isNarrativeLlmProcessing = isLlmInputLocked;/);
   });
 
-  it('App.vue passes the indicator line to both consoles and locks on isLlmInputLocked', () => {
-    expect(countMatches(app, /:llm-indicator-line="llmIndicatorLine"/)).toBe(2);
+  it('App.vue passes each console its own scoped indicator line (WR-02) and locks on isLlmInputLocked', () => {
+    expect(app).toMatch(
+      /const \{ creationStatus: creationLlmStatus, gameStatus: gameLlmStatus \} = useLlmStatus\(\{ llmJobs \}\);/
+    );
+    expect(countMatches(app, /:llm-indicator-line="creationLlmIndicatorLine"/)).toBe(1);
+    expect(countMatches(app, /:llm-indicator-line="gameLlmIndicatorLine"/)).toBe(1);
+    expect(countMatches(app, /:llm-indicator-line="/)).toBe(2);
+    // The creation console (creation-mode) gets the creation line; the game console gets the game line.
+    const creationConsole = app.match(/<NarrativeConsole[^>]*:creation-mode="true"[^>]*>/s)?.[0] ?? '';
+    expect(creationConsole).toContain(':llm-indicator-line="creationLlmIndicatorLine"');
     expect(app).toContain(':is-llm-processing="isLlmInputLocked"');
     expect(app).toContain(':is-llm-processing="isNarrativeLlmProcessing"');
   });
@@ -50,7 +59,7 @@ describe('client wiring', () => {
     const bindings = app.match(/:is-llm-processing="[^"]*"/g) ?? [];
     expect(bindings.length).toBe(2);
     for (const binding of bindings) {
-      expect(binding).not.toMatch(/llmStatus|llmIndicatorLine/);
+      expect(binding).not.toMatch(/LlmStatus|llmStatus|IndicatorLine|indicatorLine/);
     }
   });
 

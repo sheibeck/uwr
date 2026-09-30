@@ -38,7 +38,7 @@
       :conn-active="conn.isActive"
       :context-actions="[]"
       :is-llm-processing="isLlmInputLocked"
-      :llm-indicator-line="llmIndicatorLine"
+      :llm-indicator-line="creationLlmIndicatorLine"
       :format-timestamp="formatTimestamp"
       :creation-mode="true"
       @submit="onCreationSubmit"
@@ -63,7 +63,7 @@
       :active-combat="activeCombat"
       :conn-active="conn.isActive"
       :is-llm-processing="isNarrativeLlmProcessing"
-      :llm-indicator-line="llmIndicatorLine"
+      :llm-indicator-line="gameLlmIndicatorLine"
       :format-timestamp="formatTimestamp"
       :has-pending-skills="hasPendingSkills"
       :has-pending-renown-perks="hasPendingRenownPerks"
@@ -738,11 +738,15 @@ const { isWorldGenProcessing } = useWorldGeneration({
 
 // LLM status: the Keeper line comes from the player's own my_llm_jobs rows. Only character
 // creation and world generation lock the input; NPC, skill, renown and combat-narration jobs
-// run in the background and never lock it.
-const { status: llmStatus } = useLlmStatus({ llmJobs });
+// run in the background and never lock it. Each console gets its own scoped line: the creation
+// console shows only creation and world-gen work, the game console never shows creation work.
+const { creationStatus: creationLlmStatus, gameStatus: gameLlmStatus } = useLlmStatus({ llmJobs });
 const isLlmInputLocked = computed(() => isCreationLlmProcessing.value || isWorldGenProcessing.value);
-const llmIndicatorLine = computed(() =>
-  resolveDisplayedLine(llmStatus.value.indicatorLine, isLlmInputLocked.value)
+const creationLlmIndicatorLine = computed(() =>
+  resolveDisplayedLine(creationLlmStatus.value.indicatorLine, isLlmInputLocked.value)
+);
+const gameLlmIndicatorLine = computed(() =>
+  resolveDisplayedLine(gameLlmStatus.value.indicatorLine, isLlmInputLocked.value)
 );
 
 // Skill choice: watches PendingSkill table, exposes pending level-up state
