@@ -997,8 +997,19 @@ describe.each(recordedCases.length > 0 ? recordedCases : [['none', null as unkno
     const doc = JSON.parse(text) as ResultsDoc;
     const pinned = RECORDED_DECISIONS[file.name];
 
-    it('is structurally valid (final when a verdict exists, partial otherwise)', () => {
-      expect(validateResults(doc, { final: doc.verdict !== undefined, profile: file.profile })).toEqual([]);
+    // A recorded decision file must carry its verdict: a truncated file is never accepted as partial.
+    it.skipIf(pinned === undefined)('carries the recorded verdict, matching the frozen decision', () => {
+      expect(doc.verdict, `${file.name} has no verdict block`).toBeDefined();
+      const v = doc.verdict!;
+      expect({ verdict: v.strict.verdict, cap: v.strict.cap }).toEqual(pinned.strict);
+      expect({ verdict: v.floorAdjusted.verdict, cap: v.floorAdjusted.cap }).toEqual(pinned.floorAdjusted);
+      expect(v.noiseFloorMs).toBeCloseTo(pinned.noiseFloorMs, 9);
+      expect(v.observedServerCap).toBe(pinned.observedServerCap);
+    });
+
+    it('is structurally valid (final when a verdict exists or the file is a recorded decision, partial otherwise)', () => {
+      const final = doc.verdict !== undefined || pinned !== undefined;
+      expect(validateResults(doc, { final, profile: file.profile })).toEqual([]);
     });
 
     it('contains no key-prefixed strings at all', () => {
