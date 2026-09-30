@@ -78,7 +78,7 @@ describe('Keeper Bible is byte-stable static text', () => {
 
   it('keeps keeper_bible.ts import-free (static text only)', () => {
     const source = readFileSync(fileURLToPath(new URL('./keeper_bible.ts', import.meta.url)), 'utf8');
-    expect(source.split('\n').filter((l) => /^import\b/.test(l))).toHaveLength(0);
+    expect(source.split('\n').filter((l: string) => /^import\b/.test(l))).toHaveLength(0);
   });
 });
 
