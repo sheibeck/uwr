@@ -2126,6 +2126,71 @@ export const LlmTask = table(
   }
 );
 
+// Server-side Claude job queue (Phase 40). PRIVATE: no `public` flag. Clients never read jobs;
+// results reach players through domain tables. requestJson holds ids plus player text or an
+// event summary; never a built prompt, header or key.
+export const LlmJob = table(
+  {
+    name: 'llm_job',
+    indexes: [
+      { accessor: 'by_player', algorithm: 'btree', columns: ['playerId'] },
+      { accessor: 'by_dedupe_key', algorithm: 'btree', columns: ['dedupeKey'] },
+      { accessor: 'by_status', algorithm: 'btree', columns: ['status'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    playerId: t.identity(),
+    characterId: t.u64(),         // 0n when the job is not tied to a character
+    route: t.string(),            // one of LLM_ROUTE_NAMES
+    dedupeKey: t.string(),        // JSON array [playerHex, route, sourceKey]
+    status: t.string(),           // 'pending', 'in_flight', 'received', 'completed', 'failed', 'expired'
+    attempt: t.u64(),
+    requestJson: t.string(),      // ids plus player text or event summary; never a built prompt, header or key
+    resultText: t.string().optional(),
+    stopReason: t.string().optional(),
+    errorCode: t.string().optional(),
+    requestId: t.string().optional(),
+    inputTokens: t.u64(),
+    outputTokens: t.u64(),
+    cacheWriteTokens: t.u64(),
+    cacheReadTokens: t.u64(),
+    createdAt: t.timestamp(),
+    startedAt: t.timestamp().optional(),
+    finishedAt: t.timestamp().optional(),
+  }
+);
+
+// One row per Claude HTTP attempt (Phase 40). PRIVATE: no `public` flag.
+export const LlmCallLog = table(
+  {
+    name: 'llm_call_log',
+    indexes: [
+      { accessor: 'by_job', algorithm: 'btree', columns: ['jobId'] },
+      { accessor: 'by_player', algorithm: 'btree', columns: ['playerId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    jobId: t.u64(),
+    playerId: t.identity(),
+    route: t.string(),
+    model: t.string(),
+    outcome: t.string(),
+    attempt: t.u64(),
+    httpStatus: t.u64(),
+    latencyMs: t.u64(),
+    stopReason: t.string().optional(),
+    requestId: t.string().optional(),
+    errorMessage: t.string().optional(), // redacted, capped at 400 code points
+    inputTokens: t.u64(),
+    outputTokens: t.u64(),
+    cacheWriteTokens: t.u64(),
+    cacheReadTokens: t.u64(),
+    createdAt: t.timestamp(),
+  }
+);
+
 const spacetimedb = schema({
   player: Player,
   user: User,
@@ -2237,6 +2302,8 @@ const spacetimedb = schema({
   event_creation: EventCreation,
   world_gen_state: WorldGenState,
   llm_task: LlmTask,
+  llm_job: LlmJob,
+  llm_call_log: LlmCallLog,
   pending_skill: PendingSkill,
   combat_round: CombatRound,
   combat_action: CombatAction,
