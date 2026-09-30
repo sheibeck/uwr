@@ -2,34 +2,66 @@
 phase: 40-claude-request-layer-and-job-seam
 reviewed: 2026-09-30T00:00:00Z
 depth: standard
-files_reviewed: 35
-diff_base: bfb388d3
+iteration: 2
+files_reviewed: 15
+diff_base: 7effa774
+files_reviewed_list:
+  - spacetimedb/src/helpers/llm_status.ts
+  - spacetimedb/src/views/llm.ts
+  - spacetimedb/src/views/llm.test.ts
+  - spacetimedb/src/helpers/claude_request.ts
+  - spacetimedb/src/helpers/claude_request.test.ts
+  - spacetimedb/src/helpers/llm_queue.ts
+  - spacetimedb/src/helpers/llm_queue.test.ts
+  - spacetimedb/src/helpers/test-utils.ts
+  - spacetimedb/src/helpers/schema_recorder.ts
+  - spacetimedb/src/helpers/test-utils.strict.test.ts
+  - spacetimedb/src/data/model_literals.test.ts
+  - spacetimedb/src/helpers/llm_apply.test.ts
+  - spacetimedb/src/helpers/llm_seam.test.ts
+  - spacetimedb/src/helpers/renown_llm.test.ts
+  - spacetimedb/src/helpers/__fixtures__/claude/model_context_window_exceeded.json
 findings:
   critical: 0
-  warning: 5
-  info: 10
-  total: 15
-status: issues_found
+  warning: 0
+  info: 12
+  total: 12
+status: clean
 ---
 
-# Phase 40: Code Review Report
+# Phase 40: Code Review Report (iteration 2)
 
-**Depth:** standard. **Scope:** 35 files from `git diff bfb388d3..HEAD`. Generated bindings, fixtures and snapshots are excluded.
+**Depth:** standard. **Scope:** the fix diff `git diff 7effa774..HEAD` (15 files, including one new fixture).
 
-Targeted suites were run with `--maxWorkers=1` (20 files, 710 tests), and all passed.
+Nine affected suites were run with `--maxWorkers=1` (`views/llm`, `claude_request`, `llm_queue`, `test-utils.strict`, `test-utils`, `model_literals`, `llm_apply`, `llm_seam`, `renown_llm`). All 9 files and 420 tests passed.
 
 ## Summary
 
-The security-critical points hold.
+WR-01 to WR-05 are each resolved. The fix diff introduced no Critical or Warning defects. Info items IN-01 to IN-10 are carried forward unchanged, and two minor Info items (IN-11, IN-12) were added from this pass.
 
-- **Own-rows view:** `my_llm_jobs` looks up rows by index only (`by_player.filter(ctx.sender)`) and projects six columns with no payload.
-- **Private tables:** `llm_job` and `llm_call_log` are private, and a test guards this.
-- **API key:** it appears only as the argument to `buildClaudeHeaders`. There are no key-shaped literals, and test keys are built from fragments.
-- **Player input:** `<` and `>` are escaped after truncation, so `<player_input>` tags cannot be forged.
-- **Request body:** it follows the Sonnet 5.5 rules (explicit effort and `max_tokens`, no sampling, thinking, prefill or forced tool choice). Schemas are deep-frozen and key order is fixed.
-- **`llm_apply.ts`:** the move preserves behavior. Every `ctx.sender` became `job.playerId`. The wrapper still checks `task.playerId === ctx.sender`. No statement was lost and no import is left dangling.
+### Resolution of the iteration-1 warnings
 
-The findings are robustness gaps, one design contradiction in the status view, and weaknesses in the test infrastructure.
+| ID | Status | Evidence |
+|----|--------|----------|
+| WR-01 | Resolved | `projectMyLlmJob` now emits `errorCode: publicErrorBucket(job.errorCode)`. `userMessage` is still derived from the raw class on the server, so the copy is unchanged. Tests assert that no raw class ever appears in the output, and that `auth` and `billing` both map to `unavailable`. |
+| WR-02 | Resolved | `classifyClaudeResponse` (`claude_request.ts:410-433`) is now an allowlist. `refusal` and `max_tokens` are checked before it and still map to `refusal` and `truncated`. Any other value, including a missing or non-string `stop_reason` and `model_context_window_exceeded`, becomes `unexpected_stop` with `stopReason`, `usage` and `requestId` kept. The `?? 'end_turn'` relabel is gone. A new fixture and tests cover the text route, the JSON route, future reasons and `''`/`END_TURN`, and null/5/missing. |
+| WR-03 | Resolved | `toU64` maps non-finite input to 0 and clamps to `Number.MAX_SAFE_INTEGER`. `NaN`, `Infinity` and `-Infinity` are tested across all six counters, and the row is still written. |
+| WR-04 | Resolved | `createMockDb(seed, { strict })` has an accessor allowlist built from the recorded schema (`strictTableSpec`). In strict mode an unknown table or accessor throws, and an index `update` matching no row throws. `llm_queue`, `llm_seam`, `renown_llm` and `views/llm` tests are opted in. `test-utils.strict.test.ts` tests strict rejection, and also that lenient mode is unchanged. |
+| WR-05 | Resolved | The vacuous key test now asserts the header carries the key and the body carries neither the key nor `x-api-key`. The fetch guard is hardened (`\bfetch\s*\(`, bracket access, `ctx.http` and `{ http } = ctx`) and has synthetic positive and negative cases. The sender guard also catches bracket access and `{ sender } = ctx` destructuring, with synthetic cases. |
+
+### Specific checks requested
+
+- **Strict mode defaults OFF: confirmed.** `strict = dbOpts.strict === true`. `createMockCtx` and `createMockProcCtx` pass `opts.strict`, which is `undefined` by default. Tests cover the lenient default, including guessing a column for an unknown `by_*` accessor and a no-op `update`.
+- **Stop-reason mapping: confirmed.** `max_tokens` maps to `truncated` and `refusal` maps to `refusal`, in the fixtures loop and the dedicated tests. The `tool_use`, `pause_turn` and `stop_sequence` cases are unchanged.
+- **`publicErrorBucket` covers every classifier class: confirmed.** All 14 `ClaudeFailureClass` values map to a bucket:
+  - `transient`: `rate_limit`, `overloaded`, `server`, `timeout`, `network`
+  - `unavailable`: `auth`, `billing`
+  - `declined`: `refusal`
+  - `failed`: everything else (`bad_request`, `truncated`, `invalid_json`, `schema_mismatch`, `empty_output`, `unexpected_stop`) and any unknown string
+  - `undefined`: null, undefined or `''`
+  
+  The bucket sets reuse the same `TRANSIENT_CLASSES` and `ACCOUNT_CLASSES` as `keeperMessageForJob`, so the two cannot drift. No production writer of `llm_job.errorCode` exists yet, and no client code reads `my_llm_jobs`.
+- **`my_llm_jobs` view: confirmed.** It still uses `ctx.db.llm_job.by_player.filter(ctx.sender)`, an index lookup with no scan. It still projects exactly six fields. The `t.row` shape is unchanged (`errorCode` is still `t.string().optional()`), so the bindings are unaffected. The test wraps the strict db with a `noScanDb` that throws on `iter`.
 
 ## Critical Issues
 
@@ -37,164 +69,48 @@ None.
 
 ## Warnings
 
-### WR-01: `my_llm_jobs` exposes the raw failure class to every player
-
-**File:** `spacetimedb/src/views/llm.ts:22-31` (with `spacetimedb/src/helpers/llm_status.ts:11-13`)
-
-**Issue:** `projectMyLlmJob` returns `errorCode: job.errorCode` unchanged. In Phase 41 this field holds the classifier class (`auth`, `billing`, `rate_limit`, `schema_mismatch`).
-
-`llm_status.ts` says account-side failures are "phrased without revealing what is wrong". Yet the `errorCode` field next to that message tells any player that the operator's key was rejected (`auth`) or the account is out of money (`billing`). The test at `views/llm.test.ts:183` pins this leak.
-
-**Fix:** Project a coarse public bucket instead of the raw class:
-- `transient` for retryable classes
-- `unavailable` for account classes (`auth`, `billing`)
-- `declined` for `refusal`
-- `failed` otherwise
-- undefined when there is no error
-
-Update `views/llm.test.ts:183` to assert the bucket, and assert that no raw class ever appears.
-
-### WR-02: An unknown `stop_reason` on a 200 is treated as success
-
-**File:** `spacetimedb/src/helpers/claude_request.ts:410-440`
-
-**Issue:** Only `refusal`, `max_tokens`, `tool_use`, `pause_turn` and `stop_sequence` are rejected. Anything else falls through.
-
-For example, `model_context_window_exceeded` continues to `findFirstTextBlock`, so on text routes possibly truncated text comes back as `ok: true`. A missing `stop_reason` is silently relabelled `end_turn` (line 437). On JSON routes, truncated output fails as `invalid_json`, which has the wrong retry and billing semantics.
-
-**Fix:** Use an allowlist. Any `stop_reason` other than `end_turn` becomes `unexpected_stop`, keeping `stopReason`, `usage` and `requestId`, except the classes already mapped (`max_tokens` → `truncated`, `refusal` → `refusal`). Decide explicitly how a missing `stop_reason` is handled and test it. Add a fixture and a test case for `model_context_window_exceeded`.
-
-### WR-03: `logLlmCall` throws on a non-finite counter, rolling back the caller's transaction
-
-**File:** `spacetimedb/src/helpers/llm_queue.ts:161` (used at lines 173-178)
-
-**Issue:** `toU64` is `BigInt(Math.max(0, Math.round(n ?? 0)))`. `NaN` and `Infinity` pass through `Math.max` and `Math.round` unchanged, and then `BigInt` throws a `RangeError`. `httpStatus` and `latencyMs` come from callers, and in Phase 41's persist transaction that throw would roll back the job outcome.
-
-**Fix:** Map any non-finite number to 0 before `BigInt`. Add `NaN`, `Infinity` and `-Infinity` cases to `llm_queue.test.ts`.
-
-### WR-04: `createMockDb` accepts any index name and silently no-ops on missing rows
-
-**File:** `spacetimedb/src/helpers/test-utils.ts:41-50` and `99-113`
-
-**Issue:** The mock accepts any `by_*` accessor. Unknown names fall back to a guessed `<X>Id` column (lines 104-105), and any other property returns an index accessor (line 112). A production typo such as `ctx.db.llm_job.by_playerz` passes against the mock and fails at runtime.
-
-`update` and `delete` on a missing row do nothing, whereas real SpacetimeDB `update` throws. The recorder already knows the real index accessors, but `rowColumnProblems` only guards inserts. That leaves the PIPE-08 wrong-name bug class open for reads and updates.
-
-**Fix:** Add an opt-in strict mode to `createMockDb`. Give it a per-table allowlist of accessors, built from the recorder's `recordedTable(name).opts.indexes` plus the primary key, and throw on any other accessor. Make `update` throw when no row matches.
-
-Keep the default behavior for the roughly 20 existing test files, so nothing is broken en masse. Opt the new Phase 40 LLM tests (`llm_queue`, `llm_seam`, `renown_llm`, `views/llm`) into strict mode, and add tests proving that strict mode rejects an unknown accessor and a missing-row update.
-
-### WR-05: One test cannot fail; two guards are weak
-
-**Files:**
-- `spacetimedb/src/helpers/claude_request.test.ts:397-403`
-- `spacetimedb/src/data/model_literals.test.ts:141-147`
-- `spacetimedb/src/helpers/llm_apply.test.ts:230-234`
-
-**Issue:**
-- **"the body never contains the key"** calls `buildClaudeHeaders(key)`, then asserts that a body built without the key does not contain it. Nothing links the two, so it cannot fail. The `not.toContain('x-api-key')` half is meaningful. The seam test (`llm_seam.test.ts:357-362`) is the real check.
-- **The `http.fetch(` guard** matches only that literal. `const { http } = ctx; http.fetch (`, `ctx["http"].fetch(` and a global `fetch(` all evade it. This is a spend-safety guard.
-- **The `ctx.sender` guard regex** `\b(ctx|tx)\s*\.\s*sender\b` misses `const { sender } = ctx` and `ctx['sender']`.
-
-**Fix:**
-- Replace the vacuous test with a meaningful one: the body contains neither `x-api-key` nor the key, and the headers contain the key.
-- Harden the fetch guard to a `\bfetch\s*\(` pattern over non-test production files.
-- Extend the sender guard to catch `{ sender }` destructuring and bracket access.
+None.
 
 ## Info
 
-These are recorded for Phase 41 and later. Do not fix them in Phase 40 unless trivial.
+### IN-01 to IN-10: carried forward unchanged from iteration 1 (deferred to Phase 41)
 
-### IN-01: Pinned pre-existing quirks in `llm_apply.ts` (scheduled for Phase 41)
+- **IN-01:** Pinned pre-existing quirks in `llm_apply.ts` (`llm_apply.ts:137-186, 472, 475, 481, 659, 708, 711`).
+- **IN-02:** `buildClaudeRequest` trusts caller-supplied layers (`claude_request.ts:176-198`, `110-168`).
+- **IN-03:** `classifyClaudeResponse` claims it never throws but calls `res.text()` unguarded (`claude_request.ts:394-395`, docstring at line 391).
+- **IN-04:** `redactSecrets` in the classifier has no needle parameter (`claude_request.ts:270-273`).
+- **IN-05:** Non-message `llm_call_log` fields are stored unredacted and uncapped (`llm_queue.ts:181-183`).
+- **IN-06:** `resolveCharacterPlayerId` can select a non-acting identity (`llm_queue.ts:136-144`).
+- **IN-07:** Dedupe blocks forever on a stuck active job (`llm_queue.ts:31, 109-111`).
+- **IN-08:** The renown static fallback duplicates `llm_apply` logic and is not idempotent (`renown.ts:117-143` vs `llm_apply.ts:690-720`).
+- **IN-09:** The schema linter does not traverse every schema container (`schema_lint.ts:51-70`).
+- **IN-10:** Small test-infrastructure and hygiene notes:
+  - `PLAYER_INPUT_TAG_PATTERN` is exported with the `g` flag.
+  - The `recorded` array in `schema_recorder.ts` accumulates duplicates after `vi.resetModules`.
+  - `skill_gen.ts` keeps a private duplicate of `extractJson`.
+  - The seam driver never calls `applyLlmFailure`.
 
-**File:** `spacetimedb/src/helpers/llm_apply.ts:137-186, 472, 475, 481, 659, 708, 711`
+### IN-11 (new): strict mock mode is narrower than the real accessor API
 
-The code was moved verbatim, so these are not regressions:
-- **Renown static pool:** `JSON.stringify(perk.effect)` at line 711 throws on bigint, and `BigInt(perk.effect.cooldownSeconds ?? 300)` at line 708 is fragile.
-- **Creation replies:** not clamped or checked against the vocabulary (lines 137-186).
-- **Quest fields:** `BigInt(effect.targetCount || 1)`, `BigInt(effect.rewardXp ...)` and `BigInt(effect.rewardGold)` throw a `RangeError` on a fractional or non-numeric model value, so the apply rolls back. This is more likely now that NPC is a text route.
-- **NPC budget:** `applyNpcConversationResult` charges the budget again at result time (line 659).
+**File:** `spacetimedb/src/helpers/test-utils.ts:47-65, 104-114`
 
-**Fix in Phase 41:** use a shared bigint-safe serializer and a clamping `toBigIntSafe`, and deliberately update the pinned snapshots.
+**Issue:** Every accessor that passes the strict allowlist gets the same `filter`/`find`/`update`/`delete` object.
+- A btree index accessor such as `by_player` exposes `find` and `update` in the mock. On the real API, `find` exists only on unique or primary-key accessors and `filter` on btree accessors (the CLAUDE.md "`.filter()` on unique column" and "`.find()` on non-unique" rows).
+- Multi-column indexes are keyed on the first column only.
+- Table-level members that exist on the real API, such as `count()`, throw in strict mode as "not an accessor".
 
-### IN-02: `buildClaudeRequest` trusts caller-supplied layers
+The PIPE-08 typo class is closed, but the filter-versus-find misuse class is not.
 
-**File:** `claude_request.ts:176-198`, `110-168`
+**Fix:** In a later pass, make `indexFor` return only `filter` for btree accessors and `find`/`update`/`delete` for key accessors. Allow `count`. Not needed for Phase 40.
 
-Nothing checks that `layers.routeBlock === ROUTE_BLOCKS[route]`, that `system[0].text === KEEPER_BIBLE`, or that the user content is a non-empty string. The API rejects empty text blocks that carry `cache_control`.
+### IN-12 (new): "the body check can fail" test is self-referential
 
-**Fix:** Derive the route block in the builder, or assert it in a wrapper, and reject empty content.
+**File:** `spacetimedb/src/helpers/claude_request.test.ts:408-413`
 
-### IN-03: `classifyClaudeResponse` claims it never throws but calls `res.text()` unguarded
+**Issue:** The new test builds `leaky` inline and asserts that `String.prototype.includes` finds the key in it. That proves nothing about the request builder, so it is effectively a tautology. The real check is the per-route test above it, which is now meaningful and does not depend on this one.
 
-**File:** `claude_request.ts:394-395` (docstring at line 391)
-
-**Fix:** Wrap the call, and classify a read failure as `server`/`network`.
-
-### IN-04: `redactSecrets` in the classifier has no needle parameter
-
-**File:** `claude_request.ts:270-273`
-
-Only `sk-ant-<20+>` shapes are redacted. A key in another format survives in `errorMessage`.
-
-**Fix:** Add an optional `needles` parameter, and pass `[apiKey]` from the Phase 41 executor.
-
-### IN-05: Non-message `llm_call_log` fields are stored unredacted and uncapped
-
-**File:** `llm_queue.ts:181-183`
-
-`outcome`, `stopReason` and `requestId` are stored as given. The risk is low.
-
-**Fix:** Cap at 200 characters and redact.
-
-### IN-06: `resolveCharacterPlayerId` can select a non-acting identity
-
-**File:** `llm_queue.ts:136-144`
-
-If no player has `activeCharacterId === character.id`, it falls back to the first player with the same `userId`. With multiple device identities, the wrong identity may be charged or shown the job.
-
-**Fix:** Document the fallback, and prefer the actor identity when the caller has it.
-
-### IN-07: Dedupe blocks forever on a stuck active job
-
-**File:** `llm_queue.ts:31, 109-111`
-
-`in_flight` and `received` count as active, so a job stuck after an executor crash blocks its source key permanently.
-
-**Fix:** The Phase 41 sweeper must expire stale jobs, and a Phase 41 test should cover it.
-
-### IN-08: The renown static fallback duplicates `llm_apply` logic and is not idempotent
-
-**File:** `renown.ts:117-143` vs `llm_apply.ts:690-720`
-
-`serializePerkEffect` is private to `renown.ts`, so the copy in `llm_apply.ts` still throws. The static path inserts three rows on every call with no existence check. `awardRenown` only triggers on a rank increase, so this is unlikely in practice.
-
-**Fix:** Export and share the serializer, and add an "already pending for this rank" check.
-
-### IN-09: The schema linter does not traverse every schema container
-
-**File:** `schema_lint.ts:51-70`
-
-`allOf`, `oneOf`, `not`, `prefixItems`, `additionalProperties`-as-schema and `if/then/else` are skipped. The current schemas don't use them.
-
-**Fix:** Traverse them too.
-
-### IN-10: Small test-infrastructure and hygiene notes
-
-- `PLAYER_INPUT_TAG_PATTERN` (`llm_layers.ts:50`) is exported with the `g` flag, which makes `.test()` stateful.
-- The module-level `recorded` array in `schema_recorder.ts` (lines 40, 113) accumulates duplicates after `vi.resetModules`.
-- `skill_gen.ts:33` keeps a private duplicate of `extractJson`.
-- The seam test's reference driver never calls `applyLlmFailure`, so failure application is untested through the seam. Add this when Phase 41 promotes the driver.
-
-## Verified-clean checks
-
-- None of the imports removed from `index.ts` are still referenced there.
-- `handleCombatNarrationResult` reads only `task.contextJson`, so it is safe with `ApplyJob`.
-- The wrapper keeps its owner and pending-status checks.
-- All five schemas lint clean, with at most 6 unions and 0 optional fields.
-- The privacy tests assert that `llm_job`, `llm_call_log` and `llm_config` are non-public.
-- Fixtures and snapshots contain no key-shaped strings.
+**Fix:** Delete it, or replace it with a builder-level test (a hostile `playerInput` equal to the key must appear only inside the escaped `<player_input>` block).
 
 ---
 
-_Reviewed: 2026-09-30 · Reviewer: gsd-code-reviewer (sonnet) · Depth: standard · Saved by the orchestrator from the reviewer's inline report._
+_Reviewed: 2026-09-30 · Reviewer: gsd-code-reviewer · Depth: standard · Iteration: 2_
