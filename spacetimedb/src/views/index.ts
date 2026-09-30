@@ -4,6 +4,7 @@ import { registerEffectViews } from './effects';
 import { registerFactionViews } from './faction';
 import { registerFriendViews } from './friends';
 import { registerGroupViews } from './groups';
+import { registerLlmViews } from './llm';
 // Hunger views removed - no longer needed
 // Event views removed - event tables (event: true) cannot be accessed in views
 import { registerNpcViews } from './npc';
@@ -21,4 +22,5 @@ export const registerViews = (deps: ViewDeps) => {
   registerQuestViews(deps);
   registerFactionViews(deps);
   registerUiViews(deps);
+  registerLlmViews(deps);
 };
