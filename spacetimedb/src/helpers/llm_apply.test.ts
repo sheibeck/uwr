@@ -95,6 +95,65 @@ afterEach(() => {
   errorSpy.mockRestore();
 });
 
+// WR-B03: creation apply and failure act only on the job's own state, and only at its GENERATING step.
+describe('creation jobs are tied to their state row and GENERATING step', () => {
+  const stateJob = (domain: string, stateId: bigint | string = 2n) =>
+    job(domain, JSON.stringify({ creationStateId: String(stateId), generationType: domain === 'creation_race' ? 'race' : 'class', input: {} }));
+  const RACE_REPLY = JSON.stringify({ raceName: 'Ashkin', narrative: 'Cinders.', bonuses: { primary: { stat: 'str', value: 2 } } });
+
+  it.each(['COMPLETE', 'AWAITING_NAME', 'CLASS_REVEALED', 'AWAITING_RACE'])(
+    'a late creation_race failure never touches a state at %s',
+    (step) => {
+      const ctx = moduleCtx({ character_creation_state: [creationState(step)] });
+      applyLlmFailure(ctx, stateJob('creation_race'));
+      expect(rows(ctx, 'character_creation_state')[0].step).toBe(step);
+      expect(rows(ctx, 'event_creation')).toHaveLength(0);
+    },
+  );
+
+  it('a late creation_class failure cannot reopen a COMPLETE creation', () => {
+    const ctx = moduleCtx({ character_creation_state: [creationState('COMPLETE')] });
+    applyLlmFailure(ctx, stateJob('creation_class'));
+    expect(rows(ctx, 'character_creation_state')[0].step).toBe('COMPLETE');
+    expect(rows(ctx, 'event_creation')).toHaveLength(0);
+  });
+
+  it('a late race result never overwrites race data after the player moved on to the class step', () => {
+    const ctx = moduleCtx({
+      character_creation_state: [{ ...creationState('GENERATING_CLASS'), raceName: 'Saltkin', archetype: 'mystic' }],
+    });
+    applyCreationResult(ctx, stateJob('creation_race'), RACE_REPLY);
+    expect(rows(ctx, 'character_creation_state')[0]).toMatchObject({ step: 'GENERATING_CLASS', raceName: 'Saltkin' });
+    expect(rows(ctx, 'event_creation')).toHaveLength(0);
+  });
+
+  it('the job acts on the state it names, not on another state of the same player', () => {
+    const ctx = moduleCtx({
+      character_creation_state: [
+        { ...creationState('COMPLETE'), id: 1n },
+        { ...creationState('GENERATING_RACE'), id: 2n },
+      ],
+    });
+    applyCreationResult(ctx, stateJob('creation_race', 2n), RACE_REPLY);
+    const states = rows(ctx, 'character_creation_state');
+    expect(states.find((s: any) => s.id === 1n).step).toBe('COMPLETE');
+    expect(states.find((s: any) => s.id === 2n)).toMatchObject({ step: 'AWAITING_ARCHETYPE', raceName: 'Ashkin' });
+  });
+
+  it('at the matching GENERATING step the failure still reverts with the try again line', () => {
+    const ctx = moduleCtx({ character_creation_state: [creationState('GENERATING_RACE')] });
+    applyLlmFailure(ctx, stateJob('creation_race'));
+    expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_RACE');
+    expect(rows(ctx, 'event_creation')[0]).toMatchObject({ playerId: alice, kind: 'creation_error' });
+  });
+
+  it('an unreadable creationStateId does nothing', () => {
+    const ctx = moduleCtx({ character_creation_state: [creationState('GENERATING_RACE')] });
+    applyLlmFailure(ctx, stateJob('creation_race', 'not-a-number'));
+    expect(rows(ctx, 'character_creation_state')[0].step).toBe('GENERATING_RACE');
+  });
+});
+
 describe('sender independence (effects land on job.playerId, not the caller)', () => {
   it('applyCreationResult creation_race updates alice state, event and budget only', () => {
     const ctx = moduleCtx({ character_creation_state: [creationState('GENERATING_RACE')] });

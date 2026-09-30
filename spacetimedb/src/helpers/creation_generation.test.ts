@@ -73,6 +73,8 @@ describe('startCreationGeneration: race', () => {
     expect(jobs[0]).toMatchObject({ route: 'creation_race', playerId: alice, characterId: 0n, status: 'pending' });
     expect(JSON.parse(jobs[0].dedupeKey)).toEqual([alice.toHexString(), 'creation_race', '1:race']);
     expect(rowColumnProblems('llm_job', jobs[0])).toEqual([]);
+    // WR-B03: the job names its creation state, so apply and failure touch only that row.
+    expect(JSON.parse(jobs[0].requestJson)).toMatchObject({ creationStateId: '1', generationType: 'race' });
 
     const input = resolveRouteInput(ctx, jobs[0]) as any;
     expect(input).toEqual({ raceDescription: 'A quiet people of the salt marshes' });

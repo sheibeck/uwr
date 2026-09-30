@@ -91,18 +91,47 @@ export function failWorldGen(tx: any, genState: any, message: string) {
   }
 }
 
+/**
+ * The creation state a creation_race / creation_class job belongs to, but only while that state
+ * is still at the job's GENERATING step. A stale result or failure (a sweeper expiry racing a late
+ * apply, a re-run) never touches a state that has moved on: it cannot reopen a COMPLETE creation
+ * or overwrite race data after the player reached the class or name step. The job names its state
+ * by creationStateId; a legacy llm_task row (no id; submit_llm_result, removed in Phase 42) falls
+ * back to the player's creation state, still behind the step check.
+ */
+export function creationStateForJob(ctx: any, job: ApplyJob): any | null {
+  const expected = job.domain === 'creation_race' ? 'GENERATING_RACE' : 'GENERATING_CLASS';
+  let context: any = {};
+  try {
+    context = job.contextJson ? JSON.parse(job.contextJson) : {};
+  } catch {
+    context = {};
+  }
+  let state: any;
+  if (context && context.creationStateId != null) {
+    let id: bigint;
+    try {
+      id = BigInt(context.creationStateId);
+    } catch {
+      return null;
+    }
+    state = ctx.db.character_creation_state.id.find(id);
+  } else {
+    state = [...ctx.db.character_creation_state.by_player.filter(job.playerId)][0];
+  }
+  if (!state || state.step !== expected) return null;
+  return state;
+}
+
 /** Failure handling per domain (the former `if (!success)` block). */
 export function applyLlmFailure(ctx: any, job: ApplyJob): void {
-  if (job.domain === 'creation_race') {
-    appendCreationEvent(ctx, job.playerId, 'creation_error',
+  if (job.domain === 'creation_race' || job.domain === 'creation_class') {
+    const s = creationStateForJob(ctx, job);
+    if (!s) return; // the state has moved on: nothing to revert, nothing to say
+    appendCreationEvent(ctx, s.playerId, 'creation_error',
       'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."');
-    const s = [...ctx.db.character_creation_state.by_player.filter(job.playerId)][0];
-    if (s) ctx.db.character_creation_state.id.update({ ...s, step: 'AWAITING_RACE', updatedAt: ctx.timestamp });
-  } else if (job.domain === 'creation_class') {
-    appendCreationEvent(ctx, job.playerId, 'creation_error',
-      'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."');
-    const s = [...ctx.db.character_creation_state.by_player.filter(job.playerId)][0];
-    if (s) ctx.db.character_creation_state.id.update({ ...s, step: 'AWAITING_ARCHETYPE', updatedAt: ctx.timestamp });
+    const back = job.domain === 'creation_race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
+    ctx.db.character_creation_state.id.update({ ...s, step: back, updatedAt: ctx.timestamp });
   } else if (job.domain === 'world_gen') {
     const context = job.contextJson ? JSON.parse(job.contextJson) : {};
     const genStateId = BigInt(context.genStateId);
@@ -155,7 +184,7 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
 /** creation_race and creation_class success. */
 export function applyCreationResult(ctx: any, job: ApplyJob, resultText: string): void {
   const generationType = job.domain === 'creation_race' ? 'race' : 'class';
-  const s = [...ctx.db.character_creation_state.by_player.filter(job.playerId)][0];
+  const s = creationStateForJob(ctx, job);
   if (!s) return;
 
   incrementBudget(ctx, job.playerId);

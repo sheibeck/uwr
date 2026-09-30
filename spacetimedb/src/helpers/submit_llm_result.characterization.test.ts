@@ -348,10 +348,12 @@ describe('submit_llm_result failure path: creation and skill_gen', () => {
     expect(rows(ctx, 'llm_budget')).toHaveLength(0);
   });
 
-  it('creation_race failure without a creation state still appends the creation_error event', () => {
+  // Deliberate change (review WR-B03): a creation failure only acts on a state still at its
+  // GENERATING step. With no such state there is nothing to revert and nothing to say.
+  it('creation_race failure without a creation state posts nothing', () => {
     const ctx = newCtx({ llm_task: [llmTask('creation_race')] });
     exec(ctx, { success: false });
-    expect(rows(ctx, 'event_creation')).toHaveLength(1);
+    expect(rows(ctx, 'event_creation')).toHaveLength(0);
     expect(rows(ctx, 'character_creation_state')).toHaveLength(0);
   });
 

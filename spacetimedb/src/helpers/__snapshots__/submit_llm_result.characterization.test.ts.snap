@@ -1301,18 +1301,9 @@ exports[`submit_llm_result failure path: creation and skill_gen > creation_race 
 }"
 `;
 
-exports[`submit_llm_result failure path: creation and skill_gen > creation_race failure without a creation state still appends the creation_error event 1`] = `
+exports[`submit_llm_result failure path: creation and skill_gen > creation_race failure without a creation state posts nothing 1`] = `
 "{
   "character_creation_state": [],
-  "event_creation": [
-    {
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "creation_error",
-      "message": "The Keeper flickers. \\"Something went wrong in the cosmic machinery. Try again.\\"",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
   "llm_task": [
     {
       "createdAt": "ts:1600000000000000n",

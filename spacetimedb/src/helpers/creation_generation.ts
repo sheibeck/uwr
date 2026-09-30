@@ -76,7 +76,9 @@ export function startCreationGeneration(
     playerId: state.playerId,
     characterId: 0n,
     sourceKey: SOURCE_KEYS.creation(state.id, generationType),
-    request: { input: encodeRouteInput(input) },
+    // creationStateId ties the result and the failure to this state row: the apply step touches
+    // it only while it is still at the matching GENERATING step.
+    request: { creationStateId: state.id.toString(), generationType, input: encodeRouteInput(input) },
   });
 
   if (result.refused) {
