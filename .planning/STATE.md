@@ -5,16 +5,16 @@ milestone_name: LLM — Claude Engine
 current_phase: 39
 current_phase_name: Procedure-to-Claude Spike
 status: verifying
-stopped_at: Completed 39-09-PLAN.md
-last_updated: "2026-09-30T00:10:06.346Z"
+stopped_at: Completed 39-10-PLAN.md
+last_updated: "2026-09-30T00:31:49.744Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 39 execution started
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 11
-  completed_plans: 10
-  percent: 0
+  completed_plans: 11
+  percent: 17
 ---
 
 # Project State
@@ -33,7 +33,7 @@ Plan: 10 of 10
 Status: Phase complete — ready for verification
 Last activity: 2026-09-29 — Phase 39 execution started
 
-Progress: [█████████░] 91%
+Progress: [██████████] 100%
 
 ## Previous Milestones
 
@@ -60,6 +60,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 39-08: server-side procedure concurrency is capped at 4 (in-flight never above 4 with 8 enqueued); level 8 has no ticks at in-flight >= 6
 - [Phase ?]: 39-11: gate results profile and SPIKE_TARGET maincloud opt-in; maincloud (cap 8, all levels pass, spend 1.147M micro-USD) measured on uwr-spike-925iv; real key replaced by placeholder
 - [Phase 39]: Phase 39: LLM executor = scheduled procedure (in-flight cap at most 8). Maincloud uwr-spike-925iv strict gate verdict go (floor-adjusted identical): dispatch p95 3.0 ms, 0/164 reliability failures, region schema compiles, ping and tick p95 at 0.96x-1.03x of baseline at 8/4/2 in flight, observed cap 8 (local 4). Local results provisional (strict incomplete). Jobs must carry the player identity (ctx.sender is the module identity). Confirmed by user 2026-09-29 ("confirm-strict"); llm-proxy retired in Phase 42; Phase 41 proves the real executor on maincloud
+- [Phase ?]: [39-10] Maincloud DB uwr-spike-925iv intentionally kept by the user (2026-09-29); placeholder key only
 
 ### Roadmap Evolution
 
@@ -78,13 +79,14 @@ See MILESTONES.md for full delivery summaries.
 
 ### Blockers/Concerns
 
+- [Phase 39] Maincloud database `uwr-spike-925iv` intentionally kept by the user (2026-09-29); holds only a placeholder key; delete it with `spacetime delete uwr-spike-925iv --server maincloud --no-config` when no longer needed (user action). Note: the spike harness/guard is deleted, so any future reuse needs the Phase 41 executor module, not the spike module
 - [Phase 38] Live LLM calls fail: the OpenAI account behind llm-proxy/.dev.vars returns 429 "no credits" -- deferred to the LLM milestone by user decision; v2.2 replaces the OpenAI path with Claude
 - [v2.2] The Phase 39 maincloud leg ran in Plan 39-11 on uwr-spike-925iv by user decision on 2026-09-29 and the go decision is confirmed; Phase 41 still proves the real executor on maincloud. The maincloud leg of QUAL-02 (Phase 44) remains a manual user action
 - [v2.2] `--clear-database` wipes the private `llm_config` Anthropic key; avoid unless a schema change requires it (runbook lands in Phase 41)
 - [Phase 38] First maincloud publish after the 2.10 upgrade will re-create the 14 views and need --break-clients (no data loss) -- user-run only
 - [Phase 38] Lockfiles moved to pnpm-only -- check any external host's package-manager detection before the next push
 - **NO PUSHES TO MASTER** -- production auto-deploys from master; all work stays local until user approves
-- **NO PUSHES TO MAINCLOUD** -- local SpacetimeDB only until user says otherwise (one exception: the Phase 39 spike database uwr-spike-925iv, published by Claude under the user's 2026-09-29 grant and deleted by the user in Plan 39-10)
+- **NO PUSHES TO MAINCLOUD** -- local SpacetimeDB only until user says otherwise (one exception: the Phase 39 spike database uwr-spike-925iv, published by Claude under the user's 2026-09-29 grant and intentionally kept by the user after Plan 39-10)
 
 ### Quick Tasks Completed
 
@@ -107,8 +109,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-30T00:10:06.323Z
-Stopped at: Completed 39-09-PLAN.md
+Last session: 2026-09-30T00:31:49.722Z
+Stopped at: Completed 39-10-PLAN.md
 
 ## Performance Metrics
 
@@ -132,6 +134,7 @@ Stopped at: Completed 39-09-PLAN.md
 | Phase 39 P08 | 30min | 2 tasks | 2 files |
 | Phase 39 P11 | 30min | 3 tasks | 10 files |
 | Phase 39 P09 | resumed | 3 tasks | 6 files |
+| Phase 39 P10 | 20min | 3 tasks | 27 files |
 
 ## Operator Next Steps
 

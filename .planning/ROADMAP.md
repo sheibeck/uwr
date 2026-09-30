@@ -85,7 +85,7 @@ Phases 33-37 parked in the Backlog as 999.1-999.5. See `.planning/milestones/v2.
 **Gate outcome**: go selects the scheduled-procedure executor for Phase 41 (and retires `llm-proxy/` in Phase 42); no-go selects the backend-service-with-WIF executor for Phase 41. Nothing in Phases 40, 42, 43 or 44 changes shape either way.
 **Also captured while the harness is up** (feeds later phases, not gate inputs): cache read on a repeated prefix, whether an in-flight call survives a publish, and current-path baseline latency. The Anthropic key used is supplied by the operator, never committed and never logged.
 **Testing**: Reusable measurement helpers (percentile math, gate evaluation) are unit tested. The throwaway procedure stays isolated from the production module and is not shipped.
-**Plans**: 10/11 plans executed
+**Plans**: 11/11 plans executed
 
 Plans:
 **Wave 1**
@@ -127,7 +127,7 @@ Plans:
 
 **Wave 11** *(blocked on Wave 10 completion)*
 
-- [ ] 39-10-PLAN.md — [checkpoint] Cleanup: user deletes maincloud uwr-spike-925iv, drop local uwr-spike, delete spike module and harness, restore registration files to the start SHA
+- [x] 39-10-PLAN.md — [checkpoint] Cleanup: user deletes maincloud uwr-spike-925iv, drop local uwr-spike, delete spike module and harness, restore registration files to the start SHA
 
 ### Phase 40: Claude Request Layer and Job Seam
 
@@ -229,7 +229,7 @@ Phases execute in numeric order: 39 → 40 → 41 → 42 → 43 → 44
 | 1-23 | v1.0 | All | Complete | 2026-02-25 |
 | 24-30 | v2.0 | 22/22 | Complete | 2026-03-09 |
 | 31, 32, 38 | v2.1 | 14/14 | Complete | 2026-09-29 |
-| 39. Procedure-to-Claude Spike | v2.2 | 10/11 | In Progress|  |
+| 39. Procedure-to-Claude Spike | v2.2 | 11/11 | In Progress|  |
 | 40. Claude Request Layer and Job Seam | v2.2 | 0/TBD | Not started | - |
 | 41. Executor and Domain Cutover | v2.2 | 0/TBD | Not started | - |
 | 42. Client Cutover and Legacy Removal | v2.2 | 0/TBD | Not started | - |
