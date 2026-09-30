@@ -2158,6 +2158,12 @@ export const LlmJob = table(
     createdAt: t.timestamp(),
     startedAt: t.timestamp().optional(),
     finishedAt: t.timestamp().optional(),
+    // Phase 41 columns. Defaults let a non-clearing publish migrate existing rows.
+    nextAttemptAt: t.timestamp().optional(), // when a retry or deferral is next due
+    reservedMicroUsd: t.u64().default(0n),   // budget reserved at enqueue, refunded or settled on result
+    costMicroUsd: t.u64().default(0n),       // settled cost from the four usage counts
+    budgetDay: t.string().default(''),       // UTC date the reservation was booked against
+    applyAttempts: t.u64().default(0n),      // apply runs so far (re-runs once from stored text)
   }
 );
 
@@ -2188,6 +2194,76 @@ export const LlmCallLog = table(
     cacheWriteTokens: t.u64(),
     cacheReadTokens: t.u64(),
     createdAt: t.timestamp(),
+    // Phase 41 columns (COST-01 and the maincloud gate re-check).
+    costMicroUsd: t.u64().default(0n),
+    dispatchLateMs: t.u64().default(0n), // claim time minus scheduled time
+  }
+);
+
+// Phase 41 executor tables. All PRIVATE: no `public` flag.
+
+// One row per dispatch; the scheduler deletes the row before llm_run runs, so every retry or
+// deferral inserts a new row. Bound to the llm_run procedure with onSchedule (Plan 41-07).
+export const LlmDispatch = table(
+  { name: 'llm_dispatch' },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    jobId: t.u64(),
+  }
+);
+
+// Repeating 30 s sweeper tick. Bound to llm_sweep (Plan 41-07).
+export const LlmSweepTick = table(
+  { name: 'llm_sweep_tick' },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+  }
+);
+
+// Per-player-per-UTC-day budget (replaces LlmBudget's call count, which stays as dead code until Phase 42).
+export const LlmPlayerBudget = table(
+  {
+    name: 'llm_player_budget',
+    indexes: [
+      { accessor: 'by_player', algorithm: 'btree', columns: ['playerId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    playerId: t.identity(),
+    dayUtc: t.string(),            // "2026-09-30" UTC date string
+    reservedMicroUsd: t.u64(),
+    spentMicroUsd: t.u64(),
+    calls: t.u64(),
+  }
+);
+
+// Hard phase spend ledger (singleton id 1).
+export const LlmSpend = table(
+  { name: 'llm_spend' },
+  {
+    id: t.u64().primaryKey(),
+    spentMicroUsd: t.u64(),
+    reservedMicroUsd: t.u64(),
+    calls: t.u64(),
+    updatedAt: t.timestamp(),
+  }
+);
+
+// Admin key status and last smoke result (singleton id 1). Never holds the key itself.
+export const LlmAdminState = table(
+  { name: 'llm_admin_state' },
+  {
+    id: t.u64().primaryKey(),
+    keySet: t.bool(),
+    keyLength: t.u64(),
+    keyUpdatedAt: t.timestamp().optional(),
+    keyVerifiedAt: t.timestamp().optional(),
+    keyLastCheckOk: t.bool(),
+    lastSmokeAt: t.timestamp().optional(),
+    lastSmokeJson: t.string(),
   }
 );
 
@@ -2304,6 +2380,11 @@ const spacetimedb = schema({
   llm_task: LlmTask,
   llm_job: LlmJob,
   llm_call_log: LlmCallLog,
+  llm_dispatch: LlmDispatch,
+  llm_sweep_tick: LlmSweepTick,
+  llm_player_budget: LlmPlayerBudget,
+  llm_spend: LlmSpend,
+  llm_admin_state: LlmAdminState,
   pending_skill: PendingSkill,
   combat_round: CombatRound,
   combat_action: CombatAction,

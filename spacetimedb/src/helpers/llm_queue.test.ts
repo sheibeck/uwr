@@ -13,6 +13,7 @@ import {
   LLM_TERMINAL_JOB_STATUSES,
   LLM_REQUEST_JSON_MAX_CHARS,
   LLM_ERROR_MESSAGE_MAX_CHARS,
+  LLM_CALL_LOG_FIELD_MAX_CHARS,
   isActiveJobStatus,
   serializeRequest,
   resolveCharacterPlayerId,
@@ -82,6 +83,11 @@ describe('enqueueLlmJob dedupe', () => {
     expect(job.createdAt).toBe(ctx.timestamp);
     expect('resultText' in job).toBe(false);
     expect(rowColumnProblems('llm_job', job)).toEqual([]);
+    expect(job.reservedMicroUsd).toBe(0n);
+    expect(job.costMicroUsd).toBe(0n);
+    expect(job.budgetDay).toBe('');
+    expect(job.applyAttempts).toBe(0n);
+    expect('nextAttemptAt' in job).toBe(false);
   });
 
   it('characterId defaults to 0n', () => {
@@ -337,6 +343,68 @@ describe('logLlmCall', () => {
     const ctx = createMockCtx();
     const row = logLlmCall(ctx, { ...base, outcome: 'error', errorMessage: 'overloaded' });
     expect(row.errorMessage).toBe('overloaded');
+  });
+
+  it('writes the Phase 41 columns: cost and dispatch lateness default to 0n, supplied values are kept', async () => {
+    await import('../schema/tables');
+    const ctx = createMockCtx();
+    const plain = logLlmCall(ctx, base);
+    expect(plain.costMicroUsd).toBe(0n);
+    expect(plain.dispatchLateMs).toBe(0n);
+    expect(rowColumnProblems('llm_call_log', plain)).toEqual([]);
+    const full = logLlmCall(ctx, { ...base, costMicroUsd: 4321n, dispatchLateMs: 7.4 });
+    expect(full.costMicroUsd).toBe(4321n);
+    expect(full.dispatchLateMs).toBe(7n);
+    expect(rowColumnProblems('llm_call_log', full)).toEqual([]);
+  });
+
+  // Built from fragments so no key-shaped literal appears in the source.
+  const needle = ['not', 'a', 'prefixed', 'secret'].join('-') + '-Zq81';
+
+  it('redacts a caller-supplied needle (no sk-ant prefix) from errorMessage, stopReason and requestId', async () => {
+    await import('../schema/tables');
+    const ctx = createMockCtx();
+    const row = logLlmCall(ctx, {
+      ...base,
+      outcome: 'error',
+      errorMessage: `upstream echoed ${needle} twice ${needle}`,
+      stopReason: `stop-${needle}`,
+      requestId: `req_${needle}`,
+      needles: [needle],
+    });
+    for (const k of ['errorMessage', 'stopReason', 'requestId']) {
+      expect(findSecretLeaks(row[k], { needles: [needle] }).total, k).toBe(0);
+      expect(row[k], k).toContain('[REDACTED]');
+    }
+    expect(rowColumnProblems('llm_call_log', row)).toEqual([]);
+  });
+
+  it('without needles a non-prefixed string is stored unchanged (the pattern alone would miss it)', () => {
+    const ctx = createMockCtx();
+    const row = logLlmCall(ctx, { ...base, outcome: 'error', errorMessage: needle });
+    expect(row.errorMessage).toBe(needle);
+  });
+
+  it('redacts a key-shaped string in stopReason and requestId too', () => {
+    const ctx = createMockCtx();
+    const row = logLlmCall(ctx, { ...base, stopReason: keyShaped, requestId: `req ${keyShaped}` });
+    expect(findSecretLeaks(row.stopReason, { strictPrefix: true }).total).toBe(0);
+    expect(findSecretLeaks(row.requestId, { strictPrefix: true }).total).toBe(0);
+  });
+
+  it('caps stopReason and requestId at LLM_CALL_LOG_FIELD_MAX_CHARS code points without splitting a surrogate pair', () => {
+    expect(LLM_CALL_LOG_FIELD_MAX_CHARS).toBe(128);
+    const ctx = createMockCtx();
+    const row = logLlmCall(ctx, {
+      ...base,
+      stopReason: '\u{1F600}'.repeat(300),
+      requestId: 'r'.repeat(300),
+    });
+    expect([...row.stopReason]).toHaveLength(LLM_CALL_LOG_FIELD_MAX_CHARS);
+    expect(row.stopReason.length).toBe(LLM_CALL_LOG_FIELD_MAX_CHARS * 2);
+    expect([...row.requestId]).toHaveLength(LLM_CALL_LOG_FIELD_MAX_CHARS);
+    // No lone surrogate survives the cut.
+    expect(row.stopReason).toBe('\u{1F600}'.repeat(LLM_CALL_LOG_FIELD_MAX_CHARS));
   });
 
   it('rounds fractional latency to a whole bigint', () => {

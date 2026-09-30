@@ -26,6 +26,11 @@ const JOB_COLUMNS: Record<string, { kind: string; optional?: boolean; primaryKey
   createdAt: { kind: 'timestamp' },
   startedAt: { kind: 'timestamp', optional: true },
   finishedAt: { kind: 'timestamp', optional: true },
+  nextAttemptAt: { kind: 'timestamp', optional: true },
+  reservedMicroUsd: { kind: 'u64' },
+  costMicroUsd: { kind: 'u64' },
+  budgetDay: { kind: 'string' },
+  applyAttempts: { kind: 'u64' },
 };
 
 const LOG_COLUMNS: Record<string, { kind: string; optional?: boolean; primaryKey?: boolean; autoInc?: boolean }> = {
@@ -46,7 +51,49 @@ const LOG_COLUMNS: Record<string, { kind: string; optional?: boolean; primaryKey
   cacheWriteTokens: { kind: 'u64' },
   cacheReadTokens: { kind: 'u64' },
   createdAt: { kind: 'timestamp' },
+  costMicroUsd: { kind: 'u64' },
+  dispatchLateMs: { kind: 'u64' },
 };
+
+type ColSpec = { kind: string; optional?: boolean; primaryKey?: boolean; autoInc?: boolean };
+
+const NEW_TABLE_COLUMNS: Record<string, Record<string, ColSpec>> = {
+  llm_dispatch: {
+    scheduledId: { kind: 'u64', primaryKey: true, autoInc: true },
+    scheduledAt: { kind: 'scheduleAt' },
+    jobId: { kind: 'u64' },
+  },
+  llm_sweep_tick: {
+    scheduledId: { kind: 'u64', primaryKey: true, autoInc: true },
+    scheduledAt: { kind: 'scheduleAt' },
+  },
+  llm_player_budget: {
+    id: { kind: 'u64', primaryKey: true, autoInc: true },
+    playerId: { kind: 'identity' },
+    dayUtc: { kind: 'string' },
+    reservedMicroUsd: { kind: 'u64' },
+    spentMicroUsd: { kind: 'u64' },
+    calls: { kind: 'u64' },
+  },
+  llm_spend: {
+    id: { kind: 'u64', primaryKey: true },
+    spentMicroUsd: { kind: 'u64' },
+    reservedMicroUsd: { kind: 'u64' },
+    calls: { kind: 'u64' },
+    updatedAt: { kind: 'timestamp' },
+  },
+  llm_admin_state: {
+    id: { kind: 'u64', primaryKey: true },
+    keySet: { kind: 'bool' },
+    keyLength: { kind: 'u64' },
+    keyUpdatedAt: { kind: 'timestamp', optional: true },
+    keyVerifiedAt: { kind: 'timestamp', optional: true },
+    keyLastCheckOk: { kind: 'bool' },
+    lastSmokeAt: { kind: 'timestamp', optional: true },
+    lastSmokeJson: { kind: 'string' },
+  },
+};
+const NEW_TABLES = Object.keys(NEW_TABLE_COLUMNS);
 
 function expectColumns(
   tableName: string,
@@ -88,7 +135,7 @@ describe('llm_* table privacy (SEC-01)', () => {
     await import('./tables');
     const llm = recordedTables().filter((r) => typeof r.name === 'string' && r.name.startsWith('llm_'));
     // Guard against the filter matching nothing.
-    expect(llm.length).toBeGreaterThanOrEqual(7);
+    expect(llm.length).toBeGreaterThanOrEqual(12);
     for (const rec of llm.filter((r) => r.name !== 'llm_task')) {
       expect(rec.opts.public, rec.name).not.toBe(true);
     }
@@ -98,8 +145,17 @@ describe('llm_* table privacy (SEC-01)', () => {
     const mod: any = await import('./tables');
     const defs = mod.default.__defs;
     expect(Object.keys(defs)).toEqual(
-      expect.arrayContaining(['llm_job', 'llm_call_log', 'llm_config', 'llm_task']),
+      expect.arrayContaining(['llm_job', 'llm_call_log', 'llm_config', 'llm_task', ...NEW_TABLES]),
     );
+  });
+
+  it('records the five Phase 41 tables without public: true', async () => {
+    await import('./tables');
+    for (const name of NEW_TABLES) {
+      const rec = recordedTable(name);
+      expect(rec, name).toBeDefined();
+      expect(rec!.opts.public, name).not.toBe(true);
+    }
   });
 });
 
@@ -114,9 +170,14 @@ describe('llm_job and llm_call_log shape', () => {
     expectColumns('llm_call_log', LOG_COLUMNS);
   });
 
+  it.each(NEW_TABLES)('%s has exactly the planned columns and flags', async (name) => {
+    await import('./tables');
+    expectColumns(name, NEW_TABLE_COLUMNS[name]);
+  });
+
   it('no column holds a built prompt, a header or the API key', async () => {
     await import('./tables');
-    for (const name of ['llm_job', 'llm_call_log']) {
+    for (const name of ['llm_job', 'llm_call_log', ...NEW_TABLES]) {
       for (const col of Object.keys(recordedTable(name)!.cols)) {
         expect(col, `${name}.${col}`).not.toMatch(/prompt|header|apikey/i);
       }
@@ -129,11 +190,12 @@ describe('llm_job and llm_call_log shape', () => {
     ['llm_job', 'by_status', 'status'],
     ['llm_call_log', 'by_job', 'jobId'],
     ['llm_call_log', 'by_player', 'playerId'],
+    ['llm_player_budget', 'by_player', 'playerId'],
   ];
 
   it('declares exactly the planned indexes, single-column btree, in the table OPTIONS', async () => {
     await import('./tables');
-    for (const tableName of ['llm_job', 'llm_call_log']) {
+    for (const tableName of ['llm_job', 'llm_call_log', 'llm_player_budget']) {
       const declared = recordedTable(tableName)!.opts.indexes as any[];
       const want = EXPECTED_INDEXES.filter(([t]) => t === tableName);
       expect(declared.length).toBe(want.length);
@@ -144,6 +206,13 @@ describe('llm_job and llm_call_log shape', () => {
         expect(idx.algorithm).toBe('btree');
         expect(idx.columns).toHaveLength(1);
       }
+    }
+  });
+
+  it('the other new tables declare no secondary index', async () => {
+    await import('./tables');
+    for (const name of ['llm_dispatch', 'llm_sweep_tick', 'llm_spend', 'llm_admin_state']) {
+      expect(recordedTable(name)!.opts.indexes ?? [], name).toEqual([]);
     }
   });
 

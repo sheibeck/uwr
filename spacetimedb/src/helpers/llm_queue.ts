@@ -37,6 +37,8 @@ export function isActiveJobStatus(status: unknown): boolean {
 
 export const LLM_REQUEST_JSON_MAX_CHARS = 64_000;
 export const LLM_ERROR_MESSAGE_MAX_CHARS = 400;
+/** stopReason and requestId are short provider tokens; cap them (by code points) after redaction. */
+export const LLM_CALL_LOG_FIELD_MAX_CHARS = 128;
 
 /** JSON array string: no delimiter can collide across fields. */
 export function buildDedupeKey(
@@ -124,6 +126,10 @@ export function enqueueLlmJob(ctx: any, a: EnqueueArgs): { job: any; created: bo
     cacheWriteTokens: 0n,
     cacheReadTokens: 0n,
     createdAt: ctx.timestamp,
+    reservedMicroUsd: 0n,
+    costMicroUsd: 0n,
+    budgetDay: '',
+    applyAttempts: 0n,
   });
   return { job, created: true };
 }
@@ -155,6 +161,12 @@ export interface LlmCallLogEntry {
   errorMessage?: string;
   latencyMs: number;
   usage?: { input: number; output: number; cacheWrite: number; cacheRead: number };
+  /** Settled cost of this attempt in micro-USD (0 when unbilled or unknown). */
+  costMicroUsd?: bigint;
+  /** Claim time minus scheduled time, in ms (dispatch lateness). */
+  dispatchLateMs?: number;
+  /** Secrets (for example the API key) to redact from every text field, beyond the key pattern. */
+  needles?: readonly string[];
 }
 
 // Counters arrive as JS numbers (possibly fractional, negative, NaN or Infinity); u64 columns need
@@ -165,7 +177,11 @@ const toU64 = (n: number | undefined): bigint => {
   return BigInt(Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.round(v))));
 };
 
-/** Append one llm_call_log row. Error text is redacted, then capped by code points. */
+/** Redact with the key pattern plus caller needles, then cap by code points (never splits a surrogate pair). */
+const redactAndCap = (text: string, needles: readonly string[] | undefined, max: number): string =>
+  [...redactSecrets(text, needles)].slice(0, max).join('');
+
+/** Append one llm_call_log row. Every text field is redacted, then capped by code points. */
 export function logLlmCall(ctx: any, e: LlmCallLogEntry): any {
   const row: Record<string, unknown> = {
     id: 0n,
@@ -182,13 +198,17 @@ export function logLlmCall(ctx: any, e: LlmCallLogEntry): any {
     cacheWriteTokens: toU64(e.usage?.cacheWrite),
     cacheReadTokens: toU64(e.usage?.cacheRead),
     createdAt: ctx.timestamp,
+    costMicroUsd: e.costMicroUsd ?? 0n,
+    dispatchLateMs: toU64(e.dispatchLateMs),
   };
-  if (e.stopReason !== undefined) row.stopReason = e.stopReason;
-  if (e.requestId !== undefined) row.requestId = e.requestId;
+  if (e.stopReason !== undefined) {
+    row.stopReason = redactAndCap(e.stopReason, e.needles, LLM_CALL_LOG_FIELD_MAX_CHARS);
+  }
+  if (e.requestId !== undefined) {
+    row.requestId = redactAndCap(e.requestId, e.needles, LLM_CALL_LOG_FIELD_MAX_CHARS);
+  }
   if (e.errorMessage !== undefined) {
-    row.errorMessage = [...redactSecrets(e.errorMessage)]
-      .slice(0, LLM_ERROR_MESSAGE_MAX_CHARS)
-      .join('');
+    row.errorMessage = redactAndCap(e.errorMessage, e.needles, LLM_ERROR_MESSAGE_MAX_CHARS);
   }
   return ctx.db.llm_call_log.insert(row);
 }
