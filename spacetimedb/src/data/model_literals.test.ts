@@ -20,7 +20,6 @@ import { fileURLToPath } from 'node:url';
 
 /** Repo-relative posix path -> exact number of model literals in that file. */
 const LEGACY_MODEL_LITERALS: Record<string, number> = {
-  'spacetimedb/src/index.ts': 1,
   'spacetimedb/src/reducers/llm.ts': 2,
   'spacetimedb/src/schema/tables.ts': 1, // stale comment in the dead LlmRequest table, Phase 42
   'src/composables/useLlm.ts': 2, // dead client composable, Phase 42

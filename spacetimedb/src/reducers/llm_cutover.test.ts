@@ -937,7 +937,320 @@ describe('submit_creation_input (creation cutover, PIPE-01 / PIPE-04)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Deleted client call sites (41-12, 41-13)
+// World generation (41-14)
+// ---------------------------------------------------------------------------
+
+describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
+  const T = { microsSinceUnixEpoch: T0 };
+  const RIPPLE = 'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...';
+  const PATIENCE = 'The world is already taking shape around you. Patience.';
+  const EXPLORE_LINE = 'Type [explore] to try again';
+
+  const genRow = (over: Record<string, unknown> = {}) => ({
+    id: 5n,
+    playerId: alice,
+    characterId: 1n,
+    sourceLocationId: 0n,
+    sourceRegionId: 0n,
+    step: 'ERROR',
+    errorMessage: 'The Keeper falters.',
+    createdAt: T,
+    updatedAt: T,
+    ...over,
+  });
+  const exhaustDay = (ctx: any) =>
+    ctx.db.llm_player_budget.insert({
+      id: 0n,
+      playerId: alice,
+      dayUtc: utcDay(ctx.timestamp),
+      reservedMicroUsd: 0n,
+      spentMicroUsd: LLM_PLAYER_DAILY_COST_MICRO_USD,
+      calls: 1n,
+    });
+  const worldGenStates = (ctx: any) => rows(ctx, 'world_gen_state');
+  const explore = (ctx: any) => handlers.submit_intent(ctx, { characterId: 1n, text: 'explore' });
+
+  // An uncharted location in region 1, connected from The Crossing (10).
+  const unchartedSeed = (over: Seed = {}): Seed => {
+    const world = worldSeed();
+    return {
+      ...playerSeed(),
+      region: world.region,
+      location: [
+        ...world.location,
+        { id: 11n, name: 'The Edge Beyond', description: 'Mist.', zone: 'Uncharted', regionId: 1n, isSafe: true, terrainType: 'uncharted' },
+      ],
+      location_connection: [
+        { id: 1n, fromLocationId: 10n, toLocationId: 11n },
+        { id: 2n, fromLocationId: 11n, toLocationId: 10n },
+      ],
+      ...characterSeed({ stamina: 100n, maxStamina: 100n, perception: 0n, level: 1n }),
+      ...over,
+    };
+  };
+  const atUncharted = (over: Seed = {}): Seed =>
+    unchartedSeed({ ...characterSeed({ locationId: 11n, stamina: 100n, maxStamina: 100n, perception: 0n, level: 1n }), ...over });
+
+  // A character still at location 0 (finalized, waiting on the starter region).
+  const starterSeed = (states: Record<string, unknown>[], over: Seed = {}): Seed => ({
+    ...playerSeed(),
+    ...characterSeed({ locationId: 0n }),
+    world_gen_state: states.map((s, i) => genRow({ id: BigInt(i + 1), ...s })),
+    ...over,
+  });
+
+  describe('finalizing a character', () => {
+    const confirmSeed = (): Seed => ({
+      ...playerSeed(),
+      character_creation_state: [
+        {
+          id: 1n,
+          playerId: alice,
+          step: 'CONFIRMING',
+          raceName: 'Saltkin',
+          raceNarrative: 'Marsh dwellers.',
+          raceBonuses: '{"primary":{"stat":"wis","value":2},"secondary":{"stat":"con","value":1},"flavor":""}',
+          archetype: 'mystic',
+          className: 'Tidecaller',
+          characterName: 'Mirel',
+          createdAt: T,
+          updatedAt: T,
+        },
+      ],
+    });
+
+    it('confirm creates the character at location 0 and starts one GENERATING world_gen job in the same transaction', () => {
+      const ctx = newCtx(confirmSeed());
+      handlers.submit_creation_input(ctx, { text: 'confirm' });
+
+      const chars = rows(ctx, 'character');
+      expect(chars).toHaveLength(1);
+      expect(chars[0].locationId).toBe(0n);
+      const states = worldGenStates(ctx);
+      expect(states).toHaveLength(1);
+      expect(states[0]).toMatchObject({ step: 'GENERATING', sourceLocationId: 0n, sourceRegionId: 0n, characterId: chars[0].id });
+
+      const job = expectEnqueued(ctx, 'world_gen');
+      expect(job.characterId).toBe(chars[0].id);
+      expect(JSON.parse(job.requestJson).genStateId).toBe(states[0].id.toString());
+      expect(JSON.parse(job.dedupeKey)).toEqual([alice.toHexString(), 'world_gen', states[0].id.toString()]);
+      const input = resolveRouteInput(ctx, job) as any;
+      expect(input).toMatchObject({
+        characterRace: 'Saltkin',
+        characterClass: 'Tidecaller',
+        characterArchetype: 'mystic',
+        sourceRegionName: 'the known world',
+        neighborRegions: [],
+      });
+      expect(() => buildRouteLayers('world_gen', input)).not.toThrow();
+      expect(allRowsMatchSchema(ctx, ['world_gen_state', 'character'])).toEqual([]);
+    });
+
+    it('a refused start leaves the character created and the state in ERROR with the in-voice [explore] line', () => {
+      const ctx = newCtx(confirmSeed());
+      exhaustDay(ctx);
+      handlers.submit_creation_input(ctx, { text: 'confirm' });
+
+      expect(rows(ctx, 'character')).toHaveLength(1);
+      expectNothingReserved(ctx);
+      const state = worldGenStates(ctx)[0];
+      expect(state.step).toBe('ERROR');
+      expect(state.errorMessage).toBe('The Keeper strains but cannot shape this realm right now.');
+      const errors = rows(ctx, 'event_creation').filter((e: any) => e.kind === 'creation_error');
+      expect(errors.map((e: any) => e.message)).toEqual([
+        'The Keeper strains but cannot shape this realm right now. Type [explore] to try again later.',
+      ]);
+    });
+  });
+
+  describe('travelling to an uncharted location', () => {
+    const go = (ctx: any) => handlers.submit_intent(ctx, { characterId: 1n, text: 'go The Edge Beyond' });
+
+    it('starts one GENERATING state and job and posts the ripple line', () => {
+      const ctx = newCtx(unchartedSeed());
+      go(ctx);
+
+      expect(rows(ctx, 'character')[0].locationId).toBe(11n);
+      const states = worldGenStates(ctx);
+      expect(states).toHaveLength(1);
+      expect(states[0]).toMatchObject({ step: 'GENERATING', sourceLocationId: 11n, sourceRegionId: 1n, characterId: 1n });
+      const job = expectEnqueued(ctx, 'world_gen');
+      const input = resolveRouteInput(ctx, job) as any;
+      expect(input.sourceRegionName).toBe('Ashen Reach');
+      expect(input.characterRace).toBe('Kobold');
+      expect(systemLines(ctx)).toContain(RIPPLE);
+    });
+
+    it('a refused start posts the refusal line but not the ripple line, and the state is ERROR', () => {
+      const ctx = newCtx(unchartedSeed());
+      exhaustDay(ctx);
+      go(ctx);
+
+      expectNothingReserved(ctx);
+      expect(worldGenStates(ctx)[0].step).toBe('ERROR');
+      const lines = systemLines(ctx);
+      expect(lines).not.toContain(RIPPLE);
+      expect(lines).toContain(
+        'The Keeper strains but cannot shape this realm right now. Type [explore] to try again later.',
+      );
+    });
+  });
+
+  describe('explore', () => {
+    it('at an uncharted location whose only state is ERROR starts a new GENERATING state and one job', () => {
+      const ctx = newCtx(atUncharted({ world_gen_state: [genRow({ sourceLocationId: 11n, sourceRegionId: 1n })] }));
+      explore(ctx);
+
+      const states = worldGenStates(ctx);
+      expect(states).toHaveLength(2);
+      expect(states[0].step).toBe('ERROR');
+      expect(states[1]).toMatchObject({ step: 'GENERATING', sourceLocationId: 11n, sourceRegionId: 1n });
+      expectEnqueued(ctx, 'world_gen');
+      expect(systemLines(ctx)).toEqual([RIPPLE]);
+    });
+
+    it('while the state is GENERATING a second explore answers with the patience line and starts nothing', () => {
+      const ctx = newCtx(atUncharted({ world_gen_state: [genRow({ sourceLocationId: 11n, sourceRegionId: 1n })] }));
+      explore(ctx);
+      explore(ctx);
+
+      expect(worldGenStates(ctx)).toHaveLength(2);
+      expectEnqueued(ctx, 'world_gen');
+      expect(systemLines(ctx)).toEqual([RIPPLE, PATIENCE]);
+    });
+
+    it('for a character at location 0 whose starter state is ERROR creates a fresh starter state and starts it', () => {
+      const ctx = newCtx(starterSeed([{}]));
+      explore(ctx);
+
+      const states = worldGenStates(ctx);
+      expect(states).toHaveLength(2);
+      expect(states[0].step).toBe('ERROR');
+      expect(states[1]).toMatchObject({
+        step: 'GENERATING',
+        sourceLocationId: 0n,
+        sourceRegionId: 0n,
+        characterId: 1n,
+      });
+      const job = expectEnqueued(ctx, 'world_gen');
+      expect(JSON.parse(job.requestJson).genStateId).toBe(states[1].id.toString());
+      expect(systemLines(ctx)).toEqual([RIPPLE]);
+    });
+
+    it('for a character at location 0 reuses a matching starter region for free', () => {
+      const ctx = newCtx(
+        starterSeed([{}], {
+          region: [{ id: 2n, name: 'Emberdeep', dangerMultiplier: 100n, starterForRace: 'kobold' }],
+          location: [{ id: 30n, name: 'Hearthhold', description: 'Warm.', zone: 'z', regionId: 2n, isSafe: true, terrainType: 'town' }],
+        }),
+      );
+      explore(ctx);
+
+      expectNothingReserved(ctx);
+      expect(rows(ctx, 'character')[0]).toMatchObject({ locationId: 30n, boundLocationId: 30n });
+      expect(worldGenStates(ctx)[1]).toMatchObject({ step: 'COMPLETE', generatedRegionId: 2n });
+    });
+
+    it.each(['PENDING', 'GENERATING'])('for a character at location 0 with a %s starter state answers with the patience line and no job', (step) => {
+      const ctx = newCtx(starterSeed([{ step, errorMessage: undefined }]));
+      explore(ctx);
+
+      expectNothingReserved(ctx);
+      expect(worldGenStates(ctx)).toHaveLength(1);
+      expect(systemLines(ctx)).toEqual([PATIENCE]);
+    });
+
+    it('for a character at location 0 with no starter state at all says there is nothing uncharted to explore', () => {
+      const ctx = newCtx(starterSeed([]));
+      explore(ctx);
+
+      expectNothingReserved(ctx);
+      expect(worldGenStates(ctx)).toHaveLength(0);
+      expect(systemLines(ctx)).toEqual(['There is nothing uncharted to explore here.']);
+    });
+
+    it('a refused first-region retry leaves the state in ERROR with the [explore] line and no job', () => {
+      const ctx = newCtx(starterSeed([{}]));
+      exhaustDay(ctx);
+      explore(ctx);
+
+      expectNothingReserved(ctx);
+      const states = worldGenStates(ctx);
+      expect(states[states.length - 1].step).toBe('ERROR');
+      const errors = rows(ctx, 'event_creation').filter((e: any) => e.kind === 'creation_error');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].message).toContain(EXPLORE_LINE);
+    });
+  });
+
+  describe('never auto-retries (T-41-05)', () => {
+    const FAKE_KEY = ['sk', '-ant-', 'api03-', 'WORLDGENKEY'.repeat(3)].join('');
+    const err529 = () =>
+      JSON.parse(readFileSync(new URL('../helpers/__fixtures__/claude/err_529.json', import.meta.url), 'utf-8'));
+
+    it('a first-region job hit by a 529 ends failed after one attempt, leaves the state in ERROR with the [explore] line, and only the next explore starts a new job', () => {
+      const proc = createMockProcCtx({
+        seed: {
+          ...starterSeed([{}]),
+          llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: { microsSinceUnixEpoch: T0 } }],
+        },
+        timestampMicros: T0,
+        responses: [err529()],
+        strict: true,
+      });
+      const reducerCtx = {
+        db: proc.db,
+        sender: alice,
+        get timestamp() {
+          return proc.ctx.timestamp;
+        },
+      };
+
+      // The player's explore starts the first job.
+      handlers.submit_intent(reducerCtx, { characterId: 1n, text: 'explore' });
+      expect(rows(proc, 'llm_job')).toHaveLength(1);
+      expect(rows(proc, 'llm_dispatch')).toHaveLength(1);
+      expect(worldGenStates(proc)[1].step).toBe('GENERATING');
+
+      const dispatch = rows(proc, 'llm_dispatch').shift();
+      const outcome = runLlmJob(proc.ctx, dispatch, {
+        nowMs: () => Number(proc.clock.now() / 1000n),
+        log: () => {},
+      });
+
+      expect(outcome).toBe('failed');
+      const jobs = rows(proc, 'llm_job');
+      expect(jobs).toHaveLength(1);
+      expect(jobs[0].status).toBe('failed');
+      expect(jobs[0].attempt).toBe(1n);
+      expect(proc.http.calls).toHaveLength(1);
+      expect(rows(proc, 'llm_dispatch')).toHaveLength(0); // no retry dispatch
+      const state = worldGenStates(proc)[1];
+      expect(state.step).toBe('ERROR');
+      expect(state.errorMessage).not.toMatch(/\d/);
+      expect(state.errorMessage).not.toMatch(/budget|limit|daily|529|overload/i);
+      const last = rows(proc, 'event_creation').slice(-1)[0];
+      expect(last.kind).toBe('creation_error');
+      expect(last.message).toContain(EXPLORE_LINE);
+
+      // Only the player's next explore starts another call.
+      handlers.submit_intent(reducerCtx, { characterId: 1n, text: 'explore' });
+      expect(rows(proc, 'llm_job')).toHaveLength(2);
+      expect(rows(proc, 'llm_job')[1].status).toBe('pending');
+      expect(rows(proc, 'llm_dispatch')).toHaveLength(1);
+      expect(worldGenStates(proc)).toHaveLength(3);
+      expect(worldGenStates(proc)[2].step).toBe('GENERATING');
+      expect(proc.http.calls).toHaveLength(1);
+    });
+  });
+
+  it('the old prepare reducer is gone from the module', () => {
+    expect(capturedReducer('prepare_world_gen_llm')).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Deleted client call sites (41-12, 41-13, 41-14)
 // ---------------------------------------------------------------------------
 
 describe('deleted prepare reducers: no client call site remains', () => {

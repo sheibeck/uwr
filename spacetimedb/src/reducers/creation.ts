@@ -1,5 +1,6 @@
 import { ensureDefaultHotbar } from '../helpers/items';
 import { startCreationGeneration } from '../helpers/creation_generation';
+import { startWorldGeneration } from '../helpers/world_gen';
 
 // Character creation state machine — narrative flow from greeting to character finalization
 
@@ -271,7 +272,7 @@ export const registerCreationReducers = (deps: any) => {
       `A few things you should probably know before you get yourself killed:\n\nType [bag] to open your pack -- you have starter gear in there. Equip it, or don't; the enemies won't wait for you to feel ready. Your hotbar already holds your starting ability -- click it in combat, or just type its name. To see who else exists in this forsaken place, type [look]; to bother one of them, type [hail <name>]. NPCs have opinions about you that improve the longer you don't annoy them -- they may eventually share quests, training, or items. Type [look] again when you want to move somewhere, then click a path or type the direction. And when combat inevitably goes sideways, [flee] exists for a reason. No shame in it. You can always come back and die more slowly.`
     );
 
-    ctx.db.world_gen_state.insert({
+    const starterGenState = ctx.db.world_gen_state.insert({
       id: 0n,
       playerId: ctx.sender,
       characterId: character.id,
@@ -281,6 +282,7 @@ export const registerCreationReducers = (deps: any) => {
       createdAt: ctx.timestamp,
       updatedAt: ctx.timestamp,
     });
+    startWorldGeneration(ctx, starterGenState);
   }
 
   // start_creation — called when client detects no character and no creation state

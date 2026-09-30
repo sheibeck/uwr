@@ -4,6 +4,7 @@ import { buildLookOutput } from '../helpers/look';
 import { computeSellValue } from '../helpers/economy';
 import { getPerkBonusByField } from '../helpers/renown';
 import { requestSkillOffer } from '../helpers/skill_offer';
+import { startWorldGeneration } from '../helpers/world_gen';
 
 // Re-export for any existing consumers that import from intent.ts
 export { buildLookOutput } from '../helpers/look';
@@ -1398,8 +1399,36 @@ export const registerIntentReducers = (deps: any) => {
       return appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative', offer.text);
     }
 
-    // --- EXPLORE: retry world gen at current uncharted location (only useful after errors) ---
+    // --- EXPLORE: the player's retry for world gen (only useful after errors; generation never retries itself) ---
     if (lower === 'explore') {
+      // A character still at location 0 is waiting on the starter region: retry it from its own ERROR state.
+      if (character.locationId === 0n) {
+        const starterStates = [...ctx.db.world_gen_state.by_player.filter(ctx.sender)]
+          .filter((s: any) => s.characterId === character.id && s.sourceRegionId === 0n);
+        if (starterStates.some((s: any) => s.step === 'PENDING' || s.step === 'GENERATING')) {
+          return appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+            'The world is already taking shape around you. Patience.');
+        }
+        if (starterStates.length === 0 || starterStates.some((s: any) => s.step !== 'ERROR')) {
+          return fail(ctx, character, 'There is nothing uncharted to explore here.');
+        }
+        const freshStarter = ctx.db.world_gen_state.insert({
+          id: 0n,
+          playerId: ctx.sender,
+          characterId: character.id,
+          sourceLocationId: 0n,
+          sourceRegionId: 0n,
+          step: 'PENDING',
+          createdAt: ctx.timestamp,
+          updatedAt: ctx.timestamp,
+        });
+        const startedStarter = startWorldGeneration(ctx, freshStarter);
+        if (startedStarter === 'enqueued' || startedStarter === 'duplicate') {
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+            'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...');
+        }
+        return;
+      }
       const currentLoc = ctx.db.location.id.find(character.locationId);
       if (!currentLoc || currentLoc.terrainType !== 'uncharted') {
         return fail(ctx, character, 'There is nothing uncharted to explore here.');
@@ -1415,7 +1444,7 @@ export const registerIntentReducers = (deps: any) => {
           'This region has already been explored.');
       }
       // Only reaches here if all existing states are ERROR — retry
-      ctx.db.world_gen_state.insert({
+      const retryState = ctx.db.world_gen_state.insert({
         id: 0n,
         playerId: ctx.sender,
         characterId: args.characterId,
@@ -1425,8 +1454,11 @@ export const registerIntentReducers = (deps: any) => {
         createdAt: ctx.timestamp,
         updatedAt: ctx.timestamp,
       });
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-        'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...');
+      const startedRetry = startWorldGeneration(ctx, retryState);
+      if (startedRetry === 'enqueued' || startedRetry === 'duplicate') {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...');
+      }
       return;
     }
 

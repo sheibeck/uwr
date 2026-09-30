@@ -2,6 +2,7 @@ import { TRAVEL_CONFIG } from '../data/travel_config';
 import { performPassiveSearch } from './search';
 import { getPerkBonusByField } from './renown';
 import { buildLookOutput } from './look';
+import { startWorldGeneration } from './world_gen';
 
 /**
  * Shared travel logic used by both move_character reducer and narrative intent handler.
@@ -269,7 +270,7 @@ export function performTravel(
       // Already done
     } else if (!existingGen) {
       // We need characterId for the world_gen_state — use the lead character
-      ctx.db.world_gen_state.insert({
+      const genState = ctx.db.world_gen_state.insert({
         id: 0n,
         playerId: ctx.sender,
         characterId: character.id,
@@ -279,8 +280,12 @@ export function performTravel(
         createdAt: ctx.timestamp,
         updatedAt: ctx.timestamp,
       });
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-        'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...');
+      const started = startWorldGeneration(ctx, genState);
+      // A refusal has already told the player how to try again; the ripple line is for a real start.
+      if (started === 'enqueued' || started === 'duplicate') {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+          'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...');
+      }
     }
   }
 

@@ -1,17 +1,8 @@
 import { t, SenderError } from 'spacetimedb/server';
 import { requireAdmin } from './data/admin';
 import { ScheduleAt, Timestamp } from 'spacetimedb';
-import { checkBudget } from './helpers/llm';
 import { ensureDefaultHotbar } from './helpers/items';
-import {
-  buildWorldGenPrompt,
-  buildCombatNarrationPrompt,
-  buildCombinedCreationUserPrompt,
-  buildRegionGenerationUserPrompt,
-} from './data/llm_prompts';
 import { requestSkillOffer } from './helpers/skill_offer';
-import { computeRegionDanger } from './helpers/world_gen';
-import { buildRegionContext } from './helpers/world_gen';
 import { applyLlmResult, applyLlmFailure, toApplyJob } from './helpers/llm_apply';
 import spacetimedb, {
   scheduledReducers,
@@ -389,139 +380,6 @@ registerViews({
   Faction,
   FactionStanding,
   UiPanelLayout,
-});
-
-// === LLM TASK PREPARATION ===
-// When the world-gen step triggers, server builds prompts and writes to LlmTask (Plan 41-14 moves it to the executor).
-// Client reads prompts, calls the LLM proxy directly, then submits results via reducer.
-
-// Reducer: prepare an LLM task for world generation
-spacetimedb.reducer('prepare_world_gen_llm', { genStateId: t.u64() }, (ctx: any, { genStateId }: { genStateId: bigint }) => {
-  const genState = ctx.db.world_gen_state.id.find(genStateId);
-  if (!genState) throw new SenderError('WorldGenState not found');
-  if (genState.step !== 'PENDING') throw new SenderError('WorldGenState not in PENDING step');
-
-  // Budget check
-  const budget = checkBudget(ctx, genState.playerId);
-  if (!budget.allowed) {
-    ctx.db.world_gen_state.id.update({
-      ...genState,
-      step: 'ERROR',
-      errorMessage: 'Daily LLM budget exceeded',
-      updatedAt: ctx.timestamp,
-    });
-    const char = ctx.db.character.id.find(genState.characterId);
-    if (char) {
-      appendPrivateEvent(ctx, char.id, char.ownerUserId, 'system',
-        'The Keeper strains but cannot shape this realm right now. Type [explore] to try again later.');
-    }
-    throw new SenderError('Daily LLM budget exceeded');
-  }
-
-  // If this is a starter region request, check if another character of the same race already generated one
-  if (genState.sourceRegionId === 0n) {
-    const character = ctx.db.character.id.find(genState.characterId);
-    const raceLower = (character?.race || '').toLowerCase();
-    if (raceLower) {
-      let existingStarterRegion: any = null;
-      for (const region of ctx.db.region.iter()) {
-        if (region.starterForRace && region.starterForRace.toLowerCase() === raceLower) {
-          existingStarterRegion = region;
-          break;
-        }
-      }
-      if (existingStarterRegion) {
-        // Find the home location in the existing starter region
-        let homeLocation: any = null;
-        for (const loc of ctx.db.location.iter()) {
-          if (loc.regionId === existingStarterRegion.id && loc.isSafe && loc.terrainType !== 'uncharted') {
-            homeLocation = loc;
-            break;
-          }
-        }
-        if (!homeLocation) {
-          for (const loc of ctx.db.location.iter()) {
-            if (loc.regionId === existingStarterRegion.id && loc.terrainType !== 'uncharted') {
-              homeLocation = loc;
-              break;
-            }
-          }
-        }
-        if (homeLocation && character) {
-          // Place character in the existing starter region
-          ctx.db.character.id.update({
-            ...ctx.db.character.id.find(character.id),
-            locationId: homeLocation.id,
-            boundLocationId: homeLocation.id,
-          });
-          ensureSpawnsForLocation(ctx, homeLocation.id);
-
-          // Mark world gen complete
-          ctx.db.world_gen_state.id.update({
-            ...genState,
-            step: 'COMPLETE',
-            generatedRegionId: existingStarterRegion.id,
-            updatedAt: ctx.timestamp,
-          });
-
-          // Send arrival narrative
-          const locationNpcs: string[] = [];
-          for (const npc of ctx.db.npc.by_location.filter(homeLocation.id)) {
-            locationNpcs.push(npc.name);
-          }
-          let arrivalMsg = `You open your eyes in ${homeLocation.name}, ${existingStarterRegion.name}.`;
-          if (locationNpcs.length > 0) {
-            arrivalMsg += `\n\nYou notice ${locationNpcs.join(' and ')} nearby. Perhaps they have something to say.`;
-          }
-          arrivalMsg += `\n\nTry [look] to examine your surroundings, or [travel] to move.`;
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative', arrivalMsg);
-          return;
-        }
-      }
-    }
-  }
-
-  // Concurrency check
-  const existingTasks = [...ctx.db.llm_task.by_player.filter(ctx.sender)];
-  if (existingTasks.some((t: any) => t.status === 'pending' && t.domain === 'world_gen')) return;
-
-  // Update step to GENERATING
-  ctx.db.world_gen_state.id.update({ ...genState, step: 'GENERATING', updatedAt: ctx.timestamp });
-
-  // Read character data
-  const character = ctx.db.character.id.find(genState.characterId);
-  const characterRace = character?.race || 'Unknown';
-  const characterClass = character?.className || 'Unknown';
-
-  // Read archetype from creation state
-  const creationStates = [...ctx.db.character_creation_state.by_player.filter(genState.playerId)];
-  const characterArchetype = creationStates.length > 0 ? (creationStates[0].archetype || 'warrior') : 'warrior';
-
-  // Read source region name
-  const sourceRegion = ctx.db.region.id.find(genState.sourceRegionId);
-  const sourceRegionName = sourceRegion?.name || 'the known world';
-
-  // Build neighbor context
-  const neighbors = buildRegionContext(ctx, genState.sourceRegionId);
-
-  const systemPrompt = buildWorldGenPrompt('');
-  const userPrompt = buildRegionGenerationUserPrompt(
-    characterRace, characterClass, characterArchetype,
-    sourceRegionName, neighbors
-  );
-
-  ctx.db.llm_task.insert({
-    id: 0n,
-    playerId: ctx.sender,
-    domain: 'world_gen',
-    model: 'gpt-5.4',
-    systemPrompt,
-    userPrompt,
-    maxTokens: 2048n,
-    status: 'pending',
-    contextJson: JSON.stringify({ genStateId: genStateId.toString() }),
-    createdAt: ctx.timestamp,
-  });
 });
 
 // Reducer: the player asks the Keeper for a new skill offer (recovers a failed or missed offer)
