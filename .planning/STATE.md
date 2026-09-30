@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 41
 current_phase_name: Executor and Domain Cutover
 status: executing
-stopped_at: Completed 41-12-PLAN.md
-last_updated: "2026-09-30T16:32:22.506Z"
+stopped_at: Completed 41-13-PLAN.md
+last_updated: "2026-09-30T16:55:26.148Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 41 execution started
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 38
-  completed_plans: 33
+  completed_plans: 34
   percent: 33
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 41 (Executor and Domain Cutover) — EXECUTING
-Plan: 13 of 17
+Plan: 14 of 17
 Status: Ready to execute
 Last activity: 2026-09-30 — Phase 41 execution started
 
-Progress: [█████████░] 87% (2/6 phases)
+Progress: [█████████░] 89% (2/6 phases)
 
 ## Previous Milestones
 
@@ -87,6 +87,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 41-10: local publish needed --clear-database (llm_job.next_attempt_at needs a default); bindings regenerated with no diff
 - [Phase ?]: 41-11: combat narration is a victory/defeat outro only, enqueued before clearCombatArtifacts; never throws, refusal is silent
 - [Phase ?]: 41-12: Skill offers go through one helper (requestSkillOffer) shared by level-up, request_skill_offer and [skills]; eligibility = level>=2, no pending skills, no generated ability at current level, dedupe on character+level; failure lines name [skills]
+- [Phase ?]: 41-13: creation progress lines post only when a job was enqueued; refusal reverts the step and posts creation_error; client isCreationLlmProcessing derives from GENERATING_* step
 
 ### Roadmap Evolution
 
@@ -141,8 +142,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-30T16:32:22.196Z
-Stopped at: Completed 41-12-PLAN.md
+Last session: 2026-09-30T16:55:26.122Z
+Stopped at: Completed 41-13-PLAN.md
 
 ## Performance Metrics
 
@@ -189,6 +190,7 @@ Stopped at: Completed 41-12-PLAN.md
 | Phase 41 P10 | 20min | 2 tasks | 3 files |
 | Phase 41 P11 | 12min | 2 tasks | 5 files |
 | Phase 41 P12 | 25min | 3 tasks | 13 files |
+| Phase 41 P13 | ~25min | 2 tasks | 11 files |
 
 ## Operator Next Steps
 
