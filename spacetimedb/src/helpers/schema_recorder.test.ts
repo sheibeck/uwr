@@ -167,6 +167,7 @@ describe('llm_run and llm_sweep registration (PIPE-09, PIPE-05)', () => {
     costMicroUsd: 0n,
     budgetDay: '',
     applyAttempts: 0n,
+    ledgerChargedMicroUsd: 0n,
   });
 
   it('captures llm_run as a procedure and llm_sweep as a reducer', () => {

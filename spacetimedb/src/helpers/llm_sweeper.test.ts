@@ -89,6 +89,7 @@ function jobRow(over: Record<string, any> = {}): Record<string, any> {
     costMicroUsd: 0n,
     budgetDay: '',
     applyAttempts: 0n,
+    ledgerChargedMicroUsd: 0n,
     ...over,
   };
 }

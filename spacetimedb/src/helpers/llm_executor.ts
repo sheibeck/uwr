@@ -52,6 +52,7 @@ import {
   isPhaseLedgerExhausted,
   releaseLlmReservation,
   settleLlmCost,
+  subtractLedgerSpend,
 } from './llm_budget';
 import { deferDelayMs, msToMicros, retryDelayMs, shouldRetry } from './llm_retry';
 import { hasLlmDispatch, insertLlmDispatch, scheduledMicros } from './llm_schedule';
@@ -318,7 +319,8 @@ interface AttemptOutcome {
  * Persist (tx2): one outcome rule per attempt, and always one call-log row. The
  * transaction proceeds only for a job that is still in_flight with the claimed
  * attempt; when the sweeper expired it meanwhile (its reservation is already
- * released), only the call-log row and the real cost on the ledger are written.
+ * released), only the call-log row is written and the sweeper's conservative
+ * ledger charge is swapped for the real cost (never added to it).
  *
  * Outcome to money:
  * - ok: settle the real cost, charge the player (usage missing: the ledger is
@@ -369,8 +371,18 @@ function persistAttempt(ctx: any, c: RunClaim, a: AttemptOutcome, deps: Executor
     };
 
     if (!job || job.status !== 'in_flight' || job.attempt !== c.attempt) {
+      // The sweeper expired this attempt and charged the ledger its reservation (billing unknown).
+      // Now the billing is known: swap that stand-in for the real cost instead of adding to it.
+      // With no usage the stand-in stays (the call was still billed), and nothing is added.
+      const charged: bigint = job && job.attempt === c.attempt ? (job.ledgerChargedMicroUsd ?? 0n) : 0n;
+      if (charged > 0n && !usageMissing) {
+        subtractLedgerSpend(tx, charged);
+        addLedgerSpend(tx, realCost);
+        tx.db.llm_job.id.update({ ...job, ledgerChargedMicroUsd: 0n, costMicroUsd: job.costMicroUsd + realCost });
+      } else if (charged === 0n) {
+        addLedgerSpend(tx, realCost);
+      }
       logCall(realCost);
-      addLedgerSpend(tx, realCost);
       return { kind: 'stale' };
     }
 

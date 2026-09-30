@@ -2166,6 +2166,9 @@ export const LlmJob = table(
     costMicroUsd: t.u64().default(0n),       // settled cost from the four usage counts
     budgetDay: t.string().default(''),       // UTC date the reservation was booked against
     applyAttempts: t.u64().default(0n),      // apply runs so far (re-runs once from stored text)
+    // The sweeper's conservative ledger charge for an in_flight attempt it expired (billing unknown).
+    // A reply that arrives later swaps it for the real cost, so the ledger never counts the call twice.
+    ledgerChargedMicroUsd: t.u64().default(0n),
   }
 );
 

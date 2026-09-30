@@ -20,7 +20,7 @@ import { encodeRouteInput, smokeInputFor } from './llm_inputs';
 import { insertLlmDispatch, scheduledMicros } from './llm_schedule';
 import { applyLlmFailure, applyLlmResult } from './llm_apply';
 import { runLlmJob, claimLlmJob, BILLED_FAILURE_CLASSES, type ExecutorDeps } from './llm_executor';
-import { releaseLlmReservation } from './llm_budget';
+import { sweepLlmJobs } from './llm_sweeper';
 import { retryDelayMs, msToMicros } from './llm_retry';
 import { awardRenown } from './renown';
 import { appendPrivateEvent } from './events';
@@ -164,6 +164,7 @@ function jobRow(over: Record<string, any> = {}): Record<string, any> {
     costMicroUsd: 0n,
     budgetDay: '',
     applyAttempts: 0n,
+    ledgerChargedMicroUsd: 0n,
     ...over,
   };
 }
@@ -1339,20 +1340,27 @@ describe('combat narration lateness at persist (PIPE-07)', () => {
 });
 
 describe('stale arrival (T-41-08)', () => {
-  it('a reply arriving after the sweeper expired the job: the job stays expired, no apply, one call-log row, ledger grows by the real cost, player untouched', () => {
-    const proc = makeProc([reply('ok_text')]);
-    const jobId = enqueue(proc, 'npc_conversation');
+  /**
+   * The real sweeper expires the job while the call is in flight: the clock moves past the route
+   * timeout plus the grace, and sweepLlmJobs runs in its own transaction (it charges the ledger the
+   * reservation, because billing is unknown, and refunds the player).
+   */
+  const sweepMidCall = (proc: Proc) => {
     const originalFetch = proc.ctx.http.fetch.bind(proc.ctx.http);
     proc.ctx.http.fetch = (url: string, init: any) => {
       const res = originalFetch(url, init);
-      // The sweeper expires the job while the call is in flight and refunds its reservation.
-      proc.ctx.withTx((tx: any) => {
-        const j = tx.db.llm_job.id.find(jobId);
-        const patch = releaseLlmReservation(tx, j, { refundCall: true });
-        tx.db.llm_job.id.update({ ...j, ...patch, status: 'expired', errorCode: 'timeout', finishedAt: tx.timestamp });
-      });
+      proc.clock.advance(BigInt(LLM_ROUTES.npc_conversation.timeoutMs) * 1000n + 31_000_000n);
+      proc.ctx.withTx((tx: any) => sweepLlmJobs(tx, { applyFailure: () => {}, log: () => {} }));
       return res;
     };
+  };
+
+  it('a reply arriving after the sweeper expired the job: the job stays expired, no apply, one call-log row, the ledger holds only the real cost (the stand-in is swapped, never added), player untouched', () => {
+    const proc = makeProc([reply('ok_text')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const reserved: bigint = jobOf(proc, jobId).reservedMicroUsd;
+    expect(reserved).toBeGreaterThan(0n);
+    sweepMidCall(proc);
     const deps = makeDeps(proc);
 
     const outcome = run(proc, jobId, deps);
@@ -1360,7 +1368,10 @@ describe('stale arrival (T-41-08)', () => {
     expect(outcome).toBe('stale');
     const job = jobOf(proc, jobId);
     expect(job.status).toBe('expired');
+    expect(job.errorCode).toBe('timeout');
     expect(job.resultText).toBeUndefined();
+    expect(job.ledgerChargedMicroUsd).toBe(0n);
+    expect(job.costMicroUsd).toBe(FIXTURE_COST);
     expect(deps.apply).not.toHaveBeenCalled();
     expect(callLogs(proc, jobId)).toHaveLength(1);
     expect(ledger(proc).spentMicroUsd).toBe(FIXTURE_COST);
@@ -1368,6 +1379,39 @@ describe('stale arrival (T-41-08)', () => {
     expect(playerDay(proc).spentMicroUsd).toBe(0n);
     expect(playerDay(proc).reservedMicroUsd).toBe(0n);
     expect(playerDay(proc).calls).toBe(0n);
+  });
+
+  it('the sweeper records its conservative charge on the job while the reply is outstanding', () => {
+    const proc = makeProc([reply('ok_text')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const reserved: bigint = jobOf(proc, jobId).reservedMicroUsd;
+    let seen: any;
+    const originalFetch = proc.ctx.http.fetch.bind(proc.ctx.http);
+    proc.ctx.http.fetch = (url: string, init: any) => {
+      const res = originalFetch(url, init);
+      proc.clock.advance(BigInt(LLM_ROUTES.npc_conversation.timeoutMs) * 1000n + 31_000_000n);
+      proc.ctx.withTx((tx: any) => sweepLlmJobs(tx, { applyFailure: () => {}, log: () => {} }));
+      seen = { job: { ...jobOf(proc, jobId) }, spent: ledger(proc).spentMicroUsd };
+      return res;
+    };
+    run(proc, jobId);
+    expect(seen.job.status).toBe('expired');
+    expect(seen.job.ledgerChargedMicroUsd).toBe(reserved);
+    expect(seen.spent).toBe(reserved);
+  });
+
+  it('a late reply with no usage keeps the conservative charge and adds nothing', () => {
+    const noUsage = reply('ok_text');
+    noUsage.body = { ...noUsage.body };
+    delete noUsage.body.usage;
+    const proc = makeProc([noUsage]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const reserved: bigint = jobOf(proc, jobId).reservedMicroUsd;
+    sweepMidCall(proc);
+
+    expect(run(proc, jobId)).toBe('stale');
+    expect(ledger(proc).spentMicroUsd).toBe(reserved);
+    expect(jobOf(proc, jobId).ledgerChargedMicroUsd).toBe(reserved);
   });
 });
 

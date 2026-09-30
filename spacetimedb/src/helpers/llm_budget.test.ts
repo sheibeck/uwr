@@ -18,6 +18,7 @@ import {
   settleLlmCost,
   chargeLedgerUnknownBilling,
   addLedgerSpend,
+  subtractLedgerSpend,
   getPhaseLedger,
   isPhaseLedgerExhausted,
   prunePlayerBudgets,
@@ -512,6 +513,30 @@ describe('unknown billing and late arrivals', () => {
     expect(rows(ctx, 'llm_spend')).toHaveLength(1);
     expect(ledger(ctx)).toMatchObject({ spentMicroUsd: 80n, reservedMicroUsd: 0n, calls: 0n });
     expect(rows(ctx, 'llm_player_budget')).toHaveLength(0);
+  });
+
+  it('subtractLedgerSpend takes back an earlier charge, floored at zero, and never creates the row', () => {
+    const empty = createMockCtx({ timestampMicros: T_2026_09_30 });
+    subtractLedgerSpend(empty, 5n);
+    expect(rows(empty, 'llm_spend')).toHaveLength(0);
+
+    const ctx = createMockCtx({ timestampMicros: T_2026_09_30 });
+    addLedgerSpend(ctx, 80n);
+    subtractLedgerSpend(ctx, 30n);
+    expect(ledger(ctx).spentMicroUsd).toBe(50n);
+    subtractLedgerSpend(ctx, 500n);
+    expect(ledger(ctx).spentMicroUsd).toBe(0n);
+  });
+
+  it('a late arrival swaps the conservative charge: charge, take back, add the real cost = the real cost only', () => {
+    const ctx = createMockCtx({ timestampMicros: T_2026_09_30 });
+    const job = reservedJob(ctx);
+    chargeLedgerUnknownBilling(ctx, job); // the sweeper's stand-in
+    releaseLlmReservation(ctx, job, { refundCall: true });
+    subtractLedgerSpend(ctx, R); // the reply arrived: billing is known now
+    addLedgerSpend(ctx, 123n);
+    expect(ledger(ctx).spentMicroUsd).toBe(123n);
+    expect(ledger(ctx).reservedMicroUsd).toBe(0n);
   });
 
   it('a never-billed platform failure never charges the player (T-41-04 fairness)', () => {

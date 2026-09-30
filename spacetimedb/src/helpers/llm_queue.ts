@@ -234,6 +234,7 @@ export function enqueueLlmJob(ctx: any, a: EnqueueArgs): EnqueueResult {
     costMicroUsd: 0n,
     budgetDay: reservation.budgetDay,
     applyAttempts: 0n,
+    ledgerChargedMicroUsd: 0n,
   });
   insertLlmDispatch(ctx, job.id, ctx.timestamp.microsSinceUnixEpoch);
   ensureLlmSweepScheduled(ctx);

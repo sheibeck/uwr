@@ -153,9 +153,18 @@ export function sweepLlmJobs(ctx: any, deps?: Partial<SweepDeps>): SweepReport {
       if (now - since <= timeoutMicros(job.route) + LLM_SWEEP_IN_FLIGHT_GRACE_MICROS) return;
 
       // Money and status first. Billing is unknown: the ledger is charged the reservation, the player nothing.
+      // The charge is recorded on the job so a reply that still arrives swaps it for the real cost.
       chargeLedgerUnknownBilling(ctx, job);
+      const charged: bigint = job.reservedMicroUsd > 0n ? job.reservedMicroUsd : 0n;
       const patch = releaseLlmReservation(ctx, job, { refundCall: true });
-      const expired = { ...job, ...patch, status: 'expired', errorCode: 'timeout', finishedAt: ctx.timestamp };
+      const expired = {
+        ...job,
+        ...patch,
+        status: 'expired',
+        errorCode: 'timeout',
+        finishedAt: ctx.timestamp,
+        ledgerChargedMicroUsd: (job.ledgerChargedMicroUsd ?? 0n) + charged,
+      };
       ctx.db.llm_job.id.update(expired);
       report.expiredInFlight += 1;
 

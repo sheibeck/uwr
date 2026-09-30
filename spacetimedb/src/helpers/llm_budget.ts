@@ -198,6 +198,18 @@ export function addLedgerSpend(ctx: any, micro: bigint): void {
   });
 }
 
+/** Take back an earlier ledger charge (floored at zero): the late-arrival swap of a conservative charge. */
+export function subtractLedgerSpend(ctx: any, micro: bigint): void {
+  if (micro <= 0n) return;
+  const ledger = getPhaseLedger(ctx);
+  if (!ledger) return;
+  ctx.db.llm_spend.id.update({
+    ...ledger,
+    spentMicroUsd: subFloor(ledger.spentMicroUsd, micro),
+    updatedAt: ctx.timestamp,
+  });
+}
+
 /**
  * Replace a reservation with the real cost: release without a call refund, add
  * the actual cost to the ledger always and to the player only when chargePlayer.
