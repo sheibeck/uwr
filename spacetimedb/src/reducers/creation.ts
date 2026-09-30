@@ -1,4 +1,5 @@
 import { ensureDefaultHotbar } from '../helpers/items';
+import { PLAYER_INPUT_MAX_CHARS, truncateCodePoints } from '../data/llm_layers';
 import { startCreationGeneration } from '../helpers/creation_generation';
 import { retryStarterWorldGen, startWorldGeneration, STARTER_RETRY_MESSAGES } from '../helpers/world_gen';
 
@@ -468,10 +469,11 @@ export const registerCreationReducers = (deps: any) => {
     // Main state machine
     switch (state.step) {
       case 'AWAITING_RACE': {
-        // Store freeform race description, advance to GENERATING_RACE
+        // Store freeform race description, advance to GENERATING_RACE. Capped at what the model
+        // sees, so the public state row, the job snapshot and the reservation never carry more.
         const generating = {
           ...state,
-          raceDescription: trimmed,
+          raceDescription: truncateCodePoints(trimmed, PLAYER_INPUT_MAX_CHARS),
           step: 'GENERATING_RACE',
           updatedAt: ctx.timestamp,
         };

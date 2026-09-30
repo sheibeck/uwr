@@ -13,7 +13,7 @@ import {
   MAX_QUESTS_PER_NPC,
   parseNpcPersonality,
 } from '../helpers/npc_conversation';
-import type { NpcConversationInput } from '../data/llm_layers';
+import { PLAYER_INPUT_MAX_CHARS, truncateCodePoints, type NpcConversationInput } from '../data/llm_layers';
 import { npcGender } from '../data/npc_gender';
 
 export const registerNpcInteractionReducers = (deps: any) => {
@@ -27,7 +27,9 @@ export const registerNpcInteractionReducers = (deps: any) => {
   }, (ctx: any, args: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const { npcId } = args;
-    const message = typeof args.message === 'string' ? args.message.trim() : '';
+    // Capped here, before the job snapshot and the echo: the model only ever sees this many code
+    // points, so the reservation, the stored snapshot and the log never carry more.
+    const message = truncateCodePoints(typeof args.message === 'string' ? args.message.trim() : '', PLAYER_INPUT_MAX_CHARS);
 
     const npc = ctx.db.npc.id.find(npcId);
     if (!npc) { fail(ctx, character, 'NPC not found.'); return; }

@@ -22,6 +22,7 @@ import { resolveRouteInput } from '../helpers/llm_inputs';
 import { utcDay } from '../helpers/llm_budget';
 import { buildRouteLayers } from '../data/llm_layers';
 import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
+import { PLAYER_INPUT_MAX_CHARS } from '../data/llm_layers';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
@@ -214,6 +215,26 @@ describe('talk_to_npc (NPC chat cutover)', () => {
     const { volatile } = buildRouteLayers('npc_conversation', input);
     expect(volatile).toMatch(/<player_input>\s*Hello there\s*<\/player_input>/);
     expect(volatile).toContain('Gender: female (she, her, hers)');
+  });
+
+  // WR-B01: the model sees at most PLAYER_INPUT_MAX_CHARS code points, so nothing stores or reserves more.
+  it('caps a very long message at the reducer: snapshot, reservation and echo carry only what the model sees, and it never throws', () => {
+    const long = '\u{1F600}'.repeat(PLAYER_INPUT_MAX_CHARS + 10) + 'x'.repeat(70_000);
+    const ctx = newCtx(baseSeed());
+    expect(() => talk(ctx, long)).not.toThrow();
+
+    const job = expectEnqueued(ctx, 'npc_conversation');
+    const capped = [...long].slice(0, PLAYER_INPUT_MAX_CHARS).join('');
+    expect((resolveRouteInput(ctx, job) as any).playerMessage).toBe(capped);
+    expect([...JSON.parse(job.requestJson).input.playerMessage]).toHaveLength(PLAYER_INPUT_MAX_CHARS);
+
+    const short = newCtx(baseSeed());
+    talk(short, capped);
+    expect(job.reservedMicroUsd).toBe(expectEnqueued(short, 'npc_conversation').reservedMicroUsd);
+
+    const said = rows(ctx, 'event_private').filter((e: any) => e.kind === 'say').map((e: any) => e.message);
+    expect(said).toEqual([`You say to Mirel: "${capped}"`]);
+    expect(rows(ctx, 'npc_dialog').map((d: any) => d.text)).toContain(`You: "${capped}"`);
   });
 
   it('resolves a pre-column NPC (empty stored gender) deterministically and renders the Gender line', () => {
@@ -890,6 +911,18 @@ describe('submit_creation_input (creation cutover, PIPE-01 / PIPE-04)', () => {
     expect(creationEvents(ctx).map((e: any) => e.message)).toEqual([
       'Mystic. Interesting. The Keeper is forging something... unique for you. Stand by.',
     ]);
+  });
+
+  it('caps a very long race description at the reducer: the public state row and the job snapshot carry at most the model limit', () => {
+    const long = 'A people of salt and patience. '.repeat(3_000);
+    const ctx = newCtx(creationSeed('AWAITING_RACE'));
+    expect(() => submit(ctx, long)).not.toThrow();
+
+    const capped = [...long.trim()].slice(0, PLAYER_INPUT_MAX_CHARS).join('');
+    const job = expectEnqueued(ctx, 'creation_race');
+    expect(resolveRouteInput(ctx, job)).toEqual({ raceDescription: capped });
+    expect(rows(ctx, 'character_creation_state')[0].raceDescription).toBe(capped);
+    expect(rows(ctx, 'character_creation_state')[0].step).toBe('GENERATING_RACE');
   });
 
   it('a known race is reused: straight to AWAITING_ARCHETYPE, no job, no considering line', () => {
