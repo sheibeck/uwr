@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 40
 current_phase_name: Claude Request Layer and Job Seam
 status: executing
-stopped_at: Completed 40-06-PLAN.md
-last_updated: "2026-09-30T03:00:00.125Z"
+stopped_at: Completed 40-07-PLAN.md
+last_updated: "2026-09-30T03:05:44.992Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 40 execution started
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 21
-  completed_plans: 17
+  completed_plans: 18
   percent: 17
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-29)
 ## Current Position
 
 Phase: 40 (Claude Request Layer and Job Seam) — EXECUTING
-Plan: 7 of 10
+Plan: 8 of 10
 Status: Ready to execute
 Last activity: 2026-09-29 — Phase 40 execution started
 
-Progress: [████████░░] 81% (1/6 phases)
+Progress: [█████████░] 86% (1/6 phases)
 
 ## Previous Milestones
 
@@ -67,6 +67,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 40-05: submit_llm_result pinned by 120 characterization cases and 116 snapshots; Plan 40-08 must pass them unmodified
 - [Phase ?]: 40-05: rank-2 renown static fallback throws on bigint JSON.stringify (pinned as a throw, unfixed); creation race/class clamping gap pinned for Phase 41
 - [Phase ?]: [40-06] RETRYABLE_CLASSES is a frozen array (rate_limit, overloaded, server, timeout, network); spend-cap 429 recognised by error_code alone; retryAfterSeconds only for retryable classes from a numeric header
+- [Phase ?]: 40-07: perkEffectJson bigint values serialized as plain JSON numbers (safe range) so stored JSON matches the perk prompt shape; index.ts copy of the fallback still has the bigint defect (Phase 41)
 
 ### Roadmap Evolution
 
@@ -114,8 +115,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-30T03:00:00.100Z
-Stopped at: Completed 40-06-PLAN.md
+Last session: 2026-09-30T03:05:44.959Z
+Stopped at: Completed 40-07-PLAN.md
 
 ## Performance Metrics
 
@@ -146,6 +147,7 @@ Stopped at: Completed 40-06-PLAN.md
 | Phase 40 P04 | 12min | 2 tasks | 4 files |
 | Phase 40 P05 | 55min | 3 tasks | 4 files |
 | Phase 40 P06 | 15min | 2 tasks | 35 files |
+| Phase 40 P07 | 30min | 2 tasks | 7 files |
 
 ## Operator Next Steps
 
