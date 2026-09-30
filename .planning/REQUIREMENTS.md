@@ -11,13 +11,13 @@
 
 ### Spike (go/no-go gate)
 
-- [ ] **SPIKE-01**: Operator can run a throwaway SpacetimeDB 2.10 procedure locally that reaches a public URL, `GET /v1/models`, and a small Sonnet 5.5 call, with results and server logs recorded
-- [ ] **SPIKE-02**: The spike measures structured-output calls with the real skill and region schemas at effort `low` and `medium`, and records the failure shape of a forced timeout and a bad key
-- [ ] **SPIKE-03**: The spike measures:
+- [x] **SPIKE-01**: Operator can run a throwaway SpacetimeDB 2.10 procedure locally that reaches a public URL, `GET /v1/models`, and a small Sonnet 5.5 call, with results and server logs recorded
+- [x] **SPIKE-02**: The spike measures structured-output calls with the real skill and region schemas at effort `low` and `medium`, and records the failure shape of a forced timeout and a bad key
+- [x] **SPIKE-03**: The spike measures:
   - scheduled-dispatch latency
   - `ctx.sender` in scheduled procedures
   - reducer and combat-tick latency with 6–8 concurrent in-flight calls
-- [ ] **SPIKE-04**: A written go/no-go decision record picks the executor.
+- [x] **SPIKE-04**: A written go/no-go decision record picks the executor.
   - Gate:
     - every non-drill call succeeds
     - dispatch p95 < ~250 ms
@@ -115,10 +115,10 @@ Filled by roadmap creation (2026-09-29). Each requirement maps to exactly one ph
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SPIKE-01 | Phase 39 | Pending |
-| SPIKE-02 | Phase 39 | Pending |
-| SPIKE-03 | Phase 39 | Pending |
-| SPIKE-04 | Phase 39 | Pending |
+| SPIKE-01 | Phase 39 | Complete |
+| SPIKE-02 | Phase 39 | Complete |
+| SPIKE-03 | Phase 39 | Complete |
+| SPIKE-04 | Phase 39 | Complete |
 | CLAUDE-01 | Phase 40 | Pending |
 | CLAUDE-02 | Phase 40 | Pending |
 | CLAUDE-03 | Phase 40 | Pending |
