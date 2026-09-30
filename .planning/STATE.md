@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 41
 current_phase_name: Executor and Domain Cutover
 status: executing
-stopped_at: Completed 41-18-PLAN.md
-last_updated: "2026-09-30T17:41:07.871Z"
+stopped_at: Completed 41-17-PLAN.md (live proof and maincloud proof deferred by user)
+last_updated: "2026-09-30T18:33:28.979Z"
 last_activity: 2026-09-30
-last_activity_desc: Phase 41 execution started
+last_activity_desc: Completed 41-16 and 41-17 (live proof and maincloud proof deferred, human_needed)
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 39
-  completed_plans: 37
+  completed_plans: 39
   percent: 33
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 41 (Executor and Domain Cutover) — EXECUTING
-Plan: 41-18 done (18 plans total; order 41-18, 41-16, 41-17; next is 41-16)
-Status: Ready to execute 41-16
-Last activity: 2026-09-30 — Completed 41-18 (NPC gender and pronoun rule)
+Plan: 18/18 plans have summaries (41-16 and 41-17 closed as deferred by the user)
+Status: All Phase 41 plans executed; live proof and maincloud proof are DEFERRED (human_needed). Next: phase-level code review and verification (verification must report both proofs as outstanding, not passed)
+Last activity: 2026-09-30 — Completed 41-16 and 41-17 (deferrals recorded)
 
-Progress: [█████████░] 92% (2/6 phases)
+Progress: [███░░░░░░░] 33% (2/6 phases)
 
 ## Previous Milestones
 
@@ -91,6 +91,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [Phase 41-14]: World-gen failure goes to ERROR (failWorldGen), never PENDING; only the player's explore retries, including the first region (fresh starter state for a character at location 0 whose starter state is ERROR)
 - [Phase ?]: [Phase 41-14]: startWorldGeneration returns reused|enqueued|duplicate|refused; the ripple line posts only on enqueued or duplicate; a refusal sets ERROR with a fixed in-voice errorMessage (world_gen_state is public)
 - [Phase ?]: 41-15: live-proof harness connects with withDatabaseName('uwr') (SDK 2.10 has no withModuleName); paid mode = PROVE_LIVE_DRY unset, re-runnable; A1 settled (CLI token is an admin, admin_llm_status rows: 1)
+- [Phase 41]: 41-16/41-17: live proof and maincloud proof deferred by user (2026-09-30, human_needed, not passed); key stored locally (len 108); 41-MAINCLOUD-CHECKLIST.md written for the user to run
 - [Phase ?]: [41-18] NPC gender: male/female clamp (model value, text pronouns, FNV-1a name hash); npc.gender column default '' needed only --break-clients locally (no clear); Bible: Keeper is he, people he or she, beasts may be it, player is you; npcGender(row) is the only reader
 
 ### Roadmap Evolution
@@ -110,6 +111,9 @@ See MILESTONES.md for full delivery summaries.
 
 ### Blockers/Concerns
 
+- **[Phase 41 DEFERRED, user action] Local live proof (41-16 Task 2) not run.** The user set the Anthropic key locally (keySet true, len 108, `keyValid` false until a smoke test passes) and decided on 2026-09-30 "we can skip the live proof for now". Nothing has been proven against real Claude: no smoke test, no real action per domain, no real-response usage or latency figures, no he/she pronoun check on real output. Resume: `41-LOCAL-PROOF.md` ("How to resume later"): `spacetime call uwr llm_smoke_test --server local`, then `pnpm exec vitest run --config scripts/llm/vitest.live.config.ts` (PROVE_LIVE_DRY unset). The key stays stored locally, so local play makes real calls within the caps ($1/day and 200 calls per player, $2 phase ledger). Do not `--clear-database` locally without need (it wipes the key).
+- **[Phase 41 DEFERRED, user action] Maincloud proof (41-17) not run.** `41-MAINCLOUD-CHECKLIST.md` is written for the user; the user chose to defer the run. The Phase 39 gate re-check on maincloud (dispatch p95 under 250 ms, zero reliability failures, region schema, responsiveness, no browser request to Anthropic or a proxy) is deferred too. Run the local live proof first. A maincloud publish adds `npc.gender` (default '') and needs `--break-clients` (no data loss, no clear); the first publish after the 2.10 upgrade may also need it.
+- [Phase 41 follow-up, cosmetic] `set-key.mjs` prints Node warning `MODULE_TYPELESS_PACKAGE_JSON` for `spacetimedb/src/helpers/measurement.ts`; adding `"type": "module"` to `spacetimedb/package.json` would silence it.
 - [Phase 38] Live LLM calls fail: the OpenAI account behind llm-proxy/.dev.vars returns 429 "no credits" -- deferred to the LLM milestone by user decision; v2.2 replaces the OpenAI path with Claude
 - [v2.2] The Phase 39 maincloud leg ran in Plan 39-11 on uwr-spike-925iv by user decision on 2026-09-29 and the go decision is confirmed; Phase 41 still proves the real executor on maincloud. The maincloud leg of QUAL-02 (Phase 44) remains a manual user action
 - [v2.2] `--clear-database` wipes the private `llm_config` Anthropic key; avoid unless a schema change requires it (runbook lands in Phase 41)
@@ -146,8 +150,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-30T17:41:07.417Z
-Stopped at: Completed 41-18-PLAN.md
+Last session: 2026-09-30T18:33:28.979Z
+Stopped at: Completed 41-17-PLAN.md (live proof and maincloud proof deferred by user)
 
 ## Performance Metrics
 
@@ -198,6 +202,8 @@ Stopped at: Completed 41-18-PLAN.md
 | Phase 41 P14 | 25min | 3 tasks | 17 files |
 | Phase 41 P15 | 35min | 2 tasks | 10 files |
 | Phase 41 P18 | ~60min | 3 tasks | 32 files |
+| Phase 41 P16 | ~10min | 1 of 2 tasks (Task 2 deferred) | 1 files |
+| Phase 41 P17 | ~15min | 3 tasks (Task 2 deferred by user) | 2 files |
 
 ## Operator Next Steps
 

@@ -194,7 +194,7 @@ Plans:
 **Domain cutover order**: NPC chat, combat narration, skills plus renown, creation, world gen. Reducers enqueue in-transaction (no client `prepare_*` calls), and client call sites are adjusted as each domain moves so no domain is left half-wired. Old `llm_task` rows are purged at the end (code-only publish, first of the two publishes for SEC-05; table removal happens in Phase 42).
 **Interim cost guard**: until COST-03 lands in Phase 43, live spend is bounded by the per-player daily budget plus a spend limit on the dedicated Anthropic Console workspace named in the runbook.
 **Testing**: Unit tests for enqueue-in-transaction per domain, claim/persist/apply transitions and re-run from stored text, each error class and its retry or fail-fast path, sweeper refund and lock release, in-flight cap, late combat narration drop, reserve/settle math from all four usage fields, key redaction and admin-only gating, all through the Phase 40 mock procedure context.
-**Plans**: 16/18 plans executed
+**Plans**: 18/18 plans executed
 
 Plans:
 
@@ -249,11 +249,11 @@ Plans:
 
 **Wave 12** *(blocked on Wave 11 completion)*
 
-- [ ] 41-16-PLAN.md — [checkpoint] User sets the key; local smoke test and one real action per domain under the $2 cap
+- [x] 41-16-PLAN.md — [checkpoint] User sets the key; local smoke test and one real action per domain under the $2 cap (key set; live proof DEFERRED by user, human_needed)
 
 **Wave 13** *(blocked on Wave 12 completion)*
 
-- [ ] 41-17-PLAN.md — [checkpoint] Maincloud checklist; user runs it or defers (human_needed); gate re-check
+- [x] 41-17-PLAN.md — [checkpoint] Maincloud checklist; user runs it or defers (human_needed); gate re-check (checklist written; maincloud run and gate re-check DEFERRED by user, human_needed)
 
 ### Phase 42: Client Cutover and Legacy Removal
 
@@ -316,7 +316,7 @@ Phases execute in numeric order: 39 → 40 → 41 → 42 → 43 → 44
 | 31, 32, 38 | v2.1 | 14/14 | Complete | 2026-09-29 |
 | 39. Procedure-to-Claude Spike | v2.2 | 11/11 | Complete    | 2026-09-29 |
 | 40. Claude Request Layer and Job Seam | v2.2 | 10/10 | Complete    | 2026-09-30 |
-| 41. Executor and Domain Cutover | v2.2 | 16/18 | In Progress|  |
+| 41. Executor and Domain Cutover | v2.2 | 18/18 | In Progress|  |
 | 42. Client Cutover and Legacy Removal | v2.2 | 0/TBD | Not started | - |
 | 43. Latency Tuning, Staged Generation and Budget | v2.2 | 0/TBD | Not started | - |
 | 44. Live Verification and Tone Eval | v2.2 | 0/TBD | Not started | - |
