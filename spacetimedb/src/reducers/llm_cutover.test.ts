@@ -11,7 +11,9 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { capturedReducer, rowColumnProblems } from '../helpers/schema_recorder';
-import { createMockCtx } from '../helpers/test-utils';
+import { createMockCtx, createMockProcCtx } from '../helpers/test-utils';
+import { enqueueCombatOutroNarration } from '../helpers/combat_narration';
+import { runLlmJob } from '../helpers/llm_executor';
 import { llmRefusalMessage } from '../helpers/llm_queue';
 import { resolveRouteInput } from '../helpers/llm_inputs';
 import { utcDay } from '../helpers/llm_budget';
@@ -347,5 +349,117 @@ describe('talk_to_npc (NPC chat cutover)', () => {
     expect(source).not.toMatch(/checkBudget|incrementBudget/);
     expect(source).not.toMatch(/(?:gpt-\d|claude-)/i);
     expect(source.match(/enqueueLlmJob\(ctx/g)).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Combat outro narration (41-11)
+// ---------------------------------------------------------------------------
+
+describe('combat outro narration (PIPE-07)', () => {
+  const combatSource = readFileSync(new URL('./combat.ts', import.meta.url), 'utf-8');
+  const victoryStart = combatSource.indexOf('const handleVictory = (');
+  const defeatStart = combatSource.indexOf('const handleDefeat = (');
+  const victoryText = combatSource.slice(victoryStart, defeatStart);
+  const defeatText = combatSource.slice(defeatStart, combatSource.indexOf('Round-Based Combat Functions', defeatStart));
+  const outroCall = (type: string) =>
+    `enqueueCombatOutroNarration(ctx, combat, participants, enemies, '${type}')`;
+  const clearCall = 'clearCombatArtifacts(ctx, combat.id)';
+
+  it('handleVictory enqueues the victory outro once, before clearCombatArtifacts', () => {
+    expect(victoryStart).toBeGreaterThan(0);
+    expect(defeatStart).toBeGreaterThan(victoryStart);
+    expect(victoryText.split(outroCall('victory'))).toHaveLength(2);
+    expect(victoryText.indexOf(outroCall('victory'))).toBeLessThan(victoryText.indexOf(clearCall));
+    expect(victoryText).not.toContain(outroCall('defeat'));
+  });
+
+  it('handleDefeat enqueues the defeat outro once, before its clearCombatArtifacts', () => {
+    expect(defeatText.split(outroCall('defeat'))).toHaveLength(2);
+    expect(defeatText.indexOf(outroCall('defeat'))).toBeLessThan(defeatText.indexOf(clearCall));
+    expect(defeatText).not.toContain(outroCall('victory'));
+  });
+
+  it('combat.ts has exactly two outro calls; the other clearCombatArtifacts site has none', () => {
+    expect(combatSource.match(/enqueueCombatOutroNarration\(ctx, combat/g)).toHaveLength(2);
+    const otherClear = combatSource.indexOf(clearCall, combatSource.indexOf('const clearCombatArtifacts') + 10);
+    expect(otherClear).toBeGreaterThan(0);
+    expect(otherClear).toBeLessThan(victoryStart);
+    const around = combatSource.slice(Math.max(0, otherClear - 600), otherClear + 200);
+    expect(around).not.toContain('enqueueCombatOutroNarration');
+  });
+
+  // End to end: enqueue through the helper inside a transaction, then run the executor on it.
+  const FAKE_KEY = ['sk', '-ant-', 'api03-', 'CUTOVERKEY'.repeat(4)].join('');
+  const okText = (advanceMicros: bigint) => ({
+    ...JSON.parse(
+      readFileSync(new URL('../helpers/__fixtures__/claude/ok_text.json', import.meta.url), 'utf-8'),
+    ),
+    advanceMicros,
+  });
+
+  const narrationProc = (advanceMicros: bigint) => {
+    const proc = createMockProcCtx({
+      seed: {
+        player: [{ id: alice, userId: 7n, activeCharacterId: 1n }],
+        character: [
+          { id: 1n, ownerUserId: 7n, name: 'Aldric', hp: 50n, maxHp: 100n },
+          { id: 2n, ownerUserId: 8n, name: 'Brienne', hp: 60n, maxHp: 100n },
+        ],
+        location: [{ id: 10n, name: 'Saltmarsh', description: 'x', zone: 'z', regionId: 1n }],
+        combat_encounter: [
+          { id: 1n, locationId: 10n, leaderCharacterId: 1n, state: 'active', addCount: 0n, pendingAddCount: 0n, createdAt: { microsSinceUnixEpoch: T0 } },
+        ],
+        combat_participant: [
+          { id: 1n, combatId: 1n, characterId: 1n, status: 'active', nextAutoAttackAt: 0n },
+          { id: 2n, combatId: 1n, characterId: 2n, status: 'active', nextAutoAttackAt: 0n },
+        ],
+        combat_enemy: [
+          { id: 1n, combatId: 1n, spawnId: 1n, enemyTemplateId: 1n, displayName: 'Cave Rat', currentHp: 0n, maxHp: 30n, attackDamage: 3n, armorClass: 1n, nextAutoAttackAt: 0n },
+        ],
+        llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: { microsSinceUnixEpoch: T0 } }],
+      },
+      timestampMicros: T0,
+      responses: [okText(advanceMicros)],
+      strict: true,
+    });
+    const combat = rows(proc, 'combat_encounter')[0];
+    proc.ctx.withTx((tx: any) =>
+      enqueueCombatOutroNarration(tx, combat, [...rows(proc, 'combat_participant')], [...rows(proc, 'combat_enemy')], 'victory'),
+    );
+    return proc;
+  };
+
+  const runNarration = (proc: any) => {
+    const dispatch = rows(proc, 'llm_dispatch').splice(0, 1)[0];
+    return runLlmJob(proc.ctx, dispatch, {
+      nowMs: () => Number(proc.clock.now() / 1000n),
+      log: () => {},
+    });
+  };
+
+  it('a scripted reply is applied: a combat_narration private event for both participants', () => {
+    const proc = narrationProc(2_000_000n);
+    expect(rows(proc, 'llm_job')).toHaveLength(1);
+    expect(runNarration(proc)).toBe('completed');
+
+    const job = rows(proc, 'llm_job')[0];
+    expect(job.status).toBe('completed');
+    const events = rows(proc, 'event_private').filter((e: any) => e.kind === 'combat_narration');
+    expect(events.map((e: any) => e.characterId).sort()).toEqual([1n, 2n]);
+    for (const e of events) expect(e.message).toBe('The rat considers you, then the door, and chooses neither.');
+    expect(rows(proc, 'combat_narrative')).toHaveLength(1);
+    expect(rows(proc, 'combat_narrative')[0].narrativeType).toBe('victory');
+  });
+
+  it('a reply persisted more than 20 s after enqueue is dropped: expired, errorCode late, no narration event', () => {
+    const proc = narrationProc(21_000_000n);
+    expect(runNarration(proc)).toBe('expired');
+
+    const job = rows(proc, 'llm_job')[0];
+    expect(job.status).toBe('expired');
+    expect(job.errorCode).toBe('late');
+    expect(rows(proc, 'event_private').filter((e: any) => e.kind === 'combat_narration')).toHaveLength(0);
+    expect(rows(proc, 'combat_narrative')).toHaveLength(0);
   });
 });

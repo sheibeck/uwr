@@ -20,6 +20,7 @@ import { getLocationSpawnCap } from '../helpers/location';
 import { RENOWN_GAIN } from '../data/renown_data';
 import { rollQualityTier, rollQualityForDrop, generateAffixData, buildDisplayName, getEquippedBonuses } from '../helpers/items';
 import { incrementWorldStat } from '../helpers/world_events';
+import { enqueueCombatOutroNarration } from '../helpers/combat_narration';
 import { WORLD_EVENT_DEFINITIONS } from '../data/world_event_data';
 import {
   awardEventContribution,
@@ -2143,6 +2144,7 @@ export const registerCombatReducers = (deps: any) => {
     }
     createCorpsesForDead(ctx, deps, participants);
     applyDeathPenalties(ctx, deps, participants, appendPrivateEvent, logGroupEvent, combat.id);
+    enqueueCombatOutroNarration(ctx, combat, participants, enemies, 'victory');
     clearCombatArtifacts(ctx, combat.id);
     ctx.db.combat_encounter.id.update({ ...combat, state: 'resolved' });
     for (const p of participants) {
@@ -2244,6 +2246,7 @@ export const registerCombatReducers = (deps: any) => {
       ctx.db.combat_result.id.delete(defeatResult.id);
     }
     createCorpsesForDead(ctx, deps, participants);
+    enqueueCombatOutroNarration(ctx, combat, participants, enemies, 'defeat');
     clearCombatArtifacts(ctx, combat.id);
     ctx.db.combat_encounter.id.update({ ...combat, state: 'resolved' });
     applyDeathPenalties(ctx, deps, participants, appendPrivateEvent);
