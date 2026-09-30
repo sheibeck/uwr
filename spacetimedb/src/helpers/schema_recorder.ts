@@ -172,6 +172,33 @@ export function recordedTable(name: string): RecordedTable | undefined {
   return recorded.find((r) => r.name === name);
 }
 
+/** What a strict mock DB may touch on one table: real index accessors and key accessors. */
+export interface StrictTableSpec {
+  /** Declared btree index accessor to the column its filter matches (the first index column). */
+  indexes: Record<string, string>;
+  /** Primary-key and unique column names; each is also an accessor (find/update/delete). */
+  keys: string[];
+}
+
+/**
+ * The accessors real SpacetimeDB generates for a recorded table, or undefined when the
+ * table was never recorded (import schema/tables first). Feeds createMockDb's strict mode.
+ */
+export function strictTableSpec(tableName: string): StrictTableSpec | undefined {
+  const rec = recordedTable(tableName);
+  if (!rec) return undefined;
+  const indexes: Record<string, string> = {};
+  for (const idx of rec.opts?.indexes ?? []) {
+    const accessor = idx?.accessor ?? idx?.name;
+    const column = Array.isArray(idx?.columns) ? idx.columns[0] : undefined;
+    if (typeof accessor === 'string' && typeof column === 'string') indexes[accessor] = column;
+  }
+  const keys = Object.entries(rec.cols)
+    .filter(([, info]) => info.primaryKey || info.unique)
+    .map(([col]) => col);
+  return { indexes, keys };
+}
+
 export function recordedTables(): RecordedTable[] {
   return [...recorded];
 }

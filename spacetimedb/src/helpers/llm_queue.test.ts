@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { rowColumnProblems } from './schema_recorder';
-import { createMockCtx } from './test-utils';
+import { createMockCtx as createLenientMockCtx } from './test-utils';
 import { findSecretLeaks } from './measurement';
 import { CLAUDE_MODEL } from '../data/llm_models';
 import { LLM_ROUTE_NAMES } from '../data/llm_routes';
@@ -23,6 +23,15 @@ import {
 vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
 );
+
+// Strict mock db (WR-04): unknown index accessors and missing-row updates throw, like the real db.
+// The accessors come from the recorded schema, so load it before any test touches ctx.db.
+beforeAll(async () => {
+  await import('../schema/tables');
+});
+
+const createMockCtx = (o: Parameters<typeof createLenientMockCtx>[0] = {}) =>
+  createLenientMockCtx({ ...o, strict: true });
 
 const ident = (hex: string) => ({ toHexString: () => hex });
 const rows = (ctx: any, table: string): any[] => ctx.db[table]._rows();

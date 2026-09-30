@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 // This tsconfig has no @types/node; vitest runs the file in Node, so the built-ins resolve at runtime.
 // @ts-ignore
 import { readFileSync } from 'node:fs';
@@ -16,6 +16,12 @@ import { registerViews } from './index';
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
 );
+
+// Strict mock db (WR-04): unknown index accessors and missing-row updates throw, like the real db.
+// The accessors come from the recorded schema, so load it before any test touches ctx.db.
+beforeAll(async () => {
+  await import('../schema/tables');
+});
 
 const FAILURE_CLASSES = [
   'auth',
@@ -61,7 +67,7 @@ function job(id: bigint, playerId: any, over: Record<string, unknown> = {}) {
 
 /** Wrap a mock DB so touching any table's iter throws: the view must use index lookups only. */
 function noScanDb(seed: Record<string, any[]>) {
-  const db = createMockDb(seed);
+  const db = createMockDb(seed, { strict: true });
   return new Proxy({} as any, {
     get: (_t, table: string) =>
       new Proxy({} as any, {

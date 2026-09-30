@@ -9,7 +9,7 @@
  *
  * No network. The API key is a fake built from fragments.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 // @ts-ignore node types are not part of this module's tsconfig (same as other source-reading tests)
 import { readFileSync } from 'node:fs';
 // @ts-ignore see above
@@ -43,6 +43,13 @@ vi.mock('./events', () => ({
   appendPrivateEvent: vi.fn(),
   appendWorldEvent: vi.fn(),
 }));
+
+// Strict mock db (WR-04): unknown index accessors and missing-row updates throw, like the real db.
+// The accessors come from the recorded schema, so load it before any test touches ctx.db.
+beforeAll(async () => {
+  await import('../schema/tables');
+});
+
 
 // ----------------------------------------------------------------------------
 // Fixtures and helpers
@@ -110,7 +117,7 @@ function seedTables(over: Record<string, any[]> = {}): Record<string, any[]> {
 }
 
 function makeProc(responses: Array<MockReply | MockThrow>, extra: { withTxReinvoke?: number } = {}) {
-  return createMockProcCtx({ seed: seedTables(), timestampMicros: T0, responses, ...extra });
+  return createMockProcCtx({ seed: seedTables(), timestampMicros: T0, responses, ...extra, strict: true });
 }
 
 type Proc = ReturnType<typeof createMockProcCtx>;

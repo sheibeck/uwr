@@ -6,7 +6,19 @@
  * without requiring the SpacetimeDB WASM runtime.
  */
 
-export function createMockDb(seed: Record<string, any[]> = {}) {
+import { strictTableSpec } from './schema_recorder';
+
+/**
+ * Strict mode (opt-in, off by default) makes the mock behave like the real database where
+ * the lenient default hides bugs: an unknown table or index accessor throws (the default
+ * guesses a column from the name), and an index update matching no row throws (the default
+ * does nothing). Accessors come from the recorded schema, so import '../schema/tables'
+ * under the recording spacetimedb/server mock before touching the db.
+ */
+export type MockDbOptions = { strict?: boolean };
+
+export function createMockDb(seed: Record<string, any[]> = {}, dbOpts: MockDbOptions = {}) {
+  const strict = dbOpts.strict === true;
   const tables: Record<string, any[]> = {};
   const nextIds: Record<string, bigint> = {};
 
@@ -32,7 +44,7 @@ export function createMockDb(seed: Record<string, any[]> = {}) {
   }
 
   // Build an index accessor for a given table + column
-  function indexFor(tableName: string, column: string) {
+  function indexFor(tableName: string, column: string, label: string = column) {
     return {
       filter: (value: any) =>
         getTable(tableName).filter((r: any) => r[column] === value),
@@ -42,6 +54,7 @@ export function createMockDb(seed: Record<string, any[]> = {}) {
         const arr = getTable(tableName);
         const idx = arr.findIndex((r: any) => r[column] === row[column]);
         if (idx >= 0) arr[idx] = row;
+        else if (strict) throw new Error(`strict mock: update on ${tableName}.${label} matched no row (real update throws)`);
       },
       delete: (value: any) => {
         const arr = getTable(tableName);
@@ -76,8 +89,30 @@ export function createMockDb(seed: Record<string, any[]> = {}) {
     get: (_: any, tableName: string) => {
       if (tableName === '_tables') return tables;
 
+      const spec = strict ? strictTableSpec(tableName) : undefined;
+      const requireSpec = (what: string) => {
+        if (strict && !spec) {
+          throw new Error(
+            `strict mock: ${what} on unknown table "${tableName}" (not in the recorded schema; import ../schema/tables first?)`,
+          );
+        }
+      };
       return new Proxy({} as any, {
         get: (_: any, prop: string) => {
+          if (strict && typeof prop === 'symbol') return undefined;
+          // Strict mode: only real index and key accessors exist on a table.
+          if (strict && prop !== 'insert' && prop !== 'iter' && prop !== '_rows') {
+            requireSpec(`accessor "${prop}"`);
+            if (spec && Object.prototype.hasOwnProperty.call(spec.indexes, prop)) {
+              return indexFor(tableName, spec.indexes[prop], prop);
+            }
+            if (spec && spec.keys.includes(prop)) return indexFor(tableName, prop, prop);
+            throw new Error(
+              `strict mock: "${prop}" is not an index or key accessor on ${tableName} ` +
+                `(indexes: ${Object.keys(spec?.indexes ?? {}).join(', ') || 'none'}; keys: ${(spec?.keys ?? []).join(', ') || 'none'})`,
+            );
+          }
+          if (strict && (prop === 'insert' || prop === 'iter')) requireSpec(prop);
           // insert: auto-increment 0n IDs, push to table, return row
           if (prop === 'insert') {
             return (row: any) => {
@@ -120,9 +155,11 @@ export function createMockCtx(opts: {
   seed?: Record<string, any[]>;
   sender?: any;
   timestampMicros?: bigint;
+  /** Opt-in strict db (see MockDbOptions). Default false: existing tests behave as before. */
+  strict?: boolean;
 } = {}) {
   return {
-    db: createMockDb(opts.seed ?? {}),
+    db: createMockDb(opts.seed ?? {}, { strict: opts.strict }),
     timestamp: { microsSinceUnixEpoch: opts.timestampMicros ?? 1_000_000_000_000n },
     sender: opts.sender ?? { toHexString: () => 'mock-identity-hex' },
   };
@@ -155,6 +192,8 @@ export type MockProcCtxOptions = {
   timestampMicros?: bigint;
   responses?: Array<MockReply | MockThrow>;
   withTxReinvoke?: number;
+  /** Opt-in strict db (see MockDbOptions). Default false. */
+  strict?: boolean;
 };
 
 /**
@@ -191,7 +230,7 @@ export function makeSyncResponse(reply: MockReply) {
  * runs (the platform may retry a transaction), and a module-identity sender.
  */
 export function createMockProcCtx(opts: MockProcCtxOptions = {}) {
-  const db = createMockDb(opts.seed ?? {});
+  const db = createMockDb(opts.seed ?? {}, { strict: opts.strict });
   let now = opts.timestampMicros ?? 1_000_000_000_000n;
   const moduleIdentity = opts.sender ?? { toHexString: () => 'module-identity-hex' };
   const queue: Array<MockReply | MockThrow> = [...(opts.responses ?? [])];

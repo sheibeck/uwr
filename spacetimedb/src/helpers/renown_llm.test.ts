@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { createMockCtx } from './test-utils';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { createMockCtx as createLenientMockCtx } from './test-utils';
 import { rowColumnProblems } from './schema_recorder';
 import { buildDedupeKey } from './llm_queue';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
@@ -23,6 +23,15 @@ vi.mock('./events', () => ({
   appendPrivateEvent: vi.fn(),
   appendWorldEvent: vi.fn(),
 }));
+
+// Strict mock db (WR-04): unknown index accessors and missing-row updates throw, like the real db.
+// The accessors come from the recorded schema, so load it before any test touches ctx.db.
+beforeAll(async () => {
+  await import('../schema/tables');
+});
+
+const createMockCtx = (o: Parameters<typeof createLenientMockCtx>[0] = {}) =>
+  createLenientMockCtx({ ...o, strict: true });
 
 const alice = { toHexString: () => 'alice-hex' };
 
