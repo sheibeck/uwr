@@ -1,6 +1,7 @@
 import { awardNpcAffinity, getAffinityForNpc, getAffinityRow } from '../helpers/npc_affinity';
 import { appendNpcDialog, appendPrivateEvent, appendSystemMessage, fail, requireCharacterOwnedBy } from '../helpers/events';
-import { checkBudget, incrementBudget } from '../helpers/llm';
+import { enqueueLlmJob, llmRefusalMessage, SOURCE_KEYS } from '../helpers/llm_queue';
+import { encodeRouteInput } from '../helpers/llm_inputs';
 import {
   getOrCreateNpcMemory,
   getAffinityTierForConversation,
@@ -12,10 +13,7 @@ import {
   MAX_QUESTS_PER_NPC,
   parseNpcPersonality,
 } from '../helpers/npc_conversation';
-import {
-  buildNpcConversationSystemPrompt,
-  buildNpcConversationUserPrompt,
-} from '../data/llm_prompts';
+import type { NpcConversationInput } from '../data/llm_layers';
 
 export const registerNpcInteractionReducers = (deps: any) => {
   const { spacetimedb, t } = deps;
@@ -27,7 +25,8 @@ export const registerNpcInteractionReducers = (deps: any) => {
     message: t.string(),
   }, (ctx: any, args: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const { npcId, message } = args;
+    const { npcId } = args;
+    const message = typeof args.message === 'string' ? args.message.trim() : '';
 
     const npc = ctx.db.npc.id.find(npcId);
     if (!npc) { fail(ctx, character, 'NPC not found.'); return; }
@@ -42,19 +41,11 @@ export const registerNpcInteractionReducers = (deps: any) => {
       return fail(ctx, character, 'You cannot converse while in combat.');
     }
 
-    // Concurrency check — one LLM task at a time per player
-    const existingTasks = [...ctx.db.llm_task.by_player.filter(ctx.sender)];
-    if (existingTasks.some((tk: any) => tk.status === 'pending')) {
-      return fail(ctx, character, 'The Keeper is already considering something. Patience.');
+    if (message.length === 0) {
+      return fail(ctx, character, 'You open your mouth, but nothing comes out.');
     }
 
-    // Budget check — NPC conversations share the daily LLM budget
-    const budget = checkBudget(ctx, ctx.sender);
-    if (!budget.allowed) {
-      return fail(ctx, character, 'The Keeper grows weary. Return tomorrow.');
-    }
-
-    // Build conversation context
+    // Build conversation context (snapshotted into the job, so a retry sees what the player saw)
     const personality = parseNpcPersonality(npc);
     const location = ctx.db.location.id.find(npc.locationId);
     const region = location ? ctx.db.region.id.find(location.regionId) : null;
@@ -77,40 +68,58 @@ export const registerNpcInteractionReducers = (deps: any) => {
     const nearbyEnemies = getNearbyEnemyContext(ctx, character.locationId);
     const recentQuestNames = completedQuestNames.slice(-5);
 
-    // Build prompts
-    const systemPrompt = buildNpcConversationSystemPrompt(
-      npc, region || { name: 'Unknown' }, location || { name: 'Unknown' }, personality, affinityTier, memoryData,
-      completedQuestNames, activeQuestFromThisNpc,
-    );
-    const userPrompt = buildNpcConversationUserPrompt(
-      message, activeQuests, MAX_ACTIVE_QUESTS, nearbyLocationNames,
-      nearbyEnemies, recentQuestNames,
-    );
+    const input: NpcConversationInput = {
+      npc: { name: npc.name, npcType: npc.npcType },
+      region: region
+        ? {
+            name: region.name,
+            biome: region.biome ?? undefined,
+            landmarks: region.landmarks ?? undefined,
+            threats: region.threats ?? undefined,
+          }
+        : { name: 'Unknown' },
+      location: { name: location ? location.name : 'Unknown' },
+      personality,
+      affinityTier,
+      memory: memoryData,
+      completedQuestNames,
+      activeQuestFromThisNpc,
+      playerMessage: message,
+      activeQuestCount: activeQuests,
+      maxQuests: MAX_ACTIVE_QUESTS,
+      nearbyLocationNames,
+      nearbyEnemies,
+      recentQuestNames,
+    };
 
-    // Log player message to NpcDialog
-    appendNpcDialog(ctx, character.id, npc.id, `You: "${message}"`);
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'say', `You say to ${npc.name}: "${message}"`);
-
-    // Create LlmTask for client proxy to pick up
-    ctx.db.llm_task.insert({
-      id: 0n,
+    // The turn marker is read after getOrCreateNpcMemory, so two racing tabs see the same key
+    // and one reply is applied before the next message can start a new job.
+    const result = enqueueLlmJob(ctx, {
+      route: 'npc_conversation',
       playerId: ctx.sender,
-      domain: 'npc_conversation',
-      model: 'gpt-5-mini',
-      systemPrompt,
-      userPrompt,
-      maxTokens: 500n,
-      status: 'pending',
-      contextJson: JSON.stringify({
+      characterId: character.id,
+      sourceKey: SOURCE_KEYS.npcConversation(
+        character.id,
+        npc.id,
+        memory.lastUpdated.microsSinceUnixEpoch,
+      ),
+      request: {
         characterId: character.id.toString(),
         npcId: npc.id.toString(),
         memoryId: memory.id.toString(),
-      }),
-      createdAt: ctx.timestamp,
+        input: encodeRouteInput(input),
+      },
     });
+    if (result.refused) {
+      return fail(ctx, character, llmRefusalMessage(result.refused));
+    }
+    if (!result.created) {
+      return fail(ctx, character, 'The Keeper is already considering something. Patience.');
+    }
 
-    // Increment budget
-    incrementBudget(ctx, ctx.sender);
+    // Echo the player's line only once the job exists, so the log never shows a line the NPC will not answer.
+    appendNpcDialog(ctx, character.id, npc.id, `You: "${message}"`);
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'say', `You say to ${npc.name}: "${message}"`);
   });
 
   // Give an inventory item to an NPC as a gift
