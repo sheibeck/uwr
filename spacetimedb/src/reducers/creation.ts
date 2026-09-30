@@ -1,4 +1,5 @@
 import { ensureDefaultHotbar } from '../helpers/items';
+import { startCreationGeneration } from '../helpers/creation_generation';
 
 // Character creation state machine — narrative flow from greeting to character finalization
 
@@ -421,21 +422,24 @@ export const registerCreationReducers = (deps: any) => {
     switch (state.step) {
       case 'AWAITING_RACE': {
         // Store freeform race description, advance to GENERATING_RACE
-        ctx.db.character_creation_state.id.update({
+        const generating = {
           ...state,
           raceDescription: trimmed,
           step: 'GENERATING_RACE',
           updatedAt: ctx.timestamp,
-        });
-        appendCreationEvent(ctx, ctx.sender, 'creation', 'The Keeper is considering your... unique... heritage.');
+        };
+        ctx.db.character_creation_state.id.update(generating);
+        // Enqueue in this transaction: a known race is reused, a refusal reverts the step.
+        const outcome = startCreationGeneration(ctx, generating, 'race');
+        if (outcome === 'enqueued' || outcome === 'duplicate') {
+          appendCreationEvent(ctx, ctx.sender, 'creation', 'The Keeper is considering your... unique... heritage.');
+        }
         break;
       }
 
       case 'GENERATING_RACE': {
         // Waiting for LLM — player shouldn't be submitting input here.
-        // Client flow: client observes step='GENERATING_RACE' via subscription,
-        // then calls generateCreationContent procedure with generationType='race'.
-        // The procedure handles the LLM call and advances state to AWAITING_ARCHETYPE.
+        // The server-side executor is generating; results arrive through character_creation_state.
         appendCreationEvent(ctx, ctx.sender, 'creation', 'Patience. I am still contemplating the bizarre thing you described. This takes a moment.');
         break;
       }
@@ -446,22 +450,24 @@ export const registerCreationReducers = (deps: any) => {
           appendCreationEvent(ctx, ctx.sender, 'creation_error', `I offered you two choices. [Warrior] or [Mystic]. This isn't a creative writing exercise... yet.`);
           return;
         }
-        ctx.db.character_creation_state.id.update({
+        const generating = {
           ...state,
           archetype,
           step: 'GENERATING_CLASS',
           updatedAt: ctx.timestamp,
-        });
-        const archetypeLabel = archetype === 'warrior' ? 'Warrior' : 'Mystic';
-        appendCreationEvent(ctx, ctx.sender, 'creation', `${archetypeLabel}. Interesting. The Keeper is forging something... unique for you. Stand by.`);
+        };
+        ctx.db.character_creation_state.id.update(generating);
+        const outcome = startCreationGeneration(ctx, generating, 'class');
+        if (outcome === 'enqueued' || outcome === 'duplicate') {
+          const archetypeLabel = archetype === 'warrior' ? 'Warrior' : 'Mystic';
+          appendCreationEvent(ctx, ctx.sender, 'creation', `${archetypeLabel}. Interesting. The Keeper is forging something... unique for you. Stand by.`);
+        }
         break;
       }
 
       case 'GENERATING_CLASS': {
         // Waiting for LLM — player shouldn't be submitting input here.
-        // Client flow: client observes step='GENERATING_CLASS' via subscription,
-        // then calls generateCreationContent procedure with generationType='class'.
-        // The procedure handles the LLM call and advances state to CLASS_REVEALED.
+        // The server-side executor is generating; results arrive through character_creation_state.
         appendCreationEvent(ctx, ctx.sender, 'creation', 'I am crafting something that has never existed before. These things take time. Unlike you, I do not rush.');
         break;
       }

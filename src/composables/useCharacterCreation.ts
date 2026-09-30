@@ -97,10 +97,9 @@ export const useCharacterCreation = ({
     }
   }
 
-  // Auto-trigger LLM task preparation when creation state step changes to GENERATING_*
-  // Track which step we've already prepared to avoid double-fire
-  const preparedForStep = ref<string | null>(null);
-
+  // The server enqueues generation inside submit_creation_input and the executor applies the result
+  // through character_creation_state, so the client only mirrors the step. Deriving the flag from the
+  // GENERATING_* step keeps it right after a refresh (the applied result shows on return).
   watch(characterCreationStates, (states) => {
     const identity = window.__my_identity;
     if (!identity || !connActive.value) return;
@@ -110,29 +109,7 @@ export const useCharacterCreation = ({
     if (!myState) return;
 
     const step = myState.step;
-
-    // Set processing flag while in a GENERATING step
-    if (step === 'GENERATING_RACE' || step === 'GENERATING_CLASS') {
-      isCreationLlmProcessing.value = true;
-
-      // Only fire the prepare reducer once per generating step
-      if (preparedForStep.value === step) return;
-      preparedForStep.value = step;
-
-      const conn = window.__db_conn as DbConnection | undefined;
-      if (!conn) return;
-
-      const genType = step === 'GENERATING_RACE' ? 'race' : 'class';
-      try {
-        conn.reducers.prepareCreationLlm({ generationType: genType });
-      } catch (err: any) {
-        console.error(`[Creation] ${genType} prepare failed:`, err);
-      }
-    } else {
-      // Step changed away from GENERATING — clear processing flag
-      isCreationLlmProcessing.value = false;
-      preparedForStep.value = null;
-    }
+    isCreationLlmProcessing.value = step === 'GENERATING_RACE' || step === 'GENERATING_CLASS';
   }, { deep: true });
 
   // Submit text input for creation

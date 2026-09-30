@@ -4,11 +4,8 @@ import { ScheduleAt, Timestamp } from 'spacetimedb';
 import { checkBudget } from './helpers/llm';
 import { ensureDefaultHotbar } from './helpers/items';
 import {
-  buildCharacterCreationPrompt,
   buildWorldGenPrompt,
   buildCombatNarrationPrompt,
-  buildRaceInterpretationUserPrompt,
-  buildClassGenerationUserPrompt,
   buildCombinedCreationUserPrompt,
   buildRegionGenerationUserPrompt,
 } from './data/llm_prompts';
@@ -395,90 +392,8 @@ registerViews({
 });
 
 // === LLM TASK PREPARATION ===
-// When creation/world-gen steps trigger, server builds prompts and writes to LlmTask.
+// When the world-gen step triggers, server builds prompts and writes to LlmTask (Plan 41-14 moves it to the executor).
 // Client reads prompts, calls the LLM proxy directly, then submits results via reducer.
-
-// Reducer: prepare an LLM task for character creation (race or class generation)
-spacetimedb.reducer('prepare_creation_llm', { generationType: t.string() }, (ctx: any, { generationType }: { generationType: string }) => {
-  const rows = [...ctx.db.character_creation_state.by_player.filter(ctx.sender)];
-  const state = rows[0];
-  if (!state) throw new SenderError('No creation state found');
-
-  // Budget check
-  const budget = checkBudget(ctx, ctx.sender);
-  if (!budget.allowed) {
-    appendCreationEvent(ctx, ctx.sender, 'creation_error',
-      'The Keeper yawns. "You have exhausted my patience — and your daily allowance of cosmic creativity. Come back tomorrow."');
-    return;
-  }
-
-  // Concurrency check — one LLM task at a time per player
-  const existingTasks = [...ctx.db.llm_task.by_player.filter(ctx.sender)];
-  if (existingTasks.some((t: any) => t.status === 'pending')) return;
-
-  let systemPrompt: string;
-  let userPrompt: string;
-
-  if (generationType === 'race') {
-    if (state.step !== 'GENERATING_RACE') throw new SenderError('Invalid step for race generation');
-
-    // Check for existing race definition (case-insensitive)
-    const nameLower = (state.raceDescription || '').trim().toLowerCase();
-    let existingRace: any = null;
-    for (const rd of ctx.db.race_definition.by_name.filter(nameLower)) {
-      existingRace = rd;
-      break;
-    }
-
-    if (existingRace) {
-      // Reuse existing race definition — skip LLM entirely
-      ctx.db.character_creation_state.id.update({
-        ...state,
-        step: 'AWAITING_ARCHETYPE',
-        raceName: existingRace.name,
-        raceNarrative: existingRace.narrative,
-        raceBonuses: existingRace.bonusesJson,
-        updatedAt: ctx.timestamp,
-      });
-
-      let bonuses: any = {};
-      try { bonuses = JSON.parse(existingRace.bonusesJson); } catch {}
-      const bonusText = bonuses.primary
-        ? `\n+${bonuses.primary.value || 2} ${(bonuses.primary.stat || 'STR').toUpperCase()}, +${bonuses.secondary?.value || 1} ${(bonuses.secondary?.stat || 'DEX').toUpperCase()}${bonuses.flavor ? `. ${bonuses.flavor}` : ''}`
-        : '';
-
-      appendCreationEvent(ctx, ctx.sender, 'creation',
-        `${existingRace.narrative || 'An interesting choice.'}\n\n` +
-        `**${existingRace.name}**${bonusText}\n\n` +
-        `Now then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
-        `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`
-      );
-      return;
-    }
-
-    systemPrompt = buildCharacterCreationPrompt('Interpreting a new arrival\'s race description.');
-    userPrompt = buildRaceInterpretationUserPrompt(state.raceDescription);
-  } else if (generationType === 'class') {
-    if (state.step !== 'GENERATING_CLASS') throw new SenderError('Invalid step for class generation');
-    systemPrompt = buildCharacterCreationPrompt(`Race: ${state.raceName}. Generating a unique class.`);
-    userPrompt = buildClassGenerationUserPrompt(state.raceName, state.raceNarrative || '', state.archetype);
-  } else {
-    throw new SenderError('Invalid generation type — must be "race" or "class"');
-  }
-
-  ctx.db.llm_task.insert({
-    id: 0n,
-    playerId: ctx.sender,
-    domain: `creation_${generationType}`,
-    model: 'gpt-5.4',
-    systemPrompt,
-    userPrompt,
-    maxTokens: 1024n,
-    status: 'pending',
-    contextJson: undefined,
-    createdAt: ctx.timestamp,
-  });
-});
 
 // Reducer: prepare an LLM task for world generation
 spacetimedb.reducer('prepare_world_gen_llm', { genStateId: t.u64() }, (ctx: any, { genStateId }: { genStateId: bigint }) => {

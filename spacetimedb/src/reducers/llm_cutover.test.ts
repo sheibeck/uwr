@@ -39,7 +39,7 @@ const handlers: Record<string, (...args: any[]) => any> = {};
 
 beforeAll(async () => {
   await import('../index');
-  for (const name of ['talk_to_npc', 'apply_level_up', 'request_skill_offer', 'submit_intent', 'grant_test_renown']) {
+  for (const name of ['talk_to_npc', 'apply_level_up', 'request_skill_offer', 'submit_intent', 'grant_test_renown', 'submit_creation_input']) {
     const h = capturedReducer(name);
     if (typeof h !== 'function') {
       throw new Error(
@@ -748,10 +748,199 @@ describe('skills and renown cutover (PIPE-01, PIPE-05)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Deleted client call sites (41-12)
+// Character creation (41-13)
 // ---------------------------------------------------------------------------
 
-describe('deleted skill-gen prepare reducer: no client call site remains', () => {
+describe('submit_creation_input (creation cutover, PIPE-01 / PIPE-04)', () => {
+  const stateRow = (step: string, over: Record<string, unknown> = {}) => ({
+    id: 1n,
+    playerId: alice,
+    step,
+    createdAt: { microsSinceUnixEpoch: T0 },
+    updatedAt: { microsSinceUnixEpoch: T0 },
+    ...over,
+  });
+  const creationSeed = (step: string, over: Record<string, unknown> = {}): Seed => ({
+    ...playerSeed(),
+    character_creation_state: [stateRow(step, over)],
+  });
+  const submit = (ctx: any, text: string) => handlers.submit_creation_input(ctx, { text });
+  const creationEvents = (ctx: any) => rows(ctx, 'event_creation');
+  const exhaustDay = (ctx: any) =>
+    ctx.db.llm_player_budget.insert({
+      id: 0n,
+      playerId: alice,
+      dayUtc: utcDay(ctx.timestamp),
+      reservedMicroUsd: 0n,
+      spentMicroUsd: LLM_PLAYER_DAILY_COST_MICRO_USD,
+      calls: 1n,
+    });
+
+  it('at AWAITING_RACE moves to GENERATING_RACE, enqueues one creation_race job with a dispatch and says the Keeper is considering', () => {
+    const ctx = newCtx(creationSeed('AWAITING_RACE'));
+    submit(ctx, 'A quiet people of the salt marshes');
+
+    const job = expectEnqueued(ctx, 'creation_race');
+    expect(job.playerId).toBe(alice);
+    expect(job.characterId).toBe(0n);
+    expect(JSON.parse(job.dedupeKey)).toEqual([alice.toHexString(), 'creation_race', '1:race']);
+    expect(resolveRouteInput(ctx, job)).toEqual({ raceDescription: 'A quiet people of the salt marshes' });
+
+    const state = rows(ctx, 'character_creation_state')[0];
+    expect(state.step).toBe('GENERATING_RACE');
+    expect(state.raceDescription).toBe('A quiet people of the salt marshes');
+    expect(creationEvents(ctx).map((e: any) => e.message)).toEqual([
+      'The Keeper is considering your... unique... heritage.',
+    ]);
+    expect(allRowsMatchSchema(ctx, ['character_creation_state', 'event_creation'])).toEqual([]);
+  });
+
+  it('at AWAITING_ARCHETYPE moves to GENERATING_CLASS and enqueues one creation_class job', () => {
+    const ctx = newCtx(creationSeed('AWAITING_ARCHETYPE', { raceName: 'Saltkin', raceNarrative: 'Marsh dwellers.' }));
+    submit(ctx, 'Mystic');
+
+    const job = expectEnqueued(ctx, 'creation_class');
+    expect(JSON.parse(job.dedupeKey)).toEqual([alice.toHexString(), 'creation_class', '1:class']);
+    expect(resolveRouteInput(ctx, job)).toEqual({
+      raceName: 'Saltkin',
+      raceNarrative: 'Marsh dwellers.',
+      archetype: 'mystic',
+    });
+    const state = rows(ctx, 'character_creation_state')[0];
+    expect(state.step).toBe('GENERATING_CLASS');
+    expect(state.archetype).toBe('mystic');
+    expect(creationEvents(ctx).map((e: any) => e.message)).toEqual([
+      'Mystic. Interesting. The Keeper is forging something... unique for you. Stand by.',
+    ]);
+  });
+
+  it('a known race is reused: straight to AWAITING_ARCHETYPE, no job, no considering line', () => {
+    const ctx = newCtx({
+      ...creationSeed('AWAITING_RACE'),
+      // the mock maps the by_name accessor to the column `name`
+      race_definition: [
+        {
+          id: 1n,
+          name: 'the salt folk',
+          nameLower: 'the salt folk',
+          narrative: 'Salt and patience.',
+          bonusesJson: '{"primary":{"stat":"wis","value":2},"secondary":{"stat":"con","value":1},"flavor":""}',
+          createdAt: { microsSinceUnixEpoch: T0 },
+        },
+      ],
+    });
+    submit(ctx, 'The Salt Folk');
+
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    expect(rows(ctx, 'llm_task')).toHaveLength(0);
+    expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
+    const messages = creationEvents(ctx).map((e: any) => e.message);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('Salt and patience.');
+    expect(messages.join('\n')).not.toContain('considering');
+  });
+
+  it('a refused race (daily cost) creates no job, stays at AWAITING_RACE and posts only the refusal', () => {
+    const ctx = newCtx(creationSeed('AWAITING_RACE'));
+    exhaustDay(ctx);
+    submit(ctx, 'A quiet people of the salt marshes');
+
+    expectNothingReserved(ctx);
+    expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_RACE');
+    const events = creationEvents(ctx);
+    expect(events).toHaveLength(1);
+    expect(events[0].kind).toBe('creation_error');
+    expect(events[0].message).toBe(llmRefusalMessage('daily_cost'));
+  });
+
+  it('a refused class reverts to AWAITING_ARCHETYPE with only the refusal line', () => {
+    const ctx = newCtx(creationSeed('AWAITING_ARCHETYPE', { raceName: 'Saltkin', raceNarrative: 'Marsh dwellers.' }));
+    exhaustDay(ctx);
+    submit(ctx, 'Warrior');
+
+    expectNothingReserved(ctx);
+    expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
+    expect(creationEvents(ctx).map((e: any) => [e.kind, e.message])).toEqual([
+      ['creation_error', llmRefusalMessage('daily_cost')],
+    ]);
+  });
+
+  it('the old prepare reducer is gone from the module', () => {
+    expect(capturedReducer('prepare_creation_llm')).toBeUndefined();
+  });
+
+  describe('never auto-retries (T-41-05)', () => {
+    const FAKE_KEY = ['sk', '-ant-', 'api03-', 'CREATIONKEY'.repeat(3)].join('');
+    const err500 = () =>
+      JSON.parse(readFileSync(new URL('../helpers/__fixtures__/claude/err_500.json', import.meta.url), 'utf-8'));
+
+    const setup = (responses: any[]) => {
+      const proc = createMockProcCtx({
+        seed: {
+          ...creationSeed('AWAITING_RACE'),
+          llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: { microsSinceUnixEpoch: T0 } }],
+        },
+        timestampMicros: T0,
+        responses,
+        strict: true,
+      });
+      // A reducer-shaped view of the same database and clock as the executor context.
+      const reducerCtx = {
+        db: proc.db,
+        sender: alice,
+        get timestamp() {
+          return proc.ctx.timestamp;
+        },
+      };
+      return { proc, reducerCtx };
+    };
+    const run = (proc: any) => {
+      const dispatch = rows(proc, 'llm_dispatch').shift();
+      return runLlmJob(proc.ctx, dispatch, {
+        nowMs: () => Number(proc.clock.now() / 1000n),
+        log: () => {},
+      });
+    };
+
+    it.each([
+      ['a 500 reply', () => [err500()]],
+      ['a timeout', () => [{ throw: 'timeout' as const }]],
+    ])('%s ends the job after one attempt, returns to AWAITING_RACE with the Try again line, and only a new submission starts another call', (_label, makeResponses) => {
+      const { proc, reducerCtx } = setup(makeResponses());
+      handlers.submit_creation_input(reducerCtx, { text: 'A quiet people of the salt marshes' });
+      expect(rows(proc, 'llm_job')).toHaveLength(1);
+      expect(rows(proc, 'llm_dispatch')).toHaveLength(1);
+
+      expect(run(proc)).toBe('failed');
+
+      const jobs = rows(proc, 'llm_job');
+      expect(jobs).toHaveLength(1);
+      expect(jobs[0].status).toBe('failed');
+      expect(jobs[0].attempt).toBe(1n);
+      expect(proc.http.calls).toHaveLength(1);
+      expect(rows(proc, 'llm_dispatch')).toHaveLength(0); // no retry dispatch
+      expect(rows(proc, 'character_creation_state')[0].step).toBe('AWAITING_RACE');
+      const last = rows(proc, 'event_creation').slice(-1)[0];
+      expect(last.kind).toBe('creation_error');
+      expect(last.message).toContain('Try again');
+
+      // The player's next submission is the only thing that starts a new call.
+      handlers.submit_creation_input(reducerCtx, { text: 'A quiet people of the salt marshes' });
+      expect(rows(proc, 'llm_job')).toHaveLength(2);
+      expect(rows(proc, 'llm_job')[1].status).toBe('pending');
+      expect(rows(proc, 'llm_dispatch')).toHaveLength(1);
+      expect(rows(proc, 'character_creation_state')[0].step).toBe('GENERATING_RACE');
+      expect(proc.http.calls).toHaveLength(1);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Deleted client call sites (41-12, 41-13)
+// ---------------------------------------------------------------------------
+
+describe('deleted prepare reducers: no client call site remains', () => {
   const walk = (dir: URL, out: string[] = []): string[] => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (entry.name === 'module_bindings' || entry.name === 'node_modules') continue;
@@ -762,10 +951,12 @@ describe('deleted skill-gen prepare reducer: no client call site remains', () =>
     return out;
   };
 
-  it('no file under src/ outside src/module_bindings/ references prepareSkillGen or requestSkillGen', () => {
+  it('no file under src/ outside src/module_bindings/ references a deleted prepare reducer or its client call', () => {
     const files = walk(new URL('../../../src/', import.meta.url));
     expect(files.length).toBeGreaterThan(10);
-    const offenders = files.filter((f) => /prepareSkillGen|requestSkillGen|prepare_skill_gen/.test(readFileSync(f, 'utf-8')));
+    const offenders = files.filter((f) =>
+      /prepareSkillGen|requestSkillGen|prepare_skill_gen|prepareCreationLlm|prepare_creation_llm/.test(readFileSync(f, 'utf-8')),
+    );
     expect(offenders).toEqual([]);
   });
 });
