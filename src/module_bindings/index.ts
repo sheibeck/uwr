@@ -214,6 +214,7 @@ import MyFriendsRow from "./my_friends_table";
 import MyGroupEventsRow from "./my_group_events_table";
 import MyGroupInvitesRow from "./my_group_invites_table";
 import MyGroupMembersRow from "./my_group_members_table";
+import MyLlmJobsRow from "./my_llm_jobs_table";
 import MyNpcDialogRow from "./my_npc_dialog_table";
 import MyPanelLayoutRow from "./my_panel_layout_table";
 import MyPlayerRow from "./my_player_table";
@@ -1740,6 +1741,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyGroupMembersRow),
+  myLlmJobs: __table({
+    name: 'my_llm_jobs',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyLlmJobsRow),
   myNpcDialog: __table({
     name: 'my_npc_dialog',
     indexes: [
@@ -2067,6 +2075,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "my_group_invites": Omit<typeof tablesSchema.schemaType.tables["myGroupInvites"], "accessorName"> & { readonly accessorName: "my_group_invites" };
     /** @deprecated Use `myGroupMembers` instead. This alias will be removed in the next major version. */
     readonly "my_group_members": Omit<typeof tablesSchema.schemaType.tables["myGroupMembers"], "accessorName"> & { readonly accessorName: "my_group_members" };
+    /** @deprecated Use `myLlmJobs` instead. This alias will be removed in the next major version. */
+    readonly "my_llm_jobs": Omit<typeof tablesSchema.schemaType.tables["myLlmJobs"], "accessorName"> & { readonly accessorName: "my_llm_jobs" };
     /** @deprecated Use `myNpcDialog` instead. This alias will be removed in the next major version. */
     readonly "my_npc_dialog": Omit<typeof tablesSchema.schemaType.tables["myNpcDialog"], "accessorName"> & { readonly accessorName: "my_npc_dialog" };
     /** @deprecated Use `myPanelLayout` instead. This alias will be removed in the next major version. */
@@ -2182,6 +2192,7 @@ const tableAccessorAliases = {
   "my_group_events": "myGroupEvents",
   "my_group_invites": "myGroupInvites",
   "my_group_members": "myGroupMembers",
+  "my_llm_jobs": "myLlmJobs",
   "my_npc_dialog": "myNpcDialog",
   "my_panel_layout": "myPanelLayout",
   "my_player": "myPlayer",
@@ -2384,6 +2395,8 @@ export type DbView = __DbViewBase & {
   readonly "my_group_invites": __DbViewBase["myGroupInvites"];
   /** @deprecated Use `myGroupMembers` instead. This alias will be removed in the next major version. */
   readonly "my_group_members": __DbViewBase["myGroupMembers"];
+  /** @deprecated Use `myLlmJobs` instead. This alias will be removed in the next major version. */
+  readonly "my_llm_jobs": __DbViewBase["myLlmJobs"];
   /** @deprecated Use `myNpcDialog` instead. This alias will be removed in the next major version. */
   readonly "my_npc_dialog": __DbViewBase["myNpcDialog"];
   /** @deprecated Use `myPanelLayout` instead. This alias will be removed in the next major version. */
@@ -2574,6 +2587,8 @@ export type Tables = __TablesBase & {
   readonly "my_group_invites": __TablesBase["myGroupInvites"];
   /** @deprecated Use `myGroupMembers` instead. This alias will be removed in the next major version. */
   readonly "my_group_members": __TablesBase["myGroupMembers"];
+  /** @deprecated Use `myLlmJobs` instead. This alias will be removed in the next major version. */
+  readonly "my_llm_jobs": __TablesBase["myLlmJobs"];
   /** @deprecated Use `myNpcDialog` instead. This alias will be removed in the next major version. */
   readonly "my_npc_dialog": __TablesBase["myNpcDialog"];
   /** @deprecated Use `myPanelLayout` instead. This alias will be removed in the next major version. */

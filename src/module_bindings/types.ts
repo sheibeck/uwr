@@ -763,6 +763,27 @@ export const LlmBudget = __t.object("LlmBudget", {
 });
 export type LlmBudget = __Infer<typeof LlmBudget>;
 
+export const LlmCallLog = __t.object("LlmCallLog", {
+  id: __t.u64(),
+  jobId: __t.u64(),
+  playerId: __t.identity(),
+  route: __t.string(),
+  model: __t.string(),
+  outcome: __t.string(),
+  attempt: __t.u64(),
+  httpStatus: __t.u64(),
+  latencyMs: __t.u64(),
+  stopReason: __t.option(__t.string()),
+  requestId: __t.option(__t.string()),
+  errorMessage: __t.option(__t.string()),
+  inputTokens: __t.u64(),
+  outputTokens: __t.u64(),
+  cacheWriteTokens: __t.u64(),
+  cacheReadTokens: __t.u64(),
+  createdAt: __t.timestamp(),
+});
+export type LlmCallLog = __Infer<typeof LlmCallLog>;
+
 export const LlmCleanupTick = __t.object("LlmCleanupTick", {
   scheduledId: __t.u64(),
   scheduledAt: __t.scheduleAt(),
@@ -775,6 +796,29 @@ export const LlmConfig = __t.object("LlmConfig", {
   updatedAt: __t.timestamp(),
 });
 export type LlmConfig = __Infer<typeof LlmConfig>;
+
+export const LlmJob = __t.object("LlmJob", {
+  id: __t.u64(),
+  playerId: __t.identity(),
+  characterId: __t.u64(),
+  route: __t.string(),
+  dedupeKey: __t.string(),
+  status: __t.string(),
+  attempt: __t.u64(),
+  requestJson: __t.string(),
+  resultText: __t.option(__t.string()),
+  stopReason: __t.option(__t.string()),
+  errorCode: __t.option(__t.string()),
+  requestId: __t.option(__t.string()),
+  inputTokens: __t.u64(),
+  outputTokens: __t.u64(),
+  cacheWriteTokens: __t.u64(),
+  cacheReadTokens: __t.u64(),
+  createdAt: __t.timestamp(),
+  startedAt: __t.option(__t.timestamp()),
+  finishedAt: __t.option(__t.timestamp()),
+});
+export type LlmJob = __Infer<typeof LlmJob>;
 
 export const LlmRequest = __t.object("LlmRequest", {
   id: __t.u64(),
@@ -881,6 +925,19 @@ export type MyGroupInvites = __Infer<typeof MyGroupInvites>;
 
 export const MyGroupMembers = __t.object("MyGroupMembers", {});
 export type MyGroupMembers = __Infer<typeof MyGroupMembers>;
+
+export const MyLlmJob = __t.object("MyLlmJob", {
+  id: __t.u64(),
+  route: __t.string(),
+  status: __t.string(),
+  createdAt: __t.timestamp(),
+  errorCode: __t.option(__t.string()),
+  userMessage: __t.string(),
+});
+export type MyLlmJob = __Infer<typeof MyLlmJob>;
+
+export const MyLlmJobs = __t.object("MyLlmJobs", {});
+export type MyLlmJobs = __Infer<typeof MyLlmJobs>;
 
 export const MyNpcDialog = __t.object("MyNpcDialog", {});
 export type MyNpcDialog = __Infer<typeof MyNpcDialog>;
