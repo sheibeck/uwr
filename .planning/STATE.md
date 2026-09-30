@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 41 (Executor and Domain Cutover) — EXECUTING
-Plan: 18 of 18 complete (order 41-18 done; next is 41-16, then 41-17; 16 of 18 plans executed)
+Plan: 41-18 done (18 plans total; order 41-18, 41-16, 41-17; next is 41-16)
 Status: Ready to execute 41-16
 Last activity: 2026-09-30 — Completed 41-18 (NPC gender and pronoun rule)
 
