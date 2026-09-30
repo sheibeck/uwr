@@ -23,6 +23,7 @@ import { utcDay } from '../helpers/llm_budget';
 import { buildRouteLayers } from '../data/llm_layers';
 import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
 import { PLAYER_INPUT_MAX_CHARS } from '../data/llm_layers';
+import { STRANDED_CHARACTER_HINT } from './creation';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
@@ -1400,13 +1401,45 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       expect(rows(ctx, 'event_creation').map((e: any) => [e.playerId, e.message])).toEqual([[bob, RIPPLE]]);
     });
 
+    it('another device: a first line other than explore gets the [explore] hint, starts no creation, and explore then retries (WR-B01)', () => {
+      const ctx = newCtx(
+        starterSeed([{}], { player: [{ id: alice, userId: 7n, activeCharacterId: 1n }, { id: bob, userId: 7n }] }),
+        bob,
+      );
+      submitCreation(ctx, 'hello');
+
+      expectNothingReserved(ctx);
+      expect(rows(ctx, 'character_creation_state')).toHaveLength(0);
+      expect(rows(ctx, 'event_creation').map((e: any) => [e.playerId, e.kind, e.message])).toEqual([
+        [bob, 'creation', STRANDED_CHARACTER_HINT],
+      ]);
+
+      submitCreation(ctx, 'explore');
+      expect(rows(ctx, 'character_creation_state')).toHaveLength(0);
+      expect(worldGenStates(ctx)[1]).toMatchObject({ step: 'GENERATING', playerId: bob, characterId: 1n });
+      expect(expectEnqueued(ctx, 'world_gen').playerId).toBe(bob);
+      expect(rows(ctx, 'llm_job').some((j: any) => j.route === 'creation_race')).toBe(false);
+      expect(rows(ctx, 'event_creation').map((e: any) => e.message)).toEqual([STRANDED_CHARACTER_HINT, RIPPLE]);
+    });
+
+    it('explore at AWAITING_RACE with a stranded character retries the first region instead of billing a race named explore (WR-B01)', () => {
+      const awaitingRace = { ...completeState(), step: 'AWAITING_RACE', characterName: undefined };
+      const ctx = newCtx(starterSeed([{}], { character_creation_state: [awaitingRace] }));
+      submitCreation(ctx, '[explore]');
+
+      expect(rows(ctx, 'llm_job').some((j: any) => j.route === 'creation_race')).toBe(false);
+      expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_RACE');
+      expect(expectEnqueued(ctx, 'world_gen').playerId).toBe(alice);
+      expect(creationLines(ctx)).toEqual([['creation', RIPPLE]]);
+    });
+
     it('any other line at COMPLETE with a stranded character points to [explore]', () => {
       const ctx = newCtx(starterSeed([{}], { character_creation_state: [completeState()] }));
       submitCreation(ctx, 'hello?');
 
       expectNothingReserved(ctx);
       expect(creationLines(ctx)).toEqual([
-        ['creation', 'Your character has already been created. If the world has not taken shape around you, type [explore].'],
+        ['creation', STRANDED_CHARACTER_HINT],
       ]);
     });
 

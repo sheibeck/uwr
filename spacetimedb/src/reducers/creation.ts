@@ -58,6 +58,10 @@ function clearDataFromStep(state: any, targetStep: string): any {
   return updated;
 }
 
+/** Creation-console line for a character whose first region never formed: points to the retry. */
+export const STRANDED_CHARACTER_HINT =
+  'Your character has already been created. If the world has not taken shape around you, type [explore].';
+
 /** The creation console's explore keyword (typed or clicked, with or without brackets). */
 function isExploreText(text: string): boolean {
   return /^\[?explore\]?$/i.test(text.trim());
@@ -381,13 +385,22 @@ export const registerCreationReducers = (deps: any) => {
       break;
     }
 
-    // A finished (or, on another device, absent) creation whose character is still at location 0:
-    // [explore] retries the first region from here, because the client keeps showing this console.
-    if ((!state || state.step === 'COMPLETE') && isExploreText(text)) {
+    // A character of this user still at location 0 owns this console, because the client keeps
+    // showing it until the first region forms. [explore] retries the first region from here with no
+    // creation state (another device of the same user), at COMPLETE, and at AWAITING_RACE (where
+    // "explore" is never a race description). With no creation state, any other line gets the
+    // [explore] hint instead of auto-starting a second creation around the stranded character.
+    if (!state || state.step === 'COMPLETE' || state.step === 'AWAITING_RACE') {
       const stranded = findStrandedCharacter(ctx, player);
       if (stranded) {
-        retryStarterFromCreation(ctx, stranded, appendCreationEvent);
-        return;
+        if (isExploreText(text)) {
+          retryStarterFromCreation(ctx, stranded, appendCreationEvent);
+          return;
+        }
+        if (!state) {
+          appendCreationEvent(ctx, ctx.sender, 'creation', STRANDED_CHARACTER_HINT);
+          return;
+        }
       }
     }
 
@@ -642,7 +655,7 @@ export const registerCreationReducers = (deps: any) => {
 
       case 'COMPLETE': {
         if (findStrandedCharacter(ctx, player)) {
-          appendCreationEvent(ctx, ctx.sender, 'creation', 'Your character has already been created. If the world has not taken shape around you, type [explore].');
+          appendCreationEvent(ctx, ctx.sender, 'creation', STRANDED_CHARACTER_HINT);
           break;
         }
         appendCreationEvent(ctx, ctx.sender, 'creation', 'Your character has already been created. Go forth and do something interesting.');
