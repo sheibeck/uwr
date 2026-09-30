@@ -1268,7 +1268,7 @@ describe('deleted prepare reducers: no client call site remains', () => {
     const files = walk(new URL('../../../src/', import.meta.url));
     expect(files.length).toBeGreaterThan(10);
     const offenders = files.filter((f) =>
-      /prepareSkillGen|requestSkillGen|prepare_skill_gen|prepareCreationLlm|prepare_creation_llm/.test(readFileSync(f, 'utf-8')),
+      /prepareSkillGen|requestSkillGen|prepare_skill_gen|prepareCreationLlm|prepare_creation_llm|prepareWorldGenLlm|prepare_world_gen_llm|preparedGenStateId/.test(readFileSync(f, 'utf-8')),
     );
     expect(offenders).toEqual([]);
   });

@@ -728,7 +728,7 @@ const {
     creationEvents,
   });
 
-// World generation: auto-trigger LLM task when WorldGenState is PENDING
+// World generation: the server starts it; the client only mirrors the active WorldGenState
 const { isWorldGenProcessing } = useWorldGeneration({
   connActive: computed(() => conn.isActive),
   worldGenStates,
