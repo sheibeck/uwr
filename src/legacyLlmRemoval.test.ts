@@ -161,3 +161,35 @@ describe('proxy removal', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// docs
+// ---------------------------------------------------------------------------
+
+describe('docs', () => {
+  const readme = read('README.md');
+  const skill = read('.claude/skills/run-local/SKILL.md');
+  const banned = /llm-proxy|wrangler|workerd|8787|llm_proxy_secret|\.dev\.vars/i;
+
+  it('README and the run-local skill no longer mention the proxy', () => {
+    expect(readme).not.toMatch(banned);
+    expect(skill).not.toMatch(banned);
+  });
+
+  it('both point to the key runbook', () => {
+    expect(readme).toContain('docs/runbooks/llm-key.md');
+    expect(skill).toContain('docs/runbooks/llm-key.md');
+  });
+
+  it('README steps are renumbered without the proxy step', () => {
+    expect(readme).toContain('### 6. Start the frontend dev server');
+    expect(readme).not.toContain('### 7.');
+  });
+
+  it('the skill keeps its stop-and-ask rule and checks only ports 3000 and 5173', () => {
+    expect(skill).toContain('stop-and-ask');
+    const portChecks = skill.match(/:\((?:[0-9]+\|?)+\)/g) ?? [];
+    expect(portChecks.length).toBe(2);
+    for (const check of portChecks) expect(check).toBe(':(3000|5173)');
+  });
+});
