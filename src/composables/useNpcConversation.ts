@@ -4,8 +4,9 @@ import type { DbConnection } from '../module_bindings';
 /**
  * Manages NPC conversation state and actions.
  * Conversation flow: player types "talk to [NPC]" -> intent service shows greeting ->
- * player sends messages via sendMessage() -> talk_to_npc reducer creates LlmTask ->
- * useLlmProxy picks up task and calls proxy -> submit_llm_result processes response.
+ * player sends messages via sendMessage() -> talk_to_npc reducer enqueues an LLM job in the
+ * same transaction -> the server's scheduled executor calls Claude and applies the reply.
+ * The client only sees the NPC dialog and its own job status (my_llm_jobs).
  */
 export function useNpcConversation() {
   const activeNpcId = ref<bigint | null>(null);
@@ -22,7 +23,7 @@ export function useNpcConversation() {
 
   /**
    * Send a message to the active NPC via the talk_to_npc reducer.
-   * The reducer creates an LlmTask which the client proxy picks up automatically.
+   * The reducer enqueues an LLM job; the server executor applies the reply.
    */
   function sendMessage(characterId: bigint, message: string) {
     const conn = window.__db_conn as DbConnection | undefined;

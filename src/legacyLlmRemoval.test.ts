@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 // Static guards for the client cutover from the LLM proxy to the player's own job-status
@@ -75,5 +75,89 @@ describe('client wiring', () => {
     expect(media).toContain('.llm-indicator');
     expect(media).toContain('animation: none !important');
     expect(consoleSrc).toContain(':disabled="animIsAnimating || isLlmProcessing"');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// proxy removal
+// ---------------------------------------------------------------------------
+
+const SKIPPED_DIRS = new Set(['module_bindings', 'node_modules']);
+const SOURCE_EXTENSIONS = ['.ts', '.vue', '.js'];
+
+function walkProduction(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      if (!SKIPPED_DIRS.has(entry.name)) walkProduction(`${dir}/${entry.name}`, out);
+      continue;
+    }
+    const name = entry.name;
+    if (name.endsWith('.test.ts')) continue;
+    if (!SOURCE_EXTENSIONS.some((ext) => name.endsWith(ext))) continue;
+    out.push(`${dir}/${name}`);
+  }
+  return out;
+}
+
+// The word list stays in this test file; the scan skips test files, so it never matches itself.
+const FORBIDDEN_WORDS = [
+  'llm_task',
+  'llmTasks',
+  'LlmTask',
+  'useLlmProxy',
+  'submitLlmResult',
+  'isLlmProxyProcessing',
+  'VITE_LLM_PROXY',
+  'PROXY_SECRET',
+  'localhost:8787',
+  '127.0.0.1:8787',
+  '/api/llm',
+];
+
+describe('proxy removal', () => {
+  const files = walkProduction(`${ROOT}src`);
+
+  it('scans a meaningful number of production files', () => {
+    expect(files.length).toBeGreaterThanOrEqual(20);
+  });
+
+  it('no production client file names the proxy plumbing', () => {
+    const offenders: string[] = [];
+    for (const file of files) {
+      const text = readFileSync(file, 'utf8');
+      for (const word of FORBIDDEN_WORDS) {
+        if (text.includes(word)) offenders.push(`${file.slice(ROOT.length)}: ${word}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('the retired credential key name appears only in legacyCredentials.ts', () => {
+    const holders = files
+      .filter((file) => readFileSync(file, 'utf8').includes('llm_proxy_secret'))
+      .map((file) => file.slice(ROOT.length));
+    expect(holders).toEqual(['src/legacyCredentials.ts']);
+  });
+
+  it('nothing reads import.meta.env as a whole object', () => {
+    const offenders: string[] = [];
+    for (const file of files) {
+      const text = readFileSync(file, 'utf8');
+      const re = /import\.meta\.env(?!\.)/g;
+      if (re.test(text)) offenders.push(file.slice(ROOT.length));
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('the proxy composable, the Worker source and the stale bindings copy are gone', () => {
+    for (const gone of [
+      'src/composables/useLlmProxy.ts',
+      'llm-proxy/src/index.ts',
+      'llm-proxy/package.json',
+      'llm-proxy/wrangler.toml',
+      'client',
+    ]) {
+      expect(existsSync(`${ROOT}${gone}`), gone).toBe(false);
+    }
   });
 });

@@ -1,4 +1,0 @@
-# Standalone pnpm project (not a workspace member); pnpm 11 requires explicit approval for these install scripts.
-allowBuilds:
-  esbuild: true
-  workerd: true
