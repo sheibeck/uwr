@@ -5,6 +5,7 @@
 import { ScheduleAt } from 'spacetimedb';
 import { tableHasRows } from './events';
 import { DAY_DURATION_MICROS, getWorldState } from './location';
+import { ensureLlmSweepScheduled } from './llm_schedule';
 
 export function ensureHealthRegenScheduled(ctx: any) {
   if (!tableHasRows(ctx.db.health_regen_tick.iter())) {
@@ -84,4 +85,5 @@ export function initScheduledTables(ctx: any) {
   ensureDayNightTickScheduled(ctx);
   ensureInactivityTickScheduled(ctx);
   ensureLlmCleanupScheduled(ctx);
+  ensureLlmSweepScheduled(ctx);
 }

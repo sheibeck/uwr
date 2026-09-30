@@ -20,6 +20,7 @@ import { registerWorldEventReducers } from './world_events';
 import { registerLlmReducers } from './llm';
 import { registerIntentReducers } from './intent';
 import { registerCreationReducers } from './creation';
+import { registerLlmExecutorReducers } from './llm_executor';
 
 export const registerReducers = (deps: any) => {
   registerSocialReducers(deps);
@@ -44,4 +45,5 @@ export const registerReducers = (deps: any) => {
   registerLlmReducers(deps);
   registerIntentReducers(deps);
   registerCreationReducers(deps);
+  registerLlmExecutorReducers(deps);
 };

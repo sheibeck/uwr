@@ -240,6 +240,7 @@ import {
   ensureInactivityTickScheduled,
   ensureLlmCleanupScheduled,
 } from './helpers/scheduling';
+import { ensureLlmSweepScheduled } from './helpers/llm_schedule';
 
 import { myBankSlotsView } from './schema/tables';
 
@@ -968,6 +969,7 @@ spacetimedb.clientConnected((ctx) => {
   ensureDayNightTickScheduled(ctx);
   ensureInactivityTickScheduled(ctx);
   ensureLlmCleanupScheduled(ctx);
+  ensureLlmSweepScheduled(ctx);
 });
 
 spacetimedb.clientDisconnected((_ctx) => {
