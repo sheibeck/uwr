@@ -12,6 +12,7 @@ import { sweepLlmJobs, type SweepDeps } from './llm_sweeper';
 import { applyLlmFailure } from './llm_apply';
 import { hasLlmDispatch, scheduledMicros } from './llm_schedule';
 import { LLM_SPEND_ID } from '../data/llm_limits';
+import { appendCreationEvent } from './events';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
@@ -144,6 +145,7 @@ const ZERO = {
   expiredPending: 0,
   dispatchedOrphans: 0,
   prunedBudgets: 0,
+  releasedLocks: 0,
   errors: 0,
 };
 
@@ -618,5 +620,110 @@ describe('no lock-out (fairness prohibition)', () => {
     for (const j of rows(ctx, 'llm_job')) {
       expect(['expired', 'failed']).toContain(j.status);
     }
+  });
+});
+
+// ----------------------------------------------------------------------------
+// WR-A01: a generation lock whose job is gone is released
+// ----------------------------------------------------------------------------
+
+describe('stranded generation locks (a lost failure message)', () => {
+  const creationState = (step: string, updatedAt: bigint, over: Record<string, any> = {}) => ({
+    id: 1n,
+    playerId: alice,
+    step,
+    createdAt: ts(updatedAt),
+    updatedAt: ts(updatedAt),
+    ...over,
+  });
+  const genState = (step: string, updatedAt: bigint, over: Record<string, any> = {}) => ({
+    id: 5n,
+    playerId: alice,
+    characterId: 1n,
+    sourceLocationId: 0n,
+    sourceRegionId: 0n,
+    step,
+    createdAt: ts(updatedAt),
+    updatedAt: ts(updatedAt),
+    ...over,
+  });
+
+  it.each([
+    ['GENERATING_RACE', 'AWAITING_RACE'],
+    ['GENERATING_CLASS', 'AWAITING_ARCHETYPE'],
+  ])('a %s creation step whose job ended failed is returned to %s with the try again line', (step, back) => {
+    const ctx = makeCtx({ character_creation_state: [creationState(step, NOW - 2n * MIN)] });
+    ctx.db.llm_job.insert(
+      jobRow({ route: step === 'GENERATING_RACE' ? 'creation_race' : 'creation_class', status: 'failed', characterId: 0n }),
+    );
+    const report = sweepLlmJobs(ctx, makeDeps());
+
+    expect(report).toEqual({ ...ZERO, releasedLocks: 1 });
+    expect(rows(ctx, 'character_creation_state')[0].step).toBe(back);
+    expect(appendCreationEvent).toHaveBeenCalledTimes(1);
+    expect((appendCreationEvent as any).mock.calls[0].slice(1)).toEqual([
+      alice,
+      'creation_error',
+      'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."',
+    ]);
+    // Idempotent: the next sweep finds nothing.
+    expect(sweepLlmJobs(ctx, makeDeps())).toEqual(ZERO);
+  });
+
+  it.each(['pending', 'in_flight', 'received'])('a creation step with a %s creation job of the same identity is left alone', (status) => {
+    const ctx = makeCtx({ character_creation_state: [creationState('GENERATING_RACE', NOW - 30n * MIN)] });
+    ctx.db.llm_job.insert(jobRow({ route: 'creation_race', status, characterId: 0n, createdAt: ts(NOW - 10n * SEC) }));
+    sweepLlmJobs(ctx, makeDeps());
+    expect(rows(ctx, 'character_creation_state')[0].step).toBe('GENERATING_RACE');
+    expect(appendCreationEvent).not.toHaveBeenCalled();
+  });
+
+  it("another identity's active creation job does not hold this state", () => {
+    const ctx = makeCtx({ character_creation_state: [creationState('GENERATING_RACE', NOW - 2n * MIN)] });
+    ctx.db.llm_job.insert(jobRow({ playerId: bob, route: 'creation_race', status: 'pending', characterId: 0n }));
+    sweepLlmJobs(ctx, makeDeps());
+    expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_RACE');
+  });
+
+  it('a lock younger than the grace is left alone', () => {
+    const ctx = makeCtx({ character_creation_state: [creationState('GENERATING_CLASS', NOW - 30n * SEC)] });
+    sweepLlmJobs(ctx, makeDeps());
+    expect(rows(ctx, 'character_creation_state')[0].step).toBe('GENERATING_CLASS');
+  });
+
+  it.each(['PENDING', 'GENERATING'])('a %s world-gen state with no active job goes to ERROR with the [explore] line', (step) => {
+    // A starter state: the character is still at location 0, so the line goes to the creation log.
+    const ctx = makeCtx({ character: [{ ...character(), locationId: 0n }], world_gen_state: [genState(step, NOW - 5n * MIN)] });
+    ctx.db.llm_job.insert(
+      jobRow({ route: 'world_gen', status: 'expired', requestJson: JSON.stringify({ genStateId: '5', input: {} }) }),
+    );
+    const report = sweepLlmJobs(ctx, makeDeps());
+
+    expect(report).toEqual({ ...ZERO, releasedLocks: 1 });
+    const state = rows(ctx, 'world_gen_state')[0];
+    expect(state.step).toBe('ERROR');
+    expect(state.errorMessage).toBe('The Keeper falters. "The world refuses to be remembered right now."');
+    expect((appendCreationEvent as any).mock.calls[0][3]).toContain('Type [explore] to try again.');
+  });
+
+  it('a GENERATING world-gen state whose world_gen job is still active is left alone', () => {
+    const ctx = makeCtx({ world_gen_state: [genState('GENERATING', NOW - 5n * MIN), genState('GENERATING', NOW - 5n * MIN, { id: 6n })] });
+    ctx.db.llm_job.insert(
+      jobRow({ route: 'world_gen', status: 'in_flight', attempt: 1n, startedAt: ts(NOW - 10n * SEC), requestJson: JSON.stringify({ genStateId: '5', input: {} }) }),
+    );
+    sweepLlmJobs(ctx, makeDeps());
+    const states = rows(ctx, 'world_gen_state');
+    expect(states.find((s: any) => s.id === 5n).step).toBe('GENERATING');
+    expect(states.find((s: any) => s.id === 6n).step).toBe('ERROR');
+  });
+
+  it('COMPLETE and ERROR states are never touched', () => {
+    const ctx = makeCtx({
+      character_creation_state: [creationState('COMPLETE', NOW - HOUR)],
+      world_gen_state: [genState('COMPLETE', NOW - HOUR), genState('ERROR', NOW - HOUR, { id: 6n })],
+    });
+    const before = snap(ctx);
+    expect(sweepLlmJobs(ctx, makeDeps())).toEqual(ZERO);
+    expect(snap(ctx)).toBe(before);
   });
 });

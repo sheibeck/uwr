@@ -14,6 +14,11 @@
 // - pending past 10 minutes (24 hours for renown_perk_gen): expired with the
 //   reservation and call refunded and the failure message; younger and without a
 //   dispatch row (an orphan, including Phase 40's queued renown jobs): one dispatch
+// - stranded generation locks: a creation step GENERATING_RACE/GENERATING_CLASS or a
+//   world-gen state PENDING/GENERATING with no active job for 60 s (its failure message
+//   threw, so the job is terminal but the lock was never released) is released directly
+//   with the in-voice "try again" line, never through applyFailure (a message bug must
+//   not keep a lock forever)
 // - budget rows older than the retention window are pruned
 //
 // Rules this module keeps:
@@ -39,9 +44,12 @@ import {
   LLM_SWEEP_PENDING_MAX_AGE_MICROS,
   LLM_SWEEP_RECEIVED_GRACE_MICROS,
   LLM_SWEEP_RENOWN_PENDING_MAX_AGE_MICROS,
+  LLM_SWEEP_STRANDED_LOCK_GRACE_MICROS,
 } from '../data/llm_limits';
 import { redactSecrets } from './measurement';
-import { applyLlmFailure, toApplyJob, type ApplyJob } from './llm_apply';
+import { applyLlmFailure, failWorldGen, toApplyJob, type ApplyJob } from './llm_apply';
+import { appendCreationEvent } from './events';
+import { activeLlmJobs } from './llm_queue';
 import { chargeLedgerUnknownBilling, prunePlayerBudgets, releaseLlmReservation } from './llm_budget';
 import { hasLlmDispatch, insertLlmDispatch } from './llm_schedule';
 import { recordSmokeResult } from './llm_admin_state';
@@ -54,6 +62,7 @@ export interface SweepReport {
   expiredPending: number;
   dispatchedOrphans: number;
   prunedBudgets: number;
+  releasedLocks: number;
   errors: number;
 }
 
@@ -122,6 +131,7 @@ export function sweepLlmJobs(ctx: any, deps?: Partial<SweepDeps>): SweepReport {
     expiredPending: 0,
     dispatchedOrphans: 0,
     prunedBudgets: 0,
+    releasedLocks: 0,
     errors: 0,
   };
 
@@ -206,6 +216,14 @@ export function sweepLlmJobs(ctx: any, deps?: Partial<SweepDeps>): SweepReport {
   }
 
   try {
+    report.releasedLocks = releaseStrandedLocks(ctx, now, d);
+  } catch (err) {
+    report.errors += 1;
+    const message = err instanceof Error ? err.message : String(err);
+    d.log(redactSecrets(`llm_sweep stranded-lock release failed: ${message}`));
+  }
+
+  try {
     report.prunedBudgets = prunePlayerBudgets(ctx);
   } catch (err) {
     report.errors += 1;
@@ -214,4 +232,72 @@ export function sweepLlmJobs(ctx: any, deps?: Partial<SweepDeps>): SweepReport {
   }
 
   return report;
+}
+
+/** The creation step each creation route holds, and the step a released lock returns to. */
+const CREATION_LOCKS: Readonly<Record<string, { route: string; back: string }>> = Object.freeze({
+  GENERATING_RACE: { route: 'creation_race', back: 'AWAITING_RACE' },
+  GENERATING_CLASS: { route: 'creation_class', back: 'AWAITING_ARCHETYPE' },
+});
+
+/** The same in-voice lines the per-route failure handling posts. */
+const CREATION_LOCK_RELEASED = 'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."';
+const WORLD_GEN_LOCK_RELEASED = 'The Keeper falters. "The world refuses to be remembered right now."';
+
+function genStateIdOf(job: any): string | undefined {
+  try {
+    const id = (JSON.parse(String(job.requestJson ?? '')) as { genStateId?: unknown } | null)?.genStateId;
+    return typeof id === 'string' ? id : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Release generation locks whose job is gone. A creation state is locked by an active
+ * creation job of its own identity; a world-gen state by an active world_gen job naming its id.
+ * Only locks older than the grace are touched (a lock and its job are always written in the
+ * same transaction, so a younger lock without a job cannot exist, but the grace keeps the rule
+ * conservative). Iterates both state tables: the only caller is the sweeper reducer.
+ */
+function releaseStrandedLocks(ctx: any, now: bigint, d: SweepDeps): number {
+  const active = activeLlmJobs(ctx);
+  const creationHeld = new Set<string>();
+  const worldGenHeld = new Set<string>();
+  for (const job of active) {
+    if (job.route === 'creation_race' || job.route === 'creation_class') {
+      creationHeld.add(`${job.route}|${job.playerId.toHexString()}`);
+    } else if (job.route === 'world_gen') {
+      const id = genStateIdOf(job);
+      if (id !== undefined) worldGenHeld.add(id);
+    }
+  }
+  const stale = (row: any): boolean => now - row.updatedAt.microsSinceUnixEpoch > LLM_SWEEP_STRANDED_LOCK_GRACE_MICROS;
+
+  let released = 0;
+  for (const state of [...ctx.db.character_creation_state.iter()]) {
+    const lock = CREATION_LOCKS[state.step];
+    if (!lock || !stale(state)) continue;
+    if (creationHeld.has(`${lock.route}|${state.playerId.toHexString()}`)) continue;
+    try {
+      ctx.db.character_creation_state.id.update({ ...state, step: lock.back, updatedAt: ctx.timestamp });
+      appendCreationEvent(ctx, state.playerId, 'creation_error', CREATION_LOCK_RELEASED);
+      released += 1;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      d.log(redactSecrets(`llm_sweep creation lock ${String(state.id)} release failed: ${message}`));
+    }
+  }
+  for (const state of [...ctx.db.world_gen_state.iter()]) {
+    if (state.step !== 'PENDING' && state.step !== 'GENERATING') continue;
+    if (!stale(state) || worldGenHeld.has(state.id.toString())) continue;
+    try {
+      failWorldGen(ctx, state, WORLD_GEN_LOCK_RELEASED);
+      released += 1;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      d.log(redactSecrets(`llm_sweep world-gen lock ${String(state.id)} release failed: ${message}`));
+    }
+  }
+  return released;
 }

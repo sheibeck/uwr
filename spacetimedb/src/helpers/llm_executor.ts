@@ -100,8 +100,8 @@ export type Claim =
   | { kind: 'redispatch' }
   | { kind: 'deferred' }
   | { kind: 'expired' }
-  /** `job` is the failed row for the failure message; undefined for a smoke job (it records a smoke entry instead). */
-  | { kind: 'failed'; job: any | undefined }
+  /** Terminal failure; the in-voice failure message (or a smoke entry) was written in the same transaction. */
+  | { kind: 'failed' }
   | { kind: 'received'; job: any }
   | {
       kind: 'run';
@@ -127,6 +127,51 @@ function isSmokeRequest(requestJson: unknown): boolean {
 
 const EMPTY_SMOKE_COUNTS = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0, costMicroUsd: 0n } as const;
 
+/** Posts the in-voice failure message for a job that just became terminal, inside the caller's transaction. */
+type Notify = (failed: any) => void;
+
+/** Marks a throw that came from the failure message itself (not from the status write). */
+class FailureMessageError extends Error {
+  constructor(
+    readonly jobId: unknown,
+    cause: unknown,
+  ) {
+    super(cause instanceof Error ? cause.message : String(cause));
+  }
+}
+
+/**
+ * Run a transaction body that may end a job in a terminal failure, posting the in-voice failure
+ * message in the SAME transaction as the status and money. A job therefore never becomes terminal
+ * while its domain lock (a GENERATING creation step or world-gen state) stays held, and no crash
+ * between two transactions can strand it. When the message itself throws, the whole transaction
+ * rolled back; the body runs again without the message, so the status and money still commit (a
+ * bug in a message never undoes them) and the sweeper's stranded-lock rule releases the lock.
+ * Any other throw propagates unchanged.
+ */
+function withFailureTx<T>(
+  ctx: any,
+  deps: ExecutorDeps,
+  needles: readonly string[],
+  body: (tx: any, notify: Notify) => T,
+): T {
+  try {
+    return ctx.withTx((tx: any): T =>
+      body(tx, (failed: any) => {
+        try {
+          deps.applyFailure(tx, toApplyJob(failed));
+        } catch (err) {
+          throw new FailureMessageError(failed?.id, err);
+        }
+      }),
+    );
+  } catch (err) {
+    if (!(err instanceof FailureMessageError)) throw err;
+    deps.log(redactSecrets(`llm failure message failed for job ${String(err.jobId)}: ${err.message}`, needles));
+    return ctx.withTx((tx: any): T => body(tx, () => {}));
+  }
+}
+
 /**
  * Claim (tx1): one serializable transaction that reads the job and the key and
  * flips the job to in_flight. Because the count of in-flight jobs is read and
@@ -135,8 +180,8 @@ const EMPTY_SMOKE_COUNTS = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0, c
  * ends the run without a call leaves money consistent (release with a call
  * refund, or nothing written).
  */
-export function claimLlmJob(ctx: any, arg: DispatchArg, _deps: ExecutorDeps): Claim {
-  return ctx.withTx((tx: any): Claim => {
+export function claimLlmJob(ctx: any, arg: DispatchArg, deps: ExecutorDeps): Claim {
+  return withFailureTx(ctx, deps, [], (tx: any, notify: Notify): Claim => {
     const job = tx.db.llm_job.id.find(arg.jobId);
     if (!job) return { kind: 'skip' };
     if (job.status === 'received') return { kind: 'received', job };
@@ -165,16 +210,17 @@ export function claimLlmJob(ctx: any, arg: DispatchArg, _deps: ExecutorDeps): Cl
       return { kind: 'expired' };
     }
 
-    /** Fail the job at claim: refund the reservation and the call, then either record a smoke entry or ask for the failure message. */
+    /** Fail the job at claim: refund the reservation and the call, then record a smoke entry or post the failure message. */
     const failAtClaim = (errorCode: string): Claim => {
       const patch = releaseLlmReservation(tx, job, { refundCall: true });
       const failed = { ...job, ...patch, status: 'failed', errorCode, finishedAt: tx.timestamp };
       tx.db.llm_job.id.update(failed);
       if (smoke) {
         recordSmokeResult(tx, job.route, { ok: false, class: errorCode, latencyMs: 0, ...EMPTY_SMOKE_COUNTS }, []);
-        return { kind: 'failed', job: undefined };
+      } else {
+        notify(failed);
       }
-      return { kind: 'failed', job: failed };
+      return { kind: 'failed' };
     };
 
     if (isPhaseLedgerExhausted(tx)) return failAtClaim('billing');
@@ -248,20 +294,6 @@ function u64(n: unknown): bigint {
   return BigInt(Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.floor(v))));
 }
 
-/**
- * Post the in-voice failure message in its own transaction, so a bug in a
- * message cannot undo the status write that already committed.
- */
-function runFailureApply(ctx: any, job: any | undefined, deps: ExecutorDeps, needles: readonly string[]): void {
-  if (!job) return;
-  try {
-    ctx.withTx((tx: any) => deps.applyFailure(tx, toApplyJob(job)));
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    deps.log(redactSecrets(`llm failure message failed for job ${String(job.id)}: ${message}`, needles));
-  }
-}
-
 type RunClaim = Extract<Claim, { kind: 'run' }>;
 
 /** The result of the persist transaction (tx2). */
@@ -271,8 +303,8 @@ type Persist =
   | { kind: 'expired' }
   | { kind: 'completed' }
   | { kind: 'received' }
-  /** `job` is the failed row for the failure message; undefined for a smoke job. */
-  | { kind: 'failed'; job: any | undefined };
+  /** Terminal failure; the failure message (or a smoke entry) was written in the same transaction. */
+  | { kind: 'failed' };
 
 interface AttemptOutcome {
   result: ClaudeResult;
@@ -299,7 +331,7 @@ interface AttemptOutcome {
  * - anything else: failed, reservation and call refunded; a thrown attempt adds the
  *   reservation to the ledger first; the player is never charged
  */
-function persistAttempt(ctx: any, c: RunClaim, a: AttemptOutcome): Persist {
+function persistAttempt(ctx: any, c: RunClaim, a: AttemptOutcome, deps: ExecutorDeps): Persist {
   const { result } = a;
   const needles = [c.apiKey];
   const usage: Usage = result.usage ?? ZERO_USAGE;
@@ -313,7 +345,7 @@ function persistAttempt(ctx: any, c: RunClaim, a: AttemptOutcome): Persist {
     counts.input === 0n && counts.output === 0n && counts.cacheWrite === 0n && counts.cacheRead === 0n;
   const realCost = BigInt(estimateCostMicroUsd(usage));
 
-  return ctx.withTx((tx: any): Persist => {
+  return withFailureTx(ctx, deps, needles, (tx: any, notify: Notify): Persist => {
     const job = tx.db.llm_job.id.find(c.jobId);
     const now: bigint = tx.timestamp.microsSinceUnixEpoch;
 
@@ -371,13 +403,11 @@ function persistAttempt(ctx: any, c: RunClaim, a: AttemptOutcome): Persist {
       reply,
     });
 
-    /** A terminal failure: a smoke job records its failed entry, any other job asks for the failure message. */
+    /** A terminal failure: a smoke job records its failed entry, any other job posts the failure message. */
     const failedResult = (failed: any, cost: bigint): Persist => {
-      if (c.smoke) {
-        recordSmokeResult(tx, c.route, smokeEntry(false, cost), needles);
-        return { kind: 'failed', job: undefined };
-      }
-      return { kind: 'failed', job: failed };
+      if (c.smoke) recordSmokeResult(tx, c.route, smokeEntry(false, cost), needles);
+      else notify(failed);
+      return { kind: 'failed' };
     };
 
     if (result.ok) {
@@ -451,8 +481,8 @@ function persistAttempt(ctx: any, c: RunClaim, a: AttemptOutcome): Persist {
 }
 
 /** Fail a claimed job whose request could not be built: nothing was sent, so refund the reservation and the call. */
-function failBuild(ctx: any, c: RunClaim): Persist {
-  return ctx.withTx((tx: any): Persist => {
+function failBuild(ctx: any, c: RunClaim, deps: ExecutorDeps): Persist {
+  return withFailureTx(ctx, deps, [c.apiKey], (tx: any, notify: Notify): Persist => {
     const job = tx.db.llm_job.id.find(c.jobId);
     if (!job || job.status !== 'in_flight' || job.attempt !== c.attempt) return { kind: 'stale' };
     const patch = releaseLlmReservation(tx, job, { refundCall: true });
@@ -465,9 +495,10 @@ function failBuild(ctx: any, c: RunClaim): Persist {
         { ok: false, class: 'bad_request', latencyMs: 0, input: 0, output: 0, cacheWrite: 0, cacheRead: 0, costMicroUsd: 0n },
         [c.apiKey],
       );
-      return { kind: 'failed', job: undefined };
+    } else {
+      notify(failed);
     }
-    return { kind: 'failed', job: failed };
+    return { kind: 'failed' };
   });
 }
 
@@ -513,17 +544,16 @@ function applyStored(ctx: any, jobId: bigint, deps: ExecutorDeps, needles: reado
     break;
   }
 
-  const failed = ctx.withTx((tx: any) => {
+  const failed = withFailureTx(ctx, deps, needles, (tx: any, notify: Notify): boolean => {
     const job = tx.db.llm_job.id.find(jobId);
-    if (!job || job.status !== 'received') return undefined;
+    if (!job || job.status !== 'received') return false;
     const patch = releaseLlmReservation(tx, job, { refundCall: false });
     const next = { ...job, ...patch, status: 'failed', errorCode: 'apply_error', finishedAt: tx.timestamp };
     tx.db.llm_job.id.update(next);
-    return next;
+    notify(next);
+    return true;
   });
-  if (!failed) return 'skip';
-  runFailureApply(ctx, failed, deps, needles);
-  return 'apply_failed';
+  return failed ? 'apply_failed' : 'skip';
 }
 
 /** One module log line per call: route, job, attempt, outcome, status, ms and the four counts. Never text or prompt. */
@@ -558,7 +588,6 @@ export function runLlmJob(ctx: any, arg: DispatchArg, deps?: Partial<ExecutorDep
     case 'expired':
       return claim.kind;
     case 'failed':
-      runFailureApply(ctx, claim.job, d, []);
       return 'failed';
     case 'received':
       // Dispatched again by the sweeper: apply from the stored text, no call.
@@ -584,12 +613,7 @@ export function runLlmJob(ctx: any, arg: DispatchArg, deps?: Partial<ExecutorDep
         needles,
       ),
     );
-    const built = failBuild(ctx, c);
-    if (built.kind === 'failed') {
-      runFailureApply(ctx, built.job, d, needles);
-      return 'failed';
-    }
-    return 'stale';
+    return failBuild(ctx, c, d).kind === 'failed' ? 'failed' : 'stale';
   }
 
   // The call, with no transaction open.
@@ -618,7 +642,7 @@ export function runLlmJob(ctx: any, arg: DispatchArg, deps?: Partial<ExecutorDep
     unknownBilling: threw || (!result.ok && result.class === 'network'),
   };
 
-  const persisted = persistAttempt(ctx, c, attemptOutcome);
+  const persisted = persistAttempt(ctx, c, attemptOutcome, d);
   d.log(callLogLine(c, attemptOutcome));
 
   switch (persisted.kind) {
@@ -631,7 +655,6 @@ export function runLlmJob(ctx: any, arg: DispatchArg, deps?: Partial<ExecutorDep
     case 'completed':
       return 'completed';
     case 'failed':
-      runFailureApply(ctx, persisted.job, d, needles);
       return 'failed';
     case 'received':
       return applyStored(ctx, c.jobId, d, needles);

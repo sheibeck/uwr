@@ -720,6 +720,63 @@ describe('claim failures (no call, no spend)', () => {
     expect(logged).not.toContain(FAKE_KEY);
   });
 
+  // WR-A01: the terminal status and the in-voice failure message commit together, so a crash
+  // between two transactions can no longer leave a terminal job with its domain lock still held.
+  describe('the failure message commits with the terminal status (WR-A01)', () => {
+    /** Wrap withTx so the state at the end of every committed transaction is recorded. */
+    const recordCommits = (proc: Proc, jobId: bigint) => {
+      const commits: { jobStatus: string; step: string }[] = [];
+      const orig = proc.ctx.withTx.bind(proc.ctx);
+      (proc.ctx as any).withTx = (body: any) => {
+        const out = orig(body);
+        commits.push({ jobStatus: jobOf(proc, jobId).status, step: rows(proc, 'character_creation_state')[0].step });
+        return out;
+      };
+      return commits;
+    };
+    const creationProc = (responses: Array<MockReply | MockThrow>, seed: Record<string, any[]> = {}) =>
+      makeProc(responses, {
+        seed: { character_creation_state: [{ id: 1n, playerId: alice, step: 'GENERATING_RACE' }], ...seed },
+      });
+
+    it.each([
+      ['a claim failure (missing key)', () => creationProc([], { llm_config: [] })],
+      ['a call failure (500, creation never retries)', () => creationProc([fixture('err_500')])],
+      ['a build failure (bad route input)', () => creationProc([])],
+    ])('%s: the transaction that fails the job also returns the creation step', (label, makeP) => {
+      const proc = makeP();
+      const jobId = enqueue(proc, 'creation_race', {
+        sourceKey: SOURCE_KEYS.creation(1n, 'race'),
+        ...(label.startsWith('a build') ? { request: { input: {} } } : {}),
+      });
+      const commits = recordCommits(proc, jobId);
+      const deps = makeDeps(proc, { applyFailure: applyLlmFailure as any });
+
+      expect(run(proc, jobId, deps)).toBe('failed');
+
+      const firstFailed = commits.find((c) => c.jobStatus === 'failed');
+      expect(firstFailed).toEqual({ jobStatus: 'failed', step: 'AWAITING_RACE' });
+    });
+
+    it('a throwing message rolls back its own partial writes; the status and refund still commit', () => {
+      const proc = creationProc([], { llm_config: [] });
+      const jobId = enqueue(proc, 'creation_race', { sourceKey: SOURCE_KEYS.creation(1n, 'race') });
+      const deps = makeDeps(proc, {
+        applyFailure: vi.fn((tx: any) => {
+          tx.db.event_creation.insert({ id: 0n, playerId: alice, kind: 'creation_error', message: 'half', createdAt: tx.timestamp });
+          throw new Error('message bug');
+        }) as any,
+      });
+
+      expect(run(proc, jobId, deps)).toBe('failed');
+      expect(jobOf(proc, jobId)).toMatchObject({ status: 'failed', errorCode: 'auth', reservedMicroUsd: 0n });
+      expect(rows(proc, 'event_creation')).toHaveLength(0);
+      expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+      // The lock stays for the sweeper's stranded-lock rule (llm_sweeper.test.ts).
+      expect(rows(proc, 'character_creation_state')[0].step).toBe('GENERATING_RACE');
+    });
+  });
+
   it('a smoke job that fails at claim records the failed entry and posts no failure message', () => {
     const proc = makeProc([], { seed: { llm_config: [] } });
     const jobId = enqueue(proc, 'creation_race', {

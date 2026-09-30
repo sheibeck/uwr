@@ -60,6 +60,8 @@ export const LLM_SWEEP_RECEIVED_GRACE_MICROS = 60_000_000n;
 export const LLM_SWEEP_PENDING_MAX_AGE_MICROS = 600_000_000n;
 /** Renown jobs queued in Phase 40 expire only after 24 hours. */
 export const LLM_SWEEP_RENOWN_PENDING_MAX_AGE_MICROS = 86_400_000_000n;
+/** A generation lock (creation GENERATING_* step, world-gen PENDING/GENERATING state) with no active job this long is released. */
+export const LLM_SWEEP_STRANDED_LOCK_GRACE_MICROS = 60_000_000n;
 
 // -- Budget and cost -------------------------------------------------------------
 
