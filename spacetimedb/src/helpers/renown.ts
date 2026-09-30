@@ -1,6 +1,6 @@
 import { RENOWN_RANKS, RENOWN_PERK_POOLS, calculateRankFromPoints, ACHIEVEMENT_DEFINITIONS } from '../data/renown_data';
 import { appendSystemMessage, appendWorldEvent } from './events';
-import { buildRenownPerkSystemPrompt, buildRenownPerkUserPrompt } from '../data/llm_prompts';
+import { enqueueLlmJob, resolveCharacterPlayerId, SOURCE_KEYS } from './llm_queue';
 
 export function awardRenown(ctx: any, character: any, points: bigint, reason: string) {
   // Get or lazy-create Renown row
@@ -58,13 +58,20 @@ export function awardRenown(ctx: any, character: any, points: bigint, reason: st
 }
 
 /**
- * Trigger LLM-driven renown perk generation at rank-up.
- * Falls back to static RENOWN_PERK_POOLS if LLM budget is insufficient.
+ * Rank-up hook: enqueue a renown_perk_gen job for the character's owning player.
+ * The job stays pending until the Phase 41 executor processes it. When no player
+ * identity resolves for the character, the static RENOWN_PERK_POOLS options are
+ * inserted instead so an earned perk offer is never silently dropped.
+ *
+ * Enqueue errors are programming errors and are deliberately not swallowed
+ * (the swallowed insert was the PIPE-08 defect).
  */
-function triggerRenownPerkGeneration(ctx: any, character: any, rank: number) {
-  // Gather character context
-  const player = ctx.db.player.id.find(character.ownerUserId);
-  if (!player) return;
+export function triggerRenownPerkGeneration(ctx: any, character: any, rank: number) {
+  const playerId = resolveCharacterPlayerId(ctx, character);
+  if (playerId === null) {
+    insertStaticRenownPerkOptions(ctx, character.id, rank);
+    return;
+  }
 
   // Collect existing renown perks for diversity context
   const existingPerks: { name: string; perkKey: string }[] = [];
@@ -72,44 +79,40 @@ function triggerRenownPerkGeneration(ctx: any, character: any, rank: number) {
     existingPerks.push({ name: perkRow.perkKey, perkKey: perkRow.perkKey });
   }
 
-  // Get character race/class info
-  const raceName = character.raceName ?? 'Unknown';
-  const className = character.className ?? 'Unknown';
+  enqueueLlmJob(ctx, {
+    route: 'renown_perk_gen',
+    playerId,
+    characterId: character.id,
+    sourceKey: SOURCE_KEYS.renownPerk(character.id, rank),
+    request: {
+      characterId: character.id,
+      rank,
+      className: character.className ?? 'Unknown',
+      raceName: character.race ?? 'Unknown',
+      existingPerks,
+    },
+  });
+}
 
-  // Try to insert an LLM task for perk generation
-  try {
-    const systemPrompt = buildRenownPerkSystemPrompt();
-    const userPrompt = buildRenownPerkUserPrompt(character.name, className, raceName, rank, existingPerks);
-
-    ctx.db.llm_task.insert({
-      id: 0n,
-      playerId: player.id,
-      domain: 'renown_perk_gen',
-      model: 'gpt-5-mini',
-      systemPrompt,
-      userPrompt,
-      maxTokens: 1200n,
-      status: 'pending',
-      contextJson: JSON.stringify({
-        characterId: String(character.id),
-        rank,
-        className,
-        raceName,
-      }),
-      createdAt: ctx.timestamp,
-      completedAt: undefined,
-      resultText: undefined,
-      errorMessage: undefined,
-    });
-  } catch (_err) {
-    // LLM task insertion failed (budget or other issue) — fall back to static pool
-    insertStaticRenownPerkOptions(ctx, character.id, rank);
-  }
+/**
+ * JSON for a passive perk effect. Effects carry bigint values (for example maxHp: 25n),
+ * which JSON.stringify rejects. Safe-range bigints become plain numbers, matching the
+ * {maxHp: 25} shape the perk prompt documents; anything larger becomes a decimal string.
+ * perkEffectJson is not parsed anywhere downstream: chosen passives are looked up by
+ * perkKey in RENOWN_PERK_POOLS, so this is a readable record only.
+ */
+function serializePerkEffect(effect: unknown): string {
+  return JSON.stringify(effect, (_k, v) => {
+    if (typeof v !== 'bigint') return v;
+    return v >= BigInt(Number.MIN_SAFE_INTEGER) && v <= BigInt(Number.MAX_SAFE_INTEGER)
+      ? Number(v)
+      : v.toString();
+  });
 }
 
 /**
  * Static fallback: insert 3 options from RENOWN_PERK_POOLS for the given rank.
- * Used when LLM budget is exhausted or task insertion fails.
+ * Used when no player identity resolves for the character.
  */
 function insertStaticRenownPerkOptions(ctx: any, characterId: bigint, rank: number) {
   const pool = RENOWN_PERK_POOLS[rank];
@@ -132,7 +135,7 @@ function insertStaticRenownPerkOptions(ctx: any, characterId: bigint, rank: numb
       cooldownSeconds: isActive ? BigInt((perk.effect as any).cooldownSeconds ?? 300) : 0n,
       scaling: 'none',
       value1: 0n,
-      perkEffectJson: isActive ? undefined : JSON.stringify(perk.effect),
+      perkEffectJson: isActive ? undefined : serializePerkEffect(perk.effect),
       perkDomain: perk.domain,
       createdAt: ctx.timestamp,
     });

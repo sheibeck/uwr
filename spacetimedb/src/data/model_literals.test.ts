@@ -24,7 +24,6 @@ const LEGACY_MODEL_LITERALS: Record<string, number> = {
   'spacetimedb/src/helpers/combat_narration.ts': 1,
   'spacetimedb/src/reducers/npc_interaction.ts': 1,
   'spacetimedb/src/reducers/llm.ts': 2,
-  'spacetimedb/src/helpers/renown.ts': 1, // removed by Plan 40-07
   'spacetimedb/src/schema/tables.ts': 1, // stale comment in the dead LlmRequest table, Phase 42
   'src/composables/useLlm.ts': 2, // dead client composable, Phase 42
 };
