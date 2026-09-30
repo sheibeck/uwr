@@ -137,6 +137,8 @@ export const Npc = table(
     factionId: t.u64().optional(),
     personalityJson: t.string().optional(),
     baseMood: t.string().optional(),
+    // male or female, set on every insert through resolveNpcGender; '' only on rows written before the column (read them with npcGender)
+    gender: t.string().default(''),
   }
 );
 

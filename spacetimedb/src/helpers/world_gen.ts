@@ -5,6 +5,8 @@ import type { WorldGenInput } from '../data/llm_layers';
 import { appendCreationEvent, appendPrivateEvent } from './events';
 import { enqueueLlmJob, llmRefusalMessage, SOURCE_KEYS } from './llm_queue';
 import { archetypeForPlayer, encodeRouteInput } from './llm_inputs';
+import { resolveNpcGender, npcGender, npcNoticeLine } from '../data/npc_gender';
+import type { NpcGender } from '../data/npc_gender';
 
 // ---------------------------------------------------------------------------
 // Relocated from data/world_gen.ts -- these are active generation functions
@@ -246,13 +248,13 @@ function reuseStarterRegion(ctx: any, genState: any, character: any): boolean {
     updatedAt: ctx.timestamp,
   });
 
-  const locationNpcs: string[] = [];
+  const locationNpcs: { name: string; gender: NpcGender }[] = [];
   for (const npc of ctx.db.npc.by_location.filter(homeLocation.id)) {
-    locationNpcs.push(npc.name);
+    locationNpcs.push({ name: npc.name, gender: npcGender(npc) });
   }
   let arrivalMsg = `You open your eyes in ${homeLocation.name}, ${existingStarterRegion.name}.`;
   if (locationNpcs.length > 0) {
-    arrivalMsg += `\n\nYou notice ${locationNpcs.join(' and ')} nearby. Perhaps they have something to say.`;
+    arrivalMsg += '\n\n' + npcNoticeLine(locationNpcs);
   }
   arrivalMsg += `\n\nTry [look] to examine your surroundings, or [travel] to move.`;
   appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative', arrivalMsg);
@@ -459,13 +461,17 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any, starte
     }
     if (!npcLocation) continue;
 
+    const storedName = npc.name || 'Unknown NPC';
+    const storedDescription = npc.description || 'A mysterious figure.';
+    const storedGreeting = npc.greeting || 'Greetings, traveler.';
     tx.db.npc.insert({
       id: 0n,
-      name: npc.name || 'Unknown NPC',
+      name: storedName,
       npcType: npc.npcType || 'lore',
       locationId: npcLocation.id,
-      description: npc.description || 'A mysterious figure.',
-      greeting: npc.greeting || 'Greetings, traveler.',
+      description: storedDescription,
+      greeting: storedGreeting,
+      gender: resolveNpcGender(npc.gender, storedName, storedDescription + ' ' + storedGreeting),
       personalityJson: npc.personality ? JSON.stringify(npc.personality) : JSON.stringify({
         traits: ['reserved'],
         speechPattern: 'speaks plainly',
@@ -487,6 +493,7 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any, starte
       tx.db.npc.insert({
         id: 0n,
         name: 'The Reluctant Merchant',
+        gender: resolveNpcGender(undefined, 'The Reluctant Merchant'),
         npcType: 'vendor',
         locationId: homeLocation.id,
         description: 'A merchant who seems mildly annoyed by the concept of commerce.',
@@ -499,6 +506,7 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any, starte
       tx.db.npc.insert({
         id: 0n,
         name: 'The Ledger Keeper',
+        gender: resolveNpcGender(undefined, 'The Ledger Keeper'),
         npcType: 'banker',
         locationId: homeLocation.id,
         description: 'A meticulous figure who guards your valuables with obsessive precision.',

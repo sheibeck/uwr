@@ -192,3 +192,25 @@ describe('legacy skill schema equivalence', () => {
     expect(normalize(SKILL_GENERATION_SCHEMA)).toEqual(normalize(legacy));
   });
 });
+
+describe('region npc gender (Plan 41-18, PR-02)', () => {
+  const item = (REGION_GENERATION_SCHEMA as any).properties.npcs.items;
+
+  it('requires a male/female gender enum right after name', () => {
+    expect(item.properties.gender).toEqual({ type: 'string', enum: ['male', 'female'] });
+    expect(item.required[0]).toBe('name');
+    expect(item.required[1]).toBe('gender');
+  });
+
+  it('still lints clean with no optional or union parameters', () => {
+    expect(lintSchema(REGION_GENERATION_SCHEMA)).toEqual([]);
+    expect(countOptionalParams(REGION_GENERATION_SCHEMA)).toBe(0);
+    expect(countUnionParams(REGION_GENERATION_SCHEMA)).toBe(0);
+  });
+
+  it('RACE_SCHEMA raceName speaks of the player, not a singular they', () => {
+    const d: string = (RACE_SCHEMA as any).properties.raceName.description;
+    expect(d).toContain('If the player said');
+    expect(d).not.toContain('If they said');
+  });
+});

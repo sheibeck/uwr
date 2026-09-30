@@ -39,6 +39,8 @@ import { insertStaticRenownPerkOptions } from './renown';
 import { toBigIntSafe } from './safe_numbers';
 import { validateRaceReply, validateClassReply } from './creation_validate';
 import { QUEST_TYPES } from '../data/mechanical_vocabulary';
+import { npcGender, npcNoticeLine } from '../data/npc_gender';
+import type { NpcGender } from '../data/npc_gender';
 
 /** The fields of a stored job the apply step needs. Works for llm_task and llm_job rows. */
 export type ApplyJob = { domain: string; playerId: any; contextJson?: string };
@@ -330,10 +332,10 @@ export function applyWorldGenResult(ctx: any, job: ApplyJob, resultText: string)
       ensureSpawnsForLocation(ctx, homeLocation.id);
 
       const regionDesc = data.regionDescription || `A ${data.biome || 'mysterious'} region.`;
-      const locationNpcs: string[] = [];
+      const locationNpcs: { name: string; gender: NpcGender }[] = [];
       for (const npc of ctx.db.npc.iter()) {
         if (npc.locationId === homeLocation.id) {
-          locationNpcs.push(npc.name);
+          locationNpcs.push({ name: npc.name, gender: npcGender(npc) });
         }
       }
       const nearbySet = new Set<string>();
@@ -349,7 +351,7 @@ export function applyWorldGenResult(ctx: any, job: ApplyJob, resultText: string)
 
       let arrivalMsg = `You open your eyes in ${homeLocation.name}, ${data.regionName}.\n\n${regionDesc}`;
       if (locationNpcs.length > 0) {
-        arrivalMsg += `\n\nYou notice ${locationNpcs.join(' and ')} nearby. Perhaps they have something to say.`;
+        arrivalMsg += '\n\n' + npcNoticeLine(locationNpcs);
       }
       if (nearbyLocations.length > 0) {
         arrivalMsg += `\n\nPaths lead to ${nearbyLocations.join(', ')}. Try [look] to examine your surroundings, or [travel] to move.`;

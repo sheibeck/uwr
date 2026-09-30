@@ -28,6 +28,7 @@ import {
   ARMOR_TYPES,
   WEAPON_TYPES,
 } from './mechanical_vocabulary';
+import { NPC_GENDERS } from './npc_gender';
 
 /** Recursively freeze a value (arrays and plain objects). Returns the same reference. */
 export function deepFreeze<T>(value: T): T {
@@ -74,7 +75,7 @@ const STATS = enumOf(STAT_TYPES);
 export const RACE_SCHEMA: Node = deepFreeze(
   obj({
     raceName: str(
-      "Use the EXACT race name the player gave. Do NOT expand, embellish, or add adjectives. If they said 'Cyclops', the raceName is 'Cyclops'. If they said 'fire goblin', the raceName is 'Fire Goblin' (just capitalize). Only invent a name if the player gave a vague description like 'some kind of shadow creature' rather than a specific race name.",
+      "Use the EXACT race name the player gave. Do NOT expand, embellish, or add adjectives. If the player said 'Cyclops', the raceName is 'Cyclops'. If the player said 'fire goblin', the raceName is 'Fire Goblin' (just capitalize). Only invent a name if the player gave a vague description like 'some kind of shadow creature' rather than a specific race name.",
     ),
     narrative: str('2-3 sentences of sardonic Keeper commentary about this race'),
     bonuses: obj({
@@ -139,7 +140,7 @@ export const CLASS_SCHEMA: Node = deepFreeze(
 );
 
 // ----------------------------------------------------------------------------
-// Region generation (Phase 39 spike schema, verbatim; compiled live on Sonnet 5.5)
+// Region generation (Phase 39 spike schema plus the NPC gender enum (Plan 41-18); compiled live on Sonnet 5.5)
 // ----------------------------------------------------------------------------
 
 const REGION_CORE_PROPS: Record<string, Node> = {
@@ -170,6 +171,7 @@ const REGION_POPULATION_PROPS: Record<string, Node> = {
     type: 'array',
     items: obj({
       name: S,
+      gender: enumOf(NPC_GENDERS),
       npcType: { type: 'string', enum: ['vendor', 'questgiver', 'lore', 'trainer', 'guard', 'crafter', 'banker'] },
       locationName: S,
       description: S,

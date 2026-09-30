@@ -8701,6 +8701,7 @@ exports[`submit_llm_result world_gen success > QUIRK: a missing character still 
   "npc": [
     {
       "description": "A soot-streaked trader.",
+      "gender": "female",
       "greeting": "Buy something.",
       "id": "1n",
       "locationId": "1n",
@@ -8710,6 +8711,7 @@ exports[`submit_llm_result world_gen success > QUIRK: a missing character still 
     },
     {
       "description": "A mysterious figure.",
+      "gender": "female",
       "greeting": "Greetings, traveler.",
       "id": "2n",
       "locationId": "1n",
@@ -8719,6 +8721,7 @@ exports[`submit_llm_result world_gen success > QUIRK: a missing character still 
     },
     {
       "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
       "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
       "id": "3n",
       "locationId": "1n",
@@ -9002,7 +9005,7 @@ exports[`submit_llm_result world_gen success > QUIRK: charges the budget to the 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa and Old Brann and The Ledger Keeper nearby. Perhaps they have something to say.\\n\\nPaths lead to Slag Road. Try [look] to examine your surroundings, or [travel] to move.",
+      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa and Old Brann and The Ledger Keeper nearby. Perhaps someone here has something to say.\\n\\nPaths lead to Slag Road. Try [look] to examine your surroundings, or [travel] to move.",
       "ownerUserId": "7n"
     },
     {
@@ -9151,6 +9154,7 @@ exports[`submit_llm_result world_gen success > QUIRK: charges the budget to the 
   "npc": [
     {
       "description": "A soot-streaked trader.",
+      "gender": "female",
       "greeting": "Buy something.",
       "id": "1n",
       "locationId": "1n",
@@ -9160,6 +9164,7 @@ exports[`submit_llm_result world_gen success > QUIRK: charges the budget to the 
     },
     {
       "description": "A mysterious figure.",
+      "gender": "female",
       "greeting": "Greetings, traveler.",
       "id": "2n",
       "locationId": "1n",
@@ -9169,6 +9174,7 @@ exports[`submit_llm_result world_gen success > QUIRK: charges the budget to the 
     },
     {
       "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
       "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
       "id": "3n",
       "locationId": "1n",
@@ -9371,7 +9377,7 @@ exports[`submit_llm_result world_gen success > accepts a code-fenced reply 1`] =
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa and Old Brann and The Ledger Keeper nearby. Perhaps they have something to say.\\n\\nPaths lead to Slag Road. Try [look] to examine your surroundings, or [travel] to move.",
+      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa and Old Brann and The Ledger Keeper nearby. Perhaps someone here has something to say.\\n\\nPaths lead to Slag Road. Try [look] to examine your surroundings, or [travel] to move.",
       "ownerUserId": "7n"
     },
     {
@@ -9520,6 +9526,7 @@ exports[`submit_llm_result world_gen success > accepts a code-fenced reply 1`] =
   "npc": [
     {
       "description": "A soot-streaked trader.",
+      "gender": "female",
       "greeting": "Buy something.",
       "id": "1n",
       "locationId": "1n",
@@ -9529,6 +9536,7 @@ exports[`submit_llm_result world_gen success > accepts a code-fenced reply 1`] =
     },
     {
       "description": "A mysterious figure.",
+      "gender": "female",
       "greeting": "Greetings, traveler.",
       "id": "2n",
       "locationId": "1n",
@@ -9538,6 +9546,7 @@ exports[`submit_llm_result world_gen success > accepts a code-fenced reply 1`] =
     },
     {
       "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
       "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
       "id": "3n",
       "locationId": "1n",
@@ -10173,6 +10182,7 @@ exports[`submit_llm_result world_gen success > non-starter region: raises danger
   "npc": [
     {
       "description": "A soot-streaked trader.",
+      "gender": "female",
       "greeting": "Buy something.",
       "id": "1n",
       "locationId": "51n",
@@ -10182,6 +10192,7 @@ exports[`submit_llm_result world_gen success > non-starter region: raises danger
     },
     {
       "description": "A mysterious figure.",
+      "gender": "female",
       "greeting": "Greetings, traveler.",
       "id": "2n",
       "locationId": "51n",
@@ -10191,6 +10202,7 @@ exports[`submit_llm_result world_gen success > non-starter region: raises danger
     },
     {
       "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
       "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
       "id": "3n",
       "locationId": "51n",
@@ -10342,7 +10354,7 @@ exports[`submit_llm_result world_gen success > places the character in a non-saf
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice The Reluctant Merchant and The Ledger Keeper nearby. Perhaps they have something to say.\\n\\nPaths lead to Slag Road. Try [look] to examine your surroundings, or [travel] to move.",
+      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice The Reluctant Merchant and The Ledger Keeper nearby. Perhaps someone here has something to say.\\n\\nPaths lead to Slag Road. Try [look] to examine your surroundings, or [travel] to move.",
       "ownerUserId": "7n"
     },
     {
@@ -10501,6 +10513,7 @@ exports[`submit_llm_result world_gen success > places the character in a non-saf
   "npc": [
     {
       "description": "A merchant who seems mildly annoyed by the concept of commerce.",
+      "gender": "male",
       "greeting": "Fine. I suppose you want to buy something. Let us get this over with.",
       "id": "1n",
       "locationId": "1n",
@@ -10510,6 +10523,7 @@ exports[`submit_llm_result world_gen success > places the character in a non-saf
     },
     {
       "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
       "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
       "id": "2n",
       "locationId": "1n",
@@ -10677,7 +10691,7 @@ exports[`submit_llm_result world_gen success > starter region: writes region, lo
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa and Old Brann and The Ledger Keeper nearby. Perhaps they have something to say.\\n\\nPaths lead to Slag Road. Try [look] to examine your surroundings, or [travel] to move.",
+      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa and Old Brann and The Ledger Keeper nearby. Perhaps someone here has something to say.\\n\\nPaths lead to Slag Road. Try [look] to examine your surroundings, or [travel] to move.",
       "ownerUserId": "7n"
     },
     {
@@ -10826,6 +10840,7 @@ exports[`submit_llm_result world_gen success > starter region: writes region, lo
   "npc": [
     {
       "description": "A soot-streaked trader.",
+      "gender": "female",
       "greeting": "Buy something.",
       "id": "1n",
       "locationId": "1n",
@@ -10835,6 +10850,7 @@ exports[`submit_llm_result world_gen success > starter region: writes region, lo
     },
     {
       "description": "A mysterious figure.",
+      "gender": "female",
       "greeting": "Greetings, traveler.",
       "id": "2n",
       "locationId": "1n",
@@ -10844,6 +10860,7 @@ exports[`submit_llm_result world_gen success > starter region: writes region, lo
     },
     {
       "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
       "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
       "id": "3n",
       "locationId": "1n",

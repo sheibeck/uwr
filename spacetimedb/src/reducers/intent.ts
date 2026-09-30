@@ -5,6 +5,7 @@ import { computeSellValue } from '../helpers/economy';
 import { getPerkBonusByField } from '../helpers/renown';
 import { requestSkillOffer } from '../helpers/skill_offer';
 import { startWorldGeneration } from '../helpers/world_gen';
+import { npcGender, npcPronouns, npcRegardLine } from '../data/npc_gender';
 
 // Re-export for any existing consumers that import from intent.ts
 export { buildLookOutput } from '../helpers/look';
@@ -795,7 +796,7 @@ export const registerIntentReducers = (deps: any) => {
         // Check if character is at the NPC's location
         const npc = ctx.db.npc.id.find(qt.npcId);
         if (npc && npc.locationId !== character.locationId) {
-          return fail(ctx, character, `You must return to ${npc.name} at ${ctx.db.location.id.find(npc.locationId)?.name || 'their location'} to turn in this quest.`);
+          return fail(ctx, character, `You must return to ${npc.name} at ${ctx.db.location.id.find(npc.locationId)?.name || `${npcPronouns(npcGender(npc)).possessive} post`} to turn in this quest.`);
         }
 
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
@@ -1604,15 +1605,7 @@ export const registerIntentReducers = (deps: any) => {
       }
       if (npc) {
         const affinity = Number(getAffinityForNpc(ctx, character.id, npc.id));
-        let regard: string;
-        if (affinity >= 100) regard = `${npc.name} is devoted to you. A rare and unshakeable bond.`;
-        else if (affinity >= 75) regard = `${npc.name} considers you a close friend. Trust runs deep here.`;
-        else if (affinity >= 50) regard = `${npc.name} regards you warmly. You have earned their respect.`;
-        else if (affinity >= 25) regard = `${npc.name} recognizes you as a passing acquaintance. There is room to grow.`;
-        else if (affinity >= 0) regard = `${npc.name} regards you with polite indifference. You are a stranger to them.`;
-        else if (affinity >= -25) regard = `${npc.name} eyes you warily. Something about you puts them on edge.`;
-        else if (affinity >= -50) regard = `${npc.name} makes no effort to hide their dislike. Tread carefully.`;
-        else regard = `${npc.name} despises you. Every word you speak deepens their contempt.`;
+        const regard = npcRegardLine(npc.name, npcGender(npc), affinity);
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', regard);
         return;
       }

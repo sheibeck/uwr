@@ -475,7 +475,7 @@ Interpret this description into a race for the world.",
             "type": "string",
           },
           "raceName": {
-            "description": "Use the EXACT race name the player gave. Do NOT expand, embellish, or add adjectives. If they said 'Cyclops', the raceName is 'Cyclops'. If they said 'fire goblin', the raceName is 'Fire Goblin' (just capitalize). Only invent a name if the player gave a vague description like 'some kind of shadow creature' rather than a specific race name.",
+            "description": "Use the EXACT race name the player gave. Do NOT expand, embellish, or add adjectives. If the player said 'Cyclops', the raceName is 'Cyclops'. If the player said 'fire goblin', the raceName is 'Fire Goblin' (just capitalize). Only invent a name if the player gave a vague description like 'some kind of shadow creature' rather than a specific race name.",
             "type": "string",
           },
         },
@@ -1341,6 +1341,13 @@ Generate a region linked to this character.",
                 "description": {
                   "type": "string",
                 },
+                "gender": {
+                  "enum": [
+                    "male",
+                    "female",
+                  ],
+                  "type": "string",
+                },
                 "greeting": {
                   "type": "string",
                 },
@@ -1402,6 +1409,7 @@ Generate a region linked to this character.",
               },
               "required": [
                 "name",
+                "gender",
                 "npcType",
                 "locationName",
                 "description",

@@ -484,3 +484,50 @@ describe('startWorldGeneration', () => {
     expect(rows(ctx, 'event_private')).toHaveLength(0);
   });
 });
+
+describe('writeGeneratedRegion - NPC gender (Plan 41-18, PR-02 and PR-05)', () => {
+  function npcItem(overrides: any = {}) {
+    return {
+      name: 'Oswin Tarr',
+      npcType: 'lore',
+      locationName: 'Safe Haven',
+      description: 'A figure at the crossing.',
+      greeting: 'Well met.',
+      personality: { traits: ['quiet'], speechPattern: 'slow', knowledgeDomains: ['ferries'], secrets: [], affinityMultiplier: 1.0 },
+      ...overrides,
+    };
+  }
+  function run(npcs: any[]) {
+    const tx = createMockTx();
+    tx.db.region.insert({ id: 100n, name: 'Source', dangerMultiplier: 100n });
+    writeGeneratedRegion(tx, baseParsedData({ npcs }), baseGenState());
+    return tx.db.npc._rows();
+  }
+
+  it('keeps a valid model gender, trimmed and case-insensitive', () => {
+    expect(run([npcItem({ gender: 'female' })]).find((n: any) => n.name === 'Oswin Tarr').gender).toBe('female');
+    expect(run([npcItem({ gender: 'Female ' })]).find((n: any) => n.name === 'Oswin Tarr').gender).toBe('female');
+  });
+
+  it('reads the pronouns in the description when the gender is missing', () => {
+    const rows = run([npcItem({ description: 'She keeps the ferry and her ledger.' })]);
+    expect(rows.find((n: any) => n.name === 'Oswin Tarr').gender).toBe('female');
+  });
+
+  it('clamps an invalid gender and falls back to the name hash', () => {
+    const rows = run([npcItem({ gender: 'it', description: 'A figure at the crossing.' })]);
+    expect(rows.find((n: any) => n.name === 'Oswin Tarr').gender).toBe('male');
+  });
+
+  it('gives the safety-net vendor and banker a gender', () => {
+    const rows = run([]);
+    expect(rows.find((n: any) => n.npcType === 'vendor').gender).toBe('male');
+    expect(rows.find((n: any) => n.npcType === 'banker').gender).toBe('female');
+  });
+
+  it('every inserted npc row has a gender in NPC_GENDERS', () => {
+    const rows = run([npcItem({ gender: 42 }), npcItem({ name: 'Mara Quill', gender: undefined })]);
+    expect(rows.length).toBeGreaterThan(2);
+    for (const r of rows) expect(['male', 'female']).toContain(r.gender);
+  });
+});

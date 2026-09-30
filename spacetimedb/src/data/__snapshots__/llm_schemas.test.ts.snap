@@ -268,7 +268,7 @@ exports[`lint and determinism > RACE_SCHEMA serialization is deterministic and m
   "properties": {
     "raceName": {
       "type": "string",
-      "description": "Use the EXACT race name the player gave. Do NOT expand, embellish, or add adjectives. If they said 'Cyclops', the raceName is 'Cyclops'. If they said 'fire goblin', the raceName is 'Fire Goblin' (just capitalize). Only invent a name if the player gave a vague description like 'some kind of shadow creature' rather than a specific race name."
+      "description": "Use the EXACT race name the player gave. Do NOT expand, embellish, or add adjectives. If the player said 'Cyclops', the raceName is 'Cyclops'. If the player said 'fire goblin', the raceName is 'Fire Goblin' (just capitalize). Only invent a name if the player gave a vague description like 'some kind of shadow creature' rather than a specific race name."
     },
     "narrative": {
       "type": "string",
@@ -447,6 +447,7 @@ exports[`lint and determinism > REGION_GENERATION_SCHEMA serialization is determ
         "additionalProperties": false,
         "required": [
           "name",
+          "gender",
           "npcType",
           "locationName",
           "description",
@@ -456,6 +457,13 @@ exports[`lint and determinism > REGION_GENERATION_SCHEMA serialization is determ
         "properties": {
           "name": {
             "type": "string"
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female"
+            ]
           },
           "npcType": {
             "type": "string",
