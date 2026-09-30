@@ -1,7 +1,7 @@
 import { RENOWN_RANKS, RENOWN_PERK_POOLS, calculateRankFromPoints, ACHIEVEMENT_DEFINITIONS } from '../data/renown_data';
 import type { RenownPerkInput } from '../data/llm_layers';
 import { appendPrivateEvent, appendSystemMessage, appendWorldEvent } from './events';
-import { enqueueLlmJob, resolveCharacterPlayerId, SOURCE_KEYS } from './llm_queue';
+import { enqueueLlmJob, hasActiveJobForCharacter, resolveCharacterPlayerId, SOURCE_KEYS } from './llm_queue';
 import { encodeRouteInput } from './llm_inputs';
 
 /** Keeper line posted when static perk options stand in for a generated offer. */
@@ -56,12 +56,77 @@ export function awardRenown(ctx: any, character: any, points: bigint, reason: st
       // Notify about available perk (ranks 2+ have perk pools)
       if (rank >= 2) {
         appendSystemMessage(ctx, character, `A new perk is available for rank ${rank}: ${rankName}!`);
-        // Trigger LLM perk generation for this rank
-        triggerRenownPerkGeneration(ctx, character, rank);
+        // Trigger LLM perk generation for this rank; one rank is offered at a time.
+        if (triggerRenownPerkGeneration(ctx, character, rank) === 'deferred') {
+          appendSystemMessage(ctx, character, renownDeferredMessage(rank));
+        }
       }
     }
   }
 }
+
+/** System line when a rank's offer waits for the player to choose an earlier rank's reward. */
+export function renownDeferredMessage(rank: number): string {
+  return `Your rank ${rank} reward will be offered once you choose your earlier renown reward.`;
+}
+
+/**
+ * True when the character already holds the reward for `rank`: a renown_perk row (passive
+ * perks and the legacy choose_perk path) or a Renown ability whose key chooseRenownPerkLogic
+ * writes as `renown_rank<rank>_<name>`.
+ */
+export function renownRankClaimed(ctx: any, characterId: bigint, rank: number): boolean {
+  const rankBig = BigInt(rank);
+  for (const row of ctx.db.renown_perk.by_character.filter(characterId)) {
+    if (row.rank === rankBig) return true;
+  }
+  const prefix = `renown_rank${rank}_`;
+  for (const row of ctx.db.ability_template.by_character.filter(characterId)) {
+    if (row.source === 'Renown' && typeof row.abilityKey === 'string' && row.abilityKey.startsWith(prefix)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * True while a renown offer is open for the character: pending options of any rank, or an
+ * active renown_perk_gen job. Offers are serialized on this so two ranks never coexist.
+ */
+export function renownOfferOutstanding(ctx: any, characterId: bigint): boolean {
+  for (const _row of ctx.db.pending_renown_perk.by_character.filter(characterId)) return true;
+  return hasActiveJobForCharacter(ctx, 'renown_perk_gen', characterId);
+}
+
+/**
+ * After a renown choice: offer the lowest rank (2..currentRank) the character has earned but
+ * not claimed, if no other offer is open. A rank that yields no offer (no pool and no job) is
+ * skipped so the chain never stalls on it.
+ */
+export function offerNextRenownPerk(ctx: any, character: any): void {
+  if (renownOfferOutstanding(ctx, character.id)) return;
+  let currentRank = 1;
+  for (const row of ctx.db.renown.by_character.filter(character.id)) {
+    currentRank = Number(row.currentRank);
+    break;
+  }
+  for (let rank = 2; rank <= currentRank; rank++) {
+    if (renownRankClaimed(ctx, character.id, rank)) continue;
+    triggerRenownPerkGeneration(ctx, character, rank);
+    if (renownOfferOutstanding(ctx, character.id)) return;
+  }
+}
+
+/** True when `rank` already has pending options for the character or has been claimed. */
+export function renownRankSettled(ctx: any, characterId: bigint, rank: number): boolean {
+  const rankBig = BigInt(rank);
+  for (const existing of ctx.db.pending_renown_perk.by_character.filter(characterId)) {
+    if (existing.rank === rankBig) return true;
+  }
+  return renownRankClaimed(ctx, characterId, rank);
+}
+
+export type RenownOfferOutcome ='offered' | 'deferred' | 'claimed';
 
 /**
  * Rank-up hook: enqueue a renown_perk_gen job for the character's owning player.
@@ -69,17 +134,24 @@ export function awardRenown(ctx: any, character: any, points: bigint, reason: st
  * the legacy keys applyRenownPerkResult reads. When no player identity resolves,
  * or the enqueue is refused (budget or phase cap; an earned offer is never
  * refused as busy), the static RENOWN_PERK_POOLS options are inserted with a
- * Keeper line instead, so an earned perk offer is never silently dropped. A
- * dedupe hit (an active job for the same rank) does nothing.
+ * Keeper line instead, so an earned perk offer is never silently dropped.
+ *
+ * Offers are serialized (CR-B01): while another offer is open (pending options or an
+ * active job, any rank) nothing is enqueued and 'deferred' is returned;
+ * offerNextRenownPerk queues the rank once the open offer is chosen. A rank the
+ * character already claimed returns 'claimed'.
  *
  * Enqueue errors are programming errors and are deliberately not swallowed
  * (the swallowed insert was the PIPE-08 defect).
  */
-export function triggerRenownPerkGeneration(ctx: any, character: any, rank: number) {
+export function triggerRenownPerkGeneration(ctx: any, character: any, rank: number): RenownOfferOutcome {
+  if (renownRankClaimed(ctx, character.id, rank)) return 'claimed';
+  if (renownOfferOutstanding(ctx, character.id)) return 'deferred';
+
   const playerId = resolveCharacterPlayerId(ctx, character);
   if (playerId === null) {
     insertStaticRenownPerkOptions(ctx, character.id, rank);
-    return;
+    return 'offered';
   }
 
   // Collect existing renown perks for diversity context
@@ -118,6 +190,7 @@ export function triggerRenownPerkGeneration(ctx: any, character: any, rank: numb
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative', RENOWN_STATIC_OPTIONS_MESSAGE);
     }
   }
+  return 'offered';
 }
 
 /**
@@ -143,16 +216,15 @@ export function serializePerkEffect(effect: unknown): string {
  * is never silently dropped.
  *
  * Idempotent per character and rank: when the character already has a pending option
- * for the rank, nothing is inserted. Returns the number of rows inserted.
+ * for the rank, or has already claimed the rank, nothing is inserted. Returns the number
+ * of rows inserted.
  */
 export function insertStaticRenownPerkOptions(ctx: any, characterId: bigint, rank: number): number {
   const pool = RENOWN_PERK_POOLS[rank];
   if (!pool || pool.length === 0) return 0;
 
+  if (renownRankSettled(ctx, characterId, rank)) return 0;
   const rankBig = BigInt(rank);
-  for (const existing of ctx.db.pending_renown_perk.by_character.filter(characterId)) {
-    if (existing.rank === rankBig) return 0;
-  }
 
   const perks = pool.slice(0, 3);
   for (const perk of perks) {

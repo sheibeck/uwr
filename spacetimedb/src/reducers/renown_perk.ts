@@ -3,14 +3,16 @@
  * The actual reducer in renown.ts wraps this with auth checks.
  */
 import { appendSystemMessage } from '../helpers/events';
+import { offerNextRenownPerk } from '../helpers/renown';
 
 /**
  * Pure logic for choose_renown_perk:
  * - Validates pending perk exists for character
  * - Active perk (non-empty kind) -> ability_template with source='Renown'
  * - Passive perk (perkEffectJson set, kind empty) -> renown_perk table
- * - Cleans up ALL pending_renown_perk rows for character after choice
+ * - Clears only the chosen rank's pending_renown_perk rows (ranks are independent, CR-B01)
  * - Logs a message to the player
+ * - Offers the next earned, unclaimed rank once no other offer is open
  *
  * Returns { success: boolean, error?: string }
  */
@@ -79,14 +81,18 @@ export function chooseRenownPerkLogic(
     });
   }
 
-  // Delete ALL pending_renown_perk rows for this character (player chose, clear the rest)
-  const toDelete = [...ctx.db.pending_renown_perk.by_character.filter(characterId)];
+  // Clear the chosen rank's options only; another rank's open offer stays choosable.
+  const toDelete = [...ctx.db.pending_renown_perk.by_character.filter(characterId)]
+    .filter((row: any) => row.rank === perk.rank);
   for (const row of toDelete) {
     ctx.db.pending_renown_perk.id.delete(row.id);
   }
 
   // Log the choice
   appendSystemMessage(ctx, character, `You chose ${perk.name} as your rank ${perk.rank} renown reward.`);
+
+  // Offers are serialized: queue the next earned rank now that this one is settled.
+  offerNextRenownPerk(ctx, character);
 
   return { success: true };
 }

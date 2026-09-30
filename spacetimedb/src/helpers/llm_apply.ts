@@ -36,7 +36,7 @@ import {
 } from './npc_conversation';
 import { awardNpcAffinity } from './npc_affinity';
 import { handleCombatNarrationResult } from './combat_narration';
-import { insertStaticRenownPerkOptions } from './renown';
+import { insertStaticRenownPerkOptions, renownRankSettled } from './renown';
 import { toBigIntSafe } from './safe_numbers';
 import { validateRaceReply, validateClassReply } from './creation_validate';
 import { QUEST_TYPES } from '../data/mechanical_vocabulary';
@@ -791,6 +791,13 @@ export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: strin
   const rank = Number(context.rank) || 2;
   const character = ctx.db.character.id.find(charId);
   if (!character) return;
+
+  // Ranks stay independent (CR-B01): never stack a second set of options on a rank that
+  // already has pending options, and never re-offer a rank the character has claimed.
+  if (renownRankSettled(ctx, charId, rank)) {
+    console.error(`Renown perk result for character ${charId} rank ${rank} dropped: the rank is already offered or claimed`);
+    return;
+  }
 
   // Parse LLM response
   let perks: any[] = [];

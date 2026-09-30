@@ -5,12 +5,17 @@ import { buildDedupeKey } from './llm_queue';
 import { encodeRouteInput, resolveRouteInput } from './llm_inputs';
 import { utcDay } from './llm_budget';
 import { scheduledMicros } from './llm_schedule';
-import { appendPrivateEvent } from './events';
+import { appendPrivateEvent, appendSystemMessage } from './events';
+import { applyRenownPerkResult, toApplyJob } from './llm_apply';
+import { chooseRenownPerkLogic } from '../reducers/renown_perk';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { LLM_PLAYER_DAILY_COST_MICRO_USD, LLM_PHASE_SPEND_CAP_MICRO_USD } from '../data/llm_limits';
 import {
   awardRenown,
   triggerRenownPerkGeneration,
+  insertStaticRenownPerkOptions,
+  renownDeferredMessage,
+  renownRankClaimed,
   RENOWN_STATIC_OPTIONS_MESSAGE,
 } from './renown';
 
@@ -117,22 +122,126 @@ describe('renown rank-up enqueues a job (PIPE-08)', () => {
     expect(JSON.parse(rows(ctx, 'llm_job')[0].requestJson).raceName).toBe('Kobold');
   });
 
-  it('a jump across two ranks enqueues one job per rank', () => {
+  it('a jump across two ranks enqueues only the lowest rank and tells the player the next one waits (CR-B01)', () => {
     const ctx = seededCtx();
+    vi.mocked(appendSystemMessage).mockClear();
     awardRenown(ctx, character(), 200n, 'test');
-    const ranks = rows(ctx, 'llm_job')
-      .map((j: any) => JSON.parse(j.requestJson).rank)
-      .sort();
-    expect(ranks).toEqual([2, 3]);
+    const ranks = rows(ctx, 'llm_job').map((j: any) => JSON.parse(j.requestJson).rank);
+    expect(ranks).toEqual([2]);
+    const lines = vi.mocked(appendSystemMessage).mock.calls.map((c) => c[2]);
+    expect(lines).toContain(renownDeferredMessage(3));
+    expect(lines).not.toContain(renownDeferredMessage(2));
   });
 
-  it('is idempotent per character and rank, and a different rank is a second job', () => {
+  it('is idempotent per character and rank, and a different rank waits while an offer is open (CR-B01)', () => {
     const ctx = seededCtx();
-    triggerRenownPerkGeneration(ctx, character(), 2);
+    expect(triggerRenownPerkGeneration(ctx, character(), 2)).toBe('offered');
     triggerRenownPerkGeneration(ctx, character(), 2);
     expect(rows(ctx, 'llm_job')).toHaveLength(1);
-    triggerRenownPerkGeneration(ctx, character(), 3);
+    expect(triggerRenownPerkGeneration(ctx, character(), 3)).toBe('deferred');
+    expect(rows(ctx, 'llm_job')).toHaveLength(1);
+  });
+});
+
+describe('renown offers are serialized, one rank at a time (CR-B01)', () => {
+  const passive = (name: string) => ({
+    name,
+    description: `${name} description.`,
+    kind: '',
+    perkEffectJson: '{"maxHp":10}',
+    perkDomain: 'combat',
+  });
+  const reply = (prefix: string) =>
+    JSON.stringify({ perks: [passive(`${prefix} A`), passive(`${prefix} B`), passive(`${prefix} C`)] });
+
+  /** Complete the single active renown job and apply the reply, as the executor does. */
+  function completeAndApply(ctx: any, text: string): number {
+    const active = rows(ctx, 'llm_job').filter((j: any) => j.status === 'pending');
+    expect(active).toHaveLength(1);
+    const job = active[0];
+    ctx.db.llm_job.id.update({ ...job, status: 'completed' });
+    applyRenownPerkResult(ctx, toApplyJob(job), text);
+    return JSON.parse(job.requestJson).rank;
+  }
+
+  const pendingRanks = (ctx: any) =>
+    rows(ctx, 'pending_renown_perk').map((p: any) => Number(p.rank));
+
+  it('crossing two ranks bills one call at a time; choosing rank 2 queues rank 3 and loses nothing', () => {
+    const ctx = seededCtx();
+    awardRenown(ctx, character(), 200n, 'test'); // 90 -> 290: ranks 2 and 3
+    expect(rows(ctx, 'llm_job')).toHaveLength(1);
+
+    expect(completeAndApply(ctx, reply('Two'))).toBe(2);
+    expect(pendingRanks(ctx)).toEqual([2, 2, 2]);
+    expect(rows(ctx, 'llm_job').filter((j: any) => j.status === 'pending')).toHaveLength(0);
+
+    const pick = rows(ctx, 'pending_renown_perk')[0];
+    expect(chooseRenownPerkLogic(ctx, { characterId: 1n, perkId: pick.id })).toEqual({ success: true });
+    expect(rows(ctx, 'renown_perk').map((r: any) => r.rank)).toEqual([2n]);
+    expect(pendingRanks(ctx)).toEqual([]);
+
+    // The rank 3 offer follows the choice.
+    expect(completeAndApply(ctx, reply('Three'))).toBe(3);
+    expect(pendingRanks(ctx)).toEqual([3, 3, 3]);
     expect(rows(ctx, 'llm_job')).toHaveLength(2);
+
+    const pick3 = rows(ctx, 'pending_renown_perk')[0];
+    chooseRenownPerkLogic(ctx, { characterId: 1n, perkId: pick3.id });
+    expect(rows(ctx, 'renown_perk').map((r: any) => r.rank).sort()).toEqual([2n, 3n]);
+    expect(pendingRanks(ctx)).toEqual([]);
+    // Every earned rank is claimed: nothing further is queued.
+    expect(rows(ctx, 'llm_job')).toHaveLength(2);
+  });
+
+  it('reaching rank 3 while the rank 2 options are pending queues nothing until the choice', () => {
+    const ctx = seededCtx();
+    awardRenown(ctx, character(), 20n, 'test'); // rank 2
+    completeAndApply(ctx, reply('Two'));
+    awardRenown(ctx, character(), 200n, 'test'); // rank 3
+    expect(rows(ctx, 'llm_job')).toHaveLength(1);
+    expect(pendingRanks(ctx)).toEqual([2, 2, 2]);
+
+    chooseRenownPerkLogic(ctx, { characterId: 1n, perkId: rows(ctx, 'pending_renown_perk')[0].id });
+    const jobs = rows(ctx, 'llm_job');
+    expect(jobs).toHaveLength(2);
+    expect(JSON.parse(jobs[1].requestJson).rank).toBe(3);
+  });
+
+  it("when two ranks are already pending, choosing one keeps the other rank's options", () => {
+    const ctx = seededCtx({ renown: [{ id: 1n, characterId: 1n, points: 290n, currentRank: 3n }] });
+    insertStaticRenownPerkOptions(ctx, 1n, 2);
+    insertStaticRenownPerkOptions(ctx, 1n, 3);
+    expect(pendingRanks(ctx).sort()).toEqual([2, 2, 2, 3, 3, 3]);
+
+    const rank2 = rows(ctx, 'pending_renown_perk').find((p: any) => p.rank === 2n);
+    chooseRenownPerkLogic(ctx, { characterId: 1n, perkId: rank2.id });
+    expect(pendingRanks(ctx)).toEqual([3, 3, 3]);
+    // Rank 3 is still open, so no job is queued for it.
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+  });
+
+  it('a result for a rank that is already pending or claimed inserts nothing', () => {
+    const ctx = seededCtx();
+    insertStaticRenownPerkOptions(ctx, 1n, 2);
+    const job = { domain: 'renown_perk_gen', playerId: alice, contextJson: JSON.stringify({ characterId: '1', rank: 2 }) };
+    applyRenownPerkResult(ctx, job, reply('Again'));
+    expect(pendingRanks(ctx)).toEqual([2, 2, 2]);
+
+    const claimed = seededCtx({ renown_perk: [{ id: 1n, characterId: 1n, rank: 2n, perkKey: 'renown_rank2_x' }] });
+    applyRenownPerkResult(claimed, job, reply('Again'));
+    expect(rows(claimed, 'pending_renown_perk')).toHaveLength(0);
+    expect(insertStaticRenownPerkOptions(claimed, 1n, 2)).toBe(0);
+  });
+
+  it('a rank claimed as a Renown ability counts as claimed', () => {
+    const ctx = seededCtx({
+      ability_template: [{ id: 5n, characterId: 1n, source: 'Renown', abilityKey: 'renown_rank2_void_strike' }],
+    });
+    expect(renownRankClaimed(ctx, 1n, 2)).toBe(true);
+    expect(renownRankClaimed(ctx, 1n, 3)).toBe(false);
+    expect(triggerRenownPerkGeneration(ctx, character(), 2)).toBe('claimed');
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
   });
 });
 
