@@ -1,6 +1,12 @@
 // Phase 39 verdict: compute the strict and floor-adjusted gate verdicts from the raw results file,
 // store them, and print every number the decision record needs. Throwaway: deleted in the cleanup plan.
-// Spends nothing and makes no network call. The report is also written to scripts/spike/out/verdict-report.txt.
+// Spends nothing and makes no network call. The report is written to scripts/spike/out/verdict-report.txt
+// (local) or verdict-report-maincloud.txt (SPIKE_TARGET=maincloud).
+//
+// Target mode (REVISED 2026-09-29: maincloud decides the gate):
+// - local: the verdict is stored with role 'provisional' even when strict is incomplete, with diagnostics.
+// - maincloud: the verdict is stored with role 'decisive' only when strict is not incomplete;
+//   an incomplete strict verdict stores nothing and fails so the user decides.
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -17,8 +23,12 @@ import {
   type CallSample,
   type LatencyWindow,
 } from '../../spacetimedb/src/helpers/measurement_results';
-import { OUT_DIR } from './config.ts';
+import { LOCAL_RESULTS_PATH, OUT_DIR, TARGET } from './config.ts';
 import { ResultsStore } from './results-store.ts';
+
+const IS_MAINCLOUD = TARGET.name === 'maincloud';
+const PROFILE = IS_MAINCLOUD ? 'gate' : 'full';
+const REPORT_NAME = IS_MAINCLOUD ? 'verdict-report-maincloud.txt' : 'verdict-report.txt';
 
 const lines: string[] = [];
 const out = (s = '') => {
@@ -56,13 +66,14 @@ function callStats(label: string, xs: CallSample[]) {
   out('    ' + sumStr('in-module call ms', summarize(call)));
 }
 
-describe('spike verdict (no spend, no network)', () => {
+describe(`spike verdict, target ${TARGET.name} (no spend, no network)`, () => {
   it('computes strict and floor-adjusted verdicts from raw samples and stores them', () => {
     const store = new ResultsStore();
     const doc = store.read();
 
     // A partial validation must already pass before a verdict is computed.
-    expect(validateResults(doc, { final: false })).toEqual([]);
+    expect(validateResults(doc, { final: false, profile: PROFILE })).toEqual([]);
+    out(`target=${TARGET.name} db=${TARGET.db} results=${TARGET.resultsPath} profile=${PROFILE}`);
 
     const gi = gateInputFromResults(doc);
     const strict = evaluateGate(gi);
@@ -78,12 +89,16 @@ describe('spike verdict (no spend, no network)', () => {
     checkTable('FLOOR-ADJUSTED', floorAdjusted);
     out(`measuredNoiseDriftMs=${fmt(drift)} floorAdjustedNoiseFloorMs=${noiseFloorMs} observedServerCap=${cap}`);
     out('level labels: ' + JSON.stringify(labels));
+    out(`observed server concurrency cap: ${cap}`);
 
     // Diagnostic only, never stored: what the verdict would be if the thin-window sample minimum were set aside.
     const minPing = Math.min(...gi.loads.map((l) => l.pingSamples), gi.baseline.pingSamples);
     const whatIf = evaluateGate({ ...gi, thresholds: { minPingSamples: minPing } });
     const whatIfFloor = evaluateGate({ ...gi, thresholds: { minPingSamples: minPing, noiseFloorMs } });
-    out(`DIAGNOSTIC (not a verdict): with minPingSamples lowered to ${minPing}: strict=${whatIf.verdict} cap=${whatIf.cap}; floor-adjusted=${whatIfFloor.verdict} cap=${whatIfFloor.cap}`);
+    const whatIfLine = `DIAGNOSTIC (not a verdict): with minPingSamples lowered to ${minPing}: strict=${whatIf.verdict} cap=${whatIf.cap}; floor-adjusted=${whatIfFloor.verdict} cap=${whatIfFloor.cap}`;
+    out(whatIfLine);
+    const missing = strict.checks.filter((c) => c.name === 'samples' && !c.pass).map((c) => `missing minimum: ${String(c.measured)} (need ${String(c.threshold)})`);
+    for (const m of missing) out(m);
 
     out('=== RELIABILITY BY RUNG (all attempts, drills separate) ===');
     const all = collectCallSamples(doc);
@@ -120,15 +135,18 @@ describe('spike verdict (no spend, no network)', () => {
     out('=== PUSH LEGS / HOP / COMPOSED OVERHEAD (lower bound) ===');
     const echo = doc.pushLegs?.echoMs ?? [];
     const noop = doc.pushLegs?.noopProcedureE2eMs ?? [];
-    const hop = doc.hop?.samplesMs ?? [];
+    // Maincloud has no Worker hop (it exists only in the local file), so borrow the local hop read-only.
+    const hopDoc = IS_MAINCLOUD ? new ResultsStore(LOCAL_RESULTS_PATH).read() : doc;
+    const hopLabel = IS_MAINCLOUD ? 'local wrangler dev hop' : 'worker hop';
+    const hop = hopDoc.hop?.samplesMs ?? [];
     const idlePing = (doc.load?.baseline?.pingMs ?? []).map((s) => s.ms);
     const se = summarize(echo), sn = summarize(noop), sh = summarize(hop), sp = summarize(idlePing);
     out(sumStr('echo push ms', se));
-    out(sumStr('worker hop ms (' + doc.hop?.mode + ')', sh));
+    out(sumStr(hopLabel + ' ms (' + hopDoc.hop?.mode + ')', sh));
     out(sumStr('idle ping ms (baseline)', sp));
     out(sumStr('no-op procedure e2e ms', sn));
     if (se && sh && sp && sn) {
-      out(`composed current path (echo + hop + ping + echo): p50=${fmt(se.p50 + sh.p50 + sp.p50 + se.p50)} p95=${fmt(se.p95 + sh.p95 + sp.p95 + se.p95)}`);
+      out(`composed current path (echo + ${hopLabel} + ping + echo): p50=${fmt(se.p50 + sh.p50 + sp.p50 + se.p50)} p95=${fmt(se.p95 + sh.p95 + sp.p95 + se.p95)}`);
       out(`composed procedure path (no-op procedure e2e): p50=${fmt(sn.p50)} p95=${fmt(sn.p95)}`);
     }
 
@@ -197,20 +215,30 @@ describe('spike verdict (no spend, no network)', () => {
     out('env: ' + JSON.stringify(doc.environment));
 
     fs.mkdirSync(OUT_DIR, { recursive: true });
-    fs.writeFileSync(path.join(OUT_DIR, 'verdict-report.txt'), lines.join('\n') + '\n', 'utf8');
+    fs.writeFileSync(path.join(OUT_DIR, REPORT_NAME), lines.join('\n') + '\n', 'utf8');
 
-    // An incomplete strict verdict is not a decision: stop before writing anything.
-    expect(strict.verdict, 'strict verdict is incomplete; collect the missing samples first').not.toBe('incomplete');
-
-    store.set('verdict', {
+    const stored = {
       strict,
       floorAdjusted,
       noiseFloorMs,
       computedAt: new Date().toISOString(),
       observedServerCap: cap,
       levelLabels: labels,
-    });
+    };
 
-    expect(validateResults(store.read(), { final: true })).toEqual([]);
+    if (IS_MAINCLOUD) {
+      // An incomplete maincloud strict verdict is not a decision: store nothing and stop for the user.
+      if (strict.verdict === 'incomplete') {
+        for (const m of missing) out(m);
+        throw new Error('maincloud strict verdict is incomplete; stop for the user decision');
+      }
+      store.set('verdict', { ...stored, role: 'decisive', diagnostics: [] });
+    } else {
+      // Local results are provisional context: stored even when strict is incomplete, with diagnostics.
+      // The what-if line is a diagnostic and is never a verdict.
+      store.set('verdict', { ...stored, role: 'provisional', diagnostics: [whatIfLine, ...missing] });
+    }
+
+    expect(validateResults(store.read(), { final: true, profile: PROFILE })).toEqual([]);
   });
 });
