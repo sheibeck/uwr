@@ -74,8 +74,8 @@ See MILESTONES.md for full delivery summaries.
 
 - `todos/pending/2026-09-29-new-milestone-llm-reliability.md` — **NEXT MILESTONE (after v2.1 is archived):** fix the LLM pipeline (OpenAI credits/provider, procedure HTTP vs llm-proxy)
 
-- `todos/pending/2026-09-29-spike-procedure-http-to-retire-llm-proxy.md` — test whether 2.10 procedure HTTP can replace llm-proxy
 - `todos/pending/2026-09-29-migrate-client-table-handles-to-camelcase.md` — optional cleanup of deprecated snake_case table aliases
+- `todos/pending/2026-09-29-require-admin-for-increment-event-counter-reducer.md` — **security:** `increment_event_counter` has no `requireAdmin`, so any client can force-resolve world events
 
 ### Blockers/Concerns
 
