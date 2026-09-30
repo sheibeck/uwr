@@ -198,8 +198,6 @@ Plans:
 
 Plans:
 
-- [ ] 41-18-PLAN.md
-
 **Wave 1**
 
 - [x] 41-01-PLAN.md — Foundation: llm_limits constants, five private tables and new job/call-log columns, CLI identity as admin, test-seam extensions
@@ -247,9 +245,13 @@ Plans:
 
 **Wave 11** *(blocked on Wave 10 completion)*
 
-- [ ] 41-16-PLAN.md — [checkpoint] User sets the key; local smoke test and one real action per domain under the $2 cap
+- [ ] 41-18-PLAN.md — NPC gender (male/female) and the in-game pronoun rule: the Keeper is he, NPCs he/she, the player's character is you (user decision 2026-09-30)
 
 **Wave 12** *(blocked on Wave 11 completion)*
+
+- [ ] 41-16-PLAN.md — [checkpoint] User sets the key; local smoke test and one real action per domain under the $2 cap
+
+**Wave 13** *(blocked on Wave 12 completion)*
 
 - [ ] 41-17-PLAN.md — [checkpoint] Maincloud checklist; user runs it or defers (human_needed); gate re-check
 
