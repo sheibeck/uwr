@@ -4,17 +4,17 @@ milestone: v2.2
 milestone_name: LLM — Claude Engine
 current_phase: 42
 current_phase_name: Client Cutover and Legacy Removal
-status: ready_to_execute
-stopped_at: Phase 42 planned (7 plans, 5 waves); Phase 41 verification deferred (human_needed)
-last_updated: "2026-09-30T18:33:28.979Z"
+status: executing
+stopped_at: Completed 42-01-PLAN.md
+last_updated: "2026-09-30T22:53:15.642Z"
 last_activity: 2026-09-30
-last_activity_desc: Completed 41-16 and 41-17 (live proof and maincloud proof deferred, human_needed)
+last_activity_desc: Phase 42 execution started
 progress:
   total_phases: 6
-  completed_phases: 2
-  total_plans: 39
-  completed_plans: 39
-  percent: 33
+  completed_phases: 3
+  total_plans: 47
+  completed_plans: 40
+  percent: 50
 ---
 
 # Project State
@@ -28,12 +28,12 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 
 ## Current Position
 
-Phase: 42 (Client Cutover and Legacy Removal) — READY TO EXECUTE
-Plan: 0/7 (7 plans in 5 waves; plans verified by the plan checker)
-Status: Phase 42 planned. Phase 41 is complete apart from the deferred live and maincloud proofs (resume with /gsd-verify-work 41). Next: execute Phase 42
-Last activity: 2026-09-30 — Completed 41-16 and 41-17 (deferrals recorded)
+Phase: 42 (Client Cutover and Legacy Removal) — EXECUTING
+Plan: 2 of 7
+Status: Ready to execute
+Last activity: 2026-09-30 — Phase 42 execution started
 
-Progress: [███░░░░░░░] 33% (2/6 phases)
+Progress: [█████████░] 85% (2/6 phases)
 
 ## Previous Milestones
 
@@ -93,6 +93,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 41-15: live-proof harness connects with withDatabaseName('uwr') (SDK 2.10 has no withModuleName); paid mode = PROVE_LIVE_DRY unset, re-runnable; A1 settled (CLI token is an admin, admin_llm_status rows: 1)
 - [Phase 41]: 41-16/41-17: live proof and maincloud proof deferred by user (2026-09-30, human_needed, not passed); key stored locally (len 108); 41-MAINCLOUD-CHECKLIST.md written for the user to run
 - [Phase ?]: [41-18] NPC gender: male/female clamp (model value, text pronouns, FNV-1a name hash); npc.gender column default '' needed only --break-clients locally (no clear); Bible: Keeper is he, people he or she, beasts may be it, player is you; npcGender(row) is the only reader
+- [Phase ?]: [42-01] Apply-layer characterization drives applyLlmResult/applyLlmFailure directly; llm_apply.ts writes no old call counts; llm_prompts.ts deleted and kept deleted by test
 
 ### Roadmap Evolution
 
@@ -158,8 +159,8 @@ Phase 41 is code-complete and verified at code level (41-VERIFICATION.md: human_
 
 **Resume file:** None
 
-Last session: 2026-09-30T18:33:28.979Z
-Stopped at: Completed 41-17-PLAN.md (live proof and maincloud proof deferred by user)
+Last session: 2026-09-30T22:53:15.615Z
+Stopped at: Completed 42-01-PLAN.md
 
 ## Performance Metrics
 
@@ -212,6 +213,7 @@ Stopped at: Completed 41-17-PLAN.md (live proof and maincloud proof deferred by 
 | Phase 41 P18 | ~60min | 3 tasks | 32 files |
 | Phase 41 P16 | ~10min | 1 of 2 tasks (Task 2 deferred) | 1 files |
 | Phase 41 P17 | ~15min | 3 tasks (Task 2 deferred by user) | 2 files |
+| Phase 42 P01 | 55min | 3 tasks | 10 files |
 
 ## Operator Next Steps
 
