@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 41
 current_phase_name: Executor and Domain Cutover
 status: executing
-stopped_at: Completed 41-15-PLAN.md
-last_updated: "2026-09-30T17:26:24.727Z"
+stopped_at: Completed 41-18-PLAN.md
+last_updated: "2026-09-30T17:41:07.871Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 41 execution started
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 39
-  completed_plans: 36
+  completed_plans: 37
   percent: 33
 ---
 
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 41 (Executor and Domain Cutover) — EXECUTING
-Plan: 16 of 17
-Status: Ready to execute
-Last activity: 2026-09-30 — Phase 41 execution started
+Plan: 18 of 18 complete (order 41-18 done; next is 41-16, then 41-17; 16 of 18 plans executed)
+Status: Ready to execute 41-16
+Last activity: 2026-09-30 — Completed 41-18 (NPC gender and pronoun rule)
 
 Progress: [█████████░] 92% (2/6 phases)
 
@@ -91,6 +91,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [Phase 41-14]: World-gen failure goes to ERROR (failWorldGen), never PENDING; only the player's explore retries, including the first region (fresh starter state for a character at location 0 whose starter state is ERROR)
 - [Phase ?]: [Phase 41-14]: startWorldGeneration returns reused|enqueued|duplicate|refused; the ripple line posts only on enqueued or duplicate; a refusal sets ERROR with a fixed in-voice errorMessage (world_gen_state is public)
 - [Phase ?]: 41-15: live-proof harness connects with withDatabaseName('uwr') (SDK 2.10 has no withModuleName); paid mode = PROVE_LIVE_DRY unset, re-runnable; A1 settled (CLI token is an admin, admin_llm_status rows: 1)
+- [Phase ?]: [41-18] NPC gender: male/female clamp (model value, text pronouns, FNV-1a name hash); npc.gender column default '' needed only --break-clients locally (no clear); Bible: Keeper is he, people he or she, beasts may be it, player is you; npcGender(row) is the only reader
 
 ### Roadmap Evolution
 
@@ -145,8 +146,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-30T17:26:24.700Z
-Stopped at: Completed 41-15-PLAN.md
+Last session: 2026-09-30T17:41:07.417Z
+Stopped at: Completed 41-18-PLAN.md
 
 ## Performance Metrics
 
@@ -196,6 +197,7 @@ Stopped at: Completed 41-15-PLAN.md
 | Phase 41 P13 | ~25min | 2 tasks | 11 files |
 | Phase 41 P14 | 25min | 3 tasks | 17 files |
 | Phase 41 P15 | 35min | 2 tasks | 10 files |
+| Phase 41 P18 | ~60min | 3 tasks | 32 files |
 
 ## Operator Next Steps
 
