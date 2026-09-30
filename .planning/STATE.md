@@ -100,7 +100,7 @@ See MILESTONES.md for full delivery summaries.
   - The executor must process or expire the pending `renown_perk_gen` jobs, and add a sweeper for stuck active jobs (dedupe blocks on them, review IN-07).
   - `my_llm_jobs.errorCode` is a coarse bucket: transient, unavailable, declined or failed.
   - Review Info items IN-01 to IN-12 are in `40-REVIEW.md`.
-- [Env] This machine is nearly out of committed virtual memory (about 0.5 GB free, not attributable to visible processes). Run vitest with `--maxWorkers=1`: multi-worker runs crash with OOM, while single-worker runs are green (1454 tests). A reboot is likely to clear it.
+- [Env] On 2026-09-30 the machine briefly ran out of committed virtual memory (0.5 GB free), which crashed multi-worker vitest runs. It cleared after a restart (40.8 GB free). Single-worker runs (`--maxWorkers=1`, about 19 s, 1454 tests green) stay the safe default for agents on this low-end host.
 - **NO PUSHES TO MASTER** -- production auto-deploys from master; all work stays local until user approves
 - **NO PUSHES TO MAINCLOUD** -- local SpacetimeDB only until user says otherwise (one exception: the Phase 39 spike database uwr-spike-925iv, published by Claude under the user's 2026-09-29 grant since deleted by the user on 2026-09-29)
 
