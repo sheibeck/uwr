@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 41
 current_phase_name: Executor and Domain Cutover
 status: executing
-stopped_at: Completed 41-01-PLAN.md
-last_updated: "2026-09-30T14:19:38.683Z"
+stopped_at: Completed 41-02-PLAN.md
+last_updated: "2026-09-30T14:24:29.351Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 41 execution started
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 38
-  completed_plans: 22
+  completed_plans: 23
   percent: 33
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 41 (Executor and Domain Cutover) — EXECUTING
-Plan: 2 of 17
+Plan: 3 of 17
 Status: Ready to execute
 Last activity: 2026-09-30 — Phase 41 execution started
 
-Progress: [██████░░░░] 58% (2/6 phases)
+Progress: [██████░░░░] 61% (2/6 phases)
 
 ## Previous Milestones
 
@@ -72,6 +72,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 40-09: seam test excludes only llm_config from the leak scan and normalizes auto-increment ids when comparing re-invoked-tx end state; local publish needed no --break-clients and no clear
 - [Phase ?]: [40-10] Keeper Bible tone approved by the user (verbatim 'Approved', 2026-09-30) with no edits; 7,421 chars (~2,283 tokens); full suite must be run per file on this host due to memory exhaustion
 - [Phase ?]: [41-01] Retry lifetime bound pinned by test (worst retrying route 303.2 s < 10 min pending expiry); llm_dispatch/llm_sweep_tick unbound until 41-07; CLI identity is an admin (user-approved, set pinned by admin.test.ts)
+- [Phase ?]: 41-02: reservations use existing chars/3 reserveCostMicroUsd helper (more conservative than chars/3.25); refusal order daily_calls, daily_cost, phase_cap; unknown billing charges ledger only
 
 ### Roadmap Evolution
 
@@ -126,8 +127,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 **Resume file:** None
 
-Last session: 2026-09-30T14:19:38.653Z
-Stopped at: Completed 41-01-PLAN.md
+Last session: 2026-09-30T14:24:29.265Z
+Stopped at: Completed 41-02-PLAN.md
 
 ## Performance Metrics
 
@@ -163,6 +164,7 @@ Stopped at: Completed 41-01-PLAN.md
 | Phase 40 P09 | 35min | 2 tasks | 4 files |
 | Phase 40 P10 | 10min | 2 tasks | 0 files |
 | Phase 41 P01 | 10min | 3 tasks | 10 files |
+| Phase 41 P02 | 15min | 2 tasks | 2 files |
 
 ## Operator Next Steps
 
