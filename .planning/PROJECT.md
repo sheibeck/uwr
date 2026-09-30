@@ -110,7 +110,7 @@ Keeper of Knowledge narrator replaced generic "System" narrator in quick-365.
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| LLM via client-side proxy (not procedures) | SpacetimeDB procedure HTTP broken locally | ⚠️ Revisit — v2.2 spikes procedures calling Claude directly first; backend + WIF is the fallback |
+| LLM via client-side proxy (not procedures) | SpacetimeDB procedure HTTP broken locally | Superseded (Phase 39, 2026-09-29) — the spike gave GO: scheduled procedures call Claude directly via `ctx.http.fetch`; the llm-proxy is retired in Phase 42 (backend + WIF no longer needed) |
 | Chat-first UI with panel overlays | Narrative experience is core interaction model | ✓ Good — all systems narrative now |
 | Wild class generation (no guardrails) | Uniqueness over balance — every character one-of-a-kind | ✓ Good — produces creative results |
 | Clean break from fixed data | LLM generates everything; old data becomes schema templates | ✓ Good — 106-case switch eliminated |
@@ -122,6 +122,7 @@ Keeper of Knowledge narrator replaced generic "System" narrator in quick-365.
 | Platform upgrade before feature work (Phase 38) | SpacetimeDB 2.0.1 and tooling had fallen far behind | ✓ Good — SpacetimeDB 2.10.1, TS 6, Vite 8, Vitest 5, pnpm-only; build + 990 tests green |
 | Haiku/gpt-5-mini for fast generation | Sonnet HTTP fails from SpacetimeDB runtime; fast models sufficient | Superseded (v2.2) — see next row |
 | Sonnet 5.5 for every LLM call, no Haiku (v2.2, 2026-09-29) | User decision. Haiku 4.5 may retire as early as 2026-10-15; its 4096-token minimum cacheable prefix defeats prompt caching on short prompts; one model means one request builder and one rate-limit pool | — Pending — effort must be set explicitly (`low`) for latency; cost about 2x Haiku per token |
+| Phase 39: LLM executor = scheduled procedure (in-flight cap at most 8) | Maincloud `uwr-spike-925iv` gate verdict `go` (strict; floor-adjusted identical): dispatch p95 3.0 ms (limit 250), 0 failures in 164 reliability calls, region JSON Schema compiles; ping p95 ratio 1.01x / 0.98x / 1.03x and tick p95 ratio 0.96x / 1.01x / 0.99x at 8 / 4 / 2 in flight (limit 2.0x); observed maincloud concurrency cap 8 (local runtime caps at 4). Local results are provisional context only (strict incomplete, ping@4 147/200; ping noise from a shared low-end host). `ctx.sender` in a scheduled procedure is the module identity, so jobs must carry the player identity | Confirmed by user 2026-09-29; gate evaluated on maincloud uwr-spike-925iv; Phase 41 proves the real executor on maincloud |
 | Shared proxy-based mock DB for tests (v2.1) | One mock implementation instead of per-file copies | ✓ Good — 990 tests on one utility |
 | Park phases 33-37 in Backlog (v2.1) | Re-imagining core concepts before more feature work | — Pending — promote with /gsd-review-backlog |
 | Skip DB backups before migrations (v2.1) | Greenfield; no production data worth preserving locally | ✓ Good — upgrade went forward cleanly |

@@ -37732,5 +37732,208 @@
         }
       ]
     }
+  },
+  "verdict": {
+    "strict": {
+      "verdict": "go",
+      "cap": null,
+      "checks": [
+        {
+          "name": "samples",
+          "pass": true,
+          "measured": "complete",
+          "threshold": "all minimum sample counts"
+        },
+        {
+          "name": "reliability",
+          "pass": true,
+          "measured": "0/164 failed",
+          "threshold": "0 failures"
+        },
+        {
+          "name": "dispatch_p95",
+          "pass": true,
+          "measured": 3.003,
+          "threshold": 250
+        },
+        {
+          "name": "region_schema",
+          "pass": true,
+          "measured": "compiles",
+          "threshold": "compiles or staged workaround"
+        },
+        {
+          "name": "ping_p95@8",
+          "pass": true,
+          "measured": 34.56510000000708,
+          "threshold": 68.60360000000219
+        },
+        {
+          "name": "tick_p95@8",
+          "pass": true,
+          "measured": 2.611,
+          "threshold": 5.43
+        },
+        {
+          "name": "ping_p95@4",
+          "pass": true,
+          "measured": 33.47279999998864,
+          "threshold": 68.60360000000219
+        },
+        {
+          "name": "tick_p95@4",
+          "pass": true,
+          "measured": 2.731,
+          "threshold": 5.43
+        },
+        {
+          "name": "ping_p95@2",
+          "pass": true,
+          "measured": 35.211999999999534,
+          "threshold": 68.60360000000219
+        },
+        {
+          "name": "tick_p95@2",
+          "pass": true,
+          "measured": 2.686,
+          "threshold": 5.43
+        }
+      ],
+      "flags": [],
+      "thresholds": {
+        "dispatchP95Ms": 250,
+        "ratio": 2,
+        "noiseFloorMs": 0,
+        "goMinInFlight": 6,
+        "minReliabilityCalls": 30,
+        "minDispatchSamples": 50,
+        "minPingSamples": 200,
+        "minTickSamples": 30
+      }
+    },
+    "floorAdjusted": {
+      "verdict": "go",
+      "cap": null,
+      "checks": [
+        {
+          "name": "samples",
+          "pass": true,
+          "measured": "complete",
+          "threshold": "all minimum sample counts"
+        },
+        {
+          "name": "reliability",
+          "pass": true,
+          "measured": "0/164 failed",
+          "threshold": "0 failures"
+        },
+        {
+          "name": "dispatch_p95",
+          "pass": true,
+          "measured": 3.003,
+          "threshold": 250
+        },
+        {
+          "name": "region_schema",
+          "pass": true,
+          "measured": "compiles",
+          "threshold": "compiles or staged workaround"
+        },
+        {
+          "name": "ping_p95@8",
+          "pass": true,
+          "measured": 34.56510000000708,
+          "threshold": 68.60360000000219
+        },
+        {
+          "name": "tick_p95@8",
+          "pass": true,
+          "measured": 2.611,
+          "threshold": 27.715
+        },
+        {
+          "name": "ping_p95@4",
+          "pass": true,
+          "measured": 33.47279999998864,
+          "threshold": 68.60360000000219
+        },
+        {
+          "name": "tick_p95@4",
+          "pass": true,
+          "measured": 2.731,
+          "threshold": 27.715
+        },
+        {
+          "name": "ping_p95@2",
+          "pass": true,
+          "measured": 35.211999999999534,
+          "threshold": 68.60360000000219
+        },
+        {
+          "name": "tick_p95@2",
+          "pass": true,
+          "measured": 2.686,
+          "threshold": 27.715
+        }
+      ],
+      "flags": [
+        "noise_floor_applied"
+      ],
+      "thresholds": {
+        "dispatchP95Ms": 250,
+        "ratio": 2,
+        "noiseFloorMs": 25,
+        "goMinInFlight": 6,
+        "minReliabilityCalls": 30,
+        "minDispatchSamples": 50,
+        "minPingSamples": 200,
+        "minTickSamples": 30
+      }
+    },
+    "noiseFloorMs": 25,
+    "computedAt": "2026-09-29T23:58:47.253Z",
+    "observedServerCap": 8,
+    "levelLabels": [
+      {
+        "level": 8,
+        "effectiveInFlight": 8,
+        "observedServerCap": 8,
+        "pingLabel": "client_outstanding",
+        "pingMin": 6,
+        "pingSamples": 1417,
+        "tickLabel": "server_in_flight",
+        "tickMin": 6,
+        "tickSamples": 71
+      },
+      {
+        "level": 4,
+        "effectiveInFlight": 4,
+        "observedServerCap": 8,
+        "pingLabel": "client_outstanding",
+        "pingMin": 3,
+        "pingSamples": 1406,
+        "tickLabel": "server_in_flight",
+        "tickMin": 3,
+        "tickSamples": 71
+      },
+      {
+        "level": 2,
+        "effectiveInFlight": 2,
+        "observedServerCap": 8,
+        "pingLabel": "client_outstanding",
+        "pingMin": 2,
+        "pingSamples": 1321,
+        "tickLabel": "server_in_flight",
+        "tickMin": 2,
+        "tickSamples": 66
+      }
+    ],
+    "role": "decisive",
+    "diagnostics": [],
+    "confirmation": {
+      "outcome": "confirm-strict",
+      "reason": "confirm-strict",
+      "at": "2026-09-30T00:08:42.988Z"
+    }
   }
 }

@@ -59,6 +59,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 39-07: region JSON Schema compiles (no staged workaround needed); thinking-off composes with output_config.format; client-called procedure does not block its own connection; publish waits for the in-flight call
 - [Phase ?]: 39-08: server-side procedure concurrency is capped at 4 (in-flight never above 4 with 8 enqueued); level 8 has no ticks at in-flight >= 6
 - [Phase ?]: 39-11: gate results profile and SPIKE_TARGET maincloud opt-in; maincloud (cap 8, all levels pass, spend 1.147M micro-USD) measured on uwr-spike-925iv; real key replaced by placeholder
+- [Phase 39]: Phase 39: LLM executor = scheduled procedure (in-flight cap at most 8). Maincloud uwr-spike-925iv strict gate verdict go (floor-adjusted identical): dispatch p95 3.0 ms, 0/164 reliability failures, region schema compiles, ping and tick p95 at 0.96x-1.03x of baseline at 8/4/2 in flight, observed cap 8 (local 4). Local results provisional (strict incomplete). Jobs must carry the player identity (ctx.sender is the module identity). Confirmed by user 2026-09-29 ("confirm-strict"); llm-proxy retired in Phase 42; Phase 41 proves the real executor on maincloud
 
 ### Roadmap Evolution
 
@@ -78,12 +79,12 @@ See MILESTONES.md for full delivery summaries.
 ### Blockers/Concerns
 
 - [Phase 38] Live LLM calls fail: the OpenAI account behind llm-proxy/.dev.vars returns 429 "no credits" -- deferred to the LLM milestone by user decision; v2.2 replaces the OpenAI path with Claude
-- [v2.2] Maincloud legs of SPIKE-04 (Phase 39) and QUAL-02 (Phase 44) are manual user actions; the Phase 39 go/no-go decision is not final until the user supplies the maincloud results
+- [v2.2] The Phase 39 maincloud leg ran in Plan 39-11 on uwr-spike-925iv by user decision on 2026-09-29 and the go decision is confirmed; Phase 41 still proves the real executor on maincloud. The maincloud leg of QUAL-02 (Phase 44) remains a manual user action
 - [v2.2] `--clear-database` wipes the private `llm_config` Anthropic key; avoid unless a schema change requires it (runbook lands in Phase 41)
 - [Phase 38] First maincloud publish after the 2.10 upgrade will re-create the 14 views and need --break-clients (no data loss) -- user-run only
 - [Phase 38] Lockfiles moved to pnpm-only -- check any external host's package-manager detection before the next push
 - **NO PUSHES TO MASTER** -- production auto-deploys from master; all work stays local until user approves
-- **NO PUSHES TO MAINCLOUD** -- local SpacetimeDB only until user says otherwise
+- **NO PUSHES TO MAINCLOUD** -- local SpacetimeDB only until user says otherwise (one exception: the Phase 39 spike database uwr-spike-925iv, published by Claude under the user's 2026-09-29 grant and deleted by the user in Plan 39-10)
 
 ### Quick Tasks Completed
 
