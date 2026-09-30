@@ -21,10 +21,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-29)
+See: .planning/PROJECT.md (updated 2026-09-30)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 40 — Claude Request Layer and Job Seam
+**Current focus:** Phase 41 — Executor and Domain Cutover
 
 ## Current Position
 
@@ -33,7 +33,7 @@ Plan: Not started
 Status: Ready to plan
 Last activity: 2026-09-30 — Phase 40 complete, transitioned to Phase 41
 
-Progress: [██████████] 100% (1/6 phases)
+Progress: [███░░░░░░░] 33% (2/6 phases)
 
 ## Previous Milestones
 
@@ -94,6 +94,13 @@ See MILESTONES.md for full delivery summaries.
 - [v2.2] `--clear-database` wipes the private `llm_config` Anthropic key; avoid unless a schema change requires it (runbook lands in Phase 41)
 - [Phase 38] First maincloud publish after the 2.10 upgrade will re-create the 14 views and need --break-clients (no data loss) -- user-run only
 - [Phase 38] Lockfiles moved to pnpm-only -- check any external host's package-manager detection before the next push
+- [Phase 40 → 41] Hand-offs:
+  - The renown static fallback in `helpers/llm_apply.ts` still throws on bigint `JSON.stringify(perk.effect)`. It is pinned by characterization tests; fix it with a shared serializer and update the snapshot deliberately.
+  - Creation race and class replies are not clamped. They are pinned as "Phase 41: validator gap".
+  - The executor must process or expire the pending `renown_perk_gen` jobs, and add a sweeper for stuck active jobs (dedupe blocks on them, review IN-07).
+  - `my_llm_jobs.errorCode` is a coarse bucket: transient, unavailable, declined or failed.
+  - Review Info items IN-01 to IN-12 are in `40-REVIEW.md`.
+- [Env] This machine is nearly out of committed virtual memory (about 0.5 GB free, not attributable to visible processes). Run vitest with `--maxWorkers=1`: multi-worker runs crash with OOM, while single-worker runs are green (1454 tests). A reboot is likely to clear it.
 - **NO PUSHES TO MASTER** -- production auto-deploys from master; all work stays local until user approves
 - **NO PUSHES TO MAINCLOUD** -- local SpacetimeDB only until user says otherwise (one exception: the Phase 39 spike database uwr-spike-925iv, published by Claude under the user's 2026-09-29 grant since deleted by the user on 2026-09-29)
 
@@ -119,7 +126,7 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 **Resume file:** None
 
 Last session: 2026-09-30T10:00:04.052Z
-Stopped at: Completed 40-10-PLAN.md
+Stopped at: Phase 40 complete (verification passed, review clean); ready to discuss Phase 41
 
 ## Performance Metrics
 
