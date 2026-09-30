@@ -77,6 +77,12 @@ A world that writes itself around its players — every character is unique, eve
 
 **Shipped:** v2.1 Project Cleanup (2026-09-29). The v2.0 foundation now has test coverage and no v1.0 legacy code, and runs on SpacetimeDB 2.10.1 with current tooling. Live LLM calls are currently broken: the OpenAI account returns 429 "no credits".
 
+**v2.2 in progress:** Phase 39 (Procedure-to-Claude Spike) is complete as of 2026-09-29.
+
+- SpacetimeDB 2.10 procedures called Claude Sonnet 5.5 reliably on maincloud: 0 failures, dispatch p95 3 ms, no ping or tick degradation with 8 calls in flight.
+- Decision, confirmed by the user: Phase 41 builds the scheduled-procedure executor with an in-flight cap of at most 8, and `llm-proxy/` is retired in Phase 42.
+- Evidence is in `.planning/phases/39-procedure-to-claude-spike/39-SPIKE-RECORD.md`.
+
 ## Current Milestone: v2.2 LLM — Claude Engine
 
 **Goal:** Replace OpenAI with Claude as the engine behind all narrative generation, with the lowest possible response latency for real-time storytelling.
@@ -171,4 +177,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-29 at v2.2 milestone start*
+*Last updated: 2026-09-29 after Phase 39*

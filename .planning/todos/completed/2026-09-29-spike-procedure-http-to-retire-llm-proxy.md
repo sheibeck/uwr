@@ -3,6 +3,7 @@ created: 2026-09-29T00:00:00.000Z
 title: Spike procedure HTTP on SpacetimeDB 2.10 to retire llm-proxy
 area: backend
 priority: medium
+resolves_phase: 39
 files:
   - spacetimedb/src/index.ts
   - llm-proxy/src/index.ts
