@@ -26,19 +26,38 @@
 // registration is Plan 41-07.
 // ============================================================================
 
+import { Timestamp, TimeDuration } from 'spacetimedb';
 import type { LlmRoute } from '../data/llm_routes';
+import { ANTHROPIC_MESSAGES_URL } from '../data/llm_models';
+import { buildRouteLayers } from '../data/llm_layers';
 import {
+  LLM_APPLY_MAX_ATTEMPTS,
   LLM_MAX_IN_FLIGHT,
   LLM_NARRATION_MAX_AGE_MICROS,
   LLM_NARRATION_MAX_IN_FLIGHT,
 } from '../data/llm_limits';
-import { redactSecrets } from './measurement';
+import { estimateCostMicroUsd, redactSecrets, type Usage } from './measurement';
+import {
+  buildClaudeHeaders,
+  buildClaudeRequest,
+  classifyClaudeError,
+  classifyClaudeResponse,
+  type ClaudeFailureClass,
+  type ClaudeResult,
+} from './claude_request';
 import { applyLlmFailure, applyLlmResult, toApplyJob, type ApplyJob } from './llm_apply';
-import { isPhaseLedgerExhausted, releaseLlmReservation } from './llm_budget';
-import { deferDelayMs, msToMicros } from './llm_retry';
+import {
+  addLedgerSpend,
+  chargeLedgerUnknownBilling,
+  isPhaseLedgerExhausted,
+  releaseLlmReservation,
+  settleLlmCost,
+} from './llm_budget';
+import { deferDelayMs, msToMicros, retryDelayMs, shouldRetry } from './llm_retry';
 import { hasLlmDispatch, insertLlmDispatch, scheduledMicros } from './llm_schedule';
 import { resolveRouteInput } from './llm_inputs';
-import { markKeyCheck, recordSmokeResult } from './llm_admin_state';
+import { markKeyCheck, recordSmokeResult, type SmokeEntry } from './llm_admin_state';
+import { logLlmCall } from './llm_queue';
 
 /** What one llm_run invocation ended up doing. */
 export type RunOutcome =
@@ -209,6 +228,27 @@ export function claimLlmJob(ctx: any, arg: DispatchArg, _deps: ExecutorDeps): Cl
 }
 
 /**
+ * Classes of a 200 reply whose content was unusable. The call was made and billed, so
+ * the real cost is settled and the job fails (no retry: the same prompt would be billed again).
+ */
+export const BILLED_FAILURE_CLASSES: readonly ClaudeFailureClass[] = Object.freeze([
+  'refusal',
+  'truncated',
+  'invalid_json',
+  'schema_mismatch',
+  'empty_output',
+  'unexpected_stop',
+] as ClaudeFailureClass[]);
+
+const ZERO_USAGE: Usage = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 };
+
+/** Whole non-negative bigint from a usage counter (BigInt() of a fraction or NaN would throw and roll back the persist). */
+function u64(n: unknown): bigint {
+  const v = typeof n === 'number' && Number.isFinite(n) ? n : 0;
+  return BigInt(Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.floor(v))));
+}
+
+/**
  * Post the in-voice failure message in its own transaction, so a bug in a
  * message cannot undo the status write that already committed.
  */
@@ -220,6 +260,281 @@ function runFailureApply(ctx: any, job: any | undefined, deps: ExecutorDeps, nee
     const message = err instanceof Error ? err.message : String(err);
     deps.log(redactSecrets(`llm failure message failed for job ${String(job.id)}: ${message}`, needles));
   }
+}
+
+type RunClaim = Extract<Claim, { kind: 'run' }>;
+
+/** The result of the persist transaction (tx2). */
+type Persist =
+  | { kind: 'stale' }
+  | { kind: 'retry' }
+  | { kind: 'expired' }
+  | { kind: 'completed' }
+  | { kind: 'received' }
+  /** `job` is the failed row for the failure message; undefined for a smoke job. */
+  | { kind: 'failed'; job: any | undefined };
+
+interface AttemptOutcome {
+  result: ClaudeResult;
+  httpStatus: number;
+  latencyMs: number;
+  /** A thrown call, or a reply whose body could not be read: Anthropic may have billed it. */
+  unknownBilling: boolean;
+}
+
+/**
+ * Persist (tx2): one outcome rule per attempt, and always one call-log row. The
+ * transaction proceeds only for a job that is still in_flight with the claimed
+ * attempt; when the sweeper expired it meanwhile (its reservation is already
+ * released), only the call-log row and the real cost on the ledger are written.
+ *
+ * Outcome to money:
+ * - ok: settle the real cost, charge the player (usage missing: the ledger is
+ *   charged the reservation, the player nothing)
+ * - ok narration persisted more than 20 s after enqueue: expired 'late', ledger only
+ * - ok smoke: completed, ledger only
+ * - billed failure (200 with unusable content): settle real cost, charge the player
+ * - retryable and attempts left: pending + new dispatch, reservation held; a thrown
+ *   attempt of unknown billing adds the reservation to the ledger
+ * - anything else: failed, reservation and call refunded; a thrown attempt adds the
+ *   reservation to the ledger first; the player is never charged
+ */
+function persistAttempt(ctx: any, c: RunClaim, a: AttemptOutcome): Persist {
+  const { result } = a;
+  const needles = [c.apiKey];
+  const usage: Usage = result.usage ?? ZERO_USAGE;
+  const counts = {
+    input: u64(usage.input),
+    output: u64(usage.output),
+    cacheWrite: u64(usage.cacheWrite),
+    cacheRead: u64(usage.cacheRead),
+  };
+  const usageMissing =
+    counts.input === 0n && counts.output === 0n && counts.cacheWrite === 0n && counts.cacheRead === 0n;
+  const realCost = BigInt(estimateCostMicroUsd(usage));
+
+  return ctx.withTx((tx: any): Persist => {
+    const job = tx.db.llm_job.id.find(c.jobId);
+    const now: bigint = tx.timestamp.microsSinceUnixEpoch;
+
+    const logCall = (costMicroUsd: bigint): void => {
+      logLlmCall(tx, {
+        jobId: c.jobId,
+        playerId: c.playerId,
+        route: c.route,
+        attempt: c.attempt,
+        httpStatus: a.httpStatus,
+        outcome: result.ok ? 'ok' : result.class,
+        stopReason: result.stopReason,
+        requestId: result.requestId,
+        errorMessage: result.ok ? undefined : result.message,
+        latencyMs: a.latencyMs,
+        usage: result.usage,
+        costMicroUsd,
+        dispatchLateMs: c.dispatchLateMs,
+        needles: [c.apiKey],
+      });
+    };
+
+    if (!job || job.status !== 'in_flight' || job.attempt !== c.attempt) {
+      logCall(realCost);
+      addLedgerSpend(tx, realCost);
+      return { kind: 'stale' };
+    }
+
+    const base = {
+      ...job,
+      inputTokens: job.inputTokens + counts.input,
+      outputTokens: job.outputTokens + counts.output,
+      cacheWriteTokens: job.cacheWriteTokens + counts.cacheWrite,
+      cacheReadTokens: job.cacheReadTokens + counts.cacheRead,
+      stopReason: result.stopReason ?? job.stopReason,
+      requestId: result.requestId ?? job.requestId,
+    };
+
+    /** Replace the reservation with the real cost (or the reservation itself when usage is missing). */
+    const settle = (chargePlayer: boolean) => {
+      const amount: bigint = usageMissing ? job.reservedMicroUsd : realCost;
+      const patch = settleLlmCost(tx, job, { actualMicroUsd: amount, chargePlayer: chargePlayer && !usageMissing });
+      return { patch, amount };
+    };
+
+    const smokeEntry = (ok: boolean, cost: bigint, reply?: string): SmokeEntry => ({
+      ok,
+      class: result.ok ? undefined : result.class,
+      latencyMs: a.latencyMs,
+      input: Number(counts.input),
+      output: Number(counts.output),
+      cacheWrite: Number(counts.cacheWrite),
+      cacheRead: Number(counts.cacheRead),
+      costMicroUsd: cost,
+      reply,
+    });
+
+    /** A terminal failure: a smoke job records its failed entry, any other job asks for the failure message. */
+    const failedResult = (failed: any, cost: bigint): Persist => {
+      if (c.smoke) {
+        recordSmokeResult(tx, c.route, smokeEntry(false, cost), needles);
+        return { kind: 'failed', job: undefined };
+      }
+      return { kind: 'failed', job: failed };
+    };
+
+    if (result.ok) {
+      if (c.route === 'combat_narration' && now - job.createdAt.microsSinceUnixEpoch > LLM_NARRATION_MAX_AGE_MICROS) {
+        const { patch, amount } = settle(false);
+        tx.db.llm_job.id.update({ ...base, ...patch, status: 'expired', errorCode: 'late', finishedAt: tx.timestamp });
+        logCall(amount);
+        return { kind: 'expired' };
+      }
+      if (c.smoke) {
+        const { patch, amount } = settle(false);
+        tx.db.llm_job.id.update({
+          ...base,
+          ...patch,
+          status: 'completed',
+          // A smoke reply is never applied, so it is stored redacted (the model never sees the key,
+          // but nothing outside llm_config may hold it even by accident).
+          resultText: redactSecrets(result.text, needles),
+          errorCode: undefined,
+          finishedAt: tx.timestamp,
+        });
+        recordSmokeResult(
+          tx,
+          c.route,
+          smokeEntry(true, amount, c.route === 'smoke_test' ? result.text : undefined),
+          needles,
+        );
+        if (c.route === 'smoke_test') markKeyCheck(tx, true);
+        logCall(amount);
+        return { kind: 'completed' };
+      }
+      const { patch, amount } = settle(true);
+      tx.db.llm_job.id.update({ ...base, ...patch, status: 'received', resultText: result.text, errorCode: undefined });
+      logCall(amount);
+      return { kind: 'received' };
+    }
+
+    if ((BILLED_FAILURE_CLASSES as readonly string[]).includes(result.class)) {
+      const { patch, amount } = settle(true);
+      const failed = { ...base, ...patch, status: 'failed', errorCode: result.class, finishedAt: tx.timestamp };
+      tx.db.llm_job.id.update(failed);
+      logCall(amount);
+      return failedResult(failed, amount);
+    }
+
+    if (shouldRetry(result, c.attempt, c.route)) {
+      const at = now + msToMicros(retryDelayMs(c.attempt, result.retryAfterSeconds, c.jobId));
+      let cost = 0n;
+      if (a.unknownBilling) {
+        chargeLedgerUnknownBilling(tx, job);
+        cost = job.reservedMicroUsd;
+      }
+      tx.db.llm_job.id.update({ ...base, status: 'pending', errorCode: result.class, nextAttemptAt: new Timestamp(at) });
+      insertLlmDispatch(tx, c.jobId, at);
+      logCall(cost);
+      return { kind: 'retry' };
+    }
+
+    let cost = 0n;
+    if (a.unknownBilling) {
+      chargeLedgerUnknownBilling(tx, job);
+      cost = job.reservedMicroUsd;
+    }
+    const patch = releaseLlmReservation(tx, job, { refundCall: true });
+    const failed = { ...base, ...patch, status: 'failed', errorCode: result.class, finishedAt: tx.timestamp };
+    tx.db.llm_job.id.update(failed);
+    if (result.class === 'auth' || result.class === 'billing') markKeyCheck(tx, false);
+    logCall(cost);
+    return failedResult(failed, cost);
+  });
+}
+
+/** Fail a claimed job whose request could not be built: nothing was sent, so refund the reservation and the call. */
+function failBuild(ctx: any, c: RunClaim): Persist {
+  return ctx.withTx((tx: any): Persist => {
+    const job = tx.db.llm_job.id.find(c.jobId);
+    if (!job || job.status !== 'in_flight' || job.attempt !== c.attempt) return { kind: 'stale' };
+    const patch = releaseLlmReservation(tx, job, { refundCall: true });
+    const failed = { ...job, ...patch, status: 'failed', errorCode: 'bad_request', finishedAt: tx.timestamp };
+    tx.db.llm_job.id.update(failed);
+    if (c.smoke) {
+      recordSmokeResult(
+        tx,
+        c.route,
+        { ok: false, class: 'bad_request', latencyMs: 0, input: 0, output: 0, cacheWrite: 0, cacheRead: 0, costMicroUsd: 0n },
+        [c.apiKey],
+      );
+      return { kind: 'failed', job: undefined };
+    }
+    return { kind: 'failed', job: failed };
+  });
+}
+
+type ApplyStep = 'done' | 'gone' | 'exhausted';
+
+/**
+ * Apply (tx3) from the stored text, never a second billed call. Each run checks the job is
+ * still 'received' and has apply attempts left, applies, and completes the job in the same
+ * transaction. When apply throws (the transaction rolled back), a small transaction counts the
+ * attempt so the sweeper sees it, then apply runs again from the same text. After the last
+ * attempt the job fails with 'apply_error' and the in-voice failure message is posted.
+ */
+function applyStored(ctx: any, jobId: bigint, deps: ExecutorDeps, needles: readonly string[]): RunOutcome {
+  for (let i = 0; i < LLM_APPLY_MAX_ATTEMPTS; i++) {
+    let step: ApplyStep;
+    try {
+      step = ctx.withTx((tx: any): ApplyStep => {
+        const job = tx.db.llm_job.id.find(jobId);
+        if (!job || job.status !== 'received') return 'gone';
+        if (job.applyAttempts >= BigInt(LLM_APPLY_MAX_ATTEMPTS)) return 'exhausted';
+        deps.apply(tx, toApplyJob(job), job.resultText ?? '');
+        tx.db.llm_job.id.update({ ...job, status: 'completed', finishedAt: tx.timestamp });
+        return 'done';
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      deps.log(redactSecrets(`llm apply failed for job ${String(jobId)}: ${message}`, needles));
+      try {
+        ctx.withTx((tx: any) => {
+          const job = tx.db.llm_job.id.find(jobId);
+          if (job && job.status === 'received') {
+            tx.db.llm_job.id.update({ ...job, applyAttempts: job.applyAttempts + 1n });
+          }
+        });
+      } catch (countErr) {
+        const m = countErr instanceof Error ? countErr.message : String(countErr);
+        deps.log(redactSecrets(`llm apply attempt count failed for job ${String(jobId)}: ${m}`, needles));
+      }
+      continue;
+    }
+    if (step === 'done') return 'completed';
+    if (step === 'gone') return 'skip';
+    break;
+  }
+
+  const failed = ctx.withTx((tx: any) => {
+    const job = tx.db.llm_job.id.find(jobId);
+    if (!job || job.status !== 'received') return undefined;
+    const patch = releaseLlmReservation(tx, job, { refundCall: false });
+    const next = { ...job, ...patch, status: 'failed', errorCode: 'apply_error', finishedAt: tx.timestamp };
+    tx.db.llm_job.id.update(next);
+    return next;
+  });
+  if (!failed) return 'skip';
+  runFailureApply(ctx, failed, deps, needles);
+  return 'apply_failed';
+}
+
+/** One module log line per call: route, job, attempt, outcome, status, ms and the four counts. Never text or prompt. */
+function callLogLine(c: RunClaim, a: AttemptOutcome): string {
+  const u = a.result.usage ?? ZERO_USAGE;
+  const outcome = a.result.ok ? 'ok' : a.result.class;
+  return redactSecrets(
+    `llm route=${c.route} job=${String(c.jobId)} attempt=${String(c.attempt)} outcome=${outcome} ` +
+      `status=${a.httpStatus} ms=${a.latencyMs} in=${u.input} out=${u.output} cw=${u.cacheWrite} cr=${u.cacheRead}`,
+    [c.apiKey],
+  );
 }
 
 /**
@@ -245,8 +560,80 @@ export function runLlmJob(ctx: any, arg: DispatchArg, deps?: Partial<ExecutorDep
     case 'failed':
       runFailureApply(ctx, claim.job, d, []);
       return 'failed';
-    default:
-      // The call, persist and apply steps arrive with the next task of this plan.
-      throw new Error('llm_executor: the call path is not implemented yet');
+    case 'received':
+      // Dispatched again by the sweeper: apply from the stored text, no call.
+      return applyStored(ctx, claim.job.id, d, []);
+    case 'run':
+      break;
+  }
+
+  const c: RunClaim = claim;
+  const needles = [c.apiKey];
+
+  // Build outside any transaction. A build error means nothing was sent.
+  let request: ReturnType<typeof buildClaudeRequest>;
+  let headers: Record<string, string>;
+  try {
+    request = buildClaudeRequest(c.route, buildRouteLayers(c.route, c.input as never));
+    headers = buildClaudeHeaders(c.apiKey);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    d.log(
+      redactSecrets(
+        `llm route=${c.route} job=${String(c.jobId)} attempt=${String(c.attempt)} outcome=bad_request build failed: ${message}`,
+        needles,
+      ),
+    );
+    const built = failBuild(ctx, c);
+    if (built.kind === 'failed') {
+      runFailureApply(ctx, built.job, d, needles);
+      return 'failed';
+    }
+    return 'stale';
+  }
+
+  // The call, with no transaction open.
+  const startedMs = d.nowMs();
+  let result: ClaudeResult;
+  let httpStatus = 0;
+  let threw = false;
+  try {
+    const res = ctx.http.fetch(ANTHROPIC_MESSAGES_URL, {
+      method: 'POST',
+      headers,
+      body: request.bodyText,
+      timeout: TimeDuration.fromMillis(request.timeoutMs),
+    });
+    httpStatus = res.status;
+    result = classifyClaudeResponse(c.route, res, { needles: [c.apiKey] });
+  } catch (err) {
+    threw = true;
+    result = classifyClaudeError(err, { needles: [c.apiKey] });
+  }
+  const latencyMs = Math.max(0, Math.round(d.nowMs() - startedMs));
+  const attemptOutcome: AttemptOutcome = {
+    result,
+    httpStatus,
+    latencyMs,
+    unknownBilling: threw || (!result.ok && result.class === 'network'),
+  };
+
+  const persisted = persistAttempt(ctx, c, attemptOutcome);
+  d.log(callLogLine(c, attemptOutcome));
+
+  switch (persisted.kind) {
+    case 'stale':
+      return 'stale';
+    case 'retry':
+      return 'retry';
+    case 'expired':
+      return 'expired';
+    case 'completed':
+      return 'completed';
+    case 'failed':
+      runFailureApply(ctx, persisted.job, d, needles);
+      return 'failed';
+    case 'received':
+      return applyStored(ctx, c.jobId, d, needles);
   }
 }
