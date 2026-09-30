@@ -1,5 +1,4 @@
 import { schema, table, t } from 'spacetimedb/server';
-import { SpikeJob, SpikeTick, SpikeResult, SpikeTickSample, SpikeState } from '../spike/spike_tables';
 
 // Registry for scheduled reducer references (v2 requires lazy thunks, not string names)
 export const scheduledReducers: Record<string, any> = {};
@@ -2243,11 +2242,6 @@ const spacetimedb = schema({
   combat_action: CombatAction,
   combat_narrative: CombatNarrative,
   round_timer_tick: RoundTimerTick,
-  spike_job: SpikeJob,
-  spike_tick: SpikeTick,
-  spike_result: SpikeResult,
-  spike_tick_sample: SpikeTickSample,
-  spike_state: SpikeState,
 });
 export default spacetimedb;
 export { spacetimedb };

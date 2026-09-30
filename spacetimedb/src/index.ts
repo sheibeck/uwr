@@ -247,7 +247,6 @@ import {
 } from './helpers/scheduling';
 
 import { myBankSlotsView } from './schema/tables';
-import { registerSpike } from './spike/llm_spike';
 
 // === V2 EXPORT COLLECTION ===
 // SpacetimeDB v2 requires all reducers, lifecycle hooks, and views to be named exports.
@@ -1827,7 +1826,6 @@ reducerDeps.startCombatForSpawn = (
 ) => startCombatForSpawn(reducerDeps, ctx, leader, spawnToUse, participants, groupId);
 
 registerReducers(reducerDeps);
-registerSpike(spacetimedb);
 
 // V2: Export all collected reducers, lifecycle hooks, and views
 export const _stdb_exports = spacetimedb.exportGroup(_moduleExports);
