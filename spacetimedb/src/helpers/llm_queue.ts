@@ -2,21 +2,34 @@
 // LLM job queue helpers (Phase 40, pure module: duck-typed ctx)
 // ============================================================================
 //
-// enqueueLlmJob runs inside the triggering reducer's transaction. Reducers
-// serialize, so the in-transaction dedupe lookup plus insert cannot race: two
-// tabs on one identity produce exactly one job per action.
+// enqueueLlmJob is the single in-transaction entry point for every LLM action.
+// It runs inside the triggering reducer's transaction. Reducers serialize, so
+// the in-transaction dedupe lookup plus insert cannot race: two tabs on one
+// identity produce exactly one job per action.
+//
+// Order: validate, serialize, dedupe (an active hit merges), per-player cap
+// (busy), budget reservation (daily_cost, daily_calls, phase_cap), then write
+// the pending job (carrying its reservation and budget day), one llm_dispatch
+// row at the transaction timestamp, and make sure the sweep tick exists. Every
+// refusal returns before any write, so a refusal leaves no job, no dispatch
+// row and no reservation. The reducer answers a refusal in the Keeper's voice
+// with llmRefusalMessage.
 //
 // Validation failures throw a plain Error: they are server programming errors
 // (unknown route, oversized context), not client-caused sender errors, and this
 // helper has no character context to report through.
 //
-// No runtime import from the server entry point, schema/tables, events or
+// Imports are limited to data modules, ./measurement, ./llm_budget and
+// ./llm_schedule; nothing from the server entry point, schema/tables, events or
 // location, so this module loads in plain Node vitest.
 // ============================================================================
 
 import { isLlmRoute, type LlmRoute } from '../data/llm_routes';
 import { CLAUDE_MODEL } from '../data/llm_models';
+import { LLM_PLAYER_MAX_ACTIVE_JOBS } from '../data/llm_limits';
 import { redactSecrets } from './measurement';
+import { reserveLlmBudget, type LlmBudgetMode, type LlmBudgetRefusal } from './llm_budget';
+import { insertLlmDispatch, ensureLlmSweepScheduled } from './llm_schedule';
 
 export const LLM_JOB_STATUSES = [
   'pending',
@@ -83,14 +96,70 @@ export interface EnqueueArgs {
   characterId?: bigint;
   sourceKey: string;
   request: Record<string, unknown>;
+  /** 'player' (default) reserves against the player day and the phase ledger; 'phase_only' (smoke) skips the player. */
+  budget?: LlmBudgetMode;
+}
+
+/** Why an enqueue was refused: a budget reason, or the per-player active-job cap. */
+export type LlmRefusal = LlmBudgetRefusal | 'busy';
+
+export type EnqueueResult =
+  | { created: true; job: any; refused?: undefined }
+  | { created: false; job: any; refused?: undefined }
+  | { created: false; job: null; refused: LlmRefusal };
+
+/**
+ * Routes the per-player cap never refuses. Narration is silent and lowest
+ * priority; a renown offer is earned, not requested, so it must not be lost to
+ * the cap. Narration is also not counted; a held renown job is counted (it is a
+ * real active job), it just is never the one refused.
+ */
+export const LLM_CAP_EXEMPT_ROUTES: readonly LlmRoute[] = Object.freeze([
+  'combat_narration',
+  'renown_perk_gen',
+] as LlmRoute[]);
+
+/**
+ * Fixed in-voice refusal lines. None reveals which limit was hit, an amount, a
+ * provider or an account state.
+ */
+export const LLM_REFUSAL_MESSAGES: Readonly<Record<LlmRefusal, string>> = Object.freeze({
+  daily_cost: 'The Keeper grows weary of your demands. Return tomorrow.',
+  daily_calls: 'The Keeper grows weary of your demands. Return tomorrow.',
+  phase_cap: 'The Keeper has fallen silent for now. Return later.',
+  busy: 'The Keeper is already considering something for you. Patience.',
+});
+
+export function llmRefusalMessage(reason: LlmRefusal): string {
+  return LLM_REFUSAL_MESSAGES[reason];
 }
 
 /**
- * Insert a pending llm_job unless an active job (pending, in_flight, received)
- * already exists for the same identity, route and source key. Terminal jobs
- * never block a new one.
+ * Active jobs (pending, in_flight, received) the player holds against the cap:
+ * every route other than combat_narration that holds a player-day budget. Smoke and
+ * Phase 40 jobs (budgetDay '') and terminal jobs never count.
  */
-export function enqueueLlmJob(ctx: any, a: EnqueueArgs): { job: any; created: boolean } {
+export function countActiveCappedJobs(ctx: any, playerId: any): number {
+  let n = 0;
+  for (const j of ctx.db.llm_job.by_player.filter(playerId)) {
+    if (!isActiveJobStatus(j.status)) continue;
+    if (j.route === 'combat_narration') continue;
+    if (!j.budgetDay) continue;
+    n += 1;
+  }
+  return n;
+}
+
+/**
+ * Enqueue one LLM action in the caller's transaction. Returns:
+ * - { created: true, job } for a new reserved, dispatched job;
+ * - { created: false, job } when an active job with the same identity, route
+ *   and source key already exists (merged: nothing further is written);
+ * - { created: false, job: null, refused } when over the per-player cap or the
+ *   budget (nothing is written).
+ * Terminal jobs never block a new one.
+ */
+export function enqueueLlmJob(ctx: any, a: EnqueueArgs): EnqueueResult {
   if (!isLlmRoute(a.route)) throw new Error(`Unknown LLM route: ${String(a.route)}`);
   if (typeof a.playerId?.toHexString !== 'function') {
     throw new Error('enqueueLlmJob requires a playerId identity');
@@ -109,8 +178,25 @@ export function enqueueLlmJob(ctx: any, a: EnqueueArgs): { job: any; created: bo
 
   const dedupeKey = buildDedupeKey(a.playerId, a.route, a.sourceKey);
   for (const existing of ctx.db.llm_job.by_dedupe_key.filter(dedupeKey)) {
-    if (isActiveJobStatus(existing.status)) return { job: existing, created: false };
+    if (isActiveJobStatus(existing.status)) return { created: false, job: existing };
   }
+
+  const mode: LlmBudgetMode = a.budget ?? 'player';
+  if (
+    mode === 'player' &&
+    !(LLM_CAP_EXEMPT_ROUTES as readonly string[]).includes(a.route) &&
+    countActiveCappedJobs(ctx, a.playerId) >= LLM_PLAYER_MAX_ACTIVE_JOBS
+  ) {
+    return { created: false, job: null, refused: 'busy' };
+  }
+
+  const reservation = reserveLlmBudget(ctx, {
+    playerId: a.playerId,
+    route: a.route,
+    requestJson,
+    mode,
+  });
+  if (!reservation.ok) return { created: false, job: null, refused: reservation.reason };
 
   const job = ctx.db.llm_job.insert({
     id: 0n,
@@ -126,12 +212,14 @@ export function enqueueLlmJob(ctx: any, a: EnqueueArgs): { job: any; created: bo
     cacheWriteTokens: 0n,
     cacheReadTokens: 0n,
     createdAt: ctx.timestamp,
-    reservedMicroUsd: 0n,
+    reservedMicroUsd: reservation.reservedMicroUsd,
     costMicroUsd: 0n,
-    budgetDay: '',
+    budgetDay: reservation.budgetDay,
     applyAttempts: 0n,
   });
-  return { job, created: true };
+  insertLlmDispatch(ctx, job.id, ctx.timestamp.microsSinceUnixEpoch);
+  ensureLlmSweepScheduled(ctx);
+  return { created: true, job };
 }
 
 /**

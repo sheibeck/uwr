@@ -18,7 +18,20 @@ import {
   serializeRequest,
   resolveCharacterPlayerId,
   logLlmCall,
+  LLM_CAP_EXEMPT_ROUTES,
+  LLM_REFUSAL_MESSAGES,
+  llmRefusalMessage,
+  countActiveCappedJobs,
+  type LlmRefusal,
 } from './llm_queue';
+import { reservationMicroUsd, utcDay, getPhaseLedger } from './llm_budget';
+import { scheduledMicros } from './llm_schedule';
+import {
+  LLM_PLAYER_DAILY_CALLS,
+  LLM_PLAYER_DAILY_COST_MICRO_USD,
+  LLM_PHASE_SPEND_CAP_MICRO_USD,
+  LLM_PLAYER_MAX_ACTIVE_JOBS,
+} from '../data/llm_limits';
 
 // Records the real column definitions so rowColumnProblems can validate inserted rows.
 vi.mock('spacetimedb/server', async () =>
@@ -83,9 +96,9 @@ describe('enqueueLlmJob dedupe', () => {
     expect(job.createdAt).toBe(ctx.timestamp);
     expect('resultText' in job).toBe(false);
     expect(rowColumnProblems('llm_job', job)).toEqual([]);
-    expect(job.reservedMicroUsd).toBe(0n);
+    expect(job.reservedMicroUsd).toBe(reservationMicroUsd('renown_perk_gen', job.requestJson));
     expect(job.costMicroUsd).toBe(0n);
-    expect(job.budgetDay).toBe('');
+    expect(job.budgetDay).toBe(utcDay(ctx.timestamp));
     expect(job.applyAttempts).toBe(0n);
     expect('nextAttemptAt' in job).toBe(false);
   });
@@ -434,5 +447,346 @@ describe('logLlmCall', () => {
     const row = logLlmCall(ctx, { ...base, httpStatus: -5, latencyMs: 1e300 });
     expect(row.httpStatus).toBe(0n);
     expect(row.latencyMs).toBe(BigInt(Number.MAX_SAFE_INTEGER));
+  });
+});
+
+// ============================================================================
+// Phase 41-05: reservation, cap, dispatch and refusal in one transaction
+// ============================================================================
+
+// The mock compares identities with ===: one identity object per player.
+const PLAYER = { toHexString: () => 'player-aaa' };
+const OTHER = { toHexString: () => 'player-bbb' };
+
+const T_NOW = BigInt(Date.parse('2026-09-30T12:00:00.000Z')) * 1000n;
+const TODAY = '2026-09-30';
+
+// The mock creates an empty table array on first read, so empty tables are dropped from the snapshot.
+const snap = (ctx: any): string =>
+  JSON.stringify(
+    Object.fromEntries(Object.entries(ctx.db._tables as Record<string, any[]>).filter(([, v]) => v.length > 0)),
+    (_k, v) => (typeof v === 'bigint' ? `${v}n` : v),
+  );
+
+const seededJob = (id: bigint, route: string, over: Record<string, unknown> = {}) => ({
+  id,
+  playerId: PLAYER,
+  route,
+  dedupeKey: `seed-${id}`,
+  status: 'pending',
+  budgetDay: TODAY,
+  ...over,
+});
+
+const budgetRow = (over: Record<string, unknown> = {}) => ({
+  id: 1n,
+  playerId: PLAYER,
+  dayUtc: TODAY,
+  reservedMicroUsd: 0n,
+  spentMicroUsd: 0n,
+  calls: 0n,
+  ...over,
+});
+
+const ledgerRow = (over: Record<string, unknown> = {}) => ({
+  id: 1n,
+  spentMicroUsd: 0n,
+  reservedMicroUsd: 0n,
+  calls: 0n,
+  updatedAt: { microsSinceUnixEpoch: 1n },
+  ...over,
+});
+
+const ctxAt = (seed: Record<string, any[]> = {}) => createMockCtx({ timestampMicros: T_NOW, seed });
+
+const npc = (ctx: any, turn: bigint | number = 0, over: Record<string, unknown> = {}) =>
+  enqueueLlmJob(ctx, {
+    route: 'npc_conversation',
+    playerId: PLAYER,
+    characterId: 3n,
+    sourceKey: SOURCE_KEYS.npcConversation(3n, 9n, turn),
+    request: { message: 'hello' },
+    ...over,
+  } as any);
+
+describe('enqueueLlmJob: created path', () => {
+  it('writes one pending job, one dispatch row at the transaction timestamp and one sweep tick', () => {
+    const ctx = ctxAt();
+    const r = npc(ctx);
+    expect(r.created).toBe(true);
+    expect(r.refused).toBeUndefined();
+    const job = r.job;
+    expect(job.status).toBe('pending');
+    expect(job.attempt).toBe(0n);
+    expect(job.costMicroUsd).toBe(0n);
+    expect(job.applyAttempts).toBe(0n);
+    expect(job.budgetDay).toBe(TODAY);
+    expect(job.reservedMicroUsd).toBe(reservationMicroUsd('npc_conversation', job.requestJson));
+    expect(job.reservedMicroUsd > 0n).toBe(true);
+    expect(rowColumnProblems('llm_job', job)).toEqual([]);
+
+    expect(rows(ctx, 'llm_job')).toHaveLength(1);
+    const dispatch = rows(ctx, 'llm_dispatch');
+    expect(dispatch).toHaveLength(1);
+    expect(dispatch[0].jobId).toBe(job.id);
+    expect(scheduledMicros(dispatch[0].scheduledAt)).toBe(T_NOW);
+    expect(rowColumnProblems('llm_dispatch', dispatch[0])).toEqual([]);
+    expect(rows(ctx, 'llm_sweep_tick')).toHaveLength(1);
+    expect(rowColumnProblems('llm_sweep_tick', rows(ctx, 'llm_sweep_tick')[0])).toEqual([]);
+  });
+
+  it('reserves against the player day and the phase ledger', () => {
+    const ctx = ctxAt();
+    const { job } = npc(ctx);
+    const day = rows(ctx, 'llm_player_budget');
+    expect(day).toHaveLength(1);
+    expect(day[0].dayUtc).toBe(TODAY);
+    expect(day[0].reservedMicroUsd).toBe(job.reservedMicroUsd);
+    expect(day[0].calls).toBe(1n);
+    expect(getPhaseLedger(ctx).reservedMicroUsd).toBe(job.reservedMicroUsd);
+  });
+
+  it('a second enqueue with another source key adds a second job and dispatch but keeps one sweep tick', () => {
+    const ctx = ctxAt();
+    const a = npc(ctx, 0);
+    const b = npc(ctx, 1000n);
+    expect(b.created).toBe(true);
+    expect(b.job.id).not.toBe(a.job.id);
+    expect(rows(ctx, 'llm_job')).toHaveLength(2);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(2);
+    expect(rows(ctx, 'llm_sweep_tick')).toHaveLength(1);
+  });
+});
+
+describe('enqueueLlmJob: dedupe merge writes nothing further', () => {
+  it('a duplicate returns created false with the first job and leaves every table unchanged', () => {
+    const ctx = ctxAt();
+    const first = npc(ctx);
+    const before = snap(ctx);
+    const reservedBefore = getPhaseLedger(ctx).reservedMicroUsd;
+    const second = npc(ctx);
+    expect(second.created).toBe(false);
+    expect(second.job.id).toBe(first.job.id);
+    expect(second.refused).toBeUndefined();
+    expect(rows(ctx, 'llm_job')).toHaveLength(1);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(1);
+    expect(rows(ctx, 'llm_player_budget')).toHaveLength(1);
+    expect(getPhaseLedger(ctx).reservedMicroUsd).toBe(reservedBefore);
+    expect(snap(ctx)).toBe(before);
+  });
+
+  it('a merge is not refused as busy even when the player is at the cap', () => {
+    const ctx = ctxAt();
+    const first = npc(ctx, 0);
+    npc(ctx, 1n, { route: 'skill_gen', sourceKey: 'a' });
+    npc(ctx, 2n, { route: 'creation_race', sourceKey: 'b' });
+    expect(countActiveCappedJobs(ctx, PLAYER)).toBe(3);
+    const again = npc(ctx, 0);
+    expect(again.created).toBe(false);
+    expect(again.job.id).toBe(first.job.id);
+    expect(again.refused).toBeUndefined();
+  });
+
+  it('the next conversation turn marker creates a separate job', () => {
+    const ctx = ctxAt();
+    const a = npc(ctx, 0);
+    const b = npc(ctx, 1234n);
+    expect(b.created).toBe(true);
+    expect(b.job.id).not.toBe(a.job.id);
+  });
+});
+
+describe('per-player active-job cap', () => {
+  const threeActive = () => [
+    seededJob(1n, 'npc_conversation'),
+    seededJob(2n, 'skill_gen', { status: 'in_flight' }),
+    seededJob(3n, 'creation_race', { status: 'received' }),
+  ];
+
+  it('the limit is three and the exempt routes are narration and renown', () => {
+    expect(LLM_PLAYER_MAX_ACTIVE_JOBS).toBe(3);
+    expect([...LLM_CAP_EXEMPT_ROUTES].sort()).toEqual(['combat_narration', 'renown_perk_gen']);
+  });
+
+  it('a fourth player-requested job is refused busy and the database is unchanged', () => {
+    const ctx = ctxAt({ llm_job: threeActive() });
+    const before = snap(ctx);
+    const r = npc(ctx);
+    expect(r).toEqual({ created: false, job: null, refused: 'busy' });
+    expect(snap(ctx)).toBe(before);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    expect(rows(ctx, 'llm_player_budget')).toHaveLength(0);
+    expect(rows(ctx, 'llm_spend')).toHaveLength(0);
+  });
+
+  it('exactly two active jobs still lets the third through', () => {
+    const ctx = ctxAt({ llm_job: threeActive().slice(0, 2) });
+    expect(npc(ctx).created).toBe(true);
+  });
+
+  it('combat_narration and renown_perk_gen are never refused as busy', () => {
+    const ctx = ctxAt({ llm_job: threeActive() });
+    const narr = enqueueLlmJob(ctx, {
+      route: 'combat_narration',
+      playerId: PLAYER,
+      sourceKey: SOURCE_KEYS.combatNarration(11n, 1n, 'victory'),
+      request: { x: 1 },
+    } as any);
+    expect(narr.created).toBe(true);
+    const renown = enqueueLlmJob(ctx, {
+      route: 'renown_perk_gen',
+      playerId: PLAYER,
+      sourceKey: SOURCE_KEYS.renownPerk(3n, 2),
+      request: { rank: 2 },
+    } as any);
+    expect(renown.created).toBe(true);
+  });
+
+  it('narration jobs do not count toward the cap, held renown jobs do (but are never refused)', () => {
+    const ctx = ctxAt({
+      llm_job: [
+        seededJob(1n, 'combat_narration'),
+        seededJob(2n, 'renown_perk_gen'),
+        seededJob(3n, 'npc_conversation'),
+        seededJob(4n, 'skill_gen'),
+      ],
+    });
+    expect(countActiveCappedJobs(ctx, PLAYER)).toBe(3);
+    expect(npc(ctx).refused).toBe('busy');
+  });
+
+  it('terminal jobs never count: one completed job lets the fourth through', () => {
+    const jobs = threeActive();
+    jobs[0] = { ...jobs[0], status: 'completed' };
+    const ctx = ctxAt({ llm_job: jobs });
+    expect(npc(ctx).created).toBe(true);
+    for (const status of ['failed', 'expired'] as const) {
+      const c = ctxAt({ llm_job: [{ ...threeActive()[0], status }, ...threeActive().slice(1)] });
+      expect(countActiveCappedJobs(c, PLAYER)).toBe(2);
+    }
+  });
+
+  it('jobs without a budget day (smoke, Phase 40) never count', () => {
+    const ctx = ctxAt({
+      llm_job: [
+        seededJob(1n, 'smoke_test', { budgetDay: '' }),
+        seededJob(2n, 'npc_conversation', { budgetDay: '' }),
+        seededJob(3n, 'skill_gen', { budgetDay: '' }),
+      ],
+    });
+    expect(countActiveCappedJobs(ctx, PLAYER)).toBe(0);
+    expect(npc(ctx).created).toBe(true);
+  });
+
+  it("another player's jobs do not count", () => {
+    const ctx = ctxAt({
+      llm_job: threeActive().map((j) => ({ ...j, playerId: OTHER })),
+    });
+    expect(npc(ctx).created).toBe(true);
+  });
+
+  it('the cap is not applied in phase_only mode', () => {
+    const ctx = ctxAt({ llm_job: threeActive() });
+    const r = npc(ctx, 0, { budget: 'phase_only', route: 'smoke_test', sourceKey: SOURCE_KEYS.smokeTest() });
+    expect(r.created).toBe(true);
+  });
+});
+
+describe('budget refusals write nothing', () => {
+  const cases: Array<[string, LlmRefusal, Record<string, any[]>]> = [
+    [
+      'daily cost limit',
+      'daily_cost',
+      { llm_player_budget: [budgetRow({ spentMicroUsd: LLM_PLAYER_DAILY_COST_MICRO_USD, calls: 1n })] },
+    ],
+    ['200 calls', 'daily_calls', { llm_player_budget: [budgetRow({ calls: LLM_PLAYER_DAILY_CALLS })] }],
+    ['phase cap', 'phase_cap', { llm_spend: [ledgerRow({ spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD })] }],
+  ];
+
+  it.each(cases)('%s gives refused %s and leaves the database unchanged', (_n, reason, seed) => {
+    const ctx = ctxAt(seed);
+    const before = snap(ctx);
+    const r = npc(ctx);
+    expect(r).toEqual({ created: false, job: null, refused: reason });
+    expect(snap(ctx)).toBe(before);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    expect(rows(ctx, 'llm_sweep_tick')).toHaveLength(0);
+  });
+
+  it('a refused renown job is also traceless', () => {
+    const ctx = ctxAt({ llm_spend: [ledgerRow({ spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD })] });
+    const before = snap(ctx);
+    const r = enqueueLlmJob(ctx, {
+      route: 'renown_perk_gen',
+      playerId: PLAYER,
+      sourceKey: SOURCE_KEYS.renownPerk(3n, 2),
+      request: { rank: 2 },
+    } as any);
+    expect(r.refused).toBe('phase_cap');
+    expect(snap(ctx)).toBe(before);
+  });
+});
+
+describe("budget 'phase_only' (smoke)", () => {
+  it('writes no player budget row, an empty budget day and counts against the ledger', () => {
+    const ctx = ctxAt();
+    const r = enqueueLlmJob(ctx, {
+      route: 'smoke_test',
+      playerId: PLAYER,
+      sourceKey: SOURCE_KEYS.smokeTest(),
+      request: { smoke: true },
+      budget: 'phase_only',
+    });
+    expect(r.created).toBe(true);
+    expect(r.job.budgetDay).toBe('');
+    expect(r.job.reservedMicroUsd > 0n).toBe(true);
+    expect(rows(ctx, 'llm_player_budget')).toHaveLength(0);
+    expect(getPhaseLedger(ctx).reservedMicroUsd).toBe(r.job.reservedMicroUsd);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(1);
+  });
+});
+
+describe('llmRefusalMessage', () => {
+  const reasons: LlmRefusal[] = ['daily_cost', 'daily_calls', 'phase_cap', 'busy'];
+
+  it.each(reasons)('%s is a non-empty in-voice line with no numbers, currency or provider words', (reason) => {
+    const msg = llmRefusalMessage(reason);
+    expect(msg.length).toBeGreaterThan(0);
+    expect(msg).toMatch(/Keeper/);
+    expect(msg).not.toMatch(/\d/);
+    expect(msg).not.toMatch(/\$/);
+    expect(msg).not.toMatch(/budget|limit|anthropic|claude|http|\bapi\b|\bkey\b/i);
+  });
+
+  it('never reveals which daily limit was hit', () => {
+    expect(llmRefusalMessage('daily_cost')).toBe(llmRefusalMessage('daily_calls'));
+    expect(Object.keys(LLM_REFUSAL_MESSAGES).sort()).toEqual([...reasons].sort());
+    expect(Object.isFrozen(LLM_REFUSAL_MESSAGES)).toBe(true);
+  });
+});
+
+describe('enqueueLlmJob validation writes nothing', () => {
+  it('unknown route, missing identity, empty source key and oversized request throw plain Errors', () => {
+    const ctx = ctxAt();
+    const before = snap(ctx);
+    const bad: Array<[Record<string, unknown>, RegExp]> = [
+      [{ route: 'gpt_route' }, /route/i],
+      [{ playerId: undefined }, /playerId/],
+      [{ sourceKey: '' }, /sourceKey/],
+      [{ request: { k: 'x'.repeat(LLM_REQUEST_JSON_MAX_CHARS) } }, /too large/],
+    ];
+    for (const [over, re] of bad) {
+      let caught: unknown;
+      try {
+        npc(ctx, 0, over);
+      } catch (e) {
+        caught = e;
+      }
+      expect(caught).toBeInstanceOf(Error);
+      expect((caught as Error).constructor).toBe(Error);
+      expect((caught as Error).message).toMatch(re);
+    }
+    expect(snap(ctx)).toBe(before);
   });
 });
