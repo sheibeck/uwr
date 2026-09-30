@@ -41,7 +41,7 @@ const handlers: Record<string, (...args: any[]) => any> = {};
 
 beforeAll(async () => {
   await import('../index');
-  for (const name of ['talk_to_npc', 'apply_level_up', 'request_skill_offer', 'submit_intent', 'grant_test_renown', 'submit_creation_input']) {
+  for (const name of ['talk_to_npc', 'apply_level_up', 'request_skill_offer', 'submit_intent', 'grant_test_renown', 'submit_creation_input', 'choose_skill']) {
     const h = capturedReducer(name);
     if (typeof h !== 'function') {
       throw new Error(
@@ -551,6 +551,7 @@ describe('skills and renown cutover (PIPE-01, PIPE-05)', () => {
   });
 
   const levelUp = (ctx: any) => handlers.apply_level_up(ctx, { characterId: 1n });
+  const chooseSkill = (ctx: any, pendingSkillId: bigint) => handlers.choose_skill(ctx, { pendingSkillId });
   const requestOffer = (ctx: any, characterId = 1n) => handlers.request_skill_offer(ctx, { characterId });
   const intent = (ctx: any, text: string) => handlers.submit_intent(ctx, { characterId: 1n, text });
   const eventsOfKind = (ctx: any, kind: string): string[] =>
@@ -643,7 +644,7 @@ describe('skills and renown cutover (PIPE-01, PIPE-05)', () => {
       expect(rows(ctx, 'character')[0].level).toBe(3n);
       const job = expectEnqueued(ctx, 'skill_gen');
       expect(JSON.parse(job.requestJson).level).toBe('2');
-      expect(systemLines(ctx)).toContain('The Keeper is already preparing your offering. Be patient.');
+      expect(systemLines(ctx)).toContain('The Keeper is already preparing an offering. Once you choose from it, any further offering you are owed follows.');
     });
 
     it('the offer applied after the character reached level 3 is labelled and gated at level 2, and [skills] then offers level 3', () => {
@@ -668,6 +669,59 @@ describe('skills and renown cutover (PIPE-01, PIPE-05)', () => {
       expect(JSON.parse(jobs[1].requestJson).level).toBe('3');
     });
 
+    // WR-B02: choosing the level 2 offer queues the level 3 offer in the same transaction, so the
+    // player never needs a [skills] nobody told them about.
+    it('choosing from the level 2 offer queues the level 3 offer at once, with the created line', () => {
+      const ctx = newCtx(levelSeed(1n, 2n));
+      levelUp(ctx);
+      levelUp(ctx);
+      const job = expectEnqueued(ctx, 'skill_gen');
+      applyJob(ctx, job);
+      job.status = 'completed';
+
+      const narrativeBefore = eventsOfKind(ctx, 'narrative').length;
+      chooseSkill(ctx, rows(ctx, 'pending_skill')[0].id);
+
+      expect(rows(ctx, 'pending_skill')).toHaveLength(0);
+      expect(rows(ctx, 'ability_template').map((a: any) => a.levelRequired)).toEqual([2n]);
+      const jobs = rows(ctx, 'llm_job');
+      expect(jobs).toHaveLength(2);
+      expect(JSON.parse(jobs[1].requestJson).level).toBe('3');
+      expect(JSON.parse(jobs[1].dedupeKey)).toEqual([alice.toHexString(), 'skill_gen', '1:3']);
+      expect(eventsOfKind(ctx, 'narrative').slice(narrativeBefore)).toContain(
+        'Something stirs within you. The Keeper stirs to present new abilities for your consideration.',
+      );
+
+      // Choosing the level 3 offer leaves nothing owed: no third job, no extra line.
+      jobs[1].status = 'completed';
+      applyJob(ctx, jobs[1]);
+      const systemBefore = systemLines(ctx).length;
+      chooseSkill(ctx, rows(ctx, 'pending_skill')[0].id);
+      expect(rows(ctx, 'llm_job')).toHaveLength(2);
+      expect(rows(ctx, 'ability_template').map((a: any) => a.levelRequired).sort()).toEqual([2n, 3n]);
+      expect(systemLines(ctx).slice(systemBefore).every((l: string) => l.startsWith('You learned'))).toBe(true);
+    });
+
+    it('a level 2 offer that failed while the character reached level 3 is still owed: [skills] offers 3, and choosing it offers 2', () => {
+      const ctx = newCtx(levelSeed(1n, 2n));
+      levelUp(ctx);
+      levelUp(ctx);
+      const first = expectEnqueued(ctx, 'skill_gen');
+      first.status = 'failed';
+      applyLlmFailure(ctx, { domain: 'skill_gen', playerId: alice, contextJson: first.requestJson } as any);
+
+      intent(ctx, 'skills');
+      const second = rows(ctx, 'llm_job')[1];
+      expect(JSON.parse(second.requestJson).level).toBe('3');
+      second.status = 'completed';
+      applyJob(ctx, second);
+      chooseSkill(ctx, rows(ctx, 'pending_skill')[0].id);
+
+      const third = rows(ctx, 'llm_job')[2];
+      expect(JSON.parse(third.requestJson).level).toBe('2');
+      expect((resolveRouteInput(ctx, third) as any).level).toBe(2n);
+    });
+
     it('a result never overwrites an offer that is already pending', () => {
       const ctx = newCtx(levelSeed(3n, 0n));
       requestOffer(ctx);
@@ -685,7 +739,7 @@ describe('skills and renown cutover (PIPE-01, PIPE-05)', () => {
     expectEnqueued(ctx, 'skill_gen');
     requestOffer(ctx);
     expectEnqueued(ctx, 'skill_gen');
-    expect(systemLines(ctx)).toEqual(['The Keeper is already preparing your offering. Be patient.']);
+    expect(systemLines(ctx)).toEqual(['The Keeper is already preparing an offering. Once you choose from it, any further offering you are owed follows.']);
   });
 
   it("request_skill_offer rejects another player's character", () => {
@@ -706,11 +760,11 @@ describe('skills and renown cutover (PIPE-01, PIPE-05)', () => {
     expect(systemLines(a)).toEqual(['Your offering awaits your choice.']);
 
     const takenSeed = levelSeed(3n, 0n);
-    takenSeed.ability_template = [abilityRow(3n)];
+    takenSeed.ability_template = [{ ...abilityRow(2n), id: 1n }, { ...abilityRow(3n), id: 2n }];
     const b = newCtx(takenSeed);
     requestOffer(b);
     expectNothingReserved(b);
-    expect(systemLines(b)).toHaveLength(1);
+    expect(systemLines(b)).toEqual(['The Keeper shakes his head. "You have already claimed a new ability at this level. Grow first."']);
 
     const c = newCtx(levelSeed(1n, 0n));
     requestOffer(c);
@@ -740,7 +794,7 @@ describe('skills and renown cutover (PIPE-01, PIPE-05)', () => {
     expectEnqueued(ctx, 'skill_gen');
     intent(ctx, 'Skills');
     expectEnqueued(ctx, 'skill_gen');
-    expect(systemLines(ctx)).toEqual(['The Keeper is already preparing your offering. Be patient.']);
+    expect(systemLines(ctx)).toEqual(['The Keeper is already preparing an offering. Once you choose from it, any further offering you are owed follows.']);
   });
 
   it('a skill_gen failure tells the player to type [skills], and doing so enqueues a fresh job for the same level', () => {

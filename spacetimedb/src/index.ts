@@ -2,7 +2,7 @@ import { t, SenderError } from 'spacetimedb/server';
 import { requireAdmin } from './data/admin';
 import { ScheduleAt, Timestamp } from 'spacetimedb';
 import { ensureDefaultHotbar } from './helpers/items';
-import { requestSkillOffer } from './helpers/skill_offer';
+import { offerNextOwedSkill, requestSkillOffer } from './helpers/skill_offer';
 import { applyLlmResult, applyLlmFailure, toApplyJob } from './helpers/llm_apply';
 import spacetimedb, {
   scheduledReducers,
@@ -485,6 +485,10 @@ spacetimedb.reducer('choose_skill', { pendingSkillId: t.u64() }, (ctx: any, { pe
     `The Keeper nods. "[${pending.name}] it is. The others scatter like forgotten dreams. You will never see them again."`);
   appendPrivateEvent(ctx, pending.characterId, character.ownerUserId, 'system',
     `You learned [${pending.name}] — ${pending.kind}, ${pending.value1} power, ${pending.cooldownSeconds}s cooldown`);
+
+  // One offer per level (WR-B02): a level claimed while this offer waited gets its offer now.
+  const next = offerNextOwedSkill(ctx, character, ctx.sender);
+  if (next) appendPrivateEvent(ctx, pending.characterId, character.ownerUserId, next.kind, next.text);
 });
 
 // Reducer: player manually applies one pending level-up

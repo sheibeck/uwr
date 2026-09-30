@@ -5,7 +5,14 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { createMockCtx } from './test-utils';
 import { rowColumnProblems } from './schema_recorder';
-import { canRequestSkillOffer, enqueueSkillOffer, requestSkillOffer, SKILL_OFFER_MESSAGES } from './skill_offer';
+import {
+  canRequestSkillOffer,
+  enqueueSkillOffer,
+  offerNextOwedSkill,
+  owedSkillOfferLevel,
+  requestSkillOffer,
+  SKILL_OFFER_MESSAGES,
+} from './skill_offer';
 import { resolveRouteInput } from './llm_inputs';
 import { llmRefusalMessage } from './llm_queue';
 import { utcDay } from './llm_budget';
@@ -97,10 +104,15 @@ describe('canRequestSkillOffer', () => {
     expect(r).toEqual({ ok: false, message: 'Your offering awaits your choice.' });
   });
 
-  it('refuses when a generated ability was already taken at the current level', () => {
-    const ctx = newCtx(seed({ ability_template: [abilityRow({ levelRequired: 3n })] }));
+  it('refuses when a generated ability was already taken at every level from 2 to the current one', () => {
+    const ctx = newCtx(seed({ ability_template: [abilityRow({ id: 1n, levelRequired: 2n }), abilityRow({ id: 2n, levelRequired: 3n })] }));
     const r = canRequestSkillOffer(ctx, characterOf(ctx));
     expect(r).toEqual({ ok: false, message: SKILL_OFFER_MESSAGES.alreadyTaken });
+  });
+
+  it('allows an owed earlier level when the current level is taken (WR-B02)', () => {
+    const ctx = newCtx(seed({ ability_template: [abilityRow({ levelRequired: 3n })] }));
+    expect(canRequestSkillOffer(ctx, characterOf(ctx))).toEqual({ ok: true });
   });
 
   it('is not blocked by a class (non-generated) ability at the current level', () => {
@@ -116,6 +128,50 @@ describe('canRequestSkillOffer', () => {
   it('allows level 2 with nothing taken', () => {
     const ctx = newCtx(seed({ character: [characterRow({ level: 2n })] }));
     expect(canRequestSkillOffer(ctx, characterOf(ctx))).toEqual({ ok: true });
+  });
+});
+
+describe('owedSkillOfferLevel (WR-B02)', () => {
+  it('is the current level when nothing was taken at it', () => {
+    const ctx = newCtx(seed({ ability_template: [abilityRow({ levelRequired: 2n })] }));
+    expect(owedSkillOfferLevel(ctx, characterOf(ctx))).toBe(3n);
+  });
+
+  it('is the lowest earlier level still owed when the current level is taken', () => {
+    const ctx = newCtx(seed({
+      character: [characterRow({ level: 5n })],
+      ability_template: [abilityRow({ id: 1n, levelRequired: 2n }), abilityRow({ id: 2n, levelRequired: 5n })],
+    }));
+    expect(owedSkillOfferLevel(ctx, characterOf(ctx))).toBe(3n);
+  });
+
+  it('ignores level 1 and non-generated abilities, and is null when nothing is owed', () => {
+    const ctx = newCtx(seed({
+      character: [characterRow({ level: 2n })],
+      ability_template: [abilityRow({ id: 1n, levelRequired: 1n }), abilityRow({ id: 2n, levelRequired: 2n, isGenerated: false })],
+    }));
+    expect(owedSkillOfferLevel(ctx, characterOf(ctx))).toBe(2n);
+    ctx.db.ability_template.insert(abilityRow({ id: 0n, levelRequired: 2n }));
+    expect(owedSkillOfferLevel(ctx, characterOf(ctx))).toBeNull();
+    const low = newCtx(seed({ character: [characterRow({ level: 1n })] }));
+    expect(owedSkillOfferLevel(low, characterOf(low))).toBeNull();
+  });
+});
+
+describe('offerNextOwedSkill (WR-B02)', () => {
+  it('queues the owed level and returns the created line', () => {
+    const ctx = newCtx(seed({ ability_template: [abilityRow({ levelRequired: 3n })] }));
+    expect(offerNextOwedSkill(ctx, characterOf(ctx), alice)).toEqual({ kind: 'narrative', text: SKILL_OFFER_MESSAGES.created });
+    expect(JSON.parse(rows(ctx, 'llm_job')[0].requestJson).level).toBe('2');
+  });
+
+  it('returns null and writes nothing when nothing is owed or an offer is open', () => {
+    const none = newCtx(seed({ ability_template: [abilityRow({ id: 1n, levelRequired: 2n }), abilityRow({ id: 2n, levelRequired: 3n })] }));
+    expect(offerNextOwedSkill(none, characterOf(none), alice)).toBeNull();
+    const open = newCtx(seed({ pending_skill: [pendingRow()] }));
+    expect(offerNextOwedSkill(open, characterOf(open), alice)).toBeNull();
+    expect(rows(none, 'llm_job')).toHaveLength(0);
+    expect(rows(open, 'llm_job')).toHaveLength(0);
   });
 });
 
@@ -179,7 +235,7 @@ describe('requestSkillOffer', () => {
     const ctx = newCtx();
     requestSkillOffer(ctx, characterOf(ctx), alice);
     const out = requestSkillOffer(ctx, characterOf(ctx), alice);
-    expect(out).toEqual({ kind: 'system', text: 'The Keeper is already preparing your offering. Be patient.' });
+    expect(out).toEqual({ kind: 'system', text: 'The Keeper is already preparing an offering. Once you choose from it, any further offering you are owed follows.' });
     expect(rows(ctx, 'llm_job')).toHaveLength(1);
     expect(rows(ctx, 'llm_dispatch')).toHaveLength(1);
     expect(rows(ctx, 'llm_player_budget')[0].calls).toBe(1n);
