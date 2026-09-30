@@ -6,8 +6,9 @@ import type { PendingSkill, Character } from '../module_bindings/types';
  * Watches PendingSkill table for the current character, provides skill choice
  * actions, and exposes pending level-up state.
  *
- * NOTE: Auto-trigger of skill gen on level-up has been removed — the
- * apply_level_up reducer now handles skill generation server-side.
+ * NOTE: Skill offers are queued server-side: apply_level_up enqueues one for
+ * the new level, and the [skills] command (request_skill_offer) asks for one
+ * again after a failed offer. This composable never requests generation itself.
  */
 export function useSkillChoice({
   selectedCharacter,
@@ -46,14 +47,6 @@ export function useSkillChoice({
     return true;
   }
 
-  // Trigger skill generation for a level-up (manual fallback)
-  function requestSkillGen() {
-    if (!characterId.value) return;
-    const conn = window.__db_conn as DbConnection | undefined;
-    if (!conn) return;
-    conn.reducers.prepareSkillGen({ characterId: characterId.value });
-  }
-
   // Apply one pending level-up
   function applyLevelUp() {
     if (!characterId.value) return;
@@ -68,7 +61,6 @@ export function useSkillChoice({
     pendingLevels,
     hasPendingLevels,
     chooseSkill,
-    requestSkillGen,
     applyLevelUp,
   };
 }

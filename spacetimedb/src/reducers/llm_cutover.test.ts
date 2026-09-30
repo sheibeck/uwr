@@ -9,7 +9,8 @@
  * identities with ===).
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { capturedReducer, rowColumnProblems } from '../helpers/schema_recorder';
 import { createMockCtx, createMockProcCtx } from '../helpers/test-utils';
 import { enqueueCombatOutroNarration } from '../helpers/combat_narration';
@@ -743,5 +744,28 @@ describe('skills and renown cutover (PIPE-01, PIPE-05)', () => {
     const perks = rows(proc, 'pending_renown_perk');
     expect(perks.map((p: any) => p.name).sort()).toEqual(['One', 'Three', 'Two']);
     expect(perks.every((p: any) => p.characterId === 1n && p.rank === 2n)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Deleted client call sites (41-12)
+// ---------------------------------------------------------------------------
+
+describe('deleted skill-gen prepare reducer: no client call site remains', () => {
+  const walk = (dir: URL, out: string[] = []): string[] => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === 'module_bindings' || entry.name === 'node_modules') continue;
+      const child = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir);
+      if (entry.isDirectory()) walk(child, out);
+      else if (/\.(ts|vue|js)$/.test(entry.name)) out.push(fileURLToPath(child));
+    }
+    return out;
+  };
+
+  it('no file under src/ outside src/module_bindings/ references prepareSkillGen or requestSkillGen', () => {
+    const files = walk(new URL('../../../src/', import.meta.url));
+    expect(files.length).toBeGreaterThan(10);
+    const offenders = files.filter((f) => /prepareSkillGen|requestSkillGen|prepare_skill_gen/.test(readFileSync(f, 'utf-8')));
+    expect(offenders).toEqual([]);
   });
 });
