@@ -59,7 +59,7 @@ Phases 33-37 parked in the Backlog as 999.1-999.5. See `.planning/milestones/v2.
 **Execution Order:** 39 → 40 → 41 → 42 → 43 → 44
 
 - [x] **Phase 39: Procedure-to-Claude Spike** - Go/no-go gate: measure whether SpacetimeDB 2.10 procedures can call Claude reliably and pick the executor (completed 2026-09-29)
-- [ ] **Phase 40: Claude Request Layer and Job Seam** - One model constant, one route table, a pure tested request builder/parser, layered prompts, and the private job tables, queue and offline test seam
+- [x] **Phase 40: Claude Request Layer and Job Seam** - One model constant, one route table, a pure tested request builder/parser, layered prompts, and the private job tables, queue and offline test seam (completed 2026-09-30)
 - [ ] **Phase 41: Executor and Domain Cutover** - Run every LLM-driven action server-side end to end against real Claude, with graceful failure handling, usage tracking and admin smoke test
 - [ ] **Phase 42: Client Cutover and Legacy Removal** - Move the client to the job-status view and delete the proxy, the client-trusted result reducer, the old tables and every browser credential
 - [ ] **Phase 43: Latency Tuning, Staged Generation and Budget** - Tune each route from measured data, verify caching, stage world and class reveals with Keeper progress lines, and add the global spend ceiling and kill switch
@@ -256,7 +256,7 @@ Phases execute in numeric order: 39 → 40 → 41 → 42 → 43 → 44
 | 24-30 | v2.0 | 22/22 | Complete | 2026-03-09 |
 | 31, 32, 38 | v2.1 | 14/14 | Complete | 2026-09-29 |
 | 39. Procedure-to-Claude Spike | v2.2 | 11/11 | Complete    | 2026-09-29 |
-| 40. Claude Request Layer and Job Seam | v2.2 | 10/10 | In Progress|  |
+| 40. Claude Request Layer and Job Seam | v2.2 | 10/10 | Complete    | 2026-09-30 |
 | 41. Executor and Domain Cutover | v2.2 | 0/TBD | Not started | - |
 | 42. Client Cutover and Legacy Removal | v2.2 | 0/TBD | Not started | - |
 | 43. Latency Tuning, Staged Generation and Budget | v2.2 | 0/TBD | Not started | - |

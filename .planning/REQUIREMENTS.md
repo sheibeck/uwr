@@ -26,18 +26,18 @@
 
 ### Claude Request Layer
 
-- [ ] **CLAUDE-01**: Every LLM call uses `claude-sonnet-5-5`. The model ID is defined in one constants module, and per-route settings (effort, max_tokens, timeout, schema) live in one route table.
-- [ ] **CLAUDE-02**: A pure, unit-tested request builder and response parser handle Sonnet 5.5 bodies.
+- [x] **CLAUDE-01**: Every LLM call uses `claude-sonnet-5-5`. The model ID is defined in one constants module, and per-route settings (effort, max_tokens, timeout, schema) live in one route table.
+- [x] **CLAUDE-02**: A pure, unit-tested request builder and response parser handle Sonnet 5.5 bodies.
   - The builder produces valid bodies: explicit effort, required `max_tokens`, no forbidden params.
   - The parser reads the first `text` block and treats `max_tokens` and `refusal` stop reasons as failures.
-- [ ] **CLAUDE-03**: Every JSON route uses Claude structured outputs (`output_config.format`) with schemas that pass a subset linter. The existing v2.0 validators still enforce ranges and power budgets.
-- [ ] **CLAUDE-04**: Prompts are layered into a stable cacheable prefix (Keeper Bible + route block) and a volatile tail. Player-written text is wrapped in delimiter tags.
+- [x] **CLAUDE-03**: Every JSON route uses Claude structured outputs (`output_config.format`) with schemas that pass a subset linter. The existing v2.0 validators still enforce ranges and power budgets.
+- [x] **CLAUDE-04**: Prompts are layered into a stable cacheable prefix (Keeper Bible + route block) and a volatile tail. Player-written text is wrapped in delimiter tags.
 
 ### Server-Owned Pipeline (SpacetimeDB)
 
 - [ ] **PIPE-01**: Every LLM-driven action (creation, world gen, skills, NPC chat, combat narration, renown) is queued in a private SpacetimeDB table inside the triggering reducer's transaction. The client never calls the LLM or a proxy.
 - [ ] **PIPE-02**: SpacetimeDB applies LLM results, and they survive the player refreshing or closing the tab mid-generation.
-- [ ] **PIPE-03**: Two tabs on the same identity cannot trigger duplicate LLM calls for the same action.
+- [x] **PIPE-03**: Two tabs on the same identity cannot trigger duplicate LLM calls for the same action.
 - [ ] **PIPE-04**: Failures are handled by error class:
   - Transient errors (429 with `retry-after`, 529, 5xx, timeout) retry by rescheduling, with a bounded number of attempts.
   - Non-retryable errors (auth, spend cap, refusal, 400) fail fast.
@@ -45,14 +45,14 @@
 - [ ] **PIPE-05**: Stuck jobs are swept. On failure, generation locks release, the reserved budget is refunded, and the player sees an in-voice Keeper message.
 - [ ] **PIPE-06**: A global in-flight LLM call cap keeps combat ticks and reducers responsive while calls run.
 - [ ] **PIPE-07**: Combat narration never blocks combat and is dropped if it arrives late.
-- [ ] **PIPE-08**: Renown perk generation actually reaches the LLM (the swallowed insert bug in `helpers/renown.ts` is fixed), covered by a regression test.
+- [x] **PIPE-08**: Renown perk generation actually reaches the LLM (the swallowed insert bug in `helpers/renown.ts` is fixed), covered by a regression test.
 - [ ] **PIPE-09**: Jobs are executed by the executor SPIKE-04 chooses:
   - go: a scheduled SpacetimeDB procedure calling Claude via `ctx.http.fetch`
   - no-go: a backend service authenticated to Anthropic via Workload Identity Federation, which reads and writes the SpacetimeDB job tables through service-only views and reducers
 
 ### Security
 
-- [ ] **SEC-01**: No client can read another player's prompts, NPC secrets or LLM outputs. Job and prompt tables are private in SpacetimeDB, and clients see only their own job status through a view.
+- [x] **SEC-01**: No client can read another player's prompts, NPC secrets or LLM outputs. Job and prompt tables are private in SpacetimeDB, and clients see only their own job status through a view.
 - [ ] **SEC-02**: No client can submit or forge LLM results (`submit_llm_result` removed).
 - [ ] **SEC-03**: No LLM credential exists in the browser.
   - `llm-proxy/`, `useLlmProxy` and the proxy env vars are removed.
@@ -86,7 +86,7 @@
 - [ ] **QUAL-01**: A golden set of ~25 prompts (5 adversarial) runs with mechanical assertions. Live runs are operator-approved, and the owner approves the tone.
 - [ ] **QUAL-02**: Every domain is verified end-to-end with a real Claude call locally, with per-route latency percentiles recorded. The maincloud run is manual by the user.
 - [ ] **QUAL-03**: Failure drills (truncation, refusal, 401, 429, 529, spend cap, timeout) each produce the correct player-facing behavior.
-- [ ] **QUAL-04**: Every phase ships unit tests. LLM code paths are testable offline through a mock procedure context (fake `ctx.http`, `withTx`).
+- [x] **QUAL-04**: Every phase ships unit tests. LLM code paths are testable offline through a mock procedure context (fake `ctx.http`, `withTx`).
 
 ## Future Requirements
 
@@ -119,20 +119,20 @@ Filled by roadmap creation (2026-09-29). Each requirement maps to exactly one ph
 | SPIKE-02 | Phase 39 | Complete |
 | SPIKE-03 | Phase 39 | Complete |
 | SPIKE-04 | Phase 39 | Complete |
-| CLAUDE-01 | Phase 40 | Pending |
-| CLAUDE-02 | Phase 40 | Pending |
-| CLAUDE-03 | Phase 40 | Pending |
-| CLAUDE-04 | Phase 40 | Pending |
+| CLAUDE-01 | Phase 40 | Complete |
+| CLAUDE-02 | Phase 40 | Complete |
+| CLAUDE-03 | Phase 40 | Complete |
+| CLAUDE-04 | Phase 40 | Complete |
 | PIPE-01 | Phase 41 | Pending |
 | PIPE-02 | Phase 41 | Pending |
-| PIPE-03 | Phase 40 | Pending |
+| PIPE-03 | Phase 40 | Complete |
 | PIPE-04 | Phase 41 | Pending |
 | PIPE-05 | Phase 41 | Pending |
 | PIPE-06 | Phase 41 | Pending |
 | PIPE-07 | Phase 41 | Pending |
-| PIPE-08 | Phase 40 | Pending |
+| PIPE-08 | Phase 40 | Complete (job enqueued + regression test; the Phase 41 executor sends it to Claude) |
 | PIPE-09 | Phase 41 | Pending |
-| SEC-01 | Phase 40 | Pending |
+| SEC-01 | Phase 40 | Complete (llm_* tables private + own-jobs view; public `npc`/`npc_memory`/`npc_dialog` exposure tracked in todo 2026-09-29-make-npc-secret-and-memory-tables-private; `llm_task` closes in Phase 42) |
 | SEC-02 | Phase 42 | Pending |
 | SEC-03 | Phase 42 | Pending |
 | SEC-04 | Phase 41 | Pending |
@@ -151,7 +151,7 @@ Filled by roadmap creation (2026-09-29). Each requirement maps to exactly one ph
 | QUAL-01 | Phase 44 | Pending |
 | QUAL-02 | Phase 44 | Pending |
 | QUAL-03 | Phase 44 | Pending |
-| QUAL-04 | Phase 40 | Pending |
+| QUAL-04 | Phase 40 | Complete |
 
 **Coverage:**
 
