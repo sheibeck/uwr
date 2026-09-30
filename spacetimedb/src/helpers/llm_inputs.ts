@@ -134,7 +134,7 @@ export function smokeInputFor<R extends LlmRoute>(route: R): RouteInputMap[R] {
       existingPerks: [],
     },
     npc_conversation: {
-      npc: { name: 'Tester', npcType: 'villager' },
+      npc: { name: 'Tester', npcType: 'villager', gender: 'male' },
       region: { name: 'The Threshold' },
       location: { name: 'The Crossing' },
       personality: {},

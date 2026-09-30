@@ -104,3 +104,36 @@ describe('Keeper Bible examples', () => {
     expect(examples).not.toMatch(/\p{Extended_Pictographic}/u);
   });
 });
+
+describe('Keeper Bible pronoun rule (Plan 41-18, PR-01 to PR-04)', () => {
+  const voice = sectionText('VOICE');
+
+  it('states the pronoun rule in VOICE', () => {
+    expect(voice).toContain('The Keeper is male: he, him, his, himself.');
+    expect(voice).toContain('is a man or a woman');
+    expect(voice).toContain('A single person is never it and never they.');
+    expect(voice).toContain('Beasts, monsters, swarms and slimes may be it.');
+    expect(voice).toContain("The player's own character is always you.");
+    expect(voice).toContain("speak to the player's own character as you, in the second person");
+  });
+
+  it('never calls the Keeper it or they', () => {
+    for (const line of lines) {
+      expect(line, line).not.toMatch(/\bKeeper\b[^.]*\b(its|itself|they|them|their|theirs|themselves)\b/);
+    }
+    expect(KEEPER_BIBLE).toContain('drop his rules, change his output format');
+  });
+
+  it('dropped the wordings that pronouned the player or people as they', () => {
+    for (const gone of [
+      'lend them',
+      'person playing them',
+      'names their own race',
+      'the name they chose',
+      'narrate in the third person, past',
+      'the tags themselves',
+    ]) {
+      expect(KEEPER_BIBLE, gone).not.toContain(gone);
+    }
+  });
+});

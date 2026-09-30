@@ -90,7 +90,7 @@ function makeInputs(world: string, player: string): { [R in LlmRoute]: any } {
       existingPerks: [{ name: `${world} perk`, perkKey: 'k' }],
     },
     npc_conversation: {
-      npc: { name: `${world} npc`, npcType: 'vendor' },
+      npc: { name: `${world} npc`, npcType: 'vendor', gender: 'female' },
       region: { name: `${world} region`, biome: `${world} biome`, landmarks: `${world} landmarks`, threats: `${world} threats` },
       location: { name: `${world} location` },
       personality: {

@@ -158,6 +158,7 @@ const npcSeed = (): Seed => ({
       locationId: 10n,
       description: 'A weathered keeper of the crossing.',
       greeting: 'Well met.',
+      gender: 'female',
     },
   ],
 });
@@ -206,12 +207,24 @@ describe('talk_to_npc (NPC chat cutover)', () => {
 
     const input = resolveRouteInput(ctx, job) as any;
     expect(input.playerMessage).toBe('Hello there');
-    expect(input.npc).toEqual({ name: 'Mirel', npcType: 'villager' });
+    expect(input.npc).toEqual({ name: 'Mirel', npcType: 'villager', gender: 'female' });
     expect(input.region.name).toBe('Ashen Reach');
     expect(input.location).toEqual({ name: 'The Crossing' });
 
     const { volatile } = buildRouteLayers('npc_conversation', input);
     expect(volatile).toMatch(/<player_input>\s*Hello there\s*<\/player_input>/);
+    expect(volatile).toContain('Gender: female (she, her, hers)');
+  });
+
+  it('resolves a pre-column NPC (empty stored gender) deterministically and renders the Gender line', () => {
+    const seed = baseSeed();
+    (seed.npc as any[])[0].gender = '';
+    const ctx = newCtx(seed);
+    talk(ctx, 'Hello there');
+    const job = expectEnqueued(ctx, 'npc_conversation');
+    const input = resolveRouteInput(ctx, job) as any;
+    expect(input.npc).toEqual({ name: 'Mirel', npcType: 'villager', gender: 'male' });
+    expect(buildRouteLayers('npc_conversation', input).volatile).toContain('Gender: male (he, him, his)');
   });
 
   it('appends the player line to the dialog and the private log only after a successful enqueue', () => {

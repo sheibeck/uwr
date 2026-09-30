@@ -54,7 +54,7 @@ const INPUTS: { [R in LlmRoute]: RouteInputMap[R] } = {
     existingPerks: [{ name: 'Iron Will', perkKey: 'iron_will' }],
   },
   npc_conversation: {
-    npc: { name: 'Brann', npcType: 'smith' },
+    npc: { name: 'Brann', npcType: 'smith', gender: 'male' },
     region: { name: 'Cinder Vale', biome: 'volcanic', landmarks: 'the Slag Pit', threats: 'wraiths' },
     location: { name: 'Brann Forge' },
     personality: { traits: ['gruff'], speechPattern: 'short', knowledgeDomains: ['metal'], secrets: ['owes a debt'] },
@@ -245,6 +245,10 @@ describe('ROUTE_BIGINT_PATHS', () => {
 });
 
 describe('smokeInputFor', () => {
+  it('the npc_conversation smoke input carries a male gender', () => {
+    expect((smokeInputFor('npc_conversation') as any).npc.gender).toBe('male');
+  });
+
   for (const route of LLM_ROUTE_NAMES) {
     it(`${route}: builds a valid layer set`, () => {
       const layers = buildRouteLayers(route, smokeInputFor(route) as never);

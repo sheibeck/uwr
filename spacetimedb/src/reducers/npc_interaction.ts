@@ -14,6 +14,7 @@ import {
   parseNpcPersonality,
 } from '../helpers/npc_conversation';
 import type { NpcConversationInput } from '../data/llm_layers';
+import { npcGender } from '../data/npc_gender';
 
 export const registerNpcInteractionReducers = (deps: any) => {
   const { spacetimedb, t } = deps;
@@ -69,7 +70,7 @@ export const registerNpcInteractionReducers = (deps: any) => {
     const recentQuestNames = completedQuestNames.slice(-5);
 
     const input: NpcConversationInput = {
-      npc: { name: npc.name, npcType: npc.npcType },
+      npc: { name: npc.name, npcType: npc.npcType, gender: npcGender(npc) },
       region: region
         ? {
             name: region.name,
