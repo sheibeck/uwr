@@ -31,6 +31,23 @@ const FAILED_MALFORMED =
   'The Keeper muttered something unusable. Ask again and hope for better diction.';
 const FAILED_GENERIC = 'Something went wrong in the Keeper\'s archives. Try again shortly.';
 
+/** Coarse, player-safe failure buckets exposed by my_llm_jobs in place of the raw class. */
+export type PublicErrorBucket = 'transient' | 'unavailable' | 'declined' | 'failed';
+
+/**
+ * Map a raw failure class to a coarse public bucket (SEC-01). The raw class
+ * ('auth', 'billing', ...) tells a player what is wrong with the operator's
+ * account, so it must never leave the server; only this bucket does.
+ * Returns undefined when there is no error.
+ */
+export function publicErrorBucket(errorCode: string | undefined | null): PublicErrorBucket | undefined {
+  if (errorCode === undefined || errorCode === null || errorCode === '') return undefined;
+  if (TRANSIENT_CLASSES.has(errorCode)) return 'transient';
+  if (ACCOUNT_CLASSES.has(errorCode)) return 'unavailable';
+  if (errorCode === 'refusal') return 'declined';
+  return 'failed';
+}
+
 /**
  * A short in-voice line for a job's current state. Pure and deterministic:
  * identical arguments always give identical text. `route` is accepted so future

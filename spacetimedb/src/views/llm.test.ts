@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createMockDb } from '../helpers/test-utils';
 import { capturedViews, createRecordingServerMock } from '../helpers/schema_recorder';
-import { keeperMessageForJob } from '../helpers/llm_status';
+import { keeperMessageForJob, publicErrorBucket } from '../helpers/llm_status';
 import { LLM_JOB_STATUSES } from '../helpers/llm_queue';
 import { LLM_ROUTE_NAMES } from '../data/llm_routes';
 import { registerLlmViews, projectMyLlmJob, MY_LLM_JOB_KEYS } from './llm';
@@ -136,6 +136,34 @@ describe('keeperMessageForJob', () => {
   });
 });
 
+describe('publicErrorBucket', () => {
+  it('maps every failure class to a coarse bucket that is never a raw class', () => {
+    for (const c of FAILURE_CLASSES) {
+      const b = publicErrorBucket(c);
+      expect(['transient', 'unavailable', 'declined', 'failed']).toContain(b);
+      expect(FAILURE_CLASSES).not.toContain(b);
+    }
+  });
+
+  it('buckets retryable classes as transient, account classes as unavailable', () => {
+    for (const c of ['rate_limit', 'overloaded', 'server', 'timeout', 'network']) {
+      expect(publicErrorBucket(c)).toBe('transient');
+    }
+    expect(publicErrorBucket('auth')).toBe('unavailable');
+    expect(publicErrorBucket('billing')).toBe('unavailable');
+    expect(publicErrorBucket('refusal')).toBe('declined');
+    for (const c of ['truncated', 'invalid_json', 'schema_mismatch', 'bad_request', 'something_new']) {
+      expect(publicErrorBucket(c)).toBe('failed');
+    }
+  });
+
+  it('is undefined when there is no error', () => {
+    expect(publicErrorBucket(undefined)).toBeUndefined();
+    expect(publicErrorBucket(null)).toBeUndefined();
+    expect(publicErrorBucket('')).toBeUndefined();
+  });
+});
+
 describe('my_llm_jobs view', () => {
   it('is registered as my_llm_jobs and public (privacy comes from the lookup and projection)', () => {
     const v = registeredView();
@@ -177,10 +205,31 @@ describe('my_llm_jobs view', () => {
   it('attaches the Keeper message for each row', () => {
     const v = registeredView();
     const rows = v.fn({ sender: alice, db: noScanDb(seed()) });
+    // The message is derived from the RAW class on the server, not the public bucket.
+    const rawByid = new Map(seed().llm_job.map((j: any) => [j.id, j]));
     for (const r of rows) {
-      expect(r.userMessage).toBe(keeperMessageForJob(r.status, r.errorCode, r.route));
+      const raw: any = rawByid.get(r.id);
+      expect(r.userMessage).toBe(keeperMessageForJob(raw.status, raw.errorCode, raw.route));
     }
-    expect(rows.find((r: any) => r.id === 2n).errorCode).toBe('rate_limit');
+    // The coarse bucket is exposed, never the raw failure class (SEC-01).
+    expect(rows.find((r: any) => r.id === 2n).errorCode).toBe('transient');
+    expect(rows.find((r: any) => r.id === 1n).errorCode).toBeUndefined();
+  });
+
+  it('never exposes a raw failure class through errorCode', () => {
+    const v = registeredView();
+    const allowed = ['transient', 'unavailable', 'declined', 'failed'];
+    const jobs = FAILURE_CLASSES.map((c, i) => job(BigInt(i + 1), alice, { status: 'failed', errorCode: c }));
+    const rows = v.fn({ sender: alice, db: noScanDb({ llm_job: jobs }) });
+    expect(rows).toHaveLength(FAILURE_CLASSES.length);
+    for (const r of rows) {
+      expect(allowed).toContain(r.errorCode);
+      expect(FAILURE_CLASSES).not.toContain(r.errorCode);
+    }
+    const byId = (id: bigint) => rows.find((r: any) => r.id === id).errorCode;
+    expect(byId(BigInt(FAILURE_CLASSES.indexOf('auth') + 1))).toBe('unavailable');
+    expect(byId(BigInt(FAILURE_CLASSES.indexOf('billing') + 1))).toBe('unavailable');
+    expect(byId(BigInt(FAILURE_CLASSES.indexOf('refusal') + 1))).toBe('declined');
   });
 
   it('projectMyLlmJob keeps only the six keys from a full row', () => {

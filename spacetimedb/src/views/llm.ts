@@ -1,5 +1,5 @@
 import type { ViewDeps } from './types';
-import { keeperMessageForJob } from '../helpers/llm_status';
+import { keeperMessageForJob, publicErrorBucket } from '../helpers/llm_status';
 
 // ============================================================================
 // my_llm_jobs: per-sender projection of the private llm_job table (SEC-01)
@@ -25,7 +25,8 @@ export function projectMyLlmJob(job: any) {
     route: job.route,
     status: job.status,
     createdAt: job.createdAt,
-    errorCode: job.errorCode,
+    // Coarse bucket only: the raw failure class would reveal account-side problems (SEC-01).
+    errorCode: publicErrorBucket(job.errorCode),
     userMessage: keeperMessageForJob(job.status, job.errorCode, job.route),
   };
 }
