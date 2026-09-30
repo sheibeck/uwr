@@ -397,6 +397,23 @@ describe('evaluateGate: gate verdict branches', () => {
     expect(r.thresholds.ratio).toBe(2);
   });
 
+  it('flags a go whose top level never reached goMinInFlight on the server', () => {
+    const capped = healthy({ loads: [{ ...level(8), effectiveInFlight: 4 }] });
+    const r = evaluateGate(capped);
+    expect(r.verdict).toBe('go');
+    expect(r.flags).toContain('server_cap_below_go_level');
+  });
+
+  it('does not flag server cap when the top level reached goMinInFlight or effective is absent', () => {
+    expect(evaluateGate(healthy({ loads: [{ ...level(8), effectiveInFlight: 8 }] })).flags).not.toContain(
+      'server_cap_below_go_level',
+    );
+    expect(evaluateGate(healthy({ loads: [{ ...level(8), effectiveInFlight: 6 }] })).flags).not.toContain(
+      'server_cap_below_go_level',
+    );
+    expect(evaluateGate(healthy()).flags).not.toContain('server_cap_below_go_level');
+  });
+
   it('an explicit undefined override keeps the default, so thin data is still incomplete', () => {
     const thin = healthy({
       reliability: { calls: 5, failures: 0, platformFailures: 0, upstreamFailures: 0 },

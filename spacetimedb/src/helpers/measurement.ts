@@ -53,8 +53,9 @@ export interface LevelStats {
   pingSamples: number;
   tickSamples: number;
   /**
-   * Informational: min(level, observed server-side concurrency cap) that the tick
-   * window was filtered against. The gate math does not read it.
+   * min(level, observed server-side concurrency cap) that the tick window was
+   * filtered against. It never changes a verdict; when the highest level's value is
+   * below goMinInFlight the gate adds the 'server_cap_below_go_level' flag.
    */
   effectiveInFlight?: number;
 }
@@ -286,6 +287,12 @@ export function evaluateGate(input: GateInput): GateResult {
   if (reliability.platformFailures > 0) flags.push('platform_failures');
   if ((reliability.capBlocked ?? 0) > 0) flags.push('spend_cap_blocked');
   if (t.noiseFloorMs > 0) flags.push('noise_floor_applied');
+  // The level was requested at its nominal in-flight count, but the server never ran that
+  // many at once: a passing top level is then weaker evidence than the label suggests.
+  const top = loads[0];
+  if (top?.effectiveInFlight !== undefined && top.effectiveInFlight < t.goMinInFlight) {
+    flags.push('server_cap_below_go_level');
+  }
 
   const result = (verdict: Verdict, cap: number | null): GateResult => ({
     verdict,
