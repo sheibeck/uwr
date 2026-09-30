@@ -5,16 +5,28 @@
  * retry, settlement, apply, smoke and redaction paths (Task 2) offline. No network. The API key is
  * a fake built from fragments.
  */
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
+// @ts-ignore node types are not part of this module's tsconfig (same as other source-reading tests)
+import { readFileSync } from 'node:fs';
+// @ts-ignore see above
+import { fileURLToPath } from 'node:url';
+// @ts-ignore see above
+import { join } from 'node:path';
 import { ScheduleAt } from 'spacetimedb';
 import { createMockProcCtx, type MockReply, type MockThrow } from './test-utils';
 import { snapshotDb, rowColumnProblems } from './schema_recorder';
 import { enqueueLlmJob, SOURCE_KEYS } from './llm_queue';
 import { encodeRouteInput, smokeInputFor } from './llm_inputs';
 import { insertLlmDispatch, scheduledMicros } from './llm_schedule';
-import { applyLlmFailure } from './llm_apply';
-import { runLlmJob, claimLlmJob, type ExecutorDeps } from './llm_executor';
-import type { LlmRoute } from '../data/llm_routes';
+import { applyLlmFailure, applyLlmResult } from './llm_apply';
+import { runLlmJob, claimLlmJob, BILLED_FAILURE_CLASSES, type ExecutorDeps } from './llm_executor';
+import { releaseLlmReservation } from './llm_budget';
+import { retryDelayMs, msToMicros } from './llm_retry';
+import { awardRenown } from './renown';
+import { appendPrivateEvent } from './events';
+import { estimateCostMicroUsd, findSecretLeaks } from './measurement';
+import { LLM_ROUTES, type LlmRoute } from '../data/llm_routes';
+import { ANTHROPIC_MESSAGES_URL } from '../data/llm_models';
 import { LLM_MAX_IN_FLIGHT } from '../data/llm_limits';
 
 vi.mock('spacetimedb/server', async () =>
@@ -722,5 +734,872 @@ describe('claim failures (no call, no spend)', () => {
     const smoke = JSON.parse(state.lastSmokeJson);
     expect(smoke.creation_race.ok).toBe(false);
     expect(smoke.creation_race.class).toBe('auth');
+  });
+});
+
+// ============================================================================
+// Task 2: the call, persist, retry, settlement, apply, smoke and redaction paths
+// ============================================================================
+
+const FIXTURE_DIR = fileURLToPath(new URL('./__fixtures__/claude/', import.meta.url));
+const fixture = (name: string): any => JSON.parse(readFileSync(join(FIXTURE_DIR, `${name}.json`), 'utf8'));
+
+/** ok_json fixture with the text block replaced by the given text. */
+function okReply(text: string): any {
+  const f = fixture('ok_json');
+  f.body.content[0].text = text;
+  return f;
+}
+
+const PERKS = [
+  { name: 'Merchant Favor', perkDomain: 'social', perkEffectJson: '{"vendorSellBonus":5}' },
+  { name: 'Whisper Network', perkDomain: 'social', perkEffectJson: '{"npcAffinityGainBonus":2}' },
+  { name: 'Iron Constitution', perkDomain: 'combat', perkEffectJson: '{"maxHp":25}' },
+].map((p) => ({
+  name: p.name,
+  description: `A plain description of ${p.name}.`,
+  kind: '',
+  targetRule: 'self',
+  resourceType: 'none',
+  resourceCost: 0,
+  castSeconds: 0,
+  cooldownSeconds: 0,
+  scaling: 'none',
+  value1: 0,
+  value2: null,
+  damageType: null,
+  effectType: null,
+  effectMagnitude: null,
+  effectDuration: null,
+  perkEffectJson: p.perkEffectJson,
+  perkDomain: p.perkDomain,
+}));
+
+const threePerkReply = (extra: Record<string, unknown> = {}): any => ({
+  ...okReply(JSON.stringify({ perks: PERKS })),
+  ...extra,
+});
+
+/** Usage of the ok_json, ok_text, refusal and max_tokens fixtures. */
+const FIXTURE_USAGE = { input: 116, output: 562, cacheWrite: 0, cacheRead: 3727 };
+const FIXTURE_COST = BigInt(estimateCostMicroUsd(FIXTURE_USAGE));
+
+const renownSeed = (): Record<string, any[]> => ({
+  renown: [{ id: 1n, characterId: 1n, points: 90n, currentRank: 1n }],
+});
+
+/** Trigger a renown rank-up (90 + 20 points = rank 2) and return the enqueued job id. */
+function enqueueRenownJob(proc: Proc): bigint {
+  proc.ctx.withTx((tx: any) => awardRenown(tx, character(), 20n, 'test'));
+  const jobs = rows(proc, 'llm_job');
+  expect(jobs).toHaveLength(1);
+  return jobs[0].id;
+}
+
+/** Real apply and failure functions wrapped in spies. */
+function realDeps(proc: Proc, over: Partial<ExecutorDeps> = {}) {
+  return makeDeps(proc, {
+    apply: vi.fn(applyLlmResult) as any,
+    applyFailure: vi.fn(applyLlmFailure) as any,
+    ...over,
+  });
+}
+
+/** Rows of every table except llm_config, as one string. */
+function snapshotWithoutConfig(proc: Proc): string {
+  const all = JSON.parse(snapshotDb(proc.db));
+  delete all.llm_config;
+  return JSON.stringify(all);
+}
+
+/** Game tables only: every llm_ table and every empty table is dropped. */
+const gameTablesSnapshot = (proc: Proc): string => {
+  const all = JSON.parse(snapshotDb(proc.db));
+  for (const k of Object.keys(all)) {
+    if (k.startsWith('llm_') || all[k].length === 0) delete all[k];
+  }
+  return JSON.stringify(all);
+};
+
+const callLogs = (proc: Proc, jobId: bigint): any[] =>
+  rows(proc, 'llm_call_log')
+    .filter((r) => r.jobId === jobId)
+    .sort((a, b) => (a.attempt < b.attempt ? -1 : a.attempt > b.attempt ? 1 : 0));
+
+const reply = (name: string, over: Record<string, unknown> = {}): any => ({ ...fixture(name), ...over });
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe('ok reply: call, persist, apply (PIPE-09, PIPE-02, COST-01)', () => {
+  it('renown ok JSON: one POST with the key only in x-api-key, job completed, usage, cost, perks for the stored player, one call-log row, money settled', () => {
+    const proc = makeProc([threePerkReply({ advanceMicros: 2_300_000n })], { seed: renownSeed() });
+    const jobId = enqueueRenownJob(proc);
+    const reserved = jobOf(proc, jobId).reservedMicroUsd;
+    expect(reserved).toBeGreaterThan(0n);
+    const deps = realDeps(proc);
+
+    const outcome = run(proc, jobId, deps);
+
+    expect(outcome).toBe('completed');
+    expect(proc.http.calls).toHaveLength(1);
+    const call = proc.http.calls[0];
+    expect(call.url).toBe(ANTHROPIC_MESSAGES_URL);
+    expect(call.method).toBe('POST');
+    expect(call.headers['x-api-key']).toBe(FAKE_KEY);
+    expect(call.body as string).not.toContain(FAKE_KEY);
+    expect(call.timeoutMs).toBe(LLM_ROUTES.renown_perk_gen.timeoutMs);
+
+    const job = jobOf(proc, jobId);
+    expect(job.status).toBe('completed');
+    expect(job.attempt).toBe(1n);
+    expect(job.errorCode).toBeUndefined();
+    expect(job.stopReason).toBe('end_turn');
+    expect(job.requestId).toBe('req_011CTestOkFixture');
+    expect(JSON.parse(job.resultText).perks).toHaveLength(3);
+    expect(job.inputTokens).toBe(116n);
+    expect(job.outputTokens).toBe(562n);
+    expect(job.cacheWriteTokens).toBe(0n);
+    expect(job.cacheReadTokens).toBe(3727n);
+    expect(job.costMicroUsd).toBe(FIXTURE_COST);
+    expect(job.reservedMicroUsd).toBe(0n);
+    expect(job.startedAt).toBeDefined();
+    expect(job.finishedAt).toBeDefined();
+
+    // Applied for the stored player (alice), never the module identity.
+    expect(deps.apply).toHaveBeenCalledTimes(1);
+    expect(deps.apply.mock.calls[0][1].playerId).toBe(alice);
+    expect(deps.apply.mock.calls[0][1].domain).toBe('renown_perk_gen');
+    const perks = rows(proc, 'pending_renown_perk');
+    expect(perks).toHaveLength(3);
+    expect(perks.every((p) => p.characterId === 1n && p.rank === 2n)).toBe(true);
+
+    const logs = callLogs(proc, jobId);
+    expect(logs).toHaveLength(1);
+    expect(logs[0].outcome).toBe('ok');
+    expect(logs[0].attempt).toBe(1n);
+    expect(logs[0].httpStatus).toBe(200n);
+    expect(logs[0].inputTokens).toBe(116n);
+    expect(logs[0].outputTokens).toBe(562n);
+    expect(logs[0].cacheWriteTokens).toBe(0n);
+    expect(logs[0].cacheReadTokens).toBe(3727n);
+    expect(logs[0].costMicroUsd).toBe(FIXTURE_COST);
+    expect(logs[0].dispatchLateMs).toBe(0n);
+    expect(logs[0].latencyMs).toBe(2300n);
+    expect(logs[0].playerId).toBe(alice);
+
+    expect(playerDay(proc).spentMicroUsd).toBe(FIXTURE_COST);
+    expect(playerDay(proc).reservedMicroUsd).toBe(0n);
+    expect(ledger(proc).spentMicroUsd).toBe(FIXTURE_COST);
+    expect(ledger(proc).reservedMicroUsd).toBe(0n);
+  });
+
+  it('records the dispatch lateness on the call-log row', () => {
+    const proc = makeProc([threePerkReply()], { seed: renownSeed() });
+    const jobId = enqueueRenownJob(proc);
+    proc.clock.advance(1_500_000n);
+    run(proc, jobId, realDeps(proc));
+    expect(callLogs(proc, jobId)[0].dispatchLateMs).toBe(1500n);
+  });
+
+  it('emits one module log line with route, job, attempt, outcome, status, ms and the four counts, and no text', () => {
+    const proc = makeProc([threePerkReply({ advanceMicros: 1_000_000n })], { seed: renownSeed() });
+    const jobId = enqueueRenownJob(proc);
+    const deps = realDeps(proc);
+    run(proc, jobId, deps);
+    expect(deps.log).toHaveBeenCalledTimes(1);
+    const line = String(deps.log.mock.calls[0][0]);
+    expect(line).toContain('route=renown_perk_gen');
+    expect(line).toContain(`job=${jobId}`);
+    expect(line).toContain('attempt=1');
+    expect(line).toContain('outcome=ok');
+    expect(line).toContain('status=200');
+    expect(line).toContain('ms=1000');
+    expect(line).toContain('in=116');
+    expect(line).toContain('out=562');
+    expect(line).toContain('cw=0');
+    expect(line).toContain('cr=3727');
+    expect(line).not.toContain('Merchant Favor');
+    expect(line).not.toContain(FAKE_KEY);
+  });
+
+  it('the job row accumulates the counts of every attempt; each attempt has its own call-log row', () => {
+    const proc = makeProc([threePerkReply()], { seed: renownSeed() });
+    const jobId = enqueueRenownJob(proc);
+    // Prior counts on the row, as if attempt 1 had been billed.
+    proc.ctx.withTx((tx: any) => {
+      const j = tx.db.llm_job.id.find(jobId);
+      tx.db.llm_job.id.update({ ...j, attempt: 1n, inputTokens: 5n, outputTokens: 6n, cacheWriteTokens: 7n, cacheReadTokens: 8n });
+    });
+    run(proc, jobId, realDeps(proc));
+    const job = jobOf(proc, jobId);
+    expect(job.attempt).toBe(2n);
+    expect(job.inputTokens).toBe(121n);
+    expect(job.outputTokens).toBe(568n);
+    expect(job.cacheWriteTokens).toBe(7n);
+    expect(job.cacheReadTokens).toBe(3735n);
+    const logs = callLogs(proc, jobId);
+    expect(logs).toHaveLength(1);
+    expect(logs[0].attempt).toBe(2n);
+    expect(logs[0].inputTokens).toBe(116n);
+  });
+
+  it('the call timeout comes from LLM_ROUTES for a text route too', () => {
+    const proc = makeProc([reply('ok_text')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    run(proc, jobId);
+    expect(proc.http.calls[0].timeoutMs).toBe(LLM_ROUTES.npc_conversation.timeoutMs);
+  });
+
+  it('a job whose request cannot be built fails bad_request with a refunded call, no fetch and a failure message', () => {
+    const proc = makeProc();
+    const jobId = enqueue(proc, 'npc_conversation', { request: { input: {} } });
+    const deps = makeDeps(proc);
+    const outcome = run(proc, jobId, deps);
+    expect(outcome).toBe('failed');
+    const job = jobOf(proc, jobId);
+    expect(job.status).toBe('failed');
+    expect(job.errorCode).toBe('bad_request');
+    expect(job.reservedMicroUsd).toBe(0n);
+    expect(playerDay(proc).calls).toBe(0n);
+    expect(ledger(proc).reservedMicroUsd).toBe(0n);
+    expect(proc.http.calls).toHaveLength(0);
+    expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('retry by class (PIPE-04)', () => {
+  it('429 with retry-after 30 on npc_conversation attempt 1: pending, rate_limit, one new dispatch at persist time plus the delay, reservation held, player untouched', () => {
+    const r = reply('err_429_retry_after');
+    r.headers = { ...r.headers, 'retry-after': '30' };
+    const proc = makeProc([r]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const reserved = jobOf(proc, jobId).reservedMicroUsd;
+    const deps = makeDeps(proc);
+
+    const outcome = run(proc, jobId, deps);
+
+    expect(outcome).toBe('retry');
+    const job = jobOf(proc, jobId);
+    expect(job.status).toBe('pending');
+    expect(job.errorCode).toBe('rate_limit');
+    expect(job.attempt).toBe(1n);
+    expect(job.finishedAt).toBeUndefined();
+    const dueMicros = T0 + msToMicros(retryDelayMs(1, 30, jobId));
+    expect(job.nextAttemptAt.microsSinceUnixEpoch).toBe(dueMicros);
+    const dispatches = rows(proc, 'llm_dispatch');
+    expect(dispatches).toHaveLength(1);
+    expect(dispatches[0].jobId).toBe(jobId);
+    expect(scheduledMicros(dispatches[0].scheduledAt)).toBe(dueMicros);
+    expect(job.reservedMicroUsd).toBe(reserved);
+    expect(playerDay(proc).spentMicroUsd).toBe(0n);
+    expect(playerDay(proc).calls).toBe(1n);
+    expect(ledger(proc).spentMicroUsd).toBe(0n);
+    expect(ledger(proc).reservedMicroUsd).toBe(reserved);
+    expect(deps.applyFailure).not.toHaveBeenCalled();
+    const log = callLogs(proc, jobId)[0];
+    expect(log.outcome).toBe('rate_limit');
+    expect(log.httpStatus).toBe(429n);
+    expect(log.costMicroUsd).toBe(0n);
+  });
+
+  it('retry-after 61 is capped at 60 s plus jitter', () => {
+    const r = reply('err_429_retry_after');
+    r.headers = { ...r.headers, 'retry-after': '61' };
+    const proc = makeProc([r]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    run(proc, jobId);
+    const delay = jobOf(proc, jobId).nextAttemptAt.microsSinceUnixEpoch - T0;
+    expect(delay).toBeGreaterThanOrEqual(60_000_000n);
+    expect(delay).toBeLessThan(60_400_000n);
+  });
+
+  it('529 then 500 then 500: the third attempt is terminal, refunded, one failure message, three call-log rows 1n 2n 3n', () => {
+    const proc = makeProc([reply('err_529'), reply('err_500'), reply('err_500')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const deps = makeDeps(proc);
+
+    expect(run(proc, jobId, deps)).toBe('retry');
+    expect(jobOf(proc, jobId).errorCode).toBe('overloaded');
+    proc.clock.advance(3_000_000n);
+    expect(run(proc, jobId, deps)).toBe('retry');
+    expect(jobOf(proc, jobId).errorCode).toBe('server');
+    expect(jobOf(proc, jobId).attempt).toBe(2n);
+    proc.clock.advance(10_000_000n);
+    expect(run(proc, jobId, deps)).toBe('failed');
+
+    const job = jobOf(proc, jobId);
+    expect(job.status).toBe('failed');
+    expect(job.errorCode).toBe('server');
+    expect(job.attempt).toBe(3n);
+    expect(job.reservedMicroUsd).toBe(0n);
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+    expect(playerDay(proc).calls).toBe(0n);
+    expect(playerDay(proc).reservedMicroUsd).toBe(0n);
+    expect(playerDay(proc).spentMicroUsd).toBe(0n);
+    expect(ledger(proc).calls).toBe(0n);
+    expect(ledger(proc).reservedMicroUsd).toBe(0n);
+    expect(ledger(proc).spentMicroUsd).toBe(0n);
+    expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+    expect(deps.applyFailure.mock.calls[0][1].playerId).toBe(alice);
+    expect(proc.http.calls).toHaveLength(3);
+    const logs = callLogs(proc, jobId);
+    expect(logs.map((l) => l.attempt)).toEqual([1n, 2n, 3n]);
+    expect(logs.map((l) => l.outcome)).toEqual(['overloaded', 'server', 'server']);
+  });
+
+  it('a retry dispatched before it is due makes no second call', () => {
+    const proc = makeProc([reply('err_529'), reply('ok_text')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    run(proc, jobId);
+    // A stray dispatch arrives before the retry is due and nothing else is scheduled: re-dispatch only.
+    const early = { scheduledId: 77n, scheduledAt: ScheduleAt.time(T0), jobId };
+    rows(proc, 'llm_dispatch').length = 0;
+    expect(runLlmJob(proc.ctx, early, makeDeps(proc))).toBe('redispatch');
+    expect(proc.http.calls).toHaveLength(1);
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(1);
+  });
+
+  it('thrown timeouts on skill_gen: ledger grows by the reservation at each attempt, terminal at attempt 3, player untouched, call refunded', () => {
+    const proc = makeProc([{ throw: 'timeout' }, { throw: 'timeout' }, { throw: 'timeout' }]);
+    const jobId = enqueue(proc, 'skill_gen');
+    const reserved = jobOf(proc, jobId).reservedMicroUsd;
+    const deps = makeDeps(proc);
+
+    expect(run(proc, jobId, deps)).toBe('retry');
+    expect(ledger(proc).spentMicroUsd).toBe(reserved);
+    expect(jobOf(proc, jobId).reservedMicroUsd).toBe(reserved);
+    proc.clock.advance(3_000_000n);
+    expect(run(proc, jobId, deps)).toBe('retry');
+    expect(ledger(proc).spentMicroUsd).toBe(reserved * 2n);
+    proc.clock.advance(10_000_000n);
+    expect(run(proc, jobId, deps)).toBe('failed');
+
+    expect(ledger(proc).spentMicroUsd).toBe(reserved * 3n);
+    expect(ledger(proc).reservedMicroUsd).toBe(0n);
+    expect(jobOf(proc, jobId).status).toBe('failed');
+    expect(jobOf(proc, jobId).errorCode).toBe('timeout');
+    expect(playerDay(proc).spentMicroUsd).toBe(0n);
+    expect(playerDay(proc).reservedMicroUsd).toBe(0n);
+    expect(playerDay(proc).calls).toBe(0n);
+    expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+    const logs = callLogs(proc, jobId);
+    expect(logs.map((l) => l.costMicroUsd)).toEqual([reserved, reserved, reserved]);
+    expect(logs.map((l) => l.httpStatus)).toEqual([0n, 0n, 0n]);
+  });
+
+  it('creation_race thrown timeout at attempt 1: failed at once, no dispatch, creation state back at AWAITING_RACE, ledger charged, player not', () => {
+    const proc = makeProc([{ throw: 'timeout' }], {
+      seed: { character_creation_state: [{ id: 1n, playerId: alice, step: 'GENERATING_RACE' }] },
+    });
+    const jobId = enqueue(proc, 'creation_race', { sourceKey: SOURCE_KEYS.creation(1n, 'race') });
+    const reserved = jobOf(proc, jobId).reservedMicroUsd;
+    expect(run(proc, jobId, realDeps(proc))).toBe('failed');
+    expect(jobOf(proc, jobId).status).toBe('failed');
+    expect(jobOf(proc, jobId).errorCode).toBe('timeout');
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+    expect(rows(proc, 'character_creation_state')[0].step).toBe('AWAITING_RACE');
+    expect(ledger(proc).spentMicroUsd).toBe(reserved);
+    expect(playerDay(proc).spentMicroUsd).toBe(0n);
+    expect(playerDay(proc).calls).toBe(0n);
+    expect(proc.http.calls).toHaveLength(1);
+  });
+
+  it('world_gen 529 at attempt 1: failed, no dispatch (a failure there waits for the player)', () => {
+    const proc = makeProc([reply('err_529')]);
+    const jobId = enqueue(proc, 'world_gen', { sourceKey: SOURCE_KEYS.worldGen(1n) });
+    const deps = makeDeps(proc);
+    expect(run(proc, jobId, deps)).toBe('failed');
+    expect(jobOf(proc, jobId).status).toBe('failed');
+    expect(jobOf(proc, jobId).errorCode).toBe('overloaded');
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+    expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+    expect(proc.http.calls).toHaveLength(1);
+  });
+
+  it.each(['creation_race', 'creation_class', 'world_gen', 'combat_narration'] as LlmRoute[])(
+    'never auto-retries %s: a 500 is terminal at attempt 1 with no dispatch',
+    (route) => {
+      const proc = makeProc([reply('err_500')]);
+      const jobId = enqueue(proc, route);
+      const outcome = run(proc, jobId);
+      expect(outcome).toBe('failed');
+      expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+      expect(proc.http.calls).toHaveLength(1);
+    },
+  );
+
+  it.each([
+    ['err_401', 'auth'],
+    ['err_429_spend_cap', 'billing'],
+    ['err_400', 'bad_request'],
+  ])('%s fails on the first attempt as %s with no retry, refunded', (name, code) => {
+    const proc = makeProc([reply(name)]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const deps = makeDeps(proc);
+    expect(run(proc, jobId, deps)).toBe('failed');
+    const job = jobOf(proc, jobId);
+    expect(job.status).toBe('failed');
+    expect(job.errorCode).toBe(code);
+    expect(job.attempt).toBe(1n);
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+    expect(job.reservedMicroUsd).toBe(0n);
+    expect(playerDay(proc).calls).toBe(0n);
+    expect(playerDay(proc).spentMicroUsd).toBe(0n);
+    expect(ledger(proc).spentMicroUsd).toBe(0n);
+    expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+  });
+
+  it('auth and billing failures clear keyLastCheckOk; a bad_request does not', () => {
+    const verified = {
+      llm_admin_state: [
+        {
+          id: 1n,
+          keySet: true,
+          keyLength: 108n,
+          keyLastCheckOk: true,
+          keyVerifiedAt: { microsSinceUnixEpoch: T0 },
+          lastSmokeJson: '{}',
+        },
+      ],
+    };
+    const bad = makeProc([reply('err_400')], { seed: verified });
+    run(bad, enqueue(bad, 'npc_conversation'));
+    expect(rows(bad, 'llm_admin_state')[0].keyLastCheckOk).toBe(true);
+
+    for (const name of ['err_401', 'err_429_spend_cap']) {
+      const proc = makeProc([reply(name)], { seed: verified });
+      run(proc, enqueue(proc, 'npc_conversation'));
+      expect(rows(proc, 'llm_admin_state')[0].keyLastCheckOk).toBe(false);
+    }
+  });
+
+  it('a refusal (200, billed) fails as refusal and charges the player and the ledger the real cost', () => {
+    const proc = makeProc([reply('refusal')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const deps = makeDeps(proc);
+    expect(run(proc, jobId, deps)).toBe('failed');
+    const job = jobOf(proc, jobId);
+    expect(job.status).toBe('failed');
+    expect(job.errorCode).toBe('refusal');
+    expect(job.stopReason).toBe('refusal');
+    expect(job.inputTokens).toBe(116n);
+    expect(job.outputTokens).toBe(562n);
+    expect(job.costMicroUsd).toBe(FIXTURE_COST);
+    expect(job.reservedMicroUsd).toBe(0n);
+    expect(playerDay(proc).spentMicroUsd).toBe(FIXTURE_COST);
+    expect(playerDay(proc).reservedMicroUsd).toBe(0n);
+    expect(playerDay(proc).calls).toBe(1n);
+    expect(ledger(proc).spentMicroUsd).toBe(FIXTURE_COST);
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+    expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+    expect(callLogs(proc, jobId)[0].costMicroUsd).toBe(FIXTURE_COST);
+  });
+
+  it('the billed failure classes are exactly the six 200-with-unusable-content classes', () => {
+    expect([...BILLED_FAILURE_CLASSES].sort()).toEqual(
+      ['empty_output', 'invalid_json', 'refusal', 'schema_mismatch', 'truncated', 'unexpected_stop'],
+    );
+  });
+
+  it('a truncated reply (max_tokens, billed) is terminal and charges the real cost', () => {
+    const proc = makeProc([reply('max_tokens')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    expect(run(proc, jobId)).toBe('failed');
+    expect(jobOf(proc, jobId).errorCode).toBe('truncated');
+    expect(playerDay(proc).spentMicroUsd).toBe(FIXTURE_COST);
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+  });
+
+  it('an ok reply whose usage is missing: completed; the ledger is charged the reservation, the player nothing', () => {
+    const f = fixture('ok_text');
+    delete f.body.usage;
+    const proc = makeProc([f]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const reserved = jobOf(proc, jobId).reservedMicroUsd;
+    const deps = makeDeps(proc);
+    expect(run(proc, jobId, deps)).toBe('completed');
+    expect(jobOf(proc, jobId).status).toBe('completed');
+    expect(jobOf(proc, jobId).reservedMicroUsd).toBe(0n);
+    expect(ledger(proc).spentMicroUsd).toBe(reserved);
+    expect(ledger(proc).reservedMicroUsd).toBe(0n);
+    expect(playerDay(proc).spentMicroUsd).toBe(0n);
+    expect(playerDay(proc).reservedMicroUsd).toBe(0n);
+    expect(callLogs(proc, jobId)[0].costMicroUsd).toBe(reserved);
+  });
+
+  it('an ok skill_gen reply settles the real cost against the player', () => {
+    const proc = makeProc([reply('ok_json')]);
+    const jobId = enqueue(proc, 'skill_gen');
+    const deps = makeDeps(proc);
+    expect(run(proc, jobId, deps)).toBe('completed');
+    expect(playerDay(proc).spentMicroUsd).toBe(FIXTURE_COST);
+    expect(deps.apply).toHaveBeenCalledTimes(1);
+    expect(deps.apply.mock.calls[0][1].domain).toBe('skill_gen');
+  });
+});
+
+describe('combat narration lateness at persist (PIPE-07)', () => {
+  it('an ok reply persisted more than 20 s after enqueue is expired late: not applied, no message, player charged nothing, ledger records the real cost', () => {
+    const proc = makeProc([reply('ok_text', { advanceMicros: 21_000_000n })]);
+    const jobId = enqueue(proc, 'combat_narration');
+    const deps = makeDeps(proc);
+    const outcome = run(proc, jobId, deps);
+    expect(outcome).toBe('expired');
+    const job = jobOf(proc, jobId);
+    expect(job.status).toBe('expired');
+    expect(job.errorCode).toBe('late');
+    expect(job.reservedMicroUsd).toBe(0n);
+    expect(deps.apply).not.toHaveBeenCalled();
+    expect(deps.applyFailure).not.toHaveBeenCalled();
+    expect(rows(proc, 'combat_narrative')).toHaveLength(0);
+    expect(vi.mocked(appendPrivateEvent)).not.toHaveBeenCalled();
+    expect(playerDay(proc).spentMicroUsd).toBe(0n);
+    expect(playerDay(proc).reservedMicroUsd).toBe(0n);
+    expect(ledger(proc).spentMicroUsd).toBe(FIXTURE_COST);
+    expect(callLogs(proc, jobId)).toHaveLength(1);
+    expect(callLogs(proc, jobId)[0].outcome).toBe('ok');
+  });
+
+  it('a reply persisted exactly 20 s after enqueue is on time and is applied', () => {
+    const proc = makeProc([reply('ok_text', { advanceMicros: 20_000_000n })]);
+    const jobId = enqueue(proc, 'combat_narration');
+    const deps = makeDeps(proc);
+    expect(run(proc, jobId, deps)).toBe('completed');
+    expect(deps.apply).toHaveBeenCalledTimes(1);
+    expect(playerDay(proc).spentMicroUsd).toBe(FIXTURE_COST);
+  });
+
+  it('narration makes exactly one attempt: a 429 with retry-after is terminal and silent', () => {
+    const proc = makeProc([reply('err_429_retry_after')]);
+    const jobId = enqueue(proc, 'combat_narration');
+    const deps = makeDeps(proc);
+    expect(run(proc, jobId, deps)).toBe('failed');
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+    expect(jobOf(proc, jobId).status).toBe('failed');
+  });
+});
+
+describe('stale arrival (T-41-08)', () => {
+  it('a reply arriving after the sweeper expired the job: the job stays expired, no apply, one call-log row, ledger grows by the real cost, player untouched', () => {
+    const proc = makeProc([reply('ok_text')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const originalFetch = proc.ctx.http.fetch.bind(proc.ctx.http);
+    proc.ctx.http.fetch = (url: string, init: any) => {
+      const res = originalFetch(url, init);
+      // The sweeper expires the job while the call is in flight and refunds its reservation.
+      proc.ctx.withTx((tx: any) => {
+        const j = tx.db.llm_job.id.find(jobId);
+        const patch = releaseLlmReservation(tx, j, { refundCall: true });
+        tx.db.llm_job.id.update({ ...j, ...patch, status: 'expired', errorCode: 'timeout', finishedAt: tx.timestamp });
+      });
+      return res;
+    };
+    const deps = makeDeps(proc);
+
+    const outcome = run(proc, jobId, deps);
+
+    expect(outcome).toBe('stale');
+    const job = jobOf(proc, jobId);
+    expect(job.status).toBe('expired');
+    expect(job.resultText).toBeUndefined();
+    expect(deps.apply).not.toHaveBeenCalled();
+    expect(callLogs(proc, jobId)).toHaveLength(1);
+    expect(ledger(proc).spentMicroUsd).toBe(FIXTURE_COST);
+    expect(ledger(proc).reservedMicroUsd).toBe(0n);
+    expect(playerDay(proc).spentMicroUsd).toBe(0n);
+    expect(playerDay(proc).reservedMicroUsd).toBe(0n);
+    expect(playerDay(proc).calls).toBe(0n);
+  });
+});
+
+describe('apply with a stored-text re-run (PIPE-02)', () => {
+  it('apply throws once then succeeds: completed, applyAttempts 1n, exactly one fetch', () => {
+    const proc = makeProc([reply('ok_text')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const apply = vi.fn().mockImplementationOnce(() => {
+      throw new Error('apply bug');
+    });
+    const deps = makeDeps(proc, { apply: apply as any });
+    expect(run(proc, jobId, deps)).toBe('completed');
+    expect(apply).toHaveBeenCalledTimes(2);
+    expect(apply.mock.calls[1][2]).toBe(apply.mock.calls[0][2]);
+    const job = jobOf(proc, jobId);
+    expect(job.status).toBe('completed');
+    expect(job.applyAttempts).toBe(1n);
+    expect(proc.http.calls).toHaveLength(1);
+    expect(deps.applyFailure).not.toHaveBeenCalled();
+  });
+
+  it("apply throws twice: failed 'apply_error', applyAttempts 2n, one failure message, exactly one fetch", () => {
+    const proc = makeProc([reply('ok_text')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const apply = vi.fn(() => {
+      throw new Error('apply bug');
+    });
+    const deps = makeDeps(proc, { apply: apply as any });
+    expect(run(proc, jobId, deps)).toBe('apply_failed');
+    const job = jobOf(proc, jobId);
+    expect(job.status).toBe('failed');
+    expect(job.errorCode).toBe('apply_error');
+    expect(job.applyAttempts).toBe(2n);
+    expect(job.resultText).toBeDefined();
+    expect(apply).toHaveBeenCalledTimes(2);
+    expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+    expect(deps.applyFailure.mock.calls[0][1].playerId).toBe(alice);
+    expect(proc.http.calls).toHaveLength(1);
+    // The money was already settled at persist; a failed apply does not touch it.
+    expect(playerDay(proc).spentMicroUsd).toBe(FIXTURE_COST);
+  });
+
+  it('a received job re-dispatched later is applied without any call', () => {
+    const proc = makeProc();
+    const job = seedJob(proc, { status: 'received', attempt: 1n, resultText: 'stored reply text' });
+    const deps = makeDeps(proc);
+    expect(run(proc, job.id, deps)).toBe('completed');
+    expect(proc.http.calls).toHaveLength(0);
+    expect(deps.apply).toHaveBeenCalledTimes(1);
+    expect(deps.apply.mock.calls[0][2]).toBe('stored reply text');
+    expect(jobOf(proc, job.id).status).toBe('completed');
+  });
+
+  it('a received job that has already used its apply attempts fails in voice without applying', () => {
+    const proc = makeProc();
+    const job = seedJob(proc, { status: 'received', attempt: 1n, resultText: 'stored', applyAttempts: 2n });
+    const deps = makeDeps(proc);
+    expect(run(proc, job.id, deps)).toBe('apply_failed');
+    expect(deps.apply).not.toHaveBeenCalled();
+    expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+    expect(jobOf(proc, job.id).errorCode).toBe('apply_error');
+  });
+
+  it('applies for the stored player, never the module sender (T-41-03)', () => {
+    const proc = makeProc([reply('ok_text')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const deps = makeDeps(proc);
+    run(proc, jobId, deps);
+    expect(deps.apply.mock.calls[0][1].playerId).toBe(alice);
+    expect(deps.apply.mock.calls[0][1].playerId).not.toBe(proc.ctx.sender);
+  });
+});
+
+describe('smoke jobs never touch game state', () => {
+  it('an ok smoke_test reply is completed without apply and recorded per route, with a redacted reply excerpt, and verifies the key', () => {
+    const proc = makeProc([reply('ok_text')]);
+    const jobId = enqueue(proc, 'smoke_test', { request: { smoke: true }, budget: 'phase_only' });
+    const before = gameTablesSnapshot(proc);
+    const deps = makeDeps(proc);
+
+    expect(run(proc, jobId, deps)).toBe('completed');
+
+    expect(deps.apply).not.toHaveBeenCalled();
+    expect(deps.applyFailure).not.toHaveBeenCalled();
+    expect(jobOf(proc, jobId).status).toBe('completed');
+    expect(gameTablesSnapshot(proc)).toBe(before);
+    const state = rows(proc, 'llm_admin_state')[0];
+    const smoke = JSON.parse(state.lastSmokeJson);
+    expect(smoke.smoke_test.ok).toBe(true);
+    const text = 'The rat considers you, then the door, and chooses neither.';
+    expect(smoke.smoke_test.reply).toBe([...text].slice(0, 120).join(''));
+    expect(smoke.smoke_test.input).toBe(116);
+    expect(smoke.smoke_test.output).toBe(562);
+    expect(smoke.smoke_test.cacheRead).toBe(3727);
+    expect(smoke.smoke_test.costMicroUsd).toBe(String(FIXTURE_COST));
+    expect(state.keyLastCheckOk).toBe(true);
+    expect(state.keyVerifiedAt).toBeDefined();
+    expect(state.lastSmokeAt).toBeDefined();
+    // Smoke jobs charge the phase ledger only.
+    expect(rows(proc, 'llm_player_budget')).toHaveLength(0);
+    expect(ledger(proc).spentMicroUsd).toBe(FIXTURE_COST);
+    expect(ledger(proc).reservedMicroUsd).toBe(0n);
+  });
+
+  it('an ok JSON smoke reply (creation_race) is completed with no reply text and does not verify the key', () => {
+    const race = okReply(JSON.stringify({ raceName: 'Hillfolk', narrative: 'A quiet people.', bonuses: {} }));
+    const proc = makeProc([race]);
+    const jobId = enqueue(proc, 'creation_race', {
+      request: { smoke: true },
+      budget: 'phase_only',
+      sourceKey: 'smoke:creation_race',
+    });
+    const deps = makeDeps(proc);
+    expect(run(proc, jobId, deps)).toBe('completed');
+    expect(deps.apply).not.toHaveBeenCalled();
+    expect(deps.applyFailure).not.toHaveBeenCalled();
+    const state = rows(proc, 'llm_admin_state')[0];
+    const smoke = JSON.parse(state.lastSmokeJson);
+    expect(smoke.creation_race.ok).toBe(true);
+    expect(smoke.creation_race.reply).toBeUndefined();
+    expect(state.keyLastCheckOk).toBe(false);
+    expect(state.keyVerifiedAt).toBeUndefined();
+  });
+
+  it('a smoke creation_race job with a 401 fails, records ok false class auth, posts no failure message and clears the key check', () => {
+    const proc = makeProc([reply('err_401')]);
+    const jobId = enqueue(proc, 'creation_race', {
+      request: { smoke: true },
+      budget: 'phase_only',
+      sourceKey: 'smoke:creation_race',
+    });
+    const deps = makeDeps(proc);
+    expect(run(proc, jobId, deps)).toBe('failed');
+    expect(deps.applyFailure).not.toHaveBeenCalled();
+    const state = rows(proc, 'llm_admin_state')[0];
+    const smoke = JSON.parse(state.lastSmokeJson);
+    expect(smoke.creation_race.ok).toBe(false);
+    expect(smoke.creation_race.class).toBe('auth');
+    expect(state.keyLastCheckOk).toBe(false);
+    expect(jobOf(proc, jobId).status).toBe('failed');
+  });
+
+  it('a billing failure on the smoke_test route clears a previously good key check', () => {
+    const proc = makeProc([reply('err_429_spend_cap')], {
+      seed: {
+        llm_admin_state: [
+          {
+            id: 1n,
+            keySet: true,
+            keyLength: 108n,
+            keyLastCheckOk: true,
+            keyVerifiedAt: { microsSinceUnixEpoch: T0 },
+            lastSmokeJson: '{}',
+          },
+        ],
+      },
+    });
+    const jobId = enqueue(proc, 'smoke_test', { request: { smoke: true }, budget: 'phase_only' });
+    run(proc, jobId);
+    const state = rows(proc, 'llm_admin_state')[0];
+    expect(state.keyLastCheckOk).toBe(false);
+    expect(JSON.parse(state.lastSmokeJson).smoke_test.class).toBe('billing');
+  });
+
+  it('a smoke_test never retries: a 529 is terminal', () => {
+    const proc = makeProc([reply('err_529')]);
+    const jobId = enqueue(proc, 'smoke_test', { request: { smoke: true }, budget: 'phase_only' });
+    expect(run(proc, jobId)).toBe('failed');
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+  });
+});
+
+describe('the key never leaves llm_config (SEC-04, T-41-01)', () => {
+  const spies: any[] = [];
+  const captured = (): string =>
+    spies
+      .flatMap((s) => s.mock.calls)
+      .map((args: any[]) => args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '))
+      .join('\n');
+
+  beforeEach(() => {
+    spies.length = 0;
+    for (const name of ['log', 'info', 'error', 'warn'] as const) {
+      spies.push(vi.spyOn(console, name).mockImplementation(() => {}));
+    }
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function expectNoLeak(proc: Proc): void {
+    expect(rows(proc, 'llm_config')[0].apiKey).toBe(FAKE_KEY);
+    const all = `${snapshotWithoutConfig(proc)}\n${captured()}`;
+    expect(findSecretLeaks(all, { strictPrefix: true, needles: [FAKE_KEY] }).total).toBe(0);
+  }
+
+  it('a 401 body that echoes the key (plain and inside a JSON string) leaves no trace outside llm_config or in the console', () => {
+    const body = {
+      type: 'error',
+      error: {
+        type: 'authentication_error',
+        message: `invalid x-api-key ${FAKE_KEY} and "${FAKE_KEY}" and ${JSON.stringify(`k=${FAKE_KEY}`)}`,
+      },
+    };
+    const proc = makeProc([{ status: 401, headers: { 'content-type': 'application/json' }, body }]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    // Default deps: the real console logger, with the console spied.
+    runLlmJob(proc.ctx, takeDispatch(proc, jobId), { nowMs: () => Number(proc.clock.now() / 1000n) });
+    expect(jobOf(proc, jobId).status).toBe('failed');
+    expect(callLogs(proc, jobId)[0].errorMessage).toContain('[REDACTED]');
+    expectNoLeak(proc);
+    expect(captured()).toContain('route=npc_conversation');
+  });
+
+  it('a thrown error whose message echoes the key leaves no trace, across every retry', () => {
+    const throws = [1, 2, 3].map(() => ({ throw: new Error(`socket closed while sending ${FAKE_KEY}`) }));
+    const proc = makeProc(throws);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const deps = { nowMs: () => Number(proc.clock.now() / 1000n) };
+    runLlmJob(proc.ctx, takeDispatch(proc, jobId), deps);
+    proc.clock.advance(3_000_000n);
+    runLlmJob(proc.ctx, takeDispatch(proc, jobId), deps);
+    proc.clock.advance(10_000_000n);
+    runLlmJob(proc.ctx, takeDispatch(proc, jobId), deps);
+    expect(jobOf(proc, jobId).status).toBe('failed');
+    expect(callLogs(proc, jobId)).toHaveLength(3);
+    for (const l of callLogs(proc, jobId)) expect(l.errorMessage).toContain('[REDACTED]');
+    expectNoLeak(proc);
+  });
+
+  it('an apply that throws with the key in its message is logged redacted', () => {
+    const proc = makeProc([reply('ok_text')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const deps = {
+      nowMs: () => Number(proc.clock.now() / 1000n),
+      apply: () => {
+        throw new Error(`apply exploded ${FAKE_KEY}`);
+      },
+    };
+    runLlmJob(proc.ctx, takeDispatch(proc, jobId), deps);
+    expect(jobOf(proc, jobId).errorCode).toBe('apply_error');
+    expectNoLeak(proc);
+  });
+
+  it('an ok run leaves no trace either, and the key is only in the x-api-key header', () => {
+    const proc = makeProc([threePerkReply()], { seed: renownSeed() });
+    const jobId = enqueueRenownJob(proc);
+    runLlmJob(proc.ctx, takeDispatch(proc, jobId), { nowMs: () => Number(proc.clock.now() / 1000n) });
+    expect(jobOf(proc, jobId).status).toBe('completed');
+    expectNoLeak(proc);
+    const call = proc.http.calls[0];
+    expect(call.headers['x-api-key']).toBe(FAKE_KEY);
+    expect(call.body as string).not.toContain(FAKE_KEY);
+    expect(call.url).not.toContain(FAKE_KEY);
+  });
+
+  it('a smoke reply that echoes the key is redacted in the admin state', () => {
+    const f = fixture('ok_text');
+    f.body.content[0].text = `the key is ${FAKE_KEY}`;
+    const proc = makeProc([f]);
+    const jobId = enqueue(proc, 'smoke_test', { request: { smoke: true }, budget: 'phase_only' });
+    runLlmJob(proc.ctx, takeDispatch(proc, jobId), { nowMs: () => Number(proc.clock.now() / 1000n) });
+    expect(rows(proc, 'llm_admin_state')[0].lastSmokeJson).toContain('[REDACTED]');
+    expectNoLeak(proc);
+  });
+});
+
+describe('re-invoked transactions (Pitfall 7)', () => {
+  it('withTxReinvoke: 1 on the ok path: one fetch and the same end state as a plain run, ids normalised', () => {
+    const a = makeProc([threePerkReply()], { seed: renownSeed() });
+    run(a, enqueueRenownJob(a), realDeps(a));
+
+    const b = makeProc([threePerkReply()], { seed: renownSeed(), withTxReinvoke: 1 });
+    run(b, enqueueRenownJob(b), realDeps(b));
+
+    expect(b.http.calls).toHaveLength(1);
+    expect(rows(b, 'pending_renown_perk')).toHaveLength(3);
+    expect(rows(b, 'llm_call_log')).toHaveLength(1);
+    expect(rows(b, 'llm_job')).toHaveLength(1);
+    expect(rows(b, 'llm_job')[0].status).toBe('completed');
+    expect(normalizeIds(b)).toBe(normalizeIds(a));
+  });
+
+  it('withTxReinvoke: 1 on the retry path: one fetch, one new dispatch row', () => {
+    const b = makeProc([reply('err_529')], { withTxReinvoke: 1 });
+    const jobId = enqueue(b, 'npc_conversation');
+    expect(run(b, jobId)).toBe('retry');
+    expect(b.http.calls).toHaveLength(1);
+    expect(rows(b, 'llm_dispatch')).toHaveLength(1);
+    expect(callLogs(b, jobId)).toHaveLength(1);
   });
 });

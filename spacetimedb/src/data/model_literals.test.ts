@@ -125,8 +125,15 @@ function scanRepo(): Record<string, string> {
 // Spend-safety fetch guard
 // ---------------------------------------------------------------------------
 
-/** Test-support modules that legitimately define a fake fetch; they are never bundled into the module. */
-const FETCH_GUARD_EXEMPT = new Set(['spacetimedb/src/helpers/test-utils.ts']);
+/**
+ * Files exempt from the fetch guard. test-utils.ts is test support that defines a fake fetch and is
+ * never bundled into the module. llm_executor.ts is the Phase 41 executor: the only production file
+ * that reaches the outbound call.
+ */
+const FETCH_GUARD_EXEMPT = new Set([
+  'spacetimedb/src/helpers/test-utils.ts',
+  'spacetimedb/src/helpers/llm_executor.ts',
+]);
 
 const FETCH_PATTERNS: RegExp[] = [
   /\bfetch\s*\(/, // http.fetch(, ctx.http.fetch (, a global fetch(
@@ -182,12 +189,20 @@ describe('repository model-literal guard', () => {
     expect(matches).toEqual(['claude-sonnet-5-5']);
   });
 
-  it('no production module under spacetimedb/src can reach fetch (spend safety, until the Phase 41 executor)', () => {
+  it('only the executor reaches fetch (spend safety): exactly spacetimedb/src/helpers/llm_executor.ts', () => {
     const offenders = Object.entries(files)
       .filter(([path]) => path.startsWith('spacetimedb/src/'))
-      .filter(([path]) => !FETCH_GUARD_EXEMPT.has(path))
+      .filter(([path]) => path !== 'spacetimedb/src/helpers/test-utils.ts')
       .filter(([, text]) => usesFetch(text))
-      .map(([path]) => path);
-    expect(offenders).toEqual([]);
+      .map(([path]) => path)
+      .sort();
+    expect(offenders).toEqual(['spacetimedb/src/helpers/llm_executor.ts']);
+  });
+
+  it('the fetch-guard exemption list is exactly test-utils.ts and the executor', () => {
+    expect([...FETCH_GUARD_EXEMPT].sort()).toEqual([
+      'spacetimedb/src/helpers/llm_executor.ts',
+      'spacetimedb/src/helpers/test-utils.ts',
+    ]);
   });
 });
