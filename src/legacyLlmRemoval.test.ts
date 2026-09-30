@@ -193,3 +193,38 @@ describe('docs', () => {
     for (const check of portChecks) expect(check).toBe(':(3000|5173)');
   });
 });
+
+// ---------------------------------------------------------------------------
+// generated bindings after publish 1 (Plan 42-05)
+// ---------------------------------------------------------------------------
+
+describe('generated bindings after publish 1', () => {
+  const bindingsDir = `${ROOT}src/module_bindings`;
+  const names = readdirSync(bindingsDir);
+
+  it('has no reducer file for submitting results, validating requests or the old purge', () => {
+    const removed = names.filter((name) =>
+      /^(submit_llm_result|validate_llm_request|purge_llm_tasks)_reducer\.ts$/.test(name)
+    );
+    expect(removed).toEqual([]);
+  });
+
+  it('index.ts names none of the removed reducers', () => {
+    const index = readFileSync(`${bindingsDir}/index.ts`, 'utf8');
+    expect(index).not.toMatch(
+      /submitLlmResult|submit_llm_result|validateLlmRequest|validate_llm_request|purgeLlmTasks|purge_llm_tasks/
+    );
+  });
+
+  it('has the publish-1 purge reducer and the player job view (Plan 42-07 flips the purge)', () => {
+    expect(names).toContain('purge_legacy_llm_reducer.ts');
+    expect(names).toContain('my_llm_jobs_table.ts');
+  });
+
+  it('no generated reducer takes a resultText argument', () => {
+    const offenders = names
+      .filter((name) => name.endsWith('_reducer.ts'))
+      .filter((name) => /resultText|result_text/.test(readFileSync(`${bindingsDir}/${name}`, 'utf8')));
+    expect(offenders).toEqual([]);
+  });
+});

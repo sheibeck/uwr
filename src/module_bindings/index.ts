@@ -38,7 +38,6 @@ import SetAppVersionReducer from "./set_app_version_reducer";
 import RequestSkillOfferReducer from "./request_skill_offer_reducer";
 import ChooseSkillReducer from "./choose_skill_reducer";
 import ApplyLevelUpReducer from "./apply_level_up_reducer";
-import SubmitLlmResultReducer from "./submit_llm_result_reducer";
 import SetDisplayNameReducer from "./set_display_name_reducer";
 import SendFriendRequestReducer from "./send_friend_request_reducer";
 import SendFriendRequestToCharacterReducer from "./send_friend_request_to_character_reducer";
@@ -139,8 +138,7 @@ import WithdrawFromBankReducer from "./withdraw_from_bank_reducer";
 import SetApiKeyReducer from "./set_api_key_reducer";
 import LlmSmokeTestReducer from "./llm_smoke_test_reducer";
 import GrantTestPendingLevelReducer from "./grant_test_pending_level_reducer";
-import PurgeLlmTasksReducer from "./purge_llm_tasks_reducer";
-import ValidateLlmRequestReducer from "./validate_llm_request_reducer";
+import PurgeLegacyLlmReducer from "./purge_legacy_llm_reducer";
 import SubmitIntentReducer from "./submit_intent_reducer";
 import StartCreationReducer from "./start_creation_reducer";
 import SubmitCreationInputReducer from "./submit_creation_input_reducer";
@@ -1793,7 +1791,6 @@ const reducersSchema = __reducers(
   __reducerSchema("request_skill_offer", RequestSkillOfferReducer),
   __reducerSchema("choose_skill", ChooseSkillReducer),
   __reducerSchema("apply_level_up", ApplyLevelUpReducer),
-  __reducerSchema("submit_llm_result", SubmitLlmResultReducer),
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("send_friend_request", SendFriendRequestReducer),
   __reducerSchema("send_friend_request_to_character", SendFriendRequestToCharacterReducer),
@@ -1894,8 +1891,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_api_key", SetApiKeyReducer),
   __reducerSchema("llm_smoke_test", LlmSmokeTestReducer),
   __reducerSchema("grant_test_pending_level", GrantTestPendingLevelReducer),
-  __reducerSchema("purge_llm_tasks", PurgeLlmTasksReducer),
-  __reducerSchema("validate_llm_request", ValidateLlmRequestReducer),
+  __reducerSchema("purge_legacy_llm", PurgeLegacyLlmReducer),
   __reducerSchema("submit_intent", SubmitIntentReducer),
   __reducerSchema("start_creation", StartCreationReducer),
   __reducerSchema("submit_creation_input", SubmitCreationInputReducer),
