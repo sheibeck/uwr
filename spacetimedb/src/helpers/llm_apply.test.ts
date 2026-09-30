@@ -4,13 +4,14 @@
  * The behavior of every domain is pinned by the characterization suite
  * (llm_apply.characterization.test.ts). These tests cover what that suite
  * cannot: the apply functions act for the STORED player (job.playerId) even when the
- * caller identity is the module identity (the Phase 41 scheduled-procedure case),
- * toApplyJob maps both row shapes, an unknown domain is a no-op, extractJson, and
- * static guards on llm_apply.ts and on the thin submit_llm_result wrapper.
+ * caller identity is the module identity (the scheduled-procedure case), toApplyJob maps
+ * a stored llm_job row, an unknown domain is a no-op, extractJson, and static guards:
+ * llm_apply.ts never reads the sender, and only the executor and the sweeper call the
+ * apply entry points (no reducer applies LLM output a client supplies).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // @ts-ignore node types are not part of this module's tsconfig (same as other source-reading tests)
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 // @ts-ignore see above
 import { fileURLToPath } from 'node:url';
 import { snapshotDb } from './schema_recorder';
@@ -234,20 +235,9 @@ describe('sender independence (effects land on job.playerId, not the caller)', (
 });
 
 describe('toApplyJob', () => {
-  it('maps a legacy llm_task row (domain, contextJson)', () => {
-    const row = { id: 1n, playerId: alice, domain: 'skill_gen', contextJson: '{"a":1}', status: 'pending' };
-    expect(toApplyJob(row)).toEqual({ domain: 'skill_gen', playerId: alice, contextJson: '{"a":1}' });
-  });
-
-  it('maps an llm_job row (route, requestJson) to the same shape', () => {
+  it('maps an llm_job row (route, requestJson) to { domain, playerId, contextJson }', () => {
     const row = { id: 1n, playerId: alice, route: 'skill_gen', requestJson: '{"a":1}', status: 'pending' };
     expect(toApplyJob(row)).toEqual({ domain: 'skill_gen', playerId: alice, contextJson: '{"a":1}' });
-  });
-
-  it('gives both shapes the same result', () => {
-    const task = { playerId: alice, domain: 'npc_conversation', contextJson: '{}' };
-    const llmJob = { playerId: alice, route: 'npc_conversation', requestJson: '{}' };
-    expect(toApplyJob(llmJob)).toEqual(toApplyJob(task));
   });
 });
 
@@ -559,26 +549,30 @@ describe('static guards', () => {
     expect(source).not.toContain('llm_budget');
   });
 
-  it('submit_llm_result in index.ts is a thin wrapper', () => {
-    const source = readFileSync(fileURLToPath(new URL('../index.ts', import.meta.url)), 'utf8');
-    const lines = source.split('\n');
-    const start = lines.findIndex((l: string) => l.includes("spacetimedb.reducer('submit_llm_result'"));
-    expect(start).toBeGreaterThanOrEqual(0);
-    let end = -1;
-    for (let i = start + 1; i < lines.length; i++) {
-      if (lines[i] === '});') {
-        end = i;
-        break;
+  it('only the executor and the sweeper call the apply entry points', () => {
+    const srcDir = fileURLToPath(new URL('../', import.meta.url)).replace(/\\/g, '/');
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === 'node_modules' || entry.name === '__snapshots__') continue;
+        const full = dir + entry.name + (entry.isDirectory() ? '/' : '');
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')) files.push(full);
       }
-    }
-    expect(end).toBeGreaterThan(start);
-    const slice = lines.slice(start, end + 1);
-    expect(slice.length).toBeLessThanOrEqual(30);
-    const text = slice.join('\n');
-    expect(text).toContain('applyLlmResult(');
-    expect(text).toContain('applyLlmFailure(');
-    expect(text).not.toContain('domain ===');
-    expect(text).not.toContain('extractJson(');
+    };
+    walk(srcDir);
+    expect(files.length).toBeGreaterThan(50);
+    const code = (text: string) =>
+      text
+        .split('\n')
+        .filter((l: string) => !/^\s*(\/\/|\/\*|\*)/.test(l))
+        .join('\n');
+    const callers = files
+      .filter((f) => !f.endsWith('/helpers/llm_apply.ts'))
+      .filter((f) => /\bapplyLlm(Result|Failure)\b/.test(code(readFileSync(f, 'utf8'))))
+      .map((f) => f.slice(srcDir.length))
+      .sort();
+    expect(callers).toEqual(['helpers/llm_executor.ts', 'helpers/llm_sweeper.ts']);
   });
 });
 

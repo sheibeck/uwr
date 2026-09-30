@@ -3,7 +3,6 @@ import { requireAdmin } from './data/admin';
 import { ScheduleAt, Timestamp } from 'spacetimedb';
 import { ensureDefaultHotbar } from './helpers/items';
 import { offerNextOwedSkill, requestSkillOffer } from './helpers/skill_offer';
-import { applyLlmResult, applyLlmFailure, toApplyJob } from './helpers/llm_apply';
 import spacetimedb, {
   scheduledReducers,
   Player, Character,
@@ -561,30 +560,6 @@ spacetimedb.reducer('apply_level_up', { characterId: t.u64() }, (ctx: any, { cha
   // Queue the skill offer for the new level (same transaction; one offer at a time per character)
   const offer = requestSkillOffer(ctx, updated, ctx.sender);
   appendPrivateEvent(ctx, characterId, character.ownerUserId, offer.kind, offer.text);
-});
-
-// Reducer: client submits LLM result after calling the proxy
-spacetimedb.reducer('submit_llm_result', {
-  taskId: t.u64(),
-  resultText: t.string(),
-  success: t.bool(),
-  errorMessage: t.string().optional(),
-}, (ctx: any, { taskId, resultText, success, errorMessage }: { taskId: bigint; resultText: string; success: boolean; errorMessage?: string }) => {
-  const task = ctx.db.llm_task.id.find(taskId);
-  if (!task) throw new SenderError('LLM task not found');
-  if (task.playerId.toHexString() !== ctx.sender.toHexString()) throw new SenderError('Not your task');
-  if (task.status !== 'pending') throw new SenderError('Task already processed');
-
-  // Mark task as completed
-  ctx.db.llm_task.id.update({ ...task, status: success ? 'completed' : 'error' });
-
-  const job = toApplyJob(task);
-  if (!success) {
-    applyLlmFailure(ctx, job);
-    return;
-  }
-
-  applyLlmResult(ctx, job, resultText);
 });
 
 spacetimedb.init((ctx) => {

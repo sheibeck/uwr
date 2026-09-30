@@ -42,18 +42,12 @@ import { EFFECT_TYPES, QUEST_TYPES } from '../data/mechanical_vocabulary';
 import { npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
 
-/** The fields of a stored job the apply step needs. Works for llm_task and llm_job rows. */
+/** The fields of a stored llm_job the apply step needs. */
 export type ApplyJob = { domain: string; playerId: any; contextJson?: string };
 
-/**
- * Map a stored row to ApplyJob. An llm_job row (route, requestJson) and a legacy
- * llm_task row (domain, contextJson) produce the same shape.
- */
+/** Map a stored llm_job row (route, requestJson, playerId) to ApplyJob. */
 export function toApplyJob(row: any): ApplyJob {
-  if (row && row.route !== undefined && row.requestJson !== undefined) {
-    return { domain: row.route, playerId: row.playerId, contextJson: row.requestJson };
-  }
-  return { domain: row.domain, playerId: row.playerId, contextJson: row.contextJson };
+  return { domain: row.route, playerId: row.playerId, contextJson: row.requestJson };
 }
 
 // Helper: extract JSON robustly from LLM response text
@@ -95,8 +89,8 @@ export function failWorldGen(tx: any, genState: any, message: string) {
  * is still at the job's GENERATING step. A stale result or failure (a sweeper expiry racing a late
  * apply, a re-run) never touches a state that has moved on: it cannot reopen a COMPLETE creation
  * or overwrite race data after the player reached the class or name step. The job names its state
- * by creationStateId; a legacy llm_task row (no id; submit_llm_result, removed in Phase 42) falls
- * back to the player's creation state, still behind the step check.
+ * by creationStateId; a job without one (as in older rows and the tests) falls back to the
+ * player's creation state, still behind the step check.
  */
 export function creationStateForJob(ctx: any, job: ApplyJob): any | null {
   const expected = job.domain === 'creation_race' ? 'GENERATING_RACE' : 'GENERATING_CLASS';
@@ -727,7 +721,6 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
 /** combat_narration success. */
 export function applyCombatNarrationResult(ctx: any, job: ApplyJob, resultText: string): void {
   handleCombatNarrationResult(ctx, job, resultText, true);
-  // Budget already incremented in triggerCombatNarration -- no double increment
 }
 
 /**

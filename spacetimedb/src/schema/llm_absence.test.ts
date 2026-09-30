@@ -106,3 +106,51 @@ describe('the old request-validation path is gone', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+function walkServer(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === 'node_modules' || entry.name === '__snapshots__') continue;
+    const full = dir + entry.name + (entry.isDirectory() ? '/' : '');
+    if (entry.isDirectory()) walkServer(full, out);
+    else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')) out.push(full);
+  }
+  return out;
+}
+
+const codeLines = (text: string): string[] =>
+  text.split('\n').filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l));
+
+describe('no client-trusted result reducer and no reader of the legacy tables', () => {
+  it('submit_llm_result, validate_llm_request and purge_llm_tasks are not registered', () => {
+    for (const name of ['submit_llm_result', 'validate_llm_request', 'purge_llm_tasks']) {
+      expect(capturedReducer(name), name).toBeUndefined();
+    }
+    // Non-vacuity: neighbouring reducers are captured.
+    expect(capturedReducer('request_skill_offer')).toBeTypeOf('function');
+    expect(capturedReducer('set_api_key')).toBeTypeOf('function');
+    expect(capturedReducer('purge_legacy_llm')).toBeTypeOf('function');
+  });
+
+  it('no production file reads or writes llm_task, llm_request, llm_budget or llm_cleanup_tick through a db accessor', () => {
+    const files = walkServer(fileURLToPath(new URL('../', import.meta.url)).replace(/\\/g, '/'));
+    expect(files.length).toBeGreaterThan(50);
+    const LEGACY = /\bdb\s*\.\s*(llm_task|llm_request|llm_budget|llm_cleanup_tick)\b/;
+    const LIVE = /\bdb\s*\.\s*llm_job\b/;
+    const offenders: string[] = [];
+    let liveFiles = 0;
+    for (const f of files) {
+      const lines = codeLines(readFileSync(f, 'utf8'));
+      if (lines.some((l) => LIVE.test(l))) liveFiles += 1;
+      if (lines.some((l) => LEGACY.test(l))) offenders.push(f);
+    }
+    expect(liveFiles, 'the scan sees db.llm_job accessors').toBeGreaterThan(0);
+    expect(offenders).toEqual([]);
+  });
+
+  it('the four legacy tables are still defined for publish 1', () => {
+    const tables = readFileSync(new URL('./tables.ts', import.meta.url), 'utf8');
+    for (const name of ['llm_task', 'llm_request', 'llm_budget', 'llm_cleanup_tick']) {
+      expect(tables).toContain(`name: '${name}'`);
+    }
+  });
+});

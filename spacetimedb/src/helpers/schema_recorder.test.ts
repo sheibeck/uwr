@@ -91,7 +91,7 @@ describe('rowColumnProblems', () => {
 describe('schema recorder: index.ts reducer capture', () => {
   it('loads the real index.ts module graph and captures reducers as functions', async () => {
     await import('../index');
-    expect(typeof capturedReducer('submit_llm_result')).toBe('function');
+    expect(typeof capturedReducer('set_api_key')).toBe('function');
     expect(typeof capturedReducer('request_skill_offer')).toBe('function');
     expect(capturedViews().some((v) => v.opts?.name === 'my_bank_slots')).toBe(true);
     // Loading the whole index.ts module graph can exceed vitest's 5 s default when the full
