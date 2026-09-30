@@ -4,16 +4,16 @@ milestone: v2.2
 milestone_name: LLM — Claude Engine
 current_phase: 42
 current_phase_name: Client Cutover and Legacy Removal
-status: executing
-stopped_at: Completed 42-06-PLAN.md
-last_updated: "2026-09-30T23:28:08.951Z"
+status: verifying
+stopped_at: Completed 42-07-PLAN.md
+last_updated: "2026-09-30T23:34:28.355Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 42 execution started
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 47
-  completed_plans: 45
+  completed_plans: 46
   percent: 50
 ---
 
@@ -30,10 +30,10 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 
 Phase: 42 (Client Cutover and Legacy Removal) — EXECUTING
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-09-30 — Phase 42 execution started
 
-Progress: [██████████] 96% (2/6 phases)
+Progress: [██████████] 98% (2/6 phases)
 
 ## Previous Milestones
 
@@ -99,6 +99,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [42-04] Only creation and world-gen state rows lock input (isLlmInputLocked); failed or expired jobs show no client error UI; removing llm-proxy/.gitignore exposed ignored leftovers, hidden via local .git/info/exclude
 - [Phase ?]: [42-05] Publish 1 ran local with --break-clients only (no clear, key intact len 108); purge_legacy_llm emptied the four legacy tables (tick row removed); publish-1 commit 5968d54f; local server left running (PID 13620)
 - [Phase ?]: [42-06] Publish-2 code: four legacy LLM tables, sweep_llm_errors and purge_legacy_llm deleted; public llm_* set is [] with exactly 8 private tables; absence checked at schema level (recorder, __defs, scheduledReducers, strict initScheduledTables) since the mock returns [] for unknown tables; model-literal allowlist is empty
+- [Phase ?]: [42-07] Publish 2 ran local with --break-clients only (no clear, key intact len 108) and dropped llm_budget, llm_cleanup_tick, llm_request, llm_task; re-publish and second bindings regeneration are no-ops; local server stopped (PID 13620); user checklist 42-USER-CHECKLIST.md holds all Cloudflare/OpenAI/env/maincloud steps
 
 ### Roadmap Evolution
 
@@ -164,8 +165,8 @@ Phase 41 is code-complete and verified at code level (41-VERIFICATION.md: human_
 
 **Resume file:** None
 
-Last session: 2026-09-30T23:28:08.918Z
-Stopped at: Completed 42-06-PLAN.md
+Last session: 2026-09-30T23:34:28.329Z
+Stopped at: Completed 42-07-PLAN.md
 
 ## Performance Metrics
 
@@ -224,6 +225,7 @@ Stopped at: Completed 42-06-PLAN.md
 | Phase 42 P04 | 40min | 3 tasks | 12 files |
 | Phase 42 P05 | 25min | 2 tasks | 7 files |
 | Phase 42 P06 | 25min | 3 tasks | 15 files |
+| Phase 42 P07 | 25min | 3 tasks | 8 files |
 
 ## Operator Next Steps
 
