@@ -232,4 +232,26 @@ describe('static guards', () => {
     const source = readFileSync(fileURLToPath(new URL('./llm_apply.ts', import.meta.url)), 'utf8');
     expect(source.match(/\b(ctx|tx)\s*\.\s*sender\b/g)).toBeNull();
   });
+
+  it('submit_llm_result in index.ts is a thin wrapper', () => {
+    const source = readFileSync(fileURLToPath(new URL('../index.ts', import.meta.url)), 'utf8');
+    const lines = source.split('\n');
+    const start = lines.findIndex((l: string) => l.includes("spacetimedb.reducer('submit_llm_result'"));
+    expect(start).toBeGreaterThanOrEqual(0);
+    let end = -1;
+    for (let i = start + 1; i < lines.length; i++) {
+      if (lines[i] === '});') {
+        end = i;
+        break;
+      }
+    }
+    expect(end).toBeGreaterThan(start);
+    const slice = lines.slice(start, end + 1);
+    expect(slice.length).toBeLessThanOrEqual(30);
+    const text = slice.join('\n');
+    expect(text).toContain('applyLlmResult(');
+    expect(text).toContain('applyLlmFailure(');
+    expect(text).not.toContain('domain ===');
+    expect(text).not.toContain('extractJson(');
+  });
 });
