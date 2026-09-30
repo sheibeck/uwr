@@ -120,6 +120,16 @@ These belong to Phases 41 and 42.
 
   All new LLM code paths are tested through it.
 
+### Research-driven corrections (orchestrator, 2026-09-29, from 40-RESEARCH.md Open Questions)
+- **NPC conversation output:**
+  - The apply branch needs JSON for effects and memory. The effects object would need about 20 optional fields, against the structured-output limit of 24.
+  - The route therefore uses `output.kind = "text"`: no `output_config.format`, but prompt-instructed JSON parsed by the existing `extractJson`.
+  - Combat narration stays true plain text.
+- **Creation dedupe key:** no character exists during creation, so the key uses the **creation-state id plus the generation type** instead of the characterId.
+- **"Prompt table" (success criterion 4):** built prompts are never stored, so there is no separate prompt table. The privacy test enforces a generic rule that every new `llm_*` table is private.
+- **Failure classes:** add `network`, `empty_output` and `unexpected_stop`. `billing` covers both spend-cap forms: a 429 with `error_code: enforced_spend_limit_reached` and no `retry-after`, and a 400 from a user-set spend limit.
+- **Schema vocabulary:** class and creation-ability schemas use enums from the mechanical vocabulary (`DAMAGE_TYPES`, `ABILITY_KINDS`) instead of the prose values (`holy`, `lightning`, `stun`), which are not in the vocabulary.
+
 ### Claude's Discretion
 - Exact file split beyond the named modules. Suggested: `data/llm_models.ts`, `data/llm_routes.ts`, `data/llm_schemas.ts`, `data/keeper_bible.ts`, `helpers/claude_request.ts` (build, parse, classify), `helpers/schema_lint.ts`, `helpers/llm_queue.ts` (enqueue, dedupe), `helpers/llm_apply.ts`, and the views module.
 - Exact column names and types of `llm_job` and `llm_call_log`, and how request context is stored (JSON string).

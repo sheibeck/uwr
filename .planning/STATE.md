@@ -109,7 +109,7 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 **Resume file:** None
 
 Last session: 2026-09-30T00:31:49.722Z
-Stopped at: Autonomous mode, Phase 40 planning in progress. 40-CONTEXT.md is committed (smart discuss: all 4 areas accepted). A gsd-phase-researcher is writing 40-RESEARCH.md. Next plan-phase steps: VALIDATION.md, pattern-mapper, planner (opus), checker, then execute-phase 40 --no-transition. UI-SPEC skipped because the phase has no UI.
+Stopped at: Autonomous mode, Phase 40 plan-phase: research DONE (40-RESEARCH.md 61421c00; CONTEXT updated with research-driven corrections). Next steps: create 40-VALIDATION.md from the RESEARCH Validation Architecture, run pattern-mapper, run the planner (opus, with the security/api-coverage/assumption-delta contributions and the spec-less edge probe), run the checker, then execute-phase 40 --no-transition. UI-SPEC skipped because the phase has no UI. The local SpacetimeDB server is not running, and the publish task needs it.
 
 ## Performance Metrics
 
