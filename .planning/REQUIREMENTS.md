@@ -35,18 +35,18 @@
 
 ### Server-Owned Pipeline (SpacetimeDB)
 
-- [ ] **PIPE-01**: Every LLM-driven action (creation, world gen, skills, NPC chat, combat narration, renown) is queued in a private SpacetimeDB table inside the triggering reducer's transaction. The client never calls the LLM or a proxy.
-- [ ] **PIPE-02**: SpacetimeDB applies LLM results, and they survive the player refreshing or closing the tab mid-generation.
+- [x] **PIPE-01**: Every LLM-driven action (creation, world gen, skills, NPC chat, combat narration, renown) is queued in a private SpacetimeDB table inside the triggering reducer's transaction. The client never calls the LLM or a proxy.
+- [x] **PIPE-02**: SpacetimeDB applies LLM results, and they survive the player refreshing or closing the tab mid-generation.
 - [x] **PIPE-03**: Two tabs on the same identity cannot trigger duplicate LLM calls for the same action.
-- [ ] **PIPE-04**: Failures are handled by error class:
+- [x] **PIPE-04**: Failures are handled by error class:
   - Transient errors (429 with `retry-after`, 529, 5xx, timeout) retry by rescheduling, with a bounded number of attempts.
   - Non-retryable errors (auth, spend cap, refusal, 400) fail fast.
   - Creation and world gen never auto-retry without player action.
-- [ ] **PIPE-05**: Stuck jobs are swept. On failure, generation locks release, the reserved budget is refunded, and the player sees an in-voice Keeper message.
-- [ ] **PIPE-06**: A global in-flight LLM call cap keeps combat ticks and reducers responsive while calls run.
-- [ ] **PIPE-07**: Combat narration never blocks combat and is dropped if it arrives late.
+- [x] **PIPE-05**: Stuck jobs are swept. On failure, generation locks release, the reserved budget is refunded, and the player sees an in-voice Keeper message.
+- [x] **PIPE-06**: A global in-flight LLM call cap keeps combat ticks and reducers responsive while calls run.
+- [x] **PIPE-07**: Combat narration never blocks combat and is dropped if it arrives late.
 - [x] **PIPE-08**: Renown perk generation actually reaches the LLM (the swallowed insert bug in `helpers/renown.ts` is fixed), covered by a regression test.
-- [ ] **PIPE-09**: Jobs are executed by the executor SPIKE-04 chooses:
+- [x] **PIPE-09**: Jobs are executed by the executor SPIKE-04 chooses:
   - go: a scheduled SpacetimeDB procedure calling Claude via `ctx.http.fetch`
   - no-go: a backend service authenticated to Anthropic via Workload Identity Federation, which reads and writes the SpacetimeDB job tables through service-only views and reducers
 
@@ -58,13 +58,13 @@
   - `llm-proxy/`, `useLlmProxy` and the proxy env vars are removed.
   - Existing `localStorage.llm_proxy_secret` values are cleared once.
   - The built bundle greps clean.
-- [ ] **SEC-04**: The Anthropic credential is held server-side only and is never logged. On go, the API key lives in the private SpacetimeDB `llm_config` table. On no-go, the backend service uses WIF and there is no static Anthropic key; its service-identity secret is covered by the runbook. Key setup and `--clear-database` recovery are documented in a runbook.
+- [x] **SEC-04**: The Anthropic credential is held server-side only and is never logged. On go, the API key lives in the private SpacetimeDB `llm_config` table. On no-go, the backend service uses WIF and there is no static Anthropic key; its service-identity secret is covered by the runbook. Key setup and `--clear-database` recovery are documented in a runbook.
 - [ ] **SEC-05**: The old `llm_task`/`llm_request` tables and dead v2.0 pipeline code are removed without `--clear-database`, using a two-publish removal.
 
 ### Cost
 
-- [ ] **COST-01**: Every call's usage (input, output, cache-write, cache-read tokens) is recorded per route.
-- [ ] **COST-02**: The per-player daily budget is cost-weighted, with a call-count backstop. Cost is reserved at enqueue and settled on result.
+- [x] **COST-01**: Every call's usage (input, output, cache-write, cache-read tokens) is recorded per route.
+- [x] **COST-02**: The per-player daily budget is cost-weighted, with a call-count backstop. Cost is reserved at enqueue and settled on result.
 - [ ] **COST-03**: A global daily spend ceiling and an admin kill switch halt all LLM calls.
 
 ### Latency
@@ -78,7 +78,7 @@
 
 ### Operations
 
-- [ ] **OPS-01**: Admin can fire a live smoke-test call and see key status (set / valid). The smoke test also warms schemas.
+- [x] **OPS-01**: Admin can fire a live smoke-test call and see key status (set / valid). The smoke test also warms schemas.
 - [ ] **OPS-02**: Admin can view `/llm stats`: calls, cost, p50/p95 latency and errors by route.
 
 ### Quality & Verification
@@ -123,22 +123,22 @@ Filled by roadmap creation (2026-09-29). Each requirement maps to exactly one ph
 | CLAUDE-02 | Phase 40 | Complete |
 | CLAUDE-03 | Phase 40 | Complete |
 | CLAUDE-04 | Phase 40 | Complete |
-| PIPE-01 | Phase 41 | Pending |
-| PIPE-02 | Phase 41 | Pending |
+| PIPE-01 | Phase 41 | Complete |
+| PIPE-02 | Phase 41 | Complete |
 | PIPE-03 | Phase 40 | Complete |
-| PIPE-04 | Phase 41 | Pending |
-| PIPE-05 | Phase 41 | Pending |
-| PIPE-06 | Phase 41 | Pending |
-| PIPE-07 | Phase 41 | Pending |
+| PIPE-04 | Phase 41 | Complete |
+| PIPE-05 | Phase 41 | Complete |
+| PIPE-06 | Phase 41 | Complete |
+| PIPE-07 | Phase 41 | Complete |
 | PIPE-08 | Phase 40 | Complete (job enqueued + regression test; the Phase 41 executor sends it to Claude) |
-| PIPE-09 | Phase 41 | Pending |
+| PIPE-09 | Phase 41 | Complete |
 | SEC-01 | Phase 40 | Complete (llm_* tables private + own-jobs view; public `npc`/`npc_memory`/`npc_dialog` exposure tracked in todo 2026-09-29-make-npc-secret-and-memory-tables-private; `llm_task` closes in Phase 42) |
 | SEC-02 | Phase 42 | Pending |
 | SEC-03 | Phase 42 | Pending |
-| SEC-04 | Phase 41 | Pending |
+| SEC-04 | Phase 41 | Complete |
 | SEC-05 | Phase 42 | Pending |
-| COST-01 | Phase 41 | Pending |
-| COST-02 | Phase 41 | Pending |
+| COST-01 | Phase 41 | Complete |
+| COST-02 | Phase 41 | Complete |
 | COST-03 | Phase 43 | Pending |
 | LAT-01 | Phase 43 | Pending |
 | LAT-02 | Phase 43 | Pending |
@@ -146,7 +146,7 @@ Filled by roadmap creation (2026-09-29). Each requirement maps to exactly one ph
 | LAT-04 | Phase 43 | Pending |
 | LAT-05 | Phase 43 | Pending |
 | LAT-06 | Phase 43 | Pending |
-| OPS-01 | Phase 41 | Pending |
+| OPS-01 | Phase 41 | Complete (code; live smoke test with the real key deferred by the user, see 41-VERIFICATION.md) |
 | OPS-02 | Phase 43 | Pending |
 | QUAL-01 | Phase 44 | Pending |
 | QUAL-02 | Phase 44 | Pending |
