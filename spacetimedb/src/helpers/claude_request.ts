@@ -421,8 +421,15 @@ export function classifyClaudeResponse(route: LlmRoute, res: ResponseLike): Clau
   if (stopReason === 'max_tokens') {
     return fail('truncated', 'output hit max_tokens before completing', { stopReason, usage, requestId });
   }
-  if (stopReason === 'tool_use' || stopReason === 'pause_turn' || stopReason === 'stop_sequence') {
-    return fail('unexpected_stop', `unexpected stop_reason ${stopReason}`, { stopReason, usage, requestId });
+  // Allowlist: only end_turn is a complete answer. tool_use, pause_turn, stop_sequence,
+  // model_context_window_exceeded, any future reason and a MISSING stop_reason (a
+  // non-streaming 200 always carries one) all mean the text may be truncated or wrong.
+  if (stopReason !== 'end_turn') {
+    return fail(
+      'unexpected_stop',
+      stopReason === undefined ? 'response had no stop_reason' : `unexpected stop_reason ${stopReason}`,
+      { stopReason, usage, requestId },
+    );
   }
 
   const block = findFirstTextBlock(body.content);
@@ -434,7 +441,7 @@ export function classifyClaudeResponse(route: LlmRoute, res: ResponseLike): Clau
     });
   }
 
-  const finalStop = stopReason ?? 'end_turn';
+  const finalStop = stopReason;
   if (LLM_ROUTES[route].output.kind !== 'json') {
     return { ok: true, text: block.text, stopReason: finalStop, usage, requestId };
   }

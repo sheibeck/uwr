@@ -439,6 +439,7 @@ const CASES: [string, LlmRoute, ClaudeFailureClass | 'ok'][] = [
   ['max_tokens', 'skill_gen', 'truncated'],
   ['refusal', 'skill_gen', 'refusal'],
   ['pause_turn', 'combat_narration', 'unexpected_stop'],
+  ['model_context_window_exceeded', 'combat_narration', 'unexpected_stop'],
   ['tool_use', 'combat_narration', 'unexpected_stop'],
   ['stop_sequence', 'combat_narration', 'unexpected_stop'],
   ['empty_content', 'skill_gen', 'empty_output'],
@@ -578,6 +579,50 @@ describe('classifyClaudeResponse', () => {
       expect(f.class).toBe('unexpected_stop');
       expect(f.stopReason).toBe(name);
       expect(f.usage?.input).toBe(116);
+    });
+
+    it('model_context_window_exceeded is unexpected_stop on a text route, not ok with truncated text', () => {
+      const f = expectFailure(classifyFixture('combat_narration', 'model_context_window_exceeded'));
+      expect(f.class).toBe('unexpected_stop');
+      expect(f.retryable).toBe(false);
+      expect(f.stopReason).toBe('model_context_window_exceeded');
+      expect(f.usage?.input).toBe(116);
+      expect(f.requestId).toBe('req_011CTestOkFixture');
+    });
+
+    it('model_context_window_exceeded on a JSON route is unexpected_stop, not invalid_json', () => {
+      expect(expectFailure(classifyFixture('skill_gen', 'model_context_window_exceeded')).class).toBe('unexpected_stop');
+    });
+
+    it('any stop_reason other than end_turn is unexpected_stop (allowlist, not denylist)', () => {
+      for (const reason of ['some_future_reason', 'END_TURN', '']) {
+        const reply = loadFixture('ok_text');
+        (reply.body as any).stop_reason = reason;
+        const f = expectFailure(classifyClaudeResponse('combat_narration', respond(reply)));
+        expect(f.class, reason).toBe('unexpected_stop');
+        expect(f.stopReason, reason).toBe(reason);
+      }
+    });
+
+    it('a missing or non-string stop_reason is unexpected_stop and keeps usage (billed call)', () => {
+      for (const mutate of [
+        (b: any) => delete b.stop_reason,
+        (b: any) => {
+          b.stop_reason = null;
+        },
+        (b: any) => {
+          b.stop_reason = 5;
+        },
+      ]) {
+        const reply = loadFixture('ok_text');
+        mutate(reply.body);
+        const f = expectFailure(classifyClaudeResponse('combat_narration', respond(reply)));
+        expect(f.class).toBe('unexpected_stop');
+        expect(f.retryable).toBe(false);
+        expect(f.stopReason).toBeUndefined();
+        expect(f.message).toContain('no stop_reason');
+        expect(f.usage?.input).toBeGreaterThan(0);
+      }
     });
 
     it('empty content, a thinking-only response and whitespace text are empty_output', () => {
