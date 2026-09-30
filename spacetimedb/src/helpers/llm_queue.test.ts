@@ -334,4 +334,28 @@ describe('logLlmCall', () => {
     const ctx = createMockCtx();
     expect(logLlmCall(ctx, { ...base, latencyMs: 12.6 }).latencyMs).toBe(13n);
   });
+
+  it.each([NaN, Infinity, -Infinity])('a non-finite counter (%s) becomes 0n instead of throwing', (bad) => {
+    const ctx = createMockCtx();
+    let row: any;
+    expect(() => {
+      row = logLlmCall(ctx, {
+        ...base,
+        httpStatus: bad,
+        latencyMs: bad,
+        usage: { input: bad, output: bad, cacheWrite: bad, cacheRead: bad },
+      });
+    }).not.toThrow();
+    for (const k of ['httpStatus', 'latencyMs', 'inputTokens', 'outputTokens', 'cacheWriteTokens', 'cacheReadTokens']) {
+      expect(row[k], k).toBe(0n);
+    }
+    expect(rows(ctx, 'llm_call_log')).toHaveLength(1);
+  });
+
+  it('a negative counter clamps to 0n and a huge finite counter clamps to a safe integer', () => {
+    const ctx = createMockCtx();
+    const row = logLlmCall(ctx, { ...base, httpStatus: -5, latencyMs: 1e300 });
+    expect(row.httpStatus).toBe(0n);
+    expect(row.latencyMs).toBe(BigInt(Number.MAX_SAFE_INTEGER));
+  });
 });

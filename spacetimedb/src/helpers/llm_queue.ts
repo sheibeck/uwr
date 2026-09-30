@@ -157,8 +157,13 @@ export interface LlmCallLogEntry {
   usage?: { input: number; output: number; cacheWrite: number; cacheRead: number };
 }
 
-// Counters arrive as JS numbers (possibly fractional or negative); u64 columns need whole bigints.
-const toU64 = (n: number | undefined): bigint => BigInt(Math.max(0, Math.round(n ?? 0)));
+// Counters arrive as JS numbers (possibly fractional, negative, NaN or Infinity); u64 columns need
+// whole bigints. BigInt() throws a RangeError on a non-finite number, which would roll back the
+// caller's transaction, so any non-finite input is 0 and huge finite values clamp to a safe integer.
+const toU64 = (n: number | undefined): bigint => {
+  const v = typeof n === 'number' && Number.isFinite(n) ? n : 0;
+  return BigInt(Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.round(v))));
+};
 
 /** Append one llm_call_log row. Error text is redacted, then capped by code points. */
 export function logLlmCall(ctx: any, e: LlmCallLogEntry): any {
