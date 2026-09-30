@@ -67,6 +67,9 @@ export function createMockDb(seed: Record<string, any[]> = {}) {
     by_player: 'playerId',
     by_score: 'score',
     by_group: 'groupId',
+    by_dedupe_key: 'dedupeKey',
+    by_status: 'status',
+    by_job: 'jobId',
   };
 
   return new Proxy({} as any, {
@@ -122,5 +125,160 @@ export function createMockCtx(opts: {
     db: createMockDb(opts.seed ?? {}),
     timestamp: { microsSinceUnixEpoch: opts.timestampMicros ?? 1_000_000_000_000n },
     sender: opts.sender ?? { toHexString: () => 'mock-identity-hex' },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Procedure context mock (QUAL-04)
+// ---------------------------------------------------------------------------
+
+export type MockReply = {
+  status: number;
+  statusText?: string;
+  headers?: Record<string, string>;
+  body?: string | object;
+};
+
+export type MockThrow = { throw: 'timeout' | Error };
+
+export type MockFetchCall = {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body: string | undefined;
+  timeoutMs: number | undefined;
+};
+
+export type MockProcCtxOptions = {
+  seed?: Record<string, any[]>;
+  sender?: any;
+  timestampMicros?: bigint;
+  responses?: Array<MockReply | MockThrow>;
+  withTxReinvoke?: number;
+};
+
+/**
+ * Build a stand-in for the platform SyncResponse. Mirrors the real class
+ * surface: status, ok, statusText, headers (case-insensitive), text(), json(),
+ * bytes(). Object bodies are JSON-stringified; json() throws on invalid JSON.
+ */
+export function makeSyncResponse(reply: MockReply) {
+  const bodyText =
+    reply.body === undefined
+      ? ''
+      : typeof reply.body === 'string'
+        ? reply.body
+        : JSON.stringify(reply.body);
+  const headers = new Headers(reply.headers ?? {});
+  return {
+    status: reply.status,
+    ok: reply.status >= 200 && reply.status < 300,
+    statusText: reply.statusText ?? '',
+    headers,
+    url: '',
+    type: 'basic' as const,
+    text: () => bodyText,
+    json: () => JSON.parse(bodyText),
+    bytes: () => new TextEncoder().encode(bodyText),
+    arrayBuffer: () => new TextEncoder().encode(bodyText).buffer,
+  };
+}
+
+/**
+ * Fake SpacetimeDB ProcedureCtx. Deliberately has NO `ctx.db` (the real
+ * ProcedureCtx has none), a scripted FIFO `http.fetch`, a synchronous-only
+ * `withTx` that can be re-invoked N extra times with state restored between
+ * runs (the platform may retry a transaction), and a module-identity sender.
+ */
+export function createMockProcCtx(opts: MockProcCtxOptions = {}) {
+  const db = createMockDb(opts.seed ?? {});
+  let now = opts.timestampMicros ?? 1_000_000_000_000n;
+  const moduleIdentity = opts.sender ?? { toHexString: () => 'module-identity-hex' };
+  const queue: Array<MockReply | MockThrow> = [...(opts.responses ?? [])];
+  const calls: MockFetchCall[] = [];
+
+  function snapshotTables(): Record<string, any[]> {
+    const tables = db._tables as Record<string, any[]>;
+    const snap: Record<string, any[]> = {};
+    for (const [name, rows] of Object.entries(tables)) {
+      snap[name] = rows.map((r) => ({ ...r }));
+    }
+    return snap;
+  }
+
+  function restoreTables(snap: Record<string, any[]>): void {
+    const tables = db._tables as Record<string, any[]>;
+    for (const name of Object.keys(tables)) {
+      if (!(name in snap)) delete tables[name];
+    }
+    for (const [name, rows] of Object.entries(snap)) {
+      const arr = (tables[name] ??= []);
+      arr.length = 0;
+      for (const r of rows) arr.push({ ...r });
+    }
+  }
+
+  const ctx = {
+    sender: moduleIdentity,
+    identity: moduleIdentity,
+    databaseIdentity: moduleIdentity,
+    connectionId: null as any,
+    get timestamp() {
+      return { microsSinceUnixEpoch: now };
+    },
+    http: {
+      fetch(url: string, init: any = {}) {
+        const timeout = init.timeout;
+        calls.push({
+          url,
+          method: init.method ?? 'GET',
+          headers: { ...(init.headers ?? {}) },
+          body: init.body,
+          timeoutMs: timeout ? Number(timeout.micros / 1000n) : undefined,
+        });
+        const next = queue.shift();
+        if (!next) throw new Error('mock fetch: no scripted response left');
+        if ('throw' in next) {
+          throw next.throw === 'timeout' ? new Error('operation timed out') : next.throw;
+        }
+        return makeSyncResponse(next);
+      },
+    },
+    withTx<T>(body: (tx: any) => T): T {
+      const runs = 1 + (opts.withTxReinvoke ?? 0);
+      let result!: T;
+      for (let i = 0; i < runs; i++) {
+        const snap = snapshotTables();
+        try {
+          result = body({
+            db,
+            get timestamp() {
+              return { microsSinceUnixEpoch: now };
+            },
+            sender: ctx.sender,
+          });
+          if (result && typeof (result as any).then === 'function') {
+            throw new Error('withTx callback returned a Promise: withTx must be synchronous');
+          }
+        } catch (e) {
+          restoreTables(snap);
+          throw e;
+        }
+        if (i < runs - 1) restoreTables(snap);
+      }
+      return result;
+    },
+  };
+
+  return {
+    ctx,
+    db,
+    http: { calls, remaining: () => queue.length },
+    clock: {
+      advance: (micros: bigint) => {
+        now += micros;
+      },
+      now: () => now,
+    },
   };
 }

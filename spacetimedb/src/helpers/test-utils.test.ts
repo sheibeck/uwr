@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createMockDb, createMockCtx } from './test-utils';
+import { TimeDuration } from 'spacetimedb';
+import { createMockDb, createMockCtx, createMockProcCtx, makeSyncResponse } from './test-utils';
 
 describe('createMockDb', () => {
   it('auto-creates tables on first access', () => {
@@ -163,5 +164,199 @@ describe('createMockCtx', () => {
   it('accepts custom timestamp', () => {
     const ctx = createMockCtx({ timestampMicros: 5_000_000n });
     expect(ctx.timestamp.microsSinceUnixEpoch).toBe(5_000_000n);
+  });
+});
+
+describe('createMockDb new index mappings', () => {
+  const seed = {
+    llm_job: [{ id: 1n, dedupeKey: 'k1', status: 'pending', jobId: 0n }],
+    llm_call_log: [{ id: 1n, jobId: 1n }],
+  };
+
+  it('by_dedupe_key finds a seeded row (positive control) and nothing for a miss', () => {
+    const db = createMockDb(seed);
+    expect(db.llm_job.by_dedupe_key.filter('k1')).toHaveLength(1);
+    expect(db.llm_job.by_dedupe_key.find('k1')?.id).toBe(1n);
+    expect(db.llm_job.by_dedupe_key.filter('nope')).toEqual([]);
+  });
+
+  it('by_status finds a seeded row (positive control) and nothing for a miss', () => {
+    const db = createMockDb(seed);
+    expect(db.llm_job.by_status.filter('pending')).toHaveLength(1);
+    expect(db.llm_job.by_status.filter('done')).toEqual([]);
+  });
+
+  it('by_job finds a seeded row (positive control) and nothing for a miss', () => {
+    const db = createMockDb(seed);
+    expect(db.llm_call_log.by_job.filter(1n)).toHaveLength(1);
+    expect(db.llm_call_log.by_job.filter(2n)).toEqual([]);
+  });
+});
+
+describe('makeSyncResponse', () => {
+  it('ok is true only for 2xx', () => {
+    expect(makeSyncResponse({ status: 200 }).ok).toBe(true);
+    expect(makeSyncResponse({ status: 204 }).ok).toBe(true);
+    expect(makeSyncResponse({ status: 199 }).ok).toBe(false);
+    expect(makeSyncResponse({ status: 300 }).ok).toBe(false);
+    expect(makeSyncResponse({ status: 429 }).ok).toBe(false);
+    expect(makeSyncResponse({ status: 500 }).ok).toBe(false);
+  });
+
+  it('text() returns the body string; object bodies are JSON-stringified', () => {
+    expect(makeSyncResponse({ status: 200, body: 'hello' }).text()).toBe('hello');
+    expect(makeSyncResponse({ status: 200, body: { a: 1 } }).text()).toBe('{"a":1}');
+    expect(makeSyncResponse({ status: 200 }).text()).toBe('');
+  });
+
+  it('json() parses valid JSON and throws on invalid JSON', () => {
+    expect(makeSyncResponse({ status: 200, body: { a: 1 } }).json()).toEqual({ a: 1 });
+    expect(() => makeSyncResponse({ status: 200, body: '{not json' }).json()).toThrow();
+  });
+
+  it('headers.get is case-insensitive', () => {
+    const r = makeSyncResponse({ status: 429, headers: { 'Retry-After': '7' } });
+    expect(r.headers.get('retry-after')).toBe('7');
+    expect(r.headers.get('RETRY-AFTER')).toBe('7');
+  });
+});
+
+describe('createMockProcCtx', () => {
+  it('ctx has no db, a module-identity sender and a controllable clock', () => {
+    const p = createMockProcCtx({ timestampMicros: 100n });
+    expect((p.ctx as any).db).toBeUndefined();
+    expect(p.ctx.sender.toHexString()).toBe('module-identity-hex');
+    expect(p.ctx.timestamp.microsSinceUnixEpoch).toBe(100n);
+    let seen = 0n;
+    p.clock.advance(5n);
+    p.ctx.withTx((tx) => {
+      seen = tx.timestamp.microsSinceUnixEpoch;
+    });
+    expect(seen).toBe(105n);
+    expect(p.clock.now()).toBe(105n);
+  });
+
+  it('fetch with no scripted responses throws "no scripted response"', () => {
+    const p = createMockProcCtx();
+    expect(() => p.ctx.http.fetch('https://x')).toThrow(/no scripted response/);
+  });
+
+  it('consumes scripted responses FIFO, then throws once exhausted', () => {
+    const p = createMockProcCtx({
+      responses: [
+        { status: 200, headers: { 'X-Thing': 'a' }, body: { n: 1 } },
+        { status: 429, statusText: 'Too Many', headers: { 'Retry-After': '3' }, body: 'slow down' },
+        { status: 500, body: 'boom' },
+      ],
+    });
+    const r1 = p.ctx.http.fetch('https://x/1');
+    expect(r1.status).toBe(200);
+    expect(r1.headers.get('x-thing')).toBe('a');
+    expect(r1.json()).toEqual({ n: 1 });
+    const r2 = p.ctx.http.fetch('https://x/2');
+    expect(r2.status).toBe(429);
+    expect(r2.statusText).toBe('Too Many');
+    expect(r2.headers.get('retry-after')).toBe('3');
+    expect(r2.text()).toBe('slow down');
+    expect(p.http.remaining()).toBe(1);
+    expect(p.ctx.http.fetch('https://x/3').status).toBe(500);
+    expect(p.http.remaining()).toBe(0);
+    expect(() => p.ctx.http.fetch('https://x/4')).toThrow(/no scripted response/);
+  });
+
+  it("{ throw: 'timeout' } throws /timed out/i and a given Error is rethrown", () => {
+    const err = new Error('dns');
+    const p = createMockProcCtx({ responses: [{ throw: 'timeout' }, { throw: err }] });
+    expect(() => p.ctx.http.fetch('https://x')).toThrow(/timed out/i);
+    expect(() => p.ctx.http.fetch('https://x')).toThrow(err);
+  });
+
+  it('records calls with url, method default, headers, body and timeoutMs', () => {
+    const p = createMockProcCtx({ responses: [{ status: 200 }, { status: 200 }] });
+    const headers = { 'x-api-key': 'k' };
+    p.ctx.http.fetch('https://x/a');
+    p.ctx.http.fetch('https://x/b', {
+      method: 'POST',
+      headers,
+      body: '{"q":1}',
+      timeout: TimeDuration.fromMillis(1500),
+    });
+    expect(p.http.calls).toHaveLength(2);
+    expect(p.http.calls[0]).toEqual({
+      url: 'https://x/a',
+      method: 'GET',
+      headers: {},
+      body: undefined,
+      timeoutMs: undefined,
+    });
+    expect(p.http.calls[1]).toEqual({
+      url: 'https://x/b',
+      method: 'POST',
+      headers: { 'x-api-key': 'k' },
+      body: '{"q":1}',
+      timeoutMs: 1500,
+    });
+    expect(p.http.calls[1].headers).not.toBe(headers);
+  });
+
+  it('withTx returns the callback value and runs it 1 + withTxReinvoke times', () => {
+    for (const n of [0, 1, 2]) {
+      const p = createMockProcCtx({ withTxReinvoke: n });
+      let count = 0;
+      const out = p.ctx.withTx(() => {
+        count++;
+        return 'v';
+      });
+      expect(out).toBe('v');
+      expect(count).toBe(1 + n);
+    }
+  });
+
+  it('withTxReinvoke: 1 with an insert-once callback ends with exactly one row', () => {
+    const p = createMockProcCtx({ withTxReinvoke: 1 });
+    let count = 0;
+    p.ctx.withTx((tx) => {
+      count++;
+      tx.db.llm_job.insert({ id: 0n, dedupeKey: 'k' });
+    });
+    expect(count).toBe(2);
+    expect(p.db.llm_job._rows()).toHaveLength(1);
+  });
+
+  it('withTx keeps updates to pre-existing rows across re-invocation', () => {
+    const p = createMockProcCtx({
+      seed: { llm_job: [{ id: 1n, status: 'pending' }] },
+      withTxReinvoke: 1,
+    });
+    p.ctx.withTx((tx) => {
+      const row = tx.db.llm_job.id.find(1n);
+      tx.db.llm_job.id.update({ ...row, status: 'done' });
+    });
+    expect(p.db.llm_job.id.find(1n)?.status).toBe('done');
+    expect(p.db.llm_job._rows()).toHaveLength(1);
+  });
+
+  it('withTx callback returning a Promise throws and leaves no writes', () => {
+    const p = createMockProcCtx();
+    expect(() =>
+      p.ctx.withTx((tx) => {
+        tx.db.llm_job.insert({ id: 0n, dedupeKey: 'k' });
+        return Promise.resolve(1) as any;
+      }),
+    ).toThrow(/must be synchronous/);
+    expect(p.db.llm_job._rows()).toHaveLength(0);
+  });
+
+  it('withTx callback that throws rolls back every write', () => {
+    const p = createMockProcCtx({ seed: { llm_job: [{ id: 1n }] } });
+    expect(() =>
+      p.ctx.withTx((tx) => {
+        tx.db.llm_job.insert({ id: 0n, dedupeKey: 'k' });
+        tx.db.other.insert({ id: 0n });
+        throw new Error('nope');
+      }),
+    ).toThrow('nope');
+    expect(p.db.llm_job._rows()).toHaveLength(1);
+    expect(p.db.other._rows()).toHaveLength(0);
   });
 });
