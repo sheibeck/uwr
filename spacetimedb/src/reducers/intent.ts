@@ -4,7 +4,7 @@ import { buildLookOutput } from '../helpers/look';
 import { computeSellValue } from '../helpers/economy';
 import { getPerkBonusByField } from '../helpers/renown';
 import { requestSkillOffer } from '../helpers/skill_offer';
-import { startWorldGeneration } from '../helpers/world_gen';
+import { retryStarterWorldGen, startWorldGeneration, STARTER_RETRY_MESSAGES } from '../helpers/world_gen';
 import { npcGender, npcPronouns, npcRegardLine } from '../data/npc_gender';
 
 // Re-export for any existing consumers that import from intent.ts
@@ -1402,31 +1402,16 @@ export const registerIntentReducers = (deps: any) => {
 
     // --- EXPLORE: the player's retry for world gen (only useful after errors; generation never retries itself) ---
     if (lower === 'explore') {
-      // A character still at location 0 is waiting on the starter region: retry it from its own ERROR state.
+      // A character still at location 0 is waiting on the starter region: retry it from its own ERROR state
+      // (looked up by character, so another identity of the same user can retry too).
       if (character.locationId === 0n) {
-        const starterStates = [...ctx.db.world_gen_state.by_player.filter(ctx.sender)]
-          .filter((s: any) => s.characterId === character.id && s.sourceRegionId === 0n);
-        if (starterStates.some((s: any) => s.step === 'PENDING' || s.step === 'GENERATING')) {
-          return appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-            'The world is already taking shape around you. Patience.');
+        const starter = retryStarterWorldGen(ctx, character, ctx.sender);
+        if (starter === 'busy') {
+          return appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', STARTER_RETRY_MESSAGES.busy);
         }
-        if (starterStates.length === 0 || starterStates.some((s: any) => s.step !== 'ERROR')) {
-          return fail(ctx, character, 'There is nothing uncharted to explore here.');
-        }
-        const freshStarter = ctx.db.world_gen_state.insert({
-          id: 0n,
-          playerId: ctx.sender,
-          characterId: character.id,
-          sourceLocationId: 0n,
-          sourceRegionId: 0n,
-          step: 'PENDING',
-          createdAt: ctx.timestamp,
-          updatedAt: ctx.timestamp,
-        });
-        const startedStarter = startWorldGeneration(ctx, freshStarter);
-        if (startedStarter === 'enqueued' || startedStarter === 'duplicate') {
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-            'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...');
+        if (starter === 'none') return fail(ctx, character, STARTER_RETRY_MESSAGES.none);
+        if (starter === 'started') {
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', STARTER_RETRY_MESSAGES.started);
         }
         return;
       }

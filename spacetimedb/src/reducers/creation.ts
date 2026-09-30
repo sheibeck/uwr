@@ -1,6 +1,6 @@
 import { ensureDefaultHotbar } from '../helpers/items';
 import { startCreationGeneration } from '../helpers/creation_generation';
-import { startWorldGeneration } from '../helpers/world_gen';
+import { retryStarterWorldGen, startWorldGeneration, STARTER_RETRY_MESSAGES } from '../helpers/world_gen';
 
 // Character creation state machine — narrative flow from greeting to character finalization
 
@@ -55,6 +55,41 @@ function clearDataFromStep(state: any, targetStep: string): any {
     updated.characterName = undefined;
   }
   return updated;
+}
+
+/** The creation console's explore keyword (typed or clicked, with or without brackets). */
+function isExploreText(text: string): boolean {
+  return /^\[?explore\]?$/i.test(text.trim());
+}
+
+/**
+ * A character of this player's user that is still at location 0 (its starter world gen has not
+ * placed it). The client shows the creation console for such a character, so this is where its
+ * first-region retry must be reachable. Prefers the player's active character.
+ */
+function findStrandedCharacter(ctx: any, player: any): any | null {
+  if (player.userId == null) return null;
+  if (player.activeCharacterId != null) {
+    const active = ctx.db.character.id.find(player.activeCharacterId);
+    if (active && active.ownerUserId === player.userId && active.locationId === 0n) return active;
+  }
+  for (const char of ctx.db.character.by_owner_user.filter(player.userId)) {
+    if (char.locationId === 0n) return char;
+  }
+  return null;
+}
+
+/** Run the first-region retry from the creation console and answer in the creation log. */
+function retryStarterFromCreation(ctx: any, character: any, appendCreationEvent: any): void {
+  const outcome = retryStarterWorldGen(ctx, character, ctx.sender);
+  if (outcome === 'busy') {
+    appendCreationEvent(ctx, ctx.sender, 'creation', STARTER_RETRY_MESSAGES.busy);
+  } else if (outcome === 'none') {
+    appendCreationEvent(ctx, ctx.sender, 'creation_error', STARTER_RETRY_MESSAGES.none);
+  } else if (outcome === 'started') {
+    appendCreationEvent(ctx, ctx.sender, 'creation', STARTER_RETRY_MESSAGES.started);
+  }
+  // 'refused' already posted its creation_error line; 'reused' placed the character in the world.
 }
 
 function parseArchetype(text: string): string | null {
@@ -345,6 +380,16 @@ export const registerCreationReducers = (deps: any) => {
       break;
     }
 
+    // A finished (or, on another device, absent) creation whose character is still at location 0:
+    // [explore] retries the first region from here, because the client keeps showing this console.
+    if ((!state || state.step === 'COMPLETE') && isExploreText(text)) {
+      const stranded = findStrandedCharacter(ctx, player);
+      if (stranded) {
+        retryStarterFromCreation(ctx, stranded, appendCreationEvent);
+        return;
+      }
+    }
+
     if (!state) {
       // No creation state — auto-start
       ctx.db.character_creation_state.insert({
@@ -594,6 +639,10 @@ export const registerCreationReducers = (deps: any) => {
       }
 
       case 'COMPLETE': {
+        if (findStrandedCharacter(ctx, player)) {
+          appendCreationEvent(ctx, ctx.sender, 'creation', 'Your character has already been created. If the world has not taken shape around you, type [explore].');
+          break;
+        }
         appendCreationEvent(ctx, ctx.sender, 'creation', 'Your character has already been created. Go forth and do something interesting.');
         break;
       }

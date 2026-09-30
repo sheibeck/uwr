@@ -199,6 +199,52 @@ export function startWorldGeneration(ctx: any, genState: any): WorldGenStartOutc
 }
 
 /**
+ * What a first-region retry did:
+ *  - 'busy':    a starter state for the character is still PENDING or GENERATING (nothing written);
+ *  - 'none':    the character has no starter state, or one that is not ERROR (nothing written);
+ *  - 'started': a fresh starter state was created and its world_gen job enqueued;
+ *  - 'reused':  a fresh starter state reused an existing starter region (no call);
+ *  - 'refused': the enqueue was refused; the fresh state is ERROR and the refusal line is posted.
+ */
+export type StarterRetryOutcome = 'busy' | 'none' | 'started' | 'reused' | 'refused';
+
+/** The in-voice lines for a first-region retry (shared by the explore intent and the creation console). */
+export const STARTER_RETRY_MESSAGES = Object.freeze({
+  busy: 'The world is already taking shape around you. Patience.',
+  none: 'There is nothing uncharted to explore here.',
+  started: 'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...',
+});
+
+/**
+ * The first-region retry for a character still at location 0 (its starter world gen failed).
+ * Starter states are found by CHARACTER, not by the connecting identity, so a player on a
+ * second device (another identity of the same user) can retry too. The fresh state belongs to
+ * `playerId`, the identity asking, so the job's messages reach the device that asked.
+ * Writes nothing for 'busy' and 'none'.
+ */
+export function retryStarterWorldGen(ctx: any, character: any, playerId: any): StarterRetryOutcome {
+  // world_gen_state has no characterId index; the table is small and this path is rare.
+  const starters = [...ctx.db.world_gen_state.iter()].filter(
+    (s: any) => s.characterId === character.id && s.sourceRegionId === 0n,
+  );
+  if (starters.some((s: any) => s.step === 'PENDING' || s.step === 'GENERATING')) return 'busy';
+  if (starters.length === 0 || starters.some((s: any) => s.step !== 'ERROR')) return 'none';
+
+  const fresh = ctx.db.world_gen_state.insert({
+    id: 0n,
+    playerId,
+    characterId: character.id,
+    sourceLocationId: 0n,
+    sourceRegionId: 0n,
+    step: 'PENDING',
+    createdAt: ctx.timestamp,
+    updatedAt: ctx.timestamp,
+  });
+  const started = startWorldGeneration(ctx, fresh);
+  return started === 'enqueued' || started === 'duplicate' ? 'started' : started;
+}
+
+/**
  * The starter-region reuse branch: when another character of the same race already generated a
  * starter region, place this character in its home location and complete the state with no
  * model call. Returns true when the character was placed.

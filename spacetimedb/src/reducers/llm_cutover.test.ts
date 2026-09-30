@@ -1194,6 +1194,181 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       expect(errors).toHaveLength(1);
       expect(errors[0].message).toContain(EXPLORE_LINE);
     });
+
+    it('the explore intent finds the starter state by character, so another identity of the same user can retry', () => {
+      const bob = { toHexString: () => 'b'.repeat(64) };
+      const ctx = newCtx(
+        starterSeed([{}], { player: [{ id: alice, userId: 7n, activeCharacterId: 1n }, { id: bob, userId: 7n }] }),
+        bob,
+      );
+      explore(ctx);
+
+      const states = worldGenStates(ctx);
+      expect(states).toHaveLength(2);
+      expect(states[1]).toMatchObject({ step: 'GENERATING', playerId: bob, characterId: 1n, sourceRegionId: 0n });
+      expect(expectEnqueued(ctx, 'world_gen').playerId).toBe(bob);
+      expect(systemLines(ctx)).toEqual([RIPPLE]);
+    });
+  });
+
+  // CR-B01: the client shows the creation console for a character at location 0, and every line or
+  // click there goes to submit_creation_input. The first-region retry must be reachable from it.
+  describe('first-region retry from the creation console (submit_creation_input)', () => {
+    const bob = { toHexString: () => 'b'.repeat(64) };
+    const completeState = () => ({
+      id: 1n,
+      playerId: alice,
+      step: 'COMPLETE',
+      characterName: 'Aldric',
+      createdAt: T,
+      updatedAt: T,
+    });
+    const submitCreation = (ctx: any, text: string) => handlers.submit_creation_input(ctx, { text });
+    const creationLines = (ctx: any) => rows(ctx, 'event_creation').map((e: any) => [e.kind, e.message]);
+
+    it.each(['explore', '[explore]', 'Explore'])('%s at COMPLETE with an ERROR starter state starts a fresh starter job', (text) => {
+      const ctx = newCtx(starterSeed([{}], { character_creation_state: [completeState()] }));
+      submitCreation(ctx, text);
+
+      const states = worldGenStates(ctx);
+      expect(states).toHaveLength(2);
+      expect(states[0].step).toBe('ERROR');
+      expect(states[1]).toMatchObject({ step: 'GENERATING', playerId: alice, characterId: 1n, sourceRegionId: 0n });
+      const job = expectEnqueued(ctx, 'world_gen');
+      expect(JSON.parse(job.requestJson).genStateId).toBe(states[1].id.toString());
+      expect(creationLines(ctx)).toEqual([['creation', RIPPLE]]);
+      // The finished creation is untouched: no new creation, no "already created" line.
+      expect(rows(ctx, 'character_creation_state')).toHaveLength(1);
+      expect(rows(ctx, 'character_creation_state')[0].step).toBe('COMPLETE');
+    });
+
+    it('while the starter state is GENERATING answers with the patience line and starts nothing', () => {
+      const ctx = newCtx(
+        starterSeed([{ step: 'GENERATING', errorMessage: undefined }], { character_creation_state: [completeState()] }),
+      );
+      submitCreation(ctx, 'explore');
+
+      expectNothingReserved(ctx);
+      expect(worldGenStates(ctx)).toHaveLength(1);
+      expect(creationLines(ctx)).toEqual([['creation', PATIENCE]]);
+    });
+
+    it('a refused retry leaves the fresh state in ERROR with the [explore] line and no job', () => {
+      const ctx = newCtx(starterSeed([{}], { character_creation_state: [completeState()] }));
+      exhaustDay(ctx);
+      submitCreation(ctx, 'explore');
+
+      expectNothingReserved(ctx);
+      const states = worldGenStates(ctx);
+      expect(states).toHaveLength(2);
+      expect(states[1].step).toBe('ERROR');
+      const lines = creationLines(ctx);
+      expect(lines).toHaveLength(1);
+      expect(lines[0][0]).toBe('creation_error');
+      expect(lines[0][1]).toContain(EXPLORE_LINE);
+    });
+
+    it('another device (another identity of the same user, no creation state) retries by character, not by sender', () => {
+      const ctx = newCtx(
+        starterSeed([{}], { player: [{ id: alice, userId: 7n, activeCharacterId: 1n }, { id: bob, userId: 7n }] }),
+        bob,
+      );
+      submitCreation(ctx, 'explore');
+
+      // No new creation is auto-started for the second identity.
+      expect(rows(ctx, 'character_creation_state')).toHaveLength(0);
+      const states = worldGenStates(ctx);
+      expect(states).toHaveLength(2);
+      expect(states[1]).toMatchObject({ step: 'GENERATING', playerId: bob, characterId: 1n });
+      expect(expectEnqueued(ctx, 'world_gen').playerId).toBe(bob);
+      expect(rows(ctx, 'event_creation').map((e: any) => [e.playerId, e.message])).toEqual([[bob, RIPPLE]]);
+    });
+
+    it('any other line at COMPLETE with a stranded character points to [explore]', () => {
+      const ctx = newCtx(starterSeed([{}], { character_creation_state: [completeState()] }));
+      submitCreation(ctx, 'hello?');
+
+      expectNothingReserved(ctx);
+      expect(creationLines(ctx)).toEqual([
+        ['creation', 'Your character has already been created. If the world has not taken shape around you, type [explore].'],
+      ]);
+    });
+
+    it('explore at COMPLETE for a placed character starts nothing and keeps the usual line', () => {
+      const ctx = newCtx({
+        ...playerSeed(),
+        ...characterSeed({ locationId: 10n }),
+        character_creation_state: [completeState()],
+        world_gen_state: [genRow({ step: 'COMPLETE', errorMessage: undefined })],
+      });
+      submitCreation(ctx, 'explore');
+
+      expectNothingReserved(ctx);
+      expect(worldGenStates(ctx)).toHaveLength(1);
+      expect(creationLines(ctx)).toEqual([
+        ['creation', 'Your character has already been created. Go forth and do something interesting.'],
+      ]);
+    });
+
+    it('end to end: confirm, the starter job fails (529), and [explore] from the creation console starts the next job', () => {
+      const FAKE_KEY = ['sk', '-ant-', 'api03-', 'STARTERKEY'.repeat(3)].join('');
+      const err529 = JSON.parse(
+        readFileSync(new URL('../helpers/__fixtures__/claude/err_529.json', import.meta.url), 'utf-8'),
+      );
+      const proc = createMockProcCtx({
+        seed: {
+          ...playerSeed(),
+          character_creation_state: [
+            {
+              id: 1n,
+              playerId: alice,
+              step: 'CONFIRMING',
+              raceName: 'Saltkin',
+              raceNarrative: 'Marsh dwellers.',
+              archetype: 'mystic',
+              className: 'Tidecaller',
+              characterName: 'Mirel',
+              createdAt: T,
+              updatedAt: T,
+            },
+          ],
+          llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: { microsSinceUnixEpoch: T0 } }],
+        },
+        timestampMicros: T0,
+        responses: [err529],
+        strict: true,
+      });
+      const reducerCtx = {
+        db: proc.db,
+        sender: alice,
+        get timestamp() {
+          return proc.ctx.timestamp;
+        },
+      };
+
+      handlers.submit_creation_input(reducerCtx, { text: 'confirm' });
+      const character = rows(proc, 'character')[0];
+      expect(character.locationId).toBe(0n);
+      expect(rows(proc, 'player')[0].activeCharacterId).toBe(character.id);
+      expect(rows(proc, 'llm_job')).toHaveLength(1);
+
+      const dispatch = rows(proc, 'llm_dispatch').shift();
+      expect(runLlmJob(proc.ctx, dispatch, { nowMs: () => Number(proc.clock.now() / 1000n), log: () => {} })).toBe('failed');
+      expect(worldGenStates(proc)[0].step).toBe('ERROR');
+      const errorLine = rows(proc, 'event_creation').slice(-1)[0];
+      expect(errorLine.kind).toBe('creation_error');
+      expect(errorLine.message).toContain(EXPLORE_LINE);
+
+      // The line the player is told to type goes to the reducer the client calls.
+      handlers.submit_creation_input(reducerCtx, { text: 'explore' });
+      expect(rows(proc, 'llm_job')).toHaveLength(2);
+      expect(rows(proc, 'llm_job')[1]).toMatchObject({ route: 'world_gen', status: 'pending', characterId: character.id });
+      expect(rows(proc, 'llm_dispatch')).toHaveLength(1);
+      expect(worldGenStates(proc)).toHaveLength(2);
+      expect(worldGenStates(proc)[1].step).toBe('GENERATING');
+      expect(rows(proc, 'event_creation').slice(-1)[0].message).toBe(RIPPLE);
+      expect(proc.http.calls).toHaveLength(1);
+    });
   });
 
   describe('never auto-retries (T-41-05)', () => {
