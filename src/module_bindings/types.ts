@@ -80,6 +80,25 @@ export const ActivePet = __t.object("ActivePet", {
 });
 export type ActivePet = __Infer<typeof ActivePet>;
 
+export const AdminLlmStatus = __t.object("AdminLlmStatus", {});
+export type AdminLlmStatus = __Infer<typeof AdminLlmStatus>;
+
+export const AdminLlmStatusRow = __t.object("AdminLlmStatusRow", {
+  keySet: __t.bool(),
+  keyLength: __t.u64(),
+  keyValid: __t.bool(),
+  keyUpdatedAt: __t.option(__t.timestamp()),
+  keyVerifiedAt: __t.option(__t.timestamp()),
+  lastSmokeAt: __t.option(__t.timestamp()),
+  lastSmokeJson: __t.string(),
+  phaseSpentMicroUsd: __t.u64(),
+  phaseReservedMicroUsd: __t.u64(),
+  phaseCalls: __t.u64(),
+  phaseCapMicroUsd: __t.u64(),
+  inFlight: __t.u64(),
+});
+export type AdminLlmStatusRow = __Infer<typeof AdminLlmStatusRow>;
+
 export const AggroEntry = __t.object("AggroEntry", {
   id: __t.u64(),
   combatId: __t.u64(),
@@ -755,6 +774,18 @@ export const ItemTemplate = __t.object("ItemTemplate", {
 });
 export type ItemTemplate = __Infer<typeof ItemTemplate>;
 
+export const LlmAdminState = __t.object("LlmAdminState", {
+  id: __t.u64(),
+  keySet: __t.bool(),
+  keyLength: __t.u64(),
+  keyUpdatedAt: __t.option(__t.timestamp()),
+  keyVerifiedAt: __t.option(__t.timestamp()),
+  keyLastCheckOk: __t.bool(),
+  lastSmokeAt: __t.option(__t.timestamp()),
+  lastSmokeJson: __t.string(),
+});
+export type LlmAdminState = __Infer<typeof LlmAdminState>;
+
 export const LlmBudget = __t.object("LlmBudget", {
   id: __t.u64(),
   playerId: __t.identity(),
@@ -781,6 +812,8 @@ export const LlmCallLog = __t.object("LlmCallLog", {
   cacheWriteTokens: __t.u64(),
   cacheReadTokens: __t.u64(),
   createdAt: __t.timestamp(),
+  costMicroUsd: __t.u64(),
+  dispatchLateMs: __t.u64(),
 });
 export type LlmCallLog = __Infer<typeof LlmCallLog>;
 
@@ -796,6 +829,13 @@ export const LlmConfig = __t.object("LlmConfig", {
   updatedAt: __t.timestamp(),
 });
 export type LlmConfig = __Infer<typeof LlmConfig>;
+
+export const LlmDispatch = __t.object("LlmDispatch", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  jobId: __t.u64(),
+});
+export type LlmDispatch = __Infer<typeof LlmDispatch>;
 
 export const LlmJob = __t.object("LlmJob", {
   id: __t.u64(),
@@ -817,8 +857,23 @@ export const LlmJob = __t.object("LlmJob", {
   createdAt: __t.timestamp(),
   startedAt: __t.option(__t.timestamp()),
   finishedAt: __t.option(__t.timestamp()),
+  nextAttemptAt: __t.option(__t.timestamp()),
+  reservedMicroUsd: __t.u64(),
+  costMicroUsd: __t.u64(),
+  budgetDay: __t.string(),
+  applyAttempts: __t.u64(),
 });
 export type LlmJob = __Infer<typeof LlmJob>;
+
+export const LlmPlayerBudget = __t.object("LlmPlayerBudget", {
+  id: __t.u64(),
+  playerId: __t.identity(),
+  dayUtc: __t.string(),
+  reservedMicroUsd: __t.u64(),
+  spentMicroUsd: __t.u64(),
+  calls: __t.u64(),
+});
+export type LlmPlayerBudget = __Infer<typeof LlmPlayerBudget>;
 
 export const LlmRequest = __t.object("LlmRequest", {
   id: __t.u64(),
@@ -832,6 +887,21 @@ export const LlmRequest = __t.object("LlmRequest", {
   createdAt: __t.timestamp(),
 });
 export type LlmRequest = __Infer<typeof LlmRequest>;
+
+export const LlmSpend = __t.object("LlmSpend", {
+  id: __t.u64(),
+  spentMicroUsd: __t.u64(),
+  reservedMicroUsd: __t.u64(),
+  calls: __t.u64(),
+  updatedAt: __t.timestamp(),
+});
+export type LlmSpend = __Infer<typeof LlmSpend>;
+
+export const LlmSweepTick = __t.object("LlmSweepTick", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+});
+export type LlmSweepTick = __Infer<typeof LlmSweepTick>;
 
 export const LlmTask = __t.object("LlmTask", {
   id: __t.u64(),

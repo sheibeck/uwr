@@ -139,6 +139,8 @@ import IncrementEventCounterReducer from "./increment_event_counter_reducer";
 import DepositToBankReducer from "./deposit_to_bank_reducer";
 import WithdrawFromBankReducer from "./withdraw_from_bank_reducer";
 import SetApiKeyReducer from "./set_api_key_reducer";
+import LlmSmokeTestReducer from "./llm_smoke_test_reducer";
+import GrantTestPendingLevelReducer from "./grant_test_pending_level_reducer";
 import ValidateLlmRequestReducer from "./validate_llm_request_reducer";
 import SubmitIntentReducer from "./submit_intent_reducer";
 import StartCreationReducer from "./start_creation_reducer";
@@ -152,6 +154,7 @@ import AbilityTemplateRow from "./ability_template_table";
 import AchievementRow from "./achievement_table";
 import ActiveBardSongRow from "./active_bard_song_table";
 import ActivePetRow from "./active_pet_table";
+import AdminLlmStatusRow from "./admin_llm_status_table";
 import AppVersionRow from "./app_version_table";
 import CharacterRow from "./character_table";
 import CharacterCastRow from "./character_cast_table";
@@ -1671,6 +1674,13 @@ const tablesSchema = __schema({
       { name: 'world_state_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldStateRow),
+  adminLlmStatus: __table({
+    name: 'admin_llm_status',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, AdminLlmStatusRow),
   myBankSlots: __table({
     name: 'my_bank_slots',
     indexes: [
@@ -1885,6 +1895,8 @@ const reducersSchema = __reducers(
   __reducerSchema("deposit_to_bank", DepositToBankReducer),
   __reducerSchema("withdraw_from_bank", WithdrawFromBankReducer),
   __reducerSchema("set_api_key", SetApiKeyReducer),
+  __reducerSchema("llm_smoke_test", LlmSmokeTestReducer),
+  __reducerSchema("grant_test_pending_level", GrantTestPendingLevelReducer),
   __reducerSchema("validate_llm_request", ValidateLlmRequestReducer),
   __reducerSchema("submit_intent", SubmitIntentReducer),
   __reducerSchema("start_creation", StartCreationReducer),
@@ -2055,6 +2067,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "world_stat_tracker": Omit<typeof tablesSchema.schemaType.tables["worldStatTracker"], "accessorName"> & { readonly accessorName: "world_stat_tracker" };
     /** @deprecated Use `worldState` instead. This alias will be removed in the next major version. */
     readonly "world_state": Omit<typeof tablesSchema.schemaType.tables["worldState"], "accessorName"> & { readonly accessorName: "world_state" };
+    /** @deprecated Use `adminLlmStatus` instead. This alias will be removed in the next major version. */
+    readonly "admin_llm_status": Omit<typeof tablesSchema.schemaType.tables["adminLlmStatus"], "accessorName"> & { readonly accessorName: "admin_llm_status" };
     /** @deprecated Use `myBankSlots` instead. This alias will be removed in the next major version. */
     readonly "my_bank_slots": Omit<typeof tablesSchema.schemaType.tables["myBankSlots"], "accessorName"> & { readonly accessorName: "my_bank_slots" };
     /** @deprecated Use `myCharacterEffects` instead. This alias will be removed in the next major version. */
@@ -2182,6 +2196,7 @@ const tableAccessorAliases = {
   "world_gen_state": "worldGenState",
   "world_stat_tracker": "worldStatTracker",
   "world_state": "worldState",
+  "admin_llm_status": "adminLlmStatus",
   "my_bank_slots": "myBankSlots",
   "my_character_effects": "myCharacterEffects",
   "my_combat_loot": "myCombatLoot",
@@ -2375,6 +2390,8 @@ export type DbView = __DbViewBase & {
   readonly "world_stat_tracker": __DbViewBase["worldStatTracker"];
   /** @deprecated Use `worldState` instead. This alias will be removed in the next major version. */
   readonly "world_state": __DbViewBase["worldState"];
+  /** @deprecated Use `adminLlmStatus` instead. This alias will be removed in the next major version. */
+  readonly "admin_llm_status": __DbViewBase["adminLlmStatus"];
   /** @deprecated Use `myBankSlots` instead. This alias will be removed in the next major version. */
   readonly "my_bank_slots": __DbViewBase["myBankSlots"];
   /** @deprecated Use `myCharacterEffects` instead. This alias will be removed in the next major version. */
@@ -2567,6 +2584,8 @@ export type Tables = __TablesBase & {
   readonly "world_stat_tracker": __TablesBase["worldStatTracker"];
   /** @deprecated Use `worldState` instead. This alias will be removed in the next major version. */
   readonly "world_state": __TablesBase["worldState"];
+  /** @deprecated Use `adminLlmStatus` instead. This alias will be removed in the next major version. */
+  readonly "admin_llm_status": __TablesBase["adminLlmStatus"];
   /** @deprecated Use `myBankSlots` instead. This alias will be removed in the next major version. */
   readonly "my_bank_slots": __TablesBase["myBankSlots"];
   /** @deprecated Use `myCharacterEffects` instead. This alias will be removed in the next major version. */

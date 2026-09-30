@@ -111,6 +111,8 @@ import IncrementEventCounterReducer from "../increment_event_counter_reducer";
 import DepositToBankReducer from "../deposit_to_bank_reducer";
 import WithdrawFromBankReducer from "../withdraw_from_bank_reducer";
 import SetApiKeyReducer from "../set_api_key_reducer";
+import LlmSmokeTestReducer from "../llm_smoke_test_reducer";
+import GrantTestPendingLevelReducer from "../grant_test_pending_level_reducer";
 import ValidateLlmRequestReducer from "../validate_llm_request_reducer";
 import SubmitIntentReducer from "../submit_intent_reducer";
 import StartCreationReducer from "../start_creation_reducer";
@@ -221,6 +223,8 @@ export type IncrementEventCounterParams = __Infer<typeof IncrementEventCounterRe
 export type DepositToBankParams = __Infer<typeof DepositToBankReducer>;
 export type WithdrawFromBankParams = __Infer<typeof WithdrawFromBankReducer>;
 export type SetApiKeyParams = __Infer<typeof SetApiKeyReducer>;
+export type LlmSmokeTestParams = __Infer<typeof LlmSmokeTestReducer>;
+export type GrantTestPendingLevelParams = __Infer<typeof GrantTestPendingLevelReducer>;
 export type ValidateLlmRequestParams = __Infer<typeof ValidateLlmRequestReducer>;
 export type SubmitIntentParams = __Infer<typeof SubmitIntentReducer>;
 export type StartCreationParams = __Infer<typeof StartCreationReducer>;
