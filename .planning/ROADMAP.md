@@ -370,5 +370,29 @@ Plans:
 
 Promote with /gsd-review-backlog when ready.
 
+### Phase 999.6: Complete UX Overhaul — UWR Ledger Screens design (BACKLOG)
+
+**Goal:** Rebuild the client UX to match the "UWR Ledger Screens" design, which uses the Nocturne design system. This is a complete UX overhaul. Captured 2026-09-29.
+
+**Source design (import via the claude_design MCP):**
+- MCP endpoint: `https://api.anthropic.com/v1/design/mcp`. Authenticate with `/design-login`.
+- Project: https://claude.ai/design/p/1a7a975f-7b14-488b-9a38-188bc56294cf?file=UWR+Ledger+Screens.dc.html (the whole project is readable).
+- Focus file and implementation target: `UWR Ledger Screens.dc.html`.
+- Files the selection imports, which must also be read:
+  - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/_ds_bundle.js`
+  - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/styles.css`
+  - `support.js`
+
+**Notes:**
+- It overlaps parked 999.2 (Narrative UI Integration) and 999.5 (UX Polish, including UX-01–03 and COMB-08). Reconcile or supersede those when this is promoted.
+- It is unsequenced relative to the v2.2 LLM milestone. Phase 43 adds staged reveals and Keeper progress lines to the console, so check for UI conflicts if both are active.
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
 *Last updated: 2026-09-29 after v2.2 roadmap creation (Backlog 999.1-999.5 preserved)*
