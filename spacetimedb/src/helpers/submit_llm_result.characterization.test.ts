@@ -1522,3 +1522,38 @@ describe('submit_llm_result renown_perk_gen success', () => {
     expect(nonEmptyTables(ctx)).toEqual(['llm_task']);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 41: validator gap (creation replies are not clamped server-side)
+// ---------------------------------------------------------------------------
+
+describe('submit_llm_result creation replies: Phase 41 validator gap', () => {
+  it('Phase 41: validator gap - a race reply with out-of-range bonuses is stored and shown unclamped', () => {
+    const ctx = newCtx({
+      llm_task: [llmTask('creation_race')],
+      character_creation_state: [creationState('GENERATING_RACE')],
+    });
+    const reply = { ...RACE_JSON, bonuses: { primary: { stat: 'str', value: 99 }, secondary: { stat: 'nonsense', value: -5 } } };
+    exec(ctx, { resultText: JSON.stringify(reply) });
+    const stored = JSON.parse(rows(ctx, 'character_creation_state')[0].raceBonuses);
+    expect(stored.primary.value).toBe(99);
+    expect(stored.secondary).toEqual({ stat: 'nonsense', value: -5 });
+    expect(rows(ctx, 'race_definition')[0].bonusesJson).toContain('99');
+  });
+
+  it('Phase 41: validator gap - a class reply with over-budget ability values is stored unclamped', () => {
+    const ctx = newCtx({
+      llm_task: [llmTask('creation_class')],
+      character_creation_state: [creationState('GENERATING_CLASS')],
+    });
+    const reply = {
+      ...CLASS_JSON,
+      stats: { ...CLASS_JSON.stats, bonusHp: 9999 },
+      abilities: [{ ...CLASS_JSON.abilities[0], value1: 99999, kind: 'nonsense' }],
+    };
+    exec(ctx, { resultText: JSON.stringify(reply) });
+    const state = rows(ctx, 'character_creation_state')[0];
+    expect(JSON.parse(state.abilities)[0]).toMatchObject({ value1: 99999, kind: 'nonsense' });
+    expect(JSON.parse(state.classStats).bonusHp).toBe(9999);
+  });
+});

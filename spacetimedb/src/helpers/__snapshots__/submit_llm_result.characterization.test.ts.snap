@@ -382,6 +382,111 @@ exports[`submit_llm_result combat_narration > success with raw prose falls back 
 }"
 `;
 
+exports[`submit_llm_result creation replies: Phase 41 validator gap > Phase 41: validator gap - a class reply with over-budget ability values is stored unclamped 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "abilities": "[{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"nonsense\\",\\"damageType\\":\\"fire\\",\\"value1\\":99999,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"resourceCost\\":5,\\"resourceType\\":\\"stamina\\",\\"effectType\\":\\"dot\\",\\"effectDuration\\":9}]",
+      "classDescription": "A duelist who fights like a grudge.",
+      "className": "Emberblade",
+      "classStats": "{\\"primaryStat\\":\\"str\\",\\"secondaryStat\\":\\"dex\\",\\"bonusHp\\":9999,\\"bonusMana\\":0,\\"armorProficiency\\":\\"leather\\",\\"armorProficiencies\\":[\\"leather\\",\\"mail\\"],\\"weaponProficiencies\\":[\\"sword\\",\\"dagger\\"],\\"usesMana\\":false}",
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "step": "CLASS_REVEALED",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather, mail | Weapons: sword, dagger | Physical (+9999 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire nonsense, 99999 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_class",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ]
+}"
+`;
+
+exports[`submit_llm_result creation replies: Phase 41 validator gap > Phase 41: validator gap - a race reply with out-of-range bonuses is stored and shown unclamped 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceBonuses": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":99},\\"secondary\\":{\\"stat\\":\\"nonsense\\",\\"value\\":-5}}",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders and spite.",
+      "step": "AWAITING_ARCHETYPE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+99 STR, +-5 NONSENSE\\n\\nNow then. Every creature must choose its path. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_budget": [
+    {
+      "callCount": "1n",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resetDate": "2023-11-14"
+    }
+  ],
+  "llm_task": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "domain": "creation_race",
+      "id": "1n",
+      "maxTokens": "1500n",
+      "model": "gpt-5-mini",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "systemPrompt": "",
+      "userPrompt": ""
+    }
+  ],
+  "race_definition": [
+    {
+      "bonusesJson": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":99},\\"secondary\\":{\\"stat\\":\\"nonsense\\",\\"value\\":-5}}",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "name": "Ashkin",
+      "nameLower": "ashkin",
+      "narrative": "Born of cinders and spite."
+    }
+  ]
+}"
+`;
+
 exports[`submit_llm_result creation_class success > QUIRK: an empty object stores "Unknown Class" and prints "**undefined**" 1`] = `
 "{
   "character_creation_state": [
