@@ -37,7 +37,7 @@ import {
 import SetAppVersionReducer from "./set_app_version_reducer";
 import PrepareCreationLlmReducer from "./prepare_creation_llm_reducer";
 import PrepareWorldGenLlmReducer from "./prepare_world_gen_llm_reducer";
-import PrepareSkillGenReducer from "./prepare_skill_gen_reducer";
+import RequestSkillOfferReducer from "./request_skill_offer_reducer";
 import ChooseSkillReducer from "./choose_skill_reducer";
 import ApplyLevelUpReducer from "./apply_level_up_reducer";
 import SubmitLlmResultReducer from "./submit_llm_result_reducer";
@@ -1793,7 +1793,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_app_version", SetAppVersionReducer),
   __reducerSchema("prepare_creation_llm", PrepareCreationLlmReducer),
   __reducerSchema("prepare_world_gen_llm", PrepareWorldGenLlmReducer),
-  __reducerSchema("prepare_skill_gen", PrepareSkillGenReducer),
+  __reducerSchema("request_skill_offer", RequestSkillOfferReducer),
   __reducerSchema("choose_skill", ChooseSkillReducer),
   __reducerSchema("apply_level_up", ApplyLevelUpReducer),
   __reducerSchema("submit_llm_result", SubmitLlmResultReducer),
