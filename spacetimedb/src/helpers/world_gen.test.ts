@@ -37,6 +37,10 @@ import {
   computeRegionDanger,
   startWorldGeneration,
   buildRegionContext,
+  regionFillHint,
+  nowhereToGoLine,
+  REGION_FILL_PENDING_HINT,
+  REGION_FILL_FAILED_HINT,
 } from './world_gen';
 import { createMockDb, createMockCtx } from './test-utils';
 import { rowColumnProblems } from './schema_recorder';
@@ -730,6 +734,76 @@ describe('startWorldGeneration', () => {
     expect(events[0]).toMatchObject({ kind: 'narrative', characterId: 10n, ownerUserId: 7n });
     expect(events[0].message).toContain('You open your eyes in Hearthhold, Emberdeep.');
     expect(events[0].message).toContain('You notice Varek nearby.');
+  });
+
+  describe('review WR-B02: reusing a starter region whose second half is missing', () => {
+    /** The first character's starter state for region 1, at the given step. */
+    const firstState = (step: string) =>
+      genStateRow({ id: 4n, characterId: 9n, step, generatedRegionId: 1n });
+
+    it('a failed fill: the arrival names [explore] instead of promising [travel], and explore retries the fill', () => {
+      const ctx = newCtx({ ...starterSeed(), world_gen_state: [firstState('FILL_ERROR'), genStateRow()] });
+      expect(startWorldGeneration(ctx, rows(ctx, 'world_gen_state')[1])).toBe('reused');
+      const arrival = rows(ctx, 'event_private')[0].message as string;
+      expect(arrival).toContain(REGION_FILL_FAILED_HINT);
+      expect(arrival).not.toContain('[travel] to move');
+
+      // The retry path is there for this later character too: the failed fill is handed over and re-enqueued.
+      const placed = rows(ctx, 'character')[0];
+      expect(placed.locationId).toBe(21n);
+      expect(retryWorldFill(ctx, placed, alice)).toBe('started');
+      const failed = rows(ctx, 'world_gen_state').find((s: any) => s.id === 4n);
+      expect(failed).toMatchObject({ step: 'FILLING', characterId: 10n });
+      expect(rows(ctx, 'llm_job').map((j: any) => j.route)).toEqual(['world_gen']);
+    });
+
+    it('a fill still running: the arrival asks for a moment instead of promising [travel]', () => {
+      const ctx = newCtx({ ...starterSeed(), world_gen_state: [firstState('FILLING'), genStateRow()] });
+      expect(startWorldGeneration(ctx, rows(ctx, 'world_gen_state')[1])).toBe('reused');
+      const arrival = rows(ctx, 'event_private')[0].message as string;
+      expect(arrival).toContain(REGION_FILL_PENDING_HINT);
+      expect(arrival).not.toContain('[travel] to move');
+    });
+
+    it('a finished region with exits still offers [travel]', () => {
+      const seed = {
+        ...starterSeed(),
+        world_gen_state: [firstState('COMPLETE'), genStateRow()],
+        location_connection: [
+          { id: 1n, fromLocationId: 21n, toLocationId: 20n },
+          { id: 2n, fromLocationId: 20n, toLocationId: 21n },
+        ],
+      };
+      const ctx = newCtx(seed);
+      expect(startWorldGeneration(ctx, rows(ctx, 'world_gen_state')[1])).toBe('reused');
+      const arrival = rows(ctx, 'event_private')[0].message as string;
+      expect(arrival).toContain('Try [look] to examine your surroundings, or [travel] to move.');
+      expect(arrival).not.toContain(REGION_FILL_FAILED_HINT);
+    });
+
+    it('the hints are in voice, name the Keeper as he, and are safe for the console', () => {
+      for (const line of [REGION_FILL_PENDING_HINT, REGION_FILL_FAILED_HINT]) {
+        expect(line).not.toMatch(/[!<]/);
+        expect(line).not.toMatch(/\b(it|its|they|their)\b/i);
+      }
+      expect(REGION_FILL_FAILED_HINT).toContain('[explore]');
+      expect(REGION_FILL_FAILED_HINT).toMatch(/\bhe\b/);
+    });
+
+    it('regionFillHint and nowhereToGoLine: FILLING asks for a moment, FILL_ERROR names [explore], otherwise plain', () => {
+      const plain = newCtx(starterSeed());
+      expect(regionFillHint(plain, 1n)).toBeNull();
+      expect(nowhereToGoLine(plain, 21n)).toBe('There is nowhere to go from here.');
+      expect(nowhereToGoLine(plain, 999n)).toBe('There is nowhere to go from here.');
+
+      const failed = newCtx({ ...starterSeed(), world_gen_state: [firstState('FILL_ERROR')] });
+      expect(regionFillHint(failed, 1n)).toBe(REGION_FILL_FAILED_HINT);
+      expect(regionFillHint(failed, 2n)).toBeNull();
+      expect(nowhereToGoLine(failed, 21n)).toBe(`There is nowhere to go from here yet. ${REGION_FILL_FAILED_HINT}`);
+
+      const both = newCtx({ ...starterSeed(), world_gen_state: [firstState('FILL_ERROR'), genStateRow({ id: 6n, step: 'FILLING', generatedRegionId: 1n })] });
+      expect(regionFillHint(both, 1n)).toBe(REGION_FILL_PENDING_HINT);
+    });
   });
 
   it('does not reuse a starter region of another race: it enqueues instead', () => {

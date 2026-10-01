@@ -263,10 +263,48 @@ export function retryStarterWorldGen(ctx: any, character: any, playerId: any): S
   return started === 'enqueued' || started === 'duplicate' ? 'started' : started;
 }
 
+/** Next step for someone standing in a region whose second half is still being generated (review WR-B02). */
+export const REGION_FILL_PENDING_HINT =
+  'The Keeper is still remembering the roads out of here. Try [travel] again in a moment.';
+/** Next step for someone standing in a region whose second half failed (review WR-B02). The Keeper is he. */
+export const REGION_FILL_FAILED_HINT =
+  'The Keeper never finished remembering the roads out of here. Type [explore] and he will try again.';
+
+/**
+ * The next step for a character in a region whose stage-2 fill has not landed (review WR-B02): a FILLING
+ * state asks for a moment, a FILL_ERROR state names [explore] (retryWorldFill matches it by region).
+ * null when no state for the region is FILLING or FILL_ERROR. world_gen_state has no region index; the
+ * table is small and the callers (arrival in a reused starter region, travel with no exits) are rare.
+ */
+export function regionFillHint(tx: any, regionId: bigint): string | null {
+  let filling = false;
+  let failed = false;
+  for (const s of tx.db.world_gen_state.iter()) {
+    if (s.generatedRegionId === undefined || s.generatedRegionId === null || s.generatedRegionId !== regionId) continue;
+    if (s.step === 'FILLING') filling = true;
+    else if (s.step === 'FILL_ERROR') failed = true;
+  }
+  if (filling) return REGION_FILL_PENDING_HINT;
+  if (failed) return REGION_FILL_FAILED_HINT;
+  return null;
+}
+
+/**
+ * The line for a location with no way out (travel with no exits): "nowhere to go", plus the region-fill
+ * next step when the region's second half is missing, so the player is never left without one.
+ */
+export function nowhereToGoLine(tx: any, locationId: bigint): string {
+  const here = tx.db.location.id.find(locationId);
+  const hint = here ? regionFillHint(tx, here.regionId) : null;
+  return hint ? `There is nowhere to go from here yet. ${hint}` : 'There is nowhere to go from here.';
+}
+
 /**
  * The starter-region reuse branch: when another character of the same race already generated a
  * starter region, place this character in its home location and complete the state with no
- * model call. Returns true when the character was placed.
+ * model call. Returns true when the character was placed. A starter region whose fill is still
+ * running or failed has a home location with no exits: the arrival then names the next step
+ * (wait, or [explore] to retry the fill) instead of promising [travel] (review WR-B02).
  */
 function reuseStarterRegion(ctx: any, genState: any, character: any): boolean {
   const raceLower = (character.race || '').toLowerCase();
@@ -321,7 +359,13 @@ function reuseStarterRegion(ctx: any, genState: any, character: any): boolean {
   if (locationNpcs.length > 0) {
     arrivalMsg += '\n\n' + npcNoticeLine(locationNpcs);
   }
-  arrivalMsg += `\n\nTry [look] to examine your surroundings, or [travel] to move.`;
+  const hasExits = [...ctx.db.location_connection.by_from.filter(homeLocation.id)].length > 0;
+  if (hasExits) {
+    arrivalMsg += `\n\nTry [look] to examine your surroundings, or [travel] to move.`;
+  } else {
+    const hint = regionFillHint(ctx, existingStarterRegion.id);
+    arrivalMsg += `\n\nTry [look] to examine your surroundings.` + (hint ? ` ${hint}` : '');
+  }
   appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative', arrivalMsg);
   return true;
 }

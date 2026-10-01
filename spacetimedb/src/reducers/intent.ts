@@ -5,6 +5,7 @@ import { computeSellValue } from '../helpers/economy';
 import { getPerkBonusByField } from '../helpers/renown';
 import { requestSkillOffer } from '../helpers/skill_offer';
 import {
+  nowhereToGoLine,
   retryStarterWorldGen,
   retryWorldFill,
   startWorldGeneration,
@@ -1483,7 +1484,7 @@ export const registerIntentReducers = (deps: any) => {
           `You can travel to: ${names.join(', ')}.`);
       } else {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-          'There is nowhere to go from here.');
+          nowhereToGoLine(ctx, character.locationId));
       }
       return;
     }
@@ -1522,7 +1523,7 @@ export const registerIntentReducers = (deps: any) => {
           .map((l: any) => l.name);
         const hint = names.length > 0
           ? `Nearby: ${names.join(', ')}.`
-          : 'There is nowhere to go from here.';
+          : nowhereToGoLine(ctx, character.locationId);
         return fail(ctx, character, `No path leads to "${travelTarget}". ${hint}`);
       }
 
