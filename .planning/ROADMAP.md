@@ -310,7 +310,7 @@ Plans:
   5. Admin can flip a kill switch that halts all LLM calls with an in-voice player message, and a global daily spend ceiling halts calls automatically when reached
 
 **Testing**: Unit tests for the stats aggregation, staged apply (stage 1 visible before stage 2 completes, and stage 2 failure leaves a playable stage 1), progress-line emission, the parallel-class path if built, ceiling and kill-switch enforcement at enqueue, and cost math against recalibrated prices.
-**Plans**: 14 plans
+**Plans**: 15 plans
 **UI hint**: yes
 
 Plans:
@@ -323,29 +323,33 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [ ] 43-03-PLAN.md — Kill switch and ceiling at claim through failAtClaim (refund once, claim order), resting copy in every failure path
-- [ ] 43-04-PLAN.md — Stage routes data layer: world_gen_start and creation_class_reveal, stage schemas, blocks, inputs, limits, indicator entries
+- [ ] 43-04-PLAN.md — Stage routes core data layer: world_gen_start and creation_class_reveal, stage schemas, blocks, tolerant builders, inputs
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 43-05-PLAN.md — Admin reducers llm_set_enabled and llm_set_daily_ceiling, gated smoke test, admin_llm_status fields, phase cap retired
-- [ ] 43-06-PLAN.md — /llm stats, on, off and ceiling in submit_command (admin-gated, in-voice refusal, plain text)
-- [ ] 43-07-PLAN.md — Staged world generation: stage-1 region, start location and first NPC, stage-2 fill, FILL_ERROR keeps a playable region
-- [ ] 43-08-PLAN.md — Rotating Keeper progress lines from server data and stage-safe input locking (no new UI)
-- [ ] 43-09-PLAN.md — Tuning table traced to llm_measurements.json, derivation rules, dry-by-default sweep harness
+- [ ] 43-05-PLAN.md — Stage routes data layer, part 2: retry and smoke route lists, indicator entries, route-enumerating tests and request snapshot
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 43-10-PLAN.md — World staging retries and locks: sweeper FILLING release, explore retries stage 2, travel guard
-- [ ] 43-11-PLAN.md — [checkpoint] Paid effort sweep and caching proof after user cost approval (or recorded as declined/deferred)
+- [ ] 43-06-PLAN.md — Admin reducers llm_set_enabled and llm_set_daily_ceiling, gated smoke test, admin_llm_status fields, phase cap retired
+- [ ] 43-07-PLAN.md — /llm stats, on, off and ceiling in submit_command (admin-gated, in-voice refusal, plain text)
+- [ ] 43-08-PLAN.md — Staged world generation: stage-1 region, start location and first NPC, stage-2 fill, FILL_ERROR keeps a playable region
+- [ ] 43-09-PLAN.md — Rotating Keeper progress lines from server data and stage-safe input locking (no new UI)
+- [ ] 43-10-PLAN.md — Tuning table traced to llm_measurements.json, derivation rules, dry-by-default sweep harness
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 43-12-PLAN.md — Staged class reveal: identity and first ability first, confirmation waits for the fill, CLASS_FILL_ERROR retry
-- [ ] 43-13-PLAN.md — Apply measured tuning (or confirm baseline), verify caching per route, record the LAT-06 decision
+- [ ] 43-11-PLAN.md — World staging retries and locks: sweeper FILLING release, explore retries stage 2, travel guard
+- [ ] 43-12-PLAN.md — [checkpoint] Paid effort sweep and caching proof after user cost approval (or recorded as declined/deferred), record-hygiene test
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 43-14-PLAN.md — Local publish with no clear, key check, zero-cost kill-switch and ceiling round trip, bindings, gates, user checklist
+- [ ] 43-13-PLAN.md — Staged class reveal: identity and first ability first, confirmation waits for the fill, CLASS_FILL_ERROR retry
+- [ ] 43-14-PLAN.md — Apply measured tuning (or confirm baseline), verify caching per route, record the LAT-06 decision, end-state test
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [ ] 43-15-PLAN.md — Local publish with no clear, captured key check, zero-cost kill-switch and ceiling round trip, bindings test, gates, user checklist
 
 ### Phase 44: Live Verification and Tone Eval
 
