@@ -24,6 +24,9 @@ import { buildRouteLayers } from '../data/llm_layers';
 import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
 import { PLAYER_INPUT_MAX_CHARS } from '../data/llm_layers';
 import { STRANDED_CHARACTER_HINT } from './creation';
+import { WORLD_FILL_RETRY_LINE } from '../helpers/world_gen';
+import { setLlmEnabled, patchAdminState } from '../helpers/llm_admin_state';
+import { LLM_RESTING_LINE } from '../helpers/llm_queue';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
@@ -1806,6 +1809,182 @@ describe('staged world generation (LAT-03)', () => {
     expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
     expect(rows(proc, 'event_private').slice(-1)[0].message).toContain('Type [explore] to try again.');
     expect(proc.http.calls).toHaveLength(2);
+  });
+
+  // -------------------------------------------------------------------------
+  // Plan 43-11: explore retries stage 2 only; travel and play continue
+  // -------------------------------------------------------------------------
+  describe('staged world generation: retries and play (LAT-03)', () => {
+    const PATIENCE = 'The world is already taking shape around you. Patience.';
+    const NOTHING = 'There is nothing uncharted to explore here.';
+
+    // The Crossing (10, source region 1) - The Edge Beyond (11, the converted passage) - Ember Hollow (20, the
+    // start location of the generated region 2). The state belongs to the passage's generation.
+    const regionSeed = (step: string, charAt: bigint, stateOver: Record<string, unknown> = {}): Seed => ({
+      ...playerSeed(),
+      ...characterSeed({ locationId: charAt, stamina: 100n, maxStamina: 100n, perception: 0n, level: 1n }),
+      region: [
+        { id: 1n, name: 'Ashen Reach', dangerMultiplier: 100n, regionType: 'wild', biome: 'volcanic' },
+        { id: 2n, name: 'Cinderfall', dangerMultiplier: 200n, regionType: 'wild', biome: 'volcanic' },
+      ],
+      location: [
+        { id: 10n, name: 'The Crossing', description: 'A crossroads.', zone: 'z', regionId: 1n, terrainType: 'plains' },
+        { id: 11n, name: 'The Edge Beyond', description: 'Mist.', zone: 'z', regionId: 1n, terrainType: 'plains', isSafe: true },
+        { id: 20n, name: 'Ember Hollow', description: 'A sheltered town.', zone: 'Cinderfall', regionId: 2n, terrainType: 'town', isSafe: true },
+      ],
+      location_connection: [
+        { id: 1n, fromLocationId: 10n, toLocationId: 11n },
+        { id: 2n, fromLocationId: 11n, toLocationId: 10n },
+        { id: 3n, fromLocationId: 11n, toLocationId: 20n },
+        { id: 4n, fromLocationId: 20n, toLocationId: 11n },
+      ],
+      npc: [{ id: 5n, name: 'Vessa', npcType: 'vendor', locationId: 20n, description: 'A trader.', greeting: 'Buy.', gender: 'female' }],
+      world_gen_state: [
+        {
+          id: 5n,
+          playerId: alice,
+          characterId: 1n,
+          sourceLocationId: 11n,
+          sourceRegionId: 1n,
+          generatedRegionId: 2n,
+          step,
+          errorMessage: step === 'FILL_ERROR' ? 'The Keeper loses the thread.' : undefined,
+          createdAt: { microsSinceUnixEpoch: T0 },
+          updatedAt: { microsSinceUnixEpoch: T0 },
+          ...stateOver,
+        },
+      ],
+    });
+    const exploreAs = (ctx: any) => handlers.submit_intent(ctx, { characterId: 1n, text: 'explore' });
+    const states = (ctx: any) => rows(ctx, 'world_gen_state');
+
+    it.each([
+      ['the start location', 20n],
+      ['the passage', 11n],
+    ])('explore at %s of a FILL_ERROR region starts one world_gen fill job, no world_gen_start, and posts the retry line', (_name, at) => {
+      const ctx = newCtx(regionSeed('FILL_ERROR', at));
+      exploreAs(ctx);
+
+      const job = expectEnqueued(ctx, 'world_gen');
+      expect(rows(ctx, 'llm_job').filter((j: any) => j.route === 'world_gen_start')).toHaveLength(0);
+      expect(JSON.parse(job.requestJson).genStateId).toBe('5');
+      expect(states(ctx)).toHaveLength(1);
+      expect(states(ctx)[0]).toMatchObject({ id: 5n, step: 'FILLING', generatedRegionId: 2n, playerId: alice });
+      expect(states(ctx)[0].errorMessage).toBeUndefined();
+      expect(systemLines(ctx)).toEqual([WORLD_FILL_RETRY_LINE]);
+      expect(allRowsMatchSchema(ctx, ['world_gen_state', 'llm_job', 'llm_dispatch'])).toEqual([]);
+    });
+
+    it.each([
+      ['the start location', 20n],
+      ['the passage', 11n],
+    ])('explore at %s while the region is FILLING answers with the patience line and starts nothing', (_name, at) => {
+      const ctx = newCtx(regionSeed('FILLING', at));
+      exploreAs(ctx);
+
+      expectNothingReserved(ctx);
+      expect(states(ctx)).toHaveLength(1);
+      expect(states(ctx)[0].step).toBe('FILLING');
+      expect(systemLines(ctx)).toEqual([PATIENCE]);
+    });
+
+    it.each([
+      ['the kill switch', (ctx: any) => setLlmEnabled(ctx, false)],
+      ['the ceiling', (ctx: any) => patchAdminState(ctx, { dailyCeilingMicroUsd: 1n })],
+    ])('explore at a FILL_ERROR region while %s holds answers with the resting line, keeps FILL_ERROR and creates no job', (_name, hold) => {
+      const ctx = newCtx(regionSeed('FILL_ERROR', 20n));
+      hold(ctx);
+      exploreAs(ctx);
+
+      expectNothingReserved(ctx);
+      expect(states(ctx)).toHaveLength(1);
+      expect(states(ctx)[0].step).toBe('FILL_ERROR');
+      const lines = systemLines(ctx);
+      expect(lines).toHaveLength(1);
+      expect(lines[0].startsWith(LLM_RESTING_LINE)).toBe(true);
+      expect(lines).not.toContain(WORLD_FILL_RETRY_LINE);
+    });
+
+    it('explore at a charted location with nothing to retry still says there is nothing uncharted', () => {
+      const ctx = newCtx(regionSeed('COMPLETE', 10n));
+      exploreAs(ctx);
+
+      expectNothingReserved(ctx);
+      expect(states(ctx)).toHaveLength(1);
+      expect(systemLines(ctx)).toEqual([NOTHING]);
+    });
+
+    it('explore at an uncharted location whose only state is ERROR still starts a new world_gen_start job', () => {
+      const seed = regionSeed('ERROR', 11n, { generatedRegionId: undefined, sourceLocationId: 11n });
+      seed.location = seed.location.map((l: any) => (l.id === 11n ? { ...l, terrainType: 'uncharted' } : l));
+      const ctx = newCtx(seed);
+      exploreAs(ctx);
+
+      expectEnqueued(ctx, 'world_gen_start');
+      expect(states(ctx)).toHaveLength(2);
+      expect(states(ctx)[1]).toMatchObject({ step: 'GENERATING', sourceLocationId: 11n });
+      expect(systemLines(ctx)).toHaveLength(1);
+    });
+
+    it.each(['FILLING', 'FILL_ERROR'])('travelling onto the passage of a %s region starts no new world generation', (step) => {
+      const ctx = newCtx(regionSeed(step, 10n));
+      handlers.submit_intent(ctx, { characterId: 1n, text: 'go The Edge Beyond' });
+
+      expect(rows(ctx, 'character')[0].locationId).toBe(11n);
+      expect(states(ctx)).toHaveLength(1);
+      expect(states(ctx)[0].step).toBe(step);
+      expect(rows(ctx, 'llm_job')).toHaveLength(0);
+      expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    });
+
+    it.each(['FILLING', 'FILL_ERROR'])('the player keeps playing while the region is %s: look and travel work', (step) => {
+      const ctx = newCtx(regionSeed(step, 20n));
+      handlers.submit_intent(ctx, { characterId: 1n, text: 'look' });
+      const lookText = rows(ctx, 'event_private').map((e: any) => e.message).join('\n');
+      expect(lookText).toContain('Ember Hollow');
+      expect(lookText).toContain('Vessa');
+
+      handlers.submit_intent(ctx, { characterId: 1n, text: 'go The Edge Beyond' });
+      expect(rows(ctx, 'character')[0].locationId).toBe(11n);
+      expect(rows(ctx, 'llm_job')).toHaveLength(0);
+      expect(states(ctx)[0].step).toBe(step);
+    });
+
+    it('end to end: stage 1 applied, stage 2 fails, the region stays; explore re-enqueues stage 2 and a fill reply completes it', () => {
+      const err529 = JSON.parse(
+        readFileSync(new URL('../helpers/__fixtures__/claude/err_529.json', import.meta.url), 'utf-8'),
+      );
+      const { proc, reducerCtx } = setup([okJsonReply(WORLD_START_JSON), err529, okJsonReply(REGION_FILL_JSON)]);
+      handlers.submit_creation_input(reducerCtx, { text: 'confirm' });
+      expect(run(proc)).toBe('completed');
+      expect(run(proc)).toBe('failed');
+      expect(state(proc).step).toBe('FILL_ERROR');
+      const regionRows = rows(proc, 'location').length;
+      expect(regionRows).toBe(1);
+      const characterId = rows(proc, 'character')[0].id;
+
+      // The player path: explore retries stage 2 only.
+      handlers.submit_intent(reducerCtx, { characterId, text: 'explore' });
+      expect(state(proc).step).toBe('FILLING');
+      expect(rows(proc, 'world_gen_state')).toHaveLength(1);
+      expect(rows(proc, 'llm_job').map((j: any) => [j.route, j.status])).toEqual([
+        ['world_gen_start', 'completed'],
+        ['world_gen', 'failed'],
+        ['world_gen', 'pending'],
+      ]);
+      expect(rows(proc, 'llm_dispatch')).toHaveLength(1);
+      expect(rows(proc, 'location')).toHaveLength(regionRows); // stage 1 rows kept, stage 1 never re-run
+      expect(systemLines(proc).slice(-1)).toEqual([WORLD_FILL_RETRY_LINE]);
+
+      // A scripted fill reply then completes the region.
+      expect(run(proc)).toBe('completed');
+      expect(state(proc).step).toBe('COMPLETE');
+      expect(rows(proc, 'region')).toHaveLength(1);
+      expect(rows(proc, 'location').map((l: any) => l.name)).toEqual([
+        'Ember Hollow', 'Slag Road', 'Ashen Pit', 'The Edge Beyond Cinderfall',
+      ]);
+      expect(proc.http.calls).toHaveLength(3);
+    });
   });
 });
 
